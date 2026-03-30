@@ -702,6 +702,39 @@ function packQualityScore(record: NormalizedRecord): number {
   return score;
 }
 
+function sourceQualityScore(record: NormalizedRecord): number {
+  if (record.sourceCategory === "core") {
+    return 0.04;
+  }
+  if (record.sourceCategory === "rules") {
+    return 0.02;
+  }
+  if (record.sourceCategory === "adventure") {
+    return -0.01;
+  }
+
+  return 0;
+}
+
+function rarityPreferenceScore(record: NormalizedRecord, filters: SearchFilters): number {
+  const normalizedRarity = normalizeText(record.rarity ?? "");
+  let score = 0;
+
+  if (normalizedRarity === "common" || normalizedRarity === "uncommon") {
+    score += 0.05;
+  } else if (normalizedRarity === "rare") {
+    score += 0.01;
+  } else if (normalizedRarity === "unique") {
+    score -= 0.03;
+  }
+
+  if (record.isUnique && filters.themeQuery?.trim()) {
+    score -= 0.17;
+  }
+
+  return score;
+}
+
 function rankingProfileScore(record: NormalizedRecord, filters: SearchFilters): number {
   if (filters.rankingProfile !== "preferReusableReferenceContent") {
     return 0;
@@ -713,20 +746,6 @@ function rankingProfileScore(record: NormalizedRecord, filters: SearchFilters): 
     score -= 0.3;
   } else {
     score += 0.12;
-  }
-
-  if (record.sourceCategory === "core") {
-    score += 0.15;
-  } else if (record.sourceCategory === "rules") {
-    score += 0.08;
-  } else if (record.sourceCategory === "adventure") {
-    score -= 0.08;
-  }
-
-  if (record.isUnique) {
-    score -= 0.06;
-  } else {
-    score += 0.08;
   }
 
   return score;
@@ -2308,6 +2327,8 @@ export class Pf2eDataService {
             ? Math.max(0, cosineSimilarity(semanticVector, decodeVector(candidate.embeddingBlob)))
             : 0;
         const packQuality = packQualityScore(record);
+        const sourceQuality = sourceQualityScore(record);
+        const rarityPreference = rarityPreferenceScore(record, filters);
         const sourcePenalty = sourcePenaltyScore(record, filters);
         const rankingProfile = rankingProfileScore(record, filters);
         const components: SearchScoreComponents = {
@@ -2318,6 +2339,8 @@ export class Pf2eDataService {
           themeTraits: themeTraits.score,
           themeMetadata: themeMetadata.score,
           metadataOnlyBoost,
+          sourceQuality,
+          rarityPreference,
           sourcePenalty,
           packQuality,
           rankingProfile,
@@ -2332,7 +2355,7 @@ export class Pf2eDataService {
           score = (lexicalScore * 0.85) + (semanticScore * 0.15) + packQuality;
         }
 
-        score += sourcePenalty + rankingProfile;
+        score += sourceQuality + rarityPreference + sourcePenalty + rankingProfile;
 
         const explanation: SearchRecordExplanation = {
           recordKey: record.recordKey,

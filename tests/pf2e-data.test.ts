@@ -382,6 +382,102 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
     },
   });
 
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "amber-sentinel.json"), {
+    _id: "amber-sentinel",
+    name: "Amber Sentinel",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 4,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>A vigilant guardian that patrols ancient ruins and watches for intruders.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["construct", "guardian"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "azure-sentinel.json"), {
+    _id: "azure-sentinel",
+    name: "Azure Sentinel",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 4,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>A vigilant guardian that patrols ancient ruins and watches for intruders.</p>",
+      },
+      traits: {
+        rarity: "uncommon",
+        value: ["construct", "guardian"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "gloam-sentinel.json"), {
+    _id: "gloam-sentinel",
+    name: "Gloam Sentinel",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 4,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>A vigilant guardian that patrols ancient ruins and watches for intruders.</p>",
+      },
+      traits: {
+        rarity: "rare",
+        value: ["construct", "guardian"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "last-sentinel.json"), {
+    _id: "last-sentinel",
+    name: "Last Sentinel",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 4,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>A vigilant guardian that patrols ancient ruins and watches for intruders.</p>",
+      },
+      traits: {
+        rarity: "unique",
+        value: ["construct", "guardian"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "pfs-season-1-bestiary", "ghost-sailor-adventure.json"), {
     _id: "ghost-sailor-adventure",
     name: "Ghost Sailor",
@@ -495,6 +591,30 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
         value: ["evil", "swarm", "undead", "unholy"],
         size: {
           value: "lg",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "quest-for-the-frozen-flame-bestiary", "bilge-skeleton-adventure-path.json"), {
+    _id: "bilge-skeleton-ap",
+    name: "Bilge Skeleton",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 2,
+        },
+        publication: {
+          title: "Pathfinder #176: Lost Mammoth Valley",
+        },
+        publicNotes: "<p>A half-frozen skeleton dredged up from a long-buried wreck.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["skeleton", "undead", "water"],
+        size: {
+          value: "med",
         },
       },
     },
@@ -848,7 +968,7 @@ describe("Pf2eDataService", () => {
     const service = await Pf2eDataService.load(fixture.root, fixture.manifestPath);
 
     expect(service.listPacks()).toHaveLength(7);
-    expect(service.getStats()).toEqual({ packCount: 7, recordCount: 18 });
+    expect(service.getStats()).toEqual({ packCount: 7, recordCount: 23 });
     expect(service.getPack("Actions")?.name).toBe("actions");
   });
 
@@ -892,12 +1012,12 @@ describe("Pf2eDataService", () => {
     expect(crawlingHands[0]?.sourceCategory).toBe("adventure");
     expect(crawlingHands[0]?.hasDescription).toBe(true);
 
-    const ghostSailors = service.search({
+    const bilgeSkeletons = service.search({
       documentType: "Actor",
-      nameQuery: "Ghost Sailor",
+      nameQuery: "Bilge Skeleton",
       rankingProfile: "preferReusableReferenceContent",
     }).records;
-    expect(ghostSailors[0]?.sourceCategory).toBe("core");
+    expect(bilgeSkeletons[0]?.sourceCategory).toBe("core");
   });
 
   it("surfaces metadata-only haunted-ship swarm candidates in broad themed search", async () => {
@@ -966,6 +1086,56 @@ describe("Pf2eDataService", () => {
     expect(lexicalCrawlingIndex).toBeGreaterThanOrEqual(0);
     expect(lexicalNames.indexOf("Diver")).toSatisfy((index) => index === -1 || index > lexicalCrawlingIndex);
     expect(lexicalNames.indexOf("Lion")).toSatisfy((index) => index === -1 || index > lexicalCrawlingIndex);
+  });
+
+  it("applies small source-quality preferences and stronger thematic unique penalties", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+
+    const service = await Pf2eDataService.load(fixture.root, fixture.manifestPath);
+
+    const bilgeResults = service.search({
+      documentType: "Actor",
+      nameQuery: "Bilge Skeleton",
+      explain: true,
+    });
+    expect(bilgeResults.records[0]?.sourceCategory).toBe("core");
+
+    const coreBilgeExplain = bilgeResults.explain?.records.find((record) => record.name === "Bilge Skeleton" && record.components.sourceQuality > 0);
+    const adventureBilgeExplain = bilgeResults.explain?.records.find((record) => record.name === "Bilge Skeleton" && record.components.sourceQuality < 0);
+    expect(coreBilgeExplain?.components.sourceQuality).toBe(0.04);
+    expect(adventureBilgeExplain?.components.sourceQuality).toBe(-0.01);
+
+    const sentinelResults = service.search({
+      recordType: "npc",
+      themeQuery: "sentinel guardian ancient ruins watch intruders",
+      limit: 10,
+      explain: true,
+    });
+    const sentinelNames = sentinelResults.records.map((record) => record.name);
+    const commonIndex = sentinelNames.indexOf("Amber Sentinel");
+    const uncommonIndex = sentinelNames.indexOf("Azure Sentinel");
+    const rareIndex = sentinelNames.indexOf("Gloam Sentinel");
+    const uniqueIndex = sentinelNames.indexOf("Last Sentinel");
+
+    expect(commonIndex).toBeGreaterThanOrEqual(0);
+    expect(uncommonIndex).toBeGreaterThanOrEqual(0);
+    expect(rareIndex).toBeGreaterThanOrEqual(0);
+    expect(uniqueIndex).toBeGreaterThan(rareIndex);
+
+    const uniqueExplain = sentinelResults.explain?.records.find((record) => record.name === "Last Sentinel");
+    const rareExplain = sentinelResults.explain?.records.find((record) => record.name === "Gloam Sentinel");
+    expect(uniqueExplain?.components.rarityPreference).toBe(-0.2);
+    expect(rareExplain?.components.rarityPreference).toBe(0.01);
+
+    const exactUniqueResults = service.search({
+      documentType: "Actor",
+      nameQuery: "Last Sentinel",
+      explain: true,
+    });
+    expect(exactUniqueResults.records[0]?.name).toBe("Last Sentinel");
+    const exactUniqueExplain = exactUniqueResults.explain?.records.find((record) => record.name === "Last Sentinel");
+    expect(exactUniqueExplain?.components.rarityPreference).toBe(-0.03);
   });
 
   it("excludes dedicated Pathfinder Society content while retaining base equivalents", async () => {
@@ -1074,12 +1244,12 @@ describe("Pf2eDataService", () => {
     const indexPath = path.join(fixture.root, ".cache", "pf2e-index.sqlite");
 
     const firstService = await Pf2eDataService.load(fixture.root, fixture.manifestPath, { indexPath });
-    expect(firstService.getStats()).toEqual({ packCount: 7, recordCount: 18 });
+    expect(firstService.getStats()).toEqual({ packCount: 7, recordCount: 23 });
     firstService.close();
 
     const firstMtime = (await import("node:fs/promises")).stat(indexPath).then((details) => details.mtimeMs);
     const unchangedService = await Pf2eDataService.load(fixture.root, fixture.manifestPath, { indexPath });
-    expect(unchangedService.getStats()).toEqual({ packCount: 7, recordCount: 18 });
+    expect(unchangedService.getStats()).toEqual({ packCount: 7, recordCount: 23 });
     unchangedService.close();
     const secondMtime = (await import("node:fs/promises")).stat(indexPath).then((details) => details.mtimeMs);
     expect(await secondMtime).toBe(await firstMtime);
@@ -1109,7 +1279,7 @@ describe("Pf2eDataService", () => {
     });
 
     const rebuiltService = await Pf2eDataService.load(fixture.root, fixture.manifestPath, { indexPath });
-    expect(rebuiltService.getStats()).toEqual({ packCount: 7, recordCount: 19 });
+    expect(rebuiltService.getStats()).toEqual({ packCount: 7, recordCount: 24 });
     expect(rebuiltService.lookup("Sea Ghoul", { documentType: "Actor" }).match?.name).toBe("Sea Ghoul");
     rebuiltService.close();
   });
