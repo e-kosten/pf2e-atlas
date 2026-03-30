@@ -45,8 +45,10 @@ async function canRead(targetPath: string): Promise<boolean> {
 export async function loadConfig(argv = process.argv.slice(2), env = process.env): Promise<AppConfig> {
   const args = parseCliArgs(argv);
   const configuredPath = args["data-path"] ?? env.PF2E_DATA_PATH ?? path.join(process.cwd(), "vendor", "pf2e");
+  const configuredIndexPath = args["index-path"] ?? env.PF2E_INDEX_PATH ?? path.join(process.cwd(), ".cache", "pf2e-index.sqlite");
 
   const rootPath = path.resolve(expandHome(configuredPath));
+  const indexPath = path.resolve(expandHome(configuredIndexPath));
   const manifestCandidates = [
     path.join(rootPath, "system.pf2e.json"),
     path.join(rootPath, "static", "system.json"),
@@ -58,6 +60,7 @@ export async function loadConfig(argv = process.argv.slice(2), env = process.env
         dataPath: configuredPath,
         rootPath,
         manifestPath: candidate,
+        indexPath,
       };
     }
   }

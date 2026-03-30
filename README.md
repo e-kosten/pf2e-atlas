@@ -8,9 +8,11 @@ Read-only MCP server for Pathfinder 2E data from a vendored local Foundry PF2E c
 - Lists available compendium packs and pack metadata
 - Lists records within a pack with filters
 - Searches across all packs by name and structured filters
+- Supports structured, lexical, and hybrid search modes
 - Returns the original Foundry JSON for detailed retrieval
 
-The server uses `stdio` in v1 and reads the PF2E data from `vendor/pf2e` by default.
+The server uses `stdio` in v1, reads the PF2E data from `vendor/pf2e` by default, and builds a local SQLite index for querying.
+That index is cached and reused across restarts until the underlying PF2E source changes or the index schema version changes.
 
 ## Requirements
 
@@ -42,6 +44,11 @@ npm run refresh-data
 ```
 
 An alternate PF2E data path can still be supplied with `--data-path /path/to/pf2e` if needed, but the normal workflow is to keep the data under `vendor/pf2e`.
+
+The SQLite index path defaults to `.cache/pf2e-index.sqlite` under the current working directory. You can override it with:
+
+- `PF2E_INDEX_PATH`
+- `--index-path /path/to/index.sqlite`
 
 ## Development Workflow
 
@@ -82,6 +89,11 @@ Example MCP client entry:
 ## Notes
 
 - The server is read-only.
-- Search in v1 is name-driven plus structured filters, not full-text description search.
+- Search now uses a local SQLite index with:
+  - shared structured filters
+  - FTS-backed lexical search
+  - hybrid semantic reranking over filtered candidates
+- Semantic search is implemented with local application-side vector scoring after SQLite hard filters.
+- ANN and SQLite vector extensions are intentionally not required in the current implementation.
 - The transport layer is isolated so Streamable HTTP can be added later without rebuilding the data/index layer.
 - The vendored PF2E checkout under `vendor/pf2e` is intentionally ignored by this repo's Git history.

@@ -2,6 +2,7 @@ export interface AppConfig {
   dataPath: string;
   rootPath: string;
   manifestPath: string;
+  indexPath: string;
 }
 
 export interface PackManifestEntry {
@@ -36,11 +37,22 @@ export interface NormalizedRecord {
   descriptionText: string | null;
   folderId: string | null;
   sourcePath: string;
+  isUnique: boolean;
+  size: string | null;
+  itemCategory: string | null;
+  priceCp: number | null;
+  bulkValue: number | null;
+  actionCost: number | null;
+  traditions: string[];
   raw: Record<string, unknown>;
 }
 
+export type SearchMode = "structured" | "lexical" | "hybrid";
+
 export interface SearchFilters {
+  mode?: SearchMode;
   nameQuery?: string;
+  themeQuery?: string;
   pack?: string;
   documentType?: string;
   recordType?: string;
@@ -49,7 +61,14 @@ export interface SearchFilters {
   rarity?: string;
   traitsAll?: string[];
   traitsAny?: string[];
+  tradition?: string;
   publicationTitle?: string;
+  excludeUnique?: boolean;
+  size?: string;
+  itemCategory?: string;
+  priceMin?: number;
+  priceMax?: number;
+  actionCost?: number;
   offset?: number;
   limit?: number;
 }

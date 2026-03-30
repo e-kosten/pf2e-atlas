@@ -24,6 +24,13 @@ function summarizeRecord(record: NormalizedRecord): Record<string, unknown> {
     publicationTitle: record.publicationTitle,
     descriptionText: record.descriptionText,
     sourcePath: record.sourcePath,
+    isUnique: record.isUnique,
+    size: record.size,
+    itemCategory: record.itemCategory,
+    priceCp: record.priceCp,
+    bulkValue: record.bulkValue,
+    actionCost: record.actionCost,
+    traditions: record.traditions,
   };
 }
 
@@ -56,7 +63,7 @@ async function main(): Promise<void> {
     console.error(refreshResult.summary);
   }
 
-  const dataService = await Pf2eDataService.load(config.rootPath, config.manifestPath);
+  const dataService = await Pf2eDataService.load(config.rootPath, config.manifestPath, { indexPath: config.indexPath });
   const stats = dataService.getStats();
   const startupWarnings = refreshResult.warning
     ? [refreshResult.warning, ...dataService.warnings]
@@ -124,6 +131,7 @@ async function main(): Promise<void> {
     {
       description: "List records inside a specific PF2E pack/category with optional filters.",
       inputSchema: {
+        mode: z.enum(["structured", "lexical", "hybrid"]).optional().describe("Retrieval mode. Defaults to structured."),
         pack: z.string().describe("Pack name or label."),
         recordType: z.string().optional().describe("Optional Foundry record type, for example spell, feat, npc, or hazard."),
         levelMin: z.number().int().optional().describe("Minimum level inclusive."),
@@ -131,7 +139,14 @@ async function main(): Promise<void> {
         rarity: z.string().optional().describe("Rarity filter, for example common or uncommon."),
         traitsAll: z.array(z.string()).optional().describe("All listed traits must be present."),
         traitsAny: z.array(z.string()).optional().describe("At least one listed trait must be present."),
+        tradition: z.string().optional().describe("Explicit spell tradition filter."),
         publicationTitle: z.string().optional().describe("Publication title contains this text."),
+        excludeUnique: z.boolean().optional().describe("Exclude unique records."),
+        size: z.string().optional().describe("Actor size filter."),
+        itemCategory: z.string().optional().describe("Item category filter, for example weapon, spell, equipment, or consumable."),
+        priceMin: z.number().optional().describe("Minimum item price in copper pieces."),
+        priceMax: z.number().optional().describe("Maximum item price in copper pieces."),
+        actionCost: z.number().int().optional().describe("Action cost filter."),
         offset: z.number().int().optional().describe("Pagination offset."),
         limit: z.number().int().optional().describe("Pagination limit, max 100."),
       },
@@ -160,7 +175,9 @@ async function main(): Promise<void> {
     {
       description: "Search PF2E records across packs using name lookup and structured filters.",
       inputSchema: {
+        mode: z.enum(["structured", "lexical", "hybrid"]).optional().describe("Retrieval mode. Defaults to structured."),
         nameQuery: z.string().optional().describe("Name text to search for."),
+        themeQuery: z.string().optional().describe("Theme or semantic query text for lexical or hybrid search."),
         pack: z.string().optional().describe("Optional pack name or label."),
         documentType: z.string().optional().describe("Optional Foundry document type, for example Actor or Item."),
         recordType: z.string().optional().describe("Optional record type, for example spell, action, npc, or hazard."),
@@ -169,7 +186,14 @@ async function main(): Promise<void> {
         rarity: z.string().optional().describe("Rarity filter."),
         traitsAll: z.array(z.string()).optional().describe("All listed traits must be present."),
         traitsAny: z.array(z.string()).optional().describe("At least one listed trait must be present."),
+        tradition: z.string().optional().describe("Explicit spell tradition filter."),
         publicationTitle: z.string().optional().describe("Publication title contains this text."),
+        excludeUnique: z.boolean().optional().describe("Exclude unique records."),
+        size: z.string().optional().describe("Actor size filter."),
+        itemCategory: z.string().optional().describe("Item category filter, for example weapon, spell, equipment, or consumable."),
+        priceMin: z.number().optional().describe("Minimum item price in copper pieces."),
+        priceMax: z.number().optional().describe("Maximum item price in copper pieces."),
+        actionCost: z.number().int().optional().describe("Action cost filter."),
         offset: z.number().int().optional().describe("Pagination offset."),
         limit: z.number().int().optional().describe("Pagination limit, max 100."),
       },

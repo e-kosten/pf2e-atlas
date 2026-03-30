@@ -29,16 +29,18 @@ describe("loadConfig", () => {
   it("prefers the CLI data path", async () => {
     const root = await createRepoFixture();
     const explicitDataPath = path.join(root, "custom", "pf2e");
+    const explicitIndexPath = path.join(root, "custom", "pf2e-index.sqlite");
     await mkdir(explicitDataPath, { recursive: true });
     await writeFile(path.join(explicitDataPath, "system.pf2e.json"), JSON.stringify({ packs: [] }));
 
     const config = await loadConfig(
-      ["--data-path", explicitDataPath],
-      { PF2E_DATA_PATH: "/tmp/ignored" },
+      ["--data-path", explicitDataPath, "--index-path", explicitIndexPath],
+      { PF2E_DATA_PATH: "/tmp/ignored", PF2E_INDEX_PATH: "/tmp/ignored.sqlite" },
     );
 
     expect(config.rootPath).toBe(explicitDataPath);
     expect(config.manifestPath).toBe(path.join(explicitDataPath, "system.pf2e.json"));
+    expect(config.indexPath).toBe(explicitIndexPath);
   });
 
   it("defaults to vendor/pf2e under the current working directory", async () => {
@@ -50,6 +52,7 @@ describe("loadConfig", () => {
       const config = await loadConfig([], {});
       expect(config.rootPath.endsWith(path.join("vendor", "pf2e"))).toBe(true);
       expect(config.manifestPath.endsWith(path.join("vendor", "pf2e", "system.pf2e.json"))).toBe(true);
+      expect(config.indexPath.endsWith(path.join(".cache", "pf2e-index.sqlite"))).toBe(true);
     } finally {
       process.chdir(originalCwd);
     }

@@ -1,8 +1,9 @@
-import { access } from "node:fs/promises";
+import { access, mkdtemp, rm, stat } from "node:fs/promises";
 import { constants } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { Pf2eDataService } from "../src/pf2e-data.js";
 
@@ -20,13 +21,43 @@ async function hasLocalData(): Promise<boolean> {
 
 describe("local PF2E integration", async () => {
   const available = await hasLocalData();
+  const createdRoots: string[] = [];
 
-  it.runIf(available)("loads the local PF2E export and can resolve known records", async () => {
-    const service = await Pf2eDataService.load(localRoot, manifestPath);
+  afterEach(async () => {
+    await Promise.all(
+      createdRoots.splice(0).map(async (root) => rm(root, { recursive: true, force: true })),
+    );
+  });
 
+  it.runIf(available)("cold-builds a fresh SQLite index and can resolve known records", async () => {
+    const tempRoot = await mkdtemp(path.join(os.tmpdir(), "pf2e-local-integration-"));
+    createdRoots.push(tempRoot);
+    const indexPath = path.join(tempRoot, "pf2e-index.sqlite");
+    const service = await Pf2eDataService.load(localRoot, manifestPath, { indexPath });
+
+    expect(await access(indexPath, constants.R_OK).then(() => true)).toBe(true);
     expect(service.listPacks().length).toBeGreaterThan(50);
     expect(service.lookup("Raise a Shield").match?.packLabel).toBe("Actions");
     expect(service.lookup("Analysis Eye").match?.packLabel).toBe("Equipment");
     expect(service.lookup("Cythnigot", { documentType: "Actor" }).match?.type).toBe("npc");
-  });
+    service.close();
+  }, 20000);
+
+  it.runIf(available)("reuses a cached SQLite index when the PF2E source is unchanged", async () => {
+    const tempRoot = await mkdtemp(path.join(os.tmpdir(), "pf2e-local-cache-"));
+    createdRoots.push(tempRoot);
+    const indexPath = path.join(tempRoot, "pf2e-index.sqlite");
+
+    const firstService = await Pf2eDataService.load(localRoot, manifestPath, { indexPath });
+    expect(firstService.lookup("Raise a Shield").match?.packLabel).toBe("Actions");
+    firstService.close();
+
+    const firstMtime = (await stat(indexPath)).mtimeMs;
+    const secondService = await Pf2eDataService.load(localRoot, manifestPath, { indexPath });
+    expect(secondService.lookup("Analysis Eye").match?.packLabel).toBe("Equipment");
+    secondService.close();
+    const secondMtime = (await stat(indexPath)).mtimeMs;
+
+    expect(secondMtime).toBe(firstMtime);
+  }, 20000);
 });
