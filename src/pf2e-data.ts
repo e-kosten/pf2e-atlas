@@ -53,6 +53,8 @@ type LoadOptions = {
   embeddingProviderFactory?: (
     config: EmbeddingConfig,
   ) => Promise<{ provider: EmbeddingProvider; warnings: string[] }>;
+  progressLogger?: (message: string) => void;
+  progressStatusLogger?: (message: string) => void;
 };
 
 type SqlValue = string | number | bigint | Uint8Array | Buffer | null;
@@ -159,6 +161,10 @@ type SpellIndexData = {
   areaType: string | null;
   damageTypes: string[];
 };
+
+const INTEGER_FORMATTER = new Intl.NumberFormat("en-US");
+const PACK_PROGRESS_BAR_WIDTH = 24;
+const PACK_PROGRESS_LOG_INTERVAL_MS = 5_000;
 
 function encodeVector(vector: Float32Array): Buffer {
   return Buffer.from(vector.buffer.slice(vector.byteOffset, vector.byteOffset + vector.byteLength));
@@ -1011,6 +1017,28 @@ function sqliteRowCount(row: Record<string, unknown> | undefined, field = "total
   return typeof value === "number" ? value : Number(value ?? 0);
 }
 
+function formatInteger(value: number): string {
+  return INTEGER_FORMATTER.format(value);
+}
+
+function renderProgressBar(completed: number, total: number, width = PACK_PROGRESS_BAR_WIDTH): string {
+  if (total <= 0) {
+    return `[${"-".repeat(width)}]`;
+  }
+
+  const boundedCompleted = Math.max(0, Math.min(completed, total));
+  const filled = Math.max(0, Math.min(width, Math.round((boundedCompleted / total) * width)));
+  return `[${"#".repeat(filled)}${"-".repeat(width - filled)}]`;
+}
+
+function formatPercentage(completed: number, total: number): string {
+  if (total <= 0) {
+    return "  0%";
+  }
+
+  return `${Math.round((Math.max(0, Math.min(completed, total)) / total) * 100)}`.padStart(3, " ") + "%";
+}
+
 function defaultIndexPath(manifestPath: string): string {
   return path.join(os.tmpdir(), `pf2e-mcp-${hashText(manifestPath).toString(16)}.sqlite`);
 }
@@ -1196,13 +1224,17 @@ async function buildIndex(
   manifestPath: string,
   embeddingProvider: EmbeddingProvider,
   sourceSignature: string,
+  progressLogger?: (message: string) => void,
+  progressStatusLogger?: (message: string) => void,
 ): Promise<{ packs: PackInfo[]; warnings: string[]; recordCount: number }> {
   const manifestRaw = JSON.parse(await readFile(manifestPath, "utf8")) as { packs?: PackManifestEntry[] };
   const manifestPacks = Array.isArray(manifestRaw.packs) ? manifestRaw.packs : [];
+  const includedManifestPacks = manifestPacks.filter((manifestPack) => !isExcludedPackName(manifestPack.name));
 
   const warnings: string[] = [];
   const packs: PackInfo[] = [];
   let recordCount = 0;
+  let processedPackCount = 0;
 
   const insertPack = db.prepare(`
     INSERT INTO packs (name, label, document_type, declared_path, resolved_path, record_count)
@@ -1250,6 +1282,9 @@ async function buildIndex(
 
   db.exec("BEGIN");
   try {
+    progressLogger?.(
+      `Building SQLite index from ${formatInteger(includedManifestPacks.length)} PF2E packs.`,
+    );
     insertMetadata.run("schema_version", String(INDEX_SCHEMA_VERSION));
     insertMetadata.run("source_signature", sourceSignature);
     insertMetadata.run("embedding_provider", embeddingProvider.identity.provider);
@@ -1276,6 +1311,8 @@ async function buildIndex(
         continue;
       }
 
+      processedPackCount += 1;
+
       let filePaths: string[];
       try {
         filePaths = await walkJsonFiles(pack.resolvedPath);
@@ -1285,9 +1322,26 @@ async function buildIndex(
       }
 
       let packRecordCount = 0;
-      for (const filePath of filePaths) {
+      const progressInterval = Math.max(100, Math.ceil(filePaths.length / 10));
+      let lastProgressLogTime = 0;
+      let lastLoggedFileCount = 0;
+
+      for (const [fileIndex, filePath] of filePaths.entries()) {
         const raw = JSON.parse(await readFile(filePath, "utf8")) as Record<string, unknown>;
         if (shouldExcludeRecordFromIndex(pack, filePath, raw)) {
+          const processedFiles = fileIndex + 1;
+          const now = Date.now();
+          const shouldLogProgress = processedFiles === filePaths.length ||
+            (processedFiles - lastLoggedFileCount) >= progressInterval ||
+            (now - lastProgressLogTime) >= PACK_PROGRESS_LOG_INTERVAL_MS;
+
+          if (shouldLogProgress) {
+            progressStatusLogger?.(
+              `[pack ${processedPackCount}/${includedManifestPacks.length}] ${pack.label} ${renderProgressBar(processedFiles, filePaths.length)} ${formatPercentage(processedFiles, filePaths.length)} (${formatInteger(processedFiles)}/${formatInteger(filePaths.length)} files, ${formatInteger(recordCount)} records written total).`,
+            );
+            lastProgressLogTime = now;
+            lastLoggedFileCount = processedFiles;
+          }
           continue;
         }
         const record = normalizeIndexRecord(pack, filePath, raw);
@@ -1385,6 +1439,21 @@ async function buildIndex(
 
         packRecordCount += 1;
         recordCount += 1;
+
+        const processedFiles = fileIndex + 1;
+        const now = Date.now();
+        const shouldLogProgress = processedFiles === 1 ||
+          processedFiles === filePaths.length ||
+          (processedFiles - lastLoggedFileCount) >= progressInterval ||
+          (now - lastProgressLogTime) >= PACK_PROGRESS_LOG_INTERVAL_MS;
+
+        if (shouldLogProgress) {
+          progressStatusLogger?.(
+            `[pack ${processedPackCount}/${includedManifestPacks.length}] ${pack.label} ${renderProgressBar(processedFiles, filePaths.length)} ${formatPercentage(processedFiles, filePaths.length)} (${formatInteger(processedFiles)}/${formatInteger(filePaths.length)} files, ${formatInteger(recordCount)} records written total).`,
+          );
+          lastProgressLogTime = now;
+          lastLoggedFileCount = processedFiles;
+        }
       }
 
       if (packRecordCount === 0) {
@@ -1748,15 +1817,33 @@ export class Pf2eDataService {
     const indexPath = options.indexPath ?? defaultIndexPath(manifestPath);
     const embeddingConfig: EmbeddingConfig = options.embedding ?? defaultEmbeddingConfig(indexPath);
     const embeddingProviderFactory = options.embeddingProviderFactory ?? createEmbeddingProvider;
+    options.progressLogger?.("Loading the configured embedding provider.");
     const embeddingRuntime = await embeddingProviderFactory(embeddingConfig);
     const embeddingProvider = embeddingRuntime.provider;
+    options.progressLogger?.(
+      `Embedding provider ready: ${embeddingProvider.identity.model} (${embeddingProvider.identity.dimensions} dimensions).`,
+    );
+    options.progressLogger?.("Computing the PF2E source signature.");
     const sourceSignature = await computeSourceSignature(rootPath, manifestPath);
+    options.progressLogger?.(`Preparing index output at ${indexPath}.`);
     await mkdir(path.dirname(indexPath), { recursive: true });
     await removeIndexFiles(indexPath);
 
     const db = new DatabaseSync(indexPath);
+    options.progressLogger?.("Creating SQLite schema.");
     createSchema(db);
-    const { packs, warnings, recordCount } = await buildIndex(db, rootPath, manifestPath, embeddingProvider, sourceSignature);
+    const { packs, warnings, recordCount } = await buildIndex(
+      db,
+      rootPath,
+      manifestPath,
+      embeddingProvider,
+      sourceSignature,
+      options.progressLogger,
+      options.progressStatusLogger,
+    );
+    options.progressLogger?.(
+      `Finished writing ${formatInteger(recordCount)} records across ${formatInteger(packs.length)} packs.`,
+    );
     return new Pf2eDataService(
       db,
       packs,

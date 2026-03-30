@@ -16,4 +16,5 @@ if [[ ! -d "${DATA_DIR}/.git" ]]; then
   exit 0
 fi
 
+echo "Refreshing PF2E data checkout at ${DATA_DIR}..." >&2
 git -C "${DATA_DIR}" pull --ff-only

@@ -2,20 +2,46 @@
 
 import { loadConfig } from "./config.js";
 import { Pf2eDataService } from "./pf2e-data.js";
+import { ConsoleProgressReporter } from "./progress.js";
+
+function formatDuration(durationMs: number): string {
+  const totalSeconds = Math.max(0, Math.round(durationMs / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  if (minutes === 0) {
+    return `${seconds}s`;
+  }
+
+  return `${minutes}m ${seconds}s`;
+}
 
 async function main(): Promise<void> {
   const config = await loadConfig();
-  const service = await Pf2eDataService.rebuildIndex(config.rootPath, config.manifestPath, {
-    indexPath: config.indexPath,
-    embedding: config.embeddings,
-  });
+  const startTime = Date.now();
+  const progress = new ConsoleProgressReporter(process.stderr);
+  progress.log(`Rebuilding the PF2E index at ${config.indexPath}.`);
 
-  const stats = service.getStats();
-  for (const warning of service.warnings) {
-    console.error(warning);
+  try {
+    const service = await Pf2eDataService.rebuildIndex(config.rootPath, config.manifestPath, {
+      indexPath: config.indexPath,
+      embedding: config.embeddings,
+      progressLogger: (message) => progress.log(message),
+      progressStatusLogger: (message) => progress.status(message),
+    });
+
+    const stats = service.getStats();
+    for (const warning of service.warnings) {
+      progress.log(warning);
+    }
+    progress.log(
+      `Rebuilt PF2E index at ${config.indexPath} with ${stats.packCount} packs and ${stats.recordCount} records in ${formatDuration(Date.now() - startTime)}.`,
+    );
+    service.close();
+  } catch (error) {
+    progress.clear();
+    throw error;
   }
-  console.error(`Rebuilt PF2E index at ${config.indexPath} with ${stats.packCount} packs and ${stats.recordCount} records.`);
-  service.close();
 }
 
 main().catch((error) => {

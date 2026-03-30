@@ -49,6 +49,10 @@ export type PreparedEmbeddingAssets = {
   localModelPath: string | null;
 };
 
+type EmbeddingPreparationOptions = {
+  progressLogger?: (message: string) => void;
+};
+
 export class HashEmbeddingProvider implements EmbeddingProvider {
   readonly identity: EmbeddingProviderIdentity;
 
@@ -130,9 +134,13 @@ export async function createEmbeddingProvider(config: EmbeddingConfig): Promise<
   }
 }
 
-export async function prepareEmbeddingAssets(config: EmbeddingConfig): Promise<PreparedEmbeddingAssets> {
+export async function prepareEmbeddingAssets(
+  config: EmbeddingConfig,
+  options: EmbeddingPreparationOptions = {},
+): Promise<PreparedEmbeddingAssets> {
   if (config.provider === "hash") {
     const provider = new HashEmbeddingProvider();
+    options.progressLogger?.("Hash embeddings are configured; skipping remote model preparation.");
     return {
       provider: provider.identity,
       cachePath: config.cachePath,
@@ -140,7 +148,13 @@ export async function prepareEmbeddingAssets(config: EmbeddingConfig): Promise<P
     };
   }
 
-  const { dimensions } = await initializeHuggingFaceExtractor(config, { allowRemoteModels: true });
+  const { dimensions } = await initializeHuggingFaceExtractor(config, {
+    allowRemoteModels: true,
+    progressLogger: options.progressLogger,
+  });
+  options.progressLogger?.(
+    `Embedding model ${config.modelId} is ready with ${dimensions} dimensions.`,
+  );
   return {
     provider: buildProviderIdentity(config, dimensions),
     cachePath: config.cachePath,
@@ -150,13 +164,15 @@ export async function prepareEmbeddingAssets(config: EmbeddingConfig): Promise<P
 
 async function initializeHuggingFaceExtractor(
   config: EmbeddingConfig,
-  options: { allowRemoteModels: boolean },
+  options: { allowRemoteModels: boolean; progressLogger?: (message: string) => void },
 ): Promise<{ extractor: FeatureExtractor; dimensions: number }> {
+  options.progressLogger?.(`Ensuring embedding cache directories exist under ${config.cachePath}.`);
   await mkdir(config.cachePath, { recursive: true });
   if (config.localModelPath) {
     await mkdir(config.localModelPath, { recursive: true });
   }
 
+  options.progressLogger?.("Loading @huggingface/transformers.");
   const transformers = await import("@huggingface/transformers") as unknown as TransformersModule;
   transformers.env.allowLocalModels = true;
   transformers.env.allowRemoteModels = options.allowRemoteModels;
@@ -165,9 +181,13 @@ async function initializeHuggingFaceExtractor(
     transformers.env.localModelPath = config.localModelPath;
   }
 
+  options.progressLogger?.(
+    `Loading embedding model ${config.modelId}${config.modelRevision ? `@${config.modelRevision}` : ""}.`,
+  );
   const extractor = await transformers.pipeline("feature-extraction", config.modelId, {
     revision: config.modelRevision ?? undefined,
   });
+  options.progressLogger?.("Running embedding warmup query.");
   const warmup = await extractor("pf2e semantic search warmup", {
     pooling: "mean",
     normalize: true,

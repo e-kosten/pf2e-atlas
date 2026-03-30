@@ -12,7 +12,7 @@
     "refresh-data": "./scripts/refresh-pf2e-data.sh",
     "refresh-embeddings": "tsx src/refresh-embeddings.ts",
     "refresh-index": "tsx src/refresh-index.ts",
-    "refresh-external": "npm run refresh-data && npm run refresh-embeddings && npm run refresh-index",
+    "refresh-external": "tsx src/refresh-external.ts",
     "start": "node dist/index.js",
     "test": "vitest run"
   },
