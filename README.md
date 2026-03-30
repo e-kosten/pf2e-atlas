@@ -8,6 +8,7 @@ Read-only MCP server for Pathfinder 2E data from a vendored local Foundry PF2E c
 - Lists available compendium packs and pack metadata
 - Lists records within a pack with filters
 - Searches across all packs by name and structured filters
+- Follows linked rules references for actions, conditions, spells, and other rules text
 - Supports structured, lexical, and hybrid search modes
 - Returns the original Foundry JSON for detailed retrieval
 
@@ -84,7 +85,15 @@ Example MCP client entry:
 - `pf2e_list_records`
 - `pf2e_search`
 - `pf2e_lookup`
+- `pf2e_get_rules_context`
 - `pf2e_get_record`
+
+Search and list responses include:
+
+- `descriptionText` when available
+- `hasDescription` for filtering and ranking
+- `descriptionSnippet` for lightweight discovery
+- `sourceCategory` to distinguish core, rules, adventure, and unknown sources
 
 ## Notes
 

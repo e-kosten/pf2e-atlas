@@ -11,6 +11,7 @@ import {
   NormalizedRecord,
   PackInfo,
   PackManifestEntry,
+  SourceCategory,
   SearchFilters,
   SearchMode,
   SearchResult,
@@ -28,7 +29,7 @@ import {
 } from "./utils.js";
 
 const execFileAsync = promisify(execFile);
-const INDEX_SCHEMA_VERSION = 1;
+const INDEX_SCHEMA_VERSION = 2;
 
 type LoadOptions = {
   indexPath?: string;
@@ -50,6 +51,9 @@ type CandidateRow = {
   traitsJson: string;
   publicationTitle: string | null;
   descriptionText: string | null;
+  hasDescription: number;
+  descriptionSnippet: string | null;
+  sourceCategory: SourceCategory;
   folderId: string | null;
   sourcePath: string;
   isUnique: number;
@@ -79,6 +83,9 @@ type NormalizedIndexRecord = {
   traits: string[];
   publicationTitle: string | null;
   descriptionText: string | null;
+  hasDescription: boolean;
+  descriptionSnippet: string | null;
+  sourceCategory: SourceCategory;
   folderId: string | null;
   sourcePath: string;
   isUnique: boolean;
@@ -249,6 +256,15 @@ function getPublicationTitle(raw: Record<string, unknown>): string | null {
   );
 }
 
+function getDescriptionMarkup(raw: Record<string, unknown>): string | null {
+  return firstString(
+    getNested(raw, ["system", "description", "value"]),
+    getNested(raw, ["system", "details", "description"]),
+    getNested(raw, ["system", "details", "publicNotes"]),
+    getNested(raw, ["system", "details", "blurb"]),
+  );
+}
+
 function getLevel(raw: Record<string, unknown>): number | null {
   return asNumber(
     getNested(raw, ["system", "level", "value"]) ?? getNested(raw, ["system", "details", "level", "value"]),
@@ -256,14 +272,7 @@ function getLevel(raw: Record<string, unknown>): number | null {
 }
 
 function getDescriptionText(raw: Record<string, unknown>): string | null {
-  const html = firstString(
-    getNested(raw, ["system", "description", "value"]),
-    getNested(raw, ["system", "details", "description"]),
-    getNested(raw, ["system", "details", "publicNotes"]),
-    getNested(raw, ["system", "details", "blurb"]),
-  );
-
-  return stripHtml(html);
+  return stripHtml(getDescriptionMarkup(raw));
 }
 
 function getTraits(raw: Record<string, unknown>): string[] {
@@ -490,6 +499,76 @@ function buildSearchText(raw: Record<string, unknown>, base: { name: string; des
     .trim();
 }
 
+function hasDescriptionText(descriptionText: string | null): boolean {
+  return Boolean(descriptionText && descriptionText.trim().length > 0);
+}
+
+function buildDescriptionSnippet(descriptionText: string | null): string | null {
+  if (!hasDescriptionText(descriptionText)) {
+    return null;
+  }
+
+  const normalized = descriptionText!.replace(/\s+/g, " ").trim();
+  const sentenceMatch = normalized.match(/^(.{1,240}?[.!?])(?:\s|$)/);
+  if (sentenceMatch) {
+    return sentenceMatch[1]!.trim();
+  }
+
+  if (normalized.length <= 240) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, 237).trimEnd()}...`;
+}
+
+function isCorePublication(publicationTitle: string | null): boolean {
+  const normalized = normalizeText(publicationTitle ?? "");
+  return normalized === "pathfinder player core" ||
+    normalized === "pathfinder player core 2" ||
+    normalized === "pathfinder gm core" ||
+    normalized === "pathfinder monster core" ||
+    normalized === "pathfinder monster core 2" ||
+    normalized === "pathfinder beginner box";
+}
+
+function isAdventurePublication(publicationTitle: string | null): boolean {
+  const normalized = normalizeText(publicationTitle ?? "");
+  if (!normalized) {
+    return false;
+  }
+
+  return normalized.includes("adventure path") ||
+    normalized.includes("pathfinder society") ||
+    normalized.includes("quest") ||
+    normalized.includes("one shot") ||
+    normalized.includes("special") ||
+    normalized.startsWith("pathfinder adventure ") ||
+    /^pathfinder \d+ /.test(normalized);
+}
+
+function isAdventurePack(packName: string): boolean {
+  const normalizedPack = normalizeText(packName);
+  return normalizedPack.startsWith("pfs ") ||
+    normalizedPack.includes("one shot") ||
+    normalizedPack.includes("quest");
+}
+
+function getSourceCategory(packName: string, publicationTitle: string | null): SourceCategory {
+  if (isCorePublication(publicationTitle)) {
+    return "core";
+  }
+
+  if (isAdventurePublication(publicationTitle) || isAdventurePack(packName)) {
+    return "adventure";
+  }
+
+  if (publicationTitle) {
+    return "rules";
+  }
+
+  return "unknown";
+}
+
 function normalizeIndexRecord(pack: PackBuildInfo, sourcePath: string, raw: Record<string, unknown>): NormalizedIndexRecord {
   const id = firstString(raw._id);
   const name = firstString(raw.name);
@@ -503,6 +582,9 @@ function normalizeIndexRecord(pack: PackBuildInfo, sourcePath: string, raw: Reco
   const traits = getTraits(raw);
   const descriptionText = getDescriptionText(raw);
   const publicationTitle = getPublicationTitle(raw);
+  const hasDescription = hasDescriptionText(descriptionText);
+  const descriptionSnippet = buildDescriptionSnippet(descriptionText);
+  const sourceCategory = getSourceCategory(pack.name, publicationTitle);
   const actorData = pack.documentType === "Actor" ? parseActorIndexData(raw) : null;
   const itemData = pack.documentType === "Item" ? parseItemIndexData(raw) : null;
   const spellData = recordType === "spell" ? parseSpellIndexData(raw) : null;
@@ -521,6 +603,9 @@ function normalizeIndexRecord(pack: PackBuildInfo, sourcePath: string, raw: Reco
     traits,
     publicationTitle,
     descriptionText,
+    hasDescription,
+    descriptionSnippet,
+    sourceCategory,
     folderId: firstString(raw.folder),
     sourcePath,
     isUnique: normalizeText(rarity ?? "") === "unique",
@@ -557,6 +642,36 @@ function packQualityScore(record: NormalizedRecord): number {
 
   if (normalizedPack === "actions" || normalizedPack === "spells" || normalizedPack === "equipment" || normalizedPack === "feats") {
     score += 0.05;
+  }
+
+  return score;
+}
+
+function rankingProfileScore(record: NormalizedRecord, filters: SearchFilters): number {
+  if (filters.rankingProfile !== "preferReusableReferenceContent") {
+    return 0;
+  }
+
+  let score = 0;
+
+  if (!record.hasDescription) {
+    score -= 0.3;
+  } else {
+    score += 0.12;
+  }
+
+  if (record.sourceCategory === "core") {
+    score += 0.15;
+  } else if (record.sourceCategory === "rules") {
+    score += 0.08;
+  } else if (record.sourceCategory === "adventure") {
+    score -= 0.08;
+  }
+
+  if (record.isUnique) {
+    score -= 0.06;
+  } else {
+    score += 0.08;
   }
 
   return score;
@@ -617,6 +732,51 @@ function buildFtsQuery(query: string): string | null {
   return tokens.map((token) => `"${token}"*`).join(" OR ");
 }
 
+type ExtractedReference = {
+  packName: string | null;
+  recordLocator: string;
+  displayText: string | null;
+  referenceText: string;
+};
+
+type RulesContextEdge = {
+  fromRecordKey: string;
+  toRecordKey: string;
+  displayText: string | null;
+  referenceText: string;
+  depth: number;
+};
+
+const UUID_REFERENCE_PATTERN = /@UUID\[([^\]]+)\](?:\{([^}]+)\})?/g;
+const COMPILED_REFERENCE_PATTERN = /^Compendium\.pf2e\.([^.]+)\.[^.]+\.([^.\]]+)$/i;
+
+function extractRulesReferences(raw: Record<string, unknown>): ExtractedReference[] {
+  const markup = getDescriptionMarkup(raw);
+  if (!markup) {
+    return [];
+  }
+
+  const extracted: ExtractedReference[] = [];
+  for (const match of markup.matchAll(UUID_REFERENCE_PATTERN)) {
+    const referenceText = match[0]!;
+    const target = match[1]!;
+    const displayText = match[2] ?? null;
+    const parsed = target.match(COMPILED_REFERENCE_PATTERN);
+    if (!parsed) {
+      continue;
+    }
+
+    extracted.push({
+      packName: parsed[1] ?? null,
+      recordLocator: parsed[2] ?? "",
+      displayText,
+      referenceText,
+    });
+  }
+
+  return extracted;
+}
+
 function rowToRecord(row: CandidateRow, raw: Record<string, unknown> = {}): NormalizedRecord {
   return {
     recordKey: row.recordKey,
@@ -632,6 +792,9 @@ function rowToRecord(row: CandidateRow, raw: Record<string, unknown> = {}): Norm
     traits: JSON.parse(row.traitsJson) as string[],
     publicationTitle: row.publicationTitle,
     descriptionText: row.descriptionText,
+    hasDescription: Boolean(row.hasDescription),
+    descriptionSnippet: row.descriptionSnippet,
+    sourceCategory: row.sourceCategory,
     folderId: row.folderId,
     sourcePath: row.sourcePath,
     isUnique: Boolean(row.isUnique),
@@ -729,6 +892,9 @@ function createSchema(db: DatabaseSync): void {
       traits_json TEXT NOT NULL,
       publication_title TEXT,
       description_text TEXT,
+      has_description INTEGER NOT NULL,
+      description_snippet TEXT,
+      source_category TEXT NOT NULL,
       folder_id TEXT,
       source_path TEXT NOT NULL,
       is_unique INTEGER NOT NULL,
@@ -798,6 +964,8 @@ function createSchema(db: DatabaseSync): void {
     CREATE INDEX records_level_idx ON records(level);
     CREATE INDEX records_rarity_idx ON records(rarity);
     CREATE INDEX records_unique_idx ON records(is_unique);
+    CREATE INDEX records_has_description_idx ON records(has_description);
+    CREATE INDEX records_source_category_idx ON records(source_category);
     CREATE INDEX record_traits_trait_idx ON record_traits(trait);
     CREATE INDEX actor_records_size_idx ON actor_records(size);
     CREATE INDEX item_records_category_idx ON item_records(item_category);
@@ -828,9 +996,9 @@ async function buildIndex(
   const insertRecord = db.prepare(`
     INSERT INTO records (
       record_key, id, name, normalized_name, pack_name, pack_label, document_type, record_type,
-      level, rarity, traits_json, publication_title, description_text, folder_id, source_path,
-      is_unique, search_text
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      level, rarity, traits_json, publication_title, description_text, has_description, description_snippet,
+      source_category, folder_id, source_path, is_unique, search_text
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const insertTrait = db.prepare(`
     INSERT INTO record_traits (record_key, trait) VALUES (?, ?)
@@ -912,6 +1080,9 @@ async function buildIndex(
           JSON.stringify(record.traits),
           record.publicationTitle,
           record.descriptionText,
+          record.hasDescription ? 1 : 0,
+          record.descriptionSnippet,
+          record.sourceCategory,
           record.folderId,
           record.sourcePath,
           record.isUnique ? 1 : 0,
@@ -1063,6 +1234,9 @@ function buildCandidateQuery(filters: SearchFilters, includeSearchText = false, 
     "r.traits_json AS traitsJson",
     "r.publication_title AS publicationTitle",
     "r.description_text AS descriptionText",
+    "r.has_description AS hasDescription",
+    "r.description_snippet AS descriptionSnippet",
+    "r.source_category AS sourceCategory",
     "r.folder_id AS folderId",
     "r.source_path AS sourcePath",
     "r.is_unique AS isUnique",
@@ -1129,6 +1303,18 @@ function buildCandidateQuery(filters: SearchFilters, includeSearchText = false, 
     appendWhereClause(sql, params, "AND r.is_unique = 0");
   }
 
+  if (filters.excludeMissingDescription) {
+    appendWhereClause(sql, params, "AND r.has_description = 1");
+  }
+
+  if (filters.excludeAdventureContent) {
+    appendWhereClause(sql, params, "AND r.source_category != 'adventure'");
+  }
+
+  if (filters.coreOnly) {
+    appendWhereClause(sql, params, "AND r.source_category = 'core'");
+  }
+
   if (filters.size) {
     appendWhereClause(sql, params, "AND LOWER(COALESCE(a.size, '')) = LOWER(?)", filters.size);
   }
@@ -1193,6 +1379,10 @@ function validateFilters(filters: SearchFilters, context: "list" | "search"): vo
 
   if (mode === "structured" && filters.themeQuery) {
     throw new Error("themeQuery requires mode lexical or hybrid.");
+  }
+
+  if (filters.coreOnly && filters.excludeAdventureContent) {
+    throw new Error("coreOnly already excludes adventure content.");
   }
 }
 
@@ -1285,6 +1475,23 @@ export class Pf2eDataService {
     return new Set(rows.map((row) => row.recordKey));
   }
 
+  private resolveReference(reference: ExtractedReference): NormalizedRecord | null {
+    if (reference.packName) {
+      const direct = this.getRecord(reference.packName, reference.recordLocator);
+      if (direct) {
+        return direct;
+      }
+
+      const fallback = this.lookup(reference.displayText ?? reference.recordLocator, { pack: reference.packName }).match;
+      if (fallback) {
+        return this.getRecord(fallback.recordKey) ?? fallback;
+      }
+    }
+
+    const match = this.lookup(reference.displayText ?? reference.recordLocator).match;
+    return match ? (this.getRecord(match.recordKey) ?? match) : null;
+  }
+
   getRecord(recordKeyOrPack: string, maybeId?: string): NormalizedRecord | undefined {
     const row = maybeId
       ? (this.db
@@ -1304,6 +1511,9 @@ export class Pf2eDataService {
                 r.traits_json AS traitsJson,
                 r.publication_title AS publicationTitle,
                 r.description_text AS descriptionText,
+                r.has_description AS hasDescription,
+                r.description_snippet AS descriptionSnippet,
+                r.source_category AS sourceCategory,
                 r.folder_id AS folderId,
                 r.source_path AS sourcePath,
                 r.is_unique AS isUnique,
@@ -1338,6 +1548,9 @@ export class Pf2eDataService {
                 r.traits_json AS traitsJson,
                 r.publication_title AS publicationTitle,
                 r.description_text AS descriptionText,
+                r.has_description AS hasDescription,
+                r.description_snippet AS descriptionSnippet,
+                r.source_category AS sourceCategory,
                 r.folder_id AS folderId,
                 r.source_path AS sourcePath,
                 r.is_unique AS isUnique,
@@ -1369,13 +1582,71 @@ export class Pf2eDataService {
     const limit = clampLimit(filters.limit);
     const offset = clampOffset(filters.offset);
     const records = this.fetchCandidates(filters).map((row) => rowToRecord(row));
-    records.sort(sortRecords);
+    records.sort((left, right) => (
+      rankingProfileScore(right, filters) - rankingProfileScore(left, filters) ||
+      sortRecords(left, right)
+    ));
     return {
       total: records.length,
       offset,
       limit,
       records: records.slice(offset, offset + limit),
     };
+  }
+
+  getRulesContext(
+    name: string,
+    options: LookupOptions & { referenceDepth?: number; maxReferences?: number } = {},
+  ): { record: NormalizedRecord; references: NormalizedRecord[]; edges: RulesContextEdge[] } | null {
+    const baseMatch = this.lookup(name, options).match;
+    if (!baseMatch) {
+      return null;
+    }
+    const baseRecord = this.getRecord(baseMatch.recordKey) ?? baseMatch;
+
+    const maxReferences = Math.max(1, Math.min(options.maxReferences ?? 8, 25));
+    const maxDepth = options.referenceDepth === 2 ? 2 : 1;
+    const references: NormalizedRecord[] = [];
+    const edges: RulesContextEdge[] = [];
+    const queued = new Set<string>([baseRecord.recordKey]);
+    const addedReferences = new Set<string>();
+    const queue: Array<{ record: NormalizedRecord; depth: number }> = [{ record: baseRecord, depth: 1 }];
+
+    while (queue.length > 0 && references.length < maxReferences) {
+      const current = queue.shift()!;
+      const extracted = extractRulesReferences(current.record.raw);
+
+      for (const reference of extracted) {
+        const resolved = this.resolveReference(reference);
+        if (!resolved || resolved.recordKey === current.record.recordKey) {
+          continue;
+        }
+
+        edges.push({
+          fromRecordKey: current.record.recordKey,
+          toRecordKey: resolved.recordKey,
+          displayText: reference.displayText,
+          referenceText: reference.referenceText,
+          depth: current.depth,
+        });
+
+        if (!addedReferences.has(resolved.recordKey)) {
+          references.push(resolved);
+          addedReferences.add(resolved.recordKey);
+        }
+
+        if (current.depth < maxDepth && !queued.has(resolved.recordKey) && references.length < maxReferences) {
+          queue.push({ record: resolved, depth: current.depth + 1 });
+          queued.add(resolved.recordKey);
+        }
+
+        if (references.length >= maxReferences) {
+          break;
+        }
+      }
+    }
+
+    return { record: baseRecord, references, edges };
   }
 
   search(filters: SearchFilters): SearchResult {
@@ -1422,6 +1693,8 @@ export class Pf2eDataService {
         } else {
           score = (semanticScore * 0.75) + (lexicalScore * 0.25) + packQualityScore(record);
         }
+
+        score += rankingProfileScore(record, filters);
 
         return { record, score, lexicalScore, semanticScore };
       })

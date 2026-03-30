@@ -21,6 +21,10 @@ export interface PackInfo {
   recordCount: number;
 }
 
+export type SourceCategory = "core" | "rules" | "adventure" | "unknown";
+
+export type RankingProfile = "default" | "preferReusableReferenceContent";
+
 export interface NormalizedRecord {
   recordKey: string;
   id: string;
@@ -35,6 +39,9 @@ export interface NormalizedRecord {
   traits: string[];
   publicationTitle: string | null;
   descriptionText: string | null;
+  hasDescription: boolean;
+  descriptionSnippet: string | null;
+  sourceCategory: SourceCategory;
   folderId: string | null;
   sourcePath: string;
   isUnique: boolean;
@@ -51,6 +58,7 @@ export type SearchMode = "structured" | "lexical" | "hybrid";
 
 export interface SearchFilters {
   mode?: SearchMode;
+  rankingProfile?: RankingProfile;
   nameQuery?: string;
   themeQuery?: string;
   pack?: string;
@@ -64,6 +72,9 @@ export interface SearchFilters {
   tradition?: string;
   publicationTitle?: string;
   excludeUnique?: boolean;
+  excludeMissingDescription?: boolean;
+  excludeAdventureContent?: boolean;
+  coreOnly?: boolean;
   size?: string;
   itemCategory?: string;
   priceMin?: number;

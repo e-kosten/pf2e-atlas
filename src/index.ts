@@ -23,6 +23,9 @@ function summarizeRecord(record: NormalizedRecord): Record<string, unknown> {
     traits: record.traits,
     publicationTitle: record.publicationTitle,
     descriptionText: record.descriptionText,
+    hasDescription: record.hasDescription,
+    descriptionSnippet: record.descriptionSnippet,
+    sourceCategory: record.sourceCategory,
     sourcePath: record.sourcePath,
     isUnique: record.isUnique,
     size: record.size,
@@ -132,6 +135,7 @@ async function main(): Promise<void> {
       description: "List records inside a specific PF2E pack/category with optional filters.",
       inputSchema: {
         mode: z.enum(["structured", "lexical", "hybrid"]).optional().describe("Retrieval mode. Defaults to structured."),
+        rankingProfile: z.enum(["default", "preferReusableReferenceContent"]).optional().describe("Optional ranking preference profile."),
         pack: z.string().describe("Pack name or label."),
         recordType: z.string().optional().describe("Optional Foundry record type, for example spell, feat, npc, or hazard."),
         levelMin: z.number().int().optional().describe("Minimum level inclusive."),
@@ -142,6 +146,9 @@ async function main(): Promise<void> {
         tradition: z.string().optional().describe("Explicit spell tradition filter."),
         publicationTitle: z.string().optional().describe("Publication title contains this text."),
         excludeUnique: z.boolean().optional().describe("Exclude unique records."),
+        excludeMissingDescription: z.boolean().optional().describe("Exclude records without description or lore text."),
+        excludeAdventureContent: z.boolean().optional().describe("Exclude records sourced from adventures, scenarios, quests, and one-shots."),
+        coreOnly: z.boolean().optional().describe("Restrict results to core publications only."),
         size: z.string().optional().describe("Actor size filter."),
         itemCategory: z.string().optional().describe("Item category filter, for example weapon, spell, equipment, or consumable."),
         priceMin: z.number().optional().describe("Minimum item price in copper pieces."),
@@ -176,6 +183,7 @@ async function main(): Promise<void> {
       description: "Search PF2E records across packs using name lookup and structured filters.",
       inputSchema: {
         mode: z.enum(["structured", "lexical", "hybrid"]).optional().describe("Retrieval mode. Defaults to structured."),
+        rankingProfile: z.enum(["default", "preferReusableReferenceContent"]).optional().describe("Optional ranking preference profile."),
         nameQuery: z.string().optional().describe("Name text to search for."),
         themeQuery: z.string().optional().describe("Theme or semantic query text for lexical or hybrid search."),
         pack: z.string().optional().describe("Optional pack name or label."),
@@ -189,6 +197,9 @@ async function main(): Promise<void> {
         tradition: z.string().optional().describe("Explicit spell tradition filter."),
         publicationTitle: z.string().optional().describe("Publication title contains this text."),
         excludeUnique: z.boolean().optional().describe("Exclude unique records."),
+        excludeMissingDescription: z.boolean().optional().describe("Exclude records without description or lore text."),
+        excludeAdventureContent: z.boolean().optional().describe("Exclude records sourced from adventures, scenarios, quests, and one-shots."),
+        coreOnly: z.boolean().optional().describe("Restrict results to core publications only."),
         size: z.string().optional().describe("Actor size filter."),
         itemCategory: z.string().optional().describe("Item category filter, for example weapon, spell, equipment, or consumable."),
         priceMin: z.number().optional().describe("Minimum item price in copper pieces."),
@@ -220,7 +231,7 @@ async function main(): Promise<void> {
   server.registerTool(
     "pf2e_lookup",
     {
-      description: "Find the best-matching PF2E record by name, with optional pack or type hints.",
+      description: "Find the best-matching PF2E record by name, with optional pack or type hints. Use this first for simple questions like 'What does Raise a Shield do?' or 'What is Blinded?'",
       inputSchema: {
         name: z.string().describe("Record name to look up."),
         pack: z.string().optional().describe("Optional pack name or label."),
@@ -255,6 +266,53 @@ async function main(): Promise<void> {
         structuredContent: {
           match: summarizeRecord(lookup.match),
           alternatives: lookup.alternatives.map(summarizeRecord),
+        },
+      };
+    },
+  );
+
+  server.registerTool(
+    "pf2e_get_rules_context",
+    {
+      description: "Resolve a PF2E rule record and follow linked compendium references from its rules text. Use this for linked-rule traversal such as 'How does Blinded interact with Seek, Hidden, or Undetected?'. For simple lookups, prefer pf2e_lookup or pf2e_get_record first. Example: {\"name\":\"Blinded\",\"recordType\":\"condition\",\"referenceDepth\":1}",
+      inputSchema: {
+        name: z.string().describe("Record name to look up."),
+        pack: z.string().optional().describe("Optional pack name or label."),
+        documentType: z.string().optional().describe("Optional document type, for example Actor or Item."),
+        recordType: z.string().optional().describe("Optional record type, for example spell, action, npc, or hazard."),
+        referenceDepth: z.coerce.number().int().min(1).max(2).optional().describe("How many reference hops to follow. Must be 1 or 2. Defaults to 1."),
+        maxReferences: z.coerce.number().int().min(1).max(25).optional().describe("Maximum number of linked records to return. Defaults to 8."),
+      },
+    },
+    async ({ name, ...options }) => {
+      const result = dataService.getRulesContext(name, options);
+      if (!result) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `No PF2E record matched "${name}".`,
+            },
+          ],
+          structuredContent: {
+            record: null,
+            references: [],
+            edges: [],
+          },
+        };
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `${result.record.name} with ${result.references.length} linked rules reference${result.references.length === 1 ? "" : "s"}.`,
+          },
+        ],
+        structuredContent: {
+          record: summarizeRecord(result.record),
+          references: result.references.map(summarizeRecord),
+          edges: result.edges,
         },
       };
     },
