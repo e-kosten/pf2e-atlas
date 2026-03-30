@@ -13,7 +13,7 @@ async function writeJson(filePath: string, value: unknown): Promise<void> {
 async function createFixture(): Promise<{ root: string; manifestPath: string }> {
   const root = await mkdtemp(path.join(os.tmpdir(), "pf2e-mcp-test-"));
   const packRoot = path.join(root, "packs", "pf2e");
-  const packNames = ["actions", "conditionitems", "pathfinder-monster-core", "pfs-season-1-bestiary", "spells"];
+  const packNames = ["actions", "classfeatures", "conditionitems", "feats-srd", "pathfinder-monster-core", "pfs-season-1-bestiary", "spells"];
 
   await Promise.all(packNames.map(async (packName) => mkdir(path.join(packRoot, packName), { recursive: true })));
 
@@ -26,9 +26,21 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
         type: "Item",
       },
       {
+        name: "classfeatures",
+        label: "Class Features",
+        path: "packs/classfeatures",
+        type: "Item",
+      },
+      {
         name: "conditionitems",
         label: "Conditions",
         path: "packs/conditionitems",
+        type: "Item",
+      },
+      {
+        name: "feats-srd",
+        label: "Feats",
+        path: "packs/feats-srd",
         type: "Item",
       },
       {
@@ -94,6 +106,41 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
     },
   });
 
+  await writeJson(path.join(packRoot, "actions", "refocus.json"), {
+    _id: "Refocus",
+    name: "Refocus",
+    type: "action",
+    system: {
+      description: {
+        value: "<p>You spend 10 minutes restoring your magical connection.</p>",
+      },
+      publication: {
+        title: "Pathfinder Player Core",
+      },
+      traits: {
+        rarity: "common",
+        value: ["concentrate", "exploration"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "classfeatures", "meditative-well.json"), {
+    _id: "classfeature1",
+    name: "Meditative Well",
+    type: "feat",
+    system: {
+      description: {
+        value: "<p>Your training deepens whenever you @UUID[Compendium.pf2e.actions.Item.Refocus]{Refocus}.</p>",
+      },
+      publication: {
+        title: "Pathfinder Player Core",
+      },
+      traits: {
+        value: [],
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "conditionitems", "blinded.json"), {
     _id: "Blinded",
     name: "Blinded",
@@ -135,6 +182,23 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
     system: {
       description: {
         value: "<p>The observer knows your space but not your exact location.</p>",
+      },
+      publication: {
+        title: "Pathfinder Player Core",
+      },
+      traits: {
+        value: [],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "feats-srd", "deep-focus.json"), {
+    _id: "feat1",
+    name: "Deep Focus",
+    type: "feat",
+    system: {
+      description: {
+        value: "<p>Whenever you @UUID[Compendium.pf2e.actions.Item.Refocus]{Refocus}, your resolve sharpens.</p>",
       },
       publication: {
         title: "Pathfinder Player Core",
@@ -216,6 +280,54 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
     },
   });
 
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "diver.json"), {
+    _id: "diver",
+    name: "Diver",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 2,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>A salvage diver used to dark holds, drowned wrecks, and foggy coasts.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["human"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "lion.json"), {
+    _id: "lion",
+    name: "Lion",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 3,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>A stalking predator that inspires fear.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["animal"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "pfs-season-1-bestiary", "ghost-sailor-adventure.json"), {
     _id: "ghost-sailor-adventure",
     name: "Ghost Sailor",
@@ -264,6 +376,29 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
     },
   });
 
+  await writeJson(path.join(packRoot, "pfs-season-1-bestiary", "crawling-hand-swarm.json"), {
+    _id: "crawling-hand-swarm",
+    name: "Crawling Hand Swarm",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 5,
+        },
+        publication: {
+          title: "Pathfinder Society Scenario #1-11: Haunted Harbor",
+        },
+      },
+      traits: {
+        rarity: "common",
+        value: ["evil", "swarm", "undead", "unholy"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "spells", "sea-blessing.json"), {
     _id: "spell1",
     name: "Sea Blessing",
@@ -292,6 +427,28 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
     },
   });
 
+  await writeJson(path.join(packRoot, "spells", "focus-burst.json"), {
+    _id: "spell2",
+    name: "Focus Burst",
+    type: "spell",
+    system: {
+      description: {
+        value: "<p>You disrupt a creature as it tries to @UUID[Compendium.pf2e.actions.Item.Refocus]{Refocus}.</p>",
+      },
+      level: {
+        value: 3,
+      },
+      publication: {
+        title: "Pathfinder Player Core",
+      },
+      traits: {
+        rarity: "common",
+        traditions: ["occult"],
+        value: ["concentrate"],
+      },
+    },
+  });
+
   return {
     root,
     manifestPath: path.join(root, "system.pf2e.json"),
@@ -315,8 +472,8 @@ describe("Pf2eDataService", () => {
 
     const service = await Pf2eDataService.load(fixture.root, fixture.manifestPath);
 
-    expect(service.listPacks()).toHaveLength(5);
-    expect(service.getStats()).toEqual({ packCount: 5, recordCount: 11 });
+    expect(service.listPacks()).toHaveLength(7);
+    expect(service.getStats()).toEqual({ packCount: 7, recordCount: 18 });
     expect(service.getPack("Actions")?.name).toBe("actions");
   });
 
@@ -327,7 +484,7 @@ describe("Pf2eDataService", () => {
     const service = await Pf2eDataService.load(fixture.root, fixture.manifestPath);
 
     expect(service.lookup("Raise Shield").match?.name).toBe("Raise a Shield");
-    expect(service.listRecords({ pack: "actions" }).records).toHaveLength(2);
+    expect(service.listRecords({ pack: "actions" }).records).toHaveLength(3);
     expect(service.search({ documentType: "Actor", traitsAll: ["fiend"] }).records[0]?.name).toBe("Cythnigot");
     expect(service.search({ documentType: "Actor", size: "sm" }).records[0]?.name).toBe("Cythnigot");
     expect(service.search({ mode: "lexical", themeQuery: "aberration", documentType: "Actor" }).records[0]?.name).toBe("Cythnigot");
@@ -335,7 +492,10 @@ describe("Pf2eDataService", () => {
     expect(service.search({ nameQuery: "Ghost Sailor", documentType: "Actor", excludeMissingDescription: true }).records).toHaveLength(1);
     expect(service.search({ nameQuery: "Ghost Sailor", documentType: "Actor", excludeAdventureContent: true }).records[0]?.sourceCategory).toBe("core");
     expect(service.search({ documentType: "Actor", coreOnly: true }).records.every((record) => record.sourceCategory === "core")).toBe(true);
-    expect(() => service.search({ mode: "structured", themeQuery: "ghost ship" })).toThrow(/themeQuery requires mode lexical or hybrid/i);
+    expect(service.search({ themeQuery: "ghost ship", documentType: "Actor" }).mode).toBe("hybrid");
+    expect(() => service.search({ mode: "structured", themeQuery: "ghost ship" })).toThrow(
+      /omit mode to default to hybrid, or set mode to lexical or hybrid/i,
+    );
 
     const cythnigot = service.lookup("Cythnigot", { documentType: "Actor" }).match;
     expect(cythnigot?.hasDescription).toBe(true);
@@ -365,6 +525,53 @@ describe("Pf2eDataService", () => {
     expect(bilgeSkeletons[0]?.sourceCategory).toBe("core");
   });
 
+  it("surfaces metadata-only haunted-ship swarm candidates in broad themed search", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+
+    const service = await Pf2eDataService.load(fixture.root, fixture.manifestPath);
+
+    const broadQuery =
+      "ghost ship cursed voyage fear fog darkness possession maddening whispers vermin in the hold wrong-feeling stowaways body horror haunted physically unclean";
+    const broadResults = service.search({
+      recordType: "npc",
+      levelMin: 1,
+      levelMax: 5,
+      rarity: "common",
+      themeQuery: broadQuery,
+      limit: 20,
+      explain: true,
+    });
+    const broadNames = broadResults.records.map((record) => record.name);
+    const crawlingIndex = broadNames.indexOf("Crawling Hand Swarm");
+    const diverIndex = broadNames.indexOf("Diver");
+    const lionIndex = broadNames.indexOf("Lion");
+
+    expect(broadResults.mode).toBe("hybrid");
+    expect(crawlingIndex).toBeGreaterThanOrEqual(0);
+    expect(diverIndex).toBeGreaterThan(crawlingIndex);
+    expect(lionIndex).toBeGreaterThan(crawlingIndex);
+
+    const crawlingExplain = broadResults.explain?.records.find((record) => record.name === "Crawling Hand Swarm");
+    expect(crawlingExplain?.matchedTraits).toEqual(expect.arrayContaining(["swarm", "undead"]));
+    expect(crawlingExplain?.matchedNameTokens).toContain("crawling");
+    expect(crawlingExplain?.components.metadataOnlyBoost ?? 0).toBeGreaterThan(0);
+
+    const lexicalResults = service.search({
+      recordType: "npc",
+      levelMin: 1,
+      levelMax: 5,
+      mode: "lexical",
+      themeQuery: "undead swarm body horror haunted ship crawling infestation severed limbs cursed voyage",
+      limit: 20,
+    });
+    const lexicalNames = lexicalResults.records.map((record) => record.name);
+    const lexicalCrawlingIndex = lexicalNames.indexOf("Crawling Hand Swarm");
+    expect(lexicalCrawlingIndex).toBeGreaterThanOrEqual(0);
+    expect(lexicalNames.indexOf("Diver")).toSatisfy((index) => index === -1 || index > lexicalCrawlingIndex);
+    expect(lexicalNames.indexOf("Lion")).toSatisfy((index) => index === -1 || index > lexicalCrawlingIndex);
+  });
+
   it("builds linked rules context from UUID references", async () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);
@@ -380,18 +587,59 @@ describe("Pf2eDataService", () => {
     expect(secondHop?.edges.some((edge) => edge.toRecordKey === "conditionitems:Hidden" && edge.depth === 2)).toBe(true);
   });
 
+  it("supports batch lookup, batch record fetch, and curated backlink retrieval", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+
+    const service = await Pf2eDataService.load(fixture.root, fixture.manifestPath);
+
+    const lookups = service.lookupMany([{ name: "Refocus" }, { name: "Deep Focus" }], { coreOnly: true });
+    expect(lookups.map((result) => result.match?.name)).toEqual(["Refocus", "Deep Focus"]);
+    expect(lookups.map((result) => result.matchType)).toEqual(["exact", "exact"]);
+
+    const records = service.getRecordsByKeys(["actions:Refocus", "feats-srd:feat1"]);
+    expect(records.map((record) => record.name)).toEqual(["Refocus", "Deep Focus"]);
+
+    const outgoing = service.getLinkedRules(["conditionitems:Blinded"], { maxPerPrimary: 5 });
+    expect(outgoing.records.map((record) => record.name)).toEqual(["Dazzled", "Seek"]);
+
+    const backlinks = service.getBacklinks(["actions:Refocus"], { maxPerPrimary: 10 });
+    expect(backlinks.records.map((record) => record.name)).toEqual(["Deep Focus", "Meditative Well"]);
+    expect(backlinks.edges.every((edge) => edge.direction === "backlink")).toBe(true);
+    expect(backlinks.records.some((record) => record.type === "spell")).toBe(false);
+  });
+
+  it("collects rule question context without synthesis", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+
+    const service = await Pf2eDataService.load(fixture.root, fixture.manifestPath);
+
+    const result = service.collectRuleQuestionContext({
+      rules: ["Refocus"],
+      includeBacklinks: true,
+      maxOutgoingPerPrimary: 5,
+      maxBacklinksPerPrimary: 5,
+    });
+
+    expect(result.primary[0]?.match?.name).toBe("Refocus");
+    expect(result.outgoing.records).toHaveLength(0);
+    expect(result.backlinks.records.map((record) => record.name)).toEqual(["Deep Focus", "Meditative Well"]);
+    expect(result.edges).toHaveLength(2);
+  });
+
   it("reuses an unchanged SQLite index and rebuilds when the source changes", async () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);
     const indexPath = path.join(fixture.root, ".cache", "pf2e-index.sqlite");
 
     const firstService = await Pf2eDataService.load(fixture.root, fixture.manifestPath, { indexPath });
-    expect(firstService.getStats()).toEqual({ packCount: 5, recordCount: 11 });
+    expect(firstService.getStats()).toEqual({ packCount: 7, recordCount: 18 });
     firstService.close();
 
     const firstMtime = (await import("node:fs/promises")).stat(indexPath).then((details) => details.mtimeMs);
     const unchangedService = await Pf2eDataService.load(fixture.root, fixture.manifestPath, { indexPath });
-    expect(unchangedService.getStats()).toEqual({ packCount: 5, recordCount: 11 });
+    expect(unchangedService.getStats()).toEqual({ packCount: 7, recordCount: 18 });
     unchangedService.close();
     const secondMtime = (await import("node:fs/promises")).stat(indexPath).then((details) => details.mtimeMs);
     expect(await secondMtime).toBe(await firstMtime);
@@ -421,7 +669,7 @@ describe("Pf2eDataService", () => {
     });
 
     const rebuiltService = await Pf2eDataService.load(fixture.root, fixture.manifestPath, { indexPath });
-    expect(rebuiltService.getStats()).toEqual({ packCount: 5, recordCount: 12 });
+    expect(rebuiltService.getStats()).toEqual({ packCount: 7, recordCount: 19 });
     expect(rebuiltService.lookup("Sea Ghoul", { documentType: "Actor" }).match?.name).toBe("Sea Ghoul");
     rebuiltService.close();
   });

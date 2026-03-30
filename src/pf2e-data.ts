@@ -7,12 +7,21 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
 import {
+  CollectRuleQuestionContextInput,
+  CollectRuleQuestionContextResult,
   LookupOptions,
+  LookupQuery,
+  LookupResult,
   NormalizedRecord,
   PackInfo,
   PackManifestEntry,
+  RuleGraphResult,
+  RuleReferenceEdge,
   SourceCategory,
   SearchFilters,
+  SearchExplainResult,
+  SearchQueryAnalysis,
+  SearchRecordExplanation,
   SearchMode,
   SearchResult,
 } from "./types.js";
@@ -29,7 +38,7 @@ import {
 } from "./utils.js";
 
 const execFileAsync = promisify(execFile);
-const INDEX_SCHEMA_VERSION = 2;
+const INDEX_SCHEMA_VERSION = 3;
 
 type LoadOptions = {
   indexPath?: string;
@@ -65,6 +74,17 @@ type CandidateRow = {
   traditionsJson: string | null;
   searchText?: string | null;
   embeddingBlob?: Uint8Array | null;
+};
+
+type ReferenceEdgeRow = {
+  fromRecordKey: string;
+  toRecordKey: string;
+  displayText: string | null;
+  referenceText: string;
+  fromPackName: string;
+  fromRecordType: string;
+  fromDocumentType: string;
+  fromSourceCategory: SourceCategory;
 };
 
 type PackBuildInfo = Omit<PackInfo, "recordCount">;
@@ -732,6 +752,162 @@ function buildFtsQuery(query: string): string | null {
   return tokens.map((token) => `"${token}"*`).join(" OR ");
 }
 
+type QueryHintRule = {
+  pattern: string;
+  traits?: string[];
+  nameTokens?: string[];
+};
+
+type SearchQueryAnalysisState = SearchQueryAnalysis & {
+  traitWeights: Map<string, number>;
+  nameWeights: Map<string, number>;
+};
+
+type SearchScoreComponents = SearchRecordExplanation["components"];
+
+const QUERY_HINT_RULES: QueryHintRule[] = [
+  { pattern: "ghost", traits: ["ghost", "spirit", "incorporeal", "undead"] },
+  { pattern: "haunted", traits: ["ghost", "spirit", "undead"] },
+  { pattern: "spirit", traits: ["spirit", "ghost", "incorporeal"] },
+  { pattern: "possession", traits: ["ghost", "spirit", "undead"] },
+  { pattern: "possessed", traits: ["ghost", "spirit", "undead"] },
+  { pattern: "swarm", traits: ["swarm"] },
+  { pattern: "infestation", traits: ["swarm"], nameTokens: ["crawling"] },
+  { pattern: "vermin", traits: ["swarm"] },
+  { pattern: "ship", traits: ["water", "aquatic"] },
+  { pattern: "voyage", traits: ["water", "aquatic"] },
+  { pattern: "hold", traits: ["water", "aquatic"] },
+  { pattern: "sea", traits: ["water", "aquatic"] },
+  { pattern: "ocean", traits: ["water", "aquatic"] },
+  { pattern: "drowned", traits: ["water", "aquatic", "undead"] },
+  { pattern: "body horror", nameTokens: ["crawling", "hand", "limb"] },
+  { pattern: "crawling", nameTokens: ["crawling"] },
+  { pattern: "severed limbs", nameTokens: ["hand", "limb"] },
+  { pattern: "severed limb", nameTokens: ["hand", "limb"] },
+  { pattern: "limbs", nameTokens: ["hand", "limb"] },
+  { pattern: "limb", nameTokens: ["hand", "limb"] },
+];
+
+function tokenize(value: string): string[] {
+  const normalized = normalizeText(value);
+  return normalized ? normalized.split(" ").filter(Boolean) : [];
+}
+
+function setWeightedValue(weights: Map<string, number>, token: string, weight: number): void {
+  const normalized = normalizeText(token);
+  if (!normalized) {
+    return;
+  }
+
+  weights.set(normalized, Math.max(weight, weights.get(normalized) ?? 0));
+}
+
+function matchesHintPattern(normalizedQuery: string, queryTokens: Set<string>, pattern: string): boolean {
+  const normalizedPattern = normalizeText(pattern);
+  if (!normalizedPattern) {
+    return false;
+  }
+
+  return normalizedPattern.includes(" ")
+    ? normalizedQuery.includes(normalizedPattern)
+    : queryTokens.has(normalizedPattern);
+}
+
+function analyzeSearchQuery(query: string): SearchQueryAnalysisState | null {
+  const normalizedQuery = normalizeText(query);
+  if (!normalizedQuery) {
+    return null;
+  }
+
+  const queryTokens = normalizedQuery.split(" ").filter(Boolean);
+  const queryTokenSet = new Set(queryTokens);
+  const traitWeights = new Map<string, number>();
+  const nameWeights = new Map<string, number>();
+
+  for (const token of queryTokens) {
+    setWeightedValue(traitWeights, token, 1);
+    setWeightedValue(nameWeights, token, 0.65);
+  }
+
+  for (const rule of QUERY_HINT_RULES) {
+    if (!matchesHintPattern(normalizedQuery, queryTokenSet, rule.pattern)) {
+      continue;
+    }
+
+    for (const trait of rule.traits ?? []) {
+      setWeightedValue(traitWeights, trait, 0.9);
+    }
+
+    for (const token of rule.nameTokens ?? []) {
+      setWeightedValue(nameWeights, token, 0.9);
+    }
+  }
+
+  const boostedTraits = [...traitWeights.keys()]
+    .filter((token) => !queryTokenSet.has(token))
+    .sort((left, right) => left.localeCompare(right));
+  const boostedNameTokens = [...nameWeights.keys()]
+    .filter((token) => !queryTokenSet.has(token))
+    .sort((left, right) => left.localeCompare(right));
+  const expandedQuery = uniqueSorted([...new Set([...queryTokens, ...boostedTraits, ...boostedNameTokens])]).join(" ");
+
+  return {
+    rawQuery: query,
+    normalizedQuery,
+    queryTokens,
+    expandedQuery,
+    boostedTraits,
+    boostedNameTokens,
+    traitWeights,
+    nameWeights,
+  };
+}
+
+function scoreWeightedOverlap(
+  weights: Map<string, number>,
+  targetTokens: Iterable<string>,
+  saturationWeight: number,
+): { score: number; matchedTokens: string[] } {
+  if (weights.size === 0) {
+    return { score: 0, matchedTokens: [] };
+  }
+
+  let matchedWeight = 0;
+  const matchedTokens: string[] = [];
+  for (const token of new Set([...targetTokens].map((value) => normalizeText(value)).filter(Boolean))) {
+    const weight = weights.get(token);
+    if (!weight) {
+      continue;
+    }
+
+    matchedWeight += weight;
+    matchedTokens.push(token);
+  }
+
+  return {
+    score: Math.min(1, matchedWeight / Math.max(1, saturationWeight)),
+    matchedTokens: matchedTokens.sort((left, right) => left.localeCompare(right)),
+  };
+}
+
+function buildMetadataText(record: NormalizedRecord): string {
+  return [record.name, ...record.traits, record.publicationTitle ?? ""]
+    .filter((value) => value.length > 0)
+    .join(" ");
+}
+
+function resolveSearchMode(filters: SearchFilters, context: "list" | "search"): SearchMode {
+  if (filters.mode) {
+    return filters.mode;
+  }
+
+  if (context === "search" && filters.themeQuery?.trim()) {
+    return "hybrid";
+  }
+
+  return "structured";
+}
+
 type ExtractedReference = {
   packName: string | null;
   recordLocator: string;
@@ -805,6 +981,89 @@ function rowToRecord(row: CandidateRow, raw: Record<string, unknown> = {}): Norm
     actionCost: row.actionCost,
     traditions: row.traditionsJson ? (JSON.parse(row.traditionsJson) as string[]) : [],
     raw,
+  };
+}
+
+function buildPlaceholders(values: readonly unknown[]): string {
+  return values.map(() => "?").join(", ");
+}
+
+function getLookupMatchType(query: string, record: NormalizedRecord | null): LookupResult["matchType"] {
+  if (!record) {
+    return "none";
+  }
+
+  const normalizedQuery = normalizeText(query);
+  if (normalizeText(record.name) === normalizedQuery) {
+    return normalizeText(query) === normalizeText(record.name) && query.trim() === record.name ? "exact" : "normalized_exact";
+  }
+
+  return "fuzzy";
+}
+
+function extractQuestionRuleNames(question: string): string[] {
+  const quoted = [...question.matchAll(/"([^"]+)"/g)]
+    .map((match) => match[1]?.trim() ?? "")
+    .filter((value) => value.length > 0);
+  if (quoted.length > 0) {
+    return quoted;
+  }
+
+  const cleaned = question
+    .replace(/\?+$/g, "")
+    .replace(/^(how|what|when|why|can)\s+(does|do|is|are)\s+/i, "")
+    .replace(/^(how|what|when|why|can)\s+/i, "")
+    .trim();
+
+  const parts = cleaned
+    .split(/\b(?:interplay with|interact with|works with|work with|with|vs\.?|versus|and)\b/i)
+    .map((part) => part.trim().replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9]+$/g, ""))
+    .filter((part) => part.length > 0);
+
+  return [...new Set(parts)].slice(0, 5);
+}
+
+function backlinkTypeRank(recordType: string): number {
+  if (recordType === "action") {
+    return 0;
+  }
+  if (recordType === "feat") {
+    return 1;
+  }
+  if (recordType === "classfeature") {
+    return 2;
+  }
+  return 3;
+}
+
+function sourceCategoryRank(sourceCategory: SourceCategory): number {
+  if (sourceCategory === "core") {
+    return 0;
+  }
+  if (sourceCategory === "rules") {
+    return 1;
+  }
+  if (sourceCategory === "adventure") {
+    return 2;
+  }
+  return 3;
+}
+
+function edgeRowToReferenceEdge(
+  row: ReferenceEdgeRow,
+  direction: RuleReferenceEdge["direction"],
+): RuleReferenceEdge {
+  return {
+    fromRecordKey: row.fromRecordKey,
+    toRecordKey: row.toRecordKey,
+    displayText: row.displayText,
+    referenceText: row.referenceText,
+    direction,
+    relationshipType: direction === "outgoing" ? "references" : "referenced_by",
+    sourcePackName: row.fromPackName,
+    sourceRecordType: row.fromRecordType,
+    sourceDocumentType: row.fromDocumentType,
+    sourceCategory: row.fromSourceCategory,
   };
 }
 
@@ -952,6 +1211,19 @@ function createSchema(db: DatabaseSync): void {
       FOREIGN KEY (record_key) REFERENCES records(record_key) ON DELETE CASCADE
     );
 
+    CREATE TABLE reference_edges (
+      from_record_key TEXT NOT NULL,
+      to_record_key TEXT NOT NULL,
+      display_text TEXT,
+      reference_text TEXT NOT NULL,
+      from_pack_name TEXT NOT NULL,
+      from_record_type TEXT NOT NULL,
+      from_document_type TEXT NOT NULL,
+      from_source_category TEXT NOT NULL,
+      PRIMARY KEY (from_record_key, to_record_key, reference_text),
+      FOREIGN KEY (from_record_key) REFERENCES records(record_key) ON DELETE CASCADE
+    );
+
     CREATE VIRTUAL TABLE records_fts USING fts5(
       record_key UNINDEXED,
       name,
@@ -972,6 +1244,10 @@ function createSchema(db: DatabaseSync): void {
     CREATE INDEX item_records_price_idx ON item_records(price_cp);
     CREATE INDEX item_records_action_cost_idx ON item_records(action_cost);
     CREATE INDEX spell_records_action_cost_idx ON spell_records(action_cost);
+    CREATE INDEX reference_edges_to_idx ON reference_edges(to_record_key);
+    CREATE INDEX reference_edges_from_type_idx ON reference_edges(from_record_type);
+    CREATE INDEX reference_edges_from_pack_idx ON reference_edges(from_pack_name);
+    CREATE INDEX reference_edges_from_source_category_idx ON reference_edges(from_source_category);
   `);
 }
 
@@ -1020,6 +1296,11 @@ async function buildIndex(
   `);
   const insertEmbedding = db.prepare(`
     INSERT INTO embeddings (record_key, dimensions, vector_blob) VALUES (?, ?, ?)
+  `);
+  const insertReferenceEdge = db.prepare(`
+    INSERT OR IGNORE INTO reference_edges (
+      from_record_key, to_record_key, display_text, reference_text, from_pack_name, from_record_type, from_document_type, from_source_category
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const insertFts = db.prepare(`
     INSERT INTO records_fts (record_key, name, search_text) VALUES (?, ?, ?)
@@ -1130,6 +1411,23 @@ async function buildIndex(
             spellData.saveType,
             spellData.areaType,
             JSON.stringify(spellData.damageTypes),
+          );
+        }
+
+        for (const reference of extractRulesReferences(raw)) {
+          if (!reference.packName || !reference.recordLocator) {
+            continue;
+          }
+
+          insertReferenceEdge.run(
+            record.recordKey,
+            `${reference.packName}:${reference.recordLocator}`,
+            reference.displayText,
+            reference.referenceText,
+            record.packName,
+            record.type,
+            record.documentType,
+            record.sourceCategory,
           );
         }
 
@@ -1367,7 +1665,7 @@ function buildCandidateQuery(filters: SearchFilters, includeSearchText = false, 
 }
 
 function validateFilters(filters: SearchFilters, context: "list" | "search"): void {
-  const mode: SearchMode = filters.mode ?? "structured";
+  const mode = resolveSearchMode(filters, context);
 
   if (context === "list" && mode !== "structured") {
     throw new Error("List mode only supports structured retrieval.");
@@ -1378,7 +1676,7 @@ function validateFilters(filters: SearchFilters, context: "list" | "search"): vo
   }
 
   if (mode === "structured" && filters.themeQuery) {
-    throw new Error("themeQuery requires mode lexical or hybrid.");
+    throw new Error("themeQuery is not supported with mode=structured. Omit mode to default to hybrid, or set mode to lexical or hybrid.");
   }
 
   if (filters.coreOnly && filters.excludeAdventureContent) {
@@ -1463,16 +1761,153 @@ export class Pf2eDataService {
     return this.db.prepare(sql).all(...params) as CandidateRow[];
   }
 
-  private fetchFtsMatches(query: string): Set<string> {
+  private fetchFtsMatches(query: string): Map<string, number> {
     const ftsQuery = buildFtsQuery(query);
     if (!ftsQuery) {
-      return new Set();
+      return new Map();
     }
 
     const rows = this.db
-      .prepare("SELECT record_key as recordKey FROM records_fts WHERE records_fts MATCH ?")
-      .all(ftsQuery) as Array<{ recordKey: string }>;
-    return new Set(rows.map((row) => row.recordKey));
+      .prepare(
+        `
+          SELECT record_key AS recordKey, bm25(records_fts, 8.0, 1.5) AS rank
+          FROM records_fts
+          WHERE records_fts MATCH ?
+          ORDER BY rank
+        `,
+      )
+      .all(ftsQuery) as Array<{ recordKey: string; rank: number }>;
+
+    const scores = new Map<string, number>();
+    const total = rows.length;
+    rows.forEach((row, index) => {
+      scores.set(row.recordKey, total <= 1 ? 1 : 1 - (index / (total - 1)));
+    });
+    return scores;
+  }
+
+  private fetchRecordRowsByKeys(recordKeys: string[]): CandidateRow[] {
+    if (recordKeys.length === 0) {
+      return [];
+    }
+
+    const placeholders = buildPlaceholders(recordKeys);
+    return this.db
+      .prepare(
+        `
+          SELECT
+            r.record_key AS recordKey,
+            r.id AS id,
+            r.name AS name,
+            r.normalized_name AS normalizedName,
+            r.record_type AS type,
+            r.pack_name AS packName,
+            r.pack_label AS packLabel,
+            r.document_type AS documentType,
+            r.level AS level,
+            r.rarity AS rarity,
+            r.traits_json AS traitsJson,
+            r.publication_title AS publicationTitle,
+            r.description_text AS descriptionText,
+            r.has_description AS hasDescription,
+            r.description_snippet AS descriptionSnippet,
+            r.source_category AS sourceCategory,
+            r.folder_id AS folderId,
+            r.source_path AS sourcePath,
+            r.is_unique AS isUnique,
+            a.size AS size,
+            i.item_category AS itemCategory,
+            i.price_cp AS priceCp,
+            i.bulk_value AS bulkValue,
+            COALESCE(s.action_cost, i.action_cost) AS actionCost,
+            s.traditions_json AS traditionsJson
+          FROM records r
+          LEFT JOIN actor_records a ON a.record_key = r.record_key
+          LEFT JOIN item_records i ON i.record_key = r.record_key
+          LEFT JOIN spell_records s ON s.record_key = r.record_key
+          WHERE r.record_key IN (${placeholders})
+        `,
+      )
+      .all(...recordKeys) as CandidateRow[];
+  }
+
+  private fetchReferenceEdgeRows(
+    direction: RuleReferenceEdge["direction"],
+    recordKeys: string[],
+    {
+      coreOnly = false,
+      maxPerPrimary = 4,
+    }: { coreOnly?: boolean; maxPerPrimary?: number } = {},
+  ): RuleGraphResult {
+    if (recordKeys.length === 0) {
+      return { records: [], edges: [] };
+    }
+
+    const placeholders = buildPlaceholders(recordKeys);
+    const targetFilter = direction === "outgoing"
+      ? (coreOnly ? "AND target.source_category = 'core'" : "")
+      : (coreOnly ? "AND re.from_source_category = 'core'" : "AND re.from_source_category IN ('core', 'rules')");
+    const backlinkFilter = direction === "backlink"
+      ? "AND (re.from_record_type = 'action' OR re.from_record_type = 'feat' OR LOWER(re.from_pack_name) = 'classfeatures')"
+      : "";
+    const keyColumn = direction === "outgoing" ? "re.from_record_key" : "re.to_record_key";
+
+    const rows = this.db
+      .prepare(
+        `
+          SELECT
+            re.from_record_key AS fromRecordKey,
+            re.to_record_key AS toRecordKey,
+            re.display_text AS displayText,
+            re.reference_text AS referenceText,
+            re.from_pack_name AS fromPackName,
+            re.from_record_type AS fromRecordType,
+            re.from_document_type AS fromDocumentType,
+            re.from_source_category AS fromSourceCategory
+          FROM reference_edges re
+          JOIN records target ON target.record_key = re.to_record_key
+          WHERE ${keyColumn} IN (${placeholders})
+          ${targetFilter}
+          ${backlinkFilter}
+        `,
+      )
+      .all(...recordKeys) as ReferenceEdgeRow[];
+
+    const grouped = new Map<string, ReferenceEdgeRow[]>();
+    for (const row of rows) {
+      const groupKey = direction === "outgoing" ? row.fromRecordKey : row.toRecordKey;
+      const bucket = grouped.get(groupKey) ?? [];
+      bucket.push(row);
+      grouped.set(groupKey, bucket);
+    }
+
+    const keptRows: ReferenceEdgeRow[] = [];
+    for (const primaryKey of recordKeys) {
+      const bucket = grouped.get(primaryKey) ?? [];
+      bucket.sort((left, right) => {
+        const leftTypeRank =
+          left.fromPackName === "classfeatures" ? 2 : backlinkTypeRank(left.fromRecordType);
+        const rightTypeRank =
+          right.fromPackName === "classfeatures" ? 2 : backlinkTypeRank(right.fromRecordType);
+        const leftLabel = left.displayText ?? (direction === "outgoing" ? left.toRecordKey : left.fromRecordKey);
+        const rightLabel = right.displayText ?? (direction === "outgoing" ? right.toRecordKey : right.fromRecordKey);
+        return (
+          sourceCategoryRank(left.fromSourceCategory) - sourceCategoryRank(right.fromSourceCategory) ||
+          leftTypeRank - rightTypeRank ||
+          leftLabel.localeCompare(rightLabel) ||
+          left.referenceText.localeCompare(right.referenceText)
+        );
+      });
+      keptRows.push(...bucket.slice(0, Math.max(1, maxPerPrimary)));
+    }
+
+    const relatedRecordKeys = [
+      ...new Set(keptRows.map((row) => direction === "outgoing" ? row.toRecordKey : row.fromRecordKey)),
+    ];
+    return {
+      records: this.getRecordsByKeys(relatedRecordKeys),
+      edges: keptRows.map((row) => edgeRowToReferenceEdge(row, direction)),
+    };
   }
 
   private resolveReference(reference: ExtractedReference): NormalizedRecord | null {
@@ -1577,6 +2012,86 @@ export class Pf2eDataService {
     return rowToRecord(row, raw);
   }
 
+  getRecordsByKeys(recordKeys: string[]): NormalizedRecord[] {
+    const rows = this.fetchRecordRowsByKeys([...new Set(recordKeys)]);
+    const byKey = new Map(rows.map((row) => [row.recordKey, rowToRecord(row)]));
+    return [...new Set(recordKeys)].map((recordKey) => byKey.get(recordKey)).filter((record): record is NormalizedRecord => Boolean(record));
+  }
+
+  lookupMany(queries: LookupQuery[], options: { coreOnly?: boolean } = {}): LookupResult[] {
+    return queries.map((query) => {
+      const lookup = (() => {
+        if (!options.coreOnly) {
+          return this.lookup(query.name, query);
+        }
+
+        const results = this.search({
+          mode: "structured",
+          nameQuery: query.name,
+          pack: query.pack,
+          documentType: query.documentType,
+          recordType: query.recordType,
+          coreOnly: true,
+          limit: 5,
+        }).records;
+        return {
+          match: results[0] ?? null,
+          alternatives: results.slice(1),
+        };
+      })();
+      return {
+        query,
+        match: lookup.match,
+        alternatives: lookup.alternatives,
+        matchType: getLookupMatchType(query.name, lookup.match),
+      };
+    });
+  }
+
+  getLinkedRules(
+    recordKeys: string[],
+    options: { coreOnly?: boolean; maxPerPrimary?: number } = {},
+  ): RuleGraphResult {
+    return this.fetchReferenceEdgeRows("outgoing", [...new Set(recordKeys)], options);
+  }
+
+  getBacklinks(
+    recordKeys: string[],
+    options: { coreOnly?: boolean; maxPerPrimary?: number } = {},
+  ): RuleGraphResult {
+    return this.fetchReferenceEdgeRows("backlink", [...new Set(recordKeys)], options);
+  }
+
+  collectRuleQuestionContext(input: CollectRuleQuestionContextInput): CollectRuleQuestionContextResult {
+    const explicitRules = (input.rules ?? []).map((rule) => rule.trim()).filter((rule) => rule.length > 0);
+    const derivedRules = explicitRules.length > 0
+      ? explicitRules
+      : input.question
+        ? extractQuestionRuleNames(input.question)
+        : [];
+    const primary = this.lookupMany(derivedRules.map((name) => ({ name })), { coreOnly: input.coreOnly });
+    const primaryKeys = primary
+      .map((result) => result.match?.recordKey ?? null)
+      .filter((recordKey): recordKey is string => Boolean(recordKey));
+    const outgoing = this.getLinkedRules(primaryKeys, {
+      coreOnly: input.coreOnly,
+      maxPerPrimary: input.maxOutgoingPerPrimary ?? 4,
+    });
+    const backlinks = input.includeBacklinks
+      ? this.getBacklinks(primaryKeys, {
+          coreOnly: input.coreOnly,
+          maxPerPrimary: input.maxBacklinksPerPrimary ?? 4,
+        })
+      : { records: [], edges: [] };
+
+    return {
+      primary,
+      outgoing,
+      backlinks,
+      edges: [...outgoing.edges, ...backlinks.edges],
+    };
+  }
+
   listRecords(filters: SearchFilters): SearchResult {
     validateFilters(filters, "list");
     const limit = clampLimit(filters.limit);
@@ -1587,6 +2102,7 @@ export class Pf2eDataService {
       sortRecords(left, right)
     ));
     return {
+      mode: "structured",
       total: records.length,
       offset,
       limit,
@@ -1653,50 +2169,92 @@ export class Pf2eDataService {
     validateFilters(filters, "search");
     const limit = clampLimit(filters.limit);
     const offset = clampOffset(filters.offset);
-    const mode: SearchMode = filters.mode ?? "structured";
+    const mode = resolveSearchMode(filters, "search");
     const shouldIncludeSearchText = Boolean(filters.themeQuery || filters.nameQuery || mode !== "structured");
     const shouldIncludeEmbedding = Boolean(mode === "hybrid" && filters.themeQuery);
     let candidates = this.fetchCandidates(filters, shouldIncludeSearchText, shouldIncludeEmbedding);
 
-    const lexicalQuery = filters.themeQuery?.trim() || filters.nameQuery?.trim() || "";
-    const lexicalMatches = lexicalQuery ? this.fetchFtsMatches(lexicalQuery) : new Set<string>();
+    const rawLexicalQuery = filters.themeQuery?.trim() || filters.nameQuery?.trim() || "";
+    const queryAnalysis = rawLexicalQuery ? analyzeSearchQuery(rawLexicalQuery) : null;
+    const lexicalQuery = queryAnalysis?.expandedQuery ?? rawLexicalQuery;
+    const lexicalMatches = lexicalQuery ? this.fetchFtsMatches(lexicalQuery) : new Map<string, number>();
 
     if (mode === "lexical" && lexicalQuery && lexicalMatches.size > 0) {
       candidates = candidates.filter((candidate) => lexicalMatches.has(candidate.recordKey));
     }
 
-    const semanticVector = mode === "hybrid" && filters.themeQuery
-      ? this.embeddingProvider.embed(filters.themeQuery)
+    const semanticVector = mode === "hybrid" && queryAnalysis
+      ? this.embeddingProvider.embed(queryAnalysis.expandedQuery)
       : null;
 
     const scored = candidates
       .map((candidate) => {
         const record = rowToRecord(candidate);
-        const lexicalScore =
+        const ftsScore = lexicalQuery.length > 0 ? (lexicalMatches.get(candidate.recordKey) ?? 0) : 0;
+        const metadataTextScore =
           lexicalQuery.length > 0
-            ? Math.max(
-                lexicalMatches.has(candidate.recordKey) ? 1 : 0,
-                queryTextScore(lexicalQuery, candidate.searchText ?? ""),
-                filters.nameQuery ? nameScore(filters.nameQuery, record) : 0,
-              )
+            ? queryTextScore(lexicalQuery, buildMetadataText(record))
             : 0;
+        const descriptionTextScore =
+          lexicalQuery.length > 0
+            ? queryTextScore(lexicalQuery, record.descriptionText ?? "")
+            : 0;
+        const themeName = queryAnalysis
+          ? scoreWeightedOverlap(queryAnalysis.nameWeights, tokenize(record.name), 1.5)
+          : { score: 0, matchedTokens: [] };
+        const themeTraits = queryAnalysis
+          ? scoreWeightedOverlap(queryAnalysis.traitWeights, record.traits, 2)
+          : { score: 0, matchedTokens: [] };
+        const metadataOnlyBoost = !record.hasDescription
+          ? Math.max(themeTraits.score * 0.35, themeName.score * 0.2, metadataTextScore * 0.15)
+          : 0;
+        const lexicalScore =
+          (ftsScore * 0.1) +
+          (metadataTextScore * 0.15) +
+          (descriptionTextScore * 0.05) +
+          (themeName.score * 0.25) +
+          (themeTraits.score * 0.45) +
+          metadataOnlyBoost;
         const semanticScore =
           semanticVector && candidate.embeddingBlob
             ? Math.max(0, cosineSimilarity(semanticVector, decodeVector(candidate.embeddingBlob)))
             : 0;
+        const packQuality = packQualityScore(record);
+        const rankingProfile = rankingProfileScore(record, filters);
+        const components: SearchScoreComponents = {
+          fts: ftsScore,
+          metadataText: metadataTextScore,
+          descriptionText: descriptionTextScore,
+          themeName: themeName.score,
+          themeTraits: themeTraits.score,
+          metadataOnlyBoost,
+          packQuality,
+          rankingProfile,
+        };
 
         let score = 0.5;
         if (mode === "structured") {
-          score = (filters.nameQuery ? nameScore(filters.nameQuery, record) : 0.5) + packQualityScore(record);
+          score = (filters.nameQuery ? nameScore(filters.nameQuery, record) : 0.5) + packQuality;
         } else if (mode === "lexical") {
-          score = lexicalScore + packQualityScore(record);
+          score = lexicalScore + packQuality;
         } else {
-          score = (semanticScore * 0.75) + (lexicalScore * 0.25) + packQualityScore(record);
+          score = (lexicalScore * 0.85) + (semanticScore * 0.15) + packQuality;
         }
 
-        score += rankingProfileScore(record, filters);
+        score += rankingProfile;
 
-        return { record, score, lexicalScore, semanticScore };
+        const explanation: SearchRecordExplanation = {
+          recordKey: record.recordKey,
+          name: record.name,
+          totalScore: score,
+          lexicalScore,
+          semanticScore,
+          matchedTraits: themeTraits.matchedTokens,
+          matchedNameTokens: themeName.matchedTokens,
+          components,
+        };
+
+        return { record, score, lexicalScore, semanticScore, explanation };
       })
       .filter(({ score }) => {
         if (filters.nameQuery && mode === "structured") {
@@ -1718,11 +2276,33 @@ export class Pf2eDataService {
         );
       });
 
+    const page = scored.slice(offset, offset + limit);
+    const explain: SearchExplainResult | undefined = filters.explain
+      ? {
+          mode,
+          lexicalQuery: rawLexicalQuery,
+          semanticQuery: queryAnalysis?.expandedQuery ?? "",
+          query: queryAnalysis
+            ? {
+                rawQuery: queryAnalysis.rawQuery,
+                normalizedQuery: queryAnalysis.normalizedQuery,
+                queryTokens: queryAnalysis.queryTokens,
+                expandedQuery: queryAnalysis.expandedQuery,
+                boostedTraits: queryAnalysis.boostedTraits,
+                boostedNameTokens: queryAnalysis.boostedNameTokens,
+              }
+            : null,
+          records: page.map(({ explanation }) => explanation),
+        }
+      : undefined;
+
     return {
+      mode,
       total: scored.length,
       offset,
       limit,
-      records: scored.slice(offset, offset + limit).map(({ record }) => record),
+      records: page.map(({ record }) => record),
+      explain,
     };
   }
 

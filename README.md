@@ -94,14 +94,17 @@ Search and list responses include:
 - `hasDescription` for filtering and ranking
 - `descriptionSnippet` for lightweight discovery
 - `sourceCategory` to distinguish core, rules, adventure, and unknown sources
+- `searchExplain` on records when `pf2e_search` is called with `explain: true`
 
 ## Notes
 
 - The server is read-only.
+- `pf2e_search` defaults to `hybrid` when `themeQuery` is present and `mode` is omitted.
 - Search now uses a local SQLite index with:
   - shared structured filters
   - FTS-backed lexical search
   - hybrid semantic reranking over filtered candidates
+  - explicit name, trait, metadata, and description scoring with optional explain output
 - Semantic search is implemented with local application-side vector scoring after SQLite hard filters.
 - ANN and SQLite vector extensions are intentionally not required in the current implementation.
 - The transport layer is isolated so Streamable HTTP can be added later without rebuilding the data/index layer.

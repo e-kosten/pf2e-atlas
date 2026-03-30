@@ -59,6 +59,7 @@ export type SearchMode = "structured" | "lexical" | "hybrid";
 export interface SearchFilters {
   mode?: SearchMode;
   rankingProfile?: RankingProfile;
+  explain?: boolean;
   nameQuery?: string;
   themeQuery?: string;
   pack?: string;
@@ -90,9 +91,95 @@ export interface LookupOptions {
   recordType?: string;
 }
 
+export type RecordDetail = "minimal" | "standard" | "full";
+
+export interface LookupQuery extends LookupOptions {
+  name: string;
+}
+
+export interface LookupResult {
+  query: LookupQuery;
+  match: NormalizedRecord | null;
+  alternatives: NormalizedRecord[];
+  matchType: "exact" | "normalized_exact" | "fuzzy" | "none";
+}
+
 export interface SearchResult {
+  mode: SearchMode;
   total: number;
   offset: number;
   limit: number;
   records: NormalizedRecord[];
+  explain?: SearchExplainResult;
+}
+
+export interface SearchQueryAnalysis {
+  rawQuery: string;
+  normalizedQuery: string;
+  queryTokens: string[];
+  expandedQuery: string;
+  boostedTraits: string[];
+  boostedNameTokens: string[];
+}
+
+export interface SearchRecordExplanation {
+  recordKey: string;
+  name: string;
+  totalScore: number;
+  lexicalScore: number;
+  semanticScore: number;
+  matchedTraits: string[];
+  matchedNameTokens: string[];
+  components: {
+    fts: number;
+    metadataText: number;
+    descriptionText: number;
+    themeName: number;
+    themeTraits: number;
+    metadataOnlyBoost: number;
+    packQuality: number;
+    rankingProfile: number;
+  };
+}
+
+export interface SearchExplainResult {
+  mode: SearchMode;
+  lexicalQuery: string;
+  semanticQuery: string;
+  query: SearchQueryAnalysis | null;
+  records: SearchRecordExplanation[];
+}
+
+export interface RuleReferenceEdge {
+  fromRecordKey: string;
+  toRecordKey: string;
+  displayText: string | null;
+  referenceText: string;
+  direction: "outgoing" | "backlink";
+  relationshipType: "references" | "referenced_by";
+  sourcePackName: string;
+  sourceRecordType: string;
+  sourceDocumentType: string;
+  sourceCategory: SourceCategory;
+}
+
+export interface RuleGraphResult {
+  records: NormalizedRecord[];
+  edges: RuleReferenceEdge[];
+}
+
+export interface CollectRuleQuestionContextInput {
+  rules?: string[];
+  question?: string;
+  coreOnly?: boolean;
+  maxOutgoingPerPrimary?: number;
+  maxBacklinksPerPrimary?: number;
+  includeBacklinks?: boolean;
+}
+
+export interface CollectRuleQuestionContextResult {
+  primary: LookupResult[];
+  outgoing: RuleGraphResult;
+  backlinks: RuleGraphResult;
+  edges: RuleReferenceEdge[];
 }
