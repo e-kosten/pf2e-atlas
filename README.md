@@ -83,6 +83,8 @@ Example MCP client entry:
 - `pf2e_list_categories`
 - `pf2e_get_pack_metadata`
 - `pf2e_list_records`
+- `pf2e_get_search_semantics`
+- `pf2e_plan_search`
 - `pf2e_search`
 - `pf2e_lookup`
 - `pf2e_get_rules_context`
@@ -95,16 +97,21 @@ Search and list responses include:
 - `descriptionSnippet` for lightweight discovery
 - `sourceCategory` to distinguish core, rules, adventure, and unknown sources
 - `searchExplain` on records when `pf2e_search` is called with `explain: true`
+- `explain.query` details for query expansion when `pf2e_search` is called with `explain: true`
 
 ## Notes
 
 - The server is read-only.
 - `pf2e_search` defaults to `hybrid` when `themeQuery` is present and `mode` is omitted.
+- `pf2e_search` enables server-managed query expansion for `themeQuery` by default; set `expandQuery: false` to disable it.
+- `pf2e_get_search_semantics` exposes the indexed vocabulary and ontology domains the server understands.
+- `pf2e_plan_search` translates natural-language intent into server-native search payloads, structured backstops, and preview results.
 - Search now uses a local SQLite index with:
   - shared structured filters
   - FTS-backed lexical search
   - hybrid semantic reranking over filtered candidates
   - explicit name, trait, metadata, and description scoring with optional explain output
+  - a checked-in query expansion rule set with scope-aware boosts for traits, names, and metadata tokens
 - Semantic search is implemented with local application-side vector scoring after SQLite hard filters.
 - ANN and SQLite vector extensions are intentionally not required in the current implementation.
 - The transport layer is isolated so Streamable HTTP can be added later without rebuilding the data/index layer.

@@ -553,9 +553,29 @@ describe("Pf2eDataService", () => {
     expect(lionIndex).toBeGreaterThan(crawlingIndex);
 
     const crawlingExplain = broadResults.explain?.records.find((record) => record.name === "Crawling Hand Swarm");
+    expect(broadResults.explain?.query?.matchedRules.map((rule) => rule.id)).toEqual(
+      expect.arrayContaining(["spectral-undead", "maritime-depths", "body-horror"]),
+    );
     expect(crawlingExplain?.matchedTraits).toEqual(expect.arrayContaining(["swarm", "undead"]));
     expect(crawlingExplain?.matchedNameTokens).toContain("crawling");
+    expect(Array.isArray(crawlingExplain?.matchedMetadataTokens)).toBe(true);
+    expect(crawlingExplain?.matchedRuleIds).toEqual(
+      expect.arrayContaining(["spectral-undead", "maritime-depths", "body-horror"]),
+    );
     expect(crawlingExplain?.components.metadataOnlyBoost ?? 0).toBeGreaterThan(0);
+
+    const withoutExpansion = service.search({
+      recordType: "npc",
+      levelMin: 1,
+      levelMax: 5,
+      rarity: "common",
+      themeQuery: broadQuery,
+      limit: 20,
+      explain: true,
+      expandQuery: false,
+    });
+    expect(withoutExpansion.explain?.query?.matchedRules).toEqual([]);
+    expect(withoutExpansion.explain?.query?.skippedRules.map((rule) => rule.reason)).toContain("expansion_disabled");
 
     const lexicalResults = service.search({
       recordType: "npc",
@@ -607,6 +627,20 @@ describe("Pf2eDataService", () => {
     expect(backlinks.records.map((record) => record.name)).toEqual(["Deep Focus", "Meditative Well"]);
     expect(backlinks.edges.every((edge) => edge.direction === "backlink")).toBe(true);
     expect(backlinks.records.some((record) => record.type === "spell")).toBe(false);
+  });
+
+  it("exposes indexed search vocabulary for agent planning", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+
+    const service = await Pf2eDataService.load(fixture.root, fixture.manifestPath);
+
+    const vocabulary = service.getSearchVocabulary({ traitLimitPerRecordType: 4 });
+    expect(vocabulary.documentTypes.map((entry) => entry.value)).toEqual(expect.arrayContaining(["Actor", "Item"]));
+    expect(vocabulary.recordTypes.map((entry) => entry.value)).toEqual(expect.arrayContaining(["npc", "spell", "action"]));
+    expect(vocabulary.itemCategories.map((entry) => entry.value)).toEqual(expect.arrayContaining(["action", "feat", "spell"]));
+    expect(vocabulary.traditions.map((entry) => entry.value)).toContain("primal");
+    expect(vocabulary.commonTraitsByRecordType.find((entry) => entry.recordType === "npc")?.traits.length).toBeGreaterThan(0);
   });
 
   it("collects rule question context without synthesis", async () => {

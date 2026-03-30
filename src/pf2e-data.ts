@@ -20,7 +20,6 @@ import {
   SourceCategory,
   SearchFilters,
   SearchExplainResult,
-  SearchQueryAnalysis,
   SearchRecordExplanation,
   SearchMode,
   SearchResult,
@@ -36,6 +35,7 @@ import {
   toStringArray,
   uniqueSorted,
 } from "./utils.js";
+import { buildCandidateQueryWeights, buildSearchQueryAnalysis } from "./search-expansion.js";
 
 const execFileAsync = promisify(execFile);
 const INDEX_SCHEMA_VERSION = 3;
@@ -752,115 +752,11 @@ function buildFtsQuery(query: string): string | null {
   return tokens.map((token) => `"${token}"*`).join(" OR ");
 }
 
-type QueryHintRule = {
-  pattern: string;
-  traits?: string[];
-  nameTokens?: string[];
-};
-
-type SearchQueryAnalysisState = SearchQueryAnalysis & {
-  traitWeights: Map<string, number>;
-  nameWeights: Map<string, number>;
-};
-
 type SearchScoreComponents = SearchRecordExplanation["components"];
-
-const QUERY_HINT_RULES: QueryHintRule[] = [
-  { pattern: "ghost", traits: ["ghost", "spirit", "incorporeal", "undead"] },
-  { pattern: "haunted", traits: ["ghost", "spirit", "undead"] },
-  { pattern: "spirit", traits: ["spirit", "ghost", "incorporeal"] },
-  { pattern: "possession", traits: ["ghost", "spirit", "undead"] },
-  { pattern: "possessed", traits: ["ghost", "spirit", "undead"] },
-  { pattern: "swarm", traits: ["swarm"] },
-  { pattern: "infestation", traits: ["swarm"], nameTokens: ["crawling"] },
-  { pattern: "vermin", traits: ["swarm"] },
-  { pattern: "ship", traits: ["water", "aquatic"] },
-  { pattern: "voyage", traits: ["water", "aquatic"] },
-  { pattern: "hold", traits: ["water", "aquatic"] },
-  { pattern: "sea", traits: ["water", "aquatic"] },
-  { pattern: "ocean", traits: ["water", "aquatic"] },
-  { pattern: "drowned", traits: ["water", "aquatic", "undead"] },
-  { pattern: "body horror", nameTokens: ["crawling", "hand", "limb"] },
-  { pattern: "crawling", nameTokens: ["crawling"] },
-  { pattern: "severed limbs", nameTokens: ["hand", "limb"] },
-  { pattern: "severed limb", nameTokens: ["hand", "limb"] },
-  { pattern: "limbs", nameTokens: ["hand", "limb"] },
-  { pattern: "limb", nameTokens: ["hand", "limb"] },
-];
 
 function tokenize(value: string): string[] {
   const normalized = normalizeText(value);
   return normalized ? normalized.split(" ").filter(Boolean) : [];
-}
-
-function setWeightedValue(weights: Map<string, number>, token: string, weight: number): void {
-  const normalized = normalizeText(token);
-  if (!normalized) {
-    return;
-  }
-
-  weights.set(normalized, Math.max(weight, weights.get(normalized) ?? 0));
-}
-
-function matchesHintPattern(normalizedQuery: string, queryTokens: Set<string>, pattern: string): boolean {
-  const normalizedPattern = normalizeText(pattern);
-  if (!normalizedPattern) {
-    return false;
-  }
-
-  return normalizedPattern.includes(" ")
-    ? normalizedQuery.includes(normalizedPattern)
-    : queryTokens.has(normalizedPattern);
-}
-
-function analyzeSearchQuery(query: string): SearchQueryAnalysisState | null {
-  const normalizedQuery = normalizeText(query);
-  if (!normalizedQuery) {
-    return null;
-  }
-
-  const queryTokens = normalizedQuery.split(" ").filter(Boolean);
-  const queryTokenSet = new Set(queryTokens);
-  const traitWeights = new Map<string, number>();
-  const nameWeights = new Map<string, number>();
-
-  for (const token of queryTokens) {
-    setWeightedValue(traitWeights, token, 1);
-    setWeightedValue(nameWeights, token, 0.65);
-  }
-
-  for (const rule of QUERY_HINT_RULES) {
-    if (!matchesHintPattern(normalizedQuery, queryTokenSet, rule.pattern)) {
-      continue;
-    }
-
-    for (const trait of rule.traits ?? []) {
-      setWeightedValue(traitWeights, trait, 0.9);
-    }
-
-    for (const token of rule.nameTokens ?? []) {
-      setWeightedValue(nameWeights, token, 0.9);
-    }
-  }
-
-  const boostedTraits = [...traitWeights.keys()]
-    .filter((token) => !queryTokenSet.has(token))
-    .sort((left, right) => left.localeCompare(right));
-  const boostedNameTokens = [...nameWeights.keys()]
-    .filter((token) => !queryTokenSet.has(token))
-    .sort((left, right) => left.localeCompare(right));
-  const expandedQuery = uniqueSorted([...new Set([...queryTokens, ...boostedTraits, ...boostedNameTokens])]).join(" ");
-
-  return {
-    rawQuery: query,
-    normalizedQuery,
-    queryTokens,
-    expandedQuery,
-    boostedTraits,
-    boostedNameTokens,
-    traitWeights,
-    nameWeights,
-  };
 }
 
 function scoreWeightedOverlap(
@@ -1744,6 +1640,110 @@ export class Pf2eDataService {
     };
   }
 
+  getSearchVocabulary(options: { traitLimitPerRecordType?: number } = {}): {
+    documentTypes: Array<{ value: string; count: number }>;
+    recordTypes: Array<{ value: string; count: number }>;
+    itemCategories: Array<{ value: string; count: number }>;
+    traditions: Array<{ value: string; count: number }>;
+    sourceCategories: Array<{ value: SourceCategory; count: number }>;
+    commonTraitsByRecordType: Array<{ recordType: string; traits: Array<{ value: string; count: number }> }>;
+  } {
+    const traitLimit = Math.max(3, Math.min(options.traitLimitPerRecordType ?? 12, 25));
+    const documentTypes = this.db
+      .prepare(
+        `
+          SELECT r.document_type AS value, COUNT(*) AS count
+          FROM records r
+          GROUP BY r.document_type
+          ORDER BY count DESC, value ASC
+        `,
+      )
+      .all() as Array<{ value: string; count: number }>;
+    const recordTypes = this.db
+      .prepare(
+        `
+          SELECT r.record_type AS value, COUNT(*) AS count
+          FROM records r
+          GROUP BY r.record_type
+          ORDER BY count DESC, value ASC
+        `,
+      )
+      .all() as Array<{ value: string; count: number }>;
+    const itemCategories = this.db
+      .prepare(
+        `
+          SELECT i.item_category AS value, COUNT(*) AS count
+          FROM item_records i
+          WHERE i.item_category IS NOT NULL AND i.item_category <> ''
+          GROUP BY i.item_category
+          ORDER BY count DESC, value ASC
+        `,
+      )
+      .all() as Array<{ value: string; count: number }>;
+    const sourceCategories = this.db
+      .prepare(
+        `
+          SELECT r.source_category AS value, COUNT(*) AS count
+          FROM records r
+          GROUP BY r.source_category
+          ORDER BY count DESC, value ASC
+        `,
+      )
+      .all() as Array<{ value: SourceCategory; count: number }>;
+    const traitRows = this.db
+      .prepare(
+        `
+          SELECT r.record_type AS recordType, rt.trait AS value, COUNT(*) AS count
+          FROM record_traits rt
+          JOIN records r ON r.record_key = rt.record_key
+          GROUP BY r.record_type, rt.trait
+          ORDER BY r.record_type ASC, count DESC, value ASC
+        `,
+      )
+      .all() as Array<{ recordType: string; value: string; count: number }>;
+    const commonTraitsByRecordType = (() => {
+      const grouped = new Map<string, Array<{ value: string; count: number }>>();
+      for (const row of traitRows) {
+        const bucket = grouped.get(row.recordType) ?? [];
+        if (bucket.length < traitLimit) {
+          bucket.push({ value: row.value, count: row.count });
+          grouped.set(row.recordType, bucket);
+        }
+      }
+
+      return [...grouped.entries()]
+        .sort((left, right) => left[0].localeCompare(right[0]))
+        .map(([recordType, traits]) => ({ recordType, traits }));
+    })();
+    const traditionCounts = new Map<string, number>();
+    const traditionRows = this.db
+      .prepare("SELECT traditions_json AS traditionsJson FROM spell_records")
+      .all() as Array<{ traditionsJson: string }>;
+    for (const row of traditionRows) {
+      const traditions = JSON.parse(row.traditionsJson) as string[];
+      for (const tradition of traditions) {
+        const normalized = normalizeText(tradition);
+        if (!normalized) {
+          continue;
+        }
+
+        traditionCounts.set(normalized, (traditionCounts.get(normalized) ?? 0) + 1);
+      }
+    }
+    const traditions = [...traditionCounts.entries()]
+      .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+      .map(([value, count]) => ({ value, count }));
+
+    return {
+      documentTypes,
+      recordTypes,
+      itemCategories,
+      traditions,
+      sourceCategories,
+      commonTraitsByRecordType,
+    };
+  }
+
   getPack(packValue: string): PackInfo | undefined {
     return this.packs.find((pack) => getPackAliasValues(pack, packValue));
   }
@@ -2175,7 +2175,9 @@ export class Pf2eDataService {
     let candidates = this.fetchCandidates(filters, shouldIncludeSearchText, shouldIncludeEmbedding);
 
     const rawLexicalQuery = filters.themeQuery?.trim() || filters.nameQuery?.trim() || "";
-    const queryAnalysis = rawLexicalQuery ? analyzeSearchQuery(rawLexicalQuery) : null;
+    const queryAnalysis = rawLexicalQuery
+      ? buildSearchQueryAnalysis(rawLexicalQuery, filters, { expandQuery: filters.expandQuery ?? true })
+      : null;
     const lexicalQuery = queryAnalysis?.expandedQuery ?? rawLexicalQuery;
     const lexicalMatches = lexicalQuery ? this.fetchFtsMatches(lexicalQuery) : new Map<string, number>();
 
@@ -2199,21 +2201,28 @@ export class Pf2eDataService {
           lexicalQuery.length > 0
             ? queryTextScore(lexicalQuery, record.descriptionText ?? "")
             : 0;
-        const themeName = queryAnalysis
-          ? scoreWeightedOverlap(queryAnalysis.nameWeights, tokenize(record.name), 1.5)
+        const candidateQueryWeights = queryAnalysis
+          ? buildCandidateQueryWeights(record, queryAnalysis)
+          : null;
+        const themeName = candidateQueryWeights
+          ? scoreWeightedOverlap(candidateQueryWeights.nameWeights, tokenize(record.name), 1.5)
           : { score: 0, matchedTokens: [] };
-        const themeTraits = queryAnalysis
-          ? scoreWeightedOverlap(queryAnalysis.traitWeights, record.traits, 2)
+        const themeTraits = candidateQueryWeights
+          ? scoreWeightedOverlap(candidateQueryWeights.traitWeights, record.traits, 2)
+          : { score: 0, matchedTokens: [] };
+        const themeMetadata = candidateQueryWeights
+          ? scoreWeightedOverlap(candidateQueryWeights.metadataWeights, tokenize(buildMetadataText(record)), 2.5)
           : { score: 0, matchedTokens: [] };
         const metadataOnlyBoost = !record.hasDescription
-          ? Math.max(themeTraits.score * 0.35, themeName.score * 0.2, metadataTextScore * 0.15)
+          ? Math.max(themeTraits.score * 0.35, themeName.score * 0.2, themeMetadata.score * 0.15, metadataTextScore * 0.15)
           : 0;
         const lexicalScore =
           (ftsScore * 0.1) +
           (metadataTextScore * 0.15) +
           (descriptionTextScore * 0.05) +
           (themeName.score * 0.25) +
-          (themeTraits.score * 0.45) +
+          (themeTraits.score * 0.35) +
+          (themeMetadata.score * 0.1) +
           metadataOnlyBoost;
         const semanticScore =
           semanticVector && candidate.embeddingBlob
@@ -2227,6 +2236,7 @@ export class Pf2eDataService {
           descriptionText: descriptionTextScore,
           themeName: themeName.score,
           themeTraits: themeTraits.score,
+          themeMetadata: themeMetadata.score,
           metadataOnlyBoost,
           packQuality,
           rankingProfile,
@@ -2251,6 +2261,8 @@ export class Pf2eDataService {
           semanticScore,
           matchedTraits: themeTraits.matchedTokens,
           matchedNameTokens: themeName.matchedTokens,
+          matchedMetadataTokens: themeMetadata.matchedTokens,
+          matchedRuleIds: candidateQueryWeights?.matchedRuleIds ?? [],
           components,
         };
 
@@ -2290,6 +2302,9 @@ export class Pf2eDataService {
                 expandedQuery: queryAnalysis.expandedQuery,
                 boostedTraits: queryAnalysis.boostedTraits,
                 boostedNameTokens: queryAnalysis.boostedNameTokens,
+                boostedMetadataTokens: queryAnalysis.boostedMetadataTokens,
+                matchedRules: queryAnalysis.matchedRules,
+                skippedRules: queryAnalysis.skippedRules,
               }
             : null,
           records: page.map(({ explanation }) => explanation),

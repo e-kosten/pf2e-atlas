@@ -7,7 +7,8 @@ import * as z from "zod/v4";
 import { loadConfig } from "./config.js";
 import { Pf2eDataService } from "./pf2e-data.js";
 import { refreshPf2eCheckout } from "./pf2e-refresh.js";
-import { NormalizedRecord, PackInfo, RecordDetail, RuleReferenceEdge, SearchRecordExplanation } from "./types.js";
+import { buildSearchPlan, summarizeExpansionRules } from "./search-planning.js";
+import { NormalizedRecord, PackInfo, RecordDetail, RuleReferenceEdge, SearchFilters, SearchRecordExplanation } from "./types.js";
 
 function summarizeRecord(
   record: NormalizedRecord,
@@ -92,6 +93,18 @@ function summarizeEdge(edge: RuleReferenceEdge): Record<string, unknown> {
   };
 }
 
+function summarizeSearchPreview(label: string, purpose: string, result: { total: number; records: NormalizedRecord[] }, args: SearchFilters): Record<string, unknown> {
+  return {
+    label,
+    purpose,
+    arguments: args,
+    preview: {
+      total: result.total,
+      records: result.records.slice(0, 5).map((record) => summarizeRecord(record, "minimal")),
+    },
+  };
+}
+
 async function main(): Promise<void> {
   const config = await loadConfig();
   const refreshResult = await refreshPf2eCheckout(config.rootPath);
@@ -111,6 +124,134 @@ async function main(): Promise<void> {
     name: "pathfinder-2e-foundry-mcp",
     version: "0.1.0",
   });
+
+  server.registerTool(
+    "pf2e_get_search_semantics",
+    {
+      description: "Describe the search ontology, indexed vocabulary, and structured filters that thematic PF2E retrieval understands.",
+      inputSchema: {
+        traitLimitPerRecordType: z.number().int().min(3).max(25).optional().describe("Maximum common traits to return per record type. Defaults to 12."),
+      },
+    },
+    async ({ traitLimitPerRecordType }) => {
+      const vocabulary = dataService.getSearchVocabulary({ traitLimitPerRecordType });
+      const domains = summarizeExpansionRules();
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Search semantics expose ${domains.length} ontology domains across ${vocabulary.recordTypes.length} record types.`,
+          },
+        ],
+        structuredContent: {
+          supportedFilters: [
+            {
+              name: "recordType",
+              strength: "strong boundary",
+              description: "Best first cut for separating creatures, hazards, spells, and other indexed families.",
+            },
+            {
+              name: "traitsAny",
+              strength: "strong taxonomy hint",
+              description: "Preferred structured bridge from broad themes into PF2E ontology terms.",
+            },
+            {
+              name: "traitsAll",
+              strength: "strict backstop",
+              description: "Best for deterministic narrowing when multiple taxonomy terms are essential.",
+            },
+            {
+              name: "itemCategory",
+              strength: "gear boundary",
+              description: "Useful for equipment-oriented searches and item-only retrieval.",
+            },
+            {
+              name: "tradition",
+              strength: "spell boundary",
+              description: "Useful for spell searches when the theme implies a magical tradition.",
+            },
+            {
+              name: "themeQuery",
+              strength: "semantic text",
+              description: "Broad lexical/hybrid retrieval input that works best when bounded by other filters.",
+            },
+          ],
+          retrievalPatterns: [
+            {
+              name: "bounded_hybrid",
+              description: "Use broad semantic search inside hard filters such as recordType, level bounds, and traits.",
+            },
+            {
+              name: "trait_hinted_rerun",
+              description: "When broad vibe search is noisy, rerun hybrid mode with server-recognized traitsAny terms.",
+            },
+            {
+              name: "structured_backstop",
+              description: "Use structured traitsAny or traitsAll when the query maps cleanly to indexed taxonomy.",
+            },
+          ],
+          ontologyDomains: domains,
+          vocabulary,
+        },
+      };
+    },
+  );
+
+  server.registerTool(
+    "pf2e_plan_search",
+    {
+      description: "Translate natural-language PF2E search intent into server-native search payloads, recognized semantics, and structured backstops.",
+      inputSchema: {
+        intent: z.string().describe("Natural-language description of the retrieval goal."),
+        mode: z.enum(["structured", "lexical", "hybrid"]).optional().describe("Optional retrieval mode hint."),
+        rankingProfile: z.enum(["default", "preferReusableReferenceContent"]).optional().describe("Optional ranking preference profile."),
+        expandQuery: z.boolean().optional().describe("Enable server-managed query expansion while planning. Defaults to true."),
+        pack: z.string().optional().describe("Optional pack name or label."),
+        documentType: z.string().optional().describe("Optional document type hint."),
+        recordType: z.string().optional().describe("Optional record type hint."),
+        levelMin: z.number().int().optional().describe("Minimum level inclusive."),
+        levelMax: z.number().int().optional().describe("Maximum level inclusive."),
+        rarity: z.string().optional().describe("Rarity filter."),
+        traitsAny: z.array(z.string()).optional().describe("Pre-existing traitsAny hints to preserve in recommended queries."),
+        traitsAll: z.array(z.string()).optional().describe("Pre-existing traitsAll hints to preserve in recommended queries."),
+        tradition: z.string().optional().describe("Optional spell tradition hint."),
+        publicationTitle: z.string().optional().describe("Publication title contains this text."),
+        excludeUnique: z.boolean().optional().describe("Exclude unique records."),
+        excludeMissingDescription: z.boolean().optional().describe("Exclude records without description or lore text."),
+        excludeAdventureContent: z.boolean().optional().describe("Exclude records sourced from adventures, scenarios, quests, and one-shots."),
+        coreOnly: z.boolean().optional().describe("Restrict results to core publications only."),
+        size: z.string().optional().describe("Actor size filter."),
+        itemCategory: z.string().optional().describe("Item category hint."),
+        priceMin: z.number().optional().describe("Minimum item price in copper pieces."),
+        priceMax: z.number().optional().describe("Maximum item price in copper pieces."),
+        actionCost: z.number().int().optional().describe("Action cost filter."),
+      },
+    },
+    async ({ intent, ...filters }) => {
+      const plan = buildSearchPlan(intent, filters);
+      const previews = plan.recommendedQueries.slice(0, 4).map((query) => {
+        const previewResult = dataService.search({
+          ...query.arguments,
+          limit: 5,
+          explain: false,
+        });
+        return summarizeSearchPreview(query.label, query.purpose, previewResult, query.arguments);
+      });
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Planned ${plan.recommendedQueries.length} search path${plan.recommendedQueries.length === 1 ? "" : "s"} for "${intent}".`,
+          },
+        ],
+        structuredContent: {
+          ...plan,
+          previews,
+        },
+      };
+    },
+  );
 
   server.registerTool(
     "pf2e_list_categories",
@@ -220,6 +361,7 @@ async function main(): Promise<void> {
         mode: z.enum(["structured", "lexical", "hybrid"]).optional().describe("Retrieval mode. Defaults to structured, or hybrid when themeQuery is present and mode is omitted."),
         rankingProfile: z.enum(["default", "preferReusableReferenceContent"]).optional().describe("Optional ranking preference profile."),
         explain: z.boolean().optional().describe("Include score breakdowns and query-analysis details in the response."),
+        expandQuery: z.boolean().optional().describe("Enable server-managed query expansion for themeQuery. Defaults to true."),
         nameQuery: z.string().optional().describe("Name text to search for."),
         themeQuery: z.string().optional().describe("Theme or semantic query text. If mode is omitted, themeQuery defaults search to hybrid."),
         pack: z.string().optional().describe("Optional pack name or label."),
