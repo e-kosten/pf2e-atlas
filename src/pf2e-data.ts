@@ -7,8 +7,15 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
 import {
+  createEmbeddingProvider,
+  DEFAULT_EMBEDDING_MODEL_ID,
+  DEFAULT_EMBEDDING_REVISION,
+  EmbeddingProvider,
+} from "./embeddings.js";
+import {
   CollectRuleQuestionContextInput,
   CollectRuleQuestionContextResult,
+  EmbeddingConfig,
   LookupOptions,
   LookupQuery,
   LookupResult,
@@ -38,10 +45,14 @@ import {
 import { buildCandidateQueryWeights, buildSearchQueryAnalysis } from "./search-expansion.js";
 
 const execFileAsync = promisify(execFile);
-const INDEX_SCHEMA_VERSION = 4;
+const INDEX_SCHEMA_VERSION = 5;
 
 type LoadOptions = {
   indexPath?: string;
+  embedding?: EmbeddingConfig;
+  embeddingProviderFactory?: (
+    config: EmbeddingConfig,
+  ) => Promise<{ provider: EmbeddingProvider; warnings: string[] }>;
 };
 
 type SqlValue = string | number | bigint | Uint8Array | Buffer | null;
@@ -149,63 +160,6 @@ type SpellIndexData = {
   damageTypes: string[];
 };
 
-interface EmbeddingProvider {
-  readonly dimensions: number;
-  embed(text: string): Float32Array;
-}
-
-class HashEmbeddingProvider implements EmbeddingProvider {
-  readonly dimensions: number;
-
-  constructor(dimensions = 192) {
-    this.dimensions = dimensions;
-  }
-
-  embed(text: string): Float32Array {
-    const normalized = normalizeText(text);
-    const vector = new Float32Array(this.dimensions);
-    if (!normalized) {
-      return vector;
-    }
-
-    for (const token of normalized.split(" ").filter(Boolean)) {
-      const bucket = hashText(token) % this.dimensions;
-      const sign = hashText(`${token}:sign`) % 2 === 0 ? 1 : -1;
-      vector[bucket] = (vector[bucket] ?? 0) + sign;
-    }
-
-    return normalizeVector(vector);
-  }
-}
-
-function hashText(value: string): number {
-  let hash = 2166136261;
-  for (let index = 0; index < value.length; index += 1) {
-    hash ^= value.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
-  }
-
-  return hash >>> 0;
-}
-
-function normalizeVector(vector: Float32Array): Float32Array {
-  let magnitude = 0;
-  for (const value of vector) {
-    magnitude += value * value;
-  }
-
-  if (magnitude === 0) {
-    return vector;
-  }
-
-  const scale = 1 / Math.sqrt(magnitude);
-  for (let index = 0; index < vector.length; index += 1) {
-    vector[index] = (vector[index] ?? 0) * scale;
-  }
-
-  return vector;
-}
-
 function encodeVector(vector: Float32Array): Buffer {
   return Buffer.from(vector.buffer.slice(vector.byteOffset, vector.byteOffset + vector.byteLength));
 }
@@ -230,6 +184,16 @@ function cosineSimilarity(left: Float32Array, right: Float32Array): number {
   }
 
   return total;
+}
+
+function hashText(value: string): number {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+
+  return hash >>> 0;
 }
 
 function isJsonRecord(filename: string): boolean {
@@ -1295,7 +1259,10 @@ async function buildIndex(
   try {
     insertMetadata.run("schema_version", String(INDEX_SCHEMA_VERSION));
     insertMetadata.run("source_signature", sourceSignature);
-    insertMetadata.run("embedding_dimensions", String(embeddingProvider.dimensions));
+    insertMetadata.run("embedding_provider", embeddingProvider.identity.provider);
+    insertMetadata.run("embedding_model", embeddingProvider.identity.model);
+    insertMetadata.run("embedding_revision", embeddingProvider.identity.revision ?? "");
+    insertMetadata.run("embedding_dimensions", String(embeddingProvider.identity.dimensions));
 
     for (const manifestPack of manifestPacks) {
       const resolvedPath = await resolvePackPath(rootPath, manifestPack);
@@ -1334,7 +1301,7 @@ async function buildIndex(
         const actorData = pack.documentType === "Actor" ? parseActorIndexData(raw) : null;
         const itemData = pack.documentType === "Item" ? parseItemIndexData(raw) : null;
         const spellData = record.type === "spell" ? parseSpellIndexData(raw) : null;
-        const embedding = embeddingProvider.embed(record.searchText);
+        const embedding = await embeddingProvider.embed(record.searchText);
 
         insertRecord.run(
           record.recordKey,
@@ -1420,7 +1387,7 @@ async function buildIndex(
           );
         }
 
-        insertEmbedding.run(record.recordKey, embeddingProvider.dimensions, encodeVector(embedding));
+        insertEmbedding.run(record.recordKey, embeddingProvider.identity.dimensions, encodeVector(embedding));
         insertFts.run(record.recordKey, record.name, record.searchText);
 
         packRecordCount += 1;
@@ -1476,16 +1443,66 @@ function readMetadata(db: DatabaseSync): Map<string, string> {
 }
 
 function canReuseIndex(db: DatabaseSync, sourceSignature: string, embeddingProvider: EmbeddingProvider): boolean {
+  return getIndexInvalidReason(db, sourceSignature, embeddingProvider) === null;
+}
+
+function getIndexInvalidReason(
+  db: DatabaseSync,
+  sourceSignature: string,
+  embeddingProvider: EmbeddingProvider,
+): string | null {
   try {
     const metadata = readMetadata(db);
-    return (
-      metadata.get("schema_version") === String(INDEX_SCHEMA_VERSION) &&
-      metadata.get("source_signature") === sourceSignature &&
-      metadata.get("embedding_dimensions") === String(embeddingProvider.dimensions)
-    );
+    if (metadata.get("schema_version") !== String(INDEX_SCHEMA_VERSION)) {
+      return "index schema version does not match the current code";
+    }
+    if (metadata.get("source_signature") !== sourceSignature) {
+      return "PF2E source data changed since the index was built";
+    }
+    if (metadata.get("embedding_provider") !== embeddingProvider.identity.provider) {
+      return "embedding provider changed since the index was built";
+    }
+    if (metadata.get("embedding_model") !== embeddingProvider.identity.model) {
+      return "embedding model changed since the index was built";
+    }
+    if (metadata.get("embedding_revision") !== (embeddingProvider.identity.revision ?? "")) {
+      return "embedding model revision changed since the index was built";
+    }
+    if (metadata.get("embedding_dimensions") !== String(embeddingProvider.identity.dimensions)) {
+      return "embedding dimensions changed since the index was built";
+    }
+    return null;
   } catch {
-    return false;
+    return "index metadata could not be read";
   }
+}
+
+async function removeIndexFiles(indexPath: string): Promise<void> {
+  await rm(indexPath, { force: true });
+  await rm(`${indexPath}-wal`, { force: true });
+  await rm(`${indexPath}-shm`, { force: true });
+}
+
+function defaultEmbeddingConfig(indexPath: string): EmbeddingConfig {
+  return {
+    provider: "hf-local",
+    modelId: DEFAULT_EMBEDDING_MODEL_ID,
+    modelRevision: DEFAULT_EMBEDDING_REVISION,
+    cachePath: path.join(path.dirname(indexPath), "hf-models"),
+    localModelPath: null,
+  };
+}
+
+function buildMissingIndexError(indexPath: string): Error {
+  return new Error(
+    `PF2E index not found at ${indexPath}. Run 'npm run refresh-index' or 'npm run refresh-external' before starting the MCP server.`,
+  );
+}
+
+function buildStaleIndexError(indexPath: string, reason: string): Error {
+  return new Error(
+    `PF2E index at ${indexPath} is stale: ${reason}. Run 'npm run refresh-index' or 'npm run refresh-external' before starting the MCP server.`,
+  );
 }
 
 async function resolvePackPath(rootPath: string, pack: PackManifestEntry): Promise<string | null> {
@@ -1704,30 +1721,57 @@ export class Pf2eDataService {
 
   static async load(rootPath: string, manifestPath: string, options: LoadOptions = {}): Promise<Pf2eDataService> {
     const indexPath = options.indexPath ?? defaultIndexPath(manifestPath);
-    const embeddingProvider = new HashEmbeddingProvider();
+    const embeddingConfig: EmbeddingConfig = options.embedding ?? defaultEmbeddingConfig(indexPath);
+    const embeddingProviderFactory = options.embeddingProviderFactory ?? createEmbeddingProvider;
+    const embeddingRuntime = await embeddingProviderFactory(embeddingConfig);
+    const embeddingProvider = embeddingRuntime.provider;
+    const sourceSignature = await computeSourceSignature(rootPath, manifestPath);
+    if (!(await fileExists(indexPath))) {
+      throw buildMissingIndexError(indexPath);
+    }
+
+    const existingDb = new DatabaseSync(indexPath);
+    const invalidReason = getIndexInvalidReason(existingDb, sourceSignature, embeddingProvider);
+    if (invalidReason) {
+      existingDb.close();
+      throw buildStaleIndexError(indexPath, invalidReason);
+    }
+
+    const packs = loadPacksFromIndex(existingDb);
+    const recordCount = sqliteRowCount(
+      existingDb.prepare("SELECT COUNT(*) AS total FROM records").get() as Record<string, unknown> | undefined,
+    );
+    return new Pf2eDataService(
+      existingDb,
+      packs,
+      embeddingRuntime.warnings,
+      recordCount,
+      indexPath,
+      embeddingProvider,
+    );
+  }
+
+  static async rebuildIndex(rootPath: string, manifestPath: string, options: LoadOptions = {}): Promise<Pf2eDataService> {
+    const indexPath = options.indexPath ?? defaultIndexPath(manifestPath);
+    const embeddingConfig: EmbeddingConfig = options.embedding ?? defaultEmbeddingConfig(indexPath);
+    const embeddingProviderFactory = options.embeddingProviderFactory ?? createEmbeddingProvider;
+    const embeddingRuntime = await embeddingProviderFactory(embeddingConfig);
+    const embeddingProvider = embeddingRuntime.provider;
     const sourceSignature = await computeSourceSignature(rootPath, manifestPath);
     await mkdir(path.dirname(indexPath), { recursive: true });
-
-    if (await fileExists(indexPath)) {
-      const existingDb = new DatabaseSync(indexPath);
-      if (canReuseIndex(existingDb, sourceSignature, embeddingProvider)) {
-        const packs = loadPacksFromIndex(existingDb);
-        const recordCount = sqliteRowCount(
-          existingDb.prepare("SELECT COUNT(*) AS total FROM records").get() as Record<string, unknown> | undefined,
-        );
-        return new Pf2eDataService(existingDb, packs, [], recordCount, indexPath, embeddingProvider);
-      }
-
-      existingDb.close();
-      await rm(indexPath, { force: true });
-      await rm(`${indexPath}-wal`, { force: true });
-      await rm(`${indexPath}-shm`, { force: true });
-    }
+    await removeIndexFiles(indexPath);
 
     const db = new DatabaseSync(indexPath);
     createSchema(db);
     const { packs, warnings, recordCount } = await buildIndex(db, rootPath, manifestPath, embeddingProvider, sourceSignature);
-    return new Pf2eDataService(db, packs, warnings, recordCount, indexPath, embeddingProvider);
+    return new Pf2eDataService(
+      db,
+      packs,
+      [...embeddingRuntime.warnings, ...warnings],
+      recordCount,
+      indexPath,
+      embeddingProvider,
+    );
   }
 
   getStats(): { packCount: number; recordCount: number } {
@@ -2122,7 +2166,7 @@ export class Pf2eDataService {
           return this.lookup(query.name, query);
         }
 
-        const results = this.search({
+        const results = this.searchStructured({
           mode: "structured",
           nameQuery: query.name,
           pack: query.pack,
@@ -2186,6 +2230,47 @@ export class Pf2eDataService {
       outgoing,
       backlinks,
       edges: [...outgoing.edges, ...backlinks.edges],
+    };
+  }
+
+  private searchStructured(filters: SearchFilters): SearchResult {
+    validateFilters(filters, "search");
+    const limit = clampLimit(filters.limit);
+    const offset = clampOffset(filters.offset);
+    const candidates = this.fetchCandidates(filters);
+    const scored = candidates
+      .map((candidate) => {
+        const record = rowToRecord(candidate);
+        const packQuality = packQualityScore(record);
+        const sourceQuality = sourceQualityScore(record);
+        const rarityPreference = rarityPreferenceScore(record, filters);
+        const sourcePenalty = sourcePenaltyScore(record, filters);
+        const rankingProfile = rankingProfileScore(record, filters);
+        const score =
+          (filters.nameQuery ? nameScore(filters.nameQuery, record) : 0.5) +
+          packQuality +
+          sourceQuality +
+          rarityPreference +
+          sourcePenalty +
+          rankingProfile;
+
+        return { record, score };
+      })
+      .filter(({ score }) => {
+        if (filters.nameQuery) {
+          return score >= 0.2;
+        }
+
+        return true;
+      })
+      .sort((left, right) => right.score - left.score || sortRecords(left.record, right.record));
+
+    return {
+      mode: "structured",
+      total: scored.length,
+      offset,
+      limit,
+      records: scored.slice(offset, offset + limit).map(({ record }) => record),
     };
   }
 
@@ -2262,7 +2347,7 @@ export class Pf2eDataService {
     return { record: baseRecord, references, edges };
   }
 
-  search(filters: SearchFilters): SearchResult {
+  async search(filters: SearchFilters): Promise<SearchResult> {
     validateFilters(filters, "search");
     const limit = clampLimit(filters.limit);
     const offset = clampOffset(filters.offset);
@@ -2283,7 +2368,7 @@ export class Pf2eDataService {
     }
 
     const semanticVector = mode === "hybrid" && queryAnalysis
-      ? this.embeddingProvider.embed(queryAnalysis.expandedQuery)
+      ? await this.embeddingProvider.embed(queryAnalysis.expandedQuery)
       : null;
 
     const scored = candidates
@@ -2426,7 +2511,7 @@ export class Pf2eDataService {
   }
 
   lookup(name: string, options: LookupOptions = {}): { match: NormalizedRecord | null; alternatives: NormalizedRecord[] } {
-    const results = this.search({
+    const results = this.searchStructured({
       mode: "structured",
       nameQuery: name,
       pack: options.pack,

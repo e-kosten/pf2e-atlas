@@ -6,7 +6,6 @@ import * as z from "zod/v4";
 
 import { loadConfig } from "./config.js";
 import { Pf2eDataService } from "./pf2e-data.js";
-import { refreshPf2eCheckout } from "./pf2e-refresh.js";
 import { buildSearchPlan, summarizeExpansionRules } from "./search-planning.js";
 import { NormalizedRecord, PackInfo, RecordDetail, RuleReferenceEdge, SearchFilters, SearchRecordExplanation } from "./types.js";
 
@@ -107,18 +106,12 @@ function summarizeSearchPreview(label: string, purpose: string, result: { total:
 
 async function main(): Promise<void> {
   const config = await loadConfig();
-  const refreshResult = await refreshPf2eCheckout(config.rootPath);
-  if (refreshResult.warning) {
-    console.error(refreshResult.warning);
-  } else {
-    console.error(refreshResult.summary);
-  }
-
-  const dataService = await Pf2eDataService.load(config.rootPath, config.manifestPath, { indexPath: config.indexPath });
+  const dataService = await Pf2eDataService.load(config.rootPath, config.manifestPath, {
+    indexPath: config.indexPath,
+    embedding: config.embeddings,
+  });
   const stats = dataService.getStats();
-  const startupWarnings = refreshResult.warning
-    ? [refreshResult.warning, ...dataService.warnings]
-    : dataService.warnings;
+  const startupWarnings = dataService.warnings;
 
   const server = new McpServer({
     name: "pathfinder-2e-foundry-mcp",
@@ -229,14 +222,14 @@ async function main(): Promise<void> {
     },
     async ({ intent, ...filters }) => {
       const plan = buildSearchPlan(intent, filters);
-      const previews = plan.recommendedQueries.slice(0, 4).map((query) => {
-        const previewResult = dataService.search({
+      const previews = await Promise.all(plan.recommendedQueries.slice(0, 4).map(async (query) => {
+        const previewResult = await dataService.search({
           ...query.arguments,
           limit: 5,
           explain: false,
         });
         return summarizeSearchPreview(query.label, query.purpose, previewResult, query.arguments);
-      });
+      }));
 
       return {
         content: [
@@ -388,7 +381,7 @@ async function main(): Promise<void> {
       },
     },
     async (input) => {
-      const result = dataService.search(input);
+      const result = await dataService.search(input);
       return {
         content: [
           {

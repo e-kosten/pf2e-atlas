@@ -3,6 +3,17 @@ export interface AppConfig {
   rootPath: string;
   manifestPath: string;
   indexPath: string;
+  embeddings: EmbeddingConfig;
+}
+
+export type EmbeddingProviderKind = "hash" | "hf-local";
+
+export interface EmbeddingConfig {
+  provider: EmbeddingProviderKind;
+  modelId: string;
+  modelRevision: string | null;
+  cachePath: string;
+  localModelPath: string | null;
 }
 
 export interface PackManifestEntry {

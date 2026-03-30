@@ -1,13 +1,61 @@
 import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { DatabaseSync } from "node:sqlite";
 
 import { afterEach, describe, expect, it } from "vitest";
 
 import { Pf2eDataService } from "../src/pf2e-data.js";
 
+const TEST_HASH_EMBEDDING = {
+  provider: "hash" as const,
+  modelId: "feature-hash-192",
+  modelRevision: null,
+  cachePath: path.join(os.tmpdir(), "pf2e-test-hf-cache"),
+  localModelPath: null,
+};
+
 async function writeJson(filePath: string, value: unknown): Promise<void> {
   await writeFile(filePath, JSON.stringify(value, null, 2));
+}
+
+async function loadTestService(
+  fixture: { root: string; manifestPath: string },
+  options: Parameters<typeof Pf2eDataService.load>[2] = {},
+): Promise<Pf2eDataService> {
+  return Pf2eDataService.rebuildIndex(fixture.root, fixture.manifestPath, {
+    embedding: TEST_HASH_EMBEDDING,
+    ...options,
+  });
+}
+
+async function openPreparedTestService(
+  fixture: { root: string; manifestPath: string },
+  options: Parameters<typeof Pf2eDataService.load>[2] = {},
+): Promise<Pf2eDataService> {
+  return Pf2eDataService.load(fixture.root, fixture.manifestPath, {
+    embedding: TEST_HASH_EMBEDDING,
+    ...options,
+  });
+}
+
+function createFakeEmbeddingProviderFactory(
+  identity: { provider: "hash" | "hf-local"; model: string; revision: string | null; dimensions: number },
+  warnings: string[] = [],
+): NonNullable<Parameters<typeof Pf2eDataService.load>[2]>["embeddingProviderFactory"] {
+  return async () => ({
+    provider: {
+      identity,
+      async embed(text: string): Promise<Float32Array> {
+        const vector = new Float32Array(identity.dimensions);
+        if (text.trim().length > 0) {
+          vector[0] = 1;
+        }
+        return vector;
+      },
+    },
+    warnings,
+  });
 }
 
 async function createFixture(): Promise<{ root: string; manifestPath: string }> {
@@ -965,7 +1013,7 @@ describe("Pf2eDataService", () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);
 
-    const service = await Pf2eDataService.load(fixture.root, fixture.manifestPath);
+    const service = await loadTestService(fixture);
 
     expect(service.listPacks()).toHaveLength(7);
     expect(service.getStats()).toEqual({ packCount: 7, recordCount: 23 });
@@ -976,19 +1024,19 @@ describe("Pf2eDataService", () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);
 
-    const service = await Pf2eDataService.load(fixture.root, fixture.manifestPath);
+    const service = await loadTestService(fixture);
 
     expect(service.lookup("Raise Shield").match?.name).toBe("Raise a Shield");
     expect(service.listRecords({ pack: "actions" }).records).toHaveLength(3);
-    expect(service.search({ documentType: "Actor", traitsAll: ["fiend"] }).records[0]?.name).toBe("Cythnigot");
-    expect(service.search({ documentType: "Actor", size: "sm" }).records.every((record) => record.size === "sm")).toBe(true);
-    expect(service.search({ mode: "lexical", themeQuery: "aberration", documentType: "Actor" }).records[0]?.name).toBe("Cythnigot");
-    expect(service.search({ recordType: "spell", tradition: "primal", actionCost: 2 }).records[0]?.name).toBe("Sea Blessing");
-    expect(service.search({ nameQuery: "Ghost Sailor", documentType: "Actor", excludeMissingDescription: true }).records.every((record) => record.hasDescription)).toBe(true);
-    expect(service.search({ nameQuery: "Ghost Sailor", documentType: "Actor", excludeAdventureContent: true }).records[0]?.sourceCategory).toBe("core");
-    expect(service.search({ documentType: "Actor", coreOnly: true }).records.every((record) => record.sourceCategory === "core")).toBe(true);
-    expect(service.search({ themeQuery: "ghost ship", documentType: "Actor" }).mode).toBe("hybrid");
-    expect(() => service.search({ mode: "structured", themeQuery: "ghost ship" })).toThrow(
+    expect((await service.search({ documentType: "Actor", traitsAll: ["fiend"] })).records[0]?.name).toBe("Cythnigot");
+    expect((await service.search({ documentType: "Actor", size: "sm" })).records.every((record) => record.size === "sm")).toBe(true);
+    expect((await service.search({ mode: "lexical", themeQuery: "aberration", documentType: "Actor" })).records[0]?.name).toBe("Cythnigot");
+    expect((await service.search({ recordType: "spell", tradition: "primal", actionCost: 2 })).records[0]?.name).toBe("Sea Blessing");
+    expect((await service.search({ nameQuery: "Ghost Sailor", documentType: "Actor", excludeMissingDescription: true })).records.every((record) => record.hasDescription)).toBe(true);
+    expect((await service.search({ nameQuery: "Ghost Sailor", documentType: "Actor", excludeAdventureContent: true })).records[0]?.sourceCategory).toBe("core");
+    expect((await service.search({ documentType: "Actor", coreOnly: true })).records.every((record) => record.sourceCategory === "core")).toBe(true);
+    expect((await service.search({ themeQuery: "ghost ship", documentType: "Actor" })).mode).toBe("hybrid");
+    await expect(service.search({ mode: "structured", themeQuery: "ghost ship" })).rejects.toThrow(
       /omit mode to default to hybrid, or set mode to lexical or hybrid/i,
     );
 
@@ -1002,21 +1050,21 @@ describe("Pf2eDataService", () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);
 
-    const service = await Pf2eDataService.load(fixture.root, fixture.manifestPath);
+    const service = await loadTestService(fixture);
 
-    const crawlingHands = service.search({
+    const crawlingHands = (await service.search({
       documentType: "Actor",
       nameQuery: "Crawling Hand Swarm",
       rankingProfile: "preferReusableReferenceContent",
-    }).records;
+    })).records;
     expect(crawlingHands[0]?.sourceCategory).toBe("adventure");
     expect(crawlingHands[0]?.hasDescription).toBe(true);
 
-    const bilgeSkeletons = service.search({
+    const bilgeSkeletons = (await service.search({
       documentType: "Actor",
       nameQuery: "Bilge Skeleton",
       rankingProfile: "preferReusableReferenceContent",
-    }).records;
+    })).records;
     expect(bilgeSkeletons[0]?.sourceCategory).toBe("core");
   });
 
@@ -1024,11 +1072,11 @@ describe("Pf2eDataService", () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);
 
-    const service = await Pf2eDataService.load(fixture.root, fixture.manifestPath);
+    const service = await loadTestService(fixture);
 
     const broadQuery =
       "ghost ship cursed voyage fear fog darkness possession maddening whispers vermin in the hold wrong-feeling stowaways body horror haunted physically unclean";
-    const broadResults = service.search({
+    const broadResults = await service.search({
       recordType: "npc",
       levelMin: 1,
       levelMax: 5,
@@ -1060,7 +1108,7 @@ describe("Pf2eDataService", () => {
     expect(crawlingExplain?.components.metadataOnlyBoost ?? 0).toBe(0);
     expect(crawlingExplain?.components.sourcePenalty ?? 0).toBe(0);
 
-    const withoutExpansion = service.search({
+    const withoutExpansion = await service.search({
       recordType: "npc",
       levelMin: 1,
       levelMax: 5,
@@ -1073,7 +1121,7 @@ describe("Pf2eDataService", () => {
     expect(withoutExpansion.explain?.query?.matchedRules).toEqual([]);
     expect(withoutExpansion.explain?.query?.skippedRules.map((rule) => rule.reason)).toContain("expansion_disabled");
 
-    const lexicalResults = service.search({
+    const lexicalResults = await service.search({
       recordType: "npc",
       levelMin: 1,
       levelMax: 5,
@@ -1092,9 +1140,9 @@ describe("Pf2eDataService", () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);
 
-    const service = await Pf2eDataService.load(fixture.root, fixture.manifestPath);
+    const service = await loadTestService(fixture);
 
-    const bilgeResults = service.search({
+    const bilgeResults = await service.search({
       documentType: "Actor",
       nameQuery: "Bilge Skeleton",
       explain: true,
@@ -1106,7 +1154,7 @@ describe("Pf2eDataService", () => {
     expect(coreBilgeExplain?.components.sourceQuality).toBe(0.04);
     expect(adventureBilgeExplain?.components.sourceQuality).toBe(-0.01);
 
-    const sentinelResults = service.search({
+    const sentinelResults = await service.search({
       recordType: "npc",
       themeQuery: "sentinel guardian ancient ruins watch intruders",
       limit: 10,
@@ -1128,7 +1176,7 @@ describe("Pf2eDataService", () => {
     expect(uniqueExplain?.components.rarityPreference).toBe(-0.2);
     expect(rareExplain?.components.rarityPreference).toBe(0.01);
 
-    const exactUniqueResults = service.search({
+    const exactUniqueResults = await service.search({
       documentType: "Actor",
       nameQuery: "Last Sentinel",
       explain: true,
@@ -1142,7 +1190,7 @@ describe("Pf2eDataService", () => {
     const fixture = await createHardFilterFixture();
     createdRoots.push(fixture.root);
 
-    const service = await Pf2eDataService.load(fixture.root, fixture.manifestPath);
+    const service = await loadTestService(fixture);
 
     expect(service.listPacks().map((pack) => pack.name)).not.toContain("macros");
     expect(service.listPacks().map((pack) => pack.name)).not.toContain("action-macros");
@@ -1151,19 +1199,19 @@ describe("Pf2eDataService", () => {
     expect(service.lookup("Zebub", { documentType: "Actor" }).match?.name).toBe("Zebub");
     expect(service.lookup("Raise Shield", { documentType: "Item" }).match?.name).toBe("Raise a Shield");
 
-    expect(service.search({ nameQuery: "Grimstalker (PFS 3-13)", documentType: "Actor" }).records.map((record) => record.name)).not.toContain("Grimstalker (PFS 3-13)");
-    expect(service.search({ nameQuery: "Ghoul (PFS Intro 2)", documentType: "Actor" }).records.map((record) => record.name)).not.toContain("Ghoul (PFS Intro 2)");
-    expect(service.search({ nameQuery: "Zebub (PFS)", documentType: "Actor" }).records.map((record) => record.name)).not.toContain("Zebub (PFS)");
-    expect(service.search({ nameQuery: "Magical Mentor" }).records.map((record) => record.name)).not.toContain("Magical Mentor");
-    expect(service.search({ nameQuery: "Effect: Magical Mentor" }).records.map((record) => record.name)).not.toContain("Effect: Magical Mentor");
-    expect(service.search({ nameQuery: "Treat Wounds" }).records.map((record) => record.name)).not.toContain("Treat Wounds");
-    expect(service.search({ nameQuery: "Trip: Athletics" }).records.map((record) => record.name)).not.toContain("Trip: Athletics");
+    expect((await service.search({ nameQuery: "Grimstalker (PFS 3-13)", documentType: "Actor" })).records.map((record) => record.name)).not.toContain("Grimstalker (PFS 3-13)");
+    expect((await service.search({ nameQuery: "Ghoul (PFS Intro 2)", documentType: "Actor" })).records.map((record) => record.name)).not.toContain("Ghoul (PFS Intro 2)");
+    expect((await service.search({ nameQuery: "Zebub (PFS)", documentType: "Actor" })).records.map((record) => record.name)).not.toContain("Zebub (PFS)");
+    expect((await service.search({ nameQuery: "Magical Mentor" })).records.map((record) => record.name)).not.toContain("Magical Mentor");
+    expect((await service.search({ nameQuery: "Effect: Magical Mentor" })).records.map((record) => record.name)).not.toContain("Effect: Magical Mentor");
+    expect((await service.search({ nameQuery: "Treat Wounds" })).records.map((record) => record.name)).not.toContain("Treat Wounds");
+    expect((await service.search({ nameQuery: "Trip: Athletics" })).records.map((record) => record.name)).not.toContain("Trip: Athletics");
 
-    const featResults = service.search({
+    const featResults = (await service.search({
       recordType: "feat",
       themeQuery: "mentor training support teamwork guidance",
       limit: 10,
-    }).records.map((record) => record.name);
+    })).records.map((record) => record.name);
     expect(featResults).toContain("Proud Mentor");
     expect(featResults).not.toContain("Magical Mentor");
   });
@@ -1172,7 +1220,7 @@ describe("Pf2eDataService", () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);
 
-    const service = await Pf2eDataService.load(fixture.root, fixture.manifestPath);
+    const service = await loadTestService(fixture);
 
     const firstHop = service.getRulesContext("Blinded", { recordType: "condition", referenceDepth: 1 });
     expect(firstHop?.record.name).toBe("Blinded");
@@ -1187,7 +1235,7 @@ describe("Pf2eDataService", () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);
 
-    const service = await Pf2eDataService.load(fixture.root, fixture.manifestPath);
+    const service = await loadTestService(fixture);
 
     const lookups = service.lookupMany([{ name: "Refocus" }, { name: "Deep Focus" }], { coreOnly: true });
     expect(lookups.map((result) => result.match?.name)).toEqual(["Refocus", "Deep Focus"]);
@@ -1209,7 +1257,7 @@ describe("Pf2eDataService", () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);
 
-    const service = await Pf2eDataService.load(fixture.root, fixture.manifestPath);
+    const service = await loadTestService(fixture);
 
     const vocabulary = service.getSearchVocabulary({ traitLimitPerRecordType: 4 });
     expect(vocabulary.documentTypes.map((entry) => entry.value)).toEqual(expect.arrayContaining(["Actor", "Item"]));
@@ -1223,7 +1271,7 @@ describe("Pf2eDataService", () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);
 
-    const service = await Pf2eDataService.load(fixture.root, fixture.manifestPath);
+    const service = await loadTestService(fixture);
 
     const result = service.collectRuleQuestionContext({
       rules: ["Refocus"],
@@ -1238,17 +1286,17 @@ describe("Pf2eDataService", () => {
     expect(result.edges).toHaveLength(2);
   });
 
-  it("reuses an unchanged SQLite index and rebuilds when the source changes", async () => {
+  it("loads an unchanged SQLite index and requires explicit rebuild when the source changes", async () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);
     const indexPath = path.join(fixture.root, ".cache", "pf2e-index.sqlite");
 
-    const firstService = await Pf2eDataService.load(fixture.root, fixture.manifestPath, { indexPath });
+    const firstService = await loadTestService(fixture, { indexPath });
     expect(firstService.getStats()).toEqual({ packCount: 7, recordCount: 23 });
     firstService.close();
 
     const firstMtime = (await import("node:fs/promises")).stat(indexPath).then((details) => details.mtimeMs);
-    const unchangedService = await Pf2eDataService.load(fixture.root, fixture.manifestPath, { indexPath });
+    const unchangedService = await openPreparedTestService(fixture, { indexPath });
     expect(unchangedService.getStats()).toEqual({ packCount: 7, recordCount: 23 });
     unchangedService.close();
     const secondMtime = (await import("node:fs/promises")).stat(indexPath).then((details) => details.mtimeMs);
@@ -1278,9 +1326,139 @@ describe("Pf2eDataService", () => {
       },
     });
 
-    const rebuiltService = await Pf2eDataService.load(fixture.root, fixture.manifestPath, { indexPath });
+    await expect(openPreparedTestService(fixture, { indexPath })).rejects.toThrow(/index .* stale/i);
+
+    const rebuiltService = await loadTestService(fixture, { indexPath });
     expect(rebuiltService.getStats()).toEqual({ packCount: 7, recordCount: 24 });
     expect(rebuiltService.lookup("Sea Ghoul", { documentType: "Actor" }).match?.name).toBe("Sea Ghoul");
     rebuiltService.close();
+  });
+
+  it("rebuilds the index when embedding identity changes", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+    const indexPath = path.join(fixture.root, ".cache", "pf2e-index.sqlite");
+
+    const firstService = await loadTestService(fixture, {
+      indexPath,
+      embeddingProviderFactory: createFakeEmbeddingProviderFactory({
+        provider: "hf-local",
+        model: "model-a",
+        revision: "rev-a",
+        dimensions: 3,
+      }),
+    });
+    firstService.close();
+
+    let db = new DatabaseSync(indexPath);
+    let metadata = new Map(
+      (db.prepare("SELECT key, value FROM metadata").all() as Array<{ key: string; value: string }>).map((row) => [row.key, row.value]),
+    );
+    db.close();
+    expect(metadata.get("embedding_provider")).toBe("hf-local");
+    expect(metadata.get("embedding_model")).toBe("model-a");
+    expect(metadata.get("embedding_revision")).toBe("rev-a");
+    expect(metadata.get("embedding_dimensions")).toBe("3");
+
+    const reusedService = await openPreparedTestService(fixture, {
+      indexPath,
+      embeddingProviderFactory: createFakeEmbeddingProviderFactory({
+        provider: "hf-local",
+        model: "model-a",
+        revision: "rev-a",
+        dimensions: 3,
+      }),
+    });
+    reusedService.close();
+
+    db = new DatabaseSync(indexPath);
+    metadata = new Map(
+      (db.prepare("SELECT key, value FROM metadata").all() as Array<{ key: string; value: string }>).map((row) => [row.key, row.value]),
+    );
+    db.close();
+    expect(metadata.get("embedding_model")).toBe("model-a");
+
+    await expect(
+      Pf2eDataService.load(fixture.root, fixture.manifestPath, {
+        indexPath,
+        embedding: TEST_HASH_EMBEDDING,
+        embeddingProviderFactory: createFakeEmbeddingProviderFactory({
+          provider: "hf-local",
+          model: "model-b",
+          revision: "rev-b",
+          dimensions: 3,
+        }),
+      }),
+    ).rejects.toThrow(/embedding model changed/i);
+
+    const rebuiltService = await loadTestService(fixture, {
+      indexPath,
+      embeddingProviderFactory: createFakeEmbeddingProviderFactory({
+        provider: "hf-local",
+        model: "model-b",
+        revision: "rev-b",
+        dimensions: 3,
+      }),
+    });
+    rebuiltService.close();
+
+    db = new DatabaseSync(indexPath);
+    metadata = new Map(
+      (db.prepare("SELECT key, value FROM metadata").all() as Array<{ key: string; value: string }>).map((row) => [row.key, row.value]),
+    );
+    db.close();
+    expect(metadata.get("embedding_model")).toBe("model-b");
+    expect(metadata.get("embedding_revision")).toBe("rev-b");
+  });
+
+  it("surfaces embedding-provider warnings during load", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+
+    const service = await loadTestService(fixture, {
+      embeddingProviderFactory: createFakeEmbeddingProviderFactory(
+        {
+          provider: "hash",
+          model: "feature-hash-192",
+          revision: null,
+          dimensions: 192,
+        },
+        ["Fell back to hash embeddings."],
+      ),
+    });
+
+    expect(service.warnings).toContain("Fell back to hash embeddings.");
+    service.close();
+  });
+
+  it("fails fast when hf-local embeddings are unavailable at runtime", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+
+    await expect(
+      Pf2eDataService.load(fixture.root, fixture.manifestPath, {
+        embedding: {
+          provider: "hf-local",
+          modelId: "missing-local-model",
+          modelRevision: "main",
+          cachePath: path.join(fixture.root, ".cache", "hf-models"),
+          localModelPath: null,
+        },
+        embeddingProviderFactory: async () => {
+          throw new Error("cached model assets not found");
+        },
+      }),
+    ).rejects.toThrow(/cached model assets not found/);
+  });
+
+  it("fails fast when the SQLite index is missing", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+
+    await expect(
+      openPreparedTestService(fixture, {
+        indexPath: path.join(fixture.root, ".cache", "missing-index.sqlite"),
+      }),
+    ).rejects.toThrow(/index not found/i);
   });
 });

@@ -41,6 +41,8 @@ describe("loadConfig", () => {
     expect(config.rootPath).toBe(explicitDataPath);
     expect(config.manifestPath).toBe(path.join(explicitDataPath, "system.pf2e.json"));
     expect(config.indexPath).toBe(explicitIndexPath);
+    expect(config.embeddings.provider).toBe("hf-local");
+    expect(config.embeddings.modelId).toBe("Xenova/all-MiniLM-L12-v2");
   });
 
   it("defaults to vendor/pf2e under the current working directory", async () => {
@@ -53,9 +55,39 @@ describe("loadConfig", () => {
       expect(config.rootPath.endsWith(path.join("vendor", "pf2e"))).toBe(true);
       expect(config.manifestPath.endsWith(path.join("vendor", "pf2e", "system.pf2e.json"))).toBe(true);
       expect(config.indexPath.endsWith(path.join(".cache", "pf2e-index.sqlite"))).toBe(true);
+      expect(config.embeddings.cachePath.endsWith(path.join(".cache", "hf-models"))).toBe(true);
     } finally {
       process.chdir(originalCwd);
     }
+  });
+
+  it("accepts explicit embedding configuration", async () => {
+    const root = await createRepoFixture();
+    const config = await loadConfig(
+      [
+        "--data-path",
+        path.join(root, "vendor", "pf2e"),
+        "--embedding-provider",
+        "hash",
+        "--embedding-model",
+        "custom-model",
+        "--embedding-revision",
+        "test-rev",
+        "--embedding-cache-path",
+        path.join(root, ".cache", "embeddings"),
+        "--embedding-local-model-path",
+        path.join(root, "models"),
+      ],
+      {},
+    );
+
+    expect(config.embeddings).toEqual({
+      provider: "hash",
+      modelId: "custom-model",
+      modelRevision: "test-rev",
+      cachePath: path.join(root, ".cache", "embeddings"),
+      localModelPath: path.join(root, "models"),
+    });
   });
 
   it("throws when the default path does not contain a manifest", async () => {

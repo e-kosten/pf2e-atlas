@@ -7,6 +7,14 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { Pf2eDataService } from "../src/pf2e-data.js";
 
+const TEST_HASH_EMBEDDING = {
+  provider: "hash" as const,
+  modelId: "feature-hash-192",
+  modelRevision: null,
+  cachePath: path.join(os.tmpdir(), "pf2e-local-integration-hf-cache"),
+  localModelPath: null,
+};
+
 const localRoot = process.env.PF2E_DATA_PATH ?? path.resolve(process.cwd(), "vendor", "pf2e");
 const manifestPath = `${localRoot}/system.pf2e.json`;
 
@@ -29,11 +37,14 @@ describe("local PF2E integration", async () => {
     );
   });
 
-  it.runIf(available)("cold-builds a fresh SQLite index and can resolve known records", async () => {
+  it.runIf(available)("rebuilds a fresh SQLite index and can resolve known records", async () => {
     const tempRoot = await mkdtemp(path.join(os.tmpdir(), "pf2e-local-integration-"));
     createdRoots.push(tempRoot);
     const indexPath = path.join(tempRoot, "pf2e-index.sqlite");
-    const service = await Pf2eDataService.load(localRoot, manifestPath, { indexPath });
+    const service = await Pf2eDataService.rebuildIndex(localRoot, manifestPath, {
+      indexPath,
+      embedding: TEST_HASH_EMBEDDING,
+    });
 
     expect(await access(indexPath, constants.R_OK).then(() => true)).toBe(true);
     expect(service.listPacks().length).toBeGreaterThan(50);
@@ -48,12 +59,18 @@ describe("local PF2E integration", async () => {
     createdRoots.push(tempRoot);
     const indexPath = path.join(tempRoot, "pf2e-index.sqlite");
 
-    const firstService = await Pf2eDataService.load(localRoot, manifestPath, { indexPath });
+    const firstService = await Pf2eDataService.rebuildIndex(localRoot, manifestPath, {
+      indexPath,
+      embedding: TEST_HASH_EMBEDDING,
+    });
     expect(firstService.lookup("Raise a Shield").match?.packLabel).toBe("Actions");
     firstService.close();
 
     const firstMtime = (await stat(indexPath)).mtimeMs;
-    const secondService = await Pf2eDataService.load(localRoot, manifestPath, { indexPath });
+    const secondService = await Pf2eDataService.load(localRoot, manifestPath, {
+      indexPath,
+      embedding: TEST_HASH_EMBEDDING,
+    });
     expect(secondService.lookup("Analysis Eye").match?.packLabel).toBe("Equipment");
     secondService.close();
     const secondMtime = (await stat(indexPath)).mtimeMs;
