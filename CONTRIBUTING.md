@@ -21,6 +21,38 @@ Examples:
 - `fix/search-ranking`
 - `docs/codex-setup`
 
+## Commit Messages
+
+Use Conventional Commits for all changes.
+
+Format:
+
+```text
+type(scope): summary
+```
+
+Scope is optional:
+
+```text
+type: summary
+```
+
+Recommended types for this repo:
+
+- `feat` for new MCP capabilities or data features
+- `fix` for bug fixes or behavior corrections
+- `docs` for README or contribution guide updates
+- `refactor` for internal code restructuring without behavior changes
+- `test` for test-only changes
+- `chore` for maintenance tasks, scripts, or repo setup
+
+Examples:
+
+- `feat(search): add publication title filtering`
+- `fix(lookup): prefer canonical action packs over macro packs`
+- `docs(readme): document vendored PF2E checkout`
+- `chore(vendor): add refresh script for PF2E data`
+
 ## Development
 
 Install dependencies and build:
