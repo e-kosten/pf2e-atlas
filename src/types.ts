@@ -177,6 +177,7 @@ export interface SearchRecordExplanation {
     themeTraits: number;
     themeMetadata: number;
     metadataOnlyBoost: number;
+    sourcePenalty: number;
     packQuality: number;
     rankingProfile: number;
   };

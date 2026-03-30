@@ -38,7 +38,7 @@ import {
 import { buildCandidateQueryWeights, buildSearchQueryAnalysis } from "./search-expansion.js";
 
 const execFileAsync = promisify(execFile);
-const INDEX_SCHEMA_VERSION = 3;
+const INDEX_SCHEMA_VERSION = 4;
 
 type LoadOptions = {
   indexPath?: string;
@@ -573,6 +573,41 @@ function isAdventurePack(packName: string): boolean {
     normalizedPack.includes("quest");
 }
 
+function isSocietyPublication(publicationTitle: string | null): boolean {
+  const normalized = normalizeText(publicationTitle ?? "");
+  return normalized.startsWith("pathfinder society scenario") ||
+    normalized.startsWith("pathfinder society special") ||
+    normalized.startsWith("pathfinder society intro");
+}
+
+function isSocietyPack(packName: string): boolean {
+  return normalizeText(packName).startsWith("pfs ");
+}
+
+function hasScenarioScaleSuffix(name: string): boolean {
+  return /\(\d+\s*-\s*\d+\)\s*$/.test(name.trim());
+}
+
+function isExcludedPackName(packName: string): boolean {
+  const normalized = normalizeText(packName);
+  return normalized.startsWith("pfs ") ||
+    normalized === "pathfinder society boons" ||
+    normalized === "macros" ||
+    normalized === "action macros";
+}
+
+function isExcludedSocietyEffectPath(sourcePath: string): boolean {
+  return sourcePath.replace(/\\/g, "/").includes("/campaign-effects/pathfinder-society/");
+}
+
+function isPfsBoonRecord(raw: Record<string, unknown>): boolean {
+  return normalizeText(firstString(getNested(raw, ["system", "category"])) ?? "") === "pfsboon";
+}
+
+function shouldExcludeRecordFromIndex(pack: PackBuildInfo, sourcePath: string, raw: Record<string, unknown>): boolean {
+  return isExcludedPackName(pack.name) || isExcludedSocietyEffectPath(sourcePath) || isPfsBoonRecord(raw);
+}
+
 function getSourceCategory(packName: string, publicationTitle: string | null): SourceCategory {
   if (isCorePublication(publicationTitle)) {
     return "core";
@@ -695,6 +730,38 @@ function rankingProfileScore(record: NormalizedRecord, filters: SearchFilters): 
   }
 
   return score;
+}
+
+function metadataOnlyBoostMultiplier(record: NormalizedRecord, filters: SearchFilters): number {
+  if (record.hasDescription || !filters.themeQuery?.trim()) {
+    return 1;
+  }
+
+  let multiplier = 1;
+  if (isSocietyPublication(record.publicationTitle) || isSocietyPack(record.packName)) {
+    multiplier *= 0.15;
+  }
+  if (hasScenarioScaleSuffix(record.name)) {
+    multiplier *= 0.5;
+  }
+
+  return multiplier;
+}
+
+function sourcePenaltyScore(record: NormalizedRecord, filters: SearchFilters): number {
+  if (record.hasDescription || !filters.themeQuery?.trim()) {
+    return 0;
+  }
+
+  let penalty = 0;
+  if (isSocietyPublication(record.publicationTitle) || isSocietyPack(record.packName)) {
+    penalty -= 0.2;
+  }
+  if (hasScenarioScaleSuffix(record.name)) {
+    penalty -= 0.1;
+  }
+
+  return penalty;
 }
 
 function nameScore(query: string, record: NormalizedRecord): number {
@@ -1226,6 +1293,10 @@ async function buildIndex(
         resolvedPath,
       };
 
+      if (isExcludedPackName(pack.name)) {
+        continue;
+      }
+
       let filePaths: string[];
       try {
         filePaths = await walkJsonFiles(pack.resolvedPath);
@@ -1237,6 +1308,9 @@ async function buildIndex(
       let packRecordCount = 0;
       for (const filePath of filePaths) {
         const raw = JSON.parse(await readFile(filePath, "utf8")) as Record<string, unknown>;
+        if (shouldExcludeRecordFromIndex(pack, filePath, raw)) {
+          continue;
+        }
         const record = normalizeIndexRecord(pack, filePath, raw);
         const actorData = pack.documentType === "Actor" ? parseActorIndexData(raw) : null;
         const itemData = pack.documentType === "Item" ? parseItemIndexData(raw) : null;
@@ -1332,6 +1406,10 @@ async function buildIndex(
 
         packRecordCount += 1;
         recordCount += 1;
+      }
+
+      if (packRecordCount === 0) {
+        continue;
       }
 
       packs.push({ ...pack, recordCount: packRecordCount });
@@ -2213,9 +2291,10 @@ export class Pf2eDataService {
         const themeMetadata = candidateQueryWeights
           ? scoreWeightedOverlap(candidateQueryWeights.metadataWeights, tokenize(buildMetadataText(record)), 2.5)
           : { score: 0, matchedTokens: [] };
-        const metadataOnlyBoost = !record.hasDescription
+        const metadataOnlyBoostBase = !record.hasDescription
           ? Math.max(themeTraits.score * 0.35, themeName.score * 0.2, themeMetadata.score * 0.15, metadataTextScore * 0.15)
           : 0;
+        const metadataOnlyBoost = metadataOnlyBoostBase * metadataOnlyBoostMultiplier(record, filters);
         const lexicalScore =
           (ftsScore * 0.1) +
           (metadataTextScore * 0.15) +
@@ -2229,6 +2308,7 @@ export class Pf2eDataService {
             ? Math.max(0, cosineSimilarity(semanticVector, decodeVector(candidate.embeddingBlob)))
             : 0;
         const packQuality = packQualityScore(record);
+        const sourcePenalty = sourcePenaltyScore(record, filters);
         const rankingProfile = rankingProfileScore(record, filters);
         const components: SearchScoreComponents = {
           fts: ftsScore,
@@ -2238,6 +2318,7 @@ export class Pf2eDataService {
           themeTraits: themeTraits.score,
           themeMetadata: themeMetadata.score,
           metadataOnlyBoost,
+          sourcePenalty,
           packQuality,
           rankingProfile,
         };
@@ -2251,7 +2332,7 @@ export class Pf2eDataService {
           score = (lexicalScore * 0.85) + (semanticScore * 0.15) + packQuality;
         }
 
-        score += rankingProfile;
+        score += sourcePenalty + rankingProfile;
 
         const explanation: SearchRecordExplanation = {
           recordKey: record.recordKey,
