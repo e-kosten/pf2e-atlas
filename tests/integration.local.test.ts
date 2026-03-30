@@ -1,11 +1,12 @@
 import { access } from "node:fs/promises";
 import { constants } from "node:fs";
+import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
 import { Pf2eDataService } from "../src/pf2e-data.js";
 
-const localRoot = process.env.PF2E_DATA_PATH ?? "/Users/ekosten/projects/pathfinder-mcp/pf2e";
+const localRoot = process.env.PF2E_DATA_PATH ?? path.resolve(process.cwd(), "vendor", "pf2e");
 const manifestPath = `${localRoot}/system.pf2e.json`;
 
 async function hasLocalData(): Promise<boolean> {

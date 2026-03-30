@@ -6,6 +6,7 @@ import * as z from "zod/v4";
 
 import { loadConfig } from "./config.js";
 import { Pf2eDataService } from "./pf2e-data.js";
+import { refreshPf2eCheckout } from "./pf2e-refresh.js";
 import { NormalizedRecord, PackInfo } from "./types.js";
 
 function summarizeRecord(record: NormalizedRecord): Record<string, unknown> {
@@ -48,8 +49,18 @@ function formatSearchResult(prefix: string, total: number, records: NormalizedRe
 
 async function main(): Promise<void> {
   const config = await loadConfig();
+  const refreshResult = await refreshPf2eCheckout(config.rootPath);
+  if (refreshResult.warning) {
+    console.error(refreshResult.warning);
+  } else {
+    console.error(refreshResult.summary);
+  }
+
   const dataService = await Pf2eDataService.load(config.rootPath, config.manifestPath);
   const stats = dataService.getStats();
+  const startupWarnings = refreshResult.warning
+    ? [refreshResult.warning, ...dataService.warnings]
+    : dataService.warnings;
 
   const server = new McpServer({
     name: "pathfinder-2e-foundry-mcp",
@@ -74,7 +85,7 @@ async function main(): Promise<void> {
           packCount: stats.packCount,
           recordCount: stats.recordCount,
           packs,
-          warnings: dataService.warnings,
+          warnings: startupWarnings,
         },
       };
     },

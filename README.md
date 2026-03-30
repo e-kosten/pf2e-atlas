@@ -1,6 +1,6 @@
 # Pathfinder 2E Foundry MCP
 
-Read-only MCP server for Pathfinder 2E data exported from a local Foundry PF2E system checkout.
+Read-only MCP server for Pathfinder 2E data from a vendored local Foundry PF2E checkout.
 
 ## What It Does
 
@@ -10,38 +10,38 @@ Read-only MCP server for Pathfinder 2E data exported from a local Foundry PF2E s
 - Searches across all packs by name and structured filters
 - Returns the original Foundry JSON for detailed retrieval
 
-The server uses `stdio` in v1 and reads the PF2E data from a configurable local path.
+The server uses `stdio` in v1 and reads the PF2E data from `vendor/pf2e` by default.
 
 ## Requirements
 
 - Node.js 20+
-- A local PF2E Foundry checkout or export containing `system.pf2e.json`
-
-For your current setup, the data path is:
-
-```text
-~/projects/pathfinder-mcp/pf2e
-```
+- A local clone of the Foundry PF2E system repo under `vendor/pf2e`
 
 ## Setup
 
 ```bash
 npm install
+git clone https://github.com/foundryvtt/pf2e.git vendor/pf2e
 npm run build
 ```
 
-## Configuration
+## Data Checkout
 
-Set the data path with either:
-
-- `PF2E_DATA_PATH`
-- `--data-path /path/to/pf2e`
-
-Example:
+Clone the PF2E repo into the vendored data path:
 
 ```bash
-PF2E_DATA_PATH=~/projects/pathfinder-mcp/pf2e npm run dev
+git clone https://github.com/foundryvtt/pf2e.git vendor/pf2e
 ```
+
+On startup, the MCP server runs a best-effort `git pull --ff-only` in `vendor/pf2e` before indexing the data. If refresh fails, startup continues with the existing checkout and reports a warning on stderr.
+
+You can also refresh the vendored checkout manually:
+
+```bash
+npm run refresh-data
+```
+
+An alternate PF2E data path can still be supplied with `--data-path /path/to/pf2e` if needed, but the normal workflow is to keep the data under `vendor/pf2e`.
 
 ## Development Workflow
 
@@ -64,10 +64,7 @@ Example MCP client entry:
       "command": "node",
       "args": [
         "/Users/<user>/projects/pathfinder-mcp/pathfinder-2e-foundry-mcp/dist/index.js"
-      ],
-      "env": {
-        "PF2E_DATA_PATH": "/Users/<user>/projects/pathfinder-mcp/pf2e"
-      }
+      ]
     }
   }
 }
@@ -87,3 +84,4 @@ Example MCP client entry:
 - The server is read-only.
 - Search in v1 is name-driven plus structured filters, not full-text description search.
 - The transport layer is isolated so Streamable HTTP can be added later without rebuilding the data/index layer.
+- The vendored PF2E checkout under `vendor/pf2e` is intentionally ignored by this repo's Git history.

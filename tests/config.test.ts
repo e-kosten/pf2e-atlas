@@ -1,21 +1,70 @@
-import { describe, expect, it } from "vitest";
+import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+
+import { afterEach, describe, expect, it } from "vitest";
 
 import { loadConfig } from "../src/config.js";
 
 describe("loadConfig", () => {
-  it("prefers the CLI data path", async () => {
-    const config = await loadConfig(
-      ["--data-path", "/Users/ekosten/projects/pathfinder-mcp/pf2e"],
-      { PF2E_DATA_PATH: "/tmp/ignored" },
-    );
+  const createdRoots: string[] = [];
 
-    expect(config.rootPath).toBe("/Users/ekosten/projects/pathfinder-mcp/pf2e");
-    expect(config.manifestPath.endsWith("system.pf2e.json") || config.manifestPath.endsWith("static/system.json")).toBe(
-      true,
+  afterEach(async () => {
+    await Promise.all(
+      createdRoots.splice(0).map(async (root) => {
+        await import("node:fs/promises").then(({ rm }) => rm(root, { recursive: true, force: true }));
+      }),
     );
   });
 
-  it("throws when no data path is configured", async () => {
-    await expect(loadConfig([], {})).rejects.toThrow(/PF2E data path is required/);
+  async function createRepoFixture(): Promise<string> {
+    const root = await mkdtemp(path.join(os.tmpdir(), "pf2e-config-test-"));
+    const dataRoot = path.join(root, "vendor", "pf2e");
+    await mkdir(dataRoot, { recursive: true });
+    await writeFile(path.join(dataRoot, "system.pf2e.json"), JSON.stringify({ packs: [] }));
+    createdRoots.push(root);
+    return root;
+  }
+
+  it("prefers the CLI data path", async () => {
+    const root = await createRepoFixture();
+    const explicitDataPath = path.join(root, "custom", "pf2e");
+    await mkdir(explicitDataPath, { recursive: true });
+    await writeFile(path.join(explicitDataPath, "system.pf2e.json"), JSON.stringify({ packs: [] }));
+
+    const config = await loadConfig(
+      ["--data-path", explicitDataPath],
+      { PF2E_DATA_PATH: "/tmp/ignored" },
+    );
+
+    expect(config.rootPath).toBe(explicitDataPath);
+    expect(config.manifestPath).toBe(path.join(explicitDataPath, "system.pf2e.json"));
+  });
+
+  it("defaults to vendor/pf2e under the current working directory", async () => {
+    const root = await createRepoFixture();
+    const originalCwd = process.cwd();
+
+    try {
+      process.chdir(root);
+      const config = await loadConfig([], {});
+      expect(config.rootPath.endsWith(path.join("vendor", "pf2e"))).toBe(true);
+      expect(config.manifestPath.endsWith(path.join("vendor", "pf2e", "system.pf2e.json"))).toBe(true);
+    } finally {
+      process.chdir(originalCwd);
+    }
+  });
+
+  it("throws when the default path does not contain a manifest", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "pf2e-config-missing-"));
+    createdRoots.push(root);
+    const originalCwd = process.cwd();
+
+    try {
+      process.chdir(root);
+      await expect(loadConfig([], {})).rejects.toThrow(/Clone the PF2E repo into vendor\/pf2e/);
+    } finally {
+      process.chdir(originalCwd);
+    }
   });
 });

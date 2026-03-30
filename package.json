@@ -9,6 +9,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsx src/index.ts",
+    "refresh-data": "./scripts/refresh-pf2e-data.sh",
     "start": "node dist/index.js",
     "test": "vitest run"
   },

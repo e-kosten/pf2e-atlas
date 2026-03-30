@@ -44,13 +44,7 @@ async function canRead(targetPath: string): Promise<boolean> {
 
 export async function loadConfig(argv = process.argv.slice(2), env = process.env): Promise<AppConfig> {
   const args = parseCliArgs(argv);
-  const configuredPath = args["data-path"] ?? env.PF2E_DATA_PATH;
-
-  if (!configuredPath) {
-    throw new Error(
-      "PF2E data path is required. Set PF2E_DATA_PATH or pass --data-path /path/to/pf2e.",
-    );
-  }
+  const configuredPath = args["data-path"] ?? env.PF2E_DATA_PATH ?? path.join(process.cwd(), "vendor", "pf2e");
 
   const rootPath = path.resolve(expandHome(configuredPath));
   const manifestCandidates = [
@@ -69,6 +63,6 @@ export async function loadConfig(argv = process.argv.slice(2), env = process.env
   }
 
   throw new Error(
-    `Could not find a readable PF2E system manifest under ${rootPath}. Expected system.pf2e.json or static/system.json.`,
+    `Could not find a readable PF2E system manifest under ${rootPath}. Clone the PF2E repo into vendor/pf2e or pass --data-path /path/to/pf2e.`,
   );
 }
