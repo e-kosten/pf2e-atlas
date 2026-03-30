@@ -1,0 +1,28 @@
+{
+  "name": "pathfinder-2e-foundry-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for Pathfinder 2E Foundry data exports",
+  "type": "module",
+  "bin": {
+    "pathfinder-2e-foundry-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "test": "vitest run"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.28.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.2"
+  }
+}
