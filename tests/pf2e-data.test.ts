@@ -1105,7 +1105,7 @@ describe("Pf2eDataService", () => {
     expect(crawlingExplain?.matchedRuleIds).toEqual(
       expect.arrayContaining(["spectral-undead", "maritime-depths", "body-horror"]),
     );
-    expect(crawlingExplain?.components.metadataOnlyBoost ?? 0).toBe(0);
+    expect(crawlingExplain?.components.missingDescriptionNormalization ?? 0).toBe(0);
     expect(crawlingExplain?.components.sourcePenalty ?? 0).toBe(0);
 
     const withoutExpansion = await service.search({

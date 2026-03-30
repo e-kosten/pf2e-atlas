@@ -181,13 +181,13 @@ export interface SearchRecordExplanation {
   matchedMetadataTokens: string[];
   matchedRuleIds: string[];
   components: {
-    fts: number;
+    fullTextSearch: number;
     metadataText: number;
     descriptionText: number;
     themeName: number;
     themeTraits: number;
     themeMetadata: number;
-    metadataOnlyBoost: number;
+    missingDescriptionNormalization: number;
     sourceQuality: number;
     rarityPreference: number;
     sourcePenalty: number;

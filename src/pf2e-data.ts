@@ -715,22 +715,6 @@ function rankingProfileScore(record: NormalizedRecord, filters: SearchFilters): 
   return score;
 }
 
-function metadataOnlyBoostMultiplier(record: NormalizedRecord, filters: SearchFilters): number {
-  if (record.hasDescription || !filters.themeQuery?.trim()) {
-    return 1;
-  }
-
-  let multiplier = 1;
-  if (isSocietyPublication(record.publicationTitle) || isSocietyPack(record.packName)) {
-    multiplier *= 0.15;
-  }
-  if (hasScenarioScaleSuffix(record.name)) {
-    multiplier *= 0.5;
-  }
-
-  return multiplier;
-}
-
 function sourcePenaltyScore(record: NormalizedRecord, filters: SearchFilters): number {
   if (record.hasDescription || !filters.themeQuery?.trim()) {
     return 0;
@@ -803,6 +787,15 @@ function buildFtsQuery(query: string): string | null {
 }
 
 type SearchScoreComponents = SearchRecordExplanation["components"];
+
+const LEXICAL_CHANNEL_WEIGHTS = {
+  fullTextSearch: 0.1,
+  metadataText: 0.15,
+  descriptionText: 0.05,
+  themeName: 0.25,
+  themeTraits: 0.35,
+  themeMetadata: 0.1,
+} as const;
 
 function tokenize(value: string): string[] {
   const normalized = normalizeText(value);
@@ -2395,18 +2388,28 @@ export class Pf2eDataService {
         const themeMetadata = candidateQueryWeights
           ? scoreWeightedOverlap(candidateQueryWeights.metadataWeights, tokenize(buildMetadataText(record)), 2.5)
           : { score: 0, matchedTokens: [] };
-        const metadataOnlyBoostBase = !record.hasDescription
-          ? Math.max(themeTraits.score * 0.35, themeName.score * 0.2, themeMetadata.score * 0.15, metadataTextScore * 0.15)
+        const fullTextSearchContribution = ftsScore * LEXICAL_CHANNEL_WEIGHTS.fullTextSearch;
+        const metadataTextContribution = metadataTextScore * LEXICAL_CHANNEL_WEIGHTS.metadataText;
+        const descriptionTextContribution = descriptionTextScore * LEXICAL_CHANNEL_WEIGHTS.descriptionText;
+        const themeNameContribution = themeName.score * LEXICAL_CHANNEL_WEIGHTS.themeName;
+        const themeTraitsContribution = themeTraits.score * LEXICAL_CHANNEL_WEIGHTS.themeTraits;
+        const themeMetadataContribution = themeMetadata.score * LEXICAL_CHANNEL_WEIGHTS.themeMetadata;
+        const lexicalScoreBeforeNormalization =
+          fullTextSearchContribution +
+          metadataTextContribution +
+          descriptionTextContribution +
+          themeNameContribution +
+          themeTraitsContribution +
+          themeMetadataContribution;
+        const normalizationMultiplier = !record.hasDescription
+          ? 1 / (1 - LEXICAL_CHANNEL_WEIGHTS.descriptionText)
+          : 1;
+        const missingDescriptionNormalization = !record.hasDescription
+          ? lexicalScoreBeforeNormalization * (normalizationMultiplier - 1)
           : 0;
-        const metadataOnlyBoost = metadataOnlyBoostBase * metadataOnlyBoostMultiplier(record, filters);
         const lexicalScore =
-          (ftsScore * 0.1) +
-          (metadataTextScore * 0.15) +
-          (descriptionTextScore * 0.05) +
-          (themeName.score * 0.25) +
-          (themeTraits.score * 0.35) +
-          (themeMetadata.score * 0.1) +
-          metadataOnlyBoost;
+          lexicalScoreBeforeNormalization +
+          missingDescriptionNormalization;
         const semanticScore =
           semanticVector && candidate.embeddingBlob
             ? Math.max(0, cosineSimilarity(semanticVector, decodeVector(candidate.embeddingBlob)))
@@ -2417,13 +2420,13 @@ export class Pf2eDataService {
         const sourcePenalty = sourcePenaltyScore(record, filters);
         const rankingProfile = rankingProfileScore(record, filters);
         const components: SearchScoreComponents = {
-          fts: ftsScore,
+          fullTextSearch: ftsScore,
           metadataText: metadataTextScore,
           descriptionText: descriptionTextScore,
           themeName: themeName.score,
           themeTraits: themeTraits.score,
           themeMetadata: themeMetadata.score,
-          metadataOnlyBoost,
+          missingDescriptionNormalization,
           sourceQuality,
           rarityPreference,
           sourcePenalty,
