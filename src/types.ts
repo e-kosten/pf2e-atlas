@@ -36,12 +36,25 @@ export type SourceCategory = "core" | "rules" | "adventure" | "unknown";
 
 export type RankingProfile = "default" | "preferReusableReferenceContent";
 
+export type SearchCategory =
+  | "equipment"
+  | "feats"
+  | "creatures"
+  | "hazards"
+  | "afflictions"
+  | "rules"
+  | "spells"
+  | "characterCreation"
+  | "lore";
+
 export interface NormalizedRecord {
   recordKey: string;
   id: string;
   name: string;
   normalizedName: string;
   type: string;
+  category: SearchCategory;
+  subcategories: string[];
   packName: string;
   packLabel: string;
   documentType: string;
@@ -75,8 +88,8 @@ export interface SearchFilters {
   nameQuery?: string;
   themeQuery?: string;
   pack?: string;
-  documentType?: string;
-  recordType?: string;
+  category?: SearchCategory;
+  subcategory?: string;
   levelMin?: number;
   levelMax?: number;
   rarity?: string;
@@ -89,7 +102,6 @@ export interface SearchFilters {
   excludeAdventureContent?: boolean;
   coreOnly?: boolean;
   size?: string;
-  itemCategory?: string;
   priceMin?: number;
   priceMax?: number;
   actionCost?: number;
@@ -99,8 +111,8 @@ export interface SearchFilters {
 
 export interface LookupOptions {
   pack?: string;
-  documentType?: string;
-  recordType?: string;
+  category?: SearchCategory;
+  subcategory?: string;
 }
 
 export type RecordDetail = "minimal" | "standard" | "full";
@@ -130,6 +142,8 @@ export interface SearchQueryAnalysis {
   normalizedQuery: string;
   queryTokens: string[];
   expandedQuery: string;
+  inferredCategory: SearchCategory | null;
+  inferredSubcategory: string | null;
   boostedTraits: string[];
   boostedNameTokens: string[];
   boostedMetadataTokens: string[];
@@ -138,9 +152,8 @@ export interface SearchQueryAnalysis {
 }
 
 export interface SearchExpansionScope {
-  documentTypes?: string[];
-  recordTypes?: string[];
-  itemCategories?: string[];
+  categories?: SearchCategory[];
+  subcategories?: string[];
   packNames?: string[];
   sourceCategories?: SourceCategory[];
 }

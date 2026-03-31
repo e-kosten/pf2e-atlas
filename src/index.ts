@@ -18,10 +18,11 @@ function summarizeRecord(
     recordKey: record.recordKey,
     id: record.id,
     name: record.name,
-    type: record.type,
+    category: record.category,
+    subcategories: record.subcategories,
+    rawRecordType: record.type,
     packName: record.packName,
     packLabel: record.packLabel,
-    documentType: record.documentType,
     level: record.level,
     rarity: record.rarity,
     traits: record.traits,
@@ -39,7 +40,6 @@ function summarizeRecord(
     descriptionText: record.descriptionText,
     isUnique: record.isUnique,
     size: record.size,
-    itemCategory: record.itemCategory,
     priceCp: record.priceCp,
     bulkValue: record.bulkValue,
     actionCost: record.actionCost,
@@ -71,7 +71,8 @@ function summarizePack(pack: PackInfo): Record<string, unknown> {
 function formatSearchResult(prefix: string, total: number, records: NormalizedRecord[]): string {
   const lines = records.map((record) => {
     const level = record.level !== null ? `level ${record.level}` : "level n/a";
-    return `- ${record.name} (${record.packLabel}, ${record.type}, ${level})`;
+    const subtype = record.subcategories[0] ? `/${record.subcategories[0]}` : "";
+    return `- ${record.name} (${record.packLabel}, ${record.category}${subtype}, ${level})`;
   });
 
   return [prefix, `Total matches: ${total}`, ...lines].join("\n");
@@ -121,27 +122,32 @@ async function main(): Promise<void> {
   server.registerTool(
     "pf2e_get_search_semantics",
     {
-      description: "Describe the search ontology, indexed vocabulary, and structured filters that thematic PF2E retrieval understands.",
+      description: "Describe the category-first search ontology, indexed vocabulary, and structured filters that thematic PF2E retrieval understands.",
       inputSchema: {
-        traitLimitPerRecordType: z.number().int().min(3).max(25).optional().describe("Maximum common traits to return per record type. Defaults to 12."),
+        traitLimitPerCategory: z.number().int().min(3).max(25).optional().describe("Maximum common traits to return per category. Defaults to 12."),
       },
     },
-    async ({ traitLimitPerRecordType }) => {
-      const vocabulary = dataService.getSearchVocabulary({ traitLimitPerRecordType });
+    async ({ traitLimitPerCategory }) => {
+      const vocabulary = dataService.getSearchVocabulary({ traitLimitPerCategory });
       const domains = summarizeExpansionRules();
       return {
         content: [
           {
             type: "text",
-            text: `Search semantics expose ${domains.length} ontology domains across ${vocabulary.recordTypes.length} record types.`,
+            text: `Search semantics expose ${domains.length} ontology domains across ${vocabulary.categories.length} top-level categories.`,
           },
         ],
         structuredContent: {
           supportedFilters: [
             {
-              name: "recordType",
+              name: "category",
               strength: "strong boundary",
-              description: "Best first cut for separating creatures, hazards, spells, and other indexed families.",
+              description: "Best first cut for separating creatures, hazards, spells, equipment, lore, and other user-facing PF2E families.",
+            },
+            {
+              name: "subcategory",
+              strength: "within-category boundary",
+              description: "Useful for narrower families such as hazards/haunt, equipment/consumable, or lore/deity.",
             },
             {
               name: "traitsAny",
@@ -154,14 +160,9 @@ async function main(): Promise<void> {
               description: "Best for deterministic narrowing when multiple taxonomy terms are essential.",
             },
             {
-              name: "itemCategory",
-              strength: "gear boundary",
-              description: "Useful for equipment-oriented searches and item-only retrieval.",
-            },
-            {
               name: "tradition",
-              strength: "spell boundary",
-              description: "Useful for spell searches when the theme implies a magical tradition.",
+              strength: "spell refinement",
+              description: "Useful for spell searches when the theme implies a magical tradition such as divine or occult.",
             },
             {
               name: "themeQuery",
@@ -172,7 +173,7 @@ async function main(): Promise<void> {
           retrievalPatterns: [
             {
               name: "bounded_hybrid",
-              description: "Use broad semantic search inside hard filters such as recordType, level bounds, and traits.",
+              description: "Use broad semantic search inside category and subcategory boundaries, plus level bounds and traits when helpful.",
             },
             {
               name: "trait_hinted_rerun",
@@ -183,6 +184,8 @@ async function main(): Promise<void> {
               description: "Use structured traitsAny or traitsAll when the query maps cleanly to indexed taxonomy.",
             },
           ],
+          categories: vocabulary.categories,
+          subcategories: vocabulary.subcategories,
           ontologyDomains: domains,
           vocabulary,
         },
@@ -193,15 +196,15 @@ async function main(): Promise<void> {
   server.registerTool(
     "pf2e_plan_search",
     {
-      description: "Translate natural-language PF2E search intent into server-native search payloads, recognized semantics, and structured backstops.",
+      description: "Translate natural-language PF2E search intent into category-first search payloads, recognized semantics, and structured backstops.",
       inputSchema: {
         intent: z.string().describe("Natural-language description of the retrieval goal."),
         mode: z.enum(["structured", "lexical", "hybrid"]).optional().describe("Optional retrieval mode hint."),
         rankingProfile: z.enum(["default", "preferReusableReferenceContent"]).optional().describe("Optional ranking preference profile."),
         expandQuery: z.boolean().optional().describe("Enable server-managed query expansion while planning. Defaults to true."),
         pack: z.string().optional().describe("Optional pack name or label."),
-        documentType: z.string().optional().describe("Optional document type hint."),
-        recordType: z.string().optional().describe("Optional record type hint."),
+        category: z.enum(["equipment", "feats", "creatures", "hazards", "afflictions", "rules", "spells", "characterCreation", "lore"]).optional().describe("Optional top-level category hint."),
+        subcategory: z.string().optional().describe("Optional within-category hint, for example consumable, haunt, deity, or archetype."),
         levelMin: z.number().int().optional().describe("Minimum level inclusive."),
         levelMax: z.number().int().optional().describe("Maximum level inclusive."),
         rarity: z.string().optional().describe("Rarity filter."),
@@ -214,7 +217,6 @@ async function main(): Promise<void> {
         excludeAdventureContent: z.boolean().optional().describe("Exclude records sourced from adventures, scenarios, quests, and one-shots."),
         coreOnly: z.boolean().optional().describe("Restrict results to core publications only."),
         size: z.string().optional().describe("Actor size filter."),
-        itemCategory: z.string().optional().describe("Item category hint."),
         priceMin: z.number().optional().describe("Minimum item price in copper pieces."),
         priceMax: z.number().optional().describe("Maximum item price in copper pieces."),
         actionCost: z.number().int().optional().describe("Action cost filter."),
@@ -306,7 +308,8 @@ async function main(): Promise<void> {
         mode: z.enum(["structured", "lexical", "hybrid"]).optional().describe("Retrieval mode. Defaults to structured."),
         rankingProfile: z.enum(["default", "preferReusableReferenceContent"]).optional().describe("Optional ranking preference profile."),
         pack: z.string().describe("Pack name or label."),
-        recordType: z.string().optional().describe("Optional Foundry record type, for example spell, feat, npc, or hazard."),
+        category: z.enum(["equipment", "feats", "creatures", "hazards", "afflictions", "rules", "spells", "characterCreation", "lore"]).optional().describe("Optional top-level category boundary."),
+        subcategory: z.string().optional().describe("Optional within-category boundary."),
         levelMin: z.number().int().optional().describe("Minimum level inclusive."),
         levelMax: z.number().int().optional().describe("Maximum level inclusive."),
         rarity: z.string().optional().describe("Rarity filter, for example common or uncommon."),
@@ -319,7 +322,6 @@ async function main(): Promise<void> {
         excludeAdventureContent: z.boolean().optional().describe("Exclude records sourced from adventures, scenarios, quests, and one-shots."),
         coreOnly: z.boolean().optional().describe("Restrict results to core publications only."),
         size: z.string().optional().describe("Actor size filter."),
-        itemCategory: z.string().optional().describe("Item category filter, for example weapon, spell, equipment, or consumable."),
         priceMin: z.number().optional().describe("Minimum item price in copper pieces."),
         priceMax: z.number().optional().describe("Maximum item price in copper pieces."),
         actionCost: z.number().int().optional().describe("Action cost filter."),
@@ -349,7 +351,7 @@ async function main(): Promise<void> {
   server.registerTool(
     "pf2e_search",
     {
-      description: "Search PF2E records across packs using name lookup and structured filters.",
+      description: "Search PF2E records across packs using category-first boundaries, name lookup, and thematic filters.",
       inputSchema: {
         mode: z.enum(["structured", "lexical", "hybrid"]).optional().describe("Retrieval mode. Defaults to structured, or hybrid when themeQuery is present and mode is omitted."),
         rankingProfile: z.enum(["default", "preferReusableReferenceContent"]).optional().describe("Optional ranking preference profile."),
@@ -358,8 +360,8 @@ async function main(): Promise<void> {
         nameQuery: z.string().optional().describe("Name text to search for."),
         themeQuery: z.string().optional().describe("Theme or semantic query text. If mode is omitted, themeQuery defaults search to hybrid."),
         pack: z.string().optional().describe("Optional pack name or label."),
-        documentType: z.string().optional().describe("Optional Foundry document type, for example Actor or Item."),
-        recordType: z.string().optional().describe("Optional record type, for example spell, action, npc, or hazard."),
+        category: z.enum(["equipment", "feats", "creatures", "hazards", "afflictions", "rules", "spells", "characterCreation", "lore"]).optional().describe("Optional top-level category boundary."),
+        subcategory: z.string().optional().describe("Optional within-category boundary."),
         levelMin: z.number().int().optional().describe("Minimum level inclusive."),
         levelMax: z.number().int().optional().describe("Maximum level inclusive."),
         rarity: z.string().optional().describe("Rarity filter."),
@@ -372,7 +374,6 @@ async function main(): Promise<void> {
         excludeAdventureContent: z.boolean().optional().describe("Exclude records sourced from adventures, scenarios, quests, and one-shots."),
         coreOnly: z.boolean().optional().describe("Restrict results to core publications only."),
         size: z.string().optional().describe("Actor size filter."),
-        itemCategory: z.string().optional().describe("Item category filter, for example weapon, spell, equipment, or consumable."),
         priceMin: z.number().optional().describe("Minimum item price in copper pieces."),
         priceMax: z.number().optional().describe("Maximum item price in copper pieces."),
         actionCost: z.number().int().optional().describe("Action cost filter."),
@@ -408,8 +409,8 @@ async function main(): Promise<void> {
       inputSchema: {
         name: z.string().describe("Record name to look up."),
         pack: z.string().optional().describe("Optional pack name or label."),
-        documentType: z.string().optional().describe("Optional document type, for example Actor or Item."),
-        recordType: z.string().optional().describe("Optional record type, for example spell, action, npc, or hazard."),
+        category: z.enum(["equipment", "feats", "creatures", "hazards", "afflictions", "rules", "spells", "characterCreation", "lore"]).optional().describe("Optional top-level category hint."),
+        subcategory: z.string().optional().describe("Optional within-category hint."),
         detail: z.enum(["minimal", "standard", "full"]).optional().describe("Response detail level. Defaults to full for backward compatibility."),
         includeAlternatives: z.boolean().optional().describe("Include alternative matches. Defaults to true."),
       },
@@ -455,8 +456,8 @@ async function main(): Promise<void> {
           z.object({
             name: z.string().describe("Record name to look up."),
             pack: z.string().optional().describe("Optional pack name or label."),
-            documentType: z.string().optional().describe("Optional document type, for example Actor or Item."),
-            recordType: z.string().optional().describe("Optional record type, for example spell, action, npc, or hazard."),
+            category: z.enum(["equipment", "feats", "creatures", "hazards", "afflictions", "rules", "spells", "characterCreation", "lore"]).optional().describe("Optional top-level category hint."),
+            subcategory: z.string().optional().describe("Optional within-category hint."),
           }),
         ).min(1).max(25),
         coreOnly: z.boolean().optional().describe("Restrict primary matches to core content."),
@@ -488,12 +489,12 @@ async function main(): Promise<void> {
   server.registerTool(
     "pf2e_get_rules_context",
     {
-      description: "Resolve a PF2E rule record and follow linked compendium references from its rules text. Use this for linked-rule traversal such as 'How does Blinded interact with Seek, Hidden, or Undetected?'. For simple lookups, prefer pf2e_lookup or pf2e_get_record first. Example: {\"name\":\"Blinded\",\"recordType\":\"condition\",\"referenceDepth\":1}",
+      description: "Resolve a PF2E rule record and follow linked compendium references from its rules text. Use this for linked-rule traversal such as 'How does Blinded interact with Seek, Hidden, or Undetected?'. For simple lookups, prefer pf2e_lookup or pf2e_get_record first. Example: {\"name\":\"Blinded\",\"category\":\"rules\",\"subcategory\":\"condition\",\"referenceDepth\":1}",
       inputSchema: {
         name: z.string().describe("Record name to look up."),
         pack: z.string().optional().describe("Optional pack name or label."),
-        documentType: z.string().optional().describe("Optional document type, for example Actor or Item."),
-        recordType: z.string().optional().describe("Optional record type, for example spell, action, npc, or hazard."),
+        category: z.enum(["equipment", "feats", "creatures", "hazards", "afflictions", "rules", "spells", "characterCreation", "lore"]).optional().describe("Optional top-level category hint."),
+        subcategory: z.string().optional().describe("Optional within-category hint."),
         referenceDepth: z.coerce.number().int().min(1).max(2).optional().describe("How many reference hops to follow. Must be 1 or 2. Defaults to 1."),
         maxReferences: z.coerce.number().int().min(1).max(25).optional().describe("Maximum number of linked records to return. Defaults to 8."),
         detail: z.enum(["minimal", "standard", "full"]).optional().describe("Response detail level. Defaults to full for backward compatibility."),

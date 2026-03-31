@@ -5,7 +5,7 @@ import { buildSearchPlan, summarizeExpansionRules } from "../src/search-planning
 describe("search planning", () => {
   it("turns broad intent into bounded hybrid and structured backstop queries", () => {
     const plan = buildSearchPlan("ghost ship body horror", {
-      recordType: "npc",
+      category: "creatures",
       levelMin: 1,
       levelMax: 5,
     });
@@ -21,11 +21,11 @@ describe("search planning", () => {
 
   it("surfaces scoped item guidance for gear-oriented intent", () => {
     const plan = buildSearchPlan("infiltration tools lockpick camouflage", {
-      documentType: "Item",
-      itemCategory: "equipment",
+      category: "equipment",
+      subcategory: "gear",
     });
 
-    expect(plan.suggestedFilters.preferredItemCategories).toEqual(expect.arrayContaining(["armor", "consumable", "equipment", "weapon"]));
+    expect(plan.suggestedFilters.preferredSubcategories).toEqual(expect.arrayContaining(["armor", "consumable", "gear", "weapon"]));
     expect(plan.recognizedSemantics.map((entry) => entry.id)).toContain("stealth-gear");
   });
 
@@ -38,8 +38,8 @@ describe("search planning", () => {
     expect(plan.recognizedSemantics.map((entry) => entry.id)).toEqual(
       expect.arrayContaining(["encounter-ecology", "stealth-assailants", "wilderness-primal"]),
     );
-    expect(plan.suggestedFilters.preferredRecordTypes[0]).toBe("npc");
-    expect(plan.suggestedFilters.preferredRecordTypes).toContain("hazard");
+    expect(plan.suggestedFilters.preferredCategories[0]).toBe("creatures");
+    expect(plan.suggestedFilters.preferredCategories).toContain("hazards");
   });
 
   it("does not treat forest spirit as undead planning by default", () => {
@@ -66,7 +66,15 @@ describe("search planning", () => {
 
   it("summarizes ontology domains for caller introspection", () => {
     const domains = summarizeExpansionRules();
-    expect(domains.some((domain) => domain.id === "storm-spells" && domain.scope?.recordTypes?.includes("spell"))).toBe(true);
-    expect(domains.some((domain) => domain.id === "stealth-gear" && domain.scope?.itemCategories?.includes("equipment"))).toBe(true);
+    expect(domains.some((domain) => domain.id === "storm-spells" && domain.scope?.categories?.includes("spells"))).toBe(true);
+    expect(domains.some((domain) => domain.id === "stealth-gear" && domain.scope?.categories?.includes("equipment"))).toBe(true);
+  });
+
+  it("surfaces inferred category boundaries for clear intent", () => {
+    const plan = buildSearchPlan("deity of travel");
+    expect(plan.query?.inferredCategory).toBe("lore");
+    expect(plan.query?.inferredSubcategory).toBe("deity");
+    expect(plan.recommendedQueries[0]?.arguments.category).toBe("lore");
+    expect(plan.recommendedQueries[0]?.arguments.subcategory).toBe("deity");
   });
 });

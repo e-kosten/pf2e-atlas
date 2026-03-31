@@ -6,7 +6,7 @@ describe("search expansion", () => {
   it("applies broad creature vibe rules into the expanded query", () => {
     const analysis = buildSearchQueryAnalysis(
       "ghost ship body horror",
-      { recordType: "npc" },
+      { category: "creatures" },
     );
 
     expect(analysis?.matchedRules.map((rule) => rule.id)).toEqual(
@@ -20,7 +20,7 @@ describe("search expansion", () => {
   it("does not treat bare spirit language as undead by default", () => {
     const analysis = buildSearchQueryAnalysis(
       "forest spirit",
-      { recordType: "npc" },
+      { category: "creatures" },
     );
 
     expect(analysis?.matchedRules.map((rule) => rule.id)).not.toContain("spectral-undead");
@@ -30,14 +30,14 @@ describe("search expansion", () => {
   it("respects scope-aware spell boosts", () => {
     const spellAnalysis = buildSearchQueryAnalysis(
       "storm lightning thunder",
-      { recordType: "spell" },
+      { category: "spells" },
     );
     expect(spellAnalysis?.matchedRules.map((rule) => rule.id)).toContain("storm-spells");
     expect(spellAnalysis?.boostedTraits).toEqual(expect.arrayContaining(["air", "electricity", "sonic"]));
 
     const npcAnalysis = buildSearchQueryAnalysis(
       "storm lightning thunder",
-      { recordType: "npc" },
+      { category: "creatures" },
     );
     expect(npcAnalysis?.matchedRules.map((rule) => rule.id)).not.toContain("storm-spells");
     expect(npcAnalysis?.skippedRules).toEqual(
@@ -53,14 +53,14 @@ describe("search expansion", () => {
   it("applies gear-oriented concepts to item categories instead of broad content", () => {
     const gearAnalysis = buildSearchQueryAnalysis(
       "infiltration tools lockpick camouflage",
-      { documentType: "Item", itemCategory: "equipment" },
+      { category: "equipment", subcategory: "gear" },
     );
     expect(gearAnalysis?.matchedRules.map((rule) => rule.id)).toContain("stealth-gear");
     expect(gearAnalysis?.boostedMetadataTokens).toEqual(expect.arrayContaining(["concealed", "subtle"]));
 
     const npcAnalysis = buildSearchQueryAnalysis(
       "stealth infiltration silent",
-      { recordType: "npc" },
+      { category: "creatures" },
     );
     expect(npcAnalysis?.matchedRules.map((rule) => rule.id)).not.toContain("stealth-gear");
   });
@@ -68,7 +68,7 @@ describe("search expansion", () => {
   it("biases encounter ecology language toward npc and hazard content", () => {
     const encounterAnalysis = buildSearchQueryAnalysis(
       "ambush predator lair nest",
-      { recordType: "npc" },
+      { category: "creatures" },
     );
     expect(encounterAnalysis?.matchedRules.map((rule) => rule.id)).toEqual(
       expect.arrayContaining(["encounter-ecology", "stealth-assailants"]),
@@ -77,7 +77,7 @@ describe("search expansion", () => {
 
     const spellAnalysis = buildSearchQueryAnalysis(
       "ambush predator lair nest",
-      { recordType: "spell" },
+      { category: "spells" },
     );
     expect(spellAnalysis?.matchedRules.map((rule) => rule.id)).toEqual([]);
     expect(spellAnalysis?.skippedRules).toEqual(
@@ -97,7 +97,7 @@ describe("search expansion", () => {
   it("can disable expansion while still reporting skipped triggered rules", () => {
     const analysis = buildSearchQueryAnalysis(
       "ghost ship body horror",
-      { recordType: "npc" },
+      { category: "creatures" },
       { expandQuery: false },
     );
 
@@ -112,12 +112,26 @@ describe("search expansion", () => {
   it("maps blight language to flora corruption instead of only generic wilderness", () => {
     const analysis = buildSearchQueryAnalysis(
       "corrupted woodland blight",
-      { recordType: "npc" },
+      { category: "creatures" },
     );
 
     expect(analysis?.matchedRules.map((rule) => rule.id)).toEqual(
       expect.arrayContaining(["blighted-wilds", "wilderness-primal"]),
     );
     expect(analysis?.boostedTraits).toEqual(expect.arrayContaining(["disease", "fungus", "ooze", "plant"]));
+  });
+
+  it("infers category and subcategory from clear user wording", () => {
+    const hauntAnalysis = buildSearchQueryAnalysis("haunted manor haunt", {});
+    expect(hauntAnalysis?.inferredCategory).toBe("hazards");
+    expect(hauntAnalysis?.inferredSubcategory).toBe("haunt");
+
+    const gearAnalysis = buildSearchQueryAnalysis("infiltration elixir", {});
+    expect(gearAnalysis?.inferredCategory).toBe("equipment");
+    expect(gearAnalysis?.inferredSubcategory).toBe("consumable");
+
+    const deityAnalysis = buildSearchQueryAnalysis("deity of travel", {});
+    expect(deityAnalysis?.inferredCategory).toBe("lore");
+    expect(deityAnalysis?.inferredSubcategory).toBe("deity");
   });
 });

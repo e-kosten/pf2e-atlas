@@ -1028,22 +1028,27 @@ describe("Pf2eDataService", () => {
 
     expect(service.lookup("Raise Shield").match?.name).toBe("Raise a Shield");
     expect(service.listRecords({ pack: "actions" }).records).toHaveLength(3);
-    expect((await service.search({ documentType: "Actor", traitsAll: ["fiend"] })).records[0]?.name).toBe("Cythnigot");
-    expect((await service.search({ documentType: "Actor", size: "sm" })).records.every((record) => record.size === "sm")).toBe(true);
-    expect((await service.search({ mode: "lexical", themeQuery: "aberration", documentType: "Actor" })).records[0]?.name).toBe("Cythnigot");
-    expect((await service.search({ recordType: "spell", tradition: "primal", actionCost: 2 })).records[0]?.name).toBe("Sea Blessing");
-    expect((await service.search({ nameQuery: "Ghost Sailor", documentType: "Actor", excludeMissingDescription: true })).records.every((record) => record.hasDescription)).toBe(true);
-    expect((await service.search({ nameQuery: "Ghost Sailor", documentType: "Actor", excludeAdventureContent: true })).records[0]?.sourceCategory).toBe("core");
-    expect((await service.search({ documentType: "Actor", coreOnly: true })).records.every((record) => record.sourceCategory === "core")).toBe(true);
-    expect((await service.search({ themeQuery: "ghost ship", documentType: "Actor" })).mode).toBe("hybrid");
+    expect((await service.search({ category: "creatures", traitsAll: ["fiend"] })).records[0]?.name).toBe("Cythnigot");
+    expect((await service.search({ category: "creatures", size: "sm" })).records.every((record) => record.size === "sm")).toBe(true);
+    expect((await service.search({ mode: "lexical", themeQuery: "aberration", category: "creatures" })).records[0]?.name).toBe("Cythnigot");
+    expect((await service.search({ category: "spells", tradition: "primal", actionCost: 2 })).records[0]?.name).toBe("Sea Blessing");
+    expect((await service.search({ category: "rules", subcategory: "condition" })).records.map((record) => record.name)).toEqual(
+      expect.arrayContaining(["Blinded", "Dazzled", "Hidden"]),
+    );
+    expect((await service.search({ category: "creatures", nameQuery: "Ghost Sailor", excludeMissingDescription: true })).records.every((record) => record.hasDescription)).toBe(true);
+    expect((await service.search({ category: "creatures", nameQuery: "Ghost Sailor", excludeAdventureContent: true })).records[0]?.sourceCategory).toBe("core");
+    expect((await service.search({ category: "creatures", coreOnly: true })).records.every((record) => record.sourceCategory === "core")).toBe(true);
+    expect((await service.search({ themeQuery: "ghost ship", category: "creatures" })).mode).toBe("hybrid");
     await expect(service.search({ mode: "structured", themeQuery: "ghost ship" })).rejects.toThrow(
       /omit mode to default to hybrid, or set mode to lexical or hybrid/i,
     );
 
-    const cythnigot = service.lookup("Cythnigot", { documentType: "Actor" }).match;
+    const cythnigot = service.lookup("Cythnigot", { category: "creatures" }).match;
     expect(cythnigot?.hasDescription).toBe(true);
     expect(cythnigot?.descriptionSnippet).toBe("Small aberration.");
     expect(cythnigot?.sourceCategory).toBe("core");
+    expect(cythnigot?.category).toBe("creatures");
+    expect(service.lookup("Blinded", { category: "rules", subcategory: "condition" }).match?.category).toBe("rules");
   });
 
   it("uses the recommendation-oriented ranking profile without suppressing described adventure content", async () => {
@@ -1053,7 +1058,7 @@ describe("Pf2eDataService", () => {
     const service = await loadTestService(fixture);
 
     const crawlingHands = (await service.search({
-      documentType: "Actor",
+      category: "creatures",
       nameQuery: "Crawling Hand Swarm",
       rankingProfile: "preferReusableReferenceContent",
     })).records;
@@ -1061,7 +1066,7 @@ describe("Pf2eDataService", () => {
     expect(crawlingHands[0]?.hasDescription).toBe(true);
 
     const bilgeSkeletons = (await service.search({
-      documentType: "Actor",
+      category: "creatures",
       nameQuery: "Bilge Skeleton",
       rankingProfile: "preferReusableReferenceContent",
     })).records;
@@ -1077,7 +1082,7 @@ describe("Pf2eDataService", () => {
     const broadQuery =
       "ghost ship cursed voyage fear fog darkness possession maddening whispers vermin in the hold wrong-feeling stowaways body horror haunted physically unclean";
     const broadResults = await service.search({
-      recordType: "npc",
+      category: "creatures",
       levelMin: 1,
       levelMax: 5,
       rarity: "common",
@@ -1109,7 +1114,7 @@ describe("Pf2eDataService", () => {
     expect(crawlingExplain?.components.sourcePenalty ?? 0).toBe(0);
 
     const withoutExpansion = await service.search({
-      recordType: "npc",
+      category: "creatures",
       levelMin: 1,
       levelMax: 5,
       rarity: "common",
@@ -1122,7 +1127,7 @@ describe("Pf2eDataService", () => {
     expect(withoutExpansion.explain?.query?.skippedRules.map((rule) => rule.reason)).toContain("expansion_disabled");
 
     const lexicalResults = await service.search({
-      recordType: "npc",
+      category: "creatures",
       levelMin: 1,
       levelMax: 5,
       mode: "lexical",
@@ -1143,7 +1148,7 @@ describe("Pf2eDataService", () => {
     const service = await loadTestService(fixture);
 
     const bilgeResults = await service.search({
-      documentType: "Actor",
+      category: "creatures",
       nameQuery: "Bilge Skeleton",
       explain: true,
     });
@@ -1155,7 +1160,7 @@ describe("Pf2eDataService", () => {
     expect(adventureBilgeExplain?.components.sourceQuality).toBe(-0.01);
 
     const sentinelResults = await service.search({
-      recordType: "npc",
+      category: "creatures",
       themeQuery: "sentinel guardian ancient ruins watch intruders",
       limit: 10,
       explain: true,
@@ -1177,7 +1182,7 @@ describe("Pf2eDataService", () => {
     expect(rareExplain?.components.rarityPreference).toBe(0.01);
 
     const exactUniqueResults = await service.search({
-      documentType: "Actor",
+      category: "creatures",
       nameQuery: "Last Sentinel",
       explain: true,
     });
@@ -1194,21 +1199,21 @@ describe("Pf2eDataService", () => {
 
     expect(service.listPacks().map((pack) => pack.name)).not.toContain("macros");
     expect(service.listPacks().map((pack) => pack.name)).not.toContain("action-macros");
-    expect(service.lookup("Grimstalker", { documentType: "Actor" }).match?.name).toBe("Grimstalker");
-    expect(service.lookup("Ghoul", { documentType: "Actor" }).match?.name).toBe("Ghoul");
-    expect(service.lookup("Zebub", { documentType: "Actor" }).match?.name).toBe("Zebub");
-    expect(service.lookup("Raise Shield", { documentType: "Item" }).match?.name).toBe("Raise a Shield");
+    expect(service.lookup("Grimstalker", { category: "creatures" }).match?.name).toBe("Grimstalker");
+    expect(service.lookup("Ghoul", { category: "creatures" }).match?.name).toBe("Ghoul");
+    expect(service.lookup("Zebub", { category: "creatures" }).match?.name).toBe("Zebub");
+    expect(service.lookup("Raise Shield", { category: "rules", subcategory: "action" }).match?.name).toBe("Raise a Shield");
 
-    expect((await service.search({ nameQuery: "Grimstalker (PFS 3-13)", documentType: "Actor" })).records.map((record) => record.name)).not.toContain("Grimstalker (PFS 3-13)");
-    expect((await service.search({ nameQuery: "Ghoul (PFS Intro 2)", documentType: "Actor" })).records.map((record) => record.name)).not.toContain("Ghoul (PFS Intro 2)");
-    expect((await service.search({ nameQuery: "Zebub (PFS)", documentType: "Actor" })).records.map((record) => record.name)).not.toContain("Zebub (PFS)");
+    expect((await service.search({ nameQuery: "Grimstalker (PFS 3-13)", category: "creatures" })).records.map((record) => record.name)).not.toContain("Grimstalker (PFS 3-13)");
+    expect((await service.search({ nameQuery: "Ghoul (PFS Intro 2)", category: "creatures" })).records.map((record) => record.name)).not.toContain("Ghoul (PFS Intro 2)");
+    expect((await service.search({ nameQuery: "Zebub (PFS)", category: "creatures" })).records.map((record) => record.name)).not.toContain("Zebub (PFS)");
     expect((await service.search({ nameQuery: "Magical Mentor" })).records.map((record) => record.name)).not.toContain("Magical Mentor");
     expect((await service.search({ nameQuery: "Effect: Magical Mentor" })).records.map((record) => record.name)).not.toContain("Effect: Magical Mentor");
     expect((await service.search({ nameQuery: "Treat Wounds" })).records.map((record) => record.name)).not.toContain("Treat Wounds");
     expect((await service.search({ nameQuery: "Trip: Athletics" })).records.map((record) => record.name)).not.toContain("Trip: Athletics");
 
     const featResults = (await service.search({
-      recordType: "feat",
+      category: "feats",
       themeQuery: "mentor training support teamwork guidance",
       limit: 10,
     })).records.map((record) => record.name);
@@ -1222,11 +1227,11 @@ describe("Pf2eDataService", () => {
 
     const service = await loadTestService(fixture);
 
-    const firstHop = service.getRulesContext("Blinded", { recordType: "condition", referenceDepth: 1 });
+    const firstHop = service.getRulesContext("Blinded", { category: "rules", subcategory: "condition", referenceDepth: 1 });
     expect(firstHop?.record.name).toBe("Blinded");
     expect(firstHop?.references.map((record) => record.name)).toEqual(["Dazzled", "Seek"]);
 
-    const secondHop = service.getRulesContext("Blinded", { recordType: "condition", referenceDepth: 2 });
+    const secondHop = service.getRulesContext("Blinded", { category: "rules", subcategory: "condition", referenceDepth: 2 });
     expect(secondHop?.references.map((record) => record.name)).toContain("Hidden");
     expect(secondHop?.edges.some((edge) => edge.toRecordKey === "conditionitems:Hidden" && edge.depth === 2)).toBe(true);
   });
@@ -1259,12 +1264,11 @@ describe("Pf2eDataService", () => {
 
     const service = await loadTestService(fixture);
 
-    const vocabulary = service.getSearchVocabulary({ traitLimitPerRecordType: 4 });
-    expect(vocabulary.documentTypes.map((entry) => entry.value)).toEqual(expect.arrayContaining(["Actor", "Item"]));
-    expect(vocabulary.recordTypes.map((entry) => entry.value)).toEqual(expect.arrayContaining(["npc", "spell", "action"]));
-    expect(vocabulary.itemCategories.map((entry) => entry.value)).toEqual(expect.arrayContaining(["action", "feat", "spell"]));
+    const vocabulary = service.getSearchVocabulary({ traitLimitPerCategory: 4 });
+    expect(vocabulary.categories.map((entry) => entry.value)).toEqual(expect.arrayContaining(["creatures", "spells", "rules", "feats"]));
+    expect(vocabulary.subcategories.map((entry) => entry.value)).toEqual(expect.arrayContaining(["condition", "action", "primal"]));
     expect(vocabulary.traditions.map((entry) => entry.value)).toContain("primal");
-    expect(vocabulary.commonTraitsByRecordType.find((entry) => entry.recordType === "npc")?.traits.length).toBeGreaterThan(0);
+    expect(vocabulary.commonTraitsByCategory.find((entry) => entry.category === "creatures")?.traits.length).toBeGreaterThan(0);
   });
 
   it("collects rule question context without synthesis", async () => {
@@ -1330,7 +1334,7 @@ describe("Pf2eDataService", () => {
 
     const rebuiltService = await loadTestService(fixture, { indexPath });
     expect(rebuiltService.getStats()).toEqual({ packCount: 7, recordCount: 24 });
-    expect(rebuiltService.lookup("Sea Ghoul", { documentType: "Actor" }).match?.name).toBe("Sea Ghoul");
+    expect(rebuiltService.lookup("Sea Ghoul", { category: "creatures" }).match?.name).toBe("Sea Ghoul");
     rebuiltService.close();
   });
 

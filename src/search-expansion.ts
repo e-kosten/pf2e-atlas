@@ -1,4 +1,5 @@
 import {
+  SearchCategory,
   NormalizedRecord,
   SearchAppliedBoost,
   SearchExpansionScope,
@@ -8,6 +9,7 @@ import {
   SearchSkippedRule,
   SourceCategory,
 } from "./types.js";
+import { getCategoryForSubcategory, getCategoryKeywordAnchors, getSubcategoryKeywordAnchors, SEARCH_CATEGORIES } from "./categories.js";
 import { normalizeText, uniqueSorted } from "./utils.js";
 
 type BoostTarget = "traits" | "nameTokens" | "metadataTokens";
@@ -67,7 +69,7 @@ export const DEFAULT_SEARCH_EXPANSION_RULES: SearchExpansionRule[] = [
     label: "Swarm and infestation themes",
     triggers: ["swarm", "infestation", "vermin", "hive"],
     scope: {
-      recordTypes: ["npc", "hazard"],
+      categories: ["creatures", "hazards"],
     },
     boosts: {
       traits: ["swarm"],
@@ -80,7 +82,7 @@ export const DEFAULT_SEARCH_EXPANSION_RULES: SearchExpansionRule[] = [
     label: "Maritime and shipwreck themes",
     triggers: ["ship", "voyage", "hold", "harbor", "sea", "ocean", "drowned", "shipwreck"],
     scope: {
-      recordTypes: ["npc", "hazard"],
+      categories: ["creatures", "hazards"],
     },
     boosts: {
       traits: ["water", "aquatic"],
@@ -92,7 +94,7 @@ export const DEFAULT_SEARCH_EXPANSION_RULES: SearchExpansionRule[] = [
     label: "Body horror and dismemberment",
     triggers: ["body horror", "severed limbs", "severed limb", "limbs", "limb", "gore"],
     scope: {
-      recordTypes: ["npc", "hazard"],
+      categories: ["creatures", "hazards"],
     },
     boosts: {
       nameTokens: ["crawling", "hand", "limb"],
@@ -176,7 +178,7 @@ export const DEFAULT_SEARCH_EXPANSION_RULES: SearchExpansionRule[] = [
     label: "Blight, tainted growth, and corrupted wilds",
     triggers: ["blight", "blighted", "tainted", "tainted growth", "corrupted woodland", "corrupted grove", "rotting grove"],
     scope: {
-      recordTypes: ["npc", "hazard"],
+      categories: ["creatures", "hazards"],
     },
     boosts: {
       traits: ["plant", "fungus", "ooze", "disease"],
@@ -188,7 +190,7 @@ export const DEFAULT_SEARCH_EXPANSION_RULES: SearchExpansionRule[] = [
     label: "Wilderness and primal ecology",
     triggers: ["wilderness", "forest", "woodland", "jungle", "beast", "primal", "wild"],
     scope: {
-      recordTypes: ["npc", "hazard", "spell"],
+      categories: ["creatures", "hazards", "spells"],
     },
     boosts: {
       traits: ["animal", "beast", "plant", "primal"],
@@ -200,7 +202,7 @@ export const DEFAULT_SEARCH_EXPANSION_RULES: SearchExpansionRule[] = [
     label: "Fey, sprites, and trickster creatures",
     triggers: ["fey", "sprite", "pixie", "gremlin", "trickster", "prankster"],
     scope: {
-      recordTypes: ["npc", "hazard"],
+      categories: ["creatures", "hazards"],
     },
     boosts: {
       traits: ["fey"],
@@ -230,7 +232,7 @@ export const DEFAULT_SEARCH_EXPANSION_RULES: SearchExpansionRule[] = [
     label: "Giants and brutal might",
     triggers: ["giant", "titanic", "massive", "brutal"],
     scope: {
-      recordTypes: ["npc", "hazard"],
+      categories: ["creatures", "hazards"],
     },
     boosts: {
       traits: ["giant"],
@@ -242,7 +244,7 @@ export const DEFAULT_SEARCH_EXPANSION_RULES: SearchExpansionRule[] = [
     label: "Storm and tempest magic",
     triggers: ["storm", "lightning", "thunder", "tempest"],
     scope: {
-      recordTypes: ["spell"],
+      categories: ["spells"],
     },
     boosts: {
       traits: ["air", "electricity", "sonic"],
@@ -254,7 +256,7 @@ export const DEFAULT_SEARCH_EXPANSION_RULES: SearchExpansionRule[] = [
     label: "Healing and restorative magic",
     triggers: ["healing", "restoration", "recovery", "cure", "mend"],
     scope: {
-      recordTypes: ["spell"],
+      categories: ["spells"],
     },
     boosts: {
       traits: ["healing", "vitality"],
@@ -266,7 +268,7 @@ export const DEFAULT_SEARCH_EXPANSION_RULES: SearchExpansionRule[] = [
     label: "Protection, wards, and abjurations",
     triggers: ["ward", "shielding", "barrier", "protection", "abjuration"],
     scope: {
-      recordTypes: ["spell"],
+      categories: ["spells"],
     },
     boosts: {
       traits: ["abjuration"],
@@ -278,7 +280,7 @@ export const DEFAULT_SEARCH_EXPANSION_RULES: SearchExpansionRule[] = [
     label: "Curses, hexes, and maledictions",
     triggers: ["curse", "cursed", "hex", "malediction"],
     scope: {
-      recordTypes: ["spell"],
+      categories: ["spells"],
     },
     boosts: {
       traits: ["curse", "occult"],
@@ -290,7 +292,8 @@ export const DEFAULT_SEARCH_EXPANSION_RULES: SearchExpansionRule[] = [
     label: "Traps and ambush hazards",
     triggers: ["trap", "snare", "pressure plate", "pitfall", "tripwire", "deadfall", "booby trap"],
     scope: {
-      recordTypes: ["hazard"],
+      categories: ["hazards"],
+      subcategories: ["trap"],
     },
     boosts: {
       traits: ["trap", "mechanical"],
@@ -302,7 +305,8 @@ export const DEFAULT_SEARCH_EXPANSION_RULES: SearchExpansionRule[] = [
     label: "Haunts and supernatural hazards",
     triggers: ["haunt", "haunted", "poltergeist", "manifestation"],
     scope: {
-      recordTypes: ["hazard"],
+      categories: ["hazards"],
+      subcategories: ["haunt"],
     },
     boosts: {
       traits: ["haunt", "magical"],
@@ -314,7 +318,7 @@ export const DEFAULT_SEARCH_EXPANSION_RULES: SearchExpansionRule[] = [
     label: "Encounter ecology and lair language",
     triggers: ["lair", "brood", "nest", "den", "territory", "stalk", "ambush", "ambusher", "ambush predator"],
     scope: {
-      recordTypes: ["npc", "hazard"],
+      categories: ["creatures", "hazards"],
     },
     boosts: {
       metadataTokens: ["lair", "nest", "den", "territory", "ambush", "stalk"],
@@ -325,7 +329,7 @@ export const DEFAULT_SEARCH_EXPANSION_RULES: SearchExpansionRule[] = [
     label: "Assassins, skulkers, and ambush predators",
     triggers: ["assassin", "ambush", "skulker", "stalker", "sneak attack", "hit and run"],
     scope: {
-      recordTypes: ["npc"],
+      categories: ["creatures"],
     },
     boosts: {
       metadataTokens: ["assassin", "ambush", "stalker", "stealth", "skulking"],
@@ -336,8 +340,8 @@ export const DEFAULT_SEARCH_EXPANSION_RULES: SearchExpansionRule[] = [
     label: "Stealth and infiltration gear",
     triggers: ["stealth gear", "infiltration tools", "lockpick", "lockpicks", "camouflage", "disguise kit", "smoke bomb", "concealed weapon"],
     scope: {
-      documentTypes: ["Item"],
-      itemCategories: ["equipment", "consumable", "armor", "weapon"],
+      categories: ["equipment"],
+      subcategories: ["gear", "consumable", "armor", "weapon"],
     },
     boosts: {
       metadataTokens: ["stealth", "silent", "concealed", "subtle"],
@@ -348,8 +352,8 @@ export const DEFAULT_SEARCH_EXPANSION_RULES: SearchExpansionRule[] = [
     label: "Healing and restorative gear",
     triggers: ["healing", "restoration", "medicine", "recovery", "antidote"],
     scope: {
-      documentTypes: ["Item"],
-      itemCategories: ["equipment", "consumable"],
+      categories: ["equipment"],
+      subcategories: ["gear", "consumable"],
     },
     boosts: {
       metadataTokens: ["healing", "restorative", "recovery", "antidote"],
@@ -360,8 +364,8 @@ export const DEFAULT_SEARCH_EXPANSION_RULES: SearchExpansionRule[] = [
     label: "Defensive and protective gear",
     triggers: ["defense", "defensive", "shielding", "protection", "warding"],
     scope: {
-      documentTypes: ["Item"],
-      itemCategories: ["equipment", "armor", "shield", "weapon"],
+      categories: ["equipment"],
+      subcategories: ["gear", "armor", "shield", "weapon"],
     },
     boosts: {
       metadataTokens: ["defense", "protective", "shield", "ward"],
@@ -372,8 +376,8 @@ export const DEFAULT_SEARCH_EXPANSION_RULES: SearchExpansionRule[] = [
     label: "Alchemical and bomb gear",
     triggers: ["alchemical", "bomb", "elixir", "mutagen", "tincture"],
     scope: {
-      documentTypes: ["Item"],
-      itemCategories: ["consumable", "equipment"],
+      categories: ["equipment"],
+      subcategories: ["consumable", "gear"],
     },
     boosts: {
       traits: ["alchemical"],
@@ -448,62 +452,18 @@ function matchesPattern(normalizedQuery: string, queryTokens: Set<string>, trigg
     : queryTokens.has(normalizedTrigger);
 }
 
-function inferDocumentTypeFromFilters(filters: SearchFilters): string | null {
-  if (filters.documentType) {
-    return normalizeText(filters.documentType);
-  }
-
-  const normalizedRecordType = normalizeText(filters.recordType ?? "");
-  if (normalizedRecordType === "npc" || normalizedRecordType === "hazard") {
-    return "actor";
-  }
-
-  if (filters.itemCategory) {
-    return "item";
-  }
-
-  const itemLikeRecordTypes = new Set([
-    "action",
-    "feat",
-    "condition",
-    "spell",
-    "equipment",
-    "consumable",
-    "armor",
-    "weapon",
-    "shield",
-    "backpack",
-    "treasure",
-    "deityboon",
-    "ancestry",
-    "class",
-    "background",
-  ]);
-  if (itemLikeRecordTypes.has(normalizedRecordType)) {
-    return "item";
-  }
-
-  return null;
-}
-
 function scopeConflictsWithFilters(scope: SearchExpansionScope | undefined, filters: SearchFilters): boolean {
   if (!scope) {
     return false;
   }
 
-  const documentTypes = normalizeScopeValues(scope.documentTypes);
-  const inferredDocumentType = inferDocumentTypeFromFilters(filters);
-  if (documentTypes.length > 0 && inferredDocumentType && !documentTypes.includes(inferredDocumentType)) {
+  const categories = scope.categories?.map((category) => normalizeText(category)).filter(Boolean) ?? [];
+  if (categories.length > 0 && filters.category && !categories.includes(normalizeText(filters.category))) {
     return true;
   }
 
-  const recordTypes = normalizeScopeValues(scope.recordTypes);
-  if (recordTypes.length > 0 && filters.recordType && !recordTypes.includes(normalizeText(filters.recordType))) {
-    return true;
-  }
-
-  const itemCategories = normalizeScopeValues(scope.itemCategories);
-  if (itemCategories.length > 0 && filters.itemCategory && !itemCategories.includes(normalizeText(filters.itemCategory))) {
+  const subcategories = normalizeScopeValues(scope.subcategories);
+  if (subcategories.length > 0 && filters.subcategory && !subcategories.includes(normalizeText(filters.subcategory))) {
     return true;
   }
 
@@ -530,19 +490,17 @@ function scopeMatchesRecord(scope: SearchExpansionScope | undefined, record: Nor
     return true;
   }
 
-  const documentTypes = normalizeScopeValues(scope.documentTypes);
-  if (documentTypes.length > 0 && !documentTypes.includes(normalizeText(record.documentType))) {
+  const categories = scope.categories?.map((category) => normalizeText(category)).filter(Boolean) ?? [];
+  if (categories.length > 0 && !categories.includes(normalizeText(record.category))) {
     return false;
   }
 
-  const recordTypes = normalizeScopeValues(scope.recordTypes);
-  if (recordTypes.length > 0 && !recordTypes.includes(normalizeText(record.type))) {
-    return false;
-  }
-
-  const itemCategories = normalizeScopeValues(scope.itemCategories);
-  if (itemCategories.length > 0 && !itemCategories.includes(normalizeText(record.itemCategory ?? ""))) {
-    return false;
+  const subcategories = normalizeScopeValues(scope.subcategories);
+  if (subcategories.length > 0) {
+    const recordSubcategories = new Set(record.subcategories.map((subcategory) => normalizeText(subcategory)).filter(Boolean));
+    if (!subcategories.some((subcategory) => recordSubcategories.has(subcategory))) {
+      return false;
+    }
   }
 
   const packNames = normalizeScopeValues(scope.packNames);
@@ -584,11 +542,113 @@ function createScopeCopy(scope: SearchExpansionScope | undefined): SearchExpansi
   }
 
   return {
-    documentTypes: scope.documentTypes ? [...scope.documentTypes] : undefined,
-    recordTypes: scope.recordTypes ? [...scope.recordTypes] : undefined,
-    itemCategories: scope.itemCategories ? [...scope.itemCategories] : undefined,
+    categories: scope.categories ? [...scope.categories] : undefined,
+    subcategories: scope.subcategories ? [...scope.subcategories] : undefined,
     packNames: scope.packNames ? [...scope.packNames] : undefined,
     sourceCategories: scope.sourceCategories ? [...scope.sourceCategories] : undefined,
+  };
+}
+
+function addCategoryScore(scores: Map<SearchCategory, number>, category: SearchCategory, value: number): void {
+  scores.set(category, (scores.get(category) ?? 0) + value);
+}
+
+function addSubcategoryScore(scores: Map<string, number>, subcategory: string, value: number): void {
+  const normalized = normalizeText(subcategory);
+  if (!normalized) {
+    return;
+  }
+  scores.set(normalized, (scores.get(normalized) ?? 0) + value);
+}
+
+function scoreKeywordAnchors(
+  normalizedQuery: string,
+  queryTokenSet: Set<string>,
+  categoryScores: Map<SearchCategory, number>,
+  subcategoryScores: Map<string, number>,
+): void {
+  const categoryAnchors = getCategoryKeywordAnchors();
+  for (const category of SEARCH_CATEGORIES) {
+    for (const keyword of categoryAnchors[category] ?? []) {
+      if (matchesPattern(normalizedQuery, queryTokenSet, keyword)) {
+        addCategoryScore(categoryScores, category, keyword.includes(" ") ? 2 : 1.5);
+      }
+    }
+  }
+
+  for (const entry of getSubcategoryKeywordAnchors()) {
+    for (const keyword of entry.keywords) {
+      if (matchesPattern(normalizedQuery, queryTokenSet, keyword)) {
+        addCategoryScore(categoryScores, entry.category, entry.weight ?? 2);
+        addSubcategoryScore(subcategoryScores, entry.subcategory, entry.weight ?? 2);
+      }
+    }
+  }
+}
+
+function inferCategorySelection(
+  normalizedQuery: string,
+  queryTokenSet: Set<string>,
+  filters: SearchFilters,
+  matchedRules: SearchMatchedRule[],
+): { category: SearchCategory | null; subcategory: string | null } {
+  const categoryScores = new Map<SearchCategory, number>();
+  const subcategoryScores = new Map<string, number>();
+
+  if (filters.category) {
+    addCategoryScore(categoryScores, filters.category, 100);
+  }
+  if (filters.subcategory) {
+    addSubcategoryScore(subcategoryScores, filters.subcategory, 100);
+    const parent = getCategoryForSubcategory(filters.subcategory);
+    if (parent) {
+      addCategoryScore(categoryScores, parent, 100);
+    }
+  }
+
+  for (const rule of matchedRules) {
+    for (const category of rule.scope?.categories ?? []) {
+      addCategoryScore(categoryScores, category, 2);
+    }
+
+    for (const subcategory of rule.scope?.subcategories ?? []) {
+      addSubcategoryScore(subcategoryScores, subcategory, 1.5);
+      const parent = getCategoryForSubcategory(subcategory);
+      if (parent) {
+        addCategoryScore(categoryScores, parent, 1);
+      }
+    }
+  }
+
+  scoreKeywordAnchors(normalizedQuery, queryTokenSet, categoryScores, subcategoryScores);
+
+  const rankedCategories = [...categoryScores.entries()]
+    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]));
+  const topCategory = rankedCategories[0] ?? null;
+  const runnerUpCategory = rankedCategories[1] ?? null;
+  const inferredCategory = topCategory && topCategory[1] >= 2 && (
+    !runnerUpCategory || topCategory[1] >= runnerUpCategory[1] + 1.5
+  )
+    ? topCategory[0]
+    : null;
+
+  let inferredSubcategory: string | null = null;
+  if (filters.subcategory) {
+    inferredSubcategory = normalizeText(filters.subcategory) || null;
+  } else if (inferredCategory) {
+    const rankedSubcategories = [...subcategoryScores.entries()]
+      .filter(([subcategory]) => getCategoryForSubcategory(subcategory) === inferredCategory)
+      .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]));
+    const topSubcategory = rankedSubcategories[0] ?? null;
+    const runnerUpSubcategory = rankedSubcategories[1] ?? null;
+    if (topSubcategory && topSubcategory[1] >= 2 && (!runnerUpSubcategory || topSubcategory[1] >= runnerUpSubcategory[1] + 1)) {
+      inferredSubcategory = topSubcategory[0];
+    }
+  }
+
+  return {
+    category: filters.category ?? inferredCategory,
+    subcategory: filters.subcategory ?? inferredSubcategory,
   };
 }
 
@@ -689,12 +749,15 @@ export function buildSearchQueryAnalysis(
     ...boostedNameTokens,
     ...boostedMetadataTokens,
   ]).join(" ");
+  const inference = inferCategorySelection(normalizedQuery, queryTokenSet, filters, matchedRules);
 
   return {
     rawQuery: query,
     normalizedQuery,
     queryTokens,
     expandedQuery,
+    inferredCategory: inference.category,
+    inferredSubcategory: inference.subcategory,
     boostedTraits,
     boostedNameTokens,
     boostedMetadataTokens,
@@ -705,6 +768,30 @@ export function buildSearchQueryAnalysis(
     baseMetadataWeights,
     ruleStates,
   };
+}
+
+export function inferSearchCategorySelection(
+  query: string,
+  filters: SearchFilters,
+  analysis?: SearchQueryAnalysis | null,
+): { category: SearchCategory | null; subcategory: string | null } {
+  if (analysis) {
+    return {
+      category: analysis.inferredCategory,
+      subcategory: analysis.inferredSubcategory,
+    };
+  }
+
+  const normalizedQuery = normalizeText(query);
+  if (!normalizedQuery) {
+    return {
+      category: filters.category ?? null,
+      subcategory: filters.subcategory ? normalizeText(filters.subcategory) : null,
+    };
+  }
+
+  const queryTokenSet = new Set(normalizedQuery.split(" ").filter(Boolean));
+  return inferCategorySelection(normalizedQuery, queryTokenSet, filters, []);
 }
 
 export function buildCandidateQueryWeights(record: NormalizedRecord, analysis: SearchQueryAnalysisState): CandidateQueryWeights {

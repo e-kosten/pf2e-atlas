@@ -12,6 +12,7 @@ import {
   DEFAULT_EMBEDDING_REVISION,
   EmbeddingProvider,
 } from "./embeddings.js";
+import { classifyRecordCategory, extractSpellTraditions, getCategoryForSubcategory } from "./categories.js";
 import {
   CollectRuleQuestionContextInput,
   CollectRuleQuestionContextResult,
@@ -24,12 +25,13 @@ import {
   PackManifestEntry,
   RuleGraphResult,
   RuleReferenceEdge,
-  SourceCategory,
+  SearchCategory,
   SearchFilters,
   SearchExplainResult,
   SearchRecordExplanation,
   SearchMode,
   SearchResult,
+  SourceCategory,
 } from "./types.js";
 import {
   bigramDice,
@@ -42,10 +44,10 @@ import {
   toStringArray,
   uniqueSorted,
 } from "./utils.js";
-import { buildCandidateQueryWeights, buildSearchQueryAnalysis } from "./search-expansion.js";
+import { buildCandidateQueryWeights, buildSearchQueryAnalysis, inferSearchCategorySelection } from "./search-expansion.js";
 
 const execFileAsync = promisify(execFile);
-const INDEX_SCHEMA_VERSION = 5;
+const INDEX_SCHEMA_VERSION = 6;
 
 type LoadOptions = {
   indexPath?: string;
@@ -65,6 +67,8 @@ type CandidateRow = {
   name: string;
   normalizedName: string;
   type: string;
+  category: SearchCategory;
+  subcategoriesJson: string;
   packName: string;
   packLabel: string;
   documentType: string;
@@ -108,6 +112,8 @@ type NormalizedIndexRecord = {
   name: string;
   normalizedName: string;
   type: string;
+  category: SearchCategory;
+  subcategories: string[];
   packName: string;
   packLabel: string;
   documentType: string;
@@ -444,7 +450,7 @@ function parseRangeValue(raw: Record<string, unknown>): number | null {
 function parseSpellIndexData(raw: Record<string, unknown>): SpellIndexData {
   return {
     actionCost: parseActionCost(raw),
-    traditions: uniqueSorted(toStringArray(getNested(raw, ["system", "traits", "traditions"]))),
+    traditions: extractSpellTraditions(raw),
     rangeText: firstString(getNested(raw, ["system", "range", "value"])),
     rangeValue: parseRangeValue(raw),
     saveType: firstString(getNested(raw, ["system", "defense", "save", "statistic"])),
@@ -575,7 +581,20 @@ function isPfsBoonRecord(raw: Record<string, unknown>): boolean {
 }
 
 function shouldExcludeRecordFromIndex(pack: PackBuildInfo, sourcePath: string, raw: Record<string, unknown>): boolean {
-  return isExcludedPackName(pack.name) || isExcludedSocietyEffectPath(sourcePath) || isPfsBoonRecord(raw);
+  if (isExcludedPackName(pack.name) || isExcludedSocietyEffectPath(sourcePath) || isPfsBoonRecord(raw)) {
+    return true;
+  }
+
+  const classification = classifyRecordCategory({
+    documentType: pack.documentType,
+    recordType: firstString(raw.type) ?? "unknown",
+    packName: pack.name,
+    sourcePath,
+    traits: getTraits(raw),
+    traditions: extractSpellTraditions(raw),
+    raw,
+  });
+  return classification === null;
 }
 
 function getSourceCategory(packName: string, publicationTitle: string | null): SourceCategory {
@@ -613,6 +632,19 @@ function normalizeIndexRecord(pack: PackBuildInfo, sourcePath: string, raw: Reco
   const actorData = pack.documentType === "Actor" ? parseActorIndexData(raw) : null;
   const itemData = pack.documentType === "Item" ? parseItemIndexData(raw) : null;
   const spellData = recordType === "spell" ? parseSpellIndexData(raw) : null;
+  const classification = classifyRecordCategory({
+    documentType: pack.documentType,
+    recordType,
+    packName: pack.name,
+    sourcePath,
+    traits,
+    traditions: spellData?.traditions ?? [],
+    raw,
+  });
+
+  if (!classification) {
+    throw new Error(`Record in ${sourcePath} did not map to a public search category.`);
+  }
 
   return {
     recordKey: `${pack.name}:${id}`,
@@ -620,6 +652,8 @@ function normalizeIndexRecord(pack: PackBuildInfo, sourcePath: string, raw: Reco
     name,
     normalizedName: normalizeText(name),
     type: recordType,
+    category: classification.category,
+    subcategories: classification.subcategories,
     packName: pack.name,
     packLabel: pack.label,
     documentType: pack.documentType,
@@ -640,7 +674,11 @@ function normalizeIndexRecord(pack: PackBuildInfo, sourcePath: string, raw: Reco
     bulkValue: itemData?.bulkValue ?? null,
     actionCost: spellData?.actionCost ?? itemData?.actionCost ?? null,
     traditions: spellData?.traditions ?? [],
-    searchText: buildSearchText(raw, { name, descriptionText, traits, publicationTitle }),
+    searchText: [
+      buildSearchText(raw, { name, descriptionText, traits, publicationTitle }),
+      classification.category,
+      ...classification.subcategories,
+    ].filter(Boolean).join("\n"),
   };
 }
 
@@ -836,7 +874,7 @@ function scoreWeightedOverlap(
 }
 
 function buildMetadataText(record: NormalizedRecord): string {
-  return [record.name, ...record.traits, record.publicationTitle ?? ""]
+  return [record.name, record.category, ...record.subcategories, ...record.traits, record.publicationTitle ?? ""]
     .filter((value) => value.length > 0)
     .join(" ");
 }
@@ -905,6 +943,8 @@ function rowToRecord(row: CandidateRow, raw: Record<string, unknown> = {}): Norm
     name: row.name,
     normalizedName: row.normalizedName,
     type: row.type,
+    category: row.category,
+    subcategories: JSON.parse(row.subcategoriesJson) as string[],
     packName: row.packName,
     packLabel: row.packLabel,
     documentType: row.documentType,
@@ -1109,6 +1149,8 @@ function createSchema(db: DatabaseSync): void {
       id TEXT NOT NULL,
       name TEXT NOT NULL,
       normalized_name TEXT NOT NULL,
+      category TEXT NOT NULL,
+      subcategories_json TEXT NOT NULL,
       pack_name TEXT NOT NULL,
       pack_label TEXT NOT NULL,
       document_type TEXT NOT NULL,
@@ -1131,6 +1173,13 @@ function createSchema(db: DatabaseSync): void {
       record_key TEXT NOT NULL,
       trait TEXT NOT NULL,
       PRIMARY KEY (record_key, trait),
+      FOREIGN KEY (record_key) REFERENCES records(record_key) ON DELETE CASCADE
+    );
+
+    CREATE TABLE record_subcategories (
+      record_key TEXT NOT NULL,
+      subcategory TEXT NOT NULL,
+      PRIMARY KEY (record_key, subcategory),
       FOREIGN KEY (record_key) REFERENCES records(record_key) ON DELETE CASCADE
     );
 
@@ -1198,6 +1247,7 @@ function createSchema(db: DatabaseSync): void {
     );
 
     CREATE INDEX records_pack_idx ON records(pack_name);
+    CREATE INDEX records_category_idx ON records(category);
     CREATE INDEX records_doc_type_idx ON records(document_type);
     CREATE INDEX records_record_type_idx ON records(record_type);
     CREATE INDEX records_level_idx ON records(level);
@@ -1206,6 +1256,7 @@ function createSchema(db: DatabaseSync): void {
     CREATE INDEX records_has_description_idx ON records(has_description);
     CREATE INDEX records_source_category_idx ON records(source_category);
     CREATE INDEX record_traits_trait_idx ON record_traits(trait);
+    CREATE INDEX record_subcategories_subcategory_idx ON record_subcategories(subcategory);
     CREATE INDEX actor_records_size_idx ON actor_records(size);
     CREATE INDEX item_records_category_idx ON item_records(item_category);
     CREATE INDEX item_records_price_idx ON item_records(price_cp);
@@ -1242,13 +1293,16 @@ async function buildIndex(
   `);
   const insertRecord = db.prepare(`
     INSERT INTO records (
-      record_key, id, name, normalized_name, pack_name, pack_label, document_type, record_type,
+      record_key, id, name, normalized_name, category, subcategories_json, pack_name, pack_label, document_type, record_type,
       level, rarity, traits_json, publication_title, description_text, has_description, description_snippet,
       source_category, folder_id, source_path, is_unique, search_text
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const insertTrait = db.prepare(`
     INSERT INTO record_traits (record_key, trait) VALUES (?, ?)
+  `);
+  const insertSubcategory = db.prepare(`
+    INSERT INTO record_subcategories (record_key, subcategory) VALUES (?, ?)
   `);
   const insertActor = db.prepare(`
     INSERT INTO actor_records (
@@ -1355,6 +1409,8 @@ async function buildIndex(
           record.id,
           record.name,
           record.normalizedName,
+          record.category,
+          JSON.stringify(record.subcategories),
           record.packName,
           record.packLabel,
           record.documentType,
@@ -1375,6 +1431,10 @@ async function buildIndex(
 
         for (const trait of record.traits) {
           insertTrait.run(record.recordKey, normalizeText(trait));
+        }
+
+        for (const subcategory of record.subcategories) {
+          insertSubcategory.run(record.recordKey, normalizeText(subcategory));
         }
 
         if (actorData) {
@@ -1596,6 +1656,8 @@ function buildCandidateQuery(filters: SearchFilters, includeSearchText = false, 
     "r.name AS name",
     "r.normalized_name AS normalizedName",
     "r.record_type AS type",
+    "r.category AS category",
+    "r.subcategories_json AS subcategoriesJson",
     "r.pack_name AS packName",
     "r.pack_label AS packLabel",
     "r.document_type AS documentType",
@@ -1645,12 +1707,22 @@ function buildCandidateQuery(filters: SearchFilters, includeSearchText = false, 
     appendWhereClause(sql, params, "AND (LOWER(r.pack_name) = LOWER(?) OR LOWER(r.pack_label) = LOWER(?))", filters.pack, filters.pack);
   }
 
-  if (filters.documentType) {
-    appendWhereClause(sql, params, "AND LOWER(r.document_type) = LOWER(?)", filters.documentType);
+  const inferredCategoryFromSubcategory = !filters.category && filters.subcategory
+    ? getCategoryForSubcategory(filters.subcategory)
+    : null;
+  const effectiveCategory = filters.category ?? inferredCategoryFromSubcategory;
+
+  if (effectiveCategory) {
+    appendWhereClause(sql, params, "AND LOWER(r.category) = LOWER(?)", effectiveCategory);
   }
 
-  if (filters.recordType) {
-    appendWhereClause(sql, params, "AND LOWER(r.record_type) = LOWER(?)", filters.recordType);
+  if (filters.subcategory) {
+    appendWhereClause(
+      sql,
+      params,
+      "AND EXISTS (SELECT 1 FROM record_subcategories rs WHERE rs.record_key = r.record_key AND LOWER(rs.subcategory) = LOWER(?))",
+      filters.subcategory,
+    );
   }
 
   if (filters.levelMin !== undefined) {
@@ -1687,10 +1759,6 @@ function buildCandidateQuery(filters: SearchFilters, includeSearchText = false, 
 
   if (filters.size) {
     appendWhereClause(sql, params, "AND LOWER(COALESCE(a.size, '')) = LOWER(?)", filters.size);
-  }
-
-  if (filters.itemCategory) {
-    appendWhereClause(sql, params, "AND LOWER(COALESCE(i.item_category, '')) = LOWER(?)", filters.itemCategory);
   }
 
   if (filters.priceMin !== undefined) {
@@ -1861,42 +1929,30 @@ export class Pf2eDataService {
     };
   }
 
-  getSearchVocabulary(options: { traitLimitPerRecordType?: number } = {}): {
-    documentTypes: Array<{ value: string; count: number }>;
-    recordTypes: Array<{ value: string; count: number }>;
-    itemCategories: Array<{ value: string; count: number }>;
+  getSearchVocabulary(options: { traitLimitPerCategory?: number } = {}): {
+    categories: Array<{ value: SearchCategory; count: number }>;
+    subcategories: Array<{ value: string; count: number }>;
     traditions: Array<{ value: string; count: number }>;
     sourceCategories: Array<{ value: SourceCategory; count: number }>;
-    commonTraitsByRecordType: Array<{ recordType: string; traits: Array<{ value: string; count: number }> }>;
+    commonTraitsByCategory: Array<{ category: SearchCategory; traits: Array<{ value: string; count: number }> }>;
   } {
-    const traitLimit = Math.max(3, Math.min(options.traitLimitPerRecordType ?? 12, 25));
-    const documentTypes = this.db
+    const traitLimit = Math.max(3, Math.min(options.traitLimitPerCategory ?? 12, 25));
+    const categories = this.db
       .prepare(
         `
-          SELECT r.document_type AS value, COUNT(*) AS count
+          SELECT r.category AS value, COUNT(*) AS count
           FROM records r
-          GROUP BY r.document_type
+          GROUP BY r.category
           ORDER BY count DESC, value ASC
         `,
       )
-      .all() as Array<{ value: string; count: number }>;
-    const recordTypes = this.db
+      .all() as Array<{ value: SearchCategory; count: number }>;
+    const subcategories = this.db
       .prepare(
         `
-          SELECT r.record_type AS value, COUNT(*) AS count
-          FROM records r
-          GROUP BY r.record_type
-          ORDER BY count DESC, value ASC
-        `,
-      )
-      .all() as Array<{ value: string; count: number }>;
-    const itemCategories = this.db
-      .prepare(
-        `
-          SELECT i.item_category AS value, COUNT(*) AS count
-          FROM item_records i
-          WHERE i.item_category IS NOT NULL AND i.item_category <> ''
-          GROUP BY i.item_category
+          SELECT rs.subcategory AS value, COUNT(*) AS count
+          FROM record_subcategories rs
+          GROUP BY rs.subcategory
           ORDER BY count DESC, value ASC
         `,
       )
@@ -1911,30 +1967,29 @@ export class Pf2eDataService {
         `,
       )
       .all() as Array<{ value: SourceCategory; count: number }>;
-    const traitRows = this.db
+    const categoryTraitRows = this.db
       .prepare(
         `
-          SELECT r.record_type AS recordType, rt.trait AS value, COUNT(*) AS count
+          SELECT r.category AS category, rt.trait AS value, COUNT(*) AS count
           FROM record_traits rt
           JOIN records r ON r.record_key = rt.record_key
-          GROUP BY r.record_type, rt.trait
-          ORDER BY r.record_type ASC, count DESC, value ASC
+          GROUP BY r.category, rt.trait
+          ORDER BY r.category ASC, count DESC, value ASC
         `,
       )
-      .all() as Array<{ recordType: string; value: string; count: number }>;
-    const commonTraitsByRecordType = (() => {
-      const grouped = new Map<string, Array<{ value: string; count: number }>>();
-      for (const row of traitRows) {
-        const bucket = grouped.get(row.recordType) ?? [];
+      .all() as Array<{ category: SearchCategory; value: string; count: number }>;
+    const commonTraitsByCategory = (() => {
+      const grouped = new Map<SearchCategory, Array<{ value: string; count: number }>>();
+      for (const row of categoryTraitRows) {
+        const bucket = grouped.get(row.category) ?? [];
         if (bucket.length < traitLimit) {
           bucket.push({ value: row.value, count: row.count });
-          grouped.set(row.recordType, bucket);
+          grouped.set(row.category, bucket);
         }
       }
-
       return [...grouped.entries()]
         .sort((left, right) => left[0].localeCompare(right[0]))
-        .map(([recordType, traits]) => ({ recordType, traits }));
+        .map(([category, traits]) => ({ category, traits }));
     })();
     const traditionCounts = new Map<string, number>();
     const traditionRows = this.db
@@ -1956,12 +2011,11 @@ export class Pf2eDataService {
       .map(([value, count]) => ({ value, count }));
 
     return {
-      documentTypes,
-      recordTypes,
-      itemCategories,
+      categories,
+      subcategories,
       traditions,
       sourceCategories,
-      commonTraitsByRecordType,
+      commonTraitsByCategory,
     };
   }
 
@@ -2022,6 +2076,8 @@ export class Pf2eDataService {
             r.name AS name,
             r.normalized_name AS normalizedName,
             r.record_type AS type,
+            r.category AS category,
+            r.subcategories_json AS subcategoriesJson,
             r.pack_name AS packName,
             r.pack_label AS packLabel,
             r.document_type AS documentType,
@@ -2159,6 +2215,8 @@ export class Pf2eDataService {
                 r.name AS name,
                 r.normalized_name AS normalizedName,
                 r.record_type AS type,
+                r.category AS category,
+                r.subcategories_json AS subcategoriesJson,
                 r.pack_name AS packName,
                 r.pack_label AS packLabel,
                 r.document_type AS documentType,
@@ -2196,6 +2254,8 @@ export class Pf2eDataService {
                 r.name AS name,
                 r.normalized_name AS normalizedName,
                 r.record_type AS type,
+                r.category AS category,
+                r.subcategories_json AS subcategoriesJson,
                 r.pack_name AS packName,
                 r.pack_label AS packLabel,
                 r.document_type AS documentType,
@@ -2250,8 +2310,8 @@ export class Pf2eDataService {
           mode: "structured",
           nameQuery: query.name,
           pack: query.pack,
-          documentType: query.documentType,
-          recordType: query.recordType,
+          category: query.category,
+          subcategory: query.subcategory,
           coreOnly: true,
           limit: 5,
         }).records;
@@ -2432,13 +2492,23 @@ export class Pf2eDataService {
     const limit = clampLimit(filters.limit);
     const offset = clampOffset(filters.offset);
     const mode = resolveSearchMode(filters, "search");
-    const shouldIncludeSearchText = Boolean(filters.themeQuery || filters.nameQuery || mode !== "structured");
-    const shouldIncludeEmbedding = Boolean(mode === "hybrid" && filters.themeQuery);
-    let candidates = this.fetchCandidates(filters, shouldIncludeSearchText, shouldIncludeEmbedding);
-
     const rawLexicalQuery = filters.themeQuery?.trim() || filters.nameQuery?.trim() || "";
-    const queryAnalysis = rawLexicalQuery
+    const preliminaryAnalysis = rawLexicalQuery
       ? buildSearchQueryAnalysis(rawLexicalQuery, filters, { expandQuery: filters.expandQuery ?? true })
+      : null;
+    const inferredBoundary = rawLexicalQuery && !filters.category && !filters.subcategory
+      ? inferSearchCategorySelection(rawLexicalQuery, filters, preliminaryAnalysis)
+      : { category: filters.category ?? null, subcategory: filters.subcategory ? normalizeText(filters.subcategory) : null };
+    const effectiveFilters: SearchFilters = {
+      ...filters,
+      category: filters.category ?? inferredBoundary.category ?? undefined,
+      subcategory: filters.subcategory ?? inferredBoundary.subcategory ?? undefined,
+    };
+    const shouldIncludeSearchText = Boolean(effectiveFilters.themeQuery || effectiveFilters.nameQuery || mode !== "structured");
+    const shouldIncludeEmbedding = Boolean(mode === "hybrid" && effectiveFilters.themeQuery);
+    let candidates = this.fetchCandidates(effectiveFilters, shouldIncludeSearchText, shouldIncludeEmbedding);
+    const queryAnalysis = rawLexicalQuery
+      ? buildSearchQueryAnalysis(rawLexicalQuery, effectiveFilters, { expandQuery: effectiveFilters.expandQuery ?? true })
       : null;
     const lexicalQuery = queryAnalysis?.expandedQuery ?? rawLexicalQuery;
     const lexicalMatches = lexicalQuery ? this.fetchFtsMatches(lexicalQuery) : new Map<string, number>();
@@ -2503,9 +2573,9 @@ export class Pf2eDataService {
             : 0;
         const packQuality = packQualityScore(record);
         const sourceQuality = sourceQualityScore(record);
-        const rarityPreference = rarityPreferenceScore(record, filters);
-        const sourcePenalty = sourcePenaltyScore(record, filters);
-        const rankingProfile = rankingProfileScore(record, filters);
+        const rarityPreference = rarityPreferenceScore(record, effectiveFilters);
+        const sourcePenalty = sourcePenaltyScore(record, effectiveFilters);
+        const rankingProfile = rankingProfileScore(record, effectiveFilters);
         const components: SearchScoreComponents = {
           fullTextSearch: ftsScore,
           metadataText: metadataTextScore,
@@ -2579,6 +2649,8 @@ export class Pf2eDataService {
                 normalizedQuery: queryAnalysis.normalizedQuery,
                 queryTokens: queryAnalysis.queryTokens,
                 expandedQuery: queryAnalysis.expandedQuery,
+                inferredCategory: queryAnalysis.inferredCategory,
+                inferredSubcategory: queryAnalysis.inferredSubcategory,
                 boostedTraits: queryAnalysis.boostedTraits,
                 boostedNameTokens: queryAnalysis.boostedNameTokens,
                 boostedMetadataTokens: queryAnalysis.boostedMetadataTokens,
@@ -2605,8 +2677,8 @@ export class Pf2eDataService {
       mode: "structured",
       nameQuery: name,
       pack: options.pack,
-      documentType: options.documentType,
-      recordType: options.recordType,
+      category: options.category,
+      subcategory: options.subcategory,
       limit: 5,
     }).records;
 

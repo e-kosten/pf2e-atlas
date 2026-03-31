@@ -15,9 +15,8 @@ type SearchPlanResult = {
   recognizedSemantics: Array<{ id: string; label: string }>;
   uncoveredTokens: string[];
   suggestedFilters: {
-    preferredRecordTypes: string[];
-    preferredDocumentTypes: string[];
-    preferredItemCategories: string[];
+    preferredCategories: string[];
+    preferredSubcategories: string[];
     traitsAny: string[];
   };
   recommendedQueries: SearchPlanQuery[];
@@ -83,8 +82,12 @@ function collectCoveredTokens(analysis: SearchQueryAnalysis): Set<string> {
 }
 
 function recommendQueries(intent: string, filters: SearchFilters, analysis: SearchQueryAnalysis | null, suggestedTraitsAny: string[]): SearchPlanQuery[] {
+  const inferredCategory = filters.category ?? analysis?.inferredCategory ?? undefined;
+  const inferredSubcategory = filters.subcategory ?? analysis?.inferredSubcategory ?? undefined;
   const base: SearchFilters = {
     ...filters,
+    category: inferredCategory,
+    subcategory: inferredSubcategory,
     mode: filters.mode ?? "hybrid",
     themeQuery: filters.themeQuery ?? intent,
     expandQuery: filters.expandQuery ?? true,
@@ -119,17 +122,6 @@ function recommendQueries(intent: string, filters: SearchFilters, analysis: Sear
     });
   }
 
-  if (analysis && analysis.matchedRules.some((rule) => (rule.scope?.recordTypes ?? []).includes("hazard"))) {
-    queries.push({
-      label: "hazard_probe",
-      purpose: "Separate hazard-focused retrieval when the ontology suggests traps, haunts, or environmental threats.",
-      arguments: {
-        ...base,
-        recordType: "hazard",
-      },
-    });
-  }
-
   return queries;
 }
 
@@ -144,8 +136,8 @@ function buildNotes(analysis: SearchQueryAnalysis | null, filters: SearchFilters
     notes.push("Some ontology rules matched the wording but were skipped because the current filters point at a different record family.");
   }
 
-  if (!filters.recordType && analysis.matchedRules.some((rule) => (rule.scope?.recordTypes ?? []).length > 0)) {
-    notes.push("The server recognized scoped domains; setting recordType explicitly may improve precision.");
+  if (!filters.category && analysis.inferredCategory) {
+    notes.push(`The server inferred category=${analysis.inferredCategory}${analysis.inferredSubcategory ? ` and subcategory=${analysis.inferredSubcategory}` : ""}; keeping that boundary should improve precision.`);
   }
 
   if (suggestedTraitsAny.length > 0) {
@@ -161,14 +153,11 @@ export function buildSearchPlan(intent: string, filters: SearchFilters = {}): Se
     ? buildSearchQueryAnalysis(normalizedIntent, filters, { expandQuery: filters.expandQuery ?? true, rules: DEFAULT_SEARCH_EXPANSION_RULES })
     : null;
 
-  const preferredRecordTypes = analysis
-    ? collectRuleScopeValues(analysis, (rule) => rule.scope?.recordTypes)
+  const preferredCategories = analysis
+    ? collectRuleScopeValues(analysis, (rule) => rule.scope?.categories)
     : [];
-  const preferredDocumentTypes = analysis
-    ? collectRuleScopeValues(analysis, (rule) => rule.scope?.documentTypes)
-    : [];
-  const preferredItemCategories = analysis
-    ? collectRuleScopeValues(analysis, (rule) => rule.scope?.itemCategories)
+  const preferredSubcategories = analysis
+    ? collectRuleScopeValues(analysis, (rule) => rule.scope?.subcategories)
     : [];
   const traitsAny = analysis ? collectBoostedTraits(analysis).slice(0, 8) : [];
   const coveredTokens = analysis ? collectCoveredTokens(analysis) : new Set<string>();
@@ -185,6 +174,8 @@ export function buildSearchPlan(intent: string, filters: SearchFilters = {}): Se
           normalizedQuery: analysis.normalizedQuery,
           queryTokens: analysis.queryTokens,
           expandedQuery: analysis.expandedQuery,
+          inferredCategory: analysis.inferredCategory,
+          inferredSubcategory: analysis.inferredSubcategory,
           boostedTraits: analysis.boostedTraits,
           boostedNameTokens: analysis.boostedNameTokens,
           boostedMetadataTokens: analysis.boostedMetadataTokens,
@@ -195,9 +186,8 @@ export function buildSearchPlan(intent: string, filters: SearchFilters = {}): Se
     recognizedSemantics: analysis?.matchedRules.map((rule) => ({ id: rule.id, label: rule.label })) ?? [],
     uncoveredTokens,
     suggestedFilters: {
-      preferredRecordTypes,
-      preferredDocumentTypes,
-      preferredItemCategories,
+      preferredCategories,
+      preferredSubcategories,
       traitsAny,
     },
     recommendedQueries: recommendQueries(intent, filters, analysis, traitsAny),
@@ -222,9 +212,8 @@ export function summarizeExpansionRules(rules: SearchExpansionRule[] = DEFAULT_S
     triggers: [...rule.triggers],
     scope: rule.scope
       ? {
-          documentTypes: rule.scope.documentTypes ? [...rule.scope.documentTypes] : undefined,
-          recordTypes: rule.scope.recordTypes ? [...rule.scope.recordTypes] : undefined,
-          itemCategories: rule.scope.itemCategories ? [...rule.scope.itemCategories] : undefined,
+          categories: rule.scope.categories ? [...rule.scope.categories] : undefined,
+          subcategories: rule.scope.subcategories ? [...rule.scope.subcategories] : undefined,
           packNames: rule.scope.packNames ? [...rule.scope.packNames] : undefined,
           sourceCategories: rule.scope.sourceCategories ? [...rule.scope.sourceCategories] : undefined,
         }

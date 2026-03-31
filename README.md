@@ -117,6 +117,8 @@ Example MCP client entry:
 
 Search and list responses include:
 
+- `category` and `subcategories` as the primary product-facing search boundaries
+- `rawRecordType` for internal Foundry traceability when needed
 - `descriptionText` when available
 - `hasDescription` for filtering and ranking
 - `descriptionSnippet` for lightweight discovery
@@ -127,6 +129,8 @@ Search and list responses include:
 ## Notes
 
 - The server is read-only.
+- Search is category-first. Use `category` and optional `subcategory` as the main boundaries instead of raw Foundry `recordType`, `documentType`, or `itemCategory`.
+- Clear `themeQuery` intent can infer `category` and `subcategory` automatically when the caller does not provide them.
 - `pf2e_search` defaults to `hybrid` when `themeQuery` is present and `mode` is omitted.
 - `pf2e_search` enables server-managed query expansion for `themeQuery` by default; set `expandQuery: false` to disable it.
 - `pf2e_get_search_semantics` exposes the indexed vocabulary and ontology domains the server understands.
