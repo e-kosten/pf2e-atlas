@@ -20,6 +20,7 @@ function summarizeRecord(
     recordKey: record.recordKey,
     id: record.id,
     name: record.name,
+    aliases: record.aliases,
     category: record.category,
     subcategory: record.subcategory,
     rawRecordType: record.type,
@@ -75,7 +76,8 @@ function formatSearchResult(prefix: string, total: number, records: NormalizedRe
   const lines = records.map((record) => {
     const level = record.level !== null ? `level ${record.level}` : "level n/a";
     const subtype = record.subcategory ? `/${record.subcategory}` : "";
-    return `- ${record.name} (${record.packLabel}, ${record.category}${subtype}, ${level})`;
+    const aliasText = record.aliases.length > 0 ? `; aliases: ${record.aliases.join(", ")}` : "";
+    return `- ${record.name} (${record.packLabel}, ${record.category}${subtype}, ${level}${aliasText})`;
   });
 
   return [prefix, `Total matches: ${total}`, ...lines].join("\n");

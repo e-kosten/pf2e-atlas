@@ -37,6 +37,11 @@ export interface PackInfo {
   recordCount: number;
 }
 
+export interface LinkedRecordSummary {
+  recordKey: string;
+  name: string;
+}
+
 export type SourceCategory = "core" | "rules" | "adventure" | "unknown";
 
 export type SearchProfile = "lookup" | "balanced" | "concept";
@@ -67,6 +72,7 @@ export interface NormalizedRecord {
   rarity: string | null;
   traits: string[];
   publicationTitle: string | null;
+  publicationRemaster: boolean;
   descriptionText: string | null;
   hasDescription: boolean;
   descriptionSnippet: string | null;
@@ -81,6 +87,8 @@ export interface NormalizedRecord {
   actionCost: number | null;
   traditions: string[];
   spellKinds: string[];
+  aliases: string[];
+  legacyRecordLinks: LinkedRecordSummary[];
   raw: Record<string, unknown>;
 }
 

@@ -17,6 +17,7 @@ import {
   CollectRuleQuestionContextInput,
   CollectRuleQuestionContextResult,
   EmbeddingConfig,
+  LinkedRecordSummary,
   LookupOptions,
   LookupQuery,
   LookupResult,
@@ -48,7 +49,7 @@ import {
 import { buildLiteralQueryWeights, buildSearchQueryAnalysis } from "./search-query-analysis.js";
 
 const execFileAsync = promisify(execFile);
-const INDEX_SCHEMA_VERSION = 8;
+const INDEX_SCHEMA_VERSION = 9;
 
 type LoadOptions = {
   indexPath?: string;
@@ -65,6 +66,7 @@ type SqlValue = string | number | bigint | Uint8Array | Buffer | null;
 
 type CandidateRow = {
   recordKey: string;
+  canonicalRecordKey?: string;
   id: string;
   name: string;
   normalizedName: string;
@@ -78,6 +80,7 @@ type CandidateRow = {
   rarity: string | null;
   traitsJson: string;
   publicationTitle: string | null;
+  publicationRemaster: number;
   descriptionText: string | null;
   hasDescription: number;
   descriptionSnippet: string | null;
@@ -85,6 +88,7 @@ type CandidateRow = {
   folderId: string | null;
   sourcePath: string;
   isUnique: number;
+  isSearchCanonical?: number;
   size: string | null;
   itemCategory: string | null;
   priceCp: number | null;
@@ -125,6 +129,7 @@ type NormalizedIndexRecord = {
   rarity: string | null;
   traits: string[];
   publicationTitle: string | null;
+  publicationRemaster: boolean;
   descriptionText: string | null;
   hasDescription: boolean;
   descriptionSnippet: string | null;
@@ -140,6 +145,32 @@ type NormalizedIndexRecord = {
   traditions: string[];
   spellKinds: string[];
   searchText: string;
+};
+
+type BuildSourceEntry = {
+  pack: PackBuildInfo;
+  filePath: string;
+  raw: Record<string, unknown>;
+  record: NormalizedIndexRecord | null;
+  actorData: ActorIndexData | null;
+  itemData: ItemIndexData | null;
+  spellData: SpellIndexData | null;
+  references: ExtractedReference[];
+};
+
+type RecordAliasRow = {
+  canonicalRecordKey: string;
+  aliasText: string;
+  normalizedAlias: string;
+  sourceKind: string;
+  sourceRef: string;
+};
+
+type RecordLegacyLinkRow = {
+  canonicalRecordKey: string;
+  legacyRecordKey: string;
+  sourceKind: string;
+  sourceRef: string;
 };
 
 type ActorIndexData = {
@@ -256,6 +287,11 @@ function getPublicationTitle(raw: Record<string, unknown>): string | null {
     getNested(raw, ["system", "publication", "title"]),
     getNested(raw, ["system", "details", "publication", "title"]),
   );
+}
+
+function getPublicationRemaster(raw: Record<string, unknown>): boolean {
+  return getNested(raw, ["system", "publication", "remaster"]) === true ||
+    getNested(raw, ["system", "details", "publication", "remaster"]) === true;
 }
 
 function getDescriptionMarkup(raw: Record<string, unknown>): string | null {
@@ -636,6 +672,7 @@ function normalizeIndexRecord(pack: PackBuildInfo, sourcePath: string, raw: Reco
   const traits = getTraits(raw);
   const descriptionText = getDescriptionText(raw);
   const publicationTitle = getPublicationTitle(raw);
+  const publicationRemaster = getPublicationRemaster(raw);
   const hasDescription = hasDescriptionText(descriptionText);
   const descriptionSnippet = buildDescriptionSnippet(descriptionText);
   const sourceCategory = getSourceCategory(pack.name, publicationTitle);
@@ -671,6 +708,7 @@ function normalizeIndexRecord(pack: PackBuildInfo, sourcePath: string, raw: Reco
     rarity,
     traits,
     publicationTitle,
+    publicationRemaster,
     descriptionText,
     hasDescription,
     descriptionSnippet,
@@ -774,30 +812,38 @@ function sourcePenaltyScore(record: NormalizedRecord, filters: SearchFilters, ra
   return penalty;
 }
 
-function nameScore(query: string, record: NormalizedRecord): number {
+function scoreNameCandidate(query: string, normalizedName: string): number {
   const normalizedQuery = normalizeText(query);
   if (!normalizedQuery) {
     return 0.5;
   }
 
-  if (record.normalizedName === normalizedQuery) {
+  if (normalizedName === normalizedQuery) {
     return 1;
   }
 
-  if (record.normalizedName.startsWith(normalizedQuery)) {
+  if (normalizedName.startsWith(normalizedQuery)) {
     return 0.95;
   }
 
-  if (record.normalizedName.includes(normalizedQuery)) {
+  if (normalizedName.includes(normalizedQuery)) {
     return 0.9;
   }
 
   const queryTokens = normalizedQuery.split(" ").filter(Boolean);
-  const nameTokens = new Set(record.normalizedName.split(" ").filter(Boolean));
+  const nameTokens = new Set(normalizedName.split(" ").filter(Boolean));
   const overlap = queryTokens.filter((token) => nameTokens.has(token)).length;
   const tokenScore = queryTokens.length > 0 ? overlap / queryTokens.length : 0;
-  const dice = bigramDice(normalizedQuery, record.normalizedName);
+  const dice = bigramDice(normalizedQuery, normalizedName);
   return Math.max(tokenScore * 0.8, dice * 0.75);
+}
+
+function nameScore(query: string, record: NormalizedRecord, aliases: string[] = []): number {
+  let best = scoreNameCandidate(query, record.normalizedName);
+  for (const alias of aliases) {
+    best = Math.max(best, scoreNameCandidate(query, normalizeText(alias)));
+  }
+  return best;
 }
 
 function sortRecords(left: NormalizedRecord, right: NormalizedRecord): number {
@@ -964,6 +1010,11 @@ type RulesContextEdge = {
 
 const UUID_REFERENCE_PATTERN = /@UUID\[([^\]]+)\](?:\{([^}]+)\})?/g;
 const COMPILED_REFERENCE_PATTERN = /^Compendium\.pf2e\.([^.]+)\.[^.]+\.([^.\]]+)$/i;
+const TABLE_ROW_PATTERN = /<tr[^>]*>(.*?)<\/tr>/gis;
+const TABLE_CELL_PATTERN = /<t[dh][^>]*>(.*?)<\/t[dh]>/gis;
+const LIST_ITEM_PATTERN = /<li[^>]*>(.*?)<\/li>/gis;
+const MIGRATION_RENAME_PATTERN = /Rename all uses and mentions of "([^"]+)" to "([^"]+)"/g;
+const COMPILED_SOURCE_PATTERN = /^Compendium\.pf2e\.([^.]+)\.[^.]+\.([^.]+)$/i;
 
 function extractRulesReferences(raw: Record<string, unknown>): ExtractedReference[] {
   const markup = getDescriptionMarkup(raw);
@@ -971,6 +1022,10 @@ function extractRulesReferences(raw: Record<string, unknown>): ExtractedReferenc
     return [];
   }
 
+  return extractUuidReferences(markup);
+}
+
+function extractUuidReferences(markup: string): ExtractedReference[] {
   const extracted: ExtractedReference[] = [];
   for (const match of markup.matchAll(UUID_REFERENCE_PATTERN)) {
     const referenceText = match[0]!;
@@ -992,6 +1047,483 @@ function extractRulesReferences(raw: Record<string, unknown>): ExtractedReferenc
   return extracted;
 }
 
+function parseCompendiumLocator(locator: string): { packName: string; recordLocator: string } | null {
+  const parsed = locator.match(COMPILED_SOURCE_PATTERN);
+  if (!parsed) {
+    return null;
+  }
+
+  return {
+    packName: parsed[1] ?? "",
+    recordLocator: parsed[2] ?? "",
+  };
+}
+
+function stripOuterHtml(value: string): string {
+  return (stripHtml(value) ?? "").replace(/\s+/g, " ").trim();
+}
+
+function buildPackAndIdKey(packName: string, id: string): string {
+  return `${normalizeText(packName)}:${normalizeText(id)}`;
+}
+
+function buildPackAndNameKey(packName: string, name: string): string {
+  return `${normalizeText(packName)}:${normalizeText(name)}`;
+}
+
+function resolveTargetRecordKey(
+  packName: string | null,
+  locatorOrName: string,
+  recordsByPackAndId: Map<string, string>,
+  recordsByPackAndName: Map<string, string[]>,
+  recordsByName: Map<string, string[]>,
+): string | null {
+  const normalizedValue = normalizeText(locatorOrName);
+  if (!normalizedValue) {
+    return null;
+  }
+
+  if (packName) {
+    const byId = recordsByPackAndId.get(buildPackAndIdKey(packName, locatorOrName));
+    if (byId) {
+      return byId;
+    }
+
+    const byPackName = recordsByPackAndName.get(buildPackAndNameKey(packName, locatorOrName)) ?? [];
+    if (byPackName.length === 1) {
+      return byPackName[0]!;
+    }
+  }
+
+  const byName = recordsByName.get(normalizedValue) ?? [];
+  return byName.length === 1 ? byName[0]! : null;
+}
+
+function extractFirstUuidReference(value: string): { packName: string; recordLocator: string } | null {
+  const match = extractUuidReferences(value)[0];
+  if (!match?.packName) {
+    return null;
+  }
+
+  return {
+    packName: match.packName,
+    recordLocator: match.recordLocator,
+  };
+}
+
+function resolveAliasSourceName(
+  cellHtml: string,
+  recordsByPackAndId: Map<string, string>,
+  recordsByPackAndName: Map<string, string[]>,
+  recordsByName: Map<string, string[]>,
+  recordsByKey: Map<string, NormalizedIndexRecord>,
+): string | null {
+  const directText = stripOuterHtml(cellHtml);
+  if (directText && !directText.includes("@UUID[")) {
+    return directText;
+  }
+
+  const target = extractFirstUuidReference(cellHtml);
+  if (!target) {
+    return directText || null;
+  }
+
+  const recordKey = resolveTargetRecordKey(
+    target.packName,
+    target.recordLocator,
+    recordsByPackAndId,
+    recordsByPackAndName,
+    recordsByName,
+  );
+  return recordKey ? (recordsByKey.get(recordKey)?.name ?? null) : (directText || null);
+}
+
+function splitAliasListText(segment: string): string[] {
+  return segment
+    .replace(/\s+/g, " ")
+    .replace(/\s*,?\s+and\s+/gi, ", ")
+    .split(/\s*,\s*/)
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
+function expandGroupedAliasText(aliasText: string, expectedCount: number): string[] | null {
+  const match = aliasText.match(/^(.*?)\s*\((.*?)\)\s*$/);
+  if (!match?.[1] || !match[2]) {
+    return null;
+  }
+
+  const baseName = match[1].trim();
+  const variants = splitAliasListText(match[2]);
+  if (!baseName || variants.length !== expectedCount) {
+    return null;
+  }
+
+  return variants.map((variant) => `${baseName} (${variant})`);
+}
+
+type ResolvedJournalTarget = {
+  recordKey: string;
+  record: NormalizedIndexRecord;
+  displayText: string | null;
+};
+
+function extractResolvedJournalTargets(
+  cellHtml: string,
+  recordsByPackAndId: Map<string, string>,
+  recordsByPackAndName: Map<string, string[]>,
+  recordsByName: Map<string, string[]>,
+  recordsByKey: Map<string, NormalizedIndexRecord>,
+): ResolvedJournalTarget[] {
+  const resolvedTargets: ResolvedJournalTarget[] = [];
+  const uuidReferences = extractUuidReferences(cellHtml);
+  if (uuidReferences.length > 0) {
+    for (const reference of uuidReferences) {
+      if (!reference.packName) {
+        continue;
+      }
+
+      const recordKey = resolveTargetRecordKey(
+        reference.packName,
+        reference.recordLocator,
+        recordsByPackAndId,
+        recordsByPackAndName,
+        recordsByName,
+      );
+      const record = recordKey ? recordsByKey.get(recordKey) : null;
+      if (!record || record.documentType === "JournalEntry") {
+        continue;
+      }
+
+      resolvedTargets.push({
+        recordKey: recordKey!,
+        record,
+        displayText: reference.displayText ? stripOuterHtml(reference.displayText) : null,
+      });
+    }
+
+    return resolvedTargets;
+  }
+
+  const directText = stripOuterHtml(cellHtml);
+  const recordKey = resolveTargetRecordKey(null, directText, recordsByPackAndId, recordsByPackAndName, recordsByName);
+  const record = recordKey ? recordsByKey.get(recordKey) : null;
+  if (!record || record.documentType === "JournalEntry") {
+    return [];
+  }
+
+  return [{
+    recordKey: recordKey!,
+    record,
+    displayText: null,
+  }];
+}
+
+function extractIntroListAliases(
+  listHtml: string,
+  recordsByPackAndId: Map<string, string>,
+  recordsByPackAndName: Map<string, string[]>,
+  recordsByName: Map<string, string[]>,
+  recordsByKey: Map<string, NormalizedIndexRecord>,
+): { aliasTexts: string[]; targetRecordKey: string } | null {
+  const targets = extractResolvedJournalTargets(listHtml, recordsByPackAndId, recordsByPackAndName, recordsByName, recordsByKey);
+  if (targets.length !== 1) {
+    return null;
+  }
+
+  const plain = stripOuterHtml(listHtml);
+  const oldSegment = plain.split(/\b(?:are merged into|is merged into|are now|is now)\b/i)[0]?.trim() ?? "";
+  const aliasTexts = splitAliasListText(oldSegment);
+  if (aliasTexts.length === 0) {
+    return null;
+  }
+
+  return {
+    aliasTexts,
+    targetRecordKey: targets[0]!.recordKey,
+  };
+}
+
+function isAmbiguousJournalTarget(target: ResolvedJournalTarget, targetCount: number): boolean {
+  if (targetCount !== 1 || !target.displayText) {
+    return false;
+  }
+
+  return normalizeText(target.displayText) !== target.record.normalizedName;
+}
+
+function shouldIgnoreCompendiumAlias(aliasText: string, targetName: string): boolean {
+  const normalizedAlias = normalizeText(aliasText);
+  const normalizedTarget = normalizeText(targetName);
+  if (!normalizedAlias || normalizedAlias === normalizedTarget) {
+    return true;
+  }
+
+  if (/[\d]/.test(aliasText) || /\b(feet|foot|mile|miles|precise|imprecise|status|circumstance)\b/i.test(aliasText)) {
+    return true;
+  }
+
+  if (/\([^)]*\)/.test(aliasText) || /^\([^)]*\)\s+/.test(targetName)) {
+    return true;
+  }
+
+  return false;
+}
+
+function extractMigrationAliases(
+  migrationSource: string,
+  recordsByName: Map<string, string[]>,
+  recordsByKey: Map<string, NormalizedIndexRecord>,
+): RecordAliasRow[] {
+  const aliases: RecordAliasRow[] = [];
+  for (const match of migrationSource.matchAll(MIGRATION_RENAME_PATTERN)) {
+    const aliasText = match[1]?.trim() ?? "";
+    const targetName = match[2]?.trim() ?? "";
+    const targetRecordKey = resolveTargetRecordKey(null, targetName, new Map(), new Map(), recordsByName);
+    if (!aliasText || !targetRecordKey || !recordsByKey.has(targetRecordKey)) {
+      continue;
+    }
+
+    aliases.push({
+      canonicalRecordKey: targetRecordKey,
+      aliasText,
+      normalizedAlias: normalizeText(aliasText),
+      sourceKind: "migration",
+      sourceRef: "src/module/migration/migrations",
+    });
+  }
+
+  return aliases;
+}
+
+function extractRemasterJournalAliases(
+  journalRaw: Record<string, unknown>,
+  recordsByPackAndId: Map<string, string>,
+  recordsByPackAndName: Map<string, string[]>,
+  recordsByName: Map<string, string[]>,
+  recordsByKey: Map<string, NormalizedIndexRecord>,
+): { aliases: RecordAliasRow[]; legacyLinks: RecordLegacyLinkRow[] } {
+  const aliases: RecordAliasRow[] = [];
+  const legacyLinks: RecordLegacyLinkRow[] = [];
+  const pages = getNested(journalRaw, ["pages"]);
+  if (!Array.isArray(pages)) {
+    return { aliases, legacyLinks };
+  }
+
+  const addAlias = (aliasText: string, canonicalRecordKey: string, sourceRef: string): void => {
+    const normalizedAlias = normalizeText(aliasText);
+    if (!normalizedAlias || normalizedAlias === recordsByKey.get(canonicalRecordKey)?.normalizedName) {
+      return;
+    }
+
+    aliases.push({
+      canonicalRecordKey,
+      aliasText: aliasText.trim(),
+      normalizedAlias,
+      sourceKind: "remaster_journal",
+      sourceRef,
+    });
+
+    const legacyCandidates = recordsByName.get(normalizedAlias) ?? [];
+    for (const legacyRecordKey of legacyCandidates) {
+      if (legacyRecordKey === canonicalRecordKey) {
+        continue;
+      }
+
+      const legacyRecord = recordsByKey.get(legacyRecordKey);
+      const canonicalRecord = recordsByKey.get(canonicalRecordKey);
+      if (!legacyRecord || !canonicalRecord) {
+        continue;
+      }
+
+      if (legacyRecord.publicationRemaster || !canonicalRecord.publicationRemaster) {
+        continue;
+      }
+
+      legacyLinks.push({
+        canonicalRecordKey,
+        legacyRecordKey,
+        sourceKind: "remaster_journal",
+        sourceRef,
+      });
+    }
+  };
+
+  for (const page of pages) {
+    if (!page || typeof page !== "object") {
+      continue;
+    }
+
+    const pageName = firstString(getNested(page, ["name"])) ?? "journal-page";
+    const content = firstString(getNested(page, ["text", "content"]));
+    if (!content) {
+      continue;
+    }
+
+    if (pageName === "Remaster Changes") {
+      for (const listMatch of content.matchAll(LIST_ITEM_PATTERN)) {
+        const listHtml = listMatch[1] ?? "";
+        const parsedIntroList = extractIntroListAliases(
+          listHtml,
+          recordsByPackAndId,
+          recordsByPackAndName,
+          recordsByName,
+          recordsByKey,
+        );
+        if (!parsedIntroList) {
+          continue;
+        }
+
+        for (const aliasText of parsedIntroList.aliasTexts) {
+          addAlias(aliasText, parsedIntroList.targetRecordKey, `journal:${pageName}`);
+        }
+      }
+    }
+
+    for (const rowMatch of content.matchAll(TABLE_ROW_PATTERN)) {
+      const rowHtml = rowMatch[1] ?? "";
+      const cells = [...rowHtml.matchAll(TABLE_CELL_PATTERN)].map((match) => match[1] ?? "");
+      if (cells.length < 2) {
+        continue;
+      }
+
+      const oldCell = cells[0] ?? "";
+      const statusCell = cells.length >= 4 ? (cells[2] ?? "") : "Renamed";
+      const newCell = cells[cells.length - 1] ?? "";
+      const statusText = normalizeText(stripOuterHtml(statusCell));
+      if (!(statusText === "renamed" || statusText === "merged" || statusText === "replaced")) {
+        continue;
+      }
+
+      const targets = extractResolvedJournalTargets(newCell, recordsByPackAndId, recordsByPackAndName, recordsByName, recordsByKey);
+      if (targets.length === 0) {
+        continue;
+      }
+
+      if (targets.length === 1) {
+        const oldName = resolveAliasSourceName(oldCell, recordsByPackAndId, recordsByPackAndName, recordsByName, recordsByKey);
+        if (!oldName || isAmbiguousJournalTarget(targets[0]!, targets.length)) {
+          continue;
+        }
+
+        addAlias(oldName, targets[0]!.recordKey, `journal:${pageName}`);
+        continue;
+      }
+
+      const groupedAliases = expandGroupedAliasText(stripOuterHtml(oldCell), targets.length);
+      if (!groupedAliases || targets.some((target) => !target.displayText)) {
+        continue;
+      }
+
+      for (const [index, aliasText] of groupedAliases.entries()) {
+        const target = targets[index];
+        if (!target) {
+          continue;
+        }
+
+        addAlias(aliasText, target.recordKey, `journal:${pageName}`);
+      }
+    }
+  }
+
+  return { aliases, legacyLinks };
+}
+
+function extractCompendiumSourceAliases(
+  entries: BuildSourceEntry[],
+  recordsByPackAndId: Map<string, string>,
+  recordsByKey: Map<string, NormalizedIndexRecord>,
+): RecordAliasRow[] {
+  const aliases: RecordAliasRow[] = [];
+  for (const entry of entries) {
+    const items = getNested(entry.raw, ["items"]);
+    if (!Array.isArray(items)) {
+      continue;
+    }
+
+    for (const item of items) {
+      if (!item || typeof item !== "object") {
+        continue;
+      }
+
+      const embedded = item as Record<string, unknown>;
+      const aliasText = firstString(embedded.name);
+      const compendiumSource = firstString(getNested(embedded, ["_stats", "compendiumSource"]));
+      if (!aliasText || !compendiumSource) {
+        continue;
+      }
+
+      const target = parseCompendiumLocator(compendiumSource);
+      if (!target) {
+        continue;
+      }
+
+      const targetRecordKey = recordsByPackAndId.get(buildPackAndIdKey(target.packName, target.recordLocator));
+      if (!targetRecordKey) {
+        continue;
+      }
+
+      const targetRecord = recordsByKey.get(targetRecordKey);
+      const embeddedRemaster = getPublicationRemaster(embedded);
+      if (!targetRecord || embeddedRemaster || !targetRecord.publicationRemaster || shouldIgnoreCompendiumAlias(aliasText, targetRecord.name)) {
+        continue;
+      }
+
+      aliases.push({
+        canonicalRecordKey: targetRecordKey,
+        aliasText,
+        normalizedAlias: normalizeText(aliasText),
+        sourceKind: "compendium_source",
+        sourceRef: entry.record?.recordKey ?? entry.filePath,
+      });
+    }
+  }
+
+  return aliases;
+}
+
+function dedupeAliasRows(rows: RecordAliasRow[]): RecordAliasRow[] {
+  const seen = new Set<string>();
+  const deduped: RecordAliasRow[] = [];
+  for (const row of rows) {
+    const key = [
+      row.canonicalRecordKey,
+      row.normalizedAlias,
+      row.sourceKind,
+      row.sourceRef,
+    ].join("\u0000");
+    if (seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    deduped.push(row);
+  }
+
+  return deduped;
+}
+
+function dedupeLegacyLinkRows(rows: RecordLegacyLinkRow[]): RecordLegacyLinkRow[] {
+  const seen = new Set<string>();
+  const deduped: RecordLegacyLinkRow[] = [];
+  for (const row of rows) {
+    const key = [
+      row.canonicalRecordKey,
+      row.legacyRecordKey,
+      row.sourceKind,
+      row.sourceRef,
+    ].join("\u0000");
+    if (seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    deduped.push(row);
+  }
+
+  return deduped;
+}
+
 function rowToRecord(row: CandidateRow, raw: Record<string, unknown> | null = null): NormalizedRecord {
   const resolvedRaw = raw ?? (row.rawJson ? JSON.parse(row.rawJson) as Record<string, unknown> : {});
   return {
@@ -1009,6 +1541,7 @@ function rowToRecord(row: CandidateRow, raw: Record<string, unknown> | null = nu
     rarity: row.rarity,
     traits: JSON.parse(row.traitsJson) as string[],
     publicationTitle: row.publicationTitle,
+    publicationRemaster: Boolean(row.publicationRemaster),
     descriptionText: row.descriptionText,
     hasDescription: Boolean(row.hasDescription),
     descriptionSnippet: row.descriptionSnippet,
@@ -1023,6 +1556,8 @@ function rowToRecord(row: CandidateRow, raw: Record<string, unknown> | null = nu
     actionCost: row.actionCost,
     traditions: row.traditionsJson ? (JSON.parse(row.traditionsJson) as string[]) : [],
     spellKinds: row.spellKindsJson ? (JSON.parse(row.spellKindsJson) as string[]) : [],
+    aliases: [],
+    legacyRecordLinks: [],
     raw: resolvedRaw,
   };
 }
@@ -1233,6 +1768,7 @@ function createSchema(db: DatabaseSync): void {
       rarity TEXT,
       traits_json TEXT NOT NULL,
       publication_title TEXT,
+      publication_remaster INTEGER NOT NULL,
       description_text TEXT,
       has_description INTEGER NOT NULL,
       description_snippet TEXT,
@@ -1240,8 +1776,29 @@ function createSchema(db: DatabaseSync): void {
       folder_id TEXT,
       source_path TEXT NOT NULL,
       is_unique INTEGER NOT NULL,
+      is_search_canonical INTEGER NOT NULL,
       search_text TEXT NOT NULL,
       raw_json TEXT NOT NULL
+    );
+
+    CREATE TABLE record_aliases (
+      canonical_record_key TEXT NOT NULL,
+      alias_text TEXT NOT NULL,
+      normalized_alias TEXT NOT NULL,
+      source_kind TEXT NOT NULL,
+      source_ref TEXT NOT NULL,
+      PRIMARY KEY (canonical_record_key, normalized_alias, source_kind, source_ref),
+      FOREIGN KEY (canonical_record_key) REFERENCES records(record_key) ON DELETE CASCADE
+    );
+
+    CREATE TABLE record_legacy_links (
+      canonical_record_key TEXT NOT NULL,
+      legacy_record_key TEXT NOT NULL,
+      source_kind TEXT NOT NULL,
+      source_ref TEXT NOT NULL,
+      PRIMARY KEY (canonical_record_key, legacy_record_key, source_kind, source_ref),
+      FOREIGN KEY (canonical_record_key) REFERENCES records(record_key) ON DELETE CASCADE,
+      FOREIGN KEY (legacy_record_key) REFERENCES records(record_key) ON DELETE CASCADE
     );
 
     CREATE TABLE record_traits (
@@ -1323,8 +1880,12 @@ function createSchema(db: DatabaseSync): void {
     CREATE INDEX records_level_idx ON records(level);
     CREATE INDEX records_rarity_idx ON records(rarity);
     CREATE INDEX records_unique_idx ON records(is_unique);
+    CREATE INDEX records_publication_remaster_idx ON records(publication_remaster);
+    CREATE INDEX records_search_canonical_idx ON records(is_search_canonical);
     CREATE INDEX records_has_description_idx ON records(has_description);
     CREATE INDEX records_source_category_idx ON records(source_category);
+    CREATE INDEX record_aliases_normalized_alias_idx ON record_aliases(normalized_alias);
+    CREATE INDEX record_legacy_links_canonical_idx ON record_legacy_links(canonical_record_key);
     CREATE INDEX record_traits_trait_idx ON record_traits(trait);
     CREATE INDEX actor_records_size_idx ON actor_records(size);
     CREATE INDEX item_records_category_idx ON item_records(item_category);
@@ -1355,6 +1916,7 @@ async function buildIndex(
   const packs: PackInfo[] = [];
   let recordCount = 0;
   let processedPackCount = 0;
+  const sourceEntries: BuildSourceEntry[] = [];
 
   const insertPack = db.prepare(`
     INSERT INTO packs (name, label, document_type, declared_path, resolved_path, record_count)
@@ -1363,9 +1925,17 @@ async function buildIndex(
   const insertRecord = db.prepare(`
     INSERT INTO records (
       record_key, id, name, normalized_name, category, subcategory, pack_name, pack_label, document_type, record_type,
-      level, rarity, traits_json, publication_title, description_text, has_description, description_snippet,
-      source_category, folder_id, source_path, is_unique, search_text, raw_json
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      level, rarity, traits_json, publication_title, publication_remaster, description_text, has_description, description_snippet,
+      source_category, folder_id, source_path, is_unique, is_search_canonical, search_text, raw_json
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  const insertAlias = db.prepare(`
+    INSERT INTO record_aliases (canonical_record_key, alias_text, normalized_alias, source_kind, source_ref)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+  const insertLegacyLink = db.prepare(`
+    INSERT INTO record_legacy_links (canonical_record_key, legacy_record_key, source_kind, source_ref)
+    VALUES (?, ?, ?, ?)
   `);
   const insertTrait = db.prepare(`
     INSERT INTO record_traits (record_key, trait) VALUES (?, ?)
@@ -1448,7 +2018,18 @@ async function buildIndex(
 
       for (const [fileIndex, filePath] of filePaths.entries()) {
         const raw = JSON.parse(await readFile(filePath, "utf8")) as Record<string, unknown>;
-        if (shouldExcludeRecordFromIndex(pack, filePath, raw)) {
+        const shouldIndexRecord = !shouldExcludeRecordFromIndex(pack, filePath, raw);
+        if (!shouldIndexRecord) {
+          sourceEntries.push({
+            pack,
+            filePath,
+            raw,
+            record: null,
+            actorData: null,
+            itemData: null,
+            spellData: null,
+            references: [],
+          });
           const processedFiles = fileIndex + 1;
           const now = Date.now();
           const shouldLogProgress = processedFiles === filePaths.length ||
@@ -1457,7 +2038,7 @@ async function buildIndex(
 
           if (shouldLogProgress) {
             progressStatusLogger?.(
-              `[pack ${processedPackCount}/${includedManifestPacks.length}] ${pack.label} ${renderProgressBar(processedFiles, filePaths.length)} ${formatPercentage(processedFiles, filePaths.length)} (${formatInteger(processedFiles)}/${formatInteger(filePaths.length)} files, ${formatInteger(recordCount)} records written total).`,
+              `[scan ${processedPackCount}/${includedManifestPacks.length}] ${pack.label} ${renderProgressBar(processedFiles, filePaths.length)} ${formatPercentage(processedFiles, filePaths.length)} (${formatInteger(processedFiles)}/${formatInteger(filePaths.length)} files, ${formatInteger(recordCount)} records discovered total).`,
             );
             lastProgressLogTime = now;
             lastLoggedFileCount = processedFiles;
@@ -1465,102 +2046,16 @@ async function buildIndex(
           continue;
         }
         const record = normalizeIndexRecord(pack, filePath, raw);
-        const actorData = pack.documentType === "Actor" ? parseActorIndexData(raw) : null;
-        const itemData = pack.documentType === "Item" ? parseItemIndexData(raw) : null;
-        const spellData = record.type === "spell" ? parseSpellIndexData(raw) : null;
-        const embedding = await embeddingProvider.embed(record.searchText);
-
-        insertRecord.run(
-          record.recordKey,
-          record.id,
-          record.name,
-          record.normalizedName,
-          record.category,
-          record.subcategory,
-          record.packName,
-          record.packLabel,
-          record.documentType,
-          record.type,
-          record.level,
-          record.rarity,
-          JSON.stringify(record.traits),
-          record.publicationTitle,
-          record.descriptionText,
-          record.hasDescription ? 1 : 0,
-          record.descriptionSnippet,
-          record.sourceCategory,
-          record.folderId,
-          record.sourcePath,
-          record.isUnique ? 1 : 0,
-          record.searchText,
-          JSON.stringify(raw),
-        );
-
-        for (const trait of record.traits) {
-          insertTrait.run(record.recordKey, normalizeText(trait));
-        }
-
-        if (actorData) {
-          insertActor.run(
-            record.recordKey,
-            actorData.size,
-            JSON.stringify(actorData.languages),
-            JSON.stringify(actorData.speedTypes),
-            JSON.stringify(actorData.immunities),
-            JSON.stringify(actorData.resistances),
-            JSON.stringify(actorData.weaknesses),
-          );
-        }
-
-        if (itemData) {
-          insertItem.run(
-            record.recordKey,
-            itemData.itemCategory,
-            itemData.priceCp,
-            itemData.bulkValue,
-            itemData.usage,
-            itemData.hands,
-            JSON.stringify(itemData.damageTypes),
-            itemData.weaponGroup,
-            itemData.armorGroup,
-            itemData.actionCost,
-          );
-        }
-
-        if (spellData) {
-          insertSpell.run(
-            record.recordKey,
-            spellData.actionCost,
-            JSON.stringify(spellData.traditions),
-            JSON.stringify(spellData.spellKinds),
-            spellData.rangeText,
-            spellData.rangeValue,
-            spellData.saveType,
-            spellData.areaType,
-            JSON.stringify(spellData.damageTypes),
-          );
-        }
-
-        for (const reference of extractRulesReferences(raw)) {
-          if (!reference.packName || !reference.recordLocator) {
-            continue;
-          }
-
-          insertReferenceEdge.run(
-            record.recordKey,
-            `${reference.packName}:${reference.recordLocator}`,
-            reference.displayText,
-            reference.referenceText,
-            record.packName,
-            record.type,
-            record.documentType,
-            record.sourceCategory,
-          );
-        }
-
-        insertEmbedding.run(record.recordKey, embeddingProvider.identity.dimensions, encodeVector(embedding));
-        insertFts.run(record.recordKey, record.name, record.searchText);
-
+        sourceEntries.push({
+          pack,
+          filePath,
+          raw,
+          record,
+          actorData: pack.documentType === "Actor" ? parseActorIndexData(raw) : null,
+          itemData: pack.documentType === "Item" ? parseItemIndexData(raw) : null,
+          spellData: record.type === "spell" ? parseSpellIndexData(raw) : null,
+          references: extractRulesReferences(raw),
+        });
         packRecordCount += 1;
         recordCount += 1;
 
@@ -1573,7 +2068,7 @@ async function buildIndex(
 
         if (shouldLogProgress) {
           progressStatusLogger?.(
-            `[pack ${processedPackCount}/${includedManifestPacks.length}] ${pack.label} ${renderProgressBar(processedFiles, filePaths.length)} ${formatPercentage(processedFiles, filePaths.length)} (${formatInteger(processedFiles)}/${formatInteger(filePaths.length)} files, ${formatInteger(recordCount)} records written total).`,
+            `[scan ${processedPackCount}/${includedManifestPacks.length}] ${pack.label} ${renderProgressBar(processedFiles, filePaths.length)} ${formatPercentage(processedFiles, filePaths.length)} (${formatInteger(processedFiles)}/${formatInteger(filePaths.length)} files, ${formatInteger(recordCount)} records discovered total).`,
           );
           lastProgressLogTime = now;
           lastLoggedFileCount = processedFiles;
@@ -1586,6 +2081,252 @@ async function buildIndex(
 
       packs.push({ ...pack, recordCount: packRecordCount });
       insertPack.run(pack.name, pack.label, pack.documentType, pack.declaredPath, pack.resolvedPath, packRecordCount);
+    }
+
+    progressLogger?.("Finished scanning pack files. Resolving verified remaster aliases.");
+
+    const indexedEntries = sourceEntries.filter((entry): entry is BuildSourceEntry & { record: NormalizedIndexRecord } => entry.record !== null);
+    const recordsByKey = new Map(indexedEntries.map((entry) => [entry.record.recordKey, entry.record]));
+    const recordsByPackAndId = new Map<string, string>();
+    const recordsByPackAndName = new Map<string, string[]>();
+    const recordsByName = new Map<string, string[]>();
+
+    for (const entry of indexedEntries) {
+      const record = entry.record;
+      recordsByPackAndId.set(buildPackAndIdKey(record.packName, record.id), record.recordKey);
+
+      const byPackAndNameKey = buildPackAndNameKey(record.packName, record.name);
+      const samePackNames = recordsByPackAndName.get(byPackAndNameKey) ?? [];
+      samePackNames.push(record.recordKey);
+      recordsByPackAndName.set(byPackAndNameKey, samePackNames);
+
+      const sameNames = recordsByName.get(record.normalizedName) ?? [];
+      sameNames.push(record.recordKey);
+      recordsByName.set(record.normalizedName, sameNames);
+    }
+
+    let aliasRows: RecordAliasRow[] = [];
+    let legacyLinkRows: RecordLegacyLinkRow[] = [];
+
+    const migrationDir = path.join(rootPath, "src", "module", "migration", "migrations");
+    if (await directoryExists(migrationDir)) {
+      const migrationFiles = (await readdir(migrationDir))
+        .filter((fileName) => fileName.endsWith(".ts"))
+        .sort((left, right) => left.localeCompare(right));
+      for (const migrationFile of migrationFiles) {
+        const migrationSource = await readFile(path.join(migrationDir, migrationFile), "utf8");
+        aliasRows.push(...extractMigrationAliases(migrationSource, recordsByName, recordsByKey));
+      }
+    }
+
+    for (const entry of sourceEntries) {
+      if (normalizeText(firstString(entry.raw.name) ?? "") !== "remaster changes") {
+        continue;
+      }
+
+      const extracted = extractRemasterJournalAliases(
+        entry.raw,
+        recordsByPackAndId,
+        recordsByPackAndName,
+        recordsByName,
+        recordsByKey,
+      );
+      aliasRows.push(...extracted.aliases);
+      legacyLinkRows.push(...extracted.legacyLinks);
+    }
+
+    aliasRows.push(...extractCompendiumSourceAliases(sourceEntries, recordsByPackAndId, recordsByKey));
+
+    aliasRows = dedupeAliasRows(aliasRows);
+    for (const alias of aliasRows) {
+      if (alias.sourceKind !== "migration") {
+        continue;
+      }
+
+      const targetRecord = recordsByKey.get(alias.canonicalRecordKey);
+      if (!targetRecord?.publicationRemaster) {
+        continue;
+      }
+
+      for (const legacyRecordKey of recordsByName.get(alias.normalizedAlias) ?? []) {
+        if (legacyRecordKey === alias.canonicalRecordKey) {
+          continue;
+        }
+
+        const legacyRecord = recordsByKey.get(legacyRecordKey);
+        if (!legacyRecord || legacyRecord.publicationRemaster) {
+          continue;
+        }
+
+        legacyLinkRows.push({
+          canonicalRecordKey: alias.canonicalRecordKey,
+          legacyRecordKey,
+          sourceKind: "migration",
+          sourceRef: alias.sourceRef,
+        });
+      }
+    }
+    legacyLinkRows = dedupeLegacyLinkRows(legacyLinkRows);
+
+    progressLogger?.(
+      `Resolved ${formatInteger(aliasRows.length)} verified aliases and ${formatInteger(legacyLinkRows.length)} legacy-to-remaster links.`,
+    );
+
+    const suppressedRecordKeys = new Set(legacyLinkRows.map((row) => row.legacyRecordKey));
+    const aliasesByCanonicalRecordKey = new Map<string, string[]>();
+    for (const alias of aliasRows) {
+      const bucket = aliasesByCanonicalRecordKey.get(alias.canonicalRecordKey) ?? [];
+      bucket.push(alias.aliasText);
+      aliasesByCanonicalRecordKey.set(alias.canonicalRecordKey, uniqueSorted(bucket));
+    }
+
+    const canonicalEmbeddingCount = indexedEntries.filter((entry) => !suppressedRecordKeys.has(entry.record.recordKey)).length;
+    const writeProgressInterval = Math.max(100, Math.ceil(indexedEntries.length / 10));
+    let writtenEntryCount = 0;
+    let embeddedRecordCount = 0;
+    let lastWriteProgressLogTime = 0;
+    let lastLoggedWriteCount = 0;
+
+    progressLogger?.("Writing indexed records and canonical embeddings.");
+
+    for (const entry of indexedEntries) {
+      const record = entry.record;
+      const aliasTexts = aliasesByCanonicalRecordKey.get(record.recordKey) ?? [];
+      const isSearchCanonical = !suppressedRecordKeys.has(record.recordKey);
+      const searchText = uniqueSorted([record.searchText, ...aliasTexts].filter(Boolean)).join("\n");
+
+      insertRecord.run(
+        record.recordKey,
+        record.id,
+        record.name,
+        record.normalizedName,
+        record.category,
+        record.subcategory,
+        record.packName,
+        record.packLabel,
+        record.documentType,
+        record.type,
+        record.level,
+        record.rarity,
+        JSON.stringify(record.traits),
+        record.publicationTitle,
+        record.publicationRemaster ? 1 : 0,
+        record.descriptionText,
+        record.hasDescription ? 1 : 0,
+        record.descriptionSnippet,
+        record.sourceCategory,
+        record.folderId,
+        record.sourcePath,
+        record.isUnique ? 1 : 0,
+        isSearchCanonical ? 1 : 0,
+        searchText,
+        JSON.stringify(entry.raw),
+      );
+
+      for (const trait of record.traits) {
+        insertTrait.run(record.recordKey, normalizeText(trait));
+      }
+
+      if (entry.actorData) {
+        insertActor.run(
+          record.recordKey,
+          entry.actorData.size,
+          JSON.stringify(entry.actorData.languages),
+          JSON.stringify(entry.actorData.speedTypes),
+          JSON.stringify(entry.actorData.immunities),
+          JSON.stringify(entry.actorData.resistances),
+          JSON.stringify(entry.actorData.weaknesses),
+        );
+      }
+
+      if (entry.itemData) {
+        insertItem.run(
+          record.recordKey,
+          entry.itemData.itemCategory,
+          entry.itemData.priceCp,
+          entry.itemData.bulkValue,
+          entry.itemData.usage,
+          entry.itemData.hands,
+          JSON.stringify(entry.itemData.damageTypes),
+          entry.itemData.weaponGroup,
+          entry.itemData.armorGroup,
+          entry.itemData.actionCost,
+        );
+      }
+
+      if (entry.spellData) {
+        insertSpell.run(
+          record.recordKey,
+          entry.spellData.actionCost,
+          JSON.stringify(entry.spellData.traditions),
+          JSON.stringify(entry.spellData.spellKinds),
+          entry.spellData.rangeText,
+          entry.spellData.rangeValue,
+          entry.spellData.saveType,
+          entry.spellData.areaType,
+          JSON.stringify(entry.spellData.damageTypes),
+        );
+      }
+
+      for (const reference of entry.references) {
+        if (!reference.packName || !reference.recordLocator) {
+          continue;
+        }
+
+        insertReferenceEdge.run(
+          record.recordKey,
+          `${reference.packName}:${reference.recordLocator}`,
+          reference.displayText,
+          reference.referenceText,
+          record.packName,
+          record.type,
+          record.documentType,
+          record.sourceCategory,
+        );
+      }
+
+      if (!isSearchCanonical) {
+        writtenEntryCount += 1;
+        const now = Date.now();
+        const shouldLogProgress = writtenEntryCount === indexedEntries.length ||
+          (writtenEntryCount - lastLoggedWriteCount) >= writeProgressInterval ||
+          (now - lastWriteProgressLogTime) >= PACK_PROGRESS_LOG_INTERVAL_MS;
+
+        if (shouldLogProgress) {
+          progressStatusLogger?.(
+            `[write] Indexed records ${renderProgressBar(writtenEntryCount, indexedEntries.length)} ${formatPercentage(writtenEntryCount, indexedEntries.length)} (${formatInteger(writtenEntryCount)}/${formatInteger(indexedEntries.length)} records, ${formatInteger(embeddedRecordCount)}/${formatInteger(canonicalEmbeddingCount)} canonical embeddings).`,
+          );
+          lastWriteProgressLogTime = now;
+          lastLoggedWriteCount = writtenEntryCount;
+        }
+        continue;
+      }
+
+      const embedding = await embeddingProvider.embed(searchText);
+      insertEmbedding.run(record.recordKey, embeddingProvider.identity.dimensions, encodeVector(embedding));
+      insertFts.run(record.recordKey, record.name, searchText);
+      writtenEntryCount += 1;
+      embeddedRecordCount += 1;
+      const now = Date.now();
+      const shouldLogProgress = writtenEntryCount === indexedEntries.length ||
+        (writtenEntryCount - lastLoggedWriteCount) >= writeProgressInterval ||
+        (now - lastWriteProgressLogTime) >= PACK_PROGRESS_LOG_INTERVAL_MS;
+
+      if (shouldLogProgress) {
+        progressStatusLogger?.(
+          `[write] Indexed records ${renderProgressBar(writtenEntryCount, indexedEntries.length)} ${formatPercentage(writtenEntryCount, indexedEntries.length)} (${formatInteger(writtenEntryCount)}/${formatInteger(indexedEntries.length)} records, ${formatInteger(embeddedRecordCount)}/${formatInteger(canonicalEmbeddingCount)} canonical embeddings).`,
+        );
+        lastWriteProgressLogTime = now;
+        lastLoggedWriteCount = writtenEntryCount;
+      }
+    }
+
+    for (const alias of aliasRows) {
+      insertAlias.run(alias.canonicalRecordKey, alias.aliasText, alias.normalizedAlias, alias.sourceKind, alias.sourceRef);
+    }
+
+    for (const legacyLink of legacyLinkRows) {
+      insertLegacyLink.run(legacyLink.canonicalRecordKey, legacyLink.legacyRecordKey, legacyLink.sourceKind, legacyLink.sourceRef);
     }
 
     db.exec("COMMIT");
@@ -1621,6 +2362,47 @@ function loadPacksFromIndex(db: DatabaseSync): PackInfo[] {
     resolvedPath: String(row.resolvedPath),
     recordCount: Number(row.recordCount ?? 0),
   }));
+}
+
+function loadAliasesByRecordKey(db: DatabaseSync): Map<string, string[]> {
+  const rows = db.prepare(`
+    SELECT canonical_record_key AS canonicalRecordKey, alias_text AS aliasText
+    FROM record_aliases
+    ORDER BY canonical_record_key ASC, alias_text ASC
+  `).all() as Array<{ canonicalRecordKey: string; aliasText: string }>;
+
+  const aliasesByRecordKey = new Map<string, string[]>();
+  for (const row of rows) {
+    const bucket = aliasesByRecordKey.get(row.canonicalRecordKey) ?? [];
+    bucket.push(row.aliasText);
+    aliasesByRecordKey.set(row.canonicalRecordKey, uniqueSorted(bucket));
+  }
+
+  return aliasesByRecordKey;
+}
+
+function loadLegacyLinksByRecordKey(db: DatabaseSync): Map<string, LinkedRecordSummary[]> {
+  const rows = db.prepare(`
+    SELECT
+      rll.canonical_record_key AS canonicalRecordKey,
+      rll.legacy_record_key AS legacyRecordKey,
+      records.name AS legacyName
+    FROM record_legacy_links rll
+    JOIN records ON records.record_key = rll.legacy_record_key
+    ORDER BY rll.canonical_record_key ASC, records.name ASC, rll.legacy_record_key ASC
+  `).all() as Array<{ canonicalRecordKey: string; legacyRecordKey: string; legacyName: string }>;
+
+  const linksByRecordKey = new Map<string, LinkedRecordSummary[]>();
+  for (const row of rows) {
+    const bucket = linksByRecordKey.get(row.canonicalRecordKey) ?? [];
+    bucket.push({
+      recordKey: row.legacyRecordKey,
+      name: row.legacyName,
+    });
+    linksByRecordKey.set(row.canonicalRecordKey, bucket);
+  }
+
+  return linksByRecordKey;
 }
 
 function readMetadata(db: DatabaseSync): Map<string, string> {
@@ -1729,6 +2511,7 @@ function buildCandidateQuery(filters: SearchFilters, includeSearchText = false, 
     "r.rarity AS rarity",
     "r.traits_json AS traitsJson",
     "r.publication_title AS publicationTitle",
+    "r.publication_remaster AS publicationRemaster",
     "r.description_text AS descriptionText",
     "r.has_description AS hasDescription",
     "r.description_snippet AS descriptionSnippet",
@@ -1736,6 +2519,7 @@ function buildCandidateQuery(filters: SearchFilters, includeSearchText = false, 
     "r.folder_id AS folderId",
     "r.source_path AS sourcePath",
     "r.is_unique AS isUnique",
+    "r.is_search_canonical AS isSearchCanonical",
     "a.size AS size",
     "i.item_category AS itemCategory",
     "i.price_cp AS priceCp",
@@ -1767,6 +2551,7 @@ function buildCandidateQuery(filters: SearchFilters, includeSearchText = false, 
 
   sql.push("WHERE 1 = 1");
   const params: SqlValue[] = [];
+  appendWhereClause(sql, params, "AND r.is_search_canonical = 1");
 
   if (filters.pack) {
     appendWhereClause(sql, params, "AND (LOWER(r.pack_name) = LOWER(?) OR LOWER(r.pack_label) = LOWER(?))", filters.pack, filters.pack);
@@ -1948,6 +2733,8 @@ export class Pf2eDataService {
   private readonly indexPath: string;
   private readonly recordCount: number;
   private readonly rankingConfigStore: RankingConfigStore | null;
+  private readonly aliasesByRecordKey: Map<string, string[]>;
+  private readonly legacyLinksByRecordKey: Map<string, LinkedRecordSummary[]>;
 
   private constructor(
     db: DatabaseSync,
@@ -1965,6 +2752,8 @@ export class Pf2eDataService {
     this.indexPath = indexPath;
     this.embeddingProvider = embeddingProvider;
     this.rankingConfigStore = rankingConfigStore;
+    this.aliasesByRecordKey = loadAliasesByRecordKey(db);
+    this.legacyLinksByRecordKey = loadLegacyLinksByRecordKey(db);
   }
 
   static async load(rootPath: string, manifestPath: string, options: LoadOptions = {}): Promise<Pf2eDataService> {
@@ -2063,6 +2852,7 @@ export class Pf2eDataService {
         `
           SELECT r.category AS value, COUNT(*) AS count
           FROM records r
+          WHERE r.is_search_canonical = 1
           GROUP BY r.category
           ORDER BY count DESC, value ASC
         `,
@@ -2073,7 +2863,7 @@ export class Pf2eDataService {
         `
           SELECT r.subcategory AS value, COUNT(*) AS count
           FROM records r
-          WHERE r.subcategory IS NOT NULL AND r.subcategory <> ''
+          WHERE r.is_search_canonical = 1 AND r.subcategory IS NOT NULL AND r.subcategory <> ''
           GROUP BY r.subcategory
           ORDER BY count DESC, value ASC
         `,
@@ -2084,6 +2874,7 @@ export class Pf2eDataService {
         `
           SELECT r.source_category AS value, COUNT(*) AS count
           FROM records r
+          WHERE r.is_search_canonical = 1
           GROUP BY r.source_category
           ORDER BY count DESC, value ASC
         `,
@@ -2095,6 +2886,7 @@ export class Pf2eDataService {
           SELECT r.category AS category, rt.trait AS value, COUNT(*) AS count
           FROM record_traits rt
           JOIN records r ON r.record_key = rt.record_key
+          WHERE r.is_search_canonical = 1
           GROUP BY r.category, rt.trait
           ORDER BY r.category ASC, count DESC, value ASC
         `,
@@ -2115,7 +2907,12 @@ export class Pf2eDataService {
     })();
     const traditionCounts = new Map<string, number>();
     const traditionRows = this.db
-      .prepare("SELECT traditions_json AS traditionsJson FROM spell_records")
+      .prepare(`
+        SELECT s.traditions_json AS traditionsJson
+        FROM spell_records s
+        JOIN records r ON r.record_key = s.record_key
+        WHERE r.is_search_canonical = 1
+      `)
       .all() as Array<{ traditionsJson: string }>;
     for (const row of traditionRows) {
       const traditions = JSON.parse(row.traditionsJson) as string[];
@@ -2133,7 +2930,12 @@ export class Pf2eDataService {
       .map(([value, count]) => ({ value, count }));
     const spellKindCounts = new Map<string, number>();
     const spellKindRows = this.db
-      .prepare("SELECT spell_kinds_json AS spellKindsJson FROM spell_records")
+      .prepare(`
+        SELECT s.spell_kinds_json AS spellKindsJson
+        FROM spell_records s
+        JOIN records r ON r.record_key = s.record_key
+        WHERE r.is_search_canonical = 1
+      `)
       .all() as Array<{ spellKindsJson: string }>;
     for (const row of spellKindRows) {
       const spellKinds = JSON.parse(row.spellKindsJson) as string[];
@@ -2181,6 +2983,14 @@ export class Pf2eDataService {
   close(): void {
     this.rankingConfigStore?.close();
     this.db.close();
+  }
+
+  private decorateRecord(record: NormalizedRecord): NormalizedRecord {
+    return {
+      ...record,
+      aliases: this.aliasesByRecordKey.get(record.recordKey) ?? [],
+      legacyRecordLinks: this.legacyLinksByRecordKey.get(record.recordKey) ?? [],
+    };
   }
 
   private fetchCandidates(filters: SearchFilters, includeSearchText = false, includeEmbedding = false): CandidateRow[] {
@@ -2237,6 +3047,7 @@ export class Pf2eDataService {
             r.rarity AS rarity,
             r.traits_json AS traitsJson,
             r.publication_title AS publicationTitle,
+            r.publication_remaster AS publicationRemaster,
             r.description_text AS descriptionText,
             r.has_description AS hasDescription,
             r.description_snippet AS descriptionSnippet,
@@ -2244,6 +3055,7 @@ export class Pf2eDataService {
             r.folder_id AS folderId,
             r.source_path AS sourcePath,
             r.is_unique AS isUnique,
+            r.is_search_canonical AS isSearchCanonical,
             a.size AS size,
             i.item_category AS itemCategory,
             i.price_cp AS priceCp,
@@ -2373,18 +3185,20 @@ export class Pf2eDataService {
                 r.pack_name AS packName,
                 r.pack_label AS packLabel,
                 r.document_type AS documentType,
-                r.level AS level,
-                r.rarity AS rarity,
-                r.traits_json AS traitsJson,
-                r.publication_title AS publicationTitle,
-                r.description_text AS descriptionText,
+            r.level AS level,
+            r.rarity AS rarity,
+            r.traits_json AS traitsJson,
+            r.publication_title AS publicationTitle,
+            r.publication_remaster AS publicationRemaster,
+            r.description_text AS descriptionText,
                 r.has_description AS hasDescription,
                 r.description_snippet AS descriptionSnippet,
                 r.source_category AS sourceCategory,
                 r.folder_id AS folderId,
-                r.source_path AS sourcePath,
-                r.is_unique AS isUnique,
-                a.size AS size,
+            r.source_path AS sourcePath,
+            r.is_unique AS isUnique,
+            r.is_search_canonical AS isSearchCanonical,
+            a.size AS size,
                 i.item_category AS itemCategory,
                 i.price_cp AS priceCp,
                 i.bulk_value AS bulkValue,
@@ -2414,18 +3228,20 @@ export class Pf2eDataService {
                 r.pack_name AS packName,
                 r.pack_label AS packLabel,
                 r.document_type AS documentType,
-                r.level AS level,
-                r.rarity AS rarity,
-                r.traits_json AS traitsJson,
-                r.publication_title AS publicationTitle,
-                r.description_text AS descriptionText,
+            r.level AS level,
+            r.rarity AS rarity,
+            r.traits_json AS traitsJson,
+            r.publication_title AS publicationTitle,
+            r.publication_remaster AS publicationRemaster,
+            r.description_text AS descriptionText,
                 r.has_description AS hasDescription,
                 r.description_snippet AS descriptionSnippet,
                 r.source_category AS sourceCategory,
                 r.folder_id AS folderId,
-                r.source_path AS sourcePath,
-                r.is_unique AS isUnique,
-                a.size AS size,
+            r.source_path AS sourcePath,
+            r.is_unique AS isUnique,
+            r.is_search_canonical AS isSearchCanonical,
+            a.size AS size,
                 i.item_category AS itemCategory,
                 i.price_cp AS priceCp,
                 i.bulk_value AS bulkValue,
@@ -2446,12 +3262,12 @@ export class Pf2eDataService {
       return undefined;
     }
 
-    return rowToRecord(row);
+    return this.decorateRecord(rowToRecord(row));
   }
 
   getRecordsByKeys(recordKeys: string[]): NormalizedRecord[] {
     const rows = this.fetchRecordRowsByKeys([...new Set(recordKeys)]);
-    const byKey = new Map(rows.map((row) => [row.recordKey, rowToRecord(row)]));
+    const byKey = new Map(rows.map((row) => [row.recordKey, this.decorateRecord(rowToRecord(row))]));
     return [...new Set(recordKeys)].map((recordKey) => byKey.get(recordKey)).filter((record): record is NormalizedRecord => Boolean(record));
   }
 
@@ -2538,13 +3354,13 @@ export class Pf2eDataService {
     const candidates = this.fetchCandidates(filters);
     const scored = candidates
       .map((candidate) => {
-        const record = rowToRecord(candidate);
+        const record = this.decorateRecord(rowToRecord(candidate));
         const packQuality = packQualityScore(record, rankingConfig);
         const sourceQuality = sourceQualityScore(record, rankingConfig);
         const rarityPreference = rarityPreferenceScore(record, filters, rankingConfig);
         const sourcePenalty = sourcePenaltyScore(record, filters, rankingConfig);
         const score =
-          (filters.nameQuery ? nameScore(filters.nameQuery, record) : 0.5) +
+          (filters.nameQuery ? nameScore(filters.nameQuery, record, this.aliasesByRecordKey.get(record.recordKey) ?? []) : 0.5) +
           packQuality +
           sourceQuality +
           rarityPreference +
@@ -2576,7 +3392,7 @@ export class Pf2eDataService {
     const limit = clampLimit(filters.limit);
     const offset = clampOffset(filters.offset);
     const rankingConfig = this.rankingConfigStore?.getConfig() ?? DEFAULT_RANKING_CONFIG;
-    const records = this.fetchCandidates(filters).map((row) => rowToRecord(row));
+    const records = this.fetchCandidates(filters).map((row) => this.decorateRecord(rowToRecord(row)));
     records.sort((left, right) => sortRecords(left, right));
     return {
       searchProfile: "lookup",
@@ -2675,7 +3491,7 @@ export class Pf2eDataService {
 
     const scored = candidates
       .map((candidate) => {
-        const record = rowToRecord(candidate);
+        const record = this.decorateRecord(rowToRecord(candidate));
         const ftsScore = lexicalQuery.length > 0 ? (lexicalMatches.get(candidate.recordKey) ?? 0) : 0;
         const metadataTextScore =
           lexicalQuery.length > 0
@@ -2744,7 +3560,11 @@ export class Pf2eDataService {
 
         let score = 0.5;
         if (mode === "structured") {
-          score = (filters.nameQuery ? nameScore(filters.nameQuery, record) : 0.5) + packQuality;
+          score = (
+            filters.nameQuery
+              ? nameScore(filters.nameQuery, record, this.aliasesByRecordKey.get(record.recordKey) ?? [])
+              : 0.5
+          ) + packQuality;
         } else if (mode === "lexical") {
           score = lexicalScore + packQuality;
         } else {

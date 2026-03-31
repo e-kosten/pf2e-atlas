@@ -93,9 +93,22 @@ function createCapturingEmbeddingProviderFactory(
 async function createFixture(): Promise<{ root: string; manifestPath: string }> {
   const root = await mkdtemp(path.join(os.tmpdir(), "pf2e-mcp-test-"));
   const packRoot = path.join(root, "packs", "pf2e");
-  const packNames = ["actions", "classfeatures", "conditionitems", "feats-srd", "pathfinder-monster-core", "pfs-season-1-bestiary", "quest-for-the-frozen-flame-bestiary", "spells"];
+  const packNames = [
+    "actions",
+    "classfeatures",
+    "conditionitems",
+    "equipment",
+    "feats-srd",
+    "heritages",
+    "journals",
+    "pathfinder-monster-core",
+    "pfs-season-1-bestiary",
+    "quest-for-the-frozen-flame-bestiary",
+    "spells",
+  ];
 
   await Promise.all(packNames.map(async (packName) => mkdir(path.join(packRoot, packName), { recursive: true })));
+  await mkdir(path.join(root, "src", "module", "migration", "migrations"), { recursive: true });
 
   await writeJson(path.join(root, "system.pf2e.json"), {
     packs: [
@@ -118,10 +131,28 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
         type: "Item",
       },
       {
+        name: "equipment",
+        label: "Equipment",
+        path: "packs/equipment",
+        type: "Item",
+      },
+      {
         name: "feats-srd",
         label: "Feats",
         path: "packs/feats-srd",
         type: "Item",
+      },
+      {
+        name: "heritages",
+        label: "Heritages",
+        path: "packs/heritages",
+        type: "Item",
+      },
+      {
+        name: "journals",
+        label: "Journals",
+        path: "packs/journals",
+        type: "JournalEntry",
       },
       {
         name: "pathfinder-monster-core",
@@ -210,6 +241,44 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
     },
   });
 
+  await writeJson(path.join(packRoot, "actions", "reactive-strike.json"), {
+    _id: "reactive1",
+    name: "Reactive Strike",
+    type: "action",
+    system: {
+      description: {
+        value: "<p>You lash out when a foe drops their guard.</p>",
+      },
+      publication: {
+        title: "Pathfinder Player Core",
+        remaster: true,
+      },
+      traits: {
+        rarity: "common",
+        value: ["fighter"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "actions", "attack-of-opportunity.json"), {
+    _id: "aoo1",
+    name: "Attack of Opportunity",
+    type: "action",
+    system: {
+      description: {
+        value: "<p>You punish a nearby opening.</p>",
+      },
+      publication: {
+        title: "Pathfinder Core Rulebook",
+        remaster: false,
+      },
+      traits: {
+        rarity: "common",
+        value: ["fighter"],
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "classfeatures", "meditative-well.json"), {
     _id: "classfeature1",
     name: "Meditative Well",
@@ -260,6 +329,231 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
       },
     },
   });
+
+  await writeJson(path.join(packRoot, "conditionitems", "off-guard.json"), {
+    _id: "Off-Guard",
+    name: "Off-Guard",
+    type: "condition",
+    system: {
+      description: {
+        value: "<p>You take a penalty to AC.</p>",
+      },
+      publication: {
+        title: "Pathfinder Player Core",
+        remaster: true,
+      },
+      traits: {
+        value: [],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "conditionitems", "flat-footed.json"), {
+    _id: "Flat-Footed",
+    name: "Flat-Footed",
+    type: "condition",
+    system: {
+      description: {
+        value: "<p>You take a penalty to AC.</p>",
+      },
+      publication: {
+        title: "Pathfinder Core Rulebook",
+        remaster: false,
+      },
+      traits: {
+        value: [],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment", "spacious-pouch-type-i.json"), {
+    _id: "pouch1",
+    name: "Spacious Pouch (Type I)",
+    type: "backpack",
+    system: {
+      description: {
+        value: "<p>A roomy extradimensional pouch.</p>",
+      },
+      publication: {
+        title: "Pathfinder Player Core",
+        remaster: true,
+      },
+      traits: {
+        rarity: "common",
+        value: [],
+      },
+      price: {
+        value: {
+          gp: 75,
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment", "marvelous-miniature-chest.json"), {
+    _id: "miniChest1",
+    name: "Marvelous Miniature (Chest)",
+    type: "consumable",
+    system: {
+      description: {
+        value: "<p>A tiny chest that unfolds to full size.</p>",
+      },
+      publication: {
+        title: "Pathfinder Player Core 2",
+        remaster: true,
+      },
+      traits: {
+        rarity: "common",
+        value: [],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment", "marvelous-miniature-ladder.json"), {
+    _id: "miniLadder1",
+    name: "Marvelous Miniature (Ladder)",
+    type: "consumable",
+    system: {
+      description: {
+        value: "<p>A tiny ladder that unfolds to full size.</p>",
+      },
+      publication: {
+        title: "Pathfinder Player Core 2",
+        remaster: true,
+      },
+      traits: {
+        rarity: "common",
+        value: [],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment", "marvelous-miniature-boat.json"), {
+    _id: "miniBoat1",
+    name: "Marvelous Miniature (Boat)",
+    type: "consumable",
+    system: {
+      description: {
+        value: "<p>A tiny boat that unfolds on the water.</p>",
+      },
+      publication: {
+        title: "Pathfinder Player Core 2",
+        remaster: true,
+      },
+      traits: {
+        rarity: "common",
+        value: [],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "heritages", "nephilim.json"), {
+    _id: "neph1",
+    name: "Nephilim",
+    type: "heritage",
+    system: {
+      description: {
+        value: "<p>You are touched by an outer plane.</p>",
+      },
+      publication: {
+        title: "Pathfinder Player Core 2",
+        remaster: true,
+      },
+      traits: {
+        rarity: "common",
+        value: ["nephilim"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "heritages", "naari.json"), {
+    _id: "naari1",
+    name: "Naari",
+    type: "heritage",
+    system: {
+      description: {
+        value: "<p>You are touched by elemental fire.</p>",
+      },
+      publication: {
+        title: "Pathfinder Player Core 2",
+        remaster: true,
+      },
+      traits: {
+        rarity: "common",
+        value: ["naari"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "journals", "remaster-changes.json"), {
+    _id: "journal1",
+    name: "Remaster Changes",
+    pages: [
+      {
+        _id: "page1",
+        name: "Remaster Changes",
+        type: "text",
+        text: {
+          content: `
+            <ul>
+              <li>Aasimar, Aphorite, Ganzi, and Tiefling are merged into @UUID[Compendium.pf2e.heritages.Item.neph1]{Nephilim}.</li>
+              <li>Ifrit are now @UUID[Compendium.pf2e.heritages.Item.naari1]{Naari}.</li>
+            </ul>
+          `,
+          format: 1,
+        },
+      },
+      {
+        _id: "page2",
+        name: "Class Features",
+        type: "text",
+        text: {
+          content: `
+            <table><tbody>
+              <tr><td>Attack of Opportunity</td><td>Multiple</td><td>Renamed</td><td>@UUID[Compendium.pf2e.actions.Item.Reactive Strike]{Reactive Strike}</td></tr>
+              <tr><td>Strike Back</td><td>Multiple</td><td>Replaced</td><td>@UUID[Compendium.pf2e.actions.Item.Reactive Strike]{Reactive Strike}</td></tr>
+            </tbody></table>
+          `,
+          format: 1,
+        },
+      },
+      {
+        _id: "page3",
+        name: "Equipment",
+        type: "text",
+        text: {
+          content: `
+            <table><tbody>
+              <tr>
+                <td>Feather Token (Chest, Ladder, Swan Boat)</td>
+                <td>Multiple</td>
+                <td>Renamed</td>
+                <td>
+                  Marvelous Miniatures (
+                  @UUID[Compendium.pf2e.equipment.Item.miniChest1]{Chest},
+                  @UUID[Compendium.pf2e.equipment.Item.miniLadder1]{Ladder},
+                  @UUID[Compendium.pf2e.equipment.Item.miniBoat1]{Boat}
+                  )
+                </td>
+              </tr>
+              <tr>
+                <td>Bag of Holding</td>
+                <td>Multiple</td>
+                <td>Renamed</td>
+                <td>@UUID[Compendium.pf2e.equipment.Item.pouch1]{Spacious Pouch}</td>
+              </tr>
+            </tbody></table>
+          `,
+          format: 1,
+        },
+      },
+    ],
+  });
+
+  await writeFile(
+    path.join(root, "src", "module", "migration", "migrations", "850-flat-footed-to-off-guard.ts"),
+    `/** Rename all uses and mentions of "flat-footed" to "off-guard" */\n`,
+  );
 
   await writeJson(path.join(packRoot, "conditionitems", "hidden.json"), {
     _id: "Hidden",
@@ -314,6 +608,63 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
         value: ["fiend", "qlippoth"],
         size: {
           value: "sm",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "legacy-nephilim-host.json"), {
+    _id: "legacy-neph",
+    name: "Legacy Nephilim Host",
+    type: "npc",
+    items: [
+      {
+        _id: "embedded-neph",
+        _stats: {
+          compendiumSource: "Compendium.pf2e.heritages.Item.neph1",
+        },
+        name: "Aasimar",
+        type: "heritage",
+        system: {
+          slug: "nephilim",
+          publication: {
+            title: "Pathfinder Core Rulebook",
+            remaster: false,
+          },
+          traits: {
+            value: ["nephilim"],
+          },
+        },
+      },
+    ],
+    system: {
+      details: {
+        level: {
+          value: 3,
+        },
+        publication: {
+          title: "Pathfinder Core Rulebook",
+          remaster: false,
+        },
+      },
+      perception: {
+        mod: 5,
+      },
+      traits: {
+        rarity: "common",
+        size: {
+          value: "med",
+        },
+        value: ["humanoid"],
+      },
+      attributes: {
+        hp: {
+          value: 30,
+          max: 30,
+        },
+        speed: {
+          value: 25,
+          otherSpeeds: [],
         },
       },
     },
@@ -1089,8 +1440,8 @@ describe("Pf2eDataService", () => {
 
     const service = await loadTestService(fixture);
 
-    expect(service.listPacks()).toHaveLength(7);
-    expect(service.getStats()).toEqual({ packCount: 7, recordCount: 25 });
+    expect(service.listPacks()).toHaveLength(10);
+    expect(service.getStats()).toEqual({ packCount: 10, recordCount: 37 });
     expect(service.getPack("Actions")?.name).toBe("actions");
   });
 
@@ -1101,7 +1452,7 @@ describe("Pf2eDataService", () => {
     const service = await loadTestService(fixture);
 
     expect(service.lookup("Raise Shield").match?.name).toBe("Raise a Shield");
-    expect(service.listRecords({ pack: "actions" }).records).toHaveLength(3);
+    expect(service.listRecords({ pack: "actions" }).records).toHaveLength(4);
     expect((await service.search({ category: "creatures", traitsAll: ["fiend"] })).records[0]?.name).toBe("Cythnigot");
     expect((await service.search({ category: "creatures", size: "sm" })).records.every((record) => record.size === "sm")).toBe(true);
     expect((await service.search({ searchProfile: "lookup", query: "aberration", category: "creatures" })).records[0]?.name).toBe("Cythnigot");
@@ -1443,12 +1794,12 @@ describe("Pf2eDataService", () => {
     const indexPath = path.join(fixture.root, ".cache", "pf2e-index.sqlite");
 
     const firstService = await loadTestService(fixture, { indexPath });
-    expect(firstService.getStats()).toEqual({ packCount: 7, recordCount: 25 });
+    expect(firstService.getStats()).toEqual({ packCount: 10, recordCount: 37 });
     firstService.close();
 
     const firstMtime = (await import("node:fs/promises")).stat(indexPath).then((details) => details.mtimeMs);
     const unchangedService = await openPreparedTestService(fixture, { indexPath });
-    expect(unchangedService.getStats()).toEqual({ packCount: 7, recordCount: 25 });
+    expect(unchangedService.getStats()).toEqual({ packCount: 10, recordCount: 37 });
     unchangedService.close();
     const secondMtime = (await import("node:fs/promises")).stat(indexPath).then((details) => details.mtimeMs);
     expect(await secondMtime).toBe(await firstMtime);
@@ -1480,7 +1831,7 @@ describe("Pf2eDataService", () => {
     await expect(openPreparedTestService(fixture, { indexPath })).rejects.toThrow(/index .* stale/i);
 
     const rebuiltService = await loadTestService(fixture, { indexPath });
-    expect(rebuiltService.getStats()).toEqual({ packCount: 7, recordCount: 26 });
+    expect(rebuiltService.getStats()).toEqual({ packCount: 10, recordCount: 38 });
     expect(rebuiltService.lookup("Sea Ghoul", { category: "creatures" }).match?.name).toBe("Sea Ghoul");
     rebuiltService.close();
   });
@@ -1492,7 +1843,7 @@ describe("Pf2eDataService", () => {
     const indexPath = path.join(fixture.root, ".cache", "pf2e-index.sqlite");
 
     const firstService = await loadTestService(fixture, { indexPath });
-    expect(firstService.getStats()).toEqual({ packCount: 7, recordCount: 25 });
+    expect(firstService.getStats()).toEqual({ packCount: 10, recordCount: 37 });
     firstService.close();
 
     await writeJson(path.join(fixture.root, "packs", "pf2e", "pathfinder-monster-core", "sea-ghoul-untracked.json"), {
@@ -1541,6 +1892,68 @@ describe("Pf2eDataService", () => {
       name: "Raise a Shield",
       type: "action",
     });
+  });
+
+  it("indexes verified aliases onto remaster canonical records and exposes linked legacy records", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+
+    const embedCalls: string[] = [];
+    const service = await loadTestService(fixture, {
+      embeddingProviderFactory: createCapturingEmbeddingProviderFactory(embedCalls, {
+        provider: "hash",
+        model: "feature-hash-192",
+        revision: null,
+        dimensions: 4,
+      }),
+    });
+
+    expect(service.lookup("Attack of Opportunity", { category: "rules", subcategory: "action" }).match?.name).toBe("Reactive Strike");
+    expect(service.lookup("Strike Back", { category: "rules", subcategory: "action" }).match?.name).toBe("Reactive Strike");
+    expect(service.lookup("flat-footed", { category: "rules", subcategory: "condition" }).match?.name).toBe("Off-Guard");
+    expect(service.lookup("Aasimar").match?.name).toBe("Nephilim");
+    expect(service.lookup("Ifrit").match?.name).toBe("Naari");
+    expect(service.lookup("Feather Token (Swan Boat)").match?.name).toBe("Marvelous Miniature (Boat)");
+    expect(service.lookup("Attack of Opportunity", { category: "rules", subcategory: "action" }).match?.aliases).toContain("Attack of Opportunity");
+    expect(service.lookup("Strike Back", { category: "rules", subcategory: "action" }).match?.aliases).toContain("Strike Back");
+    expect(service.lookup("flat-footed", { category: "rules", subcategory: "condition" }).match?.aliases).toContain("flat-footed");
+    expect(service.lookup("Aasimar").match?.aliases).toContain("Aasimar");
+    expect(service.lookup("Ifrit").match?.aliases).toContain("Ifrit");
+
+    const attackSearch = await service.search({
+      category: "rules",
+      subcategory: "action",
+      nameQuery: "Attack of Opportunity",
+    });
+    expect(attackSearch.records.map((record) => record.name)).toContain("Reactive Strike");
+    expect(attackSearch.records.map((record) => record.name)).not.toContain("Attack of Opportunity");
+
+    const offGuard = service.lookup("Off-Guard", { category: "rules", subcategory: "condition" }).match;
+    expect(offGuard?.aliases).toContain("flat-footed");
+    expect(offGuard?.legacyRecordLinks).toEqual([
+      {
+        recordKey: "conditionitems:Flat-Footed",
+        name: "Flat-Footed",
+      },
+    ]);
+    expect(service.getRecord(offGuard!.legacyRecordLinks[0]!.recordKey)?.name).toBe("Flat-Footed");
+
+    expect(embedCalls.some((text) => text.includes("Attack of Opportunity") && text.includes("Reactive Strike"))).toBe(true);
+    expect(embedCalls.some((text) => text.includes("flat-footed") && text.includes("Off-Guard"))).toBe(true);
+    expect(embedCalls.some((text) => text.includes("Aasimar") && text.includes("Nephilim"))).toBe(true);
+
+    const nephilim = service.lookup("Nephilim").match;
+    expect(nephilim?.aliases).toContain("Tiefling");
+    expect(nephilim?.aliases).not.toContain("and Tiefling");
+
+    const naari = service.lookup("Naari").match;
+    expect(naari?.aliases).toContain("Ifrit");
+    expect(naari?.aliases.some((alias) => alias.includes("are now"))).toBe(false);
+
+    const boat = service.lookup("Marvelous Miniature (Boat)").match;
+    expect(boat?.aliases).toContain("Feather Token (Swan Boat)");
+
+    expect(service.lookup("Spacious Pouch (Type I)").match?.aliases).not.toContain("Bag of Holding");
   });
 
   it("rebuilds the index when embedding identity changes", async () => {
