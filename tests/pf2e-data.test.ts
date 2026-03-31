@@ -414,6 +414,48 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
     },
   });
 
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "mournful-hallway.json"), {
+    _id: "mournful-hallway",
+    name: "Mournful Hallway",
+    type: "hazard",
+    system: {
+      details: {
+        level: {
+          value: 2,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>A grief-soaked corridor where spirits claw at the living.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["haunt", "curse", "magical"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "spear-launcher.json"), {
+    _id: "spear-launcher",
+    name: "Spear Launcher",
+    type: "hazard",
+    system: {
+      details: {
+        level: {
+          value: 1,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>A spring-loaded spear trap hidden in the wall.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["trap", "mechanical"],
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "pathfinder-monster-core", "diver.json"), {
     _id: "diver",
     name: "Diver",
@@ -1048,7 +1090,7 @@ describe("Pf2eDataService", () => {
     const service = await loadTestService(fixture);
 
     expect(service.listPacks()).toHaveLength(7);
-    expect(service.getStats()).toEqual({ packCount: 7, recordCount: 23 });
+    expect(service.getStats()).toEqual({ packCount: 7, recordCount: 25 });
     expect(service.getPack("Actions")?.name).toBe("actions");
   });
 
@@ -1064,12 +1106,18 @@ describe("Pf2eDataService", () => {
     expect((await service.search({ category: "creatures", size: "sm" })).records.every((record) => record.size === "sm")).toBe(true);
     expect((await service.search({ searchProfile: "lookup", query: "aberration", category: "creatures" })).records[0]?.name).toBe("Cythnigot");
     expect((await service.search({ category: "spells", tradition: "primal", actionCost: 2 })).records[0]?.name).toBe("Sea Blessing");
-    expect((await service.search({ category: "rules", subcategory: "condition" })).records.map((record) => record.name)).toEqual(
+    expect((await service.search({ category: "rules", subcategories: ["condition"] })).records.map((record) => record.name)).toEqual(
       expect.arrayContaining(["Blinded", "Dazzled", "Hidden"]),
     );
+    expect((await service.search({ category: "hazards" })).records.map((record) => record.name)).toEqual(
+      expect.arrayContaining(["Mournful Hallway", "Spear Launcher"]),
+    );
+    expect((await service.search({ category: "hazards", excludeSubcategories: ["haunt"] })).records.map((record) => record.name)).toEqual(["Spear Launcher"]);
+    expect(service.listRecords({ pack: "Pathfinder Monster Core", category: "hazards", excludeSubcategories: ["haunt"] }).records.map((record) => record.name)).toEqual(["Spear Launcher"]);
+    expect((await service.search({ category: "creatures", excludeTraits: ["water"] })).records.some((record) => record.traits.includes("water"))).toBe(false);
     expect((await service.search({ category: "creatures", nameQuery: "Ghost Sailor", excludeMissingDescription: true })).records.every((record) => record.hasDescription)).toBe(true);
-    expect((await service.search({ category: "creatures", nameQuery: "Ghost Sailor", excludeAdventureContent: true })).records[0]?.sourceCategory).toBe("core");
-    expect((await service.search({ category: "creatures", coreOnly: true })).records.every((record) => record.sourceCategory === "core")).toBe(true);
+    expect((await service.search({ category: "creatures", nameQuery: "Ghost Sailor", excludeSources: ["adventure"] })).records[0]?.sourceCategory).toBe("core");
+    expect((await service.search({ category: "creatures", sources: ["core"] })).records.every((record) => record.sourceCategory === "core")).toBe(true);
     expect((await service.search({ query: "ghost ship", category: "creatures" })).mode).toBe("hybrid");
     expect((await service.search({ query: "ghost ship", category: "creatures" })).searchProfile).toBe("balanced");
 
@@ -1386,12 +1434,12 @@ describe("Pf2eDataService", () => {
     const indexPath = path.join(fixture.root, ".cache", "pf2e-index.sqlite");
 
     const firstService = await loadTestService(fixture, { indexPath });
-    expect(firstService.getStats()).toEqual({ packCount: 7, recordCount: 23 });
+    expect(firstService.getStats()).toEqual({ packCount: 7, recordCount: 25 });
     firstService.close();
 
     const firstMtime = (await import("node:fs/promises")).stat(indexPath).then((details) => details.mtimeMs);
     const unchangedService = await openPreparedTestService(fixture, { indexPath });
-    expect(unchangedService.getStats()).toEqual({ packCount: 7, recordCount: 23 });
+    expect(unchangedService.getStats()).toEqual({ packCount: 7, recordCount: 25 });
     unchangedService.close();
     const secondMtime = (await import("node:fs/promises")).stat(indexPath).then((details) => details.mtimeMs);
     expect(await secondMtime).toBe(await firstMtime);
@@ -1423,7 +1471,7 @@ describe("Pf2eDataService", () => {
     await expect(openPreparedTestService(fixture, { indexPath })).rejects.toThrow(/index .* stale/i);
 
     const rebuiltService = await loadTestService(fixture, { indexPath });
-    expect(rebuiltService.getStats()).toEqual({ packCount: 7, recordCount: 24 });
+    expect(rebuiltService.getStats()).toEqual({ packCount: 7, recordCount: 26 });
     expect(rebuiltService.lookup("Sea Ghoul", { category: "creatures" }).match?.name).toBe("Sea Ghoul");
     rebuiltService.close();
   });
@@ -1435,7 +1483,7 @@ describe("Pf2eDataService", () => {
     const indexPath = path.join(fixture.root, ".cache", "pf2e-index.sqlite");
 
     const firstService = await loadTestService(fixture, { indexPath });
-    expect(firstService.getStats()).toEqual({ packCount: 7, recordCount: 23 });
+    expect(firstService.getStats()).toEqual({ packCount: 7, recordCount: 25 });
     firstService.close();
 
     await writeJson(path.join(fixture.root, "packs", "pf2e", "pathfinder-monster-core", "sea-ghoul-untracked.json"), {

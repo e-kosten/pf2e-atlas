@@ -129,7 +129,7 @@ Search and list responses include:
 ## Notes
 
 - The server is read-only.
-- Search is category-first. Use `category` and optional `subcategory` as the main boundaries instead of raw Foundry `recordType`, `documentType`, or `itemCategory`.
+- Search is category-first. Use `category` plus structured filters such as `subcategories`, `excludeSubcategories`, `traitsAll`, `traitsAny`, `excludeTraits`, `sources`, and `excludeSources` instead of raw Foundry `recordType`, `documentType`, or `itemCategory`.
 - `pf2e_search` supports `searchProfile: "lookup" | "balanced" | "concept"` as the primary user-facing retrieval control.
 - `pf2e_search` defaults to the `balanced` profile when `query` is present and `searchProfile` is omitted.
 - Prefer a short natural-language phrase or sentence with 1-3 concrete anchor terms for `query`. Avoid long comma-separated keyword lists by default.

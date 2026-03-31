@@ -1764,8 +1764,16 @@ function buildCandidateQuery(filters: SearchFilters, includeSearchText = false, 
     appendWhereClause(sql, params, "AND (LOWER(r.pack_name) = LOWER(?) OR LOWER(r.pack_label) = LOWER(?))", filters.pack, filters.pack);
   }
 
-  const inferredCategoryFromSubcategory = !filters.category && filters.subcategory
-    ? getCategoryForSubcategory(filters.subcategory)
+  const includedSubcategories = (filters.subcategories ?? [])
+    .map((subcategory) => normalizeText(subcategory))
+    .filter(Boolean);
+  const inferredCategoryFromSubcategory = !filters.category && includedSubcategories.length > 0
+    ? (() => {
+        const categories = [...new Set(includedSubcategories
+          .map((subcategory) => getCategoryForSubcategory(subcategory))
+          .filter((category): category is SearchCategory => Boolean(category)))];
+        return categories.length === 1 ? categories[0] : null;
+      })()
     : null;
   const effectiveCategory = filters.category ?? inferredCategoryFromSubcategory;
 
@@ -1773,12 +1781,26 @@ function buildCandidateQuery(filters: SearchFilters, includeSearchText = false, 
     appendWhereClause(sql, params, "AND LOWER(r.category) = LOWER(?)", effectiveCategory);
   }
 
-  if (filters.subcategory) {
+  if (includedSubcategories.length > 0) {
+    const placeholders = includedSubcategories.map(() => "?").join(", ");
     appendWhereClause(
       sql,
       params,
-      "AND EXISTS (SELECT 1 FROM record_subcategories rs WHERE rs.record_key = r.record_key AND LOWER(rs.subcategory) = LOWER(?))",
-      filters.subcategory,
+      `AND EXISTS (SELECT 1 FROM record_subcategories rs WHERE rs.record_key = r.record_key AND rs.subcategory IN (${placeholders}))`,
+      ...includedSubcategories,
+    );
+  }
+
+  const excludedSubcategories = (filters.excludeSubcategories ?? [])
+    .map((subcategory) => normalizeText(subcategory))
+    .filter(Boolean);
+  if (excludedSubcategories.length > 0) {
+    const placeholders = excludedSubcategories.map(() => "?").join(", ");
+    appendWhereClause(
+      sql,
+      params,
+      `AND NOT EXISTS (SELECT 1 FROM record_subcategories rs WHERE rs.record_key = r.record_key AND rs.subcategory IN (${placeholders}))`,
+      ...excludedSubcategories,
     );
   }
 
@@ -1806,12 +1828,14 @@ function buildCandidateQuery(filters: SearchFilters, includeSearchText = false, 
     appendWhereClause(sql, params, "AND r.has_description = 1");
   }
 
-  if (filters.excludeAdventureContent) {
-    appendWhereClause(sql, params, "AND r.source_category != 'adventure'");
+  if (filters.sources && filters.sources.length > 0) {
+    const placeholders = filters.sources.map(() => "?").join(", ");
+    appendWhereClause(sql, params, `AND r.source_category IN (${placeholders})`, ...filters.sources);
   }
 
-  if (filters.coreOnly) {
-    appendWhereClause(sql, params, "AND r.source_category = 'core'");
+  if (filters.excludeSources && filters.excludeSources.length > 0) {
+    const placeholders = filters.excludeSources.map(() => "?").join(", ");
+    appendWhereClause(sql, params, `AND r.source_category NOT IN (${placeholders})`, ...filters.excludeSources);
   }
 
   if (filters.size) {
@@ -1839,22 +1863,41 @@ function buildCandidateQuery(filters: SearchFilters, includeSearchText = false, 
     );
   }
 
-  for (const trait of filters.traitsAll ?? []) {
+  const includedTraitsAll = (filters.traitsAll ?? [])
+    .map((trait) => normalizeText(trait))
+    .filter(Boolean);
+  for (const trait of includedTraitsAll) {
     appendWhereClause(
       sql,
       params,
       "AND EXISTS (SELECT 1 FROM record_traits rt WHERE rt.record_key = r.record_key AND rt.trait = ?)",
-      normalizeText(trait),
+      trait,
     );
   }
 
-  if (filters.traitsAny && filters.traitsAny.length > 0) {
-    const placeholders = filters.traitsAny.map(() => "?").join(", ");
+  const includedTraitsAny = (filters.traitsAny ?? [])
+    .map((trait) => normalizeText(trait))
+    .filter(Boolean);
+  if (includedTraitsAny.length > 0) {
+    const placeholders = includedTraitsAny.map(() => "?").join(", ");
     appendWhereClause(
       sql,
       params,
       `AND EXISTS (SELECT 1 FROM record_traits rt WHERE rt.record_key = r.record_key AND rt.trait IN (${placeholders}))`,
-      ...filters.traitsAny.map((trait) => normalizeText(trait)),
+      ...includedTraitsAny,
+    );
+  }
+
+  const excludedTraits = (filters.excludeTraits ?? [])
+    .map((trait) => normalizeText(trait))
+    .filter(Boolean);
+  if (excludedTraits.length > 0) {
+    const placeholders = excludedTraits.map(() => "?").join(", ");
+    appendWhereClause(
+      sql,
+      params,
+      `AND NOT EXISTS (SELECT 1 FROM record_traits rt WHERE rt.record_key = r.record_key AND rt.trait IN (${placeholders}))`,
+      ...excludedTraits,
     );
   }
 
@@ -1880,8 +1923,11 @@ function validateFilters(filters: SearchFilters, context: "list" | "search"): vo
     throw new Error("query requires a themed search profile such as balanced or concept.");
   }
 
-  if (filters.coreOnly && filters.excludeAdventureContent) {
-    throw new Error("coreOnly already excludes adventure content.");
+  if (filters.sources && filters.excludeSources) {
+    const overlappingSources = filters.sources.filter((source) => filters.excludeSources?.includes(source));
+    if (overlappingSources.length > 0) {
+      throw new Error(`sources and excludeSources overlap: ${overlappingSources.join(", ")}`);
+    }
   }
 }
 
@@ -2388,8 +2434,8 @@ export class Pf2eDataService {
           nameQuery: query.name,
           pack: query.pack,
           category: query.category,
-          subcategory: query.subcategory,
-          coreOnly: true,
+          subcategories: query.subcategory ? [query.subcategory] : undefined,
+          sources: ["core"],
           limit: 5,
         }).records;
         return {
@@ -2748,7 +2794,7 @@ export class Pf2eDataService {
       nameQuery: name,
       pack: options.pack,
       category: options.category,
-      subcategory: options.subcategory,
+      subcategories: options.subcategory ? [options.subcategory] : undefined,
       limit: 5,
     }).records;
 

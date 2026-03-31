@@ -8,7 +8,7 @@ import { CATEGORY_SUBCATEGORY_MAP } from "./categories.js";
 import { loadConfig } from "./config.js";
 import { Pf2eDataService } from "./pf2e-data.js";
 import { RankingConfigStore } from "./ranking-config.js";
-import { searchCategorySchema, searchProfileSchema } from "./tool-schemas.js";
+import { searchCategorySchema, searchProfileSchema, sourceCategorySchema } from "./tool-schemas.js";
 import { NormalizedRecord, PackInfo, RecordDetail, RuleReferenceEdge, SearchRecordExplanation } from "./types.js";
 
 function summarizeRecord(
@@ -142,9 +142,14 @@ async function main(): Promise<void> {
               description: "Best first cut for separating creatures, hazards, spells, equipment, lore, and other user-facing PF2E families.",
             },
             {
-              name: "subcategory",
+              name: "subcategories",
               strength: "within-category boundary",
-              description: "Useful for narrower families such as hazards/haunt, equipment/consumable, or lore/deity.",
+              description: "Include one or more narrower families such as hazards/haunt, equipment/consumable, or lore/deity.",
+            },
+            {
+              name: "excludeSubcategories",
+              strength: "hard exclusion",
+              description: "Exclude one or more within-category families such as omitting haunt from a broader hazards search.",
             },
             {
               name: "traitsAny",
@@ -155,6 +160,21 @@ async function main(): Promise<void> {
               name: "traitsAll",
               strength: "strict backstop",
               description: "Best for deterministic narrowing when multiple taxonomy terms are essential.",
+            },
+            {
+              name: "excludeTraits",
+              strength: "hard exclusion",
+              description: "Exclude Pathfinder-native tags when certain traits are disallowed.",
+            },
+            {
+              name: "sources",
+              strength: "hard boundary",
+              description: "Include one or more source families such as core, rules, adventure, or unknown.",
+            },
+            {
+              name: "excludeSources",
+              strength: "hard exclusion",
+              description: "Exclude one or more source families such as omitting adventure records from a broader search.",
             },
             {
               name: "tradition",
@@ -201,6 +221,11 @@ async function main(): Promise<void> {
           tagGuidance: {
             traitsAny: "Pathfinder-native tags. Use for soft narrowing when any listed tag is acceptable.",
             traitsAll: "Pathfinder-native tags. Use for strict narrowing when every listed tag is essential.",
+            excludeTraits: "Pathfinder-native tags. Use for explicit exclusions when listed tags must not be present.",
+            subcategories: "Structured within-category inclusions. Useful for narrowing to specific public families.",
+            excludeSubcategories: "Structured within-category exclusions. Useful for queries like hazards except haunts.",
+            sources: "Structured source-family inclusions. Useful for pinning a search to core, rules, adventure, or unknown records.",
+            excludeSources: "Structured source-family exclusions. Useful for omitting one or more source families from a broader search.",
             note: "The server no longer infers hidden semantic tags or taxonomy terms from theme text.",
           },
           vocabulary,
@@ -269,18 +294,20 @@ async function main(): Promise<void> {
       inputSchema: {
         pack: z.string().describe("Pack name or label."),
         category: searchCategorySchema.optional().describe("Optional top-level category boundary."),
-        subcategory: z.string().optional().describe("Optional within-category boundary."),
+        subcategories: z.array(z.string()).optional().describe("Include one or more within-category boundaries."),
+        excludeSubcategories: z.array(z.string()).optional().describe("Exclude one or more within-category boundaries."),
         levelMin: z.number().int().optional().describe("Minimum level inclusive."),
         levelMax: z.number().int().optional().describe("Maximum level inclusive."),
         rarity: z.string().optional().describe("Rarity filter, for example common or uncommon."),
         traitsAll: z.array(z.string()).optional().describe("All listed traits must be present."),
         traitsAny: z.array(z.string()).optional().describe("At least one listed trait must be present."),
+        excludeTraits: z.array(z.string()).optional().describe("Listed traits must not be present."),
+        sources: z.array(sourceCategorySchema).optional().describe("Restrict results to the listed source families."),
+        excludeSources: z.array(sourceCategorySchema).optional().describe("Exclude results from the listed source families."),
         tradition: z.string().optional().describe("Explicit spell tradition filter."),
         publicationTitle: z.string().optional().describe("Publication title contains this text."),
         excludeUnique: z.boolean().optional().describe("Exclude unique records."),
         excludeMissingDescription: z.boolean().optional().describe("Exclude records without description or lore text."),
-        excludeAdventureContent: z.boolean().optional().describe("Exclude records sourced from adventures, scenarios, quests, and one-shots."),
-        coreOnly: z.boolean().optional().describe("Restrict results to core publications only."),
         size: z.string().optional().describe("Actor size filter."),
         priceMin: z.number().optional().describe("Minimum item price in copper pieces."),
         priceMax: z.number().optional().describe("Maximum item price in copper pieces."),
@@ -319,18 +346,20 @@ async function main(): Promise<void> {
         query: z.string().optional().describe("General free-text search input. Prefer one short natural-language phrase or sentence with 1-3 concrete anchor terms. Avoid long comma-separated keyword lists by default. If searchProfile is omitted, query defaults search to the balanced profile."),
         pack: z.string().optional().describe("Optional pack name or label."),
         category: searchCategorySchema.optional().describe("Optional top-level category boundary."),
-        subcategory: z.string().optional().describe("Optional within-category boundary."),
+        subcategories: z.array(z.string()).optional().describe("Include one or more within-category boundaries."),
+        excludeSubcategories: z.array(z.string()).optional().describe("Exclude one or more within-category boundaries."),
         levelMin: z.number().int().optional().describe("Minimum level inclusive."),
         levelMax: z.number().int().optional().describe("Maximum level inclusive."),
         rarity: z.string().optional().describe("Rarity filter."),
         traitsAll: z.array(z.string()).optional().describe("All listed traits must be present."),
         traitsAny: z.array(z.string()).optional().describe("At least one listed trait must be present."),
+        excludeTraits: z.array(z.string()).optional().describe("Listed traits must not be present."),
+        sources: z.array(sourceCategorySchema).optional().describe("Restrict results to the listed source families."),
+        excludeSources: z.array(sourceCategorySchema).optional().describe("Exclude results from the listed source families."),
         tradition: z.string().optional().describe("Explicit spell tradition filter."),
         publicationTitle: z.string().optional().describe("Publication title contains this text."),
         excludeUnique: z.boolean().optional().describe("Exclude unique records."),
         excludeMissingDescription: z.boolean().optional().describe("Exclude records without description or lore text."),
-        excludeAdventureContent: z.boolean().optional().describe("Exclude records sourced from adventures, scenarios, quests, and one-shots."),
-        coreOnly: z.boolean().optional().describe("Restrict results to core publications only."),
         size: z.string().optional().describe("Actor size filter."),
         priceMin: z.number().optional().describe("Minimum item price in copper pieces."),
         priceMax: z.number().optional().describe("Maximum item price in copper pieces."),
