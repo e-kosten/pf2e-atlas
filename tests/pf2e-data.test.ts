@@ -1,13 +1,16 @@
+import { execFile } from "node:child_process";
 import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { promisify } from "node:util";
 
 import { afterEach, describe, expect, it } from "vitest";
 
 import { Pf2eDataService } from "../src/pf2e-data.js";
 import { RankingConfigStore } from "../src/ranking-config.js";
 
+const execFileAsync = promisify(execFile);
 const TEST_HASH_EMBEDDING = {
   provider: "hash" as const,
   modelId: "feature-hash-192",
@@ -38,6 +41,14 @@ async function openPreparedTestService(
     embedding: TEST_HASH_EMBEDDING,
     ...options,
   });
+}
+
+async function initializeGitFixture(root: string): Promise<void> {
+  await execFileAsync("git", ["init", "-b", "main"], { cwd: root });
+  await execFileAsync("git", ["config", "user.name", "PF2E Test"], { cwd: root });
+  await execFileAsync("git", ["config", "user.email", "pf2e-test@example.com"], { cwd: root });
+  await execFileAsync("git", ["add", "."], { cwd: root });
+  await execFileAsync("git", ["commit", "-m", "Initial fixture"], { cwd: root });
 }
 
 function createFakeEmbeddingProviderFactory(
@@ -1353,6 +1364,64 @@ describe("Pf2eDataService", () => {
     expect(rebuiltService.getStats()).toEqual({ packCount: 7, recordCount: 24 });
     expect(rebuiltService.lookup("Sea Ghoul", { category: "creatures" }).match?.name).toBe("Sea Ghoul");
     rebuiltService.close();
+  });
+
+  it("treats untracked JSON files in git checkouts as stale source changes", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+    await initializeGitFixture(fixture.root);
+    const indexPath = path.join(fixture.root, ".cache", "pf2e-index.sqlite");
+
+    const firstService = await loadTestService(fixture, { indexPath });
+    expect(firstService.getStats()).toEqual({ packCount: 7, recordCount: 23 });
+    firstService.close();
+
+    await writeJson(path.join(fixture.root, "packs", "pf2e", "pathfinder-monster-core", "sea-ghoul-untracked.json"), {
+      _id: "monster-untracked",
+      name: "Sea Ghoul Scout",
+      type: "npc",
+      system: {
+        details: {
+          level: {
+            value: 2,
+          },
+          publication: {
+            title: "Pathfinder Monster Core",
+          },
+          publicNotes: "<p>An untracked undead sailor.</p>",
+        },
+        traits: {
+          rarity: "common",
+          value: ["undead", "water"],
+          size: {
+            value: "med",
+          },
+        },
+      },
+    });
+
+    await expect(openPreparedTestService(fixture, { indexPath })).rejects.toThrow(/index .* stale/i);
+
+    const rebuiltService = await loadTestService(fixture, { indexPath });
+    expect(rebuiltService.lookup("Sea Ghoul Scout", { category: "creatures" }).match?.name).toBe("Sea Ghoul Scout");
+    rebuiltService.close();
+  });
+
+  it("returns indexed raw data even when the source file is gone", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+
+    const service = await loadTestService(fixture);
+    const sourcePath = path.join(fixture.root, "packs", "pf2e", "actions", "raise-a-shield.json");
+    await import("node:fs/promises").then(({ rm }) => rm(sourcePath, { force: true }));
+
+    const record = service.getRecord("actions:shield1");
+    expect(record?.name).toBe("Raise a Shield");
+    expect(record?.raw).toMatchObject({
+      _id: "shield1",
+      name: "Raise a Shield",
+      type: "action",
+    });
   });
 
   it("rebuilds the index when embedding identity changes", async () => {

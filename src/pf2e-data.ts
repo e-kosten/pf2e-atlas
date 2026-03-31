@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import { mkdir, readdir, readFile, rm, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -48,7 +47,7 @@ import {
 import { buildLiteralQueryWeights, buildSearchQueryAnalysis } from "./search-query-analysis.js";
 
 const execFileAsync = promisify(execFile);
-const INDEX_SCHEMA_VERSION = 6;
+const INDEX_SCHEMA_VERSION = 7;
 
 type LoadOptions = {
   indexPath?: string;
@@ -91,6 +90,7 @@ type CandidateRow = {
   bulkValue: number | null;
   actionCost: number | null;
   traditionsJson: string | null;
+  rawJson?: string | null;
   searchText?: string | null;
   embeddingBlob?: Uint8Array | null;
 };
@@ -931,7 +931,8 @@ function extractRulesReferences(raw: Record<string, unknown>): ExtractedReferenc
   return extracted;
 }
 
-function rowToRecord(row: CandidateRow, raw: Record<string, unknown> = {}): NormalizedRecord {
+function rowToRecord(row: CandidateRow, raw: Record<string, unknown> | null = null): NormalizedRecord {
+  const resolvedRaw = raw ?? (row.rawJson ? JSON.parse(row.rawJson) as Record<string, unknown> : {});
   return {
     recordKey: row.recordKey,
     id: row.id,
@@ -960,7 +961,7 @@ function rowToRecord(row: CandidateRow, raw: Record<string, unknown> = {}): Norm
     bulkValue: row.bulkValue,
     actionCost: row.actionCost,
     traditions: row.traditionsJson ? (JSON.parse(row.traditionsJson) as string[]) : [],
-    raw,
+    raw: resolvedRaw,
   };
 }
 
@@ -1094,19 +1095,35 @@ async function isGitCheckout(rootPath: string): Promise<boolean> {
 async function computeSourceSignature(rootPath: string, manifestPath: string): Promise<string> {
   if (await isGitCheckout(rootPath)) {
     try {
-      const [{ stdout: headStdout }, { stdout: statusStdout }] = await Promise.all([
+      const [{ stdout: headStdout }, { stdout: statusStdout }, { stdout: untrackedStdout }] = await Promise.all([
         execFileAsync("git", ["-C", rootPath, "rev-parse", "HEAD"], { timeout: 10_000 }),
         execFileAsync("git", ["-C", rootPath, "status", "--porcelain", "--untracked-files=no"], { timeout: 10_000 }),
+        execFileAsync(
+          "git",
+          ["-C", rootPath, "ls-files", "--others", "--exclude-standard", "--full-name", "--", "*.json", ":(glob)**/*.json"],
+          { timeout: 10_000 },
+        ),
       ]);
       const head = headStdout.trim();
       const dirty = statusStdout.trim();
-      return `git:${head}:${dirty}`;
+      const untrackedJsonFiles = untrackedStdout
+        .split(/\r?\n/)
+        .map((filePath) => filePath.trim())
+        .filter(Boolean)
+        .map((filePath) => path.join(rootPath, filePath));
+      const untrackedJsonSignature = await computeFileSignature(rootPath, untrackedJsonFiles);
+      return `git:${head}:${dirty}:${untrackedJsonSignature}`;
     } catch {
       // Fall through to filesystem signature.
     }
   }
 
-  const files = [manifestPath, ...(await walkJsonFiles(rootPath))].sort((left, right) => left.localeCompare(right));
+  const files = [manifestPath, ...(await walkJsonFiles(rootPath))];
+  return `fs:${await computeFileSignature(rootPath, files)}`;
+}
+
+async function computeFileSignature(rootPath: string, filePaths: string[]): Promise<string> {
+  const files = [...new Set(filePaths)].sort((left, right) => left.localeCompare(right));
   let hash = 2166136261;
   for (const filePath of files) {
     const details = await stat(filePath);
@@ -1115,7 +1132,7 @@ async function computeSourceSignature(rootPath: string, manifestPath: string): P
     hash = Math.imul(hash, 16777619);
   }
 
-  return `fs:${hash >>> 0}`;
+  return String(hash >>> 0);
 }
 
 function createSchema(db: DatabaseSync): void {
@@ -1161,7 +1178,8 @@ function createSchema(db: DatabaseSync): void {
       folder_id TEXT,
       source_path TEXT NOT NULL,
       is_unique INTEGER NOT NULL,
-      search_text TEXT NOT NULL
+      search_text TEXT NOT NULL,
+      raw_json TEXT NOT NULL
     );
 
     CREATE TABLE record_traits (
@@ -1290,8 +1308,8 @@ async function buildIndex(
     INSERT INTO records (
       record_key, id, name, normalized_name, category, subcategories_json, pack_name, pack_label, document_type, record_type,
       level, rarity, traits_json, publication_title, description_text, has_description, description_snippet,
-      source_category, folder_id, source_path, is_unique, search_text
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      source_category, folder_id, source_path, is_unique, search_text, raw_json
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const insertTrait = db.prepare(`
     INSERT INTO record_traits (record_key, trait) VALUES (?, ?)
@@ -1422,6 +1440,7 @@ async function buildIndex(
           record.sourcePath,
           record.isUnique ? 1 : 0,
           record.searchText,
+          JSON.stringify(raw),
         );
 
         for (const trait of record.traits) {
@@ -2247,7 +2266,8 @@ export class Pf2eDataService {
                 i.price_cp AS priceCp,
                 i.bulk_value AS bulkValue,
                 COALESCE(s.action_cost, i.action_cost) AS actionCost,
-                s.traditions_json AS traditionsJson
+                s.traditions_json AS traditionsJson,
+                r.raw_json AS rawJson
               FROM records r
               LEFT JOIN actor_records a ON a.record_key = r.record_key
               LEFT JOIN item_records i ON i.record_key = r.record_key
@@ -2286,7 +2306,8 @@ export class Pf2eDataService {
                 i.price_cp AS priceCp,
                 i.bulk_value AS bulkValue,
                 COALESCE(s.action_cost, i.action_cost) AS actionCost,
-                s.traditions_json AS traditionsJson
+                s.traditions_json AS traditionsJson,
+                r.raw_json AS rawJson
               FROM records r
               LEFT JOIN actor_records a ON a.record_key = r.record_key
               LEFT JOIN item_records i ON i.record_key = r.record_key
@@ -2300,8 +2321,7 @@ export class Pf2eDataService {
       return undefined;
     }
 
-    const raw = JSON.parse(readFileSyncUtf8(row.sourcePath)) as Record<string, unknown>;
-    return rowToRecord(row, raw);
+    return rowToRecord(row);
   }
 
   getRecordsByKeys(recordKeys: string[]): NormalizedRecord[] {
@@ -2689,8 +2709,4 @@ export class Pf2eDataService {
       alternatives: results.slice(1),
     };
   }
-}
-
-function readFileSyncUtf8(filePath: string): string {
-  return readFileSync(filePath, "utf8");
 }

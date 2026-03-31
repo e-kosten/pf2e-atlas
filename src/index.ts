@@ -4,10 +4,11 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import * as z from "zod/v4";
 
-import { CATEGORY_SUBCATEGORY_MAP, SEARCH_CATEGORIES } from "./categories.js";
+import { CATEGORY_SUBCATEGORY_MAP } from "./categories.js";
 import { loadConfig } from "./config.js";
 import { Pf2eDataService } from "./pf2e-data.js";
 import { RankingConfigStore } from "./ranking-config.js";
+import { listRecordsModeSchema, searchCategorySchema, searchModeSchema } from "./tool-schemas.js";
 import { NormalizedRecord, PackInfo, RecordDetail, RuleReferenceEdge, SearchRecordExplanation } from "./types.js";
 
 function summarizeRecord(
@@ -93,8 +94,6 @@ function summarizeEdge(edge: RuleReferenceEdge): Record<string, unknown> {
     sourceCategory: edge.sourceCategory,
   };
 }
-
-const searchCategorySchema = z.enum(SEARCH_CATEGORIES);
 
 async function main(): Promise<void> {
   const config = await loadConfig();
@@ -250,7 +249,7 @@ async function main(): Promise<void> {
     {
       description: "List records inside a specific PF2E pack/category with optional filters.",
       inputSchema: {
-        mode: z.enum(["structured", "lexical", "hybrid"]).optional().describe("Retrieval mode. Defaults to structured."),
+        mode: listRecordsModeSchema.optional().describe("Retrieval mode. Only structured is supported, and it is the default."),
         rankingProfile: z.enum(["default", "preferReusableReferenceContent"]).optional().describe("Optional ranking preference profile."),
         pack: z.string().describe("Pack name or label."),
         category: searchCategorySchema.optional().describe("Optional top-level category boundary."),
@@ -298,7 +297,7 @@ async function main(): Promise<void> {
     {
       description: "Search PF2E records across packs using category-first boundaries, name lookup, and thematic filters.",
       inputSchema: {
-        mode: z.enum(["structured", "lexical", "hybrid"]).optional().describe("Retrieval mode. Defaults to structured, or hybrid when themeQuery is present and mode is omitted."),
+        mode: searchModeSchema.optional().describe("Retrieval mode. Defaults to structured, or hybrid when themeQuery is present and mode is omitted."),
         rankingProfile: z.enum(["default", "preferReusableReferenceContent"]).optional().describe("Optional ranking preference profile."),
         explain: z.boolean().optional().describe("Include score breakdowns and query-analysis details in the response."),
         nameQuery: z.string().optional().describe("Name text to search for."),
