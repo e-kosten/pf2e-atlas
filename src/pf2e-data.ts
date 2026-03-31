@@ -45,7 +45,7 @@ import {
   toStringArray,
   uniqueSorted,
 } from "./utils.js";
-import { buildCandidateQueryWeights, buildSearchQueryAnalysis, inferSearchCategorySelection } from "./search-expansion.js";
+import { buildCandidateQueryWeights, buildSearchQueryAnalysis } from "./search-expansion.js";
 
 const execFileAsync = promisify(execFile);
 const INDEX_SCHEMA_VERSION = 6;
@@ -2506,25 +2506,17 @@ export class Pf2eDataService {
     const offset = clampOffset(filters.offset);
     const mode = resolveSearchMode(filters, "search");
     const rawLexicalQuery = filters.themeQuery?.trim() || filters.nameQuery?.trim() || "";
-    const preliminaryAnalysis = rawLexicalQuery
-      ? buildSearchQueryAnalysis(rawLexicalQuery, filters, { expandQuery: filters.expandQuery ?? true })
-      : null;
-    const inferredBoundary = rawLexicalQuery && !filters.category && !filters.subcategory
-      ? inferSearchCategorySelection(rawLexicalQuery, filters, preliminaryAnalysis)
-      : { category: filters.category ?? null, subcategory: filters.subcategory ? normalizeText(filters.subcategory) : null };
     const effectiveFilters: SearchFilters = {
       ...filters,
-      category: filters.category ?? inferredBoundary.category ?? undefined,
-      subcategory: filters.subcategory ?? inferredBoundary.subcategory ?? undefined,
     };
     const shouldIncludeSearchText = Boolean(effectiveFilters.themeQuery || effectiveFilters.nameQuery || mode !== "structured");
     const shouldIncludeEmbedding = Boolean(mode === "hybrid" && effectiveFilters.themeQuery);
     const rankingConfig = this.rankingConfigStore?.getConfig() ?? DEFAULT_RANKING_CONFIG;
     let candidates = this.fetchCandidates(effectiveFilters, shouldIncludeSearchText, shouldIncludeEmbedding);
     const queryAnalysis = rawLexicalQuery
-      ? buildSearchQueryAnalysis(rawLexicalQuery, effectiveFilters, { expandQuery: effectiveFilters.expandQuery ?? true })
+      ? buildSearchQueryAnalysis(rawLexicalQuery)
       : null;
-    const lexicalQuery = queryAnalysis?.expandedQuery ?? rawLexicalQuery;
+    const lexicalQuery = queryAnalysis?.normalizedQuery ?? rawLexicalQuery;
     const lexicalMatches = lexicalQuery ? this.fetchFtsMatches(lexicalQuery) : new Map<string, number>();
 
     if (mode === "lexical" && lexicalQuery && lexicalMatches.size > 0) {
@@ -2532,7 +2524,7 @@ export class Pf2eDataService {
     }
 
     const semanticVector = mode === "hybrid" && queryAnalysis
-      ? await this.embeddingProvider.embed(queryAnalysis.expandedQuery)
+      ? await this.embeddingProvider.embed(queryAnalysis.normalizedQuery)
       : null;
 
     const scored = candidates
@@ -2629,7 +2621,6 @@ export class Pf2eDataService {
           matchedTraits: themeTraits.matchedTokens,
           matchedNameTokens: themeName.matchedTokens,
           matchedMetadataTokens: themeMetadata.matchedTokens,
-          matchedRuleIds: candidateQueryWeights?.matchedRuleIds ?? [],
           components,
         };
 
@@ -2660,20 +2651,12 @@ export class Pf2eDataService {
       ? {
           mode,
           lexicalQuery: rawLexicalQuery,
-          semanticQuery: queryAnalysis?.expandedQuery ?? "",
+          semanticQuery: queryAnalysis?.normalizedQuery ?? "",
           query: queryAnalysis
             ? {
                 rawQuery: queryAnalysis.rawQuery,
                 normalizedQuery: queryAnalysis.normalizedQuery,
                 queryTokens: queryAnalysis.queryTokens,
-                expandedQuery: queryAnalysis.expandedQuery,
-                inferredCategory: queryAnalysis.inferredCategory,
-                inferredSubcategory: queryAnalysis.inferredSubcategory,
-                boostedTraits: queryAnalysis.boostedTraits,
-                boostedNameTokens: queryAnalysis.boostedNameTokens,
-                boostedMetadataTokens: queryAnalysis.boostedMetadataTokens,
-                matchedRules: queryAnalysis.matchedRules,
-                skippedRules: queryAnalysis.skippedRules,
               }
             : null,
           rankingConfig: this.getRankingConfigStatus(),

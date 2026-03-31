@@ -109,7 +109,6 @@ Example MCP client entry:
 - `pf2e_get_pack_metadata`
 - `pf2e_list_records`
 - `pf2e_get_search_semantics`
-- `pf2e_plan_search`
 - `pf2e_search`
 - `pf2e_lookup`
 - `pf2e_get_rules_context`
@@ -124,23 +123,20 @@ Search and list responses include:
 - `descriptionSnippet` for lightweight discovery
 - `sourceCategory` to distinguish core, rules, adventure, and unknown sources
 - `searchExplain` on records when `pf2e_search` is called with `explain: true`
-- `explain.query` details for query expansion when `pf2e_search` is called with `explain: true`
+- `explain.query` details for literal query normalization when `pf2e_search` is called with `explain: true`
 
 ## Notes
 
 - The server is read-only.
 - Search is category-first. Use `category` and optional `subcategory` as the main boundaries instead of raw Foundry `recordType`, `documentType`, or `itemCategory`.
-- Clear `themeQuery` intent can infer `category` and `subcategory` automatically when the caller does not provide them.
 - `pf2e_search` defaults to `hybrid` when `themeQuery` is present and `mode` is omitted.
-- `pf2e_search` enables server-managed query expansion for `themeQuery` by default; set `expandQuery: false` to disable it.
-- `pf2e_get_search_semantics` exposes the indexed vocabulary and ontology domains the server understands.
-- `pf2e_plan_search` translates natural-language intent into server-native search payloads, structured backstops, and preview results.
+- `pf2e_get_search_semantics` is the primary discovery surface for categories, subcategories, Pathfinder-native tags, and supported filters.
 - Search now uses a local SQLite index with:
   - shared structured filters
   - FTS-backed lexical search
   - hybrid semantic reranking over filtered candidates
   - explicit name, trait, metadata, and description scoring with optional explain output
-  - a checked-in query expansion rule set with scope-aware boosts for traits, names, and metadata tokens
+  - no server-side query expansion or hidden semantic-tag inference
 - Semantic search is implemented with local application-side vector scoring after SQLite hard filters.
 - When `hf-local` is configured, the embedding model must already be prepared locally with `npm run refresh-embeddings` or `npm run refresh-external`.
 - The SQLite index must already be prepared locally with `npm run refresh-index` or `npm run refresh-external`.

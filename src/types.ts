@@ -89,7 +89,6 @@ export interface SearchFilters {
   mode?: SearchMode;
   rankingProfile?: RankingProfile;
   explain?: boolean;
-  expandQuery?: boolean;
   nameQuery?: string;
   themeQuery?: string;
   pack?: string;
@@ -146,46 +145,6 @@ export interface SearchQueryAnalysis {
   rawQuery: string;
   normalizedQuery: string;
   queryTokens: string[];
-  expandedQuery: string;
-  inferredCategory: SearchCategory | null;
-  inferredSubcategory: string | null;
-  boostedTraits: string[];
-  boostedNameTokens: string[];
-  boostedMetadataTokens: string[];
-  matchedRules: SearchMatchedRule[];
-  skippedRules: SearchSkippedRule[];
-}
-
-export interface SearchExpansionScope {
-  categories?: SearchCategory[];
-  subcategories?: string[];
-  packNames?: string[];
-  sourceCategories?: SourceCategory[];
-}
-
-export interface SearchAppliedBoost {
-  token: string;
-  weight: number;
-}
-
-export interface SearchMatchedRule {
-  id: string;
-  label: string;
-  matchedTriggers: string[];
-  scope?: SearchExpansionScope;
-  appliedBoosts: {
-    traits: SearchAppliedBoost[];
-    nameTokens: SearchAppliedBoost[];
-    metadataTokens: SearchAppliedBoost[];
-  };
-}
-
-export interface SearchSkippedRule {
-  id: string;
-  label: string;
-  matchedTriggers: string[];
-  scope?: SearchExpansionScope;
-  reason: "scope_mismatch" | "expansion_disabled";
 }
 
 export interface SearchRecordExplanation {
@@ -197,7 +156,6 @@ export interface SearchRecordExplanation {
   matchedTraits: string[];
   matchedNameTokens: string[];
   matchedMetadataTokens: string[];
-  matchedRuleIds: string[];
   components: {
     fullTextSearch: number;
     metadataText: number;

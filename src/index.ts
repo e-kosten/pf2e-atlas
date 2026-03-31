@@ -4,11 +4,11 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import * as z from "zod/v4";
 
+import { CATEGORY_SUBCATEGORY_MAP } from "./categories.js";
 import { loadConfig } from "./config.js";
 import { Pf2eDataService } from "./pf2e-data.js";
 import { RankingConfigStore } from "./ranking-config.js";
-import { buildSearchPlan, summarizeExpansionRules } from "./search-planning.js";
-import { NormalizedRecord, PackInfo, RecordDetail, RuleReferenceEdge, SearchFilters, SearchRecordExplanation } from "./types.js";
+import { NormalizedRecord, PackInfo, RecordDetail, RuleReferenceEdge, SearchRecordExplanation } from "./types.js";
 
 function summarizeRecord(
   record: NormalizedRecord,
@@ -94,18 +94,6 @@ function summarizeEdge(edge: RuleReferenceEdge): Record<string, unknown> {
   };
 }
 
-function summarizeSearchPreview(label: string, purpose: string, result: { total: number; records: NormalizedRecord[] }, args: SearchFilters): Record<string, unknown> {
-  return {
-    label,
-    purpose,
-    arguments: args,
-    preview: {
-      total: result.total,
-      records: result.records.slice(0, 5).map((record) => summarizeRecord(record, "minimal")),
-    },
-  };
-}
-
 async function main(): Promise<void> {
   const config = await loadConfig();
   const rankingConfigStore = await RankingConfigStore.create(config.ranking.configPath);
@@ -131,19 +119,18 @@ async function main(): Promise<void> {
   server.registerTool(
     "pf2e_get_search_semantics",
     {
-      description: "Describe the category-first search ontology, indexed vocabulary, and structured filters that thematic PF2E retrieval understands.",
+      description: "Describe the explicit category-first search ontology, Pathfinder-native tags, and structured filters available to the calling agent.",
       inputSchema: {
         traitLimitPerCategory: z.number().int().min(3).max(25).optional().describe("Maximum common traits to return per category. Defaults to 12."),
       },
     },
     async ({ traitLimitPerCategory }) => {
       const vocabulary = dataService.getSearchVocabulary({ traitLimitPerCategory });
-      const domains = summarizeExpansionRules();
       return {
         content: [
           {
             type: "text",
-            text: `Search semantics expose ${domains.length} ontology domains across ${vocabulary.categories.length} top-level categories.`,
+            text: `Search semantics expose ${vocabulary.categories.length} top-level categories and Pathfinder-native filtering vocabulary.`,
           },
         ],
         structuredContent: {
@@ -175,84 +162,30 @@ async function main(): Promise<void> {
             },
             {
               name: "themeQuery",
-              strength: "semantic text",
-              description: "Broad lexical/hybrid retrieval input that works best when bounded by other filters.",
+              strength: "literal text",
+              description: "Broad lexical and semantic retrieval input. The server does not expand or reinterpret it beyond normalization.",
             },
           ],
           retrievalPatterns: [
             {
               name: "bounded_hybrid",
-              description: "Use broad semantic search inside category and subcategory boundaries, plus level bounds and traits when helpful.",
-            },
-            {
-              name: "trait_hinted_rerun",
-              description: "When broad vibe search is noisy, rerun hybrid mode with server-recognized traitsAny terms.",
+              description: "Use broad semantic search inside explicit category and subcategory boundaries, plus level bounds and Pathfinder-native traits when helpful.",
             },
             {
               name: "structured_backstop",
-              description: "Use structured traitsAny or traitsAll when the query maps cleanly to indexed taxonomy.",
+              description: "Use structured traitsAny or traitsAll when the query maps cleanly to explicit Pathfinder-native tags.",
             },
           ],
           categories: vocabulary.categories,
           subcategories: vocabulary.subcategories,
-          ontologyDomains: domains,
+          subcategoriesByCategory: CATEGORY_SUBCATEGORY_MAP,
+          tagGuidance: {
+            traitsAny: "Pathfinder-native tags. Use for soft narrowing when any listed tag is acceptable.",
+            traitsAll: "Pathfinder-native tags. Use for strict narrowing when every listed tag is essential.",
+            note: "The server no longer infers hidden semantic tags or taxonomy terms from theme text.",
+          },
           vocabulary,
           rankingConfig: dataService.getRankingConfigStatus(),
-        },
-      };
-    },
-  );
-
-  server.registerTool(
-    "pf2e_plan_search",
-    {
-      description: "Translate natural-language PF2E search intent into category-first search payloads, recognized semantics, and structured backstops.",
-      inputSchema: {
-        intent: z.string().describe("Natural-language description of the retrieval goal."),
-        mode: z.enum(["structured", "lexical", "hybrid"]).optional().describe("Optional retrieval mode hint."),
-        rankingProfile: z.enum(["default", "preferReusableReferenceContent"]).optional().describe("Optional ranking preference profile."),
-        expandQuery: z.boolean().optional().describe("Enable server-managed query expansion while planning. Defaults to true."),
-        pack: z.string().optional().describe("Optional pack name or label."),
-        category: z.enum(["equipment", "feats", "creatures", "hazards", "afflictions", "rules", "spells", "characterCreation", "lore"]).optional().describe("Optional top-level category hint."),
-        subcategory: z.string().optional().describe("Optional within-category hint, for example consumable, haunt, deity, or archetype."),
-        levelMin: z.number().int().optional().describe("Minimum level inclusive."),
-        levelMax: z.number().int().optional().describe("Maximum level inclusive."),
-        rarity: z.string().optional().describe("Rarity filter."),
-        traitsAny: z.array(z.string()).optional().describe("Pre-existing traitsAny hints to preserve in recommended queries."),
-        traitsAll: z.array(z.string()).optional().describe("Pre-existing traitsAll hints to preserve in recommended queries."),
-        tradition: z.string().optional().describe("Optional spell tradition hint."),
-        publicationTitle: z.string().optional().describe("Publication title contains this text."),
-        excludeUnique: z.boolean().optional().describe("Exclude unique records."),
-        excludeMissingDescription: z.boolean().optional().describe("Exclude records without description or lore text."),
-        excludeAdventureContent: z.boolean().optional().describe("Exclude records sourced from adventures, scenarios, quests, and one-shots."),
-        coreOnly: z.boolean().optional().describe("Restrict results to core publications only."),
-        size: z.string().optional().describe("Actor size filter."),
-        priceMin: z.number().optional().describe("Minimum item price in copper pieces."),
-        priceMax: z.number().optional().describe("Maximum item price in copper pieces."),
-        actionCost: z.number().int().optional().describe("Action cost filter."),
-      },
-    },
-    async ({ intent, ...filters }) => {
-      const plan = buildSearchPlan(intent, filters);
-      const previews = await Promise.all(plan.recommendedQueries.slice(0, 4).map(async (query) => {
-        const previewResult = await dataService.search({
-          ...query.arguments,
-          limit: 5,
-          explain: false,
-        });
-        return summarizeSearchPreview(query.label, query.purpose, previewResult, query.arguments);
-      }));
-
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Planned ${plan.recommendedQueries.length} search path${plan.recommendedQueries.length === 1 ? "" : "s"} for "${intent}".`,
-          },
-        ],
-        structuredContent: {
-          ...plan,
-          previews,
         },
       };
     },
@@ -366,7 +299,6 @@ async function main(): Promise<void> {
         mode: z.enum(["structured", "lexical", "hybrid"]).optional().describe("Retrieval mode. Defaults to structured, or hybrid when themeQuery is present and mode is omitted."),
         rankingProfile: z.enum(["default", "preferReusableReferenceContent"]).optional().describe("Optional ranking preference profile."),
         explain: z.boolean().optional().describe("Include score breakdowns and query-analysis details in the response."),
-        expandQuery: z.boolean().optional().describe("Enable server-managed query expansion for themeQuery. Defaults to true."),
         nameQuery: z.string().optional().describe("Name text to search for."),
         themeQuery: z.string().optional().describe("Theme or semantic query text. If mode is omitted, themeQuery defaults search to hybrid."),
         pack: z.string().optional().describe("Optional pack name or label."),
