@@ -37,10 +37,6 @@ export interface RankingConfig {
     unique: number;
     themeQueryUniquePenalty: number;
   };
-  rankingProfile: {
-    missingDescriptionPenalty: number;
-    hasDescriptionBoost: number;
-  };
   sourcePenalty: {
     societyMetadataOnlyPenalty: number;
     scenarioScaleSuffixPenalty: number;
@@ -53,7 +49,6 @@ type RankingConfigInput = {
   packQuality?: Partial<RankingConfig["packQuality"]>;
   sourceQuality?: Partial<RankingConfig["sourceQuality"]>;
   rarityPreference?: Partial<RankingConfig["rarityPreference"]>;
-  rankingProfile?: Partial<RankingConfig["rankingProfile"]>;
   sourcePenalty?: Partial<RankingConfig["sourcePenalty"]>;
 };
 
@@ -89,10 +84,6 @@ export const DEFAULT_RANKING_CONFIG: RankingConfig = {
     unique: -0.03,
     themeQueryUniquePenalty: -0.17,
   },
-  rankingProfile: {
-    missingDescriptionPenalty: -0.3,
-    hasDescriptionBoost: 0.12,
-  },
   sourcePenalty: {
     societyMetadataOnlyPenalty: -0.2,
     scenarioScaleSuffixPenalty: -0.1,
@@ -106,7 +97,6 @@ function cloneDefaults(): RankingConfig {
     packQuality: { ...DEFAULT_RANKING_CONFIG.packQuality },
     sourceQuality: { ...DEFAULT_RANKING_CONFIG.sourceQuality },
     rarityPreference: { ...DEFAULT_RANKING_CONFIG.rarityPreference },
-    rankingProfile: { ...DEFAULT_RANKING_CONFIG.rankingProfile },
     sourcePenalty: { ...DEFAULT_RANKING_CONFIG.sourcePenalty },
   };
 }
@@ -160,7 +150,6 @@ function validateRankingConfig(config: RankingConfig): RankingConfig {
     ["packQuality", config.packQuality],
     ["sourceQuality", config.sourceQuality],
     ["rarityPreference", config.rarityPreference],
-    ["rankingProfile", config.rankingProfile],
     ["sourcePenalty", config.sourcePenalty],
   ];
 
@@ -208,7 +197,6 @@ export function mergeRankingConfig(overrides: RankingConfigInput | null | undefi
   merged.packQuality = applySection(merged.packQuality, overrides.packQuality, "packQuality");
   merged.sourceQuality = applySection(merged.sourceQuality, overrides.sourceQuality, "sourceQuality");
   merged.rarityPreference = applySection(merged.rarityPreference, overrides.rarityPreference, "rarityPreference");
-  merged.rankingProfile = applySection(merged.rankingProfile, overrides.rankingProfile, "rankingProfile");
   merged.sourcePenalty = applySection(merged.sourcePenalty, overrides.sourcePenalty, "sourcePenalty");
   return validateRankingConfig(merged);
 }

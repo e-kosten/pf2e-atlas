@@ -39,7 +39,6 @@ export interface PackInfo {
 
 export type SourceCategory = "core" | "rules" | "adventure" | "unknown";
 
-export type RankingProfile = "default" | "preferReusableReferenceContent";
 export type SearchProfile = "lookup" | "balanced" | "concept";
 
 export type SearchCategory =
@@ -88,7 +87,6 @@ export type SearchMode = "structured" | "lexical" | "hybrid";
 
 export interface SearchFilters {
   searchProfile?: SearchProfile;
-  rankingProfile?: RankingProfile;
   explain?: boolean;
   nameQuery?: string;
   query?: string;
@@ -170,7 +168,6 @@ export interface SearchRecordExplanation {
     rarityPreference: number;
     sourcePenalty: number;
     packQuality: number;
-    rankingProfile: number;
   };
 }
 

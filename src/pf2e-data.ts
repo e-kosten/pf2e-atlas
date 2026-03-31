@@ -748,20 +748,6 @@ function rarityPreferenceScore(record: NormalizedRecord, filters: SearchFilters,
   return score;
 }
 
-function rankingProfileScore(record: NormalizedRecord, filters: SearchFilters, rankingConfig: RankingConfig): number {
-  if (filters.rankingProfile !== "preferReusableReferenceContent") {
-    return 0;
-  }
-
-  let score = 0;
-
-  if (!record.hasDescription) {
-    score += rankingConfig.rankingProfile.missingDescriptionPenalty;
-  }
-
-  return score;
-}
-
 function sourcePenaltyScore(record: NormalizedRecord, filters: SearchFilters, rankingConfig: RankingConfig): number {
   if (record.hasDescription || !filters.query?.trim()) {
     return 0;
@@ -2479,14 +2465,12 @@ export class Pf2eDataService {
         const sourceQuality = sourceQualityScore(record, rankingConfig);
         const rarityPreference = rarityPreferenceScore(record, filters, rankingConfig);
         const sourcePenalty = sourcePenaltyScore(record, filters, rankingConfig);
-        const rankingProfile = rankingProfileScore(record, filters, rankingConfig);
         const score =
           (filters.nameQuery ? nameScore(filters.nameQuery, record) : 0.5) +
           packQuality +
           sourceQuality +
           rarityPreference +
-          sourcePenalty +
-          rankingProfile;
+          sourcePenalty;
 
         return { record, score };
       })
@@ -2515,10 +2499,7 @@ export class Pf2eDataService {
     const offset = clampOffset(filters.offset);
     const rankingConfig = this.rankingConfigStore?.getConfig() ?? DEFAULT_RANKING_CONFIG;
     const records = this.fetchCandidates(filters).map((row) => rowToRecord(row));
-    records.sort((left, right) => (
-      rankingProfileScore(right, filters, rankingConfig) - rankingProfileScore(left, filters, rankingConfig) ||
-      sortRecords(left, right)
-    ));
+    records.sort((left, right) => sortRecords(left, right));
     return {
       searchProfile: "lookup",
       mode: "structured",
@@ -2669,7 +2650,6 @@ export class Pf2eDataService {
         const sourceQuality = sourceQualityScore(record, rankingConfig);
         const rarityPreference = rarityPreferenceScore(record, effectiveFilters, rankingConfig);
         const sourcePenalty = sourcePenaltyScore(record, effectiveFilters, rankingConfig);
-        const rankingProfile = rankingProfileScore(record, effectiveFilters, rankingConfig);
         const components: SearchScoreComponents = {
           fullTextSearch: ftsScore,
           metadataText: metadataTextScore,
@@ -2682,7 +2662,6 @@ export class Pf2eDataService {
           rarityPreference,
           sourcePenalty,
           packQuality,
-          rankingProfile,
         };
 
         let score = 0.5;
@@ -2697,7 +2676,7 @@ export class Pf2eDataService {
             packQuality;
         }
 
-        score += sourceQuality + rarityPreference + sourcePenalty + rankingProfile;
+        score += sourceQuality + rarityPreference + sourcePenalty;
 
         const explanation: SearchRecordExplanation = {
           recordKey: record.recordKey,

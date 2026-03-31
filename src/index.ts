@@ -267,7 +267,6 @@ async function main(): Promise<void> {
     {
       description: "List records inside a specific PF2E pack/category with optional filters.",
       inputSchema: {
-        rankingProfile: z.enum(["default", "preferReusableReferenceContent"]).optional().describe("Optional ranking preference profile."),
         pack: z.string().describe("Pack name or label."),
         category: searchCategorySchema.optional().describe("Optional top-level category boundary."),
         subcategory: z.string().optional().describe("Optional within-category boundary."),
@@ -315,7 +314,6 @@ async function main(): Promise<void> {
       description: "Search PF2E records across packs using category-first boundaries, user-facing search profiles, and thematic filters.",
       inputSchema: {
         searchProfile: searchProfileSchema.optional().describe("User-facing retrieval profile. lookup is lexical-first, balanced is the default hybrid profile for broad themed search, and concept is semantic-forward hybrid search."),
-        rankingProfile: z.enum(["default", "preferReusableReferenceContent"]).optional().describe("Optional ranking preference profile."),
         explain: z.boolean().optional().describe("Include score breakdowns and query-analysis details in the response."),
         nameQuery: z.string().optional().describe("Name text to search for."),
         query: z.string().optional().describe("General free-text search input. If searchProfile is omitted, query defaults search to the balanced profile."),

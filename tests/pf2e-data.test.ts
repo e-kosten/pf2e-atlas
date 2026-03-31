@@ -1147,28 +1147,6 @@ describe("Pf2eDataService", () => {
     expect(result.explain?.query?.normalizedQuery).toBe("ghost ship body horror");
   });
 
-  it("uses the recommendation-oriented ranking profile without suppressing described adventure content", async () => {
-    const fixture = await createFixture();
-    createdRoots.push(fixture.root);
-
-    const service = await loadTestService(fixture);
-
-    const crawlingHands = (await service.search({
-      category: "creatures",
-      nameQuery: "Crawling Hand Swarm",
-      rankingProfile: "preferReusableReferenceContent",
-    })).records;
-    expect(crawlingHands[0]?.sourceCategory).toBe("adventure");
-    expect(crawlingHands[0]?.hasDescription).toBe(true);
-
-    const bilgeSkeletons = (await service.search({
-      category: "creatures",
-      nameQuery: "Bilge Skeleton",
-      rankingProfile: "preferReusableReferenceContent",
-    })).records;
-    expect(bilgeSkeletons[0]?.sourceCategory).toBe("core");
-  });
-
   it("surfaces metadata-only haunted-ship swarm candidates in broad themed search", async () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);

@@ -30,10 +30,6 @@
     "unique": -0.03,
     "themeQueryUniquePenalty": -0.17
   },
-  "rankingProfile": {
-    "missingDescriptionPenalty": -0.3,
-    "hasDescriptionBoost": 0.12
-  },
   "sourcePenalty": {
     "societyMetadataOnlyPenalty": -0.2,
     "scenarioScaleSuffixPenalty": -0.1
