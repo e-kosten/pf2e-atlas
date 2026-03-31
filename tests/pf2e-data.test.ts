@@ -787,7 +787,7 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
       traits: {
         rarity: "common",
         traditions: ["occult"],
-        value: ["concentrate"],
+        value: ["concentrate", "focus"],
       },
     },
   });
@@ -1105,15 +1105,16 @@ describe("Pf2eDataService", () => {
     expect((await service.search({ category: "creatures", traitsAll: ["fiend"] })).records[0]?.name).toBe("Cythnigot");
     expect((await service.search({ category: "creatures", size: "sm" })).records.every((record) => record.size === "sm")).toBe(true);
     expect((await service.search({ searchProfile: "lookup", query: "aberration", category: "creatures" })).records[0]?.name).toBe("Cythnigot");
-    expect((await service.search({ category: "spells", tradition: "primal", actionCost: 2 })).records[0]?.name).toBe("Sea Blessing");
-    expect((await service.search({ category: "rules", subcategories: ["condition"] })).records.map((record) => record.name)).toEqual(
+    expect((await service.search({ category: "spells", traditions: ["primal"], actionCost: 2 })).records[0]?.name).toBe("Sea Blessing");
+    expect((await service.search({ category: "spells", spellKinds: ["focus"] })).records.map((record) => record.name)).toEqual(["Focus Burst"]);
+    expect((await service.search({ category: "rules", subcategory: "condition" })).records.map((record) => record.name)).toEqual(
       expect.arrayContaining(["Blinded", "Dazzled", "Hidden"]),
     );
     expect((await service.search({ category: "hazards" })).records.map((record) => record.name)).toEqual(
       expect.arrayContaining(["Mournful Hallway", "Spear Launcher"]),
     );
-    expect((await service.search({ category: "hazards", excludeSubcategories: ["haunt"] })).records.map((record) => record.name)).toEqual(["Spear Launcher"]);
-    expect(service.listRecords({ pack: "Pathfinder Monster Core", category: "hazards", excludeSubcategories: ["haunt"] }).records.map((record) => record.name)).toEqual(["Spear Launcher"]);
+    expect((await service.search({ category: "hazards", subcategory: "trap" })).records.map((record) => record.name)).toEqual(["Spear Launcher"]);
+    expect(service.listRecords({ pack: "Pathfinder Monster Core", category: "hazards", subcategory: "trap" }).records.map((record) => record.name)).toEqual(["Spear Launcher"]);
     expect((await service.search({ category: "creatures", excludeTraits: ["water"] })).records.some((record) => record.traits.includes("water"))).toBe(false);
     expect((await service.search({ category: "creatures", nameQuery: "Ghost Sailor", excludeMissingDescription: true })).records.every((record) => record.hasDescription)).toBe(true);
     expect((await service.search({ category: "creatures", nameQuery: "Ghost Sailor", excludeSources: ["adventure"] })).records[0]?.sourceCategory).toBe("core");
@@ -1126,6 +1127,12 @@ describe("Pf2eDataService", () => {
     expect(cythnigot?.descriptionSnippet).toBe("Small aberration.");
     expect(cythnigot?.sourceCategory).toBe("core");
     expect(cythnigot?.category).toBe("creatures");
+    const seaBlessing = service.lookup("Sea Blessing", { category: "spells" }).match;
+    expect(seaBlessing?.subcategory).toBeNull();
+    expect(seaBlessing?.traditions).toEqual(["primal"]);
+    const focusBurst = service.lookup("Focus Burst", { category: "spells" }).match;
+    expect(focusBurst?.subcategory).toBeNull();
+    expect(focusBurst?.spellKinds).toEqual(["focus"]);
     expect(service.lookup("Blinded", { category: "rules", subcategory: "condition" }).match?.category).toBe("rules");
   });
 
@@ -1404,8 +1411,10 @@ describe("Pf2eDataService", () => {
 
     const vocabulary = service.getSearchVocabulary({ traitLimitPerCategory: 4 });
     expect(vocabulary.categories.map((entry) => entry.value)).toEqual(expect.arrayContaining(["creatures", "spells", "rules", "feats"]));
-    expect(vocabulary.subcategories.map((entry) => entry.value)).toEqual(expect.arrayContaining(["condition", "action", "primal"]));
+    expect(vocabulary.subcategories.map((entry) => entry.value)).toEqual(expect.arrayContaining(["condition", "action", "trap"]));
+    expect(vocabulary.subcategories.map((entry) => entry.value)).not.toContain("primal");
     expect(vocabulary.traditions.map((entry) => entry.value)).toContain("primal");
+    expect(vocabulary.spellKinds.map((entry) => entry.value)).toContain("focus");
     expect(vocabulary.commonTraitsByCategory.find((entry) => entry.category === "creatures")?.traits.length).toBeGreaterThan(0);
   });
 

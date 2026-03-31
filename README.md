@@ -117,7 +117,7 @@ Example MCP client entry:
 Search and list responses include:
 
 - `searchProfile` as the user-facing retrieval intent used for the result set
-- `category` and `subcategories` as the primary product-facing search boundaries
+- `category` and `subcategory` as the primary product-facing search boundaries
 - `rawRecordType` for internal Foundry traceability when needed
 - `descriptionText` when available
 - `hasDescription` for filtering and ranking
@@ -129,11 +129,11 @@ Search and list responses include:
 ## Notes
 
 - The server is read-only.
-- Search is category-first. Use `category` plus structured filters such as `subcategories`, `excludeSubcategories`, `traitsAll`, `traitsAny`, `excludeTraits`, `sources`, and `excludeSources` instead of raw Foundry `recordType`, `documentType`, or `itemCategory`.
+- Search is category-first. Use `category` plus structured filters such as `subcategory`, `traitsAll`, `traitsAny`, `excludeTraits`, `sources`, `excludeSources`, `traditions`, and `spellKinds` instead of raw Foundry `recordType`, `documentType`, or `itemCategory`.
 - `pf2e_search` supports `searchProfile: "lookup" | "balanced" | "concept"` as the primary user-facing retrieval control.
 - `pf2e_search` defaults to the `balanced` profile when `query` is present and `searchProfile` is omitted.
 - Prefer a short natural-language phrase or sentence with 1-3 concrete anchor terms for `query`. Avoid long comma-separated keyword lists by default.
-- `pf2e_get_search_semantics` is the primary discovery surface for categories, subcategories, Pathfinder-native tags, and supported filters.
+- `pf2e_get_search_semantics` is the primary discovery surface for categories, subcategories, spell facets, Pathfinder-native tags, and supported filters.
 - Search now uses a local SQLite index with:
   - shared structured filters
   - FTS-backed lexical search

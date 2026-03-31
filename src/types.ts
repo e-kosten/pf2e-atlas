@@ -59,7 +59,7 @@ export interface NormalizedRecord {
   normalizedName: string;
   type: string;
   category: SearchCategory;
-  subcategories: string[];
+  subcategory: string | null;
   packName: string;
   packLabel: string;
   documentType: string;
@@ -80,6 +80,7 @@ export interface NormalizedRecord {
   bulkValue: number | null;
   actionCost: number | null;
   traditions: string[];
+  spellKinds: string[];
   raw: Record<string, unknown>;
 }
 
@@ -92,8 +93,7 @@ export interface SearchFilters {
   query?: string;
   pack?: string;
   category?: SearchCategory;
-  subcategories?: string[];
-  excludeSubcategories?: string[];
+  subcategory?: string;
   levelMin?: number;
   levelMax?: number;
   rarity?: string;
@@ -102,7 +102,8 @@ export interface SearchFilters {
   excludeTraits?: string[];
   sources?: SourceCategory[];
   excludeSources?: SourceCategory[];
-  tradition?: string;
+  traditions?: string[];
+  spellKinds?: string[];
   publicationTitle?: string;
   excludeUnique?: boolean;
   excludeMissingDescription?: boolean;

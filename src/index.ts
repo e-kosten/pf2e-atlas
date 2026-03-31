@@ -8,7 +8,7 @@ import { CATEGORY_SUBCATEGORY_MAP } from "./categories.js";
 import { loadConfig } from "./config.js";
 import { Pf2eDataService } from "./pf2e-data.js";
 import { RankingConfigStore } from "./ranking-config.js";
-import { searchCategorySchema, searchProfileSchema, sourceCategorySchema } from "./tool-schemas.js";
+import { searchCategorySchema, searchProfileSchema, sourceCategorySchema, spellKindSchema } from "./tool-schemas.js";
 import { NormalizedRecord, PackInfo, RecordDetail, RuleReferenceEdge, SearchRecordExplanation } from "./types.js";
 
 function summarizeRecord(
@@ -21,18 +21,24 @@ function summarizeRecord(
     id: record.id,
     name: record.name,
     category: record.category,
-    subcategories: record.subcategories,
+    subcategory: record.subcategory,
     rawRecordType: record.type,
     packName: record.packName,
     packLabel: record.packLabel,
     level: record.level,
     rarity: record.rarity,
     traits: record.traits,
+    traditions: record.traditions,
+    spellKinds: record.spellKinds,
     publicationTitle: record.publicationTitle,
     hasDescription: record.hasDescription,
     descriptionSnippet: record.descriptionSnippet,
     sourceCategory: record.sourceCategory,
   };
+
+  if (explanation) {
+    summary.searchExplain = explanation;
+  }
 
   if (detail === "minimal") {
     return summary;
@@ -45,15 +51,10 @@ function summarizeRecord(
     priceCp: record.priceCp,
     bulkValue: record.bulkValue,
     actionCost: record.actionCost,
-    traditions: record.traditions,
   });
 
   if (detail === "full") {
     summary.sourcePath = record.sourcePath;
-  }
-
-  if (explanation) {
-    summary.searchExplain = explanation;
   }
 
   return summary;
@@ -73,7 +74,7 @@ function summarizePack(pack: PackInfo): Record<string, unknown> {
 function formatSearchResult(prefix: string, total: number, records: NormalizedRecord[]): string {
   const lines = records.map((record) => {
     const level = record.level !== null ? `level ${record.level}` : "level n/a";
-    const subtype = record.subcategories[0] ? `/${record.subcategories[0]}` : "";
+    const subtype = record.subcategory ? `/${record.subcategory}` : "";
     return `- ${record.name} (${record.packLabel}, ${record.category}${subtype}, ${level})`;
   });
 
@@ -142,14 +143,9 @@ async function main(): Promise<void> {
               description: "Best first cut for separating creatures, hazards, spells, equipment, lore, and other user-facing PF2E families.",
             },
             {
-              name: "subcategories",
+              name: "subcategory",
               strength: "within-category boundary",
-              description: "Include one or more narrower families such as hazards/haunt, equipment/consumable, or lore/deity.",
-            },
-            {
-              name: "excludeSubcategories",
-              strength: "hard exclusion",
-              description: "Exclude one or more within-category families such as omitting haunt from a broader hazards search.",
+              description: "Include one narrower family such as hazards/haunt, equipment/consumable, or lore/deity.",
             },
             {
               name: "traitsAny",
@@ -177,9 +173,14 @@ async function main(): Promise<void> {
               description: "Exclude one or more source families such as omitting adventure records from a broader search.",
             },
             {
-              name: "tradition",
+              name: "traditions",
               strength: "spell refinement",
-              description: "Useful for spell searches when the theme implies a magical tradition such as divine or occult.",
+              description: "Useful for spell searches when the theme implies one or more magical traditions such as divine or occult.",
+            },
+            {
+              name: "spellKinds",
+              strength: "spell refinement",
+              description: "Useful for spell searches when the theme implies spell kinds such as focus, ritual, or cantrip.",
             },
             {
               name: "query",
@@ -222,10 +223,11 @@ async function main(): Promise<void> {
             traitsAny: "Pathfinder-native tags. Use for soft narrowing when any listed tag is acceptable.",
             traitsAll: "Pathfinder-native tags. Use for strict narrowing when every listed tag is essential.",
             excludeTraits: "Pathfinder-native tags. Use for explicit exclusions when listed tags must not be present.",
-            subcategories: "Structured within-category inclusions. Useful for narrowing to specific public families.",
-            excludeSubcategories: "Structured within-category exclusions. Useful for queries like hazards except haunts.",
+            subcategory: "Structured within-category inclusion. Useful for narrowing to a specific public family.",
             sources: "Structured source-family inclusions. Useful for pinning a search to core, rules, adventure, or unknown records.",
             excludeSources: "Structured source-family exclusions. Useful for omitting one or more source families from a broader search.",
+            traditions: "Spell-only structured inclusions. Use for spell tradition refinement such as arcane, divine, occult, or primal.",
+            spellKinds: "Spell-only structured inclusions. Use for spell kind refinement such as focus, ritual, or cantrip.",
             note: "The server no longer infers hidden semantic tags or taxonomy terms from theme text.",
           },
           vocabulary,
@@ -294,8 +296,7 @@ async function main(): Promise<void> {
       inputSchema: {
         pack: z.string().describe("Pack name or label."),
         category: searchCategorySchema.optional().describe("Optional top-level category boundary."),
-        subcategories: z.array(z.string()).optional().describe("Include one or more within-category boundaries."),
-        excludeSubcategories: z.array(z.string()).optional().describe("Exclude one or more within-category boundaries."),
+        subcategory: z.string().optional().describe("Include one within-category boundary."),
         levelMin: z.number().int().optional().describe("Minimum level inclusive."),
         levelMax: z.number().int().optional().describe("Maximum level inclusive."),
         rarity: z.string().optional().describe("Rarity filter, for example common or uncommon."),
@@ -304,7 +305,8 @@ async function main(): Promise<void> {
         excludeTraits: z.array(z.string()).optional().describe("Listed traits must not be present."),
         sources: z.array(sourceCategorySchema).optional().describe("Restrict results to the listed source families."),
         excludeSources: z.array(sourceCategorySchema).optional().describe("Exclude results from the listed source families."),
-        tradition: z.string().optional().describe("Explicit spell tradition filter."),
+        traditions: z.array(z.string()).optional().describe("Include spells from any of the listed traditions."),
+        spellKinds: z.array(spellKindSchema).optional().describe("Include spells with any of the listed spell kinds."),
         publicationTitle: z.string().optional().describe("Publication title contains this text."),
         excludeUnique: z.boolean().optional().describe("Exclude unique records."),
         excludeMissingDescription: z.boolean().optional().describe("Exclude records without description or lore text."),
@@ -346,8 +348,7 @@ async function main(): Promise<void> {
         query: z.string().optional().describe("General free-text search input. Prefer one short natural-language phrase or sentence with 1-3 concrete anchor terms. Avoid long comma-separated keyword lists by default. If searchProfile is omitted, query defaults search to the balanced profile."),
         pack: z.string().optional().describe("Optional pack name or label."),
         category: searchCategorySchema.optional().describe("Optional top-level category boundary."),
-        subcategories: z.array(z.string()).optional().describe("Include one or more within-category boundaries."),
-        excludeSubcategories: z.array(z.string()).optional().describe("Exclude one or more within-category boundaries."),
+        subcategory: z.string().optional().describe("Include one within-category boundary."),
         levelMin: z.number().int().optional().describe("Minimum level inclusive."),
         levelMax: z.number().int().optional().describe("Maximum level inclusive."),
         rarity: z.string().optional().describe("Rarity filter."),
@@ -356,7 +357,8 @@ async function main(): Promise<void> {
         excludeTraits: z.array(z.string()).optional().describe("Listed traits must not be present."),
         sources: z.array(sourceCategorySchema).optional().describe("Restrict results to the listed source families."),
         excludeSources: z.array(sourceCategorySchema).optional().describe("Exclude results from the listed source families."),
-        tradition: z.string().optional().describe("Explicit spell tradition filter."),
+        traditions: z.array(z.string()).optional().describe("Include spells from any of the listed traditions."),
+        spellKinds: z.array(spellKindSchema).optional().describe("Include spells with any of the listed spell kinds."),
         publicationTitle: z.string().optional().describe("Publication title contains this text."),
         excludeUnique: z.boolean().optional().describe("Exclude unique records."),
         excludeMissingDescription: z.boolean().optional().describe("Exclude records without description or lore text."),

@@ -20,7 +20,7 @@ export const CATEGORY_SUBCATEGORY_MAP: Record<SearchCategory, string[]> = {
   hazards: ["haunt", "trap"],
   afflictions: ["curse", "disease", "poison"],
   rules: ["action", "condition", "effect", "campaign"],
-  spells: ["arcane", "divine", "occult", "primal", "focus", "ritual", "cantrip"],
+  spells: [],
   characterCreation: ["ancestry", "heritage", "background", "class"],
   lore: ["deity", "journal"],
 };
@@ -43,29 +43,15 @@ function isExcludedPublicCategoryRecord(documentType: string, recordType: string
     normalizedRecordType === "script";
 }
 
-function inferHazardSubcategory(traits: string[]): string[] {
+function inferHazardSubcategory(traits: string[]): string | null {
   const normalizedTraits = new Set(traits.map((trait) => normalizeText(trait)).filter(Boolean));
   if (normalizedTraits.has("haunt")) {
-    return ["haunt"];
+    return "haunt";
   }
   if (normalizedTraits.has("trap")) {
-    return ["trap"];
+    return "trap";
   }
-  return [];
-}
-
-function inferSpellSubcategories(traits: string[], traditions: string[]): string[] {
-  const normalizedTraits = new Set(traits.map((trait) => normalizeText(trait)).filter(Boolean));
-  const normalizedTraditions = traditions.map((tradition) => normalizeText(tradition)).filter(Boolean);
-  const subcategories = [...normalizedTraditions];
-
-  for (const candidate of ["focus", "ritual", "cantrip"]) {
-    if (normalizedTraits.has(candidate)) {
-      subcategories.push(candidate);
-    }
-  }
-
-  return uniqueSorted(subcategories);
+  return null;
 }
 
 function inferFeatSubcategories(
@@ -73,29 +59,29 @@ function inferFeatSubcategories(
   sourcePath: string,
   traits: string[],
   raw: Record<string, unknown>,
-): string[] {
+): string | null {
   const normalizedPackName = normalizeText(packName);
   const lowerSourcePath = sourcePath.replace(/\\/g, "/").toLowerCase();
   const normalizedTraits = new Set(traits.map((trait) => normalizeText(trait)).filter(Boolean));
   const systemCategory = normalizeText(firstString(getNested(raw, ["system", "category"])) ?? "");
 
   if (normalizedPackName === "boons and curses" || lowerSourcePath.includes("/boons-and-curses/")) {
-    return ["boonCurse"];
+    return "boonCurse";
   }
 
   if (normalizedTraits.has("archetype") || lowerSourcePath.includes("/feats/archetype/")) {
-    return ["archetype"];
+    return "archetype";
   }
 
   if (["class", "ancestry", "skill", "general"].includes(systemCategory)) {
-    return [systemCategory];
+    return systemCategory;
   }
 
   if (systemCategory === "deityboon" || systemCategory === "curse") {
-    return ["boonCurse"];
+    return "boonCurse";
   }
 
-  return [];
+  return null;
 }
 
 export function classifyRecordCategory(input: {
@@ -106,7 +92,7 @@ export function classifyRecordCategory(input: {
   traits: string[];
   traditions: string[];
   raw: Record<string, unknown>;
-}): { category: SearchCategory; subcategories: string[] } | null {
+}): { category: SearchCategory; subcategory: string | null } | null {
   const documentType = normalizeText(input.documentType);
   const recordType = normalizeText(input.recordType);
 
@@ -116,58 +102,58 @@ export function classifyRecordCategory(input: {
 
   switch (recordType) {
     case "npc":
-      return { category: "creatures", subcategories: [] };
+      return { category: "creatures", subcategory: null };
     case "character":
-      return { category: "creatures", subcategories: ["character"] };
+      return { category: "creatures", subcategory: "character" };
     case "familiar":
-      return { category: "creatures", subcategories: ["familiar"] };
+      return { category: "creatures", subcategory: "familiar" };
     case "hazard":
-      return { category: "hazards", subcategories: inferHazardSubcategory(input.traits) };
+      return { category: "hazards", subcategory: inferHazardSubcategory(input.traits) };
     case "spell":
-      return { category: "spells", subcategories: inferSpellSubcategories(input.traits, input.traditions) };
+      return { category: "spells", subcategory: null };
     case "feat":
-      return { category: "feats", subcategories: inferFeatSubcategories(input.packName, input.sourcePath, input.traits, input.raw) };
+      return { category: "feats", subcategory: inferFeatSubcategories(input.packName, input.sourcePath, input.traits, input.raw) };
     case "action":
-      return { category: "rules", subcategories: ["action"] };
+      return { category: "rules", subcategory: "action" };
     case "condition":
-      return { category: "rules", subcategories: ["condition"] };
+      return { category: "rules", subcategory: "condition" };
     case "effect":
-      return { category: "rules", subcategories: ["effect"] };
+      return { category: "rules", subcategory: "effect" };
     case "campaignfeature":
-      return { category: "rules", subcategories: ["campaign"] };
+      return { category: "rules", subcategory: "campaign" };
     case "deity":
-      return { category: "lore", subcategories: ["deity"] };
+      return { category: "lore", subcategory: "deity" };
     case "ancestry":
-      return { category: "characterCreation", subcategories: ["ancestry"] };
+      return { category: "characterCreation", subcategory: "ancestry" };
     case "heritage":
-      return { category: "characterCreation", subcategories: ["heritage"] };
+      return { category: "characterCreation", subcategory: "heritage" };
     case "background":
-      return { category: "characterCreation", subcategories: ["background"] };
+      return { category: "characterCreation", subcategory: "background" };
     case "class":
-      return { category: "characterCreation", subcategories: ["class"] };
+      return { category: "characterCreation", subcategory: "class" };
     case "consumable":
-      return { category: "equipment", subcategories: ["consumable"] };
+      return { category: "equipment", subcategory: "consumable" };
     case "equipment":
-      return { category: "equipment", subcategories: ["gear"] };
+      return { category: "equipment", subcategory: "gear" };
     case "weapon":
-      return { category: "equipment", subcategories: ["weapon"] };
+      return { category: "equipment", subcategory: "weapon" };
     case "armor":
-      return { category: "equipment", subcategories: ["armor"] };
+      return { category: "equipment", subcategory: "armor" };
     case "shield":
-      return { category: "equipment", subcategories: ["shield"] };
+      return { category: "equipment", subcategory: "shield" };
     case "ammo":
-      return { category: "equipment", subcategories: ["ammo"] };
+      return { category: "equipment", subcategory: "ammo" };
     case "backpack":
-      return { category: "equipment", subcategories: ["backpack"] };
+      return { category: "equipment", subcategory: "backpack" };
     case "treasure":
-      return { category: "equipment", subcategories: ["treasure"] };
+      return { category: "equipment", subcategory: "treasure" };
     case "kit":
-      return { category: "equipment", subcategories: ["kit"] };
+      return { category: "equipment", subcategory: "kit" };
     case "vehicle":
-      return { category: "equipment", subcategories: ["vehicle"] };
+      return { category: "equipment", subcategory: "vehicle" };
     case "unknown":
       if (documentType === "journalentry") {
-        return { category: "lore", subcategories: ["journal"] };
+        return { category: "lore", subcategory: "journal" };
       }
       return null;
     default:
@@ -199,13 +185,6 @@ export function getSubcategoryKeywordAnchors(): Array<{ subcategory: string; cat
     { category: "equipment", subcategory: "shield", keywords: ["shield", "shields"] },
     { category: "equipment", subcategory: "ammo", keywords: ["ammo", "ammunition", "arrow", "arrows", "bolt", "bolts"] },
     { category: "equipment", subcategory: "treasure", keywords: ["treasure", "loot", "hoard"] },
-    { category: "spells", subcategory: "arcane", keywords: ["arcane"] },
-    { category: "spells", subcategory: "divine", keywords: ["divine"] },
-    { category: "spells", subcategory: "occult", keywords: ["occult"] },
-    { category: "spells", subcategory: "primal", keywords: ["primal"] },
-    { category: "spells", subcategory: "focus", keywords: ["focus"] },
-    { category: "spells", subcategory: "ritual", keywords: ["ritual", "rituals"] },
-    { category: "spells", subcategory: "cantrip", keywords: ["cantrip", "cantrips"] },
     { category: "feats", subcategory: "class", keywords: ["class feat", "class feats"], weight: 2 },
     { category: "feats", subcategory: "ancestry", keywords: ["ancestry feat", "ancestry feats"], weight: 2 },
     { category: "feats", subcategory: "skill", keywords: ["skill feat", "skill feats"], weight: 2 },
