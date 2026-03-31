@@ -162,9 +162,9 @@ async function main(): Promise<void> {
               description: "Useful for spell searches when the theme implies a magical tradition such as divine or occult.",
             },
             {
-              name: "themeQuery",
+              name: "query",
               strength: "literal text",
-              description: "Broad lexical and semantic retrieval input. The server does not expand or reinterpret it beyond normalization.",
+              description: "Broad lexical and semantic retrieval input. The server normalizes it but does not expand or reinterpret it beyond that.",
             },
           ],
           retrievalPatterns: [
@@ -318,7 +318,7 @@ async function main(): Promise<void> {
         rankingProfile: z.enum(["default", "preferReusableReferenceContent"]).optional().describe("Optional ranking preference profile."),
         explain: z.boolean().optional().describe("Include score breakdowns and query-analysis details in the response."),
         nameQuery: z.string().optional().describe("Name text to search for."),
-        themeQuery: z.string().optional().describe("Theme or semantic query text. If searchProfile is omitted, themeQuery defaults search to the balanced profile."),
+        query: z.string().optional().describe("General free-text search input. If searchProfile is omitted, query defaults search to the balanced profile."),
         pack: z.string().optional().describe("Optional pack name or label."),
         category: searchCategorySchema.optional().describe("Optional top-level category boundary."),
         subcategory: z.string().optional().describe("Optional within-category boundary."),

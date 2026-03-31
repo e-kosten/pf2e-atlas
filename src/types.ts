@@ -91,7 +91,7 @@ export interface SearchFilters {
   rankingProfile?: RankingProfile;
   explain?: boolean;
   nameQuery?: string;
-  themeQuery?: string;
+  query?: string;
   pack?: string;
   category?: SearchCategory;
   subcategory?: string;
