@@ -1,4 +1,4 @@
-import { NormalizedRecord, SearchQueryAnalysis } from "./types.js";
+import { SearchQueryAnalysis } from "./types.js";
 import { normalizeText } from "./utils.js";
 
 export type SearchQueryAnalysisState = SearchQueryAnalysis & {
@@ -7,7 +7,7 @@ export type SearchQueryAnalysisState = SearchQueryAnalysis & {
   baseMetadataWeights: Map<string, number>;
 };
 
-export type CandidateQueryWeights = {
+export type LiteralQueryWeights = {
   traitWeights: Map<string, number>;
   nameWeights: Map<string, number>;
   metadataWeights: Map<string, number>;
@@ -49,7 +49,9 @@ export function buildSearchQueryAnalysis(query: string): SearchQueryAnalysisStat
   };
 }
 
-export function buildCandidateQueryWeights(_record: NormalizedRecord, analysis: SearchQueryAnalysisState): CandidateQueryWeights {
+export function buildLiteralQueryWeights(analysis: SearchQueryAnalysisState): LiteralQueryWeights {
+  // Hybrid scoring currently reuses the literal query tokens for every record.
+  // This helper stays separate so future per-record expansion can plug in here.
   return {
     traitWeights: new Map(analysis.baseTraitWeights),
     nameWeights: new Map(analysis.baseNameWeights),

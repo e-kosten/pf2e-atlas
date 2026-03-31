@@ -4,7 +4,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import * as z from "zod/v4";
 
-import { CATEGORY_SUBCATEGORY_MAP } from "./categories.js";
+import { CATEGORY_SUBCATEGORY_MAP, SEARCH_CATEGORIES } from "./categories.js";
 import { loadConfig } from "./config.js";
 import { Pf2eDataService } from "./pf2e-data.js";
 import { RankingConfigStore } from "./ranking-config.js";
@@ -93,6 +93,8 @@ function summarizeEdge(edge: RuleReferenceEdge): Record<string, unknown> {
     sourceCategory: edge.sourceCategory,
   };
 }
+
+const searchCategorySchema = z.enum(SEARCH_CATEGORIES);
 
 async function main(): Promise<void> {
   const config = await loadConfig();
@@ -251,7 +253,7 @@ async function main(): Promise<void> {
         mode: z.enum(["structured", "lexical", "hybrid"]).optional().describe("Retrieval mode. Defaults to structured."),
         rankingProfile: z.enum(["default", "preferReusableReferenceContent"]).optional().describe("Optional ranking preference profile."),
         pack: z.string().describe("Pack name or label."),
-        category: z.enum(["equipment", "feats", "creatures", "hazards", "afflictions", "rules", "spells", "characterCreation", "lore"]).optional().describe("Optional top-level category boundary."),
+        category: searchCategorySchema.optional().describe("Optional top-level category boundary."),
         subcategory: z.string().optional().describe("Optional within-category boundary."),
         levelMin: z.number().int().optional().describe("Minimum level inclusive."),
         levelMax: z.number().int().optional().describe("Maximum level inclusive."),
@@ -302,7 +304,7 @@ async function main(): Promise<void> {
         nameQuery: z.string().optional().describe("Name text to search for."),
         themeQuery: z.string().optional().describe("Theme or semantic query text. If mode is omitted, themeQuery defaults search to hybrid."),
         pack: z.string().optional().describe("Optional pack name or label."),
-        category: z.enum(["equipment", "feats", "creatures", "hazards", "afflictions", "rules", "spells", "characterCreation", "lore"]).optional().describe("Optional top-level category boundary."),
+        category: searchCategorySchema.optional().describe("Optional top-level category boundary."),
         subcategory: z.string().optional().describe("Optional within-category boundary."),
         levelMin: z.number().int().optional().describe("Minimum level inclusive."),
         levelMax: z.number().int().optional().describe("Maximum level inclusive."),
@@ -351,7 +353,7 @@ async function main(): Promise<void> {
       inputSchema: {
         name: z.string().describe("Record name to look up."),
         pack: z.string().optional().describe("Optional pack name or label."),
-        category: z.enum(["equipment", "feats", "creatures", "hazards", "afflictions", "rules", "spells", "characterCreation", "lore"]).optional().describe("Optional top-level category hint."),
+        category: searchCategorySchema.optional().describe("Optional top-level category hint."),
         subcategory: z.string().optional().describe("Optional within-category hint."),
         detail: z.enum(["minimal", "standard", "full"]).optional().describe("Response detail level. Defaults to full for backward compatibility."),
         includeAlternatives: z.boolean().optional().describe("Include alternative matches. Defaults to true."),
@@ -398,7 +400,7 @@ async function main(): Promise<void> {
           z.object({
             name: z.string().describe("Record name to look up."),
             pack: z.string().optional().describe("Optional pack name or label."),
-            category: z.enum(["equipment", "feats", "creatures", "hazards", "afflictions", "rules", "spells", "characterCreation", "lore"]).optional().describe("Optional top-level category hint."),
+            category: searchCategorySchema.optional().describe("Optional top-level category hint."),
             subcategory: z.string().optional().describe("Optional within-category hint."),
           }),
         ).min(1).max(25),
@@ -435,7 +437,7 @@ async function main(): Promise<void> {
       inputSchema: {
         name: z.string().describe("Record name to look up."),
         pack: z.string().optional().describe("Optional pack name or label."),
-        category: z.enum(["equipment", "feats", "creatures", "hazards", "afflictions", "rules", "spells", "characterCreation", "lore"]).optional().describe("Optional top-level category hint."),
+        category: searchCategorySchema.optional().describe("Optional top-level category hint."),
         subcategory: z.string().optional().describe("Optional within-category hint."),
         referenceDepth: z.coerce.number().int().min(1).max(2).optional().describe("How many reference hops to follow. Must be 1 or 2. Defaults to 1."),
         maxReferences: z.coerce.number().int().min(1).max(25).optional().describe("Maximum number of linked records to return. Defaults to 8."),

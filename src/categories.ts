@@ -1,7 +1,7 @@
 import { SearchCategory } from "./types.js";
 import { firstString, getNested, normalizeText, toStringArray, uniqueSorted } from "./utils.js";
 
-export const SEARCH_CATEGORIES: SearchCategory[] = [
+export const SEARCH_CATEGORIES = [
   "equipment",
   "feats",
   "creatures",
@@ -11,7 +11,7 @@ export const SEARCH_CATEGORIES: SearchCategory[] = [
   "spells",
   "characterCreation",
   "lore",
-];
+] as const satisfies readonly SearchCategory[];
 
 export const CATEGORY_SUBCATEGORY_MAP: Record<SearchCategory, string[]> = {
   equipment: ["consumable", "gear", "weapon", "armor", "shield", "ammo", "backpack", "treasure", "kit", "vehicle"],

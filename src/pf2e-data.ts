@@ -45,7 +45,7 @@ import {
   toStringArray,
   uniqueSorted,
 } from "./utils.js";
-import { buildCandidateQueryWeights, buildSearchQueryAnalysis } from "./search-expansion.js";
+import { buildLiteralQueryWeights, buildSearchQueryAnalysis } from "./search-query-analysis.js";
 
 const execFileAsync = promisify(execFile);
 const INDEX_SCHEMA_VERSION = 6;
@@ -2539,17 +2539,17 @@ export class Pf2eDataService {
           lexicalQuery.length > 0
             ? queryTextScore(lexicalQuery, record.descriptionText ?? "")
             : 0;
-        const candidateQueryWeights = queryAnalysis
-          ? buildCandidateQueryWeights(record, queryAnalysis)
+        const literalQueryWeights = queryAnalysis
+          ? buildLiteralQueryWeights(queryAnalysis)
           : null;
-        const themeName = candidateQueryWeights
-          ? scoreWeightedOverlap(candidateQueryWeights.nameWeights, tokenize(record.name), 1.5)
+        const themeName = literalQueryWeights
+          ? scoreWeightedOverlap(literalQueryWeights.nameWeights, tokenize(record.name), 1.5)
           : { score: 0, matchedTokens: [] };
-        const themeTraits = candidateQueryWeights
-          ? scoreWeightedOverlap(candidateQueryWeights.traitWeights, record.traits, 2)
+        const themeTraits = literalQueryWeights
+          ? scoreWeightedOverlap(literalQueryWeights.traitWeights, record.traits, 2)
           : { score: 0, matchedTokens: [] };
-        const themeMetadata = candidateQueryWeights
-          ? scoreWeightedOverlap(candidateQueryWeights.metadataWeights, tokenize(buildMetadataText(record)), 2.5)
+        const themeMetadata = literalQueryWeights
+          ? scoreWeightedOverlap(literalQueryWeights.metadataWeights, tokenize(buildMetadataText(record)), 2.5)
           : { score: 0, matchedTokens: [] };
         const lexicalWeights = rankingConfig.lexicalChannels;
         const fullTextSearchContribution = ftsScore * lexicalWeights.fullTextSearch;
