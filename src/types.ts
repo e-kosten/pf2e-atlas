@@ -40,6 +40,7 @@ export interface PackInfo {
 export type SourceCategory = "core" | "rules" | "adventure" | "unknown";
 
 export type RankingProfile = "default" | "preferReusableReferenceContent";
+export type SearchProfile = "lookup" | "balanced" | "concept";
 
 export type SearchCategory =
   | "equipment"
@@ -86,7 +87,7 @@ export interface NormalizedRecord {
 export type SearchMode = "structured" | "lexical" | "hybrid";
 
 export interface SearchFilters {
-  mode?: SearchMode;
+  searchProfile?: SearchProfile;
   rankingProfile?: RankingProfile;
   explain?: boolean;
   nameQuery?: string;
@@ -133,6 +134,7 @@ export interface LookupResult {
 }
 
 export interface SearchResult {
+  searchProfile: SearchProfile;
   mode: SearchMode;
   total: number;
   offset: number;
@@ -173,7 +175,12 @@ export interface SearchRecordExplanation {
 }
 
 export interface SearchExplainResult {
+  searchProfile: SearchProfile;
   mode: SearchMode;
+  hybridBlend: {
+    lexicalWeight: number;
+    semanticWeight: number;
+  } | null;
   lexicalQuery: string;
   semanticQuery: string;
   query: SearchQueryAnalysis | null;

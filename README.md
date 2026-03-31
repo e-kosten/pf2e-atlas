@@ -9,7 +9,7 @@ Read-only MCP server for Pathfinder 2E data from a vendored local Foundry PF2E c
 - Lists records within a pack with filters
 - Searches across all packs by name and structured filters
 - Follows linked rules references for actions, conditions, spells, and other rules text
-- Supports structured, lexical, and hybrid search modes
+- Supports user-facing search profiles: `lookup`, `balanced`, and `concept`
 - Returns the original Foundry JSON for detailed retrieval
 
 The server uses `stdio` in v1, reads the PF2E data from `vendor/pf2e` by default, and builds a local SQLite index for querying.
@@ -116,6 +116,7 @@ Example MCP client entry:
 
 Search and list responses include:
 
+- `searchProfile` as the user-facing retrieval intent used for the result set
 - `category` and `subcategories` as the primary product-facing search boundaries
 - `rawRecordType` for internal Foundry traceability when needed
 - `descriptionText` when available
@@ -129,7 +130,8 @@ Search and list responses include:
 
 - The server is read-only.
 - Search is category-first. Use `category` and optional `subcategory` as the main boundaries instead of raw Foundry `recordType`, `documentType`, or `itemCategory`.
-- `pf2e_search` defaults to `hybrid` when `themeQuery` is present and `mode` is omitted.
+- `pf2e_search` supports `searchProfile: "lookup" | "balanced" | "concept"` as the primary user-facing retrieval control.
+- `pf2e_search` defaults to the `balanced` profile when `themeQuery` is present and `searchProfile` is omitted.
 - `pf2e_get_search_semantics` is the primary discovery surface for categories, subcategories, Pathfinder-native tags, and supported filters.
 - Search now uses a local SQLite index with:
   - shared structured filters

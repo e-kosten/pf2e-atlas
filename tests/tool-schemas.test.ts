@@ -1,17 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { listRecordsModeSchema, searchModeSchema } from "../src/tool-schemas.js";
+import { searchProfileSchema } from "../src/tool-schemas.js";
 
 describe("tool schemas", () => {
-  it("only advertises structured mode for list-records", () => {
-    expect(listRecordsModeSchema.safeParse("structured").success).toBe(true);
-    expect(listRecordsModeSchema.safeParse("lexical").success).toBe(false);
-    expect(listRecordsModeSchema.safeParse("hybrid").success).toBe(false);
-  });
-
-  it("continues to advertise lexical and hybrid search modes where supported", () => {
-    expect(searchModeSchema.safeParse("structured").success).toBe(true);
-    expect(searchModeSchema.safeParse("lexical").success).toBe(true);
-    expect(searchModeSchema.safeParse("hybrid").success).toBe(true);
+  it("advertises the user-facing search profiles", () => {
+    expect(searchProfileSchema.safeParse("lookup").success).toBe(true);
+    expect(searchProfileSchema.safeParse("balanced").success).toBe(true);
+    expect(searchProfileSchema.safeParse("concept").success).toBe(true);
+    expect(searchProfileSchema.safeParse("semantic_only").success).toBe(false);
   });
 });

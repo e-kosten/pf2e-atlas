@@ -1042,7 +1042,7 @@ describe("Pf2eDataService", () => {
     expect(service.listRecords({ pack: "actions" }).records).toHaveLength(3);
     expect((await service.search({ category: "creatures", traitsAll: ["fiend"] })).records[0]?.name).toBe("Cythnigot");
     expect((await service.search({ category: "creatures", size: "sm" })).records.every((record) => record.size === "sm")).toBe(true);
-    expect((await service.search({ mode: "lexical", themeQuery: "aberration", category: "creatures" })).records[0]?.name).toBe("Cythnigot");
+    expect((await service.search({ searchProfile: "lookup", themeQuery: "aberration", category: "creatures" })).records[0]?.name).toBe("Cythnigot");
     expect((await service.search({ category: "spells", tradition: "primal", actionCost: 2 })).records[0]?.name).toBe("Sea Blessing");
     expect((await service.search({ category: "rules", subcategory: "condition" })).records.map((record) => record.name)).toEqual(
       expect.arrayContaining(["Blinded", "Dazzled", "Hidden"]),
@@ -1051,9 +1051,7 @@ describe("Pf2eDataService", () => {
     expect((await service.search({ category: "creatures", nameQuery: "Ghost Sailor", excludeAdventureContent: true })).records[0]?.sourceCategory).toBe("core");
     expect((await service.search({ category: "creatures", coreOnly: true })).records.every((record) => record.sourceCategory === "core")).toBe(true);
     expect((await service.search({ themeQuery: "ghost ship", category: "creatures" })).mode).toBe("hybrid");
-    await expect(service.search({ mode: "structured", themeQuery: "ghost ship" })).rejects.toThrow(
-      /omit mode to default to hybrid, or set mode to lexical or hybrid/i,
-    );
+    expect((await service.search({ themeQuery: "ghost ship", category: "creatures" })).searchProfile).toBe("balanced");
 
     const cythnigot = service.lookup("Cythnigot", { category: "creatures" }).match;
     expect(cythnigot?.hasDescription).toBe(true);
@@ -1061,6 +1059,44 @@ describe("Pf2eDataService", () => {
     expect(cythnigot?.sourceCategory).toBe("core");
     expect(cythnigot?.category).toBe("creatures");
     expect(service.lookup("Blinded", { category: "rules", subcategory: "condition" }).match?.category).toBe("rules");
+  });
+
+  it("maps user-facing search profiles onto the underlying retrieval modes", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+
+    const service = await loadTestService(fixture);
+
+    const lookupResults = await service.search({
+      searchProfile: "lookup",
+      themeQuery: "aberration",
+      category: "creatures",
+    });
+    expect(lookupResults.searchProfile).toBe("lookup");
+    expect(lookupResults.mode).toBe("lexical");
+    expect(lookupResults.records[0]?.name).toBe("Cythnigot");
+
+    const balancedResults = await service.search({
+      searchProfile: "balanced",
+      themeQuery: "ghost ship",
+      category: "creatures",
+    });
+    expect(balancedResults.searchProfile).toBe("balanced");
+    expect(balancedResults.mode).toBe("hybrid");
+
+    const conceptResults = await service.search({
+      searchProfile: "concept",
+      themeQuery: "ghost ship",
+      category: "creatures",
+      explain: true,
+    });
+    expect(conceptResults.searchProfile).toBe("concept");
+    expect(conceptResults.mode).toBe("hybrid");
+    expect(conceptResults.explain?.searchProfile).toBe("concept");
+    expect(conceptResults.explain?.hybridBlend).toEqual({
+      lexicalWeight: 0.4,
+      semanticWeight: 0.6,
+    });
   });
 
   it("uses the recommendation-oriented ranking profile without suppressing described adventure content", async () => {
@@ -1120,7 +1156,7 @@ describe("Pf2eDataService", () => {
       category: "creatures",
       levelMin: 1,
       levelMax: 5,
-      mode: "lexical",
+      searchProfile: "lookup",
       themeQuery: "undead swarm body horror haunted ship crawling infestation severed limbs cursed voyage",
       limit: 20,
     });

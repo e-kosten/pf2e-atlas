@@ -8,7 +8,7 @@ import { CATEGORY_SUBCATEGORY_MAP } from "./categories.js";
 import { loadConfig } from "./config.js";
 import { Pf2eDataService } from "./pf2e-data.js";
 import { RankingConfigStore } from "./ranking-config.js";
-import { listRecordsModeSchema, searchCategorySchema, searchModeSchema } from "./tool-schemas.js";
+import { searchCategorySchema, searchProfileSchema } from "./tool-schemas.js";
 import { NormalizedRecord, PackInfo, RecordDetail, RuleReferenceEdge, SearchRecordExplanation } from "./types.js";
 
 function summarizeRecord(
@@ -169,17 +169,35 @@ async function main(): Promise<void> {
           ],
           retrievalPatterns: [
             {
-              name: "bounded_hybrid",
-              description: "Use broad semantic search inside explicit category and subcategory boundaries, plus level bounds and Pathfinder-native traits when helpful.",
+              name: "lookup",
+              description: "Lexical-first retrieval for exact names, rules terms, and precise Pathfinder vocabulary.",
             },
             {
-              name: "structured_backstop",
-              description: "Use structured traitsAny or traitsAll when the query maps cleanly to explicit Pathfinder-native tags.",
+              name: "balanced",
+              description: "Default hybrid retrieval for broad themed search inside explicit category and subcategory boundaries.",
+            },
+            {
+              name: "concept",
+              description: "Semantic-forward hybrid retrieval for exploratory concept search when exact wording is less important.",
             },
           ],
           categories: vocabulary.categories,
           subcategories: vocabulary.subcategories,
           subcategoriesByCategory: CATEGORY_SUBCATEGORY_MAP,
+          searchProfiles: [
+            {
+              value: "lookup",
+              summary: "Lexical-first exact matching.",
+            },
+            {
+              value: "balanced",
+              summary: "Default hybrid search.",
+            },
+            {
+              value: "concept",
+              summary: "Semantic-forward hybrid search.",
+            },
+          ],
           tagGuidance: {
             traitsAny: "Pathfinder-native tags. Use for soft narrowing when any listed tag is acceptable.",
             traitsAll: "Pathfinder-native tags. Use for strict narrowing when every listed tag is essential.",
@@ -249,7 +267,6 @@ async function main(): Promise<void> {
     {
       description: "List records inside a specific PF2E pack/category with optional filters.",
       inputSchema: {
-        mode: listRecordsModeSchema.optional().describe("Retrieval mode. Only structured is supported, and it is the default."),
         rankingProfile: z.enum(["default", "preferReusableReferenceContent"]).optional().describe("Optional ranking preference profile."),
         pack: z.string().describe("Pack name or label."),
         category: searchCategorySchema.optional().describe("Optional top-level category boundary."),
@@ -295,13 +312,13 @@ async function main(): Promise<void> {
   server.registerTool(
     "pf2e_search",
     {
-      description: "Search PF2E records across packs using category-first boundaries, name lookup, and thematic filters.",
+      description: "Search PF2E records across packs using category-first boundaries, user-facing search profiles, and thematic filters.",
       inputSchema: {
-        mode: searchModeSchema.optional().describe("Retrieval mode. Defaults to structured, or hybrid when themeQuery is present and mode is omitted."),
+        searchProfile: searchProfileSchema.optional().describe("User-facing retrieval profile. lookup is lexical-first, balanced is the default hybrid profile for broad themed search, and concept is semantic-forward hybrid search."),
         rankingProfile: z.enum(["default", "preferReusableReferenceContent"]).optional().describe("Optional ranking preference profile."),
         explain: z.boolean().optional().describe("Include score breakdowns and query-analysis details in the response."),
         nameQuery: z.string().optional().describe("Name text to search for."),
-        themeQuery: z.string().optional().describe("Theme or semantic query text. If mode is omitted, themeQuery defaults search to hybrid."),
+        themeQuery: z.string().optional().describe("Theme or semantic query text. If searchProfile is omitted, themeQuery defaults search to the balanced profile."),
         pack: z.string().optional().describe("Optional pack name or label."),
         category: searchCategorySchema.optional().describe("Optional top-level category boundary."),
         subcategory: z.string().optional().describe("Optional within-category boundary."),
@@ -334,6 +351,7 @@ async function main(): Promise<void> {
           },
         ],
         structuredContent: {
+          searchProfile: result.searchProfile,
           mode: result.mode,
           total: result.total,
           offset: result.offset,

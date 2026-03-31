@@ -30,6 +30,7 @@ import {
   SearchExplainResult,
   SearchRecordExplanation,
   SearchMode,
+  SearchProfile,
   SearchResult,
   SourceCategory,
 } from "./types.js";
@@ -835,6 +836,12 @@ function buildFtsQuery(query: string): string | null {
 }
 
 type SearchScoreComponents = SearchRecordExplanation["components"];
+type HybridBlend = RankingConfig["hybridBlend"];
+
+const CONCEPT_PROFILE_BLEND: HybridBlend = {
+  lexicalWeight: 0.4,
+  semanticWeight: 0.6,
+};
 
 function tokenize(value: string): string[] {
   const normalized = normalizeText(value);
@@ -874,9 +881,29 @@ function buildMetadataText(record: NormalizedRecord): string {
     .join(" ");
 }
 
+function normalizeHybridBlend(blend: HybridBlend): HybridBlend {
+  const lexicalWeight = Math.max(0, blend.lexicalWeight);
+  const semanticWeight = Math.max(0, blend.semanticWeight);
+  const total = lexicalWeight + semanticWeight;
+  if (total <= 0) {
+    return { lexicalWeight: 0.5, semanticWeight: 0.5 };
+  }
+
+  return {
+    lexicalWeight: lexicalWeight / total,
+    semanticWeight: semanticWeight / total,
+  };
+}
+
 function resolveSearchMode(filters: SearchFilters, context: "list" | "search"): SearchMode {
-  if (filters.mode) {
-    return filters.mode;
+  if (context === "search") {
+    if (filters.searchProfile === "lookup") {
+      return filters.themeQuery?.trim() ? "lexical" : "structured";
+    }
+
+    if (filters.searchProfile === "balanced" || filters.searchProfile === "concept") {
+      return filters.themeQuery?.trim() ? "hybrid" : "structured";
+    }
   }
 
   if (context === "search" && filters.themeQuery?.trim()) {
@@ -884,6 +911,38 @@ function resolveSearchMode(filters: SearchFilters, context: "list" | "search"): 
   }
 
   return "structured";
+}
+
+function resolveSearchProfile(
+  filters: SearchFilters,
+  context: "list" | "search",
+  mode: SearchMode,
+): SearchProfile {
+  if (filters.searchProfile) {
+    return filters.searchProfile;
+  }
+
+  if (context === "search" && mode === "hybrid") {
+    return "balanced";
+  }
+
+  return "lookup";
+}
+
+function resolveHybridBlend(
+  searchProfile: SearchProfile,
+  mode: SearchMode,
+  rankingConfig: RankingConfig,
+): HybridBlend | null {
+  if (mode !== "hybrid") {
+    return null;
+  }
+
+  if (searchProfile === "concept") {
+    return normalizeHybridBlend(CONCEPT_PROFILE_BLEND);
+  }
+
+  return normalizeHybridBlend(rankingConfig.hybridBlend);
 }
 
 type ExtractedReference = {
@@ -1821,16 +1880,20 @@ function buildCandidateQuery(filters: SearchFilters, includeSearchText = false, 
 function validateFilters(filters: SearchFilters, context: "list" | "search"): void {
   const mode = resolveSearchMode(filters, context);
 
+  if (context === "list" && filters.searchProfile) {
+    throw new Error("searchProfile is only supported for pf2e_search.");
+  }
+
   if (context === "list" && mode !== "structured") {
     throw new Error("List mode only supports structured retrieval.");
   }
 
   if (context === "list" && filters.themeQuery) {
-    throw new Error("themeQuery is only supported for lexical or hybrid search.");
+    throw new Error("themeQuery is only supported for pf2e_search.");
   }
 
   if (mode === "structured" && filters.themeQuery) {
-    throw new Error("themeQuery is not supported with mode=structured. Omit mode to default to hybrid, or set mode to lexical or hybrid.");
+    throw new Error("themeQuery requires a themed search profile such as balanced or concept.");
   }
 
   if (filters.coreOnly && filters.excludeAdventureContent) {
@@ -2338,7 +2401,6 @@ export class Pf2eDataService {
         }
 
         const results = this.searchStructured({
-          mode: "structured",
           nameQuery: query.name,
           pack: query.pack,
           category: query.category,
@@ -2408,6 +2470,8 @@ export class Pf2eDataService {
     validateFilters(filters, "search");
     const limit = clampLimit(filters.limit);
     const offset = clampOffset(filters.offset);
+    const mode = resolveSearchMode(filters, "search");
+    const searchProfile = resolveSearchProfile(filters, "search", mode);
     const rankingConfig = this.rankingConfigStore?.getConfig() ?? DEFAULT_RANKING_CONFIG;
     const candidates = this.fetchCandidates(filters);
     const scored = candidates
@@ -2438,6 +2502,7 @@ export class Pf2eDataService {
       .sort((left, right) => right.score - left.score || sortRecords(left.record, right.record));
 
     return {
+      searchProfile,
       mode: "structured",
       total: scored.length,
       offset,
@@ -2457,6 +2522,7 @@ export class Pf2eDataService {
       sortRecords(left, right)
     ));
     return {
+      searchProfile: "lookup",
       mode: "structured",
       total: records.length,
       offset,
@@ -2525,13 +2591,15 @@ export class Pf2eDataService {
     const limit = clampLimit(filters.limit);
     const offset = clampOffset(filters.offset);
     const mode = resolveSearchMode(filters, "search");
+    const searchProfile = resolveSearchProfile(filters, "search", mode);
     const rawLexicalQuery = filters.themeQuery?.trim() || filters.nameQuery?.trim() || "";
     const effectiveFilters: SearchFilters = {
       ...filters,
     };
     const shouldIncludeSearchText = Boolean(effectiveFilters.themeQuery || effectiveFilters.nameQuery || mode !== "structured");
-    const shouldIncludeEmbedding = Boolean(mode === "hybrid" && effectiveFilters.themeQuery);
     const rankingConfig = this.rankingConfigStore?.getConfig() ?? DEFAULT_RANKING_CONFIG;
+    const hybridBlend = resolveHybridBlend(searchProfile, mode, rankingConfig);
+    const shouldIncludeEmbedding = Boolean(hybridBlend && effectiveFilters.themeQuery);
     let candidates = this.fetchCandidates(effectiveFilters, shouldIncludeSearchText, shouldIncludeEmbedding);
     const queryAnalysis = rawLexicalQuery
       ? buildSearchQueryAnalysis(rawLexicalQuery)
@@ -2543,7 +2611,7 @@ export class Pf2eDataService {
       candidates = candidates.filter((candidate) => lexicalMatches.has(candidate.recordKey));
     }
 
-    const semanticVector = mode === "hybrid" && queryAnalysis
+    const semanticVector = hybridBlend && queryAnalysis
       ? await this.embeddingProvider.embed(queryAnalysis.normalizedQuery)
       : null;
 
@@ -2625,8 +2693,8 @@ export class Pf2eDataService {
           score = lexicalScore + packQuality;
         } else {
           score =
-            (lexicalScore * rankingConfig.hybridBlend.lexicalWeight) +
-            (semanticScore * rankingConfig.hybridBlend.semanticWeight) +
+            (lexicalScore * hybridBlend!.lexicalWeight) +
+            (semanticScore * hybridBlend!.semanticWeight) +
             packQuality;
         }
 
@@ -2669,7 +2737,9 @@ export class Pf2eDataService {
     const page = scored.slice(offset, offset + limit);
     const explain: SearchExplainResult | undefined = filters.explain
       ? {
+          searchProfile,
           mode,
+          hybridBlend,
           lexicalQuery: rawLexicalQuery,
           semanticQuery: queryAnalysis?.normalizedQuery ?? "",
           query: queryAnalysis
@@ -2685,6 +2755,7 @@ export class Pf2eDataService {
       : undefined;
 
     return {
+      searchProfile,
       mode,
       total: scored.length,
       offset,
@@ -2696,7 +2767,6 @@ export class Pf2eDataService {
 
   lookup(name: string, options: LookupOptions = {}): { match: NormalizedRecord | null; alternatives: NormalizedRecord[] } {
     const results = this.searchStructured({
-      mode: "structured",
       nameQuery: name,
       pack: options.pack,
       category: options.category,
