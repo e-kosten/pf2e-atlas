@@ -43,6 +43,7 @@ describe("loadConfig", () => {
     expect(config.indexPath).toBe(explicitIndexPath);
     expect(config.embeddings.provider).toBe("hf-local");
     expect(config.embeddings.modelId).toBe("Xenova/all-MiniLM-L12-v2");
+    expect(config.ranking.configPath.endsWith("pf2e-ranking.json")).toBe(true);
   });
 
   it("defaults to vendor/pf2e under the current working directory", async () => {
@@ -56,6 +57,7 @@ describe("loadConfig", () => {
       expect(config.manifestPath.endsWith(path.join("vendor", "pf2e", "system.pf2e.json"))).toBe(true);
       expect(config.indexPath.endsWith(path.join(".cache", "pf2e-index.sqlite"))).toBe(true);
       expect(config.embeddings.cachePath.endsWith(path.join(".cache", "hf-models"))).toBe(true);
+      expect(config.ranking.configPath.endsWith("pf2e-ranking.json")).toBe(true);
     } finally {
       process.chdir(originalCwd);
     }
@@ -77,6 +79,8 @@ describe("loadConfig", () => {
         path.join(root, ".cache", "embeddings"),
         "--embedding-local-model-path",
         path.join(root, "models"),
+        "--ranking-config-path",
+        path.join(root, "config", "ranking.json"),
       ],
       {},
     );
@@ -87,6 +91,9 @@ describe("loadConfig", () => {
       modelRevision: "test-rev",
       cachePath: path.join(root, ".cache", "embeddings"),
       localModelPath: path.join(root, "models"),
+    });
+    expect(config.ranking).toEqual({
+      configPath: path.join(root, "config", "ranking.json"),
     });
   });
 

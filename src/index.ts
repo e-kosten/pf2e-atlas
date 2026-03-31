@@ -6,6 +6,7 @@ import * as z from "zod/v4";
 
 import { loadConfig } from "./config.js";
 import { Pf2eDataService } from "./pf2e-data.js";
+import { RankingConfigStore } from "./ranking-config.js";
 import { buildSearchPlan, summarizeExpansionRules } from "./search-planning.js";
 import { NormalizedRecord, PackInfo, RecordDetail, RuleReferenceEdge, SearchFilters, SearchRecordExplanation } from "./types.js";
 
@@ -107,10 +108,18 @@ function summarizeSearchPreview(label: string, purpose: string, result: { total:
 
 async function main(): Promise<void> {
   const config = await loadConfig();
-  const dataService = await Pf2eDataService.load(config.rootPath, config.manifestPath, {
-    indexPath: config.indexPath,
-    embedding: config.embeddings,
-  });
+  const rankingConfigStore = await RankingConfigStore.create(config.ranking.configPath);
+  let dataService: Pf2eDataService;
+  try {
+    dataService = await Pf2eDataService.load(config.rootPath, config.manifestPath, {
+      indexPath: config.indexPath,
+      embedding: config.embeddings,
+      rankingConfigStore,
+    });
+  } catch (error) {
+    rankingConfigStore.close();
+    throw error;
+  }
   const stats = dataService.getStats();
   const startupWarnings = dataService.warnings;
 
@@ -188,6 +197,7 @@ async function main(): Promise<void> {
           subcategories: vocabulary.subcategories,
           ontologyDomains: domains,
           vocabulary,
+          rankingConfig: dataService.getRankingConfigStatus(),
         },
       };
     },

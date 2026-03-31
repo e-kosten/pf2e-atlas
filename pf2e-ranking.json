@@ -1,0 +1,41 @@
+{
+  "lexicalChannels": {
+    "fullTextSearch": 0.1,
+    "metadataText": 0.15,
+    "descriptionText": 0.05,
+    "themeName": 0.25,
+    "themeTraits": 0.35,
+    "themeMetadata": 0.1
+  },
+  "hybridBlend": {
+    "lexicalWeight": 0.85,
+    "semanticWeight": 0.15
+  },
+  "packQuality": {
+    "macroPenalty": -0.2,
+    "glossaryPenalty": -0.1,
+    "effectPenalty": -0.05,
+    "utilityPackBoost": 0.05
+  },
+  "sourceQuality": {
+    "core": 0.04,
+    "rules": 0.02,
+    "adventure": -0.01,
+    "unknown": 0
+  },
+  "rarityPreference": {
+    "common": 0.05,
+    "uncommon": 0.05,
+    "rare": 0.01,
+    "unique": -0.03,
+    "themeQueryUniquePenalty": -0.17
+  },
+  "rankingProfile": {
+    "missingDescriptionPenalty": -0.3,
+    "hasDescriptionBoost": 0.12
+  },
+  "sourcePenalty": {
+    "societyMetadataOnlyPenalty": -0.2,
+    "scenarioScaleSuffixPenalty": -0.1
+  }
+}

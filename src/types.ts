@@ -4,6 +4,11 @@ export interface AppConfig {
   manifestPath: string;
   indexPath: string;
   embeddings: EmbeddingConfig;
+  ranking: RankingRuntimeConfig;
+}
+
+export interface RankingRuntimeConfig {
+  configPath: string;
 }
 
 export type EmbeddingProviderKind = "hash" | "hf-local";
@@ -214,7 +219,16 @@ export interface SearchExplainResult {
   lexicalQuery: string;
   semanticQuery: string;
   query: SearchQueryAnalysis | null;
+  rankingConfig: RankingConfigStatus;
   records: SearchRecordExplanation[];
+}
+
+export interface RankingConfigStatus {
+  path: string;
+  source: "default" | "file";
+  revision: number;
+  loadedAt: string;
+  lastError: string | null;
 }
 
 export interface RuleReferenceEdge {

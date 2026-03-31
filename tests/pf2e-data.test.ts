@@ -6,6 +6,7 @@ import { DatabaseSync } from "node:sqlite";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { Pf2eDataService } from "../src/pf2e-data.js";
+import { RankingConfigStore } from "../src/ranking-config.js";
 
 const TEST_HASH_EMBEDDING = {
   provider: "hash" as const,
@@ -1189,6 +1190,42 @@ describe("Pf2eDataService", () => {
     expect(exactUniqueResults.records[0]?.name).toBe("Last Sentinel");
     const exactUniqueExplain = exactUniqueResults.explain?.records.find((record) => record.name === "Last Sentinel");
     expect(exactUniqueExplain?.components.rarityPreference).toBe(-0.03);
+  });
+
+  it("hot-reloads ranking weights without rebuilding the service", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+    const rankingConfigPath = path.join(fixture.root, "pf2e-ranking.json");
+    const rankingConfigStore = await RankingConfigStore.create(rankingConfigPath, { watch: false });
+    const service = await loadTestService(fixture, { rankingConfigStore });
+
+    const baselineResults = await service.search({
+      category: "creatures",
+      nameQuery: "Bilge Skeleton",
+      explain: true,
+    });
+    expect(baselineResults.records[0]?.sourceCategory).toBe("core");
+    expect(baselineResults.explain?.rankingConfig.source).toBe("default");
+
+    const baselineRevision = service.getRankingConfigStatus().revision;
+    await writeJson(rankingConfigPath, {
+      sourceQuality: {
+        core: -0.5,
+        adventure: 0.5,
+      },
+    });
+    await rankingConfigStore.reload();
+
+    const updatedResults = await service.search({
+      category: "creatures",
+      nameQuery: "Bilge Skeleton",
+      explain: true,
+    });
+    expect(updatedResults.records[0]?.sourceCategory).toBe("adventure");
+    expect(updatedResults.explain?.rankingConfig.source).toBe("file");
+    expect(updatedResults.explain?.rankingConfig.revision).toBeGreaterThan(baselineRevision);
+    expect(updatedResults.explain?.records.some((record) => record.components.sourceQuality === 0.5)).toBe(true);
+    service.close();
   });
 
   it("excludes dedicated Pathfinder Society content while retaining base equivalents", async () => {

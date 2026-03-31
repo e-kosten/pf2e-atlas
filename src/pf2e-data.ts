@@ -13,6 +13,7 @@ import {
   EmbeddingProvider,
 } from "./embeddings.js";
 import { classifyRecordCategory, extractSpellTraditions, getCategoryForSubcategory } from "./categories.js";
+import { DEFAULT_RANKING_CONFIG, RankingConfig, RankingConfigStore } from "./ranking-config.js";
 import {
   CollectRuleQuestionContextInput,
   CollectRuleQuestionContextResult,
@@ -55,6 +56,7 @@ type LoadOptions = {
   embeddingProviderFactory?: (
     config: EmbeddingConfig,
   ) => Promise<{ provider: EmbeddingProvider; warnings: string[] }>;
+  rankingConfigStore?: RankingConfigStore;
   progressLogger?: (message: string) => void;
   progressStatusLogger?: (message: string) => void;
 };
@@ -687,63 +689,65 @@ function getPackAliasValues(pack: PackInfo, value: string): boolean {
   return normalized === normalizeText(pack.name) || normalized === normalizeText(pack.label);
 }
 
-function packQualityScore(record: NormalizedRecord): number {
+function packQualityScore(record: NormalizedRecord, rankingConfig: RankingConfig): number {
   const normalizedPack = normalizeText(record.packName);
   let score = 0;
 
   if (normalizedPack.includes("macro")) {
-    score -= 0.2;
+    score += rankingConfig.packQuality.macroPenalty;
   }
 
   if (normalizedPack.includes("glossary")) {
-    score -= 0.1;
+    score += rankingConfig.packQuality.glossaryPenalty;
   }
 
   if (normalizedPack.includes("effect")) {
-    score -= 0.05;
+    score += rankingConfig.packQuality.effectPenalty;
   }
 
   if (normalizedPack === "actions" || normalizedPack === "spells" || normalizedPack === "equipment" || normalizedPack === "feats") {
-    score += 0.05;
+    score += rankingConfig.packQuality.utilityPackBoost;
   }
 
   return score;
 }
 
-function sourceQualityScore(record: NormalizedRecord): number {
+function sourceQualityScore(record: NormalizedRecord, rankingConfig: RankingConfig): number {
   if (record.sourceCategory === "core") {
-    return 0.04;
+    return rankingConfig.sourceQuality.core;
   }
   if (record.sourceCategory === "rules") {
-    return 0.02;
+    return rankingConfig.sourceQuality.rules;
   }
   if (record.sourceCategory === "adventure") {
-    return -0.01;
+    return rankingConfig.sourceQuality.adventure;
   }
 
-  return 0;
+  return rankingConfig.sourceQuality.unknown;
 }
 
-function rarityPreferenceScore(record: NormalizedRecord, filters: SearchFilters): number {
+function rarityPreferenceScore(record: NormalizedRecord, filters: SearchFilters, rankingConfig: RankingConfig): number {
   const normalizedRarity = normalizeText(record.rarity ?? "");
   let score = 0;
 
   if (normalizedRarity === "common" || normalizedRarity === "uncommon") {
-    score += 0.05;
+    score += normalizedRarity === "common"
+      ? rankingConfig.rarityPreference.common
+      : rankingConfig.rarityPreference.uncommon;
   } else if (normalizedRarity === "rare") {
-    score += 0.01;
+    score += rankingConfig.rarityPreference.rare;
   } else if (normalizedRarity === "unique") {
-    score -= 0.03;
+    score += rankingConfig.rarityPreference.unique;
   }
 
   if (record.isUnique && filters.themeQuery?.trim()) {
-    score -= 0.17;
+    score += rankingConfig.rarityPreference.themeQueryUniquePenalty;
   }
 
   return score;
 }
 
-function rankingProfileScore(record: NormalizedRecord, filters: SearchFilters): number {
+function rankingProfileScore(record: NormalizedRecord, filters: SearchFilters, rankingConfig: RankingConfig): number {
   if (filters.rankingProfile !== "preferReusableReferenceContent") {
     return 0;
   }
@@ -751,25 +755,25 @@ function rankingProfileScore(record: NormalizedRecord, filters: SearchFilters): 
   let score = 0;
 
   if (!record.hasDescription) {
-    score -= 0.3;
+    score += rankingConfig.rankingProfile.missingDescriptionPenalty;
   } else {
-    score += 0.12;
+    score += rankingConfig.rankingProfile.hasDescriptionBoost;
   }
 
   return score;
 }
 
-function sourcePenaltyScore(record: NormalizedRecord, filters: SearchFilters): number {
+function sourcePenaltyScore(record: NormalizedRecord, filters: SearchFilters, rankingConfig: RankingConfig): number {
   if (record.hasDescription || !filters.themeQuery?.trim()) {
     return 0;
   }
 
   let penalty = 0;
   if (isSocietyPublication(record.publicationTitle) || isSocietyPack(record.packName)) {
-    penalty -= 0.2;
+    penalty += rankingConfig.sourcePenalty.societyMetadataOnlyPenalty;
   }
   if (hasScenarioScaleSuffix(record.name)) {
-    penalty -= 0.1;
+    penalty += rankingConfig.sourcePenalty.scenarioScaleSuffixPenalty;
   }
 
   return penalty;
@@ -831,15 +835,6 @@ function buildFtsQuery(query: string): string | null {
 }
 
 type SearchScoreComponents = SearchRecordExplanation["components"];
-
-const LEXICAL_CHANNEL_WEIGHTS = {
-  fullTextSearch: 0.1,
-  metadataText: 0.15,
-  descriptionText: 0.05,
-  themeName: 0.25,
-  themeTraits: 0.35,
-  themeMetadata: 0.1,
-} as const;
 
 function tokenize(value: string): string[] {
   const normalized = normalizeText(value);
@@ -1832,6 +1827,7 @@ export class Pf2eDataService {
   private readonly embeddingProvider: EmbeddingProvider;
   private readonly indexPath: string;
   private readonly recordCount: number;
+  private readonly rankingConfigStore: RankingConfigStore | null;
 
   private constructor(
     db: DatabaseSync,
@@ -1840,6 +1836,7 @@ export class Pf2eDataService {
     recordCount: number,
     indexPath: string,
     embeddingProvider: EmbeddingProvider,
+    rankingConfigStore: RankingConfigStore | null,
   ) {
     this.db = db;
     this.packs = packs;
@@ -1847,6 +1844,7 @@ export class Pf2eDataService {
     this.recordCount = recordCount;
     this.indexPath = indexPath;
     this.embeddingProvider = embeddingProvider;
+    this.rankingConfigStore = rankingConfigStore;
   }
 
   static async load(rootPath: string, manifestPath: string, options: LoadOptions = {}): Promise<Pf2eDataService> {
@@ -1874,10 +1872,11 @@ export class Pf2eDataService {
     return new Pf2eDataService(
       existingDb,
       packs,
-      embeddingRuntime.warnings,
+      [...embeddingRuntime.warnings, ...(options.rankingConfigStore?.warnings ?? [])],
       recordCount,
       indexPath,
       embeddingProvider,
+      options.rankingConfigStore ?? null,
     );
   }
 
@@ -1915,10 +1914,11 @@ export class Pf2eDataService {
     return new Pf2eDataService(
       db,
       packs,
-      [...embeddingRuntime.warnings, ...warnings],
+      [...embeddingRuntime.warnings, ...warnings, ...(options.rankingConfigStore?.warnings ?? [])],
       recordCount,
       indexPath,
       embeddingProvider,
+      options.rankingConfigStore ?? null,
     );
   }
 
@@ -2019,6 +2019,16 @@ export class Pf2eDataService {
     };
   }
 
+  getRankingConfigStatus() {
+    return this.rankingConfigStore?.getStatus() ?? {
+      path: "<defaults>",
+      source: "default" as const,
+      revision: 1,
+      loadedAt: new Date(0).toISOString(),
+      lastError: null,
+    };
+  }
+
   getPack(packValue: string): PackInfo | undefined {
     return this.packs.find((pack) => getPackAliasValues(pack, packValue));
   }
@@ -2028,6 +2038,7 @@ export class Pf2eDataService {
   }
 
   close(): void {
+    this.rankingConfigStore?.close();
     this.db.close();
   }
 
@@ -2377,15 +2388,16 @@ export class Pf2eDataService {
     validateFilters(filters, "search");
     const limit = clampLimit(filters.limit);
     const offset = clampOffset(filters.offset);
+    const rankingConfig = this.rankingConfigStore?.getConfig() ?? DEFAULT_RANKING_CONFIG;
     const candidates = this.fetchCandidates(filters);
     const scored = candidates
       .map((candidate) => {
         const record = rowToRecord(candidate);
-        const packQuality = packQualityScore(record);
-        const sourceQuality = sourceQualityScore(record);
-        const rarityPreference = rarityPreferenceScore(record, filters);
-        const sourcePenalty = sourcePenaltyScore(record, filters);
-        const rankingProfile = rankingProfileScore(record, filters);
+        const packQuality = packQualityScore(record, rankingConfig);
+        const sourceQuality = sourceQualityScore(record, rankingConfig);
+        const rarityPreference = rarityPreferenceScore(record, filters, rankingConfig);
+        const sourcePenalty = sourcePenaltyScore(record, filters, rankingConfig);
+        const rankingProfile = rankingProfileScore(record, filters, rankingConfig);
         const score =
           (filters.nameQuery ? nameScore(filters.nameQuery, record) : 0.5) +
           packQuality +
@@ -2418,9 +2430,10 @@ export class Pf2eDataService {
     validateFilters(filters, "list");
     const limit = clampLimit(filters.limit);
     const offset = clampOffset(filters.offset);
+    const rankingConfig = this.rankingConfigStore?.getConfig() ?? DEFAULT_RANKING_CONFIG;
     const records = this.fetchCandidates(filters).map((row) => rowToRecord(row));
     records.sort((left, right) => (
-      rankingProfileScore(right, filters) - rankingProfileScore(left, filters) ||
+      rankingProfileScore(right, filters, rankingConfig) - rankingProfileScore(left, filters, rankingConfig) ||
       sortRecords(left, right)
     ));
     return {
@@ -2506,6 +2519,7 @@ export class Pf2eDataService {
     };
     const shouldIncludeSearchText = Boolean(effectiveFilters.themeQuery || effectiveFilters.nameQuery || mode !== "structured");
     const shouldIncludeEmbedding = Boolean(mode === "hybrid" && effectiveFilters.themeQuery);
+    const rankingConfig = this.rankingConfigStore?.getConfig() ?? DEFAULT_RANKING_CONFIG;
     let candidates = this.fetchCandidates(effectiveFilters, shouldIncludeSearchText, shouldIncludeEmbedding);
     const queryAnalysis = rawLexicalQuery
       ? buildSearchQueryAnalysis(rawLexicalQuery, effectiveFilters, { expandQuery: effectiveFilters.expandQuery ?? true })
@@ -2545,12 +2559,13 @@ export class Pf2eDataService {
         const themeMetadata = candidateQueryWeights
           ? scoreWeightedOverlap(candidateQueryWeights.metadataWeights, tokenize(buildMetadataText(record)), 2.5)
           : { score: 0, matchedTokens: [] };
-        const fullTextSearchContribution = ftsScore * LEXICAL_CHANNEL_WEIGHTS.fullTextSearch;
-        const metadataTextContribution = metadataTextScore * LEXICAL_CHANNEL_WEIGHTS.metadataText;
-        const descriptionTextContribution = descriptionTextScore * LEXICAL_CHANNEL_WEIGHTS.descriptionText;
-        const themeNameContribution = themeName.score * LEXICAL_CHANNEL_WEIGHTS.themeName;
-        const themeTraitsContribution = themeTraits.score * LEXICAL_CHANNEL_WEIGHTS.themeTraits;
-        const themeMetadataContribution = themeMetadata.score * LEXICAL_CHANNEL_WEIGHTS.themeMetadata;
+        const lexicalWeights = rankingConfig.lexicalChannels;
+        const fullTextSearchContribution = ftsScore * lexicalWeights.fullTextSearch;
+        const metadataTextContribution = metadataTextScore * lexicalWeights.metadataText;
+        const descriptionTextContribution = descriptionTextScore * lexicalWeights.descriptionText;
+        const themeNameContribution = themeName.score * lexicalWeights.themeName;
+        const themeTraitsContribution = themeTraits.score * lexicalWeights.themeTraits;
+        const themeMetadataContribution = themeMetadata.score * lexicalWeights.themeMetadata;
         const lexicalScoreBeforeNormalization =
           fullTextSearchContribution +
           metadataTextContribution +
@@ -2559,7 +2574,7 @@ export class Pf2eDataService {
           themeTraitsContribution +
           themeMetadataContribution;
         const normalizationMultiplier = !record.hasDescription
-          ? 1 / (1 - LEXICAL_CHANNEL_WEIGHTS.descriptionText)
+          ? 1 / (1 - lexicalWeights.descriptionText)
           : 1;
         const missingDescriptionNormalization = !record.hasDescription
           ? lexicalScoreBeforeNormalization * (normalizationMultiplier - 1)
@@ -2571,11 +2586,11 @@ export class Pf2eDataService {
           semanticVector && candidate.embeddingBlob
             ? Math.max(0, cosineSimilarity(semanticVector, decodeVector(candidate.embeddingBlob)))
             : 0;
-        const packQuality = packQualityScore(record);
-        const sourceQuality = sourceQualityScore(record);
-        const rarityPreference = rarityPreferenceScore(record, effectiveFilters);
-        const sourcePenalty = sourcePenaltyScore(record, effectiveFilters);
-        const rankingProfile = rankingProfileScore(record, effectiveFilters);
+        const packQuality = packQualityScore(record, rankingConfig);
+        const sourceQuality = sourceQualityScore(record, rankingConfig);
+        const rarityPreference = rarityPreferenceScore(record, effectiveFilters, rankingConfig);
+        const sourcePenalty = sourcePenaltyScore(record, effectiveFilters, rankingConfig);
+        const rankingProfile = rankingProfileScore(record, effectiveFilters, rankingConfig);
         const components: SearchScoreComponents = {
           fullTextSearch: ftsScore,
           metadataText: metadataTextScore,
@@ -2597,7 +2612,10 @@ export class Pf2eDataService {
         } else if (mode === "lexical") {
           score = lexicalScore + packQuality;
         } else {
-          score = (lexicalScore * 0.85) + (semanticScore * 0.15) + packQuality;
+          score =
+            (lexicalScore * rankingConfig.hybridBlend.lexicalWeight) +
+            (semanticScore * rankingConfig.hybridBlend.semanticWeight) +
+            packQuality;
         }
 
         score += sourceQuality + rarityPreference + sourcePenalty + rankingProfile;
@@ -2658,6 +2676,7 @@ export class Pf2eDataService {
                 skippedRules: queryAnalysis.skippedRules,
               }
             : null,
+          rankingConfig: this.getRankingConfigStatus(),
           records: page.map(({ explanation }) => explanation),
         }
       : undefined;
