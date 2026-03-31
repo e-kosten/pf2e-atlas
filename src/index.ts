@@ -164,21 +164,21 @@ async function main(): Promise<void> {
             {
               name: "query",
               strength: "literal text",
-              description: "Broad lexical and semantic retrieval input. The server normalizes it but does not expand or reinterpret it beyond that.",
+              description: "Prefer one short natural-language phrase or sentence with 1-3 concrete anchor terms. Avoid long comma-separated keyword lists by default.",
             },
           ],
           retrievalPatterns: [
             {
               name: "lookup",
-              description: "Lexical-first retrieval for exact names, rules terms, and precise Pathfinder vocabulary.",
+              description: "Lexical-first retrieval for exact names, rules terms, and precise Pathfinder vocabulary. Use short exact or near-exact text.",
             },
             {
               name: "balanced",
-              description: "Default hybrid retrieval for broad themed search inside explicit category and subcategory boundaries.",
+              description: "Default hybrid retrieval for broad themed search inside explicit category and subcategory boundaries. Prefer one concise phrase or sentence with concrete anchors.",
             },
             {
               name: "concept",
-              description: "Semantic-forward hybrid retrieval for exploratory concept search when exact wording is less important.",
+              description: "Semantic-forward hybrid retrieval for exploratory concept search when exact wording is less important. Prefer one or two natural-language sentences over keyword piles.",
             },
           ],
           categories: vocabulary.categories,
@@ -187,15 +187,15 @@ async function main(): Promise<void> {
           searchProfiles: [
             {
               value: "lookup",
-              summary: "Lexical-first exact matching.",
+              summary: "Lexical-first exact matching with short exact or near-exact text.",
             },
             {
               value: "balanced",
-              summary: "Default hybrid search.",
+              summary: "Default hybrid search for concise natural-language queries with concrete anchors.",
             },
             {
               value: "concept",
-              summary: "Semantic-forward hybrid search.",
+              summary: "Semantic-forward hybrid search for exploratory natural-language concept descriptions.",
             },
           ],
           tagGuidance: {
@@ -316,7 +316,7 @@ async function main(): Promise<void> {
         searchProfile: searchProfileSchema.optional().describe("User-facing retrieval profile. lookup is lexical-first, balanced is the default hybrid profile for broad themed search, and concept is semantic-forward hybrid search."),
         explain: z.boolean().optional().describe("Include score breakdowns and query-analysis details in the response."),
         nameQuery: z.string().optional().describe("Name text to search for."),
-        query: z.string().optional().describe("General free-text search input. If searchProfile is omitted, query defaults search to the balanced profile."),
+        query: z.string().optional().describe("General free-text search input. Prefer one short natural-language phrase or sentence with 1-3 concrete anchor terms. Avoid long comma-separated keyword lists by default. If searchProfile is omitted, query defaults search to the balanced profile."),
         pack: z.string().optional().describe("Optional pack name or label."),
         category: searchCategorySchema.optional().describe("Optional top-level category boundary."),
         subcategory: z.string().optional().describe("Optional within-category boundary."),

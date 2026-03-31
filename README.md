@@ -132,6 +132,7 @@ Search and list responses include:
 - Search is category-first. Use `category` and optional `subcategory` as the main boundaries instead of raw Foundry `recordType`, `documentType`, or `itemCategory`.
 - `pf2e_search` supports `searchProfile: "lookup" | "balanced" | "concept"` as the primary user-facing retrieval control.
 - `pf2e_search` defaults to the `balanced` profile when `query` is present and `searchProfile` is omitted.
+- Prefer a short natural-language phrase or sentence with 1-3 concrete anchor terms for `query`. Avoid long comma-separated keyword lists by default.
 - `pf2e_get_search_semantics` is the primary discovery surface for categories, subcategories, Pathfinder-native tags, and supported filters.
 - Search now uses a local SQLite index with:
   - shared structured filters
