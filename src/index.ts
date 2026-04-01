@@ -309,9 +309,9 @@ async function main(): Promise<void> {
   server.registerTool(
     "pf2e_list_records",
     {
-      description: "List records inside a specific PF2E pack with optional structured filters. Use this when pack scope matters more than ranked search.",
+      description: "List PF2E records using deterministic, non-ranked structured filters and pagination. Use this for browse-and-page flows when stable listing matters more than ranked retrieval.",
       inputSchema: {
-        pack: z.string().describe("Pack name or label."),
+        pack: z.string().optional().describe("Optional pack name or label."),
         category: searchCategorySchema.optional().describe(CATEGORY_HINT_DESCRIPTION),
         subcategory: searchSubcategorySchema.optional().describe(SUBCATEGORY_HINT_DESCRIPTION),
         scopes: z.array(searchScopeSchema).min(1).optional().describe(SCOPES_HINT_DESCRIPTION),
@@ -342,7 +342,7 @@ async function main(): Promise<void> {
         content: [
           {
             type: "text",
-            text: formatSearchResult(`Records in ${input.pack}:`, result.total, result.records),
+            text: formatSearchResult("PF2E records:", result.total, result.records),
           },
         ],
         structuredContent: {
@@ -358,7 +358,7 @@ async function main(): Promise<void> {
   server.registerTool(
     "pf2e_search",
     {
-      description: "Search PF2E records using natural-language text and structured filters. Best for exploratory discovery; use pf2e_lookup for exact names.",
+      description: "Search PF2E records using ranked retrieval with natural-language text and/or structured filters. Best for exploratory discovery; use pf2e_list_records for deterministic listing and pf2e_lookup for exact names.",
       inputSchema: {
         searchProfile: searchProfileSchema.optional().describe("User-facing retrieval profile. lexical is lexical-first, balanced is the default hybrid profile for broad themed search, and concept is semantic-forward hybrid search."),
         explain: z.boolean().optional().describe("Include score breakdowns and query-analysis details in the response."),

@@ -1508,6 +1508,7 @@ describe("Pf2eDataService", () => {
 
     expect(service.lookup("Raise Shield").match?.name).toBe("Raise a Shield");
     expect(service.listRecords({ pack: "actions" }).records).toHaveLength(4);
+    expect(service.listRecords({ category: "creature", levelMin: 4, levelMax: 4, traitsAny: ["undead"] }).records.map((record) => record.name)).toEqual(["Ghost Commoner"]);
     expect((await service.search({ category: "creature", traitsAll: ["fiend"] })).records[0]?.name).toBe("Cythnigot");
     expect((await service.search({ category: "creature", size: "sm" })).records.every((record) => record.size === "sm")).toBe(true);
     expect((await service.search({ searchProfile: "lexical", query: "aberration", category: "creature" })).records[0]?.name).toBe("Cythnigot");
@@ -1540,6 +1541,32 @@ describe("Pf2eDataService", () => {
     expect(focusBurst?.subcategory).toBeNull();
     expect(focusBurst?.spellKinds).toEqual(["focus"]);
     expect(service.lookup("Blinded", { category: "rule", subcategory: "condition" }).match?.category).toBe("rule");
+  });
+
+  it("keeps deterministic listing distinct from structured ranked search", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+
+    const service = await loadTestService(fixture);
+
+    const listed = service.listRecords({
+      category: "creature",
+      levelMin: 2,
+      levelMax: 2,
+    }).records.map((record) => `${record.name}::${record.packLabel}`);
+    const searched = (await service.search({
+      category: "creature",
+      levelMin: 2,
+      levelMax: 2,
+    })).records.map((record) => `${record.name}::${record.packLabel}`);
+
+    expect(listed).not.toEqual(searched);
+    expect(listed.indexOf("Bilge Skeleton::Quest for the Frozen Flame")).toBeLessThan(
+      listed.indexOf("Diver::Pathfinder Monster Core"),
+    );
+    expect(searched.indexOf("Bilge Skeleton::Quest for the Frozen Flame")).toBeGreaterThan(
+      searched.indexOf("Diver::Pathfinder Monster Core"),
+    );
   });
 
   it("normalizes legacy plural aliases and supports scoped mixed-family filters", async () => {
