@@ -4,6 +4,7 @@ import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import * as sqliteVec from "sqlite-vec";
 
 import {
   createEmbeddingProvider,
@@ -49,7 +50,10 @@ import {
 import { buildLiteralQueryWeights, buildSearchQueryAnalysis } from "./search-query-analysis.js";
 
 const execFileAsync = promisify(execFile);
-const INDEX_SCHEMA_VERSION = 9;
+const INDEX_SCHEMA_VERSION = 10;
+const VEC_TEXT_NONE = "";
+const VEC_INT_NONE = -1n;
+const LOOKUP_LEXICAL_TOP_K = 100;
 
 type LoadOptions = {
   indexPath?: string;
@@ -60,6 +64,7 @@ type LoadOptions = {
   rankingConfigStore?: RankingConfigStore;
   progressLogger?: (message: string) => void;
   progressStatusLogger?: (message: string) => void;
+  vectorExtensionLoader?: (db: DatabaseSync) => void;
 };
 
 type SqlValue = string | number | bigint | Uint8Array | Buffer | null;
@@ -233,6 +238,14 @@ function cosineSimilarity(left: Float32Array, right: Float32Array): number {
   }
 
   return total;
+}
+
+function normalizeVecText(value: string | null | undefined): string {
+  return normalizeText(value ?? "") || VEC_TEXT_NONE;
+}
+
+function normalizeVecInteger(value: number | null | undefined): bigint {
+  return value === null || value === undefined ? VEC_INT_NONE : BigInt(value);
 }
 
 function hashText(value: string): number {
@@ -505,13 +518,10 @@ function parseSpellIndexData(raw: Record<string, unknown>): SpellIndexData {
   };
 }
 
-function buildSearchText(raw: Record<string, unknown>, base: { name: string; descriptionText: string | null; traits: string[]; publicationTitle: string | null }): string {
+function buildSearchText(raw: Record<string, unknown>, base: { name: string; descriptionText: string | null; traits: string[] }): string {
   const chunks: string[] = [base.name, ...base.traits];
   if (base.descriptionText) {
     chunks.push(base.descriptionText);
-  }
-  if (base.publicationTitle) {
-    chunks.push(base.publicationTitle);
   }
 
   const items = getNested(raw, ["items"]);
@@ -723,13 +733,7 @@ function normalizeIndexRecord(pack: PackBuildInfo, sourcePath: string, raw: Reco
     actionCost: spellData?.actionCost ?? itemData?.actionCost ?? null,
     traditions: spellData?.traditions ?? [],
     spellKinds: spellData?.spellKinds ?? [],
-    searchText: [
-      buildSearchText(raw, { name, descriptionText, traits, publicationTitle }),
-      classification.category,
-      classification.subcategory,
-      ...(spellData?.traditions ?? []),
-      ...(spellData?.spellKinds ?? []),
-    ].filter(Boolean).join("\n"),
+    searchText: buildSearchText(raw, { name, descriptionText, traits }),
   };
 }
 
@@ -883,13 +887,14 @@ type LexicalSignal = {
   lexicalScore: number;
   matchedTraits: string[];
   matchedNameTokens: string[];
-  matchedMetadataTokens: string[];
 };
-type RankedCandidate = {
-  record: NormalizedRecord;
-  lexicalSignal: LexicalSignal;
-  semanticScore: number;
-  rerankAdjustments: RerankAdjustments;
+type LexicalRetrievalRow = {
+  recordKey: string;
+  rank: number;
+};
+type SemanticRetrievalRow = {
+  recordKey: string;
+  distance: number;
 };
 
 function tokenize(value: string): string[] {
@@ -924,18 +929,8 @@ function scoreWeightedOverlap(
   };
 }
 
-function buildMetadataText(record: NormalizedRecord): string {
-  return [
-    record.name,
-    record.category,
-    record.subcategory ?? "",
-    ...record.traits,
-    ...record.traditions,
-    ...record.spellKinds,
-    record.publicationTitle ?? "",
-  ]
-    .filter((value) => value.length > 0)
-    .join(" ");
+function buildTraitText(record: NormalizedRecord): string {
+  return record.traits.join(" ");
 }
 
 function resolveSearchMode(filters: SearchFilters, context: "list" | "search"): SearchMode {
@@ -1022,13 +1017,13 @@ function buildLexicalSignal(
   rankingConfig: RankingConfig,
 ): LexicalSignal {
   const ftsScore = lexicalQuery.length > 0 ? (lexicalMatches.get(record.recordKey) ?? 0) : 0;
-  const metadataTextScore =
-    lexicalQuery.length > 0
-      ? queryTextScore(lexicalQuery, buildMetadataText(record))
-      : 0;
   const descriptionTextScore =
     lexicalQuery.length > 0
       ? queryTextScore(lexicalQuery, record.descriptionText ?? "")
+      : 0;
+  const traitTextScore =
+    lexicalQuery.length > 0
+      ? queryTextScore(lexicalQuery, buildTraitText(record))
       : 0;
   const themeName = literalQueryWeights
     ? scoreWeightedOverlap(literalQueryWeights.nameWeights, tokenize(record.name), 1.5)
@@ -1036,17 +1031,12 @@ function buildLexicalSignal(
   const themeTraits = literalQueryWeights
     ? scoreWeightedOverlap(literalQueryWeights.traitWeights, record.traits, 2)
     : { score: 0, matchedTokens: [] };
-  const themeMetadata = literalQueryWeights
-    ? scoreWeightedOverlap(literalQueryWeights.metadataWeights, tokenize(buildMetadataText(record)), 2.5)
-    : { score: 0, matchedTokens: [] };
   const lexicalWeights = rankingConfig.lexicalChannels;
   const lexicalScoreBeforeNormalization =
     (ftsScore * lexicalWeights.fullTextSearch) +
-    (metadataTextScore * lexicalWeights.metadataText) +
     (descriptionTextScore * lexicalWeights.descriptionText) +
     (themeName.score * lexicalWeights.themeName) +
-    (themeTraits.score * lexicalWeights.themeTraits) +
-    (themeMetadata.score * lexicalWeights.themeMetadata);
+    (Math.max(traitTextScore, themeTraits.score) * lexicalWeights.themeTraits);
   const normalizationMultiplier = !record.hasDescription
     ? 1 / (1 - lexicalWeights.descriptionText)
     : 1;
@@ -1056,7 +1046,6 @@ function buildLexicalSignal(
     lexicalScore,
     matchedTraits: themeTraits.matchedTokens,
     matchedNameTokens: themeName.matchedTokens,
-    matchedMetadataTokens: themeMetadata.matchedTokens,
   };
 }
 
@@ -1103,6 +1092,23 @@ function computeWeightedRrfScore(
 
   // Scale rank-fusion output to roughly the same order of magnitude as the legacy rerank adjustments.
   return (lexicalContribution + semanticContribution) * (rrfK + 1);
+}
+
+function buildNormalizedRankScoreMap(recordKeysInRankOrder: string[]): Map<string, number> {
+  const scores = new Map<string, number>();
+  const total = recordKeysInRankOrder.length;
+  recordKeysInRankOrder.forEach((recordKey, index) => {
+    scores.set(recordKey, total <= 1 ? 1 : 1 - (index / (total - 1)));
+  });
+  return scores;
+}
+
+function buildRankMap(recordKeysInRankOrder: string[]): Map<string, number> {
+  const ranks = new Map<string, number>();
+  recordKeysInRankOrder.forEach((recordKey, index) => {
+    ranks.set(recordKey, index + 1);
+  });
+  return ranks;
 }
 
 type ExtractedReference = {
@@ -1866,7 +1872,7 @@ async function computeFileSignature(rootPath: string, filePaths: string[]): Prom
   return String(hash >>> 0);
 }
 
-function createSchema(db: DatabaseSync): void {
+function createSchema(db: DatabaseSync, embeddingDimensions: number): void {
   db.exec(`
     PRAGMA journal_mode = WAL;
     PRAGMA synchronous = NORMAL;
@@ -1987,6 +1993,28 @@ function createSchema(db: DatabaseSync): void {
       FOREIGN KEY (record_key) REFERENCES records(record_key) ON DELETE CASCADE
     );
 
+    CREATE VIRTUAL TABLE record_embeddings USING vec0(
+      record_key TEXT PRIMARY KEY,
+      embedding FLOAT[${embeddingDimensions}],
+      category TEXT partition key,
+      subcategory TEXT,
+      pack_name TEXT,
+      pack_label TEXT,
+      document_type TEXT,
+      record_type TEXT,
+      level INTEGER,
+      rarity TEXT,
+      source_category TEXT,
+      publication_title TEXT,
+      publication_remaster INTEGER,
+      has_description INTEGER,
+      is_unique INTEGER,
+      size TEXT,
+      item_category TEXT,
+      price_cp INTEGER,
+      action_cost INTEGER
+    );
+
     CREATE TABLE reference_edges (
       from_record_key TEXT NOT NULL,
       to_record_key TEXT NOT NULL,
@@ -2091,6 +2119,29 @@ async function buildIndex(
   `);
   const insertEmbedding = db.prepare(`
     INSERT INTO embeddings (record_key, dimensions, vector_blob) VALUES (?, ?, ?)
+  `);
+  const insertVecEmbedding = db.prepare(`
+    INSERT INTO record_embeddings (
+      record_key,
+      embedding,
+      category,
+      subcategory,
+      pack_name,
+      pack_label,
+      document_type,
+      record_type,
+      level,
+      rarity,
+      source_category,
+      publication_title,
+      publication_remaster,
+      has_description,
+      is_unique,
+      size,
+      item_category,
+      price_cp,
+      action_cost
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const insertReferenceEdge = db.prepare(`
     INSERT OR IGNORE INTO reference_edges (
@@ -2437,7 +2488,29 @@ async function buildIndex(
       }
 
       const embedding = await embeddingProvider.embed(searchText);
-      insertEmbedding.run(record.recordKey, embeddingProvider.identity.dimensions, encodeVector(embedding));
+      const encodedEmbedding = encodeVector(embedding);
+      insertEmbedding.run(record.recordKey, embeddingProvider.identity.dimensions, encodedEmbedding);
+      insertVecEmbedding.run(
+        record.recordKey,
+        encodedEmbedding,
+        normalizeVecText(record.category),
+        normalizeVecText(record.subcategory),
+        normalizeVecText(record.packName),
+        normalizeVecText(record.packLabel),
+        normalizeVecText(record.documentType),
+        normalizeVecText(record.type),
+        normalizeVecInteger(record.level),
+        normalizeVecText(record.rarity),
+        normalizeVecText(record.sourceCategory),
+        normalizeVecText(record.publicationTitle),
+        BigInt(record.publicationRemaster ? 1 : 0),
+        BigInt(record.hasDescription ? 1 : 0),
+        BigInt(record.isUnique ? 1 : 0),
+        normalizeVecText(record.size),
+        normalizeVecText(record.itemCategory),
+        normalizeVecInteger(record.priceCp),
+        normalizeVecInteger(record.actionCost),
+      );
       insertFts.run(record.recordKey, record.name, searchText);
       writtenEntryCount += 1;
       embeddedRecordCount += 1;
@@ -2585,6 +2658,25 @@ async function removeIndexFiles(indexPath: string): Promise<void> {
   await rm(`${indexPath}-shm`, { force: true });
 }
 
+function loadRequiredVectorExtension(
+  db: DatabaseSync,
+  loader: NonNullable<LoadOptions["vectorExtensionLoader"]> = sqliteVec.load,
+): void {
+  try {
+    loader(db);
+    db.enableLoadExtension(false);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to load required sqlite-vec extension. Fix the installation and retry startup. Underlying error: ${reason}`);
+  }
+}
+
+function openDatabase(indexPath: string, options: { vectorExtensionLoader?: NonNullable<LoadOptions["vectorExtensionLoader"]> } = {}): DatabaseSync {
+  const db = new DatabaseSync(indexPath, { allowExtension: true });
+  loadRequiredVectorExtension(db, options.vectorExtensionLoader);
+  return db;
+}
+
 function defaultEmbeddingConfig(indexPath: string): EmbeddingConfig {
   return {
     provider: "hf-local",
@@ -2629,7 +2721,186 @@ function appendWhereClause(sql: string[], params: SqlValue[], clause: string, ..
   params.push(...values);
 }
 
-function buildCandidateQuery(filters: SearchFilters, includeSearchText = false, includeEmbedding = false): { sql: string; params: SqlValue[] } {
+function applySearchFilterClauses(
+  sql: string[],
+  params: SqlValue[],
+  filters: SearchFilters,
+  aliases: {
+    records: string;
+    actor: string;
+    item: string;
+    spell: string;
+  },
+  options: {
+    recordKeys?: string[];
+  } = {},
+): void {
+  const recordAlias = aliases.records;
+  const actorAlias = aliases.actor;
+  const itemAlias = aliases.item;
+  const spellAlias = aliases.spell;
+
+  appendWhereClause(sql, params, `AND ${recordAlias}.is_search_canonical = 1`);
+
+  if (options.recordKeys && options.recordKeys.length > 0) {
+    const placeholders = buildPlaceholders(options.recordKeys);
+    appendWhereClause(sql, params, `AND ${recordAlias}.record_key IN (${placeholders})`, ...options.recordKeys);
+  }
+
+  if (filters.pack) {
+    appendWhereClause(
+      sql,
+      params,
+      `AND (LOWER(${recordAlias}.pack_name) = LOWER(?) OR LOWER(${recordAlias}.pack_label) = LOWER(?))`,
+      filters.pack,
+      filters.pack,
+    );
+  }
+
+  const normalizedSubcategory = normalizeText(filters.subcategory ?? "") || null;
+  const inferredCategoryFromSubcategory = !filters.category && normalizedSubcategory
+    ? getCategoryForSubcategory(normalizedSubcategory)
+    : null;
+  const hasSpellFacetFilter = (filters.traditions?.length ?? 0) > 0 || (filters.spellKinds?.length ?? 0) > 0;
+  const effectiveCategory = filters.category ?? inferredCategoryFromSubcategory ?? (hasSpellFacetFilter ? "spells" : null);
+
+  if (effectiveCategory) {
+    appendWhereClause(sql, params, `AND LOWER(${recordAlias}.category) = LOWER(?)`, effectiveCategory);
+  }
+
+  if (normalizedSubcategory) {
+    appendWhereClause(sql, params, `AND LOWER(COALESCE(${recordAlias}.subcategory, '')) = ?`, normalizedSubcategory);
+  }
+
+  if (filters.levelMin !== undefined) {
+    appendWhereClause(sql, params, `AND ${recordAlias}.level >= ?`, filters.levelMin);
+  }
+
+  if (filters.levelMax !== undefined) {
+    appendWhereClause(sql, params, `AND ${recordAlias}.level <= ?`, filters.levelMax);
+  }
+
+  if (filters.rarity) {
+    appendWhereClause(sql, params, `AND LOWER(COALESCE(${recordAlias}.rarity, '')) = LOWER(?)`, filters.rarity);
+  }
+
+  if (filters.publicationTitle) {
+    appendWhereClause(sql, params, `AND LOWER(COALESCE(${recordAlias}.publication_title, '')) LIKE LOWER(?)`, `%${filters.publicationTitle}%`);
+  }
+
+  if (filters.excludeUnique) {
+    appendWhereClause(sql, params, `AND ${recordAlias}.is_unique = 0`);
+  }
+
+  if (filters.excludeMissingDescription) {
+    appendWhereClause(sql, params, `AND ${recordAlias}.has_description = 1`);
+  }
+
+  if (filters.sources && filters.sources.length > 0) {
+    const placeholders = filters.sources.map(() => "?").join(", ");
+    appendWhereClause(sql, params, `AND ${recordAlias}.source_category IN (${placeholders})`, ...filters.sources);
+  }
+
+  if (filters.excludeSources && filters.excludeSources.length > 0) {
+    const placeholders = filters.excludeSources.map(() => "?").join(", ");
+    appendWhereClause(sql, params, `AND ${recordAlias}.source_category NOT IN (${placeholders})`, ...filters.excludeSources);
+  }
+
+  if (filters.size) {
+    appendWhereClause(sql, params, `AND LOWER(COALESCE(${actorAlias}.size, '')) = LOWER(?)`, filters.size);
+  }
+
+  if (filters.priceMin !== undefined) {
+    appendWhereClause(sql, params, `AND ${itemAlias}.price_cp >= ?`, filters.priceMin);
+  }
+
+  if (filters.priceMax !== undefined) {
+    appendWhereClause(sql, params, `AND ${itemAlias}.price_cp <= ?`, filters.priceMax);
+  }
+
+  if (filters.actionCost !== undefined) {
+    appendWhereClause(sql, params, `AND COALESCE(${spellAlias}.action_cost, ${itemAlias}.action_cost) = ?`, filters.actionCost);
+  }
+
+  const normalizedTraditions = (filters.traditions ?? [])
+    .map((tradition) => normalizeText(tradition))
+    .filter(Boolean);
+  if (normalizedTraditions.length > 0) {
+    const placeholders = normalizedTraditions.map(() => "?").join(", ");
+    appendWhereClause(
+      sql,
+      params,
+      `AND EXISTS (
+        SELECT 1
+        FROM json_each(COALESCE(${spellAlias}.traditions_json, '[]')) AS tradition
+        WHERE LOWER(tradition.value) IN (${placeholders})
+      )`,
+      ...normalizedTraditions,
+    );
+  }
+
+  const normalizedSpellKinds = (filters.spellKinds ?? [])
+    .map((spellKind) => normalizeText(spellKind))
+    .filter(Boolean);
+  if (normalizedSpellKinds.length > 0) {
+    const placeholders = normalizedSpellKinds.map(() => "?").join(", ");
+    appendWhereClause(
+      sql,
+      params,
+      `AND EXISTS (
+        SELECT 1
+        FROM json_each(COALESCE(${spellAlias}.spell_kinds_json, '[]')) AS spell_kind
+        WHERE LOWER(spell_kind.value) IN (${placeholders})
+      )`,
+      ...normalizedSpellKinds,
+    );
+  }
+
+  const includedTraitsAll = (filters.traitsAll ?? [])
+    .map((trait) => normalizeText(trait))
+    .filter(Boolean);
+  for (const trait of includedTraitsAll) {
+    appendWhereClause(
+      sql,
+      params,
+      `AND EXISTS (SELECT 1 FROM record_traits rt WHERE rt.record_key = ${recordAlias}.record_key AND rt.trait = ?)`,
+      trait,
+    );
+  }
+
+  const includedTraitsAny = (filters.traitsAny ?? [])
+    .map((trait) => normalizeText(trait))
+    .filter(Boolean);
+  if (includedTraitsAny.length > 0) {
+    const placeholders = includedTraitsAny.map(() => "?").join(", ");
+    appendWhereClause(
+      sql,
+      params,
+      `AND EXISTS (SELECT 1 FROM record_traits rt WHERE rt.record_key = ${recordAlias}.record_key AND rt.trait IN (${placeholders}))`,
+      ...includedTraitsAny,
+    );
+  }
+
+  const excludedTraits = (filters.excludeTraits ?? [])
+    .map((trait) => normalizeText(trait))
+    .filter(Boolean);
+  if (excludedTraits.length > 0) {
+    const placeholders = excludedTraits.map(() => "?").join(", ");
+    appendWhereClause(
+      sql,
+      params,
+      `AND NOT EXISTS (SELECT 1 FROM record_traits rt WHERE rt.record_key = ${recordAlias}.record_key AND rt.trait IN (${placeholders}))`,
+      ...excludedTraits,
+    );
+  }
+}
+
+function buildCandidateQuery(
+  filters: SearchFilters,
+  includeSearchText = false,
+  includeEmbedding = false,
+  options: { recordKeys?: string[] } = {},
+): { sql: string; params: SqlValue[] } {
   const fields = [
     "r.record_key AS recordKey",
     "r.id AS id",
@@ -2685,10 +2956,122 @@ function buildCandidateQuery(filters: SearchFilters, includeSearchText = false, 
 
   sql.push("WHERE 1 = 1");
   const params: SqlValue[] = [];
-  appendWhereClause(sql, params, "AND r.is_search_canonical = 1");
+  applySearchFilterClauses(sql, params, filters, {
+    records: "r",
+    actor: "a",
+    item: "i",
+    spell: "s",
+  }, options);
 
+  return { sql: sql.join("\n"), params };
+}
+
+function buildLexicalRetrievalQuery(filters: SearchFilters, query: string, limit: number): { sql: string; params: SqlValue[] } {
+  const sql = [
+    "SELECT r.record_key AS recordKey, bm25(records_fts, 8.0, 1.5) AS rank",
+    "FROM records_fts",
+    "JOIN records r ON r.record_key = records_fts.record_key",
+    "LEFT JOIN actor_records a ON a.record_key = r.record_key",
+    "LEFT JOIN item_records i ON i.record_key = r.record_key",
+    "LEFT JOIN spell_records s ON s.record_key = r.record_key",
+    "WHERE records_fts MATCH ?",
+  ];
+  const params: SqlValue[] = [query];
+  applySearchFilterClauses(sql, params, filters, {
+    records: "r",
+    actor: "a",
+    item: "i",
+    spell: "s",
+  });
+  sql.push("ORDER BY rank");
+  sql.push("LIMIT ?");
+  params.push(limit);
+  return { sql: sql.join("\n"), params };
+}
+
+function semanticQueryLimit(baseLimit: number, filters: SearchFilters): number {
+  const hasPostFilterOnlyConstraints = Boolean(
+    filters.publicationTitle ||
+    (filters.traditions?.length ?? 0) > 0 ||
+    (filters.spellKinds?.length ?? 0) > 0 ||
+    (filters.traitsAll?.length ?? 0) > 0 ||
+    (filters.traitsAny?.length ?? 0) > 0 ||
+    (filters.excludeTraits?.length ?? 0) > 0,
+  );
+  return hasPostFilterOnlyConstraints ? Math.min(1000, Math.max(baseLimit * 4, baseLimit + 100)) : baseLimit;
+}
+
+function buildSemanticRetrievalQuery(filters: SearchFilters, limit: number): { sql: string; params: SqlValue[] } {
+  const sql = [
+    "SELECT record_key AS recordKey, distance",
+    "FROM record_embeddings",
+    "WHERE embedding MATCH ?",
+    `AND k = ${limit}`,
+  ];
+  const params: SqlValue[] = [];
+
+  const normalizedSubcategory = normalizeText(filters.subcategory ?? "") || null;
+  const inferredCategoryFromSubcategory = !filters.category && normalizedSubcategory
+    ? getCategoryForSubcategory(normalizedSubcategory)
+    : null;
+  const hasSpellFacetFilter = (filters.traditions?.length ?? 0) > 0 || (filters.spellKinds?.length ?? 0) > 0;
+  const effectiveCategory = filters.category ?? inferredCategoryFromSubcategory ?? (hasSpellFacetFilter ? "spells" : null);
+  if (effectiveCategory) {
+    appendWhereClause(sql, params, "AND category = ?", normalizeVecText(effectiveCategory));
+  }
+  if (normalizedSubcategory) {
+    appendWhereClause(sql, params, "AND subcategory = ?", normalizeVecText(normalizedSubcategory));
+  }
   if (filters.pack) {
-    appendWhereClause(sql, params, "AND (LOWER(r.pack_name) = LOWER(?) OR LOWER(r.pack_label) = LOWER(?))", filters.pack, filters.pack);
+    appendWhereClause(sql, params, "AND pack_name = ?", normalizeVecText(filters.pack));
+  }
+  if (filters.levelMin !== undefined) {
+    appendWhereClause(sql, params, "AND level >= ?", BigInt(filters.levelMin));
+  }
+  if (filters.levelMax !== undefined) {
+    appendWhereClause(sql, params, "AND level <= ?", BigInt(filters.levelMax));
+  }
+  if (filters.rarity) {
+    appendWhereClause(sql, params, "AND rarity = ?", normalizeVecText(filters.rarity));
+  }
+  if (filters.excludeUnique) {
+    appendWhereClause(sql, params, "AND is_unique = 0");
+  }
+  if (filters.excludeMissingDescription) {
+    appendWhereClause(sql, params, "AND has_description = 1");
+  }
+  if (filters.sources && filters.sources.length > 0) {
+    const normalizedSources = filters.sources.map((source) => normalizeVecText(source));
+    const placeholders = normalizedSources.map(() => "?").join(", ");
+    appendWhereClause(sql, params, `AND source_category IN (${placeholders})`, ...normalizedSources);
+  }
+  if (filters.excludeSources && filters.excludeSources.length > 0) {
+    const normalizedSources = filters.excludeSources.map((source) => normalizeVecText(source));
+    const placeholders = normalizedSources.map(() => "?").join(", ");
+    appendWhereClause(sql, params, `AND source_category NOT IN (${placeholders})`, ...normalizedSources);
+  }
+  if (filters.size) {
+    appendWhereClause(sql, params, "AND size = ?", normalizeVecText(filters.size));
+  }
+  if (filters.priceMin !== undefined) {
+    appendWhereClause(sql, params, "AND price_cp >= ?", BigInt(filters.priceMin));
+  }
+  if (filters.priceMax !== undefined) {
+    appendWhereClause(sql, params, "AND price_cp <= ?", BigInt(filters.priceMax));
+  }
+  if (filters.actionCost !== undefined) {
+    appendWhereClause(sql, params, "AND action_cost = ?", BigInt(filters.actionCost));
+  }
+
+  return { sql: sql.join("\n"), params };
+}
+
+function recordMatchesFilters(record: NormalizedRecord, filters: SearchFilters): boolean {
+  if (filters.pack) {
+    const normalizedPack = normalizeText(filters.pack);
+    if (normalizeText(record.packName) !== normalizedPack && normalizeText(record.packLabel) !== normalizedPack) {
+      return false;
+    }
   }
 
   const normalizedSubcategory = normalizeText(filters.subcategory ?? "") || null;
@@ -2697,138 +3080,86 @@ function buildCandidateQuery(filters: SearchFilters, includeSearchText = false, 
     : null;
   const hasSpellFacetFilter = (filters.traditions?.length ?? 0) > 0 || (filters.spellKinds?.length ?? 0) > 0;
   const effectiveCategory = filters.category ?? inferredCategoryFromSubcategory ?? (hasSpellFacetFilter ? "spells" : null);
-
-  if (effectiveCategory) {
-    appendWhereClause(sql, params, "AND LOWER(r.category) = LOWER(?)", effectiveCategory);
+  if (effectiveCategory && normalizeText(record.category) !== normalizeText(effectiveCategory)) {
+    return false;
   }
-
-  if (normalizedSubcategory) {
-    appendWhereClause(sql, params, "AND LOWER(COALESCE(r.subcategory, '')) = ?", normalizedSubcategory);
+  if (normalizedSubcategory && normalizeText(record.subcategory ?? "") !== normalizedSubcategory) {
+    return false;
   }
-
-  if (filters.levelMin !== undefined) {
-    appendWhereClause(sql, params, "AND r.level >= ?", filters.levelMin);
+  if (filters.levelMin !== undefined && (record.level === null || record.level < filters.levelMin)) {
+    return false;
   }
-
-  if (filters.levelMax !== undefined) {
-    appendWhereClause(sql, params, "AND r.level <= ?", filters.levelMax);
+  if (filters.levelMax !== undefined && (record.level === null || record.level > filters.levelMax)) {
+    return false;
   }
-
-  if (filters.rarity) {
-    appendWhereClause(sql, params, "AND LOWER(COALESCE(r.rarity, '')) = LOWER(?)", filters.rarity);
+  if (filters.rarity && normalizeText(record.rarity ?? "") !== normalizeText(filters.rarity)) {
+    return false;
   }
-
-  if (filters.publicationTitle) {
-    appendWhereClause(sql, params, "AND LOWER(COALESCE(r.publication_title, '')) LIKE LOWER(?)", `%${filters.publicationTitle}%`);
+  if (filters.publicationTitle && !normalizeText(record.publicationTitle ?? "").includes(normalizeText(filters.publicationTitle))) {
+    return false;
   }
-
-  if (filters.excludeUnique) {
-    appendWhereClause(sql, params, "AND r.is_unique = 0");
+  if (filters.excludeUnique && record.isUnique) {
+    return false;
   }
-
-  if (filters.excludeMissingDescription) {
-    appendWhereClause(sql, params, "AND r.has_description = 1");
+  if (filters.excludeMissingDescription && !record.hasDescription) {
+    return false;
   }
-
   if (filters.sources && filters.sources.length > 0) {
-    const placeholders = filters.sources.map(() => "?").join(", ");
-    appendWhereClause(sql, params, `AND r.source_category IN (${placeholders})`, ...filters.sources);
+    const allowedSources = new Set(filters.sources.map((source) => normalizeText(source)));
+    if (!allowedSources.has(normalizeText(record.sourceCategory))) {
+      return false;
+    }
   }
-
   if (filters.excludeSources && filters.excludeSources.length > 0) {
-    const placeholders = filters.excludeSources.map(() => "?").join(", ");
-    appendWhereClause(sql, params, `AND r.source_category NOT IN (${placeholders})`, ...filters.excludeSources);
+    const excludedSources = new Set(filters.excludeSources.map((source) => normalizeText(source)));
+    if (excludedSources.has(normalizeText(record.sourceCategory))) {
+      return false;
+    }
+  }
+  if (filters.size && normalizeText(record.size ?? "") !== normalizeText(filters.size)) {
+    return false;
+  }
+  if (filters.priceMin !== undefined && (record.priceCp === null || record.priceCp < filters.priceMin)) {
+    return false;
+  }
+  if (filters.priceMax !== undefined && (record.priceCp === null || record.priceCp > filters.priceMax)) {
+    return false;
+  }
+  if (filters.actionCost !== undefined && record.actionCost !== filters.actionCost) {
+    return false;
+  }
+  if (filters.traditions && filters.traditions.length > 0) {
+    const normalizedTraditions = new Set(record.traditions.map((tradition) => normalizeText(tradition)));
+    if (!filters.traditions.some((tradition) => normalizedTraditions.has(normalizeText(tradition)))) {
+      return false;
+    }
+  }
+  if (filters.spellKinds && filters.spellKinds.length > 0) {
+    const normalizedSpellKinds = new Set(record.spellKinds.map((spellKind) => normalizeText(spellKind)));
+    if (!filters.spellKinds.some((spellKind) => normalizedSpellKinds.has(normalizeText(spellKind)))) {
+      return false;
+    }
+  }
+  if (filters.traitsAll && filters.traitsAll.length > 0) {
+    const normalizedTraits = new Set(record.traits.map((trait) => normalizeText(trait)));
+    if (!filters.traitsAll.every((trait) => normalizedTraits.has(normalizeText(trait)))) {
+      return false;
+    }
+  }
+  if (filters.traitsAny && filters.traitsAny.length > 0) {
+    const normalizedTraits = new Set(record.traits.map((trait) => normalizeText(trait)));
+    if (!filters.traitsAny.some((trait) => normalizedTraits.has(normalizeText(trait)))) {
+      return false;
+    }
+  }
+  if (filters.excludeTraits && filters.excludeTraits.length > 0) {
+    const normalizedTraits = new Set(record.traits.map((trait) => normalizeText(trait)));
+    if (filters.excludeTraits.some((trait) => normalizedTraits.has(normalizeText(trait)))) {
+      return false;
+    }
   }
 
-  if (filters.size) {
-    appendWhereClause(sql, params, "AND LOWER(COALESCE(a.size, '')) = LOWER(?)", filters.size);
-  }
-
-  if (filters.priceMin !== undefined) {
-    appendWhereClause(sql, params, "AND i.price_cp >= ?", filters.priceMin);
-  }
-
-  if (filters.priceMax !== undefined) {
-    appendWhereClause(sql, params, "AND i.price_cp <= ?", filters.priceMax);
-  }
-
-  if (filters.actionCost !== undefined) {
-    appendWhereClause(sql, params, "AND COALESCE(s.action_cost, i.action_cost) = ?", filters.actionCost);
-  }
-
-  const normalizedTraditions = (filters.traditions ?? [])
-    .map((tradition) => normalizeText(tradition))
-    .filter(Boolean);
-  if (normalizedTraditions.length > 0) {
-    const placeholders = normalizedTraditions.map(() => "?").join(", ");
-    appendWhereClause(
-      sql,
-      params,
-      `AND EXISTS (
-        SELECT 1
-        FROM json_each(COALESCE(s.traditions_json, '[]')) AS tradition
-        WHERE LOWER(tradition.value) IN (${placeholders})
-      )`,
-      ...normalizedTraditions,
-    );
-  }
-
-  const normalizedSpellKinds = (filters.spellKinds ?? [])
-    .map((spellKind) => normalizeText(spellKind))
-    .filter(Boolean);
-  if (normalizedSpellKinds.length > 0) {
-    const placeholders = normalizedSpellKinds.map(() => "?").join(", ");
-    appendWhereClause(
-      sql,
-      params,
-      `AND EXISTS (
-        SELECT 1
-        FROM json_each(COALESCE(s.spell_kinds_json, '[]')) AS spell_kind
-        WHERE LOWER(spell_kind.value) IN (${placeholders})
-      )`,
-      ...normalizedSpellKinds,
-    );
-  }
-
-  const includedTraitsAll = (filters.traitsAll ?? [])
-    .map((trait) => normalizeText(trait))
-    .filter(Boolean);
-  for (const trait of includedTraitsAll) {
-    appendWhereClause(
-      sql,
-      params,
-      "AND EXISTS (SELECT 1 FROM record_traits rt WHERE rt.record_key = r.record_key AND rt.trait = ?)",
-      trait,
-    );
-  }
-
-  const includedTraitsAny = (filters.traitsAny ?? [])
-    .map((trait) => normalizeText(trait))
-    .filter(Boolean);
-  if (includedTraitsAny.length > 0) {
-    const placeholders = includedTraitsAny.map(() => "?").join(", ");
-    appendWhereClause(
-      sql,
-      params,
-      `AND EXISTS (SELECT 1 FROM record_traits rt WHERE rt.record_key = r.record_key AND rt.trait IN (${placeholders}))`,
-      ...includedTraitsAny,
-    );
-  }
-
-  const excludedTraits = (filters.excludeTraits ?? [])
-    .map((trait) => normalizeText(trait))
-    .filter(Boolean);
-  if (excludedTraits.length > 0) {
-    const placeholders = excludedTraits.map(() => "?").join(", ");
-    appendWhereClause(
-      sql,
-      params,
-      `AND NOT EXISTS (SELECT 1 FROM record_traits rt WHERE rt.record_key = r.record_key AND rt.trait IN (${placeholders}))`,
-      ...excludedTraits,
-    );
-  }
-
-  return { sql: sql.join("\n"), params };
+  return true;
 }
 
 function validateFilters(filters: SearchFilters, context: "list" | "search"): void {
@@ -2901,7 +3232,9 @@ export class Pf2eDataService {
       throw buildMissingIndexError(indexPath);
     }
 
-    const existingDb = new DatabaseSync(indexPath);
+    const existingDb = openDatabase(indexPath, {
+      vectorExtensionLoader: options.vectorExtensionLoader,
+    });
     const invalidReason = getIndexInvalidReason(existingDb, sourceSignature, embeddingProvider);
     if (invalidReason) {
       existingDb.close();
@@ -2939,9 +3272,11 @@ export class Pf2eDataService {
     await mkdir(path.dirname(indexPath), { recursive: true });
     await removeIndexFiles(indexPath);
 
-    const db = new DatabaseSync(indexPath);
+    const db = openDatabase(indexPath, {
+      vectorExtensionLoader: options.vectorExtensionLoader,
+    });
     options.progressLogger?.("Creating SQLite schema.");
-    createSchema(db);
+    createSchema(db, embeddingProvider.identity.dimensions);
     const { packs, warnings, recordCount } = await buildIndex(
       db,
       rootPath,
@@ -3127,34 +3462,48 @@ export class Pf2eDataService {
     };
   }
 
-  private fetchCandidates(filters: SearchFilters, includeSearchText = false, includeEmbedding = false): CandidateRow[] {
-    const { sql, params } = buildCandidateQuery(filters, includeSearchText, includeEmbedding);
+  private normalizeSearchFilters(filters: SearchFilters): SearchFilters {
+    if (!filters.pack) {
+      return filters;
+    }
+
+    const pack = this.getPack(filters.pack);
+    return pack
+      ? {
+          ...filters,
+          pack: pack.name,
+        }
+      : filters;
+  }
+
+  private fetchCandidates(
+    filters: SearchFilters,
+    includeSearchText = false,
+    includeEmbedding = false,
+    options: { recordKeys?: string[] } = {},
+  ): CandidateRow[] {
+    const { sql, params } = buildCandidateQuery(filters, includeSearchText, includeEmbedding, options);
     return this.db.prepare(sql).all(...params) as CandidateRow[];
   }
 
-  private fetchFtsMatches(query: string): Map<string, number> {
+  private fetchLexicalRetrievalRows(filters: SearchFilters, query: string, limit: number): LexicalRetrievalRow[] {
     const ftsQuery = buildFtsQuery(query);
     if (!ftsQuery) {
-      return new Map();
+      return [];
     }
 
-    const rows = this.db
-      .prepare(
-        `
-          SELECT record_key AS recordKey, bm25(records_fts, 8.0, 1.5) AS rank
-          FROM records_fts
-          WHERE records_fts MATCH ?
-          ORDER BY rank
-        `,
-      )
-      .all(ftsQuery) as Array<{ recordKey: string; rank: number }>;
+    const { sql, params } = buildLexicalRetrievalQuery(filters, ftsQuery, limit);
+    return this.db.prepare(sql).all(...params) as LexicalRetrievalRow[];
+  }
 
-    const scores = new Map<string, number>();
-    const total = rows.length;
-    rows.forEach((row, index) => {
-      scores.set(row.recordKey, total <= 1 ? 1 : 1 - (index / (total - 1)));
-    });
-    return scores;
+  private fetchSemanticRetrievalRows(filters: SearchFilters, queryVector: Float32Array, limit: number): SemanticRetrievalRow[] {
+    if (queryVector.length === 0) {
+      return [];
+    }
+
+    const encodedQuery = encodeVector(queryVector);
+    const { sql, params } = buildSemanticRetrievalQuery(filters, limit);
+    return this.db.prepare(sql).all(encodedQuery, ...params) as SemanticRetrievalRow[];
   }
 
   private fetchRecordRowsByKeys(recordKeys: string[]): CandidateRow[] {
@@ -3480,21 +3829,22 @@ export class Pf2eDataService {
 
   private searchStructured(filters: SearchFilters): SearchResult {
     validateFilters(filters, "search");
+    const normalizedFilters = this.normalizeSearchFilters(filters);
     const limit = clampLimit(filters.limit);
     const offset = clampOffset(filters.offset);
-    const mode = resolveSearchMode(filters, "search");
+    const mode = resolveSearchMode(normalizedFilters, "search");
     const searchProfile = resolveSearchProfile(filters, "search", mode);
     const rankingConfig = this.rankingConfigStore?.getConfig() ?? DEFAULT_RANKING_CONFIG;
-    const candidates = this.fetchCandidates(filters);
+    const candidates = this.fetchCandidates(normalizedFilters);
     const scored = candidates
       .map((candidate) => {
         const record = this.decorateRecord(rowToRecord(candidate));
         const packQuality = packQualityScore(record, rankingConfig);
         const sourceQuality = sourceQualityScore(record, rankingConfig);
-        const rarityPreference = rarityPreferenceScore(record, filters, rankingConfig);
-        const sourcePenalty = sourcePenaltyScore(record, filters, rankingConfig);
+        const rarityPreference = rarityPreferenceScore(record, normalizedFilters, rankingConfig);
+        const sourcePenalty = sourcePenaltyScore(record, normalizedFilters, rankingConfig);
         const score =
-          (filters.nameQuery ? nameScore(filters.nameQuery, record, this.aliasesByRecordKey.get(record.recordKey) ?? []) : 0.5) +
+          (normalizedFilters.nameQuery ? nameScore(normalizedFilters.nameQuery, record, this.aliasesByRecordKey.get(record.recordKey) ?? []) : 0.5) +
           packQuality +
           sourceQuality +
           rarityPreference +
@@ -3503,7 +3853,7 @@ export class Pf2eDataService {
         return { record, score };
       })
       .filter(({ score }) => {
-        if (filters.nameQuery) {
+        if (normalizedFilters.nameQuery) {
           return score >= 0.2;
         }
 
@@ -3523,10 +3873,10 @@ export class Pf2eDataService {
 
   listRecords(filters: SearchFilters): SearchResult {
     validateFilters(filters, "list");
+    const normalizedFilters = this.normalizeSearchFilters(filters);
     const limit = clampLimit(filters.limit);
     const offset = clampOffset(filters.offset);
-    const rankingConfig = this.rankingConfigStore?.getConfig() ?? DEFAULT_RANKING_CONFIG;
-    const records = this.fetchCandidates(filters).map((row) => this.decorateRecord(rowToRecord(row)));
+    const records = this.fetchCandidates(normalizedFilters).map((row) => this.decorateRecord(rowToRecord(row)));
     records.sort((left, right) => sortRecords(left, right));
     return {
       searchProfile: "lookup",
@@ -3595,20 +3945,15 @@ export class Pf2eDataService {
 
   async search(filters: SearchFilters): Promise<SearchResult> {
     validateFilters(filters, "search");
+    const normalizedFilters = this.normalizeSearchFilters(filters);
     const limit = clampLimit(filters.limit);
     const offset = clampOffset(filters.offset);
-    const mode = resolveSearchMode(filters, "search");
-    const searchProfile = resolveSearchProfile(filters, "search", mode);
-    const rawSemanticQuery = filters.query?.trim() || "";
-    const rawLexicalQuery = filters.query?.trim() || filters.nameQuery?.trim() || "";
-    const effectiveFilters: SearchFilters = {
-      ...filters,
-    };
-    const shouldIncludeSearchText = Boolean(effectiveFilters.query || effectiveFilters.nameQuery || mode !== "structured");
+    const mode = resolveSearchMode(normalizedFilters, "search");
+    const searchProfile = resolveSearchProfile(normalizedFilters, "search", mode);
+    const rawSemanticQuery = normalizedFilters.query?.trim() || "";
+    const rawLexicalQuery = normalizedFilters.query?.trim() || normalizedFilters.nameQuery?.trim() || "";
     const rankingConfig = this.rankingConfigStore?.getConfig() ?? DEFAULT_RANKING_CONFIG;
     const hybridFusion = resolveHybridFusionProfile(searchProfile, mode, rankingConfig);
-    const shouldIncludeEmbedding = Boolean(hybridFusion && effectiveFilters.query);
-    let candidates = this.fetchCandidates(effectiveFilters, shouldIncludeSearchText, shouldIncludeEmbedding);
     const queryAnalysis = rawLexicalQuery
       ? buildSearchQueryAnalysis(rawLexicalQuery)
       : null;
@@ -3616,35 +3961,50 @@ export class Pf2eDataService {
       ? buildLiteralQueryWeights(queryAnalysis)
       : null;
     const lexicalQuery = queryAnalysis?.normalizedQuery ?? rawLexicalQuery;
-    const lexicalMatches = lexicalQuery ? this.fetchFtsMatches(lexicalQuery) : new Map<string, number>();
-
-    if (mode === "lexical" && lexicalQuery && lexicalMatches.size > 0) {
-      candidates = candidates.filter((candidate) => lexicalMatches.has(candidate.recordKey));
-    }
-
     const semanticVector = hybridFusion && rawSemanticQuery
       ? await this.embeddingProvider.embed(rawSemanticQuery)
       : null;
-    const rankedCandidates: RankedCandidate[] = candidates.map((candidate) => {
-      const record = this.decorateRecord(rowToRecord(candidate));
-      return {
-        record,
-        lexicalSignal: buildLexicalSignal(record, lexicalQuery, literalQueryWeights, lexicalMatches, rankingConfig),
-        semanticScore:
-          semanticVector && candidate.embeddingBlob
-            ? Math.max(0, cosineSimilarity(semanticVector, decodeVector(candidate.embeddingBlob)))
-            : 0,
-        rerankAdjustments: buildRerankAdjustments(record, effectiveFilters, rankingConfig),
-      };
-    });
+    const lexicalRetrievalRows = lexicalQuery
+      ? this.fetchLexicalRetrievalRows(
+          normalizedFilters,
+          lexicalQuery,
+          Math.max(mode === "lexical" ? LOOKUP_LEXICAL_TOP_K : (hybridFusion?.config.lexicalTopK ?? 0), (offset + limit) * 5),
+        )
+      : [];
+    const lexicalRetrievedKeys = lexicalRetrievalRows.map((row) => row.recordKey);
+    const lexicalRetrievalRanks = buildRankMap(lexicalRetrievedKeys);
+    const lexicalMatches = buildNormalizedRankScoreMap(lexicalRetrievedKeys);
+
+    const semanticRetrievalRows = semanticVector && hybridFusion
+      ? this.fetchSemanticRetrievalRows(
+          normalizedFilters,
+          semanticVector,
+          semanticQueryLimit(Math.max(hybridFusion.config.semanticTopK, (offset + limit) * 5), normalizedFilters),
+        )
+      : [];
+    const semanticRetrievedKeys = semanticRetrievalRows.map((row) => row.recordKey);
+    const semanticRetrievalRanks = buildRankMap(semanticRetrievedKeys);
+
+    const candidateKeys = mode === "structured"
+      ? []
+      : [...new Set([...lexicalRetrievedKeys, ...semanticRetrievedKeys])];
+    const candidateRows = mode === "structured"
+      ? []
+      : this.fetchCandidates(normalizedFilters, false, false, { recordKeys: candidateKeys });
+    const candidateRecords = candidateRows
+      .map((row) => this.decorateRecord(rowToRecord(row)))
+      .filter((record) => recordMatchesFilters(record, normalizedFilters));
+    const candidatesByKey = new Map(candidateRecords.map((record) => [record.recordKey, record]));
 
     const scored = (() => {
       if (mode === "structured") {
-        return rankedCandidates
-          .map(({ record, rerankAdjustments }) => {
+        return this.fetchCandidates(normalizedFilters)
+          .map((candidate) => {
+            const record = this.decorateRecord(rowToRecord(candidate));
+            const rerankAdjustments = buildRerankAdjustments(record, normalizedFilters, rankingConfig);
             const totalScore =
-              (filters.nameQuery
-                ? nameScore(filters.nameQuery, record, this.aliasesByRecordKey.get(record.recordKey) ?? [])
+              (normalizedFilters.nameQuery
+                ? nameScore(normalizedFilters.nameQuery, record, this.aliasesByRecordKey.get(record.recordKey) ?? [])
                 : 0.5) +
               sumRerankAdjustments(rerankAdjustments);
             const explanation: SearchRecordExplanation = {
@@ -3654,16 +4014,16 @@ export class Pf2eDataService {
               fusionScore: null,
               lexicalRank: null,
               semanticRank: null,
+              lexicalRerankScore: null,
               matchedTraits: [],
               matchedNameTokens: [],
-              matchedMetadataTokens: [],
               rerankAdjustments,
             };
 
             return { record, totalScore, explanation };
           })
           .filter(({ totalScore }) => {
-            if (filters.nameQuery) {
+            if (normalizedFilters.nameQuery) {
               return totalScore >= 0.2;
             }
 
@@ -3673,23 +4033,33 @@ export class Pf2eDataService {
       }
 
       if (mode === "lexical") {
-        return rankedCandidates
-          .map(({ record, lexicalSignal, rerankAdjustments, semanticScore }) => {
+        return lexicalRetrievedKeys
+          .map((recordKey) => candidatesByKey.get(recordKey))
+          .filter((record): record is NormalizedRecord => Boolean(record))
+          .map((record) => {
+            const lexicalSignal = buildLexicalSignal(record, lexicalQuery, literalQueryWeights, lexicalMatches, rankingConfig);
+            const rerankAdjustments = buildRerankAdjustments(record, normalizedFilters, rankingConfig);
             const totalScore = lexicalSignal.lexicalScore + sumRerankAdjustments(rerankAdjustments);
             const explanation: SearchRecordExplanation = {
               recordKey: record.recordKey,
               name: record.name,
               totalScore,
               fusionScore: null,
-              lexicalRank: null,
+              lexicalRank: lexicalRetrievalRanks.get(record.recordKey) ?? null,
               semanticRank: null,
+              lexicalRerankScore: lexicalSignal.lexicalScore,
               matchedTraits: lexicalSignal.matchedTraits,
               matchedNameTokens: lexicalSignal.matchedNameTokens,
-              matchedMetadataTokens: lexicalSignal.matchedMetadataTokens,
               rerankAdjustments,
             };
 
-            return { record, totalScore, lexicalScore: lexicalSignal.lexicalScore, semanticScore, explanation };
+            return {
+              record,
+              totalScore,
+              lexicalRank: lexicalRetrievalRanks.get(record.recordKey) ?? null,
+              lexicalRerankScore: lexicalSignal.lexicalScore,
+              explanation,
+            };
           })
           .filter(({ totalScore }) => {
             if (lexicalQuery) {
@@ -3701,43 +4071,46 @@ export class Pf2eDataService {
           .sort((left, right) => {
             return (
               right.totalScore - left.totalScore ||
-              right.lexicalScore - left.lexicalScore ||
-              right.semanticScore - left.semanticScore ||
+              right.lexicalRerankScore - left.lexicalRerankScore ||
+              compareOptionalRanks(left.lexicalRank, right.lexicalRank) ||
               sortRecords(left.record, right.record)
             );
           });
       }
 
       const fusionConfig = hybridFusion!.config;
-      const lexicalRanked = rankedCandidates
+      const rerankedLexical = lexicalRetrievedKeys
+        .map((recordKey) => candidatesByKey.get(recordKey))
+        .filter((record): record is NormalizedRecord => Boolean(record))
+        .map((record) => ({
+          record,
+          lexicalSignal: buildLexicalSignal(record, lexicalQuery, literalQueryWeights, lexicalMatches, rankingConfig),
+        }))
         .filter(({ lexicalSignal }) => lexicalSignal.lexicalScore > 0)
         .sort((left, right) => {
           return (
             right.lexicalSignal.lexicalScore - left.lexicalSignal.lexicalScore ||
-            right.semanticScore - left.semanticScore ||
+            compareOptionalRanks(
+              semanticRetrievalRanks.get(left.record.recordKey) ?? null,
+              semanticRetrievalRanks.get(right.record.recordKey) ?? null,
+            ) ||
             sortRecords(left.record, right.record)
           );
         })
         .slice(0, fusionConfig.lexicalTopK);
-      const semanticRanked = rankedCandidates
-        .filter(({ semanticScore }) => semanticScore > 0)
-        .sort((left, right) => {
-          return (
-            right.semanticScore - left.semanticScore ||
-            right.lexicalSignal.lexicalScore - left.lexicalSignal.lexicalScore ||
-            sortRecords(left.record, right.record)
-          );
-        })
-        .slice(0, fusionConfig.semanticTopK);
-      const lexicalRanks = new Map<string, number>();
-      lexicalRanked.forEach(({ record }, index) => lexicalRanks.set(record.recordKey, index + 1));
-      const semanticRanks = new Map<string, number>();
-      semanticRanked.forEach(({ record }, index) => semanticRanks.set(record.recordKey, index + 1));
+      const rerankedLexicalRanks = buildRankMap(rerankedLexical.map(({ record }) => record.recordKey));
+      const semanticRanks = buildRankMap(
+        semanticRetrievedKeys
+          .filter((recordKey) => candidatesByKey.has(recordKey))
+          .slice(0, fusionConfig.semanticTopK),
+      );
 
-      return rankedCandidates
-        .filter(({ record }) => lexicalRanks.has(record.recordKey) || semanticRanks.has(record.recordKey))
-        .map(({ record, lexicalSignal, semanticScore, rerankAdjustments }) => {
-          const lexicalRank = lexicalRanks.get(record.recordKey) ?? null;
+      return candidateRecords
+        .filter((record) => rerankedLexicalRanks.has(record.recordKey) || semanticRanks.has(record.recordKey))
+        .map((record) => {
+          const lexicalSignal = buildLexicalSignal(record, lexicalQuery, literalQueryWeights, lexicalMatches, rankingConfig);
+          const rerankAdjustments = buildRerankAdjustments(record, normalizedFilters, rankingConfig);
+          const lexicalRank = rerankedLexicalRanks.get(record.recordKey) ?? null;
           const semanticRank = semanticRanks.get(record.recordKey) ?? null;
           const fusionScore = computeWeightedRrfScore(
             lexicalRank,
@@ -3753,9 +4126,9 @@ export class Pf2eDataService {
             fusionScore,
             lexicalRank,
             semanticRank,
+            lexicalRerankScore: lexicalSignal.lexicalScore,
             matchedTraits: lexicalSignal.matchedTraits,
             matchedNameTokens: lexicalSignal.matchedNameTokens,
-            matchedMetadataTokens: lexicalSignal.matchedMetadataTokens,
             rerankAdjustments,
           };
 
@@ -3765,8 +4138,7 @@ export class Pf2eDataService {
             fusionScore,
             lexicalRank,
             semanticRank,
-            lexicalScore: lexicalSignal.lexicalScore,
-            semanticScore,
+            lexicalRerankScore: lexicalSignal.lexicalScore,
             explanation,
           };
         })
@@ -3776,8 +4148,7 @@ export class Pf2eDataService {
             right.fusionScore - left.fusionScore ||
             compareOptionalRanks(left.semanticRank, right.semanticRank) ||
             compareOptionalRanks(left.lexicalRank, right.lexicalRank) ||
-            right.semanticScore - left.semanticScore ||
-            right.lexicalScore - left.lexicalScore ||
+            right.lexicalRerankScore - left.lexicalRerankScore ||
             sortRecords(left.record, right.record)
           );
         });

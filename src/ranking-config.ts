@@ -8,11 +8,9 @@ import { RankingConfigStatus } from "./types.js";
 export interface RankingConfig {
   lexicalChannels: {
     fullTextSearch: number;
-    metadataText: number;
     descriptionText: number;
     themeName: number;
     themeTraits: number;
-    themeMetadata: number;
   };
   hybridFusion: {
     rrfK: number;
@@ -69,12 +67,10 @@ type RankingConfigInput = {
 
 export const DEFAULT_RANKING_CONFIG: RankingConfig = {
   lexicalChannels: {
-    fullTextSearch: 0.1,
-    metadataText: 0.15,
-    descriptionText: 0.05,
-    themeName: 0.25,
+    fullTextSearch: 0.15,
+    descriptionText: 0.2,
+    themeName: 0.3,
     themeTraits: 0.35,
-    themeMetadata: 0.1,
   },
   hybridFusion: {
     rrfK: 60,

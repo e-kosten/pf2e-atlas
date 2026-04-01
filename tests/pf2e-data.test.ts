@@ -1489,6 +1489,17 @@ describe("Pf2eDataService", () => {
     expect(service.getPack("Actions")?.name).toBe("actions");
   });
 
+  it("fails loudly when the required sqlite-vec extension cannot be loaded", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+
+    await expect(loadTestService(fixture, {
+      vectorExtensionLoader: () => {
+        throw new Error("simulated extension load failure");
+      },
+    })).rejects.toThrow(/Failed to load required sqlite-vec extension/);
+  });
+
   it("supports lookup, listing, filtering, and derived metadata", async () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);
@@ -1602,7 +1613,7 @@ describe("Pf2eDataService", () => {
     expect(result.explain?.query?.normalizedQuery).toBe("ghost ship body horror");
   });
 
-  it("surfaces metadata-only haunted-ship swarm candidates in broad themed search", async () => {
+  it("surfaces haunted-ship swarm candidates in broad themed search", async () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);
 
@@ -1629,7 +1640,7 @@ describe("Pf2eDataService", () => {
     expect(broadResults.explain?.query?.queryTokens).toEqual(expect.arrayContaining(["ghost", "ship", "body", "horror"]));
     expect(Array.isArray(crawlingExplain?.matchedTraits)).toBe(true);
     expect(Array.isArray(crawlingExplain?.matchedNameTokens)).toBe(true);
-    expect(Array.isArray(crawlingExplain?.matchedMetadataTokens)).toBe(true);
+    expect(typeof crawlingExplain?.lexicalRerankScore).toBe("number");
     expect(crawlingExplain?.fusionScore).not.toBeNull();
     expect(crawlingExplain?.rerankAdjustments.sourcePenalty ?? 0).toBe(0);
 

@@ -165,9 +165,9 @@ export interface SearchRecordExplanation {
   fusionScore: number | null;
   lexicalRank: number | null;
   semanticRank: number | null;
+  lexicalRerankScore: number | null;
   matchedTraits: string[];
   matchedNameTokens: string[];
-  matchedMetadataTokens: string[];
   rerankAdjustments: {
     packQuality: number;
     sourceQuality: number;
