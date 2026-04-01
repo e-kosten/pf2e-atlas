@@ -1356,12 +1356,25 @@ function extractIntroListAliases(
   };
 }
 
-function isAmbiguousJournalTarget(target: ResolvedJournalTarget, targetCount: number): boolean {
+function hasConflictingJournalDisplayTarget(
+  target: ResolvedJournalTarget,
+  targetCount: number,
+  recordsByPackAndId: Map<string, string>,
+  recordsByPackAndName: Map<string, string[]>,
+  recordsByName: Map<string, string[]>,
+): boolean {
   if (targetCount !== 1 || !target.displayText) {
     return false;
   }
 
-  return normalizeText(target.displayText) !== target.record.normalizedName;
+  const displayRecordKey = resolveTargetRecordKey(
+    null,
+    target.displayText,
+    recordsByPackAndId,
+    recordsByPackAndName,
+    recordsByName,
+  );
+  return Boolean(displayRecordKey && displayRecordKey !== target.recordKey);
 }
 
 function shouldIgnoreCompendiumAlias(aliasText: string, targetName: string): boolean {
@@ -1514,7 +1527,16 @@ function extractRemasterJournalAliases(
 
       if (targets.length === 1) {
         const oldName = resolveAliasSourceName(oldCell, recordsByPackAndId, recordsByPackAndName, recordsByName, recordsByKey);
-        if (!oldName || isAmbiguousJournalTarget(targets[0]!, targets.length)) {
+        if (
+          !oldName ||
+          hasConflictingJournalDisplayTarget(
+            targets[0]!,
+            targets.length,
+            recordsByPackAndId,
+            recordsByPackAndName,
+            recordsByName,
+          )
+        ) {
           continue;
         }
 

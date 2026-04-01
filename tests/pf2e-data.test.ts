@@ -447,6 +447,44 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
     },
   });
 
+  await writeJson(path.join(packRoot, "equipment", "surging-serum-lesser.json"), {
+    _id: "serum1",
+    name: "Surging Serum (Lesser)",
+    type: "consumable",
+    system: {
+      description: {
+        value: "<p>A crackling restorative elixir.</p>",
+      },
+      publication: {
+        title: "Pathfinder Player Core 2",
+        remaster: true,
+      },
+      traits: {
+        rarity: "common",
+        value: ["alchemical", "consumable", "elixir"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment", "sightless-tincture.json"), {
+    _id: "tincture1",
+    name: "Sightless Tincture",
+    type: "consumable",
+    system: {
+      description: {
+        value: "<p>A toxin that clouds the victim's vision.</p>",
+      },
+      publication: {
+        title: "Pathfinder Treasure Vault (Remastered)",
+        remaster: true,
+      },
+      traits: {
+        rarity: "common",
+        value: ["alchemical", "consumable", "poison"],
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "heritages", "nephilim.json"), {
     _id: "neph1",
     name: "Nephilim",
@@ -541,6 +579,12 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
                 <td>Multiple</td>
                 <td>Renamed</td>
                 <td>@UUID[Compendium.pf2e.equipment.Item.pouch1]{Spacious Pouch}</td>
+              </tr>
+              <tr>
+                <td>Sight-Theft Grit</td>
+                <td>Multiple</td>
+                <td>Renamed</td>
+                <td>@UUID[Compendium.pf2e.equipment.Item.serum1]{Sightless Tincture}</td>
               </tr>
             </tbody></table>
           `,
@@ -1441,7 +1485,7 @@ describe("Pf2eDataService", () => {
     const service = await loadTestService(fixture);
 
     expect(service.listPacks()).toHaveLength(10);
-    expect(service.getStats()).toEqual({ packCount: 10, recordCount: 37 });
+    expect(service.getStats()).toEqual({ packCount: 10, recordCount: 39 });
     expect(service.getPack("Actions")?.name).toBe("actions");
   });
 
@@ -1799,12 +1843,12 @@ describe("Pf2eDataService", () => {
     const indexPath = path.join(fixture.root, ".cache", "pf2e-index.sqlite");
 
     const firstService = await loadTestService(fixture, { indexPath });
-    expect(firstService.getStats()).toEqual({ packCount: 10, recordCount: 37 });
+    expect(firstService.getStats()).toEqual({ packCount: 10, recordCount: 39 });
     firstService.close();
 
     const firstMtime = (await import("node:fs/promises")).stat(indexPath).then((details) => details.mtimeMs);
     const unchangedService = await openPreparedTestService(fixture, { indexPath });
-    expect(unchangedService.getStats()).toEqual({ packCount: 10, recordCount: 37 });
+    expect(unchangedService.getStats()).toEqual({ packCount: 10, recordCount: 39 });
     unchangedService.close();
     const secondMtime = (await import("node:fs/promises")).stat(indexPath).then((details) => details.mtimeMs);
     expect(await secondMtime).toBe(await firstMtime);
@@ -1836,7 +1880,7 @@ describe("Pf2eDataService", () => {
     await expect(openPreparedTestService(fixture, { indexPath })).rejects.toThrow(/index .* stale/i);
 
     const rebuiltService = await loadTestService(fixture, { indexPath });
-    expect(rebuiltService.getStats()).toEqual({ packCount: 10, recordCount: 38 });
+    expect(rebuiltService.getStats()).toEqual({ packCount: 10, recordCount: 40 });
     expect(rebuiltService.lookup("Sea Ghoul", { category: "creatures" }).match?.name).toBe("Sea Ghoul");
     rebuiltService.close();
   });
@@ -1848,7 +1892,7 @@ describe("Pf2eDataService", () => {
     const indexPath = path.join(fixture.root, ".cache", "pf2e-index.sqlite");
 
     const firstService = await loadTestService(fixture, { indexPath });
-    expect(firstService.getStats()).toEqual({ packCount: 10, recordCount: 37 });
+    expect(firstService.getStats()).toEqual({ packCount: 10, recordCount: 39 });
     firstService.close();
 
     await writeJson(path.join(fixture.root, "packs", "pf2e", "pathfinder-monster-core", "sea-ghoul-untracked.json"), {
@@ -1919,11 +1963,13 @@ describe("Pf2eDataService", () => {
     expect(service.lookup("Aasimar").match?.name).toBe("Nephilim");
     expect(service.lookup("Ifrit").match?.name).toBe("Naari");
     expect(service.lookup("Feather Token (Swan Boat)").match?.name).toBe("Marvelous Miniature (Boat)");
+    expect(service.lookup("Bag of Holding", { category: "equipment" }).match?.name).toBe("Spacious Pouch (Type I)");
     expect(service.lookup("Attack of Opportunity", { category: "rules", subcategory: "action" }).match?.aliases).toContain("Attack of Opportunity");
     expect(service.lookup("Strike Back", { category: "rules", subcategory: "action" }).match?.aliases).toContain("Strike Back");
     expect(service.lookup("flat-footed", { category: "rules", subcategory: "condition" }).match?.aliases).toContain("flat-footed");
     expect(service.lookup("Aasimar").match?.aliases).toContain("Aasimar");
     expect(service.lookup("Ifrit").match?.aliases).toContain("Ifrit");
+    expect(service.lookup("Bag of Holding", { category: "equipment" }).match?.aliases).toContain("Bag of Holding");
 
     const attackSearch = await service.search({
       category: "rules",
@@ -1958,7 +2004,8 @@ describe("Pf2eDataService", () => {
     const boat = service.lookup("Marvelous Miniature (Boat)").match;
     expect(boat?.aliases).toContain("Feather Token (Swan Boat)");
 
-    expect(service.lookup("Spacious Pouch (Type I)").match?.aliases).not.toContain("Bag of Holding");
+    expect(service.lookup("Sight-Theft Grit", { category: "equipment" }).match?.name).not.toBe("Surging Serum (Lesser)");
+    expect(service.lookup("Surging Serum (Lesser)", { category: "equipment" }).match?.aliases).not.toContain("Sight-Theft Grit");
   });
 
   it("rebuilds the index when embedding identity changes", async () => {
