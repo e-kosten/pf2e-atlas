@@ -1508,38 +1508,63 @@ describe("Pf2eDataService", () => {
 
     expect(service.lookup("Raise Shield").match?.name).toBe("Raise a Shield");
     expect(service.listRecords({ pack: "actions" }).records).toHaveLength(4);
-    expect((await service.search({ category: "creatures", traitsAll: ["fiend"] })).records[0]?.name).toBe("Cythnigot");
-    expect((await service.search({ category: "creatures", size: "sm" })).records.every((record) => record.size === "sm")).toBe(true);
-    expect((await service.search({ searchProfile: "lookup", query: "aberration", category: "creatures" })).records[0]?.name).toBe("Cythnigot");
-    expect((await service.search({ category: "spells", traditions: ["primal"], actionCost: 2 })).records[0]?.name).toBe("Sea Blessing");
-    expect((await service.search({ category: "spells", spellKinds: ["focus"] })).records.map((record) => record.name)).toEqual(["Focus Burst"]);
-    expect((await service.search({ category: "rules", subcategory: "condition" })).records.map((record) => record.name)).toEqual(
+    expect((await service.search({ category: "creature", traitsAll: ["fiend"] })).records[0]?.name).toBe("Cythnigot");
+    expect((await service.search({ category: "creature", size: "sm" })).records.every((record) => record.size === "sm")).toBe(true);
+    expect((await service.search({ searchProfile: "lexical", query: "aberration", category: "creature" })).records[0]?.name).toBe("Cythnigot");
+    expect((await service.search({ category: "spell", traditions: ["primal"], actionCost: 2 })).records[0]?.name).toBe("Sea Blessing");
+    expect((await service.search({ category: "spell", spellKinds: ["focus"] })).records.map((record) => record.name)).toEqual(["Focus Burst"]);
+    expect((await service.search({ category: "rule", subcategory: "condition" })).records.map((record) => record.name)).toEqual(
       expect.arrayContaining(["Blinded", "Dazzled", "Hidden"]),
     );
-    expect((await service.search({ category: "hazards" })).records.map((record) => record.name)).toEqual(
+    expect((await service.search({ category: "hazard" })).records.map((record) => record.name)).toEqual(
       expect.arrayContaining(["Mournful Hallway", "Spear Launcher"]),
     );
-    expect((await service.search({ category: "hazards", subcategory: "trap" })).records.map((record) => record.name)).toEqual(["Spear Launcher"]);
-    expect(service.listRecords({ pack: "Pathfinder Monster Core", category: "hazards", subcategory: "trap" }).records.map((record) => record.name)).toEqual(["Spear Launcher"]);
-    expect((await service.search({ category: "creatures", excludeTraits: ["water"] })).records.some((record) => record.traits.includes("water"))).toBe(false);
-    expect((await service.search({ category: "creatures", nameQuery: "Ghost Sailor", excludeMissingDescription: true })).records.every((record) => record.hasDescription)).toBe(true);
-    expect((await service.search({ category: "creatures", nameQuery: "Ghost Sailor", excludeSources: ["adventure"] })).records[0]?.sourceCategory).toBe("core");
-    expect((await service.search({ category: "creatures", sources: ["core"] })).records.every((record) => record.sourceCategory === "core")).toBe(true);
-    expect((await service.search({ query: "ghost ship", category: "creatures" })).mode).toBe("hybrid");
-    expect((await service.search({ query: "ghost ship", category: "creatures" })).searchProfile).toBe("balanced");
+    expect((await service.search({ category: "hazard", subcategory: "trap" })).records.map((record) => record.name)).toEqual(["Spear Launcher"]);
+    expect(service.listRecords({ pack: "Pathfinder Monster Core", category: "hazard", subcategory: "trap" }).records.map((record) => record.name)).toEqual(["Spear Launcher"]);
+    expect((await service.search({ category: "creature", excludeTraits: ["water"] })).records.some((record) => record.traits.includes("water"))).toBe(false);
+    expect((await service.search({ category: "creature", nameQuery: "Ghost Sailor", excludeMissingDescription: true })).records.every((record) => record.hasDescription)).toBe(true);
+    expect((await service.search({ category: "creature", nameQuery: "Ghost Sailor", excludeSources: ["adventure"] })).records[0]?.sourceCategory).toBe("core");
+    expect((await service.search({ category: "creature", sources: ["core"] })).records.every((record) => record.sourceCategory === "core")).toBe(true);
+    expect((await service.search({ query: "ghost ship", category: "creature" })).mode).toBe("hybrid");
+    expect((await service.search({ query: "ghost ship", category: "creature" })).searchProfile).toBe("balanced");
 
-    const cythnigot = service.lookup("Cythnigot", { category: "creatures" }).match;
+    const cythnigot = service.lookup("Cythnigot", { category: "creature" }).match;
     expect(cythnigot?.hasDescription).toBe(true);
     expect(cythnigot?.descriptionSnippet).toBe("Small aberration.");
     expect(cythnigot?.sourceCategory).toBe("core");
-    expect(cythnigot?.category).toBe("creatures");
-    const seaBlessing = service.lookup("Sea Blessing", { category: "spells" }).match;
+    expect(cythnigot?.category).toBe("creature");
+    const seaBlessing = service.lookup("Sea Blessing", { category: "spell" }).match;
     expect(seaBlessing?.subcategory).toBeNull();
     expect(seaBlessing?.traditions).toEqual(["primal"]);
-    const focusBurst = service.lookup("Focus Burst", { category: "spells" }).match;
+    const focusBurst = service.lookup("Focus Burst", { category: "spell" }).match;
     expect(focusBurst?.subcategory).toBeNull();
     expect(focusBurst?.spellKinds).toEqual(["focus"]);
-    expect(service.lookup("Blinded", { category: "rules", subcategory: "condition" }).match?.category).toBe("rules");
+    expect(service.lookup("Blinded", { category: "rule", subcategory: "condition" }).match?.category).toBe("rule");
+  });
+
+  it("normalizes legacy plural aliases and supports scoped mixed-family filters", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+
+    const service = await loadTestService(fixture);
+
+    const legacyCategoryLookup = service.lookup("Cythnigot", { category: "creatures" }).match;
+    expect(legacyCategoryLookup?.category).toBe("creature");
+
+    const scopedResults = await service.search({
+      scopes: [
+        { category: "feats" },
+        { category: "rules", subcategories: ["actions"] },
+      ],
+      limit: 20,
+    });
+    expect(scopedResults.records.some((record) => record.name === "Deep Focus" && record.category === "feat")).toBe(true);
+    expect(scopedResults.records.some((record) => record.name === "Refocus" && record.category === "rule")).toBe(true);
+    expect(scopedResults.records.some((record) => record.category === "creature")).toBe(false);
+
+    await expect(service.search({
+      scopes: [{ category: "feat", subcategories: ["action"] }],
+    })).rejects.toThrow(/does not belong to category "feat"/i);
   });
 
   it("maps user-facing search profiles onto the underlying retrieval modes", async () => {
@@ -1548,19 +1573,19 @@ describe("Pf2eDataService", () => {
 
     const service = await loadTestService(fixture);
 
-    const lookupResults = await service.search({
-      searchProfile: "lookup",
+    const lexicalResults = await service.search({
+      searchProfile: "lexical",
       query: "aberration",
-      category: "creatures",
+      category: "creature",
     });
-    expect(lookupResults.searchProfile).toBe("lookup");
-    expect(lookupResults.mode).toBe("lexical");
-    expect(lookupResults.records[0]?.name).toBe("Cythnigot");
+    expect(lexicalResults.searchProfile).toBe("lexical");
+    expect(lexicalResults.mode).toBe("lexical");
+    expect(lexicalResults.records[0]?.name).toBe("Cythnigot");
 
     const balancedResults = await service.search({
       searchProfile: "balanced",
       query: "ghost ship",
-      category: "creatures",
+      category: "creature",
     });
     expect(balancedResults.searchProfile).toBe("balanced");
     expect(balancedResults.mode).toBe("hybrid");
@@ -1568,7 +1593,7 @@ describe("Pf2eDataService", () => {
     const conceptResults = await service.search({
       searchProfile: "concept",
       query: "ghost ship",
-      category: "creatures",
+      category: "creature",
       explain: true,
     });
     expect(conceptResults.searchProfile).toBe("concept");
@@ -1603,7 +1628,7 @@ describe("Pf2eDataService", () => {
     const result = await service.search({
       searchProfile: "concept",
       query,
-      category: "creatures",
+      category: "creature",
       explain: true,
     });
 
@@ -1622,7 +1647,7 @@ describe("Pf2eDataService", () => {
     const broadQuery =
       "ghost ship cursed voyage fear fog darkness possession maddening whispers vermin in the hold wrong-feeling stowaways body horror haunted physically unclean";
     const broadResults = await service.search({
-      category: "creatures",
+      category: "creature",
       levelMin: 1,
       levelMax: 5,
       rarity: "common",
@@ -1645,10 +1670,10 @@ describe("Pf2eDataService", () => {
     expect(crawlingExplain?.rerankAdjustments.sourcePenalty ?? 0).toBe(0);
 
     const lexicalResults = await service.search({
-      category: "creatures",
+      category: "creature",
       levelMin: 1,
       levelMax: 5,
-      searchProfile: "lookup",
+      searchProfile: "lexical",
       query: "undead swarm body horror haunted ship crawling infestation severed limbs cursed voyage",
       limit: 20,
     });
@@ -1668,7 +1693,7 @@ describe("Pf2eDataService", () => {
     const service = await loadTestService(fixture);
 
     const bilgeResults = await service.search({
-      category: "creatures",
+      category: "creature",
       nameQuery: "Bilge Skeleton",
       explain: true,
     });
@@ -1680,7 +1705,7 @@ describe("Pf2eDataService", () => {
     expect(adventureBilgeExplain?.rerankAdjustments.sourceQuality).toBe(-0.01);
 
     const sentinelResults = await service.search({
-      category: "creatures",
+      category: "creature",
       query: "sentinel guardian ancient ruins watch intruders",
       limit: 10,
       explain: true,
@@ -1702,7 +1727,7 @@ describe("Pf2eDataService", () => {
     expect(rareExplain?.rerankAdjustments.rarityPreference).toBe(0.01);
 
     const exactUniqueResults = await service.search({
-      category: "creatures",
+      category: "creature",
       nameQuery: "Last Sentinel",
       explain: true,
     });
@@ -1719,7 +1744,7 @@ describe("Pf2eDataService", () => {
     const service = await loadTestService(fixture, { rankingConfigStore });
 
     const baselineResults = await service.search({
-      category: "creatures",
+      category: "creature",
       nameQuery: "Bilge Skeleton",
       explain: true,
     });
@@ -1736,7 +1761,7 @@ describe("Pf2eDataService", () => {
     await rankingConfigStore.reload();
 
     const updatedResults = await service.search({
-      category: "creatures",
+      category: "creature",
       nameQuery: "Bilge Skeleton",
       explain: true,
     });
@@ -1755,21 +1780,21 @@ describe("Pf2eDataService", () => {
 
     expect(service.listPacks().map((pack) => pack.name)).not.toContain("macros");
     expect(service.listPacks().map((pack) => pack.name)).not.toContain("action-macros");
-    expect(service.lookup("Grimstalker", { category: "creatures" }).match?.name).toBe("Grimstalker");
-    expect(service.lookup("Ghoul", { category: "creatures" }).match?.name).toBe("Ghoul");
-    expect(service.lookup("Zebub", { category: "creatures" }).match?.name).toBe("Zebub");
-    expect(service.lookup("Raise Shield", { category: "rules", subcategory: "action" }).match?.name).toBe("Raise a Shield");
+    expect(service.lookup("Grimstalker", { category: "creature" }).match?.name).toBe("Grimstalker");
+    expect(service.lookup("Ghoul", { category: "creature" }).match?.name).toBe("Ghoul");
+    expect(service.lookup("Zebub", { category: "creature" }).match?.name).toBe("Zebub");
+    expect(service.lookup("Raise Shield", { category: "rule", subcategory: "action" }).match?.name).toBe("Raise a Shield");
 
-    expect((await service.search({ nameQuery: "Grimstalker (PFS 3-13)", category: "creatures" })).records.map((record) => record.name)).not.toContain("Grimstalker (PFS 3-13)");
-    expect((await service.search({ nameQuery: "Ghoul (PFS Intro 2)", category: "creatures" })).records.map((record) => record.name)).not.toContain("Ghoul (PFS Intro 2)");
-    expect((await service.search({ nameQuery: "Zebub (PFS)", category: "creatures" })).records.map((record) => record.name)).not.toContain("Zebub (PFS)");
+    expect((await service.search({ nameQuery: "Grimstalker (PFS 3-13)", category: "creature" })).records.map((record) => record.name)).not.toContain("Grimstalker (PFS 3-13)");
+    expect((await service.search({ nameQuery: "Ghoul (PFS Intro 2)", category: "creature" })).records.map((record) => record.name)).not.toContain("Ghoul (PFS Intro 2)");
+    expect((await service.search({ nameQuery: "Zebub (PFS)", category: "creature" })).records.map((record) => record.name)).not.toContain("Zebub (PFS)");
     expect((await service.search({ nameQuery: "Magical Mentor" })).records.map((record) => record.name)).not.toContain("Magical Mentor");
     expect((await service.search({ nameQuery: "Effect: Magical Mentor" })).records.map((record) => record.name)).not.toContain("Effect: Magical Mentor");
     expect((await service.search({ nameQuery: "Treat Wounds" })).records.map((record) => record.name)).not.toContain("Treat Wounds");
     expect((await service.search({ nameQuery: "Trip: Athletics" })).records.map((record) => record.name)).not.toContain("Trip: Athletics");
 
     const featResults = (await service.search({
-      category: "feats",
+      category: "feat",
       query: "mentor training support teamwork guidance",
       limit: 10,
     })).records.map((record) => record.name);
@@ -1783,11 +1808,11 @@ describe("Pf2eDataService", () => {
 
     const service = await loadTestService(fixture);
 
-    const firstHop = service.getRulesContext("Blinded", { category: "rules", subcategory: "condition", referenceDepth: 1 });
+    const firstHop = service.getRulesContext("Blinded", { category: "rule", subcategory: "condition", referenceDepth: 1 });
     expect(firstHop?.record.name).toBe("Blinded");
     expect(firstHop?.references.map((record) => record.name)).toEqual(["Dazzled", "Seek"]);
 
-    const secondHop = service.getRulesContext("Blinded", { category: "rules", subcategory: "condition", referenceDepth: 2 });
+    const secondHop = service.getRulesContext("Blinded", { category: "rule", subcategory: "condition", referenceDepth: 2 });
     expect(secondHop?.references.map((record) => record.name)).toContain("Hidden");
     expect(secondHop?.edges.some((edge) => edge.toRecordKey === "conditionitems:Hidden" && edge.depth === 2)).toBe(true);
   });
@@ -1824,12 +1849,12 @@ describe("Pf2eDataService", () => {
     const service = await loadTestService(fixture);
 
     const vocabulary = service.getSearchVocabulary({ traitLimitPerCategory: 4 });
-    expect(vocabulary.categories.map((entry) => entry.value)).toEqual(expect.arrayContaining(["creatures", "spells", "rules", "feats"]));
+    expect(vocabulary.categories.map((entry) => entry.value)).toEqual(expect.arrayContaining(["creature", "spell", "rule", "feat"]));
     expect(vocabulary.subcategories.map((entry) => entry.value)).toEqual(expect.arrayContaining(["condition", "action", "trap"]));
     expect(vocabulary.subcategories.map((entry) => entry.value)).not.toContain("primal");
     expect(vocabulary.traditions.map((entry) => entry.value)).toContain("primal");
     expect(vocabulary.spellKinds.map((entry) => entry.value)).toContain("focus");
-    expect(vocabulary.commonTraitsByCategory.find((entry) => entry.category === "creatures")?.traits.length).toBeGreaterThan(0);
+    expect(vocabulary.commonTraitsByCategory.find((entry) => entry.category === "creature")?.traits.length).toBeGreaterThan(0);
   });
 
   it("collects rule question context without synthesis", async () => {
@@ -1914,7 +1939,7 @@ describe("Pf2eDataService", () => {
 
     const rebuiltService = await loadTestService(fixture, { indexPath });
     expect(rebuiltService.getStats()).toEqual({ packCount: 10, recordCount: 40 });
-    expect(rebuiltService.lookup("Sea Ghoul", { category: "creatures" }).match?.name).toBe("Sea Ghoul");
+    expect(rebuiltService.lookup("Sea Ghoul", { category: "creature" }).match?.name).toBe("Sea Ghoul");
     rebuiltService.close();
   });
 
@@ -1955,7 +1980,7 @@ describe("Pf2eDataService", () => {
     await expect(openPreparedTestService(fixture, { indexPath })).rejects.toThrow(/index .* stale/i);
 
     const rebuiltService = await loadTestService(fixture, { indexPath });
-    expect(rebuiltService.lookup("Sea Ghoul Scout", { category: "creatures" }).match?.name).toBe("Sea Ghoul Scout");
+    expect(rebuiltService.lookup("Sea Ghoul Scout", { category: "creature" }).match?.name).toBe("Sea Ghoul Scout");
     rebuiltService.close();
   });
 
@@ -1990,29 +2015,29 @@ describe("Pf2eDataService", () => {
       }),
     });
 
-    expect(service.lookup("Attack of Opportunity", { category: "rules", subcategory: "action" }).match?.name).toBe("Reactive Strike");
-    expect(service.lookup("Strike Back", { category: "rules", subcategory: "action" }).match?.name).toBe("Reactive Strike");
-    expect(service.lookup("flat-footed", { category: "rules", subcategory: "condition" }).match?.name).toBe("Off-Guard");
+    expect(service.lookup("Attack of Opportunity", { category: "rule", subcategory: "action" }).match?.name).toBe("Reactive Strike");
+    expect(service.lookup("Strike Back", { category: "rule", subcategory: "action" }).match?.name).toBe("Reactive Strike");
+    expect(service.lookup("flat-footed", { category: "rule", subcategory: "condition" }).match?.name).toBe("Off-Guard");
     expect(service.lookup("Aasimar").match?.name).toBe("Nephilim");
     expect(service.lookup("Ifrit").match?.name).toBe("Naari");
     expect(service.lookup("Feather Token (Swan Boat)").match?.name).toBe("Marvelous Miniature (Boat)");
     expect(service.lookup("Bag of Holding", { category: "equipment" }).match?.name).toBe("Spacious Pouch (Type I)");
-    expect(service.lookup("Attack of Opportunity", { category: "rules", subcategory: "action" }).match?.aliases).toContain("Attack of Opportunity");
-    expect(service.lookup("Strike Back", { category: "rules", subcategory: "action" }).match?.aliases).toContain("Strike Back");
-    expect(service.lookup("flat-footed", { category: "rules", subcategory: "condition" }).match?.aliases).toContain("flat-footed");
+    expect(service.lookup("Attack of Opportunity", { category: "rule", subcategory: "action" }).match?.aliases).toContain("Attack of Opportunity");
+    expect(service.lookup("Strike Back", { category: "rule", subcategory: "action" }).match?.aliases).toContain("Strike Back");
+    expect(service.lookup("flat-footed", { category: "rule", subcategory: "condition" }).match?.aliases).toContain("flat-footed");
     expect(service.lookup("Aasimar").match?.aliases).toContain("Aasimar");
     expect(service.lookup("Ifrit").match?.aliases).toContain("Ifrit");
     expect(service.lookup("Bag of Holding", { category: "equipment" }).match?.aliases).toContain("Bag of Holding");
 
     const attackSearch = await service.search({
-      category: "rules",
+      category: "rule",
       subcategory: "action",
       nameQuery: "Attack of Opportunity",
     });
     expect(attackSearch.records.map((record) => record.name)).toContain("Reactive Strike");
     expect(attackSearch.records.map((record) => record.name)).not.toContain("Attack of Opportunity");
 
-    const offGuard = service.lookup("Off-Guard", { category: "rules", subcategory: "condition" }).match;
+    const offGuard = service.lookup("Off-Guard", { category: "rule", subcategory: "condition" }).match;
     expect(offGuard?.aliases).toContain("flat-footed");
     expect(offGuard?.legacyRecordLinks).toEqual([
       {

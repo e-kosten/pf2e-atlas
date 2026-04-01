@@ -50,7 +50,7 @@ describe("local PF2E integration", async () => {
     expect(service.listPacks().length).toBeGreaterThan(50);
     expect(service.lookup("Raise a Shield").match?.packLabel).toBe("Actions");
     expect(service.lookup("Analysis Eye").match?.packLabel).toBe("Equipment");
-    expect(service.lookup("Cythnigot", { category: "creatures" }).match?.type).toBe("npc");
+    expect(service.lookup("Cythnigot", { category: "creature" }).match?.type).toBe("npc");
     service.close();
   }, 20000);
 

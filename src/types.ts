@@ -44,18 +44,90 @@ export interface LinkedRecordSummary {
 
 export type SourceCategory = "core" | "rules" | "adventure" | "unknown";
 
-export type SearchProfile = "lookup" | "balanced" | "concept";
+export type SearchProfile = "lexical" | "balanced" | "concept";
 
 export type SearchCategory =
   | "equipment"
+  | "feat"
+  | "creature"
+  | "hazard"
+  | "affliction"
+  | "rule"
+  | "spell"
+  | "characterCreation"
+  | "lore";
+
+export type SearchCategoryInput = SearchCategory
   | "feats"
   | "creatures"
   | "hazards"
   | "afflictions"
   | "rules"
-  | "spells"
-  | "characterCreation"
-  | "lore";
+  | "spells";
+
+export type SearchSubcategory =
+  | "consumable"
+  | "gear"
+  | "weapon"
+  | "armor"
+  | "shield"
+  | "ammo"
+  | "backpack"
+  | "treasure"
+  | "kit"
+  | "vehicle"
+  | "class"
+  | "ancestry"
+  | "skill"
+  | "general"
+  | "archetype"
+  | "boonCurse"
+  | "character"
+  | "familiar"
+  | "haunt"
+  | "trap"
+  | "curse"
+  | "disease"
+  | "poison"
+  | "action"
+  | "condition"
+  | "effect"
+  | "campaignFeature"
+  | "heritage"
+  | "background"
+  | "deity"
+  | "journal";
+
+export type SearchSubcategoryInput = SearchSubcategory
+  | "actions"
+  | "conditions"
+  | "effects"
+  | "campaign"
+  | "campaigns"
+  | "consumables"
+  | "weapons"
+  | "shields"
+  | "backpacks"
+  | "treasures"
+  | "kits"
+  | "vehicles"
+  | "archetypes"
+  | "haunts"
+  | "traps"
+  | "curses"
+  | "diseases"
+  | "poisons"
+  | "classes"
+  | "ancestries"
+  | "heritages"
+  | "backgrounds"
+  | "deities"
+  | "journals";
+
+export interface SearchScope {
+  category: SearchCategoryInput;
+  subcategories?: SearchSubcategoryInput[];
+}
 
 export interface NormalizedRecord {
   recordKey: string;
@@ -64,7 +136,7 @@ export interface NormalizedRecord {
   normalizedName: string;
   type: string;
   category: SearchCategory;
-  subcategory: string | null;
+  subcategory: SearchSubcategory | null;
   packName: string;
   packLabel: string;
   documentType: string;
@@ -100,8 +172,9 @@ export interface SearchFilters {
   nameQuery?: string;
   query?: string;
   pack?: string;
-  category?: SearchCategory;
-  subcategory?: string;
+  category?: SearchCategoryInput;
+  subcategory?: SearchSubcategoryInput;
+  scopes?: SearchScope[];
   levelMin?: number;
   levelMax?: number;
   rarity?: string;
@@ -125,8 +198,8 @@ export interface SearchFilters {
 
 export interface LookupOptions {
   pack?: string;
-  category?: SearchCategory;
-  subcategory?: string;
+  category?: SearchCategoryInput;
+  subcategory?: SearchSubcategoryInput;
 }
 
 export type RecordDetail = "minimal" | "standard" | "full";

@@ -12,7 +12,16 @@ import {
   DEFAULT_EMBEDDING_REVISION,
   EmbeddingProvider,
 } from "./embeddings.js";
-import { classifyRecordCategory, extractSpellTraditions, getCategoryForSubcategory } from "./categories.js";
+import {
+  categorySupportsSubcategory,
+  classifyRecordCategory,
+  extractSpellTraditions,
+  getCategoryForSubcategory,
+  getSearchCategoryErrorMessage,
+  getSearchSubcategoryErrorMessage,
+  normalizeSearchCategory,
+  normalizeSearchSubcategory,
+} from "./categories.js";
 import { DEFAULT_RANKING_CONFIG, RankingConfig, RankingConfigStore } from "./ranking-config.js";
 import {
   CollectRuleQuestionContextInput,
@@ -34,6 +43,8 @@ import {
   SearchMode,
   SearchProfile,
   SearchResult,
+  SearchScope,
+  SearchSubcategory,
   SourceCategory,
 } from "./types.js";
 import {
@@ -50,7 +61,7 @@ import {
 import { buildLiteralQueryWeights, buildSearchQueryAnalysis } from "./search-query-analysis.js";
 
 const execFileAsync = promisify(execFile);
-const INDEX_SCHEMA_VERSION = 11;
+const INDEX_SCHEMA_VERSION = 12;
 const VEC_TEXT_NONE = "";
 const VEC_INT_NONE = -1n;
 const LOOKUP_LEXICAL_TOP_K = 100;
@@ -77,7 +88,7 @@ type CandidateRow = {
   normalizedName: string;
   type: string;
   category: SearchCategory;
-  subcategory: string | null;
+  subcategory: SearchSubcategory | null;
   packName: string;
   packLabel: string;
   documentType: string;
@@ -126,7 +137,7 @@ type NormalizedIndexRecord = {
   normalizedName: string;
   type: string;
   category: SearchCategory;
-  subcategory: string | null;
+  subcategory: SearchSubcategory | null;
   packName: string;
   packLabel: string;
   documentType: string;
@@ -150,6 +161,17 @@ type NormalizedIndexRecord = {
   traditions: string[];
   spellKinds: string[];
   searchText: string;
+};
+
+type NormalizedSearchScope = {
+  category: SearchCategory;
+  subcategories?: SearchSubcategory[];
+};
+
+type NormalizedSearchFilters = Omit<SearchFilters, "category" | "subcategory" | "scopes"> & {
+  category?: SearchCategory;
+  subcategory?: SearchSubcategory;
+  scopes?: NormalizedSearchScope[];
 };
 
 type BuildSourceEntry = {
@@ -935,7 +957,7 @@ function buildTraitText(record: NormalizedRecord): string {
 
 function resolveSearchMode(filters: SearchFilters, context: "list" | "search"): SearchMode {
   if (context === "search") {
-    if (filters.searchProfile === "lookup") {
+    if (filters.searchProfile === "lexical") {
       return filters.query?.trim() ? "lexical" : "structured";
     }
 
@@ -964,7 +986,7 @@ function resolveSearchProfile(
     return "balanced";
   }
 
-  return "lookup";
+  return "lexical";
 }
 
 function resolveHybridFusionProfile(
@@ -2732,10 +2754,61 @@ function appendWhereClause(sql: string[], params: SqlValue[], clause: string, ..
   params.push(...values);
 }
 
+function normalizeSearchScope(scope: SearchScope): NormalizedSearchScope {
+  const category = normalizeSearchCategory(scope.category);
+  if (!category) {
+    throw new Error(getSearchCategoryErrorMessage(String(scope.category)));
+  }
+
+  const subcategories = scope.subcategories?.map((subcategory) => {
+    const canonicalSubcategory = normalizeSearchSubcategory(subcategory);
+    if (!canonicalSubcategory) {
+      throw new Error(getSearchSubcategoryErrorMessage(String(subcategory)));
+    }
+    return canonicalSubcategory;
+  });
+
+  const uniqueSubcategories = subcategories
+    ? uniqueSorted(subcategories) as SearchSubcategory[]
+    : undefined;
+
+  return {
+    category,
+    subcategories: uniqueSubcategories && uniqueSubcategories.length > 0 ? uniqueSubcategories : undefined,
+  };
+}
+
+function resolveEffectiveCategory(filters: Pick<NormalizedSearchFilters, "category" | "subcategory" | "scopes" | "traditions" | "spellKinds">): SearchCategory | null {
+  if (filters.scopes && filters.scopes.length > 0) {
+    return null;
+  }
+
+  const inferredCategoryFromSubcategory = !filters.category && filters.subcategory
+    ? getCategoryForSubcategory(filters.subcategory)
+    : null;
+  const hasSpellFacetFilter = (filters.traditions?.length ?? 0) > 0 || (filters.spellKinds?.length ?? 0) > 0;
+  return filters.category ?? inferredCategoryFromSubcategory ?? (hasSpellFacetFilter ? "spell" : null);
+}
+
+function appendScopedCategoryClauses(
+  sql: string[],
+  params: SqlValue[],
+  scopes: NormalizedSearchScope[],
+  renderTerm: (category: SearchCategory, subcategories: SearchSubcategory[] | undefined) => { clause: string; values: SqlValue[] },
+): void {
+  const renderedScopes = scopes.map((scope) => renderTerm(scope.category, scope.subcategories));
+  appendWhereClause(
+    sql,
+    params,
+    `AND (${renderedScopes.map((entry) => entry.clause).join(" OR ")})`,
+    ...renderedScopes.flatMap((entry) => entry.values),
+  );
+}
+
 function applySearchFilterClauses(
   sql: string[],
   params: SqlValue[],
-  filters: SearchFilters,
+  filters: NormalizedSearchFilters,
   aliases: {
     records: string;
     actor: string;
@@ -2768,19 +2841,30 @@ function applySearchFilterClauses(
     );
   }
 
-  const normalizedSubcategory = normalizeText(filters.subcategory ?? "") || null;
-  const inferredCategoryFromSubcategory = !filters.category && normalizedSubcategory
-    ? getCategoryForSubcategory(normalizedSubcategory)
-    : null;
-  const hasSpellFacetFilter = (filters.traditions?.length ?? 0) > 0 || (filters.spellKinds?.length ?? 0) > 0;
-  const effectiveCategory = filters.category ?? inferredCategoryFromSubcategory ?? (hasSpellFacetFilter ? "spells" : null);
+  if (filters.scopes && filters.scopes.length > 0) {
+    appendScopedCategoryClauses(sql, params, filters.scopes, (category, subcategories) => {
+      if (!subcategories || subcategories.length === 0) {
+        return {
+          clause: `LOWER(${recordAlias}.category) = LOWER(?)`,
+          values: [category],
+        };
+      }
 
-  if (effectiveCategory) {
-    appendWhereClause(sql, params, `AND LOWER(${recordAlias}.category) = LOWER(?)`, effectiveCategory);
-  }
+      const placeholders = subcategories.map(() => "?").join(", ");
+      return {
+        clause: `(LOWER(${recordAlias}.category) = LOWER(?) AND LOWER(COALESCE(${recordAlias}.subcategory, '')) IN (${placeholders}))`,
+        values: [category, ...subcategories.map((subcategory) => normalizeText(subcategory))],
+      };
+    });
+  } else {
+    const effectiveCategory = resolveEffectiveCategory(filters);
+    if (effectiveCategory) {
+      appendWhereClause(sql, params, `AND LOWER(${recordAlias}.category) = LOWER(?)`, effectiveCategory);
+    }
 
-  if (normalizedSubcategory) {
-    appendWhereClause(sql, params, `AND LOWER(COALESCE(${recordAlias}.subcategory, '')) = ?`, normalizedSubcategory);
+    if (filters.subcategory) {
+      appendWhereClause(sql, params, `AND LOWER(COALESCE(${recordAlias}.subcategory, '')) = LOWER(?)`, filters.subcategory);
+    }
   }
 
   if (filters.levelMin !== undefined) {
@@ -2907,7 +2991,7 @@ function applySearchFilterClauses(
 }
 
 function buildCandidateQuery(
-  filters: SearchFilters,
+  filters: NormalizedSearchFilters,
   includeSearchText = false,
   includeEmbedding = false,
   options: { recordKeys?: string[] } = {},
@@ -2977,7 +3061,7 @@ function buildCandidateQuery(
   return { sql: sql.join("\n"), params };
 }
 
-function buildLexicalRetrievalQuery(filters: SearchFilters, query: string, limit: number): { sql: string; params: SqlValue[] } {
+function buildLexicalRetrievalQuery(filters: NormalizedSearchFilters, query: string, limit: number): { sql: string; params: SqlValue[] } {
   const sql = [
     "SELECT r.record_key AS recordKey, bm25(records_fts, 8.0, 1.5) AS rank",
     "FROM records_fts",
@@ -3000,7 +3084,7 @@ function buildLexicalRetrievalQuery(filters: SearchFilters, query: string, limit
   return { sql: sql.join("\n"), params };
 }
 
-function semanticQueryLimit(baseLimit: number, filters: SearchFilters): number {
+function semanticQueryLimit(baseLimit: number, filters: NormalizedSearchFilters): number {
   const hasPostFilterOnlyConstraints = Boolean(
     filters.publicationTitle ||
     (filters.traditions?.length ?? 0) > 0 ||
@@ -3012,7 +3096,7 @@ function semanticQueryLimit(baseLimit: number, filters: SearchFilters): number {
   return hasPostFilterOnlyConstraints ? Math.min(1000, Math.max(baseLimit * 4, baseLimit + 100)) : baseLimit;
 }
 
-function buildSemanticRetrievalQuery(filters: SearchFilters, limit: number): { sql: string; params: SqlValue[] } {
+function buildSemanticRetrievalQuery(filters: NormalizedSearchFilters, limit: number): { sql: string; params: SqlValue[] } {
   const sql = [
     "SELECT record_key AS recordKey, distance",
     "FROM record_embeddings",
@@ -3021,17 +3105,29 @@ function buildSemanticRetrievalQuery(filters: SearchFilters, limit: number): { s
   ];
   const params: SqlValue[] = [];
 
-  const normalizedSubcategory = normalizeText(filters.subcategory ?? "") || null;
-  const inferredCategoryFromSubcategory = !filters.category && normalizedSubcategory
-    ? getCategoryForSubcategory(normalizedSubcategory)
-    : null;
-  const hasSpellFacetFilter = (filters.traditions?.length ?? 0) > 0 || (filters.spellKinds?.length ?? 0) > 0;
-  const effectiveCategory = filters.category ?? inferredCategoryFromSubcategory ?? (hasSpellFacetFilter ? "spells" : null);
-  if (effectiveCategory) {
-    appendWhereClause(sql, params, "AND category = ?", normalizeVecText(effectiveCategory));
-  }
-  if (normalizedSubcategory) {
-    appendWhereClause(sql, params, "AND subcategory = ?", normalizeVecText(normalizedSubcategory));
+  if (filters.scopes && filters.scopes.length > 0) {
+    appendScopedCategoryClauses(sql, params, filters.scopes, (category, subcategories) => {
+      if (!subcategories || subcategories.length === 0) {
+        return {
+          clause: "category = ?",
+          values: [normalizeVecText(category)],
+        };
+      }
+
+      const placeholders = subcategories.map(() => "?").join(", ");
+      return {
+        clause: `(category = ? AND subcategory IN (${placeholders}))`,
+        values: [normalizeVecText(category), ...subcategories.map((subcategory) => normalizeVecText(subcategory))],
+      };
+    });
+  } else {
+    const effectiveCategory = resolveEffectiveCategory(filters);
+    if (effectiveCategory) {
+      appendWhereClause(sql, params, "AND category = ?", normalizeVecText(effectiveCategory));
+    }
+    if (filters.subcategory) {
+      appendWhereClause(sql, params, "AND subcategory = ?", normalizeVecText(filters.subcategory));
+    }
   }
   if (filters.pack) {
     appendWhereClause(sql, params, "AND pack_name = ?", normalizeVecText(filters.pack));
@@ -3077,7 +3173,19 @@ function buildSemanticRetrievalQuery(filters: SearchFilters, limit: number): { s
   return { sql: sql.join("\n"), params };
 }
 
-function recordMatchesFilters(record: NormalizedRecord, filters: SearchFilters): boolean {
+function recordMatchesScope(record: NormalizedRecord, scope: NormalizedSearchScope): boolean {
+  if (record.category !== scope.category) {
+    return false;
+  }
+
+  if (!scope.subcategories || scope.subcategories.length === 0) {
+    return true;
+  }
+
+  return record.subcategory !== null && scope.subcategories.includes(record.subcategory);
+}
+
+function recordMatchesFilters(record: NormalizedRecord, filters: NormalizedSearchFilters): boolean {
   if (filters.pack) {
     const normalizedPack = normalizeText(filters.pack);
     if (normalizeText(record.packName) !== normalizedPack && normalizeText(record.packLabel) !== normalizedPack) {
@@ -3085,17 +3193,18 @@ function recordMatchesFilters(record: NormalizedRecord, filters: SearchFilters):
     }
   }
 
-  const normalizedSubcategory = normalizeText(filters.subcategory ?? "") || null;
-  const inferredCategoryFromSubcategory = !filters.category && normalizedSubcategory
-    ? getCategoryForSubcategory(normalizedSubcategory)
-    : null;
-  const hasSpellFacetFilter = (filters.traditions?.length ?? 0) > 0 || (filters.spellKinds?.length ?? 0) > 0;
-  const effectiveCategory = filters.category ?? inferredCategoryFromSubcategory ?? (hasSpellFacetFilter ? "spells" : null);
-  if (effectiveCategory && normalizeText(record.category) !== normalizeText(effectiveCategory)) {
-    return false;
-  }
-  if (normalizedSubcategory && normalizeText(record.subcategory ?? "") !== normalizedSubcategory) {
-    return false;
+  if (filters.scopes && filters.scopes.length > 0) {
+    if (!filters.scopes.some((scope) => recordMatchesScope(record, scope))) {
+      return false;
+    }
+  } else {
+    const effectiveCategory = resolveEffectiveCategory(filters);
+    if (effectiveCategory && record.category !== effectiveCategory) {
+      return false;
+    }
+    if (filters.subcategory && record.subcategory !== filters.subcategory) {
+      return false;
+    }
   }
   if (filters.levelMin !== undefined && (record.level === null || record.level < filters.levelMin)) {
     return false;
@@ -3173,7 +3282,7 @@ function recordMatchesFilters(record: NormalizedRecord, filters: SearchFilters):
   return true;
 }
 
-function validateFilters(filters: SearchFilters, context: "list" | "search"): void {
+function validateFilters(filters: NormalizedSearchFilters, context: "list" | "search"): void {
   const mode = resolveSearchMode(filters, context);
 
   if (context === "list" && filters.searchProfile) {
@@ -3190,6 +3299,24 @@ function validateFilters(filters: SearchFilters, context: "list" | "search"): vo
 
   if (mode === "structured" && filters.query) {
     throw new Error("query requires a themed search profile such as balanced or concept.");
+  }
+
+  if (filters.scopes && filters.scopes.length > 0 && (filters.category || filters.subcategory)) {
+    throw new Error("scopes can't be combined with top-level category or subcategory filters.");
+  }
+
+  if (filters.category && filters.subcategory && !categorySupportsSubcategory(filters.category, filters.subcategory)) {
+    throw new Error(`Subcategory "${filters.subcategory}" does not belong to category "${filters.category}".`);
+  }
+
+  if (filters.scopes) {
+    for (const scope of filters.scopes) {
+      for (const subcategory of scope.subcategories ?? []) {
+        if (!categorySupportsSubcategory(scope.category, subcategory)) {
+          throw new Error(`Subcategory "${subcategory}" does not belong to category "${scope.category}".`);
+        }
+      }
+    }
   }
 
   if (filters.sources && filters.excludeSources) {
@@ -3473,22 +3600,35 @@ export class Pf2eDataService {
     };
   }
 
-  private normalizeSearchFilters(filters: SearchFilters): SearchFilters {
-    if (!filters.pack) {
-      return filters;
+  private normalizeSearchFilters(filters: SearchFilters): NormalizedSearchFilters {
+    const normalizedCategory = filters.category !== undefined
+      ? normalizeSearchCategory(filters.category)
+      : null;
+    if (filters.category !== undefined && !normalizedCategory) {
+      throw new Error(getSearchCategoryErrorMessage(String(filters.category)));
     }
 
-    const pack = this.getPack(filters.pack);
-    return pack
-      ? {
-          ...filters,
-          pack: pack.name,
-        }
-      : filters;
+    const normalizedSubcategory = filters.subcategory !== undefined
+      ? normalizeSearchSubcategory(filters.subcategory)
+      : null;
+    if (filters.subcategory !== undefined && !normalizedSubcategory) {
+      throw new Error(getSearchSubcategoryErrorMessage(String(filters.subcategory)));
+    }
+
+    const normalizedScopes = filters.scopes?.map((scope) => normalizeSearchScope(scope));
+    const pack = filters.pack ? this.getPack(filters.pack) : undefined;
+
+    return {
+      ...filters,
+      pack: pack?.name ?? filters.pack,
+      category: normalizedCategory ?? undefined,
+      subcategory: normalizedSubcategory ?? undefined,
+      scopes: normalizedScopes,
+    };
   }
 
   private fetchCandidates(
-    filters: SearchFilters,
+    filters: NormalizedSearchFilters,
     includeSearchText = false,
     includeEmbedding = false,
     options: { recordKeys?: string[] } = {},
@@ -3497,7 +3637,7 @@ export class Pf2eDataService {
     return this.db.prepare(sql).all(...params) as CandidateRow[];
   }
 
-  private fetchLexicalRetrievalRows(filters: SearchFilters, query: string, limit: number): LexicalRetrievalRow[] {
+  private fetchLexicalRetrievalRows(filters: NormalizedSearchFilters, query: string, limit: number): LexicalRetrievalRow[] {
     const ftsQuery = buildFtsQuery(query);
     if (!ftsQuery) {
       return [];
@@ -3507,7 +3647,7 @@ export class Pf2eDataService {
     return this.db.prepare(sql).all(...params) as LexicalRetrievalRow[];
   }
 
-  private fetchSemanticRetrievalRows(filters: SearchFilters, queryVector: Float32Array, limit: number): SemanticRetrievalRow[] {
+  private fetchSemanticRetrievalRows(filters: NormalizedSearchFilters, queryVector: Float32Array, limit: number): SemanticRetrievalRow[] {
     if (queryVector.length === 0) {
       return [];
     }
@@ -3839,12 +3979,12 @@ export class Pf2eDataService {
   }
 
   private searchStructured(filters: SearchFilters): SearchResult {
-    validateFilters(filters, "search");
     const normalizedFilters = this.normalizeSearchFilters(filters);
-    const limit = clampLimit(filters.limit);
-    const offset = clampOffset(filters.offset);
+    validateFilters(normalizedFilters, "search");
+    const limit = clampLimit(normalizedFilters.limit);
+    const offset = clampOffset(normalizedFilters.offset);
     const mode = resolveSearchMode(normalizedFilters, "search");
-    const searchProfile = resolveSearchProfile(filters, "search", mode);
+    const searchProfile = resolveSearchProfile(normalizedFilters, "search", mode);
     const rankingConfig = this.rankingConfigStore?.getConfig() ?? DEFAULT_RANKING_CONFIG;
     const candidates = this.fetchCandidates(normalizedFilters);
     const scored = candidates
@@ -3883,14 +4023,14 @@ export class Pf2eDataService {
   }
 
   listRecords(filters: SearchFilters): SearchResult {
-    validateFilters(filters, "list");
     const normalizedFilters = this.normalizeSearchFilters(filters);
-    const limit = clampLimit(filters.limit);
-    const offset = clampOffset(filters.offset);
+    validateFilters(normalizedFilters, "list");
+    const limit = clampLimit(normalizedFilters.limit);
+    const offset = clampOffset(normalizedFilters.offset);
     const records = this.fetchCandidates(normalizedFilters).map((row) => this.decorateRecord(rowToRecord(row)));
     records.sort((left, right) => sortRecords(left, right));
     return {
-      searchProfile: "lookup",
+      searchProfile: "lexical",
       mode: "structured",
       total: records.length,
       offset,
@@ -3955,10 +4095,10 @@ export class Pf2eDataService {
   }
 
   async search(filters: SearchFilters): Promise<SearchResult> {
-    validateFilters(filters, "search");
     const normalizedFilters = this.normalizeSearchFilters(filters);
-    const limit = clampLimit(filters.limit);
-    const offset = clampOffset(filters.offset);
+    validateFilters(normalizedFilters, "search");
+    const limit = clampLimit(normalizedFilters.limit);
+    const offset = clampOffset(normalizedFilters.offset);
     const mode = resolveSearchMode(normalizedFilters, "search");
     const searchProfile = resolveSearchProfile(normalizedFilters, "search", mode);
     const rawSemanticQuery = normalizedFilters.query?.trim() || "";

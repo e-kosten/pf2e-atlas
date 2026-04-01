@@ -8,7 +8,17 @@ import { CATEGORY_SUBCATEGORY_MAP } from "./categories.js";
 import { loadConfig } from "./config.js";
 import { Pf2eDataService } from "./pf2e-data.js";
 import { RankingConfigStore } from "./ranking-config.js";
-import { searchCategorySchema, searchProfileSchema, sourceCategorySchema, spellKindSchema } from "./tool-schemas.js";
+import {
+  CATEGORY_HINT_DESCRIPTION,
+  SCOPES_HINT_DESCRIPTION,
+  SUBCATEGORY_HINT_DESCRIPTION,
+  searchCategorySchema,
+  searchProfileSchema,
+  searchScopeSchema,
+  searchSubcategorySchema,
+  sourceCategorySchema,
+  spellKindSchema,
+} from "./tool-schemas.js";
 import { NormalizedRecord, PackInfo, RecordDetail, RuleReferenceEdge, SearchRecordExplanation } from "./types.js";
 
 function summarizeRecord(
@@ -123,7 +133,7 @@ async function main(): Promise<void> {
   server.registerTool(
     "pf2e_get_search_semantics",
     {
-      description: "Describe the explicit category-first search ontology, Pathfinder-native tags, and structured filters available to the calling agent.",
+      description: "Describe the explicit category-first search ontology, Pathfinder-native tags, and structured filters available to the calling agent. Use this for the full category/subcategory map and filter vocabulary.",
       inputSchema: {
         traitLimitPerCategory: z.number().int().min(3).max(25).optional().describe("Maximum common traits to return per category. Defaults to 12."),
       },
@@ -142,12 +152,17 @@ async function main(): Promise<void> {
             {
               name: "category",
               strength: "strong boundary",
-              description: "Best first cut for separating creatures, hazards, spells, equipment, lore, and other user-facing PF2E families.",
+              description: "Best first cut for separating creature, hazard, spell, equipment, lore, and other user-facing PF2E families.",
             },
             {
               name: "subcategory",
               strength: "within-category boundary",
-              description: "Include one narrower family such as hazards/haunt, equipment/consumable, or lore/deity.",
+              description: "Include one narrower family such as hazard/haunt, equipment/consumable, or lore/deity.",
+            },
+            {
+              name: "scopes",
+              strength: "paired multi-family boundary",
+              description: "Use for multi-category search when each category needs its own optional subcategory list, such as feat/archetype plus rule/action.",
             },
             {
               name: "traitsAny",
@@ -192,7 +207,7 @@ async function main(): Promise<void> {
           ],
           retrievalPatterns: [
             {
-              name: "lookup",
+              name: "lexical",
               description: "Lexical-first retrieval for exact names, rules terms, and precise Pathfinder vocabulary. Use short exact or near-exact text.",
             },
             {
@@ -209,7 +224,7 @@ async function main(): Promise<void> {
           subcategoriesByCategory: CATEGORY_SUBCATEGORY_MAP,
           searchProfiles: [
             {
-              value: "lookup",
+              value: "lexical",
               summary: "Lexical-first exact matching with short exact or near-exact text.",
             },
             {
@@ -240,9 +255,9 @@ async function main(): Promise<void> {
   );
 
   server.registerTool(
-    "pf2e_list_categories",
+    "pf2e_list_packs",
     {
-      description: "List available PF2E packs/categories with labels, document types, and record counts.",
+      description: "List available PF2E packs with labels, document types, and record counts. This lists packs, not the search category ontology; use pf2e_get_search_semantics for categories and subcategories.",
     },
     async () => {
       const packs = dataService.listPacks().map(summarizePack);
@@ -294,11 +309,12 @@ async function main(): Promise<void> {
   server.registerTool(
     "pf2e_list_records",
     {
-      description: "List records inside a specific PF2E pack/category with optional filters.",
+      description: "List records inside a specific PF2E pack with optional structured filters. Use this when pack scope matters more than ranked search.",
       inputSchema: {
         pack: z.string().describe("Pack name or label."),
-        category: searchCategorySchema.optional().describe("Optional top-level category boundary."),
-        subcategory: z.string().optional().describe("Include one within-category boundary."),
+        category: searchCategorySchema.optional().describe(CATEGORY_HINT_DESCRIPTION),
+        subcategory: searchSubcategorySchema.optional().describe(SUBCATEGORY_HINT_DESCRIPTION),
+        scopes: z.array(searchScopeSchema).min(1).optional().describe(SCOPES_HINT_DESCRIPTION),
         levelMin: z.number().int().optional().describe("Minimum level inclusive."),
         levelMax: z.number().int().optional().describe("Maximum level inclusive."),
         rarity: z.string().optional().describe("Rarity filter, for example common or uncommon."),
@@ -342,15 +358,16 @@ async function main(): Promise<void> {
   server.registerTool(
     "pf2e_search",
     {
-      description: "Search PF2E records across packs using category-first boundaries, user-facing search profiles, and thematic filters.",
+      description: "Search PF2E records using natural-language text and structured filters. Best for exploratory discovery; use pf2e_lookup for exact names.",
       inputSchema: {
-        searchProfile: searchProfileSchema.optional().describe("User-facing retrieval profile. lookup is lexical-first, balanced is the default hybrid profile for broad themed search, and concept is semantic-forward hybrid search."),
+        searchProfile: searchProfileSchema.optional().describe("User-facing retrieval profile. lexical is lexical-first, balanced is the default hybrid profile for broad themed search, and concept is semantic-forward hybrid search."),
         explain: z.boolean().optional().describe("Include score breakdowns and query-analysis details in the response."),
         nameQuery: z.string().optional().describe("Name text to search for."),
         query: z.string().optional().describe("General free-text search input. Prefer one short natural-language phrase or sentence with 1-3 concrete anchor terms. Avoid long comma-separated keyword lists by default. If searchProfile is omitted, query defaults search to the balanced profile."),
         pack: z.string().optional().describe("Optional pack name or label."),
-        category: searchCategorySchema.optional().describe("Optional top-level category boundary."),
-        subcategory: z.string().optional().describe("Include one within-category boundary."),
+        category: searchCategorySchema.optional().describe(CATEGORY_HINT_DESCRIPTION),
+        subcategory: searchSubcategorySchema.optional().describe(SUBCATEGORY_HINT_DESCRIPTION),
+        scopes: z.array(searchScopeSchema).min(1).optional().describe(SCOPES_HINT_DESCRIPTION),
         levelMin: z.number().int().optional().describe("Minimum level inclusive."),
         levelMax: z.number().int().optional().describe("Maximum level inclusive."),
         rarity: z.string().optional().describe("Rarity filter."),
@@ -397,12 +414,12 @@ async function main(): Promise<void> {
   server.registerTool(
     "pf2e_lookup",
     {
-      description: "Find the best-matching PF2E record by name, with optional pack or type hints. Use this first for simple questions like 'What does Raise a Shield do?' or 'What is Blinded?'",
+      description: "Find the best-matching PF2E record by name. Use this first for exact named lookups such as feats, spells, items, creatures, actions, and conditions. For the full search ontology, use pf2e_get_search_semantics.",
       inputSchema: {
         name: z.string().describe("Record name to look up."),
         pack: z.string().optional().describe("Optional pack name or label."),
-        category: searchCategorySchema.optional().describe("Optional top-level category hint."),
-        subcategory: z.string().optional().describe("Optional within-category hint."),
+        category: searchCategorySchema.optional().describe(CATEGORY_HINT_DESCRIPTION),
+        subcategory: searchSubcategorySchema.optional().describe(SUBCATEGORY_HINT_DESCRIPTION),
         detail: z.enum(["minimal", "standard", "full"]).optional().describe("Response detail level. Defaults to full for backward compatibility."),
         includeAlternatives: z.boolean().optional().describe("Include alternative matches. Defaults to true."),
       },
@@ -442,14 +459,14 @@ async function main(): Promise<void> {
   server.registerTool(
     "pf2e_lookup_many",
     {
-      description: "Resolve multiple PF2E rule names in one call, with compact match metadata and optional alternatives.",
+      description: "Resolve multiple PF2E names in one call. Use this for batches of exact named lookups when you want compact match metadata.",
       inputSchema: {
         queries: z.array(
           z.object({
             name: z.string().describe("Record name to look up."),
             pack: z.string().optional().describe("Optional pack name or label."),
-            category: searchCategorySchema.optional().describe("Optional top-level category hint."),
-            subcategory: z.string().optional().describe("Optional within-category hint."),
+            category: searchCategorySchema.optional().describe(CATEGORY_HINT_DESCRIPTION),
+            subcategory: searchSubcategorySchema.optional().describe(SUBCATEGORY_HINT_DESCRIPTION),
           }),
         ).min(1).max(25),
         coreOnly: z.boolean().optional().describe("Restrict primary matches to core content."),
@@ -481,12 +498,12 @@ async function main(): Promise<void> {
   server.registerTool(
     "pf2e_get_rules_context",
     {
-      description: "Resolve a PF2E rule record and follow linked compendium references from its rules text. Use this for linked-rule traversal such as 'How does Blinded interact with Seek, Hidden, or Undetected?'. For simple lookups, prefer pf2e_lookup or pf2e_get_record first. Example: {\"name\":\"Blinded\",\"category\":\"rules\",\"subcategory\":\"condition\",\"referenceDepth\":1}",
+      description: "Resolve a named PF2E rule record and follow linked compendium references from its rules text. Use this for interaction questions after you know the rule name. Example: {\"name\":\"Blinded\",\"category\":\"rule\",\"subcategory\":\"condition\",\"referenceDepth\":1}",
       inputSchema: {
         name: z.string().describe("Record name to look up."),
         pack: z.string().optional().describe("Optional pack name or label."),
-        category: searchCategorySchema.optional().describe("Optional top-level category hint."),
-        subcategory: z.string().optional().describe("Optional within-category hint."),
+        category: searchCategorySchema.optional().describe(CATEGORY_HINT_DESCRIPTION),
+        subcategory: searchSubcategorySchema.optional().describe(SUBCATEGORY_HINT_DESCRIPTION),
         referenceDepth: z.coerce.number().int().min(1).max(2).optional().describe("How many reference hops to follow. Must be 1 or 2. Defaults to 1."),
         maxReferences: z.coerce.number().int().min(1).max(25).optional().describe("Maximum number of linked records to return. Defaults to 8."),
         detail: z.enum(["minimal", "standard", "full"]).optional().describe("Response detail level. Defaults to full for backward compatibility."),
@@ -610,7 +627,7 @@ async function main(): Promise<void> {
   server.registerTool(
     "pf2e_collect_rule_question_context",
     {
-      description: "Collect retrieval context for a narrow PF2E rules question. Returns primary matches, outgoing support records, and optional curated backlinks without any synthesized answer.",
+      description: "Collect retrieval context for a narrow PF2E rules question. Prefer this when the user is asking how two or more named rules interact. Returns matches and linked support records without a synthesized answer.",
       inputSchema: {
         rules: z.array(z.string()).optional().describe("Explicit rule names to resolve. Preferred over free-text questions."),
         question: z.string().optional().describe("Optional free-text question used only for shallow name extraction when rules are not provided."),
