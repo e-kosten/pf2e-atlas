@@ -257,7 +257,7 @@ async function main(): Promise<void> {
   server.registerTool(
     "pf2e_list_packs",
     {
-      description: "List available PF2E packs with labels, document types, and record counts. This lists packs, not the search category ontology; use pf2e_get_search_semantics for categories and subcategories.",
+      description: "List available PF2E packs with labels, document types, and record counts. Use pf2e_get_search_semantics for the category and subcategory ontology.",
     },
     async () => {
       const packs = dataService.listPacks().map(summarizePack);
@@ -281,7 +281,7 @@ async function main(): Promise<void> {
   server.registerTool(
     "pf2e_get_pack_metadata",
     {
-      description: "Get metadata for a specific PF2E pack/category.",
+      description: "Get metadata for a specific PF2E pack.",
       inputSchema: {
         pack: z.string().describe("Pack name or label, for example spells or Pathfinder Monster Core."),
       },
@@ -496,9 +496,64 @@ async function main(): Promise<void> {
   );
 
   server.registerTool(
-    "pf2e_get_rules_context",
+    "pf2e_get_record_by_key",
     {
-      description: "Collect retrieval context for a narrow PF2E rules question. Prefer this when the user is asking how two or more named rules interact. Returns matches and linked support records without a synthesized answer.",
+      description: "Get one exact PF2E record by canonical recordKey.",
+      inputSchema: {
+        recordKey: z.string().describe("Canonical key in the form packName:recordId."),
+      },
+    },
+    async ({ recordKey }) => {
+      const record = dataService.getRecord(recordKey);
+
+      if (!record) {
+        throw new Error("Record not found. Provide a valid recordKey.");
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `${record.name} (${record.packLabel}, ${record.type})`,
+          },
+        ],
+        structuredContent: {
+          record: summarizeRecord(record),
+          raw: record.raw,
+        },
+      };
+    },
+  );
+
+  server.registerTool(
+    "pf2e_get_records_by_key",
+    {
+      description: "Fetch multiple exact PF2E records by canonical recordKey.",
+      inputSchema: {
+        recordKeys: z.array(z.string()).min(1).max(100).describe("Canonical keys in the form packName:recordId."),
+        detail: z.enum(["minimal", "standard", "full"]).optional().describe("Response detail level. Defaults to standard."),
+      },
+    },
+    async ({ recordKeys, detail = "standard" }) => {
+      const records = dataService.getRecordsByKeys(recordKeys);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Fetched ${records.length} PF2E record${records.length === 1 ? "" : "s"}.`,
+          },
+        ],
+        structuredContent: {
+          records: records.map((record) => summarizeRecord(record, detail)),
+        },
+      };
+    },
+  );
+
+  server.registerTool(
+    "pf2e_collect_rule_question_context",
+    {
+      description: "Resolve one or more named PF2E rules from a narrow rules question and collect linked support records and optional curated backlinks. Use this first for interaction questions. Returns context without a synthesized answer.",
       inputSchema: {
         rules: z.array(z.string()).optional().describe("Explicit rule names to resolve. Preferred over free-text questions."),
         question: z.string().optional().describe("Optional free-text question used only for shallow name extraction when rules are not provided."),
@@ -555,7 +610,7 @@ async function main(): Promise<void> {
   server.registerTool(
     "pf2e_get_rule_graph",
     {
-      description: "Fetch direct rule-graph support records for one or more primary PF2E records. This is the canonical low-level graph surface for outgoing references and curated backlinks.",
+      description: "Fetch low-level rule-graph records and edges for known canonical PF2E record keys. Use this when you already know the primary nodes or need explicit graph traversal.",
       inputSchema: {
         recordKeys: z.array(z.string()).min(1).max(25).describe("Primary canonical record keys."),
         coreOnly: z.boolean().optional().describe("Restrict linked support records to core content."),
@@ -591,61 +646,6 @@ async function main(): Promise<void> {
             edges: result.backlinks.edges.map(summarizeEdge),
           },
           edges: result.edges.map(summarizeEdge),
-        },
-      };
-    },
-  );
-
-  server.registerTool(
-    "pf2e_get_records_by_key",
-    {
-      description: "Fetch multiple PF2E records by canonical recordKey.",
-      inputSchema: {
-        recordKeys: z.array(z.string()).min(1).max(100).describe("Canonical keys in the form packName:recordId."),
-        detail: z.enum(["minimal", "standard", "full"]).optional().describe("Response detail level. Defaults to standard."),
-      },
-    },
-    async ({ recordKeys, detail = "standard" }) => {
-      const records = dataService.getRecordsByKeys(recordKeys);
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Fetched ${records.length} PF2E record${records.length === 1 ? "" : "s"}.`,
-          },
-        ],
-        structuredContent: {
-          records: records.map((record) => summarizeRecord(record, detail)),
-        },
-      };
-    },
-  );
-
-  server.registerTool(
-    "pf2e_get_record_by_key",
-    {
-      description: "Get a full PF2E record by canonical recordKey.",
-      inputSchema: {
-        recordKey: z.string().describe("Canonical key in the form packName:recordId."),
-      },
-    },
-    async ({ recordKey }) => {
-      const record = dataService.getRecord(recordKey);
-
-      if (!record) {
-        throw new Error("Record not found. Provide a valid recordKey.");
-      }
-
-      return {
-        content: [
-          {
-            type: "text",
-            text: `${record.name} (${record.packLabel}, ${record.type})`,
-          },
-        ],
-        structuredContent: {
-          record: summarizeRecord(record),
-          raw: record.raw,
         },
       };
     },

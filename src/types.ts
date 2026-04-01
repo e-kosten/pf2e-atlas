@@ -216,7 +216,7 @@ export interface LookupResult {
 }
 
 export interface SearchResult {
-  searchProfile: SearchProfile;
+  searchProfile: SearchProfile | null;
   mode: SearchMode;
   total: number;
   offset: number;
@@ -250,7 +250,7 @@ export interface SearchRecordExplanation {
 }
 
 export interface SearchExplainResult {
-  searchProfile: SearchProfile;
+  searchProfile: SearchProfile | null;
   mode: SearchMode;
   fusionMethod: "weightedRrf" | null;
   fusionProfile: "balanced" | "concept" | null;

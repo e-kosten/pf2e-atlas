@@ -974,24 +974,62 @@ function resolveSearchMode(filters: SearchFilters, context: "list" | "search"): 
   return "structured";
 }
 
+function hasStructuredFilterSignal(filters: SearchFilters): boolean {
+  return Boolean(
+    filters.pack ||
+    filters.category ||
+    filters.subcategory ||
+    (filters.scopes && filters.scopes.length > 0) ||
+    filters.levelMin !== undefined ||
+    filters.levelMax !== undefined ||
+    filters.rarity ||
+    (filters.traitsAll && filters.traitsAll.length > 0) ||
+    (filters.traitsAny && filters.traitsAny.length > 0) ||
+    (filters.excludeTraits && filters.excludeTraits.length > 0) ||
+    (filters.sources && filters.sources.length > 0) ||
+    (filters.excludeSources && filters.excludeSources.length > 0) ||
+    (filters.traditions && filters.traditions.length > 0) ||
+    (filters.spellKinds && filters.spellKinds.length > 0) ||
+    filters.publicationTitle ||
+    filters.excludeUnique ||
+    filters.excludeMissingDescription ||
+    filters.size ||
+    filters.priceMin !== undefined ||
+    filters.priceMax !== undefined ||
+    filters.actionCost !== undefined
+  );
+}
+
 function resolveSearchProfile(
   filters: SearchFilters,
   context: "list" | "search",
   mode: SearchMode,
-): SearchProfile {
-  if (filters.searchProfile) {
-    return filters.searchProfile;
+): SearchProfile | null {
+  if (context === "list") {
+    return null;
   }
 
-  if (context === "search" && mode === "hybrid") {
-    return "balanced";
+  if (filters.query?.trim()) {
+    if (filters.searchProfile) {
+      return filters.searchProfile;
+    }
+
+    if (mode === "hybrid") {
+      return "balanced";
+    }
+
+    return "lexical";
   }
 
-  return "lexical";
+  if (filters.nameQuery?.trim()) {
+    return "lexical";
+  }
+
+  return null;
 }
 
 function resolveHybridFusionProfile(
-  searchProfile: SearchProfile,
+  searchProfile: SearchProfile | null,
   mode: SearchMode,
   rankingConfig: RankingConfig,
 ): { profile: HybridFusionProfileName; config: HybridFusionProfile } | null {
@@ -3294,6 +3332,10 @@ function validateFilters(filters: NormalizedSearchFilters, context: "list" | "se
     throw new Error("query requires a themed search profile such as balanced or concept.");
   }
 
+  if (context === "search" && !filters.query?.trim() && !filters.nameQuery?.trim() && !hasStructuredFilterSignal(filters)) {
+    throw new Error("pf2e_search requires search text and/or at least one structured filter.");
+  }
+
   if (filters.scopes && filters.scopes.length > 0 && (filters.category || filters.subcategory)) {
     throw new Error("scopes can't be combined with top-level category or subcategory filters.");
   }
@@ -4028,7 +4070,7 @@ export class Pf2eDataService {
     const records = this.fetchCandidates(normalizedFilters).map((row) => this.decorateRecord(rowToRecord(row)));
     records.sort((left, right) => sortRecords(left, right));
     return {
-      searchProfile: "lexical",
+      searchProfile: null,
       mode: "structured",
       total: records.length,
       offset,

@@ -1507,9 +1507,11 @@ describe("Pf2eDataService", () => {
     const service = await loadTestService(fixture);
 
     expect(service.lookup("Raise Shield").match?.name).toBe("Raise a Shield");
+    expect(service.listRecords({ pack: "actions" }).searchProfile).toBeNull();
     expect(service.listRecords({ pack: "actions" }).records).toHaveLength(4);
     expect(service.listRecords({ category: "creature", levelMin: 4, levelMax: 4, traitsAny: ["undead"] }).records.map((record) => record.name)).toEqual(["Ghost Commoner"]);
     expect((await service.search({ category: "creature", traitsAll: ["fiend"] })).records[0]?.name).toBe("Cythnigot");
+    expect((await service.search({ category: "creature", traitsAll: ["fiend"] })).searchProfile).toBeNull();
     expect((await service.search({ category: "creature", size: "sm" })).records.every((record) => record.size === "sm")).toBe(true);
     expect((await service.search({ searchProfile: "lexical", query: "aberration", category: "creature" })).records[0]?.name).toBe("Cythnigot");
     expect((await service.search({ category: "spell", traditions: ["primal"], actionCost: 2 })).records[0]?.name).toBe("Sea Blessing");
@@ -1592,6 +1594,16 @@ describe("Pf2eDataService", () => {
     await expect(service.search({
       scopes: [{ category: "feat", subcategories: ["action"] }],
     })).rejects.toThrow(/does not belong to category "feat"/i);
+  });
+
+  it("requires a text query or structured filters for ranked search", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+
+    const service = await loadTestService(fixture);
+
+    await expect(service.search({})).rejects.toThrow("pf2e_search requires search text and/or at least one structured filter.");
+    await expect(service.search({ searchProfile: "concept" })).rejects.toThrow("pf2e_search requires search text and/or at least one structured filter.");
   });
 
   it("maps user-facing search profiles onto the underlying retrieval modes", async () => {
