@@ -544,7 +544,7 @@ async function main(): Promise<void> {
   );
 
   server.registerTool(
-    "pf2e_get_records",
+    "pf2e_get_records_by_key",
     {
       description: "Fetch multiple PF2E records by canonical recordKey.",
       inputSchema: {
@@ -682,24 +682,18 @@ async function main(): Promise<void> {
   );
 
   server.registerTool(
-    "pf2e_get_record",
+    "pf2e_get_record_by_key",
     {
-      description: "Get a full PF2E record by canonical recordKey or by pack and record id.",
+      description: "Get a full PF2E record by canonical recordKey.",
       inputSchema: {
-        recordKey: z.string().optional().describe("Canonical key in the form packName:recordId."),
-        pack: z.string().optional().describe("Pack name or label."),
-        id: z.string().optional().describe("Foundry record _id."),
+        recordKey: z.string().describe("Canonical key in the form packName:recordId."),
       },
     },
-    async ({ recordKey, pack, id }) => {
-      const record = recordKey
-        ? dataService.getRecord(recordKey)
-        : pack && id
-          ? dataService.getRecord(dataService.getPack(pack)?.name ?? pack, id)
-          : undefined;
+    async ({ recordKey }) => {
+      const record = dataService.getRecord(recordKey);
 
       if (!record) {
-        throw new Error("Record not found. Provide recordKey or both pack and id.");
+        throw new Error("Record not found. Provide a valid recordKey.");
       }
 
       return {

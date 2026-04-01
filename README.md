@@ -105,14 +105,19 @@ Example MCP client entry:
 
 ## Tools
 
-- `pf2e_list_categories`
+- `pf2e_get_search_semantics`
+- `pf2e_list_packs`
 - `pf2e_get_pack_metadata`
 - `pf2e_list_records`
-- `pf2e_get_search_semantics`
 - `pf2e_search`
 - `pf2e_lookup`
+- `pf2e_lookup_many`
 - `pf2e_get_rules_context`
-- `pf2e_get_record`
+- `pf2e_get_records_by_key`
+- `pf2e_get_linked_rules`
+- `pf2e_get_backlinks`
+- `pf2e_collect_rule_question_context`
+- `pf2e_get_record_by_key`
 
 Search and list responses include:
 
