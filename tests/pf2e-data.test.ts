@@ -224,7 +224,7 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
   });
 
   await writeJson(path.join(packRoot, "actions", "refocus.json"), {
-    _id: "Refocus",
+    _id: "action-refocus-1",
     name: "Refocus",
     type: "action",
     system: {
@@ -1802,13 +1802,16 @@ describe("Pf2eDataService", () => {
     expect(lookups.map((result) => result.match?.name)).toEqual(["Refocus", "Deep Focus"]);
     expect(lookups.map((result) => result.matchType)).toEqual(["exact", "exact"]);
 
-    const records = service.getRecordsByKeys(["actions:Refocus", "feats-srd:feat1"]);
+    const records = service.getRecordsByKeys(["actions:action-refocus-1", "feats-srd:feat1"]);
     expect(records.map((record) => record.name)).toEqual(["Refocus", "Deep Focus"]);
+
+    const deepFocusOutgoing = service.getLinkedRules(["feats-srd:feat1"], { maxPerPrimary: 5 });
+    expect(deepFocusOutgoing.records.map((record) => record.name)).toEqual(["Refocus"]);
 
     const outgoing = service.getLinkedRules(["conditionitems:Blinded"], { maxPerPrimary: 5 });
     expect(outgoing.records.map((record) => record.name)).toEqual(["Dazzled", "Seek"]);
 
-    const backlinks = service.getBacklinks(["actions:Refocus"], { maxPerPrimary: 10 });
+    const backlinks = service.getBacklinks(["actions:action-refocus-1"], { maxPerPrimary: 10 });
     expect(backlinks.records.map((record) => record.name)).toEqual(["Deep Focus", "Meditative Well"]);
     expect(backlinks.edges.every((edge) => edge.direction === "backlink")).toBe(true);
     expect(backlinks.records.some((record) => record.type === "spell")).toBe(false);
@@ -1846,6 +1849,25 @@ describe("Pf2eDataService", () => {
     expect(result.outgoing.records).toHaveLength(0);
     expect(result.backlinks.records.map((record) => record.name)).toEqual(["Deep Focus", "Meditative Well"]);
     expect(result.edges).toHaveLength(2);
+  });
+
+  it("collects natural-language rule question context using canonical graph edges", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+
+    const service = await loadTestService(fixture);
+
+    const result = service.collectRuleQuestionContext({
+      question: "How does Deep Focus interplay with Refocus?",
+      includeBacklinks: true,
+      maxOutgoingPerPrimary: 5,
+      maxBacklinksPerPrimary: 5,
+    });
+
+    expect(result.primary.map((entry) => entry.match?.name)).toEqual(["Deep Focus", "Refocus"]);
+    expect(result.outgoing.records.map((record) => record.name)).toEqual(["Refocus"]);
+    expect(result.backlinks.records.map((record) => record.name)).toEqual(["Deep Focus", "Meditative Well"]);
+    expect(result.edges).toHaveLength(3);
   });
 
   it("loads an unchanged SQLite index and requires explicit rebuild when the source changes", async () => {

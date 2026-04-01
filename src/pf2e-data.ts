@@ -50,7 +50,7 @@ import {
 import { buildLiteralQueryWeights, buildSearchQueryAnalysis } from "./search-query-analysis.js";
 
 const execFileAsync = promisify(execFile);
-const INDEX_SCHEMA_VERSION = 10;
+const INDEX_SCHEMA_VERSION = 11;
 const VEC_TEXT_NONE = "";
 const VEC_INT_NONE = -1n;
 const LOOKUP_LEXICAL_TOP_K = 100;
@@ -2458,9 +2458,20 @@ async function buildIndex(
           continue;
         }
 
+        const targetRecordKey = resolveTargetRecordKey(
+          reference.packName,
+          reference.recordLocator,
+          recordsByPackAndId,
+          recordsByPackAndName,
+          recordsByName,
+        );
+        if (!targetRecordKey) {
+          continue;
+        }
+
         insertReferenceEdge.run(
           record.recordKey,
-          `${reference.packName}:${reference.recordLocator}`,
+          targetRecordKey,
           reference.displayText,
           reference.referenceText,
           record.packName,
