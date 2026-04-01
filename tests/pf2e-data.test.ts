@@ -1802,22 +1802,7 @@ describe("Pf2eDataService", () => {
     expect(featResults).not.toContain("Magical Mentor");
   });
 
-  it("builds linked rules context from UUID references", async () => {
-    const fixture = await createFixture();
-    createdRoots.push(fixture.root);
-
-    const service = await loadTestService(fixture);
-
-    const firstHop = service.getRulesContext("Blinded", { category: "rule", subcategory: "condition", referenceDepth: 1 });
-    expect(firstHop?.record.name).toBe("Blinded");
-    expect(firstHop?.references.map((record) => record.name)).toEqual(["Dazzled", "Seek"]);
-
-    const secondHop = service.getRulesContext("Blinded", { category: "rule", subcategory: "condition", referenceDepth: 2 });
-    expect(secondHop?.references.map((record) => record.name)).toContain("Hidden");
-    expect(secondHop?.edges.some((edge) => edge.toRecordKey === "conditionitems:Hidden" && edge.depth === 2)).toBe(true);
-  });
-
-  it("supports batch lookup, batch record fetch, and curated backlink retrieval", async () => {
+  it("supports batch lookup, record fetch, and unified rule graph retrieval", async () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);
 
@@ -1830,16 +1815,38 @@ describe("Pf2eDataService", () => {
     const records = service.getRecordsByKeys(["actions:action-refocus-1", "feats-srd:feat1"]);
     expect(records.map((record) => record.name)).toEqual(["Refocus", "Deep Focus"]);
 
-    const deepFocusOutgoing = service.getLinkedRules(["feats-srd:feat1"], { maxPerPrimary: 5 });
-    expect(deepFocusOutgoing.records.map((record) => record.name)).toEqual(["Refocus"]);
+    const defaultGraph = service.getRuleGraph(["conditionitems:Blinded"], { maxOutgoingPerPrimary: 5 });
+    expect(defaultGraph.outgoing.records.map((record) => record.name)).toEqual(["Dazzled", "Seek"]);
+    expect(defaultGraph.backlinks.records).toHaveLength(0);
+    expect(defaultGraph.edges.every((edge) => edge.direction === "outgoing")).toBe(true);
 
-    const outgoing = service.getLinkedRules(["conditionitems:Blinded"], { maxPerPrimary: 5 });
-    expect(outgoing.records.map((record) => record.name)).toEqual(["Dazzled", "Seek"]);
+    const combinedGraph = service.getRuleGraph(["feats-srd:feat1", "actions:action-refocus-1"], {
+      includeOutgoing: true,
+      includeBacklinks: true,
+      maxOutgoingPerPrimary: 5,
+      maxBacklinksPerPrimary: 10,
+    });
+    expect(combinedGraph.outgoing.records.map((record) => record.name)).toEqual(["Refocus"]);
+    expect(combinedGraph.backlinks.records.map((record) => record.name)).toEqual(["Deep Focus", "Meditative Well"]);
+    expect(combinedGraph.edges).toHaveLength(3);
 
-    const backlinks = service.getBacklinks(["actions:action-refocus-1"], { maxPerPrimary: 10 });
-    expect(backlinks.records.map((record) => record.name)).toEqual(["Deep Focus", "Meditative Well"]);
-    expect(backlinks.edges.every((edge) => edge.direction === "backlink")).toBe(true);
-    expect(backlinks.records.some((record) => record.type === "spell")).toBe(false);
+    const backlinksOnly = service.getRuleGraph(["actions:action-refocus-1"], {
+      includeOutgoing: false,
+      includeBacklinks: true,
+      maxBacklinksPerPrimary: 10,
+    });
+    expect(backlinksOnly.outgoing.records).toHaveLength(0);
+    expect(backlinksOnly.backlinks.records.map((record) => record.name)).toEqual(["Deep Focus", "Meditative Well"]);
+    expect(backlinksOnly.backlinks.edges.every((edge) => edge.direction === "backlink")).toBe(true);
+    expect(backlinksOnly.backlinks.records.some((record) => record.type === "spell")).toBe(false);
+
+    const emptyGraph = service.getRuleGraph(["actions:action-refocus-1"], {
+      includeOutgoing: false,
+      includeBacklinks: false,
+    });
+    expect(emptyGraph.outgoing.records).toHaveLength(0);
+    expect(emptyGraph.backlinks.records).toHaveLength(0);
+    expect(emptyGraph.edges).toHaveLength(0);
   });
 
   it("exposes indexed search vocabulary for agent planning", async () => {

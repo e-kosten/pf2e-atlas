@@ -498,135 +498,6 @@ async function main(): Promise<void> {
   server.registerTool(
     "pf2e_get_rules_context",
     {
-      description: "Resolve a named PF2E rule record and follow linked compendium references from its rules text. Use this for interaction questions after you know the rule name. Example: {\"name\":\"Blinded\",\"category\":\"rule\",\"subcategory\":\"condition\",\"referenceDepth\":1}",
-      inputSchema: {
-        name: z.string().describe("Record name to look up."),
-        pack: z.string().optional().describe("Optional pack name or label."),
-        category: searchCategorySchema.optional().describe(CATEGORY_HINT_DESCRIPTION),
-        subcategory: searchSubcategorySchema.optional().describe(SUBCATEGORY_HINT_DESCRIPTION),
-        referenceDepth: z.coerce.number().int().min(1).max(2).optional().describe("How many reference hops to follow. Must be 1 or 2. Defaults to 1."),
-        maxReferences: z.coerce.number().int().min(1).max(25).optional().describe("Maximum number of linked records to return. Defaults to 8."),
-        detail: z.enum(["minimal", "standard", "full"]).optional().describe("Response detail level. Defaults to full for backward compatibility."),
-      },
-    },
-    async ({ name, detail = "full", ...options }) => {
-      const result = dataService.getRulesContext(name, options);
-      if (!result) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: `No PF2E record matched "${name}".`,
-            },
-          ],
-          structuredContent: {
-            record: null,
-            references: [],
-            edges: [],
-          },
-        };
-      }
-
-      return {
-        content: [
-          {
-            type: "text",
-            text: `${result.record.name} with ${result.references.length} linked rules reference${result.references.length === 1 ? "" : "s"}.`,
-          },
-        ],
-        structuredContent: {
-          record: summarizeRecord(result.record, detail),
-          references: result.references.map((record) => summarizeRecord(record, detail)),
-          edges: result.edges,
-        },
-      };
-    },
-  );
-
-  server.registerTool(
-    "pf2e_get_records_by_key",
-    {
-      description: "Fetch multiple PF2E records by canonical recordKey.",
-      inputSchema: {
-        recordKeys: z.array(z.string()).min(1).max(100).describe("Canonical keys in the form packName:recordId."),
-        detail: z.enum(["minimal", "standard", "full"]).optional().describe("Response detail level. Defaults to standard."),
-      },
-    },
-    async ({ recordKeys, detail = "standard" }) => {
-      const records = dataService.getRecordsByKeys(recordKeys);
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Fetched ${records.length} PF2E record${records.length === 1 ? "" : "s"}.`,
-          },
-        ],
-        structuredContent: {
-          records: records.map((record) => summarizeRecord(record, detail)),
-        },
-      };
-    },
-  );
-
-  server.registerTool(
-    "pf2e_get_linked_rules",
-    {
-      description: "Fetch direct linked-rule support records for one or more primary PF2E records.",
-      inputSchema: {
-        recordKeys: z.array(z.string()).min(1).max(25).describe("Primary canonical record keys."),
-        coreOnly: z.boolean().optional().describe("Restrict linked support records to core content."),
-        maxPerPrimary: z.coerce.number().int().min(1).max(25).optional().describe("Maximum linked records to keep per primary. Defaults to 4."),
-        detail: z.enum(["minimal", "standard", "full"]).optional().describe("Response detail level. Defaults to minimal."),
-      },
-    },
-    async ({ recordKeys, coreOnly, maxPerPrimary, detail = "minimal" }) => {
-      const result = dataService.getLinkedRules(recordKeys, { coreOnly, maxPerPrimary });
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Collected ${result.records.length} linked support record${result.records.length === 1 ? "" : "s"} across ${recordKeys.length} primar${recordKeys.length === 1 ? "y" : "ies"}.`,
-          },
-        ],
-        structuredContent: {
-          records: result.records.map((record) => summarizeRecord(record, detail)),
-          edges: result.edges.map(summarizeEdge),
-        },
-      };
-    },
-  );
-
-  server.registerTool(
-    "pf2e_get_backlinks",
-    {
-      description: "Fetch curated reusable-rule backlinks that reference one or more PF2E records. Backlinks are limited to actions, feats, and class features.",
-      inputSchema: {
-        recordKeys: z.array(z.string()).min(1).max(25).describe("Target canonical record keys."),
-        coreOnly: z.boolean().optional().describe("Restrict backlink source records to core content."),
-        maxPerPrimary: z.coerce.number().int().min(1).max(25).optional().describe("Maximum backlinks to keep per primary. Defaults to 4."),
-        detail: z.enum(["minimal", "standard", "full"]).optional().describe("Response detail level. Defaults to minimal."),
-      },
-    },
-    async ({ recordKeys, coreOnly, maxPerPrimary, detail = "minimal" }) => {
-      const result = dataService.getBacklinks(recordKeys, { coreOnly, maxPerPrimary });
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Collected ${result.records.length} curated backlink record${result.records.length === 1 ? "" : "s"} across ${recordKeys.length} target${recordKeys.length === 1 ? "" : "s"}.`,
-          },
-        ],
-        structuredContent: {
-          records: result.records.map((record) => summarizeRecord(record, detail)),
-          edges: result.edges.map(summarizeEdge),
-        },
-      };
-    },
-  );
-
-  server.registerTool(
-    "pf2e_collect_rule_question_context",
-    {
       description: "Collect retrieval context for a narrow PF2E rules question. Prefer this when the user is asking how two or more named rules interact. Returns matches and linked support records without a synthesized answer.",
       inputSchema: {
         rules: z.array(z.string()).optional().describe("Explicit rule names to resolve. Preferred over free-text questions."),
@@ -676,6 +547,75 @@ async function main(): Promise<void> {
             edges: result.backlinks.edges.map(summarizeEdge),
           },
           edges: result.edges.map(summarizeEdge),
+        },
+      };
+    },
+  );
+
+  server.registerTool(
+    "pf2e_get_rule_graph",
+    {
+      description: "Fetch direct rule-graph support records for one or more primary PF2E records. This is the canonical low-level graph surface for outgoing references and curated backlinks.",
+      inputSchema: {
+        recordKeys: z.array(z.string()).min(1).max(25).describe("Primary canonical record keys."),
+        coreOnly: z.boolean().optional().describe("Restrict linked support records to core content."),
+        includeOutgoing: z.boolean().optional().describe("Include direct outgoing linked-rule support records. Defaults to true when both direction flags are omitted."),
+        includeBacklinks: z.boolean().optional().describe("Include curated backlinks from actions, feats, and class features. Defaults to false when both direction flags are omitted."),
+        maxOutgoingPerPrimary: z.coerce.number().int().min(1).max(25).optional().describe("Maximum outgoing linked records to keep per primary. Defaults to 4."),
+        maxBacklinksPerPrimary: z.coerce.number().int().min(1).max(25).optional().describe("Maximum curated backlinks to keep per primary. Defaults to 4."),
+        detail: z.enum(["minimal", "standard", "full"]).optional().describe("Response detail level. Defaults to minimal."),
+      },
+    },
+    async ({ recordKeys, coreOnly, includeOutgoing, includeBacklinks, maxOutgoingPerPrimary, maxBacklinksPerPrimary, detail = "minimal" }) => {
+      const result = dataService.getRuleGraph(recordKeys, {
+        coreOnly,
+        includeOutgoing,
+        includeBacklinks,
+        maxOutgoingPerPrimary,
+        maxBacklinksPerPrimary,
+      });
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Collected ${result.outgoing.records.length} outgoing support record${result.outgoing.records.length === 1 ? "" : "s"} and ${result.backlinks.records.length} backlink record${result.backlinks.records.length === 1 ? "" : "s"} across ${recordKeys.length} primar${recordKeys.length === 1 ? "y" : "ies"}.`,
+          },
+        ],
+        structuredContent: {
+          outgoing: {
+            records: result.outgoing.records.map((record) => summarizeRecord(record, detail)),
+            edges: result.outgoing.edges.map(summarizeEdge),
+          },
+          backlinks: {
+            records: result.backlinks.records.map((record) => summarizeRecord(record, detail)),
+            edges: result.backlinks.edges.map(summarizeEdge),
+          },
+          edges: result.edges.map(summarizeEdge),
+        },
+      };
+    },
+  );
+
+  server.registerTool(
+    "pf2e_get_records_by_key",
+    {
+      description: "Fetch multiple PF2E records by canonical recordKey.",
+      inputSchema: {
+        recordKeys: z.array(z.string()).min(1).max(100).describe("Canonical keys in the form packName:recordId."),
+        detail: z.enum(["minimal", "standard", "full"]).optional().describe("Response detail level. Defaults to standard."),
+      },
+    },
+    async ({ recordKeys, detail = "standard" }) => {
+      const records = dataService.getRecordsByKeys(recordKeys);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Fetched ${records.length} PF2E record${records.length === 1 ? "" : "s"}.`,
+          },
+        ],
+        structuredContent: {
+          records: records.map((record) => summarizeRecord(record, detail)),
         },
       };
     },

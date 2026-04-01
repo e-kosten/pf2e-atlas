@@ -294,6 +294,12 @@ export interface RuleGraphResult {
   edges: RuleReferenceEdge[];
 }
 
+export interface RuleGraphCollectionResult {
+  outgoing: RuleGraphResult;
+  backlinks: RuleGraphResult;
+  edges: RuleReferenceEdge[];
+}
+
 export interface CollectRuleQuestionContextInput {
   rules?: string[];
   question?: string;
@@ -303,9 +309,6 @@ export interface CollectRuleQuestionContextInput {
   includeBacklinks?: boolean;
 }
 
-export interface CollectRuleQuestionContextResult {
+export interface CollectRuleQuestionContextResult extends RuleGraphCollectionResult {
   primary: LookupResult[];
-  outgoing: RuleGraphResult;
-  backlinks: RuleGraphResult;
-  edges: RuleReferenceEdge[];
 }

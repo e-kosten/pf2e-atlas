@@ -34,6 +34,7 @@ import {
   NormalizedRecord,
   PackInfo,
   PackManifestEntry,
+  RuleGraphCollectionResult,
   RuleGraphResult,
   RuleReferenceEdge,
   SearchCategory,
@@ -1138,14 +1139,6 @@ type ExtractedReference = {
   recordLocator: string;
   displayText: string | null;
   referenceText: string;
-};
-
-type RulesContextEdge = {
-  fromRecordKey: string;
-  toRecordKey: string;
-  displayText: string | null;
-  referenceText: string;
-  depth: number;
 };
 
 const UUID_REFERENCE_PATTERN = /@UUID\[([^\]]+)\](?:\{([^}]+)\})?/g;
@@ -3786,23 +3779,6 @@ export class Pf2eDataService {
     };
   }
 
-  private resolveReference(reference: ExtractedReference): NormalizedRecord | null {
-    if (reference.packName) {
-      const direct = this.getRecord(reference.packName, reference.recordLocator);
-      if (direct) {
-        return direct;
-      }
-
-      const fallback = this.lookup(reference.displayText ?? reference.recordLocator, { pack: reference.packName }).match;
-      if (fallback) {
-        return this.getRecord(fallback.recordKey) ?? fallback;
-      }
-    }
-
-    const match = this.lookup(reference.displayText ?? reference.recordLocator).match;
-    return match ? (this.getRecord(match.recordKey) ?? match) : null;
-  }
-
   getRecord(recordKeyOrPack: string, maybeId?: string): NormalizedRecord | undefined {
     const row = maybeId
       ? (this.db
@@ -3934,18 +3910,45 @@ export class Pf2eDataService {
     });
   }
 
-  getLinkedRules(
+  getRuleGraph(
     recordKeys: string[],
-    options: { coreOnly?: boolean; maxPerPrimary?: number } = {},
-  ): RuleGraphResult {
-    return this.fetchReferenceEdgeRows("outgoing", [...new Set(recordKeys)], options);
-  }
+    {
+      coreOnly,
+      includeOutgoing,
+      includeBacklinks,
+      maxOutgoingPerPrimary,
+      maxBacklinksPerPrimary,
+    }: {
+      coreOnly?: boolean;
+      includeOutgoing?: boolean;
+      includeBacklinks?: boolean;
+      maxOutgoingPerPrimary?: number;
+      maxBacklinksPerPrimary?: number;
+    } = {},
+  ): RuleGraphCollectionResult {
+    const uniqueRecordKeys = [...new Set(recordKeys)];
+    const directionsSpecified = includeOutgoing !== undefined || includeBacklinks !== undefined;
+    const shouldIncludeOutgoing = directionsSpecified ? includeOutgoing === true : true;
+    const shouldIncludeBacklinks = directionsSpecified ? includeBacklinks === true : false;
+    const emptyGraph: RuleGraphResult = { records: [], edges: [] };
+    const outgoing = shouldIncludeOutgoing
+      ? this.fetchReferenceEdgeRows("outgoing", uniqueRecordKeys, {
+          coreOnly,
+          maxPerPrimary: maxOutgoingPerPrimary,
+        })
+      : emptyGraph;
+    const backlinks = shouldIncludeBacklinks
+      ? this.fetchReferenceEdgeRows("backlink", uniqueRecordKeys, {
+          coreOnly,
+          maxPerPrimary: maxBacklinksPerPrimary,
+        })
+      : emptyGraph;
 
-  getBacklinks(
-    recordKeys: string[],
-    options: { coreOnly?: boolean; maxPerPrimary?: number } = {},
-  ): RuleGraphResult {
-    return this.fetchReferenceEdgeRows("backlink", [...new Set(recordKeys)], options);
+    return {
+      outgoing,
+      backlinks,
+      edges: [...outgoing.edges, ...backlinks.edges],
+    };
   }
 
   collectRuleQuestionContext(input: CollectRuleQuestionContextInput): CollectRuleQuestionContextResult {
@@ -3959,22 +3962,17 @@ export class Pf2eDataService {
     const primaryKeys = primary
       .map((result) => result.match?.recordKey ?? null)
       .filter((recordKey): recordKey is string => Boolean(recordKey));
-    const outgoing = this.getLinkedRules(primaryKeys, {
+    const graph = this.getRuleGraph(primaryKeys, {
       coreOnly: input.coreOnly,
-      maxPerPrimary: input.maxOutgoingPerPrimary ?? 4,
+      includeOutgoing: true,
+      includeBacklinks: input.includeBacklinks,
+      maxOutgoingPerPrimary: input.maxOutgoingPerPrimary ?? 4,
+      maxBacklinksPerPrimary: input.maxBacklinksPerPrimary ?? 4,
     });
-    const backlinks = input.includeBacklinks
-      ? this.getBacklinks(primaryKeys, {
-          coreOnly: input.coreOnly,
-          maxPerPrimary: input.maxBacklinksPerPrimary ?? 4,
-        })
-      : { records: [], edges: [] };
 
     return {
       primary,
-      outgoing,
-      backlinks,
-      edges: [...outgoing.edges, ...backlinks.edges],
+      ...graph,
     };
   }
 
@@ -4037,61 +4035,6 @@ export class Pf2eDataService {
       limit,
       records: records.slice(offset, offset + limit),
     };
-  }
-
-  getRulesContext(
-    name: string,
-    options: LookupOptions & { referenceDepth?: number; maxReferences?: number } = {},
-  ): { record: NormalizedRecord; references: NormalizedRecord[]; edges: RulesContextEdge[] } | null {
-    const baseMatch = this.lookup(name, options).match;
-    if (!baseMatch) {
-      return null;
-    }
-    const baseRecord = this.getRecord(baseMatch.recordKey) ?? baseMatch;
-
-    const maxReferences = Math.max(1, Math.min(options.maxReferences ?? 8, 25));
-    const maxDepth = options.referenceDepth === 2 ? 2 : 1;
-    const references: NormalizedRecord[] = [];
-    const edges: RulesContextEdge[] = [];
-    const queued = new Set<string>([baseRecord.recordKey]);
-    const addedReferences = new Set<string>();
-    const queue: Array<{ record: NormalizedRecord; depth: number }> = [{ record: baseRecord, depth: 1 }];
-
-    while (queue.length > 0 && references.length < maxReferences) {
-      const current = queue.shift()!;
-      const extracted = extractRulesReferences(current.record.raw);
-
-      for (const reference of extracted) {
-        const resolved = this.resolveReference(reference);
-        if (!resolved || resolved.recordKey === current.record.recordKey) {
-          continue;
-        }
-
-        edges.push({
-          fromRecordKey: current.record.recordKey,
-          toRecordKey: resolved.recordKey,
-          displayText: reference.displayText,
-          referenceText: reference.referenceText,
-          depth: current.depth,
-        });
-
-        if (!addedReferences.has(resolved.recordKey)) {
-          references.push(resolved);
-          addedReferences.add(resolved.recordKey);
-        }
-
-        if (current.depth < maxDepth && !queued.has(resolved.recordKey) && references.length < maxReferences) {
-          queue.push({ record: resolved, depth: current.depth + 1 });
-          queued.add(resolved.recordKey);
-        }
-
-        if (references.length >= maxReferences) {
-          break;
-        }
-      }
-    }
-
-    return { record: baseRecord, references, edges };
   }
 
   async search(filters: SearchFilters): Promise<SearchResult> {

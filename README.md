@@ -113,11 +113,12 @@ Example MCP client entry:
 - `pf2e_lookup`
 - `pf2e_lookup_many`
 - `pf2e_get_rules_context`
+- `pf2e_get_rule_graph`
 - `pf2e_get_records_by_key`
-- `pf2e_get_linked_rules`
-- `pf2e_get_backlinks`
-- `pf2e_collect_rule_question_context`
 - `pf2e_get_record_by_key`
+
+`pf2e_get_rules_context` collects retrieval context for narrow rules questions by resolving primary rule names, then gathering outgoing linked support records and optional curated backlinks without synthesizing an answer.
+`pf2e_get_rule_graph` is the canonical low-level rule graph tool. It retrieves direct outgoing references and optional curated backlinks for canonical record keys, grouped by direction.
 
 Search and list responses include:
 
