@@ -14,9 +14,20 @@ export interface RankingConfig {
     themeTraits: number;
     themeMetadata: number;
   };
-  hybridBlend: {
-    lexicalWeight: number;
-    semanticWeight: number;
+  hybridFusion: {
+    rrfK: number;
+    balanced: {
+      lexicalWeight: number;
+      semanticWeight: number;
+      lexicalTopK: number;
+      semanticTopK: number;
+    };
+    concept: {
+      lexicalWeight: number;
+      semanticWeight: number;
+      lexicalTopK: number;
+      semanticTopK: number;
+    };
   };
   packQuality: {
     macroPenalty: number;
@@ -45,7 +56,11 @@ export interface RankingConfig {
 
 type RankingConfigInput = {
   lexicalChannels?: Partial<RankingConfig["lexicalChannels"]>;
-  hybridBlend?: Partial<RankingConfig["hybridBlend"]>;
+  hybridFusion?: {
+    rrfK?: number;
+    balanced?: Partial<RankingConfig["hybridFusion"]["balanced"]>;
+    concept?: Partial<RankingConfig["hybridFusion"]["concept"]>;
+  };
   packQuality?: Partial<RankingConfig["packQuality"]>;
   sourceQuality?: Partial<RankingConfig["sourceQuality"]>;
   rarityPreference?: Partial<RankingConfig["rarityPreference"]>;
@@ -61,9 +76,20 @@ export const DEFAULT_RANKING_CONFIG: RankingConfig = {
     themeTraits: 0.35,
     themeMetadata: 0.1,
   },
-  hybridBlend: {
-    lexicalWeight: 0.85,
-    semanticWeight: 0.15,
+  hybridFusion: {
+    rrfK: 60,
+    balanced: {
+      lexicalWeight: 0.65,
+      semanticWeight: 0.35,
+      lexicalTopK: 150,
+      semanticTopK: 80,
+    },
+    concept: {
+      lexicalWeight: 0.3,
+      semanticWeight: 0.7,
+      lexicalTopK: 100,
+      semanticTopK: 150,
+    },
   },
   packQuality: {
     macroPenalty: -0.2,
@@ -93,7 +119,11 @@ export const DEFAULT_RANKING_CONFIG: RankingConfig = {
 function cloneDefaults(): RankingConfig {
   return {
     lexicalChannels: { ...DEFAULT_RANKING_CONFIG.lexicalChannels },
-    hybridBlend: { ...DEFAULT_RANKING_CONFIG.hybridBlend },
+    hybridFusion: {
+      rrfK: DEFAULT_RANKING_CONFIG.hybridFusion.rrfK,
+      balanced: { ...DEFAULT_RANKING_CONFIG.hybridFusion.balanced },
+      concept: { ...DEFAULT_RANKING_CONFIG.hybridFusion.concept },
+    },
     packQuality: { ...DEFAULT_RANKING_CONFIG.packQuality },
     sourceQuality: { ...DEFAULT_RANKING_CONFIG.sourceQuality },
     rarityPreference: { ...DEFAULT_RANKING_CONFIG.rarityPreference },
@@ -146,7 +176,8 @@ function applySection<T extends Record<string, number>>(
 function validateRankingConfig(config: RankingConfig): RankingConfig {
   const sections: Array<[string, Record<string, number>]> = [
     ["lexicalChannels", config.lexicalChannels],
-    ["hybridBlend", config.hybridBlend],
+    ["hybridFusion.balanced", config.hybridFusion.balanced],
+    ["hybridFusion.concept", config.hybridFusion.concept],
     ["packQuality", config.packQuality],
     ["sourceQuality", config.sourceQuality],
     ["rarityPreference", config.rarityPreference],
@@ -171,17 +202,31 @@ function validateRankingConfig(config: RankingConfig): RankingConfig {
     throw new Error("lexicalChannels.descriptionText must be less than 1.");
   }
 
-  if (config.hybridBlend.lexicalWeight < 0 || config.hybridBlend.semanticWeight < 0) {
-    throw new Error("hybridBlend weights must be non-negative.");
+  if (!Number.isInteger(config.hybridFusion.rrfK) || config.hybridFusion.rrfK <= 0) {
+    throw new Error("hybridFusion.rrfK must be a positive integer.");
   }
 
-  const blendTotal = config.hybridBlend.lexicalWeight + config.hybridBlend.semanticWeight;
-  if (blendTotal <= 0) {
-    throw new Error("hybridBlend must have a positive total weight.");
-  }
+  for (const profile of ["balanced", "concept"] as const) {
+    const fusionProfile = config.hybridFusion[profile];
+    if (fusionProfile.lexicalWeight < 0 || fusionProfile.semanticWeight < 0) {
+      throw new Error(`hybridFusion.${profile} weights must be non-negative.`);
+    }
 
-  config.hybridBlend.lexicalWeight /= blendTotal;
-  config.hybridBlend.semanticWeight /= blendTotal;
+    const weightTotal = fusionProfile.lexicalWeight + fusionProfile.semanticWeight;
+    if (weightTotal <= 0) {
+      throw new Error(`hybridFusion.${profile} must have a positive total weight.`);
+    }
+
+    fusionProfile.lexicalWeight /= weightTotal;
+    fusionProfile.semanticWeight /= weightTotal;
+
+    if (!Number.isInteger(fusionProfile.lexicalTopK) || fusionProfile.lexicalTopK <= 0) {
+      throw new Error(`hybridFusion.${profile}.lexicalTopK must be a positive integer.`);
+    }
+    if (!Number.isInteger(fusionProfile.semanticTopK) || fusionProfile.semanticTopK <= 0) {
+      throw new Error(`hybridFusion.${profile}.semanticTopK must be a positive integer.`);
+    }
+  }
 
   return config;
 }
@@ -193,7 +238,15 @@ export function mergeRankingConfig(overrides: RankingConfigInput | null | undefi
   }
 
   merged.lexicalChannels = applySection(merged.lexicalChannels, overrides.lexicalChannels, "lexicalChannels");
-  merged.hybridBlend = applySection(merged.hybridBlend, overrides.hybridBlend, "hybridBlend");
+  if (overrides.hybridFusion !== undefined) {
+    const fusion = asObject(overrides.hybridFusion, "hybridFusion");
+    const rrfK = readOptionalNumber(fusion, "rrfK", "hybridFusion");
+    if (rrfK !== undefined) {
+      merged.hybridFusion.rrfK = rrfK;
+    }
+    merged.hybridFusion.balanced = applySection(merged.hybridFusion.balanced, fusion.balanced, "hybridFusion.balanced");
+    merged.hybridFusion.concept = applySection(merged.hybridFusion.concept, fusion.concept, "hybridFusion.concept");
+  }
   merged.packQuality = applySection(merged.packQuality, overrides.packQuality, "packQuality");
   merged.sourceQuality = applySection(merged.sourceQuality, overrides.sourceQuality, "sourceQuality");
   merged.rarityPreference = applySection(merged.rarityPreference, overrides.rarityPreference, "rarityPreference");

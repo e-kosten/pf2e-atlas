@@ -22,9 +22,12 @@ describe("ranking config", () => {
       lexicalChannels: {
         themeTraits: 0.5,
       },
-      hybridBlend: {
-        lexicalWeight: 3,
-        semanticWeight: 1,
+      hybridFusion: {
+        balanced: {
+          lexicalWeight: 3,
+          semanticWeight: 1,
+          lexicalTopK: 90,
+        },
       },
       sourceQuality: {
         adventure: 0.2,
@@ -33,8 +36,10 @@ describe("ranking config", () => {
 
     expect(merged.lexicalChannels.themeTraits).toBe(0.5);
     expect(merged.lexicalChannels.themeName).toBe(DEFAULT_RANKING_CONFIG.lexicalChannels.themeName);
-    expect(merged.hybridBlend.lexicalWeight).toBeCloseTo(0.75);
-    expect(merged.hybridBlend.semanticWeight).toBeCloseTo(0.25);
+    expect(merged.hybridFusion.balanced.lexicalWeight).toBeCloseTo(0.75);
+    expect(merged.hybridFusion.balanced.semanticWeight).toBeCloseTo(0.25);
+    expect(merged.hybridFusion.balanced.lexicalTopK).toBe(90);
+    expect(merged.hybridFusion.concept.semanticTopK).toBe(DEFAULT_RANKING_CONFIG.hybridFusion.concept.semanticTopK);
     expect(merged.sourceQuality.adventure).toBe(0.2);
   });
 

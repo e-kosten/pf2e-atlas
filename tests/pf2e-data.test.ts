@@ -1519,9 +1519,14 @@ describe("Pf2eDataService", () => {
     expect(conceptResults.searchProfile).toBe("concept");
     expect(conceptResults.mode).toBe("hybrid");
     expect(conceptResults.explain?.searchProfile).toBe("concept");
-    expect(conceptResults.explain?.hybridBlend).toEqual({
-      lexicalWeight: 0.4,
-      semanticWeight: 0.6,
+    expect(conceptResults.explain?.fusionMethod).toBe("weightedRrf");
+    expect(conceptResults.explain?.fusionProfile).toBe("concept");
+    expect(conceptResults.explain?.fusionConfig).toEqual({
+      rrfK: 60,
+      lexicalWeight: 0.3,
+      semanticWeight: 0.7,
+      lexicalTopK: 100,
+      semanticTopK: 150,
     });
   });
 
@@ -1581,8 +1586,8 @@ describe("Pf2eDataService", () => {
     expect(Array.isArray(crawlingExplain?.matchedTraits)).toBe(true);
     expect(Array.isArray(crawlingExplain?.matchedNameTokens)).toBe(true);
     expect(Array.isArray(crawlingExplain?.matchedMetadataTokens)).toBe(true);
-    expect(crawlingExplain?.components.missingDescriptionNormalization ?? 0).toBe(0);
-    expect(crawlingExplain?.components.sourcePenalty ?? 0).toBe(0);
+    expect(crawlingExplain?.fusionScore).not.toBeNull();
+    expect(crawlingExplain?.rerankAdjustments.sourcePenalty ?? 0).toBe(0);
 
     const lexicalResults = await service.search({
       category: "creatures",
@@ -1614,10 +1619,10 @@ describe("Pf2eDataService", () => {
     });
     expect(bilgeResults.records[0]?.sourceCategory).toBe("core");
 
-    const coreBilgeExplain = bilgeResults.explain?.records.find((record) => record.name === "Bilge Skeleton" && record.components.sourceQuality > 0);
-    const adventureBilgeExplain = bilgeResults.explain?.records.find((record) => record.name === "Bilge Skeleton" && record.components.sourceQuality < 0);
-    expect(coreBilgeExplain?.components.sourceQuality).toBe(0.04);
-    expect(adventureBilgeExplain?.components.sourceQuality).toBe(-0.01);
+    const coreBilgeExplain = bilgeResults.explain?.records.find((record) => record.name === "Bilge Skeleton" && record.rerankAdjustments.sourceQuality > 0);
+    const adventureBilgeExplain = bilgeResults.explain?.records.find((record) => record.name === "Bilge Skeleton" && record.rerankAdjustments.sourceQuality < 0);
+    expect(coreBilgeExplain?.rerankAdjustments.sourceQuality).toBe(0.04);
+    expect(adventureBilgeExplain?.rerankAdjustments.sourceQuality).toBe(-0.01);
 
     const sentinelResults = await service.search({
       category: "creatures",
@@ -1638,8 +1643,8 @@ describe("Pf2eDataService", () => {
 
     const uniqueExplain = sentinelResults.explain?.records.find((record) => record.name === "Last Sentinel");
     const rareExplain = sentinelResults.explain?.records.find((record) => record.name === "Gloam Sentinel");
-    expect(uniqueExplain?.components.rarityPreference).toBe(-0.2);
-    expect(rareExplain?.components.rarityPreference).toBe(0.01);
+    expect(uniqueExplain?.rerankAdjustments.rarityPreference).toBe(-0.2);
+    expect(rareExplain?.rerankAdjustments.rarityPreference).toBe(0.01);
 
     const exactUniqueResults = await service.search({
       category: "creatures",
@@ -1648,7 +1653,7 @@ describe("Pf2eDataService", () => {
     });
     expect(exactUniqueResults.records[0]?.name).toBe("Last Sentinel");
     const exactUniqueExplain = exactUniqueResults.explain?.records.find((record) => record.name === "Last Sentinel");
-    expect(exactUniqueExplain?.components.rarityPreference).toBe(-0.03);
+    expect(exactUniqueExplain?.rerankAdjustments.rarityPreference).toBe(-0.03);
   });
 
   it("hot-reloads ranking weights without rebuilding the service", async () => {
@@ -1683,7 +1688,7 @@ describe("Pf2eDataService", () => {
     expect(updatedResults.records[0]?.sourceCategory).toBe("adventure");
     expect(updatedResults.explain?.rankingConfig.source).toBe("file");
     expect(updatedResults.explain?.rankingConfig.revision).toBeGreaterThan(baselineRevision);
-    expect(updatedResults.explain?.records.some((record) => record.components.sourceQuality === 0.5)).toBe(true);
+    expect(updatedResults.explain?.records.some((record) => record.rerankAdjustments.sourceQuality === 0.5)).toBe(true);
     service.close();
   });
 

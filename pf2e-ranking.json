@@ -7,9 +7,20 @@
     "themeTraits": 0.35,
     "themeMetadata": 0.1
   },
-  "hybridBlend": {
-    "lexicalWeight": 0.85,
-    "semanticWeight": 0.15
+  "hybridFusion": {
+    "rrfK": 60,
+    "balanced": {
+      "lexicalWeight": 0.65,
+      "semanticWeight": 0.35,
+      "lexicalTopK": 150,
+      "semanticTopK": 80
+    },
+    "concept": {
+      "lexicalWeight": 0.3,
+      "semanticWeight": 0.7,
+      "lexicalTopK": 100,
+      "semanticTopK": 150
+    }
   },
   "packQuality": {
     "macroPenalty": -0.2,
@@ -28,7 +39,7 @@
     "uncommon": 0.05,
     "rare": 0.01,
     "unique": -0.03,
-    "themeQueryUniquePenalty": -0.17
+    "themeQueryUniquePenalty": -0.02
   },
   "sourcePenalty": {
     "societyMetadataOnlyPenalty": -0.2,

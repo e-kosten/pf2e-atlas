@@ -875,12 +875,21 @@ function buildFtsQuery(query: string): string | null {
   return tokens.map((token) => `"${token}"*`).join(" OR ");
 }
 
-type SearchScoreComponents = SearchRecordExplanation["components"];
-type HybridBlend = RankingConfig["hybridBlend"];
-
-const CONCEPT_PROFILE_BLEND: HybridBlend = {
-  lexicalWeight: 0.4,
-  semanticWeight: 0.6,
+type RerankAdjustments = SearchRecordExplanation["rerankAdjustments"];
+type HybridFusionProfileName = NonNullable<SearchExplainResult["fusionProfile"]>;
+type HybridFusionProfile = RankingConfig["hybridFusion"]["balanced"];
+type FusionConfigSummary = NonNullable<SearchExplainResult["fusionConfig"]>;
+type LexicalSignal = {
+  lexicalScore: number;
+  matchedTraits: string[];
+  matchedNameTokens: string[];
+  matchedMetadataTokens: string[];
+};
+type RankedCandidate = {
+  record: NormalizedRecord;
+  lexicalSignal: LexicalSignal;
+  semanticScore: number;
+  rerankAdjustments: RerankAdjustments;
 };
 
 function tokenize(value: string): string[] {
@@ -929,20 +938,6 @@ function buildMetadataText(record: NormalizedRecord): string {
     .join(" ");
 }
 
-function normalizeHybridBlend(blend: HybridBlend): HybridBlend {
-  const lexicalWeight = Math.max(0, blend.lexicalWeight);
-  const semanticWeight = Math.max(0, blend.semanticWeight);
-  const total = lexicalWeight + semanticWeight;
-  if (total <= 0) {
-    return { lexicalWeight: 0.5, semanticWeight: 0.5 };
-  }
-
-  return {
-    lexicalWeight: lexicalWeight / total,
-    semanticWeight: semanticWeight / total,
-  };
-}
-
 function resolveSearchMode(filters: SearchFilters, context: "list" | "search"): SearchMode {
   if (context === "search") {
     if (filters.searchProfile === "lookup") {
@@ -977,20 +972,137 @@ function resolveSearchProfile(
   return "lookup";
 }
 
-function resolveHybridBlend(
+function resolveHybridFusionProfile(
   searchProfile: SearchProfile,
   mode: SearchMode,
   rankingConfig: RankingConfig,
-): HybridBlend | null {
+): { profile: HybridFusionProfileName; config: HybridFusionProfile } | null {
   if (mode !== "hybrid") {
     return null;
   }
 
   if (searchProfile === "concept") {
-    return normalizeHybridBlend(CONCEPT_PROFILE_BLEND);
+    return {
+      profile: "concept",
+      config: rankingConfig.hybridFusion.concept,
+    };
   }
 
-  return normalizeHybridBlend(rankingConfig.hybridBlend);
+  return {
+    profile: "balanced",
+    config: rankingConfig.hybridFusion.balanced,
+  };
+}
+
+function buildRerankAdjustments(
+  record: NormalizedRecord,
+  filters: SearchFilters,
+  rankingConfig: RankingConfig,
+): RerankAdjustments {
+  return {
+    packQuality: packQualityScore(record, rankingConfig),
+    sourceQuality: sourceQualityScore(record, rankingConfig),
+    rarityPreference: rarityPreferenceScore(record, filters, rankingConfig),
+    sourcePenalty: sourcePenaltyScore(record, filters, rankingConfig),
+  };
+}
+
+function sumRerankAdjustments(adjustments: RerankAdjustments): number {
+  return adjustments.packQuality +
+    adjustments.sourceQuality +
+    adjustments.rarityPreference +
+    adjustments.sourcePenalty;
+}
+
+function buildLexicalSignal(
+  record: NormalizedRecord,
+  lexicalQuery: string,
+  literalQueryWeights: ReturnType<typeof buildLiteralQueryWeights> | null,
+  lexicalMatches: Map<string, number>,
+  rankingConfig: RankingConfig,
+): LexicalSignal {
+  const ftsScore = lexicalQuery.length > 0 ? (lexicalMatches.get(record.recordKey) ?? 0) : 0;
+  const metadataTextScore =
+    lexicalQuery.length > 0
+      ? queryTextScore(lexicalQuery, buildMetadataText(record))
+      : 0;
+  const descriptionTextScore =
+    lexicalQuery.length > 0
+      ? queryTextScore(lexicalQuery, record.descriptionText ?? "")
+      : 0;
+  const themeName = literalQueryWeights
+    ? scoreWeightedOverlap(literalQueryWeights.nameWeights, tokenize(record.name), 1.5)
+    : { score: 0, matchedTokens: [] };
+  const themeTraits = literalQueryWeights
+    ? scoreWeightedOverlap(literalQueryWeights.traitWeights, record.traits, 2)
+    : { score: 0, matchedTokens: [] };
+  const themeMetadata = literalQueryWeights
+    ? scoreWeightedOverlap(literalQueryWeights.metadataWeights, tokenize(buildMetadataText(record)), 2.5)
+    : { score: 0, matchedTokens: [] };
+  const lexicalWeights = rankingConfig.lexicalChannels;
+  const lexicalScoreBeforeNormalization =
+    (ftsScore * lexicalWeights.fullTextSearch) +
+    (metadataTextScore * lexicalWeights.metadataText) +
+    (descriptionTextScore * lexicalWeights.descriptionText) +
+    (themeName.score * lexicalWeights.themeName) +
+    (themeTraits.score * lexicalWeights.themeTraits) +
+    (themeMetadata.score * lexicalWeights.themeMetadata);
+  const normalizationMultiplier = !record.hasDescription
+    ? 1 / (1 - lexicalWeights.descriptionText)
+    : 1;
+  const lexicalScore = lexicalScoreBeforeNormalization * normalizationMultiplier;
+
+  return {
+    lexicalScore,
+    matchedTraits: themeTraits.matchedTokens,
+    matchedNameTokens: themeName.matchedTokens,
+    matchedMetadataTokens: themeMetadata.matchedTokens,
+  };
+}
+
+function buildFusionConfigSummary(
+  fusionProfile: HybridFusionProfileName | null,
+  fusionConfig: HybridFusionProfile | null,
+  rankingConfig: RankingConfig,
+): FusionConfigSummary | null {
+  if (!fusionProfile || !fusionConfig) {
+    return null;
+  }
+
+  return {
+    rrfK: rankingConfig.hybridFusion.rrfK,
+    lexicalWeight: fusionConfig.lexicalWeight,
+    semanticWeight: fusionConfig.semanticWeight,
+    lexicalTopK: fusionConfig.lexicalTopK,
+    semanticTopK: fusionConfig.semanticTopK,
+  };
+}
+
+function compareOptionalRanks(left: number | null, right: number | null): number {
+  if (left === right) {
+    return 0;
+  }
+  if (left === null) {
+    return 1;
+  }
+  if (right === null) {
+    return -1;
+  }
+
+  return left - right;
+}
+
+function computeWeightedRrfScore(
+  lexicalRank: number | null,
+  semanticRank: number | null,
+  fusionConfig: HybridFusionProfile,
+  rrfK: number,
+): number {
+  const lexicalContribution = lexicalRank === null ? 0 : fusionConfig.lexicalWeight / (rrfK + lexicalRank);
+  const semanticContribution = semanticRank === null ? 0 : fusionConfig.semanticWeight / (rrfK + semanticRank);
+
+  // Scale rank-fusion output to roughly the same order of magnitude as the legacy rerank adjustments.
+  return (lexicalContribution + semanticContribution) * (rrfK + 1);
 }
 
 type ExtractedReference = {
@@ -3472,11 +3584,14 @@ export class Pf2eDataService {
     };
     const shouldIncludeSearchText = Boolean(effectiveFilters.query || effectiveFilters.nameQuery || mode !== "structured");
     const rankingConfig = this.rankingConfigStore?.getConfig() ?? DEFAULT_RANKING_CONFIG;
-    const hybridBlend = resolveHybridBlend(searchProfile, mode, rankingConfig);
-    const shouldIncludeEmbedding = Boolean(hybridBlend && effectiveFilters.query);
+    const hybridFusion = resolveHybridFusionProfile(searchProfile, mode, rankingConfig);
+    const shouldIncludeEmbedding = Boolean(hybridFusion && effectiveFilters.query);
     let candidates = this.fetchCandidates(effectiveFilters, shouldIncludeSearchText, shouldIncludeEmbedding);
     const queryAnalysis = rawLexicalQuery
       ? buildSearchQueryAnalysis(rawLexicalQuery)
+      : null;
+    const literalQueryWeights = queryAnalysis
+      ? buildLiteralQueryWeights(queryAnalysis)
       : null;
     const lexicalQuery = queryAnalysis?.normalizedQuery ?? rawLexicalQuery;
     const lexicalMatches = lexicalQuery ? this.fetchFtsMatches(lexicalQuery) : new Map<string, number>();
@@ -3485,137 +3600,175 @@ export class Pf2eDataService {
       candidates = candidates.filter((candidate) => lexicalMatches.has(candidate.recordKey));
     }
 
-    const semanticVector = hybridBlend && rawSemanticQuery
+    const semanticVector = hybridFusion && rawSemanticQuery
       ? await this.embeddingProvider.embed(rawSemanticQuery)
       : null;
-
-    const scored = candidates
-      .map((candidate) => {
-        const record = this.decorateRecord(rowToRecord(candidate));
-        const ftsScore = lexicalQuery.length > 0 ? (lexicalMatches.get(candidate.recordKey) ?? 0) : 0;
-        const metadataTextScore =
-          lexicalQuery.length > 0
-            ? queryTextScore(lexicalQuery, buildMetadataText(record))
-            : 0;
-        const descriptionTextScore =
-          lexicalQuery.length > 0
-            ? queryTextScore(lexicalQuery, record.descriptionText ?? "")
-            : 0;
-        const literalQueryWeights = queryAnalysis
-          ? buildLiteralQueryWeights(queryAnalysis)
-          : null;
-        const themeName = literalQueryWeights
-          ? scoreWeightedOverlap(literalQueryWeights.nameWeights, tokenize(record.name), 1.5)
-          : { score: 0, matchedTokens: [] };
-        const themeTraits = literalQueryWeights
-          ? scoreWeightedOverlap(literalQueryWeights.traitWeights, record.traits, 2)
-          : { score: 0, matchedTokens: [] };
-        const themeMetadata = literalQueryWeights
-          ? scoreWeightedOverlap(literalQueryWeights.metadataWeights, tokenize(buildMetadataText(record)), 2.5)
-          : { score: 0, matchedTokens: [] };
-        const lexicalWeights = rankingConfig.lexicalChannels;
-        const fullTextSearchContribution = ftsScore * lexicalWeights.fullTextSearch;
-        const metadataTextContribution = metadataTextScore * lexicalWeights.metadataText;
-        const descriptionTextContribution = descriptionTextScore * lexicalWeights.descriptionText;
-        const themeNameContribution = themeName.score * lexicalWeights.themeName;
-        const themeTraitsContribution = themeTraits.score * lexicalWeights.themeTraits;
-        const themeMetadataContribution = themeMetadata.score * lexicalWeights.themeMetadata;
-        const lexicalScoreBeforeNormalization =
-          fullTextSearchContribution +
-          metadataTextContribution +
-          descriptionTextContribution +
-          themeNameContribution +
-          themeTraitsContribution +
-          themeMetadataContribution;
-        const normalizationMultiplier = !record.hasDescription
-          ? 1 / (1 - lexicalWeights.descriptionText)
-          : 1;
-        const missingDescriptionNormalization = !record.hasDescription
-          ? lexicalScoreBeforeNormalization * (normalizationMultiplier - 1)
-          : 0;
-        const lexicalScore =
-          lexicalScoreBeforeNormalization +
-          missingDescriptionNormalization;
-        const semanticScore =
+    const rankedCandidates: RankedCandidate[] = candidates.map((candidate) => {
+      const record = this.decorateRecord(rowToRecord(candidate));
+      return {
+        record,
+        lexicalSignal: buildLexicalSignal(record, lexicalQuery, literalQueryWeights, lexicalMatches, rankingConfig),
+        semanticScore:
           semanticVector && candidate.embeddingBlob
             ? Math.max(0, cosineSimilarity(semanticVector, decodeVector(candidate.embeddingBlob)))
-            : 0;
-        const packQuality = packQualityScore(record, rankingConfig);
-        const sourceQuality = sourceQualityScore(record, rankingConfig);
-        const rarityPreference = rarityPreferenceScore(record, effectiveFilters, rankingConfig);
-        const sourcePenalty = sourcePenaltyScore(record, effectiveFilters, rankingConfig);
-        const components: SearchScoreComponents = {
-          fullTextSearch: ftsScore,
-          metadataText: metadataTextScore,
-          descriptionText: descriptionTextScore,
-          themeName: themeName.score,
-          themeTraits: themeTraits.score,
-          themeMetadata: themeMetadata.score,
-          missingDescriptionNormalization,
-          sourceQuality,
-          rarityPreference,
-          sourcePenalty,
-          packQuality,
-        };
+            : 0,
+        rerankAdjustments: buildRerankAdjustments(record, effectiveFilters, rankingConfig),
+      };
+    });
 
-        let score = 0.5;
-        if (mode === "structured") {
-          score = (
-            filters.nameQuery
-              ? nameScore(filters.nameQuery, record, this.aliasesByRecordKey.get(record.recordKey) ?? [])
-              : 0.5
-          ) + packQuality;
-        } else if (mode === "lexical") {
-          score = lexicalScore + packQuality;
-        } else {
-          score =
-            (lexicalScore * hybridBlend!.lexicalWeight) +
-            (semanticScore * hybridBlend!.semanticWeight) +
-            packQuality;
-        }
+    const scored = (() => {
+      if (mode === "structured") {
+        return rankedCandidates
+          .map(({ record, rerankAdjustments }) => {
+            const totalScore =
+              (filters.nameQuery
+                ? nameScore(filters.nameQuery, record, this.aliasesByRecordKey.get(record.recordKey) ?? [])
+                : 0.5) +
+              sumRerankAdjustments(rerankAdjustments);
+            const explanation: SearchRecordExplanation = {
+              recordKey: record.recordKey,
+              name: record.name,
+              totalScore,
+              fusionScore: null,
+              lexicalRank: null,
+              semanticRank: null,
+              matchedTraits: [],
+              matchedNameTokens: [],
+              matchedMetadataTokens: [],
+              rerankAdjustments,
+            };
 
-        score += sourceQuality + rarityPreference + sourcePenalty;
+            return { record, totalScore, explanation };
+          })
+          .filter(({ totalScore }) => {
+            if (filters.nameQuery) {
+              return totalScore >= 0.2;
+            }
 
-        const explanation: SearchRecordExplanation = {
-          recordKey: record.recordKey,
-          name: record.name,
-          totalScore: score,
-          lexicalScore,
-          semanticScore,
-          matchedTraits: themeTraits.matchedTokens,
-          matchedNameTokens: themeName.matchedTokens,
-          matchedMetadataTokens: themeMetadata.matchedTokens,
-          components,
-        };
+            return true;
+          })
+          .sort((left, right) => right.totalScore - left.totalScore || sortRecords(left.record, right.record));
+      }
 
-        return { record, score, lexicalScore, semanticScore, explanation };
-      })
-      .filter(({ score }) => {
-        if (filters.nameQuery && mode === "structured") {
-          return score >= 0.2;
-        }
+      if (mode === "lexical") {
+        return rankedCandidates
+          .map(({ record, lexicalSignal, rerankAdjustments, semanticScore }) => {
+            const totalScore = lexicalSignal.lexicalScore + sumRerankAdjustments(rerankAdjustments);
+            const explanation: SearchRecordExplanation = {
+              recordKey: record.recordKey,
+              name: record.name,
+              totalScore,
+              fusionScore: null,
+              lexicalRank: null,
+              semanticRank: null,
+              matchedTraits: lexicalSignal.matchedTraits,
+              matchedNameTokens: lexicalSignal.matchedNameTokens,
+              matchedMetadataTokens: lexicalSignal.matchedMetadataTokens,
+              rerankAdjustments,
+            };
 
-        if (mode === "lexical" && lexicalQuery) {
-          return score > 0;
-        }
+            return { record, totalScore, lexicalScore: lexicalSignal.lexicalScore, semanticScore, explanation };
+          })
+          .filter(({ totalScore }) => {
+            if (lexicalQuery) {
+              return totalScore > 0;
+            }
 
-        return true;
-      })
-      .sort((left, right) => {
-        return (
-          right.score - left.score ||
-          right.semanticScore - left.semanticScore ||
-          right.lexicalScore - left.lexicalScore ||
-          sortRecords(left.record, right.record)
-        );
-      });
+            return true;
+          })
+          .sort((left, right) => {
+            return (
+              right.totalScore - left.totalScore ||
+              right.lexicalScore - left.lexicalScore ||
+              right.semanticScore - left.semanticScore ||
+              sortRecords(left.record, right.record)
+            );
+          });
+      }
+
+      const fusionConfig = hybridFusion!.config;
+      const lexicalRanked = rankedCandidates
+        .filter(({ lexicalSignal }) => lexicalSignal.lexicalScore > 0)
+        .sort((left, right) => {
+          return (
+            right.lexicalSignal.lexicalScore - left.lexicalSignal.lexicalScore ||
+            right.semanticScore - left.semanticScore ||
+            sortRecords(left.record, right.record)
+          );
+        })
+        .slice(0, fusionConfig.lexicalTopK);
+      const semanticRanked = rankedCandidates
+        .filter(({ semanticScore }) => semanticScore > 0)
+        .sort((left, right) => {
+          return (
+            right.semanticScore - left.semanticScore ||
+            right.lexicalSignal.lexicalScore - left.lexicalSignal.lexicalScore ||
+            sortRecords(left.record, right.record)
+          );
+        })
+        .slice(0, fusionConfig.semanticTopK);
+      const lexicalRanks = new Map<string, number>();
+      lexicalRanked.forEach(({ record }, index) => lexicalRanks.set(record.recordKey, index + 1));
+      const semanticRanks = new Map<string, number>();
+      semanticRanked.forEach(({ record }, index) => semanticRanks.set(record.recordKey, index + 1));
+
+      return rankedCandidates
+        .filter(({ record }) => lexicalRanks.has(record.recordKey) || semanticRanks.has(record.recordKey))
+        .map(({ record, lexicalSignal, semanticScore, rerankAdjustments }) => {
+          const lexicalRank = lexicalRanks.get(record.recordKey) ?? null;
+          const semanticRank = semanticRanks.get(record.recordKey) ?? null;
+          const fusionScore = computeWeightedRrfScore(
+            lexicalRank,
+            semanticRank,
+            fusionConfig,
+            rankingConfig.hybridFusion.rrfK,
+          );
+          const totalScore = fusionScore + sumRerankAdjustments(rerankAdjustments);
+          const explanation: SearchRecordExplanation = {
+            recordKey: record.recordKey,
+            name: record.name,
+            totalScore,
+            fusionScore,
+            lexicalRank,
+            semanticRank,
+            matchedTraits: lexicalSignal.matchedTraits,
+            matchedNameTokens: lexicalSignal.matchedNameTokens,
+            matchedMetadataTokens: lexicalSignal.matchedMetadataTokens,
+            rerankAdjustments,
+          };
+
+          return {
+            record,
+            totalScore,
+            fusionScore,
+            lexicalRank,
+            semanticRank,
+            lexicalScore: lexicalSignal.lexicalScore,
+            semanticScore,
+            explanation,
+          };
+        })
+        .sort((left, right) => {
+          return (
+            right.totalScore - left.totalScore ||
+            right.fusionScore - left.fusionScore ||
+            compareOptionalRanks(left.semanticRank, right.semanticRank) ||
+            compareOptionalRanks(left.lexicalRank, right.lexicalRank) ||
+            right.semanticScore - left.semanticScore ||
+            right.lexicalScore - left.lexicalScore ||
+            sortRecords(left.record, right.record)
+          );
+        });
+    })();
 
     const page = scored.slice(offset, offset + limit);
     const explain: SearchExplainResult | undefined = filters.explain
       ? {
           searchProfile,
           mode,
-          hybridBlend,
+          fusionMethod: hybridFusion ? "weightedRrf" : null,
+          fusionProfile: hybridFusion?.profile ?? null,
+          fusionConfig: buildFusionConfigSummary(hybridFusion?.profile ?? null, hybridFusion?.config ?? null, rankingConfig),
           lexicalQuery,
           semanticQuery: rawSemanticQuery,
           query: queryAnalysis

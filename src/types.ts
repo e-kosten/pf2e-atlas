@@ -162,32 +162,31 @@ export interface SearchRecordExplanation {
   recordKey: string;
   name: string;
   totalScore: number;
-  lexicalScore: number;
-  semanticScore: number;
+  fusionScore: number | null;
+  lexicalRank: number | null;
+  semanticRank: number | null;
   matchedTraits: string[];
   matchedNameTokens: string[];
   matchedMetadataTokens: string[];
-  components: {
-    fullTextSearch: number;
-    metadataText: number;
-    descriptionText: number;
-    themeName: number;
-    themeTraits: number;
-    themeMetadata: number;
-    missingDescriptionNormalization: number;
+  rerankAdjustments: {
+    packQuality: number;
     sourceQuality: number;
     rarityPreference: number;
     sourcePenalty: number;
-    packQuality: number;
   };
 }
 
 export interface SearchExplainResult {
   searchProfile: SearchProfile;
   mode: SearchMode;
-  hybridBlend: {
+  fusionMethod: "weightedRrf" | null;
+  fusionProfile: "balanced" | "concept" | null;
+  fusionConfig: {
+    rrfK: number;
     lexicalWeight: number;
     semanticWeight: number;
+    lexicalTopK: number;
+    semanticTopK: number;
   } | null;
   lexicalQuery: string;
   semanticQuery: string;
