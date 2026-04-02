@@ -9,6 +9,7 @@ import { loadConfig } from "./config.js";
 import { Pf2eDataService } from "./pf2e-data.js";
 import { RankingConfigStore } from "./ranking-config.js";
 import {
+  filterValueFieldSchema,
   CATEGORY_HINT_DESCRIPTION,
   SCOPES_HINT_DESCRIPTION,
   SUBCATEGORY_HINT_DESCRIPTION,
@@ -222,6 +223,8 @@ async function main(): Promise<void> {
           categories: vocabulary.categories,
           subcategories: vocabulary.subcategories,
           subcategoriesByCategory: CATEGORY_SUBCATEGORY_MAP,
+          rarities: vocabulary.rarities,
+          sizes: vocabulary.sizes,
           searchProfiles: [
             {
               value: "lexical",
@@ -249,6 +252,34 @@ async function main(): Promise<void> {
           },
           vocabulary,
           rankingConfig: dataService.getRankingConfigStatus(),
+        },
+      };
+    },
+  );
+
+  server.registerTool(
+    "pf2e_list_filter_values",
+    {
+      description: "Enumerate live corpus values for a filterable field, optionally constrained by category, subcategory, or scopes. Use this when the caller needs discoverable filter values before searching.",
+      inputSchema: {
+        field: filterValueFieldSchema.describe("Filter field to enumerate from the current search corpus."),
+        category: searchCategorySchema.optional().describe(CATEGORY_HINT_DESCRIPTION),
+        subcategory: searchSubcategorySchema.optional().describe(SUBCATEGORY_HINT_DESCRIPTION),
+        scopes: z.array(searchScopeSchema).min(1).optional().describe(SCOPES_HINT_DESCRIPTION),
+      },
+    },
+    async (input) => {
+      const result = dataService.listFilterValues(input);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Found ${result.values.length} ${result.field} value${result.values.length === 1 ? "" : "s"}.`,
+          },
+        ],
+        structuredContent: {
+          field: result.field,
+          values: result.values,
         },
       };
     },

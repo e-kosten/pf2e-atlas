@@ -1898,9 +1898,116 @@ describe("Pf2eDataService", () => {
     expect(vocabulary.categories.map((entry) => entry.value)).toEqual(expect.arrayContaining(["creature", "spell", "rule", "feat"]));
     expect(vocabulary.subcategories.map((entry) => entry.value)).toEqual(expect.arrayContaining(["condition", "action", "trap"]));
     expect(vocabulary.subcategories.map((entry) => entry.value)).not.toContain("primal");
+    expect(vocabulary.rarities.map((entry) => entry.value)).toEqual(expect.arrayContaining(["common", "uncommon", "rare", "unique"]));
+    expect(vocabulary.sizes.map((entry) => entry.value)).toEqual(expect.arrayContaining(["med", "sm", "lg"]));
     expect(vocabulary.traditions.map((entry) => entry.value)).toContain("primal");
     expect(vocabulary.spellKinds.map((entry) => entry.value)).toContain("focus");
     expect(vocabulary.commonTraitsByCategory.find((entry) => entry.category === "creature")?.traits.length).toBeGreaterThan(0);
+  });
+
+  it("lists live filter values across supported fields and scopes", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+
+    const service = await loadTestService(fixture);
+
+    expect(service.listFilterValues({
+      field: "traits",
+      category: "hazard",
+      subcategory: "trap",
+    })).toEqual({
+      field: "traits",
+      values: [
+        { value: "mechanical", count: 1 },
+        { value: "trap", count: 1 },
+      ],
+    });
+
+    expect(service.listFilterValues({
+      field: "subcategories",
+      category: "hazard",
+    })).toEqual({
+      field: "subcategories",
+      values: [
+        { value: "haunt", count: 1 },
+        { value: "trap", count: 1 },
+      ],
+    });
+
+    expect(service.listFilterValues({
+      field: "publicationTitle",
+      category: "spell",
+    })).toEqual({
+      field: "publicationTitle",
+      values: [
+        { value: "Pathfinder Player Core", count: 2 },
+      ],
+    });
+
+    expect(service.listFilterValues({
+      field: "traditions",
+      category: "spell",
+    })).toEqual({
+      field: "traditions",
+      values: [
+        { value: "occult", count: 1 },
+        { value: "primal", count: 1 },
+      ],
+    });
+
+    expect(service.listFilterValues({
+      field: "spellKinds",
+      category: "spell",
+    })).toEqual({
+      field: "spellKinds",
+      values: [
+        { value: "focus", count: 1 },
+      ],
+    });
+
+    expect(service.listFilterValues({
+      field: "rarity",
+      category: "creature",
+    }).values.map((entry) => entry.value)).toEqual(["common", "uncommon", "rare", "unique"]);
+
+    expect(service.listFilterValues({
+      field: "size",
+      category: "creature",
+    }).values.map((entry) => entry.value)).toEqual(["med", "sm", "lg"]);
+
+    expect(service.listFilterValues({
+      field: "sources",
+      category: "creature",
+    }).values.map((entry) => entry.value)).toEqual(["core", "adventure", "rules"]);
+
+    expect(service.listFilterValues({
+      field: "packs",
+      category: "spell",
+    })).toEqual({
+      field: "packs",
+      values: [
+        { value: "Spells", count: 2 },
+      ],
+    });
+
+    expect(service.listFilterValues({
+      field: "categories",
+      scopes: [
+        { category: "hazards", subcategories: ["traps"] },
+        { category: "rules", subcategories: ["conditions"] },
+      ],
+    })).toEqual({
+      field: "categories",
+      values: [
+        { value: "rule", count: 4 },
+        { value: "hazard", count: 1 },
+      ],
+    });
+
+    expect(() => service.listFilterValues({
+      field: "traits",
+      scopes: [{ category: "feat", subcategories: ["action"] }],
+    })).toThrow(/does not belong to category "feat"/i);
   });
 
   it("collects rule question context without synthesis", async () => {

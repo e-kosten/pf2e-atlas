@@ -10,7 +10,7 @@ import {
   normalizeSearchCategory,
   normalizeSearchSubcategory,
 } from "./categories.js";
-import { SearchCategory, SearchScope, SearchSubcategory } from "./types.js";
+import { FilterValueField, SearchCategory, SearchScope, SearchSubcategory } from "./types.js";
 
 export const CATEGORY_HINT_DESCRIPTION =
   `Optional top-level category hint. Canonical values: ${VALID_SEARCH_CATEGORY_LIST}. Legacy plural aliases are also accepted.`;
@@ -64,3 +64,15 @@ export const searchScopeSchema: z.ZodType<SearchScope> = z.object({
 export const searchProfileSchema = z.enum(["lexical", "balanced", "concept"]);
 export const sourceCategorySchema = z.enum(["core", "rules", "adventure", "unknown"]);
 export const spellKindSchema = z.enum(["focus", "ritual", "cantrip"]);
+export const filterValueFieldSchema: z.ZodType<FilterValueField> = z.enum([
+  "traits",
+  "rarity",
+  "size",
+  "publicationTitle",
+  "traditions",
+  "spellKinds",
+  "sources",
+  "categories",
+  "subcategories",
+  "packs",
+]);

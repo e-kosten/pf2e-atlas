@@ -196,6 +196,35 @@ export interface SearchFilters {
   limit?: number;
 }
 
+export type FilterValueField =
+  | "traits"
+  | "rarity"
+  | "size"
+  | "publicationTitle"
+  | "traditions"
+  | "spellKinds"
+  | "sources"
+  | "categories"
+  | "subcategories"
+  | "packs";
+
+export interface FilterValueQuery {
+  field: FilterValueField;
+  category?: SearchCategoryInput;
+  subcategory?: SearchSubcategoryInput;
+  scopes?: SearchScope[];
+}
+
+export interface FilterValueCount {
+  value: string;
+  count: number;
+}
+
+export interface FilterValueResult {
+  field: FilterValueField;
+  values: FilterValueCount[];
+}
+
 export interface LookupOptions {
   pack?: string;
   category?: SearchCategoryInput;

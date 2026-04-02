@@ -4,6 +4,7 @@ import {
   CATEGORY_HINT_DESCRIPTION,
   SCOPES_HINT_DESCRIPTION,
   SUBCATEGORY_HINT_DESCRIPTION,
+  filterValueFieldSchema,
   searchCategorySchema,
   searchProfileSchema,
   searchScopeSchema,
@@ -16,6 +17,13 @@ describe("tool schemas", () => {
     expect(searchProfileSchema.safeParse("balanced").success).toBe(true);
     expect(searchProfileSchema.safeParse("concept").success).toBe(true);
     expect(searchProfileSchema.safeParse("semantic_only").success).toBe(false);
+  });
+
+  it("accepts the supported filter-value fields", () => {
+    expect(filterValueFieldSchema.safeParse("traits")).toMatchObject({ success: true, data: "traits" });
+    expect(filterValueFieldSchema.safeParse("publicationTitle")).toMatchObject({ success: true, data: "publicationTitle" });
+    expect(filterValueFieldSchema.safeParse("packs")).toMatchObject({ success: true, data: "packs" });
+    expect(filterValueFieldSchema.safeParse("foo").success).toBe(false);
   });
 
   it("accepts the canonical search category labels", () => {

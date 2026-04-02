@@ -27,6 +27,9 @@ import {
   CollectRuleQuestionContextInput,
   CollectRuleQuestionContextResult,
   EmbeddingConfig,
+  FilterValueField,
+  FilterValueResult,
+  FilterValueQuery,
   LinkedRecordSummary,
   LookupOptions,
   LookupQuery,
@@ -173,6 +176,11 @@ type NormalizedSearchFilters = Omit<SearchFilters, "category" | "subcategory" | 
   category?: SearchCategory;
   subcategory?: SearchSubcategory;
   scopes?: NormalizedSearchScope[];
+};
+
+type ValueCountRow = {
+  value: string;
+  count: number;
 };
 
 type BuildSourceEntry = {
@@ -3092,6 +3100,74 @@ function buildCandidateQuery(
   return { sql: sql.join("\n"), params };
 }
 
+function buildFilterValueQuery(field: FilterValueField, filters: NormalizedSearchFilters): { sql: string; params: SqlValue[] } {
+  const joins = [
+    "FROM records r",
+    "LEFT JOIN actor_records a ON a.record_key = r.record_key",
+    "LEFT JOIN item_records i ON i.record_key = r.record_key",
+    "LEFT JOIN spell_records s ON s.record_key = r.record_key",
+  ];
+  const sql: string[] = [];
+  const params: SqlValue[] = [];
+  const postFilterClauses: string[] = [];
+  let valueExpression = "";
+
+  switch (field) {
+    case "traits":
+      joins.push("JOIN record_traits rt ON rt.record_key = r.record_key");
+      valueExpression = "rt.trait";
+      break;
+    case "rarity":
+      valueExpression = "r.rarity";
+      postFilterClauses.push("AND r.rarity IS NOT NULL AND r.rarity <> ''");
+      break;
+    case "size":
+      valueExpression = "a.size";
+      postFilterClauses.push("AND a.size IS NOT NULL AND a.size <> ''");
+      break;
+    case "publicationTitle":
+      valueExpression = "r.publication_title";
+      postFilterClauses.push("AND r.publication_title IS NOT NULL AND r.publication_title <> ''");
+      break;
+    case "traditions":
+      joins.push("JOIN json_each(COALESCE(s.traditions_json, '[]')) AS tradition");
+      valueExpression = "tradition.value";
+      break;
+    case "spellKinds":
+      joins.push("JOIN json_each(COALESCE(s.spell_kinds_json, '[]')) AS spell_kind");
+      valueExpression = "spell_kind.value";
+      break;
+    case "sources":
+      valueExpression = "r.source_category";
+      break;
+    case "categories":
+      valueExpression = "r.category";
+      break;
+    case "subcategories":
+      valueExpression = "r.subcategory";
+      postFilterClauses.push("AND r.subcategory IS NOT NULL AND r.subcategory <> ''");
+      break;
+    case "packs":
+      valueExpression = "r.pack_label";
+      postFilterClauses.push("AND r.pack_label IS NOT NULL AND r.pack_label <> ''");
+      break;
+  }
+
+  sql.push(`SELECT ${valueExpression} AS value, COUNT(*) AS count`);
+  sql.push(...joins);
+  sql.push("WHERE 1 = 1");
+  applySearchFilterClauses(sql, params, filters, {
+    records: "r",
+    actor: "a",
+    item: "i",
+    spell: "s",
+  });
+  sql.push(...postFilterClauses);
+  sql.push("GROUP BY value");
+  sql.push("ORDER BY count DESC, value ASC");
+  return { sql: sql.join("\n"), params };
+}
+
 function buildLexicalRetrievalQuery(filters: NormalizedSearchFilters, query: string, limit: number): { sql: string; params: SqlValue[] } {
   const sql = [
     "SELECT r.record_key AS recordKey, bm25(records_fts, 8.0, 1.5) AS rank",
@@ -3483,6 +3559,8 @@ export class Pf2eDataService {
   getSearchVocabulary(options: { traitLimitPerCategory?: number } = {}): {
     categories: Array<{ value: SearchCategory; count: number }>;
     subcategories: Array<{ value: string; count: number }>;
+    rarities: Array<{ value: string; count: number }>;
+    sizes: Array<{ value: string; count: number }>;
     traditions: Array<{ value: string; count: number }>;
     spellKinds: Array<{ value: string; count: number }>;
     sourceCategories: Array<{ value: SourceCategory; count: number }>;
@@ -3522,6 +3600,29 @@ export class Pf2eDataService {
         `,
       )
       .all() as Array<{ value: SourceCategory; count: number }>;
+    const rarities = this.db
+      .prepare(
+        `
+          SELECT r.rarity AS value, COUNT(*) AS count
+          FROM records r
+          WHERE r.is_search_canonical = 1 AND r.rarity IS NOT NULL AND r.rarity <> ''
+          GROUP BY r.rarity
+          ORDER BY count DESC, value ASC
+        `,
+      )
+      .all() as Array<{ value: string; count: number }>;
+    const sizes = this.db
+      .prepare(
+        `
+          SELECT a.size AS value, COUNT(*) AS count
+          FROM actor_records a
+          JOIN records r ON r.record_key = a.record_key
+          WHERE r.is_search_canonical = 1 AND a.size IS NOT NULL AND a.size <> ''
+          GROUP BY a.size
+          ORDER BY count DESC, value ASC
+        `,
+      )
+      .all() as Array<{ value: string; count: number }>;
     const categoryTraitRows = this.db
       .prepare(
         `
@@ -3597,6 +3698,8 @@ export class Pf2eDataService {
     return {
       categories,
       subcategories,
+      rarities,
+      sizes,
       traditions,
       spellKinds,
       sourceCategories,
@@ -3620,6 +3723,17 @@ export class Pf2eDataService {
 
   listPacks(): PackInfo[] {
     return this.packs;
+  }
+
+  listFilterValues(query: FilterValueQuery): FilterValueResult {
+    const normalizedFilters = this.normalizeSearchFilters(query);
+    validateFilters(normalizedFilters, "list");
+    const { sql, params } = buildFilterValueQuery(query.field, normalizedFilters);
+    const values = this.db.prepare(sql).all(...params) as ValueCountRow[];
+    return {
+      field: query.field,
+      values,
+    };
   }
 
   close(): void {
