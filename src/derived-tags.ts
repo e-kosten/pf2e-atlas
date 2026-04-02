@@ -83,6 +83,7 @@ const OFFENSIVE_TEXT_ANCHORS: TextAnchor[] = [
 
 const GEARISH_SUBCATEGORIES: SearchSubcategory[] = ["gear", "backpack", "kit", "vehicle"];
 const DISGUISE_SUBCATEGORIES: SearchSubcategory[] = [...GEARISH_SUBCATEGORIES, "consumable"];
+const TRACKING_SUBCATEGORIES: SearchSubcategory[] = [...GEARISH_SUBCATEGORIES, "consumable"];
 
 const STRONG_PROFESSION_NAME_ANCHORS: TextAnchor[] = [
   tokenAnchor("captain", "name"),
@@ -198,6 +199,15 @@ const MOBILITY_REFERENCE_ANCHORS = [
   referenceAnchor("actionspf2e", "Leap"),
   referenceAnchor("actionspf2e", "Long Jump"),
   referenceAnchor("actionspf2e", "Swim"),
+];
+
+const NAVIGATION_REFERENCE_ANCHORS = [
+  referenceAnchor("actionspf2e", "Sense Direction"),
+];
+
+const TRACKING_REFERENCE_ANCHORS = [
+  referenceAnchor("actionspf2e", "Track"),
+  referenceAnchor("actionspf2e", "Cover Tracks"),
 ];
 
 const DERIVED_TAG_RULES: DerivedTagRule[] = [
@@ -519,7 +529,137 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "equipment",
     subcategories: GEARISH_SUBCATEGORIES,
     anyOf: [
-      { textAny: [tokenAnchor("navigate"), tokenAnchor("navigation"), tokenAnchor("map"), tokenAnchor("compass"), tokenAnchor("chart"), phraseAnchor("track your heading")] },
+      {
+        textAny: [
+          tokenAnchor("navigate"),
+          tokenAnchor("navigation"),
+          tokenAnchor("map"),
+          tokenAnchor("compass"),
+          tokenAnchor("chart"),
+          phraseAnchor("sense direction"),
+          phraseAnchor("track your heading"),
+          phraseAnchor("which direction is north"),
+          phraseAnchor("learn which direction you re facing"),
+        ],
+      },
+      { referencesAny: NAVIGATION_REFERENCE_ANCHORS },
+    ],
+  },
+  {
+    tag: "navigation",
+    category: "equipment",
+    subcategories: ["consumable"],
+    threshold: 2,
+    anyOf: [
+      { score: 2, referencesAny: NAVIGATION_REFERENCE_ANCHORS },
+      {
+        score: 2,
+        textAny: [
+          phraseAnchor("sense direction"),
+          phraseAnchor("functions as if you have a compass"),
+          phraseAnchor("learn which direction you re facing"),
+          phraseAnchor("which direction is north"),
+        ],
+      },
+    ],
+  },
+  {
+    tag: "tracking",
+    category: "equipment",
+    subcategories: TRACKING_SUBCATEGORIES,
+    threshold: 2,
+    anyOf: [
+      {
+        score: 2,
+        textAny: [
+          phraseAnchor("sense and follow tracks"),
+          phraseAnchor("for later tracking"),
+          phraseAnchor("track their movements"),
+          phraseAnchor("track a creature by its scent"),
+          phraseAnchor("continue to track the same creature"),
+          phraseAnchor("flutters toward the affixed one"),
+        ],
+      },
+      {
+        score: 2,
+        textAll: [
+          tokenAnchor("survival"),
+          phraseAnchor("sense direction"),
+          tokenAnchor("track"),
+        ],
+      },
+      {
+        score: 2,
+        textAll: [
+          tokenAnchor("survival"),
+          tokenAnchor("scent"),
+        ],
+        referencesAny: [referenceAnchor("actionspf2e", "Track")],
+      },
+      {
+        score: 2,
+        textAll: [
+          tokenAnchor("survival"),
+          tokenAnchor("scent"),
+          tokenAnchor("track"),
+        ],
+      },
+      { score: 1, textAny: [tokenAnchor("tracker", "name"), tokenAnchor("tracking", "name")] },
+    ],
+    noneOf: [
+      {
+        textAny: [
+          phraseAnchor("track time"),
+          phraseAnchor("tracking a gunslinger s progress"),
+          phraseAnchor("track teleportation"),
+          phraseAnchor("dc to track"),
+          phraseAnchor("attempting to track you"),
+          phraseAnchor("circumstance bonus to their check"),
+        ],
+      },
+      {
+        textAny: [tokenAnchor("trackless", "name")],
+      },
+    ],
+  },
+  {
+    tag: "anti_tracking",
+    category: "equipment",
+    subcategories: TRACKING_SUBCATEGORIES,
+    threshold: 2,
+    anyOf: [
+      {
+        score: 2,
+        textAny: [
+          phraseAnchor("dc to track"),
+          phraseAnchor("attempting to track you"),
+          phraseAnchor("cover any ordinary odors"),
+          phraseAnchor("fleeing pursuit"),
+        ],
+      },
+      {
+        score: 2,
+        textAll: [
+          tokenAnchor("stealth"),
+          tokenAnchor("hide"),
+          tokenAnchor("sneak"),
+        ],
+        textAny: [
+          phraseAnchor("against creatures using primarily smell"),
+        ],
+      },
+      { score: 2, textAny: [tokenAnchor("trackless", "name")] },
+    ],
+    noneOf: [
+      {
+        textAny: [
+          phraseAnchor("track a creature by its scent"),
+          phraseAnchor("track their movements"),
+          phraseAnchor("continue to track the same creature"),
+          phraseAnchor("sense and follow tracks"),
+          phraseAnchor("circumstance bonus to their check"),
+        ],
+      },
     ],
   },
   {
@@ -817,6 +957,8 @@ export const DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
       { value: "illumination", description: "Produces or improves light in dark environments." },
       { value: "survival", description: "Supports wilderness travel, shelter, or long-term field use." },
       { value: "navigation", description: "Helps track direction, route, or position." },
+      { value: "tracking", description: "Helps follow trails, mark a target, or relocate something later." },
+      { value: "anti_tracking", description: "Helps hide your trail, mask scent, or make pursuit harder." },
       { value: "transport", description: "Helps move creatures or cargo from place to place." },
       { value: "trap_bypass", description: "Helps disarm, disable, or get past traps." },
       { value: "carry_support", description: "Helps stow, carry, or organize equipment." },

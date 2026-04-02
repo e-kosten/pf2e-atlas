@@ -471,6 +471,60 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
     },
   });
 
+  await writeJson(path.join(packRoot, "actionspf2e", "sense-direction.json"), {
+    _id: "action-sense-direction-1",
+    name: "Sense Direction",
+    type: "action",
+    system: {
+      description: {
+        value: "<p>You use your surroundings to determine direction.</p>",
+      },
+      publication: {
+        title: "Pathfinder Player Core",
+      },
+      traits: {
+        rarity: "common",
+        value: ["exploration"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "actionspf2e", "track.json"), {
+    _id: "action-track-1",
+    name: "Track",
+    type: "action",
+    system: {
+      description: {
+        value: "<p>You follow the trail left by a creature or group.</p>",
+      },
+      publication: {
+        title: "Pathfinder Player Core",
+      },
+      traits: {
+        rarity: "common",
+        value: ["exploration"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "actionspf2e", "cover-tracks.json"), {
+    _id: "action-cover-tracks-1",
+    name: "Cover Tracks",
+    type: "action",
+    system: {
+      description: {
+        value: "<p>You obscure the trail you leave behind.</p>",
+      },
+      publication: {
+        title: "Pathfinder Player Core",
+      },
+      traits: {
+        rarity: "common",
+        value: ["exploration"],
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "classfeatures", "meditative-well.json"), {
     _id: "classfeature1",
     name: "Meditative Well",
@@ -811,7 +865,7 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
     type: "consumable",
     system: {
       description: {
-        value: "<p>Once activated, the mask sharpens odors, giving you imprecise scent with a 60-foot range.</p>",
+        value: "<p>Once activated, the mask sharpens odors, giving you imprecise scent with a 60-foot range.</p><p>When you use Survival to @UUID[Compendium.pf2e.actionspf2e.Item.Track]{Track} a creature by its scent, the mask grants you a +3 item bonus to your Survival check.</p>",
       },
       publication: {
         title: "Pathfinder Treasure Vault",
@@ -819,6 +873,42 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
       traits: {
         rarity: "common",
         value: ["alchemical", "consumable"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment", "aroma-concealer.json"), {
+    _id: "aroma-concealer-1",
+    name: "Aroma Concealer",
+    type: "consumable",
+    system: {
+      description: {
+        value: "<p>This oily mix can be applied to a creature to reduce and cover any ordinary odors they produce. The creature receives a +2 item bonus to Stealth checks to @UUID[Compendium.pf2e.actionspf2e.Item.Hide]{Hide} or @UUID[Compendium.pf2e.actionspf2e.Item.Sneak]{Sneak} against creatures using primarily smell. This bonus also applies to the DC to @UUID[Compendium.pf2e.actionspf2e.Item.Track]{Track} the creature by scent.</p>",
+      },
+      publication: {
+        title: "Pathfinder Treasure Vault",
+      },
+      traits: {
+        rarity: "common",
+        value: ["alchemical", "consumable"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment", "ichthyosis-mutagen.json"), {
+    _id: "ichthyosis-mutagen-1",
+    name: "Ichthyosis Mutagen",
+    type: "consumable",
+    system: {
+      description: {
+        value: "<p>Benefit You gain fast healing 2.</p><p>Drawback Any creature attempting to @UUID[Compendium.pf2e.actionspf2e.Item.Track]{Track} you in the next 24 hours gains a +4 circumstance bonus to their check.</p>",
+      },
+      publication: {
+        title: "Pathfinder Treasure Vault",
+      },
+      traits: {
+        rarity: "common",
+        value: ["alchemical", "consumable", "mutagen"],
       },
     },
   });
@@ -837,6 +927,42 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
       traits: {
         rarity: "common",
         value: ["consumable", "fulu", "magical", "talisman"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment", "travelers-fulu.json"), {
+    _id: "travelers-fulu-1",
+    name: "Traveler's Fulu",
+    type: "consumable",
+    system: {
+      description: {
+        value: "<p>Trigger You attempt to @UUID[Compendium.pf2e.actionspf2e.Item.Sense Direction]{Sense Direction}.</p><p>This fulu shows constellations and arrows across the night sky. Your attempt to Sense Direction functions as if you have a compass, and you use the outcome one degree of success better than the result of your Survival check.</p>",
+      },
+      publication: {
+        title: "Pathfinder Lost Omens Tian Xia Character Guide",
+      },
+      traits: {
+        rarity: "common",
+        value: ["consumable", "fulu", "magical", "talisman"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment", "trackers-stew.json"), {
+    _id: "trackers-stew-1",
+    name: "Tracker's Stew",
+    type: "consumable",
+    system: {
+      description: {
+        value: "<p>Once you've eaten the stew, it improves your ability to sense and follow tracks for 24 hours. You gain a +1 item bonus to Survival checks to @UUID[Compendium.pf2e.actionspf2e.Item.Cover Tracks]{Cover Tracks} and @UUID[Compendium.pf2e.actionspf2e.Item.Track]{Track}.</p>",
+      },
+      publication: {
+        title: "Pathfinder Treasure Vault",
+      },
+      traits: {
+        rarity: "common",
+        value: ["alchemical", "consumable"],
       },
     },
   });
@@ -909,6 +1035,60 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
       traits: {
         rarity: "common",
         value: [],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment-srd", "trackers-goggles.json"), {
+    _id: "trackers-goggles-1",
+    name: "Tracker's Goggles",
+    type: "equipment",
+    system: {
+      description: {
+        value: "<p>While wearing these goggles, you gain a +1 bonus to Survival checks to @UUID[Compendium.pf2e.actionspf2e.Item.Sense Direction]{Sense Direction} and @UUID[Compendium.pf2e.actionspf2e.Item.Track]{Track}. If you fail a check to Track, you can try again after 30 minutes rather than an hour.</p>",
+      },
+      publication: {
+        title: "Pathfinder Treasure Vault",
+      },
+      traits: {
+        rarity: "common",
+        value: ["invested", "magical"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment-srd", "tracking-tag.json"), {
+    _id: "tracking-tag-1",
+    name: "Tracking Tag",
+    type: "equipment",
+    system: {
+      description: {
+        value: "<p>Tracking tags are attached to wild animals to track their movements and identify individual creatures among a herd.</p>",
+      },
+      publication: {
+        title: "Pathfinder Player Core",
+      },
+      traits: {
+        rarity: "common",
+        value: [],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment-srd", "trackless.json"), {
+    _id: "trackless-1",
+    name: "Trackless",
+    type: "equipment",
+    system: {
+      description: {
+        value: "<p>Trackless footwear is favored by anyone fleeing pursuit. While wearing it, you gain a +4 item bonus to the DC to track you.</p>",
+      },
+      publication: {
+        title: "Pathfinder Treasure Vault",
+      },
+      traits: {
+        rarity: "common",
+        value: ["magical"],
       },
     },
   });
@@ -2415,7 +2595,7 @@ describe("Pf2eDataService", () => {
     const service = await loadTestService(fixture);
 
     expect(service.listPacks()).toHaveLength(15);
-    expect(service.getStats()).toEqual({ packCount: 15, recordCount: 79 });
+    expect(service.getStats()).toEqual({ packCount: 15, recordCount: 89 });
     expect(service.getPack("Actions")?.name).toBe("actions");
   });
 
@@ -2464,10 +2644,15 @@ describe("Pf2eDataService", () => {
     expect(service.listRecords({ category: "equipment", subcategory: "consumable", metadata: { field: "derivedTags", op: "includesAny", values: ["mental_recovery"] } }).records.map((record) => record.name)).toEqual(["Bottled Catharsis (Serenity)"]);
     expect(service.listRecords({ category: "equipment", subcategory: "consumable", metadata: { field: "derivedTags", op: "includesAny", values: ["energy_resistance"] } }).records.map((record) => record.name)).toEqual(["Potion of Cold Resistance (Moderate)"]);
     expect(service.listRecords({ category: "equipment", subcategory: "consumable", metadata: { field: "derivedTags", op: "includesAny", values: ["escape_support"] } }).records.map((record) => record.name)).toEqual(["Escape Fulu"]);
-    expect(service.listRecords({ category: "equipment", subcategory: "consumable", metadata: { field: "derivedTags", op: "includesAny", values: ["senses_support"] } }).records.map((record) => record.name)).toEqual(["Bloodhound Mask (Greater)"]);
+    expect(service.listRecords({ category: "equipment", subcategory: "consumable", metadata: { field: "derivedTags", op: "includesAny", values: ["senses_support"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Bloodhound Mask (Greater)"]));
     expect(service.listRecords({ category: "equipment", subcategory: "consumable", metadata: { field: "derivedTags", op: "includesAny", values: ["disguise"] } }).records.map((record) => record.name)).toEqual(["Potion of Disguise (Moderate)"]);
+    expect(service.listRecords({ category: "equipment", subcategory: "consumable", metadata: { field: "derivedTags", op: "includesAny", values: ["navigation"] } }).records.map((record) => record.name)).toEqual(["Traveler's Fulu"]);
+    expect(service.listRecords({ category: "equipment", subcategory: "consumable", metadata: { field: "derivedTags", op: "includesAny", values: ["tracking"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Bloodhound Mask (Greater)", "Tracker's Stew"]));
+    expect(service.listRecords({ category: "equipment", subcategory: "consumable", metadata: { field: "derivedTags", op: "includesAny", values: ["anti_tracking"] } }).records.map((record) => record.name)).toEqual(["Aroma Concealer"]);
     expect(service.listRecords({ category: "equipment", subcategory: "gear", metadata: { field: "derivedTags", op: "includesAny", values: ["lock_bypass"] } }).records.map((record) => record.name)).toEqual(["Concealable Thieves' Tools"]);
     expect(service.listRecords({ category: "equipment", subcategory: "gear", metadata: { field: "derivedTags", op: "includesAny", values: ["mobility"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Boots of Free Running (Greater)", "Climbing Kit"]));
+    expect(service.listRecords({ category: "equipment", subcategory: "gear", metadata: { field: "derivedTags", op: "includesAny", values: ["tracking"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Tracker's Goggles", "Tracking Tag"]));
+    expect(service.listRecords({ category: "equipment", subcategory: "gear", metadata: { field: "derivedTags", op: "includesAny", values: ["anti_tracking"] } }).records.map((record) => record.name)).toEqual(["Trackless"]);
     expect(service.listRecords({ category: "equipment", subcategory: "backpack", metadata: { field: "derivedTags", op: "includesAny", values: ["carry_support"] } }).records.map((record) => record.name)).toEqual(["Spacious Pouch (Type I)"]);
     expect(service.listRecords({ category: "equipment", subcategory: "consumable", metadata: { field: "derivedTags", op: "includesAll", values: ["beneficial", "anti_disease"] } }).records.map((record) => record.name)).toEqual(["Antiplague (Lesser)"]);
     expect(service.listRecords({ category: "equipment", subcategory: "consumable", metadata: { field: "derivedTags", op: "excludesAny", values: ["offensive"] } }).records.map((record) => record.name)).not.toContain("Sightless Tincture");
@@ -2512,9 +2697,20 @@ describe("Pf2eDataService", () => {
     const coldResistancePotion = service.lookup("Potion of Cold Resistance (Moderate)", { category: "equipment" }).match;
     expect(coldResistancePotion?.derivedTags).toEqual(expect.arrayContaining(["beneficial", "energy_resistance", "buff_support", "self_buff"]));
     const bloodhoundMask = service.lookup("Bloodhound Mask (Greater)", { category: "equipment" }).match;
-    expect(bloodhoundMask?.derivedTags).toEqual(expect.arrayContaining(["beneficial", "senses_support", "self_buff"]));
+    expect(bloodhoundMask?.derivedTags).toEqual(expect.arrayContaining(["beneficial", "senses_support", "self_buff", "tracking"]));
+    expect(bloodhoundMask?.derivedTags).not.toContain("anti_tracking");
+    const aromaConcealer = service.lookup("Aroma Concealer", { category: "equipment" }).match;
+    expect(aromaConcealer?.derivedTags).toContain("anti_tracking");
+    expect(aromaConcealer?.derivedTags).not.toContain("tracking");
+    const ichthyosisMutagen = service.lookup("Ichthyosis Mutagen", { category: "equipment" }).match;
+    expect(ichthyosisMutagen?.derivedTags).not.toContain("tracking");
+    expect(ichthyosisMutagen?.derivedTags).not.toContain("anti_tracking");
     const escapeFulu = service.lookup("Escape Fulu", { category: "equipment" }).match;
     expect(escapeFulu?.derivedTags).toEqual(expect.arrayContaining(["beneficial", "escape_support", "buff_support", "self_buff"]));
+    const travelersFulu = service.lookup("Traveler's Fulu", { category: "equipment" }).match;
+    expect(travelersFulu?.derivedTags).toContain("navigation");
+    const trackersStew = service.lookup("Tracker's Stew", { category: "equipment" }).match;
+    expect(trackersStew?.derivedTags).toContain("tracking");
     const disguisePotion = service.lookup("Potion of Disguise (Moderate)", { category: "equipment" }).match;
     expect(disguisePotion?.derivedTags).toEqual(expect.arrayContaining(["disguise", "social_infiltration"]));
     const shipCaptain = service.lookup("Ship Captain", { category: "creature" }).match;
@@ -2537,6 +2733,13 @@ describe("Pf2eDataService", () => {
     const bootsOfFreeRunning = service.lookup("Boots of Free Running (Greater)", { category: "equipment" }).match;
     expect(bootsOfFreeRunning?.derivedTags).toContain("mobility");
     expect(bootsOfFreeRunning?.derivedTags).not.toContain("climbing");
+    const trackersGoggles = service.lookup("Tracker's Goggles", { category: "equipment" }).match;
+    expect(trackersGoggles?.derivedTags).toEqual(expect.arrayContaining(["navigation", "survival", "tracking"]));
+    const trackingTag = service.lookup("Tracking Tag", { category: "equipment" }).match;
+    expect(trackingTag?.derivedTags).toContain("tracking");
+    const trackless = service.lookup("Trackless", { category: "equipment" }).match;
+    expect(trackless?.derivedTags).toContain("anti_tracking");
+    expect(trackless?.derivedTags).not.toContain("tracking");
     const masqueradeScarf = service.lookup("Masquerade Scarf", { category: "equipment" }).match;
     expect(masqueradeScarf?.derivedTags).toEqual(expect.arrayContaining(["disguise", "social_infiltration"]));
     const quickChangeOutfit = service.lookup("Quick-Change Outfit", { category: "equipment" }).match;
@@ -3000,6 +3203,8 @@ describe("Pf2eDataService", () => {
         category: "equipment",
         family: "purpose",
         tags: expect.arrayContaining([
+          expect.objectContaining({ value: "tracking", description: expect.any(String) }),
+          expect.objectContaining({ value: "anti_tracking", description: expect.any(String) }),
           expect.objectContaining({ value: "restraint_escape", description: expect.any(String) }),
           expect.objectContaining({ value: "restraint_capture", description: expect.any(String) }),
         ]),
@@ -3044,7 +3249,7 @@ describe("Pf2eDataService", () => {
     expect(service.listFilterValues({
       field: "derivedTags",
       category: "equipment",
-    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["beneficial", "offensive", "climbing", "lock_bypass", "mental_recovery", "carry_support", "restraint_escape", "restraint_capture"]));
+    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["beneficial", "offensive", "climbing", "lock_bypass", "mental_recovery", "carry_support", "tracking", "anti_tracking", "restraint_escape", "restraint_capture"]));
 
     expect(service.listFilterValues({
       field: "families",
@@ -3213,12 +3418,12 @@ describe("Pf2eDataService", () => {
     const indexPath = path.join(fixture.root, ".cache", "pf2e-index.sqlite");
 
     const firstService = await loadTestService(fixture, { indexPath });
-    expect(firstService.getStats()).toEqual({ packCount: 15, recordCount: 79 });
+    expect(firstService.getStats()).toEqual({ packCount: 15, recordCount: 89 });
     firstService.close();
 
     const firstMtime = (await import("node:fs/promises")).stat(indexPath).then((details) => details.mtimeMs);
     const unchangedService = await openPreparedTestService(fixture, { indexPath });
-    expect(unchangedService.getStats()).toEqual({ packCount: 15, recordCount: 79 });
+    expect(unchangedService.getStats()).toEqual({ packCount: 15, recordCount: 89 });
     unchangedService.close();
     const secondMtime = (await import("node:fs/promises")).stat(indexPath).then((details) => details.mtimeMs);
     expect(await secondMtime).toBe(await firstMtime);
@@ -3250,7 +3455,7 @@ describe("Pf2eDataService", () => {
     await expect(openPreparedTestService(fixture, { indexPath })).rejects.toThrow(/index .* stale/i);
 
     const rebuiltService = await loadTestService(fixture, { indexPath });
-    expect(rebuiltService.getStats()).toEqual({ packCount: 15, recordCount: 80 });
+    expect(rebuiltService.getStats()).toEqual({ packCount: 15, recordCount: 90 });
     expect(rebuiltService.lookup("Sea Ghoul", { category: "creature" }).match?.name).toBe("Sea Ghoul");
     rebuiltService.close();
   });
@@ -3262,7 +3467,7 @@ describe("Pf2eDataService", () => {
     const indexPath = path.join(fixture.root, ".cache", "pf2e-index.sqlite");
 
     const firstService = await loadTestService(fixture, { indexPath });
-    expect(firstService.getStats()).toEqual({ packCount: 15, recordCount: 79 });
+    expect(firstService.getStats()).toEqual({ packCount: 15, recordCount: 89 });
     firstService.close();
 
     await writeJson(path.join(fixture.root, "packs", "pf2e", "pathfinder-monster-core", "sea-ghoul-untracked.json"), {

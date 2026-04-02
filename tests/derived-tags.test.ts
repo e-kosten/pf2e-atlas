@@ -105,6 +105,156 @@ describe("derived tag rules", () => {
     })).toEqual(expect.arrayContaining(["illumination", "navigation"]));
 
     expect(deriveRecordTags({
+      name: "Navigator's Star",
+      category: "equipment",
+      subcategory: "gear",
+      descriptionText: "A star inked on the back of the hand keeps you on the right path. As you hold up your hand and align the star in view, you learn which direction you're facing.",
+      traits: ["invested", "magical", "tattoo"],
+    })).toContain("navigation");
+
+    expect(deriveRecordTags({
+      name: "Traveler's Fulu",
+      category: "equipment",
+      subcategory: "consumable",
+      descriptionText: "Trigger You attempt to Sense Direction. This fulu functions as if you have a compass, and your attempt to Sense Direction gains a better degree of success.",
+      traits: ["consumable", "fulu", "magical", "talisman"],
+      references: [
+        {
+          recordKey: "actionspf2e:sense-direction-1",
+          packName: "actionspf2e",
+          name: "Sense Direction",
+          category: "rule",
+          subcategory: "action",
+          traits: ["exploration"],
+        },
+      ],
+    })).toContain("navigation");
+
+    expect(deriveRecordTags({
+      name: "Navigator's Feather",
+      category: "equipment",
+      subcategory: "consumable",
+      descriptionText: "Trigger You would roll a Survival check to Sense Direction or Track. The feather lets you roll the check twice and later helps you continue to track the same creature.",
+      traits: ["consumable", "magical", "talisman"],
+      references: [
+        {
+          recordKey: "actionspf2e:sense-direction-1",
+          packName: "actionspf2e",
+          name: "Sense Direction",
+          category: "rule",
+          subcategory: "action",
+          traits: ["exploration"],
+        },
+        {
+          recordKey: "actionspf2e:track-1",
+          packName: "actionspf2e",
+          name: "Track",
+          category: "rule",
+          subcategory: "action",
+          traits: ["exploration"],
+        },
+      ],
+    })).toEqual(expect.arrayContaining(["navigation", "tracking"]));
+
+    expect(deriveRecordTags({
+      name: "Tracker's Stew",
+      category: "equipment",
+      subcategory: "consumable",
+      descriptionText: "The stew improves your ability to sense and follow tracks. You gain a +1 item bonus to Survival checks to Cover Tracks and Track.",
+      traits: ["alchemical", "consumable"],
+      references: [
+        {
+          recordKey: "actionspf2e:cover-tracks-1",
+          packName: "actionspf2e",
+          name: "Cover Tracks",
+          category: "rule",
+          subcategory: "action",
+          traits: ["exploration"],
+        },
+        {
+          recordKey: "actionspf2e:track-1",
+          packName: "actionspf2e",
+          name: "Track",
+          category: "rule",
+          subcategory: "action",
+          traits: ["exploration"],
+        },
+      ],
+    })).toContain("tracking");
+
+    expect(deriveRecordTags({
+      name: "Tracker's Goggles",
+      category: "equipment",
+      subcategory: "gear",
+      descriptionText: "While wearing these goggles, you gain a +1 bonus to Survival checks to Sense Direction and Track. If you fail a check to Track, you can try again after 30 minutes rather than an hour.",
+      traits: ["invested", "magical"],
+    })).toEqual(expect.arrayContaining(["navigation", "tracking"]));
+
+    expect(deriveRecordTags({
+      name: "Bloodhound Mask",
+      category: "equipment",
+      subcategory: "consumable",
+      descriptionText: "The mask sharpens odors. When you use Survival to Track a creature by its scent, the mask grants you a +1 item bonus to your Survival check. The GM sets the Survival DC based on the area's ability to hold scent rather than on visual clues.",
+      traits: ["alchemical", "consumable"],
+    })).toContain("tracking");
+
+    expect(deriveRecordTags({
+      name: "Bloodhound Mask",
+      category: "equipment",
+      subcategory: "consumable",
+      descriptionText: "The mask sharpens odors. When you use Survival to Track a creature by its scent, the mask grants you a +1 item bonus to your Survival check. The GM sets the Survival DC based on the area's ability to hold scent rather than on visual clues.",
+      traits: ["alchemical", "consumable"],
+    })).not.toContain("anti_tracking");
+
+    expect(deriveRecordTags({
+      name: "Tracking Tag",
+      category: "equipment",
+      subcategory: "gear",
+      descriptionText: "These tags are attached to wild animals to track their movements and identify individual creatures later.",
+      traits: [],
+    })).toContain("tracking");
+
+    expect(deriveRecordTags({
+      name: "Aroma Concealer",
+      category: "equipment",
+      subcategory: "consumable",
+      descriptionText: "This oily mix reduces and covers any ordinary odors. The bonus also applies to the DC to Track the creature by scent.",
+      traits: ["alchemical", "consumable"],
+    })).toContain("anti_tracking");
+
+    expect(deriveRecordTags({
+      name: "Aroma Concealer",
+      category: "equipment",
+      subcategory: "consumable",
+      descriptionText: "This oily mix reduces and covers any ordinary odors. The bonus also applies to the DC to Track the creature by scent.",
+      traits: ["alchemical", "consumable"],
+    })).not.toContain("tracking");
+
+    expect(deriveRecordTags({
+      name: "Trackless",
+      category: "equipment",
+      subcategory: "gear",
+      descriptionText: "Trackless footwear grants you a +4 item bonus to the DC to track you and is favored by anyone fleeing pursuit.",
+      traits: ["magical"],
+    })).toContain("anti_tracking");
+
+    expect(deriveRecordTags({
+      name: "Ichthyosis Mutagen",
+      category: "equipment",
+      subcategory: "consumable",
+      descriptionText: "Any creature attempting to Track you in the next 24 hours gains a +4 circumstance bonus to their check.",
+      traits: ["alchemical", "consumable", "mutagen"],
+    })).not.toContain("tracking");
+
+    expect(deriveRecordTags({
+      name: "Ichthyosis Mutagen",
+      category: "equipment",
+      subcategory: "consumable",
+      descriptionText: "Any creature attempting to Track you in the next 24 hours gains a +4 circumstance bonus to their check.",
+      traits: ["alchemical", "consumable", "mutagen"],
+    })).not.toContain("anti_tracking");
+
+    expect(deriveRecordTags({
       name: "Boots of Bounding",
       category: "equipment",
       subcategory: "gear",
@@ -471,6 +621,22 @@ describe("derived tag rules", () => {
     })).not.toEqual(expect.arrayContaining(["disguise", "social_infiltration"]));
 
     expect(deriveRecordTags({
+      name: "Clockwork Dial",
+      category: "equipment",
+      subcategory: "gear",
+      descriptionText: "This precise timepiece helps you accurately track time for coordinated plans and spell durations.",
+      traits: [],
+    })).not.toContain("tracking");
+
+    expect(deriveRecordTags({
+      name: "Anathema Fulu",
+      category: "equipment",
+      subcategory: "consumable",
+      descriptionText: "This fulu comes in four pieces, one placed in each cardinal direction around the target area.",
+      traits: ["consumable", "fulu", "magical", "talisman"],
+    })).not.toContain("navigation");
+
+    expect(deriveRecordTags({
       name: "Vanth Guardian Flock",
       category: "creature",
       subcategory: null,
@@ -514,6 +680,8 @@ describe("derived tag rules", () => {
         family: "purpose",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "navigation", description: expect.any(String) }),
+          expect.objectContaining({ value: "tracking", description: expect.any(String) }),
+          expect.objectContaining({ value: "anti_tracking", description: expect.any(String) }),
           expect.objectContaining({ value: "carry_support", description: expect.any(String) }),
           expect.objectContaining({ value: "restraint_escape", description: expect.any(String) }),
           expect.objectContaining({ value: "restraint_capture", description: expect.any(String) }),
