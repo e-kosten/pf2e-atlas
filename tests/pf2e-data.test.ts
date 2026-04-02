@@ -105,6 +105,7 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
     "heritages",
     "journals",
     "pathfinder-monster-core",
+    "pathfinder-npc-core",
     "pfs-season-1-bestiary",
     "quest-for-the-frozen-flame-bestiary",
     "spells",
@@ -117,6 +118,7 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
     mkdir(path.join(packRoot, "bestiary-family-ability-glossary", "lich"), { recursive: true }),
     mkdir(path.join(packRoot, "bestiary-family-ability-glossary", "mythic"), { recursive: true }),
     mkdir(path.join(packRoot, "bestiary-family-ability-glossary", "vampire"), { recursive: true }),
+    mkdir(path.join(packRoot, "pathfinder-npc-core", "seafarer"), { recursive: true }),
   ]);
   await mkdir(path.join(root, "src", "module", "migration", "migrations"), { recursive: true });
 
@@ -181,6 +183,12 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
         label: "Journals",
         path: "packs/journals",
         type: "JournalEntry",
+      },
+      {
+        name: "pathfinder-npc-core",
+        label: "Pathfinder NPC Core",
+        path: "packs/pathfinder-npc-core",
+        type: "Actor",
       },
       {
         name: "pathfinder-monster-core",
@@ -1273,6 +1281,39 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
     },
   });
 
+  await writeJson(path.join(packRoot, "pathfinder-npc-core", "_folders.json"), [
+    {
+      _id: "folder-seafarer",
+      name: "Seafarer",
+      folder: null,
+    },
+  ]);
+
+  await writeJson(path.join(packRoot, "pathfinder-npc-core", "seafarer", "bosun.json"), {
+    _id: "npc-core-bosun",
+    folder: "folder-seafarer",
+    name: "Bosun",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 3,
+        },
+        publication: {
+          title: "Pathfinder NPC Core",
+        },
+        publicNotes: "<p>A seasoned deck officer responsible for shipboard labor and discipline.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["human", "humanoid"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "pathfinder-monster-core", "ship-captain.json"), {
     _id: "ship-captain",
     name: "Ship Captain",
@@ -2044,8 +2085,8 @@ describe("Pf2eDataService", () => {
 
     const service = await loadTestService(fixture);
 
-    expect(service.listPacks()).toHaveLength(14);
-    expect(service.getStats()).toEqual({ packCount: 14, recordCount: 64 });
+    expect(service.listPacks()).toHaveLength(15);
+    expect(service.getStats()).toEqual({ packCount: 15, recordCount: 65 });
     expect(service.getPack("Actions")?.name).toBe("actions");
   });
 
@@ -2100,10 +2141,11 @@ describe("Pf2eDataService", () => {
     expect(service.listRecords({ category: "equipment", subcategory: "gear", derivedTagsAny: ["social_infiltration"] }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Masquerade Scarf", "Quick-Change Outfit"]));
     expect(service.listRecords({ category: "equipment", subcategory: "gear", derivedTagsAny: ["restraint_escape"] }).records.map((record) => record.name)).toEqual(["Swallow-Spike"]);
     expect(service.listRecords({ category: "creature", derivedTagsAny: ["aquatic_context"] }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Ghost Sailor", "Pelagic Stalker", "Ship Captain"]));
-    expect(service.listRecords({ category: "creature", glossaryFamiliesAny: ["ghost"] }).records.map((record) => record.name)).toEqual(["Ghost Commoner"]);
-    expect(service.listRecords({ category: "creature", glossaryFamiliesAny: ["lich"] }).records.map((record) => record.name)).toEqual(["Mythic Lich"]);
-    expect(service.listRecords({ category: "creature", glossaryFamiliesAll: ["mythic", "lich"] }).records.map((record) => record.name)).toEqual(["Mythic Lich"]);
-    expect(service.listRecords({ category: "creature", levelMin: 5, levelMax: 5, excludeGlossaryFamilies: ["vampire"] }).records.map((record) => record.name)).not.toContain("Morlock Thrall");
+    expect(service.listRecords({ category: "creature", familiesAny: ["ghost"] }).records.map((record) => record.name)).toEqual(["Ghost Commoner"]);
+    expect(service.listRecords({ category: "creature", familiesAny: ["lich"] }).records.map((record) => record.name)).toEqual(["Mythic Lich"]);
+    expect(service.listRecords({ category: "creature", familiesAny: ["seafarer"] }).records.map((record) => record.name)).toEqual(["Bosun"]);
+    expect(service.listRecords({ category: "creature", familiesAll: ["mythic", "lich"] }).records.map((record) => record.name)).toEqual(["Mythic Lich"]);
+    expect(service.listRecords({ category: "creature", levelMin: 5, levelMax: 5, excludeFamilies: ["vampire"] }).records.map((record) => record.name)).not.toContain("Morlock Thrall");
 
     const cythnigot = service.lookup("Cythnigot", { category: "creature" }).match;
     expect(cythnigot?.hasDescription).toBe(true);
@@ -2126,14 +2168,14 @@ describe("Pf2eDataService", () => {
     const shipCaptain = service.lookup("Ship Captain", { category: "creature" }).match;
     expect(shipCaptain?.derivedTags).toEqual(expect.arrayContaining(["nautical", "profession_npc", "scene_adjacent"]));
     const ghostCommoner = service.lookup("Ghost Commoner", { category: "creature" }).match;
-    expect(ghostCommoner?.glossaryFamily).toBe("ghost");
-    expect(ghostCommoner?.additionalGlossaryFamilies).toEqual([]);
+    expect(ghostCommoner?.families).toEqual(["ghost"]);
     const mythicLich = service.lookup("Mythic Lich", { category: "creature" }).match;
-    expect(mythicLich?.glossaryFamily).toBe("mythic");
-    expect(mythicLich?.additionalGlossaryFamilies).toEqual(["lich"]);
+    expect(mythicLich?.families).toEqual(["lich", "mythic"]);
     const morlockThrall = service.lookup("Morlock Thrall", { category: "creature" }).match;
-    expect(morlockThrall?.glossaryFamily).toBe("vampire");
+    expect(morlockThrall?.families).toEqual(["vampire"]);
     expect(morlockThrall?.derivedTags).toContain("undead_threat");
+    const bosun = service.lookup("Bosun", { category: "creature" }).match;
+    expect(bosun?.families).toEqual(["seafarer"]);
     const pelagicStalker = service.lookup("Pelagic Stalker", { category: "creature" }).match;
     expect(pelagicStalker?.derivedTags).toContain("aquatic_context");
     const spaciousPouch = service.lookup("Spacious Pouch (Type I)", { category: "equipment" }).match;
@@ -2557,14 +2599,15 @@ describe("Pf2eDataService", () => {
     }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["beneficial", "offensive", "climbing", "lock_bypass", "mental_recovery", "carry_support", "restraint_escape"]));
 
     expect(service.listFilterValues({
-      field: "glossaryFamilies",
+      field: "families",
       category: "creature",
     })).toEqual({
-      field: "glossaryFamilies",
+      field: "families",
       values: [
         { value: "ghost", count: 1 },
         { value: "lich", count: 1 },
         { value: "mythic", count: 1 },
+        { value: "seafarer", count: 1 },
         { value: "vampire", count: 1 },
       ],
     });
@@ -2625,7 +2668,7 @@ describe("Pf2eDataService", () => {
     expect(service.listFilterValues({
       field: "sources",
       category: "creature",
-    }).values.map((entry) => entry.value)).toEqual(["core", "adventure", "rules"]);
+    }).values.map((entry) => entry.value)).toEqual(["core", "rules", "adventure"]);
 
     expect(service.listFilterValues({
       field: "packs",
@@ -2702,12 +2745,12 @@ describe("Pf2eDataService", () => {
     const indexPath = path.join(fixture.root, ".cache", "pf2e-index.sqlite");
 
     const firstService = await loadTestService(fixture, { indexPath });
-    expect(firstService.getStats()).toEqual({ packCount: 14, recordCount: 64 });
+    expect(firstService.getStats()).toEqual({ packCount: 15, recordCount: 65 });
     firstService.close();
 
     const firstMtime = (await import("node:fs/promises")).stat(indexPath).then((details) => details.mtimeMs);
     const unchangedService = await openPreparedTestService(fixture, { indexPath });
-    expect(unchangedService.getStats()).toEqual({ packCount: 14, recordCount: 64 });
+    expect(unchangedService.getStats()).toEqual({ packCount: 15, recordCount: 65 });
     unchangedService.close();
     const secondMtime = (await import("node:fs/promises")).stat(indexPath).then((details) => details.mtimeMs);
     expect(await secondMtime).toBe(await firstMtime);
@@ -2739,7 +2782,7 @@ describe("Pf2eDataService", () => {
     await expect(openPreparedTestService(fixture, { indexPath })).rejects.toThrow(/index .* stale/i);
 
     const rebuiltService = await loadTestService(fixture, { indexPath });
-    expect(rebuiltService.getStats()).toEqual({ packCount: 14, recordCount: 65 });
+    expect(rebuiltService.getStats()).toEqual({ packCount: 15, recordCount: 66 });
     expect(rebuiltService.lookup("Sea Ghoul", { category: "creature" }).match?.name).toBe("Sea Ghoul");
     rebuiltService.close();
   });
@@ -2751,7 +2794,7 @@ describe("Pf2eDataService", () => {
     const indexPath = path.join(fixture.root, ".cache", "pf2e-index.sqlite");
 
     const firstService = await loadTestService(fixture, { indexPath });
-    expect(firstService.getStats()).toEqual({ packCount: 14, recordCount: 64 });
+    expect(firstService.getStats()).toEqual({ packCount: 15, recordCount: 65 });
     firstService.close();
 
     await writeJson(path.join(fixture.root, "packs", "pf2e", "pathfinder-monster-core", "sea-ghoul-untracked.json"), {

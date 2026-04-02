@@ -67,7 +67,7 @@ import {
 import { buildLiteralQueryWeights, buildSearchQueryAnalysis } from "./search-query-analysis.js";
 
 const execFileAsync = promisify(execFile);
-const INDEX_SCHEMA_VERSION = 14;
+const INDEX_SCHEMA_VERSION = 15;
 const VEC_TEXT_NONE = "";
 const VEC_INT_NONE = -1n;
 const LOOKUP_LEXICAL_TOP_K = 100;
@@ -109,8 +109,7 @@ type CandidateRow = {
   descriptionSnippet: string | null;
   sourceCategory: SourceCategory;
   folderId: string | null;
-  glossaryFamily: string | null;
-  additionalGlossaryFamiliesJson: string | null;
+  familiesJson: string | null;
   sourcePath: string;
   isUnique: number;
   isSearchCanonical?: number;
@@ -161,8 +160,7 @@ type NormalizedIndexRecord = {
   descriptionSnippet: string | null;
   sourceCategory: SourceCategory;
   folderId: string | null;
-  glossaryFamily: string | null;
-  additionalGlossaryFamilies: string[];
+  families: string[];
   sourcePath: string;
   isUnique: boolean;
   size: string | null;
@@ -772,8 +770,7 @@ function normalizeIndexRecord(pack: PackBuildInfo, sourcePath: string, raw: Reco
     descriptionSnippet,
     sourceCategory,
     folderId: firstString(raw.folder),
-    glossaryFamily: null,
-    additionalGlossaryFamilies: [],
+    families: [],
     sourcePath,
     isUnique: normalizeText(rarity ?? "") === "unique",
     size: actorData?.size ?? null,
@@ -983,63 +980,55 @@ function buildTraitText(record: NormalizedRecord): string {
   return record.traits.join(" ");
 }
 
-function normalizeGlossaryFamilyValues(values: string[] | undefined): string[] {
+function normalizeFamilyValues(values: string[] | undefined): string[] {
   return [...new Set((values ?? [])
     .map((value) => normalizeText(value))
     .filter(Boolean))];
 }
 
-function getNormalizedGlossaryFamilies(record: Pick<NormalizedRecord, "glossaryFamily" | "additionalGlossaryFamilies">): Set<string> {
-  return new Set(
-    [record.glossaryFamily, ...record.additionalGlossaryFamilies]
-      .map((value) => normalizeText(value ?? ""))
-      .filter(Boolean),
-  );
+function getNormalizedFamilies(record: Pick<NormalizedRecord, "families">): Set<string> {
+  return new Set(record.families.map((value) => normalizeText(value)).filter(Boolean));
 }
 
-function buildGlossaryFamilyArraySql(recordAlias: string): string {
-  return `CASE
-    WHEN COALESCE(${recordAlias}.glossary_family, '') <> ''
-      THEN json_insert(COALESCE(${recordAlias}.additional_glossary_families_json, '[]'), '$[#]', ${recordAlias}.glossary_family)
-    ELSE COALESCE(${recordAlias}.additional_glossary_families_json, '[]')
-  END`;
+function buildFamiliesArraySql(recordAlias: string): string {
+  return `COALESCE(${recordAlias}.families_json, '[]')`;
 }
 
-function appendGlossaryFamilyFilterClauses(
+function appendFamilyFilterClauses(
   sql: string[],
   params: SqlValue[],
-  filters: Pick<NormalizedSearchFilters, "glossaryFamiliesAll" | "glossaryFamiliesAny" | "excludeGlossaryFamilies">,
+  filters: Pick<NormalizedSearchFilters, "familiesAll" | "familiesAny" | "excludeFamilies">,
   buildExistsClause: (operator: "exists" | "not_exists", predicate: string) => string,
 ): void {
-  const includedGlossaryFamiliesAll = normalizeGlossaryFamilyValues(filters.glossaryFamiliesAll);
-  for (const family of includedGlossaryFamiliesAll) {
+  const includedFamiliesAll = normalizeFamilyValues(filters.familiesAll);
+  for (const family of includedFamiliesAll) {
     appendWhereClause(
       sql,
       params,
-      buildExistsClause("exists", "LOWER(glossary_family.value) = ?"),
+      buildExistsClause("exists", "LOWER(family.value) = ?"),
       family,
     );
   }
 
-  const includedGlossaryFamiliesAny = normalizeGlossaryFamilyValues(filters.glossaryFamiliesAny);
-  if (includedGlossaryFamiliesAny.length > 0) {
-    const placeholders = includedGlossaryFamiliesAny.map(() => "?").join(", ");
+  const includedFamiliesAny = normalizeFamilyValues(filters.familiesAny);
+  if (includedFamiliesAny.length > 0) {
+    const placeholders = includedFamiliesAny.map(() => "?").join(", ");
     appendWhereClause(
       sql,
       params,
-      buildExistsClause("exists", `LOWER(glossary_family.value) IN (${placeholders})`),
-      ...includedGlossaryFamiliesAny,
+      buildExistsClause("exists", `LOWER(family.value) IN (${placeholders})`),
+      ...includedFamiliesAny,
     );
   }
 
-  const excludedGlossaryFamilies = normalizeGlossaryFamilyValues(filters.excludeGlossaryFamilies);
-  if (excludedGlossaryFamilies.length > 0) {
-    const placeholders = excludedGlossaryFamilies.map(() => "?").join(", ");
+  const excludedFamilies = normalizeFamilyValues(filters.excludeFamilies);
+  if (excludedFamilies.length > 0) {
+    const placeholders = excludedFamilies.map(() => "?").join(", ");
     appendWhereClause(
       sql,
       params,
-      buildExistsClause("not_exists", `LOWER(glossary_family.value) IN (${placeholders})`),
-      ...excludedGlossaryFamilies,
+      buildExistsClause("not_exists", `LOWER(family.value) IN (${placeholders})`),
+      ...excludedFamilies,
     );
   }
 }
@@ -1074,9 +1063,9 @@ function hasStructuredFilterSignal(filters: SearchFilters): boolean {
     (filters.traitsAll && filters.traitsAll.length > 0) ||
     (filters.traitsAny && filters.traitsAny.length > 0) ||
     (filters.excludeTraits && filters.excludeTraits.length > 0) ||
-    (filters.glossaryFamiliesAll && filters.glossaryFamiliesAll.length > 0) ||
-    (filters.glossaryFamiliesAny && filters.glossaryFamiliesAny.length > 0) ||
-    (filters.excludeGlossaryFamilies && filters.excludeGlossaryFamilies.length > 0) ||
+    (filters.familiesAll && filters.familiesAll.length > 0) ||
+    (filters.familiesAny && filters.familiesAny.length > 0) ||
+    (filters.excludeFamilies && filters.excludeFamilies.length > 0) ||
     (filters.derivedTagsAll && filters.derivedTagsAll.length > 0) ||
     (filters.derivedTagsAny && filters.derivedTagsAny.length > 0) ||
     (filters.excludeDerivedTags && filters.excludeDerivedTags.length > 0) ||
@@ -1361,16 +1350,93 @@ function deriveGlossaryFamilyFromPath(filePath: string, packRoot: string): strin
   return family || null;
 }
 
-function sortGlossaryFamilyCounts(counts: Map<string, number>): [string, number][] {
-  return [...counts.entries()].sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]));
+function normalizeFamilyName(value: string): string | null {
+  const normalized = normalizeText(value).replace(/\s+/g, "-");
+  return normalized || null;
 }
 
-function assignGlossaryFamilies(
+type FolderDefinition = {
+  _id?: string;
+  name?: string;
+  folder?: string | null;
+};
+
+function buildPackAndFolderKey(packName: string, folderId: string): string {
+  return `${normalizeText(packName)}:${normalizeText(folderId)}`;
+}
+
+function resolveFolderFamily(folderId: string, foldersById: Map<string, FolderDefinition>): string | null {
+  const visited = new Set<string>();
+  let currentId: string | null = folderId;
+  let current: FolderDefinition | undefined;
+
+  while (currentId) {
+    if (visited.has(currentId)) {
+      return null;
+    }
+    visited.add(currentId);
+    current = foldersById.get(currentId);
+    if (!current) {
+      return null;
+    }
+    const parentId = firstString(current.folder);
+    if (!parentId) {
+      return normalizeFamilyName(firstString(current.name) ?? "");
+    }
+    currentId = parentId;
+  }
+
+  return current ? normalizeFamilyName(firstString(current.name) ?? "") : null;
+}
+
+async function loadFolderFamilyMap(pack: Pick<PackBuildInfo, "name" | "resolvedPath">): Promise<Map<string, string>> {
+  if (!pack.resolvedPath) {
+    return new Map();
+  }
+
+  const folderPath = path.join(pack.resolvedPath, "_folders.json");
+  if (!await fileExists(folderPath)) {
+    return new Map();
+  }
+
+  const raw = JSON.parse(await readFile(folderPath, "utf8")) as FolderDefinition[];
+  if (!Array.isArray(raw)) {
+    return new Map();
+  }
+
+  const foldersById = new Map<string, FolderDefinition>();
+  for (const entry of raw) {
+    const id = firstString(entry?._id);
+    if (id) {
+      foldersById.set(id, entry);
+    }
+  }
+
+  const familyMap = new Map<string, string>();
+  for (const folderId of foldersById.keys()) {
+    const family = resolveFolderFamily(folderId, foldersById);
+    if (family) {
+      familyMap.set(buildPackAndFolderKey(pack.name, folderId), family);
+    }
+  }
+
+  return familyMap;
+}
+
+function assignFamilies(
   entry: BuildSourceEntry & { record: NormalizedIndexRecord },
   recordsByPackAndId: Map<string, string>,
   glossaryFamilyByRecordKey: Map<string, string>,
+  folderFamilyByPackAndFolderId: Map<string, string>,
 ): void {
-  const familyCounts = new Map<string, number>();
+  const families = new Set<string>();
+
+  if (entry.record.folderId) {
+    const folderFamily = folderFamilyByPackAndFolderId.get(buildPackAndFolderKey(entry.record.packName, entry.record.folderId));
+    if (folderFamily) {
+      families.add(folderFamily);
+    }
+  }
 
   for (const reference of extractItemCompendiumSources(entry.raw)) {
     if (reference.packName !== "bestiary-family-ability-glossary") {
@@ -1387,12 +1453,10 @@ function assignGlossaryFamilies(
       continue;
     }
 
-    familyCounts.set(family, (familyCounts.get(family) ?? 0) + 1);
+    families.add(family);
   }
 
-  const sortedFamilies = sortGlossaryFamilyCounts(familyCounts);
-  entry.record.glossaryFamily = sortedFamilies[0]?.[0] ?? null;
-  entry.record.additionalGlossaryFamilies = sortedFamilies.slice(1).map(([family]) => family);
+  entry.record.families = uniqueSorted([...families]);
 }
 
 function stripOuterHtml(value: string): string {
@@ -1941,10 +2005,7 @@ function rowToRecord(row: CandidateRow, raw: Record<string, unknown> | null = nu
     descriptionSnippet: row.descriptionSnippet,
     sourceCategory: row.sourceCategory,
     folderId: row.folderId,
-    glossaryFamily: row.glossaryFamily,
-    additionalGlossaryFamilies: row.additionalGlossaryFamiliesJson
-      ? (JSON.parse(row.additionalGlossaryFamiliesJson) as string[])
-      : [],
+    families: row.familiesJson ? (JSON.parse(row.familiesJson) as string[]) : [],
     sourcePath: row.sourcePath,
     isUnique: Boolean(row.isUnique),
     size: row.size,
@@ -2173,8 +2234,7 @@ function createSchema(db: DatabaseSync, embeddingDimensions: number): void {
       description_snippet TEXT,
       source_category TEXT NOT NULL,
       folder_id TEXT,
-      glossary_family TEXT,
-      additional_glossary_families_json TEXT NOT NULL,
+      families_json TEXT NOT NULL,
       source_path TEXT NOT NULL,
       is_unique INTEGER NOT NULL,
       is_search_canonical INTEGER NOT NULL,
@@ -2314,7 +2374,6 @@ function createSchema(db: DatabaseSync, embeddingDimensions: number): void {
     CREATE INDEX records_search_canonical_idx ON records(is_search_canonical);
     CREATE INDEX records_has_description_idx ON records(has_description);
     CREATE INDEX records_source_category_idx ON records(source_category);
-    CREATE INDEX records_glossary_family_idx ON records(glossary_family);
     CREATE INDEX record_aliases_normalized_alias_idx ON record_aliases(normalized_alias);
     CREATE INDEX record_legacy_links_canonical_idx ON record_legacy_links(canonical_record_key);
     CREATE INDEX record_traits_trait_idx ON record_traits(trait);
@@ -2358,8 +2417,8 @@ async function buildIndex(
     INSERT INTO records (
       record_key, id, name, normalized_name, category, subcategory, pack_name, pack_label, document_type, record_type,
       level, rarity, traits_json, derived_tags_json, publication_title, publication_remaster, description_text, has_description, description_snippet,
-      source_category, folder_id, glossary_family, additional_glossary_families_json, source_path, is_unique, is_search_canonical, search_text, raw_json
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      source_category, folder_id, families_json, source_path, is_unique, is_search_canonical, search_text, raw_json
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const insertAlias = db.prepare(`
     INSERT INTO record_aliases (canonical_record_key, alias_text, normalized_alias, source_kind, source_ref)
@@ -2566,6 +2625,7 @@ async function buildIndex(
     }
 
     const glossaryFamilyByRecordKey = new Map<string, string>();
+    const folderFamilyByPackAndFolderId = new Map<string, string>();
     for (const entry of indexedEntries) {
       if (entry.record.packName !== "bestiary-family-ability-glossary") {
         continue;
@@ -2577,8 +2637,15 @@ async function buildIndex(
       }
     }
 
+    const folderFamilyMaps = await Promise.all(packs.map(async (pack) => loadFolderFamilyMap(pack)));
+    for (const familyMap of folderFamilyMaps) {
+      for (const [key, value] of familyMap) {
+        folderFamilyByPackAndFolderId.set(key, value);
+      }
+    }
+
     for (const entry of indexedEntries) {
-      assignGlossaryFamilies(entry, recordsByPackAndId, glossaryFamilyByRecordKey);
+      assignFamilies(entry, recordsByPackAndId, glossaryFamilyByRecordKey, folderFamilyByPackAndFolderId);
 
       entry.resolvedReferences = entry.references
         .map((reference) => resolveExtractedReference(
@@ -2596,8 +2663,7 @@ async function buildIndex(
         subcategory: entry.record.subcategory,
         descriptionText: entry.record.descriptionText,
         traits: entry.record.traits,
-        glossaryFamily: entry.record.glossaryFamily,
-        additionalGlossaryFamilies: entry.record.additionalGlossaryFamilies,
+        families: entry.record.families,
         references: entry.resolvedReferences.map((reference) => ({
           recordKey: reference.targetRecordKey,
           packName: reference.targetRecord.packName,
@@ -2721,8 +2787,7 @@ async function buildIndex(
         record.descriptionSnippet,
         record.sourceCategory,
         record.folderId,
-        record.glossaryFamily,
-        JSON.stringify(record.additionalGlossaryFamilies),
+        JSON.stringify(record.families),
         record.sourcePath,
         record.isUnique ? 1 : 0,
         isSearchCanonical ? 1 : 0,
@@ -3278,14 +3343,14 @@ function applySearchFilterClauses(
     );
   }
 
-  const glossaryFamilyArraySql = buildGlossaryFamilyArraySql(recordAlias);
-  appendGlossaryFamilyFilterClauses(
+  const familiesArraySql = buildFamiliesArraySql(recordAlias);
+  appendFamilyFilterClauses(
     sql,
     params,
     filters,
     (operator, predicate) => `AND ${operator === "exists" ? "EXISTS" : "NOT EXISTS"} (
       SELECT 1
-      FROM json_each(${glossaryFamilyArraySql}) AS glossary_family
+      FROM json_each(${familiesArraySql}) AS family
       WHERE ${predicate}
     )`,
   );
@@ -3357,8 +3422,7 @@ function buildCandidateQuery(
     "r.description_snippet AS descriptionSnippet",
     "r.source_category AS sourceCategory",
     "r.folder_id AS folderId",
-    "r.glossary_family AS glossaryFamily",
-    "r.additional_glossary_families_json AS additionalGlossaryFamiliesJson",
+    "r.families_json AS familiesJson",
     "r.source_path AS sourcePath",
     "r.is_unique AS isUnique",
     "r.is_search_canonical AS isSearchCanonical",
@@ -3420,9 +3484,9 @@ function buildFilterValueQuery(field: FilterValueField, filters: NormalizedSearc
       joins.push("JOIN record_traits rt ON rt.record_key = r.record_key");
       valueExpression = "rt.trait";
       break;
-    case "glossaryFamilies":
-      joins.push(`JOIN json_each(${buildGlossaryFamilyArraySql("r")}) AS glossary_family`);
-      valueExpression = "LOWER(glossary_family.value)";
+    case "families":
+      joins.push(`JOIN json_each(${buildFamiliesArraySql("r")}) AS family`);
+      valueExpression = "LOWER(family.value)";
       break;
     case "derivedTags":
       joins.push("JOIN record_derived_tags rdt ON rdt.record_key = r.record_key");
@@ -3510,9 +3574,9 @@ function semanticQueryLimit(baseLimit: number, filters: NormalizedSearchFilters)
     (filters.traitsAll?.length ?? 0) > 0 ||
     (filters.traitsAny?.length ?? 0) > 0 ||
     (filters.excludeTraits?.length ?? 0) > 0 ||
-    (filters.glossaryFamiliesAll?.length ?? 0) > 0 ||
-    (filters.glossaryFamiliesAny?.length ?? 0) > 0 ||
-    (filters.excludeGlossaryFamilies?.length ?? 0) > 0 ||
+    (filters.familiesAll?.length ?? 0) > 0 ||
+    (filters.familiesAny?.length ?? 0) > 0 ||
+    (filters.excludeFamilies?.length ?? 0) > 0 ||
     (filters.derivedTagsAll?.length ?? 0) > 0 ||
     (filters.derivedTagsAny?.length ?? 0) > 0 ||
     (filters.excludeDerivedTags?.length ?? 0) > 0,
@@ -3594,14 +3658,14 @@ function buildSemanticRetrievalQuery(filters: NormalizedSearchFilters, limit: nu
     appendWhereClause(sql, params, "AND action_cost = ?", BigInt(filters.actionCost));
   }
 
-  const glossaryFamilyArraySql = buildGlossaryFamilyArraySql("rf");
-  appendGlossaryFamilyFilterClauses(
+  const familiesArraySql = buildFamiliesArraySql("rf");
+  appendFamilyFilterClauses(
     sql,
     params,
     filters,
     (operator, predicate) => `AND ${operator === "exists" ? "EXISTS" : "NOT EXISTS"} (
       SELECT 1
-      FROM records rf, json_each(${glossaryFamilyArraySql}) AS glossary_family
+      FROM records rf, json_each(${familiesArraySql}) AS family
       WHERE rf.record_key = record_embeddings.record_key
         AND ${predicate}
     )`,
@@ -3715,21 +3779,21 @@ function recordMatchesFilters(record: NormalizedRecord, filters: NormalizedSearc
       return false;
     }
   }
-  if (filters.glossaryFamiliesAll && filters.glossaryFamiliesAll.length > 0) {
-    const normalizedGlossaryFamilies = getNormalizedGlossaryFamilies(record);
-    if (!filters.glossaryFamiliesAll.every((family) => normalizedGlossaryFamilies.has(normalizeText(family)))) {
+  if (filters.familiesAll && filters.familiesAll.length > 0) {
+    const normalizedFamilies = getNormalizedFamilies(record);
+    if (!filters.familiesAll.every((family) => normalizedFamilies.has(normalizeText(family)))) {
       return false;
     }
   }
-  if (filters.glossaryFamiliesAny && filters.glossaryFamiliesAny.length > 0) {
-    const normalizedGlossaryFamilies = getNormalizedGlossaryFamilies(record);
-    if (!filters.glossaryFamiliesAny.some((family) => normalizedGlossaryFamilies.has(normalizeText(family)))) {
+  if (filters.familiesAny && filters.familiesAny.length > 0) {
+    const normalizedFamilies = getNormalizedFamilies(record);
+    if (!filters.familiesAny.some((family) => normalizedFamilies.has(normalizeText(family)))) {
       return false;
     }
   }
-  if (filters.excludeGlossaryFamilies && filters.excludeGlossaryFamilies.length > 0) {
-    const normalizedGlossaryFamilies = getNormalizedGlossaryFamilies(record);
-    if (filters.excludeGlossaryFamilies.some((family) => normalizedGlossaryFamilies.has(normalizeText(family)))) {
+  if (filters.excludeFamilies && filters.excludeFamilies.length > 0) {
+    const normalizedFamilies = getNormalizedFamilies(record);
+    if (filters.excludeFamilies.some((family) => normalizedFamilies.has(normalizeText(family)))) {
       return false;
     }
   }
@@ -4167,9 +4231,9 @@ export class Pf2eDataService {
       pack: pack?.name ?? filters.pack,
       category: normalizedCategory ?? undefined,
       subcategory: normalizedSubcategory ?? undefined,
-      glossaryFamiliesAll: normalizeGlossaryFamilyValues(filters.glossaryFamiliesAll),
-      glossaryFamiliesAny: normalizeGlossaryFamilyValues(filters.glossaryFamiliesAny),
-      excludeGlossaryFamilies: normalizeGlossaryFamilyValues(filters.excludeGlossaryFamilies),
+      familiesAll: normalizeFamilyValues(filters.familiesAll),
+      familiesAny: normalizeFamilyValues(filters.familiesAny),
+      excludeFamilies: normalizeFamilyValues(filters.excludeFamilies),
       scopes: normalizedScopes,
     };
   }
@@ -4235,8 +4299,7 @@ export class Pf2eDataService {
             r.description_snippet AS descriptionSnippet,
             r.source_category AS sourceCategory,
             r.folder_id AS folderId,
-            r.glossary_family AS glossaryFamily,
-            r.additional_glossary_families_json AS additionalGlossaryFamiliesJson,
+            r.families_json AS familiesJson,
             r.source_path AS sourcePath,
             r.is_unique AS isUnique,
             r.is_search_canonical AS isSearchCanonical,
@@ -4363,8 +4426,7 @@ export class Pf2eDataService {
                 r.description_snippet AS descriptionSnippet,
                 r.source_category AS sourceCategory,
                 r.folder_id AS folderId,
-                r.glossary_family AS glossaryFamily,
-                r.additional_glossary_families_json AS additionalGlossaryFamiliesJson,
+                r.families_json AS familiesJson,
             r.source_path AS sourcePath,
             r.is_unique AS isUnique,
             r.is_search_canonical AS isSearchCanonical,
@@ -4409,8 +4471,7 @@ export class Pf2eDataService {
                 r.description_snippet AS descriptionSnippet,
                 r.source_category AS sourceCategory,
                 r.folder_id AS folderId,
-                r.glossary_family AS glossaryFamily,
-                r.additional_glossary_families_json AS additionalGlossaryFamiliesJson,
+                r.families_json AS familiesJson,
             r.source_path AS sourcePath,
             r.is_unique AS isUnique,
             r.is_search_canonical AS isSearchCanonical,

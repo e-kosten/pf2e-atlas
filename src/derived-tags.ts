@@ -7,8 +7,7 @@ type DerivedTagContext = {
   subcategory: SearchSubcategory | null;
   descriptionText: string | null;
   traits: string[];
-  glossaryFamily?: string | null;
-  additionalGlossaryFamilies?: string[];
+  families?: string[];
   references?: DerivedTagReference[];
 };
 
@@ -34,8 +33,8 @@ type DerivedTagMatchClause = {
   score?: number;
   traitsAny?: string[];
   traitsAll?: string[];
-  glossaryFamiliesAny?: string[];
-  glossaryFamiliesAll?: string[];
+  familiesAny?: string[];
+  familiesAll?: string[];
   textAny?: TextAnchor[];
   textAll?: TextAnchor[];
   referencesAny?: string[];
@@ -62,7 +61,7 @@ type NormalizedDerivedTagContext = {
   category: SearchCategory;
   subcategory: SearchSubcategory | null;
   traits: Set<string>;
-  glossaryFamilies: Set<string>;
+  families: Set<string>;
   name: NormalizedTextView;
   description: NormalizedTextView;
   referenceKeys: Set<string>;
@@ -495,7 +494,7 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "creature",
     anyOf: [
       { traitsAny: ["undead", "ghost", "spirit", "skeleton", "ghoul"] },
-      { glossaryFamiliesAny: UNDEAD_GLOSSARY_FAMILIES },
+      { familiesAny: UNDEAD_GLOSSARY_FAMILIES },
     ],
   },
   {
@@ -618,7 +617,7 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     requiresTags: ["profession_npc"],
     noneOf: [
       { traitsAny: ["undead", "ghost", "spirit", "skeleton", "ghoul", "fey", "plant", "fungus", "leshy", "construct", "golem", "mindless", "giant", "dragon", "fiend", "ooze", "aberration"] },
-      { glossaryFamiliesAny: UNDEAD_GLOSSARY_FAMILIES },
+      { familiesAny: UNDEAD_GLOSSARY_FAMILIES },
     ],
   },
 ];
@@ -766,10 +765,10 @@ function matchesClause(context: NormalizedDerivedTagContext, clause: DerivedTagM
   if (clause.traitsAll && !clause.traitsAll.every((trait) => context.traits.has(normalizeText(trait)))) {
     return false;
   }
-  if (clause.glossaryFamiliesAny && !clause.glossaryFamiliesAny.some((family) => context.glossaryFamilies.has(normalizeText(family)))) {
+  if (clause.familiesAny && !clause.familiesAny.some((family) => context.families.has(normalizeText(family)))) {
     return false;
   }
-  if (clause.glossaryFamiliesAll && !clause.glossaryFamiliesAll.every((family) => context.glossaryFamilies.has(normalizeText(family)))) {
+  if (clause.familiesAll && !clause.familiesAll.every((family) => context.families.has(normalizeText(family)))) {
     return false;
   }
   if (clause.textAny && !clause.textAny.some((anchor) => matchesTextAnchor(context, anchor))) {
@@ -836,11 +835,7 @@ export function deriveRecordTags(input: DerivedTagContext): string[] {
     category: input.category,
     subcategory: input.subcategory,
     traits: new Set(input.traits.map((trait) => normalizeText(trait)).filter(Boolean)),
-    glossaryFamilies: new Set(
-      [input.glossaryFamily, ...(input.additionalGlossaryFamilies ?? [])]
-        .map((family) => (family ? normalizeText(family) : ""))
-        .filter(Boolean),
-    ),
+    families: new Set((input.families ?? []).map((family) => normalizeText(family)).filter(Boolean)),
     name: buildTextView(input.name),
     description: buildTextView(input.descriptionText ?? ""),
     referenceKeys: new Set((input.references ?? []).map((reference) => normalizeDerivedTagReference(`${reference.packName}:${reference.name}`))),

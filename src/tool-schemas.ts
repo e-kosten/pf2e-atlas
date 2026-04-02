@@ -66,7 +66,7 @@ export const sourceCategorySchema = z.enum(["core", "rules", "adventure", "unkno
 export const spellKindSchema = z.enum(["focus", "ritual", "cantrip"]);
 export const filterValueFieldSchema: z.ZodType<FilterValueField> = z.enum([
   "traits",
-  "glossaryFamilies",
+  "families",
   "derivedTags",
   "rarity",
   "size",

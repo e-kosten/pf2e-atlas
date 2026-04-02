@@ -164,8 +164,7 @@ export interface NormalizedRecord {
   descriptionSnippet: string | null;
   sourceCategory: SourceCategory;
   folderId: string | null;
-  glossaryFamily: string | null;
-  additionalGlossaryFamilies: string[];
+  families: string[];
   sourcePath: string;
   isUnique: boolean;
   size: string | null;
@@ -197,9 +196,9 @@ export interface SearchFilters {
   traitsAll?: string[];
   traitsAny?: string[];
   excludeTraits?: string[];
-  glossaryFamiliesAll?: string[];
-  glossaryFamiliesAny?: string[];
-  excludeGlossaryFamilies?: string[];
+  familiesAll?: string[];
+  familiesAny?: string[];
+  excludeFamilies?: string[];
   derivedTagsAll?: string[];
   derivedTagsAny?: string[];
   excludeDerivedTags?: string[];
@@ -220,7 +219,7 @@ export interface SearchFilters {
 
 export type FilterValueField =
   | "traits"
-  | "glossaryFamilies"
+  | "families"
   | "derivedTags"
   | "rarity"
   | "size"

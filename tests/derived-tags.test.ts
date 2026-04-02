@@ -188,7 +188,7 @@ describe("derived tag rules", () => {
       subcategory: null,
       descriptionText: "A thrall reshaped by a vampire master's curse.",
       traits: ["humanoid"],
-      glossaryFamily: "vampire",
+      families: ["vampire"],
     })).toContain("undead_threat");
 
     expect(deriveRecordTags({
@@ -197,7 +197,7 @@ describe("derived tag rules", () => {
       subcategory: null,
       descriptionText: "A manor guard who patrols the estate grounds.",
       traits: ["human", "humanoid"],
-      glossaryFamily: "vampire",
+      families: ["vampire"],
     })).toEqual(expect.arrayContaining(["profession_npc", "undead_threat"]));
 
     expect(deriveRecordTags({
@@ -206,7 +206,7 @@ describe("derived tag rules", () => {
       subcategory: null,
       descriptionText: "A manor guard who patrols the estate grounds.",
       traits: ["human", "humanoid"],
-      glossaryFamily: "vampire",
+      families: ["vampire"],
     })).not.toContain("scene_adjacent");
 
     expect(deriveRecordTags({
@@ -215,8 +215,7 @@ describe("derived tag rules", () => {
       subcategory: null,
       descriptionText: "A courtier sustained by impossible necromancy.",
       traits: ["humanoid"],
-      glossaryFamily: "mythic",
-      additionalGlossaryFamilies: ["lich"],
+      families: ["mythic", "lich"],
     })).toContain("undead_threat");
   });
 
