@@ -35,6 +35,22 @@ describe("derived tag rules", () => {
       descriptionText: "This contact poison is smeared on a weapon and afflicts the target through skin contact.",
       traits: ["alchemical", "consumable", "poison"],
     })).toEqual(expect.arrayContaining(["offensive", "weapon_applied", "contact_offense"]));
+
+    expect(deriveRecordTags({
+      name: "Potion of Cold Resistance",
+      category: "equipment",
+      subcategory: "consumable",
+      descriptionText: "Drinking this thick, fortifying potion grants resistance 10 against cold damage for 1 hour.",
+      traits: ["consumable", "magical", "potion"],
+    })).toEqual(expect.arrayContaining(["beneficial", "energy_resistance", "buff_support", "self_buff"]));
+
+    expect(deriveRecordTags({
+      name: "Antivenom Potion",
+      category: "equipment",
+      subcategory: "consumable",
+      descriptionText: "This cloudy liquid helps protect against poisons. When you drink an antivenom potion, you can immediately attempt to end persistent poison damage.",
+      traits: ["consumable", "magical", "potion"],
+    })).toEqual(expect.arrayContaining(["beneficial", "anti_poison", "self_buff"]));
   });
 
   it("derives expanded gear-purpose tags", () => {
@@ -87,6 +103,40 @@ describe("derived tag rules", () => {
       descriptionText: "Two separate outfits sewn together let you switch quickly between the two outfits.",
       traits: [],
     })).toEqual(expect.arrayContaining(["disguise", "social_infiltration"]));
+
+    expect(deriveRecordTags({
+      name: "Swallow-Spike",
+      category: "equipment",
+      subcategory: "gear",
+      descriptionText: "Your armor responds to your desire to break free of a creature grabbing you by growing spikes. Trigger You become Grabbed or Restrained.",
+      traits: [],
+      references: [
+        {
+          recordKey: "actionspf2e:escape-1",
+          packName: "actionspf2e",
+          name: "Escape",
+          category: "rule",
+          subcategory: "action",
+          traits: ["attack"],
+        },
+        {
+          recordKey: "conditionitems:grabbed-1",
+          packName: "conditionitems",
+          name: "Grabbed",
+          category: "rule",
+          subcategory: "condition",
+          traits: [],
+        },
+        {
+          recordKey: "conditionitems:restrained-1",
+          packName: "conditionitems",
+          name: "Restrained",
+          category: "rule",
+          subcategory: "condition",
+          traits: [],
+        },
+      ],
+    })).toContain("restraint_escape");
   });
 
   it("derives expanded creature context tags without adding redundant composites", () => {
@@ -178,6 +228,32 @@ describe("derived tag rules", () => {
       descriptionText: "Animated armor serves as guardians and training partners in martial academies.",
       traits: ["construct", "mindless"],
     })).not.toEqual(expect.arrayContaining(["profession_npc", "scene_adjacent"]));
+
+    expect(deriveRecordTags({
+      name: "Tangle Cuffs",
+      category: "equipment",
+      subcategory: "gear",
+      descriptionText: "These cuffs tighten around the target. On a hit, the target becomes Restrained until it Escapes.",
+      traits: [],
+      references: [
+        {
+          recordKey: "actionspf2e:escape-1",
+          packName: "actionspf2e",
+          name: "Escape",
+          category: "rule",
+          subcategory: "action",
+          traits: ["attack"],
+        },
+        {
+          recordKey: "conditionitems:restrained-1",
+          packName: "conditionitems",
+          name: "Restrained",
+          category: "rule",
+          subcategory: "condition",
+          traits: [],
+        },
+      ],
+    })).not.toContain("restraint_escape");
   });
 
   it("requires enough distinct evidence for weighted creature context tags", () => {
@@ -217,6 +293,7 @@ describe("derived tag rules", () => {
           expect.objectContaining({ value: "disguise", description: expect.any(String) }),
           expect.objectContaining({ value: "navigation", description: expect.any(String) }),
           expect.objectContaining({ value: "carry_support", description: expect.any(String) }),
+          expect.objectContaining({ value: "restraint_escape", description: expect.any(String) }),
         ]),
       }),
       expect.objectContaining({

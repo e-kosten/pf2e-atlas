@@ -11,6 +11,11 @@ Derived tags are not replacements for native PF2E traits. Keep the separation sh
 - native `traits` are authoritative game taxonomy
 - derived tags add retrieval-oriented function, context, polarity, or scene-fit signals that native traits do not express cleanly
 
+Repo-owned helper tooling for this skill:
+- `npm run evaluate-derived-tags -- --tag <derived_tag> [--category <category>] [--subcategory <subcategory>]`
+- Use it as an offline gap-discovery aid, not as a live tagging source of truth
+- Review its suggestions manually, then convert repeated real patterns into explicit deterministic rules and tests
+
 ## Workflow
 1. Read the current derived-tag surface first.
    Inspect:
@@ -50,15 +55,22 @@ Derived tags are not replacements for native PF2E traits. Keep the separation sh
    - direct derivation unit tests in `tests/derived-tags.test.ts`
    - service-level behavior in `tests/pf2e-data.test.ts`
    - rebuilt-corpus sanity checks when the rule change is meaningful enough to affect many records
-7. Spot-check for missing coverage, not just bad hits.
+7. Run the offline gap evaluator when coverage is the question.
+   Use `npm run evaluate-derived-tags -- --tag <derived_tag> ...` after identifying a likely sparse tag family or after a meaningful rebuild.
+   Treat the output as a review queue:
+   - likely false negatives to inspect manually
+   - semantically nearby untagged records that may suggest a missing rule or a missing tag family
+   - candidate records that should stay untagged, which help define blockers and negative gates
+   Do not directly convert evaluator suggestions into tags without explicit rule evidence.
+8. Spot-check for missing coverage, not just bad hits.
    Pull random samples of untagged canonical creatures and equipment from the rebuilt SQLite corpus. Use them to answer:
    - are these records truly fine without derived tags
    - is a current tag missing obvious coverage
    - is there a useful new tag family emerging from repeated patterns
    Prefer sampling by category and subcategory so the ontology grows from real gaps in the corpus instead of only from remembered examples.
-8. Validate in layers.
+9. Validate in layers.
    Run focused tests first, then build, then full test suite. Rebuild the index when the heuristic change is large enough that live corpus behavior matters.
-9. Summarize the outcome in retrieval terms.
+10. Summarize the outcome in retrieval terms.
    Report:
    - what tag families changed
    - what new coverage was added
@@ -131,10 +143,12 @@ Use `references/sanity-checks.md` for both regression checks and gap-discovery s
 After a meaningful heuristic change, always inspect:
 - known false-positive counters
 - named records that have failed before
+- evaluator suggestions for the changed or newly added tag family when coverage expansion is part of the goal
 - a random sample of untagged canonical creatures
 - a random sample of untagged canonical equipment, especially `gear` and `consumable` slices when item coverage is the target
 
 Treat untagged samples as a forward-looking backlog. Do not force every record to have a derived tag, but when the same practical concept appears repeatedly in random samples, consider whether the ontology is missing a useful tag or the current rules are too narrow.
+Treat evaluator output the same way: useful for discovery, but subordinate to deterministic rule design and explicit tests.
 
 ## Approval Checkpoint
 Before editing files, pause and present the intended change set as a small batch.
@@ -158,8 +172,9 @@ Default validation sequence:
 2. `npm run build`
 3. `npm test`
 4. `npm run refresh-index` when the heuristic change materially affects live tagging
-5. Run the SQLite sanity checks from the reference file
-6. Review at least one random untagged sample for creatures and one for equipment when the change is about expanding coverage
+5. Run `npm run evaluate-derived-tags -- --tag <derived_tag> ...` when the change is about expanding coverage or checking likely false negatives
+6. Run the SQLite sanity checks from the reference file
+7. Review at least one random untagged sample for creatures and one for equipment when the change is about expanding coverage
 
 ## Output Expectations
 When the user asks for iteration work, do not stop at proposing tags. Carry the change through:

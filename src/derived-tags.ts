@@ -131,6 +131,12 @@ const SOCIAL_INFILTRATION_REFERENCE_ANCHORS = [
   referenceAnchor("spells-srd", "Illusory Disguise"),
 ];
 
+const RESTRAINT_ESCAPE_REFERENCE_ANCHORS = [
+  referenceAnchor("actionspf2e", "Escape"),
+  referenceAnchor("conditionitems", "Grabbed"),
+  referenceAnchor("conditionitems", "Restrained"),
+];
+
 const DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "offensive",
@@ -191,9 +197,19 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
           tokenAnchor("curative"),
           tokenAnchor("antidote"),
           tokenAnchor("antiplague"),
+          tokenAnchor("protective"),
           tokenAnchor("catharsis"),
           tokenAnchor("healing"),
           tokenAnchor("darkvision"),
+          phraseAnchor("additional protection"),
+          phraseAnchor("absorb damage"),
+          phraseAnchor("temporary hit points"),
+          phraseAnchor("grants resistance"),
+          phraseAnchor("gain resistance"),
+          phraseAnchor("protect against poison"),
+          phraseAnchor("protect against poisons"),
+          phraseAnchor("protect against disease"),
+          phraseAnchor("protects you against"),
           phraseAnchor("resistance to"),
           phraseAnchor("gain a bonus"),
           phraseAnchor("bolsters the drinker"),
@@ -223,7 +239,7 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     subcategories: ["consumable"],
     requiresTags: ["beneficial"],
     anyOf: [
-      { textAny: [tokenAnchor("antidote"), phraseAnchor("against poison"), phraseAnchor("protect against poison"), phraseAnchor("resist poison"), phraseAnchor("ward off poison")] },
+      { textAny: [tokenAnchor("antidote"), phraseAnchor("against poison"), phraseAnchor("against poisons"), phraseAnchor("protect against poison"), phraseAnchor("protects you against poisons"), phraseAnchor("resist poison"), phraseAnchor("ward off poison"), phraseAnchor("persistent poison damage")] },
     ],
   },
   {
@@ -232,7 +248,7 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     subcategories: ["consumable"],
     requiresTags: ["beneficial"],
     anyOf: [
-      { textAny: [tokenAnchor("antiplague"), phraseAnchor("against disease"), phraseAnchor("protect against disease"), phraseAnchor("resist disease"), phraseAnchor("ward off disease")] },
+      { textAny: [tokenAnchor("antiplague"), phraseAnchor("against disease"), phraseAnchor("against diseases"), phraseAnchor("protect against disease"), phraseAnchor("resist disease"), phraseAnchor("ward off disease")] },
     ],
   },
   {
@@ -277,7 +293,7 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     subcategories: ["consumable"],
     requiresTags: ["beneficial"],
     anyOf: [
-      { textAny: [phraseAnchor("resistance to fire"), phraseAnchor("resistance to cold"), phraseAnchor("resistance to electricity"), phraseAnchor("resistance to acid"), phraseAnchor("resistance to sonic"), phraseAnchor("resistance to energy"), phraseAnchor("energy resistance")] },
+      { textAny: [phraseAnchor("resistance to fire"), phraseAnchor("resistance to cold"), phraseAnchor("resistance to electricity"), phraseAnchor("resistance to acid"), phraseAnchor("resistance to sonic"), phraseAnchor("resistance to energy"), phraseAnchor("energy resistance"), phraseAnchor("against fire damage"), phraseAnchor("against cold damage"), phraseAnchor("against electricity damage"), phraseAnchor("against acid damage"), phraseAnchor("against sonic damage")] },
     ],
   },
   {
@@ -286,7 +302,7 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     subcategories: ["consumable"],
     requiresTags: ["beneficial"],
     anyOf: [
-      { textAny: [phraseAnchor("gain a bonus"), phraseAnchor("bonus to"), tokenAnchor("bolster"), tokenAnchor("enhance"), tokenAnchor("empower"), phraseAnchor("heighten your senses"), phraseAnchor("increase your speed"), phraseAnchor("resistance to")] },
+      { textAny: [phraseAnchor("gain a bonus"), phraseAnchor("bonus to"), tokenAnchor("bolster"), tokenAnchor("enhance"), tokenAnchor("empower"), phraseAnchor("heighten your senses"), phraseAnchor("increase your speed"), phraseAnchor("resistance to"), phraseAnchor("grants resistance"), phraseAnchor("temporary hit points"), phraseAnchor("additional protection"), phraseAnchor("absorb damage")] },
     ],
   },
   {
@@ -295,7 +311,7 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     subcategories: ["consumable"],
     requiresTags: ["beneficial"],
     anyOf: [
-      { textAny: [phraseAnchor("you gain"), phraseAnchor("the drinker gains"), phraseAnchor("gain a bonus"), phraseAnchor("you become"), phraseAnchor("you gain resistance"), phraseAnchor("you gain darkvision")] },
+      { textAny: [phraseAnchor("you gain"), phraseAnchor("the drinker gains"), phraseAnchor("gain a bonus"), phraseAnchor("you become"), phraseAnchor("you gain resistance"), phraseAnchor("you gain darkvision"), phraseAnchor("protects you against"), phraseAnchor("when you drink"), phraseAnchor("drinking this"), phraseAnchor("spreading the salve on exposed skin")] },
     ],
   },
   {
@@ -421,6 +437,38 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     subcategories: GEARISH_SUBCATEGORIES,
     anyOf: [
       { textAny: [tokenAnchor("storage"), tokenAnchor("stow"), tokenAnchor("carry"), tokenAnchor("haul"), tokenAnchor("pouch"), tokenAnchor("backpack"), tokenAnchor("container"), tokenAnchor("pack")] },
+    ],
+  },
+  {
+    tag: "restraint_escape",
+    category: "equipment",
+    subcategories: GEARISH_SUBCATEGORIES,
+    threshold: 2,
+    anyOf: [
+      {
+        score: 2,
+        textAny: [
+          phraseAnchor("break free"),
+          phraseAnchor("free of a creature grabbing you"),
+          phraseAnchor("difficult to hold back"),
+          phraseAnchor("whenever you are affected by an effect that lasts until you"),
+          phraseAnchor("trigger you become"),
+        ],
+        referencesAny: RESTRAINT_ESCAPE_REFERENCE_ANCHORS,
+      },
+    ],
+    noneOf: [
+      {
+        textAny: [
+          phraseAnchor("target becomes grabbed"),
+          phraseAnchor("target becomes restrained"),
+          phraseAnchor("creature becomes grabbed"),
+          phraseAnchor("creature becomes restrained"),
+          phraseAnchor("restrain the target"),
+          phraseAnchor("grabs the target"),
+          phraseAnchor("tighten the loop"),
+        ],
+      },
     ],
   },
   {
@@ -608,6 +656,7 @@ export const DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
       { value: "transport", description: "Helps move creatures or cargo from place to place." },
       { value: "trap_bypass", description: "Helps disarm, disable, or get past traps." },
       { value: "carry_support", description: "Helps stow, carry, or organize equipment." },
+      { value: "restraint_escape", description: "Helps break free from grabs, restraints, or similar immobilizing holds." },
     ],
   },
   {
