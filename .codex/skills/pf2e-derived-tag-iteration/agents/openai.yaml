@@ -1,0 +1,4 @@
+interface:
+  display_name: "PF2E Tag Iteration"
+  short_description: "Iterate on PF2E derived tag coverage"
+  default_prompt: "Use $pf2e-derived-tag-iteration to expand and validate PF2E derived tags in the Pathfinder MCP repo."
