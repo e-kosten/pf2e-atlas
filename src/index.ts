@@ -6,6 +6,7 @@ import * as z from "zod/v4";
 
 import { CATEGORY_SUBCATEGORY_MAP } from "./categories.js";
 import { loadConfig } from "./config.js";
+import { getMetadataFilterSemantics } from "./metadata-semantics.js";
 import { Pf2eDataService } from "./pf2e-data.js";
 import { RankingConfigStore } from "./ranking-config.js";
 import {
@@ -153,6 +154,7 @@ async function main(): Promise<void> {
     },
     async ({ traitLimitPerCategory }) => {
       const vocabulary = dataService.getSearchVocabulary({ traitLimitPerCategory });
+      const metadataSemantics = getMetadataFilterSemantics();
       return {
         content: [
           {
@@ -237,60 +239,17 @@ async function main(): Promise<void> {
             actionCost: "Numeric action-cost boundary shared by spells and item activations.",
             note: "Use top-level boundaries first; use metadata for typed field predicates and boolean composition.",
           },
-          metadataDsl: {
-            booleanGroups: {
-              and: "Requires every child predicate or group to match. Must contain at least 2 child nodes.",
-              or: "Requires at least one child predicate or group to match. Must contain at least 2 child nodes.",
-              not: "Negates exactly one child predicate or group.",
+          metadataFilters: {
+            ...metadataSemantics,
+            notes: {
+              useCase: "Use metadata filters for category-specific facets after top-level category, subcategory, scopes, and numeric bounds.",
+              applicability: "metadataFieldsByCategory is the primary discovery surface for which metadata fields are meaningful within a category.",
+              subcategoryNarrowing: "metadataFieldsByCategoryAndSubcategory is intentionally sparse and only lists narrower cases where a field is more specific than its parent category.",
             },
-            fieldTypes: [
-              {
-                type: "set",
-                operators: ["includesAny", "includesAll", "excludesAny"],
-                fields: ["traits", "families", "derivedTags", "traditions", "spellKinds", "damageTypes", "languages", "speedTypes", "immunities", "resistances", "weaknesses"],
-              },
-              {
-                type: "enumString",
-                operators: ["eq", "in", "notIn"],
-                fields: ["sourceCategory", "size", "usage", "weaponGroup", "armorGroup", "itemCategory", "rarity"],
-              },
-              {
-                type: "text",
-                operators: ["contains", "notContains"],
-                fields: ["publicationTitle"],
-              },
-              {
-                type: "number",
-                operators: ["eq", "gte", "lte", "between"],
-                fields: ["level", "priceCp", "bulkValue", "actionCost", "hands", "rangeValue"],
-              },
-              {
-                type: "boolean",
-                operators: ["eq"],
-                fields: ["isUnique", "hasDescription", "publicationRemaster"],
-              },
-            ],
-            examples: [
-              {
-                label: "One-handed bombs",
-                metadata: {
-                  and: [
-                    { field: "weaponGroup", op: "eq", value: "bomb" },
-                    { field: "hands", op: "eq", value: 1 },
-                  ],
-                },
-              },
-              {
-                label: "Core creatures without the water trait",
-                metadata: {
-                  and: [
-                    { field: "sourceCategory", op: "eq", value: "core" },
-                    { field: "traits", op: "excludesAny", values: ["water"] },
-                  ],
-                },
-              },
-            ],
-            discoverableFields: ["traits", "families", "derivedTags", "publicationTitle", "sources", "categories", "subcategories", "packs", "weaponGroup", "armorGroup", "usage", "damageTypes", "languages", "speedTypes", "immunities", "resistances", "weaknesses", "itemCategory"],
+          },
+          filterValueDiscovery: {
+            nonMetadataFields: ["sources", "categories", "subcategories", "packs"],
+            note: "pf2e_list_filter_values enumerates live values for one chosen field. Learn which metadata fields are meaningful from metadataFilters first.",
           },
           heuristicVocabulary: {
             commonDerivedTagsByCategory: vocabulary.commonDerivedTagsByCategory,
