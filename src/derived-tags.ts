@@ -218,6 +218,16 @@ const RESTRAINT_CAPTURE_REFERENCE_ANCHORS = [
   referenceAnchor("conditionitems", "Restrained"),
 ];
 
+const STRONG_RESTRAINT_CAPTURE_NAME_ANCHORS: TextAnchor[] = [
+  tokenAnchor("handcuffs", "name"),
+  tokenAnchor("manacles", "name"),
+];
+
+const WEAK_RESTRAINT_CAPTURE_NAME_ANCHORS: TextAnchor[] = [
+  tokenAnchor("lasso", "name"),
+  tokenAnchor("net", "name"),
+];
+
 const MOBILITY_REFERENCE_ANCHORS = [
   referenceAnchor("actionspf2e", "Balance"),
   referenceAnchor("actionspf2e", "Climb"),
@@ -791,8 +801,7 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
       {
         score: 2,
         textAll: [
-          tokenAnchor("athletics"),
-          tokenAnchor("escape"),
+          phraseAnchor("bonus to athletics checks"),
         ],
         referencesAny: [referenceAnchor("actionspf2e", "Escape")],
       },
@@ -807,6 +816,10 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
           phraseAnchor("restrain the target"),
           phraseAnchor("grabs the target"),
           phraseAnchor("tighten the loop"),
+          phraseAnchor("escape dc"),
+          phraseAnchor("can continue to grapple to keep your hold on the target"),
+          phraseAnchor("gains a bonus to escape"),
+          phraseAnchor("escape the net"),
         ],
       },
     ],
@@ -823,6 +836,8 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
           phraseAnchor("cinched down on a captive"),
           phraseAnchor("at your mercy"),
           phraseAnchor("legs bound"),
+          phraseAnchor("locked around an immobilized creature s wrists"),
+          phraseAnchor("captured enemies"),
         ],
       },
       {
@@ -841,6 +856,23 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
           phraseAnchor("up to 10 feet away"),
         ],
         referencesAny: RESTRAINT_CAPTURE_REFERENCE_ANCHORS,
+      },
+      {
+        score: 2,
+        textAny: STRONG_RESTRAINT_CAPTURE_NAME_ANCHORS,
+      },
+      {
+        score: 2,
+        textAny: WEAK_RESTRAINT_CAPTURE_NAME_ANCHORS,
+        referencesAny: RESTRAINT_CAPTURE_REFERENCE_ANCHORS,
+      },
+      {
+        score: 2,
+        textAny: [
+          phraseAnchor("functions as a typical net"),
+          phraseAnchor("grapple with the net"),
+        ],
+        referencesAny: [referenceAnchor("actionspf2e", "Grapple")],
       },
     ],
     noneOf: [

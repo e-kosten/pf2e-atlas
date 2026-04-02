@@ -391,6 +391,146 @@ describe("derived tag rules", () => {
     })).toContain("restraint_capture");
 
     expect(deriveRecordTags({
+      name: "Lawbringer's Lasso",
+      category: "equipment",
+      subcategory: "gear",
+      descriptionText: "This enchanted lasso can be used to Grapple creatures up to 30 feet away and has an Escape DC of 18.",
+      traits: ["lawful", "magical"],
+      references: [
+        {
+          recordKey: "actionspf2e:grapple-1",
+          packName: "actionspf2e",
+          name: "Grapple",
+          category: "rule",
+          subcategory: "action",
+          traits: ["attack"],
+        },
+        {
+          recordKey: "actionspf2e:escape-1",
+          packName: "actionspf2e",
+          name: "Escape",
+          category: "rule",
+          subcategory: "action",
+          traits: ["attack"],
+        },
+      ],
+    })).toContain("restraint_capture");
+
+    expect(deriveRecordTags({
+      name: "Lawbringer's Lasso",
+      category: "equipment",
+      subcategory: "gear",
+      descriptionText: "This enchanted lasso can be used to Grapple creatures up to 30 feet away and has an Escape DC of 18.",
+      traits: ["lawful", "magical"],
+      references: [
+        {
+          recordKey: "actionspf2e:grapple-1",
+          packName: "actionspf2e",
+          name: "Grapple",
+          category: "rule",
+          subcategory: "action",
+          traits: ["attack"],
+        },
+        {
+          recordKey: "actionspf2e:escape-1",
+          packName: "actionspf2e",
+          name: "Escape",
+          category: "rule",
+          subcategory: "action",
+          traits: ["attack"],
+        },
+      ],
+    })).not.toContain("restraint_escape");
+
+    expect(deriveRecordTags({
+      name: "Injigo's Loving Embrace",
+      category: "equipment",
+      subcategory: "gear",
+      descriptionText: "Injigo's Loving Embrace functions as a typical net. You gain a +1 item bonus to Athletics checks to Grapple with the net. The creature must succeed at a DC 25 check to Escape the net.",
+      traits: ["magical"],
+      references: [
+        {
+          recordKey: "actionspf2e:grapple-1",
+          packName: "actionspf2e",
+          name: "Grapple",
+          category: "rule",
+          subcategory: "action",
+          traits: ["attack"],
+        },
+      ],
+    })).toContain("restraint_capture");
+
+    expect(deriveRecordTags({
+      name: "Injigo's Loving Embrace",
+      category: "equipment",
+      subcategory: "gear",
+      descriptionText: "Injigo's Loving Embrace functions as a typical net. You gain a +1 item bonus to Athletics checks to Grapple with the net. The creature must succeed at a DC 25 check to Escape the net.",
+      traits: ["magical"],
+      references: [
+        {
+          recordKey: "actionspf2e:grapple-1",
+          packName: "actionspf2e",
+          name: "Grapple",
+          category: "rule",
+          subcategory: "action",
+          traits: ["attack"],
+        },
+      ],
+    })).not.toContain("restraint_escape");
+
+    expect(deriveRecordTags({
+      name: "False Manacles",
+      category: "equipment",
+      subcategory: "gear",
+      descriptionText: "These manacles are nearly indistinguishable from real manacles upon inspection, but contain a hidden release.",
+      traits: [],
+    })).toContain("restraint_capture");
+
+    expect(deriveRecordTags({
+      name: "Manacles of Persuasion",
+      category: "equipment",
+      subcategory: "gear",
+      descriptionText: "When the manacles are locked around an immobilized creature's wrists, they begin to sap the life out of the victim.",
+      traits: ["magical"],
+    })).toContain("restraint_capture");
+
+    expect(deriveRecordTags({
+      name: "Titan's Grasp",
+      category: "equipment",
+      subcategory: "gear",
+      descriptionText: "You gain a +3 item bonus to Athletics checks to Grapple. If you successfully Grapple an enemy larger than you, the gauntlets dig into it.",
+      traits: ["invested", "magical"],
+      references: [
+        {
+          recordKey: "actionspf2e:grapple-1",
+          packName: "actionspf2e",
+          name: "Grapple",
+          category: "rule",
+          subcategory: "action",
+          traits: ["attack"],
+        },
+      ],
+    })).not.toContain("restraint_capture");
+
+    expect(deriveRecordTags({
+      name: "Bracers of Strength",
+      category: "equipment",
+      subcategory: "gear",
+      descriptionText: "You gain a +3 item bonus to Athletics checks and a +2 circumstance bonus to Athletics checks to Escape and Force Open.",
+      traits: ["invested", "magical"],
+      references: [
+        {
+          recordKey: "actionspf2e:escape-1",
+          packName: "actionspf2e",
+          name: "Escape",
+          category: "rule",
+          subcategory: "action",
+          traits: ["attack"],
+        },
+      ],
+    })).toContain("restraint_escape");
+
+    expect(deriveRecordTags({
       name: "Potion of Disguise",
       category: "equipment",
       subcategory: "consumable",
@@ -611,6 +751,14 @@ describe("derived tag rules", () => {
         },
       ],
     })).not.toContain("restraint_escape");
+
+    expect(deriveRecordTags({
+      name: "Net Launcher",
+      category: "equipment",
+      subcategory: "gear",
+      descriptionText: "This wide tube fires an unattached net at much greater range than one can be thrown. A net fired with a net launcher can target a Medium or smaller creature within 40 feet.",
+      traits: [],
+    })).not.toContain("restraint_capture");
 
     expect(deriveRecordTags({
       name: "Orchestral Brooch",

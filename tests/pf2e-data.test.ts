@@ -1226,6 +1226,78 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
     },
   });
 
+  await writeJson(path.join(packRoot, "equipment-srd", "lawbringers-lasso.json"), {
+    _id: "equip-lawbringers-lasso-1",
+    name: "Lawbringer's Lasso",
+    type: "equipment",
+    system: {
+      description: {
+        value: "<p>This enchanted lasso is a @UUID[Compendium.pf2e.equipment-srd.Item.Net]{Net} that can be used to @UUID[Compendium.pf2e.actionspf2e.Item.Grapple]{Grapple} creatures up to 30 feet away and has an @UUID[Compendium.pf2e.actionspf2e.Item.Escape]{Escape} DC of 18.</p>",
+      },
+      publication: {
+        title: "Pathfinder Lost Omens Knights of Lastwall",
+      },
+      traits: {
+        rarity: "common",
+        value: ["lawful", "magical"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment-srd", "injigos-loving-embrace.json"), {
+    _id: "equip-injigos-loving-embrace-1",
+    name: "Injigo's Loving Embrace",
+    type: "equipment",
+    system: {
+      description: {
+        value: "<p>Injigo's Loving Embrace functions as a typical net. You gain a +1 item bonus to Athletics checks to @UUID[Compendium.pf2e.actionspf2e.Item.Grapple]{Grapple} with the net.</p><p>The creature must succeed at a DC 25 check to @UUID[Compendium.pf2e.actionspf2e.Item.Escape]{Escape} the net.</p>",
+      },
+      publication: {
+        title: "Pathfinder Treasure Vault",
+      },
+      traits: {
+        rarity: "common",
+        value: ["magical"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment-srd", "false-manacles.json"), {
+    _id: "equip-false-manacles-1",
+    name: "False Manacles",
+    type: "equipment",
+    system: {
+      description: {
+        value: "<p>These manacles are nearly indistinguishable from real manacles upon inspection, but contain a hidden release that enables a wearer who knows the location of the release to free themselves with a single Interact action.</p>",
+      },
+      publication: {
+        title: "Pathfinder Lost Omens Impossible Lands",
+      },
+      traits: {
+        rarity: "common",
+        value: [],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment-srd", "manacles-of-persuasion.json"), {
+    _id: "equip-manacles-of-persuasion-1",
+    name: "Manacles of Persuasion",
+    type: "equipment",
+    system: {
+      description: {
+        value: "<p>When the manacles are locked around an immobilized creature's wrists, they begin to sap the life out of the victim.</p>",
+      },
+      publication: {
+        title: "Pathfinder Lost Omens Gods & Magic",
+      },
+      traits: {
+        rarity: "common",
+        value: ["magical"],
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "equipment", "ghost-charge-prototype.json"), {
     _id: "weapon-bomb-1",
     name: "Ghost Charge Prototype",
@@ -2686,7 +2758,7 @@ describe("Pf2eDataService", () => {
     const service = await loadTestService(fixture);
 
     expect(service.listPacks()).toHaveLength(16);
-    expect(service.getStats()).toEqual({ packCount: 16, recordCount: 93 });
+    expect(service.getStats()).toEqual({ packCount: 16, recordCount: 97 });
     expect(service.getPack("Actions")?.name).toBe("actions");
   });
 
@@ -2752,8 +2824,8 @@ describe("Pf2eDataService", () => {
     expect(service.listRecords({ category: "equipment", subcategory: "consumable", metadata: { field: "derivedTags", op: "excludesAny", values: ["offensive"] } }).records.map((record) => record.name)).not.toContain("Sightless Tincture");
     expect(service.listRecords({ category: "equipment", subcategory: "gear", metadata: { field: "derivedTags", op: "includesAny", values: ["social_infiltration"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Masquerade Scarf", "Quick-Change Outfit"]));
     expect(service.listRecords({ category: "equipment", subcategory: "gear", metadata: { field: "derivedTags", op: "includesAny", values: ["restraint_escape"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Shacklebreaker", "Swallow-Spike"]));
-    expect(service.listRecords({ category: "equipment", subcategory: "gear", metadata: { field: "derivedTags", op: "includesAny", values: ["restraint_escape"] } }).records.map((record) => record.name)).not.toEqual(expect.arrayContaining(["Catch Pole", "Handcuffs (Average)"]));
-    expect(service.listRecords({ category: "equipment", subcategory: "gear", metadata: { field: "derivedTags", op: "includesAny", values: ["restraint_capture"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Catch Pole", "Handcuffs (Average)"]));
+    expect(service.listRecords({ category: "equipment", subcategory: "gear", metadata: { field: "derivedTags", op: "includesAny", values: ["restraint_escape"] } }).records.map((record) => record.name)).not.toEqual(expect.arrayContaining(["Catch Pole", "Handcuffs (Average)", "Lawbringer's Lasso", "Injigo's Loving Embrace"]));
+    expect(service.listRecords({ category: "equipment", subcategory: "gear", metadata: { field: "derivedTags", op: "includesAny", values: ["restraint_capture"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Catch Pole", "Handcuffs (Average)", "Lawbringer's Lasso", "Injigo's Loving Embrace", "False Manacles", "Manacles of Persuasion"]));
     expect(service.listRecords({ category: "equipment", subcategory: "gear", metadata: { field: "derivedTags", op: "includesAny", values: ["restraint_capture"] } }).records.map((record) => record.name)).not.toContain("Shacklebreaker");
     expect(service.listRecords({ category: "spell", metadata: { field: "derivedTags", op: "includesAny", values: ["disguise"] } }).records.map((record) => record.name)).toEqual(["Illusory Disguise"]);
     expect(service.listRecords({ category: "spell", metadata: { field: "derivedTags", op: "includesAny", values: ["social_infiltration"] } }).records.map((record) => record.name)).toEqual(["Illusory Disguise"]);
@@ -2851,6 +2923,17 @@ describe("Pf2eDataService", () => {
     expect(shacklebreaker?.derivedTags).not.toContain("restraint_capture");
     const swallowSpike = service.lookup("Swallow-Spike", { category: "equipment" }).match;
     expect(swallowSpike?.derivedTags).toContain("restraint_escape");
+    const lawbringersLasso = service.lookup("Lawbringer's Lasso", { category: "equipment" }).match;
+    expect(lawbringersLasso?.derivedTags).toContain("restraint_capture");
+    expect(lawbringersLasso?.derivedTags).not.toContain("restraint_escape");
+    const injigosLovingEmbrace = service.lookup("Injigo's Loving Embrace", { category: "equipment" }).match;
+    expect(injigosLovingEmbrace?.derivedTags).toContain("restraint_capture");
+    expect(injigosLovingEmbrace?.derivedTags).not.toContain("restraint_escape");
+    const falseManacles = service.lookup("False Manacles", { category: "equipment" }).match;
+    expect(falseManacles?.derivedTags).toContain("restraint_capture");
+    expect(falseManacles?.derivedTags).not.toContain("restraint_escape");
+    const manaclesOfPersuasion = service.lookup("Manacles of Persuasion", { category: "equipment" }).match;
+    expect(manaclesOfPersuasion?.derivedTags).toContain("restraint_capture");
     const handcuffs = service.lookup("Handcuffs (Average)", { category: "equipment" }).match;
     expect(handcuffs?.derivedTags).toContain("restraint_capture");
     expect(handcuffs?.derivedTags).not.toContain("restraint_escape");
@@ -3569,12 +3652,12 @@ describe("Pf2eDataService", () => {
     const indexPath = path.join(fixture.root, ".cache", "pf2e-index.sqlite");
 
     const firstService = await loadTestService(fixture, { indexPath });
-    expect(firstService.getStats()).toEqual({ packCount: 16, recordCount: 93 });
+    expect(firstService.getStats()).toEqual({ packCount: 16, recordCount: 97 });
     firstService.close();
 
     const firstMtime = (await import("node:fs/promises")).stat(indexPath).then((details) => details.mtimeMs);
     const unchangedService = await openPreparedTestService(fixture, { indexPath });
-    expect(unchangedService.getStats()).toEqual({ packCount: 16, recordCount: 93 });
+    expect(unchangedService.getStats()).toEqual({ packCount: 16, recordCount: 97 });
     unchangedService.close();
     const secondMtime = (await import("node:fs/promises")).stat(indexPath).then((details) => details.mtimeMs);
     expect(await secondMtime).toBe(await firstMtime);
@@ -3606,7 +3689,7 @@ describe("Pf2eDataService", () => {
     await expect(openPreparedTestService(fixture, { indexPath })).rejects.toThrow(/index .* stale/i);
 
     const rebuiltService = await loadTestService(fixture, { indexPath });
-    expect(rebuiltService.getStats()).toEqual({ packCount: 16, recordCount: 94 });
+    expect(rebuiltService.getStats()).toEqual({ packCount: 16, recordCount: 98 });
     expect(rebuiltService.lookup("Sea Ghoul", { category: "creature" }).match?.name).toBe("Sea Ghoul");
     rebuiltService.close();
   });
@@ -3618,7 +3701,7 @@ describe("Pf2eDataService", () => {
     const indexPath = path.join(fixture.root, ".cache", "pf2e-index.sqlite");
 
     const firstService = await loadTestService(fixture, { indexPath });
-    expect(firstService.getStats()).toEqual({ packCount: 16, recordCount: 93 });
+    expect(firstService.getStats()).toEqual({ packCount: 16, recordCount: 97 });
     firstService.close();
 
     await writeJson(path.join(fixture.root, "packs", "pf2e", "pathfinder-monster-core", "sea-ghoul-untracked.json"), {
