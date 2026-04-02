@@ -41,6 +41,7 @@ export type EmbeddingProviderIdentity = {
 export interface EmbeddingProvider {
   readonly identity: EmbeddingProviderIdentity;
   embed(text: string): Promise<Float32Array>;
+  embedMany(texts: string[]): Promise<Float32Array[]>;
 }
 
 export type PreparedEmbeddingAssets = {
@@ -66,7 +67,14 @@ export class HashEmbeddingProvider implements EmbeddingProvider {
   }
 
   async embed(text: string): Promise<Float32Array> {
-    const normalized = normalizeText(text);
+    return this.embedNormalized(normalizeText(text));
+  }
+
+  async embedMany(texts: string[]): Promise<Float32Array[]> {
+    return texts.map((text) => this.embedNormalized(normalizeText(text)));
+  }
+
+  private embedNormalized(normalized: string): Float32Array {
     const vector = new Float32Array(this.identity.dimensions);
     if (!normalized) {
       return vector;
@@ -101,18 +109,34 @@ export class HuggingFaceEmbeddingProvider implements EmbeddingProvider {
   }
 
   async embed(text: string): Promise<Float32Array> {
-    const normalized = normalizeText(text);
-    if (!normalized) {
-      return new Float32Array(this.identity.dimensions);
+    const [embedding] = await this.embedMany([text]);
+    return embedding ?? new Float32Array(this.identity.dimensions);
+  }
+
+  async embedMany(texts: string[]): Promise<Float32Array[]> {
+    const vectors = texts.map(() => new Float32Array(this.identity.dimensions));
+    const normalizedEntries = texts
+      .map((text, index) => ({ index, text: normalizeText(text) }))
+      .filter((entry) => entry.text.length > 0);
+
+    if (normalizedEntries.length === 0) {
+      return vectors;
     }
 
-    const output = await this.extractor(normalized, {
+    const output = await this.extractor(normalizedEntries.map((entry) => entry.text), {
       pooling: "mean",
       normalize: true,
     });
-    return output.data instanceof Float32Array
-      ? new Float32Array(output.data)
-      : Float32Array.from(output.data);
+    const data = toFloat32Array(output.data);
+    const dimensions = Number(output.dims?.at(-1) ?? this.identity.dimensions);
+
+    for (const [batchIndex, entry] of normalizedEntries.entries()) {
+      const start = batchIndex * dimensions;
+      const end = start + dimensions;
+      vectors[entry.index] = new Float32Array(data.slice(start, end));
+    }
+
+    return vectors;
   }
 }
 
@@ -216,6 +240,10 @@ function buildRuntimeEmbeddingErrorMessage(config: EmbeddingConfig, error: unkno
     `Run 'npm run refresh-embeddings' or 'npm run refresh-external' first, then retry startup.`,
     `Underlying error: ${reason}`,
   ].join(" ");
+}
+
+function toFloat32Array(data: Float32Array | number[]): Float32Array {
+  return data instanceof Float32Array ? data : Float32Array.from(data);
 }
 
 function hashText(value: string): number {

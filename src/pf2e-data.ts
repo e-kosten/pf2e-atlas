@@ -79,10 +79,12 @@ import {
 import { buildLiteralQueryWeights, buildSearchQueryAnalysis } from "./search-query-analysis.js";
 
 const execFileAsync = promisify(execFile);
-const INDEX_SCHEMA_VERSION = 15;
+const INDEX_SCHEMA_VERSION = 16;
 const VEC_TEXT_NONE = "";
 const VEC_INT_NONE = -1n;
 const LOOKUP_LEXICAL_TOP_K = 100;
+const EMBEDDING_BATCH_SIZE = 64;
+const MAX_ACTOR_SEMANTIC_ITEM_CHUNKS = 40;
 
 type LoadOptions = {
   indexPath?: string;
@@ -97,6 +99,11 @@ type LoadOptions = {
 };
 
 type SqlValue = string | number | bigint | Uint8Array | Buffer | null;
+
+type StageTiming = {
+  label: string;
+  durationMs: number;
+};
 
 type CandidateRow = {
   recordKey: string;
@@ -257,6 +264,11 @@ type RecordLegacyLinkRow = {
   sourceRef: string;
 };
 
+type PendingCanonicalEmbedding = {
+  record: NormalizedIndexRecord;
+  encodedEmbeddingInput: string;
+};
+
 type ActorIndexData = {
   size: string | null;
   languages: string[];
@@ -317,6 +329,22 @@ function cosineSimilarity(left: Float32Array, right: Float32Array): number {
   }
 
   return total;
+}
+
+function formatDurationMs(durationMs: number): string {
+  const totalSeconds = Math.max(0, Math.round(durationMs / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m ${seconds}s`;
+  }
+  if (minutes > 0) {
+    return `${minutes}m ${seconds}s`;
+  }
+
+  return `${seconds}s`;
 }
 
 function normalizeVecText(value: string | null | undefined): string {
@@ -597,6 +625,55 @@ function parseSpellIndexData(raw: Record<string, unknown>): SpellIndexData {
   };
 }
 
+function appendUniqueTextChunk(chunks: string[], seen: Set<string>, value: string | null | undefined): boolean {
+  if (!value) {
+    return false;
+  }
+
+  const normalized = normalizeText(value);
+  if (!normalized || seen.has(normalized)) {
+    return false;
+  }
+
+  seen.add(normalized);
+  chunks.push(value.trim());
+  return true;
+}
+
+function buildActorSemanticItemChunks(raw: Record<string, unknown>): string[] {
+  const chunks: string[] = [];
+  const seen = new Set<string>();
+  const items = getNested(raw, ["items"]);
+  if (!Array.isArray(items)) {
+    return chunks;
+  }
+
+  for (const entry of items) {
+    if (!entry || typeof entry !== "object") {
+      continue;
+    }
+
+    const item = entry as Record<string, unknown>;
+    appendUniqueTextChunk(chunks, seen, firstString(item.name));
+    if (chunks.length >= MAX_ACTOR_SEMANTIC_ITEM_CHUNKS) {
+      break;
+    }
+
+    for (const trait of getTraits(item)) {
+      appendUniqueTextChunk(chunks, seen, trait);
+      if (chunks.length >= MAX_ACTOR_SEMANTIC_ITEM_CHUNKS) {
+        break;
+      }
+    }
+
+    if (chunks.length >= MAX_ACTOR_SEMANTIC_ITEM_CHUNKS) {
+      break;
+    }
+  }
+
+  return chunks;
+}
+
 function buildSearchText(raw: Record<string, unknown>, base: { name: string; descriptionText: string | null; traits: string[] }): string {
   const chunks: string[] = [base.name, ...base.traits];
   if (base.descriptionText) {
@@ -628,6 +705,35 @@ function buildSearchText(raw: Record<string, unknown>, base: { name: string; des
     .filter((value): value is string => Boolean(value))
     .join("\n")
     .trim();
+}
+
+function buildSemanticEmbeddingText(record: NormalizedIndexRecord, raw: Record<string, unknown>, aliases: string[]): string {
+  const chunks: string[] = [];
+  const seen = new Set<string>();
+
+  appendUniqueTextChunk(chunks, seen, record.name);
+  for (const trait of record.traits) {
+    appendUniqueTextChunk(chunks, seen, trait);
+  }
+  for (const family of record.families) {
+    appendUniqueTextChunk(chunks, seen, family);
+  }
+  for (const tag of record.derivedTags) {
+    appendUniqueTextChunk(chunks, seen, tag);
+  }
+  appendUniqueTextChunk(chunks, seen, record.descriptionSnippet);
+
+  if (record.documentType === "Actor") {
+    for (const itemChunk of buildActorSemanticItemChunks(raw)) {
+      appendUniqueTextChunk(chunks, seen, itemChunk);
+    }
+  }
+
+  for (const alias of aliases) {
+    appendUniqueTextChunk(chunks, seen, alias);
+  }
+
+  return chunks.join("\n").trim();
 }
 
 function hasDescriptionText(descriptionText: string | null): boolean {
@@ -2941,7 +3047,7 @@ async function buildIndex(
   sourceSignature: string,
   progressLogger?: (message: string) => void,
   progressStatusLogger?: (message: string) => void,
-): Promise<{ packs: PackInfo[]; warnings: string[]; recordCount: number }> {
+): Promise<{ packs: PackInfo[]; warnings: string[]; recordCount: number; stageTimings: StageTiming[] }> {
   const manifestRaw = JSON.parse(await readFile(manifestPath, "utf8")) as { packs?: PackManifestEntry[] };
   const manifestPacks = Array.isArray(manifestRaw.packs) ? manifestRaw.packs : [];
   const includedManifestPacks = manifestPacks.filter((manifestPack) => !isExcludedPackName(manifestPack.name));
@@ -2951,6 +3057,12 @@ async function buildIndex(
   let recordCount = 0;
   let processedPackCount = 0;
   const sourceEntries: BuildSourceEntry[] = [];
+  const scanStartTime = Date.now();
+  let scanNormalizationDurationMs = 0;
+  let resolutionDurationMs = 0;
+  let recordStorageDurationMs = 0;
+  let embeddingGenerationDurationMs = 0;
+  let vecInsertDurationMs = 0;
 
   const insertPack = db.prepare(`
     INSERT INTO packs (name, label, document_type, declared_path, resolved_path, record_count)
@@ -3145,7 +3257,10 @@ async function buildIndex(
       insertPack.run(pack.name, pack.label, pack.documentType, pack.declaredPath, pack.resolvedPath, packRecordCount);
     }
 
+    scanNormalizationDurationMs = Date.now() - scanStartTime;
+
     progressLogger?.("Finished scanning pack files. Resolving verified remaster aliases.");
+    const resolutionStartTime = Date.now();
 
     const indexedEntries = sourceEntries.filter((entry): entry is BuildSourceEntry & { record: NormalizedIndexRecord } => entry.record !== null);
     const recordsByKey = new Map(indexedEntries.map((entry) => [entry.record.recordKey, entry.record]));
@@ -3293,14 +3408,21 @@ async function buildIndex(
       aliasesByCanonicalRecordKey.set(alias.canonicalRecordKey, uniqueSorted(bucket));
     }
 
-    const canonicalEmbeddingCount = indexedEntries.filter((entry) => !suppressedRecordKeys.has(entry.record.recordKey)).length;
-    const writeProgressInterval = Math.max(100, Math.ceil(indexedEntries.length / 10));
-    let writtenEntryCount = 0;
-    let embeddedRecordCount = 0;
-    let lastWriteProgressLogTime = 0;
-    let lastLoggedWriteCount = 0;
+    resolutionDurationMs = Date.now() - resolutionStartTime;
 
-    progressLogger?.("Writing indexed records and canonical embeddings.");
+    const canonicalEmbeddingCount = indexedEntries.filter((entry) => !suppressedRecordKeys.has(entry.record.recordKey)).length;
+    const recordWriteProgressInterval = Math.max(100, Math.ceil(indexedEntries.length / 10));
+    const embeddingProgressInterval = Math.max(25, Math.ceil(Math.max(canonicalEmbeddingCount, 1) / 10));
+    const pendingCanonicalEmbeddings: PendingCanonicalEmbedding[] = [];
+    let writtenRecordCount = 0;
+    let embeddedRecordCount = 0;
+    let lastRecordProgressLogTime = 0;
+    let lastLoggedRecordCount = 0;
+    let lastEmbeddingProgressLogTime = 0;
+    let lastLoggedEmbeddedCount = 0;
+    const recordStorageStartTime = Date.now();
+
+    progressLogger?.("Writing indexed records and search metadata.");
 
     for (const entry of indexedEntries) {
       const record = entry.record;
@@ -3400,61 +3522,82 @@ async function buildIndex(
         );
       }
 
-      if (!isSearchCanonical) {
-        writtenEntryCount += 1;
-        const now = Date.now();
-        const shouldLogProgress = writtenEntryCount === indexedEntries.length ||
-          (writtenEntryCount - lastLoggedWriteCount) >= writeProgressInterval ||
-          (now - lastWriteProgressLogTime) >= PACK_PROGRESS_LOG_INTERVAL_MS;
-
-        if (shouldLogProgress) {
-          progressStatusLogger?.(
-            `[write] Indexed records ${renderProgressBar(writtenEntryCount, indexedEntries.length)} ${formatPercentage(writtenEntryCount, indexedEntries.length)} (${formatInteger(writtenEntryCount)}/${formatInteger(indexedEntries.length)} records, ${formatInteger(embeddedRecordCount)}/${formatInteger(canonicalEmbeddingCount)} canonical embeddings).`,
-          );
-          lastWriteProgressLogTime = now;
-          lastLoggedWriteCount = writtenEntryCount;
-        }
-        continue;
+      if (isSearchCanonical) {
+        insertFts.run(record.recordKey, record.name, searchText);
+        pendingCanonicalEmbeddings.push({
+          record,
+          encodedEmbeddingInput: buildSemanticEmbeddingText(record, entry.raw, aliasTexts),
+        });
       }
 
-      const embedding = await embeddingProvider.embed(searchText);
-      const encodedEmbedding = encodeVector(embedding);
-      insertEmbedding.run(record.recordKey, embeddingProvider.identity.dimensions, encodedEmbedding);
-      insertVecEmbedding.run(
-        record.recordKey,
-        encodedEmbedding,
-        normalizeVecText(record.category),
-        normalizeVecText(record.subcategory),
-        normalizeVecText(record.packName),
-        normalizeVecText(record.packLabel),
-        normalizeVecText(record.documentType),
-        normalizeVecText(record.type),
-        normalizeVecInteger(record.level),
-        normalizeVecText(record.rarity),
-        normalizeVecText(record.sourceCategory),
-        normalizeVecText(record.publicationTitle),
-        BigInt(record.publicationRemaster ? 1 : 0),
-        BigInt(record.hasDescription ? 1 : 0),
-        BigInt(record.isUnique ? 1 : 0),
-        normalizeVecText(record.size),
-        normalizeVecText(record.itemCategory),
-        normalizeVecInteger(record.priceCp),
-        normalizeVecInteger(record.actionCost),
-      );
-      insertFts.run(record.recordKey, record.name, searchText);
-      writtenEntryCount += 1;
-      embeddedRecordCount += 1;
+      writtenRecordCount += 1;
       const now = Date.now();
-      const shouldLogProgress = writtenEntryCount === indexedEntries.length ||
-        (writtenEntryCount - lastLoggedWriteCount) >= writeProgressInterval ||
-        (now - lastWriteProgressLogTime) >= PACK_PROGRESS_LOG_INTERVAL_MS;
+      const shouldLogProgress = writtenRecordCount === indexedEntries.length ||
+        (writtenRecordCount - lastLoggedRecordCount) >= recordWriteProgressInterval ||
+        (now - lastRecordProgressLogTime) >= PACK_PROGRESS_LOG_INTERVAL_MS;
 
       if (shouldLogProgress) {
         progressStatusLogger?.(
-          `[write] Indexed records ${renderProgressBar(writtenEntryCount, indexedEntries.length)} ${formatPercentage(writtenEntryCount, indexedEntries.length)} (${formatInteger(writtenEntryCount)}/${formatInteger(indexedEntries.length)} records, ${formatInteger(embeddedRecordCount)}/${formatInteger(canonicalEmbeddingCount)} canonical embeddings).`,
+          `[write] Stored records ${renderProgressBar(writtenRecordCount, indexedEntries.length)} ${formatPercentage(writtenRecordCount, indexedEntries.length)} (${formatInteger(writtenRecordCount)}/${formatInteger(indexedEntries.length)} records).`,
         );
-        lastWriteProgressLogTime = now;
-        lastLoggedWriteCount = writtenEntryCount;
+        lastRecordProgressLogTime = now;
+        lastLoggedRecordCount = writtenRecordCount;
+      }
+    }
+
+    recordStorageDurationMs = Date.now() - recordStorageStartTime;
+
+    progressLogger?.(`Generating canonical embeddings in batches of ${EMBEDDING_BATCH_SIZE}.`);
+
+    for (let index = 0; index < pendingCanonicalEmbeddings.length; index += EMBEDDING_BATCH_SIZE) {
+      const batch = pendingCanonicalEmbeddings.slice(index, index + EMBEDDING_BATCH_SIZE);
+      const embeddingStartTime = Date.now();
+      const embeddings = await embeddingProvider.embedMany(batch.map((entry) => entry.encodedEmbeddingInput));
+      embeddingGenerationDurationMs += Date.now() - embeddingStartTime;
+
+      const vecInsertStartTime = Date.now();
+      for (const [batchIndex, entry] of batch.entries()) {
+        const embedding = embeddings[batchIndex] ?? new Float32Array(embeddingProvider.identity.dimensions);
+        const encodedEmbedding = encodeVector(embedding);
+        const record = entry.record;
+
+        insertEmbedding.run(record.recordKey, embeddingProvider.identity.dimensions, encodedEmbedding);
+        insertVecEmbedding.run(
+          record.recordKey,
+          encodedEmbedding,
+          normalizeVecText(record.category),
+          normalizeVecText(record.subcategory),
+          normalizeVecText(record.packName),
+          normalizeVecText(record.packLabel),
+          normalizeVecText(record.documentType),
+          normalizeVecText(record.type),
+          normalizeVecInteger(record.level),
+          normalizeVecText(record.rarity),
+          normalizeVecText(record.sourceCategory),
+          normalizeVecText(record.publicationTitle),
+          BigInt(record.publicationRemaster ? 1 : 0),
+          BigInt(record.hasDescription ? 1 : 0),
+          BigInt(record.isUnique ? 1 : 0),
+          normalizeVecText(record.size),
+          normalizeVecText(record.itemCategory),
+          normalizeVecInteger(record.priceCp),
+          normalizeVecInteger(record.actionCost),
+        );
+      }
+      vecInsertDurationMs += Date.now() - vecInsertStartTime;
+
+      embeddedRecordCount += batch.length;
+      const now = Date.now();
+      const shouldLogProgress = embeddedRecordCount === canonicalEmbeddingCount ||
+        (embeddedRecordCount - lastLoggedEmbeddedCount) >= embeddingProgressInterval ||
+        (now - lastEmbeddingProgressLogTime) >= PACK_PROGRESS_LOG_INTERVAL_MS;
+
+      if (shouldLogProgress) {
+        progressStatusLogger?.(
+          `[embed] Canonical embeddings ${renderProgressBar(embeddedRecordCount, canonicalEmbeddingCount)} ${formatPercentage(embeddedRecordCount, canonicalEmbeddingCount)} (${formatInteger(embeddedRecordCount)}/${formatInteger(canonicalEmbeddingCount)} embeddings).`,
+        );
+        lastEmbeddingProgressLogTime = now;
+        lastLoggedEmbeddedCount = embeddedRecordCount;
       }
     }
 
@@ -3473,7 +3616,18 @@ async function buildIndex(
   }
 
   packs.sort((left, right) => left.label.localeCompare(right.label));
-  return { packs, warnings, recordCount };
+  return {
+    packs,
+    warnings,
+    recordCount,
+    stageTimings: [
+      { label: "Scan and normalize records", durationMs: scanNormalizationDurationMs },
+      { label: "Resolve families, references, tags, and aliases", durationMs: resolutionDurationMs },
+      { label: "Write records and lexical search metadata", durationMs: recordStorageDurationMs },
+      { label: "Generate canonical embeddings", durationMs: embeddingGenerationDurationMs },
+      { label: "Insert vector rows", durationMs: vecInsertDurationMs },
+    ],
+  };
 }
 
 function loadPacksFromIndex(db: DatabaseSync): PackInfo[] {
@@ -4253,27 +4407,36 @@ export class Pf2eDataService {
   }
 
   static async rebuildIndex(rootPath: string, manifestPath: string, options: LoadOptions = {}): Promise<Pf2eDataService> {
+    const rebuildStartTime = Date.now();
     const indexPath = options.indexPath ?? defaultIndexPath(manifestPath);
     const embeddingConfig: EmbeddingConfig = options.embedding ?? defaultEmbeddingConfig(indexPath);
     const embeddingProviderFactory = options.embeddingProviderFactory ?? createEmbeddingProvider;
     options.progressLogger?.("Loading the configured embedding provider.");
+    const embeddingProviderLoadStartTime = Date.now();
     const embeddingRuntime = await embeddingProviderFactory(embeddingConfig);
+    const embeddingProviderLoadDurationMs = Date.now() - embeddingProviderLoadStartTime;
     const embeddingProvider = embeddingRuntime.provider;
     options.progressLogger?.(
       `Embedding provider ready: ${embeddingProvider.identity.model} (${embeddingProvider.identity.dimensions} dimensions).`,
     );
     options.progressLogger?.("Computing the PF2E source signature.");
+    const sourceSignatureStartTime = Date.now();
     const sourceSignature = await computeSourceSignature(rootPath, manifestPath);
+    const sourceSignatureDurationMs = Date.now() - sourceSignatureStartTime;
     options.progressLogger?.(`Preparing index output at ${indexPath}.`);
+    const prepareOutputStartTime = Date.now();
     await mkdir(path.dirname(indexPath), { recursive: true });
     await removeIndexFiles(indexPath);
+    const prepareOutputDurationMs = Date.now() - prepareOutputStartTime;
 
     const db = openDatabase(indexPath, {
       vectorExtensionLoader: options.vectorExtensionLoader,
     });
     options.progressLogger?.("Creating SQLite schema.");
+    const schemaCreationStartTime = Date.now();
     createSchema(db, embeddingProvider.identity.dimensions);
-    const { packs, warnings, recordCount } = await buildIndex(
+    const schemaCreationDurationMs = Date.now() - schemaCreationStartTime;
+    const { packs, warnings, recordCount, stageTimings } = await buildIndex(
       db,
       rootPath,
       manifestPath,
@@ -4285,6 +4448,19 @@ export class Pf2eDataService {
     options.progressLogger?.(
       `Finished writing ${formatInteger(recordCount)} records across ${formatInteger(packs.length)} packs.`,
     );
+    const rebuildDurationMs = Date.now() - rebuildStartTime;
+    const summaryTimings: StageTiming[] = [
+      { label: "Embedding provider load", durationMs: embeddingProviderLoadDurationMs },
+      { label: "Source signature", durationMs: sourceSignatureDurationMs },
+      { label: "Prepare index output", durationMs: prepareOutputDurationMs },
+      { label: "Create SQLite schema", durationMs: schemaCreationDurationMs },
+      ...stageTimings,
+      { label: "Total rebuild time", durationMs: rebuildDurationMs },
+    ];
+    options.progressLogger?.("Index rebuild stage timings:");
+    for (const timing of summaryTimings) {
+      options.progressLogger?.(`- ${timing.label}: ${formatDurationMs(timing.durationMs)}`);
+    }
     return new Pf2eDataService(
       db,
       packs,

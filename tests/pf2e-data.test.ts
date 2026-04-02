@@ -55,15 +55,22 @@ function createFakeEmbeddingProviderFactory(
   identity: { provider: "hash" | "hf-local"; model: string; revision: string | null; dimensions: number },
   warnings: string[] = [],
 ): NonNullable<Parameters<typeof Pf2eDataService.load>[2]>["embeddingProviderFactory"] {
+  const buildVector = (text: string): Float32Array => {
+    const vector = new Float32Array(identity.dimensions);
+    if (text.trim().length > 0) {
+      vector[0] = 1;
+    }
+    return vector;
+  };
+
   return async () => ({
     provider: {
       identity,
       async embed(text: string): Promise<Float32Array> {
-        const vector = new Float32Array(identity.dimensions);
-        if (text.trim().length > 0) {
-          vector[0] = 1;
-        }
-        return vector;
+        return buildVector(text);
+      },
+      async embedMany(texts: string[]): Promise<Float32Array[]> {
+        return texts.map((text) => buildVector(text));
       },
     },
     warnings,
@@ -74,16 +81,51 @@ function createCapturingEmbeddingProviderFactory(
   calls: string[],
   identity: { provider: "hash" | "hf-local"; model: string; revision: string | null; dimensions: number },
 ): NonNullable<Parameters<typeof Pf2eDataService.load>[2]>["embeddingProviderFactory"] {
+  const buildVector = (text: string): Float32Array => {
+    calls.push(text);
+    const vector = new Float32Array(identity.dimensions);
+    if (text.trim().length > 0) {
+      vector[0] = 1;
+    }
+    return vector;
+  };
+
   return async () => ({
     provider: {
       identity,
       async embed(text: string): Promise<Float32Array> {
-        calls.push(text);
-        const vector = new Float32Array(identity.dimensions);
-        if (text.trim().length > 0) {
-          vector[0] = 1;
-        }
-        return vector;
+        return buildVector(text);
+      },
+      async embedMany(texts: string[]): Promise<Float32Array[]> {
+        return texts.map((text) => buildVector(text));
+      },
+    },
+    warnings: [],
+  });
+}
+
+function createEmbeddingBatchTrackingProviderFactory(
+  state: { embedCalls: string[]; embedManyCalls: string[][] },
+  identity: { provider: "hash" | "hf-local"; model: string; revision: string | null; dimensions: number },
+): NonNullable<Parameters<typeof Pf2eDataService.load>[2]>["embeddingProviderFactory"] {
+  const buildVector = (text: string): Float32Array => {
+    const vector = new Float32Array(identity.dimensions);
+    if (text.trim().length > 0) {
+      vector[0] = 1;
+    }
+    return vector;
+  };
+
+  return async () => ({
+    provider: {
+      identity,
+      async embed(text: string): Promise<Float32Array> {
+        state.embedCalls.push(text);
+        return buildVector(text);
+      },
+      async embedMany(texts: string[]): Promise<Float32Array[]> {
+        state.embedManyCalls.push([...texts]);
+        return texts.map((text) => buildVector(text));
       },
     },
     warnings: [],
@@ -346,6 +388,24 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
     system: {
       description: {
         value: "<p>You attempt to break free from being @UUID[Compendium.pf2e.conditionitems.Item.Grabbed]{Grabbed} or @UUID[Compendium.pf2e.conditionitems.Item.Restrained]{Restrained}.</p>",
+      },
+      publication: {
+        title: "Pathfinder Player Core",
+      },
+      traits: {
+        rarity: "common",
+        value: ["attack"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "actionspf2e", "grapple.json"), {
+    _id: "action-grapple-1",
+    name: "Grapple",
+    type: "action",
+    system: {
+      description: {
+        value: "<p>You grab a creature and hold it in place.</p>",
       },
       publication: {
         title: "Pathfinder Player Core",
@@ -795,6 +855,60 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
       traits: {
         rarity: "common",
         value: ["magical"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment-srd", "shacklebreaker.json"), {
+    _id: "equip-shacklebreaker-1",
+    name: "Shacklebreaker",
+    type: "equipment",
+    system: {
+      description: {
+        value: "<p>This bracelet has three charms depicting a dagger, a shield, and a rose. Whenever you roll a success to free someone from manacles, it counts as two successes.</p>",
+      },
+      publication: {
+        title: "Pathfinder Treasure Vault",
+      },
+      traits: {
+        rarity: "common",
+        value: ["magical"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment-srd", "handcuffs-average.json"), {
+    _id: "equip-handcuffs-average-1",
+    name: "Handcuffs (Average)",
+    type: "equipment",
+    system: {
+      description: {
+        value: "<p>These handcuffs possess a ratcheting lock system in each cuff that allows them to be quickly cinched down on a captive's limbs, even if they're actively resisting.</p>",
+      },
+      publication: {
+        title: "Pathfinder GM Core",
+      },
+      traits: {
+        rarity: "common",
+        value: [],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment-srd", "catch-pole.json"), {
+    _id: "equip-catch-pole-1",
+    name: "Catch Pole",
+    type: "equipment",
+    system: {
+      description: {
+        value: "<p>This sturdy pole has a rope attached to one end in a loop. You can pull the handle side of the rope to tighten the loop. Using this loop, you can @UUID[Compendium.pf2e.actionspf2e.Item.Grapple]{Grapple} without having a free hand.</p>",
+      },
+      publication: {
+        title: "Pathfinder GM Core",
+      },
+      traits: {
+        rarity: "common",
+        value: [],
       },
     },
   });
@@ -1370,6 +1484,19 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
     _id: "ship-captain",
     name: "Ship Captain",
     type: "npc",
+    items: Array.from({ length: 45 }, (_, index) => ({
+      _id: `ship-captain-order-${index + 1}`,
+      name: `Deck Order ${index + 1}`,
+      type: "action",
+      system: {
+        description: {
+          value: `<p>Deck order ${index + 1} coordinates the crew around starboard rigging routines and battle stations.</p>`,
+        },
+        traits: {
+          value: ["auditory", "visual"],
+        },
+      },
+    })),
     system: {
       details: {
         level: {
@@ -2138,7 +2265,7 @@ describe("Pf2eDataService", () => {
     const service = await loadTestService(fixture);
 
     expect(service.listPacks()).toHaveLength(15);
-    expect(service.getStats()).toEqual({ packCount: 15, recordCount: 67 });
+    expect(service.getStats()).toEqual({ packCount: 15, recordCount: 71 });
     expect(service.getPack("Actions")?.name).toBe("actions");
   });
 
@@ -2191,7 +2318,10 @@ describe("Pf2eDataService", () => {
     expect(service.listRecords({ category: "equipment", subcategory: "consumable", metadata: { field: "derivedTags", op: "includesAll", values: ["beneficial", "anti_disease"] } }).records.map((record) => record.name)).toEqual(["Antiplague (Lesser)"]);
     expect(service.listRecords({ category: "equipment", subcategory: "consumable", metadata: { field: "derivedTags", op: "excludesAny", values: ["offensive"] } }).records.map((record) => record.name)).not.toContain("Sightless Tincture");
     expect(service.listRecords({ category: "equipment", subcategory: "gear", metadata: { field: "derivedTags", op: "includesAny", values: ["social_infiltration"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Masquerade Scarf", "Quick-Change Outfit"]));
-    expect(service.listRecords({ category: "equipment", subcategory: "gear", metadata: { field: "derivedTags", op: "includesAny", values: ["restraint_escape"] } }).records.map((record) => record.name)).toEqual(["Swallow-Spike"]);
+    expect(service.listRecords({ category: "equipment", subcategory: "gear", metadata: { field: "derivedTags", op: "includesAny", values: ["restraint_escape"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Shacklebreaker", "Swallow-Spike"]));
+    expect(service.listRecords({ category: "equipment", subcategory: "gear", metadata: { field: "derivedTags", op: "includesAny", values: ["restraint_escape"] } }).records.map((record) => record.name)).not.toEqual(expect.arrayContaining(["Catch Pole", "Handcuffs (Average)"]));
+    expect(service.listRecords({ category: "equipment", subcategory: "gear", metadata: { field: "derivedTags", op: "includesAny", values: ["restraint_capture"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Catch Pole", "Handcuffs (Average)"]));
+    expect(service.listRecords({ category: "equipment", subcategory: "gear", metadata: { field: "derivedTags", op: "includesAny", values: ["restraint_capture"] } }).records.map((record) => record.name)).not.toContain("Shacklebreaker");
     expect(service.listRecords({
       category: "equipment",
       metadata: {
@@ -2245,8 +2375,17 @@ describe("Pf2eDataService", () => {
     expect(masqueradeScarf?.derivedTags).toEqual(expect.arrayContaining(["disguise", "social_infiltration"]));
     const quickChangeOutfit = service.lookup("Quick-Change Outfit", { category: "equipment" }).match;
     expect(quickChangeOutfit?.derivedTags).toEqual(expect.arrayContaining(["disguise", "social_infiltration"]));
+    const shacklebreaker = service.lookup("Shacklebreaker", { category: "equipment" }).match;
+    expect(shacklebreaker?.derivedTags).toContain("restraint_escape");
+    expect(shacklebreaker?.derivedTags).not.toContain("restraint_capture");
     const swallowSpike = service.lookup("Swallow-Spike", { category: "equipment" }).match;
     expect(swallowSpike?.derivedTags).toContain("restraint_escape");
+    const handcuffs = service.lookup("Handcuffs (Average)", { category: "equipment" }).match;
+    expect(handcuffs?.derivedTags).toContain("restraint_capture");
+    expect(handcuffs?.derivedTags).not.toContain("restraint_escape");
+    const catchPole = service.lookup("Catch Pole", { category: "equipment" }).match;
+    expect(catchPole?.derivedTags).toContain("restraint_capture");
+    expect(catchPole?.derivedTags).not.toContain("restraint_escape");
     const ghostChargePrototype = service.lookup("Ghost Charge Prototype", { category: "equipment" }).match;
     expect(ghostChargePrototype?.weaponGroup).toBe("bomb");
     expect(ghostChargePrototype?.hands).toBe(1);
@@ -2384,6 +2523,75 @@ describe("Pf2eDataService", () => {
     expect(result.explain?.semanticQuery).toBe("Ghost-ship: body horror?!");
     expect(result.explain?.lexicalQuery).toBe("ghost ship body horror");
     expect(result.explain?.query?.normalizedQuery).toBe("ghost ship body horror");
+  });
+
+  it("uses batched semantic-only embedding text during rebuild", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+    const indexPath = path.join(fixture.root, ".cache", "pf2e-index.sqlite");
+    const tracking = {
+      embedCalls: [] as string[],
+      embedManyCalls: [] as string[][],
+    };
+
+    const service = await loadTestService(fixture, {
+      indexPath,
+      embeddingProviderFactory: createEmbeddingBatchTrackingProviderFactory(tracking, {
+        provider: "hash",
+        model: "batch-capture-model",
+        revision: null,
+        dimensions: 8,
+      }),
+    });
+    service.close();
+
+    expect(tracking.embedCalls).toHaveLength(0);
+    expect(tracking.embedManyCalls.length).toBeGreaterThan(0);
+
+    const shipCaptainText = tracking.embedManyCalls
+      .flat()
+      .find((text) => text.includes("Ship Captain"));
+    expect(shipCaptainText).toBeDefined();
+    expect(shipCaptainText).toContain("Deck Order 1");
+    expect(shipCaptainText).toContain("auditory");
+    expect(shipCaptainText).not.toContain("coordinates the crew around starboard rigging routines");
+    expect(shipCaptainText).not.toContain("Deck Order 41");
+
+    const db = new DatabaseSync(indexPath);
+    const row = db.prepare("SELECT search_text AS searchText FROM records WHERE name = ?").get("Ship Captain") as { searchText: string } | undefined;
+    db.close();
+
+    expect(row?.searchText).toContain("Deck Order 41");
+    expect(row?.searchText).toContain("coordinates the crew around starboard rigging routines");
+  });
+
+  it("logs a final rebuild stage timing summary", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+    const progressLogs: string[] = [];
+
+    const service = await loadTestService(fixture, {
+      progressLogger: (message) => progressLogs.push(message),
+      embeddingProviderFactory: createFakeEmbeddingProviderFactory({
+        provider: "hash",
+        model: "timing-model",
+        revision: null,
+        dimensions: 8,
+      }),
+    });
+    service.close();
+
+    expect(progressLogs).toContain("Index rebuild stage timings:");
+    expect(progressLogs).toEqual(expect.arrayContaining([
+      expect.stringMatching(/- Embedding provider load:/),
+      expect.stringMatching(/- Source signature:/),
+      expect.stringMatching(/- Scan and normalize records:/),
+      expect.stringMatching(/- Resolve families, references, tags, and aliases:/),
+      expect.stringMatching(/- Write records and lexical search metadata:/),
+      expect.stringMatching(/- Generate canonical embeddings:/),
+      expect.stringMatching(/- Insert vector rows:/),
+      expect.stringMatching(/- Total rebuild time:/),
+    ]));
   });
 
   it("surfaces haunted-ship swarm candidates in broad themed search", async () => {
@@ -2627,6 +2835,7 @@ describe("Pf2eDataService", () => {
         family: "purpose",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "restraint_escape", description: expect.any(String) }),
+          expect.objectContaining({ value: "restraint_capture", description: expect.any(String) }),
         ]),
       }),
       expect.objectContaining({
@@ -2661,7 +2870,7 @@ describe("Pf2eDataService", () => {
     expect(service.listFilterValues({
       field: "derivedTags",
       category: "equipment",
-    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["beneficial", "offensive", "climbing", "lock_bypass", "mental_recovery", "carry_support", "restraint_escape"]));
+    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["beneficial", "offensive", "climbing", "lock_bypass", "mental_recovery", "carry_support", "restraint_escape", "restraint_capture"]));
 
     expect(service.listFilterValues({
       field: "families",
@@ -2830,12 +3039,12 @@ describe("Pf2eDataService", () => {
     const indexPath = path.join(fixture.root, ".cache", "pf2e-index.sqlite");
 
     const firstService = await loadTestService(fixture, { indexPath });
-    expect(firstService.getStats()).toEqual({ packCount: 15, recordCount: 67 });
+    expect(firstService.getStats()).toEqual({ packCount: 15, recordCount: 71 });
     firstService.close();
 
     const firstMtime = (await import("node:fs/promises")).stat(indexPath).then((details) => details.mtimeMs);
     const unchangedService = await openPreparedTestService(fixture, { indexPath });
-    expect(unchangedService.getStats()).toEqual({ packCount: 15, recordCount: 67 });
+    expect(unchangedService.getStats()).toEqual({ packCount: 15, recordCount: 71 });
     unchangedService.close();
     const secondMtime = (await import("node:fs/promises")).stat(indexPath).then((details) => details.mtimeMs);
     expect(await secondMtime).toBe(await firstMtime);
@@ -2867,7 +3076,7 @@ describe("Pf2eDataService", () => {
     await expect(openPreparedTestService(fixture, { indexPath })).rejects.toThrow(/index .* stale/i);
 
     const rebuiltService = await loadTestService(fixture, { indexPath });
-    expect(rebuiltService.getStats()).toEqual({ packCount: 15, recordCount: 68 });
+    expect(rebuiltService.getStats()).toEqual({ packCount: 15, recordCount: 72 });
     expect(rebuiltService.lookup("Sea Ghoul", { category: "creature" }).match?.name).toBe("Sea Ghoul");
     rebuiltService.close();
   });
@@ -2879,7 +3088,7 @@ describe("Pf2eDataService", () => {
     const indexPath = path.join(fixture.root, ".cache", "pf2e-index.sqlite");
 
     const firstService = await loadTestService(fixture, { indexPath });
-    expect(firstService.getStats()).toEqual({ packCount: 15, recordCount: 67 });
+    expect(firstService.getStats()).toEqual({ packCount: 15, recordCount: 71 });
     firstService.close();
 
     await writeJson(path.join(fixture.root, "packs", "pf2e", "pathfinder-monster-core", "sea-ghoul-untracked.json"), {
