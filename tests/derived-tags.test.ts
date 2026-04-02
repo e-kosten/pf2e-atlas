@@ -105,6 +105,56 @@ describe("derived tag rules", () => {
     })).toEqual(expect.arrayContaining(["illumination", "navigation"]));
 
     expect(deriveRecordTags({
+      name: "Boots of Bounding",
+      category: "equipment",
+      subcategory: "gear",
+      descriptionText: "The springy soles of these sturdy leather boots give you a +5-foot item bonus to your Speed and a +2 item bonus to Athletics checks to High Jump and Long Jump.",
+      traits: ["invested", "magical"],
+    })).toContain("mobility");
+
+    expect(deriveRecordTags({
+      name: "Boots of Bounding",
+      category: "equipment",
+      subcategory: "gear",
+      descriptionText: "The springy soles of these sturdy leather boots give you a +5-foot item bonus to your Speed and a +2 item bonus to Athletics checks to High Jump and Long Jump.",
+      traits: ["invested", "magical"],
+    })).not.toContain("climbing");
+
+    expect(deriveRecordTags({
+      name: "Boots of Free Running",
+      category: "equipment",
+      subcategory: "gear",
+      descriptionText: "These practical boots provide exceptional traction, with improved grip on surfaces you would traditionally have difficulty traversing.",
+      traits: ["invested", "magical"],
+      references: [
+        {
+          recordKey: "actionspf2e:balance-1",
+          packName: "actionspf2e",
+          name: "Balance",
+          category: "rule",
+          subcategory: "action",
+          traits: [],
+        },
+        {
+          recordKey: "actionspf2e:high-jump-1",
+          packName: "actionspf2e",
+          name: "High Jump",
+          category: "rule",
+          subcategory: "action",
+          traits: [],
+        },
+        {
+          recordKey: "actionspf2e:long-jump-1",
+          packName: "actionspf2e",
+          name: "Long Jump",
+          category: "rule",
+          subcategory: "action",
+          traits: [],
+        },
+      ],
+    })).toContain("mobility");
+
+    expect(deriveRecordTags({
       name: "Masquerade Scarf",
       category: "equipment",
       subcategory: "gear",

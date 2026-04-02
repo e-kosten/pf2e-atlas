@@ -191,6 +191,15 @@ const RESTRAINT_CAPTURE_REFERENCE_ANCHORS = [
   referenceAnchor("conditionitems", "Restrained"),
 ];
 
+const MOBILITY_REFERENCE_ANCHORS = [
+  referenceAnchor("actionspf2e", "Balance"),
+  referenceAnchor("actionspf2e", "Climb"),
+  referenceAnchor("actionspf2e", "High Jump"),
+  referenceAnchor("actionspf2e", "Leap"),
+  referenceAnchor("actionspf2e", "Long Jump"),
+  referenceAnchor("actionspf2e", "Swim"),
+];
+
 const DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "offensive",
@@ -414,10 +423,28 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     tag: "mobility",
     category: "equipment",
     subcategories: GEARISH_SUBCATEGORIES,
+    threshold: 2,
     anyOf: [
-      { textAny: [tokenAnchor("mobility"), phraseAnchor("move quickly"), phraseAnchor("increase your speed"), tokenAnchor("rappel"), tokenAnchor("climbing")] },
+      { score: 2, textAny: [tokenAnchor("mobility"), phraseAnchor("move quickly"), phraseAnchor("increase your speed"), tokenAnchor("rappel"), tokenAnchor("climbing")] },
+      {
+        score: 2,
+        textAny: [
+          phraseAnchor("high jump"),
+          phraseAnchor("long jump"),
+          phraseAnchor("land speed"),
+          phraseAnchor("climb speed"),
+          phraseAnchor("climb speeds"),
+          phraseAnchor("swim speed"),
+          phraseAnchor("swim speeds"),
+          phraseAnchor("ignore difficult terrain"),
+          phraseAnchor("difficult terrain"),
+          phraseAnchor("improved grip"),
+          phraseAnchor("exceptional traction"),
+          tokenAnchor("traction"),
+        ],
+      },
+      { score: 2, referencesAny: MOBILITY_REFERENCE_ANCHORS },
     ],
-    requiresTags: ["climbing"],
   },
   {
     tag: "lock_bypass",
