@@ -37,10 +37,15 @@ npm run evaluate-derived-tags -- --tag disguise --category spell --limit 12 --ex
 npm run evaluate-derived-tags -- --tag alarm --category hazard --limit 12 --exemplar-limit 8
 ```
 
+```bash
+npm run evaluate-derived-tags -- --tag disguise --category spell --exemplar-category equipment --exemplar-subcategory gear --limit 12 --exemplar-limit 8
+```
+
 Interpretation guidance:
 - treat the output as a review queue, not an auto-tagging system
 - prefer candidates with concrete shared rule evidence over merely thematic similarity
 - use borderline suggestions to design blockers and negative gates, not just positive anchors
+- use cross-category exemplar seeding for shared ontology discovery when the target category is sparse or has zero exemplars for the tag
 
 ## Corpus Counts
 ```bash

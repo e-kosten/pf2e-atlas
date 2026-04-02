@@ -28,8 +28,10 @@ export type DerivedTagGapCandidate = {
 
 export type DerivedTagGapEvaluation = {
   tag: string;
-  category: SearchCategory | null;
-  subcategory: SearchSubcategory | null;
+  candidateCategory: SearchCategory | null;
+  candidateSubcategory: SearchSubcategory | null;
+  exemplarCategory: SearchCategory | null;
+  exemplarSubcategory: SearchSubcategory | null;
   exemplarCount: number;
   candidateCount: number;
   commonTraits: string[];
@@ -47,10 +49,17 @@ export type DerivedTagGapEvaluationOptions = {
   tag: string;
   category?: SearchCategory;
   subcategory?: SearchSubcategory;
+  exemplarCategory?: SearchCategory;
+  exemplarSubcategory?: SearchSubcategory;
   limit?: number;
   exemplarLimit?: number;
   commonTraitLimit?: number;
   minSimilarity?: number;
+};
+
+type DerivedTagGapScope = {
+  category?: SearchCategory;
+  subcategory?: SearchSubcategory;
 };
 
 type LoadedGapRow = {
@@ -69,12 +78,14 @@ export function evaluateDerivedTagGaps(
   options: DerivedTagGapEvaluationOptions,
 ): DerivedTagGapEvaluation {
   const normalizedTag = normalizeDerivedTag(options.tag);
-  const exemplars = loadGapRecords(db, { ...options, tag: normalizedTag, mode: "tagged" });
+  const candidateScope = getCandidateScope(options);
+  const exemplarScope = getExemplarScope(options, candidateScope);
+  const exemplars = loadGapRecords(db, { ...exemplarScope, tag: normalizedTag, mode: "tagged" });
   if (exemplars.length === 0) {
-    throw new Error(`No canonical records with derived tag "${normalizedTag}" matched the requested scope.`);
+    throw new Error(`No canonical records with derived tag "${normalizedTag}" matched exemplar scope "${renderScope(exemplarScope)}".`);
   }
 
-  const candidates = loadGapRecords(db, { ...options, tag: normalizedTag, mode: "untagged" });
+  const candidates = loadGapRecords(db, { ...candidateScope, tag: normalizedTag, mode: "untagged" });
   return rankDerivedTagGapCandidates(exemplars, candidates, {
     ...options,
     tag: normalizedTag,
@@ -127,14 +138,46 @@ export function rankDerivedTagGapCandidates(
 
   return {
     tag: normalizedTag,
-    category: options.category ?? exemplars[0]?.category ?? null,
-    subcategory: options.subcategory ?? exemplars[0]?.subcategory ?? null,
+    candidateCategory: options.category ?? null,
+    candidateSubcategory: options.subcategory ?? null,
+    exemplarCategory: options.exemplarCategory ?? options.category ?? null,
+    exemplarSubcategory: options.exemplarSubcategory ?? options.subcategory ?? null,
     exemplarCount: exemplars.length,
     candidateCount: candidates.length,
     commonTraits,
     exemplars: representativeExemplars,
     candidates: rankedCandidates,
   };
+}
+
+function getCandidateScope(options: DerivedTagGapEvaluationOptions): DerivedTagGapScope {
+  return {
+    category: options.category,
+    subcategory: options.subcategory,
+  };
+}
+
+function getExemplarScope(
+  options: DerivedTagGapEvaluationOptions,
+  candidateScope: DerivedTagGapScope,
+): DerivedTagGapScope {
+  return {
+    category: options.exemplarCategory ?? candidateScope.category,
+    subcategory: options.exemplarSubcategory ?? candidateScope.subcategory,
+  };
+}
+
+function renderScope(scope: DerivedTagGapScope): string {
+  if (scope.category && scope.subcategory) {
+    return `${scope.category}/${scope.subcategory}`;
+  }
+  if (scope.category) {
+    return scope.category;
+  }
+  if (scope.subcategory) {
+    return `*/${scope.subcategory}`;
+  }
+  return "all canonical records";
 }
 
 function loadGapRecords(

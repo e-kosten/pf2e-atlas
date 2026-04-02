@@ -12,6 +12,8 @@ type CliOptions = {
   tag: string;
   category?: SearchCategory;
   subcategory?: SearchSubcategory;
+  exemplarCategory?: SearchCategory;
+  exemplarSubcategory?: SearchSubcategory;
   limit?: number;
   exemplarLimit?: number;
   commonTraitLimit?: number;
@@ -83,6 +85,8 @@ function parseOptions(argv: string[]): CliOptions {
     tag,
     category: args.category as SearchCategory | undefined,
     subcategory: args.subcategory as SearchSubcategory | undefined,
+    exemplarCategory: args["exemplar-category"] as SearchCategory | undefined,
+    exemplarSubcategory: args["exemplar-subcategory"] as SearchSubcategory | undefined,
     limit: parseInteger(args.limit, "--limit"),
     exemplarLimit: parseInteger(args["exemplar-limit"], "--exemplar-limit"),
     commonTraitLimit: parseInteger(args["common-trait-limit"], "--common-trait-limit"),
@@ -140,7 +144,8 @@ async function main(): Promise<void> {
     const result = evaluateDerivedTagGaps(db, options);
 
     console.log(`Tag: ${result.tag}`);
-    console.log(`Scope: ${formatScope(result.category ?? undefined, result.subcategory ?? undefined)}`);
+    console.log(`Candidate scope: ${formatScope(result.candidateCategory ?? undefined, result.candidateSubcategory ?? undefined)}`);
+    console.log(`Exemplar scope: ${formatScope(result.exemplarCategory ?? undefined, result.exemplarSubcategory ?? undefined)}`);
     console.log(`Tagged exemplars: ${result.exemplarCount}`);
     console.log(`Untagged candidates considered: ${result.candidateCount}`);
     console.log(`Common exemplar traits: ${formatTraits(result.commonTraits)}`);

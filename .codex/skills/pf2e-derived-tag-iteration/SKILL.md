@@ -62,6 +62,7 @@ Repo-owned helper tooling for this skill:
    - likely false negatives to inspect manually
    - semantically nearby untagged records that may suggest a missing rule or a missing tag family
    - candidate records that should stay untagged, which help define blockers and negative gates
+   When a tag has stable retrieval meaning across categories, explicitly check cross-category ontology transfer before inventing a near-duplicate tag. Use cross-category exemplar seeding to probe likely target categories, but treat it as ontology discovery rather than proof that the tag belongs there.
    Do not directly convert evaluator suggestions into tags without explicit rule evidence.
 8. Spot-check for missing coverage, not just bad hits.
    Pull random samples of untagged canonical records from the category slices relevant to the current pass. Use them to answer:
@@ -122,6 +123,7 @@ Good derived tags usually encode one of these:
 - hazard practical function such as alarms, restraint, or infiltration blocking
 - spell practical use case such as disguise, mobility, scouting, or escape
 - affliction downstream impact such as mobility impairment or mental degradation
+- shared cross-category retrieval meaning such as `disguise`, when category-specific rules can emit the same tag value without changing what the tag means
 
 Bad default candidates:
 - aliases for native PF2E traits
