@@ -82,18 +82,22 @@ const OFFENSIVE_TEXT_ANCHORS: TextAnchor[] = [
 ];
 
 const GEARISH_SUBCATEGORIES: SearchSubcategory[] = ["gear", "backpack", "kit", "vehicle"];
+const DISGUISE_SUBCATEGORIES: SearchSubcategory[] = [...GEARISH_SUBCATEGORIES, "consumable"];
 
 const STRONG_PROFESSION_NAME_ANCHORS: TextAnchor[] = [
   tokenAnchor("captain", "name"),
   tokenAnchor("commoner", "name"),
+  tokenAnchor("courtier", "name"),
   tokenAnchor("guard", "name"),
   tokenAnchor("scout", "name"),
   tokenAnchor("sailor", "name"),
   tokenAnchor("merchant", "name"),
   tokenAnchor("priest", "name"),
   tokenAnchor("noble", "name"),
+  tokenAnchor("prophet", "name"),
   tokenAnchor("advisor", "name"),
   tokenAnchor("acolyte", "name"),
+  tokenAnchor("vigilante", "name"),
 ];
 
 const WEAK_PROFESSION_NAME_ANCHORS: TextAnchor[] = [
@@ -115,6 +119,32 @@ const UNDEAD_GLOSSARY_FAMILIES = [
   "siabrae",
   "vampire",
   "visitant",
+];
+
+const SCENE_ADJACENT_BLOCKER_TRAITS = [
+  "aberration",
+  "animal",
+  "construct",
+  "dragon",
+  "elemental",
+  "fey",
+  "fiend",
+  "fungus",
+  "ghost",
+  "ghoul",
+  "giant",
+  "golem",
+  "leshy",
+  "mindless",
+  "monitor",
+  "ooze",
+  "plant",
+  "psychopomp",
+  "skeleton",
+  "spirit",
+  "swarm",
+  "troop",
+  "undead",
 ];
 
 /**
@@ -216,6 +246,29 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
       { traitsAny: ["elixir", "healing"] },
       {
         textAny: [
+          phraseAnchor("status bonus to"),
+          phraseAnchor("item bonus to"),
+          phraseAnchor("grants you"),
+          phraseAnchor("giving you"),
+          phraseAnchor("no longer need to breathe"),
+          phraseAnchor("do not need air"),
+          phraseAnchor("imprecise scent"),
+          phraseAnchor("gain a burrow speed"),
+          phraseAnchor("gain a climb speed"),
+        ],
+      },
+      {
+        textAny: [
+          phraseAnchor("trigger you attempt to"),
+          phraseAnchor("trigger you become"),
+          phraseAnchor("requirements you re"),
+          phraseAnchor("in case of kidnapping"),
+          phraseAnchor("slippery enough to"),
+        ],
+        referencesAny: RESTRAINT_ESCAPE_REFERENCE_ANCHORS,
+      },
+      {
+        textAny: [
           tokenAnchor("restorative"),
           tokenAnchor("remedy"),
           tokenAnchor("curative"),
@@ -300,6 +353,8 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     requiresTags: ["beneficial"],
     anyOf: [
       { textAny: [tokenAnchor("escape"), phraseAnchor("slip away"), phraseAnchor("break free"), tokenAnchor("flee"), tokenAnchor("evade"), phraseAnchor("concealing smoke"), phraseAnchor("vanish from sight"), tokenAnchor("misty")] },
+      { referencesAny: [referenceAnchor("actionspf2e", "Escape")] },
+      { textAny: [tokenAnchor("grabbed"), tokenAnchor("restrained"), tokenAnchor("immobilized"), phraseAnchor("slip free"), phraseAnchor("break the grab")] },
     ],
   },
   {
@@ -335,7 +390,7 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     subcategories: ["consumable"],
     requiresTags: ["beneficial"],
     anyOf: [
-      { textAny: [phraseAnchor("you gain"), phraseAnchor("the drinker gains"), phraseAnchor("gain a bonus"), phraseAnchor("you become"), phraseAnchor("you gain resistance"), phraseAnchor("you gain darkvision"), phraseAnchor("protects you against"), phraseAnchor("when you drink"), phraseAnchor("drinking this"), phraseAnchor("spreading the salve on exposed skin")] },
+      { textAny: [phraseAnchor("you gain"), phraseAnchor("the drinker gains"), phraseAnchor("gain a bonus"), phraseAnchor("you become"), phraseAnchor("you gain resistance"), phraseAnchor("you gain darkvision"), phraseAnchor("protects you against"), phraseAnchor("when you drink"), phraseAnchor("drinking this"), phraseAnchor("spreading the salve on exposed skin"), phraseAnchor("grants you"), phraseAnchor("giving you")] },
     ],
   },
   {
@@ -400,18 +455,19 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "disguise",
     category: "equipment",
-    subcategories: GEARISH_SUBCATEGORIES,
+    subcategories: DISGUISE_SUBCATEGORIES,
     anyOf: [
-      { textAny: [tokenAnchor("disguise"), tokenAnchor("impersonate"), phraseAnchor("false identity"), tokenAnchor("costume"), tokenAnchor("masquerade"), phraseAnchor("quick change", "name")] },
+      { textAny: [tokenAnchor("disguise"), tokenAnchor("impersonate"), phraseAnchor("false identity"), tokenAnchor("costume"), tokenAnchor("masquerade"), phraseAnchor("quick change", "name"), phraseAnchor("take on the appearance"), phraseAnchor("change your appearance"), phraseAnchor("assume role")] },
       { referencesAny: DISGUISE_REFERENCE_ANCHORS },
     ],
   },
   {
     tag: "social_infiltration",
     category: "equipment",
-    subcategories: GEARISH_SUBCATEGORIES,
+    subcategories: DISGUISE_SUBCATEGORIES,
+    requiresTags: ["disguise"],
     anyOf: [
-      { textAny: [phraseAnchor("false identity"), phraseAnchor("pass as"), phraseAnchor("blend into society"), phraseAnchor("social infiltration"), tokenAnchor("impersonate"), tokenAnchor("masquerade"), phraseAnchor("quick change", "name")] },
+      { textAny: [phraseAnchor("false identity"), phraseAnchor("pass as"), phraseAnchor("blend into society"), phraseAnchor("social infiltration"), tokenAnchor("impersonate"), tokenAnchor("masquerade"), phraseAnchor("quick change", "name"), tokenAnchor("disguise", "name"), phraseAnchor("take on the appearance"), phraseAnchor("change your appearance"), phraseAnchor("assume role")] },
       { referencesAny: SOCIAL_INFILTRATION_REFERENCE_ANCHORS },
     ],
   },
@@ -679,7 +735,7 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "creature",
     requiresTags: ["profession_npc"],
     noneOf: [
-      { traitsAny: ["undead", "ghost", "spirit", "skeleton", "ghoul", "fey", "plant", "fungus", "leshy", "construct", "golem", "mindless", "giant", "dragon", "fiend", "ooze", "aberration"] },
+      { traitsAny: SCENE_ADJACENT_BLOCKER_TRAITS },
       { familiesAny: UNDEAD_GLOSSARY_FAMILIES },
     ],
   },
@@ -723,7 +779,7 @@ export const DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
     category: "equipment",
     subcategories: GEARISH_SUBCATEGORIES,
     family: "purpose",
-    description: "Utility, infiltration, and logistics gear-purpose tags.",
+    description: "Utility and logistics gear-purpose tags.",
     tags: [
       { value: "climbing", description: "Helps climb, rappel, or navigate vertical obstacles." },
       { value: "lock_bypass", description: "Helps open locks or bypass secured entry points." },
@@ -731,8 +787,6 @@ export const DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
       { value: "scouting", description: "Helps observe, survey, or reconnoiter an area." },
       { value: "mobility", description: "Improves movement or traversal flexibility." },
       { value: "stealth_support", description: "Helps move quietly or avoid notice." },
-      { value: "disguise", description: "Helps alter appearance or impersonate another identity." },
-      { value: "social_infiltration", description: "Helps blend into a group or pass under social scrutiny." },
       { value: "illumination", description: "Produces or improves light in dark environments." },
       { value: "survival", description: "Supports wilderness travel, shelter, or long-term field use." },
       { value: "navigation", description: "Helps track direction, route, or position." },
@@ -741,6 +795,16 @@ export const DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
       { value: "carry_support", description: "Helps stow, carry, or organize equipment." },
       { value: "restraint_escape", description: "Helps break free from grabs, restraints, or similar immobilizing holds." },
       { value: "restraint_capture", description: "Helps capture, bind, or keep a target restrained." },
+    ],
+  },
+  {
+    category: "equipment",
+    subcategories: DISGUISE_SUBCATEGORIES,
+    family: "infiltration",
+    description: "Appearance-changing and social-passing equipment across gear and consumables.",
+    tags: [
+      { value: "disguise", description: "Helps alter appearance or impersonate another identity." },
+      { value: "social_infiltration", description: "Helps blend into a group or pass under social scrutiny." },
     ],
   },
   {

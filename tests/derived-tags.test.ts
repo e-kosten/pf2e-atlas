@@ -51,6 +51,32 @@ describe("derived tag rules", () => {
       descriptionText: "This cloudy liquid helps protect against poisons. When you drink an antivenom potion, you can immediately attempt to end persistent poison damage.",
       traits: ["consumable", "magical", "potion"],
     })).toEqual(expect.arrayContaining(["beneficial", "anti_poison", "self_buff"]));
+
+    expect(deriveRecordTags({
+      name: "Escape Fulu",
+      category: "equipment",
+      subcategory: "consumable",
+      descriptionText: "Trigger You attempt to Escape. The escape fulu is a charm worn in case of kidnapping. When you activate this fulu, you gain a +2 status bonus to checks to Escape.",
+      traits: ["consumable", "fulu", "magical", "talisman"],
+      references: [
+        {
+          recordKey: "actionspf2e:escape-1",
+          packName: "actionspf2e",
+          name: "Escape",
+          category: "rule",
+          subcategory: "action",
+          traits: ["attack"],
+        },
+      ],
+    })).toEqual(expect.arrayContaining(["beneficial", "escape_support", "buff_support", "self_buff"]));
+
+    expect(deriveRecordTags({
+      name: "Bloodhound Mask",
+      category: "equipment",
+      subcategory: "consumable",
+      descriptionText: "Once activated, the mask sharpens odors, giving you imprecise scent with a 60-foot range.",
+      traits: ["alchemical", "consumable"],
+    })).toEqual(expect.arrayContaining(["beneficial", "senses_support", "self_buff"]));
   });
 
   it("derives expanded gear-purpose tags", () => {
@@ -163,6 +189,22 @@ describe("derived tag rules", () => {
         },
       ],
     })).toContain("restraint_capture");
+
+    expect(deriveRecordTags({
+      name: "Potion of Disguise",
+      category: "equipment",
+      subcategory: "consumable",
+      descriptionText: "Upon imbibing this potion, you take on the appearance of a specific type of creature for hours.",
+      traits: ["consumable", "magical", "polymorph", "potion"],
+    })).toEqual(expect.arrayContaining(["disguise", "social_infiltration"]));
+
+    expect(deriveRecordTags({
+      name: "Emergency Disguise",
+      category: "equipment",
+      subcategory: "consumable",
+      descriptionText: "This ribbon helps you throw together an emergency disguise and pass as a different social station.",
+      traits: ["consumable", "magical", "talisman"],
+    })).toEqual(expect.arrayContaining(["disguise", "social_infiltration"]));
   });
 
   it("derives expanded creature context tags without adding redundant composites", () => {
@@ -205,6 +247,22 @@ describe("derived tag rules", () => {
       descriptionText: "An ambush hunter with a powerful bite.",
       traits: ["amphibious", "beast"],
     })).toContain("aquatic_context");
+
+    expect(deriveRecordTags({
+      name: "Wealthy Vigilante",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "By night, this member of the nobility dons a false identity to mete out extralegal justice.",
+      traits: ["human", "humanoid"],
+    })).toEqual(expect.arrayContaining(["profession_npc", "scene_adjacent"]));
+
+    expect(deriveRecordTags({
+      name: "Prophet",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A wandering prophet shares divine dreams and advice with the faithful.",
+      traits: ["human", "humanoid"],
+    })).toEqual(expect.arrayContaining(["profession_npc", "scene_adjacent"]));
   });
 
   it("uses glossary family evidence for obvious undead-family threat and blocker cases", () => {
@@ -242,7 +300,16 @@ describe("derived tag rules", () => {
       descriptionText: "A courtier sustained by impossible necromancy.",
       traits: ["humanoid"],
       families: ["mythic", "lich"],
-    })).toContain("undead_threat");
+    })).toEqual(expect.arrayContaining(["profession_npc", "undead_threat"]));
+
+    expect(deriveRecordTags({
+      name: "Mythic Courtier",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A courtier sustained by impossible necromancy.",
+      traits: ["humanoid"],
+      families: ["mythic", "lich"],
+    })).not.toContain("scene_adjacent");
   });
 
   it("avoids known substring false positives from the rebuilt corpus", () => {
@@ -344,6 +411,22 @@ describe("derived tag rules", () => {
         },
       ],
     })).not.toContain("restraint_escape");
+
+    expect(deriveRecordTags({
+      name: "Orchestral Brooch",
+      category: "equipment",
+      subcategory: "consumable",
+      descriptionText: "Trigger You attempt a Performance check, but you have not rolled yet. This silver brooch reverberates lightly with the sound of music.",
+      traits: ["consumable", "magical", "talisman"],
+    })).not.toEqual(expect.arrayContaining(["disguise", "social_infiltration"]));
+
+    expect(deriveRecordTags({
+      name: "Vanth Guardian Flock",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Vanth psychopomps are eternal guardians of the cycle of life and death.",
+      traits: ["monitor", "psychopomp", "troop"],
+    })).not.toEqual(expect.arrayContaining(["profession_npc", "scene_adjacent"]));
   });
 
   it("requires enough distinct evidence for weighted creature context tags", () => {
@@ -380,11 +463,18 @@ describe("derived tag rules", () => {
         category: "equipment",
         family: "purpose",
         tags: expect.arrayContaining([
-          expect.objectContaining({ value: "disguise", description: expect.any(String) }),
           expect.objectContaining({ value: "navigation", description: expect.any(String) }),
           expect.objectContaining({ value: "carry_support", description: expect.any(String) }),
           expect.objectContaining({ value: "restraint_escape", description: expect.any(String) }),
           expect.objectContaining({ value: "restraint_capture", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "equipment",
+        family: "infiltration",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "disguise", description: expect.any(String) }),
+          expect.objectContaining({ value: "social_infiltration", description: expect.any(String) }),
         ]),
       }),
       expect.objectContaining({
