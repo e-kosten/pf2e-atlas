@@ -2100,6 +2100,10 @@ describe("Pf2eDataService", () => {
     expect(service.listRecords({ category: "equipment", subcategory: "gear", derivedTagsAny: ["social_infiltration"] }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Masquerade Scarf", "Quick-Change Outfit"]));
     expect(service.listRecords({ category: "equipment", subcategory: "gear", derivedTagsAny: ["restraint_escape"] }).records.map((record) => record.name)).toEqual(["Swallow-Spike"]);
     expect(service.listRecords({ category: "creature", derivedTagsAny: ["aquatic_context"] }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Ghost Sailor", "Pelagic Stalker", "Ship Captain"]));
+    expect(service.listRecords({ category: "creature", glossaryFamiliesAny: ["ghost"] }).records.map((record) => record.name)).toEqual(["Ghost Commoner"]);
+    expect(service.listRecords({ category: "creature", glossaryFamiliesAny: ["lich"] }).records.map((record) => record.name)).toEqual(["Mythic Lich"]);
+    expect(service.listRecords({ category: "creature", glossaryFamiliesAll: ["mythic", "lich"] }).records.map((record) => record.name)).toEqual(["Mythic Lich"]);
+    expect(service.listRecords({ category: "creature", levelMin: 5, levelMax: 5, excludeGlossaryFamilies: ["vampire"] }).records.map((record) => record.name)).not.toContain("Morlock Thrall");
 
     const cythnigot = service.lookup("Cythnigot", { category: "creature" }).match;
     expect(cythnigot?.hasDescription).toBe(true);
@@ -2551,6 +2555,19 @@ describe("Pf2eDataService", () => {
       field: "derivedTags",
       category: "equipment",
     }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["beneficial", "offensive", "climbing", "lock_bypass", "mental_recovery", "carry_support", "restraint_escape"]));
+
+    expect(service.listFilterValues({
+      field: "glossaryFamilies",
+      category: "creature",
+    })).toEqual({
+      field: "glossaryFamilies",
+      values: [
+        { value: "ghost", count: 1 },
+        { value: "lich", count: 1 },
+        { value: "mythic", count: 1 },
+        { value: "vampire", count: 1 },
+      ],
+    });
 
     expect(service.listFilterValues({
       field: "subcategories",

@@ -983,6 +983,67 @@ function buildTraitText(record: NormalizedRecord): string {
   return record.traits.join(" ");
 }
 
+function normalizeGlossaryFamilyValues(values: string[] | undefined): string[] {
+  return [...new Set((values ?? [])
+    .map((value) => normalizeText(value))
+    .filter(Boolean))];
+}
+
+function getNormalizedGlossaryFamilies(record: Pick<NormalizedRecord, "glossaryFamily" | "additionalGlossaryFamilies">): Set<string> {
+  return new Set(
+    [record.glossaryFamily, ...record.additionalGlossaryFamilies]
+      .map((value) => normalizeText(value ?? ""))
+      .filter(Boolean),
+  );
+}
+
+function buildGlossaryFamilyArraySql(recordAlias: string): string {
+  return `CASE
+    WHEN COALESCE(${recordAlias}.glossary_family, '') <> ''
+      THEN json_insert(COALESCE(${recordAlias}.additional_glossary_families_json, '[]'), '$[#]', ${recordAlias}.glossary_family)
+    ELSE COALESCE(${recordAlias}.additional_glossary_families_json, '[]')
+  END`;
+}
+
+function appendGlossaryFamilyFilterClauses(
+  sql: string[],
+  params: SqlValue[],
+  filters: Pick<NormalizedSearchFilters, "glossaryFamiliesAll" | "glossaryFamiliesAny" | "excludeGlossaryFamilies">,
+  buildExistsClause: (operator: "exists" | "not_exists", predicate: string) => string,
+): void {
+  const includedGlossaryFamiliesAll = normalizeGlossaryFamilyValues(filters.glossaryFamiliesAll);
+  for (const family of includedGlossaryFamiliesAll) {
+    appendWhereClause(
+      sql,
+      params,
+      buildExistsClause("exists", "LOWER(glossary_family.value) = ?"),
+      family,
+    );
+  }
+
+  const includedGlossaryFamiliesAny = normalizeGlossaryFamilyValues(filters.glossaryFamiliesAny);
+  if (includedGlossaryFamiliesAny.length > 0) {
+    const placeholders = includedGlossaryFamiliesAny.map(() => "?").join(", ");
+    appendWhereClause(
+      sql,
+      params,
+      buildExistsClause("exists", `LOWER(glossary_family.value) IN (${placeholders})`),
+      ...includedGlossaryFamiliesAny,
+    );
+  }
+
+  const excludedGlossaryFamilies = normalizeGlossaryFamilyValues(filters.excludeGlossaryFamilies);
+  if (excludedGlossaryFamilies.length > 0) {
+    const placeholders = excludedGlossaryFamilies.map(() => "?").join(", ");
+    appendWhereClause(
+      sql,
+      params,
+      buildExistsClause("not_exists", `LOWER(glossary_family.value) IN (${placeholders})`),
+      ...excludedGlossaryFamilies,
+    );
+  }
+}
+
 function resolveSearchMode(filters: SearchFilters, context: "list" | "search"): SearchMode {
   if (context === "search") {
     if (filters.searchProfile === "lexical") {
@@ -1013,6 +1074,9 @@ function hasStructuredFilterSignal(filters: SearchFilters): boolean {
     (filters.traitsAll && filters.traitsAll.length > 0) ||
     (filters.traitsAny && filters.traitsAny.length > 0) ||
     (filters.excludeTraits && filters.excludeTraits.length > 0) ||
+    (filters.glossaryFamiliesAll && filters.glossaryFamiliesAll.length > 0) ||
+    (filters.glossaryFamiliesAny && filters.glossaryFamiliesAny.length > 0) ||
+    (filters.excludeGlossaryFamilies && filters.excludeGlossaryFamilies.length > 0) ||
     (filters.derivedTagsAll && filters.derivedTagsAll.length > 0) ||
     (filters.derivedTagsAny && filters.derivedTagsAny.length > 0) ||
     (filters.excludeDerivedTags && filters.excludeDerivedTags.length > 0) ||
@@ -3214,6 +3278,18 @@ function applySearchFilterClauses(
     );
   }
 
+  const glossaryFamilyArraySql = buildGlossaryFamilyArraySql(recordAlias);
+  appendGlossaryFamilyFilterClauses(
+    sql,
+    params,
+    filters,
+    (operator, predicate) => `AND ${operator === "exists" ? "EXISTS" : "NOT EXISTS"} (
+      SELECT 1
+      FROM json_each(${glossaryFamilyArraySql}) AS glossary_family
+      WHERE ${predicate}
+    )`,
+  );
+
   const includedDerivedTagsAll = (filters.derivedTagsAll ?? [])
     .map((tag) => normalizeDerivedTag(tag))
     .filter(Boolean);
@@ -3344,6 +3420,10 @@ function buildFilterValueQuery(field: FilterValueField, filters: NormalizedSearc
       joins.push("JOIN record_traits rt ON rt.record_key = r.record_key");
       valueExpression = "rt.trait";
       break;
+    case "glossaryFamilies":
+      joins.push(`JOIN json_each(${buildGlossaryFamilyArraySql("r")}) AS glossary_family`);
+      valueExpression = "LOWER(glossary_family.value)";
+      break;
     case "derivedTags":
       joins.push("JOIN record_derived_tags rdt ON rdt.record_key = r.record_key");
       valueExpression = "rdt.tag";
@@ -3430,6 +3510,9 @@ function semanticQueryLimit(baseLimit: number, filters: NormalizedSearchFilters)
     (filters.traitsAll?.length ?? 0) > 0 ||
     (filters.traitsAny?.length ?? 0) > 0 ||
     (filters.excludeTraits?.length ?? 0) > 0 ||
+    (filters.glossaryFamiliesAll?.length ?? 0) > 0 ||
+    (filters.glossaryFamiliesAny?.length ?? 0) > 0 ||
+    (filters.excludeGlossaryFamilies?.length ?? 0) > 0 ||
     (filters.derivedTagsAll?.length ?? 0) > 0 ||
     (filters.derivedTagsAny?.length ?? 0) > 0 ||
     (filters.excludeDerivedTags?.length ?? 0) > 0,
@@ -3510,6 +3593,19 @@ function buildSemanticRetrievalQuery(filters: NormalizedSearchFilters, limit: nu
   if (filters.actionCost !== undefined) {
     appendWhereClause(sql, params, "AND action_cost = ?", BigInt(filters.actionCost));
   }
+
+  const glossaryFamilyArraySql = buildGlossaryFamilyArraySql("rf");
+  appendGlossaryFamilyFilterClauses(
+    sql,
+    params,
+    filters,
+    (operator, predicate) => `AND ${operator === "exists" ? "EXISTS" : "NOT EXISTS"} (
+      SELECT 1
+      FROM records rf, json_each(${glossaryFamilyArraySql}) AS glossary_family
+      WHERE rf.record_key = record_embeddings.record_key
+        AND ${predicate}
+    )`,
+  );
 
   return { sql: sql.join("\n"), params };
 }
@@ -3616,6 +3712,24 @@ function recordMatchesFilters(record: NormalizedRecord, filters: NormalizedSearc
   if (filters.excludeTraits && filters.excludeTraits.length > 0) {
     const normalizedTraits = new Set(record.traits.map((trait) => normalizeText(trait)));
     if (filters.excludeTraits.some((trait) => normalizedTraits.has(normalizeText(trait)))) {
+      return false;
+    }
+  }
+  if (filters.glossaryFamiliesAll && filters.glossaryFamiliesAll.length > 0) {
+    const normalizedGlossaryFamilies = getNormalizedGlossaryFamilies(record);
+    if (!filters.glossaryFamiliesAll.every((family) => normalizedGlossaryFamilies.has(normalizeText(family)))) {
+      return false;
+    }
+  }
+  if (filters.glossaryFamiliesAny && filters.glossaryFamiliesAny.length > 0) {
+    const normalizedGlossaryFamilies = getNormalizedGlossaryFamilies(record);
+    if (!filters.glossaryFamiliesAny.some((family) => normalizedGlossaryFamilies.has(normalizeText(family)))) {
+      return false;
+    }
+  }
+  if (filters.excludeGlossaryFamilies && filters.excludeGlossaryFamilies.length > 0) {
+    const normalizedGlossaryFamilies = getNormalizedGlossaryFamilies(record);
+    if (filters.excludeGlossaryFamilies.some((family) => normalizedGlossaryFamilies.has(normalizeText(family)))) {
       return false;
     }
   }
@@ -4053,6 +4167,9 @@ export class Pf2eDataService {
       pack: pack?.name ?? filters.pack,
       category: normalizedCategory ?? undefined,
       subcategory: normalizedSubcategory ?? undefined,
+      glossaryFamiliesAll: normalizeGlossaryFamilyValues(filters.glossaryFamiliesAll),
+      glossaryFamiliesAny: normalizeGlossaryFamilyValues(filters.glossaryFamiliesAny),
+      excludeGlossaryFamilies: normalizeGlossaryFamilyValues(filters.excludeGlossaryFamilies),
       scopes: normalizedScopes,
     };
   }

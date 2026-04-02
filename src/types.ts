@@ -197,6 +197,9 @@ export interface SearchFilters {
   traitsAll?: string[];
   traitsAny?: string[];
   excludeTraits?: string[];
+  glossaryFamiliesAll?: string[];
+  glossaryFamiliesAny?: string[];
+  excludeGlossaryFamilies?: string[];
   derivedTagsAll?: string[];
   derivedTagsAny?: string[];
   excludeDerivedTags?: string[];
@@ -217,6 +220,7 @@ export interface SearchFilters {
 
 export type FilterValueField =
   | "traits"
+  | "glossaryFamilies"
   | "derivedTags"
   | "rarity"
   | "size"
