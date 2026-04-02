@@ -485,6 +485,118 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
     },
   });
 
+  await writeJson(path.join(packRoot, "equipment", "elixir-of-life-minor.json"), {
+    _id: "elixirLife1",
+    name: "Elixir of Life (Minor)",
+    type: "consumable",
+    system: {
+      description: {
+        value: "<p>A healing elixir that restores hit points.</p>",
+      },
+      publication: {
+        title: "Pathfinder Player Core 2",
+        remaster: true,
+      },
+      traits: {
+        rarity: "common",
+        value: ["alchemical", "consumable", "elixir", "healing"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment", "antidote-lesser.json"), {
+    _id: "antidote1",
+    name: "Antidote (Lesser)",
+    type: "consumable",
+    system: {
+      description: {
+        value: "<p>This antidote bolsters the drinker against poison.</p>",
+      },
+      publication: {
+        title: "Pathfinder Player Core 2",
+        remaster: true,
+      },
+      traits: {
+        rarity: "common",
+        value: ["alchemical", "consumable"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment", "antiplague-lesser.json"), {
+    _id: "antiplague1",
+    name: "Antiplague (Lesser)",
+    type: "consumable",
+    system: {
+      description: {
+        value: "<p>This antiplague helps ward off disease.</p>",
+      },
+      publication: {
+        title: "Pathfinder Player Core 2",
+        remaster: true,
+      },
+      traits: {
+        rarity: "common",
+        value: ["alchemical", "consumable"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment", "bottled-catharsis-serenity.json"), {
+    _id: "catharsis1",
+    name: "Bottled Catharsis (Serenity)",
+    type: "consumable",
+    system: {
+      description: {
+        value: "<p>This bottled catharsis steadies the emotions and helps recover from mental conditions.</p>",
+      },
+      publication: {
+        title: "Pathfinder Treasure Vault (Remastered)",
+        remaster: true,
+      },
+      traits: {
+        rarity: "common",
+        value: ["alchemical", "consumable"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment", "climbing-kit.json"), {
+    _id: "climbKit1",
+    name: "Climbing Kit",
+    type: "equipment",
+    system: {
+      description: {
+        value: "<p>A compact climbing kit with rope and pitons for climbing sheer walls and rappelling safely.</p>",
+      },
+      publication: {
+        title: "Pathfinder Player Core",
+      },
+      traits: {
+        rarity: "common",
+        value: [],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment", "concealable-thieves-tools.json"), {
+    _id: "concealTools1",
+    name: "Concealable Thieves' Tools",
+    type: "equipment",
+    system: {
+      description: {
+        value: "<p>Slim lockpicks and hidden tools for bypassing locks without drawing attention.</p>",
+      },
+      publication: {
+        title: "Pathfinder Player Core",
+      },
+      traits: {
+        rarity: "common",
+        value: [],
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "heritages", "nephilim.json"), {
     _id: "neph1",
     name: "Nephilim",
@@ -754,6 +866,30 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
       traits: {
         rarity: "common",
         value: ["ghost", "incorporeal", "spirit", "undead", "unholy"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "ship-captain.json"), {
+    _id: "ship-captain",
+    name: "Ship Captain",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 4,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>A weathered ship captain who knows every reef and harbor on this coast.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["human", "water"],
         size: {
           value: "med",
         },
@@ -1485,7 +1621,7 @@ describe("Pf2eDataService", () => {
     const service = await loadTestService(fixture);
 
     expect(service.listPacks()).toHaveLength(10);
-    expect(service.getStats()).toEqual({ packCount: 10, recordCount: 39 });
+    expect(service.getStats()).toEqual({ packCount: 10, recordCount: 46 });
     expect(service.getPack("Actions")?.name).toBe("actions");
   });
 
@@ -1530,6 +1666,10 @@ describe("Pf2eDataService", () => {
     expect((await service.search({ category: "creature", sources: ["core"] })).records.every((record) => record.sourceCategory === "core")).toBe(true);
     expect((await service.search({ query: "ghost ship", category: "creature" })).mode).toBe("hybrid");
     expect((await service.search({ query: "ghost ship", category: "creature" })).searchProfile).toBe("balanced");
+    expect(service.listRecords({ category: "equipment", subcategory: "consumable", derivedTagsAny: ["anti_poison"] }).records.map((record) => record.name)).toEqual(["Antidote (Lesser)"]);
+    expect(service.listRecords({ category: "equipment", subcategory: "gear", derivedTagsAny: ["lock_bypass"] }).records.map((record) => record.name)).toEqual(["Concealable Thieves' Tools"]);
+    expect(service.listRecords({ category: "equipment", subcategory: "consumable", derivedTagsAll: ["beneficial", "anti_disease"] }).records.map((record) => record.name)).toEqual(["Antiplague (Lesser)"]);
+    expect(service.listRecords({ category: "equipment", subcategory: "consumable", excludeDerivedTags: ["offensive"] }).records.map((record) => record.name)).not.toContain("Sightless Tincture");
 
     const cythnigot = service.lookup("Cythnigot", { category: "creature" }).match;
     expect(cythnigot?.hasDescription).toBe(true);
@@ -1542,6 +1682,10 @@ describe("Pf2eDataService", () => {
     const focusBurst = service.lookup("Focus Burst", { category: "spell" }).match;
     expect(focusBurst?.subcategory).toBeNull();
     expect(focusBurst?.spellKinds).toEqual(["focus"]);
+    const antidote = service.lookup("Antidote (Lesser)", { category: "equipment" }).match;
+    expect(antidote?.derivedTags).toEqual(expect.arrayContaining(["beneficial", "anti_poison"]));
+    const shipCaptain = service.lookup("Ship Captain", { category: "creature" }).match;
+    expect(shipCaptain?.derivedTags).toEqual(expect.arrayContaining(["nautical", "profession_npc", "scene_adjacent"]));
     expect(service.lookup("Blinded", { category: "rule", subcategory: "condition" }).match?.category).toBe("rule");
   });
 
@@ -1903,6 +2047,7 @@ describe("Pf2eDataService", () => {
     expect(vocabulary.traditions.map((entry) => entry.value)).toContain("primal");
     expect(vocabulary.spellKinds.map((entry) => entry.value)).toContain("focus");
     expect(vocabulary.commonTraitsByCategory.find((entry) => entry.category === "creature")?.traits.length).toBeGreaterThan(0);
+    expect(vocabulary.commonDerivedTagsByCategory.find((entry) => entry.category === "equipment")?.tags.length).toBeGreaterThan(0);
   });
 
   it("lists live filter values across supported fields and scopes", async () => {
@@ -1922,6 +2067,11 @@ describe("Pf2eDataService", () => {
         { value: "trap", count: 1 },
       ],
     });
+
+    expect(service.listFilterValues({
+      field: "derivedTags",
+      category: "equipment",
+    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["beneficial", "offensive", "climbing", "lock_bypass"]));
 
     expect(service.listFilterValues({
       field: "subcategories",
@@ -2054,12 +2204,12 @@ describe("Pf2eDataService", () => {
     const indexPath = path.join(fixture.root, ".cache", "pf2e-index.sqlite");
 
     const firstService = await loadTestService(fixture, { indexPath });
-    expect(firstService.getStats()).toEqual({ packCount: 10, recordCount: 39 });
+    expect(firstService.getStats()).toEqual({ packCount: 10, recordCount: 46 });
     firstService.close();
 
     const firstMtime = (await import("node:fs/promises")).stat(indexPath).then((details) => details.mtimeMs);
     const unchangedService = await openPreparedTestService(fixture, { indexPath });
-    expect(unchangedService.getStats()).toEqual({ packCount: 10, recordCount: 39 });
+    expect(unchangedService.getStats()).toEqual({ packCount: 10, recordCount: 46 });
     unchangedService.close();
     const secondMtime = (await import("node:fs/promises")).stat(indexPath).then((details) => details.mtimeMs);
     expect(await secondMtime).toBe(await firstMtime);
@@ -2091,7 +2241,7 @@ describe("Pf2eDataService", () => {
     await expect(openPreparedTestService(fixture, { indexPath })).rejects.toThrow(/index .* stale/i);
 
     const rebuiltService = await loadTestService(fixture, { indexPath });
-    expect(rebuiltService.getStats()).toEqual({ packCount: 10, recordCount: 40 });
+    expect(rebuiltService.getStats()).toEqual({ packCount: 10, recordCount: 47 });
     expect(rebuiltService.lookup("Sea Ghoul", { category: "creature" }).match?.name).toBe("Sea Ghoul");
     rebuiltService.close();
   });
@@ -2103,7 +2253,7 @@ describe("Pf2eDataService", () => {
     const indexPath = path.join(fixture.root, ".cache", "pf2e-index.sqlite");
 
     const firstService = await loadTestService(fixture, { indexPath });
-    expect(firstService.getStats()).toEqual({ packCount: 10, recordCount: 39 });
+    expect(firstService.getStats()).toEqual({ packCount: 10, recordCount: 46 });
     firstService.close();
 
     await writeJson(path.join(fixture.root, "packs", "pf2e", "pathfinder-monster-core", "sea-ghoul-untracked.json"), {

@@ -65,7 +65,7 @@ import {
 import { buildLiteralQueryWeights, buildSearchQueryAnalysis } from "./search-query-analysis.js";
 
 const execFileAsync = promisify(execFile);
-const INDEX_SCHEMA_VERSION = 12;
+const INDEX_SCHEMA_VERSION = 13;
 const VEC_TEXT_NONE = "";
 const VEC_INT_NONE = -1n;
 const LOOKUP_LEXICAL_TOP_K = 100;
@@ -99,6 +99,7 @@ type CandidateRow = {
   level: number | null;
   rarity: string | null;
   traitsJson: string;
+  derivedTagsJson: string;
   publicationTitle: string | null;
   publicationRemaster: number;
   descriptionText: string | null;
@@ -148,6 +149,7 @@ type NormalizedIndexRecord = {
   level: number | null;
   rarity: string | null;
   traits: string[];
+  derivedTags: string[];
   publicationTitle: string | null;
   publicationRemaster: boolean;
   descriptionText: string | null;
@@ -700,6 +702,161 @@ function getSourceCategory(packName: string, publicationTitle: string | null): S
   return "unknown";
 }
 
+function textIncludesAny(text: string, anchors: string[]): boolean {
+  return anchors.some((anchor) => text.includes(anchor));
+}
+
+function normalizeDerivedTag(value: string): string {
+  return normalizeText(value).replace(/\s+/g, "_");
+}
+
+function deriveConsumableTags(traits: Set<string>, text: string): string[] {
+  const tags = new Set<string>();
+  const offensive = traits.has("poison") ||
+    traits.has("bomb") ||
+    textIncludesAny(text, [
+      "toxin",
+      "venom",
+      "bomb",
+      "injury poison",
+      "contact poison",
+      "ingested poison",
+      "inhaled poison",
+      "weapon poison",
+      "afflicts the target",
+    ]);
+  const beneficial = !offensive && (
+    traits.has("elixir") ||
+    traits.has("healing") ||
+    textIncludesAny(text, ["elixir of life", "healing", "restorative", "remedy", "curative", "antidote", "antiplague", "catharsis"])
+  );
+
+  if (offensive) {
+    tags.add("offensive");
+  }
+
+  if (beneficial) {
+    tags.add("beneficial");
+  }
+
+  if (beneficial && (traits.has("healing") || textIncludesAny(text, ["elixir of life", "healing", "restore hit points", "restore hp"]))) {
+    tags.add("healing_support");
+  }
+
+  if (beneficial && textIncludesAny(text, ["antidote", "against poison", "protect against poison", "resist poison", "ward off poison"])) {
+    tags.add("anti_poison");
+  }
+
+  if (beneficial && textIncludesAny(text, ["antiplague", "against disease", "protect against disease", "resist disease", "ward off disease"])) {
+    tags.add("anti_disease");
+  }
+
+  if (beneficial && textIncludesAny(text, ["catharsis", "condition", "soothe the mind", "steady the emotions", "calm overwhelming emotions"])) {
+    tags.add("condition_support");
+  }
+
+  return [...tags];
+}
+
+function deriveGearPurposeTags(text: string): string[] {
+  const tags = new Set<string>();
+  const climbing = textIncludesAny(text, ["climb", "climbing", "rappel", "rappelling", "piton", "grappling"]);
+  const lockBypass = textIncludesAny(text, ["lockpick", "lockpicks", "pick locks", "picking locks", "bypass locks", "thieves tools", "thieves' tools", "toolkit"]);
+  const concealable = textIncludesAny(text, ["concealable", "hidden on your person", "hidden tools", "slim lockpicks"]);
+  const scouting = textIncludesAny(text, ["scout", "scouting", "survey", "recon", "observe from afar", "spyglass"]);
+  const stealthSupport = textIncludesAny(text, ["stealth", "quiet", "silent", "without drawing attention", "avoid notice", "infiltration"]) || concealable;
+
+  if (climbing) {
+    tags.add("climbing");
+    tags.add("mobility");
+  }
+  if (lockBypass) {
+    tags.add("lock_bypass");
+  }
+  if (concealable) {
+    tags.add("concealable");
+  }
+  if (scouting) {
+    tags.add("scouting");
+  }
+  if (stealthSupport) {
+    tags.add("stealth_support");
+  }
+
+  return [...tags];
+}
+
+function deriveCreatureTags(name: string, descriptionText: string | null, traits: Set<string>): string[] {
+  const tags = new Set<string>();
+  const text = normalizeText([name, descriptionText ?? ""].filter(Boolean).join(" "));
+  const undeadThreat = traits.has("undead") || traits.has("ghost") || traits.has("spirit") || traits.has("skeleton") || traits.has("ghoul");
+  const feyThreat = traits.has("fey");
+  const plantThreat = traits.has("plant") || traits.has("fungus") || traits.has("leshy");
+  const aquaticContext = traits.has("water") || textIncludesAny(text, ["aquatic", "ocean", "sea", "river", "coast", "harbor", "water"]);
+  const nautical = textIncludesAny(text, ["sailor", "ship", "captain", "mariner", "harbor", "dock", "bilge", "wreck", "crew"]);
+  const forest = textIncludesAny(text, ["forest", "woodland", "grove", "briar"]);
+  const professionNpc = textIncludesAny(text, ["captain", "commoner", "guard", "scout", "sailor"]);
+
+  if (undeadThreat) {
+    tags.add("undead_threat");
+  }
+  if (feyThreat) {
+    tags.add("fey_threat");
+  }
+  if (plantThreat) {
+    tags.add("plant_threat");
+  }
+  if (aquaticContext) {
+    tags.add("aquatic_context");
+  }
+  if (nautical) {
+    tags.add("nautical");
+  }
+  if (forest) {
+    tags.add("forest");
+  }
+  if (professionNpc) {
+    tags.add("profession_npc");
+  }
+  if (professionNpc && !undeadThreat && !feyThreat && !plantThreat) {
+    tags.add("scene_adjacent");
+  }
+
+  return [...tags];
+}
+
+function deriveRecordTags(input: {
+  name: string;
+  category: SearchCategory;
+  subcategory: SearchSubcategory | null;
+  descriptionText: string | null;
+  traits: string[];
+}): string[] {
+  const normalizedTraits = new Set(input.traits.map((trait) => normalizeText(trait)).filter(Boolean));
+  const text = normalizeText([input.name, input.descriptionText ?? ""].filter(Boolean).join(" "));
+  const tags = new Set<string>();
+
+  if (input.category === "equipment" && input.subcategory === "consumable") {
+    for (const tag of deriveConsumableTags(normalizedTraits, text)) {
+      tags.add(tag);
+    }
+  }
+
+  if (input.category === "equipment" && ["gear", "backpack", "kit"].includes(input.subcategory ?? "")) {
+    for (const tag of deriveGearPurposeTags(text)) {
+      tags.add(tag);
+    }
+  }
+
+  if (input.category === "creature") {
+    for (const tag of deriveCreatureTags(input.name, input.descriptionText, normalizedTraits)) {
+      tags.add(tag);
+    }
+  }
+
+  return uniqueSorted([...tags]);
+}
+
 function normalizeIndexRecord(pack: PackBuildInfo, sourcePath: string, raw: Record<string, unknown>): NormalizedIndexRecord {
   const id = firstString(raw._id);
   const name = firstString(raw.name);
@@ -734,6 +891,14 @@ function normalizeIndexRecord(pack: PackBuildInfo, sourcePath: string, raw: Reco
     throw new Error(`Record in ${sourcePath} did not map to a public search category.`);
   }
 
+  const derivedTags = deriveRecordTags({
+    name,
+    category: classification.category,
+    subcategory: classification.subcategory,
+    descriptionText,
+    traits,
+  });
+
   return {
     recordKey: `${pack.name}:${id}`,
     id,
@@ -748,6 +913,7 @@ function normalizeIndexRecord(pack: PackBuildInfo, sourcePath: string, raw: Reco
     level: getLevel(raw),
     rarity,
     traits,
+    derivedTags,
     publicationTitle,
     publicationRemaster,
     descriptionText,
@@ -994,6 +1160,9 @@ function hasStructuredFilterSignal(filters: SearchFilters): boolean {
     (filters.traitsAll && filters.traitsAll.length > 0) ||
     (filters.traitsAny && filters.traitsAny.length > 0) ||
     (filters.excludeTraits && filters.excludeTraits.length > 0) ||
+    (filters.derivedTagsAll && filters.derivedTagsAll.length > 0) ||
+    (filters.derivedTagsAny && filters.derivedTagsAny.length > 0) ||
+    (filters.excludeDerivedTags && filters.excludeDerivedTags.length > 0) ||
     (filters.sources && filters.sources.length > 0) ||
     (filters.excludeSources && filters.excludeSources.length > 0) ||
     (filters.traditions && filters.traditions.length > 0) ||
@@ -1741,6 +1910,7 @@ function rowToRecord(row: CandidateRow, raw: Record<string, unknown> | null = nu
     level: row.level,
     rarity: row.rarity,
     traits: JSON.parse(row.traitsJson) as string[],
+    derivedTags: JSON.parse(row.derivedTagsJson) as string[],
     publicationTitle: row.publicationTitle,
     publicationRemaster: Boolean(row.publicationRemaster),
     descriptionText: row.descriptionText,
@@ -1968,6 +2138,7 @@ function createSchema(db: DatabaseSync, embeddingDimensions: number): void {
       level INTEGER,
       rarity TEXT,
       traits_json TEXT NOT NULL,
+      derived_tags_json TEXT NOT NULL,
       publication_title TEXT,
       publication_remaster INTEGER NOT NULL,
       description_text TEXT,
@@ -2006,6 +2177,13 @@ function createSchema(db: DatabaseSync, embeddingDimensions: number): void {
       record_key TEXT NOT NULL,
       trait TEXT NOT NULL,
       PRIMARY KEY (record_key, trait),
+      FOREIGN KEY (record_key) REFERENCES records(record_key) ON DELETE CASCADE
+    );
+
+    CREATE TABLE record_derived_tags (
+      record_key TEXT NOT NULL,
+      tag TEXT NOT NULL,
+      PRIMARY KEY (record_key, tag),
       FOREIGN KEY (record_key) REFERENCES records(record_key) ON DELETE CASCADE
     );
 
@@ -2110,6 +2288,7 @@ function createSchema(db: DatabaseSync, embeddingDimensions: number): void {
     CREATE INDEX record_aliases_normalized_alias_idx ON record_aliases(normalized_alias);
     CREATE INDEX record_legacy_links_canonical_idx ON record_legacy_links(canonical_record_key);
     CREATE INDEX record_traits_trait_idx ON record_traits(trait);
+    CREATE INDEX record_derived_tags_tag_idx ON record_derived_tags(tag);
     CREATE INDEX actor_records_size_idx ON actor_records(size);
     CREATE INDEX item_records_category_idx ON item_records(item_category);
     CREATE INDEX item_records_price_idx ON item_records(price_cp);
@@ -2148,9 +2327,9 @@ async function buildIndex(
   const insertRecord = db.prepare(`
     INSERT INTO records (
       record_key, id, name, normalized_name, category, subcategory, pack_name, pack_label, document_type, record_type,
-      level, rarity, traits_json, publication_title, publication_remaster, description_text, has_description, description_snippet,
+      level, rarity, traits_json, derived_tags_json, publication_title, publication_remaster, description_text, has_description, description_snippet,
       source_category, folder_id, source_path, is_unique, is_search_canonical, search_text, raw_json
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const insertAlias = db.prepare(`
     INSERT INTO record_aliases (canonical_record_key, alias_text, normalized_alias, source_kind, source_ref)
@@ -2162,6 +2341,9 @@ async function buildIndex(
   `);
   const insertTrait = db.prepare(`
     INSERT INTO record_traits (record_key, trait) VALUES (?, ?)
+  `);
+  const insertDerivedTag = db.prepare(`
+    INSERT INTO record_derived_tags (record_key, tag) VALUES (?, ?)
   `);
   const insertActor = db.prepare(`
     INSERT INTO actor_records (
@@ -2455,6 +2637,7 @@ async function buildIndex(
         record.level,
         record.rarity,
         JSON.stringify(record.traits),
+        JSON.stringify(record.derivedTags),
         record.publicationTitle,
         record.publicationRemaster ? 1 : 0,
         record.descriptionText,
@@ -2471,6 +2654,10 @@ async function buildIndex(
 
       for (const trait of record.traits) {
         insertTrait.run(record.recordKey, normalizeText(trait));
+      }
+
+      for (const tag of record.derivedTags) {
+        insertDerivedTag.run(record.recordKey, normalizeDerivedTag(tag));
       }
 
       if (entry.actorData) {
@@ -3027,6 +3214,44 @@ function applySearchFilterClauses(
       ...excludedTraits,
     );
   }
+
+  const includedDerivedTagsAll = (filters.derivedTagsAll ?? [])
+    .map((tag) => normalizeDerivedTag(tag))
+    .filter(Boolean);
+  for (const tag of includedDerivedTagsAll) {
+    appendWhereClause(
+      sql,
+      params,
+      `AND EXISTS (SELECT 1 FROM record_derived_tags rdt WHERE rdt.record_key = ${recordAlias}.record_key AND rdt.tag = ?)`,
+      tag,
+    );
+  }
+
+  const includedDerivedTagsAny = (filters.derivedTagsAny ?? [])
+    .map((tag) => normalizeDerivedTag(tag))
+    .filter(Boolean);
+  if (includedDerivedTagsAny.length > 0) {
+    const placeholders = includedDerivedTagsAny.map(() => "?").join(", ");
+    appendWhereClause(
+      sql,
+      params,
+      `AND EXISTS (SELECT 1 FROM record_derived_tags rdt WHERE rdt.record_key = ${recordAlias}.record_key AND rdt.tag IN (${placeholders}))`,
+      ...includedDerivedTagsAny,
+    );
+  }
+
+  const excludedDerivedTags = (filters.excludeDerivedTags ?? [])
+    .map((tag) => normalizeDerivedTag(tag))
+    .filter(Boolean);
+  if (excludedDerivedTags.length > 0) {
+    const placeholders = excludedDerivedTags.map(() => "?").join(", ");
+    appendWhereClause(
+      sql,
+      params,
+      `AND NOT EXISTS (SELECT 1 FROM record_derived_tags rdt WHERE rdt.record_key = ${recordAlias}.record_key AND rdt.tag IN (${placeholders}))`,
+      ...excludedDerivedTags,
+    );
+  }
 }
 
 function buildCandidateQuery(
@@ -3049,6 +3274,7 @@ function buildCandidateQuery(
     "r.level AS level",
     "r.rarity AS rarity",
     "r.traits_json AS traitsJson",
+    "r.derived_tags_json AS derivedTagsJson",
     "r.publication_title AS publicationTitle",
     "r.publication_remaster AS publicationRemaster",
     "r.description_text AS descriptionText",
@@ -3116,6 +3342,10 @@ function buildFilterValueQuery(field: FilterValueField, filters: NormalizedSearc
     case "traits":
       joins.push("JOIN record_traits rt ON rt.record_key = r.record_key");
       valueExpression = "rt.trait";
+      break;
+    case "derivedTags":
+      joins.push("JOIN record_derived_tags rdt ON rdt.record_key = r.record_key");
+      valueExpression = "rdt.tag";
       break;
     case "rarity":
       valueExpression = "r.rarity";
@@ -3198,7 +3428,10 @@ function semanticQueryLimit(baseLimit: number, filters: NormalizedSearchFilters)
     (filters.spellKinds?.length ?? 0) > 0 ||
     (filters.traitsAll?.length ?? 0) > 0 ||
     (filters.traitsAny?.length ?? 0) > 0 ||
-    (filters.excludeTraits?.length ?? 0) > 0,
+    (filters.excludeTraits?.length ?? 0) > 0 ||
+    (filters.derivedTagsAll?.length ?? 0) > 0 ||
+    (filters.derivedTagsAny?.length ?? 0) > 0 ||
+    (filters.excludeDerivedTags?.length ?? 0) > 0,
   );
   return hasPostFilterOnlyConstraints ? Math.min(1000, Math.max(baseLimit * 4, baseLimit + 100)) : baseLimit;
 }
@@ -3385,6 +3618,24 @@ function recordMatchesFilters(record: NormalizedRecord, filters: NormalizedSearc
       return false;
     }
   }
+  if (filters.derivedTagsAll && filters.derivedTagsAll.length > 0) {
+    const normalizedDerivedTags = new Set(record.derivedTags.map((tag) => normalizeDerivedTag(tag)));
+    if (!filters.derivedTagsAll.every((tag) => normalizedDerivedTags.has(normalizeDerivedTag(tag)))) {
+      return false;
+    }
+  }
+  if (filters.derivedTagsAny && filters.derivedTagsAny.length > 0) {
+    const normalizedDerivedTags = new Set(record.derivedTags.map((tag) => normalizeDerivedTag(tag)));
+    if (!filters.derivedTagsAny.some((tag) => normalizedDerivedTags.has(normalizeDerivedTag(tag)))) {
+      return false;
+    }
+  }
+  if (filters.excludeDerivedTags && filters.excludeDerivedTags.length > 0) {
+    const normalizedDerivedTags = new Set(record.derivedTags.map((tag) => normalizeDerivedTag(tag)));
+    if (filters.excludeDerivedTags.some((tag) => normalizedDerivedTags.has(normalizeDerivedTag(tag)))) {
+      return false;
+    }
+  }
 
   return true;
 }
@@ -3565,6 +3816,7 @@ export class Pf2eDataService {
     spellKinds: Array<{ value: string; count: number }>;
     sourceCategories: Array<{ value: SourceCategory; count: number }>;
     commonTraitsByCategory: Array<{ category: SearchCategory; traits: Array<{ value: string; count: number }> }>;
+    commonDerivedTagsByCategory: Array<{ category: SearchCategory; tags: Array<{ value: string; count: number }> }>;
   } {
     const traitLimit = Math.max(3, Math.min(options.traitLimitPerCategory ?? 12, 25));
     const categories = this.db
@@ -3648,6 +3900,31 @@ export class Pf2eDataService {
         .sort((left, right) => left[0].localeCompare(right[0]))
         .map(([category, traits]) => ({ category, traits }));
     })();
+    const categoryDerivedTagRows = this.db
+      .prepare(
+        `
+          SELECT r.category AS category, rdt.tag AS value, COUNT(*) AS count
+          FROM record_derived_tags rdt
+          JOIN records r ON r.record_key = rdt.record_key
+          WHERE r.is_search_canonical = 1
+          GROUP BY r.category, rdt.tag
+          ORDER BY r.category ASC, count DESC, value ASC
+        `,
+      )
+      .all() as Array<{ category: SearchCategory; value: string; count: number }>;
+    const commonDerivedTagsByCategory = (() => {
+      const grouped = new Map<SearchCategory, Array<{ value: string; count: number }>>();
+      for (const row of categoryDerivedTagRows) {
+        const bucket = grouped.get(row.category) ?? [];
+        if (bucket.length < traitLimit) {
+          bucket.push({ value: row.value, count: row.count });
+          grouped.set(row.category, bucket);
+        }
+      }
+      return [...grouped.entries()]
+        .sort((left, right) => left[0].localeCompare(right[0]))
+        .map(([category, tags]) => ({ category, tags }));
+    })();
     const traditionCounts = new Map<string, number>();
     const traditionRows = this.db
       .prepare(`
@@ -3704,6 +3981,7 @@ export class Pf2eDataService {
       spellKinds,
       sourceCategories,
       commonTraitsByCategory,
+      commonDerivedTagsByCategory,
     };
   }
 
@@ -3829,6 +4107,7 @@ export class Pf2eDataService {
             r.level AS level,
             r.rarity AS rarity,
             r.traits_json AS traitsJson,
+            r.derived_tags_json AS derivedTagsJson,
             r.publication_title AS publicationTitle,
             r.publication_remaster AS publicationRemaster,
             r.description_text AS descriptionText,
@@ -3954,6 +4233,7 @@ export class Pf2eDataService {
             r.level AS level,
             r.rarity AS rarity,
             r.traits_json AS traitsJson,
+            r.derived_tags_json AS derivedTagsJson,
             r.publication_title AS publicationTitle,
             r.publication_remaster AS publicationRemaster,
             r.description_text AS descriptionText,
@@ -3997,6 +4277,7 @@ export class Pf2eDataService {
             r.level AS level,
             r.rarity AS rarity,
             r.traits_json AS traitsJson,
+            r.derived_tags_json AS derivedTagsJson,
             r.publication_title AS publicationTitle,
             r.publication_remaster AS publicationRemaster,
             r.description_text AS descriptionText,

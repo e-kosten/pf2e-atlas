@@ -23,18 +23,26 @@ Examples:
 
 ## Commit Messages
 
-Use Conventional Commits for all changes.
+Use Conventional Commits for all changes. Every commit message must include:
+
+- a Conventional Commit summary line
+- a blank line
+- a short description body explaining the change and, when relevant, any important behavior or data implications
 
 Format:
 
 ```text
 type(scope): summary
+
+description
 ```
 
 Scope is optional:
 
 ```text
 type: summary
+
+description
 ```
 
 Recommended types for this repo:
@@ -52,6 +60,20 @@ Examples:
 - `fix(lookup): prefer canonical action packs over macro packs`
 - `docs(readme): document vendored PF2E checkout`
 - `chore(vendor): add refresh script for PF2E data`
+
+Full commit examples:
+
+```text
+feat(search): add publication title filtering
+
+Prefer publication title matching in structured search filters and document the new behavior.
+```
+
+```text
+fix(refresh): report index progress
+
+Show progress updates during index rebuilds so long-running refreshes are easier to monitor.
+```
 
 ## Development
 

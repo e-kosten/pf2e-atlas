@@ -143,6 +143,7 @@ export interface NormalizedRecord {
   level: number | null;
   rarity: string | null;
   traits: string[];
+  derivedTags: string[];
   publicationTitle: string | null;
   publicationRemaster: boolean;
   descriptionText: string | null;
@@ -181,6 +182,9 @@ export interface SearchFilters {
   traitsAll?: string[];
   traitsAny?: string[];
   excludeTraits?: string[];
+  derivedTagsAll?: string[];
+  derivedTagsAny?: string[];
+  excludeDerivedTags?: string[];
   sources?: SourceCategory[];
   excludeSources?: SourceCategory[];
   traditions?: string[];
@@ -198,6 +202,7 @@ export interface SearchFilters {
 
 export type FilterValueField =
   | "traits"
+  | "derivedTags"
   | "rarity"
   | "size"
   | "publicationTitle"

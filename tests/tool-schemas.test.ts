@@ -21,6 +21,7 @@ describe("tool schemas", () => {
 
   it("accepts the supported filter-value fields", () => {
     expect(filterValueFieldSchema.safeParse("traits")).toMatchObject({ success: true, data: "traits" });
+    expect(filterValueFieldSchema.safeParse("derivedTags")).toMatchObject({ success: true, data: "derivedTags" });
     expect(filterValueFieldSchema.safeParse("publicationTitle")).toMatchObject({ success: true, data: "publicationTitle" });
     expect(filterValueFieldSchema.safeParse("packs")).toMatchObject({ success: true, data: "packs" });
     expect(filterValueFieldSchema.safeParse("foo").success).toBe(false);
