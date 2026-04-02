@@ -663,6 +663,74 @@ describe("derived tag rules", () => {
     })).toContain("nautical");
   });
 
+  it("reuses shared tag values across spells while keeping other categories specific", () => {
+    expect(deriveRecordTags({
+      name: "Illusory Disguise",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You create an illusion that disguises the target and helps them pass as someone else.",
+      traits: ["illusion"],
+    })).toEqual(expect.arrayContaining(["disguise", "social_infiltration"]));
+
+    expect(deriveRecordTags({
+      name: "Focus Burst",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You disrupt a creature as it tries to refocus.",
+      traits: ["focus"],
+    })).not.toEqual(expect.arrayContaining(["disguise", "social_infiltration"]));
+
+    expect(deriveRecordTags({
+      name: "Alarm Ward",
+      category: "hazard",
+      subcategory: null,
+      descriptionText: "A silent ward flares when a creature crosses the threshold, raising the alarm and alerting nearby guards.",
+      traits: ["magical"],
+    })).toContain("alarm");
+
+    expect(deriveRecordTags({
+      name: "Snaring Glyph",
+      category: "hazard",
+      subcategory: null,
+      descriptionText: "A glowing sigil lashes out with force bands to bind intruders in place until they Escape. The creature becomes Restrained.",
+      traits: ["magical"],
+      references: [
+        {
+          recordKey: "actionspf2e:escape-1",
+          packName: "actionspf2e",
+          name: "Escape",
+          category: "rule",
+          subcategory: "action",
+          traits: ["attack"],
+        },
+        {
+          recordKey: "conditionitems:restrained-1",
+          packName: "conditionitems",
+          name: "Restrained",
+          category: "rule",
+          subcategory: "condition",
+          traits: [],
+        },
+      ],
+    })).toContain("restraint_capture");
+
+    expect(deriveRecordTags({
+      name: "Cackling Delirium",
+      category: "affliction",
+      subcategory: "curse",
+      descriptionText: "Mocking whispers leave the victim confused, frightened, and unable to trust their own senses.",
+      traits: ["curse", "mental"],
+    })).toContain("mental_impairment");
+
+    expect(deriveRecordTags({
+      name: "Calcifying Rot",
+      category: "affliction",
+      subcategory: "disease",
+      descriptionText: "The disease stiffens joints, reduces the victim's Speed, and can leave them immobilized.",
+      traits: ["disease"],
+    })).toContain("mobility_impairment");
+  });
+
   it("publishes a compact derived-tag catalog", () => {
     expect(DERIVED_TAG_CATALOG).toEqual(expect.arrayContaining([
       expect.objectContaining({
@@ -693,6 +761,30 @@ describe("derived tag rules", () => {
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "disguise", description: expect.any(String) }),
           expect.objectContaining({ value: "social_infiltration", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "spell",
+        family: "infiltration",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "disguise", description: expect.any(String) }),
+          expect.objectContaining({ value: "social_infiltration", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "hazard",
+        family: "function",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "alarm", description: expect.any(String) }),
+          expect.objectContaining({ value: "restraint_capture", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "affliction",
+        family: "impact",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "mental_impairment", description: expect.any(String) }),
+          expect.objectContaining({ value: "mobility_impairment", description: expect.any(String) }),
         ]),
       }),
       expect.objectContaining({

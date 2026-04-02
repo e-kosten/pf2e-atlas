@@ -1,4 +1,5 @@
 import { SEARCH_CATEGORIES } from "./categories.js";
+import { DERIVED_TAG_CATALOG } from "./derived-tags.js";
 import {
   FILTER_VALUE_FIELDS,
   METADATA_BOOLEAN_FIELDS,
@@ -84,7 +85,8 @@ const CREATURE_ONLY: SearchCategory[] = ["creature"];
 const EQUIPMENT_ONLY: SearchCategory[] = ["equipment"];
 const SPELL_ONLY: SearchCategory[] = ["spell"];
 const EQUIPMENT_AND_SPELL: SearchCategory[] = ["equipment", "spell"];
-const DERIVED_TAG_CATEGORIES: SearchCategory[] = ["equipment", "creature"];
+const DERIVED_TAG_CATEGORY_SET = new Set<SearchCategory>(DERIVED_TAG_CATALOG.map((entry) => entry.category));
+const DERIVED_TAG_CATEGORIES: SearchCategory[] = SEARCH_CATEGORIES.filter((category) => DERIVED_TAG_CATEGORY_SET.has(category));
 
 const METADATA_FIELD_NAME_SET = new Set<MetadataFieldName>([
   ...METADATA_SET_FIELDS,
@@ -121,7 +123,7 @@ const METADATA_FIELD_REGISTRY: MetadataFieldSemantics[] = [
     operators: SET_OPERATORS,
     categories: DERIVED_TAG_CATEGORIES,
     discoverable: DISCOVERABLE_METADATA_FIELDS.has("derivedTags"),
-    notes: "Curated heuristic tags. Currently supported for equipment and creature records.",
+    notes: "Curated heuristic tags. Supported for categories with explicit derived-tag ontology coverage.",
   },
   {
     field: "traditions",

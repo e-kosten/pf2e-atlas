@@ -169,6 +169,32 @@ function normalizeDerivedTagReference(value: string): string {
 
 const referenceAnchor = (packName: string, name: string): string => normalizeDerivedTagReference(`${packName}:${name}`);
 
+const DISGUISE_TEXT_ANCHORS: TextAnchor[] = [
+  tokenAnchor("disguise"),
+  tokenAnchor("impersonate"),
+  phraseAnchor("false identity"),
+  tokenAnchor("costume"),
+  tokenAnchor("masquerade"),
+  phraseAnchor("quick change", "name"),
+  phraseAnchor("take on the appearance"),
+  phraseAnchor("change your appearance"),
+  phraseAnchor("assume role"),
+];
+
+const SOCIAL_INFILTRATION_TEXT_ANCHORS: TextAnchor[] = [
+  phraseAnchor("false identity"),
+  phraseAnchor("pass as"),
+  phraseAnchor("blend into society"),
+  phraseAnchor("social infiltration"),
+  tokenAnchor("impersonate"),
+  tokenAnchor("masquerade"),
+  phraseAnchor("quick change", "name"),
+  tokenAnchor("disguise", "name"),
+  phraseAnchor("take on the appearance"),
+  phraseAnchor("change your appearance"),
+  phraseAnchor("assume role"),
+];
+
 const DISGUISE_REFERENCE_ANCHORS = [
   referenceAnchor("actionspf2e", "Impersonate"),
   referenceAnchor("spells-srd", "Illusory Disguise"),
@@ -208,6 +234,40 @@ const NAVIGATION_REFERENCE_ANCHORS = [
 const TRACKING_REFERENCE_ANCHORS = [
   referenceAnchor("actionspf2e", "Track"),
   referenceAnchor("actionspf2e", "Cover Tracks"),
+];
+
+const HAZARD_ALARM_TEXT_ANCHORS: TextAnchor[] = [
+  tokenAnchor("alarm"),
+  tokenAnchor("alert"),
+  tokenAnchor("alerts"),
+  phraseAnchor("raise the alarm"),
+  phraseAnchor("alert nearby guards"),
+  phraseAnchor("sound an alarm"),
+  phraseAnchor("warning bell"),
+  tokenAnchor("intrusion"),
+];
+
+const AFFLICTION_MENTAL_TEXT_ANCHORS: TextAnchor[] = [
+  tokenAnchor("confused"),
+  tokenAnchor("confusion"),
+  tokenAnchor("delirium"),
+  tokenAnchor("paranoia"),
+  tokenAnchor("frightened"),
+  tokenAnchor("hallucination"),
+  tokenAnchor("hallucinations"),
+  tokenAnchor("whispers"),
+  tokenAnchor("panic"),
+];
+
+const AFFLICTION_MOBILITY_TEXT_ANCHORS: TextAnchor[] = [
+  phraseAnchor("speed is reduced"),
+  phraseAnchor("reduces the victim s speed"),
+  phraseAnchor("reduces your speed"),
+  phraseAnchor("stiffens joints"),
+  tokenAnchor("immobilized"),
+  tokenAnchor("paralyzed"),
+  tokenAnchor("paralysis"),
+  tokenAnchor("slowed"),
 ];
 
 const DERIVED_TAG_RULES: DerivedTagRule[] = [
@@ -494,7 +554,7 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "equipment",
     subcategories: DISGUISE_SUBCATEGORIES,
     anyOf: [
-      { textAny: [tokenAnchor("disguise"), tokenAnchor("impersonate"), phraseAnchor("false identity"), tokenAnchor("costume"), tokenAnchor("masquerade"), phraseAnchor("quick change", "name"), phraseAnchor("take on the appearance"), phraseAnchor("change your appearance"), phraseAnchor("assume role")] },
+      { textAny: DISGUISE_TEXT_ANCHORS },
       { referencesAny: DISGUISE_REFERENCE_ANCHORS },
     ],
   },
@@ -504,8 +564,26 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     subcategories: DISGUISE_SUBCATEGORIES,
     requiresTags: ["disguise"],
     anyOf: [
-      { textAny: [phraseAnchor("false identity"), phraseAnchor("pass as"), phraseAnchor("blend into society"), phraseAnchor("social infiltration"), tokenAnchor("impersonate"), tokenAnchor("masquerade"), phraseAnchor("quick change", "name"), tokenAnchor("disguise", "name"), phraseAnchor("take on the appearance"), phraseAnchor("change your appearance"), phraseAnchor("assume role")] },
+      { textAny: SOCIAL_INFILTRATION_TEXT_ANCHORS },
       { referencesAny: SOCIAL_INFILTRATION_REFERENCE_ANCHORS },
+    ],
+  },
+  {
+    tag: "disguise",
+    category: "spell",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: DISGUISE_TEXT_ANCHORS },
+      { score: 1, traitsAny: ["illusion"] },
+    ],
+  },
+  {
+    tag: "social_infiltration",
+    category: "spell",
+    requiresTags: ["disguise"],
+    anyOf: [
+      { textAny: SOCIAL_INFILTRATION_TEXT_ANCHORS },
+      { traitsAny: ["illusion"] },
     ],
   },
   {
@@ -776,6 +854,56 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     ],
   },
   {
+    tag: "alarm",
+    category: "hazard",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: HAZARD_ALARM_TEXT_ANCHORS },
+      { score: 1, textAny: [tokenAnchor("glyph"), tokenAnchor("ward"), tokenAnchor("threshold")] },
+    ],
+  },
+  {
+    tag: "restraint_capture",
+    category: "hazard",
+    threshold: 2,
+    anyOf: [
+      {
+        score: 2,
+        textAny: [
+          phraseAnchor("bind intruders"),
+          phraseAnchor("holds intruders in place"),
+          phraseAnchor("hold creatures in place"),
+          phraseAnchor("lashes out with force bands"),
+          phraseAnchor("until they escape"),
+        ],
+        referencesAny: RESTRAINT_CAPTURE_REFERENCE_ANCHORS,
+      },
+      {
+        score: 2,
+        textAny: [
+          phraseAnchor("creature becomes restrained"),
+          phraseAnchor("target becomes restrained"),
+        ],
+      },
+    ],
+  },
+  {
+    tag: "mental_impairment",
+    category: "affliction",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: AFFLICTION_MENTAL_TEXT_ANCHORS },
+      { score: 1, traitsAny: ["mental", "emotion", "fear"] },
+    ],
+  },
+  {
+    tag: "mobility_impairment",
+    category: "affliction",
+    anyOf: [
+      { textAny: AFFLICTION_MOBILITY_TEXT_ANCHORS },
+    ],
+  },
+  {
     tag: "undead_threat",
     category: "creature",
     anyOf: [
@@ -974,6 +1102,33 @@ export const DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
     tags: [
       { value: "disguise", description: "Helps alter appearance or impersonate another identity." },
       { value: "social_infiltration", description: "Helps blend into a group or pass under social scrutiny." },
+    ],
+  },
+  {
+    category: "spell",
+    family: "infiltration",
+    description: "Appearance-changing and social-passing spells.",
+    tags: [
+      { value: "disguise", description: "Helps alter appearance or impersonate another identity." },
+      { value: "social_infiltration", description: "Helps blend into a group or pass under social scrutiny." },
+    ],
+  },
+  {
+    category: "hazard",
+    family: "function",
+    description: "Hazard practical-function tags for alerts and restraint effects.",
+    tags: [
+      { value: "alarm", description: "Alerts guardians, onlookers, or nearby creatures to an intrusion." },
+      { value: "restraint_capture", description: "Hazard that binds, restrains, or holds intruders in place." },
+    ],
+  },
+  {
+    category: "affliction",
+    family: "impact",
+    description: "Affliction impact tags for practical downstream consequences.",
+    tags: [
+      { value: "mental_impairment", description: "Impairs judgment, emotions, or perception through confusion, fear, or delirium." },
+      { value: "mobility_impairment", description: "Reduces speed, stiffens movement, or leaves the victim immobilized." },
     ],
   },
   {

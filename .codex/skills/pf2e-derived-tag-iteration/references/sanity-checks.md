@@ -29,6 +29,14 @@ npm run evaluate-derived-tags -- --tag restraint_escape --category equipment --s
 npm run evaluate-derived-tags -- --tag anti_poison --category equipment --subcategory consumable --limit 12 --exemplar-limit 8
 ```
 
+```bash
+npm run evaluate-derived-tags -- --tag disguise --category spell --limit 12 --exemplar-limit 8
+```
+
+```bash
+npm run evaluate-derived-tags -- --tag alarm --category hazard --limit 12 --exemplar-limit 8
+```
+
 Interpretation guidance:
 - treat the output as a review queue, not an auto-tagging system
 - prefer candidates with concrete shared rule evidence over merely thematic similarity
@@ -137,7 +145,46 @@ order by random() \
 limit 20;"
 ```
 
-Use these samples to identify repeated missing concepts. If the same idea appears across multiple random samples, either broaden an existing rule or propose a new derived tag family. Do not add tags just to drive the untagged count to zero.
+```bash
+sqlite3 .cache/pf2e-index.sqlite "pragma busy_timeout=5000; \
+select r.name, r.level, r.traits_json, substr(r.description_text, 1, 220) \
+from records r \
+left join record_derived_tags d on r.record_key = d.record_key \
+where r.is_search_canonical = 1 \
+  and r.category = 'hazard' \
+group by r.record_key \
+having count(d.tag) = 0 \
+order by random() \
+limit 20;"
+```
+
+```bash
+sqlite3 .cache/pf2e-index.sqlite "pragma busy_timeout=5000; \
+select r.name, r.level, r.traits_json, substr(r.description_text, 1, 220) \
+from records r \
+left join record_derived_tags d on r.record_key = d.record_key \
+where r.is_search_canonical = 1 \
+  and r.category = 'spell' \
+group by r.record_key \
+having count(d.tag) = 0 \
+order by random() \
+limit 20;"
+```
+
+```bash
+sqlite3 .cache/pf2e-index.sqlite "pragma busy_timeout=5000; \
+select r.name, r.level, r.subcategory, r.traits_json, substr(r.description_text, 1, 220) \
+from records r \
+left join record_derived_tags d on r.record_key = d.record_key \
+where r.is_search_canonical = 1 \
+  and r.category = 'affliction' \
+group by r.record_key \
+having count(d.tag) = 0 \
+order by random() \
+limit 20;"
+```
+
+Use these samples to identify repeated missing concepts in the category you are actively refining. If the same idea appears across multiple random samples, either broaden an existing rule or propose a new derived tag family. Do not add tags just to drive the untagged count to zero.
 
 ## Useful Follow-Up Checks
 ```bash
@@ -170,5 +217,5 @@ limit 50;"
 - Check whether scene-fit tags stay off obvious monsters and constructs.
 - Check whether environment tags require enough evidence and avoid incidental flavor text.
 - Check evaluator suggestions for likely false negatives before broadening a rule family.
-- Review random untagged samples to see whether important practical concepts are still missing from the ontology.
+- Review random untagged samples for the changed category to see whether important practical concepts are still missing from the ontology.
 - Compare corpus volume shifts before and after the change. Large drops or jumps need an explanation.

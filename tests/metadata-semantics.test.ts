@@ -22,10 +22,17 @@ describe("metadata search semantics", () => {
       "size",
     ]));
     expect(semantics.metadataFieldsByCategory.spell).toEqual(expect.arrayContaining([
+      "derivedTags",
       "traditions",
       "spellKinds",
       "damageTypes",
       "rangeValue",
+    ]));
+    expect(semantics.metadataFieldsByCategory.hazard).toEqual(expect.arrayContaining([
+      "derivedTags",
+    ]));
+    expect(semantics.metadataFieldsByCategory.affliction).toEqual(expect.arrayContaining([
+      "derivedTags",
     ]));
   });
 
@@ -68,7 +75,7 @@ describe("metadata search semantics", () => {
     const semantics = getMetadataFilterSemantics();
     const derivedTags = semantics.metadataFields.find((entry) => entry.field === "derivedTags");
 
-    expect(derivedTags?.categories).toEqual(["equipment", "creature"]);
-    expect(derivedTags?.notes).toContain("equipment and creature");
+    expect(derivedTags?.categories).toEqual(["equipment", "creature", "hazard", "affliction", "spell"]);
+    expect(derivedTags?.notes).toContain("ontology coverage");
   });
 });

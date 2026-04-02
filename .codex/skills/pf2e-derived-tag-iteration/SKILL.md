@@ -1,6 +1,6 @@
 ---
 name: pf2e-derived-tag-iteration
-description: Iteratively expand and refine PF2E derived tags in the Pathfinder MCP repo. Use when Codex needs to propose new derived tags, extend tag coverage across creatures or equipment, tighten or rebalance heuristic rules, improve scored evidence thresholds, or validate that rebuilt-corpus tagging stays precise and useful without collapsing into heuristic spaghetti.
+description: Iteratively expand and refine PF2E derived tags in the Pathfinder MCP repo. Use when Codex needs to propose new derived tags, extend tag coverage across creatures, equipment, hazards, spells, or afflictions, tighten or rebalance heuristic rules, improve scored evidence thresholds, or validate that rebuilt-corpus tagging stays precise and useful without collapsing into heuristic spaghetti.
 ---
 
 # PF2E Derived Tag Iteration
@@ -10,6 +10,7 @@ Use this skill for work on the derived-tag layer in the Pathfinder MCP repo, esp
 Derived tags are not replacements for native PF2E traits. Keep the separation sharp:
 - native `traits` are authoritative game taxonomy
 - derived tags add retrieval-oriented function, context, polarity, or scene-fit signals that native traits do not express cleanly
+- share tag values across categories when the retrieval meaning is genuinely the same, but keep heuristic rules category-scoped unless the evidence model is stable across categories
 
 Repo-owned helper tooling for this skill:
 - `npm run evaluate-derived-tags -- --tag <derived_tag> [--category <category>] [--subcategory <subcategory>]`
@@ -63,7 +64,7 @@ Repo-owned helper tooling for this skill:
    - candidate records that should stay untagged, which help define blockers and negative gates
    Do not directly convert evaluator suggestions into tags without explicit rule evidence.
 8. Spot-check for missing coverage, not just bad hits.
-   Pull random samples of untagged canonical creatures and equipment from the rebuilt SQLite corpus. Use them to answer:
+   Pull random samples of untagged canonical records from the category slices relevant to the current pass. Use them to answer:
    - are these records truly fine without derived tags
    - is a current tag missing obvious coverage
    - is there a useful new tag family emerging from repeated patterns
@@ -118,6 +119,9 @@ Good derived tags usually encode one of these:
 - gear purpose or practical use case
 - creature environment or scene-context
 - creature scene-fit distinctions such as `profession_npc` or `scene_adjacent`
+- hazard practical function such as alarms, restraint, or infiltration blocking
+- spell practical use case such as disguise, mobility, scouting, or escape
+- affliction downstream impact such as mobility impairment or mental degradation
 
 Bad default candidates:
 - aliases for native PF2E traits
@@ -144,8 +148,8 @@ After a meaningful heuristic change, always inspect:
 - known false-positive counters
 - named records that have failed before
 - evaluator suggestions for the changed or newly added tag family when coverage expansion is part of the goal
-- a random sample of untagged canonical creatures
-- a random sample of untagged canonical equipment, especially `gear` and `consumable` slices when item coverage is the target
+- a random sample of untagged canonical records from the changed category
+- a random sample from a previously supported category when the change risks cross-category regressions
 
 Treat untagged samples as a forward-looking backlog. Do not force every record to have a derived tag, but when the same practical concept appears repeatedly in random samples, consider whether the ontology is missing a useful tag or the current rules are too narrow.
 Treat evaluator output the same way: useful for discovery, but subordinate to deterministic rule design and explicit tests.
@@ -174,7 +178,7 @@ Default validation sequence:
 4. `npm run refresh-index` when the heuristic change materially affects live tagging
 5. Run `npm run evaluate-derived-tags -- --tag <derived_tag> ...` when the change is about expanding coverage or checking likely false negatives
 6. Run the SQLite sanity checks from the reference file
-7. Review at least one random untagged sample for creatures and one for equipment when the change is about expanding coverage
+7. Review at least one random untagged sample for the changed category, plus one previously supported category when regression risk matters
 
 ## Output Expectations
 When the user asks for iteration work, do not stop at proposing tags. Carry the change through:

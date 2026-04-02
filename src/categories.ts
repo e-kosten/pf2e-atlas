@@ -137,6 +137,20 @@ function inferHazardSubcategory(traits: string[]): SearchSubcategory | null {
   return null;
 }
 
+function inferAfflictionSubcategory(traits: string[]): SearchSubcategory | null {
+  const normalizedTraits = new Set(traits.map((trait) => normalizeText(trait)).filter(Boolean));
+  if (normalizedTraits.has("curse")) {
+    return "curse";
+  }
+  if (normalizedTraits.has("disease")) {
+    return "disease";
+  }
+  if (normalizedTraits.has("poison")) {
+    return "poison";
+  }
+  return null;
+}
+
 function inferFeatSubcategories(
   packName: string,
   sourcePath: string,
@@ -192,6 +206,14 @@ export function classifyRecordCategory(input: {
       return { category: "creature", subcategory: "familiar" };
     case "hazard":
       return { category: "hazard", subcategory: inferHazardSubcategory(input.traits) };
+    case "affliction":
+      return { category: "affliction", subcategory: inferAfflictionSubcategory(input.traits) };
+    case "curse":
+      return { category: "affliction", subcategory: "curse" };
+    case "disease":
+      return { category: "affliction", subcategory: "disease" };
+    case "poison":
+      return { category: "affliction", subcategory: "poison" };
     case "spell":
       return { category: "spell", subcategory: null };
     case "feat":
