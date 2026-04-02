@@ -181,6 +181,45 @@ describe("derived tag rules", () => {
     })).toContain("aquatic_context");
   });
 
+  it("uses glossary family evidence for obvious undead-family threat and blocker cases", () => {
+    expect(deriveRecordTags({
+      name: "Morlock Thrall",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A thrall reshaped by a vampire master's curse.",
+      traits: ["humanoid"],
+      glossaryFamily: "vampire",
+    })).toContain("undead_threat");
+
+    expect(deriveRecordTags({
+      name: "Manor Guard",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A manor guard who patrols the estate grounds.",
+      traits: ["human", "humanoid"],
+      glossaryFamily: "vampire",
+    })).toEqual(expect.arrayContaining(["profession_npc", "undead_threat"]));
+
+    expect(deriveRecordTags({
+      name: "Manor Guard",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A manor guard who patrols the estate grounds.",
+      traits: ["human", "humanoid"],
+      glossaryFamily: "vampire",
+    })).not.toContain("scene_adjacent");
+
+    expect(deriveRecordTags({
+      name: "Mythic Courtier",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A courtier sustained by impossible necromancy.",
+      traits: ["humanoid"],
+      glossaryFamily: "mythic",
+      additionalGlossaryFamilies: ["lich"],
+    })).toContain("undead_threat");
+  });
+
   it("avoids known substring false positives from the rebuilt corpus", () => {
     expect(deriveRecordTags({
       name: "Antidote (Lesser)",

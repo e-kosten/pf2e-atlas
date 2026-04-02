@@ -2532,6 +2532,8 @@ async function buildIndex(
         subcategory: entry.record.subcategory,
         descriptionText: entry.record.descriptionText,
         traits: entry.record.traits,
+        glossaryFamily: entry.record.glossaryFamily,
+        additionalGlossaryFamilies: entry.record.additionalGlossaryFamilies,
         references: entry.resolvedReferences.map((reference) => ({
           recordKey: reference.targetRecordKey,
           packName: reference.targetRecord.packName,

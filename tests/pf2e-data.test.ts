@@ -116,6 +116,7 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
     mkdir(path.join(packRoot, "bestiary-family-ability-glossary", "ghost"), { recursive: true }),
     mkdir(path.join(packRoot, "bestiary-family-ability-glossary", "lich"), { recursive: true }),
     mkdir(path.join(packRoot, "bestiary-family-ability-glossary", "mythic"), { recursive: true }),
+    mkdir(path.join(packRoot, "bestiary-family-ability-glossary", "vampire"), { recursive: true }),
   ]);
   await mkdir(path.join(root, "src", "module", "migration", "migrations"), { recursive: true });
 
@@ -1032,6 +1033,24 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
     },
   });
 
+  await writeJson(path.join(packRoot, "bestiary-family-ability-glossary", "vampire", "dominate.json"), {
+    _id: "vampire-dominate-1",
+    name: "Dominate",
+    type: "action",
+    system: {
+      description: {
+        value: "<p>The vampire bends a victim to its will.</p>",
+      },
+      publication: {
+        title: "Pathfinder Monster Core",
+      },
+      traits: {
+        rarity: "common",
+        value: ["mental"],
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "pathfinder-monster-core", "cythnigot.json"), {
     _id: "monster1",
     name: "Cythnigot",
@@ -1213,6 +1232,40 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
       traits: {
         rarity: "rare",
         value: ["undead", "wizard"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "morlock-thrall.json"), {
+    _id: "morlock-thrall-core",
+    name: "Morlock Thrall",
+    type: "npc",
+    items: [
+      {
+        _id: "morlock-thrall-dominate",
+        _stats: {
+          compendiumSource: "Compendium.pf2e.bestiary-family-ability-glossary.Item.vampire-dominate-1",
+        },
+        name: "Dominate",
+        type: "action",
+      },
+    ],
+    system: {
+      details: {
+        level: {
+          value: 5,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>A broken servant enthralled to a vampire household.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["humanoid"],
         size: {
           value: "med",
         },
@@ -1992,7 +2045,7 @@ describe("Pf2eDataService", () => {
     const service = await loadTestService(fixture);
 
     expect(service.listPacks()).toHaveLength(14);
-    expect(service.getStats()).toEqual({ packCount: 14, recordCount: 62 });
+    expect(service.getStats()).toEqual({ packCount: 14, recordCount: 64 });
     expect(service.getPack("Actions")?.name).toBe("actions");
   });
 
@@ -2074,6 +2127,9 @@ describe("Pf2eDataService", () => {
     const mythicLich = service.lookup("Mythic Lich", { category: "creature" }).match;
     expect(mythicLich?.glossaryFamily).toBe("mythic");
     expect(mythicLich?.additionalGlossaryFamilies).toEqual(["lich"]);
+    const morlockThrall = service.lookup("Morlock Thrall", { category: "creature" }).match;
+    expect(morlockThrall?.glossaryFamily).toBe("vampire");
+    expect(morlockThrall?.derivedTags).toContain("undead_threat");
     const pelagicStalker = service.lookup("Pelagic Stalker", { category: "creature" }).match;
     expect(pelagicStalker?.derivedTags).toContain("aquatic_context");
     const spaciousPouch = service.lookup("Spacious Pouch (Type I)", { category: "equipment" }).match;
@@ -2629,12 +2685,12 @@ describe("Pf2eDataService", () => {
     const indexPath = path.join(fixture.root, ".cache", "pf2e-index.sqlite");
 
     const firstService = await loadTestService(fixture, { indexPath });
-    expect(firstService.getStats()).toEqual({ packCount: 14, recordCount: 62 });
+    expect(firstService.getStats()).toEqual({ packCount: 14, recordCount: 64 });
     firstService.close();
 
     const firstMtime = (await import("node:fs/promises")).stat(indexPath).then((details) => details.mtimeMs);
     const unchangedService = await openPreparedTestService(fixture, { indexPath });
-    expect(unchangedService.getStats()).toEqual({ packCount: 14, recordCount: 62 });
+    expect(unchangedService.getStats()).toEqual({ packCount: 14, recordCount: 64 });
     unchangedService.close();
     const secondMtime = (await import("node:fs/promises")).stat(indexPath).then((details) => details.mtimeMs);
     expect(await secondMtime).toBe(await firstMtime);
@@ -2666,7 +2722,7 @@ describe("Pf2eDataService", () => {
     await expect(openPreparedTestService(fixture, { indexPath })).rejects.toThrow(/index .* stale/i);
 
     const rebuiltService = await loadTestService(fixture, { indexPath });
-    expect(rebuiltService.getStats()).toEqual({ packCount: 14, recordCount: 63 });
+    expect(rebuiltService.getStats()).toEqual({ packCount: 14, recordCount: 65 });
     expect(rebuiltService.lookup("Sea Ghoul", { category: "creature" }).match?.name).toBe("Sea Ghoul");
     rebuiltService.close();
   });
@@ -2678,7 +2734,7 @@ describe("Pf2eDataService", () => {
     const indexPath = path.join(fixture.root, ".cache", "pf2e-index.sqlite");
 
     const firstService = await loadTestService(fixture, { indexPath });
-    expect(firstService.getStats()).toEqual({ packCount: 14, recordCount: 62 });
+    expect(firstService.getStats()).toEqual({ packCount: 14, recordCount: 64 });
     firstService.close();
 
     await writeJson(path.join(fixture.root, "packs", "pf2e", "pathfinder-monster-core", "sea-ghoul-untracked.json"), {
