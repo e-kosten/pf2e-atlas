@@ -799,6 +799,58 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
     },
   });
 
+  await writeJson(path.join(packRoot, "equipment", "ghost-charge-prototype.json"), {
+    _id: "weapon-bomb-1",
+    name: "Ghost Charge Prototype",
+    type: "weapon",
+    system: {
+      category: "martial",
+      group: "bomb",
+      damage: {
+        damageType: "positive",
+      },
+      description: {
+        value: "<p>A prototype bomb that bursts with cleansing light.</p>",
+      },
+      publication: {
+        title: "Pathfinder Player Core",
+      },
+      traits: {
+        rarity: "common",
+        value: ["alchemical", "bomb"],
+      },
+      usage: {
+        value: "held-in-one-hand",
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment", "practice-sword.json"), {
+    _id: "weapon-sword-1",
+    name: "Practice Sword",
+    type: "weapon",
+    system: {
+      category: "martial",
+      group: "sword",
+      damage: {
+        damageType: "slashing",
+      },
+      description: {
+        value: "<p>A balanced practice blade for drilling sword forms.</p>",
+      },
+      publication: {
+        title: "Pathfinder Player Core",
+      },
+      traits: {
+        rarity: "common",
+        value: ["martial"],
+      },
+      usage: {
+        value: "held-in-one-hand",
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "heritages", "nephilim.json"), {
     _id: "neph1",
     name: "Nephilim",
@@ -2086,7 +2138,7 @@ describe("Pf2eDataService", () => {
     const service = await loadTestService(fixture);
 
     expect(service.listPacks()).toHaveLength(15);
-    expect(service.getStats()).toEqual({ packCount: 15, recordCount: 65 });
+    expect(service.getStats()).toEqual({ packCount: 15, recordCount: 67 });
     expect(service.getPack("Actions")?.name).toBe("actions");
   });
 
@@ -2110,13 +2162,13 @@ describe("Pf2eDataService", () => {
     expect(service.lookup("Raise Shield").match?.name).toBe("Raise a Shield");
     expect(service.listRecords({ pack: "actions" }).searchProfile).toBeNull();
     expect(service.listRecords({ pack: "actions" }).records).toHaveLength(4);
-    expect(service.listRecords({ category: "creature", levelMin: 4, levelMax: 4, traitsAny: ["undead"] }).records.map((record) => record.name)).toEqual(["Ghost Commoner"]);
-    expect((await service.search({ category: "creature", traitsAll: ["fiend"] })).records[0]?.name).toBe("Cythnigot");
-    expect((await service.search({ category: "creature", traitsAll: ["fiend"] })).searchProfile).toBeNull();
-    expect((await service.search({ category: "creature", size: "sm" })).records.every((record) => record.size === "sm")).toBe(true);
+    expect(service.listRecords({ category: "creature", levelMin: 4, levelMax: 4, metadata: { field: "traits", op: "includesAny", values: ["undead"] } }).records.map((record) => record.name)).toEqual(["Ghost Commoner"]);
+    expect((await service.search({ category: "creature", metadata: { field: "traits", op: "includesAll", values: ["fiend"] } })).records[0]?.name).toBe("Cythnigot");
+    expect((await service.search({ category: "creature", metadata: { field: "traits", op: "includesAll", values: ["fiend"] } })).searchProfile).toBeNull();
+    expect((await service.search({ category: "creature", metadata: { field: "size", op: "eq", value: "sm" } })).records.every((record) => record.size === "sm")).toBe(true);
     expect((await service.search({ searchProfile: "lexical", query: "aberration", category: "creature" })).records[0]?.name).toBe("Cythnigot");
-    expect((await service.search({ category: "spell", traditions: ["primal"], actionCost: 2 })).records[0]?.name).toBe("Sea Blessing");
-    expect((await service.search({ category: "spell", spellKinds: ["focus"] })).records.map((record) => record.name)).toEqual(["Focus Burst"]);
+    expect((await service.search({ category: "spell", metadata: { field: "traditions", op: "includesAny", values: ["primal"] }, actionCost: 2 })).records[0]?.name).toBe("Sea Blessing");
+    expect((await service.search({ category: "spell", metadata: { field: "spellKinds", op: "includesAny", values: ["focus"] } })).records.map((record) => record.name)).toEqual(["Focus Burst"]);
     expect((await service.search({ category: "rule", subcategory: "condition" })).records.map((record) => record.name)).toEqual(
       expect.arrayContaining(["Blinded", "Dazzled", "Hidden"]),
     );
@@ -2125,27 +2177,36 @@ describe("Pf2eDataService", () => {
     );
     expect((await service.search({ category: "hazard", subcategory: "trap" })).records.map((record) => record.name)).toEqual(["Spear Launcher"]);
     expect(service.listRecords({ pack: "Pathfinder Monster Core", category: "hazard", subcategory: "trap" }).records.map((record) => record.name)).toEqual(["Spear Launcher"]);
-    expect((await service.search({ category: "creature", excludeTraits: ["water"] })).records.some((record) => record.traits.includes("water"))).toBe(false);
-    expect((await service.search({ category: "creature", nameQuery: "Ghost Sailor", excludeMissingDescription: true })).records.every((record) => record.hasDescription)).toBe(true);
-    expect((await service.search({ category: "creature", nameQuery: "Ghost Sailor", excludeSources: ["adventure"] })).records[0]?.sourceCategory).toBe("core");
-    expect((await service.search({ category: "creature", sources: ["core"] })).records.every((record) => record.sourceCategory === "core")).toBe(true);
+    expect((await service.search({ category: "creature", metadata: { field: "traits", op: "excludesAny", values: ["water"] } })).records.some((record) => record.traits.includes("water"))).toBe(false);
+    expect((await service.search({ category: "creature", nameQuery: "Ghost Sailor", metadata: { field: "hasDescription", op: "eq", value: true } })).records.every((record) => record.hasDescription)).toBe(true);
+    expect((await service.search({ category: "creature", nameQuery: "Ghost Sailor", metadata: { field: "sourceCategory", op: "notIn", values: ["adventure"] } })).records[0]?.sourceCategory).toBe("core");
+    expect((await service.search({ category: "creature", metadata: { field: "sourceCategory", op: "eq", value: "core" } })).records.every((record) => record.sourceCategory === "core")).toBe(true);
     expect((await service.search({ query: "ghost ship", category: "creature" })).mode).toBe("hybrid");
     expect((await service.search({ query: "ghost ship", category: "creature" })).searchProfile).toBe("balanced");
-    expect(service.listRecords({ category: "equipment", subcategory: "consumable", derivedTagsAny: ["anti_poison"] }).records.map((record) => record.name)).toEqual(["Antidote (Lesser)"]);
-    expect(service.listRecords({ category: "equipment", subcategory: "consumable", derivedTagsAny: ["mental_recovery"] }).records.map((record) => record.name)).toEqual(["Bottled Catharsis (Serenity)"]);
-    expect(service.listRecords({ category: "equipment", subcategory: "consumable", derivedTagsAny: ["energy_resistance"] }).records.map((record) => record.name)).toEqual(["Potion of Cold Resistance (Moderate)"]);
-    expect(service.listRecords({ category: "equipment", subcategory: "gear", derivedTagsAny: ["lock_bypass"] }).records.map((record) => record.name)).toEqual(["Concealable Thieves' Tools"]);
-    expect(service.listRecords({ category: "equipment", subcategory: "backpack", derivedTagsAny: ["carry_support"] }).records.map((record) => record.name)).toEqual(["Spacious Pouch (Type I)"]);
-    expect(service.listRecords({ category: "equipment", subcategory: "consumable", derivedTagsAll: ["beneficial", "anti_disease"] }).records.map((record) => record.name)).toEqual(["Antiplague (Lesser)"]);
-    expect(service.listRecords({ category: "equipment", subcategory: "consumable", excludeDerivedTags: ["offensive"] }).records.map((record) => record.name)).not.toContain("Sightless Tincture");
-    expect(service.listRecords({ category: "equipment", subcategory: "gear", derivedTagsAny: ["social_infiltration"] }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Masquerade Scarf", "Quick-Change Outfit"]));
-    expect(service.listRecords({ category: "equipment", subcategory: "gear", derivedTagsAny: ["restraint_escape"] }).records.map((record) => record.name)).toEqual(["Swallow-Spike"]);
-    expect(service.listRecords({ category: "creature", derivedTagsAny: ["aquatic_context"] }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Ghost Sailor", "Pelagic Stalker", "Ship Captain"]));
-    expect(service.listRecords({ category: "creature", familiesAny: ["ghost"] }).records.map((record) => record.name)).toEqual(["Ghost Commoner"]);
-    expect(service.listRecords({ category: "creature", familiesAny: ["lich"] }).records.map((record) => record.name)).toEqual(["Mythic Lich"]);
-    expect(service.listRecords({ category: "creature", familiesAny: ["seafarer"] }).records.map((record) => record.name)).toEqual(["Bosun"]);
-    expect(service.listRecords({ category: "creature", familiesAll: ["mythic", "lich"] }).records.map((record) => record.name)).toEqual(["Mythic Lich"]);
-    expect(service.listRecords({ category: "creature", levelMin: 5, levelMax: 5, excludeFamilies: ["vampire"] }).records.map((record) => record.name)).not.toContain("Morlock Thrall");
+    expect(service.listRecords({ category: "equipment", subcategory: "consumable", metadata: { field: "derivedTags", op: "includesAny", values: ["anti_poison"] } }).records.map((record) => record.name)).toEqual(["Antidote (Lesser)"]);
+    expect(service.listRecords({ category: "equipment", subcategory: "consumable", metadata: { field: "derivedTags", op: "includesAny", values: ["mental_recovery"] } }).records.map((record) => record.name)).toEqual(["Bottled Catharsis (Serenity)"]);
+    expect(service.listRecords({ category: "equipment", subcategory: "consumable", metadata: { field: "derivedTags", op: "includesAny", values: ["energy_resistance"] } }).records.map((record) => record.name)).toEqual(["Potion of Cold Resistance (Moderate)"]);
+    expect(service.listRecords({ category: "equipment", subcategory: "gear", metadata: { field: "derivedTags", op: "includesAny", values: ["lock_bypass"] } }).records.map((record) => record.name)).toEqual(["Concealable Thieves' Tools"]);
+    expect(service.listRecords({ category: "equipment", subcategory: "backpack", metadata: { field: "derivedTags", op: "includesAny", values: ["carry_support"] } }).records.map((record) => record.name)).toEqual(["Spacious Pouch (Type I)"]);
+    expect(service.listRecords({ category: "equipment", subcategory: "consumable", metadata: { field: "derivedTags", op: "includesAll", values: ["beneficial", "anti_disease"] } }).records.map((record) => record.name)).toEqual(["Antiplague (Lesser)"]);
+    expect(service.listRecords({ category: "equipment", subcategory: "consumable", metadata: { field: "derivedTags", op: "excludesAny", values: ["offensive"] } }).records.map((record) => record.name)).not.toContain("Sightless Tincture");
+    expect(service.listRecords({ category: "equipment", subcategory: "gear", metadata: { field: "derivedTags", op: "includesAny", values: ["social_infiltration"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Masquerade Scarf", "Quick-Change Outfit"]));
+    expect(service.listRecords({ category: "equipment", subcategory: "gear", metadata: { field: "derivedTags", op: "includesAny", values: ["restraint_escape"] } }).records.map((record) => record.name)).toEqual(["Swallow-Spike"]);
+    expect(service.listRecords({
+      category: "equipment",
+      metadata: {
+        and: [
+          { field: "weaponGroup", op: "eq", value: "bomb" },
+          { field: "hands", op: "eq", value: 1 },
+        ],
+      },
+    }).records.map((record) => record.name)).toEqual(["Ghost Charge Prototype"]);
+    expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["aquatic_context"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Ghost Sailor", "Pelagic Stalker", "Ship Captain"]));
+    expect(service.listRecords({ category: "creature", metadata: { field: "families", op: "includesAny", values: ["ghost"] } }).records.map((record) => record.name)).toEqual(["Ghost Commoner"]);
+    expect(service.listRecords({ category: "creature", metadata: { field: "families", op: "includesAny", values: ["lich"] } }).records.map((record) => record.name)).toEqual(["Mythic Lich"]);
+    expect(service.listRecords({ category: "creature", metadata: { field: "families", op: "includesAny", values: ["seafarer"] } }).records.map((record) => record.name)).toEqual(["Bosun"]);
+    expect(service.listRecords({ category: "creature", metadata: { field: "families", op: "includesAll", values: ["mythic", "lich"] } }).records.map((record) => record.name)).toEqual(["Mythic Lich"]);
+    expect(service.listRecords({ category: "creature", levelMin: 5, levelMax: 5, metadata: { field: "families", op: "excludesAny", values: ["vampire"] } }).records.map((record) => record.name)).not.toContain("Morlock Thrall");
 
     const cythnigot = service.lookup("Cythnigot", { category: "creature" }).match;
     expect(cythnigot?.hasDescription).toBe(true);
@@ -2186,6 +2247,10 @@ describe("Pf2eDataService", () => {
     expect(quickChangeOutfit?.derivedTags).toEqual(expect.arrayContaining(["disguise", "social_infiltration"]));
     const swallowSpike = service.lookup("Swallow-Spike", { category: "equipment" }).match;
     expect(swallowSpike?.derivedTags).toContain("restraint_escape");
+    const ghostChargePrototype = service.lookup("Ghost Charge Prototype", { category: "equipment" }).match;
+    expect(ghostChargePrototype?.weaponGroup).toBe("bomb");
+    expect(ghostChargePrototype?.hands).toBe(1);
+    expect(ghostChargePrototype?.damageTypes).toEqual(["positive"]);
     expect(service.lookup("Blinded", { category: "rule", subcategory: "condition" }).match?.category).toBe("rule");
   });
 
@@ -2647,13 +2712,33 @@ describe("Pf2eDataService", () => {
 
     expect(service.listFilterValues({
       field: "spellKinds",
-      category: "spell",
+    category: "spell",
     })).toEqual({
       field: "spellKinds",
       values: [
         { value: "focus", count: 1 },
       ],
     });
+
+    expect(service.listFilterValues({
+      field: "weaponGroup",
+      category: "equipment",
+    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["bomb", "sword"]));
+
+    expect(service.listFilterValues({
+      field: "usage",
+      category: "equipment",
+    }).values.map((entry) => entry.value)).toEqual(["held-in-one-hand"]);
+
+    expect(service.listFilterValues({
+      field: "damageTypes",
+      category: "equipment",
+    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["positive", "slashing"]));
+
+    expect(service.listFilterValues({
+      field: "itemCategory",
+      category: "equipment",
+    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["backpack", "consumable", "equipment", "weapon"]));
 
     expect(service.listFilterValues({
       field: "rarity",
@@ -2745,12 +2830,12 @@ describe("Pf2eDataService", () => {
     const indexPath = path.join(fixture.root, ".cache", "pf2e-index.sqlite");
 
     const firstService = await loadTestService(fixture, { indexPath });
-    expect(firstService.getStats()).toEqual({ packCount: 15, recordCount: 65 });
+    expect(firstService.getStats()).toEqual({ packCount: 15, recordCount: 67 });
     firstService.close();
 
     const firstMtime = (await import("node:fs/promises")).stat(indexPath).then((details) => details.mtimeMs);
     const unchangedService = await openPreparedTestService(fixture, { indexPath });
-    expect(unchangedService.getStats()).toEqual({ packCount: 15, recordCount: 65 });
+    expect(unchangedService.getStats()).toEqual({ packCount: 15, recordCount: 67 });
     unchangedService.close();
     const secondMtime = (await import("node:fs/promises")).stat(indexPath).then((details) => details.mtimeMs);
     expect(await secondMtime).toBe(await firstMtime);
@@ -2782,7 +2867,7 @@ describe("Pf2eDataService", () => {
     await expect(openPreparedTestService(fixture, { indexPath })).rejects.toThrow(/index .* stale/i);
 
     const rebuiltService = await loadTestService(fixture, { indexPath });
-    expect(rebuiltService.getStats()).toEqual({ packCount: 15, recordCount: 66 });
+    expect(rebuiltService.getStats()).toEqual({ packCount: 15, recordCount: 68 });
     expect(rebuiltService.lookup("Sea Ghoul", { category: "creature" }).match?.name).toBe("Sea Ghoul");
     rebuiltService.close();
   });
@@ -2794,7 +2879,7 @@ describe("Pf2eDataService", () => {
     const indexPath = path.join(fixture.root, ".cache", "pf2e-index.sqlite");
 
     const firstService = await loadTestService(fixture, { indexPath });
-    expect(firstService.getStats()).toEqual({ packCount: 15, recordCount: 65 });
+    expect(firstService.getStats()).toEqual({ packCount: 15, recordCount: 67 });
     firstService.close();
 
     await writeJson(path.join(fixture.root, "packs", "pf2e", "pathfinder-monster-core", "sea-ghoul-untracked.json"), {

@@ -10,7 +10,19 @@ import {
   normalizeSearchCategory,
   normalizeSearchSubcategory,
 } from "./categories.js";
-import { FilterValueField, SearchCategory, SearchScope, SearchSubcategory } from "./types.js";
+import {
+  FILTER_VALUE_FIELDS,
+  METADATA_BOOLEAN_FIELDS,
+  METADATA_ENUM_STRING_FIELDS,
+  METADATA_NUMBER_FIELDS,
+  METADATA_SET_FIELDS,
+  METADATA_TEXT_STRING_FIELDS,
+  FilterValueField,
+  MetadataFilterNode,
+  SearchCategory,
+  SearchScope,
+  SearchSubcategory,
+} from "./types.js";
 
 export const CATEGORY_HINT_DESCRIPTION =
   `Optional top-level category hint. Canonical values: ${VALID_SEARCH_CATEGORY_LIST}. Legacy plural aliases are also accepted.`;
@@ -64,17 +76,72 @@ export const searchScopeSchema: z.ZodType<SearchScope> = z.object({
 export const searchProfileSchema = z.enum(["lexical", "balanced", "concept"]);
 export const sourceCategorySchema = z.enum(["core", "rules", "adventure", "unknown"]);
 export const spellKindSchema = z.enum(["focus", "ritual", "cantrip"]);
-export const filterValueFieldSchema: z.ZodType<FilterValueField> = z.enum([
-  "traits",
-  "families",
-  "derivedTags",
-  "rarity",
-  "size",
-  "publicationTitle",
-  "traditions",
-  "spellKinds",
-  "sources",
-  "categories",
-  "subcategories",
-  "packs",
+const metadataSetFieldSchema = z.enum(METADATA_SET_FIELDS);
+const metadataEnumStringFieldSchema = z.enum(METADATA_ENUM_STRING_FIELDS);
+const metadataTextStringFieldSchema = z.enum(METADATA_TEXT_STRING_FIELDS);
+const metadataNumberFieldSchema = z.enum(METADATA_NUMBER_FIELDS);
+const metadataBooleanFieldSchema = z.enum(METADATA_BOOLEAN_FIELDS);
+
+const metadataSetPredicateSchema = z.object({
+  field: metadataSetFieldSchema,
+  op: z.enum(["includesAny", "includesAll", "excludesAny"]),
+  values: z.array(z.string()).min(1),
+}).strict();
+
+const metadataEnumStringPredicateSchema = z.union([
+  z.object({
+    field: metadataEnumStringFieldSchema,
+    op: z.literal("eq"),
+    value: z.string(),
+  }).strict(),
+  z.object({
+    field: metadataEnumStringFieldSchema,
+    op: z.enum(["in", "notIn"]),
+    values: z.array(z.string()).min(1),
+  }).strict(),
 ]);
+
+const metadataTextStringPredicateSchema = z.object({
+  field: metadataTextStringFieldSchema,
+  op: z.enum(["contains", "notContains"]),
+  value: z.string(),
+}).strict();
+
+const metadataNumberPredicateSchema = z.union([
+  z.object({
+    field: metadataNumberFieldSchema,
+    op: z.enum(["eq", "gte", "lte"]),
+    value: z.number(),
+  }).strict(),
+  z.object({
+    field: metadataNumberFieldSchema,
+    op: z.literal("between"),
+    min: z.number(),
+    max: z.number(),
+  }).strict(),
+]);
+
+const metadataBooleanPredicateSchema = z.object({
+  field: metadataBooleanFieldSchema,
+  op: z.literal("eq"),
+  value: z.boolean(),
+}).strict();
+
+export const metadataFilterSchema: z.ZodType<MetadataFilterNode> = z.lazy(() => z.union([
+  metadataSetPredicateSchema,
+  metadataEnumStringPredicateSchema,
+  metadataTextStringPredicateSchema,
+  metadataNumberPredicateSchema,
+  metadataBooleanPredicateSchema,
+  z.object({
+    and: z.array(metadataFilterSchema).min(2),
+  }).strict(),
+  z.object({
+    or: z.array(metadataFilterSchema).min(2),
+  }).strict(),
+  z.object({
+    not: metadataFilterSchema,
+  }).strict(),
+]));
+
+export const filterValueFieldSchema: z.ZodType<FilterValueField> = z.enum(FILTER_VALUE_FIELDS);

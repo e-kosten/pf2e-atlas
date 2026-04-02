@@ -10,6 +10,7 @@ import { Pf2eDataService } from "./pf2e-data.js";
 import { RankingConfigStore } from "./ranking-config.js";
 import {
   filterValueFieldSchema,
+  metadataFilterSchema,
   CATEGORY_HINT_DESCRIPTION,
   SCOPES_HINT_DESCRIPTION,
   SUBCATEGORY_HINT_DESCRIPTION,
@@ -17,8 +18,6 @@ import {
   searchProfileSchema,
   searchScopeSchema,
   searchSubcategorySchema,
-  sourceCategorySchema,
-  spellKindSchema,
 } from "./tool-schemas.js";
 import { NormalizedRecord, PackInfo, RecordDetail, RuleReferenceEdge, SearchRecordExplanation } from "./types.js";
 
@@ -65,6 +64,17 @@ function summarizeRecord(
     priceCp: record.priceCp,
     bulkValue: record.bulkValue,
     actionCost: record.actionCost,
+    usage: record.usage,
+    hands: record.hands,
+    damageTypes: record.damageTypes,
+    weaponGroup: record.weaponGroup,
+    armorGroup: record.armorGroup,
+    languages: record.languages,
+    speedTypes: record.speedTypes,
+    immunities: record.immunities,
+    resistances: record.resistances,
+    weaknesses: record.weaknesses,
+    rangeValue: record.rangeValue,
   });
 
   if (detail === "full") {
@@ -168,69 +178,14 @@ async function main(): Promise<void> {
               description: "Use for multi-category search when each category needs its own optional subcategory list, such as feat/archetype plus rule/action.",
             },
             {
-              name: "traitsAny",
-              strength: "strong taxonomy hint",
-              description: "Preferred structured bridge from broad themes into PF2E ontology terms.",
-            },
-            {
-              name: "traitsAll",
-              strength: "strict backstop",
-              description: "Best for deterministic narrowing when multiple taxonomy terms are essential.",
-            },
-            {
-              name: "excludeTraits",
-              strength: "hard exclusion",
-              description: "Exclude Pathfinder-native tags when certain traits are disallowed.",
-            },
-            {
-              name: "familiesAny",
-              strength: "source-backed family hint",
-              description: "Use unified family metadata for soft narrowing such as ghost, dragon, seafarer, official, or lich.",
-            },
-            {
-              name: "familiesAll",
-              strength: "source-backed family backstop",
-              description: "Require all listed unified family values when a record belongs to multiple families.",
-            },
-            {
-              name: "excludeFamilies",
-              strength: "source-backed family exclusion",
-              description: "Exclude records with listed unified family values such as omitting vampire or laborer families.",
-            },
-            {
-              name: "derivedTagsAny",
-              strength: "heuristic hint",
-              description: "Server-derived heuristic tags for soft narrowing such as consumable polarity, gear purpose, or creature environment.",
-            },
-            {
-              name: "derivedTagsAll",
-              strength: "heuristic backstop",
-              description: "Require all listed server-derived heuristic tags when a narrow candidate family is desired.",
-            },
-            {
-              name: "excludeDerivedTags",
-              strength: "heuristic exclusion",
-              description: "Exclude records with listed server-derived heuristic tags such as offensive or scene-adjacent.",
-            },
-            {
-              name: "sources",
-              strength: "hard boundary",
-              description: "Include one or more source families such as core, rules, adventure, or unknown.",
-            },
-            {
-              name: "excludeSources",
-              strength: "hard exclusion",
-              description: "Exclude one or more source families such as omitting adventure records from a broader search.",
-            },
-            {
-              name: "traditions",
-              strength: "spell refinement",
-              description: "Useful for spell searches when the theme implies one or more magical traditions such as divine or occult.",
+              name: "metadata",
+              strength: "typed metadata DSL",
+              description: "Use grouped boolean predicates for metadata filtering. Prefer top-level category, subcategory, scopes, and numeric bounds before metadata predicates.",
             },
             {
               name: "spellKinds",
-              strength: "spell refinement",
-              description: "Useful for spell searches when the theme implies spell kinds such as focus, ritual, or cantrip.",
+              strength: "metadata field example",
+              description: "Use in metadata predicates for spell refinement such as focus, ritual, or cantrip.",
             },
             {
               name: "query",
@@ -257,6 +212,7 @@ async function main(): Promise<void> {
           subcategoriesByCategory: CATEGORY_SUBCATEGORY_MAP,
           rarities: vocabulary.rarities,
           sizes: vocabulary.sizes,
+          sourceCategories: vocabulary.sourceCategories,
           searchProfiles: [
             {
               value: "lexical",
@@ -271,22 +227,70 @@ async function main(): Promise<void> {
               summary: "Semantic-forward hybrid search for exploratory natural-language concept descriptions.",
             },
           ],
-          tagGuidance: {
-            traitsAny: "Pathfinder-native tags. Use for soft narrowing when any listed tag is acceptable.",
-            traitsAll: "Pathfinder-native tags. Use for strict narrowing when every listed tag is essential.",
-            excludeTraits: "Pathfinder-native tags. Use for explicit exclusions when listed tags must not be present.",
-            familiesAny: "Source-backed family metadata. Matches against the unified families array built from glossary and folder-family evidence.",
-            familiesAll: "Source-backed family metadata. Require every listed family in the unified families array.",
-            excludeFamilies: "Source-backed family metadata. Exclude records whose unified families array contains any listed family.",
+          topLevelGuidance: {
             subcategory: "Structured within-category inclusion. Useful for narrowing to a specific public family.",
-            sources: "Structured source-family inclusions. Useful for pinning a search to core, rules, adventure, or unknown records.",
-            excludeSources: "Structured source-family exclusions. Useful for omitting one or more source families from a broader search.",
-            traditions: "Spell-only structured inclusions. Use for spell tradition refinement such as arcane, divine, occult, or primal.",
-            spellKinds: "Spell-only structured inclusions. Use for spell kind refinement such as focus, ritual, or cantrip.",
-            derivedTagsAny: "Server-derived heuristic tags. Use for convenience filters such as beneficial, anti_poison, lock_bypass, or nautical. See heuristicVocabulary.derivedTagCatalog for grouped families.",
-            derivedTagsAll: "Server-derived heuristic tags. Use when every listed heuristic tag is essential. See heuristicVocabulary.derivedTagCatalog for grouped families.",
-            excludeDerivedTags: "Server-derived heuristic tags. Use to remove convenience classes such as offensive or scene_adjacent.",
-            note: "The server no longer infers hidden semantic tags or taxonomy terms from theme text.",
+            rarity: "Keep rarity top-level for the common common/uncommon/rare/unique boundary.",
+            levelMin: "Numeric lower level bound.",
+            levelMax: "Numeric upper level bound.",
+            priceMin: "Numeric lower price bound in copper pieces.",
+            priceMax: "Numeric upper price bound in copper pieces.",
+            actionCost: "Numeric action-cost boundary shared by spells and item activations.",
+            note: "Use top-level boundaries first; use metadata for typed field predicates and boolean composition.",
+          },
+          metadataDsl: {
+            booleanGroups: {
+              and: "Requires every child predicate or group to match. Must contain at least 2 child nodes.",
+              or: "Requires at least one child predicate or group to match. Must contain at least 2 child nodes.",
+              not: "Negates exactly one child predicate or group.",
+            },
+            fieldTypes: [
+              {
+                type: "set",
+                operators: ["includesAny", "includesAll", "excludesAny"],
+                fields: ["traits", "families", "derivedTags", "traditions", "spellKinds", "damageTypes", "languages", "speedTypes", "immunities", "resistances", "weaknesses"],
+              },
+              {
+                type: "enumString",
+                operators: ["eq", "in", "notIn"],
+                fields: ["sourceCategory", "size", "usage", "weaponGroup", "armorGroup", "itemCategory", "rarity"],
+              },
+              {
+                type: "text",
+                operators: ["contains", "notContains"],
+                fields: ["publicationTitle"],
+              },
+              {
+                type: "number",
+                operators: ["eq", "gte", "lte", "between"],
+                fields: ["level", "priceCp", "bulkValue", "actionCost", "hands", "rangeValue"],
+              },
+              {
+                type: "boolean",
+                operators: ["eq"],
+                fields: ["isUnique", "hasDescription", "publicationRemaster"],
+              },
+            ],
+            examples: [
+              {
+                label: "One-handed bombs",
+                metadata: {
+                  and: [
+                    { field: "weaponGroup", op: "eq", value: "bomb" },
+                    { field: "hands", op: "eq", value: 1 },
+                  ],
+                },
+              },
+              {
+                label: "Core creatures without the water trait",
+                metadata: {
+                  and: [
+                    { field: "sourceCategory", op: "eq", value: "core" },
+                    { field: "traits", op: "excludesAny", values: ["water"] },
+                  ],
+                },
+              },
+            ],
+            discoverableFields: ["traits", "families", "derivedTags", "publicationTitle", "sources", "categories", "subcategories", "packs", "weaponGroup", "armorGroup", "usage", "damageTypes", "languages", "speedTypes", "immunities", "resistances", "weaknesses", "itemCategory"],
           },
           heuristicVocabulary: {
             commonDerivedTagsByCategory: vocabulary.commonDerivedTagsByCategory,
@@ -391,23 +395,7 @@ async function main(): Promise<void> {
         levelMin: z.number().int().optional().describe("Minimum level inclusive."),
         levelMax: z.number().int().optional().describe("Maximum level inclusive."),
         rarity: z.string().optional().describe("Rarity filter, for example common or uncommon."),
-        traitsAll: z.array(z.string()).optional().describe("All listed traits must be present."),
-        traitsAny: z.array(z.string()).optional().describe("At least one listed trait must be present."),
-        excludeTraits: z.array(z.string()).optional().describe("Listed traits must not be present."),
-        familiesAll: z.array(z.string()).optional().describe("All listed family values must be present in the unified families metadata."),
-        familiesAny: z.array(z.string()).optional().describe("At least one listed family value must be present in the unified families metadata."),
-        excludeFamilies: z.array(z.string()).optional().describe("Listed family values must not be present in the unified families metadata."),
-        derivedTagsAll: z.array(z.string()).optional().describe("All listed server-derived heuristic tags must be present."),
-        derivedTagsAny: z.array(z.string()).optional().describe("At least one listed server-derived heuristic tag must be present."),
-        excludeDerivedTags: z.array(z.string()).optional().describe("Listed server-derived heuristic tags must not be present."),
-        sources: z.array(sourceCategorySchema).optional().describe("Restrict results to the listed source families."),
-        excludeSources: z.array(sourceCategorySchema).optional().describe("Exclude results from the listed source families."),
-        traditions: z.array(z.string()).optional().describe("Include spells from any of the listed traditions."),
-        spellKinds: z.array(spellKindSchema).optional().describe("Include spells with any of the listed spell kinds."),
-        publicationTitle: z.string().optional().describe("Publication title contains this text."),
-        excludeUnique: z.boolean().optional().describe("Exclude unique records."),
-        excludeMissingDescription: z.boolean().optional().describe("Exclude records without description or lore text."),
-        size: z.string().optional().describe("Actor size filter."),
+        metadata: metadataFilterSchema.optional().describe("Typed metadata filter DSL. Use grouped boolean predicates over metadata fields such as traits, families, sourceCategory, usage, weaponGroup, or damageTypes."),
         priceMin: z.number().optional().describe("Minimum item price in copper pieces."),
         priceMax: z.number().optional().describe("Maximum item price in copper pieces."),
         actionCost: z.number().int().optional().describe("Action cost filter."),
@@ -450,23 +438,7 @@ async function main(): Promise<void> {
         levelMin: z.number().int().optional().describe("Minimum level inclusive."),
         levelMax: z.number().int().optional().describe("Maximum level inclusive."),
         rarity: z.string().optional().describe("Rarity filter."),
-        traitsAll: z.array(z.string()).optional().describe("All listed traits must be present."),
-        traitsAny: z.array(z.string()).optional().describe("At least one listed trait must be present."),
-        excludeTraits: z.array(z.string()).optional().describe("Listed traits must not be present."),
-        familiesAll: z.array(z.string()).optional().describe("All listed family values must be present in the unified families metadata."),
-        familiesAny: z.array(z.string()).optional().describe("At least one listed family value must be present in the unified families metadata."),
-        excludeFamilies: z.array(z.string()).optional().describe("Listed family values must not be present in the unified families metadata."),
-        derivedTagsAll: z.array(z.string()).optional().describe("All listed server-derived heuristic tags must be present."),
-        derivedTagsAny: z.array(z.string()).optional().describe("At least one listed server-derived heuristic tag must be present."),
-        excludeDerivedTags: z.array(z.string()).optional().describe("Listed server-derived heuristic tags must not be present."),
-        sources: z.array(sourceCategorySchema).optional().describe("Restrict results to the listed source families."),
-        excludeSources: z.array(sourceCategorySchema).optional().describe("Exclude results from the listed source families."),
-        traditions: z.array(z.string()).optional().describe("Include spells from any of the listed traditions."),
-        spellKinds: z.array(spellKindSchema).optional().describe("Include spells with any of the listed spell kinds."),
-        publicationTitle: z.string().optional().describe("Publication title contains this text."),
-        excludeUnique: z.boolean().optional().describe("Exclude unique records."),
-        excludeMissingDescription: z.boolean().optional().describe("Exclude records without description or lore text."),
-        size: z.string().optional().describe("Actor size filter."),
+        metadata: metadataFilterSchema.optional().describe("Typed metadata filter DSL. Use grouped boolean predicates over metadata fields such as traits, families, sourceCategory, usage, weaponGroup, or damageTypes."),
         priceMin: z.number().optional().describe("Minimum item price in copper pieces."),
         priceMax: z.number().optional().describe("Maximum item price in copper pieces."),
         actionCost: z.number().int().optional().describe("Action cost filter."),

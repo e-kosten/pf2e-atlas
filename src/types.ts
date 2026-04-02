@@ -172,14 +172,140 @@ export interface NormalizedRecord {
   priceCp: number | null;
   bulkValue: number | null;
   actionCost: number | null;
+  usage: string | null;
+  hands: number | null;
+  damageTypes: string[];
+  weaponGroup: string | null;
+  armorGroup: string | null;
   traditions: string[];
   spellKinds: string[];
+  languages: string[];
+  speedTypes: string[];
+  immunities: string[];
+  resistances: string[];
+  weaknesses: string[];
+  rangeValue: number | null;
   aliases: string[];
   legacyRecordLinks: LinkedRecordSummary[];
   raw: Record<string, unknown>;
 }
 
 export type SearchMode = "structured" | "lexical" | "hybrid";
+
+export const METADATA_SET_FIELDS = [
+  "traits",
+  "families",
+  "derivedTags",
+  "traditions",
+  "spellKinds",
+  "damageTypes",
+  "languages",
+  "speedTypes",
+  "immunities",
+  "resistances",
+  "weaknesses",
+] as const;
+
+export type MetadataSetField = (typeof METADATA_SET_FIELDS)[number];
+
+export const METADATA_ENUM_STRING_FIELDS = [
+  "sourceCategory",
+  "size",
+  "usage",
+  "weaponGroup",
+  "armorGroup",
+  "itemCategory",
+  "rarity",
+] as const;
+
+export type MetadataEnumStringField = (typeof METADATA_ENUM_STRING_FIELDS)[number];
+
+export const METADATA_TEXT_STRING_FIELDS = [
+  "publicationTitle",
+] as const;
+
+export type MetadataTextStringField = (typeof METADATA_TEXT_STRING_FIELDS)[number];
+
+export const METADATA_NUMBER_FIELDS = [
+  "level",
+  "priceCp",
+  "bulkValue",
+  "actionCost",
+  "hands",
+  "rangeValue",
+] as const;
+
+export type MetadataNumberField = (typeof METADATA_NUMBER_FIELDS)[number];
+
+export const METADATA_BOOLEAN_FIELDS = [
+  "isUnique",
+  "hasDescription",
+  "publicationRemaster",
+] as const;
+
+export type MetadataBooleanField = (typeof METADATA_BOOLEAN_FIELDS)[number];
+
+export type MetadataSetOperator = "includesAny" | "includesAll" | "excludesAny";
+export type MetadataEnumStringOperator = "eq" | "in" | "notIn";
+export type MetadataTextStringOperator = "contains" | "notContains";
+export type MetadataNumberOperator = "eq" | "gte" | "lte" | "between";
+export type MetadataBooleanOperator = "eq";
+
+export type MetadataSetPredicate = {
+  field: MetadataSetField;
+  op: MetadataSetOperator;
+  values: string[];
+};
+
+export type MetadataEnumStringPredicate =
+  | {
+    field: MetadataEnumStringField;
+    op: "eq";
+    value: string;
+  }
+  | {
+    field: MetadataEnumStringField;
+    op: "in" | "notIn";
+    values: string[];
+  };
+
+export type MetadataTextStringPredicate = {
+  field: MetadataTextStringField;
+  op: MetadataTextStringOperator;
+  value: string;
+};
+
+export type MetadataNumberPredicate =
+  | {
+    field: MetadataNumberField;
+    op: "eq" | "gte" | "lte";
+    value: number;
+  }
+  | {
+    field: MetadataNumberField;
+    op: "between";
+    min: number;
+    max: number;
+  };
+
+export type MetadataBooleanPredicate = {
+  field: MetadataBooleanField;
+  op: MetadataBooleanOperator;
+  value: boolean;
+};
+
+export type MetadataPredicate =
+  | MetadataSetPredicate
+  | MetadataEnumStringPredicate
+  | MetadataTextStringPredicate
+  | MetadataNumberPredicate
+  | MetadataBooleanPredicate;
+
+export type MetadataFilterNode =
+  | MetadataPredicate
+  | { and: MetadataFilterNode[] }
+  | { or: MetadataFilterNode[] }
+  | { not: MetadataFilterNode };
 
 export interface SearchFilters {
   searchProfile?: SearchProfile;
@@ -193,23 +319,7 @@ export interface SearchFilters {
   levelMin?: number;
   levelMax?: number;
   rarity?: string;
-  traitsAll?: string[];
-  traitsAny?: string[];
-  excludeTraits?: string[];
-  familiesAll?: string[];
-  familiesAny?: string[];
-  excludeFamilies?: string[];
-  derivedTagsAll?: string[];
-  derivedTagsAny?: string[];
-  excludeDerivedTags?: string[];
-  sources?: SourceCategory[];
-  excludeSources?: SourceCategory[];
-  traditions?: string[];
-  spellKinds?: string[];
-  publicationTitle?: string;
-  excludeUnique?: boolean;
-  excludeMissingDescription?: boolean;
-  size?: string;
+  metadata?: MetadataFilterNode;
   priceMin?: number;
   priceMax?: number;
   actionCost?: number;
@@ -217,19 +327,32 @@ export interface SearchFilters {
   limit?: number;
 }
 
-export type FilterValueField =
-  | "traits"
-  | "families"
-  | "derivedTags"
-  | "rarity"
-  | "size"
-  | "publicationTitle"
-  | "traditions"
-  | "spellKinds"
-  | "sources"
-  | "categories"
-  | "subcategories"
-  | "packs";
+export const FILTER_VALUE_FIELDS = [
+  "traits",
+  "families",
+  "derivedTags",
+  "rarity",
+  "size",
+  "publicationTitle",
+  "traditions",
+  "spellKinds",
+  "sources",
+  "categories",
+  "subcategories",
+  "packs",
+  "weaponGroup",
+  "armorGroup",
+  "usage",
+  "damageTypes",
+  "languages",
+  "speedTypes",
+  "immunities",
+  "resistances",
+  "weaknesses",
+  "itemCategory",
+] as const;
+
+export type FilterValueField = (typeof FILTER_VALUE_FIELDS)[number];
 
 export interface FilterValueQuery {
   field: FilterValueField;

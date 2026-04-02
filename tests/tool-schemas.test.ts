@@ -5,6 +5,7 @@ import {
   SCOPES_HINT_DESCRIPTION,
   SUBCATEGORY_HINT_DESCRIPTION,
   filterValueFieldSchema,
+  metadataFilterSchema,
   searchCategorySchema,
   searchProfileSchema,
   searchScopeSchema,
@@ -23,8 +24,37 @@ describe("tool schemas", () => {
     expect(filterValueFieldSchema.safeParse("traits")).toMatchObject({ success: true, data: "traits" });
     expect(filterValueFieldSchema.safeParse("derivedTags")).toMatchObject({ success: true, data: "derivedTags" });
     expect(filterValueFieldSchema.safeParse("publicationTitle")).toMatchObject({ success: true, data: "publicationTitle" });
+    expect(filterValueFieldSchema.safeParse("weaponGroup")).toMatchObject({ success: true, data: "weaponGroup" });
     expect(filterValueFieldSchema.safeParse("packs")).toMatchObject({ success: true, data: "packs" });
     expect(filterValueFieldSchema.safeParse("foo").success).toBe(false);
+  });
+
+  it("validates grouped metadata filter predicates", () => {
+    expect(metadataFilterSchema.safeParse({
+      and: [
+        { field: "traits", op: "includesAny", values: ["undead"] },
+        { field: "sourceCategory", op: "eq", value: "core" },
+      ],
+    }).success).toBe(true);
+
+    expect(metadataFilterSchema.safeParse({
+      field: "publicationTitle",
+      op: "contains",
+      value: "Player Core",
+    }).success).toBe(true);
+
+    expect(metadataFilterSchema.safeParse({
+      field: "hands",
+      op: "between",
+      min: 1,
+      max: 2,
+    }).success).toBe(true);
+
+    expect(metadataFilterSchema.safeParse({
+      field: "traits",
+      op: "eq",
+      value: "undead",
+    }).success).toBe(false);
   });
 
   it("accepts the canonical search category labels", () => {
