@@ -129,6 +129,19 @@ export interface SearchScope {
   subcategories?: SearchSubcategoryInput[];
 }
 
+export interface DerivedTagCatalogTag {
+  value: string;
+  description?: string;
+}
+
+export interface DerivedTagCatalogEntry {
+  category: SearchCategory;
+  subcategories?: SearchSubcategory[];
+  family: string;
+  description: string;
+  tags: DerivedTagCatalogTag[];
+}
+
 export interface NormalizedRecord {
   recordKey: string;
   id: string;

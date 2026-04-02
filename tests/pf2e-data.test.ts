@@ -1667,7 +1667,9 @@ describe("Pf2eDataService", () => {
     expect((await service.search({ query: "ghost ship", category: "creature" })).mode).toBe("hybrid");
     expect((await service.search({ query: "ghost ship", category: "creature" })).searchProfile).toBe("balanced");
     expect(service.listRecords({ category: "equipment", subcategory: "consumable", derivedTagsAny: ["anti_poison"] }).records.map((record) => record.name)).toEqual(["Antidote (Lesser)"]);
+    expect(service.listRecords({ category: "equipment", subcategory: "consumable", derivedTagsAny: ["mental_recovery"] }).records.map((record) => record.name)).toEqual(["Bottled Catharsis (Serenity)"]);
     expect(service.listRecords({ category: "equipment", subcategory: "gear", derivedTagsAny: ["lock_bypass"] }).records.map((record) => record.name)).toEqual(["Concealable Thieves' Tools"]);
+    expect(service.listRecords({ category: "equipment", subcategory: "backpack", derivedTagsAny: ["carry_support"] }).records.map((record) => record.name)).toEqual(["Spacious Pouch (Type I)"]);
     expect(service.listRecords({ category: "equipment", subcategory: "consumable", derivedTagsAll: ["beneficial", "anti_disease"] }).records.map((record) => record.name)).toEqual(["Antiplague (Lesser)"]);
     expect(service.listRecords({ category: "equipment", subcategory: "consumable", excludeDerivedTags: ["offensive"] }).records.map((record) => record.name)).not.toContain("Sightless Tincture");
 
@@ -1684,8 +1686,12 @@ describe("Pf2eDataService", () => {
     expect(focusBurst?.spellKinds).toEqual(["focus"]);
     const antidote = service.lookup("Antidote (Lesser)", { category: "equipment" }).match;
     expect(antidote?.derivedTags).toEqual(expect.arrayContaining(["beneficial", "anti_poison"]));
+    const bottledCatharsis = service.lookup("Bottled Catharsis (Serenity)", { category: "equipment" }).match;
+    expect(bottledCatharsis?.derivedTags).toEqual(expect.arrayContaining(["beneficial", "condition_support", "mental_recovery"]));
     const shipCaptain = service.lookup("Ship Captain", { category: "creature" }).match;
     expect(shipCaptain?.derivedTags).toEqual(expect.arrayContaining(["nautical", "profession_npc", "scene_adjacent"]));
+    const spaciousPouch = service.lookup("Spacious Pouch (Type I)", { category: "equipment" }).match;
+    expect(spaciousPouch?.derivedTags).toContain("carry_support");
     expect(service.lookup("Blinded", { category: "rule", subcategory: "condition" }).match?.category).toBe("rule");
   });
 
@@ -2048,6 +2054,24 @@ describe("Pf2eDataService", () => {
     expect(vocabulary.spellKinds.map((entry) => entry.value)).toContain("focus");
     expect(vocabulary.commonTraitsByCategory.find((entry) => entry.category === "creature")?.traits.length).toBeGreaterThan(0);
     expect(vocabulary.commonDerivedTagsByCategory.find((entry) => entry.category === "equipment")?.tags.length).toBeGreaterThan(0);
+    expect(vocabulary.derivedTagCatalog).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        category: "equipment",
+        family: "function",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "mental_recovery", description: expect.any(String) }),
+          expect.objectContaining({ value: "energy_resistance", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "creature",
+        family: "context",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "swamp", description: expect.any(String) }),
+          expect.objectContaining({ value: "graveyard", description: expect.any(String) }),
+        ]),
+      }),
+    ]));
   });
 
   it("lists live filter values across supported fields and scopes", async () => {
@@ -2071,7 +2095,7 @@ describe("Pf2eDataService", () => {
     expect(service.listFilterValues({
       field: "derivedTags",
       category: "equipment",
-    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["beneficial", "offensive", "climbing", "lock_bypass"]));
+    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["beneficial", "offensive", "climbing", "lock_bypass", "mental_recovery", "carry_support"]));
 
     expect(service.listFilterValues({
       field: "subcategories",

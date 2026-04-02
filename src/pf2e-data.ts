@@ -12,6 +12,7 @@ import {
   DEFAULT_EMBEDDING_REVISION,
   EmbeddingProvider,
 } from "./embeddings.js";
+import { DERIVED_TAG_CATALOG, deriveRecordTags, normalizeDerivedTag } from "./derived-tags.js";
 import {
   categorySupportsSubcategory,
   classifyRecordCategory,
@@ -26,6 +27,7 @@ import { DEFAULT_RANKING_CONFIG, RankingConfig, RankingConfigStore } from "./ran
 import {
   CollectRuleQuestionContextInput,
   CollectRuleQuestionContextResult,
+  DerivedTagCatalogEntry,
   EmbeddingConfig,
   FilterValueField,
   FilterValueResult,
@@ -700,161 +702,6 @@ function getSourceCategory(packName: string, publicationTitle: string | null): S
   }
 
   return "unknown";
-}
-
-function textIncludesAny(text: string, anchors: string[]): boolean {
-  return anchors.some((anchor) => text.includes(anchor));
-}
-
-function normalizeDerivedTag(value: string): string {
-  return normalizeText(value).replace(/\s+/g, "_");
-}
-
-function deriveConsumableTags(traits: Set<string>, text: string): string[] {
-  const tags = new Set<string>();
-  const offensive = traits.has("poison") ||
-    traits.has("bomb") ||
-    textIncludesAny(text, [
-      "toxin",
-      "venom",
-      "bomb",
-      "injury poison",
-      "contact poison",
-      "ingested poison",
-      "inhaled poison",
-      "weapon poison",
-      "afflicts the target",
-    ]);
-  const beneficial = !offensive && (
-    traits.has("elixir") ||
-    traits.has("healing") ||
-    textIncludesAny(text, ["elixir of life", "healing", "restorative", "remedy", "curative", "antidote", "antiplague", "catharsis"])
-  );
-
-  if (offensive) {
-    tags.add("offensive");
-  }
-
-  if (beneficial) {
-    tags.add("beneficial");
-  }
-
-  if (beneficial && (traits.has("healing") || textIncludesAny(text, ["elixir of life", "healing", "restore hit points", "restore hp"]))) {
-    tags.add("healing_support");
-  }
-
-  if (beneficial && textIncludesAny(text, ["antidote", "against poison", "protect against poison", "resist poison", "ward off poison"])) {
-    tags.add("anti_poison");
-  }
-
-  if (beneficial && textIncludesAny(text, ["antiplague", "against disease", "protect against disease", "resist disease", "ward off disease"])) {
-    tags.add("anti_disease");
-  }
-
-  if (beneficial && textIncludesAny(text, ["catharsis", "condition", "soothe the mind", "steady the emotions", "calm overwhelming emotions"])) {
-    tags.add("condition_support");
-  }
-
-  return [...tags];
-}
-
-function deriveGearPurposeTags(text: string): string[] {
-  const tags = new Set<string>();
-  const climbing = textIncludesAny(text, ["climb", "climbing", "rappel", "rappelling", "piton", "grappling"]);
-  const lockBypass = textIncludesAny(text, ["lockpick", "lockpicks", "pick locks", "picking locks", "bypass locks", "thieves tools", "thieves' tools", "toolkit"]);
-  const concealable = textIncludesAny(text, ["concealable", "hidden on your person", "hidden tools", "slim lockpicks"]);
-  const scouting = textIncludesAny(text, ["scout", "scouting", "survey", "recon", "observe from afar", "spyglass"]);
-  const stealthSupport = textIncludesAny(text, ["stealth", "quiet", "silent", "without drawing attention", "avoid notice", "infiltration"]) || concealable;
-
-  if (climbing) {
-    tags.add("climbing");
-    tags.add("mobility");
-  }
-  if (lockBypass) {
-    tags.add("lock_bypass");
-  }
-  if (concealable) {
-    tags.add("concealable");
-  }
-  if (scouting) {
-    tags.add("scouting");
-  }
-  if (stealthSupport) {
-    tags.add("stealth_support");
-  }
-
-  return [...tags];
-}
-
-function deriveCreatureTags(name: string, descriptionText: string | null, traits: Set<string>): string[] {
-  const tags = new Set<string>();
-  const text = normalizeText([name, descriptionText ?? ""].filter(Boolean).join(" "));
-  const undeadThreat = traits.has("undead") || traits.has("ghost") || traits.has("spirit") || traits.has("skeleton") || traits.has("ghoul");
-  const feyThreat = traits.has("fey");
-  const plantThreat = traits.has("plant") || traits.has("fungus") || traits.has("leshy");
-  const aquaticContext = traits.has("water") || textIncludesAny(text, ["aquatic", "ocean", "sea", "river", "coast", "harbor", "water"]);
-  const nautical = textIncludesAny(text, ["sailor", "ship", "captain", "mariner", "harbor", "dock", "bilge", "wreck", "crew"]);
-  const forest = textIncludesAny(text, ["forest", "woodland", "grove", "briar"]);
-  const professionNpc = textIncludesAny(text, ["captain", "commoner", "guard", "scout", "sailor"]);
-
-  if (undeadThreat) {
-    tags.add("undead_threat");
-  }
-  if (feyThreat) {
-    tags.add("fey_threat");
-  }
-  if (plantThreat) {
-    tags.add("plant_threat");
-  }
-  if (aquaticContext) {
-    tags.add("aquatic_context");
-  }
-  if (nautical) {
-    tags.add("nautical");
-  }
-  if (forest) {
-    tags.add("forest");
-  }
-  if (professionNpc) {
-    tags.add("profession_npc");
-  }
-  if (professionNpc && !undeadThreat && !feyThreat && !plantThreat) {
-    tags.add("scene_adjacent");
-  }
-
-  return [...tags];
-}
-
-function deriveRecordTags(input: {
-  name: string;
-  category: SearchCategory;
-  subcategory: SearchSubcategory | null;
-  descriptionText: string | null;
-  traits: string[];
-}): string[] {
-  const normalizedTraits = new Set(input.traits.map((trait) => normalizeText(trait)).filter(Boolean));
-  const text = normalizeText([input.name, input.descriptionText ?? ""].filter(Boolean).join(" "));
-  const tags = new Set<string>();
-
-  if (input.category === "equipment" && input.subcategory === "consumable") {
-    for (const tag of deriveConsumableTags(normalizedTraits, text)) {
-      tags.add(tag);
-    }
-  }
-
-  if (input.category === "equipment" && ["gear", "backpack", "kit"].includes(input.subcategory ?? "")) {
-    for (const tag of deriveGearPurposeTags(text)) {
-      tags.add(tag);
-    }
-  }
-
-  if (input.category === "creature") {
-    for (const tag of deriveCreatureTags(input.name, input.descriptionText, normalizedTraits)) {
-      tags.add(tag);
-    }
-  }
-
-  return uniqueSorted([...tags]);
 }
 
 function normalizeIndexRecord(pack: PackBuildInfo, sourcePath: string, raw: Record<string, unknown>): NormalizedIndexRecord {
@@ -3817,6 +3664,7 @@ export class Pf2eDataService {
     sourceCategories: Array<{ value: SourceCategory; count: number }>;
     commonTraitsByCategory: Array<{ category: SearchCategory; traits: Array<{ value: string; count: number }> }>;
     commonDerivedTagsByCategory: Array<{ category: SearchCategory; tags: Array<{ value: string; count: number }> }>;
+    derivedTagCatalog: DerivedTagCatalogEntry[];
   } {
     const traitLimit = Math.max(3, Math.min(options.traitLimitPerCategory ?? 12, 25));
     const categories = this.db
@@ -3982,6 +3830,7 @@ export class Pf2eDataService {
       sourceCategories,
       commonTraitsByCategory,
       commonDerivedTagsByCategory,
+      derivedTagCatalog: DERIVED_TAG_CATALOG,
     };
   }
 
