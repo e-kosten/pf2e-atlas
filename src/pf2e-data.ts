@@ -67,7 +67,7 @@ import {
 import { buildLiteralQueryWeights, buildSearchQueryAnalysis } from "./search-query-analysis.js";
 
 const execFileAsync = promisify(execFile);
-const INDEX_SCHEMA_VERSION = 13;
+const INDEX_SCHEMA_VERSION = 14;
 const VEC_TEXT_NONE = "";
 const VEC_INT_NONE = -1n;
 const LOOKUP_LEXICAL_TOP_K = 100;
@@ -109,6 +109,8 @@ type CandidateRow = {
   descriptionSnippet: string | null;
   sourceCategory: SourceCategory;
   folderId: string | null;
+  glossaryFamily: string | null;
+  additionalGlossaryFamiliesJson: string | null;
   sourcePath: string;
   isUnique: number;
   isSearchCanonical?: number;
@@ -159,6 +161,8 @@ type NormalizedIndexRecord = {
   descriptionSnippet: string | null;
   sourceCategory: SourceCategory;
   folderId: string | null;
+  glossaryFamily: string | null;
+  additionalGlossaryFamilies: string[];
   sourcePath: string;
   isUnique: boolean;
   size: string | null;
@@ -768,6 +772,8 @@ function normalizeIndexRecord(pack: PackBuildInfo, sourcePath: string, raw: Reco
     descriptionSnippet,
     sourceCategory,
     folderId: firstString(raw.folder),
+    glossaryFamily: null,
+    additionalGlossaryFamilies: [],
     sourcePath,
     isUnique: normalizeText(rarity ?? "") === "unique",
     size: actorData?.size ?? null,
@@ -1252,6 +1258,77 @@ function parseCompendiumLocator(locator: string): { packName: string; recordLoca
     packName: parsed[1] ?? "",
     recordLocator: parsed[2] ?? "",
   };
+}
+
+function extractItemCompendiumSources(raw: Record<string, unknown>): { packName: string; recordLocator: string }[] {
+  const items = getNested(raw, ["items"]);
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  const extracted: { packName: string; recordLocator: string }[] = [];
+  for (const item of items) {
+    if (!item || typeof item !== "object") {
+      continue;
+    }
+
+    const compendiumSource = firstString(getNested(item as Record<string, unknown>, ["_stats", "compendiumSource"]));
+    if (!compendiumSource) {
+      continue;
+    }
+
+    const parsed = parseCompendiumLocator(compendiumSource);
+    if (parsed) {
+      extracted.push(parsed);
+    }
+  }
+
+  return extracted;
+}
+
+function deriveGlossaryFamilyFromPath(filePath: string, packRoot: string): string | null {
+  const relativePath = path.relative(packRoot, filePath);
+  const segments = relativePath.split(path.sep).filter(Boolean);
+  if (segments.length < 2) {
+    return null;
+  }
+
+  const family = normalizeText(segments[0] ?? "").replace(/\s+/g, "-");
+  return family || null;
+}
+
+function sortGlossaryFamilyCounts(counts: Map<string, number>): [string, number][] {
+  return [...counts.entries()].sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]));
+}
+
+function assignGlossaryFamilies(
+  entry: BuildSourceEntry & { record: NormalizedIndexRecord },
+  recordsByPackAndId: Map<string, string>,
+  glossaryFamilyByRecordKey: Map<string, string>,
+): void {
+  const familyCounts = new Map<string, number>();
+
+  for (const reference of extractItemCompendiumSources(entry.raw)) {
+    if (reference.packName !== "bestiary-family-ability-glossary") {
+      continue;
+    }
+
+    const recordKey = recordsByPackAndId.get(buildPackAndIdKey(reference.packName, reference.recordLocator));
+    if (!recordKey) {
+      continue;
+    }
+
+    const family = glossaryFamilyByRecordKey.get(recordKey);
+    if (!family) {
+      continue;
+    }
+
+    familyCounts.set(family, (familyCounts.get(family) ?? 0) + 1);
+  }
+
+  const sortedFamilies = sortGlossaryFamilyCounts(familyCounts);
+  entry.record.glossaryFamily = sortedFamilies[0]?.[0] ?? null;
+  entry.record.additionalGlossaryFamilies = sortedFamilies.slice(1).map(([family]) => family);
 }
 
 function stripOuterHtml(value: string): string {
@@ -1800,6 +1877,10 @@ function rowToRecord(row: CandidateRow, raw: Record<string, unknown> | null = nu
     descriptionSnippet: row.descriptionSnippet,
     sourceCategory: row.sourceCategory,
     folderId: row.folderId,
+    glossaryFamily: row.glossaryFamily,
+    additionalGlossaryFamilies: row.additionalGlossaryFamiliesJson
+      ? (JSON.parse(row.additionalGlossaryFamiliesJson) as string[])
+      : [],
     sourcePath: row.sourcePath,
     isUnique: Boolean(row.isUnique),
     size: row.size,
@@ -2028,6 +2109,8 @@ function createSchema(db: DatabaseSync, embeddingDimensions: number): void {
       description_snippet TEXT,
       source_category TEXT NOT NULL,
       folder_id TEXT,
+      glossary_family TEXT,
+      additional_glossary_families_json TEXT NOT NULL,
       source_path TEXT NOT NULL,
       is_unique INTEGER NOT NULL,
       is_search_canonical INTEGER NOT NULL,
@@ -2167,6 +2250,7 @@ function createSchema(db: DatabaseSync, embeddingDimensions: number): void {
     CREATE INDEX records_search_canonical_idx ON records(is_search_canonical);
     CREATE INDEX records_has_description_idx ON records(has_description);
     CREATE INDEX records_source_category_idx ON records(source_category);
+    CREATE INDEX records_glossary_family_idx ON records(glossary_family);
     CREATE INDEX record_aliases_normalized_alias_idx ON record_aliases(normalized_alias);
     CREATE INDEX record_legacy_links_canonical_idx ON record_legacy_links(canonical_record_key);
     CREATE INDEX record_traits_trait_idx ON record_traits(trait);
@@ -2210,8 +2294,8 @@ async function buildIndex(
     INSERT INTO records (
       record_key, id, name, normalized_name, category, subcategory, pack_name, pack_label, document_type, record_type,
       level, rarity, traits_json, derived_tags_json, publication_title, publication_remaster, description_text, has_description, description_snippet,
-      source_category, folder_id, source_path, is_unique, is_search_canonical, search_text, raw_json
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      source_category, folder_id, glossary_family, additional_glossary_families_json, source_path, is_unique, is_search_canonical, search_text, raw_json
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const insertAlias = db.prepare(`
     INSERT INTO record_aliases (canonical_record_key, alias_text, normalized_alias, source_kind, source_ref)
@@ -2417,7 +2501,21 @@ async function buildIndex(
       recordsByName.set(record.normalizedName, sameNames);
     }
 
+    const glossaryFamilyByRecordKey = new Map<string, string>();
     for (const entry of indexedEntries) {
+      if (entry.record.packName !== "bestiary-family-ability-glossary") {
+        continue;
+      }
+
+      const family = deriveGlossaryFamilyFromPath(entry.filePath, entry.pack.resolvedPath);
+      if (family) {
+        glossaryFamilyByRecordKey.set(entry.record.recordKey, family);
+      }
+    }
+
+    for (const entry of indexedEntries) {
+      assignGlossaryFamilies(entry, recordsByPackAndId, glossaryFamilyByRecordKey);
+
       entry.resolvedReferences = entry.references
         .map((reference) => resolveExtractedReference(
           reference,
@@ -2557,6 +2655,8 @@ async function buildIndex(
         record.descriptionSnippet,
         record.sourceCategory,
         record.folderId,
+        record.glossaryFamily,
+        JSON.stringify(record.additionalGlossaryFamilies),
         record.sourcePath,
         record.isUnique ? 1 : 0,
         isSearchCanonical ? 1 : 0,
@@ -3179,6 +3279,8 @@ function buildCandidateQuery(
     "r.description_snippet AS descriptionSnippet",
     "r.source_category AS sourceCategory",
     "r.folder_id AS folderId",
+    "r.glossary_family AS glossaryFamily",
+    "r.additional_glossary_families_json AS additionalGlossaryFamiliesJson",
     "r.source_path AS sourcePath",
     "r.is_unique AS isUnique",
     "r.is_search_canonical AS isSearchCanonical",
@@ -4014,6 +4116,8 @@ export class Pf2eDataService {
             r.description_snippet AS descriptionSnippet,
             r.source_category AS sourceCategory,
             r.folder_id AS folderId,
+            r.glossary_family AS glossaryFamily,
+            r.additional_glossary_families_json AS additionalGlossaryFamiliesJson,
             r.source_path AS sourcePath,
             r.is_unique AS isUnique,
             r.is_search_canonical AS isSearchCanonical,
@@ -4140,6 +4244,8 @@ export class Pf2eDataService {
                 r.description_snippet AS descriptionSnippet,
                 r.source_category AS sourceCategory,
                 r.folder_id AS folderId,
+                r.glossary_family AS glossaryFamily,
+                r.additional_glossary_families_json AS additionalGlossaryFamiliesJson,
             r.source_path AS sourcePath,
             r.is_unique AS isUnique,
             r.is_search_canonical AS isSearchCanonical,
@@ -4184,6 +4290,8 @@ export class Pf2eDataService {
                 r.description_snippet AS descriptionSnippet,
                 r.source_category AS sourceCategory,
                 r.folder_id AS folderId,
+                r.glossary_family AS glossaryFamily,
+                r.additional_glossary_families_json AS additionalGlossaryFamiliesJson,
             r.source_path AS sourcePath,
             r.is_unique AS isUnique,
             r.is_search_canonical AS isSearchCanonical,

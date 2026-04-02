@@ -41,6 +41,8 @@ function summarizeRecord(
     rarity: record.rarity,
     traits: record.traits,
     derivedTags: record.derivedTags,
+    glossaryFamily: record.glossaryFamily,
+    additionalGlossaryFamilies: record.additionalGlossaryFamilies,
     traditions: record.traditions,
     spellKinds: record.spellKinds,
     publicationTitle: record.publicationTitle,

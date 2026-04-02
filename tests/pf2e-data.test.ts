@@ -96,6 +96,7 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
   const packNames = [
     "actions",
     "actionspf2e",
+    "bestiary-family-ability-glossary",
     "classfeatures",
     "conditionitems",
     "equipment",
@@ -111,6 +112,11 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
   ];
 
   await Promise.all(packNames.map(async (packName) => mkdir(path.join(packRoot, packName), { recursive: true })));
+  await Promise.all([
+    mkdir(path.join(packRoot, "bestiary-family-ability-glossary", "ghost"), { recursive: true }),
+    mkdir(path.join(packRoot, "bestiary-family-ability-glossary", "lich"), { recursive: true }),
+    mkdir(path.join(packRoot, "bestiary-family-ability-glossary", "mythic"), { recursive: true }),
+  ]);
   await mkdir(path.join(root, "src", "module", "migration", "migrations"), { recursive: true });
 
   await writeJson(path.join(root, "system.pf2e.json"), {
@@ -125,6 +131,12 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
         name: "actionspf2e",
         label: "Actions SRD",
         path: "packs/actionspf2e",
+        type: "Item",
+      },
+      {
+        name: "bestiary-family-ability-glossary",
+        label: "Creature Family Ability Glossary",
+        path: "packs/bestiary-family-ability-glossary",
         type: "Item",
       },
       {
@@ -948,6 +960,78 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
     },
   });
 
+  await writeJson(path.join(packRoot, "bestiary-family-ability-glossary", "ghost", "ghost-rejuvenation.json"), {
+    _id: "ghost-rejuvenation-1",
+    name: "Rejuvenation",
+    type: "action",
+    system: {
+      description: {
+        value: "<p>A destroyed ghost reforms unless its unfinished business is resolved.</p>",
+      },
+      publication: {
+        title: "Pathfinder Monster Core",
+      },
+      traits: {
+        rarity: "common",
+        value: [],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "bestiary-family-ability-glossary", "lich", "lich-rejuvenation.json"), {
+    _id: "lich-rejuvenation-1",
+    name: "Rejuvenation",
+    type: "action",
+    system: {
+      description: {
+        value: "<p>A lich returns through its soul cage unless the cage is destroyed.</p>",
+      },
+      publication: {
+        title: "Pathfinder Monster Core",
+      },
+      traits: {
+        rarity: "common",
+        value: [],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "bestiary-family-ability-glossary", "mythic", "recharge-spell.json"), {
+    _id: "mythic-recharge-spell-1",
+    name: "Recharge Spell",
+    type: "action",
+    system: {
+      description: {
+        value: "<p>The creature regains one expended spell.</p>",
+      },
+      publication: {
+        title: "Pathfinder War of Immortals",
+      },
+      traits: {
+        rarity: "common",
+        value: [],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "bestiary-family-ability-glossary", "mythic", "mythic-power.json"), {
+    _id: "mythic-power-1",
+    name: "Mythic Power",
+    type: "action",
+    system: {
+      description: {
+        value: "<p>The creature can spend Mythic Points on extraordinary actions.</p>",
+      },
+      publication: {
+        title: "Pathfinder War of Immortals",
+      },
+      traits: {
+        rarity: "common",
+        value: [],
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "pathfinder-monster-core", "cythnigot.json"), {
     _id: "monster1",
     name: "Cythnigot",
@@ -1056,6 +1140,16 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
     _id: "ghost-commoner-core",
     name: "Ghost Commoner",
     type: "npc",
+    items: [
+      {
+        _id: "ghost-commoner-rejuvenation",
+        _stats: {
+          compendiumSource: "Compendium.pf2e.bestiary-family-ability-glossary.Item.ghost-rejuvenation-1",
+        },
+        name: "Rejuvenation",
+        type: "action",
+      },
+    ],
     system: {
       details: {
         level: {
@@ -1069,6 +1163,56 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
       traits: {
         rarity: "common",
         value: ["ghost", "incorporeal", "spirit", "undead", "unholy"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "mythic-lich.json"), {
+    _id: "mythic-lich-core",
+    name: "Mythic Lich",
+    type: "npc",
+    items: [
+      {
+        _id: "mythic-lich-recharge-spell",
+        _stats: {
+          compendiumSource: "Compendium.pf2e.bestiary-family-ability-glossary.Item.mythic-recharge-spell-1",
+        },
+        name: "Recharge Spell",
+        type: "action",
+      },
+      {
+        _id: "mythic-lich-mythic-power",
+        _stats: {
+          compendiumSource: "Compendium.pf2e.bestiary-family-ability-glossary.Item.mythic-power-1",
+        },
+        name: "Mythic Power",
+        type: "action",
+      },
+      {
+        _id: "mythic-lich-rejuvenation",
+        _stats: {
+          compendiumSource: "Compendium.pf2e.bestiary-family-ability-glossary.Item.lich-rejuvenation-1",
+        },
+        name: "Rejuvenation",
+        type: "action",
+      },
+    ],
+    system: {
+      details: {
+        level: {
+          value: 12,
+        },
+        publication: {
+          title: "Pathfinder War of Immortals",
+        },
+        publicNotes: "<p>An undead spellcaster elevated by mythic power and sustained by a soul cage.</p>",
+      },
+      traits: {
+        rarity: "rare",
+        value: ["undead", "wizard"],
         size: {
           value: "med",
         },
@@ -1847,8 +1991,8 @@ describe("Pf2eDataService", () => {
 
     const service = await loadTestService(fixture);
 
-    expect(service.listPacks()).toHaveLength(13);
-    expect(service.getStats()).toEqual({ packCount: 13, recordCount: 57 });
+    expect(service.listPacks()).toHaveLength(14);
+    expect(service.getStats()).toEqual({ packCount: 14, recordCount: 62 });
     expect(service.getPack("Actions")?.name).toBe("actions");
   });
 
@@ -1924,6 +2068,12 @@ describe("Pf2eDataService", () => {
     expect(coldResistancePotion?.derivedTags).toEqual(expect.arrayContaining(["beneficial", "energy_resistance", "buff_support", "self_buff"]));
     const shipCaptain = service.lookup("Ship Captain", { category: "creature" }).match;
     expect(shipCaptain?.derivedTags).toEqual(expect.arrayContaining(["nautical", "profession_npc", "scene_adjacent"]));
+    const ghostCommoner = service.lookup("Ghost Commoner", { category: "creature" }).match;
+    expect(ghostCommoner?.glossaryFamily).toBe("ghost");
+    expect(ghostCommoner?.additionalGlossaryFamilies).toEqual([]);
+    const mythicLich = service.lookup("Mythic Lich", { category: "creature" }).match;
+    expect(mythicLich?.glossaryFamily).toBe("mythic");
+    expect(mythicLich?.additionalGlossaryFamilies).toEqual(["lich"]);
     const pelagicStalker = service.lookup("Pelagic Stalker", { category: "creature" }).match;
     expect(pelagicStalker?.derivedTags).toContain("aquatic_context");
     const spaciousPouch = service.lookup("Spacious Pouch (Type I)", { category: "equipment" }).match;
@@ -2392,7 +2542,7 @@ describe("Pf2eDataService", () => {
     expect(service.listFilterValues({
       field: "rarity",
       category: "creature",
-    }).values.map((entry) => entry.value)).toEqual(["common", "uncommon", "rare", "unique"]);
+    }).values.map((entry) => entry.value)).toEqual(["common", "rare", "uncommon", "unique"]);
 
     expect(service.listFilterValues({
       field: "size",
@@ -2479,12 +2629,12 @@ describe("Pf2eDataService", () => {
     const indexPath = path.join(fixture.root, ".cache", "pf2e-index.sqlite");
 
     const firstService = await loadTestService(fixture, { indexPath });
-    expect(firstService.getStats()).toEqual({ packCount: 13, recordCount: 57 });
+    expect(firstService.getStats()).toEqual({ packCount: 14, recordCount: 62 });
     firstService.close();
 
     const firstMtime = (await import("node:fs/promises")).stat(indexPath).then((details) => details.mtimeMs);
     const unchangedService = await openPreparedTestService(fixture, { indexPath });
-    expect(unchangedService.getStats()).toEqual({ packCount: 13, recordCount: 57 });
+    expect(unchangedService.getStats()).toEqual({ packCount: 14, recordCount: 62 });
     unchangedService.close();
     const secondMtime = (await import("node:fs/promises")).stat(indexPath).then((details) => details.mtimeMs);
     expect(await secondMtime).toBe(await firstMtime);
@@ -2516,7 +2666,7 @@ describe("Pf2eDataService", () => {
     await expect(openPreparedTestService(fixture, { indexPath })).rejects.toThrow(/index .* stale/i);
 
     const rebuiltService = await loadTestService(fixture, { indexPath });
-    expect(rebuiltService.getStats()).toEqual({ packCount: 13, recordCount: 58 });
+    expect(rebuiltService.getStats()).toEqual({ packCount: 14, recordCount: 63 });
     expect(rebuiltService.lookup("Sea Ghoul", { category: "creature" }).match?.name).toBe("Sea Ghoul");
     rebuiltService.close();
   });
@@ -2528,7 +2678,7 @@ describe("Pf2eDataService", () => {
     const indexPath = path.join(fixture.root, ".cache", "pf2e-index.sqlite");
 
     const firstService = await loadTestService(fixture, { indexPath });
-    expect(firstService.getStats()).toEqual({ packCount: 13, recordCount: 57 });
+    expect(firstService.getStats()).toEqual({ packCount: 14, recordCount: 62 });
     firstService.close();
 
     await writeJson(path.join(fixture.root, "packs", "pf2e", "pathfinder-monster-core", "sea-ghoul-untracked.json"), {

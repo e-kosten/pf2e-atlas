@@ -164,6 +164,8 @@ export interface NormalizedRecord {
   descriptionSnippet: string | null;
   sourceCategory: SourceCategory;
   folderId: string | null;
+  glossaryFamily: string | null;
+  additionalGlossaryFamilies: string[];
   sourcePath: string;
   isUnique: boolean;
   size: string | null;
