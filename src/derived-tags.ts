@@ -155,6 +155,12 @@ const RESTRAINT_ESCAPE_REFERENCE_ANCHORS = [
   referenceAnchor("conditionitems", "Restrained"),
 ];
 
+const RESTRAINT_CAPTURE_REFERENCE_ANCHORS = [
+  referenceAnchor("actionspf2e", "Grapple"),
+  referenceAnchor("conditionitems", "Grabbed"),
+  referenceAnchor("conditionitems", "Restrained"),
+];
+
 const DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "offensive",
@@ -474,6 +480,21 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
         ],
         referencesAny: RESTRAINT_ESCAPE_REFERENCE_ANCHORS,
       },
+      {
+        score: 2,
+        textAny: [
+          phraseAnchor("free someone from manacles"),
+          phraseAnchor("free yourself from manacles"),
+        ],
+      },
+      {
+        score: 2,
+        textAll: [
+          tokenAnchor("athletics"),
+          tokenAnchor("escape"),
+        ],
+        referencesAny: [referenceAnchor("actionspf2e", "Escape")],
+      },
     ],
     noneOf: [
       {
@@ -485,6 +506,48 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
           phraseAnchor("restrain the target"),
           phraseAnchor("grabs the target"),
           phraseAnchor("tighten the loop"),
+        ],
+      },
+    ],
+  },
+  {
+    tag: "restraint_capture",
+    category: "equipment",
+    subcategories: GEARISH_SUBCATEGORIES,
+    threshold: 2,
+    anyOf: [
+      {
+        score: 2,
+        textAny: [
+          phraseAnchor("cinched down on a captive"),
+          phraseAnchor("at your mercy"),
+          phraseAnchor("legs bound"),
+        ],
+      },
+      {
+        score: 2,
+        textAny: [
+          phraseAnchor("target becomes restrained"),
+          phraseAnchor("creature becomes restrained"),
+          phraseAnchor("restrain the target"),
+        ],
+      },
+      {
+        score: 2,
+        textAny: [
+          phraseAnchor("tighten the loop"),
+          phraseAnchor("without having a free hand"),
+          phraseAnchor("up to 10 feet away"),
+        ],
+        referencesAny: RESTRAINT_CAPTURE_REFERENCE_ANCHORS,
+      },
+    ],
+    noneOf: [
+      {
+        textAny: [
+          phraseAnchor("break free"),
+          phraseAnchor("free someone from manacles"),
+          phraseAnchor("free yourself from manacles"),
         ],
       },
     ],
@@ -677,6 +740,7 @@ export const DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
       { value: "trap_bypass", description: "Helps disarm, disable, or get past traps." },
       { value: "carry_support", description: "Helps stow, carry, or organize equipment." },
       { value: "restraint_escape", description: "Helps break free from grabs, restraints, or similar immobilizing holds." },
+      { value: "restraint_capture", description: "Helps capture, bind, or keep a target restrained." },
     ],
   },
   {

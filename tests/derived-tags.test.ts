@@ -137,6 +137,32 @@ describe("derived tag rules", () => {
         },
       ],
     })).toContain("restraint_escape");
+
+    expect(deriveRecordTags({
+      name: "Shacklebreaker",
+      category: "equipment",
+      subcategory: "gear",
+      descriptionText: "This bracelet helps free someone from manacles. Whenever you roll a success to free someone from manacles, it counts as two successes.",
+      traits: ["magical"],
+    })).toContain("restraint_escape");
+
+    expect(deriveRecordTags({
+      name: "Catch Pole",
+      category: "equipment",
+      subcategory: "gear",
+      descriptionText: "This sturdy pole has a rope attached to one end in a loop. You can pull the handle side of the rope to tighten the loop. Using this loop, you can Grapple without having a free hand.",
+      traits: [],
+      references: [
+        {
+          recordKey: "actionspf2e:grapple-1",
+          packName: "actionspf2e",
+          name: "Grapple",
+          category: "rule",
+          subcategory: "action",
+          traits: ["attack"],
+        },
+      ],
+    })).toContain("restraint_capture");
   });
 
   it("derives expanded creature context tags without adding redundant composites", () => {
@@ -291,6 +317,32 @@ describe("derived tag rules", () => {
           traits: [],
         },
       ],
+    })).toEqual(expect.arrayContaining(["restraint_capture"]));
+
+    expect(deriveRecordTags({
+      name: "Tangle Cuffs",
+      category: "equipment",
+      subcategory: "gear",
+      descriptionText: "These cuffs tighten around the target. On a hit, the target becomes Restrained until it Escapes.",
+      traits: [],
+      references: [
+        {
+          recordKey: "actionspf2e:escape-1",
+          packName: "actionspf2e",
+          name: "Escape",
+          category: "rule",
+          subcategory: "action",
+          traits: ["attack"],
+        },
+        {
+          recordKey: "conditionitems:restrained-1",
+          packName: "conditionitems",
+          name: "Restrained",
+          category: "rule",
+          subcategory: "condition",
+          traits: [],
+        },
+      ],
     })).not.toContain("restraint_escape");
   });
 
@@ -332,6 +384,7 @@ describe("derived tag rules", () => {
           expect.objectContaining({ value: "navigation", description: expect.any(String) }),
           expect.objectContaining({ value: "carry_support", description: expect.any(String) }),
           expect.objectContaining({ value: "restraint_escape", description: expect.any(String) }),
+          expect.objectContaining({ value: "restraint_capture", description: expect.any(String) }),
         ]),
       }),
       expect.objectContaining({
