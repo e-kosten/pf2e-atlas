@@ -61,6 +61,32 @@ describe("derived tag rules", () => {
       descriptionText: "A lantern with a compass hood used to illuminate ruins and track your heading underground.",
       traits: [],
     })).toEqual(expect.arrayContaining(["illumination", "navigation"]));
+
+    expect(deriveRecordTags({
+      name: "Masquerade Scarf",
+      category: "equipment",
+      subcategory: "gear",
+      descriptionText: "The scarf casts Illusory Disguise on you.",
+      traits: [],
+      references: [
+        {
+          recordKey: "spells-srd:i35dpZFI7jZcRoBo",
+          packName: "spells-srd",
+          name: "Illusory Disguise",
+          category: "spell",
+          subcategory: null,
+          traits: ["illusion"],
+        },
+      ],
+    })).toEqual(expect.arrayContaining(["disguise", "social_infiltration"]));
+
+    expect(deriveRecordTags({
+      name: "Quick-Change Outfit",
+      category: "equipment",
+      subcategory: "gear",
+      descriptionText: "Two separate outfits sewn together let you switch quickly between the two outfits.",
+      traits: [],
+    })).toEqual(expect.arrayContaining(["disguise", "social_infiltration"]));
   });
 
   it("derives expanded creature context tags without adding redundant composites", () => {
@@ -87,6 +113,22 @@ describe("derived tag rules", () => {
       descriptionText: "A sailor raider from the frozen sea who prowls icy coasts and shipwrecks.",
       traits: [],
     })).toEqual(expect.arrayContaining(["nautical", "aquatic_context", "arctic"]));
+
+    expect(deriveRecordTags({
+      name: "Pelagic Stalker",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A sleek predator built for sudden bursts of speed.",
+      traits: ["aquatic", "beast"],
+    })).toContain("aquatic_context");
+
+    expect(deriveRecordTags({
+      name: "Bog Prowler",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "An ambush hunter with a powerful bite.",
+      traits: ["amphibious", "beast"],
+    })).toContain("aquatic_context");
   });
 
   it("avoids known substring false positives from the rebuilt corpus", () => {

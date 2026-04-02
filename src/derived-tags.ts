@@ -7,6 +7,16 @@ type DerivedTagContext = {
   subcategory: SearchSubcategory | null;
   descriptionText: string | null;
   traits: string[];
+  references?: DerivedTagReference[];
+};
+
+type DerivedTagReference = {
+  recordKey: string;
+  packName: string;
+  name: string;
+  category: SearchCategory;
+  subcategory: SearchSubcategory | null;
+  traits: string[];
 };
 
 type TextMatchScope = "either" | "name" | "description";
@@ -24,6 +34,8 @@ type DerivedTagMatchClause = {
   traitsAll?: string[];
   textAny?: TextAnchor[];
   textAll?: TextAnchor[];
+  referencesAny?: string[];
+  referencesAll?: string[];
 };
 
 type DerivedTagRule = {
@@ -48,6 +60,7 @@ type NormalizedDerivedTagContext = {
   traits: Set<string>;
   name: NormalizedTextView;
   description: NormalizedTextView;
+  referenceKeys: Set<string>;
 };
 
 const tokenAnchor = (value: string, scope: TextMatchScope = "either"): TextAnchor => ({ value, mode: "token", scope });
@@ -84,6 +97,38 @@ const WEAK_PROFESSION_NAME_ANCHORS: TextAnchor[] = [
   tokenAnchor("apprentice", "name"),
   tokenAnchor("hunter", "name"),
   tokenAnchor("enforcer", "name"),
+];
+
+/**
+ * Derived-tag rules intentionally author linked-record anchors as `pack:name`
+ * instead of the full Foundry UUID shape like `spells-srd.Item.Illusory Disguise`.
+ * Current PF2E compendium references already resolve on pack plus friendly locator,
+ * and the document-type segment is mostly noise for retrieval-oriented rules.
+ * If PF2E/Foundry ever starts reusing locators within a pack such that `pack:name`
+ * is no longer a stable shorthand, revisit this helper and the rule surface.
+ */
+function normalizeDerivedTagReference(value: string): string {
+  const separatorIndex = value.indexOf(":");
+  if (separatorIndex === -1) {
+    return normalizeText(value);
+  }
+
+  const packName = value.slice(0, separatorIndex);
+  const recordName = value.slice(separatorIndex + 1);
+  return `${normalizeText(packName)}:${normalizeText(recordName)}`;
+}
+
+const referenceAnchor = (packName: string, name: string): string => normalizeDerivedTagReference(`${packName}:${name}`);
+
+const DISGUISE_REFERENCE_ANCHORS = [
+  referenceAnchor("actionspf2e", "Impersonate"),
+  referenceAnchor("spells-srd", "Illusory Disguise"),
+  referenceAnchor("equipment-srd", "Disguise Kit"),
+];
+
+const SOCIAL_INFILTRATION_REFERENCE_ANCHORS = [
+  referenceAnchor("actionspf2e", "Impersonate"),
+  referenceAnchor("spells-srd", "Illusory Disguise"),
 ];
 
 const DERIVED_TAG_RULES: DerivedTagRule[] = [
@@ -317,7 +362,8 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "equipment",
     subcategories: GEARISH_SUBCATEGORIES,
     anyOf: [
-      { textAny: [tokenAnchor("disguise"), tokenAnchor("impersonate"), phraseAnchor("false identity"), tokenAnchor("costume"), tokenAnchor("masquerade")] },
+      { textAny: [tokenAnchor("disguise"), tokenAnchor("impersonate"), phraseAnchor("false identity"), tokenAnchor("costume"), tokenAnchor("masquerade"), phraseAnchor("quick change", "name")] },
+      { referencesAny: DISGUISE_REFERENCE_ANCHORS },
     ],
   },
   {
@@ -325,7 +371,8 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "equipment",
     subcategories: GEARISH_SUBCATEGORIES,
     anyOf: [
-      { textAny: [phraseAnchor("false identity"), phraseAnchor("pass as"), phraseAnchor("blend into society"), phraseAnchor("social infiltration"), tokenAnchor("impersonate"), tokenAnchor("masquerade")] },
+      { textAny: [phraseAnchor("false identity"), phraseAnchor("pass as"), phraseAnchor("blend into society"), phraseAnchor("social infiltration"), tokenAnchor("impersonate"), tokenAnchor("masquerade"), phraseAnchor("quick change", "name")] },
+      { referencesAny: SOCIAL_INFILTRATION_REFERENCE_ANCHORS },
     ],
   },
   {
@@ -402,7 +449,7 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "creature",
     threshold: 2,
     anyOf: [
-      { score: 3, traitsAny: ["water"] },
+      { score: 3, traitsAny: ["water", "aquatic", "amphibious"] },
       { score: 2, textAny: [tokenAnchor("aquatic"), tokenAnchor("ocean"), tokenAnchor("river"), tokenAnchor("coast"), tokenAnchor("coasts")] },
       { score: 1, textAny: [tokenAnchor("sea"), tokenAnchor("harbor"), tokenAnchor("water")] },
     ],
@@ -655,6 +702,12 @@ function matchesClause(context: NormalizedDerivedTagContext, clause: DerivedTagM
   if (clause.textAll && !clause.textAll.every((anchor) => matchesTextAnchor(context, anchor))) {
     return false;
   }
+  if (clause.referencesAny && !clause.referencesAny.some((reference) => context.referenceKeys.has(normalizeDerivedTagReference(reference)))) {
+    return false;
+  }
+  if (clause.referencesAll && !clause.referencesAll.every((reference) => context.referenceKeys.has(normalizeDerivedTagReference(reference)))) {
+    return false;
+  }
   return true;
 }
 
@@ -709,6 +762,7 @@ export function deriveRecordTags(input: DerivedTagContext): string[] {
     traits: new Set(input.traits.map((trait) => normalizeText(trait)).filter(Boolean)),
     name: buildTextView(input.name),
     description: buildTextView(input.descriptionText ?? ""),
+    referenceKeys: new Set((input.references ?? []).map((reference) => normalizeDerivedTagReference(`${reference.packName}:${reference.name}`))),
   };
   const tags = new Set<string>();
 

@@ -196,6 +196,14 @@ type BuildSourceEntry = {
   itemData: ItemIndexData | null;
   spellData: SpellIndexData | null;
   references: ExtractedReference[];
+  resolvedReferences: ResolvedBuildReference[];
+};
+
+type ResolvedBuildReference = {
+  targetRecordKey: string;
+  targetRecord: NormalizedIndexRecord;
+  displayText: string | null;
+  referenceText: string;
 };
 
 type RecordAliasRow = {
@@ -738,14 +746,6 @@ function normalizeIndexRecord(pack: PackBuildInfo, sourcePath: string, raw: Reco
     throw new Error(`Record in ${sourcePath} did not map to a public search category.`);
   }
 
-  const derivedTags = deriveRecordTags({
-    name,
-    category: classification.category,
-    subcategory: classification.subcategory,
-    descriptionText,
-    traits,
-  });
-
   return {
     recordKey: `${pack.name}:${id}`,
     id,
@@ -760,7 +760,7 @@ function normalizeIndexRecord(pack: PackBuildInfo, sourcePath: string, raw: Reco
     level: getLevel(raw),
     rarity,
     traits,
-    derivedTags,
+    derivedTags: [],
     publicationTitle,
     publicationRemaster,
     descriptionText,
@@ -1292,6 +1292,41 @@ function resolveTargetRecordKey(
 
   const byName = recordsByName.get(normalizedValue) ?? [];
   return byName.length === 1 ? byName[0]! : null;
+}
+
+function resolveExtractedReference(
+  reference: ExtractedReference,
+  recordsByPackAndId: Map<string, string>,
+  recordsByPackAndName: Map<string, string[]>,
+  recordsByName: Map<string, string[]>,
+  recordsByKey: Map<string, NormalizedIndexRecord>,
+): ResolvedBuildReference | null {
+  if (!reference.packName || !reference.recordLocator) {
+    return null;
+  }
+
+  const targetRecordKey = resolveTargetRecordKey(
+    reference.packName,
+    reference.recordLocator,
+    recordsByPackAndId,
+    recordsByPackAndName,
+    recordsByName,
+  );
+  if (!targetRecordKey) {
+    return null;
+  }
+
+  const targetRecord = recordsByKey.get(targetRecordKey);
+  if (!targetRecord) {
+    return null;
+  }
+
+  return {
+    targetRecordKey,
+    targetRecord,
+    displayText: reference.displayText,
+    referenceText: reference.referenceText,
+  };
 }
 
 function extractFirstUuidReference(value: string): { packName: string; recordLocator: string } | null {
@@ -2304,6 +2339,7 @@ async function buildIndex(
             itemData: null,
             spellData: null,
             references: [],
+            resolvedReferences: [],
           });
           const processedFiles = fileIndex + 1;
           const now = Date.now();
@@ -2330,6 +2366,7 @@ async function buildIndex(
           itemData: pack.documentType === "Item" ? parseItemIndexData(raw) : null,
           spellData: record.type === "spell" ? parseSpellIndexData(raw) : null,
           references: extractRulesReferences(raw),
+          resolvedReferences: [],
         });
         packRecordCount += 1;
         recordCount += 1;
@@ -2378,6 +2415,34 @@ async function buildIndex(
       const sameNames = recordsByName.get(record.normalizedName) ?? [];
       sameNames.push(record.recordKey);
       recordsByName.set(record.normalizedName, sameNames);
+    }
+
+    for (const entry of indexedEntries) {
+      entry.resolvedReferences = entry.references
+        .map((reference) => resolveExtractedReference(
+          reference,
+          recordsByPackAndId,
+          recordsByPackAndName,
+          recordsByName,
+          recordsByKey,
+        ))
+        .filter((reference): reference is ResolvedBuildReference => Boolean(reference));
+
+      entry.record.derivedTags = deriveRecordTags({
+        name: entry.record.name,
+        category: entry.record.category,
+        subcategory: entry.record.subcategory,
+        descriptionText: entry.record.descriptionText,
+        traits: entry.record.traits,
+        references: entry.resolvedReferences.map((reference) => ({
+          recordKey: reference.targetRecordKey,
+          packName: reference.targetRecord.packName,
+          name: reference.targetRecord.name,
+          category: reference.targetRecord.category,
+          subcategory: reference.targetRecord.subcategory,
+          traits: reference.targetRecord.traits,
+        })),
+      });
     }
 
     let aliasRows: RecordAliasRow[] = [];
@@ -2548,25 +2613,10 @@ async function buildIndex(
         );
       }
 
-      for (const reference of entry.references) {
-        if (!reference.packName || !reference.recordLocator) {
-          continue;
-        }
-
-        const targetRecordKey = resolveTargetRecordKey(
-          reference.packName,
-          reference.recordLocator,
-          recordsByPackAndId,
-          recordsByPackAndName,
-          recordsByName,
-        );
-        if (!targetRecordKey) {
-          continue;
-        }
-
+      for (const reference of entry.resolvedReferences) {
         insertReferenceEdge.run(
           record.recordKey,
-          targetRecordKey,
+          reference.targetRecordKey,
           reference.displayText,
           reference.referenceText,
           record.packName,

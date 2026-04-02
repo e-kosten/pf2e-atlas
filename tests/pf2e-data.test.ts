@@ -95,9 +95,11 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
   const packRoot = path.join(root, "packs", "pf2e");
   const packNames = [
     "actions",
+    "actionspf2e",
     "classfeatures",
     "conditionitems",
     "equipment",
+    "equipment-srd",
     "feats-srd",
     "heritages",
     "journals",
@@ -105,6 +107,7 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
     "pfs-season-1-bestiary",
     "quest-for-the-frozen-flame-bestiary",
     "spells",
+    "spells-srd",
   ];
 
   await Promise.all(packNames.map(async (packName) => mkdir(path.join(packRoot, packName), { recursive: true })));
@@ -116,6 +119,12 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
         name: "actions",
         label: "Actions",
         path: "packs/actions",
+        type: "Item",
+      },
+      {
+        name: "actionspf2e",
+        label: "Actions SRD",
+        path: "packs/actionspf2e",
         type: "Item",
       },
       {
@@ -134,6 +143,12 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
         name: "equipment",
         label: "Equipment",
         path: "packs/equipment",
+        type: "Item",
+      },
+      {
+        name: "equipment-srd",
+        label: "Equipment SRD",
+        path: "packs/equipment-srd",
         type: "Item",
       },
       {
@@ -176,6 +191,12 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
         name: "spells",
         label: "Spells",
         path: "packs/spells",
+        type: "Item",
+      },
+      {
+        name: "spells-srd",
+        label: "Spells SRD",
+        path: "packs/spells-srd",
         type: "Item",
       },
     ],
@@ -275,6 +296,24 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
       traits: {
         rarity: "common",
         value: ["fighter"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "actionspf2e", "impersonate.json"), {
+    _id: "action-impersonate-1",
+    name: "Impersonate",
+    type: "action",
+    system: {
+      description: {
+        value: "<p>You create a disguise to pass yourself off as someone else.</p>",
+      },
+      publication: {
+        title: "Pathfinder Player Core",
+      },
+      traits: {
+        rarity: "common",
+        value: ["skill"],
       },
     },
   });
@@ -597,6 +636,60 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
     },
   });
 
+  await writeJson(path.join(packRoot, "equipment-srd", "disguise-kit.json"), {
+    _id: "equip-disguise-kit-1",
+    name: "Disguise Kit",
+    type: "equipment",
+    system: {
+      description: {
+        value: "<p>You usually need a disguise kit to set up a disguise in order to @UUID[Compendium.pf2e.actionspf2e.Item.Impersonate]{Impersonate} someone.</p>",
+      },
+      publication: {
+        title: "Pathfinder Player Core",
+      },
+      traits: {
+        rarity: "common",
+        value: [],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment-srd", "quick-change-outfit.json"), {
+    _id: "equip-quick-change-1",
+    name: "Quick-Change Outfit",
+    type: "equipment",
+    system: {
+      description: {
+        value: "<p>A quick-change outfit is in fact two separate outfits sewn together, allowing you to switch quickly between the two outfits.</p>",
+      },
+      publication: {
+        title: "Pathfinder Lost Omens Firebrands",
+      },
+      traits: {
+        rarity: "common",
+        value: [],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment-srd", "masquerade-scarf.json"), {
+    _id: "equip-masquerade-scarf-1",
+    name: "Masquerade Scarf",
+    type: "equipment",
+    system: {
+      description: {
+        value: "<p>You arrange the scarf over your lower face, and it casts @UUID[Compendium.pf2e.spells-srd.Item.Illusory Disguise]{Illusory Disguise} on you.</p>",
+      },
+      publication: {
+        title: "Pathfinder Treasure Vault",
+      },
+      traits: {
+        rarity: "common",
+        value: [],
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "heritages", "nephilim.json"), {
     _id: "neph1",
     name: "Nephilim",
@@ -741,6 +834,28 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
       },
       traits: {
         value: [],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "spells-srd", "illusory-disguise.json"), {
+    _id: "spell-illusory-disguise-1",
+    name: "Illusory Disguise",
+    type: "spell",
+    system: {
+      description: {
+        value: "<p>You create an illusion that disguises the target.</p>",
+      },
+      level: {
+        value: 1,
+      },
+      publication: {
+        title: "Pathfinder Player Core",
+      },
+      traits: {
+        rarity: "common",
+        traditions: ["arcane", "occult"],
+        value: ["illusion"],
       },
     },
   });
@@ -914,6 +1029,30 @@ async function createFixture(): Promise<{ root: string; manifestPath: string }> 
       traits: {
         rarity: "common",
         value: ["skeleton", "undead", "water"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "pelagic-stalker.json"), {
+    _id: "pelagic-stalker",
+    name: "Pelagic Stalker",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 5,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>A sleek predator built for sudden bursts of speed.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["aquatic", "beast"],
         size: {
           value: "med",
         },
@@ -1620,8 +1759,8 @@ describe("Pf2eDataService", () => {
 
     const service = await loadTestService(fixture);
 
-    expect(service.listPacks()).toHaveLength(10);
-    expect(service.getStats()).toEqual({ packCount: 10, recordCount: 46 });
+    expect(service.listPacks()).toHaveLength(13);
+    expect(service.getStats()).toEqual({ packCount: 13, recordCount: 52 });
     expect(service.getPack("Actions")?.name).toBe("actions");
   });
 
@@ -1672,6 +1811,8 @@ describe("Pf2eDataService", () => {
     expect(service.listRecords({ category: "equipment", subcategory: "backpack", derivedTagsAny: ["carry_support"] }).records.map((record) => record.name)).toEqual(["Spacious Pouch (Type I)"]);
     expect(service.listRecords({ category: "equipment", subcategory: "consumable", derivedTagsAll: ["beneficial", "anti_disease"] }).records.map((record) => record.name)).toEqual(["Antiplague (Lesser)"]);
     expect(service.listRecords({ category: "equipment", subcategory: "consumable", excludeDerivedTags: ["offensive"] }).records.map((record) => record.name)).not.toContain("Sightless Tincture");
+    expect(service.listRecords({ category: "equipment", subcategory: "gear", derivedTagsAny: ["social_infiltration"] }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Masquerade Scarf", "Quick-Change Outfit"]));
+    expect(service.listRecords({ category: "creature", derivedTagsAny: ["aquatic_context"] }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Ghost Sailor", "Pelagic Stalker", "Ship Captain"]));
 
     const cythnigot = service.lookup("Cythnigot", { category: "creature" }).match;
     expect(cythnigot?.hasDescription).toBe(true);
@@ -1691,8 +1832,14 @@ describe("Pf2eDataService", () => {
     expect(bottledCatharsis?.derivedTags).toEqual(expect.arrayContaining(["beneficial", "condition_support", "mental_recovery"]));
     const shipCaptain = service.lookup("Ship Captain", { category: "creature" }).match;
     expect(shipCaptain?.derivedTags).toEqual(expect.arrayContaining(["nautical", "profession_npc", "scene_adjacent"]));
+    const pelagicStalker = service.lookup("Pelagic Stalker", { category: "creature" }).match;
+    expect(pelagicStalker?.derivedTags).toContain("aquatic_context");
     const spaciousPouch = service.lookup("Spacious Pouch (Type I)", { category: "equipment" }).match;
     expect(spaciousPouch?.derivedTags).toContain("carry_support");
+    const masqueradeScarf = service.lookup("Masquerade Scarf", { category: "equipment" }).match;
+    expect(masqueradeScarf?.derivedTags).toEqual(expect.arrayContaining(["disguise", "social_infiltration"]));
+    const quickChangeOutfit = service.lookup("Quick-Change Outfit", { category: "equipment" }).match;
+    expect(quickChangeOutfit?.derivedTags).toEqual(expect.arrayContaining(["disguise", "social_infiltration"]));
     expect(service.lookup("Blinded", { category: "rule", subcategory: "condition" }).match?.category).toBe("rule");
   });
 
@@ -2115,7 +2262,7 @@ describe("Pf2eDataService", () => {
     })).toEqual({
       field: "publicationTitle",
       values: [
-        { value: "Pathfinder Player Core", count: 2 },
+        { value: "Pathfinder Player Core", count: 3 },
       ],
     });
 
@@ -2125,7 +2272,8 @@ describe("Pf2eDataService", () => {
     })).toEqual({
       field: "traditions",
       values: [
-        { value: "occult", count: 1 },
+        { value: "occult", count: 2 },
+        { value: "arcane", count: 1 },
         { value: "primal", count: 1 },
       ],
     });
@@ -2162,6 +2310,7 @@ describe("Pf2eDataService", () => {
       field: "packs",
       values: [
         { value: "Spells", count: 2 },
+        { value: "Spells SRD", count: 1 },
       ],
     });
 
@@ -2229,12 +2378,12 @@ describe("Pf2eDataService", () => {
     const indexPath = path.join(fixture.root, ".cache", "pf2e-index.sqlite");
 
     const firstService = await loadTestService(fixture, { indexPath });
-    expect(firstService.getStats()).toEqual({ packCount: 10, recordCount: 46 });
+    expect(firstService.getStats()).toEqual({ packCount: 13, recordCount: 52 });
     firstService.close();
 
     const firstMtime = (await import("node:fs/promises")).stat(indexPath).then((details) => details.mtimeMs);
     const unchangedService = await openPreparedTestService(fixture, { indexPath });
-    expect(unchangedService.getStats()).toEqual({ packCount: 10, recordCount: 46 });
+    expect(unchangedService.getStats()).toEqual({ packCount: 13, recordCount: 52 });
     unchangedService.close();
     const secondMtime = (await import("node:fs/promises")).stat(indexPath).then((details) => details.mtimeMs);
     expect(await secondMtime).toBe(await firstMtime);
@@ -2266,7 +2415,7 @@ describe("Pf2eDataService", () => {
     await expect(openPreparedTestService(fixture, { indexPath })).rejects.toThrow(/index .* stale/i);
 
     const rebuiltService = await loadTestService(fixture, { indexPath });
-    expect(rebuiltService.getStats()).toEqual({ packCount: 10, recordCount: 47 });
+    expect(rebuiltService.getStats()).toEqual({ packCount: 13, recordCount: 53 });
     expect(rebuiltService.lookup("Sea Ghoul", { category: "creature" }).match?.name).toBe("Sea Ghoul");
     rebuiltService.close();
   });
@@ -2278,7 +2427,7 @@ describe("Pf2eDataService", () => {
     const indexPath = path.join(fixture.root, ".cache", "pf2e-index.sqlite");
 
     const firstService = await loadTestService(fixture, { indexPath });
-    expect(firstService.getStats()).toEqual({ packCount: 10, recordCount: 46 });
+    expect(firstService.getStats()).toEqual({ packCount: 13, recordCount: 52 });
     firstService.close();
 
     await writeJson(path.join(fixture.root, "packs", "pf2e", "pathfinder-monster-core", "sea-ghoul-untracked.json"), {
