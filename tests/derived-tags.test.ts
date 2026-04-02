@@ -65,7 +65,7 @@ describe("derived tag rules", () => {
 
   it("derives expanded creature context tags without adding redundant composites", () => {
     expect(deriveRecordTags({
-      name: "Graveyard Watcher",
+      name: "Graveyard Guard",
       category: "creature",
       subcategory: null,
       descriptionText: "This cemetery guard patrols the crypts beneath the old city.",
@@ -87,6 +87,73 @@ describe("derived tag rules", () => {
       descriptionText: "A sailor raider from the frozen sea who prowls icy coasts and shipwrecks.",
       traits: [],
     })).toEqual(expect.arrayContaining(["nautical", "aquatic_context", "arctic"]));
+  });
+
+  it("avoids known substring false positives from the rebuilt corpus", () => {
+    expect(deriveRecordTags({
+      name: "Antidote (Lesser)",
+      category: "equipment",
+      subcategory: "consumable",
+      descriptionText: "An antidote protects you against toxins. Upon drinking an antidote, you gain a +2 item bonus to Fortitude saving throws against poisons for 6 hours.",
+      traits: ["alchemical", "consumable", "elixir", "healing"],
+    })).toEqual(expect.arrayContaining(["beneficial", "anti_poison"]));
+    expect(deriveRecordTags({
+      name: "Antidote (Lesser)",
+      category: "equipment",
+      subcategory: "consumable",
+      descriptionText: "An antidote protects you against toxins. Upon drinking an antidote, you gain a +2 item bonus to Fortitude saving throws against poisons for 6 hours.",
+      traits: ["alchemical", "consumable", "elixir", "healing"],
+    })).not.toEqual(expect.arrayContaining(["offensive", "thrown_offense"]));
+
+    expect(deriveRecordTags({
+      name: "Accuser Agent",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Accuser agents might be high court advocates, official spymasters, or innocuous adjutants delivering important messages to magistrates, generals, officers, or mercenaries.",
+      traits: ["human", "humanoid"],
+    })).not.toContain("arctic");
+
+    expect(deriveRecordTags({
+      name: "Abandoned Zealot",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Abandoned zealots arise from false faiths unknown to most worshippers.",
+      traits: ["undead", "spirit"],
+    })).not.toContain("nautical");
+
+    expect(deriveRecordTags({
+      name: "Adamantine Golem",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Crafting an adamantine golem requires mounting a mining expedition while guardian suits stand watch.",
+      traits: ["construct", "golem", "mindless"],
+    })).not.toEqual(expect.arrayContaining(["profession_npc", "scene_adjacent"]));
+
+    expect(deriveRecordTags({
+      name: "Animated Armor",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Animated armor serves as guardians and training partners in martial academies.",
+      traits: ["construct", "mindless"],
+    })).not.toEqual(expect.arrayContaining(["profession_npc", "scene_adjacent"]));
+  });
+
+  it("requires enough distinct evidence for weighted creature context tags", () => {
+    expect(deriveRecordTags({
+      name: "Harbor Watcher",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A sentry posted near the harbor gates.",
+      traits: [],
+    })).not.toContain("nautical");
+
+    expect(deriveRecordTags({
+      name: "Harbor Mariner",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A mariner who keeps watch over the harbor docks.",
+      traits: [],
+    })).toContain("nautical");
   });
 
   it("publishes a compact derived-tag catalog", () => {

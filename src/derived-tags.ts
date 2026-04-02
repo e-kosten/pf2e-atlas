@@ -9,36 +9,82 @@ type DerivedTagContext = {
   traits: string[];
 };
 
+type TextMatchScope = "either" | "name" | "description";
+type TextMatchMode = "token" | "phrase";
+
+type TextAnchor = string | {
+  value: string;
+  mode?: TextMatchMode;
+  scope?: TextMatchScope;
+};
+
 type DerivedTagMatchClause = {
+  score?: number;
   traitsAny?: string[];
   traitsAll?: string[];
-  textAny?: string[];
-  textAll?: string[];
+  textAny?: TextAnchor[];
+  textAll?: TextAnchor[];
 };
 
 type DerivedTagRule = {
   tag: string;
   category: SearchCategory;
   subcategories?: SearchSubcategory[];
+  threshold?: number;
   requiresTags?: string[];
   anyOf?: DerivedTagMatchClause[];
   allOf?: DerivedTagMatchClause[];
   noneOf?: DerivedTagMatchClause[];
 };
 
-const OFFENSIVE_TEXT_ANCHORS = [
-  "toxin",
-  "venom",
-  "bomb",
-  "injury poison",
-  "contact poison",
-  "ingested poison",
-  "inhaled poison",
-  "weapon poison",
-  "afflicts the target",
+type NormalizedTextView = {
+  text: string;
+  tokenSet: Set<string>;
+};
+
+type NormalizedDerivedTagContext = {
+  category: SearchCategory;
+  subcategory: SearchSubcategory | null;
+  traits: Set<string>;
+  name: NormalizedTextView;
+  description: NormalizedTextView;
+};
+
+const tokenAnchor = (value: string, scope: TextMatchScope = "either"): TextAnchor => ({ value, mode: "token", scope });
+const phraseAnchor = (value: string, scope: TextMatchScope = "either"): TextAnchor => ({ value, mode: "phrase", scope });
+
+const OFFENSIVE_TEXT_ANCHORS: TextAnchor[] = [
+  tokenAnchor("venom"),
+  tokenAnchor("bomb"),
+  phraseAnchor("injury poison"),
+  phraseAnchor("contact poison"),
+  phraseAnchor("ingested poison"),
+  phraseAnchor("inhaled poison"),
+  phraseAnchor("weapon poison"),
+  phraseAnchor("afflicts the target"),
 ];
 
 const GEARISH_SUBCATEGORIES: SearchSubcategory[] = ["gear", "backpack", "kit", "vehicle"];
+
+const STRONG_PROFESSION_NAME_ANCHORS: TextAnchor[] = [
+  tokenAnchor("captain", "name"),
+  tokenAnchor("commoner", "name"),
+  tokenAnchor("guard", "name"),
+  tokenAnchor("scout", "name"),
+  tokenAnchor("sailor", "name"),
+  tokenAnchor("merchant", "name"),
+  tokenAnchor("priest", "name"),
+  tokenAnchor("noble", "name"),
+  tokenAnchor("advisor", "name"),
+  tokenAnchor("acolyte", "name"),
+];
+
+const WEAK_PROFESSION_NAME_ANCHORS: TextAnchor[] = [
+  tokenAnchor("agent", "name"),
+  tokenAnchor("apprentice", "name"),
+  tokenAnchor("hunter", "name"),
+  tokenAnchor("enforcer", "name"),
+];
 
 const DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
@@ -57,7 +103,7 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     requiresTags: ["offensive"],
     anyOf: [
       { traitsAny: ["bomb"] },
-      { textAny: ["throw", "thrown", "hurl", "lob", "splash weapon"] },
+      { textAny: [tokenAnchor("thrown"), tokenAnchor("hurl"), tokenAnchor("lob"), phraseAnchor("splash weapon"), phraseAnchor("throw the bomb")] },
     ],
   },
   {
@@ -66,7 +112,7 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     subcategories: ["consumable"],
     requiresTags: ["offensive"],
     anyOf: [
-      { textAny: ["apply to a weapon", "coat a weapon", "weapon poison", "smeared on a weapon", "applied to a weapon"] },
+      { textAny: [phraseAnchor("apply to a weapon"), phraseAnchor("coat a weapon"), phraseAnchor("weapon poison"), phraseAnchor("smeared on a weapon"), phraseAnchor("applied to a weapon")] },
     ],
   },
   {
@@ -75,7 +121,7 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     subcategories: ["consumable"],
     requiresTags: ["offensive"],
     anyOf: [
-      { textAny: ["ingested poison", "must be eaten", "must be drunk", "consumed by the target", "when swallowed"] },
+      { textAny: [phraseAnchor("ingested poison"), phraseAnchor("must be eaten"), phraseAnchor("must be drunk"), phraseAnchor("consumed by the target"), phraseAnchor("when swallowed")] },
     ],
   },
   {
@@ -84,7 +130,7 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     subcategories: ["consumable"],
     requiresTags: ["offensive"],
     anyOf: [
-      { textAny: ["contact poison", "through skin contact", "through contact", "absorbed through the skin"] },
+      { textAny: [phraseAnchor("contact poison"), phraseAnchor("through skin contact"), phraseAnchor("through contact"), phraseAnchor("absorbed through the skin")] },
     ],
   },
   {
@@ -95,19 +141,19 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
       { traitsAny: ["elixir", "healing"] },
       {
         textAny: [
-          "restorative",
-          "remedy",
-          "curative",
-          "antidote",
-          "antiplague",
-          "catharsis",
-          "healing",
-          "darkvision",
-          "resistance to",
-          "gain a bonus",
-          "bolsters the drinker",
-          "steady the emotions",
-          "see in the dark",
+          tokenAnchor("restorative"),
+          tokenAnchor("remedy"),
+          tokenAnchor("curative"),
+          tokenAnchor("antidote"),
+          tokenAnchor("antiplague"),
+          tokenAnchor("catharsis"),
+          tokenAnchor("healing"),
+          tokenAnchor("darkvision"),
+          phraseAnchor("resistance to"),
+          phraseAnchor("gain a bonus"),
+          phraseAnchor("bolsters the drinker"),
+          phraseAnchor("steady the emotions"),
+          phraseAnchor("see in the dark"),
         ],
       },
     ],
@@ -123,7 +169,7 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     requiresTags: ["beneficial"],
     anyOf: [
       { traitsAny: ["healing"] },
-      { textAny: ["elixir of life", "healing", "restore hit points", "restore hp", "regain hit points"] },
+      { textAny: [phraseAnchor("elixir of life"), tokenAnchor("healing"), phraseAnchor("restore hit points"), phraseAnchor("restore hp"), phraseAnchor("regain hit points")] },
     ],
   },
   {
@@ -132,7 +178,7 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     subcategories: ["consumable"],
     requiresTags: ["beneficial"],
     anyOf: [
-      { textAny: ["antidote", "against poison", "protect against poison", "resist poison", "ward off poison"] },
+      { textAny: [tokenAnchor("antidote"), phraseAnchor("against poison"), phraseAnchor("protect against poison"), phraseAnchor("resist poison"), phraseAnchor("ward off poison")] },
     ],
   },
   {
@@ -141,7 +187,7 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     subcategories: ["consumable"],
     requiresTags: ["beneficial"],
     anyOf: [
-      { textAny: ["antiplague", "against disease", "protect against disease", "resist disease", "ward off disease"] },
+      { textAny: [tokenAnchor("antiplague"), phraseAnchor("against disease"), phraseAnchor("protect against disease"), phraseAnchor("resist disease"), phraseAnchor("ward off disease")] },
     ],
   },
   {
@@ -150,7 +196,7 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     subcategories: ["consumable"],
     requiresTags: ["beneficial"],
     anyOf: [
-      { textAny: ["condition", "catharsis", "soothe the mind", "steady the emotions", "calm overwhelming emotions", "recover from mental conditions"] },
+      { textAny: [tokenAnchor("condition"), tokenAnchor("catharsis"), phraseAnchor("soothe the mind"), phraseAnchor("steady the emotions"), phraseAnchor("calm overwhelming emotions"), phraseAnchor("recover from mental conditions")] },
     ],
   },
   {
@@ -159,7 +205,7 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     subcategories: ["consumable"],
     requiresTags: ["beneficial"],
     anyOf: [
-      { textAny: ["soothe the mind", "steady the emotions", "calm overwhelming emotions", "mental condition", "mental conditions", "emotion", "emotions", "frightened", "stupefied", "confused", "mental effect"] },
+      { textAny: [phraseAnchor("soothe the mind"), phraseAnchor("steady the emotions"), phraseAnchor("calm overwhelming emotions"), phraseAnchor("mental condition"), phraseAnchor("mental conditions"), tokenAnchor("emotion"), tokenAnchor("emotions"), tokenAnchor("frightened"), tokenAnchor("stupefied"), tokenAnchor("confused"), phraseAnchor("mental effect")] },
     ],
   },
   {
@@ -168,7 +214,7 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     subcategories: ["consumable"],
     requiresTags: ["beneficial"],
     anyOf: [
-      { textAny: ["escape", "slip away", "break free", "flee", "evade", "concealing smoke", "vanish from sight", "misty"] },
+      { textAny: [tokenAnchor("escape"), phraseAnchor("slip away"), phraseAnchor("break free"), tokenAnchor("flee"), tokenAnchor("evade"), phraseAnchor("concealing smoke"), phraseAnchor("vanish from sight"), tokenAnchor("misty")] },
     ],
   },
   {
@@ -177,7 +223,7 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     subcategories: ["consumable"],
     requiresTags: ["beneficial"],
     anyOf: [
-      { textAny: ["darkvision", "see in the dark", "low-light vision", "keen senses", "sharpen your vision", "see invisible", "scent"] },
+      { textAny: [tokenAnchor("darkvision"), phraseAnchor("see in the dark"), phraseAnchor("low light vision"), phraseAnchor("keen senses"), phraseAnchor("sharpen your vision"), phraseAnchor("see invisible"), tokenAnchor("scent")] },
     ],
   },
   {
@@ -186,7 +232,7 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     subcategories: ["consumable"],
     requiresTags: ["beneficial"],
     anyOf: [
-      { textAny: ["resistance to fire", "resistance to cold", "resistance to electricity", "resistance to acid", "resistance to sonic", "resistance to energy", "energy resistance"] },
+      { textAny: [phraseAnchor("resistance to fire"), phraseAnchor("resistance to cold"), phraseAnchor("resistance to electricity"), phraseAnchor("resistance to acid"), phraseAnchor("resistance to sonic"), phraseAnchor("resistance to energy"), phraseAnchor("energy resistance")] },
     ],
   },
   {
@@ -195,7 +241,7 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     subcategories: ["consumable"],
     requiresTags: ["beneficial"],
     anyOf: [
-      { textAny: ["gain a bonus", "bonus to", "bolster", "enhance", "empower", "heighten your senses", "increase your speed", "resistance to"] },
+      { textAny: [phraseAnchor("gain a bonus"), phraseAnchor("bonus to"), tokenAnchor("bolster"), tokenAnchor("enhance"), tokenAnchor("empower"), phraseAnchor("heighten your senses"), phraseAnchor("increase your speed"), phraseAnchor("resistance to")] },
     ],
   },
   {
@@ -204,7 +250,7 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     subcategories: ["consumable"],
     requiresTags: ["beneficial"],
     anyOf: [
-      { textAny: ["you gain", "the drinker gains", "gain a bonus", "you become", "you gain resistance", "you gain darkvision"] },
+      { textAny: [phraseAnchor("you gain"), phraseAnchor("the drinker gains"), phraseAnchor("gain a bonus"), phraseAnchor("you become"), phraseAnchor("you gain resistance"), phraseAnchor("you gain darkvision")] },
     ],
   },
   {
@@ -213,7 +259,7 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     subcategories: ["consumable"],
     requiresTags: ["beneficial"],
     anyOf: [
-      { textAny: ["target gains", "an ally gains", "creature that drinks gains", "the drinker gains"] },
+      { textAny: [phraseAnchor("target gains"), phraseAnchor("an ally gains"), phraseAnchor("creature that drinks gains"), phraseAnchor("the drinker gains")] },
     ],
   },
   {
@@ -221,7 +267,7 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "equipment",
     subcategories: GEARISH_SUBCATEGORIES,
     anyOf: [
-      { textAny: ["climb", "climbing", "rappel", "rappelling", "piton", "grappling"] },
+      { textAny: [tokenAnchor("climb"), tokenAnchor("climbing"), tokenAnchor("rappel"), tokenAnchor("rappelling"), tokenAnchor("piton"), tokenAnchor("grappling")] },
     ],
   },
   {
@@ -229,7 +275,7 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "equipment",
     subcategories: GEARISH_SUBCATEGORIES,
     anyOf: [
-      { textAny: ["mobility", "move quickly", "increase your speed", "rappel", "climbing"] },
+      { textAny: [tokenAnchor("mobility"), phraseAnchor("move quickly"), phraseAnchor("increase your speed"), tokenAnchor("rappel"), tokenAnchor("climbing")] },
     ],
     requiresTags: ["climbing"],
   },
@@ -238,7 +284,7 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "equipment",
     subcategories: GEARISH_SUBCATEGORIES,
     anyOf: [
-      { textAny: ["lockpick", "lockpicks", "pick locks", "picking locks", "bypass locks", "thieves tools", "thieves' tools", "toolkit"] },
+      { textAny: [tokenAnchor("lockpick"), tokenAnchor("lockpicks"), phraseAnchor("pick locks"), phraseAnchor("picking locks"), phraseAnchor("bypass locks"), phraseAnchor("thieves tools"), phraseAnchor("thieves tools"), tokenAnchor("toolkit")] },
     ],
   },
   {
@@ -246,7 +292,7 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "equipment",
     subcategories: GEARISH_SUBCATEGORIES,
     anyOf: [
-      { textAny: ["concealable", "hidden on your person", "hidden tools", "slim lockpicks"] },
+      { textAny: [tokenAnchor("concealable"), phraseAnchor("hidden on your person"), phraseAnchor("hidden tools"), phraseAnchor("slim lockpicks")] },
     ],
   },
   {
@@ -254,7 +300,7 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "equipment",
     subcategories: GEARISH_SUBCATEGORIES,
     anyOf: [
-      { textAny: ["scout", "scouting", "survey", "recon", "observe from afar", "spyglass"] },
+      { textAny: [tokenAnchor("scout"), tokenAnchor("scouting"), tokenAnchor("survey"), tokenAnchor("recon"), phraseAnchor("observe from afar"), tokenAnchor("spyglass")] },
     ],
   },
   {
@@ -262,8 +308,8 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "equipment",
     subcategories: GEARISH_SUBCATEGORIES,
     anyOf: [
-      { textAny: ["stealth", "quiet", "silent", "without drawing attention", "avoid notice", "infiltration"] },
-      { textAny: ["concealable", "hidden on your person"] },
+      { textAny: [tokenAnchor("stealth"), tokenAnchor("quiet"), tokenAnchor("silent"), phraseAnchor("without drawing attention"), phraseAnchor("avoid notice"), tokenAnchor("infiltration")] },
+      { textAny: [tokenAnchor("concealable"), phraseAnchor("hidden on your person")] },
     ],
   },
   {
@@ -271,7 +317,7 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "equipment",
     subcategories: GEARISH_SUBCATEGORIES,
     anyOf: [
-      { textAny: ["disguise", "impersonate", "false identity", "costume", "masquerade"] },
+      { textAny: [tokenAnchor("disguise"), tokenAnchor("impersonate"), phraseAnchor("false identity"), tokenAnchor("costume"), tokenAnchor("masquerade")] },
     ],
   },
   {
@@ -279,7 +325,7 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "equipment",
     subcategories: GEARISH_SUBCATEGORIES,
     anyOf: [
-      { textAny: ["false identity", "pass as", "blend into society", "social infiltration", "impersonate", "masquerade"] },
+      { textAny: [phraseAnchor("false identity"), phraseAnchor("pass as"), phraseAnchor("blend into society"), phraseAnchor("social infiltration"), tokenAnchor("impersonate"), tokenAnchor("masquerade")] },
     ],
   },
   {
@@ -287,7 +333,7 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "equipment",
     subcategories: GEARISH_SUBCATEGORIES,
     anyOf: [
-      { textAny: ["light", "illumination", "lantern", "torch", "glow", "illuminate"] },
+      { textAny: [tokenAnchor("light"), tokenAnchor("illumination"), tokenAnchor("lantern"), tokenAnchor("torch"), tokenAnchor("glow"), tokenAnchor("illuminate")] },
     ],
   },
   {
@@ -295,7 +341,7 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "equipment",
     subcategories: GEARISH_SUBCATEGORIES,
     anyOf: [
-      { textAny: ["camp", "forage", "wilderness", "survival", "shelter", "weatherproof"] },
+      { textAny: [tokenAnchor("camp"), tokenAnchor("forage"), tokenAnchor("wilderness"), tokenAnchor("survival"), tokenAnchor("shelter"), tokenAnchor("weatherproof")] },
     ],
   },
   {
@@ -303,7 +349,7 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "equipment",
     subcategories: GEARISH_SUBCATEGORIES,
     anyOf: [
-      { textAny: ["navigate", "navigation", "map", "compass", "chart", "track your heading"] },
+      { textAny: [tokenAnchor("navigate"), tokenAnchor("navigation"), tokenAnchor("map"), tokenAnchor("compass"), tokenAnchor("chart"), phraseAnchor("track your heading")] },
     ],
   },
   {
@@ -311,7 +357,7 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "equipment",
     subcategories: GEARISH_SUBCATEGORIES,
     anyOf: [
-      { textAny: ["transport", "wagon", "sled", "boat", "vehicle", "carry riders", "haul passengers"] },
+      { textAny: [tokenAnchor("transport"), tokenAnchor("wagon"), tokenAnchor("sled"), tokenAnchor("boat"), tokenAnchor("vehicle"), phraseAnchor("carry riders"), phraseAnchor("haul passengers")] },
     ],
   },
   {
@@ -319,7 +365,7 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "equipment",
     subcategories: GEARISH_SUBCATEGORIES,
     anyOf: [
-      { textAny: ["disarm a trap", "disable device", "trap mechanism", "tripwire", "bypass a trap"] },
+      { textAny: [phraseAnchor("disarm a trap"), phraseAnchor("disable device"), phraseAnchor("trap mechanism"), tokenAnchor("tripwire"), phraseAnchor("bypass a trap")] },
     ],
   },
   {
@@ -327,7 +373,7 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "equipment",
     subcategories: GEARISH_SUBCATEGORIES,
     anyOf: [
-      { textAny: ["storage", "stow", "carry", "haul", "pouch", "backpack", "container", "pack"] },
+      { textAny: [tokenAnchor("storage"), tokenAnchor("stow"), tokenAnchor("carry"), tokenAnchor("haul"), tokenAnchor("pouch"), tokenAnchor("backpack"), tokenAnchor("container"), tokenAnchor("pack")] },
     ],
   },
   {
@@ -354,86 +400,101 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "aquatic_context",
     category: "creature",
+    threshold: 2,
     anyOf: [
-      { traitsAny: ["water"] },
-      { textAny: ["aquatic", "ocean", "sea", "river", "coast", "harbor", "water"] },
+      { score: 3, traitsAny: ["water"] },
+      { score: 2, textAny: [tokenAnchor("aquatic"), tokenAnchor("ocean"), tokenAnchor("river"), tokenAnchor("coast"), tokenAnchor("coasts")] },
+      { score: 1, textAny: [tokenAnchor("sea"), tokenAnchor("harbor"), tokenAnchor("water")] },
     ],
   },
   {
     tag: "nautical",
     category: "creature",
+    threshold: 2,
     anyOf: [
-      { textAny: ["sailor", "ship", "captain", "mariner", "harbor", "dock", "bilge", "wreck", "crew"] },
+      { score: 2, textAny: [tokenAnchor("sailor"), tokenAnchor("mariner"), tokenAnchor("dock"), tokenAnchor("docks"), tokenAnchor("bilge"), tokenAnchor("wreck"), tokenAnchor("crew"), tokenAnchor("shipwreck"), tokenAnchor("shipwrecks"), phraseAnchor("shipwreck")] },
+      { score: 1, textAny: [tokenAnchor("ship"), tokenAnchor("captain")] },
+      { score: 1, textAny: [tokenAnchor("harbor")] },
     ],
   },
   {
     tag: "forest",
     category: "creature",
     anyOf: [
-      { textAny: ["forest", "woodland", "grove", "briar"] },
+      { textAny: [tokenAnchor("forest"), tokenAnchor("woodland"), tokenAnchor("grove"), tokenAnchor("briar")] },
     ],
   },
   {
     tag: "swamp",
     category: "creature",
     anyOf: [
-      { textAny: ["swamp", "bog", "marsh", "fen", "mire"] },
+      { textAny: [tokenAnchor("swamp"), tokenAnchor("bog"), tokenAnchor("marsh"), tokenAnchor("fen"), tokenAnchor("mire")] },
     ],
   },
   {
     tag: "underground",
     category: "creature",
     anyOf: [
-      { textAny: ["cave", "cavern", "underground", "tunnel", "subterranean", "underworld", "depths", "crypt", "crypts"] },
+      { textAny: [tokenAnchor("cave"), tokenAnchor("cavern"), tokenAnchor("underground"), tokenAnchor("tunnel"), tokenAnchor("subterranean"), tokenAnchor("underworld"), tokenAnchor("depths"), tokenAnchor("crypt"), tokenAnchor("crypts")] },
     ],
   },
   {
     tag: "urban",
     category: "creature",
     anyOf: [
-      { textAny: ["city", "urban", "street", "alley", "market", "sewer", "town"] },
+      { textAny: [tokenAnchor("city"), tokenAnchor("urban"), tokenAnchor("street"), tokenAnchor("alley"), tokenAnchor("market"), tokenAnchor("sewer"), tokenAnchor("town")] },
     ],
   },
   {
     tag: "arctic",
     category: "creature",
+    threshold: 2,
     anyOf: [
-      { textAny: ["arctic", "snow", "ice", "tundra", "frozen", "glacier"] },
+      { score: 2, textAny: [tokenAnchor("arctic"), tokenAnchor("snow"), tokenAnchor("tundra"), tokenAnchor("frozen"), tokenAnchor("glacier")] },
+      { score: 1, textAny: [tokenAnchor("ice")] },
     ],
   },
   {
     tag: "desert",
     category: "creature",
     anyOf: [
-      { textAny: ["desert", "dune", "sand", "arid", "wastes"] },
+      { textAny: [tokenAnchor("desert"), tokenAnchor("dune"), tokenAnchor("sand"), tokenAnchor("arid"), tokenAnchor("wastes")] },
     ],
   },
   {
     tag: "mountain",
     category: "creature",
     anyOf: [
-      { textAny: ["mountain", "cliff", "peak", "crag", "alp"] },
+      { textAny: [tokenAnchor("mountain"), tokenAnchor("cliff"), tokenAnchor("peak"), tokenAnchor("crag"), tokenAnchor("alp")] },
     ],
   },
   {
     tag: "graveyard",
     category: "creature",
+    threshold: 2,
     anyOf: [
-      { textAny: ["graveyard", "cemetery", "crypt", "tomb"] },
+      { score: 2, textAny: [tokenAnchor("graveyard"), tokenAnchor("cemetery")] },
+      { score: 1, textAny: [tokenAnchor("crypt"), tokenAnchor("crypts")] },
+      { score: 1, textAny: [tokenAnchor("tomb"), tokenAnchor("tombs")] },
     ],
   },
   {
     tag: "ruins",
     category: "creature",
+    threshold: 2,
     anyOf: [
-      { textAny: ["ruins", "ruin", "crumbling hall", "fallen temple", "ancient hall", "derelict"] },
+      { score: 2, textAny: [phraseAnchor("crumbling hall"), phraseAnchor("fallen temple"), phraseAnchor("ancient hall")] },
+      { score: 1, textAny: [tokenAnchor("ruins"), tokenAnchor("ruin"), tokenAnchor("derelict")] },
     ],
   },
   {
     tag: "profession_npc",
     category: "creature",
+    threshold: 2,
     anyOf: [
-      { textAny: ["captain", "commoner", "guard", "scout", "sailor", "merchant", "priest", "noble"] },
+      { score: 2, textAny: STRONG_PROFESSION_NAME_ANCHORS },
+      { score: 1, textAny: WEAK_PROFESSION_NAME_ANCHORS },
+      { score: 1, traitsAny: ["humanoid", "human"] },
     ],
   },
   {
@@ -441,7 +502,7 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "creature",
     requiresTags: ["profession_npc"],
     noneOf: [
-      { traitsAny: ["undead", "ghost", "spirit", "skeleton", "ghoul", "fey", "plant", "fungus", "leshy"] },
+      { traitsAny: ["undead", "ghost", "spirit", "skeleton", "ghoul", "fey", "plant", "fungus", "leshy", "construct", "golem", "mindless", "giant", "dragon", "fiend", "ooze", "aberration"] },
     ],
   },
 ];
@@ -534,24 +595,79 @@ export const DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
   },
 ];
 
-function matchesClause(context: { traits: Set<string>; text: string }, clause: DerivedTagMatchClause): boolean {
+function buildTextView(value: string): NormalizedTextView {
+  const text = normalizeText(value);
+  return {
+    text,
+    tokenSet: new Set(text.length > 0 ? text.split(" ") : []),
+  };
+}
+
+function normalizeAnchor(anchor: TextAnchor): { value: string; mode: TextMatchMode; scope: TextMatchScope } | null {
+  const raw = typeof anchor === "string" ? { value: anchor } : anchor;
+  const value = normalizeText(raw.value);
+  if (!value) {
+    return null;
+  }
+
+  return {
+    value,
+    mode: raw.mode ?? (value.includes(" ") ? "phrase" : "token"),
+    scope: raw.scope ?? "either",
+  };
+}
+
+function containsPhrase(text: string, phrase: string): boolean {
+  return ` ${text} `.includes(` ${phrase} `);
+}
+
+function matchesTextAnchor(context: NormalizedDerivedTagContext, anchor: TextAnchor): boolean {
+  const normalized = normalizeAnchor(anchor);
+  if (!normalized) {
+    return false;
+  }
+
+  const views = normalized.scope === "name"
+    ? [context.name]
+    : normalized.scope === "description"
+      ? [context.description]
+      : [context.name, context.description];
+
+  return views.some((view) => {
+    if (normalized.mode === "token") {
+      return view.tokenSet.has(normalized.value);
+    }
+
+    return containsPhrase(view.text, normalized.value);
+  });
+}
+
+function matchesClause(context: NormalizedDerivedTagContext, clause: DerivedTagMatchClause): boolean {
   if (clause.traitsAny && !clause.traitsAny.some((trait) => context.traits.has(normalizeText(trait)))) {
     return false;
   }
   if (clause.traitsAll && !clause.traitsAll.every((trait) => context.traits.has(normalizeText(trait)))) {
     return false;
   }
-  if (clause.textAny && !clause.textAny.some((anchor) => context.text.includes(normalizeText(anchor)))) {
+  if (clause.textAny && !clause.textAny.some((anchor) => matchesTextAnchor(context, anchor))) {
     return false;
   }
-  if (clause.textAll && !clause.textAll.every((anchor) => context.text.includes(normalizeText(anchor)))) {
+  if (clause.textAll && !clause.textAll.every((anchor) => matchesTextAnchor(context, anchor))) {
     return false;
   }
   return true;
 }
 
+function scoreClause(context: NormalizedDerivedTagContext, clause: DerivedTagMatchClause): number {
+  if (!matchesClause(context, clause)) {
+    return 0;
+  }
+
+  return clause.score ?? 1;
+}
+
 function matchesRule(
-  context: { category: SearchCategory; subcategory: SearchSubcategory | null; traits: Set<string>; text: string },
+  context: NormalizedDerivedTagContext,
   tags: Set<string>,
   rule: DerivedTagRule,
 ): boolean {
@@ -564,15 +680,21 @@ function matchesRule(
   if (rule.requiresTags && !rule.requiresTags.every((tag) => tags.has(tag))) {
     return false;
   }
-  if (rule.anyOf && !rule.anyOf.some((clause) => matchesClause(context, clause))) {
-    return false;
-  }
   if (rule.allOf && !rule.allOf.every((clause) => matchesClause(context, clause))) {
     return false;
   }
   if (rule.noneOf && rule.noneOf.some((clause) => matchesClause(context, clause))) {
     return false;
   }
+
+  if (rule.anyOf) {
+    const totalScore = rule.anyOf.reduce((sum, clause) => sum + scoreClause(context, clause), 0);
+    const threshold = rule.threshold ?? 1;
+    if (totalScore < threshold) {
+      return false;
+    }
+  }
+
   return true;
 }
 
@@ -581,11 +703,12 @@ export function normalizeDerivedTag(value: string): string {
 }
 
 export function deriveRecordTags(input: DerivedTagContext): string[] {
-  const context = {
+  const context: NormalizedDerivedTagContext = {
     category: input.category,
     subcategory: input.subcategory,
     traits: new Set(input.traits.map((trait) => normalizeText(trait)).filter(Boolean)),
-    text: normalizeText([input.name, input.descriptionText ?? ""].filter(Boolean).join(" ")),
+    name: buildTextView(input.name),
+    description: buildTextView(input.descriptionText ?? ""),
   };
   const tags = new Set<string>();
 

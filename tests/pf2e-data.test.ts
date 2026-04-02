@@ -1686,6 +1686,7 @@ describe("Pf2eDataService", () => {
     expect(focusBurst?.spellKinds).toEqual(["focus"]);
     const antidote = service.lookup("Antidote (Lesser)", { category: "equipment" }).match;
     expect(antidote?.derivedTags).toEqual(expect.arrayContaining(["beneficial", "anti_poison"]));
+    expect(antidote?.derivedTags).not.toEqual(expect.arrayContaining(["offensive", "thrown_offense"]));
     const bottledCatharsis = service.lookup("Bottled Catharsis (Serenity)", { category: "equipment" }).match;
     expect(bottledCatharsis?.derivedTags).toEqual(expect.arrayContaining(["beneficial", "condition_support", "mental_recovery"]));
     const shipCaptain = service.lookup("Ship Captain", { category: "creature" }).match;
