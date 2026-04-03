@@ -236,6 +236,85 @@ describe("Pf2eDataService / Load and Index", () => {
         },
       },
     });
+    await writeJson(path.join(fixture.root, "packs", "pf2e", "pathfinder-monster-core", "zeal-damned-ghoul.json"), {
+      _id: "zealghoul",
+      name: "Zeal-damned Ghoul",
+      type: "npc",
+      items: [
+        {
+          _id: "ghoulfever2",
+          name: "Ghoul Fever",
+          type: "action",
+          system: {
+            category: "offensive",
+            slug: "ghoul-fever",
+            description: {
+              value: "<p><strong>Saving Throw</strong> @Check[fortitude|dc:18]</p><p><strong>Stage 1</strong> @UUID[Compendium.pf2e.conditionitems.Item.Sickened]{Sickened 1} (1 day)</p><p><strong>Stage 2</strong> @UUID[Compendium.pf2e.conditionitems.Item.Unconscious] (1 day)</p>",
+            },
+            traits: {
+              value: ["disease"],
+            },
+          },
+        },
+      ],
+      system: {
+        details: {
+          level: {
+            value: 3,
+          },
+          publication: {
+            title: "Pathfinder Monster Core",
+          },
+          publicNotes: "<p>A branded ghoul fanatic.</p>",
+        },
+        traits: {
+          rarity: "common",
+          value: ["undead"],
+          size: {
+            value: "med",
+          },
+        },
+      },
+    });
+    await writeJson(path.join(fixture.root, "packs", "pf2e", "pathfinder-monster-core", "ghoul-crocodile.json"), {
+      _id: "ghoulcrocodile",
+      name: "Ghoul Crocodile",
+      type: "npc",
+      items: [
+        {
+          _id: "ghoulfever3",
+          name: "Ghoul Fever",
+          type: "action",
+          system: {
+            category: "offensive",
+            description: {
+              value: "<p><strong>Saving Throw</strong> @Check[fortitude|dc:18]</p><p><strong>Stage 1</strong> @UUID[Compendium.pf2e.conditionitems.Item.Sickened]{Sickened 1} (1 day)</p><p><strong>Stage 2</strong> @UUID[Compendium.pf2e.conditionitems.Item.Unconscious] (1 day)</p>",
+            },
+            traits: {
+              value: ["disease"],
+            },
+          },
+        },
+      ],
+      system: {
+        details: {
+          level: {
+            value: 3,
+          },
+          publication: {
+            title: "Pathfinder Monster Core",
+          },
+          publicNotes: "<p>An undead crocodile spreading disease.</p>",
+        },
+        traits: {
+          rarity: "common",
+          value: ["undead", "animal"],
+          size: {
+            value: "lg",
+          },
+        },
+      },
+    });
 
     const service = await loadTestService(fixture, { indexPath });
 
@@ -262,16 +341,27 @@ describe("Pf2eDataService / Load and Index", () => {
 
     const db = new DatabaseSync(indexPath);
     const canonicalRows = db.prepare(`
-      SELECT name
+      SELECT name, raw_json AS rawJson
       FROM records
       WHERE pack_name = 'derived-afflictions'
       ORDER BY name ASC
-    `).all() as Array<{ name: string }>;
+    `).all() as Array<{ name: string; rawJson: string }>;
     const instanceRows = db.prepare(`
       SELECT COUNT(*) AS total
       FROM records
       WHERE pack_name = 'derived-affliction-instances'
     `).get() as { total: number };
+    const ghoulCanonicalRows = db.prepare(`
+      SELECT record_key AS recordKey, raw_json AS rawJson
+      FROM records
+      WHERE pack_name = 'derived-afflictions' AND name = 'Ghoul Fever'
+    `).all() as Array<{ recordKey: string; rawJson: string }>;
+    const ghoulInstanceRows = db.prepare(`
+      SELECT raw_json AS rawJson
+      FROM records
+      WHERE pack_name = 'derived-affliction-instances' AND name = 'Ghoul Fever'
+      ORDER BY record_key ASC
+    `).all() as Array<{ rawJson: string }>;
     const ghoulBruteRow = db.prepare(`
       SELECT search_text AS searchText
       FROM records
@@ -280,7 +370,17 @@ describe("Pf2eDataService / Load and Index", () => {
     db.close();
 
     expect(canonicalRows.map((row) => row.name)).toEqual(["Ghoul Fever", "Lethargy Poison"]);
-    expect(instanceRows.total).toBe(4);
+    expect(instanceRows.total).toBe(6);
+    expect(ghoulCanonicalRows).toHaveLength(1);
+    expect(JSON.parse(ghoulCanonicalRows[0]!.rawJson)._derived.aliasNormalizationKeys).toEqual(expect.arrayContaining([
+      "record:bestiary-family-ability-glossary:ghoulfeversource",
+      "slug:disease:ghoul fever",
+      "name:disease:ghoul fever",
+    ]));
+    expect(ghoulInstanceRows).toHaveLength(4);
+    expect(new Set(ghoulInstanceRows.map((row) => JSON.parse(row.rawJson)._derived.normalizationKey))).toEqual(
+      new Set(["record:bestiary-family-ability-glossary:ghoulfeversource"]),
+    );
     expect(ghoulBruteRow?.searchText).toContain("Ghoul Fever");
     expect(ghoulBruteRow?.searchText).toContain("disease");
     expect(ghoulBruteRow?.searchText).toContain("Sickened 1");

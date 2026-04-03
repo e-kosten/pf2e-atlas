@@ -40,7 +40,7 @@ type AfflictionOccurrence = {
   compendiumSource: string | null;
   sourcePath: string;
   occurrenceRef: string;
-  identityKey: string;
+  candidateKeys: string[];
 };
 
 export type DerivedBuildEntry = {
@@ -128,26 +128,44 @@ function getCompendiumSource(raw: Record<string, unknown>): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value : null;
 }
 
-function buildOccurrenceIdentityKey(
+function buildOccurrenceCandidateKeys(
   family: AfflictionFamily,
   name: string,
   slug: string | null,
   compendiumSource: string | null,
   sourceRecordKey: string | null,
-): string {
-  if (sourceRecordKey) {
-    return `record:${sourceRecordKey}`;
-  }
+): string[] {
+  const keys = [
+    sourceRecordKey ? `record:${sourceRecordKey}` : null,
+    compendiumSource ? `compendium:${normalizeText(compendiumSource)}` : null,
+    slug ? `slug:${family}:${normalizeText(slug)}` : null,
+    `name:${family}:${normalizeText(name)}`,
+  ];
 
-  if (compendiumSource) {
-    return `compendium:${normalizeText(compendiumSource)}`;
-  }
+  return uniqueSorted(keys.filter((value): value is string => Boolean(value)));
+}
 
-  if (slug) {
-    return `slug:${family}:${normalizeText(slug)}`;
+function identityKeyRank(identityKey: string): number {
+  if (identityKey.startsWith("record:")) {
+    return 0;
   }
+  if (identityKey.startsWith("compendium:")) {
+    return 1;
+  }
+  if (identityKey.startsWith("slug:")) {
+    return 2;
+  }
+  return 3;
+}
 
-  return `name:${family}:${normalizeText(name)}`;
+function chooseCanonicalIdentityKey(candidateKeys: string[]): string {
+  return [...candidateKeys].sort((left, right) => {
+    return identityKeyRank(left) - identityKeyRank(right) || left.localeCompare(right);
+  })[0]!;
+}
+
+function buildOccurrenceGroupKey(family: AfflictionFamily): string {
+  return family;
 }
 
 function collectOccurrenceLinkedNames(raw: Record<string, unknown>): string[] {
@@ -221,6 +239,7 @@ function buildInstanceRaw(
   id: string,
   occurrence: AfflictionOccurrence,
   canonicalRecordKey: string,
+  normalizationKey: string,
 ): Record<string, unknown> {
   return {
     ...occurrence.childRaw,
@@ -230,7 +249,7 @@ function buildInstanceRaw(
       hostRecordKey: occurrence.hostRecord.recordKey,
       sourceRecordKey: occurrence.sourceRecord?.recordKey ?? null,
       canonicalRecordKey,
-      normalizationKey: occurrence.identityKey,
+      normalizationKey,
       occurrenceRef: occurrence.occurrenceRef,
     },
   };
@@ -259,7 +278,7 @@ function collectTopLevelOccurrence(entry: IndexedBuildEntry): AfflictionOccurren
     compendiumSource: getCompendiumSource(entry.raw),
     sourcePath: `${entry.record.sourcePath}#self`,
     occurrenceRef: "self",
-    identityKey: buildOccurrenceIdentityKey(
+    candidateKeys: buildOccurrenceCandidateKeys(
       family,
       entry.record.name,
       getRecordSlug(entry.raw),
@@ -314,7 +333,7 @@ function collectEmbeddedOccurrences(
       compendiumSource,
       sourcePath: `${entry.record.sourcePath}#item:${childId}`,
       occurrenceRef: childId,
-      identityKey: buildOccurrenceIdentityKey(
+      candidateKeys: buildOccurrenceCandidateKeys(
         family,
         name,
         slug,
@@ -328,9 +347,12 @@ function collectEmbeddedOccurrences(
 }
 
 type CanonicalBuildCandidate = {
+  identityKey: string;
+  aliasIdentityKeys: string[];
   occurrence: AfflictionOccurrence;
   authoritativeRecord: NormalizedIndexRecord | null;
   authoritativeRaw: Record<string, unknown> | null;
+  occurrences: AfflictionOccurrence[];
 };
 
 function chooseAuthoritativeCandidate(occurrences: AfflictionOccurrence[]): CanonicalBuildCandidate {
@@ -342,14 +364,64 @@ function chooseAuthoritativeCandidate(occurrences: AfflictionOccurrence[]): Cano
     );
   });
   const occurrence = sorted[0]!;
+  const clusterCandidateKeys = uniqueSorted(occurrences.flatMap((entry) => entry.candidateKeys));
   const authoritativeRecord = occurrence.sourceRecord;
   const authoritativeRaw = occurrence.sourceRaw;
 
   return {
+    identityKey: chooseCanonicalIdentityKey(clusterCandidateKeys),
+    aliasIdentityKeys: clusterCandidateKeys,
     occurrence,
     authoritativeRecord,
     authoritativeRaw,
+    occurrences,
   };
+}
+
+function clusterOccurrences(occurrences: AfflictionOccurrence[]): AfflictionOccurrence[][] {
+  if (occurrences.length <= 1) {
+    return occurrences.length === 0 ? [] : [occurrences];
+  }
+
+  const parent = occurrences.map((_, index) => index);
+  const find = (index: number): number => {
+    let current = index;
+    while (parent[current] !== current) {
+      const next = parent[current]!;
+      parent[current] = parent[next]!;
+      current = parent[current]!;
+    }
+    return current;
+  };
+  const union = (left: number, right: number): void => {
+    const leftRoot = find(left);
+    const rightRoot = find(right);
+    if (leftRoot !== rightRoot) {
+      parent[rightRoot] = leftRoot;
+    }
+  };
+
+  const keyToFirstIndex = new Map<string, number>();
+  for (const [index, occurrence] of occurrences.entries()) {
+    for (const identityKey of occurrence.candidateKeys) {
+      const firstIndex = keyToFirstIndex.get(identityKey);
+      if (firstIndex === undefined) {
+        keyToFirstIndex.set(identityKey, index);
+        continue;
+      }
+      union(index, firstIndex);
+    }
+  }
+
+  const clusters = new Map<number, AfflictionOccurrence[]>();
+  for (const [index, occurrence] of occurrences.entries()) {
+    const root = find(index);
+    const bucket = clusters.get(root) ?? [];
+    bucket.push(occurrence);
+    clusters.set(root, bucket);
+  }
+
+  return [...clusters.values()];
 }
 
 export function buildDerivedAfflictionArtifacts(indexedEntries: IndexedBuildEntry[]): DerivedAfflictionBuild {
@@ -371,9 +443,9 @@ export function buildDerivedAfflictionArtifacts(indexedEntries: IndexedBuildEntr
 
   const occurrencesByIdentity = new Map<string, AfflictionOccurrence[]>();
   for (const occurrence of occurrences) {
-    const bucket = occurrencesByIdentity.get(occurrence.identityKey) ?? [];
+    const bucket = occurrencesByIdentity.get(buildOccurrenceGroupKey(occurrence.family)) ?? [];
     bucket.push(occurrence);
-    occurrencesByIdentity.set(occurrence.identityKey, bucket);
+    occurrencesByIdentity.set(buildOccurrenceGroupKey(occurrence.family), bucket);
   }
 
   const derivedRecords: DerivedBuildEntry[] = [];
@@ -381,130 +453,72 @@ export function buildDerivedAfflictionArtifacts(indexedEntries: IndexedBuildEntr
   const canonicalPack = toDerivedPackBuildInfo(DERIVED_AFFLICTIONS_PACK_NAME, DERIVED_AFFLICTIONS_PACK_LABEL);
   const instancePack = toDerivedPackBuildInfo(DERIVED_AFFLICTION_INSTANCES_PACK_NAME, DERIVED_AFFLICTION_INSTANCES_PACK_LABEL);
 
-  for (const [identityKey, groupedOccurrences] of [...occurrencesByIdentity.entries()].sort((left, right) => left[0].localeCompare(right[0]))) {
-    const candidate = chooseAuthoritativeCandidate(groupedOccurrences);
-    const representativeOccurrence = candidate.occurrence;
-    const representativeName = representativeOccurrence.name;
-    const representativeSlug = representativeOccurrence.slug;
-    const allTraits = uniqueSorted(groupedOccurrences.flatMap((occurrence) => occurrence.traits));
-    const allLinkedNames = uniqueSorted(groupedOccurrences.flatMap((occurrence) => occurrence.linkedNames));
-    const canonicalId = hashText(identityKey);
-    const canonicalRecordKey = `${DERIVED_AFFLICTIONS_PACK_NAME}:${canonicalId}`;
-    const canonicalDescriptionText = candidate.authoritativeRecord?.descriptionText ?? null;
-    const canonicalDescriptionMarkup = candidate.authoritativeRaw
-      ? getRecordDescriptionMarkup(candidate.authoritativeRaw)
-      : null;
+  for (const [groupKey, groupedOccurrences] of [...occurrencesByIdentity.entries()].sort((left, right) => left[0].localeCompare(right[0]))) {
+    const clusters = clusterOccurrences(groupedOccurrences);
+    for (const cluster of clusters) {
+      const candidate = chooseAuthoritativeCandidate(cluster);
+      const identityKey = candidate.identityKey;
+      const representativeOccurrence = candidate.occurrence;
+      const representativeName = representativeOccurrence.name;
+      const representativeSlug = representativeOccurrence.slug;
+      const allTraits = uniqueSorted(cluster.flatMap((occurrence) => occurrence.traits));
+      const allLinkedNames = uniqueSorted(cluster.flatMap((occurrence) => occurrence.linkedNames));
+      const canonicalId = hashText(identityKey);
+      const canonicalRecordKey = `${DERIVED_AFFLICTIONS_PACK_NAME}:${canonicalId}`;
+      const canonicalDescriptionText = candidate.authoritativeRecord?.descriptionText ?? null;
+      const canonicalDescriptionMarkup = candidate.authoritativeRaw
+        ? getRecordDescriptionMarkup(candidate.authoritativeRaw)
+        : null;
 
-    let representativeInstanceRecordKey: string | null = null;
-    const occurrenceInstanceKeys = groupedOccurrences.map((occurrence) => {
-      const instanceId = hashText(`${identityKey}:${occurrence.hostRecord.recordKey}:${occurrence.occurrenceRef}`);
-      return {
-        occurrence,
-        instanceId,
-        recordKey: `${DERIVED_AFFLICTION_INSTANCES_PACK_NAME}:${instanceId}`,
-      };
-    });
+      const occurrenceInstanceKeys = cluster.map((occurrence) => {
+        const instanceId = hashText(`${identityKey}:${occurrence.hostRecord.recordKey}:${occurrence.occurrenceRef}`);
+        return {
+          occurrence,
+          instanceId,
+          recordKey: `${DERIVED_AFFLICTION_INSTANCES_PACK_NAME}:${instanceId}`,
+        };
+      });
+      const representativeInstanceRecordKey = occurrenceInstanceKeys[0]?.recordKey ?? null;
 
-    representativeInstanceRecordKey = occurrenceInstanceKeys[0]?.recordKey ?? null;
-
-    const canonicalRaw = buildCanonicalRaw(
-      canonicalId,
-      representativeName,
-      representativeOccurrence.family,
-      allTraits,
-      canonicalDescriptionMarkup,
-      allLinkedNames,
-      representativeInstanceRecordKey,
-      identityKey,
-    );
-    const canonicalRecord: NormalizedIndexRecord = {
-      recordKey: canonicalRecordKey,
-      id: canonicalId,
-      name: representativeName,
-      normalizedName: normalizeText(representativeName),
-      type: "affliction",
-      category: "affliction",
-      subcategory: representativeOccurrence.family,
-      packName: canonicalPack.name,
-      packLabel: canonicalPack.label,
-      documentType: canonicalPack.documentType,
-      level: candidate.authoritativeRecord?.level ?? null,
-      rarity: candidate.authoritativeRecord?.rarity ?? null,
-      traits: allTraits,
-      derivedTags: [],
-      publicationTitle: candidate.authoritativeRecord?.publicationTitle ?? null,
-      publicationRemaster: candidate.authoritativeRecord?.publicationRemaster ?? false,
-      descriptionText: canonicalDescriptionText,
-      hasDescription: Boolean(canonicalDescriptionText),
-      descriptionSnippet: buildDescriptionSnippet(canonicalDescriptionText),
-      sourceCategory: candidate.authoritativeRecord?.sourceCategory ?? representativeOccurrence.hostRecord.sourceCategory,
-      folderId: null,
-      families: [],
-      sourcePath: `derived://afflictions/${canonicalId}`,
-      isUnique: false,
-      size: null,
-      itemCategory: null,
-      priceCp: null,
-      bulkValue: null,
-      actionCost: null,
-      usage: null,
-      hands: null,
-      damageTypes: [],
-      weaponGroup: null,
-      armorGroup: null,
-      traditions: [],
-      spellKinds: [],
-      languages: [],
-      speedTypes: [],
-      immunities: [],
-      resistances: [],
-      weaknesses: [],
-      rangeValue: null,
-      searchText: buildCanonicalSearchText(
+      const canonicalRaw = buildCanonicalRaw(
+        canonicalId,
         representativeName,
         representativeOccurrence.family,
         allTraits,
-        representativeSlug,
+        canonicalDescriptionMarkup,
         allLinkedNames,
-      ),
-    };
-    derivedRecords.push({
-      record: canonicalRecord,
-      raw: canonicalRaw,
-      actorData: null,
-      itemData: null,
-      spellData: null,
-      references: [],
-      resolvedReferences: [],
-      isSearchCanonical: true,
-    });
-
-    for (const { occurrence, instanceId, recordKey } of occurrenceInstanceKeys) {
-      const instanceDescriptionText = getRecordDescriptionText(occurrence.childRaw);
-      const instanceRecord: NormalizedIndexRecord = {
-        recordKey,
-        id: instanceId,
-        name: occurrence.name,
-        normalizedName: normalizeText(occurrence.name),
-        type: "affliction-instance",
+        representativeInstanceRecordKey,
+        identityKey,
+      );
+      canonicalRaw._derived = {
+        ...(canonicalRaw._derived as Record<string, unknown>),
+        aliasNormalizationKeys: candidate.aliasIdentityKeys,
+        groupKey,
+      };
+      const canonicalRecord: NormalizedIndexRecord = {
+        recordKey: canonicalRecordKey,
+        id: canonicalId,
+        name: representativeName,
+        normalizedName: normalizeText(representativeName),
+        type: "affliction",
         category: "affliction",
-        subcategory: occurrence.family,
-        packName: instancePack.name,
-        packLabel: instancePack.label,
-        documentType: instancePack.documentType,
-        level: occurrence.sourceRecord?.level ?? occurrence.hostRecord.level,
-        rarity: occurrence.sourceRecord?.rarity ?? occurrence.hostRecord.rarity,
-        traits: occurrence.traits,
+        subcategory: representativeOccurrence.family,
+        packName: canonicalPack.name,
+        packLabel: canonicalPack.label,
+        documentType: canonicalPack.documentType,
+        level: candidate.authoritativeRecord?.level ?? null,
+        rarity: candidate.authoritativeRecord?.rarity ?? null,
+        traits: allTraits,
         derivedTags: [],
-        publicationTitle: occurrence.sourceRecord?.publicationTitle ?? occurrence.hostRecord.publicationTitle,
-        publicationRemaster: occurrence.sourceRecord?.publicationRemaster ?? occurrence.hostRecord.publicationRemaster,
-        descriptionText: instanceDescriptionText,
-        hasDescription: Boolean(instanceDescriptionText),
-        descriptionSnippet: buildDescriptionSnippet(instanceDescriptionText),
-        sourceCategory: occurrence.hostRecord.sourceCategory,
+        publicationTitle: candidate.authoritativeRecord?.publicationTitle ?? null,
+        publicationRemaster: candidate.authoritativeRecord?.publicationRemaster ?? false,
+        descriptionText: canonicalDescriptionText,
+        hasDescription: Boolean(canonicalDescriptionText),
+        descriptionSnippet: buildDescriptionSnippet(canonicalDescriptionText),
+        sourceCategory: candidate.authoritativeRecord?.sourceCategory ?? representativeOccurrence.hostRecord.sourceCategory,
         folderId: null,
         families: [],
-        sourcePath: occurrence.sourcePath,
+        sourcePath: `derived://afflictions/${canonicalId}`,
         isUnique: false,
         size: null,
         itemCategory: null,
@@ -524,49 +538,119 @@ export function buildDerivedAfflictionArtifacts(indexedEntries: IndexedBuildEntr
         resistances: [],
         weaknesses: [],
         rangeValue: null,
-        searchText: buildOccurrenceSearchText(occurrence.name, occurrence.family, occurrence.traits, occurrence.linkedNames),
+        searchText: buildCanonicalSearchText(
+          representativeName,
+          representativeOccurrence.family,
+          allTraits,
+          representativeSlug,
+          allLinkedNames,
+        ),
       };
       derivedRecords.push({
-        record: instanceRecord,
-        raw: buildInstanceRaw(instanceId, occurrence, canonicalRecordKey),
+        record: canonicalRecord,
+        raw: canonicalRaw,
         actorData: null,
         itemData: null,
         spellData: null,
         references: [],
         resolvedReferences: [],
-        isSearchCanonical: false,
+        isSearchCanonical: true,
       });
 
-      derivedEdges.push({
-        fromRecordKey: occurrence.hostRecord.recordKey,
-        toRecordKey: recordKey,
-        displayText: occurrence.name,
-        referenceText: `derived-affliction-instance:${recordKey}`,
-        fromPackName: occurrence.hostRecord.packName,
-        fromRecordType: occurrence.hostRecord.type,
-        fromDocumentType: occurrence.hostRecord.documentType,
-        fromSourceCategory: occurrence.hostRecord.sourceCategory,
-      });
-      derivedEdges.push({
-        fromRecordKey: recordKey,
-        toRecordKey: canonicalRecordKey,
-        displayText: occurrence.name,
-        referenceText: `derived-affliction-canonical:${canonicalRecordKey}`,
-        fromPackName: instanceRecord.packName,
-        fromRecordType: instanceRecord.type,
-        fromDocumentType: instanceRecord.documentType,
-        fromSourceCategory: instanceRecord.sourceCategory,
-      });
-      derivedEdges.push({
-        fromRecordKey: canonicalRecordKey,
-        toRecordKey: occurrence.hostRecord.recordKey,
-        displayText: occurrence.hostRecord.name,
-        referenceText: `derived-affliction-host:${occurrence.hostRecord.recordKey}:${recordKey}`,
-        fromPackName: canonicalRecord.packName,
-        fromRecordType: canonicalRecord.type,
-        fromDocumentType: canonicalRecord.documentType,
-        fromSourceCategory: canonicalRecord.sourceCategory,
-      });
+      for (const { occurrence, instanceId, recordKey } of occurrenceInstanceKeys) {
+        const instanceDescriptionText = getRecordDescriptionText(occurrence.childRaw);
+        const instanceRecord: NormalizedIndexRecord = {
+          recordKey,
+          id: instanceId,
+          name: occurrence.name,
+          normalizedName: normalizeText(occurrence.name),
+          type: "affliction-instance",
+          category: "affliction",
+          subcategory: occurrence.family,
+          packName: instancePack.name,
+          packLabel: instancePack.label,
+          documentType: instancePack.documentType,
+          level: occurrence.sourceRecord?.level ?? occurrence.hostRecord.level,
+          rarity: occurrence.sourceRecord?.rarity ?? occurrence.hostRecord.rarity,
+          traits: occurrence.traits,
+          derivedTags: [],
+          publicationTitle: occurrence.sourceRecord?.publicationTitle ?? occurrence.hostRecord.publicationTitle,
+          publicationRemaster: occurrence.sourceRecord?.publicationRemaster ?? occurrence.hostRecord.publicationRemaster,
+          descriptionText: instanceDescriptionText,
+          hasDescription: Boolean(instanceDescriptionText),
+          descriptionSnippet: buildDescriptionSnippet(instanceDescriptionText),
+          sourceCategory: occurrence.hostRecord.sourceCategory,
+          folderId: null,
+          families: [],
+          sourcePath: occurrence.sourcePath,
+          isUnique: false,
+          size: null,
+          itemCategory: null,
+          priceCp: null,
+          bulkValue: null,
+          actionCost: null,
+          usage: null,
+          hands: null,
+          damageTypes: [],
+          weaponGroup: null,
+          armorGroup: null,
+          traditions: [],
+          spellKinds: [],
+          languages: [],
+          speedTypes: [],
+          immunities: [],
+          resistances: [],
+          weaknesses: [],
+          rangeValue: null,
+          searchText: buildOccurrenceSearchText(occurrence.name, occurrence.family, occurrence.traits, occurrence.linkedNames),
+        };
+        const instanceRaw = buildInstanceRaw(instanceId, occurrence, canonicalRecordKey, identityKey);
+        instanceRaw._derived = {
+          ...(instanceRaw._derived as Record<string, unknown>),
+          aliasNormalizationKeys: occurrence.candidateKeys,
+        };
+        derivedRecords.push({
+          record: instanceRecord,
+          raw: instanceRaw,
+          actorData: null,
+          itemData: null,
+          spellData: null,
+          references: [],
+          resolvedReferences: [],
+          isSearchCanonical: false,
+        });
+
+        derivedEdges.push({
+          fromRecordKey: occurrence.hostRecord.recordKey,
+          toRecordKey: recordKey,
+          displayText: occurrence.name,
+          referenceText: `derived-affliction-instance:${recordKey}`,
+          fromPackName: occurrence.hostRecord.packName,
+          fromRecordType: occurrence.hostRecord.type,
+          fromDocumentType: occurrence.hostRecord.documentType,
+          fromSourceCategory: occurrence.hostRecord.sourceCategory,
+        });
+        derivedEdges.push({
+          fromRecordKey: recordKey,
+          toRecordKey: canonicalRecordKey,
+          displayText: occurrence.name,
+          referenceText: `derived-affliction-canonical:${canonicalRecordKey}`,
+          fromPackName: instanceRecord.packName,
+          fromRecordType: instanceRecord.type,
+          fromDocumentType: instanceRecord.documentType,
+          fromSourceCategory: instanceRecord.sourceCategory,
+        });
+        derivedEdges.push({
+          fromRecordKey: canonicalRecordKey,
+          toRecordKey: occurrence.hostRecord.recordKey,
+          displayText: occurrence.hostRecord.name,
+          referenceText: `derived-affliction-host:${occurrence.hostRecord.recordKey}:${recordKey}`,
+          fromPackName: canonicalRecord.packName,
+          fromRecordType: canonicalRecord.type,
+          fromDocumentType: canonicalRecord.documentType,
+          fromSourceCategory: canonicalRecord.sourceCategory,
+        });
+      }
     }
   }
 
