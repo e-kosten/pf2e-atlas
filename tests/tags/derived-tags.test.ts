@@ -874,7 +874,15 @@ describe("derived tag rules", () => {
       subcategory: null,
       descriptionText: "You take death and wrap it about you like a cloak. Senses such as lifesense detect you as undead unless a creature succeeds at its check.",
       traits: ["concentrate", "manipulate"],
-    })).toEqual(expect.arrayContaining(["disguise", "social_infiltration"]));
+    })).toContain("disguise");
+
+    expect(deriveRecordTags({
+      name: "Mimic Undead",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You take death and wrap it about you like a cloak. Senses such as lifesense detect you as undead unless a creature succeeds at its check.",
+      traits: ["concentrate", "manipulate"],
+    })).not.toContain("social_infiltration");
 
     expect(deriveRecordTags({
       name: "Face in the Crowd",
@@ -931,6 +939,14 @@ describe("derived tag rules", () => {
       descriptionText: "You learn the location of the nearest creature to whom the target is connected in a magical manner, such as all the targets of an Illusory Disguise spell.",
       traits: ["detection"],
     })).not.toEqual(expect.arrayContaining(["disguise", "social_infiltration"]));
+
+    expect(deriveRecordTags({
+      name: "Portrait of the Artist",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You change your appearance to look like a well-known artist and appear to mimic their skill.",
+      traits: ["illusion", "visual"],
+    })).toContain("disguise");
 
     expect(deriveRecordTags({
       name: "Shadow Double",
@@ -1069,6 +1085,22 @@ describe("derived tag rules", () => {
       descriptionText: "The disease stiffens joints, reduces the victim's Speed, and can leave them immobilized.",
       traits: ["disease"],
     })).toContain("mobility_impairment");
+
+    expect(deriveRecordTags({
+      name: "Temple Scavenger",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "This scavenger lurks among the ruins of a collapsed temple.",
+      traits: [],
+    })).toContain("ruins");
+
+    expect(deriveRecordTags({
+      name: "Ancient Hall Watcher",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A watchful spirit stalks an ancient hall guarded by silent echoes.",
+      traits: [],
+    })).not.toContain("ruins");
   });
 
   it("publishes a compact derived-tag catalog", () => {

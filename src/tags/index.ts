@@ -146,11 +146,8 @@ const SPELL_DISGUISE_TEXT_ANCHORS: TextAnchor[] = [
   phraseAnchor("look and sound like the target"),
   phraseAnchor("disguises you"),
   phraseAnchor("disguises the target"),
-  phraseAnchor("effects of illusory disguise"),
-  phraseAnchor("setting up a disguise"),
   phraseAnchor("mask the target s features"),
   phraseAnchor("pass the target off as"),
-  phraseAnchor("detect you as undead"),
 ];
 
 const SPELL_DISGUISE_BLOCKER_TEXT_ANCHORS: TextAnchor[] = [
@@ -615,6 +612,16 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     anyOf: [
       { score: 1, textAny: SPELL_DISGUISE_NAME_ANCHORS },
       { score: 2, textAny: SPELL_DISGUISE_TEXT_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [tokenAnchor("detect"), tokenAnchor("undead")],
+            window: 4,
+            scope: "description",
+          },
+        ],
+      },
     ],
     noneOf: [
       { textAny: SPELL_DISGUISE_BLOCKER_TEXT_ANCHORS },
@@ -958,16 +965,6 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
       {
         score: 2,
         textAny: [
-          phraseAnchor("cinched down on a captive"),
-          phraseAnchor("at your mercy"),
-          phraseAnchor("legs bound"),
-          phraseAnchor("locked around an immobilized creature s wrists"),
-          phraseAnchor("captured enemies"),
-        ],
-      },
-      {
-        score: 2,
-        textAny: [
           phraseAnchor("target becomes restrained"),
           phraseAnchor("creature becomes restrained"),
           phraseAnchor("restrain the target"),
@@ -1233,7 +1230,26 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "creature",
     threshold: 2,
     anyOf: [
-      { score: 2, textAny: [phraseAnchor("crumbling hall"), phraseAnchor("fallen temple"), phraseAnchor("ancient hall")] },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              tokenAnchor("ruin"),
+              tokenAnchor("ruins"),
+              tokenAnchor("derelict"),
+              tokenAnchor("crumbling"),
+              tokenAnchor("fallen"),
+              tokenAnchor("collapsed"),
+              tokenAnchor("hall"),
+              tokenAnchor("temple"),
+            ],
+            window: 3,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+        ],
+      },
       { score: 1, textAny: [tokenAnchor("ruins"), tokenAnchor("ruin"), tokenAnchor("derelict")] },
     ],
   },
