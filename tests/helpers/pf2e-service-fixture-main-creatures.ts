@@ -319,6 +319,318 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
     },
   });
 
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "amelekana.json"), {
+    _id: "amelekana",
+    name: "Amelekana",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 8,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>Amelekanas are amphibious ambush predators native to rivers and lakes across Castrovel.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["beast", "water"],
+        size: {
+          value: "lg",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "electric-eel.json"), {
+    _id: "electric-eel",
+    name: "Electric Eel",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 6,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>Usually found in freshwater rivers and lakes, an electric eel is not particularly aggressive.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["animal", "water"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "water-orm.json"), {
+    _id: "water-orm",
+    name: "Water Orm",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 9,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>These legendary creatures lurking in remote lakes inhabit cool inland waters, spy upon the shores of their lakes, and occasionally rise near the beach or a silty lake bed.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["beast", "water"],
+        size: {
+          value: "lg",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "hooktongue.json"), {
+    _id: "hooktongue",
+    name: "Hooktongue",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 9,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>Legendary creatures lurking in remote lakes, water orms often spy upon the shores of their lakes and surface near the beach when curiosity overtakes caution.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["beast", "water"],
+        size: {
+          value: "lg",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "old-herok.json"), {
+    _id: "old-herok",
+    name: "Old Herok",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 11,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>Old Herok is a water orm that hides in deep lakes, watching the shores of its inland domain and surfacing near lonely beaches only when it must.</p>",
+      },
+      traits: {
+        rarity: "rare",
+        value: ["beast", "water"],
+        size: {
+          value: "lg",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "gathganara.json"), {
+    _id: "gathganara",
+    name: "Gathganara",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 7,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>Naiads protect streams, ponds, springs, and other natural bodies of fresh water where river tributaries meet beneath forest canopies.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["fey", "water"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "defaced-naiad-queen.json"), {
+    _id: "defaced-naiad-queen",
+    name: "Defaced Naiad Queen",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 15,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>Naiad queens rule over pristine wildernesses centered on untouched lakes or other bodies of fresh water.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["fey", "water"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "coldmire-pond.json"), {
+    _id: "coldmire-pond",
+    name: "Coldmire Pond",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 6,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>Coldmire ponds are sentient bodies of living water that crawl along the ground or drift through still inland pools.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["elemental", "water"],
+        size: {
+          value: "lg",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "boiling-spring.json"), {
+    _id: "boiling-spring",
+    name: "Boiling Spring",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 7,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>A boiling spring is a humanoid water elemental made of scalding steam and bubbling water from a geothermal spring.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["elemental", "water"],
+        size: {
+          value: "lg",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "castruccio-irovetti.json"), {
+    _id: "castruccio-irovetti",
+    name: "Castruccio Irovetti",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 15,
+        },
+        publication: {
+          title: "Pathfinder Adventure Path",
+        },
+        publicNotes: "<p>Since his flight from Numeria, Castruccio Irovetti has ruled Pitax for years and remains a major player in this River Kingdom's political scene.</p>",
+      },
+      traits: {
+        rarity: "unique",
+        value: ["human", "humanoid"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "apothecary-bee.json"), {
+    _id: "apothecary-bee",
+    name: "Apothecary Bee",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 6,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>Long-abandoned gardens still grow along the Sphinx River in Osirion, where many apothecary bees prowl for flowers that meet their standards.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["animal"],
+        size: {
+          value: "sm",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "astradaemon.json"), {
+    _id: "astradaemon",
+    name: "Astradaemon",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 16,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>Astradaemons hunt the pathways between life and death and stalk the banks of the River of Souls in the Astral Plane.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["daemon", "fiend", "unholy"],
+        size: {
+          value: "lg",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "shrine-caretaker.json"), {
+    _id: "shrine-caretaker",
+    name: "Shrine Caretaker",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 6,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>This combusted haunts a shrine and sometimes throws itself into lakes or rivers, believing the water will quiet the flames consuming it.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["spirit", "undead", "unholy"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "pathfinder-monster-core", "wealthy-vigilante.json"), {
     _id: "wealthy-vigilante",
     name: "Wealthy Vigilante",

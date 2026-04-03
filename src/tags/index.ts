@@ -7,6 +7,7 @@ import {
   normalizeDerivedTagReference,
   TextAnchor,
   TextMatchScope,
+  TextProximityConstraint,
 } from "./matcher.js";
 export { normalizeDerivedTag } from "./matcher.js";
 
@@ -90,6 +91,152 @@ const SCENE_ADJACENT_BLOCKER_TRAITS = [
   "swarm",
   "troop",
   "undead",
+];
+
+const FRESHWATER_SETTING_TEXT_ANCHORS: TextAnchor[] = [
+  tokenAnchor("river"),
+  tokenAnchor("rivers"),
+  tokenAnchor("lake"),
+  tokenAnchor("lakes"),
+  tokenAnchor("pond"),
+  tokenAnchor("ponds"),
+  tokenAnchor("stream"),
+  tokenAnchor("streams"),
+  tokenAnchor("spring"),
+  tokenAnchor("springs"),
+];
+
+const FRESHWATER_SETTING_STRONG_TEXT_ANCHORS: TextAnchor[] = [
+  tokenAnchor("freshwater"),
+  phraseAnchor("fresh water"),
+  phraseAnchor("body of fresh water"),
+  phraseAnchor("bodies of fresh water"),
+  phraseAnchor("lake bed"),
+  phraseAnchor("lake beds"),
+  phraseAnchor("lakeside community"),
+  phraseAnchor("lakeside communities"),
+];
+
+const FRESHWATER_SETTING_CONTEXT_TEXT_ANCHORS: TextAnchor[] = [
+  tokenAnchor("native"),
+  tokenAnchor("hide"),
+  tokenAnchor("hides"),
+  tokenAnchor("inhabit"),
+  tokenAnchor("inhabits"),
+  tokenAnchor("inhabiting"),
+  tokenAnchor("dwell"),
+  tokenAnchor("dwells"),
+  tokenAnchor("dwelling"),
+  tokenAnchor("centered"),
+  tokenAnchor("home"),
+  tokenAnchor("homes"),
+  tokenAnchor("found"),
+  tokenAnchor("lurk"),
+  tokenAnchor("lurks"),
+  tokenAnchor("lurking"),
+  tokenAnchor("protect"),
+  tokenAnchor("protects"),
+  tokenAnchor("ward"),
+  tokenAnchor("wards"),
+];
+
+const FRESHWATER_SETTING_NAME_ANCHORS: TextAnchor[] = [
+  tokenAnchor("pond", "name"),
+  tokenAnchor("spring", "name"),
+];
+
+const FRESHWATER_SETTING_BLOCKER_TEXT_ANCHORS: TextAnchor[] = [
+  phraseAnchor("river kingdom"),
+  phraseAnchor("river kingdoms"),
+  phraseAnchor("river of souls"),
+];
+
+const FRESHWATER_SETTING_HABITAT_TEXT_NEAR: TextProximityConstraint[] = [
+  {
+    terms: [tokenAnchor("river"), tokenAnchor("rivers"), ...FRESHWATER_SETTING_CONTEXT_TEXT_ANCHORS],
+    window: 6,
+    scope: "description",
+    minTermsMatched: 2,
+  },
+  {
+    terms: [tokenAnchor("lake"), tokenAnchor("lakes"), ...FRESHWATER_SETTING_CONTEXT_TEXT_ANCHORS],
+    window: 6,
+    scope: "description",
+    minTermsMatched: 2,
+  },
+  {
+    terms: [tokenAnchor("pond"), tokenAnchor("ponds"), ...FRESHWATER_SETTING_CONTEXT_TEXT_ANCHORS],
+    window: 6,
+    scope: "description",
+    minTermsMatched: 2,
+  },
+  {
+    terms: [tokenAnchor("stream"), tokenAnchor("streams"), ...FRESHWATER_SETTING_CONTEXT_TEXT_ANCHORS],
+    window: 6,
+    scope: "description",
+    minTermsMatched: 2,
+  },
+  {
+    terms: [tokenAnchor("spring"), tokenAnchor("springs"), ...FRESHWATER_SETTING_CONTEXT_TEXT_ANCHORS],
+    window: 6,
+    scope: "description",
+    minTermsMatched: 2,
+  },
+];
+
+const AQUATIC_SETTING_STRONG_TEXT_ANCHORS: TextAnchor[] = [
+  tokenAnchor("aquatic"),
+  tokenAnchor("underwater"),
+  tokenAnchor("ocean"),
+  tokenAnchor("oceans"),
+  tokenAnchor("sea"),
+  tokenAnchor("seas"),
+  tokenAnchor("pelagic"),
+  tokenAnchor("fjord"),
+  tokenAnchor("fjords"),
+  tokenAnchor("waterways"),
+  phraseAnchor("water dwelling"),
+  phraseAnchor("breathe water"),
+];
+
+const AQUATIC_SETTING_WEAK_TEXT_ANCHORS: TextAnchor[] = [
+  tokenAnchor("water"),
+  tokenAnchor("wave"),
+  tokenAnchor("waves"),
+  tokenAnchor("surf"),
+  tokenAnchor("tide"),
+  tokenAnchor("tides"),
+  tokenAnchor("tidal"),
+  tokenAnchor("swim"),
+  tokenAnchor("swims"),
+  tokenAnchor("swimming"),
+  tokenAnchor("flooded"),
+];
+
+const COASTAL_SETTING_STRONG_TEXT_ANCHORS: TextAnchor[] = [
+  tokenAnchor("coast"),
+  tokenAnchor("coasts"),
+  tokenAnchor("coastal"),
+  tokenAnchor("reef"),
+  tokenAnchor("reefs"),
+  tokenAnchor("littoral"),
+  tokenAnchor("estuary"),
+  tokenAnchor("estuaries"),
+  tokenAnchor("estuarine"),
+];
+
+const COASTAL_SETTING_WEAK_TEXT_ANCHORS: TextAnchor[] = [
+  tokenAnchor("shore"),
+  tokenAnchor("shores"),
+  tokenAnchor("shoreline"),
+  tokenAnchor("beach"),
+  tokenAnchor("beaches"),
+  tokenAnchor("harbor"),
+  tokenAnchor("harbors"),
+  tokenAnchor("brackish"),
+  tokenAnchor("tidal"),
+  tokenAnchor("tidepool"),
+  tokenAnchor("tidepools"),
 ];
 
 const referenceAnchor = (packName: string, name: string): string => normalizeDerivedTagReference(`${packName}:${name}`);
@@ -1462,46 +1609,41 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     ],
   },
   {
+    tag: "freshwater_setting",
+    category: "creature",
+    threshold: 2,
+    noneOf: [
+      { textAny: FRESHWATER_SETTING_BLOCKER_TEXT_ANCHORS },
+    ],
+    anyOf: [
+      { score: 2, textAny: FRESHWATER_SETTING_STRONG_TEXT_ANCHORS },
+      { score: 2, textNear: FRESHWATER_SETTING_HABITAT_TEXT_NEAR },
+      { score: 1, textAny: FRESHWATER_SETTING_NAME_ANCHORS },
+      { score: 1, traitsAny: ["water"] },
+    ],
+  },
+  {
     tag: "aquatic_setting",
     category: "creature",
     threshold: 2,
     anyOf: [
       { score: 3, traitsAny: ["water", "aquatic", "amphibious"] },
-      {
-        score: 2,
-        textAny: [
-          tokenAnchor("aquatic"),
-          tokenAnchor("ocean"),
-          tokenAnchor("oceans"),
-          tokenAnchor("river"),
-          tokenAnchor("rivers"),
-          tokenAnchor("sea"),
-          tokenAnchor("seas"),
-          tokenAnchor("underwater"),
-        ],
-      },
-      { score: 1, textAny: [tokenAnchor("water"), tokenAnchor("waves")] },
+      { score: 2, textAny: AQUATIC_SETTING_STRONG_TEXT_ANCHORS },
+      { score: 1, textAny: AQUATIC_SETTING_WEAK_TEXT_ANCHORS },
     ],
+  },
+  {
+    tag: "aquatic_setting",
+    category: "creature",
+    requiresTags: ["freshwater_setting"],
   },
   {
     tag: "coastal_setting",
     category: "creature",
     threshold: 2,
     anyOf: [
-      {
-        score: 2,
-        textAny: [
-          tokenAnchor("coast"),
-          tokenAnchor("coasts"),
-          tokenAnchor("coastal"),
-          tokenAnchor("shore"),
-          tokenAnchor("shores"),
-          tokenAnchor("shoreline"),
-          tokenAnchor("reef"),
-          tokenAnchor("reefs"),
-        ],
-      },
-      { score: 1, textAny: [tokenAnchor("beach"), tokenAnchor("beaches"), tokenAnchor("harbor"), tokenAnchor("harbors")] },
+      { score: 2, textAny: COASTAL_SETTING_STRONG_TEXT_ANCHORS },
+      { score: 1, textAny: COASTAL_SETTING_WEAK_TEXT_ANCHORS },
     ],
   },
   {
@@ -2046,6 +2188,7 @@ export const DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
     description: "Creature environment and setting tags.",
     tags: [
       { value: "aquatic_setting", description: "Strongly associated with open water, underwater spaces, or aquatic environments." },
+      { value: "freshwater_setting", description: "Strongly associated with rivers, lakes, ponds, streams, springs, or other inland waters." },
       { value: "coastal_setting", description: "Strongly associated with coasts, shores, reefs, or littoral edges." },
       { value: "island_setting", description: "Strongly associated with islands, archipelagos, or isolated isles." },
       { value: "nautical_setting", description: "Strongly associated with ships, sailors, wrecks, or harbors." },

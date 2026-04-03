@@ -621,6 +621,70 @@ describe("derived tag rules", () => {
     })).toContain("aquatic_setting");
 
     expect(deriveRecordTags({
+      name: "Amelekana",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Amelekanas are amphibious ambush predators native to rivers and lakes across Castrovel.",
+      traits: ["beast", "water"],
+    })).toEqual(expect.arrayContaining(["freshwater_setting", "aquatic_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Electric Eel",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Usually found in freshwater rivers and lakes, an electric eel is not particularly aggressive.",
+      traits: ["animal", "water"],
+    })).toEqual(expect.arrayContaining(["freshwater_setting", "aquatic_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Water Orm",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "These legendary creatures lurking in remote lakes inhabit cool inland waters, spy upon the shores of their lakes, and occasionally rise near the beach or a silty lake bed.",
+      traits: ["beast", "water"],
+    })).toEqual(expect.arrayContaining(["freshwater_setting", "aquatic_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Water Orm",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "These legendary creatures lurking in remote lakes inhabit cool inland waters, spy upon the shores of their lakes, and occasionally rise near the beach or a silty lake bed.",
+      traits: ["beast", "water"],
+    })).not.toContain("coastal_setting");
+
+    expect(deriveRecordTags({
+      name: "Gathganara",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Naiads protect streams, ponds, springs, and other natural bodies of fresh water where river tributaries meet beneath forest canopies.",
+      traits: ["fey", "water"],
+    })).toEqual(expect.arrayContaining(["freshwater_setting", "aquatic_setting", "forest_setting", "fey_threat"]));
+
+    expect(deriveRecordTags({
+      name: "Defaced Naiad Queen",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Naiad queens rule over pristine wildernesses centered on untouched lakes or other bodies of fresh water.",
+      traits: ["fey", "water"],
+    })).toEqual(expect.arrayContaining(["freshwater_setting", "aquatic_setting", "fey_threat"]));
+
+    expect(deriveRecordTags({
+      name: "Coldmire Pond",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Coldmire ponds are sentient bodies of living water that crawl along the ground or drift through still inland pools.",
+      traits: ["elemental", "water"],
+    })).toEqual(expect.arrayContaining(["freshwater_setting", "aquatic_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Boiling Spring",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A boiling spring is a humanoid water elemental made of scalding steam and bubbling water from a geothermal spring.",
+      traits: ["elemental", "water"],
+    })).toEqual(expect.arrayContaining(["freshwater_setting", "aquatic_setting"]));
+
+    expect(deriveRecordTags({
       name: "Bog Prowler",
       category: "creature",
       subcategory: null,
@@ -835,6 +899,54 @@ describe("derived tag rules", () => {
       descriptionText: "Abandoned zealots arise from false faiths unknown to most worshippers.",
       traits: ["undead", "spirit"],
     })).not.toContain("nautical_setting");
+
+    expect(deriveRecordTags({
+      name: "Castruccio Irovetti",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Since his flight from Numeria, Castruccio Irovetti has ruled Pitax for years and remains a major player in this River Kingdom's political scene.",
+      traits: ["human", "humanoid"],
+    })).not.toEqual(expect.arrayContaining(["freshwater_setting", "aquatic_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Apothecary Bee",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Long-abandoned gardens still grow along the Sphinx River in Osirion, where many apothecary bees prowl for flowers that meet their standards.",
+      traits: ["animal"],
+    })).not.toEqual(expect.arrayContaining(["freshwater_setting", "aquatic_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Astradaemon",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Astradaemons hunt the pathways between life and death and stalk the banks of the River of Souls in the Astral Plane.",
+      traits: ["daemon", "fiend", "unholy"],
+    })).not.toEqual(expect.arrayContaining(["freshwater_setting", "aquatic_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Shrine Caretaker",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "This combusted haunts a shrine and sometimes throws itself into lakes or rivers, believing the water will quiet the flames consuming it.",
+      traits: ["spirit", "undead", "unholy"],
+    })).not.toEqual(expect.arrayContaining(["freshwater_setting", "aquatic_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Hooktongue",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Legendary creatures lurking in remote lakes, water orms often spy upon the shores of their lakes and surface near the beach when curiosity overtakes caution.",
+      traits: ["beast", "water"],
+    })).not.toContain("coastal_setting");
+
+    expect(deriveRecordTags({
+      name: "Old Herok",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Old Herok is a water orm that hides in deep lakes, watching the shores of its inland domain and surfacing near lonely beaches only when it must.",
+      traits: ["beast", "water"],
+    })).not.toContain("coastal_setting");
 
     expect(deriveRecordTags({
       name: "Sky Canyon Balladeer",
@@ -1616,6 +1728,7 @@ describe("derived tag rules", () => {
         category: "creature",
         family: "setting",
         tags: expect.arrayContaining([
+          expect.objectContaining({ value: "freshwater_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "swamp_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "underground_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "graveyard_setting", description: expect.any(String) }),

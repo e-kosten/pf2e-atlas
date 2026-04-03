@@ -165,6 +165,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
         category: "creature",
         family: "setting",
         tags: expect.arrayContaining([
+          expect.objectContaining({ value: "freshwater_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "swamp_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "coastal_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "island_setting", description: expect.any(String) }),
@@ -216,6 +217,10 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       field: "derivedTags",
       category: "affliction",
     }).values.map((entry) => entry.value)).toEqual(["mental_impairment", "mobility_impairment"]);
+    expect(service.listFilterValues({
+      field: "derivedTags",
+      category: "creature",
+    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["aquatic_setting", "freshwater_setting", "coastal_setting", "temple_setting"]));
 
     expect(service.listFilterValues({
       field: "families",
@@ -304,7 +309,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     expect(service.listFilterValues({
       field: "size",
       category: "creature",
-    }).values.map((entry) => entry.value)).toEqual(["med", "sm", "lg"]);
+    }).values.map((entry) => entry.value)).toEqual(["med", "lg", "sm"]);
 
     expect(service.listFilterValues({
       field: "sources",
