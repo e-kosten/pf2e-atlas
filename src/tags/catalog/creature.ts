@@ -1,0 +1,46 @@
+import { DerivedTagCatalogEntry } from "../../types.js";
+
+export const CREATURE_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
+  {
+    category: "creature",
+    family: "setting",
+    description: "Creature environment and setting tags.",
+    tags: [
+      { value: "aquatic_setting", description: "Strongly associated with open water, underwater spaces, or aquatic environments." },
+      { value: "freshwater_setting", description: "Strongly associated with rivers, lakes, ponds, streams, springs, or other inland waters." },
+      { value: "coastal_setting", description: "Strongly associated with coasts, shores, reefs, or littoral edges." },
+      { value: "astral_setting", description: "Strongly associated with Astral Plane scenes, silver-void travel, or stable portal routes." },
+      { value: "first_world_setting", description: "Strongly associated with the First World, fey realms, or thin-boundary crossings into that plane." },
+      { value: "boneyard_setting", description: "Strongly associated with the Boneyard, psychopomp duties, or soul-processing afterlife scenes." },
+      { value: "island_setting", description: "Strongly associated with islands, archipelagos, or isolated isles." },
+      { value: "nautical_setting", description: "Strongly associated with ships, sailors, wrecks, or harbors." },
+      { value: "forest_setting", description: "Strongly associated with forests, jungles, groves, or briar-choked wilds." },
+      { value: "plains_setting", description: "Strongly associated with open plains, grasslands, prairies, or savannas." },
+      { value: "canyon_setting", description: "Strongly associated with canyons, gorges, mesas, or badlands." },
+      { value: "swamp_setting", description: "Strongly associated with bogs, marshes, fens, or mires." },
+      { value: "underground_setting", description: "Strongly associated with caves, tunnels, crypts, or subterranean spaces." },
+      { value: "urban_setting", description: "Strongly associated with cities, streets, alleys, markets, or sewers." },
+      { value: "arctic_setting", description: "Strongly associated with snow, ice, tundra, or frozen reaches." },
+      { value: "desert_setting", description: "Strongly associated with dunes, sand, or arid wastes." },
+      { value: "wasteland_setting", description: "Strongly associated with barren wastes, blasted wastelands, or desolate badlands." },
+      { value: "mountain_setting", description: "Strongly associated with cliffs, peaks, passes, or rocky heights." },
+      { value: "graveyard_setting", description: "Strongly associated with cemeteries, tombs, barrows, or burial grounds." },
+      { value: "ruins_setting", description: "Strongly associated with ancient ruins or derelict structures." },
+      { value: "temple_setting", description: "Strongly associated with temples, shrines, monasteries, or other sacred sites." },
+      { value: "fortress_setting", description: "Strongly associated with castles, fortresses, citadels, or strongholds." },
+      { value: "volcanic_setting", description: "Strongly associated with volcanoes, calderas, lava, or magma." },
+    ],
+  },
+  {
+    category: "creature",
+    family: "scene_fit",
+    description: "Creature practical-fit tags for distinguishing scene-adjacent NPCs from primary threats.",
+    tags: [
+      { value: "profession_npc", description: "Role-defined NPC such as a captain, guard, merchant, or commoner." },
+      { value: "scene_adjacent", description: "Fits the scene or social fabric, but is usually not the primary monster answer." },
+      { value: "undead_threat", description: "Threat signal derived from undead-like native traits." },
+      { value: "fey_threat", description: "Threat signal derived from fey native traits." },
+      { value: "plant_threat", description: "Threat signal derived from plant-like native traits." },
+    ],
+  },
+];

@@ -5,7 +5,7 @@ description: Refine existing PF2E derived tags in the Pathfinder MCP repo. Use w
 
 # PF2E Derived Tag Refinement
 
-Use this skill for precision work on the derived-tag layer, especially [`src/tags/index.ts`](/Users/ekosten/projects/pathfinder-mcp/pathfinder-2e-foundry-mcp/src/tags/index.ts), [`tests/tags/derived-tags.test.ts`](/Users/ekosten/projects/pathfinder-mcp/pathfinder-2e-foundry-mcp/tests/tags/derived-tags.test.ts), and the service tests that exercise derived-tag filtering.
+Use this skill for precision work on the derived-tag layer, especially [`src/tags/index.ts`](/Users/ekosten/projects/pathfinder-mcp/pathfinder-2e-foundry-mcp/src/tags/index.ts), category rule modules under [`src/tags/rules`](/Users/ekosten/projects/pathfinder-mcp/pathfinder-2e-foundry-mcp/src/tags/rules), category derivation tests under [`tests/tags`](/Users/ekosten/projects/pathfinder-mcp/pathfinder-2e-foundry-mcp/tests/tags), and the service tests that exercise derived-tag filtering.
 
 Use this mode when the ontology mostly exists and the problem is calibration across a related slice, not just a one-tag micro-fix.
 
@@ -23,7 +23,7 @@ Default to this skill when any of these are true:
 1. Read the current rules and tests first.
    Focus on:
    - `src/tags/index.ts`
-   - `tests/tags/derived-tags.test.ts`
+   - `tests/tags/derived-tags-*.test.ts`
    - the relevant `tests/service/*.test.ts`
 2. Classify the issue before editing.
    Use one of:
@@ -54,7 +54,7 @@ Default to this skill when any of these are true:
    Cover direct derivation and at least one service-level behavior where the regression matters.
 8. Validate in layers.
    Use:
-   - `npm test -- tests/tags/derived-tags.test.ts tests/service/search-and-lookup.test.ts`
+   - `npm test -- tests/tags/derived-tags-*.test.ts tests/service/search-and-lookup.test.ts`
    - `npm run build`
    - `npm test`
    - `npm run refresh-index -- --reuse-embeddings` when the change should materially affect live tagging or when you need to confirm category-level coverage movement

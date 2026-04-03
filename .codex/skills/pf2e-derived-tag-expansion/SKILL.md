@@ -5,7 +5,7 @@ description: Expand PF2E derived-tag ontology and coverage in the Pathfinder MCP
 
 # PF2E Derived Tag Expansion
 
-Use this skill for sparse-category work on the derived-tag layer, especially [`src/tags/index.ts`](/Users/ekosten/projects/pathfinder-mcp/pathfinder-2e-foundry-mcp/src/tags/index.ts), [`tests/tags/derived-tags.test.ts`](/Users/ekosten/projects/pathfinder-mcp/pathfinder-2e-foundry-mcp/tests/tags/derived-tags.test.ts), and service-level search tests under [`tests/service`](/Users/ekosten/projects/pathfinder-mcp/pathfinder-2e-foundry-mcp/tests/service).
+Use this skill for sparse-category work on the derived-tag layer, especially [`src/tags/index.ts`](/Users/ekosten/projects/pathfinder-mcp/pathfinder-2e-foundry-mcp/src/tags/index.ts), category rule modules under [`src/tags/rules`](/Users/ekosten/projects/pathfinder-mcp/pathfinder-2e-foundry-mcp/src/tags/rules), category derivation tests under [`tests/tags`](/Users/ekosten/projects/pathfinder-mcp/pathfinder-2e-foundry-mcp/tests/tags), and service-level search tests under [`tests/service`](/Users/ekosten/projects/pathfinder-mcp/pathfinder-2e-foundry-mcp/tests/service).
 
 Derived tags are retrieval-oriented overlays, not aliases for native PF2E traits. Add tags only when native traits do not already express the practical retrieval meaning cleanly.
 
@@ -66,12 +66,12 @@ Default to this skill when any of these are true:
    - linked-record evidence when available
 8. Add tests with every expansion batch.
    Cover:
-   - direct derivation in `tests/tags/derived-tags.test.ts`
+   - direct derivation in `tests/tags/derived-tags-*.test.ts`
    - service-level filtering and lookup behavior in the relevant `tests/service/*.test.ts`
    - rebuilt-corpus sanity checks when the pass should materially change live coverage
 9. Validate in layers.
    Start focused, then widen:
-   - `npm test -- tests/tags/derived-tags.test.ts tests/service/search-and-lookup.test.ts`
+   - `npm test -- tests/tags/derived-tags-*.test.ts tests/service/search-and-lookup.test.ts`
    - `npm run build`
    - `npm test`
    - `npm run refresh-index -- --reuse-embeddings` when live tagging should change materially

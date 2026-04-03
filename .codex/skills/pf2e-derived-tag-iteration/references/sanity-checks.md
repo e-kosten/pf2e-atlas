@@ -6,13 +6,13 @@ Use these commands after meaningful heuristic changes.
 - `src/derived-tags.ts`
 - `src/derived-tag-gap-evaluator.ts`
 - `src/evaluate-derived-tag-gaps.ts`
-- `tests/derived-tags.test.ts`
+- `tests/tags/derived-tags-*.test.ts`
 - `tests/pf2e-data.test.ts`
 - `src/pf2e-data.ts` when output shape or SQL filtering is involved
 
 ## Validation Commands
 ```bash
-npm test -- tests/derived-tags.test.ts tests/pf2e-data.test.ts
+npm test -- tests/tags/derived-tags-*.test.ts tests/pf2e-data.test.ts
 npm run build
 npm test
 npm run refresh-index
