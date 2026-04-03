@@ -39,8 +39,10 @@ Default to this skill when any of these are true:
    - 1-2 new families and 3-8 tags, or
    - one existing family plus multiple meaningful rule extensions that should move dozens of records
    - one medium-size category pass that materially improves an under-modeled category even if no new family is needed
-5. Use the gap evaluator as discovery support, not truth.
-   Run `npm run evaluate-derived-tags -- --tag <derived_tag> ...` after identifying likely ontology gaps or candidate cross-category transfers.
+5. Use semantic discovery and the gap evaluator as discovery support, not truth.
+   - If the concept already exists as a derived tag, run `npm run evaluate-derived-tags -- --tag <derived_tag> ...`.
+   - If the concept does not exist yet, seed it with exemplars and run `npm run discover-derived-tag-candidates -- --category <category> --name <record> ...`.
+   - Use the semantic output to identify likely candidates, repeated traits, repeated phrases, and false-positive classes. Do not treat embedding proximity as a direct tagging decision.
 6. Stop for an approval checkpoint before editing.
    Include:
    - current coverage snapshot
@@ -48,6 +50,11 @@ Default to this skill when any of these are true:
    - expected category-level coverage gain
    - concrete example records expected to move
    - main precision risks
+   When semantic discovery was used, also include:
+   - exemplar set
+   - top semantic candidates
+   - repeated evidence terms or phrases
+   - contrast records that show likely boundary cases
    Ask a direct confirmation question and wait unless the user explicitly asked for immediate implementation.
 7. Implement in the declarative rule table.
    Prefer:
@@ -73,6 +80,17 @@ Default to this skill when any of these are true:
    - example newly covered records by tag
    - false-positive classes checked
    - what remains intentionally unmodeled
+
+## Semantic Discovery Examples
+
+Use semantic discovery when you have a retrieval concept but no existing tag yet.
+
+- Creature example:
+  `npm run discover-derived-tag-candidates -- --category creature --name "Ghost Commoner" --name "Ghost Pirate Captain" --name "Cairn Wight"`
+- Non-creature example:
+  `npm run discover-derived-tag-candidates -- --category equipment --subcategory gear --name "Masquerade Scarf" --name "Quick-Change Outfit"`
+
+Read the output as an evidence-mining pass. The next step is still to design explainable rule anchors, blockers, and thresholds in the declarative tag table.
 
 ## Design Rules
 
