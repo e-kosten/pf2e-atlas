@@ -206,4 +206,125 @@ describe("derived tag matcher extensions", () => {
       references: references.slice(0, 1),
     })).not.toContain("exploration_combo");
   });
+
+  it("supports template anchors for numeric, dice, and range variants", () => {
+    const rules: DerivedTagRule[] = [
+      {
+        tag: "mobility",
+        category: "spell",
+        anyOf: [
+          {
+            textAny: [
+              { value: "jump {n} feet", mode: "template", scope: "description" },
+              { value: "gain a +{n}-foot status bonus to your speed", mode: "template", scope: "description" },
+            ],
+          },
+        ],
+      },
+      {
+        tag: "damage_signature",
+        category: "spell",
+        anyOf: [
+          {
+            textAny: [
+              { value: "deal {d} damage", mode: "template", scope: "description" },
+            ],
+          },
+        ],
+      },
+      {
+        tag: "area_effect",
+        category: "spell",
+        anyOf: [
+          {
+            textAny: [
+              { value: "creatures in a {r}", mode: "template", scope: "description" },
+            ],
+          },
+        ],
+      },
+      {
+        tag: "range_alert",
+        category: "spell",
+        anyOf: [
+          {
+            textNear: [
+              {
+                terms: [
+                  { value: "within {r}", mode: "template", scope: "description" },
+                  "alert",
+                ],
+                window: 8,
+                scope: "description",
+              },
+            ],
+          },
+        ],
+      },
+    ];
+
+    expect(deriveRecordTagsFromRules(rules, {
+      name: "Jump",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You jump 60 feet in any direction without touching the ground.",
+      traits: [],
+    })).toContain("mobility");
+
+    expect(deriveRecordTagsFromRules(rules, {
+      name: "Tailwind",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You gain a +10-foot status bonus to your Speed.",
+      traits: [],
+    })).toContain("mobility");
+
+    expect(deriveRecordTagsFromRules(rules, {
+      name: "Shock Lance",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You deal 4d8 damage to the target.",
+      traits: [],
+    })).toContain("damage_signature");
+
+    expect(deriveRecordTagsFromRules(rules, {
+      name: "Shock Lance",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You deal 10 damage to the target.",
+      traits: [],
+    })).not.toContain("damage_signature");
+
+    expect(deriveRecordTagsFromRules(rules, {
+      name: "Fire Wave",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "Creatures in a 30-foot cone take fire damage.",
+      traits: [],
+    })).toContain("area_effect");
+
+    expect(deriveRecordTagsFromRules(rules, {
+      name: "Alarm Pulse",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "A bell rings when creatures move within 30-foot emanation of the ward to alert nearby guards.",
+      traits: [],
+    })).toContain("range_alert");
+
+    expect(deriveRecordTagsFromRules(rules, {
+      name: "Quick March",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You gain a +1 status bonus for 1 minute.",
+      traits: [],
+    })).not.toContain("mobility");
+
+    expect(deriveRecordTagsFromRules(rules, {
+      name: "Watchful Ward",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "A bell rings when creatures move within 1 minute of the ward to alert nearby guards.",
+      traits: [],
+    })).not.toContain("range_alert");
+  });
 });

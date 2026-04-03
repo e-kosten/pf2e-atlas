@@ -21,7 +21,8 @@ export type DerivedTagReference = {
 };
 
 export type TextMatchScope = "either" | "name" | "description";
-type TextMatchMode = "token" | "phrase";
+type TextMatchMode = "token" | "phrase" | "template";
+type TemplatePlaceholder = "n" | "d" | "r";
 
 export type TextAnchor = string | {
   value: string;
@@ -82,6 +83,28 @@ type NormalizedTextView = {
   tokenSet: Set<string>;
 };
 
+type NormalizedTextAnchor =
+  | {
+    value: string;
+    mode: "token" | "phrase";
+    scope: TextMatchScope;
+  }
+  | {
+    mode: "template";
+    scope: TextMatchScope;
+    templateParts: TemplateTokenPart[];
+  };
+
+type TemplateTokenPart =
+  | {
+    type: "literal";
+    value: string;
+  }
+  | {
+    type: "placeholder";
+    value: TemplatePlaceholder;
+  };
+
 type NormalizedDerivedTagReference = {
   key: string;
   packName: string;
@@ -112,16 +135,68 @@ function buildTextView(value: string): NormalizedTextView {
   };
 }
 
-function normalizeAnchor(anchor: TextAnchor): { value: string; mode: TextMatchMode; scope: TextMatchScope } | null {
+function normalizeTemplateAnchorValue(value: string): TemplateTokenPart[] {
+  const raw = value.toLowerCase().replace(/&nbsp;/g, " ");
+  const parts: TemplateTokenPart[] = [];
+  const placeholderPattern = /\{([ndr])\}/g;
+  let offset = 0;
+
+  for (const match of raw.matchAll(placeholderPattern)) {
+    const index = match.index ?? 0;
+    const literal = normalizeText(raw.slice(offset, index));
+    if (literal.length > 0) {
+      parts.push(...literal.split(" ").map((token) => ({
+        type: "literal" as const,
+        value: token,
+      })));
+    }
+
+    const placeholder = match[1]?.toLowerCase();
+    if (placeholder === "n" || placeholder === "d" || placeholder === "r") {
+      parts.push({
+        type: "placeholder",
+        value: placeholder,
+      });
+    }
+
+    offset = index + match[0].length;
+  }
+
+  const trailingLiteral = normalizeText(raw.slice(offset));
+  if (trailingLiteral.length > 0) {
+    parts.push(...trailingLiteral.split(" ").map((token) => ({
+      type: "literal" as const,
+      value: token,
+    })));
+  }
+
+  return parts;
+}
+
+function normalizeAnchor(anchor: TextAnchor): NormalizedTextAnchor | null {
   const raw = typeof anchor === "string" ? { value: anchor } : anchor;
+  const mode = raw.mode ?? (raw.value.includes(" ") ? "phrase" : "token");
+
+  if (mode === "template") {
+    const templateParts = normalizeTemplateAnchorValue(raw.value);
+    if (templateParts.length === 0) {
+      return null;
+    }
+
+    return {
+      mode,
+      scope: raw.scope ?? "either",
+      templateParts,
+    };
+  }
+
   const value = normalizeText(raw.value);
   if (!value) {
     return null;
   }
-
   return {
     value,
-    mode: raw.mode ?? (value.includes(" ") ? "phrase" : "token"),
+    mode,
     scope: raw.scope ?? "either",
   };
 }
@@ -147,19 +222,82 @@ function getTextViews(
   ];
 }
 
+function matchTemplatePlaceholder(tokens: string[], index: number, placeholder: TemplatePlaceholder): number {
+  const token = tokens[index];
+  if (!token) {
+    return 0;
+  }
+
+  if (placeholder === "n") {
+    return /^\d+$/.test(token) ? 1 : 0;
+  }
+
+  if (placeholder === "d") {
+    return /^\d+d\d+$/.test(token) ? 1 : 0;
+  }
+
+  const next = tokens[index + 1];
+  if (!/^\d+$/.test(token) || !next || !["foot", "feet"].includes(next)) {
+    return 0;
+  }
+
+  const geometry = tokens[index + 2];
+  if (!geometry) {
+    return 2;
+  }
+
+  return ["aura", "burst", "cone", "cube", "emanation", "line", "radius"].includes(geometry) ? 3 : 2;
+}
+
+function findTemplateOccurrences(
+  view: NormalizedTextView,
+  templateParts: TemplateTokenPart[],
+): TextOccurrence[] {
+  if (templateParts.length === 0) {
+    return [];
+  }
+
+  const occurrences: TextOccurrence[] = [];
+  for (let start = 0; start < view.tokens.length; start += 1) {
+    let cursor = start;
+    let matched = true;
+
+    for (const part of templateParts) {
+      if (part.type === "literal") {
+        if (view.tokens[cursor] !== part.value) {
+          matched = false;
+          break;
+        }
+        cursor += 1;
+        continue;
+      }
+
+      const length = matchTemplatePlaceholder(view.tokens, cursor, part.value);
+      if (length === 0) {
+        matched = false;
+        break;
+      }
+      cursor += length;
+    }
+
+    if (matched && cursor > start) {
+      occurrences.push({
+        start,
+        end: cursor - 1,
+      });
+    }
+  }
+
+  return occurrences;
+}
+
 function matchesTextAnchor(context: NormalizedDerivedTagContext, anchor: TextAnchor): boolean {
   const normalized = normalizeAnchor(anchor);
   if (!normalized) {
     return false;
   }
 
-  return getTextViews(context, normalized.scope).some(({ view }) => {
-    if (normalized.mode === "token") {
-      return view.tokenSet.has(normalized.value);
-    }
-
-    return containsPhrase(view.text, normalized.value);
-  });
+  return getTextViews(context, normalized.scope).some(({ scope, view }) => findNormalizedTextOccurrences(view, scope, normalized).length > 0);
 }
 
 function countMatchingTextAnchors(context: NormalizedDerivedTagContext, anchors: TextAnchor[]): number {
@@ -171,21 +309,21 @@ type TextOccurrence = {
   end: number;
 };
 
-function findTextOccurrences(
+function findNormalizedTextOccurrences(
   view: NormalizedTextView,
   viewScope: Exclude<TextMatchScope, "either">,
-  anchor: TextAnchor,
+  normalized: NormalizedTextAnchor,
 ): TextOccurrence[] {
-  const normalized = normalizeAnchor(anchor);
-  if (!normalized) {
-    return [];
-  }
   if (normalized.scope !== "either" && normalized.scope !== viewScope) {
     return [];
   }
 
   if (normalized.mode === "token") {
     return view.tokens.flatMap((token, index) => token === normalized.value ? [{ start: index, end: index }] : []);
+  }
+
+  if (normalized.mode === "template") {
+    return findTemplateOccurrences(view, normalized.templateParts);
   }
 
   const phraseTokens = normalized.value.split(" ");
@@ -208,6 +346,19 @@ function findTextOccurrences(
   }
 
   return occurrences;
+}
+
+function findTextOccurrences(
+  view: NormalizedTextView,
+  viewScope: Exclude<TextMatchScope, "either">,
+  anchor: TextAnchor,
+): TextOccurrence[] {
+  const normalized = normalizeAnchor(anchor);
+  if (!normalized) {
+    return [];
+  }
+
+  return findNormalizedTextOccurrences(view, viewScope, normalized);
 }
 
 function spansWithinWindow(occurrences: TextOccurrence[], window: number): boolean {

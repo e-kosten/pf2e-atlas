@@ -12,6 +12,7 @@ export { normalizeDerivedTag } from "./matcher.js";
 
 const tokenAnchor = (value: string, scope: TextMatchScope = "either"): TextAnchor => ({ value, mode: "token", scope });
 const phraseAnchor = (value: string, scope: TextMatchScope = "either"): TextAnchor => ({ value, mode: "phrase", scope });
+const templateAnchor = (value: string, scope: TextMatchScope = "either"): TextAnchor => ({ value, mode: "template", scope });
 
 const OFFENSIVE_TEXT_ANCHORS: TextAnchor[] = [
   tokenAnchor("venom"),
@@ -384,6 +385,29 @@ const SPELL_SCOUTING_BLOCKER_TEXT_ANCHORS: TextAnchor[] = [
   phraseAnchor("counteract all detection revelation and scrying effects"),
 ];
 
+const SPELL_MOBILITY_TEXT_ANCHORS: TextAnchor[] = [
+  phraseAnchor("gain a fly speed"),
+  phraseAnchor("giving you a fly speed"),
+  phraseAnchor("gain a climb speed"),
+  phraseAnchor("gain a swim speed"),
+  phraseAnchor("gain a burrow speed"),
+  phraseAnchor("climb speed equal to your speed"),
+  phraseAnchor("climb speed equal to"),
+  phraseAnchor("swim speed equal to your speed"),
+  phraseAnchor("swim speed equal to"),
+  phraseAnchor("fly speed equal to your speed"),
+  phraseAnchor("fly speed equal to"),
+  phraseAnchor("ignore difficult terrain"),
+  templateAnchor("jump {n} feet"),
+  templateAnchor("you jump {n} feet"),
+  templateAnchor("gain a +{n}-foot status bonus to your speed"),
+  templateAnchor("you gain a +{n}-foot status bonus to your speed"),
+];
+
+const SPELL_MOBILITY_BLOCKER_TEXT_ANCHORS: TextAnchor[] = [
+  phraseAnchor("battle form"),
+];
+
 const AFFLICTION_MENTAL_TEXT_ANCHORS: TextAnchor[] = [
   tokenAnchor("confused"),
   tokenAnchor("confusion"),
@@ -405,6 +429,16 @@ const AFFLICTION_MOBILITY_TEXT_ANCHORS: TextAnchor[] = [
   tokenAnchor("paralyzed"),
   tokenAnchor("paralysis"),
   tokenAnchor("slowed"),
+];
+
+const AFFLICTION_PHYSICAL_DEBILITATION_TEXT_ANCHORS: TextAnchor[] = [
+  tokenAnchor("drained"),
+  tokenAnchor("enfeebled"),
+  tokenAnchor("clumsy"),
+  tokenAnchor("sickened"),
+  tokenAnchor("fatigued"),
+  phraseAnchor("drain health and strength"),
+  phraseAnchor("drains health and strength"),
 ];
 
 const DERIVED_TAG_RULES: DerivedTagRule[] = [
@@ -825,6 +859,17 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     ],
   },
   {
+    tag: "mobility",
+    category: "spell",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: SPELL_MOBILITY_TEXT_ANCHORS },
+    ],
+    noneOf: [
+      { textAny: SPELL_MOBILITY_BLOCKER_TEXT_ANCHORS },
+    ],
+  },
+  {
     tag: "illumination",
     category: "equipment",
     subcategories: GEARISH_SUBCATEGORIES,
@@ -1227,6 +1272,54 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     ],
   },
   {
+    tag: "barrier_lockdown",
+    category: "hazard",
+    threshold: 2,
+    anyOf: [
+      {
+        score: 2,
+        textAny: [
+          phraseAnchor("slams shut"),
+          phraseAnchor("slam down into place"),
+          phraseAnchor("sealing the entrance"),
+          phraseAnchor("entry and exit seal with a force barrier"),
+          phraseAnchor("magically seals the door"),
+          phraseAnchor("block progress through this area"),
+        ],
+      },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [tokenAnchor("portcullis"), tokenAnchor("drops")],
+            window: 4,
+            scope: "description",
+          },
+          {
+            terms: [tokenAnchor("portcullis"), tokenAnchor("slam")],
+            window: 6,
+            scope: "description",
+          },
+          {
+            terms: [tokenAnchor("door"), tokenAnchor("locks")],
+            window: 3,
+            scope: "description",
+          },
+          {
+            terms: [tokenAnchor("door"), tokenAnchor("seal")],
+            window: 4,
+            scope: "description",
+          },
+          {
+            terms: [tokenAnchor("gate"), tokenAnchor("shut")],
+            window: 4,
+            scope: "description",
+          },
+        ],
+      },
+    ],
+  },
+  {
     tag: "mental_impairment",
     category: "hazard",
     threshold: 2,
@@ -1310,6 +1403,14 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "affliction",
     anyOf: [
       { textAny: AFFLICTION_MOBILITY_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "physical_debilitation",
+    category: "affliction",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: AFFLICTION_PHYSICAL_DEBILITATION_TEXT_ANCHORS },
     ],
   },
   {
@@ -1879,6 +1980,14 @@ export const DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
   },
   {
     category: "spell",
+    family: "traversal",
+    description: "Spells that improve movement modes, speed, or practical traversal.",
+    tags: [
+      { value: "mobility", description: "Helps move faster, gain movement modes, or traverse terrain more effectively." },
+    ],
+  },
+  {
+    category: "spell",
     family: "magic_interference",
     description: "Spells that disrupt, dispel, or suppress magic.",
     tags: [
@@ -1909,6 +2018,7 @@ export const DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
     tags: [
       { value: "alarm", description: "Alerts guardians, onlookers, or nearby creatures to an intrusion." },
       { value: "restraint_capture", description: "Hazard that binds, restrains, or holds intruders in place." },
+      { value: "barrier_lockdown", description: "Hazard that seals, closes, or blocks passage to trap or delay intruders." },
     ],
   },
   {
@@ -1927,6 +2037,7 @@ export const DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
     tags: [
       { value: "mental_impairment", description: "Impairs judgment, emotions, or perception through confusion, fear, or delirium." },
       { value: "mobility_impairment", description: "Reduces speed, stiffens movement, or leaves the victim immobilized." },
+      { value: "physical_debilitation", description: "Weakens the body through exhaustion, sickness, drained vitality, or similar bodily degradation." },
     ],
   },
   {

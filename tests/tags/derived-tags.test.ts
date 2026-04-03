@@ -1133,6 +1133,54 @@ describe("derived tag rules", () => {
     })).toContain("scouting");
 
     expect(deriveRecordTags({
+      name: "Agile Feet",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "The blessings of your god make your feet faster and your movements more fluid. You gain a +5-foot status bonus to your Speed and ignore difficult terrain.",
+      traits: ["focus"],
+    })).toContain("mobility");
+
+    expect(deriveRecordTags({
+      name: "Gecko Grip",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "Tiny clinging hairs sprout across the creature's hands and feet, offering purchase on nearly any surface. The target gains a climb Speed equal to its Speed.",
+      traits: ["concentrate", "manipulate"],
+    })).toContain("mobility");
+
+    expect(deriveRecordTags({
+      name: "Jump",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "Your legs surge with strength, ready to leap high and far. You jump 30 feet in any direction without touching the ground.",
+      traits: ["move"],
+    })).toContain("mobility");
+
+    expect(deriveRecordTags({
+      name: "Dragon Wings",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "Leathery wings sprout from your back, giving you a fly Speed of 60 feet or your Speed, whichever is faster.",
+      traits: ["focus", "morph"],
+    })).toContain("mobility");
+
+    expect(deriveRecordTags({
+      name: "Leaden Steps",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You partially transform a foe's feet into unwieldy slabs of metal, slowing their steps. The target attempts a Fortitude saving throw.",
+      traits: ["manipulate"],
+    })).not.toContain("mobility");
+
+    expect(deriveRecordTags({
+      name: "Aerial Form",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You harness your mastery of primal forces to reshape your body into a Medium flying animal battle form. While in this battle form, you gain the following statistics and abilities.",
+      traits: ["polymorph"],
+    })).not.toContain("mobility");
+
+    expect(deriveRecordTags({
       name: "Blind Eye",
       category: "spell",
       subcategory: null,
@@ -1287,6 +1335,38 @@ describe("derived tag rules", () => {
     })).toContain("restraint_capture");
 
     expect(deriveRecordTags({
+      name: "Locking Door",
+      category: "hazard",
+      subcategory: "haunt",
+      descriptionText: "A door slams shut and locks.",
+      traits: ["haunt"],
+    })).toContain("barrier_lockdown");
+
+    expect(deriveRecordTags({
+      name: "Falling Portcullis Trap",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "An iron portcullis drops from the ceiling when a pressure plate is triggered.",
+      traits: ["mechanical", "trap"],
+    })).toContain("barrier_lockdown");
+
+    expect(deriveRecordTags({
+      name: "Slamming Gate",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "A pressure-sensitive floor panel causes a spiked door to slam down into place from the ceiling, skewering anyone caught underneath.",
+      traits: ["mechanical", "trap"],
+    })).toContain("barrier_lockdown");
+
+    expect(deriveRecordTags({
+      name: "Battering Door",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "Animated door slams into trespassers.",
+      traits: ["trap"],
+    })).not.toContain("barrier_lockdown");
+
+    expect(deriveRecordTags({
       name: "Mental Scream Trap",
       category: "hazard",
       subcategory: "trap",
@@ -1365,6 +1445,30 @@ describe("derived tag rules", () => {
       descriptionText: "The disease stiffens joints, reduces the victim's Speed, and can leave them immobilized.",
       traits: ["disease"],
     })).toContain("mobility_impairment");
+
+    expect(deriveRecordTags({
+      name: "Arsenic",
+      category: "affliction",
+      subcategory: "poison",
+      descriptionText: "This toxin is a compound of arsenic and other substances. You can't reduce your sickened condition while affected.",
+      traits: ["poison"],
+    })).toContain("physical_debilitation");
+
+    expect(deriveRecordTags({
+      name: "Bubonic Plague",
+      category: "affliction",
+      subcategory: "disease",
+      descriptionText: "Stage 1 Fatigued. Stage 2 Drained 1 and Fatigued. Stage 3 Drained 2 and Enfeebled 1.",
+      traits: ["disease"],
+    })).toContain("physical_debilitation");
+
+    expect(deriveRecordTags({
+      name: "Cackling Delirium",
+      category: "affliction",
+      subcategory: "curse",
+      descriptionText: "Mocking whispers leave the victim confused, frightened, and unable to trust their own senses.",
+      traits: ["curse", "mental"],
+    })).not.toContain("physical_debilitation");
 
     expect(deriveRecordTags({
       name: "Temple Scavenger",
@@ -1463,6 +1567,13 @@ describe("derived tag rules", () => {
       }),
       expect.objectContaining({
         category: "spell",
+        family: "traversal",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "mobility", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "spell",
         family: "magic_interference",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "countermagic", description: expect.any(String) }),
@@ -1481,6 +1592,7 @@ describe("derived tag rules", () => {
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "alarm", description: expect.any(String) }),
           expect.objectContaining({ value: "restraint_capture", description: expect.any(String) }),
+          expect.objectContaining({ value: "barrier_lockdown", description: expect.any(String) }),
         ]),
       }),
       expect.objectContaining({
@@ -1497,6 +1609,7 @@ describe("derived tag rules", () => {
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "mental_impairment", description: expect.any(String) }),
           expect.objectContaining({ value: "mobility_impairment", description: expect.any(String) }),
+          expect.objectContaining({ value: "physical_debilitation", description: expect.any(String) }),
         ]),
       }),
       expect.objectContaining({
