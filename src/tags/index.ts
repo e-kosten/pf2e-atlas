@@ -1487,6 +1487,23 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     ],
   },
   {
+    tag: "canyon_setting",
+    category: "creature",
+    anyOf: [
+      {
+        textAny: [
+          tokenAnchor("canyon"),
+          tokenAnchor("canyons"),
+          tokenAnchor("gorge"),
+          tokenAnchor("gorges"),
+          tokenAnchor("mesa"),
+          tokenAnchor("mesas"),
+          tokenAnchor("badlands"),
+        ],
+      },
+    ],
+  },
+  {
     tag: "swamp_setting",
     category: "creature",
     anyOf: [
@@ -1565,7 +1582,24 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     tag: "desert_setting",
     category: "creature",
     anyOf: [
-      { textAny: [tokenAnchor("desert"), tokenAnchor("deserts"), tokenAnchor("dune"), tokenAnchor("dunes"), tokenAnchor("sand"), tokenAnchor("arid"), tokenAnchor("wastes"), tokenAnchor("wasteland"), tokenAnchor("wastelands")] },
+      { textAny: [tokenAnchor("desert"), tokenAnchor("deserts"), tokenAnchor("dune"), tokenAnchor("dunes"), tokenAnchor("sand"), tokenAnchor("arid")] },
+    ],
+  },
+  {
+    tag: "wasteland_setting",
+    category: "creature",
+    threshold: 2,
+    anyOf: [
+      {
+        score: 2,
+        textAny: [
+          tokenAnchor("wasteland"),
+          tokenAnchor("wastelands"),
+          tokenAnchor("wastes"),
+          tokenAnchor("barren"),
+        ],
+      },
+      { score: 1, textAny: [tokenAnchor("blasted")] },
     ],
   },
   {
@@ -1906,11 +1940,13 @@ export const DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
       { value: "nautical_setting", description: "Strongly associated with ships, sailors, wrecks, or harbors." },
       { value: "forest_setting", description: "Strongly associated with forests, jungles, groves, or briar-choked wilds." },
       { value: "plains_setting", description: "Strongly associated with open plains, grasslands, prairies, or savannas." },
+      { value: "canyon_setting", description: "Strongly associated with canyons, gorges, mesas, or badlands." },
       { value: "swamp_setting", description: "Strongly associated with bogs, marshes, fens, or mires." },
       { value: "underground_setting", description: "Strongly associated with caves, tunnels, crypts, or subterranean spaces." },
       { value: "urban_setting", description: "Strongly associated with cities, streets, alleys, markets, or sewers." },
       { value: "arctic_setting", description: "Strongly associated with snow, ice, tundra, or frozen reaches." },
       { value: "desert_setting", description: "Strongly associated with dunes, sand, or arid wastes." },
+      { value: "wasteland_setting", description: "Strongly associated with barren wastes, blasted wastelands, or desolate badlands." },
       { value: "mountain_setting", description: "Strongly associated with cliffs, peaks, passes, or rocky heights." },
       { value: "graveyard_setting", description: "Strongly associated with cemeteries, tombs, barrows, or burial grounds." },
       { value: "ruins_setting", description: "Strongly associated with ancient ruins or derelict structures." },

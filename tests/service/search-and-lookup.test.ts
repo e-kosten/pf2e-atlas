@@ -117,11 +117,13 @@ describe("Pf2eDataService / Search and Lookup", () => {
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["island_setting"] } }).records.map((record) => record.name)).toContain("Island Watcher");
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["forest_setting"] } }).records.map((record) => record.name)).toContain("Jungle Stalker");
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["plains_setting"] } }).records.map((record) => record.name)).toContain("Plains Runner");
+    expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["canyon_setting"] } }).records.map((record) => record.name)).toContain("Canyon Stalker");
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["swamp_setting"] } }).records.map((record) => record.name)).toContain("Boggard Mire Scout");
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["graveyard_setting"] } }).records.map((record) => record.name)).toContain("Cairn Wight");
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["ruins_setting"] } }).records.map((record) => record.name)).toContain("Temple Scavenger");
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["temple_setting"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Temple Custodian", "Temple Scavenger"]));
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["fortress_setting"] } }).records.map((record) => record.name)).toContain("Fortress Warden");
+    expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["wasteland_setting"] } }).records.map((record) => record.name)).toContain("Wasteland Reclaimer");
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["volcanic_setting"] } }).records.map((record) => record.name)).toEqual(["Caldera Oni"]);
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["nautical_setting"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Ghost Pirate Captain", "Ship Captain"]));
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["scene_adjacent"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Ship Captain", "Wealthy Vigilante"]));
@@ -189,6 +191,8 @@ describe("Pf2eDataService / Search and Lookup", () => {
     expect(jungleStalker?.derivedTags).toContain("forest_setting");
     const plainsRunner = service.lookup("Plains Runner", { category: "creature" }).match;
     expect(plainsRunner?.derivedTags).toContain("plains_setting");
+    const canyonStalker = service.lookup("Canyon Stalker", { category: "creature" }).match;
+    expect(canyonStalker?.derivedTags).toContain("canyon_setting");
     const boggardMireScout = service.lookup("Boggard Mire Scout", { category: "creature" }).match;
     expect(boggardMireScout?.derivedTags).toContain("swamp_setting");
     const cairnWight = service.lookup("Cairn Wight", { category: "creature" }).match;
@@ -199,6 +203,8 @@ describe("Pf2eDataService / Search and Lookup", () => {
     expect(templeCustodian?.derivedTags).toContain("temple_setting");
     const fortressWarden = service.lookup("Fortress Warden", { category: "creature" }).match;
     expect(fortressWarden?.derivedTags).toContain("fortress_setting");
+    const wastelandReclaimer = service.lookup("Wasteland Reclaimer", { category: "creature" }).match;
+    expect(wastelandReclaimer?.derivedTags).toContain("wasteland_setting");
     const calderaOni = service.lookup("Caldera Oni", { category: "creature" }).match;
     expect(calderaOni?.derivedTags).toContain("volcanic_setting");
     const wealthyVigilante = service.lookup("Wealthy Vigilante", { category: "creature" }).match;

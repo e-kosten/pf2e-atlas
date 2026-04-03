@@ -559,6 +559,54 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
     },
   });
 
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "canyon-stalker.json"), {
+    _id: "canyon-stalker",
+    name: "Canyon Stalker",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 5,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>A patient hunter glides through canyons and narrow gorges carved into the badlands.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["beast"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "wasteland-reclaimer.json"), {
+    _id: "wasteland-reclaimer",
+    name: "Wasteland Reclaimer",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 6,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>A scarred scavenger roams barren wastelands and blasted wastes in search of salvage.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["humanoid"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "pathfinder-monster-core", "temple-custodian.json"), {
     _id: "temple-custodian",
     name: "Temple Custodian",

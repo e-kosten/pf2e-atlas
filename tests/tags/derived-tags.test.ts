@@ -693,6 +693,38 @@ describe("derived tag rules", () => {
     })).toContain("plains_setting");
 
     expect(deriveRecordTags({
+      name: "Canyon Stalker",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A patient hunter glides through canyons and narrow gorges carved into the badlands.",
+      traits: ["beast"],
+    })).toContain("canyon_setting");
+
+    expect(deriveRecordTags({
+      name: "Sun Mesa Wyvern",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "This wyvern nests among mesas and sun-scorched desert cliffs.",
+      traits: ["dragon"],
+    })).toEqual(expect.arrayContaining(["canyon_setting", "desert_setting", "mountain_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Wasteland Reclaimer",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A scarred scavenger roams barren wastelands and blasted wastes in search of salvage.",
+      traits: ["humanoid"],
+    })).toContain("wasteland_setting");
+
+    expect(deriveRecordTags({
+      name: "Ashen Reclaimer",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "This scavenger crosses barren wastes around lava fields and abandoned camps.",
+      traits: ["humanoid"],
+    })).toEqual(expect.arrayContaining(["wasteland_setting", "volcanic_setting"]));
+
+    expect(deriveRecordTags({
       name: "Temple Custodian",
       category: "creature",
       subcategory: null,
@@ -803,6 +835,14 @@ describe("derived tag rules", () => {
       descriptionText: "Abandoned zealots arise from false faiths unknown to most worshippers.",
       traits: ["undead", "spirit"],
     })).not.toContain("nautical_setting");
+
+    expect(deriveRecordTags({
+      name: "Sky Canyon Balladeer",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A performer sings a ballad titled Canyon Echoes beneath an open sky.",
+      traits: ["humanoid"],
+    })).not.toEqual(expect.arrayContaining(["canyon_setting", "wasteland_setting"]));
 
     expect(deriveRecordTags({
       name: "Adamantine Golem",
@@ -1469,8 +1509,10 @@ describe("derived tag rules", () => {
           expect.objectContaining({ value: "coastal_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "island_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "plains_setting", description: expect.any(String) }),
+          expect.objectContaining({ value: "canyon_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "temple_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "fortress_setting", description: expect.any(String) }),
+          expect.objectContaining({ value: "wasteland_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "volcanic_setting", description: expect.any(String) }),
         ]),
       }),
