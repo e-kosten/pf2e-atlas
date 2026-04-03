@@ -6,7 +6,7 @@ import {
   evaluateDerivedTagGaps,
   rankDerivedTagGapCandidates,
   type DerivedTagGapRecord,
-} from "../src/derived-tag-gap-evaluator.js";
+} from "../../src/tags/gap-evaluator.js";
 
 function vector(values: number[]): Float32Array {
   return Float32Array.from(values);

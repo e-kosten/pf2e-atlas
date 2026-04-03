@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { DERIVED_TAG_CATALOG, deriveRecordTags } from "../src/derived-tags.js";
+import { DERIVED_TAG_CATALOG, deriveRecordTags } from "../../src/tags/index.js";
 
 describe("derived tag rules", () => {
   it("derives expanded consumable support and offense tags", () => {

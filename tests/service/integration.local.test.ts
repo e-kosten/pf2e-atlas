@@ -5,7 +5,7 @@ import path from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { Pf2eDataService } from "../src/pf2e-data.js";
+import { Pf2eDataService } from "../../src/data/service.js";
 
 const TEST_HASH_EMBEDDING = {
   provider: "hash" as const,

@@ -2,9 +2,9 @@ import { access } from "node:fs/promises";
 import path from "node:path";
 import { constants } from "node:fs";
 
-import { DEFAULT_EMBEDDING_MODEL_ID, DEFAULT_EMBEDDING_REVISION } from "./embeddings.js";
-import { AppConfig } from "./types.js";
-import { expandHome } from "./utils.js";
+import { DEFAULT_EMBEDDING_MODEL_ID, DEFAULT_EMBEDDING_REVISION } from "../embeddings.js";
+import { AppConfig } from "../types.js";
+import { expandHome } from "../utils.js";
 
 function parseCliArgs(argv: string[]): Record<string, string> {
   const parsed: Record<string, string> = {};

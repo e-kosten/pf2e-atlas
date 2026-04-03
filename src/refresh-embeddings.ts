@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { loadConfig } from "./config.js";
+import { loadConfig } from "./app/config.js";
 import { prepareEmbeddingAssets } from "./embeddings.js";
 
 function formatDuration(durationMs: number): string {

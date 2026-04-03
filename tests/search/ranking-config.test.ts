@@ -4,7 +4,7 @@ import path from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { DEFAULT_RANKING_CONFIG, mergeRankingConfig, RankingConfigStore } from "../src/ranking-config.js";
+import { DEFAULT_RANKING_CONFIG, mergeRankingConfig, RankingConfigStore } from "../../src/search/ranking-config.js";
 
 describe("ranking config", () => {
   const createdRoots: string[] = [];

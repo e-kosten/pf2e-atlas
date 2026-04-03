@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-import { loadConfig } from "./config.js";
-import { Pf2eDataService } from "./pf2e-data.js";
+import { loadConfig } from "./app/config.js";
+import { Pf2eDataService } from "./data/service.js";
 import { ConsoleProgressReporter } from "./progress.js";
 
 function formatDuration(durationMs: number): string {

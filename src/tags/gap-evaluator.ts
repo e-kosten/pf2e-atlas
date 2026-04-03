@@ -1,7 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
 
-import { normalizeDerivedTag } from "./derived-tags.js";
-import { SearchCategory, SearchSubcategory } from "./types.js";
+import { normalizeDerivedTag } from "./index.js";
+import { SearchCategory, SearchSubcategory } from "../types.js";
 
 export type DerivedTagGapRecord = {
   recordKey: string;

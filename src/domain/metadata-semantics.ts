@@ -1,5 +1,5 @@
 import { SEARCH_CATEGORIES } from "./categories.js";
-import { DERIVED_TAG_CATALOG } from "./derived-tags.js";
+import { DERIVED_TAG_CATALOG } from "../tags/index.js";
 import {
   FILTER_VALUE_FIELDS,
   METADATA_BOOLEAN_FIELDS,
@@ -20,7 +20,7 @@ import {
   MetadataTextStringOperator,
   SearchCategory,
   SearchSubcategory,
-} from "./types.js";
+} from "../types.js";
 
 type MetadataFieldName =
   | MetadataSetField

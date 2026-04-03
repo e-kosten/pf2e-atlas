@@ -9,7 +9,7 @@ import {
   getSearchSubcategoryErrorMessage,
   normalizeSearchCategory,
   normalizeSearchSubcategory,
-} from "./categories.js";
+} from "../domain/categories.js";
 import {
   FILTER_VALUE_FIELDS,
   METADATA_BOOLEAN_FIELDS,
@@ -22,7 +22,7 @@ import {
   SearchCategory,
   SearchScope,
   SearchSubcategory,
-} from "./types.js";
+} from "../types.js";
 
 export const CATEGORY_HINT_DESCRIPTION =
   `Optional top-level category hint. Canonical values: ${VALID_SEARCH_CATEGORY_LIST}. Legacy plural aliases are also accepted.`;

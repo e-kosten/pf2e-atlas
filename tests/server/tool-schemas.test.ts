@@ -10,7 +10,7 @@ import {
   searchProfileSchema,
   searchScopeSchema,
   searchSubcategorySchema,
-} from "../src/tool-schemas.js";
+} from "../../src/server/tool-schemas.js";
 
 describe("tool schemas", () => {
   it("advertises the user-facing search profiles", () => {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { getMetadataFilterSemantics } from "../src/metadata-semantics.js";
-import { filterValueFieldSchema } from "../src/tool-schemas.js";
+import { getMetadataFilterSemantics } from "../../src/domain/metadata-semantics.js";
+import { filterValueFieldSchema } from "../../src/server/tool-schemas.js";
 
 describe("metadata search semantics", () => {
   it("lists meaningful metadata fields by category", () => {
