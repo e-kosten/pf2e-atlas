@@ -48,6 +48,7 @@ Default to this skill when any of these are true:
    Include:
    - current coverage snapshot
    - proposed families and tags
+   - the conceptual rule logic for each proposed tag, including likely anchors, blockers, thresholds, and boundary cases
    - expected tagged-record gain
    - expected percentage-point coverage gain
    - concrete example records expected to move
@@ -58,6 +59,7 @@ Default to this skill when any of these are true:
    - repeated evidence terms or phrases
    - contrast records that show likely boundary cases
    Ask a direct confirmation question and wait unless the user explicitly asked for immediate implementation.
+   In parallel workflows, no worker should implement rule, catalog, or test edits before this approval is granted for that worker's slice.
 7. Implement in the declarative rule table.
    Prefer:
    - atomic tags
@@ -117,3 +119,19 @@ A good approval batch is:
 - one sparse category slice
 - 1-2 families and 3-8 tags, or a similarly meaningful expansion pass
 - enough expected movement that the category coverage numbers should visibly change
+
+## Parallel Approval-First Mode
+
+When the work is split across multiple slices:
+
+- Use a parent-agent workflow.
+- Workers may audit, sample records, run evaluator/discovery commands, and draft proposals.
+- Workers must stop before implementation and hand the parent agent:
+  - proposed tags
+  - conceptual rule logic
+  - likely anchors, blockers, thresholds, and false-positive risks
+  - representative records expected to move
+- The parent agent presents those proposals to the user for approval.
+- Only approved slices should proceed to implementation.
+- Rejected slices should be dropped without further implementation work.
+- The parent agent remains the gate for final integration, merge back into the main workspace, and the final commit.

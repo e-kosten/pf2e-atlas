@@ -40,10 +40,12 @@ Default to this skill when any of these are true:
 5. Stop for an approval checkpoint before editing.
    Include:
    - the tag or rules being changed
+   - the conceptual calibration logic, including intended anchors, blockers, thresholds, and the expected boundary between positive and negative cases
    - expected record movement
    - expected category-level coverage delta when the pass should move live coverage materially
    - the main precision risk
    Ask a direct confirmation question and wait unless the user explicitly asked for immediate implementation.
+   In parallel workflows, no worker should implement rule or test edits before this approval is granted for that worker's slice.
 6. Implement in the declarative rule table.
    Prefer:
    - stronger anchors over larger keyword lists
@@ -83,3 +85,18 @@ A good approval batch is:
 - 2-5 related existing tags or one related-slice refinement pass
 - concrete examples of records expected to change
 - one sentence on likely false-positive risk
+
+## Parallel Approval-First Mode
+
+When refinement work is split across multiple slices:
+
+- Use a parent-agent workflow.
+- Workers may inspect rules, gather false-positive or false-negative evidence, and draft refinement proposals.
+- Workers must stop before implementation and hand the parent agent:
+  - the affected tags or rule slice
+  - conceptual calibration logic
+  - expected record movement
+  - principal precision risks and boundary cases
+- The parent agent presents those proposals to the user for approval.
+- Only approved refinement slices should proceed to implementation.
+- The parent agent remains the gate for final integration, merge back into the main workspace, and the final commit.
