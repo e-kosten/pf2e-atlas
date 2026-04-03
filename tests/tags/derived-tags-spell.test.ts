@@ -213,6 +213,22 @@ describe("derived tag rules: spell", () => {
     })).toContain("mobility");
 
     expect(deriveRecordTags({
+      name: "Teleport",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "Targets are instantly transported to a destination you know well.",
+      traits: ["teleportation"],
+    })).toContain("mobility");
+
+    expect(deriveRecordTags({
+      name: "Water Walk",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "The target can walk on the surface of water and move across liquid surfaces as if they were solid ground.",
+      traits: ["transmutation"],
+    })).toContain("mobility");
+
+    expect(deriveRecordTags({
       name: "Leaden Steps",
       category: "spell",
       subcategory: null,
@@ -235,6 +251,14 @@ describe("derived tag rules: spell", () => {
       descriptionText: "You enchant a single object, preventing it from being used for magical observation. The item can't be used to cast scrying spells.",
       traits: ["abjuration"],
     })).not.toContain("scouting");
+
+    expect(deriveRecordTags({
+      name: "Thoughtful Gift",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You teleport one object into the target's hands from afar.",
+      traits: ["teleportation"],
+    })).not.toContain("mobility");
   });
 
   it("derives spell transformation tags and promotes the family tag", () => {
@@ -415,6 +439,14 @@ describe("derived tag rules: spell", () => {
       subcategory: null,
       descriptionText: "You counteract an affliction, remove a condition, and cure poison.",
       traits: [],
+    })).toContain("condition_support");
+
+    expect(deriveRecordTags({
+      name: "Clear Mind",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You drive mental contamination from the target's mind and counteract an effect applying one of the following conditions.",
+      traits: ["healing"],
     })).toContain("condition_support");
 
     expect(deriveRecordTags({

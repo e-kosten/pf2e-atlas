@@ -994,6 +994,78 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     },
   });
 
+  await writeJson(path.join(packRoot, "equipment-srd", "glue-bullet.json"), {
+    _id: "ammo-glue-bullet-1",
+    name: "Glue Bullet",
+    type: "ammo",
+    system: {
+      description: {
+        value: "<p>When an activated glue bullet hits a target, the creature becomes immobilized and stuck to the surface until it @UUID[Compendium.pf2e.actionspf2e.Item.Escape]{Escape}s.</p>",
+      },
+      publication: {
+        title: "Pathfinder Guns & Gears",
+      },
+      traits: {
+        rarity: "common",
+        value: ["ammunition"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment-srd", "blindpepper-bolt.json"), {
+    _id: "ammo-blindpepper-bolt-1",
+    name: "Blindpepper Bolt",
+    type: "ammo",
+    system: {
+      description: {
+        value: "<p>When an activated blindpepper bolt hits a target, the creature must attempt a save or become blinded by the caustic pepper cloud.</p>",
+      },
+      publication: {
+        title: "Pathfinder Guns & Gears",
+      },
+      traits: {
+        rarity: "common",
+        value: ["ammunition"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment-srd", "mindlock-shot.json"), {
+    _id: "ammo-mindlock-shot-1",
+    name: "Mindlock Shot",
+    type: "ammo",
+    system: {
+      description: {
+        value: "<p>A creature struck by this shot becomes frightened 2 and stupefied 1 as panic grips its mind.</p>",
+      },
+      publication: {
+        title: "Pathfinder Guns & Gears",
+      },
+      traits: {
+        rarity: "common",
+        value: ["ammunition"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment", "slumber-wine.json"), {
+    _id: "consumable-slumber-wine-1",
+    name: "Slumber Wine",
+    type: "consumable",
+    system: {
+      description: {
+        value: "<p>This ingested poison leaves the target drowsy before it falls asleep and becomes unconscious.</p>",
+      },
+      publication: {
+        title: "Pathfinder Treasure Vault",
+      },
+      traits: {
+        rarity: "common",
+        value: ["consumable", "poison"],
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "equipment-srd", "countering-charm.json"), {
     _id: "equip-countering-charm-1",
     name: "Countering Charm",

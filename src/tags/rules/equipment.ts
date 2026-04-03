@@ -177,6 +177,58 @@ const ARMOR_SURVIVAL_TEXT_ANCHORS = [
   patternAnchor("underwater"),
 ];
 
+const EQUIPMENT_IMPACT_MOBILITY_TEXT_ANCHORS = [
+  patternAnchor("immobilized"),
+  patternAnchor("restrained"),
+  patternAnchor("grabbed"),
+  patternAnchor("slowed"),
+  patternAnchor("sticks to the ground"),
+  patternAnchor("stuck to the surface"),
+  patternAnchor("wrap around its legs"),
+  patternAnchor("hold a creature in place"),
+  patternAnchor("encase the target"),
+  patternAnchor("-10-foot status penalty to its speed"),
+  patternAnchor("speed penalty"),
+];
+
+const EQUIPMENT_IMPACT_SENSORY_TEXT_ANCHORS = [
+  patternAnchor("blinded"),
+  patternAnchor("blind"),
+  patternAnchor("dazzled"),
+  patternAnchor("deafened"),
+];
+
+const EQUIPMENT_IMPACT_MENTAL_TEXT_ANCHORS = [
+  patternAnchor("frightened"),
+  patternAnchor("stupefied"),
+  patternAnchor("confused"),
+  patternAnchor("hallucinations"),
+  patternAnchor("hallucinatory"),
+  patternAnchor("mental damage"),
+  patternAnchor("mind control"),
+];
+
+const EQUIPMENT_IMPACT_SEDATION_TEXT_ANCHORS = [
+  patternAnchor("unconscious"),
+  patternAnchor("falls asleep"),
+  patternAnchor("fall asleep"),
+  patternAnchor("drowsy"),
+  patternAnchor("drowsiness"),
+  patternAnchor("lethargic"),
+  patternAnchor("sleep"),
+  patternAnchor("can t wake up"),
+];
+
+const EQUIPMENT_IMPACT_BLOCKER_TEXT_ANCHORS = [
+  patternAnchor("you gain"),
+  patternAnchor("the drinker gains"),
+  patternAnchor("restful sleep"),
+  patternAnchor("steady the emotions"),
+  patternAnchor("recover from mental conditions"),
+  patternAnchor("helps clear"),
+  patternAnchor("mitigate harmful conditions"),
+];
+
 export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "offensive",
@@ -439,6 +491,94 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     threshold: 2,
     anyOf: [
       { score: 2, textAny: ARMOR_MOBILITY_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "mobility_impairment",
+    category: "equipment",
+    subcategories: ["ammo"],
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: EQUIPMENT_IMPACT_MOBILITY_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "mobility_impairment",
+    category: "equipment",
+    subcategories: ["consumable"],
+    requiresTags: ["offensive"],
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: EQUIPMENT_IMPACT_MOBILITY_TEXT_ANCHORS },
+    ],
+    noneOf: [
+      { textAny: EQUIPMENT_IMPACT_BLOCKER_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "sensory_impairment",
+    category: "equipment",
+    subcategories: ["ammo"],
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: EQUIPMENT_IMPACT_SENSORY_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "sensory_impairment",
+    category: "equipment",
+    subcategories: ["consumable"],
+    requiresTags: ["offensive"],
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: EQUIPMENT_IMPACT_SENSORY_TEXT_ANCHORS },
+    ],
+    noneOf: [
+      { textAny: EQUIPMENT_IMPACT_BLOCKER_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "mental_impairment",
+    category: "equipment",
+    subcategories: ["ammo"],
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: EQUIPMENT_IMPACT_MENTAL_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "mental_impairment",
+    category: "equipment",
+    subcategories: ["consumable"],
+    requiresTags: ["offensive"],
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: EQUIPMENT_IMPACT_MENTAL_TEXT_ANCHORS },
+    ],
+    noneOf: [
+      { textAny: EQUIPMENT_IMPACT_BLOCKER_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "sedation",
+    category: "equipment",
+    subcategories: ["ammo"],
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: EQUIPMENT_IMPACT_SEDATION_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "sedation",
+    category: "equipment",
+    subcategories: ["consumable"],
+    requiresTags: ["offensive"],
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: EQUIPMENT_IMPACT_SEDATION_TEXT_ANCHORS },
+    ],
+    noneOf: [
+      { textAny: EQUIPMENT_IMPACT_BLOCKER_TEXT_ANCHORS },
     ],
   },
   {

@@ -727,6 +727,48 @@ describe("derived tag rules: equipment", () => {
     })).toContain("explosive_payload");
   });
 
+  it("derives hostile equipment impact tags for ammo and consumables", () => {
+    expect(deriveRecordTags({
+      name: "Glue Bullet",
+      category: "equipment",
+      subcategory: "ammo",
+      descriptionText: "When an activated glue bullet hits a target, the creature becomes immobilized and stuck to the surface until it Escapes.",
+      traits: ["ammunition"],
+    })).toContain("mobility_impairment");
+
+    expect(deriveRecordTags({
+      name: "Blindpepper Bolt",
+      category: "equipment",
+      subcategory: "ammo",
+      descriptionText: "When an activated blindpepper bolt hits, the creature must attempt a save or become blinded by the caustic pepper cloud.",
+      traits: ["ammunition"],
+    })).toContain("sensory_impairment");
+
+    expect(deriveRecordTags({
+      name: "Mindlock Shot",
+      category: "equipment",
+      subcategory: "ammo",
+      descriptionText: "A creature struck by this shot becomes frightened 2 and stupefied 1 as panic grips its mind.",
+      traits: ["ammunition"],
+    })).toContain("mental_impairment");
+
+    expect(deriveRecordTags({
+      name: "Slumber Wine",
+      category: "equipment",
+      subcategory: "consumable",
+      descriptionText: "This ingested poison leaves the target drowsy before it falls asleep and becomes unconscious.",
+      traits: ["consumable", "poison"],
+    })).toEqual(expect.arrayContaining(["offensive", "ingested_offense", "sedation"]));
+
+    expect(deriveRecordTags({
+      name: "Dreamer's Tonic",
+      category: "equipment",
+      subcategory: "consumable",
+      descriptionText: "This restorative tonic helps recover from mental conditions and steady the emotions.",
+      traits: ["alchemical", "consumable"],
+    })).not.toContain("mental_impairment");
+  });
+
   it("avoids equipment false positives while preserving shared tags", () => {
     expect(deriveRecordTags({
       name: "Antidote (Lesser)",

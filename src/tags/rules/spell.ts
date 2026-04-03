@@ -53,6 +53,10 @@ const CONDITION_SUPPORT_TEXT_ANCHORS = [
   patternAnchor("cure disease"),
   patternAnchor("cure poison"),
   patternAnchor("remove curse"),
+  patternAnchor("counteract an effect of your choice imposing one of these conditions"),
+  patternAnchor("counteract an effect applying one of the following conditions"),
+  patternAnchor("free the target s limbs from ailments that impede mobility"),
+  patternAnchor("drive mental contamination from the target s mind"),
 ];
 
 const PROTECTIVE_WARD_NAME_ANCHORS = [
@@ -351,7 +355,28 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "spell",
     threshold: 2,
     anyOf: [
+      { score: 1, traitsAny: ["teleportation"] },
       { score: 2, textAny: SPELL_MOBILITY_TEXT_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              patternAnchor("teleport"),
+              patternAnchor("teleports"),
+              patternAnchor("transport"),
+              patternAnchor("transports"),
+              patternAnchor("instantly"),
+              patternAnchor("swap"),
+              patternAnchor("surface"),
+              patternAnchor("water"),
+            ],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+        ],
+      },
     ],
     noneOf: [
       { textAny: SPELL_MOBILITY_BLOCKER_TEXT_ANCHORS },
@@ -466,6 +491,35 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
     threshold: 2,
     anyOf: [
       { score: 2, textAny: CONDITION_SUPPORT_TEXT_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              patternAnchor("counteract"),
+              patternAnchor("delay"),
+              patternAnchor("free"),
+              patternAnchor("drive"),
+            ],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 1,
+          },
+          {
+            terms: [
+              patternAnchor("condition"),
+              patternAnchor("conditions"),
+              patternAnchor("affliction"),
+              patternAnchor("mobility"),
+              patternAnchor("mind"),
+              patternAnchor("mental"),
+            ],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+        ],
+      },
     ],
   },
   {

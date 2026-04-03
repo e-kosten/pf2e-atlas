@@ -390,6 +390,14 @@ describe("derived tag rules: creature", () => {
     })).toContain("trickster_chaos");
 
     expect(deriveRecordTags({
+      name: "Living Mural",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "This two-dimensional mural has come to life as a mindless construct that peels itself from the wall to attack intruders.",
+      traits: ["construct", "mindless"],
+    })).toContain("living_artwork");
+
+    expect(deriveRecordTags({
       name: "Masked Mourner",
       category: "creature",
       subcategory: null,
@@ -460,6 +468,14 @@ describe("derived tag rules: creature", () => {
       descriptionText: "Goblins think fire is a fun toy and admire anyone willing to burn down a barn for sport.",
       traits: ["goblin", "humanoid"],
     })).not.toContain("living_toy");
+
+    expect(deriveRecordTags({
+      name: "Blood Painter",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "An alien artist stalks battlefields in search of pigments and living canvases for its gruesome paintings.",
+      traits: ["aberration"],
+    })).not.toContain("living_artwork");
 
     expect(deriveRecordTags({
       name: "Chaos Reaver",

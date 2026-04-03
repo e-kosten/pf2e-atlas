@@ -133,6 +133,49 @@ const HAZARD_SOUND_TEXT_ANCHORS = [
   patternAnchor("vibrating floor"),
 ];
 
+const HAZARD_RESPIRATORY_NAME_ANCHORS = [
+  patternAnchor("smoke", "name"),
+  patternAnchor("breathless", "name"),
+  patternAnchor("vapor", "name"),
+  patternAnchor("fog", "name"),
+];
+
+const HAZARD_RESPIRATORY_TEXT_ANCHORS = [
+  patternAnchor("smoke-filled"),
+  patternAnchor("smoke filled"),
+  patternAnchor("noxious vapors"),
+  patternAnchor("poison gas"),
+  patternAnchor("steals the breath"),
+  patternAnchor("can t breathe"),
+  patternAnchor("cannot breathe"),
+  patternAnchor("difficult to see and breathe"),
+  patternAnchor("breathless"),
+  patternAnchor("choking smoke"),
+  patternAnchor("inhaled"),
+];
+
+const HAZARD_WATER_NAME_ANCHORS = [
+  patternAnchor("flood", "name"),
+  patternAnchor("geyser", "name"),
+  patternAnchor("tsunami", "name"),
+  patternAnchor("wave", "name"),
+];
+
+const HAZARD_WATER_TEXT_ANCHORS = [
+  patternAnchor("flash flood"),
+  patternAnchor("flood"),
+  patternAnchor("flooding"),
+  patternAnchor("geyser"),
+  patternAnchor("geysers"),
+  patternAnchor("megatsunami"),
+  patternAnchor("rushing water"),
+  patternAnchor("torrent"),
+  patternAnchor("surge"),
+  patternAnchor("surging water"),
+  patternAnchor("wave"),
+  patternAnchor("submerged"),
+];
+
 export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "ward_trigger",
@@ -535,6 +578,37 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
         textAny: [
           patternAnchor("creature becomes restrained"),
           patternAnchor("target becomes restrained"),
+          patternAnchor("immobilized"),
+          patternAnchor("held fast"),
+          patternAnchor("ensnared"),
+          patternAnchor("entangled"),
+          patternAnchor("stuck in place"),
+          patternAnchor("stuck fast"),
+          patternAnchor("pins the creature"),
+          patternAnchor("cage"),
+          patternAnchor("webs"),
+        ],
+      },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              patternAnchor("restrained"),
+              patternAnchor("immobilized"),
+              patternAnchor("grabbed"),
+              patternAnchor("stuck"),
+              patternAnchor("web"),
+              patternAnchor("webs"),
+              patternAnchor("tar"),
+              patternAnchor("cage"),
+              patternAnchor("ensnare"),
+              patternAnchor("ensnared"),
+            ],
+            window: 5,
+            scope: "description",
+            minTermsMatched: 2,
+          },
         ],
       },
     ],
@@ -828,6 +902,77 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
     ],
     noneOf: [
       { textAny: HAZARD_ALARM_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "respiratory_hazard",
+    category: "hazard",
+    threshold: 2,
+    anyOf: [
+      { score: 1, textAny: HAZARD_RESPIRATORY_NAME_ANCHORS },
+      { score: 2, textAny: HAZARD_RESPIRATORY_TEXT_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              patternAnchor("smoke"),
+              patternAnchor("vapor"),
+              patternAnchor("vapors"),
+              patternAnchor("fog"),
+              patternAnchor("gas"),
+              patternAnchor("air"),
+              patternAnchor("breath"),
+            ],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+          {
+            terms: [
+              patternAnchor("choking"),
+              patternAnchor("suffocate"),
+              patternAnchor("breathless"),
+              patternAnchor("inhaled"),
+              patternAnchor("breathe"),
+              patternAnchor("difficult"),
+            ],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+        ],
+      },
+    ],
+  },
+  {
+    tag: "water_hazard",
+    category: "hazard",
+    threshold: 2,
+    anyOf: [
+      { score: 1, textAny: HAZARD_WATER_NAME_ANCHORS },
+      { score: 2, textAny: HAZARD_WATER_TEXT_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              patternAnchor("water"),
+              patternAnchor("flood"),
+              patternAnchor("geyser"),
+              patternAnchor("wave"),
+              patternAnchor("torrent"),
+              patternAnchor("surge"),
+            ],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+        ],
+      },
+    ],
+    noneOf: [
+      { textAny: [patternAnchor("blood"), patternAnchor("tar"), patternAnchor("lava"), patternAnchor("magma")] },
     ],
   },
   {

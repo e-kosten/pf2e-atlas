@@ -116,6 +116,16 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       }),
       expect.objectContaining({
         category: "equipment",
+        family: "impact",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "mobility_impairment", description: expect.any(String) }),
+          expect.objectContaining({ value: "sensory_impairment", description: expect.any(String) }),
+          expect.objectContaining({ value: "mental_impairment", description: expect.any(String) }),
+          expect.objectContaining({ value: "sedation", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "equipment",
         family: "infiltration",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "disguise", description: expect.any(String) }),
@@ -159,6 +169,8 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "fire_hazard", description: expect.any(String) }),
           expect.objectContaining({ value: "poison_hazard", description: expect.any(String) }),
+          expect.objectContaining({ value: "respiratory_hazard", description: expect.any(String) }),
+          expect.objectContaining({ value: "water_hazard", description: expect.any(String) }),
         ]),
       }),
       expect.objectContaining({
@@ -176,6 +188,21 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "mental_impairment", description: expect.any(String) }),
           expect.objectContaining({ value: "mobility_impairment", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "affliction",
+        family: "pathogenesis",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "rot_decay", description: expect.any(String) }),
+          expect.objectContaining({ value: "infestation_implant", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "affliction",
+        family: "behavioral_override",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "compulsion", description: expect.any(String) }),
         ]),
       }),
       expect.objectContaining({
@@ -222,6 +249,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "carnival_show", description: expect.any(String) }),
           expect.objectContaining({ value: "living_toy", description: expect.any(String) }),
+          expect.objectContaining({ value: "living_artwork", description: expect.any(String) }),
           expect.objectContaining({ value: "trickster_chaos", description: expect.any(String) }),
         ]),
       }),
@@ -250,7 +278,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     expect(service.listFilterValues({
       field: "derivedTags",
       category: "equipment",
-    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["alarm", "beneficial", "offensive", "climbing", "lock_bypass", "mental_recovery", "carry_support", "tracking", "anti_tracking", "restraint_escape", "restraint_capture"]));
+    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["alarm", "beneficial", "offensive", "climbing", "lock_bypass", "mental_recovery", "carry_support", "tracking", "anti_tracking", "restraint_escape", "restraint_capture", "mobility_impairment", "sensory_impairment", "mental_impairment", "sedation"]));
     expect(service.listFilterValues({
       field: "derivedTags",
       category: "spell",
@@ -258,20 +286,23 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     expect(service.listFilterValues({
       field: "derivedTags",
       category: "hazard",
-    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["alarm", "mobility_impairment", "restraint_capture"]));
+    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["alarm", "mobility_impairment", "restraint_capture", "respiratory_hazard", "water_hazard"]));
     expect(service.listFilterValues({
       field: "derivedTags",
       category: "affliction",
-    }).values.map((entry) => entry.value)).toEqual([
+    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining([
       "healing_suppression",
       "mental_impairment",
       "mobility_impairment",
       "sedation",
-    ]);
+      "rot_decay",
+      "infestation_implant",
+      "compulsion",
+    ]));
     expect(service.listFilterValues({
       field: "derivedTags",
       category: "creature",
-    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["aquatic_setting", "freshwater_setting", "coastal_setting", "astral_setting", "first_world_setting", "boneyard_setting", "temple_setting", "carnival_show", "living_toy", "trickster_chaos"]));
+    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["aquatic_setting", "freshwater_setting", "coastal_setting", "astral_setting", "first_world_setting", "boneyard_setting", "temple_setting", "carnival_show", "living_toy", "living_artwork", "trickster_chaos"]));
 
     expect(service.listFilterValues({
       field: "families",
@@ -304,9 +335,9 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     })).toEqual({
       field: "publicationTitle",
       values: [
-        { value: "Pathfinder Player Core", count: 7 },
+        { value: "Pathfinder Player Core", count: 9 },
+        { value: "Pathfinder Dark Archive", count: 2 },
         { value: "Pathfinder Secrets of Magic", count: 2 },
-        { value: "Pathfinder Dark Archive", count: 1 },
       ],
     });
 
@@ -316,10 +347,10 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     })).toEqual({
       field: "traditions",
       values: [
-        { value: "occult", count: 5 },
-        { value: "arcane", count: 4 },
-        { value: "primal", count: 3 },
-        { value: "divine", count: 2 },
+        { value: "occult", count: 7 },
+        { value: "arcane", count: 5 },
+        { value: "divine", count: 4 },
+        { value: "primal", count: 4 },
       ],
     });
 
@@ -374,7 +405,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     })).toEqual({
       field: "packs",
       values: [
-        { value: "Spells", count: 7 },
+        { value: "Spells", count: 10 },
         { value: "Spells SRD", count: 3 },
       ],
     });

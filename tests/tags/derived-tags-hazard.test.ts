@@ -289,6 +289,30 @@ describe("derived tag rules: hazard", () => {
     })).not.toContain("poison_hazard");
 
     expect(deriveRecordTags({
+      name: "Smoke-Filled Hallway",
+      category: "hazard",
+      subcategory: null,
+      descriptionText: "Dense choking smoke fills the hallway, making it difficult to see and breathe.",
+      traits: ["environmental"],
+    })).toContain("respiratory_hazard");
+
+    expect(deriveRecordTags({
+      name: "Sudden Geysers",
+      category: "hazard",
+      subcategory: null,
+      descriptionText: "Superheated water erupts upward in sudden geysers and floods the chamber floor.",
+      traits: ["environmental"],
+    })).toContain("water_hazard");
+
+    expect(deriveRecordTags({
+      name: "Ash Web",
+      category: "hazard",
+      subcategory: null,
+      descriptionText: "The creature becomes immobilized in the sticky web and remains held fast until it tears free.",
+      traits: ["environmental"],
+    })).toContain("restraint_capture");
+
+    expect(deriveRecordTags({
       name: "Drowning Pit",
       category: "hazard",
       subcategory: "trap",

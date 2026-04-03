@@ -728,6 +728,16 @@ const SPELL_MOBILITY_TEXT_ANCHORS: TextAnchor[] = [
   patternAnchor("gain a +{{number}}-foot status bonus to your speed"),
   patternAnchor("you gain a +{{number}}-foot status bonus to your speed"),
   patternAnchor("teleport you to an unoccupied space"),
+  patternAnchor("teleport to an unoccupied space"),
+  patternAnchor("teleport to a space"),
+  patternAnchor("teleport up to"),
+  patternAnchor("targets are instantly transported"),
+  patternAnchor("transport yourself"),
+  patternAnchor("swap places"),
+  patternAnchor("instantly teleport"),
+  patternAnchor("walk on the surface of water"),
+  patternAnchor("move across liquid surfaces"),
+  patternAnchor("cover roughly as much ground as"),
   patternAnchor("transported with you"),
   patternAnchor("reduce the movement penalty from difficult terrain"),
   patternAnchor("hinder a creature or slow its movement"),
@@ -736,6 +746,15 @@ const SPELL_MOBILITY_TEXT_ANCHORS: TextAnchor[] = [
 
 const SPELL_MOBILITY_BLOCKER_TEXT_ANCHORS: TextAnchor[] = [
   patternAnchor("battle form"),
+  patternAnchor("target object"),
+  patternAnchor("one object"),
+  patternAnchor("swap an item"),
+  patternAnchor("teleport the snare"),
+  patternAnchor("teleportation circle"),
+  patternAnchor("prison"),
+  patternAnchor("maze"),
+  patternAnchor("trap them there"),
+  patternAnchor("trap the target"),
 ];
 
 const AFFLICTION_MENTAL_TEXT_ANCHORS: TextAnchor[] = [

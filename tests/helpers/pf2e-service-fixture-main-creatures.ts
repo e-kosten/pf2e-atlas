@@ -847,6 +847,30 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
     },
   });
 
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "living-mural.json"), {
+    _id: "living-mural",
+    name: "Living Mural",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 6,
+        },
+        publication: {
+          title: "Pathfinder Adventure Path",
+        },
+        publicNotes: "<p>This two-dimensional mural has come to life as a mindless construct that peels itself from the wall to attack intruders.</p>",
+      },
+      traits: {
+        rarity: "uncommon",
+        value: ["construct", "mindless"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "pathfinder-monster-core", "masked-mourner.json"), {
     _id: "masked-mourner",
     name: "Masked Mourner",
@@ -1401,6 +1425,69 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
       traits: {
         rarity: "common",
         value: ["magical", "trap"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "smoke-filled-hallway.json"), {
+    _id: "smoke-filled-hallway",
+    name: "Smoke-Filled Hallway",
+    type: "hazard",
+    system: {
+      details: {
+        level: {
+          value: 2,
+        },
+        publication: {
+          title: "Pathfinder GM Core",
+        },
+        publicNotes: "<p>Dense choking smoke fills the hallway, making it difficult to see and breathe.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["environmental"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "sudden-geysers.json"), {
+    _id: "sudden-geysers",
+    name: "Sudden Geysers",
+    type: "hazard",
+    system: {
+      details: {
+        level: {
+          value: 5,
+        },
+        publication: {
+          title: "Pathfinder Adventure Path",
+        },
+        publicNotes: "<p>Superheated water erupts upward in sudden geysers and floods the chamber floor.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["environmental"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "ash-web.json"), {
+    _id: "ash-web",
+    name: "Ash Web",
+    type: "hazard",
+    system: {
+      details: {
+        level: {
+          value: 4,
+        },
+        publication: {
+          title: "Pathfinder Adventure Path",
+        },
+        publicNotes: "<p>The creature becomes immobilized in the sticky web and remains held fast until it tears free.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["environmental"],
       },
     },
   });

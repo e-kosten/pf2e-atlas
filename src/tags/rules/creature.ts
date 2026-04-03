@@ -101,6 +101,22 @@ const LIVING_TOY_TEXT_ANCHORS = [
   patternAnchor("dressmaker s dummy"),
 ];
 
+const LIVING_ARTWORK_NAME_ANCHORS = [
+  patternAnchor("living graffiti", "name"),
+  patternAnchor("living mural", "name"),
+];
+
+const LIVING_ARTWORK_TEXT_ANCHORS = [
+  patternAnchor("living graffiti"),
+  patternAnchor("living mural"),
+  patternAnchor("painting or drawing that has come to life"),
+  patternAnchor("painting has come to life"),
+  patternAnchor("drawing has come to life"),
+  patternAnchor("two dimensional portrait given life"),
+  patternAnchor("illustration painted in three dimensions"),
+  patternAnchor("artwork brought to life"),
+];
+
 const MASK_MOTIF_NAME_ANCHORS = [
   patternAnchor("mask", "name"),
   patternAnchor("masked", "name"),
@@ -806,6 +822,51 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     anyOf: [
       { score: 2, textAny: LIVING_TOY_NAME_ANCHORS },
       { score: 2, textAny: LIVING_TOY_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "living_artwork",
+    category: "creature",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: LIVING_ARTWORK_NAME_ANCHORS },
+      { score: 2, textAny: LIVING_ARTWORK_TEXT_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              patternAnchor("painting"),
+              patternAnchor("painted"),
+              patternAnchor("portrait"),
+              patternAnchor("mural"),
+              patternAnchor("graffiti"),
+              patternAnchor("illustration"),
+              patternAnchor("drawing"),
+              patternAnchor("two dimensional"),
+              patternAnchor("flat surface"),
+            ],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+          {
+            terms: [
+              patternAnchor("comes to life"),
+              patternAnchor("come to life"),
+              patternAnchor("given life"),
+              patternAnchor("animated"),
+              patternAnchor("animate"),
+              patternAnchor("constructed"),
+              patternAnchor("construct"),
+              patternAnchor("mindless"),
+            ],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 1,
+          },
+        ],
+      },
     ],
   },
   {

@@ -144,5 +144,37 @@ describe("derived tag rules: affliction", () => {
       descriptionText: "This lemony tea blended from rare herbs puts the drinker into a trancelike state and stage 2 unconsciousness.",
       traits: ["poison"],
     })).not.toContain("sedation");
+
+    expect(deriveRecordTags({
+      name: "Rotting Curse",
+      category: "affliction",
+      subcategory: "curse",
+      descriptionText: "The victim's flesh rots and decays away, leaving necrotic wounds that worsen each day.",
+      traits: ["curse"],
+    })).toContain("rot_decay");
+
+    expect(deriveRecordTags({
+      name: "Wasp Larva",
+      category: "affliction",
+      subcategory: "disease",
+      descriptionText: "A parasitic larva burrows inside the host's body and hatches after several agonizing stages.",
+      traits: ["disease"],
+    })).toContain("infestation_implant");
+
+    expect(deriveRecordTags({
+      name: "Liar's Demise",
+      category: "affliction",
+      subcategory: "poison",
+      descriptionText: "The poison forces the victim to speak only the truth and can use no actions but to answer questions put to them.",
+      traits: ["poison"],
+    })).toContain("compulsion");
+
+    expect(deriveRecordTags({
+      name: "Mind-Rotting Toxin",
+      category: "affliction",
+      subcategory: "poison",
+      descriptionText: "This toxin clouds the mind and leaves the victim stupefied with fractured thoughts.",
+      traits: ["poison"],
+    })).not.toContain("rot_decay");
   });
 });

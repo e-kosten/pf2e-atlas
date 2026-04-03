@@ -319,6 +319,72 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
     },
   });
 
+  await writeJson(path.join(packRoot, "spells", "teleport.json"), {
+    _id: "spell-teleport-1",
+    name: "Teleport",
+    type: "spell",
+    system: {
+      description: {
+        value: "<p>Targets are instantly transported to a destination you know well.</p>",
+      },
+      level: {
+        value: 6,
+      },
+      publication: {
+        title: "Pathfinder Player Core",
+      },
+      traits: {
+        rarity: "common",
+        traditions: ["arcane", "occult"],
+        value: ["teleportation"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "spells", "water-walk.json"), {
+    _id: "spell-water-walk-1",
+    name: "Water Walk",
+    type: "spell",
+    system: {
+      description: {
+        value: "<p>The target can walk on the surface of water and move across liquid surfaces as if they were solid ground.</p>",
+      },
+      level: {
+        value: 3,
+      },
+      publication: {
+        title: "Pathfinder Player Core",
+      },
+      traits: {
+        rarity: "common",
+        traditions: ["divine", "primal"],
+        value: ["transmutation"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "spells", "clear-mind.json"), {
+    _id: "spell-clear-mind-1",
+    name: "Clear Mind",
+    type: "spell",
+    system: {
+      description: {
+        value: "<p>You drive mental contamination from the target's mind and counteract an effect applying one of the following conditions.</p>",
+      },
+      level: {
+        value: 4,
+      },
+      publication: {
+        title: "Pathfinder Dark Archive",
+      },
+      traits: {
+        rarity: "common",
+        traditions: ["divine", "occult"],
+        value: ["healing"],
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "afflictions", "cackling-delirium.json"), {
     _id: "affliction-1",
     name: "Cackling Delirium",
@@ -392,6 +458,69 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
       },
       level: {
         value: 2,
+      },
+      publication: {
+        title: "Pathfinder Treasure Vault",
+      },
+      traits: {
+        rarity: "common",
+        value: ["poison"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "afflictions", "rotting-curse.json"), {
+    _id: "affliction-rotting-curse-1",
+    name: "Rotting Curse",
+    type: "affliction",
+    system: {
+      description: {
+        value: "<p>The victim's flesh rots and decays away, leaving necrotic wounds that worsen each day.</p>",
+      },
+      level: {
+        value: 5,
+      },
+      publication: {
+        title: "Pathfinder GM Core",
+      },
+      traits: {
+        rarity: "common",
+        value: ["curse"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "afflictions", "wasp-larva.json"), {
+    _id: "affliction-wasp-larva-1",
+    name: "Wasp Larva",
+    type: "affliction",
+    system: {
+      description: {
+        value: "<p>A parasitic larva burrows inside the host's body and hatches after several agonizing stages.</p>",
+      },
+      level: {
+        value: 4,
+      },
+      publication: {
+        title: "Pathfinder Monster Core",
+      },
+      traits: {
+        rarity: "common",
+        value: ["disease"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "afflictions", "liars-demise.json"), {
+    _id: "affliction-liars-demise-1",
+    name: "Liar's Demise",
+    type: "affliction",
+    system: {
+      description: {
+        value: "<p>The poison forces the victim to speak only the truth and can use no actions but to answer questions put to them.</p>",
+      },
+      level: {
+        value: 5,
       },
       publication: {
         title: "Pathfinder Treasure Vault",

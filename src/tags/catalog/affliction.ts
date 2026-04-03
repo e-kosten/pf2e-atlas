@@ -15,4 +15,21 @@ export const AFFLICTION_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
       { value: "sedation", description: "Induces sleep, deep drowsiness, unconsciousness, or difficulty waking." },
     ],
   },
+  {
+    category: "affliction",
+    family: "pathogenesis",
+    description: "Affliction tags for recurring infection and bodily-transformation patterns.",
+    tags: [
+      { value: "rot_decay", description: "Defined by bodily rot, necrosis, blight, mummification, or similar physical decay." },
+      { value: "infestation_implant", description: "Defined by eggs, larvae, spores, parasites, or other host-colonizing implantation." },
+    ],
+  },
+  {
+    category: "affliction",
+    family: "behavioral_override",
+    description: "Affliction tags for forced behavior and explicit agency override.",
+    tags: [
+      { value: "compulsion", description: "Overrides agency through commanded behavior, forced truth-telling, or similarly scripted actions." },
+    ],
+  },
 ];

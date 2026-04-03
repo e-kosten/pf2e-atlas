@@ -57,6 +57,70 @@ const AFFLICTION_SEDATION_TEXT_ANCHORS = [
   patternAnchor("unconscious"),
 ];
 
+const AFFLICTION_ROT_DECAY_NAME_ANCHORS = [
+  patternAnchor("rot", "name"),
+  patternAnchor("mummy rot", "name"),
+  patternAnchor("necrotic", "name"),
+  patternAnchor("blight", "name"),
+  patternAnchor("slough", "name"),
+];
+
+const AFFLICTION_ROT_DECAY_TEXT_ANCHORS = [
+  patternAnchor("rot"),
+  patternAnchor("rotting"),
+  patternAnchor("decay"),
+  patternAnchor("decaying"),
+  patternAnchor("putrefy"),
+  patternAnchor("putrefies"),
+  patternAnchor("necrotic"),
+  patternAnchor("mummif"),
+  patternAnchor("blight"),
+  patternAnchor("slough"),
+  patternAnchor("sloughing"),
+];
+
+const AFFLICTION_ROT_DECAY_BLOCKER_TEXT_ANCHORS = [
+  patternAnchor("mind-rotting", "name"),
+  patternAnchor("mind rotting", "name"),
+];
+
+const AFFLICTION_INFESTATION_NAME_ANCHORS = [
+  patternAnchor("infestation", "name"),
+  patternAnchor("larva", "name"),
+  patternAnchor("larvae", "name"),
+  patternAnchor("eggs", "name"),
+];
+
+const AFFLICTION_INFESTATION_TEXT_ANCHORS = [
+  patternAnchor("parasite"),
+  patternAnchor("parasites"),
+  patternAnchor("larva"),
+  patternAnchor("larvae"),
+  patternAnchor("eggs"),
+  patternAnchor("spores"),
+  patternAnchor("infestation"),
+  patternAnchor("hatch"),
+  patternAnchor("hatches"),
+  patternAnchor("hatching"),
+  patternAnchor("burrow"),
+  patternAnchor("burrows"),
+  patternAnchor("colonize"),
+  patternAnchor("colonizes"),
+  patternAnchor("inside the host"),
+  patternAnchor("inside the body"),
+];
+
+const AFFLICTION_COMPULSION_TEXT_ANCHORS = [
+  patternAnchor("speak only the truth"),
+  patternAnchor("can't speak deliberate lies"),
+  patternAnchor("cannot speak deliberate lies"),
+  patternAnchor("can use no actions but"),
+  patternAnchor("controlled by"),
+  patternAnchor("compelled to"),
+  patternAnchor("must obey"),
+  patternAnchor("must spend each action"),
+];
+
 export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "mental_impairment",
@@ -179,6 +243,122 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
     ],
     noneOf: [
       { textAny: [patternAnchor("dreamtime tea", "name")] },
+    ],
+  },
+  {
+    tag: "rot_decay",
+    category: "affliction",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: AFFLICTION_ROT_DECAY_NAME_ANCHORS },
+      { score: 2, textAny: AFFLICTION_ROT_DECAY_TEXT_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              patternAnchor("rot"),
+              patternAnchor("rotting"),
+              patternAnchor("decay"),
+              patternAnchor("decaying"),
+              patternAnchor("blight"),
+              patternAnchor("necrotic"),
+              patternAnchor("mummy"),
+            ],
+            window: 5,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+        ],
+      },
+    ],
+    noneOf: [
+      { textAny: AFFLICTION_ROT_DECAY_BLOCKER_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "infestation_implant",
+    category: "affliction",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: AFFLICTION_INFESTATION_NAME_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              patternAnchor("spores"),
+              patternAnchor("egg"),
+              patternAnchor("eggs"),
+              patternAnchor("larva"),
+              patternAnchor("larvae"),
+              patternAnchor("parasite"),
+              patternAnchor("parasites"),
+              patternAnchor("infestation"),
+            ],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 1,
+          },
+          {
+            terms: [
+              patternAnchor("hatch"),
+              patternAnchor("hatches"),
+              patternAnchor("hatching"),
+              patternAnchor("burrow"),
+              patternAnchor("burrows"),
+              patternAnchor("colonize"),
+              patternAnchor("colonizes"),
+              patternAnchor("host"),
+              patternAnchor("body"),
+            ],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+        ],
+      },
+      { score: 2, textAny: AFFLICTION_INFESTATION_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "compulsion",
+    category: "affliction",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: AFFLICTION_COMPULSION_TEXT_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              patternAnchor("must"),
+              patternAnchor("forced"),
+              patternAnchor("compelled"),
+              patternAnchor("controlled"),
+              patternAnchor("commanded"),
+            ],
+            window: 5,
+            scope: "description",
+            minTermsMatched: 1,
+          },
+          {
+            terms: [
+              patternAnchor("behavior"),
+              patternAnchor("action"),
+              patternAnchor("actions"),
+              patternAnchor("obey"),
+              patternAnchor("truth"),
+              patternAnchor("lies"),
+              patternAnchor("move"),
+              patternAnchor("attack"),
+            ],
+            window: 5,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+        ],
+      },
     ],
   },
 ];

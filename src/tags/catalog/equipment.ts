@@ -75,6 +75,18 @@ export const EQUIPMENT_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
   },
   {
     category: "equipment",
+    subcategories: ["ammo", "consumable"],
+    family: "impact",
+    description: "Hostile equipment tags for recurring target impairments and disabling outcomes.",
+    tags: [
+      { value: "mobility_impairment", description: "Impairs movement through slowing, restraining, sticking, or immobilizing effects." },
+      { value: "sensory_impairment", description: "Impairs sight, hearing, or other senses through blinding, dazzling, or deafening effects." },
+      { value: "mental_impairment", description: "Impairs thought, judgment, composure, or behavior through fear, confusion, or similar effects." },
+      { value: "sedation", description: "Induces sleep, lethargy, unconsciousness, or similar incapacitating drowsiness." },
+    ],
+  },
+  {
+    category: "equipment",
     subcategories: [...GEARISH_SUBCATEGORIES, "consumable"],
     family: "communication",
     description: "Coordination, signaling, and message-relay equipment.",

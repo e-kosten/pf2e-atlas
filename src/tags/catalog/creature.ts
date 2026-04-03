@@ -57,6 +57,7 @@ export const CREATURE_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
     tags: [
       { value: "carnival_show", description: "Strongly associated with carnivals, circuses, clowns, jesters, or sideshow-style presentation." },
       { value: "living_toy", description: "Strongly associated with dolls, puppets, mannequins, or other animated playthings." },
+      { value: "living_artwork", description: "Strongly associated with paintings, graffiti, murals, portraits, or other artworks brought to life." },
       { value: "trickster_chaos", description: "Strongly associated with pranks, mischief, whimsy, or explicit trickster behavior." },
       { value: "mask_motif", description: "Strongly associated with masks, veils, ceremonial face-coverings, or deliberately obscured presentation." },
       { value: "faceless_horror", description: "Strongly associated with missing, hidden, stolen, or featureless faces." },

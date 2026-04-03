@@ -41,7 +41,9 @@ export const HAZARD_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
       { value: "fire_hazard", description: "Hazard centered on open fire, flames, burning spread, or explosive ignition." },
       { value: "electric_hazard", description: "Hazard centered on lightning, shock, static discharge, or electrical exposure." },
       { value: "poison_hazard", description: "Hazard centered on poison gas, toxic delivery, or other poisonous exposure." },
+      { value: "respiratory_hazard", description: "Hazard centered on smoke, choking vapor, breathlessness, or impaired breathing." },
       { value: "sound_hazard", description: "Hazard centered on sonic force, deafening noise, vibration, or resonant disruption." },
+      { value: "water_hazard", description: "Hazard centered on floods, geysers, waves, surges, or other dangerous water exposure." },
     ],
   },
   {
