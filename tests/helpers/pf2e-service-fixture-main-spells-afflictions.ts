@@ -3,6 +3,28 @@ import path from "node:path";
 import { writeJson } from "./pf2e-fixture.js";
 
 export async function writeSpellAndAfflictionFixtureData(packRoot: string): Promise<void> {
+  await writeJson(path.join(packRoot, "spells-srd", "alarm.json"), {
+    _id: "spell-alarm-1",
+    name: "Alarm",
+    type: "spell",
+    system: {
+      description: {
+        value: "<p>You ward an area to alert you when creatures enter without your permission.</p><p>Whenever a Small or larger corporeal creature enters the spell's area without speaking the password, alarm sends your choice of a mental alert or an audible alarm.</p>",
+      },
+      level: {
+        value: 1,
+      },
+      publication: {
+        title: "Pathfinder Player Core",
+      },
+      traits: {
+        rarity: "common",
+        traditions: ["arcane", "occult"],
+        value: ["concentrate", "manipulate"],
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "spells-srd", "illusory-disguise.json"), {
     _id: "spell-illusory-disguise-1",
     name: "Illusory Disguise",

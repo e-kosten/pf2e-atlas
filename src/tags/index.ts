@@ -181,6 +181,38 @@ const HAZARD_ALARM_TEXT_ANCHORS: TextAnchor[] = [
   tokenAnchor("intrusion"),
 ];
 
+const ALARM_NAME_ANCHORS: TextAnchor[] = [
+  tokenAnchor("alarm", "name"),
+  tokenAnchor("warning", "name"),
+  tokenAnchor("sentry", "name"),
+];
+
+const ALARM_STRONG_TEXT_ANCHORS: TextAnchor[] = [
+  phraseAnchor("audible alarm"),
+  phraseAnchor("mental alarm"),
+  phraseAnchor("mental alert"),
+  phraseAnchor("alarm system"),
+  phraseAnchor("raise the alarm"),
+  phraseAnchor("raising the alarm"),
+  phraseAnchor("alerting nearby guards"),
+  phraseAnchor("keeps watch over an area"),
+  phraseAnchor("watch over an area"),
+  phraseAnchor("without speaking the password"),
+  phraseAnchor("without giving the password"),
+  phraseAnchor("the snare makes a noise"),
+  phraseAnchor("emits an ear piercing wail"),
+];
+
+const ALARM_TRIGGER_TEXT_ANCHORS: TextAnchor[] = [
+  phraseAnchor("enters the spell s area"),
+  phraseAnchor("enters the area"),
+  phraseAnchor("enters the square"),
+  phraseAnchor("detect creatures moving in its area"),
+  phraseAnchor("trip wire"),
+  phraseAnchor("pressure plate"),
+  tokenAnchor("password"),
+];
+
 const SPELL_SCOUTING_NAME_ANCHORS: TextAnchor[] = [
   phraseAnchor("clairaudience", "name"),
   phraseAnchor("clairvoyance", "name"),
@@ -556,6 +588,16 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     ],
   },
   {
+    tag: "alarm",
+    category: "spell",
+    threshold: 2,
+    anyOf: [
+      { score: 1, textAny: ALARM_NAME_ANCHORS },
+      { score: 2, textAny: ALARM_STRONG_TEXT_ANCHORS },
+      { score: 1, textAny: ALARM_TRIGGER_TEXT_ANCHORS },
+    ],
+  },
+  {
     tag: "scouting",
     category: "spell",
     threshold: 2,
@@ -739,6 +781,17 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     subcategories: GEARISH_SUBCATEGORIES,
     anyOf: [
       { textAny: [tokenAnchor("transport"), tokenAnchor("wagon"), tokenAnchor("sled"), tokenAnchor("boat"), tokenAnchor("vehicle"), phraseAnchor("carry riders"), phraseAnchor("haul passengers")] },
+    ],
+  },
+  {
+    tag: "alarm",
+    category: "equipment",
+    subcategories: [...GEARISH_SUBCATEGORIES, "consumable"],
+    threshold: 2,
+    anyOf: [
+      { score: 1, textAny: ALARM_NAME_ANCHORS },
+      { score: 2, textAny: ALARM_STRONG_TEXT_ANCHORS },
+      { score: 1, textAny: ALARM_TRIGGER_TEXT_ANCHORS },
     ],
   },
   {
@@ -1190,6 +1243,23 @@ export const DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
     description: "Remote-observation and scouting spells.",
     tags: [
       { value: "scouting", description: "Helps observe at a distance, extend senses, or locate a target." },
+    ],
+  },
+  {
+    category: "spell",
+    family: "security",
+    description: "Area-warning and intrusion-alert spells.",
+    tags: [
+      { value: "alarm", description: "Alerts you or others when a watched area, threshold, or ward is crossed." },
+    ],
+  },
+  {
+    category: "equipment",
+    subcategories: [...GEARISH_SUBCATEGORIES, "consumable"],
+    family: "security",
+    description: "Intrusion-warning gear and consumables.",
+    tags: [
+      { value: "alarm", description: "Alerts you or others when a watched area, threshold, or device is triggered." },
     ],
   },
   {

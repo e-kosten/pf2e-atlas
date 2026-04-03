@@ -832,6 +832,78 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     },
   });
 
+  await writeJson(path.join(packRoot, "equipment-srd", "alarm-snare.json"), {
+    _id: "equip-alarm-snare-1",
+    name: "Alarm Snare",
+    type: "consumable",
+    system: {
+      description: {
+        value: "<p>You create an alarm snare by rigging one or more noisy objects to a trip wire or pressure plate.</p><p>When a Small or larger creature enters the square, the snare makes a noise loud enough that it can be heard by all creatures in the range you designated.</p>",
+      },
+      publication: {
+        title: "Pathfinder GM Core",
+      },
+      traits: {
+        rarity: "common",
+        value: ["auditory", "consumable", "mechanical", "snare", "trap"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment-srd", "warning-snare.json"), {
+    _id: "equip-warning-snare-1",
+    name: "Warning Snare",
+    type: "consumable",
+    system: {
+      description: {
+        value: "<p>Using materials specific to the area, you connect a sound-making component to a trip wire or a pressure plate.</p><p>This snare is like an alarm snare, but its subtle sound blends into ambient noise.</p>",
+      },
+      publication: {
+        title: "Pathfinder GM Core",
+      },
+      traits: {
+        rarity: "common",
+        value: ["auditory", "consumable", "mechanical", "snare", "trap"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment-srd", "sentry-fulu.json"), {
+    _id: "equip-sentry-fulu-1",
+    name: "Sentry Fulu",
+    type: "consumable",
+    system: {
+      description: {
+        value: "<p>A sentry fulu depicts an armed guard.</p><p>When you activate the fulu, it keeps watch over an area in a 20-foot burst. If a creature enters the area without giving the password, the sentry creates either an audible or mental alarm.</p>",
+      },
+      publication: {
+        title: "Pathfinder Tian Xia Character Guide",
+      },
+      traits: {
+        rarity: "common",
+        value: ["consumable", "fulu", "magical"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment-srd", "floorbell.json"), {
+    _id: "equip-floorbell-1",
+    name: "Floorbell",
+    type: "equipment",
+    system: {
+      description: {
+        value: "<p>This sturdy tile resembles a pressure plate.</p><p>When the amount of weight you specify is placed on the floorbell, it emits an ear-piercing wail. A floorbell can also ring an alarm if a weight you specify is removed from it.</p>",
+      },
+      publication: {
+        title: "Pathfinder GM Core",
+      },
+      traits: {
+        rarity: "common",
+        value: [],
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "equipment-srd", "disguise-kit.json"), {
     _id: "equip-disguise-kit-1",
     name: "Disguise Kit",

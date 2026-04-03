@@ -83,9 +83,12 @@ describe("Pf2eDataService / Search and Lookup", () => {
     expect(service.listRecords({ category: "equipment", subcategory: "gear", metadata: { field: "derivedTags", op: "includesAny", values: ["restraint_escape"] } }).records.map((record) => record.name)).not.toEqual(expect.arrayContaining(["Catch Pole", "Handcuffs (Average)", "Lawbringer's Lasso", "Injigo's Loving Embrace"]));
     expect(service.listRecords({ category: "equipment", subcategory: "gear", metadata: { field: "derivedTags", op: "includesAny", values: ["restraint_capture"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Catch Pole", "Handcuffs (Average)", "Lawbringer's Lasso", "Injigo's Loving Embrace", "False Manacles", "Manacles of Persuasion"]));
     expect(service.listRecords({ category: "equipment", subcategory: "gear", metadata: { field: "derivedTags", op: "includesAny", values: ["restraint_capture"] } }).records.map((record) => record.name)).not.toContain("Shacklebreaker");
+    expect(service.listRecords({ category: "spell", metadata: { field: "derivedTags", op: "includesAny", values: ["alarm"] } }).records.map((record) => record.name)).toEqual(["Alarm"]);
     expect(service.listRecords({ category: "spell", metadata: { field: "derivedTags", op: "includesAny", values: ["disguise"] } }).records.map((record) => record.name)).toEqual(["Illusory Disguise"]);
     expect(service.listRecords({ category: "spell", metadata: { field: "derivedTags", op: "includesAny", values: ["social_infiltration"] } }).records.map((record) => record.name)).toEqual(["Illusory Disguise"]);
     expect(service.listRecords({ category: "hazard", metadata: { field: "derivedTags", op: "includesAny", values: ["alarm"] } }).records.map((record) => record.name)).toEqual(["Alarm Ward"]);
+    expect(service.listRecords({ category: "equipment", subcategory: "consumable", metadata: { field: "derivedTags", op: "includesAny", values: ["alarm"] } }).records.map((record) => record.name)).toEqual(["Alarm Snare", "Sentry Fulu", "Warning Snare"]);
+    expect(service.listRecords({ category: "equipment", subcategory: "gear", metadata: { field: "derivedTags", op: "includesAny", values: ["alarm"] } }).records.map((record) => record.name)).toEqual(["Floorbell"]);
     expect(service.listRecords({ category: "hazard", metadata: { field: "derivedTags", op: "includesAny", values: ["restraint_capture"] } }).records.map((record) => record.name)).toEqual(["Snaring Glyph"]);
     expect(service.listRecords({ category: "affliction", metadata: { field: "derivedTags", op: "includesAny", values: ["mental_impairment"] } }).records.map((record) => record.name)).toEqual(["Cackling Delirium"]);
     expect(service.listRecords({ category: "affliction", metadata: { field: "derivedTags", op: "includesAny", values: ["mobility_impairment"] } }).records.map((record) => record.name)).toEqual(["Calcifying Rot"]);
@@ -117,6 +120,8 @@ describe("Pf2eDataService / Search and Lookup", () => {
     const focusBurst = service.lookup("Focus Burst", { category: "spell" }).match;
     expect(focusBurst?.subcategory).toBeNull();
     expect(focusBurst?.spellKinds).toEqual(["focus"]);
+    const alarm = service.lookup("Alarm", { category: "spell" }).match;
+    expect(alarm?.derivedTags).toContain("alarm");
     const illusoryDisguise = service.lookup("Illusory Disguise", { category: "spell" }).match;
     expect(illusoryDisguise?.derivedTags).toEqual(expect.arrayContaining(["disguise", "social_infiltration"]));
     const antidote = service.lookup("Antidote (Lesser)", { category: "equipment" }).match;
@@ -174,6 +179,14 @@ describe("Pf2eDataService / Search and Lookup", () => {
     expect(masqueradeScarf?.derivedTags).toEqual(expect.arrayContaining(["disguise", "social_infiltration"]));
     const quickChangeOutfit = service.lookup("Quick-Change Outfit", { category: "equipment" }).match;
     expect(quickChangeOutfit?.derivedTags).toEqual(expect.arrayContaining(["disguise", "social_infiltration"]));
+    const alarmSnare = service.lookup("Alarm Snare", { category: "equipment" }).match;
+    expect(alarmSnare?.derivedTags).toContain("alarm");
+    const sentryFulu = service.lookup("Sentry Fulu", { category: "equipment" }).match;
+    expect(sentryFulu?.derivedTags).toContain("alarm");
+    const warningSnare = service.lookup("Warning Snare", { category: "equipment" }).match;
+    expect(warningSnare?.derivedTags).toContain("alarm");
+    const floorbell = service.lookup("Floorbell", { category: "equipment" }).match;
+    expect(floorbell?.derivedTags).toContain("alarm");
     const shacklebreaker = service.lookup("Shacklebreaker", { category: "equipment" }).match;
     expect(shacklebreaker?.derivedTags).toContain("restraint_escape");
     expect(shacklebreaker?.derivedTags).not.toContain("restraint_capture");

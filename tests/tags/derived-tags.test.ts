@@ -331,6 +331,38 @@ describe("derived tag rules", () => {
     })).toEqual(expect.arrayContaining(["disguise", "social_infiltration"]));
 
     expect(deriveRecordTags({
+      name: "Alarm Snare",
+      category: "equipment",
+      subcategory: "consumable",
+      descriptionText: "You create an alarm snare by rigging one or more noisy objects to a trip wire or pressure plate. When a Small or larger creature enters the square, the snare makes a noise loud enough that it can be heard by all creatures in the range you designated.",
+      traits: ["auditory", "consumable", "mechanical", "snare", "trap"],
+    })).toContain("alarm");
+
+    expect(deriveRecordTags({
+      name: "Warning Snare",
+      category: "equipment",
+      subcategory: "consumable",
+      descriptionText: "Using materials specific to the area, you connect a sound-making component to a trip wire or a pressure plate. This snare is like an alarm snare, but its subtle sound blends into ambient noise.",
+      traits: ["auditory", "consumable", "mechanical", "snare", "trap"],
+    })).toContain("alarm");
+
+    expect(deriveRecordTags({
+      name: "Sentry Fulu",
+      category: "equipment",
+      subcategory: "consumable",
+      descriptionText: "A sentry fulu depicts an armed guard. When you activate the fulu, it takes the shape of a Tiny humanoid guard made of paper and keeps watch over an area. If a creature enters the area without giving the password, the sentry creates either an audible or mental alarm.",
+      traits: ["consumable", "fulu", "magical"],
+    })).toContain("alarm");
+
+    expect(deriveRecordTags({
+      name: "Floorbell",
+      category: "equipment",
+      subcategory: "gear",
+      descriptionText: "When the amount of weight you specify is placed on the floorbell, it emits an ear-piercing wail clearly audible to a range of 150 feet. A floorbell can also ring an alarm if a weight you specify is removed from the floorbell.",
+      traits: [],
+    })).toContain("alarm");
+
+    expect(deriveRecordTags({
       name: "Swallow-Spike",
       category: "equipment",
       subcategory: "gear",
@@ -845,6 +877,30 @@ describe("derived tag rules", () => {
     })).not.toContain("scouting");
 
     expect(deriveRecordTags({
+      name: "Alarm",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You ward an area to alert you when creatures enter without your permission. Whenever a creature enters the spell's area without speaking the password, alarm sends your choice of a mental alert or an audible alarm.",
+      traits: ["concentrate", "manipulate"],
+    })).toContain("alarm");
+
+    expect(deriveRecordTags({
+      name: "Eye of the Moonwarden",
+      category: "equipment",
+      subcategory: "gear",
+      descriptionText: "This pendant warns the wearer of danger. When a hostile creature comes within 30 feet of you, the stone glows with moonlight only you can see.",
+      traits: ["invested", "magical"],
+    })).not.toContain("alarm");
+
+    expect(deriveRecordTags({
+      name: "Ravenous Portal",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You place a ward upon the door that triggers when a creature attempts to open, unlock, or destroy the door. When that happens, the door transforms into a hostile mimic.",
+      traits: ["concentrate", "manipulate"],
+    })).not.toContain("alarm");
+
+    expect(deriveRecordTags({
       name: "Alarm Ward",
       category: "hazard",
       subcategory: null,
@@ -952,6 +1008,13 @@ describe("derived tag rules", () => {
         ]),
       }),
       expect.objectContaining({
+        category: "equipment",
+        family: "security",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "alarm", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
         category: "spell",
         family: "infiltration",
         tags: expect.arrayContaining([
@@ -964,6 +1027,13 @@ describe("derived tag rules", () => {
         family: "reconnaissance",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "scouting", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "spell",
+        family: "security",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "alarm", description: expect.any(String) }),
         ]),
       }),
       expect.objectContaining({
