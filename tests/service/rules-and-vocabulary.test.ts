@@ -168,6 +168,9 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
           expect.objectContaining({ value: "freshwater_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "swamp_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "coastal_setting", description: expect.any(String) }),
+          expect.objectContaining({ value: "astral_setting", description: expect.any(String) }),
+          expect.objectContaining({ value: "first_world_setting", description: expect.any(String) }),
+          expect.objectContaining({ value: "boneyard_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "island_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "plains_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "canyon_setting", description: expect.any(String) }),
@@ -220,7 +223,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     expect(service.listFilterValues({
       field: "derivedTags",
       category: "creature",
-    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["aquatic_setting", "freshwater_setting", "coastal_setting", "temple_setting"]));
+    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["aquatic_setting", "freshwater_setting", "coastal_setting", "astral_setting", "first_world_setting", "boneyard_setting", "temple_setting"]));
 
     expect(service.listFilterValues({
       field: "families",

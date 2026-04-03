@@ -208,7 +208,7 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
     system: {
       details: {
         level: {
-          value: 5,
+          value: 7,
         },
         publication: {
           title: "Pathfinder Monster Core",
@@ -602,6 +602,78 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         value: ["daemon", "fiend", "unholy"],
         size: {
           value: "lg",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "sea-drake.json"), {
+    _id: "sea-drake",
+    name: "Sea Drake",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 6,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>Long and slender, sea drakes have fins down the length of their backs and webbing between their talons. Although most sea drakes make their roosts high on ocean-facing cliffs, it isn't unheard of for them to dwell in underwater caves.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["amphibious", "dragon", "evil", "water"],
+        size: {
+          value: "lg",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "blodeuwedd.json"), {
+    _id: "blodeuwedd",
+    name: "Blodeuwedd",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 6,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>The mysterious blodeuwedds dwell in those parts of the world where the boundaries between the Material Plane and the First World have worn thin, or around portals between the two planes.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["chaotic", "fey", "plant"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "catrina.json"), {
+    _id: "catrina",
+    name: "Catrina",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 5,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>Catrinas meet souls in the Boneyard, patiently explaining the finality of death and guiding spirits toward a calm passage into the afterlife.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["monitor", "psychopomp"],
+        size: {
+          value: "med",
         },
       },
     },

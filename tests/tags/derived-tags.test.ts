@@ -741,6 +741,22 @@ describe("derived tag rules", () => {
     })).not.toContain("aquatic_setting");
 
     expect(deriveRecordTags({
+      name: "Sea Drake",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Long and slender, sea drakes have fins down the length of their backs and webbing between their talons. Although most sea drakes make their roosts high on ocean-facing cliffs, it isn't unheard of for them to dwell in underwater caves.",
+      traits: ["amphibious", "dragon", "evil", "water"],
+    })).toEqual(expect.arrayContaining(["aquatic_setting", "coastal_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Tidepool Dragonet",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Tidepool dragonets are lithe, eel-like sovereigns of their miniature tidal territories. Found in the marine environments that their name suggests, tidepool dragonets have strong jaws adapted to cracking open shells.",
+      traits: ["amphibious", "dragon", "water"],
+    })).toEqual(expect.arrayContaining(["aquatic_setting", "coastal_setting"]));
+
+    expect(deriveRecordTags({
       name: "Island Watcher",
       category: "creature",
       subcategory: null,
@@ -819,6 +835,46 @@ describe("derived tag rules", () => {
       descriptionText: "A wandering prophet shares divine dreams and advice with the faithful.",
       traits: ["human", "humanoid"],
     })).toEqual(expect.arrayContaining(["profession_npc", "scene_adjacent"]));
+
+    expect(deriveRecordTags({
+      name: "Astradaemon",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "These unnerving daemons hunt the pathways between life and death and stalk the banks of the River of Souls in the Astral Plane.",
+      traits: ["daemon", "fiend", "unholy"],
+    })).toContain("astral_setting");
+
+    expect(deriveRecordTags({
+      name: "Shulsaga",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Shepherds of the Silver Sea, shulsagas patrol the Astral Plane to protect the nascent demiplanes that form there.",
+      traits: ["astral"],
+    })).toContain("astral_setting");
+
+    expect(deriveRecordTags({
+      name: "Blodeuwedd",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "The mysterious blodeuwedds dwell in places where the boundaries between the Material Plane and the First World have worn thin, or around portals between the two planes.",
+      traits: ["fey", "plant"],
+    })).toEqual(expect.arrayContaining(["first_world_setting", "fey_threat", "plant_threat"]));
+
+    expect(deriveRecordTags({
+      name: "Bandersnatch",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "As with other legendary creatures from the First World, bandersnatches belong to the infamous group of creatures known collectively as the tane.",
+      traits: ["beast", "tane"],
+    })).toContain("first_world_setting");
+
+    expect(deriveRecordTags({
+      name: "Catrina",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Catrinas meet souls in the Boneyard and help convince them of the finality of their fate to ease a spirit's passing.",
+      traits: ["monitor", "psychopomp"],
+    })).toContain("boneyard_setting");
   });
 
   it("uses glossary family evidence for obvious undead-family threat and blocker cases", () => {
@@ -923,6 +979,22 @@ describe("derived tag rules", () => {
       descriptionText: "Astradaemons hunt the pathways between life and death and stalk the banks of the River of Souls in the Astral Plane.",
       traits: ["daemon", "fiend", "unholy"],
     })).not.toEqual(expect.arrayContaining(["freshwater_setting", "aquatic_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Bleachling Survivor",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Those few gnomes who survive the Bleaching emerge transformed, forever marked by the primal spark of the First World that still flickers within them.",
+      traits: ["gnome", "humanoid"],
+    })).not.toContain("first_world_setting");
+
+    expect(deriveRecordTags({
+      name: "Shade (Astral Plane)",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "When a mortal dies, their soul travels to the Boneyard in the Outer Planes where they're judged by Pharasma, though these shades merely appear as astrally projected versions of their mortal forms.",
+      traits: ["astral", "shade"],
+    })).not.toContain("boneyard_setting");
 
     expect(deriveRecordTags({
       name: "Shrine Caretaker",
@@ -1804,6 +1876,9 @@ describe("derived tag rules", () => {
           expect.objectContaining({ value: "underground_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "graveyard_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "coastal_setting", description: expect.any(String) }),
+          expect.objectContaining({ value: "astral_setting", description: expect.any(String) }),
+          expect.objectContaining({ value: "first_world_setting", description: expect.any(String) }),
+          expect.objectContaining({ value: "boneyard_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "island_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "plains_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "canyon_setting", description: expect.any(String) }),

@@ -217,12 +217,21 @@ const COASTAL_SETTING_STRONG_TEXT_ANCHORS: TextAnchor[] = [
   tokenAnchor("coast"),
   tokenAnchor("coasts"),
   tokenAnchor("coastal"),
+  tokenAnchor("marine"),
   tokenAnchor("reef"),
   tokenAnchor("reefs"),
   tokenAnchor("littoral"),
   tokenAnchor("estuary"),
   tokenAnchor("estuaries"),
   tokenAnchor("estuarine"),
+  phraseAnchor("coastal region"),
+  phraseAnchor("coastal regions"),
+  phraseAnchor("coral reef"),
+  phraseAnchor("coral reefs"),
+  phraseAnchor("marine environment"),
+  phraseAnchor("marine environments"),
+  phraseAnchor("ocean facing cliffs"),
+  phraseAnchor("along any shore"),
 ];
 
 const COASTAL_SETTING_WEAK_TEXT_ANCHORS: TextAnchor[] = [
@@ -234,9 +243,105 @@ const COASTAL_SETTING_WEAK_TEXT_ANCHORS: TextAnchor[] = [
   tokenAnchor("harbor"),
   tokenAnchor("harbors"),
   tokenAnchor("brackish"),
+  tokenAnchor("coral"),
+  tokenAnchor("ocean"),
+  tokenAnchor("oceans"),
+  tokenAnchor("sea"),
+  tokenAnchor("seas"),
   tokenAnchor("tidal"),
   tokenAnchor("tidepool"),
   tokenAnchor("tidepools"),
+];
+
+const COASTAL_SETTING_NAME_ANCHORS: TextAnchor[] = [
+  tokenAnchor("coastal", "name"),
+  tokenAnchor("coral", "name"),
+  tokenAnchor("reef", "name"),
+  tokenAnchor("sea", "name"),
+  tokenAnchor("tidepool", "name"),
+  tokenAnchor("tidewater", "name"),
+];
+
+const ASTRAL_SETTING_TEXT_ANCHORS: TextAnchor[] = [
+  phraseAnchor("astral plane"),
+  phraseAnchor("silver sea"),
+  phraseAnchor("silver void"),
+  phraseAnchor("silvery gray void"),
+  phraseAnchor("stable portal"),
+  phraseAnchor("stable portals"),
+];
+
+const ASTRAL_SETTING_ACTIVITY_TEXT_ANCHORS: TextAnchor[] = [
+  tokenAnchor("ambush"),
+  tokenAnchor("ambushes"),
+  tokenAnchor("guardian"),
+  tokenAnchor("guardians"),
+  tokenAnchor("guard"),
+  tokenAnchor("guards"),
+  tokenAnchor("home"),
+  tokenAnchor("hunt"),
+  tokenAnchor("hunts"),
+  tokenAnchor("hunting"),
+  tokenAnchor("patrol"),
+  tokenAnchor("patrols"),
+  tokenAnchor("protect"),
+  tokenAnchor("protects"),
+  tokenAnchor("travel"),
+  tokenAnchor("travels"),
+  tokenAnchor("traveling"),
+];
+
+const ASTRAL_SETTING_CONTEXT_TEXT_ANCHORS: TextAnchor[] = [
+  ...ASTRAL_SETTING_ACTIVITY_TEXT_ANCHORS,
+  tokenAnchor("demiplane"),
+  tokenAnchor("demiplanes"),
+  tokenAnchor("portal"),
+  tokenAnchor("portals"),
+  phraseAnchor("stable portal"),
+  phraseAnchor("stable portals"),
+];
+
+const FIRST_WORLD_SETTING_TEXT_ANCHORS: TextAnchor[] = [
+  phraseAnchor("first world"),
+  phraseAnchor("realm of the fey"),
+  phraseAnchor("fey realm"),
+];
+
+const FIRST_WORLD_SETTING_CONTEXT_TEXT_ANCHORS: TextAnchor[] = [
+  tokenAnchor("boundary"),
+  tokenAnchor("boundaries"),
+  tokenAnchor("court"),
+  tokenAnchor("courts"),
+  tokenAnchor("eldest"),
+  tokenAnchor("home"),
+  tokenAnchor("homes"),
+  tokenAnchor("native"),
+  tokenAnchor("natives"),
+  tokenAnchor("origin"),
+  tokenAnchor("origins"),
+  tokenAnchor("portal"),
+  tokenAnchor("portals"),
+  tokenAnchor("spawn"),
+  tokenAnchor("spawned"),
+  phraseAnchor("worn thin"),
+];
+
+const BONEYARD_SETTING_TEXT_ANCHORS: TextAnchor[] = [
+  tokenAnchor("boneyard"),
+];
+
+const BONEYARD_SETTING_CONTEXT_TEXT_ANCHORS: TextAnchor[] = [
+  tokenAnchor("guard"),
+  tokenAnchor("guards"),
+  tokenAnchor("passing"),
+  tokenAnchor("psychopomp"),
+  tokenAnchor("repair"),
+  tokenAnchor("repairs"),
+  tokenAnchor("sentinel"),
+  tokenAnchor("sentinels"),
+  phraseAnchor("guard dogs"),
+  phraseAnchor("repair damaged souls"),
+  phraseAnchor("ease a spirit s passing"),
 ];
 
 const referenceAnchor = (packName: string, name: string): string => normalizeDerivedTagReference(`${packName}:${name}`);
@@ -1681,7 +1786,54 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     threshold: 2,
     anyOf: [
       { score: 2, textAny: COASTAL_SETTING_STRONG_TEXT_ANCHORS },
+      { score: 1, textAny: COASTAL_SETTING_NAME_ANCHORS },
       { score: 1, textAny: COASTAL_SETTING_WEAK_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "astral_setting",
+    category: "creature",
+    anyOf: [
+      { traitsAny: ["astral"] },
+    ],
+  },
+  {
+    tag: "astral_setting",
+    category: "creature",
+    anyOf: [
+      { textAny: ASTRAL_SETTING_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "astral_setting",
+    category: "creature",
+    allOf: [
+      { textAny: [tokenAnchor("astral")] },
+      { textAny: ASTRAL_SETTING_CONTEXT_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "first_world_setting",
+    category: "creature",
+    allOf: [
+      { textAny: FIRST_WORLD_SETTING_TEXT_ANCHORS },
+    ],
+    threshold: 1,
+    anyOf: [
+      { score: 1, traitsAny: ["fey", "tane"] },
+      { score: 1, textAny: FIRST_WORLD_SETTING_CONTEXT_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "boneyard_setting",
+    category: "creature",
+    allOf: [
+      { textAny: BONEYARD_SETTING_TEXT_ANCHORS },
+    ],
+    threshold: 1,
+    anyOf: [
+      { score: 1, traitsAny: ["psychopomp"] },
+      { score: 1, textAny: BONEYARD_SETTING_CONTEXT_TEXT_ANCHORS },
     ],
   },
   {
@@ -2236,6 +2388,9 @@ export const DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
       { value: "aquatic_setting", description: "Strongly associated with open water, underwater spaces, or aquatic environments." },
       { value: "freshwater_setting", description: "Strongly associated with rivers, lakes, ponds, streams, springs, or other inland waters." },
       { value: "coastal_setting", description: "Strongly associated with coasts, shores, reefs, or littoral edges." },
+      { value: "astral_setting", description: "Strongly associated with Astral Plane scenes, silver-void travel, or stable portal routes." },
+      { value: "first_world_setting", description: "Strongly associated with the First World, fey realms, or thin-boundary crossings into that plane." },
+      { value: "boneyard_setting", description: "Strongly associated with the Boneyard, psychopomp duties, or soul-processing afterlife scenes." },
       { value: "island_setting", description: "Strongly associated with islands, archipelagos, or isolated isles." },
       { value: "nautical_setting", description: "Strongly associated with ships, sailors, wrecks, or harbors." },
       { value: "forest_setting", description: "Strongly associated with forests, jungles, groves, or briar-choked wilds." },
