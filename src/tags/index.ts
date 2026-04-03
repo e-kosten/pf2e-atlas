@@ -637,10 +637,23 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "spell",
     anyOf: [
       { textAny: SPELL_SOCIAL_INFILTRATION_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "social_infiltration",
+    category: "spell",
+    allOf: [
+      { textAny: [tokenAnchor("mask", "name"), tokenAnchor("mask", "description")] },
+    ],
+    anyOf: [
       {
-        textAll: [
-          tokenAnchor("deception"),
-          tokenAnchor("lie"),
+        textNear: [
+          {
+            terms: [tokenAnchor("deception"), tokenAnchor("lie"), tokenAnchor("feint")],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 2,
+          },
         ],
       },
     ],
@@ -781,11 +794,29 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
       {
         textAny: [
           phraseAnchor("track time"),
-          phraseAnchor("tracking a gunslinger s progress"),
           phraseAnchor("track teleportation"),
           phraseAnchor("dc to track"),
           phraseAnchor("attempting to track you"),
           phraseAnchor("circumstance bonus to their check"),
+        ],
+      },
+      {
+        textNear: [
+          {
+            terms: [tokenAnchor("tracking"), tokenAnchor("progress")],
+            window: 3,
+            scope: "description",
+          },
+          {
+            terms: [tokenAnchor("track"), tokenAnchor("teleportation")],
+            window: 2,
+            scope: "description",
+          },
+          {
+            terms: [tokenAnchor("track"), tokenAnchor("time")],
+            window: 2,
+            scope: "description",
+          },
         ],
       },
       {
@@ -1058,7 +1089,16 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
           phraseAnchor("holds intruders in place"),
           phraseAnchor("hold creatures in place"),
           phraseAnchor("attempting to restrain nearby creatures"),
-          phraseAnchor("ready to capture small insects or hamper larger creatures"),
+        ],
+      },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [tokenAnchor("hamper"), tokenAnchor("creatures")],
+            window: 3,
+            scope: "description",
+          },
         ],
       },
       {

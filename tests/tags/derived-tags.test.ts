@@ -809,6 +809,14 @@ describe("derived tag rules", () => {
     })).not.toContain("tracking");
 
     expect(deriveRecordTags({
+      name: "Practice Target",
+      category: "equipment",
+      subcategory: "consumable",
+      descriptionText: "These sturdy paper targets are excellent for tracking a gunslinger's progress over time and keeping score.",
+      traits: [],
+    })).not.toContain("tracking");
+
+    expect(deriveRecordTags({
       name: "Anathema Fulu",
       category: "equipment",
       subcategory: "consumable",
@@ -1021,6 +1029,14 @@ describe("derived tag rules", () => {
       descriptionText: "A psychic scream disorients creatures in the area and leaves them overwhelmed with fear.",
       traits: ["magical"],
     })).toContain("mental_impairment");
+
+    expect(deriveRecordTags({
+      name: "Hampering Web",
+      category: "hazard",
+      subcategory: null,
+      descriptionText: "Semitransparent sheets of webbing span the entryway, ready to capture small insects or hamper larger creatures that pass through.",
+      traits: [],
+    })).toContain("mobility_impairment");
 
     expect(deriveRecordTags({
       name: "Paralysis Trap",
