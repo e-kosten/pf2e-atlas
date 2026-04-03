@@ -1245,6 +1245,30 @@ describe("derived tag rules", () => {
     })).toContain("scouting");
 
     expect(deriveRecordTags({
+      name: "Know the Way",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "In your mind's eye, you magically reorient yourself. You immediately know which direction is north, and you can choose a location you were at within the last 24 hours and learn what direction it lies.",
+      traits: ["cantrip", "concentrate", "detection", "manipulate"],
+    })).toContain("navigation");
+
+    expect(deriveRecordTags({
+      name: "Wanderer's Guide",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You call upon the beyond to guide your route. When you Cast this Spell, choose a destination; you receive an inspired route to that destination, allowing you and allies who travel overland with you to reduce the movement penalty from difficult terrain by half for the duration.",
+      traits: ["concentrate", "manipulate"],
+    })).toEqual(expect.arrayContaining(["navigation", "mobility"]));
+
+    expect(deriveRecordTags({
+      name: "Spiritual Transport",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You call upon the spiritual energies surrounding you to teleport you to an unoccupied space within range that you can see. Any items you're wearing and holding come with you. Heightened (7th) You don't need to be able to see your destination, as long as you have been there in the past and know its relative direction from you.",
+      traits: ["concentrate", "manipulate", "teleportation"],
+    })).toEqual(expect.arrayContaining(["navigation", "mobility"]));
+
+    expect(deriveRecordTags({
       name: "Agile Feet",
       category: "spell",
       subcategory: null,
@@ -1274,6 +1298,14 @@ describe("derived tag rules", () => {
       subcategory: null,
       descriptionText: "Leathery wings sprout from your back, giving you a fly Speed of 60 feet or your Speed, whichever is faster.",
       traits: ["focus", "morph"],
+    })).toContain("mobility");
+
+    expect(deriveRecordTags({
+      name: "Unfettered Movement",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You repel effects that would hinder a creature or slow its movement. While under this spell's effect, the target ignores effects that would give them a circumstance penalty to Speed.",
+      traits: ["concentrate", "manipulate"],
     })).toContain("mobility");
 
     expect(deriveRecordTags({
@@ -1479,6 +1511,22 @@ describe("derived tag rules", () => {
     })).not.toContain("barrier_lockdown");
 
     expect(deriveRecordTags({
+      name: "Cave-in",
+      category: "hazard",
+      subcategory: null,
+      descriptionText: "The tunnel collapses, filling the passage with stone.",
+      traits: ["environmental"],
+    })).toContain("barrier_lockdown");
+
+    expect(deriveRecordTags({
+      name: "Consuming Cabinet",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "Animated cabinet imprisons intruders. The cabinet has two compartments; each can hold a single Medium creature.",
+      traits: ["mechanical", "trap"],
+    })).toContain("barrier_lockdown");
+
+    expect(deriveRecordTags({
       name: "Mental Scream Trap",
       category: "hazard",
       subcategory: "trap",
@@ -1556,6 +1604,22 @@ describe("derived tag rules", () => {
       subcategory: "disease",
       descriptionText: "The disease stiffens joints, reduces the victim's Speed, and can leave them immobilized.",
       traits: ["disease"],
+    })).toContain("mobility_impairment");
+
+    expect(deriveRecordTags({
+      name: "Giant Wasp Venom",
+      category: "affliction",
+      subcategory: "poison",
+      descriptionText: "Giant wasp venom interferes with a victim's movement. Stage 1 damage and Clumsy 1.",
+      traits: ["poison"],
+    })).toContain("mobility_impairment");
+
+    expect(deriveRecordTags({
+      name: "Dancing Lamentation",
+      category: "affliction",
+      subcategory: "poison",
+      descriptionText: "This toxin erratically stimulates the limbs. At the start of each turn, the victim takes one or more Steps in a random direction if able. This movement is forced.",
+      traits: ["poison"],
     })).toContain("mobility_impairment");
 
     expect(deriveRecordTags({
@@ -1675,6 +1739,13 @@ describe("derived tag rules", () => {
         family: "reconnaissance",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "scouting", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "spell",
+        family: "wayfinding",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "navigation", description: expect.any(String) }),
         ]),
       }),
       expect.objectContaining({

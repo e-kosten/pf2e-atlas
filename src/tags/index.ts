@@ -532,6 +532,23 @@ const SPELL_SCOUTING_BLOCKER_TEXT_ANCHORS: TextAnchor[] = [
   phraseAnchor("counteract all detection revelation and scrying effects"),
 ];
 
+const SPELL_NAVIGATION_NAME_ANCHORS: TextAnchor[] = [
+  phraseAnchor("guiding star", "name"),
+  phraseAnchor("know the way", "name"),
+  phraseAnchor("wanderer s guide", "name"),
+];
+
+const SPELL_NAVIGATION_TEXT_ANCHORS: TextAnchor[] = [
+  phraseAnchor("guide your route"),
+  phraseAnchor("guided to the location"),
+  phraseAnchor("inspired route"),
+  phraseAnchor("know which direction is north"),
+  phraseAnchor("learn what direction it lies"),
+  phraseAnchor("mental nudge toward your chosen location"),
+  phraseAnchor("know its relative direction from you"),
+  phraseAnchor("find the correct gate to your desired location"),
+];
+
 const SPELL_MOBILITY_TEXT_ANCHORS: TextAnchor[] = [
   phraseAnchor("gain a fly speed"),
   phraseAnchor("giving you a fly speed"),
@@ -549,6 +566,11 @@ const SPELL_MOBILITY_TEXT_ANCHORS: TextAnchor[] = [
   templateAnchor("you jump {n} feet"),
   templateAnchor("gain a +{n}-foot status bonus to your speed"),
   templateAnchor("you gain a +{n}-foot status bonus to your speed"),
+  phraseAnchor("teleport you to an unoccupied space"),
+  phraseAnchor("transported with you"),
+  phraseAnchor("reduce the movement penalty from difficult terrain"),
+  phraseAnchor("hinder a creature or slow its movement"),
+  phraseAnchor("circumstance penalty to speed"),
 ];
 
 const SPELL_MOBILITY_BLOCKER_TEXT_ANCHORS: TextAnchor[] = [
@@ -572,6 +594,9 @@ const AFFLICTION_MOBILITY_TEXT_ANCHORS: TextAnchor[] = [
   phraseAnchor("reduces the victim s speed"),
   phraseAnchor("reduces your speed"),
   phraseAnchor("stiffens joints"),
+  phraseAnchor("interferes with a victim s movement"),
+  phraseAnchor("takes one or more steps in a random direction"),
+  phraseAnchor("movement is forced"),
   tokenAnchor("immobilized"),
   tokenAnchor("paralyzed"),
   tokenAnchor("paralysis"),
@@ -1006,6 +1031,15 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     ],
   },
   {
+    tag: "navigation",
+    category: "spell",
+    threshold: 2,
+    anyOf: [
+      { score: 1, textAny: SPELL_NAVIGATION_NAME_ANCHORS },
+      { score: 2, textAny: SPELL_NAVIGATION_TEXT_ANCHORS },
+    ],
+  },
+  {
     tag: "mobility",
     category: "spell",
     threshold: 2,
@@ -1432,6 +1466,10 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
           phraseAnchor("entry and exit seal with a force barrier"),
           phraseAnchor("magically seals the door"),
           phraseAnchor("block progress through this area"),
+          phraseAnchor("filling the passage with stone"),
+          phraseAnchor("trap the triggering creature inside"),
+          phraseAnchor("imprisons intruders"),
+          phraseAnchor("pushes two iron doors closed"),
         ],
       },
       {
@@ -2118,6 +2156,14 @@ export const DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
     description: "Remote-observation and scouting spells.",
     tags: [
       { value: "scouting", description: "Helps observe at a distance, extend senses, or locate a target." },
+    ],
+  },
+  {
+    category: "spell",
+    family: "wayfinding",
+    description: "Spells that guide direction, route-finding, or destination travel.",
+    tags: [
+      { value: "navigation", description: "Helps orient, guide a route, or identify a destination's direction." },
     ],
   },
   {
