@@ -163,10 +163,17 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       }),
       expect.objectContaining({
         category: "creature",
-        family: "context",
+        family: "setting",
         tags: expect.arrayContaining([
-          expect.objectContaining({ value: "swamp", description: expect.any(String) }),
-          expect.objectContaining({ value: "graveyard", description: expect.any(String) }),
+          expect.objectContaining({ value: "swamp_setting", description: expect.any(String) }),
+          expect.objectContaining({ value: "coastal_setting", description: expect.any(String) }),
+          expect.objectContaining({ value: "island_setting", description: expect.any(String) }),
+          expect.objectContaining({ value: "plains_setting", description: expect.any(String) }),
+          expect.objectContaining({ value: "graveyard_setting", description: expect.any(String) }),
+          expect.objectContaining({ value: "ruins_setting", description: expect.any(String) }),
+          expect.objectContaining({ value: "temple_setting", description: expect.any(String) }),
+          expect.objectContaining({ value: "fortress_setting", description: expect.any(String) }),
+          expect.objectContaining({ value: "volcanic_setting", description: expect.any(String) }),
         ]),
       }),
     ]));

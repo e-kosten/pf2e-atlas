@@ -586,7 +586,7 @@ describe("derived tag rules", () => {
       subcategory: null,
       descriptionText: "This cemetery guard patrols the crypts beneath the old city.",
       traits: [],
-    })).toEqual(expect.arrayContaining(["graveyard", "underground", "urban", "profession_npc", "scene_adjacent"]));
+    })).toEqual(expect.arrayContaining(["graveyard_setting", "underground_setting", "urban_setting", "profession_npc", "scene_adjacent"]));
 
     expect(deriveRecordTags({
       name: "Bog Wisp",
@@ -594,7 +594,15 @@ describe("derived tag rules", () => {
       subcategory: null,
       descriptionText: "A fey spirit that haunts marshy bogs and flooded mires.",
       traits: ["fey"],
-    })).toEqual(expect.arrayContaining(["fey_threat", "swamp"]));
+    })).toEqual(expect.arrayContaining(["fey_threat", "swamp_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Jungle Stalker",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A patient ambusher that stalks the deep jungles and tangled woods.",
+      traits: ["beast"],
+    })).toContain("forest_setting");
 
     expect(deriveRecordTags({
       name: "Icebound Mariner",
@@ -602,7 +610,7 @@ describe("derived tag rules", () => {
       subcategory: null,
       descriptionText: "A sailor raider from the frozen sea who prowls icy coasts and shipwrecks.",
       traits: [],
-    })).toEqual(expect.arrayContaining(["nautical", "aquatic_context", "arctic"]));
+    })).toEqual(expect.arrayContaining(["nautical_setting", "coastal_setting", "aquatic_setting", "arctic_setting"]));
 
     expect(deriveRecordTags({
       name: "Pelagic Stalker",
@@ -610,7 +618,7 @@ describe("derived tag rules", () => {
       subcategory: null,
       descriptionText: "A sleek predator built for sudden bursts of speed.",
       traits: ["aquatic", "beast"],
-    })).toContain("aquatic_context");
+    })).toContain("aquatic_setting");
 
     expect(deriveRecordTags({
       name: "Bog Prowler",
@@ -618,7 +626,87 @@ describe("derived tag rules", () => {
       subcategory: null,
       descriptionText: "An ambush hunter with a powerful bite.",
       traits: ["amphibious", "beast"],
-    })).toContain("aquatic_context");
+    })).toContain("aquatic_setting");
+
+    expect(deriveRecordTags({
+      name: "Boggard Mire Scout",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A croaking scout that watches for intruders from a reed blind.",
+      traits: ["amphibious", "boggard", "humanoid"],
+    })).toContain("swamp_setting");
+
+    expect(deriveRecordTags({
+      name: "Ghost Pirate Captain",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "An undead pirate captain prowls the ocean aboard a derelict ship.",
+      traits: ["ghost", "undead"],
+    })).toEqual(expect.arrayContaining(["nautical_setting", "aquatic_setting", "undead_threat"]));
+
+    expect(deriveRecordTags({
+      name: "Cairn Wight",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A jealous undead guardian of barrows and sepulchers.",
+      traits: ["undead", "wight"],
+    })).toContain("graveyard_setting");
+
+    expect(deriveRecordTags({
+      name: "Caldera Oni",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "As hot-blooded as the lava that floods their homes, caldera oni hunger for battle.",
+      traits: ["fiend", "oni"],
+    })).toContain("volcanic_setting");
+
+    expect(deriveRecordTags({
+      name: "Coastal Prowler",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A vigilant hunter prowls rocky shores and coastal reefs.",
+      traits: ["beast"],
+    })).toContain("coastal_setting");
+
+    expect(deriveRecordTags({
+      name: "Coastal Prowler",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A vigilant hunter prowls rocky shores and coastal reefs.",
+      traits: ["beast"],
+    })).not.toContain("aquatic_setting");
+
+    expect(deriveRecordTags({
+      name: "Island Watcher",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A wary survivor keeps watch over a lonely island and its hidden paths.",
+      traits: ["humanoid"],
+    })).toContain("island_setting");
+
+    expect(deriveRecordTags({
+      name: "Plains Runner",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A swift hunter races across grassy plains and open savannas.",
+      traits: ["beast"],
+    })).toContain("plains_setting");
+
+    expect(deriveRecordTags({
+      name: "Temple Custodian",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A divine construct tends an ancient temple shrine and its sacred relics.",
+      traits: ["construct"],
+    })).toContain("temple_setting");
+
+    expect(deriveRecordTags({
+      name: "Fortress Warden",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A grim defender patrols the walls of a mountain fortress and ancient citadel.",
+      traits: ["humanoid"],
+    })).toEqual(expect.arrayContaining(["fortress_setting", "mountain_setting"]));
 
     expect(deriveRecordTags({
       name: "Wealthy Vigilante",
@@ -706,7 +794,7 @@ describe("derived tag rules", () => {
       subcategory: null,
       descriptionText: "Accuser agents might be high court advocates, official spymasters, or innocuous adjutants delivering important messages to magistrates, generals, officers, or mercenaries.",
       traits: ["human", "humanoid"],
-    })).not.toContain("arctic");
+    })).not.toContain("arctic_setting");
 
     expect(deriveRecordTags({
       name: "Abandoned Zealot",
@@ -714,7 +802,7 @@ describe("derived tag rules", () => {
       subcategory: null,
       descriptionText: "Abandoned zealots arise from false faiths unknown to most worshippers.",
       traits: ["undead", "spirit"],
-    })).not.toContain("nautical");
+    })).not.toContain("nautical_setting");
 
     expect(deriveRecordTags({
       name: "Adamantine Golem",
@@ -840,7 +928,7 @@ describe("derived tag rules", () => {
       subcategory: null,
       descriptionText: "A sentry posted near the harbor gates.",
       traits: [],
-    })).not.toContain("nautical");
+    })).not.toContain("nautical_setting");
 
     expect(deriveRecordTags({
       name: "Harbor Mariner",
@@ -848,7 +936,15 @@ describe("derived tag rules", () => {
       subcategory: null,
       descriptionText: "A mariner who keeps watch over the harbor docks.",
       traits: [],
-    })).toContain("nautical");
+    })).toContain("nautical_setting");
+
+    expect(deriveRecordTags({
+      name: "Cinder Tyrant",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A blazing tyrant crowned in smoke and cinders.",
+      traits: ["dragon", "fire"],
+    })).not.toContain("volcanic_setting");
   });
 
   it("reuses shared tag values across spells while keeping other categories specific", () => {
@@ -1148,7 +1244,7 @@ describe("derived tag rules", () => {
       subcategory: null,
       descriptionText: "This scavenger lurks among the ruins of a collapsed temple.",
       traits: [],
-    })).toContain("ruins");
+    })).toEqual(expect.arrayContaining(["ruins_setting", "temple_setting"]));
 
     expect(deriveRecordTags({
       name: "Ancient Hall Watcher",
@@ -1156,7 +1252,7 @@ describe("derived tag rules", () => {
       subcategory: null,
       descriptionText: "A watchful spirit stalks an ancient hall guarded by silent echoes.",
       traits: [],
-    })).not.toContain("ruins");
+    })).not.toContain("ruins_setting");
   });
 
   it("publishes a compact derived-tag catalog", () => {
@@ -1246,11 +1342,17 @@ describe("derived tag rules", () => {
       }),
       expect.objectContaining({
         category: "creature",
-        family: "context",
+        family: "setting",
         tags: expect.arrayContaining([
-          expect.objectContaining({ value: "swamp", description: expect.any(String) }),
-          expect.objectContaining({ value: "underground", description: expect.any(String) }),
-          expect.objectContaining({ value: "graveyard", description: expect.any(String) }),
+          expect.objectContaining({ value: "swamp_setting", description: expect.any(String) }),
+          expect.objectContaining({ value: "underground_setting", description: expect.any(String) }),
+          expect.objectContaining({ value: "graveyard_setting", description: expect.any(String) }),
+          expect.objectContaining({ value: "coastal_setting", description: expect.any(String) }),
+          expect.objectContaining({ value: "island_setting", description: expect.any(String) }),
+          expect.objectContaining({ value: "plains_setting", description: expect.any(String) }),
+          expect.objectContaining({ value: "temple_setting", description: expect.any(String) }),
+          expect.objectContaining({ value: "fortress_setting", description: expect.any(String) }),
+          expect.objectContaining({ value: "volcanic_setting", description: expect.any(String) }),
         ]),
       }),
     ]));

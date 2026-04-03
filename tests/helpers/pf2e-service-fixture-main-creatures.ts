@@ -295,6 +295,30 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
     },
   });
 
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "ghost-pirate-captain.json"), {
+    _id: "ghost-pirate-captain",
+    name: "Ghost Pirate Captain",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 8,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>An undead pirate captain prowls the ocean aboard a derelict ship.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["ghost", "incorporeal", "spirit", "undead", "unholy"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "pathfinder-monster-core", "wealthy-vigilante.json"), {
     _id: "wealthy-vigilante",
     name: "Wealthy Vigilante",
@@ -360,6 +384,246 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
       traits: {
         rarity: "common",
         value: ["aquatic", "beast"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "jungle-stalker.json"), {
+    _id: "jungle-stalker",
+    name: "Jungle Stalker",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 6,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>A patient ambusher that stalks the deep jungles and tangled woods.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["beast"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "boggard-mire-scout.json"), {
+    _id: "boggard-mire-scout",
+    name: "Boggard Mire Scout",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 4,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>A croaking scout that watches for intruders from a reed blind.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["amphibious", "boggard", "humanoid"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "cairn-wight.json"), {
+    _id: "cairn-wight",
+    name: "Cairn Wight",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 4,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>A jealous undead guardian of barrows and sepulchers.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["undead", "unholy", "wight"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "temple-scavenger.json"), {
+    _id: "temple-scavenger",
+    name: "Temple Scavenger",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 3,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>This scavenger lurks among the ruins of a collapsed temple.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["humanoid"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "coastal-prowler.json"), {
+    _id: "coastal-prowler",
+    name: "Coastal Prowler",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 5,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>A vigilant hunter prowls rocky shores and coastal reefs.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["beast"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "island-watcher.json"), {
+    _id: "island-watcher",
+    name: "Island Watcher",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 4,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>A wary survivor keeps watch over a lonely island and its hidden paths.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["humanoid"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "plains-runner.json"), {
+    _id: "plains-runner",
+    name: "Plains Runner",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 3,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>A swift hunter races across grassy plains and open savannas.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["beast"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "temple-custodian.json"), {
+    _id: "temple-custodian",
+    name: "Temple Custodian",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 6,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>A divine construct tends an ancient temple shrine and its sacred relics.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["construct"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "fortress-warden.json"), {
+    _id: "fortress-warden",
+    name: "Fortress Warden",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 7,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>A grim defender patrols the walls of a mountain fortress and ancient citadel.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["humanoid"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "caldera-oni.json"), {
+    _id: "caldera-oni",
+    name: "Caldera Oni",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 10,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>As hot-blooded as the lava that floods their homes, caldera oni hunger for battle.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["fiend", "oni"],
         size: {
           value: "med",
         },
