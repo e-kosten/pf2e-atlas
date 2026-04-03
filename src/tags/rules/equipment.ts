@@ -177,6 +177,76 @@ const ARMOR_SURVIVAL_TEXT_ANCHORS = [
   patternAnchor("underwater"),
 ];
 
+const EQUIPMENT_MOUNTED_SUPPORT_NAME_ANCHORS = [
+  patternAnchor("saddle", "name"),
+  patternAnchor("barding", "name"),
+  patternAnchor("rider", "name"),
+  patternAnchor("cavalry", "name"),
+  patternAnchor("horselord", "name"),
+  patternAnchor("lance", "name"),
+];
+
+const EQUIPMENT_MOUNTED_SUPPORT_TEXT_ANCHORS = [
+  patternAnchor("mounted combat"),
+  patternAnchor("while mounted"),
+  patternAnchor("mounted creature"),
+  patternAnchor("mounted warriors"),
+  patternAnchor("mount and rider"),
+  patternAnchor("on your mount"),
+  patternAnchor("secure you on your mount"),
+  patternAnchor("fit any mount"),
+  patternAnchor("hold lances and similar weapons"),
+  patternAnchor("command their mounts in battle"),
+];
+
+const EQUIPMENT_SUSTENANCE_NAME_ANCHORS = [
+  patternAnchor("ration", "name"),
+  patternAnchor("rations", "name"),
+  patternAnchor("feed", "name"),
+  patternAnchor("waterskin", "name"),
+  patternAnchor("sustenance", "name"),
+];
+
+const EQUIPMENT_SUSTENANCE_TEXT_ANCHORS = [
+  patternAnchor("worth of rations"),
+  patternAnchor("day's worth of water"),
+  patternAnchor("day's worth of food"),
+  patternAnchor("fresh, clear water"),
+  patternAnchor("nourishes you with the equivalent of"),
+  patternAnchor("fill itself with hearty"),
+  patternAnchor("access to fresh food is limited"),
+  patternAnchor("need to eat"),
+  patternAnchor("need to drink"),
+];
+
+const EQUIPMENT_SUSTENANCE_BLOCKER_TEXT_ANCHORS = [
+  patternAnchor("don't last long enough to sate hunger"),
+  patternAnchor("provide any real nutritive value"),
+  patternAnchor("feeding orifice"),
+];
+
+const EQUIPMENT_AQUATIC_SUPPORT_NAME_ANCHORS = [
+  patternAnchor("pontoon", "name"),
+  patternAnchor("rowboat", "name"),
+  patternAnchor("sailor", "name"),
+];
+
+const EQUIPMENT_AQUATIC_SUPPORT_TEXT_ANCHORS = [
+  patternAnchor("breathe underwater"),
+  patternAnchor("swim speed"),
+  patternAnchor("fall overboard"),
+  patternAnchor("surface of water"),
+  patternAnchor("move from sea to land"),
+  patternAnchor("sailing vessel"),
+  patternAnchor("protects you from drowning"),
+  patternAnchor("underwater site"),
+];
+
+const EQUIPMENT_AQUATIC_SUPPORT_BLOCKER_TEXT_ANCHORS = [
+  patternAnchor("fresh, clear water"),
+  patternAnchor("full of water"),
+];
+
 const EQUIPMENT_IMPACT_MOBILITY_TEXT_ANCHORS = [
   patternAnchor("immobilized"),
   patternAnchor("restrained"),
@@ -674,6 +744,42 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     threshold: 2,
     anyOf: [
       { score: 2, textAny: ARMOR_SURVIVAL_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "mounted_support",
+    category: "equipment",
+    subcategories: [...GEARISH_SUBCATEGORIES, "armor", "shield", "weapon"],
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: EQUIPMENT_MOUNTED_SUPPORT_NAME_ANCHORS },
+      { score: 2, textAny: EQUIPMENT_MOUNTED_SUPPORT_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "sustenance",
+    category: "equipment",
+    subcategories: [...GEARISH_SUBCATEGORIES, "consumable"],
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: EQUIPMENT_SUSTENANCE_NAME_ANCHORS },
+      { score: 2, textAny: EQUIPMENT_SUSTENANCE_TEXT_ANCHORS },
+    ],
+    noneOf: [
+      { textAny: EQUIPMENT_SUSTENANCE_BLOCKER_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "aquatic_support",
+    category: "equipment",
+    subcategories: [...GEARISH_SUBCATEGORIES, "consumable", "armor", "shield"],
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: EQUIPMENT_AQUATIC_SUPPORT_NAME_ANCHORS },
+      { score: 2, textAny: EQUIPMENT_AQUATIC_SUPPORT_TEXT_ANCHORS },
+    ],
+    noneOf: [
+      { textAny: EQUIPMENT_AQUATIC_SUPPORT_BLOCKER_TEXT_ANCHORS },
     ],
   },
   {

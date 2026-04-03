@@ -769,6 +769,72 @@ describe("derived tag rules: equipment", () => {
     })).not.toContain("mental_impairment");
   });
 
+  it("derives expedition tags for mounted support, sustenance, and aquatic support", () => {
+    expect(deriveRecordTags({
+      name: "War Saddle",
+      category: "equipment",
+      subcategory: "gear",
+      descriptionText: "Each war saddle is specifically fitted to a mount's body type and has numerous straps that can secure you on your mount.",
+      traits: [],
+    })).toContain("mounted_support");
+
+    expect(deriveRecordTags({
+      name: "Cavalry Commander's Lance",
+      category: "equipment",
+      subcategory: "weapon",
+      descriptionText: "When mounted and wielding a cavalry commander's lance, you can direct allies with the pennant while charging.",
+      traits: ["magical"],
+    })).toContain("mounted_support");
+
+    expect(deriveRecordTags({
+      name: "Portable Weapon Mount",
+      category: "equipment",
+      subcategory: "gear",
+      descriptionText: "This tripod can be mounted on a wall bracket to stabilize a firearm in defensive positions.",
+      traits: [],
+    })).not.toContain("mounted_support");
+
+    expect(deriveRecordTags({
+      name: "Ration Tonic",
+      category: "equipment",
+      subcategory: "consumable",
+      descriptionText: "Drinking a ration tonic magically nourishes you with the equivalent of a day's worth of food and water.",
+      traits: ["consumable", "magical", "potion"],
+    })).toContain("sustenance");
+
+    expect(deriveRecordTags({
+      name: "Prankster's Perpetual Pieplate",
+      category: "equipment",
+      subcategory: "gear",
+      descriptionText: "Although the simple pies that fill this plate every minute are edible, they don't last long enough to sate hunger or provide any real nutritive value.",
+      traits: ["magical"],
+    })).not.toContain("sustenance");
+
+    expect(deriveRecordTags({
+      name: "Sailor's Collar",
+      category: "equipment",
+      subcategory: "gear",
+      descriptionText: "It can even save your life if you fall overboard, and while wearing it you gain a swim Speed.",
+      traits: ["invested", "magical"],
+    })).toContain("aquatic_support");
+
+    expect(deriveRecordTags({
+      name: "Feather Token (Puddle)",
+      category: "equipment",
+      subcategory: "consumable",
+      descriptionText: "When activated, the feather transforms into two gallons of fresh, clear water.",
+      traits: ["consumable", "magical"],
+    })).toContain("sustenance");
+
+    expect(deriveRecordTags({
+      name: "Feather Token (Puddle)",
+      category: "equipment",
+      subcategory: "consumable",
+      descriptionText: "When activated, the feather transforms into two gallons of fresh, clear water.",
+      traits: ["consumable", "magical"],
+    })).not.toContain("aquatic_support");
+  });
+
   it("avoids equipment false positives while preserving shared tags", () => {
     expect(deriveRecordTags({
       name: "Antidote (Lesser)",

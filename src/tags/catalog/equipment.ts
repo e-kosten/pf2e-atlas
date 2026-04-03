@@ -3,6 +3,7 @@ import { DerivedTagCatalogEntry, type SearchSubcategory } from "../../types.js";
 import { DISGUISE_SUBCATEGORIES, GEARISH_SUBCATEGORIES } from "../shared.js";
 
 const PURPOSE_SUBCATEGORIES: SearchSubcategory[] = [...GEARISH_SUBCATEGORIES, "armor"];
+const EXPEDITION_SUBCATEGORIES: SearchSubcategory[] = [...GEARISH_SUBCATEGORIES, "consumable", "armor", "shield", "weapon"];
 
 export const EQUIPMENT_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
   {
@@ -83,6 +84,17 @@ export const EQUIPMENT_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
       { value: "sensory_impairment", description: "Impairs sight, hearing, or other senses through blinding, dazzling, or deafening effects." },
       { value: "mental_impairment", description: "Impairs thought, judgment, composure, or behavior through fear, confusion, or similar effects." },
       { value: "sedation", description: "Induces sleep, lethargy, unconsciousness, or similar incapacitating drowsiness." },
+    ],
+  },
+  {
+    category: "equipment",
+    subcategories: EXPEDITION_SUBCATEGORIES,
+    family: "expedition",
+    description: "Travel, provisioning, mounted-combat, and aquatic-operations equipment.",
+    tags: [
+      { value: "mounted_support", description: "Supports mounted combat, rider control, saddle use, or mount-specific loadouts." },
+      { value: "sustenance", description: "Provides food, feed, water, or other practical nourishment for travel and survival." },
+      { value: "aquatic_support", description: "Helps with swimming, underwater breathing, flotation, water-surface travel, or watercraft use." },
     ],
   },
   {

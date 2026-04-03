@@ -706,6 +706,24 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     },
   });
 
+  await writeJson(path.join(packRoot, "equipment", "ration-tonic.json"), {
+    _id: "ration-tonic-1",
+    name: "Ration Tonic",
+    type: "consumable",
+    system: {
+      description: {
+        value: "<p>This slender vial appears to hold clean, clear water with a faintly fruity scent. Drinking a ration tonic magically nourishes you with the equivalent of a day's worth of food and water.</p>",
+      },
+      publication: {
+        title: "Pathfinder Treasure Vault",
+      },
+      traits: {
+        rarity: "common",
+        value: ["consumable", "magical", "potion"],
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "equipment", "potion-of-disguise-moderate.json"), {
     _id: "potion-disguise-1",
     name: "Potion of Disguise (Moderate)",
@@ -774,6 +792,60 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
       traits: {
         rarity: "common",
         value: [],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment-srd", "war-saddle.json"), {
+    _id: "war-saddle-1",
+    name: "War Saddle",
+    type: "equipment",
+    system: {
+      description: {
+        value: "<p>Each war saddle is specifically fitted to a mount's body type and has numerous straps that can secure you on your mount.</p>",
+      },
+      publication: {
+        title: "Pathfinder Player Core",
+      },
+      traits: {
+        rarity: "common",
+        value: [],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment-srd", "sailors-collar.json"), {
+    _id: "sailors-collar-1",
+    name: "Sailor's Collar",
+    type: "equipment",
+    system: {
+      description: {
+        value: "<p>Veteran sailors like to wear this jaunty blue collar. It can even save your life if you fall overboard, and while wearing it you gain a swim Speed.</p>",
+      },
+      publication: {
+        title: "Pathfinder Treasure Vault",
+      },
+      traits: {
+        rarity: "common",
+        value: ["invested", "magical"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment-srd", "ring-of-sustenance.json"), {
+    _id: "ring-sustenance-1",
+    name: "Ring of Sustenance",
+    type: "equipment",
+    system: {
+      description: {
+        value: "<p>This polished wooden ring constantly refreshes your body and mind. While wearing it, you need to eat and drink only once per week.</p>",
+      },
+      publication: {
+        title: "Pathfinder Treasure Vault",
+      },
+      traits: {
+        rarity: "common",
+        value: ["invested", "magical"],
       },
     },
   });
