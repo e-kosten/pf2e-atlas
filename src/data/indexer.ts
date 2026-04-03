@@ -1,0 +1,689 @@
+import { execFile } from "node:child_process";
+import { mkdir, readdir, readFile, rm, stat } from "node:fs/promises";
+import path from "node:path";
+import { DatabaseSync } from "node:sqlite";
+import { promisify } from "node:util";
+
+import { EmbeddingProvider } from "../embeddings.js";
+import { deriveRecordTags, normalizeDerivedTag } from "../tags/index.js";
+import {
+  PackInfo,
+  PackManifestEntry,
+} from "../types.js";
+import {
+  firstString,
+  normalizeText,
+  uniqueSorted,
+} from "../utils.js";
+import {
+  BuildIndexResult,
+  BuildSourceEntry,
+  PackBuildInfo,
+  PendingCanonicalEmbedding,
+  StageTiming,
+} from "./index-types.js";
+import {
+  INDEX_SCHEMA_VERSION,
+} from "./schema.js";
+import {
+  buildSemanticEmbeddingText,
+  isExcludedPackName,
+  normalizeIndexRecord,
+  parseActorIndexData,
+  parseItemIndexData,
+  parseSpellIndexData,
+  shouldExcludeRecordFromIndex,
+} from "./record-normalization.js";
+import {
+  extractRulesReferences,
+  resolveBuildReferencesAndAliases,
+} from "./references.js";
+
+const execFileAsync = promisify(execFile);
+const VEC_TEXT_NONE = "";
+const VEC_INT_NONE = -1n;
+const EMBEDDING_BATCH_SIZE = 64;
+const INTEGER_FORMATTER = new Intl.NumberFormat("en-US");
+const PACK_PROGRESS_BAR_WIDTH = 24;
+const PACK_PROGRESS_LOG_INTERVAL_MS = 5_000;
+
+function encodeVector(vector: Float32Array): Buffer {
+  return Buffer.from(vector.buffer.slice(vector.byteOffset, vector.byteOffset + vector.byteLength));
+}
+
+function normalizeVecText(value: string | null | undefined): string {
+  return normalizeText(value ?? "") || VEC_TEXT_NONE;
+}
+
+function normalizeVecInteger(value: number | null | undefined): bigint {
+  return value === null || value === undefined ? VEC_INT_NONE : BigInt(value);
+}
+
+function hashText(value: string): number {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+
+  return hash >>> 0;
+}
+
+function isJsonRecord(filename: string): boolean {
+  return filename.endsWith(".json") && filename !== "_folders.json";
+}
+
+async function walkJsonFiles(root: string): Promise<string[]> {
+  const entries = await readdir(root, { withFileTypes: true });
+  const files = await Promise.all(
+    entries.map(async (entry) => {
+      const entryPath = path.join(root, entry.name);
+      if (entry.isDirectory()) {
+        return walkJsonFiles(entryPath);
+      }
+
+      if (entry.isFile() && isJsonRecord(entry.name)) {
+        return [entryPath];
+      }
+
+      return [];
+    }),
+  );
+
+  return files.flat();
+}
+
+async function directoryExists(targetPath: string): Promise<boolean> {
+  try {
+    const details = await stat(targetPath);
+    return details.isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+async function fileExists(targetPath: string): Promise<boolean> {
+  try {
+    await stat(targetPath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function formatInteger(value: number): string {
+  return INTEGER_FORMATTER.format(value);
+}
+
+function renderProgressBar(completed: number, total: number, width = PACK_PROGRESS_BAR_WIDTH): string {
+  if (total <= 0) {
+    return `[${"-".repeat(width)}]`;
+  }
+
+  const boundedCompleted = Math.max(0, Math.min(completed, total));
+  const filled = Math.max(0, Math.min(width, Math.round((boundedCompleted / total) * width)));
+  return `[${"#".repeat(filled)}${"-".repeat(width - filled)}]`;
+}
+
+function formatPercentage(completed: number, total: number): string {
+  if (total <= 0) {
+    return "  0%";
+  }
+
+  return `${Math.round((Math.max(0, Math.min(completed, total)) / total) * 100)}`.padStart(3, " ") + "%";
+}
+
+async function isGitCheckout(rootPath: string): Promise<boolean> {
+  return fileExists(path.join(rootPath, ".git"));
+}
+
+async function computeFileSignature(rootPath: string, filePaths: string[]): Promise<string> {
+  const files = [...new Set(filePaths)].sort((left, right) => left.localeCompare(right));
+  let hash = 2166136261;
+  for (const filePath of files) {
+    const details = await stat(filePath);
+    const value = `${path.relative(rootPath, filePath)}:${details.size}:${Math.trunc(details.mtimeMs)}`;
+    hash ^= hashText(value);
+    hash = Math.imul(hash, 16777619);
+  }
+
+  return String(hash >>> 0);
+}
+
+export async function computeSourceSignature(rootPath: string, manifestPath: string): Promise<string> {
+  if (await isGitCheckout(rootPath)) {
+    try {
+      const [{ stdout: headStdout }, { stdout: statusStdout }, { stdout: untrackedStdout }] = await Promise.all([
+        execFileAsync("git", ["-C", rootPath, "rev-parse", "HEAD"], { timeout: 10_000 }),
+        execFileAsync("git", ["-C", rootPath, "status", "--porcelain", "--untracked-files=no"], { timeout: 10_000 }),
+        execFileAsync(
+          "git",
+          ["-C", rootPath, "ls-files", "--others", "--exclude-standard", "--full-name", "--", "*.json", ":(glob)**/*.json"],
+          { timeout: 10_000 },
+        ),
+      ]);
+      const head = headStdout.trim();
+      const dirty = statusStdout.trim();
+      const untrackedJsonFiles = untrackedStdout
+        .split(/\r?\n/)
+        .map((filePath) => filePath.trim())
+        .filter(Boolean)
+        .map((filePath) => path.join(rootPath, filePath));
+      const untrackedJsonSignature = await computeFileSignature(rootPath, untrackedJsonFiles);
+      return `git:${head}:${dirty}:${untrackedJsonSignature}`;
+    } catch {
+      // Fall through to filesystem signature.
+    }
+  }
+
+  const files = [manifestPath, ...(await walkJsonFiles(rootPath))];
+  return `fs:${await computeFileSignature(rootPath, files)}`;
+}
+
+export async function removeIndexFiles(indexPath: string): Promise<void> {
+  await rm(indexPath, { force: true });
+  await rm(`${indexPath}-wal`, { force: true });
+  await rm(`${indexPath}-shm`, { force: true });
+}
+
+async function resolvePackPath(rootPath: string, pack: PackManifestEntry): Promise<string | null> {
+  const candidates = [
+    path.join(rootPath, pack.path),
+    path.join(rootPath, "packs", "pf2e", pack.name),
+    path.join(rootPath, pack.path.replace(/^packs\//, "packs/pf2e/")),
+  ];
+
+  for (const candidate of candidates) {
+    const normalized = path.normalize(candidate);
+    if (await directoryExists(normalized)) {
+      return normalized;
+    }
+  }
+
+  return null;
+}
+
+export async function buildIndex(
+  db: DatabaseSync,
+  rootPath: string,
+  manifestPath: string,
+  embeddingProvider: EmbeddingProvider,
+  sourceSignature: string,
+  progressLogger?: (message: string) => void,
+  progressStatusLogger?: (message: string) => void,
+): Promise<BuildIndexResult> {
+  const manifestRaw = JSON.parse(await readFile(manifestPath, "utf8")) as { packs?: PackManifestEntry[] };
+  const manifestPacks = Array.isArray(manifestRaw.packs) ? manifestRaw.packs : [];
+  const includedManifestPacks = manifestPacks.filter((manifestPack) => !isExcludedPackName(manifestPack.name));
+
+  const warnings: string[] = [];
+  const packs: PackInfo[] = [];
+  let recordCount = 0;
+  let processedPackCount = 0;
+  const sourceEntries: BuildSourceEntry[] = [];
+  const scanStartTime = Date.now();
+  let scanNormalizationDurationMs = 0;
+  let resolutionDurationMs = 0;
+  let recordStorageDurationMs = 0;
+  let embeddingGenerationDurationMs = 0;
+  let vecInsertDurationMs = 0;
+
+  const insertPack = db.prepare(`
+    INSERT INTO packs (name, label, document_type, declared_path, resolved_path, record_count)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `);
+  const insertRecord = db.prepare(`
+    INSERT INTO records (
+      record_key, id, name, normalized_name, category, subcategory, pack_name, pack_label, document_type, record_type,
+      level, rarity, traits_json, derived_tags_json, publication_title, publication_remaster, description_text, has_description, description_snippet,
+      source_category, folder_id, families_json, source_path, is_unique, is_search_canonical, search_text, raw_json
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  const insertAlias = db.prepare(`
+    INSERT INTO record_aliases (canonical_record_key, alias_text, normalized_alias, source_kind, source_ref)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+  const insertLegacyLink = db.prepare(`
+    INSERT INTO record_legacy_links (canonical_record_key, legacy_record_key, source_kind, source_ref)
+    VALUES (?, ?, ?, ?)
+  `);
+  const insertTrait = db.prepare(`
+    INSERT INTO record_traits (record_key, trait) VALUES (?, ?)
+  `);
+  const insertDerivedTag = db.prepare(`
+    INSERT INTO record_derived_tags (record_key, tag) VALUES (?, ?)
+  `);
+  const insertActor = db.prepare(`
+    INSERT INTO actor_records (
+      record_key, size, languages_json, speed_types_json, immunities_json, resistances_json, weaknesses_json
+    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+  `);
+  const insertItem = db.prepare(`
+    INSERT INTO item_records (
+      record_key, item_category, price_cp, bulk_value, usage_text, hands, damage_types_json, weapon_group, armor_group, action_cost
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  const insertSpell = db.prepare(`
+    INSERT INTO spell_records (
+      record_key, action_cost, traditions_json, spell_kinds_json, range_text, range_value, save_type, area_type, damage_types_json
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  const insertEmbedding = db.prepare(`
+    INSERT INTO embeddings (record_key, dimensions, vector_blob) VALUES (?, ?, ?)
+  `);
+  const insertVecEmbedding = db.prepare(`
+    INSERT INTO record_embeddings (
+      record_key,
+      embedding,
+      category,
+      subcategory,
+      pack_name,
+      pack_label,
+      document_type,
+      record_type,
+      level,
+      rarity,
+      source_category,
+      publication_title,
+      publication_remaster,
+      has_description,
+      is_unique,
+      size,
+      item_category,
+      price_cp,
+      action_cost
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  const insertReferenceEdge = db.prepare(`
+    INSERT OR IGNORE INTO reference_edges (
+      from_record_key, to_record_key, display_text, reference_text, from_pack_name, from_record_type, from_document_type, from_source_category
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  const insertFts = db.prepare(`
+    INSERT INTO records_fts (record_key, name, search_text) VALUES (?, ?, ?)
+  `);
+  const insertMetadata = db.prepare(`
+    INSERT INTO metadata (key, value) VALUES (?, ?)
+  `);
+
+  db.exec("BEGIN");
+  try {
+    progressLogger?.(
+      `Building SQLite index from ${formatInteger(includedManifestPacks.length)} PF2E packs.`,
+    );
+    insertMetadata.run("schema_version", String(INDEX_SCHEMA_VERSION));
+    insertMetadata.run("source_signature", sourceSignature);
+    insertMetadata.run("embedding_provider", embeddingProvider.identity.provider);
+    insertMetadata.run("embedding_model", embeddingProvider.identity.model);
+    insertMetadata.run("embedding_revision", embeddingProvider.identity.revision ?? "");
+    insertMetadata.run("embedding_dimensions", String(embeddingProvider.identity.dimensions));
+
+    for (const manifestPack of manifestPacks) {
+      const resolvedPath = await resolvePackPath(rootPath, manifestPack);
+      if (!resolvedPath) {
+        warnings.push(`Skipping pack ${manifestPack.name}: could not resolve a readable directory.`);
+        continue;
+      }
+
+      const pack: PackBuildInfo = {
+        name: manifestPack.name,
+        label: manifestPack.label,
+        documentType: manifestPack.type,
+        declaredPath: manifestPack.path,
+        resolvedPath,
+      };
+
+      if (isExcludedPackName(pack.name)) {
+        continue;
+      }
+
+      processedPackCount += 1;
+
+      let filePaths: string[];
+      try {
+        filePaths = await walkJsonFiles(pack.resolvedPath);
+      } catch (error) {
+        warnings.push(`Skipping pack ${pack.name}: ${(error as Error).message}`);
+        continue;
+      }
+
+      let packRecordCount = 0;
+      const progressInterval = Math.max(100, Math.ceil(filePaths.length / 10));
+      let lastProgressLogTime = 0;
+      let lastLoggedFileCount = 0;
+
+      for (const [fileIndex, filePath] of filePaths.entries()) {
+        const raw = JSON.parse(await readFile(filePath, "utf8")) as Record<string, unknown>;
+        const shouldIndexRecord = !shouldExcludeRecordFromIndex(pack, filePath, raw);
+        if (!shouldIndexRecord) {
+          sourceEntries.push({
+            pack,
+            filePath,
+            raw,
+            record: null,
+            actorData: null,
+            itemData: null,
+            spellData: null,
+            references: [],
+            resolvedReferences: [],
+          });
+          const processedFiles = fileIndex + 1;
+          const now = Date.now();
+          const shouldLogProgress = processedFiles === filePaths.length ||
+            (processedFiles - lastLoggedFileCount) >= progressInterval ||
+            (now - lastProgressLogTime) >= PACK_PROGRESS_LOG_INTERVAL_MS;
+
+          if (shouldLogProgress) {
+            progressStatusLogger?.(
+              `[scan ${processedPackCount}/${includedManifestPacks.length}] ${pack.label} ${renderProgressBar(processedFiles, filePaths.length)} ${formatPercentage(processedFiles, filePaths.length)} (${formatInteger(processedFiles)}/${formatInteger(filePaths.length)} files, ${formatInteger(recordCount)} records discovered total).`,
+            );
+            lastProgressLogTime = now;
+            lastLoggedFileCount = processedFiles;
+          }
+          continue;
+        }
+
+        const record = normalizeIndexRecord(pack, filePath, raw);
+        sourceEntries.push({
+          pack,
+          filePath,
+          raw,
+          record,
+          actorData: pack.documentType === "Actor" ? parseActorIndexData(raw) : null,
+          itemData: pack.documentType === "Item" ? parseItemIndexData(raw) : null,
+          spellData: record.type === "spell" ? parseSpellIndexData(raw) : null,
+          references: extractRulesReferences(raw),
+          resolvedReferences: [],
+        });
+        packRecordCount += 1;
+        recordCount += 1;
+
+        const processedFiles = fileIndex + 1;
+        const now = Date.now();
+        const shouldLogProgress = processedFiles === 1 ||
+          processedFiles === filePaths.length ||
+          (processedFiles - lastLoggedFileCount) >= progressInterval ||
+          (now - lastProgressLogTime) >= PACK_PROGRESS_LOG_INTERVAL_MS;
+
+        if (shouldLogProgress) {
+          progressStatusLogger?.(
+            `[scan ${processedPackCount}/${includedManifestPacks.length}] ${pack.label} ${renderProgressBar(processedFiles, filePaths.length)} ${formatPercentage(processedFiles, filePaths.length)} (${formatInteger(processedFiles)}/${formatInteger(filePaths.length)} files, ${formatInteger(recordCount)} records discovered total).`,
+          );
+          lastProgressLogTime = now;
+          lastLoggedFileCount = processedFiles;
+        }
+      }
+
+      if (packRecordCount === 0) {
+        continue;
+      }
+
+      packs.push({ ...pack, recordCount: packRecordCount });
+      insertPack.run(pack.name, pack.label, pack.documentType, pack.declaredPath, pack.resolvedPath, packRecordCount);
+    }
+
+    scanNormalizationDurationMs = Date.now() - scanStartTime;
+
+    progressLogger?.("Finished scanning pack files. Resolving verified remaster aliases.");
+    const resolutionStartTime = Date.now();
+
+    const indexedEntries = sourceEntries.filter((entry): entry is BuildSourceEntry & { record: NonNullable<BuildSourceEntry["record"]> } => entry.record !== null);
+    const { aliasRows, legacyLinkRows } = await resolveBuildReferencesAndAliases({
+      indexedEntries,
+      sourceEntries,
+      packs,
+      rootPath,
+    });
+
+    for (const entry of indexedEntries) {
+      entry.record.derivedTags = deriveRecordTags({
+        name: entry.record.name,
+        category: entry.record.category,
+        subcategory: entry.record.subcategory,
+        descriptionText: entry.record.descriptionText,
+        traits: entry.record.traits,
+        families: entry.record.families,
+        references: entry.resolvedReferences.map((reference) => ({
+          recordKey: reference.targetRecordKey,
+          packName: reference.targetRecord.packName,
+          name: reference.targetRecord.name,
+          category: reference.targetRecord.category,
+          subcategory: reference.targetRecord.subcategory,
+          traits: reference.targetRecord.traits,
+        })),
+      });
+    }
+
+    progressLogger?.(
+      `Resolved ${formatInteger(aliasRows.length)} verified aliases and ${formatInteger(legacyLinkRows.length)} legacy-to-remaster links.`,
+    );
+
+    const suppressedRecordKeys = new Set(legacyLinkRows.map((row) => row.legacyRecordKey));
+    const aliasesByCanonicalRecordKey = new Map<string, string[]>();
+    for (const alias of aliasRows) {
+      const bucket = aliasesByCanonicalRecordKey.get(alias.canonicalRecordKey) ?? [];
+      bucket.push(alias.aliasText);
+      aliasesByCanonicalRecordKey.set(alias.canonicalRecordKey, uniqueSorted(bucket));
+    }
+
+    resolutionDurationMs = Date.now() - resolutionStartTime;
+
+    const canonicalEmbeddingCount = indexedEntries.filter((entry) => !suppressedRecordKeys.has(entry.record.recordKey)).length;
+    const recordWriteProgressInterval = Math.max(100, Math.ceil(indexedEntries.length / 10));
+    const embeddingProgressInterval = Math.max(25, Math.ceil(Math.max(canonicalEmbeddingCount, 1) / 10));
+    const pendingCanonicalEmbeddings: PendingCanonicalEmbedding[] = [];
+    let writtenRecordCount = 0;
+    let embeddedRecordCount = 0;
+    let lastRecordProgressLogTime = 0;
+    let lastLoggedRecordCount = 0;
+    let lastEmbeddingProgressLogTime = 0;
+    let lastLoggedEmbeddedCount = 0;
+    const recordStorageStartTime = Date.now();
+
+    progressLogger?.("Writing indexed records and search metadata.");
+
+    for (const entry of indexedEntries) {
+      const record = entry.record;
+      const aliasTexts = aliasesByCanonicalRecordKey.get(record.recordKey) ?? [];
+      const isSearchCanonical = !suppressedRecordKeys.has(record.recordKey);
+      const searchText = uniqueSorted([record.searchText, ...aliasTexts].filter(Boolean)).join("\n");
+
+      insertRecord.run(
+        record.recordKey,
+        record.id,
+        record.name,
+        record.normalizedName,
+        record.category,
+        record.subcategory,
+        record.packName,
+        record.packLabel,
+        record.documentType,
+        record.type,
+        record.level,
+        record.rarity,
+        JSON.stringify(record.traits),
+        JSON.stringify(record.derivedTags),
+        record.publicationTitle,
+        record.publicationRemaster ? 1 : 0,
+        record.descriptionText,
+        record.hasDescription ? 1 : 0,
+        record.descriptionSnippet,
+        record.sourceCategory,
+        record.folderId,
+        JSON.stringify(record.families),
+        record.sourcePath,
+        record.isUnique ? 1 : 0,
+        isSearchCanonical ? 1 : 0,
+        searchText,
+        JSON.stringify(entry.raw),
+      );
+
+      for (const trait of record.traits) {
+        insertTrait.run(record.recordKey, normalizeText(trait));
+      }
+
+      for (const tag of record.derivedTags) {
+        insertDerivedTag.run(record.recordKey, normalizeDerivedTag(tag));
+      }
+
+      if (entry.actorData) {
+        insertActor.run(
+          record.recordKey,
+          entry.actorData.size,
+          JSON.stringify(entry.actorData.languages),
+          JSON.stringify(entry.actorData.speedTypes),
+          JSON.stringify(entry.actorData.immunities),
+          JSON.stringify(entry.actorData.resistances),
+          JSON.stringify(entry.actorData.weaknesses),
+        );
+      }
+
+      if (entry.itemData) {
+        insertItem.run(
+          record.recordKey,
+          entry.itemData.itemCategory,
+          entry.itemData.priceCp,
+          entry.itemData.bulkValue,
+          entry.itemData.usage,
+          entry.itemData.hands,
+          JSON.stringify(entry.itemData.damageTypes),
+          entry.itemData.weaponGroup,
+          entry.itemData.armorGroup,
+          entry.itemData.actionCost,
+        );
+      }
+
+      if (entry.spellData) {
+        insertSpell.run(
+          record.recordKey,
+          entry.spellData.actionCost,
+          JSON.stringify(entry.spellData.traditions),
+          JSON.stringify(entry.spellData.spellKinds),
+          entry.spellData.rangeText,
+          entry.spellData.rangeValue,
+          entry.spellData.saveType,
+          entry.spellData.areaType,
+          JSON.stringify(entry.spellData.damageTypes),
+        );
+      }
+
+      for (const reference of entry.resolvedReferences) {
+        insertReferenceEdge.run(
+          record.recordKey,
+          reference.targetRecordKey,
+          reference.displayText,
+          reference.referenceText,
+          record.packName,
+          record.type,
+          record.documentType,
+          record.sourceCategory,
+        );
+      }
+
+      if (isSearchCanonical) {
+        insertFts.run(record.recordKey, record.name, searchText);
+        pendingCanonicalEmbeddings.push({
+          record,
+          encodedEmbeddingInput: buildSemanticEmbeddingText(record, entry.raw, aliasTexts),
+        });
+      }
+
+      writtenRecordCount += 1;
+      const now = Date.now();
+      const shouldLogProgress = writtenRecordCount === indexedEntries.length ||
+        (writtenRecordCount - lastLoggedRecordCount) >= recordWriteProgressInterval ||
+        (now - lastRecordProgressLogTime) >= PACK_PROGRESS_LOG_INTERVAL_MS;
+
+      if (shouldLogProgress) {
+        progressStatusLogger?.(
+          `[write] Stored records ${renderProgressBar(writtenRecordCount, indexedEntries.length)} ${formatPercentage(writtenRecordCount, indexedEntries.length)} (${formatInteger(writtenRecordCount)}/${formatInteger(indexedEntries.length)} records).`,
+        );
+        lastRecordProgressLogTime = now;
+        lastLoggedRecordCount = writtenRecordCount;
+      }
+    }
+
+    recordStorageDurationMs = Date.now() - recordStorageStartTime;
+
+    progressLogger?.(`Generating canonical embeddings in batches of ${EMBEDDING_BATCH_SIZE}.`);
+
+    for (let index = 0; index < pendingCanonicalEmbeddings.length; index += EMBEDDING_BATCH_SIZE) {
+      const batch = pendingCanonicalEmbeddings.slice(index, index + EMBEDDING_BATCH_SIZE);
+      const embeddingStartTime = Date.now();
+      const embeddings = await embeddingProvider.embedMany(batch.map((entry) => entry.encodedEmbeddingInput));
+      embeddingGenerationDurationMs += Date.now() - embeddingStartTime;
+
+      const vecInsertStartTime = Date.now();
+      for (const [batchIndex, entry] of batch.entries()) {
+        const embedding = embeddings[batchIndex] ?? new Float32Array(embeddingProvider.identity.dimensions);
+        const encodedEmbedding = encodeVector(embedding);
+        const record = entry.record;
+
+        insertEmbedding.run(record.recordKey, embeddingProvider.identity.dimensions, encodedEmbedding);
+        insertVecEmbedding.run(
+          record.recordKey,
+          encodedEmbedding,
+          normalizeVecText(record.category),
+          normalizeVecText(record.subcategory),
+          normalizeVecText(record.packName),
+          normalizeVecText(record.packLabel),
+          normalizeVecText(record.documentType),
+          normalizeVecText(record.type),
+          normalizeVecInteger(record.level),
+          normalizeVecText(record.rarity),
+          normalizeVecText(record.sourceCategory),
+          normalizeVecText(record.publicationTitle),
+          BigInt(record.publicationRemaster ? 1 : 0),
+          BigInt(record.hasDescription ? 1 : 0),
+          BigInt(record.isUnique ? 1 : 0),
+          normalizeVecText(record.size),
+          normalizeVecText(record.itemCategory),
+          normalizeVecInteger(record.priceCp),
+          normalizeVecInteger(record.actionCost),
+        );
+      }
+      vecInsertDurationMs += Date.now() - vecInsertStartTime;
+
+      embeddedRecordCount += batch.length;
+      const now = Date.now();
+      const shouldLogProgress = embeddedRecordCount === canonicalEmbeddingCount ||
+        (embeddedRecordCount - lastLoggedEmbeddedCount) >= embeddingProgressInterval ||
+        (now - lastEmbeddingProgressLogTime) >= PACK_PROGRESS_LOG_INTERVAL_MS;
+
+      if (shouldLogProgress) {
+        progressStatusLogger?.(
+          `[embed] Canonical embeddings ${renderProgressBar(embeddedRecordCount, canonicalEmbeddingCount)} ${formatPercentage(embeddedRecordCount, canonicalEmbeddingCount)} (${formatInteger(embeddedRecordCount)}/${formatInteger(canonicalEmbeddingCount)} embeddings).`,
+        );
+        lastEmbeddingProgressLogTime = now;
+        lastLoggedEmbeddedCount = embeddedRecordCount;
+      }
+    }
+
+    for (const alias of aliasRows) {
+      insertAlias.run(alias.canonicalRecordKey, alias.aliasText, alias.normalizedAlias, alias.sourceKind, alias.sourceRef);
+    }
+
+    for (const legacyLink of legacyLinkRows) {
+      insertLegacyLink.run(legacyLink.canonicalRecordKey, legacyLink.legacyRecordKey, legacyLink.sourceKind, legacyLink.sourceRef);
+    }
+
+    db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+
+  packs.sort((left, right) => left.label.localeCompare(right.label));
+  return {
+    packs,
+    warnings,
+    recordCount,
+    stageTimings: [
+      { label: "Scan and normalize records", durationMs: scanNormalizationDurationMs },
+      { label: "Resolve families, references, tags, and aliases", durationMs: resolutionDurationMs },
+      { label: "Write records and lexical search metadata", durationMs: recordStorageDurationMs },
+      { label: "Generate canonical embeddings", durationMs: embeddingGenerationDurationMs },
+      { label: "Insert vector rows", durationMs: vecInsertDurationMs },
+    ],
+  };
+}
