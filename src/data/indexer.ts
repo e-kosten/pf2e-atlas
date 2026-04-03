@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdir, readdir, readFile, rm, stat } from "node:fs/promises";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -25,6 +26,7 @@ import {
   NormalizedIndexRecord,
   PackBuildInfo,
   PendingCanonicalEmbedding,
+  PendingCanonicalEmbeddingWithHash,
   ResolvedBuildReference,
   SpellIndexData,
   StageTiming,
@@ -67,6 +69,16 @@ type WritableIndexEntry = {
   isSearchCanonical: boolean;
 };
 
+type ReusableEmbeddingRow = {
+  semanticInputHash: string;
+  dimensions: number;
+  vectorBlob: Uint8Array;
+};
+
+type ReusableEmbeddingLookup = {
+  get(recordKey: string): ReusableEmbeddingRow | null;
+};
+
 function encodeVector(vector: Float32Array): Buffer {
   return Buffer.from(vector.buffer.slice(vector.byteOffset, vector.byteOffset + vector.byteLength));
 }
@@ -77,6 +89,10 @@ function normalizeVecText(value: string | null | undefined): string {
 
 function normalizeVecInteger(value: number | null | undefined): bigint {
   return value === null || value === undefined ? VEC_INT_NONE : BigInt(value);
+}
+
+function hashSemanticInput(value: string): string {
+  return createHash("sha256").update(value).digest("hex");
 }
 
 function hashText(value: string): number {
@@ -210,6 +226,23 @@ async function resolvePackPath(rootPath: string, pack: PackManifestEntry): Promi
   return null;
 }
 
+export function buildReusableEmbeddingLookup(db: DatabaseSync): ReusableEmbeddingLookup {
+  const selectReusableEmbedding = db.prepare(`
+    SELECT
+      semantic_input_hash AS semanticInputHash,
+      dimensions,
+      vector_blob AS vectorBlob
+    FROM embeddings
+    WHERE record_key = ?
+  `);
+
+  return {
+    get(recordKey: string): ReusableEmbeddingRow | null {
+      return selectReusableEmbedding.get(recordKey) as ReusableEmbeddingRow | null;
+    },
+  };
+}
+
 export async function buildIndex(
   db: DatabaseSync,
   rootPath: string,
@@ -218,6 +251,7 @@ export async function buildIndex(
   sourceSignature: string,
   progressLogger?: (message: string) => void,
   progressStatusLogger?: (message: string) => void,
+  reusableEmbeddingLookup?: ReusableEmbeddingLookup | null,
 ): Promise<BuildIndexResult> {
   const manifestRaw = JSON.parse(await readFile(manifestPath, "utf8")) as { packs?: PackManifestEntry[] };
   const manifestPacks = Array.isArray(manifestRaw.packs) ? manifestRaw.packs : [];
@@ -234,6 +268,8 @@ export async function buildIndex(
   let recordStorageDurationMs = 0;
   let embeddingGenerationDurationMs = 0;
   let vecInsertDurationMs = 0;
+  let reusedCanonicalEmbeddingCount = 0;
+  let regeneratedCanonicalEmbeddingCount = 0;
 
   const insertPack = db.prepare(`
     INSERT INTO packs (name, label, document_type, declared_path, resolved_path, record_count)
@@ -276,7 +312,7 @@ export async function buildIndex(
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const insertEmbedding = db.prepare(`
-    INSERT INTO embeddings (record_key, dimensions, vector_blob) VALUES (?, ?, ?)
+    INSERT INTO embeddings (record_key, dimensions, semantic_input_hash, vector_blob) VALUES (?, ?, ?, ?)
   `);
   const insertVecEmbedding = db.prepare(`
     INSERT INTO record_embeddings (
@@ -519,13 +555,13 @@ export async function buildIndex(
     const canonicalEmbeddingCount = writableEntries.filter((entry) => entry.isSearchCanonical).length;
     const recordWriteProgressInterval = Math.max(100, Math.ceil(writableEntries.length / 10));
     const embeddingProgressInterval = Math.max(25, Math.ceil(Math.max(canonicalEmbeddingCount, 1) / 10));
-    const pendingCanonicalEmbeddings: PendingCanonicalEmbedding[] = [];
+    const pendingCanonicalEmbeddings: PendingCanonicalEmbeddingWithHash[] = [];
     let writtenRecordCount = 0;
-    let embeddedRecordCount = 0;
+    let processedCanonicalEmbeddingCount = 0;
     let lastRecordProgressLogTime = 0;
     let lastLoggedRecordCount = 0;
     let lastEmbeddingProgressLogTime = 0;
-    let lastLoggedEmbeddedCount = 0;
+    let lastLoggedProcessedEmbeddingCount = 0;
     const recordStorageStartTime = Date.now();
 
     progressLogger?.("Writing indexed records and search metadata.");
@@ -630,9 +666,11 @@ export async function buildIndex(
 
       if (isSearchCanonical) {
         insertFts.run(record.recordKey, record.name, searchText);
+        const encodedEmbeddingInput = buildSemanticEmbeddingText(record, entry.raw, aliasTexts);
         pendingCanonicalEmbeddings.push({
           record,
-          encodedEmbeddingInput: buildSemanticEmbeddingText(record, entry.raw, aliasTexts),
+          encodedEmbeddingInput,
+          semanticInputHash: hashSemanticInput(encodedEmbeddingInput),
         });
       }
 
@@ -666,59 +704,106 @@ export async function buildIndex(
 
     recordStorageDurationMs = Date.now() - recordStorageStartTime;
 
-    progressLogger?.(`Generating canonical embeddings in batches of ${EMBEDDING_BATCH_SIZE}.`);
+    progressLogger?.(`Processing canonical embeddings in batches of ${EMBEDDING_BATCH_SIZE}.`);
 
     for (let index = 0; index < pendingCanonicalEmbeddings.length; index += EMBEDDING_BATCH_SIZE) {
       const batch = pendingCanonicalEmbeddings.slice(index, index + EMBEDDING_BATCH_SIZE);
-      const embeddingStartTime = Date.now();
-      const embeddings = await embeddingProvider.embedMany(batch.map((entry) => entry.encodedEmbeddingInput));
-      embeddingGenerationDurationMs += Date.now() - embeddingStartTime;
+      const pendingRegeneration: PendingCanonicalEmbeddingWithHash[] = [];
 
       const vecInsertStartTime = Date.now();
-      for (const [batchIndex, entry] of batch.entries()) {
-        const embedding = embeddings[batchIndex] ?? new Float32Array(embeddingProvider.identity.dimensions);
-        const encodedEmbedding = encodeVector(embedding);
+      for (const entry of batch) {
         const record = entry.record;
+        const reusableEmbedding = reusableEmbeddingLookup?.get(record.recordKey) ?? null;
 
-        insertEmbedding.run(record.recordKey, embeddingProvider.identity.dimensions, encodedEmbedding);
-        insertVecEmbedding.run(
-          record.recordKey,
-          encodedEmbedding,
-          normalizeVecText(record.category),
-          normalizeVecText(record.subcategory),
-          normalizeVecText(record.packName),
-          normalizeVecText(record.packLabel),
-          normalizeVecText(record.documentType),
-          normalizeVecText(record.type),
-          normalizeVecInteger(record.level),
-          normalizeVecText(record.rarity),
-          normalizeVecText(record.sourceCategory),
-          normalizeVecText(record.publicationTitle),
-          BigInt(record.publicationRemaster ? 1 : 0),
-          BigInt(record.hasDescription ? 1 : 0),
-          BigInt(record.isUnique ? 1 : 0),
-          normalizeVecText(record.size),
-          normalizeVecText(record.itemCategory),
-          normalizeVecInteger(record.priceCp),
-          normalizeVecInteger(record.actionCost),
-        );
+        if (
+          reusableEmbedding &&
+          reusableEmbedding.semanticInputHash === entry.semanticInputHash &&
+          reusableEmbedding.dimensions === embeddingProvider.identity.dimensions
+        ) {
+          insertEmbedding.run(record.recordKey, embeddingProvider.identity.dimensions, entry.semanticInputHash, reusableEmbedding.vectorBlob);
+          insertVecEmbedding.run(
+            record.recordKey,
+            reusableEmbedding.vectorBlob,
+            normalizeVecText(record.category),
+            normalizeVecText(record.subcategory),
+            normalizeVecText(record.packName),
+            normalizeVecText(record.packLabel),
+            normalizeVecText(record.documentType),
+            normalizeVecText(record.type),
+            normalizeVecInteger(record.level),
+            normalizeVecText(record.rarity),
+            normalizeVecText(record.sourceCategory),
+            normalizeVecText(record.publicationTitle),
+            BigInt(record.publicationRemaster ? 1 : 0),
+            BigInt(record.hasDescription ? 1 : 0),
+            BigInt(record.isUnique ? 1 : 0),
+            normalizeVecText(record.size),
+            normalizeVecText(record.itemCategory),
+            normalizeVecInteger(record.priceCp),
+            normalizeVecInteger(record.actionCost),
+          );
+          reusedCanonicalEmbeddingCount += 1;
+          continue;
+        }
+
+        pendingRegeneration.push(entry);
+      }
+
+      if (pendingRegeneration.length > 0) {
+        const embeddingStartTime = Date.now();
+        const embeddings = await embeddingProvider.embedMany(pendingRegeneration.map((entry) => entry.encodedEmbeddingInput));
+        embeddingGenerationDurationMs += Date.now() - embeddingStartTime;
+
+        for (const [batchIndex, entry] of pendingRegeneration.entries()) {
+          const embedding = embeddings[batchIndex] ?? new Float32Array(embeddingProvider.identity.dimensions);
+          const encodedEmbedding = encodeVector(embedding);
+          const record = entry.record;
+
+          insertEmbedding.run(record.recordKey, embeddingProvider.identity.dimensions, entry.semanticInputHash, encodedEmbedding);
+          insertVecEmbedding.run(
+            record.recordKey,
+            encodedEmbedding,
+            normalizeVecText(record.category),
+            normalizeVecText(record.subcategory),
+            normalizeVecText(record.packName),
+            normalizeVecText(record.packLabel),
+            normalizeVecText(record.documentType),
+            normalizeVecText(record.type),
+            normalizeVecInteger(record.level),
+            normalizeVecText(record.rarity),
+            normalizeVecText(record.sourceCategory),
+            normalizeVecText(record.publicationTitle),
+            BigInt(record.publicationRemaster ? 1 : 0),
+            BigInt(record.hasDescription ? 1 : 0),
+            BigInt(record.isUnique ? 1 : 0),
+            normalizeVecText(record.size),
+            normalizeVecText(record.itemCategory),
+            normalizeVecInteger(record.priceCp),
+            normalizeVecInteger(record.actionCost),
+          );
+          regeneratedCanonicalEmbeddingCount += 1;
+        }
       }
       vecInsertDurationMs += Date.now() - vecInsertStartTime;
 
-      embeddedRecordCount += batch.length;
+      processedCanonicalEmbeddingCount += batch.length;
       const now = Date.now();
-      const shouldLogProgress = embeddedRecordCount === canonicalEmbeddingCount ||
-        (embeddedRecordCount - lastLoggedEmbeddedCount) >= embeddingProgressInterval ||
+      const shouldLogProgress = processedCanonicalEmbeddingCount === canonicalEmbeddingCount ||
+        (processedCanonicalEmbeddingCount - lastLoggedProcessedEmbeddingCount) >= embeddingProgressInterval ||
         (now - lastEmbeddingProgressLogTime) >= PACK_PROGRESS_LOG_INTERVAL_MS;
 
       if (shouldLogProgress) {
         progressStatusLogger?.(
-          `[embed] Canonical embeddings ${renderProgressBar(embeddedRecordCount, canonicalEmbeddingCount)} ${formatPercentage(embeddedRecordCount, canonicalEmbeddingCount)} (${formatInteger(embeddedRecordCount)}/${formatInteger(canonicalEmbeddingCount)} embeddings).`,
+          `[embed] Canonical embeddings ${renderProgressBar(processedCanonicalEmbeddingCount, canonicalEmbeddingCount)} ${formatPercentage(processedCanonicalEmbeddingCount, canonicalEmbeddingCount)} (${formatInteger(processedCanonicalEmbeddingCount)}/${formatInteger(canonicalEmbeddingCount)} embeddings, reused ${formatInteger(reusedCanonicalEmbeddingCount)}, regenerated ${formatInteger(regeneratedCanonicalEmbeddingCount)}).`,
         );
         lastEmbeddingProgressLogTime = now;
-        lastLoggedEmbeddedCount = embeddedRecordCount;
+        lastLoggedProcessedEmbeddingCount = processedCanonicalEmbeddingCount;
       }
     }
+
+    progressLogger?.(
+      `Canonical embedding reuse summary: reused ${formatInteger(reusedCanonicalEmbeddingCount)}, regenerated ${formatInteger(regeneratedCanonicalEmbeddingCount)}.`,
+    );
 
     for (const alias of aliasRows) {
       insertAlias.run(alias.canonicalRecordKey, alias.aliasText, alias.normalizedAlias, alias.sourceKind, alias.sourceRef);
@@ -739,6 +824,8 @@ export async function buildIndex(
     packs,
     warnings,
     recordCount,
+    reusedCanonicalEmbeddingCount,
+    regeneratedCanonicalEmbeddingCount,
     stageTimings: [
       { label: "Scan and normalize records", durationMs: scanNormalizationDurationMs },
       { label: "Resolve families, references, tags, and aliases", durationMs: resolutionDurationMs },

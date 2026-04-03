@@ -16,8 +16,32 @@ function formatDuration(durationMs: number): string {
   return `${minutes}m ${seconds}s`;
 }
 
+function parseReuseEmbeddingsFlag(argv: string[]): { reuseEmbeddings: boolean; remainingArgv: string[] } {
+  let reuseEmbeddings = false;
+  const remainingArgv: string[] = [];
+
+  for (const arg of argv) {
+    if (arg === "--reuse-embeddings") {
+      reuseEmbeddings = true;
+      continue;
+    }
+    if (arg === "--reuse-embeddings=true" || arg === "--reuse-embeddings=1") {
+      reuseEmbeddings = true;
+      continue;
+    }
+    if (arg === "--reuse-embeddings=false" || arg === "--reuse-embeddings=0") {
+      reuseEmbeddings = false;
+      continue;
+    }
+    remainingArgv.push(arg);
+  }
+
+  return { reuseEmbeddings, remainingArgv };
+}
+
 async function main(): Promise<void> {
-  const config = await loadConfig();
+  const { reuseEmbeddings, remainingArgv } = parseReuseEmbeddingsFlag(process.argv.slice(2));
+  const config = await loadConfig(remainingArgv);
   const startTime = Date.now();
   const progress = new ConsoleProgressReporter(process.stderr);
   progress.log(`Rebuilding the PF2E index at ${config.indexPath}.`);
@@ -28,6 +52,7 @@ async function main(): Promise<void> {
       embedding: config.embeddings,
       progressLogger: (message) => progress.log(message),
       progressStatusLogger: (message) => progress.status(message),
+      reuseEmbeddings,
     });
 
     const stats = service.getStats();

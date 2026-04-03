@@ -1,4 +1,4 @@
-import { mkdir } from "node:fs/promises";
+import { mkdir, rename } from "node:fs/promises";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
@@ -46,6 +46,7 @@ import {
   createSchema,
   defaultEmbeddingConfig,
   defaultIndexPath,
+  getEmbeddingReuseInvalidReason,
   getIndexInvalidReason,
   loadAliasesByRecordKey,
   loadLegacyLinksByRecordKey,
@@ -56,7 +57,7 @@ import {
   hasStructuredFilterSignal,
   resolveSearchMode,
 } from "../search/ranking.js";
-import { buildIndex, computeSourceSignature, removeIndexFiles } from "./indexer.js";
+import { buildIndex, buildReusableEmbeddingLookup, computeSourceSignature, removeIndexFiles } from "./indexer.js";
 import type { StageTiming } from "./index-types.js";
 import {
   fetchCandidates,
@@ -93,6 +94,7 @@ type LoadOptions = {
   rankingConfigStore?: RankingConfigStore;
   progressLogger?: (message: string) => void;
   progressStatusLogger?: (message: string) => void;
+  reuseEmbeddings?: boolean;
   vectorExtensionLoader?: (db: DatabaseSync) => void;
 };
 
@@ -111,6 +113,18 @@ function formatDurationMs(durationMs: number): string {
 
   return `${seconds}s`;
 }
+
+async function moveIndexFiles(sourcePath: string, targetPath: string): Promise<void> {
+  await rename(sourcePath, targetPath);
+
+  for (const suffix of ["-wal", "-shm"]) {
+    const sourceSidecar = `${sourcePath}${suffix}`;
+    if (await fileExists(sourceSidecar)) {
+      await rename(sourceSidecar, `${targetPath}${suffix}`);
+    }
+  }
+}
+
 function validateFilters(filters: NormalizedSearchFilters, context: "list" | "search"): void {
   const mode = resolveSearchMode(filters, context);
 
@@ -223,6 +237,7 @@ export class Pf2eDataService {
   static async rebuildIndex(rootPath: string, manifestPath: string, options: LoadOptions = {}): Promise<Pf2eDataService> {
     const rebuildStartTime = Date.now();
     const indexPath = options.indexPath ?? defaultIndexPath(manifestPath);
+    const tempIndexPath = `${indexPath}.rebuild-${process.pid}-${Date.now()}`;
     const embeddingConfig: EmbeddingConfig = options.embedding ?? defaultEmbeddingConfig(indexPath);
     const embeddingProviderFactory = options.embeddingProviderFactory ?? createEmbeddingProvider;
     options.progressLogger?.("Loading the configured embedding provider.");
@@ -240,50 +255,105 @@ export class Pf2eDataService {
     options.progressLogger?.(`Preparing index output at ${indexPath}.`);
     const prepareOutputStartTime = Date.now();
     await mkdir(path.dirname(indexPath), { recursive: true });
-    await removeIndexFiles(indexPath);
+    await removeIndexFiles(tempIndexPath);
+
+    let previousDb: DatabaseSync | null = null;
+    let reusableEmbeddingLookup = null;
+    if (options.reuseEmbeddings) {
+      if (await fileExists(indexPath)) {
+        try {
+          previousDb = openDatabase(indexPath, {
+            vectorExtensionLoader: options.vectorExtensionLoader,
+          });
+          const reuseInvalidReason = getEmbeddingReuseInvalidReason(previousDb, embeddingProvider);
+          if (reuseInvalidReason) {
+            options.progressLogger?.(`Embedding reuse unavailable: ${reuseInvalidReason}. Regenerating all canonical embeddings.`);
+            previousDb.close();
+            previousDb = null;
+          } else {
+            options.progressLogger?.("Reusing unchanged canonical embeddings from the existing index when semantic inputs match.");
+            reusableEmbeddingLookup = buildReusableEmbeddingLookup(previousDb);
+          }
+        } catch (error) {
+          options.progressLogger?.(`Embedding reuse unavailable: ${(error as Error).message}. Regenerating all canonical embeddings.`);
+          previousDb?.close();
+          previousDb = null;
+        }
+      } else {
+        options.progressLogger?.("Embedding reuse unavailable: no existing index found. Regenerating all canonical embeddings.");
+      }
+    }
+
     const prepareOutputDurationMs = Date.now() - prepareOutputStartTime;
 
-    const db = openDatabase(indexPath, {
-      vectorExtensionLoader: options.vectorExtensionLoader,
-    });
-    options.progressLogger?.("Creating SQLite schema.");
-    const schemaCreationStartTime = Date.now();
-    createSchema(db, embeddingProvider.identity.dimensions);
-    const schemaCreationDurationMs = Date.now() - schemaCreationStartTime;
-    const { packs, warnings, recordCount, stageTimings } = await buildIndex(
-      db,
-      rootPath,
-      manifestPath,
-      embeddingProvider,
-      sourceSignature,
-      options.progressLogger,
-      options.progressStatusLogger,
-    );
-    options.progressLogger?.(
-      `Finished writing ${formatInteger(recordCount)} records across ${formatInteger(packs.length)} packs.`,
-    );
-    const rebuildDurationMs = Date.now() - rebuildStartTime;
-    const summaryTimings: StageTiming[] = [
-      { label: "Embedding provider load", durationMs: embeddingProviderLoadDurationMs },
-      { label: "Source signature", durationMs: sourceSignatureDurationMs },
-      { label: "Prepare index output", durationMs: prepareOutputDurationMs },
-      { label: "Create SQLite schema", durationMs: schemaCreationDurationMs },
-      ...stageTimings,
-      { label: "Total rebuild time", durationMs: rebuildDurationMs },
-    ];
-    options.progressLogger?.("Index rebuild stage timings:");
-    for (const timing of summaryTimings) {
-      options.progressLogger?.(`- ${timing.label}: ${formatDurationMs(timing.durationMs)}`);
+    let tempDb: DatabaseSync | null = null;
+    let finalDb: DatabaseSync | null = null;
+
+    try {
+      tempDb = openDatabase(tempIndexPath, {
+        vectorExtensionLoader: options.vectorExtensionLoader,
+      });
+      options.progressLogger?.("Creating SQLite schema.");
+      const schemaCreationStartTime = Date.now();
+      createSchema(tempDb, embeddingProvider.identity.dimensions);
+      const schemaCreationDurationMs = Date.now() - schemaCreationStartTime;
+      const {
+        packs,
+        warnings,
+        recordCount,
+        stageTimings,
+      } = await buildIndex(
+        tempDb,
+        rootPath,
+        manifestPath,
+        embeddingProvider,
+        sourceSignature,
+        options.progressLogger,
+        options.progressStatusLogger,
+        reusableEmbeddingLookup,
+      );
+      options.progressLogger?.(
+        `Finished writing ${formatInteger(recordCount)} records across ${formatInteger(packs.length)} packs.`,
+      );
+      tempDb.close();
+      tempDb = null;
+      previousDb?.close();
+      previousDb = null;
+      await removeIndexFiles(indexPath);
+      await moveIndexFiles(tempIndexPath, indexPath);
+
+      finalDb = openDatabase(indexPath, {
+        vectorExtensionLoader: options.vectorExtensionLoader,
+      });
+      const rebuildDurationMs = Date.now() - rebuildStartTime;
+      const summaryTimings: StageTiming[] = [
+        { label: "Embedding provider load", durationMs: embeddingProviderLoadDurationMs },
+        { label: "Source signature", durationMs: sourceSignatureDurationMs },
+        { label: "Prepare index output", durationMs: prepareOutputDurationMs },
+        { label: "Create SQLite schema", durationMs: schemaCreationDurationMs },
+        ...stageTimings,
+        { label: "Total rebuild time", durationMs: rebuildDurationMs },
+      ];
+      options.progressLogger?.("Index rebuild stage timings:");
+      for (const timing of summaryTimings) {
+        options.progressLogger?.(`- ${timing.label}: ${formatDurationMs(timing.durationMs)}`);
+      }
+      return new Pf2eDataService(
+        finalDb,
+        packs,
+        [...embeddingRuntime.warnings, ...warnings, ...(options.rankingConfigStore?.warnings ?? [])],
+        recordCount,
+        indexPath,
+        embeddingProvider,
+        options.rankingConfigStore ?? null,
+      );
+    } catch (error) {
+      finalDb?.close();
+      tempDb?.close();
+      previousDb?.close();
+      await removeIndexFiles(tempIndexPath);
+      throw error;
     }
-    return new Pf2eDataService(
-      db,
-      packs,
-      [...embeddingRuntime.warnings, ...warnings, ...(options.rankingConfigStore?.warnings ?? [])],
-      recordCount,
-      indexPath,
-      embeddingProvider,
-      options.rankingConfigStore ?? null,
-    );
   }
 
   getStats(): { packCount: number; recordCount: number } {

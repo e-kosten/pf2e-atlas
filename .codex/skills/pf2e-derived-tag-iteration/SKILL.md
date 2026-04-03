@@ -72,6 +72,8 @@ Repo-owned helper tooling for this skill:
    Prefer sampling by category and subcategory so the ontology grows from real gaps in the corpus instead of only from remembered examples.
 9. Validate in layers.
    Run focused tests first, then build, then full test suite. Rebuild the index when the heuristic change is large enough that live corpus behavior matters.
+   Prefer `npm run refresh-index -- --reuse-embeddings` for derived-tag iteration passes so unchanged canonical vectors are reused and only records with changed semantic embedding input are re-embedded.
+   Fall back to plain `npm run refresh-index` only when you intentionally want a full rebuild, or when the reuse path reports that the existing index can't be reused.
 10. Summarize the outcome in retrieval terms.
    Report:
    - what tag families changed
@@ -177,7 +179,8 @@ Default validation sequence:
 1. `npm test -- tests/derived-tags.test.ts tests/pf2e-data.test.ts`
 2. `npm run build`
 3. `npm test`
-4. `npm run refresh-index` when the heuristic change materially affects live tagging
+4. `npm run refresh-index -- --reuse-embeddings` when the heuristic change materially affects live tagging
+   If reuse is unavailable because the on-disk index is from an older schema or incompatible embedding identity, let it fall back to a full embedding rebuild once and then continue using the reuse flag on subsequent passes.
 5. Run `npm run evaluate-derived-tags -- --tag <derived_tag> ...` when the change is about expanding coverage or checking likely false negatives
 6. Run the SQLite sanity checks from the reference file
 7. Review at least one random untagged sample for the changed category, plus one previously supported category when regression risk matters

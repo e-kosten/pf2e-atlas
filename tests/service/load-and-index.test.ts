@@ -419,6 +419,271 @@ describe("Pf2eDataService / Load and Index", () => {
     ]));
   });
 
+  it("reuses all canonical embeddings when semantic inputs are unchanged", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+    const indexPath = path.join(fixture.root, ".cache", "pf2e-index.sqlite");
+    const reuseIdentity = {
+      provider: "hash" as const,
+      model: "feature-hash-192",
+      revision: null,
+      dimensions: 192,
+    };
+
+    const firstService = await loadTestService(fixture, {
+      indexPath,
+    });
+    firstService.close();
+
+    const tracking = {
+      embedCalls: [] as string[],
+      embedManyCalls: [] as string[][],
+    };
+    const rebuiltService = await loadTestService(fixture, {
+      indexPath,
+      reuseEmbeddings: true,
+      embeddingProviderFactory: createEmbeddingBatchTrackingProviderFactory(tracking, reuseIdentity),
+    });
+    rebuiltService.close();
+
+    expect(tracking.embedCalls).toHaveLength(0);
+    expect(tracking.embedManyCalls.flat()).toHaveLength(0);
+  });
+
+  it("reuses canonical embeddings when only non-semantic metadata changes", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+    const indexPath = path.join(fixture.root, ".cache", "pf2e-index.sqlite");
+    const reuseIdentity = {
+      provider: "hash" as const,
+      model: "feature-hash-192",
+      revision: null,
+      dimensions: 192,
+    };
+
+    const firstService = await loadTestService(fixture, {
+      indexPath,
+    });
+    firstService.close();
+
+    const plainsRunnerPath = path.join(fixture.root, "packs", "pf2e", "pathfinder-monster-core", "plains-runner.json");
+    await writeJson(plainsRunnerPath, {
+      _id: "plains-runner",
+      name: "Plains Runner",
+      type: "npc",
+      system: {
+        details: {
+          level: {
+            value: 9,
+          },
+          publication: {
+            title: "Pathfinder Monster Core",
+          },
+          publicNotes: "<p>A swift hunter races across grassy plains and open savannas.</p>",
+        },
+        traits: {
+          rarity: "common",
+          value: ["beast"],
+          size: {
+            value: "med",
+          },
+        },
+      },
+    });
+
+    const tracking = {
+      embedCalls: [] as string[],
+      embedManyCalls: [] as string[][],
+    };
+    const rebuiltService = await loadTestService(fixture, {
+      indexPath,
+      reuseEmbeddings: true,
+      embeddingProviderFactory: createEmbeddingBatchTrackingProviderFactory(tracking, reuseIdentity),
+    });
+
+    expect(tracking.embedCalls).toHaveLength(0);
+    expect(tracking.embedManyCalls.flat()).toHaveLength(0);
+    expect(rebuiltService.lookup("Plains Runner", { category: "creature" }).match?.level).toBe(9);
+    rebuiltService.close();
+  });
+
+  it("re-embeds only canonical records whose semantic inputs change under reuse mode", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+    const indexPath = path.join(fixture.root, ".cache", "pf2e-index.sqlite");
+    const reuseIdentity = {
+      provider: "hash" as const,
+      model: "feature-hash-192",
+      revision: null,
+      dimensions: 192,
+    };
+
+    const firstService = await loadTestService(fixture, {
+      indexPath,
+    });
+    firstService.close();
+
+    const plainsRunnerPath = path.join(fixture.root, "packs", "pf2e", "pathfinder-monster-core", "plains-runner.json");
+    await writeJson(plainsRunnerPath, {
+      _id: "plains-runner",
+      name: "Plains Runner",
+      type: "npc",
+      system: {
+        details: {
+          level: {
+            value: 3,
+          },
+          publication: {
+            title: "Pathfinder Monster Core",
+          },
+          publicNotes: "<p>A swift hunter stalks mesas and canyons carved into the badlands.</p>",
+        },
+        traits: {
+          rarity: "common",
+          value: ["beast"],
+          size: {
+            value: "med",
+          },
+        },
+      },
+    });
+
+    const tracking = {
+      embedCalls: [] as string[],
+      embedManyCalls: [] as string[][],
+    };
+    const rebuiltService = await loadTestService(fixture, {
+      indexPath,
+      reuseEmbeddings: true,
+      embeddingProviderFactory: createEmbeddingBatchTrackingProviderFactory(tracking, reuseIdentity),
+    });
+
+    const rebuiltTexts = tracking.embedManyCalls.flat();
+    expect(tracking.embedCalls).toHaveLength(0);
+    expect(rebuiltTexts).toHaveLength(1);
+    expect(rebuiltTexts[0]).toContain("Plains Runner");
+    expect(rebuiltTexts[0]).toContain("canyon_setting");
+    expect(rebuiltService.lookup("Plains Runner", { category: "creature" }).match?.derivedTags).toContain("canyon_setting");
+    rebuiltService.close();
+  });
+
+  it("preserves the previous index when a reuse-enabled rebuild fails before swap", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+    const indexPath = path.join(fixture.root, ".cache", "pf2e-index.sqlite");
+    const plainsRunnerPath = path.join(fixture.root, "packs", "pf2e", "pathfinder-monster-core", "plains-runner.json");
+    const originalPlainsRunner = JSON.parse(
+      await import("node:fs/promises").then(({ readFile }) => readFile(plainsRunnerPath, "utf8")),
+    ) as Record<string, unknown>;
+
+    const firstService = await loadTestService(fixture, {
+      indexPath,
+    });
+    firstService.close();
+
+    await writeJson(plainsRunnerPath, {
+      _id: "plains-runner",
+      name: "Plains Runner",
+      type: "npc",
+      system: {
+        details: {
+          level: {
+            value: 3,
+          },
+          publication: {
+            title: "Pathfinder Monster Core",
+          },
+          publicNotes: "<p>A swift hunter stalks mesas and canyons carved into the badlands.</p>",
+        },
+        traits: {
+          rarity: "common",
+          value: ["beast"],
+          size: {
+            value: "med",
+          },
+        },
+      },
+    });
+
+    await expect(
+      Pf2eDataService.rebuildIndex(fixture.root, fixture.manifestPath, {
+        indexPath,
+        embedding: TEST_HASH_EMBEDDING,
+        reuseEmbeddings: true,
+        embeddingProviderFactory: async () => ({
+          provider: {
+            identity: {
+              provider: "hash",
+              model: "feature-hash-192",
+              revision: null,
+              dimensions: 192,
+            },
+            async embed(text: string): Promise<Float32Array> {
+              throw new Error(`Unexpected embed() call for ${text}`);
+            },
+            async embedMany(): Promise<Float32Array[]> {
+              throw new Error("simulated embedding failure");
+            },
+          },
+          warnings: [],
+        }),
+      }),
+    ).rejects.toThrow(/simulated embedding failure/);
+
+    await writeJson(plainsRunnerPath, originalPlainsRunner);
+
+    const db = new DatabaseSync(indexPath);
+    const row = db.prepare(`
+      SELECT derived_tags_json AS derivedTagsJson
+      FROM records
+      WHERE name = 'Plains Runner'
+    `).get() as { derivedTagsJson: string } | undefined;
+    db.close();
+
+    expect(JSON.parse(row?.derivedTagsJson ?? "[]")).toContain("plains_setting");
+    expect(JSON.parse(row?.derivedTagsJson ?? "[]")).not.toContain("canyon_setting");
+  });
+
+  it("falls back to full regeneration when embedding identity changes under reuse mode", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+    const indexPath = path.join(fixture.root, ".cache", "pf2e-index.sqlite");
+    const progressLogs: string[] = [];
+
+    const firstService = await loadTestService(fixture, {
+      indexPath,
+      embeddingProviderFactory: createFakeEmbeddingProviderFactory({
+        provider: "hf-local",
+        model: "model-a",
+        revision: "rev-a",
+        dimensions: 3,
+      }),
+    });
+    firstService.close();
+
+    const tracking = {
+      embedCalls: [] as string[],
+      embedManyCalls: [] as string[][],
+    };
+    const rebuiltService = await loadTestService(fixture, {
+      indexPath,
+      reuseEmbeddings: true,
+      progressLogger: (message) => progressLogs.push(message),
+      embeddingProviderFactory: createEmbeddingBatchTrackingProviderFactory(tracking, {
+        provider: "hf-local",
+        model: "model-b",
+        revision: "rev-b",
+        dimensions: 3,
+      }),
+    });
+    rebuiltService.close();
+
+    expect(progressLogs).toEqual(expect.arrayContaining([
+      expect.stringMatching(/Embedding reuse unavailable: embedding model changed/i),
+    ]));
+    expect(tracking.embedManyCalls.flat().length).toBeGreaterThan(0);
+  });
+
   it("loads an unchanged SQLite index and requires explicit rebuild when the source changes", async () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);

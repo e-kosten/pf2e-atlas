@@ -16,7 +16,7 @@ import {
 } from "../types.js";
 import { uniqueSorted } from "../utils.js";
 
-export const INDEX_SCHEMA_VERSION = 17;
+export const INDEX_SCHEMA_VERSION = 18;
 
 function hashText(value: string): number {
   let hash = 2166136261;
@@ -154,6 +154,7 @@ export function createSchema(db: DatabaseSync, embeddingDimensions: number): voi
     CREATE TABLE embeddings (
       record_key TEXT PRIMARY KEY,
       dimensions INTEGER NOT NULL,
+      semantic_input_hash TEXT NOT NULL,
       vector_blob BLOB NOT NULL,
       FOREIGN KEY (record_key) REFERENCES records(record_key) ON DELETE CASCADE
     );
@@ -304,6 +305,34 @@ export function readMetadata(db: DatabaseSync): Map<string, string> {
 
 export function canReuseIndex(db: DatabaseSync, sourceSignature: string, embeddingProvider: EmbeddingProvider): boolean {
   return getIndexInvalidReason(db, sourceSignature, embeddingProvider) === null;
+}
+
+export function getEmbeddingReuseInvalidReason(
+  db: DatabaseSync,
+  embeddingProvider: EmbeddingProvider,
+): string | null {
+  try {
+    const metadata = readMetadata(db);
+    if (metadata.get("schema_version") !== String(INDEX_SCHEMA_VERSION)) {
+      return "index schema version does not match the current code";
+    }
+    if (metadata.get("embedding_provider") !== embeddingProvider.identity.provider) {
+      return "embedding provider changed since the index was built";
+    }
+    if (metadata.get("embedding_model") !== embeddingProvider.identity.model) {
+      return "embedding model changed since the index was built";
+    }
+    if (metadata.get("embedding_revision") !== (embeddingProvider.identity.revision ?? "")) {
+      return "embedding model revision changed since the index was built";
+    }
+    if (metadata.get("embedding_dimensions") !== String(embeddingProvider.identity.dimensions)) {
+      return "embedding dimensions changed since the index was built";
+    }
+    db.prepare("SELECT semantic_input_hash FROM embeddings LIMIT 1").get();
+    return null;
+  } catch {
+    return "existing embedding cache metadata could not be read";
+  }
 }
 
 export function getIndexInvalidReason(

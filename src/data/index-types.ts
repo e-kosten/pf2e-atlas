@@ -92,6 +92,10 @@ export type PendingCanonicalEmbedding = {
   encodedEmbeddingInput: string;
 };
 
+export type PendingCanonicalEmbeddingWithHash = PendingCanonicalEmbedding & {
+  semanticInputHash: string;
+};
+
 export type ActorIndexData = {
   size: string | null;
   languages: string[];
@@ -141,4 +145,6 @@ export type BuildIndexResult = {
   warnings: string[];
   recordCount: number;
   stageTimings: StageTiming[];
+  reusedCanonicalEmbeddingCount: number;
+  regeneratedCanonicalEmbeddingCount: number;
 };
