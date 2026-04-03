@@ -470,6 +470,69 @@ const HAZARD_ALARM_TEXT_ANCHORS: TextAnchor[] = [
   tokenAnchor("intrusion"),
 ];
 
+const HAZARD_FIRE_NAME_ANCHORS: TextAnchor[] = [
+  tokenAnchor("fire", "name"),
+  tokenAnchor("fires", "name"),
+  tokenAnchor("flame", "name"),
+  tokenAnchor("burning", "name"),
+  tokenAnchor("inferno", "name"),
+  phraseAnchor("aflame", "name"),
+];
+
+const HAZARD_FIRE_TEXT_ANCHORS: TextAnchor[] = [
+  phraseAnchor("catch fire and explode"),
+  phraseAnchor("catches fire and explode"),
+  phraseAnchor("rains fire from the sky"),
+  phraseAnchor("sheets of fire"),
+  phraseAnchor("beams of fire"),
+  phraseAnchor("burns and threatens to spread"),
+  phraseAnchor("a fire engulfs"),
+  phraseAnchor("spreads on each of its turns"),
+];
+
+const HAZARD_POISON_NAME_ANCHORS: TextAnchor[] = [
+  tokenAnchor("poison", "name"),
+  tokenAnchor("venom", "name"),
+  tokenAnchor("envenomed", "name"),
+  tokenAnchor("toxic", "name"),
+];
+
+const HAZARD_POISON_TEXT_ANCHORS: TextAnchor[] = [
+  phraseAnchor("poison gas"),
+  phraseAnchor("pumping poison gas"),
+  phraseAnchor("releases a poison gas"),
+  phraseAnchor("poisonous smoke"),
+  phraseAnchor("pressurized poison"),
+  phraseAnchor("poisoned spine"),
+  phraseAnchor("needle delivers a magical poison"),
+  phraseAnchor("toxic darts"),
+  phraseAnchor("acidic poison"),
+];
+
+const HAZARD_PITFALL_NAME_ANCHORS: TextAnchor[] = [
+  tokenAnchor("pit", "name"),
+  tokenAnchor("pitfall", "name"),
+  tokenAnchor("sinkhole", "name"),
+];
+
+const HAZARD_COLLAPSE_NAME_ANCHORS: TextAnchor[] = [
+  tokenAnchor("collapse", "name"),
+  tokenAnchor("collapsing", "name"),
+  tokenAnchor("deadfall", "name"),
+  tokenAnchor("rockfall", "name"),
+  phraseAnchor("cave in", "name"),
+];
+
+const HAZARD_FORCED_MOVEMENT_TEXT_ANCHORS: TextAnchor[] = [
+  phraseAnchor("sucks creatures in the area toward"),
+  phraseAnchor("raging wind sucks creatures"),
+  phraseAnchor("attempts to submerge creatures"),
+  phraseAnchor("trample each other"),
+  phraseAnchor("pulls creatures toward"),
+  phraseAnchor("pushes creatures"),
+  phraseAnchor("sweeps creatures away"),
+];
+
 const ALARM_NAME_ANCHORS: TextAnchor[] = [
   tokenAnchor("alarm", "name"),
   tokenAnchor("warning", "name"),
@@ -1610,6 +1673,214 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     ],
   },
   {
+    tag: "fire_hazard",
+    category: "hazard",
+    threshold: 2,
+    anyOf: [
+      {
+        score: 1,
+        textAny: HAZARD_FIRE_NAME_ANCHORS,
+      },
+      {
+        score: 2,
+        textAny: HAZARD_FIRE_TEXT_ANCHORS,
+      },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              tokenAnchor("fire"),
+              tokenAnchor("flame"),
+              tokenAnchor("flames"),
+              tokenAnchor("burns"),
+              tokenAnchor("burning"),
+              tokenAnchor("ignite"),
+              tokenAnchor("ignites"),
+              tokenAnchor("explodes"),
+              tokenAnchor("spread"),
+              tokenAnchor("spreads"),
+            ],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+        ],
+      },
+    ],
+  },
+  {
+    tag: "poison_hazard",
+    category: "hazard",
+    threshold: 2,
+    anyOf: [
+      {
+        score: 1,
+        textAny: HAZARD_POISON_NAME_ANCHORS,
+      },
+      {
+        score: 2,
+        textAny: HAZARD_POISON_TEXT_ANCHORS,
+      },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              tokenAnchor("poison"),
+              tokenAnchor("poisonous"),
+              tokenAnchor("venom"),
+              tokenAnchor("toxic"),
+              tokenAnchor("gas"),
+              tokenAnchor("smoke"),
+              tokenAnchor("dart"),
+              tokenAnchor("darts"),
+              tokenAnchor("needle"),
+              tokenAnchor("spine"),
+              tokenAnchor("vent"),
+              tokenAnchor("vents"),
+              tokenAnchor("nozzle"),
+              tokenAnchor("nozzles"),
+              tokenAnchor("cloud"),
+            ],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+        ],
+      },
+    ],
+  },
+  {
+    tag: "pitfall",
+    category: "hazard",
+    threshold: 2,
+    anyOf: [
+      {
+        score: 1,
+        textAny: HAZARD_PITFALL_NAME_ANCHORS,
+      },
+      {
+        score: 2,
+        textAny: [
+          phraseAnchor("trapdoor covers a pit"),
+          phraseAnchor("covers a pit"),
+          phraseAnchor("pit filled with spikes"),
+          phraseAnchor("falls into the pit"),
+          phraseAnchor("drops into the pit"),
+        ],
+      },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              tokenAnchor("pit"),
+              tokenAnchor("trapdoor"),
+              tokenAnchor("deep"),
+              tokenAnchor("spikes"),
+              tokenAnchor("water"),
+              tokenAnchor("fall"),
+              tokenAnchor("falls"),
+              tokenAnchor("drop"),
+              tokenAnchor("drops"),
+              tokenAnchor("covers"),
+              tokenAnchor("conceals"),
+            ],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+        ],
+      },
+    ],
+  },
+  {
+    tag: "collapse_hazard",
+    category: "hazard",
+    threshold: 2,
+    anyOf: [
+      {
+        score: 1,
+        textAny: HAZARD_COLLAPSE_NAME_ANCHORS,
+      },
+      {
+        score: 2,
+        textAny: [
+          phraseAnchor("ceiling collapses"),
+          phraseAnchor("triggers a cave in"),
+          phraseAnchor("structure to collapse"),
+          phraseAnchor("collapse into rubble"),
+          phraseAnchor("bridge itself groans and shakes then crumbles"),
+          phraseAnchor("collapse inward"),
+          phraseAnchor("floor collapses"),
+        ],
+      },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              tokenAnchor("ceiling"),
+              tokenAnchor("floor"),
+              tokenAnchor("bridge"),
+              tokenAnchor("stairs"),
+              tokenAnchor("supports"),
+              tokenAnchor("tunnel"),
+              tokenAnchor("cavern"),
+              tokenAnchor("structure"),
+              tokenAnchor("pillar"),
+              tokenAnchor("collapse"),
+              tokenAnchor("collapses"),
+              tokenAnchor("crumble"),
+              tokenAnchor("crumbles"),
+              tokenAnchor("fall"),
+              tokenAnchor("falls"),
+            ],
+            window: 5,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+        ],
+      },
+    ],
+  },
+  {
+    tag: "forced_movement",
+    category: "hazard",
+    threshold: 2,
+    anyOf: [
+      {
+        score: 2,
+        textAny: HAZARD_FORCED_MOVEMENT_TEXT_ANCHORS,
+      },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              tokenAnchor("sucks"),
+              tokenAnchor("pulls"),
+              tokenAnchor("pushes"),
+              tokenAnchor("drags"),
+              tokenAnchor("sweeps"),
+              tokenAnchor("submerge"),
+              tokenAnchor("trample"),
+              tokenAnchor("trampling"),
+              tokenAnchor("creatures"),
+              tokenAnchor("toward"),
+              tokenAnchor("away"),
+              tokenAnchor("into"),
+            ],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 3,
+          },
+        ],
+      },
+    ],
+  },
+  {
     tag: "mental_impairment",
     category: "hazard",
     threshold: 2,
@@ -2368,6 +2639,25 @@ export const DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
     tags: [
       { value: "mental_impairment", description: "Impairs judgment, emotions, or perception through fear, confusion, or similar effects." },
       { value: "mobility_impairment", description: "Paralyzes, immobilizes, or otherwise heavily hampers movement." },
+    ],
+  },
+  {
+    category: "hazard",
+    family: "environmental_danger",
+    description: "Hazards defined by recurring elemental or toxic environmental threats.",
+    tags: [
+      { value: "fire_hazard", description: "Hazard centered on open fire, flames, burning spread, or explosive ignition." },
+      { value: "poison_hazard", description: "Hazard centered on poison gas, toxic delivery, or other poisonous exposure." },
+    ],
+  },
+  {
+    category: "hazard",
+    family: "forced_position",
+    description: "Hazards that drop, collapse, or forcibly reposition creatures.",
+    tags: [
+      { value: "pitfall", description: "Hazard built around a concealed pit, drop, or similar vertical fall trap." },
+      { value: "collapse_hazard", description: "Hazard built around collapsing structures, cave-ins, rockfalls, or crumbling ground." },
+      { value: "forced_movement", description: "Hazard that pushes, pulls, drags, submerges, or otherwise forcibly repositions creatures." },
     ],
   },
   {

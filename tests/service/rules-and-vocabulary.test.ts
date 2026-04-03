@@ -154,6 +154,23 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
         ]),
       }),
       expect.objectContaining({
+        category: "hazard",
+        family: "environmental_danger",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "fire_hazard", description: expect.any(String) }),
+          expect.objectContaining({ value: "poison_hazard", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "hazard",
+        family: "forced_position",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "pitfall", description: expect.any(String) }),
+          expect.objectContaining({ value: "collapse_hazard", description: expect.any(String) }),
+          expect.objectContaining({ value: "forced_movement", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
         category: "affliction",
         family: "impact",
         tags: expect.arrayContaining([
@@ -198,9 +215,9 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     })).toEqual({
       field: "traits",
       values: [
-        { value: "trap", count: 3 },
+        { value: "trap", count: 6 },
+        { value: "mechanical", count: 5 },
         { value: "magical", count: 2 },
-        { value: "mechanical", count: 2 },
       ],
     });
 
@@ -245,7 +262,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     })).toEqual({
       field: "subcategories",
       values: [
-        { value: "trap", count: 3 },
+        { value: "trap", count: 6 },
         { value: "haunt", count: 1 },
       ],
     });
@@ -339,8 +356,8 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     })).toEqual({
       field: "categories",
       values: [
+        { value: "hazard", count: 6 },
         { value: "rule", count: 6 },
-        { value: "hazard", count: 3 },
       ],
     });
 

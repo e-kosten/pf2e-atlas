@@ -1599,6 +1599,78 @@ describe("derived tag rules", () => {
     })).toContain("barrier_lockdown");
 
     expect(deriveRecordTags({
+      name: "Explosive Barrels",
+      category: "hazard",
+      subcategory: null,
+      descriptionText: "Wooden barrels marked with an oil-drop symbol catch fire and explode.",
+      traits: [],
+    })).toContain("fire_hazard");
+
+    expect(deriveRecordTags({
+      name: "Ballista Defense",
+      category: "hazard",
+      subcategory: null,
+      descriptionText: "A ballista armed with a massive bolt fires on a creature approaching the palace.",
+      traits: [],
+    })).not.toContain("fire_hazard");
+
+    expect(deriveRecordTags({
+      name: "Gas Trap",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "A spring slams and locks the room's door before four hidden gas vents begin pumping poison gas into the chamber.",
+      traits: ["mechanical", "trap"],
+    })).toContain("poison_hazard");
+
+    expect(deriveRecordTags({
+      name: "Spitting Daffodil",
+      category: "hazard",
+      subcategory: null,
+      descriptionText: "Daffodils spit acidic nectar at non-plant creatures in the area.",
+      traits: [],
+    })).not.toContain("poison_hazard");
+
+    expect(deriveRecordTags({
+      name: "Drowning Pit",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "A trapdoor covers a 10-foot-square pit that's 30 feet deep and has 5 feet of water at the bottom.",
+      traits: ["mechanical", "trap"],
+    })).toContain("pitfall");
+
+    expect(deriveRecordTags({
+      name: "Pitiless Hall",
+      category: "hazard",
+      subcategory: null,
+      descriptionText: "A merciless illusion torments intruders with visions of an unforgiving tyrant.",
+      traits: ["magical"],
+    })).not.toContain("pitfall");
+
+    expect(deriveRecordTags({
+      name: "Collapsing Bridge",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "Metal supports twist and shear off the bridge, causing stretches of the structure to collapse.",
+      traits: ["mechanical", "trap"],
+    })).toContain("collapse_hazard");
+
+    expect(deriveRecordTags({
+      name: "Benefactor's End",
+      category: "hazard",
+      subcategory: "haunt",
+      descriptionText: "A spectral assailant drives a stake into a dying vampire's heart; the vampire collapses and releases a surge of void energy.",
+      traits: ["haunt", "magical"],
+    })).not.toContain("collapse_hazard");
+
+    expect(deriveRecordTags({
+      name: "Rushing Wind",
+      category: "hazard",
+      subcategory: null,
+      descriptionText: "A raging wind sucks creatures in the area toward the aiudara.",
+      traits: ["environmental"],
+    })).toContain("forced_movement");
+
+    expect(deriveRecordTags({
       name: "Mental Scream Trap",
       category: "hazard",
       subcategory: "trap",
@@ -1645,6 +1717,14 @@ describe("derived tag rules", () => {
       descriptionText: "Semitransparent sheets of webbing span the entryway, ready to capture small insects or hamper larger creatures that pass through.",
       traits: [],
     })).toContain("mobility_impairment");
+
+    expect(deriveRecordTags({
+      name: "Hampering Web",
+      category: "hazard",
+      subcategory: null,
+      descriptionText: "Semitransparent sheets of webbing span the entryway, ready to capture small insects or hamper larger creatures that pass through.",
+      traits: [],
+    })).not.toContain("forced_movement");
 
     expect(deriveRecordTags({
       name: "Paralysis Trap",
@@ -1856,6 +1936,23 @@ describe("derived tag rules", () => {
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "mental_impairment", description: expect.any(String) }),
           expect.objectContaining({ value: "mobility_impairment", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "hazard",
+        family: "environmental_danger",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "fire_hazard", description: expect.any(String) }),
+          expect.objectContaining({ value: "poison_hazard", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "hazard",
+        family: "forced_position",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "pitfall", description: expect.any(String) }),
+          expect.objectContaining({ value: "collapse_hazard", description: expect.any(String) }),
+          expect.objectContaining({ value: "forced_movement", description: expect.any(String) }),
         ]),
       }),
       expect.objectContaining({

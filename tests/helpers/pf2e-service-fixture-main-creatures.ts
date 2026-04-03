@@ -1213,6 +1213,111 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
     },
   });
 
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "explosive-barrels.json"), {
+    _id: "explosive-barrels",
+    name: "Explosive Barrels",
+    type: "hazard",
+    system: {
+      details: {
+        level: {
+          value: 3,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>Wooden barrels marked with an oil-drop symbol catch fire and explode.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: [],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "gas-trap.json"), {
+    _id: "gas-trap",
+    name: "Gas Trap",
+    type: "hazard",
+    system: {
+      details: {
+        level: {
+          value: 4,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>A spring slams and locks the room's door before four hidden gas vents begin pumping poison gas into the chamber.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["mechanical", "trap"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "drowning-pit.json"), {
+    _id: "drowning-pit",
+    name: "Drowning Pit",
+    type: "hazard",
+    system: {
+      details: {
+        level: {
+          value: 2,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>A trapdoor covers a 10-foot-square pit that's 30 feet deep and has 5 feet of water at the bottom.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["mechanical", "trap"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "collapsing-bridge.json"), {
+    _id: "collapsing-bridge",
+    name: "Collapsing Bridge",
+    type: "hazard",
+    system: {
+      details: {
+        level: {
+          value: 5,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>Metal supports twist and shear off the bridge, causing stretches of the structure to collapse.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["mechanical", "trap"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "rushing-wind.json"), {
+    _id: "rushing-wind",
+    name: "Rushing Wind",
+    type: "hazard",
+    system: {
+      details: {
+        level: {
+          value: 4,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>A raging wind sucks creatures in the area toward the aiudara.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["environmental"],
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "pathfinder-monster-core", "diver.json"), {
     _id: "diver",
     name: "Diver",
