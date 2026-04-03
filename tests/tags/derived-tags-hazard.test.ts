@@ -424,4 +424,38 @@ describe("derived tag rules: hazard", () => {
       traits: ["magical"],
     })).not.toContain("mental_impairment");
   });
+
+  it("derives hazard spawned attacker, navigation disruption, and overhead strike tags", () => {
+    expect(deriveRecordTags({
+      name: "Shadow Guards",
+      category: "hazard",
+      subcategory: null,
+      descriptionText: "Shadowy caricatures peel themselves from the floor and attack everyone in the room.",
+      traits: ["haunt", "magical"],
+    })).toContain("spawned_attackers");
+
+    expect(deriveRecordTags({
+      name: "Confounding Portal",
+      category: "hazard",
+      subcategory: null,
+      descriptionText: "Tiny runes carved around a doorframe confound creatures into circling the room or hallway they attempted to exit.",
+      traits: ["magical"],
+    })).toContain("navigation_disruption");
+
+    expect(deriveRecordTags({
+      name: "Rockfall Ceiling",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "A load of rocks, held up by a rope pulley, is dropped on the cavern's lower level from the ceiling above.",
+      traits: ["mechanical", "trap"],
+    })).toContain("overhead_strike");
+
+    expect(deriveRecordTags({
+      name: "Hall of Mirrors",
+      category: "hazard",
+      subcategory: null,
+      descriptionText: "Among the many mirrored reflections lurk trapped souls that cause wounds to appear on reflected creatures.",
+      traits: ["haunt", "magical"],
+    })).not.toContain("spawned_attackers");
+  });
 });

@@ -29,15 +29,17 @@ export const CREATURE_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
       { value: "temple_setting", description: "Strongly associated with temples, shrines, monasteries, or other sacred sites." },
       { value: "fortress_setting", description: "Strongly associated with castles, fortresses, citadels, or strongholds." },
       { value: "volcanic_setting", description: "Strongly associated with volcanoes, calderas, lava, or magma." },
+      { value: "rural_setting", description: "Strongly associated with villages, hamlets, farms, pastures, or other countryside scenes." },
     ],
   },
   {
     category: "creature",
     family: "encounter_role",
-    description: "Creature practical-fit tags for distinguishing scene-adjacent NPCs from primary encounter threats.",
+    description: "Creature practical-fit tags for socially embedded NPCs and role-defined humanoid combatants.",
     tags: [
       { value: "profession_npc", description: "Role-defined NPC such as a captain, guard, merchant, or commoner." },
-      { value: "scene_adjacent", description: "Fits the scene or social fabric, but is usually not the primary monster answer." },
+      { value: "civic_npc", description: "Fits the civic or social fabric of a scene and usually isn't the primary monster answer." },
+      { value: "combatant_npc", description: "Role-defined humanoid combatant such as a soldier, bandit, mercenary, or cultist." },
     ],
   },
   {

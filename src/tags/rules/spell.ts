@@ -221,6 +221,78 @@ const ELEMENTAL_FORM_TEXT_ANCHORS = [
   patternAnchor("elemental battle form"),
 ];
 
+const SPELL_MENTAL_IMPAIRMENT_TEXT_ANCHORS = [
+  patternAnchor("frightened"),
+  patternAnchor("stupefied"),
+  patternAnchor("confused"),
+  patternAnchor("confusion"),
+  patternAnchor("fascinated"),
+  patternAnchor("mental damage"),
+  patternAnchor("terror"),
+  patternAnchor("fear"),
+  patternAnchor("forbidden thought"),
+  patternAnchor("overwhelmed"),
+];
+
+const SPELL_MENTAL_IMPAIRMENT_BLOCKER_TEXT_ANCHORS = [
+  patternAnchor("bonus to allies"),
+  patternAnchor("drive mental contamination from the target s mind"),
+  patternAnchor("grant insight"),
+  patternAnchor("share knowledge"),
+  patternAnchor("encourage companions"),
+  patternAnchor("against emotion effects"),
+];
+
+const SPELL_SENSORY_IMPAIRMENT_TEXT_ANCHORS = [
+  patternAnchor("blind the target"),
+  patternAnchor("blinded"),
+  patternAnchor("blindness"),
+  patternAnchor("deafened"),
+  patternAnchor("deafness"),
+  patternAnchor("loses hearing"),
+  patternAnchor("{{alt(can't, cannot)}} see"),
+  patternAnchor("blocking its vision"),
+  patternAnchor("blinding"),
+];
+
+const SPELL_SENSORY_IMPAIRMENT_BLOCKER_TEXT_ANCHORS = [
+  patternAnchor("see invisible"),
+  patternAnchor("reveals hidden"),
+  patternAnchor("pierces illusions"),
+  patternAnchor("unveiled"),
+];
+
+const SPELL_FORCED_MOVEMENT_TEXT_ANCHORS = [
+  patternAnchor("forced movement"),
+  patternAnchor("drag each target directly toward you"),
+  patternAnchor("knocks it back"),
+  patternAnchor("knocked back"),
+  patternAnchor("pushes the target"),
+  patternAnchor("pulls the target"),
+  patternAnchor("move the target"),
+  patternAnchor("sweeps away"),
+];
+
+const SPELL_RESTRAINT_CAPTURE_TEXT_ANCHORS = [
+  patternAnchor("restrained"),
+  patternAnchor("immobilized"),
+  patternAnchor("sticky web"),
+  patternAnchor("can't escape"),
+  patternAnchor("cannot escape"),
+  patternAnchor("trap the target"),
+  patternAnchor("trapping it inside"),
+  patternAnchor("entangle"),
+  patternAnchor("grabbed"),
+  patternAnchor("immobile illusory walls"),
+];
+
+const SPELL_RESTRAINT_CAPTURE_BLOCKER_TEXT_ANCHORS = [
+  patternAnchor("life pact"),
+  patternAnchor("guardian s aegis"),
+  patternAnchor("alarm"),
+  patternAnchor("rune trap"),
+];
+
 export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "disguise",
@@ -380,6 +452,136 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
     ],
     noneOf: [
       { textAny: SPELL_MOBILITY_BLOCKER_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "mental_impairment",
+    category: "spell",
+    threshold: 2,
+    anyOf: [
+      { score: 1, traitsAny: ["mental", "emotion", "fear"] },
+      { score: 2, textAny: SPELL_MENTAL_IMPAIRMENT_TEXT_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              patternAnchor("mind"),
+              patternAnchor("mental"),
+              patternAnchor("will"),
+              patternAnchor("terror"),
+              patternAnchor("fear"),
+              patternAnchor("confusion"),
+              patternAnchor("stupefied"),
+            ],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+        ],
+      },
+    ],
+    noneOf: [
+      { textAny: SPELL_MENTAL_IMPAIRMENT_BLOCKER_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "sensory_impairment",
+    category: "spell",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: SPELL_SENSORY_IMPAIRMENT_TEXT_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              patternAnchor("blind"),
+              patternAnchor("blinded"),
+              patternAnchor("deaf"),
+              patternAnchor("deafened"),
+              patternAnchor("vision"),
+              patternAnchor("hearing"),
+              patternAnchor("eyes"),
+              patternAnchor("ears"),
+            ],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+        ],
+      },
+    ],
+    noneOf: [
+      { textAny: SPELL_SENSORY_IMPAIRMENT_BLOCKER_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "forced_movement",
+    category: "spell",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: SPELL_FORCED_MOVEMENT_TEXT_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              patternAnchor("push"),
+              patternAnchor("pushes"),
+              patternAnchor("pull"),
+              patternAnchor("pulls"),
+              patternAnchor("drag"),
+              patternAnchor("drags"),
+              patternAnchor("knock"),
+              patternAnchor("knocks"),
+              patternAnchor("sweep"),
+              patternAnchor("sweeps"),
+              patternAnchor("target"),
+              patternAnchor("creature"),
+              patternAnchor("foe"),
+            ],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 3,
+          },
+        ],
+      },
+    ],
+    noneOf: [
+      { textAny: SPELL_MOBILITY_BLOCKER_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "restraint_capture",
+    category: "spell",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: SPELL_RESTRAINT_CAPTURE_TEXT_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              patternAnchor("restrained"),
+              patternAnchor("immobilized"),
+              patternAnchor("grabbed"),
+              patternAnchor("entangle"),
+              patternAnchor("web"),
+              patternAnchor("sticky"),
+              patternAnchor("prison"),
+              patternAnchor("escape"),
+              patternAnchor("trap"),
+            ],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+        ],
+      },
+    ],
+    noneOf: [
+      { textAny: SPELL_RESTRAINT_CAPTURE_BLOCKER_TEXT_ANCHORS },
     ],
   },
   {

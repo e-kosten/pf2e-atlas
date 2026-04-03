@@ -5,6 +5,7 @@ import {
   AQUATIC_SETTING_WEAK_TEXT_ANCHORS,
   BONEYARD_SETTING_CONTEXT_TEXT_ANCHORS,
   BONEYARD_SETTING_TEXT_ANCHORS,
+  CIVIC_NPC_BLOCKER_TRAITS,
   COASTAL_SETTING_NAME_ANCHORS,
   COASTAL_SETTING_STRONG_TEXT_ANCHORS,
   COASTAL_SETTING_WEAK_TEXT_ANCHORS,
@@ -15,7 +16,6 @@ import {
   FRESHWATER_SETTING_HABITAT_TEXT_NEAR,
   FRESHWATER_SETTING_NAME_ANCHORS,
   FRESHWATER_SETTING_STRONG_TEXT_ANCHORS,
-  SCENE_ADJACENT_BLOCKER_TRAITS,
   STRONG_PROFESSION_NAME_ANCHORS,
   UNDEAD_GLOSSARY_FAMILIES,
   WEAK_PROFESSION_NAME_ANCHORS,
@@ -260,9 +260,15 @@ const BOUND_OBJECT_OBJECT_TEXT_ANCHORS = [
   patternAnchor("objects"),
   patternAnchor("armor"),
   patternAnchor("armors"),
+  patternAnchor("cart"),
+  patternAnchor("carts"),
   patternAnchor("broom"),
   patternAnchor("brooms"),
   patternAnchor("cookware"),
+  patternAnchor("door"),
+  patternAnchor("doors"),
+  patternAnchor("figurine"),
+  patternAnchor("figurines"),
   patternAnchor("silverware"),
   patternAnchor("blade"),
   patternAnchor("blades"),
@@ -337,6 +343,104 @@ const TRICKSTER_CHAOS_TEXT_ANCHORS = [
   patternAnchor("harmless pranks"),
   patternAnchor("playing pranks"),
   patternAnchor("play tricks"),
+];
+
+const RURAL_SETTING_NAME_ANCHORS = [
+  patternAnchor("scarecrow", "name"),
+];
+
+const RURAL_SETTING_TEXT_ANCHORS = [
+  patternAnchor("village"),
+  patternAnchor("villages"),
+  patternAnchor("hamlet"),
+  patternAnchor("hamlets"),
+  patternAnchor("farm"),
+  patternAnchor("farms"),
+  patternAnchor("farmstead"),
+  patternAnchor("farmsteads"),
+  patternAnchor("barn"),
+  patternAnchor("barns"),
+  patternAnchor("pasture"),
+  patternAnchor("pastures"),
+  patternAnchor("countryside"),
+  patternAnchor("outlying settlement"),
+];
+
+const RURAL_SETTING_BLOCKER_TEXT_NEAR = [
+  {
+    terms: [
+      patternAnchor("village"),
+      patternAnchor("villages"),
+      patternAnchor("farm"),
+      patternAnchor("farms"),
+      patternAnchor("hamlet"),
+      patternAnchor("hamlets"),
+      patternAnchor("countryside"),
+      patternAnchor("raid"),
+      patternAnchor("raids"),
+      patternAnchor("raiding"),
+      patternAnchor("attack"),
+      patternAnchor("attacks"),
+      patternAnchor("plunder"),
+      patternAnchor("waylay"),
+      patternAnchor("waylays"),
+    ],
+    window: 6,
+    scope: "description" as const,
+    minTermsMatched: 2,
+  },
+];
+
+const CIVIC_SUPPORT_TEXT_ANCHORS = [
+  patternAnchor("maintain order"),
+  patternAnchor("enforce laws"),
+  patternAnchor("patrol their assigned areas"),
+  patternAnchor("patrols the estate grounds"),
+  patternAnchor("patrols the streets"),
+  patternAnchor("protect the faithful"),
+  patternAnchor("responsible for the livelihood"),
+  patternAnchor("shares divine dreams and advice"),
+];
+
+const COMBATANT_NPC_STRONG_NAME_ANCHORS = [
+  patternAnchor("soldier", "name"),
+  patternAnchor("bandit", "name"),
+  patternAnchor("ruffian", "name"),
+  patternAnchor("mercenary", "name"),
+  patternAnchor("assassin", "name"),
+  patternAnchor("sniper", "name"),
+  patternAnchor("cultist", "name"),
+  patternAnchor("warpriest", "name"),
+  patternAnchor("priestess", "name"),
+  patternAnchor("poisoner", "name"),
+  patternAnchor("sentry", "name"),
+];
+
+const COMBATANT_NPC_WEAK_NAME_ANCHORS = [
+  patternAnchor("archer", "name"),
+  patternAnchor("veteran", "name"),
+  patternAnchor("defender", "name"),
+  patternAnchor("warrior", "name"),
+  patternAnchor("disciple", "name"),
+  patternAnchor("boss", "name"),
+  patternAnchor("infiltrator", "name"),
+  patternAnchor("bruiser", "name"),
+];
+
+const ANIMATED_OBJECT_NAME_ANCHORS = [
+  patternAnchor("animated tea cart", "name"),
+  patternAnchor("animated treasure swarm", "name"),
+  patternAnchor("doorwarden", "name"),
+  patternAnchor("animated bamboo figurine", "name"),
+];
+
+const ANIMATED_STATUE_NAME_ANCHORS = [
+  patternAnchor("statue", "name"),
+  patternAnchor("bulwark", "name"),
+  patternAnchor("divine warden", "name"),
+  patternAnchor("effigy", "name"),
+  patternAnchor("idol", "name"),
+  patternAnchor("animated colossus", "name"),
 ];
 
 export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
@@ -507,6 +611,17 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
           patternAnchor("jungle"),
           patternAnchor("jungles"),
           patternAnchor("rainforest"),
+          patternAnchor("thicket"),
+          patternAnchor("thickets"),
+          patternAnchor("underbrush"),
+          patternAnchor("canopy"),
+          patternAnchor("canopies"),
+          patternAnchor("treetop"),
+          patternAnchor("treetops"),
+          patternAnchor("arboreal"),
+          patternAnchor("old growth"),
+          patternAnchor("bough"),
+          patternAnchor("boughs"),
         ],
       },
     ],
@@ -564,6 +679,16 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
           patternAnchor("fens"),
           patternAnchor("mire"),
           patternAnchor("mires"),
+          patternAnchor("wetland"),
+          patternAnchor("wetlands"),
+          patternAnchor("bayou"),
+          patternAnchor("bayous"),
+          patternAnchor("mangrove"),
+          patternAnchor("mangroves"),
+          patternAnchor("quagmire"),
+          patternAnchor("quagmires"),
+          patternAnchor("slough"),
+          patternAnchor("sloughs"),
         ],
       },
     ],
@@ -573,6 +698,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "creature",
     anyOf: [
       {
+        score: 2,
         textAny: [
           patternAnchor("cave"),
           patternAnchor("caves"),
@@ -586,6 +712,16 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
           patternAnchor("depths"),
           patternAnchor("crypt"),
           patternAnchor("crypts"),
+          patternAnchor("mine"),
+          patternAnchor("mines"),
+          patternAnchor("mineshaft"),
+          patternAnchor("mineshafts"),
+          patternAnchor("quarry"),
+          patternAnchor("quarries"),
+          patternAnchor("warren"),
+          patternAnchor("warrens"),
+          patternAnchor("beneath the earth"),
+          patternAnchor("under tunnels"),
         ],
       },
     ],
@@ -611,6 +747,18 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
           patternAnchor("towns"),
         ],
       },
+    ],
+  },
+  {
+    tag: "rural_setting",
+    category: "creature",
+    threshold: 2,
+    noneOf: [
+      { textNear: RURAL_SETTING_BLOCKER_TEXT_NEAR },
+    ],
+    anyOf: [
+      { score: 2, textAny: RURAL_SETTING_NAME_ANCHORS },
+      { score: 2, textAny: RURAL_SETTING_TEXT_ANCHORS },
     ],
   },
   {
@@ -650,7 +798,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     tag: "mountain_setting",
     category: "creature",
     anyOf: [
-      { textAny: [patternAnchor("mountain"), patternAnchor("mountains"), patternAnchor("cliff"), patternAnchor("cliffs"), patternAnchor("peak"), patternAnchor("peaks"), patternAnchor("crag"), patternAnchor("crags"), patternAnchor("alp"), patternAnchor("alpine"), patternAnchor("pass"), patternAnchor("passes")] },
+      { textAny: [patternAnchor("mountain"), patternAnchor("mountains"), patternAnchor("cliff"), patternAnchor("cliffs"), patternAnchor("peak"), patternAnchor("peaks"), patternAnchor("crag"), patternAnchor("crags"), patternAnchor("alp"), patternAnchor("alpine"), patternAnchor("pass"), patternAnchor("passes"), patternAnchor("ridge"), patternAnchor("ridges"), patternAnchor("highlands"), patternAnchor("foothills"), patternAnchor("slope"), patternAnchor("slopes"), patternAnchor("escarpment"), patternAnchor("bluff"), patternAnchor("bluffs")] },
     ],
   },
   {
@@ -717,6 +865,15 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
           patternAnchor("lost city"),
           patternAnchor("derelict structures"),
           patternAnchor("derelict structure"),
+          patternAnchor("abandoned ruin"),
+          patternAnchor("abandoned ruins"),
+          patternAnchor("forgotten ruins"),
+          patternAnchor("sunken city"),
+          patternAnchor("overgrown structure"),
+          patternAnchor("overgrown structures"),
+          patternAnchor("derelict keep"),
+          patternAnchor("fallen halls"),
+          patternAnchor("shattered halls"),
         ],
       },
       { score: 1, textAny: [patternAnchor("ruins"), patternAnchor("ruin"), patternAnchor("derelict")] },
@@ -740,6 +897,13 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
           patternAnchor("monasteries"),
           patternAnchor("chapel"),
           patternAnchor("chapels"),
+          patternAnchor("sanctuary"),
+          patternAnchor("abbey"),
+          patternAnchor("priory"),
+          patternAnchor("cloister"),
+          patternAnchor("holy site"),
+          patternAnchor("consecrated hall"),
+          patternAnchor("ziggurat"),
         ],
       },
       { score: 1, textAny: [patternAnchor("place of worship"), patternAnchor("house of worship")] },
@@ -761,10 +925,20 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
           patternAnchor("citadels"),
           patternAnchor("stronghold"),
           patternAnchor("strongholds"),
+          patternAnchor("keep"),
+          patternAnchor("keeps"),
+          patternAnchor("bastion"),
+          patternAnchor("bastions"),
+          patternAnchor("watchtower"),
+          patternAnchor("watchtowers"),
+          patternAnchor("rampart"),
+          patternAnchor("ramparts"),
+          patternAnchor("battlement"),
+          patternAnchor("battlements"),
         ],
       },
       { score: 2, textAny: [patternAnchor("sky citadel")] },
-      { score: 1, textAny: [patternAnchor("fort"), patternAnchor("forts")] },
+      { score: 1, textAny: [patternAnchor("fort"), patternAnchor("forts"), patternAnchor("garrison")] },
     ],
   },
   {
@@ -793,16 +967,33 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     anyOf: [
       { score: 2, textAny: STRONG_PROFESSION_NAME_ANCHORS },
       { score: 1, textAny: WEAK_PROFESSION_NAME_ANCHORS },
+      { score: 1, textAny: CIVIC_SUPPORT_TEXT_ANCHORS },
       { score: 1, traitsAny: ["humanoid", "human"] },
     ],
   },
   {
-    tag: "scene_adjacent",
+    tag: "civic_npc",
     category: "creature",
     requiresTags: ["profession_npc"],
     noneOf: [
-      { traitsAny: SCENE_ADJACENT_BLOCKER_TRAITS },
+      { traitsAny: CIVIC_NPC_BLOCKER_TRAITS },
       { familiesAny: UNDEAD_GLOSSARY_FAMILIES },
+      { textAny: COMBATANT_NPC_STRONG_NAME_ANCHORS },
+      { textAny: COMBATANT_NPC_WEAK_NAME_ANCHORS },
+    ],
+  },
+  {
+    tag: "combatant_npc",
+    category: "creature",
+    threshold: 2,
+    noneOf: [
+      { traitsAny: ["construct", "mindless", "animal", "beast", "undead", "ghost", "spirit"] },
+      { familiesAny: UNDEAD_GLOSSARY_FAMILIES },
+    ],
+    anyOf: [
+      { score: 2, textAny: COMBATANT_NPC_STRONG_NAME_ANCHORS },
+      { score: 1, textAny: COMBATANT_NPC_WEAK_NAME_ANCHORS },
+      { score: 1, traitsAny: ["humanoid", "human", "troop"] },
     ],
   },
   {
@@ -937,6 +1128,9 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "animated_object",
     category: "creature",
+    allOf: [
+      { traitsAny: ["construct"] },
+    ],
     threshold: 2,
     noneOf: [
       { traitsAny: BOUND_OBJECT_LIVING_BLOCKER_TRAITS },
@@ -944,6 +1138,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
       { textAny: BOUND_OBJECT_FIGURATIVE_BLOCKERS },
     ],
     anyOf: [
+      { score: 2, textAny: ANIMATED_OBJECT_NAME_ANCHORS },
       {
         score: 2,
         textNear: [
@@ -960,6 +1155,9 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "animated_statue",
     category: "creature",
+    allOf: [
+      { traitsAny: ["construct"] },
+    ],
     threshold: 2,
     noneOf: [
       { textAny: BOUND_OBJECT_MIMIC_BLOCKERS },
@@ -967,6 +1165,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
       { textAny: [patternAnchor("stone animal"), patternAnchor("stone animals"), patternAnchor("stone beast"), patternAnchor("stone beasts"), patternAnchor("stone creature"), patternAnchor("stone creatures")] },
     ],
     anyOf: [
+      { score: 2, textAny: ANIMATED_STATUE_NAME_ANCHORS },
       {
         score: 2,
         textNear: [

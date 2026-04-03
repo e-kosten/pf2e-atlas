@@ -117,6 +117,22 @@ describe("derived tag rules: affliction", () => {
     })).toContain("sedation");
 
     expect(deriveRecordTags({
+      name: "Black Apoxia",
+      category: "affliction",
+      subcategory: "disease",
+      descriptionText: "The victim can't breathe properly as the disease drains air from the lungs and leaves them breathless.",
+      traits: ["disease"],
+    })).toContain("respiratory_impairment");
+
+    expect(deriveRecordTags({
+      name: "Crystal Corruption",
+      category: "affliction",
+      subcategory: "curse",
+      descriptionText: "Creatures afflicted by this curse slowly turn to solid crystal until they are petrified.",
+      traits: ["curse"],
+    })).toContain("transformative_corruption");
+
+    expect(deriveRecordTags({
       name: "Cackling Delirium",
       category: "affliction",
       subcategory: "curse",
@@ -170,11 +186,27 @@ describe("derived tag rules: affliction", () => {
     })).toContain("compulsion");
 
     expect(deriveRecordTags({
+      name: "Twisted Loyalties",
+      category: "affliction",
+      subcategory: "curse",
+      descriptionText: "The target's loyalties twist until it treats allies as enemies and is driven to betray its companions.",
+      traits: ["curse", "mental"],
+    })).toContain("compulsion");
+
+    expect(deriveRecordTags({
       name: "Mind-Rotting Toxin",
       category: "affliction",
       subcategory: "poison",
       descriptionText: "This toxin clouds the mind and leaves the victim stupefied with fractured thoughts.",
       traits: ["poison"],
     })).not.toContain("rot_decay");
+
+    expect(deriveRecordTags({
+      name: "Deep Breath Hex",
+      category: "affliction",
+      subcategory: "curse",
+      descriptionText: "The curse leaves the victim fatigued and short of breath after any strenuous activity.",
+      traits: ["curse"],
+    })).not.toContain("respiratory_impairment");
   });
 });

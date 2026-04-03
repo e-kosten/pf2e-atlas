@@ -350,6 +350,56 @@ describe("derived tag rules: spell", () => {
     })).not.toContain("transformation");
   });
 
+  it("derives spell impact tags", () => {
+    expect(deriveRecordTags({
+      name: "Fear",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You plant fear in the target; it must attempt a Will save. The target becomes Frightened 2.",
+      traits: ["emotion", "fear", "mental"],
+    })).toContain("mental_impairment");
+
+    expect(deriveRecordTags({
+      name: "Blindness",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You blind the target. The target becomes Blinded until the spell ends.",
+      traits: ["curse", "necromancy"],
+    })).toContain("sensory_impairment");
+
+    expect(deriveRecordTags({
+      name: "Hydraulic Push",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You call forth a powerful blast of pressurized water that bludgeons the target and knocks it back.",
+      traits: ["water"],
+    })).toContain("forced_movement");
+
+    expect(deriveRecordTags({
+      name: "Phantom Prison",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You completely surround a creature in immobile illusory walls, trapping it inside a false prison it can't escape.",
+      traits: ["illusion", "mental"],
+    })).toContain("restraint_capture");
+
+    expect(deriveRecordTags({
+      name: "Share Lore",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You share knowledge with your allies and grant insight into the subject at hand.",
+      traits: ["mental"],
+    })).not.toContain("mental_impairment");
+
+    expect(deriveRecordTags({
+      name: "See the Unseen",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You pierce illusions and see invisible creatures for the duration.",
+      traits: ["divination"],
+    })).not.toContain("sensory_impairment");
+  });
+
   it("derives spell security, communication, and countermagic tags", () => {
     expect(deriveRecordTags({
       name: "Alarm",

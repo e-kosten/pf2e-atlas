@@ -32,4 +32,13 @@ export const AFFLICTION_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
       { value: "compulsion", description: "Overrides agency through commanded behavior, forced truth-telling, or similarly scripted actions." },
     ],
   },
+  {
+    category: "affliction",
+    family: "physiology_override",
+    description: "Affliction tags for forced breathing failure and body-changing corruption.",
+    tags: [
+      { value: "respiratory_impairment", description: "Prevents normal breathing or fills the victim's lungs with water, fluid, or similar suffocating effects." },
+      { value: "transformative_corruption", description: "Progressively transforms the body into crystal, plant matter, or another corrupted form." },
+    ],
+  },
 ];

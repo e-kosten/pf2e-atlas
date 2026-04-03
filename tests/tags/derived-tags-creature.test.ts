@@ -10,7 +10,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "This cemetery guard patrols the crypts beneath the old city.",
       traits: [],
-    })).toEqual(expect.arrayContaining(["graveyard_setting", "underground_setting", "urban_setting", "profession_npc", "scene_adjacent"]));
+    })).toEqual(expect.arrayContaining(["graveyard_setting", "underground_setting", "urban_setting", "profession_npc", "civic_npc"]));
 
     expect(deriveRecordTags({
       name: "Bog Wisp",
@@ -245,12 +245,20 @@ describe("derived tag rules: creature", () => {
     })).toEqual(expect.arrayContaining(["fortress_setting", "mountain_setting"]));
 
     expect(deriveRecordTags({
+      name: "Scarecrow",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A cruel spirit haunts the countryside from its post beside a lonely farmstead and barn.",
+      traits: ["construct"],
+    })).toContain("rural_setting");
+
+    expect(deriveRecordTags({
       name: "Wealthy Vigilante",
       category: "creature",
       subcategory: null,
       descriptionText: "By night, this member of the nobility dons a false identity to mete out extralegal justice.",
       traits: ["human", "humanoid"],
-    })).toEqual(expect.arrayContaining(["profession_npc", "scene_adjacent"]));
+    })).toEqual(expect.arrayContaining(["profession_npc", "civic_npc"]));
 
     expect(deriveRecordTags({
       name: "Prophet",
@@ -258,7 +266,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "A wandering prophet shares divine dreams and advice with the faithful.",
       traits: ["human", "humanoid"],
-    })).toEqual(expect.arrayContaining(["profession_npc", "scene_adjacent"]));
+    })).toEqual(expect.arrayContaining(["profession_npc", "civic_npc"]));
 
     expect(deriveRecordTags({
       name: "Astradaemon",
@@ -301,7 +309,7 @@ describe("derived tag rules: creature", () => {
     })).toContain("boneyard_setting");
   });
 
-  it("uses glossary family evidence and blocks redundant scene-adjacent tags", () => {
+  it("uses glossary family evidence and blocks redundant civic npc tags", () => {
     expect(deriveRecordTags({
       name: "Morlock Thrall",
       category: "creature",
@@ -327,7 +335,7 @@ describe("derived tag rules: creature", () => {
       descriptionText: "A manor guard who patrols the estate grounds.",
       traits: ["human", "humanoid"],
       families: ["vampire"],
-    })).not.toContain("scene_adjacent");
+    })).not.toContain("civic_npc");
 
     expect(deriveRecordTags({
       name: "Mythic Courtier",
@@ -345,7 +353,23 @@ describe("derived tag rules: creature", () => {
       descriptionText: "A courtier sustained by impossible necromancy.",
       traits: ["humanoid"],
       families: ["mythic", "lich"],
-    })).not.toContain("scene_adjacent");
+    })).not.toContain("civic_npc");
+
+    expect(deriveRecordTags({
+      name: "Bandit",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Bandits waylay travelers and plunder their valuables before disappearing back to their wilderness hideouts.",
+      traits: ["human", "humanoid"],
+    })).toContain("combatant_npc");
+
+    expect(deriveRecordTags({
+      name: "Watch Officer",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Often leading a small team of lower-ranking guards, watch officers patrol their assigned areas to maintain order and enforce laws.",
+      traits: ["human", "humanoid"],
+    })).toEqual(expect.arrayContaining(["profession_npc", "civic_npc"]));
   });
 
   it("derives creature motif tags without collapsing into raw vibes", () => {
@@ -581,7 +605,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "Crafting an adamantine golem requires mounting a mining expedition while guardian suits stand watch.",
       traits: ["construct", "golem", "mindless"],
-    })).not.toEqual(expect.arrayContaining(["profession_npc", "scene_adjacent"]));
+    })).not.toEqual(expect.arrayContaining(["profession_npc", "civic_npc"]));
 
     expect(deriveRecordTags({
       name: "Animated Armor",
@@ -589,7 +613,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "Animated armor serves as guardians and training partners in martial academies.",
       traits: ["construct", "mindless"],
-    })).not.toEqual(expect.arrayContaining(["profession_npc", "scene_adjacent"]));
+    })).not.toEqual(expect.arrayContaining(["profession_npc", "civic_npc"]));
 
     expect(deriveRecordTags({
       name: "Vanth Guardian Flock",
@@ -597,7 +621,15 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "Vanth psychopomps are eternal guardians of the cycle of life and death.",
       traits: ["monitor", "psychopomp", "troop"],
-    })).not.toEqual(expect.arrayContaining(["profession_npc", "scene_adjacent"]));
+    })).not.toEqual(expect.arrayContaining(["profession_npc", "civic_npc"]));
+
+    expect(deriveRecordTags({
+      name: "Clockwork Soldier",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "These diligent machines guard their assigned posts tirelessly.",
+      traits: ["clockwork", "construct", "mindless"],
+    })).not.toContain("combatant_npc");
 
     expect(deriveRecordTags({
       name: "Harbor Watcher",
@@ -658,6 +690,14 @@ describe("derived tag rules: creature", () => {
     })).toContain("animated_object");
 
     expect(deriveRecordTags({
+      name: "Animated Tea Cart",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A construct tea cart rattles to life and careens through the parlor.",
+      traits: ["construct", "mindless"],
+    })).toContain("animated_object");
+
+    expect(deriveRecordTags({
       name: "Giant Animated Statue",
       category: "creature",
       subcategory: null,
@@ -670,6 +710,14 @@ describe("derived tag rules: creature", () => {
       category: "creature",
       subcategory: null,
       descriptionText: "A carved statue animated to stand watch like a patient monk.",
+      traits: ["construct", "mindless"],
+    })).toContain("animated_statue");
+
+    expect(deriveRecordTags({
+      name: "Old Man Statue",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A divine warden of Irori disguised as an old statue.",
       traits: ["construct", "mindless"],
     })).toContain("animated_statue");
   });

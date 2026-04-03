@@ -82,4 +82,15 @@ export const SPELL_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
       { value: "alarm", description: "Alerts you or others when a watched area, threshold, or ward is crossed." },
     ],
   },
+  {
+    category: "spell",
+    family: "impact",
+    description: "Spells that impair minds or senses, forcibly reposition targets, or trap them in place.",
+    tags: [
+      { value: "mental_impairment", description: "Impairs thought, composure, or agency through fear, confusion, or similarly hostile mental effects." },
+      { value: "sensory_impairment", description: "Blinds, deafens, or otherwise directly suppresses a creature's senses." },
+      { value: "forced_movement", description: "Pushes, pulls, drags, or otherwise repositions a target against its will." },
+      { value: "restraint_capture", description: "Restrains, immobilizes, entangles, or traps a target in place." },
+    ],
+  },
 ];

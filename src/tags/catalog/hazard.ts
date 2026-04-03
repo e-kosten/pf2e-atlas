@@ -20,6 +20,7 @@ export const HAZARD_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
       { value: "alarm", description: "Alerts guardians, onlookers, or nearby creatures to an intrusion." },
       { value: "restraint_capture", description: "Hazard that binds, restrains, or holds intruders in place." },
       { value: "barrier_lockdown", description: "Hazard that seals, closes, or blocks passage to trap or delay intruders." },
+      { value: "spawned_attackers", description: "Hazard that summons, creates, or releases separate attackers into the scene." },
     ],
   },
   {
@@ -54,6 +55,22 @@ export const HAZARD_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
       { value: "pitfall", description: "Hazard built around a concealed pit, drop, or similar vertical fall trap." },
       { value: "collapse_hazard", description: "Hazard built around collapsing structures, cave-ins, rockfalls, or crumbling ground." },
       { value: "forced_movement", description: "Hazard that pushes, pulls, drags, submerges, or otherwise forcibly repositions creatures." },
+    ],
+  },
+  {
+    category: "hazard",
+    family: "perception_control",
+    description: "Hazards that distort routes, orientation, or the perceived layout of a space.",
+    tags: [
+      { value: "navigation_disruption", description: "Hazard that confounds routes, loops intruders, or scrambles navigation through distorted perception." },
+    ],
+  },
+  {
+    category: "hazard",
+    family: "attack_vector",
+    description: "Hazards categorized by how their attack is delivered into the scene.",
+    tags: [
+      { value: "overhead_strike", description: "Hazard that drops, crashes, or attacks from the ceiling or another overhead position." },
     ],
   },
 ];

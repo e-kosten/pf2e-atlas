@@ -385,6 +385,94 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
     },
   });
 
+  await writeJson(path.join(packRoot, "spells", "fear.json"), {
+    _id: "spell-fear-1",
+    name: "Fear",
+    type: "spell",
+    system: {
+      description: {
+        value: "<p>You plant fear in the target; it must attempt a Will save.</p><p>The target becomes Frightened 2.</p>",
+      },
+      level: {
+        value: 1,
+      },
+      publication: {
+        title: "Pathfinder Player Core",
+      },
+      traits: {
+        rarity: "common",
+        traditions: ["arcane", "divine", "occult", "primal"],
+        value: ["emotion", "fear", "mental"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "spells", "blindness.json"), {
+    _id: "spell-blindness-1",
+    name: "Blindness",
+    type: "spell",
+    system: {
+      description: {
+        value: "<p>You blind the target. The target becomes Blinded until the spell ends.</p>",
+      },
+      level: {
+        value: 3,
+      },
+      publication: {
+        title: "Pathfinder Player Core",
+      },
+      traits: {
+        rarity: "common",
+        traditions: ["arcane", "divine", "occult"],
+        value: ["curse", "necromancy"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "spells", "hydraulic-push.json"), {
+    _id: "spell-hydraulic-push-1",
+    name: "Hydraulic Push",
+    type: "spell",
+    system: {
+      description: {
+        value: "<p>You call forth a powerful blast of pressurized water that bludgeons the target and knocks it back.</p>",
+      },
+      level: {
+        value: 1,
+      },
+      publication: {
+        title: "Pathfinder Player Core",
+      },
+      traits: {
+        rarity: "common",
+        traditions: ["arcane", "primal"],
+        value: ["water"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "spells", "phantom-prison.json"), {
+    _id: "spell-phantom-prison-1",
+    name: "Phantom Prison",
+    type: "spell",
+    system: {
+      description: {
+        value: "<p>You completely surround a Large or smaller creature in immobile illusory walls, trapping it inside a false prison it can't escape.</p>",
+      },
+      level: {
+        value: 5,
+      },
+      publication: {
+        title: "Pathfinder Dark Archive",
+      },
+      traits: {
+        rarity: "common",
+        traditions: ["arcane", "occult"],
+        value: ["illusion", "mental"],
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "afflictions", "cackling-delirium.json"), {
     _id: "affliction-1",
     name: "Cackling Delirium",
@@ -528,6 +616,48 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
       traits: {
         rarity: "common",
         value: ["poison"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "afflictions", "black-apoxia.json"), {
+    _id: "affliction-black-apoxia-1",
+    name: "Black Apoxia",
+    type: "affliction",
+    system: {
+      description: {
+        value: "<p>The victim can't breathe properly as the disease leaves the lungs starved for air and the body breathless.</p>",
+      },
+      level: {
+        value: 7,
+      },
+      publication: {
+        title: "Pathfinder Adventure Path",
+      },
+      traits: {
+        rarity: "common",
+        value: ["disease"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "afflictions", "crystal-corruption.json"), {
+    _id: "affliction-crystal-corruption-1",
+    name: "Crystal Corruption",
+    type: "affliction",
+    system: {
+      description: {
+        value: "<p>Creatures afflicted by this curse slowly turn to solid crystal until they are petrified.</p>",
+      },
+      level: {
+        value: 8,
+      },
+      publication: {
+        title: "Pathfinder GM Core",
+      },
+      traits: {
+        rarity: "common",
+        value: ["curse"],
       },
     },
   });

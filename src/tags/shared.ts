@@ -37,6 +37,10 @@ const STRONG_PROFESSION_NAME_ANCHORS: TextAnchor[] = [
   patternAnchor("advisor", "name"),
   patternAnchor("acolyte", "name"),
   patternAnchor("vigilante", "name"),
+  patternAnchor("watch officer", "name"),
+  patternAnchor("watchmage", "name"),
+  patternAnchor("bodyguard", "name"),
+  patternAnchor("gaoler", "name"),
 ];
 
 const WEAK_PROFESSION_NAME_ANCHORS: TextAnchor[] = [
@@ -44,6 +48,10 @@ const WEAK_PROFESSION_NAME_ANCHORS: TextAnchor[] = [
   patternAnchor("apprentice", "name"),
   patternAnchor("hunter", "name"),
   patternAnchor("enforcer", "name"),
+  patternAnchor("officer", "name"),
+  patternAnchor("warden", "name"),
+  patternAnchor("caretaker", "name"),
+  patternAnchor("logger", "name"),
 ];
 
 const UNDEAD_GLOSSARY_FAMILIES = [
@@ -60,7 +68,7 @@ const UNDEAD_GLOSSARY_FAMILIES = [
   "visitant",
 ];
 
-const SCENE_ADJACENT_BLOCKER_TRAITS = [
+const CIVIC_NPC_BLOCKER_TRAITS = [
   "aberration",
   "animal",
   "construct",
@@ -806,7 +814,7 @@ export {
   STRONG_PROFESSION_NAME_ANCHORS,
   WEAK_PROFESSION_NAME_ANCHORS,
   UNDEAD_GLOSSARY_FAMILIES,
-  SCENE_ADJACENT_BLOCKER_TRAITS,
+  CIVIC_NPC_BLOCKER_TRAITS,
   FRESHWATER_SETTING_TEXT_ANCHORS,
   FRESHWATER_SETTING_STRONG_TEXT_ANCHORS,
   FRESHWATER_SETTING_CONTEXT_TEXT_ANCHORS,

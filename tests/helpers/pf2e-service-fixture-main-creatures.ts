@@ -1987,4 +1987,163 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
       },
     },
   });
+
+  await writeJson(path.join(packRoot, "pathfinder-npc-core", "bandit.json"), {
+    _id: "bandit-npc-core",
+    name: "Bandit",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 1,
+        },
+        publication: {
+          title: "Pathfinder NPC Core",
+        },
+        publicNotes: "<p>Bandits waylay travelers and plunder their valuables before disappearing back to their wilderness hideouts.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["human", "humanoid"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "scarecrow.json"), {
+    _id: "scarecrow-core",
+    name: "Scarecrow",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 4,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>A cruel spirit haunts the countryside from its post beside a lonely farmstead and barn.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["construct"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "animated-tea-cart.json"), {
+    _id: "animated-tea-cart-core",
+    name: "Animated Tea Cart",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 2,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>A construct tea cart rattles to life and careens through the parlor.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["construct", "mindless"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "old-man-statue.json"), {
+    _id: "old-man-statue-core",
+    name: "Old Man Statue",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 6,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>A divine warden of Irori disguised as an old statue.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["construct", "mindless"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "shadow-guards.json"), {
+    _id: "shadow-guards-hazard",
+    name: "Shadow Guards",
+    type: "hazard",
+    system: {
+      details: {
+        level: {
+          value: 5,
+        },
+        publication: {
+          title: "Pathfinder Adventure Path",
+        },
+        publicNotes: "<p>Shadowy caricatures peel themselves from the floor and attack everyone in the room.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["haunt", "magical"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "confounding-portal.json"), {
+    _id: "confounding-portal-hazard",
+    name: "Confounding Portal",
+    type: "hazard",
+    system: {
+      details: {
+        level: {
+          value: 4,
+        },
+        publication: {
+          title: "Pathfinder Adventure Path",
+        },
+        publicNotes: "<p>Tiny runes carved around a doorframe confound creatures into circling the room or hallway they attempted to exit.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["magical"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "falling-debris.json"), {
+    _id: "falling-debris-hazard",
+    name: "Falling Debris",
+    type: "hazard",
+    system: {
+      details: {
+        level: {
+          value: 2,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>A pressure-sensitive floorboard connects to a beam holding up debris in the crawlway's ceiling.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["mechanical", "trap"],
+      },
+    },
+  });
 }

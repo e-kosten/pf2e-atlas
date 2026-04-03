@@ -22,7 +22,13 @@ const AFFLICTION_COGNITIVE_IMPAIRMENT_TEXT_ANCHORS = [
   patternAnchor("decision-making skills"),
   patternAnchor("mental capacity"),
   patternAnchor("mental faculties"),
+  patternAnchor("amnesia"),
+  patternAnchor("memory loss"),
   patternAnchor("memory-altering"),
+  patternAnchor("can't remember"),
+  patternAnchor("cannot remember"),
+  patternAnchor("forgets"),
+  patternAnchor("forgets who"),
   patternAnchor("befuddle a target"),
   patternAnchor("addles the mind"),
   patternAnchor("cognitive impairment"),
@@ -32,6 +38,7 @@ const AFFLICTION_SENSORY_IMPAIRMENT_TEXT_ANCHORS = [
   patternAnchor("shuts down the senses"),
   patternAnchor("shuts down the imbiber's senses"),
   patternAnchor("loss of senses"),
+  patternAnchor("blinding"),
   patternAnchor("lose sight"),
   patternAnchor("lose hearing"),
   patternAnchor("{{alt(can't, cannot)}} see"),
@@ -44,13 +51,17 @@ const AFFLICTION_SENSORY_IMPAIRMENT_TEXT_ANCHORS = [
 
 const AFFLICTION_SEDATION_TEXT_ANCHORS = [
   patternAnchor("{{alt(fall, falls)}} unconscious"),
+  patternAnchor("falls asleep"),
   patternAnchor("deep unconsciousness"),
   patternAnchor("can't attempt perception checks to wake up"),
   patternAnchor("no perception check to wake up"),
   patternAnchor("sleep normally"),
   patternAnchor("can't wake up"),
+  patternAnchor("can't be awakened"),
+  patternAnchor("cannot be awakened"),
   patternAnchor("wake up by any means"),
   patternAnchor("deep sleep"),
+  patternAnchor("sleeping sickness"),
   patternAnchor("slumber"),
   patternAnchor("soporific"),
   patternAnchor("asleep"),
@@ -117,8 +128,47 @@ const AFFLICTION_COMPULSION_TEXT_ANCHORS = [
   patternAnchor("can use no actions but"),
   patternAnchor("controlled by"),
   patternAnchor("compelled to"),
+  patternAnchor("forbidden cravings"),
   patternAnchor("must obey"),
+  patternAnchor("must eat"),
   patternAnchor("must spend each action"),
+  patternAnchor("twisted loyalties"),
+  patternAnchor("treat allies as enemies"),
+  patternAnchor("driven to"),
+];
+
+const AFFLICTION_RESPIRATORY_IMPAIRMENT_NAME_ANCHORS = [
+  patternAnchor("apoxia", "name"),
+  patternAnchor("fill lungs", "name"),
+  patternAnchor("flood breath", "name"),
+];
+
+const AFFLICTION_RESPIRATORY_IMPAIRMENT_TEXT_ANCHORS = [
+  patternAnchor("{{alt(can't, cannot)}} breathe"),
+  patternAnchor("suffocate"),
+  patternAnchor("suffocates"),
+  patternAnchor("fill lungs"),
+  patternAnchor("flood breath"),
+  patternAnchor("lungs fill"),
+  patternAnchor("lungs filled"),
+  patternAnchor("inhale water"),
+  patternAnchor("water in its lungs"),
+  patternAnchor("water in their lungs"),
+];
+
+const AFFLICTION_TRANSFORMATIVE_CORRUPTION_TEXT_ANCHORS = [
+  patternAnchor("slowly turn to solid crystal"),
+  patternAnchor("slowly turns to solid crystal"),
+  patternAnchor("slowly turns into crystal"),
+  patternAnchor("turns into crystal"),
+  patternAnchor("turn into crystal"),
+  patternAnchor("turns into a plant"),
+  patternAnchor("body changes"),
+  patternAnchor("mutate"),
+  patternAnchor("mutates"),
+  patternAnchor("transformation"),
+  patternAnchor("creeping sprout"),
+  patternAnchor("lamashtu s bloom"),
 ];
 
 export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
@@ -159,6 +209,7 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "affliction",
     threshold: 2,
     anyOf: [
+      { score: 1, textAny: [patternAnchor("amnesia", "name"), patternAnchor("wisdom", "name")] },
       { score: 2, textAny: AFFLICTION_COGNITIVE_IMPAIRMENT_TEXT_ANCHORS },
       {
         score: 2,
@@ -205,6 +256,7 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
               patternAnchor("sight"),
               patternAnchor("sights"),
               patternAnchor("vision"),
+              patternAnchor("eyes"),
               patternAnchor("perception"),
               patternAnchor("senses"),
             ],
@@ -231,6 +283,7 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
               patternAnchor("sleeping"),
               patternAnchor("slumber"),
               patternAnchor("unconscious"),
+              patternAnchor("asleep"),
               patternAnchor("wake"),
               patternAnchor("waking"),
             ],
@@ -243,6 +296,34 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
     ],
     noneOf: [
       { textAny: [patternAnchor("dreamtime tea", "name")] },
+    ],
+  },
+  {
+    tag: "respiratory_impairment",
+    category: "affliction",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: AFFLICTION_RESPIRATORY_IMPAIRMENT_NAME_ANCHORS },
+      { score: 2, textAny: AFFLICTION_RESPIRATORY_IMPAIRMENT_TEXT_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              patternAnchor("breathe"),
+              patternAnchor("breathing"),
+              patternAnchor("lungs"),
+              patternAnchor("water"),
+              patternAnchor("suffocate"),
+              patternAnchor("suffocates"),
+              patternAnchor("apoxia"),
+            ],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+        ],
+      },
     ],
   },
   {
@@ -337,6 +418,7 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
               patternAnchor("compelled"),
               patternAnchor("controlled"),
               patternAnchor("commanded"),
+              patternAnchor("driven"),
             ],
             window: 5,
             scope: "description",
@@ -352,6 +434,10 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
               patternAnchor("lies"),
               patternAnchor("move"),
               patternAnchor("attack"),
+              patternAnchor("eat"),
+              patternAnchor("allies"),
+              patternAnchor("loyalty"),
+              patternAnchor("cravings"),
             ],
             window: 5,
             scope: "description",
@@ -359,6 +445,39 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
           },
         ],
       },
+    ],
+  },
+  {
+    tag: "transformative_corruption",
+    category: "affliction",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: AFFLICTION_TRANSFORMATIVE_CORRUPTION_TEXT_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              patternAnchor("turn"),
+              patternAnchor("turns"),
+              patternAnchor("transforms"),
+              patternAnchor("transformation"),
+              patternAnchor("mutates"),
+              patternAnchor("body"),
+              patternAnchor("crystal"),
+              patternAnchor("crystalline"),
+              patternAnchor("sprout"),
+              patternAnchor("bloom"),
+            ],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+        ],
+      },
+    ],
+    noneOf: [
+      { textAny: [patternAnchor("moral corruption"), patternAnchor("spiritual corruption")] },
     ],
   },
 ];

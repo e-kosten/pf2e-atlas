@@ -131,6 +131,16 @@ describe("derived tag catalog", () => {
       }),
       expect.objectContaining({
         category: "spell",
+        family: "impact",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "mental_impairment", description: expect.any(String) }),
+          expect.objectContaining({ value: "sensory_impairment", description: expect.any(String) }),
+          expect.objectContaining({ value: "forced_movement", description: expect.any(String) }),
+          expect.objectContaining({ value: "restraint_capture", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "spell",
         family: "support",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "healing_support", description: expect.any(String) }),
@@ -147,6 +157,7 @@ describe("derived tag catalog", () => {
           expect.objectContaining({ value: "alarm", description: expect.any(String) }),
           expect.objectContaining({ value: "restraint_capture", description: expect.any(String) }),
           expect.objectContaining({ value: "barrier_lockdown", description: expect.any(String) }),
+          expect.objectContaining({ value: "spawned_attackers", description: expect.any(String) }),
         ]),
       }),
       expect.objectContaining({
@@ -181,6 +192,20 @@ describe("derived tag catalog", () => {
         ]),
       }),
       expect.objectContaining({
+        category: "hazard",
+        family: "perception_control",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "navigation_disruption", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "hazard",
+        family: "attack_vector",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "overhead_strike", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
         category: "affliction",
         family: "impact",
         tags: expect.arrayContaining([
@@ -209,6 +234,14 @@ describe("derived tag catalog", () => {
         ]),
       }),
       expect.objectContaining({
+        category: "affliction",
+        family: "physiology_override",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "respiratory_impairment", description: expect.any(String) }),
+          expect.objectContaining({ value: "transformative_corruption", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
         category: "creature",
         family: "setting",
         tags: expect.arrayContaining([
@@ -227,6 +260,7 @@ describe("derived tag catalog", () => {
           expect.objectContaining({ value: "fortress_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "wasteland_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "volcanic_setting", description: expect.any(String) }),
+          expect.objectContaining({ value: "rural_setting", description: expect.any(String) }),
         ]),
       }),
       expect.objectContaining({
@@ -234,7 +268,8 @@ describe("derived tag catalog", () => {
         family: "encounter_role",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "profession_npc", description: expect.any(String) }),
-          expect.objectContaining({ value: "scene_adjacent", description: expect.any(String) }),
+          expect.objectContaining({ value: "civic_npc", description: expect.any(String) }),
+          expect.objectContaining({ value: "combatant_npc", description: expect.any(String) }),
         ]),
       }),
       expect.objectContaining({

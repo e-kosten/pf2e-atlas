@@ -176,6 +176,55 @@ const HAZARD_WATER_TEXT_ANCHORS = [
   patternAnchor("submerged"),
 ];
 
+const HAZARD_SPAWNED_ATTACKERS_NAME_ANCHORS = [
+  patternAnchor("summoning rune", "name"),
+  patternAnchor("shadow guards", "name"),
+  patternAnchor("spectral archers", "name"),
+  patternAnchor("clone mirrors", "name"),
+  patternAnchor("darkside mirror", "name"),
+];
+
+const HAZARD_SPAWNED_ATTACKERS_TEXT_ANCHORS = [
+  patternAnchor("summons"),
+  patternAnchor("calls forth"),
+  patternAnchor("conjures"),
+  patternAnchor("spawns"),
+  patternAnchor("peel themselves from the floor and attack"),
+  patternAnchor("replaced by its victim"),
+  patternAnchor("masked guardians"),
+];
+
+const HAZARD_NAVIGATION_DISRUPTION_TEXT_ANCHORS = [
+  patternAnchor("confound creatures into circling the room"),
+  patternAnchor("attempted to exit"),
+  patternAnchor("disorienting illusions"),
+  patternAnchor("maze of mirrors"),
+  patternAnchor("shadow maze"),
+  patternAnchor("endless realities"),
+  patternAnchor("walls shift"),
+  patternAnchor("ever shifting maze"),
+  patternAnchor("walls vanish"),
+  patternAnchor("circling the room"),
+];
+
+const HAZARD_OVERHEAD_STRIKE_NAME_ANCHORS = [
+  patternAnchor("falling debris", "name"),
+  patternAnchor("falling crates", "name"),
+  patternAnchor("rockfall ceiling", "name"),
+  patternAnchor("deadfall", "name"),
+  patternAnchor("falling ceiling", "name"),
+];
+
+const HAZARD_OVERHEAD_STRIKE_TEXT_ANCHORS = [
+  patternAnchor("ceiling"),
+  patternAnchor("crashes down"),
+  patternAnchor("dropped on"),
+  patternAnchor("from above"),
+  patternAnchor("held up by"),
+  patternAnchor("slats in the ceiling open"),
+  patternAnchor("bundle of boulders"),
+];
+
 export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "ward_trigger",
@@ -555,6 +604,44 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
     anyOf: [
       { score: 2, textAny: HAZARD_ALARM_TEXT_ANCHORS },
       { score: 1, textAny: [patternAnchor("glyph"), patternAnchor("ward"), patternAnchor("threshold")] },
+    ],
+  },
+  {
+    tag: "spawned_attackers",
+    category: "hazard",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: HAZARD_SPAWNED_ATTACKERS_NAME_ANCHORS },
+      { score: 2, textAny: HAZARD_SPAWNED_ATTACKERS_TEXT_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              patternAnchor("summon"),
+              patternAnchor("summons"),
+              patternAnchor("call"),
+              patternAnchor("calls"),
+              patternAnchor("conjure"),
+              patternAnchor("spawns"),
+              patternAnchor("replaced"),
+              patternAnchor("peel"),
+              patternAnchor("peel themselves"),
+              patternAnchor("guards"),
+              patternAnchor("guardians"),
+              patternAnchor("archers"),
+              patternAnchor("devil"),
+              patternAnchor("duplicates"),
+              patternAnchor("shadows"),
+              patternAnchor("attack"),
+              patternAnchor("attacker"),
+            ],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 3,
+          },
+        ],
+      },
     ],
   },
   {
@@ -1102,6 +1189,80 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
           },
         ],
       },
+    ],
+  },
+  {
+    tag: "navigation_disruption",
+    category: "hazard",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: HAZARD_NAVIGATION_DISRUPTION_TEXT_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              patternAnchor("maze"),
+              patternAnchor("mirror"),
+              patternAnchor("mirrors"),
+              patternAnchor("walls"),
+              patternAnchor("portal"),
+              patternAnchor("hallway"),
+              patternAnchor("confound"),
+              patternAnchor("disorient"),
+              patternAnchor("circling"),
+              patternAnchor("shift"),
+              patternAnchor("shifting"),
+              patternAnchor("vanish"),
+              patternAnchor("exit"),
+            ],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 3,
+          },
+        ],
+      },
+    ],
+    noneOf: [
+      { textAny: HAZARD_SPAWNED_ATTACKERS_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "overhead_strike",
+    category: "hazard",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: HAZARD_OVERHEAD_STRIKE_NAME_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              patternAnchor("ceiling"),
+              patternAnchor("overhead"),
+              patternAnchor("above"),
+              patternAnchor("beam"),
+              patternAnchor("rope pulley"),
+              patternAnchor("fall"),
+              patternAnchor("falls"),
+              patternAnchor("falling"),
+              patternAnchor("drops"),
+              patternAnchor("crashes down"),
+              patternAnchor("dropped"),
+              patternAnchor("rocks"),
+              patternAnchor("debris"),
+              patternAnchor("crates"),
+            ],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 3,
+          },
+        ],
+      },
+      { score: 1, textAny: HAZARD_OVERHEAD_STRIKE_TEXT_ANCHORS },
+    ],
+    noneOf: [
+      { textAny: [patternAnchor("floor collapses"), patternAnchor("drop a creature"), patternAnchor("drops a creature"), patternAnchor("pit")] },
     ],
   },
   {

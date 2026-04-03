@@ -206,6 +206,14 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
         ]),
       }),
       expect.objectContaining({
+        category: "affliction",
+        family: "physiology_override",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "respiratory_impairment", description: expect.any(String) }),
+          expect.objectContaining({ value: "transformative_corruption", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
         category: "creature",
         family: "setting",
         tags: expect.arrayContaining([
@@ -224,6 +232,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
           expect.objectContaining({ value: "fortress_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "wasteland_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "volcanic_setting", description: expect.any(String) }),
+          expect.objectContaining({ value: "rural_setting", description: expect.any(String) }),
         ]),
       }),
       expect.objectContaining({
@@ -231,7 +240,8 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
         family: "encounter_role",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "profession_npc", description: expect.any(String) }),
-          expect.objectContaining({ value: "scene_adjacent", description: expect.any(String) }),
+          expect.objectContaining({ value: "civic_npc", description: expect.any(String) }),
+          expect.objectContaining({ value: "combatant_npc", description: expect.any(String) }),
         ]),
       }),
       expect.objectContaining({
@@ -269,8 +279,8 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     })).toEqual({
       field: "traits",
       values: [
-        { value: "trap", count: 10 },
-        { value: "mechanical", count: 6 },
+        { value: "trap", count: 11 },
+        { value: "mechanical", count: 7 },
         { value: "magical", count: 5 },
       ],
     });
@@ -282,11 +292,11 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     expect(service.listFilterValues({
       field: "derivedTags",
       category: "spell",
-    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["alarm", "disguise", "social_infiltration"]));
+    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["alarm", "disguise", "social_infiltration", "mental_impairment", "sensory_impairment", "forced_movement", "restraint_capture"]));
     expect(service.listFilterValues({
       field: "derivedTags",
       category: "hazard",
-    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["alarm", "mobility_impairment", "restraint_capture", "respiratory_hazard", "water_hazard"]));
+    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["alarm", "mobility_impairment", "restraint_capture", "respiratory_hazard", "water_hazard", "spawned_attackers", "navigation_disruption", "overhead_strike"]));
     expect(service.listFilterValues({
       field: "derivedTags",
       category: "affliction",
@@ -295,6 +305,8 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       "mental_impairment",
       "mobility_impairment",
       "sedation",
+      "respiratory_impairment",
+      "transformative_corruption",
       "rot_decay",
       "infestation_implant",
       "compulsion",
@@ -302,7 +314,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     expect(service.listFilterValues({
       field: "derivedTags",
       category: "creature",
-    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["aquatic_setting", "freshwater_setting", "coastal_setting", "astral_setting", "first_world_setting", "boneyard_setting", "temple_setting", "carnival_show", "living_toy", "living_artwork", "trickster_chaos"]));
+    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["aquatic_setting", "freshwater_setting", "coastal_setting", "astral_setting", "first_world_setting", "boneyard_setting", "temple_setting", "rural_setting", "civic_npc", "combatant_npc", "carnival_show", "living_toy", "living_artwork", "trickster_chaos"]));
 
     expect(service.listFilterValues({
       field: "families",
@@ -324,8 +336,8 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     })).toEqual({
       field: "subcategories",
       values: [
-        { value: "trap", count: 10 },
-        { value: "haunt", count: 1 },
+        { value: "trap", count: 11 },
+        { value: "haunt", count: 2 },
       ],
     });
 
@@ -335,8 +347,8 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     })).toEqual({
       field: "publicationTitle",
       values: [
-        { value: "Pathfinder Player Core", count: 9 },
-        { value: "Pathfinder Dark Archive", count: 2 },
+        { value: "Pathfinder Player Core", count: 12 },
+        { value: "Pathfinder Dark Archive", count: 3 },
         { value: "Pathfinder Secrets of Magic", count: 2 },
       ],
     });
@@ -347,10 +359,10 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     })).toEqual({
       field: "traditions",
       values: [
-        { value: "occult", count: 7 },
-        { value: "arcane", count: 5 },
-        { value: "divine", count: 4 },
-        { value: "primal", count: 4 },
+        { value: "occult", count: 10 },
+        { value: "arcane", count: 9 },
+        { value: "divine", count: 6 },
+        { value: "primal", count: 6 },
       ],
     });
 
@@ -405,7 +417,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     })).toEqual({
       field: "packs",
       values: [
-        { value: "Spells", count: 10 },
+        { value: "Spells", count: 14 },
         { value: "Spells SRD", count: 3 },
       ],
     });
@@ -419,7 +431,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     })).toEqual({
       field: "categories",
       values: [
-        { value: "hazard", count: 10 },
+        { value: "hazard", count: 11 },
         { value: "rule", count: 6 },
       ],
     });
