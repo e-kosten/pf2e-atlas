@@ -286,4 +286,118 @@ describe("derived tag rules: spell", () => {
       traits: ["concentrate", "manipulate"],
     })).toContain("countermagic");
   });
+
+  it("derives spell support and warding tags", () => {
+    expect(deriveRecordTags({
+      name: "Healing Hymn",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "The hymn restores hit points and grants fast healing to the target.",
+      traits: ["healing"],
+    })).toContain("healing_support");
+
+    expect(deriveRecordTags({
+      name: "Merciful Renewal",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You heal the target and let them recover hit points more quickly.",
+      traits: [],
+    })).toContain("healing_support");
+
+    expect(deriveRecordTags({
+      name: "Searing Burst",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "A blast of fire scorches foes in the area.",
+      traits: ["fire"],
+    })).not.toContain("healing_support");
+
+    expect(deriveRecordTags({
+      name: "Delay Affliction",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You delay the affliction and remove a condition from the target.",
+      traits: ["healing"],
+    })).toContain("condition_support");
+
+    expect(deriveRecordTags({
+      name: "Cleansing Pulse",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You counteract an affliction, remove a condition, and cure poison.",
+      traits: [],
+    })).toContain("condition_support");
+
+    expect(deriveRecordTags({
+      name: "Alarm",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You ward an area to alert you when creatures enter without your permission. Whenever a creature enters the spell's area without speaking the password, alarm sends your choice of a mental alert or an audible alarm.",
+      traits: ["concentrate", "manipulate"],
+    })).not.toContain("protective_ward");
+
+    expect(deriveRecordTags({
+      name: "Sanctuary Circle",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "A warding circle protects the target and grants a bonus to AC while they stand within the sanctified space.",
+      traits: ["abjuration"],
+    })).toContain("protective_ward");
+
+    expect(deriveRecordTags({
+      name: "Defended by Spirits",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "Spirits defend the target and create a protective boundary around them.",
+      traits: ["divine"],
+    })).toContain("protective_ward");
+
+    expect(deriveRecordTags({
+      name: "Breath of Life",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You stabilize the target and prevent it from dying.",
+      traits: ["healing"],
+    })).toContain("death_prevention");
+
+    expect(deriveRecordTags({
+      name: "Revival",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "Your magic returns the creature to life and brings it back from death.",
+      traits: ["healing"],
+    })).toContain("death_prevention");
+
+    expect(deriveRecordTags({
+      name: "Moonlit Veil",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "Soft moonlight cloaks the target in shimmering silver light.",
+      traits: ["illusion"],
+    })).not.toContain("death_prevention");
+
+    expect(deriveRecordTags({
+      name: "Energy Aegis",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "The target gains resistance 10 to fire and acid for 1 hour.",
+      traits: ["abjuration"],
+    })).toContain("resistance_support");
+
+    expect(deriveRecordTags({
+      name: "Storm Shell",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "The spell grants resistance to electricity and sonic damage.",
+      traits: ["abjuration"],
+    })).toContain("resistance_support");
+
+    expect(deriveRecordTags({
+      name: "Searing Blade",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You surround a weapon in flames and deal fire damage on a hit.",
+      traits: ["fire"],
+    })).not.toContain("resistance_support");
+  });
 });

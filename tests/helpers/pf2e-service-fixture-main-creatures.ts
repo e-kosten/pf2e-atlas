@@ -216,7 +216,7 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publicNotes: "<p>A broken servant enthralled to a vampire household.</p>",
       },
       traits: {
-        rarity: "common",
+        rarity: "uncommon",
         value: ["humanoid"],
         size: {
           value: "med",
@@ -823,6 +823,78 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
     },
   });
 
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "masked-mourner.json"), {
+    _id: "masked-mourner",
+    name: "Masked Mourner",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 4,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>A solemn creature wearing a ceremonial mask and veiled face to hide its identity from the living.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["humanoid"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "faceless-butcher.json"), {
+    _id: "faceless-butcher",
+    name: "Faceless Butcher",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 7,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>This faceless horror has a blank, featureless face and keeps stolen faces as trophies.</p>",
+      },
+      traits: {
+        rarity: "uncommon",
+        value: ["aberration"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "false-herald.json"), {
+    _id: "false-herald",
+    name: "False Herald",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 6,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>The herald assumes a false identity, infiltrates courts, and impersonates priests to replace them.</p>",
+      },
+      traits: {
+        rarity: "uncommon",
+        value: ["humanoid"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "pathfinder-monster-core", "bilge-skeleton-core.json"), {
     _id: "bilge-skeleton-core",
     name: "Bilge Skeleton",
@@ -1330,6 +1402,27 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
     },
   });
 
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "acid-mist.json"), {
+    _id: "acid-mist",
+    name: "Acid Mist",
+    type: "hazard",
+    system: {
+      details: {
+        level: {
+          value: 4,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>A cloud of caustic acid sprays across the chamber and corrodes exposed gear.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["mechanical", "trap"],
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "pathfinder-monster-core", "gas-trap.json"), {
     _id: "gas-trap",
     name: "Gas Trap",
@@ -1347,6 +1440,69 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
       traits: {
         rarity: "common",
         value: ["mechanical", "trap"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "thin-ice.json"), {
+    _id: "thin-ice",
+    name: "Thin Ice",
+    type: "hazard",
+    system: {
+      details: {
+        level: {
+          value: 1,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>The freezing floor gives way into a sheet of thin ice above frigid water.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["environmental"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "electric-latch-rune.json"), {
+    _id: "electric-latch-rune",
+    name: "Electric Latch Rune",
+    type: "hazard",
+    system: {
+      details: {
+        level: {
+          value: 6,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>Lightning crackles through the rune and a shock surges across the metal latch.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["magical", "trap"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "buzzing-latch-rune.json"), {
+    _id: "buzzing-latch-rune",
+    name: "Buzzing Latch Rune",
+    type: "hazard",
+    system: {
+      details: {
+        level: {
+          value: 6,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>A shrieking resonance and deafening sound burst from the rune, rattling the chamber.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["magical", "trap"],
       },
     },
   });

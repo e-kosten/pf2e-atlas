@@ -579,6 +579,120 @@ describe("derived tag rules: equipment", () => {
     })).toEqual(expect.arrayContaining(["disguise", "social_infiltration"]));
   });
 
+  it("derives ammo payload, signaling, mobility, and restraint tags", () => {
+    expect(deriveRecordTags({
+      name: "Beacon Shot",
+      category: "equipment",
+      subcategory: "ammo",
+      descriptionText: "The shaft of a beacon shot is studded with tiny flecks of glimmering gemstones. When an activated beacon shot hits a target, it embeds itself into that target and spews sparks for 1 minute.",
+      traits: ["ammunition"],
+    })).toEqual(expect.arrayContaining(["illumination", "signaling"]));
+
+    expect(deriveRecordTags({
+      name: "Shining Ammunition",
+      category: "equipment",
+      subcategory: "ammo",
+      descriptionText: "Shining ammunition gives off a faint glow. When shot, it sheds bright light in a 20-foot radius for 10 minutes.",
+      traits: ["ammunition"],
+    })).toContain("illumination");
+
+    expect(deriveRecordTags({
+      name: "Climbing Bolt",
+      category: "equipment",
+      subcategory: "ammo",
+      descriptionText: "The shaft of this bolt is wrapped with fine twine. When the bolt strikes a solid surface, the twine unwinds and enlarges into a 50-foot-long rope, securely fastened to the surface the bolt struck.",
+      traits: ["ammunition"],
+    })).toContain("mobility");
+
+    expect(deriveRecordTags({
+      name: "Burrowing Bolt",
+      category: "equipment",
+      subcategory: "ammo",
+      descriptionText: "These arrows have tips grooved like a drill bit and angled fletching, causing them to spin quickly about their shaft when fired. When striking a structure or object of Hardness 14 or less within your first range increment, an activated burrowing bolt tunnels into the surface silently.",
+      traits: ["ammunition"],
+    })).toContain("mobility");
+
+    expect(deriveRecordTags({
+      name: "Dimension Shot",
+      category: "equipment",
+      subcategory: "ammo",
+      descriptionText: "Dimension shot is deep blue black, but motes of light play upon it like stars in the night sky. The activated ammunition allows you to teleport to a location near where the ammunition hits.",
+      traits: ["ammunition"],
+    })).toContain("mobility");
+
+    expect(deriveRecordTags({
+      name: "Antler Arrow",
+      category: "equipment",
+      subcategory: "ammo",
+      descriptionText: "When an activated antler arrow hits a target, bone antlers extend to pin it down. The target must succeed at a Reflex save or become stuck to the surface.",
+      traits: ["ammunition"],
+    })).toContain("restraint_capture");
+
+    expect(deriveRecordTags({
+      name: "Bola Shot",
+      category: "equipment",
+      subcategory: "ammo",
+      descriptionText: "When an activated bola shot hits a target, it deals nonlethal bludgeoning damage. Critical Success The target falls prone and is stunned 1.",
+      traits: ["ammunition"],
+    })).toContain("restraint_capture");
+
+    expect(deriveRecordTags({
+      name: "Garrote Bolt",
+      category: "equipment",
+      subcategory: "ammo",
+      descriptionText: "When a garrote bolt hits a target, it transforms into a silver garrote and wraps around one of the target's appendages.",
+      traits: ["ammunition"],
+    })).toContain("restraint_capture");
+
+    expect(deriveRecordTags({
+      name: "Garrote Shot",
+      category: "equipment",
+      subcategory: "ammo",
+      descriptionText: "When the activated ammunition hits a target, it transforms into a silvery garrote that wraps around one of the target's appendages.",
+      traits: ["ammunition"],
+    })).toContain("restraint_capture");
+
+    expect(deriveRecordTags({
+      name: "Black Tendril Shot",
+      category: "equipment",
+      subcategory: "ammo",
+      descriptionText: "When the activated ammunition hits a target, it exudes tendrils that encase the target until the target Escapes.",
+      traits: ["ammunition"],
+    })).toContain("restraint_capture");
+
+    expect(deriveRecordTags({
+      name: "Bane Ammunition",
+      category: "equipment",
+      subcategory: "ammo",
+      descriptionText: "Monster hunters favor bane ammunition that contains a capsule of reagents tailored to a particular type of creature.",
+      traits: ["ammunition"],
+    })).toContain("creature_bane");
+
+    expect(deriveRecordTags({
+      name: "Elemental Ammunition",
+      category: "equipment",
+      subcategory: "ammo",
+      descriptionText: "When activated, the reservoir of alchemical reagents in elemental ammunition atomizes on impact, dealing persistent acid damage to the target.",
+      traits: ["ammunition"],
+    })).toContain("elemental_payload");
+
+    expect(deriveRecordTags({
+      name: "Explosive Ammunition",
+      category: "equipment",
+      subcategory: "ammo",
+      descriptionText: "When activated explosive ammunition hits a target, the missile explodes in a burst, dealing fire damage to each creature in the area.",
+      traits: ["ammunition"],
+    })).toContain("explosive_payload");
+
+    expect(deriveRecordTags({
+      name: "Meteor Shot",
+      category: "equipment",
+      subcategory: "ammo",
+      descriptionText: "When you fire an activated meteor shot, it explodes into a small swarm of meteors as it reaches its target.",
+      traits: ["ammunition"],
+    })).toContain("explosive_payload");
+  });
+
   it("avoids equipment false positives while preserving shared tags", () => {
     expect(deriveRecordTags({
       name: "Antidote (Lesser)",
@@ -594,6 +708,14 @@ describe("derived tag rules: equipment", () => {
       descriptionText: "An antidote protects you against toxins. Upon drinking an antidote, you gain a +2 item bonus to Fortitude saving throws against poisons for 6 hours.",
       traits: ["alchemical", "consumable", "elixir", "healing"],
     })).not.toEqual(expect.arrayContaining(["offensive", "thrown_offense"]));
+
+    expect(deriveRecordTags({
+      name: "Conduit Shot",
+      category: "equipment",
+      subcategory: "ammo",
+      descriptionText: "Fine lines of djezet sparkle in conduit shot. When you Activate it, you name up to four creatures, in addition to you, that the ammunition's magic works for.",
+      traits: ["ammunition"],
+    })).not.toEqual(expect.arrayContaining(["illumination", "signaling", "mobility", "restraint_capture"]));
 
     expect(deriveRecordTags({
       name: "Tangle Cuffs",

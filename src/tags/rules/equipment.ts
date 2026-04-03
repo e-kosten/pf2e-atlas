@@ -31,6 +31,73 @@ import {
   tokenAnchor,
 } from "../shared.js";
 
+const AMMO_SUBCATEGORIES = ["ammo"] as const;
+
+const AMMO_ILLUMINATION_TEXT_ANCHORS = [
+  tokenAnchor("shining", "name"),
+  tokenAnchor("beacon", "name"),
+  phraseAnchor("gives off a faint glow"),
+  phraseAnchor("shed bright light"),
+  phraseAnchor("shed light"),
+  phraseAnchor("spews sparks"),
+];
+
+const AMMO_SIGNALING_TEXT_ANCHORS = [
+  tokenAnchor("beacon", "name"),
+  phraseAnchor("spews sparks"),
+  phraseAnchor("mark a location"),
+  phraseAnchor("draw attention"),
+];
+
+const AMMO_MOBILITY_TEXT_ANCHORS = [
+  tokenAnchor("dimension", "name"),
+  tokenAnchor("starshot", "name"),
+  tokenAnchor("transposition", "name"),
+  tokenAnchor("burrowing", "name"),
+  tokenAnchor("climbing", "name"),
+  phraseAnchor("teleport to a location near where the ammunition hits"),
+  phraseAnchor("teleport to an unoccupied space adjacent"),
+  phraseAnchor("enlarges into a 50-foot-long rope"),
+  phraseAnchor("twine unwinds"),
+  phraseAnchor("burrows through up to"),
+];
+
+const AMMO_RESTRAINT_CAPTURE_TEXT_ANCHORS = [
+  tokenAnchor("antler", "name"),
+  tokenAnchor("bola", "name"),
+  tokenAnchor("garrote", "name"),
+  tokenAnchor("tendril", "name"),
+  phraseAnchor("pin it down"),
+  phraseAnchor("become stuck to the surface"),
+  phraseAnchor("wraps around one of the target's appendages"),
+  phraseAnchor("wraps around the target's throat"),
+  phraseAnchor("encase the target"),
+  phraseAnchor("until the target Escapes"),
+  phraseAnchor("restrain their foes"),
+];
+
+const AMMO_CREATURE_BANE_TEXT_ANCHORS = [
+  tokenAnchor("bane", "name"),
+  phraseAnchor("tailored to a particular type of creature"),
+  phraseAnchor("monster hunters favor bane ammunition"),
+  phraseAnchor("trait matching the selected type"),
+];
+
+const AMMO_ELEMENTAL_PAYLOAD_TEXT_ANCHORS = [
+  phraseAnchor("elemental ammunition"),
+  phraseAnchor("reservoir of alchemical reagents"),
+  phraseAnchor("gains a trait matching the damage type"),
+  phraseAnchor("each damage type requires a different formula"),
+];
+
+const AMMO_EXPLOSIVE_PAYLOAD_TEXT_ANCHORS = [
+  tokenAnchor("explosive", "name"),
+  tokenAnchor("meteor", "name"),
+  phraseAnchor("missile explodes"),
+  phraseAnchor("explodes into a small swarm of meteors"),
+  phraseAnchor("explodes in a burst"),
+];
+
 export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "offensive",
@@ -278,6 +345,15 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     ],
   },
   {
+    tag: "mobility",
+    category: "equipment",
+    subcategories: [...AMMO_SUBCATEGORIES],
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: AMMO_MOBILITY_TEXT_ANCHORS },
+    ],
+  },
+  {
     tag: "lock_bypass",
     category: "equipment",
     subcategories: GEARISH_SUBCATEGORIES,
@@ -335,6 +411,15 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     subcategories: GEARISH_SUBCATEGORIES,
     anyOf: [
       { textAny: [tokenAnchor("light"), tokenAnchor("illumination"), tokenAnchor("lantern"), tokenAnchor("torch"), tokenAnchor("glow"), tokenAnchor("illuminate")] },
+    ],
+  },
+  {
+    tag: "illumination",
+    category: "equipment",
+    subcategories: [...AMMO_SUBCATEGORIES],
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: AMMO_ILLUMINATION_TEXT_ANCHORS },
     ],
   },
   {
@@ -520,6 +605,15 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     ],
   },
   {
+    tag: "signaling",
+    category: "equipment",
+    subcategories: [...AMMO_SUBCATEGORIES],
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: AMMO_SIGNALING_TEXT_ANCHORS },
+    ],
+  },
+  {
     tag: "message_delivery",
     category: "equipment",
     subcategories: [...GEARISH_SUBCATEGORIES, "consumable"],
@@ -695,6 +789,42 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
           phraseAnchor("free yourself from manacles"),
         ],
       },
+    ],
+  },
+  {
+    tag: "restraint_capture",
+    category: "equipment",
+    subcategories: [...AMMO_SUBCATEGORIES],
+    threshold: 1,
+    anyOf: [
+      { score: 1, textAny: AMMO_RESTRAINT_CAPTURE_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "creature_bane",
+    category: "equipment",
+    subcategories: [...AMMO_SUBCATEGORIES],
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: AMMO_CREATURE_BANE_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "elemental_payload",
+    category: "equipment",
+    subcategories: [...AMMO_SUBCATEGORIES],
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: AMMO_ELEMENTAL_PAYLOAD_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "explosive_payload",
+    category: "equipment",
+    subcategories: [...AMMO_SUBCATEGORIES],
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: AMMO_EXPLOSIVE_PAYLOAD_TEXT_ANCHORS },
     ],
   },
 ];

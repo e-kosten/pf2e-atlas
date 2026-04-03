@@ -253,6 +253,50 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
     },
   });
 
+  await writeJson(path.join(packRoot, "spells", "sanctuary-circle.json"), {
+    _id: "spell-sanctuary-circle-1",
+    name: "Sanctuary Circle",
+    type: "spell",
+    system: {
+      description: {
+        value: "<p>A warding circle protects the target and grants a bonus to AC while they stand within the sanctified space.</p>",
+      },
+      level: {
+        value: 3,
+      },
+      publication: {
+        title: "Pathfinder Player Core",
+      },
+      traits: {
+        rarity: "common",
+        traditions: ["divine"],
+        value: ["abjuration"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "spells", "breath-of-life.json"), {
+    _id: "spell-breath-of-life-1",
+    name: "Breath of Life",
+    type: "spell",
+    system: {
+      description: {
+        value: "<p>You stabilize the target and prevent it from dying.</p>",
+      },
+      level: {
+        value: 5,
+      },
+      publication: {
+        title: "Pathfinder Player Core",
+      },
+      traits: {
+        rarity: "common",
+        traditions: ["divine", "primal"],
+        value: ["healing"],
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "afflictions", "cackling-delirium.json"), {
     _id: "affliction-1",
     name: "Cackling Delirium",
@@ -291,6 +335,48 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
       traits: {
         rarity: "common",
         value: ["disease"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "afflictions", "ghast-fever.json"), {
+    _id: "affliction-ghast-fever-1",
+    name: "Ghast Fever",
+    type: "affliction",
+    system: {
+      description: {
+        value: "<p>Stage 2 regains half as many Hit Points from all healing. Stage 4 gains no benefit from healing.</p>",
+      },
+      level: {
+        value: 6,
+      },
+      publication: {
+        title: "Pathfinder Monster Core",
+      },
+      traits: {
+        rarity: "common",
+        value: ["disease"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "afflictions", "knockout-dram.json"), {
+    _id: "affliction-knockout-dram-1",
+    name: "Knockout Dram",
+    type: "affliction",
+    system: {
+      description: {
+        value: "<p>This soporific chemical quickly induces a deep unconsciousness and makes the victim sleep normally.</p>",
+      },
+      level: {
+        value: 2,
+      },
+      publication: {
+        title: "Pathfinder Treasure Vault",
+      },
+      traits: {
+        rarity: "common",
+        value: ["poison"],
       },
     },
   });

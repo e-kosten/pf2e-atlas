@@ -45,6 +45,18 @@ export const SPELL_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
   },
   {
     category: "spell",
+    family: "support",
+    description: "Spells that restore, protect, ward, or reinforce allies and targets.",
+    tags: [
+      { value: "healing_support", description: "Directly restores hit points or accelerates recovery." },
+      { value: "condition_support", description: "Delays, suppresses, or removes afflictions and conditions." },
+      { value: "protective_ward", description: "Places a ward, sanctuary, shield, or protective boundary." },
+      { value: "death_prevention", description: "Prevents death, stabilizes the dying, or brings a creature back from the brink." },
+      { value: "resistance_support", description: "Grants resistance or immunity against energy, damage, or hazards." },
+    ],
+  },
+  {
+    category: "spell",
     family: "magic_interference",
     description: "Spells that disrupt, dispel, or suppress magic.",
     tags: [

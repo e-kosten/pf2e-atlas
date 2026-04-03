@@ -95,12 +95,12 @@ describe("derived tag rules: hazard", () => {
     })).toContain("fire_hazard");
 
     expect(deriveRecordTags({
-      name: "Ballista Defense",
+      name: "Acid Mist",
       category: "hazard",
-      subcategory: null,
-      descriptionText: "A ballista armed with a massive bolt fires on a creature approaching the palace.",
-      traits: [],
-    })).not.toContain("fire_hazard");
+      subcategory: "trap",
+      descriptionText: "A cloud of caustic acid sprays across the chamber and corrodes exposed gear.",
+      traits: ["mechanical", "trap"],
+    })).toContain("acid_hazard");
 
     expect(deriveRecordTags({
       name: "Gas Trap",
@@ -109,6 +109,78 @@ describe("derived tag rules: hazard", () => {
       descriptionText: "A spring slams and locks the room's door before four hidden gas vents begin pumping poison gas into the chamber.",
       traits: ["mechanical", "trap"],
     })).toContain("poison_hazard");
+
+    expect(deriveRecordTags({
+      name: "Gas Trap",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "A spring slams and locks the room's door before four hidden gas vents begin pumping poison gas into the chamber.",
+      traits: ["mechanical", "trap"],
+    })).not.toContain("acid_hazard");
+
+    expect(deriveRecordTags({
+      name: "Thin Ice",
+      category: "hazard",
+      subcategory: null,
+      descriptionText: "The freezing floor gives way into a sheet of thin ice above frigid water.",
+      traits: ["environmental"],
+    })).toContain("cold_hazard");
+
+    expect(deriveRecordTags({
+      name: "Crumbling Archway",
+      category: "hazard",
+      subcategory: null,
+      descriptionText: "The archway collapses when the stone supports are struck.",
+      traits: ["environmental"],
+    })).not.toContain("cold_hazard");
+
+    expect(deriveRecordTags({
+      name: "Electric Latch Rune",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "Lightning crackles through the rune and a shock surges across the metal latch.",
+      traits: ["magical", "trap"],
+    })).toContain("electric_hazard");
+
+    expect(deriveRecordTags({
+      name: "Clockwork Trap",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "The gears grind loudly as the mechanism locks into place.",
+      traits: ["mechanical", "trap"],
+    })).not.toContain("electric_hazard");
+
+    expect(deriveRecordTags({
+      name: "Buzzing Latch Rune",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "A shrieking resonance and deafening sound burst from the rune, rattling the chamber.",
+      traits: ["magical", "trap"],
+    })).toContain("sound_hazard");
+
+    expect(deriveRecordTags({
+      name: "Alarm Ward",
+      category: "hazard",
+      subcategory: null,
+      descriptionText: "A silent ward flares when a creature crosses the threshold, raising the alarm and alerting nearby guards.",
+      traits: ["magical"],
+    })).toContain("alarm");
+
+    expect(deriveRecordTags({
+      name: "Alarm Ward",
+      category: "hazard",
+      subcategory: null,
+      descriptionText: "A silent ward flares when a creature crosses the threshold, raising the alarm and alerting nearby guards.",
+      traits: ["magical"],
+    })).not.toContain("sound_hazard");
+
+    expect(deriveRecordTags({
+      name: "Ballista Defense",
+      category: "hazard",
+      subcategory: null,
+      descriptionText: "A ballista armed with a massive bolt fires on a creature approaching the palace.",
+      traits: [],
+    })).not.toContain("fire_hazard");
 
     expect(deriveRecordTags({
       name: "Spitting Daffodil",

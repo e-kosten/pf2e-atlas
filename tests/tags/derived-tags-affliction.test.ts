@@ -53,11 +53,80 @@ describe("derived tag rules: affliction", () => {
     })).toContain("physical_debilitation");
 
     expect(deriveRecordTags({
+      name: "Blackfrost",
+      category: "affliction",
+      subcategory: "disease",
+      descriptionText: "This affliction can't be reduced below stage 1, nor the damage from it healed, until successfully treated with a similar effect.",
+      traits: ["disease"],
+    })).toContain("healing_suppression");
+
+    expect(deriveRecordTags({
+      name: "Ghast Fever",
+      category: "affliction",
+      subcategory: "disease",
+      descriptionText: "Stage 2 regains half as many Hit Points from all healing. Stage 4 gains no benefit from healing.",
+      traits: ["disease"],
+    })).toContain("healing_suppression");
+
+    expect(deriveRecordTags({
+      name: "Mindmurk Oil",
+      category: "affliction",
+      subcategory: "poison",
+      descriptionText: "This oil dulls the mind, creating a euphoric stupor that inhibits the imbiber's decision-making skills and mental capacity.",
+      traits: ["poison"],
+    })).toContain("cognitive_impairment");
+
+    expect(deriveRecordTags({
+      name: "Cytillesh Oil",
+      category: "affliction",
+      subcategory: "poison",
+      descriptionText: "This thick substance is distilled from the mind-robbing cytillesh fungus.",
+      traits: ["poison"],
+    })).toContain("cognitive_impairment");
+
+    expect(deriveRecordTags({
+      name: "Isolation Draught",
+      category: "affliction",
+      subcategory: "poison",
+      descriptionText: "This clear tonic slowly shuts down the imbiber's senses. Stage 2 deafened. Stage 3 blinded and deafened.",
+      traits: ["poison"],
+    })).toContain("sensory_impairment");
+
+    expect(deriveRecordTags({
+      name: "Knockout Dram",
+      category: "affliction",
+      subcategory: "poison",
+      descriptionText: "This soporific chemical quickly induces a deep unconsciousness and makes the victim sleep normally.",
+      traits: ["poison"],
+    })).toContain("sedation");
+
+    expect(deriveRecordTags({
       name: "Cackling Delirium",
       category: "affliction",
       subcategory: "curse",
       descriptionText: "Mocking whispers leave the victim confused, frightened, and unable to trust their own senses.",
       traits: ["curse", "mental"],
     })).not.toContain("physical_debilitation");
+
+    expect(deriveRecordTags({
+      name: "Cackling Delirium",
+      category: "affliction",
+      subcategory: "curse",
+      descriptionText: "Mocking whispers leave the victim confused, frightened, and unable to trust their own senses.",
+      traits: ["curse", "mental"],
+    })).not.toEqual(expect.arrayContaining([
+      "healing_suppression",
+      "cognitive_impairment",
+      "sensory_impairment",
+      "sedation",
+    ]));
+
+    expect(deriveRecordTags({
+      name: "Dreamtime Tea",
+      category: "affliction",
+      subcategory: "poison",
+      descriptionText: "This lemony tea blended from rare herbs puts the drinker into a trancelike state and stage 2 unconsciousness.",
+      traits: ["poison"],
+    })).not.toContain("sedation");
   });
 });

@@ -922,6 +922,60 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     },
   });
 
+  await writeJson(path.join(packRoot, "equipment-srd", "beacon-shot.json"), {
+    _id: "ammo-beacon-shot-1",
+    name: "Beacon Shot",
+    type: "ammo",
+    system: {
+      description: {
+        value: "<p>The shaft of a beacon shot is studded with tiny flecks of glimmering gemstones.</p><p>When an activated beacon shot hits a target, it embeds itself into that target and spews sparks for 1 minute.</p>",
+      },
+      publication: {
+        title: "Pathfinder Guns & Gears",
+      },
+      traits: {
+        rarity: "common",
+        value: ["ammunition"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment-srd", "elemental-ammunition.json"), {
+    _id: "ammo-elemental-ammunition-1",
+    name: "Elemental Ammunition",
+    type: "ammo",
+    system: {
+      description: {
+        value: "<p>When activated, the reservoir of alchemical reagents in elemental ammunition atomizes on impact, dealing persistent acid damage to the target.</p>",
+      },
+      publication: {
+        title: "Pathfinder Guns & Gears",
+      },
+      traits: {
+        rarity: "common",
+        value: ["ammunition"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment-srd", "bola-shot.json"), {
+    _id: "ammo-bola-shot-1",
+    name: "Bola Shot",
+    type: "ammo",
+    system: {
+      description: {
+        value: "<p>When an activated bola shot hits a target, it deals nonlethal bludgeoning damage.</p><p>Critical Success The target falls prone and is stunned 1.</p>",
+      },
+      publication: {
+        title: "Pathfinder Guns & Gears",
+      },
+      traits: {
+        rarity: "common",
+        value: ["ammunition"],
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "equipment-srd", "countering-charm.json"), {
     _id: "equip-countering-charm-1",
     name: "Countering Charm",

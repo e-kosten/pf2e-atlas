@@ -102,6 +102,104 @@ const LIVING_TOY_TEXT_ANCHORS = [
   phraseAnchor("dressmaker s dummy"),
 ];
 
+const MASK_MOTIF_NAME_ANCHORS = [
+  tokenAnchor("mask", "name"),
+  tokenAnchor("masked", "name"),
+  tokenAnchor("veil", "name"),
+  tokenAnchor("veiled", "name"),
+];
+
+const MASK_MOTIF_TEXT_ANCHORS = [
+  phraseAnchor("wears a mask"),
+  phraseAnchor("wearing a mask"),
+  phraseAnchor("masked face"),
+  phraseAnchor("ceremonial mask"),
+  phraseAnchor("death mask"),
+  phraseAnchor("stone mask"),
+  phraseAnchor("ornate mask"),
+  phraseAnchor("wears a veil"),
+  phraseAnchor("wearing a veil"),
+  phraseAnchor("veiled face"),
+  phraseAnchor("face hidden"),
+  phraseAnchor("hides its face"),
+  phraseAnchor("hide its face"),
+  phraseAnchor("conceals its face"),
+  phraseAnchor("conceal its face"),
+];
+
+const FACELESS_HORROR_NAME_ANCHORS = [
+  tokenAnchor("faceless", "name"),
+  tokenAnchor("featureless", "name"),
+];
+
+const FACELESS_HORROR_TEXT_ANCHORS = [
+  phraseAnchor("no face"),
+  phraseAnchor("face gone"),
+  phraseAnchor("stolen face"),
+  phraseAnchor("stolen faces"),
+  phraseAnchor("featureless face"),
+  phraseAnchor("blank face"),
+  phraseAnchor("empty face"),
+  phraseAnchor("faceless horror"),
+  phraseAnchor("faces are stolen"),
+  phraseAnchor("faces were stolen"),
+];
+
+const DISGUISED_PRETENDER_NAME_ANCHORS = [
+  tokenAnchor("pretender", "name"),
+  tokenAnchor("impostor", "name"),
+  tokenAnchor("imposter", "name"),
+  tokenAnchor("masquerade", "name"),
+  tokenAnchor("disguise", "name"),
+];
+
+const DISGUISED_PRETENDER_TEXT_ANCHORS = [
+  phraseAnchor("false identity"),
+  phraseAnchor("false identities"),
+  phraseAnchor("assume a false identity"),
+  phraseAnchor("assumes a false identity"),
+  phraseAnchor("impersonates"),
+  phraseAnchor("impersonate"),
+  phraseAnchor("infiltrates"),
+  phraseAnchor("infiltrate"),
+  phraseAnchor("wears another face"),
+  phraseAnchor("wear another face"),
+  phraseAnchor("take on the appearance of"),
+  phraseAnchor("takes on the appearance of"),
+  phraseAnchor("assume the form of"),
+  phraseAnchor("assumes the form of"),
+  phraseAnchor("replace the target"),
+  phraseAnchor("replaces the target"),
+  phraseAnchor("masquerades as"),
+  phraseAnchor("shapeshift"),
+  phraseAnchor("shapechange"),
+  phraseAnchor("disguised as"),
+];
+
+const DISGUISED_PRETENDER_CONTEXT_TEXT_NEAR = [
+  {
+    terms: [
+      tokenAnchor("disguise"),
+      tokenAnchor("disguised"),
+      tokenAnchor("disguises"),
+      tokenAnchor("identity"),
+      tokenAnchor("impersonate"),
+      tokenAnchor("impersonates"),
+      tokenAnchor("infiltrate"),
+      tokenAnchor("infiltrates"),
+      tokenAnchor("masquerade"),
+      tokenAnchor("pretend"),
+      tokenAnchor("pretender"),
+      tokenAnchor("replace"),
+      tokenAnchor("form"),
+      tokenAnchor("guise"),
+    ],
+    window: 6,
+    scope: "description" as const,
+    minTermsMatched: 2,
+  },
+];
+
 const TRICKSTER_CHAOS_NAME_ANCHORS = [
   tokenAnchor("trickster", "name"),
   tokenAnchor("tricksters", "name"),
@@ -606,6 +704,71 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     anyOf: [
       { score: 2, textAny: LIVING_TOY_NAME_ANCHORS },
       { score: 2, textAny: LIVING_TOY_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "mask_motif",
+    category: "creature",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: MASK_MOTIF_NAME_ANCHORS },
+      { score: 2, textAny: MASK_MOTIF_TEXT_ANCHORS },
+      { score: 1, textNear: [
+        {
+          terms: [
+            tokenAnchor("mask"),
+            tokenAnchor("masked"),
+            tokenAnchor("veil"),
+            tokenAnchor("veiled"),
+            tokenAnchor("face"),
+            tokenAnchor("faces"),
+            tokenAnchor("head"),
+            tokenAnchor("features"),
+            tokenAnchor("conceal"),
+            tokenAnchor("conceals"),
+          ],
+          window: 5,
+          scope: "description" as const,
+          minTermsMatched: 2,
+        },
+      ] },
+    ],
+  },
+  {
+    tag: "faceless_horror",
+    category: "creature",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: FACELESS_HORROR_NAME_ANCHORS },
+      { score: 2, textAny: FACELESS_HORROR_TEXT_ANCHORS },
+      { score: 1, textNear: [
+        {
+          terms: [
+            tokenAnchor("face"),
+            tokenAnchor("faces"),
+            tokenAnchor("faceless"),
+            tokenAnchor("featureless"),
+            tokenAnchor("blank"),
+            tokenAnchor("empty"),
+            tokenAnchor("stolen"),
+            tokenAnchor("gone"),
+            tokenAnchor("hidden"),
+          ],
+          window: 5,
+          scope: "description" as const,
+          minTermsMatched: 2,
+        },
+      ] },
+    ],
+  },
+  {
+    tag: "disguised_pretender",
+    category: "creature",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: DISGUISED_PRETENDER_NAME_ANCHORS },
+      { score: 2, textAny: DISGUISED_PRETENDER_TEXT_ANCHORS },
+      { score: 1, textNear: DISGUISED_PRETENDER_CONTEXT_TEXT_NEAR },
     ],
   },
   {

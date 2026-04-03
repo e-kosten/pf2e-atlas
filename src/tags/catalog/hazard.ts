@@ -25,8 +25,12 @@ export const HAZARD_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
     family: "environmental_danger",
     description: "Hazards defined by recurring elemental or toxic environmental threats.",
     tags: [
+      { value: "acid_hazard", description: "Hazard centered on acid, corrosive spray, caustic runoff, or similar corrosive exposure." },
+      { value: "cold_hazard", description: "Hazard centered on ice, frost, freezing, blizzards, or other cold exposure." },
       { value: "fire_hazard", description: "Hazard centered on open fire, flames, burning spread, or explosive ignition." },
+      { value: "electric_hazard", description: "Hazard centered on lightning, shock, static discharge, or electrical exposure." },
       { value: "poison_hazard", description: "Hazard centered on poison gas, toxic delivery, or other poisonous exposure." },
+      { value: "sound_hazard", description: "Hazard centered on sonic force, deafening noise, vibration, or resonant disruption." },
     ],
   },
   {

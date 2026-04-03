@@ -510,7 +510,7 @@ describe("Pf2eDataService / Search and Lookup", () => {
       levelMax: 5,
       rarity: "common",
       query: broadQuery,
-      limit: 20,
+      limit: 50,
       explain: true,
     });
     const broadNames = broadResults.records.map((record) => record.name);
@@ -723,5 +723,84 @@ describe("Pf2eDataService / Search and Lookup", () => {
 
     expect(service.lookup("Sight-Theft Grit", { category: "equipment" }).match?.name).not.toBe("Surging Serum (Lesser)");
     expect(service.lookup("Surging Serum (Lesser)", { category: "equipment" }).match?.aliases).not.toContain("Sight-Theft Grit");
+  });
+
+  it("supports expanded derived tags across categories", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+
+    const service = await loadTestService(fixture);
+
+    expect(service.listRecords({
+      category: "affliction",
+      metadata: { field: "derivedTags", op: "includesAny", values: ["healing_suppression"] },
+    }).records.map((record) => record.name)).toContain("Ghast Fever");
+    expect(service.listRecords({
+      category: "affliction",
+      metadata: { field: "derivedTags", op: "includesAny", values: ["sedation"] },
+    }).records.map((record) => record.name)).toContain("Knockout Dram");
+
+    expect(service.listRecords({
+      category: "spell",
+      metadata: { field: "derivedTags", op: "includesAny", values: ["protective_ward"] },
+    }).records.map((record) => record.name)).toContain("Sanctuary Circle");
+    expect(service.listRecords({
+      category: "spell",
+      metadata: { field: "derivedTags", op: "includesAny", values: ["death_prevention"] },
+    }).records.map((record) => record.name)).toContain("Breath of Life");
+
+    expect(service.listRecords({
+      category: "hazard",
+      metadata: { field: "derivedTags", op: "includesAny", values: ["acid_hazard"] },
+    }).records.map((record) => record.name)).toContain("Acid Mist");
+    expect(service.listRecords({
+      category: "hazard",
+      metadata: { field: "derivedTags", op: "includesAny", values: ["sound_hazard"] },
+    }).records.map((record) => record.name)).toContain("Buzzing Latch Rune");
+
+    expect(service.listRecords({
+      category: "equipment",
+      subcategory: "ammo",
+      metadata: { field: "derivedTags", op: "includesAny", values: ["illumination"] },
+    }).records.map((record) => record.name)).toContain("Beacon Shot");
+    expect(service.listRecords({
+      category: "equipment",
+      subcategory: "ammo",
+      metadata: { field: "derivedTags", op: "includesAny", values: ["elemental_payload"] },
+    }).records.map((record) => record.name)).toContain("Elemental Ammunition");
+    expect(service.listRecords({
+      category: "equipment",
+      subcategory: "ammo",
+      metadata: { field: "derivedTags", op: "includesAny", values: ["restraint_capture"] },
+    }).records.map((record) => record.name)).toContain("Bola Shot");
+
+    expect(service.listRecords({
+      category: "creature",
+      metadata: { field: "derivedTags", op: "includesAny", values: ["mask_motif"] },
+    }).records.map((record) => record.name)).toContain("Masked Mourner");
+    expect(service.listRecords({
+      category: "creature",
+      metadata: { field: "derivedTags", op: "includesAny", values: ["faceless_horror"] },
+    }).records.map((record) => record.name)).toContain("Faceless Butcher");
+    expect(service.listRecords({
+      category: "creature",
+      metadata: { field: "derivedTags", op: "includesAny", values: ["disguised_pretender"] },
+    }).records.map((record) => record.name)).toContain("False Herald");
+
+    const ghastFever = service.lookup("Ghast Fever", { category: "affliction" }).match;
+    expect(ghastFever?.derivedTags).toContain("healing_suppression");
+
+    const breathOfLife = service.lookup("Breath of Life", { category: "spell" }).match;
+    expect(breathOfLife?.derivedTags).toContain("death_prevention");
+
+    const acidMist = service.lookup("Acid Mist", { category: "hazard" }).match;
+    expect(acidMist?.derivedTags).toContain("acid_hazard");
+
+    const beaconShot = service.lookup("Beacon Shot", { category: "equipment" }).match;
+    expect(beaconShot?.subcategory).toBe("ammo");
+    expect(beaconShot?.derivedTags).toEqual(expect.arrayContaining(["illumination", "signaling"]));
+
+    const falseHerald = service.lookup("False Herald", { category: "creature" }).match;
+    expect(falseHerald?.derivedTags).toContain("disguised_pretender");
   });
 });

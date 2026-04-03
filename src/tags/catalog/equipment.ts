@@ -62,6 +62,17 @@ export const EQUIPMENT_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
   },
   {
     category: "equipment",
+    subcategories: ["ammo"],
+    family: "ammunition_payload",
+    description: "Ammunition payload tags for recurring on-hit effects and tailored projectile roles.",
+    tags: [
+      { value: "creature_bane", description: "Tailored ammunition for a selected creature type or trait." },
+      { value: "elemental_payload", description: "Ammunition that delivers an elemental or reagent-based payload on impact." },
+      { value: "explosive_payload", description: "Ammunition that detonates or scatters area damage on impact." },
+    ],
+  },
+  {
+    category: "equipment",
     subcategories: [...GEARISH_SUBCATEGORIES, "consumable"],
     family: "communication",
     description: "Coordination, signaling, and message-relay equipment.",

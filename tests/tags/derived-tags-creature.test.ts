@@ -390,6 +390,30 @@ describe("derived tag rules: creature", () => {
     })).toContain("trickster_chaos");
 
     expect(deriveRecordTags({
+      name: "Masked Mourner",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A solemn creature wearing a ceremonial mask and veiled face to hide its identity from the living.",
+      traits: ["humanoid"],
+    })).toContain("mask_motif");
+
+    expect(deriveRecordTags({
+      name: "Faceless Butcher",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "This faceless horror has a blank, featureless face and keeps stolen faces as trophies.",
+      traits: ["aberration"],
+    })).toContain("faceless_horror");
+
+    expect(deriveRecordTags({
+      name: "False Herald",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "The herald assumes a false identity, infiltrates courts, and impersonates priests to replace them.",
+      traits: ["humanoid"],
+    })).toContain("disguised_pretender");
+
+    expect(deriveRecordTags({
       name: "Brass Dragon",
       category: "creature",
       subcategory: null,
@@ -404,6 +428,30 @@ describe("derived tag rules: creature", () => {
       descriptionText: "A nimble performer who entertains nobles at court.",
       traits: ["human", "humanoid"],
     })).not.toContain("carnival_show");
+
+    expect(deriveRecordTags({
+      name: "Badger",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A badger with dark facial markings and a striped muzzle.",
+      traits: ["animal"],
+    })).not.toContain("mask_motif");
+
+    expect(deriveRecordTags({
+      name: "Masked Duelist",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A duelist wearing a bronze mask over a healthy and recognizable face.",
+      traits: ["humanoid"],
+    })).not.toContain("faceless_horror");
+
+    expect(deriveRecordTags({
+      name: "Chameleon Beast",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A reptile that changes color to blend into its surroundings.",
+      traits: ["animal"],
+    })).not.toContain("disguised_pretender");
 
     expect(deriveRecordTags({
       name: "Goblin Igniter",

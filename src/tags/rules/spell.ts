@@ -27,6 +27,87 @@ import {
   tokenAnchor,
 } from "../shared.js";
 
+const HEALING_SUPPORT_NAME_ANCHORS = [
+  tokenAnchor("healing", "name"),
+  tokenAnchor("heal", "name"),
+  tokenAnchor("restoration", "name"),
+  tokenAnchor("restore", "name"),
+];
+
+const HEALING_SUPPORT_TEXT_ANCHORS = [
+  phraseAnchor("restore hit points"),
+  phraseAnchor("regain hit points"),
+  phraseAnchor("fast healing"),
+  phraseAnchor("heals the target"),
+  phraseAnchor("heal the target"),
+  phraseAnchor("recover hit points"),
+  phraseAnchor("restore the target"),
+];
+
+const CONDITION_SUPPORT_TEXT_ANCHORS = [
+  phraseAnchor("remove a condition"),
+  phraseAnchor("remove conditions"),
+  phraseAnchor("counteract an affliction"),
+  phraseAnchor("counteract the affliction"),
+  phraseAnchor("delay the affliction"),
+  phraseAnchor("delay an affliction"),
+  phraseAnchor("cure disease"),
+  phraseAnchor("cure poison"),
+  phraseAnchor("remove curse"),
+];
+
+const PROTECTIVE_WARD_NAME_ANCHORS = [
+  tokenAnchor("sanctuary", "name"),
+  tokenAnchor("aegis", "name"),
+  tokenAnchor("boundary", "name"),
+  tokenAnchor("ward", "name"),
+  tokenAnchor("shield", "name"),
+  tokenAnchor("barrier", "name"),
+  tokenAnchor("protection", "name"),
+];
+
+const PROTECTIVE_WARD_TEXT_ANCHORS = [
+  phraseAnchor("circle of protection"),
+  phraseAnchor("defended by spirits"),
+  phraseAnchor("blessed boundary"),
+  phraseAnchor("warding circle"),
+  phraseAnchor("warding aura"),
+  phraseAnchor("protective boundary"),
+  phraseAnchor("protective ward"),
+];
+
+const DEATH_PREVENTION_NAME_ANCHORS = [
+  phraseAnchor("breath of life"),
+  phraseAnchor("death ward"),
+  tokenAnchor("revival", "name"),
+  tokenAnchor("resurrection", "name"),
+];
+
+const DEATH_PREVENTION_TEXT_ANCHORS = [
+  phraseAnchor("prevent the target from dying"),
+  phraseAnchor("prevent a creature from dying"),
+  phraseAnchor("prevent it from dying"),
+  phraseAnchor("stabilize the target"),
+  phraseAnchor("stabilize a dying creature"),
+  phraseAnchor("come back to life"),
+  phraseAnchor("return to life"),
+  phraseAnchor("bring the target back to life"),
+];
+
+const RESISTANCE_SUPPORT_TEXT_ANCHORS = [
+  phraseAnchor("gain resistance"),
+  phraseAnchor("gains resistance"),
+  phraseAnchor("grants resistance"),
+  phraseAnchor("resistance to"),
+  phraseAnchor("immune to"),
+  phraseAnchor("immunity to"),
+  phraseAnchor("protects against fire"),
+  phraseAnchor("protects against cold"),
+  phraseAnchor("protects against acid"),
+  phraseAnchor("protects against electricity"),
+  phraseAnchor("protects against sonic"),
+];
+
 export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "disguise",
@@ -165,6 +246,109 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
     ],
     noneOf: [
       { textAny: SPELL_MOBILITY_BLOCKER_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "healing_support",
+    category: "spell",
+    threshold: 2,
+    anyOf: [
+      { score: 1, textAny: HEALING_SUPPORT_NAME_ANCHORS },
+      { score: 2, textAny: HEALING_SUPPORT_TEXT_ANCHORS },
+      { score: 1, traitsAny: ["healing"] },
+    ],
+  },
+  {
+    tag: "condition_support",
+    category: "spell",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: CONDITION_SUPPORT_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "protective_ward",
+    category: "spell",
+    threshold: 2,
+    anyOf: [
+      { score: 1, textAny: PROTECTIVE_WARD_NAME_ANCHORS },
+      { score: 2, textAny: PROTECTIVE_WARD_TEXT_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              tokenAnchor("protect"),
+              tokenAnchor("shield"),
+              tokenAnchor("ward"),
+              tokenAnchor("barrier"),
+              tokenAnchor("creature"),
+              tokenAnchor("target"),
+              tokenAnchor("ally"),
+              tokenAnchor("allies"),
+              tokenAnchor("area"),
+              tokenAnchor("self"),
+            ],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+        ],
+      },
+    ],
+    noneOf: [
+      { textAny: [...ALARM_STRONG_TEXT_ANCHORS, ...ALARM_TRIGGER_TEXT_ANCHORS] },
+    ],
+  },
+  {
+    tag: "death_prevention",
+    category: "spell",
+    threshold: 2,
+    anyOf: [
+      { score: 1, textAny: DEATH_PREVENTION_NAME_ANCHORS },
+      { score: 2, textAny: DEATH_PREVENTION_TEXT_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              tokenAnchor("stabilize"),
+              tokenAnchor("dying"),
+              tokenAnchor("die"),
+              tokenAnchor("death"),
+            ],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+        ],
+      },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              tokenAnchor("return"),
+              tokenAnchor("life"),
+              tokenAnchor("revive"),
+              tokenAnchor("resurrect"),
+              tokenAnchor("death"),
+            ],
+            window: 8,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+        ],
+      },
+    ],
+  },
+  {
+    tag: "resistance_support",
+    category: "spell",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: RESISTANCE_SUPPORT_TEXT_ANCHORS },
+      { score: 1, textAny: [tokenAnchor("resistance"), tokenAnchor("immune"), tokenAnchor("immunity")] },
     ],
   },
   {
