@@ -1,6 +1,7 @@
-import { readFile, readdir, stat } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 
+import { fileExists } from "../shared/fs.js";
 import {
   firstString,
   getNested,
@@ -45,15 +46,6 @@ type IndexedRecordMaps = {
   recordsByPackAndName: Map<string, string[]>;
   recordsByName: Map<string, string[]>;
 };
-
-async function fileExists(targetPath: string): Promise<boolean> {
-  try {
-    await stat(targetPath);
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 export function extractRulesReferences(raw: Record<string, unknown>): ExtractedReference[] {
   const markup = getDescriptionMarkup(raw);

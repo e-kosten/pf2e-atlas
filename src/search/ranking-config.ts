@@ -1,8 +1,8 @@
 import { watch, FSWatcher } from "node:fs";
-import { access, readFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { constants } from "node:fs";
 
+import { fileExists } from "../shared/fs.js";
 import { RankingConfigStatus } from "../types.js";
 
 export interface RankingConfig {
@@ -248,15 +248,6 @@ export function mergeRankingConfig(overrides: RankingConfigInput | null | undefi
   merged.rarityPreference = applySection(merged.rarityPreference, overrides.rarityPreference, "rarityPreference");
   merged.sourcePenalty = applySection(merged.sourcePenalty, overrides.sourcePenalty, "sourcePenalty");
   return validateRankingConfig(merged);
-}
-
-async function fileExists(targetPath: string): Promise<boolean> {
-  try {
-    await access(targetPath, constants.R_OK);
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 export class RankingConfigStore {

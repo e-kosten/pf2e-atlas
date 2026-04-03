@@ -5,6 +5,8 @@ import { DatabaseSync } from "node:sqlite";
 import { promisify } from "node:util";
 
 import { EmbeddingProvider } from "../embeddings.js";
+import { formatInteger } from "../shared/format.js";
+import { fileExists } from "../shared/fs.js";
 import { deriveRecordTags, normalizeDerivedTag } from "../tags/index.js";
 import {
   PackInfo,
@@ -43,7 +45,6 @@ const execFileAsync = promisify(execFile);
 const VEC_TEXT_NONE = "";
 const VEC_INT_NONE = -1n;
 const EMBEDDING_BATCH_SIZE = 64;
-const INTEGER_FORMATTER = new Intl.NumberFormat("en-US");
 const PACK_PROGRESS_BAR_WIDTH = 24;
 const PACK_PROGRESS_LOG_INTERVAL_MS = 5_000;
 
@@ -100,19 +101,6 @@ async function directoryExists(targetPath: string): Promise<boolean> {
   } catch {
     return false;
   }
-}
-
-async function fileExists(targetPath: string): Promise<boolean> {
-  try {
-    await stat(targetPath);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function formatInteger(value: number): string {
-  return INTEGER_FORMATTER.format(value);
 }
 
 function renderProgressBar(completed: number, total: number, width = PACK_PROGRESS_BAR_WIDTH): string {

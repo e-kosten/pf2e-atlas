@@ -1,4 +1,4 @@
-import { mkdir, stat } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
@@ -33,6 +33,8 @@ import {
   SearchResult,
 } from "../types.js";
 import { normalizeSearchScope } from "../search/sql.js";
+import { formatInteger } from "../shared/format.js";
+import { fileExists } from "../shared/fs.js";
 import {
   getLookupMatchType,
   rowToRecord,
@@ -94,8 +96,6 @@ type LoadOptions = {
   vectorExtensionLoader?: (db: DatabaseSync) => void;
 };
 
-const INTEGER_FORMATTER = new Intl.NumberFormat("en-US");
-
 function formatDurationMs(durationMs: number): string {
   const totalSeconds = Math.max(0, Math.round(durationMs / 1000));
   const hours = Math.floor(totalSeconds / 3600);
@@ -111,20 +111,6 @@ function formatDurationMs(durationMs: number): string {
 
   return `${seconds}s`;
 }
-
-function formatInteger(value: number): string {
-  return INTEGER_FORMATTER.format(value);
-}
-
-async function fileExists(targetPath: string): Promise<boolean> {
-  try {
-    await stat(targetPath);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 function validateFilters(filters: NormalizedSearchFilters, context: "list" | "search"): void {
   const mode = resolveSearchMode(filters, context);
 
