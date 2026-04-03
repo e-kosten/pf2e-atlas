@@ -348,6 +348,80 @@ describe("derived tag rules: creature", () => {
     })).not.toContain("scene_adjacent");
   });
 
+  it("derives creature motif tags without collapsing into raw vibes", () => {
+    expect(deriveRecordTags({
+      name: "Court Jester",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Though court jesters are often mocked for easy amusement, this jester hides malice behind painted smiles and cutting wit.",
+      traits: ["human", "humanoid"],
+    })).toContain("carnival_show");
+
+    expect(deriveRecordTags({
+      name: "Mechanical Carny",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Mechanical carnies are constructs manufactured to serve as entertainers, cleaners, and guards at carnivals and circuses.",
+      traits: ["construct"],
+    })).toContain("carnival_show");
+
+    expect(deriveRecordTags({
+      name: "Soulbound Doll",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Soulbound dolls are eerie mannequins or playthings that have been imbued with a small piece of a deceased mortal's soul.",
+      traits: ["construct"],
+    })).toContain("living_toy");
+
+    expect(deriveRecordTags({
+      name: "Masque Mannequin",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Masque mannequins are soulbound constructs animated by a fragment of a once-living soul infused into a mannequin or dressmaker's dummy.",
+      traits: ["construct"],
+    })).toContain("living_toy");
+
+    expect(deriveRecordTags({
+      name: "Fire Scamp",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Although arguably quite friendly, fire scamps delight in fire and playing pranks on everyone they befriend.",
+      traits: ["elemental", "fire"],
+    })).toContain("trickster_chaos");
+
+    expect(deriveRecordTags({
+      name: "Brass Dragon",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Brass dragons are whimsical tricksters who delight in humor and play.",
+      traits: ["chaotic", "dragon", "fire"],
+    })).toContain("trickster_chaos");
+
+    expect(deriveRecordTags({
+      name: "Dancer",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A nimble performer who entertains nobles at court.",
+      traits: ["human", "humanoid"],
+    })).not.toContain("carnival_show");
+
+    expect(deriveRecordTags({
+      name: "Goblin Igniter",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Goblins think fire is a fun toy and admire anyone willing to burn down a barn for sport.",
+      traits: ["goblin", "humanoid"],
+    })).not.toContain("living_toy");
+
+    expect(deriveRecordTags({
+      name: "Chaos Reaver",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A chaotic fiend that leaves ruin in its wake.",
+      traits: ["chaotic", "fiend"],
+    })).not.toContain("trickster_chaos");
+  });
+
   it("avoids known creature false positives and requires enough weighted evidence", () => {
     expect(deriveRecordTags({
       name: "Accuser Agent",

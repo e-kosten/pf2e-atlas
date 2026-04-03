@@ -173,6 +173,32 @@ describe("derived tag catalog", () => {
           expect.objectContaining({ value: "volcanic_setting", description: expect.any(String) }),
         ]),
       }),
+      expect.objectContaining({
+        category: "creature",
+        family: "encounter_role",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "profession_npc", description: expect.any(String) }),
+          expect.objectContaining({ value: "scene_adjacent", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "creature",
+        family: "threat_signal",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "undead_threat", description: expect.any(String) }),
+          expect.objectContaining({ value: "fey_threat", description: expect.any(String) }),
+          expect.objectContaining({ value: "plant_threat", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "creature",
+        family: "motif",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "carnival_show", description: expect.any(String) }),
+          expect.objectContaining({ value: "living_toy", description: expect.any(String) }),
+          expect.objectContaining({ value: "trickster_chaos", description: expect.any(String) }),
+        ]),
+      }),
     ]));
   });
 });

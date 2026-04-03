@@ -136,6 +136,9 @@ describe("Pf2eDataService / Search and Lookup", () => {
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["volcanic_setting"] } }).records.map((record) => record.name)).toEqual(["Caldera Oni"]);
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["nautical_setting"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Ghost Pirate Captain", "Ship Captain"]));
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["scene_adjacent"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Ship Captain", "Wealthy Vigilante"]));
+    expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["carnival_show"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Court Jester", "Mechanical Carny"]));
+    expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["living_toy"] } }).records.map((record) => record.name)).toEqual(["Soulbound Doll"]);
+    expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["trickster_chaos"] } }).records.map((record) => record.name)).toEqual(["Fire Scamp"]);
     expect(service.listRecords({ category: "creature", metadata: { field: "families", op: "includesAny", values: ["ghost"] } }).records.map((record) => record.name)).toEqual(["Ghost Commoner"]);
     expect(service.listRecords({ category: "creature", metadata: { field: "families", op: "includesAny", values: ["lich"] } }).records.map((record) => record.name)).toEqual(["Mythic Lich"]);
     expect(service.listRecords({ category: "creature", metadata: { field: "families", op: "includesAny", values: ["seafarer"] } }).records.map((record) => record.name)).toEqual(["Bosun"]);
@@ -235,6 +238,15 @@ describe("Pf2eDataService / Search and Lookup", () => {
     expect(calderaOni?.derivedTags).toContain("volcanic_setting");
     const wealthyVigilante = service.lookup("Wealthy Vigilante", { category: "creature" }).match;
     expect(wealthyVigilante?.derivedTags).toEqual(expect.arrayContaining(["profession_npc", "scene_adjacent"]));
+    const courtJester = service.lookup("Court Jester", { category: "creature" }).match;
+    expect(courtJester?.derivedTags).toContain("carnival_show");
+    const mechanicalCarny = service.lookup("Mechanical Carny", { category: "creature" }).match;
+    expect(mechanicalCarny?.derivedTags).toContain("carnival_show");
+    expect(mechanicalCarny?.derivedTags).not.toContain("living_toy");
+    const soulboundDoll = service.lookup("Soulbound Doll", { category: "creature" }).match;
+    expect(soulboundDoll?.derivedTags).toContain("living_toy");
+    const fireScamp = service.lookup("Fire Scamp", { category: "creature" }).match;
+    expect(fireScamp?.derivedTags).toContain("trickster_chaos");
     const ghostCommoner = service.lookup("Ghost Commoner", { category: "creature" }).match;
     expect(ghostCommoner?.families).toEqual(["ghost"]);
     const mythicLich = service.lookup("Mythic Lich", { category: "creature" }).match;

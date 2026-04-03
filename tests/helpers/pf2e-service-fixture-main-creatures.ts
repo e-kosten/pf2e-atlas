@@ -249,7 +249,7 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publicNotes: "<p>A seasoned deck officer responsible for shipboard labor and discipline.</p>",
       },
       traits: {
-        rarity: "common",
+        rarity: "uncommon",
         value: ["human", "humanoid"],
         size: {
           value: "med",
@@ -722,6 +722,102 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         value: ["human", "humanoid"],
         size: {
           value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-npc-core", "court-jester.json"), {
+    _id: "court-jester",
+    name: "Court Jester",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 5,
+        },
+        publication: {
+          title: "Pathfinder NPC Core",
+        },
+        publicNotes: "<p>Though court jesters are often the targets of easy mockery and idle amusements, this jester hides malice behind painted smiles and a razor wit.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["human", "humanoid"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "mechanical-carny.json"), {
+    _id: "mechanical-carny",
+    name: "Mechanical Carny",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 4,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>Mechanical carnies are constructs manufactured to serve as entertainers, cleaners, and guards at carnivals and circuses.</p>",
+      },
+      traits: {
+        rarity: "uncommon",
+        value: ["construct"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "soulbound-doll.json"), {
+    _id: "soulbound-doll",
+    name: "Soulbound Doll",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 2,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>Soulbound dolls are eerie mannequins or playthings that have been imbued with a small piece of a deceased mortal's soul.</p>",
+      },
+      traits: {
+        rarity: "uncommon",
+        value: ["construct"],
+        size: {
+          value: "sm",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "fire-scamp.json"), {
+    _id: "fire-scamp",
+    name: "Fire Scamp",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 1,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>Although arguably quite friendly, fire scamps delight in fire and playing pranks on everyone they befriend.</p>",
+      },
+      traits: {
+        rarity: "uncommon",
+        value: ["elemental", "fire"],
+        size: {
+          value: "sm",
         },
       },
     },

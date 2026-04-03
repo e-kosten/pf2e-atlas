@@ -33,14 +33,31 @@ export const CREATURE_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
   },
   {
     category: "creature",
-    family: "scene_fit",
-    description: "Creature practical-fit tags for distinguishing scene-adjacent NPCs from primary threats.",
+    family: "encounter_role",
+    description: "Creature practical-fit tags for distinguishing scene-adjacent NPCs from primary encounter threats.",
     tags: [
       { value: "profession_npc", description: "Role-defined NPC such as a captain, guard, merchant, or commoner." },
       { value: "scene_adjacent", description: "Fits the scene or social fabric, but is usually not the primary monster answer." },
+    ],
+  },
+  {
+    category: "creature",
+    family: "threat_signal",
+    description: "Creature threat cues derived from native traits or family glossary links.",
+    tags: [
       { value: "undead_threat", description: "Threat signal derived from undead-like native traits." },
       { value: "fey_threat", description: "Threat signal derived from fey native traits." },
       { value: "plant_threat", description: "Threat signal derived from plant-like native traits." },
+    ],
+  },
+  {
+    category: "creature",
+    family: "motif",
+    description: "Creature motif tags for recurring scene and presentation themes not captured by native traits.",
+    tags: [
+      { value: "carnival_show", description: "Strongly associated with carnivals, circuses, clowns, jesters, or sideshow-style presentation." },
+      { value: "living_toy", description: "Strongly associated with dolls, puppets, mannequins, or other animated playthings." },
+      { value: "trickster_chaos", description: "Strongly associated with pranks, mischief, whimsy, or explicit trickster behavior." },
     ],
   },
 ];

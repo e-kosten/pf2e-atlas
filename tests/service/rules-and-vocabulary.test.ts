@@ -199,6 +199,32 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
           expect.objectContaining({ value: "volcanic_setting", description: expect.any(String) }),
         ]),
       }),
+      expect.objectContaining({
+        category: "creature",
+        family: "encounter_role",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "profession_npc", description: expect.any(String) }),
+          expect.objectContaining({ value: "scene_adjacent", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "creature",
+        family: "threat_signal",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "undead_threat", description: expect.any(String) }),
+          expect.objectContaining({ value: "fey_threat", description: expect.any(String) }),
+          expect.objectContaining({ value: "plant_threat", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "creature",
+        family: "motif",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "carnival_show", description: expect.any(String) }),
+          expect.objectContaining({ value: "living_toy", description: expect.any(String) }),
+          expect.objectContaining({ value: "trickster_chaos", description: expect.any(String) }),
+        ]),
+      }),
     ]));
   });
 
@@ -240,7 +266,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     expect(service.listFilterValues({
       field: "derivedTags",
       category: "creature",
-    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["aquatic_setting", "freshwater_setting", "coastal_setting", "astral_setting", "first_world_setting", "boneyard_setting", "temple_setting"]));
+    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["aquatic_setting", "freshwater_setting", "coastal_setting", "astral_setting", "first_world_setting", "boneyard_setting", "temple_setting", "carnival_show", "living_toy", "trickster_chaos"]));
 
     expect(service.listFilterValues({
       field: "families",
@@ -324,7 +350,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     expect(service.listFilterValues({
       field: "rarity",
       category: "creature",
-    }).values.map((entry) => entry.value)).toEqual(["common", "rare", "uncommon", "unique"]);
+    }).values.map((entry) => entry.value)).toEqual(["common", "uncommon", "rare", "unique"]);
 
     expect(service.listFilterValues({
       field: "size",

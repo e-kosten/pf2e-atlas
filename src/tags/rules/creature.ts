@@ -23,6 +23,106 @@ import {
   tokenAnchor,
 } from "../shared.js";
 
+const CARNIVAL_SHOW_NAME_ANCHORS = [
+  tokenAnchor("carnival", "name"),
+  tokenAnchor("circus", "name"),
+  tokenAnchor("clown", "name"),
+  tokenAnchor("carny", "name"),
+  tokenAnchor("jester", "name"),
+];
+
+const CARNIVAL_SHOW_TEXT_ANCHORS = [
+  tokenAnchor("carnival"),
+  tokenAnchor("carnivals"),
+  tokenAnchor("circus"),
+  tokenAnchor("circuses"),
+  tokenAnchor("clown"),
+  tokenAnchor("clowns"),
+  tokenAnchor("carny"),
+  tokenAnchor("carnies"),
+  tokenAnchor("jester"),
+  tokenAnchor("jesters"),
+  tokenAnchor("barker"),
+  tokenAnchor("barkers"),
+  tokenAnchor("sideshow"),
+  tokenAnchor("sideshows"),
+  phraseAnchor("traveling show"),
+  phraseAnchor("traveling shows"),
+  phraseAnchor("traveling circus"),
+  phraseAnchor("traveling carnival"),
+  phraseAnchor("court jester"),
+];
+
+const CARNIVAL_SHOW_CONTEXT_TEXT_NEAR = [
+  {
+    terms: [
+      tokenAnchor("performer"),
+      tokenAnchor("performers"),
+      tokenAnchor("entertainer"),
+      tokenAnchor("entertainers"),
+      tokenAnchor("circus"),
+      tokenAnchor("circuses"),
+      tokenAnchor("carnival"),
+      tokenAnchor("carnivals"),
+      tokenAnchor("traveling"),
+      tokenAnchor("jester"),
+      tokenAnchor("jesters"),
+    ],
+    window: 4,
+    scope: "description" as const,
+    minTermsMatched: 2,
+  },
+];
+
+const LIVING_TOY_NAME_ANCHORS = [
+  tokenAnchor("doll", "name"),
+  tokenAnchor("dolls", "name"),
+  tokenAnchor("puppet", "name"),
+  tokenAnchor("puppets", "name"),
+  tokenAnchor("mannequin", "name"),
+  tokenAnchor("mannequins", "name"),
+  tokenAnchor("marionette", "name"),
+  tokenAnchor("marionettes", "name"),
+];
+
+const LIVING_TOY_TEXT_ANCHORS = [
+  tokenAnchor("doll"),
+  tokenAnchor("dolls"),
+  tokenAnchor("puppet"),
+  tokenAnchor("puppets"),
+  tokenAnchor("mannequin"),
+  tokenAnchor("mannequins"),
+  tokenAnchor("marionette"),
+  tokenAnchor("marionettes"),
+  tokenAnchor("plaything"),
+  tokenAnchor("playthings"),
+  tokenAnchor("toylike"),
+  phraseAnchor("toy like"),
+  phraseAnchor("soulbound doll"),
+  phraseAnchor("dressmaker s dummy"),
+];
+
+const TRICKSTER_CHAOS_NAME_ANCHORS = [
+  tokenAnchor("trickster", "name"),
+  tokenAnchor("tricksters", "name"),
+];
+
+const TRICKSTER_CHAOS_TEXT_ANCHORS = [
+  tokenAnchor("trickster"),
+  tokenAnchor("tricksters"),
+  tokenAnchor("prank"),
+  tokenAnchor("pranks"),
+  tokenAnchor("prankster"),
+  tokenAnchor("pranksters"),
+  tokenAnchor("mischievous"),
+  tokenAnchor("whimsical"),
+  tokenAnchor("playful"),
+  phraseAnchor("delight in humor"),
+  phraseAnchor("harmless pranks"),
+  phraseAnchor("playing pranks"),
+  phraseAnchor("play tricks"),
+];
+
 export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "undead_threat",
@@ -487,6 +587,34 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     noneOf: [
       { traitsAny: SCENE_ADJACENT_BLOCKER_TRAITS },
       { familiesAny: UNDEAD_GLOSSARY_FAMILIES },
+    ],
+  },
+  {
+    tag: "carnival_show",
+    category: "creature",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: CARNIVAL_SHOW_NAME_ANCHORS },
+      { score: 2, textAny: CARNIVAL_SHOW_TEXT_ANCHORS },
+      { score: 1, textNear: CARNIVAL_SHOW_CONTEXT_TEXT_NEAR },
+    ],
+  },
+  {
+    tag: "living_toy",
+    category: "creature",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: LIVING_TOY_NAME_ANCHORS },
+      { score: 2, textAny: LIVING_TOY_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "trickster_chaos",
+    category: "creature",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: TRICKSTER_CHAOS_NAME_ANCHORS },
+      { score: 2, textAny: TRICKSTER_CHAOS_TEXT_ANCHORS },
     ],
   },
 ];
