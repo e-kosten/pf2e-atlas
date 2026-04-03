@@ -187,6 +187,50 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
     },
   });
 
+  await writeJson(path.join(packRoot, "spells", "web-of-eyes.json"), {
+    _id: "spell-web-of-eyes-1",
+    name: "Web of Eyes",
+    type: "spell",
+    system: {
+      description: {
+        value: "<p>You place an invisible scrying sensor on each target just above their eyes.</p><p>Each sensor looks where that target looks, and you can see what each target sees.</p>",
+      },
+      level: {
+        value: 3,
+      },
+      publication: {
+        title: "Pathfinder Dark Archive",
+      },
+      traits: {
+        rarity: "common",
+        traditions: ["occult"],
+        value: ["concentrate", "manipulate", "scrying"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "spells", "painted-scout.json"), {
+    _id: "spell-painted-scout-1",
+    name: "Painted Scout",
+    type: "spell",
+    system: {
+      description: {
+        value: "<p>You press your hand to the stone, causing hand-drawn scouts to spread out from your fingers.</p><p>As long as you Sustain the Spell, you can see, hear, and smell through the scouts.</p>",
+      },
+      level: {
+        value: 3,
+      },
+      publication: {
+        title: "Pathfinder Secrets of Magic",
+      },
+      traits: {
+        rarity: "common",
+        traditions: ["arcane"],
+        value: ["concentrate", "manipulate", "scrying"],
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "afflictions", "cackling-delirium.json"), {
     _id: "affliction-1",
     name: "Cackling Delirium",

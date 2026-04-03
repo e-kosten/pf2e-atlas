@@ -254,26 +254,34 @@ const SPELL_SCOUTING_NAME_ANCHORS: TextAnchor[] = [
   phraseAnchor("clairvoyance", "name"),
   phraseAnchor("familiar s face", "name"),
   phraseAnchor("know location", "name"),
+  phraseAnchor("painted scout", "name"),
   phraseAnchor("prying survey", "name"),
+  phraseAnchor("proliferating eyes", "name"),
   phraseAnchor("rune of observation", "name"),
   phraseAnchor("scouting eye", "name"),
   phraseAnchor("scrying", "name"),
   phraseAnchor("scrying ripples", "name"),
   phraseAnchor("unrelenting observation", "name"),
+  phraseAnchor("web of eyes", "name"),
 ];
 
 const SPELL_SCOUTING_TEXT_ANCHORS: TextAnchor[] = [
+  phraseAnchor("can see hear and smell through"),
+  phraseAnchor("create a sensor"),
   phraseAnchor("floating ear"),
   phraseAnchor("floating eye"),
   phraseAnchor("hear through the ear"),
+  phraseAnchor("know the location"),
+  phraseAnchor("learn its approximate distance and direction"),
+  phraseAnchor("looks where that target looks"),
+  phraseAnchor("magical eye sensor"),
+  phraseAnchor("scrying sensor"),
+  phraseAnchor("see hear and smell through"),
   phraseAnchor("see in all directions from that point"),
   phraseAnchor("see through its eyes"),
   phraseAnchor("transmits what it sees"),
   phraseAnchor("transmitting rough impressions"),
   phraseAnchor("you magically spy on"),
-  phraseAnchor("create a sensor"),
-  phraseAnchor("know the location"),
-  phraseAnchor("learn its approximate distance and direction"),
 ];
 
 const SPELL_SCOUTING_BLOCKER_TEXT_ANCHORS: TextAnchor[] = [
@@ -680,6 +688,7 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "spell",
     threshold: 2,
     anyOf: [
+      { score: 1, traitsAny: ["scrying"] },
       { score: 2, textAny: SPELL_SCOUTING_NAME_ANCHORS },
       { score: 2, textAny: SPELL_SCOUTING_TEXT_ANCHORS },
       {
@@ -1049,13 +1058,18 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
       {
         score: 2,
         textAny: [
+          phraseAnchor("damages the mind"),
+          phraseAnchor("filling the heads"),
           tokenAnchor("fear"),
           tokenAnchor("frightened"),
+          phraseAnchor("flood the minds"),
           tokenAnchor("paranoia"),
           tokenAnchor("confused"),
           tokenAnchor("confusion"),
           tokenAnchor("hallucination"),
           tokenAnchor("hallucinations"),
+          phraseAnchor("maddening visions"),
+          phraseAnchor("mental trauma"),
           phraseAnchor("psychic scream"),
           tokenAnchor("disorients"),
         ],

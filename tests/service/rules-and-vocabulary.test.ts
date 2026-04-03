@@ -185,8 +185,9 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     })).toEqual({
       field: "traits",
       values: [
-        { value: "mechanical", count: 1 },
-        { value: "trap", count: 1 },
+        { value: "trap", count: 3 },
+        { value: "magical", count: 2 },
+        { value: "mechanical", count: 2 },
       ],
     });
 
@@ -227,8 +228,8 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     })).toEqual({
       field: "subcategories",
       values: [
+        { value: "trap", count: 3 },
         { value: "haunt", count: 1 },
-        { value: "trap", count: 1 },
       ],
     });
 
@@ -239,6 +240,8 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       field: "publicationTitle",
       values: [
         { value: "Pathfinder Player Core", count: 4 },
+        { value: "Pathfinder Dark Archive", count: 1 },
+        { value: "Pathfinder Secrets of Magic", count: 1 },
       ],
     });
 
@@ -248,8 +251,8 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     })).toEqual({
       field: "traditions",
       values: [
-        { value: "occult", count: 3 },
-        { value: "arcane", count: 2 },
+        { value: "occult", count: 4 },
+        { value: "arcane", count: 3 },
         { value: "primal", count: 1 },
       ],
     });
@@ -305,7 +308,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     })).toEqual({
       field: "packs",
       values: [
-        { value: "Spells", count: 2 },
+        { value: "Spells", count: 4 },
         { value: "Spells SRD", count: 2 },
       ],
     });
@@ -320,7 +323,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       field: "categories",
       values: [
         { value: "rule", count: 6 },
-        { value: "hazard", count: 1 },
+        { value: "hazard", count: 3 },
       ],
     });
 

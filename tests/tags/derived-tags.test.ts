@@ -973,6 +973,30 @@ describe("derived tag rules", () => {
     })).toContain("scouting");
 
     expect(deriveRecordTags({
+      name: "Web of Eyes",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You place an invisible scrying sensor on each target just above their eyes. Each sensor looks where that target looks, and you can see what each target sees.",
+      traits: ["concentrate", "manipulate", "scrying"],
+    })).toContain("scouting");
+
+    expect(deriveRecordTags({
+      name: "Proliferating Eyes",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You implant an invisible, magical eye sensor on the target's body. The eye has sight and vision, and you can perceive through the magical eye sensor from afar.",
+      traits: ["concentrate", "manipulate", "scrying"],
+    })).toContain("scouting");
+
+    expect(deriveRecordTags({
+      name: "Painted Scout",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You press your hand to the stone, causing hand-drawn scouts to spread out from your fingers. As long as you Sustain the Spell, you can see, hear, and smell through the scouts.",
+      traits: ["concentrate", "manipulate", "scrying"],
+    })).toContain("scouting");
+
+    expect(deriveRecordTags({
       name: "Blind Eye",
       category: "spell",
       subcategory: null,
@@ -1044,6 +1068,38 @@ describe("derived tag rules", () => {
       subcategory: "trap",
       descriptionText: "A psychic scream disorients creatures in the area and leaves them overwhelmed with fear.",
       traits: ["magical"],
+    })).toContain("mental_impairment");
+
+    expect(deriveRecordTags({
+      name: "Mental Assault",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "Magic sigils hidden in the grain of the wooden door trigger a magic trap that damages the mind of anyone attempting to pick the door's lock.",
+      traits: ["magical", "mechanical", "trap"],
+    })).toContain("mental_impairment");
+
+    expect(deriveRecordTags({
+      name: "Images of Failure",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "Psychically enhanced illusions flood the minds of creatures in the hallway with memories of their past failures.",
+      traits: ["magical", "trap"],
+    })).toContain("mental_impairment");
+
+    expect(deriveRecordTags({
+      name: "Phantasmagoric Fog Trap",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "Cloying violet mist billows from the undergrowth, filling the heads of any creatures inside with maddening visions of dark moonless nights and twisted malignant trees.",
+      traits: ["magical", "trap"],
+    })).toContain("mental_impairment");
+
+    expect(deriveRecordTags({
+      name: "Punish Defiance",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "A magical mural threatens uncooperative inmates, causing mental trauma to those who defy its commands.",
+      traits: ["magical", "trap"],
     })).toContain("mental_impairment");
 
     expect(deriveRecordTags({

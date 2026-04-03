@@ -475,6 +475,48 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
     },
   });
 
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "mental-assault.json"), {
+    _id: "mental-assault",
+    name: "Mental Assault",
+    type: "hazard",
+    system: {
+      details: {
+        level: {
+          value: 20,
+        },
+        publication: {
+          title: "Pathfinder Adventure Path",
+        },
+        publicNotes: "<p>Magic sigils hidden in the grain of the wooden door trigger a magic trap that damages the mind of anyone attempting to pick the door's lock.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["magical", "mechanical", "trap"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "images-of-failure.json"), {
+    _id: "images-of-failure",
+    name: "Images of Failure",
+    type: "hazard",
+    system: {
+      details: {
+        level: {
+          value: 12,
+        },
+        publication: {
+          title: "Pathfinder Adventure Path",
+        },
+        publicNotes: "<p>Psychically enhanced illusions flood the minds of creatures in the hallway with memories of their past failures.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["magical", "trap"],
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "pathfinder-monster-core", "diver.json"), {
     _id: "diver",
     name: "Diver",
