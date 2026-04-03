@@ -3,6 +3,17 @@ import { DerivedTagCatalogEntry } from "../../types.js";
 export const HAZARD_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
   {
     category: "hazard",
+    family: "mechanism",
+    description: "Hazards whose threat comes from trigger mechanisms, locking thresholds, control surfaces, or planar breaches.",
+    tags: [
+      { value: "ward_trigger", description: "Hazard triggered by a rune, glyph, sigil, ward, or similar inscribed mechanism." },
+      { value: "threshold_lockdown", description: "Hazard that seals, locks, or bars a threshold, doorway, or gate." },
+      { value: "control_interface", description: "Hazard operated through a button, lever, console, panel, switch, or similar control surface." },
+      { value: "planar_breach", description: "Hazard centered on a portal, rift, tear, breach, or other unstable opening in reality." },
+    ],
+  },
+  {
+    category: "hazard",
     family: "function",
     description: "Hazard practical-function tags for alerts and restraint effects.",
     tags: [

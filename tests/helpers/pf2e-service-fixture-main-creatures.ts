@@ -107,6 +107,30 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
     },
   });
 
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "animated-armor.json"), {
+    _id: "animated-armor-1",
+    name: "Animated Armor",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 2,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>An empty suit of armor animated by magic to guard a tomb hallway.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["construct", "mindless"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "pathfinder-monster-core", "ghost-commoner-core.json"), {
     _id: "ghost-commoner-core",
     name: "Ghost Commoner",
@@ -1440,6 +1464,27 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
       traits: {
         rarity: "common",
         value: ["mechanical", "trap"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "mask-summoning-rune.json"), {
+    _id: "mask-summoning-rune",
+    name: "Mask Summoning Rune",
+    type: "hazard",
+    system: {
+      details: {
+        level: {
+          value: 5,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>A glowing rune inscribed across the threshold summons masked guardians when a creature crosses the ward.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["magical", "trap"],
       },
     },
   });

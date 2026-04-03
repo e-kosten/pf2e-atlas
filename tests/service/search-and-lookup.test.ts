@@ -748,6 +748,14 @@ describe("Pf2eDataService / Search and Lookup", () => {
       category: "spell",
       metadata: { field: "derivedTags", op: "includesAny", values: ["death_prevention"] },
     }).records.map((record) => record.name)).toContain("Breath of Life");
+    expect(service.listRecords({
+      category: "spell",
+      metadata: { field: "derivedTags", op: "includesAny", values: ["transformation"] },
+    }).records.map((record) => record.name)).toContain("Animal Form");
+    expect(service.listRecords({
+      category: "spell",
+      metadata: { field: "derivedTags", op: "includesAny", values: ["animal_form"] },
+    }).records.map((record) => record.name)).toContain("Animal Form");
 
     expect(service.listRecords({
       category: "hazard",
@@ -757,6 +765,10 @@ describe("Pf2eDataService / Search and Lookup", () => {
       category: "hazard",
       metadata: { field: "derivedTags", op: "includesAny", values: ["sound_hazard"] },
     }).records.map((record) => record.name)).toContain("Buzzing Latch Rune");
+    expect(service.listRecords({
+      category: "hazard",
+      metadata: { field: "derivedTags", op: "includesAny", values: ["ward_trigger"] },
+    }).records.map((record) => record.name)).toContain("Mask Summoning Rune");
 
     expect(service.listRecords({
       category: "equipment",
@@ -773,6 +785,11 @@ describe("Pf2eDataService / Search and Lookup", () => {
       subcategory: "ammo",
       metadata: { field: "derivedTags", op: "includesAny", values: ["restraint_capture"] },
     }).records.map((record) => record.name)).toContain("Bola Shot");
+    expect(service.listRecords({
+      category: "equipment",
+      subcategory: "armor",
+      metadata: { field: "derivedTags", op: "includesAny", values: ["stealth_support"] },
+    }).records.map((record) => record.name)).toContain("Shadow Shroud");
 
     expect(service.listRecords({
       category: "creature",
@@ -786,21 +803,35 @@ describe("Pf2eDataService / Search and Lookup", () => {
       category: "creature",
       metadata: { field: "derivedTags", op: "includesAny", values: ["disguised_pretender"] },
     }).records.map((record) => record.name)).toContain("False Herald");
+    expect(service.listRecords({
+      category: "creature",
+      metadata: { field: "derivedTags", op: "includesAny", values: ["animated_object"] },
+    }).records.map((record) => record.name)).toContain("Animated Armor");
 
     const ghastFever = service.lookup("Ghast Fever", { category: "affliction" }).match;
     expect(ghastFever?.derivedTags).toContain("healing_suppression");
 
     const breathOfLife = service.lookup("Breath of Life", { category: "spell" }).match;
     expect(breathOfLife?.derivedTags).toContain("death_prevention");
+    const animalForm = service.lookup("Animal Form", { category: "spell" }).match;
+    expect(animalForm?.derivedTags).toEqual(expect.arrayContaining(["transformation", "battle_form", "animal_form"]));
 
     const acidMist = service.lookup("Acid Mist", { category: "hazard" }).match;
     expect(acidMist?.derivedTags).toContain("acid_hazard");
+    const maskSummoningRune = service.lookup("Mask Summoning Rune", { category: "hazard" }).match;
+    expect(maskSummoningRune?.derivedTags).toContain("ward_trigger");
 
     const beaconShot = service.lookup("Beacon Shot", { category: "equipment" }).match;
     expect(beaconShot?.subcategory).toBe("ammo");
     expect(beaconShot?.derivedTags).toEqual(expect.arrayContaining(["illumination", "signaling"]));
+    const shadowShroud = service.lookup("Shadow Shroud", { category: "equipment" }).match;
+    expect(shadowShroud?.subcategory).toBe("armor");
+    expect(shadowShroud?.derivedTags).toContain("stealth_support");
 
     const falseHerald = service.lookup("False Herald", { category: "creature" }).match;
     expect(falseHerald?.derivedTags).toContain("disguised_pretender");
+    const animatedArmor = service.lookup("Animated Armor", { category: "creature" }).match;
+    expect(animatedArmor?.derivedTags).toContain("animated_object");
+    expect(animatedArmor?.derivedTags).not.toContain("bound_object");
   });
 });

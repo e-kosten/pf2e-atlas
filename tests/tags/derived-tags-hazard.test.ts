@@ -3,6 +3,104 @@ import { describe, expect, it } from "vitest";
 import { deriveRecordTags } from "../../src/tags/index.js";
 
 describe("derived tag rules: hazard", () => {
+  it("derives hazard mechanism tags", () => {
+    expect(deriveRecordTags({
+      name: "Kharnas's Lesser Glyph",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "A concealed glyph triggers when a creature crosses the threshold, releasing a blast of force.",
+      traits: ["magical", "trap"],
+    })).toContain("ward_trigger");
+
+    expect(deriveRecordTags({
+      name: "Mask Summoning Rune",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "When touched, the rune activates and calls forth the mask guardian.",
+      traits: ["magical", "trap"],
+    })).toContain("ward_trigger");
+
+    expect(deriveRecordTags({
+      name: "Warding Bell",
+      category: "hazard",
+      subcategory: null,
+      descriptionText: "A protective ward bell watches over the shrine without any trigger rune or glyph.",
+      traits: ["magical"],
+    })).not.toContain("ward_trigger");
+
+    expect(deriveRecordTags({
+      name: "Poisoned Secret Door Trap",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "The secret door slams shut and locks the doorway, trapping the triggering creature inside.",
+      traits: ["mechanical", "trap"],
+    })).toContain("threshold_lockdown");
+
+    expect(deriveRecordTags({
+      name: "Electrified Gate",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "The gate seals the entrance and bars the passage while shocking intruders.",
+      traits: ["mechanical", "trap"],
+    })).toContain("threshold_lockdown");
+
+    expect(deriveRecordTags({
+      name: "Clockwork Trap",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "The gears grind loudly as the mechanism locks into place.",
+      traits: ["mechanical", "trap"],
+    })).not.toContain("threshold_lockdown");
+
+    expect(deriveRecordTags({
+      name: "Button Mash",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "Each button press on the hidden panel activates a different blast.",
+      traits: ["mechanical", "trap"],
+    })).toContain("control_interface");
+
+    expect(deriveRecordTags({
+      name: "Blast Tumbler",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "A tumbler inside the console must be set before the hazard can be operated.",
+      traits: ["mechanical", "trap"],
+    })).toContain("control_interface");
+
+    expect(deriveRecordTags({
+      name: "Clockwork Valve",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "The gears grind and the mechanism locks into place without any visible controls.",
+      traits: ["mechanical", "trap"],
+    })).not.toContain("control_interface");
+
+    expect(deriveRecordTags({
+      name: "Air Rift",
+      category: "hazard",
+      subcategory: null,
+      descriptionText: "A violent rift opens in the air, tearing a hole in reality and spilling out planar wind.",
+      traits: ["magical"],
+    })).toContain("planar_breach");
+
+    expect(deriveRecordTags({
+      name: "Nightmare Portal",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "An unstable portal opens into a nightmare realm through a tear in the fabric of reality.",
+      traits: ["magical", "trap"],
+    })).toContain("planar_breach");
+
+    expect(deriveRecordTags({
+      name: "Portal Ward",
+      category: "hazard",
+      subcategory: null,
+      descriptionText: "A protective ward prevents portal travel and keeps the chamber sealed.",
+      traits: ["magical"],
+    })).not.toContain("planar_breach");
+  });
+
   it("derives hazard function, impact, and environmental tags", () => {
     expect(deriveRecordTags({
       name: "Alarm Ward",

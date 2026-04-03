@@ -832,6 +832,24 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     },
   });
 
+  await writeJson(path.join(packRoot, "equipment-srd", "shadow-shroud.json"), {
+    _id: "shadow-shroud-1",
+    name: "Shadow Shroud",
+    type: "armor",
+    system: {
+      description: {
+        value: "<p>This cloak-like armor muffles stray noise, remains exceptionally quiet, and helps you avoid notice in dim corridors.</p>",
+      },
+      publication: {
+        title: "Pathfinder Treasure Vault",
+      },
+      traits: {
+        rarity: "common",
+        value: ["invested", "magical"],
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "equipment-srd", "alarm-snare.json"), {
     _id: "equip-alarm-snare-1",
     name: "Alarm Snare",

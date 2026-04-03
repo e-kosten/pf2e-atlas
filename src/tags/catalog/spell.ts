@@ -45,6 +45,17 @@ export const SPELL_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
   },
   {
     category: "spell",
+    family: "transformation",
+    description: "Spells that alter a creature's body, form, or battle shape.",
+    promoteFamilyToTag: true,
+    tags: [
+      { value: "battle_form", description: "Transforms a creature into a combat-ready form with new statistics or battle-form language." },
+      { value: "animal_form", description: "Transforms a creature into an animal, beast, pest, or similar natural form." },
+      { value: "elemental_form", description: "Transforms a creature into an elemental form." },
+    ],
+  },
+  {
+    category: "spell",
     family: "support",
     description: "Spells that restore, protect, ward, or reinforce allies and targets.",
     tags: [

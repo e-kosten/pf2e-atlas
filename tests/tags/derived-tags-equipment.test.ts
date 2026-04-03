@@ -579,6 +579,40 @@ describe("derived tag rules: equipment", () => {
     })).toEqual(expect.arrayContaining(["disguise", "social_infiltration"]));
   });
 
+  it("derives armor-purpose tags for mobility, carry support, stealth, and survival", () => {
+    expect(deriveRecordTags({
+      name: "Dragonaut's Wingsuit",
+      category: "equipment",
+      subcategory: "armor",
+      descriptionText: "This +1 resilient leather armor includes wing-like membranes that connect the limbs to one another. If you don't have a fly Speed, you gain a 20-foot fly Speed for Fly actions from this activation, and the armor helps you glide safely to earth.",
+      traits: ["armor", "invested", "magical"],
+    })).toContain("mobility");
+
+    expect(deriveRecordTags({
+      name: "Crafting Leathers",
+      category: "equipment",
+      subcategory: "armor",
+      descriptionText: "This simple leather armor is adorned with a series of pockets and pouches, all within easy reach. Each pocket or pouch contains a specific tool required for specialized crafting.",
+      traits: ["armor"],
+    })).toContain("carry_support");
+
+    expect(deriveRecordTags({
+      name: "Elven Chain (High-Grade)",
+      category: "equipment",
+      subcategory: "armor",
+      descriptionText: "Created by elven artisans employing ancient crafting techniques, elven chain is exceptionally quiet. Unlike other chain shirts-even other dawnsilver chain shirts-elven chain does not have the noisy trait.",
+      traits: ["armor"],
+    })).toContain("stealth_support");
+
+    expect(deriveRecordTags({
+      name: "Deep Sea Plate",
+      category: "equipment",
+      subcategory: "armor",
+      descriptionText: "The interior of this heavy, brass full plate is lined with waterproof fabric, especially covering the seams between plates. When worn, it provides a sealed environment that protects you from drowning as well as allowing you to move more freely while underwater. The armor enables you to breathe underwater and gives you a swim Speed equal to half your land Speed.",
+      traits: ["armor", "invested", "magical"],
+    })).toEqual(expect.arrayContaining(["mobility", "survival"]));
+  });
+
   it("derives ammo payload, signaling, mobility, and restraint tags", () => {
     expect(deriveRecordTags({
       name: "Beacon Shot",
@@ -768,6 +802,14 @@ describe("derived tag rules: equipment", () => {
         },
       ],
     })).not.toContain("restraint_escape");
+
+    expect(deriveRecordTags({
+      name: "Glorious Plate",
+      category: "equipment",
+      subcategory: "armor",
+      descriptionText: "This elegant full plate sheds bright light in a 10-foot radius, which enemies see as a blinding halo that obscures creatures other than the wearer.",
+      traits: ["armor", "magical"],
+    })).not.toEqual(expect.arrayContaining(["mobility", "carry_support", "stealth_support", "survival"]));
 
     expect(deriveRecordTags({
       name: "Net Launcher",

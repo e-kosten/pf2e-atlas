@@ -231,6 +231,28 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
     },
   });
 
+  await writeJson(path.join(packRoot, "spells", "animal-form.json"), {
+    _id: "spell-animal-form-1",
+    name: "Animal Form",
+    type: "spell",
+    system: {
+      description: {
+        value: "<p>You transform into the battle form of a swift animal, taking on bestial attacks and movement.</p>",
+      },
+      level: {
+        value: 2,
+      },
+      publication: {
+        title: "Pathfinder Player Core",
+      },
+      traits: {
+        rarity: "common",
+        traditions: ["primal"],
+        value: ["polymorph"],
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "spells-srd", "message-rune.json"), {
     _id: "spell-message-rune-1",
     name: "Message Rune",

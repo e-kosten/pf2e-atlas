@@ -237,6 +237,95 @@ describe("derived tag rules: spell", () => {
     })).not.toContain("scouting");
   });
 
+  it("derives spell transformation tags and promotes the family tag", () => {
+    expect(deriveRecordTags({
+      name: "Metamorphosis",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You transform your body into a monstrous new shape that gains new senses and attacks.",
+      traits: ["polymorph", "transmutation"],
+    })).toContain("transformation");
+
+    expect(deriveRecordTags({
+      name: "Aerial Form",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You harness your mastery of primal forces to reshape your body into a Medium flying animal battle form. While in this battle form, you gain the following statistics and abilities.",
+      traits: ["polymorph"],
+    })).toEqual(expect.arrayContaining(["transformation", "battle_form"]));
+
+    expect(deriveRecordTags({
+      name: "Tiger Form",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You assume a tiger battle form. While in this battle form, you gain the following statistics and abilities.",
+      traits: ["polymorph"],
+    })).toEqual(expect.arrayContaining(["transformation", "battle_form"]));
+    expect(deriveRecordTags({
+      name: "Tiger Form",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You assume a tiger battle form. While in this battle form, you gain the following statistics and abilities.",
+      traits: ["polymorph"],
+    })).not.toContain("animal_form");
+
+    expect(deriveRecordTags({
+      name: "Animal Form",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You transform yourself into a Medium animal battle form. While in this battle form, you gain the following statistics and abilities.",
+      traits: ["polymorph"],
+    })).toEqual(expect.arrayContaining(["transformation", "battle_form", "animal_form"]));
+
+    expect(deriveRecordTags({
+      name: "Elemental Form",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You transform into a Medium elemental battle form. While in this battle form, you gain the following statistics and abilities.",
+      traits: ["polymorph"],
+    })).toEqual(expect.arrayContaining(["transformation", "battle_form", "elemental_form"]));
+
+    expect(deriveRecordTags({
+      name: "Humanoid Form",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You transform your appearance to that of a Small or Medium humanoid.",
+      traits: ["polymorph"],
+    })).toContain("transformation");
+
+    expect(deriveRecordTags({
+      name: "Illusory Disguise",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You create an illusion that disguises the target and helps them pass as someone else.",
+      traits: ["illusion"],
+    })).not.toContain("transformation");
+
+    expect(deriveRecordTags({
+      name: "Enlarge",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You increase the target's size and grant a bonus to melee damage.",
+      traits: ["transmutation"],
+    })).not.toContain("transformation");
+
+    expect(deriveRecordTags({
+      name: "Summon Construct",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You summon a construct that appears in an unoccupied space within range.",
+      traits: ["conjuration", "summon"],
+    })).not.toContain("transformation");
+
+    expect(deriveRecordTags({
+      name: "Animated Armor",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You animate a suit of armor until it can move on its own.",
+      traits: ["transmutation"],
+    })).not.toContain("transformation");
+  });
+
   it("derives spell security, communication, and countermagic tags", () => {
     expect(deriveRecordTags({
       name: "Alarm",

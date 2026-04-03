@@ -63,4 +63,13 @@ export const CREATURE_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
       { value: "disguised_pretender", description: "Strongly associated with false identities, impersonation, infiltration, shapeshifting, or replacement." },
     ],
   },
+  {
+    category: "creature",
+    family: "bound_object",
+    description: "Creature tags for animated objects, statues, and other bound physical forms.",
+    tags: [
+      { value: "animated_object", description: "Strongly associated with animated objects, furniture, tools, or other constructed items." },
+      { value: "animated_statue", description: "Strongly associated with animated statues, effigies, idols, or monuments." },
+    ],
+  },
 ];

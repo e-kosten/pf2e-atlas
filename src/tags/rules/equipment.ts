@@ -30,8 +30,10 @@ import {
   referenceAnchor,
   tokenAnchor,
 } from "../shared.js";
+import type { SearchSubcategory } from "../../types.js";
 
-const AMMO_SUBCATEGORIES = ["ammo"] as const;
+const AMMO_SUBCATEGORIES: SearchSubcategory[] = ["ammo"];
+const ARMOR_SUBCATEGORIES: SearchSubcategory[] = ["armor"];
 
 const AMMO_ILLUMINATION_TEXT_ANCHORS = [
   tokenAnchor("shining", "name"),
@@ -96,6 +98,84 @@ const AMMO_EXPLOSIVE_PAYLOAD_TEXT_ANCHORS = [
   phraseAnchor("missile explodes"),
   phraseAnchor("explodes into a small swarm of meteors"),
   phraseAnchor("explodes in a burst"),
+];
+
+const ARMOR_MOBILITY_TEXT_ANCHORS = [
+  phraseAnchor("fly speed"),
+  phraseAnchor("fly speeds"),
+  phraseAnchor("gain a fly speed"),
+  phraseAnchor("gain a climb speed"),
+  phraseAnchor("gain a burrow speed"),
+  phraseAnchor("gain a swim speed"),
+  phraseAnchor("glide safely"),
+  phraseAnchor("glide to earth"),
+  phraseAnchor("hover above the ground"),
+  phraseAnchor("move more freely while underwater"),
+  phraseAnchor("swim speed"),
+  phraseAnchor("swim speeds"),
+  tokenAnchor("burrow"),
+  tokenAnchor("climb"),
+  tokenAnchor("float"),
+  tokenAnchor("glide"),
+  tokenAnchor("hover"),
+  tokenAnchor("fly"),
+];
+
+const ARMOR_CARRY_SUPPORT_TEXT_ANCHORS = [
+  phraseAnchor("carry 2 more bulk"),
+  phraseAnchor("carry more bulk"),
+  phraseAnchor("find tool"),
+  phraseAnchor("spacious pouches"),
+  phraseAnchor("store items"),
+  phraseAnchor("tool storage"),
+  phraseAnchor("up to 4 more bulk"),
+  tokenAnchor("bulk"),
+  tokenAnchor("carry"),
+  tokenAnchor("encumbered"),
+  tokenAnchor("pocket"),
+  tokenAnchor("pockets"),
+  tokenAnchor("pouch"),
+  tokenAnchor("pouches"),
+  tokenAnchor("storage"),
+  tokenAnchor("stow"),
+];
+
+const ARMOR_STEALTH_SUPPORT_TEXT_ANCHORS = [
+  phraseAnchor("avoid notice"),
+  phraseAnchor("hidden on your person"),
+  phraseAnchor("loses the noisy trait"),
+  phraseAnchor("noisy trait"),
+  phraseAnchor("surreptitiously"),
+  phraseAnchor("turn partially invisible"),
+  phraseAnchor("wear it surreptitiously"),
+  phraseAnchor("exceptionally quiet"),
+  tokenAnchor("hidden"),
+  tokenAnchor("invisible"),
+  tokenAnchor("quiet"),
+];
+
+const ARMOR_SURVIVAL_TEXT_ANCHORS = [
+  phraseAnchor("air supply"),
+  phraseAnchor("allows you to breathe underwater"),
+  phraseAnchor("breathe underwater"),
+  phraseAnchor("breathable air"),
+  phraseAnchor("can breathe underwater"),
+  phraseAnchor("drowning and suffocation"),
+  phraseAnchor("filter exterior air"),
+  phraseAnchor("protects you from drowning"),
+  phraseAnchor("protected from extreme cold"),
+  phraseAnchor("protected from severe heat"),
+  phraseAnchor("protected from extreme heat"),
+  phraseAnchor("sealed environment"),
+  phraseAnchor("sealed suit"),
+  phraseAnchor("waterproof fabric"),
+  phraseAnchor("weatherproof"),
+  phraseAnchor("move more freely while underwater"),
+  phraseAnchor("swim speed"),
+  tokenAnchor("waterproof"),
+  tokenAnchor("weatherproof"),
+  tokenAnchor("sealed"),
+  tokenAnchor("underwater"),
 ];
 
 export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
@@ -354,6 +434,15 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     ],
   },
   {
+    tag: "mobility",
+    category: "equipment",
+    subcategories: ARMOR_SUBCATEGORIES,
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: ARMOR_MOBILITY_TEXT_ANCHORS },
+    ],
+  },
+  {
     tag: "lock_bypass",
     category: "equipment",
     subcategories: GEARISH_SUBCATEGORIES,
@@ -384,6 +473,15 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     anyOf: [
       { textAny: [tokenAnchor("stealth"), tokenAnchor("quiet"), tokenAnchor("silent"), phraseAnchor("without drawing attention"), phraseAnchor("avoid notice"), tokenAnchor("infiltration")] },
       { textAny: [tokenAnchor("concealable"), phraseAnchor("hidden on your person")] },
+    ],
+  },
+  {
+    tag: "stealth_support",
+    category: "equipment",
+    subcategories: ARMOR_SUBCATEGORIES,
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: ARMOR_STEALTH_SUPPORT_TEXT_ANCHORS },
     ],
   },
   {
@@ -428,6 +526,15 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     subcategories: GEARISH_SUBCATEGORIES,
     anyOf: [
       { textAny: [tokenAnchor("camp"), tokenAnchor("forage"), tokenAnchor("wilderness"), tokenAnchor("survival"), tokenAnchor("shelter"), tokenAnchor("weatherproof")] },
+    ],
+  },
+  {
+    tag: "survival",
+    category: "equipment",
+    subcategories: ARMOR_SUBCATEGORIES,
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: ARMOR_SURVIVAL_TEXT_ANCHORS },
     ],
   },
   {
@@ -651,6 +758,15 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     subcategories: GEARISH_SUBCATEGORIES,
     anyOf: [
       { textAny: [tokenAnchor("storage"), tokenAnchor("stow"), tokenAnchor("carry"), tokenAnchor("haul"), tokenAnchor("pouch"), tokenAnchor("backpack"), tokenAnchor("container"), tokenAnchor("pack")] },
+    ],
+  },
+  {
+    tag: "carry_support",
+    category: "equipment",
+    subcategories: ARMOR_SUBCATEGORIES,
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: ARMOR_CARRY_SUPPORT_TEXT_ANCHORS },
     ],
   },
   {

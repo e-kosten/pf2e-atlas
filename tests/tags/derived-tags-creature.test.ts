@@ -623,4 +623,64 @@ describe("derived tag rules: creature", () => {
       traits: [],
     })).not.toContain("ruins_setting");
   });
+
+  it("derives animated object and animated statue tags without promoting the family name", () => {
+    expect(deriveRecordTags({
+      name: "Animated Armor",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "An armored construct animated by magic to guard a tomb.",
+      traits: ["construct", "mindless"],
+    })).toContain("animated_object");
+
+    expect(deriveRecordTags({
+      name: "Animated Cookware Swarm",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A swarm of animated cookware clatters through the kitchen and lunges at intruders.",
+      traits: ["construct", "swarm"],
+    })).toContain("animated_object");
+
+    expect(deriveRecordTags({
+      name: "Giant Animated Statue",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A giant statue animated to serve as a guardian at the gate.",
+      traits: ["construct", "mindless"],
+    })).toContain("animated_statue");
+
+    expect(deriveRecordTags({
+      name: "Shadowbound Monk Statue",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A carved statue animated to stand watch like a patient monk.",
+      traits: ["construct", "mindless"],
+    })).toContain("animated_statue");
+  });
+
+  it("avoids figurative animation, mimics, and ordinary stone animals", () => {
+    expect(deriveRecordTags({
+      name: "Animated Debate",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "The animated debate between scholars grows louder, but nothing is literally brought to life.",
+      traits: ["humanoid"],
+    })).not.toEqual(expect.arrayContaining(["animated_object", "animated_statue"]));
+
+    expect(deriveRecordTags({
+      name: "Mimic Chest",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A mimic disguised as a treasure chest waits for prey.",
+      traits: ["aberration"],
+    })).not.toEqual(expect.arrayContaining(["animated_object", "animated_statue"]));
+
+    expect(deriveRecordTags({
+      name: "Stone Lion Cub",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A small stone lion cub prowls the sanctuary like an ornament come to life.",
+      traits: ["animal"],
+    })).not.toEqual(expect.arrayContaining(["animated_object", "animated_statue"]));
+  });
 });

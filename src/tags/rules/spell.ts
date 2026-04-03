@@ -108,6 +108,116 @@ const RESISTANCE_SUPPORT_TEXT_ANCHORS = [
   phraseAnchor("protects against sonic"),
 ];
 
+const TRANSFORMATION_NAME_ANCHORS = [
+  tokenAnchor("metamorphosis", "name"),
+  tokenAnchor("polymorph", "name"),
+  tokenAnchor("transformation", "name"),
+  tokenAnchor("avatar", "name"),
+  tokenAnchor("incarnate", "name"),
+];
+
+const TRANSFORMATION_TEXT_ANCHORS = [
+  phraseAnchor("assume the form"),
+  phraseAnchor("take the form"),
+  phraseAnchor("take on the form"),
+  phraseAnchor("change shape"),
+  phraseAnchor("change into"),
+  phraseAnchor("transform into"),
+  phraseAnchor("transform your appearance"),
+  phraseAnchor("reshape your body"),
+  phraseAnchor("reshape the target s body"),
+  phraseAnchor("take on a new form"),
+  phraseAnchor("body becomes"),
+  phraseAnchor("body is transformed"),
+];
+
+const TRANSFORMATION_SUMMON_BLOCKER_TEXT_ANCHORS = [
+  tokenAnchor("summon"),
+  tokenAnchor("summons"),
+  tokenAnchor("summoned"),
+  tokenAnchor("conjure"),
+  tokenAnchor("conjures"),
+  phraseAnchor("call forth"),
+  phraseAnchor("bring forth"),
+  phraseAnchor("call into being"),
+];
+
+const TRANSFORMATION_DISGUISE_BLOCKER_TEXT_ANCHORS = [
+  tokenAnchor("disguise"),
+  tokenAnchor("disguises"),
+  tokenAnchor("disguised"),
+  tokenAnchor("impersonate"),
+  tokenAnchor("impersonates"),
+  tokenAnchor("masquerade"),
+  tokenAnchor("masquerades"),
+  phraseAnchor("false identity"),
+  phraseAnchor("take on the appearance"),
+  phraseAnchor("change your appearance"),
+  phraseAnchor("appearance becomes bland and nondescript"),
+  phraseAnchor("pass as someone else"),
+];
+
+const TRANSFORMATION_SIZE_BLOCKER_TEXT_ANCHORS = [
+  phraseAnchor("increase your size"),
+  phraseAnchor("decrease your size"),
+  phraseAnchor("increase the target s size"),
+  phraseAnchor("decrease the target s size"),
+  phraseAnchor("grow larger"),
+  phraseAnchor("grow smaller"),
+  phraseAnchor("become larger"),
+  phraseAnchor("become smaller"),
+  phraseAnchor("only changes your size"),
+  phraseAnchor("size changes"),
+  tokenAnchor("enlarge"),
+  tokenAnchor("shrink"),
+  tokenAnchor("reduce"),
+];
+
+const TRANSFORMATION_OBJECT_ANIMATION_BLOCKER_TEXT_ANCHORS = [
+  phraseAnchor("animate object"),
+  phraseAnchor("animate objects"),
+  phraseAnchor("animated object"),
+  phraseAnchor("animated objects"),
+  phraseAnchor("turn them into animated objects"),
+  phraseAnchor("turn it into an animated object"),
+  phraseAnchor("objects are animated"),
+  phraseAnchor("objects come to life"),
+  phraseAnchor("animate the object"),
+  phraseAnchor("animate the objects"),
+];
+
+const TRANSFORMATION_BLOCKER_TEXT_ANCHORS = [
+  ...TRANSFORMATION_SUMMON_BLOCKER_TEXT_ANCHORS,
+  ...TRANSFORMATION_DISGUISE_BLOCKER_TEXT_ANCHORS,
+  ...TRANSFORMATION_SIZE_BLOCKER_TEXT_ANCHORS,
+  ...TRANSFORMATION_OBJECT_ANIMATION_BLOCKER_TEXT_ANCHORS,
+];
+
+const BATTLE_FORM_TEXT_ANCHORS = [
+  phraseAnchor("battle form"),
+  phraseAnchor("combat form"),
+  phraseAnchor("gain the following statistics"),
+  phraseAnchor("gain the following statistics and abilities"),
+  phraseAnchor("you gain the following statistics"),
+  phraseAnchor("you gain the following statistics and abilities"),
+];
+
+const ANIMAL_FORM_TEXT_ANCHORS = [
+  phraseAnchor("animal form"),
+  phraseAnchor("beast form"),
+  phraseAnchor("pest form"),
+  phraseAnchor("dinosaur form"),
+  phraseAnchor("animal battle form"),
+  phraseAnchor("beast battle form"),
+  phraseAnchor("pest battle form"),
+  phraseAnchor("dinosaur battle form"),
+];
+
+const ELEMENTAL_FORM_TEXT_ANCHORS = [
+  phraseAnchor("elemental form"),
+  phraseAnchor("elemental battle form"),
+];
+
 export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "disguise",
@@ -246,6 +356,99 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
     ],
     noneOf: [
       { textAny: SPELL_MOBILITY_BLOCKER_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "transformation",
+    category: "spell",
+    threshold: 2,
+    anyOf: [
+      { score: 1, traitsAny: ["polymorph", "morph", "transmutation"] },
+      { score: 1, textAny: TRANSFORMATION_NAME_ANCHORS },
+      { score: 2, textAny: TRANSFORMATION_TEXT_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [tokenAnchor("form"), tokenAnchor("shape"), tokenAnchor("body"), tokenAnchor("transform"), tokenAnchor("change")],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+        ],
+      },
+    ],
+    noneOf: [
+      { textAny: TRANSFORMATION_BLOCKER_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "battle_form",
+    category: "spell",
+    threshold: 2,
+    anyOf: [
+      { score: 1, traitsAny: ["polymorph", "morph"] },
+      { score: 2, textAny: BATTLE_FORM_TEXT_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [tokenAnchor("battle"), tokenAnchor("form"), tokenAnchor("statistics"), tokenAnchor("abilities")],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+        ],
+      },
+    ],
+    noneOf: [
+      { textAny: TRANSFORMATION_BLOCKER_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "animal_form",
+    category: "spell",
+    threshold: 2,
+    anyOf: [
+      { score: 1, traitsAny: ["polymorph", "morph"] },
+      { score: 2, textAny: ANIMAL_FORM_TEXT_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [tokenAnchor("animal"), tokenAnchor("beast"), tokenAnchor("pest"), tokenAnchor("dinosaur"), tokenAnchor("form")],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+        ],
+      },
+    ],
+    noneOf: [
+      { textAny: TRANSFORMATION_BLOCKER_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "elemental_form",
+    category: "spell",
+    threshold: 2,
+    anyOf: [
+      { score: 1, traitsAny: ["polymorph", "morph"] },
+      { score: 2, textAny: ELEMENTAL_FORM_TEXT_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [tokenAnchor("elemental"), tokenAnchor("form"), tokenAnchor("battle"), tokenAnchor("statistics")],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+        ],
+      },
+    ],
+    noneOf: [
+      { textAny: TRANSFORMATION_BLOCKER_TEXT_ANCHORS },
     ],
   },
   {

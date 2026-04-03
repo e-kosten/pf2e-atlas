@@ -200,6 +200,109 @@ const DISGUISED_PRETENDER_CONTEXT_TEXT_NEAR = [
   },
 ];
 
+const BOUND_OBJECT_LIVING_BLOCKER_TRAITS = [
+  "aberration",
+  "animal",
+  "beast",
+  "dragon",
+  "elemental",
+  "fey",
+  "fiend",
+  "giant",
+  "humanoid",
+  "monitor",
+  "plant",
+  "undead",
+];
+
+const BOUND_OBJECT_MIMIC_BLOCKERS = [
+  tokenAnchor("mimic"),
+  tokenAnchor("mimics"),
+  phraseAnchor("mimic chest"),
+  phraseAnchor("mimic chests"),
+];
+
+const BOUND_OBJECT_FIGURATIVE_BLOCKERS = [
+  phraseAnchor("animated discussion"),
+  phraseAnchor("animated debate"),
+  phraseAnchor("animated conversation"),
+  phraseAnchor("animated expression"),
+  phraseAnchor("animatedly"),
+];
+
+const BOUND_OBJECT_ANIMATION_TEXT_ANCHORS = [
+  tokenAnchor("animated"),
+  tokenAnchor("animate"),
+  tokenAnchor("animates"),
+  tokenAnchor("animation"),
+  phraseAnchor("brought to life"),
+  phraseAnchor("brought to unlife"),
+  phraseAnchor("comes to life"),
+];
+
+const BOUND_OBJECT_OBJECT_TEXT_ANCHORS = [
+  tokenAnchor("object"),
+  tokenAnchor("objects"),
+  tokenAnchor("armor"),
+  tokenAnchor("armors"),
+  tokenAnchor("broom"),
+  tokenAnchor("brooms"),
+  tokenAnchor("cookware"),
+  tokenAnchor("silverware"),
+  tokenAnchor("blade"),
+  tokenAnchor("blades"),
+  tokenAnchor("axe"),
+  tokenAnchor("axes"),
+  tokenAnchor("fireplace"),
+  tokenAnchor("fireplaces"),
+  tokenAnchor("vessel"),
+  tokenAnchor("vessels"),
+  tokenAnchor("cauldron"),
+  tokenAnchor("cauldrons"),
+  tokenAnchor("table"),
+  tokenAnchor("tables"),
+  tokenAnchor("chair"),
+  tokenAnchor("chairs"),
+  tokenAnchor("stool"),
+  tokenAnchor("stools"),
+  tokenAnchor("tool"),
+  tokenAnchor("tools"),
+  tokenAnchor("utensil"),
+  tokenAnchor("utensils"),
+  tokenAnchor("furniture"),
+];
+
+const BOUND_OBJECT_STATUE_TEXT_ANCHORS = [
+  tokenAnchor("statue"),
+  tokenAnchor("statues"),
+  tokenAnchor("effigy"),
+  tokenAnchor("effigies"),
+  tokenAnchor("idol"),
+  tokenAnchor("idols"),
+  tokenAnchor("monument"),
+  tokenAnchor("monuments"),
+];
+
+const BOUND_OBJECT_STATUE_CONTEXT_TEXT_ANCHORS = [
+  tokenAnchor("animated"),
+  tokenAnchor("animate"),
+  tokenAnchor("animates"),
+  tokenAnchor("animation"),
+  tokenAnchor("guardian"),
+  tokenAnchor("guardians"),
+  tokenAnchor("sentinel"),
+  tokenAnchor("sentinels"),
+  tokenAnchor("watch"),
+  tokenAnchor("watcher"),
+  tokenAnchor("watchers"),
+  tokenAnchor("protect"),
+  tokenAnchor("protects"),
+  phraseAnchor("comes to life"),
+  phraseAnchor("brought to life"),
+  phraseAnchor("stands guard"),
+  phraseAnchor("standing guard"),
+];
+
 const TRICKSTER_CHAOS_NAME_ANCHORS = [
   tokenAnchor("trickster", "name"),
   tokenAnchor("tricksters", "name"),
@@ -769,6 +872,52 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
       { score: 2, textAny: DISGUISED_PRETENDER_NAME_ANCHORS },
       { score: 2, textAny: DISGUISED_PRETENDER_TEXT_ANCHORS },
       { score: 1, textNear: DISGUISED_PRETENDER_CONTEXT_TEXT_NEAR },
+    ],
+  },
+  {
+    tag: "animated_object",
+    category: "creature",
+    threshold: 2,
+    noneOf: [
+      { traitsAny: BOUND_OBJECT_LIVING_BLOCKER_TRAITS },
+      { textAny: BOUND_OBJECT_MIMIC_BLOCKERS },
+      { textAny: BOUND_OBJECT_FIGURATIVE_BLOCKERS },
+    ],
+    anyOf: [
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [...BOUND_OBJECT_ANIMATION_TEXT_ANCHORS, ...BOUND_OBJECT_OBJECT_TEXT_ANCHORS],
+            window: 4,
+            scope: "either",
+            minTermsMatched: 2,
+          },
+        ],
+      },
+    ],
+  },
+  {
+    tag: "animated_statue",
+    category: "creature",
+    threshold: 2,
+    noneOf: [
+      { textAny: BOUND_OBJECT_MIMIC_BLOCKERS },
+      { textAny: BOUND_OBJECT_FIGURATIVE_BLOCKERS },
+      { textAny: [phraseAnchor("stone animal"), phraseAnchor("stone animals"), phraseAnchor("stone beast"), phraseAnchor("stone beasts"), phraseAnchor("stone creature"), phraseAnchor("stone creatures")] },
+    ],
+    anyOf: [
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [...BOUND_OBJECT_STATUE_TEXT_ANCHORS, ...BOUND_OBJECT_STATUE_CONTEXT_TEXT_ANCHORS],
+            window: 5,
+            scope: "either",
+            minTermsMatched: 2,
+          },
+        ],
+      },
     ],
   },
   {

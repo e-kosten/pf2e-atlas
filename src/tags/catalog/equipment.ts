@@ -1,6 +1,8 @@
-import { DerivedTagCatalogEntry } from "../../types.js";
+import { DerivedTagCatalogEntry, type SearchSubcategory } from "../../types.js";
 
 import { DISGUISE_SUBCATEGORIES, GEARISH_SUBCATEGORIES } from "../shared.js";
+
+const PURPOSE_SUBCATEGORIES: SearchSubcategory[] = [...GEARISH_SUBCATEGORIES, "armor"];
 
 export const EQUIPMENT_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
   {
@@ -38,9 +40,9 @@ export const EQUIPMENT_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
   },
   {
     category: "equipment",
-    subcategories: GEARISH_SUBCATEGORIES,
+    subcategories: PURPOSE_SUBCATEGORIES,
     family: "purpose",
-    description: "Utility and logistics gear-purpose tags.",
+    description: "Utility and logistics gear-purpose tags, including armor use cases.",
     tags: [
       { value: "climbing", description: "Helps climb, rappel, or navigate vertical obstacles." },
       { value: "lock_bypass", description: "Helps open locks or bypass secured entry points." },
