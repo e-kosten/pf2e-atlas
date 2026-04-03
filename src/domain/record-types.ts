@@ -34,6 +34,7 @@ export interface DerivedTagCatalogEntry {
   family: string;
   description: string;
   tags: DerivedTagCatalogTag[];
+  promoteFamilyToTag?: boolean;
 }
 
 export interface NormalizedRecord {

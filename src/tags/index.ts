@@ -1,5 +1,6 @@
 import { deriveRecordTagsFromRules } from "./matcher.js";
 import { normalizeDerivedTag, DerivedTagContext } from "./shared.js";
+import { applyPromotedFamilyTags, publishDerivedTagCatalog } from "./catalog-utils.js";
 import { AFFLICTION_DERIVED_TAG_CATALOG } from "./catalog/affliction.js";
 import { CREATURE_DERIVED_TAG_CATALOG } from "./catalog/creature.js";
 import { EQUIPMENT_DERIVED_TAG_CATALOG } from "./catalog/equipment.js";
@@ -21,7 +22,7 @@ const DERIVED_TAG_RULES = [
   ...CREATURE_DERIVED_TAG_RULES,
 ];
 
-export const DERIVED_TAG_CATALOG = [
+const RAW_DERIVED_TAG_CATALOG = [
   ...EQUIPMENT_DERIVED_TAG_CATALOG,
   ...SPELL_DERIVED_TAG_CATALOG,
   ...HAZARD_DERIVED_TAG_CATALOG,
@@ -29,6 +30,9 @@ export const DERIVED_TAG_CATALOG = [
   ...CREATURE_DERIVED_TAG_CATALOG,
 ];
 
+export const DERIVED_TAG_CATALOG = publishDerivedTagCatalog(RAW_DERIVED_TAG_CATALOG);
+
 export function deriveRecordTags(input: DerivedTagContext): string[] {
-  return deriveRecordTagsFromRules(DERIVED_TAG_RULES, input);
+  const tags = deriveRecordTagsFromRules(DERIVED_TAG_RULES, input);
+  return applyPromotedFamilyTags(RAW_DERIVED_TAG_CATALOG, input, tags);
 }
