@@ -18,10 +18,15 @@ import {
   uniqueSorted,
 } from "../utils.js";
 import {
+  ActorIndexData,
   BuildIndexResult,
   BuildSourceEntry,
+  ItemIndexData,
+  NormalizedIndexRecord,
   PackBuildInfo,
   PendingCanonicalEmbedding,
+  ResolvedBuildReference,
+  SpellIndexData,
   StageTiming,
 } from "./index-types.js";
 import {
@@ -37,6 +42,9 @@ import {
   shouldExcludeRecordFromIndex,
 } from "./record-normalization.js";
 import {
+  buildDerivedAfflictionArtifacts,
+} from "./derived-afflictions.js";
+import {
   extractRulesReferences,
   resolveBuildReferencesAndAliases,
 } from "./references.js";
@@ -47,6 +55,17 @@ const VEC_INT_NONE = -1n;
 const EMBEDDING_BATCH_SIZE = 64;
 const PACK_PROGRESS_BAR_WIDTH = 24;
 const PACK_PROGRESS_LOG_INTERVAL_MS = 5_000;
+
+type WritableIndexEntry = {
+  record: NormalizedIndexRecord;
+  raw: Record<string, unknown>;
+  actorData: ActorIndexData | null;
+  itemData: ItemIndexData | null;
+  spellData: SpellIndexData | null;
+  resolvedReferences: ResolvedBuildReference[];
+  aliasTexts: string[];
+  isSearchCanonical: boolean;
+};
 
 function encodeVector(vector: Float32Array): Buffer {
   return Buffer.from(vector.buffer.slice(vector.byteOffset, vector.byteOffset + vector.byteLength));
@@ -442,8 +461,25 @@ export async function buildIndex(
       });
     }
 
+    const derivedAfflictions = buildDerivedAfflictionArtifacts(indexedEntries);
+    for (const entry of derivedAfflictions.records) {
+      if (!entry.isSearchCanonical) {
+        continue;
+      }
+
+      entry.record.derivedTags = deriveRecordTags({
+        name: entry.record.name,
+        category: entry.record.category,
+        subcategory: entry.record.subcategory,
+        descriptionText: entry.record.descriptionText,
+        traits: entry.record.traits,
+        families: entry.record.families,
+        references: [],
+      });
+    }
+
     progressLogger?.(
-      `Resolved ${formatInteger(aliasRows.length)} verified aliases and ${formatInteger(legacyLinkRows.length)} legacy-to-remaster links.`,
+      `Resolved ${formatInteger(aliasRows.length)} verified aliases, ${formatInteger(legacyLinkRows.length)} legacy-to-remaster links, and ${formatInteger(derivedAfflictions.records.filter((entry) => entry.isSearchCanonical).length)} derived affliction canonicals.`,
     );
 
     const suppressedRecordKeys = new Set(legacyLinkRows.map((row) => row.legacyRecordKey));
@@ -456,8 +492,32 @@ export async function buildIndex(
 
     resolutionDurationMs = Date.now() - resolutionStartTime;
 
-    const canonicalEmbeddingCount = indexedEntries.filter((entry) => !suppressedRecordKeys.has(entry.record.recordKey)).length;
-    const recordWriteProgressInterval = Math.max(100, Math.ceil(indexedEntries.length / 10));
+    const writableEntries: WritableIndexEntry[] = [
+      ...indexedEntries.map((entry) => ({
+        record: entry.record,
+        raw: entry.raw,
+        actorData: entry.actorData,
+        itemData: entry.itemData,
+        spellData: entry.spellData,
+        resolvedReferences: entry.resolvedReferences,
+        aliasTexts: aliasesByCanonicalRecordKey.get(entry.record.recordKey) ?? [],
+        isSearchCanonical: !suppressedRecordKeys.has(entry.record.recordKey),
+      })),
+      ...derivedAfflictions.records.map((entry) => ({
+        record: entry.record,
+        raw: entry.raw,
+        actorData: entry.actorData,
+        itemData: entry.itemData,
+        spellData: entry.spellData,
+        resolvedReferences: entry.resolvedReferences,
+        aliasTexts: [],
+        isSearchCanonical: entry.isSearchCanonical,
+      })),
+    ];
+
+    recordCount = writableEntries.length;
+    const canonicalEmbeddingCount = writableEntries.filter((entry) => entry.isSearchCanonical).length;
+    const recordWriteProgressInterval = Math.max(100, Math.ceil(writableEntries.length / 10));
     const embeddingProgressInterval = Math.max(25, Math.ceil(Math.max(canonicalEmbeddingCount, 1) / 10));
     const pendingCanonicalEmbeddings: PendingCanonicalEmbedding[] = [];
     let writtenRecordCount = 0;
@@ -470,10 +530,10 @@ export async function buildIndex(
 
     progressLogger?.("Writing indexed records and search metadata.");
 
-    for (const entry of indexedEntries) {
+    for (const entry of writableEntries) {
       const record = entry.record;
-      const aliasTexts = aliasesByCanonicalRecordKey.get(record.recordKey) ?? [];
-      const isSearchCanonical = !suppressedRecordKeys.has(record.recordKey);
+      const aliasTexts = entry.aliasTexts;
+      const isSearchCanonical = entry.isSearchCanonical;
       const searchText = uniqueSorted([record.searchText, ...aliasTexts].filter(Boolean)).join("\n");
 
       insertRecord.run(
@@ -578,17 +638,30 @@ export async function buildIndex(
 
       writtenRecordCount += 1;
       const now = Date.now();
-      const shouldLogProgress = writtenRecordCount === indexedEntries.length ||
+      const shouldLogProgress = writtenRecordCount === writableEntries.length ||
         (writtenRecordCount - lastLoggedRecordCount) >= recordWriteProgressInterval ||
         (now - lastRecordProgressLogTime) >= PACK_PROGRESS_LOG_INTERVAL_MS;
 
       if (shouldLogProgress) {
         progressStatusLogger?.(
-          `[write] Stored records ${renderProgressBar(writtenRecordCount, indexedEntries.length)} ${formatPercentage(writtenRecordCount, indexedEntries.length)} (${formatInteger(writtenRecordCount)}/${formatInteger(indexedEntries.length)} records).`,
+          `[write] Stored records ${renderProgressBar(writtenRecordCount, writableEntries.length)} ${formatPercentage(writtenRecordCount, writableEntries.length)} (${formatInteger(writtenRecordCount)}/${formatInteger(writableEntries.length)} records).`,
         );
         lastRecordProgressLogTime = now;
         lastLoggedRecordCount = writtenRecordCount;
       }
+    }
+
+    for (const edge of derivedAfflictions.edges) {
+      insertReferenceEdge.run(
+        edge.fromRecordKey,
+        edge.toRecordKey,
+        edge.displayText,
+        edge.referenceText,
+        edge.fromPackName,
+        edge.fromRecordType,
+        edge.fromDocumentType,
+        edge.fromSourceCategory,
+      );
     }
 
     recordStorageDurationMs = Date.now() - recordStorageStartTime;

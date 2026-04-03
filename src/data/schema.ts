@@ -16,7 +16,7 @@ import {
 } from "../types.js";
 import { uniqueSorted } from "../utils.js";
 
-export const INDEX_SCHEMA_VERSION = 16;
+export const INDEX_SCHEMA_VERSION = 17;
 
 function hashText(value: string): number {
   let hash = 2166136261;

@@ -4,10 +4,15 @@ import {
 } from "../domain/categories.js";
 import type { SourceCategory } from "../types.js";
 import {
+  buildEmbeddedItemSearchChunks,
+  getRecordDescriptionMarkup,
+  getRecordDescriptionText,
+  getRecordTraits,
+} from "./nested-item-utils.js";
+import {
   firstString,
   getNested,
   normalizeText,
-  stripHtml,
   toStringArray,
   uniqueSorted,
 } from "../utils.js";
@@ -38,12 +43,7 @@ export function getPublicationRemaster(raw: Record<string, unknown>): boolean {
 }
 
 export function getDescriptionMarkup(raw: Record<string, unknown>): string | null {
-  return firstString(
-    getNested(raw, ["system", "description", "value"]),
-    getNested(raw, ["system", "details", "description"]),
-    getNested(raw, ["system", "details", "publicNotes"]),
-    getNested(raw, ["system", "details", "blurb"]),
-  );
+  return getRecordDescriptionMarkup(raw);
 }
 
 function getLevel(raw: Record<string, unknown>): number | null {
@@ -53,11 +53,7 @@ function getLevel(raw: Record<string, unknown>): number | null {
 }
 
 function getDescriptionText(raw: Record<string, unknown>): string | null {
-  return stripHtml(getDescriptionMarkup(raw));
-}
-
-function getTraits(raw: Record<string, unknown>): string[] {
-  return uniqueSorted(toStringArray(getNested(raw, ["system", "traits", "value"])));
+  return getRecordDescriptionText(raw);
 }
 
 function getRarity(raw: Record<string, unknown>): string | null {
@@ -231,7 +227,7 @@ function parseRangeValue(raw: Record<string, unknown>): number | null {
 }
 
 function extractSpellKinds(raw: Record<string, unknown>): string[] {
-  const spellTraits = new Set(getTraits(raw).map((trait) => normalizeText(trait)).filter(Boolean));
+  const spellTraits = new Set(getRecordTraits(raw).map((trait) => normalizeText(trait)).filter(Boolean));
   return ["focus", "ritual", "cantrip"].filter((kind) => spellTraits.has(kind));
 }
 
@@ -264,37 +260,7 @@ function appendUniqueTextChunk(chunks: string[], seen: Set<string>, value: strin
 }
 
 function buildActorSemanticItemChunks(raw: Record<string, unknown>): string[] {
-  const chunks: string[] = [];
-  const seen = new Set<string>();
-  const items = getNested(raw, ["items"]);
-  if (!Array.isArray(items)) {
-    return chunks;
-  }
-
-  for (const entry of items) {
-    if (!entry || typeof entry !== "object") {
-      continue;
-    }
-
-    const item = entry as Record<string, unknown>;
-    appendUniqueTextChunk(chunks, seen, firstString(item.name));
-    if (chunks.length >= MAX_ACTOR_SEMANTIC_ITEM_CHUNKS) {
-      break;
-    }
-
-    for (const trait of getTraits(item)) {
-      appendUniqueTextChunk(chunks, seen, trait);
-      if (chunks.length >= MAX_ACTOR_SEMANTIC_ITEM_CHUNKS) {
-        break;
-      }
-    }
-
-    if (chunks.length >= MAX_ACTOR_SEMANTIC_ITEM_CHUNKS) {
-      break;
-    }
-  }
-
-  return chunks;
+  return buildEmbeddedItemSearchChunks(raw, MAX_ACTOR_SEMANTIC_ITEM_CHUNKS);
 }
 
 function buildSearchText(raw: Record<string, unknown>, base: { name: string; descriptionText: string | null; traits: string[] }): string {
@@ -303,26 +269,7 @@ function buildSearchText(raw: Record<string, unknown>, base: { name: string; des
     chunks.push(base.descriptionText);
   }
 
-  const items = getNested(raw, ["items"]);
-  if (Array.isArray(items)) {
-    for (const entry of items) {
-      if (!entry || typeof entry !== "object") {
-        continue;
-      }
-
-      const item = entry as Record<string, unknown>;
-      const itemName = firstString(item.name);
-      const itemDescription = stripHtml(firstString(getNested(item, ["system", "description", "value"])));
-      const itemTraits = getTraits(item);
-      if (itemName) {
-        chunks.push(itemName);
-      }
-      if (itemDescription) {
-        chunks.push(itemDescription);
-      }
-      chunks.push(...itemTraits);
-    }
-  }
+  chunks.push(...buildEmbeddedItemSearchChunks(raw));
 
   return chunks
     .filter((value): value is string => Boolean(value))
@@ -439,7 +386,7 @@ export function shouldExcludeRecordFromIndex(pack: PackBuildInfo, sourcePath: st
     recordType: firstString(raw.type) ?? "unknown",
     packName: pack.name,
     sourcePath,
-    traits: getTraits(raw),
+    traits: getRecordTraits(raw),
     traditions: extractSpellTraditions(raw),
     raw,
   });
@@ -472,7 +419,7 @@ export function normalizeIndexRecord(pack: PackBuildInfo, sourcePath: string, ra
   }
 
   const rarity = getRarity(raw);
-  const traits = getTraits(raw);
+  const traits = getRecordTraits(raw);
   const descriptionText = getDescriptionText(raw);
   const publicationTitle = getPublicationTitle(raw);
   const publicationRemaster = getPublicationRemaster(raw);

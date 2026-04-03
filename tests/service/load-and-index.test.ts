@@ -77,7 +77,217 @@ describe("Pf2eDataService / Load and Index", () => {
     db.close();
 
     expect(row?.searchText).toContain("Deck Order 41");
-    expect(row?.searchText).toContain("coordinates the crew around starboard rigging routines");
+    expect(row?.searchText).toContain("auditory");
+    expect(row?.searchText).not.toContain("coordinates the crew around starboard rigging routines");
+  });
+
+  it("derives canonical afflictions from staged nested items while keeping host search text compact", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+    const indexPath = path.join(fixture.root, ".cache", "pf2e-index.sqlite");
+
+    await import("node:fs/promises").then(({ mkdir }) => mkdir(
+      path.join(fixture.root, "packs", "pf2e", "bestiary-family-ability-glossary", "ghoul"),
+      { recursive: true },
+    ));
+
+    await writeJson(path.join(fixture.root, "packs", "pf2e", "bestiary-family-ability-glossary", "ghoul", "ghoul-fever.json"), {
+      _id: "ghoulfeversource",
+      name: "Ghoul Fever",
+      type: "action",
+      system: {
+        category: "offensive",
+        description: {
+          value: "<p><strong>Saving Throw</strong> @Check[fortitude|dc:18]</p><p><strong>Stage 1</strong> @UUID[Compendium.pf2e.conditionitems.Item.Sickened]{Sickened 1} (1 day)</p><p><strong>Stage 2</strong> @UUID[Compendium.pf2e.conditionitems.Item.Unconscious] (1 day)</p>",
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        traits: {
+          rarity: "common",
+          value: ["disease"],
+        },
+      },
+    });
+    await writeJson(path.join(fixture.root, "packs", "pf2e", "equipment-srd", "lethargy-poison.json"), {
+      _id: "lethargypoison",
+      name: "Lethargy Poison",
+      type: "consumable",
+      system: {
+        category: "poison",
+        description: {
+          value: "<p><strong>Saving Throw</strong> @Check[fortitude|dc:20]</p><p><strong>Maximum Duration</strong> 4 rounds</p><p><strong>Stage 1</strong> @UUID[Compendium.pf2e.conditionitems.Item.Slowed]{Slowed 1} (1 round)</p><p><strong>Stage 2</strong> @UUID[Compendium.pf2e.conditionitems.Item.Unconscious] (1 round)</p>",
+        },
+        level: {
+          value: 2,
+        },
+        price: {
+          value: {
+            gp: 7,
+          },
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        traits: {
+          rarity: "common",
+          value: ["injury", "poison", "sleep"],
+        },
+      },
+    });
+    await writeJson(path.join(fixture.root, "packs", "pf2e", "pathfinder-monster-core", "ghoul-brute.json"), {
+      _id: "ghoulbrute",
+      name: "Ghoul Brute",
+      type: "npc",
+      items: [
+        {
+          _id: "ghoulfever1",
+          _stats: {
+            compendiumSource: "Compendium.pf2e.bestiary-family-ability-glossary.Item.ghoulfeversource",
+          },
+          name: "Ghoul Fever",
+          type: "action",
+          system: {
+            category: "offensive",
+            slug: "ghoul-ghoul-fever",
+            description: {
+              value: "<p><strong>Saving Throw</strong> @Check[fortitude|dc:18]</p><p><strong>Stage 1</strong> @UUID[Compendium.pf2e.conditionitems.Item.Sickened]{Sickened 1} (1 day)</p><p><strong>Stage 2</strong> @UUID[Compendium.pf2e.conditionitems.Item.Unconscious] (1 day)</p>",
+            },
+            traits: {
+              value: ["disease"],
+            },
+          },
+        },
+      ],
+      system: {
+        details: {
+          level: {
+            value: 2,
+          },
+          publication: {
+            title: "Pathfinder Monster Core",
+          },
+          publicNotes: "<p>A diseased ghoul brute.</p>",
+        },
+        traits: {
+          rarity: "common",
+          value: ["undead"],
+          size: {
+            value: "med",
+          },
+        },
+      },
+    });
+    await writeJson(path.join(fixture.root, "packs", "pf2e", "pathfinder-monster-core", "drow-poisoner.json"), {
+      _id: "drowpoisoner",
+      name: "Drow Poisoner",
+      type: "npc",
+      items: [
+        {
+          _id: "lethargypoison1",
+          _stats: {
+            compendiumSource: "Compendium.pf2e.equipment-srd.Item.lethargypoison",
+          },
+          name: "Lethargy Poison",
+          type: "consumable",
+          system: {
+            category: "poison",
+            slug: "lethargy-poison",
+            description: {
+              value: "<p><strong>Saving Throw</strong> @Check[fortitude|dc:20]</p><p><strong>Maximum Duration</strong> 4 rounds</p><p><strong>Stage 1</strong> @UUID[Compendium.pf2e.conditionitems.Item.Slowed]{Slowed 1} (1 round)</p><p><strong>Stage 2</strong> @UUID[Compendium.pf2e.conditionitems.Item.Unconscious] (1 round)</p>",
+            },
+            traits: {
+              value: ["injury", "poison", "sleep"],
+            },
+          },
+        },
+        {
+          _id: "sneakattack1",
+          name: "Sneak Attack",
+          type: "action",
+          system: {
+            category: "offensive",
+            slug: "sneak-attack",
+            description: {
+              value: "<p>The drow poisoner deals an extra 2d6 precision damage to off-guard creatures.</p>",
+            },
+            traits: {
+              value: [],
+            },
+          },
+        },
+      ],
+      system: {
+        details: {
+          level: {
+            value: 4,
+          },
+          publication: {
+            title: "Pathfinder Monster Core",
+          },
+          publicNotes: "<p>A poison-using drow assassin.</p>",
+        },
+        traits: {
+          rarity: "common",
+          value: ["elf", "humanoid"],
+          size: {
+            value: "med",
+          },
+        },
+      },
+    });
+
+    const service = await loadTestService(fixture, { indexPath });
+
+    const ghoulFever = service.lookup("Ghoul Fever", { category: "affliction" }).match;
+    expect(ghoulFever?.packName).toBe("derived-afflictions");
+    expect(ghoulFever?.subcategory).toBe("disease");
+    expect(ghoulFever?.descriptionText).toContain("Saving Throw");
+
+    const lethargyPoison = service.lookup("Lethargy Poison", { category: "affliction" }).match;
+    expect(lethargyPoison?.packName).toBe("derived-afflictions");
+    expect(lethargyPoison?.subcategory).toBe("poison");
+
+    const afflictionResults = await service.search({ category: "affliction", query: "ghoul fever" });
+    expect(afflictionResults.records.map((record) => record.name)).toContain("Ghoul Fever");
+
+    const creatureResults = await service.search({ category: "creature", query: "ghoul fever" });
+    expect(creatureResults.records.map((record) => record.name)).toContain("Ghoul Brute");
+
+    const graph = service.getRuleGraph([ghoulFever!.recordKey], {
+      includeOutgoing: true,
+      maxOutgoingPerPrimary: 10,
+    });
+    expect(graph.outgoing.records.map((record) => record.name)).toContain("Ghoul Brute");
+
+    const db = new DatabaseSync(indexPath);
+    const canonicalRows = db.prepare(`
+      SELECT name
+      FROM records
+      WHERE pack_name = 'derived-afflictions'
+      ORDER BY name ASC
+    `).all() as Array<{ name: string }>;
+    const instanceRows = db.prepare(`
+      SELECT COUNT(*) AS total
+      FROM records
+      WHERE pack_name = 'derived-affliction-instances'
+    `).get() as { total: number };
+    const ghoulBruteRow = db.prepare(`
+      SELECT search_text AS searchText
+      FROM records
+      WHERE name = 'Ghoul Brute'
+    `).get() as { searchText: string } | undefined;
+    db.close();
+
+    expect(canonicalRows.map((row) => row.name)).toEqual(["Ghoul Fever", "Lethargy Poison"]);
+    expect(instanceRows.total).toBe(4);
+    expect(ghoulBruteRow?.searchText).toContain("Ghoul Fever");
+    expect(ghoulBruteRow?.searchText).toContain("disease");
+    expect(ghoulBruteRow?.searchText).toContain("Sickened 1");
+    expect(ghoulBruteRow?.searchText).not.toContain("Saving Throw");
+    expect(ghoulBruteRow?.searchText).not.toContain("The victim");
+
+    service.close();
   });
 
   it("logs a final rebuild stage timing summary", async () => {
