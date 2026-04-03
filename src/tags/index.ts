@@ -181,6 +181,41 @@ const HAZARD_ALARM_TEXT_ANCHORS: TextAnchor[] = [
   tokenAnchor("intrusion"),
 ];
 
+const SPELL_SCOUTING_NAME_ANCHORS: TextAnchor[] = [
+  phraseAnchor("clairaudience", "name"),
+  phraseAnchor("clairvoyance", "name"),
+  phraseAnchor("familiar s face", "name"),
+  phraseAnchor("know location", "name"),
+  phraseAnchor("prying survey", "name"),
+  phraseAnchor("rune of observation", "name"),
+  phraseAnchor("scouting eye", "name"),
+  phraseAnchor("scrying", "name"),
+  phraseAnchor("scrying ripples", "name"),
+  phraseAnchor("unrelenting observation", "name"),
+];
+
+const SPELL_SCOUTING_TEXT_ANCHORS: TextAnchor[] = [
+  phraseAnchor("floating ear"),
+  phraseAnchor("floating eye"),
+  phraseAnchor("hear through the ear"),
+  phraseAnchor("see in all directions from that point"),
+  phraseAnchor("see through its eyes"),
+  phraseAnchor("transmits what it sees"),
+  phraseAnchor("transmitting rough impressions"),
+  phraseAnchor("you magically spy on"),
+  phraseAnchor("create a sensor"),
+  phraseAnchor("know the location"),
+  phraseAnchor("learn its approximate distance and direction"),
+];
+
+const SPELL_SCOUTING_BLOCKER_TEXT_ANCHORS: TextAnchor[] = [
+  phraseAnchor("preventing it from being used for magical observation"),
+  phraseAnchor("fools any attempts to scry"),
+  phraseAnchor("hide a creature from magic that would spy on it"),
+  phraseAnchor("make the target difficult to detect via magic"),
+  phraseAnchor("counteract all detection revelation and scrying effects"),
+];
+
 const AFFLICTION_MENTAL_TEXT_ANCHORS: TextAnchor[] = [
   tokenAnchor("confused"),
   tokenAnchor("confusion"),
@@ -521,6 +556,30 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     ],
   },
   {
+    tag: "scouting",
+    category: "spell",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: SPELL_SCOUTING_NAME_ANCHORS },
+      { score: 2, textAny: SPELL_SCOUTING_TEXT_ANCHORS },
+      {
+        score: 2,
+        textAll: [
+          tokenAnchor("senses"),
+          tokenAnchor("through"),
+        ],
+        textAny: [
+          phraseAnchor("through the ear"),
+          phraseAnchor("through its eyes"),
+          phraseAnchor("through each other s eyes"),
+        ],
+      },
+    ],
+    noneOf: [
+      { textAny: SPELL_SCOUTING_BLOCKER_TEXT_ANCHORS },
+    ],
+  },
+  {
     tag: "illumination",
     category: "equipment",
     subcategories: GEARISH_SUBCATEGORIES,
@@ -845,6 +904,62 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
   },
   {
     tag: "mental_impairment",
+    category: "hazard",
+    threshold: 2,
+    anyOf: [
+      {
+        score: 2,
+        textAny: [
+          tokenAnchor("fear"),
+          tokenAnchor("frightened"),
+          tokenAnchor("paranoia"),
+          tokenAnchor("confused"),
+          tokenAnchor("confusion"),
+          tokenAnchor("hallucination"),
+          tokenAnchor("hallucinations"),
+          phraseAnchor("psychic scream"),
+          tokenAnchor("disorients"),
+        ],
+      },
+      {
+        score: 1,
+        textAny: [
+          tokenAnchor("psychic"),
+          tokenAnchor("mental"),
+          tokenAnchor("mind"),
+        ],
+      },
+    ],
+  },
+  {
+    tag: "mobility_impairment",
+    category: "hazard",
+    threshold: 2,
+    anyOf: [
+      {
+        score: 2,
+        textAny: [
+          tokenAnchor("paralyzed"),
+          tokenAnchor("immobilized"),
+          tokenAnchor("restrained"),
+          tokenAnchor("grabbed"),
+          phraseAnchor("holds the creature in place"),
+          phraseAnchor("holds intruders in place"),
+          phraseAnchor("hold creatures in place"),
+          phraseAnchor("attempting to restrain nearby creatures"),
+          phraseAnchor("ready to capture small insects or hamper larger creatures"),
+        ],
+      },
+      {
+        score: 1,
+        textAny: [
+          tokenAnchor("slowed"),
+        ],
+      },
+    ],
+  },
+  {
+    tag: "mental_impairment",
     category: "affliction",
     threshold: 2,
     anyOf: [
@@ -1070,12 +1185,29 @@ export const DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
     ],
   },
   {
+    category: "spell",
+    family: "reconnaissance",
+    description: "Remote-observation and scouting spells.",
+    tags: [
+      { value: "scouting", description: "Helps observe at a distance, extend senses, or locate a target." },
+    ],
+  },
+  {
     category: "hazard",
     family: "function",
     description: "Hazard practical-function tags for alerts and restraint effects.",
     tags: [
       { value: "alarm", description: "Alerts guardians, onlookers, or nearby creatures to an intrusion." },
       { value: "restraint_capture", description: "Hazard that binds, restrains, or holds intruders in place." },
+    ],
+  },
+  {
+    category: "hazard",
+    family: "impact",
+    description: "Hazard impact tags for mental destabilization and movement-limiting effects.",
+    tags: [
+      { value: "mental_impairment", description: "Impairs judgment, emotions, or perception through fear, confusion, or similar effects." },
+      { value: "mobility_impairment", description: "Paralyzes, immobilizes, or otherwise heavily hampers movement." },
     ],
   },
   {

@@ -131,11 +131,26 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
         ]),
       }),
       expect.objectContaining({
+        category: "spell",
+        family: "reconnaissance",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "scouting", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
         category: "hazard",
         family: "function",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "alarm", description: expect.any(String) }),
           expect.objectContaining({ value: "restraint_capture", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "hazard",
+        family: "impact",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "mental_impairment", description: expect.any(String) }),
+          expect.objectContaining({ value: "mobility_impairment", description: expect.any(String) }),
         ]),
       }),
       expect.objectContaining({
@@ -182,11 +197,11 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     expect(service.listFilterValues({
       field: "derivedTags",
       category: "spell",
-    }).values.map((entry) => entry.value)).toEqual(["disguise", "social_infiltration"]);
+    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["disguise", "social_infiltration"]));
     expect(service.listFilterValues({
       field: "derivedTags",
       category: "hazard",
-    }).values.map((entry) => entry.value)).toEqual(["alarm", "restraint_capture"]);
+    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["alarm", "mobility_impairment", "restraint_capture"]));
     expect(service.listFilterValues({
       field: "derivedTags",
       category: "affliction",

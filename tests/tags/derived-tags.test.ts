@@ -829,6 +829,22 @@ describe("derived tag rules", () => {
     })).not.toEqual(expect.arrayContaining(["disguise", "social_infiltration"]));
 
     expect(deriveRecordTags({
+      name: "Scouting Eye",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You create an invisible, floating eye at a location you can see within 500 feet. It sees in all directions with your normal visual senses and continuously transmits what it sees.",
+      traits: ["divination"],
+    })).toContain("scouting");
+
+    expect(deriveRecordTags({
+      name: "Blind Eye",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You enchant a single object, preventing it from being used for magical observation. The item can't be used to cast scrying spells.",
+      traits: ["abjuration"],
+    })).not.toContain("scouting");
+
+    expect(deriveRecordTags({
       name: "Alarm Ward",
       category: "hazard",
       subcategory: null,
@@ -861,6 +877,30 @@ describe("derived tag rules", () => {
         },
       ],
     })).toContain("restraint_capture");
+
+    expect(deriveRecordTags({
+      name: "Mental Scream Trap",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "A psychic scream disorients creatures in the area and leaves them overwhelmed with fear.",
+      traits: ["magical"],
+    })).toContain("mental_impairment");
+
+    expect(deriveRecordTags({
+      name: "Paralysis Trap",
+      category: "hazard",
+      subcategory: null,
+      descriptionText: "Magical symbols carved in the doorframe magically ward this door; anyone attempting to pick the lock is Paralyzed and wracked with pain.",
+      traits: ["magical"],
+    })).toContain("mobility_impairment");
+
+    expect(deriveRecordTags({
+      name: "Psychic Wave",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "A wave of psychic energy ripples through the room, violently prying into the minds of creatures in the area and alerting Kemnebi to the presence of intruders.",
+      traits: ["magical"],
+    })).not.toContain("mental_impairment");
 
     expect(deriveRecordTags({
       name: "Cackling Delirium",
@@ -920,11 +960,26 @@ describe("derived tag rules", () => {
         ]),
       }),
       expect.objectContaining({
+        category: "spell",
+        family: "reconnaissance",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "scouting", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
         category: "hazard",
         family: "function",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "alarm", description: expect.any(String) }),
           expect.objectContaining({ value: "restraint_capture", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "hazard",
+        family: "impact",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "mental_impairment", description: expect.any(String) }),
+          expect.objectContaining({ value: "mobility_impairment", description: expect.any(String) }),
         ]),
       }),
       expect.objectContaining({
