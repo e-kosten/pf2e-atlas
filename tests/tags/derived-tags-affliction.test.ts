@@ -69,6 +69,22 @@ describe("derived tag rules: affliction", () => {
     })).toContain("healing_suppression");
 
     expect(deriveRecordTags({
+      name: "Ravenous Wasting",
+      category: "affliction",
+      subcategory: "disease",
+      descriptionText: "The victim cannot be healed while the wasting persists.",
+      traits: ["disease"],
+    })).toContain("healing_suppression");
+
+    expect(deriveRecordTags({
+      name: "Ashen Rot",
+      category: "affliction",
+      subcategory: "disease",
+      descriptionText: "Stage 3 regain half as many Hit Points from all healing effects.",
+      traits: ["disease"],
+    })).toContain("healing_suppression");
+
+    expect(deriveRecordTags({
       name: "Mindmurk Oil",
       category: "affliction",
       subcategory: "poison",

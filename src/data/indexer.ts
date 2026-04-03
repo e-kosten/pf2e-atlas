@@ -57,6 +57,7 @@ const VEC_INT_NONE = -1n;
 const EMBEDDING_BATCH_SIZE = 64;
 const PACK_PROGRESS_BAR_WIDTH = 24;
 const PACK_PROGRESS_LOG_INTERVAL_MS = 5_000;
+const RESOLUTION_PROGRESS_BAR_WIDTH = 24;
 
 type WritableIndexEntry = {
   record: NormalizedIndexRecord;
@@ -154,6 +155,19 @@ function formatPercentage(completed: number, total: number): string {
   }
 
   return `${Math.round((Math.max(0, Math.min(completed, total)) / total) * 100)}`.padStart(3, " ") + "%";
+}
+
+function shouldLogProgressUpdate(
+  processed: number,
+  total: number,
+  lastLoggedProcessed: number,
+  lastLoggedTime: number,
+  interval: number,
+  now: number,
+): boolean {
+  return processed === total ||
+    (processed - lastLoggedProcessed) >= interval ||
+    (now - lastLoggedTime) >= PACK_PROGRESS_LOG_INTERVAL_MS;
 }
 
 async function isGitCheckout(rootPath: string): Promise<boolean> {
@@ -478,6 +492,28 @@ export async function buildIndex(
       rootPath,
     });
 
+    const derivedAfflictions = buildDerivedAfflictionArtifacts(indexedEntries);
+    const canonicalDerivedAfflictions = derivedAfflictions.records.filter((entry) => entry.isSearchCanonical);
+    const totalResolutionRecords = indexedEntries.length + canonicalDerivedAfflictions.length;
+    const resolutionProgressInterval = Math.max(100, Math.ceil(Math.max(totalResolutionRecords, 1) / 20));
+    let resolvedRecordCount = 0;
+    let lastLoggedResolvedRecordCount = 0;
+    let lastResolutionProgressLogTime = Date.now();
+
+    const logResolutionProgress = (): void => {
+      if (totalResolutionRecords <= 0) {
+        return;
+      }
+
+      progressStatusLogger?.(
+        `[resolve] Derived tags ${renderProgressBar(resolvedRecordCount, totalResolutionRecords, RESOLUTION_PROGRESS_BAR_WIDTH)} ${formatPercentage(resolvedRecordCount, totalResolutionRecords)} (${formatInteger(resolvedRecordCount)}/${formatInteger(totalResolutionRecords)} records).`,
+      );
+    };
+
+    progressLogger?.(
+      `Finished resolving aliases and references. Deriving tags for ${formatInteger(totalResolutionRecords)} records.`,
+    );
+
     for (const entry of indexedEntries) {
       entry.record.derivedTags = deriveRecordTags({
         name: entry.record.name,
@@ -495,14 +531,24 @@ export async function buildIndex(
           traits: reference.targetRecord.traits,
         })),
       });
+
+      resolvedRecordCount += 1;
+      const now = Date.now();
+      if (shouldLogProgressUpdate(
+        resolvedRecordCount,
+        totalResolutionRecords,
+        lastLoggedResolvedRecordCount,
+        lastResolutionProgressLogTime,
+        resolutionProgressInterval,
+        now,
+      )) {
+        logResolutionProgress();
+        lastLoggedResolvedRecordCount = resolvedRecordCount;
+        lastResolutionProgressLogTime = now;
+      }
     }
 
-    const derivedAfflictions = buildDerivedAfflictionArtifacts(indexedEntries);
-    for (const entry of derivedAfflictions.records) {
-      if (!entry.isSearchCanonical) {
-        continue;
-      }
-
+    for (const entry of canonicalDerivedAfflictions) {
       entry.record.derivedTags = deriveRecordTags({
         name: entry.record.name,
         category: entry.record.category,
@@ -512,10 +558,25 @@ export async function buildIndex(
         families: entry.record.families,
         references: [],
       });
+
+      resolvedRecordCount += 1;
+      const now = Date.now();
+      if (shouldLogProgressUpdate(
+        resolvedRecordCount,
+        totalResolutionRecords,
+        lastLoggedResolvedRecordCount,
+        lastResolutionProgressLogTime,
+        resolutionProgressInterval,
+        now,
+      )) {
+        logResolutionProgress();
+        lastLoggedResolvedRecordCount = resolvedRecordCount;
+        lastResolutionProgressLogTime = now;
+      }
     }
 
     progressLogger?.(
-      `Resolved ${formatInteger(aliasRows.length)} verified aliases, ${formatInteger(legacyLinkRows.length)} legacy-to-remaster links, and ${formatInteger(derivedAfflictions.records.filter((entry) => entry.isSearchCanonical).length)} derived affliction canonicals.`,
+      `Resolved ${formatInteger(aliasRows.length)} verified aliases, ${formatInteger(legacyLinkRows.length)} legacy-to-remaster links, and ${formatInteger(canonicalDerivedAfflictions.length)} derived affliction canonicals.`,
     );
 
     const suppressedRecordKeys = new Set(legacyLinkRows.map((row) => row.legacyRecordKey));

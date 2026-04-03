@@ -207,16 +207,28 @@ describe("derived tag matcher extensions", () => {
     })).not.toContain("exploration_combo");
   });
 
-  it("supports template anchors for numeric, dice, and range variants", () => {
+  it("supports pattern anchors for alternatives, optionals, and typed placeholders", () => {
     const rules: DerivedTagRule[] = [
+      {
+        tag: "healing_suppression",
+        category: "affliction",
+        anyOf: [
+          {
+            textAny: [
+              { value: "{{alt(can't, cannot)}} {{alt(heal damage, be healed)}}", scope: "description" },
+              { value: "{{alt(regain, regains)}} {{opt(only )}}half as many hit points from {{alt(healing, healing effects, all healing, all healing effects)}}", scope: "description" },
+            ],
+          },
+        ],
+      },
       {
         tag: "mobility",
         category: "spell",
         anyOf: [
           {
             textAny: [
-              { value: "jump {n} feet", mode: "template", scope: "description" },
-              { value: "gain a +{n}-foot status bonus to your speed", mode: "template", scope: "description" },
+              { value: "jump {{number}} feet", scope: "description" },
+              { value: "gain a +{{number}}-foot status bonus to your speed", scope: "description" },
             ],
           },
         ],
@@ -227,7 +239,7 @@ describe("derived tag matcher extensions", () => {
         anyOf: [
           {
             textAny: [
-              { value: "deal {d} damage", mode: "template", scope: "description" },
+              { value: "deal {{dice}} damage", scope: "description" },
             ],
           },
         ],
@@ -238,7 +250,7 @@ describe("derived tag matcher extensions", () => {
         anyOf: [
           {
             textAny: [
-              { value: "creatures in a {r}", mode: "template", scope: "description" },
+              { value: "creatures in a {{range}}", scope: "description" },
             ],
           },
         ],
@@ -251,7 +263,7 @@ describe("derived tag matcher extensions", () => {
             textNear: [
               {
                 terms: [
-                  { value: "within {r}", mode: "template", scope: "description" },
+                  { value: "within {{range}}", scope: "description" },
                   "alert",
                 ],
                 window: 8,
@@ -262,6 +274,22 @@ describe("derived tag matcher extensions", () => {
         ],
       },
     ];
+
+    expect(deriveRecordTagsFromRules(rules, {
+      name: "Blackfrost",
+      category: "affliction",
+      subcategory: "disease",
+      descriptionText: "This affliction cannot be healed until the curse is lifted.",
+      traits: ["disease"],
+    })).toContain("healing_suppression");
+
+    expect(deriveRecordTagsFromRules(rules, {
+      name: "Blood Rot",
+      category: "affliction",
+      subcategory: "disease",
+      descriptionText: "The creature regains half as many Hit Points from all healing effects for 1 day.",
+      traits: ["disease"],
+    })).toContain("healing_suppression");
 
     expect(deriveRecordTagsFromRules(rules, {
       name: "Jump",
@@ -326,5 +354,89 @@ describe("derived tag matcher extensions", () => {
       descriptionText: "A bell rings when creatures move within 1 minute of the ward to alert nearby guards.",
       traits: [],
     })).not.toContain("range_alert");
+  });
+
+  it("rejects invalid pattern syntax", () => {
+    const rules: DerivedTagRule[] = [
+      {
+        tag: "broken",
+        category: "spell",
+        anyOf: [
+          {
+            textAny: [
+              { value: "{{alt(cannot, )}} heal damage", scope: "description" },
+            ],
+          },
+        ],
+      },
+    ];
+
+    expect(() => deriveRecordTagsFromRules(rules, {
+      name: "Broken Ward",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "This text should never matter.",
+      traits: [],
+    })).toThrow(/Invalid pattern anchor/);
+
+    expect(() => deriveRecordTagsFromRules([
+      {
+        tag: "nested",
+        category: "spell",
+        anyOf: [
+          {
+            textAny: [
+              { value: "{{opt(alt(cannot, can't))}} heal damage", scope: "description" },
+            ],
+          },
+        ],
+      },
+    ], {
+      name: "Nested Ward",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "This text should never matter.",
+      traits: [],
+    })).toThrow(/nested expressions are not supported/);
+
+    expect(() => deriveRecordTagsFromRules([
+      {
+        tag: "leading_optional",
+        category: "spell",
+        anyOf: [
+          {
+            textAny: [
+              { value: "{{opt(all )}}healing", scope: "description" },
+            ],
+          },
+        ],
+      },
+    ], {
+      name: "Leading Optional",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "This text should never matter.",
+      traits: [],
+    })).toThrow(/leading or trailing opt\(\.\.\.\) is not supported/);
+
+    expect(() => deriveRecordTagsFromRules([
+      {
+        tag: "trailing_optional",
+        category: "spell",
+        anyOf: [
+          {
+            textAny: [
+              { value: "healing{{opt( effects)}}", scope: "description" },
+            ],
+          },
+        ],
+      },
+    ], {
+      name: "Trailing Optional",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "This text should never matter.",
+      traits: [],
+    })).toThrow(/leading or trailing opt\(\.\.\.\) is not supported/);
   });
 });

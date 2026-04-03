@@ -23,167 +23,166 @@ import {
   SPELL_SCOUTING_NAME_ANCHORS,
   SPELL_SCOUTING_TEXT_ANCHORS,
   SPELL_SOCIAL_INFILTRATION_TEXT_ANCHORS,
-  phraseAnchor,
-  tokenAnchor,
+  patternAnchor,
 } from "../shared.js";
 
 const HEALING_SUPPORT_NAME_ANCHORS = [
-  tokenAnchor("healing", "name"),
-  tokenAnchor("heal", "name"),
-  tokenAnchor("restoration", "name"),
-  tokenAnchor("restore", "name"),
+  patternAnchor("healing", "name"),
+  patternAnchor("heal", "name"),
+  patternAnchor("restoration", "name"),
+  patternAnchor("restore", "name"),
 ];
 
 const HEALING_SUPPORT_TEXT_ANCHORS = [
-  phraseAnchor("restore hit points"),
-  phraseAnchor("regain hit points"),
-  phraseAnchor("fast healing"),
-  phraseAnchor("heals the target"),
-  phraseAnchor("heal the target"),
-  phraseAnchor("recover hit points"),
-  phraseAnchor("restore the target"),
+  patternAnchor("restore hit points"),
+  patternAnchor("regain hit points"),
+  patternAnchor("fast healing"),
+  patternAnchor("heals the target"),
+  patternAnchor("heal the target"),
+  patternAnchor("recover hit points"),
+  patternAnchor("restore the target"),
 ];
 
 const CONDITION_SUPPORT_TEXT_ANCHORS = [
-  phraseAnchor("remove a condition"),
-  phraseAnchor("remove conditions"),
-  phraseAnchor("counteract an affliction"),
-  phraseAnchor("counteract the affliction"),
-  phraseAnchor("delay the affliction"),
-  phraseAnchor("delay an affliction"),
-  phraseAnchor("cure disease"),
-  phraseAnchor("cure poison"),
-  phraseAnchor("remove curse"),
+  patternAnchor("remove a condition"),
+  patternAnchor("remove conditions"),
+  patternAnchor("counteract an affliction"),
+  patternAnchor("counteract the affliction"),
+  patternAnchor("delay the affliction"),
+  patternAnchor("delay an affliction"),
+  patternAnchor("cure disease"),
+  patternAnchor("cure poison"),
+  patternAnchor("remove curse"),
 ];
 
 const PROTECTIVE_WARD_NAME_ANCHORS = [
-  tokenAnchor("sanctuary", "name"),
-  tokenAnchor("aegis", "name"),
-  tokenAnchor("boundary", "name"),
-  tokenAnchor("ward", "name"),
-  tokenAnchor("shield", "name"),
-  tokenAnchor("barrier", "name"),
-  tokenAnchor("protection", "name"),
+  patternAnchor("sanctuary", "name"),
+  patternAnchor("aegis", "name"),
+  patternAnchor("boundary", "name"),
+  patternAnchor("ward", "name"),
+  patternAnchor("shield", "name"),
+  patternAnchor("barrier", "name"),
+  patternAnchor("protection", "name"),
 ];
 
 const PROTECTIVE_WARD_TEXT_ANCHORS = [
-  phraseAnchor("circle of protection"),
-  phraseAnchor("defended by spirits"),
-  phraseAnchor("blessed boundary"),
-  phraseAnchor("warding circle"),
-  phraseAnchor("warding aura"),
-  phraseAnchor("protective boundary"),
-  phraseAnchor("protective ward"),
+  patternAnchor("circle of protection"),
+  patternAnchor("defended by spirits"),
+  patternAnchor("blessed boundary"),
+  patternAnchor("warding circle"),
+  patternAnchor("warding aura"),
+  patternAnchor("protective boundary"),
+  patternAnchor("protective ward"),
 ];
 
 const DEATH_PREVENTION_NAME_ANCHORS = [
-  phraseAnchor("breath of life"),
-  phraseAnchor("death ward"),
-  tokenAnchor("revival", "name"),
-  tokenAnchor("resurrection", "name"),
+  patternAnchor("breath of life"),
+  patternAnchor("death ward"),
+  patternAnchor("revival", "name"),
+  patternAnchor("resurrection", "name"),
 ];
 
 const DEATH_PREVENTION_TEXT_ANCHORS = [
-  phraseAnchor("prevent the target from dying"),
-  phraseAnchor("prevent a creature from dying"),
-  phraseAnchor("prevent it from dying"),
-  phraseAnchor("stabilize the target"),
-  phraseAnchor("stabilize a dying creature"),
-  phraseAnchor("come back to life"),
-  phraseAnchor("return to life"),
-  phraseAnchor("bring the target back to life"),
+  patternAnchor("prevent the target from dying"),
+  patternAnchor("prevent a creature from dying"),
+  patternAnchor("prevent it from dying"),
+  patternAnchor("stabilize the target"),
+  patternAnchor("stabilize a dying creature"),
+  patternAnchor("come back to life"),
+  patternAnchor("return to life"),
+  patternAnchor("bring the target back to life"),
 ];
 
 const RESISTANCE_SUPPORT_TEXT_ANCHORS = [
-  phraseAnchor("gain resistance"),
-  phraseAnchor("gains resistance"),
-  phraseAnchor("grants resistance"),
-  phraseAnchor("resistance to"),
-  phraseAnchor("immune to"),
-  phraseAnchor("immunity to"),
-  phraseAnchor("protects against fire"),
-  phraseAnchor("protects against cold"),
-  phraseAnchor("protects against acid"),
-  phraseAnchor("protects against electricity"),
-  phraseAnchor("protects against sonic"),
+  patternAnchor("gain resistance"),
+  patternAnchor("gains resistance"),
+  patternAnchor("grants resistance"),
+  patternAnchor("resistance to"),
+  patternAnchor("immune to"),
+  patternAnchor("immunity to"),
+  patternAnchor("protects against fire"),
+  patternAnchor("protects against cold"),
+  patternAnchor("protects against acid"),
+  patternAnchor("protects against electricity"),
+  patternAnchor("protects against sonic"),
 ];
 
 const TRANSFORMATION_NAME_ANCHORS = [
-  tokenAnchor("metamorphosis", "name"),
-  tokenAnchor("polymorph", "name"),
-  tokenAnchor("transformation", "name"),
-  tokenAnchor("avatar", "name"),
-  tokenAnchor("incarnate", "name"),
+  patternAnchor("metamorphosis", "name"),
+  patternAnchor("polymorph", "name"),
+  patternAnchor("transformation", "name"),
+  patternAnchor("avatar", "name"),
+  patternAnchor("incarnate", "name"),
 ];
 
 const TRANSFORMATION_TEXT_ANCHORS = [
-  phraseAnchor("assume the form"),
-  phraseAnchor("take the form"),
-  phraseAnchor("take on the form"),
-  phraseAnchor("change shape"),
-  phraseAnchor("change into"),
-  phraseAnchor("transform into"),
-  phraseAnchor("transform your appearance"),
-  phraseAnchor("reshape your body"),
-  phraseAnchor("reshape the target s body"),
-  phraseAnchor("take on a new form"),
-  phraseAnchor("body becomes"),
-  phraseAnchor("body is transformed"),
+  patternAnchor("assume the form"),
+  patternAnchor("take the form"),
+  patternAnchor("take on the form"),
+  patternAnchor("change shape"),
+  patternAnchor("change into"),
+  patternAnchor("transform into"),
+  patternAnchor("transform your appearance"),
+  patternAnchor("reshape your body"),
+  patternAnchor("reshape the target s body"),
+  patternAnchor("take on a new form"),
+  patternAnchor("body becomes"),
+  patternAnchor("body is transformed"),
 ];
 
 const TRANSFORMATION_SUMMON_BLOCKER_TEXT_ANCHORS = [
-  tokenAnchor("summon"),
-  tokenAnchor("summons"),
-  tokenAnchor("summoned"),
-  tokenAnchor("conjure"),
-  tokenAnchor("conjures"),
-  phraseAnchor("call forth"),
-  phraseAnchor("bring forth"),
-  phraseAnchor("call into being"),
+  patternAnchor("summon"),
+  patternAnchor("summons"),
+  patternAnchor("summoned"),
+  patternAnchor("conjure"),
+  patternAnchor("conjures"),
+  patternAnchor("call forth"),
+  patternAnchor("bring forth"),
+  patternAnchor("call into being"),
 ];
 
 const TRANSFORMATION_DISGUISE_BLOCKER_TEXT_ANCHORS = [
-  tokenAnchor("disguise"),
-  tokenAnchor("disguises"),
-  tokenAnchor("disguised"),
-  tokenAnchor("impersonate"),
-  tokenAnchor("impersonates"),
-  tokenAnchor("masquerade"),
-  tokenAnchor("masquerades"),
-  phraseAnchor("false identity"),
-  phraseAnchor("take on the appearance"),
-  phraseAnchor("change your appearance"),
-  phraseAnchor("appearance becomes bland and nondescript"),
-  phraseAnchor("pass as someone else"),
+  patternAnchor("disguise"),
+  patternAnchor("disguises"),
+  patternAnchor("disguised"),
+  patternAnchor("impersonate"),
+  patternAnchor("impersonates"),
+  patternAnchor("masquerade"),
+  patternAnchor("masquerades"),
+  patternAnchor("false identity"),
+  patternAnchor("take on the appearance"),
+  patternAnchor("change your appearance"),
+  patternAnchor("appearance becomes bland and nondescript"),
+  patternAnchor("pass as someone else"),
 ];
 
 const TRANSFORMATION_SIZE_BLOCKER_TEXT_ANCHORS = [
-  phraseAnchor("increase your size"),
-  phraseAnchor("decrease your size"),
-  phraseAnchor("increase the target s size"),
-  phraseAnchor("decrease the target s size"),
-  phraseAnchor("grow larger"),
-  phraseAnchor("grow smaller"),
-  phraseAnchor("become larger"),
-  phraseAnchor("become smaller"),
-  phraseAnchor("only changes your size"),
-  phraseAnchor("size changes"),
-  tokenAnchor("enlarge"),
-  tokenAnchor("shrink"),
-  tokenAnchor("reduce"),
+  patternAnchor("increase your size"),
+  patternAnchor("decrease your size"),
+  patternAnchor("increase the target s size"),
+  patternAnchor("decrease the target s size"),
+  patternAnchor("grow larger"),
+  patternAnchor("grow smaller"),
+  patternAnchor("become larger"),
+  patternAnchor("become smaller"),
+  patternAnchor("only changes your size"),
+  patternAnchor("size changes"),
+  patternAnchor("enlarge"),
+  patternAnchor("shrink"),
+  patternAnchor("reduce"),
 ];
 
 const TRANSFORMATION_OBJECT_ANIMATION_BLOCKER_TEXT_ANCHORS = [
-  phraseAnchor("animate object"),
-  phraseAnchor("animate objects"),
-  phraseAnchor("animated object"),
-  phraseAnchor("animated objects"),
-  phraseAnchor("turn them into animated objects"),
-  phraseAnchor("turn it into an animated object"),
-  phraseAnchor("objects are animated"),
-  phraseAnchor("objects come to life"),
-  phraseAnchor("animate the object"),
-  phraseAnchor("animate the objects"),
+  patternAnchor("animate object"),
+  patternAnchor("animate objects"),
+  patternAnchor("animated object"),
+  patternAnchor("animated objects"),
+  patternAnchor("turn them into animated objects"),
+  patternAnchor("turn it into an animated object"),
+  patternAnchor("objects are animated"),
+  patternAnchor("objects come to life"),
+  patternAnchor("animate the object"),
+  patternAnchor("animate the objects"),
 ];
 
 const TRANSFORMATION_BLOCKER_TEXT_ANCHORS = [
@@ -194,28 +193,28 @@ const TRANSFORMATION_BLOCKER_TEXT_ANCHORS = [
 ];
 
 const BATTLE_FORM_TEXT_ANCHORS = [
-  phraseAnchor("battle form"),
-  phraseAnchor("combat form"),
-  phraseAnchor("gain the following statistics"),
-  phraseAnchor("gain the following statistics and abilities"),
-  phraseAnchor("you gain the following statistics"),
-  phraseAnchor("you gain the following statistics and abilities"),
+  patternAnchor("battle form"),
+  patternAnchor("combat form"),
+  patternAnchor("gain the following statistics"),
+  patternAnchor("gain the following statistics and abilities"),
+  patternAnchor("you gain the following statistics"),
+  patternAnchor("you gain the following statistics and abilities"),
 ];
 
 const ANIMAL_FORM_TEXT_ANCHORS = [
-  phraseAnchor("animal form"),
-  phraseAnchor("beast form"),
-  phraseAnchor("pest form"),
-  phraseAnchor("dinosaur form"),
-  phraseAnchor("animal battle form"),
-  phraseAnchor("beast battle form"),
-  phraseAnchor("pest battle form"),
-  phraseAnchor("dinosaur battle form"),
+  patternAnchor("animal form"),
+  patternAnchor("beast form"),
+  patternAnchor("pest form"),
+  patternAnchor("dinosaur form"),
+  patternAnchor("animal battle form"),
+  patternAnchor("beast battle form"),
+  patternAnchor("pest battle form"),
+  patternAnchor("dinosaur battle form"),
 ];
 
 const ELEMENTAL_FORM_TEXT_ANCHORS = [
-  phraseAnchor("elemental form"),
-  phraseAnchor("elemental battle form"),
+  patternAnchor("elemental form"),
+  patternAnchor("elemental battle form"),
 ];
 
 export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
@@ -230,7 +229,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [tokenAnchor("detect"), tokenAnchor("undead")],
+            terms: [patternAnchor("detect"), patternAnchor("undead")],
             window: 4,
             scope: "description",
           },
@@ -264,13 +263,13 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
     tag: "social_infiltration",
     category: "spell",
     allOf: [
-      { textAny: [tokenAnchor("mask", "name"), tokenAnchor("mask", "description")] },
+      { textAny: [patternAnchor("mask", "name"), patternAnchor("mask", "description")] },
     ],
     anyOf: [
       {
         textNear: [
           {
-            terms: [tokenAnchor("deception"), tokenAnchor("lie"), tokenAnchor("feint")],
+            terms: [patternAnchor("deception"), patternAnchor("lie"), patternAnchor("feint")],
             window: 6,
             scope: "description",
             minTermsMatched: 2,
@@ -324,13 +323,13 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
       {
         score: 2,
         textAll: [
-          tokenAnchor("senses"),
-          tokenAnchor("through"),
+          patternAnchor("senses"),
+          patternAnchor("through"),
         ],
         textAny: [
-          phraseAnchor("through the ear"),
-          phraseAnchor("through its eyes"),
-          phraseAnchor("through each other s eyes"),
+          patternAnchor("through the ear"),
+          patternAnchor("through its eyes"),
+          patternAnchor("through each other s eyes"),
         ],
       },
     ],
@@ -370,7 +369,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [tokenAnchor("form"), tokenAnchor("shape"), tokenAnchor("body"), tokenAnchor("transform"), tokenAnchor("change")],
+            terms: [patternAnchor("form"), patternAnchor("shape"), patternAnchor("body"), patternAnchor("transform"), patternAnchor("change")],
             window: 6,
             scope: "description",
             minTermsMatched: 2,
@@ -393,7 +392,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [tokenAnchor("battle"), tokenAnchor("form"), tokenAnchor("statistics"), tokenAnchor("abilities")],
+            terms: [patternAnchor("battle"), patternAnchor("form"), patternAnchor("statistics"), patternAnchor("abilities")],
             window: 6,
             scope: "description",
             minTermsMatched: 2,
@@ -416,7 +415,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [tokenAnchor("animal"), tokenAnchor("beast"), tokenAnchor("pest"), tokenAnchor("dinosaur"), tokenAnchor("form")],
+            terms: [patternAnchor("animal"), patternAnchor("beast"), patternAnchor("pest"), patternAnchor("dinosaur"), patternAnchor("form")],
             window: 6,
             scope: "description",
             minTermsMatched: 2,
@@ -439,7 +438,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [tokenAnchor("elemental"), tokenAnchor("form"), tokenAnchor("battle"), tokenAnchor("statistics")],
+            terms: [patternAnchor("elemental"), patternAnchor("form"), patternAnchor("battle"), patternAnchor("statistics")],
             window: 6,
             scope: "description",
             minTermsMatched: 2,
@@ -481,16 +480,16 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         textNear: [
           {
             terms: [
-              tokenAnchor("protect"),
-              tokenAnchor("shield"),
-              tokenAnchor("ward"),
-              tokenAnchor("barrier"),
-              tokenAnchor("creature"),
-              tokenAnchor("target"),
-              tokenAnchor("ally"),
-              tokenAnchor("allies"),
-              tokenAnchor("area"),
-              tokenAnchor("self"),
+              patternAnchor("protect"),
+              patternAnchor("shield"),
+              patternAnchor("ward"),
+              patternAnchor("barrier"),
+              patternAnchor("creature"),
+              patternAnchor("target"),
+              patternAnchor("ally"),
+              patternAnchor("allies"),
+              patternAnchor("area"),
+              patternAnchor("self"),
             ],
             window: 6,
             scope: "description",
@@ -515,10 +514,10 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         textNear: [
           {
             terms: [
-              tokenAnchor("stabilize"),
-              tokenAnchor("dying"),
-              tokenAnchor("die"),
-              tokenAnchor("death"),
+              patternAnchor("stabilize"),
+              patternAnchor("dying"),
+              patternAnchor("die"),
+              patternAnchor("death"),
             ],
             window: 6,
             scope: "description",
@@ -531,11 +530,11 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         textNear: [
           {
             terms: [
-              tokenAnchor("return"),
-              tokenAnchor("life"),
-              tokenAnchor("revive"),
-              tokenAnchor("resurrect"),
-              tokenAnchor("death"),
+              patternAnchor("return"),
+              patternAnchor("life"),
+              patternAnchor("revive"),
+              patternAnchor("resurrect"),
+              patternAnchor("death"),
             ],
             window: 8,
             scope: "description",
@@ -551,7 +550,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
     threshold: 2,
     anyOf: [
       { score: 2, textAny: RESISTANCE_SUPPORT_TEXT_ANCHORS },
-      { score: 1, textAny: [tokenAnchor("resistance"), tokenAnchor("immune"), tokenAnchor("immunity")] },
+      { score: 1, textAny: [patternAnchor("resistance"), patternAnchor("immune"), patternAnchor("immunity")] },
     ],
   },
   {
@@ -565,17 +564,17 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
       {
         score: 2,
         textAll: [
-          tokenAnchor("counteract"),
+          patternAnchor("counteract"),
         ],
         textAny: [
-          phraseAnchor("magic effect"),
-          phraseAnchor("magical effect"),
-          phraseAnchor("magical effects"),
-          phraseAnchor("magic item"),
-          phraseAnchor("magical darkness"),
-          phraseAnchor("triggering spell"),
-          phraseAnchor("single spell"),
-          phraseAnchor("target spell"),
+          patternAnchor("magic effect"),
+          patternAnchor("magical effect"),
+          patternAnchor("magical effects"),
+          patternAnchor("magic item"),
+          patternAnchor("magical darkness"),
+          patternAnchor("triggering spell"),
+          patternAnchor("single spell"),
+          patternAnchor("target spell"),
         ],
       },
     ],

@@ -21,12 +21,10 @@ export type DerivedTagReference = {
 };
 
 export type TextMatchScope = "either" | "name" | "description";
-type TextMatchMode = "token" | "phrase" | "template";
-type TemplatePlaceholder = "n" | "d" | "r";
+type PatternPlaceholder = "number" | "dice" | "range";
 
 export type TextAnchor = string | {
   value: string;
-  mode?: TextMatchMode;
   scope?: TextMatchScope;
 };
 
@@ -78,31 +76,30 @@ export type DerivedTagRule = {
 };
 
 type NormalizedTextView = {
-  text: string;
   tokens: string[];
-  tokenSet: Set<string>;
 };
 
-type NormalizedTextAnchor =
-  | {
-    value: string;
-    mode: "token" | "phrase";
-    scope: TextMatchScope;
-  }
-  | {
-    mode: "template";
-    scope: TextMatchScope;
-    templateParts: TemplateTokenPart[];
-  };
+type NormalizedTextAnchor = {
+  scope: TextMatchScope;
+  patternParts: PatternTokenPart[];
+};
 
-type TemplateTokenPart =
+type PatternTokenPart =
   | {
     type: "literal";
-    value: string;
+    tokens: string[];
   }
   | {
     type: "placeholder";
-    value: TemplatePlaceholder;
+    value: PatternPlaceholder;
+  }
+  | {
+    type: "alternative";
+    tokenOptions: string[][];
+  }
+  | {
+    type: "optional";
+    tokens: string[];
   };
 
 type NormalizedDerivedTagReference = {
@@ -125,84 +122,335 @@ type NormalizedDerivedTagContext = {
   references: NormalizedDerivedTagReference[];
 };
 
+type CompiledReferencePredicate = {
+  category?: SearchCategory;
+  subcategory?: SearchSubcategory;
+  packName?: string;
+  nameAny?: string[];
+  traitsAny?: string[];
+  traitsAll?: string[];
+};
+
+type CompiledTextProximityConstraint = {
+  terms: NormalizedTextAnchor[];
+  window: number;
+  ordered: boolean;
+  scope: TextMatchScope;
+  minTermsMatched?: number;
+};
+
+type CompiledDerivedTagMatchClause = {
+  score?: number;
+  traitsAny?: string[];
+  traitsAll?: string[];
+  traitsNone?: string[];
+  familiesAny?: string[];
+  familiesAll?: string[];
+  familiesNone?: string[];
+  textAny?: NormalizedTextAnchor[];
+  minTextAnyMatches?: number;
+  textAll?: NormalizedTextAnchor[];
+  textNear?: CompiledTextProximityConstraint[];
+  textNotNear?: CompiledTextProximityConstraint[];
+  referencesAny?: string[];
+  referencesAll?: string[];
+  referencesWhere?: CompiledReferencePredicate[];
+  minReferenceMatches?: number;
+};
+
+type CompiledDerivedTagRule = {
+  tag: string;
+  category: SearchCategory;
+  subcategories?: SearchSubcategory[];
+  threshold?: number;
+  requiresTags?: string[];
+  anyOf?: CompiledDerivedTagMatchClause[];
+  allOf?: CompiledDerivedTagMatchClause[];
+  noneOf?: CompiledDerivedTagMatchClause[];
+};
+
+const normalizedStringAnchorCache = new Map<string, NormalizedTextAnchor | null>();
+const normalizedObjectAnchorCache = new WeakMap<Exclude<TextAnchor, string>, NormalizedTextAnchor | null>();
+const compiledRulesCache = new WeakMap<DerivedTagRule[], CompiledDerivedTagRule[]>();
+
 function buildTextView(value: string): NormalizedTextView {
-  const text = normalizeText(value);
-  const tokens = text.length > 0 ? text.split(" ") : [];
+  const normalized = normalizeText(value);
+  const tokens = normalized.length > 0 ? normalized.split(" ") : [];
   return {
-    text,
     tokens,
-    tokenSet: new Set(tokens),
   };
 }
 
-function normalizeTemplateAnchorValue(value: string): TemplateTokenPart[] {
+function normalizePatternLiteral(value: string): string[] {
+  const normalized = normalizeText(value);
+  return normalized.length > 0 ? normalized.split(" ") : [];
+}
+
+function createPatternSyntaxError(value: string, reason: string): Error {
+  return new Error(`Invalid pattern anchor "${value}": ${reason}`);
+}
+
+function parsePatternCall(expression: string, fullValue: string): { operator: string; body: string } {
+  const match = expression.match(/^([a-z]+)\((.*)\)$/);
+  if (!match) {
+    throw createPatternSyntaxError(fullValue, `unknown expression "${expression}"`);
+  }
+
+  const [, operator = "", body = ""] = match;
+  return { operator, body };
+}
+
+function parsePatternAlternatives(body: string, fullValue: string): string[][] {
+  if (body.includes("(") || body.includes(")")) {
+    throw createPatternSyntaxError(fullValue, "nested expressions are not supported");
+  }
+
+  const rawBranches = body.split(",");
+  if (rawBranches.some((branch) => normalizePatternLiteral(branch).length === 0)) {
+    throw createPatternSyntaxError(fullValue, "alt(...) cannot contain empty branches");
+  }
+
+  const branches = rawBranches.map((branch) => normalizePatternLiteral(branch));
+
+  if (branches.length < 2) {
+    throw createPatternSyntaxError(fullValue, "alt(...) requires at least two non-empty branches");
+  }
+
+  return branches;
+}
+
+function parseOptionalPattern(body: string, fullValue: string): string[] {
+  if (body.includes("(") || body.includes(")")) {
+    throw createPatternSyntaxError(fullValue, "nested expressions are not supported");
+  }
+
+  const tokens = normalizePatternLiteral(body);
+  if (tokens.length === 0) {
+    throw createPatternSyntaxError(fullValue, "opt(...) requires non-empty literal text");
+  }
+
+  return tokens;
+}
+
+function parsePatternExpression(expression: string, fullValue: string): PatternTokenPart {
+  if (expression === "number" || expression === "dice" || expression === "range") {
+    return {
+      type: "placeholder",
+      value: expression,
+    };
+  }
+
+  const { operator, body } = parsePatternCall(expression, fullValue);
+  if (operator === "alt") {
+    return {
+      type: "alternative",
+      tokenOptions: parsePatternAlternatives(body, fullValue),
+    };
+  }
+  if (operator === "opt") {
+    return {
+      type: "optional",
+      tokens: parseOptionalPattern(body, fullValue),
+    };
+  }
+
+  throw createPatternSyntaxError(fullValue, `unknown operator "${operator}"`);
+}
+
+function normalizePatternAnchorValue(value: string): PatternTokenPart[] {
   const raw = value.toLowerCase().replace(/&nbsp;/g, " ");
-  const parts: TemplateTokenPart[] = [];
-  const placeholderPattern = /\{([ndr])\}/g;
+  const parts: PatternTokenPart[] = [];
   let offset = 0;
 
-  for (const match of raw.matchAll(placeholderPattern)) {
-    const index = match.index ?? 0;
-    const literal = normalizeText(raw.slice(offset, index));
-    if (literal.length > 0) {
-      parts.push(...literal.split(" ").map((token) => ({
-        type: "literal" as const,
-        value: token,
-      })));
+  while (offset < raw.length) {
+    const expressionStart = raw.indexOf("{{", offset);
+    if (expressionStart === -1) {
+      if (raw.slice(offset).includes("}}")) {
+        throw createPatternSyntaxError(value, "unexpected closing expression block");
+      }
+      const literalTokens = normalizePatternLiteral(raw.slice(offset));
+      if (literalTokens.length > 0) {
+        parts.push({
+          type: "literal",
+          tokens: literalTokens,
+        });
+      }
+      break;
     }
 
-    const placeholder = match[1]?.toLowerCase();
-    if (placeholder === "n" || placeholder === "d" || placeholder === "r") {
+    if (raw.slice(offset, expressionStart).includes("}}")) {
+      throw createPatternSyntaxError(value, "unexpected closing expression block");
+    }
+
+    const literalTokens = normalizePatternLiteral(raw.slice(offset, expressionStart));
+    if (literalTokens.length > 0) {
       parts.push({
-        type: "placeholder",
-        value: placeholder,
+        type: "literal",
+        tokens: literalTokens,
       });
     }
 
-    offset = index + match[0].length;
+    const expressionEnd = raw.indexOf("}}", expressionStart + 2);
+    if (expressionEnd === -1) {
+      throw createPatternSyntaxError(value, "unclosed expression block");
+    }
+
+    const expression = raw.slice(expressionStart + 2, expressionEnd).trim();
+    if (expression.length === 0) {
+      throw createPatternSyntaxError(value, "empty expression block");
+    }
+    if (expression.includes("{{") || expression.includes("}}")) {
+      throw createPatternSyntaxError(value, "nested expressions are not supported");
+    }
+
+    parts.push(parsePatternExpression(expression, value));
+    offset = expressionEnd + 2;
   }
 
-  const trailingLiteral = normalizeText(raw.slice(offset));
-  if (trailingLiteral.length > 0) {
-    parts.push(...trailingLiteral.split(" ").map((token) => ({
-      type: "literal" as const,
-      value: token,
-    })));
+  if (parts.length === 0) {
+    return [];
+  }
+
+  if (parts[0]?.type === "optional" || parts.at(-1)?.type === "optional") {
+    throw createPatternSyntaxError(value, "leading or trailing opt(...) is not supported");
   }
 
   return parts;
 }
 
 function normalizeAnchor(anchor: TextAnchor): NormalizedTextAnchor | null {
-  const raw = typeof anchor === "string" ? { value: anchor } : anchor;
-  const mode = raw.mode ?? (raw.value.includes(" ") ? "phrase" : "token");
-
-  if (mode === "template") {
-    const templateParts = normalizeTemplateAnchorValue(raw.value);
-    if (templateParts.length === 0) {
-      return null;
+  if (typeof anchor === "string") {
+    const cacheKey = `either\0${anchor}`;
+    const cached = normalizedStringAnchorCache.get(cacheKey);
+    if (cached !== undefined) {
+      return cached;
     }
 
-    return {
-      mode,
-      scope: raw.scope ?? "either",
-      templateParts,
-    };
+    const compiled = normalizeAnchor({ value: anchor });
+    normalizedStringAnchorCache.set(cacheKey, compiled);
+    return compiled;
   }
 
-  const value = normalizeText(raw.value);
-  if (!value) {
-    return null;
+  const cached = normalizedObjectAnchorCache.get(anchor);
+  if (cached !== undefined) {
+    return cached;
   }
-  return {
-    value,
-    mode,
+
+  const raw = anchor;
+  const patternParts = normalizePatternAnchorValue(raw.value);
+  const compiled = patternParts.length === 0 ? null : {
     scope: raw.scope ?? "either",
+    patternParts,
+  };
+  normalizedObjectAnchorCache.set(anchor, compiled);
+  return compiled;
+}
+
+function normalizeStringList(values: string[] | undefined): string[] | undefined {
+  if (!values || values.length === 0) {
+    return undefined;
+  }
+
+  const normalized = values.map((value) => normalizeText(value)).filter(Boolean);
+  return normalized.length > 0 ? normalized : undefined;
+}
+
+function compileAnchorList(anchors: TextAnchor[] | undefined): NormalizedTextAnchor[] | undefined {
+  if (!anchors || anchors.length === 0) {
+    return undefined;
+  }
+
+  const compiled = anchors
+    .map((anchor) => normalizeAnchor(anchor))
+    .filter((anchor): anchor is NormalizedTextAnchor => anchor !== null);
+
+  return compiled.length > 0 ? compiled : undefined;
+}
+
+function compileTextProximityConstraints(
+  constraints: TextProximityConstraint[] | undefined,
+): CompiledTextProximityConstraint[] | undefined {
+  if (!constraints || constraints.length === 0) {
+    return undefined;
+  }
+
+  const compiled = constraints.map((constraint) => {
+      const terms = compileAnchorList(constraint.terms);
+      if (!terms || terms.length === 0) {
+        return null;
+      }
+
+      const compiledConstraint: CompiledTextProximityConstraint = {
+        terms,
+        window: Math.max(0, constraint.window),
+        ordered: constraint.ordered ?? false,
+        scope: constraint.scope ?? "either",
+        minTermsMatched: constraint.minTermsMatched,
+      };
+      return compiledConstraint;
+    });
+
+  const filtered = compiled.filter((constraint): constraint is CompiledTextProximityConstraint => constraint !== null);
+
+  return filtered.length > 0 ? filtered : undefined;
+}
+
+function compileReferencePredicates(predicates: ReferencePredicate[] | undefined): CompiledReferencePredicate[] | undefined {
+  if (!predicates || predicates.length === 0) {
+    return undefined;
+  }
+
+  const compiled = predicates.map((predicate) => ({
+    category: predicate.category,
+    subcategory: predicate.subcategory,
+    packName: predicate.packName ? normalizeText(predicate.packName) : undefined,
+    nameAny: normalizeStringList(predicate.nameAny),
+    traitsAny: normalizeStringList(predicate.traitsAny),
+    traitsAll: normalizeStringList(predicate.traitsAll),
+  }));
+
+  return compiled.length > 0 ? compiled : undefined;
+}
+
+function compileClause(clause: DerivedTagMatchClause): CompiledDerivedTagMatchClause {
+  return {
+    score: clause.score,
+    traitsAny: normalizeStringList(clause.traitsAny),
+    traitsAll: normalizeStringList(clause.traitsAll),
+    traitsNone: normalizeStringList(clause.traitsNone),
+    familiesAny: normalizeStringList(clause.familiesAny),
+    familiesAll: normalizeStringList(clause.familiesAll),
+    familiesNone: normalizeStringList(clause.familiesNone),
+    textAny: compileAnchorList(clause.textAny),
+    minTextAnyMatches: clause.minTextAnyMatches,
+    textAll: compileAnchorList(clause.textAll),
+    textNear: compileTextProximityConstraints(clause.textNear),
+    textNotNear: compileTextProximityConstraints(clause.textNotNear),
+    referencesAny: clause.referencesAny?.map((reference) => normalizeDerivedTagReference(reference)),
+    referencesAll: clause.referencesAll?.map((reference) => normalizeDerivedTagReference(reference)),
+    referencesWhere: compileReferencePredicates(clause.referencesWhere),
+    minReferenceMatches: clause.minReferenceMatches,
   };
 }
 
-function containsPhrase(text: string, phrase: string): boolean {
-  return ` ${text} `.includes(` ${phrase} `);
+function getCompiledRules(rules: DerivedTagRule[]): CompiledDerivedTagRule[] {
+  const cached = compiledRulesCache.get(rules);
+  if (cached) {
+    return cached;
+  }
+
+  const compiled = rules.map((rule) => ({
+    tag: rule.tag,
+    category: rule.category,
+    subcategories: rule.subcategories,
+    threshold: rule.threshold,
+    requiresTags: rule.requiresTags,
+    anyOf: rule.anyOf?.map((clause) => compileClause(clause)),
+    allOf: rule.allOf?.map((clause) => compileClause(clause)),
+    noneOf: rule.noneOf?.map((clause) => compileClause(clause)),
+  }));
+  compiledRulesCache.set(rules, compiled);
+  return compiled;
 }
 
 function getTextViews(
@@ -222,17 +470,17 @@ function getTextViews(
   ];
 }
 
-function matchTemplatePlaceholder(tokens: string[], index: number, placeholder: TemplatePlaceholder): number {
+function matchPatternPlaceholder(tokens: string[], index: number, placeholder: PatternPlaceholder): number {
   const token = tokens[index];
   if (!token) {
     return 0;
   }
 
-  if (placeholder === "n") {
+  if (placeholder === "number") {
     return /^\d+$/.test(token) ? 1 : 0;
   }
 
-  if (placeholder === "d") {
+  if (placeholder === "dice") {
     return /^\d+d\d+$/.test(token) ? 1 : 0;
   }
 
@@ -249,58 +497,100 @@ function matchTemplatePlaceholder(tokens: string[], index: number, placeholder: 
   return ["aura", "burst", "cone", "cube", "emanation", "line", "radius"].includes(geometry) ? 3 : 2;
 }
 
-function findTemplateOccurrences(
-  view: NormalizedTextView,
-  templateParts: TemplateTokenPart[],
-): TextOccurrence[] {
-  if (templateParts.length === 0) {
+function findPatternLiteralEnd(tokens: string[], index: number, literalTokens: string[]): number | null {
+  if (literalTokens.length === 0) {
+    return index;
+  }
+
+  for (let offset = 0; offset < literalTokens.length; offset += 1) {
+    if (tokens[index + offset] !== literalTokens[offset]) {
+      return null;
+    }
+  }
+
+  return index + literalTokens.length;
+}
+
+function collectPatternMatchEnds(
+  tokens: string[],
+  index: number,
+  patternParts: PatternTokenPart[],
+  partIndex: number,
+): number[] {
+  if (partIndex >= patternParts.length) {
+    return [index];
+  }
+
+  const part = patternParts[partIndex];
+  if (!part) {
+    return [index];
+  }
+
+  if (part.type === "literal") {
+    const end = findPatternLiteralEnd(tokens, index, part.tokens);
+    return end === null ? [] : collectPatternMatchEnds(tokens, end, patternParts, partIndex + 1);
+  }
+
+  if (part.type === "alternative") {
+    const ends = new Set<number>();
+    for (const option of part.tokenOptions) {
+      const end = findPatternLiteralEnd(tokens, index, option);
+      if (end !== null) {
+        for (const matchEnd of collectPatternMatchEnds(tokens, end, patternParts, partIndex + 1)) {
+          ends.add(matchEnd);
+        }
+      }
+    }
+
+    return [...ends];
+  }
+
+  if (part.type === "optional") {
+    const ends = new Set<number>(collectPatternMatchEnds(tokens, index, patternParts, partIndex + 1));
+    const end = findPatternLiteralEnd(tokens, index, part.tokens);
+    if (end !== null) {
+      for (const matchEnd of collectPatternMatchEnds(tokens, end, patternParts, partIndex + 1)) {
+        ends.add(matchEnd);
+      }
+    }
+
+    return [...ends];
+  }
+
+  const length = matchPatternPlaceholder(tokens, index, part.value);
+  if (length === 0) {
+    return [];
+  }
+
+  return collectPatternMatchEnds(tokens, index + length, patternParts, partIndex + 1);
+}
+
+function findPatternOccurrences(view: NormalizedTextView, patternParts: PatternTokenPart[]): TextOccurrence[] {
+  if (patternParts.length === 0) {
     return [];
   }
 
   const occurrences: TextOccurrence[] = [];
   for (let start = 0; start < view.tokens.length; start += 1) {
-    let cursor = start;
-    let matched = true;
-
-    for (const part of templateParts) {
-      if (part.type === "literal") {
-        if (view.tokens[cursor] !== part.value) {
-          matched = false;
-          break;
-        }
-        cursor += 1;
-        continue;
+    const matchEnds = collectPatternMatchEnds(view.tokens, start, patternParts, 0);
+    for (const end of matchEnds) {
+      if (end > start) {
+        occurrences.push({
+          start,
+          end: end - 1,
+        });
       }
-
-      const length = matchTemplatePlaceholder(view.tokens, cursor, part.value);
-      if (length === 0) {
-        matched = false;
-        break;
-      }
-      cursor += length;
-    }
-
-    if (matched && cursor > start) {
-      occurrences.push({
-        start,
-        end: cursor - 1,
-      });
     }
   }
 
   return occurrences;
 }
 
-function matchesTextAnchor(context: NormalizedDerivedTagContext, anchor: TextAnchor): boolean {
-  const normalized = normalizeAnchor(anchor);
-  if (!normalized) {
-    return false;
-  }
-
-  return getTextViews(context, normalized.scope).some(({ scope, view }) => findNormalizedTextOccurrences(view, scope, normalized).length > 0);
+function matchesTextAnchor(context: NormalizedDerivedTagContext, anchor: NormalizedTextAnchor): boolean {
+  return getTextViews(context, anchor.scope).some(({ scope, view }) => findNormalizedTextOccurrences(view, scope, anchor).length > 0);
 }
 
-function countMatchingTextAnchors(context: NormalizedDerivedTagContext, anchors: TextAnchor[]): number {
+function countMatchingTextAnchors(context: NormalizedDerivedTagContext, anchors: NormalizedTextAnchor[]): number {
   return anchors.reduce((count, anchor) => count + (matchesTextAnchor(context, anchor) ? 1 : 0), 0);
 }
 
@@ -318,47 +608,15 @@ function findNormalizedTextOccurrences(
     return [];
   }
 
-  if (normalized.mode === "token") {
-    return view.tokens.flatMap((token, index) => token === normalized.value ? [{ start: index, end: index }] : []);
-  }
-
-  if (normalized.mode === "template") {
-    return findTemplateOccurrences(view, normalized.templateParts);
-  }
-
-  const phraseTokens = normalized.value.split(" ");
-  const occurrences: TextOccurrence[] = [];
-  for (let index = 0; index <= view.tokens.length - phraseTokens.length; index += 1) {
-    let matches = true;
-    for (let phraseIndex = 0; phraseIndex < phraseTokens.length; phraseIndex += 1) {
-      if (view.tokens[index + phraseIndex] !== phraseTokens[phraseIndex]) {
-        matches = false;
-        break;
-      }
-    }
-
-    if (matches) {
-      occurrences.push({
-        start: index,
-        end: index + phraseTokens.length - 1,
-      });
-    }
-  }
-
-  return occurrences;
+  return findPatternOccurrences(view, normalized.patternParts);
 }
 
 function findTextOccurrences(
   view: NormalizedTextView,
   viewScope: Exclude<TextMatchScope, "either">,
-  anchor: TextAnchor,
+  anchor: NormalizedTextAnchor,
 ): TextOccurrence[] {
-  const normalized = normalizeAnchor(anchor);
-  if (!normalized) {
-    return [];
-  }
-
-  return findNormalizedTextOccurrences(view, viewScope, normalized);
+  return findNormalizedTextOccurrences(view, viewScope, anchor);
 }
 
 function spansWithinWindow(occurrences: TextOccurrence[], window: number): boolean {
@@ -411,13 +669,13 @@ function hasTextProximityInView(
   return false;
 }
 
-function matchesTextProximity(context: NormalizedDerivedTagContext, constraint: TextProximityConstraint): boolean {
+function matchesTextProximity(context: NormalizedDerivedTagContext, constraint: CompiledTextProximityConstraint): boolean {
   const minimumMatches = Math.max(1, Math.min(constraint.minTermsMatched ?? constraint.terms.length, constraint.terms.length));
   if (constraint.terms.length === 0) {
     return false;
   }
 
-  for (const { scope, view } of getTextViews(context, constraint.scope ?? "either")) {
+  for (const { scope, view } of getTextViews(context, constraint.scope)) {
     const occurrenceLists = constraint.terms.map((term) => findTextOccurrences(view, scope, term));
     const termsWithMatches = occurrenceLists.filter((occurrences) => occurrences.length > 0).length;
     if (termsWithMatches < minimumMatches) {
@@ -427,8 +685,8 @@ function matchesTextProximity(context: NormalizedDerivedTagContext, constraint: 
     if (hasTextProximityInView(
       occurrenceLists,
       minimumMatches,
-      Math.max(0, constraint.window),
-      constraint.ordered ?? false,
+      constraint.window,
+      constraint.ordered,
     )) {
       return true;
     }
@@ -437,30 +695,30 @@ function matchesTextProximity(context: NormalizedDerivedTagContext, constraint: 
   return false;
 }
 
-function matchesReferencePredicate(reference: NormalizedDerivedTagReference, predicate: ReferencePredicate): boolean {
+function matchesReferencePredicate(reference: NormalizedDerivedTagReference, predicate: CompiledReferencePredicate): boolean {
   if (predicate.category && reference.category !== predicate.category) {
     return false;
   }
   if (predicate.subcategory && reference.subcategory !== predicate.subcategory) {
     return false;
   }
-  if (predicate.packName && reference.packName !== normalizeText(predicate.packName)) {
+  if (predicate.packName && reference.packName !== predicate.packName) {
     return false;
   }
-  if (predicate.nameAny && !predicate.nameAny.some((name) => reference.name === normalizeText(name))) {
+  if (predicate.nameAny && !predicate.nameAny.some((name) => reference.name === name)) {
     return false;
   }
-  if (predicate.traitsAny && !predicate.traitsAny.some((trait) => reference.traits.has(normalizeText(trait)))) {
+  if (predicate.traitsAny && !predicate.traitsAny.some((trait) => reference.traits.has(trait))) {
     return false;
   }
-  if (predicate.traitsAll && !predicate.traitsAll.every((trait) => reference.traits.has(normalizeText(trait)))) {
+  if (predicate.traitsAll && !predicate.traitsAll.every((trait) => reference.traits.has(trait))) {
     return false;
   }
 
   return true;
 }
 
-function countMatchingReferences(context: NormalizedDerivedTagContext, predicates: ReferencePredicate[]): number {
+function countMatchingReferences(context: NormalizedDerivedTagContext, predicates: CompiledReferencePredicate[]): number {
   if (predicates.length === 0) {
     return 0;
   }
@@ -468,23 +726,23 @@ function countMatchingReferences(context: NormalizedDerivedTagContext, predicate
   return context.references.filter((reference) => predicates.some((predicate) => matchesReferencePredicate(reference, predicate))).length;
 }
 
-function matchesClause(context: NormalizedDerivedTagContext, clause: DerivedTagMatchClause): boolean {
-  if (clause.traitsAny && !clause.traitsAny.some((trait) => context.traits.has(normalizeText(trait)))) {
+function matchesClause(context: NormalizedDerivedTagContext, clause: CompiledDerivedTagMatchClause): boolean {
+  if (clause.traitsAny && !clause.traitsAny.some((trait) => context.traits.has(trait))) {
     return false;
   }
-  if (clause.traitsAll && !clause.traitsAll.every((trait) => context.traits.has(normalizeText(trait)))) {
+  if (clause.traitsAll && !clause.traitsAll.every((trait) => context.traits.has(trait))) {
     return false;
   }
-  if (clause.traitsNone && clause.traitsNone.some((trait) => context.traits.has(normalizeText(trait)))) {
+  if (clause.traitsNone && clause.traitsNone.some((trait) => context.traits.has(trait))) {
     return false;
   }
-  if (clause.familiesAny && !clause.familiesAny.some((family) => context.families.has(normalizeText(family)))) {
+  if (clause.familiesAny && !clause.familiesAny.some((family) => context.families.has(family))) {
     return false;
   }
-  if (clause.familiesAll && !clause.familiesAll.every((family) => context.families.has(normalizeText(family)))) {
+  if (clause.familiesAll && !clause.familiesAll.every((family) => context.families.has(family))) {
     return false;
   }
-  if (clause.familiesNone && clause.familiesNone.some((family) => context.families.has(normalizeText(family)))) {
+  if (clause.familiesNone && clause.familiesNone.some((family) => context.families.has(family))) {
     return false;
   }
   if (clause.textAny) {
@@ -502,10 +760,10 @@ function matchesClause(context: NormalizedDerivedTagContext, clause: DerivedTagM
   if (clause.textNotNear && clause.textNotNear.some((constraint) => matchesTextProximity(context, constraint))) {
     return false;
   }
-  if (clause.referencesAny && !clause.referencesAny.some((reference) => context.referenceKeys.has(normalizeDerivedTagReference(reference)))) {
+  if (clause.referencesAny && !clause.referencesAny.some((reference) => context.referenceKeys.has(reference))) {
     return false;
   }
-  if (clause.referencesAll && !clause.referencesAll.every((reference) => context.referenceKeys.has(normalizeDerivedTagReference(reference)))) {
+  if (clause.referencesAll && !clause.referencesAll.every((reference) => context.referenceKeys.has(reference))) {
     return false;
   }
   if (clause.referencesWhere) {
@@ -517,7 +775,7 @@ function matchesClause(context: NormalizedDerivedTagContext, clause: DerivedTagM
   return true;
 }
 
-function scoreClause(context: NormalizedDerivedTagContext, clause: DerivedTagMatchClause): number {
+function scoreClause(context: NormalizedDerivedTagContext, clause: CompiledDerivedTagMatchClause): number {
   if (!matchesClause(context, clause)) {
     return 0;
   }
@@ -528,7 +786,7 @@ function scoreClause(context: NormalizedDerivedTagContext, clause: DerivedTagMat
 function matchesRule(
   context: NormalizedDerivedTagContext,
   tags: Set<string>,
-  rule: DerivedTagRule,
+  rule: CompiledDerivedTagRule,
 ): boolean {
   if (context.category !== rule.category) {
     return false;
@@ -573,6 +831,7 @@ export function normalizeDerivedTag(value: string): string {
 }
 
 export function deriveRecordTagsFromRules(rules: DerivedTagRule[], input: DerivedTagContext): string[] {
+  const compiledRules = getCompiledRules(rules);
   const references = (input.references ?? []).map((reference) => ({
     key: normalizeDerivedTagReference(`${reference.packName}:${reference.name}`),
     packName: normalizeText(reference.packName),
@@ -593,7 +852,7 @@ export function deriveRecordTagsFromRules(rules: DerivedTagRule[], input: Derive
   };
   const tags = new Set<string>();
 
-  for (const rule of rules) {
+  for (const rule of compiledRules) {
     if (matchesRule(context, tags, rule)) {
       tags.add(rule.tag);
     }

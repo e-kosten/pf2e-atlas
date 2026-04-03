@@ -419,6 +419,27 @@ describe("Pf2eDataService / Load and Index", () => {
     ]));
   });
 
+  it("reports resolution-stage status while deriving tags during rebuild", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+    const progressStatuses: string[] = [];
+
+    const service = await loadTestService(fixture, {
+      progressStatusLogger: (message) => progressStatuses.push(message),
+      embeddingProviderFactory: createFakeEmbeddingProviderFactory({
+        provider: "hash",
+        model: "status-model",
+        revision: null,
+        dimensions: 8,
+      }),
+    });
+    service.close();
+
+    expect(progressStatuses).toEqual(expect.arrayContaining([
+      expect.stringMatching(/\[resolve\] Derived tags/),
+    ]));
+  });
+
   it("reuses all canonical embeddings when semantic inputs are unchanged", async () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);
