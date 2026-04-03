@@ -904,6 +904,60 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     },
   });
 
+  await writeJson(path.join(packRoot, "equipment-srd", "flare-beacon-moderate.json"), {
+    _id: "equip-flare-beacon-1",
+    name: "Flare Beacon (Moderate)",
+    type: "consumable",
+    system: {
+      description: {
+        value: "<p>Flare beacons create an incredibly bright light for a brief period of time.</p><p>They are often used to signal others to the beacon's location, to coordinate assaults, to request rescue, or for other similar reasons.</p>",
+      },
+      publication: {
+        title: "Pathfinder Guns & Gears",
+      },
+      traits: {
+        rarity: "common",
+        value: ["consumable", "gadget"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment-srd", "countering-charm.json"), {
+    _id: "equip-countering-charm-1",
+    name: "Countering Charm",
+    type: "equipment",
+    system: {
+      description: {
+        value: "<p>Spellcasters can cast spells into countering charms that they've invested or that are invested by a willing creature.</p><p>The spell's effect doesn't occur; the spell's power is instead stored within the charm.</p>",
+      },
+      publication: {
+        title: "Pathfinder Treasure Vault",
+      },
+      traits: {
+        rarity: "common",
+        value: ["invested", "magical"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment-srd", "antimagic-oil.json"), {
+    _id: "equip-antimagic-oil-1",
+    name: "Antimagic Oil",
+    type: "consumable",
+    system: {
+      description: {
+        value: "<p>This oil contains energy that repels nearly all types of magic.</p><p>When you apply this oil to armor, the creature wearing the armor becomes immune to all spells, effects of magic items, and effects with the magical trait for 1 minute.</p>",
+      },
+      publication: {
+        title: "Pathfinder Treasure Vault",
+      },
+      traits: {
+        rarity: "common",
+        value: ["consumable", "magical", "oil"],
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "equipment-srd", "disguise-kit.json"), {
     _id: "equip-disguise-kit-1",
     name: "Disguise Kit",

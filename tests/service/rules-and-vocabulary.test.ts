@@ -247,8 +247,8 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       field: "publicationTitle",
       values: [
         { value: "Pathfinder Player Core", count: 4 },
+        { value: "Pathfinder Secrets of Magic", count: 2 },
         { value: "Pathfinder Dark Archive", count: 1 },
-        { value: "Pathfinder Secrets of Magic", count: 1 },
       ],
     });
 
@@ -258,8 +258,8 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     })).toEqual({
       field: "traditions",
       values: [
-        { value: "occult", count: 4 },
-        { value: "arcane", count: 3 },
+        { value: "occult", count: 5 },
+        { value: "arcane", count: 4 },
         { value: "primal", count: 1 },
       ],
     });
@@ -316,7 +316,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       field: "packs",
       values: [
         { value: "Spells", count: 4 },
-        { value: "Spells SRD", count: 2 },
+        { value: "Spells SRD", count: 3 },
       ],
     });
 

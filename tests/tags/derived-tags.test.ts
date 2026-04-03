@@ -1125,6 +1125,94 @@ describe("derived tag rules", () => {
     })).not.toContain("alarm");
 
     expect(deriveRecordTags({
+      name: "Signal Whistle",
+      category: "equipment",
+      subcategory: "gear",
+      descriptionText: "When sounded, a signal whistle can be heard clearly up to half a mile away across open terrain.",
+      traits: [],
+    })).toContain("signaling");
+
+    expect(deriveRecordTags({
+      name: "Signal Whistle",
+      category: "equipment",
+      subcategory: "gear",
+      descriptionText: "When sounded, a signal whistle can be heard clearly up to half a mile away across open terrain.",
+      traits: [],
+    })).not.toContain("alarm");
+
+    expect(deriveRecordTags({
+      name: "Flare Beacon",
+      category: "equipment",
+      subcategory: "consumable",
+      descriptionText: "Flare beacons create an incredibly bright light for a brief period of time. They are often used to signal others to the beacon's location, to coordinate assaults, to request rescue, or for other similar reasons.",
+      traits: ["consumable", "gadget"],
+    })).toContain("signaling");
+
+    expect(deriveRecordTags({
+      name: "Communication Bangle",
+      category: "equipment",
+      subcategory: "gear",
+      descriptionText: "While decorative, this serves a cover for the bangle's function as a message bearer. Messages can be coded into the band and read later by the intended recipient.",
+      traits: [],
+    })).toContain("message_delivery");
+
+    expect(deriveRecordTags({
+      name: "Dream Message",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You send a message to your target's dream. The message is one-way, up to 1 minute of speech. If the target is asleep, they receive the message instantly.",
+      traits: ["concentrate", "manipulate", "mental"],
+    })).toContain("message_delivery");
+
+    expect(deriveRecordTags({
+      name: "Telepathic Demand",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You send the target a message of 25 words or fewer, and it can respond immediately with its own message of 25 words or fewer. Your message is insidious and has the effect of a Suggestion spell.",
+      traits: ["concentrate", "incapacitation", "linguistic", "manipulate", "mental"],
+    })).not.toContain("message_delivery");
+
+    expect(deriveRecordTags({
+      name: "Sky Signs",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You emblazon a message across the sky itself, using clouds or auroras to coordinate distant allies.",
+      traits: ["air", "illusion", "visual"],
+    })).toContain("signaling");
+
+    expect(deriveRecordTags({
+      name: "Countering Charm",
+      category: "equipment",
+      subcategory: "gear",
+      descriptionText: "Spellcasters can cast spells into countering charms that they've invested. The spell's effect doesn't occur; the spell's power is instead stored within the charm.",
+      traits: ["invested", "magical"],
+    })).toContain("countermagic");
+
+    expect(deriveRecordTags({
+      name: "Countering Charm",
+      category: "equipment",
+      subcategory: "gear",
+      descriptionText: "Spellcasters can cast spells into countering charms that they've invested. The spell's effect doesn't occur; the spell's power is instead stored within the charm.",
+      traits: ["invested", "magical"],
+    })).not.toContain("magic_protection");
+
+    expect(deriveRecordTags({
+      name: "Antimagic Oil",
+      category: "equipment",
+      subcategory: "consumable",
+      descriptionText: "This oil contains energy that repels nearly all types of magic. When you apply this oil to armor, the creature wearing the armor becomes immune to all spells, effects of magic items, and effects with the magical trait for 1 minute.",
+      traits: ["consumable", "magical", "oil"],
+    })).toEqual(expect.arrayContaining(["countermagic", "magic_protection"]));
+
+    expect(deriveRecordTags({
+      name: "Dispel Magic",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You unravel the magic behind one spell or magical effect. Attempt to counteract the target spell.",
+      traits: ["concentrate", "manipulate"],
+    })).toContain("countermagic");
+
+    expect(deriveRecordTags({
       name: "Alarm Ward",
       category: "hazard",
       subcategory: null,
@@ -1281,10 +1369,26 @@ describe("derived tag rules", () => {
       }),
       expect.objectContaining({
         category: "equipment",
+        family: "communication",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "signaling", description: expect.any(String) }),
+          expect.objectContaining({ value: "message_delivery", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "equipment",
         family: "infiltration",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "disguise", description: expect.any(String) }),
           expect.objectContaining({ value: "social_infiltration", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "equipment",
+        family: "magic_interference",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "countermagic", description: expect.any(String) }),
+          expect.objectContaining({ value: "magic_protection", description: expect.any(String) }),
         ]),
       }),
       expect.objectContaining({
@@ -1304,9 +1408,24 @@ describe("derived tag rules", () => {
       }),
       expect.objectContaining({
         category: "spell",
+        family: "communication",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "signaling", description: expect.any(String) }),
+          expect.objectContaining({ value: "message_delivery", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "spell",
         family: "reconnaissance",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "scouting", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "spell",
+        family: "magic_interference",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "countermagic", description: expect.any(String) }),
         ]),
       }),
       expect.objectContaining({

@@ -96,6 +96,10 @@ describe("Pf2eDataService / Search and Lookup", () => {
     expect(service.listRecords({ category: "hazard", metadata: { field: "derivedTags", op: "includesAny", values: ["mental_impairment"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Images of Failure", "Mental Assault"]));
     expect(service.listRecords({ category: "equipment", subcategory: "consumable", metadata: { field: "derivedTags", op: "includesAny", values: ["alarm"] } }).records.map((record) => record.name)).toEqual(["Alarm Snare", "Sentry Fulu", "Warning Snare"]);
     expect(service.listRecords({ category: "equipment", subcategory: "gear", metadata: { field: "derivedTags", op: "includesAny", values: ["alarm"] } }).records.map((record) => record.name)).toEqual(["Floorbell"]);
+    expect(service.listRecords({ category: "equipment", subcategory: "consumable", metadata: { field: "derivedTags", op: "includesAny", values: ["signaling"] } }).records.map((record) => record.name)).toEqual(["Flare Beacon (Moderate)"]);
+    expect(service.listRecords({ category: "spell", metadata: { field: "derivedTags", op: "includesAny", values: ["message_delivery"] } }).records.map((record) => record.name)).toEqual(["Message Rune"]);
+    expect(service.listRecords({ category: "equipment", subcategory: "gear", metadata: { field: "derivedTags", op: "includesAny", values: ["countermagic"] } }).records.map((record) => record.name)).toEqual(["Countering Charm"]);
+    expect(service.listRecords({ category: "equipment", subcategory: "consumable", metadata: { field: "derivedTags", op: "includesAny", values: ["magic_protection"] } }).records.map((record) => record.name)).toEqual(["Antimagic Oil"]);
     expect(service.listRecords({ category: "hazard", metadata: { field: "derivedTags", op: "includesAny", values: ["restraint_capture"] } }).records.map((record) => record.name)).toEqual(["Snaring Glyph"]);
     expect(service.listRecords({ category: "affliction", metadata: { field: "derivedTags", op: "includesAny", values: ["mental_impairment"] } }).records.map((record) => record.name)).toEqual(["Cackling Delirium"]);
     expect(service.listRecords({ category: "affliction", metadata: { field: "derivedTags", op: "includesAny", values: ["mobility_impairment"] } }).records.map((record) => record.name)).toEqual(["Calcifying Rot"]);
@@ -146,6 +150,8 @@ describe("Pf2eDataService / Search and Lookup", () => {
     expect(webOfEyes?.derivedTags).toContain("scouting");
     const paintedScout = service.lookup("Painted Scout", { category: "spell" }).match;
     expect(paintedScout?.derivedTags).toContain("scouting");
+    const messageRune = service.lookup("Message Rune", { category: "spell" }).match;
+    expect(messageRune?.derivedTags).toContain("message_delivery");
     const antidote = service.lookup("Antidote (Lesser)", { category: "equipment" }).match;
     expect(antidote?.derivedTags).toEqual(expect.arrayContaining(["beneficial", "anti_poison"]));
     expect(antidote?.derivedTags).not.toEqual(expect.arrayContaining(["offensive", "thrown_offense"]));
@@ -232,6 +238,13 @@ describe("Pf2eDataService / Search and Lookup", () => {
     expect(warningSnare?.derivedTags).toContain("alarm");
     const floorbell = service.lookup("Floorbell", { category: "equipment" }).match;
     expect(floorbell?.derivedTags).toContain("alarm");
+    const flareBeacon = service.lookup("Flare Beacon (Moderate)", { category: "equipment" }).match;
+    expect(flareBeacon?.derivedTags).toContain("signaling");
+    const counteringCharm = service.lookup("Countering Charm", { category: "equipment" }).match;
+    expect(counteringCharm?.derivedTags).toContain("countermagic");
+    expect(counteringCharm?.derivedTags).not.toContain("magic_protection");
+    const antimagicOil = service.lookup("Antimagic Oil", { category: "equipment" }).match;
+    expect(antimagicOil?.derivedTags).toEqual(expect.arrayContaining(["countermagic", "magic_protection"]));
     const shacklebreaker = service.lookup("Shacklebreaker", { category: "equipment" }).match;
     expect(shacklebreaker?.derivedTags).toContain("restraint_escape");
     expect(shacklebreaker?.derivedTags).not.toContain("restraint_capture");

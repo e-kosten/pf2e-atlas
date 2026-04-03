@@ -249,6 +249,98 @@ const ALARM_TRIGGER_TEXT_ANCHORS: TextAnchor[] = [
   tokenAnchor("password"),
 ];
 
+const SIGNALING_NAME_ANCHORS: TextAnchor[] = [
+  tokenAnchor("signal", "name"),
+  tokenAnchor("signaling", "name"),
+  tokenAnchor("beacon", "name"),
+  tokenAnchor("whistle", "name"),
+];
+
+const SIGNALING_TEXT_ANCHORS: TextAnchor[] = [
+  phraseAnchor("request rescue"),
+  phraseAnchor("coordinate assaults"),
+  phraseAnchor("signal directions"),
+  phraseAnchor("heard clearly"),
+  phraseAnchor("heard up to"),
+  phraseAnchor("seen from miles away"),
+  phraseAnchor("target becomes more visible"),
+  phraseAnchor("spews sparks"),
+  phraseAnchor("emblazon a message across the sky"),
+];
+
+const MESSAGE_DELIVERY_EQUIPMENT_NAME_ANCHORS: TextAnchor[] = [
+  tokenAnchor("message", "name"),
+  tokenAnchor("mail", "name"),
+  tokenAnchor("mailbox", "name"),
+  tokenAnchor("communication", "name"),
+];
+
+const MESSAGE_DELIVERY_SPELL_NAME_ANCHORS: TextAnchor[] = [
+  tokenAnchor("message", "name"),
+  tokenAnchor("mailbox", "name"),
+  tokenAnchor("telepathy", "name"),
+  phraseAnchor("telepathic bond", "name"),
+  phraseAnchor("dream council", "name"),
+  tokenAnchor("mindlink", "name"),
+];
+
+const MESSAGE_DELIVERY_TEXT_ANCHORS: TextAnchor[] = [
+  phraseAnchor("send a message"),
+  phraseAnchor("record a message"),
+  phraseAnchor("write a message"),
+  phraseAnchor("message bearer"),
+  phraseAnchor("messages can be coded"),
+  phraseAnchor("brief response"),
+  phraseAnchor("communicate telepathically"),
+  phraseAnchor("message is one way"),
+  phraseAnchor("shared dream"),
+  phraseAnchor("communicate with one another"),
+  phraseAnchor("message up to"),
+];
+
+const MESSAGE_DELIVERY_BLOCKER_TEXT_ANCHORS: TextAnchor[] = [
+  phraseAnchor("suggestion spell"),
+  phraseAnchor("harder for them to communicate"),
+  phraseAnchor("can communicate only by singing"),
+  phraseAnchor("no special method of communication"),
+];
+
+const COUNTERMAGIC_NAME_ANCHORS: TextAnchor[] = [
+  tokenAnchor("antimagic", "name"),
+  tokenAnchor("countering", "name"),
+  tokenAnchor("nullification", "name"),
+  tokenAnchor("dispelling", "name"),
+  tokenAnchor("dispel", "name"),
+  tokenAnchor("counterspell", "name"),
+];
+
+const COUNTERMAGIC_TEXT_ANCHORS: TextAnchor[] = [
+  phraseAnchor("spell s effect doesn t occur"),
+  phraseAnchor("all magic is suppressed"),
+  phraseAnchor("antimagic field"),
+  phraseAnchor("counteract magical effects"),
+  phraseAnchor("counteract the triggering spell"),
+  phraseAnchor("counteract a single spell"),
+  phraseAnchor("counteract the target spell"),
+];
+
+const COUNTERMAGIC_REFERENCE_ANCHORS = [
+  referenceAnchor("spells-srd", "Dispel Magic"),
+  referenceAnchor("spells-srd", "Antimagic Field"),
+  referenceAnchor("spells-srd", "Dispelling Globe"),
+];
+
+const MAGIC_PROTECTION_TEXT_ANCHORS: TextAnchor[] = [
+  phraseAnchor("saving throws against magical effects"),
+  phraseAnchor("bonus to saving throws against magical effects"),
+  phraseAnchor("becomes immune to all spells"),
+  phraseAnchor("immune to all spells"),
+  phraseAnchor("effects of magic items"),
+  phraseAnchor("effects with the magical trait"),
+  phraseAnchor("spell targets you"),
+  phraseAnchor("spells that target you"),
+];
+
 const SPELL_SCOUTING_NAME_ANCHORS: TextAnchor[] = [
   phraseAnchor("clairaudience", "name"),
   phraseAnchor("clairvoyance", "name"),
@@ -684,6 +776,30 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     ],
   },
   {
+    tag: "signaling",
+    category: "spell",
+    threshold: 2,
+    anyOf: [
+      { score: 1, textAny: SIGNALING_NAME_ANCHORS },
+      { score: 2, textAny: SIGNALING_TEXT_ANCHORS },
+    ],
+    noneOf: [
+      { textAny: ALARM_STRONG_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "message_delivery",
+    category: "spell",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: MESSAGE_DELIVERY_SPELL_NAME_ANCHORS },
+      { score: 2, textAny: MESSAGE_DELIVERY_TEXT_ANCHORS },
+    ],
+    noneOf: [
+      { textAny: MESSAGE_DELIVERY_BLOCKER_TEXT_ANCHORS },
+    ],
+  },
+  {
     tag: "scouting",
     category: "spell",
     threshold: 2,
@@ -889,6 +1005,29 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     ],
   },
   {
+    tag: "signaling",
+    category: "equipment",
+    subcategories: [...GEARISH_SUBCATEGORIES, "consumable"],
+    threshold: 2,
+    anyOf: [
+      { score: 1, textAny: SIGNALING_NAME_ANCHORS },
+      { score: 2, textAny: SIGNALING_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "message_delivery",
+    category: "equipment",
+    subcategories: [...GEARISH_SUBCATEGORIES, "consumable"],
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: MESSAGE_DELIVERY_EQUIPMENT_NAME_ANCHORS },
+      { score: 2, textAny: MESSAGE_DELIVERY_TEXT_ANCHORS },
+    ],
+    noneOf: [
+      { textAny: MESSAGE_DELIVERY_BLOCKER_TEXT_ANCHORS },
+    ],
+  },
+  {
     tag: "alarm",
     category: "equipment",
     subcategories: [...GEARISH_SUBCATEGORIES, "consumable"],
@@ -913,6 +1052,43 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     subcategories: GEARISH_SUBCATEGORIES,
     anyOf: [
       { textAny: [tokenAnchor("storage"), tokenAnchor("stow"), tokenAnchor("carry"), tokenAnchor("haul"), tokenAnchor("pouch"), tokenAnchor("backpack"), tokenAnchor("container"), tokenAnchor("pack")] },
+    ],
+  },
+  {
+    tag: "countermagic",
+    category: "equipment",
+    subcategories: [...GEARISH_SUBCATEGORIES, "consumable"],
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: COUNTERMAGIC_NAME_ANCHORS },
+      { score: 2, textAny: COUNTERMAGIC_TEXT_ANCHORS },
+      { score: 2, referencesAny: COUNTERMAGIC_REFERENCE_ANCHORS },
+      {
+        score: 2,
+        textAll: [
+          tokenAnchor("counteract"),
+        ],
+        textAny: [
+          phraseAnchor("magic effect"),
+          phraseAnchor("magical effect"),
+          phraseAnchor("magical effects"),
+          phraseAnchor("magic item"),
+          phraseAnchor("magical darkness"),
+          phraseAnchor("triggering spell"),
+          phraseAnchor("single spell"),
+          phraseAnchor("target spell"),
+        ],
+      },
+    ],
+  },
+  {
+    tag: "magic_protection",
+    category: "equipment",
+    subcategories: [...GEARISH_SUBCATEGORIES, "consumable"],
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: [tokenAnchor("antimagic", "name")] },
+      { score: 2, textAny: MAGIC_PROTECTION_TEXT_ANCHORS },
     ],
   },
   {
@@ -1134,6 +1310,32 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "affliction",
     anyOf: [
       { textAny: AFFLICTION_MOBILITY_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "countermagic",
+    category: "spell",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: COUNTERMAGIC_NAME_ANCHORS },
+      { score: 2, textAny: COUNTERMAGIC_TEXT_ANCHORS },
+      { score: 2, referencesAny: COUNTERMAGIC_REFERENCE_ANCHORS },
+      {
+        score: 2,
+        textAll: [
+          tokenAnchor("counteract"),
+        ],
+        textAny: [
+          phraseAnchor("magic effect"),
+          phraseAnchor("magical effect"),
+          phraseAnchor("magical effects"),
+          phraseAnchor("magic item"),
+          phraseAnchor("magical darkness"),
+          phraseAnchor("triggering spell"),
+          phraseAnchor("single spell"),
+          phraseAnchor("target spell"),
+        ],
+      },
     ],
   },
   {
@@ -1587,12 +1789,32 @@ export const DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
   },
   {
     category: "equipment",
+    subcategories: [...GEARISH_SUBCATEGORIES, "consumable"],
+    family: "communication",
+    description: "Coordination, signaling, and message-relay equipment.",
+    tags: [
+      { value: "signaling", description: "Helps draw attention, mark a location, or coordinate allies." },
+      { value: "message_delivery", description: "Sends, stores, or relays actual content across time or distance." },
+    ],
+  },
+  {
+    category: "equipment",
     subcategories: DISGUISE_SUBCATEGORIES,
     family: "infiltration",
     description: "Appearance-changing and social-passing equipment across gear and consumables.",
     tags: [
       { value: "disguise", description: "Helps alter appearance or impersonate another identity." },
       { value: "social_infiltration", description: "Helps blend into a group or pass under social scrutiny." },
+    ],
+  },
+  {
+    category: "equipment",
+    subcategories: [...GEARISH_SUBCATEGORIES, "consumable"],
+    family: "magic_interference",
+    description: "Equipment that disrupts hostile magic or protects against it.",
+    tags: [
+      { value: "countermagic", description: "Counteracts, dispels, suppresses, or shuts down magic." },
+      { value: "magic_protection", description: "Protects the user or target against hostile magical effects." },
     ],
   },
   {
@@ -1606,10 +1828,27 @@ export const DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
   },
   {
     category: "spell",
+    family: "communication",
+    description: "Spells for signaling, telepathy, and message exchange.",
+    tags: [
+      { value: "signaling", description: "Helps draw attention, mark a location, or coordinate allies." },
+      { value: "message_delivery", description: "Sends, stores, or relays actual content across time or distance." },
+    ],
+  },
+  {
+    category: "spell",
     family: "reconnaissance",
     description: "Remote-observation and scouting spells.",
     tags: [
       { value: "scouting", description: "Helps observe at a distance, extend senses, or locate a target." },
+    ],
+  },
+  {
+    category: "spell",
+    family: "magic_interference",
+    description: "Spells that disrupt, dispel, or suppress magic.",
+    tags: [
+      { value: "countermagic", description: "Counteracts, dispels, suppresses, or shuts down magic." },
     ],
   },
   {

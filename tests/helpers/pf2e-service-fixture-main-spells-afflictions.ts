@@ -231,6 +231,28 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
     },
   });
 
+  await writeJson(path.join(packRoot, "spells-srd", "message-rune.json"), {
+    _id: "spell-message-rune-1",
+    name: "Message Rune",
+    type: "spell",
+    system: {
+      description: {
+        value: "<p>You record a message up to 5 minutes long and inscribe a special rune on any flat unattended surface or small object within reach.</p><p>You also specify a trigger that creatures must meet to hear the message.</p>",
+      },
+      level: {
+        value: 2,
+      },
+      publication: {
+        title: "Pathfinder Secrets of Magic",
+      },
+      traits: {
+        rarity: "common",
+        traditions: ["arcane", "occult"],
+        value: ["concentrate", "linguistic", "manipulate", "mental"],
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "afflictions", "cackling-delirium.json"), {
     _id: "affliction-1",
     name: "Cackling Delirium",

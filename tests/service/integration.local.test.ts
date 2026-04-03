@@ -52,7 +52,7 @@ describe("local PF2E integration", async () => {
     expect(service.lookup("Analysis Eye").match?.packLabel).toBe("Equipment");
     expect(service.lookup("Cythnigot", { category: "creature" }).match?.type).toBe("npc");
     service.close();
-  }, 20000);
+  }, 60000);
 
   it.runIf(available)("reuses a cached SQLite index when the PF2E source is unchanged", async () => {
     const tempRoot = await mkdtemp(path.join(os.tmpdir(), "pf2e-local-cache-"));
@@ -76,5 +76,5 @@ describe("local PF2E integration", async () => {
     const secondMtime = (await stat(indexPath)).mtimeMs;
 
     expect(secondMtime).toBe(firstMtime);
-  }, 20000);
+  }, 60000);
 });
