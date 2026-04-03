@@ -41,6 +41,7 @@ Default to this skill when any of these are true:
    Include:
    - the tag or rules being changed
    - expected record movement
+   - expected category-level coverage delta when the pass should move live coverage materially
    - the main precision risk
    Ask a direct confirmation question and wait unless the user explicitly asked for immediate implementation.
 6. Implement in the declarative rule table.
@@ -56,11 +57,13 @@ Default to this skill when any of these are true:
    - `npm test -- tests/tags/derived-tags.test.ts tests/service/search-and-lookup.test.ts`
    - `npm run build`
    - `npm test`
-   - `npm run refresh-index -- --reuse-embeddings` only when the change should materially affect live tagging
+   - `npm run refresh-index -- --reuse-embeddings` when the change should materially affect live tagging or when you need to confirm category-level coverage movement
 9. Summarize in precision terms.
    Report:
    - what false-positive or false-negative class changed
    - which tags were tuned
+   - before/after tagged-record counts and percentage-point coverage delta when the pass materially moved live records
+   - or state explicitly that the pass was precision-only and category-level coverage movement was not the goal
    - what tests and spot checks defend the change
    - what remains intentionally conservative
 

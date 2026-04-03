@@ -27,3 +27,10 @@ If the request genuinely mixes both:
 1. Run a category audit first.
 2. Use the expansion workflow to define the missing category slice.
 3. Use the refinement workflow for any follow-up precision cleanup after the expansion is in place.
+4. Preserve one baseline coverage snapshot before expansion, one post-expansion coverage check, and one final summary that separates ontology gain from later precision cleanup.
+
+Do not finish an iteration pass that was supposed to improve coverage without a quantified movement summary. Carry through the routed workflow's coverage reporting expectations:
+- tagged-record counts before and after
+- tagged coverage percentage before and after
+- tagged-record delta and percentage-point gain when coverage was the goal
+- explicit note when a later refinement step was precision-only rather than coverage-moving

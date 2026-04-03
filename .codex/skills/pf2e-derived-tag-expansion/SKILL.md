@@ -24,6 +24,7 @@ Default to this skill when any of these are true:
    Collect:
    - canonical record count
    - tagged-record count
+   - tagged coverage percentage
    - distinct live tags firing in the category
    - catalog family count and tag count for the category
    - representative untagged samples by category and subcategory
@@ -47,7 +48,8 @@ Default to this skill when any of these are true:
    Include:
    - current coverage snapshot
    - proposed families and tags
-   - expected category-level coverage gain
+   - expected tagged-record gain
+   - expected percentage-point coverage gain
    - concrete example records expected to move
    - main precision risks
    When semantic discovery was used, also include:
@@ -76,10 +78,16 @@ Default to this skill when any of these are true:
 10. Summarize at category level.
    Report:
    - before/after tagged-record counts
+   - before/after tagged coverage percentage
+   - tagged-record delta
+   - percentage-point coverage gain
    - before/after distinct live tags firing
+   - live-tag delta
    - example newly covered records by tag
    - false-positive classes checked
    - what remains intentionally unmodeled
+   If the canonical denominator changed between the baseline audit and rebuilt corpus, say so explicitly and report both denominators rather than implying a fixed total.
+   Include one compact coverage line in the final report, for example: `36/718 -> 100/720 tagged hazards, +64 records, +8.9 percentage points`.
 
 ## Semantic Discovery Examples
 
