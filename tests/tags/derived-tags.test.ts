@@ -853,6 +853,86 @@ describe("derived tag rules", () => {
     })).toEqual(expect.arrayContaining(["disguise", "social_infiltration"]));
 
     expect(deriveRecordTags({
+      name: "Humanoid Form",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You transform your appearance to that of a Small or Medium humanoid.",
+      traits: ["polymorph"],
+    })).toEqual(expect.arrayContaining(["disguise", "social_infiltration"]));
+
+    expect(deriveRecordTags({
+      name: "Mimic Undead",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You take death and wrap it about you like a cloak. Senses such as lifesense detect you as undead unless a creature succeeds at its check.",
+      traits: ["concentrate", "manipulate"],
+    })).toEqual(expect.arrayContaining(["disguise", "social_infiltration"]));
+
+    expect(deriveRecordTags({
+      name: "Face in the Crowd",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "While in a crowd of roughly similar creatures, your appearance becomes bland and nondescript. This counts as setting up a disguise for Impersonate and helps you go incognito among the crowd.",
+      traits: ["focus", "visual"],
+    })).toEqual(expect.arrayContaining(["disguise", "social_infiltration"]));
+
+    expect(deriveRecordTags({
+      name: "Befitting Attire",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You cloak the targets in an illusion, shaping their clothing and worn items into ones suitable for a particular occasion. This doesn't change identifying details of the targets' appearances other than their clothes.",
+      traits: ["illusion", "visual"],
+    })).toContain("social_infiltration");
+
+    expect(deriveRecordTags({
+      name: "Befitting Attire",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You cloak the targets in an illusion, shaping their clothing and worn items into ones suitable for a particular occasion. This doesn't change identifying details of the targets' appearances other than their clothes.",
+      traits: ["illusion", "visual"],
+    })).not.toContain("disguise");
+
+    expect(deriveRecordTags({
+      name: "Inscrutable Mask",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "The mask grants you a +1 status bonus to Deception checks to Lie or Feint in areas of dim light or darkness.",
+      traits: ["illusion", "shadow"],
+    })).toContain("social_infiltration");
+
+    expect(deriveRecordTags({
+      name: "Inscrutable Mask",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "The mask grants you a +1 status bonus to Deception checks to Lie or Feint in areas of dim light or darkness.",
+      traits: ["illusion", "shadow"],
+    })).not.toContain("disguise");
+
+    expect(deriveRecordTags({
+      name: "Glimpse the Truth",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "Divine insight lets you see things as they are, unveiled by attempts to magically cloak the truth. If the check succeeds against an Illusory Disguise spell, you see the creature's true form.",
+      traits: ["focus", "revelation"],
+    })).not.toEqual(expect.arrayContaining(["disguise", "social_infiltration"]));
+
+    expect(deriveRecordTags({
+      name: "Web of Influence",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You learn the location of the nearest creature to whom the target is connected in a magical manner, such as all the targets of an Illusory Disguise spell.",
+      traits: ["detection"],
+    })).not.toEqual(expect.arrayContaining(["disguise", "social_infiltration"]));
+
+    expect(deriveRecordTags({
+      name: "Shadow Double",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You create an illusory duplicate of the target creature by drawing shadowy material from the Netherworld and sculpting it into a semi-solid form.",
+      traits: ["illusion"],
+    })).not.toEqual(expect.arrayContaining(["disguise", "social_infiltration"]));
+
+    expect(deriveRecordTags({
       name: "Focus Burst",
       category: "spell",
       subcategory: null,

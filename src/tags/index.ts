@@ -130,6 +130,45 @@ const SOCIAL_INFILTRATION_REFERENCE_ANCHORS = [
   referenceAnchor("spells-srd", "Illusory Disguise"),
 ];
 
+const SPELL_DISGUISE_NAME_ANCHORS: TextAnchor[] = [
+  tokenAnchor("disguise", "name"),
+  tokenAnchor("visage", "name"),
+];
+
+const SPELL_DISGUISE_TEXT_ANCHORS: TextAnchor[] = [
+  phraseAnchor("appear as another creature"),
+  phraseAnchor("appears as another creature"),
+  phraseAnchor("appearance becomes bland and nondescript"),
+  phraseAnchor("change your appearance"),
+  phraseAnchor("transform your appearance"),
+  phraseAnchor("alter a minor detail of your appearance"),
+  phraseAnchor("trade appearances"),
+  phraseAnchor("look and sound like the target"),
+  phraseAnchor("disguises you"),
+  phraseAnchor("disguises the target"),
+  phraseAnchor("effects of illusory disguise"),
+  phraseAnchor("setting up a disguise"),
+  phraseAnchor("mask the target s features"),
+  phraseAnchor("pass the target off as"),
+  phraseAnchor("detect you as undead"),
+];
+
+const SPELL_DISGUISE_BLOCKER_TEXT_ANCHORS: TextAnchor[] = [
+  phraseAnchor("see things as they are"),
+  phraseAnchor("see through it"),
+  phraseAnchor("see the creature s true form"),
+  phraseAnchor("counteract check against each illusion"),
+  phraseAnchor("unveiled by attempts to magically cloak the truth"),
+];
+
+const SPELL_SOCIAL_INFILTRATION_TEXT_ANCHORS: TextAnchor[] = [
+  phraseAnchor("go incognito"),
+  phraseAnchor("appearance becomes bland and nondescript"),
+  phraseAnchor("suitable for a particular occasion"),
+  phraseAnchor("pass as someone else"),
+  phraseAnchor("blend into"),
+];
+
 const RESTRAINT_ESCAPE_REFERENCE_ANCHORS = [
   referenceAnchor("actionspf2e", "Escape"),
   referenceAnchor("conditionitems", "Grabbed"),
@@ -574,8 +613,11 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "spell",
     threshold: 2,
     anyOf: [
-      { score: 2, textAny: DISGUISE_TEXT_ANCHORS },
-      { score: 1, traitsAny: ["illusion"] },
+      { score: 1, textAny: SPELL_DISGUISE_NAME_ANCHORS },
+      { score: 2, textAny: SPELL_DISGUISE_TEXT_ANCHORS },
+    ],
+    noneOf: [
+      { textAny: SPELL_DISGUISE_BLOCKER_TEXT_ANCHORS },
     ],
   },
   {
@@ -584,7 +626,23 @@ const DERIVED_TAG_RULES: DerivedTagRule[] = [
     requiresTags: ["disguise"],
     anyOf: [
       { textAny: SOCIAL_INFILTRATION_TEXT_ANCHORS },
-      { traitsAny: ["illusion"] },
+      { textAny: SPELL_DISGUISE_TEXT_ANCHORS },
+    ],
+    noneOf: [
+      { textAny: SPELL_DISGUISE_BLOCKER_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "social_infiltration",
+    category: "spell",
+    anyOf: [
+      { textAny: SPELL_SOCIAL_INFILTRATION_TEXT_ANCHORS },
+      {
+        textAll: [
+          tokenAnchor("deception"),
+          tokenAnchor("lie"),
+        ],
+      },
     ],
   },
   {
