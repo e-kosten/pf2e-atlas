@@ -26,6 +26,7 @@ export type SourceCategory = "core" | "rules" | "adventure" | "unknown";
 export interface DerivedTagCatalogTag {
   value: string;
   description?: string;
+  nativeOntologyPolicy?: "distinct_required" | "aggregates_native_signals";
 }
 
 export interface DerivedTagCatalogEntry {

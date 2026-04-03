@@ -75,7 +75,7 @@ describe("semantic discovery CLI helpers", () => {
           similarity: 0.95,
           traits: ["undead", "human"],
           sharedTraits: ["undead", "human"],
-          derivedTags: ["undead_threat"],
+          derivedTags: ["undead_adjacent"],
           descriptionText: "Haunts abandoned decks.",
         },
       ],

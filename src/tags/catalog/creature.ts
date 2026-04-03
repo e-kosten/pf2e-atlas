@@ -44,12 +44,27 @@ export const CREATURE_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
   },
   {
     category: "creature",
-    family: "threat_signal",
-    description: "Creature threat cues derived from native traits or family glossary links.",
+    family: "ontology_cluster",
+    description: "Creature semantic groupings that aggregate fragmented native ontology when exact traits are too narrow.",
     tags: [
-      { value: "undead_threat", description: "Threat signal derived from undead-like native traits." },
-      { value: "fey_threat", description: "Threat signal derived from fey native traits." },
-      { value: "plant_threat", description: "Threat signal derived from plant-like native traits." },
+      {
+        value: "undead_adjacent",
+        description: "Groups undead and closely undead-coded native signals into one retrieval bucket.",
+        nativeOntologyPolicy: "aggregates_native_signals",
+      },
+    ],
+  },
+  {
+    category: "creature",
+    family: "threat_profile",
+    description: "Creature prep-driving threat patterns based on behavior, counterplay, or encounter consequence rather than type.",
+    tags: [
+      { value: "possession_threat", description: "Can possess, body-snatch, or take control of a victim from within." },
+      { value: "life_drain_threat", description: "Threat defined by draining blood, vitality, life force, or souls from victims." },
+      { value: "spawn_creator", description: "Creates additional threats through infestation, spawn-making, conversion, or implanted offspring." },
+      { value: "petrification_threat", description: "Threat defined by petrifying victims or turning them to stone." },
+      { value: "regeneration_threat", description: "Regenerates or requires special suppression or finishing countermeasures." },
+      { value: "ambush_grabber", description: "Captures prey through grabbing, constriction, swallowing whole, webbing, or drag-off ambush tactics." },
     ],
   },
   {

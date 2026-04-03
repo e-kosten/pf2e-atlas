@@ -443,9 +443,83 @@ const ANIMATED_STATUE_NAME_ANCHORS = [
   patternAnchor("animated colossus", "name"),
 ];
 
+const POSSESSION_THREAT_TEXT_ANCHORS = [
+  patternAnchor("possess"),
+  patternAnchor("possesses"),
+  patternAnchor("possessed"),
+  patternAnchor("possession"),
+  patternAnchor("take control of the victim s body"),
+  patternAnchor("control the victim from within"),
+  patternAnchor("inhabit the body of"),
+  patternAnchor("rides within a living host"),
+  patternAnchor("body snatcher"),
+];
+
+const LIFE_DRAIN_THREAT_TEXT_ANCHORS = [
+  patternAnchor("drain blood"),
+  patternAnchor("drains blood"),
+  patternAnchor("drink blood"),
+  patternAnchor("drinks blood"),
+  patternAnchor("drain life"),
+  patternAnchor("drains life"),
+  patternAnchor("drain vitality"),
+  patternAnchor("drains vitality"),
+  patternAnchor("life force"),
+  patternAnchor("steal souls"),
+  patternAnchor("steals souls"),
+  patternAnchor("siphon souls"),
+  patternAnchor("siphons souls"),
+];
+
+const SPAWN_CREATOR_TEXT_ANCHORS = [
+  patternAnchor("create spawn"),
+  patternAnchor("creates spawn"),
+  patternAnchor("its spawn"),
+  patternAnchor("implant eggs"),
+  patternAnchor("implants eggs"),
+  patternAnchor("lay eggs in"),
+  patternAnchor("lays eggs in"),
+  patternAnchor("bursts from the host"),
+  patternAnchor("turn victims into"),
+  patternAnchor("raise the slain as"),
+  patternAnchor("raises the slain as"),
+];
+
+const PETRIFICATION_THREAT_TEXT_ANCHORS = [
+  patternAnchor("petrify"),
+  patternAnchor("petrifies"),
+  patternAnchor("petrified"),
+  patternAnchor("turn to stone"),
+  patternAnchor("turned to stone"),
+  patternAnchor("turns creatures to stone"),
+  patternAnchor("stone curse"),
+];
+
+const REGENERATION_THREAT_TEXT_ANCHORS = [
+  patternAnchor("regeneration"),
+  patternAnchor("regenerate"),
+  patternAnchor("regenerates"),
+  patternAnchor("suppresses its regeneration"),
+  patternAnchor("can t be killed unless"),
+  patternAnchor("can only be destroyed if"),
+];
+
+const AMBUSH_GRABBER_TEXT_ANCHORS = [
+  patternAnchor("grabbed"),
+  patternAnchor("grabs prey"),
+  patternAnchor("constrict"),
+  patternAnchor("constricts"),
+  patternAnchor("swallow whole"),
+  patternAnchor("webbed"),
+  patternAnchor("sticky webs"),
+  patternAnchor("drag prey"),
+  patternAnchor("drags prey"),
+  patternAnchor("ambush predator"),
+];
+
 export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
-    tag: "undead_threat",
+    tag: "undead_adjacent",
     category: "creature",
     anyOf: [
       { traitsAny: ["undead", "ghost", "spirit", "skeleton", "ghoul"] },
@@ -453,17 +527,47 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     ],
   },
   {
-    tag: "fey_threat",
+    tag: "possession_threat",
     category: "creature",
     anyOf: [
-      { traitsAny: ["fey"] },
+      { textAny: POSSESSION_THREAT_TEXT_ANCHORS },
     ],
   },
   {
-    tag: "plant_threat",
+    tag: "life_drain_threat",
     category: "creature",
     anyOf: [
-      { traitsAny: ["plant", "fungus", "leshy"] },
+      { textAny: LIFE_DRAIN_THREAT_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "spawn_creator",
+    category: "creature",
+    anyOf: [
+      { textAny: SPAWN_CREATOR_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "petrification_threat",
+    category: "creature",
+    anyOf: [
+      { textAny: PETRIFICATION_THREAT_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "regeneration_threat",
+    category: "creature",
+    anyOf: [
+      { textAny: REGENERATION_THREAT_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "ambush_grabber",
+    category: "creature",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: [patternAnchor("constrict"), patternAnchor("constricts"), patternAnchor("swallow whole"), patternAnchor("sticky webs"), patternAnchor("drag prey"), patternAnchor("drags prey")] },
+      { score: 1, textAny: [patternAnchor("grabbed"), patternAnchor("grabs prey"), patternAnchor("webbed"), patternAnchor("ambush predator")] },
     ],
   },
   {

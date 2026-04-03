@@ -274,11 +274,21 @@ describe("derived tag catalog", () => {
       }),
       expect.objectContaining({
         category: "creature",
-        family: "threat_signal",
+        family: "ontology_cluster",
         tags: expect.arrayContaining([
-          expect.objectContaining({ value: "undead_threat", description: expect.any(String) }),
-          expect.objectContaining({ value: "fey_threat", description: expect.any(String) }),
-          expect.objectContaining({ value: "plant_threat", description: expect.any(String) }),
+          expect.objectContaining({ value: "undead_adjacent", description: expect.any(String), nativeOntologyPolicy: "aggregates_native_signals" }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "creature",
+        family: "threat_profile",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "possession_threat", description: expect.any(String) }),
+          expect.objectContaining({ value: "life_drain_threat", description: expect.any(String) }),
+          expect.objectContaining({ value: "spawn_creator", description: expect.any(String) }),
+          expect.objectContaining({ value: "petrification_threat", description: expect.any(String) }),
+          expect.objectContaining({ value: "regeneration_threat", description: expect.any(String) }),
+          expect.objectContaining({ value: "ambush_grabber", description: expect.any(String) }),
         ]),
       }),
       expect.objectContaining({

@@ -111,7 +111,7 @@ describe("semantic discovery evaluator", () => {
         category: "creature",
         level: 4,
         traits: ["undead", "human"],
-        derivedTags: ["undead_threat"],
+        derivedTags: ["undead_adjacent"],
         descriptionText: "Mournful spirits haunt abandoned halls with whispered laments.",
         vector: [1, 0, 0],
       });
@@ -121,7 +121,7 @@ describe("semantic discovery evaluator", () => {
         category: "creature",
         level: 7,
         traits: ["undead", "human"],
-        derivedTags: ["undead_threat", "nautical_setting"],
+        derivedTags: ["undead_adjacent", "nautical_setting"],
         descriptionText: "A mournful undead captain haunts abandoned ships with whispered laments and cursed crews.",
         vector: [0.98, 0.02, 0],
         aliases: ["Pirate Ghost Captain"],
@@ -132,7 +132,7 @@ describe("semantic discovery evaluator", () => {
         category: "creature",
         level: 6,
         traits: ["undead", "human"],
-        derivedTags: ["undead_threat"],
+        derivedTags: ["undead_adjacent"],
         descriptionText: "This undead bosun haunts abandoned decks with whispered laments and doomed crews.",
         vector: [0.97, 0.03, 0],
       });

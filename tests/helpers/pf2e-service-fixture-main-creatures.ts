@@ -911,9 +911,153 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
       },
       traits: {
         rarity: "uncommon",
-        value: ["aberration"],
+        value: ["humanoid"],
         size: {
           value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "body-snatcher.json"), {
+    _id: "body-snatcher",
+    name: "Body Snatcher",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 8,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>This parasite can possess a victim and take control of the victim's body from within, abandoning the host only when badly wounded.</p>",
+      },
+      traits: {
+        rarity: "uncommon",
+        value: ["humanoid"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "soul-drinker.json"), {
+    _id: "soul-drinker",
+    name: "Soul Drinker",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 9,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>This fiend siphons souls from the dying, drains life from survivors, and stores stolen vitality in a black iron reliquary.</p>",
+      },
+      traits: {
+        rarity: "uncommon",
+        value: ["fiend"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "brood-mother.json"), {
+    _id: "brood-mother",
+    name: "Brood Mother",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 10,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>The brood mother implants eggs in living hosts. Fresh horrors burst from the host within a day and join their creator's swarm.</p>",
+      },
+      traits: {
+        rarity: "rare",
+        value: ["aberration"],
+        size: {
+          value: "lg",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "stone-gaze-basilisk.json"), {
+    _id: "stone-gaze-basilisk",
+    name: "Stone Gaze Basilisk",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 7,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>Its gaze can petrify trespassers, and those who linger are swiftly turned to stone.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["beast"],
+        size: {
+          value: "lg",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "marsh-troll.json"), {
+    _id: "marsh-troll",
+    name: "Marsh Troll",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 8,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>The monster's regeneration knits torn flesh in moments. It can't be killed unless acid or fire first suppresses its regeneration.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["giant"],
+        size: {
+          value: "lg",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "web-lurker.json"), {
+    _id: "web-lurker",
+    name: "Web Lurker",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 6,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>An ambush predator lurking in ruined rafters, it snares prey in sticky webs, leaves victims webbed, and drags prey into darkness.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["animal"],
+        size: {
+          value: "lg",
         },
       },
     },

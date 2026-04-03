@@ -18,7 +18,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "A fey spirit that haunts marshy bogs and flooded mires.",
       traits: ["fey"],
-    })).toEqual(expect.arrayContaining(["fey_threat", "swamp_setting"]));
+    })).toContain("swamp_setting");
 
     expect(deriveRecordTags({
       name: "Jungle Stalker",
@@ -82,7 +82,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "Naiads protect streams, ponds, springs, and other natural bodies of fresh water where river tributaries meet beneath forest canopies.",
       traits: ["fey", "water"],
-    })).toEqual(expect.arrayContaining(["freshwater_setting", "aquatic_setting", "forest_setting", "fey_threat"]));
+    })).toEqual(expect.arrayContaining(["freshwater_setting", "aquatic_setting", "forest_setting"]));
 
     expect(deriveRecordTags({
       name: "Defaced Naiad Queen",
@@ -90,7 +90,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "Naiad queens rule over pristine wildernesses centered on untouched lakes or other bodies of fresh water.",
       traits: ["fey", "water"],
-    })).toEqual(expect.arrayContaining(["freshwater_setting", "aquatic_setting", "fey_threat"]));
+    })).toEqual(expect.arrayContaining(["freshwater_setting", "aquatic_setting"]));
 
     expect(deriveRecordTags({
       name: "Coldmire Pond",
@@ -130,7 +130,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "An undead pirate captain prowls the ocean aboard a derelict ship.",
       traits: ["ghost", "undead"],
-    })).toEqual(expect.arrayContaining(["nautical_setting", "aquatic_setting", "undead_threat"]));
+    })).toEqual(expect.arrayContaining(["nautical_setting", "aquatic_setting", "undead_adjacent"]));
 
     expect(deriveRecordTags({
       name: "Cairn Wight",
@@ -290,7 +290,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "The mysterious blodeuwedds dwell in places where the boundaries between the Material Plane and the First World have worn thin, or around portals between the two planes.",
       traits: ["fey", "plant"],
-    })).toEqual(expect.arrayContaining(["first_world_setting", "fey_threat", "plant_threat"]));
+    })).toContain("first_world_setting");
 
     expect(deriveRecordTags({
       name: "Bandersnatch",
@@ -317,7 +317,7 @@ describe("derived tag rules: creature", () => {
       descriptionText: "A thrall reshaped by a vampire master's curse.",
       traits: ["humanoid"],
       families: ["vampire"],
-    })).toContain("undead_threat");
+    })).toContain("undead_adjacent");
 
     expect(deriveRecordTags({
       name: "Manor Guard",
@@ -326,7 +326,7 @@ describe("derived tag rules: creature", () => {
       descriptionText: "A manor guard who patrols the estate grounds.",
       traits: ["human", "humanoid"],
       families: ["vampire"],
-    })).toEqual(expect.arrayContaining(["profession_npc", "undead_threat"]));
+    })).toEqual(expect.arrayContaining(["profession_npc", "undead_adjacent"]));
 
     expect(deriveRecordTags({
       name: "Manor Guard",
@@ -344,7 +344,7 @@ describe("derived tag rules: creature", () => {
       descriptionText: "A courtier sustained by impossible necromancy.",
       traits: ["humanoid"],
       families: ["mythic", "lich"],
-    })).toEqual(expect.arrayContaining(["profession_npc", "undead_threat"]));
+    })).toEqual(expect.arrayContaining(["profession_npc", "undead_adjacent"]));
 
     expect(deriveRecordTags({
       name: "Mythic Courtier",
@@ -746,5 +746,72 @@ describe("derived tag rules: creature", () => {
       descriptionText: "A small stone lion cub prowls the sanctuary like an ornament come to life.",
       traits: ["animal"],
     })).not.toEqual(expect.arrayContaining(["animated_object", "animated_statue"]));
+  });
+
+  it("derives ontology clusters and threat profiles without mirroring native traits", () => {
+    expect(deriveRecordTags({
+      name: "Haunted Courtier",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A courtier bound to unlife by a lich patron.",
+      traits: ["humanoid"],
+      families: ["lich"],
+    })).toContain("undead_adjacent");
+
+    expect(deriveRecordTags({
+      name: "Body Snatcher",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "This parasite can possess a victim and take control of the victim's body from within.",
+      traits: ["aberration"],
+    })).toContain("possession_threat");
+
+    expect(deriveRecordTags({
+      name: "Soul Drinker",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "The fiend siphons souls and drains life from anyone trapped in its shadow.",
+      traits: ["fiend"],
+    })).toContain("life_drain_threat");
+
+    expect(deriveRecordTags({
+      name: "Brood Mother",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "The brood mother implants eggs in living hosts, and fresh horrors burst from the host days later.",
+      traits: ["aberration"],
+    })).toContain("spawn_creator");
+
+    expect(deriveRecordTags({
+      name: "Stone Gaze Basilisk",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Its gaze can petrify trespassers and turn creatures to stone where they stand.",
+      traits: ["beast"],
+    })).toContain("petrification_threat");
+
+    expect(deriveRecordTags({
+      name: "Marsh Troll",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "The monster's regeneration can only be suppressed with acid or fire before it can be killed.",
+      traits: ["giant"],
+    })).toContain("regeneration_threat");
+
+    expect(deriveRecordTags({
+      name: "Web Lurker",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "An ambush predator that snares prey in sticky webs, leaves them webbed, and drags prey back to its lair.",
+      traits: ["animal"],
+    })).toContain("ambush_grabber");
+
+    expect(deriveRecordTags({
+      name: "Playful Naiad",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A playful fey guardian of clear pools and shaded brooks.",
+      traits: ["fey", "water"],
+    })).not.toEqual(expect.arrayContaining(["possession_threat", "life_drain_threat", "spawn_creator", "petrification_threat", "regeneration_threat", "ambush_grabber"]));
   });
 });
