@@ -2,6 +2,10 @@ import type {
   ActorMetricNumericOperator,
   ActorMetricScalarOperator,
 } from "./actor-metrics.js";
+import type {
+  ItemMetricNumericOperator,
+  ItemMetricScalarOperator,
+} from "./item-metrics.js";
 
 export const METADATA_SET_FIELDS = [
   "traits",
@@ -128,6 +132,27 @@ export type ActorMetricComparePredicate = {
   rightMetric: string;
 };
 
+export type ItemMetricPredicate =
+  | {
+    field: "itemMetric";
+    metric: string;
+    op: ItemMetricNumericOperator;
+    value: number;
+  }
+  | {
+    field: "itemMetric";
+    metric: string;
+    op: ItemMetricScalarOperator;
+    value: string | boolean;
+  };
+
+export type ItemMetricComparePredicate = {
+  field: "itemMetricCompare";
+  leftMetric: string;
+  op: ItemMetricNumericOperator;
+  rightMetric: string;
+};
+
 export type MetadataPredicate =
   | MetadataSetPredicate
   | MetadataEnumStringPredicate
@@ -135,7 +160,9 @@ export type MetadataPredicate =
   | MetadataNumberPredicate
   | MetadataBooleanPredicate
   | ActorMetricPredicate
-  | ActorMetricComparePredicate;
+  | ActorMetricComparePredicate
+  | ItemMetricPredicate
+  | ItemMetricComparePredicate;
 
 export type MetadataFilterNode =
   | MetadataPredicate

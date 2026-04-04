@@ -51,6 +51,7 @@ export function summarizeRecord(
     actionCost: record.actionCost,
     usage: record.usage,
     hands: record.hands,
+    itemMetrics: record.itemMetrics,
     damageTypes: record.damageTypes,
     weaponGroup: record.weaponGroup,
     armorGroup: record.armorGroup,

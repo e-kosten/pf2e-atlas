@@ -16,7 +16,7 @@ import {
 } from "../types.js";
 import { uniqueSorted } from "../utils.js";
 
-export const INDEX_SCHEMA_VERSION = 19;
+export const INDEX_SCHEMA_VERSION = 20;
 
 function hashText(value: string): number {
   let hash = 2166136261;
@@ -149,6 +149,17 @@ export function createSchema(db: DatabaseSync, embeddingDimensions: number): voi
       FOREIGN KEY (record_key) REFERENCES records(record_key) ON DELETE CASCADE
     );
 
+    CREATE TABLE item_metrics (
+      record_key TEXT NOT NULL,
+      metric_key TEXT NOT NULL,
+      value_type TEXT NOT NULL,
+      number_value REAL,
+      text_value TEXT,
+      bool_value INTEGER,
+      PRIMARY KEY (record_key, metric_key),
+      FOREIGN KEY (record_key) REFERENCES records(record_key) ON DELETE CASCADE
+    );
+
     CREATE TABLE spell_records (
       record_key TEXT PRIMARY KEY,
       action_cost INTEGER,
@@ -235,6 +246,10 @@ export function createSchema(db: DatabaseSync, embeddingDimensions: number): voi
     CREATE INDEX item_records_category_idx ON item_records(item_category);
     CREATE INDEX item_records_price_idx ON item_records(price_cp);
     CREATE INDEX item_records_action_cost_idx ON item_records(action_cost);
+    CREATE INDEX item_metrics_key_idx ON item_metrics(metric_key);
+    CREATE INDEX item_metrics_number_idx ON item_metrics(metric_key, number_value);
+    CREATE INDEX item_metrics_text_idx ON item_metrics(metric_key, text_value);
+    CREATE INDEX item_metrics_bool_idx ON item_metrics(metric_key, bool_value);
     CREATE INDEX spell_records_action_cost_idx ON spell_records(action_cost);
     CREATE INDEX reference_edges_to_idx ON reference_edges(to_record_key);
     CREATE INDEX reference_edges_from_type_idx ON reference_edges(from_record_type);

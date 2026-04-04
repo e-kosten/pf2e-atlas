@@ -1,5 +1,6 @@
 import type {
   ActorMetricMap,
+  ItemMetricMap,
   PackInfo,
   SearchCategory,
   SearchSubcategory,
@@ -58,6 +59,7 @@ export type NormalizedIndexRecord = {
   resistances: string[];
   weaknesses: string[];
   actorMetrics: ActorMetricMap;
+  itemMetrics: ItemMetricMap;
   rangeValue: number | null;
   searchText: string;
 };
@@ -120,6 +122,7 @@ export type ItemIndexData = {
   weaponGroup: string | null;
   armorGroup: string | null;
   actionCost: number | null;
+  itemMetrics: ItemMetricMap;
 };
 
 export type SpellIndexData = {

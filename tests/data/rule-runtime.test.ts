@@ -55,6 +55,7 @@ function createRecord(recordKey: string, name = recordKey): NormalizedRecord {
     resistances: [],
     weaknesses: [],
     actorMetrics: {},
+    itemMetrics: {},
     rangeValue: null,
     aliases: [],
     legacyRecordLinks: [],

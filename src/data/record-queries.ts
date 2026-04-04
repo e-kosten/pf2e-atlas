@@ -63,6 +63,17 @@ function buildRecordSelect(includeRaw = false): string {
     "i.bulk_value AS bulkValue",
     "i.usage_text AS usage",
     "i.hands AS hands",
+    `COALESCE((
+      SELECT json_group_array(json_object(
+        'metricKey', im.metric_key,
+        'valueType', im.value_type,
+        'numberValue', im.number_value,
+        'textValue', im.text_value,
+        'boolValue', im.bool_value
+      ))
+      FROM item_metrics im
+      WHERE im.record_key = r.record_key
+    ), '[]') AS itemMetricsJson`,
     "COALESCE(s.damage_types_json, i.damage_types_json) AS damageTypesJson",
     "i.weapon_group AS weaponGroup",
     "i.armor_group AS armorGroup",

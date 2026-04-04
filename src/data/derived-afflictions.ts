@@ -540,6 +540,7 @@ export function buildDerivedAfflictionArtifacts(indexedEntries: IndexedBuildEntr
         resistances: [],
         weaknesses: [],
         actorMetrics: {},
+        itemMetrics: {},
         rangeValue: null,
         searchText: buildCanonicalSearchText(
           representativeName,
@@ -607,6 +608,7 @@ export function buildDerivedAfflictionArtifacts(indexedEntries: IndexedBuildEntr
           resistances: [],
           weaknesses: [],
           actorMetrics: {},
+          itemMetrics: {},
           rangeValue: null,
           searchText: buildOccurrenceSearchText(occurrence.name, occurrence.family, occurrence.traits, occurrence.linkedNames),
         };

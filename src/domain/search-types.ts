@@ -114,6 +114,7 @@ export const FILTER_VALUE_FIELDS = [
   "families",
   "derivedTags",
   "actorMetrics",
+  "itemMetrics",
   "rarity",
   "size",
   "publicationTitle",

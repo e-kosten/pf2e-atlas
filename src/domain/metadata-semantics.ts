@@ -4,6 +4,9 @@ import {
   ACTOR_METRIC_NUMERIC_OPERATORS,
   ACTOR_METRIC_SCALAR_OPERATORS,
 } from "./actor-metrics.js";
+import {
+  ITEM_METRIC_DISCOVERY_NAMESPACES,
+} from "./item-metrics.js";
 import { DERIVED_TAG_CATALOG } from "../tags/index.js";
 import {
   FILTER_VALUE_FIELDS,
@@ -67,7 +70,7 @@ export interface MetadataCategoryExample {
 }
 
 export interface MetadataAdvancedPredicateSemantics {
-  name: "actorMetric" | "actorMetricCompare";
+  name: "actorMetric" | "actorMetricCompare" | "itemMetric" | "itemMetricCompare";
   categories: SearchCategory[];
   operators: string[];
   description: string;
@@ -87,6 +90,11 @@ export interface MetadataFilterSemantics {
     namespaces: Array<{ prefix: string; description: string }>;
     notes: string[];
   };
+  itemMetricDiscovery?: {
+    filterValueField: string;
+    namespaces: Array<{ prefix: string; description: string }>;
+    notes: string[];
+  };
   discoverableFieldLookupWorkflow: {
     semanticsFirst: string;
     filterValuesSecond: string;
@@ -101,6 +109,7 @@ const BOOLEAN_OPERATORS = ["eq"] as const;
 
 const ALL_CATEGORIES = [...SEARCH_CATEGORIES];
 const CREATURE_ONLY: SearchCategory[] = ["creature"];
+const ACTOR_METRIC_CATEGORIES: SearchCategory[] = ["creature", "hazard"];
 const EQUIPMENT_ONLY: SearchCategory[] = ["equipment"];
 const SPELL_ONLY: SearchCategory[] = ["spell"];
 const EQUIPMENT_AND_SPELL: SearchCategory[] = ["equipment", "spell"];
@@ -421,9 +430,9 @@ const EXAMPLES_BY_CATEGORY: Partial<Record<SearchCategory, MetadataCategoryExamp
 const ADVANCED_PREDICATES: MetadataAdvancedPredicateSemantics[] = [
   {
     name: "actorMetric",
-    categories: CREATURE_ONLY,
+    categories: ACTOR_METRIC_CATEGORIES,
     operators: [...new Set([...ACTOR_METRIC_NUMERIC_OPERATORS, ...ACTOR_METRIC_SCALAR_OPERATORS])],
-    description: "Generic keyed creature metric predicate for numeric, text, and boolean actor metrics.",
+    description: "Generic keyed actor metric predicate for creature and hazard stats, saves, and other actor-shaped metrics.",
     example: {
       field: "actorMetric",
       metric: "ability.int.mod",
@@ -433,14 +442,38 @@ const ADVANCED_PREDICATES: MetadataAdvancedPredicateSemantics[] = [
   },
   {
     name: "actorMetricCompare",
-    categories: CREATURE_ONLY,
+    categories: ACTOR_METRIC_CATEGORIES,
     operators: [...ACTOR_METRIC_NUMERIC_OPERATORS],
-    description: "Numeric creature metric comparison between two metric keys on the same record.",
+    description: "Numeric actor metric comparison between two metric keys on the same creature or hazard record.",
     example: {
       field: "actorMetricCompare",
       leftMetric: "ability.int.mod",
       op: ">",
       rightMetric: "ability.cha.mod",
+    },
+  },
+  {
+    name: "itemMetric",
+    categories: EQUIPMENT_ONLY,
+    operators: [...new Set([...ACTOR_METRIC_NUMERIC_OPERATORS, ...ACTOR_METRIC_SCALAR_OPERATORS])],
+    description: "Generic keyed equipment metric predicate for weapon, armor, and shield stats.",
+    example: {
+      field: "itemMetric",
+      metric: "weapon.reload",
+      op: "==",
+      value: 1,
+    },
+  },
+  {
+    name: "itemMetricCompare",
+    categories: EQUIPMENT_ONLY,
+    operators: [...ACTOR_METRIC_NUMERIC_OPERATORS],
+    description: "Numeric equipment metric comparison between two metric keys on the same item record.",
+    example: {
+      field: "itemMetricCompare",
+      leftMetric: "shield.hp",
+      op: ">",
+      rightMetric: "shield.bt",
     },
   },
 ];
@@ -527,13 +560,22 @@ export function getMetadataFilterSemantics(): MetadataFilterSemantics {
       namespaces: ACTOR_METRIC_DISCOVERY_NAMESPACES.map((entry) => ({ ...entry })),
       notes: [
         "Use pf2e_list_filter_values with field:\"actorMetrics\" to enumerate live metric keys in the current corpus.",
-        "Set metricPrefix to narrow discovery to one namespace such as ability., save., skill., or perception.",
+        "Set metricPrefix to narrow discovery to one namespace such as ability., save., skill., ac., hp., hardness., perception., or stealth.",
         "Set metric to a text or boolean metric such as save.best or skill.arcana.proficient to enumerate live values.",
+      ],
+    },
+    itemMetricDiscovery: {
+      filterValueField: "itemMetrics",
+      namespaces: ITEM_METRIC_DISCOVERY_NAMESPACES.map((entry) => ({ ...entry })),
+      notes: [
+        "Use pf2e_list_filter_values with field:\"itemMetrics\" to enumerate live metric keys in the current corpus.",
+        "Set metricPrefix to narrow discovery to one namespace such as weapon., armor., or shield.",
+        "Set metric to a text or boolean metric to enumerate live values when such metrics are available.",
       ],
     },
     discoverableFieldLookupWorkflow: {
       semanticsFirst: "Call pf2e_get_search_semantics first to learn which metadata fields and operators are meaningful for the target category or subcategory.",
-      filterValuesSecond: "Call pf2e_list_filter_values only for fields marked discoverable:true or for field:\"actorMetrics\" when you need live corpus values for a chosen field or metric namespace.",
+      filterValuesSecond: "Call pf2e_list_filter_values only for fields marked discoverable:true or for field:\"actorMetrics\" or field:\"itemMetrics\" when you need live corpus values for a chosen metric namespace.",
     },
   };
 }

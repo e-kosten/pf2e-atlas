@@ -11,6 +11,10 @@ import {
   normalizeRawSaveKey,
   slugifyActorMetricSegment,
 } from "../domain/actor-metrics.js";
+import {
+  type ItemMetricMap,
+  slugifyItemMetricSegment,
+} from "../domain/item-metrics.js";
 import type { SourceCategory } from "../types.js";
 import {
   buildEmbeddedItemSearchChunks,
@@ -128,6 +132,72 @@ function parsePerceptionMetric(raw: Record<string, unknown>): number | null {
   );
 }
 
+function parseArmorClassMetric(raw: Record<string, unknown>): number | null {
+  const ac = getNested(raw, ["system", "attributes", "ac"]);
+  if (!ac || typeof ac !== "object") {
+    return null;
+  }
+
+  return asNumber(getNested(ac, ["value"]));
+}
+
+function parseHardnessMetric(raw: Record<string, unknown>): number | null {
+  return asNumber(getNested(raw, ["system", "attributes", "hardness"]));
+}
+
+function parseHitPointMetrics(raw: Record<string, unknown>): ActorMetricMap {
+  const hp = getNested(raw, ["system", "attributes", "hp"]);
+  if (!hp || typeof hp !== "object") {
+    return {};
+  }
+
+  const metrics: ActorMetricMap = {};
+  const value = asNumber(getNested(hp, ["value"]));
+  const max = asNumber(getNested(hp, ["max"]));
+  const brokenThreshold = asNumber(
+    getNested(hp, ["brokenThreshold"]) ??
+      getNested(hp, ["broken"]) ??
+      getNested(hp, ["bt"]),
+  );
+
+  if (value !== null) {
+    metrics["hp.value"] = value;
+  }
+
+  if (max !== null) {
+    metrics["hp.max"] = max;
+  }
+
+  if (brokenThreshold !== null) {
+    metrics["hp.bt"] = brokenThreshold;
+  }
+
+  return metrics;
+}
+
+function parseStealthMetrics(raw: Record<string, unknown>): ActorMetricMap {
+  const stealth = getNested(raw, ["system", "attributes", "stealth"]);
+  if (!stealth || typeof stealth !== "object") {
+    return {};
+  }
+
+  const stealthMod = asNumber(
+    getNested(stealth, ["value"]) ??
+      getNested(stealth, ["mod"]) ??
+      getNested(stealth, ["modifier"]),
+  );
+  const stealthDc = asNumber(getNested(stealth, ["dc"])) ?? (stealthMod !== null ? stealthMod + 10 : null);
+
+  const metrics: ActorMetricMap = {};
+  if (stealthMod !== null) {
+    metrics["stealth.mod"] = stealthMod;
+  }
+  if (stealthDc !== null) {
+    metrics["stealth.dc"] = stealthDc;
+  }
+  return metrics;
+}
+
 function parseSaveMetrics(raw: Record<string, unknown>): Partial<Record<(typeof ACTOR_SAVE_KEYS)[number], number>> {
   const saves = getNested(raw, ["system", "saves"]);
   if (!saves || typeof saves !== "object") {
@@ -242,6 +312,16 @@ function parseActorMetrics(raw: Record<string, unknown>): ActorMetricMap {
     metrics["perception.mod"] = perceptionMod;
   }
 
+  const armorClass = parseArmorClassMetric(raw);
+  if (armorClass !== null) {
+    metrics["ac.value"] = armorClass;
+  }
+
+  const hardness = parseHardnessMetric(raw);
+  if (hardness !== null) {
+    metrics["hardness.value"] = hardness;
+  }
+
   const saveMetrics = parseSaveMetrics(raw);
   for (const saveKey of ACTOR_SAVE_KEYS) {
     const saveMod = saveMetrics[saveKey];
@@ -253,7 +333,9 @@ function parseActorMetrics(raw: Record<string, unknown>): ActorMetricMap {
   addBestAndWorstSaveMetrics(metrics, saveMetrics);
   return {
     ...metrics,
+    ...parseHitPointMetrics(raw),
     ...parseSkillMetrics(raw),
+    ...parseStealthMetrics(raw),
   };
 }
 
@@ -364,6 +446,115 @@ function parseActionCost(raw: Record<string, unknown>): number | null {
   return asNumber(getNested(raw, ["system", "actions", "value"]));
 }
 
+function parseNumericLikeValue(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string" && value.trim().length > 0) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
+function parseWeaponRangeIncrement(raw: Record<string, unknown>): number | null {
+  return parseNumericLikeValue(
+    getNested(raw, ["system", "range", "increment"]) ??
+      getNested(raw, ["system", "range", "value"]) ??
+      getNested(raw, ["system", "range"]),
+  );
+}
+
+function parseWeaponReload(raw: Record<string, unknown>): number | null {
+  return parseNumericLikeValue(
+    getNested(raw, ["system", "reload", "value"]) ??
+      getNested(raw, ["system", "reload"]),
+  );
+}
+
+function parseDamageDieFaces(rawValue: unknown): number | null {
+  if (typeof rawValue === "number" && Number.isFinite(rawValue)) {
+    return rawValue;
+  }
+
+  if (typeof rawValue !== "string") {
+    return null;
+  }
+
+  const match = rawValue.trim().match(/^d(\d+)$/i);
+  if (!match?.[1]) {
+    return null;
+  }
+
+  const parsed = Number(match[1]);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseItemMetrics(raw: Record<string, unknown>): ItemMetricMap {
+  const metrics: ItemMetricMap = {};
+  const recordType = slugifyItemMetricSegment(firstString(raw.type) ?? "");
+
+  if (recordType === "weapon") {
+    const rangeIncrement = parseWeaponRangeIncrement(raw);
+    const reload = parseWeaponReload(raw);
+    const damageDice = asNumber(getNested(raw, ["system", "damage", "dice"]));
+    const damageDieFaces = parseDamageDieFaces(getNested(raw, ["system", "damage", "die"]));
+
+    if (rangeIncrement !== null) {
+      metrics["weapon.range_increment"] = rangeIncrement;
+    }
+    if (reload !== null) {
+      metrics["weapon.reload"] = reload;
+    }
+    if (damageDice !== null) {
+      metrics["weapon.damage_dice"] = damageDice;
+    }
+    if (damageDieFaces !== null) {
+      metrics["weapon.damage_die_faces"] = damageDieFaces;
+    }
+  }
+
+  if (recordType === "armor") {
+    const acBonus = asNumber(getNested(raw, ["system", "acBonus"]));
+    const checkPenalty = asNumber(getNested(raw, ["system", "checkPenalty"]));
+    const speedPenalty = asNumber(getNested(raw, ["system", "speedPenalty"]));
+
+    if (acBonus !== null) {
+      metrics["armor.ac_bonus"] = acBonus;
+    }
+    if (checkPenalty !== null) {
+      metrics["armor.check_penalty"] = checkPenalty;
+    }
+    if (speedPenalty !== null) {
+      metrics["armor.speed_penalty"] = speedPenalty;
+    }
+  }
+
+  if (recordType === "shield") {
+    const hardness = asNumber(getNested(raw, ["system", "hardness"]));
+    const hp = asNumber(getNested(raw, ["system", "hp", "value"]) ?? getNested(raw, ["system", "hp", "max"]));
+    const brokenThreshold = asNumber(
+      getNested(raw, ["system", "hp", "brokenThreshold"]) ??
+        getNested(raw, ["system", "hp", "broken"]) ??
+        getNested(raw, ["system", "hp", "bt"]),
+    );
+
+    if (hardness !== null) {
+      metrics["shield.hardness"] = hardness;
+    }
+    if (hp !== null) {
+      metrics["shield.hp"] = hp;
+    }
+    if (brokenThreshold !== null) {
+      metrics["shield.bt"] = brokenThreshold;
+    }
+  }
+
+  return metrics;
+}
+
 export function parseItemIndexData(raw: Record<string, unknown>): ItemIndexData {
   const usage = firstString(getNested(raw, ["system", "usage", "value"]));
   return {
@@ -376,6 +567,7 @@ export function parseItemIndexData(raw: Record<string, unknown>): ItemIndexData 
     weaponGroup: firstString(getNested(raw, ["system", "group"])),
     armorGroup: firstString(getNested(raw, ["system", "group"])),
     actionCost: parseActionCost(raw),
+    itemMetrics: parseItemMetrics(raw),
   };
 }
 
@@ -649,6 +841,7 @@ export function normalizeIndexRecord(pack: PackBuildInfo, sourcePath: string, ra
     resistances: actorData?.resistances ?? [],
     weaknesses: actorData?.weaknesses ?? [],
     actorMetrics: actorData?.actorMetrics ?? {},
+    itemMetrics: itemData?.itemMetrics ?? {},
     rangeValue: spellData?.rangeValue ?? null,
     searchText: buildSearchText(raw, { name, descriptionText, traits }),
   };

@@ -475,7 +475,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     })).toThrow(/does not belong to category "feat"/i);
   });
 
-  it("discovers live actor metric keys and scalar values through filter-value listing", async () => {
+  it("discovers live actor and item metric keys and scalar values through filter-value listing", async () => {
     const fixture = await createHardFilterFixture();
     createdRoots.push(fixture.root);
 
@@ -521,6 +521,54 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       field: "actorMetrics",
       category: "creature",
       metric: "ability.int.mod",
+    })).toThrow(/text and boolean metrics/i);
+
+    expect(service.listFilterValues({
+      field: "actorMetrics",
+      category: "hazard",
+      metricPrefix: "stealth",
+    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining([
+      "stealth.dc",
+      "stealth.mod",
+    ]));
+
+    expect(service.listFilterValues({
+      field: "actorMetrics",
+      category: "hazard",
+      metric: "save.best",
+    })).toEqual({
+      field: "actorMetrics",
+      values: [
+        { value: "fort", count: 1 },
+        { value: "will", count: 1 },
+      ],
+    });
+
+    expect(service.listFilterValues({
+      field: "itemMetrics",
+      category: "equipment",
+      metricPrefix: "weapon",
+    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining([
+      "weapon.damage_dice",
+      "weapon.damage_die_faces",
+      "weapon.range_increment",
+      "weapon.reload",
+    ]));
+
+    expect(service.listFilterValues({
+      field: "itemMetrics",
+      category: "equipment",
+      metricPrefix: "shield",
+    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining([
+      "shield.bt",
+      "shield.hardness",
+      "shield.hp",
+    ]));
+
+    expect(() => service.listFilterValues({
+      field: "itemMetrics",
+      category: "equipment",
+      metric: "weapon.reload",
     })).toThrow(/text and boolean metrics/i);
   });
 

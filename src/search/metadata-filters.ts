@@ -7,6 +7,10 @@ import {
   type ActorMetricValue,
 } from "../domain/actor-metrics.js";
 import {
+  inferItemMetricValueType,
+  normalizeItemMetricKey,
+} from "../domain/item-metrics.js";
+import {
   METADATA_BOOLEAN_FIELDS,
   METADATA_ENUM_STRING_FIELDS,
   METADATA_NUMBER_FIELDS,
@@ -39,6 +43,7 @@ const METADATA_TEXT_STRING_FIELD_NAMES = new Set<string>(METADATA_TEXT_STRING_FI
 const METADATA_NUMBER_FIELD_NAMES = new Set<string>(METADATA_NUMBER_FIELDS);
 const METADATA_BOOLEAN_FIELD_NAMES = new Set<string>(METADATA_BOOLEAN_FIELDS);
 const ACTOR_METRIC_FIELD_NAMES = new Set<string>(["actorMetric", "actorMetricCompare"]);
+const ITEM_METRIC_FIELD_NAMES = new Set<string>(["itemMetric", "itemMetricCompare"]);
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -69,6 +74,24 @@ function normalizeActorMetricName(metric: unknown, label: string): string {
   const metricType = inferActorMetricValueType(normalized);
   if (!metricType) {
     throw new Error(`Unknown actor metric "${metric}".`);
+  }
+
+  return normalized;
+}
+
+function normalizeItemMetricName(metric: unknown, label: string): string {
+  if (typeof metric !== "string") {
+    throw new Error(`${label} must be a string.`);
+  }
+
+  const normalized = normalizeItemMetricKey(metric);
+  if (!normalized) {
+    throw new Error(`${label} must not be empty.`);
+  }
+
+  const metricType = inferItemMetricValueType(normalized);
+  if (!metricType) {
+    throw new Error(`Unknown item metric "${metric}".`);
   }
 
   return normalized;
@@ -189,6 +212,73 @@ export function normalizeMetadataFilterNode(node: MetadataFilterNode): MetadataF
 
     return {
       field: "actorMetricCompare",
+      leftMetric,
+      op,
+      rightMetric,
+    };
+  }
+
+  if (field === "itemMetric") {
+    const metric = normalizeItemMetricName(raw.metric, "itemMetric.metric");
+    const metricType = inferItemMetricValueType(metric);
+    if (!metricType) {
+      throw new Error(`Unknown item metric "${raw.metric}".`);
+    }
+
+    if (metricType === "number") {
+      if (!isActorMetricNumericOperator(op) || typeof raw.value !== "number" || !Number.isFinite(raw.value)) {
+        throw new Error(`item metric "${metric}" requires a finite numeric value with one of ==, !=, >, >=, <, <=.`);
+      }
+
+      return {
+        field: "itemMetric",
+        metric,
+        op,
+        value: raw.value,
+      };
+    }
+
+    if (!isActorMetricScalarOperator(op)) {
+      throw new Error(`item metric "${metric}" only supports == and !=.`);
+    }
+
+    if (metricType === "text") {
+      if (typeof raw.value !== "string") {
+        throw new Error(`item metric "${metric}" requires a string value.`);
+      }
+
+      return {
+        field: "itemMetric",
+        metric,
+        op,
+        value: normalizeActorMetricTextValue(raw.value),
+      };
+    }
+
+    if (typeof raw.value !== "boolean") {
+      throw new Error(`item metric "${metric}" requires a boolean value.`);
+    }
+
+    return {
+      field: "itemMetric",
+      metric,
+      op,
+      value: raw.value,
+    };
+  }
+
+  if (field === "itemMetricCompare") {
+    const leftMetric = normalizeItemMetricName(raw.leftMetric, "itemMetricCompare.leftMetric");
+    const rightMetric = normalizeItemMetricName(raw.rightMetric, "itemMetricCompare.rightMetric");
+    if (inferItemMetricValueType(leftMetric) !== "number" || inferItemMetricValueType(rightMetric) !== "number") {
+      throw new Error("itemMetricCompare only supports numeric item metrics.");
+    }
+    if (!isActorMetricNumericOperator(op)) {
+      throw new Error("itemMetricCompare requires one of ==, !=, >, >=, <, <=.");
+    }
+
+    return {
+      field: "itemMetricCompare",
       leftMetric,
       op,
       rightMetric,
@@ -369,6 +459,81 @@ function buildActorMetricCompareClause(
   };
 }
 
+function buildItemMetricPredicateClause(
+  predicate: Extract<MetadataPredicate, { field: "itemMetric" }>,
+  context: MetadataSqlContext,
+): { clause: string; params: SqlValue[] } {
+  const metricType = inferItemMetricValueType(predicate.metric);
+  if (!metricType) {
+    throw new Error(`Unknown item metric "${predicate.metric}".`);
+  }
+
+  const sqlOperator = metricSqlOperator(predicate.op);
+  if (metricType === "number") {
+    const numericValue = predicate.value as number;
+    return {
+      clause: `EXISTS (
+        SELECT 1
+        FROM item_metrics item_metric
+        WHERE item_metric.record_key = ${context.recordKeyExpr}
+          AND item_metric.metric_key = ?
+          AND item_metric.value_type = 'number'
+          AND item_metric.number_value ${sqlOperator} ?
+      )`,
+      params: [predicate.metric, numericValue],
+    };
+  }
+
+  if (metricType === "text") {
+    const textValue = predicate.value as string;
+    return {
+      clause: `EXISTS (
+        SELECT 1
+        FROM item_metrics item_metric
+        WHERE item_metric.record_key = ${context.recordKeyExpr}
+          AND item_metric.metric_key = ?
+          AND item_metric.value_type = 'text'
+          AND LOWER(COALESCE(item_metric.text_value, '')) ${sqlOperator} ?
+      )`,
+      params: [predicate.metric, textValue],
+    };
+  }
+
+  const booleanValue = predicate.value as boolean;
+  return {
+    clause: `EXISTS (
+      SELECT 1
+      FROM item_metrics item_metric
+      WHERE item_metric.record_key = ${context.recordKeyExpr}
+        AND item_metric.metric_key = ?
+        AND item_metric.value_type = 'boolean'
+        AND COALESCE(item_metric.bool_value, 0) ${sqlOperator} ?
+    )`,
+    params: [predicate.metric, booleanValue ? 1 : 0],
+  };
+}
+
+function buildItemMetricCompareClause(
+  predicate: Extract<MetadataPredicate, { field: "itemMetricCompare" }>,
+  context: MetadataSqlContext,
+): { clause: string; params: SqlValue[] } {
+  return {
+    clause: `EXISTS (
+      SELECT 1
+      FROM item_metrics left_metric
+      JOIN item_metrics right_metric
+        ON right_metric.record_key = left_metric.record_key
+      WHERE left_metric.record_key = ${context.recordKeyExpr}
+        AND left_metric.metric_key = ?
+        AND left_metric.value_type = 'number'
+        AND right_metric.metric_key = ?
+        AND right_metric.value_type = 'number'
+        AND left_metric.number_value ${metricSqlOperator(predicate.op)} right_metric.number_value
+    )`,
+    params: [predicate.leftMetric, predicate.rightMetric],
+  };
+}
+
 function buildScalarLookupSql(
   recordKeyExpr: string,
   alias: string | undefined,
@@ -514,6 +679,14 @@ function buildMetadataPredicateClause(
 
   if (predicate.field === "actorMetricCompare") {
     return buildActorMetricCompareClause(predicate, context);
+  }
+
+  if (predicate.field === "itemMetric") {
+    return buildItemMetricPredicateClause(predicate, context);
+  }
+
+  if (predicate.field === "itemMetricCompare") {
+    return buildItemMetricCompareClause(predicate, context);
   }
 
   if (METADATA_SET_FIELD_NAMES.has(predicate.field)) {
@@ -745,6 +918,30 @@ export function recordMatchesMetadataFilter(record: NormalizedRecord, node: Meta
   if (node.field === "actorMetricCompare") {
     const leftValue = record.actorMetrics[node.leftMetric];
     const rightValue = record.actorMetrics[node.rightMetric];
+    if (typeof leftValue !== "number" || typeof rightValue !== "number") {
+      return false;
+    }
+
+    return compareActorMetricValues(leftValue, node.op, rightValue);
+  }
+
+  if (node.field === "itemMetric") {
+    const metricType = inferItemMetricValueType(node.metric);
+    const recordValue = record.itemMetrics[node.metric];
+    if (!metricType || recordValue === undefined) {
+      return false;
+    }
+
+    if (metricType === "text" && typeof node.value === "string") {
+      return compareActorMetricValues(recordValue, node.op, normalizeActorMetricTextValue(node.value));
+    }
+
+    return compareActorMetricValues(recordValue, node.op, node.value);
+  }
+
+  if (node.field === "itemMetricCompare") {
+    const leftValue = record.itemMetrics[node.leftMetric];
+    const rightValue = record.itemMetrics[node.rightMetric];
     if (typeof leftValue !== "number" || typeof rightValue !== "number") {
       return false;
     }

@@ -153,6 +153,28 @@ const actorMetricComparePredicateSchema = z.object({
   rightMetric: z.string(),
 }).strict();
 
+const itemMetricPredicateSchema = z.union([
+  z.object({
+    field: z.literal("itemMetric"),
+    metric: z.string(),
+    op: z.enum(ACTOR_METRIC_NUMERIC_OPERATORS),
+    value: z.number(),
+  }).strict(),
+  z.object({
+    field: z.literal("itemMetric"),
+    metric: z.string(),
+    op: z.enum(ACTOR_METRIC_SCALAR_OPERATORS),
+    value: z.union([z.string(), z.boolean()]),
+  }).strict(),
+]);
+
+const itemMetricComparePredicateSchema = z.object({
+  field: z.literal("itemMetricCompare"),
+  leftMetric: z.string(),
+  op: z.enum(ACTOR_METRIC_NUMERIC_OPERATORS),
+  rightMetric: z.string(),
+}).strict();
+
 export const metadataFilterSchema: z.ZodType<MetadataFilterNode> = z.lazy(() => z.union([
   metadataSetPredicateSchema,
   metadataEnumStringPredicateSchema,
@@ -161,6 +183,8 @@ export const metadataFilterSchema: z.ZodType<MetadataFilterNode> = z.lazy(() => 
   metadataBooleanPredicateSchema,
   actorMetricPredicateSchema,
   actorMetricComparePredicateSchema,
+  itemMetricPredicateSchema,
+  itemMetricComparePredicateSchema,
   z.object({
     and: z.array(metadataFilterSchema).min(2),
   }).strict(),

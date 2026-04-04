@@ -12,6 +12,7 @@ export async function createHardFilterFixture(): Promise<{ root: string; manifes
     "action-macros",
     "actions",
     "campaign-effects",
+    "equipment",
     "feats-srd",
     "macros",
     "pathfinder-bestiary",
@@ -34,6 +35,7 @@ export async function createHardFilterFixture(): Promise<{ root: string; manifes
       { name: "action-macros", label: "Action Macros", path: "packs/action-macros", type: "Macro" },
       { name: "actions", label: "Actions", path: "packs/actions", type: "Item" },
       { name: "campaign-effects", label: "Campaign Effects", path: "packs/campaign-effects", type: "Item" },
+      { name: "equipment", label: "Equipment", path: "packs/equipment", type: "Item" },
       { name: "feats-srd", label: "Feats", path: "packs/feats-srd", type: "Item" },
       { name: "macros", label: "Macros", path: "packs/macros", type: "Macro" },
       { name: "pathfinder-bestiary", label: "Pathfinder Bestiary", path: "packs/pathfinder-bestiary", type: "Actor" },
@@ -281,6 +283,284 @@ export async function createHardFilterFixture(): Promise<{ root: string; manifes
         size: {
           value: "lg",
         },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core-2", "clockwork-killbox.json"), {
+    _id: "clockwork-killbox",
+    name: "Clockwork Killbox",
+    type: "hazard",
+    system: {
+      attributes: {
+        ac: { value: 20 },
+        hardness: 8,
+        hp: {
+          value: 32,
+          max: 32,
+          brokenThreshold: 16,
+        },
+        stealth: {
+          value: 10,
+        },
+      },
+      details: {
+        level: {
+          value: 5,
+        },
+        publication: {
+          title: "Pathfinder Monster Core 2",
+        },
+        publicNotes: "<p>A nested ring of hidden gears launches razors at intruders.</p>",
+      },
+      saves: {
+        fortitude: { value: 14 },
+        reflex: { value: 11 },
+        will: { value: 9 },
+      },
+      traits: {
+        rarity: "common",
+        value: ["mechanical", "trap"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core-2", "haunting-choir.json"), {
+    _id: "haunting-choir",
+    name: "Haunting Choir",
+    type: "hazard",
+    system: {
+      attributes: {
+        ac: { value: 18 },
+        hardness: 0,
+        hp: {
+          value: 24,
+          max: 24,
+          brokenThreshold: 12,
+        },
+        stealth: {
+          value: 11,
+        },
+      },
+      details: {
+        level: {
+          value: 4,
+        },
+        publication: {
+          title: "Pathfinder Monster Core 2",
+        },
+        publicNotes: "<p>Whispering spirits erupt into a dissonant chorus that rattles the mind.</p>",
+      },
+      saves: {
+        fortitude: { value: 8 },
+        reflex: { value: 10 },
+        will: { value: 16 },
+      },
+      traits: {
+        rarity: "common",
+        value: ["haunt", "magical"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment", "repeating-hand-crossbow.json"), {
+    _id: "weapon-repeating-hand-crossbow",
+    name: "Repeating Hand Crossbow",
+    type: "weapon",
+    system: {
+      damage: {
+        dice: 1,
+        die: "d6",
+        damageType: "piercing",
+      },
+      description: {
+        value: "<p>A compact crossbow built for rapid follow-up shots.</p>",
+      },
+      group: "bow",
+      level: {
+        value: 2,
+      },
+      price: {
+        value: {
+          gp: 3,
+        },
+      },
+      publication: {
+        title: "Pathfinder Guns & Gears",
+      },
+      range: 60,
+      reload: {
+        value: "1",
+      },
+      traits: {
+        rarity: "common",
+        value: ["martial"],
+      },
+      usage: {
+        value: "held-in-one-hand",
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment", "siege-laser.json"), {
+    _id: "weapon-siege-laser",
+    name: "Siege Laser",
+    type: "weapon",
+    system: {
+      damage: {
+        dice: 2,
+        die: "d10",
+        damageType: "fire",
+      },
+      description: {
+        value: "<p>A heavy experimental launcher that requires careful reloading.</p>",
+      },
+      group: "firearm",
+      level: {
+        value: 7,
+      },
+      price: {
+        value: {
+          gp: 25,
+        },
+      },
+      publication: {
+        title: "Pathfinder Guns & Gears",
+      },
+      range: 120,
+      reload: {
+        value: "2",
+      },
+      traits: {
+        rarity: "common",
+        value: ["martial"],
+      },
+      usage: {
+        value: "held-in-two-hands",
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment", "silken-vest.json"), {
+    _id: "armor-silken-vest",
+    name: "Silken Vest",
+    type: "armor",
+    system: {
+      acBonus: 1,
+      checkPenalty: 0,
+      description: {
+        value: "<p>A flexible vest reinforced with hidden scales.</p>",
+      },
+      group: "cloth",
+      level: {
+        value: 1,
+      },
+      price: {
+        value: {
+          gp: 2,
+        },
+      },
+      publication: {
+        title: "Pathfinder Player Core",
+      },
+      speedPenalty: 0,
+      traits: {
+        rarity: "common",
+        value: ["light"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment", "fortress-plate.json"), {
+    _id: "armor-fortress-plate",
+    name: "Fortress Plate",
+    type: "armor",
+    system: {
+      acBonus: 4,
+      checkPenalty: -2,
+      description: {
+        value: "<p>Massive plate designed to absorb the worst battlefield punishment.</p>",
+      },
+      group: "plate",
+      level: {
+        value: 8,
+      },
+      price: {
+        value: {
+          gp: 45,
+        },
+      },
+      publication: {
+        title: "Pathfinder Player Core",
+      },
+      speedPenalty: -10,
+      traits: {
+        rarity: "common",
+        value: ["heavy"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment", "tower-bulwark.json"), {
+    _id: "shield-tower-bulwark",
+    name: "Tower Bulwark",
+    type: "shield",
+    system: {
+      description: {
+        value: "<p>A reinforced tower shield meant to lock down a corridor.</p>",
+      },
+      hardness: 10,
+      hp: {
+        value: 40,
+        max: 40,
+        brokenThreshold: 20,
+      },
+      level: {
+        value: 6,
+      },
+      price: {
+        value: {
+          gp: 18,
+        },
+      },
+      publication: {
+        title: "Pathfinder Player Core",
+      },
+      traits: {
+        rarity: "common",
+        value: ["shield"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment", "buckler-aegis.json"), {
+    _id: "shield-buckler-aegis",
+    name: "Buckler Aegis",
+    type: "shield",
+    system: {
+      description: {
+        value: "<p>A compact shield for duelists who value mobility over staying power.</p>",
+      },
+      hardness: 3,
+      hp: {
+        value: 12,
+        max: 12,
+        brokenThreshold: 6,
+      },
+      level: {
+        value: 1,
+      },
+      price: {
+        value: {
+          gp: 1,
+        },
+      },
+      publication: {
+        title: "Pathfinder Player Core",
+      },
+      traits: {
+        rarity: "common",
+        value: ["shield"],
       },
     },
   });

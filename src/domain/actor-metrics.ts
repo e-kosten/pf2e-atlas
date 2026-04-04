@@ -26,6 +26,18 @@ export const ACTOR_METRIC_DISCOVERY_NAMESPACES = [
     description: "Ability modifiers such as ability.int.mod or ability.cha.mod.",
   },
   {
+    prefix: "ac.",
+    description: "Armor Class metrics such as ac.value.",
+  },
+  {
+    prefix: "hardness.",
+    description: "Hardness metrics such as hardness.value.",
+  },
+  {
+    prefix: "hp.",
+    description: "Hit Point metrics such as hp.value, hp.max, and hp.bt.",
+  },
+  {
     prefix: "perception.",
     description: "Perception modifier metrics such as perception.mod.",
   },
@@ -36,6 +48,10 @@ export const ACTOR_METRIC_DISCOVERY_NAMESPACES = [
   {
     prefix: "skill.",
     description: "Skill metrics such as skill.arcana.mod, skill.arcana.rank, and skill.arcana.proficient.",
+  },
+  {
+    prefix: "stealth.",
+    description: "Stealth metrics such as stealth.mod and stealth.dc.",
   },
 ] as const;
 
@@ -88,6 +104,18 @@ export function inferActorMetricValueType(metric: string): ActorMetricValueType 
     return "number";
   }
 
+  if (normalized === "ac.value") {
+    return "number";
+  }
+
+  if (normalized === "hardness.value") {
+    return "number";
+  }
+
+  if (/^hp\.(value|max|bt)$/.test(normalized)) {
+    return "number";
+  }
+
   if (/^save\.(fort|ref|will)\.mod$/.test(normalized)) {
     return "number";
   }
@@ -102,6 +130,10 @@ export function inferActorMetricValueType(metric: string): ActorMetricValueType 
 
   if (/^skill\.[a-z0-9_]+\.proficient$/.test(normalized)) {
     return "boolean";
+  }
+
+  if (/^stealth\.(mod|dc)$/.test(normalized)) {
+    return "number";
   }
 
   return null;

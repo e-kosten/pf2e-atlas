@@ -65,8 +65,13 @@ export function registerSearchTools(
             },
             {
               name: "actorMetric",
-              strength: "creature metric predicate",
-              description: "Use inside metadata for creature stat, save, and skill filters with symbolic operators such as >= or ==.",
+              strength: "actor metric predicate",
+              description: "Use inside metadata for creature and hazard stat filters with symbolic operators such as >= or ==.",
+            },
+            {
+              name: "itemMetric",
+              strength: "equipment metric predicate",
+              description: "Use inside metadata for weapon, armor, and shield stat filters with symbolic operators such as >= or ==.",
             },
             {
               name: "spellKinds",
@@ -147,7 +152,7 @@ export function registerSearchTools(
             },
           },
           filterValueDiscovery: {
-            nonMetadataFields: ["sources", "categories", "subcategories", "packs", "actorMetrics"],
+            nonMetadataFields: ["sources", "categories", "subcategories", "packs", "actorMetrics", "itemMetrics"],
             note: "pf2e_list_filter_values enumerates live values for one chosen field. Learn which metadata fields are meaningful from metadataFilters first.",
           },
           heuristicVocabulary: {
@@ -170,8 +175,8 @@ export function registerSearchTools(
         category: searchCategorySchema.optional().describe(CATEGORY_HINT_DESCRIPTION),
         subcategory: searchSubcategorySchema.optional().describe(SUBCATEGORY_HINT_DESCRIPTION),
         scopes: z.array(searchScopeSchema).min(1).optional().describe(SCOPES_HINT_DESCRIPTION),
-        metricPrefix: z.string().optional().describe("Optional actor metric namespace prefix when field is actorMetrics, such as ability., save., skill., or perception."),
-        metric: z.string().optional().describe("Optional specific actor metric key when field is actorMetrics. Text and boolean metrics return live values; otherwise actorMetrics lists keys."),
+        metricPrefix: z.string().optional().describe("Optional metric namespace prefix when field is actorMetrics or itemMetrics, such as ability., save., weapon., armor., or shield."),
+        metric: z.string().optional().describe("Optional specific metric key when field is actorMetrics or itemMetrics. Text and boolean metrics return live values; otherwise the metric field lists keys."),
       },
     },
     async (input) => {

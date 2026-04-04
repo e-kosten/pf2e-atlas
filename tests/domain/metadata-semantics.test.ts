@@ -89,18 +89,32 @@ describe("metadata search semantics", () => {
     expect(semantics.advancedPredicates).toEqual(expect.arrayContaining([
       expect.objectContaining({
         name: "actorMetric",
-        categories: ["creature"],
+        categories: ["creature", "hazard"],
         operators: expect.arrayContaining([">=", "=="]),
       }),
       expect.objectContaining({
         name: "actorMetricCompare",
-        categories: ["creature"],
+        categories: ["creature", "hazard"],
+        operators: expect.arrayContaining([">", "!="]),
+      }),
+      expect.objectContaining({
+        name: "itemMetric",
+        categories: ["equipment"],
+        operators: expect.arrayContaining([">=", "=="]),
+      }),
+      expect.objectContaining({
+        name: "itemMetricCompare",
+        categories: ["equipment"],
         operators: expect.arrayContaining([">", "!="]),
       }),
     ]));
     expect(semantics.actorMetricDiscovery?.filterValueField).toBe("actorMetrics");
     expect(semantics.actorMetricDiscovery?.namespaces.map((entry) => entry.prefix)).toEqual(
-      expect.arrayContaining(["ability.", "save.", "skill.", "perception."]),
+      expect.arrayContaining(["ability.", "save.", "skill.", "perception.", "ac.", "hp.", "hardness.", "stealth."]),
+    );
+    expect(semantics.itemMetricDiscovery?.filterValueField).toBe("itemMetrics");
+    expect(semantics.itemMetricDiscovery?.namespaces.map((entry) => entry.prefix)).toEqual(
+      expect.arrayContaining(["weapon.", "armor.", "shield."]),
     );
   });
 });

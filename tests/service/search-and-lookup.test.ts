@@ -800,7 +800,7 @@ describe("Pf2eDataService / Search and Lookup", () => {
     expect(featResults).not.toContain("Magical Mentor");
   });
 
-  it("supports generic creature actor-metric filters and comparisons", async () => {
+  it("supports generalized actor-metric and item-metric filters and comparisons", async () => {
     const fixture = await createHardFilterFixture();
     createdRoots.push(fixture.root);
 
@@ -840,6 +840,64 @@ describe("Pf2eDataService / Search and Lookup", () => {
       category: "creature",
       metadata: { field: "actorMetric", metric: "skill.arcana.rank", op: ">=", value: 4 },
     }).records.map((record) => record.name)).toEqual(["Tactical Mastermind"]);
+
+    expect(service.listRecords({
+      category: "hazard",
+      metadata: { field: "actorMetric", metric: "stealth.dc", op: ">=", value: 20 },
+    }).records.map((record) => record.name)).toEqual(["Clockwork Killbox", "Haunting Choir"]);
+
+    expect(service.listRecords({
+      category: "hazard",
+      metadata: { field: "actorMetric", metric: "hardness.value", op: ">=", value: 1 },
+    }).records.map((record) => record.name)).toEqual(["Clockwork Killbox"]);
+
+    expect(service.listRecords({
+      category: "hazard",
+      metadata: { field: "actorMetricCompare", leftMetric: "ac.value", op: ">", rightMetric: "save.ref.mod" },
+    }).records.map((record) => record.name)).toEqual(["Clockwork Killbox", "Haunting Choir"]);
+
+    expect(service.listRecords({
+      category: "hazard",
+      metadata: { field: "actorMetric", metric: "save.best", op: "==", value: "will" },
+    }).records.map((record) => record.name)).toEqual(["Haunting Choir"]);
+
+    expect(service.listRecords({
+      category: "equipment",
+      metadata: { field: "itemMetric", metric: "weapon.reload", op: "==", value: 1 },
+    }).records.map((record) => record.name)).toEqual(["Repeating Hand Crossbow"]);
+
+    expect(service.listRecords({
+      category: "equipment",
+      metadata: { field: "itemMetric", metric: "weapon.range_increment", op: ">=", value: 100 },
+    }).records.map((record) => record.name)).toEqual(["Siege Laser"]);
+
+    expect(service.listRecords({
+      category: "equipment",
+      metadata: { field: "itemMetric", metric: "armor.ac_bonus", op: ">=", value: 4 },
+    }).records.map((record) => record.name)).toEqual(["Fortress Plate"]);
+
+    expect(service.listRecords({
+      category: "equipment",
+      metadata: { field: "itemMetric", metric: "shield.hardness", op: ">=", value: 10 },
+    }).records.map((record) => record.name)).toEqual(["Tower Bulwark"]);
+
+    expect(service.listRecords({
+      category: "equipment",
+      metadata: { field: "itemMetricCompare", leftMetric: "shield.hp", op: ">", rightMetric: "shield.bt" },
+    }).records.map((record) => record.name)).toEqual(["Buckler Aegis", "Tower Bulwark"]);
+
+    expect(service.lookup("Clockwork Killbox", { category: "hazard" }).match?.actorMetrics).toMatchObject({
+      "ac.value": 20,
+      "hardness.value": 8,
+      "hp.bt": 16,
+      "stealth.dc": 20,
+    });
+
+    expect(service.lookup("Tower Bulwark", { category: "equipment" }).match?.itemMetrics).toMatchObject({
+      "shield.hardness": 10,
+      "shield.hp": 40,
+      "shield.bt": 20,
+    });
   });
 
   it("indexes verified aliases onto remaster canonical records and exposes linked legacy records", async () => {

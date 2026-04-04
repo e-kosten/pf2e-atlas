@@ -1,5 +1,6 @@
 import type {
   ActorMetricMap,
+  ItemMetricMap,
   LinkedRecordSummary,
   LookupResult,
   NormalizedRecord,
@@ -44,6 +45,7 @@ export type CandidateRow = {
   actionCost: number | null;
   usage: string | null;
   hands: number | null;
+  itemMetricsJson: string | null;
   damageTypesJson: string | null;
   weaponGroup: string | null;
   armorGroup: string | null;
@@ -113,6 +115,32 @@ function parseActorMetricsJson(actorMetricsJson: string | null | undefined): Act
   return metrics;
 }
 
+function parseItemMetricsJson(itemMetricsJson: string | null | undefined): ItemMetricMap {
+  if (!itemMetricsJson) {
+    return {};
+  }
+
+  const rows = JSON.parse(itemMetricsJson) as ActorMetricJsonRow[];
+  const metrics: ItemMetricMap = {};
+  for (const row of rows) {
+    if (row.valueType === "number" && typeof row.numberValue === "number") {
+      metrics[row.metricKey] = row.numberValue;
+      continue;
+    }
+
+    if (row.valueType === "boolean") {
+      metrics[row.metricKey] = Boolean(row.boolValue);
+      continue;
+    }
+
+    if (row.valueType === "text" && typeof row.textValue === "string") {
+      metrics[row.metricKey] = row.textValue;
+    }
+  }
+
+  return metrics;
+}
+
 export function rowToRecord(row: CandidateRow, raw: Record<string, unknown> | null = null): NormalizedRecord {
   const resolvedRaw = raw ?? (row.rawJson ? JSON.parse(row.rawJson) as Record<string, unknown> : {});
   return {
@@ -147,6 +175,7 @@ export function rowToRecord(row: CandidateRow, raw: Record<string, unknown> | nu
     actionCost: row.actionCost,
     usage: row.usage,
     hands: row.hands,
+    itemMetrics: parseItemMetricsJson(row.itemMetricsJson),
     damageTypes: row.damageTypesJson ? (JSON.parse(row.damageTypesJson) as string[]) : [],
     weaponGroup: row.weaponGroup,
     armorGroup: row.armorGroup,

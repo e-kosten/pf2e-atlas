@@ -325,6 +325,11 @@ export async function buildIndex(
       record_key, item_category, price_cp, bulk_value, usage_text, hands, damage_types_json, weapon_group, armor_group, action_cost
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
+  const insertItemMetric = db.prepare(`
+    INSERT INTO item_metrics (
+      record_key, metric_key, value_type, number_value, text_value, bool_value
+    ) VALUES (?, ?, ?, ?, ?, ?)
+  `);
   const insertSpell = db.prepare(`
     INSERT INTO spell_records (
       record_key, action_cost, traditions_json, spell_kinds_json, range_text, range_value, save_type, area_type, damage_types_json
@@ -744,6 +749,49 @@ export async function buildIndex(
           entry.itemData.armorGroup,
           entry.itemData.actionCost,
         );
+
+        for (const [metricKey, metricValue] of Object.entries(entry.itemData.itemMetrics)) {
+          const normalizedValue = (() => {
+            if (typeof metricValue === "number") {
+              return {
+                valueType: "number",
+                numberValue: metricValue,
+                textValue: null,
+                boolValue: null,
+              };
+            }
+
+            if (typeof metricValue === "boolean") {
+              return {
+                valueType: "boolean",
+                numberValue: null,
+                textValue: null,
+                boolValue: metricValue ? 1 : 0,
+              };
+            }
+
+            return {
+              valueType: "text",
+              numberValue: null,
+              textValue: metricValue,
+              boolValue: null,
+            };
+          })() satisfies {
+            valueType: "number" | "text" | "boolean";
+            numberValue: number | null;
+            textValue: string | null;
+            boolValue: number | null;
+          };
+
+          insertItemMetric.run(
+            record.recordKey,
+            metricKey,
+            normalizedValue.valueType,
+            normalizedValue.numberValue,
+            normalizedValue.textValue,
+            normalizedValue.boolValue,
+          );
+        }
       }
 
       if (entry.spellData) {

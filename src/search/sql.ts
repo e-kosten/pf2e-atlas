@@ -4,6 +4,11 @@ import {
   normalizeActorMetricPrefix,
 } from "../domain/actor-metrics.js";
 import {
+  inferItemMetricValueType,
+  normalizeItemMetricKey,
+  normalizeItemMetricPrefix,
+} from "../domain/item-metrics.js";
+import {
   FilterValueQuery,
   NormalizedRecord,
   SearchCategory,
@@ -225,6 +230,17 @@ export function buildCandidateQuery(
     "i.bulk_value AS bulkValue",
     "i.usage_text AS usage",
     "i.hands AS hands",
+    `COALESCE((
+      SELECT json_group_array(json_object(
+        'metricKey', im.metric_key,
+        'valueType', im.value_type,
+        'numberValue', im.number_value,
+        'textValue', im.text_value,
+        'boolValue', im.bool_value
+      ))
+      FROM item_metrics im
+      WHERE im.record_key = r.record_key
+    ), '[]') AS itemMetricsJson`,
     "COALESCE(s.damage_types_json, i.damage_types_json) AS damageTypesJson",
     "i.weapon_group AS weaponGroup",
     "i.armor_group AS armorGroup",
@@ -270,8 +286,8 @@ export function buildCandidateQuery(
 
 export function buildFilterValueQuery(query: FilterValueQuery, filters: NormalizedSearchFilters): { sql: string; params: SqlValue[] } {
   const { field } = query;
-  if (field !== "actorMetrics" && (query.metricPrefix || query.metric)) {
-    throw new Error("metricPrefix and metric are only supported when field is actorMetrics.");
+  if (field !== "actorMetrics" && field !== "itemMetrics" && (query.metricPrefix || query.metric)) {
+    throw new Error("metricPrefix and metric are only supported when field is actorMetrics or itemMetrics.");
   }
 
   const joins = [
@@ -324,6 +340,34 @@ export function buildFilterValueQuery(query: FilterValueQuery, filters: Normaliz
         if (query.metricPrefix) {
           postFilterParams.push(`${normalizeActorMetricPrefix(query.metricPrefix)}%`);
           postFilterClauses.push("AND am.metric_key LIKE ?");
+        }
+      }
+      break;
+    case "itemMetrics":
+      joins.push("JOIN item_metrics im ON im.record_key = r.record_key");
+      if (query.metric) {
+        const normalizedMetric = normalizeItemMetricKey(query.metric);
+        const metricType = inferItemMetricValueType(normalizedMetric);
+        if (!metricType) {
+          throw new Error(`Unknown item metric "${query.metric}".`);
+        }
+
+        postFilterParams.push(normalizedMetric);
+        postFilterClauses.push("AND im.metric_key = ?");
+        if (metricType === "text") {
+          valueExpression = "im.text_value";
+          postFilterClauses.push("AND im.value_type = 'text' AND im.text_value IS NOT NULL AND im.text_value <> ''");
+        } else if (metricType === "boolean") {
+          valueExpression = "CASE im.bool_value WHEN 1 THEN 'true' ELSE 'false' END";
+          postFilterClauses.push("AND im.value_type = 'boolean' AND im.bool_value IS NOT NULL");
+        } else {
+          throw new Error("itemMetrics value listing only supports text and boolean metrics.");
+        }
+      } else {
+        valueExpression = "im.metric_key";
+        if (query.metricPrefix) {
+          postFilterParams.push(`${normalizeItemMetricPrefix(query.metricPrefix)}%`);
+          postFilterClauses.push("AND im.metric_key LIKE ?");
         }
       }
       break;
