@@ -37,12 +37,11 @@ export type ReferencePredicate = {
   traitsAll?: string[];
 };
 
-export type TextProximityConstraint = {
-  terms: TextAnchor[];
+export type TextNearConstraint = {
+  all: TextAnchor[];
   window: number;
   ordered?: boolean;
   scope?: TextMatchScope;
-  minTermsMatched?: number;
 };
 
 export type DerivedTagMatchClause = {
@@ -56,8 +55,7 @@ export type DerivedTagMatchClause = {
   textAny?: TextAnchor[];
   minTextAnyMatches?: number;
   textAll?: TextAnchor[];
-  textNear?: TextProximityConstraint[];
-  textNotNear?: TextProximityConstraint[];
+  textNear?: TextNearConstraint[];
   referencesAny?: string[];
   referencesAll?: string[];
   referencesWhere?: ReferencePredicate[];
@@ -100,6 +98,11 @@ type PatternTokenPart =
   | {
     type: "optional";
     tokens: string[];
+  }
+  | {
+    type: "gap";
+    min: number;
+    max: number;
   };
 
 type NormalizedDerivedTagReference = {
@@ -131,12 +134,11 @@ type CompiledReferencePredicate = {
   traitsAll?: string[];
 };
 
-type CompiledTextProximityConstraint = {
-  terms: NormalizedTextAnchor[];
+type CompiledTextNearConstraint = {
+  all: NormalizedTextAnchor[];
   window: number;
   ordered: boolean;
   scope: TextMatchScope;
-  minTermsMatched?: number;
 };
 
 type CompiledDerivedTagMatchClause = {
@@ -150,8 +152,7 @@ type CompiledDerivedTagMatchClause = {
   textAny?: NormalizedTextAnchor[];
   minTextAnyMatches?: number;
   textAll?: NormalizedTextAnchor[];
-  textNear?: CompiledTextProximityConstraint[];
-  textNotNear?: CompiledTextProximityConstraint[];
+  textNear?: CompiledTextNearConstraint[];
   referencesAny?: string[];
   referencesAll?: string[];
   referencesWhere?: CompiledReferencePredicate[];
@@ -232,6 +233,32 @@ function parseOptionalPattern(body: string, fullValue: string): string[] {
   return tokens;
 }
 
+function parseGapPattern(body: string, fullValue: string): { min: number; max: number } {
+  if (body.includes("(") || body.includes(")")) {
+    throw createPatternSyntaxError(fullValue, "nested expressions are not supported");
+  }
+
+  const parts = body.split(",").map((part) => part.trim());
+  if (parts.length < 1 || parts.length > 2 || parts.some((part) => part.length === 0)) {
+    throw createPatternSyntaxError(fullValue, "gap(...) must have one or two non-empty numeric arguments");
+  }
+
+  const values = parts.map((part) => Number(part));
+  if (values.some((value) => !Number.isInteger(value) || value < 0)) {
+    throw createPatternSyntaxError(fullValue, "gap(...) arguments must be non-negative integers");
+  }
+
+  const [singleOrMin, maybeMax] = values;
+  const min = parts.length === 1 ? 0 : (singleOrMin ?? 0);
+  const max = parts.length === 1 ? (singleOrMin ?? 0) : (maybeMax ?? 0);
+
+  if (min > max) {
+    throw createPatternSyntaxError(fullValue, "gap(...) minimum cannot exceed maximum");
+  }
+
+  return { min, max };
+}
+
 function parsePatternExpression(expression: string, fullValue: string): PatternTokenPart {
   if (expression === "number" || expression === "dice" || expression === "range") {
     return {
@@ -251,6 +278,14 @@ function parsePatternExpression(expression: string, fullValue: string): PatternT
     return {
       type: "optional",
       tokens: parseOptionalPattern(body, fullValue),
+    };
+  }
+  if (operator === "gap") {
+    const { min, max } = parseGapPattern(body, fullValue);
+    return {
+      type: "gap",
+      min,
+      max,
     };
   }
 
@@ -311,8 +346,13 @@ function normalizePatternAnchorValue(value: string): PatternTokenPart[] {
     return [];
   }
 
-  if (parts[0]?.type === "optional" || parts.at(-1)?.type === "optional") {
-    throw createPatternSyntaxError(value, "leading or trailing opt(...) is not supported");
+  if (
+    parts[0]?.type === "optional"
+    || parts.at(-1)?.type === "optional"
+    || parts[0]?.type === "gap"
+    || parts.at(-1)?.type === "gap"
+  ) {
+    throw createPatternSyntaxError(value, "leading or trailing opt(...) or gap(...) is not supported");
   }
 
   return parts;
@@ -367,30 +407,29 @@ function compileAnchorList(anchors: TextAnchor[] | undefined): NormalizedTextAnc
   return compiled.length > 0 ? compiled : undefined;
 }
 
-function compileTextProximityConstraints(
-  constraints: TextProximityConstraint[] | undefined,
-): CompiledTextProximityConstraint[] | undefined {
+function compileTextNearConstraints(
+  constraints: TextNearConstraint[] | undefined,
+): CompiledTextNearConstraint[] | undefined {
   if (!constraints || constraints.length === 0) {
     return undefined;
   }
 
   const compiled = constraints.map((constraint) => {
-      const terms = compileAnchorList(constraint.terms);
-      if (!terms || terms.length === 0) {
+      const all = compileAnchorList(constraint.all);
+      if (!all || all.length === 0) {
         return null;
       }
 
-      const compiledConstraint: CompiledTextProximityConstraint = {
-        terms,
+      const compiledConstraint: CompiledTextNearConstraint = {
+        all,
         window: Math.max(0, constraint.window),
         ordered: constraint.ordered ?? false,
         scope: constraint.scope ?? "either",
-        minTermsMatched: constraint.minTermsMatched,
       };
       return compiledConstraint;
     });
 
-  const filtered = compiled.filter((constraint): constraint is CompiledTextProximityConstraint => constraint !== null);
+  const filtered = compiled.filter((constraint): constraint is CompiledTextNearConstraint => constraint !== null);
 
   return filtered.length > 0 ? filtered : undefined;
 }
@@ -424,8 +463,7 @@ function compileClause(clause: DerivedTagMatchClause): CompiledDerivedTagMatchCl
     textAny: compileAnchorList(clause.textAny),
     minTextAnyMatches: clause.minTextAnyMatches,
     textAll: compileAnchorList(clause.textAll),
-    textNear: compileTextProximityConstraints(clause.textNear),
-    textNotNear: compileTextProximityConstraints(clause.textNotNear),
+    textNear: compileTextNearConstraints(clause.textNear),
     referencesAny: clause.referencesAny?.map((reference) => normalizeDerivedTagReference(reference)),
     referencesAll: clause.referencesAll?.map((reference) => normalizeDerivedTagReference(reference)),
     referencesWhere: compileReferencePredicates(clause.referencesWhere),
@@ -557,6 +595,18 @@ function collectPatternMatchEnds(
     return [...ends];
   }
 
+  if (part.type === "gap") {
+    const ends = new Set<number>();
+    const maxLength = Math.min(part.max, Math.max(0, tokens.length - index));
+    for (let length = part.min; length <= maxLength; length += 1) {
+      for (const matchEnd of collectPatternMatchEnds(tokens, index + length, patternParts, partIndex + 1)) {
+        ends.add(matchEnd);
+      }
+    }
+
+    return [...ends];
+  }
+
   const length = matchPatternPlaceholder(tokens, index, part.value);
   if (length === 0) {
     return [];
@@ -669,22 +719,20 @@ function hasTextProximityInView(
   return false;
 }
 
-function matchesTextProximity(context: NormalizedDerivedTagContext, constraint: CompiledTextProximityConstraint): boolean {
-  const minimumMatches = Math.max(1, Math.min(constraint.minTermsMatched ?? constraint.terms.length, constraint.terms.length));
-  if (constraint.terms.length === 0) {
+function matchesTextNear(context: NormalizedDerivedTagContext, constraint: CompiledTextNearConstraint): boolean {
+  if (constraint.all.length === 0) {
     return false;
   }
 
   for (const { scope, view } of getTextViews(context, constraint.scope)) {
-    const occurrenceLists = constraint.terms.map((term) => findTextOccurrences(view, scope, term));
-    const termsWithMatches = occurrenceLists.filter((occurrences) => occurrences.length > 0).length;
-    if (termsWithMatches < minimumMatches) {
+    const occurrenceLists = constraint.all.map((anchor) => findTextOccurrences(view, scope, anchor));
+    if (occurrenceLists.some((occurrences) => occurrences.length === 0)) {
       continue;
     }
 
     if (hasTextProximityInView(
       occurrenceLists,
-      minimumMatches,
+      constraint.all.length,
       constraint.window,
       constraint.ordered,
     )) {
@@ -754,10 +802,7 @@ function matchesClause(context: NormalizedDerivedTagContext, clause: CompiledDer
   if (clause.textAll && !clause.textAll.every((anchor) => matchesTextAnchor(context, anchor))) {
     return false;
   }
-  if (clause.textNear && !clause.textNear.some((constraint) => matchesTextProximity(context, constraint))) {
-    return false;
-  }
-  if (clause.textNotNear && clause.textNotNear.some((constraint) => matchesTextProximity(context, constraint))) {
+  if (clause.textNear && !clause.textNear.some((constraint) => matchesTextNear(context, constraint))) {
     return false;
   }
   if (clause.referencesAny && !clause.referencesAny.some((reference) => context.referenceKeys.has(reference))) {

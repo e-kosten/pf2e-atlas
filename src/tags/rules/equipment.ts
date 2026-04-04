@@ -391,7 +391,7 @@ const EQUIPMENT_IMPACT_PHYSICAL_TEXT_ANCHORS = [
 
 const EQUIPMENT_HOSTILE_DELIVERY_TEXT_NEAR = [
   {
-    terms: [
+    all: [
       patternAnchor("target"),
       patternAnchor("creature"),
       patternAnchor("creatures"),
@@ -402,10 +402,9 @@ const EQUIPMENT_HOSTILE_DELIVERY_TEXT_NEAR = [
     ],
     window: 8,
     scope: "description" as const,
-    minTermsMatched: 1,
   },
   {
-    terms: [
+    all: [
       patternAnchor("afflicts"),
       patternAnchor("afflict"),
       patternAnchor("exposed"),
@@ -420,7 +419,6 @@ const EQUIPMENT_HOSTILE_DELIVERY_TEXT_NEAR = [
     ],
     window: 8,
     scope: "description" as const,
-    minTermsMatched: 2,
   },
 ];
 
@@ -758,7 +756,7 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     threshold: 2,
     anyOf: [
       { score: 2, textAny: EQUIPMENT_IMPACT_MOBILITY_TEXT_ANCHORS },
-      { score: 2, textNear: [...EQUIPMENT_HOSTILE_DELIVERY_TEXT_NEAR, { terms: EQUIPMENT_IMPACT_MOBILITY_TEXT_ANCHORS, window: 8, scope: "description" as const, minTermsMatched: 1 }] },
+      { score: 2, textNear: [...EQUIPMENT_HOSTILE_DELIVERY_TEXT_NEAR, { all: EQUIPMENT_IMPACT_MOBILITY_TEXT_ANCHORS, window: 8, scope: "description" as const }] },
     ],
     noneOf: [
       { textAny: EQUIPMENT_IMPACT_BLOCKER_TEXT_ANCHORS },
@@ -781,7 +779,7 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     threshold: 2,
     anyOf: [
       { score: 2, textAny: EQUIPMENT_IMPACT_SENSORY_TEXT_ANCHORS },
-      { score: 2, textNear: [...EQUIPMENT_HOSTILE_DELIVERY_TEXT_NEAR, { terms: EQUIPMENT_IMPACT_SENSORY_TEXT_ANCHORS, window: 8, scope: "description" as const, minTermsMatched: 1 }] },
+      { score: 2, textNear: [...EQUIPMENT_HOSTILE_DELIVERY_TEXT_NEAR, { all: EQUIPMENT_IMPACT_SENSORY_TEXT_ANCHORS, window: 8, scope: "description" as const }] },
     ],
     noneOf: [
       { textAny: EQUIPMENT_IMPACT_BLOCKER_TEXT_ANCHORS },
@@ -804,7 +802,7 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     threshold: 2,
     anyOf: [
       { score: 2, textAny: EQUIPMENT_IMPACT_MENTAL_TEXT_ANCHORS },
-      { score: 2, textNear: [...EQUIPMENT_HOSTILE_DELIVERY_TEXT_NEAR, { terms: EQUIPMENT_IMPACT_MENTAL_TEXT_ANCHORS, window: 8, scope: "description" as const, minTermsMatched: 1 }] },
+      { score: 2, textNear: [...EQUIPMENT_HOSTILE_DELIVERY_TEXT_NEAR, { all: EQUIPMENT_IMPACT_MENTAL_TEXT_ANCHORS, window: 8, scope: "description" as const }] },
     ],
     noneOf: [
       { textAny: EQUIPMENT_IMPACT_BLOCKER_TEXT_ANCHORS },
@@ -826,7 +824,7 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     threshold: 2,
     anyOf: [
       { score: 2, textAny: EQUIPMENT_IMPACT_PHYSICAL_TEXT_ANCHORS },
-      { score: 2, textNear: [...EQUIPMENT_HOSTILE_DELIVERY_TEXT_NEAR, { terms: EQUIPMENT_IMPACT_PHYSICAL_TEXT_ANCHORS, window: 8, scope: "description" as const, minTermsMatched: 1 }] },
+      { score: 2, textNear: [...EQUIPMENT_HOSTILE_DELIVERY_TEXT_NEAR, { all: EQUIPMENT_IMPACT_PHYSICAL_TEXT_ANCHORS, window: 8, scope: "description" as const }] },
     ],
     noneOf: [
       { textAny: EQUIPMENT_IMPACT_BLOCKER_TEXT_ANCHORS },
@@ -849,7 +847,7 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     threshold: 2,
     anyOf: [
       { score: 2, textAny: EQUIPMENT_IMPACT_SEDATION_TEXT_ANCHORS },
-      { score: 2, textNear: [...EQUIPMENT_HOSTILE_DELIVERY_TEXT_NEAR, { terms: EQUIPMENT_IMPACT_SEDATION_TEXT_ANCHORS, window: 8, scope: "description" as const, minTermsMatched: 1 }] },
+      { score: 2, textNear: [...EQUIPMENT_HOSTILE_DELIVERY_TEXT_NEAR, { all: EQUIPMENT_IMPACT_SEDATION_TEXT_ANCHORS, window: 8, scope: "description" as const }] },
     ],
     noneOf: [
       { textAny: EQUIPMENT_IMPACT_BLOCKER_TEXT_ANCHORS },
@@ -1142,17 +1140,17 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
       {
         textNear: [
           {
-            terms: [patternAnchor("tracking"), patternAnchor("progress")],
+            all: [patternAnchor("tracking"), patternAnchor("progress")],
             window: 3,
             scope: "description",
           },
           {
-            terms: [patternAnchor("track"), patternAnchor("teleportation")],
+            all: [patternAnchor("track"), patternAnchor("teleportation")],
             window: 2,
             scope: "description",
           },
           {
-            terms: [patternAnchor("track"), patternAnchor("time")],
+            all: [patternAnchor("track"), patternAnchor("time")],
             window: 2,
             scope: "description",
           },
@@ -1494,28 +1492,12 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
         textAny: AMMO_SPELL_PAYLOAD_TEXT_ANCHORS,
         textNear: [
           {
-            terms: [
-              patternAnchor("hit"),
-              patternAnchor("hits"),
-              patternAnchor("strike"),
-              patternAnchor("successful strike"),
-              patternAnchor("target"),
+            all: [
+              patternAnchor("{{alt(hit,hits,strike,successful strike,target)}}"),
+              patternAnchor("{{alt(spell,effect,subject,casts,save)}}"),
             ],
             window: 8,
             scope: "description",
-            minTermsMatched: 1,
-          },
-          {
-            terms: [
-              patternAnchor("spell"),
-              patternAnchor("effect"),
-              patternAnchor("subject"),
-              patternAnchor("casts"),
-              patternAnchor("save"),
-            ],
-            window: 8,
-            scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },

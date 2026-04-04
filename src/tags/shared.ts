@@ -3,7 +3,6 @@ import {
   normalizeDerivedTagReference,
   TextAnchor,
   TextMatchScope,
-  TextProximityConstraint,
 } from "./matcher.js";
 
 const patternAnchor = (value: string, scope: TextMatchScope = "either"): TextAnchor => ({ value, scope });
@@ -169,39 +168,6 @@ const FRESHWATER_SETTING_BLOCKER_TEXT_ANCHORS: TextAnchor[] = [
   patternAnchor("river kingdom"),
   patternAnchor("river kingdoms"),
   patternAnchor("river of souls"),
-];
-
-const FRESHWATER_SETTING_HABITAT_TEXT_NEAR: TextProximityConstraint[] = [
-  {
-    terms: [patternAnchor("river"), patternAnchor("rivers"), ...FRESHWATER_SETTING_CONTEXT_TEXT_ANCHORS],
-    window: 6,
-    scope: "description",
-    minTermsMatched: 2,
-  },
-  {
-    terms: [patternAnchor("lake"), patternAnchor("lakes"), ...FRESHWATER_SETTING_CONTEXT_TEXT_ANCHORS],
-    window: 6,
-    scope: "description",
-    minTermsMatched: 2,
-  },
-  {
-    terms: [patternAnchor("pond"), patternAnchor("ponds"), ...FRESHWATER_SETTING_CONTEXT_TEXT_ANCHORS],
-    window: 6,
-    scope: "description",
-    minTermsMatched: 2,
-  },
-  {
-    terms: [patternAnchor("stream"), patternAnchor("streams"), ...FRESHWATER_SETTING_CONTEXT_TEXT_ANCHORS],
-    window: 6,
-    scope: "description",
-    minTermsMatched: 2,
-  },
-  {
-    terms: [patternAnchor("spring"), patternAnchor("springs"), ...FRESHWATER_SETTING_CONTEXT_TEXT_ANCHORS],
-    window: 6,
-    scope: "description",
-    minTermsMatched: 2,
-  },
 ];
 
 const AQUATIC_SETTING_STRONG_TEXT_ANCHORS: TextAnchor[] = [
@@ -835,7 +801,7 @@ const AFFLICTION_PHYSICAL_DEBILITATION_TEXT_ANCHORS: TextAnchor[] = [
   patternAnchor("drains health and strength"),
 ];
 
-export type { DerivedTagContext, DerivedTagRule, TextAnchor, TextMatchScope, TextProximityConstraint } from "./matcher.js";
+export type { DerivedTagContext, DerivedTagRule, TextAnchor, TextMatchScope, TextNearConstraint } from "./matcher.js";
 export { normalizeDerivedTag } from "./matcher.js";
 
 export {
@@ -854,7 +820,6 @@ export {
   FRESHWATER_SETTING_CONTEXT_TEXT_ANCHORS,
   FRESHWATER_SETTING_NAME_ANCHORS,
   FRESHWATER_SETTING_BLOCKER_TEXT_ANCHORS,
-  FRESHWATER_SETTING_HABITAT_TEXT_NEAR,
   AQUATIC_SETTING_STRONG_TEXT_ANCHORS,
   AQUATIC_SETTING_WEAK_TEXT_ANCHORS,
   COASTAL_SETTING_STRONG_TEXT_ANCHORS,

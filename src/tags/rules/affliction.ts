@@ -263,7 +263,7 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("stage"),
               patternAnchor("drained"),
               patternAnchor("enfeebled"),
@@ -279,16 +279,14 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 2,
           },
           {
-            terms: [
+            all: [
               patternAnchor("stage"),
               patternAnchor("stupefied"),
             ],
             window: 4,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -313,7 +311,7 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("mind"),
               patternAnchor("mind's"),
               patternAnchor("mental"),
@@ -330,7 +328,6 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 5,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -346,7 +343,7 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("blind"),
               patternAnchor("blinded"),
               patternAnchor("deaf"),
@@ -360,7 +357,6 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 5,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -377,7 +373,7 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("sleep"),
               patternAnchor("sleeping"),
               patternAnchor("slumber"),
@@ -388,7 +384,6 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -405,7 +400,7 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("breathe"),
               patternAnchor("breathing"),
               patternAnchor("unable"),
@@ -417,7 +412,6 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -434,7 +428,7 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("rot"),
               patternAnchor("rotting"),
               patternAnchor("decay"),
@@ -445,7 +439,6 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 5,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -464,7 +457,7 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("spores"),
               patternAnchor("egg"),
               patternAnchor("eggs"),
@@ -476,10 +469,9 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 1,
           },
           {
-            terms: [
+            all: [
               patternAnchor("hatch"),
               patternAnchor("hatches"),
               patternAnchor("hatching"),
@@ -492,7 +484,6 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -509,7 +500,7 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("must"),
               patternAnchor("forced"),
               patternAnchor("compelled"),
@@ -519,10 +510,9 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 5,
             scope: "description",
-            minTermsMatched: 1,
           },
           {
-            terms: [
+            all: [
               patternAnchor("behavior"),
               patternAnchor("action"),
               patternAnchor("actions"),
@@ -538,7 +528,6 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 5,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -555,7 +544,7 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("turn"),
               patternAnchor("turns"),
               patternAnchor("transforms"),
@@ -581,7 +570,6 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 8,
             scope: "description",
-            minTermsMatched: 3,
           },
         ],
       },

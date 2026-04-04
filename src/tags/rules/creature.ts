@@ -54,7 +54,7 @@ const CARNIVAL_SHOW_TEXT_ANCHORS = [
 
 const CARNIVAL_SHOW_CONTEXT_TEXT_NEAR = [
   {
-    terms: [
+    all: [
       patternAnchor("performer"),
       patternAnchor("performers"),
       patternAnchor("entertainer"),
@@ -69,7 +69,6 @@ const CARNIVAL_SHOW_CONTEXT_TEXT_NEAR = [
     ],
     window: 4,
     scope: "description" as const,
-    minTermsMatched: 2,
   },
 ];
 
@@ -195,7 +194,7 @@ const DISGUISED_PRETENDER_TEXT_ANCHORS = [
 
 const DISGUISED_PRETENDER_CONTEXT_TEXT_NEAR = [
   {
-    terms: [
+    all: [
       patternAnchor("disguise"),
       patternAnchor("disguised"),
       patternAnchor("disguises"),
@@ -213,7 +212,6 @@ const DISGUISED_PRETENDER_CONTEXT_TEXT_NEAR = [
     ],
     window: 6,
     scope: "description" as const,
-    minTermsMatched: 2,
   },
 ];
 
@@ -452,7 +450,7 @@ const RURAL_SETTING_TEXT_ANCHORS = [
 
 const RURAL_SETTING_BLOCKER_TEXT_NEAR = [
   {
-    terms: [
+    all: [
       patternAnchor("village"),
       patternAnchor("villages"),
       patternAnchor("farm"),
@@ -471,7 +469,6 @@ const RURAL_SETTING_BLOCKER_TEXT_NEAR = [
     ],
     window: 6,
     scope: "description" as const,
-    minTermsMatched: 2,
   },
 ];
 
@@ -769,7 +766,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("ambush"),
               patternAnchor("lying in wait"),
               patternAnchor("lurks"),
@@ -789,7 +786,6 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 7,
             scope: "description",
-            minTermsMatched: 3,
           },
         ],
       },
@@ -1146,7 +1142,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("crypt"),
               patternAnchor("crypts"),
               patternAnchor("tomb"),
@@ -1158,10 +1154,9 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 1,
           },
           {
-            terms: [
+            all: [
               patternAnchor("guardian"),
               patternAnchor("guards"),
               patternAnchor("guarding"),
@@ -1175,7 +1170,6 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -1190,7 +1184,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("ruin"),
               patternAnchor("ruins"),
               patternAnchor("derelict"),
@@ -1202,7 +1196,6 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 3,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -1378,7 +1371,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 1,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("painting"),
               patternAnchor("painted"),
               patternAnchor("portrait"),
@@ -1391,7 +1384,6 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -1399,7 +1391,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 1,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("comes to life"),
               patternAnchor("come to life"),
               patternAnchor("given life"),
@@ -1411,7 +1403,6 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 1,
           },
         ],
       },
@@ -1426,7 +1417,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
       { score: 2, textAny: MASK_MOTIF_TEXT_ANCHORS },
       { score: 1, textNear: [
         {
-          terms: [
+          all: [
             patternAnchor("mask"),
             patternAnchor("masked"),
             patternAnchor("veil"),
@@ -1440,7 +1431,6 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
           ],
           window: 5,
           scope: "description" as const,
-          minTermsMatched: 2,
         },
       ] },
     ],
@@ -1454,7 +1444,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
       { score: 2, textAny: FACELESS_HORROR_TEXT_ANCHORS },
       { score: 1, textNear: [
         {
-          terms: [
+          all: [
             patternAnchor("face"),
             patternAnchor("faces"),
             patternAnchor("faceless"),
@@ -1467,7 +1457,6 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
           ],
           window: 5,
           scope: "description" as const,
-          minTermsMatched: 2,
         },
       ] },
     ],
@@ -1500,10 +1489,12 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [...BOUND_OBJECT_ANIMATION_TEXT_ANCHORS, ...BOUND_OBJECT_OBJECT_TEXT_ANCHORS],
+            all: [
+              patternAnchor("{{alt(animated,animate,animates,animation,brought to life,brought to unlife,comes to life)}}"),
+              patternAnchor("{{alt(object,objects,armor,armors,doll,dolls,cart,carts,broom,brooms,cookware,door,doors,figurine,figurines,mannequin,mannequins,dummy,dummies,scarecrow,scarecrows,silverware,blade,blades,axe,axes,fireplace,fireplaces,vessel,vessels,cauldron,cauldrons,table,tables,chair,chairs,stool,stools,tool,tools)}}"),
+            ],
             window: 4,
             scope: "either",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -1527,10 +1518,12 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [...BOUND_OBJECT_STATUE_TEXT_ANCHORS, ...BOUND_OBJECT_STATUE_CONTEXT_TEXT_ANCHORS],
+            all: [
+              patternAnchor("{{alt(statue,statues,effigy,effigies,idol,idols,monument,monuments)}}"),
+              patternAnchor("{{alt(animated,animate,animates,animation,guardian,guardians,sentinel,sentinels,watch,watcher,watchers,protect,protects,comes to life,brought to life,stands guard,standing guard)}}"),
+            ],
             window: 5,
             scope: "either",
-            minTermsMatched: 2,
           },
         ],
       },

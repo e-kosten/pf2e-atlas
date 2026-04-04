@@ -586,7 +586,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [patternAnchor("detect"), patternAnchor("undead")],
+            all: [patternAnchor("detect"), patternAnchor("undead")],
             window: 4,
             scope: "description",
           },
@@ -626,10 +626,9 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
       {
         textNear: [
           {
-            terms: [patternAnchor("deception"), patternAnchor("lie"), patternAnchor("feint")],
+            all: [patternAnchor("deception"), patternAnchor("lie"), patternAnchor("feint")],
             window: 6,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -668,7 +667,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("message"),
               patternAnchor("mental"),
               patternAnchor("whisper"),
@@ -677,7 +676,6 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -731,7 +729,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("teleport"),
               patternAnchor("teleports"),
               patternAnchor("transport"),
@@ -743,7 +741,6 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -763,7 +760,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("mind"),
               patternAnchor("mental"),
               patternAnchor("will"),
@@ -774,7 +771,6 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -793,7 +789,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("blind"),
               patternAnchor("blinded"),
               patternAnchor("deaf"),
@@ -805,7 +801,6 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -824,7 +819,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("push"),
               patternAnchor("pushes"),
               patternAnchor("pull"),
@@ -843,7 +838,6 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 3,
           },
         ],
       },
@@ -862,7 +856,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("restrained"),
               patternAnchor("immobilized"),
               patternAnchor("grabbed"),
@@ -875,7 +869,6 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -896,7 +889,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("fear"),
               patternAnchor("frightened"),
               patternAnchor("terror"),
@@ -909,7 +902,6 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -931,7 +923,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("target"),
               patternAnchor("creature"),
               patternAnchor("self"),
@@ -943,7 +935,6 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -963,7 +954,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("line"),
               patternAnchor("sight"),
               patternAnchor("vision"),
@@ -976,7 +967,6 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 7,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -993,7 +983,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("difficult"),
               patternAnchor("terrain"),
               patternAnchor("wall"),
@@ -1011,7 +1001,6 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 7,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -1019,7 +1008,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("wall"),
               patternAnchor("barrier"),
               patternAnchor("cage"),
@@ -1028,10 +1017,9 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 7,
             scope: "description",
-            minTermsMatched: 1,
           },
           {
-            terms: [
+            all: [
               patternAnchor("blocks"),
               patternAnchor("block"),
               patternAnchor("trap"),
@@ -1043,7 +1031,6 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 7,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -1060,7 +1047,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("remove"),
               patternAnchor("cure"),
               patternAnchor("counteract"),
@@ -1073,7 +1060,6 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -1093,7 +1079,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("escape"),
               patternAnchor("flee"),
               patternAnchor("break"),
@@ -1106,7 +1092,6 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -1126,7 +1111,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("water"),
               patternAnchor("underwater"),
               patternAnchor("swim"),
@@ -1137,7 +1122,6 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -1154,7 +1138,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("food"),
               patternAnchor("water"),
               patternAnchor("ration"),
@@ -1166,7 +1150,6 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -1183,7 +1166,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("shelter"),
               patternAnchor("sheltered"),
               patternAnchor("cabin"),
@@ -1196,7 +1179,6 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -1213,7 +1195,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("quickened"),
               patternAnchor("haste"),
               patternAnchor("extra"),
@@ -1225,7 +1207,6 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -1243,10 +1224,9 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [patternAnchor("form"), patternAnchor("shape"), patternAnchor("body"), patternAnchor("transform"), patternAnchor("change")],
+            all: [patternAnchor("form"), patternAnchor("shape"), patternAnchor("body"), patternAnchor("transform"), patternAnchor("change")],
             window: 6,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -1266,10 +1246,9 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [patternAnchor("battle"), patternAnchor("form"), patternAnchor("statistics"), patternAnchor("abilities")],
+            all: [patternAnchor("battle"), patternAnchor("form"), patternAnchor("statistics"), patternAnchor("abilities")],
             window: 6,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -1289,10 +1268,9 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [patternAnchor("animal"), patternAnchor("beast"), patternAnchor("pest"), patternAnchor("dinosaur"), patternAnchor("form")],
+            all: [patternAnchor("animal"), patternAnchor("beast"), patternAnchor("pest"), patternAnchor("dinosaur"), patternAnchor("form")],
             window: 6,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -1312,10 +1290,9 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [patternAnchor("elemental"), patternAnchor("form"), patternAnchor("battle"), patternAnchor("statistics")],
+            all: [patternAnchor("elemental"), patternAnchor("form"), patternAnchor("battle"), patternAnchor("statistics")],
             window: 6,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -1334,7 +1311,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("temporary"),
               patternAnchor("hit"),
               patternAnchor("points"),
@@ -1342,10 +1319,9 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 4,
             scope: "description",
-            minTermsMatched: 2,
           },
           {
-            terms: [
+            all: [
               patternAnchor("gain"),
               patternAnchor("gains"),
               patternAnchor("grants"),
@@ -1355,7 +1331,6 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -1384,7 +1359,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("counteract"),
               patternAnchor("delay"),
               patternAnchor("free"),
@@ -1392,10 +1367,9 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 1,
           },
           {
-            terms: [
+            all: [
               patternAnchor("condition"),
               patternAnchor("conditions"),
               patternAnchor("affliction"),
@@ -1405,7 +1379,6 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -1422,7 +1395,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("protect"),
               patternAnchor("shield"),
               patternAnchor("ward"),
@@ -1436,7 +1409,6 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -1456,15 +1428,12 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("stabilize"),
-              patternAnchor("dying"),
-              patternAnchor("die"),
-              patternAnchor("death"),
+              patternAnchor("{{alt(dying,die,death)}}"),
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -1472,16 +1441,12 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
-              patternAnchor("return"),
-              patternAnchor("life"),
-              patternAnchor("revive"),
-              patternAnchor("resurrect"),
-              patternAnchor("death"),
+            all: [
+              patternAnchor("{{alt(return,returns,revive,resurrect,bring back,brings back)}}"),
+              patternAnchor("{{alt(life,death)}}"),
             ],
             window: 8,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },

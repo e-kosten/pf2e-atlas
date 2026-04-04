@@ -372,7 +372,7 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("rune"),
               patternAnchor("glyph"),
               patternAnchor("sigil"),
@@ -383,10 +383,9 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 1,
           },
           {
-            terms: [
+            all: [
               patternAnchor("trigger"),
               patternAnchor("triggered"),
               patternAnchor("activate"),
@@ -408,7 +407,6 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -437,7 +435,7 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("pressure"),
               patternAnchor("plate"),
               patternAnchor("plates"),
@@ -446,10 +444,9 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 2,
           },
           {
-            terms: [
+            all: [
               patternAnchor("step"),
               patternAnchor("steps"),
               patternAnchor("stepped"),
@@ -460,7 +457,6 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -484,7 +480,7 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("wire"),
               patternAnchor("cord"),
               patternAnchor("line"),
@@ -492,10 +488,9 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 5,
             scope: "description",
-            minTermsMatched: 1,
           },
           {
-            terms: [
+            all: [
               patternAnchor("trip"),
               patternAnchor("trips"),
               patternAnchor("snag"),
@@ -507,7 +502,6 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 5,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -560,7 +554,7 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("door"),
               patternAnchor("doors"),
               patternAnchor("gate"),
@@ -574,10 +568,9 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 5,
             scope: "description",
-            minTermsMatched: 1,
           },
           {
-            terms: [
+            all: [
               patternAnchor("lock"),
               patternAnchor("locks"),
               patternAnchor("locked"),
@@ -597,7 +590,6 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 5,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -655,53 +647,12 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
-              patternAnchor("button"),
-              patternAnchor("buttons"),
-              patternAnchor("lever"),
-              patternAnchor("levers"),
-              patternAnchor("console"),
-              patternAnchor("consoles"),
-              patternAnchor("panel"),
-              patternAnchor("panels"),
-              patternAnchor("switch"),
-              patternAnchor("switches"),
-              patternAnchor("dial"),
-              patternAnchor("dials"),
-              patternAnchor("crank"),
-              patternAnchor("cranks"),
-              patternAnchor("wheel"),
-              patternAnchor("wheels"),
-              patternAnchor("tumbler"),
-              patternAnchor("tumblers"),
+            all: [
+              patternAnchor("{{alt(button,buttons,lever,levers,console,consoles,panel,panels,switch,switches,dial,dials,crank,cranks,wheel,wheels,tumbler,tumblers)}}"),
+              patternAnchor("{{alt(press,presses,push,pushes,pull,pulls,flip,flips,turn,turns,operate,operates,activate,activates,control,controls,set)}}"),
             ],
             window: 5,
             scope: "description",
-            minTermsMatched: 1,
-          },
-          {
-            terms: [
-              patternAnchor("press"),
-              patternAnchor("presses"),
-              patternAnchor("push"),
-              patternAnchor("pushes"),
-              patternAnchor("pull"),
-              patternAnchor("pulls"),
-              patternAnchor("flip"),
-              patternAnchor("flips"),
-              patternAnchor("turn"),
-              patternAnchor("turns"),
-              patternAnchor("operate"),
-              patternAnchor("operates"),
-              patternAnchor("activate"),
-              patternAnchor("activates"),
-              patternAnchor("control"),
-              patternAnchor("controls"),
-              patternAnchor("set"),
-            ],
-            window: 5,
-            scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -756,7 +707,7 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("portal"),
               patternAnchor("portals"),
               patternAnchor("rift"),
@@ -773,10 +724,9 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 1,
           },
           {
-            terms: [
+            all: [
               patternAnchor("open"),
               patternAnchor("opens"),
               patternAnchor("opening"),
@@ -793,7 +743,6 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -822,7 +771,7 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("summon"),
               patternAnchor("summons"),
               patternAnchor("call"),
@@ -843,7 +792,6 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 3,
           },
         ],
       },
@@ -869,7 +817,7 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("ghostly"),
               patternAnchor("spectral"),
               patternAnchor("phantom"),
@@ -881,10 +829,9 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 5,
             scope: "description",
-            minTermsMatched: 1,
           },
           {
-            terms: [
+            all: [
               patternAnchor("attack"),
               patternAnchor("attacks"),
               patternAnchor("attacker"),
@@ -903,7 +850,6 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 1,
           },
         ],
       },
@@ -963,7 +909,7 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("restrained"),
               patternAnchor("immobilized"),
               patternAnchor("grabbed"),
@@ -977,7 +923,6 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 5,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -1007,27 +952,27 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [patternAnchor("portcullis"), patternAnchor("drops")],
+            all: [patternAnchor("portcullis"), patternAnchor("drops")],
             window: 4,
             scope: "description",
           },
           {
-            terms: [patternAnchor("portcullis"), patternAnchor("slam")],
+            all: [patternAnchor("portcullis"), patternAnchor("slam")],
             window: 6,
             scope: "description",
           },
           {
-            terms: [patternAnchor("door"), patternAnchor("locks")],
+            all: [patternAnchor("door"), patternAnchor("locks")],
             window: 3,
             scope: "description",
           },
           {
-            terms: [patternAnchor("door"), patternAnchor("seal")],
+            all: [patternAnchor("door"), patternAnchor("seal")],
             window: 4,
             scope: "description",
           },
           {
-            terms: [patternAnchor("gate"), patternAnchor("shut")],
+            all: [patternAnchor("gate"), patternAnchor("shut")],
             window: 4,
             scope: "description",
           },
@@ -1052,7 +997,7 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("acid"),
               patternAnchor("acidic"),
               patternAnchor("caustic"),
@@ -1061,10 +1006,9 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 5,
             scope: "description",
-            minTermsMatched: 1,
           },
           {
-            terms: [
+            all: [
               patternAnchor("spray"),
               patternAnchor("mist"),
               patternAnchor("cloud"),
@@ -1075,7 +1019,6 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 5,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -1098,7 +1041,7 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("ice"),
               patternAnchor("frost"),
               patternAnchor("frozen"),
@@ -1112,7 +1055,6 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -1135,7 +1077,7 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("fire"),
               patternAnchor("flame"),
               patternAnchor("flames"),
@@ -1149,7 +1091,6 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -1172,7 +1113,7 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("electric"),
               patternAnchor("electricity"),
               patternAnchor("lightning"),
@@ -1186,7 +1127,6 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -1209,7 +1149,7 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("poison"),
               patternAnchor("poisonous"),
               patternAnchor("venom"),
@@ -1228,7 +1168,6 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -1251,7 +1190,7 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("sonic"),
               patternAnchor("sound"),
               patternAnchor("soundwave"),
@@ -1265,7 +1204,6 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -1285,7 +1223,7 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("smoke"),
               patternAnchor("vapor"),
               patternAnchor("vapors"),
@@ -1296,10 +1234,9 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 2,
           },
           {
-            terms: [
+            all: [
               patternAnchor("choking"),
               patternAnchor("suffocate"),
               patternAnchor("breathless"),
@@ -1309,7 +1246,6 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -1326,7 +1262,7 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("water"),
               patternAnchor("flood"),
               patternAnchor("geyser"),
@@ -1336,7 +1272,6 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -1368,22 +1303,12 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
-              patternAnchor("pit"),
-              patternAnchor("trapdoor"),
-              patternAnchor("deep"),
-              patternAnchor("spikes"),
-              patternAnchor("water"),
-              patternAnchor("fall"),
-              patternAnchor("falls"),
-              patternAnchor("drop"),
-              patternAnchor("drops"),
-              patternAnchor("covers"),
-              patternAnchor("conceals"),
+            all: [
+              patternAnchor("{{alt(pit,trapdoor)}}"),
+              patternAnchor("{{alt(deep,spikes,water,fall,falls,drop,drops,covers,conceals)}}"),
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -1414,7 +1339,7 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("ceiling"),
               patternAnchor("floor"),
               patternAnchor("bridge"),
@@ -1433,7 +1358,6 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 5,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -1452,7 +1376,7 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("sucks"),
               patternAnchor("pulls"),
               patternAnchor("pushes"),
@@ -1468,7 +1392,6 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 3,
           },
         ],
       },
@@ -1484,7 +1407,7 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("maze"),
               patternAnchor("mirror"),
               patternAnchor("mirrors"),
@@ -1501,7 +1424,6 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 3,
           },
         ],
       },
@@ -1520,7 +1442,7 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("illusion"),
               patternAnchor("illusions"),
               patternAnchor("mirror"),
@@ -1531,10 +1453,9 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 2,
           },
           {
-            terms: [
+            all: [
               patternAnchor("assault"),
               patternAnchor("distort"),
               patternAnchor("distorts"),
@@ -1545,7 +1466,6 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 8,
             scope: "description",
-            minTermsMatched: 1,
           },
         ],
       },
@@ -1564,27 +1484,12 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
-              patternAnchor("ceiling"),
-              patternAnchor("overhead"),
-              patternAnchor("above"),
-              patternAnchor("beam"),
-              patternAnchor("chandelier"),
-              patternAnchor("rope pulley"),
-              patternAnchor("pendulum"),
-              patternAnchor("fall"),
-              patternAnchor("falls"),
-              patternAnchor("falling"),
-              patternAnchor("drops"),
-              patternAnchor("crashes down"),
-              patternAnchor("dropped"),
-              patternAnchor("rocks"),
-              patternAnchor("debris"),
-              patternAnchor("crates"),
+            all: [
+              patternAnchor("{{alt(ceiling,overhead,above,beam,chandelier,rope pulley,pendulum)}}"),
+              patternAnchor("{{alt(fall,falls,falling,drops,crashes down,dropped,rocks,debris,crates)}}"),
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 3,
           },
         ],
       },
@@ -1605,7 +1510,7 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [
+            all: [
               patternAnchor("turret"),
               patternAnchor("launcher"),
               patternAnchor("projector"),
@@ -1616,10 +1521,9 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 1,
           },
           {
-            terms: [
+            all: [
               patternAnchor("fires"),
               patternAnchor("launches"),
               patternAnchor("sprays"),
@@ -1634,7 +1538,6 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
             ],
             window: 6,
             scope: "description",
-            minTermsMatched: 2,
           },
         ],
       },
@@ -1696,7 +1599,7 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            terms: [patternAnchor("hamper"), patternAnchor("creatures")],
+            all: [patternAnchor("hamper"), patternAnchor("creatures")],
             window: 3,
             scope: "description",
           },

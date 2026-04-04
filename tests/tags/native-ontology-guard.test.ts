@@ -51,7 +51,6 @@ function clauseHasNonTraitEvidence(clause: NonNullable<DerivedTagRule["anyOf"]>[
     clause.textAny?.length
       || clause.textAll?.length
       || clause.textNear?.length
-      || clause.textNotNear?.length
       || clause.referencesAny?.length
       || clause.referencesAll?.length
       || clause.referencesWhere?.length,

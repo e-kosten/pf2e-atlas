@@ -56,14 +56,18 @@ describe("derived tag matcher extensions", () => {
           {
             textNear: [
               {
-                terms: ["track", "scent"],
+                all: ["track", "scent"],
                 window: 4,
                 scope: "description",
               },
             ],
-            textNotNear: [
+          },
+        ],
+        noneOf: [
+          {
+            textNear: [
               {
-                terms: ["track", "time"],
+                all: ["track", "time"],
                 window: 2,
                 scope: "description",
               },
@@ -78,7 +82,7 @@ describe("derived tag matcher extensions", () => {
           {
             textNear: [
               {
-                terms: ["pass", "identity"],
+                all: ["pass", "identity"],
                 window: 4,
                 ordered: true,
                 scope: "description",
@@ -262,13 +266,25 @@ describe("derived tag matcher extensions", () => {
           {
             textNear: [
               {
-                terms: [
+                all: [
                   { value: "within {{range}}", scope: "description" },
                   "alert",
                 ],
                 window: 8,
                 scope: "description",
               },
+            ],
+          },
+        ],
+      },
+      {
+        tag: "temporary_hp_support",
+        category: "spell",
+        anyOf: [
+          {
+            textAny: [
+              { value: "{{alt(gain, gains, grant, grants)}} {{gap(4)}} temporary hit points", scope: "description" },
+              { value: "{{alt(gain, gains, grant, grants)}} {{gap(0, 4)}} a buffer of temporary hit points", scope: "description" },
             ],
           },
         ],
@@ -354,6 +370,22 @@ describe("derived tag matcher extensions", () => {
       descriptionText: "A bell rings when creatures move within 1 minute of the ward to alert nearby guards.",
       traits: [],
     })).not.toContain("range_alert");
+
+    expect(deriveRecordTagsFromRules(rules, {
+      name: "False Vitality",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "The spell grants the target temporary hit points, surrounding them with a buffer of temporary hit points.",
+      traits: [],
+    })).toContain("temporary_hp_support");
+
+    expect(deriveRecordTagsFromRules(rules, {
+      name: "Stasis Coil",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "The target is trapped in a suspended state and its container has 40 Hit Points.",
+      traits: [],
+    })).not.toContain("temporary_hp_support");
   });
 
   it("rejects invalid pattern syntax", () => {
@@ -417,7 +449,7 @@ describe("derived tag matcher extensions", () => {
       subcategory: null,
       descriptionText: "This text should never matter.",
       traits: [],
-    })).toThrow(/leading or trailing opt\(\.\.\.\) is not supported/);
+    })).toThrow(/leading or trailing opt\(\.\.\.\) or gap\(\.\.\.\) is not supported/);
 
     expect(() => deriveRecordTagsFromRules([
       {
@@ -437,6 +469,46 @@ describe("derived tag matcher extensions", () => {
       subcategory: null,
       descriptionText: "This text should never matter.",
       traits: [],
-    })).toThrow(/leading or trailing opt\(\.\.\.\) is not supported/);
+    })).toThrow(/leading or trailing opt\(\.\.\.\) or gap\(\.\.\.\) is not supported/);
+
+    expect(() => deriveRecordTagsFromRules([
+      {
+        tag: "broken_gap",
+        category: "spell",
+        anyOf: [
+          {
+            textAny: [
+              { value: "{{gap(4, 2)}} ward", scope: "description" },
+            ],
+          },
+        ],
+      },
+    ], {
+      name: "Broken Gap",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "This text should never matter.",
+      traits: [],
+    })).toThrow(/gap\(\.\.\.\) minimum cannot exceed maximum/);
+
+    expect(() => deriveRecordTagsFromRules([
+      {
+        tag: "leading_gap",
+        category: "spell",
+        anyOf: [
+          {
+            textAny: [
+              { value: "{{gap(4)}} ward", scope: "description" },
+            ],
+          },
+        ],
+      },
+    ], {
+      name: "Leading Gap",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "This text should never matter.",
+      traits: [],
+    })).toThrow(/leading or trailing opt\(\.\.\.\) or gap\(\.\.\.\) is not supported/);
   });
 });
