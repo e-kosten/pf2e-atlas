@@ -293,6 +293,271 @@ const SPELL_RESTRAINT_CAPTURE_BLOCKER_TEXT_ANCHORS = [
   patternAnchor("rune trap"),
 ];
 
+const FEAR_PRESSURE_NAME_ANCHORS = [
+  patternAnchor("fear", "name"),
+  patternAnchor("fright", "name"),
+  patternAnchor("terror", "name"),
+  patternAnchor("panic", "name"),
+  patternAnchor("dread", "name"),
+  patternAnchor("horror", "name"),
+];
+
+const FEAR_PRESSURE_TEXT_ANCHORS = [
+  patternAnchor("frightened"),
+  patternAnchor("fear"),
+  patternAnchor("fearful"),
+  patternAnchor("terror"),
+  patternAnchor("terrified"),
+  patternAnchor("panic"),
+  patternAnchor("panicked"),
+  patternAnchor("cower"),
+  patternAnchor("cowers"),
+  patternAnchor("flee"),
+  patternAnchor("flees"),
+  patternAnchor("dread"),
+  patternAnchor("repelled by fear"),
+  patternAnchor("aura of fear"),
+  patternAnchor("strike terror"),
+];
+
+const FEAR_PRESSURE_BLOCKER_TEXT_ANCHORS = [
+  patternAnchor("against fear"),
+  patternAnchor("against emotion effects"),
+  patternAnchor("protects against fear"),
+  patternAnchor("bonus against fear"),
+  patternAnchor("immune to fear"),
+];
+
+const CONCEALMENT_NAME_ANCHORS = [
+  patternAnchor("conceal", "name"),
+  patternAnchor("concealed", "name"),
+  patternAnchor("invisible", "name"),
+  patternAnchor("blur", "name"),
+  patternAnchor("veil", "name"),
+  patternAnchor("hidden", "name"),
+];
+
+const CONCEALMENT_TEXT_ANCHORS = [
+  patternAnchor("shroud the target"),
+  patternAnchor("concealed"),
+  patternAnchor("undetected"),
+  patternAnchor("invisible"),
+  patternAnchor("hidden"),
+  patternAnchor("becomes concealed"),
+  patternAnchor("gains concealment"),
+  patternAnchor("greater concealment"),
+  patternAnchor("concealed and undetected"),
+  patternAnchor("becomes invisible"),
+  patternAnchor("becomes hidden"),
+  patternAnchor("becomes undetected"),
+  patternAnchor("hidden from sight"),
+  patternAnchor("hard to see"),
+  patternAnchor("difficult to detect"),
+  patternAnchor("blurred"),
+  patternAnchor("blur"),
+  patternAnchor("shrouded in shadow"),
+  patternAnchor("shroud of mist"),
+];
+
+const CONCEALMENT_BLOCKER_TEXT_ANCHORS = [
+  patternAnchor("blocks line of sight"),
+  patternAnchor("obscures vision"),
+  patternAnchor("obscures sight"),
+  patternAnchor("total darkness"),
+  patternAnchor("magical darkness"),
+  patternAnchor("dense fog"),
+  patternAnchor("thick fog"),
+  patternAnchor("bank of fog"),
+  patternAnchor("cloud of smoke"),
+  patternAnchor("obscuring mist"),
+  patternAnchor("obscuring cloud"),
+];
+
+const LINE_OF_SIGHT_CONTROL_NAME_ANCHORS = [
+  patternAnchor("darkness", "name"),
+  patternAnchor("fog", "name"),
+  patternAnchor("mist", "name"),
+  patternAnchor("smoke", "name"),
+  patternAnchor("screen", "name"),
+  patternAnchor("shroud", "name"),
+  patternAnchor("wall", "name"),
+];
+
+const LINE_OF_SIGHT_CONTROL_TEXT_ANCHORS = [
+  patternAnchor("blocks line of sight"),
+  patternAnchor("line of sight"),
+  patternAnchor("obscures vision"),
+  patternAnchor("obscures sight"),
+  patternAnchor("blocks vision"),
+  patternAnchor("can't see through"),
+  patternAnchor("cannot see through"),
+  patternAnchor("total darkness"),
+  patternAnchor("magical darkness"),
+  patternAnchor("dense fog"),
+  patternAnchor("thick fog"),
+  patternAnchor("bank of fog"),
+  patternAnchor("cloud of smoke"),
+  patternAnchor("obscuring mist"),
+  patternAnchor("obscuring cloud"),
+];
+
+const BATTLEFIELD_DISRUPTION_NAME_ANCHORS = [
+  patternAnchor("wall", "name"),
+  patternAnchor("entangle", "name"),
+  patternAnchor("grease", "name"),
+  patternAnchor("terrain", "name"),
+  patternAnchor("barrier", "name"),
+  patternAnchor("maze", "name"),
+  patternAnchor("snare", "name"),
+];
+
+const BATTLEFIELD_DISRUPTION_TEXT_ANCHORS = [
+  patternAnchor("difficult terrain"),
+  patternAnchor("blocks passage"),
+  patternAnchor("block passage"),
+  patternAnchor("hinders movement"),
+  patternAnchor("slows movement"),
+  patternAnchor("hindering"),
+  patternAnchor("obstacle"),
+  patternAnchor("obstacles"),
+  patternAnchor("entangle"),
+  patternAnchor("web"),
+  patternAnchor("sticky web"),
+  patternAnchor("immobile illusory walls"),
+  patternAnchor("false prison"),
+  patternAnchor("trap it inside"),
+  patternAnchor("trapping it inside"),
+  patternAnchor("grease"),
+  patternAnchor("spike growth"),
+  patternAnchor("creates a barrier"),
+  patternAnchor("impassable"),
+];
+
+const AFFLICTION_CLEANUP_NAME_ANCHORS = [
+  patternAnchor("cleanse", "name"),
+  patternAnchor("purify", "name"),
+  patternAnchor("purge", "name"),
+  patternAnchor("antidote", "name"),
+  patternAnchor("cure", "name"),
+  patternAnchor("neutralize", "name"),
+];
+
+const AFFLICTION_CLEANUP_TEXT_ANCHORS = [
+  patternAnchor("counteract an affliction"),
+  patternAnchor("counteract the affliction"),
+  patternAnchor("remove a curse"),
+  patternAnchor("remove curse"),
+  patternAnchor("cure disease"),
+  patternAnchor("cure poison"),
+  patternAnchor("remove disease"),
+  patternAnchor("remove poison"),
+  patternAnchor("neutralize poison"),
+  patternAnchor("neutralize disease"),
+  patternAnchor("purge poison"),
+  patternAnchor("purge disease"),
+  patternAnchor("wash away the affliction"),
+  patternAnchor("counteract poison"),
+  patternAnchor("counteract disease"),
+];
+
+const ESCAPE_SUPPORT_NAME_ANCHORS = [
+  patternAnchor("escape", "name"),
+  patternAnchor("freedom", "name"),
+  patternAnchor("blink", "name"),
+  patternAnchor("vanish", "name"),
+];
+
+const ESCAPE_SUPPORT_TEXT_ANCHORS = [
+  patternAnchor("break free"),
+  patternAnchor("slip away"),
+  patternAnchor("flee"),
+  patternAnchor("escape"),
+  patternAnchor("free yourself"),
+  patternAnchor("freedom of movement"),
+  patternAnchor("teleport away"),
+  patternAnchor("move away from danger"),
+  patternAnchor("extricate"),
+  patternAnchor("evade pursuit"),
+];
+
+const AQUATIC_SUPPORT_TEXT_ANCHORS = [
+  patternAnchor("breathe underwater"),
+  patternAnchor("water breathing"),
+  patternAnchor("swim speed"),
+  patternAnchor("underwater"),
+  patternAnchor("walk on water"),
+  patternAnchor("water walk"),
+  patternAnchor("surface of water"),
+  patternAnchor("air bubble"),
+];
+
+const SUSTENANCE_NAME_ANCHORS = [
+  patternAnchor("food", "name"),
+  patternAnchor("water", "name"),
+  patternAnchor("ration", "name"),
+  patternAnchor("feast", "name"),
+  patternAnchor("cornucopia", "name"),
+  patternAnchor("pantry", "name"),
+  patternAnchor("sustenance", "name"),
+  patternAnchor("nourish", "name"),
+];
+
+const SUSTENANCE_TEXT_ANCHORS = [
+  patternAnchor("create food"),
+  patternAnchor("create water"),
+  patternAnchor("fresh food"),
+  patternAnchor("fresh water"),
+  patternAnchor("day's worth of food"),
+  patternAnchor("day's worth of water"),
+  patternAnchor("nourishes"),
+  patternAnchor("feed"),
+  patternAnchor("sate hunger"),
+  patternAnchor("rations"),
+];
+
+const FIELD_SHELTER_NAME_ANCHORS = [
+  patternAnchor("shelter", "name"),
+  patternAnchor("cabin", "name"),
+  patternAnchor("hut", "name"),
+  patternAnchor("tent", "name"),
+  patternAnchor("camp", "name"),
+  patternAnchor("refuge", "name"),
+  patternAnchor("bivouac", "name"),
+  patternAnchor("lodge", "name"),
+];
+
+const FIELD_SHELTER_TEXT_ANCHORS = [
+  patternAnchor("safe shelter"),
+  patternAnchor("temporary shelter"),
+  patternAnchor("protect from weather"),
+  patternAnchor("shelter from the elements"),
+  patternAnchor("resting place"),
+  patternAnchor("small cabin"),
+  patternAnchor("tiny hut"),
+  patternAnchor("cozy cabin"),
+  patternAnchor("weather"),
+  patternAnchor("elements"),
+];
+
+const QUICKENED_SUPPORT_NAME_ANCHORS = [
+  patternAnchor("quicken", "name"),
+  patternAnchor("quickened", "name"),
+  patternAnchor("haste", "name"),
+  patternAnchor("allegro", "name"),
+  patternAnchor("celerity", "name"),
+];
+
+const QUICKENED_SUPPORT_TEXT_ANCHORS = [
+  patternAnchor("becomes quickened"),
+  patternAnchor("quickened"),
+  patternAnchor("gain an extra action"),
+  patternAnchor("extra action"),
+  patternAnchor("additional action"),
+  patternAnchor("your ally is quickened"),
+  patternAnchor("haste"),
+  patternAnchor("speed up"),
+];
+
 export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "disguise",
@@ -582,6 +847,319 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
     ],
     noneOf: [
       { textAny: SPELL_RESTRAINT_CAPTURE_BLOCKER_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "fear_pressure",
+    category: "spell",
+    threshold: 2,
+    anyOf: [
+      { score: 1, traitsAny: ["fear", "emotion"] },
+      { score: 2, textAny: FEAR_PRESSURE_NAME_ANCHORS },
+      { score: 2, textAny: FEAR_PRESSURE_TEXT_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              patternAnchor("fear"),
+              patternAnchor("frightened"),
+              patternAnchor("terror"),
+              patternAnchor("panic"),
+              patternAnchor("dread"),
+              patternAnchor("flee"),
+              patternAnchor("cower"),
+              patternAnchor("target"),
+              patternAnchor("creature"),
+            ],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+        ],
+      },
+    ],
+    noneOf: [
+      { textAny: FEAR_PRESSURE_BLOCKER_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "concealment",
+    category: "spell",
+    threshold: 2,
+    anyOf: [
+      { score: 1, traitsAny: ["illusion", "shadow"] },
+      { score: 1, textAny: CONCEALMENT_NAME_ANCHORS },
+      { score: 1, textAny: [patternAnchor("veil"), patternAnchor("conceal"), patternAnchor("concealed"), patternAnchor("undetected"), patternAnchor("invisible"), patternAnchor("hidden")] },
+      { score: 2, textAny: CONCEALMENT_TEXT_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              patternAnchor("target"),
+              patternAnchor("creature"),
+              patternAnchor("self"),
+              patternAnchor("ally"),
+              patternAnchor("hidden"),
+              patternAnchor("concealed"),
+              patternAnchor("undetected"),
+              patternAnchor("invisible"),
+            ],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+        ],
+      },
+    ],
+    noneOf: [
+      { textAny: CONCEALMENT_BLOCKER_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "line_of_sight_control",
+    category: "spell",
+    threshold: 2,
+    anyOf: [
+      { score: 1, textAny: LINE_OF_SIGHT_CONTROL_NAME_ANCHORS },
+      { score: 2, textAny: LINE_OF_SIGHT_CONTROL_TEXT_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              patternAnchor("line"),
+              patternAnchor("sight"),
+              patternAnchor("vision"),
+              patternAnchor("see"),
+              patternAnchor("obscure"),
+              patternAnchor("darkness"),
+              patternAnchor("fog"),
+              patternAnchor("smoke"),
+              patternAnchor("mist"),
+            ],
+            window: 7,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+        ],
+      },
+    ],
+  },
+  {
+    tag: "battlefield_disruption",
+    category: "spell",
+    threshold: 2,
+    anyOf: [
+      { score: 1, textAny: BATTLEFIELD_DISRUPTION_NAME_ANCHORS },
+      { score: 2, textAny: BATTLEFIELD_DISRUPTION_TEXT_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              patternAnchor("difficult"),
+              patternAnchor("terrain"),
+              patternAnchor("wall"),
+              patternAnchor("barrier"),
+              patternAnchor("obstacle"),
+              patternAnchor("obstacles"),
+              patternAnchor("entangle"),
+              patternAnchor("web"),
+              patternAnchor("grease"),
+              patternAnchor("passage"),
+              patternAnchor("movement"),
+              patternAnchor("hindering"),
+            ],
+            window: 7,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+        ],
+      },
+    ],
+  },
+  {
+    tag: "affliction_cleanup",
+    category: "spell",
+    threshold: 2,
+    anyOf: [
+      { score: 1, textAny: AFFLICTION_CLEANUP_NAME_ANCHORS },
+      { score: 2, textAny: AFFLICTION_CLEANUP_TEXT_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              patternAnchor("remove"),
+              patternAnchor("cure"),
+              patternAnchor("counteract"),
+              patternAnchor("neutralize"),
+              patternAnchor("purge"),
+              patternAnchor("affliction"),
+              patternAnchor("poison"),
+              patternAnchor("disease"),
+              patternAnchor("curse"),
+            ],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+        ],
+      },
+    ],
+    noneOf: [
+      { textAny: [patternAnchor("without affecting"), patternAnchor("without effect on"), patternAnchor("does not affect")] },
+    ],
+  },
+  {
+    tag: "escape_support",
+    category: "spell",
+    threshold: 2,
+    anyOf: [
+      { score: 1, textAny: ESCAPE_SUPPORT_NAME_ANCHORS },
+      { score: 2, textAny: ESCAPE_SUPPORT_TEXT_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              patternAnchor("escape"),
+              patternAnchor("flee"),
+              patternAnchor("break"),
+              patternAnchor("free"),
+              patternAnchor("slip"),
+              patternAnchor("away"),
+              patternAnchor("teleport"),
+              patternAnchor("freedom"),
+              patternAnchor("movement"),
+            ],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+        ],
+      },
+    ],
+    noneOf: [
+      { textAny: SPELL_MOBILITY_BLOCKER_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "aquatic_support",
+    category: "spell",
+    threshold: 2,
+    anyOf: [
+      { score: 1, traitsAny: ["water"] },
+      { score: 2, textAny: AQUATIC_SUPPORT_TEXT_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              patternAnchor("water"),
+              patternAnchor("underwater"),
+              patternAnchor("swim"),
+              patternAnchor("breathe"),
+              patternAnchor("breathing"),
+              patternAnchor("surface"),
+              patternAnchor("walk"),
+            ],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+        ],
+      },
+    ],
+  },
+  {
+    tag: "sustenance",
+    category: "spell",
+    threshold: 2,
+    anyOf: [
+      { score: 1, textAny: SUSTENANCE_NAME_ANCHORS },
+      { score: 2, textAny: SUSTENANCE_TEXT_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              patternAnchor("food"),
+              patternAnchor("water"),
+              patternAnchor("ration"),
+              patternAnchor("rations"),
+              patternAnchor("nourish"),
+              patternAnchor("feed"),
+              patternAnchor("sate"),
+              patternAnchor("hunger"),
+            ],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+        ],
+      },
+    ],
+  },
+  {
+    tag: "field_shelter",
+    category: "spell",
+    threshold: 2,
+    anyOf: [
+      { score: 1, textAny: FIELD_SHELTER_NAME_ANCHORS },
+      { score: 2, textAny: FIELD_SHELTER_TEXT_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              patternAnchor("shelter"),
+              patternAnchor("sheltered"),
+              patternAnchor("cabin"),
+              patternAnchor("hut"),
+              patternAnchor("tent"),
+              patternAnchor("camp"),
+              patternAnchor("refuge"),
+              patternAnchor("weather"),
+              patternAnchor("elements"),
+            ],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+        ],
+      },
+    ],
+  },
+  {
+    tag: "quickened_support",
+    category: "spell",
+    threshold: 2,
+    anyOf: [
+      { score: 1, textAny: QUICKENED_SUPPORT_NAME_ANCHORS },
+      { score: 2, textAny: QUICKENED_SUPPORT_TEXT_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              patternAnchor("quickened"),
+              patternAnchor("haste"),
+              patternAnchor("extra"),
+              patternAnchor("additional"),
+              patternAnchor("action"),
+              patternAnchor("reaction"),
+              patternAnchor("ally"),
+              patternAnchor("target"),
+            ],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+        ],
+      },
     ],
   },
   {

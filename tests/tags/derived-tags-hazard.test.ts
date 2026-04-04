@@ -458,4 +458,96 @@ describe("derived tag rules: hazard", () => {
       traits: ["haunt", "magical"],
     })).not.toContain("spawned_attackers");
   });
+
+  it("derives haunt manifestation and consequence tags", () => {
+    expect(deriveRecordTags({
+      name: "Ashes of Despair",
+      category: "hazard",
+      subcategory: "haunt",
+      descriptionText: "Swirling ashes fill the room and form into the semblance of a massive predatory bird that swoops upon those in the chamber, draining their life force away.",
+      traits: ["haunt"],
+    })).toContain("life_drain_hazard");
+
+    expect(deriveRecordTags({
+      name: "Blood of Belcorra",
+      category: "hazard",
+      subcategory: "haunt",
+      descriptionText: "A bloody image of Belcorra arises, emits a soul-draining light, then inhales blood from living creatures in the room.",
+      traits: ["haunt"],
+    })).toContain("life_drain_hazard");
+
+    expect(deriveRecordTags({
+      name: "Blood-Soaked Soil",
+      category: "hazard",
+      subcategory: "haunt",
+      descriptionText: "The blood of those who died in the area bubbles up from the earth, soaking the soil and turning it into a bloody morass.",
+      traits: ["haunt"],
+    })).not.toContain("life_drain_hazard");
+
+    expect(deriveRecordTags({
+      name: "Benefactor's End",
+      category: "hazard",
+      subcategory: "haunt",
+      descriptionText: "A spectral assailant drives a stake into a dying vampire's heart; the vampire collapses and releases a surge of void energy.",
+      traits: ["haunt"],
+    })).toContain("phantom_assailants");
+
+    expect(deriveRecordTags({
+      name: "Army of Mist",
+      category: "hazard",
+      subcategory: "haunt",
+      descriptionText: "The wind intensifies and the seeping fog rushes forward in a stampede of ghostly orcs screaming wordless battle cries, weapons raised to slaughter their foes.",
+      traits: ["environmental", "haunt", "occult"],
+    })).toContain("phantom_assailants");
+
+    expect(deriveRecordTags({
+      name: "Broken Rebus Attack",
+      category: "hazard",
+      subcategory: "haunt",
+      descriptionText: "Ghostly attackers knock the tables about, send dishes flying, and pull fleeing creatures into the room.",
+      traits: ["haunt", "magical"],
+    })).toContain("battlefield_disruption");
+
+    expect(deriveRecordTags({
+      name: "Battle Illusion",
+      category: "hazard",
+      subcategory: "haunt",
+      descriptionText: "The scene of the arid Cinderlands melts away as the water of the river refills and green grass spreads across the land. The sounds of battle can be heard everywhere and all allies have vanished, murderous orcs from the One Eye Hold taking their place.",
+      traits: ["haunt", "magical", "occult"],
+    })).toContain("battlefield_disruption");
+  });
+
+  it("derives haunt lure and compulsion tags", () => {
+    expect(deriveRecordTags({
+      name: "Damurdiel's Vengeance",
+      category: "hazard",
+      subcategory: "haunt",
+      descriptionText: "An elven woman wearing a robe stands in the water. She beckons anyone who enters the room to join her in the pool.",
+      traits: ["haunt"],
+    })).toContain("lure_compulsion");
+
+    expect(deriveRecordTags({
+      name: "Dance Of Death",
+      category: "hazard",
+      subcategory: "haunt",
+      descriptionText: "An eerie orchestra compels all who hear it to dance until they collapse from exhaustion.",
+      traits: ["haunt"],
+    })).toContain("lure_compulsion");
+
+    expect(deriveRecordTags({
+      name: "Echoes of Betrayal",
+      category: "hazard",
+      subcategory: "haunt",
+      descriptionText: "Malevolent spirits led by a ghostly image of Ludika rise and begin a deadly brawl. These spirits attempt to overwhelm living creatures, forcing them to join the battle.",
+      traits: ["haunt"],
+    })).toContain("lure_compulsion");
+
+    expect(deriveRecordTags({
+      name: "False Floor",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "The floor in this chamber is an illusion, which conceals a 40-foot drop to the true floor below. Additionally, the area beneath the floor is magically silenced-no sound is audible within nor does sound leave this space.",
+      traits: ["illusion", "magical", "trap"],
+    })).not.toContain("lure_compulsion");
+  });
 });

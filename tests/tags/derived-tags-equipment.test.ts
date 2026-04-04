@@ -610,7 +610,57 @@ describe("derived tag rules: equipment", () => {
       subcategory: "armor",
       descriptionText: "The interior of this heavy, brass full plate is lined with waterproof fabric, especially covering the seams between plates. When worn, it provides a sealed environment that protects you from drowning as well as allowing you to move more freely while underwater. The armor enables you to breathe underwater and gives you a swim Speed equal to half your land Speed.",
       traits: ["armor", "invested", "magical"],
-    })).toEqual(expect.arrayContaining(["mobility", "survival"]));
+    })).toEqual(expect.arrayContaining(["mobility", "survival", "hazard_shielding"]));
+  });
+
+  it("derives concealment, scouting, and disguise support on gear and weapons", () => {
+    expect(deriveRecordTags({
+      name: "Bloodknuckles",
+      category: "equipment",
+      subcategory: "weapon",
+      descriptionText: "These thin cloth wraps disguise themselves as simple bandages and take on the appearance of harmless wraps.",
+      traits: ["magical"],
+    })).toContain("disguise");
+
+    expect(deriveRecordTags({
+      name: "Bloodknuckles",
+      category: "equipment",
+      subcategory: "weapon",
+      descriptionText: "These thin cloth wraps blend into the skin and are disguised as simple bandages.",
+      traits: ["magical"],
+    })).not.toContain("social_infiltration");
+
+    expect(deriveRecordTags({
+      name: "Batsbreath Cane",
+      category: "equipment",
+      subcategory: "weapon",
+      descriptionText: "A resonant pulse through the cane lets you gain hearing as a precise sense while you hold it.",
+      traits: ["magical"],
+    })).toContain("scouting");
+
+    expect(deriveRecordTags({
+      name: "Blink Blade",
+      category: "equipment",
+      subcategory: "weapon",
+      descriptionText: "The space you leave and the one you appear in are filled with puffs of smoke that make anyone within concealed until they leave the smoke.",
+      traits: ["magical"],
+    })).toContain("concealment");
+
+    expect(deriveRecordTags({
+      name: "Aeon Stone (Flickering)",
+      category: "equipment",
+      subcategory: "gear",
+      descriptionText: "The stone draws you slightly out of sync with the flow of time, causing you to flicker in and out of existence. You become concealed for 1 minute.",
+      traits: ["magical"],
+    })).toContain("concealment");
+
+    expect(deriveRecordTags({
+      name: "Quick-Change Outfit",
+      category: "equipment",
+      subcategory: "gear",
+      descriptionText: "Two separate outfits sewn together let you switch quickly between the two outfits.",
+      traits: [],
+    })).not.toContain("concealment");
   });
 
   it("derives ammo payload, signaling, mobility, and restraint tags", () => {
@@ -1022,5 +1072,71 @@ describe("derived tag rules: equipment", () => {
       descriptionText: "This oil contains energy that repels nearly all types of magic. When you apply this oil to armor, the creature wearing the armor becomes immune to all spells, effects of magic items, and effects with the magical trait for 1 minute.",
       traits: ["consumable", "magical", "oil"],
     })).toEqual(expect.arrayContaining(["countermagic", "magic_protection"]));
+  });
+
+  it("derives shield defense tags", () => {
+    expect(deriveRecordTags({
+      name: "Amaranthine Pavise",
+      category: "equipment",
+      subcategory: "shield",
+      descriptionText: "When your allies have cover from the amaranthine pavise, the circumstance bonus they gain from cover to Reflex saves against area effects also applies to Fortitude and Will saves against demons' area effects.",
+      traits: ["shield"],
+    })).toContain("ally_cover");
+
+    expect(deriveRecordTags({
+      name: "Shining Shield",
+      category: "equipment",
+      subcategory: "shield",
+      descriptionText: "While raised, a shining shield moves itself to provide cover for your allies. If you have this shield raised and would provide cover to an ally against a foe by standing between them, the cover you provide increases one step.",
+      traits: ["shield"],
+    })).toContain("ally_cover");
+
+    expect(deriveRecordTags({
+      name: "Arrow-Catching Shield",
+      category: "equipment",
+      subcategory: "shield",
+      descriptionText: "Trigger A ranged weapon Strike targets a creature within 15 feet of you when you have this shield raised. The triggering Strike targets you instead of its normal target.",
+      traits: ["shield"],
+    })).toContain("projectile_defense");
+
+    expect(deriveRecordTags({
+      name: "Turnabout Shield",
+      category: "equipment",
+      subcategory: "shield",
+      descriptionText: "Trigger A ranged Strike using ammunition such as arrows, bolts, or bullets misses you. The ammunition enters the shield and is redirected with the same force with which it was originally fired.",
+      traits: ["shield"],
+    })).toContain("projectile_defense");
+
+    expect(deriveRecordTags({
+      name: "Reflecting Shield",
+      category: "equipment",
+      subcategory: "shield",
+      descriptionText: "This shield functions as a spellguard shield that can also reflect spells. Trigger You're targeted by a spell. The shield attempts to counteract the spell, with a counteract rank of 9th.",
+      traits: ["shield"],
+    })).toContain("countermagic");
+
+    expect(deriveRecordTags({
+      name: "Cursebreak Bulwark",
+      category: "equipment",
+      subcategory: "shield",
+      descriptionText: "While you have this shield raised, you gain a bonus against spells that target you, increasing against curses. It can destroy a curse before it can affect you.",
+      traits: ["shield"],
+    })).toContain("magic_protection");
+
+    expect(deriveRecordTags({
+      name: "Dragonslayer's Shield",
+      category: "equipment",
+      subcategory: "shield",
+      descriptionText: "While raised, this shield grants its circumstance bonus to Reflex saves against area effects. The shield has resistance 10 against the damage type corresponding to the dragon breath of the dragon whose hide was used in its creation.",
+      traits: ["shield"],
+    })).toContain("hazard_shielding");
+
+    expect(deriveRecordTags({
+      name: "Tower Shield",
+      category: "equipment",
+      subcategory: "shield",
+      descriptionText: "These massive shields can be used to provide cover to nearly the entire body. AC increases to +4 if you are using the Take Cover action.",
+      traits: ["shield"],
+    })).not.toContain("ally_cover");
   });
 });

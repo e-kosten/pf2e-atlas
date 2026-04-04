@@ -370,6 +370,30 @@ describe("derived tag rules: creature", () => {
       descriptionText: "Often leading a small team of lower-ranking guards, watch officers patrol their assigned areas to maintain order and enforce laws.",
       traits: ["human", "humanoid"],
     })).toEqual(expect.arrayContaining(["profession_npc", "civic_npc"]));
+
+    expect(deriveRecordTags({
+      name: "Abbot of Abadar",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "The abbot runs the shrine and serves the community with counsel and order.",
+      traits: ["human", "humanoid"],
+    })).toEqual(expect.arrayContaining(["profession_npc", "civic_npc"]));
+
+    expect(deriveRecordTags({
+      name: "Adjutant Hellknight Armiger",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "An adjutant and armiger who fights alongside the order in disciplined battle formations.",
+      traits: ["human", "humanoid"],
+    })).toContain("combatant_npc");
+
+    expect(deriveRecordTags({
+      name: "City Scribe",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A human clerk who serves the community and keeps the peace while recording the daily business of the courthouse.",
+      traits: ["human", "humanoid"],
+    })).toContain("profession_npc");
   });
 
   it("derives creature motif tags without collapsing into raw vibes", () => {
@@ -775,10 +799,26 @@ describe("derived tag rules: creature", () => {
     })).toContain("life_drain_threat");
 
     expect(deriveRecordTags({
+      name: "Vampiric Reaver",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "This predator drains blood and life force from victims, feeding on blood to renew itself.",
+      traits: ["undead"],
+    })).toContain("life_drain_threat");
+
+    expect(deriveRecordTags({
       name: "Brood Mother",
       category: "creature",
       subcategory: null,
       descriptionText: "The brood mother implants eggs in living hosts, and fresh horrors burst from the host days later.",
+      traits: ["aberration"],
+    })).toContain("spawn_creator");
+
+    expect(deriveRecordTags({
+      name: "Carrion Brood Hatcher",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "The brood hatches inside living hosts and creates offspring that infest nearby victims.",
       traits: ["aberration"],
     })).toContain("spawn_creator");
 
@@ -799,10 +839,26 @@ describe("derived tag rules: creature", () => {
     })).toContain("regeneration_threat");
 
     expect(deriveRecordTags({
+      name: "Ash Troll",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Its fast healing lets it recover each round, and the creature can only be destroyed by acid or fire.",
+      traits: ["giant"],
+    })).toContain("regeneration_threat");
+
+    expect(deriveRecordTags({
       name: "Web Lurker",
       category: "creature",
       subcategory: null,
       descriptionText: "An ambush predator that snares prey in sticky webs, leaves them webbed, and drags prey back to its lair.",
+      traits: ["animal"],
+    })).toContain("ambush_grabber");
+
+    expect(deriveRecordTags({
+      name: "Bog Ambusher",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "An ambush predator that constricts prey, swallows whole, and drags prey into the marsh.",
       traits: ["animal"],
     })).toContain("ambush_grabber");
 
@@ -813,5 +869,21 @@ describe("derived tag rules: creature", () => {
       descriptionText: "A playful fey guardian of clear pools and shaded brooks.",
       traits: ["fey", "water"],
     })).not.toEqual(expect.arrayContaining(["possession_threat", "life_drain_threat", "spawn_creator", "petrification_threat", "regeneration_threat", "ambush_grabber"]));
+
+    expect(deriveRecordTags({
+      name: "Courthouse Scribe",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A human clerk who keeps records and works at the courthouse.",
+      traits: ["human", "humanoid"],
+    })).not.toContain("combatant_npc");
+
+    expect(deriveRecordTags({
+      name: "Stone Lion Cub",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A small stone lion cub prowls the sanctuary like an ornament come to life.",
+      traits: ["animal"],
+    })).not.toContain("ambush_grabber");
   });
 });

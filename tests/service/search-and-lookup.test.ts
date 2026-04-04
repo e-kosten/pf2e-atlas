@@ -826,6 +826,14 @@ describe("Pf2eDataService / Search and Lookup", () => {
     }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Teleport", "Water Walk"]));
     expect(service.listRecords({
       category: "spell",
+      metadata: { field: "derivedTags", op: "includesAny", values: ["fear_pressure"] },
+    }).records.map((record) => record.name)).toContain("Fear");
+    expect(service.listRecords({
+      category: "spell",
+      metadata: { field: "derivedTags", op: "includesAny", values: ["battlefield_disruption"] },
+    }).records.map((record) => record.name)).toContain("Phantom Prison");
+    expect(service.listRecords({
+      category: "spell",
       metadata: { field: "derivedTags", op: "includesAny", values: ["condition_support"] },
     }).records.map((record) => record.name)).toContain("Clear Mind");
 
@@ -927,6 +935,10 @@ describe("Pf2eDataService / Search and Lookup", () => {
     expect(animalForm?.derivedTags).toEqual(expect.arrayContaining(["transformation", "battle_form", "animal_form"]));
     const teleport = service.lookup("Teleport", { category: "spell" }).match;
     expect(teleport?.derivedTags).toContain("mobility");
+    const fear = service.lookup("Fear", { category: "spell" }).match;
+    expect(fear?.derivedTags).toContain("fear_pressure");
+    const phantomPrison = service.lookup("Phantom Prison", { category: "spell" }).match;
+    expect(phantomPrison?.derivedTags).toContain("battlefield_disruption");
     const clearMind = service.lookup("Clear Mind", { category: "spell" }).match;
     expect(clearMind?.derivedTags).toContain("condition_support");
 

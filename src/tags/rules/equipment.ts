@@ -33,6 +33,9 @@ import type { SearchSubcategory } from "../../types.js";
 
 const AMMO_SUBCATEGORIES: SearchSubcategory[] = ["ammo"];
 const ARMOR_SUBCATEGORIES: SearchSubcategory[] = ["armor"];
+const SCOUTING_SUBCATEGORIES: SearchSubcategory[] = [...GEARISH_SUBCATEGORIES, "weapon"];
+const DISGUISE_WEAPON_SUBCATEGORIES: SearchSubcategory[] = [...DISGUISE_SUBCATEGORIES, "weapon"];
+const DEFENSE_SUBCATEGORIES: SearchSubcategory[] = [...GEARISH_SUBCATEGORIES, "armor", "shield"];
 
 const AMMO_ILLUMINATION_TEXT_ANCHORS = [
   patternAnchor("shining", "name"),
@@ -153,6 +156,25 @@ const ARMOR_STEALTH_SUPPORT_TEXT_ANCHORS = [
   patternAnchor("quiet"),
 ];
 
+const CONCEALMENT_TEXT_ANCHORS = [
+  patternAnchor("become concealed"),
+  patternAnchor("concealed for"),
+  patternAnchor("concealment"),
+  patternAnchor("provide concealment"),
+  patternAnchor("grants concealment"),
+  patternAnchor("hidden from sight"),
+  patternAnchor("vanish from sight"),
+  patternAnchor("absorbs light"),
+  patternAnchor("flicker in and out of existence"),
+  patternAnchor("obscures creatures"),
+];
+
+const CONCEALMENT_BLOCKER_TEXT_ANCHORS = [
+  patternAnchor("hidden on your person"),
+  patternAnchor("hidden tools"),
+  patternAnchor("slim lockpicks"),
+];
+
 const ARMOR_SURVIVAL_TEXT_ANCHORS = [
   patternAnchor("air supply"),
   patternAnchor("allows you to breathe underwater"),
@@ -245,6 +267,41 @@ const EQUIPMENT_AQUATIC_SUPPORT_TEXT_ANCHORS = [
 const EQUIPMENT_AQUATIC_SUPPORT_BLOCKER_TEXT_ANCHORS = [
   patternAnchor("fresh, clear water"),
   patternAnchor("full of water"),
+];
+
+const DEFENSE_ALLY_COVER_TEXT_ANCHORS = [
+  patternAnchor("allies have cover"),
+  patternAnchor("provide cover to your allies"),
+  patternAnchor("provide cover for your allies"),
+  patternAnchor("cover you provide increases one step"),
+  patternAnchor("granting them cover"),
+  patternAnchor("ephemeral reflections"),
+  patternAnchor("move itself to provide cover"),
+  patternAnchor("the shield gives off bright light"),
+  patternAnchor("cover from the"),
+];
+
+const DEFENSE_PROJECTILE_TEXT_ANCHORS = [
+  patternAnchor("ranged weapon Strike targets a creature within"),
+  patternAnchor("targets you instead of its normal target"),
+  patternAnchor("ammunition enters the shield"),
+  patternAnchor("the ammunition is redirected"),
+  patternAnchor("shield block"),
+  patternAnchor("attract projectile"),
+  patternAnchor("ignore lesser cover"),
+];
+
+const DEFENSE_HAZARD_TEXT_ANCHORS = [
+  patternAnchor("drowning"),
+  patternAnchor("fire resistance"),
+  patternAnchor("cold resistance"),
+  patternAnchor("poison resistance"),
+  patternAnchor("area effects"),
+  patternAnchor("protects against curses"),
+  patternAnchor("protects against the"),
+  patternAnchor("resistance"),
+  patternAnchor("sunlight"),
+  patternAnchor("weatherproof"),
 ];
 
 const EQUIPMENT_IMPACT_MOBILITY_TEXT_ANCHORS = [
@@ -670,9 +727,9 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "scouting",
     category: "equipment",
-    subcategories: GEARISH_SUBCATEGORIES,
+    subcategories: SCOUTING_SUBCATEGORIES,
     anyOf: [
-      { textAny: [patternAnchor("scout"), patternAnchor("scouting"), patternAnchor("survey"), patternAnchor("recon"), patternAnchor("observe from afar"), patternAnchor("spyglass")] },
+      { textAny: [patternAnchor("scout"), patternAnchor("scouting"), patternAnchor("survey"), patternAnchor("recon"), patternAnchor("observe from afar"), patternAnchor("spyglass"), patternAnchor("precise sense"), patternAnchor("hearing as a precise sense")] },
     ],
   },
   {
@@ -694,9 +751,28 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     ],
   },
   {
+    tag: "concealment",
+    category: "equipment",
+    subcategories: [...SCOUTING_SUBCATEGORIES, "armor", "shield", "consumable"],
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: CONCEALMENT_TEXT_ANCHORS },
+      {
+        score: 2,
+        textAny: [
+          patternAnchor("concealed"),
+          patternAnchor("concealment"),
+        ],
+      },
+    ],
+    noneOf: [
+      { textAny: CONCEALMENT_BLOCKER_TEXT_ANCHORS },
+    ],
+  },
+  {
     tag: "disguise",
     category: "equipment",
-    subcategories: DISGUISE_SUBCATEGORIES,
+    subcategories: DISGUISE_WEAPON_SUBCATEGORIES,
     anyOf: [
       { textAny: DISGUISE_TEXT_ANCHORS },
       { referencesAny: DISGUISE_REFERENCE_ANCHORS },
@@ -1017,7 +1093,7 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "countermagic",
     category: "equipment",
-    subcategories: [...GEARISH_SUBCATEGORIES, "consumable"],
+    subcategories: [...GEARISH_SUBCATEGORIES, "consumable", "armor", "shield"],
     threshold: 2,
     anyOf: [
       { score: 2, textAny: COUNTERMAGIC_NAME_ANCHORS },
@@ -1037,6 +1113,9 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
           patternAnchor("triggering spell"),
           patternAnchor("single spell"),
           patternAnchor("target spell"),
+          patternAnchor("counteract the spell"),
+          patternAnchor("reflect spells"),
+          patternAnchor("spellguard shield"),
         ],
       },
     ],
@@ -1044,11 +1123,38 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "magic_protection",
     category: "equipment",
-    subcategories: [...GEARISH_SUBCATEGORIES, "consumable"],
+    subcategories: [...GEARISH_SUBCATEGORIES, "consumable", "armor", "shield"],
     threshold: 2,
     anyOf: [
       { score: 2, textAny: [patternAnchor("antimagic", "name")] },
       { score: 2, textAny: MAGIC_PROTECTION_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "ally_cover",
+    category: "equipment",
+    subcategories: DEFENSE_SUBCATEGORIES,
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: DEFENSE_ALLY_COVER_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "projectile_defense",
+    category: "equipment",
+    subcategories: DEFENSE_SUBCATEGORIES,
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: DEFENSE_PROJECTILE_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "hazard_shielding",
+    category: "equipment",
+    subcategories: DEFENSE_SUBCATEGORIES,
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: DEFENSE_HAZARD_TEXT_ANCHORS },
     ],
   },
   {

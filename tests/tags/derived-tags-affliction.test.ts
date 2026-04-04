@@ -117,6 +117,14 @@ describe("derived tag rules: affliction", () => {
     })).toContain("sedation");
 
     expect(deriveRecordTags({
+      name: "Dreamtime Tea",
+      category: "affliction",
+      subcategory: "poison",
+      descriptionText: "This lemony tea blended from rare herbs puts the drinker into a trancelike state and stage 2 unconsciousness.",
+      traits: ["poison"],
+    })).toContain("sedation");
+
+    expect(deriveRecordTags({
       name: "Black Apoxia",
       category: "affliction",
       subcategory: "disease",
@@ -131,6 +139,46 @@ describe("derived tag rules: affliction", () => {
       descriptionText: "Creatures afflicted by this curse slowly turn to solid crystal until they are petrified.",
       traits: ["curse"],
     })).toContain("transformative_corruption");
+
+    expect(deriveRecordTags({
+      name: "Crystalline Corruption",
+      category: "affliction",
+      subcategory: "curse",
+      descriptionText: "The curse gradually turns the victim into crystalline matter until their body is no longer wholly flesh.",
+      traits: ["curse"],
+    })).toContain("transformative_corruption");
+
+    expect(deriveRecordTags({
+      name: "Bloom Curse",
+      category: "affliction",
+      subcategory: "curse",
+      descriptionText: "The curse makes the victim's skin sprout petals and roots as their body slowly becomes plant matter.",
+      traits: ["curse"],
+    })).toContain("transformative_corruption");
+
+    expect(deriveRecordTags({
+      name: "Bloodfire Fever",
+      category: "affliction",
+      subcategory: "disease",
+      descriptionText: "Stage 1 blood loss. Stage 2 fatigued and weakened as the fever drains vitality from the body.",
+      traits: ["disease"],
+    })).toContain("physical_debilitation");
+
+    expect(deriveRecordTags({
+      name: "Boiling Blood",
+      category: "affliction",
+      subcategory: "poison",
+      descriptionText: "Stage 1 the victim's blood boils and they become exhausted. Stage 2 hemorrhaging and drained.",
+      traits: ["poison"],
+    })).toContain("physical_debilitation");
+
+    expect(deriveRecordTags({
+      name: "Jelly Blood",
+      category: "affliction",
+      subcategory: "curse",
+      descriptionText: "The curse weakens the body until the victim is wasting away with blood loss.",
+      traits: ["curse"],
+    })).toContain("physical_debilitation");
 
     expect(deriveRecordTags({
       name: "Cackling Delirium",
@@ -151,6 +199,8 @@ describe("derived tag rules: affliction", () => {
       "cognitive_impairment",
       "sensory_impairment",
       "sedation",
+      "physical_debilitation",
+      "transformative_corruption",
     ]));
 
     expect(deriveRecordTags({
@@ -159,7 +209,7 @@ describe("derived tag rules: affliction", () => {
       subcategory: "poison",
       descriptionText: "This lemony tea blended from rare herbs puts the drinker into a trancelike state and stage 2 unconsciousness.",
       traits: ["poison"],
-    })).not.toContain("sedation");
+    })).not.toContain("physical_debilitation");
 
     expect(deriveRecordTags({
       name: "Rotting Curse",
@@ -207,6 +257,6 @@ describe("derived tag rules: affliction", () => {
       subcategory: "curse",
       descriptionText: "The curse leaves the victim fatigued and short of breath after any strenuous activity.",
       traits: ["curse"],
-    })).not.toContain("respiratory_impairment");
+    })).not.toEqual(expect.arrayContaining(["respiratory_impairment", "sedation"]));
   });
 });

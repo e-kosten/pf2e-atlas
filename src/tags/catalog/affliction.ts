@@ -8,11 +8,11 @@ export const AFFLICTION_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
     tags: [
       { value: "mental_impairment", description: "Impairs judgment, emotions, or perception through confusion, fear, or delirium." },
       { value: "mobility_impairment", description: "Reduces speed, stiffens movement, or leaves the victim immobilized." },
-      { value: "physical_debilitation", description: "Weakens the body through exhaustion, sickness, drained vitality, or similar bodily degradation." },
+      { value: "physical_debilitation", description: "Weakens the body through exhaustion, sickness, drained vitality, blood loss, or similar bodily degradation." },
       { value: "healing_suppression", description: "Prevents normal healing or sharply reduces healing received." },
       { value: "cognitive_impairment", description: "Dulls thought, memory, decision-making, or mental clarity without being just fear or confusion." },
       { value: "sensory_impairment", description: "Blinds, deafens, or otherwise suppresses perception and the senses." },
-      { value: "sedation", description: "Induces sleep, deep drowsiness, unconsciousness, or difficulty waking." },
+      { value: "sedation", description: "Induces sleep, deep drowsiness, trance-like unconsciousness, or difficulty waking." },
     ],
   },
   {
@@ -38,7 +38,7 @@ export const AFFLICTION_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
     description: "Affliction tags for forced breathing failure and body-changing corruption.",
     tags: [
       { value: "respiratory_impairment", description: "Prevents normal breathing or fills the victim's lungs with water, fluid, or similar suffocating effects." },
-      { value: "transformative_corruption", description: "Progressively transforms the body into crystal, plant matter, or another corrupted form." },
+      { value: "transformative_corruption", description: "Progressively transforms the body into crystal, plant matter, fungus, or another corrupted form." },
     ],
   },
 ];

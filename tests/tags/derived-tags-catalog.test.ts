@@ -61,6 +61,16 @@ describe("derived tag catalog", () => {
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "disguise", description: expect.any(String) }),
           expect.objectContaining({ value: "social_infiltration", description: expect.any(String) }),
+          expect.objectContaining({ value: "concealment", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "equipment",
+        family: "defense_profile",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "ally_cover", description: expect.any(String) }),
+          expect.objectContaining({ value: "projectile_defense", description: expect.any(String) }),
+          expect.objectContaining({ value: "hazard_shielding", description: expect.any(String) }),
         ]),
       }),
       expect.objectContaining({
@@ -117,6 +127,16 @@ describe("derived tag catalog", () => {
       }),
       expect.objectContaining({
         category: "spell",
+        family: "control",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "fear_pressure", description: expect.any(String) }),
+          expect.objectContaining({ value: "concealment", description: expect.any(String) }),
+          expect.objectContaining({ value: "line_of_sight_control", description: expect.any(String) }),
+          expect.objectContaining({ value: "battlefield_disruption", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "spell",
         family: "magic_interference",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "countermagic", description: expect.any(String) }),
@@ -145,9 +165,27 @@ describe("derived tag catalog", () => {
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "healing_support", description: expect.any(String) }),
           expect.objectContaining({ value: "condition_support", description: expect.any(String) }),
+          expect.objectContaining({ value: "affliction_cleanup", description: expect.any(String) }),
+          expect.objectContaining({ value: "escape_support", description: expect.any(String) }),
           expect.objectContaining({ value: "protective_ward", description: expect.any(String) }),
           expect.objectContaining({ value: "death_prevention", description: expect.any(String) }),
           expect.objectContaining({ value: "resistance_support", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "spell",
+        family: "expedition",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "aquatic_support", description: expect.any(String) }),
+          expect.objectContaining({ value: "sustenance", description: expect.any(String) }),
+          expect.objectContaining({ value: "field_shelter", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "spell",
+        family: "tempo",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "quickened_support", description: expect.any(String) }),
         ]),
       }),
       expect.objectContaining({
@@ -158,6 +196,16 @@ describe("derived tag catalog", () => {
           expect.objectContaining({ value: "restraint_capture", description: expect.any(String) }),
           expect.objectContaining({ value: "barrier_lockdown", description: expect.any(String) }),
           expect.objectContaining({ value: "spawned_attackers", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "hazard",
+        family: "haunt_manifestation",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "life_drain_hazard", description: expect.any(String) }),
+          expect.objectContaining({ value: "phantom_assailants", description: expect.any(String) }),
+          expect.objectContaining({ value: "lure_compulsion", description: expect.any(String) }),
+          expect.objectContaining({ value: "battlefield_disruption", description: expect.any(String) }),
         ]),
       }),
       expect.objectContaining({

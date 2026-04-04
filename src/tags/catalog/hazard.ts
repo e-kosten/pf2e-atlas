@@ -25,6 +25,17 @@ export const HAZARD_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
   },
   {
     category: "hazard",
+    family: "haunt_manifestation",
+    description: "Haunt manifestations that materially change the encounter through attackers, lures, or life-draining effects.",
+    tags: [
+      { value: "life_drain_hazard", description: "Haunt that drains life force, vitality, or souls from victims." },
+      { value: "phantom_assailants", description: "Haunt that manifests ghostly, spectral, or phantom attackers as separate assailants." },
+      { value: "lure_compulsion", description: "Haunt that beckons, lures, or compels creatures into moving or acting against their judgment." },
+      { value: "battlefield_disruption", description: "Haunt that reshapes the scene with barriers, violent manifestations, or other encounter-disrupting effects." },
+    ],
+  },
+  {
+    category: "hazard",
     family: "impact",
     description: "Hazard impact tags for mental destabilization and movement-limiting effects.",
     tags: [

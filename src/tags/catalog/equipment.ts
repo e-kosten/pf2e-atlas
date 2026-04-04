@@ -115,6 +115,7 @@ export const EQUIPMENT_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
     tags: [
       { value: "disguise", description: "Helps alter appearance or impersonate another identity." },
       { value: "social_infiltration", description: "Helps blend into a group or pass under social scrutiny." },
+      { value: "concealment", description: "Helps obscure a creature, item, or area from sight or make it harder to perceive." },
     ],
   },
   {
@@ -125,6 +126,17 @@ export const EQUIPMENT_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
     tags: [
       { value: "countermagic", description: "Counteracts, dispels, suppresses, or shuts down magic." },
       { value: "magic_protection", description: "Protects the user or target against hostile magical effects." },
+    ],
+  },
+  {
+    category: "equipment",
+    subcategories: [...GEARISH_SUBCATEGORIES, "armor", "shield"],
+    family: "defense_profile",
+    description: "Shield and armor tags for interception, cover, and hazard-facing protection.",
+    tags: [
+      { value: "ally_cover", description: "Provides cover or upgraded cover to nearby allies." },
+      { value: "projectile_defense", description: "Intercepts, redirects, or absorbs ranged attacks and projectiles." },
+      { value: "hazard_shielding", description: "Protects against environmental hazards, area effects, or other damaging exposures." },
     ],
   },
   {

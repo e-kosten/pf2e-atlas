@@ -225,6 +225,57 @@ const HAZARD_OVERHEAD_STRIKE_TEXT_ANCHORS = [
   patternAnchor("bundle of boulders"),
 ];
 
+const HAUNT_LIFE_DRAIN_TEXT_ANCHORS = [
+  patternAnchor("draining their life force away"),
+  patternAnchor("draining life force"),
+  patternAnchor("life-draining light"),
+  patternAnchor("soul-draining light"),
+  patternAnchor("drain life force"),
+  patternAnchor("drains life force"),
+  patternAnchor("drain vitality"),
+  patternAnchor("drains vitality"),
+  patternAnchor("siphon souls"),
+  patternAnchor("siphons souls"),
+  patternAnchor("siphoning souls"),
+  patternAnchor("inhales blood"),
+  patternAnchor("inhales blood from living creatures"),
+];
+
+const HAUNT_PHANTOM_ASSAILANT_TEXT_ANCHORS = [
+  patternAnchor("spectral assailant"),
+  patternAnchor("ghostly attackers"),
+  patternAnchor("ghostly orcs"),
+  patternAnchor("phantom hounds"),
+  patternAnchor("cannibalistic spirits swarm"),
+  patternAnchor("spectral undead converge"),
+  patternAnchor("host of angry spirits"),
+  patternAnchor("angry spirits"),
+  patternAnchor("ghostly pair"),
+];
+
+const HAUNT_LURE_COMPULSION_TEXT_ANCHORS = [
+  patternAnchor("beckons anyone"),
+  patternAnchor("compels all who hear it to dance"),
+  patternAnchor("forces them to join the battle"),
+  patternAnchor("pull someone down into the water to join them"),
+  patternAnchor("join her in the pool"),
+  patternAnchor("join the battle"),
+  patternAnchor("must dance"),
+];
+
+const HAUNT_BATTLEFIELD_DISRUPTION_TEXT_ANCHORS = [
+  patternAnchor("battle cries"),
+  patternAnchor("knock the tables about"),
+  patternAnchor("send dishes flying"),
+  patternAnchor("pull fleeing creatures into the room"),
+  patternAnchor("all allies have vanished"),
+  patternAnchor("murderous orcs"),
+  patternAnchor("revisiting old wounds"),
+  patternAnchor("shifts from a harmless patch of terrain into something truly deadly"),
+  patternAnchor("phantasmal crimson worm"),
+  patternAnchor("mindscape draws from memories of pain and agony"),
+];
+
 export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "ward_trigger",
@@ -642,6 +693,84 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
           },
         ],
       },
+    ],
+  },
+  {
+    tag: "life_drain_hazard",
+    category: "hazard",
+    subcategories: ["haunt"],
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: HAUNT_LIFE_DRAIN_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "phantom_assailants",
+    category: "hazard",
+    subcategories: ["haunt"],
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: HAUNT_PHANTOM_ASSAILANT_TEXT_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              patternAnchor("ghostly"),
+              patternAnchor("spectral"),
+              patternAnchor("phantom"),
+              patternAnchor("spirit"),
+              patternAnchor("spirits"),
+              patternAnchor("undead"),
+              patternAnchor("apparition"),
+              patternAnchor("wraith"),
+            ],
+            window: 5,
+            scope: "description",
+            minTermsMatched: 1,
+          },
+          {
+            terms: [
+              patternAnchor("attack"),
+              patternAnchor("attacks"),
+              patternAnchor("attacker"),
+              patternAnchor("attackers"),
+              patternAnchor("assailant"),
+              patternAnchor("assailants"),
+              patternAnchor("swarm"),
+              patternAnchor("swarms"),
+              patternAnchor("chase"),
+              patternAnchor("rush"),
+              patternAnchor("slaughter"),
+              patternAnchor("devour"),
+              patternAnchor("converge"),
+              patternAnchor("crush"),
+              patternAnchor("bite"),
+            ],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 1,
+          },
+        ],
+      },
+    ],
+  },
+  {
+    tag: "lure_compulsion",
+    category: "hazard",
+    subcategories: ["haunt"],
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: HAUNT_LURE_COMPULSION_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "battlefield_disruption",
+    category: "hazard",
+    subcategories: ["haunt"],
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: HAUNT_BATTLEFIELD_DISRUPTION_TEXT_ANCHORS },
     ],
   },
   {

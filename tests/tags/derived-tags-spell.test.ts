@@ -400,6 +400,172 @@ describe("derived tag rules: spell", () => {
     })).not.toContain("sensory_impairment");
   });
 
+  it("derives spell control and battlefield disruption tags", () => {
+    expect(deriveRecordTags({
+      name: "Terrifying Visage",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You unleash overwhelming dread, frightening foes into fleeing in terror.",
+      traits: ["emotion", "fear", "mental"],
+    })).toContain("fear_pressure");
+
+    expect(deriveRecordTags({
+      name: "Heroic Resolve",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You bolster allies against fear effects and grant them courage in battle.",
+      traits: ["emotion", "mental"],
+    })).not.toContain("fear_pressure");
+
+    expect(deriveRecordTags({
+      name: "Veil of Mist",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "The target becomes concealed.",
+      traits: ["illusion"],
+    })).toContain("concealment");
+
+    expect(deriveRecordTags({
+      name: "Obscuring Fog",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "Thick fog fills the corridor and blocks line of sight between the chambers.",
+      traits: ["air"],
+    })).not.toContain("concealment");
+
+    expect(deriveRecordTags({
+      name: "Dark Curtain",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "A curtain of magical darkness blocks line of sight across the chamber.",
+      traits: ["darkness"],
+    })).toContain("line_of_sight_control");
+
+    expect(deriveRecordTags({
+      name: "Invisible Veil",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "The target becomes invisible and concealed from enemies.",
+      traits: ["illusion"],
+    })).not.toContain("line_of_sight_control");
+
+    expect(deriveRecordTags({
+      name: "Entangling Vines",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "The area becomes difficult terrain, and tangled vines block passage and slow pursuit.",
+      traits: ["plant"],
+    })).toContain("battlefield_disruption");
+
+    expect(deriveRecordTags({
+      name: "Glimmering Veil",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "The spell only hides a creature from view and does not alter the terrain.",
+      traits: ["illusion"],
+    })).not.toContain("battlefield_disruption");
+  });
+
+  it("derives spell affliction cleanup and escape support tags", () => {
+    expect(deriveRecordTags({
+      name: "Purifying Tonic",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You counteract an affliction, cure poison, and remove curse from the target.",
+      traits: ["healing"],
+    })).toContain("affliction_cleanup");
+
+    expect(deriveRecordTags({
+      name: "Restorative Balm",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You restore hit points and grant fast healing without affecting any disease or poison.",
+      traits: ["healing"],
+    })).not.toContain("affliction_cleanup");
+
+    expect(deriveRecordTags({
+      name: "Freedom Leap",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You slip free of restraints, break free from grabs, and flee danger in a burst of motion.",
+      traits: ["teleportation"],
+    })).toContain("escape_support");
+
+    expect(deriveRecordTags({
+      name: "Fleet Feet",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You increase the target's Speed and help it move more quickly across the battlefield.",
+      traits: ["transmutation"],
+    })).not.toContain("escape_support");
+  });
+
+  it("derives spell expedition and tempo support tags", () => {
+    expect(deriveRecordTags({
+      name: "Water Breathing",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "The target can breathe underwater and gains a swim speed while submerged.",
+      traits: ["water"],
+    })).toContain("aquatic_support");
+
+    expect(deriveRecordTags({
+      name: "Rain Shield",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You resist rain and mist without changing how the target moves through water.",
+      traits: ["water"],
+    })).not.toContain("aquatic_support");
+
+    expect(deriveRecordTags({
+      name: "Create Feast",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You create food and water that provide a full day's worth of rations for the group.",
+      traits: ["conjuration"],
+    })).toContain("sustenance");
+
+    expect(deriveRecordTags({
+      name: "Nourishing Aura",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You heal the target with a comforting warmth that restores hit points.",
+      traits: ["healing"],
+    })).not.toContain("sustenance");
+
+    expect(deriveRecordTags({
+      name: "Tiny Hut",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You create a cozy cabin that offers safe shelter from weather and a place to rest.",
+      traits: ["conjuration"],
+    })).toContain("field_shelter");
+
+    expect(deriveRecordTags({
+      name: "Warm Glow",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "The spell creates comfortable warmth and light for the campsite.",
+      traits: ["evocation"],
+    })).not.toContain("field_shelter");
+
+    expect(deriveRecordTags({
+      name: "Haste",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "The target becomes quickened and can take an extra action each round.",
+      traits: ["transmutation"],
+    })).toContain("quickened_support");
+
+    expect(deriveRecordTags({
+      name: "Fleet Step",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "The target gains a status bonus to Speed and ignores difficult terrain.",
+      traits: ["transmutation"],
+    })).not.toContain("quickened_support");
+  });
+
   it("derives spell security, communication, and countermagic tags", () => {
     expect(deriveRecordTags({
       name: "Alarm",

@@ -68,6 +68,21 @@ const AFFLICTION_SEDATION_TEXT_ANCHORS = [
   patternAnchor("unconscious"),
 ];
 
+const AFFLICTION_SEDATION_EXTENDED_TEXT_ANCHORS = [
+  patternAnchor("trance"),
+  patternAnchor("trancelike"),
+  patternAnchor("somnolent"),
+  patternAnchor("somnolence"),
+  patternAnchor("deep sleep"),
+  patternAnchor("deep sleep state"),
+  patternAnchor("slumbering"),
+  patternAnchor("cannot wake"),
+  patternAnchor("can't wake"),
+  patternAnchor("cannot be awakened"),
+  patternAnchor("can't be awakened"),
+  patternAnchor("unconsciousness"),
+];
+
 const AFFLICTION_ROT_DECAY_NAME_ANCHORS = [
   patternAnchor("rot", "name"),
   patternAnchor("mummy rot", "name"),
@@ -163,12 +178,50 @@ const AFFLICTION_TRANSFORMATIVE_CORRUPTION_TEXT_ANCHORS = [
   patternAnchor("turns into crystal"),
   patternAnchor("turn into crystal"),
   patternAnchor("turns into a plant"),
+  patternAnchor("turns into plant matter"),
+  patternAnchor("turns into fungus"),
+  patternAnchor("turns into fungal matter"),
   patternAnchor("body changes"),
   patternAnchor("mutate"),
   patternAnchor("mutates"),
   patternAnchor("transformation"),
   patternAnchor("creeping sprout"),
   patternAnchor("lamashtu s bloom"),
+  patternAnchor("crystalline"),
+  patternAnchor("bloom"),
+  patternAnchor("sprout"),
+  patternAnchor("sprouts"),
+  patternAnchor("root"),
+  patternAnchor("roots"),
+  patternAnchor("bark"),
+  patternAnchor("fungal"),
+];
+
+const AFFLICTION_TRANSFORMATIVE_CORRUPTION_NAME_ANCHORS = [
+  patternAnchor("bloom", "name"),
+  patternAnchor("crystal", "name"),
+  patternAnchor("crystalline", "name"),
+  patternAnchor("corruption", "name"),
+  patternAnchor("fungal", "name"),
+  patternAnchor("fungus", "name"),
+];
+
+const AFFLICTION_PHYSICAL_DEBILITATION_EXTENDED_TEXT_ANCHORS = [
+  patternAnchor("wasting"),
+  patternAnchor("wastes away"),
+  patternAnchor("wither"),
+  patternAnchor("withers"),
+  patternAnchor("withering"),
+  patternAnchor("exhaustion"),
+  patternAnchor("exhausted"),
+  patternAnchor("blood loss"),
+  patternAnchor("bleeding"),
+  patternAnchor("hemorrhage"),
+  patternAnchor("hemorrhaging"),
+  patternAnchor("drains vitality"),
+  patternAnchor("draining vitality"),
+  patternAnchor("weakness"),
+  patternAnchor("weakened"),
 ];
 
 export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
@@ -194,6 +247,31 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
     threshold: 2,
     anyOf: [
       { score: 2, textAny: AFFLICTION_PHYSICAL_DEBILITATION_TEXT_ANCHORS },
+      { score: 2, textAny: AFFLICTION_PHYSICAL_DEBILITATION_EXTENDED_TEXT_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              patternAnchor("stage"),
+              patternAnchor("drained"),
+              patternAnchor("enfeebled"),
+              patternAnchor("fatigued"),
+              patternAnchor("sickened"),
+              patternAnchor("exhausted"),
+              patternAnchor("wasting"),
+              patternAnchor("blood"),
+              patternAnchor("bleeding"),
+              patternAnchor("hemorrhage"),
+              patternAnchor("vitality"),
+              patternAnchor("weakness"),
+            ],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+        ],
+      },
     ],
   },
   {
@@ -274,6 +352,7 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
     threshold: 2,
     anyOf: [
       { score: 2, textAny: AFFLICTION_SEDATION_TEXT_ANCHORS },
+      { score: 2, textAny: AFFLICTION_SEDATION_EXTENDED_TEXT_ANCHORS },
       {
         score: 2,
         textNear: [
@@ -293,9 +372,6 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
           },
         ],
       },
-    ],
-    noneOf: [
-      { textAny: [patternAnchor("dreamtime tea", "name")] },
     ],
   },
   {
@@ -453,6 +529,7 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
     threshold: 2,
     anyOf: [
       { score: 2, textAny: AFFLICTION_TRANSFORMATIVE_CORRUPTION_TEXT_ANCHORS },
+      { score: 2, textAny: AFFLICTION_TRANSFORMATIVE_CORRUPTION_NAME_ANCHORS },
       {
         score: 2,
         textNear: [
@@ -468,6 +545,12 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
               patternAnchor("crystalline"),
               patternAnchor("sprout"),
               patternAnchor("bloom"),
+              patternAnchor("plant"),
+              patternAnchor("fungus"),
+              patternAnchor("fungal"),
+              patternAnchor("root"),
+              patternAnchor("roots"),
+              patternAnchor("bark"),
             ],
             window: 6,
             scope: "description",
