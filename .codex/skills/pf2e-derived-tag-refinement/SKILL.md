@@ -9,6 +9,8 @@ Use this skill for precision work on the derived-tag layer, especially [`src/tag
 
 Use this mode when the ontology mostly exists and the problem is calibration across a related slice, not just a one-tag micro-fix.
 
+The default posture is regression-first precision control. When a tag overfires on noisy generic language, pin the false-positive class with real records before touching anchors, blockers, thresholds, or scoring.
+
 ## Use This Mode
 
 Default to this skill when any of these are true:
@@ -25,45 +27,59 @@ Default to this skill when any of these are true:
    - `src/tags/index.ts`
    - `tests/tags/derived-tags-*.test.ts`
    - the relevant `tests/service/*.test.ts`
-2. Classify the issue before editing.
+2. Build a real-record regression set before editing rules.
+   For false-positive work, identify the reusable bad class and at least one real canonical record that currently overfires because of noisy generic language.
+   Prefer using existing regression seeds when they fit the slice:
+   - `Crushing Ground`
+   - `Imprisonment`
+   - `Artevil Suspension`
+   - `Blindpepper Bomb`
+   - `Mycological Malady`
+   - one troll lore paragraph for creature-setting noise
+   If none fit, name the replacement records explicitly.
+3. Classify the issue before editing.
    Use one of:
    - `false positives`
    - `sparse coverage`
    - `poor calibration`
-3. Keep the batch narrow.
+4. Keep the batch narrow.
    Good default scope:
    - 2-5 related existing tags, or
    - one related-slice refinement pass across a coherent part of the category
    Do not default to one-tag micro-passes unless the regression is truly isolated.
-4. Use the evaluator as a review queue.
-   Target the specific tag under refinement and inspect likely false negatives or semantically adjacent misses.
-5. Stop for an approval checkpoint before editing.
+5. Use the evaluator as a review queue.
+   Target the specific tag under refinement and inspect likely false negatives, semantically adjacent misses, and records that suggest the same false-positive class.
+6. Stop for an approval checkpoint before editing.
    Include:
    - the tag or rules being changed
+   - the false-positive or false-negative class being addressed
    - the conceptual calibration logic, including intended anchors, blockers, thresholds, and the expected boundary between positive and negative cases
+   - the real regression records that will be pinned before rule edits
    - expected record movement
    - expected category-level coverage delta when the pass should move live coverage materially
    - the main precision risk
    Ask a direct confirmation question and wait unless the user explicitly asked for immediate implementation.
    In parallel workflows, no worker should implement rule or test edits before this approval is granted for that worker's slice.
-6. Implement in the declarative rule table.
+7. Add or update regression tests before changing the rule logic.
+   For false-positive work, add direct derivation negatives from real records in the relevant `tests/tags/derived-tags-*.test.ts` file first. Positive-only test growth is not enough.
+   When the regression matters to search behavior, add or update at least one service-level check that defends the boundary.
+8. Implement in the declarative rule table.
    Prefer:
    - stronger anchors over larger keyword lists
    - negative gates before exception piles
    - score thresholds over brittle boolean logic
    - trait and name evidence ahead of broad description evidence
-7. Add or update tests with every refinement pass.
-   Cover direct derivation and at least one service-level behavior where the regression matters.
-8. Validate in layers.
+9. Validate in layers.
    Use:
    - `npm test -- tests/tags/derived-tags-*.test.ts tests/service/search-and-lookup.test.ts`
    - `npm run build`
    - `npm test`
    - `npm run refresh-index -- --reuse-embeddings` when the change should materially affect live tagging or when you need to confirm category-level coverage movement
-9. Summarize in precision terms.
+10. Summarize in precision terms.
    Report:
    - what false-positive or false-negative class changed
    - which tags were tuned
+   - which real regression records now defend the boundary
    - before/after tagged-record counts and percentage-point coverage delta when the pass materially moved live records
    - or state explicitly that the pass was precision-only and category-level coverage movement was not the goal
    - what tests and spot checks defend the change
@@ -72,10 +88,12 @@ Default to this skill when any of these are true:
 ## Precision Rules
 
 - Prefer false negatives over false positives.
+- For false-positive cleanup, real noisy records beat synthetic examples.
 - If a rule needs many exceptions, redesign the evidence model.
 - One strong anchor should beat many weak incidental words.
 - Do not mirror PF2E-native traits with derived aliases unless the retrieval meaning is materially different.
 - Keep changes explainable to a future reader scanning the rule table.
+- Do not rely on positive-skewed tests alone when broad description evidence is involved.
 
 ## Approval Batch Shape
 
@@ -83,6 +101,7 @@ This skill is intentionally small-batch.
 
 A good approval batch is:
 - 2-5 related existing tags or one related-slice refinement pass
+- at least one named real-record regression case for each noisy false-positive class being fixed
 - concrete examples of records expected to change
 - one sentence on likely false-positive risk
 
@@ -95,6 +114,7 @@ When refinement work is split across multiple slices:
 - Workers must stop before implementation and hand the parent agent:
   - the affected tags or rule slice
   - conceptual calibration logic
+  - the real regression records to pin first
   - expected record movement
   - principal precision risks and boundary cases
 - The parent agent presents those proposals to the user for approval.

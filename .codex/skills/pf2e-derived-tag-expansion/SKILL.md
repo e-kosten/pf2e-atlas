@@ -9,6 +9,8 @@ Use this skill for sparse-category work on the derived-tag layer, especially [`s
 
 Derived tags are retrieval-oriented overlays, not aliases for native PF2E traits. Add tags only when native traits do not already express the practical retrieval meaning cleanly.
 
+Expansion is still precision work. When a new tag or anchor could be triggered by broad generic text, design the negative boundary up front and pin it with a real noisy record before trusting the rule.
+
 ## Use This Mode
 
 Default to this skill when any of these are true:
@@ -44,6 +46,8 @@ Default to this skill when any of these are true:
    - If the concept already exists as a derived tag, run `npm run evaluate-derived-tags -- --tag <derived_tag> ...`.
    - If the concept does not exist yet, seed it with exemplars and run `npm run discover-derived-tag-candidates -- --category <category> --name <record> ...`.
    - Use the semantic output to identify likely candidates, repeated traits, repeated phrases, and false-positive classes. Do not treat embedding proximity as a direct tagging decision.
+   - When a proposed tag depends on broad description evidence, identify at least one real canonical record that uses similar generic language but should stay negative.
+   - Good regression seeds when they match the slice include `Crushing Ground`, `Imprisonment`, `Artevil Suspension`, `Blindpepper Bomb`, `Mycological Malady`, and one troll lore paragraph for creature-setting noise.
 6. Stop for an approval checkpoint before editing.
    Include:
    - current coverage snapshot
@@ -52,6 +56,7 @@ Default to this skill when any of these are true:
    - expected tagged-record gain
    - expected percentage-point coverage gain
    - concrete example records expected to move
+   - the real noisy boundary records that should remain negative
    - main precision risks
    When semantic discovery was used, also include:
    - exemplar set
@@ -71,6 +76,8 @@ Default to this skill when any of these are true:
    - direct derivation in `tests/tags/derived-tags-*.test.ts`
    - service-level filtering and lookup behavior in the relevant `tests/service/*.test.ts`
    - rebuilt-corpus sanity checks when the pass should materially change live coverage
+   - at least one real-record negative regression whenever a new tag or anchor could overfire on generic language
+   Pin the regression before or alongside the rule edit; do not rely on positive exemplars alone for broad anchors.
 9. Validate in layers.
    Start focused, then widen:
    - `npm test -- tests/tags/derived-tags-*.test.ts tests/service/search-and-lookup.test.ts`
@@ -109,6 +116,7 @@ Read the output as an evidence-mining pass. The next step is still to design exp
 - If repeated untagged samples point to the same concept, treat that as ontology pressure.
 - Keep derived tags composable and category-scoped unless the retrieval meaning is truly shared.
 - Prefer explainable rule tables over ad hoc branching or giant keyword dumps.
+- Every broad anchor should have a named noisy boundary case.
 - Favor false negatives over false positives, but do not let that become an excuse to avoid needed ontology growth.
 
 ## Approval Batch Shape
@@ -129,6 +137,7 @@ When the work is split across multiple slices:
 - Workers must stop before implementation and hand the parent agent:
   - proposed tags
   - conceptual rule logic
+  - the noisy boundary records to pin as regressions
   - likely anchors, blockers, thresholds, and false-positive risks
   - representative records expected to move
 - The parent agent presents those proposals to the user for approval.

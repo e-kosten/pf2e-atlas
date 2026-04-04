@@ -13,6 +13,8 @@ Dense tagging is not proof of a bug. It is a review queue for finding:
 - incidental source phrases that trigger setting or motif tags
 - records whose tag set no longer matches the source text
 
+The goal is to prevent the same class from recurring. A good audit produces regression-ready noisy records, not just a note that a tag looks wrong.
+
 ## Workflow
 
 1. Use the current local index.
@@ -53,6 +55,14 @@ Dense tagging is not proof of a bug. It is a review queue for finding:
    - generic guardian language inflating habitat tags
    - one vague art term creating `living_artwork`
    - a broad condition phrase causing too many support tags
+   Prefer naming at least one real record that should become a regression test before the refinement pass starts.
+   Strong seed records when they fit the issue:
+   - `Crushing Ground`
+   - `Imprisonment`
+   - `Artevil Suspension`
+   - `Blindpepper Bomb`
+   - `Mycological Malady`
+   - one troll lore paragraph for creature-setting noise
 
 6. Inspect the rule slice that produced the suspect tags.
    Use `rg` and read:
@@ -74,7 +84,7 @@ Dense tagging is not proof of a bug. It is a review queue for finding:
 
 8. Hand off to `$pf2e-derived-tag-refinement` for implementation.
    Use this skill to find the suspicious class and explain the likely cause.
-   Use refinement mode to propose the calibration slice, get approval if needed, and make the rule/test changes.
+   Use refinement mode to propose the calibration slice, get approval if needed, add the regression cases in the relevant `tests/tags/derived-tags-*.test.ts` file, and then make the rule/test changes.
 
 ## Audit Heuristics
 
@@ -114,6 +124,7 @@ The useful end state from this skill is not a patch. It is a short refinement br
 - suspect tags
 - likely anchor or blocker problem
 - generalized false-positive class
+- named real records to pin as regressions
 - recommended refinement slice
 
 Then switch to `$pf2e-derived-tag-refinement` to implement and validate the fix.

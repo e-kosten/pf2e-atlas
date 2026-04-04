@@ -7,6 +7,8 @@ description: Compatibility entry point for PF2E derived-tag work when a request 
 
 Use this skill only as a router when the request is broad or explicitly says `iteration`.
 
+Route with a regression-first bias. If any slice risks overfiring on generic or noisy language, require real-record regression capture before rule changes, not just a later validation pass.
+
 Current derived-tag work should usually use one of these skills instead:
 - `../pf2e-derived-tag-expansion/SKILL.md` for sparse categories, missing ontology, category audits, and coverage-moving passes
 - `../pf2e-derived-tag-refinement/SKILL.md` for false positives, threshold tuning, narrow coverage extensions, and regression-focused cleanup
@@ -23,18 +25,28 @@ Choose `pf2e-derived-tag-refinement` when any of these are true:
 - the user wants a focused but not microscopic batch
 - the goal is to rebalance anchors, blockers, thresholds, or scoring across a small related set
 
+Use these as preferred regression seeds when they fit the slice:
+- `Crushing Ground`
+- `Imprisonment`
+- `Artevil Suspension`
+- `Blindpepper Bomb`
+- `Mycological Malady`
+- one troll lore paragraph for creature-setting noise
+
 If the request genuinely mixes both:
 1. Run a category audit first.
-2. Use the expansion workflow to define the missing category slice.
-3. Use the refinement workflow for any follow-up precision cleanup after the expansion is in place.
-4. Preserve one baseline coverage snapshot before expansion, one post-expansion coverage check, and one final summary that separates ontology gain from later precision cleanup.
-5. In parallel workflows, keep all slices in proposal mode until the user has approved the proposed tags and conceptual rule logic for each slice that will proceed.
+2. Identify any likely false-positive classes and the real records that should be pinned as regressions before implementation.
+3. Use the expansion workflow to define the missing category slice.
+4. Use the refinement workflow for any follow-up precision cleanup after the expansion is in place.
+5. Preserve one baseline coverage snapshot before expansion, one post-expansion coverage check, and one final summary that separates ontology gain from later precision cleanup.
+6. In parallel workflows, keep all slices in proposal mode until the user has approved the proposed tags, conceptual rule logic, and regression records for each slice that will proceed.
 
 Do not finish an iteration pass that was supposed to improve coverage without a quantified movement summary. Carry through the routed workflow's coverage reporting expectations:
 - tagged-record counts before and after
 - tagged coverage percentage before and after
 - tagged-record delta and percentage-point gain when coverage was the goal
 - explicit note when a later refinement step was precision-only rather than coverage-moving
+- explicit note on which real-record regression cases were added to prevent noisy false positives
 
 ## Parallel Approval-First Mode
 
@@ -47,6 +59,7 @@ When iteration work is broad enough to split:
   - the slice
   - proposed tags or refinement targets
   - conceptual rule logic
+  - the real regression records to pin first when noisy-language risk exists
   - expected movement
   - major risks
 - Only after approval should the parent agent let workers implement their slice.
