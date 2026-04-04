@@ -1351,6 +1351,30 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
     },
   });
 
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "anugobu-apprentice.json"), {
+    _id: "anugobu-apprentice",
+    name: "Anugobu Apprentice",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 3,
+        },
+        publication: {
+          title: "Pathfinder #166: Despair on Danger Island",
+        },
+        publicNotes: "<p>Renowned in Tengah folklore as divinely gifted artisans and crafters, anugobus are a curious group of tiny humanoids native to the central islands of Minata. Countless stories describe anugobus sneaking around Minatan cities to tinker with and improve upon other humanoids' structures and architecture. In reality, anugobus are as diverse as any species of humanoid, though they all have innate gifts for mending and construction, and they can walk on walls and ceilings. Nearly all verifiable anugobu encounters have taken place on the isles of Minata. Any project can be an anugobu's wonder, from repairing a majestic cathedral to hunting a particularly dangerous animal to exploring a mysterious cave.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: [],
+        size: {
+          value: "sm",
+        },
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "pathfinder-monster-core", "plains-runner.json"), {
     _id: "plains-runner",
     name: "Plains Runner",

@@ -782,6 +782,38 @@ describe("derived tag rules: creature", () => {
       descriptionText: "Such creatures are drawn to target not a single misbehaving follower, but entire villages, cities, or towns that have turned their backs on their gods.",
       traits: ["dragon"],
     })).not.toEqual(expect.arrayContaining(["rural_setting", "urban_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Anugobu Apprentice",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Renowned in Tengah folklore as divinely gifted artisans and crafters, anugobus are a curious group of tiny humanoids native to the central islands of Minata. Countless stories describe anugobus sneaking around Minatan cities to tinker with and improve upon other humanoids' structures and architecture. In reality, anugobus are as diverse as any species of humanoid, though they all have innate gifts for mending and construction, and they can walk on walls and ceilings. Nearly all verifiable anugobu encounters have taken place on the isles of Minata. Any project can be an anugobu's wonder, from repairing a majestic cathedral to hunting a particularly dangerous animal to exploring a mysterious cave.",
+      traits: [],
+    })).not.toEqual(expect.arrayContaining(["urban_setting", "temple_setting", "underground_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Troll King",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Trolls are solitary hunters, for their wickedness is anathema even to other giants. They occasionally roam in small gangs of two to four, but only when prey is plentiful or a particularly strong counterforce has broached their hunting grounds. In rare instances, an old and powerful troll comes to lead small tribes of trolls. A wide variety of trolls exist, from the terrible monster traditionally associated with the name to the water-dwelling scrag and hybrid flood troll. Regional variations exist as well-mountain trolls among stony peaks, for instance, or moss trolls in swampy bayous-but all share the same trademark regenerative powers and insatiable thirst for blood.",
+      traits: ["chaotic", "evil", "giant", "troll"],
+    })).not.toEqual(expect.arrayContaining(["mountain_setting", "swamp_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Watchtower Wraith",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Wraiths may form packs with others of their kind in places where death and mayhem are commonplace-countrysides ravaged by war, metropolitan underworlds run by criminal overlords, or sites of fiendish cultic rituals. Ruins, sewers, and abandoned buildings provide sanctuary for wraiths during the day, as the creatures hunt exclusively at night or in dark places. Wraiths are smart enough to take advantage of their incorporeality in combat, so they keep to tortuous caverns or structures with hallways and avoid open areas.",
+      traits: ["undead"],
+    })).not.toEqual(expect.arrayContaining(["fortress_setting", "urban_setting", "underground_setting", "temple_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Triton",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Many tritons see themselves as defenders of the deep, dedicating their lives to protecting the inhabitants of the seas from evil creatures and intruders. Tritons live in natural-grown villages on the sea floor, forging dwellings out of colorful coral reefs, in rift valleys heated by volcanic activity, and even in underwater canyons. They like to decorate their homes with aquatic plants, bioluminescent fish, and attractive trinkets recovered from shipwrecks.",
+      traits: ["amphibious", "humanoid", "water"],
+    })).not.toEqual(expect.arrayContaining(["canyon_setting", "volcanic_setting"]));
   });
 
   it("derives animated object and animated statue tags without promoting the family name", () => {

@@ -451,6 +451,27 @@ const URBAN_SETTING_SETTLEMENT_LIST_TEXT_ANCHORS = [
   patternAnchor("towns"),
 ];
 
+const CREATURE_TERRAIN_HABITAT_CONTEXT_TEXT_ANCHOR = patternAnchor("{{alt(native,native to,found in,found among,found near,inhabit,inhabits,inhabiting,dwell,dwells,dwelling,lair,lairs,haunt,haunts,lurk,lurks,lurking,roam,roams,roaming,hunt,hunts,hunting,prowl,prowls,stalk,stalks,stalking,nest,nests,nesting,roost,roosts,patrol,patrols,home,homes,watch over,watches over,keep watch over,keeps watch over)}}", "description");
+
+const CREATURE_SITE_HABITAT_CONTEXT_TEXT_ANCHOR = patternAnchor("{{alt(found in,dwell,dwells,dwelling,haunt,haunts,lurk,lurks,lurking,patrol,patrols,guard,guards,guarding,tend,tends,watch over,watches over,keep watch over,keeps watch over,home,homes)}}", "description");
+
+const CREATURE_CANYON_HABITAT_CONTEXT_TEXT_ANCHOR = patternAnchor("{{alt(found in,dwell,dwells,dwelling,haunt,haunts,lurk,lurks,lurking,prowl,prowls,stalk,stalks,stalking,glide through,glides through,hunt,hunts,hunting,nest,nests,nesting,home,homes)}}", "description");
+
+const createCreatureSettingTextNear = (
+  alternatives: string,
+  contextAnchor: ReturnType<typeof patternAnchor>,
+  window = 8,
+) => [
+  {
+    all: [
+      patternAnchor(`{{alt(${alternatives})}}`, "description"),
+      contextAnchor,
+    ],
+    window,
+    scope: "description" as const,
+  },
+];
+
 const CIVIC_SUPPORT_TEXT_ANCHORS = [
   patternAnchor("maintain order"),
   patternAnchor("enforce laws"),
@@ -836,8 +857,13 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "creature",
     threshold: 2,
     anyOf: [
-      { score: 2, textAny: [patternAnchor("island"), patternAnchor("islands"), patternAnchor("archipelago"), patternAnchor("archipelagos"), patternAnchor("atoll"), patternAnchor("atolls")] },
-      { score: 1, textAny: [patternAnchor("isle"), patternAnchor("isles")] },
+      {
+        score: 2,
+        textNear: createCreatureSettingTextNear(
+          "island,islands,archipelago,archipelagos,atoll,atolls,isle,isles",
+          CREATURE_TERRAIN_HABITAT_CONTEXT_TEXT_ANCHOR,
+        ),
+      },
     ],
   },
   {
@@ -906,80 +932,49 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "canyon_setting",
     category: "creature",
+    threshold: 2,
     anyOf: [
       {
-        textAny: [
-          patternAnchor("canyon"),
-          patternAnchor("canyons"),
-          patternAnchor("gorge"),
-          patternAnchor("gorges"),
-          patternAnchor("mesa"),
-          patternAnchor("mesas"),
-          patternAnchor("badlands"),
-        ],
+        score: 2,
+        textNear: createCreatureSettingTextNear(
+          "canyon,canyons,gorge,gorges,mesa,mesas,badlands",
+          CREATURE_CANYON_HABITAT_CONTEXT_TEXT_ANCHOR,
+        ),
       },
     ],
   },
   {
     tag: "swamp_setting",
     category: "creature",
+    threshold: 2,
     anyOf: [
-      { traitsAny: ["boggard"] },
+      { score: 2, traitsAny: ["boggard"] },
       {
-        textAny: [
-          patternAnchor("swamp"),
-          patternAnchor("swamps"),
-          patternAnchor("bog"),
-          patternAnchor("bogs"),
-          patternAnchor("marsh"),
-          patternAnchor("marshes"),
-          patternAnchor("fen"),
-          patternAnchor("fens"),
-          patternAnchor("mire"),
-          patternAnchor("mires"),
-          patternAnchor("wetland"),
-          patternAnchor("wetlands"),
-          patternAnchor("bayou"),
-          patternAnchor("bayous"),
-          patternAnchor("mangrove"),
-          patternAnchor("mangroves"),
-          patternAnchor("quagmire"),
-          patternAnchor("quagmires"),
-          patternAnchor("slough"),
-          patternAnchor("sloughs"),
-        ],
+        score: 2,
+        textNear: createCreatureSettingTextNear(
+          "swamp,swamps,bog,bogs,marsh,marshes,fen,fens,mire,mires,wetland,wetlands,bayou,bayous,mangrove,mangroves,quagmire,quagmires,slough,sloughs",
+          CREATURE_TERRAIN_HABITAT_CONTEXT_TEXT_ANCHOR,
+        ),
       },
     ],
   },
   {
     tag: "underground_setting",
     category: "creature",
+    threshold: 2,
     anyOf: [
       {
         score: 2,
+        textNear: createCreatureSettingTextNear(
+          "cave,caves,cavern,caverns,underground,tunnel,tunnels,subterranean,underworld,depths,crypt,crypts,mine,mines,mineshaft,mineshafts,quarry,quarries,warren,warrens",
+          CREATURE_SITE_HABITAT_CONTEXT_TEXT_ANCHOR,
+        ),
+      },
+      {
+        score: 2,
         textAny: [
-          patternAnchor("cave"),
-          patternAnchor("caves"),
-          patternAnchor("cavern"),
-          patternAnchor("caverns"),
-          patternAnchor("underground"),
-          patternAnchor("tunnel"),
-          patternAnchor("tunnels"),
-          patternAnchor("subterranean"),
-          patternAnchor("underworld"),
-          patternAnchor("depths"),
-          patternAnchor("crypt"),
-          patternAnchor("crypts"),
-          patternAnchor("mine"),
-          patternAnchor("mines"),
-          patternAnchor("mineshaft"),
-          patternAnchor("mineshafts"),
-          patternAnchor("quarry"),
-          patternAnchor("quarries"),
-          patternAnchor("warren"),
-          patternAnchor("warrens"),
-          patternAnchor("beneath the earth"),
-          patternAnchor("under tunnels"),
+          patternAnchor("beneath the earth", "description"),
+          patternAnchor("under tunnels", "description"),
         ],
       },
     ],
@@ -993,19 +988,11 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     ],
     anyOf: [
       {
-        textAny: [
-          patternAnchor("city"),
-          patternAnchor("cities"),
-          patternAnchor("urban"),
-          patternAnchor("street"),
-          patternAnchor("streets"),
-          patternAnchor("alley"),
-          patternAnchor("alleys"),
-          patternAnchor("sewer"),
-          patternAnchor("sewers"),
-          patternAnchor("town"),
-          patternAnchor("towns"),
-        ],
+        score: 2,
+        textNear: createCreatureSettingTextNear(
+          "city,cities,urban,street,streets,alley,alleys,sewer,sewers,town,towns",
+          CREATURE_SITE_HABITAT_CONTEXT_TEXT_ANCHOR,
+        ),
       },
     ],
   },
@@ -1060,8 +1047,15 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "mountain_setting",
     category: "creature",
+    threshold: 2,
     anyOf: [
-      { textAny: [patternAnchor("mountain"), patternAnchor("mountains"), patternAnchor("cliff"), patternAnchor("cliffs"), patternAnchor("peak"), patternAnchor("peaks"), patternAnchor("crag"), patternAnchor("crags"), patternAnchor("alp"), patternAnchor("alpine"), patternAnchor("mountain pass"), patternAnchor("mountain passes"), patternAnchor("ridge"), patternAnchor("ridges"), patternAnchor("highlands"), patternAnchor("foothills"), patternAnchor("slope"), patternAnchor("slopes"), patternAnchor("escarpment"), patternAnchor("bluff"), patternAnchor("bluffs")] },
+      {
+        score: 2,
+        textNear: createCreatureSettingTextNear(
+          "mountain,mountains,cliff,cliffs,peak,peaks,crag,crags,alp,alpine,mountain pass,mountain passes,ridge,ridges,highlands,foothills,slope,slopes,escarpment,bluff,bluffs",
+          CREATURE_TERRAIN_HABITAT_CONTEXT_TEXT_ANCHOR,
+        ),
+      },
     ],
   },
   {
@@ -1155,27 +1149,12 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     anyOf: [
       {
         score: 2,
-        textAny: [
-          patternAnchor("temple"),
-          patternAnchor("temples"),
-          patternAnchor("shrine"),
-          patternAnchor("shrines"),
-          patternAnchor("cathedral"),
-          patternAnchor("cathedrals"),
-          patternAnchor("monastery"),
-          patternAnchor("monasteries"),
-          patternAnchor("chapel"),
-          patternAnchor("chapels"),
-          patternAnchor("sanctuary"),
-          patternAnchor("abbey"),
-          patternAnchor("priory"),
-          patternAnchor("cloister"),
-          patternAnchor("holy site"),
-          patternAnchor("consecrated hall"),
-          patternAnchor("ziggurat"),
-        ],
+        textNear: createCreatureSettingTextNear(
+          "temple,temples,shrine,shrines,cathedral,cathedrals,monastery,monasteries,chapel,chapels,sanctuary,abbey,priory,cloister,holy site,consecrated hall,ziggurat",
+          CREATURE_SITE_HABITAT_CONTEXT_TEXT_ANCHOR,
+        ),
       },
-      { score: 1, textAny: [patternAnchor("place of worship"), patternAnchor("house of worship")] },
+      { score: 2, textAny: [patternAnchor("place of worship", "description"), patternAnchor("house of worship", "description")] },
     ],
   },
   {
@@ -1185,29 +1164,19 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     anyOf: [
       {
         score: 2,
-        textAny: [
-          patternAnchor("fortress"),
-          patternAnchor("fortresses"),
-          patternAnchor("castle"),
-          patternAnchor("castles"),
-          patternAnchor("citadel"),
-          patternAnchor("citadels"),
-          patternAnchor("stronghold"),
-          patternAnchor("strongholds"),
-          patternAnchor("keep"),
-          patternAnchor("keeps"),
-          patternAnchor("bastion"),
-          patternAnchor("bastions"),
-          patternAnchor("watchtower"),
-          patternAnchor("watchtowers"),
-          patternAnchor("rampart"),
-          patternAnchor("ramparts"),
-          patternAnchor("battlement"),
-          patternAnchor("battlements"),
-        ],
+        textNear: createCreatureSettingTextNear(
+          "fortress,fortresses,castle,castles,citadel,citadels,stronghold,strongholds,keep,keeps,bastion,bastions,watchtower,watchtowers,rampart,ramparts,battlement,battlements",
+          CREATURE_SITE_HABITAT_CONTEXT_TEXT_ANCHOR,
+        ),
       },
-      { score: 2, textAny: [patternAnchor("sky citadel")] },
-      { score: 1, textAny: [patternAnchor("fort"), patternAnchor("forts"), patternAnchor("garrison")] },
+      {
+        score: 2,
+        textNear: createCreatureSettingTextNear(
+          "fort,forts,garrison",
+          CREATURE_SITE_HABITAT_CONTEXT_TEXT_ANCHOR,
+        ),
+      },
+      { score: 2, textAny: [patternAnchor("sky citadel", "description")] },
     ],
   },
   {
@@ -1217,16 +1186,14 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     anyOf: [
       {
         score: 2,
-        textAny: [
-          patternAnchor("volcanic"),
-          patternAnchor("volcano"),
-          patternAnchor("volcanoes"),
-          patternAnchor("lava"),
-          patternAnchor("magma"),
-          patternAnchor("caldera"),
-        ],
+        textNear: createCreatureSettingTextNear(
+          "volcanic,volcano,volcanoes,lava,magma,caldera",
+          CREATURE_TERRAIN_HABITAT_CONTEXT_TEXT_ANCHOR,
+          7,
+        ),
       },
-      { score: 1, textAny: [patternAnchor("ash"), patternAnchor("ashen"), patternAnchor("cinder"), patternAnchor("cinders")] },
+      { score: 2, textAny: [patternAnchor("lava field", "description"), patternAnchor("lava fields", "description")] },
+      { score: 1, textAny: [patternAnchor("ash", "description"), patternAnchor("ashen", "description"), patternAnchor("cinder", "description"), patternAnchor("cinders", "description")] },
     ],
   },
   {
