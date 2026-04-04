@@ -248,6 +248,22 @@ const METADATA_FIELD_REGISTRY: MetadataFieldSemantics[] = [
     notes: "Item-native family/category metadata. Pair with subcategory boundaries for better precision.",
   },
   {
+    field: "saveType",
+    fieldType: "enumString",
+    operators: ENUM_STRING_OPERATORS,
+    categories: SPELL_ONLY,
+    discoverable: DISCOVERABLE_METADATA_FIELDS.has("saveType"),
+    notes: "Spell defense save statistic such as fortitude, reflex, or will.",
+  },
+  {
+    field: "areaType",
+    fieldType: "enumString",
+    operators: ENUM_STRING_OPERATORS,
+    categories: SPELL_ONLY,
+    discoverable: DISCOVERABLE_METADATA_FIELDS.has("areaType"),
+    notes: "Spell area shape such as burst, line, emanation, or cone.",
+  },
+  {
     field: "rarity",
     fieldType: "enumString",
     operators: ENUM_STRING_OPERATORS,
@@ -391,11 +407,11 @@ const EXAMPLES_BY_CATEGORY: Partial<Record<SearchCategory, MetadataCategoryExamp
       },
     },
     {
-      label: "Short-range remastered spells",
+      label: "Reflex burst spells",
       metadata: {
         and: [
-          { field: "rangeValue", op: "lte", value: 60 },
-          { field: "publicationRemaster", op: "eq", value: true },
+          { field: "saveType", op: "eq", value: "reflex" },
+          { field: "areaType", op: "eq", value: "burst" },
         ],
       },
     },

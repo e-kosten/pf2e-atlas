@@ -54,6 +54,8 @@ export function summarizeRecord(
     damageTypes: record.damageTypes,
     weaponGroup: record.weaponGroup,
     armorGroup: record.armorGroup,
+    saveType: record.saveType,
+    areaType: record.areaType,
     languages: record.languages,
     speedTypes: record.speedTypes,
     immunities: record.immunities,

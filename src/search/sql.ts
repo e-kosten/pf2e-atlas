@@ -231,6 +231,8 @@ export function buildCandidateQuery(
     "COALESCE(s.action_cost, i.action_cost) AS actionCost",
     "s.traditions_json AS traditionsJson",
     "s.spell_kinds_json AS spellKindsJson",
+    "s.save_type AS saveType",
+    "s.area_type AS areaType",
     "s.range_value AS rangeValue",
   ];
 
@@ -356,6 +358,14 @@ export function buildFilterValueQuery(query: FilterValueQuery, filters: Normaliz
     case "usage":
       valueExpression = "i.usage_text";
       postFilterClauses.push("AND i.usage_text IS NOT NULL AND i.usage_text <> ''");
+      break;
+    case "saveType":
+      valueExpression = "s.save_type";
+      postFilterClauses.push("AND s.save_type IS NOT NULL AND s.save_type <> ''");
+      break;
+    case "areaType":
+      valueExpression = "s.area_type";
+      postFilterClauses.push("AND s.area_type IS NOT NULL AND s.area_type <> ''");
       break;
     case "damageTypes":
       joins.push("JOIN json_each(COALESCE(s.damage_types_json, i.damage_types_json, '[]')) AS damage_type");

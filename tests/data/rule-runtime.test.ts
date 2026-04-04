@@ -47,6 +47,8 @@ function createRecord(recordKey: string, name = recordKey): NormalizedRecord {
     armorGroup: null,
     traditions: [],
     spellKinds: [],
+    saveType: null,
+    areaType: null,
     languages: [],
     speedTypes: [],
     immunities: [],

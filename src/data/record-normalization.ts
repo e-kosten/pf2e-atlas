@@ -641,6 +641,8 @@ export function normalizeIndexRecord(pack: PackBuildInfo, sourcePath: string, ra
     armorGroup: itemData?.armorGroup ?? null,
     traditions: spellData?.traditions ?? [],
     spellKinds: spellData?.spellKinds ?? [],
+    saveType: spellData?.saveType ?? null,
+    areaType: spellData?.areaType ?? null,
     languages: actorData?.languages ?? [],
     speedTypes: actorData?.speedTypes ?? [],
     immunities: actorData?.immunities ?? [],

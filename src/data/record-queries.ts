@@ -69,6 +69,8 @@ function buildRecordSelect(includeRaw = false): string {
     "COALESCE(s.action_cost, i.action_cost) AS actionCost",
     "s.traditions_json AS traditionsJson",
     "s.spell_kinds_json AS spellKindsJson",
+    "s.save_type AS saveType",
+    "s.area_type AS areaType",
     "s.range_value AS rangeValue",
   ];
 

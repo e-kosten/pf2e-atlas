@@ -46,6 +46,8 @@ describe("Pf2eDataService / Search and Lookup", () => {
     expect((await service.search({ searchProfile: "lexical", query: "aberration", category: "creature" })).records[0]?.name).toBe("Cythnigot");
     expect((await service.search({ category: "spell", metadata: { field: "traditions", op: "includesAny", values: ["primal"] }, actionCost: 2 })).records[0]?.name).toBe("Sea Blessing");
     expect((await service.search({ category: "spell", metadata: { field: "spellKinds", op: "includesAny", values: ["focus"] } })).records.map((record) => record.name)).toEqual(["Focus Burst"]);
+    expect((await service.search({ category: "spell", metadata: { field: "saveType", op: "eq", value: "reflex" } })).records.map((record) => record.name)).toEqual(["Hydraulic Push"]);
+    expect((await service.search({ category: "spell", metadata: { field: "areaType", op: "eq", value: "burst" } })).records.map((record) => record.name)).toEqual(["Hydraulic Push"]);
     expect((await service.search({ category: "rule", subcategory: "condition" })).records.map((record) => record.name)).toEqual(
       expect.arrayContaining(["Blinded", "Dazzled", "Hidden"]),
     );
@@ -178,6 +180,12 @@ describe("Pf2eDataService / Search and Lookup", () => {
     const focusBurst = service.lookup("Focus Burst", { category: "spell" }).match;
     expect(focusBurst?.subcategory).toBeNull();
     expect(focusBurst?.spellKinds).toEqual(["focus"]);
+    const fear = service.lookup("Fear", { category: "spell" }).match;
+    expect(fear?.saveType).toBe("will");
+    expect(fear?.areaType).toBe("cone");
+    const hydraulicPush = service.lookup("Hydraulic Push", { category: "spell" }).match;
+    expect(hydraulicPush?.saveType).toBe("reflex");
+    expect(hydraulicPush?.areaType).toBe("burst");
     const alarm = service.lookup("Alarm", { category: "spell" }).match;
     expect(alarm?.derivedTags).toContain("alarm");
     const illusoryDisguise = service.lookup("Illusory Disguise", { category: "spell" }).match;

@@ -429,6 +429,10 @@ function buildMetadataScalarSqlExpression(
       return buildScalarLookupSql(context.recordKeyExpr, context.itemAlias, "armor_group", "item_records");
     case "itemCategory":
       return buildScalarLookupSql(context.recordKeyExpr, context.itemAlias, "item_category", "item_records");
+    case "saveType":
+      return buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "save_type", "spell_records");
+    case "areaType":
+      return buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "area_type", "spell_records");
     case "rarity":
       return context.recordsAlias ? `${context.recordsAlias}.rarity` : `(SELECT meta.rarity FROM records meta WHERE meta.record_key = ${context.recordKeyExpr})`;
     case "level":
@@ -657,6 +661,10 @@ function getRecordStringValue(record: NormalizedRecord, field: MetadataEnumStrin
       return record.armorGroup;
     case "itemCategory":
       return record.itemCategory;
+    case "saveType":
+      return record.saveType;
+    case "areaType":
+      return record.areaType;
     case "rarity":
       return record.rarity;
   }

@@ -26,6 +26,8 @@ export const METADATA_ENUM_STRING_FIELDS = [
   "weaponGroup",
   "armorGroup",
   "itemCategory",
+  "saveType",
+  "areaType",
   "rarity",
 ] as const;
 

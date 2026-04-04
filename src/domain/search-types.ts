@@ -126,6 +126,8 @@ export const FILTER_VALUE_FIELDS = [
   "weaponGroup",
   "armorGroup",
   "usage",
+  "saveType",
+  "areaType",
   "damageTypes",
   "languages",
   "speedTypes",

@@ -50,6 +50,8 @@ export type NormalizedIndexRecord = {
   armorGroup: string | null;
   traditions: string[];
   spellKinds: string[];
+  saveType: string | null;
+  areaType: string | null;
   languages: string[];
   speedTypes: string[];
   immunities: string[];

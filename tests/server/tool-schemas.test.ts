@@ -26,6 +26,8 @@ describe("tool schemas", () => {
     expect(filterValueFieldSchema.safeParse("actorMetrics")).toMatchObject({ success: true, data: "actorMetrics" });
     expect(filterValueFieldSchema.safeParse("publicationTitle")).toMatchObject({ success: true, data: "publicationTitle" });
     expect(filterValueFieldSchema.safeParse("weaponGroup")).toMatchObject({ success: true, data: "weaponGroup" });
+    expect(filterValueFieldSchema.safeParse("saveType")).toMatchObject({ success: true, data: "saveType" });
+    expect(filterValueFieldSchema.safeParse("areaType")).toMatchObject({ success: true, data: "areaType" });
     expect(filterValueFieldSchema.safeParse("packs")).toMatchObject({ success: true, data: "packs" });
     expect(filterValueFieldSchema.safeParse("foo").success).toBe(false);
   });
@@ -49,6 +51,18 @@ describe("tool schemas", () => {
       op: "between",
       min: 1,
       max: 2,
+    }).success).toBe(true);
+
+    expect(metadataFilterSchema.safeParse({
+      field: "saveType",
+      op: "eq",
+      value: "reflex",
+    }).success).toBe(true);
+
+    expect(metadataFilterSchema.safeParse({
+      field: "areaType",
+      op: "in",
+      values: ["burst", "cone"],
     }).success).toBe(true);
 
     expect(metadataFilterSchema.safeParse({

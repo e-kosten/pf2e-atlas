@@ -49,6 +49,8 @@ export type CandidateRow = {
   armorGroup: string | null;
   traditionsJson: string | null;
   spellKindsJson: string | null;
+  saveType: string | null;
+  areaType: string | null;
   languagesJson: string | null;
   speedTypesJson: string | null;
   immunitiesJson: string | null;
@@ -150,6 +152,8 @@ export function rowToRecord(row: CandidateRow, raw: Record<string, unknown> | nu
     armorGroup: row.armorGroup,
     traditions: row.traditionsJson ? (JSON.parse(row.traditionsJson) as string[]) : [],
     spellKinds: row.spellKindsJson ? (JSON.parse(row.spellKindsJson) as string[]) : [],
+    saveType: row.saveType,
+    areaType: row.areaType,
     languages: row.languagesJson ? (JSON.parse(row.languagesJson) as string[]) : [],
     speedTypes: row.speedTypesJson ? (JSON.parse(row.speedTypesJson) as string[]) : [],
     immunities: row.immunitiesJson ? (JSON.parse(row.immunitiesJson) as string[]) : [],

@@ -418,6 +418,11 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
       level: {
         value: 1,
       },
+      defense: {
+        save: {
+          statistic: "will",
+        },
+      },
       publication: {
         title: "Pathfinder Player Core",
       },
@@ -425,6 +430,9 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
         rarity: "common",
         traditions: ["arcane", "divine", "occult", "primal"],
         value: ["emotion", "fear", "mental"],
+      },
+      area: {
+        type: "cone",
       },
     },
   });
@@ -439,6 +447,11 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
       },
       level: {
         value: 3,
+      },
+      defense: {
+        save: {
+          statistic: "fortitude",
+        },
       },
       publication: {
         title: "Pathfinder Player Core",
@@ -461,6 +474,14 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
       },
       level: {
         value: 1,
+      },
+      defense: {
+        save: {
+          statistic: "reflex",
+        },
+      },
+      area: {
+        type: "burst",
       },
       publication: {
         title: "Pathfinder Player Core",

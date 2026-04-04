@@ -25,6 +25,8 @@ describe("metadata search semantics", () => {
       "derivedTags",
       "traditions",
       "spellKinds",
+      "saveType",
+      "areaType",
       "damageTypes",
       "rangeValue",
     ]));
@@ -55,6 +57,8 @@ describe("metadata search semantics", () => {
       "families",
       "traditions",
       "spellKinds",
+      "saveType",
+      "areaType",
       "weaponGroup",
       "armorGroup",
       "usage",

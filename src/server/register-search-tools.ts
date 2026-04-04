@@ -74,6 +74,16 @@ export function registerSearchTools(
               description: "Use in metadata predicates for spell refinement such as focus, ritual, or cantrip.",
             },
             {
+              name: "saveType",
+              strength: "metadata field example",
+              description: "Use in metadata predicates for spell defense targeting such as reflex or will.",
+            },
+            {
+              name: "areaType",
+              strength: "metadata field example",
+              description: "Use in metadata predicates for spell area shapes such as burst, cone, or line.",
+            },
+            {
               name: "query",
               strength: "literal text",
               description: "Prefer one short natural-language phrase or sentence with 1-3 concrete anchor terms. Avoid long comma-separated keyword lists by default.",

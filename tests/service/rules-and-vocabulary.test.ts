@@ -387,6 +387,29 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     });
 
     expect(service.listFilterValues({
+      field: "saveType",
+      category: "spell",
+    })).toEqual({
+      field: "saveType",
+      values: [
+        { value: "fortitude", count: 1 },
+        { value: "reflex", count: 1 },
+        { value: "will", count: 1 },
+      ],
+    });
+
+    expect(service.listFilterValues({
+      field: "areaType",
+      category: "spell",
+    })).toEqual({
+      field: "areaType",
+      values: [
+        { value: "burst", count: 1 },
+        { value: "cone", count: 1 },
+      ],
+    });
+
+    expect(service.listFilterValues({
       field: "weaponGroup",
       category: "equipment",
     }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["bomb", "sword"]));
