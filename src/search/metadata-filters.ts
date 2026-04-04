@@ -1,4 +1,12 @@
 import {
+  inferActorMetricValueType,
+  isActorMetricNumericOperator,
+  isActorMetricScalarOperator,
+  normalizeActorMetricKey,
+  normalizeActorMetricTextValue,
+  type ActorMetricValue,
+} from "../domain/actor-metrics.js";
+import {
   METADATA_BOOLEAN_FIELDS,
   METADATA_ENUM_STRING_FIELDS,
   METADATA_NUMBER_FIELDS,
@@ -30,6 +38,7 @@ const METADATA_ENUM_STRING_FIELD_NAMES = new Set<string>(METADATA_ENUM_STRING_FI
 const METADATA_TEXT_STRING_FIELD_NAMES = new Set<string>(METADATA_TEXT_STRING_FIELDS);
 const METADATA_NUMBER_FIELD_NAMES = new Set<string>(METADATA_NUMBER_FIELDS);
 const METADATA_BOOLEAN_FIELD_NAMES = new Set<string>(METADATA_BOOLEAN_FIELDS);
+const ACTOR_METRIC_FIELD_NAMES = new Set<string>(["actorMetric", "actorMetricCompare"]);
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -45,6 +54,41 @@ function normalizeMetadataValue(field: MetadataSetField | MetadataEnumStringFiel
 
 function normalizeMetadataTextMatchValue(value: string): string {
   return value.trim().toLowerCase();
+}
+
+function normalizeActorMetricName(metric: unknown, label: string): string {
+  if (typeof metric !== "string") {
+    throw new Error(`${label} must be a string.`);
+  }
+
+  const normalized = normalizeActorMetricKey(metric);
+  if (!normalized) {
+    throw new Error(`${label} must not be empty.`);
+  }
+
+  const metricType = inferActorMetricValueType(normalized);
+  if (!metricType) {
+    throw new Error(`Unknown actor metric "${metric}".`);
+  }
+
+  return normalized;
+}
+
+function metricSqlOperator(op: "==" | "!=" | ">" | ">=" | "<" | "<="): "=" | "<>" | ">" | ">=" | "<" | "<=" {
+  switch (op) {
+    case "==":
+      return "=";
+    case "!=":
+      return "<>";
+    case ">":
+      return ">";
+    case ">=":
+      return ">=";
+    case "<":
+      return "<";
+    case "<=":
+      return "<=";
+  }
 }
 
 function normalizeMetadataValues(field: MetadataSetField | MetadataEnumStringField, values: string[]): string[] {
@@ -82,6 +126,73 @@ export function normalizeMetadataFilterNode(node: MetadataFilterNode): MetadataF
   const op = typeof raw.op === "string" ? raw.op : null;
   if (!field || !op) {
     throw new Error("metadata predicates must include field and op.");
+  }
+
+  if (field === "actorMetric") {
+    const metric = normalizeActorMetricName(raw.metric, "actorMetric.metric");
+    const metricType = inferActorMetricValueType(metric);
+    if (!metricType) {
+      throw new Error(`Unknown actor metric "${raw.metric}".`);
+    }
+
+    if (metricType === "number") {
+      if (!isActorMetricNumericOperator(op) || typeof raw.value !== "number" || !Number.isFinite(raw.value)) {
+        throw new Error(`actor metric "${metric}" requires a finite numeric value with one of ==, !=, >, >=, <, <=.`);
+      }
+
+      return {
+        field: "actorMetric",
+        metric,
+        op,
+        value: raw.value,
+      };
+    }
+
+    if (!isActorMetricScalarOperator(op)) {
+      throw new Error(`actor metric "${metric}" only supports == and !=.`);
+    }
+
+    if (metricType === "text") {
+      if (typeof raw.value !== "string") {
+        throw new Error(`actor metric "${metric}" requires a string value.`);
+      }
+
+      return {
+        field: "actorMetric",
+        metric,
+        op,
+        value: normalizeActorMetricTextValue(raw.value),
+      };
+    }
+
+    if (typeof raw.value !== "boolean") {
+      throw new Error(`actor metric "${metric}" requires a boolean value.`);
+    }
+
+    return {
+      field: "actorMetric",
+      metric,
+      op,
+      value: raw.value,
+    };
+  }
+
+  if (field === "actorMetricCompare") {
+    const leftMetric = normalizeActorMetricName(raw.leftMetric, "actorMetricCompare.leftMetric");
+    const rightMetric = normalizeActorMetricName(raw.rightMetric, "actorMetricCompare.rightMetric");
+    if (inferActorMetricValueType(leftMetric) !== "number" || inferActorMetricValueType(rightMetric) !== "number") {
+      throw new Error("actorMetricCompare only supports numeric actor metrics.");
+    }
+    if (!isActorMetricNumericOperator(op)) {
+      throw new Error("actorMetricCompare requires one of ==, !=, >, >=, <, <=.");
+    }
+
+    return {
+      field: "actorMetricCompare",
+      leftMetric,
+      op,
+      rightMetric,
+    };
   }
 
   if (METADATA_SET_FIELD_NAMES.has(field)) {
@@ -181,6 +292,81 @@ export function normalizeMetadataFilterNode(node: MetadataFilterNode): MetadataF
   }
 
   throw new Error(`Unknown metadata field "${field}".`);
+}
+
+function buildActorMetricPredicateClause(
+  predicate: Extract<MetadataPredicate, { field: "actorMetric" }>,
+  context: MetadataSqlContext,
+): { clause: string; params: SqlValue[] } {
+  const metricType = inferActorMetricValueType(predicate.metric);
+  if (!metricType) {
+    throw new Error(`Unknown actor metric "${predicate.metric}".`);
+  }
+
+  const sqlOperator = metricSqlOperator(predicate.op);
+  if (metricType === "number") {
+    const numericValue = predicate.value as number;
+    return {
+      clause: `EXISTS (
+        SELECT 1
+        FROM actor_metrics actor_metric
+        WHERE actor_metric.record_key = ${context.recordKeyExpr}
+          AND actor_metric.metric_key = ?
+          AND actor_metric.value_type = 'number'
+          AND actor_metric.number_value ${sqlOperator} ?
+      )`,
+      params: [predicate.metric, numericValue],
+    };
+  }
+
+  if (metricType === "text") {
+    const textValue = predicate.value as string;
+    return {
+      clause: `EXISTS (
+        SELECT 1
+        FROM actor_metrics actor_metric
+        WHERE actor_metric.record_key = ${context.recordKeyExpr}
+          AND actor_metric.metric_key = ?
+          AND actor_metric.value_type = 'text'
+          AND LOWER(COALESCE(actor_metric.text_value, '')) ${sqlOperator} ?
+      )`,
+      params: [predicate.metric, textValue],
+    };
+  }
+
+  const booleanValue = predicate.value as boolean;
+  return {
+    clause: `EXISTS (
+      SELECT 1
+      FROM actor_metrics actor_metric
+      WHERE actor_metric.record_key = ${context.recordKeyExpr}
+        AND actor_metric.metric_key = ?
+        AND actor_metric.value_type = 'boolean'
+        AND COALESCE(actor_metric.bool_value, 0) ${sqlOperator} ?
+    )`,
+    params: [predicate.metric, booleanValue ? 1 : 0],
+  };
+}
+
+function buildActorMetricCompareClause(
+  predicate: Extract<MetadataPredicate, { field: "actorMetricCompare" }>,
+  context: MetadataSqlContext,
+): { clause: string; params: SqlValue[] } {
+  return {
+    clause: `EXISTS (
+      SELECT 1
+      FROM actor_metrics left_metric
+      JOIN actor_metrics right_metric
+        ON right_metric.record_key = left_metric.record_key
+      WHERE left_metric.record_key = ${context.recordKeyExpr}
+        AND left_metric.metric_key = ?
+        AND left_metric.value_type = 'number'
+        AND right_metric.metric_key = ?
+        AND right_metric.value_type = 'number'
+        AND left_metric.number_value ${metricSqlOperator(predicate.op)} right_metric.number_value
+    )`,
+    params: [predicate.leftMetric, predicate.rightMetric],
+  };
 }
 
 function buildScalarLookupSql(
@@ -318,6 +504,14 @@ function buildMetadataPredicateClause(
   predicate: MetadataPredicate,
   context: MetadataSqlContext,
 ): { clause: string; params: SqlValue[] } {
+  if (predicate.field === "actorMetric") {
+    return buildActorMetricPredicateClause(predicate, context);
+  }
+
+  if (predicate.field === "actorMetricCompare") {
+    return buildActorMetricCompareClause(predicate, context);
+  }
+
   if (METADATA_SET_FIELD_NAMES.has(predicate.field)) {
     const setPredicate = predicate as Extract<MetadataPredicate, { field: MetadataSetField }>;
     return buildMetadataSetPredicateClause(setPredicate.field, setPredicate.op, setPredicate.values, context);
@@ -496,6 +690,23 @@ function getRecordBooleanValue(record: NormalizedRecord, field: MetadataBooleanF
   }
 }
 
+function compareActorMetricValues(left: ActorMetricValue, op: "==" | "!=" | ">" | ">=" | "<" | "<=", right: ActorMetricValue): boolean {
+  switch (op) {
+    case "==":
+      return left === right;
+    case "!=":
+      return left !== right;
+    case ">":
+      return (left as number) > (right as number);
+    case ">=":
+      return (left as number) >= (right as number);
+    case "<":
+      return (left as number) < (right as number);
+    case "<=":
+      return (left as number) <= (right as number);
+  }
+}
+
 export function recordMatchesMetadataFilter(record: NormalizedRecord, node: MetadataFilterNode): boolean {
   if ("and" in node) {
     return node.and.every((child) => recordMatchesMetadataFilter(record, child));
@@ -507,6 +718,30 @@ export function recordMatchesMetadataFilter(record: NormalizedRecord, node: Meta
 
   if ("not" in node) {
     return !recordMatchesMetadataFilter(record, node.not);
+  }
+
+  if (node.field === "actorMetric") {
+    const metricType = inferActorMetricValueType(node.metric);
+    const recordValue = record.actorMetrics[node.metric];
+    if (!metricType || recordValue === undefined) {
+      return false;
+    }
+
+    if (metricType === "text" && typeof node.value === "string") {
+      return compareActorMetricValues(recordValue, node.op, normalizeActorMetricTextValue(node.value));
+    }
+
+    return compareActorMetricValues(recordValue, node.op, node.value);
+  }
+
+  if (node.field === "actorMetricCompare") {
+    const leftValue = record.actorMetrics[node.leftMetric];
+    const rightValue = record.actorMetrics[node.rightMetric];
+    if (typeof leftValue !== "number" || typeof rightValue !== "number") {
+      return false;
+    }
+
+    return compareActorMetricValues(leftValue, node.op, rightValue);
   }
 
   if (METADATA_SET_FIELD_NAMES.has(node.field)) {

@@ -3,7 +3,7 @@ import { DatabaseSync } from "node:sqlite";
 import { DERIVED_TAG_CATALOG } from "../tags/index.js";
 import type {
   DerivedTagCatalogEntry,
-  FilterValueField,
+  FilterValueQuery,
   FilterValueResult,
   PackInfo,
   SearchCategory,
@@ -218,13 +218,13 @@ export function listPacks(packs: PackInfo[]): PackInfo[] {
 
 export function listFilterValues(
   db: DatabaseSync,
-  field: FilterValueField,
+  query: FilterValueQuery,
   filters: NormalizedSearchFilters,
 ): FilterValueResult {
-  const { sql, params } = buildFilterValueQuery(field, filters);
+  const { sql, params } = buildFilterValueQuery(query, filters);
   const values = db.prepare(sql).all(...params) as ValueCountRow[];
   return {
-    field,
+    field: query.field,
     values,
   };
 }

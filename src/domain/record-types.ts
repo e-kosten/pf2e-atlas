@@ -1,4 +1,5 @@
 import type { SearchCategory, SearchSubcategory } from "./search-types.js";
+import type { ActorMetricMap } from "./actor-metrics.js";
 
 export interface PackManifestEntry {
   name: string;
@@ -80,6 +81,7 @@ export interface NormalizedRecord {
   immunities: string[];
   resistances: string[];
   weaknesses: string[];
+  actorMetrics: ActorMetricMap;
   rangeValue: number | null;
   aliases: string[];
   legacyRecordLinks: LinkedRecordSummary[];

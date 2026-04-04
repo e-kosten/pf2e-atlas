@@ -52,6 +52,7 @@ function createRecord(recordKey: string, name = recordKey): NormalizedRecord {
     immunities: [],
     resistances: [],
     weaknesses: [],
+    actorMetrics: {},
     rangeValue: null,
     aliases: [],
     legacyRecordLinks: [],

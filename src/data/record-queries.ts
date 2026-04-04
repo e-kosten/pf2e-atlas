@@ -47,6 +47,17 @@ function buildRecordSelect(includeRaw = false): string {
     "a.immunities_json AS immunitiesJson",
     "a.resistances_json AS resistancesJson",
     "a.weaknesses_json AS weaknessesJson",
+    `COALESCE((
+      SELECT json_group_array(json_object(
+        'metricKey', am.metric_key,
+        'valueType', am.value_type,
+        'numberValue', am.number_value,
+        'textValue', am.text_value,
+        'boolValue', am.bool_value
+      ))
+      FROM actor_metrics am
+      WHERE am.record_key = r.record_key
+    ), '[]') AS actorMetricsJson`,
     "i.item_category AS itemCategory",
     "i.price_cp AS priceCp",
     "i.bulk_value AS bulkValue",

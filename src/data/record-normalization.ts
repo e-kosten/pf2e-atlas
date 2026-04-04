@@ -2,6 +2,15 @@ import {
   classifyRecordCategory,
   extractSpellTraditions,
 } from "../domain/categories.js";
+import {
+  ACTOR_ABILITY_KEYS,
+  ACTOR_SAVE_KEYS,
+  type ActorMetricMap,
+  normalizeActorMetricBooleanValue,
+  normalizeActorMetricTextValue,
+  normalizeRawSaveKey,
+  slugifyActorMetricSegment,
+} from "../domain/actor-metrics.js";
 import type { SourceCategory } from "../types.js";
 import {
   buildEmbeddedItemSearchChunks,
@@ -97,6 +106,157 @@ function parseTypedCollection(raw: Record<string, unknown>, pathSegments: string
   );
 }
 
+function parseAbilityMetric(raw: Record<string, unknown>, abilityKey: string): number | null {
+  const ability = getNested(raw, ["system", "abilities", abilityKey]);
+  if (!ability || typeof ability !== "object") {
+    return null;
+  }
+
+  return asNumber(getNested(ability, ["mod"]) ?? getNested(ability, ["modifier"]));
+}
+
+function parsePerceptionMetric(raw: Record<string, unknown>): number | null {
+  const perception = getNested(raw, ["system", "perception"]);
+  if (!perception || typeof perception !== "object") {
+    return null;
+  }
+
+  return asNumber(
+    getNested(perception, ["mod"]) ??
+      getNested(perception, ["modifier"]) ??
+      getNested(perception, ["value"]),
+  );
+}
+
+function parseSaveMetrics(raw: Record<string, unknown>): Partial<Record<(typeof ACTOR_SAVE_KEYS)[number], number>> {
+  const saves = getNested(raw, ["system", "saves"]);
+  if (!saves || typeof saves !== "object") {
+    return {};
+  }
+
+  const result: Partial<Record<(typeof ACTOR_SAVE_KEYS)[number], number>> = {};
+  for (const [rawSaveKey, saveValue] of Object.entries(saves as Record<string, unknown>)) {
+    const saveKey = normalizeRawSaveKey(rawSaveKey);
+    if (!saveKey || !saveValue || typeof saveValue !== "object") {
+      continue;
+    }
+
+    const numericValue = asNumber(
+      getNested(saveValue, ["mod"]) ??
+        getNested(saveValue, ["modifier"]) ??
+        getNested(saveValue, ["value"]) ??
+        getNested(saveValue, ["totalModifier"]),
+    );
+    if (numericValue !== null) {
+      result[saveKey] = numericValue;
+    }
+  }
+
+  return result;
+}
+
+function parseSkillMetrics(raw: Record<string, unknown>): ActorMetricMap {
+  const skills = getNested(raw, ["system", "skills"]);
+  if (!skills || typeof skills !== "object") {
+    return {};
+  }
+
+  const metrics: ActorMetricMap = {};
+  for (const [rawSkillKey, skillValue] of Object.entries(skills as Record<string, unknown>)) {
+    if (!skillValue || typeof skillValue !== "object") {
+      continue;
+    }
+
+    const skillKey = slugifyActorMetricSegment(rawSkillKey);
+    if (!skillKey) {
+      continue;
+    }
+
+    const skillMod = asNumber(
+      getNested(skillValue, ["mod"]) ??
+        getNested(skillValue, ["modifier"]) ??
+        getNested(skillValue, ["value"]),
+    );
+    const skillRank = asNumber(getNested(skillValue, ["rank"]));
+
+    if (skillMod !== null) {
+      metrics[`skill.${skillKey}.mod`] = skillMod;
+    }
+
+    if (skillRank !== null) {
+      metrics[`skill.${skillKey}.rank`] = skillRank;
+      metrics[`skill.${skillKey}.proficient`] = normalizeActorMetricBooleanValue(skillRank >= 1);
+    }
+  }
+
+  return metrics;
+}
+
+function addBestAndWorstSaveMetrics(
+  actorMetrics: ActorMetricMap,
+  saveMetrics: Partial<Record<(typeof ACTOR_SAVE_KEYS)[number], number>>,
+): void {
+  let bestSave: (typeof ACTOR_SAVE_KEYS)[number] | null = null;
+  let worstSave: (typeof ACTOR_SAVE_KEYS)[number] | null = null;
+  let bestValue = Number.NEGATIVE_INFINITY;
+  let worstValue = Number.POSITIVE_INFINITY;
+
+  for (const saveKey of ACTOR_SAVE_KEYS) {
+    const saveValue = saveMetrics[saveKey];
+    if (saveValue === undefined) {
+      continue;
+    }
+
+    if (saveValue > bestValue) {
+      bestValue = saveValue;
+      bestSave = saveKey;
+    }
+
+    if (saveValue < worstValue) {
+      worstValue = saveValue;
+      worstSave = saveKey;
+    }
+  }
+
+  if (bestSave) {
+    actorMetrics["save.best"] = normalizeActorMetricTextValue(bestSave);
+  }
+
+  if (worstSave) {
+    actorMetrics["save.worst"] = normalizeActorMetricTextValue(worstSave);
+  }
+}
+
+function parseActorMetrics(raw: Record<string, unknown>): ActorMetricMap {
+  const metrics: ActorMetricMap = {};
+
+  for (const abilityKey of ACTOR_ABILITY_KEYS) {
+    const abilityMod = parseAbilityMetric(raw, abilityKey);
+    if (abilityMod !== null) {
+      metrics[`ability.${abilityKey}.mod`] = abilityMod;
+    }
+  }
+
+  const perceptionMod = parsePerceptionMetric(raw);
+  if (perceptionMod !== null) {
+    metrics["perception.mod"] = perceptionMod;
+  }
+
+  const saveMetrics = parseSaveMetrics(raw);
+  for (const saveKey of ACTOR_SAVE_KEYS) {
+    const saveMod = saveMetrics[saveKey];
+    if (saveMod !== undefined) {
+      metrics[`save.${saveKey}.mod`] = saveMod;
+    }
+  }
+
+  addBestAndWorstSaveMetrics(metrics, saveMetrics);
+  return {
+    ...metrics,
+    ...parseSkillMetrics(raw),
+  };
+}
+
 export function parseActorIndexData(raw: Record<string, unknown>): ActorIndexData {
   return {
     size: parseSize(raw),
@@ -105,6 +265,7 @@ export function parseActorIndexData(raw: Record<string, unknown>): ActorIndexDat
     immunities: parseTypedCollection(raw, ["system", "attributes", "immunities"]),
     resistances: parseTypedCollection(raw, ["system", "attributes", "resistances"]),
     weaknesses: parseTypedCollection(raw, ["system", "attributes", "weaknesses"]),
+    actorMetrics: parseActorMetrics(raw),
   };
 }
 
@@ -485,6 +646,7 @@ export function normalizeIndexRecord(pack: PackBuildInfo, sourcePath: string, ra
     immunities: actorData?.immunities ?? [],
     resistances: actorData?.resistances ?? [],
     weaknesses: actorData?.weaknesses ?? [],
+    actorMetrics: actorData?.actorMetrics ?? {},
     rangeValue: spellData?.rangeValue ?? null,
     searchText: buildSearchText(raw, { name, descriptionText, traits }),
   };

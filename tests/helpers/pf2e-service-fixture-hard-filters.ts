@@ -151,6 +151,140 @@ export async function createHardFilterFixture(): Promise<{ root: string; manifes
     },
   });
 
+  await writeJson(path.join(packRoot, "pathfinder-monster-core-2", "tactical-mastermind.json"), {
+    _id: "tactical-mastermind",
+    name: "Tactical Mastermind",
+    type: "npc",
+    system: {
+      abilities: {
+        str: { mod: 0 },
+        dex: { mod: 3 },
+        con: { mod: 2 },
+        int: { mod: 5 },
+        wis: { mod: 4 },
+        cha: { mod: 2 },
+      },
+      details: {
+        level: {
+          value: 7,
+        },
+        publication: {
+          title: "Pathfinder Monster Core 2",
+        },
+        publicNotes: "<p>A calculating battlefield coordinator.</p>",
+      },
+      perception: {
+        mod: 15,
+      },
+      saves: {
+        fortitude: { value: 12 },
+        reflex: { value: 14 },
+        will: { value: 17 },
+      },
+      skills: {
+        arcana: { mod: 18, rank: 4 },
+        society: { mod: 16, rank: 4 },
+        stealth: { mod: 11, rank: 2 },
+      },
+      traits: {
+        rarity: "common",
+        value: ["humanoid"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core-2", "silver-tongue-duelist.json"), {
+    _id: "silver-tongue-duelist",
+    name: "Silver Tongue Duelist",
+    type: "npc",
+    system: {
+      abilities: {
+        str: { mod: 2 },
+        dex: { mod: 4 },
+        con: { mod: 2 },
+        int: { mod: 2 },
+        wis: { mod: 1 },
+        cha: { mod: 5 },
+      },
+      details: {
+        level: {
+          value: 6,
+        },
+        publication: {
+          title: "Pathfinder Monster Core 2",
+        },
+        publicNotes: "<p>A charismatic duelist with a sharp tongue.</p>",
+      },
+      perception: {
+        mod: 12,
+      },
+      saves: {
+        fortitude: { value: 11 },
+        reflex: { value: 16 },
+        will: { value: 13 },
+      },
+      skills: {
+        diplomacy: { mod: 17, rank: 4 },
+        deception: { mod: 15, rank: 3 },
+        arcana: { mod: 7, rank: 0 },
+      },
+      traits: {
+        rarity: "common",
+        value: ["humanoid"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core-2", "stubborn-brute.json"), {
+    _id: "stubborn-brute",
+    name: "Stubborn Brute",
+    type: "npc",
+    system: {
+      abilities: {
+        str: { mod: 5 },
+        dex: { mod: 1 },
+        con: { mod: 4 },
+        int: { mod: 0 },
+        wis: { mod: 1 },
+        cha: { mod: 2 },
+      },
+      details: {
+        level: {
+          value: 6,
+        },
+        publication: {
+          title: "Pathfinder Monster Core 2",
+        },
+        publicNotes: "<p>A bruiser who relies on grit more than guile.</p>",
+      },
+      perception: {
+        mod: 10,
+      },
+      saves: {
+        fortitude: { value: 18 },
+        reflex: { value: 9 },
+        will: { value: 10 },
+      },
+      skills: {
+        athletics: { mod: 16, rank: 4 },
+        arcana: { mod: 4, rank: 0 },
+      },
+      traits: {
+        rarity: "common",
+        value: ["humanoid"],
+        size: {
+          value: "lg",
+        },
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "pfs-introductions-bestiary", "ghoul-pfs-intro-2.json"), {
     _id: "pfs-ghoul",
     name: "Ghoul (PFS Intro 2)",

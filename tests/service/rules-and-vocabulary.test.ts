@@ -452,6 +452,55 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     })).toThrow(/does not belong to category "feat"/i);
   });
 
+  it("discovers live actor metric keys and scalar values through filter-value listing", async () => {
+    const fixture = await createHardFilterFixture();
+    createdRoots.push(fixture.root);
+
+    const service = await loadTestService(fixture);
+
+    expect(service.listFilterValues({
+      field: "actorMetrics",
+      category: "creature",
+      metricPrefix: "ability",
+    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining([
+      "ability.cha.mod",
+      "ability.dex.mod",
+      "ability.int.mod",
+      "ability.str.mod",
+    ]));
+
+    expect(service.listFilterValues({
+      field: "actorMetrics",
+      category: "creature",
+      metric: "save.best",
+    })).toEqual({
+      field: "actorMetrics",
+      values: [
+        { value: "fort", count: 1 },
+        { value: "ref", count: 1 },
+        { value: "will", count: 1 },
+      ],
+    });
+
+    expect(service.listFilterValues({
+      field: "actorMetrics",
+      category: "creature",
+      metric: "skill.arcana.proficient",
+    })).toEqual({
+      field: "actorMetrics",
+      values: [
+        { value: "false", count: 2 },
+        { value: "true", count: 1 },
+      ],
+    });
+
+    expect(() => service.listFilterValues({
+      field: "actorMetrics",
+      category: "creature",
+      metric: "ability.int.mod",
+    })).toThrow(/text and boolean metrics/i);
+  });
+
   it("collects rule question context without synthesis", async () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);

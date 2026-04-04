@@ -78,4 +78,25 @@ describe("metadata search semantics", () => {
     expect(derivedTags?.categories).toEqual(["equipment", "creature", "hazard", "affliction", "spell"]);
     expect(derivedTags?.notes).toContain("ontology coverage");
   });
+
+  it("documents advanced creature metric predicates separately from fixed metadata fields", () => {
+    const semantics = getMetadataFilterSemantics();
+
+    expect(semantics.advancedPredicates).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        name: "actorMetric",
+        categories: ["creature"],
+        operators: expect.arrayContaining([">=", "=="]),
+      }),
+      expect.objectContaining({
+        name: "actorMetricCompare",
+        categories: ["creature"],
+        operators: expect.arrayContaining([">", "!="]),
+      }),
+    ]));
+    expect(semantics.actorMetricDiscovery?.filterValueField).toBe("actorMetrics");
+    expect(semantics.actorMetricDiscovery?.namespaces.map((entry) => entry.prefix)).toEqual(
+      expect.arrayContaining(["ability.", "save.", "skill.", "perception."]),
+    );
+  });
 });

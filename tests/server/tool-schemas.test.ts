@@ -23,6 +23,7 @@ describe("tool schemas", () => {
   it("accepts the supported filter-value fields", () => {
     expect(filterValueFieldSchema.safeParse("traits")).toMatchObject({ success: true, data: "traits" });
     expect(filterValueFieldSchema.safeParse("derivedTags")).toMatchObject({ success: true, data: "derivedTags" });
+    expect(filterValueFieldSchema.safeParse("actorMetrics")).toMatchObject({ success: true, data: "actorMetrics" });
     expect(filterValueFieldSchema.safeParse("publicationTitle")).toMatchObject({ success: true, data: "publicationTitle" });
     expect(filterValueFieldSchema.safeParse("weaponGroup")).toMatchObject({ success: true, data: "weaponGroup" });
     expect(filterValueFieldSchema.safeParse("packs")).toMatchObject({ success: true, data: "packs" });
@@ -48,6 +49,27 @@ describe("tool schemas", () => {
       op: "between",
       min: 1,
       max: 2,
+    }).success).toBe(true);
+
+    expect(metadataFilterSchema.safeParse({
+      field: "actorMetric",
+      metric: "ability.int.mod",
+      op: ">=",
+      value: 4,
+    }).success).toBe(true);
+
+    expect(metadataFilterSchema.safeParse({
+      field: "actorMetric",
+      metric: "save.best",
+      op: "==",
+      value: "will",
+    }).success).toBe(true);
+
+    expect(metadataFilterSchema.safeParse({
+      field: "actorMetricCompare",
+      leftMetric: "ability.int.mod",
+      op: ">",
+      rightMetric: "ability.cha.mod",
     }).success).toBe(true);
 
     expect(metadataFilterSchema.safeParse({

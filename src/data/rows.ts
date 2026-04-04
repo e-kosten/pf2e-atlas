@@ -1,4 +1,5 @@
 import type {
+  ActorMetricMap,
   LinkedRecordSummary,
   LookupResult,
   NormalizedRecord,
@@ -53,6 +54,7 @@ export type CandidateRow = {
   immunitiesJson: string | null;
   resistancesJson: string | null;
   weaknessesJson: string | null;
+  actorMetricsJson: string | null;
   rangeValue: number | null;
   rawJson?: string | null;
   searchText?: string | null;
@@ -74,6 +76,40 @@ export type ValueCountRow = {
   value: string;
   count: number;
 };
+
+type ActorMetricJsonRow = {
+  metricKey: string;
+  valueType: "number" | "text" | "boolean";
+  numberValue: number | null;
+  textValue: string | null;
+  boolValue: number | null;
+};
+
+function parseActorMetricsJson(actorMetricsJson: string | null | undefined): ActorMetricMap {
+  if (!actorMetricsJson) {
+    return {};
+  }
+
+  const rows = JSON.parse(actorMetricsJson) as ActorMetricJsonRow[];
+  const metrics: ActorMetricMap = {};
+  for (const row of rows) {
+    if (row.valueType === "number" && typeof row.numberValue === "number") {
+      metrics[row.metricKey] = row.numberValue;
+      continue;
+    }
+
+    if (row.valueType === "boolean") {
+      metrics[row.metricKey] = Boolean(row.boolValue);
+      continue;
+    }
+
+    if (row.valueType === "text" && typeof row.textValue === "string") {
+      metrics[row.metricKey] = row.textValue;
+    }
+  }
+
+  return metrics;
+}
 
 export function rowToRecord(row: CandidateRow, raw: Record<string, unknown> | null = null): NormalizedRecord {
   const resolvedRaw = raw ?? (row.rawJson ? JSON.parse(row.rawJson) as Record<string, unknown> : {});
@@ -119,6 +155,7 @@ export function rowToRecord(row: CandidateRow, raw: Record<string, unknown> | nu
     immunities: row.immunitiesJson ? (JSON.parse(row.immunitiesJson) as string[]) : [],
     resistances: row.resistancesJson ? (JSON.parse(row.resistancesJson) as string[]) : [],
     weaknesses: row.weaknessesJson ? (JSON.parse(row.weaknessesJson) as string[]) : [],
+    actorMetrics: parseActorMetricsJson(row.actorMetricsJson),
     rangeValue: row.rangeValue,
     aliases: [],
     legacyRecordLinks: [],

@@ -112,6 +112,7 @@ export const FILTER_VALUE_FIELDS = [
   "traits",
   "families",
   "derivedTags",
+  "actorMetrics",
   "rarity",
   "size",
   "publicationTitle",
@@ -140,6 +141,8 @@ export interface FilterValueQuery {
   category?: SearchCategoryInput;
   subcategory?: SearchSubcategoryInput;
   scopes?: SearchScope[];
+  metricPrefix?: string;
+  metric?: string;
 }
 
 export interface FilterValueCount {

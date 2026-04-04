@@ -59,6 +59,7 @@ export function summarizeRecord(
     immunities: record.immunities,
     resistances: record.resistances,
     weaknesses: record.weaknesses,
+    actorMetrics: record.actorMetrics,
     rangeValue: record.rangeValue,
   });
 

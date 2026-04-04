@@ -315,6 +315,11 @@ export async function buildIndex(
       record_key, size, languages_json, speed_types_json, immunities_json, resistances_json, weaknesses_json
     ) VALUES (?, ?, ?, ?, ?, ?, ?)
   `);
+  const insertActorMetric = db.prepare(`
+    INSERT INTO actor_metrics (
+      record_key, metric_key, value_type, number_value, text_value, bool_value
+    ) VALUES (?, ?, ?, ?, ?, ?)
+  `);
   const insertItem = db.prepare(`
     INSERT INTO item_records (
       record_key, item_category, price_cp, bulk_value, usage_text, hands, damage_types_json, weapon_group, armor_group, action_cost
@@ -681,6 +686,49 @@ export async function buildIndex(
           JSON.stringify(entry.actorData.resistances),
           JSON.stringify(entry.actorData.weaknesses),
         );
+
+        for (const [metricKey, metricValue] of Object.entries(entry.actorData.actorMetrics)) {
+          const normalizedValue = (() => {
+            if (typeof metricValue === "number") {
+              return {
+                valueType: "number",
+                numberValue: metricValue,
+                textValue: null,
+                boolValue: null,
+              };
+            }
+
+            if (typeof metricValue === "boolean") {
+              return {
+                valueType: "boolean",
+                numberValue: null,
+                textValue: null,
+                boolValue: metricValue ? 1 : 0,
+              };
+            }
+
+            return {
+              valueType: "text",
+              numberValue: null,
+              textValue: metricValue,
+              boolValue: null,
+            };
+          })() satisfies {
+            valueType: "number" | "text" | "boolean";
+            numberValue: number | null;
+            textValue: string | null;
+            boolValue: number | null;
+          };
+
+          insertActorMetric.run(
+            record.recordKey,
+            metricKey,
+            normalizedValue.valueType,
+            normalizedValue.numberValue,
+            normalizedValue.textValue,
+            normalizedValue.boolValue,
+          );
+        }
       }
 
       if (entry.itemData) {

@@ -712,6 +712,48 @@ describe("Pf2eDataService / Search and Lookup", () => {
     expect(featResults).not.toContain("Magical Mentor");
   });
 
+  it("supports generic creature actor-metric filters and comparisons", async () => {
+    const fixture = await createHardFilterFixture();
+    createdRoots.push(fixture.root);
+
+    const service = await loadTestService(fixture);
+
+    expect(service.listRecords({
+      category: "creature",
+      metadata: { field: "actorMetric", metric: "ability.int.mod", op: ">=", value: 5 },
+    }).records.map((record) => record.name)).toEqual(["Tactical Mastermind"]);
+
+    expect(service.listRecords({
+      category: "creature",
+      metadata: { field: "actorMetricCompare", leftMetric: "ability.int.mod", op: ">", rightMetric: "ability.cha.mod" },
+    }).records.map((record) => record.name)).toEqual(["Tactical Mastermind"]);
+
+    expect(service.listRecords({
+      category: "creature",
+      metadata: { field: "actorMetric", metric: "save.best", op: "==", value: "will" },
+    }).records.map((record) => record.name)).toEqual(["Tactical Mastermind"]);
+
+    expect(service.listRecords({
+      category: "creature",
+      metadata: { field: "actorMetric", metric: "save.worst", op: "==", value: "ref" },
+    }).records.map((record) => record.name)).toEqual(["Stubborn Brute"]);
+
+    expect(service.listRecords({
+      category: "creature",
+      metadata: { field: "actorMetric", metric: "skill.arcana.proficient", op: "==", value: true },
+    }).records.map((record) => record.name)).toEqual(["Tactical Mastermind"]);
+
+    expect(service.listRecords({
+      category: "creature",
+      metadata: { field: "actorMetric", metric: "skill.arcana.proficient", op: "==", value: false },
+    }).records.map((record) => record.name)).toEqual(["Silver Tongue Duelist", "Stubborn Brute"]);
+
+    expect(service.listRecords({
+      category: "creature",
+      metadata: { field: "actorMetric", metric: "skill.arcana.rank", op: ">=", value: 4 },
+    }).records.map((record) => record.name)).toEqual(["Tactical Mastermind"]);
+  });
+
   it("indexes verified aliases onto remaster canonical records and exposes linked legacy records", async () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);

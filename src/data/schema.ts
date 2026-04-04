@@ -16,7 +16,7 @@ import {
 } from "../types.js";
 import { uniqueSorted } from "../utils.js";
 
-export const INDEX_SCHEMA_VERSION = 18;
+export const INDEX_SCHEMA_VERSION = 19;
 
 function hashText(value: string): number {
   let hash = 2166136261;
@@ -124,6 +124,17 @@ export function createSchema(db: DatabaseSync, embeddingDimensions: number): voi
       FOREIGN KEY (record_key) REFERENCES records(record_key) ON DELETE CASCADE
     );
 
+    CREATE TABLE actor_metrics (
+      record_key TEXT NOT NULL,
+      metric_key TEXT NOT NULL,
+      value_type TEXT NOT NULL,
+      number_value REAL,
+      text_value TEXT,
+      bool_value INTEGER,
+      PRIMARY KEY (record_key, metric_key),
+      FOREIGN KEY (record_key) REFERENCES records(record_key) ON DELETE CASCADE
+    );
+
     CREATE TABLE item_records (
       record_key TEXT PRIMARY KEY,
       item_category TEXT,
@@ -217,6 +228,10 @@ export function createSchema(db: DatabaseSync, embeddingDimensions: number): voi
     CREATE INDEX record_traits_trait_idx ON record_traits(trait);
     CREATE INDEX record_derived_tags_tag_idx ON record_derived_tags(tag);
     CREATE INDEX actor_records_size_idx ON actor_records(size);
+    CREATE INDEX actor_metrics_key_idx ON actor_metrics(metric_key);
+    CREATE INDEX actor_metrics_number_idx ON actor_metrics(metric_key, number_value);
+    CREATE INDEX actor_metrics_text_idx ON actor_metrics(metric_key, text_value);
+    CREATE INDEX actor_metrics_bool_idx ON actor_metrics(metric_key, bool_value);
     CREATE INDEX item_records_category_idx ON item_records(item_category);
     CREATE INDEX item_records_price_idx ON item_records(price_cp);
     CREATE INDEX item_records_action_cost_idx ON item_records(action_cost);

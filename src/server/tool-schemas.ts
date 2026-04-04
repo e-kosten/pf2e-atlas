@@ -1,6 +1,10 @@
 import * as z from "zod/v4";
 
 import {
+  ACTOR_METRIC_NUMERIC_OPERATORS,
+  ACTOR_METRIC_SCALAR_OPERATORS,
+} from "../domain/actor-metrics.js";
+import {
   CATEGORY_SUBCATEGORY_MAP,
   SEARCH_CATEGORIES,
   VALID_SEARCH_CATEGORY_LIST,
@@ -127,12 +131,36 @@ const metadataBooleanPredicateSchema = z.object({
   value: z.boolean(),
 }).strict();
 
+const actorMetricPredicateSchema = z.union([
+  z.object({
+    field: z.literal("actorMetric"),
+    metric: z.string(),
+    op: z.enum(ACTOR_METRIC_NUMERIC_OPERATORS),
+    value: z.number(),
+  }).strict(),
+  z.object({
+    field: z.literal("actorMetric"),
+    metric: z.string(),
+    op: z.enum(ACTOR_METRIC_SCALAR_OPERATORS),
+    value: z.union([z.string(), z.boolean()]),
+  }).strict(),
+]);
+
+const actorMetricComparePredicateSchema = z.object({
+  field: z.literal("actorMetricCompare"),
+  leftMetric: z.string(),
+  op: z.enum(ACTOR_METRIC_NUMERIC_OPERATORS),
+  rightMetric: z.string(),
+}).strict();
+
 export const metadataFilterSchema: z.ZodType<MetadataFilterNode> = z.lazy(() => z.union([
   metadataSetPredicateSchema,
   metadataEnumStringPredicateSchema,
   metadataTextStringPredicateSchema,
   metadataNumberPredicateSchema,
   metadataBooleanPredicateSchema,
+  actorMetricPredicateSchema,
+  actorMetricComparePredicateSchema,
   z.object({
     and: z.array(metadataFilterSchema).min(2),
   }).strict(),

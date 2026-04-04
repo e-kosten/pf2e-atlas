@@ -1,3 +1,8 @@
+import type {
+  ActorMetricNumericOperator,
+  ActorMetricScalarOperator,
+} from "./actor-metrics.js";
+
 export const METADATA_SET_FIELDS = [
   "traits",
   "families",
@@ -100,12 +105,35 @@ export type MetadataBooleanPredicate = {
   value: boolean;
 };
 
+export type ActorMetricPredicate =
+  | {
+    field: "actorMetric";
+    metric: string;
+    op: ActorMetricNumericOperator;
+    value: number;
+  }
+  | {
+    field: "actorMetric";
+    metric: string;
+    op: ActorMetricScalarOperator;
+    value: string | boolean;
+  };
+
+export type ActorMetricComparePredicate = {
+  field: "actorMetricCompare";
+  leftMetric: string;
+  op: ActorMetricNumericOperator;
+  rightMetric: string;
+};
+
 export type MetadataPredicate =
   | MetadataSetPredicate
   | MetadataEnumStringPredicate
   | MetadataTextStringPredicate
   | MetadataNumberPredicate
-  | MetadataBooleanPredicate;
+  | MetadataBooleanPredicate
+  | ActorMetricPredicate
+  | ActorMetricComparePredicate;
 
 export type MetadataFilterNode =
   | MetadataPredicate

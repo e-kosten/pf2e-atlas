@@ -388,7 +388,7 @@ export class Pf2eDataService {
   listFilterValues(query: FilterValueQuery): FilterValueResult {
     const normalizedFilters = this.normalizeSearchFilters(query);
     validateFilters(normalizedFilters, "list");
-    return listFilterValuesRuntime(this.db, query.field, normalizedFilters);
+    return listFilterValuesRuntime(this.db, query, normalizedFilters);
   }
 
   close(): void {

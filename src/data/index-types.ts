@@ -1,4 +1,5 @@
 import type {
+  ActorMetricMap,
   PackInfo,
   SearchCategory,
   SearchSubcategory,
@@ -54,6 +55,7 @@ export type NormalizedIndexRecord = {
   immunities: string[];
   resistances: string[];
   weaknesses: string[];
+  actorMetrics: ActorMetricMap;
   rangeValue: number | null;
   searchText: string;
 };
@@ -103,6 +105,7 @@ export type ActorIndexData = {
   immunities: string[];
   resistances: string[];
   weaknesses: string[];
+  actorMetrics: ActorMetricMap;
 };
 
 export type ItemIndexData = {

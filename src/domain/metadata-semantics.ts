@@ -1,4 +1,9 @@
 import { SEARCH_CATEGORIES } from "./categories.js";
+import {
+  ACTOR_METRIC_DISCOVERY_NAMESPACES,
+  ACTOR_METRIC_NUMERIC_OPERATORS,
+  ACTOR_METRIC_SCALAR_OPERATORS,
+} from "./actor-metrics.js";
 import { DERIVED_TAG_CATALOG } from "../tags/index.js";
 import {
   FILTER_VALUE_FIELDS,
@@ -61,6 +66,14 @@ export interface MetadataCategoryExample {
   notes?: string;
 }
 
+export interface MetadataAdvancedPredicateSemantics {
+  name: "actorMetric" | "actorMetricCompare";
+  categories: SearchCategory[];
+  operators: string[];
+  description: string;
+  example: MetadataFilterNode;
+}
+
 export interface MetadataFilterSemantics {
   booleanGroups: Record<"and" | "or" | "not", string>;
   fieldTypes: MetadataFieldTypeGroup[];
@@ -68,6 +81,12 @@ export interface MetadataFilterSemantics {
   metadataFieldsByCategory: Record<SearchCategory, MetadataFieldName[]>;
   metadataFieldsByCategoryAndSubcategory: Partial<Record<SearchCategory, Partial<Record<SearchSubcategory, MetadataFieldName[]>>>>;
   examplesByCategory: Partial<Record<SearchCategory, MetadataCategoryExample[]>>;
+  advancedPredicates: MetadataAdvancedPredicateSemantics[];
+  actorMetricDiscovery?: {
+    filterValueField: string;
+    namespaces: Array<{ prefix: string; description: string }>;
+    notes: string[];
+  };
   discoverableFieldLookupWorkflow: {
     semanticsFirst: string;
     filterValuesSecond: string;
@@ -383,6 +402,33 @@ const EXAMPLES_BY_CATEGORY: Partial<Record<SearchCategory, MetadataCategoryExamp
   ],
 };
 
+const ADVANCED_PREDICATES: MetadataAdvancedPredicateSemantics[] = [
+  {
+    name: "actorMetric",
+    categories: CREATURE_ONLY,
+    operators: [...new Set([...ACTOR_METRIC_NUMERIC_OPERATORS, ...ACTOR_METRIC_SCALAR_OPERATORS])],
+    description: "Generic keyed creature metric predicate for numeric, text, and boolean actor metrics.",
+    example: {
+      field: "actorMetric",
+      metric: "ability.int.mod",
+      op: ">=",
+      value: 4,
+    },
+  },
+  {
+    name: "actorMetricCompare",
+    categories: CREATURE_ONLY,
+    operators: [...ACTOR_METRIC_NUMERIC_OPERATORS],
+    description: "Numeric creature metric comparison between two metric keys on the same record.",
+    example: {
+      field: "actorMetricCompare",
+      leftMetric: "ability.int.mod",
+      op: ">",
+      rightMetric: "ability.cha.mod",
+    },
+  },
+];
+
 function uniqueFieldNames(fields: MetadataFieldName[]): MetadataFieldName[] {
   return fields.filter((field, index, values) => values.indexOf(field) === index);
 }
@@ -459,9 +505,19 @@ export function getMetadataFilterSemantics(): MetadataFilterSemantics {
     metadataFieldsByCategory: buildFieldsByCategory(metadataFields),
     metadataFieldsByCategoryAndSubcategory: buildFieldsByCategoryAndSubcategory(metadataFields),
     examplesByCategory: EXAMPLES_BY_CATEGORY,
+    advancedPredicates: ADVANCED_PREDICATES,
+    actorMetricDiscovery: {
+      filterValueField: "actorMetrics",
+      namespaces: ACTOR_METRIC_DISCOVERY_NAMESPACES.map((entry) => ({ ...entry })),
+      notes: [
+        "Use pf2e_list_filter_values with field:\"actorMetrics\" to enumerate live metric keys in the current corpus.",
+        "Set metricPrefix to narrow discovery to one namespace such as ability., save., skill., or perception.",
+        "Set metric to a text or boolean metric such as save.best or skill.arcana.proficient to enumerate live values.",
+      ],
+    },
     discoverableFieldLookupWorkflow: {
       semanticsFirst: "Call pf2e_get_search_semantics first to learn which metadata fields and operators are meaningful for the target category or subcategory.",
-      filterValuesSecond: "Call pf2e_list_filter_values only for fields marked discoverable:true when you need live corpus values for a chosen field.",
+      filterValuesSecond: "Call pf2e_list_filter_values only for fields marked discoverable:true or for field:\"actorMetrics\" when you need live corpus values for a chosen field or metric namespace.",
     },
   };
 }

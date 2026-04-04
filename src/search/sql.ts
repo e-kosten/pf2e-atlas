@@ -1,5 +1,10 @@
 import {
-  FilterValueField,
+  inferActorMetricValueType,
+  normalizeActorMetricKey,
+  normalizeActorMetricPrefix,
+} from "../domain/actor-metrics.js";
+import {
+  FilterValueQuery,
   NormalizedRecord,
   SearchCategory,
   SearchScope,
@@ -204,6 +209,17 @@ export function buildCandidateQuery(
     "a.immunities_json AS immunitiesJson",
     "a.resistances_json AS resistancesJson",
     "a.weaknesses_json AS weaknessesJson",
+    `COALESCE((
+      SELECT json_group_array(json_object(
+        'metricKey', am.metric_key,
+        'valueType', am.value_type,
+        'numberValue', am.number_value,
+        'textValue', am.text_value,
+        'boolValue', am.bool_value
+      ))
+      FROM actor_metrics am
+      WHERE am.record_key = r.record_key
+    ), '[]') AS actorMetricsJson`,
     "i.item_category AS itemCategory",
     "i.price_cp AS priceCp",
     "i.bulk_value AS bulkValue",
@@ -250,7 +266,12 @@ export function buildCandidateQuery(
   return { sql: sql.join("\n"), params };
 }
 
-export function buildFilterValueQuery(field: FilterValueField, filters: NormalizedSearchFilters): { sql: string; params: SqlValue[] } {
+export function buildFilterValueQuery(query: FilterValueQuery, filters: NormalizedSearchFilters): { sql: string; params: SqlValue[] } {
+  const { field } = query;
+  if (field !== "actorMetrics" && (query.metricPrefix || query.metric)) {
+    throw new Error("metricPrefix and metric are only supported when field is actorMetrics.");
+  }
+
   const joins = [
     "FROM records r",
     "LEFT JOIN actor_records a ON a.record_key = r.record_key",
@@ -260,6 +281,7 @@ export function buildFilterValueQuery(field: FilterValueField, filters: Normaliz
   const sql: string[] = [];
   const params: SqlValue[] = [];
   const postFilterClauses: string[] = [];
+  const postFilterParams: SqlValue[] = [];
   let valueExpression = "";
 
   switch (field) {
@@ -274,6 +296,34 @@ export function buildFilterValueQuery(field: FilterValueField, filters: Normaliz
     case "derivedTags":
       joins.push("JOIN record_derived_tags rdt ON rdt.record_key = r.record_key");
       valueExpression = "rdt.tag";
+      break;
+    case "actorMetrics":
+      joins.push("JOIN actor_metrics am ON am.record_key = r.record_key");
+      if (query.metric) {
+        const normalizedMetric = normalizeActorMetricKey(query.metric);
+        const metricType = inferActorMetricValueType(normalizedMetric);
+        if (!metricType) {
+          throw new Error(`Unknown actor metric "${query.metric}".`);
+        }
+
+        postFilterParams.push(normalizedMetric);
+        postFilterClauses.push("AND am.metric_key = ?");
+        if (metricType === "text") {
+          valueExpression = "am.text_value";
+          postFilterClauses.push("AND am.value_type = 'text' AND am.text_value IS NOT NULL AND am.text_value <> ''");
+        } else if (metricType === "boolean") {
+          valueExpression = "CASE am.bool_value WHEN 1 THEN 'true' ELSE 'false' END";
+          postFilterClauses.push("AND am.value_type = 'boolean' AND am.bool_value IS NOT NULL");
+        } else {
+          throw new Error("actorMetrics value listing only supports text and boolean metrics.");
+        }
+      } else {
+        valueExpression = "am.metric_key";
+        if (query.metricPrefix) {
+          postFilterParams.push(`${normalizeActorMetricPrefix(query.metricPrefix)}%`);
+          postFilterClauses.push("AND am.metric_key LIKE ?");
+        }
+      }
       break;
     case "rarity":
       valueExpression = "r.rarity";
@@ -361,6 +411,7 @@ export function buildFilterValueQuery(field: FilterValueField, filters: Normaliz
     spell: "s",
   });
   sql.push(...postFilterClauses);
+  params.push(...postFilterParams);
   sql.push("GROUP BY value");
   sql.push("ORDER BY count DESC, value ASC");
   return { sql: sql.join("\n"), params };

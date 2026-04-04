@@ -64,6 +64,11 @@ export function registerSearchTools(
               description: "Use grouped boolean predicates for metadata filtering. Prefer top-level category, subcategory, scopes, and numeric bounds before metadata predicates.",
             },
             {
+              name: "actorMetric",
+              strength: "creature metric predicate",
+              description: "Use inside metadata for creature stat, save, and skill filters with symbolic operators such as >= or ==.",
+            },
+            {
               name: "spellKinds",
               strength: "metadata field example",
               description: "Use in metadata predicates for spell refinement such as focus, ritual, or cantrip.",
@@ -127,7 +132,7 @@ export function registerSearchTools(
             },
           },
           filterValueDiscovery: {
-            nonMetadataFields: ["sources", "categories", "subcategories", "packs"],
+            nonMetadataFields: ["sources", "categories", "subcategories", "packs", "actorMetrics"],
             note: "pf2e_list_filter_values enumerates live values for one chosen field. Learn which metadata fields are meaningful from metadataFilters first.",
           },
           heuristicVocabulary: {
@@ -150,6 +155,8 @@ export function registerSearchTools(
         category: searchCategorySchema.optional().describe(CATEGORY_HINT_DESCRIPTION),
         subcategory: searchSubcategorySchema.optional().describe(SUBCATEGORY_HINT_DESCRIPTION),
         scopes: z.array(searchScopeSchema).min(1).optional().describe(SCOPES_HINT_DESCRIPTION),
+        metricPrefix: z.string().optional().describe("Optional actor metric namespace prefix when field is actorMetrics, such as ability., save., skill., or perception."),
+        metric: z.string().optional().describe("Optional specific actor metric key when field is actorMetrics. Text and boolean metrics return live values; otherwise actorMetrics lists keys."),
       },
     },
     async (input) => {
