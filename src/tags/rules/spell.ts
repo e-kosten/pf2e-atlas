@@ -626,8 +626,8 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
       {
         textNear: [
           {
-            all: [patternAnchor("deception"), patternAnchor("lie"), patternAnchor("feint")],
-            window: 6,
+            all: [patternAnchor("mask"), patternAnchor("{{alt(deception,lie,feint)}}")],
+            window: 12,
             scope: "description",
           },
         ],
@@ -669,10 +669,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
           {
             all: [
               patternAnchor("message"),
-              patternAnchor("mental"),
-              patternAnchor("whisper"),
-              patternAnchor("note"),
-              patternAnchor("respond"),
+              patternAnchor("{{alt(mental,whisper,note,respond,response)}}"),
             ],
             window: 6,
             scope: "description",
@@ -730,14 +727,8 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         textNear: [
           {
             all: [
-              patternAnchor("teleport"),
-              patternAnchor("teleports"),
-              patternAnchor("transport"),
-              patternAnchor("transports"),
-              patternAnchor("instantly"),
-              patternAnchor("swap"),
-              patternAnchor("surface"),
-              patternAnchor("water"),
+              patternAnchor("{{alt(teleport,teleports,transport,transports,swap)}}"),
+              patternAnchor("{{alt(instantly,target,creature,you)}}"),
             ],
             window: 6,
             scope: "description",
@@ -761,13 +752,8 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         textNear: [
           {
             all: [
-              patternAnchor("mind"),
-              patternAnchor("mental"),
-              patternAnchor("will"),
-              patternAnchor("terror"),
-              patternAnchor("fear"),
-              patternAnchor("confusion"),
-              patternAnchor("stupefied"),
+              patternAnchor("{{alt(mind,mental,will)}}"),
+              patternAnchor("{{alt(terror,fear,confusion,stupefied)}}"),
             ],
             window: 6,
             scope: "description",
@@ -790,14 +776,8 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         textNear: [
           {
             all: [
-              patternAnchor("blind"),
-              patternAnchor("blinded"),
-              patternAnchor("deaf"),
-              patternAnchor("deafened"),
-              patternAnchor("vision"),
-              patternAnchor("hearing"),
-              patternAnchor("eyes"),
-              patternAnchor("ears"),
+              patternAnchor("{{alt(blind,blinded,deaf,deafened)}}"),
+              patternAnchor("{{alt(vision,hearing,eyes,ears)}}"),
             ],
             window: 6,
             scope: "description",
@@ -820,21 +800,8 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         textNear: [
           {
             all: [
-              patternAnchor("push"),
-              patternAnchor("pushes"),
-              patternAnchor("pull"),
-              patternAnchor("pulls"),
-              patternAnchor("drag"),
-              patternAnchor("drags"),
-              patternAnchor("knock"),
-              patternAnchor("knocks"),
-              patternAnchor("launch"),
-              patternAnchor("launches"),
-              patternAnchor("sweep"),
-              patternAnchor("sweeps"),
-              patternAnchor("target"),
-              patternAnchor("creature"),
-              patternAnchor("foe"),
+              patternAnchor("{{alt(push,pushes,pull,pulls,drag,drags,knock,knocks,launch,launches,sweep,sweeps)}}"),
+              patternAnchor("{{alt(target,creature,foe)}}"),
             ],
             window: 6,
             scope: "description",
@@ -857,15 +824,8 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         textNear: [
           {
             all: [
-              patternAnchor("restrained"),
-              patternAnchor("immobilized"),
-              patternAnchor("grabbed"),
-              patternAnchor("entangle"),
-              patternAnchor("web"),
-              patternAnchor("sticky"),
-              patternAnchor("prison"),
-              patternAnchor("escape"),
-              patternAnchor("trap"),
+              patternAnchor("{{alt(restrained,immobilized,grabbed,entangle,web,sticky,prison,trap)}}"),
+              patternAnchor("{{alt(escape,target,creature)}}"),
             ],
             window: 6,
             scope: "description",
@@ -890,15 +850,8 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         textNear: [
           {
             all: [
-              patternAnchor("fear"),
-              patternAnchor("frightened"),
-              patternAnchor("terror"),
-              patternAnchor("panic"),
-              patternAnchor("dread"),
-              patternAnchor("flee"),
-              patternAnchor("cower"),
-              patternAnchor("target"),
-              patternAnchor("creature"),
+              patternAnchor("{{alt(fear,frightened,terror,panic,dread)}}"),
+              patternAnchor("{{alt(flee,cower,target,creature)}}"),
             ],
             window: 6,
             scope: "description",
@@ -924,14 +877,8 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         textNear: [
           {
             all: [
-              patternAnchor("target"),
-              patternAnchor("creature"),
-              patternAnchor("self"),
-              patternAnchor("ally"),
-              patternAnchor("hidden"),
-              patternAnchor("concealed"),
-              patternAnchor("undetected"),
-              patternAnchor("invisible"),
+              patternAnchor("{{alt(target,creature,self,ally)}}"),
+              patternAnchor("{{alt(hidden,concealed,undetected,invisible)}}"),
             ],
             window: 6,
             scope: "description",
@@ -955,15 +902,8 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         textNear: [
           {
             all: [
-              patternAnchor("line"),
-              patternAnchor("sight"),
-              patternAnchor("vision"),
-              patternAnchor("see"),
-              patternAnchor("obscure"),
-              patternAnchor("darkness"),
-              patternAnchor("fog"),
-              patternAnchor("smoke"),
-              patternAnchor("mist"),
+              patternAnchor("{{alt(line of sight,vision,see)}}"),
+              patternAnchor("{{alt(obscure,darkness,fog,smoke,mist)}}"),
             ],
             window: 7,
             scope: "description",
@@ -984,20 +924,8 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         textNear: [
           {
             all: [
-              patternAnchor("difficult"),
-              patternAnchor("terrain"),
-              patternAnchor("wall"),
-              patternAnchor("barrier"),
-              patternAnchor("cage"),
-              patternAnchor("obstacle"),
-              patternAnchor("obstacles"),
-              patternAnchor("entangle"),
-              patternAnchor("web"),
-              patternAnchor("grease"),
-              patternAnchor("passage"),
-              patternAnchor("prison"),
-              patternAnchor("movement"),
-              patternAnchor("hindering"),
+              patternAnchor("{{alt(difficult terrain,wall,barrier,cage,obstacle,obstacles,entangle,web,grease,passage,prison)}}"),
+              patternAnchor("{{alt(movement,hindering,blocks passage,slow pursuit)}}"),
             ],
             window: 7,
             scope: "description",
@@ -1009,25 +937,8 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         textNear: [
           {
             all: [
-              patternAnchor("wall"),
-              patternAnchor("barrier"),
-              patternAnchor("cage"),
-              patternAnchor("prison"),
-              patternAnchor("cell"),
-            ],
-            window: 7,
-            scope: "description",
-          },
-          {
-            all: [
-              patternAnchor("blocks"),
-              patternAnchor("block"),
-              patternAnchor("trap"),
-              patternAnchor("traps"),
-              patternAnchor("contain"),
-              patternAnchor("contains"),
-              patternAnchor("imprison"),
-              patternAnchor("imprisons"),
+              patternAnchor("{{alt(wall,barrier,cage,prison,cell)}}"),
+              patternAnchor("{{alt(blocks,block,trap,traps,contain,contains,imprison,imprisons)}}"),
             ],
             window: 7,
             scope: "description",
@@ -1048,15 +959,8 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         textNear: [
           {
             all: [
-              patternAnchor("remove"),
-              patternAnchor("cure"),
-              patternAnchor("counteract"),
-              patternAnchor("neutralize"),
-              patternAnchor("purge"),
-              patternAnchor("affliction"),
-              patternAnchor("poison"),
-              patternAnchor("disease"),
-              patternAnchor("curse"),
+              patternAnchor("{{alt(remove,cure,counteract,neutralize,purge)}}"),
+              patternAnchor("{{alt(affliction,poison,disease,curse)}}"),
             ],
             window: 6,
             scope: "description",
@@ -1080,15 +984,8 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         textNear: [
           {
             all: [
-              patternAnchor("escape"),
-              patternAnchor("flee"),
-              patternAnchor("break"),
-              patternAnchor("free"),
-              patternAnchor("slip"),
-              patternAnchor("away"),
-              patternAnchor("teleport"),
-              patternAnchor("freedom"),
-              patternAnchor("movement"),
+              patternAnchor("{{alt(escape,flee,break,free,slip,freedom)}}"),
+              patternAnchor("{{alt(away,grab,restraint,movement,teleport)}}"),
             ],
             window: 6,
             scope: "description",
@@ -1112,13 +1009,8 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         textNear: [
           {
             all: [
-              patternAnchor("water"),
-              patternAnchor("underwater"),
-              patternAnchor("swim"),
-              patternAnchor("breathe"),
-              patternAnchor("breathing"),
-              patternAnchor("surface"),
-              patternAnchor("walk"),
+              patternAnchor("{{alt(water,underwater,swim,surface)}}"),
+              patternAnchor("{{alt(breathe,breathing,walk)}}"),
             ],
             window: 6,
             scope: "description",
@@ -1139,14 +1031,8 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         textNear: [
           {
             all: [
-              patternAnchor("food"),
-              patternAnchor("water"),
-              patternAnchor("ration"),
-              patternAnchor("rations"),
-              patternAnchor("nourish"),
-              patternAnchor("feed"),
-              patternAnchor("sate"),
-              patternAnchor("hunger"),
+              patternAnchor("{{alt(food,water,ration,rations)}}"),
+              patternAnchor("{{alt(nourish,feed,sate,hunger)}}"),
             ],
             window: 6,
             scope: "description",
@@ -1167,15 +1053,8 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         textNear: [
           {
             all: [
-              patternAnchor("shelter"),
-              patternAnchor("sheltered"),
-              patternAnchor("cabin"),
-              patternAnchor("hut"),
-              patternAnchor("tent"),
-              patternAnchor("camp"),
-              patternAnchor("refuge"),
-              patternAnchor("weather"),
-              patternAnchor("elements"),
+              patternAnchor("{{alt(shelter,sheltered,cabin,hut,tent,refuge)}}"),
+              patternAnchor("{{alt(camp,weather,elements,rest)}}"),
             ],
             window: 6,
             scope: "description",
@@ -1196,14 +1075,8 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         textNear: [
           {
             all: [
-              patternAnchor("quickened"),
-              patternAnchor("haste"),
-              patternAnchor("extra"),
-              patternAnchor("additional"),
-              patternAnchor("action"),
-              patternAnchor("reaction"),
-              patternAnchor("ally"),
-              patternAnchor("target"),
+              patternAnchor("{{alt(quickened,haste)}}"),
+              patternAnchor("{{alt(extra action,additional action,ally,target)}}"),
             ],
             window: 6,
             scope: "description",
@@ -1224,7 +1097,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            all: [patternAnchor("form"), patternAnchor("shape"), patternAnchor("body"), patternAnchor("transform"), patternAnchor("change")],
+            all: [patternAnchor("{{alt(form,shape,body)}}"), patternAnchor("{{alt(transform,change)}}")],
             window: 6,
             scope: "description",
           },
@@ -1246,7 +1119,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            all: [patternAnchor("battle"), patternAnchor("form"), patternAnchor("statistics"), patternAnchor("abilities")],
+            all: [patternAnchor("battle"), patternAnchor("form")],
             window: 6,
             scope: "description",
           },
@@ -1268,7 +1141,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            all: [patternAnchor("animal"), patternAnchor("beast"), patternAnchor("pest"), patternAnchor("dinosaur"), patternAnchor("form")],
+            all: [patternAnchor("{{alt(animal,beast,pest,dinosaur)}}"), patternAnchor("form")],
             window: 6,
             scope: "description",
           },
@@ -1290,7 +1163,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            all: [patternAnchor("elemental"), patternAnchor("form"), patternAnchor("battle"), patternAnchor("statistics")],
+            all: [patternAnchor("elemental"), patternAnchor("form")],
             window: 6,
             scope: "description",
           },
@@ -1309,29 +1182,9 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
       { score: 2, textAny: TEMPORARY_HP_SUPPORT_TEXT_ANCHORS },
       {
         score: 2,
-        textNear: [
-          {
-            all: [
-              patternAnchor("temporary"),
-              patternAnchor("hit"),
-              patternAnchor("points"),
-              patternAnchor("buffer"),
-            ],
-            window: 4,
-            scope: "description",
-          },
-          {
-            all: [
-              patternAnchor("gain"),
-              patternAnchor("gains"),
-              patternAnchor("grants"),
-              patternAnchor("granted"),
-              patternAnchor("target"),
-              patternAnchor("creature"),
-            ],
-            window: 6,
-            scope: "description",
-          },
+        textAny: [
+          patternAnchor("{{alt(gain,gains,grant,grants,granted)}} {{gap(4)}} temporary hit points"),
+          patternAnchor("{{alt(gain,gains,grant,grants,granted)}} {{gap(4)}} a buffer of temporary hit points"),
         ],
       },
     ],
@@ -1360,22 +1213,8 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         textNear: [
           {
             all: [
-              patternAnchor("counteract"),
-              patternAnchor("delay"),
-              patternAnchor("free"),
-              patternAnchor("drive"),
-            ],
-            window: 6,
-            scope: "description",
-          },
-          {
-            all: [
-              patternAnchor("condition"),
-              patternAnchor("conditions"),
-              patternAnchor("affliction"),
-              patternAnchor("mobility"),
-              patternAnchor("mind"),
-              patternAnchor("mental"),
+              patternAnchor("{{alt(counteract,delay,free,drive)}}"),
+              patternAnchor("{{alt(condition,conditions,affliction,mobility,mind,mental)}}"),
             ],
             window: 6,
             scope: "description",
@@ -1396,16 +1235,8 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         textNear: [
           {
             all: [
-              patternAnchor("protect"),
-              patternAnchor("shield"),
-              patternAnchor("ward"),
-              patternAnchor("barrier"),
-              patternAnchor("creature"),
-              patternAnchor("target"),
-              patternAnchor("ally"),
-              patternAnchor("allies"),
-              patternAnchor("area"),
-              patternAnchor("self"),
+              patternAnchor("{{alt(protect,shield,ward,barrier)}}"),
+              patternAnchor("{{alt(creature,target,ally,allies,area,self)}}"),
             ],
             window: 6,
             scope: "description",

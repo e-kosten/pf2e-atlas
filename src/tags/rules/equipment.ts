@@ -389,38 +389,8 @@ const EQUIPMENT_IMPACT_PHYSICAL_TEXT_ANCHORS = [
   patternAnchor("weakened"),
 ];
 
-const EQUIPMENT_HOSTILE_DELIVERY_TEXT_NEAR = [
-  {
-    all: [
-      patternAnchor("target"),
-      patternAnchor("creature"),
-      patternAnchor("creatures"),
-      patternAnchor("victim"),
-      patternAnchor("victims"),
-      patternAnchor("foe"),
-      patternAnchor("foes"),
-    ],
-    window: 8,
-    scope: "description" as const,
-  },
-  {
-    all: [
-      patternAnchor("afflicts"),
-      patternAnchor("afflict"),
-      patternAnchor("exposed"),
-      patternAnchor("expose"),
-      patternAnchor("fails its save"),
-      patternAnchor("failed save"),
-      patternAnchor("must attempt"),
-      patternAnchor("must succeed"),
-      patternAnchor("on a failed save"),
-      patternAnchor("poison"),
-      patternAnchor("toxin"),
-    ],
-    window: 8,
-    scope: "description" as const,
-  },
-];
+const EQUIPMENT_HOSTILE_TARGET_TEXT_NEAR = patternAnchor("{{alt(target,creature,creatures,victim,victims,foe,foes)}}");
+const EQUIPMENT_HOSTILE_DELIVERY_TEXT_NEAR = patternAnchor("{{alt(afflicts,afflict,exposed,expose,fails its save,failed save,must attempt,must succeed,on a failed save,poison,toxin,struck,hits,drinks,drink)}}");
 
 const EQUIPMENT_IMPACT_BLOCKER_TEXT_ANCHORS = [
   patternAnchor("you gain"),
@@ -756,7 +726,18 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     threshold: 2,
     anyOf: [
       { score: 2, textAny: EQUIPMENT_IMPACT_MOBILITY_TEXT_ANCHORS },
-      { score: 2, textNear: [...EQUIPMENT_HOSTILE_DELIVERY_TEXT_NEAR, { all: EQUIPMENT_IMPACT_MOBILITY_TEXT_ANCHORS, window: 8, scope: "description" as const }] },
+      {
+        score: 2,
+        textNear: [{
+          all: [
+            EQUIPMENT_HOSTILE_TARGET_TEXT_NEAR,
+            EQUIPMENT_HOSTILE_DELIVERY_TEXT_NEAR,
+            patternAnchor("{{alt(immobilized,restrained,grabbed,slowed,sticks to the ground,stuck to the surface,wrap around its legs,hold a creature in place,encase the target,-10-foot status penalty to its speed,speed penalty)}}"),
+          ],
+          window: 10,
+          scope: "description" as const,
+        }],
+      },
     ],
     noneOf: [
       { textAny: EQUIPMENT_IMPACT_BLOCKER_TEXT_ANCHORS },
@@ -779,7 +760,18 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     threshold: 2,
     anyOf: [
       { score: 2, textAny: EQUIPMENT_IMPACT_SENSORY_TEXT_ANCHORS },
-      { score: 2, textNear: [...EQUIPMENT_HOSTILE_DELIVERY_TEXT_NEAR, { all: EQUIPMENT_IMPACT_SENSORY_TEXT_ANCHORS, window: 8, scope: "description" as const }] },
+      {
+        score: 2,
+        textNear: [{
+          all: [
+            EQUIPMENT_HOSTILE_TARGET_TEXT_NEAR,
+            EQUIPMENT_HOSTILE_DELIVERY_TEXT_NEAR,
+            patternAnchor("{{alt(blinded,blind,dazzled,deafened)}}"),
+          ],
+          window: 10,
+          scope: "description" as const,
+        }],
+      },
     ],
     noneOf: [
       { textAny: EQUIPMENT_IMPACT_BLOCKER_TEXT_ANCHORS },
@@ -802,7 +794,18 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     threshold: 2,
     anyOf: [
       { score: 2, textAny: EQUIPMENT_IMPACT_MENTAL_TEXT_ANCHORS },
-      { score: 2, textNear: [...EQUIPMENT_HOSTILE_DELIVERY_TEXT_NEAR, { all: EQUIPMENT_IMPACT_MENTAL_TEXT_ANCHORS, window: 8, scope: "description" as const }] },
+      {
+        score: 2,
+        textNear: [{
+          all: [
+            EQUIPMENT_HOSTILE_TARGET_TEXT_NEAR,
+            EQUIPMENT_HOSTILE_DELIVERY_TEXT_NEAR,
+            patternAnchor("{{alt(frightened,stupefied,confused,hallucinations,hallucinatory,mental damage,mind control)}}"),
+          ],
+          window: 10,
+          scope: "description" as const,
+        }],
+      },
     ],
     noneOf: [
       { textAny: EQUIPMENT_IMPACT_BLOCKER_TEXT_ANCHORS },
@@ -824,7 +827,18 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     threshold: 2,
     anyOf: [
       { score: 2, textAny: EQUIPMENT_IMPACT_PHYSICAL_TEXT_ANCHORS },
-      { score: 2, textNear: [...EQUIPMENT_HOSTILE_DELIVERY_TEXT_NEAR, { all: EQUIPMENT_IMPACT_PHYSICAL_TEXT_ANCHORS, window: 8, scope: "description" as const }] },
+      {
+        score: 2,
+        textNear: [{
+          all: [
+            EQUIPMENT_HOSTILE_TARGET_TEXT_NEAR,
+            EQUIPMENT_HOSTILE_DELIVERY_TEXT_NEAR,
+            patternAnchor("{{alt(clumsy,drained,enfeebled,fatigued,sickened,weakened)}}"),
+          ],
+          window: 10,
+          scope: "description" as const,
+        }],
+      },
     ],
     noneOf: [
       { textAny: EQUIPMENT_IMPACT_BLOCKER_TEXT_ANCHORS },
@@ -847,7 +861,18 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     threshold: 2,
     anyOf: [
       { score: 2, textAny: EQUIPMENT_IMPACT_SEDATION_TEXT_ANCHORS },
-      { score: 2, textNear: [...EQUIPMENT_HOSTILE_DELIVERY_TEXT_NEAR, { all: EQUIPMENT_IMPACT_SEDATION_TEXT_ANCHORS, window: 8, scope: "description" as const }] },
+      {
+        score: 2,
+        textNear: [{
+          all: [
+            EQUIPMENT_HOSTILE_TARGET_TEXT_NEAR,
+            EQUIPMENT_HOSTILE_DELIVERY_TEXT_NEAR,
+            patternAnchor("{{alt(unconscious,falls asleep,fall asleep,drowsy,drowsiness,lethargic,sleep,can't wake up)}}"),
+          ],
+          window: 10,
+          scope: "description" as const,
+        }],
+      },
     ],
     noneOf: [
       { textAny: EQUIPMENT_IMPACT_BLOCKER_TEXT_ANCHORS },
