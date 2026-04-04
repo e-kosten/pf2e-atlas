@@ -542,6 +542,14 @@ describe("derived tag rules: creature", () => {
     })).not.toContain("living_artwork");
 
     expect(deriveRecordTags({
+      name: "Animated Panoply",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Granted a semblance of life through the use of rituals or other strange magic, animated objects take many forms and serve as guardians.",
+      traits: ["construct", "mindless"],
+    })).not.toContain("living_artwork");
+
+    expect(deriveRecordTags({
       name: "Chaos Reaver",
       category: "creature",
       subcategory: null,
@@ -590,6 +598,22 @@ describe("derived tag rules: creature", () => {
       descriptionText: "Astradaemons hunt the pathways between life and death and stalk the banks of the River of Souls in the Astral Plane.",
       traits: ["daemon", "fiend", "unholy"],
     })).not.toEqual(expect.arrayContaining(["freshwater_setting", "aquatic_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Sakugami",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Kami are divine nature spirits from the lands of Tian Xia, far to the east of the Inner Sea region.",
+      traits: ["kami", "spirit", "wood"],
+    })).not.toEqual(expect.arrayContaining(["freshwater_setting", "aquatic_setting", "undead_adjacent"]));
+
+    expect(deriveRecordTags({
+      name: "Blossom Kami",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "The site of a new village might be chosen due to its proximity to an ancient wisteria, or a temple might be carefully constructed around a single young plum.",
+      traits: ["kami", "spirit", "wood"],
+    })).not.toEqual(expect.arrayContaining(["living_artwork", "mountain_setting", "rural_setting", "spawn_creator", "undead_adjacent"]));
 
     expect(deriveRecordTags({
       name: "Bleachling Survivor",
@@ -710,6 +734,22 @@ describe("derived tag rules: creature", () => {
       descriptionText: "A watchful spirit stalks an ancient hall guarded by silent echoes.",
       traits: [],
     })).not.toContain("ruins_setting");
+
+    expect(deriveRecordTags({
+      name: "Generic Drake",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Ravenous, bestial, and driven by instinct, drakes are draconic monsters. A single rampage of river drakes can quickly lay waste to a waterside village, and roving rampages of desert drakes are a plague to caravan traders. While it is generally easy for breeders to incubate the eggs of desert or jungle drakes or river drakes, many societies do not condone the trade of drake eggs and criminalize those who engage in it.",
+      traits: ["dragon"],
+    })).not.toEqual(expect.arrayContaining(["desert_setting", "forest_setting", "rural_setting", "spawn_creator", "urban_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Divine Punisher",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Such creatures are drawn to target not a single misbehaving follower, but entire villages, cities, or towns that have turned their backs on their gods.",
+      traits: ["dragon"],
+    })).not.toEqual(expect.arrayContaining(["rural_setting", "urban_setting"]));
   });
 
   it("derives animated object and animated statue tags without promoting the family name", () => {

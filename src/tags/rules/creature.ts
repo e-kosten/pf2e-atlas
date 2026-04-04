@@ -13,9 +13,9 @@ import {
   FIRST_WORLD_SETTING_CONTEXT_TEXT_ANCHORS,
   FIRST_WORLD_SETTING_TEXT_ANCHORS,
   FRESHWATER_SETTING_BLOCKER_TEXT_ANCHORS,
-  FRESHWATER_SETTING_HABITAT_TEXT_NEAR,
   FRESHWATER_SETTING_NAME_ANCHORS,
   FRESHWATER_SETTING_STRONG_TEXT_ANCHORS,
+  FRESHWATER_SETTING_TEXT_ANCHORS,
   STRONG_PROFESSION_NAME_ANCHORS,
   UNDEAD_GLOSSARY_FAMILIES,
   WEAK_PROFESSION_NAME_ANCHORS,
@@ -355,13 +355,85 @@ const TRICKSTER_CHAOS_TEXT_ANCHORS = [
   patternAnchor("play tricks"),
 ];
 
+const FOREST_SETTING_NAME_ANCHORS = [
+  patternAnchor("forest", "name"),
+  patternAnchor("jungle", "name"),
+  patternAnchor("grove", "name"),
+  patternAnchor("woodland", "name"),
+];
+
+const FOREST_SETTING_CORE_TEXT_ANCHORS = [
+  patternAnchor("forest"),
+  patternAnchor("forests"),
+  patternAnchor("woodland"),
+  patternAnchor("woodlands"),
+  patternAnchor("woods"),
+  patternAnchor("grove"),
+  patternAnchor("groves"),
+  patternAnchor("briar"),
+  patternAnchor("jungle"),
+  patternAnchor("jungles"),
+  patternAnchor("rainforest"),
+  patternAnchor("thicket"),
+  patternAnchor("thickets"),
+  patternAnchor("underbrush"),
+];
+
+const FOREST_SETTING_SUPPORT_TEXT_ANCHORS = [
+  patternAnchor("canopy"),
+  patternAnchor("canopies"),
+  patternAnchor("treetop"),
+  patternAnchor("treetops"),
+  patternAnchor("arboreal"),
+  patternAnchor("old growth"),
+  patternAnchor("bough"),
+  patternAnchor("boughs"),
+];
+
+const DESERT_SETTING_NAME_ANCHORS = [
+  patternAnchor("desert", "name"),
+  patternAnchor("dune", "name"),
+  patternAnchor("sand", "name"),
+];
+
+const DESERT_SETTING_CORE_TEXT_ANCHORS = [
+  patternAnchor("desert"),
+  patternAnchor("deserts"),
+  patternAnchor("dune"),
+  patternAnchor("dunes"),
+  patternAnchor("sand"),
+  patternAnchor("arid"),
+];
+
+const DESERT_SETTING_SUPPORT_TEXT_ANCHORS = [
+  patternAnchor("cliff"),
+  patternAnchor("cliffs"),
+  patternAnchor("mesa"),
+  patternAnchor("mesas"),
+  patternAnchor("oasis"),
+  patternAnchor("oases"),
+  patternAnchor("nest"),
+  patternAnchor("nests"),
+  patternAnchor("lair"),
+  patternAnchor("lairs"),
+  patternAnchor("burrow"),
+  patternAnchor("burrows"),
+  patternAnchor("burrowing"),
+  patternAnchor("roam"),
+  patternAnchor("roams"),
+  patternAnchor("roaming"),
+  patternAnchor("perch"),
+  patternAnchor("perches"),
+  patternAnchor("perched"),
+  patternAnchor("home"),
+  patternAnchor("homes"),
+];
+
 const RURAL_SETTING_NAME_ANCHORS = [
   patternAnchor("scarecrow", "name"),
 ];
 
 const RURAL_SETTING_TEXT_ANCHORS = [
-  patternAnchor("village"),
-  patternAnchor("villages"),
   patternAnchor("hamlet"),
   patternAnchor("hamlets"),
   patternAnchor("farm"),
@@ -399,6 +471,19 @@ const RURAL_SETTING_BLOCKER_TEXT_NEAR = [
     scope: "description" as const,
     minTermsMatched: 2,
   },
+];
+
+const URBAN_SETTING_BLOCKER_TEXT_ANCHORS = [
+  patternAnchor("market price"),
+];
+
+const URBAN_SETTING_SETTLEMENT_LIST_TEXT_ANCHORS = [
+  patternAnchor("village"),
+  patternAnchor("villages"),
+  patternAnchor("city"),
+  patternAnchor("cities"),
+  patternAnchor("town"),
+  patternAnchor("towns"),
 ];
 
 const CIVIC_SUPPORT_TEXT_ANCHORS = [
@@ -526,17 +611,12 @@ const SPAWN_CREATOR_TEXT_ANCHORS = [
   patternAnchor("brood"),
   patternAnchor("brood mother"),
   patternAnchor("broods"),
-  patternAnchor("hatch"),
-  patternAnchor("hatches"),
-  patternAnchor("hatching"),
   patternAnchor("implant eggs"),
   patternAnchor("implants eggs"),
-  patternAnchor("eggs"),
   patternAnchor("lay eggs in"),
   patternAnchor("lays eggs in"),
   patternAnchor("bursts from the host"),
   patternAnchor("offspring"),
-  patternAnchor("young"),
   patternAnchor("infest"),
   patternAnchor("infests"),
   patternAnchor("turn victims into"),
@@ -619,7 +699,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     tag: "undead_adjacent",
     category: "creature",
     anyOf: [
-      { traitsAny: ["undead", "ghost", "spirit", "skeleton", "ghoul"] },
+      { traitsAny: ["undead", "ghost", "skeleton", "ghoul"] },
       { familiesAny: UNDEAD_GLOSSARY_FAMILIES },
     ],
   },
@@ -722,7 +802,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     ],
     anyOf: [
       { score: 2, textAny: FRESHWATER_SETTING_STRONG_TEXT_ANCHORS },
-      { score: 2, textNear: FRESHWATER_SETTING_HABITAT_TEXT_NEAR },
+      { score: 1, textAny: FRESHWATER_SETTING_TEXT_ANCHORS },
       { score: 1, textAny: FRESHWATER_SETTING_NAME_ANCHORS },
       { score: 1, traitsAny: ["water"] },
     ],
@@ -731,6 +811,9 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     tag: "aquatic_setting",
     category: "creature",
     threshold: 2,
+    noneOf: [
+      { textAny: [patternAnchor("inner sea")] },
+    ],
     anyOf: [
       { score: 3, traitsAny: ["water", "aquatic", "amphibious"] },
       { score: 2, textAny: AQUATIC_SETTING_STRONG_TEXT_ANCHORS },
@@ -844,33 +927,11 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "forest_setting",
     category: "creature",
+    threshold: 2,
     anyOf: [
-      {
-        textAny: [
-          patternAnchor("forest"),
-          patternAnchor("forests"),
-          patternAnchor("woodland"),
-          patternAnchor("woodlands"),
-          patternAnchor("woods"),
-          patternAnchor("grove"),
-          patternAnchor("groves"),
-          patternAnchor("briar"),
-          patternAnchor("jungle"),
-          patternAnchor("jungles"),
-          patternAnchor("rainforest"),
-          patternAnchor("thicket"),
-          patternAnchor("thickets"),
-          patternAnchor("underbrush"),
-          patternAnchor("canopy"),
-          patternAnchor("canopies"),
-          patternAnchor("treetop"),
-          patternAnchor("treetops"),
-          patternAnchor("arboreal"),
-          patternAnchor("old growth"),
-          patternAnchor("bough"),
-          patternAnchor("boughs"),
-        ],
-      },
+      { score: 1, textAny: FOREST_SETTING_NAME_ANCHORS },
+      { score: 1, textAny: FOREST_SETTING_CORE_TEXT_ANCHORS },
+      { score: 1, textAny: FOREST_SETTING_SUPPORT_TEXT_ANCHORS },
     ],
   },
   {
@@ -976,6 +1037,10 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "urban_setting",
     category: "creature",
+    noneOf: [
+      { textAny: URBAN_SETTING_BLOCKER_TEXT_ANCHORS },
+      { textAny: URBAN_SETTING_SETTLEMENT_LIST_TEXT_ANCHORS, minTextAnyMatches: 2 },
+    ],
     anyOf: [
       {
         textAny: [
@@ -986,8 +1051,6 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
           patternAnchor("streets"),
           patternAnchor("alley"),
           patternAnchor("alleys"),
-          patternAnchor("market"),
-          patternAnchor("markets"),
           patternAnchor("sewer"),
           patternAnchor("sewers"),
           patternAnchor("town"),
@@ -1020,8 +1083,11 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "desert_setting",
     category: "creature",
+    threshold: 2,
     anyOf: [
-      { textAny: [patternAnchor("desert"), patternAnchor("deserts"), patternAnchor("dune"), patternAnchor("dunes"), patternAnchor("sand"), patternAnchor("arid")] },
+      { score: 1, textAny: DESERT_SETTING_NAME_ANCHORS },
+      { score: 1, textAny: DESERT_SETTING_CORE_TEXT_ANCHORS },
+      { score: 1, textAny: DESERT_SETTING_SUPPORT_TEXT_ANCHORS },
     ],
   },
   {
@@ -1045,7 +1111,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     tag: "mountain_setting",
     category: "creature",
     anyOf: [
-      { textAny: [patternAnchor("mountain"), patternAnchor("mountains"), patternAnchor("cliff"), patternAnchor("cliffs"), patternAnchor("peak"), patternAnchor("peaks"), patternAnchor("crag"), patternAnchor("crags"), patternAnchor("alp"), patternAnchor("alpine"), patternAnchor("pass"), patternAnchor("passes"), patternAnchor("ridge"), patternAnchor("ridges"), patternAnchor("highlands"), patternAnchor("foothills"), patternAnchor("slope"), patternAnchor("slopes"), patternAnchor("escarpment"), patternAnchor("bluff"), patternAnchor("bluffs")] },
+      { textAny: [patternAnchor("mountain"), patternAnchor("mountains"), patternAnchor("cliff"), patternAnchor("cliffs"), patternAnchor("peak"), patternAnchor("peaks"), patternAnchor("crag"), patternAnchor("crags"), patternAnchor("alp"), patternAnchor("alpine"), patternAnchor("mountain pass"), patternAnchor("mountain passes"), patternAnchor("ridge"), patternAnchor("ridges"), patternAnchor("highlands"), patternAnchor("foothills"), patternAnchor("slope"), patternAnchor("slopes"), patternAnchor("escarpment"), patternAnchor("bluff"), patternAnchor("bluffs")] },
     ],
   },
   {
@@ -1307,7 +1373,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
       { score: 2, textAny: LIVING_ARTWORK_NAME_ANCHORS },
       { score: 2, textAny: LIVING_ARTWORK_TEXT_ANCHORS },
       {
-        score: 2,
+        score: 1,
         textNear: [
           {
             terms: [
@@ -1325,6 +1391,11 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
             scope: "description",
             minTermsMatched: 2,
           },
+        ],
+      },
+      {
+        score: 1,
+        textNear: [
           {
             terms: [
               patternAnchor("comes to life"),

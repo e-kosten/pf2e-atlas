@@ -160,6 +160,7 @@ const FRESHWATER_SETTING_NAME_ANCHORS: TextAnchor[] = [
 ];
 
 const FRESHWATER_SETTING_BLOCKER_TEXT_ANCHORS: TextAnchor[] = [
+  patternAnchor("inner sea"),
   patternAnchor("river kingdom"),
   patternAnchor("river kingdoms"),
   patternAnchor("river of souls"),
