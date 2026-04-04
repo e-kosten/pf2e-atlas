@@ -1,0 +1,4 @@
+interface:
+  display_name: "PF2E Tag Overfit Audit"
+  short_description: "Audit dense derived-tag false positives"
+  default_prompt: "Use $pf2e-derived-tag-overfit-audit to inspect densely tagged PF2E records for likely false-positive or overfit derived tags."
