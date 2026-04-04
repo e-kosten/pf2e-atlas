@@ -267,6 +267,9 @@ const SPELL_FORCED_MOVEMENT_TEXT_ANCHORS = [
   patternAnchor("drag each target directly toward you"),
   patternAnchor("knocks it back"),
   patternAnchor("knocked back"),
+  patternAnchor("launching nearby creatures into the sky"),
+  patternAnchor("pulls creatures toward the center"),
+  patternAnchor("pushes creatures away"),
   patternAnchor("pushes the target"),
   patternAnchor("pulls the target"),
   patternAnchor("move the target"),
@@ -412,6 +415,7 @@ const BATTLEFIELD_DISRUPTION_NAME_ANCHORS = [
 ];
 
 const BATTLEFIELD_DISRUPTION_TEXT_ANCHORS = [
+  patternAnchor("cage"),
   patternAnchor("difficult terrain"),
   patternAnchor("blocks passage"),
   patternAnchor("block passage"),
@@ -424,13 +428,25 @@ const BATTLEFIELD_DISRUPTION_TEXT_ANCHORS = [
   patternAnchor("web"),
   patternAnchor("sticky web"),
   patternAnchor("immobile illusory walls"),
+  patternAnchor("lock creatures inside"),
   patternAnchor("false prison"),
+  patternAnchor("surround the target"),
   patternAnchor("trap it inside"),
   patternAnchor("trapping it inside"),
   patternAnchor("grease"),
   patternAnchor("spike growth"),
   patternAnchor("creates a barrier"),
   patternAnchor("impassable"),
+  patternAnchor("wall of force"),
+  patternAnchor("wall of stone"),
+];
+
+const TEMPORARY_HP_SUPPORT_TEXT_ANCHORS = [
+  patternAnchor("gain temporary hit points"),
+  patternAnchor("gains temporary hit points"),
+  patternAnchor("temporary hit points"),
+  patternAnchor("temporary hp"),
+  patternAnchor("buffer of temporary hit points"),
 ];
 
 const AFFLICTION_CLEANUP_NAME_ANCHORS = [
@@ -800,6 +816,8 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
               patternAnchor("drags"),
               patternAnchor("knock"),
               patternAnchor("knocks"),
+              patternAnchor("launch"),
+              patternAnchor("launches"),
               patternAnchor("sweep"),
               patternAnchor("sweeps"),
               patternAnchor("target"),
@@ -963,14 +981,48 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
               patternAnchor("terrain"),
               patternAnchor("wall"),
               patternAnchor("barrier"),
+              patternAnchor("cage"),
               patternAnchor("obstacle"),
               patternAnchor("obstacles"),
               patternAnchor("entangle"),
               patternAnchor("web"),
               patternAnchor("grease"),
               patternAnchor("passage"),
+              patternAnchor("prison"),
               patternAnchor("movement"),
               patternAnchor("hindering"),
+            ],
+            window: 7,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+        ],
+      },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              patternAnchor("wall"),
+              patternAnchor("barrier"),
+              patternAnchor("cage"),
+              patternAnchor("prison"),
+              patternAnchor("cell"),
+            ],
+            window: 7,
+            scope: "description",
+            minTermsMatched: 1,
+          },
+          {
+            terms: [
+              patternAnchor("blocks"),
+              patternAnchor("block"),
+              patternAnchor("trap"),
+              patternAnchor("traps"),
+              patternAnchor("contain"),
+              patternAnchor("contains"),
+              patternAnchor("imprison"),
+              patternAnchor("imprisons"),
             ],
             window: 7,
             scope: "description",
@@ -1253,6 +1305,46 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
     ],
     noneOf: [
       { textAny: TRANSFORMATION_BLOCKER_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "temporary_hp_support",
+    category: "spell",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: TEMPORARY_HP_SUPPORT_TEXT_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              patternAnchor("temporary"),
+              patternAnchor("hit"),
+              patternAnchor("points"),
+              patternAnchor("buffer"),
+            ],
+            window: 4,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+          {
+            terms: [
+              patternAnchor("gain"),
+              patternAnchor("gains"),
+              patternAnchor("grants"),
+              patternAnchor("granted"),
+              patternAnchor("target"),
+              patternAnchor("creature"),
+            ],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+        ],
+      },
+    ],
+    noneOf: [
+      { textAny: BATTLE_FORM_TEXT_ANCHORS },
     ],
   },
   {

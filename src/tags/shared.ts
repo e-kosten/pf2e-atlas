@@ -24,18 +24,30 @@ const DISGUISE_SUBCATEGORIES: SearchSubcategory[] = [...GEARISH_SUBCATEGORIES, "
 const TRACKING_SUBCATEGORIES: SearchSubcategory[] = [...GEARISH_SUBCATEGORIES, "consumable"];
 
 const STRONG_PROFESSION_NAME_ANCHORS: TextAnchor[] = [
+  patternAnchor("abbot", "name"),
+  patternAnchor("apothecary", "name"),
+  patternAnchor("barkeep", "name"),
   patternAnchor("captain", "name"),
   patternAnchor("commoner", "name"),
   patternAnchor("courtier", "name"),
+  patternAnchor("diplomat", "name"),
   patternAnchor("guard", "name"),
+  patternAnchor("jailer", "name"),
+  patternAnchor("librarian", "name"),
   patternAnchor("scout", "name"),
   patternAnchor("sailor", "name"),
   patternAnchor("merchant", "name"),
+  patternAnchor("physician", "name"),
+  patternAnchor("porter", "name"),
+  patternAnchor("professor", "name"),
   patternAnchor("priest", "name"),
   patternAnchor("noble", "name"),
   patternAnchor("prophet", "name"),
   patternAnchor("advisor", "name"),
   patternAnchor("acolyte", "name"),
+  patternAnchor("teacher", "name"),
+  patternAnchor("technician", "name"),
+  patternAnchor("translator", "name"),
   patternAnchor("vigilante", "name"),
   patternAnchor("watch officer", "name"),
   patternAnchor("watchmage", "name"),
@@ -46,6 +58,7 @@ const STRONG_PROFESSION_NAME_ANCHORS: TextAnchor[] = [
 const WEAK_PROFESSION_NAME_ANCHORS: TextAnchor[] = [
   patternAnchor("agent", "name"),
   patternAnchor("apprentice", "name"),
+  patternAnchor("chemist", "name"),
   patternAnchor("hunter", "name"),
   patternAnchor("enforcer", "name"),
   patternAnchor("officer", "name"),
@@ -532,6 +545,14 @@ const HAZARD_FORCED_MOVEMENT_TEXT_ANCHORS: TextAnchor[] = [
   patternAnchor("pulls creatures toward"),
   patternAnchor("pushes creatures"),
   patternAnchor("sweeps creatures away"),
+  patternAnchor("push it back"),
+  patternAnchor("hurling them into"),
+  patternAnchor("dragging them underwater"),
+  patternAnchor("drag them underground"),
+  patternAnchor("pull them into the machinery"),
+  patternAnchor("pull someone down into the water"),
+  patternAnchor("knocking people into the pit"),
+  patternAnchor("slide around the room"),
 ];
 
 const ALARM_NAME_ANCHORS: TextAnchor[] = [

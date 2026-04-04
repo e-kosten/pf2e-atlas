@@ -77,6 +77,7 @@ export const SPELL_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
       { value: "protective_ward", description: "Places a ward, sanctuary, shield, or protective boundary." },
       { value: "death_prevention", description: "Prevents death, stabilizes the dying, or brings a creature back from the brink." },
       { value: "resistance_support", description: "Grants resistance or immunity against energy, damage, or hazards." },
+      { value: "temporary_hp_support", description: "Grants temporary Hit Points or similar buffer protection instead of restoring lost Hit Points." },
     ],
   },
   {

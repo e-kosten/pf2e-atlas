@@ -380,10 +380,26 @@ describe("derived tag rules: creature", () => {
     })).toEqual(expect.arrayContaining(["profession_npc", "civic_npc"]));
 
     expect(deriveRecordTags({
+      name: "Traveling Apothecary",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A respected apothecary and physician who serves the community by treating the sick.",
+      traits: ["human", "humanoid"],
+    })).toContain("profession_npc");
+
+    expect(deriveRecordTags({
       name: "Adjutant Hellknight Armiger",
       category: "creature",
       subcategory: null,
       descriptionText: "An adjutant and armiger who fights alongside the order in disciplined battle formations.",
+      traits: ["human", "humanoid"],
+    })).toContain("combatant_npc");
+
+    expect(deriveRecordTags({
+      name: "Hellknight Sergeant",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "The sergeant leads disciplined enforcers in brutal close-quarters battle.",
       traits: ["human", "humanoid"],
     })).toContain("combatant_npc");
 
@@ -722,6 +738,14 @@ describe("derived tag rules: creature", () => {
     })).toContain("animated_object");
 
     expect(deriveRecordTags({
+      name: "Scarecrow",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "This cruel construct is an animated scarecrow stuffed with spite and propped in a lonely field.",
+      traits: ["construct", "mindless"],
+    })).toContain("animated_object");
+
+    expect(deriveRecordTags({
       name: "Giant Animated Statue",
       category: "creature",
       subcategory: null,
@@ -859,6 +883,22 @@ describe("derived tag rules: creature", () => {
       category: "creature",
       subcategory: null,
       descriptionText: "An ambush predator that constricts prey, swallows whole, and drags prey into the marsh.",
+      traits: ["animal"],
+    })).toContain("ambush_grabber");
+
+    expect(deriveRecordTags({
+      name: "Crypt Sentinel",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A tireless guardian lurks within the tomb's lower crypts and watches over the buried dead.",
+      traits: ["construct"],
+    })).toContain("graveyard_setting");
+
+    expect(deriveRecordTags({
+      name: "Canopy Snatcher",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Lying in wait among the branches, this predator snatches prey and carries off struggling victims into the canopy.",
       traits: ["animal"],
     })).toContain("ambush_grabber");
 

@@ -22,6 +22,7 @@ export const EQUIPMENT_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
       { value: "senses_support", description: "Improves vision or other senses." },
       { value: "energy_resistance", description: "Grants resistance against one or more energy types." },
       { value: "buff_support", description: "Provides a general beneficial enhancement or bonus." },
+      { value: "fortune_support", description: "Improves a creature's odds with rerolls, better-result effects, or failure rescue." },
     ],
   },
   {
@@ -83,6 +84,7 @@ export const EQUIPMENT_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
       { value: "mobility_impairment", description: "Impairs movement through slowing, restraining, sticking, or immobilizing effects." },
       { value: "sensory_impairment", description: "Impairs sight, hearing, or other senses through blinding, dazzling, or deafening effects." },
       { value: "mental_impairment", description: "Impairs thought, judgment, composure, or behavior through fear, confusion, or similar effects." },
+      { value: "physical_debilitation", description: "Weakens the body through drained vitality, sickness, fatigue, clumsiness, or similar bodily degradation." },
       { value: "sedation", description: "Induces sleep, lethargy, unconsciousness, or similar incapacitating drowsiness." },
     ],
   },

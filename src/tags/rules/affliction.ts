@@ -32,6 +32,7 @@ const AFFLICTION_COGNITIVE_IMPAIRMENT_TEXT_ANCHORS = [
   patternAnchor("befuddle a target"),
   patternAnchor("addles the mind"),
   patternAnchor("cognitive impairment"),
+  patternAnchor("stupefied"),
 ];
 
 const AFFLICTION_SENSORY_IMPAIRMENT_TEXT_ANCHORS = [
@@ -160,6 +161,7 @@ const AFFLICTION_RESPIRATORY_IMPAIRMENT_NAME_ANCHORS = [
 
 const AFFLICTION_RESPIRATORY_IMPAIRMENT_TEXT_ANCHORS = [
   patternAnchor("{{alt(can't, cannot)}} breathe"),
+  patternAnchor("unable to breathe"),
   patternAnchor("suffocate"),
   patternAnchor("suffocates"),
   patternAnchor("fill lungs"),
@@ -177,6 +179,9 @@ const AFFLICTION_TRANSFORMATIVE_CORRUPTION_TEXT_ANCHORS = [
   patternAnchor("slowly turns into crystal"),
   patternAnchor("turns into crystal"),
   patternAnchor("turn into crystal"),
+  patternAnchor("soft tissues harden"),
+  patternAnchor("turn the victim s lungs into a soft jelly"),
+  patternAnchor("turns the victim s lungs into a soft jelly"),
   patternAnchor("turns into a plant"),
   patternAnchor("turns into plant matter"),
   patternAnchor("turns into fungus"),
@@ -267,6 +272,15 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
               patternAnchor("weakness"),
             ],
             window: 6,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+          {
+            terms: [
+              patternAnchor("stage"),
+              patternAnchor("stupefied"),
+            ],
+            window: 4,
             scope: "description",
             minTermsMatched: 2,
           },
@@ -388,6 +402,7 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
             terms: [
               patternAnchor("breathe"),
               patternAnchor("breathing"),
+              patternAnchor("unable"),
               patternAnchor("lungs"),
               patternAnchor("water"),
               patternAnchor("suffocate"),
@@ -541,8 +556,13 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
               patternAnchor("transformation"),
               patternAnchor("mutates"),
               patternAnchor("body"),
+              patternAnchor("flesh"),
+              patternAnchor("skin"),
+              patternAnchor("lungs"),
+              patternAnchor("tissues"),
               patternAnchor("crystal"),
               patternAnchor("crystalline"),
+              patternAnchor("petrified"),
               patternAnchor("sprout"),
               patternAnchor("bloom"),
               patternAnchor("plant"),
@@ -551,10 +571,11 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
               patternAnchor("root"),
               patternAnchor("roots"),
               patternAnchor("bark"),
+              patternAnchor("jelly"),
             ],
-            window: 6,
+            window: 8,
             scope: "description",
-            minTermsMatched: 2,
+            minTermsMatched: 3,
           },
         ],
       },

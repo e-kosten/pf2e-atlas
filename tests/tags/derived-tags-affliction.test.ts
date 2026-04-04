@@ -93,6 +93,14 @@ describe("derived tag rules: affliction", () => {
     })).toContain("cognitive_impairment");
 
     expect(deriveRecordTags({
+      name: "Scholar's Bane",
+      category: "affliction",
+      subcategory: "curse",
+      descriptionText: "Stage 1 distracted. Stage 2 stupefied 2 as the victim's thoughts turn to mud.",
+      traits: ["curse", "mental"],
+    })).toContain("cognitive_impairment");
+
+    expect(deriveRecordTags({
       name: "Cytillesh Oil",
       category: "affliction",
       subcategory: "poison",

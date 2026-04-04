@@ -7,6 +7,8 @@ export const HAZARD_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
     description: "Hazards whose threat comes from trigger mechanisms, locking thresholds, control surfaces, or planar breaches.",
     tags: [
       { value: "ward_trigger", description: "Hazard triggered by a rune, glyph, sigil, ward, or similar inscribed mechanism." },
+      { value: "pressure_trigger", description: "Hazard triggered by stepping on, weighing down, or depressing a pressure surface." },
+      { value: "tripwire_trigger", description: "Hazard triggered by tugging, crossing, or disturbing a tripwire." },
       { value: "threshold_lockdown", description: "Hazard that seals, locks, or bars a threshold, doorway, or gate." },
       { value: "control_interface", description: "Hazard operated through a button, lever, console, panel, switch, or similar control surface." },
       { value: "planar_breach", description: "Hazard centered on a portal, rift, tear, breach, or other unstable opening in reality." },
@@ -82,6 +84,7 @@ export const HAZARD_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
     description: "Hazards categorized by how their attack is delivered into the scene.",
     tags: [
       { value: "overhead_strike", description: "Hazard that drops, crashes, or attacks from the ceiling or another overhead position." },
+      { value: "projectile_emitter", description: "Hazard that fires bolts, beams, jets, sprays, or similar directed emissions from a fixed emitter." },
     ],
   },
 ];

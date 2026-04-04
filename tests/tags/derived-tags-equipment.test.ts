@@ -77,6 +77,14 @@ describe("derived tag rules: equipment", () => {
       descriptionText: "Once activated, the mask sharpens odors, giving you imprecise scent with a 60-foot range.",
       traits: ["alchemical", "consumable"],
     })).toEqual(expect.arrayContaining(["beneficial", "senses_support", "self_buff"]));
+
+    expect(deriveRecordTags({
+      name: "Navigator's Fortune",
+      category: "equipment",
+      subcategory: "consumable",
+      descriptionText: "When you drink this cordial, you roll twice on your next Sense Direction check and take the better result as a fortune effect.",
+      traits: ["consumable", "magical"],
+    })).toEqual(expect.arrayContaining(["beneficial", "fortune_support", "self_buff"]));
   });
 
   it("derives expanded gear-purpose and communication tags", () => {
@@ -103,6 +111,14 @@ describe("derived tag rules: equipment", () => {
       descriptionText: "A lantern with a compass hood used to illuminate ruins and track your heading underground.",
       traits: [],
     })).toEqual(expect.arrayContaining(["illumination", "navigation"]));
+
+    expect(deriveRecordTags({
+      name: "Sunsteel Shield",
+      category: "equipment",
+      subcategory: "shield",
+      descriptionText: "When raised, the shield sheds bright light and illuminates the area around you.",
+      traits: ["magical"],
+    })).toContain("illumination");
 
     expect(deriveRecordTags({
       name: "Navigator's Star",
@@ -811,6 +827,14 @@ describe("derived tag rules: equipment", () => {
     })).toEqual(expect.arrayContaining(["offensive", "ingested_offense", "sedation"]));
 
     expect(deriveRecordTags({
+      name: "Debilitating Draught",
+      category: "equipment",
+      subcategory: "consumable",
+      descriptionText: "A creature that drinks the draught must attempt a Fortitude save. On a failed save, the target becomes sickened 2 and fatigued.",
+      traits: ["consumable"],
+    })).toContain("physical_debilitation");
+
+    expect(deriveRecordTags({
       name: "Dreamer's Tonic",
       category: "equipment",
       subcategory: "consumable",
@@ -866,6 +890,14 @@ describe("derived tag rules: equipment", () => {
       subcategory: "gear",
       descriptionText: "It can even save your life if you fall overboard, and while wearing it you gain a swim Speed.",
       traits: ["invested", "magical"],
+    })).toContain("aquatic_support");
+
+    expect(deriveRecordTags({
+      name: "Diving Harness",
+      category: "equipment",
+      subcategory: "gear",
+      descriptionText: "This reinforced diving suit keeps you afloat and lets you breathe underwater during long underwater travel.",
+      traits: ["magical"],
     })).toContain("aquatic_support");
 
     expect(deriveRecordTags({

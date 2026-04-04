@@ -208,8 +208,10 @@ const HAZARD_NAVIGATION_DISRUPTION_TEXT_ANCHORS = [
 ];
 
 const HAZARD_OVERHEAD_STRIKE_NAME_ANCHORS = [
+  patternAnchor("falling chandelier", "name"),
   patternAnchor("falling debris", "name"),
   patternAnchor("falling crates", "name"),
+  patternAnchor("pendulum blades", "name"),
   patternAnchor("rockfall ceiling", "name"),
   patternAnchor("deadfall", "name"),
   patternAnchor("falling ceiling", "name"),
@@ -217,12 +219,38 @@ const HAZARD_OVERHEAD_STRIKE_NAME_ANCHORS = [
 
 const HAZARD_OVERHEAD_STRIKE_TEXT_ANCHORS = [
   patternAnchor("ceiling"),
+  patternAnchor("chandelier"),
   patternAnchor("crashes down"),
   patternAnchor("dropped on"),
   patternAnchor("from above"),
   patternAnchor("held up by"),
+  patternAnchor("pendulum"),
   patternAnchor("slats in the ceiling open"),
   patternAnchor("bundle of boulders"),
+];
+
+const HAZARD_PROJECTILE_EMITTER_NAME_ANCHORS = [
+  patternAnchor("ballista trap", "name"),
+  patternAnchor("dart launcher", "name"),
+  patternAnchor("flame projector", "name"),
+  patternAnchor("turret", "name"),
+];
+
+const HAZARD_PROJECTILE_EMITTER_TEXT_ANCHORS = [
+  patternAnchor("ballista"),
+  patternAnchor("bolt launcher"),
+  patternAnchor("dart launcher"),
+  patternAnchor("fires darts"),
+  patternAnchor("fixed weapon"),
+  patternAnchor("flame jet"),
+  patternAnchor("flame projector"),
+  patternAnchor("launches bolts"),
+  patternAnchor("launches spears"),
+  patternAnchor("mounted cannon"),
+  patternAnchor("nozzle"),
+  patternAnchor("projector"),
+  patternAnchor("sprays flames"),
+  patternAnchor("turret"),
 ];
 
 const HAUNT_LIFE_DRAIN_TEXT_ANCHORS = [
@@ -305,6 +333,9 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
           patternAnchor("when a creature crosses"),
           patternAnchor("crosses the threshold"),
           patternAnchor("crosses the ward"),
+          patternAnchor("hidden rune"),
+          patternAnchor("invisible rune"),
+          patternAnchor("etched rune"),
           patternAnchor("upon being disturbed"),
           patternAnchor("set off the rune"),
           patternAnchor("set off the glyph"),
@@ -357,6 +388,102 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
     ],
     noneOf: [
       { textAny: [patternAnchor("protective ward"), patternAnchor("warding bell"), patternAnchor("warded against")] },
+    ],
+  },
+  {
+    tag: "pressure_trigger",
+    category: "hazard",
+    threshold: 2,
+    anyOf: [
+      {
+        score: 2,
+        textAny: [
+          patternAnchor("pressure plate"),
+          patternAnchor("pressure plates"),
+          patternAnchor("pressure-sensitive"),
+          patternAnchor("pressure sensitive"),
+          patternAnchor("stepping on the plate"),
+          patternAnchor("when stepped on"),
+        ],
+      },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              patternAnchor("pressure"),
+              patternAnchor("plate"),
+              patternAnchor("plates"),
+              patternAnchor("floor panel"),
+              patternAnchor("stone tile"),
+            ],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+          {
+            terms: [
+              patternAnchor("step"),
+              patternAnchor("steps"),
+              patternAnchor("stepped"),
+              patternAnchor("trigger"),
+              patternAnchor("triggered"),
+              patternAnchor("depresses"),
+              patternAnchor("pressed"),
+            ],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+        ],
+      },
+    ],
+  },
+  {
+    tag: "tripwire_trigger",
+    category: "hazard",
+    threshold: 2,
+    anyOf: [
+      {
+        score: 2,
+        textAny: [
+          patternAnchor("tripwire"),
+          patternAnchor("trip wire"),
+          patternAnchor("tension wire"),
+          patternAnchor("taut wire"),
+        ],
+      },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              patternAnchor("wire"),
+              patternAnchor("cord"),
+              patternAnchor("line"),
+              patternAnchor("tripwire"),
+            ],
+            window: 5,
+            scope: "description",
+            minTermsMatched: 1,
+          },
+          {
+            terms: [
+              patternAnchor("trip"),
+              patternAnchor("trips"),
+              patternAnchor("snag"),
+              patternAnchor("snags"),
+              patternAnchor("cross"),
+              patternAnchor("crosses"),
+              patternAnchor("trigger"),
+              patternAnchor("triggered"),
+            ],
+            window: 5,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+        ],
+      },
     ],
   },
   {
@@ -1371,7 +1498,9 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
               patternAnchor("overhead"),
               patternAnchor("above"),
               patternAnchor("beam"),
+              patternAnchor("chandelier"),
               patternAnchor("rope pulley"),
+              patternAnchor("pendulum"),
               patternAnchor("fall"),
               patternAnchor("falls"),
               patternAnchor("falling"),
@@ -1392,6 +1521,50 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
     ],
     noneOf: [
       { textAny: [patternAnchor("floor collapses"), patternAnchor("drop a creature"), patternAnchor("drops a creature"), patternAnchor("pit")] },
+    ],
+  },
+  {
+    tag: "projectile_emitter",
+    category: "hazard",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: HAZARD_PROJECTILE_EMITTER_NAME_ANCHORS },
+      { score: 2, textAny: HAZARD_PROJECTILE_EMITTER_TEXT_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              patternAnchor("turret"),
+              patternAnchor("launcher"),
+              patternAnchor("projector"),
+              patternAnchor("emitter"),
+              patternAnchor("nozzle"),
+              patternAnchor("ballista"),
+              patternAnchor("cannon"),
+            ],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 1,
+          },
+          {
+            terms: [
+              patternAnchor("fires"),
+              patternAnchor("launches"),
+              patternAnchor("sprays"),
+              patternAnchor("shoots"),
+              patternAnchor("emits"),
+              patternAnchor("bolt"),
+              patternAnchor("dart"),
+              patternAnchor("flame"),
+              patternAnchor("projectile"),
+            ],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+        ],
+      },
     ],
   },
   {

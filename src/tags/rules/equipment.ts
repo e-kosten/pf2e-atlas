@@ -248,20 +248,34 @@ const EQUIPMENT_SUSTENANCE_BLOCKER_TEXT_ANCHORS = [
 ];
 
 const EQUIPMENT_AQUATIC_SUPPORT_NAME_ANCHORS = [
+  patternAnchor("diving", "name"),
   patternAnchor("pontoon", "name"),
   patternAnchor("rowboat", "name"),
   patternAnchor("sailor", "name"),
+  patternAnchor("submersible", "name"),
 ];
 
 const EQUIPMENT_AQUATIC_SUPPORT_TEXT_ANCHORS = [
+  patternAnchor("boat"),
+  patternAnchor("boats"),
   patternAnchor("breathe underwater"),
+  patternAnchor("diving suit"),
   patternAnchor("swim speed"),
   patternAnchor("fall overboard"),
+  patternAnchor("keeps you afloat"),
+  patternAnchor("navigate a vessel"),
+  patternAnchor("propels you through the water"),
+  patternAnchor("raft"),
+  patternAnchor("sailing ship"),
   patternAnchor("surface of water"),
   patternAnchor("move from sea to land"),
   patternAnchor("sailing vessel"),
+  patternAnchor("sea voyage"),
+  patternAnchor("shipboard"),
+  patternAnchor("submersible"),
   patternAnchor("protects you from drowning"),
   patternAnchor("underwater site"),
+  patternAnchor("underwater travel"),
 ];
 
 const EQUIPMENT_AQUATIC_SUPPORT_BLOCKER_TEXT_ANCHORS = [
@@ -344,6 +358,50 @@ const EQUIPMENT_IMPACT_SEDATION_TEXT_ANCHORS = [
   patternAnchor("lethargic"),
   patternAnchor("sleep"),
   patternAnchor("can t wake up"),
+];
+
+const EQUIPMENT_IMPACT_PHYSICAL_TEXT_ANCHORS = [
+  patternAnchor("clumsy"),
+  patternAnchor("drained"),
+  patternAnchor("enfeebled"),
+  patternAnchor("fatigued"),
+  patternAnchor("sickened"),
+  patternAnchor("weakened"),
+];
+
+const EQUIPMENT_HOSTILE_DELIVERY_TEXT_NEAR = [
+  {
+    terms: [
+      patternAnchor("target"),
+      patternAnchor("creature"),
+      patternAnchor("creatures"),
+      patternAnchor("victim"),
+      patternAnchor("victims"),
+      patternAnchor("foe"),
+      patternAnchor("foes"),
+    ],
+    window: 8,
+    scope: "description" as const,
+    minTermsMatched: 1,
+  },
+  {
+    terms: [
+      patternAnchor("afflicts"),
+      patternAnchor("afflict"),
+      patternAnchor("exposed"),
+      patternAnchor("expose"),
+      patternAnchor("fails its save"),
+      patternAnchor("failed save"),
+      patternAnchor("must attempt"),
+      patternAnchor("must succeed"),
+      patternAnchor("on a failed save"),
+      patternAnchor("poison"),
+      patternAnchor("toxin"),
+    ],
+    window: 8,
+    scope: "description" as const,
+    minTermsMatched: 2,
+  },
 ];
 
 const EQUIPMENT_IMPACT_BLOCKER_TEXT_ANCHORS = [
@@ -455,8 +513,12 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
           patternAnchor("resistance to"),
           patternAnchor("gain a bonus"),
           patternAnchor("bolsters the drinker"),
+          patternAnchor("better result"),
+          patternAnchor("reroll"),
+          patternAnchor("roll twice"),
           patternAnchor("steady the emotions"),
           patternAnchor("see in the dark"),
+          patternAnchor("fortune effect"),
         ],
       },
     ],
@@ -550,12 +612,30 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     ],
   },
   {
+    tag: "fortune_support",
+    category: "equipment",
+    subcategories: ["consumable"],
+    requiresTags: ["beneficial"],
+    anyOf: [
+      {
+        textAny: [
+          patternAnchor("better result"),
+          patternAnchor("reroll"),
+          patternAnchor("roll twice"),
+          patternAnchor("fortune effect"),
+          patternAnchor("treat your failure as a success"),
+          patternAnchor("upgrade the result"),
+        ],
+      },
+    ],
+  },
+  {
     tag: "self_buff",
     category: "equipment",
     subcategories: ["consumable"],
     requiresTags: ["beneficial"],
     anyOf: [
-      { textAny: [patternAnchor("you gain"), patternAnchor("the drinker gains"), patternAnchor("gain a bonus"), patternAnchor("you become"), patternAnchor("you gain resistance"), patternAnchor("you gain darkvision"), patternAnchor("protects you against"), patternAnchor("when you drink"), patternAnchor("drinking this"), patternAnchor("spreading the salve on exposed skin"), patternAnchor("grants you"), patternAnchor("giving you")] },
+      { textAny: [patternAnchor("you gain"), patternAnchor("the drinker gains"), patternAnchor("gain a bonus"), patternAnchor("you become"), patternAnchor("you gain resistance"), patternAnchor("you gain darkvision"), patternAnchor("protects you against"), patternAnchor("when you drink"), patternAnchor("after you drink"), patternAnchor("upon drinking"), patternAnchor("drinking this"), patternAnchor("spreading the salve on exposed skin"), patternAnchor("after applying"), patternAnchor("grants you"), patternAnchor("giving you")] },
     ],
   },
   {
@@ -564,7 +644,7 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     subcategories: ["consumable"],
     requiresTags: ["beneficial"],
     anyOf: [
-      { textAny: [patternAnchor("target gains"), patternAnchor("an ally gains"), patternAnchor("creature that drinks gains"), patternAnchor("the drinker gains")] },
+      { textAny: [patternAnchor("target gains"), patternAnchor("target regains"), patternAnchor("an ally gains"), patternAnchor("creature gains"), patternAnchor("creature regains"), patternAnchor("creature that drinks gains"), patternAnchor("the drinker gains"), patternAnchor("applied to a creature"), patternAnchor("the wearer gains")] },
     ],
   },
   {
@@ -637,6 +717,7 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     threshold: 2,
     anyOf: [
       { score: 2, textAny: EQUIPMENT_IMPACT_MOBILITY_TEXT_ANCHORS },
+      { score: 2, textNear: [...EQUIPMENT_HOSTILE_DELIVERY_TEXT_NEAR, { terms: EQUIPMENT_IMPACT_MOBILITY_TEXT_ANCHORS, window: 8, scope: "description" as const, minTermsMatched: 1 }] },
     ],
     noneOf: [
       { textAny: EQUIPMENT_IMPACT_BLOCKER_TEXT_ANCHORS },
@@ -659,6 +740,7 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     threshold: 2,
     anyOf: [
       { score: 2, textAny: EQUIPMENT_IMPACT_SENSORY_TEXT_ANCHORS },
+      { score: 2, textNear: [...EQUIPMENT_HOSTILE_DELIVERY_TEXT_NEAR, { terms: EQUIPMENT_IMPACT_SENSORY_TEXT_ANCHORS, window: 8, scope: "description" as const, minTermsMatched: 1 }] },
     ],
     noneOf: [
       { textAny: EQUIPMENT_IMPACT_BLOCKER_TEXT_ANCHORS },
@@ -681,6 +763,29 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     threshold: 2,
     anyOf: [
       { score: 2, textAny: EQUIPMENT_IMPACT_MENTAL_TEXT_ANCHORS },
+      { score: 2, textNear: [...EQUIPMENT_HOSTILE_DELIVERY_TEXT_NEAR, { terms: EQUIPMENT_IMPACT_MENTAL_TEXT_ANCHORS, window: 8, scope: "description" as const, minTermsMatched: 1 }] },
+    ],
+    noneOf: [
+      { textAny: EQUIPMENT_IMPACT_BLOCKER_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "physical_debilitation",
+    category: "equipment",
+    subcategories: ["ammo"],
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: EQUIPMENT_IMPACT_PHYSICAL_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "physical_debilitation",
+    category: "equipment",
+    subcategories: ["consumable"],
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: EQUIPMENT_IMPACT_PHYSICAL_TEXT_ANCHORS },
+      { score: 2, textNear: [...EQUIPMENT_HOSTILE_DELIVERY_TEXT_NEAR, { terms: EQUIPMENT_IMPACT_PHYSICAL_TEXT_ANCHORS, window: 8, scope: "description" as const, minTermsMatched: 1 }] },
     ],
     noneOf: [
       { textAny: EQUIPMENT_IMPACT_BLOCKER_TEXT_ANCHORS },
@@ -703,6 +808,7 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     threshold: 2,
     anyOf: [
       { score: 2, textAny: EQUIPMENT_IMPACT_SEDATION_TEXT_ANCHORS },
+      { score: 2, textNear: [...EQUIPMENT_HOSTILE_DELIVERY_TEXT_NEAR, { terms: EQUIPMENT_IMPACT_SEDATION_TEXT_ANCHORS, window: 8, scope: "description" as const, minTermsMatched: 1 }] },
     ],
     noneOf: [
       { textAny: EQUIPMENT_IMPACT_BLOCKER_TEXT_ANCHORS },
@@ -794,6 +900,27 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     subcategories: GEARISH_SUBCATEGORIES,
     anyOf: [
       { textAny: [patternAnchor("light"), patternAnchor("illumination"), patternAnchor("lantern"), patternAnchor("torch"), patternAnchor("glow"), patternAnchor("illuminate")] },
+    ],
+  },
+  {
+    tag: "illumination",
+    category: "equipment",
+    subcategories: ["armor", "shield", "weapon", "consumable"],
+    threshold: 2,
+    anyOf: [
+      {
+        score: 2,
+        textAny: [
+          patternAnchor("bright light"),
+          patternAnchor("shed light"),
+          patternAnchor("sheds light"),
+          patternAnchor("glows brightly"),
+          patternAnchor("gives off light"),
+          patternAnchor("illuminates the area"),
+          patternAnchor("emit light"),
+          patternAnchor("emits light"),
+        ],
+      },
     ],
   },
   {

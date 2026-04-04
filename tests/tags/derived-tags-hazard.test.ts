@@ -21,6 +21,30 @@ describe("derived tag rules: hazard", () => {
     })).toContain("ward_trigger");
 
     expect(deriveRecordTags({
+      name: "Hidden Ward Sigil",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "An etched rune lies hidden in the stone and flares when disturbed.",
+      traits: ["magical", "trap"],
+    })).toContain("ward_trigger");
+
+    expect(deriveRecordTags({
+      name: "Pressure Plate Launcher",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "Stepping on the pressure plate depresses the floor panel and triggers a volley of darts.",
+      traits: ["mechanical", "trap"],
+    })).toContain("pressure_trigger");
+
+    expect(deriveRecordTags({
+      name: "Tripwire Spear Rack",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "A taut wire across the corridor trips intruders and triggers a spring-loaded spear rack.",
+      traits: ["mechanical", "trap"],
+    })).toContain("tripwire_trigger");
+
+    expect(deriveRecordTags({
       name: "Warding Bell",
       category: "hazard",
       subcategory: null,
@@ -449,6 +473,22 @@ describe("derived tag rules: hazard", () => {
       descriptionText: "A load of rocks, held up by a rope pulley, is dropped on the cavern's lower level from the ceiling above.",
       traits: ["mechanical", "trap"],
     })).toContain("overhead_strike");
+
+    expect(deriveRecordTags({
+      name: "Murder Chandelier",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "The chandelier overhead crashes down from above when the support chain is cut.",
+      traits: ["mechanical", "trap"],
+    })).toContain("overhead_strike");
+
+    expect(deriveRecordTags({
+      name: "Clockwork Ballista",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "A fixed ballista turret fires bolts down the hallway whenever the mechanism is triggered.",
+      traits: ["mechanical", "trap"],
+    })).toContain("projectile_emitter");
 
     expect(deriveRecordTags({
       name: "Hall of Mirrors",

@@ -376,6 +376,14 @@ describe("derived tag rules: spell", () => {
     })).toContain("forced_movement");
 
     expect(deriveRecordTags({
+      name: "Stormlift",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "A spiraling vortex forms, launching nearby creatures into the sky before dropping them back to the ground.",
+      traits: ["air"],
+    })).toContain("forced_movement");
+
+    expect(deriveRecordTags({
       name: "Phantom Prison",
       category: "spell",
       subcategory: null,
@@ -455,6 +463,14 @@ describe("derived tag rules: spell", () => {
       subcategory: null,
       descriptionText: "The area becomes difficult terrain, and tangled vines block passage and slow pursuit.",
       traits: ["plant"],
+    })).toContain("battlefield_disruption");
+
+    expect(deriveRecordTags({
+      name: "Force Cage",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You create a rigid cage of force that traps creatures inside and blocks passage through the area.",
+      traits: ["force"],
     })).toContain("battlefield_disruption");
 
     expect(deriveRecordTags({
@@ -624,6 +640,14 @@ describe("derived tag rules: spell", () => {
       descriptionText: "The hymn restores hit points and grants fast healing to the target.",
       traits: ["healing"],
     })).toContain("healing_support");
+
+    expect(deriveRecordTags({
+      name: "False Vitality",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "The spell grants the target temporary hit points, surrounding them with a buffer of temporary hit points.",
+      traits: ["necromancy"],
+    })).toContain("temporary_hp_support");
 
     expect(deriveRecordTags({
       name: "Merciful Renewal",
