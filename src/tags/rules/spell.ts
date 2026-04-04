@@ -664,6 +664,23 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
     anyOf: [
       { score: 2, textAny: MESSAGE_DELIVERY_SPELL_NAME_ANCHORS },
       { score: 2, textAny: MESSAGE_DELIVERY_TEXT_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              patternAnchor("message"),
+              patternAnchor("mental"),
+              patternAnchor("whisper"),
+              patternAnchor("note"),
+              patternAnchor("respond"),
+            ],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+        ],
+      },
     ],
     noneOf: [
       { textAny: MESSAGE_DELIVERY_BLOCKER_TEXT_ANCHORS },

@@ -497,6 +497,46 @@ describe("derived tag rules: hazard", () => {
       descriptionText: "Among the many mirrored reflections lurk trapped souls that cause wounds to appear on reflected creatures.",
       traits: ["haunt", "magical"],
     })).not.toContain("spawned_attackers");
+
+    expect(deriveRecordTags({
+      name: "Guardian Mural",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "One of the carvings on the mural suddenly animates and clambers out of the painting to become a real creature in the middle of the chamber.",
+      traits: ["magical", "trap"],
+    })).toContain("spawned_attackers");
+
+    expect(deriveRecordTags({
+      name: "Spear Launcher",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "An old heavy crossbow is hidden in a pile of trash, loaded with a wooden spear, and connected to the rope holding the door.",
+      traits: ["mechanical", "trap"],
+    })).toContain("projectile_emitter");
+
+    expect(deriveRecordTags({
+      name: "Angazhan's Rake Trap",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "Six metal talons concealed in the walls swing out and rake across the room.",
+      traits: ["mechanical", "trap"],
+    })).toContain("projectile_emitter");
+
+    expect(deriveRecordTags({
+      name: "Distortion Mirror",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "Fun-house mirrors distort a viewer's reflection, painfully reshaping their body to match what appears in the reflected images.",
+      traits: ["magical", "trap"],
+    })).toContain("illusion_assault");
+
+    expect(deriveRecordTags({
+      name: "Confounding Portal",
+      category: "hazard",
+      subcategory: null,
+      descriptionText: "Tiny runes carved around a doorframe confound creatures into circling the room or hallway they attempted to exit.",
+      traits: ["magical"],
+    })).not.toContain("illusion_assault");
   });
 
   it("derives haunt manifestation and consequence tags", () => {

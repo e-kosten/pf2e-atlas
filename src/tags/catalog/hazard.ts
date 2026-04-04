@@ -76,6 +76,7 @@ export const HAZARD_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
     description: "Hazards that distort routes, orientation, or the perceived layout of a space.",
     tags: [
       { value: "navigation_disruption", description: "Hazard that confounds routes, loops intruders, or scrambles navigation through distorted perception." },
+      { value: "illusion_assault", description: "Hazard that attacks through deceptive reflections, phantasms, or other hostile illusion-driven distortions." },
     ],
   },
   {

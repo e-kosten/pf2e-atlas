@@ -275,6 +275,28 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
     },
   });
 
+  await writeJson(path.join(packRoot, "spells", "sending.json"), {
+    _id: "spell-sending-1",
+    name: "Sending",
+    type: "spell",
+    system: {
+      description: {
+        value: "<p>You send the creature a mental message of 25 words or fewer, and it can respond immediately with its own message of 25 words or fewer.</p>",
+      },
+      level: {
+        value: 5,
+      },
+      publication: {
+        title: "Pathfinder Player Core",
+      },
+      traits: {
+        rarity: "common",
+        traditions: ["arcane", "divine", "occult"],
+        value: ["concentrate", "linguistic", "mental"],
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "spells", "sanctuary-circle.json"), {
     _id: "spell-sanctuary-circle-1",
     name: "Sanctuary Circle",
@@ -532,6 +554,24 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
       traits: {
         rarity: "common",
         value: ["disease"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "afflictions", "mind-rotting-toxin.json"), {
+    _id: "affliction-mind-rotting-toxin-1",
+    name: "Mind-Rotting Toxin",
+    type: "affliction",
+    system: {
+      description: {
+        value: "<p>This toxin clouds the mind and leaves the victim stupefied with fractured thoughts.</p>",
+      },
+      publication: {
+        title: "Pathfinder Lost Omens",
+      },
+      traits: {
+        rarity: "common",
+        value: ["poison"],
       },
     },
   });

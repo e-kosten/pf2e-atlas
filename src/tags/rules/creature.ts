@@ -125,6 +125,7 @@ const MASK_MOTIF_NAME_ANCHORS = [
 ];
 
 const MASK_MOTIF_TEXT_ANCHORS = [
+  patternAnchor("masks"),
   patternAnchor("wears a mask"),
   patternAnchor("wearing a mask"),
   patternAnchor("masked face"),
@@ -152,6 +153,7 @@ const FACELESS_HORROR_TEXT_ANCHORS = [
   patternAnchor("face gone"),
   patternAnchor("stolen face"),
   patternAnchor("stolen faces"),
+  patternAnchor("variant faceless butcher"),
   patternAnchor("featureless face"),
   patternAnchor("blank face"),
   patternAnchor("empty face"),

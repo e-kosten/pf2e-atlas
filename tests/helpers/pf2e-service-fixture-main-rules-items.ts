@@ -1030,6 +1030,42 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     },
   });
 
+  await writeJson(path.join(packRoot, "equipment-srd", "cane-pistol.json"), {
+    _id: "weapon-cane-pistol-1",
+    name: "Cane Pistol",
+    type: "weapon",
+    system: {
+      description: {
+        value: "<p>This fashionable cane's handle hides a dueling pistol fired through the thin, painted cap at the bottom of the cane.</p>",
+      },
+      publication: {
+        title: "Pathfinder Guns & Gears",
+      },
+      traits: {
+        rarity: "common",
+        value: [],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment-srd", "fortunes-coin.json"), {
+    _id: "gear-fortunes-coin-1",
+    name: "Fortune's Coin",
+    type: "equipment",
+    system: {
+      description: {
+        value: "<p>While it may seem nothing more than a curiosity, this coin becomes a powerful agent of fortune when activated.</p><p>If you fail a check or attack, flip the coin. On a lucky result, you get a 12 on the die instead.</p>",
+      },
+      publication: {
+        title: "Pathfinder Treasure Vault",
+      },
+      traits: {
+        rarity: "uncommon",
+        value: ["invested", "magical"],
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "equipment-srd", "elemental-ammunition.json"), {
     _id: "ammo-elemental-ammunition-1",
     name: "Elemental Ammunition",
@@ -1043,6 +1079,24 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
       },
       traits: {
         rarity: "common",
+        value: ["ammunition"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment-srd", "disintegration-bolt.json"), {
+    _id: "ammo-disintegration-bolt-1",
+    name: "Disintegration Bolt",
+    type: "ammo",
+    system: {
+      description: {
+        value: "<p>When an activated disintegration bolt hits a target, it is subject to a disintegrate spell requiring a Fortitude save.</p>",
+      },
+      publication: {
+        title: "Pathfinder Treasure Vault",
+      },
+      traits: {
+        rarity: "rare",
         value: ["ammunition"],
       },
     },

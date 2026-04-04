@@ -27,14 +27,17 @@ const STRONG_PROFESSION_NAME_ANCHORS: TextAnchor[] = [
   patternAnchor("abbot", "name"),
   patternAnchor("apothecary", "name"),
   patternAnchor("barkeep", "name"),
+  patternAnchor("battlepriest", "name"),
   patternAnchor("captain", "name"),
   patternAnchor("commoner", "name"),
   patternAnchor("courtier", "name"),
   patternAnchor("diplomat", "name"),
+  patternAnchor("forgepriest", "name"),
   patternAnchor("guard", "name"),
   patternAnchor("jailer", "name"),
   patternAnchor("librarian", "name"),
   patternAnchor("scout", "name"),
+  patternAnchor("scribe", "name"),
   patternAnchor("sailor", "name"),
   patternAnchor("merchant", "name"),
   patternAnchor("physician", "name"),
@@ -56,12 +59,14 @@ const STRONG_PROFESSION_NAME_ANCHORS: TextAnchor[] = [
 ];
 
 const WEAK_PROFESSION_NAME_ANCHORS: TextAnchor[] = [
+  patternAnchor("acrobat", "name"),
   patternAnchor("agent", "name"),
   patternAnchor("apprentice", "name"),
   patternAnchor("chemist", "name"),
   patternAnchor("hunter", "name"),
   patternAnchor("enforcer", "name"),
   patternAnchor("officer", "name"),
+  patternAnchor("singer", "name"),
   patternAnchor("warden", "name"),
   patternAnchor("caretaker", "name"),
   patternAnchor("logger", "name"),
@@ -624,17 +629,24 @@ const MESSAGE_DELIVERY_SPELL_NAME_ANCHORS: TextAnchor[] = [
 ];
 
 const MESSAGE_DELIVERY_TEXT_ANCHORS: TextAnchor[] = [
+  patternAnchor("attach a small object or note"),
+  patternAnchor("carry a message"),
+  patternAnchor("delivers its whisper quiet message"),
   patternAnchor("send a message"),
+  patternAnchor("send the creature a mental message"),
   patternAnchor("record a message"),
+  patternAnchor("respond immediately with its own message"),
   patternAnchor("write a message"),
   patternAnchor("message bearer"),
   patternAnchor("messages can be coded"),
   patternAnchor("brief response"),
   patternAnchor("communicate telepathically"),
+  patternAnchor("mental message"),
   patternAnchor("message is one way"),
   patternAnchor("shared dream"),
   patternAnchor("communicate with one another"),
   patternAnchor("message up to"),
+  patternAnchor("whisper a secret message"),
 ];
 
 const MESSAGE_DELIVERY_BLOCKER_TEXT_ANCHORS: TextAnchor[] = [

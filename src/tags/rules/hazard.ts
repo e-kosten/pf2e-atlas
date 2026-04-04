@@ -185,6 +185,12 @@ const HAZARD_SPAWNED_ATTACKERS_NAME_ANCHORS = [
 ];
 
 const HAZARD_SPAWNED_ATTACKERS_TEXT_ANCHORS = [
+  patternAnchor("animate into"),
+  patternAnchor("animates and clambers out of the painting"),
+  patternAnchor("become a real creature"),
+  patternAnchor("becomes a real creature"),
+  patternAnchor("clockwork humanoid figures"),
+  patternAnchor("move throughout the area"),
   patternAnchor("summons"),
   patternAnchor("calls forth"),
   patternAnchor("conjures"),
@@ -231,26 +237,47 @@ const HAZARD_OVERHEAD_STRIKE_TEXT_ANCHORS = [
 
 const HAZARD_PROJECTILE_EMITTER_NAME_ANCHORS = [
   patternAnchor("ballista trap", "name"),
+  patternAnchor("dart barrage", "name"),
   patternAnchor("dart launcher", "name"),
   patternAnchor("flame projector", "name"),
+  patternAnchor("hail of darts", "name"),
+  patternAnchor("spear launcher", "name"),
+  patternAnchor("spike thrower", "name"),
   patternAnchor("turret", "name"),
 ];
 
 const HAZARD_PROJECTILE_EMITTER_TEXT_ANCHORS = [
   patternAnchor("ballista"),
   patternAnchor("bolt launcher"),
+  patternAnchor("ceiling mounted darts"),
   patternAnchor("dart launcher"),
+  patternAnchor("dart loaded pipes"),
+  patternAnchor("expel darts"),
   patternAnchor("fires darts"),
   patternAnchor("fixed weapon"),
   patternAnchor("flame jet"),
   patternAnchor("flame projector"),
   patternAnchor("launches bolts"),
   patternAnchor("launches spears"),
+  patternAnchor("loaded with a wooden spear"),
   patternAnchor("mounted cannon"),
   patternAnchor("nozzle"),
+  patternAnchor("pepper the chamber"),
   patternAnchor("projector"),
+  patternAnchor("rake across the room"),
+  patternAnchor("spring loaded tubes"),
   patternAnchor("sprays flames"),
   patternAnchor("turret"),
+];
+
+const HAZARD_ILLUSION_ASSAULT_TEXT_ANCHORS = [
+  patternAnchor("assaults trespassers with terrible illusions"),
+  patternAnchor("distort a viewer s reflection"),
+  patternAnchor("painfully reshaping their body"),
+  patternAnchor("reflection in the mirror subtly twists and distorts"),
+  patternAnchor("reflected images"),
+  patternAnchor("reflects the viewer s deepest desires"),
+  patternAnchor("twists and distorts"),
 ];
 
 const HAUNT_LIFE_DRAIN_TEXT_ANCHORS = [
@@ -1484,6 +1511,50 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
     ],
   },
   {
+    tag: "illusion_assault",
+    category: "hazard",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: HAZARD_ILLUSION_ASSAULT_TEXT_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            terms: [
+              patternAnchor("illusion"),
+              patternAnchor("illusions"),
+              patternAnchor("mirror"),
+              patternAnchor("mirrors"),
+              patternAnchor("reflection"),
+              patternAnchor("reflections"),
+              patternAnchor("phantasm"),
+            ],
+            window: 6,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+          {
+            terms: [
+              patternAnchor("assault"),
+              patternAnchor("distort"),
+              patternAnchor("distorts"),
+              patternAnchor("malice"),
+              patternAnchor("desires"),
+              patternAnchor("reshape"),
+              patternAnchor("reshaping"),
+            ],
+            window: 8,
+            scope: "description",
+            minTermsMatched: 1,
+          },
+        ],
+      },
+    ],
+    noneOf: [
+      { textAny: HAZARD_SPAWNED_ATTACKERS_TEXT_ANCHORS },
+    ],
+  },
+  {
     tag: "overhead_strike",
     category: "hazard",
     threshold: 2,
@@ -1557,6 +1628,8 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
               patternAnchor("bolt"),
               patternAnchor("dart"),
               patternAnchor("flame"),
+              patternAnchor("spear"),
+              patternAnchor("spike"),
               patternAnchor("projectile"),
             ],
             window: 6,

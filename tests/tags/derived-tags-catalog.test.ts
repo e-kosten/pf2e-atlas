@@ -36,6 +36,7 @@ describe("derived tag catalog", () => {
           expect.objectContaining({ value: "creature_bane", description: expect.any(String) }),
           expect.objectContaining({ value: "elemental_payload", description: expect.any(String) }),
           expect.objectContaining({ value: "explosive_payload", description: expect.any(String) }),
+          expect.objectContaining({ value: "spell_payload", description: expect.any(String) }),
         ]),
       }),
       expect.objectContaining({
@@ -259,6 +260,7 @@ describe("derived tag catalog", () => {
         family: "perception_control",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "navigation_disruption", description: expect.any(String) }),
+          expect.objectContaining({ value: "illusion_assault", description: expect.any(String) }),
         ]),
       }),
       expect.objectContaining({

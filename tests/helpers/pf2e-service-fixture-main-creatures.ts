@@ -919,6 +919,78 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
     },
   });
 
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "tree-singer.json"), {
+    _id: "tree-singer",
+    name: "Tree Singer",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 9,
+        },
+        publication: {
+          title: "Pathfinder Lost Omens",
+        },
+        publicNotes: "<p>A humanoid singer whose melodies stir trees and command plants.</p>",
+      },
+      traits: {
+        rarity: "uncommon",
+        value: ["humanoid"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "taljjae.json"), {
+    _id: "taljjae",
+    name: "Taljjae",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 18,
+        },
+        publication: {
+          title: "Pathfinder Lost Omens Monsters of Myth",
+        },
+        publicNotes: "<p>Taljjae is easily recognized due to its signature cloak and masks.</p>",
+      },
+      traits: {
+        rarity: "unique",
+        value: ["fey"],
+        size: {
+          value: "lg",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "the-vanish-man.json"), {
+    _id: "the-vanish-man",
+    name: "The Vanish Man",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 16,
+        },
+        publication: {
+          title: "Pathfinder Adventure Path",
+        },
+        publicNotes: "<p>Variant faceless butcher.</p>",
+      },
+      traits: {
+        rarity: "unique",
+        value: ["humanoid"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "pathfinder-monster-core", "body-snatcher.json"), {
     _id: "body-snatcher",
     name: "Body Snatcher",
@@ -2266,6 +2338,69 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
       traits: {
         rarity: "common",
         value: ["magical"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "guardian-mural.json"), {
+    _id: "guardian-mural-hazard",
+    name: "Guardian Mural",
+    type: "hazard",
+    system: {
+      details: {
+        level: {
+          value: 7,
+        },
+        publication: {
+          title: "Pathfinder Adventure Path",
+        },
+        publicNotes: "<p>One of the carvings on the mural suddenly animates and clambers out of the painting to become a real creature in the middle of the chamber.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["magical", "trap"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "spear-launcher.json"), {
+    _id: "spear-launcher-hazard",
+    name: "Spear Launcher",
+    type: "hazard",
+    system: {
+      details: {
+        level: {
+          value: 3,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>An old heavy crossbow is hidden in a pile of trash, loaded with a wooden spear, and connected to the rope holding the door.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["mechanical", "trap"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "distortion-mirror.json"), {
+    _id: "distortion-mirror-hazard",
+    name: "Distortion Mirror",
+    type: "hazard",
+    system: {
+      details: {
+        level: {
+          value: 5,
+        },
+        publication: {
+          title: "Pathfinder GM Core",
+        },
+        publicNotes: "<p>Fun-house mirrors distort a viewer's reflection, painfully reshaping their body to match what appears in the reflected images.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["magical", "trap"],
       },
     },
   });

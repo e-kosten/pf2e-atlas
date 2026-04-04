@@ -608,6 +608,22 @@ describe("derived tag rules: spell", () => {
     })).toContain("message_delivery");
 
     expect(deriveRecordTags({
+      name: "Sending",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You send the creature a mental message of 25 words or fewer, and it can respond immediately with its own message of 25 words or fewer.",
+      traits: ["concentrate", "linguistic", "mental"],
+    })).toContain("message_delivery");
+
+    expect(deriveRecordTags({
+      name: "Voice on the Breeze",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You whisper a secret message into the wind, which carries it to a designated spot and delivers its whisper-quiet message there.",
+      traits: ["air", "auditory"],
+    })).toContain("message_delivery");
+
+    expect(deriveRecordTags({
       name: "Telepathic Demand",
       category: "spell",
       subcategory: null,
@@ -622,6 +638,14 @@ describe("derived tag rules: spell", () => {
       descriptionText: "You emblazon a message across the sky itself, using clouds or auroras to coordinate distant allies.",
       traits: ["air", "illusion", "visual"],
     })).toContain("signaling");
+
+    expect(deriveRecordTags({
+      name: "Ventriloquism",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You can make your voice seem to originate from elsewhere within range.",
+      traits: ["illusion"],
+    })).not.toContain("message_delivery");
 
     expect(deriveRecordTags({
       name: "Dispel Magic",

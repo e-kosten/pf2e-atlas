@@ -85,6 +85,22 @@ describe("derived tag rules: equipment", () => {
       descriptionText: "When you drink this cordial, you roll twice on your next Sense Direction check and take the better result as a fortune effect.",
       traits: ["consumable", "magical"],
     })).toEqual(expect.arrayContaining(["beneficial", "fortune_support", "self_buff"]));
+
+    expect(deriveRecordTags({
+      name: "Fortune's Coin",
+      category: "equipment",
+      subcategory: "gear",
+      descriptionText: "When activated, this coin becomes a powerful agent of fortune. If you fail a check or attack, flip the coin. On a lucky result, you get a 12 on the die instead.",
+      traits: ["invested", "magical"],
+    })).toContain("fortune_support");
+
+    expect(deriveRecordTags({
+      name: "Brooch of Inspiration",
+      category: "equipment",
+      subcategory: "gear",
+      descriptionText: "When you Recall Knowledge with Lore, the brooch grants a sudden inspiration. On this check, you roll twice and take the higher result.",
+      traits: ["invested", "magical"],
+    })).toContain("fortune_support");
   });
 
   it("derives expanded gear-purpose and communication tags", () => {
@@ -677,6 +693,22 @@ describe("derived tag rules: equipment", () => {
       descriptionText: "Two separate outfits sewn together let you switch quickly between the two outfits.",
       traits: [],
     })).not.toContain("concealment");
+
+    expect(deriveRecordTags({
+      name: "Cane Pistol",
+      category: "equipment",
+      subcategory: "weapon",
+      descriptionText: "This fashionable cane's handle hides a dueling pistol fired through the thin, painted cap at the bottom of the cane.",
+      traits: [],
+    })).toContain("concealable");
+
+    expect(deriveRecordTags({
+      name: "False-Bottomed Mug",
+      category: "equipment",
+      subcategory: "gear",
+      descriptionText: "This mug looks ordinary, but the bottom part unscrews to reveal a velvet-lined chamber for sneaking messages and small objects.",
+      traits: [],
+    })).toContain("concealable");
   });
 
   it("derives ammo payload, signaling, mobility, and restraint tags", () => {
@@ -791,6 +823,38 @@ describe("derived tag rules: equipment", () => {
       descriptionText: "When you fire an activated meteor shot, it explodes into a small swarm of meteors as it reaches its target.",
       traits: ["ammunition"],
     })).toContain("explosive_payload");
+
+    expect(deriveRecordTags({
+      name: "Freeze Ammunition",
+      category: "equipment",
+      subcategory: "ammo",
+      descriptionText: "Freeze ammunition carries chilling reagents that activate on contact with the target. A creature hit by activated freeze ammunition takes cold damage instead of the weapon's normal damage type, plus 2 cold splash damage.",
+      traits: ["ammunition"],
+    })).toContain("elemental_payload");
+
+    expect(deriveRecordTags({
+      name: "Depth Charge I",
+      category: "equipment",
+      subcategory: "ammo",
+      descriptionText: "This ammunition explodes if it hits a target underwater, dealing bludgeoning damage in a burst to all creatures nearby.",
+      traits: ["ammunition"],
+    })).toContain("explosive_payload");
+
+    expect(deriveRecordTags({
+      name: "Disintegration Bolt",
+      category: "equipment",
+      subcategory: "ammo",
+      descriptionText: "When an activated disintegration bolt hits a target, it is subject to a disintegrate spell requiring a Fortitude save.",
+      traits: ["ammunition"],
+    })).toContain("spell_payload");
+
+    expect(deriveRecordTags({
+      name: "Viper Arrow",
+      category: "equipment",
+      subcategory: "ammo",
+      descriptionText: "After an activated viper arrow hits a target, the arrow transforms into a viper and the target is affected by the viper's poison.",
+      traits: ["ammunition"],
+    })).not.toContain("spell_payload");
   });
 
   it("derives hostile equipment impact tags for ammo and consumables", () => {

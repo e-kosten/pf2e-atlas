@@ -34,6 +34,7 @@ import type { SearchSubcategory } from "../../types.js";
 const AMMO_SUBCATEGORIES: SearchSubcategory[] = ["ammo"];
 const ARMOR_SUBCATEGORIES: SearchSubcategory[] = ["armor"];
 const SCOUTING_SUBCATEGORIES: SearchSubcategory[] = [...GEARISH_SUBCATEGORIES, "weapon"];
+const CONCEALABLE_SUBCATEGORIES: SearchSubcategory[] = [...GEARISH_SUBCATEGORIES, "weapon"];
 const DISGUISE_WEAPON_SUBCATEGORIES: SearchSubcategory[] = [...DISGUISE_SUBCATEGORIES, "weapon"];
 const DEFENSE_SUBCATEGORIES: SearchSubcategory[] = [...GEARISH_SUBCATEGORIES, "armor", "shield"];
 
@@ -92,14 +93,33 @@ const AMMO_ELEMENTAL_PAYLOAD_TEXT_ANCHORS = [
   patternAnchor("reservoir of alchemical reagents"),
   patternAnchor("gains a trait matching the damage type"),
   patternAnchor("each damage type requires a different formula"),
+  patternAnchor("chilling reagents"),
+  patternAnchor("cold damage instead of the weapon s normal damage type"),
+  patternAnchor("acid damage instead"),
+  patternAnchor("persistent acid damage"),
+  patternAnchor("dissolves across the target s armor"),
+  patternAnchor("splattering of bubbling green acid"),
+  patternAnchor("bolt of lightning"),
 ];
 
 const AMMO_EXPLOSIVE_PAYLOAD_TEXT_ANCHORS = [
   patternAnchor("explosive", "name"),
+  patternAnchor("depth charge", "name"),
   patternAnchor("meteor", "name"),
   patternAnchor("missile explodes"),
   patternAnchor("explodes into a small swarm of meteors"),
   patternAnchor("explodes in a burst"),
+  patternAnchor("explodes if it hits a target underwater"),
+  patternAnchor("dealing"),
+  patternAnchor("burst"),
+];
+
+const AMMO_SPELL_PAYLOAD_TEXT_ANCHORS = [
+  patternAnchor("casts"),
+  patternAnchor("creates a 2nd rank"),
+  patternAnchor("spell requiring"),
+  patternAnchor("subject to a"),
+  patternAnchor("subject to the effects of"),
 ];
 
 const ARMOR_MOBILITY_TEXT_ANCHORS = [
@@ -630,6 +650,27 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     ],
   },
   {
+    tag: "fortune_support",
+    category: "equipment",
+    subcategories: GEARISH_SUBCATEGORIES,
+    threshold: 2,
+    anyOf: [
+      {
+        score: 2,
+        textAny: [
+          patternAnchor("better result"),
+          patternAnchor("reroll"),
+          patternAnchor("roll twice"),
+          patternAnchor("take the higher result"),
+          patternAnchor("fortune effect"),
+          patternAnchor("treat your failure as a success"),
+          patternAnchor("upgrade the result"),
+          patternAnchor("you get a 12 on the die instead"),
+        ],
+      },
+    ],
+  },
+  {
     tag: "self_buff",
     category: "equipment",
     subcategories: ["consumable"],
@@ -825,9 +866,30 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "concealable",
     category: "equipment",
-    subcategories: GEARISH_SUBCATEGORIES,
+    subcategories: CONCEALABLE_SUBCATEGORIES,
+    threshold: 2,
     anyOf: [
-      { textAny: [patternAnchor("concealable"), patternAnchor("hidden on your person"), patternAnchor("hidden tools"), patternAnchor("slim lockpicks")] },
+      {
+        score: 2,
+        textAny: [
+          patternAnchor("concealable"),
+          patternAnchor("false-bottomed"),
+          patternAnchor("concealed interior pockets"),
+          patternAnchor("concealed sheath"),
+          patternAnchor("false bottom"),
+          patternAnchor("hidden chamber"),
+          patternAnchor("hidden on your person"),
+          patternAnchor("hidden tools"),
+          patternAnchor("hide or conceal the item within"),
+          patternAnchor("hides a"),
+          patternAnchor("hollow cane"),
+          patternAnchor("inconspicuous weapon"),
+          patternAnchor("inside the lining"),
+          patternAnchor("overlooked as decorative"),
+          patternAnchor("slim lockpicks"),
+          patternAnchor("slip past inspections"),
+        ],
+      },
     ],
   },
   {
@@ -1419,6 +1481,44 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     threshold: 2,
     anyOf: [
       { score: 2, textAny: AMMO_EXPLOSIVE_PAYLOAD_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "spell_payload",
+    category: "equipment",
+    subcategories: [...AMMO_SUBCATEGORIES],
+    threshold: 2,
+    anyOf: [
+      {
+        score: 2,
+        textAny: AMMO_SPELL_PAYLOAD_TEXT_ANCHORS,
+        textNear: [
+          {
+            terms: [
+              patternAnchor("hit"),
+              patternAnchor("hits"),
+              patternAnchor("strike"),
+              patternAnchor("successful strike"),
+              patternAnchor("target"),
+            ],
+            window: 8,
+            scope: "description",
+            minTermsMatched: 1,
+          },
+          {
+            terms: [
+              patternAnchor("spell"),
+              patternAnchor("effect"),
+              patternAnchor("subject"),
+              patternAnchor("casts"),
+              patternAnchor("save"),
+            ],
+            window: 8,
+            scope: "description",
+            minTermsMatched: 2,
+          },
+        ],
+      },
     ],
   },
 ];

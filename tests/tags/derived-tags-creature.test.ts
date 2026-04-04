@@ -410,6 +410,22 @@ describe("derived tag rules: creature", () => {
       descriptionText: "A human clerk who serves the community and keeps the peace while recording the daily business of the courthouse.",
       traits: ["human", "humanoid"],
     })).toContain("profession_npc");
+
+    expect(deriveRecordTags({
+      name: "Hryngar Forgepriest",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "The forgepriest proselytizes Droskar's teachings and punishes heretics for defiance.",
+      traits: ["dwarf", "humanoid"],
+    })).toContain("profession_npc");
+
+    expect(deriveRecordTags({
+      name: "Tree Singer",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A humanoid primalist singer whose melodies stir trees and command plants.",
+      traits: ["humanoid"],
+    })).toContain("profession_npc");
   });
 
   it("derives creature motif tags without collapsing into raw vibes", () => {
@@ -516,6 +532,22 @@ describe("derived tag rules: creature", () => {
       descriptionText: "A duelist wearing a bronze mask over a healthy and recognizable face.",
       traits: ["humanoid"],
     })).not.toContain("faceless_horror");
+
+    expect(deriveRecordTags({
+      name: "Taljjae",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Taljjae is easily recognized due to its signature cloak and masks.",
+      traits: ["fey"],
+    })).toContain("mask_motif");
+
+    expect(deriveRecordTags({
+      name: "The Vanish Man",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Variant faceless butcher.",
+      traits: ["humanoid"],
+    })).toContain("faceless_horror");
 
     expect(deriveRecordTags({
       name: "Chameleon Beast",

@@ -2,7 +2,7 @@ import { DerivedTagCatalogEntry, type SearchSubcategory } from "../../types.js";
 
 import { DISGUISE_SUBCATEGORIES, GEARISH_SUBCATEGORIES } from "../shared.js";
 
-const PURPOSE_SUBCATEGORIES: SearchSubcategory[] = [...GEARISH_SUBCATEGORIES, "armor"];
+const PURPOSE_SUBCATEGORIES: SearchSubcategory[] = [...GEARISH_SUBCATEGORIES, "armor", "weapon"];
 const EXPEDITION_SUBCATEGORIES: SearchSubcategory[] = [...GEARISH_SUBCATEGORIES, "consumable", "armor", "shield", "weapon"];
 
 export const EQUIPMENT_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
@@ -73,6 +73,7 @@ export const EQUIPMENT_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
       { value: "creature_bane", description: "Tailored ammunition for a selected creature type or trait." },
       { value: "elemental_payload", description: "Ammunition that delivers an elemental or reagent-based payload on impact." },
       { value: "explosive_payload", description: "Ammunition that detonates or scatters area damage on impact." },
+      { value: "spell_payload", description: "Ammunition that delivers, casts, or imposes a spell effect on hit." },
     ],
   },
   {

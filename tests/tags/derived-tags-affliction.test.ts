@@ -260,6 +260,22 @@ describe("derived tag rules: affliction", () => {
     })).not.toContain("rot_decay");
 
     expect(deriveRecordTags({
+      name: "Sleeping Gas",
+      category: "affliction",
+      subcategory: "poison",
+      descriptionText: "This inhaled poison leaves the victim drowsy and eventually unconscious in a deep sleep.",
+      traits: ["poison"],
+    })).toContain("sedation");
+
+    expect(deriveRecordTags({
+      name: "Calcifying Venom",
+      category: "affliction",
+      subcategory: "poison",
+      descriptionText: "The venom stiffens the body until the victim becomes clumsy and exhausted.",
+      traits: ["poison"],
+    })).toContain("physical_debilitation");
+
+    expect(deriveRecordTags({
       name: "Deep Breath Hex",
       category: "affliction",
       subcategory: "curse",

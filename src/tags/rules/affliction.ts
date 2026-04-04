@@ -18,6 +18,9 @@ const AFFLICTION_COGNITIVE_IMPAIRMENT_TEXT_ANCHORS = [
   patternAnchor("clouds the mind"),
   patternAnchor("dulls the mind"),
   patternAnchor("haze {{alt(a, the)}} victim's mind"),
+  patternAnchor("fractured thoughts"),
+  patternAnchor("hallucination"),
+  patternAnchor("hallucinations"),
   patternAnchor("mind-robbing"),
   patternAnchor("decision-making skills"),
   patternAnchor("mental capacity"),
@@ -53,6 +56,7 @@ const AFFLICTION_SENSORY_IMPAIRMENT_TEXT_ANCHORS = [
 const AFFLICTION_SEDATION_TEXT_ANCHORS = [
   patternAnchor("{{alt(fall, falls)}} unconscious"),
   patternAnchor("falls asleep"),
+  patternAnchor("drowsy"),
   patternAnchor("deep unconsciousness"),
   patternAnchor("can't attempt perception checks to wake up"),
   patternAnchor("no perception check to wake up"),
@@ -212,6 +216,7 @@ const AFFLICTION_TRANSFORMATIVE_CORRUPTION_NAME_ANCHORS = [
 ];
 
 const AFFLICTION_PHYSICAL_DEBILITATION_EXTENDED_TEXT_ANCHORS = [
+  patternAnchor("clumsy"),
   patternAnchor("wasting"),
   patternAnchor("wastes away"),
   patternAnchor("wither"),
@@ -225,6 +230,7 @@ const AFFLICTION_PHYSICAL_DEBILITATION_EXTENDED_TEXT_ANCHORS = [
   patternAnchor("hemorrhaging"),
   patternAnchor("drains vitality"),
   patternAnchor("draining vitality"),
+  patternAnchor("shock and exhaustion"),
   patternAnchor("weakness"),
   patternAnchor("weakened"),
 ];
