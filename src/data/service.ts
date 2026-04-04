@@ -140,6 +140,10 @@ function validateFilters(filters: NormalizedSearchFilters, context: "list" | "se
     throw new Error("query is only supported for pf2e_search.");
   }
 
+  if (context === "list" && filters.excludeQuery) {
+    throw new Error("excludeQuery is only supported for pf2e_search.");
+  }
+
   if (mode === "structured" && filters.query) {
     throw new Error("query requires a themed search profile such as balanced or concept.");
   }

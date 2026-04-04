@@ -60,6 +60,15 @@ function buildFtsQuery(query: string): string | null {
   return tokens.map((token) => `"${token}"*`).join(" OR ");
 }
 
+function matchesExcludedQuery(searchText: string | null | undefined, excludedTokens: string[]): boolean {
+  if (excludedTokens.length === 0) {
+    return false;
+  }
+
+  const searchTokens = new Set(normalizeText(searchText ?? "").split(" ").filter(Boolean));
+  return excludedTokens.some((token) => searchTokens.has(token));
+}
+
 type RuntimeSearchDependencies = {
   embeddingProvider: EmbeddingProvider;
   rankingConfig: RankingConfig;
@@ -153,10 +162,15 @@ export async function search(
   const searchProfile = resolveSearchProfile(normalizedFilters, "search", mode);
   const rawSemanticQuery = normalizedFilters.query?.trim() || "";
   const rawLexicalQuery = normalizedFilters.query?.trim() || normalizedFilters.nameQuery?.trim() || "";
+  const rawExcludeQuery = normalizedFilters.excludeQuery?.trim() || "";
   const hybridFusion = resolveHybridFusionProfile(searchProfile, mode, deps.rankingConfig);
   const queryAnalysis = rawLexicalQuery
     ? buildSearchQueryAnalysis(rawLexicalQuery)
     : null;
+  const excludeQueryAnalysis = rawExcludeQuery
+    ? buildSearchQueryAnalysis(rawExcludeQuery)
+    : null;
+  const excludeTokens = excludeQueryAnalysis?.queryTokens ?? [];
   const literalQueryWeights = queryAnalysis
     ? buildLiteralQueryWeights(queryAnalysis)
     : null;
@@ -190,15 +204,20 @@ export async function search(
     : [...new Set([...lexicalRetrievedKeys, ...semanticRetrievedKeys])];
   const candidateRows = mode === "structured"
     ? []
-    : deps.fetchCandidates(normalizedFilters, false, false, { recordKeys: candidateKeys });
-  const candidateRecords = candidateRows
+    : deps.fetchCandidates(normalizedFilters, excludeTokens.length > 0, false, { recordKeys: candidateKeys });
+  const filteredCandidateRows = excludeTokens.length > 0
+    ? candidateRows.filter((row) => !matchesExcludedQuery(row.searchText, excludeTokens))
+    : candidateRows;
+  const candidateRecords = filteredCandidateRows
     .map((row) => deps.decorateRecord(rowToRecord(row)))
     .filter((record) => recordMatchesFilters(record, normalizedFilters));
   const candidatesByKey = new Map(candidateRecords.map((record) => [record.recordKey, record]));
 
   const scored = (() => {
     if (mode === "structured") {
-      return deps.fetchCandidates(normalizedFilters)
+      const structuredRows = deps.fetchCandidates(normalizedFilters, excludeTokens.length > 0)
+        .filter((row) => !excludeTokens.length || !matchesExcludedQuery(row.searchText, excludeTokens));
+      return structuredRows
         .map((candidate) => {
           const record = deps.decorateRecord(rowToRecord(candidate));
           const rerankAdjustments = buildRerankAdjustments(record, normalizedFilters, deps.rankingConfig);
@@ -369,6 +388,13 @@ export async function search(
               rawQuery: queryAnalysis.rawQuery,
               normalizedQuery: queryAnalysis.normalizedQuery,
               queryTokens: queryAnalysis.queryTokens,
+            }
+          : null,
+        excludeQuery: excludeQueryAnalysis
+          ? {
+              rawQuery: excludeQueryAnalysis.rawQuery,
+              normalizedQuery: excludeQueryAnalysis.normalizedQuery,
+              queryTokens: excludeQueryAnalysis.queryTokens,
             }
           : null,
         rankingConfig: deps.rankingConfigStatus,

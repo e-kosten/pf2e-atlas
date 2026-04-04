@@ -93,6 +93,7 @@ export interface SearchFilters {
   explain?: boolean;
   nameQuery?: string;
   query?: string;
+  excludeQuery?: string;
   pack?: string;
   category?: SearchCategoryInput;
   subcategory?: SearchSubcategoryInput;
@@ -231,6 +232,7 @@ export interface SearchExplainResult {
   lexicalQuery: string;
   semanticQuery: string;
   query: SearchQueryAnalysis | null;
+  excludeQuery: SearchQueryAnalysis | null;
   rankingConfig: RankingConfigStatus;
   records: SearchRecordExplanation[];
 }

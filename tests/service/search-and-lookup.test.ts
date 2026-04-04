@@ -475,6 +475,7 @@ describe("Pf2eDataService / Search and Lookup", () => {
 
     await expect(service.search({})).rejects.toThrow("pf2e_search requires search text and/or at least one structured filter.");
     await expect(service.search({ searchProfile: "concept" })).rejects.toThrow("pf2e_search requires search text and/or at least one structured filter.");
+    expect(() => service.listRecords({ excludeQuery: "ghost" })).toThrow("excludeQuery is only supported for pf2e_search.");
   });
 
   it("maps user-facing search profiles onto the underlying retrieval modes", async () => {
@@ -546,6 +547,79 @@ describe("Pf2eDataService / Search and Lookup", () => {
     expect(result.explain?.semanticQuery).toBe("Ghost-ship: body horror?!");
     expect(result.explain?.lexicalQuery).toBe("ghost ship body horror");
     expect(result.explain?.query?.normalizedQuery).toBe("ghost ship body horror");
+  });
+
+  it("applies excludeQuery as a hard lexical filter over indexed search text", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+
+    const service = await loadTestService(fixture);
+
+    const baseline = await service.search({
+      searchProfile: "lexical",
+      category: "hazard",
+      query: "crossbow rope door trap",
+      limit: 20,
+    });
+    expect(baseline.records.map((record) => record.name)).toContain("Spear Launcher");
+
+    const filtered = await service.search({
+      searchProfile: "lexical",
+      category: "hazard",
+      query: "crossbow rope door trap",
+      excludeQuery: "crossbow",
+      limit: 20,
+    });
+    expect(filtered.records.map((record) => record.name)).not.toContain("Spear Launcher");
+  });
+
+  it("applies excludeQuery to hybrid search results and surfaces normalized exclusion analysis", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+
+    const service = await loadTestService(fixture);
+
+    const baseline = await service.search({
+      category: "creature",
+      query: "ghost sailor ship",
+      limit: 20,
+    });
+    expect(baseline.records.map((record) => record.name)).toContain("Ghost Sailor");
+
+    const filtered = await service.search({
+      category: "creature",
+      query: "ghost sailor ship",
+      excludeQuery: " GHOST!!! ",
+      limit: 20,
+      explain: true,
+    });
+    expect(filtered.mode).toBe("hybrid");
+    expect(filtered.records.map((record) => record.name)).not.toContain("Ghost Sailor");
+    expect(filtered.explain?.excludeQuery).toEqual({
+      rawQuery: "GHOST!!!",
+      normalizedQuery: "ghost",
+      queryTokens: ["ghost"],
+    });
+  });
+
+  it("applies excludeQuery to structured pf2e_search flows without query text", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+
+    const service = await loadTestService(fixture);
+
+    const baseline = await service.search({
+      category: "creature",
+      nameQuery: "Ghost Sailor",
+    });
+    expect(baseline.records.map((record) => record.name)).toContain("Ghost Sailor");
+
+    const filtered = await service.search({
+      category: "creature",
+      nameQuery: "Ghost Sailor",
+      excludeQuery: "sailor",
+    });
+    expect(filtered.records.map((record) => record.name)).not.toContain("Ghost Sailor");
   });
 
   it("surfaces haunted-ship swarm candidates in broad themed search", async () => {

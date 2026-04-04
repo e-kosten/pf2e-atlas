@@ -78,6 +78,11 @@ export function registerSearchTools(
               strength: "literal text",
               description: "Prefer one short natural-language phrase or sentence with 1-3 concrete anchor terms. Avoid long comma-separated keyword lists by default.",
             },
+            {
+              name: "excludeQuery",
+              strength: "literal exclusion",
+              description: "Optional free-text exclusion terms. Remove ranked-search results whose indexed search text mentions these normalized terms.",
+            },
           ],
           retrievalPatterns: [
             {
@@ -276,6 +281,7 @@ export function registerSearchTools(
         explain: z.boolean().optional().describe("Include score breakdowns and query-analysis details in the response."),
         nameQuery: z.string().optional().describe("Name text to search for."),
         query: z.string().optional().describe("General free-text search input. Prefer one short natural-language phrase or sentence with 1-3 concrete anchor terms. Avoid long comma-separated keyword lists by default. If searchProfile is omitted, query defaults search to the balanced profile."),
+        excludeQuery: z.string().optional().describe("Optional free-text exclusion terms. Remove results whose indexed search text mentions these normalized terms."),
         pack: z.string().optional().describe("Optional pack name or label."),
         category: searchCategorySchema.optional().describe(CATEGORY_HINT_DESCRIPTION),
         subcategory: searchSubcategorySchema.optional().describe(SUBCATEGORY_HINT_DESCRIPTION),
