@@ -457,6 +457,12 @@ const CREATURE_SITE_HABITAT_CONTEXT_TEXT_ANCHOR = patternAnchor("{{alt(found in,
 
 const CREATURE_CANYON_HABITAT_CONTEXT_TEXT_ANCHOR = patternAnchor("{{alt(found in,dwell,dwells,dwelling,haunt,haunts,lurk,lurks,lurking,prowl,prowls,stalk,stalks,stalking,glide through,glides through,hunt,hunts,hunting,nest,nests,nesting,home,homes)}}", "description");
 
+const CREATURE_SITE_FUNCTION_CONTEXT_TEXT_ANCHOR = patternAnchor("{{alt(found defending,defend,defends,defending,protect,protects,protector,protectors,guardians of,serve as the protector,serves as the protector,rarely leave,rarely leaves,watch over,watches over)}}", "description");
+
+const CREATURE_URBAN_ACTIVITY_CONTEXT_TEXT_ANCHOR = patternAnchor("{{alt(make their home,make their homes,makes its home,call home,calls home,sneak around,sneaks around,sneaking around,stalk,stalks,stalking,prominent in,visible in,below)}}", "description");
+
+const CREATURE_UNDERGROUND_ACTIVITY_CONTEXT_TEXT_ANCHOR = patternAnchor("{{alt(below ground,below large cities,make their home,make their homes,makes its home,call home,calls home,stalk,stalks,stalking,scour,scours,most often found)}}", "description");
+
 const createCreatureSettingTextNear = (
   alternatives: string,
   contextAnchor: ReturnType<typeof patternAnchor>,
@@ -973,8 +979,30 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
       {
         score: 2,
         textAny: [
+          patternAnchor("below ground", "description"),
+          patternAnchor("found below ground", "description"),
           patternAnchor("beneath the earth", "description"),
           patternAnchor("under tunnels", "description"),
+        ],
+      },
+      {
+        score: 2,
+        textNear: createCreatureSettingTextNear(
+          "cave,caves,cavern,caverns,underground,tunnel,tunnels,sewer,sewers,crypt,crypts,warren,warrens,below ground",
+          CREATURE_UNDERGROUND_ACTIVITY_CONTEXT_TEXT_ANCHOR,
+        ),
+      },
+      {
+        score: 2,
+        textAny: [
+          patternAnchor("cave", "name"),
+          patternAnchor("caves", "name"),
+          patternAnchor("cavern", "name"),
+          patternAnchor("caverns", "name"),
+          patternAnchor("crypt", "name"),
+          patternAnchor("crypts", "name"),
+          patternAnchor("warren", "name"),
+          patternAnchor("warrens", "name"),
         ],
       },
     ],
@@ -992,6 +1020,14 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
         textNear: createCreatureSettingTextNear(
           "city,cities,urban,street,streets,alley,alleys,sewer,sewers,town,towns",
           CREATURE_SITE_HABITAT_CONTEXT_TEXT_ANCHOR,
+        ),
+      },
+      {
+        score: 2,
+        textNear: createCreatureSettingTextNear(
+          "city,cities,urban,sewer,sewers,metropolis,metropolises,factory,factories,tenement,tenements",
+          CREATURE_URBAN_ACTIVITY_CONTEXT_TEXT_ANCHOR,
+          10,
         ),
       },
     ],
@@ -1056,6 +1092,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
           CREATURE_TERRAIN_HABITAT_CONTEXT_TEXT_ANCHOR,
         ),
       },
+      { score: 2, textAny: [patternAnchor("misty peaks", "description"), patternAnchor("mountain pass", "description"), patternAnchor("mountain passes", "description")] },
     ],
   },
   {
@@ -1150,8 +1187,16 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
       {
         score: 2,
         textNear: createCreatureSettingTextNear(
-          "temple,temples,shrine,shrines,cathedral,cathedrals,monastery,monasteries,chapel,chapels,sanctuary,abbey,priory,cloister,holy site,consecrated hall,ziggurat",
+          "temple,temples,shrine,shrines,cathedral,cathedrals,monastery,monasteries,chapel,chapels,sanctuary,sanctuaries,abbey,priory,cloister,holy site,holy sites,consecrated hall,ziggurat",
           CREATURE_SITE_HABITAT_CONTEXT_TEXT_ANCHOR,
+        ),
+      },
+      {
+        score: 2,
+        textNear: createCreatureSettingTextNear(
+          "temple,temples,shrine,shrines,cathedral,cathedrals,sanctuary,sanctuaries,holy site,holy sites",
+          CREATURE_SITE_FUNCTION_CONTEXT_TEXT_ANCHOR,
+          10,
         ),
       },
       { score: 2, textAny: [patternAnchor("place of worship", "description"), patternAnchor("house of worship", "description")] },
@@ -1174,6 +1219,14 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
         textNear: createCreatureSettingTextNear(
           "fort,forts,garrison",
           CREATURE_SITE_HABITAT_CONTEXT_TEXT_ANCHOR,
+        ),
+      },
+      {
+        score: 2,
+        textNear: createCreatureSettingTextNear(
+          "fortress,fortresses,castle,castles,citadel,citadels,stronghold,strongholds,keep,keeps,bastion,bastions,watchtower,watchtowers,fort,forts,garrison",
+          CREATURE_SITE_FUNCTION_CONTEXT_TEXT_ANCHOR,
+          10,
         ),
       },
       { score: 2, textAny: [patternAnchor("sky citadel", "description")] },

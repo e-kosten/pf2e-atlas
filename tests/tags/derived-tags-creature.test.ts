@@ -237,12 +237,60 @@ describe("derived tag rules: creature", () => {
     })).toContain("temple_setting");
 
     expect(deriveRecordTags({
+      name: "Divine Warden of Brigh",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Imbued with the divine energy of the goddess of clockwork and invention, divine wardens of Brigh are prominent in Alkenstar as guardians of the Temple of Brigh there. Created through complex rituals performed by a faith's adherents, this divine spark allows the divine warden to serve as the protector for a temple, shrine, or other holy site. Such guardians aren't intrinsically bound to a fixed location, but they rarely leave the temple or site over which they watch.",
+      traits: ["construct"],
+    })).toContain("temple_setting");
+
+    expect(deriveRecordTags({
       name: "Fortress Warden",
       category: "creature",
       subcategory: null,
       descriptionText: "A grim defender patrols the walls of a mountain fortress and ancient citadel.",
       traits: ["humanoid"],
     })).toEqual(expect.arrayContaining(["fortress_setting", "mountain_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Rust Hag",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Rust hags have a knack for technology. They make their homes in hollowed-out factories, abandoned tenements, and other sites of urban decay.",
+      traits: ["hag"],
+    })).toContain("urban_setting");
+
+    expect(deriveRecordTags({
+      name: "Furnerico",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A mass of undulating tendrils and nerves, furnericos stalk sewer systems below large cities, reveling in the filth and rotting detritus created by those who dwell above the middens and sumps they call home.",
+      traits: ["aberration"],
+    })).toEqual(expect.arrayContaining(["urban_setting", "underground_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Girtablilu Guardian",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Sentries patrol the outskirts of girtablilu communities, watching for external threats set on reckless exploration of the girtablilus' sacred site. Girtablilus are desert-dwelling guardians most often found defending ancient temples and religious artifacts with zealous fervor.",
+      traits: ["humanoid"],
+    })).toContain("temple_setting");
+
+    expect(deriveRecordTags({
+      name: "Viscous Black Pudding",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Most often found below ground, these oozes scour caves for objects to dissolve with their corrosive secretions.",
+      traits: ["ooze"],
+    })).toContain("underground_setting");
+
+    expect(deriveRecordTags({
+      name: "Onturat",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Swirling down from misty peaks and through howling mountain passes like an evil wind, the vortex of bones known as a skulltaker is a terrible manifestation of the delirium and agony experienced by doomed climbers and lost trailblazers.",
+      traits: ["undead"],
+    })).toContain("mountain_setting");
 
     expect(deriveRecordTags({
       name: "Scarecrow",
@@ -789,7 +837,15 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "Renowned in Tengah folklore as divinely gifted artisans and crafters, anugobus are a curious group of tiny humanoids native to the central islands of Minata. Countless stories describe anugobus sneaking around Minatan cities to tinker with and improve upon other humanoids' structures and architecture. In reality, anugobus are as diverse as any species of humanoid, though they all have innate gifts for mending and construction, and they can walk on walls and ceilings. Nearly all verifiable anugobu encounters have taken place on the isles of Minata. Any project can be an anugobu's wonder, from repairing a majestic cathedral to hunting a particularly dangerous animal to exploring a mysterious cave.",
       traits: [],
-    })).not.toEqual(expect.arrayContaining(["urban_setting", "temple_setting", "underground_setting"]));
+    })).toEqual(expect.arrayContaining(["urban_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Anugobu Apprentice",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Renowned in Tengah folklore as divinely gifted artisans and crafters, anugobus are a curious group of tiny humanoids native to the central islands of Minata. Countless stories describe anugobus sneaking around Minatan cities to tinker with and improve upon other humanoids' structures and architecture. In reality, anugobus are as diverse as any species of humanoid, though they all have innate gifts for mending and construction, and they can walk on walls and ceilings. Nearly all verifiable anugobu encounters have taken place on the isles of Minata. Any project can be an anugobu's wonder, from repairing a majestic cathedral to hunting a particularly dangerous animal to exploring a mysterious cave.",
+      traits: [],
+    })).not.toEqual(expect.arrayContaining(["temple_setting", "underground_setting"]));
 
     expect(deriveRecordTags({
       name: "Troll King",
