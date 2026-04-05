@@ -49,6 +49,9 @@ Default to this skill when any of these are true:
    Do not default to one-tag micro-passes unless the regression is truly isolated.
 5. Use the evaluator as a review queue.
    Target the specific tag under refinement and inspect likely false negatives, semantically adjacent misses, and records that suggest the same false-positive class.
+   Before or after the rule edit when live movement matters, compare index snapshots with:
+   - `npm run evaluate-derived-tag-movement -- --baseline-index-path /path/to/before.sqlite --category <category> --tags <tag1,tag2,...> --warn-category-drop-points <points> --warn-tag-drop-count <count> --warn-tag-drop-points <points> --sample-limit <n>`
+   Use this to catch suspicious live-coverage drops before calling the pass done.
 6. Stop for an approval checkpoint before editing.
    Include:
    - the tag or rules being changed
@@ -75,6 +78,7 @@ Default to this skill when any of these are true:
    - `npm run build`
    - `npm test`
    - `npm run refresh-index -- --reuse-embeddings` when the change should materially affect live tagging or when you need to confirm category-level coverage movement
+   - `npm run evaluate-derived-tag-movement -- --baseline-index-path /path/to/before.sqlite --category <category> --tags <tag1,tag2,...> --warn-category-drop-points <points> --warn-tag-drop-count <count> --warn-tag-drop-points <points> --sample-limit <n>` when a refinement pass could materially reduce live coverage
 10. Summarize in precision terms.
    Report:
    - what false-positive or false-negative class changed
@@ -94,6 +98,7 @@ Default to this skill when any of these are true:
 - Do not mirror PF2E-native traits with derived aliases unless the retrieval meaning is materially different.
 - Keep changes explainable to a future reader scanning the rule table.
 - Do not rely on positive-skewed tests alone when broad description evidence is involved.
+- If a refinement pass materially drops category coverage or a touched tag collapses in the movement evaluator, stop and reassess instead of hand-waving the loss away.
 
 ## Approval Batch Shape
 
