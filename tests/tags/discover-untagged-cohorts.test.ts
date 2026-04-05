@@ -27,6 +27,10 @@ function createDiscoveryDb(): DatabaseSync {
       normalized_name TEXT NOT NULL,
       category TEXT NOT NULL,
       subcategory TEXT,
+      variant_family_key TEXT,
+      variant_base_name TEXT,
+      variant_label TEXT,
+      variant_axes_json TEXT NOT NULL,
       level INTEGER,
       traits_json TEXT NOT NULL,
       derived_tags_json TEXT NOT NULL,
@@ -62,6 +66,10 @@ function insertRecord(
     name: string;
     category: string;
     subcategory?: string | null;
+    variantFamilyKey?: string | null;
+    variantBaseName?: string | null;
+    variantLabel?: string | null;
+    variantAxes?: string[];
     traits?: string[];
     descriptionText?: string | null;
     vector: number[];
@@ -69,14 +77,22 @@ function insertRecord(
   },
 ): void {
   db.prepare(`
-    INSERT INTO records (record_key, name, normalized_name, category, subcategory, level, traits_json, derived_tags_json, description_text, is_search_canonical)
-    VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, 1)
+    INSERT INTO records (
+      record_key, name, normalized_name, category, subcategory,
+      variant_family_key, variant_base_name, variant_label, variant_axes_json,
+      level, traits_json, derived_tags_json, description_text, is_search_canonical
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, 1)
   `).run(
     input.recordKey,
     input.name,
     input.name.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " "),
     input.category,
     input.subcategory ?? null,
+    input.variantFamilyKey ?? null,
+    input.variantBaseName ?? null,
+    input.variantLabel ?? null,
+    JSON.stringify(input.variantAxes ?? []),
     JSON.stringify(input.traits ?? []),
     JSON.stringify(input.tags ?? []),
     input.descriptionText ?? null,
@@ -89,8 +105,12 @@ function insertRecord(
 
 function insertReference(db: DatabaseSync, fromRecordKey: string, toRecordKey: string, toRecordName: string): void {
   db.prepare(`
-    INSERT OR IGNORE INTO records (record_key, name, normalized_name, category, subcategory, level, traits_json, derived_tags_json, description_text, is_search_canonical)
-    VALUES (?, ?, ?, 'spell', NULL, NULL, '[]', '[]', NULL, 1)
+    INSERT OR IGNORE INTO records (
+      record_key, name, normalized_name, category, subcategory,
+      variant_family_key, variant_base_name, variant_label, variant_axes_json,
+      level, traits_json, derived_tags_json, description_text, is_search_canonical
+    )
+    VALUES (?, ?, ?, 'spell', NULL, NULL, NULL, NULL, '[]', NULL, '[]', '[]', NULL, 1)
   `).run(
     toRecordKey,
     toRecordName,
@@ -249,6 +269,7 @@ describe("discover untagged cohorts", () => {
         {
           signature: ["masquerade", "target:illusory disguise"],
           size: 3,
+          distinctVariantFamilies: 2,
           averageSimilarity: 0.82,
           sharedTraits: ["illusion"],
           anchorSupport: 4,
@@ -268,5 +289,98 @@ describe("discover untagged cohorts", () => {
     expect(rendered).toContain("Untagged cohort summary:");
     expect(rendered).toContain("Top anchors:");
     expect(rendered).toContain("Recommended cohorts:");
+    expect(rendered).toContain("families=2");
+  });
+
+  it("down-ranks single-family variant ladders in favor of multi-family cohorts", () => {
+    const db = createDiscoveryDb();
+    try {
+      insertRecord(db, {
+        recordKey: "equipment:wand-2",
+        name: "Wand of Choking Mist (2nd-Rank)",
+        category: "equipment",
+        subcategory: "consumable",
+        variantFamilyKey: "equipment:family:wand-of-choking-mist",
+        variantBaseName: "Wand of Choking Mist",
+        variantLabel: "2nd-Rank",
+        variantAxes: ["rank"],
+        traits: ["magical", "water"],
+        descriptionText: "This wand casts mist and leaves choking vapors behind.",
+        vector: [1, 0, 0],
+      });
+      insertRecord(db, {
+        recordKey: "equipment:wand-4",
+        name: "Wand of Choking Mist (4th-Rank)",
+        category: "equipment",
+        subcategory: "consumable",
+        variantFamilyKey: "equipment:family:wand-of-choking-mist",
+        variantBaseName: "Wand of Choking Mist",
+        variantLabel: "4th-Rank",
+        variantAxes: ["rank"],
+        traits: ["magical", "water"],
+        descriptionText: "This wand casts cinder swarm and leaves choking vapors behind.",
+        vector: [0.99, 0.01, 0],
+      });
+      insertRecord(db, {
+        recordKey: "equipment:figurine-bear",
+        name: "Wondrous Figurine (Rubber Bear)",
+        category: "equipment",
+        subcategory: "gear",
+        variantFamilyKey: "equipment:family:wondrous-figurine",
+        variantBaseName: "Wondrous Figurine",
+        variantLabel: "Rubber Bear",
+        variantAxes: ["other"],
+        traits: ["magical"],
+        descriptionText: "This figurine becomes a circus bear when activated.",
+        vector: [0, 1, 0],
+      });
+      insertRecord(db, {
+        recordKey: "equipment:figurine-lions",
+        name: "Wondrous Figurine (Golden Lions)",
+        category: "equipment",
+        subcategory: "gear",
+        variantFamilyKey: "equipment:family:wondrous-figurine",
+        variantBaseName: "Wondrous Figurine",
+        variantLabel: "Golden Lions",
+        variantAxes: ["other"],
+        traits: ["magical"],
+        descriptionText: "This figurine becomes a pair of lions when activated.",
+        vector: [0.01, 0.99, 0],
+      });
+      insertRecord(db, {
+        recordKey: "equipment:scarf",
+        name: "Masquerade Scarf",
+        category: "equipment",
+        subcategory: "gear",
+        traits: ["illusion", "magical"],
+        descriptionText: "A masquerade scarf helps disguise your identity.",
+        vector: [0, 0, 1],
+      });
+      insertRecord(db, {
+        recordKey: "equipment:outfit",
+        name: "Quick-Change Outfit",
+        category: "equipment",
+        subcategory: "gear",
+        traits: ["illusion", "magical"],
+        descriptionText: "An outfit designed for disguise and social infiltration.",
+        vector: [0, 0.05, 0.95],
+      });
+
+      const report = discoverUntaggedCohorts(db, {
+        category: "equipment",
+        cohortLimit: 5,
+        anchorLimit: 10,
+        minFeatureSupport: 2,
+        minFeatureLift: 1.1,
+      });
+
+      expect(report.cohorts.length).toBeGreaterThan(0);
+      expect(report.cohorts.every((cohort) => cohort.distinctVariantFamilies <= cohort.size)).toBe(true);
+      expect(report.cohorts[0]?.distinctVariantFamilies).toBeGreaterThanOrEqual(1);
+      expect(report.cohorts.some((cohort) =>
+        cohort.representativeRecords.filter((record) => record.name.startsWith("Wand of Choking Mist")).length <= 1)).toBe(true);
+    } finally {
+      db.close();
+    }
   });
 });

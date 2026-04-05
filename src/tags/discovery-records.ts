@@ -19,6 +19,10 @@ export type DiscoveryAnalysisRecord = {
   name: string;
   category: SearchCategory;
   subcategory: SearchSubcategory | null;
+  variantFamilyKey: string | null;
+  variantBaseName: string | null;
+  variantLabel: string | null;
+  variantAxes: string[];
   level: number | null;
   traits: string[];
   derivedTags: string[];
@@ -51,6 +55,10 @@ type LoadedRecordRow = {
   category: string;
   subcategory: string | null;
   level: number | bigint | null;
+  variantFamilyKey: string | null;
+  variantBaseName: string | null;
+  variantLabel: string | null;
+  variantAxesJson: string | null;
   traitsJson: string;
   derivedTagsJson: string;
   descriptionText: string | null;
@@ -96,6 +104,10 @@ function toDiscoveryRecord(
     name: row.name,
     category: row.category as SearchCategory,
     subcategory: (row.subcategory ?? null) as SearchSubcategory | null,
+    variantFamilyKey: row.variantFamilyKey,
+    variantBaseName: row.variantBaseName,
+    variantLabel: row.variantLabel,
+    variantAxes: row.variantAxesJson ? (JSON.parse(row.variantAxesJson) as string[]) : [],
     level: typeof row.level === "bigint" ? Number(row.level) : row.level,
     traits: JSON.parse(row.traitsJson) as string[],
     derivedTags: JSON.parse(row.derivedTagsJson) as string[],
@@ -157,6 +169,10 @@ export function loadDiscoveryRecords(
     "  r.name AS name,",
     "  r.category AS category,",
     "  r.subcategory AS subcategory,",
+    "  r.variant_family_key AS variantFamilyKey,",
+    "  r.variant_base_name AS variantBaseName,",
+    "  r.variant_label AS variantLabel,",
+    "  r.variant_axes_json AS variantAxesJson,",
     "  r.level AS level,",
     "  r.traits_json AS traitsJson,",
     "  r.derived_tags_json AS derivedTagsJson,",
@@ -215,6 +231,10 @@ function resolveNameExemplar(
     "  r.name AS name,",
     "  r.category AS category,",
     "  r.subcategory AS subcategory,",
+    "  r.variant_family_key AS variantFamilyKey,",
+    "  r.variant_base_name AS variantBaseName,",
+    "  r.variant_label AS variantLabel,",
+    "  r.variant_axes_json AS variantAxesJson,",
     "  r.level AS level,",
     "  r.traits_json AS traitsJson,",
     "  r.derived_tags_json AS derivedTagsJson,",
@@ -296,6 +316,10 @@ export function resolveDiscoveryExemplars(
       name: records[0]!.name,
       category: records[0]!.category,
       subcategory: records[0]!.subcategory,
+      variantFamilyKey: records[0]!.variantFamilyKey,
+      variantBaseName: records[0]!.variantBaseName,
+      variantLabel: records[0]!.variantLabel,
+      variantAxesJson: JSON.stringify(records[0]!.variantAxes),
       level: records[0]!.level,
       traitsJson: JSON.stringify(records[0]!.traits),
       derivedTagsJson: JSON.stringify(records[0]!.derivedTags),

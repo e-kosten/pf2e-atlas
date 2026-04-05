@@ -23,6 +23,7 @@ export type CohortRecommendation = "rule-led" | "hybrid" | "manual-only" | "reje
 export type DerivedTagCandidateCluster = {
   signature: string[];
   size: number;
+  distinctVariantFamilies: number;
   averageSimilarity: number;
   sharedTraits: string[];
   sharedAnchors: string[];
@@ -72,6 +73,65 @@ type RankedCandidate = DiscoveryAnalysisRecord & {
   similarity: number;
   anchorOverlap: string[];
 };
+
+function variantFamilyIdentity(record: DiscoveryAnalysisRecord): string {
+  return record.variantFamilyKey ?? record.recordKey;
+}
+
+function dedupeVariantFamilies<T extends DiscoveryAnalysisRecord>(records: T[]): T[] {
+  const seen = new Set<string>();
+  return records.filter((record) => {
+    const familyId = variantFamilyIdentity(record);
+    if (seen.has(familyId)) {
+      return false;
+    }
+    seen.add(familyId);
+    return true;
+  });
+}
+
+function distinctVariantFamilyCount(records: DiscoveryAnalysisRecord[]): number {
+  return new Set(records.map((record) => variantFamilyIdentity(record))).size;
+}
+
+function selectRepresentativeCandidates(
+  bucket: RankedCandidate[],
+  limit = 5,
+): Array<{ recordKey: string; name: string; similarity: number }> {
+  const selected: Array<{ recordKey: string; name: string; similarity: number }> = [];
+  const seenFamilies = new Set<string>();
+  for (const record of bucket) {
+    const familyId = variantFamilyIdentity(record);
+    if (seenFamilies.has(familyId)) {
+      continue;
+    }
+    seenFamilies.add(familyId);
+    selected.push({
+      recordKey: record.recordKey,
+      name: record.name,
+      similarity: record.similarity,
+    });
+    if (selected.length >= limit) {
+      return selected;
+    }
+  }
+
+  for (const record of bucket) {
+    if (selected.some((entry) => entry.recordKey === record.recordKey)) {
+      continue;
+    }
+    selected.push({
+      recordKey: record.recordKey,
+      name: record.name,
+      similarity: record.similarity,
+    });
+    if (selected.length >= limit) {
+      break;
+    }
+  }
+
+  return selected;
+}
 
 function averageVectors(vectors: Float32Array[]): Float32Array {
   if (vectors.length === 0) {
@@ -148,7 +208,7 @@ function deriveAnchorVocabulary(
   exemplars: DiscoveryAnalysisRecord[],
   baseline: DiscoveryAnalysisRecord[],
 ): DiscoveryEvidenceTerm[] {
-  const evidence = analyzeDiscoveryEvidenceFromRecords(exemplars, baseline, { limit: 10, exampleLimit: 3 });
+  const evidence = analyzeDiscoveryEvidenceFromRecords(dedupeVariantFamilies(exemplars), baseline, { limit: 10, exampleLimit: 3 });
   return [
     ...evidence.traits.slice(0, 4),
     ...evidence.nameTokens.slice(0, 4),
@@ -234,36 +294,36 @@ function clusterCandidates(
     .map(([key, bucket]) => {
       const signature = key === "__semantic_only__" ? [] : key.split("||");
       const averageSimilarity = bucket.reduce((total, candidate) => total + candidate.similarity, 0) / Math.max(1, bucket.length);
+      const distinctVariantFamilies = distinctVariantFamilyCount(bucket);
       const sharedTraits = [...new Set(bucket.flatMap((candidate) => candidate.traits))]
         .filter((trait) => bucket.every((candidate) => candidate.traits.includes(trait)));
       const sharedAnchors = signature.filter((anchor) => anchorValues.has(anchor));
       const density = sharedAnchors.length / Math.max(1, signature.length || 1);
       const sizeFactor = Math.min(1, bucket.length / 5);
+      const familyDiversity = distinctVariantFamilies / Math.max(1, bucket.length);
       const similarityFactor = Math.max(0, Math.min(1, averageSimilarity));
       const traitPenalty = sharedTraits.length === 1 && sharedAnchors.every((anchor) => anchor.startsWith("trait:")) ? 0.15 : 0;
-      const score = Math.max(0, Math.min(1, (sizeFactor * 0.35) + (similarityFactor * 0.35) + (density * 0.3) - traitPenalty));
+      const score = Math.max(0, Math.min(1, (sizeFactor * 0.25) + (familyDiversity * 0.25) + (similarityFactor * 0.25) + (density * 0.25) - traitPenalty));
 
       return {
         signature,
         size: bucket.length,
+        distinctVariantFamilies,
         averageSimilarity,
         sharedTraits: uniqueSorted(sharedTraits),
         sharedAnchors: uniqueSorted(sharedAnchors),
-        representativeRecords: bucket
-          .slice()
-          .sort((left, right) => right.similarity - left.similarity || left.name.localeCompare(right.name))
-          .slice(0, 5)
-          .map((record) => ({
-            recordKey: record.recordKey,
-            name: record.name,
-            similarity: record.similarity,
-          })),
+        representativeRecords: selectRepresentativeCandidates(
+          bucket
+            .slice()
+            .sort((left, right) => right.similarity - left.similarity || left.name.localeCompare(right.name)),
+        ),
         score,
         recommendation: recommendCluster(score),
       };
     })
     .sort((left, right) =>
       right.score - left.score ||
+      right.distinctVariantFamilies - left.distinctVariantFamilies ||
       right.size - left.size ||
       right.averageSimilarity - left.averageSimilarity ||
       left.signature.join(" ").localeCompare(right.signature.join(" ")))
@@ -311,8 +371,9 @@ export function discoverRuleableCohorts(
     excludeDerivedTag: normalizedTag ?? undefined,
     includeVectors: true,
   });
-  const anchors = deriveAnchorVocabulary(resolvedExemplars, baseline);
-  const rankedCandidates = rankCandidates(resolvedExemplars, candidates, anchors, options);
+  const familyDistinctExemplars = dedupeVariantFamilies(resolvedExemplars);
+  const anchors = deriveAnchorVocabulary(familyDistinctExemplars, baseline);
+  const rankedCandidates = rankCandidates(familyDistinctExemplars, candidates, anchors, options);
   const cohorts = clusterCandidates(rankedCandidates, anchors, options);
   const anchorValues = new Set(anchors.map((anchor) => anchor.value));
   const contrastRecords = rankedCandidates
@@ -328,9 +389,9 @@ export function discoverRuleableCohorts(
     category,
     subcategory,
     sourceTag: normalizedTag,
-    exemplarCount: resolvedExemplars.length,
+    exemplarCount: familyDistinctExemplars.length,
     candidateCount: rankedCandidates.length,
-    resolvedExemplars: resolvedExemplars.map((record) => ({
+    resolvedExemplars: familyDistinctExemplars.map((record) => ({
       query: record.query,
       matchedBy: record.matchedBy,
       recordKey: record.recordKey,

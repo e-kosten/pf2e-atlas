@@ -574,6 +574,10 @@ function buildMetadataJsonArraySql(context: MetadataSqlContext, field: MetadataS
       return `COALESCE(${buildScalarLookupSql(context.recordKeyExpr, context.actorAlias, "weaknesses_json", "actor_records")}, '[]')`;
     case "disableSkills":
       return `COALESCE(${buildScalarLookupSql(context.recordKeyExpr, context.actorAlias, "disable_skills_json", "actor_records")}, '[]')`;
+    case "variantAxes":
+      return context.recordsAlias
+        ? `COALESCE(${context.recordsAlias}.variant_axes_json, '[]')`
+        : `COALESCE((SELECT meta.variant_axes_json FROM records meta WHERE meta.record_key = ${context.recordKeyExpr}), '[]')`;
     default:
       return "[]";
   }
@@ -614,6 +618,12 @@ function buildMetadataScalarSqlExpression(
       return buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "duration_unit", "spell_records");
     case "rarity":
       return context.recordsAlias ? `${context.recordsAlias}.rarity` : `(SELECT meta.rarity FROM records meta WHERE meta.record_key = ${context.recordKeyExpr})`;
+    case "variantFamilyKey":
+      return context.recordsAlias ? `${context.recordsAlias}.variant_family_key` : `(SELECT meta.variant_family_key FROM records meta WHERE meta.record_key = ${context.recordKeyExpr})`;
+    case "variantBaseName":
+      return context.recordsAlias ? `${context.recordsAlias}.variant_base_name` : `(SELECT meta.variant_base_name FROM records meta WHERE meta.record_key = ${context.recordKeyExpr})`;
+    case "variantLabel":
+      return context.recordsAlias ? `${context.recordsAlias}.variant_label` : `(SELECT meta.variant_label FROM records meta WHERE meta.record_key = ${context.recordKeyExpr})`;
     case "level":
       return context.recordsAlias ? `${context.recordsAlias}.level` : `(SELECT meta.level FROM records meta WHERE meta.record_key = ${context.recordKeyExpr})`;
     case "priceCp":
@@ -841,6 +851,8 @@ function getRecordSetValues(record: NormalizedRecord, field: MetadataSetField): 
       return record.weaknesses;
     case "disableSkills":
       return record.disableSkills;
+    case "variantAxes":
+      return record.variantAxes;
   }
 }
 
@@ -876,6 +888,12 @@ function getRecordStringValue(record: NormalizedRecord, field: MetadataEnumStrin
       return record.durationUnit;
     case "rarity":
       return record.rarity;
+    case "variantFamilyKey":
+      return record.variantFamilyKey;
+    case "variantBaseName":
+      return record.variantBaseName;
+    case "variantLabel":
+      return record.variantLabel;
   }
 }
 

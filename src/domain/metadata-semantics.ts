@@ -228,6 +228,14 @@ const METADATA_FIELD_REGISTRY: MetadataFieldSemantics[] = [
     notes: "Structured hazard disable skills parsed from disable text when PF2E markup provides a clear anchor.",
   },
   {
+    field: "variantAxes",
+    fieldType: "set",
+    operators: SET_OPERATORS,
+    categories: ["equipment", "spell"],
+    discoverable: DISCOVERABLE_METADATA_FIELDS.has("variantAxes"),
+    notes: "Normalized variant-family axes such as rank, grade, or specialization.",
+  },
+  {
     field: "sourceCategory",
     fieldType: "enumString",
     operators: ENUM_STRING_OPERATORS,
@@ -306,6 +314,14 @@ const METADATA_FIELD_REGISTRY: MetadataFieldSemantics[] = [
     notes: "Also available as a top-level filter for the common common/uncommon/rare/unique boundary.",
   },
   {
+    field: "variantFamilyKey",
+    fieldType: "enumString",
+    operators: ENUM_STRING_OPERATORS,
+    categories: ["equipment", "spell"],
+    discoverable: DISCOVERABLE_METADATA_FIELDS.has("variantFamilyKey"),
+    notes: "Stable internal family key for page-variant siblings.",
+  },
+  {
     field: "publicationTitle",
     fieldType: "text",
     operators: TEXT_OPERATORS,
@@ -339,6 +355,22 @@ const METADATA_FIELD_REGISTRY: MetadataFieldSemantics[] = [
     operators: TEXT_OPERATORS,
     categories: ["hazard"],
     discoverable: DISCOVERABLE_METADATA_FIELDS.has("disableText"),
+  },
+  {
+    field: "variantBaseName",
+    fieldType: "text",
+    operators: TEXT_OPERATORS,
+    categories: ["equipment", "spell"],
+    discoverable: DISCOVERABLE_METADATA_FIELDS.has("variantBaseName"),
+    notes: "Human-readable shared family name for item or spell variants.",
+  },
+  {
+    field: "variantLabel",
+    fieldType: "text",
+    operators: TEXT_OPERATORS,
+    categories: ["equipment", "spell"],
+    discoverable: DISCOVERABLE_METADATA_FIELDS.has("variantLabel"),
+    notes: "Per-record label inside a detected variant family, such as Greater or 4th-Rank.",
   },
   {
     field: "level",

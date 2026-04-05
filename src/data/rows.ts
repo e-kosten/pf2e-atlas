@@ -35,6 +35,12 @@ export type CandidateRow = {
   sourceCategory: SourceCategory;
   folderId: string | null;
   familiesJson: string | null;
+  variantFamilyKey: string | null;
+  variantBaseName: string | null;
+  variantLabel: string | null;
+  variantAxesJson: string | null;
+  variantConfidence: number | null;
+  variantSource: string;
   sourcePath: string;
   isUnique: number;
   isSearchCanonical?: number;
@@ -177,6 +183,12 @@ export function rowToRecord(row: CandidateRow, raw: Record<string, unknown> | nu
     sourceCategory: row.sourceCategory,
     folderId: row.folderId,
     families: row.familiesJson ? (JSON.parse(row.familiesJson) as string[]) : [],
+    variantFamilyKey: row.variantFamilyKey,
+    variantBaseName: row.variantBaseName,
+    variantLabel: row.variantLabel,
+    variantAxes: row.variantAxesJson ? (JSON.parse(row.variantAxesJson) as string[]) : [],
+    variantConfidence: row.variantConfidence,
+    variantSource: (row.variantSource ?? "none") as NormalizedRecord["variantSource"],
     sourcePath: row.sourcePath,
     isUnique: Boolean(row.isUnique),
     size: row.size,

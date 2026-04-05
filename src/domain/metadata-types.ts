@@ -21,6 +21,7 @@ export const METADATA_SET_FIELDS = [
   "resistances",
   "weaknesses",
   "disableSkills",
+  "variantAxes",
 ] as const;
 
 export type MetadataSetField = (typeof METADATA_SET_FIELDS)[number];
@@ -36,6 +37,7 @@ export const METADATA_ENUM_STRING_FIELDS = [
   "areaType",
   "durationUnit",
   "rarity",
+  "variantFamilyKey",
 ] as const;
 
 export type MetadataEnumStringField = (typeof METADATA_ENUM_STRING_FIELDS)[number];
@@ -46,6 +48,8 @@ export const METADATA_TEXT_STRING_FIELDS = [
   "durationText",
   "targetText",
   "disableText",
+  "variantBaseName",
+  "variantLabel",
 ] as const;
 
 export type MetadataTextStringField = (typeof METADATA_TEXT_STRING_FIELDS)[number];

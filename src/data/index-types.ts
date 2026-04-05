@@ -5,6 +5,7 @@ import type {
   SearchCategory,
   SearchSubcategory,
   SourceCategory,
+  VariantSource,
 } from "../types.js";
 
 export type StageTiming = {
@@ -37,6 +38,12 @@ export type NormalizedIndexRecord = {
   sourceCategory: SourceCategory;
   folderId: string | null;
   families: string[];
+  variantFamilyKey: string | null;
+  variantBaseName: string | null;
+  variantLabel: string | null;
+  variantAxes: string[];
+  variantConfidence: number | null;
+  variantSource: VariantSource;
   sourcePath: string;
   isUnique: boolean;
   size: string | null;

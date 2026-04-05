@@ -205,6 +205,12 @@ export function buildCandidateQuery(
     "r.source_category AS sourceCategory",
     "r.folder_id AS folderId",
     "r.families_json AS familiesJson",
+    "r.variant_family_key AS variantFamilyKey",
+    "r.variant_base_name AS variantBaseName",
+    "r.variant_label AS variantLabel",
+    "r.variant_axes_json AS variantAxesJson",
+    "r.variant_confidence AS variantConfidence",
+    "r.variant_source AS variantSource",
     "r.source_path AS sourcePath",
     "r.is_unique AS isUnique",
     "r.is_search_canonical AS isSearchCanonical",
@@ -485,6 +491,22 @@ export function buildFilterValueQuery(query: FilterValueQuery, filters: Normaliz
     case "disableSkills":
       joins.push("JOIN json_each(COALESCE(a.disable_skills_json, '[]')) AS disable_skill");
       valueExpression = "disable_skill.value";
+      break;
+    case "variantAxes":
+      joins.push("JOIN json_each(COALESCE(r.variant_axes_json, '[]')) AS variant_axis");
+      valueExpression = "variant_axis.value";
+      break;
+    case "variantFamilyKey":
+      valueExpression = "r.variant_family_key";
+      postFilterClauses.push("AND r.variant_family_key IS NOT NULL AND r.variant_family_key <> ''");
+      break;
+    case "variantBaseName":
+      valueExpression = "r.variant_base_name";
+      postFilterClauses.push("AND r.variant_base_name IS NOT NULL AND r.variant_base_name <> ''");
+      break;
+    case "variantLabel":
+      valueExpression = "r.variant_label";
+      postFilterClauses.push("AND r.variant_label IS NOT NULL AND r.variant_label <> ''");
       break;
     case "isComplex":
       valueExpression = "CASE a.is_complex WHEN 1 THEN 'true' ELSE 'false' END";

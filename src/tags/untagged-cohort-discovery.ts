@@ -42,6 +42,7 @@ export type UntaggedCohortAnchor = {
 export type UntaggedCohortCluster = {
   signature: string[];
   size: number;
+  distinctVariantFamilies: number;
   averageSimilarity: number;
   sharedTraits: string[];
   anchorSupport: number;
@@ -94,6 +95,54 @@ type RecordNode = {
   informativeFeatureKeys: Set<string>;
   allFeatureKeys: Set<string>;
 };
+
+function variantFamilyIdentity(record: DiscoveryAnalysisRecord): string {
+  return record.variantFamilyKey ?? record.recordKey;
+}
+
+function distinctVariantFamilyCount(records: DiscoveryAnalysisRecord[]): number {
+  return new Set(records.map((record) => variantFamilyIdentity(record))).size;
+}
+
+function selectRepresentativeRecords(
+  members: Array<{ record: DiscoveryAnalysisRecord; similarity: number }>,
+  limit = 5,
+): Array<{ recordKey: string; name: string; similarity: number }> {
+  const selected: Array<{ recordKey: string; name: string; similarity: number }> = [];
+  const seenFamilies = new Set<string>();
+
+  for (const entry of members) {
+    const familyId = variantFamilyIdentity(entry.record);
+    if (seenFamilies.has(familyId)) {
+      continue;
+    }
+    seenFamilies.add(familyId);
+    selected.push({
+      recordKey: entry.record.recordKey,
+      name: entry.record.name,
+      similarity: entry.similarity,
+    });
+    if (selected.length >= limit) {
+      return selected;
+    }
+  }
+
+  for (const entry of members) {
+    if (selected.some((selectedEntry) => selectedEntry.recordKey === entry.record.recordKey)) {
+      continue;
+    }
+    selected.push({
+      recordKey: entry.record.recordKey,
+      name: entry.record.name,
+      similarity: entry.similarity,
+    });
+    if (selected.length >= limit) {
+      break;
+    }
+  }
+
+  return selected;
+}
 
 function featureTokenCount(value: string): number {
   return value.split(" ").filter(Boolean).length;
@@ -348,8 +397,12 @@ function buildNeighborGraph(
       const union = new Set([...node.informativeFeatureKeys, ...candidate.informativeFeatureKeys]).size;
       const featureJaccard = union > 0 ? sharedFeatures / union : 0;
       const cosine = cosineSimilarity(node.record.vector, candidate.record.vector);
-      const hybrid = (Math.max(0, cosine) * 0.45) + (featureJaccard * 0.4) + (Math.min(1, sharedFeatures / 4) * 0.15);
-      const shouldLink = hybrid >= 0.36 || (sharedFeatures >= 2 && hybrid >= 0.26);
+      const sameFamily = node.record.variantFamilyKey !== null && node.record.variantFamilyKey === candidate.record.variantFamilyKey;
+      const hybridBase = (Math.max(0, cosine) * 0.45) + (featureJaccard * 0.4) + (Math.min(1, sharedFeatures / 4) * 0.15);
+      const hybrid = sameFamily ? hybridBase - 0.18 : hybridBase;
+      const shouldLink = sameFamily
+        ? sharedFeatures >= 3 && hybrid >= 0.34
+        : (hybrid >= 0.36 || (sharedFeatures >= 2 && hybrid >= 0.26));
       if (!shouldLink) {
         continue;
       }
@@ -407,18 +460,40 @@ function rankClusterAnchors(
   memberKeys: string[],
   featureSupport: ReturnType<typeof collectFeatureSupport>,
   baselineSupport: ReturnType<typeof collectFeatureSupport>,
+  recordsByKey: Map<string, DiscoveryAnalysisRecord>,
   options: UntaggedCohortOptions,
 ): RankedFeature[] {
-  const supportCounts = new Map<string, number>();
+  const supportCounts = new Map<string, Set<string>>();
   for (const recordKey of memberKeys) {
+    const record = recordsByKey.get(recordKey);
+    const familyId = record ? variantFamilyIdentity(record) : recordKey;
     for (const feature of featureSupport.featuresByRecordKey.get(recordKey) ?? []) {
-      supportCounts.set(feature.key, (supportCounts.get(feature.key) ?? 0) + 1);
+      const bucket = supportCounts.get(feature.key) ?? new Set<string>();
+      bucket.add(familyId);
+      supportCounts.set(feature.key, bucket);
+    }
+  }
+
+  const baselineSupportCounts = new Map<string, Set<string>>();
+  for (const [recordKey, features] of baselineSupport.featuresByRecordKey.entries()) {
+    const record = recordsByKey.get(recordKey);
+    const familyId = record ? variantFamilyIdentity(record) : recordKey;
+    for (const feature of features) {
+      const bucket = baselineSupportCounts.get(feature.key) ?? new Set<string>();
+      bucket.add(familyId);
+      baselineSupportCounts.set(feature.key, bucket);
     }
   }
 
   const minLift = Math.max(1, options.minFeatureLift ?? DEFAULT_MIN_FEATURE_LIFT);
+  const memberFamilyCount = new Set(memberKeys.map((recordKey) => {
+    const record = recordsByKey.get(recordKey);
+    return record ? variantFamilyIdentity(record) : recordKey;
+  })).size;
+  const baselineFamilyCount = new Set([...recordsByKey.values()].map((record) => variantFamilyIdentity(record))).size;
+
   return [...supportCounts.entries()]
-    .map(([key, support]) => {
+    .map(([key, supportSet]) => {
       const feature = featureSupport.byKey.get(key);
       if (!feature) {
         return null;
@@ -427,9 +502,10 @@ function rankClusterAnchors(
         return null;
       }
 
-      const baselineCount = baselineSupport.counts.get(key) ?? 0;
-      const clusterRatio = (support + 1) / Math.max(1, memberKeys.length + 2);
-      const baselineRatio = (baselineCount + 1) / Math.max(1, baselineSupport.featuresByRecordKey.size + 2);
+      const support = supportSet.size;
+      const baselineCount = baselineSupportCounts.get(key)?.size ?? 0;
+      const clusterRatio = (support + 1) / Math.max(1, memberFamilyCount + 2);
+      const baselineRatio = (baselineCount + 1) / Math.max(1, baselineFamilyCount + 2);
       const lift = baselineRatio > 0 ? clusterRatio / baselineRatio : support;
       const score = support * Math.max(1, lift) * featureSpecificityWeight(feature.kind, feature.display);
 
@@ -444,7 +520,7 @@ function rankClusterAnchors(
       } satisfies RankedFeature;
     })
     .filter((entry): entry is RankedFeature => Boolean(entry))
-    .filter((entry) => entry.support >= Math.max(2, Math.ceil(memberKeys.length * 0.45)) && entry.lift >= minLift)
+    .filter((entry) => entry.support >= Math.max(2, Math.ceil(memberFamilyCount * 0.45)) && entry.lift >= minLift)
     .sort((left, right) =>
       right.score - left.score ||
       right.support - left.support ||
@@ -467,12 +543,6 @@ function recommendCluster(score: number): CohortRecommendation {
   return "reject";
 }
 
-function jaccard(left: Set<string>, right: Set<string>): number {
-  const intersection = [...left].filter((value) => right.has(value)).length;
-  const union = new Set([...left, ...right]).size;
-  return union === 0 ? 0 : intersection / union;
-}
-
 function buildCandidateCohorts(
   untagged: DiscoveryAnalysisRecord[],
   baseline: DiscoveryAnalysisRecord[],
@@ -484,19 +554,20 @@ function buildCandidateCohorts(
   const nodes = buildRecordNodes(untagged, featureSupport, minSupport);
   const graph = buildNeighborGraph(nodes);
   const components = collectComponents(nodes, graph);
-  const recordsByKey = new Map(untagged.map((record) => [record.recordKey, record] as const));
+  const recordsByKey = new Map([...baseline, ...untagged].map((record) => [record.recordKey, record] as const));
   const allFeatureKeysByRecordKey = new Map(nodes.map((node) => [node.record.recordKey, node.allFeatureKeys] as const));
   const cohortLimit = Math.max(1, Math.min(options.cohortLimit ?? DEFAULT_COHORT_LIMIT, 20));
   return components
     .map((memberKeys) => {
       const members = memberKeys.map((recordKey) => recordsByKey.get(recordKey)).filter((record): record is DiscoveryAnalysisRecord => Boolean(record));
-      const clusterAnchors = rankClusterAnchors(memberKeys, featureSupport, baselineSupport, options);
+      const clusterAnchors = rankClusterAnchors(memberKeys, featureSupport, baselineSupport, recordsByKey, options);
       const centroid = normalizeVector(averageVectors(members.map((record) => record.vector).filter((vector) => vector.length > 0)));
       const memberSimilarities = members.map((record) => ({
         record,
         similarity: cosineSimilarity(record.vector, centroid),
       }));
       const averageSimilarity = memberSimilarities.reduce((total, entry) => total + entry.similarity, 0) / Math.max(1, memberSimilarities.length);
+      const distinctVariantFamilies = distinctVariantFamilyCount(members);
       const sharedTraits = [...new Set(members.flatMap((member) => member.traits))]
         .filter((trait) => members.every((member) => member.traits.includes(trait)));
       const nonMembers = untagged.filter((record) => !memberKeys.includes(record.recordKey));
@@ -520,6 +591,7 @@ function buildCandidateCohorts(
         }));
 
       const sizeFactor = Math.min(1, members.length / 6);
+      const familyDiversity = distinctVariantFamilies / Math.max(1, members.length);
       const similarityFactor = Math.max(0, Math.min(1, averageSimilarity));
       const density = signatureKeys.length > 0
         ? members.reduce((total, member) => {
@@ -531,31 +603,29 @@ function buildCandidateCohorts(
       const liftFactor = clusterAnchors.length > 0
         ? Math.max(0, Math.min(1, (clusterAnchors[0]!.lift ?? 0) / 6))
         : 0;
-      const score = Math.max(0, Math.min(1, (sizeFactor * 0.35) + (similarityFactor * 0.25) + (density * 0.25) + (liftFactor * 0.15)));
+      const score = Math.max(0, Math.min(1, (sizeFactor * 0.25) + (familyDiversity * 0.25) + (similarityFactor * 0.2) + (density * 0.2) + (liftFactor * 0.1)));
 
       return {
         signature: uniqueSorted(signatureDisplay).slice(0, 4),
         size: members.length,
+        distinctVariantFamilies,
         averageSimilarity,
         sharedTraits: uniqueSorted(sharedTraits),
         anchorSupport: clusterAnchors[0]?.support ?? 0,
         anchorLift: clusterAnchors[0]?.lift ?? 0,
         score,
         recommendation: recommendCluster(score),
-        representativeRecords: memberSimilarities
-          .sort((left, right) => right.similarity - left.similarity || left.record.name.localeCompare(right.record.name))
-          .slice(0, 5)
-          .map((entry) => ({
-            recordKey: entry.record.recordKey,
-            name: entry.record.name,
-            similarity: entry.similarity,
-          })),
+        representativeRecords: selectRepresentativeRecords(
+          memberSimilarities
+            .sort((left, right) => right.similarity - left.similarity || left.record.name.localeCompare(right.record.name)),
+        ),
         contrastRecords,
       } satisfies UntaggedCohortCluster;
     })
     .filter((cluster) => cluster.signature.length > 0 || cluster.size >= 3)
     .sort((left, right) =>
       right.score - left.score ||
+      right.distinctVariantFamilies - left.distinctVariantFamilies ||
       right.size - left.size ||
       right.averageSimilarity - left.averageSimilarity ||
       left.signature.join(" ").localeCompare(right.signature.join(" ")))

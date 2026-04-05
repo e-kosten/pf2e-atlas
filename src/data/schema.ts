@@ -16,7 +16,7 @@ import {
 } from "../types.js";
 import { uniqueSorted } from "../utils.js";
 
-export const INDEX_SCHEMA_VERSION = 21;
+export const INDEX_SCHEMA_VERSION = 22;
 
 function hashText(value: string): number {
   let hash = 2166136261;
@@ -72,6 +72,12 @@ export function createSchema(db: DatabaseSync, embeddingDimensions: number): voi
       source_category TEXT NOT NULL,
       folder_id TEXT,
       families_json TEXT NOT NULL,
+      variant_family_key TEXT,
+      variant_base_name TEXT,
+      variant_label TEXT,
+      variant_axes_json TEXT NOT NULL,
+      variant_confidence REAL,
+      variant_source TEXT NOT NULL,
       source_path TEXT NOT NULL,
       is_unique INTEGER NOT NULL,
       is_search_canonical INTEGER NOT NULL,

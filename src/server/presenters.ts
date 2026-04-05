@@ -45,6 +45,17 @@ export function summarizeRecord(
     summary.searchExplain = explanation;
   }
 
+  if (record.variantFamilyKey) {
+    Object.assign(summary, {
+      variantFamilyKey: record.variantFamilyKey,
+      variantBaseName: record.variantBaseName,
+      variantLabel: record.variantLabel,
+      variantAxes: record.variantAxes,
+      variantConfidence: record.variantConfidence,
+      variantSource: record.variantSource,
+    });
+  }
+
   if (detail === "minimal") {
     return summary;
   }

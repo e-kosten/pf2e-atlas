@@ -147,6 +147,10 @@ export const FILTER_VALUE_FIELDS = [
   "disableSkills",
   "isComplex",
   "itemCategory",
+  "variantAxes",
+  "variantFamilyKey",
+  "variantBaseName",
+  "variantLabel",
 ] as const;
 
 export type FilterValueField = (typeof FILTER_VALUE_FIELDS)[number];

@@ -105,7 +105,7 @@ export function formatClusterReport(report: RuleableCohortReport): string {
     "Cohorts:",
     ...(report.cohorts.length > 0
       ? report.cohorts.flatMap((cohort) => [
-        `- signature=${cohort.signature.join(", ") || "(semantic only)"} size=${cohort.size} avg_similarity=${cohort.averageSimilarity.toFixed(3)} score=${cohort.score.toFixed(2)} recommendation=${cohort.recommendation}`,
+        `- signature=${cohort.signature.join(", ") || "(semantic only)"} size=${cohort.size} families=${cohort.distinctVariantFamilies} avg_similarity=${cohort.averageSimilarity.toFixed(3)} score=${cohort.score.toFixed(2)} recommendation=${cohort.recommendation}`,
         ...cohort.representativeRecords.map((record) => `  ${record.name} (${record.recordKey}) score=${record.similarity.toFixed(3)}`),
       ])
       : ["- (none)"]),

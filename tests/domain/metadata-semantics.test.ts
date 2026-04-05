@@ -14,6 +14,10 @@ describe("metadata search semantics", () => {
       "armorGroup",
       "itemCategory",
       "damageTypes",
+      "variantAxes",
+      "variantFamilyKey",
+      "variantBaseName",
+      "variantLabel",
     ]));
     expect(semantics.metadataFieldsByCategory.creature).toEqual(expect.arrayContaining([
       "families",
@@ -33,6 +37,10 @@ describe("metadata search semantics", () => {
       "areaValue",
       "sustained",
       "basicSave",
+      "variantAxes",
+      "variantFamilyKey",
+      "variantBaseName",
+      "variantLabel",
     ]));
     expect(semantics.metadataFieldsByCategory.hazard).toEqual(expect.arrayContaining([
       "derivedTags",
@@ -83,6 +91,10 @@ describe("metadata search semantics", () => {
       "size",
       "rarity",
       "publicationTitle",
+      "variantAxes",
+      "variantFamilyKey",
+      "variantBaseName",
+      "variantLabel",
     ]));
     expect(discoverableFields).not.toContain("publicationRemaster");
 

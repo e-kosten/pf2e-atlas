@@ -24,6 +24,7 @@ export interface LinkedRecordSummary {
 }
 
 export type SourceCategory = "core" | "rules" | "adventure" | "unknown";
+export type VariantSource = "baseItem" | "slug" | "namePattern" | "sourcePath" | "composite" | "none";
 
 export interface DerivedTagCatalogTag {
   value: string;
@@ -63,6 +64,12 @@ export interface NormalizedRecord {
   sourceCategory: SourceCategory;
   folderId: string | null;
   families: string[];
+  variantFamilyKey: string | null;
+  variantBaseName: string | null;
+  variantLabel: string | null;
+  variantAxes: string[];
+  variantConfidence: number | null;
+  variantSource: VariantSource;
   sourcePath: string;
   isUnique: boolean;
   size: string | null;

@@ -46,6 +46,7 @@ import {
 import {
   buildDerivedAfflictionArtifacts,
 } from "./derived-afflictions.js";
+import { assignVariantFamilies } from "./variant-families.js";
 import {
   extractRulesReferences,
   resolveBuildReferencesAndAliases,
@@ -293,8 +294,9 @@ export async function buildIndex(
     INSERT INTO records (
       record_key, id, name, normalized_name, category, subcategory, pack_name, pack_label, document_type, record_type,
       level, rarity, traits_json, derived_tags_json, publication_title, publication_remaster, description_text, has_description, description_snippet,
-      source_category, folder_id, families_json, source_path, is_unique, is_search_canonical, search_text, raw_json
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      source_category, folder_id, families_json, variant_family_key, variant_base_name, variant_label, variant_axes_json, variant_confidence, variant_source,
+      source_path, is_unique, is_search_canonical, search_text, raw_json
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const insertAlias = db.prepare(`
     INSERT INTO record_aliases (canonical_record_key, alias_text, normalized_alias, source_kind, source_ref)
@@ -495,6 +497,7 @@ export async function buildIndex(
     const resolutionStartTime = Date.now();
 
     const indexedEntries = sourceEntries.filter((entry): entry is BuildSourceEntry & { record: NonNullable<BuildSourceEntry["record"]> } => entry.record !== null);
+    assignVariantFamilies(indexedEntries);
     const { aliasRows, legacyLinkRows } = await resolveBuildReferencesAndAliases({
       indexedEntries,
       sourceEntries,
@@ -668,6 +671,12 @@ export async function buildIndex(
         record.sourceCategory,
         record.folderId,
         JSON.stringify(record.families),
+        record.variantFamilyKey,
+        record.variantBaseName,
+        record.variantLabel,
+        JSON.stringify(record.variantAxes),
+        record.variantConfidence,
+        record.variantSource,
         record.sourcePath,
         record.isUnique ? 1 : 0,
         isSearchCanonical ? 1 : 0,
