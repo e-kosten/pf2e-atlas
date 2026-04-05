@@ -364,6 +364,11 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     });
 
     expect(service.listFilterValues({
+      field: "sourceCategory",
+      category: "creature",
+    }).values.map((entry) => entry.value)).toEqual(["core", "rules", "adventure"]);
+
+    expect(service.listFilterValues({
       field: "traditions",
       category: "spell",
     })).toEqual({
@@ -418,6 +423,21 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       field: "usage",
       category: "equipment",
     }).values.map((entry) => entry.value)).toEqual(["held-in-one-hand"]);
+
+    expect(service.listFilterValues({
+      field: "hands",
+      category: "equipment",
+    }).values.map((entry) => entry.value)).toEqual(["1"]);
+
+    expect(service.listFilterValues({
+      field: "actionCost",
+      category: "spell",
+    }).values.map((entry) => entry.value)).toEqual(["2"]);
+
+    expect(service.listFilterValues({
+      field: "rangeValue",
+      category: "spell",
+    }).values.map((entry) => entry.value)).toEqual(["30"]);
 
     expect(service.listFilterValues({
       field: "damageTypes",

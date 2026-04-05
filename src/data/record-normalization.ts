@@ -452,8 +452,17 @@ function parseNumericLikeValue(value: unknown): number | null {
   }
 
   if (typeof value === "string" && value.trim().length > 0) {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : null;
+    const trimmed = value.trim();
+    const parsed = Number(trimmed);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+
+    const leadingNumber = trimmed.match(/^-?\d+(?:\.\d+)?/);
+    if (leadingNumber?.[0]) {
+      const leadingParsed = Number(leadingNumber[0]);
+      return Number.isFinite(leadingParsed) ? leadingParsed : null;
+    }
   }
 
   return null;
@@ -572,7 +581,7 @@ export function parseItemIndexData(raw: Record<string, unknown>): ItemIndexData 
 }
 
 function parseRangeValue(raw: Record<string, unknown>): number | null {
-  return asNumber(
+  return parseNumericLikeValue(
     getNested(raw, ["system", "range", "value"]) ??
       getNested(raw, ["system", "range", "increment"]) ??
       getNested(raw, ["system", "area", "value"]),

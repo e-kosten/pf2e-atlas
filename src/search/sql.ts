@@ -375,6 +375,10 @@ export function buildFilterValueQuery(query: FilterValueQuery, filters: Normaliz
       valueExpression = "r.rarity";
       postFilterClauses.push("AND r.rarity IS NOT NULL AND r.rarity <> ''");
       break;
+    case "sourceCategory":
+      valueExpression = "r.source_category";
+      postFilterClauses.push("AND r.source_category IS NOT NULL AND r.source_category <> ''");
+      break;
     case "size":
       valueExpression = "a.size";
       postFilterClauses.push("AND a.size IS NOT NULL AND a.size <> ''");
@@ -403,6 +407,14 @@ export function buildFilterValueQuery(query: FilterValueQuery, filters: Normaliz
       valueExpression = "i.usage_text";
       postFilterClauses.push("AND i.usage_text IS NOT NULL AND i.usage_text <> ''");
       break;
+    case "actionCost":
+      valueExpression = "CAST(COALESCE(s.action_cost, i.action_cost) AS TEXT)";
+      postFilterClauses.push("AND COALESCE(s.action_cost, i.action_cost) IS NOT NULL");
+      break;
+    case "hands":
+      valueExpression = "CAST(i.hands AS TEXT)";
+      postFilterClauses.push("AND i.hands IS NOT NULL");
+      break;
     case "saveType":
       valueExpression = "s.save_type";
       postFilterClauses.push("AND s.save_type IS NOT NULL AND s.save_type <> ''");
@@ -410,6 +422,10 @@ export function buildFilterValueQuery(query: FilterValueQuery, filters: Normaliz
     case "areaType":
       valueExpression = "s.area_type";
       postFilterClauses.push("AND s.area_type IS NOT NULL AND s.area_type <> ''");
+      break;
+    case "rangeValue":
+      valueExpression = "CASE WHEN s.range_value = CAST(s.range_value AS INTEGER) THEN CAST(CAST(s.range_value AS INTEGER) AS TEXT) ELSE CAST(s.range_value AS TEXT) END";
+      postFilterClauses.push("AND s.range_value IS NOT NULL");
       break;
     case "damageTypes":
       joins.push("JOIN json_each(COALESCE(s.damage_types_json, i.damage_types_json, '[]')) AS damage_type");

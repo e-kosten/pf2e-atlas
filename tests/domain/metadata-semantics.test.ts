@@ -55,6 +55,7 @@ describe("metadata search semantics", () => {
     expect(discoverableFields).toEqual(expect.arrayContaining([
       "traits",
       "families",
+      "sourceCategory",
       "traditions",
       "spellKinds",
       "saveType",
@@ -62,12 +63,14 @@ describe("metadata search semantics", () => {
       "weaponGroup",
       "armorGroup",
       "usage",
+      "actionCost",
+      "hands",
+      "rangeValue",
       "itemCategory",
       "size",
       "rarity",
       "publicationTitle",
     ]));
-    expect(discoverableFields).not.toContain("hands");
     expect(discoverableFields).not.toContain("publicationRemaster");
 
     for (const field of discoverableFields) {

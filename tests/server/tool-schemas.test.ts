@@ -25,10 +25,14 @@ describe("tool schemas", () => {
     expect(filterValueFieldSchema.safeParse("derivedTags")).toMatchObject({ success: true, data: "derivedTags" });
     expect(filterValueFieldSchema.safeParse("actorMetrics")).toMatchObject({ success: true, data: "actorMetrics" });
     expect(filterValueFieldSchema.safeParse("itemMetrics")).toMatchObject({ success: true, data: "itemMetrics" });
+    expect(filterValueFieldSchema.safeParse("sourceCategory")).toMatchObject({ success: true, data: "sourceCategory" });
     expect(filterValueFieldSchema.safeParse("publicationTitle")).toMatchObject({ success: true, data: "publicationTitle" });
     expect(filterValueFieldSchema.safeParse("weaponGroup")).toMatchObject({ success: true, data: "weaponGroup" });
+    expect(filterValueFieldSchema.safeParse("actionCost")).toMatchObject({ success: true, data: "actionCost" });
+    expect(filterValueFieldSchema.safeParse("hands")).toMatchObject({ success: true, data: "hands" });
     expect(filterValueFieldSchema.safeParse("saveType")).toMatchObject({ success: true, data: "saveType" });
     expect(filterValueFieldSchema.safeParse("areaType")).toMatchObject({ success: true, data: "areaType" });
+    expect(filterValueFieldSchema.safeParse("rangeValue")).toMatchObject({ success: true, data: "rangeValue" });
     expect(filterValueFieldSchema.safeParse("packs")).toMatchObject({ success: true, data: "packs" });
     expect(filterValueFieldSchema.safeParse("foo").success).toBe(false);
   });
