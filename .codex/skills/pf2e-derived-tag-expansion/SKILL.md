@@ -22,6 +22,14 @@ Default to this skill when any of these are true:
 
 ## Workflow
 
+0. If the task starts at category selection rather than a fixed category, sketch potential tags for each plausible category before proposing one.
+   Collect a lightweight matrix per candidate category:
+   - current coverage snapshot
+   - repeated untagged concepts
+   - likely families and tags that could form one meaningful batch
+   - rough expected record movement
+   - obvious precision risks or noisy boundary classes
+   Use this pass to compare category slices, not to lock rules yet. Do not recommend a category purely because its coverage is low; recommend it because it appears to support the strongest meaningful batch.
 1. Audit the category before proposing tags.
    Collect:
    - canonical record count
@@ -42,9 +50,13 @@ Default to this skill when any of these are true:
    - 1-2 new families and 3-8 tags, or
    - one existing family plus multiple meaningful rule extensions that should move dozens of records
    - one medium-size category pass that materially improves an under-modeled category even if no new family is needed
+   When comparing multiple categories, prefer the category whose likely batch looks both meaningful and internally coherent, even if another category has slightly lower coverage.
 5. Use semantic discovery and the gap evaluator as discovery support, not truth.
    - If the concept already exists as a derived tag, run `npm run evaluate-derived-tags -- --tag <derived_tag> ...`.
    - If the concept does not exist yet, seed it with exemplars and run `npm run discover-derived-tag-candidates -- --category <category> --name <record> ...`.
+   - Preserve a baseline index snapshot before expansion and compare it after the rebuild with:
+     `npm run evaluate-derived-tag-movement -- --baseline-index-path /path/to/before.sqlite --category <category> --tags <tag1,tag2,...> --warn-category-gain-below-points <points> --warn-tag-gain-below-count <count> --sample-limit <n>`
+   - Use the movement evaluator to ask whether the expansion actually moved enough live records to justify the added rule complexity, and inspect gained/lost record samples for the touched tags.
    - Use the semantic output to identify likely candidates, repeated traits, repeated phrases, and false-positive classes. Do not treat embedding proximity as a direct tagging decision.
    - When a proposed tag depends on broad description evidence, identify at least one real canonical record that uses similar generic language but should stay negative.
    - Good regression seeds when they match the slice include `Crushing Ground`, `Imprisonment`, `Artevil Suspension`, `Blindpepper Bomb`, `Mycological Malady`, and one troll lore paragraph for creature-setting noise.
@@ -84,6 +96,7 @@ Default to this skill when any of these are true:
    - `npm run build`
    - `npm test`
    - `npm run refresh-index -- --reuse-embeddings` when live tagging should change materially
+   - `npm run evaluate-derived-tag-movement -- --baseline-index-path /path/to/before.sqlite --category <category> --tags <tag1,tag2,...> --warn-category-gain-below-points <points> --warn-tag-gain-below-count <count> --sample-limit <n>` when the pass is supposed to improve live coverage
 10. Summarize at category level.
    Report:
    - before/after tagged-record counts
@@ -118,6 +131,7 @@ Read the output as an evidence-mining pass. The next step is still to design exp
 - Prefer explainable rule tables over ad hoc branching or giant keyword dumps.
 - Every broad anchor should have a named noisy boundary case.
 - Favor false negatives over false positives, but do not let that become an excuse to avoid needed ontology growth.
+- If an expansion pass gains only a handful of live records, treat that as a possible over-specific rule set and inspect the gained-record samples before presenting the pass as successful.
 
 ## Approval Batch Shape
 
@@ -127,6 +141,11 @@ A good approval batch is:
 - one sparse category slice
 - 1-2 families and 3-8 tags, or a similarly meaningful expansion pass
 - enough expected movement that the category coverage numbers should visibly change
+
+When the task begins before category selection:
+- first show the candidate-category matrix with likely tags and expected movement
+- then recommend the best category slice
+- only after that recommendation is accepted should the approval checkpoint drill into final per-tag rule logic for that category
 
 ## Parallel Approval-First Mode
 
