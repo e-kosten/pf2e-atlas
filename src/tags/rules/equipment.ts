@@ -37,6 +37,8 @@ const SCOUTING_SUBCATEGORIES: SearchSubcategory[] = [...GEARISH_SUBCATEGORIES, "
 const CONCEALABLE_SUBCATEGORIES: SearchSubcategory[] = [...GEARISH_SUBCATEGORIES, "weapon"];
 const DISGUISE_WEAPON_SUBCATEGORIES: SearchSubcategory[] = [...DISGUISE_SUBCATEGORIES, "weapon"];
 const DEFENSE_SUBCATEGORIES: SearchSubcategory[] = [...GEARISH_SUBCATEGORIES, "armor", "shield"];
+const ACCESS_SYSTEM_SUBCATEGORIES: SearchSubcategory[] = [...GEARISH_SUBCATEGORIES, "armor", "weapon"];
+const AMMO_MANAGEMENT_SUBCATEGORIES: SearchSubcategory[] = [...GEARISH_SUBCATEGORIES, "armor", "ammo"];
 
 const AMMO_ILLUMINATION_TEXT_ANCHORS = [
   patternAnchor("shining", "name"),
@@ -160,6 +162,46 @@ const ARMOR_CARRY_SUPPORT_TEXT_ANCHORS = [
   patternAnchor("pouches"),
   patternAnchor("storage"),
   patternAnchor("stow"),
+];
+
+const EXTRADIMENSIONAL_STORAGE_TEXT_ANCHORS = [
+  patternAnchor("extradimensional"),
+  patternAnchor("opens into a magical space"),
+  patternAnchor("space larger than its outside dimensions"),
+  patternAnchor("functions as a {{alt(spacious pouch,bag of holding,portable hole)}}"),
+  patternAnchor("functions identically to a spacious pouch"),
+  patternAnchor("equivalent to a spacious pouch"),
+  patternAnchor("contains an extradimensional space"),
+  patternAnchor("contain an extradimensional space"),
+];
+
+const WEAPON_STAGING_NAME_ANCHORS = [
+  patternAnchor("bandolier", "name"),
+  patternAnchor("holster", "name"),
+  patternAnchor("sheath", "name"),
+  patternAnchor("scabbard", "name"),
+];
+
+const WEAPON_STAGING_TEXT_ANCHORS = [
+  patternAnchor("holstered"),
+  patternAnchor("holsters"),
+  patternAnchor("draw the weapon"),
+  patternAnchor("draw this reinforced sheath"),
+  patternAnchor("hold up to {{number}} one-handed {{alt(crossbows,firearms,weapons)}}"),
+  patternAnchor("weapons holstered in it"),
+  patternAnchor("attuned weapons in the bandolier"),
+];
+
+const AMMO_MANAGEMENT_NAME_ANCHORS = [
+  patternAnchor("magazine", "name"),
+  patternAnchor("autoload", "name"),
+];
+
+const AMMO_MANAGEMENT_TEXT_ANCHORS = [
+  patternAnchor("reload a magazine"),
+  patternAnchor("replace a magazine"),
+  patternAnchor("built in ammunition bandolier"),
+  patternAnchor("capacity or repeating traits"),
 ];
 
 const ARMOR_STEALTH_SUPPORT_TEXT_ANCHORS = [
@@ -1300,6 +1342,36 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     threshold: 2,
     anyOf: [
       { score: 2, textAny: ARMOR_CARRY_SUPPORT_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "extradimensional_storage",
+    category: "equipment",
+    subcategories: ACCESS_SYSTEM_SUBCATEGORIES,
+    threshold: 2,
+    anyOf: [
+      { score: 2, traitsAny: ["extradimensional"] },
+      { score: 2, textAny: EXTRADIMENSIONAL_STORAGE_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "weapon_staging",
+    category: "equipment",
+    subcategories: [...GEARISH_SUBCATEGORIES, "weapon"],
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: WEAPON_STAGING_NAME_ANCHORS },
+      { score: 2, textAny: WEAPON_STAGING_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "ammo_management",
+    category: "equipment",
+    subcategories: AMMO_MANAGEMENT_SUBCATEGORIES,
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: AMMO_MANAGEMENT_NAME_ANCHORS },
+      { score: 2, textAny: AMMO_MANAGEMENT_TEXT_ANCHORS },
     ],
   },
   {

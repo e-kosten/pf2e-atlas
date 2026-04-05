@@ -409,6 +409,24 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     },
   });
 
+  await writeJson(path.join(packRoot, "equipment", "gunners-bandolier.json"), {
+    _id: "gunners-bandolier-1",
+    name: "Gunner's Bandolier",
+    type: "backpack",
+    system: {
+      description: {
+        value: "<p>This incredibly spacious bandolier can hold up to 4 one-handed crossbows or firearms that take no more than 1 action to completely reload.</p><p>You empower one of the attuned weapons in the bandolier, then Interact to draw the weapon.</p>",
+      },
+      publication: {
+        title: "Pathfinder Guns & Gears",
+      },
+      traits: {
+        rarity: "uncommon",
+        value: ["invested", "magical"],
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "equipment", "marvelous-miniature-chest.json"), {
     _id: "miniChest1",
     name: "Marvelous Miniature (Chest)",
@@ -1026,6 +1044,24 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
       traits: {
         rarity: "common",
         value: ["ammunition"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment", "repeating-crossbow-magazine.json"), {
+    _id: "repeating-crossbow-magazine-1",
+    name: "Repeating Crossbow Magazine",
+    type: "ammo",
+    system: {
+      description: {
+        value: "",
+      },
+      publication: {
+        title: "Pathfinder Guns & Gears",
+      },
+      traits: {
+        rarity: "uncommon",
+        value: ["consumable"],
       },
     },
   });

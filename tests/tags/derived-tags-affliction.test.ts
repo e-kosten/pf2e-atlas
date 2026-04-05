@@ -283,4 +283,54 @@ describe("derived tag rules: affliction", () => {
       traits: ["curse"],
     })).not.toEqual(expect.arrayContaining(["respiratory_impairment", "sedation"]));
   });
+
+  it("derives epidemiological and metaphysical affliction tags", () => {
+    expect(deriveRecordTags({
+      name: "Bubonic Plague",
+      category: "affliction",
+      subcategory: "disease",
+      descriptionText: "This widespread illness can sweep through entire communities, leaving few unaffected.",
+      traits: ["disease"],
+    })).toContain("epidemic_pestilence");
+
+    expect(deriveRecordTags({
+      name: "Reaper's Shadow",
+      category: "affliction",
+      subcategory: "poison",
+      descriptionText: "This toxin erodes the connection between body and soul, tricking the latter into assuming the former has already died.",
+      traits: ["poison", "void"],
+    })).toContain("void_soul_corruption");
+
+    expect(deriveRecordTags({
+      name: "Lifeblight Residue",
+      category: "affliction",
+      subcategory: "poison",
+      descriptionText: "This dangerous sludge leeches life force as aggressively as it rots flesh.",
+      traits: ["poison"],
+    })).toContain("void_soul_corruption");
+
+    expect(deriveRecordTags({
+      name: "Endless Nightmare",
+      category: "affliction",
+      subcategory: "curse",
+      descriptionText: "The victim's mind fills with terrifying visions until they fall unconscious and can't be awakened.",
+      traits: ["curse", "emotion", "fear", "mental"],
+    })).toContain("nightmare_torment");
+
+    expect(deriveRecordTags({
+      name: "Death Drider Venom",
+      category: "affliction",
+      subcategory: "poison",
+      descriptionText: "Stage 1 the victim takes void damage and becomes drained 1.",
+      traits: ["poison", "void"],
+    })).not.toContain("void_soul_corruption");
+
+    expect(deriveRecordTags({
+      name: "Dreamtime Tea",
+      category: "affliction",
+      subcategory: "poison",
+      descriptionText: "This lemony tea blended from rare herbs puts the drinker into a trancelike state and stage 2 unconsciousness.",
+      traits: ["poison"],
+    })).not.toContain("nightmare_torment");
+  });
 });

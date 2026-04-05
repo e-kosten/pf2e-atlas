@@ -103,6 +103,56 @@ describe("derived tag rules: equipment", () => {
     })).toContain("fortune_support");
   });
 
+  it("derives access-system equipment tags", () => {
+    expect(deriveRecordTags({
+      name: "Spacious Pouch (Type I)",
+      category: "equipment",
+      subcategory: "backpack",
+      descriptionText: "A spacious pouch opens into a magical space larger than its outside dimensions.",
+      traits: ["extradimensional", "magical"],
+    })).toEqual(expect.arrayContaining(["carry_support", "extradimensional_storage"]));
+
+    expect(deriveRecordTags({
+      name: "Gunner's Bandolier",
+      category: "equipment",
+      subcategory: "backpack",
+      descriptionText: "This spacious bandolier can hold up to 4 one-handed crossbows or firearms, and you can draw the weapon after empowering it.",
+      traits: ["invested", "magical"],
+    })).toContain("weapon_staging");
+
+    expect(deriveRecordTags({
+      name: "Repeating Crossbow Magazine",
+      category: "equipment",
+      subcategory: "ammo",
+      descriptionText: "",
+      traits: ["consumable"],
+    })).toContain("ammo_management");
+
+    expect(deriveRecordTags({
+      name: "Trail Pack",
+      category: "equipment",
+      subcategory: "backpack",
+      descriptionText: "A roomy backpack for carrying supplies and weathering long wilderness travel.",
+      traits: [],
+    })).not.toContain("extradimensional_storage");
+
+    expect(deriveRecordTags({
+      name: "Cane Pistol",
+      category: "equipment",
+      subcategory: "weapon",
+      descriptionText: "This fashionable cane's handle hides a dueling pistol fired through the painted cap at the bottom of the cane.",
+      traits: [],
+    })).not.toContain("weapon_staging");
+
+    expect(deriveRecordTags({
+      name: "Beacon Shot",
+      category: "equipment",
+      subcategory: "ammo",
+      descriptionText: "When an activated beacon shot hits a target, it embeds itself and spews sparks for 1 minute.",
+      traits: ["ammunition"],
+    })).not.toContain("ammo_management");
+  });
+
   it("derives expanded gear-purpose and communication tags", () => {
     expect(deriveRecordTags({
       name: "Disguise Kit",

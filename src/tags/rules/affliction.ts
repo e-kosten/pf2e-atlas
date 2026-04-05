@@ -141,6 +141,24 @@ const AFFLICTION_INFESTATION_TEXT_ANCHORS = [
   patternAnchor("inside the body"),
 ];
 
+const AFFLICTION_EPIDEMIC_PESTILENCE_NAME_ANCHORS = [
+  patternAnchor("plague", "name"),
+  patternAnchor("fever", "name"),
+  patternAnchor("pox", "name"),
+  patternAnchor("sickness", "name"),
+  patternAnchor("pestilence", "name"),
+  patternAnchor("contagion", "name"),
+];
+
+const AFFLICTION_EPIDEMIC_PESTILENCE_TEXT_ANCHORS = [
+  patternAnchor("contagious"),
+  patternAnchor("infectious"),
+  patternAnchor("transmit"),
+  patternAnchor("spread through entire communities"),
+  patternAnchor("sweep through entire communities"),
+  patternAnchor("widespread illness"),
+];
+
 const AFFLICTION_COMPULSION_TEXT_ANCHORS = [
   patternAnchor("speak only the truth"),
   patternAnchor("can't speak deliberate lies"),
@@ -213,6 +231,27 @@ const AFFLICTION_TRANSFORMATIVE_CORRUPTION_NAME_ANCHORS = [
   patternAnchor("corruption", "name"),
   patternAnchor("fungal", "name"),
   patternAnchor("fungus", "name"),
+];
+
+const AFFLICTION_VOID_SOUL_CORRUPTION_NAME_ANCHORS = [
+  patternAnchor("void s embrace", "name"),
+  patternAnchor("void death", "name"),
+  patternAnchor("reaper", "name"),
+  patternAnchor("lifeblight", "name"),
+];
+
+const AFFLICTION_VOID_SOUL_CORRUPTION_TEXT_ANCHORS = [
+  patternAnchor("body and soul"),
+  patternAnchor("life force"),
+  patternAnchor("leeches life force"),
+  patternAnchor("erodes the connection between body and soul"),
+  patternAnchor("assuming the former has already died"),
+  patternAnchor("final breath"),
+];
+
+const AFFLICTION_NIGHTMARE_TORMENT_NAME_ANCHORS = [
+  patternAnchor("nightmare", "name"),
+  patternAnchor("torment", "name"),
 ];
 
 const AFFLICTION_PHYSICAL_DEBILITATION_EXTENDED_TEXT_ANCHORS = [
@@ -425,6 +464,16 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
     ],
   },
   {
+    tag: "epidemic_pestilence",
+    category: "affliction",
+    subcategories: ["disease"],
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: AFFLICTION_EPIDEMIC_PESTILENCE_NAME_ANCHORS },
+      { score: 2, textAny: AFFLICTION_EPIDEMIC_PESTILENCE_TEXT_ANCHORS },
+    ],
+  },
+  {
     tag: "compulsion",
     category: "affliction",
     threshold: 2,
@@ -469,6 +518,37 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
     ],
     noneOf: [
       { textAny: [patternAnchor("moral corruption"), patternAnchor("spiritual corruption")] },
+    ],
+  },
+  {
+    tag: "void_soul_corruption",
+    category: "affliction",
+    threshold: 3,
+    anyOf: [
+      { score: 2, textAny: AFFLICTION_VOID_SOUL_CORRUPTION_NAME_ANCHORS },
+      { score: 2, textAny: AFFLICTION_VOID_SOUL_CORRUPTION_TEXT_ANCHORS },
+      { score: 1, traitsAny: ["void", "death"] },
+    ],
+  },
+  {
+    tag: "nightmare_torment",
+    category: "affliction",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: AFFLICTION_NIGHTMARE_TORMENT_NAME_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            all: [
+              patternAnchor("{{alt(dream,dreams,nightmare,nightmares)}}"),
+              patternAnchor("{{alt(terrifying,visions,torment,torments,haunting,can't be awakened,cannot be awakened)}}"),
+            ],
+            window: 8,
+            scope: "description",
+          },
+        ],
+      },
     ],
   },
 ];

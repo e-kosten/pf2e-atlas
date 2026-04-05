@@ -615,6 +615,69 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
     },
   });
 
+  await writeJson(path.join(packRoot, "afflictions", "bubonic-plague.json"), {
+    _id: "affliction-bubonic-plague-1",
+    name: "Bubonic Plague",
+    type: "affliction",
+    system: {
+      description: {
+        value: "<p>This widespread illness can sweep through entire communities, leaving few unaffected.</p><p><strong>Stage 1</strong> fatigued.</p>",
+      },
+      level: {
+        value: 4,
+      },
+      publication: {
+        title: "Pathfinder Bestiary 2",
+      },
+      traits: {
+        rarity: "common",
+        value: ["disease"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "afflictions", "reapers-shadow.json"), {
+    _id: "affliction-reapers-shadow-1",
+    name: "Reaper's Shadow",
+    type: "affliction",
+    system: {
+      description: {
+        value: "<p>This toxin erodes the connection between body and soul, tricking the latter into assuming the former has already died.</p><p><strong>Stage 1</strong> void damage and doomed 1.</p>",
+      },
+      level: {
+        value: 13,
+      },
+      publication: {
+        title: "Pathfinder #203: Shepherd of Decay",
+      },
+      traits: {
+        rarity: "uncommon",
+        value: ["poison", "void"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "afflictions", "endless-nightmare.json"), {
+    _id: "affliction-endless-nightmare-1",
+    name: "Endless Nightmare",
+    type: "affliction",
+    system: {
+      description: {
+        value: "<p>The victim's mind fills with terrifying visions.</p><p><strong>Stage 3</strong> The victim falls unconscious and can't be awakened.</p>",
+      },
+      level: {
+        value: 9,
+      },
+      publication: {
+        title: "Pathfinder Monster Core 2",
+      },
+      traits: {
+        rarity: "common",
+        value: ["curse", "emotion", "fear", "mental"],
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "afflictions", "mind-rotting-toxin.json"), {
     _id: "affliction-mind-rotting-toxin-1",
     name: "Mind-Rotting Toxin",

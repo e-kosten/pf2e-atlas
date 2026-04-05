@@ -66,6 +66,17 @@ export const EQUIPMENT_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
   },
   {
     category: "equipment",
+    subcategories: [...GEARISH_SUBCATEGORIES, "ammo", "armor", "weapon"],
+    family: "access_system",
+    description: "Storage, draw, and ammunition-handling equipment that changes how gear is accessed in play.",
+    tags: [
+      { value: "extradimensional_storage", description: "Provides bag-of-holding-style storage through extradimensional or magically expanded space." },
+      { value: "weapon_staging", description: "Holsters, sheaths, scabbards, or bandoliers that stage weapons for quick draw or organized carry." },
+      { value: "ammo_management", description: "Magazines or related gear that manage repeating-weapon ammunition or reload workflow." },
+    ],
+  },
+  {
+    category: "equipment",
     subcategories: ["ammo"],
     family: "ammunition_payload",
     description: "Ammunition payload tags for recurring on-hit effects and tailored projectile roles.",

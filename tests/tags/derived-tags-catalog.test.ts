@@ -30,6 +30,15 @@ describe("derived tag catalog", () => {
       }),
       expect.objectContaining({
         category: "equipment",
+        family: "access_system",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "extradimensional_storage", description: expect.any(String) }),
+          expect.objectContaining({ value: "weapon_staging", description: expect.any(String) }),
+          expect.objectContaining({ value: "ammo_management", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "equipment",
         subcategories: ["ammo"],
         family: "ammunition_payload",
         tags: expect.arrayContaining([
@@ -294,6 +303,13 @@ describe("derived tag catalog", () => {
       }),
       expect.objectContaining({
         category: "affliction",
+        family: "epidemiological_profile",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "epidemic_pestilence", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "affliction",
         family: "behavioral_override",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "compulsion", description: expect.any(String) }),
@@ -305,6 +321,14 @@ describe("derived tag catalog", () => {
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "respiratory_impairment", description: expect.any(String) }),
           expect.objectContaining({ value: "transformative_corruption", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "affliction",
+        family: "metaphysical_profile",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "void_soul_corruption", description: expect.any(String) }),
+          expect.objectContaining({ value: "nightmare_torment", description: expect.any(String) }),
         ]),
       }),
       expect.objectContaining({

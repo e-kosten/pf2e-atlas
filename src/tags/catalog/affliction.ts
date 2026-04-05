@@ -26,6 +26,14 @@ export const AFFLICTION_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
   },
   {
     category: "affliction",
+    family: "epidemiological_profile",
+    description: "Affliction tags for widespread disease patterns and contagion-facing retrieval.",
+    tags: [
+      { value: "epidemic_pestilence", description: "A named plague-, fever-, pox-, or pestilence-style disease with explicit outbreak or contagion framing." },
+    ],
+  },
+  {
+    category: "affliction",
     family: "behavioral_override",
     description: "Affliction tags for forced behavior and explicit agency override.",
     tags: [
@@ -39,6 +47,15 @@ export const AFFLICTION_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
     tags: [
       { value: "respiratory_impairment", description: "Prevents normal breathing or fills the victim's lungs with water, fluid, or similar suffocating effects." },
       { value: "transformative_corruption", description: "Progressively transforms the body into crystal, plant matter, fungus, or another corrupted form." },
+    ],
+  },
+  {
+    category: "affliction",
+    family: "metaphysical_profile",
+    description: "Affliction tags for soul-straining corruption and nightmare-facing torment.",
+    tags: [
+      { value: "void_soul_corruption", description: "Attacks life force or the bond between body and soul through void or deathly corruption." },
+      { value: "nightmare_torment", description: "Centers on nightmares, dream-torment, or similarly sleep-haunting affliction framing." },
     ],
   },
 ];
