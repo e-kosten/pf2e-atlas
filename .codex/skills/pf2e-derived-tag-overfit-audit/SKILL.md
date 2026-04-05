@@ -70,6 +70,10 @@ The goal is to prevent the same class from recurring. A good audit produces regr
    - `src/tags/shared.ts`
    - direct derivation tests in `tests/tags/derived-tags-*.test.ts`
    - service behavior in `tests/service/search-and-lookup.test.ts`
+   Then run the deterministic discovery tools on the suspect tag or slice:
+   - `npm run analyze-derived-tag-evidence -- --category <category> --tag <tag> ...`
+   - `npm run discover-ruleable-cohorts -- --category <category> --tag <tag> ...`
+   Use these to see whether the suspect tag is being driven by one weak anchor, multiple separable cohorts, or a native-trait alias.
 
 7. Prefer evidence redesign over special casing.
    Good fixes:
@@ -94,6 +98,7 @@ The goal is to prevent the same class from recurring. A good audit produces regr
 - Habitat stacks deserve special scrutiny. One mention of a region, sea, spring, or village can accidentally inflate multiple environment tags.
 - Motif stacks deserve scrutiny when the record is only aesthetically adjacent to the concept.
 - A good audit note names the candidate false-positive class, the likely anchor, and the likely safer boundary.
+- Prefer handing refinement a brief that already includes evidence-report anchors, top cohort signatures, and one or two contrast records.
 
 ## Category Starting Thresholds
 

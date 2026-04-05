@@ -35,14 +35,17 @@ Use these as preferred regression seeds when they fit the slice:
 
 If the request genuinely mixes both:
 1. Run a category audit first.
-2. Identify any likely false-positive classes and the real records that should be pinned as regressions before implementation.
-3. Use the expansion workflow to define the missing category slice.
-4. Use the refinement workflow for any follow-up precision cleanup after the expansion is in place.
-5. Preserve one baseline coverage snapshot before expansion, one post-expansion coverage check, and one final summary that separates ontology gain from later precision cleanup.
+2. Run deterministic discovery on the likely slice before proposing rules:
+   - `npm run analyze-derived-tag-evidence -- --category <category> ...`
+   - `npm run discover-ruleable-cohorts -- --category <category> ...`
+3. Identify any likely false-positive classes and the real records that should be pinned as regressions before implementation.
+4. Use the expansion workflow to define the missing category slice.
+5. Use the refinement workflow for any follow-up precision cleanup after the expansion is in place.
+6. Preserve one baseline coverage snapshot before expansion, one post-expansion coverage check, and one final summary that separates ontology gain from later precision cleanup.
    Use `npm run evaluate-derived-tag-movement -- --baseline-index-path /path/to/before.sqlite ...` as the default before/after check.
    For expansion-oriented slices, prefer `--warn-category-gain-below-points`, `--warn-tag-gain-below-count`, and `--sample-limit`.
    For refinement-oriented slices, prefer `--warn-category-drop-points`, `--warn-tag-drop-count`, and `--warn-tag-drop-points`.
-6. In parallel workflows, keep all slices in proposal mode until the user has approved the proposed tags, conceptual rule logic, and regression records for each slice that will proceed.
+7. In parallel workflows, keep all slices in proposal mode until the user has approved the proposed tags, conceptual rule logic, deterministic evidence summary, and regression records for each slice that will proceed.
 
 Do not finish an iteration pass that was supposed to improve coverage without a quantified movement summary. Carry through the routed workflow's coverage reporting expectations:
 - tagged-record counts before and after

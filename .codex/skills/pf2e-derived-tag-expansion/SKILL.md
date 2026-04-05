@@ -51,13 +51,16 @@ Default to this skill when any of these are true:
    - one existing family plus multiple meaningful rule extensions that should move dozens of records
    - one medium-size category pass that materially improves an under-modeled category even if no new family is needed
    When comparing multiple categories, prefer the category whose likely batch looks both meaningful and internally coherent, even if another category has slightly lower coverage.
-5. Use semantic discovery and the gap evaluator as discovery support, not truth.
-   - If the concept already exists as a derived tag, run `npm run evaluate-derived-tags -- --tag <derived_tag> ...`.
-   - If the concept does not exist yet, seed it with exemplars and run `npm run discover-derived-tag-candidates -- --category <category> --name <record> ...`.
+5. Start with deterministic discovery before asking an LLM to synthesize rule ideas.
+   - First run `npm run analyze-derived-tag-evidence -- --category <category> ...` on the untagged or seed-defined slice to surface repeated normalized tokens, phrases, traits, and reference features.
+   - Then run `npm run discover-ruleable-cohorts -- --category <category> ...` or `npm run cluster-derived-tag-candidates -- --category <category> ...` to group semantically adjacent records into evidence-backed cohorts.
+   - If the concept already exists as a derived tag, run `npm run evaluate-derived-tags -- --tag <derived_tag> ...` to inspect likely false negatives and anchor patterns within the missed records.
+   - If the concept does not exist yet, seed it with exemplars and run `npm run cluster-derived-tag-candidates -- --category <category> --name <record> ...`.
    - Preserve a baseline index snapshot before expansion and compare it after the rebuild with:
      `npm run evaluate-derived-tag-movement -- --baseline-index-path /path/to/before.sqlite --category <category> --tags <tag1,tag2,...> --warn-category-gain-below-points <points> --warn-tag-gain-below-count <count> --sample-limit <n>`
+   - Treat the deterministic evidence report as the default review queue. Use the LLM only after the analyzer has already surfaced likely anchors, candidate cohorts, and contrast records.
    - Use the movement evaluator to ask whether the expansion actually moved enough live records to justify the added rule complexity, and inspect gained/lost record samples for the touched tags.
-   - Use the semantic output to identify likely candidates, repeated traits, repeated phrases, and false-positive classes. Do not treat embedding proximity as a direct tagging decision.
+   - Use the cohort output to identify likely candidates, repeated normalized phrases, trait/reference anchors, and false-positive classes. Do not treat embedding proximity as a direct tagging decision.
    - When a proposed tag depends on broad description evidence, identify at least one real canonical record that uses similar generic language but should stay negative.
    - Good regression seeds when they match the slice include `Crushing Ground`, `Imprisonment`, `Artevil Suspension`, `Blindpepper Bomb`, `Mycological Malady`, and one troll lore paragraph for creature-setting noise.
 6. Stop for an approval checkpoint before editing.
@@ -70,11 +73,15 @@ Default to this skill when any of these are true:
    - concrete example records expected to move
    - the real noisy boundary records that should remain negative
    - main precision risks
+   When deterministic discovery tools were used, also include:
+   - evidence-report highlights
+   - top cohort signatures and recommendations
+   - contrast records that show likely boundary cases
+   - whether the slice looks `rule-led`, `hybrid`, or `manual-only`
    When semantic discovery was used, also include:
    - exemplar set
    - top semantic candidates
    - repeated evidence terms or phrases
-   - contrast records that show likely boundary cases
    Ask a direct confirmation question and wait unless the user explicitly asked for immediate implementation.
    In parallel workflows, no worker should implement rule, catalog, or test edits before this approval is granted for that worker's slice.
 7. Implement in the declarative rule table.
@@ -111,16 +118,25 @@ Default to this skill when any of these are true:
    If the canonical denominator changed between the baseline audit and rebuilt corpus, say so explicitly and report both denominators rather than implying a fixed total.
    Include one compact coverage line in the final report, for example: `36/718 -> 100/720 tagged hazards, +64 records, +8.9 percentage points`.
 
-## Semantic Discovery Examples
+## Discovery Examples
 
-Use semantic discovery when you have a retrieval concept but no existing tag yet.
+Use deterministic discovery first when you need to mine a sparse or untagged slice.
+
+- Cohort evidence example:
+  `npm run analyze-derived-tag-evidence -- --category equipment --subcategory gear --untagged --limit 8`
+- Ruleability report for an existing tag:
+  `npm run discover-ruleable-cohorts -- --category spell --tag mobility --candidate-limit 20 --cohort-limit 5`
+- Seed-based cohort clustering:
+  `npm run cluster-derived-tag-candidates -- --category equipment --subcategory gear --name "Masquerade Scarf" --name "Quick-Change Outfit"`
+
+Use semantic discovery when you still need embedding-neighbor support after the deterministic pass.
 
 - Creature example:
   `npm run discover-derived-tag-candidates -- --category creature --name "Ghost Commoner" --name "Ghost Pirate Captain" --name "Cairn Wight"`
 - Non-creature example:
   `npm run discover-derived-tag-candidates -- --category equipment --subcategory gear --name "Masquerade Scarf" --name "Quick-Change Outfit"`
 
-Read the output as an evidence-mining pass. The next step is still to design explainable rule anchors, blockers, and thresholds in the declarative tag table.
+Read both outputs as evidence-mining passes. The next step is still to design explainable rule anchors, blockers, and thresholds in the declarative tag table.
 
 ## Design Rules
 

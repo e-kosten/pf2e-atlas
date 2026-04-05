@@ -47,7 +47,10 @@ Default to this skill when any of these are true:
    - 2-5 related existing tags, or
    - one related-slice refinement pass across a coherent part of the category
    Do not default to one-tag micro-passes unless the regression is truly isolated.
-5. Use the evaluator as a review queue.
+5. Use deterministic discovery as the review queue before narrowing the final calibration change.
+   - Run `npm run analyze-derived-tag-evidence -- --category <category> --tag <tag> ...` to surface repeated normalized anchors and reference features for the current positives.
+   - Run `npm run evaluate-derived-tags -- --tag <tag> ...` to inspect likely false negatives and semantically adjacent misses.
+   - Run `npm run discover-ruleable-cohorts -- --category <category> --tag <tag> ...` when the issue may actually be a mixed cohort, weak anchor family, or under-split concept rather than a simple threshold problem.
    Target the specific tag under refinement and inspect likely false negatives, semantically adjacent misses, and records that suggest the same false-positive class.
    Before or after the rule edit when live movement matters, compare index snapshots with:
    - `npm run evaluate-derived-tag-movement -- --baseline-index-path /path/to/before.sqlite --category <category> --tags <tag1,tag2,...> --warn-category-drop-points <points> --warn-tag-drop-count <count> --warn-tag-drop-points <points> --sample-limit <n>`
@@ -57,6 +60,7 @@ Default to this skill when any of these are true:
    - the tag or rules being changed
    - the false-positive or false-negative class being addressed
    - the conceptual calibration logic, including intended anchors, blockers, thresholds, and the expected boundary between positive and negative cases
+   - the deterministic evidence highlights that justify the calibration change
    - the real regression records that will be pinned before rule edits
    - expected record movement
    - expected category-level coverage delta when the pass should move live coverage materially
@@ -97,6 +101,7 @@ Default to this skill when any of these are true:
 - One strong anchor should beat many weak incidental words.
 - Do not mirror PF2E-native traits with derived aliases unless the retrieval meaning is materially different.
 - Keep changes explainable to a future reader scanning the rule table.
+- If the deterministic evidence says the current tag is actually multiple separable cohorts, split the concept before piling on blockers.
 - Do not rely on positive-skewed tests alone when broad description evidence is involved.
 - If a refinement pass materially drops category coverage or a touched tag collapses in the movement evaluator, stop and reassess instead of hand-waving the loss away.
 
