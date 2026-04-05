@@ -563,7 +563,9 @@ export async function buildIndex(
         name: entry.record.name,
         category: entry.record.category,
         subcategory: entry.record.subcategory,
-        descriptionText: entry.record.descriptionText,
+        // Canonical derived afflictions can have empty descriptions even when their
+        // linked staged-condition text is preserved in searchText.
+        descriptionText: entry.record.descriptionText ?? entry.record.searchText,
         traits: entry.record.traits,
         families: entry.record.families,
         references: [],

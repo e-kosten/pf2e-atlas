@@ -329,6 +329,12 @@ describe("Pf2eDataService / Load and Index", () => {
 
     const afflictionResults = await service.search({ category: "affliction", query: "ghoul fever" });
     expect(afflictionResults.records.map((record) => record.name)).toContain("Ghoul Fever");
+    expect(service.lookup("Lethargy Poison", { category: "affliction" }).match?.derivedTags).toEqual(
+      expect.arrayContaining(["mobility_impairment", "sedation"]),
+    );
+    expect(service.lookup("Ghoul Fever", { category: "affliction" }).match?.derivedTags).toEqual(
+      expect.arrayContaining(["physical_debilitation", "sedation"]),
+    );
 
     const creatureResults = await service.search({ category: "creature", query: "ghoul fever" });
     expect(creatureResults.records.map((record) => record.name)).toContain("Ghoul Brute");

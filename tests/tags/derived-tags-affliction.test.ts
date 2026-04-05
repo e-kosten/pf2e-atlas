@@ -260,6 +260,42 @@ describe("derived tag rules: affliction", () => {
     })).not.toContain("rot_decay");
 
     expect(deriveRecordTags({
+      name: "Blackfingers' Venom",
+      category: "affliction",
+      subcategory: "poison",
+      descriptionText: "Blackfingers' Venom Paralyzed poison Slowed 1 Slowed 2",
+      traits: ["poison"],
+    })).toContain("mobility_impairment");
+
+    expect(deriveRecordTags({
+      name: "Algriever Venom",
+      category: "affliction",
+      subcategory: "poison",
+      descriptionText: "Algriever Venom mental poison Stupefied 1 Stupefied 2",
+      traits: ["poison", "mental"],
+    })).toContain("cognitive_impairment");
+
+    expect(deriveRecordTags({
+      name: "Ferrugon Tetanus",
+      category: "affliction",
+      subcategory: "disease",
+      descriptionText: "Ferrugon Tetanus Clumsy 1 Clumsy 2 disease Paralyzed",
+      traits: ["disease"],
+    })).toEqual(expect.arrayContaining(["mobility_impairment", "physical_debilitation"]));
+
+    expect(deriveRecordTags({
+      name: "Blaze",
+      category: "affliction",
+      subcategory: "poison",
+      descriptionText: "This acrid blend protects travelers in the Mana Wastes from hostile exposure while sharpening awareness.",
+      traits: ["alchemical", "consumable", "drug", "ingested", "poison"],
+    })).not.toEqual(expect.arrayContaining([
+      "mobility_impairment",
+      "cognitive_impairment",
+      "physical_debilitation",
+    ]));
+
+    expect(deriveRecordTags({
       name: "Sleeping Gas",
       category: "affliction",
       subcategory: "poison",
