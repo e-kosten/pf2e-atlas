@@ -312,8 +312,8 @@ export async function buildIndex(
   `);
   const insertActor = db.prepare(`
     INSERT INTO actor_records (
-      record_key, size, languages_json, speed_types_json, immunities_json, resistances_json, weaknesses_json
-    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+      record_key, size, languages_json, speed_types_json, senses_json, immunities_json, resistances_json, weaknesses_json, disable_text, disable_skills_json, is_complex
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const insertActorMetric = db.prepare(`
     INSERT INTO actor_metrics (
@@ -332,8 +332,8 @@ export async function buildIndex(
   `);
   const insertSpell = db.prepare(`
     INSERT INTO spell_records (
-      record_key, action_cost, traditions_json, spell_kinds_json, range_text, range_value, save_type, area_type, damage_types_json
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      record_key, action_cost, traditions_json, spell_kinds_json, range_text, range_value, save_type, area_type, duration_text, duration_unit, target_text, area_value, sustained, basic_save, damage_types_json
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const insertEmbedding = db.prepare(`
     INSERT INTO embeddings (record_key, dimensions, semantic_input_hash, vector_blob) VALUES (?, ?, ?, ?)
@@ -687,9 +687,13 @@ export async function buildIndex(
           entry.actorData.size,
           JSON.stringify(entry.actorData.languages),
           JSON.stringify(entry.actorData.speedTypes),
+          JSON.stringify(entry.actorData.senses),
           JSON.stringify(entry.actorData.immunities),
           JSON.stringify(entry.actorData.resistances),
           JSON.stringify(entry.actorData.weaknesses),
+          entry.actorData.disableText,
+          JSON.stringify(entry.actorData.disableSkills),
+          entry.actorData.isComplex ? 1 : 0,
         );
 
         for (const [metricKey, metricValue] of Object.entries(entry.actorData.actorMetrics)) {
@@ -804,6 +808,12 @@ export async function buildIndex(
           entry.spellData.rangeValue,
           entry.spellData.saveType,
           entry.spellData.areaType,
+          entry.spellData.durationText,
+          entry.spellData.durationUnit,
+          entry.spellData.targetText,
+          entry.spellData.areaValue,
+          entry.spellData.sustained ? 1 : 0,
+          entry.spellData.basicSave ? 1 : 0,
           JSON.stringify(entry.spellData.damageTypes),
         );
       }

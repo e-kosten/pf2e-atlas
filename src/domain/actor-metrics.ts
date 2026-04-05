@@ -46,12 +46,24 @@ export const ACTOR_METRIC_DISCOVERY_NAMESPACES = [
     description: "Saving throw metrics such as save.fort.mod, save.best, and save.worst.",
   },
   {
+    prefix: "sense.",
+    description: "Sense range metrics such as sense.scent.range.",
+  },
+  {
     prefix: "skill.",
     description: "Skill metrics such as skill.arcana.mod, skill.arcana.rank, and skill.arcana.proficient.",
   },
   {
+    prefix: "speed.",
+    description: "Speed metrics such as speed.land.value or speed.fly.value.",
+  },
+  {
     prefix: "stealth.",
     description: "Stealth metrics such as stealth.mod and stealth.dc.",
+  },
+  {
+    prefix: "disable.",
+    description: "Hazard disable metrics such as disable.dc.min, disable.thievery.dc.min, and disable.thievery.rank.min.",
   },
 ] as const;
 
@@ -133,6 +145,26 @@ export function inferActorMetricValueType(metric: string): ActorMetricValueType 
   }
 
   if (/^stealth\.(mod|dc)$/.test(normalized)) {
+    return "number";
+  }
+
+  if (/^speed\.[a-z0-9_]+\.value$/.test(normalized)) {
+    return "number";
+  }
+
+  if (/^sense\.[a-z0-9_]+\.range$/.test(normalized)) {
+    return "number";
+  }
+
+  if (/^disable\.dc\.(min|max)$/.test(normalized)) {
+    return "number";
+  }
+
+  if (/^disable\.[a-z0-9_]+\.dc\.(min|max)$/.test(normalized)) {
+    return "number";
+  }
+
+  if (/^disable\.[a-z0-9_]+\.rank\.min$/.test(normalized)) {
     return "number";
   }
 

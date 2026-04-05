@@ -32,7 +32,14 @@ describe("tool schemas", () => {
     expect(filterValueFieldSchema.safeParse("hands")).toMatchObject({ success: true, data: "hands" });
     expect(filterValueFieldSchema.safeParse("saveType")).toMatchObject({ success: true, data: "saveType" });
     expect(filterValueFieldSchema.safeParse("areaType")).toMatchObject({ success: true, data: "areaType" });
+    expect(filterValueFieldSchema.safeParse("durationUnit")).toMatchObject({ success: true, data: "durationUnit" });
     expect(filterValueFieldSchema.safeParse("rangeValue")).toMatchObject({ success: true, data: "rangeValue" });
+    expect(filterValueFieldSchema.safeParse("areaValue")).toMatchObject({ success: true, data: "areaValue" });
+    expect(filterValueFieldSchema.safeParse("sustained")).toMatchObject({ success: true, data: "sustained" });
+    expect(filterValueFieldSchema.safeParse("basicSave")).toMatchObject({ success: true, data: "basicSave" });
+    expect(filterValueFieldSchema.safeParse("senses")).toMatchObject({ success: true, data: "senses" });
+    expect(filterValueFieldSchema.safeParse("disableSkills")).toMatchObject({ success: true, data: "disableSkills" });
+    expect(filterValueFieldSchema.safeParse("isComplex")).toMatchObject({ success: true, data: "isComplex" });
     expect(filterValueFieldSchema.safeParse("packs")).toMatchObject({ success: true, data: "packs" });
     expect(filterValueFieldSchema.safeParse("foo").success).toBe(false);
   });
@@ -68,6 +75,36 @@ describe("tool schemas", () => {
       field: "areaType",
       op: "in",
       values: ["burst", "cone"],
+    }).success).toBe(true);
+
+    expect(metadataFilterSchema.safeParse({
+      field: "durationUnit",
+      op: "eq",
+      value: "minute",
+    }).success).toBe(true);
+
+    expect(metadataFilterSchema.safeParse({
+      field: "rangeText",
+      op: "contains",
+      value: "feet",
+    }).success).toBe(true);
+
+    expect(metadataFilterSchema.safeParse({
+      field: "sustained",
+      op: "eq",
+      value: true,
+    }).success).toBe(true);
+
+    expect(metadataFilterSchema.safeParse({
+      field: "senses",
+      op: "includesAny",
+      values: ["darkvision"],
+    }).success).toBe(true);
+
+    expect(metadataFilterSchema.safeParse({
+      field: "disableSkills",
+      op: "includesAny",
+      values: ["thievery"],
     }).success).toBe(true);
 
     expect(metadataFilterSchema.safeParse({

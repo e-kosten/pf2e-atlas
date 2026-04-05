@@ -217,11 +217,18 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
       description: {
         value: "<p>You press your hand to the stone, causing hand-drawn scouts to spread out from your fingers.</p><p>As long as you Sustain the Spell, you can see, hear, and smell through the scouts.</p>",
       },
+      duration: {
+        sustained: true,
+        value: "10 minutes",
+      },
       level: {
         value: 3,
       },
       publication: {
         title: "Pathfinder Secrets of Magic",
+      },
+      target: {
+        value: "1 stone surface",
       },
       traits: {
         rarity: "common",
@@ -420,11 +427,19 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
       },
       defense: {
         save: {
+          basic: false,
           statistic: "will",
         },
       },
+      duration: {
+        sustained: false,
+        value: "1 minute",
+      },
       publication: {
         title: "Pathfinder Player Core",
+      },
+      target: {
+        value: "1 creature",
       },
       traits: {
         rarity: "common",
@@ -432,6 +447,7 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
         value: ["emotion", "fear", "mental"],
       },
       area: {
+        value: 30,
         type: "cone",
       },
     },
@@ -450,11 +466,19 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
       },
       defense: {
         save: {
+          basic: false,
           statistic: "fortitude",
         },
       },
+      duration: {
+        sustained: false,
+        value: "unlimited",
+      },
       publication: {
         title: "Pathfinder Player Core",
+      },
+      target: {
+        value: "1 creature",
       },
       traits: {
         rarity: "common",
@@ -477,14 +501,26 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
       },
       defense: {
         save: {
+          basic: true,
           statistic: "reflex",
         },
       },
       area: {
+        value: 5,
         type: "burst",
+      },
+      duration: {
+        sustained: false,
+        value: "instantaneous",
       },
       publication: {
         title: "Pathfinder Player Core",
+      },
+      range: {
+        value: "60 feet",
+      },
+      target: {
+        value: "1 creature",
       },
       traits: {
         rarity: "common",

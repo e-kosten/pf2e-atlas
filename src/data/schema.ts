@@ -16,7 +16,7 @@ import {
 } from "../types.js";
 import { uniqueSorted } from "../utils.js";
 
-export const INDEX_SCHEMA_VERSION = 20;
+export const INDEX_SCHEMA_VERSION = 21;
 
 function hashText(value: string): number {
   let hash = 2166136261;
@@ -118,9 +118,13 @@ export function createSchema(db: DatabaseSync, embeddingDimensions: number): voi
       size TEXT,
       languages_json TEXT NOT NULL,
       speed_types_json TEXT NOT NULL,
+      senses_json TEXT NOT NULL,
       immunities_json TEXT NOT NULL,
       resistances_json TEXT NOT NULL,
       weaknesses_json TEXT NOT NULL,
+      disable_text TEXT,
+      disable_skills_json TEXT NOT NULL,
+      is_complex INTEGER NOT NULL,
       FOREIGN KEY (record_key) REFERENCES records(record_key) ON DELETE CASCADE
     );
 
@@ -169,6 +173,12 @@ export function createSchema(db: DatabaseSync, embeddingDimensions: number): voi
       range_value REAL,
       save_type TEXT,
       area_type TEXT,
+      duration_text TEXT,
+      duration_unit TEXT,
+      target_text TEXT,
+      area_value REAL,
+      sustained INTEGER NOT NULL,
+      basic_save INTEGER NOT NULL,
       damage_types_json TEXT NOT NULL,
       FOREIGN KEY (record_key) REFERENCES records(record_key) ON DELETE CASCADE
     );

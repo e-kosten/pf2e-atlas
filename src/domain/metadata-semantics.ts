@@ -109,6 +109,7 @@ const BOOLEAN_OPERATORS = ["eq"] as const;
 
 const ALL_CATEGORIES = [...SEARCH_CATEGORIES];
 const CREATURE_ONLY: SearchCategory[] = ["creature"];
+const CREATURE_AND_HAZARD: SearchCategory[] = ["creature", "hazard"];
 const ACTOR_METRIC_CATEGORIES: SearchCategory[] = ["creature", "hazard"];
 const EQUIPMENT_ONLY: SearchCategory[] = ["equipment"];
 const SPELL_ONLY: SearchCategory[] = ["spell"];
@@ -190,25 +191,41 @@ const METADATA_FIELD_REGISTRY: MetadataFieldSemantics[] = [
     discoverable: DISCOVERABLE_METADATA_FIELDS.has("speedTypes"),
   },
   {
-    field: "immunities",
+    field: "senses",
     fieldType: "set",
     operators: SET_OPERATORS,
     categories: CREATURE_ONLY,
+    discoverable: DISCOVERABLE_METADATA_FIELDS.has("senses"),
+    notes: "Creature sense types such as darkvision, low light vision, or scent.",
+  },
+  {
+    field: "immunities",
+    fieldType: "set",
+    operators: SET_OPERATORS,
+    categories: CREATURE_AND_HAZARD,
     discoverable: DISCOVERABLE_METADATA_FIELDS.has("immunities"),
   },
   {
     field: "resistances",
     fieldType: "set",
     operators: SET_OPERATORS,
-    categories: CREATURE_ONLY,
+    categories: CREATURE_AND_HAZARD,
     discoverable: DISCOVERABLE_METADATA_FIELDS.has("resistances"),
   },
   {
     field: "weaknesses",
     fieldType: "set",
     operators: SET_OPERATORS,
-    categories: CREATURE_ONLY,
+    categories: CREATURE_AND_HAZARD,
     discoverable: DISCOVERABLE_METADATA_FIELDS.has("weaknesses"),
+  },
+  {
+    field: "disableSkills",
+    fieldType: "set",
+    operators: SET_OPERATORS,
+    categories: ["hazard"],
+    discoverable: DISCOVERABLE_METADATA_FIELDS.has("disableSkills"),
+    notes: "Structured hazard disable skills parsed from disable text when PF2E markup provides a clear anchor.",
   },
   {
     field: "sourceCategory",
@@ -273,6 +290,14 @@ const METADATA_FIELD_REGISTRY: MetadataFieldSemantics[] = [
     notes: "Spell area shape such as burst, line, emanation, or cone.",
   },
   {
+    field: "durationUnit",
+    fieldType: "enumString",
+    operators: ENUM_STRING_OPERATORS,
+    categories: SPELL_ONLY,
+    discoverable: DISCOVERABLE_METADATA_FIELDS.has("durationUnit"),
+    notes: "Conservatively derived spell duration unit such as round, minute, hour, or permanent.",
+  },
+  {
     field: "rarity",
     fieldType: "enumString",
     operators: ENUM_STRING_OPERATORS,
@@ -286,6 +311,34 @@ const METADATA_FIELD_REGISTRY: MetadataFieldSemantics[] = [
     operators: TEXT_OPERATORS,
     categories: ALL_CATEGORIES,
     discoverable: DISCOVERABLE_METADATA_FIELDS.has("publicationTitle"),
+  },
+  {
+    field: "rangeText",
+    fieldType: "text",
+    operators: TEXT_OPERATORS,
+    categories: SPELL_ONLY,
+    discoverable: DISCOVERABLE_METADATA_FIELDS.has("rangeText"),
+  },
+  {
+    field: "durationText",
+    fieldType: "text",
+    operators: TEXT_OPERATORS,
+    categories: SPELL_ONLY,
+    discoverable: DISCOVERABLE_METADATA_FIELDS.has("durationText"),
+  },
+  {
+    field: "targetText",
+    fieldType: "text",
+    operators: TEXT_OPERATORS,
+    categories: SPELL_ONLY,
+    discoverable: DISCOVERABLE_METADATA_FIELDS.has("targetText"),
+  },
+  {
+    field: "disableText",
+    fieldType: "text",
+    operators: TEXT_OPERATORS,
+    categories: ["hazard"],
+    discoverable: DISCOVERABLE_METADATA_FIELDS.has("disableText"),
   },
   {
     field: "level",
@@ -333,6 +386,13 @@ const METADATA_FIELD_REGISTRY: MetadataFieldSemantics[] = [
     discoverable: DISCOVERABLE_METADATA_FIELDS.has("rangeValue"),
   },
   {
+    field: "areaValue",
+    fieldType: "number",
+    operators: NUMBER_OPERATORS,
+    categories: SPELL_ONLY,
+    discoverable: DISCOVERABLE_METADATA_FIELDS.has("areaValue"),
+  },
+  {
     field: "isUnique",
     fieldType: "boolean",
     operators: BOOLEAN_OPERATORS,
@@ -352,6 +412,27 @@ const METADATA_FIELD_REGISTRY: MetadataFieldSemantics[] = [
     operators: BOOLEAN_OPERATORS,
     categories: ALL_CATEGORIES,
     discoverable: DISCOVERABLE_METADATA_FIELDS.has("publicationRemaster"),
+  },
+  {
+    field: "sustained",
+    fieldType: "boolean",
+    operators: BOOLEAN_OPERATORS,
+    categories: SPELL_ONLY,
+    discoverable: DISCOVERABLE_METADATA_FIELDS.has("sustained"),
+  },
+  {
+    field: "basicSave",
+    fieldType: "boolean",
+    operators: BOOLEAN_OPERATORS,
+    categories: SPELL_ONLY,
+    discoverable: DISCOVERABLE_METADATA_FIELDS.has("basicSave"),
+  },
+  {
+    field: "isComplex",
+    fieldType: "boolean",
+    operators: BOOLEAN_OPERATORS,
+    categories: ["hazard"],
+    discoverable: DISCOVERABLE_METADATA_FIELDS.has("isComplex"),
   },
 ];
 
@@ -421,6 +502,26 @@ const EXAMPLES_BY_CATEGORY: Partial<Record<SearchCategory, MetadataCategoryExamp
         and: [
           { field: "saveType", op: "eq", value: "reflex" },
           { field: "areaType", op: "eq", value: "burst" },
+        ],
+      },
+    },
+    {
+      label: "Sustained minute-duration spells",
+      metadata: {
+        and: [
+          { field: "sustained", op: "eq", value: true },
+          { field: "durationUnit", op: "eq", value: "minute" },
+        ],
+      },
+    },
+  ],
+  hazard: [
+    {
+      label: "Complex hazards disabled with Thievery",
+      metadata: {
+        and: [
+          { field: "isComplex", op: "eq", value: true },
+          { field: "disableSkills", op: "includesAny", values: ["thievery"] },
         ],
       },
     },

@@ -26,6 +26,7 @@ import {
   firstString,
   getNested,
   normalizeText,
+  stripHtml,
   toStringArray,
   uniqueSorted,
 } from "../utils.js";
@@ -38,6 +39,30 @@ import type {
 } from "./index-types.js";
 
 const MAX_ACTOR_SEMANTIC_ITEM_CHUNKS = 40;
+const HAZARD_DISABLE_PROFICIENCY_RANKS: Record<string, number> = {
+  trained: 1,
+  expert: 2,
+  master: 3,
+  legendary: 4,
+};
+const HAZARD_DISABLE_SKILLS = [
+  "acrobatics",
+  "arcana",
+  "athletics",
+  "crafting",
+  "deception",
+  "diplomacy",
+  "intimidation",
+  "medicine",
+  "nature",
+  "occultism",
+  "performance",
+  "religion",
+  "society",
+  "stealth",
+  "survival",
+  "thievery",
+] as const;
 
 function asNumber(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
@@ -95,6 +120,19 @@ function parseSpeedTypes(raw: Record<string, unknown>): string[] {
   }
 
   return uniqueSorted(values);
+}
+
+function parseSenses(raw: Record<string, unknown>): string[] {
+  const senses = getNested(raw, ["system", "perception", "senses"]);
+  if (!Array.isArray(senses)) {
+    return [];
+  }
+
+  return uniqueSorted(
+    senses
+      .map((sense) => slugifyActorMetricSegment(firstString(getNested(sense, ["type"])) ?? "").replace(/_/g, " "))
+      .filter(Boolean),
+  );
 }
 
 function parseTypedCollection(raw: Record<string, unknown>, pathSegments: string[]): string[] {
@@ -262,6 +300,139 @@ function parseSkillMetrics(raw: Record<string, unknown>): ActorMetricMap {
   return metrics;
 }
 
+function parseSpeedMetrics(raw: Record<string, unknown>): ActorMetricMap {
+  const metrics: ActorMetricMap = {};
+  const landSpeed = parseNumericLikeValue(getNested(raw, ["system", "attributes", "speed", "value"]));
+  if (landSpeed !== null) {
+    metrics["speed.land.value"] = landSpeed;
+  }
+
+  const otherSpeeds = getNested(raw, ["system", "attributes", "speed", "otherSpeeds"]);
+  if (!Array.isArray(otherSpeeds)) {
+    return metrics;
+  }
+
+  for (const speed of otherSpeeds) {
+    const speedType = slugifyActorMetricSegment(firstString(getNested(speed, ["type"])) ?? "");
+    const speedValue = parseNumericLikeValue(getNested(speed, ["value"]));
+    if (!speedType || speedValue === null) {
+      continue;
+    }
+
+    metrics[`speed.${speedType}.value`] = speedValue;
+  }
+
+  return metrics;
+}
+
+function parseSenseRangeMetrics(raw: Record<string, unknown>): ActorMetricMap {
+  const senses = getNested(raw, ["system", "perception", "senses"]);
+  if (!Array.isArray(senses)) {
+    return {};
+  }
+
+  const metrics: ActorMetricMap = {};
+  for (const sense of senses) {
+    const senseType = slugifyActorMetricSegment(firstString(getNested(sense, ["type"])) ?? "");
+    const rangeValue = parseNumericLikeValue(getNested(sense, ["range"]));
+    if (!senseType || rangeValue === null) {
+      continue;
+    }
+
+    metrics[`sense.${senseType}.range`] = rangeValue;
+  }
+
+  return metrics;
+}
+
+type ParsedHazardDisableData = {
+  disableText: string | null;
+  disableSkills: string[];
+  metrics: ActorMetricMap;
+};
+
+function parseHazardDisableData(raw: Record<string, unknown>): ParsedHazardDisableData {
+  const disableMarkup = firstString(getNested(raw, ["system", "details", "disable"]));
+  const disableText = stripHtml(disableMarkup);
+  if (!disableMarkup) {
+    return {
+      disableText,
+      disableSkills: [],
+      metrics: {},
+    };
+  }
+
+  const skills = new Set<string>();
+  const rankBySkill = new Map<string, number>();
+  const dcValuesBySkill = new Map<string, number[]>();
+  const allDcs: number[] = [];
+  const checkMatches = [...disableMarkup.matchAll(/@Check\[([^\]]+)\]([^@]*)/g)];
+
+  for (const match of checkMatches) {
+    const body = match[1] ?? "";
+    const trailingText = stripHtml(match[2] ?? "") ?? "";
+    const segments = body.split("|").map((segment) => segment.trim()).filter(Boolean);
+    const dcSegment = segments.find((segment) => /^dc\s*:/i.test(segment));
+    const dc = dcSegment ? parseNumericLikeValue(dcSegment.replace(/^dc\s*:/i, "")) : null;
+    const primarySkillSegment = segments.find((segment) => !segment.includes(":"));
+    const primarySkill = slugifyActorMetricSegment(primarySkillSegment ?? "");
+    const leadingRankMatch = trailingText.match(/^\s*\((trained|expert|master|legendary)\)/i);
+
+    if (dc !== null) {
+      allDcs.push(dc);
+    }
+
+    if (primarySkill) {
+      skills.add(primarySkill);
+      if (dc !== null) {
+        dcValuesBySkill.set(primarySkill, [...(dcValuesBySkill.get(primarySkill) ?? []), dc]);
+      }
+      if (leadingRankMatch?.[1]) {
+        rankBySkill.set(primarySkill, Math.max(rankBySkill.get(primarySkill) ?? 0, HAZARD_DISABLE_PROFICIENCY_RANKS[leadingRankMatch[1].toLowerCase()] ?? 0));
+      }
+    }
+
+    for (const skillName of HAZARD_DISABLE_SKILLS) {
+      const skillPattern = new RegExp(`\\b${skillName}\\b(?:\\s*\\((trained|expert|master|legendary)\\))?`, "ig");
+      for (const skillMatch of trailingText.matchAll(skillPattern)) {
+        const skillKey = slugifyActorMetricSegment(skillName);
+        skills.add(skillKey);
+        if (dc !== null) {
+          dcValuesBySkill.set(skillKey, [...(dcValuesBySkill.get(skillKey) ?? []), dc]);
+        }
+        if (skillMatch[1]) {
+          rankBySkill.set(skillKey, Math.max(rankBySkill.get(skillKey) ?? 0, HAZARD_DISABLE_PROFICIENCY_RANKS[skillMatch[1].toLowerCase()] ?? 0));
+        }
+      }
+    }
+  }
+
+  const metrics: ActorMetricMap = {};
+  if (allDcs.length > 0) {
+    metrics["disable.dc.min"] = Math.min(...allDcs);
+    metrics["disable.dc.max"] = Math.max(...allDcs);
+  }
+
+  for (const [skill, values] of dcValuesBySkill.entries()) {
+    if (values.length > 0) {
+      metrics[`disable.${skill}.dc.min`] = Math.min(...values);
+      metrics[`disable.${skill}.dc.max`] = Math.max(...values);
+    }
+  }
+
+  for (const [skill, rank] of rankBySkill.entries()) {
+    if (rank > 0) {
+      metrics[`disable.${skill}.rank.min`] = rank;
+    }
+  }
+
+  return {
+    disableText,
+    disableSkills: uniqueSorted([...skills]),
+    metrics,
+  };
+}
+
 function addBestAndWorstSaveMetrics(
   actorMetrics: ActorMetricMap,
   saveMetrics: Partial<Record<(typeof ACTOR_SAVE_KEYS)[number], number>>,
@@ -335,18 +506,26 @@ function parseActorMetrics(raw: Record<string, unknown>): ActorMetricMap {
     ...metrics,
     ...parseHitPointMetrics(raw),
     ...parseSkillMetrics(raw),
+    ...parseSpeedMetrics(raw),
+    ...parseSenseRangeMetrics(raw),
     ...parseStealthMetrics(raw),
+    ...parseHazardDisableData(raw).metrics,
   };
 }
 
 export function parseActorIndexData(raw: Record<string, unknown>): ActorIndexData {
+  const disableData = parseHazardDisableData(raw);
   return {
     size: parseSize(raw),
     languages: parseLanguages(raw),
     speedTypes: parseSpeedTypes(raw),
+    senses: parseSenses(raw),
     immunities: parseTypedCollection(raw, ["system", "attributes", "immunities"]),
     resistances: parseTypedCollection(raw, ["system", "attributes", "resistances"]),
     weaknesses: parseTypedCollection(raw, ["system", "attributes", "weaknesses"]),
+    disableText: disableData.disableText,
+    disableSkills: disableData.disableSkills,
+    isComplex: getNested(raw, ["system", "details", "isComplex"]) === true,
     actorMetrics: parseActorMetrics(raw),
   };
 }
@@ -527,11 +706,19 @@ function parseItemMetrics(raw: Record<string, unknown>): ItemMetricMap {
 
   if (recordType === "armor") {
     const acBonus = asNumber(getNested(raw, ["system", "acBonus"]));
+    const dexCap = asNumber(getNested(raw, ["system", "dexCap"]));
+    const strength = asNumber(getNested(raw, ["system", "strength"]));
     const checkPenalty = asNumber(getNested(raw, ["system", "checkPenalty"]));
     const speedPenalty = asNumber(getNested(raw, ["system", "speedPenalty"]));
 
     if (acBonus !== null) {
       metrics["armor.ac_bonus"] = acBonus;
+    }
+    if (dexCap !== null) {
+      metrics["armor.dex_cap"] = dexCap;
+    }
+    if (strength !== null) {
+      metrics["armor.strength"] = strength;
     }
     if (checkPenalty !== null) {
       metrics["armor.check_penalty"] = checkPenalty;
@@ -542,6 +729,7 @@ function parseItemMetrics(raw: Record<string, unknown>): ItemMetricMap {
   }
 
   if (recordType === "shield") {
+    const acBonus = asNumber(getNested(raw, ["system", "acBonus"]));
     const hardness = asNumber(getNested(raw, ["system", "hardness"]));
     const hp = asNumber(getNested(raw, ["system", "hp", "value"]) ?? getNested(raw, ["system", "hp", "max"]));
     const brokenThreshold = asNumber(
@@ -550,6 +738,9 @@ function parseItemMetrics(raw: Record<string, unknown>): ItemMetricMap {
         getNested(raw, ["system", "hp", "bt"]),
     );
 
+    if (acBonus !== null) {
+      metrics["shield.ac_bonus"] = acBonus;
+    }
     if (hardness !== null) {
       metrics["shield.hardness"] = hardness;
     }
@@ -593,7 +784,33 @@ function extractSpellKinds(raw: Record<string, unknown>): string[] {
   return ["focus", "ritual", "cantrip"].filter((kind) => spellTraits.has(kind));
 }
 
+function parseSpellDurationUnit(durationText: string | null): string | null {
+  const normalized = normalizeText(durationText ?? "");
+  if (!normalized) {
+    return null;
+  }
+
+  if (normalized.includes("unlimited")) {
+    return "unlimited";
+  }
+  if (normalized.includes("permanent")) {
+    return "permanent";
+  }
+  if (normalized.includes("varies")) {
+    return "varies";
+  }
+
+  for (const unit of ["round", "minute", "hour", "day", "week", "month", "year"] as const) {
+    if (normalized.includes(unit)) {
+      return unit;
+    }
+  }
+
+  return null;
+}
+
 export function parseSpellIndexData(raw: Record<string, unknown>): SpellIndexData {
+  const durationText = firstString(getNested(raw, ["system", "duration", "value"]));
   return {
     actionCost: parseActionCost(raw),
     traditions: extractSpellTraditions(raw),
@@ -602,6 +819,12 @@ export function parseSpellIndexData(raw: Record<string, unknown>): SpellIndexDat
     rangeValue: parseRangeValue(raw),
     saveType: firstString(getNested(raw, ["system", "defense", "save", "statistic"])),
     areaType: firstString(getNested(raw, ["system", "area", "type"])),
+    durationText,
+    durationUnit: parseSpellDurationUnit(durationText),
+    targetText: stripHtml(firstString(getNested(raw, ["system", "target", "value"]))),
+    areaValue: parseNumericLikeValue(getNested(raw, ["system", "area", "value"])),
+    sustained: getNested(raw, ["system", "duration", "sustained"]) === true,
+    basicSave: getNested(raw, ["system", "defense", "save", "basic"]) === true,
     damageTypes: parseDamageTypes(raw),
   };
 }
@@ -844,11 +1067,22 @@ export function normalizeIndexRecord(pack: PackBuildInfo, sourcePath: string, ra
     spellKinds: spellData?.spellKinds ?? [],
     saveType: spellData?.saveType ?? null,
     areaType: spellData?.areaType ?? null,
+    rangeText: spellData?.rangeText ?? null,
+    durationText: spellData?.durationText ?? null,
+    durationUnit: spellData?.durationUnit ?? null,
+    targetText: spellData?.targetText ?? null,
+    areaValue: spellData?.areaValue ?? null,
+    sustained: spellData?.sustained ?? false,
+    basicSave: spellData?.basicSave ?? false,
     languages: actorData?.languages ?? [],
     speedTypes: actorData?.speedTypes ?? [],
+    senses: actorData?.senses ?? [],
     immunities: actorData?.immunities ?? [],
     resistances: actorData?.resistances ?? [],
     weaknesses: actorData?.weaknesses ?? [],
+    disableText: actorData?.disableText ?? null,
+    disableSkills: actorData?.disableSkills ?? [],
+    isComplex: actorData?.isComplex ?? false,
     actorMetrics: actorData?.actorMetrics ?? {},
     itemMetrics: itemData?.itemMetrics ?? {},
     rangeValue: spellData?.rangeValue ?? null,

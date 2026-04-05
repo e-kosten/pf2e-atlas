@@ -564,12 +564,16 @@ function buildMetadataJsonArraySql(context: MetadataSqlContext, field: MetadataS
       return `COALESCE(${buildScalarLookupSql(context.recordKeyExpr, context.actorAlias, "languages_json", "actor_records")}, '[]')`;
     case "speedTypes":
       return `COALESCE(${buildScalarLookupSql(context.recordKeyExpr, context.actorAlias, "speed_types_json", "actor_records")}, '[]')`;
+    case "senses":
+      return `COALESCE(${buildScalarLookupSql(context.recordKeyExpr, context.actorAlias, "senses_json", "actor_records")}, '[]')`;
     case "immunities":
       return `COALESCE(${buildScalarLookupSql(context.recordKeyExpr, context.actorAlias, "immunities_json", "actor_records")}, '[]')`;
     case "resistances":
       return `COALESCE(${buildScalarLookupSql(context.recordKeyExpr, context.actorAlias, "resistances_json", "actor_records")}, '[]')`;
     case "weaknesses":
       return `COALESCE(${buildScalarLookupSql(context.recordKeyExpr, context.actorAlias, "weaknesses_json", "actor_records")}, '[]')`;
+    case "disableSkills":
+      return `COALESCE(${buildScalarLookupSql(context.recordKeyExpr, context.actorAlias, "disable_skills_json", "actor_records")}, '[]')`;
     default:
       return "[]";
   }
@@ -584,6 +588,14 @@ function buildMetadataScalarSqlExpression(
       return context.recordsAlias ? `${context.recordsAlias}.source_category` : `(SELECT meta.source_category FROM records meta WHERE meta.record_key = ${context.recordKeyExpr})`;
     case "publicationTitle":
       return context.recordsAlias ? `${context.recordsAlias}.publication_title` : `(SELECT meta.publication_title FROM records meta WHERE meta.record_key = ${context.recordKeyExpr})`;
+    case "rangeText":
+      return buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "range_text", "spell_records");
+    case "durationText":
+      return buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "duration_text", "spell_records");
+    case "targetText":
+      return buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "target_text", "spell_records");
+    case "disableText":
+      return buildScalarLookupSql(context.recordKeyExpr, context.actorAlias, "disable_text", "actor_records");
     case "size":
       return buildScalarLookupSql(context.recordKeyExpr, context.actorAlias, "size", "actor_records");
     case "usage":
@@ -598,6 +610,8 @@ function buildMetadataScalarSqlExpression(
       return buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "save_type", "spell_records");
     case "areaType":
       return buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "area_type", "spell_records");
+    case "durationUnit":
+      return buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "duration_unit", "spell_records");
     case "rarity":
       return context.recordsAlias ? `${context.recordsAlias}.rarity` : `(SELECT meta.rarity FROM records meta WHERE meta.record_key = ${context.recordKeyExpr})`;
     case "level":
@@ -615,12 +629,20 @@ function buildMetadataScalarSqlExpression(
       return buildScalarLookupSql(context.recordKeyExpr, context.itemAlias, "hands", "item_records");
     case "rangeValue":
       return buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "range_value", "spell_records");
+    case "areaValue":
+      return buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "area_value", "spell_records");
     case "isUnique":
       return context.recordsAlias ? `${context.recordsAlias}.is_unique` : `(SELECT meta.is_unique FROM records meta WHERE meta.record_key = ${context.recordKeyExpr})`;
     case "hasDescription":
       return context.recordsAlias ? `${context.recordsAlias}.has_description` : `(SELECT meta.has_description FROM records meta WHERE meta.record_key = ${context.recordKeyExpr})`;
     case "publicationRemaster":
       return context.recordsAlias ? `${context.recordsAlias}.publication_remaster` : `(SELECT meta.publication_remaster FROM records meta WHERE meta.record_key = ${context.recordKeyExpr})`;
+    case "sustained":
+      return buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "sustained", "spell_records");
+    case "basicSave":
+      return buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "basic_save", "spell_records");
+    case "isComplex":
+      return buildScalarLookupSql(context.recordKeyExpr, context.actorAlias, "is_complex", "actor_records");
   }
 }
 
@@ -809,12 +831,16 @@ function getRecordSetValues(record: NormalizedRecord, field: MetadataSetField): 
       return record.languages;
     case "speedTypes":
       return record.speedTypes;
+    case "senses":
+      return record.senses;
     case "immunities":
       return record.immunities;
     case "resistances":
       return record.resistances;
     case "weaknesses":
       return record.weaknesses;
+    case "disableSkills":
+      return record.disableSkills;
   }
 }
 
@@ -824,6 +850,14 @@ function getRecordStringValue(record: NormalizedRecord, field: MetadataEnumStrin
       return record.sourceCategory;
     case "publicationTitle":
       return record.publicationTitle;
+    case "rangeText":
+      return record.rangeText;
+    case "durationText":
+      return record.durationText;
+    case "targetText":
+      return record.targetText;
+    case "disableText":
+      return record.disableText;
     case "size":
       return record.size;
     case "usage":
@@ -838,6 +872,8 @@ function getRecordStringValue(record: NormalizedRecord, field: MetadataEnumStrin
       return record.saveType;
     case "areaType":
       return record.areaType;
+    case "durationUnit":
+      return record.durationUnit;
     case "rarity":
       return record.rarity;
   }
@@ -857,6 +893,8 @@ function getRecordNumberValue(record: NormalizedRecord, field: MetadataNumberFie
       return record.hands;
     case "rangeValue":
       return record.rangeValue;
+    case "areaValue":
+      return record.areaValue;
   }
 }
 
@@ -868,6 +906,12 @@ function getRecordBooleanValue(record: NormalizedRecord, field: MetadataBooleanF
       return record.hasDescription;
     case "publicationRemaster":
       return record.publicationRemaster;
+    case "sustained":
+      return record.sustained;
+    case "basicSave":
+      return record.basicSave;
+    case "isComplex":
+      return record.isComplex;
   }
 }
 

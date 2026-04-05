@@ -53,11 +53,22 @@ export type NormalizedIndexRecord = {
   spellKinds: string[];
   saveType: string | null;
   areaType: string | null;
+  rangeText: string | null;
+  durationText: string | null;
+  durationUnit: string | null;
+  targetText: string | null;
+  areaValue: number | null;
+  sustained: boolean;
+  basicSave: boolean;
   languages: string[];
   speedTypes: string[];
+  senses: string[];
   immunities: string[];
   resistances: string[];
   weaknesses: string[];
+  disableText: string | null;
+  disableSkills: string[];
+  isComplex: boolean;
   actorMetrics: ActorMetricMap;
   itemMetrics: ItemMetricMap;
   rangeValue: number | null;
@@ -106,9 +117,13 @@ export type ActorIndexData = {
   size: string | null;
   languages: string[];
   speedTypes: string[];
+  senses: string[];
   immunities: string[];
   resistances: string[];
   weaknesses: string[];
+  disableText: string | null;
+  disableSkills: string[];
+  isComplex: boolean;
   actorMetrics: ActorMetricMap;
 };
 
@@ -133,6 +148,12 @@ export type SpellIndexData = {
   rangeValue: number | null;
   saveType: string | null;
   areaType: string | null;
+  durationText: string | null;
+  durationUnit: string | null;
+  targetText: string | null;
+  areaValue: number | null;
+  sustained: boolean;
+  basicSave: boolean;
   damageTypes: string[];
 };
 

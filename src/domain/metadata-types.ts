@@ -16,9 +16,11 @@ export const METADATA_SET_FIELDS = [
   "damageTypes",
   "languages",
   "speedTypes",
+  "senses",
   "immunities",
   "resistances",
   "weaknesses",
+  "disableSkills",
 ] as const;
 
 export type MetadataSetField = (typeof METADATA_SET_FIELDS)[number];
@@ -32,6 +34,7 @@ export const METADATA_ENUM_STRING_FIELDS = [
   "itemCategory",
   "saveType",
   "areaType",
+  "durationUnit",
   "rarity",
 ] as const;
 
@@ -39,6 +42,10 @@ export type MetadataEnumStringField = (typeof METADATA_ENUM_STRING_FIELDS)[numbe
 
 export const METADATA_TEXT_STRING_FIELDS = [
   "publicationTitle",
+  "rangeText",
+  "durationText",
+  "targetText",
+  "disableText",
 ] as const;
 
 export type MetadataTextStringField = (typeof METADATA_TEXT_STRING_FIELDS)[number];
@@ -50,6 +57,7 @@ export const METADATA_NUMBER_FIELDS = [
   "actionCost",
   "hands",
   "rangeValue",
+  "areaValue",
 ] as const;
 
 export type MetadataNumberField = (typeof METADATA_NUMBER_FIELDS)[number];
@@ -58,6 +66,9 @@ export const METADATA_BOOLEAN_FIELDS = [
   "isUnique",
   "hasDescription",
   "publicationRemaster",
+  "sustained",
+  "basicSave",
+  "isComplex",
 ] as const;
 
 export type MetadataBooleanField = (typeof METADATA_BOOLEAN_FIELDS)[number];

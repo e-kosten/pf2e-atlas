@@ -44,9 +44,13 @@ function buildRecordSelect(includeRaw = false): string {
     "a.size AS size",
     "a.languages_json AS languagesJson",
     "a.speed_types_json AS speedTypesJson",
+    "a.senses_json AS sensesJson",
     "a.immunities_json AS immunitiesJson",
     "a.resistances_json AS resistancesJson",
     "a.weaknesses_json AS weaknessesJson",
+    "a.disable_text AS disableText",
+    "a.disable_skills_json AS disableSkillsJson",
+    "a.is_complex AS isComplex",
     `COALESCE((
       SELECT json_group_array(json_object(
         'metricKey', am.metric_key,
@@ -80,8 +84,15 @@ function buildRecordSelect(includeRaw = false): string {
     "COALESCE(s.action_cost, i.action_cost) AS actionCost",
     "s.traditions_json AS traditionsJson",
     "s.spell_kinds_json AS spellKindsJson",
+    "s.range_text AS rangeText",
     "s.save_type AS saveType",
     "s.area_type AS areaType",
+    "s.duration_text AS durationText",
+    "s.duration_unit AS durationUnit",
+    "s.target_text AS targetText",
+    "s.area_value AS areaValue",
+    "s.sustained AS sustained",
+    "s.basic_save AS basicSave",
     "s.range_value AS rangeValue",
   ];
 

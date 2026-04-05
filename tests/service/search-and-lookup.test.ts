@@ -48,6 +48,10 @@ describe("Pf2eDataService / Search and Lookup", () => {
     expect((await service.search({ category: "spell", metadata: { field: "spellKinds", op: "includesAny", values: ["focus"] } })).records.map((record) => record.name)).toEqual(["Focus Burst"]);
     expect((await service.search({ category: "spell", metadata: { field: "saveType", op: "eq", value: "reflex" } })).records.map((record) => record.name)).toEqual(["Hydraulic Push"]);
     expect((await service.search({ category: "spell", metadata: { field: "areaType", op: "eq", value: "burst" } })).records.map((record) => record.name)).toEqual(["Hydraulic Push"]);
+    expect((await service.search({ category: "spell", metadata: { field: "durationUnit", op: "eq", value: "minute" } })).records.map((record) => record.name)).toEqual(["Fear", "Painted Scout"]);
+    expect((await service.search({ category: "spell", metadata: { field: "sustained", op: "eq", value: true } })).records.map((record) => record.name)).toEqual(["Painted Scout"]);
+    expect((await service.search({ category: "spell", metadata: { field: "basicSave", op: "eq", value: true } })).records.map((record) => record.name)).toEqual(["Hydraulic Push"]);
+    expect((await service.search({ category: "spell", metadata: { field: "areaValue", op: "gte", value: 10 } })).records.map((record) => record.name)).toEqual(["Fear"]);
     expect((await service.search({ category: "rule", subcategory: "condition" })).records.map((record) => record.name)).toEqual(
       expect.arrayContaining(["Blinded", "Dazzled", "Hidden"]),
     );
@@ -186,9 +190,18 @@ describe("Pf2eDataService / Search and Lookup", () => {
     const fear = service.lookup("Fear", { category: "spell" }).match;
     expect(fear?.saveType).toBe("will");
     expect(fear?.areaType).toBe("cone");
+    expect(fear?.durationText).toBe("1 minute");
+    expect(fear?.durationUnit).toBe("minute");
+    expect(fear?.targetText).toBe("1 creature");
+    expect(fear?.areaValue).toBe(30);
+    expect(fear?.basicSave).toBe(false);
     const hydraulicPush = service.lookup("Hydraulic Push", { category: "spell" }).match;
     expect(hydraulicPush?.saveType).toBe("reflex");
     expect(hydraulicPush?.areaType).toBe("burst");
+    expect(hydraulicPush?.rangeText).toBe("60 feet");
+    expect(hydraulicPush?.targetText).toBe("1 creature");
+    expect(hydraulicPush?.areaValue).toBe(5);
+    expect(hydraulicPush?.basicSave).toBe(true);
     const alarm = service.lookup("Alarm", { category: "spell" }).match;
     expect(alarm?.derivedTags).toContain("alarm");
     const illusoryDisguise = service.lookup("Illusory Disguise", { category: "spell" }).match;
@@ -197,6 +210,8 @@ describe("Pf2eDataService / Search and Lookup", () => {
     expect(webOfEyes?.derivedTags).toContain("scouting");
     const paintedScout = service.lookup("Painted Scout", { category: "spell" }).match;
     expect(paintedScout?.derivedTags).toContain("scouting");
+    expect(paintedScout?.sustained).toBe(true);
+    expect(paintedScout?.durationUnit).toBe("minute");
     const messageRune = service.lookup("Message Rune", { category: "spell" }).match;
     expect(messageRune?.derivedTags).toContain("message_delivery");
     const antidote = service.lookup("Antidote (Lesser)", { category: "equipment" }).match;
@@ -843,6 +858,21 @@ describe("Pf2eDataService / Search and Lookup", () => {
     }).records.map((record) => record.name)).toEqual(["Tactical Mastermind"]);
 
     expect(service.listRecords({
+      category: "creature",
+      metadata: { field: "senses", op: "includesAny", values: ["darkvision"] },
+    }).records.map((record) => record.name)).toEqual(["Tactical Mastermind"]);
+
+    expect(service.listRecords({
+      category: "creature",
+      metadata: { field: "actorMetric", metric: "speed.fly.value", op: ">=", value: 40 },
+    }).records.map((record) => record.name)).toEqual(["Tactical Mastermind"]);
+
+    expect(service.listRecords({
+      category: "creature",
+      metadata: { field: "actorMetric", metric: "sense.scent.range", op: ">=", value: 30 },
+    }).records.map((record) => record.name)).toEqual(["Tactical Mastermind"]);
+
+    expect(service.listRecords({
       category: "hazard",
       metadata: { field: "actorMetric", metric: "stealth.dc", op: ">=", value: 20 },
     }).records.map((record) => record.name)).toEqual(["Clockwork Killbox", "Haunting Choir"]);
@@ -860,6 +890,26 @@ describe("Pf2eDataService / Search and Lookup", () => {
     expect(service.listRecords({
       category: "hazard",
       metadata: { field: "actorMetric", metric: "save.best", op: "==", value: "will" },
+    }).records.map((record) => record.name)).toEqual(["Haunting Choir"]);
+
+    expect(service.listRecords({
+      category: "hazard",
+      metadata: { field: "isComplex", op: "eq", value: true },
+    }).records.map((record) => record.name)).toEqual(["Clockwork Killbox"]);
+
+    expect(service.listRecords({
+      category: "hazard",
+      metadata: { field: "disableSkills", op: "includesAny", values: ["thievery"] },
+    }).records.map((record) => record.name)).toEqual(["Clockwork Killbox"]);
+
+    expect(service.listRecords({
+      category: "hazard",
+      metadata: { field: "actorMetric", metric: "disable.thievery.rank.min", op: ">=", value: 1 },
+    }).records.map((record) => record.name)).toEqual(["Clockwork Killbox"]);
+
+    expect(service.listRecords({
+      category: "hazard",
+      metadata: { field: "actorMetric", metric: "disable.religion.rank.min", op: ">=", value: 2 },
     }).records.map((record) => record.name)).toEqual(["Haunting Choir"]);
 
     expect(service.listRecords({
@@ -887,14 +937,37 @@ describe("Pf2eDataService / Search and Lookup", () => {
       metadata: { field: "itemMetricCompare", leftMetric: "shield.hp", op: ">", rightMetric: "shield.bt" },
     }).records.map((record) => record.name)).toEqual(["Buckler Aegis", "Tower Bulwark"]);
 
+    expect(service.listRecords({
+      category: "equipment",
+      metadata: { field: "itemMetric", metric: "shield.ac_bonus", op: ">=", value: 2 },
+    }).records.map((record) => record.name)).toEqual(["Tower Bulwark"]);
+
+    expect(service.listRecords({
+      category: "equipment",
+      metadata: { field: "itemMetric", metric: "armor.dex_cap", op: "==", value: 1 },
+    }).records.map((record) => record.name)).toEqual(["Fortress Plate"]);
+
+    expect(service.listRecords({
+      category: "equipment",
+      metadata: { field: "itemMetric", metric: "armor.strength", op: ">=", value: 4 },
+    }).records.map((record) => record.name)).toEqual(["Fortress Plate"]);
+
     expect(service.lookup("Clockwork Killbox", { category: "hazard" }).match?.actorMetrics).toMatchObject({
       "ac.value": 20,
+      "disable.crafting.dc.min": 18,
+      "disable.thievery.rank.min": 1,
       "hardness.value": 8,
       "hp.bt": 16,
       "stealth.dc": 20,
     });
 
+    expect(service.lookup("Clockwork Killbox", { category: "hazard" }).match).toMatchObject({
+      disableSkills: ["crafting", "thievery"],
+      isComplex: true,
+    });
+
     expect(service.lookup("Tower Bulwark", { category: "equipment" }).match?.itemMetrics).toMatchObject({
+      "shield.ac_bonus": 2,
       "shield.hardness": 10,
       "shield.hp": 40,
       "shield.bt": 20,

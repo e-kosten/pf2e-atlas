@@ -27,11 +27,17 @@ describe("metadata search semantics", () => {
       "spellKinds",
       "saveType",
       "areaType",
+      "durationUnit",
       "damageTypes",
       "rangeValue",
+      "areaValue",
+      "sustained",
+      "basicSave",
     ]));
     expect(semantics.metadataFieldsByCategory.hazard).toEqual(expect.arrayContaining([
       "derivedTags",
+      "disableSkills",
+      "isComplex",
     ]));
     expect(semantics.metadataFieldsByCategory.affliction).toEqual(expect.arrayContaining([
       "derivedTags",
@@ -66,6 +72,13 @@ describe("metadata search semantics", () => {
       "actionCost",
       "hands",
       "rangeValue",
+      "areaValue",
+      "durationUnit",
+      "sustained",
+      "basicSave",
+      "senses",
+      "disableSkills",
+      "isComplex",
       "itemCategory",
       "size",
       "rarity",
@@ -113,7 +126,7 @@ describe("metadata search semantics", () => {
     ]));
     expect(semantics.actorMetricDiscovery?.filterValueField).toBe("actorMetrics");
     expect(semantics.actorMetricDiscovery?.namespaces.map((entry) => entry.prefix)).toEqual(
-      expect.arrayContaining(["ability.", "save.", "skill.", "perception.", "ac.", "hp.", "hardness.", "stealth."]),
+      expect.arrayContaining(["ability.", "save.", "skill.", "perception.", "ac.", "hp.", "hardness.", "stealth.", "speed.", "sense.", "disable."]),
     );
     expect(semantics.itemMetricDiscovery?.filterValueField).toBe("itemMetrics");
     expect(semantics.itemMetricDiscovery?.namespaces.map((entry) => entry.prefix)).toEqual(

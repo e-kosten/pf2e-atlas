@@ -13,11 +13,11 @@ import {
 export const ITEM_METRIC_DISCOVERY_NAMESPACES = [
   {
     prefix: "armor.",
-    description: "Armor metrics such as armor.ac_bonus, armor.check_penalty, and armor.speed_penalty.",
+    description: "Armor metrics such as armor.ac_bonus, armor.dex_cap, armor.strength, armor.check_penalty, and armor.speed_penalty.",
   },
   {
     prefix: "shield.",
-    description: "Shield metrics such as shield.hardness, shield.hp, and shield.bt.",
+    description: "Shield metrics such as shield.ac_bonus, shield.hardness, shield.hp, and shield.bt.",
   },
   {
     prefix: "weapon.",
@@ -51,11 +51,11 @@ export function inferItemMetricValueType(metric: string): ItemMetricValueType | 
     return "number";
   }
 
-  if (/^armor\.(ac_bonus|check_penalty|speed_penalty)$/.test(normalized)) {
+  if (/^armor\.(ac_bonus|dex_cap|strength|check_penalty|speed_penalty)$/.test(normalized)) {
     return "number";
   }
 
-  if (/^shield\.(hardness|hp|bt)$/.test(normalized)) {
+  if (/^shield\.(ac_bonus|hardness|hp|bt)$/.test(normalized)) {
     return "number";
   }
 

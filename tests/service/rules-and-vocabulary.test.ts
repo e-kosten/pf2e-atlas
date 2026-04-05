@@ -415,6 +415,17 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     });
 
     expect(service.listFilterValues({
+      field: "durationUnit",
+      category: "spell",
+    })).toEqual({
+      field: "durationUnit",
+      values: [
+        { value: "minute", count: 2 },
+        { value: "unlimited", count: 1 },
+      ],
+    });
+
+    expect(service.listFilterValues({
       field: "weaponGroup",
       category: "equipment",
     }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["bomb", "sword"]));
@@ -437,7 +448,22 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     expect(service.listFilterValues({
       field: "rangeValue",
       category: "spell",
-    }).values.map((entry) => entry.value)).toEqual(["30"]);
+    }).values.map((entry) => entry.value)).toEqual(["30", "60"]);
+
+    expect(service.listFilterValues({
+      field: "areaValue",
+      category: "spell",
+    }).values.map((entry) => entry.value)).toEqual(["30", "5"]);
+
+    expect(service.listFilterValues({
+      field: "sustained",
+      category: "spell",
+    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["false", "true"]));
+
+    expect(service.listFilterValues({
+      field: "basicSave",
+      category: "spell",
+    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["false", "true"]));
 
     expect(service.listFilterValues({
       field: "damageTypes",
@@ -515,6 +541,23 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     expect(service.listFilterValues({
       field: "actorMetrics",
       category: "creature",
+      metricPrefix: "speed",
+    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining([
+      "speed.fly.value",
+      "speed.land.value",
+    ]));
+
+    expect(service.listFilterValues({
+      field: "actorMetrics",
+      category: "creature",
+      metricPrefix: "sense",
+    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining([
+      "sense.scent.range",
+    ]));
+
+    expect(service.listFilterValues({
+      field: "actorMetrics",
+      category: "creature",
       metric: "save.best",
     })).toEqual({
       field: "actorMetrics",
@@ -555,6 +598,21 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     expect(service.listFilterValues({
       field: "actorMetrics",
       category: "hazard",
+      metricPrefix: "disable",
+    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining([
+      "disable.dc.max",
+      "disable.dc.min",
+      "disable.crafting.dc.min",
+      "disable.crafting.rank.min",
+      "disable.thievery.dc.min",
+      "disable.thievery.rank.min",
+      "disable.religion.dc.min",
+      "disable.religion.rank.min",
+    ]));
+
+    expect(service.listFilterValues({
+      field: "actorMetrics",
+      category: "hazard",
       metric: "save.best",
     })).toEqual({
       field: "actorMetrics",
@@ -580,10 +638,38 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       category: "equipment",
       metricPrefix: "shield",
     }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining([
+      "shield.ac_bonus",
       "shield.bt",
       "shield.hardness",
       "shield.hp",
     ]));
+
+    expect(service.listFilterValues({
+      field: "itemMetrics",
+      category: "equipment",
+      metricPrefix: "armor",
+    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining([
+      "armor.ac_bonus",
+      "armor.check_penalty",
+      "armor.dex_cap",
+      "armor.speed_penalty",
+      "armor.strength",
+    ]));
+
+    expect(service.listFilterValues({
+      field: "senses",
+      category: "creature",
+    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["darkvision", "scent"]));
+
+    expect(service.listFilterValues({
+      field: "disableSkills",
+      category: "hazard",
+    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["crafting", "religion", "thievery"]));
+
+    expect(service.listFilterValues({
+      field: "isComplex",
+      category: "hazard",
+    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["false", "true"]));
 
     expect(() => service.listFilterValues({
       field: "itemMetrics",

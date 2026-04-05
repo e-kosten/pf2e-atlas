@@ -177,6 +177,10 @@ export async function createHardFilterFixture(): Promise<{ root: string; manifes
       },
       perception: {
         mod: 15,
+        senses: [
+          { type: "darkvision" },
+          { type: "scent", range: 30, acuity: "imprecise" },
+        ],
       },
       saves: {
         fortitude: { value: 12 },
@@ -187,6 +191,14 @@ export async function createHardFilterFixture(): Promise<{ root: string; manifes
         arcana: { mod: 18, rank: 4 },
         society: { mod: 16, rank: 4 },
         stealth: { mod: 11, rank: 2 },
+      },
+      attributes: {
+        speed: {
+          value: 25,
+          otherSpeeds: [
+            { type: "fly", value: 40 },
+          ],
+        },
       },
       traits: {
         rarity: "common",
@@ -305,6 +317,8 @@ export async function createHardFilterFixture(): Promise<{ root: string; manifes
         },
       },
       details: {
+        disable: "<p>@Check[crafting|dc:18] (trained) or Thievery (trained) to jam the gearing.</p>",
+        isComplex: true,
         level: {
           value: 5,
         },
@@ -343,6 +357,8 @@ export async function createHardFilterFixture(): Promise<{ root: string; manifes
         },
       },
       details: {
+        disable: "<p>@Check[religion|dc:22] (expert) to quiet the restless dead.</p>",
+        isComplex: false,
         level: {
           value: 4,
         },
@@ -452,6 +468,7 @@ export async function createHardFilterFixture(): Promise<{ root: string; manifes
         value: "<p>A flexible vest reinforced with hidden scales.</p>",
       },
       group: "cloth",
+      dexCap: 5,
       level: {
         value: 1,
       },
@@ -464,6 +481,7 @@ export async function createHardFilterFixture(): Promise<{ root: string; manifes
         title: "Pathfinder Player Core",
       },
       speedPenalty: 0,
+      strength: 0,
       traits: {
         rarity: "common",
         value: ["light"],
@@ -482,6 +500,7 @@ export async function createHardFilterFixture(): Promise<{ root: string; manifes
         value: "<p>Massive plate designed to absorb the worst battlefield punishment.</p>",
       },
       group: "plate",
+      dexCap: 1,
       level: {
         value: 8,
       },
@@ -494,6 +513,7 @@ export async function createHardFilterFixture(): Promise<{ root: string; manifes
         title: "Pathfinder Player Core",
       },
       speedPenalty: -10,
+      strength: 4,
       traits: {
         rarity: "common",
         value: ["heavy"],
@@ -506,6 +526,7 @@ export async function createHardFilterFixture(): Promise<{ root: string; manifes
     name: "Tower Bulwark",
     type: "shield",
     system: {
+      acBonus: 2,
       description: {
         value: "<p>A reinforced tower shield meant to lock down a corridor.</p>",
       },
@@ -538,6 +559,7 @@ export async function createHardFilterFixture(): Promise<{ root: string; manifes
     name: "Buckler Aegis",
     type: "shield",
     system: {
+      acBonus: 1,
       description: {
         value: "<p>A compact shield for duelists who value mobility over staying power.</p>",
       },

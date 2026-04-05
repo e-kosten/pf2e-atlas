@@ -51,13 +51,24 @@ export type CandidateRow = {
   armorGroup: string | null;
   traditionsJson: string | null;
   spellKindsJson: string | null;
+  rangeText: string | null;
   saveType: string | null;
   areaType: string | null;
+  durationText: string | null;
+  durationUnit: string | null;
+  targetText: string | null;
+  areaValue: number | null;
+  sustained: number | null;
+  basicSave: number | null;
   languagesJson: string | null;
   speedTypesJson: string | null;
+  sensesJson: string | null;
   immunitiesJson: string | null;
   resistancesJson: string | null;
   weaknessesJson: string | null;
+  disableText: string | null;
+  disableSkillsJson: string | null;
+  isComplex: number | null;
   actorMetricsJson: string | null;
   rangeValue: number | null;
   rawJson?: string | null;
@@ -183,11 +194,22 @@ export function rowToRecord(row: CandidateRow, raw: Record<string, unknown> | nu
     spellKinds: row.spellKindsJson ? (JSON.parse(row.spellKindsJson) as string[]) : [],
     saveType: row.saveType,
     areaType: row.areaType,
+    rangeText: row.rangeText,
+    durationText: row.durationText,
+    durationUnit: row.durationUnit,
+    targetText: row.targetText,
+    areaValue: row.areaValue,
+    sustained: Boolean(row.sustained),
+    basicSave: Boolean(row.basicSave),
     languages: row.languagesJson ? (JSON.parse(row.languagesJson) as string[]) : [],
     speedTypes: row.speedTypesJson ? (JSON.parse(row.speedTypesJson) as string[]) : [],
+    senses: row.sensesJson ? (JSON.parse(row.sensesJson) as string[]) : [],
     immunities: row.immunitiesJson ? (JSON.parse(row.immunitiesJson) as string[]) : [],
     resistances: row.resistancesJson ? (JSON.parse(row.resistancesJson) as string[]) : [],
     weaknesses: row.weaknessesJson ? (JSON.parse(row.weaknessesJson) as string[]) : [],
+    disableText: row.disableText,
+    disableSkills: row.disableSkillsJson ? (JSON.parse(row.disableSkillsJson) as string[]) : [],
+    isComplex: Boolean(row.isComplex),
     actorMetrics: parseActorMetricsJson(row.actorMetricsJson),
     rangeValue: row.rangeValue,
     aliases: [],

@@ -211,9 +211,13 @@ export function buildCandidateQuery(
     "a.size AS size",
     "a.languages_json AS languagesJson",
     "a.speed_types_json AS speedTypesJson",
+    "a.senses_json AS sensesJson",
     "a.immunities_json AS immunitiesJson",
     "a.resistances_json AS resistancesJson",
     "a.weaknesses_json AS weaknessesJson",
+    "a.disable_text AS disableText",
+    "a.disable_skills_json AS disableSkillsJson",
+    "a.is_complex AS isComplex",
     `COALESCE((
       SELECT json_group_array(json_object(
         'metricKey', am.metric_key,
@@ -247,8 +251,15 @@ export function buildCandidateQuery(
     "COALESCE(s.action_cost, i.action_cost) AS actionCost",
     "s.traditions_json AS traditionsJson",
     "s.spell_kinds_json AS spellKindsJson",
+    "s.range_text AS rangeText",
     "s.save_type AS saveType",
     "s.area_type AS areaType",
+    "s.duration_text AS durationText",
+    "s.duration_unit AS durationUnit",
+    "s.target_text AS targetText",
+    "s.area_value AS areaValue",
+    "s.sustained AS sustained",
+    "s.basic_save AS basicSave",
     "s.range_value AS rangeValue",
   ];
 
@@ -395,6 +406,10 @@ export function buildFilterValueQuery(query: FilterValueQuery, filters: Normaliz
       joins.push("JOIN json_each(COALESCE(s.spell_kinds_json, '[]')) AS spell_kind");
       valueExpression = "spell_kind.value";
       break;
+    case "durationUnit":
+      valueExpression = "s.duration_unit";
+      postFilterClauses.push("AND s.duration_unit IS NOT NULL AND s.duration_unit <> ''");
+      break;
     case "weaponGroup":
       valueExpression = "i.weapon_group";
       postFilterClauses.push("AND i.weapon_group IS NOT NULL AND i.weapon_group <> ''");
@@ -427,6 +442,18 @@ export function buildFilterValueQuery(query: FilterValueQuery, filters: Normaliz
       valueExpression = "CASE WHEN s.range_value = CAST(s.range_value AS INTEGER) THEN CAST(CAST(s.range_value AS INTEGER) AS TEXT) ELSE CAST(s.range_value AS TEXT) END";
       postFilterClauses.push("AND s.range_value IS NOT NULL");
       break;
+    case "areaValue":
+      valueExpression = "CASE WHEN s.area_value = CAST(s.area_value AS INTEGER) THEN CAST(CAST(s.area_value AS INTEGER) AS TEXT) ELSE CAST(s.area_value AS TEXT) END";
+      postFilterClauses.push("AND s.area_value IS NOT NULL");
+      break;
+    case "sustained":
+      valueExpression = "CASE s.sustained WHEN 1 THEN 'true' ELSE 'false' END";
+      postFilterClauses.push("AND s.sustained IS NOT NULL");
+      break;
+    case "basicSave":
+      valueExpression = "CASE s.basic_save WHEN 1 THEN 'true' ELSE 'false' END";
+      postFilterClauses.push("AND s.basic_save IS NOT NULL");
+      break;
     case "damageTypes":
       joins.push("JOIN json_each(COALESCE(s.damage_types_json, i.damage_types_json, '[]')) AS damage_type");
       valueExpression = "damage_type.value";
@@ -439,6 +466,10 @@ export function buildFilterValueQuery(query: FilterValueQuery, filters: Normaliz
       joins.push("JOIN json_each(COALESCE(a.speed_types_json, '[]')) AS speed_type");
       valueExpression = "speed_type.value";
       break;
+    case "senses":
+      joins.push("JOIN json_each(COALESCE(a.senses_json, '[]')) AS sense");
+      valueExpression = "sense.value";
+      break;
     case "immunities":
       joins.push("JOIN json_each(COALESCE(a.immunities_json, '[]')) AS immunity");
       valueExpression = "immunity.value";
@@ -450,6 +481,14 @@ export function buildFilterValueQuery(query: FilterValueQuery, filters: Normaliz
     case "weaknesses":
       joins.push("JOIN json_each(COALESCE(a.weaknesses_json, '[]')) AS weakness");
       valueExpression = "weakness.value";
+      break;
+    case "disableSkills":
+      joins.push("JOIN json_each(COALESCE(a.disable_skills_json, '[]')) AS disable_skill");
+      valueExpression = "disable_skill.value";
+      break;
+    case "isComplex":
+      valueExpression = "CASE a.is_complex WHEN 1 THEN 'true' ELSE 'false' END";
+      postFilterClauses.push("AND a.is_complex IS NOT NULL");
       break;
     case "itemCategory":
       valueExpression = "i.item_category";
