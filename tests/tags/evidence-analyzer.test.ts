@@ -1,0 +1,81 @@
+import { describe, expect, it } from "vitest";
+
+import { analyzeDiscoveryEvidenceFromRecords } from "../../src/tags/evidence-analyzer.js";
+import type { DiscoveryAnalysisRecord } from "../../src/tags/discovery-records.js";
+
+function record(input: Partial<DiscoveryAnalysisRecord> & Pick<DiscoveryAnalysisRecord, "recordKey" | "name" | "category">): DiscoveryAnalysisRecord {
+  return {
+    recordKey: input.recordKey,
+    name: input.name,
+    category: input.category,
+    subcategory: input.subcategory ?? null,
+    level: input.level ?? null,
+    traits: input.traits ?? [],
+    derivedTags: input.derivedTags ?? [],
+    descriptionText: input.descriptionText ?? null,
+    vector: input.vector ?? new Float32Array(0),
+    references: input.references ?? [],
+  };
+}
+
+describe("derived-tag evidence analyzer", () => {
+  it("surfaces normalized phrases and reference signals that distinguish a cohort", () => {
+    const cohort = [
+      record({
+        recordKey: "spell:1",
+        name: "Blazing Cone",
+        category: "spell",
+        traits: ["fire", "evocation"],
+        descriptionText: "Deals 2d6 fire damage in a 30-foot cone and lights torches.",
+        references: [
+          {
+            targetRecordKey: "rule:1",
+            targetName: "Ignite",
+            targetCategory: "rule",
+            targetSubcategory: "action",
+            fromPackName: "actionspf2e",
+            fromRecordType: "action",
+            fromSourceCategory: "rules",
+          },
+        ],
+      }),
+      record({
+        recordKey: "spell:2",
+        name: "Ashen Cone",
+        category: "spell",
+        traits: ["fire", "evocation"],
+        descriptionText: "Deals 4d6 fire damage in a 60-foot cone and lights braziers.",
+        references: [
+          {
+            targetRecordKey: "rule:1",
+            targetName: "Ignite",
+            targetCategory: "rule",
+            targetSubcategory: "action",
+            fromPackName: "actionspf2e",
+            fromRecordType: "action",
+            fromSourceCategory: "rules",
+          },
+        ],
+      }),
+    ];
+    const baseline = [
+      ...cohort,
+      record({
+        recordKey: "spell:3",
+        name: "Bracing Ward",
+        category: "spell",
+        traits: ["abjuration"],
+        descriptionText: "Gain resistance and protective cover.",
+      }),
+    ];
+
+    const report = analyzeDiscoveryEvidenceFromRecords(cohort, baseline, {
+      limit: 4,
+      exampleLimit: 2,
+    });
+
+    expect(report.descriptionPhrases.map((term) => term.value)).toContain("{{dice}} fire damage");
+    expect(report.traits.map((term) => term.value)).toContain("fire");
+    expect(report.references.map((term) => term.value)).toContain("target:ignite");
+  });
+});

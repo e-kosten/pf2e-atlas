@@ -8,8 +8,11 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "analyze-derived-tag-evidence": "tsx src/tags/analyze-derived-tag-evidence.ts",
+    "cluster-derived-tag-candidates": "tsx src/tags/cluster-derived-tag-candidates.ts",
     "dev": "tsx src/index.ts",
     "discover-derived-tag-candidates": "tsx src/tags/discover-semantic-candidates.ts",
+    "discover-ruleable-cohorts": "tsx src/tags/discover-ruleable-cohorts.ts",
     "evaluate-derived-tags": "tsx src/tags/evaluate-gaps.ts",
     "evaluate-derived-tag-movement": "tsx src/tags/evaluate-movement.ts",
     "refresh-data": "./scripts/refresh-pf2e-data.sh",

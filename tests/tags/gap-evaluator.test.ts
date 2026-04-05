@@ -155,6 +155,9 @@ describe("derived tag gap evaluator", () => {
     expect(evaluation.candidates[0]?.sharedTraits).toEqual(expect.arrayContaining(["magical", "armor"]));
     expect(evaluation.candidates[0]?.similarity).toBeGreaterThan(evaluation.candidates[1]?.similarity ?? 0);
     expect(evaluation.exemplars).toHaveLength(2);
+    expect(evaluation.discriminativeTokens.length).toBeGreaterThan(0);
+    expect(evaluation.discriminativePhrases.length).toBeGreaterThan(0);
+    expect(evaluation.candidateCohorts.length).toBeGreaterThan(0);
   });
 
   it("supports cross-category exemplar seeding when explicitly requested", () => {
@@ -218,6 +221,7 @@ describe("derived tag gap evaluator", () => {
       expect(evaluation.candidateCount).toBe(2);
       expect(evaluation.candidates[0]?.name).toBe("Illusory Disguise");
       expect(evaluation.candidates[0]?.similarity).toBeGreaterThan(evaluation.candidates[1]?.similarity ?? 0);
+      expect(evaluation.contrastRecords).toBeDefined();
     } finally {
       db.close();
     }

@@ -2,6 +2,8 @@ import { DatabaseSync } from "node:sqlite";
 
 import { normalizeDerivedTag } from "./index.js";
 import { SearchCategory, SearchSubcategory } from "../types.js";
+import { type DiscoveryEvidenceTerm, analyzeDiscoveryEvidenceFromRecords } from "./evidence-analyzer.js";
+import { tokenizeDiscoveryText } from "./discovery-normalization.js";
 
 export type DerivedTagGapRecord = {
   recordKey: string;
@@ -35,6 +37,8 @@ export type DerivedTagGapEvaluation = {
   exemplarCount: number;
   candidateCount: number;
   commonTraits: string[];
+  discriminativeTokens: DiscoveryEvidenceTerm[];
+  discriminativePhrases: DiscoveryEvidenceTerm[];
   exemplars: Array<{
     name: string;
     recordKey: string;
@@ -43,6 +47,13 @@ export type DerivedTagGapEvaluation = {
     similarityToCentroid: number;
   }>;
   candidates: DerivedTagGapCandidate[];
+  contrastRecords: DerivedTagGapCandidate[];
+  candidateCohorts: Array<{
+    signature: string[];
+    size: number;
+    sharedTraits: string[];
+    representativeNames: string[];
+  }>;
 };
 
 export type DerivedTagGapEvaluationOptions = {
@@ -108,6 +119,13 @@ export function rankDerivedTagGapCandidates(
   const commonTraitLimit = Math.max(1, Math.min(options.commonTraitLimit ?? 8, 25));
   const minSimilarity = options.minSimilarity ?? Number.NEGATIVE_INFINITY;
   const commonTraits = collectCommonTraits(exemplars, commonTraitLimit);
+  const evidence = analyzeDiscoveryEvidenceFromRecords(
+    exemplars.map(toAnalysisRecord),
+    [...exemplars, ...candidates].map(toAnalysisRecord),
+    { limit: 8, exampleLimit: 3 },
+  );
+  const discriminativeTokens = evidence.descriptionTokens.slice(0, 6);
+  const discriminativePhrases = evidence.descriptionPhrases.slice(0, 6);
 
   const rankedCandidates = candidates
     .map((candidate) => ({
@@ -124,6 +142,10 @@ export function rankDerivedTagGapCandidates(
     .filter((candidate) => candidate.similarity >= minSimilarity)
     .sort((left, right) => right.similarity - left.similarity || left.name.localeCompare(right.name))
     .slice(0, limit);
+  const contrastRecords = rankedCandidates
+    .filter((candidate) => countAnchorOverlap(candidate.descriptionText, discriminativeTokens) === 0)
+    .slice(0, Math.min(6, rankedCandidates.length));
+  const candidateCohorts = buildCandidateCohorts(rankedCandidates, discriminativeTokens, discriminativePhrases);
 
   const representativeExemplars = exemplars
     .map((record) => ({
@@ -145,8 +167,12 @@ export function rankDerivedTagGapCandidates(
     exemplarCount: exemplars.length,
     candidateCount: candidates.length,
     commonTraits,
+    discriminativeTokens,
+    discriminativePhrases,
     exemplars: representativeExemplars,
     candidates: rankedCandidates,
+    contrastRecords,
+    candidateCohorts,
   };
 }
 
@@ -237,6 +263,65 @@ function decodeVector(blob: Uint8Array | null | undefined): Float32Array {
 
   const copy = Uint8Array.from(blob);
   return new Float32Array(copy.buffer);
+}
+
+function toAnalysisRecord(record: DerivedTagGapRecord) {
+  return {
+    recordKey: record.recordKey,
+    name: record.name,
+    category: record.category,
+    subcategory: record.subcategory,
+    level: record.level,
+    traits: [...record.traits],
+    derivedTags: [],
+    descriptionText: record.descriptionText,
+    vector: record.vector,
+    references: [],
+  };
+}
+
+function countAnchorOverlap(
+  text: string | null,
+  anchors: DiscoveryEvidenceTerm[],
+): number {
+  const tokens = new Set(tokenizeDiscoveryText(text ?? "", { filterStopwords: true }));
+  return anchors.filter((anchor) =>
+    anchor.value.split(" ").every((token) => tokens.has(token))
+  ).length;
+}
+
+function buildCandidateCohorts(
+  candidates: DerivedTagGapCandidate[],
+  tokenAnchors: DiscoveryEvidenceTerm[],
+  phraseAnchors: DiscoveryEvidenceTerm[],
+): DerivedTagGapEvaluation["candidateCohorts"] {
+  const buckets = new Map<string, DerivedTagGapCandidate[]>();
+  const signaturesByKey = new Map<string, string[]>();
+  const anchors = [...tokenAnchors.map((term) => term.value), ...phraseAnchors.map((term) => term.value)];
+
+  for (const candidate of candidates) {
+    const tokens = new Set(tokenizeDiscoveryText(candidate.descriptionText ?? "", { filterStopwords: true }));
+    const signature = anchors
+      .filter((anchor) => anchor.split(" ").every((token) => tokens.has(token)))
+      .slice(0, 4);
+    const key = signature.length > 0 ? signature.join("||") : "__semantic_only__";
+    const bucket = buckets.get(key) ?? [];
+    bucket.push(candidate);
+    buckets.set(key, bucket);
+    signaturesByKey.set(key, signature);
+  }
+
+  return [...buckets.entries()]
+    .map(([key, bucket]) => ({
+      signature: signaturesByKey.get(key) ?? [],
+      size: bucket.length,
+      sharedTraits: [...new Set(bucket.flatMap((candidate) => candidate.sharedTraits))]
+        .filter((trait) => bucket.every((candidate) => candidate.sharedTraits.includes(trait)))
+        .sort((left, right) => left.localeCompare(right)),
+      representativeNames: bucket.slice(0, 4).map((candidate) => candidate.name),
+    }))
+    .sort((left, right) => right.size - left.size || left.signature.join(" ").localeCompare(right.signature.join(" ")))
+    .slice(0, 6);
 }
 
 function averageVectors(vectors: Float32Array[]): Float32Array {
