@@ -114,4 +114,85 @@ describe("derived-tag evidence analyzer", () => {
     expect(report.descriptionTokens.map((term) => term.value)).not.toContain("uuid");
     expect(report.descriptionTokens.map((term) => term.value)).not.toContain("compendium");
   });
+
+  it("prefers repeated traits and references over singleton description phrases", () => {
+    const cohort = [
+      record({
+        recordKey: "spell:1",
+        name: "Rune Lash",
+        category: "spell",
+        traits: ["force"],
+        descriptionText: "A lash of force arcs from your hand. A hidden catacomb sigil flares in the target's shadow.",
+        references: [
+          {
+            targetRecordKey: "rule:1",
+            targetName: "Force Barrage",
+            targetCategory: "rule",
+            targetSubcategory: "action",
+            fromPackName: "actionspf2e",
+            fromRecordType: "action",
+            fromSourceCategory: "rules",
+          },
+        ],
+      }),
+      record({
+        recordKey: "spell:2",
+        name: "Rune Spear",
+        category: "spell",
+        traits: ["force"],
+        descriptionText: "A spear of force pierces forward. The ancient plaza inscription briefly glows at impact.",
+        references: [
+          {
+            targetRecordKey: "rule:1",
+            targetName: "Force Barrage",
+            targetCategory: "rule",
+            targetSubcategory: "action",
+            fromPackName: "actionspf2e",
+            fromRecordType: "action",
+            fromSourceCategory: "rules",
+          },
+        ],
+      }),
+      record({
+        recordKey: "spell:3",
+        name: "Rune Arc",
+        category: "spell",
+        traits: ["force"],
+        descriptionText: "A crackling line of force whips through the air. The silver observatory arch hums softly nearby.",
+        references: [
+          {
+            targetRecordKey: "rule:1",
+            targetName: "Force Barrage",
+            targetCategory: "rule",
+            targetSubcategory: "action",
+            fromPackName: "actionspf2e",
+            fromRecordType: "action",
+            fromSourceCategory: "rules",
+          },
+        ],
+      }),
+    ];
+    const baseline = [
+      ...cohort,
+      record({
+        recordKey: "spell:4",
+        name: "Stone Ward",
+        category: "spell",
+        traits: ["abjuration"],
+        descriptionText: "A layer of stone protects you from harm.",
+      }),
+    ];
+
+    const report = analyzeDiscoveryEvidenceFromRecords(cohort, baseline, {
+      limit: 6,
+      exampleLimit: 2,
+    });
+
+    const forceTerm = report.traits.find((term) => term.value === "force");
+    const referenceTerm = report.references.find((term) => term.value === "target:force barrage");
+    const singletonDescriptionTerm = report.descriptionPhrases.find((term) => term.value === "hidden catacomb sigil");
+
+    expect(forceTerm?.score ?? 0).toBeGreaterThan(singletonDescriptionTerm?.score ?? 0);
+    expect(referenceTerm?.score ?? 0).toBeGreaterThan(singletonDescriptionTerm?.score ?? 0);
+  });
 });

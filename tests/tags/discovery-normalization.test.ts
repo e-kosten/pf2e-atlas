@@ -43,6 +43,9 @@ describe("discovery normalization", () => {
 
   it("flags discovery boilerplate and placeholder-heavy phrases as noise", () => {
     expect(isDiscoveryNoiseToken("activate")).toBe(true);
+    expect(isDiscoveryNoiseToken("be")).toBe(true);
+    expect(isDiscoveryNoiseToken("by")).toBe(true);
+    expect(isDiscoveryNoiseToken("has")).toBe(true);
     expect(isDiscoveryNoiseToken("{{number}}")).toBe(true);
     expect(isDiscoveryNoisePhrase("activate {{number}} strike")).toBe(true);
     expect(isDiscoveryNoisePhrase("skyhook harness")).toBe(false);

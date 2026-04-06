@@ -4,6 +4,7 @@ import { SearchCategory, SearchSubcategory } from "../types.js";
 import { uniqueSorted } from "../utils.js";
 import { getDerivedTagSeedRecordKeys, normalizeDerivedTag } from "./index.js";
 import {
+  type DiscoveryEvidenceKind,
   type DiscoveryEvidenceTerm,
   analyzeDiscoveryEvidenceFromRecords,
 } from "./evidence-analyzer.js";
@@ -75,6 +76,8 @@ export type RuleableCohortOptions = {
 type RankedCandidate = DiscoveryAnalysisRecord & {
   similarity: number;
   anchorOverlap: string[];
+  anchorScore: number;
+  hybridScore: number;
 };
 
 function variantFamilyIdentity(record: DiscoveryAnalysisRecord): string {
@@ -247,6 +250,13 @@ function buildRecordFeatureSet(record: DiscoveryAnalysisRecord): Set<string> {
   return features;
 }
 
+function isLexicalAnchorKind(kind: DiscoveryEvidenceKind): boolean {
+  return kind === "nameToken" ||
+    kind === "namePhrase" ||
+    kind === "descriptionToken" ||
+    kind === "descriptionPhrase";
+}
+
 function deriveAnchorVocabulary(
   exemplars: DiscoveryAnalysisRecord[],
   baseline: DiscoveryAnalysisRecord[],
@@ -261,6 +271,9 @@ function deriveAnchorVocabulary(
   ]
     .sort((left, right) => right.score - left.score || left.value.localeCompare(right.value))
     .filter((entry, index, all) => all.findIndex((candidate) => candidate.value === entry.value) === index)
+    .filter((entry, _, all) =>
+      !entry.value.startsWith("scope:") ||
+      !all.some((candidate) => candidate.value.startsWith("target:") && candidate.cohortSupport >= entry.cohortSupport))
     .filter((entry) => entry.cohortSupport >= minimumSupport)
     .filter((entry) =>
       entry.value.startsWith("target:") ||
@@ -278,10 +291,12 @@ function rankCandidates(
 ): RankedCandidate[] {
   const centroid = normalizeVector(averageVectors(exemplars.map((record) => record.vector).filter((vector) => vector.length > 0)));
   const anchorSet = new Set(anchors.map((anchor) => anchor.value));
+  const anchorByValue = new Map(anchors.map((anchor) => [anchor.value, anchor] as const));
+  const maxAnchorScore = Math.max(1, anchors.reduce((total, anchor) => total + Math.max(0, anchor.score), 0));
   const limit = Math.max(1, Math.min(options.candidateLimit ?? DEFAULT_CANDIDATE_LIMIT, 200));
   const minSimilarity = options.minSimilarity ?? Number.NEGATIVE_INFINITY;
 
-  return candidates
+  const rankedCandidates = candidates
     .map((record) => {
       const featureSet = buildRecordFeatureSet(record);
       const anchorOverlap = [...anchorSet].filter((anchor) =>
@@ -290,19 +305,44 @@ function rankCandidates(
         featureSet.has(`name:${anchor}`) ||
         featureSet.has(`text:${anchor}`),
       );
+      const anchorScore = anchorOverlap.reduce((total, anchor) => total + (anchorByValue.get(anchor)?.score ?? 0), 0);
+      const normalizedAnchorScore = Math.max(0, Math.min(1, anchorScore / maxAnchorScore));
+      const hybridScore = normalizedAnchorScore > 0
+        ? (normalizedAnchorScore * 0.55) + (cosineSimilarity(record.vector, centroid) * 0.45)
+        : cosineSimilarity(record.vector, centroid);
       return {
         ...record,
         similarity: cosineSimilarity(record.vector, centroid),
         anchorOverlap,
+        anchorScore,
+        hybridScore,
       };
     })
     .filter((candidate) => candidate.similarity >= minSimilarity)
-    .sort((left, right) => right.similarity - left.similarity || right.anchorOverlap.length - left.anchorOverlap.length || left.name.localeCompare(right.name))
+    .filter((candidate, _, ranked) =>
+      !anchors.length ||
+      !ranked.some((entry) => entry.anchorScore > 0) ||
+      candidate.anchorScore > 0)
+    .sort((left, right) =>
+      right.hybridScore - left.hybridScore ||
+      right.anchorScore - left.anchorScore ||
+      right.similarity - left.similarity ||
+      right.anchorOverlap.length - left.anchorOverlap.length ||
+      left.name.localeCompare(right.name))
     .slice(0, limit);
+
+  return rankedCandidates;
 }
 
-function buildSignature(candidate: RankedCandidate): string[] {
-  const preferred = uniqueSorted(candidate.anchorOverlap).slice(0, 4);
+function buildSignature(
+  candidate: RankedCandidate,
+  anchorByValue: Map<string, DiscoveryEvidenceTerm>,
+): string[] {
+  const preferred = [...new Set(candidate.anchorOverlap
+    .slice()
+    .sort((left, right) =>
+      (anchorByValue.get(right)?.score ?? 0) - (anchorByValue.get(left)?.score ?? 0) ||
+      left.localeCompare(right)))].slice(0, 4);
   if (preferred.length > 0) {
     return preferred;
   }
@@ -314,7 +354,23 @@ function recommendCluster(
   score: number,
   sharedAnchors: string[],
   averageAnchorStrength: number,
+  anchorByValue: Map<string, DiscoveryEvidenceTerm>,
+  sharedTraits: string[],
 ): CohortRecommendation {
+  const sharedKinds = sharedAnchors.map((anchor) => anchorByValue.get(anchor)?.kind).filter((kind): kind is DiscoveryEvidenceKind => Boolean(kind));
+  const lexicalOnly = sharedKinds.length > 0 && sharedKinds.every((kind) => isLexicalAnchorKind(kind));
+  const traitOnly = sharedKinds.length > 0 && sharedKinds.every((kind) => kind === "trait");
+
+  if (lexicalOnly && sharedTraits.length === 0) {
+    if (score >= 0.3) {
+      return "manual-only";
+    }
+    return "reject";
+  }
+  if (traitOnly && score >= 0.5) {
+    return "hybrid";
+  }
+
   if (sharedAnchors.length >= 2 && averageAnchorStrength >= 0.45 && score >= 0.72) {
     return "rule-led";
   }
@@ -337,7 +393,7 @@ function clusterCandidates(
   const buckets = new Map<string, RankedCandidate[]>();
 
   for (const candidate of candidates) {
-    const signature = buildSignature(candidate);
+    const signature = buildSignature(candidate, anchorByValue);
     const key = signature.length > 0 ? signature.join("||") : "__semantic_only__";
     const bucket = buckets.get(key) ?? [];
     bucket.push(candidate);
@@ -353,6 +409,10 @@ function clusterCandidates(
       const sharedTraits = [...new Set(bucket.flatMap((candidate) => candidate.traits))]
         .filter((trait) => bucket.every((candidate) => candidate.traits.includes(trait)));
       const sharedAnchors = signature.filter((anchor) => anchorValues.has(anchor));
+      const sharedKinds = sharedAnchors.map((anchor) => anchorByValue.get(anchor)?.kind).filter((kind): kind is DiscoveryEvidenceKind => Boolean(kind));
+      const lexicalOnly = sharedKinds.length > 0 && sharedKinds.every((kind) => isLexicalAnchorKind(kind));
+      const traitOnly = sharedKinds.length > 0 && sharedKinds.every((kind) => kind === "trait");
+      const nameOnly = sharedKinds.length > 0 && sharedKinds.every((kind) => kind === "nameToken" || kind === "namePhrase");
       const averageAnchorStrength = sharedAnchors.length === 0
         ? 0
         : sharedAnchors.reduce((total, anchor) => {
@@ -363,7 +423,9 @@ function clusterCandidates(
       const sizeFactor = Math.min(1, bucket.length / 5);
       const familyDiversity = distinctVariantFamilies / Math.max(1, bucket.length);
       const similarityFactor = Math.max(0, Math.min(1, averageSimilarity));
-      const traitPenalty = sharedTraits.length === 1 && sharedAnchors.every((anchor) => anchor.startsWith("trait:")) ? 0.15 : 0;
+      const traitPenalty = traitOnly && sharedTraits.length <= 1 ? 0.15 : 0;
+      const lexicalOnlyPenalty = lexicalOnly && sharedTraits.length === 0 ? 0.18 : lexicalOnly ? 0.1 : 0;
+      const nameOnlyPenalty = nameOnly ? 0.08 : 0;
       const semanticOnlyPenalty = sharedAnchors.length === 0 ? 0.18 : 0;
       const score = Math.max(
         0,
@@ -375,6 +437,8 @@ function clusterCandidates(
           (density * 0.15) +
           (averageAnchorStrength * 0.25) -
           traitPenalty -
+          lexicalOnlyPenalty -
+          nameOnlyPenalty -
           semanticOnlyPenalty,
         ),
       );
@@ -392,7 +456,7 @@ function clusterCandidates(
             .sort((left, right) => right.similarity - left.similarity || left.name.localeCompare(right.name)),
         ),
         score,
-        recommendation: recommendCluster(score, sharedAnchors, averageAnchorStrength),
+        recommendation: recommendCluster(score, sharedAnchors, averageAnchorStrength, anchorByValue, uniqueSorted(sharedTraits)),
       };
     })
     .sort((left, right) =>

@@ -594,6 +594,47 @@ function recommendCluster(score: number): CohortRecommendation {
   return "reject";
 }
 
+function isLexicalFeatureKind(kind: DiscoveryFeatureKind): boolean {
+  return kind === "name" || kind === "name_phrase" || kind === "text" || kind === "text_phrase";
+}
+
+function recommendClusterForAnchors(
+  score: number,
+  anchors: RankedFeature[],
+  sharedTraits: string[],
+): CohortRecommendation {
+  if (anchors.length === 0) {
+    if (score >= 0.3) {
+      return "manual-only";
+    }
+    return "reject";
+  }
+
+  const lexicalOnly = anchors.length > 0 && anchors.every((anchor) => isLexicalFeatureKind(anchor.kind));
+  const traitOnly = anchors.length > 0 && anchors.every((anchor) => anchor.kind === "trait");
+
+  if (lexicalOnly && sharedTraits.length === 0) {
+    if (score >= 0.3) {
+      return "manual-only";
+    }
+    return "reject";
+  }
+  if (traitOnly && score >= 0.5) {
+    return "hybrid";
+  }
+
+  if (score >= 0.72) {
+    return "rule-led";
+  }
+  if (score >= 0.5) {
+    return "hybrid";
+  }
+  if (score >= 0.3) {
+    return "manual-only";
+  }
+  return "reject";
+}
+
 function buildCandidateCohorts(
   untagged: DiscoveryAnalysisRecord[],
   baseline: DiscoveryAnalysisRecord[],
@@ -662,7 +703,31 @@ function buildCandidateCohorts(
       const liftFactor = clusterAnchors.length > 0
         ? Math.max(0, Math.min(1, (clusterAnchors[0]!.lift ?? 0) / 6))
         : 0;
-      const score = Math.max(0, Math.min(1, (sizeFactor * 0.25) + (familyDiversity * 0.25) + (similarityFactor * 0.2) + (density * 0.2) + (liftFactor * 0.1)));
+      const lexicalOnlyPenalty = clusterAnchors.length > 0 && clusterAnchors.every((anchor) => isLexicalFeatureKind(anchor.kind)) && sharedTraits.length === 0
+        ? 0.18
+        : 0;
+      const noAnchorPenalty = clusterAnchors.length === 0 ? 0.18 : 0;
+      const nameOnlyPenalty = clusterAnchors.length > 0 && clusterAnchors.every((anchor) => anchor.kind === "name" || anchor.kind === "name_phrase")
+        ? 0.08
+        : 0;
+      const traitOnlyPenalty = clusterAnchors.length > 0 && clusterAnchors.every((anchor) => anchor.kind === "trait") && sharedTraits.length <= 1
+        ? 0.12
+        : 0;
+      const score = Math.max(
+        0,
+        Math.min(
+          1,
+          (sizeFactor * 0.25) +
+          (familyDiversity * 0.25) +
+          (similarityFactor * 0.2) +
+          (density * 0.2) +
+          (liftFactor * 0.1) -
+          lexicalOnlyPenalty -
+          noAnchorPenalty -
+          nameOnlyPenalty -
+          traitOnlyPenalty,
+        ),
+      );
 
       return {
         signature: uniqueSorted(signatureDisplay).slice(0, 4),
@@ -673,7 +738,7 @@ function buildCandidateCohorts(
         anchorSupport: clusterAnchors[0]?.support ?? 0,
         anchorLift: clusterAnchors[0]?.lift ?? 0,
         score,
-        recommendation: recommendCluster(score),
+        recommendation: recommendClusterForAnchors(score, clusterAnchors, uniqueSorted(sharedTraits)),
         representativeRecords: selectRepresentativeRecords(
           memberSimilarities
             .sort((left, right) => right.similarity - left.similarity || left.record.name.localeCompare(right.record.name)),

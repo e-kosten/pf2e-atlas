@@ -462,4 +462,64 @@ describe("discover untagged cohorts", () => {
       db.close();
     }
   });
+
+  it("does not mark lexical-only treasure cohorts as rule-led", () => {
+    const db = createDiscoveryDb();
+    try {
+      insertRecord(db, {
+        recordKey: "equipment:gem-1",
+        name: "Sapphire Necklace",
+        category: "equipment",
+        subcategory: "treasure",
+        descriptionText: "A blue sapphire necklace set in silver filigree.",
+        vector: [1, 0, 0],
+      });
+      insertRecord(db, {
+        recordKey: "equipment:gem-2",
+        name: "Sapphire Ring",
+        category: "equipment",
+        subcategory: "treasure",
+        descriptionText: "A polished sapphire ring with a delicate band.",
+        vector: [0.99, 0.01, 0],
+      });
+      insertRecord(db, {
+        recordKey: "equipment:gem-3",
+        name: "Star Sapphire Brooch",
+        category: "equipment",
+        subcategory: "treasure",
+        descriptionText: "A star sapphire brooch pinned to a velvet clasp.",
+        vector: [0.98, 0.02, 0],
+      });
+      insertRecord(db, {
+        recordKey: "equipment:contrast-1",
+        name: "Porcelain Doll",
+        category: "equipment",
+        subcategory: "treasure",
+        descriptionText: "A porcelain doll with painted cheeks.",
+        vector: [0, 1, 0],
+      });
+      insertRecord(db, {
+        recordKey: "equipment:contrast-2",
+        name: "Gold Chalice",
+        category: "equipment",
+        subcategory: "treasure",
+        descriptionText: "A gold chalice etched with tiny birds.",
+        vector: [0.02, 0.98, 0],
+      });
+
+      const report = discoverUntaggedCohorts(db, {
+        category: "equipment",
+        subcategory: "treasure",
+        cohortLimit: 3,
+        anchorLimit: 8,
+        minFeatureSupport: 2,
+        minFeatureLift: 1.1,
+      });
+
+      expect(report.cohorts[0]?.signature).toContain("sapphire");
+      expect(report.cohorts[0]?.recommendation).not.toBe("rule-led");
+    } finally {
+      db.close();
+    }
+  });
 });

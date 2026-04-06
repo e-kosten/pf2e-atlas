@@ -40,7 +40,7 @@ describe("derived-tag cohort CLI helpers", () => {
         { query: "Ghost Commoner", matchedBy: "name" as const, recordKey: "creature:ghost-commoner", name: "Ghost Commoner" },
       ],
       anchorTerms: [
-        { value: "undead", support: 2, cohortSupport: 2, baselineSupport: 3, lift: 2, score: 4, examples: ["Ghost Commoner"] },
+        { kind: "trait" as const, value: "undead", support: 2, cohortSupport: 2, baselineSupport: 3, lift: 2, score: 4, examples: ["Ghost Commoner"] },
       ],
       contrastRecords: [
         { recordKey: "creature:guard", name: "Sunny Guard", similarity: 0.81 },

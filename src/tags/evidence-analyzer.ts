@@ -18,7 +18,16 @@ import {
 const DEFAULT_EVIDENCE_LIMIT = 12;
 const DEFAULT_EXAMPLE_LIMIT = 3;
 
+export type DiscoveryEvidenceKind =
+  | "nameToken"
+  | "namePhrase"
+  | "descriptionToken"
+  | "descriptionPhrase"
+  | "trait"
+  | "reference";
+
 export type DiscoveryEvidenceTerm = {
+  kind: DiscoveryEvidenceKind;
   value: string;
   support: number;
   cohortSupport: number;
@@ -178,6 +187,75 @@ function collectFeatureSupport(
   return support;
 }
 
+function evidenceKindForFeatureType(
+  featureType: "nameTokens" | "namePhrases" | "descriptionTokens" | "descriptionPhrases" | "traits" | "references",
+): DiscoveryEvidenceKind {
+  switch (featureType) {
+    case "nameTokens":
+      return "nameToken";
+    case "namePhrases":
+      return "namePhrase";
+    case "descriptionTokens":
+      return "descriptionToken";
+    case "descriptionPhrases":
+      return "descriptionPhrase";
+    case "traits":
+      return "trait";
+    case "references":
+      return "reference";
+  }
+}
+
+function evidenceKindWeight(kind: DiscoveryEvidenceKind): number {
+  switch (kind) {
+    case "reference":
+      return 1.2;
+    case "trait":
+      return 1.1;
+    case "namePhrase":
+      return 0.9;
+    case "nameToken":
+      return 0.75;
+    case "descriptionPhrase":
+      return 0.7;
+    case "descriptionToken":
+      return 0.55;
+  }
+}
+
+function evidenceSupportMultiplier(
+  kind: DiscoveryEvidenceKind,
+  support: number,
+  cohortSize: number,
+): number {
+  const requiresRepeatedSupport = kind === "descriptionToken" || kind === "descriptionPhrase";
+  if (!requiresRepeatedSupport || cohortSize < 3 || support >= 2) {
+    return 1;
+  }
+
+  return kind === "descriptionPhrase" ? 0.3 : 0.18;
+}
+
+function evidenceConcentrationMultiplier(
+  kind: DiscoveryEvidenceKind,
+  support: number,
+  cohortSize: number,
+): number {
+  if (cohortSize <= 1) {
+    return 1;
+  }
+
+  const supportRatio = support / cohortSize;
+  if (kind === "reference" || kind === "trait") {
+    return 0.9 + (supportRatio * 0.45);
+  }
+  if (kind === "descriptionToken" || kind === "descriptionPhrase") {
+    return 0.7 + (supportRatio * 0.45);
+  }
+
+  return 0.78 + (supportRatio * 0.35);
+}
+
 function rankEvidenceTerms(
   cohortSupport: Map<string, FeatureAccumulator>,
   baselineSupport: Map<string, FeatureAccumulator>,
@@ -185,20 +263,29 @@ function rankEvidenceTerms(
   baselineSize: number,
   limit: number,
   exampleLimit: number,
+  featureType: "nameTokens" | "namePhrases" | "descriptionTokens" | "descriptionPhrases" | "traits" | "references",
 ): DiscoveryEvidenceTerm[] {
+  const kind = evidenceKindForFeatureType(featureType);
   return [...cohortSupport.entries()]
     .map(([value, cohort]) => {
       const baseline = baselineSupport.get(value) ?? createFeatureAccumulator();
       const cohortRatio = cohortSize > 0 ? cohort.support / cohortSize : 0;
       const baselineRatio = baselineSize > 0 ? baseline.support / baselineSize : 0;
       const lift = baselineRatio > 0 ? cohortRatio / baselineRatio : cohortRatio > 0 ? cohort.support : 0;
+      const score =
+        cohort.support *
+        Math.max(1, lift) *
+        evidenceKindWeight(kind) *
+        evidenceSupportMultiplier(kind, cohort.support, cohortSize) *
+        evidenceConcentrationMultiplier(kind, cohort.support, cohortSize);
       return {
+        kind,
         value,
         support: cohort.support,
         cohortSupport: cohort.support,
         baselineSupport: baseline.support,
         lift,
-        score: cohort.support * Math.max(1, lift),
+        score,
         examples: [...cohort.examples].slice(0, exampleLimit),
       };
     })
@@ -231,7 +318,7 @@ export function analyzeDiscoveryEvidenceFromRecords(
     featureTypes.map((featureType) => {
       const cohortSupport = collectFeatureSupport(cohort, featureType, exampleLimit);
       const baselineSupport = collectFeatureSupport(baseline, featureType, exampleLimit);
-      return [featureType, rankEvidenceTerms(cohortSupport, baselineSupport, cohort.length, baseline.length, limit, exampleLimit)];
+      return [featureType, rankEvidenceTerms(cohortSupport, baselineSupport, cohort.length, baseline.length, limit, exampleLimit, featureType)];
     }),
   ) as Record<(typeof featureTypes)[number], DiscoveryEvidenceTerm[]>;
 
