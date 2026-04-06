@@ -157,6 +157,28 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
         ]),
       }),
       expect.objectContaining({
+        category: "spell",
+        family: "tempo",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "quickened_support", description: expect.any(String) }),
+          expect.objectContaining({ value: "initiative_support", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "spell",
+        family: "attrition",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "persistent_damage", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "spell",
+        family: "summoner_support",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "eidolon_support", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
         category: "hazard",
         family: "function",
         tags: expect.arrayContaining([
@@ -327,7 +349,21 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     expect(service.listFilterValues({
       field: "derivedTags",
       category: "spell",
-    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["alarm", "disguise", "social_infiltration", "mental_impairment", "sensory_impairment", "forced_movement", "restraint_capture"]));
+    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining([
+      "alarm",
+      "countermagic",
+      "disguise",
+      "eidolon_support",
+      "initiative_support",
+      "mobility",
+      "navigation",
+      "persistent_damage",
+      "social_infiltration",
+      "mental_impairment",
+      "sensory_impairment",
+      "forced_movement",
+      "restraint_capture",
+    ]));
     expect(service.listFilterValues({
       field: "derivedTags",
       category: "hazard",
@@ -382,9 +418,10 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     })).toEqual({
       field: "publicationTitle",
       values: [
-        { value: "Pathfinder Player Core", count: 13 },
-        { value: "Pathfinder Dark Archive", count: 3 },
-        { value: "Pathfinder Secrets of Magic", count: 2 },
+        { value: "Pathfinder Player Core", count: 16 },
+        { value: "Pathfinder Dark Archive", count: 4 },
+        { value: "Pathfinder Secrets of Magic", count: 3 },
+        { value: "Pathfinder Rage of Elements", count: 1 },
       ],
     });
 
@@ -399,10 +436,10 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     })).toEqual({
       field: "traditions",
       values: [
-        { value: "occult", count: 11 },
-        { value: "arcane", count: 10 },
-        { value: "divine", count: 7 },
-        { value: "primal", count: 6 },
+        { value: "arcane", count: 15 },
+        { value: "occult", count: 15 },
+        { value: "divine", count: 9 },
+        { value: "primal", count: 8 },
       ],
     });
 
@@ -412,6 +449,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     })).toEqual({
       field: "spellKinds",
       values: [
+        { value: "cantrip", count: 1 },
         { value: "focus", count: 1 },
       ],
     });
@@ -527,7 +565,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       field: "packs",
       values: [
         { value: "Spells", count: 15 },
-        { value: "Spells SRD", count: 3 },
+        { value: "Spells SRD", count: 9 },
       ],
     });
 

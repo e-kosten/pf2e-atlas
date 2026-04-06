@@ -392,6 +392,138 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
     },
   });
 
+  await writeJson(path.join(packRoot, "spells-srd", "air-walk.json"), {
+    _id: "b5sGjGlBf58f8jn0",
+    name: "Air Walk",
+    type: "spell",
+    system: {
+      description: {
+        value: "<p>The target can walk on air as if it were solid ground.</p><p>It can ascend and descend in this way at a maximum of a 45-degree angle.</p>",
+      },
+      level: {
+        value: 4,
+      },
+      publication: {
+        title: "Pathfinder Player Core",
+      },
+      traits: {
+        rarity: "common",
+        traditions: ["arcane", "divine", "occult", "primal"],
+        value: ["concentrate", "manipulate"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "spells-srd", "return-beacon.json"), {
+    _id: "ru3YdXajUREbKQDV",
+    name: "Return Beacon",
+    type: "spell",
+    system: {
+      description: {
+        value: "<p>You create a unique planar beacon somewhere within the spell's range that remains in place.</p><p>You can use the beacon later to find and return to that location.</p>",
+      },
+      level: {
+        value: 5,
+      },
+      publication: {
+        title: "Pathfinder Secrets of Magic",
+      },
+      traits: {
+        rarity: "common",
+        traditions: ["arcane", "occult"],
+        value: ["concentrate", "manipulate", "teleportation"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "spells-srd", "acid-arrow.json"), {
+    _id: "f8hRqLJaxBVhF1u0",
+    name: "Acid Arrow",
+    type: "spell",
+    system: {
+      description: {
+        value: "<p>You conjure an arrow of acid that keeps corroding the target after it hits.</p><p>On a hit, you deal 3d8 acid damage plus persistent acid damage.</p>",
+      },
+      level: {
+        value: 2,
+      },
+      publication: {
+        title: "Pathfinder Player Core",
+      },
+      traits: {
+        rarity: "common",
+        traditions: ["arcane", "primal"],
+        value: ["acid", "attack", "concentrate", "manipulate"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "spells-srd", "anticipate-peril.json"), {
+    _id: "EUMjrJJwSgsqNidi",
+    name: "Anticipate Peril",
+    type: "spell",
+    system: {
+      description: {
+        value: "<p>You grant the target brief foresight.</p><p>The target gains a +1 status bonus to its next initiative roll, after which the spell ends.</p>",
+      },
+      level: {
+        value: 1,
+      },
+      publication: {
+        title: "Pathfinder Player Core",
+      },
+      traits: {
+        rarity: "common",
+        traditions: ["divine", "occult"],
+        value: ["concentrate", "manipulate"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "spells-srd", "protect-companion.json"), {
+    _id: "AfOpnnwdZwHi2Tnc",
+    name: "Protect Companion",
+    type: "spell",
+    system: {
+      description: {
+        value: "<p>You extend your aura as a magical shield that protects your eidolon or minion.</p><p>The target gains a +1 circumstance bonus to AC until the start of your next turn.</p>",
+      },
+      level: {
+        value: 1,
+      },
+      publication: {
+        title: "Pathfinder Rage of Elements",
+      },
+      traits: {
+        rarity: "common",
+        traditions: ["arcane"],
+        value: ["cantrip", "concentrate"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "spells-srd", "veil-of-privacy.json"), {
+    _id: "EoKBlgf6Smt8opaU",
+    name: "Veil of Privacy",
+    type: "spell",
+    system: {
+      description: {
+        value: "<p>You erect protective wards that make the target difficult to detect via magic.</p><p>Veil of privacy attempts to counteract all detection, revelation, and scrying effects used against the target.</p>",
+      },
+      level: {
+        value: 3,
+      },
+      publication: {
+        title: "Pathfinder Dark Archive",
+      },
+      traits: {
+        rarity: "common",
+        traditions: ["arcane", "occult"],
+        value: ["concentrate", "manipulate"],
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "spells", "clear-mind.json"), {
     _id: "spell-clear-mind-1",
     name: "Clear Mind",

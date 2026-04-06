@@ -199,6 +199,21 @@ describe("derived tag catalog", () => {
         family: "tempo",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "quickened_support", description: expect.any(String) }),
+          expect.objectContaining({ value: "initiative_support", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "spell",
+        family: "attrition",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "persistent_damage", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "spell",
+        family: "summoner_support",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "eidolon_support", description: expect.any(String) }),
         ]),
       }),
       expect.objectContaining({

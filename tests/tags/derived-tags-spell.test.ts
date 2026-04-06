@@ -253,6 +253,14 @@ describe("derived tag rules: spell", () => {
     })).not.toContain("scouting");
 
     expect(deriveRecordTags({
+      name: "False Vision",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You create a false image that fools any attempts to scry on an area. Any scrying spell sees what you wish within the area rather than what is truly there.",
+      traits: ["concentrate", "illusion", "manipulate"],
+    })).not.toContain("scouting");
+
+    expect(deriveRecordTags({
       name: "Thoughtful Gift",
       category: "spell",
       subcategory: null,
@@ -580,6 +588,14 @@ describe("derived tag rules: spell", () => {
       descriptionText: "The target gains a status bonus to Speed and ignores difficult terrain.",
       traits: ["transmutation"],
     })).not.toContain("quickened_support");
+
+    expect(deriveRecordTags({
+      name: "Collective Transposition",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You teleport the targets to new positions within the area, swapping or redistributing where they stand in the fight.",
+      traits: ["concentrate", "manipulate", "teleportation"],
+    })).not.toContain("navigation");
   });
 
   it("derives spell security, communication, and countermagic tags", () => {
@@ -654,6 +670,14 @@ describe("derived tag rules: spell", () => {
       descriptionText: "You unravel the magic behind one spell or magical effect. Attempt to counteract the target spell.",
       traits: ["concentrate", "manipulate"],
     })).toContain("countermagic");
+
+    expect(deriveRecordTags({
+      name: "Veil of Privacy",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You erect protective wards that make the target difficult to detect via magic. Veil of privacy attempts to counteract all detection, revelation, and scrying effects used against the target.",
+      traits: ["concentrate", "manipulate"],
+    })).not.toContain("scouting");
   });
 
   it("derives spell support and warding tags", () => {
@@ -783,6 +807,14 @@ describe("derived tag rules: spell", () => {
       subcategory: null,
       descriptionText: "You surround a weapon in flames and deal fire damage on a hit.",
       traits: ["fire"],
+    })).not.toContain("resistance_support");
+
+    expect(deriveRecordTags({
+      name: "Destructive Aura",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "Swirling sands of divine devastation surround you, weakening the defenses of all they touch. Reduce the resistances of yourself and creatures in the area by 2.",
+      traits: ["aura", "concentrate", "focus", "manipulate"],
     })).not.toContain("resistance_support");
   });
 });

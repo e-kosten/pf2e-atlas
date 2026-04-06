@@ -194,4 +194,122 @@ describe("derived tag seeds", () => {
     expect(timeRiftDerivation.tags).toContain("planar_breach");
     expect(timeRiftDerivation.sources.get("planar_breach")).toBe("seed");
   });
+
+  it("exposes the spell manual seed pass and applies representative seeded records", () => {
+    const touchedSpellTags = [
+      "scouting",
+      "navigation",
+      "mobility",
+      "healing_support",
+      "condition_support",
+      "affliction_cleanup",
+      "protective_ward",
+      "resistance_support",
+      "countermagic",
+      "persistent_damage",
+      "initiative_support",
+      "eidolon_support",
+    ];
+    const rawSeedAdds = touchedSpellTags.reduce(
+      (count, tag) => count + getDerivedTagSeedRecordKeys(tag, { category: "spell" }).length,
+      0,
+    );
+    const seededSpellRecords = new Set(
+      touchedSpellTags.flatMap((tag) => getDerivedTagSeedRecordKeys(tag, { category: "spell" })),
+    );
+
+    expect(rawSeedAdds).toBeGreaterThanOrEqual(120);
+    expect(seededSpellRecords.size).toBeGreaterThanOrEqual(90);
+    expect(getDerivedTagSeedRecordKeys("persistent_damage", { category: "spell" })).toEqual(expect.arrayContaining([
+      "spells-srd:f8hRqLJaxBVhF1u0",
+      "spells-srd:Z3kJty995FkrsZRb",
+      "spells-srd:A16eFTRh82xIjMu8",
+    ]));
+    expect(getDerivedTagSeedRecordKeys("initiative_support", { category: "spell" })).toEqual(expect.arrayContaining([
+      "spells-srd:EUMjrJJwSgsqNidi",
+      "spells-srd:dqaCLzINHBiKjh4J",
+      "spells-srd:I8CPe9Pp7GABqOyB",
+    ]));
+    expect(getDerivedTagSeedRecordKeys("eidolon_support", { category: "spell" })).toEqual(expect.arrayContaining([
+      "spells-srd:HStu2Yhw3iQER9tY",
+      "spells-srd:AfOpnnwdZwHi2Tnc",
+      "spells-srd:TYbCj4dgXDOZou9k",
+    ]));
+
+    const acidArrowDerivation = deriveRecordTagDerivation({
+      recordKey: "spells-srd:f8hRqLJaxBVhF1u0",
+      name: "Acid Arrow",
+      category: "spell",
+      subcategory: null,
+      descriptionText: null,
+      traits: [],
+    });
+    expect(acidArrowDerivation.tags).toContain("persistent_damage");
+    expect(acidArrowDerivation.sources.get("persistent_damage")).toBe("seed");
+
+    const anticipatePerilDerivation = deriveRecordTagDerivation({
+      recordKey: "spells-srd:EUMjrJJwSgsqNidi",
+      name: "Anticipate Peril",
+      category: "spell",
+      subcategory: null,
+      descriptionText: null,
+      traits: [],
+    });
+    expect(anticipatePerilDerivation.tags).toContain("initiative_support");
+    expect(anticipatePerilDerivation.sources.get("initiative_support")).toBe("seed");
+
+    const protectCompanionDerivation = deriveRecordTagDerivation({
+      recordKey: "spells-srd:AfOpnnwdZwHi2Tnc",
+      name: "Protect Companion",
+      category: "spell",
+      subcategory: null,
+      descriptionText: null,
+      traits: [],
+    });
+    expect(protectCompanionDerivation.tags).toContain("eidolon_support");
+    expect(protectCompanionDerivation.sources.get("eidolon_support")).toBe("seed");
+
+    const airWalkDerivation = deriveRecordTagDerivation({
+      recordKey: "spells-srd:b5sGjGlBf58f8jn0",
+      name: "Air Walk",
+      category: "spell",
+      subcategory: null,
+      descriptionText: null,
+      traits: [],
+    });
+    expect(airWalkDerivation.tags).toContain("mobility");
+    expect(airWalkDerivation.sources.get("mobility")).toBe("seed");
+
+    const returnBeaconDerivation = deriveRecordTagDerivation({
+      recordKey: "spells-srd:ru3YdXajUREbKQDV",
+      name: "Return Beacon",
+      category: "spell",
+      subcategory: null,
+      descriptionText: null,
+      traits: [],
+    });
+    expect(returnBeaconDerivation.tags).toContain("navigation");
+    expect(returnBeaconDerivation.sources.get("navigation")).toBe("seed");
+
+    const veilOfPrivacyDerivation = deriveRecordTagDerivation({
+      recordKey: "spells-srd:EoKBlgf6Smt8opaU",
+      name: "Veil of Privacy",
+      category: "spell",
+      subcategory: null,
+      descriptionText: null,
+      traits: [],
+    });
+    expect(veilOfPrivacyDerivation.tags).toContain("countermagic");
+    expect(veilOfPrivacyDerivation.sources.get("countermagic")).toBe("seed");
+
+    const cauterizeWoundsDerivation = deriveRecordTagDerivation({
+      recordKey: "spells-srd:sBSalosrt7C4IXas",
+      name: "Cauterize Wounds",
+      category: "spell",
+      subcategory: null,
+      descriptionText: null,
+      traits: [],
+    });
+    expect(cauterizeWoundsDerivation.tags).not.toContain("persistent_damage");
+  });
 });

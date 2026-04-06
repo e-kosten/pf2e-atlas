@@ -36,7 +36,7 @@ describe("Pf2eDataService", () => {
     const service = await loadTestService(fixture);
 
     expect(service.listPacks()).toHaveLength(16);
-    expect(service.getStats()).toEqual({ packCount: 16, recordCount: 225 });
+    expect(service.getStats()).toEqual({ packCount: 16, recordCount: 231 });
     expect(service.getPack("Actions")?.name).toBe("actions");
   });
 
