@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   extractDiscoveryNgrams,
+  isDiscoveryNoisePhrase,
+  isDiscoveryNoiseToken,
   normalizeDiscoveryText,
   tokenizeDiscoveryText,
 } from "../../src/tags/discovery-normalization.js";
@@ -31,5 +33,18 @@ describe("discovery normalization", () => {
         },
       ]),
     );
+  });
+
+  it("strips foundry inline markup before tokenization", () => {
+    expect(normalizeDiscoveryText("@UUID[Compendium.pf2e.spells-srd.Item.Daze]{Daze} [[/r 1d20+16]]{+16}")).toBe(
+      "daze {{number}}",
+    );
+  });
+
+  it("flags discovery boilerplate and placeholder-heavy phrases as noise", () => {
+    expect(isDiscoveryNoiseToken("activate")).toBe(true);
+    expect(isDiscoveryNoiseToken("{{number}}")).toBe(true);
+    expect(isDiscoveryNoisePhrase("activate {{number}} strike")).toBe(true);
+    expect(isDiscoveryNoisePhrase("skyhook harness")).toBe(false);
   });
 });

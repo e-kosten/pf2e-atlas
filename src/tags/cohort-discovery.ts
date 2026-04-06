@@ -13,7 +13,10 @@ import {
   resolveDiscoveryExemplars,
   type ResolvedDiscoveryExemplar,
 } from "./discovery-records.js";
-import { tokenizeDiscoveryText } from "./discovery-normalization.js";
+import {
+  isDiscoveryNoiseToken,
+  tokenizeDiscoveryText,
+} from "./discovery-normalization.js";
 
 const DEFAULT_CANDIDATE_LIMIT = 40;
 const DEFAULT_COHORT_LIMIT = 8;
@@ -228,10 +231,14 @@ function buildRecordFeatureSet(record: DiscoveryAnalysisRecord): Set<string> {
     features.add(`trait:${trait}`);
   }
   for (const token of tokenizeDiscoveryText(record.name, { filterStopwords: true })) {
-    features.add(`name:${token}`);
+    if (!isDiscoveryNoiseToken(token)) {
+      features.add(`name:${token}`);
+    }
   }
   for (const token of tokenizeDiscoveryText(record.descriptionText ?? "", { filterStopwords: true })) {
-    features.add(`text:${token}`);
+    if (!isDiscoveryNoiseToken(token)) {
+      features.add(`text:${token}`);
+    }
   }
   for (const reference of record.references) {
     features.add(`ref-target:${reference.targetName.toLowerCase()}`);
@@ -244,6 +251,7 @@ function deriveAnchorVocabulary(
   exemplars: DiscoveryAnalysisRecord[],
   baseline: DiscoveryAnalysisRecord[],
 ): DiscoveryEvidenceTerm[] {
+  const minimumSupport = exemplars.length > 1 ? 2 : 1;
   const evidence = analyzeDiscoveryEvidenceFromRecords(dedupeVariantFamilies(exemplars), baseline, { limit: 10, exampleLimit: 3 });
   return [
     ...evidence.traits.slice(0, 4),
@@ -253,6 +261,12 @@ function deriveAnchorVocabulary(
   ]
     .sort((left, right) => right.score - left.score || left.value.localeCompare(right.value))
     .filter((entry, index, all) => all.findIndex((candidate) => candidate.value === entry.value) === index)
+    .filter((entry) => entry.cohortSupport >= minimumSupport)
+    .filter((entry) =>
+      entry.value.startsWith("target:") ||
+      entry.value.startsWith("scope:") ||
+      entry.lift >= 1.15 ||
+      (entry.cohortSupport === exemplars.length && entry.cohortSupport >= 3))
     .slice(0, 10);
 }
 
@@ -296,11 +310,15 @@ function buildSignature(candidate: RankedCandidate): string[] {
   return uniqueSorted(candidate.traits.map((trait) => `trait:${trait}`)).slice(0, 2);
 }
 
-function recommendCluster(score: number): CohortRecommendation {
-  if (score >= 0.72) {
+function recommendCluster(
+  score: number,
+  sharedAnchors: string[],
+  averageAnchorStrength: number,
+): CohortRecommendation {
+  if (sharedAnchors.length >= 2 && averageAnchorStrength >= 0.45 && score >= 0.72) {
     return "rule-led";
   }
-  if (score >= 0.5) {
+  if (sharedAnchors.length >= 1 && score >= 0.5) {
     return "hybrid";
   }
   if (score >= 0.3) {
@@ -315,6 +333,7 @@ function clusterCandidates(
   options: RuleableCohortOptions,
 ): Array<DerivedTagCandidateCluster & { score: number; recommendation: CohortRecommendation }> {
   const anchorValues = new Set(anchors.map((anchor) => anchor.value));
+  const anchorByValue = new Map(anchors.map((anchor) => [anchor.value, anchor] as const));
   const buckets = new Map<string, RankedCandidate[]>();
 
   for (const candidate of candidates) {
@@ -334,12 +353,31 @@ function clusterCandidates(
       const sharedTraits = [...new Set(bucket.flatMap((candidate) => candidate.traits))]
         .filter((trait) => bucket.every((candidate) => candidate.traits.includes(trait)));
       const sharedAnchors = signature.filter((anchor) => anchorValues.has(anchor));
+      const averageAnchorStrength = sharedAnchors.length === 0
+        ? 0
+        : sharedAnchors.reduce((total, anchor) => {
+          const lift = anchorByValue.get(anchor)?.lift ?? 1;
+          return total + Math.min(1, Math.log2(1 + Math.max(1, lift)) / 3);
+        }, 0) / sharedAnchors.length;
       const density = sharedAnchors.length / Math.max(1, signature.length || 1);
       const sizeFactor = Math.min(1, bucket.length / 5);
       const familyDiversity = distinctVariantFamilies / Math.max(1, bucket.length);
       const similarityFactor = Math.max(0, Math.min(1, averageSimilarity));
       const traitPenalty = sharedTraits.length === 1 && sharedAnchors.every((anchor) => anchor.startsWith("trait:")) ? 0.15 : 0;
-      const score = Math.max(0, Math.min(1, (sizeFactor * 0.25) + (familyDiversity * 0.25) + (similarityFactor * 0.25) + (density * 0.25) - traitPenalty));
+      const semanticOnlyPenalty = sharedAnchors.length === 0 ? 0.18 : 0;
+      const score = Math.max(
+        0,
+        Math.min(
+          1,
+          (sizeFactor * 0.2) +
+          (familyDiversity * 0.2) +
+          (similarityFactor * 0.2) +
+          (density * 0.15) +
+          (averageAnchorStrength * 0.25) -
+          traitPenalty -
+          semanticOnlyPenalty,
+        ),
+      );
 
       return {
         signature,
@@ -354,7 +392,7 @@ function clusterCandidates(
             .sort((left, right) => right.similarity - left.similarity || left.name.localeCompare(right.name)),
         ),
         score,
-        recommendation: recommendCluster(score),
+        recommendation: recommendCluster(score, sharedAnchors, averageAnchorStrength),
       };
     })
     .sort((left, right) =>
@@ -408,8 +446,11 @@ export function discoverRuleableCohorts(
     throw new Error("Ruleable cohort discovery requires at least one exemplar or an existing tag.");
   }
 
-  const category = options.category ?? resolvedExemplars[0]!.category;
-  const subcategory = options.subcategory ?? resolvedExemplars[0]!.subcategory;
+  const category = options.category ?? inferSingleValue(
+    resolvedExemplars.map((record) => record.category),
+    "category",
+  );
+  const subcategory = options.subcategory ?? null;
   const exemplarKeys = resolvedExemplars.map((record) => record.recordKey);
   const baseline = loadDiscoveryRecords(db, {
     category,
@@ -448,4 +489,13 @@ export function discoverRuleableCohorts(
     contrastRecords,
     cohorts,
   };
+}
+
+function inferSingleValue<T>(values: T[], label: string): T {
+  const uniqueValues = [...new Set(values)];
+  if (uniqueValues.length !== 1) {
+    throw new Error(`Exemplars span multiple ${label} values. Pass --${label} explicitly to define the candidate scope.`);
+  }
+
+  return uniqueValues[0]!;
 }

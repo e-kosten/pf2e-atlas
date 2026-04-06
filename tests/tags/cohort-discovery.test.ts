@@ -269,4 +269,112 @@ describe("ruleable cohort discovery", () => {
       db.close();
     }
   });
+
+  it("keeps explicit category scope broad when a tag spans multiple subcategories", () => {
+    const db = createDiscoveryDb();
+    try {
+      insertRecord(db, {
+        recordKey: "equipment:boots",
+        name: "Windstep Boots",
+        category: "equipment",
+        subcategory: "gear",
+        traits: ["magical"],
+        descriptionText: "These boots help you move with sudden bursts of speed.",
+        vector: [1, 0, 0],
+        tags: ["mobility"],
+      });
+      insertRecord(db, {
+        recordKey: "equipment:skiff",
+        name: "Storm Skiff",
+        category: "equipment",
+        subcategory: "vehicle",
+        traits: ["magical"],
+        descriptionText: "A skiff that surges quickly across rough water.",
+        vector: [0.98, 0.02, 0],
+        tags: ["mobility"],
+      });
+      insertRecord(db, {
+        recordKey: "equipment:cloak",
+        name: "Updraft Cloak",
+        category: "equipment",
+        subcategory: "gear",
+        traits: ["magical"],
+        descriptionText: "A cloak that helps you catch strong updrafts.",
+        vector: [0.97, 0.03, 0],
+      });
+      insertRecord(db, {
+        recordKey: "equipment:sled",
+        name: "Glacier Sled",
+        category: "equipment",
+        subcategory: "vehicle",
+        traits: ["magical"],
+        descriptionText: "A sled built to skim over packed snow and ice.",
+        vector: [0.96, 0.04, 0],
+      });
+
+      const report = discoverRuleableCohorts(db, {
+        category: "equipment",
+        tag: "mobility",
+        candidateLimit: 6,
+        cohortLimit: 3,
+      });
+
+      expect(report.category).toBe("equipment");
+      expect(report.subcategory).toBeNull();
+      expect(report.candidateCount).toBe(2);
+    } finally {
+      db.close();
+    }
+  });
+
+  it("does not promote semantic-only seeded cohorts to rule-led", () => {
+    const db = createDiscoveryDb();
+    try {
+      insertRecord(db, {
+        recordKey: "spell:seed-1",
+        name: "North Blaze",
+        category: "spell",
+        traits: ["fire"],
+        descriptionText: "A cinder spiral races down an alley.",
+        vector: [1, 0, 0],
+      });
+      insertRecord(db, {
+        recordKey: "spell:seed-2",
+        name: "South Veil",
+        category: "spell",
+        traits: ["illusion"],
+        descriptionText: "A silk mirage hides whispered memories.",
+        vector: [0.99, 0.01, 0],
+      });
+      insertRecord(db, {
+        recordKey: "spell:candidate-1",
+        name: "Center Echo",
+        category: "spell",
+        traits: ["sonic"],
+        descriptionText: "A resonant pulse ripples through a plaza.",
+        vector: [0.98, 0.02, 0],
+      });
+      insertRecord(db, {
+        recordKey: "spell:candidate-2",
+        name: "Far Lantern",
+        category: "spell",
+        traits: ["light"],
+        descriptionText: "A lantern glow drifts across the courtyard.",
+        vector: [0.97, 0.03, 0],
+      });
+
+      const report = discoverRuleableCohorts(db, {
+        category: "spell",
+        exemplarRecordKeys: ["spell:seed-1", "spell:seed-2"],
+        candidateLimit: 6,
+        cohortLimit: 3,
+      });
+
+      expect(report.cohorts.length).toBeGreaterThan(0);
+      expect(report.cohorts[0]?.sharedAnchors).toEqual([]);
+      expect(report.cohorts[0]?.recommendation).not.toBe("rule-led");
+    } finally {
+      db.close();
+    }
+  });
 });

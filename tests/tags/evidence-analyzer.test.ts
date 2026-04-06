@@ -74,8 +74,44 @@ describe("derived-tag evidence analyzer", () => {
       exampleLimit: 2,
     });
 
-    expect(report.descriptionPhrases.map((term) => term.value)).toContain("{{dice}} fire damage");
+    expect(report.descriptionPhrases.map((term) => term.value)).toContain("fire damage");
     expect(report.traits.map((term) => term.value)).toContain("fire");
     expect(report.references.map((term) => term.value)).toContain("target:ignite");
+  });
+
+  it("filters foundry markup and activation boilerplate from surfaced evidence", () => {
+    const cohort = [
+      record({
+        recordKey: "equipment:1",
+        name: "Skyhook Harness",
+        category: "equipment",
+        descriptionText: "Activate 1 command. Effect @UUID[Compendium.pf2e.equipment-srd.Item.Rope]{Skyhook} line launches upward.",
+      }),
+      record({
+        recordKey: "equipment:2",
+        name: "Wallhook Rig",
+        category: "equipment",
+        descriptionText: "Activate 1 command. Effect the skyhook line catches on high ledges.",
+      }),
+    ];
+    const baseline = [
+      ...cohort,
+      record({
+        recordKey: "equipment:3",
+        name: "Beacon Lantern",
+        category: "equipment",
+        descriptionText: "Activate 1 command. Effect the lantern shines brightly.",
+      }),
+    ];
+
+    const report = analyzeDiscoveryEvidenceFromRecords(cohort, baseline, {
+      limit: 6,
+      exampleLimit: 2,
+    });
+
+    expect(report.descriptionTokens.map((term) => term.value)).toContain("skyhook");
+    expect(report.descriptionTokens.map((term) => term.value)).not.toContain("activate");
+    expect(report.descriptionTokens.map((term) => term.value)).not.toContain("uuid");
+    expect(report.descriptionTokens.map((term) => term.value)).not.toContain("compendium");
   });
 });

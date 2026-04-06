@@ -4,6 +4,9 @@ import { SearchCategory, SearchSubcategory } from "../types.js";
 import { uniqueSorted } from "../utils.js";
 import {
   extractDiscoveryNgrams,
+  isDiscoveryNoisePhrase,
+  isDiscoveryNoiseToken,
+  isDiscoveryPlaceholder,
   normalizeDiscoveryFeature,
   tokenizeDiscoveryText,
 } from "./discovery-normalization.js";
@@ -273,22 +276,34 @@ function collectRecordFeatures(record: DiscoveryAnalysisRecord): DiscoveryFeatur
   };
 
   for (const token of tokenizeDiscoveryText(record.name, { filterStopwords: true })) {
-    push("name", token);
+    if (!isDiscoveryNoiseToken(token)) {
+      push("name", token);
+    }
   }
   for (const phrase of extractDiscoveryNgrams(record.name, 2, { filterStopwords: true })) {
-    push("name_phrase", phrase.normalized);
+    if (!isDiscoveryNoisePhrase(phrase.normalized)) {
+      push("name_phrase", phrase.normalized);
+    }
   }
   for (const phrase of extractDiscoveryNgrams(record.name, 3, { filterStopwords: true })) {
-    push("name_phrase", phrase.normalized);
+    if (!isDiscoveryNoisePhrase(phrase.normalized)) {
+      push("name_phrase", phrase.normalized);
+    }
   }
   for (const token of tokenizeDiscoveryText(record.descriptionText ?? "", { filterStopwords: true })) {
-    push("text", token);
+    if (!isDiscoveryNoiseToken(token)) {
+      push("text", token);
+    }
   }
   for (const phrase of extractDiscoveryNgrams(record.descriptionText ?? "", 2, { filterStopwords: true })) {
-    push("text_phrase", phrase.normalized);
+    if (!isDiscoveryNoisePhrase(phrase.normalized)) {
+      push("text_phrase", phrase.normalized);
+    }
   }
   for (const phrase of extractDiscoveryNgrams(record.descriptionText ?? "", 3, { filterStopwords: true })) {
-    push("text_phrase", phrase.normalized);
+    if (!isDiscoveryNoisePhrase(phrase.normalized)) {
+      push("text_phrase", phrase.normalized);
+    }
   }
   for (const trait of record.traits) {
     push("trait", normalizeDiscoveryFeature(trait));
@@ -329,7 +344,7 @@ function collectFeatureSupport(
 }
 
 function isPlaceholderOnlyFeature(feature: DiscoveryFeature): boolean {
-  return feature.display === "{{number}}" || feature.display === "{{range}}" || feature.display === "{{dice}}";
+  return isDiscoveryPlaceholder(feature.display);
 }
 
 function isEligibleSimilarityFeature(

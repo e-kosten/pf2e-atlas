@@ -5,6 +5,8 @@ import { uniqueSorted } from "../utils.js";
 import { getDerivedTagSeedRecordKeys, normalizeDerivedTag } from "./index.js";
 import {
   extractDiscoveryNgrams,
+  isDiscoveryNoisePhrase,
+  isDiscoveryNoiseToken,
   normalizeDiscoveryFeature,
   tokenizeDiscoveryText,
 } from "./discovery-normalization.js";
@@ -101,7 +103,8 @@ function collectRecordFeatureSet(
   };
 
   if (featureType === "nameTokens") {
-    const values = tokenizeDiscoveryText(record.name, { filterStopwords: true });
+    const values = tokenizeDiscoveryText(record.name, { filterStopwords: true })
+      .filter((value) => !isDiscoveryNoiseToken(value));
     for (const value of values) {
       appendExample(value, record.name);
     }
@@ -112,7 +115,7 @@ function collectRecordFeatureSet(
     const phrases = [
       ...extractDiscoveryNgrams(record.name, 2, { filterStopwords: true }),
       ...extractDiscoveryNgrams(record.name, 3, { filterStopwords: true }),
-    ];
+    ].filter((phrase) => !isDiscoveryNoisePhrase(phrase.normalized));
     for (const phrase of phrases) {
       appendExample(phrase.normalized, record.name);
     }
@@ -120,7 +123,8 @@ function collectRecordFeatureSet(
   }
 
   if (featureType === "descriptionTokens") {
-    const values = tokenizeDiscoveryText(record.descriptionText ?? "", { filterStopwords: true });
+    const values = tokenizeDiscoveryText(record.descriptionText ?? "", { filterStopwords: true })
+      .filter((value) => !isDiscoveryNoiseToken(value));
     for (const value of values) {
       appendExample(value, record.descriptionText ?? record.name);
     }
@@ -131,7 +135,7 @@ function collectRecordFeatureSet(
     const phrases = [
       ...extractDiscoveryNgrams(record.descriptionText ?? "", 2, { filterStopwords: true }),
       ...extractDiscoveryNgrams(record.descriptionText ?? "", 3, { filterStopwords: true }),
-    ];
+    ].filter((phrase) => !isDiscoveryNoisePhrase(phrase.normalized));
     for (const phrase of phrases) {
       appendExample(phrase.normalized, record.descriptionText ?? record.name);
     }

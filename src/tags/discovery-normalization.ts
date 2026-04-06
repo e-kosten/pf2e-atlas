@@ -9,7 +9,9 @@ const DISCOVERY_STOPWORDS = new Set([
   "and",
   "an",
   "another",
+  "are",
   "around",
+  "as",
   "because",
   "become",
   "becomes",
@@ -23,12 +25,17 @@ const DISCOVERY_STOPWORDS = new Set([
   "creatures",
   "during",
   "each",
+  "for",
   "from",
   "gain",
   "gains",
   "have",
   "helps",
+  "if",
+  "in",
   "into",
+  "is",
+  "it",
   "just",
   "like",
   "make",
@@ -36,9 +43,15 @@ const DISCOVERY_STOPWORDS = new Set([
   "many",
   "more",
   "most",
+  "of",
   "often",
+  "on",
+  "once",
   "other",
+  "or",
   "over",
+  "per",
+  "s",
   "such",
   "than",
   "that",
@@ -53,6 +66,7 @@ const DISCOVERY_STOPWORDS = new Set([
   "toward",
   "under",
   "until",
+  "up",
   "when",
   "where",
   "which",
@@ -60,13 +74,45 @@ const DISCOVERY_STOPWORDS = new Set([
   "with",
   "within",
   "without",
+  "you",
   "your",
+]);
+
+const DISCOVERY_NOISE_TOKENS = new Set([
+  "activate",
+  "activated",
+  "activation",
+  "action",
+  "actions",
+  "cast",
+  "check",
+  "checks",
+  "command",
+  "compendium",
+  "critical",
+  "critically",
+  "effect",
+  "failure",
+  "frequency",
+  "item",
+  "items",
+  "pf2e",
+  "requirement",
+  "requirements",
+  "success",
+  "trigger",
+  "triggers",
+  "uuid",
 ]);
 
 const DICE_SENTINEL = "zzzdiceplaceholderzzz";
 const RANGE_SENTINEL = "zzzrangeplaceholderzzz";
 const NUMBER_SENTINEL = "zzznumberplaceholderzzz";
 
+const FOUNDRY_INLINE_TAG_WITH_LABEL_PATTERN = /@[a-z]+(?:\.[a-z]+)?\[[^\]]+\]\{([^}]*)\}/gi;
+const FOUNDRY_INLINE_TAG_PATTERN = /@[a-z]+(?:\.[a-z]+)?\[[^\]]+\]/gi;
+const FOUNDRY_INLINE_ROLL_WITH_LABEL_PATTERN = /\[\[[^\]]+\]\]\{([^}]*)\}/g;
+const FOUNDRY_INLINE_ROLL_PATTERN = /\[\[[^\]]+\]\]/g;
 const DICE_EXPRESSION_PATTERN = /\b\d+d\d+(?:\s*[+\-]\s*\d+)?\b/gi;
 const MEASUREMENT_PATTERN = /\b\d+\s*(?:-\s*)?(?:foot|feet|ft|mile|miles|meter|meters|yard|yards)\b/gi;
 const STANDALONE_NUMBER_PATTERN = /\b\d+\b/g;
@@ -83,8 +129,16 @@ function restorePlaceholders(value: string): string {
     .replace(new RegExp(NUMBER_SENTINEL, "g"), "{{number}}");
 }
 
+function stripFoundryInlineMarkup(value: string): string {
+  return value
+    .replace(FOUNDRY_INLINE_TAG_WITH_LABEL_PATTERN, " $1 ")
+    .replace(FOUNDRY_INLINE_TAG_PATTERN, " ")
+    .replace(FOUNDRY_INLINE_ROLL_WITH_LABEL_PATTERN, " $1 ")
+    .replace(FOUNDRY_INLINE_ROLL_PATTERN, " ");
+}
+
 export function normalizeDiscoveryText(value: string): string {
-  const staged = value
+  const staged = stripFoundryInlineMarkup(value)
     .toLowerCase()
     .replace(/&nbsp;/g, " ")
     .replace(DICE_EXPRESSION_PATTERN, ` ${DICE_SENTINEL} `)
@@ -113,6 +167,22 @@ export function tokenizeDiscoveryText(
 
 export function normalizeDiscoveryFeature(value: string): string {
   return normalizeText(value);
+}
+
+export function isDiscoveryPlaceholder(value: string): boolean {
+  return value === "{{number}}" || value === "{{range}}" || value === "{{dice}}";
+}
+
+export function isDiscoveryNoiseToken(value: string): boolean {
+  return isDiscoveryPlaceholder(value) ||
+    /^[a-z]$/.test(value) ||
+    DISCOVERY_STOPWORDS.has(value) ||
+    DISCOVERY_NOISE_TOKENS.has(value);
+}
+
+export function isDiscoveryNoisePhrase(value: string): boolean {
+  const tokens = normalizeDiscoveryText(value).split(" ").filter(Boolean);
+  return tokens.some((token) => isDiscoveryPlaceholder(token) || DISCOVERY_NOISE_TOKENS.has(token));
 }
 
 export function extractDiscoveryNgrams(
