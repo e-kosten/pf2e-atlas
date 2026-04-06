@@ -365,4 +365,91 @@ describe("derived tag seeds", () => {
     });
     expect(cauterizeWoundsDerivation.tags).not.toContain("persistent_damage");
   });
+
+  it("exposes the creature manual seed pass and applies representative seeded records", () => {
+    const touchedCreatureTags = [
+      "dragon_spellcaster",
+      "disguised_pretender",
+      "faceless_horror",
+      "regeneration_threat",
+    ];
+    const rawSeedAdds = touchedCreatureTags.reduce(
+      (count, tag) => count + getDerivedTagSeedRecordKeys(tag, { category: "creature" }).length,
+      0,
+    );
+    const seededCreatureRecords = new Set(
+      touchedCreatureTags.flatMap((tag) => getDerivedTagSeedRecordKeys(tag, { category: "creature" })),
+    );
+
+    expect(rawSeedAdds).toBeGreaterThanOrEqual(120);
+    expect(seededCreatureRecords.size).toBeGreaterThanOrEqual(110);
+    expect(getDerivedTagSeedRecordKeys("dragon_spellcaster", { category: "creature" })).toEqual(expect.arrayContaining([
+      "pathfinder-bestiary:pFmaszqtsA2yt7dv",
+      "pathfinder-monster-core:T0OAOkmk4xz0wvjJ",
+      "lost-omens-bestiary:IG23I5XqPXeICaOH",
+    ]));
+    expect(getDerivedTagSeedRecordKeys("disguised_pretender", { category: "creature" })).toEqual(expect.arrayContaining([
+      "season-of-ghosts-bestiary:dqsQutshiegWaFPQ",
+      "pathfinder-monster-core:TGYELuImcTcuX0aH",
+      "lost-omens-bestiary:E4qscYn7U3jHoCia",
+    ]));
+    expect(getDerivedTagSeedRecordKeys("faceless_horror", { category: "creature" })).toEqual(expect.arrayContaining([
+      "season-of-ghosts-bestiary:QSa1PbcvbgDv8Zpr",
+      "season-of-ghosts-bestiary:dqsQutshiegWaFPQ",
+      "season-of-ghosts-bestiary:3KNblm2fWM6XLiS7",
+    ]));
+    expect(getDerivedTagSeedRecordKeys("regeneration_threat", { category: "creature" })).toEqual(expect.arrayContaining([
+      "pathfinder-monster-core-2:yHduMu4VBVUHnssz",
+      "stolen-fate-bestiary:KgwkUtJ8czIC0KFj",
+      "pathfinder-monster-core-2:1LBt5H8GekcuzDHw",
+    ]));
+
+    const redDragonDerivation = deriveRecordTagDerivation({
+      recordKey: "pathfinder-bestiary:pFmaszqtsA2yt7dv",
+      name: "Red Dragon (Adult, Spellcaster)",
+      category: "creature",
+      subcategory: null,
+      descriptionText: null,
+      traits: ["dragon", "fire", "evil"],
+    });
+    expect(redDragonDerivation.tags).toContain("dragon_spellcaster");
+    expect(redDragonDerivation.sources.get("dragon_spellcaster")).toBe("seed");
+
+    const conspiratorDragonDerivation = deriveRecordTagDerivation({
+      recordKey: "pathfinder-monster-core:TGYELuImcTcuX0aH",
+      name: "Conspirator Dragon (Adult)",
+      category: "creature",
+      subcategory: null,
+      descriptionText: null,
+      traits: ["dragon", "occult"],
+    });
+    expect(conspiratorDragonDerivation.tags).toContain("disguised_pretender");
+    expect(conspiratorDragonDerivation.sources.get("disguised_pretender")).toBe("seed");
+
+    const nopperaBoDivineDerivation = deriveRecordTagDerivation({
+      recordKey: "season-of-ghosts-bestiary:dqsQutshiegWaFPQ",
+      name: "Noppera-Bo Impersonator (Divine)",
+      category: "creature",
+      subcategory: null,
+      descriptionText: null,
+      traits: ["aberration", "chaotic", "evil"],
+    });
+    expect(nopperaBoDivineDerivation.tags).toEqual(expect.arrayContaining([
+      "disguised_pretender",
+      "faceless_horror",
+    ]));
+    expect(nopperaBoDivineDerivation.sources.get("disguised_pretender")).toBe("seed");
+    expect(nopperaBoDivineDerivation.sources.get("faceless_horror")).toBe("seed");
+
+    const cavernTrollDerivation = deriveRecordTagDerivation({
+      recordKey: "pathfinder-monster-core-2:yHduMu4VBVUHnssz",
+      name: "Cavern Troll",
+      category: "creature",
+      subcategory: null,
+      descriptionText: null,
+      traits: ["earth", "giant", "humanoid", "troll"],
+    });
+    expect(cavernTrollDerivation.tags).toContain("regeneration_threat");
+    expect(cavernTrollDerivation.sources.get("regeneration_threat")).toBe("seed");
+  });
 });

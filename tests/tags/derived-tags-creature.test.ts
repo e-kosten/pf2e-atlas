@@ -1194,7 +1194,16 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "",
       traits: ["aberration", "chaotic", "evil"],
-    })).toContain("disguised_pretender");
+    })).toEqual(expect.arrayContaining(["disguised_pretender", "faceless_horror"]));
+
+    expect(deriveRecordTags({
+      recordKey: "pathfinder-bestiary:pFmaszqtsA2yt7dv",
+      name: "Red Dragon (Adult, Spellcaster)",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "",
+      traits: ["dragon", "evil", "fire"],
+    })).toContain("dragon_spellcaster");
 
     expect(deriveRecordTags({
       recordKey: "pathfinder-monster-core:3nUt7cW8fqE5IpyE",
@@ -1212,6 +1221,15 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "Hidden among the shadows and upper echelons of society are the conspirator dragons. However, as most conspirator dragons meet others while in disguise, they do their best to maintain their disguise.",
       traits: ["dragon", "occult"],
-    })).not.toContain("disguised_pretender");
+    })).toContain("disguised_pretender");
+
+    expect(deriveRecordTags({
+      recordKey: "pathfinder-monster-core-2:yHduMu4VBVUHnssz",
+      name: "Cavern Troll",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Insatiable scavengers, cavern trolls stalk the eternal gloom of the Darklands and regenerate unless their wounds are cauterized.",
+      traits: ["earth", "giant", "humanoid", "troll"],
+    })).toContain("regeneration_threat");
   });
 });

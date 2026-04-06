@@ -387,6 +387,13 @@ describe("derived tag catalog", () => {
       }),
       expect.objectContaining({
         category: "creature",
+        family: "casting_profile",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "dragon_spellcaster", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "creature",
         family: "threat_profile",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "possession_threat", description: expect.any(String) }),

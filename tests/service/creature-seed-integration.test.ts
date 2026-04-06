@@ -117,6 +117,23 @@ describe("Pf2eDataService / Creature manual seeds", () => {
           },
         },
       }),
+      writeJson(path.join(packRoot, "pathfinder-monster-core", "conspirator-dragon-spellcaster-seed.json"), {
+        _id: "T0OAOkmk4xz0wvjJ",
+        name: "Conspirator Dragon (Adult, Spellcaster)",
+        type: "npc",
+        system: {
+          details: {
+            level: { value: 12 },
+            publication: { title: "Pathfinder Monster Core" },
+            publicNotes: "<p>Hidden among the shadows and upper echelons of society are the conspirator dragons. Their spellcaster variants lean even harder into manipulation and intrigue.</p>",
+          },
+          traits: {
+            rarity: "common",
+            value: ["dragon", "occult"],
+            size: { value: "huge" },
+          },
+        },
+      }),
       writeJson(path.join(packRoot, "season-of-ghosts-bestiary", "noppera-bo-impersonator-arcane.json"), {
         _id: "QSa1PbcvbgDv8Zpr",
         name: "Noppera-Bo Impersonator (Arcane)",
@@ -144,9 +161,16 @@ describe("Pf2eDataService / Creature manual seeds", () => {
     ]));
     expect(service.lookup("Mage Knight", { category: "creature" }).match?.derivedTags).toContain("combatant_npc");
     expect(service.lookup("Animated Axe", { category: "creature" }).match?.derivedTags).toContain("animated_object");
-    expect(service.lookup("Noppera-Bo Impersonator (Arcane)", { category: "creature" }).match?.derivedTags).toContain("disguised_pretender");
+    expect(service.lookup("Noppera-Bo Impersonator (Arcane)", { category: "creature" }).match?.derivedTags).toEqual(expect.arrayContaining([
+      "disguised_pretender",
+      "faceless_horror",
+    ]));
     expect(service.lookup("Envyspawn", { category: "creature" }).match?.derivedTags).toContain("sinspawn_family");
-    expect(service.lookup("Conspirator Dragon (Adult)", { category: "creature" }).match?.derivedTags).not.toContain("disguised_pretender");
+    expect(service.lookup("Conspirator Dragon (Adult)", { category: "creature" }).match?.derivedTags).toContain("disguised_pretender");
+    expect(service.lookup("Conspirator Dragon (Adult, Spellcaster)", { category: "creature" }).match?.derivedTags).toEqual(expect.arrayContaining([
+      "disguised_pretender",
+      "dragon_spellcaster",
+    ]));
     expect(service.listRecords({
       category: "creature",
       metadata: { field: "derivedTags", op: "includesAny", values: ["sinspawn_family"] },
