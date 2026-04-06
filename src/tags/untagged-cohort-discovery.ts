@@ -382,6 +382,7 @@ function buildRecordNodes(
 
 function buildNeighborGraph(
   nodes: RecordNode[],
+  progressStatusLogger?: (message: string) => void,
 ): Map<string, Set<string>> {
   const buckets = new Map<string, string[]>();
   const nodeByKey = new Map(nodes.map((node) => [node.record.recordKey, node] as const));
@@ -395,7 +396,14 @@ function buildNeighborGraph(
   }
 
   const graph = new Map<string, Set<string>>();
-  for (const node of nodes) {
+  const progressInterval = Math.max(25, Math.ceil(nodes.length / 20));
+  for (let nodeIndex = 0; nodeIndex < nodes.length; nodeIndex += 1) {
+    const node = nodes[nodeIndex]!;
+    if (nodeIndex === 0 || (nodeIndex + 1) % progressInterval === 0 || nodeIndex + 1 === nodes.length) {
+      const percent = Math.max(1, Math.min(100, Math.round(((nodeIndex + 1) / Math.max(1, nodes.length)) * 100)));
+      progressStatusLogger?.(`Building neighbor graph ${percent}% (${nodeIndex + 1}/${nodes.length}).`);
+    }
+
     const candidateWeights = new Map<string, number>();
     for (const featureKey of node.informativeFeatureKeys) {
       for (const candidateKey of buckets.get(featureKey) ?? []) {
@@ -576,17 +584,30 @@ function buildCandidateCohorts(
   baseline: DiscoveryAnalysisRecord[],
   options: UntaggedCohortOptions,
 ): UntaggedCohortCluster[] {
+  options.progressStatusLogger?.(`Extracting discovery features for ${untagged.length} untagged records.`);
   const featureSupport = collectFeatureSupport(untagged);
+  options.progressStatusLogger?.(`Extracting baseline features for ${baseline.length} records.`);
   const baselineSupport = collectFeatureSupport(baseline);
   const minSupport = Math.max(1, options.minFeatureSupport ?? DEFAULT_MIN_FEATURE_SUPPORT);
+  options.progressStatusLogger?.("Selecting informative features per record.");
   const nodes = buildRecordNodes(untagged, featureSupport, minSupport);
-  const graph = buildNeighborGraph(nodes);
+  const graph = buildNeighborGraph(nodes, options.progressStatusLogger);
+  options.progressStatusLogger?.("Collecting connected components.");
   const components = collectComponents(nodes, graph);
   const recordsByKey = new Map([...baseline, ...untagged].map((record) => [record.recordKey, record] as const));
   const allFeatureKeysByRecordKey = new Map(nodes.map((node) => [node.record.recordKey, node.allFeatureKeys] as const));
   const cohortLimit = Math.max(1, Math.min(options.cohortLimit ?? DEFAULT_COHORT_LIMIT, 20));
-  return components
-    .map((memberKeys) => {
+  const rankedClusters = components
+    .map((memberKeys, componentIndex) => {
+      if (
+        componentIndex === 0
+        || (componentIndex + 1) % Math.max(10, Math.ceil(components.length / 10)) === 0
+        || componentIndex + 1 === components.length
+      ) {
+        const percent = Math.max(1, Math.min(100, Math.round(((componentIndex + 1) / Math.max(1, components.length)) * 100)));
+        options.progressStatusLogger?.(`Scoring cohort candidates ${percent}% (${componentIndex + 1}/${components.length}).`);
+      }
+
       const members = memberKeys.map((recordKey) => recordsByKey.get(recordKey)).filter((record): record is DiscoveryAnalysisRecord => Boolean(record));
       const clusterAnchors = rankClusterAnchors(memberKeys, featureSupport, baselineSupport, recordsByKey, options);
       const centroid = normalizeVector(averageVectors(members.map((record) => record.vector).filter((vector) => vector.length > 0)));
@@ -653,6 +674,8 @@ function buildCandidateCohorts(
       right.averageSimilarity - left.averageSimilarity ||
       left.signature.join(" ").localeCompare(right.signature.join(" ")))
     .slice(0, cohortLimit);
+  options.progressStatusLogger?.(`Selected top ${rankedClusters.length} cohort candidates.`);
+  return rankedClusters;
 }
 
 export function discoverUntaggedCohorts(
