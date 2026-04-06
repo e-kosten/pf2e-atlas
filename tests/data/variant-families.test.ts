@@ -356,6 +356,113 @@ describe("variant family normalization", () => {
     expect(entries[0].record.variantFamilyKey).not.toBe(entries[2].record.variantFamilyKey);
   });
 
+  it("groups specialist rings from shared intro text and shared title subsequence", () => {
+    const entries = [
+      createEntry({
+        recordKey: "equipment:specialist-base",
+        name: "Specialist's Ring",
+        sourcePath: "vendor/pf2e/packs/pf2e/equipment/specialists-ring.json",
+        descriptionText: [
+          "Each specialist's ring is dedicated to a single school of magic, and the ring is covered in symbols and glyphs related to that school according to the creator's arcane studies. A specialist's ring has the trait corresponding to its school of magic. You gain a +2 item bonus to Arcana checks, and a +1 circumstance bonus to recognize magical effects and items of the specific school of magic.",
+          "Activate f envision",
+          "Effect You gain 1 Focus Point, which you can use only to cast a wizard school spell of the corresponding school.",
+        ].join("\n"),
+      }),
+      createEntry({
+        recordKey: "equipment:specialist-conjuration",
+        name: "Specialist's Ring (Conjuration)",
+        sourcePath: "vendor/pf2e/packs/pf2e/equipment/specialists-ring-conjuration.json",
+        descriptionText: [
+          "This specialist's ring is dedicated to the conjuration school of magic, and the ring is covered in symbols and glyphs related to the conjuration school according to the creator's arcane studies. You gain a +2 item bonus to Arcana checks, and a +1 circumstance bonus to recognize magical effects and items of the conjuration school of magic.",
+          "Activate f envision",
+          "Effect You gain 1 Focus Point, which you can use only to cast a wizard school spell of the conjuration school.",
+        ].join("\n"),
+      }),
+      createEntry({
+        recordKey: "equipment:specialist-evocation",
+        name: "Specialist's Ring (Evocation)",
+        sourcePath: "vendor/pf2e/packs/pf2e/equipment/specialists-ring-evocation.json",
+        descriptionText: [
+          "This specialist's ring is dedicated to the evocation school of magic, and the ring is covered in symbols and glyphs related to the evocation school according to the creator's arcane studies. You gain a +2 item bonus to Arcana checks, and a +1 circumstance bonus to recognize magical effects and items of the evocation school of magic.",
+          "Activate f envision",
+          "Effect You gain 1 Focus Point, which you can use only to cast a wizard school spell of the evocation school.",
+        ].join("\n"),
+      }),
+    ];
+
+    assignVariantFamilies(entries);
+
+    expect(entries[0].record.variantBaseName).toBe("Specialist's Ring");
+    expect(entries[1].record.variantFamilyKey).toBe(entries[0].record.variantFamilyKey);
+    expect(entries[2].record.variantFamilyKey).toBe(entries[0].record.variantFamilyKey);
+    expect(entries[1].record.variantLabel).toBe("Conjuration");
+    expect(entries[2].record.variantLabel).toBe("Evocation");
+  });
+
+  it("groups Highhelm drill marks from shared intro text and ordered title tokens", () => {
+    const sharedLead = [
+      "Not to be outdone by their cousins in Dongun Hold, the artificers of Highhelm have developed a handheld magical equivalent to their clockwork drilling constructs and vehicles. The device is still in the testing phases, but early versions have been released to fund more development. Appearing as an unassuming yellow box with two handles normally, when the command word is spoken, a spiraling drill made of force emerges from its top. An active Highhelm drill can be used as an improvised weapon, dealing damage on a Strike as though it had been used on a surface for one round with no additional damage from other sources.",
+      "Activate 2 Interact",
+    ].join("\n");
+    const entries = [
+      createEntry({
+        recordKey: "equipment:drill-1",
+        name: "Highhelm Drill Mark I",
+        sourcePath: "vendor/pf2e/packs/pf2e/equipment/highhelm-drill-mark-i.json",
+        descriptionText: `${sharedLead}\nEffect The force drill appears and begins turning, dealing 5 force damage per round.`,
+      }),
+      createEntry({
+        recordKey: "equipment:drill-2",
+        name: "Highhelm Drill Mark II",
+        sourcePath: "vendor/pf2e/packs/pf2e/equipment/highhelm-drill-mark-ii.json",
+        descriptionText: `${sharedLead}\nEffect The force drill appears and begins turning, dealing 10 force damage per round.`,
+      }),
+      createEntry({
+        recordKey: "equipment:drill-3",
+        name: "Highhelm Drill Mark III",
+        sourcePath: "vendor/pf2e/packs/pf2e/equipment/highhelm-drill-mark-iii.json",
+        descriptionText: `${sharedLead}\nEffect The force drill appears and begins turning, dealing 15 force damage per round.`,
+      }),
+    ];
+
+    assignVariantFamilies(entries);
+
+    expect(entries[0].record.variantBaseName).toBe("Highhelm Drill");
+    expect(entries[1].record.variantFamilyKey).toBe(entries[0].record.variantFamilyKey);
+    expect(entries[2].record.variantFamilyKey).toBe(entries[0].record.variantFamilyKey);
+    expect(entries[2].record.variantLabel).toBe("Mark III");
+  });
+
+  it("groups lock qualities from identical intro templates and shared title token", () => {
+    const entries = [
+      createEntry({
+        recordKey: "equipment:lock-poor",
+        name: "Lock (Poor)",
+        sourcePath: "vendor/pf2e/packs/pf2e/equipment/lock-poor.json",
+        descriptionText: "Picking a poor lock requires one successful Check[thievery|dc:15|traits:action:pick-a-lock|immutable:true] check.",
+      }),
+      createEntry({
+        recordKey: "equipment:lock-average",
+        name: "Lock (Average)",
+        sourcePath: "vendor/pf2e/packs/pf2e/equipment/lock-average.json",
+        descriptionText: "Picking an average lock requires four successful Check[thievery|dc:25|traits:action:pick-a-lock|immutable:true] checks.",
+      }),
+      createEntry({
+        recordKey: "equipment:lock-superior",
+        name: "Lock (Superior)",
+        sourcePath: "vendor/pf2e/packs/pf2e/equipment/lock-superior.json",
+        descriptionText: "Picking a superior lock requires six successful Check[thievery|dc:40|traits:action:pick-a-lock|immutable:true] checks.",
+      }),
+    ];
+
+    assignVariantFamilies(entries);
+
+    expect(entries[0].record.variantBaseName).toBe("Lock");
+    expect(entries[1].record.variantFamilyKey).toBe(entries[0].record.variantFamilyKey);
+    expect(entries[2].record.variantFamilyKey).toBe(entries[0].record.variantFamilyKey);
+    expect(entries[2].record.variantLabel).toBe("Superior");
+  });
+
   it("does not group parenthetical title lines without shared opening descriptions", () => {
     const entries = [
       createEntry({

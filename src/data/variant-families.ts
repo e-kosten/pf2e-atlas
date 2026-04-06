@@ -44,6 +44,7 @@ const SMALL_NUMBER_WORDS = new Set([
   "nine",
   "ten",
 ]);
+const TITLE_GLUE_TOKENS = new Set(["a", "an", "the", "of", "and", "or", "for", "to", "in", "on", "at", "with", "without", "type", "mark"]);
 
 export type VariantAxis =
   | "rank"
@@ -67,8 +68,15 @@ type GroupMember = {
   entry: IndexedRecordEntry;
   candidate: TitleCandidate;
   leadBlock: string;
-  leadSentences: string[];
   descriptionScore: number;
+};
+
+type TitleToken = {
+  raw: string;
+  normalized: string;
+  meaningful: boolean;
+  start: number;
+  end: number;
 };
 
 type IndexedRecordEntry = BuildSourceEntry & { record: NormalizedIndexRecord };
@@ -261,6 +269,9 @@ function buildSuffixScaffoldCandidate(entry: IndexedRecordEntry): TitleCandidate
 
   const baseTokens = tokens.slice(-2);
   const labelTokens = tokens.slice(0, -2);
+  if (baseTokens.some((token) => TITLE_GLUE_TOKENS.has(token))) {
+    return null;
+  }
   const baseName = toTitleWords(baseTokens.join(" "));
   const label = labelTokens.length > 0 ? toTitleWords(labelTokens.join(" ")) : null;
   if (!baseName) {
@@ -318,6 +329,29 @@ function buildLooseStemCandidate(entry: IndexedRecordEntry): TitleCandidate | nu
   return null;
 }
 
+function normalizeTitleToken(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "");
+}
+
+function tokenizeTitle(name: string): TitleToken[] {
+  return [...name.matchAll(/[A-Za-z0-9'+-]+/g)]
+    .map((match) => {
+      const raw = match[0] ?? "";
+      const start = match.index ?? 0;
+      const normalized = normalizeTitleToken(raw);
+      return {
+        raw,
+        normalized,
+        meaningful: normalized.length > 0 && !TITLE_GLUE_TOKENS.has(normalized),
+        start,
+        end: start + raw.length,
+      };
+    })
+    .filter((token) => token.normalized.length > 0);
+}
+
 function simplifyFoundryInlineMarkup(value: string): string {
   return value
     .replace(UUID_PATTERN, (_match, raw: string, label: string | undefined) => {
@@ -361,52 +395,7 @@ function extractLeadBlock(descriptionText: string | null): string {
     lines.shift();
   }
 
-  const leadLines: string[] = [];
-  for (const line of lines) {
-    if (leadLines.length > 0 && isStructuralLeadLine(line)) {
-      break;
-    }
-
-    leadLines.push(line);
-    if (leadLines.length >= 3) {
-      break;
-    }
-  }
-
-  return leadLines.join(" ").trim();
-}
-
-function extractLeadSentences(descriptionText: string | null): string[] {
-  if (!descriptionText) {
-    return [];
-  }
-
-  const lines = descriptionText
-    .split(/\n+/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  while (lines.length > 0 && isStructuralLeadLine(normalizeText(simplifyFoundryInlineMarkup(lines[0]!)))) {
-    lines.shift();
-  }
-
-  const leadLines: string[] = [];
-  for (const line of lines) {
-    const normalizedLine = normalizeText(simplifyFoundryInlineMarkup(line));
-    if (leadLines.length > 0 && isStructuralLeadLine(normalizedLine)) {
-      break;
-    }
-
-    leadLines.push(line);
-    if (leadLines.length >= 3) {
-      break;
-    }
-  }
-
-  return leadLines
-    .flatMap((line) => line.split(/(?<=[.!?])\s+/))
-    .map((sentence) => normalizeLeadSentence(sentence))
-    .filter(Boolean);
+  return normalizeLeadSentence(lines[0] ?? "");
 }
 
 function commonPrefixTokens(left: string, right: string): number {
@@ -437,32 +426,48 @@ function leadBlockSimilarity(left: string, right: string): number {
   return commonPrefixTokens(left, right) / minLength;
 }
 
-function descriptionPasses(left: string, right: string): boolean {
-  const common = commonPrefixTokens(left, right);
-  const similarity = leadBlockSimilarity(left, right);
-  return common >= 16 && similarity >= 0.35;
-}
-
-function sentenceOverlap(left: string[], right: string[]): number {
+function longestCommonSubsequenceLength(left: string[], right: string[]): number {
   if (left.length === 0 || right.length === 0) {
     return 0;
   }
 
-  const remaining = new Map<string, number>();
-  for (const sentence of right) {
-    remaining.set(sentence, (remaining.get(sentence) ?? 0) + 1);
-  }
-
-  let matches = 0;
-  for (const sentence of left) {
-    const count = remaining.get(sentence) ?? 0;
-    if (count > 0) {
-      matches += 1;
-      remaining.set(sentence, count - 1);
+  const dp = Array.from({ length: left.length + 1 }, () => Array<number>(right.length + 1).fill(0));
+  for (let leftIndex = 1; leftIndex <= left.length; leftIndex += 1) {
+    for (let rightIndex = 1; rightIndex <= right.length; rightIndex += 1) {
+      if (left[leftIndex - 1] === right[rightIndex - 1]) {
+        dp[leftIndex]![rightIndex] = (dp[leftIndex - 1]![rightIndex - 1] ?? 0) + 1;
+      } else {
+        dp[leftIndex]![rightIndex] = Math.max(dp[leftIndex - 1]![rightIndex] ?? 0, dp[leftIndex]![rightIndex - 1] ?? 0);
+      }
     }
   }
 
-  return matches / Math.min(left.length, right.length);
+  return dp[left.length]![right.length] ?? 0;
+}
+
+function tokenSequenceSimilarity(left: string, right: string): number {
+  const leftTokens = left.split(" ").filter(Boolean);
+  const rightTokens = right.split(" ").filter(Boolean);
+  if (leftTokens.length === 0 || rightTokens.length === 0) {
+    return 0;
+  }
+
+  return longestCommonSubsequenceLength(leftTokens, rightTokens) / Math.max(leftTokens.length, rightTokens.length);
+}
+
+function descriptionPasses(left: string, right: string): boolean {
+  if (!left || !right) {
+    return false;
+  }
+
+  if (left === right) {
+    return true;
+  }
+
+  const common = commonPrefixTokens(left, right);
+  const similarity = leadBlockSimilarity(left, right);
+  const sequenceSimilarity = tokenSequenceSimilarity(left, right);
+  return (common >= 16 && similarity >= 0.35) || sequenceSimilarity >= 0.75;
 }
 
 function variantGroupKey(entry: IndexedRecordEntry, baseName: string): string {
@@ -486,7 +491,7 @@ function isExactBaseMember(member: GroupMember, baseName: string): boolean {
 }
 
 function bestDescriptionTemplate(members: GroupMember[]): GroupMember | null {
-  const candidates = members.filter((member) => member.leadBlock.length > 0 || member.leadSentences.length > 0);
+  const candidates = members.filter((member) => member.leadBlock.length > 0);
   if (candidates.length < 2) {
     return null;
   }
@@ -501,7 +506,7 @@ function bestDescriptionTemplate(members: GroupMember[]): GroupMember | null {
 
       return sum + Math.max(
         leadBlockSimilarity(member.leadBlock, candidate.leadBlock),
-        sentenceOverlap(member.leadSentences, candidate.leadSentences),
+        tokenSequenceSimilarity(member.leadBlock, candidate.leadBlock),
       );
     }, 0);
     if (total > bestScore) {
@@ -524,7 +529,7 @@ function deriveDescriptionMembers(members: GroupMember[]): GroupMember[] {
       ...member,
       descriptionScore: Math.max(
         member.leadBlock.length > 0 ? leadBlockSimilarity(template.leadBlock, member.leadBlock) : 0,
-        sentenceOverlap(template.leadSentences, member.leadSentences),
+        tokenSequenceSimilarity(template.leadBlock, member.leadBlock),
       ),
     }))
     .filter((member) => {
@@ -533,7 +538,7 @@ function deriveDescriptionMembers(members: GroupMember[]): GroupMember[] {
       }
 
       return descriptionPasses(template.leadBlock, member.leadBlock)
-        || sentenceOverlap(template.leadSentences, member.leadSentences) >= 0.5;
+        || tokenSequenceSimilarity(template.leadBlock, member.leadBlock) >= 0.75;
     });
 }
 
@@ -548,14 +553,145 @@ function includeExactBaseMembers(descriptionMembers: GroupMember[], allMembers: 
   return [...included.values()];
 }
 
-function needsBroaderEvidence(members: GroupMember[], baseName: string): boolean {
-  const hasBase = members.some((member) => isExactBaseMember(member, baseName));
+function cleanDerivedLabel(value: string): string | null {
+  const cleaned = value
+    .replace(/^[\s,;:/-]+/, "")
+    .replace(/[\s,;:/-]+$/, "")
+    .replace(/^\((.*)\)$/s, "$1")
+    .replace(/\)\s+\(/g, ", ")
+    .replace(/[()]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return cleaned.length > 0 ? cleaned : null;
+}
+
+function meaningfulTitleSequence(tokens: TitleToken[]): string[] {
+  return tokens
+    .filter((token) => token.meaningful)
+    .map((token) => token.normalized);
+}
+
+function longestCommonSubsequence(left: string[], right: string[]): string[] {
+  if (left.length === 0 || right.length === 0) {
+    return [];
+  }
+
+  const dp = Array.from({ length: left.length + 1 }, () => Array<number>(right.length + 1).fill(0));
+  for (let leftIndex = 1; leftIndex <= left.length; leftIndex += 1) {
+    for (let rightIndex = 1; rightIndex <= right.length; rightIndex += 1) {
+      if (left[leftIndex - 1] === right[rightIndex - 1]) {
+        dp[leftIndex]![rightIndex] = (dp[leftIndex - 1]![rightIndex - 1] ?? 0) + 1;
+      } else {
+        dp[leftIndex]![rightIndex] = Math.max(dp[leftIndex - 1]![rightIndex] ?? 0, dp[leftIndex]![rightIndex - 1] ?? 0);
+      }
+    }
+  }
+
+  const result: string[] = [];
+  let leftIndex = left.length;
+  let rightIndex = right.length;
+  while (leftIndex > 0 && rightIndex > 0) {
+    if (left[leftIndex - 1] === right[rightIndex - 1]) {
+      result.unshift(left[leftIndex - 1]!);
+      leftIndex -= 1;
+      rightIndex -= 1;
+      continue;
+    }
+
+    if ((dp[leftIndex - 1]![rightIndex] ?? 0) >= (dp[leftIndex]![rightIndex - 1] ?? 0)) {
+      leftIndex -= 1;
+    } else {
+      rightIndex -= 1;
+    }
+  }
+
+  return result;
+}
+
+function findSubsequencePositions(tokens: TitleToken[], subsequence: string[]): number[] | null {
+  const positions: number[] = [];
+  let searchIndex = 0;
+  for (const target of subsequence) {
+    let found = false;
+    while (searchIndex < tokens.length) {
+      const token = tokens[searchIndex]!;
+      if (token.meaningful && token.normalized === target) {
+        positions.push(searchIndex);
+        searchIndex += 1;
+        found = true;
+        break;
+      }
+      searchIndex += 1;
+    }
+
+    if (!found) {
+      return null;
+    }
+  }
+
+  return positions;
+}
+
+function deriveSharedTitleMetadata(members: GroupMember[]): {
+  baseName: string;
+  labels: Map<string, string | null>;
+} | null {
+  if (members.length < 2) {
+    return null;
+  }
+
+  const tokenized = members.map((member) => ({
+    member,
+    tokens: tokenizeTitle(member.entry.record.name),
+  }));
+  let shared = meaningfulTitleSequence(tokenized[0]!.tokens);
+  for (const item of tokenized.slice(1)) {
+    shared = longestCommonSubsequence(shared, meaningfulTitleSequence(item.tokens));
+    if (shared.length === 0) {
+      return null;
+    }
+  }
+
+  const firstPositions = findSubsequencePositions(tokenized[0]!.tokens, shared);
+  if (!firstPositions || firstPositions.length === 0) {
+    return null;
+  }
+
+  const firstStart = tokenized[0]!.tokens[firstPositions[0]!]!.start;
+  const firstEnd = tokenized[0]!.tokens[firstPositions[firstPositions.length - 1]!]!.end;
+  const baseName = tokenized[0]!.member.entry.record.name.slice(firstStart, firstEnd).trim();
+  if (!baseName) {
+    return null;
+  }
+
+  const labels = new Map<string, string | null>();
+  for (const item of tokenized) {
+    const positions = findSubsequencePositions(item.tokens, shared);
+    if (!positions || positions.length === 0) {
+      return null;
+    }
+
+    const start = item.tokens[positions[0]!]!.start;
+    const end = item.tokens[positions[positions.length - 1]!]!.end;
+    const prefix = cleanDerivedLabel(item.member.entry.record.name.slice(0, start));
+    const suffix = cleanDerivedLabel(item.member.entry.record.name.slice(end));
+    const label = [prefix, suffix].filter((part): part is string => Boolean(part)).join(", ");
+    labels.set(item.member.entry.record.recordKey, label || null);
+  }
+
+  return { baseName, labels };
+}
+
+function needsBroaderEvidence(members: GroupMember[], baseName: string, sharedTitleBase: string | null): boolean {
+  const effectiveBase = sharedTitleBase ?? baseName;
+  const hasBase = members.some((member) => isExactBaseMember(member, effectiveBase));
   const hasStructuredAxis = members.some((member) => member.candidate.axes.some((axis) => axis !== "other"));
   const hasStackedLabel = members.some((member) => (member.candidate.label ?? "").includes(", "));
   const reliesOnLooseStemOnly = members
-    .filter((member) => !isExactBaseMember(member, baseName))
+    .filter((member) => !isExactBaseMember(member, effectiveBase))
     .every((member) => member.candidate.confidence <= 0.52);
-  return !hasBase && !hasStructuredAxis && !hasStackedLabel && reliesOnLooseStemOnly && members.length < 4;
+  const hasSharedTitleBase = Boolean(sharedTitleBase && normalizeText(sharedTitleBase).length > 0);
+  return !hasBase && !hasStructuredAxis && !hasStackedLabel && reliesOnLooseStemOnly && !hasSharedTitleBase && members.length < 4;
 }
 
 function exactBaseCandidate(baseName: string): TitleCandidate {
@@ -569,7 +705,13 @@ function exactBaseCandidate(baseName: string): TitleCandidate {
   };
 }
 
-function assignGroup(members: GroupMember[], baseName: string, source: VariantSource, confidence: number): void {
+function assignGroup(
+  members: GroupMember[],
+  baseName: string,
+  source: VariantSource,
+  confidence: number,
+  derivedLabels?: Map<string, string | null>,
+): void {
   if (members.length < 2 || !groupHasMeaningfulLabels(members)) {
     return;
   }
@@ -579,7 +721,7 @@ function assignGroup(members: GroupMember[], baseName: string, source: VariantSo
   for (const member of members) {
     member.entry.record.variantFamilyKey = variantGroupKey(member.entry, baseName);
     member.entry.record.variantBaseName = baseName;
-    member.entry.record.variantLabel = member.candidate.label;
+    member.entry.record.variantLabel = derivedLabels?.get(member.entry.record.recordKey) ?? member.candidate.label;
     member.entry.record.variantAxes = axes;
     member.entry.record.variantConfidence = Math.min(0.99, confidence + boost + Math.min(0.08, member.descriptionScore * 0.12));
     member.entry.record.variantSource = source;
@@ -618,7 +760,6 @@ export function assignVariantFamilies(entries: IndexedRecordEntry[]): void {
       entry,
       candidate,
       leadBlock: extractLeadBlock(entry.record.descriptionText),
-      leadSentences: extractLeadSentences(entry.record.descriptionText),
       descriptionScore: 0,
     });
     candidateGroups.set(groupKey, group);
@@ -632,7 +773,6 @@ export function assignVariantFamilies(entries: IndexedRecordEntry[]): void {
         entry,
         candidate: exactBaseCandidate(group.baseName),
         leadBlock: extractLeadBlock(entry.record.descriptionText),
-        leadSentences: extractLeadSentences(entry.record.descriptionText),
         descriptionScore: 0,
       });
     }
@@ -655,12 +795,20 @@ export function assignVariantFamilies(entries: IndexedRecordEntry[]): void {
 
     const descriptionMembers = includeExactBaseMembers(deriveDescriptionMembers(members), members, group.baseName);
     if (descriptionMembers.length >= 2 && groupHasMeaningfulLabels(descriptionMembers)) {
-      if (needsBroaderEvidence(descriptionMembers, group.baseName)) {
+      const sharedTitleMetadata = deriveSharedTitleMetadata(descriptionMembers);
+      const resolvedBaseName = sharedTitleMetadata?.baseName ?? group.baseName;
+      if (needsBroaderEvidence(descriptionMembers, group.baseName, sharedTitleMetadata?.baseName ?? null)) {
         continue;
       }
 
       const averageScore = descriptionMembers.reduce((sum, member) => sum + member.descriptionScore, 0) / descriptionMembers.length;
-      assignGroup(descriptionMembers, group.baseName, "composite", 0.78 + Math.min(0.08, averageScore * 0.15));
+      assignGroup(
+        descriptionMembers,
+        resolvedBaseName,
+        "composite",
+        0.78 + Math.min(0.08, averageScore * 0.15),
+        sharedTitleMetadata?.labels,
+      );
       continue;
     }
   }
