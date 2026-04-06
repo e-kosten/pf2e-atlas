@@ -1,5 +1,6 @@
 import type { MetadataFilterNode } from "./metadata-types.js";
 import type { NormalizedRecord } from "./record-types.js";
+import { METADATA_FIELD_REGISTRY } from "./metadata-field-registry.js";
 
 export type SearchProfile = "lexical" | "balanced" | "concept";
 
@@ -109,49 +110,18 @@ export interface SearchFilters {
   limit?: number;
 }
 
+const METADATA_FILTER_VALUE_FIELDS = METADATA_FIELD_REGISTRY
+  .filter((entry) => entry.discoverable)
+  .map((entry) => entry.field);
+
 export const FILTER_VALUE_FIELDS = [
-  "traits",
-  "families",
-  "derivedTags",
+  ...METADATA_FILTER_VALUE_FIELDS,
   "actorMetrics",
   "itemMetrics",
-  "sourceCategory",
-  "rarity",
-  "size",
-  "publicationTitle",
-  "traditions",
-  "spellKinds",
   "sources",
   "categories",
   "subcategories",
   "packs",
-  "weaponGroup",
-  "armorGroup",
-  "usage",
-  "actionCost",
-  "hands",
-  "saveType",
-  "areaType",
-  "durationUnit",
-  "rangeValue",
-  "areaValue",
-  "sustained",
-  "basicSave",
-  "damageTypes",
-  "languages",
-  "speedTypes",
-  "senses",
-  "immunities",
-  "resistances",
-  "weaknesses",
-  "disableSkills",
-  "isComplex",
-  "itemCategory",
-  "baseItem",
-  "variantAxes",
-  "variantFamilyKey",
-  "variantBaseName",
-  "variantLabel",
 ] as const;
 
 export type FilterValueField = (typeof FILTER_VALUE_FIELDS)[number];

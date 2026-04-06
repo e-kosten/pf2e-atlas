@@ -5,6 +5,20 @@ import type {
   RuleReferenceEdge,
   SearchRecordExplanation,
 } from "../types.js";
+import { getMetadataFieldSpecsByPresentation } from "../domain/metadata-field-registry.js";
+
+function assignPresentedMetadata(
+  target: Record<string, unknown>,
+  record: NormalizedRecord,
+  presentation: "summary" | "detail",
+): void {
+  for (const spec of getMetadataFieldSpecsByPresentation(presentation)) {
+    if (spec.presentWhen && !spec.presentWhen(record)) {
+      continue;
+    }
+    target[spec.field] = record[spec.recordProperty];
+  }
+}
 
 export function summarizeRecord(
   record: NormalizedRecord,
@@ -21,25 +35,10 @@ export function summarizeRecord(
     rawRecordType: record.type,
     packName: record.packName,
     packLabel: record.packLabel,
-    level: record.level,
-    rarity: record.rarity,
-    traits: record.traits,
-    derivedTags: record.derivedTags,
-    families: record.families,
-    traditions: record.traditions,
-    spellKinds: record.spellKinds,
-    rangeText: record.rangeText,
-    durationText: record.durationText,
-    durationUnit: record.durationUnit,
-    targetText: record.targetText,
-    areaValue: record.areaValue,
-    sustained: record.sustained,
-    basicSave: record.basicSave,
-    publicationTitle: record.publicationTitle,
-    hasDescription: record.hasDescription,
     descriptionSnippet: record.descriptionSnippet,
-    sourceCategory: record.sourceCategory,
   };
+
+  assignPresentedMetadata(summary, record, "summary");
 
   if (explanation) {
     summary.searchExplain = explanation;
@@ -62,32 +61,10 @@ export function summarizeRecord(
 
   Object.assign(summary, {
     descriptionText: record.descriptionText,
-    isUnique: record.isUnique,
-    size: record.size,
-    baseItem: record.baseItem,
-    priceCp: record.priceCp,
-    bulkValue: record.bulkValue,
-    actionCost: record.actionCost,
-    usage: record.usage,
-    hands: record.hands,
     itemMetrics: record.itemMetrics,
-    damageTypes: record.damageTypes,
-    weaponGroup: record.weaponGroup,
-    armorGroup: record.armorGroup,
-    saveType: record.saveType,
-    areaType: record.areaType,
-    languages: record.languages,
-    speedTypes: record.speedTypes,
-    senses: record.senses,
-    immunities: record.immunities,
-    resistances: record.resistances,
-    weaknesses: record.weaknesses,
-    disableText: record.disableText,
-    disableSkills: record.disableSkills,
-    isComplex: record.isComplex,
     actorMetrics: record.actorMetrics,
-    rangeValue: record.rangeValue,
   });
+  assignPresentedMetadata(summary, record, "detail");
 
   if (detail === "full") {
     summary.sourcePath = record.sourcePath;

@@ -9,6 +9,7 @@ import type {
   SearchSubcategory,
   SourceCategory,
 } from "../types.js";
+import { METADATA_FIELD_REGISTRY } from "../domain/metadata-field-registry.js";
 import { normalizeText } from "../utils.js";
 
 export type CandidateRow = {
@@ -159,8 +160,32 @@ function parseItemMetricsJson(itemMetricsJson: string | null | undefined): ItemM
   return metrics;
 }
 
+function extractMetadataValuesFromRow(row: CandidateRow): Partial<NormalizedRecord> {
+  const metadata: Record<string, unknown> = {};
+
+  for (const spec of METADATA_FIELD_REGISTRY) {
+    const rawValue = row[spec.rowValueSource.key as keyof CandidateRow];
+
+    switch (spec.rowValueSource.kind) {
+      case "jsonArray":
+        metadata[spec.recordProperty] = rawValue ? JSON.parse(rawValue as string) : [];
+        break;
+      case "booleanNumber":
+        metadata[spec.recordProperty] = Boolean(rawValue);
+        break;
+      case "number":
+      case "string":
+        metadata[spec.recordProperty] = rawValue ?? null;
+        break;
+    }
+  }
+
+  return metadata as Partial<NormalizedRecord>;
+}
+
 export function rowToRecord(row: CandidateRow, raw: Record<string, unknown> | null = null): NormalizedRecord {
   const resolvedRaw = raw ?? (row.rawJson ? JSON.parse(row.rawJson) as Record<string, unknown> : {});
+  const metadata = extractMetadataValuesFromRow(row);
   return {
     recordKey: row.recordKey,
     id: row.id,
@@ -172,64 +197,19 @@ export function rowToRecord(row: CandidateRow, raw: Record<string, unknown> | nu
     packName: row.packName,
     packLabel: row.packLabel,
     documentType: row.documentType,
-    level: row.level,
-    rarity: row.rarity,
-    traits: JSON.parse(row.traitsJson) as string[],
-    derivedTags: JSON.parse(row.derivedTagsJson) as string[],
-    publicationTitle: row.publicationTitle,
-    publicationRemaster: Boolean(row.publicationRemaster),
     descriptionText: row.descriptionText,
-    hasDescription: Boolean(row.hasDescription),
     descriptionSnippet: row.descriptionSnippet,
-    sourceCategory: row.sourceCategory,
     folderId: row.folderId,
-    families: row.familiesJson ? (JSON.parse(row.familiesJson) as string[]) : [],
-    variantFamilyKey: row.variantFamilyKey,
-    variantBaseName: row.variantBaseName,
-    variantLabel: row.variantLabel,
-    variantAxes: row.variantAxesJson ? (JSON.parse(row.variantAxesJson) as string[]) : [],
     variantConfidence: row.variantConfidence,
     variantSource: (row.variantSource ?? "none") as NormalizedRecord["variantSource"],
     sourcePath: row.sourcePath,
-    isUnique: Boolean(row.isUnique),
-    size: row.size,
-    itemCategory: row.itemCategory,
-    baseItem: row.baseItem,
-    priceCp: row.priceCp,
-    bulkValue: row.bulkValue,
-    actionCost: row.actionCost,
-    usage: row.usage,
-    hands: row.hands,
+    ...metadata,
     itemMetrics: parseItemMetricsJson(row.itemMetricsJson),
-    damageTypes: row.damageTypesJson ? (JSON.parse(row.damageTypesJson) as string[]) : [],
-    weaponGroup: row.weaponGroup,
-    armorGroup: row.armorGroup,
-    traditions: row.traditionsJson ? (JSON.parse(row.traditionsJson) as string[]) : [],
-    spellKinds: row.spellKindsJson ? (JSON.parse(row.spellKindsJson) as string[]) : [],
-    saveType: row.saveType,
-    areaType: row.areaType,
-    rangeText: row.rangeText,
-    durationText: row.durationText,
-    durationUnit: row.durationUnit,
-    targetText: row.targetText,
-    areaValue: row.areaValue,
-    sustained: Boolean(row.sustained),
-    basicSave: Boolean(row.basicSave),
-    languages: row.languagesJson ? (JSON.parse(row.languagesJson) as string[]) : [],
-    speedTypes: row.speedTypesJson ? (JSON.parse(row.speedTypesJson) as string[]) : [],
-    senses: row.sensesJson ? (JSON.parse(row.sensesJson) as string[]) : [],
-    immunities: row.immunitiesJson ? (JSON.parse(row.immunitiesJson) as string[]) : [],
-    resistances: row.resistancesJson ? (JSON.parse(row.resistancesJson) as string[]) : [],
-    weaknesses: row.weaknessesJson ? (JSON.parse(row.weaknessesJson) as string[]) : [],
-    disableText: row.disableText,
-    disableSkills: row.disableSkillsJson ? (JSON.parse(row.disableSkillsJson) as string[]) : [],
-    isComplex: Boolean(row.isComplex),
     actorMetrics: parseActorMetricsJson(row.actorMetricsJson),
-    rangeValue: row.rangeValue,
     aliases: [],
     legacyRecordLinks: [],
     raw: resolvedRaw,
-  };
+  } as NormalizedRecord;
 }
 
 export function buildPlaceholders(values: readonly unknown[]): string {

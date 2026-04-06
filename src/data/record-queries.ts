@@ -3,6 +3,7 @@ import { DatabaseSync } from "node:sqlite";
 import type { RuleReferenceEdge } from "../types.js";
 import {
   buildCandidateQuery,
+  buildSharedRecordSelectFields,
   buildLexicalRetrievalQuery,
   buildSemanticRetrievalQuery,
 } from "../search/sql.js";
@@ -15,93 +16,7 @@ function encodeVector(vector: Float32Array): Buffer {
 }
 
 function buildRecordSelect(includeRaw = false): string {
-  const fields = [
-    "r.record_key AS recordKey",
-    "r.id AS id",
-    "r.name AS name",
-    "r.normalized_name AS normalizedName",
-    "r.record_type AS type",
-    "r.category AS category",
-    "r.subcategory AS subcategory",
-    "r.pack_name AS packName",
-    "r.pack_label AS packLabel",
-    "r.document_type AS documentType",
-    "r.level AS level",
-    "r.rarity AS rarity",
-    "r.traits_json AS traitsJson",
-    "r.derived_tags_json AS derivedTagsJson",
-    "r.publication_title AS publicationTitle",
-    "r.publication_remaster AS publicationRemaster",
-    "r.description_text AS descriptionText",
-    "r.has_description AS hasDescription",
-    "r.description_snippet AS descriptionSnippet",
-    "r.source_category AS sourceCategory",
-    "r.folder_id AS folderId",
-    "r.families_json AS familiesJson",
-    "r.variant_family_key AS variantFamilyKey",
-    "r.variant_base_name AS variantBaseName",
-    "r.variant_label AS variantLabel",
-    "r.variant_axes_json AS variantAxesJson",
-    "r.variant_confidence AS variantConfidence",
-    "r.variant_source AS variantSource",
-    "r.source_path AS sourcePath",
-    "r.is_unique AS isUnique",
-    "r.is_search_canonical AS isSearchCanonical",
-    "a.size AS size",
-    "a.languages_json AS languagesJson",
-    "a.speed_types_json AS speedTypesJson",
-    "a.senses_json AS sensesJson",
-    "a.immunities_json AS immunitiesJson",
-    "a.resistances_json AS resistancesJson",
-    "a.weaknesses_json AS weaknessesJson",
-    "a.disable_text AS disableText",
-    "a.disable_skills_json AS disableSkillsJson",
-    "a.is_complex AS isComplex",
-    `COALESCE((
-      SELECT json_group_array(json_object(
-        'metricKey', am.metric_key,
-        'valueType', am.value_type,
-        'numberValue', am.number_value,
-        'textValue', am.text_value,
-        'boolValue', am.bool_value
-      ))
-      FROM actor_metrics am
-      WHERE am.record_key = r.record_key
-    ), '[]') AS actorMetricsJson`,
-    "i.item_category AS itemCategory",
-    "i.base_item AS baseItem",
-    "i.price_cp AS priceCp",
-    "i.bulk_value AS bulkValue",
-    "i.usage_text AS usage",
-    "i.hands AS hands",
-    `COALESCE((
-      SELECT json_group_array(json_object(
-        'metricKey', im.metric_key,
-        'valueType', im.value_type,
-        'numberValue', im.number_value,
-        'textValue', im.text_value,
-        'boolValue', im.bool_value
-      ))
-      FROM item_metrics im
-      WHERE im.record_key = r.record_key
-    ), '[]') AS itemMetricsJson`,
-    "COALESCE(s.damage_types_json, i.damage_types_json) AS damageTypesJson",
-    "i.weapon_group AS weaponGroup",
-    "i.armor_group AS armorGroup",
-    "COALESCE(s.action_cost, i.action_cost) AS actionCost",
-    "s.traditions_json AS traditionsJson",
-    "s.spell_kinds_json AS spellKindsJson",
-    "s.range_text AS rangeText",
-    "s.save_type AS saveType",
-    "s.area_type AS areaType",
-    "s.duration_text AS durationText",
-    "s.duration_unit AS durationUnit",
-    "s.target_text AS targetText",
-    "s.area_value AS areaValue",
-    "s.sustained AS sustained",
-    "s.basic_save AS basicSave",
-    "s.range_value AS rangeValue",
-  ];
+  const fields = buildSharedRecordSelectFields();
 
   if (includeRaw) {
     fields.push("r.raw_json AS rawJson");

@@ -9,6 +9,12 @@ import {
   normalizeItemMetricPrefix,
 } from "../domain/item-metrics.js";
 import {
+  getMetadataFieldSpec,
+  getMetadataRecordSelectClauses,
+  isMetadataFieldName,
+  type MetadataFilterValueSource,
+} from "../domain/metadata-field-registry.js";
+import {
   FilterValueQuery,
   NormalizedRecord,
   SearchCategory,
@@ -23,7 +29,7 @@ import {
   normalizeSearchSubcategory,
 } from "../domain/categories.js";
 import type { NormalizedSearchFilters, NormalizedSearchScope, SqlValue } from "../data/service-types.js";
-import { appendMetadataFilterClauses, buildFamiliesArraySql, recordMatchesMetadataFilter } from "./metadata-filters.js";
+import { appendMetadataFilterClauses, recordMatchesMetadataFilter } from "./metadata-filters.js";
 import { normalizeText, uniqueSorted } from "../utils.js";
 
 function appendWhereClause(sql: string[], params: SqlValue[], clause: string, ...values: SqlValue[]): void {
@@ -176,98 +182,55 @@ function applySearchFilterClauses(
   }, appendWhereClause);
 }
 
-export function buildCandidateQuery(
-  filters: NormalizedSearchFilters,
+const BASE_RECORD_SELECT_FIELDS = [
+  "r.record_key AS recordKey",
+  "r.id AS id",
+  "r.name AS name",
+  "r.normalized_name AS normalizedName",
+  "r.record_type AS type",
+  "r.category AS category",
+  "r.subcategory AS subcategory",
+  "r.pack_name AS packName",
+  "r.pack_label AS packLabel",
+  "r.document_type AS documentType",
+  "r.description_text AS descriptionText",
+  "r.description_snippet AS descriptionSnippet",
+  "r.folder_id AS folderId",
+  "r.variant_confidence AS variantConfidence",
+  "r.variant_source AS variantSource",
+  "r.source_path AS sourcePath",
+  "r.is_search_canonical AS isSearchCanonical",
+  `COALESCE((
+    SELECT json_group_array(json_object(
+      'metricKey', am.metric_key,
+      'valueType', am.value_type,
+      'numberValue', am.number_value,
+      'textValue', am.text_value,
+      'boolValue', am.bool_value
+    ))
+    FROM actor_metrics am
+    WHERE am.record_key = r.record_key
+  ), '[]') AS actorMetricsJson`,
+  `COALESCE((
+    SELECT json_group_array(json_object(
+      'metricKey', im.metric_key,
+      'valueType', im.value_type,
+      'numberValue', im.number_value,
+      'textValue', im.text_value,
+      'boolValue', im.bool_value
+    ))
+    FROM item_metrics im
+    WHERE im.record_key = r.record_key
+  ), '[]') AS itemMetricsJson`,
+] as const;
+
+export function buildSharedRecordSelectFields(
   includeSearchText = false,
   includeEmbedding = false,
-  options: { recordKeys?: string[] } = {},
-): { sql: string; params: SqlValue[] } {
+): string[] {
   const fields = [
-    "r.record_key AS recordKey",
-    "r.id AS id",
-    "r.name AS name",
-    "r.normalized_name AS normalizedName",
-    "r.record_type AS type",
-    "r.category AS category",
-    "r.subcategory AS subcategory",
-    "r.pack_name AS packName",
-    "r.pack_label AS packLabel",
-    "r.document_type AS documentType",
-    "r.level AS level",
-    "r.rarity AS rarity",
-    "r.traits_json AS traitsJson",
-    "r.derived_tags_json AS derivedTagsJson",
-    "r.publication_title AS publicationTitle",
-    "r.publication_remaster AS publicationRemaster",
-    "r.description_text AS descriptionText",
-    "r.has_description AS hasDescription",
-    "r.description_snippet AS descriptionSnippet",
-    "r.source_category AS sourceCategory",
-    "r.folder_id AS folderId",
-    "r.families_json AS familiesJson",
-    "r.variant_family_key AS variantFamilyKey",
-    "r.variant_base_name AS variantBaseName",
-    "r.variant_label AS variantLabel",
-    "r.variant_axes_json AS variantAxesJson",
-    "r.variant_confidence AS variantConfidence",
-    "r.variant_source AS variantSource",
-    "r.source_path AS sourcePath",
-    "r.is_unique AS isUnique",
-    "r.is_search_canonical AS isSearchCanonical",
-    "a.size AS size",
-    "a.languages_json AS languagesJson",
-    "a.speed_types_json AS speedTypesJson",
-    "a.senses_json AS sensesJson",
-    "a.immunities_json AS immunitiesJson",
-    "a.resistances_json AS resistancesJson",
-    "a.weaknesses_json AS weaknessesJson",
-    "a.disable_text AS disableText",
-    "a.disable_skills_json AS disableSkillsJson",
-    "a.is_complex AS isComplex",
-    `COALESCE((
-      SELECT json_group_array(json_object(
-        'metricKey', am.metric_key,
-        'valueType', am.value_type,
-        'numberValue', am.number_value,
-        'textValue', am.text_value,
-        'boolValue', am.bool_value
-      ))
-      FROM actor_metrics am
-      WHERE am.record_key = r.record_key
-    ), '[]') AS actorMetricsJson`,
-    "i.item_category AS itemCategory",
-    "i.base_item AS baseItem",
-    "i.price_cp AS priceCp",
-    "i.bulk_value AS bulkValue",
-    "i.usage_text AS usage",
-    "i.hands AS hands",
-    `COALESCE((
-      SELECT json_group_array(json_object(
-        'metricKey', im.metric_key,
-        'valueType', im.value_type,
-        'numberValue', im.number_value,
-        'textValue', im.text_value,
-        'boolValue', im.bool_value
-      ))
-      FROM item_metrics im
-      WHERE im.record_key = r.record_key
-    ), '[]') AS itemMetricsJson`,
-    "COALESCE(s.damage_types_json, i.damage_types_json) AS damageTypesJson",
-    "i.weapon_group AS weaponGroup",
-    "i.armor_group AS armorGroup",
-    "COALESCE(s.action_cost, i.action_cost) AS actionCost",
-    "s.traditions_json AS traditionsJson",
-    "s.spell_kinds_json AS spellKindsJson",
-    "s.range_text AS rangeText",
-    "s.save_type AS saveType",
-    "s.area_type AS areaType",
-    "s.duration_text AS durationText",
-    "s.duration_unit AS durationUnit",
-    "s.target_text AS targetText",
-    "s.area_value AS areaValue",
-    "s.sustained AS sustained",
-    "s.basic_save AS basicSave",
-    "s.range_value AS rangeValue",
+    ...BASE_RECORD_SELECT_FIELDS,
+    ...getMetadataRecordSelectClauses(),
   ];
 
   if (includeSearchText) {
@@ -277,6 +240,38 @@ export function buildCandidateQuery(
   if (includeEmbedding) {
     fields.push("e.vector_blob AS embeddingBlob");
   }
+
+  return fields;
+}
+
+function applyMetadataFilterValueSource(
+  field: FilterValueQuery["field"],
+  joins: string[],
+  postFilterClauses: string[],
+): MetadataFilterValueSource | null {
+  if (!isMetadataFieldName(field)) {
+    return null;
+  }
+
+  const source = getMetadataFieldSpec(field).buildFilterValueSource?.() ?? null;
+  if (!source) {
+    return null;
+  }
+
+  joins.push(...(source.joins ?? []));
+  if (source.nonEmptyClause) {
+    postFilterClauses.push(source.nonEmptyClause);
+  }
+  return source;
+}
+
+export function buildCandidateQuery(
+  filters: NormalizedSearchFilters,
+  includeSearchText = false,
+  includeEmbedding = false,
+  options: { recordKeys?: string[] } = {},
+): { sql: string; params: SqlValue[] } {
+  const fields = buildSharedRecordSelectFields(includeSearchText, includeEmbedding);
 
   const sql = [
     `SELECT ${fields.join(", ")}`,
@@ -320,20 +315,12 @@ export function buildFilterValueQuery(query: FilterValueQuery, filters: Normaliz
   const postFilterParams: SqlValue[] = [];
   let valueExpression = "";
 
-  switch (field) {
-    case "traits":
-      joins.push("JOIN record_traits rt ON rt.record_key = r.record_key");
-      valueExpression = "rt.trait";
-      break;
-    case "families":
-      joins.push(`JOIN json_each(${buildFamiliesArraySql("r")}) AS family`);
-      valueExpression = "LOWER(family.value)";
-      break;
-    case "derivedTags":
-      joins.push("JOIN record_derived_tags rdt ON rdt.record_key = r.record_key");
-      valueExpression = "rdt.tag";
-      break;
-    case "actorMetrics":
+  const metadataSource = applyMetadataFilterValueSource(field, joins, postFilterClauses);
+  if (metadataSource) {
+    valueExpression = metadataSource.valueExpression;
+  } else {
+    switch (field) {
+      case "actorMetrics":
       joins.push("JOIN actor_metrics am ON am.record_key = r.record_key");
       if (query.metric) {
         const normalizedMetric = normalizeActorMetricKey(query.metric);
@@ -361,7 +348,7 @@ export function buildFilterValueQuery(query: FilterValueQuery, filters: Normaliz
         }
       }
       break;
-    case "itemMetrics":
+      case "itemMetrics":
       joins.push("JOIN item_metrics im ON im.record_key = r.record_key");
       if (query.metric) {
         const normalizedMetric = normalizeItemMetricKey(query.metric);
@@ -389,152 +376,21 @@ export function buildFilterValueQuery(query: FilterValueQuery, filters: Normaliz
         }
       }
       break;
-    case "rarity":
-      valueExpression = "r.rarity";
-      postFilterClauses.push("AND r.rarity IS NOT NULL AND r.rarity <> ''");
-      break;
-    case "sourceCategory":
-      valueExpression = "r.source_category";
-      postFilterClauses.push("AND r.source_category IS NOT NULL AND r.source_category <> ''");
-      break;
-    case "size":
-      valueExpression = "a.size";
-      postFilterClauses.push("AND a.size IS NOT NULL AND a.size <> ''");
-      break;
-    case "publicationTitle":
-      valueExpression = "r.publication_title";
-      postFilterClauses.push("AND r.publication_title IS NOT NULL AND r.publication_title <> ''");
-      break;
-    case "traditions":
-      joins.push("JOIN json_each(COALESCE(s.traditions_json, '[]')) AS tradition");
-      valueExpression = "tradition.value";
-      break;
-    case "spellKinds":
-      joins.push("JOIN json_each(COALESCE(s.spell_kinds_json, '[]')) AS spell_kind");
-      valueExpression = "spell_kind.value";
-      break;
-    case "durationUnit":
-      valueExpression = "s.duration_unit";
-      postFilterClauses.push("AND s.duration_unit IS NOT NULL AND s.duration_unit <> ''");
-      break;
-    case "weaponGroup":
-      valueExpression = "i.weapon_group";
-      postFilterClauses.push("AND i.weapon_group IS NOT NULL AND i.weapon_group <> ''");
-      break;
-    case "armorGroup":
-      valueExpression = "i.armor_group";
-      postFilterClauses.push("AND i.armor_group IS NOT NULL AND i.armor_group <> ''");
-      break;
-    case "usage":
-      valueExpression = "i.usage_text";
-      postFilterClauses.push("AND i.usage_text IS NOT NULL AND i.usage_text <> ''");
-      break;
-    case "actionCost":
-      valueExpression = "CAST(COALESCE(s.action_cost, i.action_cost) AS TEXT)";
-      postFilterClauses.push("AND COALESCE(s.action_cost, i.action_cost) IS NOT NULL");
-      break;
-    case "hands":
-      valueExpression = "CAST(i.hands AS TEXT)";
-      postFilterClauses.push("AND i.hands IS NOT NULL");
-      break;
-    case "saveType":
-      valueExpression = "s.save_type";
-      postFilterClauses.push("AND s.save_type IS NOT NULL AND s.save_type <> ''");
-      break;
-    case "areaType":
-      valueExpression = "s.area_type";
-      postFilterClauses.push("AND s.area_type IS NOT NULL AND s.area_type <> ''");
-      break;
-    case "rangeValue":
-      valueExpression = "CASE WHEN s.range_value = CAST(s.range_value AS INTEGER) THEN CAST(CAST(s.range_value AS INTEGER) AS TEXT) ELSE CAST(s.range_value AS TEXT) END";
-      postFilterClauses.push("AND s.range_value IS NOT NULL");
-      break;
-    case "areaValue":
-      valueExpression = "CASE WHEN s.area_value = CAST(s.area_value AS INTEGER) THEN CAST(CAST(s.area_value AS INTEGER) AS TEXT) ELSE CAST(s.area_value AS TEXT) END";
-      postFilterClauses.push("AND s.area_value IS NOT NULL");
-      break;
-    case "sustained":
-      valueExpression = "CASE s.sustained WHEN 1 THEN 'true' ELSE 'false' END";
-      postFilterClauses.push("AND s.sustained IS NOT NULL");
-      break;
-    case "basicSave":
-      valueExpression = "CASE s.basic_save WHEN 1 THEN 'true' ELSE 'false' END";
-      postFilterClauses.push("AND s.basic_save IS NOT NULL");
-      break;
-    case "damageTypes":
-      joins.push("JOIN json_each(COALESCE(s.damage_types_json, i.damage_types_json, '[]')) AS damage_type");
-      valueExpression = "damage_type.value";
-      break;
-    case "languages":
-      joins.push("JOIN json_each(COALESCE(a.languages_json, '[]')) AS language");
-      valueExpression = "language.value";
-      break;
-    case "speedTypes":
-      joins.push("JOIN json_each(COALESCE(a.speed_types_json, '[]')) AS speed_type");
-      valueExpression = "speed_type.value";
-      break;
-    case "senses":
-      joins.push("JOIN json_each(COALESCE(a.senses_json, '[]')) AS sense");
-      valueExpression = "sense.value";
-      break;
-    case "immunities":
-      joins.push("JOIN json_each(COALESCE(a.immunities_json, '[]')) AS immunity");
-      valueExpression = "immunity.value";
-      break;
-    case "resistances":
-      joins.push("JOIN json_each(COALESCE(a.resistances_json, '[]')) AS resistance");
-      valueExpression = "resistance.value";
-      break;
-    case "weaknesses":
-      joins.push("JOIN json_each(COALESCE(a.weaknesses_json, '[]')) AS weakness");
-      valueExpression = "weakness.value";
-      break;
-    case "disableSkills":
-      joins.push("JOIN json_each(COALESCE(a.disable_skills_json, '[]')) AS disable_skill");
-      valueExpression = "disable_skill.value";
-      break;
-    case "variantAxes":
-      joins.push("JOIN json_each(COALESCE(r.variant_axes_json, '[]')) AS variant_axis");
-      valueExpression = "variant_axis.value";
-      break;
-    case "variantFamilyKey":
-      valueExpression = "r.variant_family_key";
-      postFilterClauses.push("AND r.variant_family_key IS NOT NULL AND r.variant_family_key <> ''");
-      break;
-    case "variantBaseName":
-      valueExpression = "r.variant_base_name";
-      postFilterClauses.push("AND r.variant_base_name IS NOT NULL AND r.variant_base_name <> ''");
-      break;
-    case "variantLabel":
-      valueExpression = "r.variant_label";
-      postFilterClauses.push("AND r.variant_label IS NOT NULL AND r.variant_label <> ''");
-      break;
-    case "isComplex":
-      valueExpression = "CASE a.is_complex WHEN 1 THEN 'true' ELSE 'false' END";
-      postFilterClauses.push("AND a.is_complex IS NOT NULL");
-      break;
-    case "itemCategory":
-      valueExpression = "i.item_category";
-      postFilterClauses.push("AND i.item_category IS NOT NULL AND i.item_category <> ''");
-      break;
-    case "baseItem":
-      valueExpression = "i.base_item";
-      postFilterClauses.push("AND i.base_item IS NOT NULL AND i.base_item <> ''");
-      break;
-    case "sources":
-      valueExpression = "r.source_category";
-      break;
-    case "categories":
-      valueExpression = "r.category";
-      break;
-    case "subcategories":
-      valueExpression = "r.subcategory";
-      postFilterClauses.push("AND r.subcategory IS NOT NULL AND r.subcategory <> ''");
-      break;
-    case "packs":
-      valueExpression = "r.pack_label";
-      postFilterClauses.push("AND r.pack_label IS NOT NULL AND r.pack_label <> ''");
-      break;
+      case "sources":
+        valueExpression = "r.source_category";
+        break;
+      case "categories":
+        valueExpression = "r.category";
+        break;
+      case "subcategories":
+        valueExpression = "r.subcategory";
+        postFilterClauses.push("AND r.subcategory IS NOT NULL AND r.subcategory <> ''");
+        break;
+      case "packs":
+        valueExpression = "r.pack_label";
+        postFilterClauses.push("AND r.pack_label IS NOT NULL AND r.pack_label <> ''");
+        break;
+    }
   }
 
   sql.push(`SELECT ${valueExpression} AS value, COUNT(*) AS count`);

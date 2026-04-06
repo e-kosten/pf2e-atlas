@@ -11,11 +11,15 @@ import {
   normalizeItemMetricKey,
 } from "../domain/item-metrics.js";
 import {
+  getMetadataFieldSpec,
+  isMetadataFieldName,
+  type MetadataFieldName,
+  type MetadataFieldSpecEntry,
+  type MetadataSqlSourceContext,
+  type MetadataValueNormalization,
+} from "../domain/metadata-field-registry.js";
+import {
   METADATA_BOOLEAN_FIELDS,
-  METADATA_ENUM_STRING_FIELDS,
-  METADATA_NUMBER_FIELDS,
-  METADATA_SET_FIELDS,
-  METADATA_TEXT_STRING_FIELDS,
   MetadataBooleanField,
   MetadataEnumStringField,
   MetadataFilterNode,
@@ -30,18 +34,8 @@ import { normalizeText } from "../utils.js";
 import type { SqlValue } from "../data/service-types.js";
 
 export type MetadataSqlContext = {
-  recordKeyExpr: string;
-  recordsAlias?: string;
-  actorAlias?: string;
-  itemAlias?: string;
-  spellAlias?: string;
-};
+} & MetadataSqlSourceContext;
 
-const METADATA_SET_FIELD_NAMES = new Set<string>(METADATA_SET_FIELDS);
-const METADATA_ENUM_STRING_FIELD_NAMES = new Set<string>(METADATA_ENUM_STRING_FIELDS);
-const METADATA_TEXT_STRING_FIELD_NAMES = new Set<string>(METADATA_TEXT_STRING_FIELDS);
-const METADATA_NUMBER_FIELD_NAMES = new Set<string>(METADATA_NUMBER_FIELDS);
-const METADATA_BOOLEAN_FIELD_NAMES = new Set<string>(METADATA_BOOLEAN_FIELDS);
 const ACTOR_METRIC_FIELD_NAMES = new Set<string>(["actorMetric", "actorMetricCompare"]);
 const ITEM_METRIC_FIELD_NAMES = new Set<string>(["itemMetric", "itemMetricCompare"]);
 
@@ -50,19 +44,25 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 }
 
 function normalizeMetadataValue(field: MetadataSetField | MetadataEnumStringField, value: string): string {
-  if (field === "derivedTags") {
-    return normalizeDerivedTag(value);
-  }
+  const spec = getMetadataFieldSpec(field as MetadataFieldName);
+  const normalization = spec.valueNormalization ?? inferMetadataValueNormalization(spec);
 
-  if (METADATA_ENUM_STRING_FIELD_NAMES.has(field)) {
-    return value.trim().toLowerCase();
+  switch (normalization) {
+    case "derivedTag":
+      return normalizeDerivedTag(value);
+    case "lowercaseTrim":
+      return value.trim().toLowerCase();
+    case "normalizedText":
+      return normalizeText(value);
   }
-
-  return normalizeText(value);
 }
 
 function normalizeMetadataTextMatchValue(value: string): string {
   return value.trim().toLowerCase();
+}
+
+function inferMetadataValueNormalization(spec: MetadataFieldSpecEntry): MetadataValueNormalization {
+  return spec.fieldType === "enumString" ? "lowercaseTrim" : "normalizedText";
 }
 
 function normalizeActorMetricName(metric: unknown, label: string): string {
@@ -289,7 +289,13 @@ export function normalizeMetadataFilterNode(node: MetadataFilterNode): MetadataF
     };
   }
 
-  if (METADATA_SET_FIELD_NAMES.has(field)) {
+  if (!isMetadataFieldName(field)) {
+    throw new Error(`Unknown metadata field "${field}".`);
+  }
+
+  const spec = getMetadataFieldSpec(field);
+
+  if (spec.fieldType === "set") {
     if (!["includesAny", "includesAll", "excludesAny"].includes(op)) {
       throw new Error(`Unsupported metadata operator "${op}" for set field "${field}".`);
     }
@@ -305,7 +311,7 @@ export function normalizeMetadataFilterNode(node: MetadataFilterNode): MetadataF
     };
   }
 
-  if (METADATA_ENUM_STRING_FIELD_NAMES.has(field)) {
+  if (spec.fieldType === "enumString") {
     if (op === "eq") {
       if (typeof raw.value !== "string") {
         throw new Error(`metadata predicate "${field}" with op "eq" requires a string value.`);
@@ -333,7 +339,7 @@ export function normalizeMetadataFilterNode(node: MetadataFilterNode): MetadataF
     throw new Error(`Unsupported metadata operator "${op}" for string field "${field}".`);
   }
 
-  if (METADATA_TEXT_STRING_FIELD_NAMES.has(field)) {
+  if (spec.fieldType === "text") {
     if (!["contains", "notContains"].includes(op) || typeof raw.value !== "string") {
       throw new Error(`metadata predicate "${field}" requires op "contains" or "notContains" with a string value.`);
     }
@@ -345,7 +351,7 @@ export function normalizeMetadataFilterNode(node: MetadataFilterNode): MetadataF
     };
   }
 
-  if (METADATA_NUMBER_FIELD_NAMES.has(field)) {
+  if (spec.fieldType === "number") {
     if (op === "between") {
       if (typeof raw.min !== "number" || !Number.isFinite(raw.min) || typeof raw.max !== "number" || !Number.isFinite(raw.max)) {
         throw new Error(`metadata predicate "${field}" with op "between" requires finite min and max numbers.`);
@@ -373,19 +379,15 @@ export function normalizeMetadataFilterNode(node: MetadataFilterNode): MetadataF
     };
   }
 
-  if (METADATA_BOOLEAN_FIELD_NAMES.has(field)) {
-    if (op !== "eq" || typeof raw.value !== "boolean") {
-      throw new Error(`metadata predicate "${field}" requires op "eq" with a boolean value.`);
-    }
-
-    return {
-      field: field as MetadataBooleanField,
-      op,
-      value: raw.value,
-    };
+  if (op !== "eq" || typeof raw.value !== "boolean") {
+    throw new Error(`metadata predicate "${field}" requires op "eq" with a boolean value.`);
   }
 
-  throw new Error(`Unknown metadata field "${field}".`);
+  return {
+    field: field as MetadataBooleanField,
+    op,
+    value: raw.value,
+  };
 }
 
 function buildActorMetricPredicateClause(
@@ -547,119 +549,20 @@ function buildScalarLookupSql(
   return alias ? `${alias}.${column}` : `(SELECT meta.${column} FROM ${table} meta WHERE meta.record_key = ${recordKeyExpr})`;
 }
 
-export function buildFamiliesArraySql(recordAlias: string): string {
-  return `COALESCE(${recordAlias}.families_json, '[]')`;
-}
-
 function buildMetadataJsonArraySql(context: MetadataSqlContext, field: MetadataSetField): string {
-  switch (field) {
-    case "families":
-      return context.recordsAlias ? buildFamiliesArraySql(context.recordsAlias) : `COALESCE((SELECT meta.families_json FROM records meta WHERE meta.record_key = ${context.recordKeyExpr}), '[]')`;
-    case "traditions":
-      return `COALESCE(${buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "traditions_json", "spell_records")}, '[]')`;
-    case "spellKinds":
-      return `COALESCE(${buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "spell_kinds_json", "spell_records")}, '[]')`;
-    case "damageTypes":
-      if (context.spellAlias || context.itemAlias) {
-        return `COALESCE(${context.spellAlias ?? "NULL"}.damage_types_json, ${context.itemAlias ?? "NULL"}.damage_types_json, '[]')`;
-      }
-      return `COALESCE((SELECT meta.damage_types_json FROM spell_records meta WHERE meta.record_key = ${context.recordKeyExpr}), (SELECT meta.damage_types_json FROM item_records meta WHERE meta.record_key = ${context.recordKeyExpr}), '[]')`;
-    case "languages":
-      return `COALESCE(${buildScalarLookupSql(context.recordKeyExpr, context.actorAlias, "languages_json", "actor_records")}, '[]')`;
-    case "speedTypes":
-      return `COALESCE(${buildScalarLookupSql(context.recordKeyExpr, context.actorAlias, "speed_types_json", "actor_records")}, '[]')`;
-    case "senses":
-      return `COALESCE(${buildScalarLookupSql(context.recordKeyExpr, context.actorAlias, "senses_json", "actor_records")}, '[]')`;
-    case "immunities":
-      return `COALESCE(${buildScalarLookupSql(context.recordKeyExpr, context.actorAlias, "immunities_json", "actor_records")}, '[]')`;
-    case "resistances":
-      return `COALESCE(${buildScalarLookupSql(context.recordKeyExpr, context.actorAlias, "resistances_json", "actor_records")}, '[]')`;
-    case "weaknesses":
-      return `COALESCE(${buildScalarLookupSql(context.recordKeyExpr, context.actorAlias, "weaknesses_json", "actor_records")}, '[]')`;
-    case "disableSkills":
-      return `COALESCE(${buildScalarLookupSql(context.recordKeyExpr, context.actorAlias, "disable_skills_json", "actor_records")}, '[]')`;
-    case "variantAxes":
-      return context.recordsAlias
-        ? `COALESCE(${context.recordsAlias}.variant_axes_json, '[]')`
-        : `COALESCE((SELECT meta.variant_axes_json FROM records meta WHERE meta.record_key = ${context.recordKeyExpr}), '[]')`;
-    default:
-      return "[]";
-  }
+  const spec = getMetadataFieldSpec(field as MetadataFieldName);
+  return spec.buildSqlExpression ? spec.buildSqlExpression(context) : "[]";
 }
 
 function buildMetadataScalarSqlExpression(
   context: MetadataSqlContext,
   field: MetadataEnumStringField | MetadataTextStringField | MetadataNumberField | MetadataBooleanField,
 ): string {
-  switch (field) {
-    case "sourceCategory":
-      return context.recordsAlias ? `${context.recordsAlias}.source_category` : `(SELECT meta.source_category FROM records meta WHERE meta.record_key = ${context.recordKeyExpr})`;
-    case "publicationTitle":
-      return context.recordsAlias ? `${context.recordsAlias}.publication_title` : `(SELECT meta.publication_title FROM records meta WHERE meta.record_key = ${context.recordKeyExpr})`;
-    case "rangeText":
-      return buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "range_text", "spell_records");
-    case "durationText":
-      return buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "duration_text", "spell_records");
-    case "targetText":
-      return buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "target_text", "spell_records");
-    case "disableText":
-      return buildScalarLookupSql(context.recordKeyExpr, context.actorAlias, "disable_text", "actor_records");
-    case "size":
-      return buildScalarLookupSql(context.recordKeyExpr, context.actorAlias, "size", "actor_records");
-    case "usage":
-      return buildScalarLookupSql(context.recordKeyExpr, context.itemAlias, "usage_text", "item_records");
-    case "weaponGroup":
-      return buildScalarLookupSql(context.recordKeyExpr, context.itemAlias, "weapon_group", "item_records");
-    case "armorGroup":
-      return buildScalarLookupSql(context.recordKeyExpr, context.itemAlias, "armor_group", "item_records");
-    case "itemCategory":
-      return buildScalarLookupSql(context.recordKeyExpr, context.itemAlias, "item_category", "item_records");
-    case "baseItem":
-      return buildScalarLookupSql(context.recordKeyExpr, context.itemAlias, "base_item", "item_records");
-    case "saveType":
-      return buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "save_type", "spell_records");
-    case "areaType":
-      return buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "area_type", "spell_records");
-    case "durationUnit":
-      return buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "duration_unit", "spell_records");
-    case "rarity":
-      return context.recordsAlias ? `${context.recordsAlias}.rarity` : `(SELECT meta.rarity FROM records meta WHERE meta.record_key = ${context.recordKeyExpr})`;
-    case "variantFamilyKey":
-      return context.recordsAlias ? `${context.recordsAlias}.variant_family_key` : `(SELECT meta.variant_family_key FROM records meta WHERE meta.record_key = ${context.recordKeyExpr})`;
-    case "variantBaseName":
-      return context.recordsAlias ? `${context.recordsAlias}.variant_base_name` : `(SELECT meta.variant_base_name FROM records meta WHERE meta.record_key = ${context.recordKeyExpr})`;
-    case "variantLabel":
-      return context.recordsAlias ? `${context.recordsAlias}.variant_label` : `(SELECT meta.variant_label FROM records meta WHERE meta.record_key = ${context.recordKeyExpr})`;
-    case "level":
-      return context.recordsAlias ? `${context.recordsAlias}.level` : `(SELECT meta.level FROM records meta WHERE meta.record_key = ${context.recordKeyExpr})`;
-    case "priceCp":
-      return buildScalarLookupSql(context.recordKeyExpr, context.itemAlias, "price_cp", "item_records");
-    case "bulkValue":
-      return buildScalarLookupSql(context.recordKeyExpr, context.itemAlias, "bulk_value", "item_records");
-    case "actionCost":
-      if (context.spellAlias || context.itemAlias) {
-        return `COALESCE(${context.spellAlias ?? "NULL"}.action_cost, ${context.itemAlias ?? "NULL"}.action_cost)`;
-      }
-      return `COALESCE((SELECT meta.action_cost FROM spell_records meta WHERE meta.record_key = ${context.recordKeyExpr}), (SELECT meta.action_cost FROM item_records meta WHERE meta.record_key = ${context.recordKeyExpr}))`;
-    case "hands":
-      return buildScalarLookupSql(context.recordKeyExpr, context.itemAlias, "hands", "item_records");
-    case "rangeValue":
-      return buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "range_value", "spell_records");
-    case "areaValue":
-      return buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "area_value", "spell_records");
-    case "isUnique":
-      return context.recordsAlias ? `${context.recordsAlias}.is_unique` : `(SELECT meta.is_unique FROM records meta WHERE meta.record_key = ${context.recordKeyExpr})`;
-    case "hasDescription":
-      return context.recordsAlias ? `${context.recordsAlias}.has_description` : `(SELECT meta.has_description FROM records meta WHERE meta.record_key = ${context.recordKeyExpr})`;
-    case "publicationRemaster":
-      return context.recordsAlias ? `${context.recordsAlias}.publication_remaster` : `(SELECT meta.publication_remaster FROM records meta WHERE meta.record_key = ${context.recordKeyExpr})`;
-    case "sustained":
-      return buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "sustained", "spell_records");
-    case "basicSave":
-      return buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "basic_save", "spell_records");
-    case "isComplex":
-      return buildScalarLookupSql(context.recordKeyExpr, context.actorAlias, "is_complex", "actor_records");
+  const spec = getMetadataFieldSpec(field as MetadataFieldName);
+  if (!spec.buildSqlExpression) {
+    throw new Error(`Metadata field "${field}" does not provide a SQL expression.`);
   }
+  return spec.buildSqlExpression(context);
 }
 
 function buildMetadataSetPredicateClause(
@@ -727,12 +630,13 @@ function buildMetadataPredicateClause(
     return buildItemMetricCompareClause(predicate, context);
   }
 
-  if (METADATA_SET_FIELD_NAMES.has(predicate.field)) {
+  const spec = getMetadataFieldSpec(predicate.field as MetadataFieldName);
+  if (spec.fieldType === "set") {
     const setPredicate = predicate as Extract<MetadataPredicate, { field: MetadataSetField }>;
     return buildMetadataSetPredicateClause(setPredicate.field, setPredicate.op, setPredicate.values, context);
   }
 
-  if (METADATA_ENUM_STRING_FIELD_NAMES.has(predicate.field)) {
+  if (spec.fieldType === "enumString") {
     const stringPredicate = predicate as Extract<MetadataPredicate, { field: MetadataEnumStringField }>;
     const expression = buildMetadataScalarSqlExpression(context, stringPredicate.field);
     if (stringPredicate.op === "eq") {
@@ -749,7 +653,7 @@ function buildMetadataPredicateClause(
     };
   }
 
-  if (METADATA_TEXT_STRING_FIELD_NAMES.has(predicate.field)) {
+  if (spec.fieldType === "text") {
     const textPredicate = predicate as Extract<MetadataPredicate, { field: MetadataTextStringField }>;
     const expression = buildMetadataScalarSqlExpression(context, textPredicate.field);
     return {
@@ -758,7 +662,7 @@ function buildMetadataPredicateClause(
     };
   }
 
-  if (METADATA_NUMBER_FIELD_NAMES.has(predicate.field)) {
+  if (spec.fieldType === "number") {
     const numberPredicate = predicate as Extract<MetadataPredicate, { field: MetadataNumberField }>;
     const expression = buildMetadataScalarSqlExpression(context, numberPredicate.field);
     if (numberPredicate.op === "between") {
@@ -830,115 +734,23 @@ export function appendMetadataFilterClauses(
 }
 
 function getRecordSetValues(record: NormalizedRecord, field: MetadataSetField): string[] {
-  switch (field) {
-    case "traits":
-      return record.traits;
-    case "families":
-      return record.families;
-    case "derivedTags":
-      return record.derivedTags;
-    case "traditions":
-      return record.traditions;
-    case "spellKinds":
-      return record.spellKinds;
-    case "damageTypes":
-      return record.damageTypes;
-    case "languages":
-      return record.languages;
-    case "speedTypes":
-      return record.speedTypes;
-    case "senses":
-      return record.senses;
-    case "immunities":
-      return record.immunities;
-    case "resistances":
-      return record.resistances;
-    case "weaknesses":
-      return record.weaknesses;
-    case "disableSkills":
-      return record.disableSkills;
-    case "variantAxes":
-      return record.variantAxes;
-  }
+  const spec = getMetadataFieldSpec(field as MetadataFieldName);
+  return record[spec.recordProperty] as string[];
 }
 
 function getRecordStringValue(record: NormalizedRecord, field: MetadataEnumStringField | MetadataTextStringField): string | null {
-  switch (field) {
-    case "sourceCategory":
-      return record.sourceCategory;
-    case "publicationTitle":
-      return record.publicationTitle;
-    case "rangeText":
-      return record.rangeText;
-    case "durationText":
-      return record.durationText;
-    case "targetText":
-      return record.targetText;
-    case "disableText":
-      return record.disableText;
-    case "size":
-      return record.size;
-    case "usage":
-      return record.usage;
-    case "weaponGroup":
-      return record.weaponGroup;
-    case "armorGroup":
-      return record.armorGroup;
-    case "itemCategory":
-      return record.itemCategory;
-    case "baseItem":
-      return record.baseItem;
-    case "saveType":
-      return record.saveType;
-    case "areaType":
-      return record.areaType;
-    case "durationUnit":
-      return record.durationUnit;
-    case "rarity":
-      return record.rarity;
-    case "variantFamilyKey":
-      return record.variantFamilyKey;
-    case "variantBaseName":
-      return record.variantBaseName;
-    case "variantLabel":
-      return record.variantLabel;
-  }
+  const spec = getMetadataFieldSpec(field as MetadataFieldName);
+  return record[spec.recordProperty] as string | null;
 }
 
 function getRecordNumberValue(record: NormalizedRecord, field: MetadataNumberField): number | null {
-  switch (field) {
-    case "level":
-      return record.level;
-    case "priceCp":
-      return record.priceCp;
-    case "bulkValue":
-      return record.bulkValue;
-    case "actionCost":
-      return record.actionCost;
-    case "hands":
-      return record.hands;
-    case "rangeValue":
-      return record.rangeValue;
-    case "areaValue":
-      return record.areaValue;
-  }
+  const spec = getMetadataFieldSpec(field as MetadataFieldName);
+  return record[spec.recordProperty] as number | null;
 }
 
 function getRecordBooleanValue(record: NormalizedRecord, field: MetadataBooleanField): boolean {
-  switch (field) {
-    case "isUnique":
-      return record.isUnique;
-    case "hasDescription":
-      return record.hasDescription;
-    case "publicationRemaster":
-      return record.publicationRemaster;
-    case "sustained":
-      return record.sustained;
-    case "basicSave":
-      return record.basicSave;
-    case "isComplex":
-      return record.isComplex;
-  }
+  const spec = getMetadataFieldSpec(field as MetadataFieldName);
+  return record[spec.recordProperty] as boolean;
 }
 
 function compareActorMetricValues(left: ActorMetricValue, op: "==" | "!=" | ">" | ">=" | "<" | "<=", right: ActorMetricValue): boolean {
@@ -1019,7 +831,9 @@ export function recordMatchesMetadataFilter(record: NormalizedRecord, node: Meta
     return compareActorMetricValues(leftValue, node.op, rightValue);
   }
 
-  if (METADATA_SET_FIELD_NAMES.has(node.field)) {
+  const spec = getMetadataFieldSpec(node.field as MetadataFieldName);
+
+  if (spec.fieldType === "set") {
     const setPredicate = node as Extract<MetadataPredicate, { field: MetadataSetField }>;
     const normalizedValues = new Set(getRecordSetValues(record, setPredicate.field).map((value) => normalizeMetadataValue(setPredicate.field, value)).filter(Boolean));
     if (setPredicate.op === "includesAll") {
@@ -1031,7 +845,7 @@ export function recordMatchesMetadataFilter(record: NormalizedRecord, node: Meta
     return !setPredicate.values.some((value) => normalizedValues.has(value));
   }
 
-  if (METADATA_ENUM_STRING_FIELD_NAMES.has(node.field)) {
+  if (spec.fieldType === "enumString") {
     const stringPredicate = node as Extract<MetadataPredicate, { field: MetadataEnumStringField }>;
     const normalizedValue = normalizeMetadataValue(stringPredicate.field, getRecordStringValue(record, stringPredicate.field) ?? "");
     if (stringPredicate.op === "eq") {
@@ -1043,7 +857,7 @@ export function recordMatchesMetadataFilter(record: NormalizedRecord, node: Meta
     return !stringPredicate.values.includes(normalizedValue);
   }
 
-  if (METADATA_TEXT_STRING_FIELD_NAMES.has(node.field)) {
+  if (spec.fieldType === "text") {
     const textPredicate = node as Extract<MetadataPredicate, { field: MetadataTextStringField }>;
     const normalizedValue = normalizeMetadataTextMatchValue(getRecordStringValue(record, textPredicate.field) ?? "");
     return textPredicate.op === "contains"
@@ -1051,7 +865,7 @@ export function recordMatchesMetadataFilter(record: NormalizedRecord, node: Meta
       : !normalizedValue.includes(textPredicate.value);
   }
 
-  if (METADATA_NUMBER_FIELD_NAMES.has(node.field)) {
+  if (spec.fieldType === "number") {
     const numberPredicate = node as Extract<MetadataPredicate, { field: MetadataNumberField }>;
     const numericValue = getRecordNumberValue(record, numberPredicate.field);
     if (numericValue === null) {

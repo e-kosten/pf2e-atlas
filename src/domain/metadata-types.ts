@@ -1,3 +1,8 @@
+import {
+  METADATA_FIELD_REGISTRY,
+  type MetadataFieldName,
+  type MetadataFieldType,
+} from "./metadata-field-registry.js";
 import type {
   ActorMetricNumericOperator,
   ActorMetricScalarOperator,
@@ -7,76 +12,31 @@ import type {
   ItemMetricScalarOperator,
 } from "./item-metrics.js";
 
-export const METADATA_SET_FIELDS = [
-  "traits",
-  "families",
-  "derivedTags",
-  "traditions",
-  "spellKinds",
-  "damageTypes",
-  "languages",
-  "speedTypes",
-  "senses",
-  "immunities",
-  "resistances",
-  "weaknesses",
-  "disableSkills",
-  "variantAxes",
-] as const;
+type MetadataFieldNameByType<FieldType extends MetadataFieldType> =
+  Extract<(typeof METADATA_FIELD_REGISTRY)[number], { fieldType: FieldType }>["field"];
 
-export type MetadataSetField = (typeof METADATA_SET_FIELDS)[number];
+function fieldNamesForType<FieldType extends MetadataFieldType>(
+  fieldType: FieldType,
+): MetadataFieldNameByType<FieldType>[] {
+  return METADATA_FIELD_REGISTRY
+    .filter((entry): entry is Extract<(typeof METADATA_FIELD_REGISTRY)[number], { fieldType: FieldType }> => entry.fieldType === fieldType)
+    .map((entry) => entry.field) as MetadataFieldNameByType<FieldType>[];
+}
 
-export const METADATA_ENUM_STRING_FIELDS = [
-  "sourceCategory",
-  "size",
-  "usage",
-  "weaponGroup",
-  "armorGroup",
-  "itemCategory",
-  "baseItem",
-  "saveType",
-  "areaType",
-  "durationUnit",
-  "rarity",
-  "variantFamilyKey",
-] as const;
+export const METADATA_SET_FIELDS = fieldNamesForType("set");
+export type MetadataSetField = MetadataFieldNameByType<"set">;
 
-export type MetadataEnumStringField = (typeof METADATA_ENUM_STRING_FIELDS)[number];
+export const METADATA_ENUM_STRING_FIELDS = fieldNamesForType("enumString");
+export type MetadataEnumStringField = MetadataFieldNameByType<"enumString">;
 
-export const METADATA_TEXT_STRING_FIELDS = [
-  "publicationTitle",
-  "rangeText",
-  "durationText",
-  "targetText",
-  "disableText",
-  "variantBaseName",
-  "variantLabel",
-] as const;
+export const METADATA_TEXT_STRING_FIELDS = fieldNamesForType("text");
+export type MetadataTextStringField = MetadataFieldNameByType<"text">;
 
-export type MetadataTextStringField = (typeof METADATA_TEXT_STRING_FIELDS)[number];
+export const METADATA_NUMBER_FIELDS = fieldNamesForType("number");
+export type MetadataNumberField = MetadataFieldNameByType<"number">;
 
-export const METADATA_NUMBER_FIELDS = [
-  "level",
-  "priceCp",
-  "bulkValue",
-  "actionCost",
-  "hands",
-  "rangeValue",
-  "areaValue",
-] as const;
-
-export type MetadataNumberField = (typeof METADATA_NUMBER_FIELDS)[number];
-
-export const METADATA_BOOLEAN_FIELDS = [
-  "isUnique",
-  "hasDescription",
-  "publicationRemaster",
-  "sustained",
-  "basicSave",
-  "isComplex",
-] as const;
-
-export type MetadataBooleanField = (typeof METADATA_BOOLEAN_FIELDS)[number];
+export const METADATA_BOOLEAN_FIELDS = fieldNamesForType("boolean");
+export type MetadataBooleanField = MetadataFieldNameByType<"boolean">;
 
 export type MetadataSetOperator = "includesAny" | "includesAll" | "excludesAny";
 export type MetadataEnumStringOperator = "eq" | "in" | "notIn";

@@ -7,50 +7,22 @@ import {
 import {
   ITEM_METRIC_DISCOVERY_NAMESPACES,
 } from "./item-metrics.js";
-import { DERIVED_TAG_CATALOG } from "../tags/index.js";
 import {
-  FILTER_VALUE_FIELDS,
-  METADATA_BOOLEAN_FIELDS,
-  METADATA_ENUM_STRING_FIELDS,
-  METADATA_NUMBER_FIELDS,
-  METADATA_SET_FIELDS,
-  METADATA_TEXT_STRING_FIELDS,
-  MetadataBooleanField,
-  MetadataBooleanOperator,
-  MetadataEnumStringField,
-  MetadataEnumStringOperator,
+  METADATA_FIELD_KIND_OPERATORS,
+  METADATA_FIELD_REGISTRY,
+  type MetadataFieldName,
+  type MetadataFieldType,
+} from "./metadata-field-registry.js";
+import {
   MetadataFilterNode,
-  MetadataNumberField,
-  MetadataNumberOperator,
-  MetadataSetField,
-  MetadataSetOperator,
-  MetadataTextStringField,
-  MetadataTextStringOperator,
   SearchCategory,
   SearchSubcategory,
 } from "../types.js";
 
-type MetadataFieldName =
-  | MetadataSetField
-  | MetadataEnumStringField
-  | MetadataTextStringField
-  | MetadataNumberField
-  | MetadataBooleanField;
-
-type MetadataFieldType = "set" | "enumString" | "text" | "number" | "boolean";
-
-type MetadataFieldOperators = readonly (
-  | MetadataSetOperator
-  | MetadataEnumStringOperator
-  | MetadataTextStringOperator
-  | MetadataNumberOperator
-  | MetadataBooleanOperator
-)[];
-
 export interface MetadataFieldSemantics {
   field: MetadataFieldName;
   fieldType: MetadataFieldType;
-  operators: MetadataFieldOperators;
+  operators: readonly string[];
   categories: SearchCategory[];
   subcategories?: SearchSubcategory[];
   discoverable: boolean;
@@ -101,380 +73,8 @@ export interface MetadataFilterSemantics {
   };
 }
 
-const SET_OPERATORS = ["includesAny", "includesAll", "excludesAny"] as const;
-const ENUM_STRING_OPERATORS = ["eq", "in", "notIn"] as const;
-const TEXT_OPERATORS = ["contains", "notContains"] as const;
-const NUMBER_OPERATORS = ["eq", "gte", "lte", "between"] as const;
-const BOOLEAN_OPERATORS = ["eq"] as const;
-
-const ALL_CATEGORIES = [...SEARCH_CATEGORIES];
-const CREATURE_ONLY: SearchCategory[] = ["creature"];
-const CREATURE_AND_HAZARD: SearchCategory[] = ["creature", "hazard"];
 const ACTOR_METRIC_CATEGORIES: SearchCategory[] = ["creature", "hazard"];
 const EQUIPMENT_ONLY: SearchCategory[] = ["equipment"];
-const SPELL_ONLY: SearchCategory[] = ["spell"];
-const EQUIPMENT_AND_SPELL: SearchCategory[] = ["equipment", "spell"];
-const DERIVED_TAG_CATEGORY_SET = new Set<SearchCategory>(DERIVED_TAG_CATALOG.map((entry) => entry.category));
-const DERIVED_TAG_CATEGORIES: SearchCategory[] = SEARCH_CATEGORIES.filter((category) => DERIVED_TAG_CATEGORY_SET.has(category));
-
-const METADATA_FIELD_NAME_SET = new Set<MetadataFieldName>([
-  ...METADATA_SET_FIELDS,
-  ...METADATA_ENUM_STRING_FIELDS,
-  ...METADATA_TEXT_STRING_FIELDS,
-  ...METADATA_NUMBER_FIELDS,
-  ...METADATA_BOOLEAN_FIELDS,
-]);
-
-const DISCOVERABLE_METADATA_FIELDS = new Set<MetadataFieldName>(
-  FILTER_VALUE_FIELDS.filter((field) => METADATA_FIELD_NAME_SET.has(field as MetadataFieldName)) as MetadataFieldName[],
-);
-
-const METADATA_FIELD_REGISTRY: MetadataFieldSemantics[] = [
-  {
-    field: "traits",
-    fieldType: "set",
-    operators: SET_OPERATORS,
-    categories: ALL_CATEGORIES,
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("traits"),
-    notes: "Cross-category trait facet. Use category or subcategory boundaries before trait predicates.",
-  },
-  {
-    field: "families",
-    fieldType: "set",
-    operators: SET_OPERATORS,
-    categories: CREATURE_ONLY,
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("families"),
-    notes: "Creature family facet derived from PF2E family glossary references.",
-  },
-  {
-    field: "derivedTags",
-    fieldType: "set",
-    operators: SET_OPERATORS,
-    categories: DERIVED_TAG_CATEGORIES,
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("derivedTags"),
-    notes: "Curated heuristic tags. Supported for categories with explicit derived-tag ontology coverage.",
-  },
-  {
-    field: "traditions",
-    fieldType: "set",
-    operators: SET_OPERATORS,
-    categories: SPELL_ONLY,
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("traditions"),
-  },
-  {
-    field: "spellKinds",
-    fieldType: "set",
-    operators: SET_OPERATORS,
-    categories: SPELL_ONLY,
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("spellKinds"),
-  },
-  {
-    field: "damageTypes",
-    fieldType: "set",
-    operators: SET_OPERATORS,
-    categories: EQUIPMENT_AND_SPELL,
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("damageTypes"),
-    notes: "Available for spells and item records with typed damage payloads.",
-  },
-  {
-    field: "languages",
-    fieldType: "set",
-    operators: SET_OPERATORS,
-    categories: CREATURE_ONLY,
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("languages"),
-  },
-  {
-    field: "speedTypes",
-    fieldType: "set",
-    operators: SET_OPERATORS,
-    categories: CREATURE_ONLY,
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("speedTypes"),
-  },
-  {
-    field: "senses",
-    fieldType: "set",
-    operators: SET_OPERATORS,
-    categories: CREATURE_ONLY,
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("senses"),
-    notes: "Creature sense types such as darkvision, low light vision, or scent.",
-  },
-  {
-    field: "immunities",
-    fieldType: "set",
-    operators: SET_OPERATORS,
-    categories: CREATURE_AND_HAZARD,
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("immunities"),
-  },
-  {
-    field: "resistances",
-    fieldType: "set",
-    operators: SET_OPERATORS,
-    categories: CREATURE_AND_HAZARD,
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("resistances"),
-  },
-  {
-    field: "weaknesses",
-    fieldType: "set",
-    operators: SET_OPERATORS,
-    categories: CREATURE_AND_HAZARD,
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("weaknesses"),
-  },
-  {
-    field: "disableSkills",
-    fieldType: "set",
-    operators: SET_OPERATORS,
-    categories: ["hazard"],
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("disableSkills"),
-    notes: "Structured hazard disable skills parsed from disable text when PF2E markup provides a clear anchor.",
-  },
-  {
-    field: "variantAxes",
-    fieldType: "set",
-    operators: SET_OPERATORS,
-    categories: ["equipment", "spell"],
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("variantAxes"),
-    notes: "Normalized variant-family axes such as rank, grade, or specialization.",
-  },
-  {
-    field: "sourceCategory",
-    fieldType: "enumString",
-    operators: ENUM_STRING_OPERATORS,
-    categories: ALL_CATEGORIES,
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("sourceCategory"),
-    notes: "Normalized source bucket such as core, rules, or adventure.",
-  },
-  {
-    field: "size",
-    fieldType: "enumString",
-    operators: ENUM_STRING_OPERATORS,
-    categories: CREATURE_ONLY,
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("size"),
-  },
-  {
-    field: "usage",
-    fieldType: "enumString",
-    operators: ENUM_STRING_OPERATORS,
-    categories: EQUIPMENT_ONLY,
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("usage"),
-  },
-  {
-    field: "weaponGroup",
-    fieldType: "enumString",
-    operators: ENUM_STRING_OPERATORS,
-    categories: EQUIPMENT_ONLY,
-    subcategories: ["weapon"],
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("weaponGroup"),
-  },
-  {
-    field: "armorGroup",
-    fieldType: "enumString",
-    operators: ENUM_STRING_OPERATORS,
-    categories: EQUIPMENT_ONLY,
-    subcategories: ["armor"],
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("armorGroup"),
-  },
-  {
-    field: "itemCategory",
-    fieldType: "enumString",
-    operators: ENUM_STRING_OPERATORS,
-    categories: EQUIPMENT_ONLY,
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("itemCategory"),
-    notes: "Item-native family/category metadata. Pair with subcategory boundaries for better precision.",
-  },
-  {
-    field: "baseItem",
-    fieldType: "enumString",
-    operators: ENUM_STRING_OPERATORS,
-    categories: EQUIPMENT_ONLY,
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("baseItem"),
-    notes: "Foundry base item chassis metadata for equipment records such as longsword, wooden-shield, or alchemical-bomb.",
-  },
-  {
-    field: "saveType",
-    fieldType: "enumString",
-    operators: ENUM_STRING_OPERATORS,
-    categories: SPELL_ONLY,
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("saveType"),
-    notes: "Spell defense save statistic such as fortitude, reflex, or will.",
-  },
-  {
-    field: "areaType",
-    fieldType: "enumString",
-    operators: ENUM_STRING_OPERATORS,
-    categories: SPELL_ONLY,
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("areaType"),
-    notes: "Spell area shape such as burst, line, emanation, or cone.",
-  },
-  {
-    field: "durationUnit",
-    fieldType: "enumString",
-    operators: ENUM_STRING_OPERATORS,
-    categories: SPELL_ONLY,
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("durationUnit"),
-    notes: "Conservatively derived spell duration unit such as round, minute, hour, or permanent.",
-  },
-  {
-    field: "rarity",
-    fieldType: "enumString",
-    operators: ENUM_STRING_OPERATORS,
-    categories: ALL_CATEGORIES,
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("rarity"),
-    notes: "Also available as a top-level filter for the common common/uncommon/rare/unique boundary.",
-  },
-  {
-    field: "variantFamilyKey",
-    fieldType: "enumString",
-    operators: ENUM_STRING_OPERATORS,
-    categories: ["equipment", "spell"],
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("variantFamilyKey"),
-    notes: "Stable internal family key for page-variant siblings.",
-  },
-  {
-    field: "publicationTitle",
-    fieldType: "text",
-    operators: TEXT_OPERATORS,
-    categories: ALL_CATEGORIES,
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("publicationTitle"),
-  },
-  {
-    field: "rangeText",
-    fieldType: "text",
-    operators: TEXT_OPERATORS,
-    categories: SPELL_ONLY,
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("rangeText"),
-  },
-  {
-    field: "durationText",
-    fieldType: "text",
-    operators: TEXT_OPERATORS,
-    categories: SPELL_ONLY,
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("durationText"),
-  },
-  {
-    field: "targetText",
-    fieldType: "text",
-    operators: TEXT_OPERATORS,
-    categories: SPELL_ONLY,
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("targetText"),
-  },
-  {
-    field: "disableText",
-    fieldType: "text",
-    operators: TEXT_OPERATORS,
-    categories: ["hazard"],
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("disableText"),
-  },
-  {
-    field: "variantBaseName",
-    fieldType: "text",
-    operators: TEXT_OPERATORS,
-    categories: ["equipment", "spell"],
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("variantBaseName"),
-    notes: "Human-readable shared family name for item or spell variants.",
-  },
-  {
-    field: "variantLabel",
-    fieldType: "text",
-    operators: TEXT_OPERATORS,
-    categories: ["equipment", "spell"],
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("variantLabel"),
-    notes: "Per-record label inside a detected variant family, such as Greater or 4th-Rank.",
-  },
-  {
-    field: "level",
-    fieldType: "number",
-    operators: NUMBER_OPERATORS,
-    categories: ALL_CATEGORIES,
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("level"),
-    notes: "Also available via top-level levelMin and levelMax.",
-  },
-  {
-    field: "priceCp",
-    fieldType: "number",
-    operators: NUMBER_OPERATORS,
-    categories: EQUIPMENT_ONLY,
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("priceCp"),
-    notes: "Also available via top-level priceMin and priceMax.",
-  },
-  {
-    field: "bulkValue",
-    fieldType: "number",
-    operators: NUMBER_OPERATORS,
-    categories: EQUIPMENT_ONLY,
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("bulkValue"),
-  },
-  {
-    field: "actionCost",
-    fieldType: "number",
-    operators: NUMBER_OPERATORS,
-    categories: ["equipment", "spell", "rule"],
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("actionCost"),
-    notes: "Also available as a top-level filter.",
-  },
-  {
-    field: "hands",
-    fieldType: "number",
-    operators: NUMBER_OPERATORS,
-    categories: EQUIPMENT_ONLY,
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("hands"),
-  },
-  {
-    field: "rangeValue",
-    fieldType: "number",
-    operators: NUMBER_OPERATORS,
-    categories: SPELL_ONLY,
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("rangeValue"),
-  },
-  {
-    field: "areaValue",
-    fieldType: "number",
-    operators: NUMBER_OPERATORS,
-    categories: SPELL_ONLY,
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("areaValue"),
-  },
-  {
-    field: "isUnique",
-    fieldType: "boolean",
-    operators: BOOLEAN_OPERATORS,
-    categories: ALL_CATEGORIES,
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("isUnique"),
-  },
-  {
-    field: "hasDescription",
-    fieldType: "boolean",
-    operators: BOOLEAN_OPERATORS,
-    categories: ALL_CATEGORIES,
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("hasDescription"),
-  },
-  {
-    field: "publicationRemaster",
-    fieldType: "boolean",
-    operators: BOOLEAN_OPERATORS,
-    categories: ALL_CATEGORIES,
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("publicationRemaster"),
-  },
-  {
-    field: "sustained",
-    fieldType: "boolean",
-    operators: BOOLEAN_OPERATORS,
-    categories: SPELL_ONLY,
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("sustained"),
-  },
-  {
-    field: "basicSave",
-    fieldType: "boolean",
-    operators: BOOLEAN_OPERATORS,
-    categories: SPELL_ONLY,
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("basicSave"),
-  },
-  {
-    field: "isComplex",
-    fieldType: "boolean",
-    operators: BOOLEAN_OPERATORS,
-    categories: ["hazard"],
-    discoverable: DISCOVERABLE_METADATA_FIELDS.has("isComplex"),
-  },
-];
 
 const BOOLEAN_GROUPS = {
   and: "Requires every child predicate or group to match. Must contain at least 2 child nodes.",
@@ -679,10 +279,13 @@ function buildFieldsByCategoryAndSubcategory(
 
 export function getMetadataFieldSemantics(): MetadataFieldSemantics[] {
   return METADATA_FIELD_REGISTRY.map((entry) => ({
-    ...entry,
+    field: entry.field,
+    fieldType: entry.fieldType,
+    operators: [...METADATA_FIELD_KIND_OPERATORS[entry.fieldType]],
     categories: [...entry.categories],
     subcategories: entry.subcategories ? [...entry.subcategories] : undefined,
-    operators: [...entry.operators],
+    discoverable: Boolean(entry.discoverable),
+    notes: entry.notes,
   }));
 }
 
