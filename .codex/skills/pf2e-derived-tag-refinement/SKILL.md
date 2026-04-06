@@ -51,6 +51,7 @@ Default to this skill when any of these are true:
    - Run `npm run analyze-derived-tag-evidence -- --category <category> --tag <tag> ...` to surface repeated normalized anchors and reference features for the current positives.
    - Run `npm run evaluate-derived-tags -- --tag <tag> ...` to inspect likely false negatives and semantically adjacent misses.
    - Run `npm run discover-ruleable-cohorts -- --category <category> --tag <tag> ...` when the issue may actually be a mixed cohort, weak anchor family, or under-split concept rather than a simple threshold problem.
+   - If the current tag appears to be standing in for a broader missing category concept, run `npm run discover-untagged-cohorts -- --category <category> ...` on the surrounding slice before narrowing the final rule tweak.
    Target the specific tag under refinement and inspect likely false negatives, semantically adjacent misses, and records that suggest the same false-positive class.
    Before or after the rule edit when live movement matters, compare index snapshots with:
    - `npm run evaluate-derived-tag-movement -- --baseline-index-path /path/to/before.sqlite --category <category> --tags <tag1,tag2,...> --warn-category-drop-points <points> --warn-tag-drop-count <count> --warn-tag-drop-points <points> --sample-limit <n>`

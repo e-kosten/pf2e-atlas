@@ -52,8 +52,9 @@ Default to this skill when any of these are true:
    - one medium-size category pass that materially improves an under-modeled category even if no new family is needed
    When comparing multiple categories, prefer the category whose likely batch looks both meaningful and internally coherent, even if another category has slightly lower coverage.
 5. Start with deterministic discovery before asking an LLM to synthesize rule ideas.
-   - First run `npm run analyze-derived-tag-evidence -- --category <category> ...` on the untagged or seed-defined slice to surface repeated normalized tokens, phrases, traits, and reference features.
-   - Then run `npm run discover-ruleable-cohorts -- --category <category> ...` or `npm run cluster-derived-tag-candidates -- --category <category> ...` to group semantically adjacent records into evidence-backed cohorts.
+   - For broad seedless category discovery, first run `npm run discover-untagged-cohorts -- --category <category> ...` on the untagged slice to surface ruleable cohorts before choosing exemplars.
+   - Then run `npm run analyze-derived-tag-evidence -- --category <category> ...` on the untagged or cohort-defined slice to surface repeated normalized tokens, phrases, traits, and reference features.
+   - Then run `npm run discover-ruleable-cohorts -- --category <category> ...` or `npm run cluster-derived-tag-candidates -- --category <category> ...` when you already have an existing tag or a seed set and want tighter cohort expansion around it.
    - If the concept already exists as a derived tag, run `npm run evaluate-derived-tags -- --tag <derived_tag> ...` to inspect likely false negatives and anchor patterns within the missed records.
    - If the concept does not exist yet, seed it with exemplars and run `npm run cluster-derived-tag-candidates -- --category <category> --name <record> ...`.
    - Preserve a baseline index snapshot before expansion and compare it after the rebuild with:
@@ -122,6 +123,8 @@ Default to this skill when any of these are true:
 
 Use deterministic discovery first when you need to mine a sparse or untagged slice.
 
+- Seedless category scan:
+  `npm run discover-untagged-cohorts -- --category equipment --subcategory gear --cohort-limit 8 --anchor-limit 16`
 - Cohort evidence example:
   `npm run analyze-derived-tag-evidence -- --category equipment --subcategory gear --untagged --limit 8`
 - Ruleability report for an existing tag:

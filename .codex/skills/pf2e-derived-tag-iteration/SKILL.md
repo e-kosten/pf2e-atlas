@@ -36,6 +36,7 @@ Use these as preferred regression seeds when they fit the slice:
 If the request genuinely mixes both:
 1. Run a category audit first.
 2. Run deterministic discovery on the likely slice before proposing rules:
+   - `npm run discover-untagged-cohorts -- --category <category> ...`
    - `npm run analyze-derived-tag-evidence -- --category <category> ...`
    - `npm run discover-ruleable-cohorts -- --category <category> ...`
 3. Identify any likely false-positive classes and the real records that should be pinned as regressions before implementation.
