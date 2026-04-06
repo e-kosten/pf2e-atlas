@@ -2276,6 +2276,78 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
     },
   });
 
+  await writeJson(path.join(packRoot, "pathfinder-npc-core", "priest-of-pharasma.json"), {
+    _id: "priest-of-pharasma-npc-core",
+    name: "Priest of Pharasma",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 4,
+        },
+        publication: {
+          title: "Pathfinder NPC Core",
+        },
+        publicNotes: "<p>Cloistered priests safeguard their temples and communities.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["human", "humanoid"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-npc-core", "high-priest-of-pharasma.json"), {
+    _id: "high-priest-of-pharasma-npc-core",
+    name: "High Priest of Pharasma",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 8,
+        },
+        publication: {
+          title: "Pathfinder NPC Core",
+        },
+        publicNotes: "<p>High priests are the leaders of larger churches and similar religious establishments, watching over the lower-ranking clergy and ensuring the surrounding community is taken care of.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["human", "humanoid"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-npc-core", "traveling-priest-of-desna.json"), {
+    _id: "traveling-priest-of-desna-npc-core",
+    name: "Traveling Priest of Desna",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 3,
+        },
+        publication: {
+          title: "Pathfinder NPC Core",
+        },
+        publicNotes: "<p>Deities and their religions are only as strong as the belief of their faithful.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["human", "humanoid"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "pathfinder-npc-core", "hellknight-gaoler.json"), {
     _id: "hellknight-gaoler-npc-core",
     name: "Hellknight Gaoler",

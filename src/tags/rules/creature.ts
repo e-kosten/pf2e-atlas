@@ -491,6 +491,8 @@ const CIVIC_SUPPORT_TEXT_ANCHORS = [
   patternAnchor("protect the faithful"),
   patternAnchor("responsible for the livelihood"),
   patternAnchor("shares divine dreams and advice"),
+  patternAnchor("safeguard their temples and communities"),
+  patternAnchor("surrounding community is taken care of"),
   patternAnchor("for the community"),
   patternAnchor("public works"),
   patternAnchor("civic festivals"),

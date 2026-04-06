@@ -444,6 +444,22 @@ describe("derived tag rules: creature", () => {
     })).toEqual(expect.arrayContaining(["profession_npc", "civic_npc"]));
 
     expect(deriveRecordTags({
+      name: "Priest of Pharasma",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Cloistered priests safeguard their temples and communities.",
+      traits: ["human", "humanoid"],
+    })).toEqual(expect.arrayContaining(["profession_npc", "civic_npc"]));
+
+    expect(deriveRecordTags({
+      name: "High Priest of Pharasma",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "High priests are the leaders of larger churches and similar religious establishments, watching over the lower-ranking clergy and ensuring the surrounding community is taken care of.",
+      traits: ["human", "humanoid"],
+    })).toEqual(expect.arrayContaining(["profession_npc", "civic_npc"]));
+
+    expect(deriveRecordTags({
       name: "Traveling Apothecary",
       category: "creature",
       subcategory: null,
@@ -600,6 +616,14 @@ describe("derived tag rules: creature", () => {
       category: "creature",
       subcategory: null,
       descriptionText: "A logger consumed by spite hacks through the forest and lashes out at anyone who enters the claim.",
+      traits: ["human", "humanoid"],
+    })).not.toContain("civic_npc");
+
+    expect(deriveRecordTags({
+      name: "Traveling Priest of Desna",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Deities and their religions are only as strong as the belief of their faithful.",
       traits: ["human", "humanoid"],
     })).not.toContain("civic_npc");
   });

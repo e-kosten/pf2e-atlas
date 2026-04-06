@@ -185,7 +185,7 @@ describe("Pf2eDataService / Search and Lookup", () => {
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["regeneration_threat"] } }).records.map((record) => record.name)).toEqual(["Marsh Troll"]);
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["ambush_grabber"] } }).records.map((record) => record.name)).toEqual(["Web Lurker"]);
     const civicNpcNames = service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["civic_npc"] } }).records.map((record) => record.name);
-    expect(civicNpcNames).toEqual(expect.arrayContaining(["Guild Engineer", "Ship Captain"]));
+    expect(civicNpcNames).toEqual(expect.arrayContaining(["Guild Engineer", "Ship Captain", "Priest of Pharasma", "High Priest of Pharasma"]));
     expect(civicNpcNames).not.toContain("Boggard Mire Scout");
     expect(civicNpcNames).not.toContain("Fortress Warden");
     expect(civicNpcNames).not.toContain("Hellknight Gaoler");
@@ -339,6 +339,13 @@ describe("Pf2eDataService / Search and Lookup", () => {
     const wealthyVigilante = service.lookup("Wealthy Vigilante", { category: "creature" }).match;
     expect(wealthyVigilante?.derivedTags).toContain("profession_npc");
     expect(wealthyVigilante?.derivedTags).not.toContain("civic_npc");
+    const priestOfPharasma = service.lookup("Priest of Pharasma", { category: "creature" }).match;
+    expect(priestOfPharasma?.derivedTags).toEqual(expect.arrayContaining(["profession_npc", "civic_npc"]));
+    const highPriestOfPharasma = service.lookup("High Priest of Pharasma", { category: "creature" }).match;
+    expect(highPriestOfPharasma?.derivedTags).toEqual(expect.arrayContaining(["profession_npc", "civic_npc"]));
+    const travelingPriestOfDesna = service.lookup("Traveling Priest of Desna", { category: "creature" }).match;
+    expect(travelingPriestOfDesna?.derivedTags).toContain("profession_npc");
+    expect(travelingPriestOfDesna?.derivedTags).not.toContain("civic_npc");
     const guildEngineer = service.lookup("Guild Engineer", { category: "creature" }).match;
     expect(guildEngineer?.derivedTags).toEqual(expect.arrayContaining(["profession_npc", "civic_npc"]));
     expect(guildEngineer?.derivedTags).not.toContain("combatant_npc");
