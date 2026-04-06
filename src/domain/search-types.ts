@@ -147,6 +147,7 @@ export const FILTER_VALUE_FIELDS = [
   "disableSkills",
   "isComplex",
   "itemCategory",
+  "baseItem",
   "variantAxes",
   "variantFamilyKey",
   "variantBaseName",

@@ -64,6 +64,7 @@ export function summarizeRecord(
     descriptionText: record.descriptionText,
     isUnique: record.isUnique,
     size: record.size,
+    baseItem: record.baseItem,
     priceCp: record.priceCp,
     bulkValue: record.bulkValue,
     actionCost: record.actionCost,

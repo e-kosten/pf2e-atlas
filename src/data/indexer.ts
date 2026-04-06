@@ -324,8 +324,8 @@ export async function buildIndex(
   `);
   const insertItem = db.prepare(`
     INSERT INTO item_records (
-      record_key, item_category, price_cp, bulk_value, usage_text, hands, damage_types_json, weapon_group, armor_group, action_cost
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      record_key, item_category, base_item, price_cp, bulk_value, usage_text, hands, damage_types_json, weapon_group, armor_group, action_cost
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const insertItemMetric = db.prepare(`
     INSERT INTO item_metrics (
@@ -757,6 +757,7 @@ export async function buildIndex(
         insertItem.run(
           record.recordKey,
           entry.itemData.itemCategory,
+          entry.itemData.baseItem,
           entry.itemData.priceCp,
           entry.itemData.bulkValue,
           entry.itemData.usage,

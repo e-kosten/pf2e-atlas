@@ -46,6 +46,7 @@ export type CandidateRow = {
   isSearchCanonical?: number;
   size: string | null;
   itemCategory: string | null;
+  baseItem: string | null;
   priceCp: number | null;
   bulkValue: number | null;
   actionCost: number | null;
@@ -193,6 +194,7 @@ export function rowToRecord(row: CandidateRow, raw: Record<string, unknown> | nu
     isUnique: Boolean(row.isUnique),
     size: row.size,
     itemCategory: row.itemCategory,
+    baseItem: row.baseItem,
     priceCp: row.priceCp,
     bulkValue: row.bulkValue,
     actionCost: row.actionCost,

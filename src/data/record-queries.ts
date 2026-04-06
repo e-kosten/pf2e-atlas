@@ -69,6 +69,7 @@ function buildRecordSelect(includeRaw = false): string {
       WHERE am.record_key = r.record_key
     ), '[]') AS actorMetricsJson`,
     "i.item_category AS itemCategory",
+    "i.base_item AS baseItem",
     "i.price_cp AS priceCp",
     "i.bulk_value AS bulkValue",
     "i.usage_text AS usage",

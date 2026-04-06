@@ -500,6 +500,11 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["backpack", "consumable", "equipment", "weapon"]));
 
     expect(service.listFilterValues({
+      field: "baseItem",
+      category: "equipment",
+    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["alchemical-bomb", "longsword"]));
+
+    expect(service.listFilterValues({
       field: "rarity",
       category: "creature",
     }).values.map((entry) => entry.value)).toEqual(["common", "uncommon", "rare", "unique"]);

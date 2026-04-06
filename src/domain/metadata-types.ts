@@ -33,6 +33,7 @@ export const METADATA_ENUM_STRING_FIELDS = [
   "weaponGroup",
   "armorGroup",
   "itemCategory",
+  "baseItem",
   "saveType",
   "areaType",
   "durationUnit",

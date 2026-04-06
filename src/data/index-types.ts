@@ -48,6 +48,7 @@ export type NormalizedIndexRecord = {
   isUnique: boolean;
   size: string | null;
   itemCategory: string | null;
+  baseItem: string | null;
   priceCp: number | null;
   bulkValue: number | null;
   actionCost: number | null;
@@ -136,6 +137,7 @@ export type ActorIndexData = {
 
 export type ItemIndexData = {
   itemCategory: string | null;
+  baseItem: string | null;
   priceCp: number | null;
   bulkValue: number | null;
   usage: string | null;

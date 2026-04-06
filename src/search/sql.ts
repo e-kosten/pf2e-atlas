@@ -236,6 +236,7 @@ export function buildCandidateQuery(
       WHERE am.record_key = r.record_key
     ), '[]') AS actorMetricsJson`,
     "i.item_category AS itemCategory",
+    "i.base_item AS baseItem",
     "i.price_cp AS priceCp",
     "i.bulk_value AS bulkValue",
     "i.usage_text AS usage",
@@ -515,6 +516,10 @@ export function buildFilterValueQuery(query: FilterValueQuery, filters: Normaliz
     case "itemCategory":
       valueExpression = "i.item_category";
       postFilterClauses.push("AND i.item_category IS NOT NULL AND i.item_category <> ''");
+      break;
+    case "baseItem":
+      valueExpression = "i.base_item";
+      postFilterClauses.push("AND i.base_item IS NOT NULL AND i.base_item <> ''");
       break;
     case "sources":
       valueExpression = "r.source_category";

@@ -1467,6 +1467,7 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     name: "Ghost Charge Prototype",
     type: "weapon",
     system: {
+      baseItem: "alchemical-bomb",
       category: "martial",
       group: "bomb",
       damage: {
@@ -1493,6 +1494,7 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     name: "Practice Sword",
     type: "weapon",
     system: {
+      baseItem: "longsword",
       category: "martial",
       group: "sword",
       damage: {

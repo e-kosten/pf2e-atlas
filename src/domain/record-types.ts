@@ -76,6 +76,7 @@ export interface NormalizedRecord {
   isUnique: boolean;
   size: string | null;
   itemCategory: string | null;
+  baseItem: string | null;
   priceCp: number | null;
   bulkValue: number | null;
   actionCost: number | null;

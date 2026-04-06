@@ -282,6 +282,14 @@ const METADATA_FIELD_REGISTRY: MetadataFieldSemantics[] = [
     notes: "Item-native family/category metadata. Pair with subcategory boundaries for better precision.",
   },
   {
+    field: "baseItem",
+    fieldType: "enumString",
+    operators: ENUM_STRING_OPERATORS,
+    categories: EQUIPMENT_ONLY,
+    discoverable: DISCOVERABLE_METADATA_FIELDS.has("baseItem"),
+    notes: "Foundry base item chassis metadata for equipment records such as longsword, wooden-shield, or alchemical-bomb.",
+  },
+  {
     field: "saveType",
     fieldType: "enumString",
     operators: ENUM_STRING_OPERATORS,

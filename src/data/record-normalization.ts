@@ -759,6 +759,7 @@ export function parseItemIndexData(raw: Record<string, unknown>): ItemIndexData 
   const usage = firstString(getNested(raw, ["system", "usage", "value"]));
   return {
     itemCategory: parseItemCategory(raw),
+    baseItem: firstString(getNested(raw, ["system", "baseItem"])),
     priceCp: normalizePriceToCopper(getNested(raw, ["system", "price", "value"])),
     bulkValue: parseBulkValue(getNested(raw, ["system", "bulk", "value"])),
     usage,
@@ -1061,6 +1062,7 @@ export function normalizeIndexRecord(pack: PackBuildInfo, sourcePath: string, ra
     isUnique: normalizeText(rarity ?? "") === "unique",
     size: actorData?.size ?? null,
     itemCategory: itemData?.itemCategory ?? null,
+    baseItem: itemData?.baseItem ?? null,
     priceCp: itemData?.priceCp ?? null,
     bulkValue: itemData?.bulkValue ?? null,
     actionCost: spellData?.actionCost ?? itemData?.actionCost ?? null,

@@ -142,6 +142,10 @@ describe("Pf2eDataService / Search and Lookup", () => {
         ],
       },
     }).records.map((record) => record.name)).toEqual(["Ghost Charge Prototype"]);
+    expect(service.listRecords({
+      category: "equipment",
+      metadata: { field: "baseItem", op: "eq", value: "alchemical-bomb" },
+    }).records.map((record) => record.name)).toContain("Ghost Charge Prototype");
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["aquatic_setting"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Ghost Sailor", "Pelagic Stalker", "Ship Captain"]));
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["freshwater_setting"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Amelekana", "Electric Eel", "Water Orm", "Gathganara"]));
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["coastal_setting"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Coastal Prowler", "Sea Drake", "Ship Captain"]));
@@ -456,6 +460,7 @@ describe("Pf2eDataService / Search and Lookup", () => {
     expect(calcifyingRot?.subcategory).toBe("disease");
     expect(calcifyingRot?.derivedTags).toContain("mobility_impairment");
     const ghostChargePrototype = service.lookup("Ghost Charge Prototype", { category: "equipment" }).match;
+    expect(ghostChargePrototype?.baseItem).toBe("alchemical-bomb");
     expect(ghostChargePrototype?.weaponGroup).toBe("bomb");
     expect(ghostChargePrototype?.hands).toBe(1);
     expect(ghostChargePrototype?.damageTypes).toEqual(["positive"]);

@@ -54,6 +54,10 @@ function normalizeMetadataValue(field: MetadataSetField | MetadataEnumStringFiel
     return normalizeDerivedTag(value);
   }
 
+  if (METADATA_ENUM_STRING_FIELD_NAMES.has(field)) {
+    return value.trim().toLowerCase();
+  }
+
   return normalizeText(value);
 }
 
@@ -610,6 +614,8 @@ function buildMetadataScalarSqlExpression(
       return buildScalarLookupSql(context.recordKeyExpr, context.itemAlias, "armor_group", "item_records");
     case "itemCategory":
       return buildScalarLookupSql(context.recordKeyExpr, context.itemAlias, "item_category", "item_records");
+    case "baseItem":
+      return buildScalarLookupSql(context.recordKeyExpr, context.itemAlias, "base_item", "item_records");
     case "saveType":
       return buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "save_type", "spell_records");
     case "areaType":
@@ -880,6 +886,8 @@ function getRecordStringValue(record: NormalizedRecord, field: MetadataEnumStrin
       return record.armorGroup;
     case "itemCategory":
       return record.itemCategory;
+    case "baseItem":
+      return record.baseItem;
     case "saveType":
       return record.saveType;
     case "areaType":
