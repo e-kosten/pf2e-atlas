@@ -120,6 +120,10 @@ describe("Pf2eDataService / Search and Lookup", () => {
     expect(service.listRecords({ category: "hazard", metadata: { field: "derivedTags", op: "includesAny", values: ["collapse_hazard"] } }).records.map((record) => record.name)).toEqual(["Collapsing Bridge"]);
     expect(service.listRecords({ category: "hazard", metadata: { field: "derivedTags", op: "includesAny", values: ["forced_movement"] } }).records.map((record) => record.name)).toEqual(["Rushing Wind"]);
     expect(service.listRecords({ category: "hazard", metadata: { field: "derivedTags", op: "includesAny", values: ["spawned_attackers"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Mask Summoning Rune", "Shadow Guards"]));
+    expect(service.listRecords({ category: "hazard", metadata: { field: "derivedTags", op: "includesAny", values: ["phantom_assailants"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Phantom Soldiers"]));
+    expect(service.listRecords({ category: "hazard", metadata: { field: "derivedTags", op: "includesAny", values: ["spawned_attackers"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Dream-Poisoned Door"]));
+    expect(service.listRecords({ category: "hazard", metadata: { field: "derivedTags", op: "includesAny", values: ["control_interface"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Hallowed Wheel"]));
+    expect(service.listRecords({ category: "hazard", metadata: { field: "derivedTags", op: "includesAny", values: ["barrier_lockdown"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Crushing Gate Trap"]));
     expect(service.listRecords({ category: "hazard", metadata: { field: "derivedTags", op: "includesAny", values: ["navigation_disruption"] } }).records.map((record) => record.name)).toEqual(["Confounding Portal"]);
     expect(service.listRecords({ category: "hazard", metadata: { field: "derivedTags", op: "includesAny", values: ["overhead_strike"] } }).records.map((record) => record.name)).toEqual(["Falling Debris"]);
     expect(service.listRecords({ category: "equipment", subcategory: "consumable", metadata: { field: "derivedTags", op: "includesAny", values: ["alarm"] } }).records.map((record) => record.name)).toEqual(["Alarm Snare", "Sentry Fulu", "Warning Snare"]);
@@ -453,6 +457,14 @@ describe("Pf2eDataService / Search and Lookup", () => {
     expect(collapsingBridge?.derivedTags).toContain("collapse_hazard");
     const rushingWind = service.lookup("Rushing Wind", { category: "hazard" }).match;
     expect(rushingWind?.derivedTags).toContain("forced_movement");
+    const phantomSoldiers = service.lookup("Phantom Soldiers", { category: "hazard" }).match;
+    expect(phantomSoldiers?.derivedTags).toContain("phantom_assailants");
+    const dreamPoisonedDoor = service.lookup("Dream-Poisoned Door", { category: "hazard" }).match;
+    expect(dreamPoisonedDoor?.derivedTags).toContain("spawned_attackers");
+    const hallowedWheel = service.lookup("Hallowed Wheel", { category: "hazard" }).match;
+    expect(hallowedWheel?.derivedTags).toContain("control_interface");
+    const crushingGateTrap = service.lookup("Crushing Gate Trap", { category: "hazard" }).match;
+    expect(crushingGateTrap?.derivedTags).toContain("barrier_lockdown");
     const cacklingDelirium = service.lookup("Cackling Delirium", { category: "affliction" }).match;
     expect(cacklingDelirium?.subcategory).toBe("curse");
     expect(cacklingDelirium?.derivedTags).toContain("mental_impairment");

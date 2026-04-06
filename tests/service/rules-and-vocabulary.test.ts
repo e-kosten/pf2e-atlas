@@ -313,9 +313,9 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     })).toEqual({
       field: "traits",
       values: [
-        { value: "trap", count: 13 },
-        { value: "magical", count: 7 },
-        { value: "mechanical", count: 7 },
+        { value: "trap", count: 16 },
+        { value: "magical", count: 9 },
+        { value: "mechanical", count: 8 },
       ],
     });
 
@@ -370,8 +370,8 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     })).toEqual({
       field: "subcategories",
       values: [
-        { value: "trap", count: 13 },
-        { value: "haunt", count: 2 },
+        { value: "trap", count: 16 },
+        { value: "haunt", count: 3 },
       ],
     });
 
@@ -539,7 +539,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     })).toEqual({
       field: "categories",
       values: [
-        { value: "hazard", count: 13 },
+        { value: "hazard", count: 16 },
         { value: "rule", count: 6 },
       ],
     });

@@ -101,6 +101,30 @@ describe("derived tag rules: hazard", () => {
     })).not.toContain("control_interface");
 
     expect(deriveRecordTags({
+      name: "Hallowed Wheel",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "An ornate wheel is mounted on a pole and controlled by a lever that can be triggered manually or by a nearby sensor.",
+      traits: ["magical", "mechanical", "trap"],
+    })).toContain("control_interface");
+
+    expect(deriveRecordTags({
+      name: "Keystone Trap",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "A lever on the stone block slides the vault into view, exposing the hidden trap.",
+      traits: ["mechanical", "trap"],
+    })).toContain("control_interface");
+
+    expect(deriveRecordTags({
+      name: "Skewering Hall",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "A dozen spears hidden within sockets in the walls thrust into the hall when the pressure plate is triggered.",
+      traits: ["mechanical", "trap"],
+    })).not.toContain("control_interface");
+
+    expect(deriveRecordTags({
       name: "Air Rift",
       category: "hazard",
       subcategory: null,
@@ -207,6 +231,30 @@ describe("derived tag rules: hazard", () => {
       descriptionText: "Animated cabinet imprisons intruders. The cabinet has two compartments; each can hold a single Medium creature.",
       traits: ["mechanical", "trap"],
     })).toContain("barrier_lockdown");
+
+    expect(deriveRecordTags({
+      name: "Slamming Door",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "Pressure-sensitive panels in the floor connect to a stone slab hidden in a hallway's ceiling.",
+      traits: ["mechanical", "trap"],
+    })).toContain("barrier_lockdown");
+
+    expect(deriveRecordTags({
+      name: "Crushing Gate Trap",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "A hidden stone rod causes two immense stone doors to fall forward from their gate, crushing anything beneath them.",
+      traits: ["trap"],
+    })).toContain("barrier_lockdown");
+
+    expect(deriveRecordTags({
+      name: "False Door Trap",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "A hidden needle delivers a magical poison to anyone trying to open the door.",
+      traits: ["magical", "mechanical"],
+    })).not.toContain("barrier_lockdown");
 
     expect(deriveRecordTags({
       name: "Explosive Barrels",
@@ -515,6 +563,22 @@ describe("derived tag rules: hazard", () => {
     })).toContain("projectile_emitter");
 
     expect(deriveRecordTags({
+      name: "Dream-Poisoned Door",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "Eerie shapes manifest within the doorway as it's opened, conjuring a group of four animate dreams into being.",
+      traits: ["magical", "trap"],
+    })).toContain("spawned_attackers");
+
+    expect(deriveRecordTags({
+      name: "Distortion Circle",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "A softly flickering circle of runes pulses before a raw red wound in reality splits open to disgorge demons and lash out with tendrils of acidic blood.",
+      traits: ["magical", "trap"],
+    })).toContain("spawned_attackers");
+
+    expect(deriveRecordTags({
       name: "Angazhan's Rake Trap",
       category: "hazard",
       subcategory: "trap",
@@ -537,6 +601,14 @@ describe("derived tag rules: hazard", () => {
       descriptionText: "Tiny runes carved around a doorframe confound creatures into circling the room or hallway they attempted to exit.",
       traits: ["magical"],
     })).not.toContain("illusion_assault");
+
+    expect(deriveRecordTags({
+      name: "Wrath of the Destroyer",
+      category: "hazard",
+      subcategory: "trap",
+      descriptionText: "Heavy doors carved with a dragon's image manifest a vision of its head emerging from the doorway to strike at a foe.",
+      traits: ["magical", "trap"],
+    })).not.toContain("spawned_attackers");
   });
 
   it("derives haunt manifestation and consequence tags", () => {
@@ -579,6 +651,38 @@ describe("derived tag rules: hazard", () => {
       descriptionText: "The wind intensifies and the seeping fog rushes forward in a stampede of ghostly orcs screaming wordless battle cries, weapons raised to slaughter their foes.",
       traits: ["environmental", "haunt", "occult"],
     })).toContain("phantom_assailants");
+
+    expect(deriveRecordTags({
+      name: "Phantom Soldiers",
+      category: "hazard",
+      subcategory: "haunt",
+      descriptionText: "Spirits of long-dead soldiers appear in the mist and attack intruders.",
+      traits: ["haunt"],
+    })).toContain("phantom_assailants");
+
+    expect(deriveRecordTags({
+      name: "Stonescale Spirits",
+      category: "hazard",
+      subcategory: "haunt",
+      descriptionText: "A half-dozen ghostly kobolds rise from the rubble in a howling vortex.",
+      traits: ["haunt"],
+    })).toContain("phantom_assailants");
+
+    expect(deriveRecordTags({
+      name: "Haunting Presence",
+      category: "hazard",
+      subcategory: "haunt",
+      descriptionText: "Ghostly sounds or glimpses of apparitions move to startle or distract those who walk the streets.",
+      traits: ["haunt"],
+    })).not.toContain("phantom_assailants");
+
+    expect(deriveRecordTags({
+      name: "Spirit Window",
+      category: "hazard",
+      subcategory: "haunt",
+      descriptionText: "Spirits trapped inside a haunted window harm those who touch the window.",
+      traits: ["haunt"],
+    })).not.toContain("phantom_assailants");
 
     expect(deriveRecordTags({
       name: "Broken Rebus Attack",

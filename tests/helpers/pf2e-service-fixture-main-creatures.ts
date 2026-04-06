@@ -2387,6 +2387,90 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
     },
   });
 
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "phantom-soldiers.json"), {
+    _id: "phantom-soldiers-hazard",
+    name: "Phantom Soldiers",
+    type: "hazard",
+    system: {
+      details: {
+        level: {
+          value: 8,
+        },
+        publication: {
+          title: "Pathfinder Adventure Path",
+        },
+        publicNotes: "<p>Spirits of long-dead soldiers appear in the mist and attack intruders.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["haunt"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "dream-poisoned-door.json"), {
+    _id: "dream-poisoned-door-hazard",
+    name: "Dream-Poisoned Door",
+    type: "hazard",
+    system: {
+      details: {
+        level: {
+          value: 12,
+        },
+        publication: {
+          title: "Pathfinder Adventure Path",
+        },
+        publicNotes: "<p>Eerie shapes manifest within the doorway as it's opened, conjuring a group of four animate dreams into being.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["magical", "trap"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "hallowed-wheel.json"), {
+    _id: "hallowed-wheel-hazard",
+    name: "Hallowed Wheel",
+    type: "hazard",
+    system: {
+      details: {
+        level: {
+          value: 10,
+        },
+        publication: {
+          title: "Pathfinder Adventure Path",
+        },
+        publicNotes: "<p>An ornate wheel is mounted on a pole and controlled by a lever that can be triggered manually or by a nearby sensor.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["magical", "mechanical", "trap"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "crushing-gate-trap.json"), {
+    _id: "crushing-gate-trap-hazard",
+    name: "Crushing Gate Trap",
+    type: "hazard",
+    system: {
+      details: {
+        level: {
+          value: 16,
+        },
+        publication: {
+          title: "Pathfinder Adventure Path",
+        },
+        publicNotes: "<p>A hidden stone rod causes two immense stone doors to fall forward from their gate, crushing anything beneath them.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["trap"],
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "pathfinder-monster-core", "spear-launcher.json"), {
     _id: "spear-launcher-hazard",
     name: "Spear Launcher",

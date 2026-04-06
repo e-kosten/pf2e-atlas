@@ -184,6 +184,11 @@ const HAZARD_SPAWNED_ATTACKERS_NAME_ANCHORS = [
   patternAnchor("darkside mirror", "name"),
 ];
 
+const HAZARD_BARRIER_LOCKDOWN_NAME_ANCHORS = [
+  patternAnchor("crushing gate", "name"),
+  patternAnchor("slamming door", "name"),
+];
+
 const HAZARD_SPAWNED_ATTACKERS_TEXT_ANCHORS = [
   patternAnchor("animate into"),
   patternAnchor("animates and clambers out of the painting"),
@@ -194,7 +199,13 @@ const HAZARD_SPAWNED_ATTACKERS_TEXT_ANCHORS = [
   patternAnchor("summons"),
   patternAnchor("calls forth"),
   patternAnchor("conjures"),
+  patternAnchor("conjuring"),
   patternAnchor("spawns"),
+  patternAnchor("into being"),
+  patternAnchor("ersatz ghost"),
+  patternAnchor("animate dreams"),
+  patternAnchor("disgorge"),
+  patternAnchor("disgorges"),
   patternAnchor("peel themselves from the floor and attack"),
   patternAnchor("replaced by its victim"),
   patternAnchor("masked guardians"),
@@ -300,12 +311,19 @@ const HAUNT_PHANTOM_ASSAILANT_TEXT_ANCHORS = [
   patternAnchor("spectral assailant"),
   patternAnchor("ghostly attackers"),
   patternAnchor("ghostly orcs"),
+  patternAnchor("phantom soldiers"),
   patternAnchor("phantom hounds"),
   patternAnchor("cannibalistic spirits swarm"),
   patternAnchor("spectral undead converge"),
   patternAnchor("host of angry spirits"),
   patternAnchor("angry spirits"),
   patternAnchor("ghostly pair"),
+  patternAnchor("spirits of long-dead soldiers appear in the mist and attack intruders"),
+  patternAnchor("ghostly soldiers wielding crossbows manifest"),
+  patternAnchor("rain bolts down upon intruders"),
+  patternAnchor("rise and resume their final battle"),
+  patternAnchor("rise and begin a deadly brawl"),
+  patternAnchor("ghostly kobolds rise from the rubble"),
 ];
 
 const HAUNT_LURE_COMPULSION_TEXT_ANCHORS = [
@@ -550,6 +568,10 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
           patternAnchor("turn the crank"),
           patternAnchor("set the tumbler"),
           patternAnchor("button mash"),
+          patternAnchor("controlled by a lever"),
+          patternAnchor("triggered manually"),
+          patternAnchor("bypass button"),
+          patternAnchor("slides the vault into view"),
         ],
       },
       {
@@ -558,7 +580,7 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
           {
             all: [
               patternAnchor("{{alt(button,buttons,lever,levers,console,consoles,panel,panels,switch,switches,dial,dials,crank,cranks,wheel,wheels,tumbler,tumblers)}}"),
-              patternAnchor("{{alt(press,presses,push,pushes,pull,pulls,flip,flips,turn,turns,operate,operates,activate,activates,control,controls,set)}}"),
+              patternAnchor("{{alt(press,presses,push,pushes,pull,pulls,flip,flips,turn,turns,operate,operates,activate,activates,control,controls,controlled,set,slide,slides,deactivate,deactivates)}}"),
             ],
             window: 5,
             scope: "description",
@@ -651,8 +673,8 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
         textNear: [
           {
             all: [
-              patternAnchor("{{alt(summon,summons,call,calls,conjure,spawns,replaced,peel,peel themselves)}}"),
-              patternAnchor("{{alt(guards,guardians,archers,devil,duplicates,shadows,attack,attacker,attackers,creature,creatures)}}"),
+              patternAnchor("{{alt(summon,summons,call,calls,conjure,conjures,conjuring,spawn,spawns,replaced,peel,peel themselves,disgorge,disgorges)}}"),
+              patternAnchor("{{alt(guards,guardians,archers,devil,demons,duplicates,dreams,ghost,shadows,attack,attacker,attackers,creature,creatures,being)}}"),
             ],
             window: 6,
             scope: "description",
@@ -683,7 +705,7 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
           {
             all: [
               patternAnchor("{{alt(ghostly,spectral,phantom,spirit,spirits,undead,apparition,wraith)}}"),
-              patternAnchor("{{alt(attack,attacks,attacker,attackers,assailant,assailants,swarm,swarms,chase,rush,slaughter,devour,converge,crush,bite)}}"),
+              patternAnchor("{{alt(attack,attacks,attacker,attackers,assailant,assailants,swarm,swarms,chase,rush,slaughter,devour,converge,crush,bite,brawl,battle,soldiers,archers,bolts)}}"),
             ],
             window: 6,
             scope: "description",
@@ -764,6 +786,10 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
     anyOf: [
       {
         score: 2,
+        textAny: HAZARD_BARRIER_LOCKDOWN_NAME_ANCHORS,
+      },
+      {
+        score: 2,
         textAny: [
           patternAnchor("slams shut"),
           patternAnchor("slam down into place"),
@@ -775,6 +801,8 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
           patternAnchor("trap the triggering creature inside"),
           patternAnchor("imprisons intruders"),
           patternAnchor("pushes two iron doors closed"),
+          patternAnchor("snap shut and trap the triggering creature inside"),
+          patternAnchor("doors to fall forward from their gate"),
         ],
       },
       {
@@ -803,6 +831,11 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
           {
             all: [patternAnchor("gate"), patternAnchor("shut")],
             window: 4,
+            scope: "description",
+          },
+          {
+            all: [patternAnchor("{{alt(door,doors,gate,gates)}}"), patternAnchor("{{alt(fall forward,falls forward)}}")],
+            window: 6,
             scope: "description",
           },
         ],
