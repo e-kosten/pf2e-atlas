@@ -29,6 +29,8 @@ export type UntaggedCohortOptions = {
   anchorLimit?: number;
   minFeatureSupport?: number;
   minFeatureLift?: number;
+  progressLogger?: (message: string) => void;
+  progressStatusLogger?: (message: string) => void;
 };
 
 export type UntaggedCohortAnchor = {
@@ -657,22 +659,42 @@ export function discoverUntaggedCohorts(
   db: DatabaseSync,
   options: UntaggedCohortOptions,
 ): UntaggedCohortReport {
+  const overallStartTime = Date.now();
+  const logPhase = (label: string, startTime: number): void => {
+    options.progressLogger?.(`${label} in ${Math.max(0, Date.now() - startTime)}ms.`);
+  };
+
+  options.progressStatusLogger?.("Loading untagged records.");
+  const untaggedStartTime = Date.now();
   const untagged = loadDiscoveryRecords(db, {
     category: options.category,
     subcategory: options.subcategory,
     untaggedOnly: true,
     includeVectors: true,
+    includeDerivedTags: false,
   });
+  logPhase(`Loaded ${untagged.length} untagged records`, untaggedStartTime);
+
+  options.progressStatusLogger?.("Loading baseline records.");
+  const baselineStartTime = Date.now();
   const baseline = loadDiscoveryRecords(db, {
     category: options.category,
     subcategory: options.subcategory,
-    includeVectors: true,
+    includeVectors: false,
+    includeDerivedTags: false,
   });
+  logPhase(`Loaded ${baseline.length} baseline records`, baselineStartTime);
   if (untagged.length === 0) {
     throw new Error("No untagged canonical records matched the requested scope.");
   }
 
+  options.progressStatusLogger?.("Building candidate cohorts.");
+  const cohortStartTime = Date.now();
   const cohorts = buildCandidateCohorts(untagged, baseline, options);
+  logPhase(`Built ${cohorts.length} candidate cohorts`, cohortStartTime);
+
+  options.progressStatusLogger?.("Ranking top anchors.");
+  const anchorStartTime = Date.now();
   const anchorTerms = uniqueSorted(cohorts.flatMap((cohort) => cohort.signature))
     .map((value) => {
       const members = cohorts.filter((cohort) => cohort.signature.includes(value));
@@ -690,6 +712,8 @@ export function discoverUntaggedCohorts(
     .filter((entry): entry is UntaggedCohortAnchor => Boolean(entry))
     .sort((left, right) => right.score - left.score || right.lift - left.lift || left.value.localeCompare(right.value))
     .slice(0, Math.max(1, Math.min(options.anchorLimit ?? DEFAULT_ANCHOR_LIMIT, 50)));
+  logPhase(`Ranked ${anchorTerms.length} anchor terms`, anchorStartTime);
+  options.progressLogger?.(`Untagged cohort discovery finished in ${Math.max(0, Date.now() - overallStartTime)}ms.`);
 
   return {
     category: options.category,

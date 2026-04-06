@@ -40,6 +40,7 @@ export type DiscoveryRecordLoadOptions = {
   excludeDerivedTag?: string;
   untaggedOnly?: boolean;
   includeVectors?: boolean;
+  includeDerivedTags?: boolean;
 };
 
 export type DiscoveryExemplarOptions = {
@@ -110,7 +111,7 @@ function toDiscoveryRecord(
     variantAxes: row.variantAxesJson ? (JSON.parse(row.variantAxesJson) as string[]) : [],
     level: typeof row.level === "bigint" ? Number(row.level) : row.level,
     traits: JSON.parse(row.traitsJson) as string[],
-    derivedTags: JSON.parse(row.derivedTagsJson) as string[],
+    derivedTags: row.derivedTagsJson ? (JSON.parse(row.derivedTagsJson) as string[]) : [],
     descriptionText: row.descriptionText,
     vector: decodeDiscoveryVector(row.vectorBlob),
     references,
@@ -175,7 +176,7 @@ export function loadDiscoveryRecords(
     "  r.variant_axes_json AS variantAxesJson,",
     "  r.level AS level,",
     "  r.traits_json AS traitsJson,",
-    "  r.derived_tags_json AS derivedTagsJson,",
+    `  ${options.includeDerivedTags === false ? "NULL" : "r.derived_tags_json"} AS derivedTagsJson,`,
     "  r.description_text AS descriptionText,",
     `  ${options.includeVectors === false ? "NULL" : "e.vector_blob"} AS vectorBlob`,
     "FROM records r",

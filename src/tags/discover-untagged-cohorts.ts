@@ -5,6 +5,7 @@ import { constants } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 
 import { loadConfig } from "../app/config.js";
+import { ConsoleProgressReporter } from "../progress.js";
 import { SearchCategory, SearchSubcategory } from "../types.js";
 import {
   discoverUntaggedCohorts,
@@ -127,6 +128,7 @@ async function main(): Promise<void> {
   const argv = process.argv.slice(2);
   const options = parseOptions(argv);
   const config = await loadConfig(argv);
+  const progress = new ConsoleProgressReporter(process.stderr);
 
   try {
     await access(config.indexPath, constants.R_OK);
@@ -136,8 +138,16 @@ async function main(): Promise<void> {
 
   const db = new DatabaseSync(config.indexPath);
   try {
-    console.log(formatUntaggedCohortReport(discoverUntaggedCohorts(db, options)));
+    progress.log(`Running untagged cohort discovery against ${config.indexPath}.`);
+    const report = discoverUntaggedCohorts(db, {
+      ...options,
+      progressLogger: (message) => progress.log(message),
+      progressStatusLogger: (message) => progress.status(message),
+    });
+    progress.clear();
+    console.log(formatUntaggedCohortReport(report));
   } finally {
+    progress.clear();
     db.close();
   }
 }
