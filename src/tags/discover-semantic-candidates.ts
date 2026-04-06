@@ -13,6 +13,7 @@ import {
   type SemanticDiscoveryOptions,
   type SemanticDiscoveryResult,
 } from "./semantic-discovery.js";
+import { resolveDiscoveryGramRange } from "./discovery-normalization.js";
 
 type CliOptions = SemanticDiscoveryOptions;
 
@@ -86,7 +87,7 @@ export function parseOptions(argv: string[]): CliOptions {
     throw new Error("Provide at least one exemplar via --name <record name> or --record-key <canonical record key>.");
   }
 
-  return {
+  const options = {
     category: lastValue(args, "category") as SearchCategory | undefined,
     subcategory: lastValue(args, "subcategory") as SearchSubcategory | undefined,
     exemplarNames,
@@ -100,7 +101,11 @@ export function parseOptions(argv: string[]): CliOptions {
     candidateEvidenceLimit: parseInteger(lastValue(args, "candidate-evidence-limit"), "--candidate-evidence-limit"),
     minSimilarity: parseFloatValue(lastValue(args, "min-similarity"), "--min-similarity"),
     excludeDerivedTag: lastValue(args, "exclude-derived-tag"),
+    minGramLength: parseInteger(lastValue(args, "min-gram-length"), "--min-gram-length"),
+    maxGramLength: parseInteger(lastValue(args, "max-gram-length"), "--max-gram-length"),
   };
+  resolveDiscoveryGramRange(options);
+  return options;
 }
 
 function formatScope(category: SearchCategory, subcategory?: SearchSubcategory | null): string {

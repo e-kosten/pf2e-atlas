@@ -112,7 +112,7 @@ describe("semantic discovery evaluator", () => {
         level: 4,
         traits: ["undead", "human"],
         derivedTags: ["undead_adjacent"],
-        descriptionText: "Mournful spirits haunt abandoned halls with whispered laments.",
+        descriptionText: "Mournful spirits haunt abandoned halls where whispered laments drift nightly.",
         vector: [1, 0, 0],
       });
       insertDiscoveryRecord(db, {
@@ -122,7 +122,7 @@ describe("semantic discovery evaluator", () => {
         level: 7,
         traits: ["undead", "human"],
         derivedTags: ["undead_adjacent", "nautical_setting"],
-        descriptionText: "A mournful undead captain haunts abandoned ships with whispered laments and cursed crews.",
+        descriptionText: "A mournful undead captain haunts abandoned ships where whispered laments drift nightly.",
         vector: [0.98, 0.02, 0],
         aliases: ["Pirate Ghost Captain"],
       });
@@ -133,7 +133,7 @@ describe("semantic discovery evaluator", () => {
         level: 6,
         traits: ["undead", "human"],
         derivedTags: ["undead_adjacent"],
-        descriptionText: "This undead bosun haunts abandoned decks with whispered laments and doomed crews.",
+        descriptionText: "This undead bosun haunts abandoned decks where whispered laments drift nightly.",
         vector: [0.97, 0.03, 0],
       });
       insertDiscoveryRecord(db, {
@@ -172,6 +172,8 @@ describe("semantic discovery evaluator", () => {
         excludeDerivedTag: "haunt_theme",
         limit: 2,
         contrastLimit: 2,
+        minGramLength: 4,
+        maxGramLength: 4,
       });
 
       expect(result.category).toBe("creature");
@@ -183,6 +185,7 @@ describe("semantic discovery evaluator", () => {
       ]));
       expect(result.commonTraits).toEqual(expect.arrayContaining(["undead", "human"]));
       expect(result.sharedTokens.map((entry) => entry.value)).toEqual(expect.arrayContaining(["abandoned", "mournful", "whispered"]));
+      expect(result.sharedPhrases.map((entry) => entry.value)).toContain("whispered laments drift nightly");
       expect(result.candidates.map((entry) => entry.name)).toEqual(["Haunted Bosun", "Dockside Ruffian"]);
       expect(result.candidates[0]?.sharedTraits).toEqual(expect.arrayContaining(["undead", "human"]));
       expect(result.contrastRecords.map((entry) => entry.name)).toContain("Sunny Guard");

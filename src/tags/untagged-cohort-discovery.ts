@@ -3,11 +3,12 @@ import { DatabaseSync } from "node:sqlite";
 import { SearchCategory, SearchSubcategory } from "../types.js";
 import { uniqueSorted } from "../utils.js";
 import {
-  extractDiscoveryNgrams,
+  extractDiscoveryGramRange,
   isDiscoveryNoisePhrase,
   isDiscoveryNoiseToken,
   isDiscoveryPlaceholder,
   normalizeDiscoveryFeature,
+  resolveDiscoveryGramRange,
   tokenizeDiscoveryText,
 } from "./discovery-normalization.js";
 import {
@@ -32,6 +33,8 @@ export type UntaggedCohortOptions = {
   anchorLimit?: number;
   minFeatureSupport?: number;
   minFeatureLift?: number;
+  minGramLength?: number;
+  maxGramLength?: number;
   progressLogger?: (message: string) => void;
   progressStatusLogger?: (message: string) => void;
 };
@@ -348,7 +351,10 @@ function deriveReviewFlags(
   return uniqueSorted(flags);
 }
 
-function collectRecordFeatures(record: DiscoveryAnalysisRecord): DiscoveryFeature[] {
+function collectRecordFeatures(
+  record: DiscoveryAnalysisRecord,
+  options: Pick<UntaggedCohortOptions, "minGramLength" | "maxGramLength"> = {},
+): DiscoveryFeature[] {
   const features: DiscoveryFeature[] = [];
   const push = (kind: DiscoveryFeatureKind, value: string): void => {
     if (!value) {
@@ -366,12 +372,7 @@ function collectRecordFeatures(record: DiscoveryAnalysisRecord): DiscoveryFeatur
       push("name", token);
     }
   }
-  for (const phrase of extractDiscoveryNgrams(record.name, 2, { filterStopwords: true })) {
-    if (!isDiscoveryNoisePhrase(phrase.normalized)) {
-      push("name_phrase", phrase.normalized);
-    }
-  }
-  for (const phrase of extractDiscoveryNgrams(record.name, 3, { filterStopwords: true })) {
+  for (const phrase of extractDiscoveryGramRange(record.name, options, { filterStopwords: true })) {
     if (!isDiscoveryNoisePhrase(phrase.normalized)) {
       push("name_phrase", phrase.normalized);
     }
@@ -381,12 +382,7 @@ function collectRecordFeatures(record: DiscoveryAnalysisRecord): DiscoveryFeatur
       push("text", token);
     }
   }
-  for (const phrase of extractDiscoveryNgrams(record.descriptionText ?? "", 2, { filterStopwords: true })) {
-    if (!isDiscoveryNoisePhrase(phrase.normalized)) {
-      push("text_phrase", phrase.normalized);
-    }
-  }
-  for (const phrase of extractDiscoveryNgrams(record.descriptionText ?? "", 3, { filterStopwords: true })) {
+  for (const phrase of extractDiscoveryGramRange(record.descriptionText ?? "", options, { filterStopwords: true })) {
     if (!isDiscoveryNoisePhrase(phrase.normalized)) {
       push("text_phrase", phrase.normalized);
     }
@@ -412,13 +408,14 @@ function dedupeFeatures(features: DiscoveryFeature[]): DiscoveryFeature[] {
 
 function collectFeatureSupport(
   records: DiscoveryAnalysisRecord[],
+  options: Pick<UntaggedCohortOptions, "minGramLength" | "maxGramLength"> = {},
 ): { counts: Map<string, number>; byKey: Map<string, DiscoveryFeature>; featuresByRecordKey: Map<string, DiscoveryFeature[]> } {
   const counts = new Map<string, number>();
   const byKey = new Map<string, DiscoveryFeature>();
   const featuresByRecordKey = new Map<string, DiscoveryFeature[]>();
 
   for (const record of records) {
-    const features = collectRecordFeatures(record);
+    const features = collectRecordFeatures(record, options);
     featuresByRecordKey.set(record.recordKey, features);
     for (const feature of features) {
       byKey.set(feature.key, feature);
@@ -736,10 +733,11 @@ function buildCandidateCohorts(
   baseline: DiscoveryAnalysisRecord[],
   options: UntaggedCohortOptions,
 ): SelectedUntaggedCohorts {
+  const gramRange = resolveDiscoveryGramRange(options);
   options.progressStatusLogger?.(`Extracting discovery features for ${untagged.length} untagged records.`);
-  const featureSupport = collectFeatureSupport(untagged);
+  const featureSupport = collectFeatureSupport(untagged, gramRange);
   options.progressStatusLogger?.(`Extracting baseline features for ${baseline.length} records.`);
-  const baselineSupport = collectFeatureSupport(baseline);
+  const baselineSupport = collectFeatureSupport(baseline, gramRange);
   const minSupport = Math.max(1, options.minFeatureSupport ?? DEFAULT_MIN_FEATURE_SUPPORT);
   options.progressStatusLogger?.("Selecting informative features per record.");
   const nodes = buildRecordNodes(untagged, featureSupport, minSupport);

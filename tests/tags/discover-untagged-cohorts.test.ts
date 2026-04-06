@@ -238,6 +238,51 @@ describe("discover untagged cohorts", () => {
     }
   });
 
+  it("can use four-word phrases as cohort anchors when configured", () => {
+    const db = createDiscoveryDb();
+    try {
+      insertRecord(db, {
+        recordKey: "equipment:veil",
+        name: "Court Veil",
+        category: "equipment",
+        subcategory: "gear",
+        traits: ["illusion", "magical"],
+        descriptionText: "This veil supports hidden court masquerade attire during elite infiltration.",
+        vector: [1, 0, 0],
+      });
+      insertRecord(db, {
+        recordKey: "equipment:ribbon",
+        name: "Masquerade Ribbon",
+        category: "equipment",
+        subcategory: "gear",
+        traits: ["illusion", "magical"],
+        descriptionText: "The ribbon completes hidden court masquerade attire for covert galas.",
+        vector: [0.99, 0.01, 0],
+      });
+      insertRecord(db, {
+        recordKey: "equipment:torch",
+        name: "Signal Torch",
+        category: "equipment",
+        subcategory: "gear",
+        traits: ["fire"],
+        descriptionText: "A bright torch for signaling allies.",
+        vector: [0, 1, 0],
+      });
+
+      const report = discoverUntaggedCohorts(db, {
+        category: "equipment",
+        subcategory: "gear",
+        minGramLength: 4,
+        maxGramLength: 4,
+        cohortLimit: 3,
+      });
+
+      expect(report.cohorts.length).toBeGreaterThan(0);
+    } finally {
+      db.close();
+    }
+  });
+
   it("parses CLI options and renders a readable report", () => {
     const options = parseOptions([
       "--category", "equipment",
@@ -246,6 +291,8 @@ describe("discover untagged cohorts", () => {
       "--anchor-limit", "12",
       "--min-feature-support", "3",
       "--min-feature-lift", "2.5",
+      "--min-gram-length", "4",
+      "--max-gram-length", "5",
     ]);
 
     expect(options).toEqual({
@@ -255,6 +302,8 @@ describe("discover untagged cohorts", () => {
       anchorLimit: 12,
       minFeatureSupport: 3,
       minFeatureLift: 2.5,
+      minGramLength: 4,
+      maxGramLength: 5,
     });
 
     const rendered = formatUntaggedCohortReport({
@@ -295,6 +344,13 @@ describe("discover untagged cohorts", () => {
     expect(rendered).toContain("Recommended cohorts:");
     expect(rendered).toContain("families=2");
     expect(rendered).toContain("flags=(none)");
+  });
+
+  it("rejects invalid CLI gram ranges", () => {
+    expect(() => parseOptions([
+      "--category", "equipment",
+      "--max-gram-length", "6",
+    ])).toThrow(/max-gram-length/i);
   });
 
   it("down-ranks single-family variant ladders in favor of multi-family cohorts", () => {

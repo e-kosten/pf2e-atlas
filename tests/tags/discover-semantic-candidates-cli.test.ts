@@ -16,6 +16,8 @@ describe("semantic discovery CLI helpers", () => {
       "--contrast-limit", "4",
       "--min-similarity", "0.82",
       "--exclude-derived-tag", "haunt_theme",
+      "--min-gram-length", "4",
+      "--max-gram-length", "5",
     ]);
 
     expect(options).toEqual(expect.objectContaining({
@@ -26,7 +28,18 @@ describe("semantic discovery CLI helpers", () => {
       contrastLimit: 4,
       minSimilarity: 0.82,
       excludeDerivedTag: "haunt_theme",
+      minGramLength: 4,
+      maxGramLength: 5,
     }));
+  });
+
+  it("rejects invalid semantic gram ranges", () => {
+    expect(() => parseOptions([
+      "--category", "creature",
+      "--name", "Ghost Commoner",
+      "--min-gram-length", "5",
+      "--max-gram-length", "2",
+    ])).toThrow(/less than or equal/i);
   });
 
   it("renders a readable semantic discovery report", () => {

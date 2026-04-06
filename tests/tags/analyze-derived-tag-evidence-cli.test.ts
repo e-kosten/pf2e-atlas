@@ -14,6 +14,8 @@ describe("derived-tag evidence CLI helpers", () => {
       "--exclude-record-key", "equipment:2",
       "--untagged",
       "--limit", "9",
+      "--min-gram-length", "3",
+      "--max-gram-length", "5",
     ]);
 
     expect(options).toEqual(expect.objectContaining({
@@ -23,7 +25,22 @@ describe("derived-tag evidence CLI helpers", () => {
       excludeRecordKeys: ["equipment:2"],
       untaggedOnly: true,
       limit: 9,
+      minGramLength: 3,
+      maxGramLength: 5,
     }));
+  });
+
+  it("rejects invalid gram length ranges", () => {
+    expect(() => parseOptions([
+      "--category", "equipment",
+      "--min-gram-length", "1",
+    ])).toThrow(/min-gram-length/i);
+
+    expect(() => parseOptions([
+      "--category", "equipment",
+      "--min-gram-length", "5",
+      "--max-gram-length", "4",
+    ])).toThrow(/less than or equal/i);
   });
 
   it("renders a readable evidence report", () => {

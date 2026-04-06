@@ -195,4 +195,39 @@ describe("derived-tag evidence analyzer", () => {
     expect(forceTerm?.score ?? 0).toBeGreaterThan(singletonDescriptionTerm?.score ?? 0);
     expect(referenceTerm?.score ?? 0).toBeGreaterThan(singletonDescriptionTerm?.score ?? 0);
   });
+
+  it("supports configurable phrase lengths up to five grams", () => {
+    const cohort = [
+      record({
+        recordKey: "creature:1",
+        name: "Mourning Herald",
+        category: "creature",
+        descriptionText: "It walks beneath a moonlit ruined bell tower while whispering omens.",
+      }),
+      record({
+        recordKey: "creature:2",
+        name: "Bell Tower Shade",
+        category: "creature",
+        descriptionText: "This spirit circles the moonlit ruined bell tower as it whispers omens.",
+      }),
+    ];
+    const baseline = [
+      ...cohort,
+      record({
+        recordKey: "creature:3",
+        name: "Sunny Traveler",
+        category: "creature",
+        descriptionText: "A traveler rests beside a market fountain at noon.",
+      }),
+    ];
+
+    const report = analyzeDiscoveryEvidenceFromRecords(cohort, baseline, {
+      limit: 6,
+      minGramLength: 4,
+      maxGramLength: 5,
+    });
+
+    expect(report.descriptionPhrases.map((term) => term.value)).toContain("moonlit ruined bell tower");
+    expect(report.descriptionPhrases.map((term) => term.value)).not.toContain("ruined bell tower");
+  });
 });

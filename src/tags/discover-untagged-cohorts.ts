@@ -12,6 +12,7 @@ import {
   type UntaggedCohortOptions,
   type UntaggedCohortReport,
 } from "./untagged-cohort-discovery.js";
+import { resolveDiscoveryGramRange } from "./discovery-normalization.js";
 
 type MultiValueArgs = Record<string, string[]>;
 
@@ -82,14 +83,18 @@ export function parseOptions(argv: string[]): UntaggedCohortOptions {
     throw new Error("Missing required --category <category> argument.");
   }
 
-  return {
+  const options = {
     category,
     subcategory: lastValue(args, "subcategory") as SearchSubcategory | undefined,
     cohortLimit: parseInteger(lastValue(args, "cohort-limit"), "--cohort-limit"),
     anchorLimit: parseInteger(lastValue(args, "anchor-limit"), "--anchor-limit"),
     minFeatureSupport: parseInteger(lastValue(args, "min-feature-support"), "--min-feature-support"),
     minFeatureLift: parseFloatValue(lastValue(args, "min-feature-lift"), "--min-feature-lift"),
+    minGramLength: parseInteger(lastValue(args, "min-gram-length"), "--min-gram-length"),
+    maxGramLength: parseInteger(lastValue(args, "max-gram-length"), "--max-gram-length"),
   };
+  resolveDiscoveryGramRange(options);
+  return options;
 }
 
 export function formatUntaggedCohortReport(report: UntaggedCohortReport): string {

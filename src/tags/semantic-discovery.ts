@@ -3,6 +3,7 @@ import { DatabaseSync } from "node:sqlite";
 import { SearchCategory, SearchSubcategory } from "../types.js";
 import { tokenize } from "../search/ranking.js";
 import { normalizeText } from "../utils.js";
+import { resolveDiscoveryGramRange } from "./discovery-normalization.js";
 import { normalizeDerivedTag } from "./index.js";
 
 const DEFAULT_CANDIDATE_LIMIT = 25;
@@ -157,6 +158,8 @@ export type SemanticDiscoveryOptions = {
   candidateEvidenceLimit?: number;
   minSimilarity?: number;
   excludeDerivedTag?: string;
+  minGramLength?: number;
+  maxGramLength?: number;
 };
 
 type LoadedDiscoveryRow = {
@@ -252,6 +255,7 @@ export function rankSemanticDiscoveryCandidates(
   const candidateEvidenceLimit = clampPositiveInteger(options.candidateEvidenceLimit, DEFAULT_CANDIDATE_EVIDENCE_LIMIT, 50);
   const minSimilarity = options.minSimilarity ?? Number.NEGATIVE_INFINITY;
   const commonTraits = collectCommonTraits(validExemplars, commonTraitLimit);
+  const gramRange = resolveDiscoveryGramRange(options);
 
   const rankedCandidates = validCandidates
     .map((candidate) => ({
@@ -274,6 +278,8 @@ export function rankSemanticDiscoveryCandidates(
   const { tokens, phrases } = collectSharedEvidence(validExemplars, evidencePool, {
     sharedTokenLimit,
     sharedPhraseLimit,
+    minGramLength: gramRange.minGramLength,
+    maxGramLength: gramRange.maxGramLength,
   });
   const similarityBuckets = SIMILARITY_BUCKETS.map((bucket) => ({
     minSimilarity: bucket,
@@ -569,6 +575,8 @@ function collectSharedEvidence(
   options: {
     sharedTokenLimit: number;
     sharedPhraseLimit: number;
+    minGramLength: number;
+    maxGramLength: number;
   },
 ): { tokens: SemanticDiscoveryEvidenceTerm[]; phrases: SemanticDiscoveryEvidenceTerm[] } {
   const exemplarTexts = exemplars.map((record) => record.descriptionText ?? "");
@@ -578,7 +586,7 @@ function collectSharedEvidence(
     limit: options.sharedTokenLimit,
   });
   const phrases = scoreEvidenceTerms(exemplarTexts, candidateTexts, {
-    extractor: extractPhraseSet,
+    extractor: (text) => extractPhraseSet(text, options.minGramLength, options.maxGramLength),
     limit: options.sharedPhraseLimit,
   });
 
@@ -638,10 +646,10 @@ function extractTokenSet(text: string): Set<string> {
   return new Set(tokenize(text).filter((token) => isUsefulToken(token)));
 }
 
-function extractPhraseSet(text: string): Set<string> {
+function extractPhraseSet(text: string, minGramLength: number, maxGramLength: number): Set<string> {
   const tokens = tokenize(text);
   const phrases = new Set<string>();
-  for (let size = 2; size <= 3; size += 1) {
+  for (let size = minGramLength; size <= maxGramLength; size += 1) {
     for (let index = 0; index <= tokens.length - size; index += 1) {
       const slice = tokens.slice(index, index + size);
       if (slice.some((token) => !token)) {

@@ -11,6 +11,7 @@ import {
   type DiscoveryEvidenceOptions,
   type DiscoveryEvidenceReport,
 } from "./evidence-analyzer.js";
+import { resolveDiscoveryGramRange } from "./discovery-normalization.js";
 
 type MultiValueArgs = Record<string, string[]>;
 
@@ -68,7 +69,7 @@ function parseInteger(value: string | undefined, flagName: string): number | und
 
 export function parseOptions(argv: string[]): DiscoveryEvidenceOptions {
   const args = parseCliArgs(argv);
-  return {
+  const options = {
     category: lastValue(args, "category") as SearchCategory | undefined,
     subcategory: lastValue(args, "subcategory") as SearchSubcategory | undefined,
     recordKeys: args["record-key"]?.map((value) => value.trim()).filter(Boolean),
@@ -78,7 +79,11 @@ export function parseOptions(argv: string[]): DiscoveryEvidenceOptions {
     untaggedOnly: hasFlag(args, "untagged"),
     limit: parseInteger(lastValue(args, "limit"), "--limit"),
     exampleLimit: parseInteger(lastValue(args, "example-limit"), "--example-limit"),
+    minGramLength: parseInteger(lastValue(args, "min-gram-length"), "--min-gram-length"),
+    maxGramLength: parseInteger(lastValue(args, "max-gram-length"), "--max-gram-length"),
   };
+  resolveDiscoveryGramRange(options);
+  return options;
 }
 
 function formatTerms(label: string, terms: DiscoveryEvidenceReport["nameTokens"]): string[] {

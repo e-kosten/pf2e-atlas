@@ -130,6 +130,21 @@ export type DiscoveryPhraseOccurrence = {
   raw: string;
 };
 
+export type DiscoveryGramRangeOptions = {
+  minGramLength?: number;
+  maxGramLength?: number;
+};
+
+export type ResolvedDiscoveryGramRange = {
+  minGramLength: number;
+  maxGramLength: number;
+};
+
+export const MIN_DISCOVERY_GRAM_LENGTH = 2;
+export const MAX_DISCOVERY_GRAM_LENGTH = 5;
+export const DEFAULT_DISCOVERY_MIN_GRAM_LENGTH = 2;
+export const DEFAULT_DISCOVERY_MAX_GRAM_LENGTH = 3;
+
 function restorePlaceholders(value: string): string {
   return value
     .replace(new RegExp(DICE_SENTINEL, "g"), "{{dice}}")
@@ -218,6 +233,49 @@ export function extractDiscoveryNgrams(
       normalized,
       raw: normalized,
     });
+  }
+
+  return occurrences;
+}
+
+export function resolveDiscoveryGramRange(
+  options: DiscoveryGramRangeOptions = {},
+): ResolvedDiscoveryGramRange {
+  const minGramLength = options.minGramLength ?? DEFAULT_DISCOVERY_MIN_GRAM_LENGTH;
+  const maxGramLength = options.maxGramLength ?? DEFAULT_DISCOVERY_MAX_GRAM_LENGTH;
+
+  if (!Number.isInteger(minGramLength)) {
+    throw new Error(`Expected --min-gram-length to be an integer between ${MIN_DISCOVERY_GRAM_LENGTH} and ${MAX_DISCOVERY_GRAM_LENGTH}.`);
+  }
+  if (!Number.isInteger(maxGramLength)) {
+    throw new Error(`Expected --max-gram-length to be an integer between ${MIN_DISCOVERY_GRAM_LENGTH} and ${MAX_DISCOVERY_GRAM_LENGTH}.`);
+  }
+  if (minGramLength < MIN_DISCOVERY_GRAM_LENGTH || minGramLength > MAX_DISCOVERY_GRAM_LENGTH) {
+    throw new Error(`Expected --min-gram-length to be between ${MIN_DISCOVERY_GRAM_LENGTH} and ${MAX_DISCOVERY_GRAM_LENGTH}, received "${minGramLength}".`);
+  }
+  if (maxGramLength < MIN_DISCOVERY_GRAM_LENGTH || maxGramLength > MAX_DISCOVERY_GRAM_LENGTH) {
+    throw new Error(`Expected --max-gram-length to be between ${MIN_DISCOVERY_GRAM_LENGTH} and ${MAX_DISCOVERY_GRAM_LENGTH}, received "${maxGramLength}".`);
+  }
+  if (minGramLength > maxGramLength) {
+    throw new Error(`Expected --min-gram-length (${minGramLength}) to be less than or equal to --max-gram-length (${maxGramLength}).`);
+  }
+
+  return {
+    minGramLength,
+    maxGramLength,
+  };
+}
+
+export function extractDiscoveryGramRange(
+  value: string,
+  gramRangeOptions: DiscoveryGramRangeOptions = {},
+  options: { filterStopwords?: boolean } = {},
+): DiscoveryPhraseOccurrence[] {
+  const { minGramLength, maxGramLength } = resolveDiscoveryGramRange(gramRangeOptions);
+  const occurrences: DiscoveryPhraseOccurrence[] = [];
+
+  for (let gramLength = minGramLength; gramLength <= maxGramLength; gramLength += 1) {
+    occurrences.push(...extractDiscoveryNgrams(value, gramLength, options));
   }
 
   return occurrences;

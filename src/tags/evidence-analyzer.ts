@@ -4,10 +4,11 @@ import { SearchCategory, SearchSubcategory } from "../types.js";
 import { uniqueSorted } from "../utils.js";
 import { getDerivedTagSeedRecordKeys, normalizeDerivedTag } from "./index.js";
 import {
-  extractDiscoveryNgrams,
+  extractDiscoveryGramRange,
   isDiscoveryNoisePhrase,
   isDiscoveryNoiseToken,
   normalizeDiscoveryFeature,
+  resolveDiscoveryGramRange,
   tokenizeDiscoveryText,
 } from "./discovery-normalization.js";
 import {
@@ -65,6 +66,8 @@ export type DiscoveryEvidenceOptions = {
   untaggedOnly?: boolean;
   limit?: number;
   exampleLimit?: number;
+  minGramLength?: number;
+  maxGramLength?: number;
 };
 
 type FeatureAccumulator = {
@@ -101,6 +104,7 @@ function incrementFeatureSupport(
 function collectRecordFeatureSet(
   record: DiscoveryAnalysisRecord,
   featureType: "nameTokens" | "namePhrases" | "descriptionTokens" | "descriptionPhrases" | "traits" | "references",
+  options: Pick<DiscoveryEvidenceOptions, "minGramLength" | "maxGramLength"> = {},
 ): { values: string[]; examplesByValue: Map<string, string[]> } {
   const examplesByValue = new Map<string, string[]>();
   const appendExample = (value: string, example: string): void => {
@@ -121,10 +125,8 @@ function collectRecordFeatureSet(
   }
 
   if (featureType === "namePhrases") {
-    const phrases = [
-      ...extractDiscoveryNgrams(record.name, 2, { filterStopwords: true }),
-      ...extractDiscoveryNgrams(record.name, 3, { filterStopwords: true }),
-    ].filter((phrase) => !isDiscoveryNoisePhrase(phrase.normalized));
+    const phrases = extractDiscoveryGramRange(record.name, options, { filterStopwords: true })
+      .filter((phrase) => !isDiscoveryNoisePhrase(phrase.normalized));
     for (const phrase of phrases) {
       appendExample(phrase.normalized, record.name);
     }
@@ -141,10 +143,8 @@ function collectRecordFeatureSet(
   }
 
   if (featureType === "descriptionPhrases") {
-    const phrases = [
-      ...extractDiscoveryNgrams(record.descriptionText ?? "", 2, { filterStopwords: true }),
-      ...extractDiscoveryNgrams(record.descriptionText ?? "", 3, { filterStopwords: true }),
-    ].filter((phrase) => !isDiscoveryNoisePhrase(phrase.normalized));
+    const phrases = extractDiscoveryGramRange(record.descriptionText ?? "", options, { filterStopwords: true })
+      .filter((phrase) => !isDiscoveryNoisePhrase(phrase.normalized));
     for (const phrase of phrases) {
       appendExample(phrase.normalized, record.descriptionText ?? record.name);
     }
@@ -177,10 +177,11 @@ function collectFeatureSupport(
   records: DiscoveryAnalysisRecord[],
   featureType: "nameTokens" | "namePhrases" | "descriptionTokens" | "descriptionPhrases" | "traits" | "references",
   exampleLimit: number,
+  options: Pick<DiscoveryEvidenceOptions, "minGramLength" | "maxGramLength"> = {},
 ): Map<string, FeatureAccumulator> {
   const support = new Map<string, FeatureAccumulator>();
   for (const record of records) {
-    const featureSet = collectRecordFeatureSet(record, featureType);
+    const featureSet = collectRecordFeatureSet(record, featureType, options);
     incrementFeatureSupport(support, featureSet.values, featureSet.examplesByValue, exampleLimit);
   }
 
@@ -300,10 +301,11 @@ function rankEvidenceTerms(
 export function analyzeDiscoveryEvidenceFromRecords(
   cohort: DiscoveryAnalysisRecord[],
   baseline: DiscoveryAnalysisRecord[],
-  options: Pick<DiscoveryEvidenceOptions, "limit" | "exampleLimit"> = {},
+  options: Pick<DiscoveryEvidenceOptions, "limit" | "exampleLimit" | "minGramLength" | "maxGramLength"> = {},
 ): Omit<DiscoveryEvidenceReport, "category" | "subcategory" | "representativeRecords"> {
   const limit = Math.max(1, Math.min(options.limit ?? DEFAULT_EVIDENCE_LIMIT, 50));
   const exampleLimit = Math.max(1, Math.min(options.exampleLimit ?? DEFAULT_EXAMPLE_LIMIT, 5));
+  const gramRange = resolveDiscoveryGramRange(options);
 
   const featureTypes = [
     "nameTokens",
@@ -316,8 +318,8 @@ export function analyzeDiscoveryEvidenceFromRecords(
 
   const ranked = Object.fromEntries(
     featureTypes.map((featureType) => {
-      const cohortSupport = collectFeatureSupport(cohort, featureType, exampleLimit);
-      const baselineSupport = collectFeatureSupport(baseline, featureType, exampleLimit);
+      const cohortSupport = collectFeatureSupport(cohort, featureType, exampleLimit, gramRange);
+      const baselineSupport = collectFeatureSupport(baseline, featureType, exampleLimit, gramRange);
       return [featureType, rankEvidenceTerms(cohortSupport, baselineSupport, cohort.length, baseline.length, limit, exampleLimit, featureType)];
     }),
   ) as Record<(typeof featureTypes)[number], DiscoveryEvidenceTerm[]>;
