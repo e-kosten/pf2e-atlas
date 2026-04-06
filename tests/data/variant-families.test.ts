@@ -271,6 +271,91 @@ describe("variant family normalization", () => {
     expect(entries[1].record.variantSource).toBe("composite");
   });
 
+  it("groups title variants when lead text matches strongly but label parsing is loose", () => {
+    const entries = [
+      createEntry({
+        recordKey: "equipment:ring-wiz-1",
+        name: "Ring of Wizardry (Type I)",
+        sourcePath: "vendor/pf2e/packs/pf2e/equipment/ring-of-wizardry-type-i.json",
+        descriptionText: [
+          "This ring is made from the purest platinum and is covered in esoteric arcane symbols. It does nothing unless you have a spellcasting class feature with the arcane tradition. While wearing the ring of wizardry, you gain a +1 item bonus to Arcana checks and have two additional 1st-rank arcane spell slots each day. You prepare spells in these slots or cast from them spontaneously, just as you normally cast your spells.",
+          "If you take off the ring for any reason, you lose the additional spell slots. You can't gain spell slots from more than one ring of wizardry per day.",
+          "If you can cast arcane spells in a variety of different ways, you can divide the spell slots as you wish among your various sources of arcane spells.",
+        ].join("\n"),
+      }),
+      createEntry({
+        recordKey: "equipment:ring-wiz-4",
+        name: "Ring of Wizardry (Type IV)",
+        sourcePath: "vendor/pf2e/packs/pf2e/equipment/ring-of-wizardry-type-iv.json",
+        descriptionText: [
+          "This ring is made from the purest platinum and is covered in esoteric arcane symbols. It does nothing unless you have a spellcasting class feature with the arcane tradition. While wearing the ring of wizardry, you gain a +2 item bonus to Arcana checks and have two additional 4th-rank and one additional 3rd-rank arcane spell slot each day. You prepare spells in these slots or cast from them spontaneously, just as you normally cast your spells.",
+          "If you take off the ring for any reason, you lose the additional spell slots. You can't gain spell slots from more than one ring of wizardry per day.",
+          "If you can cast arcane spells in a variety of different ways, you can divide the spell slots as you wish among your various sources of arcane spells.",
+        ].join("\n"),
+      }),
+    ];
+
+    assignVariantFamilies(entries);
+
+    expect(entries[0].record.variantBaseName).toBe("Ring of Wizardry");
+    expect(entries[1].record.variantBaseName).toBe("Ring of Wizardry");
+    expect(entries[0].record.variantFamilyKey).toBe(entries[1].record.variantFamilyKey);
+    expect(entries[0].record.variantSource).toBe("composite");
+  });
+
+  it("groups potency rune ladders despite numeric-only differences in lead text", () => {
+    const entries = [
+      createEntry({
+        recordKey: "equipment:armor-potency-1",
+        name: "Armor Potency (+1)",
+        sourcePath: "vendor/pf2e/packs/pf2e/equipment/armor-potency-1.json",
+        descriptionText: [
+          "Magic wards deflect attacks. Increase the armor's item bonus to AC by 1. The armor can be etched with one property rune.",
+          "You can upgrade the armor potency rune already etched on a suit of armor using the normal process for upgrading items and runes.",
+          "Craft Requirements You are an expert in Crafting.",
+        ].join("\n"),
+      }),
+      createEntry({
+        recordKey: "equipment:armor-potency-3",
+        name: "Armor Potency (+3)",
+        sourcePath: "vendor/pf2e/packs/pf2e/equipment/armor-potency-3.json",
+        descriptionText: [
+          "Magic wards deflect attacks. Increase the armor's item bonus to AC by 3. The armor can be etched with three property runes.",
+          "You can upgrade the armor potency rune already etched on a suit of armor using the normal process for upgrading items and runes.",
+          "Craft Requirements You are legendary in Crafting.",
+        ].join("\n"),
+      }),
+      createEntry({
+        recordKey: "equipment:weapon-potency-1",
+        name: "Weapon Potency (+1)",
+        sourcePath: "vendor/pf2e/packs/pf2e/equipment/weapon-potency-1.json",
+        descriptionText: [
+          "Magical enhancements make this weapon strike true. Attack rolls with this weapon gain a +1 item bonus, and the weapon can be etched with one property rune.",
+          "You can upgrade the weapon potency rune already etched on a weapon to a stronger version, increasing the values of the existing rune to those of the new rune.",
+          "Craft Requirements You are an expert in Crafting.",
+        ].join("\n"),
+      }),
+      createEntry({
+        recordKey: "equipment:weapon-potency-3",
+        name: "Weapon Potency (+3)",
+        sourcePath: "vendor/pf2e/packs/pf2e/equipment/weapon-potency-3.json",
+        descriptionText: [
+          "Magical enhancements make this weapon strike true. Attack rolls with this weapon gain a +3 item bonus, and the weapon can be etched with three property runes.",
+          "You can upgrade the weapon potency rune already etched on a weapon to a stronger version, increasing the values of the existing rune to those of the new rune.",
+          "Craft Requirements You are legendary in Crafting.",
+        ].join("\n"),
+      }),
+    ];
+
+    assignVariantFamilies(entries);
+
+    expect(entries[0].record.variantBaseName).toBe("Armor Potency");
+    expect(entries[1].record.variantFamilyKey).toBe(entries[0].record.variantFamilyKey);
+    expect(entries[2].record.variantBaseName).toBe("Weapon Potency");
+    expect(entries[3].record.variantFamilyKey).toBe(entries[2].record.variantFamilyKey);
+    expect(entries[0].record.variantFamilyKey).not.toBe(entries[2].record.variantFamilyKey);
+  });
+
   it("does not group parenthetical title lines without shared opening descriptions", () => {
     const entries = [
       createEntry({

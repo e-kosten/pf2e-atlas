@@ -32,6 +32,18 @@ const STRUCTURAL_LINE_PREFIXES = [
 const UUID_PATTERN = /@UUID\[([^\]]+)\](?:\{([^}]+)\})?/g;
 const CHECK_PATTERN = /@Check\[[^\]]+\](?:\{([^}]+)\})?/g;
 const INLINE_PATTERN = /@[A-Z][A-Za-z]+\[[^\]]+\](?:\{([^}]+)\})?/g;
+const SMALL_NUMBER_WORDS = new Set([
+  "one",
+  "two",
+  "three",
+  "four",
+  "five",
+  "six",
+  "seven",
+  "eight",
+  "nine",
+  "ten",
+]);
 
 export type VariantAxis =
   | "rank"
@@ -55,6 +67,7 @@ type GroupMember = {
   entry: IndexedRecordEntry;
   candidate: TitleCandidate;
   leadBlock: string;
+  leadSentences: string[];
   descriptionScore: number;
 };
 
@@ -264,6 +277,47 @@ function buildSuffixScaffoldCandidate(entry: IndexedRecordEntry): TitleCandidate
   };
 }
 
+function buildLooseStemCandidate(entry: IndexedRecordEntry): TitleCandidate | null {
+  const tokens = normalizeText(entry.record.name).split(" ").filter(Boolean);
+  if (tokens.length < 3) {
+    return null;
+  }
+
+  const candidateShapes = [
+    {
+      baseTokens: tokens.slice(0, -1),
+      labelTokens: tokens.slice(-1),
+    },
+    {
+      baseTokens: tokens.slice(-2),
+      labelTokens: tokens.slice(0, -2),
+    },
+  ];
+
+  for (const shape of candidateShapes) {
+    if (shape.baseTokens.length < 2 || shape.labelTokens.length < 1 || shape.labelTokens.length > 2) {
+      continue;
+    }
+
+    const baseName = toTitleWords(shape.baseTokens.join(" "));
+    const label = toTitleWords(shape.labelTokens.join(" "));
+    if (!baseName || !label) {
+      continue;
+    }
+
+    return {
+      baseName,
+      label,
+      axes: ["other"],
+      source: "namePattern",
+      confidence: 0.48,
+      fallbackEligible: false,
+    };
+  }
+
+  return null;
+}
+
 function simplifyFoundryInlineMarkup(value: string): string {
   return value
     .replace(UUID_PATTERN, (_match, raw: string, label: string | undefined) => {
@@ -276,6 +330,17 @@ function simplifyFoundryInlineMarkup(value: string): string {
     })
     .replace(CHECK_PATTERN, (_match, label: string | undefined) => label ?? "")
     .replace(INLINE_PATTERN, (_match, label: string | undefined) => label ?? "");
+}
+
+function normalizeLeadSentence(value: string): string {
+  return normalizeText(
+    simplifyFoundryInlineMarkup(value)
+      .replace(/\btype\s+(?:i|ii|iii|iv|v|vi|vii|viii|ix|x)\b/gi, "type {{ordinal}}")
+      .replace(/\+\d+\b/g, "{{number}}")
+      .replace(/\b\d+(?:st|nd|rd|th)\b/gi, "{{ordinal}}")
+      .replace(/\b\d+\b/g, "{{number}}")
+      .replace(/\b(one|two|three|four|five|six|seven|eight|nine|ten)\b/gi, "{{number}}"),
+  );
 }
 
 function isStructuralLeadLine(value: string): boolean {
@@ -309,6 +374,39 @@ function extractLeadBlock(descriptionText: string | null): string {
   }
 
   return leadLines.join(" ").trim();
+}
+
+function extractLeadSentences(descriptionText: string | null): string[] {
+  if (!descriptionText) {
+    return [];
+  }
+
+  const lines = descriptionText
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  while (lines.length > 0 && isStructuralLeadLine(normalizeText(simplifyFoundryInlineMarkup(lines[0]!)))) {
+    lines.shift();
+  }
+
+  const leadLines: string[] = [];
+  for (const line of lines) {
+    const normalizedLine = normalizeText(simplifyFoundryInlineMarkup(line));
+    if (leadLines.length > 0 && isStructuralLeadLine(normalizedLine)) {
+      break;
+    }
+
+    leadLines.push(line);
+    if (leadLines.length >= 3) {
+      break;
+    }
+  }
+
+  return leadLines
+    .flatMap((line) => line.split(/(?<=[.!?])\s+/))
+    .map((sentence) => normalizeLeadSentence(sentence))
+    .filter(Boolean);
 }
 
 function commonPrefixTokens(left: string, right: string): number {
@@ -345,6 +443,28 @@ function descriptionPasses(left: string, right: string): boolean {
   return common >= 16 && similarity >= 0.35;
 }
 
+function sentenceOverlap(left: string[], right: string[]): number {
+  if (left.length === 0 || right.length === 0) {
+    return 0;
+  }
+
+  const remaining = new Map<string, number>();
+  for (const sentence of right) {
+    remaining.set(sentence, (remaining.get(sentence) ?? 0) + 1);
+  }
+
+  let matches = 0;
+  for (const sentence of left) {
+    const count = remaining.get(sentence) ?? 0;
+    if (count > 0) {
+      matches += 1;
+      remaining.set(sentence, count - 1);
+    }
+  }
+
+  return matches / Math.min(left.length, right.length);
+}
+
 function variantGroupKey(entry: IndexedRecordEntry, baseName: string): string {
   return [
     entry.record.category,
@@ -366,7 +486,7 @@ function isExactBaseMember(member: GroupMember, baseName: string): boolean {
 }
 
 function bestDescriptionTemplate(members: GroupMember[]): GroupMember | null {
-  const candidates = members.filter((member) => member.leadBlock.length > 0);
+  const candidates = members.filter((member) => member.leadBlock.length > 0 || member.leadSentences.length > 0);
   if (candidates.length < 2) {
     return null;
   }
@@ -379,7 +499,10 @@ function bestDescriptionTemplate(members: GroupMember[]): GroupMember | null {
         return sum;
       }
 
-      return sum + leadBlockSimilarity(member.leadBlock, candidate.leadBlock);
+      return sum + Math.max(
+        leadBlockSimilarity(member.leadBlock, candidate.leadBlock),
+        sentenceOverlap(member.leadSentences, candidate.leadSentences),
+      );
     }, 0);
     if (total > bestScore) {
       best = member;
@@ -399,9 +522,19 @@ function deriveDescriptionMembers(members: GroupMember[]): GroupMember[] {
   return members
     .map((member) => ({
       ...member,
-      descriptionScore: member.leadBlock.length > 0 ? leadBlockSimilarity(template.leadBlock, member.leadBlock) : 0,
+      descriptionScore: Math.max(
+        member.leadBlock.length > 0 ? leadBlockSimilarity(template.leadBlock, member.leadBlock) : 0,
+        sentenceOverlap(template.leadSentences, member.leadSentences),
+      ),
     }))
-    .filter((member) => member.entry.record.recordKey === template.entry.record.recordKey || descriptionPasses(template.leadBlock, member.leadBlock));
+    .filter((member) => {
+      if (member.entry.record.recordKey === template.entry.record.recordKey) {
+        return true;
+      }
+
+      return descriptionPasses(template.leadBlock, member.leadBlock)
+        || sentenceOverlap(template.leadSentences, member.leadSentences) >= 0.5;
+    });
 }
 
 function includeExactBaseMembers(descriptionMembers: GroupMember[], allMembers: GroupMember[], baseName: string): GroupMember[] {
@@ -419,7 +552,10 @@ function needsBroaderEvidence(members: GroupMember[], baseName: string): boolean
   const hasBase = members.some((member) => isExactBaseMember(member, baseName));
   const hasStructuredAxis = members.some((member) => member.candidate.axes.some((axis) => axis !== "other"));
   const hasStackedLabel = members.some((member) => (member.candidate.label ?? "").includes(", "));
-  return !hasBase && !hasStructuredAxis && !hasStackedLabel && members.length < 4;
+  const reliesOnLooseStemOnly = members
+    .filter((member) => !isExactBaseMember(member, baseName))
+    .every((member) => member.candidate.confidence <= 0.52);
+  return !hasBase && !hasStructuredAxis && !hasStackedLabel && reliesOnLooseStemOnly && members.length < 4;
 }
 
 function exactBaseCandidate(baseName: string): TitleCandidate {
@@ -466,7 +602,7 @@ export function assignVariantFamilies(entries: IndexedRecordEntry[]): void {
     bucket.push(entry);
     byExactName.set(exactKey, bucket);
 
-    const candidate = parseStructuredCandidate(entry) ?? buildSuffixScaffoldCandidate(entry);
+    const candidate = parseStructuredCandidate(entry) ?? buildSuffixScaffoldCandidate(entry) ?? buildLooseStemCandidate(entry);
     if (!candidate) {
       continue;
     }
@@ -482,6 +618,7 @@ export function assignVariantFamilies(entries: IndexedRecordEntry[]): void {
       entry,
       candidate,
       leadBlock: extractLeadBlock(entry.record.descriptionText),
+      leadSentences: extractLeadSentences(entry.record.descriptionText),
       descriptionScore: 0,
     });
     candidateGroups.set(groupKey, group);
@@ -495,6 +632,7 @@ export function assignVariantFamilies(entries: IndexedRecordEntry[]): void {
         entry,
         candidate: exactBaseCandidate(group.baseName),
         leadBlock: extractLeadBlock(entry.record.descriptionText),
+        leadSentences: extractLeadSentences(entry.record.descriptionText),
         descriptionScore: 0,
       });
     }
