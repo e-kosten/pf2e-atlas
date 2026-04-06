@@ -491,6 +491,40 @@ const CIVIC_SUPPORT_TEXT_ANCHORS = [
   patternAnchor("protect the faithful"),
   patternAnchor("responsible for the livelihood"),
   patternAnchor("shares divine dreams and advice"),
+  patternAnchor("for the community"),
+  patternAnchor("public works"),
+  patternAnchor("civic festivals"),
+  patternAnchor("public ceremonies"),
+];
+
+const CIVIC_NPC_NAME_ANCHORS = [
+  patternAnchor("abbot", "name"),
+  patternAnchor("advisor", "name"),
+  patternAnchor("apothecary", "name"),
+  patternAnchor("barkeep", "name"),
+  patternAnchor("captain", "name"),
+  patternAnchor("caretaker", "name"),
+  patternAnchor("chair", "name"),
+  patternAnchor("commoner", "name"),
+  patternAnchor("constable", "name"),
+  patternAnchor("courtier", "name"),
+  patternAnchor("diplomat", "name"),
+  patternAnchor("envoy", "name"),
+  patternAnchor("gaoler", "name"),
+  patternAnchor("guard", "name"),
+  patternAnchor("historian", "name"),
+  patternAnchor("innkeeper", "name"),
+  patternAnchor("jailer", "name"),
+  patternAnchor("librarian", "name"),
+  patternAnchor("merchant", "name"),
+  patternAnchor("noble", "name"),
+  patternAnchor("physician", "name"),
+  patternAnchor("professor", "name"),
+  patternAnchor("prophet", "name"),
+  patternAnchor("scribe", "name"),
+  patternAnchor("teacher", "name"),
+  patternAnchor("translator", "name"),
+  patternAnchor("watch officer", "name"),
 ];
 
 const CIVIC_NPC_ROLE_BLOCKER_TEXT_ANCHORS = [
@@ -1301,7 +1335,12 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "civic_npc",
     category: "creature",
+    threshold: 1,
     requiresTags: ["profession_npc"],
+    anyOf: [
+      { score: 1, textAny: CIVIC_NPC_NAME_ANCHORS },
+      { score: 1, textAny: CIVIC_SUPPORT_TEXT_ANCHORS },
+    ],
     noneOf: [
       { traitsAny: CIVIC_NPC_BLOCKER_TRAITS },
       { familiesAny: UNDEAD_GLOSSARY_FAMILIES },

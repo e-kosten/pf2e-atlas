@@ -250,7 +250,15 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "A grim defender patrols the walls of a mountain fortress and ancient citadel.",
       traits: ["humanoid"],
-    })).toEqual(expect.arrayContaining(["fortress_setting", "mountain_setting", "combatant_npc"]));
+    })).toEqual(expect.arrayContaining(["fortress_setting", "mountain_setting", "profession_npc", "combatant_npc"]));
+
+    expect(deriveRecordTags({
+      name: "Fortress Warden",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A grim defender patrols the walls of a mountain fortress and ancient citadel.",
+      traits: ["humanoid"],
+    })).not.toContain("civic_npc");
 
     expect(deriveRecordTags({
       name: "Rust Hag",
@@ -306,7 +314,15 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "By night, this member of the nobility dons a false identity to mete out extralegal justice.",
       traits: ["human", "humanoid"],
-    })).toEqual(expect.arrayContaining(["profession_npc", "civic_npc"]));
+    })).toContain("profession_npc");
+
+    expect(deriveRecordTags({
+      name: "Wealthy Vigilante",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "By night, this member of the nobility dons a false identity to mete out extralegal justice.",
+      traits: ["human", "humanoid"],
+    })).not.toContain("civic_npc");
 
     expect(deriveRecordTags({
       name: "Prophet",
@@ -433,7 +449,15 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "A respected apothecary and physician who serves the community by treating the sick.",
       traits: ["human", "humanoid"],
-    })).toContain("profession_npc");
+    })).toEqual(expect.arrayContaining(["profession_npc", "civic_npc"]));
+
+    expect(deriveRecordTags({
+      name: "Barkeep",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A barkeep keeps the tavern open as a dependable gathering place for the neighborhood.",
+      traits: ["human", "humanoid"],
+    })).toEqual(expect.arrayContaining(["profession_npc", "civic_npc"]));
 
     expect(deriveRecordTags({
       name: "Adjutant Hellknight Armiger",
@@ -546,6 +570,38 @@ describe("derived tag rules: creature", () => {
       descriptionText: "A traveler passes through town in search of lodging.",
       traits: ["human", "humanoid"],
     })).not.toEqual(expect.arrayContaining(["profession_npc", "civic_npc", "combatant_npc"]));
+
+    expect(deriveRecordTags({
+      name: "False Priest",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Belief is perhaps the strongest force in the universe. Instilling belief only to use it against someone in deceit, however, is the purview of a false priest.",
+      traits: ["human", "humanoid"],
+    })).not.toContain("civic_npc");
+
+    expect(deriveRecordTags({
+      name: "Anadi Hunter",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Anadi hunters act as the eyes and ears of their clans, scouting the surrounding area for potential invaders.",
+      traits: ["anadi", "chaotic", "good", "humanoid"],
+    })).not.toContain("civic_npc");
+
+    expect(deriveRecordTags({
+      name: "Urdefhan Death Scout",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "An urdefhan death scout ranges ahead of the war band, stalking prey and reporting enemy positions back to the hunt leaders.",
+      traits: ["evil", "humanoid", "urdefhan"],
+    })).not.toContain("civic_npc");
+
+    expect(deriveRecordTags({
+      name: "Hateful Logger",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A logger consumed by spite hacks through the forest and lashes out at anyone who enters the claim.",
+      traits: ["human", "humanoid"],
+    })).not.toContain("civic_npc");
   });
 
   it("derives creature motif tags without collapsing into raw vibes", () => {
