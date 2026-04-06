@@ -1,6 +1,12 @@
 import { deriveRecordTagsFromRules } from "./matcher.js";
 import { normalizeDerivedTag, DerivedTagContext } from "./shared.js";
-import { applyPromotedFamilyTags, publishDerivedTagCatalog } from "./catalog-utils.js";
+import {
+  buildDerivedTagSeedIndex,
+  deriveCatalogTagDerivation,
+  publishDerivedTagCatalog,
+  resolveCatalogSeedRecordKeys,
+  type DerivedTagDerivation,
+} from "./catalog-utils.js";
 import { AFFLICTION_DERIVED_TAG_CATALOG } from "./catalog/affliction.js";
 import { CREATURE_DERIVED_TAG_CATALOG } from "./catalog/creature.js";
 import { EQUIPMENT_DERIVED_TAG_CATALOG } from "./catalog/equipment.js";
@@ -29,10 +35,24 @@ const RAW_DERIVED_TAG_CATALOG = [
   ...AFFLICTION_DERIVED_TAG_CATALOG,
   ...CREATURE_DERIVED_TAG_CATALOG,
 ];
+const DERIVED_TAG_SEED_INDEX = buildDerivedTagSeedIndex(RAW_DERIVED_TAG_CATALOG);
 
 export const DERIVED_TAG_CATALOG = publishDerivedTagCatalog(RAW_DERIVED_TAG_CATALOG);
 
 export function deriveRecordTags(input: DerivedTagContext): string[] {
-  const tags = deriveRecordTagsFromRules(DERIVED_TAG_RULES, input);
-  return applyPromotedFamilyTags(RAW_DERIVED_TAG_CATALOG, input, tags);
+  return deriveRecordTagDerivation(input).tags;
+}
+
+export function deriveRecordTagDerivation(
+  input: DerivedTagContext,
+): DerivedTagDerivation {
+  const ruleTags = deriveRecordTagsFromRules(DERIVED_TAG_RULES, input);
+  return deriveCatalogTagDerivation(RAW_DERIVED_TAG_CATALOG, DERIVED_TAG_SEED_INDEX, input, ruleTags);
+}
+
+export function getDerivedTagSeedRecordKeys(
+  tag: string,
+  scope: { category?: DerivedTagContext["category"]; subcategory?: DerivedTagContext["subcategory"] } = {},
+): string[] {
+  return resolveCatalogSeedRecordKeys(DERIVED_TAG_SEED_INDEX, normalizeDerivedTag(tag), scope);
 }

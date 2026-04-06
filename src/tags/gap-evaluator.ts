@@ -1,6 +1,6 @@
 import { DatabaseSync } from "node:sqlite";
 
-import { normalizeDerivedTag } from "./index.js";
+import { getDerivedTagSeedRecordKeys, normalizeDerivedTag } from "./index.js";
 import { SearchCategory, SearchSubcategory } from "../types.js";
 import { type DiscoveryEvidenceTerm, analyzeDiscoveryEvidenceFromRecords } from "./evidence-analyzer.js";
 import { tokenizeDiscoveryText } from "./discovery-normalization.js";
@@ -91,12 +91,20 @@ export function evaluateDerivedTagGaps(
   const normalizedTag = normalizeDerivedTag(options.tag);
   const candidateScope = getCandidateScope(options);
   const exemplarScope = getExemplarScope(options, candidateScope);
-  const exemplars = loadGapRecords(db, { ...exemplarScope, tag: normalizedTag, mode: "tagged" });
+  const exemplars = mergeUniqueGapRecords([
+    loadGapRecords(db, { ...exemplarScope, tag: normalizedTag, mode: "tagged" }),
+    loadGapRecordsByRecordKeys(db, {
+      ...exemplarScope,
+      recordKeys: getDerivedTagSeedRecordKeys(normalizedTag, exemplarScope),
+    }),
+  ]);
   if (exemplars.length === 0) {
     throw new Error(`No canonical records with derived tag "${normalizedTag}" matched exemplar scope "${renderScope(exemplarScope)}".`);
   }
 
-  const candidates = loadGapRecords(db, { ...candidateScope, tag: normalizedTag, mode: "untagged" });
+  const exemplarKeys = new Set(exemplars.map((record) => record.recordKey));
+  const candidates = loadGapRecords(db, { ...candidateScope, tag: normalizedTag, mode: "untagged" })
+    .filter((record) => !exemplarKeys.has(record.recordKey));
   return rankDerivedTagGapCandidates(exemplars, candidates, {
     ...options,
     tag: normalizedTag,
@@ -206,6 +214,19 @@ function renderScope(scope: DerivedTagGapScope): string {
   return "all canonical records";
 }
 
+function mergeUniqueGapRecords(groups: DerivedTagGapRecord[][]): DerivedTagGapRecord[] {
+  const uniqueRecords = new Map<string, DerivedTagGapRecord>();
+  for (const group of groups) {
+    for (const record of group) {
+      if (!uniqueRecords.has(record.recordKey)) {
+        uniqueRecords.set(record.recordKey, record);
+      }
+    }
+  }
+
+  return [...uniqueRecords.values()];
+}
+
 function loadGapRecords(
   db: DatabaseSync,
   options: DerivedTagGapEvaluationOptions & { tag: string; mode: "tagged" | "untagged" },
@@ -233,6 +254,53 @@ function loadGapRecords(
     sql.push("AND NOT EXISTS (SELECT 1 FROM record_derived_tags d WHERE d.record_key = r.record_key AND d.tag = ?)");
     params.push(options.tag);
   }
+
+  if (options.category) {
+    sql.push("AND r.category = ?");
+    params.push(options.category);
+  }
+  if (options.subcategory) {
+    sql.push("AND r.subcategory = ?");
+    params.push(options.subcategory);
+  }
+
+  const rows = db.prepare(sql.join("\n")).all(...params) as LoadedGapRow[];
+  return rows.map((row) => ({
+    recordKey: row.recordKey,
+    name: row.name,
+    category: row.category as SearchCategory,
+    subcategory: (row.subcategory ?? null) as SearchSubcategory | null,
+    level: typeof row.level === "bigint" ? Number(row.level) : row.level,
+    traits: JSON.parse(row.traitsJson) as string[],
+    descriptionText: row.descriptionText,
+    vector: decodeVector(row.vectorBlob),
+  }));
+}
+
+function loadGapRecordsByRecordKeys(
+  db: DatabaseSync,
+  options: DerivedTagGapScope & { recordKeys: string[] },
+): DerivedTagGapRecord[] {
+  if (options.recordKeys.length === 0) {
+    return [];
+  }
+
+  const sql = [
+    "SELECT",
+    "  r.record_key AS recordKey,",
+    "  r.name AS name,",
+    "  r.category AS category,",
+    "  r.subcategory AS subcategory,",
+    "  r.level AS level,",
+    "  r.traits_json AS traitsJson,",
+    "  r.description_text AS descriptionText,",
+    "  e.vector_blob AS vectorBlob",
+    "FROM records r",
+    "JOIN embeddings e ON e.record_key = r.record_key",
+    "WHERE r.is_search_canonical = 1",
+    `AND r.record_key IN (${options.recordKeys.map(() => "?").join(", ")})`,
+  ];
+  const params: Array<string | number> = [...options.recordKeys];
 
   if (options.category) {
     sql.push("AND r.category = ?");

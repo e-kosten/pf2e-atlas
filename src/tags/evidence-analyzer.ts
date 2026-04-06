@@ -2,6 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 
 import { SearchCategory, SearchSubcategory } from "../types.js";
 import { uniqueSorted } from "../utils.js";
+import { getDerivedTagSeedRecordKeys, normalizeDerivedTag } from "./index.js";
 import {
   extractDiscoveryNgrams,
   normalizeDiscoveryFeature,
@@ -242,20 +243,49 @@ export function analyzeDiscoveryEvidenceFromRecords(
   };
 }
 
+function mergeUniqueRecords(records: DiscoveryAnalysisRecord[]): DiscoveryAnalysisRecord[] {
+  const uniqueRecords = new Map<string, DiscoveryAnalysisRecord>();
+  for (const record of records) {
+    if (!uniqueRecords.has(record.recordKey)) {
+      uniqueRecords.set(record.recordKey, record);
+    }
+  }
+
+  return [...uniqueRecords.values()];
+}
+
 export function analyzeDiscoveryEvidence(
   db: DatabaseSync,
   options: DiscoveryEvidenceOptions,
 ): DiscoveryEvidenceReport {
-  const cohort = loadDiscoveryRecords(db, {
+  const explicitRecordKeys = options.recordKeys;
+  const normalizedTag = options.tag ? normalizeDerivedTag(options.tag) : undefined;
+  const seedRecordKeys = normalizedTag && !explicitRecordKeys
+    ? getDerivedTagSeedRecordKeys(normalizedTag, {
+      category: options.category,
+      subcategory: options.subcategory,
+    })
+    : [];
+  const taggedRecords = loadDiscoveryRecords(db, {
     category: options.category,
     subcategory: options.subcategory,
-    recordKeys: options.recordKeys,
+    recordKeys: explicitRecordKeys,
     excludeRecordKeys: options.excludeRecordKeys,
-    requireTag: options.tag,
+    requireTag: normalizedTag,
     excludeDerivedTag: options.excludeDerivedTag,
     untaggedOnly: options.untaggedOnly,
     includeVectors: false,
   });
+  const seededRecords = seedRecordKeys.length > 0
+    ? loadDiscoveryRecords(db, {
+      category: options.category,
+      subcategory: options.subcategory,
+      recordKeys: seedRecordKeys,
+      excludeRecordKeys: options.excludeRecordKeys,
+      includeVectors: false,
+    })
+    : [];
+  const cohort = mergeUniqueRecords([...taggedRecords, ...seededRecords]);
   const baseline = loadDiscoveryRecords(db, {
     category: options.category,
     subcategory: options.subcategory,

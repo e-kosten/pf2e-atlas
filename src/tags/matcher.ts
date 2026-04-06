@@ -2,6 +2,7 @@ import type { SearchCategory, SearchSubcategory } from "../types.js";
 import { normalizeText, uniqueSorted } from "../utils.js";
 
 export type DerivedTagContext = {
+  recordKey?: string;
   name: string;
   category: SearchCategory;
   subcategory: SearchSubcategory | null;

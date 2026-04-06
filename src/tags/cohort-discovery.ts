@@ -2,7 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 
 import { SearchCategory, SearchSubcategory } from "../types.js";
 import { uniqueSorted } from "../utils.js";
-import { normalizeDerivedTag } from "./index.js";
+import { getDerivedTagSeedRecordKeys, normalizeDerivedTag } from "./index.js";
 import {
   type DiscoveryEvidenceTerm,
   analyzeDiscoveryEvidenceFromRecords,
@@ -88,6 +88,17 @@ function dedupeVariantFamilies<T extends DiscoveryAnalysisRecord>(records: T[]):
     seen.add(familyId);
     return true;
   });
+}
+
+function mergeUniqueRecords<T extends DiscoveryAnalysisRecord>(records: T[]): T[] {
+  const uniqueRecords = new Map<string, T>();
+  for (const record of records) {
+    if (!uniqueRecords.has(record.recordKey)) {
+      uniqueRecords.set(record.recordKey, record);
+    }
+  }
+
+  return [...uniqueRecords.values()];
 }
 
 function distinctVariantFamilyCount(records: DiscoveryAnalysisRecord[]): number {
@@ -360,13 +371,29 @@ export function discoverRuleableCohorts(
   options: RuleableCohortOptions,
 ): RuleableCohortReport {
   const normalizedTag = options.tag ? normalizeDerivedTag(options.tag) : null;
-  const resolvedExemplars: ResolvedDiscoveryExemplar[] = normalizedTag
-    ? loadDiscoveryRecords(db, {
+  const seedRecordKeys = normalizedTag
+    ? getDerivedTagSeedRecordKeys(normalizedTag, {
       category: options.category,
       subcategory: options.subcategory,
-      requireTag: normalizedTag,
-      includeVectors: true,
-    }).map((record) => ({
+    })
+    : [];
+  const resolvedExemplars: ResolvedDiscoveryExemplar[] = normalizedTag
+    ? mergeUniqueRecords([
+      ...loadDiscoveryRecords(db, {
+        category: options.category,
+        subcategory: options.subcategory,
+        requireTag: normalizedTag,
+        includeVectors: true,
+      }),
+      ...(seedRecordKeys.length > 0
+        ? loadDiscoveryRecords(db, {
+          category: options.category,
+          subcategory: options.subcategory,
+          recordKeys: seedRecordKeys,
+          includeVectors: true,
+        })
+        : []),
+    ]).map((record) => ({
       query: record.recordKey,
       matchedBy: "recordKey" as const,
       ...record,

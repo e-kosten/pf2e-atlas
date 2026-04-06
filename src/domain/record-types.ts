@@ -30,6 +30,8 @@ export interface DerivedTagCatalogTag {
   value: string;
   description?: string;
   nativeOntologyPolicy?: "distinct_required" | "aggregates_native_signals";
+  seedRecordKeys?: string[];
+  excludeSeedRecordKeys?: string[];
 }
 
 export interface DerivedTagCatalogEntry {

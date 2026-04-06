@@ -529,6 +529,7 @@ export async function buildIndex(
 
     for (const entry of indexedEntries) {
       entry.record.derivedTags = deriveRecordTags({
+        recordKey: entry.record.recordKey,
         name: entry.record.name,
         category: entry.record.category,
         subcategory: entry.record.subcategory,
@@ -563,6 +564,7 @@ export async function buildIndex(
 
     for (const entry of canonicalDerivedAfflictions) {
       entry.record.derivedTags = deriveRecordTags({
+        recordKey: entry.record.recordKey,
         name: entry.record.name,
         category: entry.record.category,
         subcategory: entry.record.subcategory,
