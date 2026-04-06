@@ -1,10 +1,11 @@
 import type {
   DerivedTagCatalogEntry,
   DerivedTagCatalogTag,
+  DerivedTagSeedRecordResolution,
   SearchCategory,
   SearchSubcategory,
 } from "../types.js";
-import { uniqueSorted } from "../utils.js";
+import { normalizeText, uniqueSorted } from "../utils.js";
 import type { DerivedTagContext } from "./matcher.js";
 import { normalizeDerivedTag } from "./shared.js";
 
@@ -14,6 +15,8 @@ export type DerivedTagDerivation = {
   tags: string[];
   sources: Map<string, DerivedTagSource>;
 };
+
+export type DerivedTagSeedLookup = Map<string, string[]>;
 
 type CatalogSeedDefinition = {
   tag: string;
@@ -83,6 +86,10 @@ function appendCatalogTag(
   return [...tags, tag];
 }
 
+function normalizeSeedReference(pack: string, name: string): string {
+  return `${normalizeText(pack)}:${normalizeText(name)}`;
+}
+
 function pushAssignment(
   bucket: Map<string, CatalogSeedAssignment[]>,
   recordKey: string,
@@ -132,6 +139,51 @@ function addSource(
   sources.set(normalizedTag, mergeSources(sources.get(normalizedTag), source));
 }
 
+function resolveSeedRecordKeys(
+  seedLookup: DerivedTagSeedLookup,
+  seedRecords: DerivedTagCatalogTag["seedRecords"],
+  fieldName: "seedRecords" | "excludeSeedRecords",
+  tagValue: string,
+): string[] {
+  const resolvedRecordKeys: string[] = [];
+
+  for (const seedRecord of seedRecords ?? []) {
+    const lookupKey = normalizeSeedReference(seedRecord.pack, seedRecord.name);
+    const matches = uniqueSorted(seedLookup.get(lookupKey) ?? []);
+
+    if (matches.length === 0) {
+      throw new Error(
+        `Derived tag ${fieldName} entry "${seedRecord.pack}:${seedRecord.name}" for "${tagValue}" did not resolve to a canonical record key.`,
+      );
+    }
+
+    if (matches.length > 1) {
+      throw new Error(
+        `Derived tag ${fieldName} entry "${seedRecord.pack}:${seedRecord.name}" for "${tagValue}" resolved ambiguously to ${matches.length} record keys.`,
+      );
+    }
+
+    resolvedRecordKeys.push(matches[0]!);
+  }
+
+  return uniqueSorted(resolvedRecordKeys);
+}
+
+export function buildDerivedTagSeedLookup(
+  resolutions: DerivedTagSeedRecordResolution[],
+): DerivedTagSeedLookup {
+  const lookup = new Map<string, string[]>();
+
+  for (const resolution of resolutions) {
+    const key = normalizeSeedReference(resolution.pack, resolution.name);
+    const current = lookup.get(key) ?? [];
+    current.push(resolution.recordKey);
+    lookup.set(key, uniqueSorted(current));
+  }
+
+  return lookup;
+}
+
 export function publishDerivedTagCatalog(
   catalog: DerivedTagCatalogEntry[],
 ): DerivedTagCatalogEntry[] {
@@ -152,6 +204,7 @@ export function publishDerivedTagCatalog(
 
 export function buildDerivedTagSeedIndex(
   catalog: DerivedTagCatalogEntry[],
+  seedLookup: DerivedTagSeedLookup,
 ): DerivedTagSeedIndex {
   const assignmentsByRecordKey = new Map<string, CatalogSeedAssignment[]>();
   const excludedAssignmentsByRecordKey = new Map<string, CatalogSeedAssignment[]>();
@@ -160,8 +213,8 @@ export function buildDerivedTagSeedIndex(
   for (const entry of catalog) {
     for (const tag of entry.tags) {
       const normalizedTag = normalizeDerivedTag(tag.value);
-      const normalizedRecordKeys = uniqueSorted((tag.seedRecordKeys ?? []).map((recordKey) => recordKey.trim()).filter(Boolean));
-      const excludedRecordKeys = uniqueSorted((tag.excludeSeedRecordKeys ?? []).map((recordKey) => recordKey.trim()).filter(Boolean));
+      const normalizedRecordKeys = resolveSeedRecordKeys(seedLookup, tag.seedRecords, "seedRecords", normalizedTag);
+      const excludedRecordKeys = resolveSeedRecordKeys(seedLookup, tag.excludeSeedRecords, "excludeSeedRecords", normalizedTag);
 
       if (normalizedRecordKeys.length > 0) {
         const definition: CatalogSeedDefinition = {

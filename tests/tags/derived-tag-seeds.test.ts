@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { DerivedTagCatalogEntry } from "../../src/types.js";
 import {
+  buildDerivedTagSeedLookup,
   buildDerivedTagSeedIndex,
   deriveCatalogTagDerivation,
   publishDerivedTagCatalog,
@@ -22,13 +23,16 @@ const seedCatalog: DerivedTagCatalogEntry[] = [
       {
         value: "disguise",
         description: "Masks or alters appearance.",
-        seedRecordKeys: ["equipment:mask", "equipment:veil"],
-        excludeSeedRecordKeys: ["equipment:blocked"],
+        seedRecords: [
+          { pack: "equipment-srd", name: "Mask" },
+          { pack: "equipment-srd", name: "Veil" },
+        ],
+        excludeSeedRecords: [{ pack: "equipment-srd", name: "Blocked Mask" }],
       },
       {
         value: "concealment",
         description: "Provides concealment or concealability.",
-        seedRecordKeys: ["equipment:cloak"],
+        seedRecords: [{ pack: "equipment-srd", name: "Cloak" }],
       },
     ],
   },
@@ -40,7 +44,7 @@ const seedCatalog: DerivedTagCatalogEntry[] = [
       {
         value: "disguise",
         description: "Spell-based disguise support.",
-        seedRecordKeys: ["spell:illusory-disguise"],
+        seedRecords: [{ pack: "spells-srd", name: "Illusory Disguise" }],
       },
     ],
   },
@@ -52,11 +56,20 @@ const seedCatalog: DerivedTagCatalogEntry[] = [
       {
         value: "mask_motif",
         description: "Mask-centric creature imagery.",
-        seedRecordKeys: ["creature:masked-priest"],
+        seedRecords: [{ pack: "pathfinder-monster-core", name: "Masked Priest" }],
       },
     ],
   },
 ];
+
+const seedLookup = buildDerivedTagSeedLookup([
+  { recordKey: "equipment:mask", pack: "equipment-srd", name: "Mask" },
+  { recordKey: "equipment:veil", pack: "equipment-srd", name: "Veil" },
+  { recordKey: "equipment:blocked", pack: "equipment-srd", name: "Blocked Mask" },
+  { recordKey: "equipment:cloak", pack: "equipment-srd", name: "Cloak" },
+  { recordKey: "spell:illusory-disguise", pack: "spells-srd", name: "Illusory Disguise" },
+  { recordKey: "creature:masked-priest", pack: "pathfinder-monster-core", name: "Masked Priest" },
+]);
 
 describe("derived tag seeds", () => {
   it("publishes family tags without copying child seeds onto the promoted family", () => {
@@ -66,8 +79,11 @@ describe("derived tag seeds", () => {
         tags: expect.arrayContaining([
           expect.objectContaining({
             value: "disguise",
-            seedRecordKeys: ["equipment:mask", "equipment:veil"],
-            excludeSeedRecordKeys: ["equipment:blocked"],
+            seedRecords: [
+              { pack: "equipment-srd", name: "Mask" },
+              { pack: "equipment-srd", name: "Veil" },
+            ],
+            excludeSeedRecords: [{ pack: "equipment-srd", name: "Blocked Mask" }],
           }),
           expect.objectContaining({
             value: "infiltration",
@@ -79,7 +95,7 @@ describe("derived tag seeds", () => {
   });
 
   it("resolves seed pools by tag and category scope, including promoted families", () => {
-    const seedIndex = buildDerivedTagSeedIndex(seedCatalog);
+    const seedIndex = buildDerivedTagSeedIndex(seedCatalog, seedLookup);
 
     expect(resolveCatalogSeedRecordKeys(seedIndex, "disguise", { category: "equipment" })).toEqual([
       "equipment:mask",
@@ -99,7 +115,7 @@ describe("derived tag seeds", () => {
   });
 
   it("unions rule and seed tags and keeps provenance internally", () => {
-    const seedIndex = buildDerivedTagSeedIndex(seedCatalog);
+    const seedIndex = buildDerivedTagSeedIndex(seedCatalog, seedLookup);
     const derivation = deriveCatalogTagDerivation(seedCatalog, seedIndex, {
       recordKey: "equipment:mask",
       category: "equipment",
@@ -113,7 +129,7 @@ describe("derived tag seeds", () => {
   });
 
   it("lets explicit seed exclusions block only seeded membership, not rule matches", () => {
-    const seedIndex = buildDerivedTagSeedIndex(seedCatalog);
+    const seedIndex = buildDerivedTagSeedIndex(seedCatalog, seedLookup);
     const derivation = deriveCatalogTagDerivation(seedCatalog, seedIndex, {
       recordKey: "equipment:blocked",
       category: "equipment",
@@ -123,6 +139,43 @@ describe("derived tag seeds", () => {
     expect(derivation.tags).toEqual(["disguise", "infiltration"]);
     expect(derivation.sources.get("disguise")).toBe("rule");
     expect(derivation.sources.get("infiltration")).toBe("rule");
+  });
+
+  it("fails fast when a seed reference does not resolve", () => {
+    expect(() => buildDerivedTagSeedIndex([
+      {
+        category: "equipment",
+        family: "infiltration",
+        description: "Equipment that helps infiltration.",
+        tags: [
+          {
+            value: "disguise",
+            seedRecords: [{ pack: "equipment-srd", name: "Missing Mask" }],
+          },
+        ],
+      },
+    ], seedLookup)).toThrow(/did not resolve/);
+  });
+
+  it("fails fast when a seed reference resolves ambiguously", () => {
+    const ambiguousLookup = buildDerivedTagSeedLookup([
+      { recordKey: "equipment:mask-one", pack: "equipment-srd", name: "Mask" },
+      { recordKey: "equipment:mask-two", pack: "equipment-srd", name: "Mask" },
+    ]);
+
+    expect(() => buildDerivedTagSeedIndex([
+      {
+        category: "equipment",
+        family: "infiltration",
+        description: "Equipment that helps infiltration.",
+        tags: [
+          {
+            value: "disguise",
+            seedRecords: [{ pack: "equipment-srd", name: "Mask" }],
+          },
+        ],
+      },
+    ], ambiguousLookup)).toThrow(/ambiguously/);
   });
 
   it("exposes the hazard manual seed pass and applies representative seeded records", () => {

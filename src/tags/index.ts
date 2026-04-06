@@ -7,6 +7,7 @@ import {
   resolveCatalogSeedRecordKeys,
   type DerivedTagDerivation,
 } from "./catalog-utils.js";
+import { DERIVED_TAG_SEED_LOOKUP } from "./catalog-seed-records.js";
 import { AFFLICTION_DERIVED_TAG_CATALOG } from "./catalog/affliction.js";
 import { CREATURE_DERIVED_TAG_CATALOG } from "./catalog/creature.js";
 import { EQUIPMENT_DERIVED_TAG_CATALOG } from "./catalog/equipment.js";
@@ -35,7 +36,7 @@ const RAW_DERIVED_TAG_CATALOG = [
   ...AFFLICTION_DERIVED_TAG_CATALOG,
   ...CREATURE_DERIVED_TAG_CATALOG,
 ];
-const DERIVED_TAG_SEED_INDEX = buildDerivedTagSeedIndex(RAW_DERIVED_TAG_CATALOG);
+const DERIVED_TAG_SEED_INDEX = buildDerivedTagSeedIndex(RAW_DERIVED_TAG_CATALOG, DERIVED_TAG_SEED_LOOKUP);
 
 export const DERIVED_TAG_CATALOG = publishDerivedTagCatalog(RAW_DERIVED_TAG_CATALOG);
 

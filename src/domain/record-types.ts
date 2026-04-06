@@ -23,6 +23,15 @@ export interface LinkedRecordSummary {
   name: string;
 }
 
+export interface DerivedTagSeedRecordReference {
+  pack: string;
+  name: string;
+}
+
+export interface DerivedTagSeedRecordResolution extends DerivedTagSeedRecordReference {
+  recordKey: string;
+}
+
 export type SourceCategory = "core" | "rules" | "adventure" | "unknown";
 export type VariantSource = "baseItem" | "slug" | "namePattern" | "sourcePath" | "composite" | "none";
 
@@ -30,8 +39,8 @@ export interface DerivedTagCatalogTag {
   value: string;
   description?: string;
   nativeOntologyPolicy?: "distinct_required" | "aggregates_native_signals";
-  seedRecordKeys?: string[];
-  excludeSeedRecordKeys?: string[];
+  seedRecords?: DerivedTagSeedRecordReference[];
+  excludeSeedRecords?: DerivedTagSeedRecordReference[];
 }
 
 export interface DerivedTagCatalogEntry {
