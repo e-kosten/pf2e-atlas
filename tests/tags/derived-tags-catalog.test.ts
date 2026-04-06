@@ -367,6 +367,7 @@ describe("derived tag catalog", () => {
         family: "ontology_cluster",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "undead_adjacent", description: expect.any(String), nativeOntologyPolicy: "aggregates_native_signals" }),
+          expect.objectContaining({ value: "sinspawn_family", description: expect.any(String), nativeOntologyPolicy: "aggregates_native_signals" }),
         ]),
       }),
       expect.objectContaining({

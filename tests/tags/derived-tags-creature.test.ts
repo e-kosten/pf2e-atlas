@@ -1158,4 +1158,60 @@ describe("derived tag rules: creature", () => {
       traits: ["animal"],
     })).not.toContain("ambush_grabber");
   });
+
+  it("applies manual creature seeds for exact live record keys", () => {
+    expect(deriveRecordTags({
+      recordKey: "pathfinder-npc-core:MxcprNbX7hcpAU8p",
+      name: "Departmental Chair",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "An overworked academic reluctantly handling university emergencies.",
+      traits: ["human", "humanoid"],
+    })).toEqual(expect.arrayContaining(["profession_npc", "civic_npc"]));
+
+    expect(deriveRecordTags({
+      recordKey: "pathfinder-npc-core:0cj7cQhgNnLxbUmR",
+      name: "Mage Knight",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "An armored spellcaster trained for frontline battle.",
+      traits: ["human", "humanoid"],
+    })).toContain("combatant_npc");
+
+    expect(deriveRecordTags({
+      recordKey: "season-of-ghosts-bestiary:V67VC975O8iC1Yq2",
+      name: "Animated Axe",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A cursed axe flies through the room under its own power.",
+      traits: ["construct", "mindless"],
+    })).toContain("animated_object");
+
+    expect(deriveRecordTags({
+      recordKey: "season-of-ghosts-bestiary:QSa1PbcvbgDv8Zpr",
+      name: "Noppera-Bo Impersonator (Arcane)",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "",
+      traits: ["aberration", "chaotic", "evil"],
+    })).toContain("disguised_pretender");
+
+    expect(deriveRecordTags({
+      recordKey: "pathfinder-monster-core:3nUt7cW8fqE5IpyE",
+      name: "Envyspawn",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "",
+      traits: ["aberration", "evil"],
+    })).toContain("sinspawn_family");
+
+    expect(deriveRecordTags({
+      recordKey: "pathfinder-monster-core:TGYELuImcTcuX0aH",
+      name: "Conspirator Dragon (Adult)",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Hidden among the shadows and upper echelons of society are the conspirator dragons. However, as most conspirator dragons meet others while in disguise, they do their best to maintain their disguise.",
+      traits: ["dragon", "occult"],
+    })).not.toContain("disguised_pretender");
+  });
 });
