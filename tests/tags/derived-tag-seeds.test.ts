@@ -367,6 +367,86 @@ describe("derived tag seeds", () => {
   });
 
   it("exposes the creature manual seed pass and applies representative seeded records", () => {
+    const encounterRoleTags = [
+      "profession_npc",
+      "civic_npc",
+      "combatant_npc",
+    ];
+    const encounterRoleRawAdds = encounterRoleTags.reduce(
+      (count, tag) => count + getDerivedTagSeedRecordKeys(tag, { category: "creature" }).length,
+      0,
+    );
+    const encounterRoleRecords = new Set(
+      encounterRoleTags.flatMap((tag) => getDerivedTagSeedRecordKeys(tag, { category: "creature" })),
+    );
+
+    expect(encounterRoleRawAdds).toBeGreaterThanOrEqual(180);
+    expect(encounterRoleRecords.size).toBeGreaterThanOrEqual(95);
+    expect(getDerivedTagSeedRecordKeys("profession_npc", { category: "creature" })).toEqual(expect.arrayContaining([
+      "agents-of-edgewatch-bestiary:rsKf8ixrl3yBq1gb",
+      "pathfinder-npc-core:OAxxUyACpMlX3q1X",
+      "claws-of-the-tyrant-bestiary:tMqtId1TKVUXe4tN",
+    ]));
+    expect(getDerivedTagSeedRecordKeys("civic_npc", { category: "creature" })).toEqual(expect.arrayContaining([
+      "agents-of-edgewatch-bestiary:rsKf8ixrl3yBq1gb",
+      "gatewalkers-bestiary:kneoApQfhlRhhp1R",
+      "sky-kings-tomb-bestiary:OWVg3LYOdGHOYUHt",
+    ]));
+    expect(getDerivedTagSeedRecordKeys("combatant_npc", { category: "creature" })).toEqual(expect.arrayContaining([
+      "pathfinder-npc-core:OAxxUyACpMlX3q1X",
+      "claws-of-the-tyrant-bestiary:tMqtId1TKVUXe4tN",
+      "triumph-of-the-tusk-bestiary:xd35No1x2n1MDVCm",
+    ]));
+
+    const starwatchCommandoDerivation = deriveRecordTagDerivation({
+      recordKey: "agents-of-edgewatch-bestiary:rsKf8ixrl3yBq1gb",
+      name: "Starwatch Commando",
+      category: "creature",
+      subcategory: null,
+      descriptionText: null,
+      traits: ["human", "humanoid", "lawful"],
+    });
+    expect(starwatchCommandoDerivation.tags).toEqual(expect.arrayContaining([
+      "profession_npc",
+      "civic_npc",
+      "combatant_npc",
+    ]));
+    expect(["seed", "both"]).toContain(starwatchCommandoDerivation.sources.get("profession_npc"));
+    expect(["seed", "both"]).toContain(starwatchCommandoDerivation.sources.get("civic_npc"));
+    expect(["seed", "both"]).toContain(starwatchCommandoDerivation.sources.get("combatant_npc"));
+
+    const falsePriestDerivation = deriveRecordTagDerivation({
+      recordKey: "pathfinder-npc-core:OAxxUyACpMlX3q1X",
+      name: "False Priest",
+      category: "creature",
+      subcategory: null,
+      descriptionText: null,
+      traits: ["human", "humanoid"],
+    });
+    expect(falsePriestDerivation.tags).toEqual(expect.arrayContaining([
+      "profession_npc",
+      "combatant_npc",
+    ]));
+    expect(["seed", "both"]).toContain(falsePriestDerivation.sources.get("profession_npc"));
+    expect(["seed", "both"]).toContain(falsePriestDerivation.sources.get("combatant_npc"));
+
+    const commanderArsiellaDerivation = deriveRecordTagDerivation({
+      recordKey: "claws-of-the-tyrant-bestiary:tMqtId1TKVUXe4tN",
+      name: "Commander Arsiella Dei",
+      category: "creature",
+      subcategory: null,
+      descriptionText: null,
+      traits: ["aiuvarin", "elf", "human", "humanoid"],
+    });
+    expect(commanderArsiellaDerivation.tags).toEqual(expect.arrayContaining([
+      "profession_npc",
+      "civic_npc",
+      "combatant_npc",
+    ]));
+    expect(["seed", "both"]).toContain(commanderArsiellaDerivation.sources.get("profession_npc"));
+    expect(["seed", "both"]).toContain(commanderArsiellaDerivation.sources.get("civic_npc"));
+    expect(["seed", "both"]).toContain(commanderArsiellaDerivation.sources.get("combatant_npc"));
+
     const touchedCreatureTags = [
       "dragon_spellcaster",
       "disguised_pretender",

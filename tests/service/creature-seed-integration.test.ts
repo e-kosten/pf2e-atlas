@@ -66,6 +66,23 @@ describe("Pf2eDataService / Creature manual seeds", () => {
           },
         },
       }),
+      writeJson(path.join(packRoot, "pathfinder-npc-core", "false-priest-seed.json"), {
+        _id: "OAxxUyACpMlX3q1X",
+        name: "False Priest",
+        type: "npc",
+        system: {
+          details: {
+            level: { value: 4 },
+            publication: { title: "Pathfinder NPC Core" },
+            publicNotes: "<p>A deceptive priest who weaponizes belief and hidden doctrine against the faithful.</p>",
+          },
+          traits: {
+            rarity: "common",
+            value: ["human", "humanoid"],
+            size: { value: "med" },
+          },
+        },
+      }),
       writeJson(path.join(packRoot, "season-of-ghosts-bestiary", "animated-axe-seed.json"), {
         _id: "V67VC975O8iC1Yq2",
         name: "Animated Axe",
@@ -79,6 +96,23 @@ describe("Pf2eDataService / Creature manual seeds", () => {
           traits: {
             rarity: "common",
             value: ["construct", "mindless"],
+            size: { value: "med" },
+          },
+        },
+      }),
+      writeJson(path.join(packRoot, "season-of-ghosts-bestiary", "mercenary-enforcer-seed.json"), {
+        _id: "wFcdatjBVDsVzbDO",
+        name: "Mercenary Enforcer",
+        type: "npc",
+        system: {
+          details: {
+            level: { value: 6 },
+            publication: { title: "Pathfinder Adventure Path" },
+            publicNotes: "<p>A veteran mercenary who keeps order with steel and intimidation while serving as hired town muscle.</p>",
+          },
+          traits: {
+            rarity: "common",
+            value: ["human", "humanoid"],
             size: { value: "med" },
           },
         },
@@ -159,7 +193,16 @@ describe("Pf2eDataService / Creature manual seeds", () => {
       "profession_npc",
       "civic_npc",
     ]));
+    expect(service.lookup("False Priest", { category: "creature" }).match?.derivedTags).toEqual(expect.arrayContaining([
+      "profession_npc",
+      "combatant_npc",
+    ]));
     expect(service.lookup("Mage Knight", { category: "creature" }).match?.derivedTags).toContain("combatant_npc");
+    expect(service.lookup("Mercenary Enforcer", { category: "creature" }).match?.derivedTags).toEqual(expect.arrayContaining([
+      "profession_npc",
+      "civic_npc",
+      "combatant_npc",
+    ]));
     expect(service.lookup("Animated Axe", { category: "creature" }).match?.derivedTags).toContain("animated_object");
     expect(service.lookup("Noppera-Bo Impersonator (Arcane)", { category: "creature" }).match?.derivedTags).toEqual(expect.arrayContaining([
       "disguised_pretender",
