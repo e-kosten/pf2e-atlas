@@ -2252,6 +2252,54 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
     },
   });
 
+  await writeJson(path.join(packRoot, "pathfinder-npc-core", "guild-engineer.json"), {
+    _id: "guild-engineer-npc-core",
+    name: "Guild Engineer",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 5,
+        },
+        publication: {
+          title: "Pathfinder NPC Core",
+        },
+        publicNotes: "<p>A meticulous guild engineer keeps the city's lifts and aqueduct pumps working for the community.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["human", "humanoid"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-npc-core", "hellknight-gaoler.json"), {
+    _id: "hellknight-gaoler-npc-core",
+    name: "Hellknight Gaoler",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 6,
+        },
+        publication: {
+          title: "Pathfinder NPC Core",
+        },
+        publicNotes: "<p>A disciplined hellknight gaoler escorts prisoners and enforces the order's brutal routines.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["human", "humanoid"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "pathfinder-monster-core", "scarecrow.json"), {
     _id: "scarecrow-core",
     name: "Scarecrow",

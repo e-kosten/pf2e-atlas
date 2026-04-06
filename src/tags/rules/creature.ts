@@ -493,6 +493,26 @@ const CIVIC_SUPPORT_TEXT_ANCHORS = [
   patternAnchor("shares divine dreams and advice"),
 ];
 
+const CIVIC_NPC_ROLE_BLOCKER_TEXT_ANCHORS = [
+  patternAnchor("assassin", "name"),
+  patternAnchor("bandit", "name"),
+  patternAnchor("bladecaller", "name"),
+  patternAnchor("commando", "name"),
+  patternAnchor("cultist", "name"),
+  patternAnchor("cutthroat", "name"),
+  patternAnchor("enforcer", "name"),
+  patternAnchor("hellknight", "name"),
+  patternAnchor("marauder", "name"),
+  patternAnchor("mercenary", "name"),
+  patternAnchor("murderer", "name"),
+  patternAnchor("poisoner", "name"),
+  patternAnchor("raider", "name"),
+  patternAnchor("reaver", "name"),
+  patternAnchor("slayer", "name"),
+  patternAnchor("sniper", "name"),
+  patternAnchor("warlord", "name"),
+];
+
 const COMBATANT_NPC_STRONG_NAME_ANCHORS = [
   patternAnchor("soldier", "name"),
   patternAnchor("bandit", "name"),
@@ -518,13 +538,23 @@ const COMBATANT_NPC_WEAK_NAME_ANCHORS = [
   patternAnchor("armiger", "name"),
   patternAnchor("brigand", "name"),
   patternAnchor("archer", "name"),
+  patternAnchor("bastion", "name"),
+  patternAnchor("bladecaller", "name"),
   patternAnchor("duelist", "name"),
   patternAnchor("gladiator", "name"),
-  patternAnchor("veteran", "name"),
   patternAnchor("defender", "name"),
   patternAnchor("enforcer", "name"),
+  patternAnchor("constable", "name"),
+  patternAnchor("gaoler", "name"),
+  patternAnchor("gendarme", "name"),
+  patternAnchor("general", "name"),
+  patternAnchor("guard", "name"),
+  patternAnchor("infantry", "name"),
+  patternAnchor("jailer", "name"),
   patternAnchor("marauder", "name"),
+  patternAnchor("murderer", "name"),
   patternAnchor("raider", "name"),
+  patternAnchor("slayer", "name"),
   patternAnchor("warrior", "name"),
   patternAnchor("disciple", "name"),
   patternAnchor("boss", "name"),
@@ -533,7 +563,15 @@ const COMBATANT_NPC_WEAK_NAME_ANCHORS = [
   patternAnchor("sentinel", "name"),
   patternAnchor("skirmisher", "name"),
   patternAnchor("vanguard", "name"),
+  patternAnchor("weapon master", "name"),
   patternAnchor("champion", "name"),
+  patternAnchor("warlord", "name"),
+  patternAnchor("warden", "name"),
+];
+
+const COMBATANT_NPC_CONTEXT_NAME_ANCHORS = [
+  patternAnchor("veteran {{gap(2)}} {{alt(armiger,bastion,bladecaller,guard,hellknight,officer,sergeant,soldier,warlord)}}", "name"),
+  patternAnchor("{{alt(armiger,bastion,bladecaller,guard,hellknight,officer,sergeant,soldier,warlord)}} {{gap(2)}} veteran", "name"),
 ];
 
 const ANIMATED_OBJECT_NAME_ANCHORS = [
@@ -1267,8 +1305,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     noneOf: [
       { traitsAny: CIVIC_NPC_BLOCKER_TRAITS },
       { familiesAny: UNDEAD_GLOSSARY_FAMILIES },
-      { textAny: COMBATANT_NPC_STRONG_NAME_ANCHORS },
-      { textAny: COMBATANT_NPC_WEAK_NAME_ANCHORS },
+      { textAny: CIVIC_NPC_ROLE_BLOCKER_TEXT_ANCHORS },
     ],
   },
   {
@@ -1282,6 +1319,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     anyOf: [
       { score: 2, textAny: COMBATANT_NPC_STRONG_NAME_ANCHORS },
       { score: 1, textAny: COMBATANT_NPC_WEAK_NAME_ANCHORS },
+      { score: 1, textAny: COMBATANT_NPC_CONTEXT_NAME_ANCHORS },
       { score: 1, traitsAny: ["humanoid", "human", "troop"] },
     ],
   },

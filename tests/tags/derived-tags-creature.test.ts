@@ -250,7 +250,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "A grim defender patrols the walls of a mountain fortress and ancient citadel.",
       traits: ["humanoid"],
-    })).toEqual(expect.arrayContaining(["fortress_setting", "mountain_setting"]));
+    })).toEqual(expect.arrayContaining(["fortress_setting", "mountain_setting", "combatant_npc"]));
 
     expect(deriveRecordTags({
       name: "Rust Hag",
@@ -474,6 +474,78 @@ describe("derived tag rules: creature", () => {
       descriptionText: "A humanoid primalist singer whose melodies stir trees and command plants.",
       traits: ["humanoid"],
     })).toContain("profession_npc");
+
+    expect(deriveRecordTags({
+      name: "Guild Engineer",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A meticulous guild engineer keeps the city's lifts and aqueduct pumps working for the community.",
+      traits: ["human", "humanoid"],
+    })).toEqual(expect.arrayContaining(["profession_npc", "civic_npc"]));
+
+    expect(deriveRecordTags({
+      name: "Festival Lutenist",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A celebrated lutenist performs at civic festivals and public ceremonies.",
+      traits: ["human", "humanoid"],
+    })).toEqual(expect.arrayContaining(["profession_npc", "civic_npc"]));
+
+    expect(deriveRecordTags({
+      name: "Hellknight Gaoler",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A disciplined hellknight gaoler escorts prisoners and enforces the order's brutal routines.",
+      traits: ["human", "humanoid"],
+    })).toEqual(expect.arrayContaining(["profession_npc", "combatant_npc"]));
+
+    expect(deriveRecordTags({
+      name: "Hellknight Gaoler",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A disciplined hellknight gaoler escorts prisoners and enforces the order's brutal routines.",
+      traits: ["human", "humanoid"],
+    })).not.toContain("civic_npc");
+
+    expect(deriveRecordTags({
+      name: "Veteran Noble",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A veteran noble funds expeditions and stewards the city's public works.",
+      traits: ["human", "humanoid"],
+    })).toEqual(expect.arrayContaining(["profession_npc", "civic_npc"]));
+
+    expect(deriveRecordTags({
+      name: "Veteran Noble",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A veteran noble funds expeditions and stewards the city's public works.",
+      traits: ["human", "humanoid"],
+    })).not.toContain("combatant_npc");
+
+    expect(deriveRecordTags({
+      name: "Gendarme",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Powerful governments retain gendarmes to guard important magistrates and capture unusually dangerous criminals.",
+      traits: ["human", "humanoid"],
+    })).toContain("combatant_npc");
+
+    expect(deriveRecordTags({
+      name: "Line Infantry",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Disciplined line infantry hold the battle line in ordered formations.",
+      traits: ["human", "humanoid"],
+    })).toContain("combatant_npc");
+
+    expect(deriveRecordTags({
+      name: "Unnamed Traveler",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A traveler passes through town in search of lodging.",
+      traits: ["human", "humanoid"],
+    })).not.toEqual(expect.arrayContaining(["profession_npc", "civic_npc", "combatant_npc"]));
   });
 
   it("derives creature motif tags without collapsing into raw vibes", () => {
