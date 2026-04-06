@@ -383,4 +383,83 @@ describe("discover untagged cohorts", () => {
       db.close();
     }
   });
+
+  it("dedupes contrast records by variant family", () => {
+    const db = createDiscoveryDb();
+    try {
+      insertRecord(db, {
+        recordKey: "equipment:scarf",
+        name: "Masquerade Scarf",
+        category: "equipment",
+        subcategory: "gear",
+        traits: ["illusion", "magical"],
+        descriptionText: "A masquerade scarf helps disguise your identity.",
+        vector: [1, 0, 0],
+      });
+      insertRecord(db, {
+        recordKey: "equipment:outfit",
+        name: "Quick-Change Outfit",
+        category: "equipment",
+        subcategory: "gear",
+        traits: ["illusion", "magical"],
+        descriptionText: "An outfit designed for disguise and social infiltration.",
+        vector: [0.99, 0.01, 0],
+      });
+      insertRecord(db, {
+        recordKey: "equipment:words-lesser",
+        name: "Words of Wisdom (Lesser)",
+        category: "equipment",
+        subcategory: "gear",
+        variantFamilyKey: "equipment:family:words-of-wisdom",
+        variantBaseName: "Words of Wisdom",
+        variantLabel: "Lesser",
+        variantAxes: ["grade"],
+        traits: ["mental", "magical"],
+        descriptionText: "Words of wisdom sharpen your mind.",
+        vector: [0.8, 0.2, 0],
+      });
+      insertRecord(db, {
+        recordKey: "equipment:words-moderate",
+        name: "Words of Wisdom (Moderate)",
+        category: "equipment",
+        subcategory: "gear",
+        variantFamilyKey: "equipment:family:words-of-wisdom",
+        variantBaseName: "Words of Wisdom",
+        variantLabel: "Moderate",
+        variantAxes: ["grade"],
+        traits: ["mental", "magical"],
+        descriptionText: "Words of wisdom sharpen your mind further.",
+        vector: [0.79, 0.21, 0],
+      });
+      insertRecord(db, {
+        recordKey: "equipment:words-greater",
+        name: "Words of Wisdom (Greater)",
+        category: "equipment",
+        subcategory: "gear",
+        variantFamilyKey: "equipment:family:words-of-wisdom",
+        variantBaseName: "Words of Wisdom",
+        variantLabel: "Greater",
+        variantAxes: ["grade"],
+        traits: ["mental", "magical"],
+        descriptionText: "Words of wisdom sharpen your mind with potent insight.",
+        vector: [0.78, 0.22, 0],
+      });
+      insertReference(db, "equipment:scarf", "spell:illusory-disguise", "Illusory Disguise");
+      insertReference(db, "equipment:outfit", "spell:illusory-disguise", "Illusory Disguise");
+
+      const report = discoverUntaggedCohorts(db, {
+        category: "equipment",
+        subcategory: "gear",
+        cohortLimit: 4,
+        anchorLimit: 10,
+        minFeatureSupport: 2,
+        minFeatureLift: 1.1,
+      });
+
+      expect(report.cohorts.every((cohort) =>
+        cohort.contrastRecords.filter((record) => record.name.startsWith("Words of Wisdom")).length <= 1)).toBe(true);
+    } finally {
+      db.close();
+    }
+  });
 });

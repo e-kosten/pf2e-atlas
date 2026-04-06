@@ -144,6 +144,32 @@ function selectRepresentativeRecords(
   return selected;
 }
 
+function selectDistinctContrastRecords(
+  members: Array<{ record: DiscoveryAnalysisRecord; similarity: number }>,
+  limit = 5,
+): Array<{ recordKey: string; name: string; similarity: number }> {
+  const selected: Array<{ recordKey: string; name: string; similarity: number }> = [];
+  const seenFamilies = new Set<string>();
+
+  for (const entry of members) {
+    const familyId = variantFamilyIdentity(entry.record);
+    if (seenFamilies.has(familyId)) {
+      continue;
+    }
+    seenFamilies.add(familyId);
+    selected.push({
+      recordKey: entry.record.recordKey,
+      name: entry.record.name,
+      similarity: entry.similarity,
+    });
+    if (selected.length >= limit) {
+      break;
+    }
+  }
+
+  return selected;
+}
+
 function featureTokenCount(value: string): number {
   return value.split(" ").filter(Boolean).length;
 }
@@ -574,7 +600,7 @@ function buildCandidateCohorts(
       const signatureKeys = clusterAnchors.map((anchor) => anchor.key);
       const signatureDisplay = clusterAnchors.map((anchor) => anchor.value);
       const signatureKeySet = new Set(signatureKeys);
-      const contrastRecords = nonMembers
+      const contrastRecords = selectDistinctContrastRecords(nonMembers
         .map((record) => {
           const similarity = cosineSimilarity(record.vector, centroid);
           const featureSet = allFeatureKeysByRecordKey.get(record.recordKey) ?? new Set<string>();
@@ -583,12 +609,7 @@ function buildCandidateCohorts(
         })
         .filter((entry) => signatureKeySet.size === 0 || entry.overlap < Math.max(1, Math.ceil(signatureKeySet.size / 2)))
         .sort((left, right) => right.similarity - left.similarity || left.record.name.localeCompare(right.record.name))
-        .slice(0, 5)
-        .map((entry) => ({
-          recordKey: entry.record.recordKey,
-          name: entry.record.name,
-          similarity: entry.similarity,
-        }));
+      , 5);
 
       const sizeFactor = Math.min(1, members.length / 6);
       const familyDiversity = distinctVariantFamilies / Math.max(1, members.length);

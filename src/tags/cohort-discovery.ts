@@ -133,6 +133,31 @@ function selectRepresentativeCandidates(
   return selected;
 }
 
+function selectDistinctContrastCandidates(
+  bucket: RankedCandidate[],
+  limit = 5,
+): Array<{ recordKey: string; name: string; similarity: number }> {
+  const selected: Array<{ recordKey: string; name: string; similarity: number }> = [];
+  const seenFamilies = new Set<string>();
+  for (const record of bucket) {
+    const familyId = variantFamilyIdentity(record);
+    if (seenFamilies.has(familyId)) {
+      continue;
+    }
+    seenFamilies.add(familyId);
+    selected.push({
+      recordKey: record.recordKey,
+      name: record.name,
+      similarity: record.similarity,
+    });
+    if (selected.length >= limit) {
+      break;
+    }
+  }
+
+  return selected;
+}
+
 function averageVectors(vectors: Float32Array[]): Float32Array {
   if (vectors.length === 0) {
     return new Float32Array(0);
@@ -376,14 +401,9 @@ export function discoverRuleableCohorts(
   const rankedCandidates = rankCandidates(familyDistinctExemplars, candidates, anchors, options);
   const cohorts = clusterCandidates(rankedCandidates, anchors, options);
   const anchorValues = new Set(anchors.map((anchor) => anchor.value));
-  const contrastRecords = rankedCandidates
+  const contrastRecords = selectDistinctContrastCandidates(rankedCandidates
     .filter((candidate) => candidate.anchorOverlap.filter((anchor) => anchorValues.has(anchor)).length <= 1)
-    .slice(0, 6)
-    .map((candidate) => ({
-      recordKey: candidate.recordKey,
-      name: candidate.name,
-      similarity: candidate.similarity,
-    }));
+  , 6);
 
   return {
     category,

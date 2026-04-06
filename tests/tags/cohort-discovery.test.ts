@@ -204,4 +204,69 @@ describe("ruleable cohort discovery", () => {
       db.close();
     }
   });
+
+  it("dedupes contrast records by variant family", () => {
+    const db = createDiscoveryDb();
+    try {
+      insertRecord(db, {
+        recordKey: "spell:seed-1",
+        name: "Blazing Mask",
+        category: "spell",
+        traits: ["fire", "illusion"],
+        descriptionText: "Create a burning mask that deals 2d6 fire damage and conceals your face.",
+        vector: [1, 0, 0],
+        tags: ["mask_motif"],
+      });
+      insertRecord(db, {
+        recordKey: "spell:seed-2",
+        name: "Ashen Veil",
+        category: "spell",
+        traits: ["fire", "illusion"],
+        descriptionText: "A veil of cinders forms a mask and deals 4d6 fire damage.",
+        vector: [0.98, 0.02, 0],
+        tags: ["mask_motif"],
+      });
+      insertRecord(db, {
+        recordKey: "spell:candidate-1",
+        name: "Cinder Masquerade",
+        category: "spell",
+        traits: ["fire", "illusion"],
+        descriptionText: "A cinder mask hides your features and deals 6d6 fire damage.",
+        vector: [0.97, 0.03, 0],
+      });
+      insertRecord(db, {
+        recordKey: "spell:contrast-lesser",
+        name: "Words of Wisdom (Lesser)",
+        category: "spell",
+        variantFamilyKey: "spell:words-of-wisdom",
+        variantBaseName: "Words of Wisdom",
+        variantLabel: "Lesser",
+        traits: ["mental"],
+        descriptionText: "Gain wise counsel and insight.",
+        vector: [0.95, 0.05, 0],
+      });
+      insertRecord(db, {
+        recordKey: "spell:contrast-greater",
+        name: "Words of Wisdom (Greater)",
+        category: "spell",
+        variantFamilyKey: "spell:words-of-wisdom",
+        variantBaseName: "Words of Wisdom",
+        variantLabel: "Greater",
+        traits: ["mental"],
+        descriptionText: "Gain greater wise counsel and insight.",
+        vector: [0.949, 0.051, 0],
+      });
+
+      const report = discoverRuleableCohorts(db, {
+        category: "spell",
+        tag: "mask_motif",
+        candidateLimit: 6,
+        cohortLimit: 3,
+      });
+
+      expect(report.contrastRecords.filter((record) => record.name.startsWith("Words of Wisdom")).length).toBe(1);
+    } finally {
+      db.close();
+    }
+  });
 });
