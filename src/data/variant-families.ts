@@ -6,27 +6,32 @@ import type {
 } from "./index-types.js";
 import type { VariantSource } from "../types.js";
 import {
-  firstString,
-  getNested,
   normalizeText,
   uniqueSorted,
 } from "../utils.js";
-import { getRecordSlug } from "./nested-item-utils.js";
 
 const GRADE_LABELS = new Set(["minor", "lesser", "moderate", "greater", "major", "true"]);
-const DRAGON_AGE_LABELS = new Set(["wyrmling", "young", "adult", "ancient"]);
-const TRADITION_LABELS = new Set(["arcane", "divine", "occult", "primal"]);
 const DAMAGE_TYPE_LABELS = new Set(["acid", "cold", "electricity", "fire", "poison", "sonic", "void", "vitality"]);
-const SPECIALIZATION_LABELS = new Set([
-  "abjuration",
-  "conjuration",
-  "divination",
-  "enchantment",
-  "evocation",
-  "illusion",
-  "necromancy",
-  "transmutation",
-]);
+const STRUCTURAL_LINE_PREFIXES = [
+  "activate",
+  "effect",
+  "frequency",
+  "requirements",
+  "craft requirements",
+  "trigger",
+  "duration",
+  "critical success",
+  "success",
+  "failure",
+  "critical failure",
+  "stage 1",
+  "stage 2",
+  "stage 3",
+  "saving throw",
+];
+const UUID_PATTERN = /@UUID\[([^\]]+)\](?:\{([^}]+)\})?/g;
+const CHECK_PATTERN = /@Check\[[^\]]+\](?:\{([^}]+)\})?/g;
+const INLINE_PATTERN = /@[A-Z][A-Za-z]+\[[^\]]+\](?:\{([^}]+)\})?/g;
 
 export type VariantAxis =
   | "rank"
@@ -37,21 +42,37 @@ export type VariantAxis =
   | "specialization"
   | "other";
 
-type CandidateVariantFamily = {
+type TitleCandidate = {
   baseName: string;
-  label: string;
+  label: string | null;
   axes: VariantAxis[];
-  source: VariantSource;
+  source: Exclude<VariantSource, "baseItem" | "slug" | "none">;
   confidence: number;
+  fallbackEligible: boolean;
+};
+
+type GroupMember = {
+  entry: IndexedRecordEntry;
+  candidate: TitleCandidate;
+  leadBlock: string;
+  descriptionScore: number;
 };
 
 type IndexedRecordEntry = BuildSourceEntry & { record: NormalizedIndexRecord };
+
+function titleCaseToken(segment: string): string {
+  if (/^[0-9]+(?:st|nd|rd|th)$/i.test(segment)) {
+    return segment.toLowerCase();
+  }
+
+  return `${segment[0]?.toUpperCase() ?? ""}${segment.slice(1).toLowerCase()}`;
+}
 
 function humanizeSlug(value: string): string {
   return value
     .split("-")
     .filter(Boolean)
-    .map((segment) => /^[0-9]+(?:st|nd|rd|th)$/i.test(segment) ? segment.toLowerCase() : `${segment[0]?.toUpperCase() ?? ""}${segment.slice(1)}`)
+    .map((segment) => titleCaseToken(segment))
     .join(" ")
     .trim();
 }
@@ -64,8 +85,15 @@ function toTitleWords(value: string): string {
   return value
     .split(" ")
     .filter(Boolean)
-    .map((segment) => /^[0-9]+(?:st|nd|rd|th)$/i.test(segment) ? segment.toLowerCase() : `${segment[0]?.toUpperCase() ?? ""}${segment.slice(1).toLowerCase()}`)
+    .map((segment) => titleCaseToken(segment))
     .join(" ");
+}
+
+function splitCompositeLabel(label: string): string[] {
+  return label
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
 }
 
 function inferVariantAxes(label: string): VariantAxis[] {
@@ -74,59 +102,87 @@ function inferVariantAxes(label: string): VariantAxis[] {
     return ["other"];
   }
 
-  if (/\b\d+(?:st|nd|rd|th)\s+(?:rank|level)\b/.test(normalized)) {
+  if (/\b\d+(?:st|nd|rd|th)\s+(?:rank|level)(?:\s+spell)?\b/.test(normalized)) {
     return ["rank"];
   }
   if (GRADE_LABELS.has(normalized)) {
     return ["grade"];
   }
-  if (DRAGON_AGE_LABELS.has(normalized)) {
-    return ["dragonAge"];
-  }
-  if (TRADITION_LABELS.has(normalized)) {
-    return ["tradition"];
-  }
   if (DAMAGE_TYPE_LABELS.has(normalized)) {
     return ["damageType"];
-  }
-  if (SPECIALIZATION_LABELS.has(normalized)) {
-    return ["specialization"];
   }
 
   return ["other"];
 }
 
-function parseParentheticalVariant(name: string): CandidateVariantFamily | null {
-  const match = name.match(/^(.*?)\s+\(([^()]+)\)$/);
-  const baseName = match?.[1]?.trim() ?? "";
-  const label = match?.[2]?.trim() ?? "";
-  if (!baseName || !label) {
+function inferAxes(labels: string[]): VariantAxis[] {
+  const axes = [...new Set(labels.flatMap((label) => inferVariantAxes(label)))] as VariantAxis[];
+  axes.sort((left, right) => left.localeCompare(right));
+  return axes.length > 0 ? axes : ["other"];
+}
+
+function isFallbackEligible(axes: VariantAxis[]): boolean {
+  return axes.length > 0 && axes.every((axis) => axis === "rank" || axis === "grade");
+}
+
+function parseParentheticalCandidate(name: string): TitleCandidate | null {
+  let remainder = name.trim();
+  const labels: string[] = [];
+
+  while (true) {
+    const match = remainder.match(/^(.*?)\s+\(([^()]+)\)$/);
+    if (!match) {
+      break;
+    }
+
+    const base = match[1]?.trim() ?? "";
+    const rawLabel = match[2]?.trim() ?? "";
+    if (!base || !rawLabel) {
+      break;
+    }
+
+    remainder = base;
+    labels.unshift(...splitCompositeLabel(rawLabel));
+  }
+
+  if (!remainder || labels.length === 0) {
     return null;
   }
+
+  const axes = inferAxes(labels);
+  return {
+    baseName: remainder,
+    label: labels.join(", "),
+    axes,
+    source: "namePattern",
+    confidence: isFallbackEligible(axes) ? 0.74 : 0.6,
+    fallbackEligible: isFallbackEligible(axes),
+  };
+}
+
+function parseTrailingSuffixCandidate(name: string): TitleCandidate | null {
+  const match = name.match(/^(.*?)(?:\s+|-)(\d+(?:st|nd|rd|th)[-\s]+(?:rank|level)(?:\s+spell)?|Minor|Lesser|Moderate|Greater|Major|True)$/i);
+  const baseName = match?.[1]?.trim() ?? "";
+  const rawLabel = match?.[2]?.trim() ?? "";
+  if (!baseName || !rawLabel) {
+    return null;
+  }
+
+  const label = rawLabel
+    .replace(/[-_]+/g, " ")
+    .replace(/\b(rank|level|spell)\b/gi, (value) => titleCaseToken(value))
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/^(\d+(?:st|nd|rd|th)) /i, (_, ordinal: string) => `${ordinal.toLowerCase()} `);
+  const axes = inferAxes([label]);
 
   return {
     baseName,
     label,
-    axes: inferVariantAxes(label),
+    axes,
     source: "namePattern",
-    confidence: 0.95,
-  };
-}
-
-function parseSuffixVariant(name: string): CandidateVariantFamily | null {
-  const match = name.match(/^(.*?)(?:\s+|-)(Minor|Lesser|Moderate|Greater|Major|True|Wyrmling|Young|Adult|Ancient)$/i);
-  const baseName = match?.[1]?.trim() ?? "";
-  const label = match?.[2]?.trim() ?? "";
-  if (!baseName || !label) {
-    return null;
-  }
-
-  return {
-    baseName,
-    label: toTitleWords(label),
-    axes: inferVariantAxes(label),
-    source: "namePattern",
-    confidence: 0.84,
+    confidence: isFallbackEligible(axes) ? 0.76 : 0.62,
+    fallbackEligible: isFallbackEligible(axes),
   };
 }
 
@@ -134,36 +190,18 @@ function normalizeVariantSlugLabel(value: string): string {
   const rankLabel = value.match(/^(\d+(?:st|nd|rd|th))-(rank|level)(?:-(spell))?$/i);
   if (rankLabel) {
     const trailing = rankLabel[3] ? " Spell" : "";
-    return `${rankLabel[1]!.toLowerCase()}-${rankLabel[2]![0]!.toUpperCase()}${rankLabel[2]!.slice(1).toLowerCase()}${trailing}`;
+    return `${rankLabel[1]!.toLowerCase()}-${titleCaseToken(rankLabel[2]!)}${trailing}`;
   }
 
   return toTitleWords(humanizeSlug(value));
 }
 
-function stripTrailingLabel(name: string, label: string): string | null {
-  const patterns = [
-    new RegExp(`^(.+?)\\s+\\(${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\)$`, "i"),
-    new RegExp(`^(.+?)(?:\\s+|-)${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"),
-  ];
-
-  for (const pattern of patterns) {
-    const match = name.match(pattern);
-    const base = match?.[1]?.trim() ?? "";
-    if (base) {
-      return base;
-    }
-  }
-
-  return null;
-}
-
-function parsePathVariant(record: NormalizedIndexRecord): CandidateVariantFamily | null {
+function parsePathFallbackCandidate(record: NormalizedIndexRecord): TitleCandidate | null {
   const stem = path.basename(record.sourcePath, path.extname(record.sourcePath)).toLowerCase();
   const matchers: Array<{ pattern: RegExp; labelIndex: number }> = [
     { pattern: /^(.*)-(\d+(?:st|nd|rd|th)-rank(?:-spell)?)$/i, labelIndex: 2 },
     { pattern: /^(.*)-(\d+(?:st|nd|rd|th)-level(?:-spell)?)$/i, labelIndex: 2 },
     { pattern: /^(.*)-(minor|lesser|moderate|greater|major|true)$/i, labelIndex: 2 },
-    { pattern: /^(.*)-(wyrmling|young|adult|ancient)$/i, labelIndex: 2 },
   ];
 
   for (const matcher of matchers) {
@@ -173,103 +211,319 @@ function parsePathVariant(record: NormalizedIndexRecord): CandidateVariantFamily
     }
 
     const label = normalizeVariantSlugLabel(match[matcher.labelIndex] ?? "");
-    if (!label) {
+    const baseName = humanizeSlug(match[1] ?? "");
+    if (!baseName || !label) {
       continue;
     }
 
-    const baseName = stripTrailingLabel(record.name, label) ?? humanizeSlug(match[1] ?? "");
-    if (!baseName) {
+    const axes = inferAxes([label]);
+    if (!isFallbackEligible(axes)) {
       continue;
     }
 
     return {
       baseName,
       label,
-      axes: inferVariantAxes(label),
+      axes,
       source: "sourcePath",
-      confidence: 0.76,
+      confidence: 0.7,
+      fallbackEligible: true,
     };
   }
 
   return null;
 }
 
-function buildVariantCandidate(entry: IndexedRecordEntry): CandidateVariantFamily | null {
-  if (entry.record.category !== "equipment" && entry.record.category !== "spell") {
+function parseStructuredCandidate(entry: IndexedRecordEntry): TitleCandidate | null {
+  return parseParentheticalCandidate(entry.record.name)
+    ?? parseTrailingSuffixCandidate(entry.record.name)
+    ?? parsePathFallbackCandidate(entry.record);
+}
+
+function buildSuffixScaffoldCandidate(entry: IndexedRecordEntry): TitleCandidate | null {
+  const tokens = normalizeText(entry.record.name).split(" ").filter(Boolean);
+  if (tokens.length < 2) {
     return null;
   }
 
-  const nameCandidate = parseParentheticalVariant(entry.record.name) ?? parseSuffixVariant(entry.record.name);
-  const pathCandidate = parsePathVariant(entry.record);
-  const primary = nameCandidate ?? pathCandidate;
-  if (!primary) {
+  const baseTokens = tokens.slice(-2);
+  const labelTokens = tokens.slice(0, -2);
+  const baseName = toTitleWords(baseTokens.join(" "));
+  const label = labelTokens.length > 0 ? toTitleWords(labelTokens.join(" ")) : null;
+  if (!baseName) {
     return null;
-  }
-
-  const slug = getRecordSlug(entry.raw);
-  const baseItem = firstString(getNested(entry.raw, ["system", "baseItem"]));
-  let confidence = primary.confidence;
-  let source: VariantSource = primary.source;
-  const normalizedBase = normalizeText(primary.baseName);
-  if (slug && normalizeText(slug.replace(/[-_]+/g, " ")).includes(normalizedBase)) {
-    confidence += 0.02;
-    source = source === "slug" ? "slug" : "composite";
-  }
-  if (baseItem) {
-    confidence += 0.02;
-    source = source === "baseItem" ? "baseItem" : "composite";
   }
 
   return {
-    ...primary,
-    confidence: Math.min(0.99, confidence),
-    source,
+    baseName,
+    label,
+    axes: label ? ["other"] : [],
+    source: "namePattern",
+    confidence: 0.52,
+    fallbackEligible: false,
   };
 }
 
-function variantGroupKey(entry: IndexedRecordEntry, candidate: CandidateVariantFamily): string {
+function simplifyFoundryInlineMarkup(value: string): string {
+  return value
+    .replace(UUID_PATTERN, (_match, raw: string, label: string | undefined) => {
+      if (label) {
+        return label;
+      }
+
+      const token = raw.split(".").pop() ?? raw;
+      return token.split(":").pop()?.replace(/[-_]+/g, " ") ?? "";
+    })
+    .replace(CHECK_PATTERN, (_match, label: string | undefined) => label ?? "")
+    .replace(INLINE_PATTERN, (_match, label: string | undefined) => label ?? "");
+}
+
+function isStructuralLeadLine(value: string): boolean {
+  return STRUCTURAL_LINE_PREFIXES.some((prefix) => value === prefix || value.startsWith(`${prefix} `));
+}
+
+function extractLeadBlock(descriptionText: string | null): string {
+  if (!descriptionText) {
+    return "";
+  }
+
+  const lines = descriptionText
+    .split(/\n+/)
+    .map((line) => normalizeText(simplifyFoundryInlineMarkup(line)))
+    .filter(Boolean);
+
+  while (lines.length > 0 && isStructuralLeadLine(lines[0]!)) {
+    lines.shift();
+  }
+
+  const leadLines: string[] = [];
+  for (const line of lines) {
+    if (leadLines.length > 0 && isStructuralLeadLine(line)) {
+      break;
+    }
+
+    leadLines.push(line);
+    if (leadLines.length >= 3) {
+      break;
+    }
+  }
+
+  return leadLines.join(" ").trim();
+}
+
+function commonPrefixTokens(left: string, right: string): number {
+  const leftTokens = left.split(" ").filter(Boolean);
+  const rightTokens = right.split(" ").filter(Boolean);
+  const limit = Math.min(leftTokens.length, rightTokens.length);
+
+  let count = 0;
+  while (count < limit && leftTokens[count] === rightTokens[count]) {
+    count += 1;
+  }
+
+  return count;
+}
+
+function leadBlockSimilarity(left: string, right: string): number {
+  if (!left || !right) {
+    return 0;
+  }
+
+  const leftTokens = left.split(" ").filter(Boolean);
+  const rightTokens = right.split(" ").filter(Boolean);
+  const minLength = Math.min(leftTokens.length, rightTokens.length);
+  if (minLength === 0) {
+    return 0;
+  }
+
+  return commonPrefixTokens(left, right) / minLength;
+}
+
+function descriptionPasses(left: string, right: string): boolean {
+  const common = commonPrefixTokens(left, right);
+  const similarity = leadBlockSimilarity(left, right);
+  return common >= 16 && similarity >= 0.35;
+}
+
+function variantGroupKey(entry: IndexedRecordEntry, baseName: string): string {
   return [
     entry.record.category,
     toFamilySlug(entry.pack.name),
-    toFamilySlug(candidate.baseName),
+    toFamilySlug(baseName),
   ].join(":");
 }
 
-function distinctLabels(candidates: CandidateVariantFamily[]): number {
-  return new Set(candidates.map((candidate) => normalizeText(candidate.label)).filter(Boolean)).size;
+function memberKey(entry: IndexedRecordEntry): string {
+  return entry.record.recordKey;
+}
+
+function groupHasMeaningfulLabels(members: GroupMember[]): boolean {
+  return members.some((member) => Boolean(member.candidate.label));
+}
+
+function isExactBaseMember(member: GroupMember, baseName: string): boolean {
+  return normalizeText(member.entry.record.name) === normalizeText(baseName);
+}
+
+function bestDescriptionTemplate(members: GroupMember[]): GroupMember | null {
+  const candidates = members.filter((member) => member.leadBlock.length > 0);
+  if (candidates.length < 2) {
+    return null;
+  }
+
+  let best: GroupMember | null = null;
+  let bestScore = -1;
+  for (const member of candidates) {
+    const total = candidates.reduce((sum, candidate) => {
+      if (candidate.entry.record.recordKey === member.entry.record.recordKey) {
+        return sum;
+      }
+
+      return sum + leadBlockSimilarity(member.leadBlock, candidate.leadBlock);
+    }, 0);
+    if (total > bestScore) {
+      best = member;
+      bestScore = total;
+    }
+  }
+
+  return best;
+}
+
+function deriveDescriptionMembers(members: GroupMember[]): GroupMember[] {
+  const template = bestDescriptionTemplate(members);
+  if (!template) {
+    return [];
+  }
+
+  return members
+    .map((member) => ({
+      ...member,
+      descriptionScore: member.leadBlock.length > 0 ? leadBlockSimilarity(template.leadBlock, member.leadBlock) : 0,
+    }))
+    .filter((member) => member.entry.record.recordKey === template.entry.record.recordKey || descriptionPasses(template.leadBlock, member.leadBlock));
+}
+
+function includeExactBaseMembers(descriptionMembers: GroupMember[], allMembers: GroupMember[], baseName: string): GroupMember[] {
+  const included = new Map(descriptionMembers.map((member) => [member.entry.record.recordKey, member]));
+  for (const member of allMembers) {
+    if (isExactBaseMember(member, baseName)) {
+      included.set(member.entry.record.recordKey, member);
+    }
+  }
+
+  return [...included.values()];
+}
+
+function needsBroaderEvidence(members: GroupMember[], baseName: string): boolean {
+  const hasBase = members.some((member) => isExactBaseMember(member, baseName));
+  const hasStructuredAxis = members.some((member) => member.candidate.axes.some((axis) => axis !== "other"));
+  const hasStackedLabel = members.some((member) => (member.candidate.label ?? "").includes(", "));
+  return !hasBase && !hasStructuredAxis && !hasStackedLabel && members.length < 4;
+}
+
+function exactBaseCandidate(baseName: string): TitleCandidate {
+  return {
+    baseName,
+    label: null,
+    axes: [],
+    source: "composite",
+    confidence: 0.62,
+    fallbackEligible: false,
+  };
+}
+
+function assignGroup(members: GroupMember[], baseName: string, source: VariantSource, confidence: number): void {
+  if (members.length < 2 || !groupHasMeaningfulLabels(members)) {
+    return;
+  }
+
+  const axes = uniqueSorted(members.flatMap((member) => member.candidate.axes));
+  const boost = Math.min(0.08, Math.max(0, members.length - 2) * 0.02);
+  for (const member of members) {
+    member.entry.record.variantFamilyKey = variantGroupKey(member.entry, baseName);
+    member.entry.record.variantBaseName = baseName;
+    member.entry.record.variantLabel = member.candidate.label;
+    member.entry.record.variantAxes = axes;
+    member.entry.record.variantConfidence = Math.min(0.99, confidence + boost + Math.min(0.08, member.descriptionScore * 0.12));
+    member.entry.record.variantSource = source;
+  }
 }
 
 export function assignVariantFamilies(entries: IndexedRecordEntry[]): void {
-  const candidates = entries
-    .map((entry) => ({ entry, candidate: buildVariantCandidate(entry) }))
-    .filter((entry): entry is { entry: IndexedRecordEntry; candidate: CandidateVariantFamily } => Boolean(entry.candidate));
+  const eligibleEntries = entries.filter((entry) => entry.record.category === "equipment" || entry.record.category === "spell");
+  const byExactName = new Map<string, IndexedRecordEntry[]>();
+  const candidateGroups = new Map<string, {
+    baseName: string;
+    category: string;
+    packName: string;
+    members: Map<string, GroupMember>;
+  }>();
 
-  const groups = new Map<string, Array<{ entry: IndexedRecordEntry; candidate: CandidateVariantFamily }>>();
-  for (const entry of candidates) {
-    const key = variantGroupKey(entry.entry, entry.candidate);
-    const bucket = groups.get(key) ?? [];
+  for (const entry of eligibleEntries) {
+    const exactKey = [entry.record.category, entry.pack.name, normalizeText(entry.record.name)].join(":");
+    const bucket = byExactName.get(exactKey) ?? [];
     bucket.push(entry);
-    groups.set(key, bucket);
-  }
+    byExactName.set(exactKey, bucket);
 
-  for (const [groupKey, group] of groups.entries()) {
-    if (group.length < 2 || distinctLabels(group.map((entry) => entry.candidate)) < 2) {
+    const candidate = parseStructuredCandidate(entry) ?? buildSuffixScaffoldCandidate(entry);
+    if (!candidate) {
       continue;
     }
 
-    const sharedBaseName = group[0]!.candidate.baseName;
-    const groupAxes = uniqueSorted(group.flatMap((entry) => entry.candidate.axes));
-    const sources = new Set(group.map((entry) => entry.candidate.source));
-    const source = sources.size === 1 ? [...sources][0]! : "composite";
-    const groupBoost = Math.min(0.08, Math.max(0, group.length - 2) * 0.02);
+    const groupKey = [entry.record.category, entry.pack.name, normalizeText(candidate.baseName)].join(":");
+    const group = candidateGroups.get(groupKey) ?? {
+      baseName: candidate.baseName,
+      category: entry.record.category,
+      packName: entry.pack.name,
+      members: new Map<string, GroupMember>(),
+    };
+    group.members.set(memberKey(entry), {
+      entry,
+      candidate,
+      leadBlock: extractLeadBlock(entry.record.descriptionText),
+      descriptionScore: 0,
+    });
+    candidateGroups.set(groupKey, group);
+  }
 
-    for (const { entry, candidate } of group) {
-      entry.record.variantFamilyKey = groupKey;
-      entry.record.variantBaseName = sharedBaseName;
-      entry.record.variantLabel = candidate.label;
-      entry.record.variantAxes = uniqueSorted([...groupAxes, ...candidate.axes]);
-      entry.record.variantConfidence = Math.min(0.99, candidate.confidence + groupBoost);
-      entry.record.variantSource = source;
+  for (const group of candidateGroups.values()) {
+    const normalizedBase = normalizeText(group.baseName);
+    const baseMembers = byExactName.get([group.category, group.packName, normalizedBase].join(":")) ?? [];
+    for (const entry of baseMembers) {
+      group.members.set(memberKey(entry), {
+        entry,
+        candidate: exactBaseCandidate(group.baseName),
+        leadBlock: extractLeadBlock(entry.record.descriptionText),
+        descriptionScore: 0,
+      });
+    }
+
+    const members = [...group.members.values()];
+    if (members.length < 2) {
+      continue;
+    }
+
+    const fallbackMembers = members.filter((member) => member.candidate.fallbackEligible || isExactBaseMember(member, group.baseName));
+    const labeledMembers = members.filter((member) => Boolean(member.candidate.label));
+    const canUseFallback = labeledMembers.length > 0 && labeledMembers.every((member) => member.candidate.fallbackEligible);
+    if (canUseFallback && fallbackMembers.length >= 2 && groupHasMeaningfulLabels(fallbackMembers)) {
+      const sources = new Set(fallbackMembers.map((member) => member.candidate.source));
+      const source = sources.size === 1 ? [...sources][0]! : "composite";
+      const confidence = Math.max(...fallbackMembers.map((member) => member.candidate.confidence));
+      assignGroup(fallbackMembers, group.baseName, source, confidence);
+      continue;
+    }
+
+    const descriptionMembers = includeExactBaseMembers(deriveDescriptionMembers(members), members, group.baseName);
+    if (descriptionMembers.length >= 2 && groupHasMeaningfulLabels(descriptionMembers)) {
+      if (needsBroaderEvidence(descriptionMembers, group.baseName)) {
+        continue;
+      }
+
+      const averageScore = descriptionMembers.reduce((sum, member) => sum + member.descriptionScore, 0) / descriptionMembers.length;
+      assignGroup(descriptionMembers, group.baseName, "composite", 0.78 + Math.min(0.08, averageScore * 0.15));
+      continue;
     }
   }
 }
