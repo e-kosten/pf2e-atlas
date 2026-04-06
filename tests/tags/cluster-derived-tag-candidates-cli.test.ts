@@ -50,8 +50,12 @@ describe("derived-tag cohort CLI helpers", () => {
           signature: ["trait:undead"],
           size: 3,
           averageSimilarity: 0.92,
+          sourceCount: 0,
+          topSources: [],
           sharedTraits: ["undead"],
           sharedAnchors: ["trait:undead"],
+          nonNameAnchors: ["trait:undead"],
+          reviewFlags: [],
           representativeRecords: [
             { recordKey: "creature:wraith", name: "Harbor Wraith", similarity: 0.95 },
           ],

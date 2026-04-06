@@ -433,4 +433,64 @@ describe("ruleable cohort discovery", () => {
       db.close();
     }
   });
+
+  it("does not promote single-source name-series seeded cohorts to rule-led", () => {
+    const db = createDiscoveryDb();
+    try {
+      insertRecord(db, {
+        recordKey: "ap-war:seed-1",
+        name: "Warcaller's Chime of Blasting",
+        category: "equipment",
+        subcategory: "gear",
+        descriptionText: "A warcaller's chime with carvings that depict battle scenes and blasting runes.",
+        vector: [1, 0, 0],
+      });
+      insertRecord(db, {
+        recordKey: "ap-war:seed-2",
+        name: "Warcaller's Chime of Dread",
+        category: "equipment",
+        subcategory: "gear",
+        descriptionText: "A warcaller's chime with carvings that depict battle scenes and dreadful omens.",
+        vector: [0.99, 0.01, 0],
+      });
+      insertRecord(db, {
+        recordKey: "ap-war:candidate-1",
+        name: "Warcaller's Chime of Refuge",
+        category: "equipment",
+        subcategory: "gear",
+        descriptionText: "A warcaller's chime with carvings that depict battle scenes and refuge wards.",
+        vector: [0.98, 0.02, 0],
+      });
+      insertRecord(db, {
+        recordKey: "ap-war:candidate-2",
+        name: "Warcaller's Chime of Restoration",
+        category: "equipment",
+        subcategory: "gear",
+        descriptionText: "A warcaller's chime with carvings that depict battle scenes and healing sigils.",
+        vector: [0.97, 0.03, 0],
+      });
+      insertRecord(db, {
+        recordKey: "equipment:contrast",
+        name: "Traveler's Cloak",
+        category: "equipment",
+        subcategory: "gear",
+        descriptionText: "A durable cloak for long journeys.",
+        vector: [0, 1, 0],
+      });
+
+      const report = discoverRuleableCohorts(db, {
+        category: "equipment",
+        subcategory: "gear",
+        exemplarRecordKeys: ["ap-war:seed-1", "ap-war:seed-2"],
+        candidateLimit: 6,
+        cohortLimit: 3,
+      });
+
+      expect(report.cohorts[0]?.reviewFlags).toContain("name-series");
+      expect(report.cohorts[0]?.reviewFlags).toContain("source-local");
+      expect(report.cohorts[0]?.recommendation).not.toBe("rule-led");
+    } finally {
+      db.close();
+    }
+  });
 });

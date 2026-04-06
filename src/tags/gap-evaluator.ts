@@ -334,8 +334,10 @@ function decodeVector(blob: Uint8Array | null | undefined): Float32Array {
 }
 
 function toAnalysisRecord(record: DerivedTagGapRecord) {
+  const separatorIndex = record.recordKey.indexOf(":");
   return {
     recordKey: record.recordKey,
+    sourceKey: separatorIndex >= 0 ? record.recordKey.slice(0, separatorIndex) : record.recordKey,
     name: record.name,
     category: record.category,
     subcategory: record.subcategory,

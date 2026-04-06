@@ -29,8 +29,12 @@ export type DerivedTagCandidateCluster = {
   size: number;
   distinctVariantFamilies: number;
   averageSimilarity: number;
+  sourceCount: number;
+  topSources: string[];
   sharedTraits: string[];
   sharedAnchors: string[];
+  nonNameAnchors: string[];
+  reviewFlags: string[];
   representativeRecords: Array<{
     recordKey: string;
     name: string;
@@ -78,6 +82,13 @@ type RankedCandidate = DiscoveryAnalysisRecord & {
   anchorOverlap: string[];
   anchorScore: number;
   hybridScore: number;
+};
+
+type SourceSummary = {
+  sourceCount: number;
+  topSources: string[];
+  dominantSourceShare: number;
+  hasUsableSourceKeys: boolean;
 };
 
 function variantFamilyIdentity(record: DiscoveryAnalysisRecord): string {
@@ -250,11 +261,78 @@ function buildRecordFeatureSet(record: DiscoveryAnalysisRecord): Set<string> {
   return features;
 }
 
+function isNameAnchorKind(kind: DiscoveryEvidenceKind): boolean {
+  return kind === "nameToken" || kind === "namePhrase";
+}
+
 function isLexicalAnchorKind(kind: DiscoveryEvidenceKind): boolean {
   return kind === "nameToken" ||
     kind === "namePhrase" ||
     kind === "descriptionToken" ||
     kind === "descriptionPhrase";
+}
+
+function isGenericSourceKey(record: DiscoveryAnalysisRecord): boolean {
+  return record.sourceKey === record.category;
+}
+
+function summarizeSources(records: DiscoveryAnalysisRecord[]): SourceSummary {
+  const counts = new Map<string, number>();
+  for (const record of records) {
+    if (isGenericSourceKey(record)) {
+      continue;
+    }
+    counts.set(record.sourceKey, (counts.get(record.sourceKey) ?? 0) + 1);
+  }
+
+  const sortedSources = [...counts.entries()]
+    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]));
+  const total = sortedSources.reduce((sum, [, count]) => sum + count, 0);
+  return {
+    sourceCount: sortedSources.length,
+    topSources: sortedSources.slice(0, 3).map(([source]) => source),
+    dominantSourceShare: total > 0 ? (sortedSources[0]?.[1] ?? 0) / total : 0,
+    hasUsableSourceKeys: sortedSources.length > 0,
+  };
+}
+
+function deriveReviewFlags(
+  sharedAnchors: string[],
+  sharedTraits: string[],
+  anchorByValue: Map<string, DiscoveryEvidenceTerm>,
+  sourceSummary: SourceSummary,
+  distinctVariantFamilies: number,
+): string[] {
+  const flags: string[] = [];
+  const sharedKinds = sharedAnchors.map((anchor) => anchorByValue.get(anchor)?.kind).filter((kind): kind is DiscoveryEvidenceKind => Boolean(kind));
+  const nameAnchors = sharedAnchors.filter((anchor) => isNameAnchorKind(anchorByValue.get(anchor)?.kind ?? "descriptionToken"));
+  const lexicalOnly = sharedKinds.length > 0 && sharedKinds.every((kind) => isLexicalAnchorKind(kind));
+  const traitOnly = sharedKinds.length > 0 && sharedKinds.every((kind) => kind === "trait");
+  const dominantNameSupport = nameAnchors.reduce((maxSupport, anchor) => Math.max(maxSupport, anchorByValue.get(anchor)?.cohortSupport ?? 0), 0);
+  const nameSeriesSupportFloor = Math.max(2, Math.ceil(distinctVariantFamilies * 0.6));
+
+  if (sharedAnchors.length === 0) {
+    flags.push("semantic-only");
+  }
+  if (lexicalOnly && sharedTraits.length === 0) {
+    flags.push("lexical-only");
+  }
+  if (traitOnly && sharedTraits.length <= 1) {
+    flags.push("trait-only");
+  }
+  if (nameAnchors.length >= 2 && dominantNameSupport >= nameSeriesSupportFloor) {
+    flags.push("name-series");
+  }
+  if (sourceSummary.hasUsableSourceKeys && sourceSummary.sourceCount === 1) {
+    flags.push("source-local");
+  } else if (sourceSummary.hasUsableSourceKeys && sourceSummary.dominantSourceShare >= 0.75) {
+    flags.push("source-heavy");
+  }
+  if (sharedAnchors.length > 0 && sharedAnchors.every((anchor) => isNameAnchorKind(anchorByValue.get(anchor)?.kind ?? "descriptionToken"))) {
+    flags.push("name-anchored");
+  }
+
+  return uniqueSorted(flags);
 }
 
 function deriveAnchorVocabulary(
@@ -353,14 +431,28 @@ function buildSignature(
 function recommendCluster(
   score: number,
   sharedAnchors: string[],
+  nonNameAnchors: string[],
   averageAnchorStrength: number,
   anchorByValue: Map<string, DiscoveryEvidenceTerm>,
   sharedTraits: string[],
+  reviewFlags: string[],
 ): CohortRecommendation {
   const sharedKinds = sharedAnchors.map((anchor) => anchorByValue.get(anchor)?.kind).filter((kind): kind is DiscoveryEvidenceKind => Boolean(kind));
   const lexicalOnly = sharedKinds.length > 0 && sharedKinds.every((kind) => isLexicalAnchorKind(kind));
   const traitOnly = sharedKinds.length > 0 && sharedKinds.every((kind) => kind === "trait");
 
+  if (reviewFlags.includes("name-series") && nonNameAnchors.length < 2) {
+    if (score >= 0.3) {
+      return "manual-only";
+    }
+    return "reject";
+  }
+  if (reviewFlags.includes("source-local") && nonNameAnchors.length === 0) {
+    if (score >= 0.3) {
+      return "manual-only";
+    }
+    return "reject";
+  }
   if (lexicalOnly && sharedTraits.length === 0) {
     if (score >= 0.3) {
       return "manual-only";
@@ -371,7 +463,14 @@ function recommendCluster(
     return "hybrid";
   }
 
-  if (sharedAnchors.length >= 2 && averageAnchorStrength >= 0.45 && score >= 0.72) {
+  if (
+    sharedAnchors.length >= 2 &&
+    nonNameAnchors.length >= 1 &&
+    averageAnchorStrength >= 0.45 &&
+    score >= 0.72 &&
+    !reviewFlags.includes("source-local") &&
+    !reviewFlags.includes("source-heavy")
+  ) {
     return "rule-led";
   }
   if (sharedAnchors.length >= 1 && score >= 0.5) {
@@ -406,13 +505,18 @@ function clusterCandidates(
       const signature = key === "__semantic_only__" ? [] : key.split("||");
       const averageSimilarity = bucket.reduce((total, candidate) => total + candidate.similarity, 0) / Math.max(1, bucket.length);
       const distinctVariantFamilies = distinctVariantFamilyCount(bucket);
+      const sourceSummary = summarizeSources(bucket);
       const sharedTraits = [...new Set(bucket.flatMap((candidate) => candidate.traits))]
         .filter((trait) => bucket.every((candidate) => candidate.traits.includes(trait)));
       const sharedAnchors = signature.filter((anchor) => anchorValues.has(anchor));
+      const nonNameAnchors = sharedAnchors
+        .filter((anchor) => !isNameAnchorKind(anchorByValue.get(anchor)?.kind ?? "descriptionToken"))
+        .slice(0, 4);
       const sharedKinds = sharedAnchors.map((anchor) => anchorByValue.get(anchor)?.kind).filter((kind): kind is DiscoveryEvidenceKind => Boolean(kind));
       const lexicalOnly = sharedKinds.length > 0 && sharedKinds.every((kind) => isLexicalAnchorKind(kind));
       const traitOnly = sharedKinds.length > 0 && sharedKinds.every((kind) => kind === "trait");
       const nameOnly = sharedKinds.length > 0 && sharedKinds.every((kind) => kind === "nameToken" || kind === "namePhrase");
+      const reviewFlags = deriveReviewFlags(sharedAnchors, uniqueSorted(sharedTraits), anchorByValue, sourceSummary, distinctVariantFamilies);
       const averageAnchorStrength = sharedAnchors.length === 0
         ? 0
         : sharedAnchors.reduce((total, anchor) => {
@@ -427,6 +531,14 @@ function clusterCandidates(
       const lexicalOnlyPenalty = lexicalOnly && sharedTraits.length === 0 ? 0.18 : lexicalOnly ? 0.1 : 0;
       const nameOnlyPenalty = nameOnly ? 0.08 : 0;
       const semanticOnlyPenalty = sharedAnchors.length === 0 ? 0.18 : 0;
+      const nameSeriesPenalty = reviewFlags.includes("name-series")
+        ? nonNameAnchors.length >= 2 ? 0.08 : 0.18
+        : 0;
+      const sourcePenalty = reviewFlags.includes("source-local")
+        ? 0.16
+        : reviewFlags.includes("source-heavy")
+          ? 0.08
+          : 0;
       const score = Math.max(
         0,
         Math.min(
@@ -439,7 +551,9 @@ function clusterCandidates(
           traitPenalty -
           lexicalOnlyPenalty -
           nameOnlyPenalty -
-          semanticOnlyPenalty,
+          semanticOnlyPenalty -
+          nameSeriesPenalty -
+          sourcePenalty,
         ),
       );
 
@@ -448,15 +562,19 @@ function clusterCandidates(
         size: bucket.length,
         distinctVariantFamilies,
         averageSimilarity,
+        sourceCount: sourceSummary.sourceCount,
+        topSources: sourceSummary.topSources,
         sharedTraits: uniqueSorted(sharedTraits),
         sharedAnchors: uniqueSorted(sharedAnchors),
+        nonNameAnchors,
+        reviewFlags,
         representativeRecords: selectRepresentativeCandidates(
           bucket
             .slice()
             .sort((left, right) => right.similarity - left.similarity || left.name.localeCompare(right.name)),
         ),
         score,
-        recommendation: recommendCluster(score, sharedAnchors, averageAnchorStrength, anchorByValue, uniqueSorted(sharedTraits)),
+        recommendation: recommendCluster(score, sharedAnchors, nonNameAnchors, averageAnchorStrength, anchorByValue, uniqueSorted(sharedTraits), reviewFlags),
       };
     })
     .sort((left, right) =>

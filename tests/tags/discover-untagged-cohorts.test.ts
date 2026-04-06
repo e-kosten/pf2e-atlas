@@ -271,7 +271,11 @@ describe("discover untagged cohorts", () => {
           size: 3,
           distinctVariantFamilies: 2,
           averageSimilarity: 0.82,
+          sourceCount: 0,
+          topSources: [],
           sharedTraits: ["illusion"],
+          nonNameAnchors: ["target:illusory disguise"],
+          reviewFlags: [],
           anchorSupport: 4,
           anchorLift: 4.8,
           score: 0.74,
@@ -290,6 +294,7 @@ describe("discover untagged cohorts", () => {
     expect(rendered).toContain("Top anchors:");
     expect(rendered).toContain("Recommended cohorts:");
     expect(rendered).toContain("families=2");
+    expect(rendered).toContain("flags=(none)");
   });
 
   it("down-ranks single-family variant ladders in favor of multi-family cohorts", () => {
@@ -517,6 +522,67 @@ describe("discover untagged cohorts", () => {
       });
 
       expect(report.cohorts[0]?.signature).toContain("sapphire");
+      expect(report.cohorts[0]?.recommendation).not.toBe("rule-led");
+    } finally {
+      db.close();
+    }
+  });
+
+  it("does not promote single-source named lines with weak non-name evidence to rule-led", () => {
+    const db = createDiscoveryDb();
+    try {
+      insertRecord(db, {
+        recordKey: "ap-war:chime-blasting",
+        name: "Warcaller's Chime of Blasting",
+        category: "equipment",
+        subcategory: "gear",
+        descriptionText: "A warcaller's chime with carvings that depict battle scenes and blasting runes.",
+        vector: [1, 0, 0],
+      });
+      insertRecord(db, {
+        recordKey: "ap-war:chime-dread",
+        name: "Warcaller's Chime of Dread",
+        category: "equipment",
+        subcategory: "gear",
+        descriptionText: "A warcaller's chime with carvings that depict battle scenes and dreadful omens.",
+        vector: [0.99, 0.01, 0],
+      });
+      insertRecord(db, {
+        recordKey: "ap-war:chime-refuge",
+        name: "Warcaller's Chime of Refuge",
+        category: "equipment",
+        subcategory: "gear",
+        descriptionText: "A warcaller's chime with carvings that depict battle scenes and refuge wards.",
+        vector: [0.98, 0.02, 0],
+      });
+      insertRecord(db, {
+        recordKey: "equipment:cloak",
+        name: "Traveler's Cloak",
+        category: "equipment",
+        subcategory: "gear",
+        descriptionText: "A durable cloak for long journeys.",
+        vector: [0, 1, 0],
+      });
+      insertRecord(db, {
+        recordKey: "equipment:lamp",
+        name: "Signal Lamp",
+        category: "equipment",
+        subcategory: "gear",
+        descriptionText: "A hooded lamp for signaling at a distance.",
+        vector: [0.01, 0.99, 0],
+      });
+
+      const report = discoverUntaggedCohorts(db, {
+        category: "equipment",
+        subcategory: "gear",
+        cohortLimit: 3,
+        anchorLimit: 10,
+        minFeatureSupport: 2,
+        minFeatureLift: 1.1,
+      });
+
+      expect(report.cohorts[0]?.reviewFlags).toContain("lexical-only");
+      expect(report.cohorts[0]?.reviewFlags).toContain("source-local");
       expect(report.cohorts[0]?.recommendation).not.toBe("rule-led");
     } finally {
       db.close();

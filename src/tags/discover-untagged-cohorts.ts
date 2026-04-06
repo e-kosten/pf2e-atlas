@@ -109,7 +109,8 @@ export function formatUntaggedCohortReport(report: UntaggedCohortReport): string
     "Recommended cohorts:",
     ...(report.cohorts.length > 0
       ? report.cohorts.flatMap((cohort) => [
-        `- ${cohort.recommendation} score=${cohort.score.toFixed(2)} size=${cohort.size} families=${cohort.distinctVariantFamilies} signature=${cohort.signature.join(", ")}`,
+        `- ${cohort.recommendation} score=${cohort.score.toFixed(2)} size=${cohort.size} families=${cohort.distinctVariantFamilies} sources=${cohort.sourceCount} signature=${cohort.signature.join(", ")}`,
+        `  non_name=${cohort.nonNameAnchors.join(", ") || "(none)"} flags=${cohort.reviewFlags.join(", ") || "(none)"} top_sources=${cohort.topSources.join(", ") || "(none)"}`,
         ...cohort.representativeRecords.map((record) => `  ${record.name} (${record.recordKey}) score=${record.similarity.toFixed(3)}`),
         ...(cohort.contrastRecords.length > 0
           ? [

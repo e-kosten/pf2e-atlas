@@ -49,7 +49,11 @@ export type UntaggedCohortCluster = {
   size: number;
   distinctVariantFamilies: number;
   averageSimilarity: number;
+  sourceCount: number;
+  topSources: string[];
   sharedTraits: string[];
+  nonNameAnchors: string[];
+  reviewFlags: string[];
   anchorSupport: number;
   anchorLift: number;
   score: number;
@@ -99,6 +103,18 @@ type RecordNode = {
   record: DiscoveryAnalysisRecord;
   informativeFeatureKeys: Set<string>;
   allFeatureKeys: Set<string>;
+};
+
+type SourceSummary = {
+  sourceCount: number;
+  topSources: string[];
+  dominantSourceShare: number;
+  hasUsableSourceKeys: boolean;
+};
+
+type SelectedUntaggedCohorts = {
+  cohorts: UntaggedCohortCluster[];
+  anchorTerms: UntaggedCohortAnchor[];
 };
 
 function variantFamilyIdentity(record: DiscoveryAnalysisRecord): string {
@@ -260,6 +276,76 @@ function featureDisplay(kind: DiscoveryFeatureKind, value: string): string {
   }
 
   return value;
+}
+
+function isNameFeatureKind(kind: DiscoveryFeatureKind): boolean {
+  return kind === "name" || kind === "name_phrase";
+}
+
+function isLexicalFeatureKind(kind: DiscoveryFeatureKind): boolean {
+  return kind === "name" || kind === "name_phrase" || kind === "text" || kind === "text_phrase";
+}
+
+function isGenericSourceKey(record: DiscoveryAnalysisRecord): boolean {
+  return record.sourceKey === record.category;
+}
+
+function summarizeSources(records: DiscoveryAnalysisRecord[]): SourceSummary {
+  const counts = new Map<string, number>();
+  for (const record of records) {
+    if (isGenericSourceKey(record)) {
+      continue;
+    }
+    counts.set(record.sourceKey, (counts.get(record.sourceKey) ?? 0) + 1);
+  }
+
+  const sortedSources = [...counts.entries()]
+    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]));
+  const total = sortedSources.reduce((sum, [, count]) => sum + count, 0);
+  return {
+    sourceCount: sortedSources.length,
+    topSources: sortedSources.slice(0, 3).map(([source]) => source),
+    dominantSourceShare: total > 0 ? (sortedSources[0]?.[1] ?? 0) / total : 0,
+    hasUsableSourceKeys: sortedSources.length > 0,
+  };
+}
+
+function deriveReviewFlags(
+  anchors: RankedFeature[],
+  sharedTraits: string[],
+  sourceSummary: SourceSummary,
+  distinctVariantFamilies: number,
+): string[] {
+  const flags: string[] = [];
+  const nameAnchors = anchors.filter((anchor) => isNameFeatureKind(anchor.kind));
+  const nonNameAnchors = anchors.filter((anchor) => !isNameFeatureKind(anchor.kind));
+  const lexicalOnly = anchors.length > 0 && anchors.every((anchor) => isLexicalFeatureKind(anchor.kind));
+  const traitOnly = anchors.length > 0 && anchors.every((anchor) => anchor.kind === "trait");
+  const dominantNameSupport = nameAnchors[0]?.support ?? 0;
+  const nameSeriesSupportFloor = Math.max(2, Math.ceil(distinctVariantFamilies * 0.6));
+
+  if (anchors.length === 0) {
+    flags.push("semantic-only");
+  }
+  if (lexicalOnly && sharedTraits.length === 0) {
+    flags.push("lexical-only");
+  }
+  if (traitOnly && sharedTraits.length <= 1) {
+    flags.push("trait-only");
+  }
+  if (nameAnchors.length >= 2 && dominantNameSupport >= nameSeriesSupportFloor) {
+    flags.push("name-series");
+  }
+  if (sourceSummary.hasUsableSourceKeys && sourceSummary.sourceCount === 1) {
+    flags.push("source-local");
+  } else if (sourceSummary.hasUsableSourceKeys && sourceSummary.dominantSourceShare >= 0.75) {
+    flags.push("source-heavy");
+  }
+  if (nonNameAnchors.length === 0 && anchors.length > 0) {
+    flags.push("name-anchored");
+  }
+
+  return uniqueSorted(flags);
 }
 
 function collectRecordFeatures(record: DiscoveryAnalysisRecord): DiscoveryFeature[] {
@@ -594,14 +680,12 @@ function recommendCluster(score: number): CohortRecommendation {
   return "reject";
 }
 
-function isLexicalFeatureKind(kind: DiscoveryFeatureKind): boolean {
-  return kind === "name" || kind === "name_phrase" || kind === "text" || kind === "text_phrase";
-}
-
 function recommendClusterForAnchors(
   score: number,
   anchors: RankedFeature[],
   sharedTraits: string[],
+  nonNameAnchors: string[],
+  reviewFlags: string[],
 ): CohortRecommendation {
   if (anchors.length === 0) {
     if (score >= 0.3) {
@@ -613,6 +697,18 @@ function recommendClusterForAnchors(
   const lexicalOnly = anchors.length > 0 && anchors.every((anchor) => isLexicalFeatureKind(anchor.kind));
   const traitOnly = anchors.length > 0 && anchors.every((anchor) => anchor.kind === "trait");
 
+  if (reviewFlags.includes("name-series") && nonNameAnchors.length < 2) {
+    if (score >= 0.3) {
+      return "manual-only";
+    }
+    return "reject";
+  }
+  if (reviewFlags.includes("source-local") && nonNameAnchors.length === 0) {
+    if (score >= 0.3) {
+      return "manual-only";
+    }
+    return "reject";
+  }
   if (lexicalOnly && sharedTraits.length === 0) {
     if (score >= 0.3) {
       return "manual-only";
@@ -623,7 +719,7 @@ function recommendClusterForAnchors(
     return "hybrid";
   }
 
-  if (score >= 0.72) {
+  if (score >= 0.72 && nonNameAnchors.length >= 1 && !reviewFlags.includes("source-local") && !reviewFlags.includes("source-heavy")) {
     return "rule-led";
   }
   if (score >= 0.5) {
@@ -639,7 +735,7 @@ function buildCandidateCohorts(
   untagged: DiscoveryAnalysisRecord[],
   baseline: DiscoveryAnalysisRecord[],
   options: UntaggedCohortOptions,
-): UntaggedCohortCluster[] {
+): SelectedUntaggedCohorts {
   options.progressStatusLogger?.(`Extracting discovery features for ${untagged.length} untagged records.`);
   const featureSupport = collectFeatureSupport(untagged);
   options.progressStatusLogger?.(`Extracting baseline features for ${baseline.length} records.`);
@@ -675,6 +771,12 @@ function buildCandidateCohorts(
       const distinctVariantFamilies = distinctVariantFamilyCount(members);
       const sharedTraits = [...new Set(members.flatMap((member) => member.traits))]
         .filter((trait) => members.every((member) => member.traits.includes(trait)));
+      const sourceSummary = summarizeSources(members);
+      const reviewFlags = deriveReviewFlags(clusterAnchors, uniqueSorted(sharedTraits), sourceSummary, distinctVariantFamilies);
+      const nonNameAnchors = clusterAnchors
+        .filter((anchor) => !isNameFeatureKind(anchor.kind))
+        .map((anchor) => anchor.value)
+        .slice(0, 4);
       const nonMembers = untagged.filter((record) => !memberKeys.includes(record.recordKey));
       const signatureKeys = clusterAnchors.map((anchor) => anchor.key);
       const signatureDisplay = clusterAnchors.map((anchor) => anchor.value);
@@ -713,6 +815,14 @@ function buildCandidateCohorts(
       const traitOnlyPenalty = clusterAnchors.length > 0 && clusterAnchors.every((anchor) => anchor.kind === "trait") && sharedTraits.length <= 1
         ? 0.12
         : 0;
+      const nameSeriesPenalty = reviewFlags.includes("name-series")
+        ? nonNameAnchors.length >= 2 ? 0.08 : 0.18
+        : 0;
+      const sourcePenalty = reviewFlags.includes("source-local")
+        ? 0.16
+        : reviewFlags.includes("source-heavy")
+          ? 0.08
+          : 0;
       const score = Math.max(
         0,
         Math.min(
@@ -725,7 +835,9 @@ function buildCandidateCohorts(
           lexicalOnlyPenalty -
           noAnchorPenalty -
           nameOnlyPenalty -
-          traitOnlyPenalty,
+          traitOnlyPenalty -
+          nameSeriesPenalty -
+          sourcePenalty,
         ),
       );
 
@@ -734,17 +846,22 @@ function buildCandidateCohorts(
         size: members.length,
         distinctVariantFamilies,
         averageSimilarity,
+        sourceCount: sourceSummary.sourceCount,
+        topSources: sourceSummary.topSources,
         sharedTraits: uniqueSorted(sharedTraits),
+        nonNameAnchors,
+        reviewFlags,
         anchorSupport: clusterAnchors[0]?.support ?? 0,
         anchorLift: clusterAnchors[0]?.lift ?? 0,
         score,
-        recommendation: recommendClusterForAnchors(score, clusterAnchors, uniqueSorted(sharedTraits)),
+        recommendation: recommendClusterForAnchors(score, clusterAnchors, uniqueSorted(sharedTraits), nonNameAnchors, reviewFlags),
         representativeRecords: selectRepresentativeRecords(
           memberSimilarities
             .sort((left, right) => right.similarity - left.similarity || left.record.name.localeCompare(right.record.name)),
         ),
         contrastRecords,
-      } satisfies UntaggedCohortCluster;
+        rankedAnchors: clusterAnchors,
+      };
     })
     .filter((cluster) => cluster.signature.length > 0 || cluster.size >= 3)
     .sort((left, right) =>
@@ -754,8 +871,34 @@ function buildCandidateCohorts(
       right.averageSimilarity - left.averageSimilarity ||
       left.signature.join(" ").localeCompare(right.signature.join(" ")))
     .slice(0, cohortLimit);
+  const anchorTermByValue = new Map<string, UntaggedCohortAnchor>();
+  for (const cluster of rankedClusters) {
+    for (const anchor of cluster.rankedAnchors) {
+      const existing = anchorTermByValue.get(anchor.value);
+      const candidate = {
+        value: anchor.value,
+        support: anchor.support,
+        baselineSupport: anchor.baselineSupport,
+        lift: anchor.lift,
+        score: anchor.score,
+      } satisfies UntaggedCohortAnchor;
+      if (
+        !existing ||
+        candidate.score > existing.score ||
+        (candidate.score === existing.score && candidate.support > existing.support) ||
+        (candidate.score === existing.score && candidate.support === existing.support && candidate.value.localeCompare(existing.value) < 0)
+      ) {
+        anchorTermByValue.set(anchor.value, candidate);
+      }
+    }
+  }
   options.progressStatusLogger?.(`Selected top ${rankedClusters.length} cohort candidates.`);
-  return rankedClusters;
+  return {
+    cohorts: rankedClusters.map(({ rankedAnchors: _rankedAnchors, ...cluster }) => cluster),
+    anchorTerms: [...anchorTermByValue.values()]
+      .sort((left, right) => right.score - left.score || right.support - left.support || right.lift - left.lift || left.value.localeCompare(right.value))
+      .slice(0, Math.max(1, Math.min(options.anchorLimit ?? DEFAULT_ANCHOR_LIMIT, 50))),
+  };
 }
 
 export function discoverUntaggedCohorts(
@@ -793,28 +936,11 @@ export function discoverUntaggedCohorts(
 
   options.progressStatusLogger?.("Building candidate cohorts.");
   const cohortStartTime = Date.now();
-  const cohorts = buildCandidateCohorts(untagged, baseline, options);
+  const { cohorts, anchorTerms } = buildCandidateCohorts(untagged, baseline, options);
   logPhase(`Built ${cohorts.length} candidate cohorts`, cohortStartTime);
 
   options.progressStatusLogger?.("Ranking top anchors.");
   const anchorStartTime = Date.now();
-  const anchorTerms = uniqueSorted(cohorts.flatMap((cohort) => cohort.signature))
-    .map((value) => {
-      const members = cohorts.filter((cohort) => cohort.signature.includes(value));
-      const exemplar = members[0];
-      return exemplar
-        ? {
-          value,
-          support: exemplar.anchorSupport,
-          baselineSupport: 0,
-          lift: exemplar.anchorLift,
-          score: exemplar.score,
-        }
-        : null;
-    })
-    .filter((entry): entry is UntaggedCohortAnchor => Boolean(entry))
-    .sort((left, right) => right.score - left.score || right.lift - left.lift || left.value.localeCompare(right.value))
-    .slice(0, Math.max(1, Math.min(options.anchorLimit ?? DEFAULT_ANCHOR_LIMIT, 50)));
   logPhase(`Ranked ${anchorTerms.length} anchor terms`, anchorStartTime);
   options.progressLogger?.(`Untagged cohort discovery finished in ${Math.max(0, Date.now() - overallStartTime)}ms.`);
 

@@ -23,7 +23,7 @@ export function formatRuleableCohortReport(report: RuleableCohortReport): string
     "Top cohorts:",
     ...(report.cohorts.length > 0
       ? report.cohorts.map((cohort) =>
-        `- ${cohort.recommendation} score=${cohort.score.toFixed(2)} size=${cohort.size} families=${cohort.distinctVariantFamilies} signature=${cohort.signature.join(", ") || "(semantic only)"}`)
+        `- ${cohort.recommendation} score=${cohort.score.toFixed(2)} size=${cohort.size} families=${cohort.distinctVariantFamilies} sources=${cohort.sourceCount} signature=${cohort.signature.join(", ") || "(semantic only)"} non_name=${cohort.nonNameAnchors.join(", ") || "(none)"} flags=${cohort.reviewFlags.join(", ") || "(none)"} top_sources=${cohort.topSources.join(", ") || "(none)"}`)
       : ["- (none)"]),
     "",
     "Anchor terms:",

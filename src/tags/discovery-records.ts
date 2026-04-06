@@ -16,6 +16,7 @@ export type DiscoveryReferenceRecord = {
 
 export type DiscoveryAnalysisRecord = {
   recordKey: string;
+  sourceKey: string;
   name: string;
   category: SearchCategory;
   subcategory: SearchSubcategory | null;
@@ -100,8 +101,10 @@ function toDiscoveryRecord(
   row: LoadedRecordRow,
   references: DiscoveryReferenceRecord[],
 ): DiscoveryAnalysisRecord {
+  const separatorIndex = row.recordKey.indexOf(":");
   return {
     recordKey: row.recordKey,
+    sourceKey: separatorIndex >= 0 ? row.recordKey.slice(0, separatorIndex) : row.recordKey,
     name: row.name,
     category: row.category as SearchCategory,
     subcategory: (row.subcategory ?? null) as SearchSubcategory | null,
