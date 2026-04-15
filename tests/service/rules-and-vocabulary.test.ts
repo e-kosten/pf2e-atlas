@@ -275,10 +275,13 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
           expect.objectContaining({ value: "celestial_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "hell_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "abyss_setting", description: expect.any(String) }),
+          expect.objectContaining({ value: "abaddon_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "fiendish_setting", description: expect.any(String) }),
+          expect.objectContaining({ value: "axis_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "shadow_plane_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "maelstrom_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "island_setting", description: expect.any(String) }),
+          expect.objectContaining({ value: "jungle_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "plains_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "canyon_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "graveyard_setting", description: expect.any(String) }),
@@ -287,6 +290,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
           expect.objectContaining({ value: "fortress_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "wasteland_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "volcanic_setting", description: expect.any(String) }),
+          expect.objectContaining({ value: "sky_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "rural_setting", description: expect.any(String) }),
         ]),
       }),
@@ -401,7 +405,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     expect(service.listFilterValues({
       field: "derivedTags",
       category: "creature",
-    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["aquatic_setting", "freshwater_setting", "coastal_setting", "astral_setting", "first_world_setting", "boneyard_setting", "heaven_setting", "nirvana_setting", "elysium_setting", "celestial_setting", "hell_setting", "abyss_setting", "fiendish_setting", "shadow_plane_setting", "maelstrom_setting", "temple_setting", "rural_setting", "civic_npc", "combatant_npc", "carnival_show", "living_toy", "living_artwork", "trickster_chaos"]));
+    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["aquatic_setting", "freshwater_setting", "coastal_setting", "astral_setting", "first_world_setting", "boneyard_setting", "heaven_setting", "nirvana_setting", "elysium_setting", "celestial_setting", "hell_setting", "abyss_setting", "abaddon_setting", "fiendish_setting", "axis_setting", "shadow_plane_setting", "maelstrom_setting", "island_setting", "jungle_setting", "sky_setting", "temple_setting", "rural_setting", "civic_npc", "combatant_npc", "carnival_show", "living_toy", "living_artwork", "trickster_chaos"]));
 
     expect(service.listFilterValues({
       field: "families",
@@ -567,7 +571,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     expect(service.listFilterValues({
       field: "size",
       category: "creature",
-    }).values.map((entry) => entry.value)).toEqual(["med", "lg", "sm"]);
+    }).values.map((entry) => entry.value)).toEqual(["med", "lg", "sm", "huge"]);
 
     expect(service.listFilterValues({
       field: "sources",

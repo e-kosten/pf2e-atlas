@@ -26,7 +26,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "A patient ambusher that stalks the deep jungles and tangled woods.",
       traits: ["beast"],
-    })).toContain("forest_setting");
+    })).toEqual(expect.arrayContaining(["jungle_setting", "forest_setting"]));
 
     expect(deriveRecordTags({
       name: "Icebound Mariner",
@@ -189,6 +189,14 @@ describe("derived tag rules: creature", () => {
     })).toContain("island_setting");
 
     expect(deriveRecordTags({
+      name: "Storm Giant",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Storm giants are looming but benevolent stewards of sea and sky, often serving as the natural guardians of tropical islands, coastlines, or rocky archipelagos.",
+      traits: ["giant", "humanoid"],
+    })).toContain("island_setting");
+
+    expect(deriveRecordTags({
       name: "Plains Runner",
       category: "creature",
       subcategory: null,
@@ -299,6 +307,30 @@ describe("derived tag rules: creature", () => {
       descriptionText: "Swirling down from misty peaks and through howling mountain passes like an evil wind, the vortex of bones known as a skulltaker is a terrible manifestation of the delirium and agony experienced by doomed climbers and lost trailblazers.",
       traits: ["undead"],
     })).toContain("mountain_setting");
+
+    expect(deriveRecordTags({
+      name: "Urthagul",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "This gug predator is native to the Darklands and lurks in subterranean tunnels and caverns, dragging prey back to its lightless lair.",
+      traits: ["aberration"],
+    })).toContain("underground_setting");
+
+    expect(deriveRecordTags({
+      name: "Rosethorn Ram",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "These hardy mountain dwellers surpass their lowlander cousins in stubbornness and agility, making their homes among steep peaks and rocky slopes.",
+      traits: ["beast"],
+    })).toContain("mountain_setting");
+
+    expect(deriveRecordTags({
+      name: "Thunderbird",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Thunderbirds soar high above storm clouds and wheel through the open sky before nesting on remote mountain aeries.",
+      traits: ["beast"],
+    })).toEqual(expect.arrayContaining(["sky_setting", "mountain_setting"]));
 
     expect(deriveRecordTags({
       name: "Scarecrow",
@@ -1371,6 +1403,22 @@ describe("derived tag rules: creature", () => {
     })).toEqual(expect.arrayContaining(["abyss_setting", "fiendish_setting"]));
 
     expect(deriveRecordTags({
+      name: "Cacodaemon",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "These twisted embodiments of violence and spite are spawned from eddies of angry and warped souls amid Abaddon's mists. Denizens of the bleak and terrible plane of Abaddon, daemons are shaped by and devoted to the destruction of life in all its forms.",
+      traits: ["daemon", "evil", "fiend", "unholy"],
+    })).toEqual(expect.arrayContaining(["abaddon_setting", "fiendish_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Axiomite",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Most axiomites live in the perfect city of Axis, which they continually act to improve. At the onset of the Convergence, a council of pleroma aeons appeared in the Eternal City of Axis.",
+      traits: ["aeon", "lawful", "monitor"],
+    })).toContain("axis_setting");
+
+    expect(deriveRecordTags({
       name: "Sarkorian Wolf",
       category: "creature",
       subcategory: null,
@@ -1385,6 +1433,22 @@ describe("derived tag rules: creature", () => {
       descriptionText: "A Hellknight officer drills recruits in ruthless discipline and tyranny.",
       traits: ["human", "humanoid"],
     })).not.toContain("hell_setting");
+
+    expect(deriveRecordTags({
+      name: "Pairaka",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Some fiends seek to tear down the multiverse, while these divs prefer cruel temptations and mortal corruption.",
+      traits: ["div", "evil", "fiend", "unholy"],
+    })).not.toEqual(expect.arrayContaining(["abaddon_setting", "fiendish_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Arbiter",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "These spherical aeons are scouts and diplomats found throughout the multiverse, where they keep watch over chaos and its agents.",
+      traits: ["aeon", "lawful", "monitor"],
+    })).not.toContain("axis_setting");
 
     expect(deriveRecordTags({
       name: "Shae",
@@ -1409,5 +1473,13 @@ describe("derived tag rules: creature", () => {
       descriptionText: "Children of primeval chaos, ganzis intertwine the churning pandemonium of the Maelstrom with mortal life.",
       traits: ["human", "humanoid", "nephilim"],
     })).not.toContain("maelstrom_setting");
+
+    expect(deriveRecordTags({
+      name: "Archer Regiment",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Archer regiments are capable of filling the sky with arrows at great distances, making them vital to any war leader.",
+      traits: ["humanoid", "troop"],
+    })).not.toContain("sky_setting");
   });
 });

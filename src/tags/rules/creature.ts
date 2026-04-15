@@ -341,6 +341,37 @@ const TRICKSTER_CHAOS_TEXT_ANCHORS = [
   patternAnchor("play tricks"),
 ];
 
+const ABADDON_SETTING_TEXT_ANCHORS = [
+  patternAnchor("abaddon"),
+  patternAnchor("abaddon s mists"),
+  patternAnchor("plane of abaddon"),
+];
+
+const AXIS_SETTING_TEXT_ANCHORS = [
+  patternAnchor("eternal city of axis"),
+  patternAnchor("perfect city of axis"),
+  patternAnchor("planar city of axis"),
+  patternAnchor("city of axis"),
+  patternAnchor("in axis"),
+  patternAnchor("of axis"),
+];
+
+const JUNGLE_SETTING_NAME_ANCHORS = [
+  patternAnchor("jungle", "name"),
+  patternAnchor("rainforest", "name"),
+];
+
+const JUNGLE_SETTING_TEXT_NEAR = [
+  {
+    all: [
+      patternAnchor("{{alt(jungle,jungles,rainforest,rainforests,canopy,canopies,tropical forest,tropical forests)}}", "description"),
+      patternAnchor("{{alt(native,native to,found in,found among,live,lives,living,dwell,dwells,dwelling,hunt,hunts,hunting,prowl,prowls,stalk,stalks,stalking,haunt,haunts,roost,roosts,home,homes)}}", "description"),
+    ],
+    window: 8,
+    scope: "description" as const,
+  },
+];
+
 const FOREST_SETTING_NAME_ANCHORS = [
   patternAnchor("forest", "name"),
   patternAnchor("jungle", "name"),
@@ -374,6 +405,17 @@ const FOREST_SETTING_SUPPORT_TEXT_ANCHORS = [
   patternAnchor("old growth"),
   patternAnchor("bough"),
   patternAnchor("boughs"),
+];
+
+const SKY_SETTING_TEXT_NEAR = [
+  {
+    all: [
+      patternAnchor("{{alt(sky,skies,open sky,open skies,storm cloud,storm clouds,cloud top,cloud tops,wind current,wind currents,high altitude,high altitudes)}}", "description"),
+      patternAnchor("{{alt(soar,soars,soaring,glide,glides,gliding,hover,hovers,hovering,circle,circles,circling,wheel,wheels,wheeling,nest,nests,nesting,roost,roosts,roosting)}}", "description"),
+    ],
+    window: 8,
+    scope: "description" as const,
+  },
 ];
 
 const DESERT_SETTING_NAME_ANCHORS = [
@@ -467,9 +509,9 @@ const URBAN_SETTING_SETTLEMENT_LIST_TEXT_ANCHORS = [
   patternAnchor("towns"),
 ];
 
-const CREATURE_TERRAIN_HABITAT_CONTEXT_TEXT_ANCHOR = patternAnchor("{{alt(native,native to,found in,found among,found near,inhabit,inhabits,inhabiting,dwell,dwells,dwelling,lair,lairs,haunt,haunts,lurk,lurks,lurking,roam,roams,roaming,hunt,hunts,hunting,prowl,prowls,stalk,stalks,stalking,nest,nests,nesting,roost,roosts,patrol,patrols,home,homes,watch over,watches over,keep watch over,keeps watch over)}}", "description");
+const CREATURE_TERRAIN_HABITAT_CONTEXT_TEXT_ANCHOR = patternAnchor("{{alt(native,native to,found in,found among,found near,inhabit,inhabits,inhabiting,dwell,dwells,dwelling,dweller,dwellers,live,lives,living,lair,lairs,haunt,haunts,lurk,lurks,lurking,roam,roams,roaming,hunt,hunts,hunting,prowl,prowls,stalk,stalks,stalking,nest,nests,nesting,roost,roosts,patrol,patrols,home,homes,watch over,watches over,keep watch over,keeps watch over)}}", "description");
 
-const CREATURE_SITE_HABITAT_CONTEXT_TEXT_ANCHOR = patternAnchor("{{alt(found in,dwell,dwells,dwelling,haunt,haunts,lurk,lurks,lurking,patrol,patrols,guard,guards,guarding,tend,tends,watch over,watches over,keep watch over,keeps watch over,home,homes)}}", "description");
+const CREATURE_SITE_HABITAT_CONTEXT_TEXT_ANCHOR = patternAnchor("{{alt(found in,dwell,dwells,dwelling,live,lives,living,haunt,haunts,lurk,lurks,lurking,patrol,patrols,guard,guards,guarding,tend,tends,watch over,watches over,keep watch over,keeps watch over,home,homes)}}", "description");
 
 const CREATURE_CANYON_HABITAT_CONTEXT_TEXT_ANCHOR = patternAnchor("{{alt(found in,dwell,dwells,dwelling,haunt,haunts,lurk,lurks,lurking,prowl,prowls,stalk,stalks,stalking,glide through,glides through,hunt,hunts,hunting,nest,nests,nesting,home,homes)}}", "description");
 
@@ -1015,6 +1057,15 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     ],
   },
   {
+    tag: "abaddon_setting",
+    category: "creature",
+    threshold: 3,
+    anyOf: [
+      { score: 2, textAny: ABADDON_SETTING_TEXT_ANCHORS },
+      { score: 1, traitsAny: ["daemon", "fiend"] },
+    ],
+  },
+  {
     tag: "fiendish_setting",
     category: "creature",
     requiresTags: ["hell_setting"],
@@ -1023,6 +1074,19 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     tag: "fiendish_setting",
     category: "creature",
     requiresTags: ["abyss_setting"],
+  },
+  {
+    tag: "fiendish_setting",
+    category: "creature",
+    requiresTags: ["abaddon_setting"],
+  },
+  {
+    tag: "axis_setting",
+    category: "creature",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: AXIS_SETTING_TEXT_ANCHORS },
+    ],
   },
   {
     tag: "shadow_plane_setting",
@@ -1052,6 +1116,14 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
         textNear: createCreatureSettingTextNear(
           "island,islands,archipelago,archipelagos,atoll,atolls,isle,isles",
           CREATURE_TERRAIN_HABITAT_CONTEXT_TEXT_ANCHOR,
+        ),
+      },
+      {
+        score: 2,
+        textNear: createCreatureSettingTextNear(
+          "island,islands,archipelago,archipelagos,atoll,atolls,isle,isles,eastern isles,remote islands",
+          CREATURE_SITE_FUNCTION_CONTEXT_TEXT_ANCHOR,
+          10,
         ),
       },
     ],
@@ -1089,6 +1161,20 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
       { score: 1, textAny: [patternAnchor("ship"), patternAnchor("ships"), patternAnchor("captain"), patternAnchor("vessel"), patternAnchor("vessels"), patternAnchor("deck"), patternAnchor("decks")] },
       { score: 1, textAny: [patternAnchor("harbor"), patternAnchor("harbors")] },
     ],
+  },
+  {
+    tag: "jungle_setting",
+    category: "creature",
+    threshold: 2,
+    anyOf: [
+      { score: 1, textAny: JUNGLE_SETTING_NAME_ANCHORS },
+      { score: 2, textNear: JUNGLE_SETTING_TEXT_NEAR },
+    ],
+  },
+  {
+    tag: "forest_setting",
+    category: "creature",
+    requiresTags: ["jungle_setting"],
   },
   {
     tag: "forest_setting",
@@ -1156,8 +1242,15 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
       {
         score: 2,
         textNear: createCreatureSettingTextNear(
-          "cave,caves,cavern,caverns,underground,tunnel,tunnels,subterranean,underworld,depths,crypt,crypts,mine,mines,mineshaft,mineshafts,quarry,quarries,warren,warrens",
+          "cave,caves,cavern,caverns,underground,tunnel,tunnels,subterranean,underworld,depths,crypt,crypts,mine,mines,mineshaft,mineshafts,quarry,quarries,warren,warrens,cave network,cave networks",
           CREATURE_SITE_HABITAT_CONTEXT_TEXT_ANCHOR,
+        ),
+      },
+      {
+        score: 2,
+        textNear: createCreatureSettingTextNear(
+          "darklands,darkland,subterranean,cave network,cave networks",
+          CREATURE_TERRAIN_HABITAT_CONTEXT_TEXT_ANCHOR,
         ),
       },
       {
@@ -1167,12 +1260,13 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
           patternAnchor("found below ground", "description"),
           patternAnchor("beneath the earth", "description"),
           patternAnchor("under tunnels", "description"),
+          patternAnchor("native to the darklands", "description"),
         ],
       },
       {
         score: 2,
         textNear: createCreatureSettingTextNear(
-          "cave,caves,cavern,caverns,underground,tunnel,tunnels,sewer,sewers,crypt,crypts,warren,warrens,below ground",
+          "cave,caves,cavern,caverns,underground,tunnel,tunnels,sewer,sewers,crypt,crypts,warren,warrens,below ground,darklands",
           CREATURE_UNDERGROUND_ACTIVITY_CONTEXT_TEXT_ANCHOR,
         ),
       },
@@ -1272,11 +1366,19 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
       {
         score: 2,
         textNear: createCreatureSettingTextNear(
-          "mountain,mountains,cliff,cliffs,peak,peaks,crag,crags,alp,alpine,mountain pass,mountain passes,ridge,ridges,highlands,foothills,slope,slopes,escarpment,bluff,bluffs",
+          "mountain,mountains,cliff,cliffs,cliffside,cliffsides,peak,peaks,crag,crags,alp,alpine,mountain pass,mountain passes,ridge,ridges,highlands,high altitude,high altitudes,foothills,slope,slopes,escarpment,bluff,bluffs",
           CREATURE_TERRAIN_HABITAT_CONTEXT_TEXT_ANCHOR,
         ),
       },
-      { score: 2, textAny: [patternAnchor("misty peaks", "description"), patternAnchor("mountain pass", "description"), patternAnchor("mountain passes", "description")] },
+      { score: 2, textAny: [patternAnchor("misty peaks", "description"), patternAnchor("mountain pass", "description"), patternAnchor("mountain passes", "description"), patternAnchor("mountain dwellers", "description"), patternAnchor("mountain dweller", "description")] },
+    ],
+  },
+  {
+    tag: "sky_setting",
+    category: "creature",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textNear: SKY_SETTING_TEXT_NEAR },
     ],
   },
   {

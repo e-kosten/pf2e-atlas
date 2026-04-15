@@ -847,6 +847,54 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
     },
   });
 
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "cacodaemon.json"), {
+    _id: "cacodaemon",
+    name: "Cacodaemon",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 4,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>These twisted embodiments of violence and spite are spawned from eddies of angry and warped souls amid Abaddon's mists. Denizens of the bleak and terrible plane of Abaddon, daemons are shaped by and devoted to the destruction of life in all its forms.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["daemon", "evil", "fiend", "unholy"],
+        size: {
+          value: "sm",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "axiomite.json"), {
+    _id: "axiomite",
+    name: "Axiomite",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 8,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>Most axiomites live in the perfect city of Axis, which they continually act to improve. At the onset of the Convergence, a council of pleroma aeons appeared in the Eternal City of Axis.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["aeon", "lawful", "monitor"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "pathfinder-monster-core", "shae.json"), {
     _id: "shae",
     name: "Shae",
@@ -1543,6 +1591,30 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
     },
   });
 
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "storm-giant.json"), {
+    _id: "storm-giant",
+    name: "Storm Giant",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 13,
+        },
+        publication: {
+          title: "Pathfinder Bestiary",
+        },
+        publicNotes: "<p>Storm giants are looming but benevolent stewards of sea and sky, often serving as the natural guardians of tropical islands, coastlines, or rocky archipelagos.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["giant", "humanoid"],
+        size: {
+          value: "huge",
+        },
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "pathfinder-monster-core", "anugobu-apprentice.json"), {
     _id: "anugobu-apprentice",
     name: "Anugobu Apprentice",
@@ -1562,6 +1634,30 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         value: [],
         size: {
           value: "sm",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "urthagul.json"), {
+    _id: "urthagul",
+    name: "Urthagul",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 10,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>This gug predator is native to the Darklands and lurks in subterranean tunnels and caverns, dragging prey back to its lightless lair.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["aberration"],
+        size: {
+          value: "lg",
         },
       },
     },
@@ -1610,6 +1706,54 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         value: ["beast"],
         size: {
           value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "rosethorn-ram.json"), {
+    _id: "rosethorn-ram",
+    name: "Rosethorn Ram",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 6,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>These hardy mountain dwellers surpass their lowlander cousins in stubbornness and agility, making their homes among steep peaks and rocky slopes.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["beast"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "thunderbird.json"), {
+    _id: "thunderbird",
+    name: "Thunderbird",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 11,
+        },
+        publication: {
+          title: "Pathfinder Bestiary 2",
+        },
+        publicNotes: "<p>Thunderbirds soar high above storm clouds and wheel through the open sky before nesting on remote mountain aeries.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["beast"],
+        size: {
+          value: "lg",
         },
       },
     },

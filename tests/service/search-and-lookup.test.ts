@@ -43,7 +43,7 @@ describe("Pf2eDataService / Search and Lookup", () => {
     expect(fiendCreatures.records.map((record) => record.name)).toEqual(expect.arrayContaining(["Caldera Oni", "Cythnigot"]));
     expect(fiendCreatures.searchProfile).toBeNull();
     expect((await service.search({ category: "creature", metadata: { field: "size", op: "eq", value: "sm" } })).records.every((record) => record.size === "sm")).toBe(true);
-    expect((await service.search({ searchProfile: "lexical", query: "aberration", category: "creature" })).records[0]?.name).toBe("Cythnigot");
+    expect((await service.search({ searchProfile: "lexical", query: "aberration", category: "creature" })).records[0]?.name).toBe("Urthagul");
     expect((await service.search({ category: "spell", metadata: { field: "traditions", op: "includesAny", values: ["primal"] }, actionCost: 2 })).records[0]?.name).toBe("Sea Blessing");
     expect((await service.search({ category: "spell", metadata: { field: "spellKinds", op: "includesAny", values: ["focus"] } })).records.map((record) => record.name)).toEqual(["Focus Burst"]);
     expect((await service.search({ category: "spell", metadata: { field: "saveType", op: "eq", value: "reflex" } })).records.map((record) => record.name)).toEqual(["Hydraulic Push"]);
@@ -168,16 +168,21 @@ describe("Pf2eDataService / Search and Lookup", () => {
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["celestial_setting"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Empyreal Dragon", "Rekhep", "Guloval", "Ghaele"]));
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["hell_setting"] } }).records.map((record) => record.name)).toContain("Insidiator");
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["abyss_setting"] } }).records.map((record) => record.name)).toContain("Vrock");
-    expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["fiendish_setting"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Insidiator", "Vrock"]));
+    expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["abaddon_setting"] } }).records.map((record) => record.name)).toContain("Cacodaemon");
+    expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["fiendish_setting"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Insidiator", "Vrock", "Cacodaemon"]));
+    expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["axis_setting"] } }).records.map((record) => record.name)).toContain("Axiomite");
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["shadow_plane_setting"] } }).records.map((record) => record.name)).toContain("Shae");
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["maelstrom_setting"] } }).records.map((record) => record.name)).toContain("Naunet");
-    expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["island_setting"] } }).records.map((record) => record.name)).toContain("Island Watcher");
+    expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["island_setting"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Island Watcher", "Storm Giant"]));
+    expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["jungle_setting"] } }).records.map((record) => record.name)).toContain("Jungle Stalker");
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["forest_setting"] } }).records.map((record) => record.name)).toContain("Jungle Stalker");
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["plains_setting"] } }).records.map((record) => record.name)).toContain("Plains Runner");
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["canyon_setting"] } }).records.map((record) => record.name)).toContain("Canyon Stalker");
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["swamp_setting"] } }).records.map((record) => record.name)).toContain("Boggard Mire Scout");
+    expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["sky_setting"] } }).records.map((record) => record.name)).toContain("Thunderbird");
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["urban_setting"] } }).records.map((record) => record.name)).toContain("Anugobu Apprentice");
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["temple_setting"] } }).records.map((record) => record.name)).not.toContain("Anugobu Apprentice");
+    expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["underground_setting"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Urthagul"]));
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["underground_setting"] } }).records.map((record) => record.name)).not.toContain("Anugobu Apprentice");
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["graveyard_setting"] } }).records.map((record) => record.name)).toContain("Cairn Wight");
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["ruins_setting"] } }).records.map((record) => record.name)).toContain("Temple Scavenger");
@@ -320,12 +325,14 @@ describe("Pf2eDataService / Search and Lookup", () => {
     expect(coastalProwler?.derivedTags).not.toContain("aquatic_setting");
     const islandWatcher = service.lookup("Island Watcher", { category: "creature" }).match;
     expect(islandWatcher?.derivedTags).toContain("island_setting");
+    const stormGiant = service.lookup("Storm Giant", { category: "creature" }).match;
+    expect(stormGiant?.derivedTags).toContain("island_setting");
     const anugobuApprentice = service.lookup("Anugobu Apprentice", { category: "creature" }).match;
     expect(anugobuApprentice?.derivedTags).toContain("island_setting");
     expect(anugobuApprentice?.derivedTags).toContain("urban_setting");
     expect(anugobuApprentice?.derivedTags).not.toEqual(expect.arrayContaining(["temple_setting", "underground_setting"]));
     const jungleStalker = service.lookup("Jungle Stalker", { category: "creature" }).match;
-    expect(jungleStalker?.derivedTags).toContain("forest_setting");
+    expect(jungleStalker?.derivedTags).toEqual(expect.arrayContaining(["jungle_setting", "forest_setting"]));
     const plainsRunner = service.lookup("Plains Runner", { category: "creature" }).match;
     expect(plainsRunner?.derivedTags).toContain("plains_setting");
     const canyonStalker = service.lookup("Canyon Stalker", { category: "creature" }).match;
@@ -432,10 +439,20 @@ describe("Pf2eDataService / Search and Lookup", () => {
     expect(insidiator?.derivedTags).toEqual(expect.arrayContaining(["hell_setting", "fiendish_setting"]));
     const vrock = service.lookup("Vrock", { category: "creature" }).match;
     expect(vrock?.derivedTags).toEqual(expect.arrayContaining(["abyss_setting", "fiendish_setting"]));
+    const cacodaemon = service.lookup("Cacodaemon", { category: "creature" }).match;
+    expect(cacodaemon?.derivedTags).toEqual(expect.arrayContaining(["abaddon_setting", "fiendish_setting"]));
+    const axiomite = service.lookup("Axiomite", { category: "creature" }).match;
+    expect(axiomite?.derivedTags).toContain("axis_setting");
     const shae = service.lookup("Shae", { category: "creature" }).match;
     expect(shae?.derivedTags).toContain("shadow_plane_setting");
     const naunet = service.lookup("Naunet", { category: "creature" }).match;
     expect(naunet?.derivedTags).toContain("maelstrom_setting");
+    const urthagul = service.lookup("Urthagul", { category: "creature" }).match;
+    expect(urthagul?.derivedTags).toContain("underground_setting");
+    const rosethornRam = service.lookup("Rosethorn Ram", { category: "creature" }).match;
+    expect(rosethornRam?.derivedTags).toContain("mountain_setting");
+    const thunderbird = service.lookup("Thunderbird", { category: "creature" }).match;
+    expect(thunderbird?.derivedTags).toEqual(expect.arrayContaining(["sky_setting", "mountain_setting"]));
     const hooktongue = service.lookup("Hooktongue", { category: "creature" }).match;
     expect(hooktongue?.derivedTags).toEqual(expect.arrayContaining(["freshwater_setting", "aquatic_setting"]));
     expect(hooktongue?.derivedTags).not.toContain("coastal_setting");
@@ -674,7 +691,7 @@ describe("Pf2eDataService / Search and Lookup", () => {
     });
     expect(lexicalResults.searchProfile).toBe("lexical");
     expect(lexicalResults.mode).toBe("lexical");
-    expect(lexicalResults.records[0]?.name).toBe("Cythnigot");
+    expect(lexicalResults.records[0]?.name).toBe("Urthagul");
 
     const balancedResults = await service.search({
       searchProfile: "balanced",

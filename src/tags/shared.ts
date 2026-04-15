@@ -231,6 +231,8 @@ const COASTAL_SETTING_WEAK_TEXT_ANCHORS: TextAnchor[] = [
   patternAnchor("shore"),
   patternAnchor("shores"),
   patternAnchor("shoreline"),
+  patternAnchor("coastline"),
+  patternAnchor("coastlines"),
   patternAnchor("beach"),
   patternAnchor("beaches"),
   patternAnchor("harbor"),
