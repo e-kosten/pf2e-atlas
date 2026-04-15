@@ -293,10 +293,10 @@ export async function buildIndex(
   const insertRecord = db.prepare(`
     INSERT INTO records (
       record_key, id, name, normalized_name, category, subcategory, pack_name, pack_label, document_type, record_type,
-      level, rarity, traits_json, derived_tags_json, publication_title, publication_remaster, description_text, has_description, description_snippet,
+      level, rarity, traits_json, derived_tags_json, publication_title, publication_remaster, description_text, blurb_text, has_description, description_snippet,
       source_category, folder_id, families_json, variant_family_key, variant_base_name, variant_label, variant_axes_json, variant_confidence, variant_source,
       source_path, is_unique, is_search_canonical, search_text, raw_json
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const insertAlias = db.prepare(`
     INSERT INTO record_aliases (canonical_record_key, alias_text, normalized_alias, source_kind, source_ref)
@@ -534,6 +534,7 @@ export async function buildIndex(
         category: entry.record.category,
         subcategory: entry.record.subcategory,
         descriptionText: entry.record.descriptionText,
+        blurbText: entry.record.blurbText,
         traits: entry.record.traits,
         families: entry.record.families,
         references: entry.resolvedReferences.map((reference) => ({
@@ -571,6 +572,7 @@ export async function buildIndex(
         // Canonical derived afflictions can have empty descriptions even when their
         // linked staged-condition text is preserved in searchText.
         descriptionText: entry.record.descriptionText ?? entry.record.searchText,
+        blurbText: entry.record.blurbText,
         traits: entry.record.traits,
         families: entry.record.families,
         references: [],
@@ -668,6 +670,7 @@ export async function buildIndex(
         record.publicationTitle,
         record.publicationRemaster ? 1 : 0,
         record.descriptionText,
+        record.blurbText,
         record.hasDescription ? 1 : 0,
         record.descriptionSnippet,
         record.sourceCategory,

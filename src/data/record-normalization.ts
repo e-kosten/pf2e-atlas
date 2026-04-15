@@ -18,6 +18,7 @@ import {
 import type { SourceCategory } from "../types.js";
 import {
   buildEmbeddedItemSearchChunks,
+  getRecordBlurbText,
   getRecordDescriptionMarkup,
   getRecordDescriptionText,
   getRecordTraits,
@@ -92,6 +93,10 @@ function getLevel(raw: Record<string, unknown>): number | null {
 
 function getDescriptionText(raw: Record<string, unknown>): string | null {
   return getRecordDescriptionText(raw);
+}
+
+function getBlurbText(raw: Record<string, unknown>): string | null {
+  return getRecordBlurbText(raw);
 }
 
 function getRarity(raw: Record<string, unknown>): string | null {
@@ -1007,6 +1012,7 @@ export function normalizeIndexRecord(pack: PackBuildInfo, sourcePath: string, ra
   const rarity = getRarity(raw);
   const traits = getRecordTraits(raw);
   const descriptionText = getDescriptionText(raw);
+  const blurbText = getBlurbText(raw);
   const publicationTitle = getPublicationTitle(raw);
   const publicationRemaster = getPublicationRemaster(raw);
   const hasDescription = hasDescriptionText(descriptionText);
@@ -1047,6 +1053,7 @@ export function normalizeIndexRecord(pack: PackBuildInfo, sourcePath: string, ra
     publicationTitle,
     publicationRemaster,
     descriptionText,
+    blurbText,
     hasDescription,
     descriptionSnippet,
     sourceCategory,

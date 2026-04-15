@@ -28,6 +28,14 @@ export function getRecordDescriptionText(raw: Record<string, unknown>): string |
   return stripHtml(getRecordDescriptionMarkup(raw));
 }
 
+export function getRecordBlurbMarkup(raw: Record<string, unknown>): string | null {
+  return firstString(getNested(raw, ["system", "details", "blurb"]));
+}
+
+export function getRecordBlurbText(raw: Record<string, unknown>): string | null {
+  return stripHtml(getRecordBlurbMarkup(raw));
+}
+
 function fallbackLinkedName(locator: string): string | null {
   const trimmed = locator.trim();
   if (!trimmed) {

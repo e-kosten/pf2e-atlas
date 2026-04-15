@@ -251,6 +251,7 @@ const BASE_RECORD_SELECT_FIELDS = [
   "r.pack_label AS packLabel",
   "r.document_type AS documentType",
   "r.description_text AS descriptionText",
+  "r.blurb_text AS blurbText",
   "r.description_snippet AS descriptionSnippet",
   "r.folder_id AS folderId",
   "r.variant_confidence AS variantConfidence",

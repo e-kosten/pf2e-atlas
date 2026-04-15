@@ -126,6 +126,41 @@ describe("derived tag matcher extensions", () => {
     })).not.toContain("ordered_phrase");
   });
 
+  it("supports explicit blurb-only text matching without broadening either-scope matching", () => {
+    const rules: DerivedTagRule[] = [
+      {
+        tag: "base_species_blurb",
+        category: "creature",
+        anyOf: [
+          {
+            textAny: [{ value: "white dragon", scope: "blurb" }],
+          },
+        ],
+      },
+      {
+        tag: "either_scope_should_ignore_blurb",
+        category: "creature",
+        anyOf: [
+          {
+            textAny: ["white dragon"],
+          },
+        ],
+      },
+    ];
+
+    const tags = deriveRecordTagsFromRules(rules, {
+      name: "Venexus",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A unique dragon carrying the Primordial Flame.",
+      blurbText: "Female young white dragon",
+      traits: ["dragon", "cold"],
+    });
+
+    expect(tags).toContain("base_species_blurb");
+    expect(tags).not.toContain("either_scope_should_ignore_blurb");
+  });
+
   it("supports structured reference predicates and minimum reference matches", () => {
     const rules: DerivedTagRule[] = [
       {

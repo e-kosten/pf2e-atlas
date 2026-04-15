@@ -70,6 +70,7 @@ export interface NormalizedRecord {
   publicationTitle: string | null;
   publicationRemaster: boolean;
   descriptionText: string | null;
+  blurbText: string | null;
   hasDescription: boolean;
   descriptionSnippet: string | null;
   sourceCategory: SourceCategory;

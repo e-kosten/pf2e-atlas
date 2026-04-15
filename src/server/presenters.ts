@@ -61,6 +61,7 @@ export function summarizeRecord(
 
   Object.assign(summary, {
     descriptionText: record.descriptionText,
+    blurbText: record.blurbText,
     itemMetrics: record.itemMetrics,
     actorMetrics: record.actorMetrics,
   });

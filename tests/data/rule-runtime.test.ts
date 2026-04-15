@@ -28,6 +28,7 @@ function createRecord(recordKey: string, name = recordKey): NormalizedRecord {
     publicationTitle: "Pathfinder Player Core",
     publicationRemaster: true,
     descriptionText: null,
+    blurbText: null,
     hasDescription: false,
     descriptionSnippet: null,
     sourceCategory: "core",

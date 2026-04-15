@@ -40,6 +40,7 @@ function createRecord(input: {
     publicationTitle: "Pathfinder Treasure Vault",
     publicationRemaster: true,
     descriptionText: input.descriptionText ?? null,
+    blurbText: null,
     hasDescription: Boolean(input.descriptionText),
     descriptionSnippet: input.descriptionText ?? null,
     sourceCategory: "rules",

@@ -7,6 +7,7 @@ export type DerivedTagContext = {
   category: SearchCategory;
   subcategory: SearchSubcategory | null;
   descriptionText: string | null;
+  blurbText?: string | null;
   traits: string[];
   families?: string[];
   references?: DerivedTagReference[];
@@ -21,7 +22,7 @@ export type DerivedTagReference = {
   traits: string[];
 };
 
-export type TextMatchScope = "either" | "name" | "description";
+export type TextMatchScope = "either" | "name" | "description" | "blurb";
 type PatternPlaceholder = "number" | "dice" | "range";
 
 export type TextAnchor = string | {
@@ -122,6 +123,7 @@ type NormalizedDerivedTagContext = {
   families: Set<string>;
   name: NormalizedTextView;
   description: NormalizedTextView;
+  blurb: NormalizedTextView;
   referenceKeys: Set<string>;
   references: NormalizedDerivedTagReference[];
 };
@@ -501,6 +503,9 @@ function getTextViews(
   }
   if (scope === "description") {
     return [{ scope: "description", view: context.description }];
+  }
+  if (scope === "blurb") {
+    return [{ scope: "blurb", view: context.blurb }];
   }
 
   return [
@@ -893,6 +898,7 @@ export function deriveRecordTagsFromRules(rules: DerivedTagRule[], input: Derive
     families: new Set((input.families ?? []).map((family) => normalizeText(family)).filter(Boolean)),
     name: buildTextView(input.name),
     description: buildTextView(input.descriptionText ?? ""),
+    blurb: buildTextView(input.blurbText ?? ""),
     referenceKeys: new Set(references.map((reference) => reference.key)),
     references,
   };

@@ -322,6 +322,7 @@ describe("Pf2eDataService / Load and Index", () => {
     expect(ghoulFever?.packName).toBe("derived-afflictions");
     expect(ghoulFever?.subcategory).toBe("disease");
     expect(ghoulFever?.descriptionText).toContain("Saving Throw");
+    expect(ghoulFever?.blurbText).toBeNull();
 
     const lethargyPoison = service.lookup("Lethargy Poison", { category: "affliction" }).match;
     expect(lethargyPoison?.packName).toBe("derived-afflictions");
@@ -394,6 +395,60 @@ describe("Pf2eDataService / Load and Index", () => {
     expect(ghoulBruteRow?.searchText).not.toContain("The victim");
 
     service.close();
+  });
+
+  it("stores blurb text separately while keeping description text on the richer prose field", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+    const indexPath = path.join(fixture.root, ".cache", "pf2e-index.sqlite");
+
+    await writeJson(path.join(fixture.root, "packs", "pf2e", "pathfinder-monster-core", "venexus-test.json"), {
+      _id: "venexustest",
+      name: "Venexus Test",
+      type: "npc",
+      system: {
+        details: {
+          level: {
+            value: 10,
+          },
+          publication: {
+            title: "Pathfinder Monster Core",
+          },
+          publicNotes: "<p>A unique dragon carrying the Primordial Flame.</p>",
+          blurb: "Female young white dragon",
+        },
+        traits: {
+          rarity: "unique",
+          value: ["dragon", "cold"],
+          size: {
+            value: "lg",
+          },
+        },
+      },
+    });
+
+    const service = await loadTestService(fixture, { indexPath });
+    const record = service.getRecord("pathfinder-monster-core", "venexustest");
+
+    expect(record?.descriptionText).toBe("A unique dragon carrying the Primordial Flame.");
+    expect(record?.blurbText).toBe("Female young white dragon");
+
+    service.close();
+
+    const db = new DatabaseSync(indexPath);
+    const row = db.prepare(`
+      SELECT
+        description_text AS descriptionText,
+        blurb_text AS blurbText
+      FROM records
+      WHERE record_key = ?
+    `).get("pathfinder-monster-core:venexustest") as { descriptionText: string | null; blurbText: string | null } | undefined;
+    db.close();
+
+    expect(row).toEqual({
+      descriptionText: "A unique dragon carrying the Primordial Flame.",
+      blurbText: "Female young white dragon",
+    });
   });
 
   it("logs a final rebuild stage timing summary", async () => {

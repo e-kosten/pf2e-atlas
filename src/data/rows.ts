@@ -31,6 +31,7 @@ export type CandidateRow = {
   publicationTitle: string | null;
   publicationRemaster: number;
   descriptionText: string | null;
+  blurbText?: string | null;
   hasDescription: number;
   descriptionSnippet: string | null;
   sourceCategory: SourceCategory;
@@ -198,6 +199,7 @@ export function rowToRecord(row: CandidateRow, raw: Record<string, unknown> | nu
     packLabel: row.packLabel,
     documentType: row.documentType,
     descriptionText: row.descriptionText,
+    blurbText: row.blurbText ?? null,
     descriptionSnippet: row.descriptionSnippet,
     folderId: row.folderId,
     variantConfidence: row.variantConfidence,
