@@ -1046,24 +1046,24 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     ],
   },
   {
-    tag: "celestial_setting",
+    tag: "upper_plane_setting",
     category: "creature",
     anyOf: [
       { traitsAny: ["angel"] },
     ],
   },
   {
-    tag: "celestial_setting",
+    tag: "upper_plane_setting",
     category: "creature",
     requiresTags: ["heaven_setting"],
   },
   {
-    tag: "celestial_setting",
+    tag: "upper_plane_setting",
     category: "creature",
     requiresTags: ["nirvana_setting"],
   },
   {
-    tag: "celestial_setting",
+    tag: "upper_plane_setting",
     category: "creature",
     requiresTags: ["elysium_setting"],
   },
@@ -1108,26 +1108,48 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     ],
   },
   {
-    tag: "fiendish_setting",
+    tag: "lower_plane_setting",
     category: "creature",
     anyOf: [
       { traitsAny: ["devil", "demon", "daemon", "qlippoth"] },
     ],
   },
   {
-    tag: "fiendish_setting",
+    tag: "lower_plane_setting",
     category: "creature",
     requiresTags: ["hell_setting"],
   },
   {
-    tag: "fiendish_setting",
+    tag: "lower_plane_setting",
     category: "creature",
     requiresTags: ["abyss_setting"],
   },
   {
-    tag: "fiendish_setting",
+    tag: "lower_plane_setting",
     category: "creature",
     requiresTags: ["abaddon_setting"],
+  },
+  {
+    tag: "cosmic_framework_setting",
+    category: "creature",
+    anyOf: [
+      { traitsAny: ["monitor"] },
+    ],
+  },
+  {
+    tag: "cosmic_framework_setting",
+    category: "creature",
+    requiresTags: ["axis_setting"],
+  },
+  {
+    tag: "cosmic_framework_setting",
+    category: "creature",
+    requiresTags: ["boneyard_setting"],
+  },
+  {
+    tag: "cosmic_framework_setting",
+    category: "creature",
+    requiresTags: ["maelstrom_setting"],
   },
   {
     tag: "axis_setting",

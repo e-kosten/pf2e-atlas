@@ -1352,7 +1352,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "Rekheps are the living shields that defend Heaven against fiendish incursions.",
       traits: ["archon", "celestial", "holy", "lawful"],
-    })).toEqual(expect.arrayContaining(["heaven_setting", "celestial_setting"]));
+    })).toEqual(expect.arrayContaining(["heaven_setting", "upper_plane_setting"]));
 
     expect(deriveRecordTags({
       name: "Guloval",
@@ -1360,7 +1360,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "Agathions are born from petitioners who achieved enlightenment in life or after death and received Nirvana's blessing.",
       traits: ["agathion", "celestial", "holy"],
-    })).toEqual(expect.arrayContaining(["nirvana_setting", "celestial_setting"]));
+    })).toEqual(expect.arrayContaining(["nirvana_setting", "upper_plane_setting"]));
 
     expect(deriveRecordTags({
       name: "Ghaele",
@@ -1368,7 +1368,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "Ghaeles are fiend-hunting knights of Elysium and champions of the freedom to take up arms against oppressors.",
       traits: ["azata", "celestial", "chaotic", "holy"],
-    })).toEqual(expect.arrayContaining(["elysium_setting", "celestial_setting"]));
+    })).toEqual(expect.arrayContaining(["elysium_setting", "upper_plane_setting"]));
 
     expect(deriveRecordTags({
       name: "Monadic Deva",
@@ -1376,7 +1376,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "A monadic deva is an angelic guardian who guides pilgrims and wards sacred roads.",
       traits: ["angel", "celestial", "holy"],
-    })).toContain("celestial_setting");
+    })).toContain("upper_plane_setting");
 
     expect(deriveRecordTags({
       name: "Monadic Deva",
@@ -1408,7 +1408,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "A kadamel is a vigilant archon guardian who keeps watch over sacred passages.",
       traits: ["archon", "celestial", "holy"],
-    })).toEqual(expect.arrayContaining(["heaven_setting", "celestial_setting"]));
+    })).toEqual(expect.arrayContaining(["heaven_setting", "upper_plane_setting"]));
 
     expect(deriveRecordTags({
       name: "Draconal",
@@ -1416,7 +1416,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "A draconal is an agathion guide who teaches and protects with patient compassion.",
       traits: ["agathion", "celestial", "holy"],
-    })).toEqual(expect.arrayContaining(["nirvana_setting", "celestial_setting"]));
+    })).toEqual(expect.arrayContaining(["nirvana_setting", "upper_plane_setting"]));
 
     expect(deriveRecordTags({
       name: "Bralani",
@@ -1424,7 +1424,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "A bralani is an azata wanderer who revels in swift travel and rebellion.",
       traits: ["azata", "celestial", "chaotic", "holy"],
-    })).toEqual(expect.arrayContaining(["elysium_setting", "celestial_setting"]));
+    })).toEqual(expect.arrayContaining(["elysium_setting", "upper_plane_setting"]));
 
     expect(deriveRecordTags({
       name: "Empyreal Dragon",
@@ -1432,7 +1432,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "The three major celestial planes-Heaven, Nirvana, and Elysium-each have their own respective dragons. Empyreal dragons have a direct connection to Heaven.",
       traits: ["celestial", "dragon", "holy"],
-    })).toEqual(expect.arrayContaining(["heaven_setting", "celestial_setting"]));
+    })).toEqual(expect.arrayContaining(["heaven_setting", "upper_plane_setting"]));
 
     expect(deriveRecordTags({
       name: "Empyreal Dragon",
@@ -1456,7 +1456,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "These devils from the first layer of Hell serve their betters by ensnaring those who are easily tempted.",
       traits: ["devil", "evil", "fiend", "lawful", "unholy"],
-    })).toEqual(expect.arrayContaining(["hell_setting", "fiendish_setting"]));
+    })).toEqual(expect.arrayContaining(["hell_setting", "lower_plane_setting"]));
 
     expect(deriveRecordTags({
       name: "Vrock",
@@ -1464,7 +1464,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "When the gates to the Abyss swing wide, the first demons through are often vrocks.",
       traits: ["chaotic", "demon", "evil", "fiend", "unholy"],
-    })).toEqual(expect.arrayContaining(["abyss_setting", "fiendish_setting"]));
+    })).toEqual(expect.arrayContaining(["abyss_setting", "lower_plane_setting"]));
 
     expect(deriveRecordTags({
       name: "Cacodaemon",
@@ -1472,7 +1472,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "These twisted embodiments of violence and spite are spawned from eddies of angry and warped souls amid Abaddon's mists. Denizens of the bleak and terrible plane of Abaddon, daemons are shaped by and devoted to the destruction of life in all its forms.",
       traits: ["daemon", "evil", "fiend", "unholy"],
-    })).toEqual(expect.arrayContaining(["abaddon_setting", "fiendish_setting"]));
+    })).toEqual(expect.arrayContaining(["abaddon_setting", "lower_plane_setting"]));
 
     expect(deriveRecordTags({
       name: "Agradaemon",
@@ -1480,7 +1480,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "Agradaemons spread sickness and delight in carrying death from one battlefield to the next.",
       traits: ["daemon", "evil", "fiend", "unholy"],
-    })).toEqual(expect.arrayContaining(["abaddon_setting", "fiendish_setting"]));
+    })).toEqual(expect.arrayContaining(["abaddon_setting", "lower_plane_setting"]));
 
     expect(deriveRecordTags({
       name: "Ferrugon",
@@ -1488,7 +1488,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "Ferrugons are ruthless devils who specialize in siege warfare and infernal discipline.",
       traits: ["devil", "evil", "fiend", "lawful", "unholy"],
-    })).toContain("fiendish_setting");
+    })).toContain("lower_plane_setting");
 
     expect(deriveRecordTags({
       name: "Ferrugon",
@@ -1504,7 +1504,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "Babaus are demons who delight in stalking prey and inflicting lingering terror.",
       traits: ["chaotic", "demon", "evil", "fiend", "unholy"],
-    })).toContain("fiendish_setting");
+    })).toContain("lower_plane_setting");
 
     expect(deriveRecordTags({
       name: "Babau",
@@ -1520,7 +1520,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "A cythnigot is a warped qlippoth hatchling driven by spite and hunger.",
       traits: ["fiend", "qlippoth"],
-    })).toContain("fiendish_setting");
+    })).toContain("lower_plane_setting");
 
     expect(deriveRecordTags({
       name: "Cythnigot",
@@ -1568,7 +1568,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "Some fiends seek to tear down the multiverse, while these divs prefer cruel temptations and mortal corruption.",
       traits: ["div", "evil", "fiend", "unholy"],
-    })).not.toContain("fiendish_setting");
+    })).not.toContain("lower_plane_setting");
 
     expect(deriveRecordTags({
       name: "Sarkorian Wolf",
@@ -1584,7 +1584,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "To survive living in the Worldwound, Sarkorian wolves developed defenses against the Abyss.",
       traits: ["animal"],
-    })).not.toContain("fiendish_setting");
+    })).not.toContain("lower_plane_setting");
 
     expect(deriveRecordTags({
       name: "Shae",
@@ -1627,6 +1627,38 @@ describe("derived tag rules: creature", () => {
     })).toContain("boneyard_setting");
 
     expect(deriveRecordTags({
+      name: "Haunted Nosoi",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A haunted nosoi is a damaged psychopomp messenger burdened by necromantic interference.",
+      traits: ["monitor", "psychopomp", "undead"],
+    })).toContain("cosmic_framework_setting");
+
+    expect(deriveRecordTags({
+      name: "Bythos",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A bythos is an aeon guardian of planar boundaries and the lawful flow of time.",
+      traits: ["aeon", "lawful", "monitor"],
+    })).toContain("cosmic_framework_setting");
+
+    expect(deriveRecordTags({
+      name: "Hegessik",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A hegessik is a protean saboteur that unravels rigid structures and fixed plans.",
+      traits: ["chaotic", "monitor", "protean"],
+    })).toContain("cosmic_framework_setting");
+
+    expect(deriveRecordTags({
+      name: "Silent Witness",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A silent witness is a detached monitor that observes events without allegiance to any single realm.",
+      traits: ["monitor"],
+    })).toContain("cosmic_framework_setting");
+
+    expect(deriveRecordTags({
       name: "Silent Witness",
       category: "creature",
       subcategory: null,
@@ -1649,6 +1681,30 @@ describe("derived tag rules: creature", () => {
       descriptionText: "A silent witness is a detached monitor that observes events without allegiance to any single realm.",
       traits: ["monitor"],
     })).not.toContain("boneyard_setting");
+
+    expect(deriveRecordTags({
+      name: "Astral Voyager",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "An astral voyager navigates silver void currents and timeless passageways between worlds.",
+      traits: ["astral"],
+    })).toContain("astral_setting");
+
+    expect(deriveRecordTags({
+      name: "Astral Voyager",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "An astral voyager navigates silver void currents and timeless passageways between worlds.",
+      traits: ["astral"],
+    })).not.toContain("cosmic_framework_setting");
+
+    expect(deriveRecordTags({
+      name: "Shae",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Shae are wispy, tenebrous creatures native to the Plane of Shadow.",
+      traits: ["humanoid", "shadow"],
+    })).not.toContain("cosmic_framework_setting");
 
     expect(deriveRecordTags({
       name: "Archer Regiment",
