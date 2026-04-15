@@ -480,6 +480,8 @@ const RURAL_SETTING_TEXT_ANCHORS = [
   patternAnchor("outlying settlement"),
 ];
 
+const RURAL_SETTING_CONTEXT_TEXT_ANCHOR = patternAnchor("{{alt(found in,dwell,dwells,dwelling,live,lives,living,haunt,haunts,hunt,hunts,hunting,prey on,preys on,patrol,patrols,prowl,prowls,protect,protects,sabotage,sabotages,siege,sieges,stalk,stalks,stalking,terrorize,terrorizes)}}", "description");
+
 const RURAL_SETTING_BLOCKER_TEXT_NEAR = [
   {
     all: [
@@ -1492,6 +1494,13 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     anyOf: [
       { score: 2, textAny: RURAL_SETTING_NAME_ANCHORS },
       { score: 2, textAny: RURAL_SETTING_TEXT_ANCHORS },
+      {
+        score: 2,
+        textNear: createCreatureSettingTextNear(
+          "village,villages,farmhouse,farmhouses,mill,mills,miller,millers,pasture,pastures,cropland,croplands,countryside",
+          RURAL_SETTING_CONTEXT_TEXT_ANCHOR,
+        ),
+      },
     ],
   },
   {

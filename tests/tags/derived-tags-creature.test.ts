@@ -445,6 +445,38 @@ describe("derived tag rules: creature", () => {
     })).toContain("rural_setting");
 
     expect(deriveRecordTags({
+      name: "Chupacabra",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "These notorious predators have an undeniable thirst for blood. Chupacabras prefer to prey on the weak and slow, often hiding in wait and watching potential prey for long periods before attacking. Spry and stealthy, they most often make their homes in areas of high grass and protective rock, their slightly reflective scales allowing them to blend in well with such surroundings. Chupacabras prefer to eat lone travelers and farm animals (particularly goats) and leave little evidence of their presence apart from the grisly, blood-drained husks of their meals. Their tendency to stay out of sight combined with their naturally nocturnal activity often leads superstitious locals to conclude the worst, imagining that a particularly reckless vampire lives in the area. Although chupacabras are typically solitary creatures, they have been known to form small gangs in bountiful areas. Members of these groups work well together, growing bold enough to attack larger animals, small herds, and otherwise more dangerous prey. Stories of chupacabras attacking travelers or laying siege to farmhouses typically stem from the hunting practices of such gangs.",
+      traits: ["beast"],
+    })).toContain("rural_setting");
+
+    expect(deriveRecordTags({
+      name: "Prairie Drake",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "These squat, mud-brown drakes resemble scaly pit bulls with blunt, toothy snouts. Prairie drakes build and live in burrow mounds just beneath the surface of their environs. They make shallow tunnels in search of large insects, rodents, and ground snakes. Prairie drakes' presence helps to turn the topsoil and encourage new plant growth, supporting other animal life and making them a keystone species for the environment. Even their breath weapon leaves behind rich drake soil, coveted by farmers and gardeners for the potent effects it has on plants. After they've gotten too much positive attention, a prairie drake is apt to murder a farm animal or destroy croplands only to prove that they're far from harmless.",
+      traits: ["dragon", "earth", "evil"],
+    })).toContain("rural_setting");
+
+    expect(deriveRecordTags({
+      name: "Kvernknurr",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Kvernknurrs are lanky fey giants that dwell in cold-water rivers and lakes. A kvernknurr's blue flesh allows it to camouflage itself in its preferred environ, where it haunts local millers and farmers by sabotaging water wheels and farm equipment. Kvernknurrs despise humanoid-made disturbances to the waters in which they live, even seemingly harmless ones like waterwheels. When townsfolk come to investigate their jammed mill, the kvernknurr then springs out from hiding to attack, roaring terribly before snatching a victim to eat whole.",
+      traits: ["amphibious", "fey", "water"],
+    })).toContain("rural_setting");
+
+    expect(deriveRecordTags({
+      name: "Yeth Hound",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Wicked canine creatures who live for the thrill of the hunt, yeth hounds often serve evil masters as guardians and trackers. Their eerie bays echo across the countryside when they are engaged in a hunt, and they particularly enjoy baying to frighten and disorient intelligent creatures. Yeth hound packs can number as many as a dozen members, each working in uncanny communion with its packmates to corner and kill their prey. Yeth hounds like to drag their victims back to their lairs to eat at their leisure, so these lairs often contain discarded treasures from the hounds' previous meals.",
+      traits: ["beast", "chaotic", "evil", "fiend", "unholy"],
+    })).toContain("rural_setting");
+
+    expect(deriveRecordTags({
       name: "Bandersnatch",
       category: "creature",
       subcategory: null,

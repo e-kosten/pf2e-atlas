@@ -4,7 +4,7 @@ export const CREATURE_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
   {
     category: "creature",
     family: "setting",
-    description: "Creature environment and setting tags.",
+    description: "Creature environment and encounter-setting tags, covering habitats, hunting grounds, patrol zones, and other scenes where a creature predictably appears.",
     tags: [
       { value: "aquatic_setting", description: "Strongly associated with open water, underwater spaces, or aquatic environments." },
       { value: "freshwater_setting", description: "Strongly associated with rivers, lakes, ponds, streams, springs, or other inland waters." },
@@ -49,7 +49,7 @@ export const CREATURE_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
       { value: "canyon_setting", description: "Strongly associated with canyons, gorges, mesas, or badlands." },
       { value: "swamp_setting", description: "Strongly associated with bogs, marshes, fens, or mires." },
       { value: "underground_setting", description: "Strongly associated with caves, tunnels, crypts, or subterranean spaces." },
-      { value: "urban_setting", description: "Strongly associated with cities, streets, alleys, markets, or sewers." },
+      { value: "urban_setting", description: "Strongly associated with urban encounter scenes such as cities, streets, alleys, dense buildings, markets, or sewers." },
       { value: "arctic_setting", description: "Strongly associated with snow, ice, tundra, or frozen reaches." },
       { value: "desert_setting", description: "Strongly associated with dunes, sand, or arid wastes." },
       { value: "wasteland_setting", description: "Strongly associated with barren wastes, blasted wastelands, or desolate badlands." },
@@ -57,10 +57,10 @@ export const CREATURE_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
       { value: "sky_setting", description: "Strongly associated with open skies, storm clouds, or high-altitude aerial habitats." },
       { value: "graveyard_setting", description: "Strongly associated with cemeteries, tombs, barrows, or burial grounds." },
       { value: "ruins_setting", description: "Strongly associated with ancient ruins or derelict structures." },
-      { value: "temple_setting", description: "Strongly associated with temples, shrines, monasteries, or other sacred sites." },
-      { value: "fortress_setting", description: "Strongly associated with castles, fortresses, citadels, or strongholds." },
+      { value: "temple_setting", description: "Strongly associated with temples, shrines, monasteries, or other sacred encounter sites." },
+      { value: "fortress_setting", description: "Strongly associated with castles, fortresses, citadels, watchtowers, or other fortified encounter sites." },
       { value: "volcanic_setting", description: "Strongly associated with volcanoes, calderas, lava, or magma." },
-      { value: "rural_setting", description: "Strongly associated with villages, hamlets, farms, pastures, or other countryside scenes." },
+      { value: "rural_setting", description: "Strongly associated with villages, hamlets, farms, pastures, countryside routes, or other rural encounter scenes." },
     ],
   },
   {
