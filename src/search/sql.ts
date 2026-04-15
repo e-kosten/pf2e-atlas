@@ -37,6 +37,61 @@ function appendWhereClause(sql: string[], params: SqlValue[], clause: string, ..
   params.push(...values);
 }
 
+function appendExactLinkFilterClauses(
+  sql: string[],
+  params: SqlValue[],
+  filters: Pick<NormalizedSearchFilters, "linksTo" | "linksToMode" | "excludeLinksTo">,
+  recordKeyExpr: string,
+): void {
+  const includeTargets = filters.linksTo ?? [];
+  const excludeTargets = filters.excludeLinksTo ?? [];
+
+  if (includeTargets.length > 0) {
+    const placeholders = includeTargets.map(() => "?").join(", ");
+    if ((filters.linksToMode ?? "any") === "all") {
+      appendWhereClause(
+        sql,
+        params,
+        `AND (
+          SELECT COUNT(DISTINCT re_include.to_record_key)
+          FROM reference_edges re_include
+          WHERE re_include.from_record_key = ${recordKeyExpr}
+            AND re_include.to_record_key IN (${placeholders})
+        ) = ?`,
+        ...includeTargets,
+        includeTargets.length,
+      );
+    } else {
+      appendWhereClause(
+        sql,
+        params,
+        `AND EXISTS (
+          SELECT 1
+          FROM reference_edges re_include
+          WHERE re_include.from_record_key = ${recordKeyExpr}
+            AND re_include.to_record_key IN (${placeholders})
+        )`,
+        ...includeTargets,
+      );
+    }
+  }
+
+  if (excludeTargets.length > 0) {
+    const placeholders = excludeTargets.map(() => "?").join(", ");
+    appendWhereClause(
+      sql,
+      params,
+      `AND NOT EXISTS (
+        SELECT 1
+        FROM reference_edges re_exclude
+        WHERE re_exclude.from_record_key = ${recordKeyExpr}
+          AND re_exclude.to_record_key IN (${placeholders})
+      )`,
+      ...excludeTargets,
+    );
+  }
+}
+
 export function normalizeSearchScope(scope: SearchScope): NormalizedSearchScope {
   const category = normalizeSearchCategory(scope.category);
   if (!category) {
@@ -112,6 +167,8 @@ function applySearchFilterClauses(
     const placeholders = options.recordKeys.map(() => "?").join(", ");
     appendWhereClause(sql, params, `AND ${recordAlias}.record_key IN (${placeholders})`, ...options.recordKeys);
   }
+
+  appendExactLinkFilterClauses(sql, params, filters, `${recordAlias}.record_key`);
 
   if (filters.pack) {
     appendWhereClause(
@@ -433,7 +490,9 @@ export function buildLexicalRetrievalQuery(filters: NormalizedSearchFilters, que
 }
 
 export function semanticQueryLimit(baseLimit: number, filters: NormalizedSearchFilters): number {
-  return filters.metadata ? Math.min(1000, Math.max(baseLimit * 2, baseLimit + 50)) : baseLimit;
+  return filters.metadata || filters.linksTo?.length || filters.excludeLinksTo?.length
+    ? Math.min(1000, Math.max(baseLimit * 2, baseLimit + 50))
+    : baseLimit;
 }
 
 function normalizeVectorText(value: string | null | undefined): string {
@@ -448,6 +507,8 @@ export function buildSemanticRetrievalQuery(filters: NormalizedSearchFilters, li
     `AND k = ${limit}`,
   ];
   const params: SqlValue[] = [];
+
+  appendExactLinkFilterClauses(sql, params, filters, "record_embeddings.record_key");
 
   if (filters.scopes && filters.scopes.length > 0) {
     appendScopedCategoryClauses(sql, params, filters.scopes, (category, subcategories) => {

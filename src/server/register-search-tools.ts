@@ -7,7 +7,9 @@ import { Pf2eDataService } from "../data/service.js";
 import {
   CATEGORY_HINT_DESCRIPTION,
   filterValueFieldSchema,
+  linksToModeSchema,
   metadataFilterSchema,
+  recordKeyArraySchema,
   SCOPES_HINT_DESCRIPTION,
   searchCategorySchema,
   searchProfileSchema,
@@ -98,6 +100,16 @@ export function registerSearchTools(
               strength: "literal exclusion",
               description: "Optional free-text exclusion terms. Remove ranked-search results whose indexed search text mentions these normalized terms.",
             },
+            {
+              name: "linksTo",
+              strength: "exact indexed link filter",
+              description: "Require records to reference one or more canonical PF2E record keys through indexed UUID-derived links.",
+            },
+            {
+              name: "excludeLinksTo",
+              strength: "exact indexed link exclusion",
+              description: "Remove records that reference one or more canonical PF2E record keys through indexed UUID-derived links.",
+            },
           ],
           retrievalPatterns: [
             {
@@ -141,6 +153,9 @@ export function registerSearchTools(
             priceMin: "Numeric lower price bound in copper pieces.",
             priceMax: "Numeric upper price bound in copper pieces.",
             actionCost: "Numeric action-cost boundary shared by spells and item activations.",
+            linksTo: "Exact indexed reverse-link filter over canonical record keys. Use linksToMode to require any or all targets.",
+            linksToMode: "Controls whether linksTo requires any supplied target or all supplied targets.",
+            excludeLinksTo: "Exact indexed reverse-link exclusion over canonical record keys.",
             note: "Use top-level boundaries first; use metadata for typed field predicates and boolean composition.",
           },
           metadataFilters: {
@@ -254,6 +269,9 @@ export function registerSearchTools(
       description: "List PF2E records using deterministic, non-ranked structured filters and pagination. Use this for browse-and-page flows when stable listing matters more than ranked retrieval.",
       inputSchema: {
         pack: z.string().optional().describe("Optional pack name or label."),
+        linksTo: recordKeyArraySchema.optional().describe("Canonical target record keys that candidate records must reference through indexed UUID-derived links."),
+        linksToMode: linksToModeSchema.optional().describe("How linksTo behaves when multiple target record keys are provided. Defaults to any."),
+        excludeLinksTo: recordKeyArraySchema.optional().describe("Canonical target record keys that candidate records must not reference through indexed UUID-derived links."),
         category: searchCategorySchema.optional().describe(CATEGORY_HINT_DESCRIPTION),
         subcategory: searchSubcategorySchema.optional().describe(SUBCATEGORY_HINT_DESCRIPTION),
         scopes: z.array(searchScopeSchema).min(1).optional().describe(SCOPES_HINT_DESCRIPTION),
@@ -297,6 +315,9 @@ export function registerSearchTools(
         nameQuery: z.string().optional().describe("Name text to search for."),
         query: z.string().optional().describe("General free-text search input. Prefer one short natural-language phrase or sentence with 1-3 concrete anchor terms. Avoid long comma-separated keyword lists by default. If searchProfile is omitted, query defaults search to the balanced profile."),
         excludeQuery: z.string().optional().describe("Optional free-text exclusion terms. Remove results whose indexed search text mentions these normalized terms."),
+        linksTo: recordKeyArraySchema.optional().describe("Canonical target record keys that candidate records must reference through indexed UUID-derived links."),
+        linksToMode: linksToModeSchema.optional().describe("How linksTo behaves when multiple target record keys are provided. Defaults to any."),
+        excludeLinksTo: recordKeyArraySchema.optional().describe("Canonical target record keys that candidate records must not reference through indexed UUID-derived links."),
         pack: z.string().optional().describe("Optional pack name or label."),
         category: searchCategorySchema.optional().describe(CATEGORY_HINT_DESCRIPTION),
         subcategory: searchSubcategorySchema.optional().describe(SUBCATEGORY_HINT_DESCRIPTION),

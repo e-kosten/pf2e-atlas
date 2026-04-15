@@ -545,6 +545,60 @@ describe("Pf2eDataService / Search and Lookup", () => {
     );
   });
 
+  it("supports exact link filters in deterministic listing and ranked search", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+
+    const service = await loadTestService(fixture);
+    const track = service.lookup("Track").match;
+    const coverTracks = service.lookup("Cover Tracks").match;
+
+    expect(track).toBeTruthy();
+    expect(coverTracks).toBeTruthy();
+
+    const anyLinked = service.listRecords({
+      category: "equipment",
+      linksTo: [track!.recordKey, coverTracks!.recordKey],
+      linksToMode: "any",
+    }).records.map((record) => record.name);
+    expect(anyLinked).toEqual(expect.arrayContaining([
+      "Aroma Concealer",
+      "Bloodhound Mask (Greater)",
+      "Tracker's Goggles",
+      "Tracker's Stew",
+    ]));
+    expect(anyLinked).not.toContain("Tracking Tag");
+    expect(anyLinked).not.toContain("Trackless");
+
+    const allLinked = service.listRecords({
+      category: "equipment",
+      linksTo: [track!.recordKey, coverTracks!.recordKey],
+      linksToMode: "all",
+    }).records.map((record) => record.name);
+    expect(allLinked).toEqual(["Tracker's Stew"]);
+
+    const excludedLinked = service.listRecords({
+      category: "equipment",
+      linksTo: [track!.recordKey],
+      excludeLinksTo: [coverTracks!.recordKey],
+    }).records.map((record) => record.name);
+    expect(excludedLinked).toEqual(expect.arrayContaining([
+      "Aroma Concealer",
+      "Bloodhound Mask (Greater)",
+      "Tracker's Goggles",
+    ]));
+    expect(excludedLinked).not.toContain("Tracker's Stew");
+
+    const searched = await service.search({
+      category: "equipment",
+      nameQuery: "goggles",
+      linksTo: [track!.recordKey],
+    });
+    expect(searched.records[0]?.name).toBe("Tracker's Goggles");
+
+    expect(() => service.listRecords({ linksToMode: "all" })).toThrow("linksToMode requires linksTo.");
+  });
+
   it("normalizes legacy plural aliases and supports scoped mixed-family filters", async () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);

@@ -95,6 +95,9 @@ export interface SearchFilters {
   nameQuery?: string;
   query?: string;
   excludeQuery?: string;
+  linksTo?: string[];
+  linksToMode?: "any" | "all";
+  excludeLinksTo?: string[];
   pack?: string;
   category?: SearchCategoryInput;
   subcategory?: SearchSubcategoryInput;

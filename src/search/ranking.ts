@@ -219,6 +219,8 @@ export function resolveSearchMode(filters: SearchFilters, context: "list" | "sea
 export function hasStructuredFilterSignal(filters: SearchFilters): boolean {
   return Boolean(
     filters.pack ||
+    (filters.linksTo && filters.linksTo.length > 0) ||
+    (filters.excludeLinksTo && filters.excludeLinksTo.length > 0) ||
     filters.category ||
     filters.subcategory ||
     (filters.scopes && filters.scopes.length > 0) ||

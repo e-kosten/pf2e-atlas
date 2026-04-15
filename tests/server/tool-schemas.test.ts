@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import {
   CATEGORY_HINT_DESCRIPTION,
+  linksToModeSchema,
   SCOPES_HINT_DESCRIPTION,
   SUBCATEGORY_HINT_DESCRIPTION,
   filterValueFieldSchema,
   metadataFilterSchema,
+  recordKeyArraySchema,
   searchCategorySchema,
   searchProfileSchema,
   searchScopeSchema,
@@ -18,6 +20,19 @@ describe("tool schemas", () => {
     expect(searchProfileSchema.safeParse("balanced").success).toBe(true);
     expect(searchProfileSchema.safeParse("concept").success).toBe(true);
     expect(searchProfileSchema.safeParse("semantic_only").success).toBe(false);
+  });
+
+  it("validates exact link filter inputs", () => {
+    expect(linksToModeSchema.safeParse("any").success).toBe(true);
+    expect(linksToModeSchema.safeParse("all").success).toBe(true);
+    expect(linksToModeSchema.safeParse("exclude").success).toBe(false);
+    expect(recordKeyArraySchema.safeParse(["actionspf2e:action-track-1"]).success).toBe(true);
+    expect(recordKeyArraySchema.safeParse(["  actions:action-refocus-1  "])).toMatchObject({
+      success: true,
+      data: ["actions:action-refocus-1"],
+    });
+    expect(recordKeyArraySchema.safeParse([]).success).toBe(false);
+    expect(recordKeyArraySchema.safeParse(["   "]).success).toBe(false);
   });
 
   it("accepts the supported filter-value fields", () => {

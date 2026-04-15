@@ -152,6 +152,18 @@ function validateFilters(filters: NormalizedSearchFilters, context: "list" | "se
     throw new Error("pf2e_search requires search text and/or at least one structured filter.");
   }
 
+  if (filters.linksTo !== undefined && filters.linksTo.length === 0) {
+    throw new Error("linksTo must contain at least one record key.");
+  }
+
+  if (filters.excludeLinksTo !== undefined && filters.excludeLinksTo.length === 0) {
+    throw new Error("excludeLinksTo must contain at least one record key.");
+  }
+
+  if (filters.linksToMode && (!filters.linksTo || filters.linksTo.length === 0)) {
+    throw new Error("linksToMode requires linksTo.");
+  }
+
   if (filters.scopes && filters.scopes.length > 0 && (filters.category || filters.subcategory)) {
     throw new Error("scopes can't be combined with top-level category or subcategory filters.");
   }
@@ -169,6 +181,17 @@ function validateFilters(filters: NormalizedSearchFilters, context: "list" | "se
       }
     }
   }
+}
+
+function normalizeRecordKeyFilter(values: string[] | undefined): string[] | undefined {
+  if (values === undefined) {
+    return undefined;
+  }
+
+  const normalized = values
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+  return [...new Set(normalized)];
 }
 
 export class Pf2eDataService {
@@ -425,10 +448,14 @@ export class Pf2eDataService {
 
     const normalizedScopes = filters.scopes?.map((scope) => normalizeSearchScope(scope));
     const pack = filters.pack ? this.getPack(filters.pack) : undefined;
+    const linksTo = normalizeRecordKeyFilter(filters.linksTo);
+    const excludeLinksTo = normalizeRecordKeyFilter(filters.excludeLinksTo);
 
     return {
       ...filters,
       pack: pack?.name ?? filters.pack,
+      linksTo,
+      excludeLinksTo,
       category: normalizedCategory ?? undefined,
       subcategory: normalizedSubcategory ?? undefined,
       metadata: filters.metadata ? normalizeMetadataFilterNode(filters.metadata) : undefined,
