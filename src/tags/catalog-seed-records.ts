@@ -5,6 +5,7 @@ export const DERIVED_TAG_SEED_RECORD_RESOLUTIONS: DerivedTagSeedRecordResolution
   { recordKey: "age-of-ashes-bestiary:SVh7cPwyGgmZORVz", pack: "age-of-ashes-bestiary", name: "Scarlet Triad Boss" },
   { recordKey: "age-of-ashes-bestiary:egTpOr4Wc0L5e0iY", pack: "age-of-ashes-bestiary", name: "Scarlet Triad Enforcer" },
   { recordKey: "age-of-ashes-bestiary:lDgabn0WtDKbLtfc", pack: "age-of-ashes-bestiary", name: "Luminous Ward" },
+  { recordKey: "age-of-ashes-bestiary:n6FQeNsDgKaDIF7b", pack: "age-of-ashes-bestiary", name: "Spiritbound Aluum" },
   { recordKey: "age-of-ashes-bestiary:yrU0xi4eKBmcGudo", pack: "age-of-ashes-bestiary", name: "Animated Dragonstorm" },
   { recordKey: "agents-of-edgewatch-bestiary:HXiA7x1jWnB1BqUy", pack: "agents-of-edgewatch-bestiary", name: "Summoning Rune (Barbazu Devil)" },
   { recordKey: "agents-of-edgewatch-bestiary:QHcBauLnHzfwkDBK", pack: "agents-of-edgewatch-bestiary", name: "Summoning Rune (Cinder Rat)" },

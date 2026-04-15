@@ -397,6 +397,9 @@ describe("derived tag seeds", () => {
       "claws-of-the-tyrant-bestiary:tMqtId1TKVUXe4tN",
       "triumph-of-the-tusk-bestiary:xd35No1x2n1MDVCm",
     ]));
+    expect(getDerivedTagSeedRecordKeys("urban_setting", { category: "creature" })).toContain(
+      "age-of-ashes-bestiary:n6FQeNsDgKaDIF7b",
+    );
 
     const starwatchCommandoDerivation = deriveRecordTagDerivation({
       recordKey: "agents-of-edgewatch-bestiary:rsKf8ixrl3yBq1gb",
@@ -446,6 +449,17 @@ describe("derived tag seeds", () => {
     expect(["seed", "both"]).toContain(commanderArsiellaDerivation.sources.get("profession_npc"));
     expect(["seed", "both"]).toContain(commanderArsiellaDerivation.sources.get("civic_npc"));
     expect(["seed", "both"]).toContain(commanderArsiellaDerivation.sources.get("combatant_npc"));
+
+    const spiritboundAluumDerivation = deriveRecordTagDerivation({
+      recordKey: "age-of-ashes-bestiary:n6FQeNsDgKaDIF7b",
+      name: "Spiritbound Aluum",
+      category: "creature",
+      subcategory: null,
+      descriptionText: null,
+      traits: ["construct", "mindless", "soulbound"],
+    });
+    expect(spiritboundAluumDerivation.tags).toContain("urban_setting");
+    expect(spiritboundAluumDerivation.sources.get("urban_setting")).toBe("seed");
 
     const touchedCreatureTags = [
       "dragon_spellcaster",

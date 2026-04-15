@@ -2239,6 +2239,270 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
     },
   });
 
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "aapoph-serpentfolk.json"), {
+    _id: "aapoph-serpentfolk",
+    name: "Aapoph Serpentfolk",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 3,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>Before their ancient clash with humanity devastated their civilization, serpentfolk were masters of a sprawling underground empire. Today, the central realm of the Darklands retains the old name of that empire: Sekamina.</p>",
+      },
+      traits: {
+        rarity: "uncommon",
+        value: ["humanoid", "mutant", "serpentfolk"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "coil-spy.json"), {
+    _id: "coil-spy",
+    name: "Coil Spy",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 4,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>Some serpentfolk identify as members of the Coils of Ydersius. Today, the central realm of the Darklands retains the old name of the serpentfolk empire that once dominated this region: Sekamina.</p>",
+      },
+      traits: {
+        rarity: "uncommon",
+        value: ["humanoid", "serpentfolk"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-npc-core", "watch-officer.json"), {
+    _id: "watch-officer",
+    name: "Watch Officer",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 3,
+        },
+        publication: {
+          title: "Pathfinder NPC Core",
+        },
+        publicNotes: "<p>Often leading a small team of lower-ranking guards, watch officers patrol their assigned areas to maintain order and enforce laws.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["human", "humanoid"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pfs-season-1-bestiary", "guardian-aluum.json"), {
+    _id: "guardian-aluum",
+    name: "Guardian Aluum",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 13,
+        },
+        publication: {
+          title: "Pathfinder #191: The Destiny War",
+        },
+        publicNotes: "<p>The most common aluum is powered by the bound soul of a loyal city servant. Aluums are powerful metal and stone constructs originally created by the Pactmasters to maintain order in Katapesh.</p>",
+      },
+      traits: {
+        rarity: "uncommon",
+        value: ["construct", "mindless"],
+        size: {
+          value: "lg",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "quest-for-the-frozen-flame-bestiary", "spiritbound-aluum.json"), {
+    _id: "spiritbound-aluum",
+    name: "Spiritbound Aluum",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 16,
+        },
+        publication: {
+          title: "Pathfinder #149: Against the Scarlet Triad",
+        },
+        publicNotes: "<p>Whereas most aluums are animated by the souls of volunteers loyal to Katapesh, these spiritbound aluums serve as riot control during times of martial law. Aluums are powerful metal and stone constructs originally created by the Pactmasters to maintain order in Katapesh.</p>",
+      },
+      traits: {
+        rarity: "rare",
+        value: ["construct", "mindless", "soulbound"],
+        size: {
+          value: "lg",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "red-dragon-adult.json"), {
+    _id: "red-dragon-adult",
+    name: "Red Dragon (Adult)",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 14,
+        },
+        publication: {
+          title: "Pathfinder Bestiary",
+        },
+        publicNotes: "<p>Their lairs are often situated in dangerous places, with volcanoes being a favorite spot, as they find them foreboding and the constant warmth is comfortable.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["chaotic", "dragon", "evil", "fire"],
+        size: {
+          value: "huge",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "underworld-dragon-adult.json"), {
+    _id: "underworld-dragon-adult",
+    name: "Underworld Dragon (Adult)",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 11,
+        },
+        publication: {
+          title: "Pathfinder Lost Omens Draconic Codex",
+        },
+        publicNotes: "<p>Today, though their nature is primarily still connected with the element of fire, an underworld dragon can consume wood with ease, lay claim to the minerals and gems in the rocks and stone, and die to form volcanoes that create more land masses.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["arcane", "dragon", "fire"],
+        size: {
+          value: "huge",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-npc-core", "scaleseed-nagaji.json"), {
+    _id: "scaleseed-nagaji",
+    name: "Scaleseed Nagaji",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 7,
+        },
+        publication: {
+          title: "Pathfinder #190: The Choosing",
+        },
+        publicNotes: "<p>Although nagaji might be encountered in diverse cities and urban centers, their communities are concentrated in environments that suit their biology, namely jungles and tropical forests.</p>",
+      },
+      traits: {
+        rarity: "rare",
+        value: ["humanoid", "nagaji"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "shade-heaven.json"), {
+    _id: "shade-heaven",
+    name: "Shade (Heaven)",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 1,
+        },
+        publication: {
+          title: "Pathfinder Monster Core 2",
+        },
+        publicNotes: "<p>The elect have golden halos and ghostly wings, but they otherwise appear as their mortal forms.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["fiend", "shade", "unholy"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "shade-hell.json"), {
+    _id: "shade-hell",
+    name: "Shade (Hell)",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 1,
+        },
+        publication: {
+          title: "Pathfinder Monster Core 2",
+        },
+        publicNotes: "<p>The damned look like terribly scarred or mutilated versions of their mortal selves.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["fiend", "shade", "unholy"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "shade-outer-rifts.json"), {
+    _id: "shade-outer-rifts",
+    name: "Shade (Outer Rifts)",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 1,
+        },
+        publication: {
+          title: "Pathfinder Monster Core 2",
+        },
+        publicNotes: "<p>The larvae appear as maggot-like grubs with the face the shade had in life.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["fiend", "shade", "unholy"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "pathfinder-monster-core", "plains-runner.json"), {
     _id: "plains-runner",
     name: "Plains Runner",

@@ -684,6 +684,29 @@ const URBAN_SETTING_EXACT_TEXT_ANCHORS = [
   patternAnchor("upper echelons of society"),
 ];
 
+const URBAN_SETTING_GOVERNANCE_TEXT_ANCHORS = [
+  patternAnchor("town watch"),
+  patternAnchor("city guard"),
+  patternAnchor("maintain order and enforce laws"),
+  patternAnchor("major urban centers"),
+  patternAnchor("political leader of a settlement"),
+  patternAnchor("leader of a nation s bureaucracy"),
+  patternAnchor("guard important magistrates"),
+  patternAnchor("enforce the law"),
+  patternAnchor("official spymasters"),
+  patternAnchor("loyal city servant"),
+  patternAnchor("in rough akitonian cities like seldo"),
+];
+
+const VOLCANIC_SETTING_EXACT_TEXT_ANCHORS = [
+  patternAnchor("volcanoes being a favorite spot"),
+  patternAnchor("die to form volcanoes"),
+  patternAnchor("dwell near active volcanos"),
+  patternAnchor("volcanic glass"),
+  patternAnchor("roiling lava"),
+  patternAnchor("volcanic homes"),
+];
+
 const CIVIC_SUPPORT_TEXT_ANCHORS = [
   patternAnchor("maintain order"),
   patternAnchor("enforce laws"),
@@ -1162,6 +1185,13 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "boneyard_setting",
     category: "creature",
+    anyOf: [
+      { textAny: [patternAnchor("shade (boneyard)", "name")] },
+    ],
+  },
+  {
+    tag: "boneyard_setting",
+    category: "creature",
     allOf: [
       { textAny: BONEYARD_SETTING_TEXT_ANCHORS },
     ],
@@ -1177,6 +1207,13 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "creature",
     anyOf: [
       { traitsAny: ["archon"] },
+    ],
+  },
+  {
+    tag: "heaven_setting",
+    category: "creature",
+    anyOf: [
+      { textAny: [patternAnchor("shade (heaven)", "name")] },
     ],
   },
   {
@@ -1198,6 +1235,13 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "nirvana_setting",
     category: "creature",
+    anyOf: [
+      { textAny: [patternAnchor("shade (nirvana)", "name")] },
+    ],
+  },
+  {
+    tag: "nirvana_setting",
+    category: "creature",
     threshold: 2,
     anyOf: [
       { score: 2, textAny: NIRVANA_SETTING_TEXT_ANCHORS },
@@ -1209,6 +1253,13 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "creature",
     anyOf: [
       { traitsAny: ["azata"] },
+    ],
+  },
+  {
+    tag: "elysium_setting",
+    category: "creature",
+    anyOf: [
+      { textAny: [patternAnchor("shade (elysium)", "name")] },
     ],
   },
   {
@@ -1256,6 +1307,13 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     ],
   },
   {
+    tag: "hell_setting",
+    category: "creature",
+    anyOf: [
+      { textAny: [patternAnchor("shade (hell)", "name")] },
+    ],
+  },
+  {
     tag: "abyss_setting",
     category: "creature",
     threshold: 3,
@@ -1265,6 +1323,13 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     anyOf: [
       { score: 2, textAny: ABYSS_SETTING_TEXT_ANCHORS },
       { score: 1, traitsAny: ["demon", "fiend", "qlippoth"] },
+    ],
+  },
+  {
+    tag: "abyss_setting",
+    category: "creature",
+    anyOf: [
+      { textAny: [patternAnchor("shade (outer rifts)", "name")] },
     ],
   },
   {
@@ -1337,6 +1402,13 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "axis_setting",
     category: "creature",
+    anyOf: [
+      { textAny: [patternAnchor("shade (axis)", "name")] },
+    ],
+  },
+  {
+    tag: "axis_setting",
+    category: "creature",
     threshold: 2,
     anyOf: [
       { score: 2, textAny: AXIS_SETTING_TEXT_ANCHORS },
@@ -1356,6 +1428,13 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "creature",
     anyOf: [
       { traitsAny: ["protean"] },
+    ],
+  },
+  {
+    tag: "maelstrom_setting",
+    category: "creature",
+    anyOf: [
+      { textAny: [patternAnchor("shade (maelstrom)", "name")] },
     ],
   },
   {
@@ -1432,6 +1511,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     anyOf: [
       { score: 1, textAny: JUNGLE_SETTING_NAME_ANCHORS },
       { score: 2, textNear: JUNGLE_SETTING_TEXT_NEAR },
+      { score: 2, textAny: [patternAnchor("jungles and tropical forests"), patternAnchor("thick jungle foliage")] },
     ],
   },
   {
@@ -1449,6 +1529,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
       { score: 1, textAny: FOREST_SETTING_NAME_ANCHORS },
       { score: 1, textAny: FOREST_SETTING_CORE_TEXT_ANCHORS },
       { score: 1, textAny: FOREST_SETTING_SUPPORT_TEXT_ANCHORS },
+      { score: 2, textAny: [patternAnchor("jungles and tropical forests")] },
     ],
   },
   {
@@ -1505,7 +1586,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     tag: "underground_setting",
     category: "creature",
     anyOf: [
-      { traitsAny: ["drow", "xulgath", "morlock", "dero", "caligni", "duergar", "urdefhan", "munavri"] },
+      { traitsAny: ["drow", "xulgath", "morlock", "dero", "caligni", "duergar", "urdefhan", "munavri", "serpentfolk"] },
     ],
   },
   {
@@ -1535,6 +1616,9 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
           patternAnchor("beneath the earth", "description"),
           patternAnchor("under tunnels", "description"),
           patternAnchor("native to the darklands", "description"),
+          patternAnchor("upper darklands", "description"),
+          patternAnchor("darklands caverns", "description"),
+          patternAnchor("sekamina", "description"),
         ],
       },
       {
@@ -1569,6 +1653,9 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     anyOf: [
       { score: 2, textAny: URBAN_SETTING_EXACT_TEXT_ANCHORS },
       { score: 2, textAny: URBAN_SETTING_NAME_ANCHORS },
+      { score: 2, textAny: URBAN_SETTING_GOVERNANCE_TEXT_ANCHORS },
+      { score: 1, familiesAny: ["official"] },
+      { score: 1, textAny: [patternAnchor("enforce the law"), patternAnchor("settlement"), patternAnchor("settlements")] },
       {
         score: 2,
         textNear: createCreatureSettingTextNear(
@@ -1823,6 +1910,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "creature",
     threshold: 2,
     anyOf: [
+      { score: 2, textAny: VOLCANIC_SETTING_EXACT_TEXT_ANCHORS },
       {
         score: 2,
         textNear: createCreatureSettingTextNear(

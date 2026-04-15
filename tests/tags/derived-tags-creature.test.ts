@@ -303,6 +303,23 @@ describe("derived tag rules: creature", () => {
     })).toContain("urban_setting");
 
     expect(deriveRecordTags({
+      name: "Watch Officer",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Often leading a small team of lower-ranking guards, watch officers patrol their assigned areas to maintain order and enforce laws.",
+      traits: ["human", "humanoid"],
+      families: ["official"],
+    })).toContain("urban_setting");
+
+    expect(deriveRecordTags({
+      name: "Guardian Aluum",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "The most common aluum is powered by the bound soul of a loyal city servant. Aluums are powerful metal and stone constructs originally created by the Pactmasters to maintain order in Katapesh.",
+      traits: ["construct", "mindless"],
+    })).toContain("urban_setting");
+
+    expect(deriveRecordTags({
       name: "Furnerico",
       category: "creature",
       subcategory: null,
@@ -340,6 +357,14 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "This gug predator is native to the Darklands and lurks in subterranean tunnels and caverns, dragging prey back to its lightless lair.",
       traits: ["aberration"],
+    })).toContain("underground_setting");
+
+    expect(deriveRecordTags({
+      name: "Aapoph Serpentfolk",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Before their ancient clash with humanity devastated their civilization, serpentfolk were masters of a sprawling underground empire. Today, the central realm of the Darklands retains the old name of that empire: Sekamina.",
+      traits: ["humanoid", "mutant", "serpentfolk"],
     })).toContain("underground_setting");
 
     expect(deriveRecordTags({
@@ -551,6 +576,22 @@ describe("derived tag rules: creature", () => {
     })).toContain("boneyard_setting");
 
     expect(deriveRecordTags({
+      name: "Shade (Heaven)",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "The elect have golden halos and ghostly wings, but they otherwise appear as their mortal forms.",
+      traits: ["fiend", "shade", "unholy"],
+    })).toEqual(expect.arrayContaining(["heaven_setting", "upper_plane_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Shade (Outer Rifts)",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "The larvae appear as maggot-like grubs with the face the shade had in life.",
+      traits: ["fiend", "shade", "unholy"],
+    })).toEqual(expect.arrayContaining(["abyss_setting", "lower_plane_setting"]));
+
+    expect(deriveRecordTags({
       name: "Requiem Dragon (Adult)",
       category: "creature",
       subcategory: null,
@@ -565,6 +606,30 @@ describe("derived tag rules: creature", () => {
       descriptionText: "Hunter wights renew their hunt with equal vigor and frequently take residence within abandoned watchtowers and keeps.",
       traits: ["undead"],
     })).toContain("fortress_setting");
+
+    expect(deriveRecordTags({
+      name: "Red Dragon (Adult)",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Their lairs are often situated in dangerous places, with volcanoes being a favorite spot, as they find them foreboding and the constant warmth is comfortable.",
+      traits: ["chaotic", "dragon", "evil", "fire"],
+    })).toContain("volcanic_setting");
+
+    expect(deriveRecordTags({
+      name: "Underworld Dragon (Adult)",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Today, though their nature is primarily still connected with the element of fire, an underworld dragon can consume wood with ease, lay claim to the minerals and gems in the rocks and stone, and die to form volcanoes that create more land masses.",
+      traits: ["arcane", "dragon", "fire"],
+    })).toContain("volcanic_setting");
+
+    expect(deriveRecordTags({
+      name: "Scaleseed Nagaji",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Although nagaji might be encountered in diverse cities and urban centers, their communities are concentrated in environments that suit their biology, namely jungles and tropical forests.",
+      traits: ["humanoid", "nagaji"],
+    })).toEqual(expect.arrayContaining(["forest_setting", "jungle_setting"]));
   });
 
   it("uses glossary family evidence and blocks redundant civic npc tags", () => {
@@ -1252,6 +1317,14 @@ describe("derived tag rules: creature", () => {
     })).not.toContain("volcanic_setting");
 
     expect(deriveRecordTags({
+      name: "Cinder Rat",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "These oversized rodents are made of smoldering charcoal and elemental fire, and noxious fumes continually billow from their flaming flesh. Fire elementals are destructive manifestations of the scorching Plane of Fire.",
+      traits: ["elemental", "fire"],
+    })).not.toContain("volcanic_setting");
+
+    expect(deriveRecordTags({
       name: "Temple Scavenger",
       category: "creature",
       subcategory: null,
@@ -1282,6 +1355,14 @@ describe("derived tag rules: creature", () => {
       descriptionText: "Such creatures are drawn to target not a single misbehaving follower, but entire villages, cities, or towns that have turned their backs on their gods.",
       traits: ["dragon"],
     })).not.toEqual(expect.arrayContaining(["rural_setting", "urban_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Nagaji Soldier",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Although nagaji might be encountered in diverse cities and urban centers, their communities are concentrated in environments that suit their biology, namely jungles and tropical forests.",
+      traits: ["humanoid", "nagaji"],
+    })).not.toContain("urban_setting");
 
     expect(deriveRecordTags({
       name: "Zecui Horde",

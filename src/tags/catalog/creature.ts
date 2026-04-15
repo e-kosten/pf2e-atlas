@@ -49,7 +49,13 @@ export const CREATURE_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
       { value: "canyon_setting", description: "Strongly associated with canyons, gorges, mesas, or badlands." },
       { value: "swamp_setting", description: "Strongly associated with bogs, marshes, fens, or mires." },
       { value: "underground_setting", description: "Strongly associated with caves, tunnels, crypts, or subterranean spaces." },
-      { value: "urban_setting", description: "Strongly associated with urban encounter scenes such as cities, streets, alleys, dense buildings, markets, or sewers." },
+      {
+        value: "urban_setting",
+        description: "Strongly associated with urban encounter scenes such as cities, streets, alleys, dense buildings, markets, or sewers.",
+        seedRecords: [
+          { pack: "age-of-ashes-bestiary", name: "Spiritbound Aluum" },
+        ],
+      },
       { value: "arctic_setting", description: "Strongly associated with snow, ice, tundra, or frozen reaches." },
       { value: "desert_setting", description: "Strongly associated with dunes, sand, or arid wastes." },
       { value: "wasteland_setting", description: "Strongly associated with barren wastes, blasted wastelands, or desolate badlands." },
