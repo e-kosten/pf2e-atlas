@@ -6,12 +6,17 @@ import type {
 } from "./index-types.js";
 import type { VariantSource } from "../types.js";
 import {
+  firstString,
+  getNested,
   normalizeText,
   uniqueSorted,
 } from "../utils.js";
 
 const GRADE_LABELS = new Set(["minor", "lesser", "moderate", "greater", "major", "true"]);
 const DAMAGE_TYPE_LABELS = new Set(["acid", "cold", "electricity", "fire", "poison", "sonic", "void", "vitality"]);
+const DRAGON_AGE_LABELS = new Set(["wyrmling", "hatchling", "young", "juvenile", "adult", "ancient", "greatwyrm"]);
+const SPECIALIZATION_LABELS = new Set(["spellcaster", "elite", "weak", "variant"]);
+const GENDER_LABELS = new Set(["male", "female"]);
 const STRUCTURAL_LINE_PREFIXES = [
   "activate",
   "effect",
@@ -81,6 +86,13 @@ type TitleToken = {
 
 type IndexedRecordEntry = BuildSourceEntry & { record: NormalizedIndexRecord };
 
+type CandidateGroup = {
+  baseName: string;
+  category: string;
+  packName: string;
+  members: Map<string, GroupMember>;
+};
+
 function titleCaseToken(segment: string): string {
   if (/^[0-9]+(?:st|nd|rd|th)$/i.test(segment)) {
     return segment.toLowerCase();
@@ -131,6 +143,15 @@ function inferVariantAxes(label: string): VariantAxis[] {
   }
   if (DAMAGE_TYPE_LABELS.has(normalized)) {
     return ["damageType"];
+  }
+  if (DRAGON_AGE_LABELS.has(normalized)) {
+    return ["dragonAge"];
+  }
+  if (SPECIALIZATION_LABELS.has(normalized)) {
+    return ["specialization"];
+  }
+  if (GENDER_LABELS.has(normalized)) {
+    return [];
   }
 
   return ["other"];
@@ -261,6 +282,14 @@ function parseStructuredCandidate(entry: IndexedRecordEntry): TitleCandidate | n
     ?? parsePathFallbackCandidate(entry.record);
 }
 
+function parseEntryStructuredCandidate(entry: IndexedRecordEntry): TitleCandidate | null {
+  if (entry.record.category === "creature") {
+    return parseParentheticalCandidate(entry.record.name);
+  }
+
+  return parseStructuredCandidate(entry);
+}
+
 function buildSuffixScaffoldCandidate(entry: IndexedRecordEntry): TitleCandidate | null {
   const tokens = normalizeText(entry.record.name).split(" ").filter(Boolean);
   if (tokens.length < 2) {
@@ -327,6 +356,129 @@ function buildLooseStemCandidate(entry: IndexedRecordEntry): TitleCandidate | nu
   }
 
   return null;
+}
+
+function exactLookupKey(entry: IndexedRecordEntry, name: string): string {
+  const normalizedName = normalizeText(name);
+  if (entry.record.category === "creature") {
+    return `${entry.record.category}:${normalizedName}`;
+  }
+
+  return `${entry.record.category}:${entry.pack.name}:${normalizedName}`;
+}
+
+function groupLookupKey(entry: IndexedRecordEntry, baseName: string): string {
+  const normalizedBaseName = normalizeText(baseName);
+  if (entry.record.category === "creature") {
+    return `${entry.record.category}:family:${normalizedBaseName}`;
+  }
+
+  return `${entry.record.category}:${entry.pack.name}:${normalizedBaseName}`;
+}
+
+function creatureFamilyKey(baseName: string): string {
+  return `creature:family:${toFamilySlug(baseName)}`;
+}
+
+function deriveCreatureReferenceAxes(labels: string[]): VariantAxis[] {
+  const axes = [...new Set(labels.flatMap((label) => inferVariantAxes(label)).filter((axis) => axis !== "other"))] as VariantAxis[];
+  axes.sort((left, right) => left.localeCompare(right));
+  return axes;
+}
+
+function chooseCreatureReferenceLabel(entry: IndexedRecordEntry, baseName: string, labels: string[]): string | null {
+  const explicitLabel = labels.join(", ").trim();
+  const normalizedName = normalizeText(entry.record.name);
+  const normalizedBaseName = normalizeText(baseName);
+  if (!normalizedName || normalizedName === normalizedBaseName) {
+    return explicitLabel || null;
+  }
+  if (normalizedName.includes(normalizedBaseName) && explicitLabel) {
+    return explicitLabel;
+  }
+
+  return entry.record.name;
+}
+
+function extractRawCreatureBlurb(entry: IndexedRecordEntry): string | null {
+  return firstString(getNested(entry.raw, ["system", "details", "blurb"]));
+}
+
+function isGenderOnlyCreatureReference(labels: string[]): boolean {
+  return labels.length > 0 && labels.every((label) => GENDER_LABELS.has(normalizeText(label)));
+}
+
+function isRejectedGenderOnlyCreatureReference(baseTokens: string[], resolvedBaseEntries: IndexedRecordEntry[]): boolean {
+  if (baseTokens.length <= 1) {
+    return true;
+  }
+
+  return resolvedBaseEntries.some((resolvedBaseEntry) => resolvedBaseEntry.record.traits.includes("humanoid"));
+}
+
+function parseCreatureReferenceCandidate(
+  entry: IndexedRecordEntry,
+  exactNameLookup: Map<string, IndexedRecordEntry[]>,
+  knownCreatureBaseNames: Set<string>,
+): TitleCandidate | null {
+  if (entry.record.category !== "creature") {
+    return null;
+  }
+
+  const rawBlurb = extractRawCreatureBlurb(entry);
+  if (!rawBlurb) {
+    return null;
+  }
+
+  const tokens = normalizeText(rawBlurb).split(" ").filter(Boolean);
+  if (tokens.length < 2 || tokens.length > 6) {
+    return null;
+  }
+
+  const labelTokens: string[] = [];
+  let index = 0;
+  while (index < tokens.length) {
+    const token = tokens[index]!;
+    if (!DRAGON_AGE_LABELS.has(token) && !SPECIALIZATION_LABELS.has(token) && !GENDER_LABELS.has(token)) {
+      break;
+    }
+    labelTokens.push(token);
+    index += 1;
+  }
+
+  if (labelTokens.length === 0) {
+    return null;
+  }
+
+  const baseTokens = tokens.slice(index);
+  if (baseTokens.length === 0 || baseTokens.length > 3) {
+    return null;
+  }
+
+  const baseName = toTitleWords(baseTokens.join(" "));
+  const normalizedBaseName = normalizeText(baseName);
+  if (!normalizedBaseName) {
+    return null;
+  }
+
+  const resolvedBaseEntries = exactNameLookup.get(exactLookupKey(entry, baseName)) ?? [];
+  if (!knownCreatureBaseNames.has(normalizedBaseName) && resolvedBaseEntries.length === 0) {
+    return null;
+  }
+
+  if (isGenderOnlyCreatureReference(labelTokens) && isRejectedGenderOnlyCreatureReference(baseTokens, resolvedBaseEntries)) {
+    return null;
+  }
+
+  const cleanedLabels = labelTokens.map((token) => titleCaseToken(token));
+  return {
+    baseName,
+    label: chooseCreatureReferenceLabel(entry, baseName, cleanedLabels),
+    axes: deriveCreatureReferenceAxes(cleanedLabels),
+    source: "composite",
+    confidence: 0.86,
+    fallbackEligible: false,
+  };
 }
 
 function normalizeTitleToken(value: string): string {
@@ -471,6 +623,10 @@ function descriptionPasses(left: string, right: string): boolean {
 }
 
 function variantGroupKey(entry: IndexedRecordEntry, baseName: string): string {
+  if (entry.record.category === "creature") {
+    return creatureFamilyKey(baseName);
+  }
+
   return [
     entry.record.category,
     toFamilySlug(entry.pack.name),
@@ -729,27 +885,57 @@ function assignGroup(
 }
 
 export function assignVariantFamilies(entries: IndexedRecordEntry[]): void {
-  const eligibleEntries = entries.filter((entry) => entry.record.category === "equipment" || entry.record.category === "spell");
+  const eligibleEntries = entries.filter((entry) =>
+    entry.record.category === "equipment" || entry.record.category === "spell" || entry.record.category === "creature");
   const byExactName = new Map<string, IndexedRecordEntry[]>();
-  const candidateGroups = new Map<string, {
-    baseName: string;
-    category: string;
-    packName: string;
-    members: Map<string, GroupMember>;
-  }>();
+  const candidateGroups = new Map<string, CandidateGroup>();
+  const knownCreatureBaseNames = new Set<string>();
+  const structuredCandidates = new Map<string, TitleCandidate>();
 
   for (const entry of eligibleEntries) {
-    const exactKey = [entry.record.category, entry.pack.name, normalizeText(entry.record.name)].join(":");
+    const exactKey = exactLookupKey(entry, entry.record.name);
     const bucket = byExactName.get(exactKey) ?? [];
     bucket.push(entry);
     byExactName.set(exactKey, bucket);
 
-    const candidate = parseStructuredCandidate(entry) ?? buildSuffixScaffoldCandidate(entry) ?? buildLooseStemCandidate(entry);
+    const candidate = parseEntryStructuredCandidate(entry)
+      ?? (entry.record.category === "creature" ? null : buildSuffixScaffoldCandidate(entry) ?? buildLooseStemCandidate(entry));
     if (!candidate) {
       continue;
     }
 
-    const groupKey = [entry.record.category, entry.pack.name, normalizeText(candidate.baseName)].join(":");
+    if (entry.record.category === "creature") {
+      knownCreatureBaseNames.add(normalizeText(candidate.baseName));
+    }
+    structuredCandidates.set(entry.record.recordKey, candidate);
+
+    const groupKey = groupLookupKey(entry, candidate.baseName);
+    const group = candidateGroups.get(groupKey) ?? {
+      baseName: candidate.baseName,
+      category: entry.record.category,
+      packName: entry.pack.name,
+      members: new Map<string, GroupMember>(),
+    };
+    group.members.set(memberKey(entry), {
+      entry,
+      candidate,
+      leadBlock: extractLeadBlock(entry.record.descriptionText),
+      descriptionScore: 0,
+    });
+    candidateGroups.set(groupKey, group);
+  }
+
+  for (const entry of eligibleEntries) {
+    if (entry.record.category !== "creature" || structuredCandidates.has(entry.record.recordKey)) {
+      continue;
+    }
+
+    const candidate = parseCreatureReferenceCandidate(entry, byExactName, knownCreatureBaseNames);
+    if (!candidate) {
+      continue;
+    }
+
+    const groupKey = groupLookupKey(entry, candidate.baseName);
     const group = candidateGroups.get(groupKey) ?? {
       baseName: candidate.baseName,
       category: entry.record.category,
@@ -767,7 +953,10 @@ export function assignVariantFamilies(entries: IndexedRecordEntry[]): void {
 
   for (const group of candidateGroups.values()) {
     const normalizedBase = normalizeText(group.baseName);
-    const baseMembers = byExactName.get([group.category, group.packName, normalizedBase].join(":")) ?? [];
+    const baseLookupKey = group.category === "creature"
+      ? `${group.category}:${normalizedBase}`
+      : `${group.category}:${group.packName}:${normalizedBase}`;
+    const baseMembers = byExactName.get(baseLookupKey) ?? [];
     for (const entry of baseMembers) {
       group.members.set(memberKey(entry), {
         entry,
@@ -779,6 +968,14 @@ export function assignVariantFamilies(entries: IndexedRecordEntry[]): void {
 
     const members = [...group.members.values()];
     if (members.length < 2) {
+      continue;
+    }
+
+    if (group.category === "creature") {
+      const sources = new Set(members.map((member) => member.candidate.source));
+      const source = sources.size === 1 ? [...sources][0]! : "composite";
+      const confidence = Math.max(...members.map((member) => member.candidate.confidence));
+      assignGroup(members, group.baseName, source, confidence);
       continue;
     }
 

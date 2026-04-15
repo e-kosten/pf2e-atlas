@@ -13,23 +13,29 @@ function createRecord(input: {
   category?: NormalizedIndexRecord["category"];
   subcategory?: NormalizedIndexRecord["subcategory"];
   packName?: string;
+  packLabel?: string;
+  documentType?: string;
+  recordType?: string;
   sourcePath: string;
   descriptionText?: string | null;
+  traits?: string[];
+  isUnique?: boolean;
 }): NormalizedIndexRecord {
+  const category = input.category ?? "equipment";
   return {
     recordKey: input.recordKey,
     id: input.recordKey,
     name: input.name,
     normalizedName: input.name.toLowerCase(),
-    type: "equipment",
-    category: input.category ?? "equipment",
+    type: input.recordType ?? "equipment",
+    category,
     subcategory: input.subcategory ?? "gear",
     packName: input.packName ?? "equipment-srd",
-    packLabel: "Equipment",
-    documentType: "Item",
+    packLabel: input.packLabel ?? "Equipment",
+    documentType: input.documentType ?? "Item",
     level: null,
     rarity: "common",
-    traits: [],
+    traits: input.traits ?? [],
     derivedTags: [],
     publicationTitle: "Pathfinder Treasure Vault",
     publicationRemaster: true,
@@ -46,9 +52,9 @@ function createRecord(input: {
     variantConfidence: null,
     variantSource: "none",
     sourcePath: input.sourcePath,
-    isUnique: false,
+    isUnique: input.isUnique ?? false,
     size: null,
-    itemCategory: "wand",
+    itemCategory: category === "equipment" ? "wand" : null,
     priceCp: null,
     bulkValue: null,
     actionCost: null,
@@ -89,13 +95,27 @@ function createEntry(input: {
   name: string;
   sourcePath: string;
   descriptionText?: string | null;
+  rawBlurb?: string | null;
+  category?: NormalizedIndexRecord["category"];
+  subcategory?: NormalizedIndexRecord["subcategory"];
+  packName?: string;
+  packLabel?: string;
+  documentType?: string;
+  recordType?: string;
+  traits?: string[];
+  isUnique?: boolean;
 }): BuildSourceEntry & { record: NormalizedIndexRecord } {
+  const category = input.category ?? "equipment";
+  const packName = input.packName ?? (category === "creature" ? "pathfinder-bestiary" : "equipment-srd");
+  const packLabel = input.packLabel ?? (category === "creature" ? "Bestiary" : "Equipment");
+  const documentType = input.documentType ?? (category === "creature" ? "Actor" : "Item");
+  const recordType = input.recordType ?? (category === "creature" ? "npc" : "consumable");
   const pack: PackBuildInfo = {
-    name: "equipment-srd",
-    label: "Equipment",
-    documentType: "Item",
-    declaredPath: "packs/pf2e/equipment",
-    resolvedPath: "/tmp/equipment",
+    name: packName,
+    label: packLabel,
+    documentType,
+    declaredPath: category === "creature" ? "packs/pf2e/pathfinder-bestiary" : "packs/pf2e/equipment",
+    resolvedPath: category === "creature" ? "/tmp/creatures" : "/tmp/equipment",
   };
 
   return {
@@ -104,14 +124,22 @@ function createEntry(input: {
     raw: {
       _id: input.recordKey,
       name: input.name,
-      type: "consumable",
-      system: {},
+      type: recordType,
+      system: input.rawBlurb ? { details: { blurb: input.rawBlurb } } : {},
     },
     record: createRecord({
       recordKey: input.recordKey,
       name: input.name,
+      category,
+      subcategory: input.subcategory,
+      packName,
+      packLabel,
+      documentType,
+      recordType,
       sourcePath: input.sourcePath,
       descriptionText: input.descriptionText,
+      traits: input.traits,
+      isUnique: input.isUnique,
     }),
     actorData: null,
     itemData: null,
@@ -500,5 +528,330 @@ describe("variant family normalization", () => {
     expect(entries[0].record.variantFamilyKey).toBeNull();
     expect(entries[0].record.variantBaseName).toBeNull();
     expect(entries[0].record.variantSource).toBe("none");
+  });
+
+  it("groups creature age variants from parenthetical dragon titles", () => {
+    const entries = [
+      createEntry({
+        recordKey: "creature:storm-young",
+        name: "Storm Dragon (Young)",
+        category: "creature",
+        subcategory: null,
+        sourcePath: "vendor/pf2e/packs/pf2e/pathfinder-bestiary/storm-dragon-young.json",
+        descriptionText: "A storm dragon circles through black clouds and roaring winds.",
+        traits: ["dragon", "electricity"],
+      }),
+      createEntry({
+        recordKey: "creature:storm-adult",
+        name: "Storm Dragon (Adult)",
+        category: "creature",
+        subcategory: null,
+        sourcePath: "vendor/pf2e/packs/pf2e/pathfinder-bestiary/storm-dragon-adult.json",
+        descriptionText: "A storm dragon circles through black clouds and roaring winds.",
+        traits: ["dragon", "electricity"],
+      }),
+      createEntry({
+        recordKey: "creature:storm-ancient",
+        name: "Storm Dragon (Ancient)",
+        category: "creature",
+        subcategory: null,
+        sourcePath: "vendor/pf2e/packs/pf2e/pathfinder-bestiary/storm-dragon-ancient.json",
+        descriptionText: "A storm dragon circles through black clouds and roaring winds.",
+        traits: ["dragon", "electricity"],
+      }),
+    ];
+
+    assignVariantFamilies(entries);
+
+    expect(entries[0].record.variantBaseName).toBe("Storm Dragon");
+    expect(entries[1].record.variantFamilyKey).toBe(entries[0].record.variantFamilyKey);
+    expect(entries[2].record.variantFamilyKey).toBe(entries[0].record.variantFamilyKey);
+    expect(entries[0].record.variantLabel).toBe("Young");
+    expect(entries[1].record.variantLabel).toBe("Adult");
+    expect(entries[2].record.variantLabel).toBe("Ancient");
+    expect(entries[0].record.variantAxes).toEqual(["dragonAge"]);
+  });
+
+  it("links a named unique creature to an established base creature family from its blurb", () => {
+    const entries = [
+      createEntry({
+        recordKey: "creature:white-young",
+        name: "White Dragon (Young)",
+        category: "creature",
+        subcategory: null,
+        sourcePath: "vendor/pf2e/packs/pf2e/pathfinder-bestiary/white-dragon-young.json",
+        descriptionText: "White dragons dwell on glacial mountaintops and in ice caverns.",
+        traits: ["dragon", "cold"],
+      }),
+      createEntry({
+        recordKey: "creature:white-adult",
+        name: "White Dragon (Adult)",
+        category: "creature",
+        subcategory: null,
+        sourcePath: "vendor/pf2e/packs/pf2e/pathfinder-bestiary/white-dragon-adult.json",
+        descriptionText: "White dragons dwell on glacial mountaintops and in ice caverns.",
+        traits: ["dragon", "cold"],
+      }),
+      createEntry({
+        recordKey: "creature:venexus",
+        name: "Venexus",
+        category: "creature",
+        subcategory: null,
+        packName: "quest-for-the-frozen-flame-bestiary",
+        packLabel: "Quest for the Frozen Flame",
+        sourcePath: "vendor/pf2e/packs/pf2e/quest-for-the-frozen-flame-bestiary/venexus.json",
+        descriptionText: "A unique white dragon carrying the Primordial Flame.",
+        rawBlurb: "Female young white dragon",
+        traits: ["dragon", "cold"],
+        isUnique: true,
+      }),
+    ];
+
+    assignVariantFamilies(entries);
+
+    expect(entries[2].record.variantFamilyKey).toBe(entries[0].record.variantFamilyKey);
+    expect(entries[2].record.variantBaseName).toBe("White Dragon");
+    expect(entries[2].record.variantLabel).toBe("Venexus");
+    expect(entries[2].record.variantAxes).toEqual(["dragonAge"]);
+  });
+
+  it("links a variant creature with an opaque title to its exact base creature from the blurb", () => {
+    const entries = [
+      createEntry({
+        recordKey: "creature:scythe-tree",
+        name: "Scythe Tree",
+        category: "creature",
+        subcategory: null,
+        sourcePath: "vendor/pf2e/packs/pf2e/pathfinder-bestiary/scythe-tree.json",
+        descriptionText: "Malevolent carnivorous trees pose as normal forest growth.",
+        traits: ["plant"],
+      }),
+      createEntry({
+        recordKey: "creature:tree-that-weeps",
+        name: "Tree That Weeps",
+        category: "creature",
+        subcategory: null,
+        packName: "kingmaker-bestiary",
+        packLabel: "Kingmaker",
+        sourcePath: "vendor/pf2e/packs/pf2e/kingmaker-bestiary/tree-that-weeps.json",
+        descriptionText: "A malevolent unique scythe tree.",
+        rawBlurb: "Variant scythe tree",
+        traits: ["plant"],
+        isUnique: true,
+      }),
+    ];
+
+    assignVariantFamilies(entries);
+
+    expect(entries[1].record.variantFamilyKey).toBe(entries[0].record.variantFamilyKey);
+    expect(entries[1].record.variantBaseName).toBe("Scythe Tree");
+    expect(entries[1].record.variantLabel).toBe("Tree That Weeps");
+    expect(entries[1].record.variantAxes).toEqual(["specialization"]);
+  });
+
+  it("uses raw blurbs to resolve named creature links that prose-only matching missed", () => {
+    const entries = [
+      createEntry({
+        recordKey: "creature:umasi",
+        name: "Umasi",
+        category: "creature",
+        subcategory: null,
+        sourcePath: "vendor/pf2e/packs/pf2e/pathfinder-bestiary-3/umasi.json",
+        descriptionText: "A reclusive people who harvest appendages and organs from other creatures.",
+        traits: ["aberration", "humanoid"],
+      }),
+      createEntry({
+        recordKey: "creature:naiad-queen",
+        name: "Naiad Queen",
+        category: "creature",
+        subcategory: null,
+        sourcePath: "vendor/pf2e/packs/pf2e/pathfinder-monster-core/naiad-queen.json",
+        descriptionText: "Naiad queens rule over pristine wildernesses centered on untouched lakes.",
+        traits: ["fey", "nymph", "water"],
+      }),
+      createEntry({
+        recordKey: "creature:bottlenose-dolphin",
+        name: "Bottlenose Dolphin",
+        category: "creature",
+        subcategory: null,
+        sourcePath: "vendor/pf2e/packs/pf2e/pathfinder-monster-core/bottlenose-dolphin.json",
+        descriptionText: "Dolphins are social aquatic mammals known for intelligence.",
+        traits: ["animal"],
+      }),
+      createEntry({
+        recordKey: "creature:owlbear",
+        name: "Owlbear",
+        category: "creature",
+        subcategory: null,
+        sourcePath: "vendor/pf2e/packs/pf2e/pathfinder-monster-core/owlbear.json",
+        descriptionText: "A dangerous territorial predator with the body of a bear and the senses of an owl.",
+        traits: ["animal"],
+      }),
+      createEntry({
+        recordKey: "creature:valmar",
+        name: "Valmar",
+        category: "creature",
+        subcategory: null,
+        packName: "gatewalkers-bestiary",
+        packLabel: "Gatewalkers",
+        sourcePath: "vendor/pf2e/packs/pf2e/gatewalkers-bestiary/valmar.json",
+        descriptionText: "A unique umasi with public notes that don't begin with a subtype blurb.",
+        rawBlurb: "Elite umasi",
+        traits: ["aberration", "humanoid"],
+        isUnique: true,
+      }),
+      createEntry({
+        recordKey: "creature:pholebis",
+        name: "Pholebis",
+        category: "creature",
+        subcategory: null,
+        packName: "gatewalkers-bestiary",
+        packLabel: "Gatewalkers",
+        sourcePath: "vendor/pf2e/packs/pf2e/gatewalkers-bestiary/pholebis.json",
+        descriptionText: "A unique naiad queen with longer public notes.",
+        rawBlurb: "female naiad queen",
+        traits: ["fey", "nymph", "water"],
+        isUnique: true,
+      }),
+      createEntry({
+        recordKey: "creature:whalesteed",
+        name: "Whalesteed",
+        category: "creature",
+        subcategory: null,
+        packName: "lost-omens-bestiary",
+        packLabel: "Lost Omens Bestiary",
+        sourcePath: "vendor/pf2e/packs/pf2e/lost-omens-bestiary/whalesteed.json",
+        descriptionText: "A trained marine mount with public notes unrelated to its base-creature subtype.",
+        rawBlurb: "Variant bottlenose dolphin",
+        traits: ["animal"],
+      }),
+      createEntry({
+        recordKey: "creature:irriseni-owlbear",
+        name: "Irriseni Owlbear",
+        category: "creature",
+        subcategory: null,
+        packName: "lost-omens-bestiary",
+        packLabel: "Lost Omens Bestiary",
+        sourcePath: "vendor/pf2e/packs/pf2e/lost-omens-bestiary/irriseni-owlbear.json",
+        descriptionText: "An arctic-adapted owlbear with longer public notes.",
+        rawBlurb: "Variant elite owlbear",
+        traits: ["animal"],
+      }),
+    ];
+
+    assignVariantFamilies(entries);
+
+    expect(entries[4].record.variantFamilyKey).toBe(entries[0].record.variantFamilyKey);
+    expect(entries[4].record.variantBaseName).toBe("Umasi");
+    expect(entries[5].record.variantFamilyKey).toBe(entries[1].record.variantFamilyKey);
+    expect(entries[5].record.variantBaseName).toBe("Naiad Queen");
+    expect(entries[6].record.variantFamilyKey).toBe(entries[2].record.variantFamilyKey);
+    expect(entries[6].record.variantBaseName).toBe("Bottlenose Dolphin");
+    expect(entries[7].record.variantFamilyKey).toBe(entries[3].record.variantFamilyKey);
+    expect(entries[7].record.variantBaseName).toBe("Owlbear");
+  });
+
+  it("does not infer named creature families from gender-only simple-species or humanoid-role blurbs", () => {
+    const entries = [
+      createEntry({
+        recordKey: "creature:lion",
+        name: "Lion",
+        category: "creature",
+        subcategory: null,
+        sourcePath: "vendor/pf2e/packs/pf2e/pathfinder-monster-core/lion.json",
+        descriptionText: "A big cat predator.",
+        traits: ["animal"],
+      }),
+      createEntry({
+        recordKey: "creature:nixie",
+        name: "Nixie",
+        category: "creature",
+        subcategory: null,
+        sourcePath: "vendor/pf2e/packs/pf2e/pathfinder-monster-core/nixie.json",
+        descriptionText: "A mischievous water fey.",
+        traits: ["fey", "water"],
+      }),
+      createEntry({
+        recordKey: "creature:hunter",
+        name: "Hunter",
+        category: "creature",
+        subcategory: null,
+        packName: "pathfinder-npc-core",
+        packLabel: "NPC Core",
+        sourcePath: "vendor/pf2e/packs/pf2e/pathfinder-npc-core/hunter.json",
+        descriptionText: "A humanoid wilderness scout.",
+        traits: ["humanoid"],
+      }),
+      createEntry({
+        recordKey: "creature:elf-ranger",
+        name: "Elf Ranger",
+        category: "creature",
+        subcategory: null,
+        packName: "pathfinder-npc-core",
+        packLabel: "NPC Core",
+        sourcePath: "vendor/pf2e/packs/pf2e/pathfinder-npc-core/elf-ranger.json",
+        descriptionText: "A humanoid elven ranger.",
+        traits: ["humanoid", "elf"],
+      }),
+      createEntry({
+        recordKey: "creature:leandrus",
+        name: "Leandrus",
+        category: "creature",
+        subcategory: null,
+        packName: "extinction-curse-bestiary",
+        packLabel: "Extinction Curse",
+        sourcePath: "vendor/pf2e/packs/pf2e/extinction-curse-bestiary/leandrus.json",
+        descriptionText: "A named circus lion.",
+        rawBlurb: "Male lion",
+        traits: ["animal"],
+        isUnique: true,
+      }),
+      createEntry({
+        recordKey: "creature:melianse",
+        name: "Melianse",
+        category: "creature",
+        subcategory: null,
+        packName: "kingmaker-bestiary",
+        packLabel: "Kingmaker",
+        sourcePath: "vendor/pf2e/packs/pf2e/kingmaker-bestiary/melianse.json",
+        descriptionText: "A named nixie.",
+        rawBlurb: "Female nixie",
+        traits: ["fey", "water"],
+        isUnique: true,
+      }),
+      createEntry({
+        recordKey: "creature:aldori-sister",
+        name: "Aldori Sister",
+        category: "creature",
+        subcategory: null,
+        packName: "kingmaker-bestiary",
+        packLabel: "Kingmaker",
+        sourcePath: "vendor/pf2e/packs/pf2e/kingmaker-bestiary/aldori-sister.json",
+        descriptionText: "A named humanoid hunter.",
+        rawBlurb: "Female Hunter",
+        traits: ["humanoid"],
+        isUnique: true,
+      }),
+      createEntry({
+        recordKey: "creature:shalelu-andosana",
+        name: "Shalelu Andosana",
+        category: "creature",
+        subcategory: null,
+        packName: "spore-war-bestiary",
+        packLabel: "Spore War",
+        sourcePath: "vendor/pf2e/packs/pf2e/spore-war-bestiary/shalelu-andosana.json",
+        descriptionText: "A named elven ranger.",
+        rawBlurb: "Female elf ranger",
+        traits: ["humanoid", "elf"],
+        isUnique: true,
+      }),
+    ];
+
+    assignVariantFamilies(entries);
+
+    expect(entries[4].record.variantFamilyKey).toBeNull();
+    expect(entries[5].record.variantFamilyKey).toBeNull();
+    expect(entries[6].record.variantFamilyKey).toBeNull();
+    expect(entries[7].record.variantFamilyKey).toBeNull();
   });
 });
