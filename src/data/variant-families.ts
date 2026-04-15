@@ -390,8 +390,15 @@ function chooseCreatureReferenceLabel(entry: IndexedRecordEntry, baseName: strin
   const explicitLabel = labels.join(", ").trim();
   const normalizedName = normalizeText(entry.record.name);
   const normalizedBaseName = normalizeText(baseName);
+  const hasOnlyGenericReferenceLabels = labels.every((label) => {
+    const normalized = normalizeText(label);
+    return SPECIALIZATION_LABELS.has(normalized) || GENDER_LABELS.has(normalized);
+  });
   if (!normalizedName || normalizedName === normalizedBaseName) {
     return explicitLabel || null;
+  }
+  if (hasOnlyGenericReferenceLabels) {
+    return entry.record.name;
   }
   if (normalizedName.includes(normalizedBaseName) && explicitLabel) {
     return explicitLabel;
@@ -414,6 +421,51 @@ function isRejectedGenderOnlyCreatureReference(baseTokens: string[], resolvedBas
   }
 
   return resolvedBaseEntries.some((resolvedBaseEntry) => resolvedBaseEntry.record.traits.includes("humanoid"));
+}
+
+function singularizeCreatureReferenceToken(token: string): string | null {
+  if (token.length <= 3) {
+    return null;
+  }
+
+  if (token.endsWith("ies")) {
+    return `${token.slice(0, -3)}y`;
+  }
+
+  if (/(xes|ches|shes|sses|zes)$/.test(token)) {
+    return token.slice(0, -2);
+  }
+
+  if (token.endsWith("s") && !token.endsWith("ss")) {
+    return token.slice(0, -1);
+  }
+
+  return null;
+}
+
+function buildCreatureReferenceBaseNames(baseTokens: string[]): string[] {
+  const baseNames: string[] = [];
+  const addBaseName = (tokens: string[]) => {
+    const baseName = toTitleWords(tokens.join(" "));
+    if (baseName && !baseNames.includes(baseName)) {
+      baseNames.push(baseName);
+    }
+  };
+
+  addBaseName(baseTokens);
+
+  const lastToken = baseTokens.at(-1);
+  if (!lastToken) {
+    return baseNames;
+  }
+
+  const singularLastToken = singularizeCreatureReferenceToken(lastToken);
+  if (!singularLastToken || singularLastToken === lastToken) {
+    return baseNames;
+  }
+
+  addBaseName([...baseTokens.slice(0, -1), singularLastToken]);
+  return baseNames;
 }
 
 function parseCreatureReferenceCandidate(
@@ -455,30 +507,33 @@ function parseCreatureReferenceCandidate(
     return null;
   }
 
-  const baseName = toTitleWords(baseTokens.join(" "));
-  const normalizedBaseName = normalizeText(baseName);
-  if (!normalizedBaseName) {
-    return null;
-  }
-
-  const resolvedBaseEntries = exactNameLookup.get(exactLookupKey(entry, baseName)) ?? [];
-  if (!knownCreatureBaseNames.has(normalizedBaseName) && resolvedBaseEntries.length === 0) {
-    return null;
-  }
-
-  if (isGenderOnlyCreatureReference(labelTokens) && isRejectedGenderOnlyCreatureReference(baseTokens, resolvedBaseEntries)) {
-    return null;
-  }
-
   const cleanedLabels = labelTokens.map((token) => titleCaseToken(token));
-  return {
-    baseName,
-    label: chooseCreatureReferenceLabel(entry, baseName, cleanedLabels),
-    axes: deriveCreatureReferenceAxes(cleanedLabels),
-    source: "composite",
-    confidence: 0.86,
-    fallbackEligible: false,
-  };
+  for (const baseName of buildCreatureReferenceBaseNames(baseTokens)) {
+    const normalizedBaseName = normalizeText(baseName);
+    if (!normalizedBaseName) {
+      continue;
+    }
+
+    const resolvedBaseEntries = exactNameLookup.get(exactLookupKey(entry, baseName)) ?? [];
+    if (!knownCreatureBaseNames.has(normalizedBaseName) && resolvedBaseEntries.length === 0) {
+      continue;
+    }
+
+    if (isGenderOnlyCreatureReference(labelTokens) && isRejectedGenderOnlyCreatureReference(baseTokens, resolvedBaseEntries)) {
+      continue;
+    }
+
+    return {
+      baseName,
+      label: chooseCreatureReferenceLabel(entry, baseName, cleanedLabels),
+      axes: deriveCreatureReferenceAxes(cleanedLabels),
+      source: "composite",
+      confidence: 0.86,
+      fallbackEligible: false,
+    };
+  }
+
+  return null;
 }
 
 function normalizeTitleToken(value: string): string {
@@ -891,6 +946,7 @@ export function assignVariantFamilies(entries: IndexedRecordEntry[]): void {
   const candidateGroups = new Map<string, CandidateGroup>();
   const knownCreatureBaseNames = new Set<string>();
   const structuredCandidates = new Map<string, TitleCandidate>();
+  const structuredGroupKeys = new Map<string, string>();
 
   for (const entry of eligibleEntries) {
     const exactKey = exactLookupKey(entry, entry.record.name);
@@ -910,6 +966,7 @@ export function assignVariantFamilies(entries: IndexedRecordEntry[]): void {
     structuredCandidates.set(entry.record.recordKey, candidate);
 
     const groupKey = groupLookupKey(entry, candidate.baseName);
+    structuredGroupKeys.set(entry.record.recordKey, groupKey);
     const group = candidateGroups.get(groupKey) ?? {
       baseName: candidate.baseName,
       category: entry.record.category,
@@ -926,13 +983,23 @@ export function assignVariantFamilies(entries: IndexedRecordEntry[]): void {
   }
 
   for (const entry of eligibleEntries) {
-    if (entry.record.category !== "creature" || structuredCandidates.has(entry.record.recordKey)) {
+    if (entry.record.category !== "creature") {
       continue;
     }
 
     const candidate = parseCreatureReferenceCandidate(entry, byExactName, knownCreatureBaseNames);
     if (!candidate) {
       continue;
+    }
+
+    const existingCandidate = structuredCandidates.get(entry.record.recordKey);
+    if (existingCandidate && existingCandidate.baseName === candidate.baseName) {
+      continue;
+    }
+
+    const priorGroupKey = structuredGroupKeys.get(entry.record.recordKey);
+    if (priorGroupKey) {
+      candidateGroups.get(priorGroupKey)?.members.delete(memberKey(entry));
     }
 
     const groupKey = groupLookupKey(entry, candidate.baseName);
@@ -949,6 +1016,8 @@ export function assignVariantFamilies(entries: IndexedRecordEntry[]): void {
       descriptionScore: 0,
     });
     candidateGroups.set(groupKey, group);
+    structuredCandidates.set(entry.record.recordKey, candidate);
+    structuredGroupKeys.set(entry.record.recordKey, groupKey);
   }
 
   for (const group of candidateGroups.values()) {
@@ -958,6 +1027,9 @@ export function assignVariantFamilies(entries: IndexedRecordEntry[]): void {
       : `${group.category}:${group.packName}:${normalizedBase}`;
     const baseMembers = byExactName.get(baseLookupKey) ?? [];
     for (const entry of baseMembers) {
+      if (group.members.has(memberKey(entry))) {
+        continue;
+      }
       group.members.set(memberKey(entry), {
         entry,
         candidate: exactBaseCandidate(group.baseName),

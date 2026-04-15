@@ -854,4 +854,142 @@ describe("variant family normalization", () => {
     expect(entries[6].record.variantFamilyKey).toBeNull();
     expect(entries[7].record.variantFamilyKey).toBeNull();
   });
+
+  it("keeps explicit labels for exact-name creature variants resolved from raw blurbs", () => {
+    const entries = [
+      createEntry({
+        recordKey: "creature:bulette-base",
+        name: "Bulette",
+        category: "creature",
+        subcategory: null,
+        packName: "pathfinder-bestiary",
+        packLabel: "Bestiary 1",
+        sourcePath: "vendor/pf2e/packs/pf2e/pathfinder-bestiary/bulette.json",
+        descriptionText: "A burrowing landshark.",
+        traits: ["animal", "beast"],
+      }),
+      createEntry({
+        recordKey: "creature:bulette-variant",
+        name: "Bulette",
+        category: "creature",
+        subcategory: null,
+        packName: "blood-lords-bestiary",
+        packLabel: "Blood Lords",
+        sourcePath: "vendor/pf2e/packs/pf2e/blood-lords-bestiary/bulette.json",
+        descriptionText: "A variant bulette from an adventure bestiary.",
+        rawBlurb: "Variant Bulette",
+        traits: ["animal", "beast"],
+      }),
+    ];
+
+    assignVariantFamilies(entries);
+
+    expect(entries[0].record.variantFamilyKey).toBe(entries[1].record.variantFamilyKey);
+    expect(entries[0].record.variantBaseName).toBe("Bulette");
+    expect(entries[0].record.variantLabel).toBeNull();
+    expect(entries[1].record.variantLabel).toBe("Variant");
+    expect(entries[1].record.variantSource).toBe("composite");
+  });
+
+  it("prefers explicit raw-blurb subtype links over weaker parenthetical creature title grouping", () => {
+    const entries = [
+      createEntry({
+        recordKey: "creature:hill-giant",
+        name: "Hill Giant",
+        category: "creature",
+        subcategory: null,
+        packName: "pathfinder-bestiary",
+        packLabel: "Bestiary 1",
+        sourcePath: "vendor/pf2e/packs/pf2e/pathfinder-bestiary/hill-giant.json",
+        descriptionText: "A brutish giant that lairs in hills and mountains.",
+        traits: ["giant"],
+      }),
+      createEntry({
+        recordKey: "creature:tiger-lord-hill-giant",
+        name: "Tiger Lord Hill Giant (TL2)",
+        category: "creature",
+        subcategory: null,
+        packName: "kingmaker-bestiary",
+        packLabel: "Kingmaker",
+        sourcePath: "vendor/pf2e/packs/pf2e/kingmaker-bestiary/tiger-lord-hill-giant-tl2.json",
+        descriptionText: "A tiger lord hill giant with a title-based suffix.",
+        rawBlurb: "Variant hill giant",
+        traits: ["giant"],
+      }),
+    ];
+
+    assignVariantFamilies(entries);
+
+    expect(entries[1].record.variantFamilyKey).toBe(entries[0].record.variantFamilyKey);
+    expect(entries[1].record.variantBaseName).toBe("Hill Giant");
+    expect(entries[1].record.variantLabel).toBe("Tiger Lord Hill Giant (TL2)");
+  });
+
+  it("singularizes plural creature blurbs before resolving the base family", () => {
+    const entries = [
+      createEntry({
+        recordKey: "creature:frost-drake",
+        name: "Frost Drake",
+        category: "creature",
+        subcategory: null,
+        packName: "pathfinder-bestiary-2",
+        packLabel: "Bestiary 2",
+        sourcePath: "vendor/pf2e/packs/pf2e/pathfinder-bestiary-2/frost-drake.json",
+        descriptionText: "A drake adapted to icy climates.",
+        traits: ["dragon"],
+      }),
+      createEntry({
+        recordKey: "creature:drake-courser",
+        name: "Drake Courser",
+        category: "creature",
+        subcategory: null,
+        packName: "fists-of-the-ruby-phoenix-bestiary",
+        packLabel: "Fists of the Ruby Phoenix",
+        sourcePath: "vendor/pf2e/packs/pf2e/fists-of-the-ruby-phoenix-bestiary/drake-courser.json",
+        descriptionText: "A fast drake used as a mount.",
+        rawBlurb: "Variant frost drakes",
+        traits: ["dragon"],
+      }),
+    ];
+
+    assignVariantFamilies(entries);
+
+    expect(entries[1].record.variantFamilyKey).toBe(entries[0].record.variantFamilyKey);
+    expect(entries[1].record.variantBaseName).toBe("Frost Drake");
+    expect(entries[1].record.variantLabel).toBe("Drake Courser");
+  });
+
+  it("singularizes plural elite creature blurbs before resolving the base family", () => {
+    const entries = [
+      createEntry({
+        recordKey: "creature:vampire-count",
+        name: "Vampire Count",
+        category: "creature",
+        subcategory: null,
+        packName: "pathfinder-monster-core-2",
+        packLabel: "Monster Core 2",
+        sourcePath: "vendor/pf2e/packs/pf2e/pathfinder-monster-core-2/vampire-count.json",
+        descriptionText: "An aristocratic vampire with potent occult power.",
+        traits: ["undead"],
+      }),
+      createEntry({
+        recordKey: "creature:xarbaene",
+        name: "Xarbaene",
+        category: "creature",
+        subcategory: null,
+        packName: "shades-of-blood-bestiary",
+        packLabel: "Shades of Blood",
+        sourcePath: "vendor/pf2e/packs/pf2e/shades-of-blood-bestiary/xarbaene.json",
+        descriptionText: "A named vampire noble.",
+        rawBlurb: "Elite vampire counts",
+        traits: ["undead"],
+      }),
+    ];
+
+    assignVariantFamilies(entries);
+
+    expect(entries[1].record.variantFamilyKey).toBe(entries[0].record.variantFamilyKey);
+    expect(entries[1].record.variantBaseName).toBe("Vampire Count");
+    expect(entries[1].record.variantLabel).toBe("Xarbaene");
+  });
 });
