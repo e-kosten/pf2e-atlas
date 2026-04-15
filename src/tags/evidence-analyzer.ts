@@ -376,6 +376,11 @@ function rankFamilyGapTerms(
       const gapLift = coveredRate > 0 ? uncoveredRate / coveredRate : uncoveredRate;
       const baselineLift = baselineRate > 0 ? uncoveredRate / baselineRate : uncoveredRate;
       const classification = classifyFamilyGapFeature(family, kind, value);
+      const qualityMultiplier = Math.max(
+        0.3,
+        (classification.cueLocality - (classification.cueAmbiguityPenalty * 0.55)) *
+        (1 - (classification.boilerplateRisk * 0.4)),
+      );
       const score =
         uncovered.support *
         Math.max(1, gapLift) *
@@ -383,7 +388,8 @@ function rankFamilyGapTerms(
         evidenceKindWeight(kind) *
         evidenceSupportMultiplier(kind, uncovered.support, uncoveredSize) *
         evidenceConcentrationMultiplier(kind, uncovered.support, uncoveredSize) *
-        classification.familyConceptWeight;
+        classification.familyConceptWeight *
+        qualityMultiplier;
 
       return {
         kind,

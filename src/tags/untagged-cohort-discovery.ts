@@ -117,6 +117,10 @@ type RankedFeature = UntaggedCohortAnchor & {
   kind: DiscoveryFeatureKind;
   bucket?: FamilyGapFeatureBucket;
   existingTagOverlaps?: string[];
+  cueStrength?: "strong" | "weak" | "novel" | "none";
+  cueLocality?: number;
+  cueAmbiguityPenalty?: number;
+  boilerplateRisk?: number;
 };
 
 type RecordNode = {
@@ -343,6 +347,9 @@ function deriveReviewFlags(
   const traitOnly = anchors.length > 0 && anchors.every((anchor) => anchor.kind === "trait");
   const dominantNameSupport = nameAnchors[0]?.support ?? 0;
   const nameSeriesSupportFloor = Math.max(2, Math.ceil(distinctVariantFamilies * 0.6));
+  const overlapShare = dominantOverlapShare(anchors);
+  const locality = averageAnchorLocality(anchors);
+  const boilerplateRisk = averageBoilerplateRisk(anchors);
 
   if (anchors.length === 0) {
     flags.push("semantic-only");
@@ -364,8 +371,56 @@ function deriveReviewFlags(
   if (nonNameAnchors.length === 0 && anchors.length > 0) {
     flags.push("name-anchored");
   }
+  if (anchors.length > 0 && locality < 0.72) {
+    flags.push("weak-locality");
+  }
+  if (hasMixedSettingCueSignal(anchors, overlapShare)) {
+    flags.push("mixed-setting-cues");
+  }
+  if (boilerplateRisk >= 0.3 || (sourceSummary.dominantSourceShare >= 0.75 && boilerplateRisk >= 0.2)) {
+    flags.push("boilerplate-heavy");
+  }
 
   return uniqueSorted(flags);
+}
+
+function averageAnchorLocality(anchors: RankedFeature[]): number {
+  if (anchors.length === 0) {
+    return 0;
+  }
+  return anchors.reduce((total, anchor) => total + (anchor.cueLocality ?? 0.35), 0) / anchors.length;
+}
+
+function averageBoilerplateRisk(anchors: RankedFeature[]): number {
+  if (anchors.length === 0) {
+    return 0;
+  }
+  return anchors.reduce((total, anchor) => total + (anchor.boilerplateRisk ?? 0), 0) / anchors.length;
+}
+
+function dominantOverlapShare(anchors: RankedFeature[]): number {
+  const counts = new Map<string, number>();
+  for (const anchor of anchors) {
+    for (const overlap of anchor.existingTagOverlaps ?? []) {
+      counts.set(overlap, (counts.get(overlap) ?? 0) + 1);
+    }
+  }
+
+  if (counts.size <= 1) {
+    return 1;
+  }
+
+  const total = [...counts.values()].reduce((sum, count) => sum + count, 0);
+  const dominant = Math.max(...counts.values());
+  return total > 0 ? dominant / total : 1;
+}
+
+function hasMixedSettingCueSignal(anchors: RankedFeature[], overlapShare: number): boolean {
+  const overlappingTags = uniqueSorted(anchors.flatMap((anchor) => anchor.existingTagOverlaps ?? []));
+  if (overlappingTags.length >= 3) {
+    return true;
+  }
+  return overlappingTags.length === 2 && overlapShare < 0.67;
 }
 
 function collectRecordFeatures(
@@ -666,6 +721,11 @@ function rankClusterAnchors(
     if (options.familyGapSignals && (classification.bucket !== "possible_place_anchor" || isNameFeatureKind(feature.kind))) {
       continue;
     }
+    const qualityMultiplier = Math.max(
+      0.3,
+      (classification.cueLocality - (classification.cueAmbiguityPenalty * 0.55)) *
+      (1 - (classification.boilerplateRisk * 0.4)),
+    );
     rankedEntries.push({
       key,
       kind: feature.kind,
@@ -673,9 +733,13 @@ function rankClusterAnchors(
       support,
       baselineSupport: baselineCount,
       lift,
-      score: support * Math.max(1, lift) * featureSpecificityWeight(feature.kind, feature.display) * classification.familyConceptWeight,
+      score: support * Math.max(1, lift) * featureSpecificityWeight(feature.kind, feature.display) * classification.familyConceptWeight * qualityMultiplier,
       bucket: classification.bucket,
       existingTagOverlaps: classification.existingTagOverlaps,
+      cueStrength: classification.cueStrength,
+      cueLocality: classification.cueLocality,
+      cueAmbiguityPenalty: classification.cueAmbiguityPenalty,
+      boilerplateRisk: classification.boilerplateRisk,
     });
   }
 
@@ -732,6 +796,15 @@ function recommendClusterForAnchors(
     }
     return "reject";
   }
+  if (reviewFlags.includes("mixed-setting-cues") || reviewFlags.includes("weak-locality")) {
+    if (score >= 0.6 && nonNameAnchors.length >= 2 && !reviewFlags.includes("source-heavy")) {
+      return "hybrid";
+    }
+    if (score >= 0.3) {
+      return "manual-only";
+    }
+    return "reject";
+  }
   if (lexicalOnly && sharedTraits.length === 0) {
     if (score >= 0.3) {
       return "manual-only";
@@ -742,7 +815,13 @@ function recommendClusterForAnchors(
     return "hybrid";
   }
 
-  if (score >= 0.72 && nonNameAnchors.length >= 1 && !reviewFlags.includes("source-local") && !reviewFlags.includes("source-heavy")) {
+  if (
+    score >= 0.72 &&
+    nonNameAnchors.length >= 2 &&
+    !reviewFlags.includes("source-local") &&
+    !reviewFlags.includes("source-heavy") &&
+    !reviewFlags.includes("boilerplate-heavy")
+  ) {
     return "rule-led";
   }
   if (score >= 0.5) {
@@ -805,6 +884,9 @@ function buildCandidateCohorts(
       const signatureKeys = clusterAnchors.map((anchor) => anchor.key);
       const signatureDisplay = clusterAnchors.map((anchor) => anchor.value);
       const signatureKeySet = new Set(signatureKeys);
+      const localityFactor = averageAnchorLocality(clusterAnchors);
+      const overlapShare = dominantOverlapShare(clusterAnchors);
+      const boilerplateRisk = averageBoilerplateRisk(clusterAnchors);
       const contrastRecords = selectDistinctContrastRecords(nonMembers
         .map((record) => {
           const similarity = cosineSimilarity(record.vector, centroid);
@@ -829,6 +911,8 @@ function buildCandidateCohorts(
       const liftFactor = clusterAnchors.length > 0
         ? Math.max(0, Math.min(1, (clusterAnchors[0]!.lift ?? 0) / 6))
         : 0;
+      const localityBonus = clusterAnchors.length > 0 ? localityFactor * 0.12 : 0;
+      const overlapCoherenceBonus = clusterAnchors.length > 0 ? overlapShare * 0.08 : 0;
       const lexicalOnlyPenalty = clusterAnchors.length > 0 && clusterAnchors.every((anchor) => isLexicalFeatureKind(anchor.kind)) && sharedTraits.length === 0
         ? 0.18
         : 0;
@@ -847,6 +931,11 @@ function buildCandidateCohorts(
         : reviewFlags.includes("source-heavy")
           ? 0.08
           : 0;
+      const weakLocalityPenalty = reviewFlags.includes("weak-locality") ? 0.12 : 0;
+      const mixedCuePenalty = reviewFlags.includes("mixed-setting-cues") ? 0.14 : 0;
+      const boilerplatePenalty = reviewFlags.includes("boilerplate-heavy")
+        ? 0.08
+        : boilerplateRisk * 0.08;
       const score = Math.max(
         0,
         Math.min(
@@ -855,13 +944,18 @@ function buildCandidateCohorts(
           (familyDiversity * 0.25) +
           (similarityFactor * 0.2) +
           (density * 0.2) +
-          (liftFactor * 0.1) -
+          (liftFactor * 0.1) +
+          localityBonus +
+          overlapCoherenceBonus -
           lexicalOnlyPenalty -
           noAnchorPenalty -
           nameOnlyPenalty -
           traitOnlyPenalty -
           nameSeriesPenalty -
-          sourcePenalty,
+          sourcePenalty -
+          weakLocalityPenalty -
+          mixedCuePenalty -
+          boilerplatePenalty,
         ),
       );
       const overlappingTags = uniqueSorted(clusterAnchors.flatMap((anchor) => anchor.existingTagOverlaps ?? []));

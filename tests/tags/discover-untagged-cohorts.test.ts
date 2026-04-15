@@ -449,6 +449,15 @@ describe("discover untagged cohorts", () => {
         tags: ["temple_setting"],
       });
       insertRecord(db, {
+        recordKey: "creature:covered-shadow",
+        name: "Shadow Courier",
+        category: "creature",
+        traits: ["undead"],
+        descriptionText: "A courier who crosses the shadow plane at will.",
+        vector: [0.92, 0.08, 0],
+        tags: ["shadow_plane_setting"],
+      });
+      insertRecord(db, {
         recordKey: "creature:shadow-scout",
         name: "Shadow Scout",
         category: "creature",
@@ -488,6 +497,22 @@ describe("discover untagged cohorts", () => {
         descriptionText: "This dragon prowls jungle paths through thick forest canopy.",
         vector: [0.03, 0.02, 0.95],
       });
+      insertRecord(db, {
+        recordKey: "creature:erebus-scout",
+        name: "Erebus Scout",
+        category: "creature",
+        traits: ["spirit"],
+        descriptionText: "A scout slips through erebus in search of unquiet souls.",
+        vector: [0.01, 0.94, 0.05],
+      });
+      insertRecord(db, {
+        recordKey: "creature:erebus-stalker",
+        name: "Erebus Stalker",
+        category: "creature",
+        traits: ["spirit"],
+        descriptionText: "A stalker from erebus drifts behind the dead and forgotten.",
+        vector: [0.02, 0.93, 0.05],
+      });
 
       const report = discoverUntaggedCohorts(db, {
         category: "creature",
@@ -501,10 +526,114 @@ describe("discover untagged cohorts", () => {
 
       expect(report.anchorTerms.map((anchor) => anchor.value)).not.toContain("dragon");
       expect(report.cohorts.some((cohort) =>
-        cohort.classification === "new_concept_candidate")).toBe(true);
+        cohort.classification === "new_concept_candidate" &&
+        cohort.signature.includes("erebus"))).toBe(true);
+      expect(report.cohorts.some((cohort) =>
+        cohort.classification === "existing_tag_coverage_gap" &&
+        cohort.overlappingTags?.includes("shadow_plane_setting"))).toBe(true);
       expect(report.cohorts.some((cohort) =>
         cohort.classification === "existing_tag_coverage_gap" &&
         cohort.overlappingTags?.includes("forest_setting"))).toBe(true);
+    } finally {
+      db.close();
+    }
+  });
+
+  it("keeps source-local dragon variant ladders out of the top setting cohorts", () => {
+    const db = createDiscoveryDb();
+    try {
+      insertRecord(db, {
+        recordKey: "fortress-core:covered-warden",
+        name: "Fortress Warden",
+        category: "creature",
+        traits: ["humanoid"],
+        descriptionText: "A warden posted inside an old fortress keep.",
+        vector: [1, 0, 0],
+        tags: ["fortress_setting"],
+      });
+      insertRecord(db, {
+        recordKey: "fortress-a:watchtower-shadow",
+        name: "Watchtower Shadow",
+        category: "creature",
+        traits: ["undead"],
+        descriptionText: "A shadow lurks in an abandoned fortress keep and its ruined watchtower.",
+        vector: [0.99, 0.01, 0],
+      });
+      insertRecord(db, {
+        recordKey: "fortress-b:castle-sentry",
+        name: "Castle Sentry",
+        category: "creature",
+        traits: ["construct"],
+        descriptionText: "A sentry patrols a derelict fortress keep and its crumbling castle battlements.",
+        vector: [0.97, 0.03, 0],
+      });
+      insertRecord(db, {
+        recordKey: "fortress-c:bastion-ghost",
+        name: "Bastion Ghost",
+        category: "creature",
+        traits: ["undead"],
+        descriptionText: "A ghost haunts a forgotten fortress keep above the old bastion gate.",
+        vector: [0.96, 0.04, 0],
+      });
+      insertRecord(db, {
+        recordKey: "fortress-d:keep-predator",
+        name: "Keep Predator",
+        category: "creature",
+        traits: ["beast"],
+        descriptionText: "This predator nests among a fortress keep and broken watchtower ramparts.",
+        vector: [0.95, 0.05, 0],
+      });
+      insertRecord(db, {
+        recordKey: "storm-pack:storm-dragon-young",
+        name: "Storm Dragon (Young)",
+        category: "creature",
+        traits: ["dragon"],
+        variantFamilyKey: "creature:family:storm-dragon",
+        variantBaseName: "Storm Dragon",
+        variantLabel: "Young",
+        variantAxes: ["age"],
+        descriptionText: "This dragon circles the sky above black clouds and violent winds.",
+        vector: [0, 1, 0],
+      });
+      insertRecord(db, {
+        recordKey: "storm-pack:storm-dragon-adult",
+        name: "Storm Dragon (Adult)",
+        category: "creature",
+        traits: ["dragon"],
+        variantFamilyKey: "creature:family:storm-dragon",
+        variantBaseName: "Storm Dragon",
+        variantLabel: "Adult",
+        variantAxes: ["age"],
+        descriptionText: "This dragon circles the sky above black clouds and violent winds.",
+        vector: [0.01, 0.99, 0],
+      });
+      insertRecord(db, {
+        recordKey: "storm-pack:storm-dragon-ancient",
+        name: "Storm Dragon (Ancient)",
+        category: "creature",
+        traits: ["dragon"],
+        variantFamilyKey: "creature:family:storm-dragon",
+        variantBaseName: "Storm Dragon",
+        variantLabel: "Ancient",
+        variantAxes: ["age"],
+        descriptionText: "This dragon circles the sky above black clouds and violent winds.",
+        vector: [0.02, 0.98, 0],
+      });
+
+      const report = discoverUntaggedCohorts(db, {
+        category: "creature",
+        family: "setting",
+        familyGapSignals: true,
+        cohortLimit: 6,
+        anchorLimit: 10,
+        minFeatureSupport: 2,
+        minFeatureLift: 1.05,
+      });
+
+      expect(report.cohorts[0]?.overlappingTags ?? []).toContain("fortress_setting");
+      expect(report.cohorts[0]?.recommendation).not.toBe("reject");
+      expect(report.cohorts.some((cohort) =>
+        cohort.representativeRecords.some((record) => record.name.includes("Storm Dragon")))).toBe(false);
     } finally {
       db.close();
     }

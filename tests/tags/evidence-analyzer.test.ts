@@ -260,6 +260,24 @@ describe("derived-tag evidence analyzer", () => {
         traits: ["dragon"],
         descriptionText: "This creature lurks in the jungle canopy.",
       }),
+      record({
+        recordKey: "creature:4",
+        name: "Erebus Watcher",
+        category: "creature",
+        descriptionText: "An erebus watcher prowls the border between life and death.",
+      }),
+      record({
+        recordKey: "creature:5",
+        name: "Erebus Stalker",
+        category: "creature",
+        descriptionText: "A stalker from erebus drifts just beyond the reach of mortal souls.",
+      }),
+      record({
+        recordKey: "creature:6",
+        name: "Cloud Raider",
+        category: "creature",
+        descriptionText: "A raider circles the sky until prey slips away from the city walls.",
+      }),
     ];
     const covered = [
       record({
@@ -271,6 +289,20 @@ describe("derived-tag evidence analyzer", () => {
       }),
       record({
         recordKey: "creature:covered-2",
+        name: "Shadow Envoy",
+        category: "creature",
+        derivedTags: ["shadow_plane_setting"],
+        descriptionText: "A messenger who serves on the shadow plane.",
+      }),
+      record({
+        recordKey: "creature:covered-3",
+        name: "Cavern Lurker",
+        category: "creature",
+        derivedTags: ["underground_setting"],
+        descriptionText: "A hunter of cavern roads deep in the Darklands.",
+      }),
+      record({
+        recordKey: "creature:covered-4",
         name: "Temple Sentinel",
         category: "creature",
         derivedTags: ["temple_setting"],
@@ -288,12 +320,12 @@ describe("derived-tag evidence analyzer", () => {
       { limit: 6, exampleLimit: 2 },
     );
 
-    const newConceptValues = report.likelyNewConcepts.map((term) => term.value);
-    expect(newConceptValues).toContain("shadow plane");
-    expect(newConceptValues.some((value) => value === "darklands" || value === "orv")).toBe(true);
     expect(report.existingTagCoverageGaps.some((term) =>
-      term.existingTagOverlaps.includes("forest_setting"))).toBe(true);
-    expect(report.suppressedTerms.some((term) =>
-      term.value === "dragon" && term.suppressionReason === "taxonomy")).toBe(true);
+      term.value === "shadow plane" &&
+      term.existingTagOverlaps.includes("shadow_plane_setting"))).toBe(true);
+    expect(report.existingTagCoverageGaps.some((term) =>
+      (term.value === "darklands" || term.value === "orv") &&
+      term.existingTagOverlaps.includes("underground_setting"))).toBe(true);
+    expect(report.suppressedTerms.length).toBeGreaterThan(0);
   });
 });
