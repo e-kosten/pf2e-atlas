@@ -571,7 +571,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     expect(service.listFilterValues({
       field: "size",
       category: "creature",
-    }).values.map((entry) => entry.value)).toEqual(["med", "lg", "sm", "huge"]);
+    }).values.map((entry) => entry.value)).toEqual(["med", "lg", "sm", "huge", "tiny"]);
 
     expect(service.listFilterValues({
       field: "sources",

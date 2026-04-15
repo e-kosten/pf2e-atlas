@@ -943,6 +943,246 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
     },
   });
 
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "monadic-deva.json"), {
+    _id: "monadic-deva",
+    name: "Monadic Deva",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 12,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>Monadic devas are angels who guide pilgrims, guard sacred roads, and watch for threats against mortal souls.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["angel", "celestial", "holy"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "kadamel.json"), {
+    _id: "kadamel",
+    name: "Kadamel",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 17,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>Kadamels are archon guardians who hold patient vigil over sacred pathways and inviolable sanctums.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["archon", "celestial", "holy"],
+        size: {
+          value: "lg",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "draconal.json"), {
+    _id: "draconal",
+    name: "Draconal",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 19,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>Draconals are agathions who defend travelers and teach through patient acts of mercy.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["agathion", "celestial", "holy"],
+        size: {
+          value: "huge",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "bralani.json"), {
+    _id: "bralani",
+    name: "Bralani",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 6,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>Bralanis are azatas who revel in swift travel, uprising, and the liberation of the oppressed.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["azata", "celestial", "chaotic", "holy"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "bythos.json"), {
+    _id: "bythos",
+    name: "Bythos",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 16,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>Bythoses are aeon guardians who police distortions in space, time, and planar order.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["aeon", "lawful", "monitor"],
+        size: {
+          value: "lg",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "hegessik.json"), {
+    _id: "hegessik",
+    name: "Hegessik",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 15,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>Hegessiks are protean saboteurs that unravel hierarchies, fortifications, and rigid plans.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["chaotic", "monitor", "protean"],
+        size: {
+          value: "lg",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "haunted-nosoi.json"), {
+    _id: "haunted-nosoi",
+    name: "Haunted Nosoi",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 2,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>Haunted nosois are damaged psychopomp messengers burdened by necromantic interference.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["monitor", "psychopomp", "undead"],
+        size: {
+          value: "tiny",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "agradaemon.json"), {
+    _id: "agradaemon",
+    name: "Agradaemon",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 7,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>Agradaemons spread sickness and revel in carrying death from one battlefield to the next.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["daemon", "evil", "fiend", "unholy"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "ferrugon.json"), {
+    _id: "ferrugon",
+    name: "Ferrugon",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 16,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>Ferrugons are relentless devils who excel at siege warfare, discipline, and infernal command.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["devil", "evil", "fiend", "lawful", "unholy"],
+        size: {
+          value: "lg",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "babau.json"), {
+    _id: "babau",
+    name: "Babau",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 6,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>Babaus are skulking demons that delight in stalking prey and inflicting lingering terror.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["chaotic", "demon", "evil", "fiend", "unholy"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "pathfinder-monster-core", "shrine-caretaker.json"), {
     _id: "shrine-caretaker",
     name: "Shrine Caretaker",

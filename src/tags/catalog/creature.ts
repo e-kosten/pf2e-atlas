@@ -22,7 +22,11 @@ export const CREATURE_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
       },
       { value: "hell_setting", description: "Strongly associated with Hell, devil hosts, or infernal hierarchy." },
       { value: "abyss_setting", description: "Strongly associated with the Abyss, demon realms, or qlippoth-infested outer rifts." },
-      { value: "abaddon_setting", description: "Strongly associated with Abaddon, daemons, or soul-devouring lower-planar wastelands." },
+      {
+        value: "abaddon_setting",
+        description: "Strongly associated with Abaddon, daemons, or soul-devouring lower-planar wastelands.",
+        nativeOntologyPolicy: "aggregates_native_signals",
+      },
       {
         value: "fiendish_setting",
         description: "Strongly associated with Hell, the Abyss, or Abaddon as practical lower-planar fiend settings.",

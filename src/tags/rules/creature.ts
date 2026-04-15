@@ -981,6 +981,13 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "boneyard_setting",
     category: "creature",
+    anyOf: [
+      { traitsAny: ["psychopomp"] },
+    ],
+  },
+  {
+    tag: "boneyard_setting",
+    category: "creature",
     allOf: [
       { textAny: BONEYARD_SETTING_TEXT_ANCHORS },
     ],
@@ -988,6 +995,13 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     anyOf: [
       { score: 1, traitsAny: ["psychopomp"] },
       { score: 1, textAny: BONEYARD_SETTING_CONTEXT_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "heaven_setting",
+    category: "creature",
+    anyOf: [
+      { traitsAny: ["archon"] },
     ],
   },
   {
@@ -1002,6 +1016,13 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "nirvana_setting",
     category: "creature",
+    anyOf: [
+      { traitsAny: ["agathion"] },
+    ],
+  },
+  {
+    tag: "nirvana_setting",
+    category: "creature",
     threshold: 2,
     anyOf: [
       { score: 2, textAny: NIRVANA_SETTING_TEXT_ANCHORS },
@@ -1011,10 +1032,24 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "elysium_setting",
     category: "creature",
+    anyOf: [
+      { traitsAny: ["azata"] },
+    ],
+  },
+  {
+    tag: "elysium_setting",
+    category: "creature",
     threshold: 2,
     anyOf: [
       { score: 2, textAny: ELYSIUM_SETTING_TEXT_ANCHORS },
       { score: 1, traitsAny: ["azata"] },
+    ],
+  },
+  {
+    tag: "celestial_setting",
+    category: "creature",
+    anyOf: [
+      { traitsAny: ["angel"] },
     ],
   },
   {
@@ -1059,10 +1094,24 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "abaddon_setting",
     category: "creature",
+    anyOf: [
+      { traitsAny: ["daemon"] },
+    ],
+  },
+  {
+    tag: "abaddon_setting",
+    category: "creature",
     threshold: 3,
     anyOf: [
       { score: 2, textAny: ABADDON_SETTING_TEXT_ANCHORS },
       { score: 1, traitsAny: ["daemon", "fiend"] },
+    ],
+  },
+  {
+    tag: "fiendish_setting",
+    category: "creature",
+    anyOf: [
+      { traitsAny: ["devil", "demon", "daemon", "qlippoth"] },
     ],
   },
   {
@@ -1083,6 +1132,13 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "axis_setting",
     category: "creature",
+    anyOf: [
+      { traitsAny: ["aeon", "inevitable"] },
+    ],
+  },
+  {
+    tag: "axis_setting",
+    category: "creature",
     threshold: 2,
     anyOf: [
       { score: 2, textAny: AXIS_SETTING_TEXT_ANCHORS },
@@ -1095,6 +1151,13 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     anyOf: [
       { score: 2, textAny: SHADOW_PLANE_SETTING_TEXT_ANCHORS },
       { score: 1, traitsAny: ["shadow", "velstrac"] },
+    ],
+  },
+  {
+    tag: "maelstrom_setting",
+    category: "creature",
+    anyOf: [
+      { traitsAny: ["protean"] },
     ],
   },
   {
