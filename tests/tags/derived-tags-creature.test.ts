@@ -632,6 +632,112 @@ describe("derived tag rules: creature", () => {
     })).toEqual(expect.arrayContaining(["forest_setting", "jungle_setting"]));
   });
 
+  it("expands explicit creature setting cohorts conservatively", () => {
+    expect(deriveRecordTags({
+      name: "Sky Dragon (Adult, Spellcaster)",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "These dragons flew from mountaintop to mountaintop, seeking refuge from the then-perilous Tian Xia. Finally, upon the mountain peaks of Chenlun, Gossamer, Kelsang, Kimu, Kullan, Kyojin, and the Wall of Heaven, celestial beings answered the dragons' cries for help.",
+      traits: ["divine", "dragon", "electricity", "metal"],
+    })).toEqual(expect.arrayContaining(["sky_setting", "mountain_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Stormcrown Dragon (Adult, Spellcaster)",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Driven by emotion and curiosity, these mercurial dragons can change from friend to foe or threatening to thoughtful in mere moments.",
+      traits: ["dragon", "electricity", "primal"],
+    })).toContain("sky_setting");
+
+    expect(deriveRecordTags({
+      name: "White Dragon (Adult)",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Dwelling on glacial mountaintops or in ice caverns beneath forbidding tundra, they treat the lands around them as their own personal hunting grounds.",
+      traits: ["chaotic", "cold", "dragon", "evil"],
+    })).toContain("mountain_setting");
+
+    expect(deriveRecordTags({
+      name: "Venexus",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Female young white dragon",
+      traits: ["chaotic", "cold", "dragon", "evil"],
+    })).toContain("mountain_setting");
+
+    expect(deriveRecordTags({
+      name: "Venexus's Wyrmling",
+      category: "creature",
+      subcategory: null,
+      descriptionText: null,
+      traits: ["chaotic", "cold", "dragon", "evil"],
+    })).toContain("mountain_setting");
+
+    expect(deriveRecordTags({
+      name: "Venexus's Chosen",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Dragonkin monks",
+      traits: ["beast", "beastkin", "evil", "humanoid", "lawful"],
+    })).toContain("mountain_setting");
+
+    expect(deriveRecordTags({
+      name: "Umbral Dragon (Adult, Spellcaster)",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Stories across Golarion warn children about the monsters that dwell in the shadows, but no story captures the reality of the umbral dragon.",
+      traits: ["dragon", "occult", "shadow"],
+    })).toContain("shadow_plane_setting");
+
+    expect(deriveRecordTags({
+      name: "Umbral Archdragon (Spellcaster)",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Natives of the Netherworld, these occult dragons are at home in the darkness, using it to their advantage both in and out of battle.",
+      traits: ["dragon", "occult", "shadow"],
+    })).toContain("shadow_plane_setting");
+
+    expect(deriveRecordTags({
+      name: "Fetchling Scout",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Fetchling scouts patrol the outskirts of their communities, looking for any possible threats.",
+      traits: ["fetchling", "humanoid", "shadow"],
+    })).toContain("shadow_plane_setting");
+
+    expect(deriveRecordTags({
+      name: "Caligni Dancer",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Caligni dancers serve as intermediaries between caligni factions, carrying messages and negotiating deals between the notoriously independent groups.",
+      traits: ["caligni", "humanoid"],
+    })).toContain("shadow_plane_setting");
+
+    expect(deriveRecordTags({
+      name: "D'ziriak",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "These strange creatures are native to the Netherworld, where their colorful nature is in opposition to that realm's overwhelmingly monochromatic palette.",
+      traits: ["aberration", "shadow"],
+    })).toContain("shadow_plane_setting");
+
+    expect(deriveRecordTags({
+      name: "Wailing Dragon (Adult, Spellcaster)",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Wailing dragons haunt locations that create interesting or useful echoes, such as canyons or caverns.",
+      traits: ["arcane", "dragon"],
+    })).toEqual(expect.arrayContaining(["canyon_setting", "underground_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Azarketi Sailor",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Such sailors get to enjoy their time above deck while also having near-constant access to large bodies of water.",
+      traits: ["amphibious", "azarketi", "chaotic", "humanoid"],
+    })).toContain("aquatic_setting");
+  });
+
   it("uses glossary family evidence and blocks redundant civic npc tags", () => {
     expect(deriveRecordTags({
       name: "Morlock Thrall",

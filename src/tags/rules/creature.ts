@@ -444,6 +444,10 @@ const SKY_SETTING_TEXT_NEAR = [
   },
 ];
 
+const SKY_SETTING_NAME_ANCHORS = [
+  patternAnchor("{{alt(sky,stormcrown)}} {{alt(dragon,archdragon)}}", "name"),
+];
+
 const DESERT_SETTING_NAME_ANCHORS = [
   patternAnchor("desert", "name"),
   patternAnchor("dune", "name"),
@@ -501,6 +505,7 @@ const RURAL_SETTING_TEXT_ANCHORS = [
   patternAnchor("pasture"),
   patternAnchor("pastures"),
   patternAnchor("countryside"),
+  patternAnchor("rural areas"),
   patternAnchor("outlying settlement"),
 ];
 
@@ -680,6 +685,10 @@ const FOREST_SETTING_EXACT_TEXT_ANCHORS = [
   patternAnchor("within prehistoric forests"),
 ];
 
+const CANYON_OR_CAVERNS_TEXT_ANCHORS = [
+  patternAnchor("canyons or caverns", "description"),
+];
+
 const URBAN_SETTING_EXACT_TEXT_ANCHORS = [
   patternAnchor("upper echelons of society"),
 ];
@@ -698,6 +707,12 @@ const URBAN_SETTING_GOVERNANCE_TEXT_ANCHORS = [
   patternAnchor("in rough akitonian cities like seldo"),
 ];
 
+const SHADOW_PLANE_SETTING_NAME_ANCHORS = [
+  patternAnchor("umbral dragon", "name"),
+  patternAnchor("umbral archdragon", "name"),
+  patternAnchor("d ziriak", "name"),
+];
+
 const VOLCANIC_SETTING_EXACT_TEXT_ANCHORS = [
   patternAnchor("volcanoes being a favorite spot"),
   patternAnchor("die to form volcanoes"),
@@ -705,6 +720,17 @@ const VOLCANIC_SETTING_EXACT_TEXT_ANCHORS = [
   patternAnchor("volcanic glass"),
   patternAnchor("roiling lava"),
   patternAnchor("volcanic homes"),
+];
+
+const MOUNTAIN_SETTING_NAME_ANCHORS = [
+  patternAnchor("venexus", "name"),
+  patternAnchor("venexus s wyrmling", "name"),
+  patternAnchor("venexus s chosen", "name"),
+];
+
+const MOUNTAIN_SETTING_TEXT_ANCHORS = [
+  patternAnchor("glacial mountaintops", "description"),
+  patternAnchor("mountain peaks", "description"),
 ];
 
 const CIVIC_SUPPORT_TEXT_ANCHORS = [
@@ -1092,6 +1118,13 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "aquatic_setting",
     category: "creature",
+    anyOf: [
+      { traitsAny: ["azarketi"] },
+    ],
+  },
+  {
+    tag: "aquatic_setting",
+    category: "creature",
     threshold: 2,
     noneOf: [
       { textAny: [patternAnchor("inner sea")] },
@@ -1417,8 +1450,16 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "shadow_plane_setting",
     category: "creature",
+    anyOf: [
+      { traitsAny: ["caligni", "fetchling"] },
+    ],
+  },
+  {
+    tag: "shadow_plane_setting",
+    category: "creature",
     threshold: 2,
     anyOf: [
+      { score: 2, textAny: SHADOW_PLANE_SETTING_NAME_ANCHORS },
       { score: 2, textAny: SHADOW_PLANE_SETTING_TEXT_ANCHORS },
       { score: 1, traitsAny: ["shadow", "velstrac"] },
     ],
@@ -1556,6 +1597,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "creature",
     threshold: 2,
     anyOf: [
+      { score: 2, textAny: CANYON_OR_CAVERNS_TEXT_ANCHORS },
       {
         score: 2,
         textNear: createCreatureSettingTextNear(
@@ -1594,6 +1636,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "creature",
     threshold: 2,
     anyOf: [
+      { score: 2, textAny: CANYON_OR_CAVERNS_TEXT_ANCHORS },
       {
         score: 2,
         textNear: createCreatureSettingTextNear(
@@ -1741,6 +1784,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "creature",
     threshold: 2,
     anyOf: [
+      { score: 2, textAny: MOUNTAIN_SETTING_NAME_ANCHORS },
       {
         score: 2,
         textNear: createCreatureSettingTextNear(
@@ -1748,7 +1792,17 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
           CREATURE_TERRAIN_HABITAT_CONTEXT_TEXT_ANCHOR,
         ),
       },
-      { score: 2, textAny: [patternAnchor("misty peaks", "description"), patternAnchor("mountain pass", "description"), patternAnchor("mountain passes", "description"), patternAnchor("mountain dwellers", "description"), patternAnchor("mountain dweller", "description")] },
+      {
+        score: 2,
+        textAny: [
+          patternAnchor("misty peaks", "description"),
+          patternAnchor("mountain pass", "description"),
+          patternAnchor("mountain passes", "description"),
+          patternAnchor("mountain dwellers", "description"),
+          patternAnchor("mountain dweller", "description"),
+          ...MOUNTAIN_SETTING_TEXT_ANCHORS,
+        ],
+      },
     ],
   },
   {
@@ -1756,6 +1810,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "creature",
     threshold: 2,
     anyOf: [
+      { score: 2, textAny: SKY_SETTING_NAME_ANCHORS },
       { score: 2, textNear: SKY_SETTING_TEXT_NEAR },
     ],
   },

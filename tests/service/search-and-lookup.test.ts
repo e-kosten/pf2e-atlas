@@ -156,7 +156,7 @@ describe("Pf2eDataService / Search and Lookup", () => {
       category: "equipment",
       metadata: { field: "baseItem", op: "eq", value: "alchemical-bomb" },
     }).records.map((record) => record.name)).toContain("Ghost Charge Prototype");
-    expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["aquatic_setting"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Ghost Sailor", "Pelagic Stalker", "Ship Captain"]));
+    expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["aquatic_setting"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Ghost Sailor", "Pelagic Stalker", "Ship Captain", "Azarketi Scout"]));
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["freshwater_setting"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Amelekana", "Electric Eel", "Water Orm", "Gathganara"]));
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["coastal_setting"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Coastal Prowler", "Sea Drake", "Ship Captain"]));
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["astral_setting"] } }).records.map((record) => record.name)).toContain("Astradaemon");
@@ -177,7 +177,7 @@ describe("Pf2eDataService / Search and Lookup", () => {
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["axis_setting"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Axiomite", "Bythos"]));
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["cosmic_framework_setting"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Catrina", "Axiomite", "Naunet", "Bythos", "Haunted Nosoi", "Hegessik"]));
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["cosmic_framework_setting"] } }).records.map((record) => record.name)).not.toContain("Shae");
-    expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["shadow_plane_setting"] } }).records.map((record) => record.name)).toContain("Shae");
+    expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["shadow_plane_setting"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Shae", "Fetchling Scout"]));
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["maelstrom_setting"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Naunet", "Hegessik"]));
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["island_setting"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Island Watcher", "Storm Giant"]));
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["jungle_setting"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Jungle Stalker", "Scaleseed Nagaji"]));
@@ -324,6 +324,10 @@ describe("Pf2eDataService / Search and Lookup", () => {
     expect(shipCaptain?.derivedTags).toEqual(expect.arrayContaining(["nautical_setting", "coastal_setting", "profession_npc", "civic_npc"]));
     const ghostPirateCaptain = service.lookup("Ghost Pirate Captain", { category: "creature" }).match;
     expect(ghostPirateCaptain?.derivedTags).toEqual(expect.arrayContaining(["nautical_setting", "aquatic_setting", "undead_adjacent"]));
+    const azarketiScout = service.lookup("Azarketi Scout", { category: "creature" }).match;
+    expect(azarketiScout?.derivedTags).toContain("aquatic_setting");
+    expect(azarketiScout?.derivedTags).not.toContain("freshwater_setting");
+    expect(azarketiScout?.derivedTags).not.toContain("coastal_setting");
     const amelekana = service.lookup("Amelekana", { category: "creature" }).match;
     expect(amelekana?.derivedTags).toEqual(expect.arrayContaining(["freshwater_setting", "aquatic_setting"]));
     expect(amelekana?.derivedTags).not.toContain("coastal_setting");
@@ -526,6 +530,8 @@ describe("Pf2eDataService / Search and Lookup", () => {
     const shae = service.lookup("Shae", { category: "creature" }).match;
     expect(shae?.derivedTags).toContain("shadow_plane_setting");
     expect(shae?.derivedTags).not.toContain("cosmic_framework_setting");
+    const fetchlingScout = service.lookup("Fetchling Scout", { category: "creature" }).match;
+    expect(fetchlingScout?.derivedTags).toContain("shadow_plane_setting");
     const naunet = service.lookup("Naunet", { category: "creature" }).match;
     expect(naunet?.derivedTags).toContain("maelstrom_setting");
     expect(naunet?.derivedTags).toContain("cosmic_framework_setting");

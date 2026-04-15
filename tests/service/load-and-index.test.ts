@@ -780,12 +780,12 @@ describe("Pf2eDataService / Load and Index", () => {
     const indexPath = path.join(fixture.root, ".cache", "pf2e-index.sqlite");
 
     const firstService = await loadTestService(fixture, { indexPath });
-    expect(firstService.getStats()).toEqual({ packCount: 16, recordCount: 283 });
+    expect(firstService.getStats()).toEqual({ packCount: 16, recordCount: 285 });
     firstService.close();
 
     const firstMtime = (await import("node:fs/promises")).stat(indexPath).then((details) => details.mtimeMs);
     const unchangedService = await openPreparedTestService(fixture, { indexPath });
-    expect(unchangedService.getStats()).toEqual({ packCount: 16, recordCount: 283 });
+    expect(unchangedService.getStats()).toEqual({ packCount: 16, recordCount: 285 });
     unchangedService.close();
     const secondMtime = (await import("node:fs/promises")).stat(indexPath).then((details) => details.mtimeMs);
     expect(await secondMtime).toBe(await firstMtime);
@@ -817,7 +817,7 @@ describe("Pf2eDataService / Load and Index", () => {
     await expect(openPreparedTestService(fixture, { indexPath })).rejects.toThrow(/index .* stale/i);
 
     const rebuiltService = await loadTestService(fixture, { indexPath });
-    expect(rebuiltService.getStats()).toEqual({ packCount: 16, recordCount: 284 });
+    expect(rebuiltService.getStats()).toEqual({ packCount: 16, recordCount: 286 });
     expect(rebuiltService.lookup("Sea Ghoul", { category: "creature" }).match?.name).toBe("Sea Ghoul");
     rebuiltService.close();
   });
@@ -829,7 +829,7 @@ describe("Pf2eDataService / Load and Index", () => {
     const indexPath = path.join(fixture.root, ".cache", "pf2e-index.sqlite");
 
     const firstService = await loadTestService(fixture, { indexPath });
-    expect(firstService.getStats()).toEqual({ packCount: 16, recordCount: 283 });
+    expect(firstService.getStats()).toEqual({ packCount: 16, recordCount: 285 });
     firstService.close();
 
     await writeJson(path.join(fixture.root, "packs", "pf2e", "pathfinder-monster-core", "sea-ghoul-untracked.json"), {

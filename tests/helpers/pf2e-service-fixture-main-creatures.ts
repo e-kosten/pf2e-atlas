@@ -107,6 +107,54 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
     },
   });
 
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "azarketi-scout.json"), {
+    _id: "azarketi-scout",
+    name: "Azarketi Scout",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 2,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>An azarketi scout ranges far from home, then returns before her skin dries.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["azarketi", "humanoid"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "fetchling-scout.json"), {
+    _id: "fetchling-scout",
+    name: "Fetchling Scout",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 1,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>A fetchling scout patrols the outskirts of a hidden enclave.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["fetchling", "humanoid"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "pathfinder-monster-core", "animated-armor.json"), {
     _id: "animated-armor-1",
     name: "Animated Armor",
