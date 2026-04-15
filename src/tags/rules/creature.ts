@@ -343,6 +343,22 @@ const TRICKSTER_CHAOS_TEXT_ANCHORS = [
   patternAnchor("play tricks"),
 ];
 
+const BONEYARD_SETTING_STEWARDSHIP_TEXT_ANCHORS = [
+  patternAnchor("river of souls"),
+  patternAnchor("call of the boneyard"),
+  patternAnchor("safe journey of a soul"),
+  patternAnchor("safe journey of souls"),
+  patternAnchor("natural flow of life"),
+  patternAnchor("guide the dead"),
+  patternAnchor("guides the dead"),
+  patternAnchor("guided the dead to the boneyard"),
+  patternAnchor("final destination in the afterlife"),
+  patternAnchor("souls reach their final destination"),
+  patternAnchor("judgment in the boneyard"),
+  patternAnchor("their judgment in the boneyard"),
+  patternAnchor("follow individual souls"),
+];
+
 const ABADDON_SETTING_TEXT_ANCHORS = [
   patternAnchor("abaddon"),
   patternAnchor("abaddon s mists"),
@@ -482,6 +498,8 @@ const RURAL_SETTING_TEXT_ANCHORS = [
 
 const RURAL_SETTING_CONTEXT_TEXT_ANCHOR = patternAnchor("{{alt(found in,dwell,dwells,dwelling,live,lives,living,haunt,haunts,hunt,hunts,hunting,prey on,preys on,patrol,patrols,prowl,prowls,protect,protects,sabotage,sabotages,siege,sieges,stalk,stalks,stalking,terrorize,terrorizes)}}", "description");
 
+const RURAL_SETTING_COMMUNITY_CONTEXT_TEXT_ANCHOR = patternAnchor("{{alt(community,communities,home,homes,crop,crops,farming techniques,tending crops,tending their crops,tending the crops,tending their community)}}", "description");
+
 const RURAL_SETTING_BLOCKER_TEXT_NEAR = [
   {
     all: [
@@ -511,6 +529,8 @@ const FORTRESS_SETTING_NAME_ANCHORS = [
   patternAnchor("bastion", "name"),
   patternAnchor("watchtower", "name"),
 ];
+
+const FORTRESS_SETTING_RESIDENCE_CONTEXT_TEXT_ANCHOR = patternAnchor("{{alt(within,inside,among,take residence,takes residence,taking residence,reside,resides,residing,stationed,posted,quartered)}}", "description");
 
 const DREAMLANDS_SETTING_BLOCKER_TEXT_ANCHORS = [
   patternAnchor("find their way out of the dreamlands"),
@@ -561,11 +581,16 @@ const SWAMP_SETTING_TEXT_ANCHORS = [
 ];
 
 const NAUTICAL_SETTING_NAME_ANCHORS = [
+  patternAnchor("dockhand", "name"),
   patternAnchor("thief of ships", "name"),
 ];
 
 const NAUTICAL_SETTING_TEXT_ANCHORS = [
+  patternAnchor("aboard ship"),
+  patternAnchor("aboard a ship"),
+  patternAnchor("aboard ships"),
   patternAnchor("black ships"),
+  patternAnchor("load and unload cargo from ships"),
   patternAnchor("aboard a derelict ship"),
 ];
 
@@ -1078,6 +1103,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     anyOf: [
       { score: 1, traitsAny: ["psychopomp"] },
       { score: 1, textAny: BONEYARD_SETTING_CONTEXT_TEXT_ANCHORS },
+      { score: 1, textAny: BONEYARD_SETTING_STEWARDSHIP_TEXT_ANCHORS },
     ],
   },
   {
@@ -1501,6 +1527,14 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
           RURAL_SETTING_CONTEXT_TEXT_ANCHOR,
         ),
       },
+      {
+        score: 2,
+        textNear: createCreatureSettingTextNear(
+          "village,villages",
+          RURAL_SETTING_COMMUNITY_CONTEXT_TEXT_ANCHOR,
+          12,
+        ),
+      },
     ],
   },
   {
@@ -1695,6 +1729,14 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
           "fortress,fortresses,castle,castles,citadel,citadels,stronghold,strongholds,keep,keeps,bastion,bastions,watchtower,watchtowers,fort,forts,garrison",
           CREATURE_SITE_FUNCTION_CONTEXT_TEXT_ANCHOR,
           10,
+        ),
+      },
+      {
+        score: 2,
+        textNear: createCreatureSettingTextNear(
+          "fortress,fortresses,castle,castles,citadel,citadels,stronghold,strongholds,keep,keeps,bastion,bastions,watchtower,watchtowers,fort,forts,garrison",
+          FORTRESS_SETTING_RESIDENCE_CONTEXT_TEXT_ANCHOR,
+          6,
         ),
       },
       { score: 2, textAny: [patternAnchor("sky citadel", "description")] },

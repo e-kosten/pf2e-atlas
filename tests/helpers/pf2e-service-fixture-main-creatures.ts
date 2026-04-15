@@ -306,6 +306,30 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
     },
   });
 
+  await writeJson(path.join(packRoot, "pathfinder-npc-core", "dockhand.json"), {
+    _id: "npc-core-dockhand",
+    name: "Dockhand",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 2,
+        },
+        publication: {
+          title: "Pathfinder NPC Core",
+        },
+        publicNotes: "<p>Working to load and unload cargo from ships, dockhands are considered unruly, but many stay focused and work hard until the job is done.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["human", "humanoid"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "pathfinder-monster-core", "ship-captain.json"), {
     _id: "ship-captain",
     name: "Ship Captain",
@@ -559,6 +583,30 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
     },
   });
 
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "hunter-wight.json"), {
+    _id: "hunter-wight-core",
+    name: "Hunter Wight",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 7,
+        },
+        publication: {
+          title: "Book of the Dead",
+        },
+        publicNotes: "<p>Hunter wights renew their hunt with equal vigor, frequently taking residence within abandoned watchtowers and keeps.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["undead", "unholy"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "pathfinder-monster-core", "virulak-villager.json"), {
     _id: "virulak-villager-core",
     name: "Virulak Villager",
@@ -576,6 +624,30 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
       traits: {
         rarity: "common",
         value: ["evil", "undead", "unholy"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-npc-core", "swiftrun-clergy.json"), {
+    _id: "npc-core-swiftrun-clergy",
+    name: "Swiftrun Clergy",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 6,
+        },
+        publication: {
+          title: "Hellbreakers",
+        },
+        publicNotes: "<p>Swiftrun is a small settlement dedicated to Erastil, barely large enough to be considered a village. Its priests are devoted to community and peace, and would rather spend their days tending their crops and community than shedding blood.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["holy", "human", "humanoid"],
         size: {
           value: "med",
         },
@@ -938,6 +1010,30 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         value: ["monitor", "psychopomp"],
         size: {
           value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "requiem-dragon-adult.json"), {
+    _id: "requiem-dragon-adult-core",
+    name: "Requiem Dragon (Adult)",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 15,
+        },
+        publication: {
+          title: "Pathfinder Monster Core 2",
+        },
+        publicNotes: "<p>Requiem dragons are stewards of the River of Souls and the process through which souls reach their final destination in the afterlife. Some follow individual souls from their first entry into the river through to their judgment in the Boneyard.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["divine", "dragon"],
+        size: {
+          value: "huge",
         },
       },
     },

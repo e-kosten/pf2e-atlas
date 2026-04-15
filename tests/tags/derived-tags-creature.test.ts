@@ -445,6 +445,14 @@ describe("derived tag rules: creature", () => {
     })).toContain("rural_setting");
 
     expect(deriveRecordTags({
+      name: "Swiftrun Clergy",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Swiftrun is a small settlement dedicated to Erastil, barely large enough to be considered a village. Its priests are devoted to community and peace, and would rather spend their days tending their crops and community than shedding blood.",
+      traits: ["human", "humanoid"],
+    })).toContain("rural_setting");
+
+    expect(deriveRecordTags({
       name: "Chupacabra",
       category: "creature",
       subcategory: null,
@@ -491,6 +499,22 @@ describe("derived tag rules: creature", () => {
       descriptionText: "Catrinas meet souls in the Boneyard and help convince them of the finality of their fate to ease a spirit's passing.",
       traits: ["monitor", "psychopomp"],
     })).toContain("boneyard_setting");
+
+    expect(deriveRecordTags({
+      name: "Requiem Dragon (Adult)",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Requiem dragons are stewards of the River of Souls and the process through which souls reach their final destination in the afterlife. Some follow individual souls from their first entry into the river through to their judgment in the Boneyard.",
+      traits: ["divine", "dragon"],
+    })).toContain("boneyard_setting");
+
+    expect(deriveRecordTags({
+      name: "Hunter Wight",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Hunter wights renew their hunt with equal vigor and frequently take residence within abandoned watchtowers and keeps.",
+      traits: ["undead"],
+    })).toContain("fortress_setting");
   });
 
   it("uses glossary family evidence and blocks redundant civic npc tags", () => {
@@ -844,6 +868,14 @@ describe("derived tag rules: creature", () => {
       descriptionText: "Artillerists are often employed on ships to manage their cannons and harpoons, but their primary role is the maintenance and operation of siege weapons.",
       traits: ["human", "humanoid"],
     })).not.toContain("nautical_setting");
+
+    expect(deriveRecordTags({
+      name: "Dockhand",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Working to load and unload cargo from ships, dockhands are considered unruly, but many stay focused and work hard until the job is done.",
+      traits: ["human", "humanoid"],
+    })).toContain("nautical_setting");
   });
 
   it("derives creature motif tags without collapsing into raw vibes", () => {
@@ -1200,6 +1232,38 @@ describe("derived tag rules: creature", () => {
       descriptionText: "Such creatures are drawn to target not a single misbehaving follower, but entire villages, cities, or towns that have turned their backs on their gods.",
       traits: ["dragon"],
     })).not.toEqual(expect.arrayContaining(["rural_setting", "urban_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Zecui Horde",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A surprise raid by a swarm of the insectile zecui can easily wipe out an entire village overnight.",
+      traits: ["troop"],
+    })).not.toContain("rural_setting");
+
+    expect(deriveRecordTags({
+      name: "Qadiran Camel Corps",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Navigating the deserts of Golarion requires trained individuals and often specialized mounts to keep them safe.",
+      traits: ["human", "humanoid"],
+    })).not.toContain("fortress_setting");
+
+    expect(deriveRecordTags({
+      name: "Soulbound Doll",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Soulbound dolls are eerie mannequins or playthings that have been imbued with a small piece of a deceased mortal's soul.",
+      traits: ["construct"],
+    })).not.toContain("boneyard_setting");
+
+    expect(deriveRecordTags({
+      name: "Jah-Tohl",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "The grotesque jah-tohl arrive in living starships to harvest the brains of intelligent creatures.",
+      traits: ["aberration"],
+    })).not.toContain("nautical_setting");
 
     expect(deriveRecordTags({
       name: "Anugobu Apprentice",
