@@ -703,6 +703,198 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
     },
   });
 
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "rekhep.json"), {
+    _id: "rekhep",
+    name: "Rekhep",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 14,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>Rekheps are the living shields that defend Heaven against fiendish incursions.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["archon", "celestial", "holy", "lawful"],
+        size: {
+          value: "lg",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "guloval.json"), {
+    _id: "guloval",
+    name: "Guloval",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 5,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>Agathions are born from petitioners who achieved enlightenment in life or after death and received Nirvana's blessing.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["agathion", "celestial", "holy"],
+        size: {
+          value: "sm",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "ghaele.json"), {
+    _id: "ghaele",
+    name: "Ghaele",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 13,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>Ghaeles are fiend-hunting knights of Elysium and champions of the freedom to take up arms against oppressors.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["azata", "celestial", "chaotic", "holy"],
+        size: {
+          value: "lg",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "empyreal-dragon.json"), {
+    _id: "empyreal-dragon",
+    name: "Empyreal Dragon",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 13,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>The three major celestial planes-Heaven, Nirvana, and Elysium-each have their own respective dragons. Empyreal dragons have a direct connection to Heaven.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["celestial", "dragon", "holy"],
+        size: {
+          value: "lg",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "insidiator.json"), {
+    _id: "insidiator",
+    name: "Insidiator",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 7,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>These devils from the first layer of Hell serve their betters by ensnaring those who are easily tempted.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["devil", "evil", "fiend", "lawful", "unholy"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "vrock.json"), {
+    _id: "vrock",
+    name: "Vrock",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 9,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>When the gates to the Abyss swing wide, the first demons through are often vrocks.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["chaotic", "demon", "evil", "fiend", "unholy"],
+        size: {
+          value: "lg",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "shae.json"), {
+    _id: "shae",
+    name: "Shae",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 7,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>Shae are wispy, tenebrous creatures native to the Plane of Shadow.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["humanoid", "shadow"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "naunet.json"), {
+    _id: "naunet",
+    name: "Naunet",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 9,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>Naunets serve as the scouts and rank-and-file troops of protean armies. Proteans are manifestations of chaos made flesh, natives of the Maelstrom.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["chaotic", "monitor", "protean"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "pathfinder-monster-core", "shrine-caretaker.json"), {
     _id: "shrine-caretaker",
     name: "Shrine Caretaker",

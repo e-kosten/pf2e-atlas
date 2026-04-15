@@ -1,4 +1,5 @@
 import {
+  ABYSS_SETTING_TEXT_ANCHORS,
   ASTRAL_SETTING_CONTEXT_TEXT_ANCHORS,
   ASTRAL_SETTING_TEXT_ANCHORS,
   AQUATIC_SETTING_STRONG_TEXT_ANCHORS,
@@ -10,12 +11,18 @@ import {
   COASTAL_SETTING_STRONG_TEXT_ANCHORS,
   COASTAL_SETTING_WEAK_TEXT_ANCHORS,
   DerivedTagRule,
+  ELYSIUM_SETTING_TEXT_ANCHORS,
   FIRST_WORLD_SETTING_CONTEXT_TEXT_ANCHORS,
   FIRST_WORLD_SETTING_TEXT_ANCHORS,
   FRESHWATER_SETTING_BLOCKER_TEXT_ANCHORS,
   FRESHWATER_SETTING_NAME_ANCHORS,
   FRESHWATER_SETTING_STRONG_TEXT_ANCHORS,
   FRESHWATER_SETTING_TEXT_ANCHORS,
+  HEAVEN_SETTING_TEXT_ANCHORS,
+  HELL_SETTING_TEXT_ANCHORS,
+  MAELSTROM_SETTING_TEXT_ANCHORS,
+  NIRVANA_SETTING_TEXT_ANCHORS,
+  SHADOW_PLANE_SETTING_TEXT_ANCHORS,
   STRONG_PROFESSION_NAME_ANCHORS,
   UNDEAD_GLOSSARY_FAMILIES,
   WEAK_PROFESSION_NAME_ANCHORS,
@@ -440,6 +447,15 @@ const RURAL_SETTING_BLOCKER_TEXT_NEAR = [
 
 const URBAN_SETTING_BLOCKER_TEXT_ANCHORS = [
   patternAnchor("market price"),
+];
+
+const HELL_SETTING_BLOCKER_TEXT_ANCHORS = [
+  patternAnchor("hellknight"),
+  patternAnchor("hellspawn"),
+];
+
+const ABYSS_SETTING_BLOCKER_TEXT_ANCHORS = [
+  patternAnchor("against the abyss"),
 ];
 
 const URBAN_SETTING_SETTLEMENT_LIST_TEXT_ANCHORS = [
@@ -930,6 +946,100 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     anyOf: [
       { score: 1, traitsAny: ["psychopomp"] },
       { score: 1, textAny: BONEYARD_SETTING_CONTEXT_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "heaven_setting",
+    category: "creature",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: HEAVEN_SETTING_TEXT_ANCHORS },
+      { score: 1, traitsAny: ["archon"] },
+    ],
+  },
+  {
+    tag: "nirvana_setting",
+    category: "creature",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: NIRVANA_SETTING_TEXT_ANCHORS },
+      { score: 1, traitsAny: ["agathion"] },
+    ],
+  },
+  {
+    tag: "elysium_setting",
+    category: "creature",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: ELYSIUM_SETTING_TEXT_ANCHORS },
+      { score: 1, traitsAny: ["azata"] },
+    ],
+  },
+  {
+    tag: "celestial_setting",
+    category: "creature",
+    requiresTags: ["heaven_setting"],
+  },
+  {
+    tag: "celestial_setting",
+    category: "creature",
+    requiresTags: ["nirvana_setting"],
+  },
+  {
+    tag: "celestial_setting",
+    category: "creature",
+    requiresTags: ["elysium_setting"],
+  },
+  {
+    tag: "hell_setting",
+    category: "creature",
+    threshold: 3,
+    noneOf: [
+      { textAny: HELL_SETTING_BLOCKER_TEXT_ANCHORS },
+    ],
+    anyOf: [
+      { score: 2, textAny: HELL_SETTING_TEXT_ANCHORS },
+      { score: 1, traitsAny: ["devil", "fiend"] },
+    ],
+  },
+  {
+    tag: "abyss_setting",
+    category: "creature",
+    threshold: 3,
+    noneOf: [
+      { textAny: ABYSS_SETTING_BLOCKER_TEXT_ANCHORS },
+    ],
+    anyOf: [
+      { score: 2, textAny: ABYSS_SETTING_TEXT_ANCHORS },
+      { score: 1, traitsAny: ["demon", "fiend", "qlippoth"] },
+    ],
+  },
+  {
+    tag: "fiendish_setting",
+    category: "creature",
+    requiresTags: ["hell_setting"],
+  },
+  {
+    tag: "fiendish_setting",
+    category: "creature",
+    requiresTags: ["abyss_setting"],
+  },
+  {
+    tag: "shadow_plane_setting",
+    category: "creature",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: SHADOW_PLANE_SETTING_TEXT_ANCHORS },
+      { score: 1, traitsAny: ["shadow", "velstrac"] },
+    ],
+  },
+  {
+    tag: "maelstrom_setting",
+    category: "creature",
+    threshold: 3,
+    anyOf: [
+      { score: 2, textAny: MAELSTROM_SETTING_TEXT_ANCHORS },
+      { score: 1, traitsAny: ["monitor", "protean"] },
     ],
   },
   {

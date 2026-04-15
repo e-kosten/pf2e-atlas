@@ -337,6 +337,56 @@ const BONEYARD_SETTING_CONTEXT_TEXT_ANCHORS: TextAnchor[] = [
   patternAnchor("ease a spirit s passing"),
 ];
 
+const HEAVEN_SETTING_TEXT_ANCHORS: TextAnchor[] = [
+  patternAnchor("connection to heaven"),
+  patternAnchor("direct connection to heaven"),
+  patternAnchor("defend heaven"),
+  patternAnchor("defends heaven"),
+  patternAnchor("heaven s armies"),
+  patternAnchor("of heaven"),
+];
+
+const NIRVANA_SETTING_TEXT_ANCHORS: TextAnchor[] = [
+  patternAnchor("in nirvana"),
+  patternAnchor("nirvana s blessing"),
+  patternAnchor("nirvana s attendants"),
+  patternAnchor("halls of nirvana"),
+  patternAnchor("serve as nirvana s attendants"),
+];
+
+const ELYSIUM_SETTING_TEXT_ANCHORS: TextAnchor[] = [
+  patternAnchor("of elysium"),
+  patternAnchor("in elysium"),
+  patternAnchor("lords of elysium"),
+  patternAnchor("champions of the freedom"),
+];
+
+const HELL_SETTING_TEXT_ANCHORS: TextAnchor[] = [
+  patternAnchor("hell s armies"),
+  patternAnchor("from hell"),
+  patternAnchor("of hell"),
+  patternAnchor("in hell"),
+  patternAnchor("first layer of hell"),
+];
+
+const ABYSS_SETTING_TEXT_ANCHORS: TextAnchor[] = [
+  patternAnchor("the abyss"),
+  patternAnchor("of the abyss"),
+  patternAnchor("from the abyss"),
+  patternAnchor("in the abyss"),
+  patternAnchor("abyssal realm"),
+];
+
+const SHADOW_PLANE_SETTING_TEXT_ANCHORS: TextAnchor[] = [
+  patternAnchor("shadow plane"),
+  patternAnchor("plane of shadow"),
+];
+
+const MAELSTROM_SETTING_TEXT_ANCHORS: TextAnchor[] = [
+  patternAnchor("the maelstrom"),
+  patternAnchor("of the maelstrom"),
+];
+
 const referenceAnchor = (packName: string, name: string): string => normalizeDerivedTagReference(`${packName}:${name}`);
 
 const DISGUISE_TEXT_ANCHORS: TextAnchor[] = [
@@ -839,6 +889,13 @@ export {
   FIRST_WORLD_SETTING_CONTEXT_TEXT_ANCHORS,
   BONEYARD_SETTING_TEXT_ANCHORS,
   BONEYARD_SETTING_CONTEXT_TEXT_ANCHORS,
+  HEAVEN_SETTING_TEXT_ANCHORS,
+  NIRVANA_SETTING_TEXT_ANCHORS,
+  ELYSIUM_SETTING_TEXT_ANCHORS,
+  HELL_SETTING_TEXT_ANCHORS,
+  ABYSS_SETTING_TEXT_ANCHORS,
+  SHADOW_PLANE_SETTING_TEXT_ANCHORS,
+  MAELSTROM_SETTING_TEXT_ANCHORS,
   DISGUISE_TEXT_ANCHORS,
   SOCIAL_INFILTRATION_TEXT_ANCHORS,
   DISGUISE_REFERENCE_ANCHORS,

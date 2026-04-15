@@ -1312,4 +1312,102 @@ describe("derived tag rules: creature", () => {
       traits: ["earth", "giant", "humanoid", "troll"],
     })).toContain("regeneration_threat");
   });
+
+  it("derives planar setting tags and umbrellas", () => {
+    expect(deriveRecordTags({
+      name: "Rekhep",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Rekheps are the living shields that defend Heaven against fiendish incursions.",
+      traits: ["archon", "celestial", "holy", "lawful"],
+    })).toEqual(expect.arrayContaining(["heaven_setting", "celestial_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Guloval",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Agathions are born from petitioners who achieved enlightenment in life or after death and received Nirvana's blessing.",
+      traits: ["agathion", "celestial", "holy"],
+    })).toEqual(expect.arrayContaining(["nirvana_setting", "celestial_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Ghaele",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Ghaeles are fiend-hunting knights of Elysium and champions of the freedom to take up arms against oppressors.",
+      traits: ["azata", "celestial", "chaotic", "holy"],
+    })).toEqual(expect.arrayContaining(["elysium_setting", "celestial_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Empyreal Dragon",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "The three major celestial planes-Heaven, Nirvana, and Elysium-each have their own respective dragons. Empyreal dragons have a direct connection to Heaven.",
+      traits: ["celestial", "dragon", "holy"],
+    })).toEqual(expect.arrayContaining(["heaven_setting", "celestial_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Empyreal Dragon",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "The three major celestial planes-Heaven, Nirvana, and Elysium-each have their own respective dragons. Empyreal dragons have a direct connection to Heaven.",
+      traits: ["celestial", "dragon", "holy"],
+    })).not.toEqual(expect.arrayContaining(["nirvana_setting", "elysium_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Insidiator",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "These devils from the first layer of Hell serve their betters by ensnaring those who are easily tempted.",
+      traits: ["devil", "evil", "fiend", "lawful", "unholy"],
+    })).toEqual(expect.arrayContaining(["hell_setting", "fiendish_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Vrock",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "When the gates to the Abyss swing wide, the first demons through are often vrocks.",
+      traits: ["chaotic", "demon", "evil", "fiend", "unholy"],
+    })).toEqual(expect.arrayContaining(["abyss_setting", "fiendish_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Sarkorian Wolf",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "To survive living in the Worldwound, Sarkorian wolves developed defenses against the Abyss.",
+      traits: ["animal"],
+    })).not.toEqual(expect.arrayContaining(["abyss_setting", "fiendish_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Hellknight Officer",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A Hellknight officer drills recruits in ruthless discipline and tyranny.",
+      traits: ["human", "humanoid"],
+    })).not.toContain("hell_setting");
+
+    expect(deriveRecordTags({
+      name: "Shae",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Shae are wispy, tenebrous creatures native to the Plane of Shadow.",
+      traits: ["humanoid", "shadow"],
+    })).toContain("shadow_plane_setting");
+
+    expect(deriveRecordTags({
+      name: "Naunet",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Naunets serve as the scouts and rank-and-file troops of protean armies. Proteans are manifestations of chaos made flesh, natives of the Maelstrom.",
+      traits: ["chaotic", "monitor", "protean"],
+    })).toContain("maelstrom_setting");
+
+    expect(deriveRecordTags({
+      name: "Ganzi Martial Artist",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Children of primeval chaos, ganzis intertwine the churning pandemonium of the Maelstrom with mortal life.",
+      traits: ["human", "humanoid", "nephilim"],
+    })).not.toContain("maelstrom_setting");
+  });
 });
