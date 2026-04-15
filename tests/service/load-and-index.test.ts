@@ -425,6 +425,69 @@ describe("Pf2eDataService / Load and Index", () => {
     ]));
   });
 
+  it("keeps glossary families and NPC Core cohort folders while dropping other folder-derived families", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+    const indexPath = path.join(fixture.root, ".cache", "pf2e-index.sqlite");
+
+    await writeJson(path.join(fixture.root, "packs", "pf2e", "pfs-season-1-bestiary", "_folders.json"), [
+      {
+        _id: "folder-book-1-haunted-harbor",
+        name: "Book 1 Haunted Harbor",
+        folder: null,
+      },
+    ]);
+    await writeJson(path.join(fixture.root, "packs", "pf2e", "pfs-season-1-bestiary", "harbor-lookout.json"), {
+      _id: "harborlookout",
+      folder: "folder-book-1-haunted-harbor",
+      name: "Harbor Lookout",
+      type: "npc",
+      system: {
+        details: {
+          level: {
+            value: 1,
+          },
+          publication: {
+            title: "Pathfinder Society Scenario #1-11: Haunted Harbor",
+          },
+          publicNotes: "<p>A dockside lookout posted along a haunted pier.</p>",
+        },
+        traits: {
+          rarity: "common",
+          value: ["human", "humanoid"],
+          size: {
+            value: "med",
+          },
+        },
+      },
+    });
+
+    const service = await loadTestService(fixture, { indexPath });
+    service.close();
+
+    const db = new DatabaseSync(indexPath);
+    const bosunRow = db.prepare(`
+      SELECT families_json AS familiesJson
+      FROM records
+      WHERE name = 'Bosun'
+    `).get() as { familiesJson: string } | undefined;
+    const harborLookoutRow = db.prepare(`
+      SELECT families_json AS familiesJson
+      FROM records
+      WHERE name = 'Harbor Lookout'
+    `).get() as { familiesJson: string } | undefined;
+    const ghostCommonerRow = db.prepare(`
+      SELECT families_json AS familiesJson
+      FROM records
+      WHERE name = 'Ghost Commoner'
+    `).get() as { familiesJson: string } | undefined;
+    db.close();
+
+    expect(JSON.parse(bosunRow?.familiesJson ?? "[]")).toEqual(["seafarer"]);
+    expect(JSON.parse(harborLookoutRow?.familiesJson ?? "[]")).toEqual([]);
+    expect(JSON.parse(ghostCommonerRow?.familiesJson ?? "[]")).toEqual(["ghost"]);
+  });
+
   it("reports resolution-stage status while deriving tags during rebuild", async () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);

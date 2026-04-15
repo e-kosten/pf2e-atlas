@@ -121,7 +121,7 @@ export const METADATA_FIELD_REGISTRY = [
     fieldType: "set",
     categories: CREATURE_ONLY,
     discoverable: true,
-    notes: "Creature family facet derived from PF2E family glossary references.",
+    notes: "Creature family facet derived from glossary-backed monster families plus allowlisted Pathfinder NPC Core cohort folders.",
     selectClause: "r.families_json AS familiesJson",
     rowValueSource: { key: "familiesJson", kind: "jsonArray" },
     buildSqlExpression: (context) => context.recordsAlias

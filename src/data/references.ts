@@ -27,6 +27,29 @@ const TABLE_CELL_PATTERN = /<t[dh][^>]*>(.*?)<\/t[dh]>/gis;
 const LIST_ITEM_PATTERN = /<li[^>]*>(.*?)<\/li>/gis;
 const MIGRATION_RENAME_PATTERN = /Rename all uses and mentions of "([^"]+)" to "([^"]+)"/g;
 const COMPILED_SOURCE_PATTERN = /^Compendium\.pf2e\.([^.]+)\.[^.]+\.([^.]+)$/i;
+const NPC_CORE_FAMILY_ALLOWLIST = new Set([
+  "ancestry-npcs",
+  "artisan",
+  "courtier",
+  "criminal",
+  "devotee",
+  "downtrodden",
+  "engineer",
+  "explorer",
+  "healer",
+  "laborer",
+  "martial-artist",
+  "maverick",
+  "mercenary",
+  "military",
+  "mystic",
+  "official",
+  "performer",
+  "primalist",
+  "scholar",
+  "seafarer",
+  "villain",
+]);
 
 type FolderDefinition = {
   _id?: string;
@@ -136,6 +159,10 @@ function buildPackAndFolderKey(packName: string, folderId: string): string {
   return `${normalizeText(packName)}:${normalizeText(folderId)}`;
 }
 
+function shouldKeepFolderFamily(packName: string, family: string): boolean {
+  return packName === "pathfinder-npc-core" && NPC_CORE_FAMILY_ALLOWLIST.has(family);
+}
+
 function resolveFolderFamily(folderId: string, foldersById: Map<string, FolderDefinition>): string | null {
   const visited = new Set<string>();
   let currentId: string | null = folderId;
@@ -204,7 +231,7 @@ function assignFamilies(
 
   if (entry.record.folderId) {
     const folderFamily = folderFamilyByPackAndFolderId.get(buildPackAndFolderKey(entry.record.packName, entry.record.folderId));
-    if (folderFamily) {
+    if (folderFamily && shouldKeepFolderFamily(entry.record.packName, folderFamily)) {
       families.add(folderFamily);
     }
   }
