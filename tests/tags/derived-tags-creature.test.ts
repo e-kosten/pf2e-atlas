@@ -109,6 +109,14 @@ describe("derived tag rules: creature", () => {
     })).toEqual(expect.arrayContaining(["freshwater_setting", "aquatic_setting"]));
 
     expect(deriveRecordTags({
+      name: "Benthic Worm",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "The benthic worm prefers to lie in wait within flooded caverns and often brings with it waters from the submerged river or lake it calls home.",
+      traits: ["animal"],
+    })).toContain("freshwater_setting");
+
+    expect(deriveRecordTags({
       name: "Bog Prowler",
       category: "creature",
       subcategory: null,
@@ -317,6 +325,14 @@ describe("derived tag rules: creature", () => {
     })).toContain("underground_setting");
 
     expect(deriveRecordTags({
+      name: "Drow Hunter",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Hunters seek out game to keep drow communities fed and functioning.",
+      traits: ["chaotic", "drow", "elf", "humanoid"],
+    })).toContain("underground_setting");
+
+    expect(deriveRecordTags({
       name: "Rosethorn Ram",
       category: "creature",
       subcategory: null,
@@ -331,6 +347,14 @@ describe("derived tag rules: creature", () => {
       descriptionText: "Thunderbirds soar high above storm clouds and wheel through the open sky before nesting on remote mountain aeries.",
       traits: ["beast"],
     })).toEqual(expect.arrayContaining(["sky_setting", "mountain_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Huldra",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Huldras are wardens of the woodlands they occupy, grown from saplings by powerful forest-dwelling fey to protect the forest itself.",
+      traits: ["fey"],
+    })).toContain("forest_setting");
 
     expect(deriveRecordTags({
       name: "Scarecrow",
@@ -402,6 +426,14 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "Despite not being native to the Dimension of Dreams, they're commonly found in that realm. Their ability to fly through space affords them swift travel between Leng and more hospitable reaches of the Dreamlands.",
       traits: ["beast"],
+    })).toContain("dreamlands_setting");
+
+    expect(deriveRecordTags({
+      name: "Dream Aethusa",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Female human wizard",
+      traits: ["dream", "human", "humanoid", "mythic"],
     })).toContain("dreamlands_setting");
 
     expect(deriveRecordTags({

@@ -326,7 +326,7 @@ describe("Pf2eDataService / Search and Lookup", () => {
     expect(waterOrm?.derivedTags).toEqual(expect.arrayContaining(["freshwater_setting", "aquatic_setting"]));
     expect(waterOrm?.derivedTags).not.toContain("coastal_setting");
     const gathganara = service.lookup("Gathganara", { category: "creature" }).match;
-    expect(gathganara?.derivedTags).toEqual(expect.arrayContaining(["freshwater_setting", "aquatic_setting"]));
+    expect(gathganara?.derivedTags).toEqual(expect.arrayContaining(["freshwater_setting", "aquatic_setting", "forest_setting"]));
     const defacedNaiadQueen = service.lookup("Defaced Naiad Queen", { category: "creature" }).match;
     expect(defacedNaiadQueen?.derivedTags).toEqual(expect.arrayContaining(["freshwater_setting", "aquatic_setting"]));
     const coldmirePond = service.lookup("Coldmire Pond", { category: "creature" }).match;

@@ -420,6 +420,14 @@ const FOREST_SETTING_SUPPORT_TEXT_ANCHORS = [
   patternAnchor("treetop"),
   patternAnchor("treetops"),
   patternAnchor("arboreal"),
+  patternAnchor("wooded area"),
+  patternAnchor("wooded areas"),
+  patternAnchor("forest dwelling"),
+  patternAnchor("forest dwellers"),
+  patternAnchor("forest floor"),
+  patternAnchor("forest floors"),
+  patternAnchor("within the woods"),
+  patternAnchor("deep within the woods"),
   patternAnchor("old growth"),
   patternAnchor("bough"),
   patternAnchor("boughs"),
@@ -615,6 +623,8 @@ const CREATURE_URBAN_ACTIVITY_CONTEXT_TEXT_ANCHOR = patternAnchor("{{alt(make th
 
 const CREATURE_UNDERGROUND_ACTIVITY_CONTEXT_TEXT_ANCHOR = patternAnchor("{{alt(below ground,below large cities,make their home,make their homes,makes its home,call home,calls home,stalk,stalks,stalking,scour,scours,most often found)}}", "description");
 
+const FRESHWATER_SETTING_HABITAT_CONTEXT_TEXT_ANCHOR = patternAnchor("{{alt(native,native to,found in,found among,inhabit,inhabits,inhabiting,dwell,dwells,dwelling,live,lives,living,call home,calls home,make their home,make their homes,makes its home,home,homes,spend most of their time in,centered on,centered around,hide,hides,lurk,lurks,lurking)}}", "description");
+
 const createCreatureSettingTextNear = (
   alternatives: string,
   contextAnchor: ReturnType<typeof patternAnchor>,
@@ -628,6 +638,46 @@ const createCreatureSettingTextNear = (
     window,
     scope: "description" as const,
   },
+];
+
+const FRESHWATER_SETTING_TEXT_NEAR = [
+  ...createCreatureSettingTextNear(
+    "river,rivers,lake,lakes,pond,ponds,stream,streams,spring,springs,inland water,inland waters,inland pool,inland pools",
+    FRESHWATER_SETTING_HABITAT_CONTEXT_TEXT_ANCHOR,
+  ),
+];
+
+const FRESHWATER_SETTING_EXACT_TEXT_ANCHORS = [
+  patternAnchor("rivers and lakes"),
+  patternAnchor("lakes and rivers"),
+  patternAnchor("rivers and streams"),
+  patternAnchor("streams and rivers"),
+  patternAnchor("ponds and lakes"),
+  patternAnchor("lakes and ponds"),
+  patternAnchor("freshwater inlet"),
+  patternAnchor("freshwater inlets"),
+];
+
+const FOREST_SETTING_TEXT_NEAR = [
+  ...createCreatureSettingTextNear(
+    "forest,forests,woodland,woodlands,woods,grove,groves,wooded area,wooded areas,forest floor,forest floors,primeval forest,primeval forests",
+    CREATURE_TERRAIN_HABITAT_CONTEXT_TEXT_ANCHOR,
+  ),
+  ...createCreatureSettingTextNear(
+    "forest,forests,woodland,woodlands,woods,grove,groves,wooded area,wooded areas,forest floor,forest floors,primeval forest,primeval forests",
+    CREATURE_SITE_FUNCTION_CONTEXT_TEXT_ANCHOR,
+  ),
+];
+
+const FOREST_SETTING_EXACT_TEXT_ANCHORS = [
+  patternAnchor("forest creature"),
+  patternAnchor("forest creatures"),
+  patternAnchor("forest denizen"),
+  patternAnchor("forest denizens"),
+  patternAnchor("in a nearby woodland"),
+  patternAnchor("the very woods in which they reside"),
+  patternAnchor("deep within the woods"),
+  patternAnchor("within prehistoric forests"),
 ];
 
 const CIVIC_SUPPORT_TEXT_ANCHORS = [
@@ -1005,6 +1055,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     ],
     anyOf: [
       { score: 2, textAny: FRESHWATER_SETTING_STRONG_TEXT_ANCHORS },
+      { score: 2, textNear: FRESHWATER_SETTING_TEXT_NEAR },
       { score: 1, textAny: FRESHWATER_SETTING_TEXT_ANCHORS },
       { score: 1, textAny: FRESHWATER_SETTING_NAME_ANCHORS },
       { score: 1, traitsAny: ["water"] },
@@ -1070,6 +1121,16 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     anyOf: [
       { score: 1, traitsAny: ["fey", "tane"] },
       { score: 1, textAny: FIRST_WORLD_SETTING_CONTEXT_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "dreamlands_setting",
+    category: "creature",
+    noneOf: [
+      { textAny: DREAMLANDS_SETTING_BLOCKER_TEXT_ANCHORS },
+    ],
+    anyOf: [
+      { traitsAny: ["dream"] },
     ],
   },
   {
@@ -1378,6 +1439,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "creature",
     threshold: 2,
     anyOf: [
+      { score: 2, textNear: FOREST_SETTING_TEXT_NEAR },
       { score: 1, textAny: FOREST_SETTING_NAME_ANCHORS },
       { score: 1, textAny: FOREST_SETTING_CORE_TEXT_ANCHORS },
       { score: 1, textAny: FOREST_SETTING_SUPPORT_TEXT_ANCHORS },
@@ -1431,6 +1493,13 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
           CREATURE_TERRAIN_HABITAT_CONTEXT_TEXT_ANCHOR,
         ),
       },
+    ],
+  },
+  {
+    tag: "underground_setting",
+    category: "creature",
+    anyOf: [
+      { traitsAny: ["drow", "xulgath", "morlock", "dero", "caligni", "duergar", "urdefhan", "munavri"] },
     ],
   },
   {
