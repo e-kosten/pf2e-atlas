@@ -8,6 +8,10 @@ import {
   normalizeDerivedTag,
 } from "./index.js";
 import {
+  classifyFamilyGapFeature,
+  type FamilyGapFeatureBucket,
+} from "./family-gap-signals.js";
+import {
   extractDiscoveryGramRange,
   isDiscoveryNoisePhrase,
   isDiscoveryNoiseToken,
@@ -30,6 +34,10 @@ export type DiscoveryEvidenceKind =
   | "descriptionPhrase"
   | "trait"
   | "reference";
+
+function isNameDerivedEvidenceKind(kind: DiscoveryEvidenceKind): boolean {
+  return kind === "nameToken" || kind === "namePhrase";
+}
 
 export type DiscoveryEvidenceTerm = {
   kind: DiscoveryEvidenceKind;
@@ -54,11 +62,30 @@ export type DiscoveryEvidenceReport = {
   descriptionPhrases: DiscoveryEvidenceTerm[];
   traits: DiscoveryEvidenceTerm[];
   references: DiscoveryEvidenceTerm[];
+  familyGap?: FamilyGapReport;
   representativeRecords: Array<{
     recordKey: string;
     name: string;
     traits: string[];
   }>;
+};
+
+export type FamilyGapEvidenceTerm = DiscoveryEvidenceTerm & {
+  bucket: FamilyGapFeatureBucket;
+  existingTagOverlaps: string[];
+  coveredSupport: number;
+  gapLift: number;
+  suppressionReason: string | null;
+};
+
+export type FamilyGapReport = {
+  coveredCount: number;
+  uncoveredCount: number;
+  baselineCount: number;
+  liveTags: string[];
+  likelyNewConcepts: FamilyGapEvidenceTerm[];
+  existingTagCoverageGaps: FamilyGapEvidenceTerm[];
+  suppressedTerms: FamilyGapEvidenceTerm[];
 };
 
 export type DiscoveryEvidenceOptions = {
@@ -70,6 +97,7 @@ export type DiscoveryEvidenceOptions = {
   family?: string;
   excludeDerivedTag?: string;
   untaggedOnly?: boolean;
+  familyGapSignals?: boolean;
   limit?: number;
   exampleLimit?: number;
   minGramLength?: number;
@@ -304,6 +332,145 @@ function rankEvidenceTerms(
     .slice(0, limit);
 }
 
+function mergeFamilyGapTerms(terms: FamilyGapEvidenceTerm[]): FamilyGapEvidenceTerm[] {
+  const byValue = new Map<string, FamilyGapEvidenceTerm>();
+  for (const term of terms) {
+    const existing = byValue.get(term.value);
+    if (
+      !existing
+      || term.score > existing.score
+      || (term.score === existing.score && term.cohortSupport > existing.cohortSupport)
+    ) {
+      byValue.set(term.value, term);
+    }
+  }
+
+  return [...byValue.values()]
+    .sort((left, right) =>
+      right.score - left.score ||
+      right.gapLift - left.gapLift ||
+      right.cohortSupport - left.cohortSupport ||
+      left.value.localeCompare(right.value));
+}
+
+function rankFamilyGapTerms(
+  uncoveredSupport: Map<string, FeatureAccumulator>,
+  coveredSupport: Map<string, FeatureAccumulator>,
+  baselineSupport: Map<string, FeatureAccumulator>,
+  uncoveredSize: number,
+  coveredSize: number,
+  baselineSize: number,
+  limit: number,
+  exampleLimit: number,
+  featureType: "nameTokens" | "namePhrases" | "descriptionTokens" | "descriptionPhrases" | "traits" | "references",
+  family: string,
+): FamilyGapEvidenceTerm[] {
+  const kind = evidenceKindForFeatureType(featureType);
+  return [...uncoveredSupport.entries()]
+    .map(([value, uncovered]) => {
+      const covered = coveredSupport.get(value) ?? createFeatureAccumulator();
+      const baseline = baselineSupport.get(value) ?? createFeatureAccumulator();
+      const uncoveredRate = (uncovered.support + 1) / Math.max(1, uncoveredSize + 2);
+      const coveredRate = (covered.support + 1) / Math.max(1, coveredSize + 2);
+      const baselineRate = (baseline.support + 1) / Math.max(1, baselineSize + 2);
+      const gapLift = coveredRate > 0 ? uncoveredRate / coveredRate : uncoveredRate;
+      const baselineLift = baselineRate > 0 ? uncoveredRate / baselineRate : uncoveredRate;
+      const classification = classifyFamilyGapFeature(family, kind, value);
+      const score =
+        uncovered.support *
+        Math.max(1, gapLift) *
+        Math.max(1, baselineLift) *
+        evidenceKindWeight(kind) *
+        evidenceSupportMultiplier(kind, uncovered.support, uncoveredSize) *
+        evidenceConcentrationMultiplier(kind, uncovered.support, uncoveredSize) *
+        classification.familyConceptWeight;
+
+      return {
+        kind,
+        value: classification.primaryCue ?? value,
+        support: uncovered.support,
+        cohortSupport: uncovered.support,
+        baselineSupport: baseline.support,
+        coveredSupport: covered.support,
+        lift: baselineLift,
+        gapLift,
+        score,
+        examples: [...uncovered.examples].slice(0, exampleLimit),
+        bucket: classification.bucket,
+        existingTagOverlaps: classification.existingTagOverlaps,
+        suppressionReason: classification.suppressionReason,
+      } satisfies FamilyGapEvidenceTerm;
+    })
+    .sort((left, right) =>
+      right.score - left.score ||
+      right.gapLift - left.gapLift ||
+      right.cohortSupport - left.cohortSupport ||
+      left.value.localeCompare(right.value))
+    .slice(0, Math.max(limit * 3, limit));
+}
+
+export function analyzeFamilyGapEvidenceFromRecords(
+  uncovered: DiscoveryAnalysisRecord[],
+  covered: DiscoveryAnalysisRecord[],
+  baseline: DiscoveryAnalysisRecord[],
+  family: string,
+  liveTags: string[],
+  options: Pick<DiscoveryEvidenceOptions, "limit" | "exampleLimit" | "minGramLength" | "maxGramLength"> = {},
+): FamilyGapReport {
+  const limit = Math.max(1, Math.min(options.limit ?? DEFAULT_EVIDENCE_LIMIT, 50));
+  const exampleLimit = Math.max(1, Math.min(options.exampleLimit ?? DEFAULT_EXAMPLE_LIMIT, 5));
+  const gramRange = resolveDiscoveryGramRange(options);
+  const featureTypes = [
+    "nameTokens",
+    "namePhrases",
+    "descriptionTokens",
+    "descriptionPhrases",
+    "traits",
+    "references",
+  ] as const;
+
+  const allTerms = featureTypes.flatMap((featureType) => {
+    const uncoveredSupport = collectFeatureSupport(uncovered, featureType, exampleLimit, gramRange);
+    const coveredSupport = collectFeatureSupport(covered, featureType, exampleLimit, gramRange);
+    const baselineSupport = collectFeatureSupport(baseline, featureType, exampleLimit, gramRange);
+    return rankFamilyGapTerms(
+      uncoveredSupport,
+      coveredSupport,
+      baselineSupport,
+      uncovered.length,
+      covered.length,
+      baseline.length,
+      limit,
+      exampleLimit,
+      featureType,
+      family,
+    );
+  });
+
+  const mergedTerms = mergeFamilyGapTerms(allTerms);
+  const surfacedTerms = mergedTerms.filter((term) => !isNameDerivedEvidenceKind(term.kind));
+  const likelyNewConcepts = mergedTerms
+    .filter((term) => !isNameDerivedEvidenceKind(term.kind))
+    .filter((term) => term.bucket === "possible_place_anchor" && term.existingTagOverlaps.length === 0)
+    .slice(0, limit);
+  const existingTagCoverageGaps = surfacedTerms
+    .filter((term) => term.bucket === "possible_place_anchor" && term.existingTagOverlaps.length > 0)
+    .slice(0, limit);
+  const suppressedTerms = mergedTerms
+    .filter((term) => term.suppressionReason !== null)
+    .slice(0, limit);
+
+  return {
+    coveredCount: covered.length,
+    uncoveredCount: uncovered.length,
+    baselineCount: baseline.length,
+    liveTags,
+    likelyNewConcepts,
+    existingTagCoverageGaps,
+    suppressedTerms,
+  };
+}
+
 export function analyzeDiscoveryEvidenceFromRecords(
   cohort: DiscoveryAnalysisRecord[],
   baseline: DiscoveryAnalysisRecord[],
@@ -366,6 +533,9 @@ export function analyzeDiscoveryEvidence(
       subcategory: options.subcategory,
     })
     : [];
+  if (options.familyGapSignals && !normalizedFamily) {
+    throw new Error("Pass --family <derived-tag-family> when using --family-gap-signals.");
+  }
   const seedRecordKeys = normalizedTag && !explicitRecordKeys
     ? getDerivedTagSeedRecordKeys(normalizedTag, {
       category: options.category,
@@ -399,6 +569,39 @@ export function analyzeDiscoveryEvidence(
     subcategory: options.subcategory,
     includeVectors: false,
   });
+  if (options.familyGapSignals && normalizedFamily) {
+    const uncovered = loadDiscoveryRecords(db, {
+      category: options.category,
+      subcategory: options.subcategory,
+      excludeAnyDerivedTags: familyTags,
+      includeVectors: false,
+    });
+    const covered = loadDiscoveryRecords(db, {
+      category: options.category,
+      subcategory: options.subcategory,
+      requireAnyDerivedTags: familyTags,
+      includeVectors: false,
+    });
+    const liveTags = uniqueSorted([...new Set(covered.flatMap((record) =>
+      record.derivedTags.filter((tag) => familyTags.includes(normalizeDerivedTag(tag))),
+    ))]);
+    const report = analyzeDiscoveryEvidenceFromRecords(uncovered, baseline, options);
+    return {
+      category: options.category ?? null,
+      subcategory: options.subcategory ?? null,
+      family: normalizedFamily,
+      ...report,
+      familyGap: analyzeFamilyGapEvidenceFromRecords(uncovered, covered, baseline, normalizedFamily, liveTags, options),
+      representativeRecords: uncovered
+        .slice(0, Math.min(5, uncovered.length))
+        .map((record) => ({
+          recordKey: record.recordKey,
+          name: record.name,
+          traits: uniqueSorted([...record.traits]),
+        })),
+    };
+  }
+
   const report = analyzeDiscoveryEvidenceFromRecords(cohort, baseline, options);
   return {
     category: options.category ?? null,

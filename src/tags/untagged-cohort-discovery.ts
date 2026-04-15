@@ -4,6 +4,10 @@ import { SearchCategory, SearchSubcategory } from "../types.js";
 import { uniqueSorted } from "../utils.js";
 import { getDerivedTagFamilyTags, normalizeDerivedTag } from "./index.js";
 import {
+  classifyFamilyGapFeature,
+  type FamilyGapFeatureBucket,
+} from "./family-gap-signals.js";
+import {
   extractDiscoveryGramRange,
   isDiscoveryNoisePhrase,
   isDiscoveryNoiseToken,
@@ -31,6 +35,7 @@ export type UntaggedCohortOptions = {
   category: SearchCategory;
   subcategory?: SearchSubcategory;
   family?: string;
+  familyGapSignals?: boolean;
   cohortLimit?: number;
   anchorLimit?: number;
   minFeatureSupport?: number;
@@ -47,6 +52,8 @@ export type UntaggedCohortAnchor = {
   baselineSupport: number;
   lift: number;
   score: number;
+  bucket?: FamilyGapFeatureBucket;
+  existingTagOverlaps?: string[];
 };
 
 export type UntaggedCohortCluster = {
@@ -63,6 +70,9 @@ export type UntaggedCohortCluster = {
   anchorLift: number;
   score: number;
   recommendation: CohortRecommendation;
+  classification?: "new_concept_candidate" | "existing_tag_coverage_gap" | "context_only";
+  familyGapRecommendation?: "new-tag" | "extend-existing-tag" | "manual-only";
+  overlappingTags?: string[];
   representativeRecords: Array<{
     recordKey: string;
     name: string;
@@ -81,6 +91,8 @@ export type UntaggedCohortReport = {
   family: string | null;
   untaggedRecordCount: number;
   baselineRecordCount: number;
+  coveredRecordCount?: number;
+  liveTags?: string[];
   anchorTerms: UntaggedCohortAnchor[];
   cohorts: UntaggedCohortCluster[];
 };
@@ -103,6 +115,8 @@ type DiscoveryFeature = {
 type RankedFeature = UntaggedCohortAnchor & {
   key: string;
   kind: DiscoveryFeatureKind;
+  bucket?: FamilyGapFeatureBucket;
+  existingTagOverlaps?: string[];
 };
 
 type RecordNode = {
@@ -438,12 +452,19 @@ function isEligibleSimilarityFeature(
   support: number,
   totalRecords: number,
   minSupport: number,
+  options: UntaggedCohortOptions,
 ): boolean {
   if (support < minSupport) {
     return false;
   }
   if (isPlaceholderOnlyFeature(feature)) {
     return false;
+  }
+  if (options.familyGapSignals) {
+    const classification = classifyFamilyGapFeature(options.family, feature.kind, feature.display);
+    if (!classification.eligibleForClustering) {
+      return false;
+    }
   }
 
   const maxFraction = feature.kind === "trait" || feature.kind === "target" || feature.kind === "scope"
@@ -460,13 +481,14 @@ function buildRecordNodes(
   untagged: DiscoveryAnalysisRecord[],
   featureSupport: ReturnType<typeof collectFeatureSupport>,
   minSupport: number,
+  options: UntaggedCohortOptions,
 ): RecordNode[] {
   const totalRecords = untagged.length;
 
   return untagged.map((record) => {
     const features = featureSupport.featuresByRecordKey.get(record.recordKey) ?? [];
     const informative = features
-      .filter((feature) => isEligibleSimilarityFeature(feature, featureSupport.counts.get(feature.key) ?? 0, totalRecords, minSupport))
+      .filter((feature) => isEligibleSimilarityFeature(feature, featureSupport.counts.get(feature.key) ?? 0, totalRecords, minSupport, options))
       .sort((left, right) =>
         (featureSupport.counts.get(left.key) ?? Number.POSITIVE_INFINITY) - (featureSupport.counts.get(right.key) ?? Number.POSITIVE_INFINITY) ||
         left.display.localeCompare(right.display))
@@ -628,35 +650,36 @@ function rankClusterAnchors(
     return record ? variantFamilyIdentity(record) : recordKey;
   })).size;
   const baselineFamilyCount = new Set([...recordsByKey.values()].map((record) => variantFamilyIdentity(record))).size;
+  const rankedEntries: RankedFeature[] = [];
+  for (const [key, supportSet] of supportCounts.entries()) {
+    const feature = featureSupport.byKey.get(key);
+    if (!feature || isPlaceholderOnlyFeature(feature)) {
+      continue;
+    }
 
-  return [...supportCounts.entries()]
-    .map(([key, supportSet]) => {
-      const feature = featureSupport.byKey.get(key);
-      if (!feature) {
-        return null;
-      }
-      if (isPlaceholderOnlyFeature(feature)) {
-        return null;
-      }
+    const support = supportSet.size;
+    const baselineCount = baselineSupportCounts.get(key)?.size ?? 0;
+    const clusterRatio = (support + 1) / Math.max(1, memberFamilyCount + 2);
+    const baselineRatio = (baselineCount + 1) / Math.max(1, baselineFamilyCount + 2);
+    const lift = baselineRatio > 0 ? clusterRatio / baselineRatio : support;
+    const classification = classifyFamilyGapFeature(options.family, feature.kind, feature.display);
+    if (options.familyGapSignals && (classification.bucket !== "possible_place_anchor" || isNameFeatureKind(feature.kind))) {
+      continue;
+    }
+    rankedEntries.push({
+      key,
+      kind: feature.kind,
+      value: classification.primaryCue ?? feature.display,
+      support,
+      baselineSupport: baselineCount,
+      lift,
+      score: support * Math.max(1, lift) * featureSpecificityWeight(feature.kind, feature.display) * classification.familyConceptWeight,
+      bucket: classification.bucket,
+      existingTagOverlaps: classification.existingTagOverlaps,
+    });
+  }
 
-      const support = supportSet.size;
-      const baselineCount = baselineSupportCounts.get(key)?.size ?? 0;
-      const clusterRatio = (support + 1) / Math.max(1, memberFamilyCount + 2);
-      const baselineRatio = (baselineCount + 1) / Math.max(1, baselineFamilyCount + 2);
-      const lift = baselineRatio > 0 ? clusterRatio / baselineRatio : support;
-      const score = support * Math.max(1, lift) * featureSpecificityWeight(feature.kind, feature.display);
-
-      return {
-        key,
-        kind: feature.kind,
-        value: feature.display,
-        support,
-        baselineSupport: baselineCount,
-        lift,
-        score,
-      } satisfies RankedFeature;
-    })
-    .filter((entry): entry is RankedFeature => Boolean(entry))
+  return rankedEntries
     .filter((entry) => entry.support >= Math.max(2, Math.ceil(memberFamilyCount * 0.45)) && entry.lift >= minLift)
     .sort((left, right) =>
       right.score - left.score ||
@@ -743,7 +766,7 @@ function buildCandidateCohorts(
   const baselineSupport = collectFeatureSupport(baseline, gramRange);
   const minSupport = Math.max(1, options.minFeatureSupport ?? DEFAULT_MIN_FEATURE_SUPPORT);
   options.progressStatusLogger?.("Selecting informative features per record.");
-  const nodes = buildRecordNodes(untagged, featureSupport, minSupport);
+  const nodes = buildRecordNodes(untagged, featureSupport, minSupport, options);
   const graph = buildNeighborGraph(nodes, options.progressStatusLogger);
   options.progressStatusLogger?.("Collecting connected components.");
   const components = collectComponents(nodes, graph);
@@ -841,6 +864,17 @@ function buildCandidateCohorts(
           sourcePenalty,
         ),
       );
+      const overlappingTags = uniqueSorted(clusterAnchors.flatMap((anchor) => anchor.existingTagOverlaps ?? []));
+      const classification: "new_concept_candidate" | "existing_tag_coverage_gap" | "context_only" = overlappingTags.length > 0
+        ? "existing_tag_coverage_gap"
+        : clusterAnchors.some((anchor) => anchor.bucket === "possible_place_anchor")
+          ? "new_concept_candidate"
+          : "context_only";
+      const familyGapRecommendation: "new-tag" | "extend-existing-tag" | "manual-only" = classification === "existing_tag_coverage_gap"
+        ? "extend-existing-tag"
+        : classification === "new_concept_candidate"
+          ? "new-tag"
+          : "manual-only";
 
       return {
         signature: uniqueSorted(signatureDisplay).slice(0, 4),
@@ -856,6 +890,9 @@ function buildCandidateCohorts(
         anchorLift: clusterAnchors[0]?.lift ?? 0,
         score,
         recommendation: recommendClusterForAnchors(score, clusterAnchors, uniqueSorted(sharedTraits), nonNameAnchors, reviewFlags),
+        classification,
+        familyGapRecommendation,
+        overlappingTags,
         representativeRecords: selectRepresentativeRecords(
           memberSimilarities
             .sort((left, right) => right.similarity - left.similarity || left.record.name.localeCompare(right.record.name)),
@@ -882,6 +919,8 @@ function buildCandidateCohorts(
         baselineSupport: anchor.baselineSupport,
         lift: anchor.lift,
         score: anchor.score,
+        bucket: anchor.bucket,
+        existingTagOverlaps: anchor.existingTagOverlaps,
       } satisfies UntaggedCohortAnchor;
       if (
         !existing ||
@@ -939,6 +978,14 @@ export function discoverUntaggedCohorts(
     includeDerivedTags: false,
   });
   logPhase(`Loaded ${baseline.length} baseline records`, baselineStartTime);
+  const covered = normalizedFamily
+    ? loadDiscoveryRecords(db, {
+      category: options.category,
+      subcategory: options.subcategory,
+      requireAnyDerivedTags: familyTags,
+      includeVectors: false,
+    })
+    : [];
   if (untagged.length === 0) {
     if (normalizedFamily) {
       throw new Error(`No canonical records without derived tags in family "${normalizedFamily}" matched the requested scope.`);
@@ -962,6 +1009,12 @@ export function discoverUntaggedCohorts(
     family: normalizedFamily ?? null,
     untaggedRecordCount: untagged.length,
     baselineRecordCount: baseline.length,
+    coveredRecordCount: covered.length > 0 ? covered.length : undefined,
+    liveTags: covered.length > 0
+      ? uniqueSorted([...new Set(covered.flatMap((record) =>
+        record.derivedTags.filter((tag) => familyTags.includes(normalizeDerivedTag(tag))),
+      ))])
+      : undefined,
     anchorTerms,
     cohorts,
   };

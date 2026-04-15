@@ -289,6 +289,7 @@ describe("discover untagged cohorts", () => {
       "--category", "equipment",
       "--subcategory", "gear",
       "--family", "purpose",
+      "--family-gap-signals",
       "--cohort-limit", "5",
       "--anchor-limit", "12",
       "--min-feature-support", "3",
@@ -301,6 +302,7 @@ describe("discover untagged cohorts", () => {
       category: "equipment",
       subcategory: "gear",
       family: "purpose",
+      familyGapSignals: true,
       cohortLimit: 5,
       anchorLimit: 12,
       minFeatureSupport: 3,
@@ -315,8 +317,10 @@ describe("discover untagged cohorts", () => {
       family: "purpose",
       untaggedRecordCount: 12,
       baselineRecordCount: 30,
+      coveredRecordCount: 18,
+      liveTags: ["fortress_setting", "temple_setting"],
       anchorTerms: [
-        { value: "masquerade", support: 4, baselineSupport: 5, lift: 4.8, score: 19.2 },
+        { value: "masquerade", support: 4, baselineSupport: 5, lift: 4.8, score: 19.2, existingTagOverlaps: ["temple_setting"] },
       ],
       cohorts: [
         {
@@ -333,6 +337,9 @@ describe("discover untagged cohorts", () => {
           anchorLift: 4.8,
           score: 0.74,
           recommendation: "rule-led",
+          classification: "existing_tag_coverage_gap",
+          familyGapRecommendation: "extend-existing-tag",
+          overlappingTags: ["temple_setting"],
           representativeRecords: [
             { recordKey: "equipment:1", name: "Masquerade Scarf", similarity: 0.88 },
           ],
@@ -345,8 +352,11 @@ describe("discover untagged cohorts", () => {
 
     expect(rendered).toContain("Untagged cohort summary:");
     expect(rendered).toContain("Family: purpose");
+    expect(rendered).toContain("Covered family records: 18");
     expect(rendered).toContain("Top anchors:");
     expect(rendered).toContain("Recommended cohorts:");
+    expect(rendered).toContain("classification=existing_tag_coverage_gap");
+    expect(rendered).toContain("family_gap=extend-existing-tag");
     expect(rendered).toContain("families=2");
     expect(rendered).toContain("flags=(none)");
   });
@@ -417,11 +427,99 @@ describe("discover untagged cohorts", () => {
     }
   });
 
+  it("uses family-gap-signals to suppress taxonomy markers and classify new versus existing setting concepts", () => {
+    const db = createDiscoveryDb();
+    try {
+      insertRecord(db, {
+        recordKey: "creature:covered-forest",
+        name: "Forest Guardian",
+        category: "creature",
+        traits: ["humanoid"],
+        descriptionText: "A guardian of deep forest groves and jungle trails.",
+        vector: [1, 0, 0],
+        tags: ["forest_setting"],
+      });
+      insertRecord(db, {
+        recordKey: "creature:covered-temple",
+        name: "Temple Warden",
+        category: "creature",
+        traits: ["humanoid"],
+        descriptionText: "A warden who serves in ancient temple sanctuaries.",
+        vector: [0.95, 0.05, 0],
+        tags: ["temple_setting"],
+      });
+      insertRecord(db, {
+        recordKey: "creature:shadow-scout",
+        name: "Shadow Scout",
+        category: "creature",
+        traits: ["dragon"],
+        descriptionText: "This scout stalks prey on the shadow plane beneath penumbral skies.",
+        vector: [0, 1, 0],
+      });
+      insertRecord(db, {
+        recordKey: "creature:umbral-hunter",
+        name: "Umbral Hunter",
+        category: "creature",
+        traits: ["dragon"],
+        descriptionText: "An umbral hunter crosses the plane of shadow with silent wings.",
+        vector: [0.02, 0.98, 0],
+      });
+      insertRecord(db, {
+        recordKey: "creature:penumbral-stalker",
+        name: "Penumbral Stalker",
+        category: "creature",
+        traits: ["dragon"],
+        descriptionText: "A penumbral stalker emerges from the shadow plane to hunt alone.",
+        vector: [0.01, 0.99, 0.01],
+      });
+      insertRecord(db, {
+        recordKey: "creature:jungle-prowler",
+        name: "Jungle Prowler",
+        category: "creature",
+        traits: ["dragon"],
+        descriptionText: "A dragon that lurks in jungle canopy and forest ruins.",
+        vector: [0, 0, 1],
+      });
+      insertRecord(db, {
+        recordKey: "creature:jungle-stalker",
+        name: "Jungle Stalker",
+        category: "creature",
+        traits: ["dragon"],
+        descriptionText: "This dragon prowls jungle paths through thick forest canopy.",
+        vector: [0.03, 0.02, 0.95],
+      });
+
+      const report = discoverUntaggedCohorts(db, {
+        category: "creature",
+        family: "setting",
+        familyGapSignals: true,
+        cohortLimit: 4,
+        anchorLimit: 8,
+        minFeatureSupport: 2,
+        minFeatureLift: 1.05,
+      });
+
+      expect(report.anchorTerms.map((anchor) => anchor.value)).not.toContain("dragon");
+      expect(report.cohorts.some((cohort) =>
+        cohort.classification === "new_concept_candidate")).toBe(true);
+      expect(report.cohorts.some((cohort) =>
+        cohort.classification === "existing_tag_coverage_gap" &&
+        cohort.overlappingTags?.includes("forest_setting"))).toBe(true);
+    } finally {
+      db.close();
+    }
+  });
+
   it("rejects invalid CLI gram ranges", () => {
     expect(() => parseOptions([
       "--category", "equipment",
       "--max-gram-length", "6",
     ])).toThrow(/max-gram-length/i);
+
+    expect(() => parseOptions([
+      "--category", "creature",
+      "--family-gap-signals",
+    ])).toThrow(/family-gap-signals/i);
   });
 
   it("renders help with family-scoped semantics", () => {
@@ -429,6 +527,7 @@ describe("discover untagged cohorts", () => {
 
     expect(help).toContain("Usage:");
     expect(help).toContain("--family <derived-tag-family>");
+    expect(help).toContain("--family-gap-signals");
     expect(help).toContain("With --family, it scans records missing tags from that family");
   });
 

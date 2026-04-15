@@ -1,14 +1,22 @@
 import { describe, expect, it } from "vitest";
 
-import { analyzeDiscoveryEvidenceFromRecords } from "../../src/tags/evidence-analyzer.js";
+import {
+  analyzeDiscoveryEvidenceFromRecords,
+  analyzeFamilyGapEvidenceFromRecords,
+} from "../../src/tags/evidence-analyzer.js";
 import type { DiscoveryAnalysisRecord } from "../../src/tags/discovery-records.js";
 
 function record(input: Partial<DiscoveryAnalysisRecord> & Pick<DiscoveryAnalysisRecord, "recordKey" | "name" | "category">): DiscoveryAnalysisRecord {
   return {
     recordKey: input.recordKey,
+    sourceKey: input.sourceKey ?? input.recordKey.split(":")[0] ?? input.recordKey,
     name: input.name,
     category: input.category,
     subcategory: input.subcategory ?? null,
+    variantFamilyKey: input.variantFamilyKey ?? null,
+    variantBaseName: input.variantBaseName ?? null,
+    variantLabel: input.variantLabel ?? null,
+    variantAxes: input.variantAxes ?? [],
     level: input.level ?? null,
     traits: input.traits ?? [],
     derivedTags: input.derivedTags ?? [],
@@ -229,5 +237,63 @@ describe("derived-tag evidence analyzer", () => {
 
     expect(report.descriptionPhrases.map((term) => term.value)).toContain("moonlit ruined bell tower");
     expect(report.descriptionPhrases.map((term) => term.value)).not.toContain("ruined bell tower");
+  });
+
+  it("splits family-gap evidence into new concepts, existing-tag overlaps, and suppressed taxonomy", () => {
+    const uncovered = [
+      record({
+        recordKey: "creature:1",
+        name: "Umbral Hunter",
+        category: "creature",
+        descriptionText: "This hunter stalks prey on the shadow plane.",
+      }),
+      record({
+        recordKey: "creature:2",
+        name: "Darklands Prowler",
+        category: "creature",
+        descriptionText: "A prowler dwells in the Darklands below Orv.",
+      }),
+      record({
+        recordKey: "creature:3",
+        name: "Jungle Shade",
+        category: "creature",
+        traits: ["dragon"],
+        descriptionText: "This creature lurks in the jungle canopy.",
+      }),
+    ];
+    const covered = [
+      record({
+        recordKey: "creature:covered-1",
+        name: "Forest Stag",
+        category: "creature",
+        derivedTags: ["forest_setting"],
+        descriptionText: "A guardian of the forest canopy and jungle paths.",
+      }),
+      record({
+        recordKey: "creature:covered-2",
+        name: "Temple Sentinel",
+        category: "creature",
+        derivedTags: ["temple_setting"],
+        descriptionText: "A sentinel of the sacred temple halls.",
+      }),
+    ];
+    const baseline = [...uncovered, ...covered];
+
+    const report = analyzeFamilyGapEvidenceFromRecords(
+      uncovered,
+      covered,
+      baseline,
+      "setting",
+      ["forest_setting", "temple_setting"],
+      { limit: 6, exampleLimit: 2 },
+    );
+
+    const newConceptValues = report.likelyNewConcepts.map((term) => term.value);
+    expect(newConceptValues).toContain("shadow plane");
+    expect(newConceptValues.some((value) => value === "darklands" || value === "orv")).toBe(true);
+    expect(report.existingTagCoverageGaps.some((term) =>
+      term.existingTagOverlaps.includes("forest_setting"))).toBe(true);
+    expect(report.suppressedTerms.some((term) =>
+      term.value === "dragon" && term.suppressionReason === "taxonomy")).toBe(true);
   });
 });

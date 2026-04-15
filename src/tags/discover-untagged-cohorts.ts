@@ -36,6 +36,7 @@ export function parseCliArgs(argv: string[]): MultiValueArgs {
 
     const nextValue = inlineValue ?? argv[index + 1];
     if (!nextValue || nextValue.startsWith("--")) {
+      parsed[rawKey] = parsed[rawKey] ?? [];
       continue;
     }
 
@@ -48,6 +49,10 @@ export function parseCliArgs(argv: string[]): MultiValueArgs {
   }
 
   return parsed;
+}
+
+function hasFlag(args: MultiValueArgs, key: string): boolean {
+  return key in args && (args[key]?.length ?? 0) === 0;
 }
 
 function lastValue(args: MultiValueArgs, key: string): string | undefined {
@@ -91,6 +96,7 @@ export function parseOptions(argv: string[]): UntaggedCohortOptions {
     category,
     subcategory: lastValue(args, "subcategory") as SearchSubcategory | undefined,
     family: lastValue(args, "family"),
+    familyGapSignals: hasFlag(args, "family-gap-signals"),
     cohortLimit: parseInteger(lastValue(args, "cohort-limit"), "--cohort-limit"),
     anchorLimit: parseInteger(lastValue(args, "anchor-limit"), "--anchor-limit"),
     minFeatureSupport: parseInteger(lastValue(args, "min-feature-support"), "--min-feature-support"),
@@ -98,6 +104,9 @@ export function parseOptions(argv: string[]): UntaggedCohortOptions {
     minGramLength: parseInteger(lastValue(args, "min-gram-length"), "--min-gram-length"),
     maxGramLength: parseInteger(lastValue(args, "max-gram-length"), "--max-gram-length"),
   };
+  if (options.familyGapSignals && !options.family) {
+    throw new Error("Pass --family <derived-tag-family> when using --family-gap-signals.");
+  }
   resolveDiscoveryGramRange(options);
   return options;
 }
@@ -111,6 +120,7 @@ export function formatHelp(): string {
     "  --category <category>             Required category scope",
     "  --subcategory <subcategory>      Narrow the discovery scope within the category",
     "  --family <derived-tag-family>    Restrict the missing-tag slice to one derived-tag family",
+    "  --family-gap-signals             Re-rank family-scoped cohorts toward missing-family concepts and existing-tag overlap",
     "",
     "Discovery tuning:",
     "  --cohort-limit <n>               Maximum recommended cohorts to emit",
@@ -138,17 +148,22 @@ export function formatUntaggedCohortReport(report: UntaggedCohortReport): string
     ...(report.family ? [`- Family: ${report.family}`] : []),
     `- Untagged records: ${report.untaggedRecordCount}`,
     `- Baseline records: ${report.baselineRecordCount}`,
+    ...(report.coveredRecordCount !== undefined ? [`- Covered family records: ${report.coveredRecordCount}`] : []),
+    ...(report.liveTags ? [`- Live family tags: ${report.liveTags.join(", ") || "(none)"}`] : []),
     "",
     "Top anchors:",
     ...(report.anchorTerms.length > 0
       ? report.anchorTerms.map((anchor) =>
-        `- ${anchor.value} support=${anchor.support} baseline=${anchor.baselineSupport} lift=${anchor.lift.toFixed(2)} score=${anchor.score.toFixed(2)}`)
+        `- ${anchor.value} support=${anchor.support} baseline=${anchor.baselineSupport} lift=${anchor.lift.toFixed(2)} score=${anchor.score.toFixed(2)}${anchor.existingTagOverlaps && anchor.existingTagOverlaps.length > 0 ? ` overlaps=${anchor.existingTagOverlaps.join(", ")}` : ""}`)
       : ["- (none)"]),
     "",
     "Recommended cohorts:",
     ...(report.cohorts.length > 0
       ? report.cohorts.flatMap((cohort) => [
-        `- ${cohort.recommendation} score=${cohort.score.toFixed(2)} size=${cohort.size} families=${cohort.distinctVariantFamilies} sources=${cohort.sourceCount} signature=${cohort.signature.join(", ")}`,
+        `- ${cohort.recommendation} score=${cohort.score.toFixed(2)} size=${cohort.size} families=${cohort.distinctVariantFamilies} sources=${cohort.sourceCount} signature=${cohort.signature.join(", ")}${cohort.classification ? ` classification=${cohort.classification}` : ""}${cohort.familyGapRecommendation ? ` family_gap=${cohort.familyGapRecommendation}` : ""}`,
+        ...(cohort.overlappingTags && cohort.overlappingTags.length > 0
+          ? [`  overlaps=${cohort.overlappingTags.join(", ")}`]
+          : []),
         `  non_name=${cohort.nonNameAnchors.join(", ") || "(none)"} flags=${cohort.reviewFlags.join(", ") || "(none)"} top_sources=${cohort.topSources.join(", ") || "(none)"}`,
         ...cohort.representativeRecords.map((record) => `  ${record.name} (${record.recordKey}) score=${record.similarity.toFixed(3)}`),
         ...(cohort.contrastRecords.length > 0

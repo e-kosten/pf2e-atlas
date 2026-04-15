@@ -82,6 +82,7 @@ export function parseOptions(argv: string[]): DiscoveryEvidenceOptions {
     family: lastValue(args, "family"),
     excludeDerivedTag: lastValue(args, "exclude-derived-tag"),
     untaggedOnly: hasFlag(args, "untagged"),
+    familyGapSignals: hasFlag(args, "family-gap-signals"),
     limit: parseInteger(lastValue(args, "limit"), "--limit"),
     exampleLimit: parseInteger(lastValue(args, "example-limit"), "--example-limit"),
     minGramLength: parseInteger(lastValue(args, "min-gram-length"), "--min-gram-length"),
@@ -92,6 +93,9 @@ export function parseOptions(argv: string[]): DiscoveryEvidenceOptions {
   }
   if (options.family && !options.category) {
     throw new Error("Pass --category <category> when using --family <derived-tag-family>.");
+  }
+  if (options.familyGapSignals && !options.family) {
+    throw new Error("Pass --family <derived-tag-family> when using --family-gap-signals.");
   }
   resolveDiscoveryGramRange(options);
   return options;
@@ -113,6 +117,7 @@ export function formatHelp(): string {
     "  --family <derived-tag-family>     Analyze all records with tags from one derived-tag family",
     "  --untagged                        Analyze records missing tags in the selected family, or fully untagged records when no family is given",
     "  --exclude-derived-tag <tag>       Exclude records that already have one derived tag",
+    "  --family-gap-signals              Re-rank family-scoped evidence toward missing-family concepts instead of raw family-missing evidence",
     "",
     "Output shaping:",
     "  --limit <n>                       Maximum ranked evidence terms per section",
@@ -145,6 +150,13 @@ export function formatEvidenceReport(report: DiscoveryEvidenceReport): string {
     ...(report.family ? [`- Family: ${report.family}`] : []),
     `- Cohort size: ${report.cohortSize}`,
     `- Baseline size: ${report.baselineSize}`,
+    ...(report.familyGap
+      ? [
+        `- Covered family records: ${report.familyGap.coveredCount}`,
+        `- Uncovered family records: ${report.familyGap.uncoveredCount}`,
+        `- Live family tags: ${report.familyGap.liveTags.join(", ") || "(none)"}`,
+      ]
+      : []),
     "",
     "Representative records:",
     ...(report.representativeRecords.length > 0
@@ -162,6 +174,28 @@ export function formatEvidenceReport(report: DiscoveryEvidenceReport): string {
     ...formatTerms("Traits", report.traits),
     "",
     ...formatTerms("Reference features", report.references),
+    ...(report.familyGap
+      ? [
+        "",
+        "Likely new concepts:",
+        ...(report.familyGap.likelyNewConcepts.length > 0
+          ? report.familyGap.likelyNewConcepts.map((term) =>
+            `- ${term.value} gap_lift=${term.gapLift.toFixed(2)} covered=${term.coveredSupport} baseline=${term.baselineSupport} score=${term.score.toFixed(2)} examples=${term.examples.join(" | ")}`)
+          : ["- (none)"]),
+        "",
+        "Likely existing-tag coverage gaps:",
+        ...(report.familyGap.existingTagCoverageGaps.length > 0
+          ? report.familyGap.existingTagCoverageGaps.map((term) =>
+            `- ${term.value} overlaps=${term.existingTagOverlaps.join(", ")} gap_lift=${term.gapLift.toFixed(2)} covered=${term.coveredSupport} score=${term.score.toFixed(2)} examples=${term.examples.join(" | ")}`)
+          : ["- (none)"]),
+        "",
+        "Suppressed generic anchors:",
+        ...(report.familyGap.suppressedTerms.length > 0
+          ? report.familyGap.suppressedTerms.map((term) =>
+            `- ${term.value} reason=${term.suppressionReason ?? "suppressed"} score=${term.score.toFixed(2)} examples=${term.examples.join(" | ")}`)
+          : ["- (none)"]),
+      ]
+      : []),
   ];
 
   return lines.join("\n");
