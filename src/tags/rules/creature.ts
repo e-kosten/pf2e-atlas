@@ -515,13 +515,56 @@ const DREAMLANDS_SETTING_BLOCKER_TEXT_ANCHORS = [
   patternAnchor("out of the dreamlands and into the waking world"),
 ];
 
+const DREAMLANDS_SETTING_EXTRA_NAME_ANCHORS = [
+  patternAnchor("leng", "name"),
+  patternAnchor("dreamscraper", "name"),
+];
+
+const DREAMLANDS_SETTING_EXTRA_TEXT_ANCHORS = [
+  patternAnchor("dimension of dreams"),
+  patternAnchor("dimension of leng"),
+  patternAnchor("nightmare realm"),
+];
+
 const HELL_SETTING_BLOCKER_TEXT_ANCHORS = [
   patternAnchor("hellknight"),
   patternAnchor("hellspawn"),
 ];
 
+const HELL_SETTING_NAME_ANCHORS = [
+  patternAnchor("diabolic", "name"),
+  patternAnchor("hell hound", "name"),
+  patternAnchor("hellcat", "name"),
+  patternAnchor("hellwasp", "name"),
+];
+
 const ABYSS_SETTING_BLOCKER_TEXT_ANCHORS = [
   patternAnchor("against the abyss"),
+];
+
+const SWAMP_SETTING_NAME_ANCHORS = [
+  patternAnchor("bog", "name"),
+  patternAnchor("fen", "name"),
+  patternAnchor("mire", "name"),
+];
+
+const SWAMP_SETTING_TEXT_ANCHORS = [
+  patternAnchor("peat bog"),
+  patternAnchor("marshy realms"),
+  patternAnchor("muddy swamp"),
+  patternAnchor("bog or swamp"),
+  patternAnchor("swamp or bog"),
+  patternAnchor("bogs or swamps"),
+  patternAnchor("tropical swamps"),
+];
+
+const NAUTICAL_SETTING_NAME_ANCHORS = [
+  patternAnchor("thief of ships", "name"),
+];
+
+const NAUTICAL_SETTING_TEXT_ANCHORS = [
+  patternAnchor("black ships"),
+  patternAnchor("aboard a derelict ship"),
 ];
 
 const URBAN_SETTING_SETTLEMENT_LIST_TEXT_ANCHORS = [
@@ -1012,6 +1055,8 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     anyOf: [
       { score: 2, textAny: DREAMLANDS_SETTING_NAME_ANCHORS },
       { score: 2, textAny: DREAMLANDS_SETTING_TEXT_ANCHORS },
+      { score: 2, textAny: DREAMLANDS_SETTING_EXTRA_NAME_ANCHORS },
+      { score: 2, textAny: DREAMLANDS_SETTING_EXTRA_TEXT_ANCHORS },
     ],
   },
   {
@@ -1111,6 +1156,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
       { textAny: HELL_SETTING_BLOCKER_TEXT_ANCHORS },
     ],
     anyOf: [
+      { score: 3, textAny: HELL_SETTING_NAME_ANCHORS },
       { score: 2, textAny: HELL_SETTING_TEXT_ANCHORS },
       { score: 1, traitsAny: ["devil", "fiend"] },
     ],
@@ -1254,6 +1300,8 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "creature",
     threshold: 2,
     anyOf: [
+      { score: 2, textAny: NAUTICAL_SETTING_NAME_ANCHORS },
+      { score: 2, textAny: NAUTICAL_SETTING_TEXT_ANCHORS },
       {
         score: 2,
         textAny: [
@@ -1346,6 +1394,8 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     threshold: 2,
     anyOf: [
       { score: 2, traitsAny: ["boggard"] },
+      { score: 1, textAny: SWAMP_SETTING_NAME_ANCHORS },
+      { score: 2, textAny: SWAMP_SETTING_TEXT_ANCHORS },
       {
         score: 2,
         textNear: createCreatureSettingTextNear(

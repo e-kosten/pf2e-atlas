@@ -282,6 +282,30 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
     },
   });
 
+  await writeJson(path.join(packRoot, "pathfinder-npc-core", "artillerist.json"), {
+    _id: "npc-core-artillerist",
+    name: "Artillerist",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 6,
+        },
+        publication: {
+          title: "Pathfinder NPC Core",
+        },
+        publicNotes: "<p>Artillerists are often employed on ships to manage their cannons and harpoons, but their primary role is the maintenance and operation of siege weapons.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["human", "humanoid"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "pathfinder-monster-core", "ship-captain.json"), {
     _id: "ship-captain",
     name: "Ship Captain",
@@ -319,6 +343,30 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
     },
   });
 
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "bog-mummy.json"), {
+    _id: "bog-mummy-core",
+    name: "Bog Mummy",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 6,
+        },
+        publication: {
+          title: "Pathfinder Bestiary 2",
+        },
+        publicNotes: "<p>Bog mummies rarely, if ever, leave their marshy realms, rising from the acidic morass of a peat bog or muddy swamp to pursue old vengeance.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["mummy", "undead", "unholy"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "pathfinder-monster-core", "ghost-pirate-captain.json"), {
     _id: "ghost-pirate-captain",
     name: "Ghost Pirate Captain",
@@ -338,6 +386,78 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         value: ["ghost", "incorporeal", "spirit", "undead", "unholy"],
         size: {
           value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "tehialai-thief-of-ships.json"), {
+    _id: "tehialai-thief-of-ships-core",
+    name: "Tehialai-Thief-of-Ships",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 14,
+        },
+        publication: {
+          title: "Lost Omens: Monsters of Myth",
+        },
+        publicNotes: "<p>The titanic crustacean wears the hulls of ruined ships as her shell, and those who know Tehialai offer her tribute to ward off her predation.</p>",
+      },
+      traits: {
+        rarity: "rare",
+        value: ["beast", "water"],
+        size: {
+          value: "huge",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "leng-spider.json"), {
+    _id: "leng-spider-core",
+    name: "Leng Spider",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 13,
+        },
+        publication: {
+          title: "Pathfinder Bestiary 2",
+        },
+        publicNotes: "<p>The monstrous, bloated spiders from the windswept realm of Leng build eerie, dangerous lairs with the aid of magically compelled slaves.</p>",
+      },
+      traits: {
+        rarity: "uncommon",
+        value: ["aberration"],
+        size: {
+          value: "lg",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "diabolic-dragon-adult.json"), {
+    _id: "diabolic-dragon-adult-core",
+    name: "Diabolic Dragon (Adult)",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 14,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>Diabolic dragons are powerful, cunning, and tyrannical living creatures that break off from Hell to enact its will.</p>",
+      },
+      traits: {
+        rarity: "uncommon",
+        value: ["dragon"],
+        size: {
+          value: "huge",
         },
       },
     },
@@ -3057,6 +3177,30 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
           title: "Pathfinder NPC Core",
         },
         publicNotes: "<p>A disciplined hellknight gaoler escorts prisoners and enforces the order's brutal routines.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["human", "humanoid"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-npc-core", "hellknight-paravicar.json"), {
+    _id: "hellknight-paravicar-npc-core",
+    name: "Hellknight Paravicar",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 12,
+        },
+        publication: {
+          title: "Lost Omens Character Guide",
+        },
+        publicNotes: "<p>Paravicars use their considerable infernal powers to reinforce their positions in the Hellknight hierarchy.</p>",
       },
       traits: {
         rarity: "common",

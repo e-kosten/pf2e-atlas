@@ -716,6 +716,104 @@ describe("derived tag rules: creature", () => {
     })).not.toContain("civic_npc");
   });
 
+  it("extends creature setting coverage for approved swamp, dreamlands, hell, and nautical anchors", () => {
+    expect(deriveRecordTags({
+      name: "Bog Mummy",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Bog mummies (also called peat mummies or mire mummies) rarely, if ever, leave their marshy realms. Less powerful than their more notorious artificially preserved kin, bog mummies are preserved not by agents introduced during rituals but by the natural elements present in the airless, acidic morass of a peat bog or muddy swamp.",
+      traits: ["undead", "mummy", "unholy"],
+    })).toContain("swamp_setting");
+
+    expect(deriveRecordTags({
+      name: "Witchfire Warden",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A witchfire often resides in a bog or swamp, which slowly blackens and decays around them.",
+      traits: ["incorporeal", "spirit", "undead", "unholy"],
+    })).toContain("swamp_setting");
+
+    expect(deriveRecordTags({
+      name: "Dread Wisp",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "While dread wisps can survive anywhere within the Darklands, they prefer moist areas like partially submerged caves, the banks of underground rivers, and towering fungus gardens.",
+      traits: ["aberration"],
+    })).not.toContain("swamp_setting");
+
+    expect(deriveRecordTags({
+      name: "Leng Spider",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "The monstrous, bloated spiders from the windswept realm of Leng build eerie, dangerous lairs with the aid of magically compelled slaves.",
+      traits: ["aberration"],
+    })).toContain("dreamlands_setting");
+
+    expect(deriveRecordTags({
+      name: "Dreamscraper",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "After returning to the Dimension of Dreams with their prizes, dreamscrapers store them in their dark, spire-like cocoons, trade them, or offer them up to their heinous masters as some obscure tax.",
+      traits: ["dream", "aberration"],
+    })).toContain("dreamlands_setting");
+
+    expect(deriveRecordTags({
+      name: "Night Hag",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "They haunt the Ethereal Plane, where they prey upon mortals in their dreams, debilitating them with horrific nightmares as they rest.",
+      traits: ["fiend", "hag", "evil"],
+    })).not.toContain("dreamlands_setting");
+
+    expect(deriveRecordTags({
+      name: "Diabolic Dragon (Adult)",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Hell, according to some theologians, is a living entity in and of itself. Diabolic dragons are powerful, cunning, and tyrannical extensions of the plane, living creatures that break off from Hell to enact its will.",
+      traits: ["dragon"],
+    })).toEqual(expect.arrayContaining(["hell_setting", "lower_plane_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Hellcat",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Hellcats are devious predators native to the fiery pits of Hell.",
+      traits: ["fiend", "beast", "unholy"],
+    })).toEqual(expect.arrayContaining(["hell_setting", "lower_plane_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Hellknight Paravicar",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Paravicars use their considerable infernal powers to reinforce their positions in the Hellknight hierarchy.",
+      traits: ["human", "humanoid"],
+    })).not.toContain("hell_setting");
+
+    expect(deriveRecordTags({
+      name: "Sunflower Leshy",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A human artist might illustrate Hell as a place of glowing lava and flickering flames, but to a sunflower leshy the only proper way to depict such a place is in morose grays, blacks, and whites.",
+      traits: ["leshy", "plant"],
+    })).not.toContain("hell_setting");
+
+    expect(deriveRecordTags({
+      name: "Tehialai-Thief-of-Ships",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "The titanic crustacean wears the hulls of ruined ships as her shell, ripped into shape by vessel-rending claws. Few ships can withstand her might, and those who know Tehialai offer her tribute to ward off her predation.",
+      traits: ["beast", "water"],
+    })).toContain("nautical_setting");
+
+    expect(deriveRecordTags({
+      name: "Artillerist",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Artillerists are often employed on ships to manage their cannons and harpoons, but their primary role is the maintenance and operation of siege weapons.",
+      traits: ["human", "humanoid"],
+    })).not.toContain("nautical_setting");
+  });
+
   it("derives creature motif tags without collapsing into raw vibes", () => {
     expect(deriveRecordTags({
       name: "Court Jester",
