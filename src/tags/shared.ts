@@ -374,6 +374,7 @@ const NIRVANA_SETTING_TEXT_ANCHORS: TextAnchor[] = [
 const ELYSIUM_SETTING_TEXT_ANCHORS: TextAnchor[] = [
   patternAnchor("of elysium"),
   patternAnchor("in elysium"),
+  patternAnchor("outer plane elysium"),
   patternAnchor("lords of elysium"),
   patternAnchor("champions of the freedom"),
 ];

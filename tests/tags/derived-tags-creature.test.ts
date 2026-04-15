@@ -61,6 +61,15 @@ describe("derived tag rules: creature", () => {
     })).toEqual(expect.arrayContaining(["freshwater_setting", "aquatic_setting"]));
 
     expect(deriveRecordTags({
+      recordKey: "pathfinder-bestiary-3:6OxiStysMq65xKgS",
+      name: "Kongamato",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Though they dwell in swamps and other still waters, kongamatos prefer to hunt in rivers and streams, since running water delivers new prey on a regular basis.",
+      traits: ["animal"],
+    })).toContain("freshwater_setting");
+
+    expect(deriveRecordTags({
       name: "Water Orm",
       category: "creature",
       subcategory: null,
@@ -131,6 +140,15 @@ describe("derived tag rules: creature", () => {
       descriptionText: "A croaking scout that watches for intruders from a reed blind.",
       traits: ["amphibious", "boggard", "humanoid"],
     })).toContain("swamp_setting");
+
+    expect(deriveRecordTags({
+      recordKey: "pathfinder-monster-core-2:zGdsQWq6uHjE7TSx",
+      name: "Tikbalang",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Tikbalangs are forest creatures that delight in leading travelers astray.",
+      traits: ["fey", "occult"],
+    })).toContain("forest_setting");
 
     expect(deriveRecordTags({
       name: "Ghost Pirate Captain",
@@ -1615,7 +1633,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "Hidden among the shadows and upper echelons of society are the conspirator dragons. However, as most conspirator dragons meet others while in disguise, they do their best to maintain their disguise.",
       traits: ["dragon", "occult"],
-    })).toContain("disguised_pretender");
+    })).toEqual(expect.arrayContaining(["disguised_pretender", "urban_setting"]));
 
     expect(deriveRecordTags({
       recordKey: "pathfinder-monster-core-2:yHduMu4VBVUHnssz",
@@ -1706,6 +1724,15 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "A bralani is an azata wanderer who revels in swift travel and rebellion.",
       traits: ["azata", "celestial", "chaotic", "holy"],
+    })).toEqual(expect.arrayContaining(["elysium_setting", "upper_plane_setting"]));
+
+    expect(deriveRecordTags({
+      recordKey: "lost-omens-bestiary:dticIaShaqZdgUKW",
+      name: "Delight Dragon (Adult)",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "As residents of the Outer Plane Elysium, delight dragons are embodiments of the plane's proclivity toward joy, mischief, passion, and spontaneity.",
+      traits: ["chaotic", "dragon"],
     })).toEqual(expect.arrayContaining(["elysium_setting", "upper_plane_setting"]));
 
     expect(deriveRecordTags({

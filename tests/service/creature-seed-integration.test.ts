@@ -209,10 +209,14 @@ describe("Pf2eDataService / Creature manual seeds", () => {
       "faceless_horror",
     ]));
     expect(service.lookup("Envyspawn", { category: "creature" }).match?.derivedTags).toContain("sinspawn_family");
-    expect(service.lookup("Conspirator Dragon (Adult)", { category: "creature" }).match?.derivedTags).toContain("disguised_pretender");
+    expect(service.lookup("Conspirator Dragon (Adult)", { category: "creature" }).match?.derivedTags).toEqual(expect.arrayContaining([
+      "disguised_pretender",
+      "urban_setting",
+    ]));
     expect(service.lookup("Conspirator Dragon (Adult, Spellcaster)", { category: "creature" }).match?.derivedTags).toEqual(expect.arrayContaining([
       "disguised_pretender",
       "dragon_spellcaster",
+      "urban_setting",
     ]));
     expect(service.listRecords({
       category: "creature",

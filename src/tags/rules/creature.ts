@@ -680,6 +680,10 @@ const FOREST_SETTING_EXACT_TEXT_ANCHORS = [
   patternAnchor("within prehistoric forests"),
 ];
 
+const URBAN_SETTING_EXACT_TEXT_ANCHORS = [
+  patternAnchor("upper echelons of society"),
+];
+
 const CIVIC_SUPPORT_TEXT_ANCHORS = [
   patternAnchor("maintain order"),
   patternAnchor("enforce laws"),
@@ -1055,6 +1059,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     ],
     anyOf: [
       { score: 2, textAny: FRESHWATER_SETTING_STRONG_TEXT_ANCHORS },
+      { score: 2, textAny: FRESHWATER_SETTING_EXACT_TEXT_ANCHORS },
       { score: 2, textNear: FRESHWATER_SETTING_TEXT_NEAR },
       { score: 1, textAny: FRESHWATER_SETTING_TEXT_ANCHORS },
       { score: 1, textAny: FRESHWATER_SETTING_NAME_ANCHORS },
@@ -1439,6 +1444,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "creature",
     threshold: 2,
     anyOf: [
+      { score: 2, textAny: FOREST_SETTING_EXACT_TEXT_ANCHORS },
       { score: 2, textNear: FOREST_SETTING_TEXT_NEAR },
       { score: 1, textAny: FOREST_SETTING_NAME_ANCHORS },
       { score: 1, textAny: FOREST_SETTING_CORE_TEXT_ANCHORS },
@@ -1561,6 +1567,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
       { textAny: URBAN_SETTING_SETTLEMENT_LIST_TEXT_ANCHORS, minTextAnyMatches: 2 },
     ],
     anyOf: [
+      { score: 2, textAny: URBAN_SETTING_EXACT_TEXT_ANCHORS },
       { score: 2, textAny: URBAN_SETTING_NAME_ANCHORS },
       {
         score: 2,
