@@ -30,6 +30,10 @@ function createDiscoveryDb(): DatabaseSync {
       record_key TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       normalized_name TEXT NOT NULL,
+      pack_name TEXT,
+      publication_title TEXT,
+      folder_id TEXT,
+      source_path TEXT,
       category TEXT NOT NULL,
       subcategory TEXT,
       variant_family_key TEXT,
@@ -78,6 +82,10 @@ function insertRecord(
     name: string;
     category: string;
     subcategory?: string | null;
+    packName?: string | null;
+    publicationTitle?: string | null;
+    folderId?: string | null;
+    sourcePath?: string | null;
     traits?: string[];
     descriptionText?: string | null;
     vector: number[];
@@ -86,15 +94,19 @@ function insertRecord(
 ): void {
   db.prepare(`
     INSERT INTO records (
-      record_key, name, normalized_name, category, subcategory,
+      record_key, name, normalized_name, pack_name, publication_title, folder_id, source_path, category, subcategory,
       variant_family_key, variant_base_name, variant_label, variant_axes_json,
       level, traits_json, derived_tags_json, description_text, is_search_canonical
     )
-    VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL, '[]', NULL, ?, ?, ?, 1)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, '[]', NULL, ?, ?, ?, 1)
   `).run(
     input.recordKey,
     input.name,
     input.name.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " "),
+    input.packName ?? input.recordKey.split(":")[0] ?? input.recordKey,
+    input.publicationTitle ?? null,
+    input.folderId ?? null,
+    input.sourcePath ?? null,
     input.category,
     input.subcategory ?? null,
     JSON.stringify(input.traits ?? []),

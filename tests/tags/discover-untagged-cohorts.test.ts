@@ -26,6 +26,10 @@ function createDiscoveryDb(): DatabaseSync {
       record_key TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       normalized_name TEXT NOT NULL,
+      pack_name TEXT,
+      publication_title TEXT,
+      folder_id TEXT,
+      source_path TEXT,
       category TEXT NOT NULL,
       subcategory TEXT,
       variant_family_key TEXT,
@@ -71,6 +75,10 @@ function insertRecord(
     variantBaseName?: string | null;
     variantLabel?: string | null;
     variantAxes?: string[];
+    packName?: string | null;
+    publicationTitle?: string | null;
+    folderId?: string | null;
+    sourcePath?: string | null;
     traits?: string[];
     descriptionText?: string | null;
     vector: number[];
@@ -79,15 +87,19 @@ function insertRecord(
 ): void {
   db.prepare(`
     INSERT INTO records (
-      record_key, name, normalized_name, category, subcategory,
+      record_key, name, normalized_name, pack_name, publication_title, folder_id, source_path, category, subcategory,
       variant_family_key, variant_base_name, variant_label, variant_axes_json,
       level, traits_json, derived_tags_json, description_text, is_search_canonical
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, 1)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, 1)
   `).run(
     input.recordKey,
     input.name,
     input.name.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " "),
+    input.packName ?? input.recordKey.split(":")[0] ?? input.recordKey,
+    input.publicationTitle ?? null,
+    input.folderId ?? null,
+    input.sourcePath ?? null,
     input.category,
     input.subcategory ?? null,
     input.variantFamilyKey ?? null,
@@ -107,11 +119,11 @@ function insertRecord(
 function insertReference(db: DatabaseSync, fromRecordKey: string, toRecordKey: string, toRecordName: string): void {
   db.prepare(`
     INSERT OR IGNORE INTO records (
-      record_key, name, normalized_name, category, subcategory,
+      record_key, name, normalized_name, pack_name, publication_title, folder_id, source_path, category, subcategory,
       variant_family_key, variant_base_name, variant_label, variant_axes_json,
       level, traits_json, derived_tags_json, description_text, is_search_canonical
     )
-    VALUES (?, ?, ?, 'spell', NULL, NULL, NULL, NULL, '[]', NULL, '[]', '[]', NULL, 1)
+    VALUES (?, ?, ?, 'equipment-srd', NULL, NULL, NULL, 'spell', NULL, NULL, NULL, NULL, '[]', NULL, '[]', '[]', NULL, 1)
   `).run(
     toRecordKey,
     toRecordName,
@@ -330,6 +342,12 @@ describe("discover untagged cohorts", () => {
           averageSimilarity: 0.82,
           sourceCount: 0,
           topSources: [],
+          publicationCount: 0,
+          topPublications: [],
+          sourceSliceCount: 0,
+          topSourceSlices: [],
+          dominantSourceShare: 0,
+          sourceScope: null,
           sharedTraits: ["illusion"],
           nonNameAnchors: ["target:illusory disguise"],
           reviewFlags: [],
@@ -358,6 +376,7 @@ describe("discover untagged cohorts", () => {
     expect(rendered).toContain("classification=existing_tag_coverage_gap");
     expect(rendered).toContain("family_gap=extend-existing-tag");
     expect(rendered).toContain("families=2");
+    expect(rendered).toContain("source_scope=(none)");
     expect(rendered).toContain("flags=(none)");
   });
 

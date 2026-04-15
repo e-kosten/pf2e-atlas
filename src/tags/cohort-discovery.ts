@@ -14,6 +14,7 @@ import {
   resolveDiscoveryExemplars,
   type ResolvedDiscoveryExemplar,
 } from "./discovery-records.js";
+import { summarizeDiscoverySources } from "./discovery-source-summary.js";
 import {
   isDiscoveryNoiseToken,
   tokenizeDiscoveryText,
@@ -31,6 +32,12 @@ export type DerivedTagCandidateCluster = {
   averageSimilarity: number;
   sourceCount: number;
   topSources: string[];
+  publicationCount: number;
+  topPublications: string[];
+  sourceSliceCount: number;
+  topSourceSlices: string[];
+  dominantSourceShare: number;
+  sourceScope: "source-slice" | "publication" | "pack" | null;
   sharedTraits: string[];
   sharedAnchors: string[];
   nonNameAnchors: string[];
@@ -82,13 +89,6 @@ type RankedCandidate = DiscoveryAnalysisRecord & {
   anchorOverlap: string[];
   anchorScore: number;
   hybridScore: number;
-};
-
-type SourceSummary = {
-  sourceCount: number;
-  topSources: string[];
-  dominantSourceShare: number;
-  hasUsableSourceKeys: boolean;
 };
 
 function variantFamilyIdentity(record: DiscoveryAnalysisRecord): string {
@@ -272,35 +272,11 @@ function isLexicalAnchorKind(kind: DiscoveryEvidenceKind): boolean {
     kind === "descriptionPhrase";
 }
 
-function isGenericSourceKey(record: DiscoveryAnalysisRecord): boolean {
-  return record.sourceKey === record.category;
-}
-
-function summarizeSources(records: DiscoveryAnalysisRecord[]): SourceSummary {
-  const counts = new Map<string, number>();
-  for (const record of records) {
-    if (isGenericSourceKey(record)) {
-      continue;
-    }
-    counts.set(record.sourceKey, (counts.get(record.sourceKey) ?? 0) + 1);
-  }
-
-  const sortedSources = [...counts.entries()]
-    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]));
-  const total = sortedSources.reduce((sum, [, count]) => sum + count, 0);
-  return {
-    sourceCount: sortedSources.length,
-    topSources: sortedSources.slice(0, 3).map(([source]) => source),
-    dominantSourceShare: total > 0 ? (sortedSources[0]?.[1] ?? 0) / total : 0,
-    hasUsableSourceKeys: sortedSources.length > 0,
-  };
-}
-
 function deriveReviewFlags(
   sharedAnchors: string[],
   sharedTraits: string[],
   anchorByValue: Map<string, DiscoveryEvidenceTerm>,
-  sourceSummary: SourceSummary,
+  sourceSummary: ReturnType<typeof summarizeDiscoverySources>,
   distinctVariantFamilies: number,
 ): string[] {
   const flags: string[] = [];
@@ -323,9 +299,13 @@ function deriveReviewFlags(
   if (nameAnchors.length >= 2 && dominantNameSupport >= nameSeriesSupportFloor) {
     flags.push("name-series");
   }
-  if (sourceSummary.hasUsableSourceKeys && sourceSummary.sourceCount === 1) {
+  if (sourceSummary.hasUsableSourceSignals && sourceSummary.dominantSourceShare > 0 && sourceSummary.sourceScope && (
+    (sourceSummary.sourceScope === "source-slice" && sourceSummary.sourceSliceCount === 1) ||
+    (sourceSummary.sourceScope === "publication" && sourceSummary.publicationCount === 1) ||
+    (sourceSummary.sourceScope === "pack" && sourceSummary.sourceCount === 1)
+  )) {
     flags.push("source-local");
-  } else if (sourceSummary.hasUsableSourceKeys && sourceSummary.dominantSourceShare >= 0.75) {
+  } else if (sourceSummary.hasUsableSourceSignals && sourceSummary.dominantSourceShare >= 0.75) {
     flags.push("source-heavy");
   }
   if (sharedAnchors.length > 0 && sharedAnchors.every((anchor) => isNameAnchorKind(anchorByValue.get(anchor)?.kind ?? "descriptionToken"))) {
@@ -505,7 +485,7 @@ function clusterCandidates(
       const signature = key === "__semantic_only__" ? [] : key.split("||");
       const averageSimilarity = bucket.reduce((total, candidate) => total + candidate.similarity, 0) / Math.max(1, bucket.length);
       const distinctVariantFamilies = distinctVariantFamilyCount(bucket);
-      const sourceSummary = summarizeSources(bucket);
+      const sourceSummary = summarizeDiscoverySources(bucket);
       const sharedTraits = [...new Set(bucket.flatMap((candidate) => candidate.traits))]
         .filter((trait) => bucket.every((candidate) => candidate.traits.includes(trait)));
       const sharedAnchors = signature.filter((anchor) => anchorValues.has(anchor));
@@ -564,6 +544,12 @@ function clusterCandidates(
         averageSimilarity,
         sourceCount: sourceSummary.sourceCount,
         topSources: sourceSummary.topSources,
+        publicationCount: sourceSummary.publicationCount,
+        topPublications: sourceSummary.topPublications,
+        sourceSliceCount: sourceSummary.sourceSliceCount,
+        topSourceSlices: sourceSummary.topSourceSlices,
+        dominantSourceShare: sourceSummary.dominantSourceShare,
+        sourceScope: sourceSummary.sourceScope,
         sharedTraits: uniqueSorted(sharedTraits),
         sharedAnchors: uniqueSorted(sharedAnchors),
         nonNameAnchors,

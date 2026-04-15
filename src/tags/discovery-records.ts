@@ -17,6 +17,11 @@ export type DiscoveryReferenceRecord = {
 export type DiscoveryAnalysisRecord = {
   recordKey: string;
   sourceKey: string;
+  packName: string;
+  publicationTitle: string | null;
+  folderId: string | null;
+  sourcePath: string | null;
+  sourcePathSlice: string | null;
   name: string;
   category: SearchCategory;
   subcategory: SearchSubcategory | null;
@@ -55,6 +60,10 @@ export type DiscoveryExemplarOptions = {
 
 type LoadedRecordRow = {
   recordKey: string;
+  packName: string | null;
+  publicationTitle: string | null;
+  folderId: string | null;
+  sourcePath: string | null;
   name: string;
   category: string;
   subcategory: string | null;
@@ -99,14 +108,44 @@ export function decodeDiscoveryVector(blob: Uint8Array | null | undefined): Floa
   return new Float32Array(copy.buffer);
 }
 
+export function deriveSourcePathSlice(packName: string, sourcePath: string | null): string | null {
+  if (!sourcePath) {
+    return null;
+  }
+
+  const normalizedPath = sourcePath.replace(/\\/g, "/");
+  const packMarker = `/${packName}/`;
+  const packIndex = normalizedPath.lastIndexOf(packMarker);
+  if (packIndex >= 0) {
+    const relative = normalizedPath.slice(packIndex + packMarker.length);
+    const segments = relative.split("/").filter(Boolean);
+    return segments.length >= 2 ? segments[0] ?? null : null;
+  }
+
+  const segments = normalizedPath.split("/").filter(Boolean);
+  const packNameIndex = segments.lastIndexOf(packName);
+  if (packNameIndex >= 0 && segments.length > packNameIndex + 2) {
+    return segments[packNameIndex + 1] ?? null;
+  }
+
+  return null;
+}
+
 function toDiscoveryRecord(
   row: LoadedRecordRow,
   references: DiscoveryReferenceRecord[],
 ): DiscoveryAnalysisRecord {
   const separatorIndex = row.recordKey.indexOf(":");
+  const sourceKey = separatorIndex >= 0 ? row.recordKey.slice(0, separatorIndex) : row.recordKey;
+  const packName = row.packName ?? sourceKey;
   return {
     recordKey: row.recordKey,
-    sourceKey: separatorIndex >= 0 ? row.recordKey.slice(0, separatorIndex) : row.recordKey,
+    sourceKey,
+    packName,
+    publicationTitle: row.publicationTitle,
+    folderId: row.folderId,
+    sourcePath: row.sourcePath,
+    sourcePathSlice: deriveSourcePathSlice(packName, row.sourcePath),
     name: row.name,
     category: row.category as SearchCategory,
     subcategory: (row.subcategory ?? null) as SearchSubcategory | null,
@@ -172,6 +211,10 @@ export function loadDiscoveryRecords(
   const sql = [
     "SELECT",
     "  r.record_key AS recordKey,",
+    "  r.pack_name AS packName,",
+    "  r.publication_title AS publicationTitle,",
+    "  r.folder_id AS folderId,",
+    "  r.source_path AS sourcePath,",
     "  r.name AS name,",
     "  r.category AS category,",
     "  r.subcategory AS subcategory,",
@@ -242,6 +285,10 @@ function resolveNameExemplar(
     "  ? AS query,",
     "  match_source.matchedBy AS matchedBy,",
     "  r.record_key AS recordKey,",
+    "  r.pack_name AS packName,",
+    "  r.publication_title AS publicationTitle,",
+    "  r.folder_id AS folderId,",
+    "  r.source_path AS sourcePath,",
     "  r.name AS name,",
     "  r.category AS category,",
     "  r.subcategory AS subcategory,",
@@ -327,6 +374,10 @@ export function resolveDiscoveryExemplars(
       query: recordKey,
       matchedBy: "recordKey",
       recordKey: records[0]!.recordKey,
+      packName: records[0]!.packName,
+      publicationTitle: records[0]!.publicationTitle,
+      folderId: records[0]!.folderId,
+      sourcePath: records[0]!.sourcePath,
       name: records[0]!.name,
       category: records[0]!.category,
       subcategory: records[0]!.subcategory,

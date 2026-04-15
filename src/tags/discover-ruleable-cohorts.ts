@@ -9,6 +9,7 @@ import {
   discoverRuleableCohorts,
   type RuleableCohortReport,
 } from "./cohort-discovery.js";
+import { formatDiscoverySourceContext } from "./discovery-source-report.js";
 import { parseOptions } from "./cluster-derived-tag-candidates.js";
 
 export function formatRuleableCohortReport(report: RuleableCohortReport): string {
@@ -22,8 +23,10 @@ export function formatRuleableCohortReport(report: RuleableCohortReport): string
     "",
     "Top cohorts:",
     ...(report.cohorts.length > 0
-      ? report.cohorts.map((cohort) =>
-        `- ${cohort.recommendation} score=${cohort.score.toFixed(2)} size=${cohort.size} families=${cohort.distinctVariantFamilies} sources=${cohort.sourceCount} signature=${cohort.signature.join(", ") || "(semantic only)"} non_name=${cohort.nonNameAnchors.join(", ") || "(none)"} flags=${cohort.reviewFlags.join(", ") || "(none)"} top_sources=${cohort.topSources.join(", ") || "(none)"}`)
+      ? report.cohorts.flatMap((cohort) => [
+        `- ${cohort.recommendation} score=${cohort.score.toFixed(2)} size=${cohort.size} families=${cohort.distinctVariantFamilies} sources=${cohort.sourceCount} publications=${cohort.publicationCount} source_slices=${cohort.sourceSliceCount} signature=${cohort.signature.join(", ") || "(semantic only)"} non_name=${cohort.nonNameAnchors.join(", ") || "(none)"} flags=${cohort.reviewFlags.join(", ") || "(none)"}`,
+        `  ${formatDiscoverySourceContext(cohort)}`,
+      ])
       : ["- (none)"]),
     "",
     "Anchor terms:",

@@ -78,6 +78,7 @@ Default to this skill when any of these are true:
      `npm run evaluate-derived-tag-movement -- --baseline-index-path /path/to/before.sqlite --category <category> --tags <tag1,tag2,...> --warn-category-gain-below-points <points> --warn-tag-gain-below-count <count> --sample-limit <n>`
    - Treat the deterministic evidence report as the default review queue. Use the LLM only after the analyzer has already surfaced likely anchors, candidate cohorts, and contrast records.
    - Use the movement evaluator to ask whether the expansion actually moved enough live records to justify the added rule complexity, and inspect gained/lost record samples for the touched tags.
+   - Treat `publication_title`, source-folder/path slices, and similar source-origin metadata as discovery aids. They are useful for finding undercovered cohorts, choosing exemplars, and spotting likely book-local clusters, but they are not direct evidence for a setting tag by themselves.
    - Use the cohort output to identify likely candidates, repeated normalized phrases, trait/reference anchors, and false-positive classes. Do not treat embedding proximity as a direct tagging decision.
    - When a proposed tag depends on broad description evidence, identify at least one real canonical record that uses similar generic language but should stay negative.
    - Good regression seeds when they match the slice include `Crushing Ground`, `Imprisonment`, `Artevil Suspension`, `Blindpepper Bomb`, `Mycological Malady`, and one troll lore paragraph for creature-setting noise.

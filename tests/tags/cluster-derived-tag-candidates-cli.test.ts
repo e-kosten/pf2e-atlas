@@ -52,6 +52,12 @@ describe("derived-tag cohort CLI helpers", () => {
           averageSimilarity: 0.92,
           sourceCount: 0,
           topSources: [],
+          publicationCount: 0,
+          topPublications: [],
+          sourceSliceCount: 0,
+          topSourceSlices: [],
+          dominantSourceShare: 0,
+          sourceScope: null,
           sharedTraits: ["undead"],
           sharedAnchors: ["trait:undead"],
           nonNameAnchors: ["trait:undead"],
@@ -67,6 +73,7 @@ describe("derived-tag cohort CLI helpers", () => {
 
     expect(formatClusterReport(report)).toContain("Cohort summary:");
     expect(formatClusterReport(report)).toContain("Cohorts:");
+    expect(formatClusterReport(report)).toContain("source_scope=(none)");
     expect(formatRuleableCohortReport(report)).toContain("Ruleable cohort summary:");
     expect(formatRuleableCohortReport(report)).toContain("Top cohorts:");
   });

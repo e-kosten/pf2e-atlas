@@ -7,9 +7,15 @@ import {
 import type { DiscoveryAnalysisRecord } from "../../src/tags/discovery-records.js";
 
 function record(input: Partial<DiscoveryAnalysisRecord> & Pick<DiscoveryAnalysisRecord, "recordKey" | "name" | "category">): DiscoveryAnalysisRecord {
+  const sourceKey = input.sourceKey ?? input.recordKey.split(":")[0] ?? input.recordKey;
   return {
     recordKey: input.recordKey,
-    sourceKey: input.sourceKey ?? input.recordKey.split(":")[0] ?? input.recordKey,
+    sourceKey,
+    packName: input.packName ?? sourceKey,
+    publicationTitle: input.publicationTitle ?? null,
+    folderId: input.folderId ?? null,
+    sourcePath: input.sourcePath ?? null,
+    sourcePathSlice: input.sourcePathSlice ?? null,
     name: input.name,
     category: input.category,
     subcategory: input.subcategory ?? null,

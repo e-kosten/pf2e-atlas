@@ -13,6 +13,7 @@ import {
   type UntaggedCohortReport,
 } from "./untagged-cohort-discovery.js";
 import { resolveDiscoveryGramRange } from "./discovery-normalization.js";
+import { formatDiscoverySourceContext } from "./discovery-source-report.js";
 
 type MultiValueArgs = Record<string, string[]>;
 
@@ -160,11 +161,12 @@ export function formatUntaggedCohortReport(report: UntaggedCohortReport): string
     "Recommended cohorts:",
     ...(report.cohorts.length > 0
       ? report.cohorts.flatMap((cohort) => [
-        `- ${cohort.recommendation} score=${cohort.score.toFixed(2)} size=${cohort.size} families=${cohort.distinctVariantFamilies} sources=${cohort.sourceCount} signature=${cohort.signature.join(", ")}${cohort.classification ? ` classification=${cohort.classification}` : ""}${cohort.familyGapRecommendation ? ` family_gap=${cohort.familyGapRecommendation}` : ""}`,
+        `- ${cohort.recommendation} score=${cohort.score.toFixed(2)} size=${cohort.size} families=${cohort.distinctVariantFamilies} sources=${cohort.sourceCount} publications=${cohort.publicationCount} source_slices=${cohort.sourceSliceCount} signature=${cohort.signature.join(", ")}${cohort.classification ? ` classification=${cohort.classification}` : ""}${cohort.familyGapRecommendation ? ` family_gap=${cohort.familyGapRecommendation}` : ""}`,
         ...(cohort.overlappingTags && cohort.overlappingTags.length > 0
           ? [`  overlaps=${cohort.overlappingTags.join(", ")}`]
           : []),
-        `  non_name=${cohort.nonNameAnchors.join(", ") || "(none)"} flags=${cohort.reviewFlags.join(", ") || "(none)"} top_sources=${cohort.topSources.join(", ") || "(none)"}`,
+        `  non_name=${cohort.nonNameAnchors.join(", ") || "(none)"} flags=${cohort.reviewFlags.join(", ") || "(none)"}`,
+        `  ${formatDiscoverySourceContext(cohort)}`,
         ...cohort.representativeRecords.map((record) => `  ${record.name} (${record.recordKey}) score=${record.similarity.toFixed(3)}`),
         ...(cohort.contrastRecords.length > 0
           ? [

@@ -20,6 +20,7 @@ import {
   type DiscoveryAnalysisRecord,
   loadDiscoveryRecords,
 } from "./discovery-records.js";
+import { summarizeDiscoverySources } from "./discovery-source-summary.js";
 import type { CohortRecommendation } from "./cohort-discovery.js";
 
 const DEFAULT_COHORT_LIMIT = 8;
@@ -63,6 +64,12 @@ export type UntaggedCohortCluster = {
   averageSimilarity: number;
   sourceCount: number;
   topSources: string[];
+  publicationCount: number;
+  topPublications: string[];
+  sourceSliceCount: number;
+  topSourceSlices: string[];
+  dominantSourceShare: number;
+  sourceScope: "source-slice" | "publication" | "pack" | null;
   sharedTraits: string[];
   nonNameAnchors: string[];
   reviewFlags: string[];
@@ -127,13 +134,6 @@ type RecordNode = {
   record: DiscoveryAnalysisRecord;
   informativeFeatureKeys: Set<string>;
   allFeatureKeys: Set<string>;
-};
-
-type SourceSummary = {
-  sourceCount: number;
-  topSources: string[];
-  dominantSourceShare: number;
-  hasUsableSourceKeys: boolean;
 };
 
 type SelectedUntaggedCohorts = {
@@ -310,34 +310,10 @@ function isLexicalFeatureKind(kind: DiscoveryFeatureKind): boolean {
   return kind === "name" || kind === "name_phrase" || kind === "text" || kind === "text_phrase";
 }
 
-function isGenericSourceKey(record: DiscoveryAnalysisRecord): boolean {
-  return record.sourceKey === record.category;
-}
-
-function summarizeSources(records: DiscoveryAnalysisRecord[]): SourceSummary {
-  const counts = new Map<string, number>();
-  for (const record of records) {
-    if (isGenericSourceKey(record)) {
-      continue;
-    }
-    counts.set(record.sourceKey, (counts.get(record.sourceKey) ?? 0) + 1);
-  }
-
-  const sortedSources = [...counts.entries()]
-    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]));
-  const total = sortedSources.reduce((sum, [, count]) => sum + count, 0);
-  return {
-    sourceCount: sortedSources.length,
-    topSources: sortedSources.slice(0, 3).map(([source]) => source),
-    dominantSourceShare: total > 0 ? (sortedSources[0]?.[1] ?? 0) / total : 0,
-    hasUsableSourceKeys: sortedSources.length > 0,
-  };
-}
-
 function deriveReviewFlags(
   anchors: RankedFeature[],
   sharedTraits: string[],
-  sourceSummary: SourceSummary,
+  sourceSummary: ReturnType<typeof summarizeDiscoverySources>,
   distinctVariantFamilies: number,
 ): string[] {
   const flags: string[] = [];
@@ -363,9 +339,13 @@ function deriveReviewFlags(
   if (nameAnchors.length >= 2 && dominantNameSupport >= nameSeriesSupportFloor) {
     flags.push("name-series");
   }
-  if (sourceSummary.hasUsableSourceKeys && sourceSummary.sourceCount === 1) {
+  if (sourceSummary.hasUsableSourceSignals && sourceSummary.dominantSourceShare > 0 && sourceSummary.sourceScope && (
+    (sourceSummary.sourceScope === "source-slice" && sourceSummary.sourceSliceCount === 1) ||
+    (sourceSummary.sourceScope === "publication" && sourceSummary.publicationCount === 1) ||
+    (sourceSummary.sourceScope === "pack" && sourceSummary.sourceCount === 1)
+  )) {
     flags.push("source-local");
-  } else if (sourceSummary.hasUsableSourceKeys && sourceSummary.dominantSourceShare >= 0.75) {
+  } else if (sourceSummary.hasUsableSourceSignals && sourceSummary.dominantSourceShare >= 0.75) {
     flags.push("source-heavy");
   }
   if (nonNameAnchors.length === 0 && anchors.length > 0) {
@@ -874,7 +854,7 @@ function buildCandidateCohorts(
       const distinctVariantFamilies = distinctVariantFamilyCount(members);
       const sharedTraits = [...new Set(members.flatMap((member) => member.traits))]
         .filter((trait) => members.every((member) => member.traits.includes(trait)));
-      const sourceSummary = summarizeSources(members);
+      const sourceSummary = summarizeDiscoverySources(members);
       const reviewFlags = deriveReviewFlags(clusterAnchors, uniqueSorted(sharedTraits), sourceSummary, distinctVariantFamilies);
       const nonNameAnchors = clusterAnchors
         .filter((anchor) => !isNameFeatureKind(anchor.kind))
@@ -977,6 +957,12 @@ function buildCandidateCohorts(
         averageSimilarity,
         sourceCount: sourceSummary.sourceCount,
         topSources: sourceSummary.topSources,
+        publicationCount: sourceSummary.publicationCount,
+        topPublications: sourceSummary.topPublications,
+        sourceSliceCount: sourceSummary.sourceSliceCount,
+        topSourceSlices: sourceSummary.topSourceSlices,
+        dominantSourceShare: sourceSummary.dominantSourceShare,
+        sourceScope: sourceSummary.sourceScope,
         sharedTraits: uniqueSorted(sharedTraits),
         nonNameAnchors,
         reviewFlags,
