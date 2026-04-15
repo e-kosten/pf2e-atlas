@@ -38,7 +38,9 @@ export type DiscoveryRecordLoadOptions = {
   recordKeys?: string[];
   excludeRecordKeys?: string[];
   requireTag?: string;
+  requireAnyDerivedTags?: string[];
   excludeDerivedTag?: string;
+  excludeAnyDerivedTags?: string[];
   untaggedOnly?: boolean;
   includeVectors?: boolean;
   includeDerivedTags?: boolean;
@@ -200,9 +202,17 @@ export function loadDiscoveryRecords(
     sql.push("AND EXISTS (SELECT 1 FROM record_derived_tags d WHERE d.record_key = r.record_key AND d.tag = ?)");
     params.push(options.requireTag);
   }
+  if (options.requireAnyDerivedTags && options.requireAnyDerivedTags.length > 0) {
+    sql.push(`AND EXISTS (SELECT 1 FROM record_derived_tags d WHERE d.record_key = r.record_key AND d.tag IN (${buildPlaceholders(options.requireAnyDerivedTags)}))`);
+    params.push(...options.requireAnyDerivedTags);
+  }
   if (options.excludeDerivedTag) {
     sql.push("AND NOT EXISTS (SELECT 1 FROM record_derived_tags d WHERE d.record_key = r.record_key AND d.tag = ?)");
     params.push(options.excludeDerivedTag);
+  }
+  if (options.excludeAnyDerivedTags && options.excludeAnyDerivedTags.length > 0) {
+    sql.push(`AND NOT EXISTS (SELECT 1 FROM record_derived_tags d WHERE d.record_key = r.record_key AND d.tag IN (${buildPlaceholders(options.excludeAnyDerivedTags)}))`);
+    params.push(...options.excludeAnyDerivedTags);
   }
   if (options.untaggedOnly) {
     sql.push("AND NOT EXISTS (SELECT 1 FROM record_derived_tags d WHERE d.record_key = r.record_key)");

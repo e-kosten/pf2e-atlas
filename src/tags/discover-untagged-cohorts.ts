@@ -16,6 +16,10 @@ import { resolveDiscoveryGramRange } from "./discovery-normalization.js";
 
 type MultiValueArgs = Record<string, string[]>;
 
+function wantsHelp(argv: string[]): boolean {
+  return argv.includes("--help") || argv.includes("-h");
+}
+
 export function parseCliArgs(argv: string[]): MultiValueArgs {
   const parsed: MultiValueArgs = {};
 
@@ -86,6 +90,7 @@ export function parseOptions(argv: string[]): UntaggedCohortOptions {
   const options = {
     category,
     subcategory: lastValue(args, "subcategory") as SearchSubcategory | undefined,
+    family: lastValue(args, "family"),
     cohortLimit: parseInteger(lastValue(args, "cohort-limit"), "--cohort-limit"),
     anchorLimit: parseInteger(lastValue(args, "anchor-limit"), "--anchor-limit"),
     minFeatureSupport: parseInteger(lastValue(args, "min-feature-support"), "--min-feature-support"),
@@ -97,11 +102,40 @@ export function parseOptions(argv: string[]): UntaggedCohortOptions {
   return options;
 }
 
+export function formatHelp(): string {
+  return [
+    "Usage:",
+    "  npm run discover-untagged-cohorts -- --category <category> [options]",
+    "",
+    "Scope:",
+    "  --category <category>             Required category scope",
+    "  --subcategory <subcategory>      Narrow the discovery scope within the category",
+    "  --family <derived-tag-family>    Restrict the missing-tag slice to one derived-tag family",
+    "",
+    "Discovery tuning:",
+    "  --cohort-limit <n>               Maximum recommended cohorts to emit",
+    "  --anchor-limit <n>               Maximum top anchor terms to emit",
+    "  --min-feature-support <n>        Minimum support for surfaced features",
+    "  --min-feature-lift <n>           Minimum lift for surfaced features",
+    "  --min-gram-length <n>            Minimum phrase length, default analyzer range",
+    "  --max-gram-length <n>            Maximum phrase length, default analyzer range",
+    "",
+    "Semantics:",
+    "  Without --family, this command scans fully untagged canonical records.",
+    "  With --family, it scans records missing tags from that family even if they already have tags from other families.",
+    "",
+    "Examples:",
+    "  npm run discover-untagged-cohorts -- --category creature --family setting --cohort-limit 8 --anchor-limit 16",
+    "  npm run discover-untagged-cohorts -- --category equipment --subcategory gear --cohort-limit 8 --anchor-limit 16",
+  ].join("\n");
+}
+
 export function formatUntaggedCohortReport(report: UntaggedCohortReport): string {
   const scope = report.subcategory ? `${report.category}/${report.subcategory}` : report.category;
   const lines = [
     "Untagged cohort summary:",
     `- Scope: ${scope}`,
+    ...(report.family ? [`- Family: ${report.family}`] : []),
     `- Untagged records: ${report.untaggedRecordCount}`,
     `- Baseline records: ${report.baselineRecordCount}`,
     "",
@@ -132,6 +166,10 @@ export function formatUntaggedCohortReport(report: UntaggedCohortReport): string
 
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
+  if (wantsHelp(argv)) {
+    console.log(formatHelp());
+    return;
+  }
   const options = parseOptions(argv);
   const config = await loadConfig(argv);
   const progress = new ConsoleProgressReporter(process.stderr);

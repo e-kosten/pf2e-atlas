@@ -53,7 +53,14 @@ Default to this skill when any of these are true:
    When comparing multiple categories, prefer the category whose likely batch looks both meaningful and internally coherent, even if another category has slightly lower coverage.
 5. Start with deterministic discovery before asking an LLM to synthesize rule ideas.
    - For broad seedless category discovery, first run `npm run discover-untagged-cohorts -- --category <category> ...` on the untagged slice to surface ruleable cohorts before choosing exemplars.
+   - When the goal is to expand or refine one existing derived-tag family inside a category, prefer the family-scoped slice first:
+     `npm run discover-untagged-cohorts -- --category <category> --family <family> ...`
+     This asks for records missing tags from that family, even if they already have tags from other families.
    - Then run `npm run analyze-derived-tag-evidence -- --category <category> ...` on the untagged or cohort-defined slice to surface repeated normalized tokens, phrases, traits, and reference features.
+   - For family-scoped evidence review, use:
+     `npm run analyze-derived-tag-evidence -- --category <category> --family <family> ...`
+     or
+     `npm run analyze-derived-tag-evidence -- --category <category> --family <family> --untagged ...`
    - Then run `npm run discover-ruleable-cohorts -- --category <category> ...` or `npm run cluster-derived-tag-candidates -- --category <category> ...` when you already have an existing tag or a seed set and want tighter cohort expansion around it.
    - If the concept already exists as a derived tag, run `npm run evaluate-derived-tags -- --tag <derived_tag> ...` to inspect likely false negatives and anchor patterns within the missed records.
    - If the concept does not exist yet, seed it with exemplars and run `npm run cluster-derived-tag-candidates -- --category <category> --name <record> ...`.
@@ -125,8 +132,12 @@ Use deterministic discovery first when you need to mine a sparse or untagged sli
 
 - Seedless category scan:
   `npm run discover-untagged-cohorts -- --category equipment --subcategory gear --cohort-limit 8 --anchor-limit 16`
+- Family-scoped creature setting scan:
+  `npm run discover-untagged-cohorts -- --category creature --family setting --cohort-limit 8 --anchor-limit 16`
 - Cohort evidence example:
   `npm run analyze-derived-tag-evidence -- --category equipment --subcategory gear --untagged --limit 8`
+- Family-scoped evidence example:
+  `npm run analyze-derived-tag-evidence -- --category creature --family setting --untagged --limit 12`
 - Ruleability report for an existing tag:
   `npm run discover-ruleable-cohorts -- --category spell --tag mobility --candidate-limit 20 --cohort-limit 5`
 - Seed-based cohort clustering:

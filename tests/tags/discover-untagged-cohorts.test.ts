@@ -6,6 +6,7 @@ import {
   discoverUntaggedCohorts,
 } from "../../src/tags/untagged-cohort-discovery.js";
 import {
+  formatHelp,
   formatUntaggedCohortReport,
   parseOptions,
 } from "../../src/tags/discover-untagged-cohorts.js";
@@ -287,6 +288,7 @@ describe("discover untagged cohorts", () => {
     const options = parseOptions([
       "--category", "equipment",
       "--subcategory", "gear",
+      "--family", "purpose",
       "--cohort-limit", "5",
       "--anchor-limit", "12",
       "--min-feature-support", "3",
@@ -298,6 +300,7 @@ describe("discover untagged cohorts", () => {
     expect(options).toEqual({
       category: "equipment",
       subcategory: "gear",
+      family: "purpose",
       cohortLimit: 5,
       anchorLimit: 12,
       minFeatureSupport: 3,
@@ -309,6 +312,7 @@ describe("discover untagged cohorts", () => {
     const rendered = formatUntaggedCohortReport({
       category: "equipment",
       subcategory: "gear",
+      family: "purpose",
       untaggedRecordCount: 12,
       baselineRecordCount: 30,
       anchorTerms: [
@@ -340,10 +344,77 @@ describe("discover untagged cohorts", () => {
     });
 
     expect(rendered).toContain("Untagged cohort summary:");
+    expect(rendered).toContain("Family: purpose");
     expect(rendered).toContain("Top anchors:");
     expect(rendered).toContain("Recommended cohorts:");
     expect(rendered).toContain("families=2");
     expect(rendered).toContain("flags=(none)");
+  });
+
+  it("can focus on records missing tags from one derived-tag family", () => {
+    const db = createDiscoveryDb();
+    try {
+      insertRecord(db, {
+        recordKey: "creature:fortress-ghost",
+        name: "Fortress Ghost",
+        category: "creature",
+        traits: ["undead"],
+        descriptionText: "A ghost haunts abandoned fortresses and broken citadels.",
+        vector: [1, 0, 0],
+        tags: ["fortress_setting"],
+      });
+      insertRecord(db, {
+        recordKey: "creature:citadel-wraith",
+        name: "Citadel Wraith",
+        category: "creature",
+        traits: ["undead"],
+        descriptionText: "This wraith stalks ruined bastions and abandoned keeps.",
+        vector: [0.99, 0.01, 0],
+        tags: ["fortress_setting"],
+      });
+      insertRecord(db, {
+        recordKey: "creature:wall-phantom",
+        name: "Wall Phantom",
+        category: "creature",
+        traits: ["undead"],
+        descriptionText: "A phantom patrols fortress walls and crumbling battlements.",
+        vector: [0.98, 0.02, 0],
+        tags: ["undead_adjacent"],
+      });
+      insertRecord(db, {
+        recordKey: "creature:keep-sentinel",
+        name: "Keep Sentinel",
+        category: "creature",
+        traits: ["construct"],
+        descriptionText: "An animate guardian stands watch over an old keep and its bastion.",
+        vector: [0.97, 0.03, 0],
+        tags: ["combatant_npc"],
+      });
+      insertRecord(db, {
+        recordKey: "creature:bastion-shade",
+        name: "Bastion Shade",
+        category: "creature",
+        traits: ["undead"],
+        descriptionText: "A shade lurks in derelict bastions and forgotten keeps.",
+        vector: [0.96, 0.04, 0],
+        tags: ["haunt_theme"],
+      });
+
+      const report = discoverUntaggedCohorts(db, {
+        category: "creature",
+        family: "setting",
+        cohortLimit: 3,
+        anchorLimit: 8,
+        minFeatureSupport: 2,
+        minFeatureLift: 1.1,
+      });
+
+      expect(report.family).toBe("setting");
+      expect(report.untaggedRecordCount).toBe(3);
+      expect(report.baselineRecordCount).toBe(5);
+    } finally {
+      db.close();
+    }
   });
 
   it("rejects invalid CLI gram ranges", () => {
@@ -351,6 +422,14 @@ describe("discover untagged cohorts", () => {
       "--category", "equipment",
       "--max-gram-length", "6",
     ])).toThrow(/max-gram-length/i);
+  });
+
+  it("renders help with family-scoped semantics", () => {
+    const help = formatHelp();
+
+    expect(help).toContain("Usage:");
+    expect(help).toContain("--family <derived-tag-family>");
+    expect(help).toContain("With --family, it scans records missing tags from that family");
   });
 
   it("down-ranks single-family variant ladders in favor of multi-family cohorts", () => {

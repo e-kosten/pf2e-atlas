@@ -1,5 +1,6 @@
 import { deriveRecordTagsFromRules } from "./matcher.js";
 import { normalizeDerivedTag, DerivedTagContext } from "./shared.js";
+import { uniqueSorted } from "../utils.js";
 import {
   buildDerivedTagSeedIndex,
   deriveCatalogTagDerivation,
@@ -56,4 +57,43 @@ export function getDerivedTagSeedRecordKeys(
   scope: { category?: DerivedTagContext["category"]; subcategory?: DerivedTagContext["subcategory"] } = {},
 ): string[] {
   return resolveCatalogSeedRecordKeys(DERIVED_TAG_SEED_INDEX, normalizeDerivedTag(tag), scope);
+}
+
+export function getDerivedTagFamilyTags(
+  family: string,
+  scope: { category?: DerivedTagContext["category"]; subcategory?: DerivedTagContext["subcategory"] } = {},
+): string[] {
+  const normalizedFamily = normalizeDerivedTag(family);
+  const tags = new Set<string>();
+
+  for (const entry of RAW_DERIVED_TAG_CATALOG) {
+    if (normalizeDerivedTag(entry.family) !== normalizedFamily) {
+      continue;
+    }
+    if (scope.category && entry.category !== scope.category) {
+      continue;
+    }
+    if (scope.subcategory !== undefined && entry.subcategories && (scope.subcategory === null || !entry.subcategories.includes(scope.subcategory))) {
+      continue;
+    }
+
+    for (const tag of entry.tags) {
+      tags.add(normalizeDerivedTag(tag.value));
+    }
+    if (entry.promoteFamilyToTag) {
+      tags.add(normalizedFamily);
+    }
+  }
+
+  const resolved = uniqueSorted([...tags]);
+  if (resolved.length === 0) {
+    const renderedScope = scope.category
+      ? scope.subcategory
+        ? `${scope.category}/${scope.subcategory}`
+        : scope.category
+      : "all categories";
+    throw new Error(`No derived tag family "${normalizedFamily}" matched scope "${renderedScope}".`);
+  }
+
+  return resolved;
 }

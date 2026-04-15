@@ -2,7 +2,11 @@ import { DatabaseSync } from "node:sqlite";
 
 import { SearchCategory, SearchSubcategory } from "../types.js";
 import { uniqueSorted } from "../utils.js";
-import { getDerivedTagSeedRecordKeys, normalizeDerivedTag } from "./index.js";
+import {
+  getDerivedTagFamilyTags,
+  getDerivedTagSeedRecordKeys,
+  normalizeDerivedTag,
+} from "./index.js";
 import {
   extractDiscoveryGramRange,
   isDiscoveryNoisePhrase,
@@ -41,6 +45,7 @@ export type DiscoveryEvidenceTerm = {
 export type DiscoveryEvidenceReport = {
   category: SearchCategory | null;
   subcategory: SearchSubcategory | null;
+  family: string | null;
   cohortSize: number;
   baselineSize: number;
   nameTokens: DiscoveryEvidenceTerm[];
@@ -62,6 +67,7 @@ export type DiscoveryEvidenceOptions = {
   recordKeys?: string[];
   excludeRecordKeys?: string[];
   tag?: string;
+  family?: string;
   excludeDerivedTag?: string;
   untaggedOnly?: boolean;
   limit?: number;
@@ -302,7 +308,7 @@ export function analyzeDiscoveryEvidenceFromRecords(
   cohort: DiscoveryAnalysisRecord[],
   baseline: DiscoveryAnalysisRecord[],
   options: Pick<DiscoveryEvidenceOptions, "limit" | "exampleLimit" | "minGramLength" | "maxGramLength"> = {},
-): Omit<DiscoveryEvidenceReport, "category" | "subcategory" | "representativeRecords"> {
+): Omit<DiscoveryEvidenceReport, "category" | "subcategory" | "family" | "representativeRecords"> {
   const limit = Math.max(1, Math.min(options.limit ?? DEFAULT_EVIDENCE_LIMIT, 50));
   const exampleLimit = Math.max(1, Math.min(options.exampleLimit ?? DEFAULT_EXAMPLE_LIMIT, 5));
   const gramRange = resolveDiscoveryGramRange(options);
@@ -353,6 +359,13 @@ export function analyzeDiscoveryEvidence(
 ): DiscoveryEvidenceReport {
   const explicitRecordKeys = options.recordKeys;
   const normalizedTag = options.tag ? normalizeDerivedTag(options.tag) : undefined;
+  const normalizedFamily = options.family ? normalizeDerivedTag(options.family) : undefined;
+  const familyTags = normalizedFamily
+    ? getDerivedTagFamilyTags(normalizedFamily, {
+      category: options.category,
+      subcategory: options.subcategory,
+    })
+    : [];
   const seedRecordKeys = normalizedTag && !explicitRecordKeys
     ? getDerivedTagSeedRecordKeys(normalizedTag, {
       category: options.category,
@@ -365,8 +378,10 @@ export function analyzeDiscoveryEvidence(
     recordKeys: explicitRecordKeys,
     excludeRecordKeys: options.excludeRecordKeys,
     requireTag: normalizedTag,
+    requireAnyDerivedTags: normalizedTag || options.untaggedOnly ? undefined : familyTags,
     excludeDerivedTag: options.excludeDerivedTag,
-    untaggedOnly: options.untaggedOnly,
+    excludeAnyDerivedTags: options.untaggedOnly ? familyTags : undefined,
+    untaggedOnly: options.untaggedOnly && familyTags.length === 0,
     includeVectors: false,
   });
   const seededRecords = seedRecordKeys.length > 0
@@ -388,6 +403,7 @@ export function analyzeDiscoveryEvidence(
   return {
     category: options.category ?? null,
     subcategory: options.subcategory ?? null,
+    family: normalizedFamily ?? null,
     ...report,
     representativeRecords: cohort
       .slice(0, Math.min(5, cohort.length))

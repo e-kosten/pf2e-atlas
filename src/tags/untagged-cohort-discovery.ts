@@ -2,6 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 
 import { SearchCategory, SearchSubcategory } from "../types.js";
 import { uniqueSorted } from "../utils.js";
+import { getDerivedTagFamilyTags, normalizeDerivedTag } from "./index.js";
 import {
   extractDiscoveryGramRange,
   isDiscoveryNoisePhrase,
@@ -29,6 +30,7 @@ const MAX_NEIGHBORS_PER_RECORD = 80;
 export type UntaggedCohortOptions = {
   category: SearchCategory;
   subcategory?: SearchSubcategory;
+  family?: string;
   cohortLimit?: number;
   anchorLimit?: number;
   minFeatureSupport?: number;
@@ -76,6 +78,7 @@ export type UntaggedCohortCluster = {
 export type UntaggedCohortReport = {
   category: SearchCategory;
   subcategory: SearchSubcategory | null;
+  family: string | null;
   untaggedRecordCount: number;
   baselineRecordCount: number;
   anchorTerms: UntaggedCohortAnchor[];
@@ -903,6 +906,13 @@ export function discoverUntaggedCohorts(
   db: DatabaseSync,
   options: UntaggedCohortOptions,
 ): UntaggedCohortReport {
+  const normalizedFamily = options.family ? normalizeDerivedTag(options.family) : undefined;
+  const familyTags = normalizedFamily
+    ? getDerivedTagFamilyTags(normalizedFamily, {
+      category: options.category,
+      subcategory: options.subcategory,
+    })
+    : [];
   const overallStartTime = Date.now();
   const logPhase = (label: string, startTime: number): void => {
     options.progressLogger?.(`${label} in ${Math.max(0, Date.now() - startTime)}ms.`);
@@ -913,7 +923,8 @@ export function discoverUntaggedCohorts(
   const untagged = loadDiscoveryRecords(db, {
     category: options.category,
     subcategory: options.subcategory,
-    untaggedOnly: true,
+    excludeAnyDerivedTags: familyTags,
+    untaggedOnly: familyTags.length === 0,
     includeVectors: true,
     includeDerivedTags: false,
   });
@@ -929,6 +940,9 @@ export function discoverUntaggedCohorts(
   });
   logPhase(`Loaded ${baseline.length} baseline records`, baselineStartTime);
   if (untagged.length === 0) {
+    if (normalizedFamily) {
+      throw new Error(`No canonical records without derived tags in family "${normalizedFamily}" matched the requested scope.`);
+    }
     throw new Error("No untagged canonical records matched the requested scope.");
   }
 
@@ -945,6 +959,7 @@ export function discoverUntaggedCohorts(
   return {
     category: options.category,
     subcategory: options.subcategory ?? null,
+    family: normalizedFamily ?? null,
     untaggedRecordCount: untagged.length,
     baselineRecordCount: baseline.length,
     anchorTerms,

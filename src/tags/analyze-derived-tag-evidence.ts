@@ -15,6 +15,10 @@ import { resolveDiscoveryGramRange } from "./discovery-normalization.js";
 
 type MultiValueArgs = Record<string, string[]>;
 
+function wantsHelp(argv: string[]): boolean {
+  return argv.includes("--help") || argv.includes("-h");
+}
+
 export function parseCliArgs(argv: string[]): MultiValueArgs {
   const parsed: MultiValueArgs = {};
 
@@ -75,6 +79,7 @@ export function parseOptions(argv: string[]): DiscoveryEvidenceOptions {
     recordKeys: args["record-key"]?.map((value) => value.trim()).filter(Boolean),
     excludeRecordKeys: args["exclude-record-key"]?.map((value) => value.trim()).filter(Boolean),
     tag: lastValue(args, "tag"),
+    family: lastValue(args, "family"),
     excludeDerivedTag: lastValue(args, "exclude-derived-tag"),
     untaggedOnly: hasFlag(args, "untagged"),
     limit: parseInteger(lastValue(args, "limit"), "--limit"),
@@ -82,8 +87,44 @@ export function parseOptions(argv: string[]): DiscoveryEvidenceOptions {
     minGramLength: parseInteger(lastValue(args, "min-gram-length"), "--min-gram-length"),
     maxGramLength: parseInteger(lastValue(args, "max-gram-length"), "--max-gram-length"),
   };
+  if (options.tag && options.family) {
+    throw new Error("Choose either --tag <derived-tag> or --family <derived-tag-family>, not both.");
+  }
+  if (options.family && !options.category) {
+    throw new Error("Pass --category <category> when using --family <derived-tag-family>.");
+  }
   resolveDiscoveryGramRange(options);
   return options;
+}
+
+export function formatHelp(): string {
+  return [
+    "Usage:",
+    "  npm run analyze-derived-tag-evidence -- --category <category> [options]",
+    "",
+    "Scope:",
+    "  --category <category>              Required for normal category-scoped and family-scoped analysis",
+    "  --subcategory <subcategory>       Narrow the analysis scope within the category",
+    "  --record-key <canonical-key>      Repeatable explicit cohort records",
+    "  --exclude-record-key <key>        Repeatable exclusions",
+    "",
+    "Cohort selection:",
+    "  --tag <derived-tag>               Analyze one existing derived tag",
+    "  --family <derived-tag-family>     Analyze all records with tags from one derived-tag family",
+    "  --untagged                        Analyze records missing tags in the selected family, or fully untagged records when no family is given",
+    "  --exclude-derived-tag <tag>       Exclude records that already have one derived tag",
+    "",
+    "Output shaping:",
+    "  --limit <n>                       Maximum ranked evidence terms per section",
+    "  --example-limit <n>               Maximum examples per surfaced term",
+    "  --min-gram-length <n>             Minimum phrase length, default analyzer range",
+    "  --max-gram-length <n>             Maximum phrase length, default analyzer range",
+    "",
+    "Examples:",
+    "  npm run analyze-derived-tag-evidence -- --category creature --family setting",
+    "  npm run analyze-derived-tag-evidence -- --category creature --family setting --untagged --limit 12",
+    "  npm run analyze-derived-tag-evidence -- --category creature --tag fortress_setting",
+  ].join("\n");
 }
 
 function formatTerms(label: string, terms: DiscoveryEvidenceReport["nameTokens"]): string[] {
@@ -101,6 +142,7 @@ export function formatEvidenceReport(report: DiscoveryEvidenceReport): string {
   const lines = [
     "Evidence summary:",
     `- Scope: ${scope}`,
+    ...(report.family ? [`- Family: ${report.family}`] : []),
     `- Cohort size: ${report.cohortSize}`,
     `- Baseline size: ${report.baselineSize}`,
     "",
@@ -127,6 +169,10 @@ export function formatEvidenceReport(report: DiscoveryEvidenceReport): string {
 
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
+  if (wantsHelp(argv)) {
+    console.log(formatHelp());
+    return;
+  }
   const options = parseOptions(argv);
   const config = await loadConfig(argv);
 

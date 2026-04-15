@@ -161,6 +161,54 @@ describe("seed-backed discovery integration", () => {
     }
   });
 
+  it("can analyze one derived-tag family without naming a specific tag", () => {
+    const db = createDiscoveryDb();
+    try {
+      insertRecord(db, {
+        recordKey: "creature:fortress-ghost",
+        name: "Fortress Ghost",
+        category: "creature",
+        traits: ["undead"],
+        descriptionText: "A ghost haunts abandoned fortresses and broken citadels.",
+        vector: [1, 0, 0],
+        tags: ["fortress_setting"],
+      });
+      insertRecord(db, {
+        recordKey: "creature:graveyard-guardian",
+        name: "Graveyard Guardian",
+        category: "creature",
+        traits: ["undead"],
+        descriptionText: "A spirit prowls old mausoleums and burial grounds.",
+        vector: [0.98, 0.02, 0],
+        tags: ["graveyard_setting"],
+      });
+      insertRecord(db, {
+        recordKey: "creature:mercenary",
+        name: "Mercenary",
+        category: "creature",
+        traits: ["human"],
+        descriptionText: "A veteran soldier watches the city gates.",
+        vector: [0, 1, 0],
+        tags: ["combatant_npc"],
+      });
+
+      const report = analyzeDiscoveryEvidence(db, {
+        category: "creature",
+        family: "setting",
+        limit: 4,
+      });
+
+      expect(report.family).toBe("setting");
+      expect(report.cohortSize).toBe(2);
+      expect(report.representativeRecords.map((record) => record.recordKey)).toEqual([
+        "creature:fortress-ghost",
+        "creature:graveyard-guardian",
+      ]);
+    } finally {
+      db.close();
+    }
+  });
+
   it("uses catalog seeds as cohort exemplars when a tag has no indexed matches yet", () => {
     const db = createDiscoveryDb();
     try {
