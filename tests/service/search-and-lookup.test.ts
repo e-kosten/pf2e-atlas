@@ -368,6 +368,7 @@ describe("Pf2eDataService / Search and Lookup", () => {
     expect(bogMummy?.derivedTags).toContain("swamp_setting");
     const cairnWight = service.lookup("Cairn Wight", { category: "creature" }).match;
     expect(cairnWight?.derivedTags).toEqual(expect.arrayContaining(["graveyard_setting", "undead_adjacent"]));
+    expect(cairnWight?.derivedTags).not.toContain("underground_setting");
     const lengSpider = service.lookup("Leng Spider", { category: "creature" }).match;
     expect(lengSpider?.derivedTags).toContain("dreamlands_setting");
     const templeScavenger = service.lookup("Temple Scavenger", { category: "creature" }).match;

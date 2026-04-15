@@ -10,7 +10,22 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "This cemetery guard patrols the crypts beneath the old city.",
       traits: [],
-    })).toEqual(expect.arrayContaining(["graveyard_setting", "underground_setting", "urban_setting", "profession_npc", "civic_npc"]));
+    })).toEqual(expect.arrayContaining(["graveyard_setting", "urban_setting", "profession_npc", "civic_npc"]));
+    expect(deriveRecordTags({
+      name: "Graveyard Guard",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "This cemetery guard patrols the crypts beneath the old city.",
+      traits: [],
+    })).not.toContain("underground_setting");
+
+    expect(deriveRecordTags({
+      name: "Drain Scuttler",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "This scavenger makes its home in storm drains and culverts beneath crowded city streets.",
+      traits: ["beast"],
+    })).toContain("urban_setting");
 
     expect(deriveRecordTags({
       name: "Bog Wisp",
@@ -167,12 +182,67 @@ describe("derived tag rules: creature", () => {
     })).toContain("graveyard_setting");
 
     expect(deriveRecordTags({
+      name: "Crypt Haunter",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "An undead guardian lurks within crypts, catacombs, and tombs beneath a ruined cemetery.",
+      traits: ["undead"],
+    })).toContain("graveyard_setting");
+    expect(deriveRecordTags({
+      name: "Crypt Haunter",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "An undead guardian lurks within crypts, catacombs, and tombs beneath a ruined cemetery.",
+      traits: ["undead"],
+    })).not.toContain("underground_setting");
+
+    expect(deriveRecordTags({
+      name: "Lightless Warped",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Other subterranean monsters drive these warped horrors back to their lightless lairs deep underground.",
+      traits: ["aberration"],
+    })).toContain("underground_setting");
+
+    expect(deriveRecordTags({
+      name: "Stone Mauler",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "These towering heaps of earth can inflict tremendous damage up close and from afar. Earth elementals make excellent bodyguards for adventuresome spelunkers and are ideal protectors of important subterranean locations such as vaults and treasuries.",
+      traits: ["elemental", "earth"],
+    })).toContain("underground_setting");
+
+    expect(deriveRecordTags({
       name: "Caldera Oni",
       category: "creature",
       subcategory: null,
       descriptionText: "As hot-blooded as the lava that floods their homes, caldera oni hunger for battle.",
       traits: ["fiend", "oni"],
     })).toContain("volcanic_setting");
+
+    expect(deriveRecordTags({
+      name: "Ammut Hunter",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "These desert-dwelling fiends lair among dunes and oases of the Black Desert.",
+      traits: ["fiend"],
+    })).toContain("desert_setting");
+
+    expect(deriveRecordTags({
+      name: "Black Scorpion",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "With a carapace the color of polished obsidian and a penchant for attacking villages, this humongous scorpion is one of the desert's most frightening predators.",
+      traits: ["animal"],
+    })).toContain("desert_setting");
+
+    expect(deriveRecordTags({
+      name: "Otyugh",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Lords of sewers, ditches, and landfills, otyughs are filthy monstrosities that stomp about on three massive legs in search of tasty garbage and refuse.",
+      traits: ["aberration"],
+    })).toContain("urban_setting");
 
     expect(deriveRecordTags({
       name: "Coastal Prowler",
@@ -1423,6 +1493,14 @@ describe("derived tag rules: creature", () => {
     })).not.toContain("volcanic_setting");
 
     expect(deriveRecordTags({
+      name: "Crypt Butler",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "This spirit haunts a crypt beneath an old church and tends the resting place within.",
+      traits: ["spirit", "undead"],
+    })).not.toContain("underground_setting");
+
+    expect(deriveRecordTags({
       name: "Cinder Rat",
       category: "creature",
       subcategory: null,
@@ -1533,6 +1611,22 @@ describe("derived tag rules: creature", () => {
       descriptionText: "Wraiths may form packs with others of their kind in places where death and mayhem are commonplace-countrysides ravaged by war, metropolitan underworlds run by criminal overlords, or sites of fiendish cultic rituals. Ruins, sewers, and abandoned buildings provide sanctuary for wraiths during the day, as the creatures hunt exclusively at night or in dark places. Wraiths are smart enough to take advantage of their incorporeality in combat, so they keep to tortuous caverns or structures with hallways and avoid open areas.",
       traits: ["undead"],
     })).not.toEqual(expect.arrayContaining(["fortress_setting", "urban_setting", "underground_setting", "temple_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Ankhrav",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Though ankhravs burrow with ease and are ubiquitous in many environments, they are nevertheless most common in rural areas. Their hunting grounds generally surround farmland, as ankhravs are partial to livestock and plentiful, lazy prey. They rarely venture into well-defended towns or heavily settled areas like cities, but a group of ankhravs that discovers an undefended homestead or village can wreak havoc in mere moments.",
+      traits: ["beast"],
+    })).not.toContain("urban_setting");
+
+    expect(deriveRecordTags({
+      name: "Grick",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Gricks are aggressive predators of the Darklands, dwelling near ruined structures and rocky hunting grounds where they can ambush prey with ease.",
+      traits: ["aberration"],
+    })).not.toContain("fortress_setting");
 
     expect(deriveRecordTags({
       name: "Triton",

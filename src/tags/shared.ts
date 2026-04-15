@@ -121,6 +121,8 @@ const CIVIC_NPC_BLOCKER_TRAITS = [
 const FRESHWATER_SETTING_TEXT_ANCHORS: TextAnchor[] = [
   patternAnchor("river"),
   patternAnchor("rivers"),
+  patternAnchor("creek"),
+  patternAnchor("creeks"),
   patternAnchor("lake"),
   patternAnchor("lakes"),
   patternAnchor("pond"),
@@ -129,6 +131,8 @@ const FRESHWATER_SETTING_TEXT_ANCHORS: TextAnchor[] = [
   patternAnchor("streams"),
   patternAnchor("spring"),
   patternAnchor("springs"),
+  patternAnchor("tributary"),
+  patternAnchor("tributaries"),
 ];
 
 const FRESHWATER_SETTING_STRONG_TEXT_ANCHORS: TextAnchor[] = [

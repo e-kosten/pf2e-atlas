@@ -454,6 +454,23 @@ const DESERT_SETTING_NAME_ANCHORS = [
   patternAnchor("sand", "name"),
 ];
 
+const DESERT_SETTING_STRONG_TEXT_ANCHORS = [
+  patternAnchor("desert-dwelling"),
+  patternAnchor("desert dwelling"),
+  patternAnchor("desert {{alt(denizen,denizens,creature,creatures)}}"),
+  patternAnchor("black desert"),
+];
+
+const DESERT_SETTING_EXACT_TEXT_ANCHORS = [
+  patternAnchor("across the desert"),
+  patternAnchor("desert sands"),
+  patternAnchor("through the vast deserts"),
+  patternAnchor("wander the deserts"),
+  patternAnchor("deepest deserts"),
+  patternAnchor("desert traders"),
+  patternAnchor("desert's most frightening predators"),
+];
+
 const DESERT_SETTING_CORE_TEXT_ANCHORS = [
   patternAnchor("desert"),
   patternAnchor("deserts"),
@@ -526,6 +543,7 @@ const RURAL_SETTING_BLOCKER_TEXT_NEAR = [
 
 const URBAN_SETTING_BLOCKER_TEXT_ANCHORS = [
   patternAnchor("market price"),
+  patternAnchor("encountered in diverse cities and urban centers"),
 ];
 
 const URBAN_SETTING_NAME_ANCHORS = [
@@ -652,6 +670,18 @@ const FRESHWATER_SETTING_TEXT_NEAR = [
   ),
 ];
 
+const DESERT_SETTING_TEXT_NEAR = [
+  ...createCreatureSettingTextNear(
+    "desert,deserts,dune,dunes,arid,sandy,oasis,oases,black desert",
+    CREATURE_TERRAIN_HABITAT_CONTEXT_TEXT_ANCHOR,
+  ),
+  ...createCreatureSettingTextNear(
+    "desert,deserts,dune,dunes,oasis,oases,black desert",
+    CREATURE_SITE_FUNCTION_CONTEXT_TEXT_ANCHOR,
+    10,
+  ),
+];
+
 const FRESHWATER_SETTING_EXACT_TEXT_ANCHORS = [
   patternAnchor("rivers and lakes"),
   patternAnchor("lakes and rivers"),
@@ -661,6 +691,12 @@ const FRESHWATER_SETTING_EXACT_TEXT_ANCHORS = [
   patternAnchor("lakes and ponds"),
   patternAnchor("freshwater inlet"),
   patternAnchor("freshwater inlets"),
+  patternAnchor("river tributaries"),
+  patternAnchor("tributaries meet"),
+  patternAnchor("cool inland waters"),
+  patternAnchor("remote lakes"),
+  patternAnchor("still inland pools"),
+  patternAnchor("geothermal spring"),
 ];
 
 const FOREST_SETTING_TEXT_NEAR = [
@@ -689,8 +725,60 @@ const CANYON_OR_CAVERNS_TEXT_ANCHORS = [
   patternAnchor("canyons or caverns", "description"),
 ];
 
+const UNDERGROUND_SETTING_EXACT_TEXT_ANCHORS = [
+  patternAnchor("subterranean monster"),
+  patternAnchor("subterranean monsters"),
+  patternAnchor("subterranean realm"),
+  patternAnchor("subterranean realms"),
+  patternAnchor("lightless land"),
+  patternAnchor("lightless lands"),
+  patternAnchor("lightless lair"),
+  patternAnchor("lightless lairs"),
+  patternAnchor("deep underground"),
+  patternAnchor("adventuresome spelunkers"),
+  patternAnchor("important subterranean locations"),
+  patternAnchor("underground explorers"),
+  patternAnchor("subterranean depths"),
+];
+
+const GRAVEYARD_SETTING_CORE_TEXT_ANCHORS = [
+  patternAnchor("graveyard"),
+  patternAnchor("graveyards"),
+  patternAnchor("cemetery"),
+  patternAnchor("cemeteries"),
+  patternAnchor("mausoleum"),
+  patternAnchor("mausoleums"),
+  patternAnchor("barrow"),
+  patternAnchor("barrows"),
+  patternAnchor("sepulcher"),
+  patternAnchor("sepulchers"),
+  patternAnchor("cairn"),
+  patternAnchor("cairns"),
+  patternAnchor("burial ground"),
+  patternAnchor("burial grounds"),
+  patternAnchor("crypt"),
+  patternAnchor("crypts"),
+  patternAnchor("tomb"),
+  patternAnchor("tombs"),
+  patternAnchor("catacomb"),
+  patternAnchor("catacombs"),
+  patternAnchor("burial chamber"),
+  patternAnchor("burial chambers"),
+];
+
 const URBAN_SETTING_EXACT_TEXT_ANCHORS = [
   patternAnchor("upper echelons of society"),
+  patternAnchor("city servant"),
+  patternAnchor("city servants"),
+  patternAnchor("city of smog"),
+  patternAnchor("urban pollution"),
+  patternAnchor("lords of sewers"),
+  patternAnchor("storm drain"),
+  patternAnchor("storm drains"),
+  patternAnchor("storm sewer"),
+  patternAnchor("storm sewers"),
+  patternAnchor("drainage tunnel"),
+  patternAnchor("drainage tunnels"),
 ];
 
 const URBAN_SETTING_GOVERNANCE_TEXT_ANCHORS = [
@@ -720,6 +808,21 @@ const VOLCANIC_SETTING_EXACT_TEXT_ANCHORS = [
   patternAnchor("volcanic glass"),
   patternAnchor("roiling lava"),
   patternAnchor("volcanic homes"),
+];
+
+const VOLCANIC_SETTING_TEXT_NEAR = [
+  ...createCreatureSettingTextNear(
+    "volcanic,volcano,volcanoes,lava,magma,caldera,ash,ashen,cinder,cinders",
+    CREATURE_TERRAIN_HABITAT_CONTEXT_TEXT_ANCHOR,
+    7,
+  ),
+];
+
+const WASTELAND_SETTING_TEXT_NEAR = [
+  ...createCreatureSettingTextNear(
+    "wasteland,wastelands,wastes,barren,blasted,desolate",
+    CREATURE_TERRAIN_HABITAT_CONTEXT_TEXT_ANCHOR,
+  ),
 ];
 
 const MOUNTAIN_SETTING_NAME_ANCHORS = [
@@ -1112,6 +1215,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
       { score: 2, textNear: FRESHWATER_SETTING_TEXT_NEAR },
       { score: 1, textAny: FRESHWATER_SETTING_TEXT_ANCHORS },
       { score: 1, textAny: FRESHWATER_SETTING_NAME_ANCHORS },
+      { score: 1, traitsAny: ["amphibious"] },
       { score: 1, traitsAny: ["water"] },
     ],
   },
@@ -1637,10 +1741,11 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     threshold: 2,
     anyOf: [
       { score: 2, textAny: CANYON_OR_CAVERNS_TEXT_ANCHORS },
+      { score: 2, textAny: UNDERGROUND_SETTING_EXACT_TEXT_ANCHORS },
       {
         score: 2,
         textNear: createCreatureSettingTextNear(
-          "cave,caves,cavern,caverns,underground,tunnel,tunnels,subterranean,underworld,depths,crypt,crypts,mine,mines,mineshaft,mineshafts,quarry,quarries,warren,warrens,cave network,cave networks",
+          "cave,caves,cavern,caverns,underground,tunnel,tunnels,subterranean,underworld,depths,mine,mines,mineshaft,mineshafts,quarry,quarries,warren,warrens,cave network,cave networks",
           CREATURE_SITE_HABITAT_CONTEXT_TEXT_ANCHOR,
         ),
       },
@@ -1667,7 +1772,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
       {
         score: 2,
         textNear: createCreatureSettingTextNear(
-          "cave,caves,cavern,caverns,underground,tunnel,tunnels,sewer,sewers,crypt,crypts,warren,warrens,below ground,darklands",
+          "cave,caves,cavern,caverns,underground,tunnel,tunnels,sewer,sewers,warren,warrens,below ground,darklands",
           CREATURE_UNDERGROUND_ACTIVITY_CONTEXT_TEXT_ANCHOR,
         ),
       },
@@ -1678,12 +1783,20 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
           patternAnchor("caves", "name"),
           patternAnchor("cavern", "name"),
           patternAnchor("caverns", "name"),
-          patternAnchor("crypt", "name"),
-          patternAnchor("crypts", "name"),
           patternAnchor("warren", "name"),
           patternAnchor("warrens", "name"),
         ],
       },
+    ],
+  },
+  {
+    tag: "underground_setting",
+    category: "creature",
+    threshold: 2,
+    anyOf: [
+      { score: 1, textAny: [patternAnchor("darklands"), patternAnchor("sekamina")] },
+      { score: 1, textAny: [patternAnchor("subterranean"), patternAnchor("underground"), patternAnchor("underworld")] },
+      { score: 1, textAny: [patternAnchor("cavern"), patternAnchor("caverns"), patternAnchor("lightless")] },
     ],
   },
   {
@@ -1757,6 +1870,9 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "creature",
     threshold: 2,
     anyOf: [
+      { score: 2, textAny: DESERT_SETTING_EXACT_TEXT_ANCHORS },
+      { score: 2, textAny: DESERT_SETTING_STRONG_TEXT_ANCHORS },
+      { score: 2, textNear: DESERT_SETTING_TEXT_NEAR },
       { score: 1, textAny: DESERT_SETTING_NAME_ANCHORS },
       { score: 1, textAny: DESERT_SETTING_CORE_TEXT_ANCHORS },
       { score: 1, textAny: DESERT_SETTING_SUPPORT_TEXT_ANCHORS },
@@ -1767,6 +1883,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "creature",
     threshold: 2,
     anyOf: [
+      { score: 2, textNear: WASTELAND_SETTING_TEXT_NEAR },
       {
         score: 2,
         textAny: [
@@ -1821,25 +1938,8 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     anyOf: [
       {
         score: 2,
-        textAny: [
-          patternAnchor("graveyard"),
-          patternAnchor("graveyards"),
-          patternAnchor("cemetery"),
-          patternAnchor("cemeteries"),
-          patternAnchor("mausoleum"),
-          patternAnchor("mausoleums"),
-          patternAnchor("barrow"),
-          patternAnchor("barrows"),
-          patternAnchor("sepulcher"),
-          patternAnchor("sepulchers"),
-          patternAnchor("cairn"),
-          patternAnchor("cairns"),
-          patternAnchor("burial ground"),
-          patternAnchor("burial grounds"),
-        ],
+        textAny: GRAVEYARD_SETTING_CORE_TEXT_ANCHORS,
       },
-      { score: 1, textAny: [patternAnchor("crypt"), patternAnchor("crypts")] },
-      { score: 1, textAny: [patternAnchor("tomb"), patternAnchor("tombs")] },
       {
         score: 2,
         textNear: [
@@ -1966,14 +2066,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     threshold: 2,
     anyOf: [
       { score: 2, textAny: VOLCANIC_SETTING_EXACT_TEXT_ANCHORS },
-      {
-        score: 2,
-        textNear: createCreatureSettingTextNear(
-          "volcanic,volcano,volcanoes,lava,magma,caldera",
-          CREATURE_TERRAIN_HABITAT_CONTEXT_TEXT_ANCHOR,
-          7,
-        ),
-      },
+      { score: 2, textNear: VOLCANIC_SETTING_TEXT_NEAR },
       { score: 2, textAny: [patternAnchor("lava field", "description"), patternAnchor("lava fields", "description")] },
       { score: 1, textAny: [patternAnchor("ash", "description"), patternAnchor("ashen", "description"), patternAnchor("cinder", "description"), patternAnchor("cinders", "description")] },
     ],
