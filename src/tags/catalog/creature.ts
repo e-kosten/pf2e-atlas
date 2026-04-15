@@ -11,6 +11,7 @@ export const CREATURE_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
       { value: "coastal_setting", description: "Strongly associated with coasts, shores, reefs, or littoral edges." },
       { value: "astral_setting", description: "Strongly associated with Astral Plane scenes, silver-void travel, or stable portal routes." },
       { value: "first_world_setting", description: "Strongly associated with the First World, fey realms, or thin-boundary crossings into that plane." },
+      { value: "dreamlands_setting", description: "Strongly associated with the Dreamlands, Leng-linked dream roads, or iconic denizens that dwell there." },
       { value: "boneyard_setting", description: "Strongly associated with the Boneyard, psychopomp duties, or soul-processing afterlife scenes." },
       { value: "heaven_setting", description: "Strongly associated with Heaven, archon hosts, or ordered celestial service." },
       { value: "nirvana_setting", description: "Strongly associated with Nirvana, enlightened celestials, or benevolent contemplative service." },

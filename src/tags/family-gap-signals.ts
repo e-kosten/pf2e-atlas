@@ -75,6 +75,7 @@ const EXISTING_SETTING_TAG_CUES: Record<string, string[]> = {
   coastal_setting: ["coast", "coastal", "shore", "reef", "littoral", "tidepool"],
   astral_setting: ["astral", "silver void"],
   first_world_setting: ["first world", "fey realm"],
+  dreamlands_setting: ["dreamlands", "dreaming plane", "leng", "nightgaunt", "shantak"],
   boneyard_setting: ["boneyard", "psychopomp"],
   island_setting: ["island", "archipelago", "isle", "atoll"],
   nautical_setting: ["nautical", "ship", "harbor", "dock", "wreck", "sailor", "pirate"],

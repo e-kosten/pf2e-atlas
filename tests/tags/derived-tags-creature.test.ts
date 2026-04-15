@@ -389,6 +389,62 @@ describe("derived tag rules: creature", () => {
     })).toContain("first_world_setting");
 
     expect(deriveRecordTags({
+      name: "Nightgaunt",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Nightgaunts often gather in vast colonies in the Dreamlands, where they entertain each other by sharing emotion memories of their meals through strange caresses.",
+      traits: ["aberration", "dream"],
+    })).toContain("dreamlands_setting");
+
+    expect(deriveRecordTags({
+      name: "Shantak",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Despite not being native to the Dimension of Dreams, they're commonly found in that realm. Their ability to fly through space affords them swift travel between Leng and more hospitable reaches of the Dreamlands.",
+      traits: ["beast"],
+    })).toContain("dreamlands_setting");
+
+    expect(deriveRecordTags({
+      name: "Animate Dream",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "In these forms, animate dreams find their way out of the Dreamlands and into the waking world, only to discover they have no way of returning and suffer a relentless hunger that only new nightmares can sate.",
+      traits: ["dream", "incorporeal"],
+    })).not.toContain("dreamlands_setting");
+
+    expect(deriveRecordTags({
+      name: "Living Nightmare",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "In these forms, animate dreams find their way out of the Dreamlands and into the waking world, only to discover they have no way of returning and suffer a relentless hunger that only new nightmares can sate.",
+      traits: ["dream", "incorporeal"],
+    })).not.toContain("dreamlands_setting");
+
+    expect(deriveRecordTags({
+      name: "Watchtower Shadow",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "The mysterious undead known as shadows lurk in dark places and feed on those who stray too far from the light.",
+      traits: ["undead"],
+    })).toContain("fortress_setting");
+
+    expect(deriveRecordTags({
+      name: "Sewer Ooze",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "These amorphous masses of sewage and other detritus make their way through filthy culverts beneath cities large and small.",
+      traits: ["mindless", "ooze"],
+    })).toContain("urban_setting");
+
+    expect(deriveRecordTags({
+      name: "Virulak Villager",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A village of commoners raised to undeath by a mass poisoning might continue to go about the settled routines of life, posing an eerie scene for living creatures who enter their village.",
+      traits: ["undead"],
+    })).toContain("rural_setting");
+
+    expect(deriveRecordTags({
       name: "Bandersnatch",
       category: "creature",
       subcategory: null,

@@ -343,6 +343,126 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
     },
   });
 
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "nightgaunt.json"), {
+    _id: "nightgaunt-core",
+    name: "Nightgaunt",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 7,
+        },
+        publication: {
+          title: "Pathfinder Monster Core 2",
+        },
+        publicNotes: "<p>Nightgaunts often gather in vast colonies in the Dreamlands, where they entertain each other by sharing emotion memories of their meals through strange caresses.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["aberration", "dream"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "sewer-ooze.json"), {
+    _id: "sewer-ooze-core",
+    name: "Sewer Ooze",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 3,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>These amorphous masses of sewage and other detritus make their way through filthy culverts beneath cities large and small.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["mindless", "ooze"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "gutter-ooze.json"), {
+    _id: "gutter-ooze-core",
+    name: "Gutter Ooze",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 1,
+        },
+        publication: {
+          title: "Pathfinder Monster Core 2",
+        },
+        publicNotes: "<p>These small masses of protoplasm emerge from the drainage culverts beneath a city after a rainfall to feed on bits of organic matter that collect in streetside gutters.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["mindless", "ooze"],
+        size: {
+          value: "sm",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "watchtower-shadow.json"), {
+    _id: "watchtower-shadow-core",
+    name: "Watchtower Shadow",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 8,
+        },
+        publication: {
+          title: "Fists of the Ruby Phoenix",
+        },
+        publicNotes: "<p>The mysterious undead known as shadows lurk in dark places and feed on those who stray too far from the light.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["chaotic", "evil", "incorporeal", "undead", "unholy"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "virulak-villager.json"), {
+    _id: "virulak-villager-core",
+    name: "Virulak Villager",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 2,
+        },
+        publication: {
+          title: "Blood Lords",
+        },
+        publicNotes: "<p>A village of commoners raised to undeath by a mass poisoning might continue to go about the settled routines of life, posing an eerie scene for living creatures who enter their village.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["evil", "undead", "unholy"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "pathfinder-monster-core", "amelekana.json"), {
     _id: "amelekana",
     name: "Amelekana",

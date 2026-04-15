@@ -302,6 +302,21 @@ const FIRST_WORLD_SETTING_TEXT_ANCHORS: TextAnchor[] = [
   patternAnchor("fey realm"),
 ];
 
+const DREAMLANDS_SETTING_TEXT_ANCHORS: TextAnchor[] = [
+  patternAnchor("dreamlands"),
+  patternAnchor("in the dreamlands"),
+  patternAnchor("from the dreamlands"),
+  patternAnchor("of the dreamlands"),
+];
+
+const DREAMLANDS_SETTING_NAME_ANCHORS: TextAnchor[] = [
+  patternAnchor("dreamlands", "name"),
+  patternAnchor("nightgaunt", "name"),
+  patternAnchor("shantak", "name"),
+  patternAnchor("dramofir", "name"),
+  patternAnchor("somnalu", "name"),
+];
+
 const FIRST_WORLD_SETTING_CONTEXT_TEXT_ANCHORS: TextAnchor[] = [
   patternAnchor("boundary"),
   patternAnchor("boundaries"),
@@ -888,6 +903,8 @@ export {
   ASTRAL_SETTING_ACTIVITY_TEXT_ANCHORS,
   ASTRAL_SETTING_CONTEXT_TEXT_ANCHORS,
   FIRST_WORLD_SETTING_TEXT_ANCHORS,
+  DREAMLANDS_SETTING_TEXT_ANCHORS,
+  DREAMLANDS_SETTING_NAME_ANCHORS,
   FIRST_WORLD_SETTING_CONTEXT_TEXT_ANCHORS,
   BONEYARD_SETTING_TEXT_ANCHORS,
   BONEYARD_SETTING_CONTEXT_TEXT_ANCHORS,

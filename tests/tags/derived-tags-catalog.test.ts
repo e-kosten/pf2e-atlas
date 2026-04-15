@@ -357,6 +357,7 @@ describe("derived tag catalog", () => {
           expect.objectContaining({ value: "coastal_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "astral_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "first_world_setting", description: expect.any(String) }),
+          expect.objectContaining({ value: "dreamlands_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "boneyard_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "heaven_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "nirvana_setting", description: expect.any(String) }),
