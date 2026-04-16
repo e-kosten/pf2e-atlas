@@ -1,5 +1,6 @@
 import type {
   DerivedTagCatalogEntry,
+  DerivedTagSeedRecordReference,
   DerivedTagLegacySeedMigrationCategory,
   DerivedTagOntologyFamily,
   DerivedTagOntologyTag,
@@ -12,23 +13,15 @@ import type { DerivedTagExplicitAssignmentIndex } from "./assignments.js";
 import type { DerivedTagContext } from "./matcher.js";
 import { normalizeDerivedTag } from "./shared.js";
 
-type PrimaryDerivedTagSource = "rule" | "seed" | "seed_migration" | "assignment";
+type PrimaryDerivedTagSource = "rule" | "seed_migration" | "assignment";
 export type DerivedTagSource =
   | "rule"
-  | "seed"
   | "seed_migration"
   | "assignment"
-  | "rule+seed"
   | "rule+seed_migration"
   | "rule+assignment"
-  | "seed+seed_migration"
-  | "seed+assignment"
   | "seed_migration+assignment"
-  | "rule+seed+seed_migration"
-  | "rule+seed+assignment"
-  | "rule+seed_migration+assignment"
-  | "seed+seed_migration+assignment"
-  | "rule+seed+seed_migration+assignment";
+  | "rule+seed_migration+assignment";
 
 export type DerivedTagDerivation = {
   tags: string[];
@@ -51,12 +44,6 @@ type TagOwnedRecordAssignment = {
   tag: string;
   category: SearchCategory;
   subcategories?: SearchSubcategory[];
-};
-
-export type DerivedTagSeedIndex = {
-  assignmentsByRecordKey: Map<string, TagOwnedRecordAssignment[]>;
-  excludedAssignmentsByRecordKey: Map<string, TagOwnedRecordAssignment[]>;
-  seedDefinitionsByTag: Map<string, TagOwnedRecordDefinition[]>;
 };
 
 export type DerivedTagLegacySeedMigrationDefinition = TagOwnedRecordDefinition;
@@ -165,7 +152,6 @@ function pushSeedDefinition(
 
 const PRIMARY_SOURCE_ORDER: PrimaryDerivedTagSource[] = [
   "rule",
-  "seed",
   "seed_migration",
   "assignment",
 ];
@@ -200,27 +186,27 @@ function addSourceSet(
   sources.set(normalizedTag, existing);
 }
 
-function resolveSeedRecordKeys(
+function resolveRecordReferences(
   seedLookup: DerivedTagSeedLookup,
-  seedRecords: DerivedTagOntologyTag["seedRecords"],
+  recordReferences: DerivedTagSeedRecordReference[] | undefined,
   fieldName: string,
   tagValue: string,
 ): string[] {
   const resolvedRecordKeys: string[] = [];
 
-  for (const seedRecord of seedRecords ?? []) {
-    const lookupKey = normalizeSeedReference(seedRecord.pack, seedRecord.name);
+  for (const recordReference of recordReferences ?? []) {
+    const lookupKey = normalizeSeedReference(recordReference.pack, recordReference.name);
     const matches = uniqueSorted(seedLookup.get(lookupKey) ?? []);
 
     if (matches.length === 0) {
       throw new Error(
-        `Derived tag ${fieldName} entry "${seedRecord.pack}:${seedRecord.name}" for "${tagValue}" did not resolve to a canonical record key.`,
+        `Derived tag ${fieldName} entry "${recordReference.pack}:${recordReference.name}" for "${tagValue}" did not resolve to a canonical record key.`,
       );
     }
 
     if (matches.length > 1) {
       throw new Error(
-        `Derived tag ${fieldName} entry "${seedRecord.pack}:${seedRecord.name}" for "${tagValue}" resolved ambiguously to ${matches.length} record keys.`,
+        `Derived tag ${fieldName} entry "${recordReference.pack}:${recordReference.name}" for "${tagValue}" resolved ambiguously to ${matches.length} record keys.`,
       );
     }
 
@@ -270,8 +256,8 @@ type TagOwnedRecordConfig = {
   tag: string;
   category: SearchCategory;
   subcategories?: SearchSubcategory[];
-  includeRecords?: DerivedTagOntologyTag["seedRecords"];
-  excludeRecords?: DerivedTagOntologyTag["excludeSeedRecords"];
+  includeRecords?: DerivedTagSeedRecordReference[];
+  excludeRecords?: DerivedTagSeedRecordReference[];
   includeFieldName: string;
   excludeFieldName: string;
 };
@@ -286,13 +272,13 @@ function buildTagOwnedRecordIndex(
 
   for (const record of records) {
     const normalizedTag = normalizeDerivedTag(record.tag);
-    const normalizedRecordKeys = resolveSeedRecordKeys(
+    const normalizedRecordKeys = resolveRecordReferences(
       seedLookup,
       record.includeRecords,
       record.includeFieldName,
       normalizedTag,
     );
-    const excludedRecordKeys = resolveSeedRecordKeys(
+    const excludedRecordKeys = resolveRecordReferences(
       seedLookup,
       record.excludeRecords,
       record.excludeFieldName,
@@ -424,56 +410,11 @@ export function groupDerivedTagOntology(
           negativeSignals: tag.negativeSignals,
           adjacentTags: tag.adjacentTags,
           compositeOfAnyTags: tag.compositeOfAnyTags,
-          seedRecords: tag.seedRecords,
-          excludeSeedRecords: tag.excludeSeedRecords,
           variantInheritance: tag.variantInheritance,
         })),
       };
     })
     .filter((entry) => entry.tags.length > 0);
-}
-
-export function buildDerivedTagSeedIndex(
-  ontology: PublishedDerivedTagOntology,
-  seedLookup: DerivedTagSeedLookup,
-): DerivedTagSeedIndex {
-  const seedRecords = ontology.tags.map((tag) => {
-    const normalizedTag = normalizeDerivedTag(tag.tag);
-    const family = ontology.familyByKey.get(familyKey(tag.category, tag.family));
-    if (!family) {
-      throw new Error(
-        `Derived tag "${normalizedTag}" in category "${tag.category}" references unknown family "${normalizeDerivedTag(tag.family)}".`,
-      );
-    }
-
-    return {
-      tag: normalizedTag,
-      category: tag.category,
-      subcategories: family.subcategories,
-      includeRecords: tag.seedRecords,
-      excludeRecords: tag.excludeSeedRecords,
-      includeFieldName: "seedRecords",
-      excludeFieldName: "excludeSeedRecords",
-    };
-  });
-
-  const index = buildTagOwnedRecordIndex(seedRecords, seedLookup);
-  return {
-    assignmentsByRecordKey: index.assignmentsByRecordKey,
-    excludedAssignmentsByRecordKey: index.excludedAssignmentsByRecordKey,
-    seedDefinitionsByTag: index.definitionsByTag,
-  };
-}
-
-export function resolveCatalogSeedRecordKeys(
-  seedIndex: DerivedTagSeedIndex,
-  tag: string,
-  scope: { category?: SearchCategory; subcategory?: SearchSubcategory | null } = {},
-): string[] {
-  const normalizedTag = normalizeDerivedTag(tag);
-  return uniqueSorted((seedIndex.seedDefinitionsByTag.get(normalizedTag) ?? [])
-    .filter((definition) => definitionAppliesToScope(definition, scope))
-    .flatMap((definition) => definition.recordKeys));
 }
 
 export function buildDerivedTagLegacySeedMigrationIndex(
@@ -555,7 +496,6 @@ export function resolveLegacySeedMigrationRecordKeys(
 
 export function deriveCatalogTagDerivation(
   ontology: PublishedDerivedTagOntology,
-  seedIndex: DerivedTagSeedIndex,
   input: Pick<DerivedTagContext, "recordKey" | "category" | "subcategory">,
   ruleTags: string[],
   explicitAssignmentIndex?: DerivedTagExplicitAssignmentIndex,
@@ -568,18 +508,6 @@ export function deriveCatalogTagDerivation(
   }
 
   if (input.recordKey) {
-    const blockedSeedTags = new Set(
-      (seedIndex.excludedAssignmentsByRecordKey.get(input.recordKey) ?? [])
-        .filter((assignment) => assignmentAppliesToContext(assignment, input))
-        .map((assignment) => assignment.tag),
-    );
-    for (const assignment of seedIndex.assignmentsByRecordKey.get(input.recordKey) ?? []) {
-      if (!assignmentAppliesToContext(assignment, input) || blockedSeedTags.has(assignment.tag)) {
-        continue;
-      }
-      addPrimarySource(sourceSets, assignment.tag, "seed");
-    }
-
     const blockedMigrationTags = new Set(
       (legacySeedMigrationIndex?.excludedAssignmentsByRecordKey.get(input.recordKey) ?? [])
         .filter((assignment) => assignmentAppliesToContext(assignment, input))

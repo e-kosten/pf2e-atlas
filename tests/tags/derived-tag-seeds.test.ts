@@ -1,22 +1,26 @@
 import { describe, expect, it } from "vitest";
 
-import type { DerivedTagOntologyFamily, DerivedTagOntologyTag } from "../../src/types.js";
+import type {
+  DerivedTagExemplarCategory,
+  DerivedTagOntologyFamily,
+  DerivedTagOntologyTag,
+} from "../../src/types.js";
 import {
-  buildDerivedTagSeedLookup,
-  buildDerivedTagSeedIndex,
-  deriveCatalogTagDerivation,
-  groupDerivedTagOntology,
   publishDerivedTagOntology,
-  resolveCatalogSeedRecordKeys,
 } from "../../src/tags/catalog-utils.js";
 import {
+  publishDerivedTagExemplars,
+  resolveDerivedTagExemplarRecordKeys,
+  validateDerivedTagExemplarsAgainstRecords,
+} from "../../src/tags/exemplar-utils.js";
+import {
   deriveRecordTagDerivation,
-  getDerivedTagSeedRecordKeys,
+  getDerivedTagExemplarRecordKeys,
   getDerivedTagLegacySeedMigrationRecordKeys,
   listDerivedTagLegacySeedMigrations,
 } from "../../src/tags/index.js";
 
-const seedFamilies: DerivedTagOntologyFamily[] = [
+const exemplarFamilies: DerivedTagOntologyFamily[] = [
   {
     category: "equipment",
     family: "infiltration",
@@ -34,18 +38,13 @@ const seedFamilies: DerivedTagOntologyFamily[] = [
   },
 ];
 
-const seedTags: DerivedTagOntologyTag[] = [
+const exemplarTags: DerivedTagOntologyTag[] = [
   {
     category: "equipment",
     family: "infiltration",
     tag: "disguise",
     description: "Masks or alters appearance.",
     assignmentMode: "hybrid",
-    seedRecords: [
-      { pack: "equipment-srd", name: "Mask" },
-      { pack: "equipment-srd", name: "Veil" },
-    ],
-    excludeSeedRecords: [{ pack: "equipment-srd", name: "Blocked Mask" }],
   },
   {
     family: "infiltration",
@@ -53,7 +52,6 @@ const seedTags: DerivedTagOntologyTag[] = [
     tag: "concealment",
     description: "Provides concealment or concealability.",
     assignmentMode: "hybrid",
-    seedRecords: [{ pack: "equipment-srd", name: "Cloak" }],
   },
   {
     category: "spell",
@@ -61,7 +59,6 @@ const seedTags: DerivedTagOntologyTag[] = [
     tag: "disguise",
     description: "Spell-based disguise support.",
     assignmentMode: "hybrid",
-    seedRecords: [{ pack: "spells-srd", name: "Illusory Disguise" }],
   },
   {
     category: "creature",
@@ -69,122 +66,136 @@ const seedTags: DerivedTagOntologyTag[] = [
     tag: "mask_motif",
     description: "Mask-centric creature imagery.",
     assignmentMode: "hybrid",
-    seedRecords: [{ pack: "pathfinder-monster-core", name: "Masked Priest" }],
   },
 ];
 
-const seedLookup = buildDerivedTagSeedLookup([
-  { recordKey: "equipment:mask", pack: "equipment-srd", name: "Mask" },
-  { recordKey: "equipment:veil", pack: "equipment-srd", name: "Veil" },
-  { recordKey: "equipment:blocked", pack: "equipment-srd", name: "Blocked Mask" },
-  { recordKey: "equipment:cloak", pack: "equipment-srd", name: "Cloak" },
-  { recordKey: "spell:illusory-disguise", pack: "spells-srd", name: "Illusory Disguise" },
-  { recordKey: "creature:masked-priest", pack: "pathfinder-monster-core", name: "Masked Priest" },
-]);
+const exemplarOntology = publishDerivedTagOntology(exemplarFamilies, exemplarTags);
+const authoredExemplars: DerivedTagExemplarCategory[] = [
+  {
+    category: "equipment",
+    exemplars: [
+      {
+        tag: "disguise",
+        positives: [
+          { name: "Mask", recordKey: "equipment:mask" },
+          { name: "Veil", recordKey: "equipment:veil" },
+        ],
+        negatives: [{ name: "Blocked Mask", recordKey: "equipment:blocked" }],
+      },
+    ],
+  },
+  {
+    category: "spell",
+    exemplars: [
+      {
+        tag: "disguise",
+        positives: [{ name: "Illusory Disguise", recordKey: "spell:illusory-disguise" }],
+      },
+    ],
+  },
+  {
+    category: "creature",
+    exemplars: [
+      {
+        tag: "mask_motif",
+        positives: [{ name: "Masked Priest", recordKey: "creature:masked-priest" }],
+      },
+    ],
+  },
+];
 
-describe("derived tag seeds", () => {
-  it("publishes explicit tag metadata without injecting family tags", () => {
-    expect(groupDerivedTagOntology(publishDerivedTagOntology(seedFamilies, seedTags))).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        family: "infiltration",
-        tags: expect.arrayContaining([
-          expect.objectContaining({
-            value: "disguise",
-            seedRecords: [
-              { pack: "equipment-srd", name: "Mask" },
-              { pack: "equipment-srd", name: "Veil" },
-            ],
-            excludeSeedRecords: [{ pack: "equipment-srd", name: "Blocked Mask" }],
-          }),
-        ]),
-      }),
-    ]));
-  });
+describe("derived tag exemplars and legacy seed migrations", () => {
+  it("publishes positive exemplar pools by tag and category scope", () => {
+    const exemplars = publishDerivedTagExemplars(exemplarOntology, authoredExemplars);
 
-  it("resolves seed pools by tag and category scope", () => {
-    const ontology = publishDerivedTagOntology(seedFamilies, seedTags);
-    const seedIndex = buildDerivedTagSeedIndex(ontology, seedLookup);
-
-    expect(resolveCatalogSeedRecordKeys(seedIndex, "disguise", { category: "equipment" })).toEqual([
+    expect(resolveDerivedTagExemplarRecordKeys(exemplars, "disguise", { category: "equipment" })).toEqual([
       "equipment:mask",
       "equipment:veil",
     ]);
-    expect(resolveCatalogSeedRecordKeys(seedIndex, "disguise", { category: "spell" })).toEqual([
+    expect(resolveDerivedTagExemplarRecordKeys(exemplars, "disguise", { category: "spell" })).toEqual([
       "spell:illusory-disguise",
     ]);
-    expect(resolveCatalogSeedRecordKeys(seedIndex, "mask_motif", { category: "creature" })).toEqual([
+    expect(resolveDerivedTagExemplarRecordKeys(exemplars, "mask_motif", { category: "creature" })).toEqual([
       "creature:masked-priest",
     ]);
   });
 
-  it("unions rule and seed tags and keeps provenance internally", () => {
-    const ontology = publishDerivedTagOntology(seedFamilies, seedTags);
-    const seedIndex = buildDerivedTagSeedIndex(ontology, seedLookup);
-    const derivation = deriveCatalogTagDerivation(ontology, seedIndex, {
-      recordKey: "equipment:mask",
-      category: "equipment",
-      subcategory: null,
-    }, ["concealment"]);
-
-    expect(derivation.tags).toEqual(["concealment", "disguise"]);
-    expect(derivation.sources.get("concealment")).toBe("rule");
-    expect(derivation.sources.get("disguise")).toBe("seed");
-  });
-
-  it("lets explicit seed exclusions block only seeded membership, not rule matches", () => {
-    const ontology = publishDerivedTagOntology(seedFamilies, seedTags);
-    const seedIndex = buildDerivedTagSeedIndex(ontology, seedLookup);
-    const derivation = deriveCatalogTagDerivation(ontology, seedIndex, {
-      recordKey: "equipment:blocked",
-      category: "equipment",
-      subcategory: null,
-    }, ["disguise"]);
-
-    expect(derivation.tags).toEqual(["disguise"]);
-    expect(derivation.sources.get("disguise")).toBe("rule");
-  });
-
-  it("fails fast when a seed reference does not resolve", () => {
-    expect(() => buildDerivedTagSeedIndex(publishDerivedTagOntology([
+  it("fails fast when an exemplar references an unknown ontology tag", () => {
+    expect(() => publishDerivedTagExemplars(exemplarOntology, [
       {
         category: "equipment",
-        family: "infiltration",
-        description: "Equipment that helps infiltration.",
+        exemplars: [
+          {
+            tag: "unknown_tag",
+            positives: [{ name: "Mask", recordKey: "equipment:mask" }],
+          },
+        ],
       },
-    ], [
-      {
-        category: "equipment",
-        family: "infiltration",
-        tag: "disguise",
-        description: "Masks or alters appearance.",
-        assignmentMode: "hybrid",
-        seedRecords: [{ pack: "equipment-srd", name: "Missing Mask" }],
-      },
-    ]), seedLookup)).toThrow(/did not resolve/);
+    ])).toThrow(/does not exist in the published ontology/);
   });
 
-  it("fails fast when a seed reference resolves ambiguously", () => {
-    const ambiguousLookup = buildDerivedTagSeedLookup([
-      { recordKey: "equipment:mask-one", pack: "equipment-srd", name: "Mask" },
-      { recordKey: "equipment:mask-two", pack: "equipment-srd", name: "Mask" },
+  it("rejects duplicate and conflicting exemplar records", () => {
+    expect(() => publishDerivedTagExemplars(exemplarOntology, [
+      {
+        category: "equipment",
+        exemplars: [
+          {
+            tag: "disguise",
+            positives: [
+              { name: "Mask", recordKey: "equipment:mask" },
+              { name: "Mask", recordKey: "equipment:mask" },
+            ],
+          },
+        ],
+      },
+    ])).toThrow(/repeats record/);
+
+    expect(() => publishDerivedTagExemplars(exemplarOntology, [
+      {
+        category: "equipment",
+        exemplars: [
+          {
+            tag: "disguise",
+            positives: [{ name: "Mask", recordKey: "equipment:mask" }],
+            negatives: [{ name: "Mask", recordKey: "equipment:mask" }],
+          },
+        ],
+      },
+    ])).toThrow(/both positive and negative/);
+  });
+
+  it("validates exemplar name drift against canonical records when present", () => {
+    const exemplars = publishDerivedTagExemplars(exemplarOntology, authoredExemplars);
+
+    expect(() => validateDerivedTagExemplarsAgainstRecords([
+      { recordKey: "equipment:mask", name: "Mask", category: "equipment" },
+      { recordKey: "equipment:veil", name: "Veil", category: "equipment" },
+      { recordKey: "equipment:blocked", name: "Blocked Mask", category: "equipment" },
+      { recordKey: "spell:illusory-disguise", name: "Illusory Disguise", category: "spell" },
+      { recordKey: "creature:masked-priest", name: "Masked Priest", category: "creature" },
+    ], exemplars)).not.toThrow();
+
+    expect(() => validateDerivedTagExemplarsAgainstRecords([
+      { recordKey: "equipment:mask", name: "Different Mask", category: "equipment" },
+    ], exemplars)).toThrow(/expected name/);
+  });
+
+  it("exposes configured exemplars separately from live tag derivation", () => {
+    expect(getDerivedTagExemplarRecordKeys("urban_setting", { category: "creature" })).toEqual([
+      "age-of-ashes-bestiary:n6FQeNsDgKaDIF7b",
+      "pathfinder-monster-core:TGYELuImcTcuX0aH",
     ]);
 
-    expect(() => buildDerivedTagSeedIndex(publishDerivedTagOntology([
-      {
-        category: "equipment",
-        family: "infiltration",
-        description: "Equipment that helps infiltration.",
-      },
-    ], [
-      {
-        category: "equipment",
-        family: "infiltration",
-        tag: "disguise",
-        description: "Masks or alters appearance.",
-        assignmentMode: "hybrid",
-        seedRecords: [{ pack: "equipment-srd", name: "Mask" }],
-      },
-    ]), ambiguousLookup)).toThrow(/ambiguously/);
+    const spiritboundAluumDerivation = deriveRecordTagDerivation({
+      recordKey: "age-of-ashes-bestiary:n6FQeNsDgKaDIF7b",
+      name: "Spiritbound Aluum",
+      category: "creature",
+      subcategory: null,
+      descriptionText: null,
+      traits: ["construct", "mindless", "soulbound"],
+    });
+    expect(spiritboundAluumDerivation.tags).toContain("urban_setting");
+    expect(spiritboundAluumDerivation.sources.get("urban_setting")).toBe("assignment");
   });
 
   it("exposes the hazard manual seed pass and applies representative seeded records", () => {

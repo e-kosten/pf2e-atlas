@@ -9,8 +9,6 @@ import {
 } from "../../src/tags/assignments.js";
 import {
   publishDerivedTagOntology,
-  buildDerivedTagSeedIndex,
-  buildDerivedTagSeedLookup,
   deriveCatalogTagDerivation,
 } from "../../src/tags/catalog-utils.js";
 import { CREATURE_DERIVED_TAG_ONTOLOGY } from "../../src/tags/ontology/creature.js";
@@ -334,11 +332,8 @@ describe("derived tag explicit assignments", () => {
         ],
       },
     ]);
-    const seedIndex = buildDerivedTagSeedIndex(assignmentOntology, buildDerivedTagSeedLookup([]));
-
     const derivation = deriveCatalogTagDerivation(
       assignmentOntology,
-      seedIndex,
       { recordKey: "equipment:mask", category: "equipment", subcategory: null },
       ["disguise"],
       assignmentIndex,

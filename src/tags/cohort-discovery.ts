@@ -2,7 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 
 import { SearchCategory, SearchSubcategory } from "../types.js";
 import { uniqueSorted } from "../utils.js";
-import { getDerivedTagLegacySeedMigrationRecordKeys, getDerivedTagSeedRecordKeys, normalizeDerivedTag } from "./index.js";
+import { getDerivedTagExemplarRecordKeys, getDerivedTagLegacySeedMigrationRecordKeys, normalizeDerivedTag } from "./index.js";
 import {
   type DiscoveryEvidenceKind,
   type DiscoveryEvidenceTerm,
@@ -579,7 +579,7 @@ export function discoverRuleableCohorts(
   const normalizedTag = options.tag ? normalizeDerivedTag(options.tag) : null;
   const seedRecordKeys = normalizedTag
     ? uniqueSorted([
-      ...getDerivedTagSeedRecordKeys(normalizedTag, {
+      ...getDerivedTagExemplarRecordKeys(normalizedTag, {
         category: options.category,
         subcategory: options.subcategory,
       }),

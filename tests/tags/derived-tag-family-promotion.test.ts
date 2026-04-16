@@ -2,8 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import type { DerivedTagOntologyFamily, DerivedTagOntologyTag } from "../../src/types.js";
 import {
-  buildDerivedTagSeedIndex,
-  buildDerivedTagSeedLookup,
   deriveCatalogTagDerivation,
   groupDerivedTagOntology,
   publishDerivedTagOntology,
@@ -93,7 +91,6 @@ describe("derived tag ontology publication and composition", () => {
     const ontology = publishDerivedTagOntology(families, tags);
     const derivation = deriveCatalogTagDerivation(
       ontology,
-      buildDerivedTagSeedIndex(ontology, buildDerivedTagSeedLookup([])),
       { recordKey: null, category: "spell", subcategory: null },
       ["animal_form"],
     );

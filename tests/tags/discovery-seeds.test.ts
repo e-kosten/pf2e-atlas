@@ -7,11 +7,11 @@ vi.mock("../../src/tags/index.js", async () => {
   const actual = await vi.importActual<typeof import("../../src/tags/index.js")>("../../src/tags/index.js");
   return {
     ...actual,
-    getDerivedTagSeedRecordKeys: vi.fn(() => []),
+    getDerivedTagExemplarRecordKeys: vi.fn(() => []),
   };
 });
 
-import { getDerivedTagSeedRecordKeys } from "../../src/tags/index.js";
+import { getDerivedTagExemplarRecordKeys } from "../../src/tags/index.js";
 import { discoverRuleableCohorts } from "../../src/tags/cohort-discovery.js";
 import { analyzeDiscoveryEvidence } from "../../src/tags/evidence-analyzer.js";
 import { evaluateDerivedTagGaps } from "../../src/tags/gap-evaluator.js";
@@ -120,12 +120,12 @@ function insertRecord(
   }
 }
 
-const mockedGetDerivedTagSeedRecordKeys = vi.mocked(getDerivedTagSeedRecordKeys);
+const mockedGetDerivedTagExemplarRecordKeys = vi.mocked(getDerivedTagExemplarRecordKeys);
 
-describe("seed-backed discovery integration", () => {
+describe("exemplar-backed discovery integration", () => {
   beforeEach(() => {
-    mockedGetDerivedTagSeedRecordKeys.mockReset();
-    mockedGetDerivedTagSeedRecordKeys.mockReturnValue([]);
+    mockedGetDerivedTagExemplarRecordKeys.mockReset();
+    mockedGetDerivedTagExemplarRecordKeys.mockReturnValue([]);
     REVIEWED_DISCOVERY_RECORDS.creature ??= {};
     REVIEWED_DISCOVERY_RECORDS.creature.setting ??= {};
     REVIEWED_DISCOVERY_RECORDS.creature.setting.not_family_salient = [];
@@ -134,7 +134,7 @@ describe("seed-backed discovery integration", () => {
     REVIEWED_DISCOVERY_RECORDS.creature.setting.manual_lore_only = [];
   });
 
-  it("uses catalog seeds as discovery evidence exemplars for a tag", () => {
+  it("uses configured exemplars as discovery evidence exemplars for a tag", () => {
     const db = createDiscoveryDb();
     try {
       insertRecord(db, {
@@ -162,7 +162,7 @@ describe("seed-backed discovery integration", () => {
         vector: [0, 1, 0],
       });
 
-      mockedGetDerivedTagSeedRecordKeys.mockReturnValue(["spell:seed-1", "spell:seed-2"]);
+      mockedGetDerivedTagExemplarRecordKeys.mockReturnValue(["spell:seed-1", "spell:seed-2"]);
 
       const report = analyzeDiscoveryEvidence(db, {
         category: "spell",
@@ -299,7 +299,7 @@ describe("seed-backed discovery integration", () => {
     }
   });
 
-  it("uses catalog seeds as cohort exemplars when a tag has no indexed matches yet", () => {
+  it("uses configured exemplars as cohort exemplars when a tag has no indexed matches yet", () => {
     const db = createDiscoveryDb();
     try {
       insertRecord(db, {
@@ -327,7 +327,7 @@ describe("seed-backed discovery integration", () => {
         vector: [0.97, 0.03, 0],
       });
 
-      mockedGetDerivedTagSeedRecordKeys.mockReturnValue(["spell:seed-1", "spell:seed-2"]);
+      mockedGetDerivedTagExemplarRecordKeys.mockReturnValue(["spell:seed-1", "spell:seed-2"]);
 
       const report = discoverRuleableCohorts(db, {
         category: "spell",
@@ -347,7 +347,7 @@ describe("seed-backed discovery integration", () => {
     }
   });
 
-  it("treats catalog seeds as gap exemplars without echoing them back as candidates", () => {
+  it("treats configured exemplars as gap exemplars without echoing them back as candidates", () => {
     const db = createDiscoveryDb();
     try {
       insertRecord(db, {
@@ -375,7 +375,7 @@ describe("seed-backed discovery integration", () => {
         vector: [0.97, 0.03, 0],
       });
 
-      mockedGetDerivedTagSeedRecordKeys.mockReturnValue(["spell:seed-1", "spell:seed-2"]);
+      mockedGetDerivedTagExemplarRecordKeys.mockReturnValue(["spell:seed-1", "spell:seed-2"]);
 
       const report = evaluateDerivedTagGaps(db, {
         tag: "mask_motif",

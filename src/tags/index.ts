@@ -3,17 +3,29 @@ import { normalizeDerivedTag, DerivedTagContext } from "./shared.js";
 import { uniqueSorted } from "../utils.js";
 import {
   buildDerivedTagLegacySeedMigrationIndex,
-  buildDerivedTagSeedIndex,
   deriveCatalogTagDerivation,
   listConfiguredDerivedTagLegacySeedMigrations,
   publishDerivedTagOntology,
   resolveLegacySeedMigrationRecordKeys,
-  resolveCatalogSeedRecordKeys,
   type DerivedTagLegacySeedMigrationDefinition,
   type PublishedDerivedTagOntology,
   type DerivedTagDerivation,
 } from "./catalog-utils.js";
 import { DERIVED_TAG_SEED_LOOKUP } from "./catalog-seed-records.js";
+import {
+  publishDerivedTagExemplars,
+  resolveDerivedTagExemplarRecordKeys,
+  validateDerivedTagExemplarsAgainstRecords,
+  type PublishedDerivedTagExemplars,
+  type PublishedDerivedTagExemplarSet,
+} from "./exemplar-utils.js";
+import {
+  AFFLICTION_DERIVED_TAG_EXEMPLARS,
+  CREATURE_DERIVED_TAG_EXEMPLARS,
+  EQUIPMENT_DERIVED_TAG_EXEMPLARS,
+  HAZARD_DERIVED_TAG_EXEMPLARS,
+  SPELL_DERIVED_TAG_EXEMPLARS,
+} from "./exemplars/index.js";
 import { CREATURE_DERIVED_TAG_LEGACY_SEED_MIGRATIONS } from "./legacy-seed-migrations/creature.js";
 import { HAZARD_DERIVED_TAG_LEGACY_SEED_MIGRATIONS } from "./legacy-seed-migrations/hazard.js";
 import { SPELL_DERIVED_TAG_LEGACY_SEED_MIGRATIONS } from "./legacy-seed-migrations/spell.js";
@@ -73,7 +85,6 @@ const DERIVED_TAG_ONTOLOGY: PublishedDerivedTagOntology = publishDerivedTagOntol
 );
 export const DERIVED_TAG_ONTOLOGY_FAMILIES = DERIVED_TAG_ONTOLOGY.families;
 export const DERIVED_TAG_ONTOLOGY_TAGS = DERIVED_TAG_ONTOLOGY.tags;
-const DERIVED_TAG_SEED_INDEX = buildDerivedTagSeedIndex(DERIVED_TAG_ONTOLOGY, DERIVED_TAG_SEED_LOOKUP);
 const DERIVED_TAG_LEGACY_SEED_MIGRATION_INDEX = buildDerivedTagLegacySeedMigrationIndex(
   DERIVED_TAG_ONTOLOGY,
   DERIVED_TAG_SEED_LOOKUP,
@@ -81,6 +92,16 @@ const DERIVED_TAG_LEGACY_SEED_MIGRATION_INDEX = buildDerivedTagLegacySeedMigrati
     SPELL_DERIVED_TAG_LEGACY_SEED_MIGRATIONS,
     HAZARD_DERIVED_TAG_LEGACY_SEED_MIGRATIONS,
     CREATURE_DERIVED_TAG_LEGACY_SEED_MIGRATIONS,
+  ],
+);
+const DERIVED_TAG_EXEMPLARS: PublishedDerivedTagExemplars = publishDerivedTagExemplars(
+  DERIVED_TAG_ONTOLOGY,
+  [
+    EQUIPMENT_DERIVED_TAG_EXEMPLARS,
+    SPELL_DERIVED_TAG_EXEMPLARS,
+    HAZARD_DERIVED_TAG_EXEMPLARS,
+    AFFLICTION_DERIVED_TAG_EXEMPLARS,
+    CREATURE_DERIVED_TAG_EXEMPLARS,
   ],
 );
 const DERIVED_TAG_EXPLICIT_ASSIGNMENT_INDEX = createDerivedTagExplicitAssignmentIndex(DERIVED_TAG_ONTOLOGY);
@@ -95,7 +116,6 @@ export function deriveRecordTagDerivation(
   const ruleTags = deriveRecordTagsFromRules(DERIVED_TAG_RULES, input);
   return deriveCatalogTagDerivation(
     DERIVED_TAG_ONTOLOGY,
-    DERIVED_TAG_SEED_INDEX,
     input,
     ruleTags,
     DERIVED_TAG_EXPLICIT_ASSIGNMENT_INDEX,
@@ -103,11 +123,20 @@ export function deriveRecordTagDerivation(
   );
 }
 
-export function getDerivedTagSeedRecordKeys(
+export function getDerivedTagExemplarRecordKeys(
   tag: string,
   scope: { category?: DerivedTagContext["category"]; subcategory?: DerivedTagContext["subcategory"] } = {},
 ): string[] {
-  return resolveCatalogSeedRecordKeys(DERIVED_TAG_SEED_INDEX, normalizeDerivedTag(tag), scope);
+  return resolveDerivedTagExemplarRecordKeys(DERIVED_TAG_EXEMPLARS, normalizeDerivedTag(tag), scope);
+}
+
+export function getDerivedTagExemplars(
+  tag: string,
+  scope: { category?: DerivedTagContext["category"]; subcategory?: DerivedTagContext["subcategory"] } = {},
+): PublishedDerivedTagExemplarSet[] {
+  return DERIVED_TAG_EXEMPLARS.exemplars
+    .filter((entry) => entry.tag === normalizeDerivedTag(tag))
+    .filter((entry) => !scope.category || entry.category === scope.category);
 }
 
 export function listDerivedTagLegacySeedMigrations(
@@ -196,4 +225,5 @@ export function validateConfiguredDerivedTagAssignments(
   records: Iterable<{ recordKey: string; name: string; category: DerivedTagContext["category"] }>,
 ): void {
   validateDerivedTagExplicitAssignmentsAgainstRecords(records, DERIVED_TAG_EXPLICIT_ASSIGNMENT_INDEX);
+  validateDerivedTagExemplarsAgainstRecords(records, DERIVED_TAG_EXEMPLARS);
 }

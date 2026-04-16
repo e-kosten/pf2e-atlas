@@ -1,7 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
 
 import { uniqueSorted } from "../utils.js";
-import { getDerivedTagLegacySeedMigrationRecordKeys, getDerivedTagSeedRecordKeys, normalizeDerivedTag } from "./index.js";
+import { getDerivedTagExemplarRecordKeys, getDerivedTagLegacySeedMigrationRecordKeys, normalizeDerivedTag } from "./index.js";
 import { SearchCategory, SearchSubcategory } from "../types.js";
 import { type DiscoveryEvidenceTerm, analyzeDiscoveryEvidenceFromRecords } from "./evidence-analyzer.js";
 import { tokenizeDiscoveryText } from "./discovery-normalization.js";
@@ -97,7 +97,7 @@ export function evaluateDerivedTagGaps(
     loadGapRecordsByRecordKeys(db, {
       ...exemplarScope,
       recordKeys: uniqueSorted([
-        ...getDerivedTagSeedRecordKeys(normalizedTag, exemplarScope),
+        ...getDerivedTagExemplarRecordKeys(normalizedTag, exemplarScope),
         ...getDerivedTagLegacySeedMigrationRecordKeys(normalizedTag, exemplarScope),
       ]),
     }),

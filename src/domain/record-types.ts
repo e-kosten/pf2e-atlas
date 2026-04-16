@@ -32,6 +32,23 @@ export interface DerivedTagSeedRecordResolution extends DerivedTagSeedRecordRefe
   recordKey: string;
 }
 
+export interface DerivedTagExemplarRecord {
+  name: string;
+  recordKey: string;
+}
+
+export interface DerivedTagExemplarSet {
+  tag: string;
+  positives?: DerivedTagExemplarRecord[];
+  negatives?: DerivedTagExemplarRecord[];
+  notes?: string;
+}
+
+export interface DerivedTagExemplarCategory {
+  category: SearchCategory;
+  exemplars: DerivedTagExemplarSet[];
+}
+
 export interface DerivedTagLegacySeedMigrationTag {
   tag: string;
   includeRecords?: DerivedTagSeedRecordReference[];
@@ -82,8 +99,6 @@ export interface DerivedTagOntologyTag {
   negativeSignals?: string[];
   adjacentTags?: string[];
   compositeOfAnyTags?: string[];
-  seedRecords?: DerivedTagSeedRecordReference[];
-  excludeSeedRecords?: DerivedTagSeedRecordReference[];
   variantInheritance?: boolean;
 }
 
@@ -98,8 +113,6 @@ export interface DerivedTagCatalogTag {
   negativeSignals?: string[];
   adjacentTags?: string[];
   compositeOfAnyTags?: string[];
-  seedRecords?: DerivedTagSeedRecordReference[];
-  excludeSeedRecords?: DerivedTagSeedRecordReference[];
   variantInheritance?: boolean;
 }
 

@@ -8,7 +8,6 @@ import type {
 import { buildDerivedTagExplicitAssignmentIndex } from "../../src/tags/assignments.js";
 import {
   buildDerivedTagLegacySeedMigrationIndex,
-  buildDerivedTagSeedIndex,
   buildDerivedTagSeedLookup,
   deriveCatalogTagDerivation,
   listConfiguredDerivedTagLegacySeedMigrations,
@@ -65,7 +64,6 @@ describe("derived tag legacy seed migrations", () => {
       },
     ];
 
-    const seedIndex = buildDerivedTagSeedIndex(ontology, seedLookup);
     const migrationIndex = buildDerivedTagLegacySeedMigrationIndex(ontology, seedLookup, migrations);
 
     expect(listConfiguredDerivedTagLegacySeedMigrations(migrationIndex)).toEqual([
@@ -79,7 +77,6 @@ describe("derived tag legacy seed migrations", () => {
 
     const migratedMask = deriveCatalogTagDerivation(
       ontology,
-      seedIndex,
       { recordKey: "equipment:mask", category: "equipment", subcategory: null },
       ["concealment"],
       undefined,
@@ -91,7 +88,6 @@ describe("derived tag legacy seed migrations", () => {
 
     const blockedMask = deriveCatalogTagDerivation(
       ontology,
-      seedIndex,
       { recordKey: "equipment:blocked", category: "equipment", subcategory: null },
       [],
       undefined,
@@ -148,7 +144,6 @@ describe("derived tag legacy seed migrations", () => {
 
     const derivation = deriveCatalogTagDerivation(
       ontology,
-      buildDerivedTagSeedIndex(ontology, seedLookup),
       { recordKey: "equipment:mask", category: "equipment", subcategory: null },
       [],
       assignmentIndex,

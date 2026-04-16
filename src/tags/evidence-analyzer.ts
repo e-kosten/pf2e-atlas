@@ -3,9 +3,9 @@ import { DatabaseSync } from "node:sqlite";
 import { SearchCategory, SearchSubcategory } from "../types.js";
 import { uniqueSorted } from "../utils.js";
 import {
+  getDerivedTagExemplarRecordKeys,
   getDerivedTagFamilyTags,
   getDerivedTagLegacySeedMigrationRecordKeys,
-  getDerivedTagSeedRecordKeys,
   normalizeDerivedTag,
 } from "./index.js";
 import {
@@ -577,7 +577,7 @@ export function analyzeDiscoveryEvidence(
     : undefined;
   const seedRecordKeys = normalizedTag && !explicitRecordKeys
     ? uniqueSorted([
-      ...getDerivedTagSeedRecordKeys(normalizedTag, {
+      ...getDerivedTagExemplarRecordKeys(normalizedTag, {
         category: options.category,
         subcategory: options.subcategory,
       }),
