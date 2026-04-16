@@ -1,7 +1,16 @@
+import { mkdtemp } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import type { AuthoredDerivedTagRule, DerivedTagExemplarCategory } from "../../src/types.js";
 import type { AuthoredDerivedTagAssignment } from "../../src/tags/runtime/assignments.js";
+import {
+  getCurrentDerivedTagMigrationAuthoredState,
+  setCurrentDerivedTagMigrationAuthoredState,
+  writeDerivedTagMigrationAuthoredState,
+} from "../../src/tags/migration/authored-state.js";
 import {
   applyMigrationSessionToAssignments,
   applyMigrationSessionToAuthoredRules,
@@ -290,5 +299,38 @@ describe("derived tag migration tooling", () => {
     expect(moveSelection(2, 1, 3)).toBe(2);
     expect(moveSelection(5, 0, 3)).toBe(2);
     expect(moveSelection(0, 1, 0)).toBe(0);
+  });
+
+  it("refreshes in-process authored state after writing migration outputs", async () => {
+    const initialState = getCurrentDerivedTagMigrationAuthoredState();
+    const tempRoot = await mkdtemp(path.join(os.tmpdir(), "derived-tag-migration-state-"));
+
+    try {
+      const nextState = structuredClone(initialState);
+      nextState.assignments.equipment = [
+        {
+          name: "Watch Bell",
+          recordKey: "equipment:bell",
+          applied: {
+            security: ["alarm"],
+          },
+          review: {
+            security: {
+              alarm: {
+                mode: "include",
+                status: "approved",
+                rationale: "Confirmed during migration review.",
+              },
+            },
+          },
+        },
+      ];
+
+      await writeDerivedTagMigrationAuthoredState(tempRoot, nextState, ["equipment"]);
+
+      expect(getCurrentDerivedTagMigrationAuthoredState().assignments.equipment).toEqual(nextState.assignments.equipment);
+    } finally {
+      setCurrentDerivedTagMigrationAuthoredState(initialState);
+    }
   });
 });

@@ -68,7 +68,7 @@ function clone<T>(value: T): T {
   return structuredClone(value);
 }
 
-export function getCurrentDerivedTagMigrationAuthoredState(): DerivedTagMigrationAuthoredState {
+function buildImportedDerivedTagMigrationAuthoredState(): DerivedTagMigrationAuthoredState {
   return {
     assignments: {
       affliction: clone(AFFLICTION_DERIVED_TAG_ASSIGNMENTS),
@@ -92,6 +92,21 @@ export function getCurrentDerivedTagMigrationAuthoredState(): DerivedTagMigratio
       spell: clone(SPELL_AUTHORED_DERIVED_TAG_RULES),
     },
   };
+}
+
+let currentDerivedTagMigrationAuthoredState: DerivedTagMigrationAuthoredState | null = null;
+
+export function setCurrentDerivedTagMigrationAuthoredState(
+  state: DerivedTagMigrationAuthoredState,
+): void {
+  currentDerivedTagMigrationAuthoredState = clone(state);
+}
+
+export function getCurrentDerivedTagMigrationAuthoredState(): DerivedTagMigrationAuthoredState {
+  if (!currentDerivedTagMigrationAuthoredState) {
+    currentDerivedTagMigrationAuthoredState = buildImportedDerivedTagMigrationAuthoredState();
+  }
+  return clone(currentDerivedTagMigrationAuthoredState);
 }
 
 function isValidIdentifier(value: string): boolean {
@@ -195,4 +210,6 @@ export async function writeDerivedTagMigrationAuthoredState(
       "utf8",
     );
   }
+
+  setCurrentDerivedTagMigrationAuthoredState(state);
 }

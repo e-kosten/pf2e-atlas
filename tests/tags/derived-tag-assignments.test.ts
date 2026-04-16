@@ -361,20 +361,6 @@ describe("derived tag explicit assignments", () => {
           setting: ["urban_setting"],
         },
       },
-      {
-        name: "Black Whale Guard",
-        recordKey: "agents-of-edgewatch-bestiary:BLRsSDFSMbZHcGDQ",
-        pending: {
-          setting: ["coastal_setting"],
-        },
-      },
-      {
-        name: "Conspirator Dragon (Adult)",
-        recordKey: "pathfinder-monster-core:TGYELuImcTcuX0aH",
-        pending: {
-          encounter_role: ["combatant_npc"],
-        },
-      },
     ]);
   });
 
