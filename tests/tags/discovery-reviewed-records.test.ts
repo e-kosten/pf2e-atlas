@@ -7,7 +7,7 @@ import {
   getReviewedDiscoverySelection,
   summarizeReviewedDiscoverySelection,
   type ReviewedDiscoveryRegistry,
-} from "../../src/tags/discovery-reviewed-records.js";
+} from "../../src/tags/discovery/discovery-reviewed-records.js";
 
 describe("reviewed discovery records", () => {
   const registry: ReviewedDiscoveryRegistry = {

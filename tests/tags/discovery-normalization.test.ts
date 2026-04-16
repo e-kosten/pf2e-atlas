@@ -6,7 +6,7 @@ import {
   isDiscoveryNoiseToken,
   normalizeDiscoveryText,
   tokenizeDiscoveryText,
-} from "../../src/tags/discovery-normalization.js";
+} from "../../src/tags/discovery/discovery-normalization.js";
 
 describe("discovery normalization", () => {
   it("collapses dice, range, and plain numbers into shared placeholders", () => {

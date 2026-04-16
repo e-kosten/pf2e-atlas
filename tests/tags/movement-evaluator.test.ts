@@ -2,7 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 
 import { describe, expect, it } from "vitest";
 
-import { evaluateDerivedTagMovement } from "../../src/tags/movement-evaluator.js";
+import { evaluateDerivedTagMovement } from "../../src/tags/evaluation/movement-evaluator.js";
 
 function createMovementDb(): DatabaseSync {
   const db = new DatabaseSync(":memory:");

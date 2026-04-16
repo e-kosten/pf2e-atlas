@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   formatSemanticDiscoveryReport,
   parseOptions,
-} from "../../src/tags/discover-semantic-candidates.js";
+} from "../../src/tags/cli/discover-semantic-candidates.js";
 
 describe("semantic discovery CLI helpers", () => {
   it("parses repeated exemplar flags and numeric options", () => {

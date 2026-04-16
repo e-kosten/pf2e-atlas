@@ -4,7 +4,7 @@ import {
   formatHelp,
   formatEvidenceReport,
   parseOptions,
-} from "../../src/tags/analyze-derived-tag-evidence.js";
+} from "../../src/tags/cli/analyze-derived-tag-evidence.js";
 
 describe("derived-tag evidence CLI helpers", () => {
   it("parses scope, record keys, family filtering, and untagged mode", () => {

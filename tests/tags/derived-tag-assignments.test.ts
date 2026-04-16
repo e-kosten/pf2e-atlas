@@ -6,11 +6,11 @@ import {
   buildDerivedTagPendingAssignmentViews,
   createDerivedTagExplicitAssignmentIndex,
   validateDerivedTagExplicitAssignmentsAgainstRecords,
-} from "../../src/tags/assignments.js";
+} from "../../src/tags/runtime/assignments.js";
 import {
   publishDerivedTagOntology,
   deriveCatalogTagDerivation,
-} from "../../src/tags/catalog-utils.js";
+} from "../../src/tags/runtime/catalog-utils.js";
 import { CREATURE_DERIVED_TAG_ONTOLOGY } from "../../src/tags/ontology/creature.js";
 import { flattenDerivedTagAuthoredCategoryOntology } from "../../src/tags/ontology/utils.js";
 import { deriveRecordTagDerivation } from "../../src/tags/index.js";

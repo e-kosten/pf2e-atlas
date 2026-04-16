@@ -1,4 +1,4 @@
 export {
   DERIVED_TAG_ONTOLOGY_FAMILIES,
   DERIVED_TAG_ONTOLOGY_TAGS,
-} from "./index.js";
+} from "../index.js";

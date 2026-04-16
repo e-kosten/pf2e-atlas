@@ -4,12 +4,12 @@ import { access } from "node:fs/promises";
 import { constants } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 
-import { loadConfig } from "../app/config.js";
+import { loadConfig } from "../../app/config.js";
 import {
   discoverRuleableCohorts,
   type RuleableCohortReport,
-} from "./cohort-discovery.js";
-import { formatDiscoverySourceContext } from "./discovery-source-report.js";
+} from "../discovery/cohort-discovery.js";
+import { formatDiscoverySourceContext } from "../discovery/discovery-source-report.js";
 import { parseOptions } from "./cluster-derived-tag-candidates.js";
 
 export function formatRuleableCohortReport(report: RuleableCohortReport): string {

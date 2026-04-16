@@ -1,7 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
 
-import { normalizeDerivedTag } from "./index.js";
-import { SearchCategory } from "../types.js";
+import { normalizeDerivedTag } from "../index.js";
+import { SearchCategory } from "../../types.js";
 
 type CategoryStatRow = {
   category: string;

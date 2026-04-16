@@ -4,9 +4,9 @@ import type {
   DerivedTagAuthoredTextNearConstraint,
   DerivedTagAuthoredTextValue,
 } from "../../types.js";
-import type { PublishedDerivedTagOntology } from "../catalog-utils.js";
-import type { DerivedTagRule, ReferencePredicate, TextAnchor, TextNearConstraint } from "../matcher.js";
-import { normalizeDerivedTag } from "../shared.js";
+import type { PublishedDerivedTagOntology } from "../runtime/catalog-utils.js";
+import type { DerivedTagRule, ReferencePredicate, TextAnchor, TextNearConstraint } from "../runtime/matcher.js";
+import { normalizeDerivedTag } from "../runtime/shared.js";
 
 function normalizeStringList(
   values: string[] | undefined,

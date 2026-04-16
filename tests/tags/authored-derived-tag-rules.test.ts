@@ -8,9 +8,9 @@ import type {
 import {
   deriveCatalogTagDerivation,
   publishDerivedTagOntology,
-} from "../../src/tags/catalog-utils.js";
+} from "../../src/tags/runtime/catalog-utils.js";
 import { compileAuthoredDerivedTagRules } from "../../src/tags/authored-rules/compiler.js";
-import { deriveRecordTagsFromRules, type DerivedTagRule } from "../../src/tags/matcher.js";
+import { deriveRecordTagsFromRules, type DerivedTagRule } from "../../src/tags/runtime/matcher.js";
 
 describe("authored derived tag rules", () => {
   const families: DerivedTagOntologyFamily[] = [

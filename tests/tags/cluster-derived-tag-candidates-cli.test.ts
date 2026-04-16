@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   formatClusterReport,
   parseOptions,
-} from "../../src/tags/cluster-derived-tag-candidates.js";
-import { formatRuleableCohortReport } from "../../src/tags/discover-ruleable-cohorts.js";
+} from "../../src/tags/cli/cluster-derived-tag-candidates.js";
+import { formatRuleableCohortReport } from "../../src/tags/cli/discover-ruleable-cohorts.js";
 
 describe("derived-tag cohort CLI helpers", () => {
   it("parses exemplar, tag, and similarity options", () => {

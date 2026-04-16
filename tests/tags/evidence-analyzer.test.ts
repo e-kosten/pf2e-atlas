@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   analyzeDiscoveryEvidenceFromRecords,
   analyzeFamilyGapEvidenceFromRecords,
-} from "../../src/tags/evidence-analyzer.js";
-import type { DiscoveryAnalysisRecord } from "../../src/tags/discovery-records.js";
+} from "../../src/tags/evaluation/evidence-analyzer.js";
+import type { DiscoveryAnalysisRecord } from "../../src/tags/discovery/discovery-records.js";
 
 function record(input: Partial<DiscoveryAnalysisRecord> & Pick<DiscoveryAnalysisRecord, "recordKey" | "name" | "category">): DiscoveryAnalysisRecord {
   const sourceKey = input.sourceKey ?? input.recordKey.split(":")[0] ?? input.recordKey;

@@ -1,6 +1,6 @@
-import { SearchCategory, SearchSubcategory } from "../types.js";
-import { uniqueSorted } from "../utils.js";
-import { normalizeDerivedTag } from "./shared.js";
+import { SearchCategory, SearchSubcategory } from "../../types.js";
+import { uniqueSorted } from "../../utils.js";
+import { normalizeDerivedTag } from "../runtime/shared.js";
 
 export const REVIEWED_DISCOVERY_REASONS = [
   "not_family_salient",

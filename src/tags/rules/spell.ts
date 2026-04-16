@@ -24,7 +24,7 @@ import {
   SPELL_SCOUTING_TEXT_ANCHORS,
   SPELL_SOCIAL_INFILTRATION_TEXT_ANCHORS,
   patternAnchor,
-} from "../shared.js";
+} from "../runtime/shared.js";
 
 const HEALING_SUPPORT_NAME_ANCHORS = [
   patternAnchor("healing", "name"),

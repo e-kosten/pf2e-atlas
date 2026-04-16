@@ -1,8 +1,8 @@
 import { DatabaseSync } from "node:sqlite";
 
-import { buildPlaceholders } from "../data/rows.js";
-import { SearchCategory, SearchSubcategory } from "../types.js";
-import { normalizeText } from "../utils.js";
+import { buildPlaceholders } from "../../data/rows.js";
+import { SearchCategory, SearchSubcategory } from "../../types.js";
+import { normalizeText } from "../../utils.js";
 
 export type DiscoveryReferenceRecord = {
   targetRecordKey: string;

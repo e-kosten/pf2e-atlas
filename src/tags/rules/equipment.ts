@@ -28,7 +28,7 @@ import {
   WEAK_RESTRAINT_CAPTURE_NAME_ANCHORS,
   patternAnchor,
   referenceAnchor,
-} from "../shared.js";
+} from "../runtime/shared.js";
 import type { SearchSubcategory } from "../../types.js";
 
 const AMMO_SUBCATEGORIES: SearchSubcategory[] = ["ammo"];

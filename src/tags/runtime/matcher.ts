@@ -1,8 +1,8 @@
 import winkNLP, { type PartOfSpeech } from "wink-nlp";
 import model from "wink-eng-lite-web-model";
 
-import type { SearchCategory, SearchSubcategory } from "../types.js";
-import { normalizeText, uniqueSorted } from "../utils.js";
+import type { SearchCategory, SearchSubcategory } from "../../types.js";
+import { normalizeText, uniqueSorted } from "../../utils.js";
 
 const nlp = winkNLP(model);
 const its = nlp.its;

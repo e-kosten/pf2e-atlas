@@ -2,7 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { REVIEWED_DISCOVERY_RECORDS } from "../../src/tags/discovery-reviewed-records.js";
+import { REVIEWED_DISCOVERY_RECORDS } from "../../src/tags/discovery/discovery-reviewed-records.js";
 vi.mock("../../src/tags/index.js", async () => {
   const actual = await vi.importActual<typeof import("../../src/tags/index.js")>("../../src/tags/index.js");
   return {
@@ -12,9 +12,9 @@ vi.mock("../../src/tags/index.js", async () => {
 });
 
 import { getDerivedTagExemplarRecordKeys } from "../../src/tags/index.js";
-import { discoverRuleableCohorts } from "../../src/tags/cohort-discovery.js";
-import { analyzeDiscoveryEvidence } from "../../src/tags/evidence-analyzer.js";
-import { evaluateDerivedTagGaps } from "../../src/tags/gap-evaluator.js";
+import { discoverRuleableCohorts } from "../../src/tags/discovery/cohort-discovery.js";
+import { analyzeDiscoveryEvidence } from "../../src/tags/evaluation/evidence-analyzer.js";
+import { evaluateDerivedTagGaps } from "../../src/tags/evaluation/gap-evaluator.js";
 
 function vector(values: number[]): Float32Array {
   return Float32Array.from(values);

@@ -3,8 +3,8 @@ import type {
   DerivedTagExemplarRecord,
   SearchCategory,
   SearchSubcategory,
-} from "../types.js";
-import { uniqueSorted } from "../utils.js";
+} from "../../types.js";
+import { uniqueSorted } from "../../utils.js";
 import type { PublishedDerivedTagOntology } from "./catalog-utils.js";
 import { normalizeDerivedTag } from "./shared.js";
 

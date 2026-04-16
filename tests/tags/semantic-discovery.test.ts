@@ -6,7 +6,7 @@ import {
   discoverSemanticCandidates,
   rankSemanticDiscoveryCandidates,
   type SemanticDiscoveryRecord,
-} from "../../src/tags/semantic-discovery.js";
+} from "../../src/tags/discovery/semantic-discovery.js";
 
 function vector(values: number[]): Float32Array {
   return Float32Array.from(values);

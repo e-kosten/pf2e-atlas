@@ -4,18 +4,18 @@ import { access } from "node:fs/promises";
 import { constants } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 
-import { loadConfig } from "../app/config.js";
-import { SearchCategory, SearchSubcategory } from "../types.js";
+import { loadConfig } from "../../app/config.js";
+import { SearchCategory, SearchSubcategory } from "../../types.js";
 import {
   isReviewedDiscoveryReason,
   type ReviewedDiscoveryApplicationSummary,
-} from "./discovery-reviewed-records.js";
+} from "../discovery/discovery-reviewed-records.js";
 import {
   analyzeDiscoveryEvidence,
   type DiscoveryEvidenceOptions,
   type DiscoveryEvidenceReport,
-} from "./evidence-analyzer.js";
-import { resolveDiscoveryGramRange } from "./discovery-normalization.js";
+} from "../evaluation/evidence-analyzer.js";
+import { resolveDiscoveryGramRange } from "../discovery/discovery-normalization.js";
 
 type MultiValueArgs = Record<string, string[]>;
 

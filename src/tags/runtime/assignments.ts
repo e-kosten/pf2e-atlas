@@ -1,8 +1,8 @@
-import type { DerivedTagOntologyTag, SearchCategory } from "../types.js";
+import type { DerivedTagOntologyTag, SearchCategory } from "../../types.js";
 import type { PublishedDerivedTagOntology } from "./catalog-utils.js";
-import { uniqueSorted } from "../utils.js";
+import { uniqueSorted } from "../../utils.js";
 import { normalizeDerivedTag } from "./shared.js";
-import { CREATURE_DERIVED_TAG_ASSIGNMENTS } from "./assignments/creature.js";
+import { CREATURE_DERIVED_TAG_ASSIGNMENTS } from "../assignments/creature.js";
 
 export type DerivedTagReviewStatus =
   | "auto_applied"

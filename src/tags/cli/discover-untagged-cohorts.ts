@@ -4,20 +4,20 @@ import { access } from "node:fs/promises";
 import { constants } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 
-import { loadConfig } from "../app/config.js";
-import { ConsoleProgressReporter } from "../progress.js";
-import { SearchCategory, SearchSubcategory } from "../types.js";
+import { loadConfig } from "../../app/config.js";
+import { ConsoleProgressReporter } from "../../progress.js";
+import { SearchCategory, SearchSubcategory } from "../../types.js";
 import {
   isReviewedDiscoveryReason,
   type ReviewedDiscoveryApplicationSummary,
-} from "./discovery-reviewed-records.js";
+} from "../discovery/discovery-reviewed-records.js";
 import {
   discoverUntaggedCohorts,
   type UntaggedCohortOptions,
   type UntaggedCohortReport,
-} from "./untagged-cohort-discovery.js";
-import { resolveDiscoveryGramRange } from "./discovery-normalization.js";
-import { formatDiscoverySourceContext } from "./discovery-source-report.js";
+} from "../discovery/untagged-cohort-discovery.js";
+import { resolveDiscoveryGramRange } from "../discovery/discovery-normalization.js";
+import { formatDiscoverySourceContext } from "../discovery/discovery-source-report.js";
 
 type MultiValueArgs = Record<string, string[]>;
 

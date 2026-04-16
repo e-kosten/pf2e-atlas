@@ -2,15 +2,15 @@ import { DatabaseSync } from "node:sqlite";
 
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { REVIEWED_DISCOVERY_RECORDS } from "../../src/tags/discovery-reviewed-records.js";
+import { REVIEWED_DISCOVERY_RECORDS } from "../../src/tags/discovery/discovery-reviewed-records.js";
 import {
   discoverUntaggedCohorts,
-} from "../../src/tags/untagged-cohort-discovery.js";
+} from "../../src/tags/discovery/untagged-cohort-discovery.js";
 import {
   formatHelp,
   formatUntaggedCohortReport,
   parseOptions,
-} from "../../src/tags/discover-untagged-cohorts.js";
+} from "../../src/tags/cli/discover-untagged-cohorts.js";
 
 function vector(values: number[]): Float32Array {
   return Float32Array.from(values);

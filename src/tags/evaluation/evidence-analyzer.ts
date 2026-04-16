@@ -1,23 +1,23 @@
 import { DatabaseSync } from "node:sqlite";
 
-import { SearchCategory, SearchSubcategory } from "../types.js";
-import { uniqueSorted } from "../utils.js";
+import { SearchCategory, SearchSubcategory } from "../../types.js";
+import { uniqueSorted } from "../../utils.js";
 import {
   getDerivedTagExemplarRecordKeys,
   getDerivedTagFamilyTags,
   getDerivedTagLegacySeedMigrationRecordKeys,
   normalizeDerivedTag,
-} from "./index.js";
+} from "../index.js";
 import {
   getReviewedDiscoverySelection,
   summarizeReviewedDiscoverySelection,
   type ReviewedDiscoveryApplicationSummary,
   type ReviewedDiscoveryReason,
-} from "./discovery-reviewed-records.js";
+} from "../discovery/discovery-reviewed-records.js";
 import {
   classifyFamilyGapFeature,
   type FamilyGapFeatureBucket,
-} from "./family-gap-signals.js";
+} from "../discovery/family-gap-signals.js";
 import {
   extractDiscoveryGramRange,
   isDiscoveryNoisePhrase,
@@ -25,11 +25,11 @@ import {
   normalizeDiscoveryFeature,
   resolveDiscoveryGramRange,
   tokenizeDiscoveryText,
-} from "./discovery-normalization.js";
+} from "../discovery/discovery-normalization.js";
 import {
   type DiscoveryAnalysisRecord,
   loadDiscoveryRecords,
-} from "./discovery-records.js";
+} from "../discovery/discovery-records.js";
 
 const DEFAULT_EVIDENCE_LIMIT = 12;
 const DEFAULT_EXAMPLE_LIMIT = 3;

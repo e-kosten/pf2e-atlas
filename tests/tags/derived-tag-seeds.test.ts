@@ -7,12 +7,12 @@ import type {
 } from "../../src/types.js";
 import {
   publishDerivedTagOntology,
-} from "../../src/tags/catalog-utils.js";
+} from "../../src/tags/runtime/catalog-utils.js";
 import {
   publishDerivedTagExemplars,
   resolveDerivedTagExemplarRecordKeys,
   validateDerivedTagExemplarsAgainstRecords,
-} from "../../src/tags/exemplar-utils.js";
+} from "../../src/tags/runtime/exemplar-utils.js";
 import {
   deriveRecordTagDerivation,
   getDerivedTagExemplarRecordKeys,

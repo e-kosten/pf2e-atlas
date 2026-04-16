@@ -10,7 +10,7 @@ import {
   HAZARD_POISON_TEXT_ANCHORS,
   RESTRAINT_CAPTURE_REFERENCE_ANCHORS,
   patternAnchor,
-} from "../shared.js";
+} from "../runtime/shared.js";
 
 const HAZARD_ACID_NAME_ANCHORS = [
   patternAnchor("acid", "name"),

@@ -5,7 +5,7 @@ import {
   deriveCatalogTagDerivation,
   groupDerivedTagOntology,
   publishDerivedTagOntology,
-} from "../../src/tags/catalog-utils.js";
+} from "../../src/tags/runtime/catalog-utils.js";
 
 describe("derived tag ontology publication and composition", () => {
   const families: DerivedTagOntologyFamily[] = [

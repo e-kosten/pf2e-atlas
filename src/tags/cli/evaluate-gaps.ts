@@ -4,9 +4,9 @@ import { access } from "node:fs/promises";
 import { constants } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 
-import { loadConfig } from "../app/config.js";
-import { evaluateDerivedTagGaps } from "./gap-evaluator.js";
-import { SearchCategory, SearchSubcategory } from "../types.js";
+import { loadConfig } from "../../app/config.js";
+import { evaluateDerivedTagGaps } from "../evaluation/gap-evaluator.js";
+import { SearchCategory, SearchSubcategory } from "../../types.js";
 
 type CliOptions = {
   tag: string;

@@ -1,4 +1,4 @@
-import { normalizeText } from "../utils.js";
+import { normalizeText } from "../../utils.js";
 
 const DISCOVERY_STOPWORDS = new Set([
   "a",

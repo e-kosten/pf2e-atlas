@@ -4,7 +4,7 @@ import {
   AFFLICTION_PHYSICAL_DEBILITATION_TEXT_ANCHORS,
   DerivedTagRule,
   patternAnchor,
-} from "../shared.js";
+} from "../runtime/shared.js";
 
 const AFFLICTION_HEALING_SUPPRESSION_TEXT_ANCHORS = [
   patternAnchor("{{alt(can't, cannot)}} {{alt(heal damage, be healed)}}"),

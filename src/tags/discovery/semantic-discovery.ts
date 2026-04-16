@@ -1,10 +1,10 @@
 import { DatabaseSync } from "node:sqlite";
 
-import { SearchCategory, SearchSubcategory } from "../types.js";
-import { tokenize } from "../search/ranking.js";
-import { normalizeText } from "../utils.js";
+import { SearchCategory, SearchSubcategory } from "../../types.js";
+import { tokenize } from "../../search/ranking.js";
+import { normalizeText } from "../../utils.js";
 import { resolveDiscoveryGramRange } from "./discovery-normalization.js";
-import { normalizeDerivedTag } from "./index.js";
+import { normalizeDerivedTag } from "../index.js";
 
 const DEFAULT_CANDIDATE_LIMIT = 25;
 const DEFAULT_EXEMPLAR_LIMIT = 8;

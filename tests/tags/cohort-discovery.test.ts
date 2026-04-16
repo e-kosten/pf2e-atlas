@@ -2,7 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 
 import { describe, expect, it } from "vitest";
 
-import { discoverRuleableCohorts } from "../../src/tags/cohort-discovery.js";
+import { discoverRuleableCohorts } from "../../src/tags/discovery/cohort-discovery.js";
 
 function vector(values: number[]): Float32Array {
   return Float32Array.from(values);

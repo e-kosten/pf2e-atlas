@@ -5,15 +5,15 @@ import { constants } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { pathToFileURL } from "node:url";
 
-import { loadConfig } from "../app/config.js";
-import { SearchCategory, SearchSubcategory } from "../types.js";
+import { loadConfig } from "../../app/config.js";
+import { SearchCategory, SearchSubcategory } from "../../types.js";
 import {
   discoverSemanticCandidates,
   type SemanticDiscoveryCandidate,
   type SemanticDiscoveryOptions,
   type SemanticDiscoveryResult,
-} from "./semantic-discovery.js";
-import { resolveDiscoveryGramRange } from "./discovery-normalization.js";
+} from "../discovery/semantic-discovery.js";
+import { resolveDiscoveryGramRange } from "../discovery/discovery-normalization.js";
 
 type CliOptions = SemanticDiscoveryOptions;
 
