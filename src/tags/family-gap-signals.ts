@@ -179,7 +179,11 @@ const EXISTING_SETTING_TAG_CUES: Record<string, SettingCueSpec> = {
   },
   urban_setting: {
     strong: ["urban", "city", "street", "alley", "sewer", "metropolis", "culvert", "drain"],
-    weak: ["town", "market"],
+    weak: ["market"],
+  },
+  small_settlement_setting: {
+    strong: ["village", "villager", "hamlet", "small settlement", "outlying settlement"],
+    weak: ["town", "townsfolk", "settlement"],
   },
   arctic_setting: {
     strong: ["arctic", "tundra", "glacier", "icebound"],
@@ -217,7 +221,7 @@ const EXISTING_SETTING_TAG_CUES: Record<string, SettingCueSpec> = {
     weak: ["ash", "ashen"],
   },
   rural_setting: {
-    strong: ["rural", "village", "hamlet", "farm", "pasture", "countryside", "cropland", "mill"],
+    strong: ["rural", "farm", "pasture", "countryside", "cropland", "mill", "homestead"],
   },
 };
 

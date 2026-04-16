@@ -67,6 +67,7 @@ export const CREATURE_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
           { pack: "age-of-ashes-bestiary", name: "Spiritbound Aluum" },
         ],
       },
+      { value: "small_settlement_setting", description: "Strongly associated with villages, hamlets, small towns, or other low-density community settlements." },
       { value: "arctic_setting", description: "Strongly associated with snow, ice, tundra, or frozen reaches." },
       { value: "desert_setting", description: "Strongly associated with dunes, sand, or arid wastes." },
       { value: "wasteland_setting", description: "Strongly associated with barren wastes, blasted wastelands, or desolate badlands." },
@@ -77,7 +78,7 @@ export const CREATURE_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
       { value: "temple_setting", description: "Strongly associated with temples, shrines, monasteries, or other sacred encounter sites." },
       { value: "fortress_setting", description: "Strongly associated with castles, fortresses, citadels, watchtowers, or other fortified encounter sites." },
       { value: "volcanic_setting", description: "Strongly associated with volcanoes, calderas, lava, or magma." },
-      { value: "rural_setting", description: "Strongly associated with villages, hamlets, farms, pastures, countryside routes, or other rural encounter scenes." },
+      { value: "rural_setting", description: "Strongly associated with farms, pastures, croplands, countryside routes, mills, or other agricultural rural encounter scenes." },
     ],
   },
   {

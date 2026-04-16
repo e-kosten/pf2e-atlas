@@ -534,37 +534,89 @@ const DESERT_SETTING_SUPPORT_TEXT_ANCHORS = [
 
 const RURAL_SETTING_NAME_ANCHORS = [
   patternAnchor("scarecrow", "name"),
-  patternAnchor("villager", "name"),
-  patternAnchor("villagers", "name"),
 ];
 
 const RURAL_SETTING_TEXT_ANCHORS = [
-  patternAnchor("hamlet"),
-  patternAnchor("hamlets"),
   patternAnchor("farm"),
   patternAnchor("farms"),
   patternAnchor("farmstead"),
   patternAnchor("farmsteads"),
+  patternAnchor("farmhouse"),
+  patternAnchor("farmhouses"),
   patternAnchor("barn"),
   patternAnchor("barns"),
   patternAnchor("pasture"),
   patternAnchor("pastures"),
+  patternAnchor("cropland"),
+  patternAnchor("croplands"),
   patternAnchor("countryside"),
   patternAnchor("rural areas"),
-  patternAnchor("outlying settlement"),
+  patternAnchor("homestead"),
+  patternAnchor("homesteads"),
+  patternAnchor("tending crops"),
+  patternAnchor("tending their crops"),
+  patternAnchor("tending the crops"),
+  patternAnchor("farming techniques"),
 ];
 
 const RURAL_SETTING_CONTEXT_TEXT_ANCHOR = patternAltAnchor(["found in", "dwell", "dwells", "dwelling", "live", "lives", "living", "haunt", "haunts", "hunt", "hunts", "hunting", "prey on", "preys on", "patrol", "patrols", "prowl", "prowls", "protect", "protects", "sabotage", "sabotages", "siege", "sieges", "stalk", "stalks", "stalking", "terrorize", "terrorizes"], "description");
 
-const RURAL_SETTING_COMMUNITY_CONTEXT_TEXT_ANCHOR = patternAltAnchor(["community", "communities", "home", "homes", "crop", "crops", "farming techniques", "tending crops", "tending their crops", "tending the crops", "tending their community"], "description");
-
 const RURAL_SETTING_BLOCKER_TEXT_NEAR = [
   {
     all: [
-      patternAltAnchor(["village", "villages", "farm", "farms", "hamlet", "hamlets", "countryside"]),
+      patternAltAnchor(["farm", "farms", "farmhouse", "farmhouses", "homestead", "homesteads", "countryside"]),
       patternAltAnchor(["raid", "raids", "raiding", "plunder", "waylay", "waylays", "wipe out", "lay waste"]),
     ],
     window: 6,
+    scope: "description" as const,
+  },
+];
+
+const SMALL_SETTLEMENT_SETTING_NAME_ANCHORS = [
+  patternAnchor("villager", "name"),
+  patternAnchor("villagers", "name"),
+  patternAnchor("village hero", "name"),
+];
+
+const SMALL_SETTLEMENT_SETTING_TEXT_ANCHORS = [
+  patternAnchor("small settlement"),
+  patternAnchor("small settlements"),
+  patternAnchor("outlying settlement"),
+  patternAnchor("outlying settlements"),
+  patternAnchor("village-wide concealment"),
+];
+
+const SMALL_SETTLEMENT_SETTING_EXACT_TEXT_ANCHORS = [
+  patternAnchor("the treetop settlements of the grippli"),
+  patternAnchor("hidden treetop villages"),
+  patternAnchor("villages of 200 individuals or fewer"),
+  patternAnchor("most smaller communities have at least one smithy"),
+  patternAnchor("nearly all shoonies in a given settlement"),
+  patternAnchor("lizardfolk settlements are typically constructed partially underwater and partially above"),
+];
+
+const SMALL_SETTLEMENT_SETTING_COMMUNITY_CONTEXT_TEXT_ANCHOR = patternAltAnchor([
+  "community",
+  "communities",
+  "hidden and safe",
+  "well-being",
+  "protect their homes",
+  "protect their community",
+  "trusted with their well-being",
+], "description");
+
+const SMALL_SETTLEMENT_SETTING_PERIMETER_CONTEXT_TEXT_ANCHOR = patternAltAnchor([
+  "keep watch on the outskirts of",
+  "outskirts of",
+], "description");
+
+const SMALL_SETTLEMENT_SETTING_BLOCKER_TEXT_NEAR = [
+  {
+    all: [
+      patternAltAnchor(["village", "villages", "villager", "villagers", "hamlet", "hamlets", "town", "towns", "townsfolk", "settlement", "settlements"]),
+      patternAltAnchor(["raid", "raids", "raiding", "plunder", "waylay", "waylays", "wipe out", "lay waste", "assault", "assaults", "destroy", "destroys", "siege", "sieges"]),
+    ],
+    window: 8,
     scope: "description" as const,
   },
 ];
@@ -680,6 +732,7 @@ const CREATURE_CANYON_HABITAT_CONTEXT_TEXT_ANCHOR = patternAltAnchor(["found in"
 const CREATURE_SITE_FUNCTION_CONTEXT_TEXT_ANCHOR = patternAltAnchor(["found defending", "defend", "defends", "defending", "protect", "protects", "protector", "protectors", "guardians of", "serve as the protector", "serves as the protector", "rarely leave", "rarely leaves", "watch over", "watches over"], "description");
 
 const CREATURE_URBAN_ACTIVITY_CONTEXT_TEXT_ANCHOR = patternAltAnchor(["make their home", "make their homes", "makes its home", "call home", "calls home", "sneak around", "sneaks around", "sneaking around", "stalk", "stalks", "stalking", "prominent in", "visible in", "below"], "description");
+const CREATURE_URBAN_SCENE_CONTEXT_TEXT_ANCHOR = patternAltAnchor(["sneak around", "sneaks around", "sneaking around", "hide in plain sight", "hides in plain sight", "prominent in", "visible in"], "description");
 
 const CREATURE_UNDERGROUND_ACTIVITY_CONTEXT_TEXT_ANCHOR = patternAltAnchor(["below ground", "below large cities", "make their home", "make their homes", "makes its home", "call home", "calls home", "stalk", "stalks", "stalking", "scour", "scours", "most often found"], "description");
 
@@ -823,6 +876,8 @@ const GRAVEYARD_SETTING_CORE_TEXT_ANCHORS = [
 ];
 
 const URBAN_SETTING_EXACT_TEXT_ANCHORS = [
+  patternAnchor("can be found in all cities"),
+  patternAnchor("found in all cities"),
   patternAnchor("upper echelons of society"),
   patternAnchor("city servant"),
   patternAnchor("city servants"),
@@ -845,8 +900,10 @@ const URBAN_SETTING_EXACT_TEXT_ANCHORS = [
 const URBAN_SETTING_GOVERNANCE_TEXT_ANCHORS = [
   patternAnchor("town watch"),
   patternAnchor("city guard"),
+  patternAnchor("interpret and enforce laws"),
   patternAnchor("maintain order and enforce laws"),
   patternAnchor("major urban centers"),
+  patternAnchor("capture accused criminals"),
   patternAnchor("guard important magistrates"),
   patternAnchor("official spymasters"),
   patternAnchor("loyal city servant"),
@@ -1944,6 +2001,35 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     ],
   },
   {
+    tag: "small_settlement_setting",
+    category: "creature",
+    noneOf: [
+      { textNear: SMALL_SETTLEMENT_SETTING_BLOCKER_TEXT_NEAR },
+      { textAny: [patternAnchor("villages cities or towns"), patternAnchor("village city or town")] },
+    ],
+    anyOf: [
+      { score: 2, textAny: SMALL_SETTLEMENT_SETTING_NAME_ANCHORS },
+      { score: 2, textAny: SMALL_SETTLEMENT_SETTING_TEXT_ANCHORS },
+      { score: 2, textAny: SMALL_SETTLEMENT_SETTING_EXACT_TEXT_ANCHORS },
+      {
+        score: 2,
+        textNear: createCreatureSettingTextNear(
+          "village,villages,villager,villagers,hamlet,hamlets,small settlement,small settlements,outlying settlement,outlying settlements",
+          SMALL_SETTLEMENT_SETTING_COMMUNITY_CONTEXT_TEXT_ANCHOR,
+          12,
+        ),
+      },
+      {
+        score: 2,
+        textNear: createCreatureSettingTextNear(
+          "settlement,settlements",
+          SMALL_SETTLEMENT_SETTING_PERIMETER_CONTEXT_TEXT_ANCHOR,
+          8,
+        ),
+      },
+    ],
+  },
+  {
     tag: "urban_setting",
     category: "creature",
     anyOf: [
@@ -1976,7 +2062,23 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
       {
         score: 2,
         textNear: createCreatureSettingTextNear(
+          "sewer,sewers,gutter,gutters,culvert,culverts,drain,drains,drainage",
+          CREATURE_URBAN_ACTIVITY_CONTEXT_TEXT_ANCHOR,
+          10,
+        ),
+      },
+      {
+        score: 2,
+        textNear: createCreatureSettingTextNear(
           "city,cities,urban,sewer,sewers,gutter,gutters,culvert,culverts,drain,drains,drainage,metropolis,metropolises,factory,factories,tenement,tenements",
+          CREATURE_URBAN_SCENE_CONTEXT_TEXT_ANCHOR,
+          10,
+        ),
+      },
+      {
+        score: 2,
+        textNear: createCreatureSettingTextNear(
+          "factory,factories,tenement,tenements,urban decay",
           CREATURE_URBAN_ACTIVITY_CONTEXT_TEXT_ANCHOR,
           10,
         ),
@@ -2009,16 +2111,8 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
       {
         score: 2,
         textNear: createCreatureSettingTextNear(
-          "village,villages,farmhouse,farmhouses,mill,mills,miller,millers,pasture,pastures,cropland,croplands,countryside",
+          "farm,farms,farmhouse,farmhouses,homestead,homesteads,mill,mills,miller,millers,pasture,pastures,cropland,croplands,countryside",
           RURAL_SETTING_CONTEXT_TEXT_ANCHOR,
-        ),
-      },
-      {
-        score: 2,
-        textNear: createCreatureSettingTextNear(
-          "village,villages",
-          RURAL_SETTING_COMMUNITY_CONTEXT_TEXT_ANCHOR,
-          12,
         ),
       },
     ],

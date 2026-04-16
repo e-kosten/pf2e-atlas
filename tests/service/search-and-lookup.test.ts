@@ -231,8 +231,9 @@ describe("Pf2eDataService / Search and Lookup", () => {
     expect(civicNpcNames).not.toContain("Hellknight Gaoler");
     expect(civicNpcNames).not.toContain("Wealthy Vigilante");
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["combatant_npc"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Bandit", "Fortress Warden", "Hellknight Gaoler"]));
-    expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["rural_setting"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Scarecrow", "Virulak Villager"]));
+    expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["rural_setting"] } }).records.map((record) => record.name)).toContain("Scarecrow");
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["rural_setting"] } }).records.map((record) => record.name)).toContain("Swiftrun Clergy");
+    expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["small_settlement_setting"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Virulak Villager", "Swiftrun Clergy"]));
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["carnival_show"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Court Jester", "Mechanical Carny"]));
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["living_toy"] } }).records.map((record) => record.name)).toEqual(["Soulbound Doll"]);
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["trickster_chaos"] } }).records.map((record) => record.name)).toEqual(["Fire Scamp"]);
@@ -427,9 +428,10 @@ describe("Pf2eDataService / Search and Lookup", () => {
     const scarecrow = service.lookup("Scarecrow", { category: "creature" }).match;
     expect(scarecrow?.derivedTags).toContain("rural_setting");
     const virulakVillager = service.lookup("Virulak Villager", { category: "creature" }).match;
-    expect(virulakVillager?.derivedTags).toEqual(expect.arrayContaining(["rural_setting", "undead_adjacent"]));
+    expect(virulakVillager?.derivedTags).toEqual(expect.arrayContaining(["small_settlement_setting", "undead_adjacent"]));
+    expect(virulakVillager?.derivedTags).not.toContain("rural_setting");
     const swiftrunClergy = service.lookup("Swiftrun Clergy", { category: "creature" }).match;
-    expect(swiftrunClergy?.derivedTags).toContain("rural_setting");
+    expect(swiftrunClergy?.derivedTags).toEqual(expect.arrayContaining(["small_settlement_setting", "rural_setting"]));
     const sewerOoze = service.lookup("Sewer Ooze", { category: "creature" }).match;
     expect(sewerOoze?.derivedTags).toContain("urban_setting");
     expect(sewerOoze?.derivedTags).not.toContain("underground_setting");

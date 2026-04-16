@@ -297,6 +297,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
           expect.objectContaining({ value: "fortress_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "wasteland_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "volcanic_setting", description: expect.any(String) }),
+          expect.objectContaining({ value: "small_settlement_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "sky_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "rural_setting", description: expect.any(String) }),
         ]),
@@ -412,7 +413,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     expect(service.listFilterValues({
       field: "derivedTags",
       category: "creature",
-    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["aquatic_setting", "freshwater_setting", "coastal_setting", "astral_setting", "ethereal_setting", "plane_of_fire_setting", "plane_of_air_setting", "plane_of_water_setting", "plane_of_earth_setting", "elemental_plane_setting", "first_world_setting", "boneyard_setting", "heaven_setting", "nirvana_setting", "elysium_setting", "upper_plane_setting", "hell_setting", "abyss_setting", "abaddon_setting", "lower_plane_setting", "axis_setting", "shadow_plane_setting", "maelstrom_setting", "cosmic_framework_setting", "island_setting", "jungle_setting", "sky_setting", "temple_setting", "rural_setting", "civic_npc", "combatant_npc", "carnival_show", "living_toy", "living_artwork", "trickster_chaos"]));
+    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["aquatic_setting", "freshwater_setting", "coastal_setting", "astral_setting", "ethereal_setting", "plane_of_fire_setting", "plane_of_air_setting", "plane_of_water_setting", "plane_of_earth_setting", "elemental_plane_setting", "first_world_setting", "boneyard_setting", "heaven_setting", "nirvana_setting", "elysium_setting", "upper_plane_setting", "hell_setting", "abyss_setting", "abaddon_setting", "lower_plane_setting", "axis_setting", "shadow_plane_setting", "maelstrom_setting", "cosmic_framework_setting", "island_setting", "jungle_setting", "sky_setting", "temple_setting", "small_settlement_setting", "rural_setting", "civic_npc", "combatant_npc", "carnival_show", "living_toy", "living_artwork", "trickster_chaos"]));
 
     expect(service.listFilterValues({
       field: "families",

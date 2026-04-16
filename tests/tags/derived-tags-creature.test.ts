@@ -606,12 +606,37 @@ describe("derived tag rules: creature", () => {
     })).toContain("urban_setting");
 
     expect(deriveRecordTags({
+      name: "Apprentice",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Ambitious apprentices can be found in all cities. These individuals are generally younger and seek the approval of their masters as they learn their craft.",
+      traits: ["human", "humanoid"],
+    })).toContain("urban_setting");
+
+    expect(deriveRecordTags({
+      name: "Archer Sentry",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Archer sentries slightly outrank rank-and-file guards, taking positions on walls, garrisons, and other important locations where they can stay out of the fray and pick off criminals or assailants. Larger societies rely on those with the authority and the ability to interpret and enforce laws.",
+      traits: ["human", "humanoid"],
+      families: ["official"],
+    })).toContain("urban_setting");
+
+    expect(deriveRecordTags({
       name: "Virulak Villager",
       category: "creature",
       subcategory: null,
       descriptionText: "A village of commoners raised to undeath by a mass poisoning might continue to go about the settled routines of life, posing an eerie scene for living creatures who enter their village.",
       traits: ["undead"],
-    })).toContain("rural_setting");
+    })).toContain("small_settlement_setting");
+
+    expect(deriveRecordTags({
+      name: "Virulak Villager",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A village of commoners raised to undeath by a mass poisoning might continue to go about the settled routines of life, posing an eerie scene for living creatures who enter their village.",
+      traits: ["undead"],
+    })).not.toContain("rural_setting");
 
     expect(deriveRecordTags({
       name: "Village Reaver",
@@ -622,12 +647,68 @@ describe("derived tag rules: creature", () => {
     })).not.toContain("rural_setting");
 
     expect(deriveRecordTags({
+      name: "Village Reaver",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A cruel marauder raids villages and farms before slipping back into the hills with stolen livestock.",
+      traits: ["humanoid"],
+    })).not.toContain("small_settlement_setting");
+
+    expect(deriveRecordTags({
       name: "Swiftrun Clergy",
       category: "creature",
       subcategory: null,
       descriptionText: "Swiftrun is a small settlement dedicated to Erastil, barely large enough to be considered a village. Its priests are devoted to community and peace, and would rather spend their days tending their crops and community than shedding blood.",
       traits: ["human", "humanoid"],
     })).toContain("rural_setting");
+
+    expect(deriveRecordTags({
+      name: "Swiftrun Clergy",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Swiftrun is a small settlement dedicated to Erastil, barely large enough to be considered a village. Its priests are devoted to community and peace, and would rather spend their days tending their crops and community than shedding blood.",
+      traits: ["human", "humanoid"],
+    })).toContain("small_settlement_setting");
+
+    expect(deriveRecordTags({
+      name: "Grippli Archer",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Frog-like humanoids who make their homes in the treetops of tropical jungles and forests, gripplis are uniquely adapted to their environment. Their oversized eyes give them keen vision in both light and dark, and their large toes allow them to easily scale the trees atop which they reside. Whatever region they come from, gripplis tend to be peaceful hunter-gatherers. The treetop settlements of the grippli are difficult to spot from the forest floor. Gripplis obscure their holdings with broad leaves and thick branches, and they riddle the surrounding forest with labyrinthine trails that only they know how to navigate. Their villages are usually constructed among the densest populations of trees, with thin rope bridges strung between wide wooden platforms built around each trunk.",
+      traits: ["grippli", "humanoid"],
+    })).toContain("small_settlement_setting");
+
+    expect(deriveRecordTags({
+      name: "Tripkee Scout",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Tripkee scouts are the first line of defense for their hidden treetop villages. They are often scattered throughout the forests in small groups to keep an eye out for anything new or dangerous that could pose a threat. Traditionally making their homes in the treetops of tropical jungles and forests, these frog-like humanoids are often seen as resourceful and cautious, preferring to live and hunt hidden in the branches of tall trees.",
+      traits: ["grippli", "humanoid"],
+    })).toContain("small_settlement_setting");
+
+    expect(deriveRecordTags({
+      name: "Smith",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Most smaller communities have at least one smithy where locals and travelers can have horses shod or equipment repaired. Larger settlements and cities often have a variety of smiths, many specializing in blacksmithing, weapon smithing, armor smithing, or even smelting coins in a mint. Expertise is forged through years of effort and often tedious work. Artisans are masters of their craft, able to create works both practical and beautiful.",
+      traits: ["human", "humanoid"],
+    })).toContain("small_settlement_setting");
+
+    expect(deriveRecordTags({
+      name: "Shoony Tiller",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Nearly all shoonies in a given settlement are farmers, fishers, or foragers. Shoonies are not expected to fight to protect their settlements; most agree it is better to live in cowardice than to die with that foolish, intangible principle taller races call honor. Many shoonies hone their skill with tools rather than arms in the knowledge that whatever is lost to violence can be rebuilt.",
+      traits: ["humanoid", "shoony"],
+    })).toContain("small_settlement_setting");
+
+    expect(deriveRecordTags({
+      name: "Tidewater Guard",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Iruxi tidewater guards are capable fighters skilled at amphibious attacks and overpowering vessels along any shore. Because lizardfolk settlements are typically constructed partially underwater and partially above, they have need of defenders who can guard from attacks in both environments. The special spaulders tidewater guards wear set them apart from other lizardfolk warriors.",
+      traits: ["amphibious", "humanoid", "iruxi", "lizardfolk"],
+    })).toContain("small_settlement_setting");
 
     expect(deriveRecordTags({
       name: "Chupacabra",
@@ -652,6 +733,22 @@ describe("derived tag rules: creature", () => {
       descriptionText: "Kvernknurrs are lanky fey giants that dwell in cold-water rivers and lakes. A kvernknurr's blue flesh allows it to camouflage itself in its preferred environ, where it haunts local millers and farmers by sabotaging water wheels and farm equipment. Kvernknurrs despise humanoid-made disturbances to the waters in which they live, even seemingly harmless ones like waterwheels. When townsfolk come to investigate their jammed mill, the kvernknurr then springs out from hiding to attack, roaring terribly before snatching a victim to eat whole.",
       traits: ["amphibious", "fey", "water"],
     })).toContain("rural_setting");
+
+    expect(deriveRecordTags({
+      name: "Kvernknurr",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Kvernknurrs are lanky fey giants that dwell in cold-water rivers and lakes. A kvernknurr's blue flesh allows it to camouflage itself in its preferred environ, where it haunts local millers and farmers by sabotaging water wheels and farm equipment. Kvernknurrs despise humanoid-made disturbances to the waters in which they live, even seemingly harmless ones like waterwheels. When townsfolk come to investigate their jammed mill, the kvernknurr then springs out from hiding to attack, roaring terribly before snatching a victim to eat whole.",
+      traits: ["amphibious", "fey", "water"],
+    })).not.toContain("small_settlement_setting");
+
+    expect(deriveRecordTags({
+      name: "Sage",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "The greatest knowledge comes from experience. Village elders, ancient seers, and advisors to royalty are examples of those valued for such wisdom. Sages educate and guide their people from straying from their cultures' norms and traditions.",
+      traits: ["human", "humanoid"],
+    })).not.toContain("small_settlement_setting");
 
     expect(deriveRecordTags({
       name: "Yeth Hound",
@@ -1063,6 +1160,14 @@ describe("derived tag rules: creature", () => {
     })).not.toEqual(expect.arrayContaining(["profession_npc", "civic_npc", "combatant_npc"]));
 
     expect(deriveRecordTags({
+      name: "Unnamed Traveler",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A traveler passes through town in search of lodging.",
+      traits: ["human", "humanoid"],
+    })).not.toContain("small_settlement_setting");
+
+    expect(deriveRecordTags({
       name: "False Priest",
       category: "creature",
       subcategory: null,
@@ -1386,6 +1491,14 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "Most brass dragons live in desert climates, and while they keep their lairs hidden, they often build near humanoid settlements.",
       traits: ["chaotic", "dragon", "fire"],
+    })).not.toContain("urban_setting");
+
+    expect(deriveRecordTags({
+      name: "Bog Archdragon",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "The bogs of Golarion are timeless places, unyielding against the encroachment of civilization. Though most have been relegated to the stuff of legends and the mythic nightmares of river valley city-states, bog dragons are still out there, lurking beneath the loam.",
+      traits: ["amphibious", "dragon", "primal"],
     })).not.toContain("urban_setting");
 
     expect(deriveRecordTags({
@@ -1727,6 +1840,14 @@ describe("derived tag rules: creature", () => {
     })).not.toContain("urban_setting");
 
     expect(deriveRecordTags({
+      name: "Taon",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Some mohrgs haunt locations they favored in life, reenacting old crimes on new victims. They may even skulk about in public, wearing rags, cloaks, or freshly harvested skins to hide their nature. The most dangerous mohrgs openly assault settlements in an attempt to turn living towns into mass graves.",
+      traits: ["chaotic", "evil", "undead", "unholy"],
+    })).not.toContain("small_settlement_setting");
+
+    expect(deriveRecordTags({
       name: "Jah-Tohl",
       category: "creature",
       subcategory: null,
@@ -1789,6 +1910,14 @@ describe("derived tag rules: creature", () => {
       descriptionText: "Though ankhravs burrow with ease and are ubiquitous in many environments, they are nevertheless most common in rural areas. Their hunting grounds generally surround farmland, as ankhravs are partial to livestock and plentiful, lazy prey. They rarely venture into well-defended towns or heavily settled areas like cities, but a group of ankhravs that discovers an undefended homestead or village can wreak havoc in mere moments.",
       traits: ["beast"],
     })).not.toContain("urban_setting");
+
+    expect(deriveRecordTags({
+      name: "Ankhrav",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Though ankhravs burrow with ease and are ubiquitous in many environments, they are nevertheless most common in rural areas. Their hunting grounds generally surround farmland, as ankhravs are partial to livestock and plentiful, lazy prey. They rarely venture into well-defended towns or heavily settled areas like cities, but a group of ankhravs that discovers an undefended homestead or village can wreak havoc in mere moments.",
+      traits: ["beast"],
+    })).not.toContain("small_settlement_setting");
 
     expect(deriveRecordTags({
       name: "Grick",
