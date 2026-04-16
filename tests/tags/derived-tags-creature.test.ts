@@ -1735,12 +1735,28 @@ describe("derived tag rules: creature", () => {
     })).not.toEqual(expect.arrayContaining(["mountain_setting", "swamp_setting"]));
 
     expect(deriveRecordTags({
+      name: "Wraith",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Wraiths are malevolent undead who drain life and shun light. Their shadowy forms are covered by insubstantial robes that they wear like a badge of office and marked with peering eyes that reflect their judgment of the living. A wraith can be created by foul magic or direct exposure to the Void, but more often they are the result of death on a tragic scale. When a tragedy is too great for even reality to witness, a temporary manifestation of the Void can leave behind countless wraiths in a horde of darkness. A wraith's existence is one of emptiness and need, with a desire to call others to the same emptiness exemplified by the Void. Wraiths can haunt any location where they can safely interact with the living, looking for those worthy to become new wraiths and disposing of the rest, though their vulnerability to sunlight confines them to the shadowy places of the world places where they can blend in seamlessly with their dark surroundings before silently engulfing their prey. Wraiths gather with others of their kind in places where death and mayhem are commonplace countrysides ravaged by war, metropolitan underworlds run by criminal overlords, or sites of fiendish rituals. In these places, the living do well to keep to the light. Wraiths are smart enough to take advantage of their incorporeality in combat, so they keep to tortuous caverns or structures with hallways, and avoid open areas.",
+      traits: ["undead"],
+    })).not.toContain("fortress_setting");
+
+    expect(deriveRecordTags({
       name: "Watchtower Wraith",
       category: "creature",
       subcategory: null,
       descriptionText: "Wraiths may form packs with others of their kind in places where death and mayhem are commonplace-countrysides ravaged by war, metropolitan underworlds run by criminal overlords, or sites of fiendish cultic rituals. Ruins, sewers, and abandoned buildings provide sanctuary for wraiths during the day, as the creatures hunt exclusively at night or in dark places. Wraiths are smart enough to take advantage of their incorporeality in combat, so they keep to tortuous caverns or structures with hallways and avoid open areas.",
       traits: ["undead"],
-    })).not.toEqual(expect.arrayContaining(["fortress_setting", "urban_setting", "underground_setting", "temple_setting"]));
+    })).toContain("fortress_setting");
+
+    expect(deriveRecordTags({
+      name: "Watchtower Wraith",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Wraiths may form packs with others of their kind in places where death and mayhem are commonplace-countrysides ravaged by war, metropolitan underworlds run by criminal overlords, or sites of fiendish cultic rituals. Ruins, sewers, and abandoned buildings provide sanctuary for wraiths during the day, as the creatures hunt exclusively at night or in dark places. Wraiths are smart enough to take advantage of their incorporeality in combat, so they keep to tortuous caverns or structures with hallways and avoid open areas.",
+      traits: ["undead"],
+    })).not.toEqual(expect.arrayContaining(["urban_setting", "underground_setting", "temple_setting"]));
 
     expect(deriveRecordTags({
       name: "Ankhrav",
@@ -1755,6 +1771,22 @@ describe("derived tag rules: creature", () => {
       category: "creature",
       subcategory: null,
       descriptionText: "Gricks are aggressive predators of the Darklands, dwelling near ruined structures and rocky hunting grounds where they can ambush prey with ease.",
+      traits: ["aberration"],
+    })).not.toContain("fortress_setting");
+
+    expect(deriveRecordTags({
+      name: "Buso Farmer",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Busos are tree-dwelling folk with a simmering desire to consume the flesh of others. They heavily supplement their food with leaves and root crops, possess significant knowledge of agriculture, and boast innate powers over plants and their growth. In regards to meat, however, busos reject the flesh of beasts; they instead consume other humanoids. Not only do they find the taste of other creatures repulsive, but their bodies reject non-humanoid meat since it provides them no nutritional value and consuming it leaves them sickened and weak. Busos' unusual dietary needs mean they're almost always at odds with neighboring cultures. They typically maintain decent relations only with goblins, who are as a people less prone to judging others based on diet. Other communities fear busos with some justification though aside from the occasional forays to harvest someone for their next meal, busos tend to keep to themselves. In some desperate locations, communities faced with famine or other natural disasters might even seek out busos' aid, offering victims in exchange for knowledge or magical assistance that might save their communities from slow and terrible deaths through starvation.",
+      traits: ["evil", "humanoid"],
+    })).not.toContain("fortress_setting");
+
+    expect(deriveRecordTags({
+      name: "Shoggoth",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Although even raving fanatics and doom-saying prophets desperately claim the monstrous shoggoth is nothing more than a drug-induced vision or a thankfully unreal nightmare, the truth is altogether more dire. Shoggoths exist, yet they tend keep to the deepest of ocean trenches or the most remote of caverns and ruins, emerging to spread chaos and destruction in their slimy wakes. The first shoggoths were created by an alien species to serve as mindless beasts of burden. Their vast bulk, incredible strength, and amorphous nature made them useful slave labor, and their ability to spontaneously form whatever new eyes, mouths, limbs, and other organs they might need made them incredibly versatile. Eventually, the shoggoths developed enough intelligence to rebel against their masters, and now they lurk, patient but potent, in the lightless deeps.",
       traits: ["aberration"],
     })).not.toContain("fortress_setting");
 

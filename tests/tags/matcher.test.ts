@@ -161,6 +161,53 @@ describe("derived tag matcher extensions", () => {
     expect(tags).not.toContain("either_scope_should_ignore_blurb");
   });
 
+  it("supports POS-constrained text anchors without changing plain string matching", () => {
+    const rules: DerivedTagRule[] = [
+      {
+        tag: "noun_keep",
+        category: "creature",
+        anyOf: [
+          {
+            textAny: [{ value: "keep", scope: "description", pos: ["NOUN"] }],
+          },
+        ],
+      },
+      {
+        tag: "plain_keep",
+        category: "creature",
+        anyOf: [
+          {
+            textAny: ["keep"],
+          },
+        ],
+      },
+    ];
+
+    expect(deriveRecordTagsFromRules(rules, {
+      name: "Keep Guardian",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "The guardian stands within the keep walls.",
+      traits: [],
+    })).toEqual(expect.arrayContaining(["noun_keep", "plain_keep"]));
+
+    expect(deriveRecordTagsFromRules(rules, {
+      name: "Shadow Stalker",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "These predators keep to the deepest shadows.",
+      traits: [],
+    })).toEqual(expect.arrayContaining(["plain_keep"]));
+
+    expect(deriveRecordTagsFromRules(rules, {
+      name: "Shadow Stalker",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "These predators keep to the deepest shadows.",
+      traits: [],
+    })).not.toContain("noun_keep");
+  });
+
   it("supports structured reference predicates and minimum reference matches", () => {
     const rules: DerivedTagRule[] = [
       {

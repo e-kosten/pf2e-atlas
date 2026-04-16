@@ -592,6 +592,16 @@ const FORTRESS_SETTING_NAME_ANCHORS = [
 ];
 
 const FORTRESS_SETTING_RESIDENCE_CONTEXT_TEXT_ANCHOR = patternAltAnchor(["within", "inside", "among", "take residence", "takes residence", "taking residence", "reside", "resides", "residing", "stationed", "posted", "quartered"], "description");
+const FORTRESS_SETTING_STRUCTURE_TEXT_ANCHORS = [
+  patternAltAnchor(["fortress", "fortresses", "castle", "castles", "citadel", "citadels", "stronghold", "strongholds", "bastion", "bastions", "watchtower", "watchtowers", "rampart", "ramparts", "battlement", "battlements"], "description"),
+  patternAnchor("keep", "description", { pos: ["NOUN"] }),
+  patternAnchor("keeps", "description", { pos: ["NOUN"] }),
+];
+const FORTRESS_SETTING_SITE_TEXT_ANCHORS = [
+  patternAltAnchor(["fortress", "fortresses", "castle", "castles", "citadel", "citadels", "stronghold", "strongholds", "bastion", "bastions", "watchtower", "watchtowers", "fort", "forts", "garrison"], "description"),
+  patternAnchor("keep", "description", { pos: ["NOUN"] }),
+  patternAnchor("keeps", "description", { pos: ["NOUN"] }),
+];
 
 const DREAMLANDS_SETTING_BLOCKER_TEXT_ANCHORS = [
   patternAnchor("find their way out of the dreamlands"),
@@ -702,6 +712,19 @@ const createCreatureSettingTextNear = (
     scope: "description" as const,
   },
 ];
+
+const createCreatureSettingTextNearAnchors = (
+  anchors: Array<ReturnType<typeof patternAnchor>>,
+  contextAnchor: ReturnType<typeof patternAnchor>,
+  window = 8,
+) => anchors.map((anchor) => ({
+    all: [
+      anchor,
+      contextAnchor,
+    ],
+    window,
+    scope: "description" as const,
+  }));
 
 const FRESHWATER_SETTING_TEXT_NEAR = [
   ...createCreatureSettingTextNear(
@@ -2176,8 +2199,8 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
       { score: 2, textAny: FORTRESS_SETTING_NAME_ANCHORS },
       {
         score: 2,
-        textNear: createCreatureSettingTextNear(
-          "fortress,fortresses,castle,castles,citadel,citadels,stronghold,strongholds,keep,keeps,bastion,bastions,watchtower,watchtowers,rampart,ramparts,battlement,battlements",
+        textNear: createCreatureSettingTextNearAnchors(
+          FORTRESS_SETTING_STRUCTURE_TEXT_ANCHORS,
           CREATURE_SITE_HABITAT_CONTEXT_TEXT_ANCHOR,
         ),
       },
@@ -2190,16 +2213,16 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
       },
       {
         score: 2,
-        textNear: createCreatureSettingTextNear(
-          "fortress,fortresses,castle,castles,citadel,citadels,stronghold,strongholds,keep,keeps,bastion,bastions,watchtower,watchtowers,fort,forts,garrison",
+        textNear: createCreatureSettingTextNearAnchors(
+          FORTRESS_SETTING_SITE_TEXT_ANCHORS,
           CREATURE_SITE_FUNCTION_CONTEXT_TEXT_ANCHOR,
           10,
         ),
       },
       {
         score: 2,
-        textNear: createCreatureSettingTextNear(
-          "fortress,fortresses,castle,castles,citadel,citadels,stronghold,strongholds,keep,keeps,bastion,bastions,watchtower,watchtowers,fort,forts,garrison",
+        textNear: createCreatureSettingTextNearAnchors(
+          FORTRESS_SETTING_SITE_TEXT_ANCHORS,
           FORTRESS_SETTING_RESIDENCE_CONTEXT_TEXT_ANCHOR,
           6,
         ),

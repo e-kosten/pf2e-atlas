@@ -1,5 +1,11 @@
+import winkNLP, { type PartOfSpeech } from "wink-nlp";
+import model from "wink-eng-lite-web-model";
+
 import type { SearchCategory, SearchSubcategory } from "../types.js";
 import { normalizeText, uniqueSorted } from "../utils.js";
+
+const nlp = winkNLP(model);
+const its = nlp.its;
 
 export type DerivedTagContext = {
   recordKey?: string;
@@ -24,10 +30,12 @@ export type DerivedTagReference = {
 
 export type TextMatchScope = "either" | "name" | "description" | "blurb";
 type PatternPlaceholder = "number" | "dice" | "range";
+export type TextAnchorPosConstraint = PartOfSpeech | PartOfSpeech[];
 
 export type TextAnchor = string | {
   value: string;
   scope?: TextMatchScope;
+  pos?: TextAnchorPosConstraint[];
 };
 
 export type ReferencePredicate = {
@@ -77,11 +85,13 @@ export type DerivedTagRule = {
 
 type NormalizedTextView = {
   tokens: string[];
+  posTags: PartOfSpeech[];
 };
 
 type NormalizedTextAnchor = {
   scope: TextMatchScope;
   patternParts: PatternTokenPart[];
+  posByToken?: PartOfSpeech[][];
 };
 
 type PatternTokenPart =
@@ -175,13 +185,36 @@ type CompiledDerivedTagRule = {
 
 const normalizedStringAnchorCache = new Map<string, NormalizedTextAnchor | null>();
 const normalizedObjectAnchorCache = new WeakMap<Exclude<TextAnchor, string>, NormalizedTextAnchor | null>();
-const compiledRulesCache = new WeakMap<DerivedTagRule[], CompiledDerivedTagRule[]>();
+const compiledRulesCache = new WeakMap<DerivedTagRule[], {
+  rules: CompiledDerivedTagRule[];
+  posScopes: Set<TextMatchScope>;
+}>();
 
-function buildTextView(value: string): NormalizedTextView {
+function analyzeTextPartOfSpeech(normalized: string, tokens: string[]): PartOfSpeech[] {
+  if (normalized.length === 0 || tokens.length === 0) {
+    return [];
+  }
+
+  const doc = nlp.readDoc(normalized);
+  const analyzedTokens = doc.tokens().out(its.normal) as string[];
+  const analyzedPos = doc.tokens().out(its.pos) as PartOfSpeech[];
+  if (
+    analyzedTokens.length !== tokens.length
+    || analyzedPos.length !== tokens.length
+    || analyzedTokens.some((token, index) => token !== tokens[index])
+  ) {
+    return tokens.map(() => "X");
+  }
+
+  return analyzedPos;
+}
+
+function buildTextView(value: string, analyzePartOfSpeech = false): NormalizedTextView {
   const normalized = normalizeText(value);
   const tokens = normalized.length > 0 ? normalized.split(" ") : [];
   return {
     tokens,
+    posTags: analyzePartOfSpeech ? analyzeTextPartOfSpeech(normalized, tokens) : [],
   };
 }
 
@@ -361,6 +394,23 @@ function normalizePatternAnchorValue(value: string): PatternTokenPart[] {
   return parts;
 }
 
+function normalizeAnchorPos(pos: TextAnchorPosConstraint[] | undefined): PartOfSpeech[][] | undefined {
+  if (!pos || pos.length === 0) {
+    return undefined;
+  }
+
+  const normalized = pos.map((constraint) => {
+    const allowed = Array.isArray(constraint) ? constraint : [constraint];
+    const deduped = [...new Set(allowed)];
+    if (deduped.length === 0) {
+      throw new Error("Text anchor POS constraints cannot contain empty token constraints.");
+    }
+    return deduped;
+  });
+
+  return normalized.length > 0 ? normalized : undefined;
+}
+
 function normalizeAnchor(anchor: TextAnchor): NormalizedTextAnchor | null {
   if (typeof anchor === "string") {
     const cacheKey = `either\0${anchor}`;
@@ -384,6 +434,7 @@ function normalizeAnchor(anchor: TextAnchor): NormalizedTextAnchor | null {
   const compiled = patternParts.length === 0 ? null : {
     scope: raw.scope ?? "either",
     patternParts,
+    posByToken: normalizeAnchorPos(raw.pos),
   };
   normalizedObjectAnchorCache.set(anchor, compiled);
   return compiled;
@@ -474,13 +525,37 @@ function compileClause(clause: DerivedTagMatchClause): CompiledDerivedTagMatchCl
   };
 }
 
-function getCompiledRules(rules: DerivedTagRule[]): CompiledDerivedTagRule[] {
+function collectAnchorPosScopes(anchors: NormalizedTextAnchor[] | undefined, scopes: Set<TextMatchScope>): void {
+  if (!anchors) {
+    return;
+  }
+
+  for (const anchor of anchors) {
+    if (anchor.posByToken) {
+      scopes.add(anchor.scope);
+    }
+  }
+}
+
+function collectClausePosScopes(clause: CompiledDerivedTagMatchClause, scopes: Set<TextMatchScope>): void {
+  collectAnchorPosScopes(clause.textAny, scopes);
+  collectAnchorPosScopes(clause.textAll, scopes);
+
+  for (const constraint of clause.textNear ?? []) {
+    collectAnchorPosScopes(constraint.all, scopes);
+  }
+}
+
+function getCompiledRules(rules: DerivedTagRule[]): {
+  rules: CompiledDerivedTagRule[];
+  posScopes: Set<TextMatchScope>;
+} {
   const cached = compiledRulesCache.get(rules);
   if (cached) {
     return cached;
   }
 
-  const compiled = rules.map((rule) => ({
+  const compiledRules = rules.map((rule) => ({
     tag: rule.tag,
     category: rule.category,
     subcategories: rule.subcategories,
@@ -490,6 +565,23 @@ function getCompiledRules(rules: DerivedTagRule[]): CompiledDerivedTagRule[] {
     allOf: rule.allOf?.map((clause) => compileClause(clause)),
     noneOf: rule.noneOf?.map((clause) => compileClause(clause)),
   }));
+  const posScopes = new Set<TextMatchScope>();
+  for (const rule of compiledRules) {
+    for (const clause of rule.anyOf ?? []) {
+      collectClausePosScopes(clause, posScopes);
+    }
+    for (const clause of rule.allOf ?? []) {
+      collectClausePosScopes(clause, posScopes);
+    }
+    for (const clause of rule.noneOf ?? []) {
+      collectClausePosScopes(clause, posScopes);
+    }
+  }
+
+  const compiled = {
+    rules: compiledRules,
+    posScopes,
+  };
   compiledRulesCache.set(rules, compiled);
   return compiled;
 }
@@ -642,6 +734,31 @@ function findPatternOccurrences(view: NormalizedTextView, patternParts: PatternT
   return occurrences;
 }
 
+function matchesOccurrencePos(
+  view: NormalizedTextView,
+  occurrence: TextOccurrence,
+  posByToken: PartOfSpeech[][] | undefined,
+): boolean {
+  if (!posByToken) {
+    return true;
+  }
+
+  const occurrenceLength = occurrence.end - occurrence.start + 1;
+  if (occurrenceLength !== posByToken.length) {
+    return false;
+  }
+
+  for (let index = 0; index < posByToken.length; index += 1) {
+    const pos = view.posTags[occurrence.start + index];
+    const allowed = posByToken[index];
+    if (!pos || !allowed?.includes(pos)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 function matchesTextAnchor(context: NormalizedDerivedTagContext, anchor: NormalizedTextAnchor): boolean {
   return getTextViews(context, anchor.scope).some(({ scope, view }) => findNormalizedTextOccurrences(view, scope, anchor).length > 0);
 }
@@ -664,7 +781,8 @@ function findNormalizedTextOccurrences(
     return [];
   }
 
-  return findPatternOccurrences(view, normalized.patternParts);
+  return findPatternOccurrences(view, normalized.patternParts)
+    .filter((occurrence) => matchesOccurrencePos(view, occurrence, normalized.posByToken));
 }
 
 function findTextOccurrences(
@@ -883,6 +1001,9 @@ export function normalizeDerivedTag(value: string): string {
 
 export function deriveRecordTagsFromRules(rules: DerivedTagRule[], input: DerivedTagContext): string[] {
   const compiledRules = getCompiledRules(rules);
+  const analyzeNamePos = compiledRules.posScopes.has("name") || compiledRules.posScopes.has("either");
+  const analyzeDescriptionPos = compiledRules.posScopes.has("description") || compiledRules.posScopes.has("either");
+  const analyzeBlurbPos = compiledRules.posScopes.has("blurb");
   const references = (input.references ?? []).map((reference) => ({
     key: normalizeDerivedTagReference(`${reference.packName}:${reference.name}`),
     packName: normalizeText(reference.packName),
@@ -896,15 +1017,15 @@ export function deriveRecordTagsFromRules(rules: DerivedTagRule[], input: Derive
     subcategory: input.subcategory,
     traits: new Set(input.traits.map((trait) => normalizeText(trait)).filter(Boolean)),
     families: new Set((input.families ?? []).map((family) => normalizeText(family)).filter(Boolean)),
-    name: buildTextView(input.name),
-    description: buildTextView(input.descriptionText ?? ""),
-    blurb: buildTextView(input.blurbText ?? ""),
+    name: buildTextView(input.name, analyzeNamePos),
+    description: buildTextView(input.descriptionText ?? "", analyzeDescriptionPos),
+    blurb: buildTextView(input.blurbText ?? "", analyzeBlurbPos),
     referenceKeys: new Set(references.map((reference) => reference.key)),
     references,
   };
   const tags = new Set<string>();
 
-  for (const rule of compiledRules) {
+  for (const rule of compiledRules.rules) {
     if (matchesRule(context, tags, rule)) {
       tags.add(rule.tag);
     }

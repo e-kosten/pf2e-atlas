@@ -2,10 +2,19 @@ import { SearchSubcategory } from "../types.js";
 import {
   normalizeDerivedTagReference,
   TextAnchor,
+  type TextAnchorPosConstraint,
   TextMatchScope,
 } from "./matcher.js";
 
-const patternAnchor = (value: string, scope: TextMatchScope = "either"): TextAnchor => ({ value, scope });
+const patternAnchor = (
+  value: string,
+  scope: TextMatchScope = "either",
+  options?: { pos?: TextAnchorPosConstraint[] },
+): TextAnchor => ({
+  value,
+  scope,
+  ...(options?.pos ? { pos: options.pos } : {}),
+});
 const patternAltAnchor = (alternatives: string[], scope: TextMatchScope = "either"): TextAnchor =>
   patternAnchor(`{{alt(${alternatives.join(",")})}}`, scope);
 const patternAltAnchors = (alternativeGroups: string[][], scope: TextMatchScope = "either"): TextAnchor[] =>
