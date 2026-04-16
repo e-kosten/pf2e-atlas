@@ -451,6 +451,77 @@ describe("Pf2eDataService / Load and Index", () => {
     });
   });
 
+  it("inherits opt-in creature setting tags from a resolved variant base family", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+    const indexPath = path.join(fixture.root, ".cache", "pf2e-index.sqlite");
+
+    await Promise.all([
+      writeJson(path.join(fixture.root, "packs", "pf2e", "pathfinder-monster-core", "white-dragon-young.json"), {
+        _id: "whiteyoung",
+        name: "White Dragon (Young)",
+        type: "npc",
+        system: {
+          details: {
+            level: { value: 6 },
+            publication: { title: "Pathfinder Monster Core" },
+            publicNotes: "<p>Dwelling on glacial mountaintops or in ice caverns beneath forbidding tundra, white dragons stalk the frozen wilderness.</p>",
+          },
+          traits: {
+            rarity: "common",
+            value: ["chaotic", "cold", "dragon", "evil"],
+            size: { value: "lg" },
+          },
+        },
+      }),
+      writeJson(path.join(fixture.root, "packs", "pf2e", "pathfinder-monster-core", "white-dragon-adult.json"), {
+        _id: "whiteadult",
+        name: "White Dragon (Adult)",
+        type: "npc",
+        system: {
+          details: {
+            level: { value: 10 },
+            publication: { title: "Pathfinder Monster Core" },
+            publicNotes: "<p>Dwelling on glacial mountaintops or in ice caverns beneath forbidding tundra, white dragons stalk the frozen wilderness.</p>",
+          },
+          traits: {
+            rarity: "common",
+            value: ["chaotic", "cold", "dragon", "evil"],
+            size: { value: "huge" },
+          },
+        },
+      }),
+      writeJson(path.join(fixture.root, "packs", "pf2e", "quest-for-the-frozen-flame-bestiary", "venexus.json"), {
+        _id: "venexusfixture",
+        name: "Venexus",
+        type: "npc",
+        system: {
+          details: {
+            level: { value: 10 },
+            publication: { title: "Pathfinder Adventure Path" },
+            publicNotes: "<p>A unique white dragon carrying the Primordial Flame.</p>",
+            blurb: "Female young white dragon",
+          },
+          traits: {
+            rarity: "unique",
+            value: ["chaotic", "cold", "dragon", "evil"],
+            size: { value: "huge" },
+          },
+        },
+      }),
+    ]);
+
+    const service = await loadTestService(fixture, { indexPath });
+    const venexus = service.lookup("Venexus", { category: "creature" }).match;
+
+    expect(venexus?.derivedTags).toEqual(expect.arrayContaining([
+      "arctic_setting",
+      "mountain_setting",
+      "underground_setting",
+    ]));
+    service.close();
+  });
+
   it("logs a final rebuild stage timing summary", async () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);

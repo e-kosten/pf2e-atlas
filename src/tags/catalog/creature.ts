@@ -5,6 +5,7 @@ export const CREATURE_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
     category: "creature",
     family: "setting",
     description: "Creature environment and encounter-setting tags, covering habitats, hunting grounds, patrol zones, and other scenes where a creature predictably appears.",
+    variantInheritance: true,
     tags: [
       { value: "aquatic_setting", description: "Strongly associated with open water, underwater spaces, or aquatic environments." },
       { value: "freshwater_setting", description: "Strongly associated with rivers, lakes, ponds, streams, springs, or other inland waters." },

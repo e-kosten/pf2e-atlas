@@ -97,3 +97,26 @@ export function getDerivedTagFamilyTags(
 
   return resolved;
 }
+
+export function getVariantInheritableTags(
+  scope: { category?: DerivedTagContext["category"]; subcategory?: DerivedTagContext["subcategory"] } = {},
+): string[] {
+  const tags = new Set<string>();
+
+  for (const entry of RAW_DERIVED_TAG_CATALOG) {
+    if (scope.category && entry.category !== scope.category) {
+      continue;
+    }
+    if (scope.subcategory !== undefined && entry.subcategories && (scope.subcategory === null || !entry.subcategories.includes(scope.subcategory))) {
+      continue;
+    }
+
+    for (const tag of entry.tags) {
+      if (tag.variantInheritance ?? entry.variantInheritance ?? false) {
+        tags.add(normalizeDerivedTag(tag.value));
+      }
+    }
+  }
+
+  return uniqueSorted([...tags]);
+}

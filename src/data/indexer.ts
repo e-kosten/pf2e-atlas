@@ -8,7 +8,7 @@ import { promisify } from "node:util";
 import { EmbeddingProvider } from "../embeddings.js";
 import { formatInteger } from "../shared/format.js";
 import { fileExists } from "../shared/fs.js";
-import { deriveRecordTags, normalizeDerivedTag } from "../tags/index.js";
+import { deriveRecordTags, getVariantInheritableTags, normalizeDerivedTag } from "../tags/index.js";
 import {
   PackInfo,
   PackManifestEntry,
@@ -46,6 +46,7 @@ import {
 import {
   buildDerivedAfflictionArtifacts,
 } from "./derived-afflictions.js";
+import { applyVariantBaseTagInheritance } from "./variant-tag-inheritance.js";
 import { assignVariantFamilies } from "./variant-families.js";
 import {
   extractRulesReferences,
@@ -592,6 +593,11 @@ export async function buildIndex(
         lastLoggedResolvedRecordCount = resolvedRecordCount;
         lastResolutionProgressLogTime = now;
       }
+    }
+
+    const creatureVariantInheritableTags = getVariantInheritableTags({ category: "creature" });
+    if (creatureVariantInheritableTags.length > 0) {
+      applyVariantBaseTagInheritance(indexedEntries.map((entry) => entry.record), creatureVariantInheritableTags);
     }
 
     progressLogger?.(

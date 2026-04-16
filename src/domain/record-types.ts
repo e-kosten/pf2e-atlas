@@ -41,6 +41,7 @@ export interface DerivedTagCatalogTag {
   nativeOntologyPolicy?: "distinct_required" | "aggregates_native_signals";
   seedRecords?: DerivedTagSeedRecordReference[];
   excludeSeedRecords?: DerivedTagSeedRecordReference[];
+  variantInheritance?: boolean;
 }
 
 export interface DerivedTagCatalogEntry {
@@ -50,6 +51,7 @@ export interface DerivedTagCatalogEntry {
   description: string;
   tags: DerivedTagCatalogTag[];
   promoteFamilyToTag?: boolean;
+  variantInheritance?: boolean;
 }
 
 export interface NormalizedRecord {
