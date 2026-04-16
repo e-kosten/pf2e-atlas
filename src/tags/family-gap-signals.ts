@@ -190,6 +190,9 @@ const EXISTING_SETTING_TAG_CUES: Record<string, SettingCueSpec> = {
   gravelands_setting: {
     strong: ["gravelands", "lastwall", "gallowspire", "fort ozem", "chernasardo"],
   },
+  tian_xia_setting: {
+    strong: ["tian xia", "tian-shu", "tian-hwan", "tian-sing", "tian-la", "minata", "bonmu", "goka", "minkai"],
+  },
   small_settlement_setting: {
     strong: ["village", "villager", "hamlet", "small settlement", "outlying settlement"],
     weak: ["town", "townsfolk", "settlement"],

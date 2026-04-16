@@ -36,6 +36,38 @@ describe("derived tag rules: creature", () => {
     })).toContain("swamp_setting");
 
     expect(deriveRecordTags({
+      name: "Giant Swamp Fly",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "",
+      traits: ["animal"],
+    })).toContain("swamp_setting");
+
+    expect(deriveRecordTags({
+      name: "Shino Hakusa",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Female Tian-Shu assassin",
+      traits: ["human", "humanoid"],
+    })).toContain("tian_xia_setting");
+
+    expect(deriveRecordTags({
+      name: "Caustic Monitor",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Caustic monitors are enormous lizards native to eastern Minata known for the corrosive enzyme in their mucus and saliva.",
+      traits: ["animal"],
+    })).toContain("tian_xia_setting");
+
+    expect(deriveRecordTags({
+      name: "Tengu Sneak",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Tengu are an adaptable people originally from the continent of Tian Xia, but their travels have taken them across all of Golarion.",
+      traits: ["humanoid", "tengu"],
+    })).not.toContain("tian_xia_setting");
+
+    expect(deriveRecordTags({
       name: "Jungle Stalker",
       category: "creature",
       subcategory: null,
@@ -627,7 +659,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "The mysterious undead known as shadows lurk in dark places and feed on those who stray too far from the light.",
       traits: ["undead"],
-    })).not.toContain("fortress_setting");
+    })).toContain("fortress_setting");
 
     expect(deriveRecordTags({
       name: "Sewer Ooze",
@@ -844,6 +876,14 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "Hunter wights renew their hunt with equal vigor and frequently take residence within abandoned watchtowers and keeps.",
       traits: ["undead"],
+    })).toContain("fortress_setting");
+
+    expect(deriveRecordTags({
+      name: "Watchtower Poltergeist",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A restless spirit batters shutters and hurls loose stones at trespassers.",
+      traits: ["incorporeal", "spirit", "undead"],
     })).toContain("fortress_setting");
 
     expect(deriveRecordTags({
@@ -1925,7 +1965,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "Wraiths may form packs with others of their kind in places where death and mayhem are commonplace-countrysides ravaged by war, metropolitan underworlds run by criminal overlords, or sites of fiendish cultic rituals. Ruins, sewers, and abandoned buildings provide sanctuary for wraiths during the day, as the creatures hunt exclusively at night or in dark places. Wraiths are smart enough to take advantage of their incorporeality in combat, so they keep to tortuous caverns or structures with hallways and avoid open areas.",
       traits: ["undead"],
-    })).not.toContain("fortress_setting");
+    })).toContain("fortress_setting");
 
     expect(deriveRecordTags({
       name: "Watchtower Wraith",

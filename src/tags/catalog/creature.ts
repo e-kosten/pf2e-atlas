@@ -90,6 +90,16 @@ export const CREATURE_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
           { pack: "claws-of-the-tyrant-bestiary", name: "Raised Cavalry" },
         ],
       },
+      {
+        value: "tian_xia_setting",
+        description: "Strongly associated with Tian Xia regions such as Minata, Bonmu, or Tian cultural subregions like Tian-Shu, Tian-Hwan, Tian-Sing, and Tian-La.",
+        seedRecords: [
+          { pack: "fists-of-the-ruby-phoenix-bestiary", name: "Amihan" },
+          { pack: "fists-of-the-ruby-phoenix-bestiary", name: "Caustic Monitor" },
+          { pack: "fists-of-the-ruby-phoenix-bestiary", name: "Jaiban" },
+          { pack: "fists-of-the-ruby-phoenix-bestiary", name: "Nai Yan Fei" },
+        ],
+      },
       { value: "jungle_setting", description: "Strongly associated with jungles, rainforests, or dense tropical canopies." },
       { value: "forest_setting", description: "Strongly associated with forests, jungles, groves, or briar-choked wilds." },
       { value: "plains_setting", description: "Strongly associated with open plains, grasslands, prairies, or savannas." },
@@ -114,7 +124,14 @@ export const CREATURE_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
           { pack: "battlecry-bestiary", name: "Dromaar Company" },
         ],
       },
-      { value: "small_settlement_setting", description: "Strongly associated with villages, hamlets, small towns, or other low-density community settlements." },
+      {
+        value: "small_settlement_setting",
+        description: "Strongly associated with villages, hamlets, small towns, or other low-density community settlements.",
+        seedRecords: [
+          { pack: "extinction-curse-bestiary", name: "Shoony Hierarch" },
+          { pack: "extinction-curse-bestiary", name: "Shoony Militia Member" },
+        ],
+      },
       { value: "arctic_setting", description: "Strongly associated with snow, ice, tundra, or frozen reaches." },
       {
         value: "desert_setting",
@@ -136,6 +153,7 @@ export const CREATURE_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
         value: "rural_setting",
         description: "Strongly associated with farms, pastures, croplands, countryside routes, mills, or other agricultural rural encounter scenes.",
         seedRecords: [
+          { pack: "fall-of-plaguestone-bestiary", name: "Drunken Farmer" },
           { pack: "book-of-the-dead-bestiary", name: "Death Coach" },
         ],
       },

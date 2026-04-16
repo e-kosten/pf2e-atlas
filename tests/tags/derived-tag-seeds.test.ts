@@ -423,6 +423,12 @@ describe("derived tag seeds", () => {
       "claws-of-the-tyrant-bestiary:tMqtId1TKVUXe4tN",
       "claws-of-the-tyrant-bestiary:vdywUTHF4uhA7cyh",
     ]));
+    expect(getDerivedTagSeedRecordKeys("tian_xia_setting", { category: "creature" })).toEqual(expect.arrayContaining([
+      "fists-of-the-ruby-phoenix-bestiary:HqN4nUnl75foBKLZ",
+      "fists-of-the-ruby-phoenix-bestiary:YVP3pM7jxY9Gyouy",
+      "fists-of-the-ruby-phoenix-bestiary:koRKlywSbwttifEq",
+      "fists-of-the-ruby-phoenix-bestiary:zNOSSDaaCozimqaS",
+    ]));
     expect(getDerivedTagSeedRecordKeys("island_setting", { category: "creature" })).toEqual(expect.arrayContaining([
       "age-of-ashes-bestiary:5dSVk2y88SLsPPON",
       "age-of-ashes-bestiary:6AN7eagk2WrWc4im",
@@ -439,6 +445,13 @@ describe("derived tag seeds", () => {
     expect(getDerivedTagSeedRecordKeys("rural_setting", { category: "creature" })).toContain(
       "book-of-the-dead-bestiary:7WqlOvjoqURmeorA",
     );
+    expect(getDerivedTagSeedRecordKeys("rural_setting", { category: "creature" })).toContain(
+      "fall-of-plaguestone-bestiary:BgBTntoz1qQ3h1X5",
+    );
+    expect(getDerivedTagSeedRecordKeys("small_settlement_setting", { category: "creature" })).toEqual(expect.arrayContaining([
+      "extinction-curse-bestiary:OCrQtfKDFpLedE13",
+      "extinction-curse-bestiary:YS8UvVGFgHP2TrY3",
+    ]));
 
     const starwatchCommandoDerivation = deriveRecordTagDerivation({
       recordKey: "agents-of-edgewatch-bestiary:rsKf8ixrl3yBq1gb",
@@ -577,6 +590,39 @@ describe("derived tag seeds", () => {
     });
     expect(deathCoachDerivation.tags).toContain("rural_setting");
     expect(deathCoachDerivation.sources.get("rural_setting")).toBe("seed");
+
+    const naiYanFeiDerivation = deriveRecordTagDerivation({
+      recordKey: "fists-of-the-ruby-phoenix-bestiary:HqN4nUnl75foBKLZ",
+      name: "Nai Yan Fei",
+      category: "creature",
+      subcategory: null,
+      descriptionText: null,
+      traits: ["human", "humanoid", "lawful"],
+    });
+    expect(naiYanFeiDerivation.tags).toContain("tian_xia_setting");
+    expect(naiYanFeiDerivation.sources.get("tian_xia_setting")).toBe("seed");
+
+    const drunkenFarmerDerivation = deriveRecordTagDerivation({
+      recordKey: "fall-of-plaguestone-bestiary:BgBTntoz1qQ3h1X5",
+      name: "Drunken Farmer",
+      category: "creature",
+      subcategory: null,
+      descriptionText: null,
+      traits: ["good", "human", "humanoid"],
+    });
+    expect(drunkenFarmerDerivation.tags).toContain("rural_setting");
+    expect(drunkenFarmerDerivation.sources.get("rural_setting")).toBe("seed");
+
+    const shoonyHierarchDerivation = deriveRecordTagDerivation({
+      recordKey: "extinction-curse-bestiary:YS8UvVGFgHP2TrY3",
+      name: "Shoony Hierarch",
+      category: "creature",
+      subcategory: null,
+      descriptionText: null,
+      traits: ["good", "humanoid", "shoony"],
+    });
+    expect(shoonyHierarchDerivation.tags).toContain("small_settlement_setting");
+    expect(shoonyHierarchDerivation.sources.get("small_settlement_setting")).toBe("seed");
 
     const touchedCreatureTags = [
       "dragon_spellcaster",

@@ -634,7 +634,7 @@ describe("Pf2eDataService / Load and Index", () => {
     const service = await loadTestService(fixture, { indexPath });
 
     expect(service.lookup("Wraith", { category: "creature" }).match?.derivedTags).not.toContain("fortress_setting");
-    expect(service.lookup("Watchtower Wraith", { category: "creature" }).match?.derivedTags).not.toContain("fortress_setting");
+    expect(service.lookup("Watchtower Wraith", { category: "creature" }).match?.derivedTags).toContain("fortress_setting");
 
     service.close();
   });

@@ -646,6 +646,10 @@ const FORTRESS_SETTING_SITE_TEXT_ANCHORS = [
   patternAltAnchor(["fortress", "fortresses", "castle", "castles", "citadel", "citadels", "stronghold", "strongholds", "bastion", "bastions", "watchtower", "watchtowers"], "description"),
   FORTRESS_KEEP_NOUN_TEXT_ANCHOR,
 ];
+const FORTRESS_SETTING_NAME_ANCHORS = [
+  patternAnchor("watchtower", "name"),
+  patternAnchor("watchtowers", "name"),
+];
 
 const DREAMLANDS_SETTING_BLOCKER_TEXT_ANCHORS = [
   patternAnchor("find their way out of the dreamlands"),
@@ -680,9 +684,30 @@ const ABYSS_SETTING_BLOCKER_TEXT_ANCHORS = [
 ];
 
 const SWAMP_SETTING_NAME_ANCHORS = [
+  patternAnchor("swamp", "name"),
+  patternAnchor("swamps", "name"),
   patternAnchor("bog", "name"),
   patternAnchor("fen", "name"),
   patternAnchor("mire", "name"),
+];
+
+const TIAN_XIA_SETTING_TEXT_ANCHORS = [
+  patternAnchor("tian-shu"),
+  patternAnchor("tian-hwan"),
+  patternAnchor("tian-sing"),
+  patternAnchor("tian-la"),
+  patternAnchor("minata"),
+  patternAnchor("bonmu"),
+  patternAnchor("goka"),
+  patternAnchor("minkai"),
+  patternAnchor("quain"),
+  patternAnchor("hongal"),
+  patternAnchor("shokuro"),
+  patternAnchor("lingshen"),
+  patternAnchor("po li"),
+  patternAnchor("dtang ma"),
+  patternAnchor("xa hoi"),
+  patternAnchor("wanshou"),
 ];
 
 const SWAMP_SETTING_TEXT_ANCHORS = [
@@ -1939,6 +1964,20 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     ],
   },
   {
+    tag: "swamp_setting",
+    category: "creature",
+    anyOf: [
+      { textAny: [patternAnchor("swamp", "name"), patternAnchor("swamps", "name")] },
+    ],
+  },
+  {
+    tag: "tian_xia_setting",
+    category: "creature",
+    anyOf: [
+      { textAny: TIAN_XIA_SETTING_TEXT_ANCHORS },
+    ],
+  },
+  {
     tag: "underground_setting",
     category: "creature",
     anyOf: [
@@ -2310,6 +2349,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "creature",
     threshold: 2,
     anyOf: [
+      { score: 2, textAny: FORTRESS_SETTING_NAME_ANCHORS },
       {
         score: 2,
         textNear: createCreatureSettingTextNearAnchors(
