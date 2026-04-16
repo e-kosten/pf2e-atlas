@@ -13,15 +13,23 @@ import type { DerivedTagExplicitAssignmentIndex } from "./assignments.js";
 import type { DerivedTagContext } from "./matcher.js";
 import { normalizeDerivedTag } from "./shared.js";
 
-type PrimaryDerivedTagSource = "rule" | "seed_migration" | "assignment";
+type PrimaryDerivedTagSource = "authored_rule" | "legacy_rule" | "seed_migration" | "assignment";
 export type DerivedTagSource =
-  | "rule"
+  | "authored_rule"
+  | "legacy_rule"
   | "seed_migration"
   | "assignment"
-  | "rule+seed_migration"
-  | "rule+assignment"
+  | "authored_rule+legacy_rule"
+  | "authored_rule+seed_migration"
+  | "authored_rule+assignment"
+  | "legacy_rule+seed_migration"
+  | "legacy_rule+assignment"
   | "seed_migration+assignment"
-  | "rule+seed_migration+assignment";
+  | "authored_rule+legacy_rule+seed_migration"
+  | "authored_rule+legacy_rule+assignment"
+  | "authored_rule+seed_migration+assignment"
+  | "legacy_rule+seed_migration+assignment"
+  | "authored_rule+legacy_rule+seed_migration+assignment";
 
 export type DerivedTagDerivation = {
   tags: string[];
@@ -151,7 +159,8 @@ function pushSeedDefinition(
 }
 
 const PRIMARY_SOURCE_ORDER: PrimaryDerivedTagSource[] = [
-  "rule",
+  "authored_rule",
+  "legacy_rule",
   "seed_migration",
   "assignment",
 ];
@@ -497,14 +506,27 @@ export function resolveLegacySeedMigrationRecordKeys(
 export function deriveCatalogTagDerivation(
   ontology: PublishedDerivedTagOntology,
   input: Pick<DerivedTagContext, "recordKey" | "category" | "subcategory">,
-  ruleTags: string[],
+  ruleTags: string[] | {
+    authoredRuleTags?: string[];
+    legacyRuleTags?: string[];
+  },
   explicitAssignmentIndex?: DerivedTagExplicitAssignmentIndex,
   legacySeedMigrationIndex?: DerivedTagLegacySeedMigrationIndex,
 ): DerivedTagDerivation {
   const sourceSets = new Map<string, Set<PrimaryDerivedTagSource>>();
+  const authoredRuleTags = Array.isArray(ruleTags)
+    ? []
+    : (ruleTags.authoredRuleTags ?? []);
+  const legacyRuleTags = Array.isArray(ruleTags)
+    ? ruleTags
+    : (ruleTags.legacyRuleTags ?? []);
 
-  for (const tag of ruleTags) {
-    addPrimarySource(sourceSets, tag, "rule");
+  for (const tag of authoredRuleTags) {
+    addPrimarySource(sourceSets, tag, "authored_rule");
+  }
+
+  for (const tag of legacyRuleTags) {
+    addPrimarySource(sourceSets, tag, "legacy_rule");
   }
 
   if (input.recordKey) {

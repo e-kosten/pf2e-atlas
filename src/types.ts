@@ -5,3 +5,4 @@ export * from "./domain/metadata-types.js";
 export * from "./domain/search-types.js";
 export * from "./domain/record-types.js";
 export * from "./domain/rule-types.js";
+export * from "./domain/derived-tag-rule-types.js";

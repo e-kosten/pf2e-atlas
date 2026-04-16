@@ -96,7 +96,7 @@ describe("derived tag ontology publication and composition", () => {
     );
 
     expect(derivation.tags).toEqual(["animal_form", "transformation"]);
-    expect(derivation.sources.get("animal_form")).toBe("rule");
-    expect(derivation.sources.get("transformation")).toBe("rule");
+    expect(derivation.sources.get("animal_form")).toBe("legacy_rule");
+    expect(derivation.sources.get("transformation")).toBe("legacy_rule");
   });
 });

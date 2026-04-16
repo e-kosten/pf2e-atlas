@@ -2,6 +2,14 @@ import { deriveRecordTagsFromRules } from "./matcher.js";
 import { normalizeDerivedTag, DerivedTagContext } from "./shared.js";
 import { uniqueSorted } from "../utils.js";
 import {
+  AFFLICTION_AUTHORED_DERIVED_TAG_RULES,
+  CREATURE_AUTHORED_DERIVED_TAG_RULES,
+  EQUIPMENT_AUTHORED_DERIVED_TAG_RULES,
+  HAZARD_AUTHORED_DERIVED_TAG_RULES,
+  SPELL_AUTHORED_DERIVED_TAG_RULES,
+  compileAuthoredDerivedTagRules,
+} from "./authored-rules/index.js";
+import {
   buildDerivedTagLegacySeedMigrationIndex,
   deriveCatalogTagDerivation,
   listConfiguredDerivedTagLegacySeedMigrations,
@@ -57,12 +65,19 @@ import { SPELL_DERIVED_TAG_RULES } from "./rules/spell.js";
 
 export { normalizeDerivedTag } from "./shared.js";
 
-const DERIVED_TAG_RULES = [
+const LEGACY_DERIVED_TAG_RULES = [
   ...EQUIPMENT_DERIVED_TAG_RULES,
   ...SPELL_DERIVED_TAG_RULES,
   ...HAZARD_DERIVED_TAG_RULES,
   ...AFFLICTION_DERIVED_TAG_RULES,
   ...CREATURE_DERIVED_TAG_RULES,
+];
+const AUTHORED_DERIVED_TAG_RULES = [
+  ...EQUIPMENT_AUTHORED_DERIVED_TAG_RULES,
+  ...SPELL_AUTHORED_DERIVED_TAG_RULES,
+  ...HAZARD_AUTHORED_DERIVED_TAG_RULES,
+  ...AFFLICTION_AUTHORED_DERIVED_TAG_RULES,
+  ...CREATURE_AUTHORED_DERIVED_TAG_RULES,
 ];
 
 const AUTHORED_DERIVED_TAG_ONTOLOGIES = [
@@ -85,6 +100,10 @@ const DERIVED_TAG_ONTOLOGY: PublishedDerivedTagOntology = publishDerivedTagOntol
 );
 export const DERIVED_TAG_ONTOLOGY_FAMILIES = DERIVED_TAG_ONTOLOGY.families;
 export const DERIVED_TAG_ONTOLOGY_TAGS = DERIVED_TAG_ONTOLOGY.tags;
+const COMPILED_AUTHORED_DERIVED_TAG_RULES = compileAuthoredDerivedTagRules(
+  DERIVED_TAG_ONTOLOGY,
+  AUTHORED_DERIVED_TAG_RULES,
+);
 const DERIVED_TAG_LEGACY_SEED_MIGRATION_INDEX = buildDerivedTagLegacySeedMigrationIndex(
   DERIVED_TAG_ONTOLOGY,
   DERIVED_TAG_SEED_LOOKUP,
@@ -113,11 +132,15 @@ export function deriveRecordTags(input: DerivedTagContext): string[] {
 export function deriveRecordTagDerivation(
   input: DerivedTagContext,
 ): DerivedTagDerivation {
-  const ruleTags = deriveRecordTagsFromRules(DERIVED_TAG_RULES, input);
+  const authoredRuleTags = deriveRecordTagsFromRules(COMPILED_AUTHORED_DERIVED_TAG_RULES, input);
+  const legacyRuleTags = deriveRecordTagsFromRules(LEGACY_DERIVED_TAG_RULES, input);
   return deriveCatalogTagDerivation(
     DERIVED_TAG_ONTOLOGY,
     input,
-    ruleTags,
+    {
+      authoredRuleTags,
+      legacyRuleTags,
+    },
     DERIVED_TAG_EXPLICIT_ASSIGNMENT_INDEX,
     DERIVED_TAG_LEGACY_SEED_MIGRATION_INDEX,
   );

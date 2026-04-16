@@ -83,7 +83,7 @@ describe("derived tag legacy seed migrations", () => {
       migrationIndex,
     );
     expect(migratedMask.tags).toEqual(["concealment", "disguise"]);
-    expect(migratedMask.sources.get("concealment")).toBe("rule");
+    expect(migratedMask.sources.get("concealment")).toBe("legacy_rule");
     expect(migratedMask.sources.get("disguise")).toBe("seed_migration");
 
     const blockedMask = deriveCatalogTagDerivation(

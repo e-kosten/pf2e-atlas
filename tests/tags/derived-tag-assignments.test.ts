@@ -359,8 +359,8 @@ describe("derived tag explicit assignments", () => {
       traits: ["human", "humanoid"],
     });
     expect(departmentalChair.tags).toEqual(expect.arrayContaining(["profession_npc", "civic_npc"]));
-    expect(["assignment", "rule+assignment"]).toContain(departmentalChair.sources.get("profession_npc"));
-    expect(["assignment", "rule+assignment"]).toContain(departmentalChair.sources.get("civic_npc"));
+    expect(["assignment", "legacy_rule+assignment"]).toContain(departmentalChair.sources.get("profession_npc"));
+    expect(["assignment", "legacy_rule+assignment"]).toContain(departmentalChair.sources.get("civic_npc"));
 
     const falsePriest = deriveRecordTagDerivation({
       recordKey: "pathfinder-npc-core:OAxxUyACpMlX3q1X",
@@ -404,7 +404,7 @@ describe("derived tag explicit assignments", () => {
       traits: ["dragon", "occult"],
     });
     expect(conspiratorDragon.tags).toEqual(expect.arrayContaining(["disguised_pretender", "urban_setting"]));
-    expect(["assignment", "rule+assignment"]).toContain(conspiratorDragon.sources.get("disguised_pretender"));
-    expect(["assignment", "rule+assignment"]).toContain(conspiratorDragon.sources.get("urban_setting"));
+    expect(["assignment", "legacy_rule+assignment"]).toContain(conspiratorDragon.sources.get("disguised_pretender"));
+    expect(["assignment", "legacy_rule+assignment"]).toContain(conspiratorDragon.sources.get("urban_setting"));
   });
 });
