@@ -1,6 +1,7 @@
 import type {
   DerivedTagCatalogEntry,
-  DerivedTagCatalogTag,
+  DerivedTagOntologyFamily,
+  DerivedTagOntologyTag,
   DerivedTagSeedRecordResolution,
   SearchCategory,
   SearchSubcategory,
@@ -27,72 +28,85 @@ export type DerivedTagDerivation = {
 
 export type DerivedTagSeedLookup = Map<string, string[]>;
 
-type CatalogSeedDefinition = {
+type OntologyFamilyKey = `${SearchCategory}:${string}`;
+type OntologyTagKey = `${SearchCategory}:${string}`;
+
+type OntologySeedDefinition = {
   tag: string;
   category: SearchCategory;
   subcategories?: SearchSubcategory[];
   recordKeys: string[];
 };
 
-type CatalogSeedAssignment = {
+type OntologySeedAssignment = {
   tag: string;
   category: SearchCategory;
   subcategories?: SearchSubcategory[];
 };
 
 export type DerivedTagSeedIndex = {
-  assignmentsByRecordKey: Map<string, CatalogSeedAssignment[]>;
-  excludedAssignmentsByRecordKey: Map<string, CatalogSeedAssignment[]>;
-  seedDefinitionsByTag: Map<string, CatalogSeedDefinition[]>;
+  assignmentsByRecordKey: Map<string, OntologySeedAssignment[]>;
+  excludedAssignmentsByRecordKey: Map<string, OntologySeedAssignment[]>;
+  seedDefinitionsByTag: Map<string, OntologySeedDefinition[]>;
 };
 
-function entryAppliesToSubcategory(
-  entry: Pick<DerivedTagCatalogEntry, "subcategories">,
+export type PublishedDerivedTagOntology = {
+  families: DerivedTagOntologyFamily[];
+  tags: DerivedTagOntologyTag[];
+  familyByKey: Map<OntologyFamilyKey, DerivedTagOntologyFamily>;
+  tagByKey: Map<OntologyTagKey, DerivedTagOntologyTag>;
+  tagsByFamilyKey: Map<OntologyFamilyKey, DerivedTagOntologyTag[]>;
+};
+
+function familyKey(
+  category: SearchCategory,
+  family: string,
+): OntologyFamilyKey {
+  return `${category}:${normalizeDerivedTag(family)}`;
+}
+
+function tagKey(
+  category: SearchCategory,
+  tag: string,
+): OntologyTagKey {
+  return `${category}:${normalizeDerivedTag(tag)}`;
+}
+
+function familyAppliesToSubcategory(
+  family: Pick<DerivedTagOntologyFamily, "subcategories">,
   subcategory: SearchSubcategory | null,
 ): boolean {
-  if (!entry.subcategories || entry.subcategories.length === 0) {
+  if (!family.subcategories || family.subcategories.length === 0) {
     return true;
   }
 
-  return subcategory !== null && entry.subcategories.includes(subcategory);
+  return subcategory !== null && family.subcategories.includes(subcategory);
 }
 
 function assignmentAppliesToContext(
-  assignment: CatalogSeedAssignment,
+  assignment: OntologySeedAssignment,
   input: Pick<DerivedTagContext, "category" | "subcategory">,
 ): boolean {
   if (assignment.category !== input.category) {
     return false;
   }
 
-  return entryAppliesToSubcategory(assignment, input.subcategory);
+  return familyAppliesToSubcategory(assignment, input.subcategory);
 }
 
 function definitionAppliesToScope(
-  definition: CatalogSeedDefinition,
+  definition: OntologySeedDefinition,
   scope: { category?: SearchCategory; subcategory?: SearchSubcategory | null },
 ): boolean {
   if (scope.category && definition.category !== scope.category) {
     return false;
   }
 
-  if (scope.subcategory !== undefined && !entryAppliesToSubcategory(definition, scope.subcategory)) {
+  if (scope.subcategory !== undefined && !familyAppliesToSubcategory(definition, scope.subcategory)) {
     return false;
   }
 
   return true;
-}
-
-function appendCatalogTag(
-  tags: DerivedTagCatalogTag[],
-  tag: DerivedTagCatalogTag,
-): DerivedTagCatalogTag[] {
-  const normalized = normalizeDerivedTag(tag.value);
-  if (tags.some((candidate) => normalizeDerivedTag(candidate.value) === normalized)) {
-    return tags;
-  }
-
-  return [...tags, tag];
 }
 
 function normalizeSeedReference(pack: string, name: string): string {
@@ -100,9 +114,9 @@ function normalizeSeedReference(pack: string, name: string): string {
 }
 
 function pushAssignment(
-  bucket: Map<string, CatalogSeedAssignment[]>,
+  bucket: Map<string, OntologySeedAssignment[]>,
   recordKey: string,
-  assignment: CatalogSeedAssignment,
+  assignment: OntologySeedAssignment,
 ): void {
   const current = bucket.get(recordKey) ?? [];
   if (!current.some((candidate) =>
@@ -115,8 +129,8 @@ function pushAssignment(
 }
 
 function pushSeedDefinition(
-  bucket: Map<string, CatalogSeedDefinition[]>,
-  definition: CatalogSeedDefinition,
+  bucket: Map<string, OntologySeedDefinition[]>,
+  definition: OntologySeedDefinition,
 ): void {
   const current = bucket.get(definition.tag) ?? [];
   const existing = current.find((candidate) =>
@@ -174,7 +188,7 @@ function addSourceSet(
 
 function resolveSeedRecordKeys(
   seedLookup: DerivedTagSeedLookup,
-  seedRecords: DerivedTagCatalogTag["seedRecords"],
+  seedRecords: DerivedTagOntologyTag["seedRecords"],
   fieldName: "seedRecords" | "excludeSeedRecords",
   tagValue: string,
 ): string[] {
@@ -202,6 +216,21 @@ function resolveSeedRecordKeys(
   return uniqueSorted(resolvedRecordKeys);
 }
 
+function buildTagsByFamilyKey(
+  tags: DerivedTagOntologyTag[],
+): Map<OntologyFamilyKey, DerivedTagOntologyTag[]> {
+  const tagsByFamilyKey = new Map<OntologyFamilyKey, DerivedTagOntologyTag[]>();
+
+  for (const tag of tags) {
+    const key = familyKey(tag.category, tag.family);
+    const current = tagsByFamilyKey.get(key) ?? [];
+    current.push(tag);
+    tagsByFamilyKey.set(key, current);
+  }
+
+  return tagsByFamilyKey;
+}
+
 export function buildDerivedTagSeedLookup(
   resolutions: DerivedTagSeedRecordResolution[],
 ): DerivedTagSeedLookup {
@@ -217,70 +246,150 @@ export function buildDerivedTagSeedLookup(
   return lookup;
 }
 
-export function publishDerivedTagCatalog(
-  catalog: DerivedTagCatalogEntry[],
-): DerivedTagCatalogEntry[] {
-  return catalog.map((entry) => {
-    if (!entry.promoteFamilyToTag) {
-      return entry;
+export function publishDerivedTagOntology(
+  families: DerivedTagOntologyFamily[],
+  tags: DerivedTagOntologyTag[],
+): PublishedDerivedTagOntology {
+  const familyByKey = new Map<OntologyFamilyKey, DerivedTagOntologyFamily>();
+  const tagByKey = new Map<OntologyTagKey, DerivedTagOntologyTag>();
+
+  for (const family of families) {
+    const normalizedFamilyKey = familyKey(family.category, family.family);
+    if (familyByKey.has(normalizedFamilyKey)) {
+      throw new Error(
+        `Duplicate derived tag family "${normalizeDerivedTag(family.family)}" in category "${family.category}".`,
+      );
+    }
+    familyByKey.set(normalizedFamilyKey, family);
+  }
+
+  for (const tag of tags) {
+    const normalizedTagKey = tagKey(tag.category, tag.tag);
+    if (!tag.assignmentMode) {
+      throw new Error(`Derived tag "${normalizeDerivedTag(tag.tag)}" in category "${tag.category}" is missing assignmentMode.`);
     }
 
-    return {
-      ...entry,
-      tags: appendCatalogTag(entry.tags, {
-        value: normalizeDerivedTag(entry.family),
-        description: entry.description,
-      }),
-    };
-  });
+    const normalizedFamilyKey = familyKey(tag.category, tag.family);
+    if (!familyByKey.has(normalizedFamilyKey)) {
+      throw new Error(
+        `Derived tag "${normalizeDerivedTag(tag.tag)}" in category "${tag.category}" references unknown family "${normalizeDerivedTag(tag.family)}".`,
+      );
+    }
+    if (tagByKey.has(normalizedTagKey)) {
+      const existing = tagByKey.get(normalizedTagKey)!;
+      throw new Error(
+        `Derived tag "${normalizeDerivedTag(tag.tag)}" in category "${tag.category}" belongs to both "${normalizeDerivedTag(existing.family)}" and "${normalizeDerivedTag(tag.family)}".`,
+      );
+    }
+    tagByKey.set(normalizedTagKey, tag);
+  }
+
+  for (const tag of tags) {
+    for (const adjacentTag of tag.adjacentTags ?? []) {
+      if (!tagByKey.has(tagKey(tag.category, adjacentTag))) {
+        throw new Error(
+          `Derived tag "${tag.tag}" in category "${tag.category}" references unknown adjacent tag "${adjacentTag}".`,
+        );
+      }
+    }
+    for (const childTag of tag.compositeOfAnyTags ?? []) {
+      if (!tagByKey.has(tagKey(tag.category, childTag))) {
+        throw new Error(
+          `Derived tag "${tag.tag}" in category "${tag.category}" references unknown composite child "${childTag}".`,
+        );
+      }
+    }
+  }
+
+  return {
+    families,
+    tags,
+    familyByKey,
+    tagByKey,
+    tagsByFamilyKey: buildTagsByFamilyKey(tags),
+  };
+}
+
+export function groupDerivedTagOntology(
+  ontology: Pick<PublishedDerivedTagOntology, "families" | "tags"> & Partial<Pick<PublishedDerivedTagOntology, "tagsByFamilyKey">>,
+): DerivedTagCatalogEntry[] {
+  const tagsByFamilyKey = ontology.tagsByFamilyKey ?? buildTagsByFamilyKey(ontology.tags);
+
+  return ontology.families
+    .map((family) => {
+      const key = familyKey(family.category, family.family);
+      const tags = tagsByFamilyKey.get(key) ?? [];
+
+      return {
+        category: family.category,
+        subcategories: family.subcategories,
+        family: family.family,
+        description: family.description,
+        variantInheritance: family.variantInheritance,
+        tags: tags.map((tag) => ({
+          value: tag.tag,
+          description: tag.description,
+          assignmentMode: tag.assignmentMode,
+          nativeOntologyPolicy: tag.nativeOntologyPolicy,
+          appliesWhen: tag.appliesWhen,
+          doesNotApplyWhen: tag.doesNotApplyWhen,
+          positiveSignals: tag.positiveSignals,
+          negativeSignals: tag.negativeSignals,
+          adjacentTags: tag.adjacentTags,
+          compositeOfAnyTags: tag.compositeOfAnyTags,
+          seedRecords: tag.seedRecords,
+          excludeSeedRecords: tag.excludeSeedRecords,
+          variantInheritance: tag.variantInheritance,
+        })),
+      };
+    })
+    .filter((entry) => entry.tags.length > 0);
 }
 
 export function buildDerivedTagSeedIndex(
-  catalog: DerivedTagCatalogEntry[],
+  ontology: PublishedDerivedTagOntology,
   seedLookup: DerivedTagSeedLookup,
 ): DerivedTagSeedIndex {
-  const assignmentsByRecordKey = new Map<string, CatalogSeedAssignment[]>();
-  const excludedAssignmentsByRecordKey = new Map<string, CatalogSeedAssignment[]>();
-  const seedDefinitionsByTag = new Map<string, CatalogSeedDefinition[]>();
+  const assignmentsByRecordKey = new Map<string, OntologySeedAssignment[]>();
+  const excludedAssignmentsByRecordKey = new Map<string, OntologySeedAssignment[]>();
+  const seedDefinitionsByTag = new Map<string, OntologySeedDefinition[]>();
 
-  for (const entry of catalog) {
-    for (const tag of entry.tags) {
-      const normalizedTag = normalizeDerivedTag(tag.value);
-      const normalizedRecordKeys = resolveSeedRecordKeys(seedLookup, tag.seedRecords, "seedRecords", normalizedTag);
-      const excludedRecordKeys = resolveSeedRecordKeys(seedLookup, tag.excludeSeedRecords, "excludeSeedRecords", normalizedTag);
+  for (const tag of ontology.tags) {
+    const normalizedTag = normalizeDerivedTag(tag.tag);
+    const family = ontology.familyByKey.get(familyKey(tag.category, tag.family));
+    if (!family) {
+      throw new Error(
+        `Derived tag "${normalizedTag}" in category "${tag.category}" references unknown family "${normalizeDerivedTag(tag.family)}".`,
+      );
+    }
 
-      if (normalizedRecordKeys.length > 0) {
-        const definition: CatalogSeedDefinition = {
+    const normalizedRecordKeys = resolveSeedRecordKeys(seedLookup, tag.seedRecords, "seedRecords", normalizedTag);
+    const excludedRecordKeys = resolveSeedRecordKeys(seedLookup, tag.excludeSeedRecords, "excludeSeedRecords", normalizedTag);
+
+    if (normalizedRecordKeys.length > 0) {
+      const definition: OntologySeedDefinition = {
+        tag: normalizedTag,
+        category: tag.category,
+        subcategories: family.subcategories,
+        recordKeys: normalizedRecordKeys,
+      };
+      pushSeedDefinition(seedDefinitionsByTag, definition);
+
+      for (const recordKey of normalizedRecordKeys) {
+        pushAssignment(assignmentsByRecordKey, recordKey, {
           tag: normalizedTag,
-          category: entry.category,
-          subcategories: entry.subcategories,
-          recordKeys: normalizedRecordKeys,
-        };
-        pushSeedDefinition(seedDefinitionsByTag, definition);
-
-        if (entry.promoteFamilyToTag) {
-          pushSeedDefinition(seedDefinitionsByTag, {
-            ...definition,
-            tag: normalizeDerivedTag(entry.family),
-          });
-        }
-
-        for (const recordKey of normalizedRecordKeys) {
-          pushAssignment(assignmentsByRecordKey, recordKey, {
-            tag: normalizedTag,
-            category: entry.category,
-            subcategories: entry.subcategories,
-          });
-        }
-      }
-
-      for (const recordKey of excludedRecordKeys) {
-        pushAssignment(excludedAssignmentsByRecordKey, recordKey, {
-          tag: normalizedTag,
-          category: entry.category,
-          subcategories: entry.subcategories,
+          category: tag.category,
+          subcategories: family.subcategories,
         });
       }
+    }
+
+    for (const recordKey of excludedRecordKeys) {
+      pushAssignment(excludedAssignmentsByRecordKey, recordKey, {
+        tag: normalizedTag,
+        category: tag.category,
+        subcategories: family.subcategories,
+      });
     }
   }
 
@@ -303,7 +412,7 @@ export function resolveCatalogSeedRecordKeys(
 }
 
 export function deriveCatalogTagDerivation(
-  catalog: DerivedTagCatalogEntry[],
+  ontology: PublishedDerivedTagOntology,
   seedIndex: DerivedTagSeedIndex,
   input: Pick<DerivedTagContext, "recordKey" | "category" | "subcategory">,
   ruleTags: string[],
@@ -339,25 +448,49 @@ export function deriveCatalogTagDerivation(
     }
   }
 
-  for (const entry of catalog) {
-    if (!entry.promoteFamilyToTag || entry.category !== input.category || !entryAppliesToSubcategory(entry, input.subcategory)) {
-      continue;
-    }
+  let appliedComposite = true;
+  while (appliedComposite) {
+    appliedComposite = false;
 
-    const childSource = entry.tags.reduce<Set<PrimaryDerivedTagSource> | undefined>((currentSource, tag) => {
-      const tagSource = sourceSets.get(normalizeDerivedTag(tag.value));
-      if (!tagSource) {
-        return currentSource;
+    for (const tag of ontology.tags) {
+      if (tag.category !== input.category) {
+        continue;
       }
-      const merged = currentSource ?? new Set<PrimaryDerivedTagSource>();
-      for (const source of tagSource) {
-        merged.add(source);
-      }
-      return merged;
-    }, undefined);
 
-    if (childSource && childSource.size > 0) {
-      addSourceSet(sourceSets, entry.family, childSource);
+      const family = ontology.familyByKey.get(familyKey(tag.category, tag.family));
+      if (!family || !familyAppliesToSubcategory(family, input.subcategory)) {
+        continue;
+      }
+
+      if (!tag.compositeOfAnyTags || tag.compositeOfAnyTags.length === 0) {
+        continue;
+      }
+
+      const compositeSources = tag.compositeOfAnyTags.reduce<Set<PrimaryDerivedTagSource> | undefined>((currentSource, childTag) => {
+        const childSource = sourceSets.get(normalizeDerivedTag(childTag));
+        if (!childSource) {
+          return currentSource;
+        }
+        const merged = currentSource ?? new Set<PrimaryDerivedTagSource>();
+        for (const source of childSource) {
+          merged.add(source);
+        }
+        return merged;
+      }, undefined);
+
+      if (!compositeSources || compositeSources.size === 0) {
+        continue;
+      }
+
+      const normalizedTag = normalizeDerivedTag(tag.tag);
+      const existingSource = sourceSets.get(normalizedTag);
+      const existingSignature = existingSource ? normalizeSourceSet(existingSource) : null;
+      addSourceSet(sourceSets, normalizedTag, compositeSources);
+      const updatedSource = sourceSets.get(normalizedTag);
+      const updatedSignature = updatedSource ? normalizeSourceSet(updatedSource) : null;
+      if (updatedSignature !== existingSignature) {
+        appliedComposite = true;
+      }
     }
   }
 
@@ -370,28 +503,4 @@ export function deriveCatalogTagDerivation(
     tags: uniqueSorted([...sources.keys()]),
     sources,
   };
-}
-
-export function applyPromotedFamilyTags(
-  catalog: DerivedTagCatalogEntry[],
-  input: Pick<DerivedTagContext, "category" | "subcategory">,
-  tags: string[],
-): string[] {
-  const expanded = new Set(tags.map((tag) => normalizeDerivedTag(tag)));
-
-  for (const entry of catalog) {
-    if (!entry.promoteFamilyToTag || entry.category !== input.category) {
-      continue;
-    }
-    if (!entryAppliesToSubcategory(entry, input.subcategory)) {
-      continue;
-    }
-
-    const hasMatchingChildTag = entry.tags.some((tag) => expanded.has(normalizeDerivedTag(tag.value)));
-    if (hasMatchingChildTag) {
-      expanded.add(normalizeDerivedTag(entry.family));
-    }
-  }
-
-  return uniqueSorted([...expanded]);
 }

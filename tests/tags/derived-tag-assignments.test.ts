@@ -1,44 +1,70 @@
 import { describe, expect, it } from "vitest";
 
-import type { DerivedTagCatalogEntry } from "../../src/types.js";
+import type { DerivedTagOntologyFamily, DerivedTagOntologyTag } from "../../src/types.js";
 import {
   buildDerivedTagExplicitAssignmentIndex,
   buildDerivedTagPendingAssignmentViews,
   createDerivedTagExplicitAssignmentIndex,
   validateDerivedTagExplicitAssignmentsAgainstRecords,
 } from "../../src/tags/assignments.js";
-import { CREATURE_DERIVED_TAG_CATALOG } from "../../src/tags/catalog/creature.js";
 import {
+  publishDerivedTagOntology,
   buildDerivedTagSeedIndex,
   buildDerivedTagSeedLookup,
   deriveCatalogTagDerivation,
 } from "../../src/tags/catalog-utils.js";
+import {
+  CREATURE_DERIVED_TAG_ONTOLOGY_FAMILIES,
+  CREATURE_DERIVED_TAG_ONTOLOGY_TAGS,
+} from "../../src/tags/ontology/creature.js";
 import { deriveRecordTagDerivation } from "../../src/tags/index.js";
 
-const assignmentCatalog: DerivedTagCatalogEntry[] = [
+const assignmentFamilies: DerivedTagOntologyFamily[] = [
   {
     category: "equipment",
     family: "infiltration",
     description: "Equipment that helps infiltration.",
-    promoteFamilyToTag: true,
-    tags: [
-      { value: "disguise", description: "Alters appearance." },
-      { value: "social_infiltration", description: "Blends into social spaces." },
-    ],
   },
   {
     category: "equipment",
     family: "security",
     description: "Equipment that supports security.",
-    tags: [
-      { value: "alarm", description: "Warns of intruders." },
-    ],
   },
 ];
 
+const assignmentTags: DerivedTagOntologyTag[] = [
+  {
+    category: "equipment",
+    family: "infiltration",
+    tag: "disguise",
+    description: "Alters appearance.",
+    assignmentMode: "deterministic",
+  },
+  {
+    category: "equipment",
+    family: "infiltration",
+    tag: "social_infiltration",
+    description: "Blends into social spaces.",
+    assignmentMode: "deterministic",
+  },
+  {
+    category: "equipment",
+    family: "security",
+    tag: "alarm",
+    description: "Warns of intruders.",
+    assignmentMode: "deterministic",
+  },
+];
+
+const assignmentOntology = publishDerivedTagOntology(assignmentFamilies, assignmentTags);
+const creatureOntology = publishDerivedTagOntology(
+  CREATURE_DERIVED_TAG_ONTOLOGY_FAMILIES,
+  CREATURE_DERIVED_TAG_ONTOLOGY_TAGS,
+);
+
 describe("derived tag explicit assignments", () => {
   it("flattens applied and excluded assignments into concrete include and exclude tags", () => {
-    const assignmentIndex = buildDerivedTagExplicitAssignmentIndex(assignmentCatalog, [
+    const assignmentIndex = buildDerivedTagExplicitAssignmentIndex(assignmentOntology, [
       {
         category: "equipment",
         assignments: [
@@ -77,7 +103,7 @@ describe("derived tag explicit assignments", () => {
   });
 
   it("rejects unknown families and wrong-family tags", () => {
-    expect(() => buildDerivedTagExplicitAssignmentIndex(assignmentCatalog, [
+    expect(() => buildDerivedTagExplicitAssignmentIndex(assignmentOntology, [
       {
         category: "equipment",
         assignments: [
@@ -90,7 +116,7 @@ describe("derived tag explicit assignments", () => {
       },
     ])).toThrow(/does not exist/);
 
-    expect(() => buildDerivedTagExplicitAssignmentIndex(assignmentCatalog, [
+    expect(() => buildDerivedTagExplicitAssignmentIndex(assignmentOntology, [
       {
         category: "equipment",
         assignments: [
@@ -105,7 +131,7 @@ describe("derived tag explicit assignments", () => {
   });
 
   it("validates canonical name drift only when the record is present in the build", () => {
-    const assignmentIndex = buildDerivedTagExplicitAssignmentIndex(assignmentCatalog, [
+    const assignmentIndex = buildDerivedTagExplicitAssignmentIndex(assignmentOntology, [
       {
         category: "equipment",
         assignments: [
@@ -159,7 +185,7 @@ describe("derived tag explicit assignments", () => {
       },
     ];
 
-    const assignmentIndex = buildDerivedTagExplicitAssignmentIndex(assignmentCatalog, groups);
+    const assignmentIndex = buildDerivedTagExplicitAssignmentIndex(assignmentOntology, groups);
     expect(assignmentIndex.assignmentsByRecordKey.get("equipment:bell")).toEqual({
       category: "equipment",
       name: "Watch Bell",
@@ -167,7 +193,7 @@ describe("derived tag explicit assignments", () => {
       excludeTags: [],
     });
 
-    expect(buildDerivedTagPendingAssignmentViews(assignmentCatalog, groups)).toEqual([
+    expect(buildDerivedTagPendingAssignmentViews(assignmentOntology, groups)).toEqual([
       {
         name: "Watch Bell",
         recordKey: "equipment:bell",
@@ -179,7 +205,7 @@ describe("derived tag explicit assignments", () => {
   });
 
   it("throws on illegal live assignment states", () => {
-    expect(() => buildDerivedTagExplicitAssignmentIndex(assignmentCatalog, [
+    expect(() => buildDerivedTagExplicitAssignmentIndex(assignmentOntology, [
       {
         category: "equipment",
         assignments: [
@@ -192,7 +218,7 @@ describe("derived tag explicit assignments", () => {
       },
     ])).toThrow(/missing review metadata/);
 
-    expect(() => buildDerivedTagExplicitAssignmentIndex(assignmentCatalog, [
+    expect(() => buildDerivedTagExplicitAssignmentIndex(assignmentOntology, [
       {
         category: "equipment",
         assignments: [
@@ -215,7 +241,7 @@ describe("derived tag explicit assignments", () => {
       },
     ])).toThrow(/both applied and excluded/);
 
-    expect(() => buildDerivedTagExplicitAssignmentIndex(assignmentCatalog, [
+    expect(() => buildDerivedTagExplicitAssignmentIndex(assignmentOntology, [
       {
         category: "equipment",
         assignments: [
@@ -237,7 +263,7 @@ describe("derived tag explicit assignments", () => {
       },
     ])).toThrow(/review status is "needs_review"/);
 
-    expect(() => buildDerivedTagExplicitAssignmentIndex(assignmentCatalog, [
+    expect(() => buildDerivedTagExplicitAssignmentIndex(assignmentOntology, [
       {
         category: "equipment",
         assignments: [
@@ -258,7 +284,7 @@ describe("derived tag explicit assignments", () => {
       },
     ])).toThrow(/missing from applied/);
 
-    expect(() => buildDerivedTagExplicitAssignmentIndex(assignmentCatalog, [
+    expect(() => buildDerivedTagExplicitAssignmentIndex(assignmentOntology, [
       {
         category: "equipment",
         assignments: [
@@ -281,8 +307,8 @@ describe("derived tag explicit assignments", () => {
     ])).toThrow(/marks excluded tag "infiltration\.disguise" with review mode "include"/);
   });
 
-  it("merges explicit assignments into derivation and applies exclusions before family promotion", () => {
-    const assignmentIndex = buildDerivedTagExplicitAssignmentIndex(assignmentCatalog, [
+  it("merges explicit assignments into derivation and applies exclusions without family promotion", () => {
+    const assignmentIndex = buildDerivedTagExplicitAssignmentIndex(assignmentOntology, [
       {
         category: "equipment",
         assignments: [
@@ -309,25 +335,24 @@ describe("derived tag explicit assignments", () => {
         ],
       },
     ]);
-    const seedIndex = buildDerivedTagSeedIndex(assignmentCatalog, buildDerivedTagSeedLookup([]));
+    const seedIndex = buildDerivedTagSeedIndex(assignmentOntology, buildDerivedTagSeedLookup([]));
 
     const derivation = deriveCatalogTagDerivation(
-      assignmentCatalog,
+      assignmentOntology,
       seedIndex,
       { recordKey: "equipment:mask", category: "equipment", subcategory: null },
       ["disguise"],
       assignmentIndex,
     );
 
-    expect(derivation.tags).toEqual(["infiltration", "social_infiltration"]);
+    expect(derivation.tags).toEqual(["social_infiltration"]);
     expect(derivation.sources.get("social_infiltration")).toBe("assignment");
-    expect(derivation.sources.get("infiltration")).toBe("assignment");
     expect(derivation.tags).not.toContain("disguise");
   });
 
   it("keeps the real authored creature assignments in a legal state", () => {
-    expect(() => createDerivedTagExplicitAssignmentIndex(CREATURE_DERIVED_TAG_CATALOG)).not.toThrow();
-    expect(buildDerivedTagPendingAssignmentViews(CREATURE_DERIVED_TAG_CATALOG)).toEqual([]);
+    expect(() => createDerivedTagExplicitAssignmentIndex(creatureOntology)).not.toThrow();
+    expect(buildDerivedTagPendingAssignmentViews(creatureOntology)).toEqual([]);
   });
 
   it("applies configured creature assignments to live record keys", () => {

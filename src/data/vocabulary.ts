@@ -1,8 +1,14 @@
 import { DatabaseSync } from "node:sqlite";
 
-import { DERIVED_TAG_CATALOG } from "../tags/index.js";
+import { groupDerivedTagOntology } from "../tags/catalog-utils.js";
+import {
+  DERIVED_TAG_ONTOLOGY_FAMILIES,
+  DERIVED_TAG_ONTOLOGY_TAGS,
+} from "../tags/index.js";
 import type {
   DerivedTagCatalogEntry,
+  DerivedTagOntologyFamily,
+  DerivedTagOntologyTag,
   FilterValueQuery,
   FilterValueResult,
   PackInfo,
@@ -24,6 +30,8 @@ export type SearchVocabularyResult = {
   sourceCategories: Array<{ value: SourceCategory; count: number }>;
   commonTraitsByCategory: Array<{ category: SearchCategory; traits: Array<{ value: string; count: number }> }>;
   commonDerivedTagsByCategory: Array<{ category: SearchCategory; tags: Array<{ value: string; count: number }> }>;
+  derivedTagOntologyFamilies: DerivedTagOntologyFamily[];
+  derivedTagOntologyTags: DerivedTagOntologyTag[];
   derivedTagCatalog: DerivedTagCatalogEntry[];
 };
 
@@ -204,7 +212,12 @@ export function getSearchVocabulary(
     sourceCategories,
     commonTraitsByCategory,
     commonDerivedTagsByCategory,
-    derivedTagCatalog: DERIVED_TAG_CATALOG,
+    derivedTagOntologyFamilies: DERIVED_TAG_ONTOLOGY_FAMILIES,
+    derivedTagOntologyTags: DERIVED_TAG_ONTOLOGY_TAGS,
+    derivedTagCatalog: groupDerivedTagOntology({
+      families: DERIVED_TAG_ONTOLOGY_FAMILIES,
+      tags: DERIVED_TAG_ONTOLOGY_TAGS,
+    }),
   };
 }
 

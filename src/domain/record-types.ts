@@ -34,11 +34,45 @@ export interface DerivedTagSeedRecordResolution extends DerivedTagSeedRecordRefe
 
 export type SourceCategory = "core" | "rules" | "adventure" | "unknown";
 export type VariantSource = "baseItem" | "slug" | "namePattern" | "sourcePath" | "composite" | "none";
+export type DerivedTagAssignmentMode = "deterministic" | "editorial" | "hybrid" | "composite";
+
+export interface DerivedTagOntologyFamily {
+  category: SearchCategory;
+  subcategories?: SearchSubcategory[];
+  family: string;
+  description: string;
+  variantInheritance?: boolean;
+}
+
+export interface DerivedTagOntologyTag {
+  category: SearchCategory;
+  family: string;
+  tag: string;
+  description: string;
+  assignmentMode: DerivedTagAssignmentMode;
+  nativeOntologyPolicy?: "distinct_required" | "aggregates_native_signals";
+  appliesWhen?: string[];
+  doesNotApplyWhen?: string[];
+  positiveSignals?: string[];
+  negativeSignals?: string[];
+  adjacentTags?: string[];
+  compositeOfAnyTags?: string[];
+  seedRecords?: DerivedTagSeedRecordReference[];
+  excludeSeedRecords?: DerivedTagSeedRecordReference[];
+  variantInheritance?: boolean;
+}
 
 export interface DerivedTagCatalogTag {
   value: string;
   description?: string;
+  assignmentMode?: DerivedTagAssignmentMode;
   nativeOntologyPolicy?: "distinct_required" | "aggregates_native_signals";
+  appliesWhen?: string[];
+  doesNotApplyWhen?: string[];
+  positiveSignals?: string[];
+  negativeSignals?: string[];
+  adjacentTags?: string[];
+  compositeOfAnyTags?: string[];
   seedRecords?: DerivedTagSeedRecordReference[];
   excludeSeedRecords?: DerivedTagSeedRecordReference[];
   variantInheritance?: boolean;
@@ -49,8 +83,8 @@ export interface DerivedTagCatalogEntry {
   subcategories?: SearchSubcategory[];
   family: string;
   description: string;
+  assignmentMode?: DerivedTagAssignmentMode;
   tags: DerivedTagCatalogTag[];
-  promoteFamilyToTag?: boolean;
   variantInheritance?: boolean;
 }
 

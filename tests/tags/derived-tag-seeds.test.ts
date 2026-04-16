@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import type { DerivedTagCatalogEntry } from "../../src/types.js";
+import type { DerivedTagOntologyFamily, DerivedTagOntologyTag } from "../../src/types.js";
 import {
   buildDerivedTagSeedLookup,
   buildDerivedTagSeedIndex,
   deriveCatalogTagDerivation,
-  publishDerivedTagCatalog,
+  groupDerivedTagOntology,
+  publishDerivedTagOntology,
   resolveCatalogSeedRecordKeys,
 } from "../../src/tags/catalog-utils.js";
 import {
@@ -13,52 +14,60 @@ import {
   getDerivedTagSeedRecordKeys,
 } from "../../src/tags/index.js";
 
-const seedCatalog: DerivedTagCatalogEntry[] = [
+const seedFamilies: DerivedTagOntologyFamily[] = [
   {
     category: "equipment",
     family: "infiltration",
     description: "Equipment that helps infiltration.",
-    promoteFamilyToTag: true,
-    tags: [
-      {
-        value: "disguise",
-        description: "Masks or alters appearance.",
-        seedRecords: [
-          { pack: "equipment-srd", name: "Mask" },
-          { pack: "equipment-srd", name: "Veil" },
-        ],
-        excludeSeedRecords: [{ pack: "equipment-srd", name: "Blocked Mask" }],
-      },
-      {
-        value: "concealment",
-        description: "Provides concealment or concealability.",
-        seedRecords: [{ pack: "equipment-srd", name: "Cloak" }],
-      },
-    ],
   },
   {
     category: "spell",
     family: "infiltration",
     description: "Spells that help infiltration.",
-    tags: [
-      {
-        value: "disguise",
-        description: "Spell-based disguise support.",
-        seedRecords: [{ pack: "spells-srd", name: "Illusory Disguise" }],
-      },
-    ],
   },
   {
     category: "creature",
     family: "motif",
     description: "Creature visual motifs.",
-    tags: [
-      {
-        value: "mask_motif",
-        description: "Mask-centric creature imagery.",
-        seedRecords: [{ pack: "pathfinder-monster-core", name: "Masked Priest" }],
-      },
+  },
+];
+
+const seedTags: DerivedTagOntologyTag[] = [
+  {
+    category: "equipment",
+    family: "infiltration",
+    tag: "disguise",
+    description: "Masks or alters appearance.",
+    assignmentMode: "hybrid",
+    seedRecords: [
+      { pack: "equipment-srd", name: "Mask" },
+      { pack: "equipment-srd", name: "Veil" },
     ],
+    excludeSeedRecords: [{ pack: "equipment-srd", name: "Blocked Mask" }],
+  },
+  {
+    family: "infiltration",
+    category: "equipment",
+    tag: "concealment",
+    description: "Provides concealment or concealability.",
+    assignmentMode: "hybrid",
+    seedRecords: [{ pack: "equipment-srd", name: "Cloak" }],
+  },
+  {
+    category: "spell",
+    family: "infiltration",
+    tag: "disguise",
+    description: "Spell-based disguise support.",
+    assignmentMode: "hybrid",
+    seedRecords: [{ pack: "spells-srd", name: "Illusory Disguise" }],
+  },
+  {
+    category: "creature",
+    family: "motif",
+    tag: "mask_motif",
+    description: "Mask-centric creature imagery.",
+    assignmentMode: "hybrid",
+    seedRecords: [{ pack: "pathfinder-monster-core", name: "Masked Priest" }],
   },
 ];
 
@@ -72,8 +81,8 @@ const seedLookup = buildDerivedTagSeedLookup([
 ]);
 
 describe("derived tag seeds", () => {
-  it("publishes family tags without copying child seeds onto the promoted family", () => {
-    expect(publishDerivedTagCatalog(seedCatalog)).toEqual(expect.arrayContaining([
+  it("publishes explicit tag metadata without injecting family tags", () => {
+    expect(groupDerivedTagOntology(publishDerivedTagOntology(seedFamilies, seedTags))).toEqual(expect.arrayContaining([
       expect.objectContaining({
         family: "infiltration",
         tags: expect.arrayContaining([
@@ -85,17 +94,14 @@ describe("derived tag seeds", () => {
             ],
             excludeSeedRecords: [{ pack: "equipment-srd", name: "Blocked Mask" }],
           }),
-          expect.objectContaining({
-            value: "infiltration",
-            description: "Equipment that helps infiltration.",
-          }),
         ]),
       }),
     ]));
   });
 
-  it("resolves seed pools by tag and category scope, including promoted families", () => {
-    const seedIndex = buildDerivedTagSeedIndex(seedCatalog, seedLookup);
+  it("resolves seed pools by tag and category scope", () => {
+    const ontology = publishDerivedTagOntology(seedFamilies, seedTags);
+    const seedIndex = buildDerivedTagSeedIndex(ontology, seedLookup);
 
     expect(resolveCatalogSeedRecordKeys(seedIndex, "disguise", { category: "equipment" })).toEqual([
       "equipment:mask",
@@ -104,57 +110,55 @@ describe("derived tag seeds", () => {
     expect(resolveCatalogSeedRecordKeys(seedIndex, "disguise", { category: "spell" })).toEqual([
       "spell:illusory-disguise",
     ]);
-    expect(resolveCatalogSeedRecordKeys(seedIndex, "infiltration", { category: "equipment" })).toEqual([
-      "equipment:cloak",
-      "equipment:mask",
-      "equipment:veil",
-    ]);
     expect(resolveCatalogSeedRecordKeys(seedIndex, "mask_motif", { category: "creature" })).toEqual([
       "creature:masked-priest",
     ]);
   });
 
   it("unions rule and seed tags and keeps provenance internally", () => {
-    const seedIndex = buildDerivedTagSeedIndex(seedCatalog, seedLookup);
-    const derivation = deriveCatalogTagDerivation(seedCatalog, seedIndex, {
+    const ontology = publishDerivedTagOntology(seedFamilies, seedTags);
+    const seedIndex = buildDerivedTagSeedIndex(ontology, seedLookup);
+    const derivation = deriveCatalogTagDerivation(ontology, seedIndex, {
       recordKey: "equipment:mask",
       category: "equipment",
       subcategory: null,
     }, ["concealment"]);
 
-    expect(derivation.tags).toEqual(["concealment", "disguise", "infiltration"]);
+    expect(derivation.tags).toEqual(["concealment", "disguise"]);
     expect(derivation.sources.get("concealment")).toBe("rule");
     expect(derivation.sources.get("disguise")).toBe("seed");
-    expect(derivation.sources.get("infiltration")).toBe("both");
   });
 
   it("lets explicit seed exclusions block only seeded membership, not rule matches", () => {
-    const seedIndex = buildDerivedTagSeedIndex(seedCatalog, seedLookup);
-    const derivation = deriveCatalogTagDerivation(seedCatalog, seedIndex, {
+    const ontology = publishDerivedTagOntology(seedFamilies, seedTags);
+    const seedIndex = buildDerivedTagSeedIndex(ontology, seedLookup);
+    const derivation = deriveCatalogTagDerivation(ontology, seedIndex, {
       recordKey: "equipment:blocked",
       category: "equipment",
       subcategory: null,
     }, ["disguise"]);
 
-    expect(derivation.tags).toEqual(["disguise", "infiltration"]);
+    expect(derivation.tags).toEqual(["disguise"]);
     expect(derivation.sources.get("disguise")).toBe("rule");
-    expect(derivation.sources.get("infiltration")).toBe("rule");
   });
 
   it("fails fast when a seed reference does not resolve", () => {
-    expect(() => buildDerivedTagSeedIndex([
+    expect(() => buildDerivedTagSeedIndex(publishDerivedTagOntology([
       {
         category: "equipment",
         family: "infiltration",
         description: "Equipment that helps infiltration.",
-        tags: [
-          {
-            value: "disguise",
-            seedRecords: [{ pack: "equipment-srd", name: "Missing Mask" }],
-          },
-        ],
       },
-    ], seedLookup)).toThrow(/did not resolve/);
+    ], [
+      {
+        category: "equipment",
+        family: "infiltration",
+        tag: "disguise",
+        description: "Masks or alters appearance.",
+        assignmentMode: "hybrid",
+        seedRecords: [{ pack: "equipment-srd", name: "Missing Mask" }],
+      },
+    ]), seedLookup)).toThrow(/did not resolve/);
   });
 
   it("fails fast when a seed reference resolves ambiguously", () => {
@@ -163,19 +167,22 @@ describe("derived tag seeds", () => {
       { recordKey: "equipment:mask-two", pack: "equipment-srd", name: "Mask" },
     ]);
 
-    expect(() => buildDerivedTagSeedIndex([
+    expect(() => buildDerivedTagSeedIndex(publishDerivedTagOntology([
       {
         category: "equipment",
         family: "infiltration",
         description: "Equipment that helps infiltration.",
-        tags: [
-          {
-            value: "disguise",
-            seedRecords: [{ pack: "equipment-srd", name: "Mask" }],
-          },
-        ],
       },
-    ], ambiguousLookup)).toThrow(/ambiguously/);
+    ], [
+      {
+        category: "equipment",
+        family: "infiltration",
+        tag: "disguise",
+        description: "Masks or alters appearance.",
+        assignmentMode: "hybrid",
+        seedRecords: [{ pack: "equipment-srd", name: "Mask" }],
+      },
+    ]), ambiguousLookup)).toThrow(/ambiguously/);
   });
 
   it("exposes the hazard manual seed pass and applies representative seeded records", () => {

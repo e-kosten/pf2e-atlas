@@ -1,4 +1,5 @@
-import type { DerivedTagCatalogEntry, SearchCategory } from "../types.js";
+import type { DerivedTagOntologyTag, SearchCategory } from "../types.js";
+import type { PublishedDerivedTagOntology } from "./catalog-utils.js";
 import { uniqueSorted } from "../utils.js";
 import { normalizeDerivedTag } from "./shared.js";
 import { CREATURE_DERIVED_TAG_ASSIGNMENTS } from "./assignments/creature.js";
@@ -62,19 +63,17 @@ const RAW_DERIVED_TAG_ASSIGNMENTS: DerivedTagAssignmentGroup[] = [
 ];
 
 function buildFamilyTagMap(
-  catalog: DerivedTagCatalogEntry[],
+  tags: DerivedTagOntologyTag[],
 ): Map<SearchCategory, Map<string, Set<string>>> {
   const familiesByCategory = new Map<SearchCategory, Map<string, Set<string>>>();
 
-  for (const entry of catalog) {
-    const categoryFamilies = familiesByCategory.get(entry.category) ?? new Map<string, Set<string>>();
-    const normalizedFamily = normalizeDerivedTag(entry.family);
+  for (const tag of tags) {
+    const categoryFamilies = familiesByCategory.get(tag.category) ?? new Map<string, Set<string>>();
+    const normalizedFamily = normalizeDerivedTag(tag.family);
     const familyTags = categoryFamilies.get(normalizedFamily) ?? new Set<string>();
-    for (const tag of entry.tags) {
-      familyTags.add(normalizeDerivedTag(tag.value));
-    }
+    familyTags.add(normalizeDerivedTag(tag.tag));
     categoryFamilies.set(normalizedFamily, familyTags);
-    familiesByCategory.set(entry.category, categoryFamilies);
+    familiesByCategory.set(tag.category, categoryFamilies);
   }
 
   return familiesByCategory;
@@ -381,10 +380,10 @@ function normalizeAssignment(
 }
 
 export function buildDerivedTagExplicitAssignmentIndex(
-  catalog: DerivedTagCatalogEntry[],
+  ontology: PublishedDerivedTagOntology,
   groups: DerivedTagAssignmentGroup[] = RAW_DERIVED_TAG_ASSIGNMENTS,
 ): DerivedTagExplicitAssignmentIndex {
-  const familyTagMap = buildFamilyTagMap(catalog);
+  const familyTagMap = buildFamilyTagMap(ontology.tags);
   const assignmentsByRecordKey = new Map<string, DerivedTagExplicitAssignment>();
 
   for (const group of groups) {
@@ -412,10 +411,10 @@ export function buildDerivedTagExplicitAssignmentIndex(
 }
 
 export function buildDerivedTagPendingAssignmentViews(
-  catalog: DerivedTagCatalogEntry[],
+  ontology: PublishedDerivedTagOntology,
   groups: DerivedTagAssignmentGroup[] = RAW_DERIVED_TAG_ASSIGNMENTS,
 ): DerivedTagPendingAssignmentView[] {
-  const familyTagMap = buildFamilyTagMap(catalog);
+  const familyTagMap = buildFamilyTagMap(ontology.tags);
   const pendingViews: DerivedTagPendingAssignmentView[] = [];
 
   for (const group of groups) {
@@ -463,7 +462,7 @@ export function validateDerivedTagExplicitAssignmentsAgainstRecords(
 }
 
 export function createDerivedTagExplicitAssignmentIndex(
-  catalog: DerivedTagCatalogEntry[],
+  ontology: PublishedDerivedTagOntology,
 ): DerivedTagExplicitAssignmentIndex {
-  return buildDerivedTagExplicitAssignmentIndex(catalog, RAW_DERIVED_TAG_ASSIGNMENTS);
+  return buildDerivedTagExplicitAssignmentIndex(ontology, RAW_DERIVED_TAG_ASSIGNMENTS);
 }

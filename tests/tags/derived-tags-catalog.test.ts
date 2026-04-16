@@ -1,10 +1,17 @@
 import { describe, expect, it } from "vitest";
 
-import { DERIVED_TAG_CATALOG } from "../../src/tags/index.js";
+import { groupDerivedTagOntology } from "../../src/tags/catalog-utils.js";
+import {
+  DERIVED_TAG_ONTOLOGY_FAMILIES,
+  DERIVED_TAG_ONTOLOGY_TAGS,
+} from "../../src/tags/index.js";
 
 describe("derived tag catalog", () => {
   it("publishes a compact derived-tag catalog", () => {
-    expect(DERIVED_TAG_CATALOG).toEqual(expect.arrayContaining([
+    expect(groupDerivedTagOntology({
+      families: DERIVED_TAG_ONTOLOGY_FAMILIES,
+      tags: DERIVED_TAG_ONTOLOGY_TAGS,
+    })).toEqual(expect.arrayContaining([
       expect.objectContaining({
         category: "equipment",
         subcategories: ["consumable"],

@@ -4,16 +4,32 @@ import { uniqueSorted } from "../utils.js";
 import {
   buildDerivedTagSeedIndex,
   deriveCatalogTagDerivation,
-  publishDerivedTagCatalog,
+  publishDerivedTagOntology,
   resolveCatalogSeedRecordKeys,
+  type PublishedDerivedTagOntology,
   type DerivedTagDerivation,
 } from "./catalog-utils.js";
 import { DERIVED_TAG_SEED_LOOKUP } from "./catalog-seed-records.js";
-import { AFFLICTION_DERIVED_TAG_CATALOG } from "./catalog/affliction.js";
-import { CREATURE_DERIVED_TAG_CATALOG } from "./catalog/creature.js";
-import { EQUIPMENT_DERIVED_TAG_CATALOG } from "./catalog/equipment.js";
-import { HAZARD_DERIVED_TAG_CATALOG } from "./catalog/hazard.js";
-import { SPELL_DERIVED_TAG_CATALOG } from "./catalog/spell.js";
+import {
+  AFFLICTION_DERIVED_TAG_ONTOLOGY_FAMILIES,
+  AFFLICTION_DERIVED_TAG_ONTOLOGY_TAGS,
+} from "./ontology/affliction.js";
+import {
+  CREATURE_DERIVED_TAG_ONTOLOGY_FAMILIES,
+  CREATURE_DERIVED_TAG_ONTOLOGY_TAGS,
+} from "./ontology/creature.js";
+import {
+  EQUIPMENT_DERIVED_TAG_ONTOLOGY_FAMILIES,
+  EQUIPMENT_DERIVED_TAG_ONTOLOGY_TAGS,
+} from "./ontology/equipment.js";
+import {
+  HAZARD_DERIVED_TAG_ONTOLOGY_FAMILIES,
+  HAZARD_DERIVED_TAG_ONTOLOGY_TAGS,
+} from "./ontology/hazard.js";
+import {
+  SPELL_DERIVED_TAG_ONTOLOGY_FAMILIES,
+  SPELL_DERIVED_TAG_ONTOLOGY_TAGS,
+} from "./ontology/spell.js";
 import {
   createDerivedTagExplicitAssignmentIndex,
   validateDerivedTagExplicitAssignmentsAgainstRecords,
@@ -34,17 +50,29 @@ const DERIVED_TAG_RULES = [
   ...CREATURE_DERIVED_TAG_RULES,
 ];
 
-const RAW_DERIVED_TAG_CATALOG = [
-  ...EQUIPMENT_DERIVED_TAG_CATALOG,
-  ...SPELL_DERIVED_TAG_CATALOG,
-  ...HAZARD_DERIVED_TAG_CATALOG,
-  ...AFFLICTION_DERIVED_TAG_CATALOG,
-  ...CREATURE_DERIVED_TAG_CATALOG,
+const AUTHORED_DERIVED_TAG_ONTOLOGY_FAMILIES = [
+  ...EQUIPMENT_DERIVED_TAG_ONTOLOGY_FAMILIES,
+  ...SPELL_DERIVED_TAG_ONTOLOGY_FAMILIES,
+  ...HAZARD_DERIVED_TAG_ONTOLOGY_FAMILIES,
+  ...AFFLICTION_DERIVED_TAG_ONTOLOGY_FAMILIES,
+  ...CREATURE_DERIVED_TAG_ONTOLOGY_FAMILIES,
 ];
-const DERIVED_TAG_SEED_INDEX = buildDerivedTagSeedIndex(RAW_DERIVED_TAG_CATALOG, DERIVED_TAG_SEED_LOOKUP);
-const DERIVED_TAG_EXPLICIT_ASSIGNMENT_INDEX = createDerivedTagExplicitAssignmentIndex(RAW_DERIVED_TAG_CATALOG);
+const AUTHORED_DERIVED_TAG_ONTOLOGY_TAGS = [
+  ...EQUIPMENT_DERIVED_TAG_ONTOLOGY_TAGS,
+  ...SPELL_DERIVED_TAG_ONTOLOGY_TAGS,
+  ...HAZARD_DERIVED_TAG_ONTOLOGY_TAGS,
+  ...AFFLICTION_DERIVED_TAG_ONTOLOGY_TAGS,
+  ...CREATURE_DERIVED_TAG_ONTOLOGY_TAGS,
+];
 
-export const DERIVED_TAG_CATALOG = publishDerivedTagCatalog(RAW_DERIVED_TAG_CATALOG);
+const DERIVED_TAG_ONTOLOGY: PublishedDerivedTagOntology = publishDerivedTagOntology(
+  AUTHORED_DERIVED_TAG_ONTOLOGY_FAMILIES,
+  AUTHORED_DERIVED_TAG_ONTOLOGY_TAGS,
+);
+export const DERIVED_TAG_ONTOLOGY_FAMILIES = DERIVED_TAG_ONTOLOGY.families;
+export const DERIVED_TAG_ONTOLOGY_TAGS = DERIVED_TAG_ONTOLOGY.tags;
+const DERIVED_TAG_SEED_INDEX = buildDerivedTagSeedIndex(DERIVED_TAG_ONTOLOGY, DERIVED_TAG_SEED_LOOKUP);
+const DERIVED_TAG_EXPLICIT_ASSIGNMENT_INDEX = createDerivedTagExplicitAssignmentIndex(DERIVED_TAG_ONTOLOGY);
 
 export function deriveRecordTags(input: DerivedTagContext): string[] {
   return deriveRecordTagDerivation(input).tags;
@@ -55,7 +83,7 @@ export function deriveRecordTagDerivation(
 ): DerivedTagDerivation {
   const ruleTags = deriveRecordTagsFromRules(DERIVED_TAG_RULES, input);
   return deriveCatalogTagDerivation(
-    RAW_DERIVED_TAG_CATALOG,
+    DERIVED_TAG_ONTOLOGY,
     DERIVED_TAG_SEED_INDEX,
     input,
     ruleTags,
@@ -77,22 +105,23 @@ export function getDerivedTagFamilyTags(
   const normalizedFamily = normalizeDerivedTag(family);
   const tags = new Set<string>();
 
-  for (const entry of RAW_DERIVED_TAG_CATALOG) {
-    if (normalizeDerivedTag(entry.family) !== normalizedFamily) {
+  for (const ontologyFamily of DERIVED_TAG_ONTOLOGY.families) {
+    if (normalizeDerivedTag(ontologyFamily.family) !== normalizedFamily) {
       continue;
     }
-    if (scope.category && entry.category !== scope.category) {
+    if (scope.category && ontologyFamily.category !== scope.category) {
       continue;
     }
-    if (scope.subcategory !== undefined && entry.subcategories && (scope.subcategory === null || !entry.subcategories.includes(scope.subcategory))) {
+    if (
+      scope.subcategory !== undefined &&
+      ontologyFamily.subcategories &&
+      (scope.subcategory === null || !ontologyFamily.subcategories.includes(scope.subcategory))
+    ) {
       continue;
     }
-
-    for (const tag of entry.tags) {
-      tags.add(normalizeDerivedTag(tag.value));
-    }
-    if (entry.promoteFamilyToTag) {
-      tags.add(normalizedFamily);
+    const familyKey = `${ontologyFamily.category}:${normalizeDerivedTag(ontologyFamily.family)}` as const;
+    for (const tag of DERIVED_TAG_ONTOLOGY.tagsByFamilyKey.get(familyKey) ?? []) {
+      tags.add(normalizeDerivedTag(tag.tag));
     }
   }
 
@@ -114,18 +143,24 @@ export function getVariantInheritableTags(
 ): string[] {
   const tags = new Set<string>();
 
-  for (const entry of RAW_DERIVED_TAG_CATALOG) {
-    if (scope.category && entry.category !== scope.category) {
+  for (const tag of DERIVED_TAG_ONTOLOGY.tags) {
+    if (scope.category && tag.category !== scope.category) {
       continue;
     }
-    if (scope.subcategory !== undefined && entry.subcategories && (scope.subcategory === null || !entry.subcategories.includes(scope.subcategory))) {
+    const familyKey = `${tag.category}:${normalizeDerivedTag(tag.family)}` as const;
+    const family = DERIVED_TAG_ONTOLOGY.familyByKey.get(familyKey);
+    if (!family) {
       continue;
     }
-
-    for (const tag of entry.tags) {
-      if (tag.variantInheritance ?? entry.variantInheritance ?? false) {
-        tags.add(normalizeDerivedTag(tag.value));
-      }
+    if (
+      scope.subcategory !== undefined &&
+      family.subcategories &&
+      (scope.subcategory === null || !family.subcategories.includes(scope.subcategory))
+    ) {
+      continue;
+    }
+    if (tag.variantInheritance ?? family.variantInheritance ?? false) {
+      tags.add(normalizeDerivedTag(tag.tag));
     }
   }
 

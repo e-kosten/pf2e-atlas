@@ -95,6 +95,32 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     expect(vocabulary.commonDerivedTagsByCategory.find((entry) => entry.category === "spell")?.tags.length).toBeGreaterThan(0);
     expect(vocabulary.commonDerivedTagsByCategory.find((entry) => entry.category === "hazard")?.tags.length).toBeGreaterThan(0);
     expect(vocabulary.commonDerivedTagsByCategory.find((entry) => entry.category === "affliction")?.tags.length).toBeGreaterThan(0);
+    expect(vocabulary.derivedTagOntologyFamilies).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        category: "creature",
+        family: "setting",
+        description: expect.stringContaining("Creature environment and encounter-setting"),
+      }),
+      expect.objectContaining({
+        category: "spell",
+        family: "transformation",
+        description: expect.stringContaining("alter a creature's body"),
+      }),
+    ]));
+    expect(vocabulary.derivedTagOntologyTags).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        category: "creature",
+        family: "setting",
+        tag: "urban_setting",
+        assignmentMode: "editorial",
+      }),
+      expect.objectContaining({
+        category: "spell",
+        family: "transformation",
+        tag: "transformation",
+        assignmentMode: "composite",
+      }),
+    ]));
     expect(vocabulary.derivedTagCatalog).toEqual(expect.arrayContaining([
       expect.objectContaining({
         category: "equipment",

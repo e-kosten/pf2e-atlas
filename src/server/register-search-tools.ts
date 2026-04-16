@@ -172,6 +172,8 @@ export function registerSearchTools(
           },
           heuristicVocabulary: {
             commonDerivedTagsByCategory: vocabulary.commonDerivedTagsByCategory,
+            derivedTagOntologyFamilies: vocabulary.derivedTagOntologyFamilies,
+            derivedTagOntologyTags: vocabulary.derivedTagOntologyTags,
             derivedTagCatalog: vocabulary.derivedTagCatalog,
           },
           vocabulary,

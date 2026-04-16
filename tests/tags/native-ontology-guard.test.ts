@@ -3,12 +3,12 @@ import { DatabaseSync } from "node:sqlite";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import type { DerivedTagCatalogEntry, DerivedTagRule } from "../../src/types.js";
-import { AFFLICTION_DERIVED_TAG_CATALOG } from "../../src/tags/catalog/affliction.js";
-import { CREATURE_DERIVED_TAG_CATALOG } from "../../src/tags/catalog/creature.js";
-import { EQUIPMENT_DERIVED_TAG_CATALOG } from "../../src/tags/catalog/equipment.js";
-import { HAZARD_DERIVED_TAG_CATALOG } from "../../src/tags/catalog/hazard.js";
-import { SPELL_DERIVED_TAG_CATALOG } from "../../src/tags/catalog/spell.js";
+import type { DerivedTagOntologyTag, DerivedTagRule } from "../../src/types.js";
+import { AFFLICTION_DERIVED_TAG_ONTOLOGY_TAGS } from "../../src/tags/ontology/affliction.js";
+import { CREATURE_DERIVED_TAG_ONTOLOGY_TAGS } from "../../src/tags/ontology/creature.js";
+import { EQUIPMENT_DERIVED_TAG_ONTOLOGY_TAGS } from "../../src/tags/ontology/equipment.js";
+import { HAZARD_DERIVED_TAG_ONTOLOGY_TAGS } from "../../src/tags/ontology/hazard.js";
+import { SPELL_DERIVED_TAG_ONTOLOGY_TAGS } from "../../src/tags/ontology/spell.js";
 import { AFFLICTION_DERIVED_TAG_RULES } from "../../src/tags/rules/affliction.js";
 import { CREATURE_DERIVED_TAG_RULES } from "../../src/tags/rules/creature.js";
 import { EQUIPMENT_DERIVED_TAG_RULES } from "../../src/tags/rules/equipment.js";
@@ -17,12 +17,12 @@ import { SPELL_DERIVED_TAG_RULES } from "../../src/tags/rules/spell.js";
 import { cleanupCreatedRoots, createFixture } from "../helpers/pf2e-service-fixture.js";
 import { loadTestService } from "../helpers/pf2e-fixture.js";
 
-const RAW_DERIVED_TAG_CATALOG = [
-  ...EQUIPMENT_DERIVED_TAG_CATALOG,
-  ...SPELL_DERIVED_TAG_CATALOG,
-  ...HAZARD_DERIVED_TAG_CATALOG,
-  ...AFFLICTION_DERIVED_TAG_CATALOG,
-  ...CREATURE_DERIVED_TAG_CATALOG,
+const DERIVED_TAG_ONTOLOGY = [
+  ...EQUIPMENT_DERIVED_TAG_ONTOLOGY_TAGS,
+  ...SPELL_DERIVED_TAG_ONTOLOGY_TAGS,
+  ...HAZARD_DERIVED_TAG_ONTOLOGY_TAGS,
+  ...AFFLICTION_DERIVED_TAG_ONTOLOGY_TAGS,
+  ...CREATURE_DERIVED_TAG_ONTOLOGY_TAGS,
 ];
 
 const DERIVED_TAG_RULES = [
@@ -33,13 +33,13 @@ const DERIVED_TAG_RULES = [
   ...CREATURE_DERIVED_TAG_RULES,
 ];
 
-function buildCatalogTagRows(catalog: DerivedTagCatalogEntry[]) {
-  return catalog.flatMap((entry) => entry.tags.map((tag) => ({
-    category: entry.category,
-    family: entry.family,
-    value: tag.value,
+function buildCatalogTagRows(tags: DerivedTagOntologyTag[]) {
+  return tags.map((tag) => ({
+    category: tag.category,
+    family: tag.family,
+    value: tag.tag,
     nativeOntologyPolicy: tag.nativeOntologyPolicy ?? "distinct_required",
-  })));
+  }));
 }
 
 function keyFor(category: string, value: string): string {
@@ -65,7 +65,7 @@ describe("derived tag native ontology guard", () => {
   });
 
   it("rejects distinct-required tags that only have native-ontology positive evidence", () => {
-    const policyRows = buildCatalogTagRows(RAW_DERIVED_TAG_CATALOG);
+    const policyRows = buildCatalogTagRows(DERIVED_TAG_ONTOLOGY);
     const violations: string[] = [];
 
     for (const row of policyRows) {
@@ -131,7 +131,7 @@ describe("derived tag native ontology guard", () => {
         traitSets.set(key, bucket);
       }
 
-      const policyRows = buildCatalogTagRows(RAW_DERIVED_TAG_CATALOG);
+      const policyRows = buildCatalogTagRows(DERIVED_TAG_ONTOLOGY);
       const violations: string[] = [];
 
       for (const row of policyRows) {
