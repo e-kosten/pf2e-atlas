@@ -826,7 +826,6 @@ const WASTELAND_SETTING_TEXT_NEAR = [
 ];
 
 const MOUNTAIN_SETTING_NAME_ANCHORS = [
-  patternAnchor("venexus", "name"),
   patternAnchor("venexus s wyrmling", "name"),
   patternAnchor("venexus s chosen", "name"),
 ];

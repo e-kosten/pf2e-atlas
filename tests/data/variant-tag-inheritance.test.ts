@@ -152,12 +152,32 @@ describe("variant base tag inheritance", () => {
         variantLabel: "Venexus",
         isUnique: true,
       }),
+      createRecord({
+        recordKey: "creature:venexus-wyrmling",
+        name: "Venexus's Wyrmling",
+        derivedTags: [],
+        variantFamilyKey: "creature:family:white-dragon",
+        variantBaseName: "White Dragon",
+        variantLabel: "Venexus's Wyrmling",
+        isUnique: true,
+      }),
+      createRecord({
+        recordKey: "creature:venexus-chosen",
+        name: "Venexus's Chosen",
+        derivedTags: [],
+        variantFamilyKey: "creature:family:white-dragon",
+        variantBaseName: "White Dragon",
+        variantLabel: "Venexus's Chosen",
+        isUnique: true,
+      }),
     ];
 
     const inherited = applyVariantBaseTagInheritance(records, getVariantInheritableTags({ category: "creature" }));
 
     expect(records[2]?.derivedTags).toEqual(["arctic_setting", "mountain_setting", "underground_setting"]);
     expect(inherited.get("creature:venexus")).toEqual(["arctic_setting", "underground_setting"]);
+    expect(records[3]?.derivedTags).toEqual(["arctic_setting", "mountain_setting", "underground_setting"]);
+    expect(records[4]?.derivedTags).toEqual(["arctic_setting", "mountain_setting", "underground_setting"]);
   });
 
   it("does not infer from a family without an explicit base and only one non-unique sibling", () => {

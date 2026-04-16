@@ -728,14 +728,6 @@ describe("derived tag rules: creature", () => {
     })).toContain("mountain_setting");
 
     expect(deriveRecordTags({
-      name: "Venexus",
-      category: "creature",
-      subcategory: null,
-      descriptionText: "Female young white dragon",
-      traits: ["chaotic", "cold", "dragon", "evil"],
-    })).toContain("mountain_setting");
-
-    expect(deriveRecordTags({
       name: "Venexus's Wyrmling",
       category: "creature",
       subcategory: null,
