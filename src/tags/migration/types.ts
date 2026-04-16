@@ -1,4 +1,11 @@
-import type { AuthoredDerivedTagRule, DerivedTagExemplarCategory, SearchCategory, SearchSubcategory } from "../../types.js";
+import type {
+  AuthoredDerivedTagRule,
+  DerivedTagExemplarCategory,
+  DerivedTagExemplarPolarity,
+  DerivedTagExemplarReviewCategory,
+  SearchCategory,
+  SearchSubcategory,
+} from "../../types.js";
 import type {
   AuthoredDerivedTagAssignment,
   DerivedTagReviewConfidence,
@@ -23,6 +30,7 @@ export type DerivedTagManagedCategory =
 
 export type DerivedTagMigrationSelectionSource =
   | "authored_review_queue"
+  | "authored_exemplar_review_queue"
   | "legacy_seed"
   | "legacy_rule"
   | "exemplar_cleanup"
@@ -67,11 +75,13 @@ export type DerivedTagMigrationAssignmentDecision = {
 export type DerivedTagMigrationExemplarDecision = {
   kind: "exemplar";
   tag: string;
-  polarity: "positive" | "negative";
+  polarity: DerivedTagExemplarPolarity;
   action: "keep" | "drop";
   status: DerivedTagReviewStatus;
+  confidence?: DerivedTagReviewConfidence;
   rationale: string;
   source?: DerivedTagReviewSource;
+  currentPolarity?: DerivedTagExemplarPolarity | "none";
 };
 
 export type DerivedTagMigrationRuleDecision = {
@@ -126,6 +136,7 @@ export type DerivedTagMigrationSessionCreateOptions = {
   mode: DerivedTagMigrationMode;
   category?: SearchCategory;
   subcategory?: SearchSubcategory;
+  decisionKind?: DerivedTagMigrationReviewDecisionKind;
   family?: string;
   tag?: string;
   limit?: number;
@@ -133,8 +144,9 @@ export type DerivedTagMigrationSessionCreateOptions = {
 };
 
 export type DerivedTagReviewQueueSummaryItem = {
+  kind: "assignment" | "exemplar";
   category: SearchCategory;
-  family: string;
+  family?: string;
   tag: string;
   count: number;
   confidence: DerivedTagReviewConfidence | "unspecified" | "mixed";
@@ -143,5 +155,8 @@ export type DerivedTagReviewQueueSummaryItem = {
 export type DerivedTagMigrationAuthoredState = {
   assignments: Record<DerivedTagManagedCategory, AuthoredDerivedTagAssignment[]>;
   exemplars: Record<DerivedTagManagedCategory, DerivedTagExemplarCategory>;
+  exemplarReviews: Record<DerivedTagManagedCategory, DerivedTagExemplarReviewCategory>;
   authoredRules: Record<DerivedTagManagedCategory, AuthoredDerivedTagRule[]>;
 };
+
+export type DerivedTagMigrationReviewDecisionKind = "assignment" | "exemplar";

@@ -25,6 +25,7 @@ import {
 import type {
   DerivedTagManagedCategory,
   DerivedTagMigrationMode,
+  DerivedTagMigrationReviewDecisionKind,
   DerivedTagReviewQueueSummaryItem,
 } from "../migration/types.js";
 
@@ -41,9 +42,13 @@ function buildWorkbenchMenuItems(items: DerivedTagReviewQueueSummaryItem[]): Wor
   if (items.length > 0) {
     menuItems.push({ kind: "review_all", label: "Review all pending queue items" });
     for (const item of items) {
+      const kindLabel = item.kind === "assignment" ? "assignment" : "exemplar";
+      const scope = item.kind === "assignment"
+        ? `${item.category} ${item.family}.${item.tag}`
+        : `${item.category} exemplar.${item.tag}`;
       menuItems.push({
         kind: "review_queue_item",
-        label: `Review ${item.category} ${item.family}.${item.tag}  confidence=${item.confidence}  count=${item.count}`,
+        label: `Review ${kindLabel} ${scope}  confidence=${item.confidence}  count=${item.count}`,
         queueItem: item,
       });
     }
@@ -77,9 +82,12 @@ function renderWorkbenchHome(items: DerivedTagReviewQueueSummaryItem[], menuItem
           : item.confidence === "medium"
             ? terminalTheme.warning(item.confidence)
             : item.confidence === "mixed"
-              ? terminalTheme.accent(item.confidence)
+            ? terminalTheme.accent(item.confidence)
               : terminalTheme.success(item.confidence);
-        return `- ${item.category} ${item.family}.${item.tag} confidence=${confidence} count=${item.count}`;
+        const scope = item.kind === "assignment"
+          ? `${item.category} ${item.family}.${item.tag}`
+          : `${item.category} exemplar.${item.tag}`;
+        return `- ${scope} confidence=${confidence} count=${item.count}`;
       })
       : [terminalTheme.dim("No pending authored review items.")]),
     "",
@@ -100,8 +108,9 @@ function renderWorkbenchHelp(): string {
     "- Enter: open the selected row",
     "",
     "Queue review:",
-    "- a: review all currently pending assignment decisions that still need a human pass",
-    "- Queue rows: open a focused review_queue session for one category/family.tag slice",
+    "- a: review all currently pending unresolved authored review items",
+    "- Queue rows: open a focused review_queue session for one assignment or exemplar slice",
+    "- The queue is selective review only: confident live-authored changes should not appear here",
     "",
     "Create session shortcuts:",
     "- s: create a legacy-seed review session",
@@ -121,6 +130,10 @@ function renderWorkbenchHelp(): string {
     "- category narrows the record type being reviewed",
     "- tag/family narrows the work to one ontology slice when applicable",
     "- limit keeps manual passes small and reviewable",
+    "",
+    "Exemplar review:",
+    "- Exemplars are not runtime tagging state",
+    "- Only uncertain exemplar decisions should go into review; confident exemplar changes should be written directly",
   ].join("\n");
 }
 
@@ -198,6 +211,7 @@ async function createAndRunSession(
   options: {
     category?: SearchCategory;
     subcategory?: SearchSubcategory;
+    decisionKind?: DerivedTagMigrationReviewDecisionKind;
     family?: string;
     tag?: string;
     limit?: number;
@@ -290,6 +304,7 @@ async function main(): Promise<void> {
     }
     if (selectedItem.kind === "review_queue_item") {
       await createAndRunSession(rootPath, argv, "review_queue", {
+        decisionKind: selectedItem.queueItem.kind,
         category: selectedItem.queueItem.category,
         family: selectedItem.queueItem.family,
         tag: selectedItem.queueItem.tag,

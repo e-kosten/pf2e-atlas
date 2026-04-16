@@ -1,4 +1,12 @@
-import type { AuthoredDerivedTagRule, DerivedTagExemplarCategory, DerivedTagExemplarRecord, SearchCategory } from "../../types.js";
+import type {
+  AuthoredDerivedTagRule,
+  DerivedTagExemplarCategory,
+  DerivedTagExemplarPolarity,
+  DerivedTagExemplarRecord,
+  DerivedTagExemplarReviewCategory,
+  DerivedTagExemplarReviewDecision,
+  SearchCategory,
+} from "../../types.js";
 import type { AuthoredDerivedTagAssignment, DerivedTagReviewEntry } from "../runtime/assignments.js";
 import { normalizeDerivedTag } from "../runtime/shared.js";
 import { uniqueSorted } from "../../utils.js";
@@ -142,6 +150,43 @@ function sortExemplarRecords(records: DerivedTagExemplarRecord[]): DerivedTagExe
   return [...records].sort((left, right) => left.name.localeCompare(right.name) || left.recordKey.localeCompare(right.recordKey));
 }
 
+function withoutExemplarRecord(
+  records: DerivedTagExemplarRecord[] | undefined,
+  recordKey: string,
+): DerivedTagExemplarRecord[] {
+  return (records ?? []).filter((record) => record.recordKey !== recordKey);
+}
+
+function upsertExemplarRecord(
+  records: DerivedTagExemplarRecord[] | undefined,
+  record: DerivedTagExemplarRecord,
+): DerivedTagExemplarRecord[] {
+  return [...withoutExemplarRecord(records, record.recordKey), record];
+}
+
+function applyApprovedExemplarDecision(
+  exemplars: DerivedTagExemplarCategory,
+  recordDecision: DerivedTagMigrationRecordDecision,
+  decision: Extract<DerivedTagMigrationRecordDecision["decisions"][number], { kind: "exemplar" }>,
+): void {
+  const exemplarSet = ensureExemplarSet(exemplars, decision.tag);
+  const record = { recordKey: recordDecision.recordKey, name: recordDecision.name };
+
+  if (decision.action === "drop") {
+    exemplarSet.positives = sortExemplarRecords(withoutExemplarRecord(exemplarSet.positives, recordDecision.recordKey));
+    exemplarSet.negatives = sortExemplarRecords(withoutExemplarRecord(exemplarSet.negatives, recordDecision.recordKey));
+    return;
+  }
+
+  if (decision.polarity === "positive") {
+    exemplarSet.positives = sortExemplarRecords(upsertExemplarRecord(exemplarSet.positives, record));
+    exemplarSet.negatives = sortExemplarRecords(withoutExemplarRecord(exemplarSet.negatives, recordDecision.recordKey));
+  } else {
+    exemplarSet.negatives = sortExemplarRecords(upsertExemplarRecord(exemplarSet.negatives, record));
+    exemplarSet.positives = sortExemplarRecords(withoutExemplarRecord(exemplarSet.positives, recordDecision.recordKey));
+  }
+}
+
 export function applyMigrationSessionToExemplars(
   exemplars: DerivedTagExemplarCategory,
   sessionDecisions: DerivedTagMigrationRecordDecision[],
@@ -154,17 +199,7 @@ export function applyMigrationSessionToExemplars(
       if (decision.status !== "approved" && decision.status !== "auto_applied") {
         continue;
       }
-      const exemplarSet = ensureExemplarSet(nextExemplars, decision.tag);
-      const bucket = decision.polarity === "positive" ? (exemplarSet.positives ?? []) : (exemplarSet.negatives ?? []);
-      const withoutRecord = bucket.filter((record) => record.recordKey !== recordDecision.recordKey);
-      const updated = decision.action === "keep"
-        ? [...withoutRecord, { recordKey: recordDecision.recordKey, name: recordDecision.name }]
-        : withoutRecord;
-      if (decision.polarity === "positive") {
-        exemplarSet.positives = sortExemplarRecords(updated);
-      } else {
-        exemplarSet.negatives = sortExemplarRecords(updated);
-      }
+      applyApprovedExemplarDecision(nextExemplars, recordDecision, decision);
     }
   }
 
@@ -178,6 +213,63 @@ export function applyMigrationSessionToExemplars(
     .sort((left, right) => normalizeDerivedTag(left.tag).localeCompare(normalizeDerivedTag(right.tag)));
 
   return nextExemplars;
+}
+
+function exemplarReviewIdentity(decision: Pick<DerivedTagExemplarReviewDecision, "recordKey" | "tag">): string {
+  return `${decision.recordKey}:${normalizeDerivedTag(decision.tag)}`;
+}
+
+function toProposedPolarity(
+  decision: Extract<DerivedTagMigrationRecordDecision["decisions"][number], { kind: "exemplar" }>,
+): DerivedTagExemplarPolarity | "drop" {
+  return decision.action === "drop" ? "drop" : decision.polarity;
+}
+
+function toExemplarReviewDecision(
+  recordDecision: DerivedTagMigrationRecordDecision,
+  decision: Extract<DerivedTagMigrationRecordDecision["decisions"][number], { kind: "exemplar" }>,
+): DerivedTagExemplarReviewDecision {
+  return {
+    name: recordDecision.name,
+    recordKey: recordDecision.recordKey,
+    tag: normalizeDerivedTag(decision.tag),
+    proposedPolarity: toProposedPolarity(decision),
+    status: decision.status === "auto_applied" ? "approved" : decision.status,
+    rationale: decision.rationale,
+    ...(decision.confidence ? { confidence: decision.confidence } : {}),
+    ...(decision.source ? { source: decision.source } : {}),
+    ...(decision.currentPolarity ? { currentPolarity: decision.currentPolarity } : {}),
+  };
+}
+
+export function applyMigrationSessionToExemplarReviews(
+  exemplarReviews: DerivedTagExemplarReviewCategory,
+  sessionDecisions: DerivedTagMigrationRecordDecision[],
+): DerivedTagExemplarReviewCategory {
+  const nextExemplarReviews = structuredClone(exemplarReviews);
+  const decisionsByIdentity = new Map(
+    nextExemplarReviews.decisions.map((decision) => [exemplarReviewIdentity(decision), decision] as const),
+  );
+
+  for (const recordDecision of sessionDecisions) {
+    for (const decision of recordDecision.decisions.filter((entry) => entry.kind === "exemplar")) {
+      const reviewDecision = toExemplarReviewDecision(recordDecision, decision);
+      const identity = exemplarReviewIdentity(reviewDecision);
+      if (decision.status === "needs_review") {
+        decisionsByIdentity.set(identity, reviewDecision);
+        continue;
+      }
+      decisionsByIdentity.delete(identity);
+    }
+  }
+
+  nextExemplarReviews.decisions = [...decisionsByIdentity.values()]
+    .sort((left, right) =>
+      normalizeDerivedTag(left.tag).localeCompare(normalizeDerivedTag(right.tag))
+      || left.name.localeCompare(right.name)
+      || left.recordKey.localeCompare(right.recordKey));
+
+  return nextExemplarReviews;
 }
 
 function ruleIdentity(rule: AuthoredDerivedTagRule): string {
@@ -243,6 +335,7 @@ function applySessionToState(
     const relevantDecisions = session.decisions.filter((decision) => decision.category === category);
     nextState.assignments[category] = applyMigrationSessionToAssignments(nextState.assignments[category], relevantDecisions);
     nextState.exemplars[category] = applyMigrationSessionToExemplars(nextState.exemplars[category], relevantDecisions);
+    nextState.exemplarReviews[category] = applyMigrationSessionToExemplarReviews(nextState.exemplarReviews[category], relevantDecisions);
     nextState.authoredRules[category] = applyMigrationSessionToAuthoredRules(nextState.authoredRules[category], relevantDecisions);
   }
 

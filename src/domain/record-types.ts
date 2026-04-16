@@ -49,6 +49,31 @@ export interface DerivedTagExemplarCategory {
   exemplars: DerivedTagExemplarSet[];
 }
 
+export type DerivedTagExemplarPolarity = "positive" | "negative";
+
+export type DerivedTagExemplarReviewStatus = "needs_review" | "approved" | "rejected";
+
+export type DerivedTagExemplarReviewConfidence = "high" | "medium" | "low";
+
+export type DerivedTagExemplarReviewSource = "human" | "llm";
+
+export interface DerivedTagExemplarReviewDecision {
+  name: string;
+  recordKey: string;
+  tag: string;
+  proposedPolarity: DerivedTagExemplarPolarity | "drop";
+  currentPolarity?: DerivedTagExemplarPolarity | "none";
+  status: DerivedTagExemplarReviewStatus;
+  confidence?: DerivedTagExemplarReviewConfidence;
+  rationale: string;
+  source?: DerivedTagExemplarReviewSource;
+}
+
+export interface DerivedTagExemplarReviewCategory {
+  category: SearchCategory;
+  decisions: DerivedTagExemplarReviewDecision[];
+}
+
 export interface DerivedTagLegacySeedMigrationTag {
   tag: string;
   includeRecords?: DerivedTagSeedRecordReference[];

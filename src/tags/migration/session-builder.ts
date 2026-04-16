@@ -1,6 +1,6 @@
 import { DatabaseSync } from "node:sqlite";
 
-import type { SearchCategory } from "../../types.js";
+import type { DerivedTagExemplarReviewDecision, SearchCategory } from "../../types.js";
 import {
   listDerivedTagLegacySeedMigrations,
 } from "../index.js";
@@ -96,6 +96,28 @@ function flattenCurrentPendingReviewAssignments(): Array<{
   return pending;
 }
 
+function flattenCurrentPendingExemplarReviews(): Array<{
+  category: SearchCategory;
+  decision: DerivedTagExemplarReviewDecision;
+}> {
+  const state = getCurrentDerivedTagMigrationAuthoredState();
+  const pending: Array<{
+    category: SearchCategory;
+    decision: DerivedTagExemplarReviewDecision;
+  }> = [];
+
+  for (const [category, exemplarReviewCategory] of Object.entries(state.exemplarReviews) as Array<[SearchCategory, { decisions: DerivedTagExemplarReviewDecision[] }]>) {
+    for (const decision of exemplarReviewCategory.decisions) {
+      if (decision.status !== "needs_review") {
+        continue;
+      }
+      pending.push({ category, decision });
+    }
+  }
+
+  return pending;
+}
+
 function createDecisionIndex(
   records: DerivedTagMigrationSessionRecord[],
 ): Map<string, DerivedTagMigrationRecordDecision> {
@@ -167,8 +189,10 @@ function buildLegacySeedWorkset(
         polarity: "positive",
         action: "keep",
         status: "needs_review",
+        confidence: "medium",
         rationale: "Legacy seed candidate should be reviewed to decide whether it remains a true exemplar.",
         source: "llm",
+        currentPolarity: "none",
       });
     }
   }
@@ -199,11 +223,19 @@ function buildReviewQueueWorkset(
   db: DatabaseSync,
   options: DerivedTagMigrationSessionCreateOptions,
 ): DerivedTagMigrationSession {
-  const pending = flattenCurrentPendingReviewAssignments()
+  const pendingAssignments = flattenCurrentPendingReviewAssignments()
     .filter((entry) => !options.category || entry.category === options.category)
+    .filter(() => !options.decisionKind || options.decisionKind === "assignment")
     .filter((entry) => !options.family || normalizeDerivedTag(entry.family) === normalizeDerivedTag(options.family))
     .filter((entry) => !options.tag || normalizeDerivedTag(entry.tag) === normalizeDerivedTag(options.tag));
-  const uniqueRecordKeys = [...new Set(pending.map((entry) => entry.assignment.recordKey))]
+  const pendingExemplarReviews = flattenCurrentPendingExemplarReviews()
+    .filter((entry) => !options.category || entry.category === options.category)
+    .filter(() => !options.decisionKind || options.decisionKind === "exemplar")
+    .filter((entry) => !options.tag || normalizeDerivedTag(entry.decision.tag) === normalizeDerivedTag(options.tag));
+  const uniqueRecordKeys = [...new Set([
+    ...pendingAssignments.map((entry) => entry.assignment.recordKey),
+    ...pendingExemplarReviews.map((entry) => entry.decision.recordKey),
+  ])]
     .slice(0, options.limit ?? Number.MAX_SAFE_INTEGER);
   const records = loadDerivedTagMigrationRecords(db, {
     category: options.category,
@@ -213,7 +245,7 @@ function buildReviewQueueWorkset(
   const recordMap = createRecordMap(records);
   const decisionIndex = createDecisionIndex(records);
 
-  for (const entry of pending) {
+  for (const entry of pendingAssignments) {
     const record = recordMap.get(entry.assignment.recordKey);
     if (!record) {
       continue;
@@ -237,6 +269,29 @@ function buildReviewQueueWorkset(
       confidence: reviewEntry.confidence,
       rationale: reviewEntry.rationale,
       source: reviewEntry.source,
+    });
+  }
+
+  for (const entry of pendingExemplarReviews) {
+    const record = recordMap.get(entry.decision.recordKey);
+    if (!record) {
+      continue;
+    }
+    appendSelectionReason(record, {
+      source: "authored_exemplar_review_queue",
+      tag: entry.decision.tag,
+      note: "Existing authored exemplar review entry still needs manual confirmation.",
+    });
+    decisionIndex.get(entry.decision.recordKey)?.decisions.push({
+      kind: "exemplar",
+      tag: normalizeDerivedTag(entry.decision.tag),
+      polarity: entry.decision.proposedPolarity === "negative" ? "negative" : "positive",
+      action: entry.decision.proposedPolarity === "drop" ? "drop" : "keep",
+      status: entry.decision.status,
+      confidence: entry.decision.confidence,
+      rationale: entry.decision.rationale,
+      source: entry.decision.source,
+      currentPolarity: entry.decision.currentPolarity,
     });
   }
 
@@ -319,8 +374,10 @@ function buildExemplarCleanupWorkset(
         polarity: "positive",
         action: "keep",
         status: "needs_review",
+        confidence: "medium",
         rationale: `Review whether this ${category} remains a strong positive exemplar for "${normalizeDerivedTag(exemplarSet.tag)}".`,
         source: "llm",
+        currentPolarity: "positive",
       });
     }
     for (const negative of exemplarSet.negatives ?? []) {
@@ -339,8 +396,10 @@ function buildExemplarCleanupWorkset(
         polarity: "negative",
         action: "keep",
         status: "needs_review",
+        confidence: "medium",
         rationale: `Review whether this ${category} remains a strong negative exemplar for "${normalizeDerivedTag(exemplarSet.tag)}".`,
         source: "llm",
+        currentPolarity: "negative",
       });
     }
   }

@@ -7,7 +7,8 @@ function describeDecision(decision: DerivedTagMigrationDecision): string {
     return `${decision.family}.${decision.tag} ${decision.mode}`;
   }
   if (decision.kind === "exemplar") {
-    return `${decision.tag} exemplar ${decision.polarity} ${decision.action}`;
+    const current = decision.currentPolarity ? ` from ${decision.currentPolarity}` : "";
+    return `${decision.tag} exemplar${current} -> ${decision.action === "drop" ? "drop" : decision.polarity}`;
   }
   return `${decision.tag} rule ${decision.decision}`;
 }

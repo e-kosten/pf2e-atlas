@@ -1,4 +1,4 @@
-import type { SearchCategory } from "../../types.js";
+import type { DerivedTagExemplarReviewDecision, SearchCategory } from "../../types.js";
 import {
   DERIVED_TAG_ONTOLOGY_FAMILIES,
   DERIVED_TAG_ONTOLOGY_TAGS,
@@ -52,6 +52,20 @@ function flattenAssignmentDecisions(assignments: AuthoredDerivedTagAssignment[])
   return decisions;
 }
 
+function flattenExemplarReviewDecisions(exemplarReviews: DerivedTagExemplarReviewDecision[]): DerivedTagMigrationDecision[] {
+  return exemplarReviews.map((reviewDecision) => ({
+    kind: "exemplar" as const,
+    tag: reviewDecision.tag,
+    polarity: reviewDecision.proposedPolarity === "negative" ? "negative" : "positive",
+    action: reviewDecision.proposedPolarity === "drop" ? "drop" : "keep",
+    status: reviewDecision.status,
+    confidence: reviewDecision.confidence,
+    rationale: reviewDecision.rationale,
+    source: reviewDecision.source,
+    currentPolarity: reviewDecision.currentPolarity,
+  }));
+}
+
 export function summarizeCurrentDerivedTagReviewQueue(): DerivedTagReviewQueueSummaryItem[] {
   const state = getCurrentDerivedTagMigrationAuthoredState();
   const counts = new Map<string, DerivedTagReviewQueueSummaryItem>();
@@ -63,10 +77,33 @@ export function summarizeCurrentDerivedTagReviewQueue(): DerivedTagReviewQueueSu
         continue;
       }
       const confidence = decision.confidence ?? "unspecified";
-      const key = [category, decision.family, decision.tag].join("|");
+      const key = ["assignment", category, decision.family, decision.tag].join("|");
       const current = counts.get(key) ?? {
+        kind: "assignment",
         category,
         family: decision.family,
+        tag: decision.tag,
+        count: 0,
+        confidence,
+      };
+      current.count += 1;
+      counts.set(key, current);
+      const confidenceBucket = confidencesByKey.get(key) ?? new Set<DerivedTagReviewQueueSummaryItem["confidence"]>();
+      confidenceBucket.add(confidence);
+      confidencesByKey.set(key, confidenceBucket);
+    }
+  }
+
+  for (const [category, exemplarReviewCategory] of Object.entries(state.exemplarReviews) as Array<[SearchCategory, { decisions: DerivedTagExemplarReviewDecision[] }]>) {
+    for (const decision of flattenExemplarReviewDecisions(exemplarReviewCategory.decisions)) {
+      if (decision.kind !== "exemplar" || decision.status !== "needs_review") {
+        continue;
+      }
+      const confidence = decision.confidence ?? "unspecified";
+      const key = ["exemplar", category, decision.tag].join("|");
+      const current = counts.get(key) ?? {
+        kind: "exemplar",
+        category,
         tag: decision.tag,
         count: 0,
         confidence,
@@ -86,8 +123,9 @@ export function summarizeCurrentDerivedTagReviewQueue(): DerivedTagReviewQueueSu
 
   return [...counts.values()]
     .sort((left, right) =>
-      left.category.localeCompare(right.category)
-      || left.family.localeCompare(right.family)
+      left.kind.localeCompare(right.kind)
+      || left.category.localeCompare(right.category)
+      || (left.family ?? "").localeCompare(right.family ?? "")
       || left.tag.localeCompare(right.tag)
       || left.confidence.localeCompare(right.confidence));
 }

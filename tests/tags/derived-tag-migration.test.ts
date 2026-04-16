@@ -4,7 +4,7 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import type { AuthoredDerivedTagRule, DerivedTagExemplarCategory } from "../../src/types.js";
+import type { AuthoredDerivedTagRule, DerivedTagExemplarCategory, DerivedTagExemplarReviewCategory } from "../../src/types.js";
 import type { AuthoredDerivedTagAssignment } from "../../src/tags/runtime/assignments.js";
 import {
   getCurrentDerivedTagMigrationAuthoredState,
@@ -15,8 +15,10 @@ import {
   applyMigrationSessionToAssignments,
   applyMigrationSessionToAuthoredRules,
   applyMigrationSessionToExemplars,
+  applyMigrationSessionToExemplarReviews,
 } from "../../src/tags/migration/importer.js";
 import { lintDerivedTagMigrationSession } from "../../src/tags/migration/linter.js";
+import { summarizeCurrentDerivedTagReviewQueue } from "../../src/tags/migration/runtime-state.js";
 import {
   clampDerivedTagMigrationReviewIndex,
   getDerivedTagMigrationReviewItems,
@@ -174,6 +176,61 @@ describe("derived tag migration tooling", () => {
     ]);
   });
 
+  it("resolves exemplar review decisions into live exemplars and review backlog", () => {
+    const exemplars: DerivedTagExemplarCategory = {
+      category: "creature",
+      exemplars: [
+        {
+          tag: "urban_setting",
+          positives: [{ recordKey: "creature:old", name: "Old Urban Example" }],
+          negatives: [],
+        },
+      ],
+    };
+    const exemplarReviews: DerivedTagExemplarReviewCategory = {
+      category: "creature",
+      decisions: [
+        {
+          name: "Old Urban Example",
+          recordKey: "creature:old",
+          tag: "urban_setting",
+          proposedPolarity: "drop",
+          currentPolarity: "positive",
+          status: "needs_review",
+          rationale: "Might not be the strongest exemplar anymore.",
+        },
+      ],
+    };
+    const sessionDecisions = [
+      {
+        recordKey: "creature:old",
+        name: "Old Urban Example",
+        category: "creature" as const,
+        resolutionStatus: "complete" as const,
+        decisions: [
+          {
+            kind: "exemplar" as const,
+            tag: "urban_setting",
+            polarity: "positive" as const,
+            action: "drop" as const,
+            status: "approved" as const,
+            rationale: "Confirmed drop from exemplar set.",
+            currentPolarity: "positive" as const,
+          },
+        ],
+      },
+    ];
+
+    expect(applyMigrationSessionToExemplars(exemplars, sessionDecisions)).toEqual({
+      category: "creature",
+      exemplars: [],
+    });
+    expect(applyMigrationSessionToExemplarReviews(exemplarReviews, sessionDecisions)).toEqual({
+      category: "creature",
+      decisions: [],
+    });
+  });
+
   it("lints contradictory migration sessions", () => {
     const session: DerivedTagMigrationSession = {
       manifest: {
@@ -325,10 +382,34 @@ describe("derived tag migration tooling", () => {
           },
         },
       ];
+      nextState.exemplarReviews.equipment = [
+        {
+          category: "equipment",
+          decisions: [
+            {
+              name: "Watch Bell",
+              recordKey: "equipment:bell",
+              tag: "alarm",
+              proposedPolarity: "positive",
+              status: "needs_review",
+              rationale: "Maybe a good positive teaching example.",
+            },
+          ],
+        },
+      ][0];
 
       await writeDerivedTagMigrationAuthoredState(tempRoot, nextState, ["equipment"]);
 
       expect(getCurrentDerivedTagMigrationAuthoredState().assignments.equipment).toEqual(nextState.assignments.equipment);
+      expect(getCurrentDerivedTagMigrationAuthoredState().exemplarReviews.equipment).toEqual(nextState.exemplarReviews.equipment);
+      expect(summarizeCurrentDerivedTagReviewQueue()).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          kind: "exemplar",
+          category: "equipment",
+          tag: "alarm",
+          count: 1,
+        }),
+      ]));
     } finally {
       setCurrentDerivedTagMigrationAuthoredState(initialState);
     }

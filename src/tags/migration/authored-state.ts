@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import type { AuthoredDerivedTagRule, DerivedTagExemplarCategory } from "../../types.js";
+import type { AuthoredDerivedTagRule, DerivedTagExemplarCategory, DerivedTagExemplarReviewCategory } from "../../types.js";
 import { AFFLICTION_DERIVED_TAG_ASSIGNMENTS } from "../assignments/affliction.js";
 import { CREATURE_DERIVED_TAG_ASSIGNMENTS } from "../assignments/creature.js";
 import { EQUIPMENT_DERIVED_TAG_ASSIGNMENTS } from "../assignments/equipment.js";
@@ -21,6 +21,13 @@ import {
   HAZARD_DERIVED_TAG_EXEMPLARS,
   SPELL_DERIVED_TAG_EXEMPLARS,
 } from "../exemplars/index.js";
+import {
+  AFFLICTION_DERIVED_TAG_EXEMPLAR_REVIEWS,
+  CREATURE_DERIVED_TAG_EXEMPLAR_REVIEWS,
+  EQUIPMENT_DERIVED_TAG_EXEMPLAR_REVIEWS,
+  HAZARD_DERIVED_TAG_EXEMPLAR_REVIEWS,
+  SPELL_DERIVED_TAG_EXEMPLAR_REVIEWS,
+} from "../exemplar-reviews/index.js";
 import type { AuthoredDerivedTagAssignment } from "../runtime/assignments.js";
 import type { DerivedTagManagedCategory, DerivedTagMigrationAuthoredState } from "./types.js";
 
@@ -35,31 +42,37 @@ const CATEGORY_UPPER: Record<DerivedTagManagedCategory, string> = {
 export const CATEGORY_FILE_PATHS: Record<DerivedTagManagedCategory, {
   assignment: string;
   exemplar: string;
+  exemplarReview: string;
   authoredRule: string;
 }> = {
   affliction: {
     assignment: path.join("src", "tags", "assignments", "affliction.ts"),
     exemplar: path.join("src", "tags", "exemplars", "affliction.ts"),
+    exemplarReview: path.join("src", "tags", "exemplar-reviews", "affliction.ts"),
     authoredRule: path.join("src", "tags", "authored-rules", "affliction.ts"),
   },
   creature: {
     assignment: path.join("src", "tags", "assignments", "creature.ts"),
     exemplar: path.join("src", "tags", "exemplars", "creature.ts"),
+    exemplarReview: path.join("src", "tags", "exemplar-reviews", "creature.ts"),
     authoredRule: path.join("src", "tags", "authored-rules", "creature.ts"),
   },
   equipment: {
     assignment: path.join("src", "tags", "assignments", "equipment.ts"),
     exemplar: path.join("src", "tags", "exemplars", "equipment.ts"),
+    exemplarReview: path.join("src", "tags", "exemplar-reviews", "equipment.ts"),
     authoredRule: path.join("src", "tags", "authored-rules", "equipment.ts"),
   },
   hazard: {
     assignment: path.join("src", "tags", "assignments", "hazard.ts"),
     exemplar: path.join("src", "tags", "exemplars", "hazard.ts"),
+    exemplarReview: path.join("src", "tags", "exemplar-reviews", "hazard.ts"),
     authoredRule: path.join("src", "tags", "authored-rules", "hazard.ts"),
   },
   spell: {
     assignment: path.join("src", "tags", "assignments", "spell.ts"),
     exemplar: path.join("src", "tags", "exemplars", "spell.ts"),
+    exemplarReview: path.join("src", "tags", "exemplar-reviews", "spell.ts"),
     authoredRule: path.join("src", "tags", "authored-rules", "spell.ts"),
   },
 };
@@ -83,6 +96,13 @@ function buildImportedDerivedTagMigrationAuthoredState(): DerivedTagMigrationAut
       equipment: clone(EQUIPMENT_DERIVED_TAG_EXEMPLARS),
       hazard: clone(HAZARD_DERIVED_TAG_EXEMPLARS),
       spell: clone(SPELL_DERIVED_TAG_EXEMPLARS),
+    },
+    exemplarReviews: {
+      affliction: clone(AFFLICTION_DERIVED_TAG_EXEMPLAR_REVIEWS),
+      creature: clone(CREATURE_DERIVED_TAG_EXEMPLAR_REVIEWS),
+      equipment: clone(EQUIPMENT_DERIVED_TAG_EXEMPLAR_REVIEWS),
+      hazard: clone(HAZARD_DERIVED_TAG_EXEMPLAR_REVIEWS),
+      spell: clone(SPELL_DERIVED_TAG_EXEMPLAR_REVIEWS),
     },
     authoredRules: {
       affliction: clone(AFFLICTION_AUTHORED_DERIVED_TAG_RULES),
@@ -173,6 +193,16 @@ function renderExemplarFile(category: DerivedTagManagedCategory, exemplars: Deri
   ].join("\n");
 }
 
+function renderExemplarReviewFile(category: DerivedTagManagedCategory, exemplarReviews: DerivedTagExemplarReviewCategory): string {
+  const exportName = `${CATEGORY_UPPER[category]}_DERIVED_TAG_EXEMPLAR_REVIEWS`;
+  return [
+    "import type { DerivedTagExemplarReviewCategory } from \"../../types.js\";",
+    "",
+    `export const ${exportName} = ${renderTsValue(exemplarReviews)} satisfies DerivedTagExemplarReviewCategory;`,
+    "",
+  ].join("\n");
+}
+
 function renderAuthoredRuleFile(category: DerivedTagManagedCategory, rules: AuthoredDerivedTagRule[]): string {
   const exportName = `${CATEGORY_UPPER[category]}_AUTHORED_DERIVED_TAG_RULES`;
   return [
@@ -192,6 +222,7 @@ export async function writeDerivedTagMigrationAuthoredState(
     const files = CATEGORY_FILE_PATHS[category];
     await mkdir(path.dirname(path.join(rootPath, files.assignment)), { recursive: true });
     await mkdir(path.dirname(path.join(rootPath, files.exemplar)), { recursive: true });
+    await mkdir(path.dirname(path.join(rootPath, files.exemplarReview)), { recursive: true });
     await mkdir(path.dirname(path.join(rootPath, files.authoredRule)), { recursive: true });
 
     await writeFile(
@@ -202,6 +233,11 @@ export async function writeDerivedTagMigrationAuthoredState(
     await writeFile(
       path.join(rootPath, files.exemplar),
       renderExemplarFile(category, state.exemplars[category]),
+      "utf8",
+    );
+    await writeFile(
+      path.join(rootPath, files.exemplarReview),
+      renderExemplarReviewFile(category, state.exemplarReviews[category]),
       "utf8",
     );
     await writeFile(
