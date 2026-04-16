@@ -13,9 +13,11 @@ describe("derived-tag evidence CLI helpers", () => {
       "--subcategory", "gear",
       "--family", "purpose",
       "--family-gap-signals",
+      "--include-reviewed",
       "--record-key", "equipment:1",
       "--exclude-record-key", "equipment:2",
       "--untagged",
+      "--review-reason", "not_family_salient",
       "--limit", "9",
       "--min-gram-length", "3",
       "--max-gram-length", "5",
@@ -26,8 +28,10 @@ describe("derived-tag evidence CLI helpers", () => {
       subcategory: "gear",
       family: "purpose",
       familyGapSignals: true,
+      includeReviewed: true,
       recordKeys: ["equipment:1"],
       excludeRecordKeys: ["equipment:2"],
+      reviewReason: "not_family_salient",
       untaggedOnly: true,
       limit: 9,
       minGramLength: 3,
@@ -63,6 +67,19 @@ describe("derived-tag evidence CLI helpers", () => {
       "--category", "creature",
       "--family-gap-signals",
     ])).toThrow(/family-gap-signals/i);
+
+    expect(() => parseOptions([
+      "--category", "creature",
+      "--family", "setting",
+      "--review-reason", "not_family_salient",
+      "--untagged",
+    ])).toThrow(/include-reviewed/i);
+
+    expect(() => parseOptions([
+      "--category", "creature",
+      "--family", "setting",
+      "--include-reviewed",
+    ])).toThrow(/untagged|family-gap/i);
   });
 
   it("renders a readable evidence report", () => {
@@ -135,6 +152,13 @@ describe("derived-tag evidence CLI helpers", () => {
           },
         ],
       },
+      reviewedRecords: {
+        mode: "excluded",
+        reviewReason: null,
+        scopedCount: 3,
+        appliedCount: 3,
+        reasonCounts: [{ reason: "not_family_salient", count: 3 }],
+      },
       representativeRecords: [
         { recordKey: "spell:1", name: "Mask of Cinders", traits: ["fire", "illusion"] },
       ],
@@ -143,6 +167,8 @@ describe("derived-tag evidence CLI helpers", () => {
     expect(report).toContain("Evidence summary:");
     expect(report).toContain("Family: setting");
     expect(report).toContain("Covered family records: 7");
+    expect(report).toContain("Excluded reviewed records: 3/3");
+    expect(report).toContain("Reviewed reason counts: not_family_salient=3");
     expect(report).toContain("Representative records:");
     expect(report).toContain("Name tokens:");
     expect(report).toContain("Likely new concepts:");
@@ -156,6 +182,8 @@ describe("derived-tag evidence CLI helpers", () => {
     expect(help).toContain("Usage:");
     expect(help).toContain("--family <derived-tag-family>");
     expect(help).toContain("--family-gap-signals");
+    expect(help).toContain("--include-reviewed");
+    expect(help).toContain("--review-reason <reason>");
     expect(help).toContain("--category creature --family setting");
   });
 });

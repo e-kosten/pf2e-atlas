@@ -2,6 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { REVIEWED_DISCOVERY_RECORDS } from "../../src/tags/discovery-reviewed-records.js";
 vi.mock("../../src/tags/index.js", async () => {
   const actual = await vi.importActual<typeof import("../../src/tags/index.js")>("../../src/tags/index.js");
   return {
@@ -125,6 +126,12 @@ describe("seed-backed discovery integration", () => {
   beforeEach(() => {
     mockedGetDerivedTagSeedRecordKeys.mockReset();
     mockedGetDerivedTagSeedRecordKeys.mockReturnValue([]);
+    REVIEWED_DISCOVERY_RECORDS.creature ??= {};
+    REVIEWED_DISCOVERY_RECORDS.creature.setting ??= {};
+    REVIEWED_DISCOVERY_RECORDS.creature.setting.not_family_salient = [];
+    REVIEWED_DISCOVERY_RECORDS.creature.setting.insufficient_evidence = [];
+    REVIEWED_DISCOVERY_RECORDS.creature.setting.mixed_family_cues = [];
+    REVIEWED_DISCOVERY_RECORDS.creature.setting.manual_lore_only = [];
   });
 
   it("uses catalog seeds as discovery evidence exemplars for a tag", () => {
@@ -216,6 +223,77 @@ describe("seed-backed discovery integration", () => {
         "creature:fortress-ghost",
         "creature:graveyard-guardian",
       ]);
+    } finally {
+      db.close();
+    }
+  });
+
+  it("excludes reviewed-negative family-gap records by default and can audit one reviewed bucket", () => {
+    const db = createDiscoveryDb();
+    try {
+      REVIEWED_DISCOVERY_RECORDS.creature!.setting!.not_family_salient = [
+        { recordKey: "creature:generic-thug" },
+      ];
+
+      insertRecord(db, {
+        recordKey: "creature:fortress-ghost",
+        name: "Fortress Ghost",
+        category: "creature",
+        traits: ["undead"],
+        descriptionText: "A ghost haunts abandoned fortresses and broken citadels.",
+        vector: [1, 0, 0],
+        tags: ["fortress_setting"],
+      });
+      insertRecord(db, {
+        recordKey: "creature:wall-phantom",
+        name: "Wall Phantom",
+        category: "creature",
+        traits: ["undead"],
+        descriptionText: "A phantom patrols fortress walls and crumbling battlements.",
+        vector: [0.98, 0.02, 0],
+        tags: ["undead_adjacent"],
+      });
+      insertRecord(db, {
+        recordKey: "creature:generic-thug",
+        name: "Generic Thug",
+        category: "creature",
+        traits: ["humanoid"],
+        descriptionText: "A generic thug with no stable habitat cues.",
+        vector: [0, 1, 0],
+        tags: ["combatant_npc"],
+      });
+
+      const defaultReport = analyzeDiscoveryEvidence(db, {
+        category: "creature",
+        family: "setting",
+        familyGapSignals: true,
+        limit: 4,
+      });
+      expect(defaultReport.familyGap?.uncoveredCount).toBe(1);
+      expect(defaultReport.reviewedRecords).toEqual(expect.objectContaining({
+        mode: "excluded",
+        scopedCount: 1,
+        appliedCount: 1,
+      }));
+
+      const reviewedReport = analyzeDiscoveryEvidence(db, {
+        category: "creature",
+        family: "setting",
+        familyGapSignals: true,
+        includeReviewed: true,
+        reviewReason: "not_family_salient",
+        limit: 4,
+      });
+      expect(reviewedReport.cohortSize).toBe(1);
+      expect(reviewedReport.representativeRecords.map((record) => record.recordKey)).toEqual([
+        "creature:generic-thug",
+      ]);
+      expect(reviewedReport.reviewedRecords).toEqual(expect.objectContaining({
+        mode: "filtered",
+        reviewReason: "not_family_salient",
+        scopedCount: 1,
+        appliedCount: 1,
+      }));
     } finally {
       db.close();
     }

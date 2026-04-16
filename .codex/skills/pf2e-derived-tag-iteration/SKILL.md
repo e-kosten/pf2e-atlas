@@ -40,6 +40,7 @@ If the request genuinely mixes both:
    - `npm run analyze-derived-tag-evidence -- --category <category> ...`
    - `npm run discover-ruleable-cohorts -- --category <category> ...`
 3. Identify any likely false-positive classes and the real records that should be pinned as regressions before implementation.
+   Also classify reviewed negatives that should be kept out of the default family-gap queue and route them to `src/tags/discovery-reviewed-records.ts` with one of the supported reviewed reasons instead of inventing weak setting rules.
 4. Use the expansion workflow to define the missing category slice.
 5. Use the refinement workflow for any follow-up precision cleanup after the expansion is in place.
 6. Preserve one baseline coverage snapshot before expansion, one post-expansion coverage check, and one final summary that separates ontology gain from later precision cleanup.
@@ -55,6 +56,7 @@ Do not finish an iteration pass that was supposed to improve coverage without a 
 - movement-evaluator warnings or explicit note that the touched tags passed the chosen gain/drop thresholds
 - explicit note when a later refinement step was precision-only rather than coverage-moving
 - explicit note on which real-record regression cases were added to prevent noisy false positives
+- explicit note on any reviewed-negative discovery-ledger updates made during the pass
 
 ## Parallel Approval-First Mode
 

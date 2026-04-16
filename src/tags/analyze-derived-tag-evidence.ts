@@ -7,6 +7,10 @@ import { DatabaseSync } from "node:sqlite";
 import { loadConfig } from "../app/config.js";
 import { SearchCategory, SearchSubcategory } from "../types.js";
 import {
+  isReviewedDiscoveryReason,
+  type ReviewedDiscoveryApplicationSummary,
+} from "./discovery-reviewed-records.js";
+import {
   analyzeDiscoveryEvidence,
   type DiscoveryEvidenceOptions,
   type DiscoveryEvidenceReport,
@@ -83,6 +87,8 @@ export function parseOptions(argv: string[]): DiscoveryEvidenceOptions {
     excludeDerivedTag: lastValue(args, "exclude-derived-tag"),
     untaggedOnly: hasFlag(args, "untagged"),
     familyGapSignals: hasFlag(args, "family-gap-signals"),
+    includeReviewed: hasFlag(args, "include-reviewed"),
+    reviewReason: lastValue(args, "review-reason"),
     limit: parseInteger(lastValue(args, "limit"), "--limit"),
     exampleLimit: parseInteger(lastValue(args, "example-limit"), "--example-limit"),
     minGramLength: parseInteger(lastValue(args, "min-gram-length"), "--min-gram-length"),
@@ -97,8 +103,25 @@ export function parseOptions(argv: string[]): DiscoveryEvidenceOptions {
   if (options.familyGapSignals && !options.family) {
     throw new Error("Pass --family <derived-tag-family> when using --family-gap-signals.");
   }
+  if ((options.includeReviewed || options.reviewReason) && !options.family) {
+    throw new Error("Pass --family <derived-tag-family> when using reviewed-discovery controls.");
+  }
+  if ((options.includeReviewed || options.reviewReason) && !options.untaggedOnly && !options.familyGapSignals) {
+    throw new Error("Reviewed-discovery controls require --untagged or --family-gap-signals.");
+  }
+  if (options.reviewReason && !options.includeReviewed) {
+    throw new Error("Pass --include-reviewed when using --review-reason.");
+  }
+  if (options.reviewReason && !isReviewedDiscoveryReason(options.reviewReason)) {
+    throw new Error(`Unknown --review-reason "${options.reviewReason}".`);
+  }
   resolveDiscoveryGramRange(options);
-  return options;
+  return {
+    ...options,
+    reviewReason: options.reviewReason && isReviewedDiscoveryReason(options.reviewReason)
+      ? options.reviewReason
+      : undefined,
+  };
 }
 
 export function formatHelp(): string {
@@ -118,6 +141,8 @@ export function formatHelp(): string {
     "  --untagged                        Analyze records missing tags in the selected family, or fully untagged records when no family is given",
     "  --exclude-derived-tag <tag>       Exclude records that already have one derived tag",
     "  --family-gap-signals              Re-rank family-scoped evidence toward missing-family concepts instead of raw family-missing evidence",
+    "  --include-reviewed                Include reviewed-negative family-gap records instead of excluding them by default",
+    "  --review-reason <reason>          Audit one reviewed-negative reason bucket (requires --include-reviewed)",
     "",
     "Output shaping:",
     "  --limit <n>                       Maximum ranked evidence terms per section",
@@ -128,8 +153,23 @@ export function formatHelp(): string {
     "Examples:",
     "  npm run analyze-derived-tag-evidence -- --category creature --family setting",
     "  npm run analyze-derived-tag-evidence -- --category creature --family setting --untagged --limit 12",
+    "  npm run analyze-derived-tag-evidence -- --category creature --family setting --family-gap-signals --include-reviewed --review-reason not_family_salient",
     "  npm run analyze-derived-tag-evidence -- --category creature --tag fortress_setting",
   ].join("\n");
+}
+
+function formatReviewedSummary(summary: ReviewedDiscoveryApplicationSummary): string[] {
+  const label = summary.mode === "excluded"
+    ? "Excluded reviewed records"
+    : summary.mode === "included"
+      ? "Included reviewed records"
+      : `Filtered reviewed records${summary.reviewReason ? ` (${summary.reviewReason})` : ""}`;
+  return [
+    `${label}: ${summary.appliedCount}/${summary.scopedCount}`,
+    `Reviewed reason counts: ${summary.reasonCounts.length > 0
+      ? summary.reasonCounts.map((entry) => `${entry.reason}=${entry.count}`).join(", ")
+      : "(none)"}`,
+  ];
 }
 
 function formatTerms(label: string, terms: DiscoveryEvidenceReport["nameTokens"]): string[] {
@@ -156,6 +196,9 @@ export function formatEvidenceReport(report: DiscoveryEvidenceReport): string {
         `- Uncovered family records: ${report.familyGap.uncoveredCount}`,
         `- Live family tags: ${report.familyGap.liveTags.join(", ") || "(none)"}`,
       ]
+      : []),
+    ...(report.reviewedRecords
+      ? formatReviewedSummary(report.reviewedRecords).map((line) => `- ${line}`)
       : []),
     "",
     "Representative records:",

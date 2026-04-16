@@ -6,6 +6,7 @@ description: Refine existing PF2E derived tags in the Pathfinder MCP repo. Use w
 # PF2E Derived Tag Refinement
 
 Use this skill for precision work on the derived-tag layer, especially [`src/tags/index.ts`](/Users/ekosten/projects/pathfinder-mcp/pathfinder-2e-foundry-mcp/src/tags/index.ts), category rule modules under [`src/tags/rules`](/Users/ekosten/projects/pathfinder-mcp/pathfinder-2e-foundry-mcp/src/tags/rules), category derivation tests under [`tests/tags`](/Users/ekosten/projects/pathfinder-mcp/pathfinder-2e-foundry-mcp/tests/tags), and the service tests that exercise derived-tag filtering.
+For family-gap reviewed-negative bookkeeping, also use [`src/tags/discovery-reviewed-records.ts`](/Users/ekosten/projects/pathfinder-mcp/pathfinder-2e-foundry-mcp/src/tags/discovery-reviewed-records.ts).
 
 Use this mode when the ontology mostly exists and the problem is calibration across a related slice, not just a one-tag micro-fix.
 
@@ -52,6 +53,7 @@ Default to this skill when any of these are true:
    - Run `npm run evaluate-derived-tags -- --tag <tag> ...` to inspect likely false negatives and semantically adjacent misses.
    - Run `npm run discover-ruleable-cohorts -- --category <category> --tag <tag> ...` when the issue may actually be a mixed cohort, weak anchor family, or under-split concept rather than a simple threshold problem.
    - If the current tag appears to be standing in for a broader missing category concept, run `npm run discover-untagged-cohorts -- --category <category> ...` on the surrounding slice before narrowing the final rule tweak.
+   - If repeated misses are reviewed and clearly should not receive the family under refinement, classify them as reviewed-negative candidates for the discovery ledger instead of trying to solve them with broader anchors.
    Target the specific tag under refinement and inspect likely false negatives, semantically adjacent misses, and records that suggest the same false-positive class.
    Before or after the rule edit when live movement matters, compare index snapshots with:
    - `npm run evaluate-derived-tag-movement -- --baseline-index-path /path/to/before.sqlite --category <category> --tags <tag1,tag2,...> --warn-category-drop-points <points> --warn-tag-drop-count <count> --warn-tag-drop-points <points> --sample-limit <n>`
@@ -77,6 +79,7 @@ Default to this skill when any of these are true:
    - negative gates before exception piles
    - score thresholds over brittle boolean logic
    - trait and name evidence ahead of broad description evidence
+   - updating `src/tags/discovery-reviewed-records.ts` when the pass establishes stable reviewed-negative records that should stop resurfacing in default family-gap discovery
 9. Validate in layers.
    Use:
    - `npm test -- tests/tags/derived-tags-*.test.ts tests/service/search-and-lookup.test.ts`
@@ -93,6 +96,7 @@ Default to this skill when any of these are true:
    - or state explicitly that the pass was precision-only and category-level coverage movement was not the goal
    - what tests and spot checks defend the change
    - what remains intentionally conservative
+   - any reviewed-negative discovery-ledger updates and the reasons used
 
 ## Precision Rules
 

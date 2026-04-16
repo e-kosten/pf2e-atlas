@@ -4,6 +4,12 @@ import { SearchCategory, SearchSubcategory } from "../types.js";
 import { uniqueSorted } from "../utils.js";
 import { getDerivedTagFamilyTags, normalizeDerivedTag } from "./index.js";
 import {
+  getReviewedDiscoverySelection,
+  summarizeReviewedDiscoverySelection,
+  type ReviewedDiscoveryApplicationSummary,
+  type ReviewedDiscoveryReason,
+} from "./discovery-reviewed-records.js";
+import {
   classifyFamilyGapFeature,
   type FamilyGapFeatureBucket,
 } from "./family-gap-signals.js";
@@ -37,6 +43,8 @@ export type UntaggedCohortOptions = {
   subcategory?: SearchSubcategory;
   family?: string;
   familyGapSignals?: boolean;
+  includeReviewed?: boolean;
+  reviewReason?: ReviewedDiscoveryReason;
   cohortLimit?: number;
   anchorLimit?: number;
   minFeatureSupport?: number;
@@ -100,6 +108,7 @@ export type UntaggedCohortReport = {
   baselineRecordCount: number;
   coveredRecordCount?: number;
   liveTags?: string[];
+  reviewedRecords?: ReviewedDiscoveryApplicationSummary;
   anchorTerms: UntaggedCohortAnchor[];
   cohorts: UntaggedCohortCluster[];
 };
@@ -1036,12 +1045,28 @@ export function discoverUntaggedCohorts(
   const logPhase = (label: string, startTime: number): void => {
     options.progressLogger?.(`${label} in ${Math.max(0, Date.now() - startTime)}ms.`);
   };
+  const reviewedSelection = normalizedFamily
+    ? getReviewedDiscoverySelection({
+      category: options.category,
+      subcategory: options.subcategory,
+      family: normalizedFamily,
+      includeReviewed: options.includeReviewed,
+      reviewReason: options.reviewReason,
+    })
+    : undefined;
+  const reviewedRecordKeys = reviewedSelection?.mode === "filtered" ? reviewedSelection.recordKeys : undefined;
+  const reviewedExcludedRecordKeys = reviewedSelection?.mode === "excluded" ? reviewedSelection.recordKeys : undefined;
+  const reviewedSummary = reviewedSelection
+    ? summarizeReviewedDiscoverySelection(reviewedSelection)
+    : undefined;
 
   options.progressStatusLogger?.("Loading untagged records.");
   const untaggedStartTime = Date.now();
   const untagged = loadDiscoveryRecords(db, {
     category: options.category,
     subcategory: options.subcategory,
+    recordKeys: reviewedRecordKeys,
+    excludeRecordKeys: reviewedExcludedRecordKeys,
     excludeAnyDerivedTags: familyTags,
     untaggedOnly: familyTags.length === 0,
     includeVectors: true,
@@ -1095,6 +1120,7 @@ export function discoverUntaggedCohorts(
         record.derivedTags.filter((tag) => familyTags.includes(normalizeDerivedTag(tag))),
       ))])
       : undefined,
+    reviewedRecords: reviewedSummary,
     anchorTerms,
     cohorts,
   };

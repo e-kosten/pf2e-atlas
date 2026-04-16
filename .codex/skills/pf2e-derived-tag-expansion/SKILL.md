@@ -6,6 +6,7 @@ description: Expand PF2E derived-tag ontology and coverage in the Pathfinder MCP
 # PF2E Derived Tag Expansion
 
 Use this skill for sparse-category work on the derived-tag layer, especially [`src/tags/index.ts`](/Users/ekosten/projects/pathfinder-mcp/pathfinder-2e-foundry-mcp/src/tags/index.ts), category rule modules under [`src/tags/rules`](/Users/ekosten/projects/pathfinder-mcp/pathfinder-2e-foundry-mcp/src/tags/rules), category derivation tests under [`tests/tags`](/Users/ekosten/projects/pathfinder-mcp/pathfinder-2e-foundry-mcp/tests/tags), and service-level search tests under [`tests/service`](/Users/ekosten/projects/pathfinder-mcp/pathfinder-2e-foundry-mcp/tests/service).
+For reviewed-negative family-gap bookkeeping, also use [`src/tags/discovery-reviewed-records.ts`](/Users/ekosten/projects/pathfinder-mcp/pathfinder-2e-foundry-mcp/src/tags/discovery-reviewed-records.ts).
 
 Derived tags are retrieval-oriented overlays, not aliases for native PF2E traits. Add tags only when native traits do not already express the practical retrieval meaning cleanly.
 
@@ -77,6 +78,7 @@ Default to this skill when any of these are true:
    - Preserve a baseline index snapshot before expansion and compare it after the rebuild with:
      `npm run evaluate-derived-tag-movement -- --baseline-index-path /path/to/before.sqlite --category <category> --tags <tag1,tag2,...> --warn-category-gain-below-points <points> --warn-tag-gain-below-count <count> --sample-limit <n>`
    - Treat the deterministic evidence report as the default review queue. Use the LLM only after the analyzer has already surfaced likely anchors, candidate cohorts, and contrast records.
+   - When a record is reviewed and judged not useful for the current family pass, classify it as a reviewed-negative candidate instead of forcing a tag. Use the reviewed-discovery ledger for durable `not_family_salient`, `insufficient_evidence`, `mixed_family_cues`, or `manual_lore_only` cases.
    - Use the movement evaluator to ask whether the expansion actually moved enough live records to justify the added rule complexity, and inspect gained/lost record samples for the touched tags.
    - Treat `publication_title`, source-folder/path slices, and similar source-origin metadata as discovery aids. They are useful for finding undercovered cohorts, choosing exemplars, and spotting likely book-local clusters, but they are not direct evidence for a setting tag by themselves.
    - Use the cohort output to identify likely candidates, repeated normalized phrases, trait/reference anchors, and false-positive classes. Do not treat embedding proximity as a direct tagging decision.
@@ -109,6 +111,7 @@ Default to this skill when any of these are true:
    - strong and weak anchors with thresholds
    - trait and name evidence over broad description-only evidence
    - linked-record evidence when available
+   - update `src/tags/discovery-reviewed-records.ts` for reviewed-negative records that should stop resurfacing in default family-gap discovery
 8. Add tests with every expansion batch.
    Cover:
    - direct derivation in `tests/tags/derived-tags-*.test.ts`
@@ -134,6 +137,7 @@ Default to this skill when any of these are true:
    - example newly covered records by tag
    - false-positive classes checked
    - what remains intentionally unmodeled
+   - any reviewed-negative records added to the discovery ledger and the reasons used
    If the canonical denominator changed between the baseline audit and rebuilt corpus, say so explicitly and report both denominators rather than implying a fixed total.
    Include one compact coverage line in the final report, for example: `36/718 -> 100/720 tagged hazards, +64 records, +8.9 percentage points`.
 

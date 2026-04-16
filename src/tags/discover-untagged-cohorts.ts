@@ -8,6 +8,10 @@ import { loadConfig } from "../app/config.js";
 import { ConsoleProgressReporter } from "../progress.js";
 import { SearchCategory, SearchSubcategory } from "../types.js";
 import {
+  isReviewedDiscoveryReason,
+  type ReviewedDiscoveryApplicationSummary,
+} from "./discovery-reviewed-records.js";
+import {
   discoverUntaggedCohorts,
   type UntaggedCohortOptions,
   type UntaggedCohortReport,
@@ -98,6 +102,8 @@ export function parseOptions(argv: string[]): UntaggedCohortOptions {
     subcategory: lastValue(args, "subcategory") as SearchSubcategory | undefined,
     family: lastValue(args, "family"),
     familyGapSignals: hasFlag(args, "family-gap-signals"),
+    includeReviewed: hasFlag(args, "include-reviewed"),
+    reviewReason: lastValue(args, "review-reason"),
     cohortLimit: parseInteger(lastValue(args, "cohort-limit"), "--cohort-limit"),
     anchorLimit: parseInteger(lastValue(args, "anchor-limit"), "--anchor-limit"),
     minFeatureSupport: parseInteger(lastValue(args, "min-feature-support"), "--min-feature-support"),
@@ -108,8 +114,22 @@ export function parseOptions(argv: string[]): UntaggedCohortOptions {
   if (options.familyGapSignals && !options.family) {
     throw new Error("Pass --family <derived-tag-family> when using --family-gap-signals.");
   }
+  if ((options.includeReviewed || options.reviewReason) && !options.family) {
+    throw new Error("Pass --family <derived-tag-family> when using reviewed-discovery controls.");
+  }
+  if (options.reviewReason && !options.includeReviewed) {
+    throw new Error("Pass --include-reviewed when using --review-reason.");
+  }
+  if (options.reviewReason && !isReviewedDiscoveryReason(options.reviewReason)) {
+    throw new Error(`Unknown --review-reason "${options.reviewReason}".`);
+  }
   resolveDiscoveryGramRange(options);
-  return options;
+  return {
+    ...options,
+    reviewReason: options.reviewReason && isReviewedDiscoveryReason(options.reviewReason)
+      ? options.reviewReason
+      : undefined,
+  };
 }
 
 export function formatHelp(): string {
@@ -122,6 +142,8 @@ export function formatHelp(): string {
     "  --subcategory <subcategory>      Narrow the discovery scope within the category",
     "  --family <derived-tag-family>    Restrict the missing-tag slice to one derived-tag family",
     "  --family-gap-signals             Re-rank family-scoped cohorts toward missing-family concepts and existing-tag overlap",
+    "  --include-reviewed               Include reviewed-negative family-gap records instead of excluding them by default",
+    "  --review-reason <reason>         Audit one reviewed-negative reason bucket (requires --include-reviewed)",
     "",
     "Discovery tuning:",
     "  --cohort-limit <n>               Maximum recommended cohorts to emit",
@@ -137,8 +159,23 @@ export function formatHelp(): string {
     "",
     "Examples:",
     "  npm run discover-untagged-cohorts -- --category creature --family setting --cohort-limit 8 --anchor-limit 16",
+    "  npm run discover-untagged-cohorts -- --category creature --family setting --include-reviewed --review-reason not_family_salient",
     "  npm run discover-untagged-cohorts -- --category equipment --subcategory gear --cohort-limit 8 --anchor-limit 16",
   ].join("\n");
+}
+
+function formatReviewedSummary(summary: ReviewedDiscoveryApplicationSummary): string[] {
+  const label = summary.mode === "excluded"
+    ? "Excluded reviewed records"
+    : summary.mode === "included"
+      ? "Included reviewed records"
+      : `Filtered reviewed records${summary.reviewReason ? ` (${summary.reviewReason})` : ""}`;
+  return [
+    `- ${label}: ${summary.appliedCount}/${summary.scopedCount}`,
+    `- Reviewed reason counts: ${summary.reasonCounts.length > 0
+      ? summary.reasonCounts.map((entry) => `${entry.reason}=${entry.count}`).join(", ")
+      : "(none)"}`,
+  ];
 }
 
 export function formatUntaggedCohortReport(report: UntaggedCohortReport): string {
@@ -151,6 +188,7 @@ export function formatUntaggedCohortReport(report: UntaggedCohortReport): string
     `- Baseline records: ${report.baselineRecordCount}`,
     ...(report.coveredRecordCount !== undefined ? [`- Covered family records: ${report.coveredRecordCount}`] : []),
     ...(report.liveTags ? [`- Live family tags: ${report.liveTags.join(", ") || "(none)"}`] : []),
+    ...(report.reviewedRecords ? formatReviewedSummary(report.reviewedRecords) : []),
     "",
     "Top anchors:",
     ...(report.anchorTerms.length > 0

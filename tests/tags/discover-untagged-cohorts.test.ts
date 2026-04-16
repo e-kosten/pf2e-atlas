@@ -1,7 +1,8 @@
 import { DatabaseSync } from "node:sqlite";
 
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
+import { REVIEWED_DISCOVERY_RECORDS } from "../../src/tags/discovery-reviewed-records.js";
 import {
   discoverUntaggedCohorts,
 } from "../../src/tags/untagged-cohort-discovery.js";
@@ -138,6 +139,15 @@ function insertReference(db: DatabaseSync, fromRecordKey: string, toRecordKey: s
 }
 
 describe("discover untagged cohorts", () => {
+  beforeEach(() => {
+    REVIEWED_DISCOVERY_RECORDS.creature ??= {};
+    REVIEWED_DISCOVERY_RECORDS.creature.setting ??= {};
+    REVIEWED_DISCOVERY_RECORDS.creature.setting.not_family_salient = [];
+    REVIEWED_DISCOVERY_RECORDS.creature.setting.insufficient_evidence = [];
+    REVIEWED_DISCOVERY_RECORDS.creature.setting.mixed_family_cues = [];
+    REVIEWED_DISCOVERY_RECORDS.creature.setting.manual_lore_only = [];
+  });
+
   it("proposes coherent cohorts from all untagged records in a scoped category", () => {
     const db = createDiscoveryDb();
     try {
@@ -302,6 +312,8 @@ describe("discover untagged cohorts", () => {
       "--subcategory", "gear",
       "--family", "purpose",
       "--family-gap-signals",
+      "--include-reviewed",
+      "--review-reason", "manual_lore_only",
       "--cohort-limit", "5",
       "--anchor-limit", "12",
       "--min-feature-support", "3",
@@ -315,6 +327,8 @@ describe("discover untagged cohorts", () => {
       subcategory: "gear",
       family: "purpose",
       familyGapSignals: true,
+      includeReviewed: true,
+      reviewReason: "manual_lore_only",
       cohortLimit: 5,
       anchorLimit: 12,
       minFeatureSupport: 3,
@@ -331,6 +345,13 @@ describe("discover untagged cohorts", () => {
       baselineRecordCount: 30,
       coveredRecordCount: 18,
       liveTags: ["fortress_setting", "temple_setting"],
+      reviewedRecords: {
+        mode: "excluded",
+        reviewReason: null,
+        scopedCount: 4,
+        appliedCount: 4,
+        reasonCounts: [{ reason: "not_family_salient", count: 4 }],
+      },
       anchorTerms: [
         { value: "masquerade", support: 4, baselineSupport: 5, lift: 4.8, score: 19.2, existingTagOverlaps: ["temple_setting"] },
       ],
@@ -371,6 +392,8 @@ describe("discover untagged cohorts", () => {
     expect(rendered).toContain("Untagged cohort summary:");
     expect(rendered).toContain("Family: purpose");
     expect(rendered).toContain("Covered family records: 18");
+    expect(rendered).toContain("Excluded reviewed records: 4/4");
+    expect(rendered).toContain("Reviewed reason counts: not_family_salient=4");
     expect(rendered).toContain("Top anchors:");
     expect(rendered).toContain("Recommended cohorts:");
     expect(rendered).toContain("classification=existing_tag_coverage_gap");
@@ -441,6 +464,92 @@ describe("discover untagged cohorts", () => {
       expect(report.family).toBe("setting");
       expect(report.untaggedRecordCount).toBe(3);
       expect(report.baselineRecordCount).toBe(5);
+    } finally {
+      db.close();
+    }
+  });
+
+  it("excludes reviewed family-gap negatives by default and can audit one reviewed reason bucket", () => {
+    const db = createDiscoveryDb();
+    try {
+      REVIEWED_DISCOVERY_RECORDS.creature!.setting!.not_family_salient = [
+        { recordKey: "creature:generic-raider" },
+        { recordKey: "creature:generic-marauder" },
+      ];
+
+      insertRecord(db, {
+        recordKey: "creature:covered-fortress",
+        name: "Fortress Ghost",
+        category: "creature",
+        traits: ["undead"],
+        descriptionText: "A ghost haunts abandoned fortresses and broken citadels.",
+        vector: [1, 0, 0],
+        tags: ["fortress_setting"],
+      });
+      insertRecord(db, {
+        recordKey: "creature:wall-phantom",
+        name: "Wall Phantom",
+        category: "creature",
+        traits: ["undead"],
+        descriptionText: "A phantom patrols fortress walls and crumbling battlements.",
+        vector: [0.99, 0.01, 0],
+      });
+      insertRecord(db, {
+        recordKey: "creature:keep-sentinel",
+        name: "Keep Sentinel",
+        category: "creature",
+        traits: ["construct"],
+        descriptionText: "An animate guardian stands watch over an old keep and its bastion.",
+        vector: [0.98, 0.02, 0],
+      });
+      insertRecord(db, {
+        recordKey: "creature:generic-raider",
+        name: "Generic Raider",
+        category: "creature",
+        traits: ["humanoid"],
+        descriptionText: "A marauder with no stable habitat cues and no obvious setting tie.",
+        vector: [0, 1, 0],
+      });
+      insertRecord(db, {
+        recordKey: "creature:generic-marauder",
+        name: "Generic Marauder",
+        category: "creature",
+        traits: ["humanoid"],
+        descriptionText: "A brute defined by role rather than place.",
+        vector: [0.02, 0.98, 0],
+      });
+
+      const defaultReport = discoverUntaggedCohorts(db, {
+        category: "creature",
+        family: "setting",
+        cohortLimit: 3,
+        anchorLimit: 8,
+      });
+      expect(defaultReport.untaggedRecordCount).toBe(2);
+      expect(defaultReport.reviewedRecords).toEqual(expect.objectContaining({
+        mode: "excluded",
+        scopedCount: 2,
+        appliedCount: 2,
+      }));
+
+      const reviewedReport = discoverUntaggedCohorts(db, {
+        category: "creature",
+        family: "setting",
+        includeReviewed: true,
+        reviewReason: "not_family_salient",
+        cohortLimit: 3,
+        anchorLimit: 8,
+      });
+      expect(reviewedReport.untaggedRecordCount).toBe(2);
+      expect(reviewedReport.reviewedRecords).toEqual(expect.objectContaining({
+        mode: "filtered",
+        reviewReason: "not_family_salient",
+        scopedCount: 2,
+        appliedCount: 2,
+      }));
+      expect(reviewedReport.cohorts.every((cohort) =>
+        cohort.representativeRecords.every((record) =>
+          record.recordKey === "creature:generic-raider" || record.recordKey === "creature:generic-marauder"))).toBe(true);
     } finally {
       db.close();
     }

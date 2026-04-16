@@ -8,6 +8,12 @@ import {
   normalizeDerivedTag,
 } from "./index.js";
 import {
+  getReviewedDiscoverySelection,
+  summarizeReviewedDiscoverySelection,
+  type ReviewedDiscoveryApplicationSummary,
+  type ReviewedDiscoveryReason,
+} from "./discovery-reviewed-records.js";
+import {
   classifyFamilyGapFeature,
   type FamilyGapFeatureBucket,
 } from "./family-gap-signals.js";
@@ -56,6 +62,7 @@ export type DiscoveryEvidenceReport = {
   family: string | null;
   cohortSize: number;
   baselineSize: number;
+  reviewedRecords?: ReviewedDiscoveryApplicationSummary;
   nameTokens: DiscoveryEvidenceTerm[];
   namePhrases: DiscoveryEvidenceTerm[];
   descriptionTokens: DiscoveryEvidenceTerm[];
@@ -98,6 +105,8 @@ export type DiscoveryEvidenceOptions = {
   excludeDerivedTag?: string;
   untaggedOnly?: boolean;
   familyGapSignals?: boolean;
+  includeReviewed?: boolean;
+  reviewReason?: ReviewedDiscoveryReason;
   limit?: number;
   exampleLimit?: number;
   minGramLength?: number;
@@ -542,6 +551,29 @@ export function analyzeDiscoveryEvidence(
   if (options.familyGapSignals && !normalizedFamily) {
     throw new Error("Pass --family <derived-tag-family> when using --family-gap-signals.");
   }
+  const reviewedSelection = normalizedFamily && (options.familyGapSignals || options.untaggedOnly)
+    ? getReviewedDiscoverySelection({
+      category: options.category,
+      subcategory: options.subcategory,
+      family: normalizedFamily,
+      includeReviewed: options.includeReviewed,
+      reviewReason: options.reviewReason,
+    })
+    : undefined;
+  const applyReviewedSelection = !explicitRecordKeys || explicitRecordKeys.length === 0;
+  const reviewedRecordKeys = applyReviewedSelection && reviewedSelection?.mode === "filtered"
+    ? reviewedSelection.recordKeys
+    : explicitRecordKeys;
+  const reviewedExcludedRecordKeys = uniqueSorted([
+    ...(options.excludeRecordKeys ?? []),
+    ...(applyReviewedSelection && reviewedSelection?.mode === "excluded" ? reviewedSelection.recordKeys : []),
+  ]);
+  const reviewedSummary = reviewedSelection
+    ? summarizeReviewedDiscoverySelection(
+      reviewedSelection,
+      applyReviewedSelection ? reviewedSelection.recordKeys.length : 0,
+    )
+    : undefined;
   const seedRecordKeys = normalizedTag && !explicitRecordKeys
     ? getDerivedTagSeedRecordKeys(normalizedTag, {
       category: options.category,
@@ -551,8 +583,8 @@ export function analyzeDiscoveryEvidence(
   const taggedRecords = loadDiscoveryRecords(db, {
     category: options.category,
     subcategory: options.subcategory,
-    recordKeys: explicitRecordKeys,
-    excludeRecordKeys: options.excludeRecordKeys,
+    recordKeys: reviewedRecordKeys,
+    excludeRecordKeys: reviewedExcludedRecordKeys,
     requireTag: normalizedTag,
     requireAnyDerivedTags: normalizedTag || options.untaggedOnly ? undefined : familyTags,
     excludeDerivedTag: options.excludeDerivedTag,
@@ -565,7 +597,7 @@ export function analyzeDiscoveryEvidence(
       category: options.category,
       subcategory: options.subcategory,
       recordKeys: seedRecordKeys,
-      excludeRecordKeys: options.excludeRecordKeys,
+      excludeRecordKeys: reviewedExcludedRecordKeys,
       includeVectors: false,
     })
     : [];
@@ -579,6 +611,8 @@ export function analyzeDiscoveryEvidence(
     const uncovered = loadDiscoveryRecords(db, {
       category: options.category,
       subcategory: options.subcategory,
+      recordKeys: reviewedRecordKeys,
+      excludeRecordKeys: reviewedExcludedRecordKeys,
       excludeAnyDerivedTags: familyTags,
       includeVectors: false,
     });
@@ -596,6 +630,7 @@ export function analyzeDiscoveryEvidence(
       category: options.category ?? null,
       subcategory: options.subcategory ?? null,
       family: normalizedFamily,
+      reviewedRecords: reviewedSummary,
       ...report,
       familyGap: analyzeFamilyGapEvidenceFromRecords(uncovered, covered, baseline, normalizedFamily, liveTags, options),
       representativeRecords: uncovered
@@ -613,6 +648,7 @@ export function analyzeDiscoveryEvidence(
     category: options.category ?? null,
     subcategory: options.subcategory ?? null,
     family: normalizedFamily ?? null,
+    reviewedRecords: reviewedSummary,
     ...report,
     representativeRecords: cohort
       .slice(0, Math.min(5, cohort.length))
