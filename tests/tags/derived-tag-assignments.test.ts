@@ -3,8 +3,11 @@ import { describe, expect, it } from "vitest";
 import type { DerivedTagCatalogEntry } from "../../src/types.js";
 import {
   buildDerivedTagExplicitAssignmentIndex,
+  buildDerivedTagPendingAssignmentViews,
+  createDerivedTagExplicitAssignmentIndex,
   validateDerivedTagExplicitAssignmentsAgainstRecords,
 } from "../../src/tags/assignments.js";
+import { CREATURE_DERIVED_TAG_CATALOG } from "../../src/tags/catalog/creature.js";
 import {
   buildDerivedTagSeedIndex,
   buildDerivedTagSeedLookup,
@@ -34,16 +37,32 @@ const assignmentCatalog: DerivedTagCatalogEntry[] = [
 ];
 
 describe("derived tag explicit assignments", () => {
-  it("flattens grouped family assignments into concrete include and exclude tags", () => {
+  it("flattens applied and excluded assignments into concrete include and exclude tags", () => {
     const assignmentIndex = buildDerivedTagExplicitAssignmentIndex(assignmentCatalog, [
       {
         category: "equipment",
         assignments: [
           {
-            recordKey: "equipment:mask",
             name: "Masquerade Mask",
-            byFamily: { infiltration: ["social_infiltration"] },
-            excludeByFamily: { infiltration: ["disguise"] },
+            recordKey: "equipment:mask",
+            applied: { infiltration: ["social_infiltration"] },
+            excluded: { infiltration: ["disguise"] },
+            review: {
+              infiltration: {
+                social_infiltration: {
+                  mode: "include",
+                  status: "approved",
+                  confidence: "high",
+                  rationale: "Tailored for moving through social spaces while disguised.",
+                },
+                disguise: {
+                  mode: "exclude",
+                  status: "approved",
+                  confidence: "high",
+                  rationale: "This record is using a narrower social fit than a broad disguise bucket.",
+                },
+              },
+            },
           },
         ],
       },
@@ -63,9 +82,9 @@ describe("derived tag explicit assignments", () => {
         category: "equipment",
         assignments: [
           {
-            recordKey: "equipment:mask",
             name: "Masquerade Mask",
-            byFamily: { stealth: ["social_infiltration"] },
+            recordKey: "equipment:mask",
+            applied: { stealth: ["social_infiltration"] },
           },
         ],
       },
@@ -76,9 +95,9 @@ describe("derived tag explicit assignments", () => {
         category: "equipment",
         assignments: [
           {
-            recordKey: "equipment:mask",
             name: "Masquerade Mask",
-            byFamily: { security: ["social_infiltration"] },
+            recordKey: "equipment:mask",
+            applied: { security: ["social_infiltration"] },
           },
         ],
       },
@@ -91,9 +110,18 @@ describe("derived tag explicit assignments", () => {
         category: "equipment",
         assignments: [
           {
-            recordKey: "equipment:mask",
             name: "Masquerade Mask",
-            byFamily: { infiltration: ["social_infiltration"] },
+            recordKey: "equipment:mask",
+            applied: { infiltration: ["social_infiltration"] },
+            review: {
+              infiltration: {
+                social_infiltration: {
+                  mode: "include",
+                  status: "approved",
+                  rationale: "Core assignment for the masquerade entry.",
+                },
+              },
+            },
           },
         ],
       },
@@ -108,16 +136,175 @@ describe("derived tag explicit assignments", () => {
     ], assignmentIndex)).toThrow(/expected name/);
   });
 
+  it("derives pending assignments from review metadata without making them live", () => {
+    const groups = [
+      {
+        category: "equipment" as const,
+        assignments: [
+          {
+            name: "Watch Bell",
+            recordKey: "equipment:bell",
+            review: {
+              security: {
+                alarm: {
+                  mode: "include",
+                  status: "needs_review",
+                  confidence: "medium",
+                  rationale: "Likely security-oriented, but the signal may be too weak to auto-apply.",
+                },
+              },
+            },
+          },
+        ],
+      },
+    ];
+
+    const assignmentIndex = buildDerivedTagExplicitAssignmentIndex(assignmentCatalog, groups);
+    expect(assignmentIndex.assignmentsByRecordKey.get("equipment:bell")).toEqual({
+      category: "equipment",
+      name: "Watch Bell",
+      includeTags: [],
+      excludeTags: [],
+    });
+
+    expect(buildDerivedTagPendingAssignmentViews(assignmentCatalog, groups)).toEqual([
+      {
+        name: "Watch Bell",
+        recordKey: "equipment:bell",
+        pending: {
+          security: ["alarm"],
+        },
+      },
+    ]);
+  });
+
+  it("throws on illegal live assignment states", () => {
+    expect(() => buildDerivedTagExplicitAssignmentIndex(assignmentCatalog, [
+      {
+        category: "equipment",
+        assignments: [
+          {
+            name: "Masquerade Mask",
+            recordKey: "equipment:mask",
+            applied: { infiltration: ["social_infiltration"] },
+          },
+        ],
+      },
+    ])).toThrow(/missing review metadata/);
+
+    expect(() => buildDerivedTagExplicitAssignmentIndex(assignmentCatalog, [
+      {
+        category: "equipment",
+        assignments: [
+          {
+            name: "Masquerade Mask",
+            recordKey: "equipment:mask",
+            applied: { infiltration: ["social_infiltration"] },
+            excluded: { infiltration: ["social_infiltration"] },
+            review: {
+              infiltration: {
+                social_infiltration: {
+                  mode: "include",
+                  status: "approved",
+                  rationale: "Conflicting live placement should be rejected.",
+                },
+              },
+            },
+          },
+        ],
+      },
+    ])).toThrow(/both applied and excluded/);
+
+    expect(() => buildDerivedTagExplicitAssignmentIndex(assignmentCatalog, [
+      {
+        category: "equipment",
+        assignments: [
+          {
+            name: "Watch Bell",
+            recordKey: "equipment:bell",
+            applied: { security: ["alarm"] },
+            review: {
+              security: {
+                alarm: {
+                  mode: "include",
+                  status: "needs_review",
+                  rationale: "Needs review items must not be live.",
+                },
+              },
+            },
+          },
+        ],
+      },
+    ])).toThrow(/review status is "needs_review"/);
+
+    expect(() => buildDerivedTagExplicitAssignmentIndex(assignmentCatalog, [
+      {
+        category: "equipment",
+        assignments: [
+          {
+            name: "Watch Bell",
+            recordKey: "equipment:bell",
+            review: {
+              security: {
+                alarm: {
+                  mode: "include",
+                  status: "auto_applied",
+                  rationale: "Live auto-applied entries must appear in applied.",
+                },
+              },
+            },
+          },
+        ],
+      },
+    ])).toThrow(/missing from applied/);
+
+    expect(() => buildDerivedTagExplicitAssignmentIndex(assignmentCatalog, [
+      {
+        category: "equipment",
+        assignments: [
+          {
+            name: "Masquerade Mask",
+            recordKey: "equipment:mask",
+            excluded: { infiltration: ["disguise"] },
+            review: {
+              infiltration: {
+                disguise: {
+                  mode: "include",
+                  status: "approved",
+                  rationale: "Review mode must agree with live excluded placement.",
+                },
+              },
+            },
+          },
+        ],
+      },
+    ])).toThrow(/marks excluded tag "infiltration\.disguise" with review mode "include"/);
+  });
+
   it("merges explicit assignments into derivation and applies exclusions before family promotion", () => {
     const assignmentIndex = buildDerivedTagExplicitAssignmentIndex(assignmentCatalog, [
       {
         category: "equipment",
         assignments: [
           {
-            recordKey: "equipment:mask",
             name: "Masquerade Mask",
-            byFamily: { infiltration: ["social_infiltration"] },
-            excludeByFamily: { infiltration: ["disguise"] },
+            recordKey: "equipment:mask",
+            applied: { infiltration: ["social_infiltration"] },
+            excluded: { infiltration: ["disguise"] },
+            review: {
+              infiltration: {
+                social_infiltration: {
+                  mode: "include",
+                  status: "auto_applied",
+                  rationale: "Live high-confidence assignment.",
+                },
+                disguise: {
+                  mode: "exclude",
+                  status: "approved",
+                  rationale: "Explicitly keeping the broader disguise tag off this record.",
+                },
+              },
+            },
           },
         ],
       },
@@ -136,6 +323,11 @@ describe("derived tag explicit assignments", () => {
     expect(derivation.sources.get("social_infiltration")).toBe("assignment");
     expect(derivation.sources.get("infiltration")).toBe("assignment");
     expect(derivation.tags).not.toContain("disguise");
+  });
+
+  it("keeps the real authored creature assignments in a legal state", () => {
+    expect(() => createDerivedTagExplicitAssignmentIndex(CREATURE_DERIVED_TAG_CATALOG)).not.toThrow();
+    expect(buildDerivedTagPendingAssignmentViews(CREATURE_DERIVED_TAG_CATALOG)).toEqual([]);
   });
 
   it("applies configured creature assignments to live record keys", () => {
