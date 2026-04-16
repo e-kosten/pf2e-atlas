@@ -107,6 +107,102 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
     },
   });
 
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "cinder-rat.json"), {
+    _id: "fixture-cinder-rat",
+    name: "Cinder Rat",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 2,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>These oversized rodents are made of smoldering charcoal and elemental fire. Even other fire elementals are glad when they are summoned away from the Plane of Fire.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["elemental", "fire"],
+        size: {
+          value: "sm",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "elemental-hurricane.json"), {
+    _id: "fixture-elemental-hurricane",
+    name: "Elemental Hurricane",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 11,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>Elemental hurricanes embody the ferocity of violent windstorms. Hailing from the Plane of Air, these beings appear in a variety of sizes and shapes.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["air", "elemental"],
+        size: {
+          value: "huge",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "brine-shark.json"), {
+    _id: "fixture-brine-shark",
+    name: "Brine Shark",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 7,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>Brine sharks are deadly elementals that roam the endless oceans of the Plane of Water.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["aquatic", "elemental", "water"],
+        size: {
+          value: "lg",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "carnivorous-crystal.json"), {
+    _id: "fixture-carnivorous-crystal",
+    name: "Carnivorous Crystal",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 6,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>Carnivorous crystals are strange ooze creatures native to the Plane of Earth.</p>",
+      },
+      traits: {
+        rarity: "uncommon",
+        value: ["earth", "mindless", "ooze"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
   await writeJson(path.join(packRoot, "pathfinder-monster-core", "azarketi-scout.json"), {
     _id: "azarketi-scout",
     name: "Azarketi Scout",

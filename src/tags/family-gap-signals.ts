@@ -100,6 +100,18 @@ const EXISTING_SETTING_TAG_CUES: Record<string, SettingCueSpec> = {
   astral_setting: {
     strong: ["astral", "silver void"],
   },
+  plane_of_fire_setting: {
+    strong: ["plane of fire"],
+  },
+  plane_of_air_setting: {
+    strong: ["plane of air"],
+  },
+  plane_of_water_setting: {
+    strong: ["plane of water"],
+  },
+  plane_of_earth_setting: {
+    strong: ["plane of earth"],
+  },
   first_world_setting: {
     strong: ["first world", "fey realm"],
   },

@@ -375,6 +375,34 @@ const AXIS_SETTING_TEXT_ANCHORS = [
   patternAnchor("of axis"),
 ];
 
+const PLANE_OF_FIRE_SETTING_TEXT_ANCHORS = [
+  patternAnchor("native to the plane of fire"),
+  patternAnchor("hail from the plane of fire"),
+  patternAnchor("hailing from the plane of fire"),
+  patternAnchor("summoned away from the plane of fire"),
+];
+
+const PLANE_OF_AIR_SETTING_TEXT_ANCHORS = [
+  patternAnchor("native to the plane of air"),
+  patternAnchor("hail from the plane of air"),
+  patternAnchor("hailing from the plane of air"),
+  patternAnchor("on the plane of air"),
+];
+
+const PLANE_OF_WATER_SETTING_TEXT_ANCHORS = [
+  patternAnchor("native to the plane of water"),
+  patternAnchor("hail from the plane of water"),
+  patternAnchor("hailing from the plane of water"),
+  patternAnchor("endless oceans of the plane of water"),
+];
+
+const PLANE_OF_EARTH_SETTING_TEXT_ANCHORS = [
+  patternAnchor("native to the plane of earth"),
+  patternAnchor("hail from the plane of earth"),
+  patternAnchor("hailing from the plane of earth"),
+  patternAnchor("coming from the plane of earth"),
+];
+
 const JUNGLE_SETTING_NAME_ANCHORS = [
   patternAnchor("jungle", "name"),
   patternAnchor("rainforest", "name"),
@@ -609,6 +637,8 @@ const SWAMP_SETTING_TEXT_ANCHORS = [
   patternAnchor("bog or swamp"),
   patternAnchor("swamp or bog"),
   patternAnchor("bogs or swamps"),
+  patternAnchor("swampy environment"),
+  patternAnchor("swampland environment"),
   patternAnchor("tropical swamps"),
 ];
 
@@ -623,6 +653,9 @@ const NAUTICAL_SETTING_TEXT_ANCHORS = [
   patternAnchor("aboard ships"),
   patternAnchor("black ships"),
   patternAnchor("load and unload cargo from ships"),
+  patternAnchor("ship s boatswain"),
+  patternAnchor("shipboard"),
+  patternAnchor("shipboard labor"),
   patternAnchor("aboard a derelict ship"),
 ];
 
@@ -721,6 +754,7 @@ const FOREST_SETTING_EXACT_TEXT_ANCHORS = [
   patternAnchor("forest creatures"),
   patternAnchor("forest denizen"),
   patternAnchor("forest denizens"),
+  patternAnchor("deep into the forest"),
   patternAnchor("in a nearby woodland"),
   patternAnchor("the very woods in which they reside"),
   patternAnchor("deep within the woods"),
@@ -776,7 +810,12 @@ const URBAN_SETTING_EXACT_TEXT_ANCHORS = [
   patternAnchor("upper echelons of society"),
   patternAnchor("city servant"),
   patternAnchor("city servants"),
+  patternAnchor("city dwelling"),
+  patternAnchor("city-dwelling"),
+  patternAnchor("city dwelling gargoyles"),
+  patternAnchor("city-dwelling gargoyles"),
   patternAnchor("city of smog"),
+  patternAnchor("hide in plain sight in cities"),
   patternAnchor("urban pollution"),
   patternAnchor("lords of sewers"),
   patternAnchor("storm drain"),
@@ -1280,6 +1319,86 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
       { textAny: [patternAnchor("astral")] },
       { textAny: ASTRAL_SETTING_CONTEXT_TEXT_ANCHORS },
     ],
+  },
+  {
+    tag: "plane_of_fire_setting",
+    category: "creature",
+    anyOf: [
+      { traitsAll: ["elemental", "fire"] },
+      { traitsAll: ["genie", "fire"] },
+    ],
+  },
+  {
+    tag: "plane_of_fire_setting",
+    category: "creature",
+    anyOf: [
+      { textAny: PLANE_OF_FIRE_SETTING_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "plane_of_air_setting",
+    category: "creature",
+    anyOf: [
+      { traitsAll: ["elemental", "air"] },
+      { traitsAll: ["genie", "air"] },
+    ],
+  },
+  {
+    tag: "plane_of_air_setting",
+    category: "creature",
+    anyOf: [
+      { textAny: PLANE_OF_AIR_SETTING_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "plane_of_water_setting",
+    category: "creature",
+    anyOf: [
+      { traitsAll: ["elemental", "water"] },
+      { traitsAll: ["genie", "water"] },
+    ],
+  },
+  {
+    tag: "plane_of_water_setting",
+    category: "creature",
+    anyOf: [
+      { textAny: PLANE_OF_WATER_SETTING_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "plane_of_earth_setting",
+    category: "creature",
+    anyOf: [
+      { traitsAll: ["elemental", "earth"] },
+      { traitsAll: ["genie", "earth"] },
+    ],
+  },
+  {
+    tag: "plane_of_earth_setting",
+    category: "creature",
+    anyOf: [
+      { textAny: PLANE_OF_EARTH_SETTING_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "elemental_plane_setting",
+    category: "creature",
+    requiresTags: ["plane_of_fire_setting"],
+  },
+  {
+    tag: "elemental_plane_setting",
+    category: "creature",
+    requiresTags: ["plane_of_air_setting"],
+  },
+  {
+    tag: "elemental_plane_setting",
+    category: "creature",
+    requiresTags: ["plane_of_water_setting"],
+  },
+  {
+    tag: "elemental_plane_setting",
+    category: "creature",
+    requiresTags: ["plane_of_earth_setting"],
   },
   {
     tag: "first_world_setting",
@@ -1807,6 +1926,19 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "urban_setting",
     category: "creature",
+    anyOf: [
+      {
+        textAny: [
+          patternAnchor("hide in plain sight in cities"),
+          patternAnchor("city dwelling gargoyles"),
+          patternAnchor("city-dwelling gargoyles"),
+        ],
+      },
+    ],
+  },
+  {
+    tag: "urban_setting",
+    category: "creature",
     noneOf: [
       { textAny: URBAN_SETTING_BLOCKER_TEXT_ANCHORS },
       { textAny: URBAN_SETTING_SETTLEMENT_LIST_TEXT_ANCHORS, minTextAnyMatches: 2 },
@@ -1983,6 +2115,8 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
         textAny: [
           patternAnchor("ancient ruins"),
           patternAnchor("ruins of"),
+          patternAnchor("fortified ruins"),
+          patternAnchor("operating out of fortified ruins"),
           patternAnchor("collapsed temple"),
           patternAnchor("ruined temple"),
           patternAnchor("ruined city"),
@@ -2062,7 +2196,14 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
           6,
         ),
       },
-      { score: 2, textAny: [patternAnchor("sky citadel", "description")] },
+      {
+        score: 2,
+        textAny: [
+          patternAnchor("sky citadel", "description"),
+          patternAnchor("fortified ruins", "description"),
+          patternAnchor("operating out of fortified ruins", "description"),
+        ],
+      },
     ],
   },
   {

@@ -364,6 +364,10 @@ const ABYSS_SETTING_TEXT_ANCHORS: TextAnchor[] = [
   patternAnchor("from the abyss"),
   patternAnchor("in the abyss"),
   patternAnchor("abyssal realm"),
+  patternAnchor("abyssal"),
+  patternAnchor("outer rifts"),
+  patternAnchor("in the outer rifts"),
+  patternAnchor("of the outer rifts"),
 ];
 
 const SHADOW_PLANE_SETTING_TEXT_ANCHORS: TextAnchor[] = [

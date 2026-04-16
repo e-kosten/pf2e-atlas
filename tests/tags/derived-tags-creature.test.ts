@@ -373,6 +373,14 @@ describe("derived tag rules: creature", () => {
     })).toContain("urban_setting");
 
     expect(deriveRecordTags({
+      name: "Gargoyle",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Gargoyles are monstrous hunters made of elemental stone. They use their resemblance to decorative statues to hide in plain sight in cities during the day. City-dwelling gargoyles who remain in the same locale long enough slowly morph to match the style of the local architecture.",
+      traits: ["beast", "earth"],
+    })).toContain("urban_setting");
+
+    expect(deriveRecordTags({
       name: "Watch Officer",
       category: "creature",
       subcategory: null,
@@ -467,6 +475,14 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "Huldras are wardens of the woodlands they occupy, grown from saplings by powerful forest-dwelling fey to protect the forest itself.",
       traits: ["fey"],
+    })).toContain("forest_setting");
+
+    expect(deriveRecordTags({
+      name: "Gumiho",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Gumihos are legendary nine-tailed fox creatures who, when disguised in humanoid form, use charm and guile to lure prey deep into the forest before revealing their true form and striking.",
+      traits: ["chaotic", "evil", "fey"],
     })).toContain("forest_setting");
 
     expect(deriveRecordTags({
@@ -692,6 +708,14 @@ describe("derived tag rules: creature", () => {
       descriptionText: "Hunter wights renew their hunt with equal vigor and frequently take residence within abandoned watchtowers and keeps.",
       traits: ["undead"],
     })).toContain("fortress_setting");
+
+    expect(deriveRecordTags({
+      name: "Ahvothian",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Ahvothians are feral and cunning fiends from an Abyssal realm of jungles, dinosaurs, and relentless brutality. Relentless trackers and survivalists, ahvothians are most commonly encountered stalking prey or operating out of fortified ruins.",
+      traits: ["div", "fiend", "unholy"],
+    })).toEqual(expect.arrayContaining(["fortress_setting", "ruins_setting"]));
 
     expect(deriveRecordTags({
       name: "Red Dragon (Adult)",
@@ -1089,6 +1113,14 @@ describe("derived tag rules: creature", () => {
     })).toContain("swamp_setting");
 
     expect(deriveRecordTags({
+      name: "Swamp Blight",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A swamp blight appears as a quivering blob of rancid brown and green mud from which dozens of hateful red eyes peer. While a swamp blight can dominate undead in its cursed domain, it prefers to gather and control undead that would prosper in a swampy environment and the broader swampland environment around it.",
+      traits: ["blight", "ooze"],
+    })).toContain("swamp_setting");
+
+    expect(deriveRecordTags({
       name: "Dread Wisp",
       category: "creature",
       subcategory: null,
@@ -1175,6 +1207,80 @@ describe("derived tag rules: creature", () => {
       descriptionText: "Working to load and unload cargo from ships, dockhands are considered unruly, but many stay focused and work hard until the job is done.",
       traits: ["human", "humanoid"],
     })).toContain("nautical_setting");
+
+    expect(deriveRecordTags({
+      name: "Bosun",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A ship's boatswain, or bosun, leads the deckhands who maintain the ship and oversees shipboard labor and discipline.",
+      traits: ["human", "humanoid"],
+    })).toContain("nautical_setting");
+  });
+
+  it("derives elemental plane setting tags conservatively", () => {
+    expect(deriveRecordTags({
+      name: "Ifrit",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "The fierce and unforgiving ifrits hail from the Plane of Fire, where they build metropolises and trade centers that draw extraplanar travelers.",
+      traits: ["elemental", "fire", "genie"],
+    })).toEqual(expect.arrayContaining(["plane_of_fire_setting", "elemental_plane_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Elemental Hurricane",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Elemental hurricanes embody the ferocity of violent windstorms. Hailing from the Plane of Air, these beings appear in a variety of sizes and shapes.",
+      traits: ["air", "elemental"],
+    })).toEqual(expect.arrayContaining(["plane_of_air_setting", "elemental_plane_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Brine Shark",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Brine sharks are deadly elementals that roam the endless oceans of the Plane of Water. They often slip into mortal oceans as well.",
+      traits: ["aquatic", "elemental", "water"],
+    })).toEqual(expect.arrayContaining(["plane_of_water_setting", "elemental_plane_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Carnivorous Crystal",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Carnivorous crystals are strange ooze creatures native to the Plane of Earth.",
+      traits: ["earth", "mindless", "ooze"],
+    })).toEqual(expect.arrayContaining(["plane_of_earth_setting", "elemental_plane_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Cinder Tyrant",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A blazing tyrant crowned in smoke and cinders rises from a volcanic caldera.",
+      traits: ["dragon", "fire"],
+    })).not.toContain("plane_of_fire_setting");
+
+    expect(deriveRecordTags({
+      name: "Melody on the Wind",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "While the melody on the wind, known by some as a song elemental, might enjoy the beauty of music, it is by nature a destructive elemental force. Some elementals embody aspects of air, such as smoke, lightning, and fog.",
+      traits: ["air", "elemental"],
+    })).toEqual(expect.arrayContaining(["plane_of_air_setting", "elemental_plane_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Sky Fisher",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Naturalists believe the sky fisher evolved into a new ecological niche through prolonged exposure to elemental energies from the Plane of Air.",
+      traits: ["animal"],
+    })).not.toContain("plane_of_air_setting");
+
+    expect(deriveRecordTags({
+      name: "Adamantine Golem",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Crafting an adamantine golem requires a quantity of adamantine so massive that collecting it usually requires mounting a mining expedition to a distant planet, the Plane of Earth, or an Outer Plane.",
+      traits: ["construct", "golem", "mindless"],
+    })).not.toContain("plane_of_earth_setting");
   });
 
   it("derives creature motif tags without collapsing into raw vibes", () => {
@@ -2113,6 +2219,14 @@ describe("derived tag rules: creature", () => {
     })).not.toContain("abyss_setting");
 
     expect(deriveRecordTags({
+      name: "Bloody Hands",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Bloody Hands first rose from the polluted swamps of a remote fen in the Outer Rifts, where he fought for his own domain in the sprawling slime.",
+      traits: ["amphibious", "demon", "fiend"],
+    })).toEqual(expect.arrayContaining(["abyss_setting", "lower_plane_setting"]));
+
+    expect(deriveRecordTags({
       name: "Cythnigot",
       category: "creature",
       subcategory: null,
@@ -2183,6 +2297,14 @@ describe("derived tag rules: creature", () => {
       descriptionText: "To survive living in the Worldwound, Sarkorian wolves developed defenses against the Abyss.",
       traits: ["animal"],
     })).not.toContain("lower_plane_setting");
+
+    expect(deriveRecordTags({
+      name: "Demonologist",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Demonologists can pull a creature from the Outer Rifts and bend it to their will... for a time.",
+      traits: ["human", "humanoid"],
+    })).not.toContain("abyss_setting");
 
     expect(deriveRecordTags({
       name: "Shae",
