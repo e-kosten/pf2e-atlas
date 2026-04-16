@@ -1,5 +1,5 @@
-export { AFFLICTION_LEGACY_DERIVED_TAG_RULES } from "./affliction.js";
-export { CREATURE_LEGACY_DERIVED_TAG_RULES } from "./creature.js";
-export { EQUIPMENT_LEGACY_DERIVED_TAG_RULES } from "./equipment.js";
-export { HAZARD_LEGACY_DERIVED_TAG_RULES } from "./hazard.js";
-export { SPELL_LEGACY_DERIVED_TAG_RULES } from "./spell.js";
+export { AFFLICTION_DERIVED_TAG_RULES as AFFLICTION_LEGACY_DERIVED_TAG_RULES } from "./affliction.js";
+export { CREATURE_DERIVED_TAG_RULES as CREATURE_LEGACY_DERIVED_TAG_RULES } from "./creature.js";
+export { EQUIPMENT_DERIVED_TAG_RULES as EQUIPMENT_LEGACY_DERIVED_TAG_RULES } from "./equipment.js";
+export { HAZARD_DERIVED_TAG_RULES as HAZARD_LEGACY_DERIVED_TAG_RULES } from "./hazard.js";
+export { SPELL_DERIVED_TAG_RULES as SPELL_LEGACY_DERIVED_TAG_RULES } from "./spell.js";
