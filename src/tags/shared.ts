@@ -376,7 +376,6 @@ const BONEYARD_SETTING_TEXT_ANCHORS: TextAnchor[] = [
 
 const BONEYARD_SETTING_CONTEXT_TEXT_ANCHORS: TextAnchor[] = [
   patternAltAnchor(["guard", "guards"]),
-  patternAnchor("passing"),
   patternAnchor("psychopomp"),
   patternAltAnchor(["repair", "repairs"]),
   patternAltAnchor(["sentinel", "sentinels"]),

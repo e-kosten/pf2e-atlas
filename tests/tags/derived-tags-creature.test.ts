@@ -10,7 +10,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "This cemetery guard patrols the crypts beneath the old city.",
       traits: [],
-    })).toEqual(expect.arrayContaining(["graveyard_setting", "urban_setting", "profession_npc", "civic_npc"]));
+    })).toEqual(expect.arrayContaining(["graveyard_setting", "profession_npc", "civic_npc"]));
     expect(deriveRecordTags({
       name: "Graveyard Guard",
       category: "creature",
@@ -595,7 +595,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "The mysterious undead known as shadows lurk in dark places and feed on those who stray too far from the light.",
       traits: ["undead"],
-    })).toContain("fortress_setting");
+    })).not.toContain("fortress_setting");
 
     expect(deriveRecordTags({
       name: "Sewer Ooze",
@@ -700,6 +700,14 @@ describe("derived tag rules: creature", () => {
       descriptionText: "Requiem dragons are stewards of the River of Souls and the process through which souls reach their final destination in the afterlife. Some follow individual souls from their first entry into the river through to their judgment in the Boneyard.",
       traits: ["divine", "dragon"],
     })).toContain("boneyard_setting");
+
+    expect(deriveRecordTags({
+      name: "Phantom Beast",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "The typical trajectory for souls passing to the afterlife is fairly straightforward, according to most theologians. When a mortal dies, their soul enters the River of Souls and eventually reaches the Boneyard, where it is judged by Pharasma. Complications arise, however, when a soul in queue for judgment prematurely departs from the River of Souls and is shunted into the Ethereal Plane.",
+      traits: ["ethereal", "incorporeal", "phantom", "spirit"],
+    })).not.toContain("boneyard_setting");
 
     expect(deriveRecordTags({
       name: "Hunter Wight",
@@ -1373,6 +1381,14 @@ describe("derived tag rules: creature", () => {
     })).toContain("trickster_chaos");
 
     expect(deriveRecordTags({
+      name: "Brass Dragon",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Most brass dragons live in desert climates, and while they keep their lairs hidden, they often build near humanoid settlements.",
+      traits: ["chaotic", "dragon", "fire"],
+    })).not.toContain("urban_setting");
+
+    expect(deriveRecordTags({
       name: "Dancer",
       category: "creature",
       subcategory: null,
@@ -1703,6 +1719,14 @@ describe("derived tag rules: creature", () => {
     })).not.toContain("boneyard_setting");
 
     expect(deriveRecordTags({
+      name: "Taon",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Some mohrgs haunt locations they favored in life, reenacting old crimes on new victims. They may even skulk about in public, wearing rags, cloaks, or freshly harvested skins to hide their nature. The most dangerous mohrgs openly assault settlements in an attempt to turn living towns into mass graves.",
+      traits: ["chaotic", "evil", "undead", "unholy"],
+    })).not.toContain("urban_setting");
+
+    expect(deriveRecordTags({
       name: "Jah-Tohl",
       category: "creature",
       subcategory: null,
@@ -1748,7 +1772,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "Wraiths may form packs with others of their kind in places where death and mayhem are commonplace-countrysides ravaged by war, metropolitan underworlds run by criminal overlords, or sites of fiendish cultic rituals. Ruins, sewers, and abandoned buildings provide sanctuary for wraiths during the day, as the creatures hunt exclusively at night or in dark places. Wraiths are smart enough to take advantage of their incorporeality in combat, so they keep to tortuous caverns or structures with hallways and avoid open areas.",
       traits: ["undead"],
-    })).toContain("fortress_setting");
+    })).not.toContain("fortress_setting");
 
     expect(deriveRecordTags({
       name: "Watchtower Wraith",

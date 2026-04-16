@@ -348,16 +348,12 @@ const TRICKSTER_CHAOS_TEXT_ANCHORS = [
 ];
 
 const BONEYARD_SETTING_STEWARDSHIP_TEXT_ANCHORS = [
-  patternAnchor("river of souls"),
   patternAnchor("call of the boneyard"),
   patternAnchor("safe journey of a soul"),
   patternAnchor("safe journey of souls"),
-  patternAnchor("natural flow of life"),
   patternAnchor("guide the dead"),
   patternAnchor("guides the dead"),
   patternAnchor("guided the dead to the boneyard"),
-  patternAnchor("final destination in the afterlife"),
-  patternAnchor("souls reach their final destination"),
   patternAnchor("judgment in the boneyard"),
   patternAnchor("their judgment in the boneyard"),
   patternAnchor("follow individual souls"),
@@ -582,15 +578,7 @@ const URBAN_SETTING_NAME_ANCHORS = [
   patternAnchor("sewer", "name"),
   patternAnchor("gutter", "name"),
   patternAnchor("gutters", "name"),
-];
-
-const FORTRESS_SETTING_NAME_ANCHORS = [
-  patternAnchor("fortress", "name"),
-  patternAnchor("citadel", "name"),
-  patternAnchor("castle", "name"),
-  patternAnchor("keep", "name"),
-  patternAnchor("bastion", "name"),
-  patternAnchor("watchtower", "name"),
+  patternAnchor("watch officer", "name"),
 ];
 
 const FORTRESS_SETTING_RESIDENCE_CONTEXT_TEXT_ANCHOR = patternAltAnchor(["within", "inside", "among", "take residence", "takes residence", "taking residence", "reside", "resides", "residing", "stationed", "posted", "quartered"], "description");
@@ -603,7 +591,7 @@ const FORTRESS_SETTING_STRUCTURE_TEXT_ANCHORS = [
   FORTRESS_KEEP_NOUN_TEXT_ANCHOR,
 ];
 const FORTRESS_SETTING_SITE_TEXT_ANCHORS = [
-  patternAltAnchor(["fortress", "fortresses", "castle", "castles", "citadel", "citadels", "stronghold", "strongholds", "bastion", "bastions", "watchtower", "watchtowers", "fort", "forts", "garrison"], "description"),
+  patternAltAnchor(["fortress", "fortresses", "castle", "castles", "citadel", "citadels", "stronghold", "strongholds", "bastion", "bastions", "watchtower", "watchtowers"], "description"),
   FORTRESS_KEEP_NOUN_TEXT_ANCHOR,
 ];
 
@@ -859,10 +847,7 @@ const URBAN_SETTING_GOVERNANCE_TEXT_ANCHORS = [
   patternAnchor("city guard"),
   patternAnchor("maintain order and enforce laws"),
   patternAnchor("major urban centers"),
-  patternAnchor("political leader of a settlement"),
-  patternAnchor("leader of a nation s bureaucracy"),
   patternAnchor("guard important magistrates"),
-  patternAnchor("enforce the law"),
   patternAnchor("official spymasters"),
   patternAnchor("loyal city servant"),
   patternAnchor("in rough akitonian cities like seldo"),
@@ -1981,13 +1966,10 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     anyOf: [
       { score: 2, textAny: URBAN_SETTING_EXACT_TEXT_ANCHORS },
       { score: 2, textAny: URBAN_SETTING_NAME_ANCHORS },
-      { score: 2, textAny: URBAN_SETTING_GOVERNANCE_TEXT_ANCHORS },
-      { score: 1, familiesAny: ["official"] },
-      { score: 1, textAny: [patternAnchor("enforce the law"), patternAnchor("settlement"), patternAnchor("settlements")] },
       {
         score: 2,
         textNear: createCreatureSettingTextNear(
-          "city,cities,urban,street,streets,alley,alleys,sewer,sewers,town,towns,gutter,gutters,culvert,culverts,drain,drains,drainage",
+          "street,streets,alley,alleys,sewer,sewers,gutter,gutters,culvert,culverts,drain,drains,drainage",
           CREATURE_SITE_HABITAT_CONTEXT_TEXT_ANCHOR,
         ),
       },
@@ -1999,6 +1981,19 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
           10,
         ),
       },
+    ],
+  },
+  {
+    tag: "urban_setting",
+    category: "creature",
+    noneOf: [
+      { textAny: URBAN_SETTING_BLOCKER_TEXT_ANCHORS },
+      { textAny: URBAN_SETTING_SETTLEMENT_LIST_TEXT_ANCHORS, minTextAnyMatches: 2 },
+    ],
+    threshold: 3,
+    anyOf: [
+      { score: 2, textAny: URBAN_SETTING_GOVERNANCE_TEXT_ANCHORS },
+      { score: 1, familiesAny: ["official"] },
     ],
   },
   {
@@ -2200,18 +2195,10 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "creature",
     threshold: 2,
     anyOf: [
-      { score: 2, textAny: FORTRESS_SETTING_NAME_ANCHORS },
       {
         score: 2,
         textNear: createCreatureSettingTextNearAnchors(
           FORTRESS_SETTING_STRUCTURE_TEXT_ANCHORS,
-          CREATURE_SITE_HABITAT_CONTEXT_TEXT_ANCHOR,
-        ),
-      },
-      {
-        score: 2,
-        textNear: createCreatureSettingTextNear(
-          "fort,forts,garrison",
           CREATURE_SITE_HABITAT_CONTEXT_TEXT_ANCHOR,
         ),
       },
