@@ -17,6 +17,12 @@ const DAMAGE_TYPE_LABELS = new Set(["acid", "cold", "electricity", "fire", "pois
 const DRAGON_AGE_LABELS = new Set(["wyrmling", "hatchling", "young", "juvenile", "adult", "ancient", "greatwyrm"]);
 const SPECIALIZATION_LABELS = new Set(["spellcaster", "elite", "weak", "variant"]);
 const GENDER_LABELS = new Set(["male", "female"]);
+const CREATURE_SUFFIX_FAMILY_ALLOWLIST = new Map<string, string>([
+  ["ghost", "ghost"],
+  ["ghoul", "ghoul"],
+  ["wight", "wight"],
+  ["wraith", "wraith"],
+]);
 const STRUCTURAL_LINE_PREFIXES = [
   "activate",
   "effect",
@@ -536,6 +542,45 @@ function parseCreatureReferenceCandidate(
   return null;
 }
 
+function parseCreatureSuffixFamilyCandidate(
+  entry: IndexedRecordEntry,
+  exactNameLookup: Map<string, IndexedRecordEntry[]>,
+): TitleCandidate | null {
+  if (entry.record.category !== "creature") {
+    return null;
+  }
+
+  const normalizedName = normalizeText(entry.record.name);
+  if (!normalizedName) {
+    return null;
+  }
+
+  for (const [baseName, requiredTrait] of CREATURE_SUFFIX_FAMILY_ALLOWLIST) {
+    if (normalizedName === baseName || !normalizedName.endsWith(` ${baseName}`)) {
+      continue;
+    }
+    if (!entry.record.traits.includes(requiredTrait)) {
+      continue;
+    }
+
+    const resolvedBaseEntries = exactNameLookup.get(exactLookupKey(entry, toTitleWords(baseName))) ?? [];
+    if (!resolvedBaseEntries.some((baseEntry) => baseEntry.record.traits.includes(requiredTrait))) {
+      continue;
+    }
+
+    return {
+      baseName: toTitleWords(baseName),
+      label: entry.record.name,
+      axes: ["other"],
+      source: "namePattern",
+      confidence: 0.68,
+      fallbackEligible: false,
+    };
+  }
+
+  return null;
+}
+
 function normalizeTitleToken(value: string): string {
   return value
     .toLowerCase()
@@ -1000,6 +1045,34 @@ export function assignVariantFamilies(entries: IndexedRecordEntry[]): void {
     const priorGroupKey = structuredGroupKeys.get(entry.record.recordKey);
     if (priorGroupKey) {
       candidateGroups.get(priorGroupKey)?.members.delete(memberKey(entry));
+    }
+
+    const groupKey = groupLookupKey(entry, candidate.baseName);
+    const group = candidateGroups.get(groupKey) ?? {
+      baseName: candidate.baseName,
+      category: entry.record.category,
+      packName: entry.pack.name,
+      members: new Map<string, GroupMember>(),
+    };
+    group.members.set(memberKey(entry), {
+      entry,
+      candidate,
+      leadBlock: extractLeadBlock(entry.record.descriptionText),
+      descriptionScore: 0,
+    });
+    candidateGroups.set(groupKey, group);
+    structuredCandidates.set(entry.record.recordKey, candidate);
+    structuredGroupKeys.set(entry.record.recordKey, groupKey);
+  }
+
+  for (const entry of eligibleEntries) {
+    if (entry.record.category !== "creature" || structuredCandidates.has(entry.record.recordKey)) {
+      continue;
+    }
+
+    const candidate = parseCreatureSuffixFamilyCandidate(entry, byExactName);
+    if (!candidate) {
+      continue;
     }
 
     const groupKey = groupLookupKey(entry, candidate.baseName);

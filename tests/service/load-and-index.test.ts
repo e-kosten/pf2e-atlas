@@ -522,6 +522,73 @@ describe("Pf2eDataService / Load and Index", () => {
     service.close();
   });
 
+  it("persists suffix-fallback creature variant families during rebuild", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+    const indexPath = path.join(fixture.root, ".cache", "pf2e-index.sqlite");
+
+    await Promise.all([
+      writeJson(path.join(fixture.root, "packs", "pf2e", "pathfinder-monster-core", "wraith.json"), {
+        _id: "wraithfixture",
+        name: "Wraith",
+        type: "npc",
+        system: {
+          details: {
+            level: { value: 6 },
+            publication: { title: "Pathfinder Monster Core" },
+            publicNotes: "<p>Wraiths are malevolent undead who drain life and shun light.</p>",
+          },
+          traits: {
+            rarity: "common",
+            value: ["incorporeal", "undead", "unholy", "wraith"],
+            size: { value: "med" },
+          },
+        },
+      }),
+      writeJson(path.join(fixture.root, "packs", "pf2e", "pathfinder-monster-core", "war-wraith.json"), {
+        _id: "warwraithfixture",
+        name: "War Wraith",
+        type: "npc",
+        system: {
+          details: {
+            level: { value: 12 },
+            publication: { title: "Pathfinder Monster Core" },
+            publicNotes: "<p>War wraiths are towering undead generals who marshal lesser wraiths.</p>",
+          },
+          traits: {
+            rarity: "common",
+            value: ["incorporeal", "undead", "unholy", "wraith"],
+            size: { value: "large" },
+          },
+        },
+      }),
+    ]);
+
+    const service = await loadTestService(fixture, { indexPath });
+    service.close();
+
+    const db = new DatabaseSync(indexPath);
+    const row = db.prepare(`
+      SELECT variant_family_key AS variantFamilyKey,
+             variant_base_name AS variantBaseName,
+             variant_label AS variantLabel,
+             variant_source AS variantSource
+      FROM records
+      WHERE name = 'War Wraith'
+    `).get() as {
+      variantFamilyKey: string | null;
+      variantBaseName: string | null;
+      variantLabel: string | null;
+      variantSource: string;
+    } | undefined;
+    db.close();
+
+    expect(row?.variantFamilyKey).toBe("creature:family:wraith");
+    expect(row?.variantBaseName).toBe("Wraith");
+    expect(row?.variantLabel).toBe("War Wraith");
+    expect(row?.variantSource).toBe("composite");
+  });
+
   it("logs a final rebuild stage timing summary", async () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);

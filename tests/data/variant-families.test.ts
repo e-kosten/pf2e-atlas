@@ -993,4 +993,165 @@ describe("variant family normalization", () => {
     expect(entries[1].record.variantBaseName).toBe("Vampire Count");
     expect(entries[1].record.variantLabel).toBe("Xarbaene");
   });
+
+  it("falls back to exact suffix creature families for allowlisted undead subtype bases", () => {
+    const entries = [
+      createEntry({
+        recordKey: "creature:wraith",
+        name: "Wraith",
+        category: "creature",
+        subcategory: null,
+        sourcePath: "vendor/pf2e/packs/pf2e/pathfinder-monster-core/wraith.json",
+        descriptionText: "A life-draining incorporeal undead.",
+        traits: ["incorporeal", "undead", "unholy", "wraith"],
+      }),
+      createEntry({
+        recordKey: "creature:war-wraith",
+        name: "War Wraith",
+        category: "creature",
+        subcategory: null,
+        sourcePath: "vendor/pf2e/packs/pf2e/pathfinder-monster-core-2/war-wraith.json",
+        descriptionText: "A towering undead warlord spirit.",
+        traits: ["incorporeal", "undead", "unholy", "wraith"],
+      }),
+      createEntry({
+        recordKey: "creature:wight",
+        name: "Wight",
+        category: "creature",
+        subcategory: null,
+        sourcePath: "vendor/pf2e/packs/pf2e/pathfinder-monster-core/wight.json",
+        descriptionText: "An intelligent spiteful undead.",
+        traits: ["undead", "unholy", "wight"],
+      }),
+      createEntry({
+        recordKey: "creature:hunter-wight",
+        name: "Hunter Wight",
+        category: "creature",
+        subcategory: null,
+        sourcePath: "vendor/pf2e/packs/pf2e/pathfinder-bestiary-2/hunter-wight.json",
+        descriptionText: "A wilderness-hunting wight.",
+        traits: ["evil", "lawful", "undead", "unholy", "wight"],
+      }),
+      createEntry({
+        recordKey: "creature:ghoul",
+        name: "Ghoul",
+        category: "creature",
+        subcategory: null,
+        sourcePath: "vendor/pf2e/packs/pf2e/pathfinder-monster-core/ghoul.json",
+        descriptionText: "A ravenous corpse-eating undead.",
+        traits: ["chaotic", "evil", "ghoul", "undead", "unholy"],
+      }),
+      createEntry({
+        recordKey: "creature:leng-ghoul",
+        name: "Leng Ghoul",
+        category: "creature",
+        subcategory: null,
+        sourcePath: "vendor/pf2e/packs/pf2e/pathfinder-bestiary-3/leng-ghoul.json",
+        descriptionText: "A ghoul shaped by Leng.",
+        traits: ["chaotic", "dream", "evil", "ghoul", "undead", "unholy"],
+      }),
+      createEntry({
+        recordKey: "creature:ghost",
+        name: "Ghost",
+        category: "creature",
+        subcategory: null,
+        sourcePath: "vendor/pf2e/packs/pf2e/pathfinder-monster-core/ghost.json",
+        descriptionText: "A common ghost.",
+        traits: ["ghost", "incorporeal", "spirit", "undead", "unholy"],
+      }),
+      createEntry({
+        recordKey: "creature:hungry-ghost",
+        name: "Hungry Ghost",
+        category: "creature",
+        subcategory: null,
+        sourcePath: "vendor/pf2e/packs/pf2e/pathfinder-bestiary-3/hungry-ghost.json",
+        descriptionText: "A ghost driven by burial neglect.",
+        traits: ["ghost", "incorporeal", "spirit", "undead", "unholy"],
+      }),
+    ];
+
+    assignVariantFamilies(entries);
+
+    expect(entries[1].record.variantFamilyKey).toBe(entries[0].record.variantFamilyKey);
+    expect(entries[1].record.variantBaseName).toBe("Wraith");
+    expect(entries[1].record.variantLabel).toBe("War Wraith");
+    expect(entries[1].record.variantSource).toBe("composite");
+
+    expect(entries[3].record.variantFamilyKey).toBe(entries[2].record.variantFamilyKey);
+    expect(entries[3].record.variantBaseName).toBe("Wight");
+    expect(entries[3].record.variantLabel).toBe("Hunter Wight");
+
+    expect(entries[5].record.variantFamilyKey).toBe(entries[4].record.variantFamilyKey);
+    expect(entries[5].record.variantBaseName).toBe("Ghoul");
+    expect(entries[5].record.variantLabel).toBe("Leng Ghoul");
+
+    expect(entries[7].record.variantFamilyKey).toBe(entries[6].record.variantFamilyKey);
+    expect(entries[7].record.variantBaseName).toBe("Ghost");
+    expect(entries[7].record.variantLabel).toBe("Hungry Ghost");
+  });
+
+  it("does not use suffix fallback for disallowed or trait-mismatched creature families", () => {
+    const entries = [
+      createEntry({
+        recordKey: "creature:ghost",
+        name: "Ghost",
+        category: "creature",
+        subcategory: null,
+        sourcePath: "vendor/pf2e/packs/pf2e/pathfinder-monster-core/ghost.json",
+        descriptionText: "A common ghost.",
+        traits: ["ghost", "incorporeal", "spirit", "undead", "unholy"],
+      }),
+      createEntry({
+        recordKey: "creature:stone-ghost",
+        name: "Stone Ghost",
+        category: "creature",
+        subcategory: null,
+        sourcePath: "vendor/pf2e/packs/pf2e/sky-kings-tomb-bestiary/stone-ghost.json",
+        descriptionText: "A haunted oread statue.",
+        traits: ["evil", "human", "humanoid", "oread"],
+      }),
+      createEntry({
+        recordKey: "creature:troll",
+        name: "Troll",
+        category: "creature",
+        subcategory: null,
+        sourcePath: "vendor/pf2e/packs/pf2e/pathfinder-bestiary/troll.json",
+        descriptionText: "A regenerating giant menace.",
+        traits: ["chaotic", "evil", "giant", "troll"],
+      }),
+      createEntry({
+        recordKey: "creature:ice-troll",
+        name: "Ice Troll",
+        category: "creature",
+        subcategory: null,
+        sourcePath: "vendor/pf2e/packs/pf2e/pathfinder-bestiary-2/ice-troll.json",
+        descriptionText: "A troll adapted to frozen regions.",
+        traits: ["cold", "giant", "humanoid", "troll"],
+      }),
+      createEntry({
+        recordKey: "creature:golem",
+        name: "Golem",
+        category: "creature",
+        subcategory: null,
+        sourcePath: "vendor/pf2e/packs/pf2e/pathfinder-monster-core/golem.json",
+        descriptionText: "A divine animated construct.",
+        traits: ["construct", "earth", "holy"],
+      }),
+      createEntry({
+        recordKey: "creature:mithral-golem",
+        name: "Mithral Golem",
+        category: "creature",
+        subcategory: null,
+        sourcePath: "vendor/pf2e/packs/pf2e/pathfinder-bestiary-3/mithral-golem.json",
+        descriptionText: "A silvery construct colossus.",
+        traits: ["construct", "golem", "mindless"],
+      }),
+    ];
+
+    assignVariantFamilies(entries);
+
+    expect(entries[1].record.variantFamilyKey).toBeNull();
+    expect(entries[3].record.variantFamilyKey).toBeNull();
+    expect(entries[5].record.variantFamilyKey).toBeNull();
+  });
 });
