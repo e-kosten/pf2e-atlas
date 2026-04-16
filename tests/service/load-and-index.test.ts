@@ -589,6 +589,56 @@ describe("Pf2eDataService / Load and Index", () => {
     expect(row?.variantSource).toBe("composite");
   });
 
+  it("persists part-aware fortress disambiguation during rebuild", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+    const indexPath = path.join(fixture.root, ".cache", "pf2e-index.sqlite");
+
+    await Promise.all([
+      writeJson(path.join(fixture.root, "packs", "pf2e", "pathfinder-monster-core", "wraith.json"), {
+        _id: "wraithfortressfixture",
+        name: "Wraith",
+        type: "npc",
+        system: {
+          details: {
+            level: { value: 6 },
+            publication: { title: "Pathfinder Monster Core" },
+            publicNotes: "<p>Wraiths gather with others of their kind in places where death and mayhem are commonplace. In these places, the living do well to keep to the light. Wraiths are smart enough to take advantage of their incorporeality in combat, so they keep to tortuous caverns or structures with hallways, and avoid open areas.</p>",
+          },
+          traits: {
+            rarity: "common",
+            value: ["incorporeal", "undead", "unholy", "wraith"],
+            size: { value: "med" },
+          },
+        },
+      }),
+      writeJson(path.join(fixture.root, "packs", "pf2e", "pathfinder-monster-core", "watchtower-wraith.json"), {
+        _id: "watchtowerwraithfortressfixture",
+        name: "Watchtower Wraith",
+        type: "npc",
+        system: {
+          details: {
+            level: { value: 16 },
+            publication: { title: "Pathfinder Adventure Path" },
+            publicNotes: "<p>Wraiths gather with others of their kind in places where death and mayhem are commonplace. Ruins, sewers, and abandoned buildings provide sanctuary for wraiths during the day. Wraiths are smart enough to take advantage of their incorporeality in combat, so they keep to tortuous caverns or structures with hallways and avoid open areas.</p>",
+          },
+          traits: {
+            rarity: "common",
+            value: ["incorporeal", "undead", "unholy", "wraith"],
+            size: { value: "large" },
+          },
+        },
+      }),
+    ]);
+
+    const service = await loadTestService(fixture, { indexPath });
+
+    expect(service.lookup("Wraith", { category: "creature" }).match?.derivedTags).not.toContain("fortress_setting");
+    expect(service.lookup("Watchtower Wraith", { category: "creature" }).match?.derivedTags).toContain("fortress_setting");
+
+    service.close();
+  });
+
   it("logs a final rebuild stage timing summary", async () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);

@@ -31,10 +31,47 @@ export type DerivedTagReference = {
 export type TextMatchScope = "either" | "name" | "description" | "blurb";
 type PatternPlaceholder = "number" | "dice" | "range";
 export type TextAnchorPosConstraint = PartOfSpeech | PartOfSpeech[];
+export type TextTokenAnalysisConstraint = {
+  pos?: PartOfSpeech[];
+  lemma?: string[];
+};
+export type TextPatternOption = {
+  value: string;
+  analysis?: TextTokenAnalysisConstraint[];
+};
+export type TextPatternPart =
+  | {
+    type: "literal";
+    value: string;
+    analysis?: TextTokenAnalysisConstraint[];
+  }
+  | {
+    type: "placeholder";
+    value: PatternPlaceholder;
+    analysis?: TextTokenAnalysisConstraint[];
+  }
+  | {
+    type: "alternative";
+    options: TextPatternOption[];
+  }
+  | {
+    type: "optional";
+    value: string;
+    analysis?: TextTokenAnalysisConstraint[];
+  }
+  | {
+    type: "gap";
+    min: number;
+    max: number;
+  };
 
 export type TextAnchor = string | {
-  value: string;
+  value?: string;
+  parts?: TextPatternPart[];
   scope?: TextMatchScope;
+  /**
+   * @deprecated Use parts-based token analysis instead.
+   */
   pos?: TextAnchorPosConstraint[];
 };
 
@@ -83,18 +120,28 @@ export type DerivedTagRule = {
   noneOf?: DerivedTagMatchClause[];
 };
 
+type AnalyzedToken = {
+  token: string;
+  pos: PartOfSpeech | null;
+  lemma: string | null;
+};
+
 type NormalizedTextView = {
   tokens: string[];
-  posTags: PartOfSpeech[];
+  analyzedTokens: AnalyzedToken[];
 };
 
-type NormalizedTextAnchor = {
-  scope: TextMatchScope;
-  patternParts: PatternTokenPart[];
-  posByToken?: PartOfSpeech[][];
+type NormalizedTokenAnalysisConstraint = {
+  pos?: PartOfSpeech[];
+  lemma?: string[];
 };
 
-type PatternTokenPart =
+type FixedPatternBranch = {
+  tokens: string[];
+  analysis?: NormalizedTokenAnalysisConstraint[];
+};
+
+type RawPatternTokenPart =
   | {
     type: "literal";
     tokens: string[];
@@ -116,6 +163,36 @@ type PatternTokenPart =
     min: number;
     max: number;
   };
+
+type CompiledPatternTokenPart =
+  | {
+    type: "literal";
+    branch: FixedPatternBranch;
+  }
+  | {
+    type: "placeholder";
+    value: PatternPlaceholder;
+    analysis?: NormalizedTokenAnalysisConstraint[];
+  }
+  | {
+    type: "alternative";
+    options: FixedPatternBranch[];
+  }
+  | {
+    type: "optional";
+    branch: FixedPatternBranch;
+  }
+  | {
+    type: "gap";
+    min: number;
+    max: number;
+  };
+
+type NormalizedTextAnchor = {
+  scope: TextMatchScope;
+  patternParts: CompiledPatternTokenPart[];
+  requiresAnalysis: boolean;
+};
 
 type NormalizedDerivedTagReference = {
   key: string;
@@ -187,10 +264,18 @@ const normalizedStringAnchorCache = new Map<string, NormalizedTextAnchor | null>
 const normalizedObjectAnchorCache = new WeakMap<Exclude<TextAnchor, string>, NormalizedTextAnchor | null>();
 const compiledRulesCache = new WeakMap<DerivedTagRule[], {
   rules: CompiledDerivedTagRule[];
-  posScopes: Set<TextMatchScope>;
+  analysisScopes: Set<TextMatchScope>;
 }>();
 
-function analyzeTextPartOfSpeech(normalized: string, tokens: string[]): PartOfSpeech[] {
+function createUnknownAnalyzedTokens(tokens: string[]): AnalyzedToken[] {
+  return tokens.map((token) => ({
+    token,
+    pos: null,
+    lemma: null,
+  }));
+}
+
+function analyzeTextTokens(normalized: string, tokens: string[]): AnalyzedToken[] {
   if (normalized.length === 0 || tokens.length === 0) {
     return [];
   }
@@ -198,15 +283,21 @@ function analyzeTextPartOfSpeech(normalized: string, tokens: string[]): PartOfSp
   const doc = nlp.readDoc(normalized);
   const analyzedTokens = doc.tokens().out(its.normal) as string[];
   const analyzedPos = doc.tokens().out(its.pos) as PartOfSpeech[];
+  const analyzedLemmas = doc.tokens().out(its.lemma as unknown as typeof its.normal) as string[];
   if (
     analyzedTokens.length !== tokens.length
     || analyzedPos.length !== tokens.length
+    || analyzedLemmas.length !== tokens.length
     || analyzedTokens.some((token, index) => token !== tokens[index])
   ) {
-    return tokens.map(() => "X");
+    return createUnknownAnalyzedTokens(tokens);
   }
 
-  return analyzedPos;
+  return tokens.map((token, index) => ({
+    token,
+    pos: analyzedPos[index] ?? null,
+    lemma: normalizeText(analyzedLemmas[index] ?? "") || null,
+  }));
 }
 
 function buildTextView(value: string, analyzePartOfSpeech = false): NormalizedTextView {
@@ -214,7 +305,7 @@ function buildTextView(value: string, analyzePartOfSpeech = false): NormalizedTe
   const tokens = normalized.length > 0 ? normalized.split(" ") : [];
   return {
     tokens,
-    posTags: analyzePartOfSpeech ? analyzeTextPartOfSpeech(normalized, tokens) : [],
+    analyzedTokens: analyzePartOfSpeech ? analyzeTextTokens(normalized, tokens) : createUnknownAnalyzedTokens(tokens),
   };
 }
 
@@ -295,7 +386,7 @@ function parseGapPattern(body: string, fullValue: string): { min: number; max: n
   return { min, max };
 }
 
-function parsePatternExpression(expression: string, fullValue: string): PatternTokenPart {
+function parsePatternExpression(expression: string, fullValue: string): RawPatternTokenPart {
   if (expression === "number" || expression === "dice" || expression === "range") {
     return {
       type: "placeholder",
@@ -328,9 +419,9 @@ function parsePatternExpression(expression: string, fullValue: string): PatternT
   throw createPatternSyntaxError(fullValue, `unknown operator "${operator}"`);
 }
 
-function normalizePatternAnchorValue(value: string): PatternTokenPart[] {
+function normalizePatternAnchorValue(value: string): RawPatternTokenPart[] {
   const raw = value.toLowerCase().replace(/&nbsp;/g, " ");
-  const parts: PatternTokenPart[] = [];
+  const parts: RawPatternTokenPart[] = [];
   let offset = 0;
 
   while (offset < raw.length) {
@@ -394,21 +485,177 @@ function normalizePatternAnchorValue(value: string): PatternTokenPart[] {
   return parts;
 }
 
-function normalizeAnchorPos(pos: TextAnchorPosConstraint[] | undefined): PartOfSpeech[][] | undefined {
-  if (!pos || pos.length === 0) {
+function normalizeTokenAnalysisConstraint(
+  constraint: TextTokenAnalysisConstraint,
+  context: string,
+): NormalizedTokenAnalysisConstraint {
+  const pos = constraint.pos
+    ? [...new Set(constraint.pos)].filter((value) => value.length > 0)
+    : undefined;
+  const lemma = constraint.lemma
+    ? [...new Set(constraint.lemma.map((value) => normalizeText(value)).filter(Boolean))]
+    : undefined;
+
+  if ((!pos || pos.length === 0) && (!lemma || lemma.length === 0)) {
+    throw new Error(`${context} must include at least one of pos or lemma.`);
+  }
+
+  return {
+    ...(pos && pos.length > 0 ? { pos } : {}),
+    ...(lemma && lemma.length > 0 ? { lemma } : {}),
+  };
+}
+
+function normalizeTokenAnalysisList(
+  analysis: TextTokenAnalysisConstraint[] | undefined,
+  context: string,
+  allowedLengths?: number[],
+): NormalizedTokenAnalysisConstraint[] | undefined {
+  if (!analysis || analysis.length === 0) {
     return undefined;
   }
 
-  const normalized = pos.map((constraint) => {
-    const allowed = Array.isArray(constraint) ? constraint : [constraint];
-    const deduped = [...new Set(allowed)];
-    if (deduped.length === 0) {
-      throw new Error("Text anchor POS constraints cannot contain empty token constraints.");
-    }
-    return deduped;
-  });
+  if (allowedLengths && !allowedLengths.includes(analysis.length)) {
+    const renderedAllowedLengths = allowedLengths.join(" or ");
+    throw new Error(`${context} analysis length must be ${renderedAllowedLengths} token(s); received ${analysis.length}.`);
+  }
 
+  const normalized = analysis.map((constraint, index) => normalizeTokenAnalysisConstraint(constraint, `${context} analysis token ${index + 1}`));
   return normalized.length > 0 ? normalized : undefined;
+}
+
+function compileFixedPatternBranch(
+  value: string,
+  analysis: TextTokenAnalysisConstraint[] | undefined,
+  context: string,
+): FixedPatternBranch {
+  const tokens = normalizePatternLiteral(value);
+  if (tokens.length === 0) {
+    throw new Error(`${context} requires non-empty literal text.`);
+  }
+
+  return {
+    tokens,
+    analysis: normalizeTokenAnalysisList(analysis, context, [tokens.length]),
+  };
+}
+
+function compileRawPatternPart(part: RawPatternTokenPart): CompiledPatternTokenPart {
+  if (part.type === "literal") {
+    return {
+      type: "literal",
+      branch: {
+        tokens: part.tokens,
+      },
+    };
+  }
+
+  if (part.type === "alternative") {
+    return {
+      type: "alternative",
+      options: part.tokenOptions.map((tokens) => ({ tokens })),
+    };
+  }
+
+  if (part.type === "optional") {
+    return {
+      type: "optional",
+      branch: {
+        tokens: part.tokens,
+      },
+    };
+  }
+
+  if (part.type === "gap") {
+    return part;
+  }
+
+  return {
+    type: "placeholder",
+    value: part.value,
+  };
+}
+
+function compileExplicitPatternPart(part: TextPatternPart, context: string): CompiledPatternTokenPart {
+  if (part.type === "literal") {
+    return {
+      type: "literal",
+      branch: compileFixedPatternBranch(part.value, part.analysis, context),
+    };
+  }
+
+  if (part.type === "alternative") {
+    if (part.options.length < 2) {
+      throw new Error(`${context} alternative must include at least two options.`);
+    }
+    return {
+      type: "alternative",
+      options: part.options.map((option, index) => compileFixedPatternBranch(option.value, option.analysis, `${context} option ${index + 1}`)),
+    };
+  }
+
+  if (part.type === "optional") {
+    return {
+      type: "optional",
+      branch: compileFixedPatternBranch(part.value, part.analysis, context),
+    };
+  }
+
+  if (part.type === "gap") {
+    if (!Number.isInteger(part.min) || !Number.isInteger(part.max) || part.min < 0 || part.max < 0 || part.min > part.max) {
+      throw new Error(`${context} gap requires non-negative integer min/max with min <= max.`);
+    }
+    return part;
+  }
+
+  return {
+    type: "placeholder",
+    value: part.value,
+    analysis: normalizeTokenAnalysisList(
+      part.analysis,
+      `${context} placeholder`,
+      part.value === "range" ? [2, 3] : [1],
+    ),
+  };
+}
+
+function anchorRequiresAnalysis(patternParts: CompiledPatternTokenPart[]): boolean {
+  return patternParts.some((part) => {
+    if (part.type === "literal" || part.type === "optional") {
+      return Boolean(part.branch.analysis);
+    }
+    if (part.type === "alternative") {
+      return part.options.some((option) => Boolean(option.analysis));
+    }
+    if (part.type === "placeholder") {
+      return Boolean(part.analysis);
+    }
+    return false;
+  });
+}
+
+function normalizeLegacyPosAnchor(value: string, pos: TextAnchorPosConstraint[]): CompiledPatternTokenPart[] {
+  const patternParts = normalizePatternAnchorValue(value).map((part) => compileRawPatternPart(part));
+  if (patternParts.length !== 1 || patternParts[0]?.type !== "literal") {
+    throw new Error(`Legacy pos constraints are only supported on plain literal anchors. Migrate "${value}" to parts-based analysis.`);
+  }
+
+  const literalPart = patternParts[0];
+  return [
+    {
+      type: "literal",
+      branch: {
+        tokens: literalPart.branch.tokens,
+        analysis: normalizeTokenAnalysisList(
+          pos.map((constraint) => ({
+            pos: Array.isArray(constraint) ? constraint : [constraint],
+          })),
+          `Legacy literal "${value}"`,
+          [literalPart.branch.tokens.length],
+        ),
+      },
+    },
+  ];
 }
 
 function normalizeAnchor(anchor: TextAnchor): NormalizedTextAnchor | null {
@@ -430,11 +677,25 @@ function normalizeAnchor(anchor: TextAnchor): NormalizedTextAnchor | null {
   }
 
   const raw = anchor;
-  const patternParts = normalizePatternAnchorValue(raw.value);
+  if (raw.parts && raw.value) {
+    throw new Error(`Text anchor cannot define both value and parts for scope "${raw.scope ?? "either"}".`);
+  }
+
+  let patternParts: CompiledPatternTokenPart[];
+  if (raw.parts) {
+    patternParts = raw.parts.map((part, index) => compileExplicitPatternPart(part, `Text anchor part ${index + 1}`));
+  } else if (raw.value) {
+    patternParts = raw.pos
+      ? normalizeLegacyPosAnchor(raw.value, raw.pos)
+      : normalizePatternAnchorValue(raw.value).map((part) => compileRawPatternPart(part));
+  } else {
+    throw new Error(`Text anchor must define either value or parts for scope "${raw.scope ?? "either"}".`);
+  }
+
   const compiled = patternParts.length === 0 ? null : {
     scope: raw.scope ?? "either",
     patternParts,
-    posByToken: normalizeAnchorPos(raw.pos),
+    requiresAnalysis: anchorRequiresAnalysis(patternParts),
   };
   normalizedObjectAnchorCache.set(anchor, compiled);
   return compiled;
@@ -525,30 +786,30 @@ function compileClause(clause: DerivedTagMatchClause): CompiledDerivedTagMatchCl
   };
 }
 
-function collectAnchorPosScopes(anchors: NormalizedTextAnchor[] | undefined, scopes: Set<TextMatchScope>): void {
+function collectAnchorAnalysisScopes(anchors: NormalizedTextAnchor[] | undefined, scopes: Set<TextMatchScope>): void {
   if (!anchors) {
     return;
   }
 
   for (const anchor of anchors) {
-    if (anchor.posByToken) {
+    if (anchor.requiresAnalysis) {
       scopes.add(anchor.scope);
     }
   }
 }
 
-function collectClausePosScopes(clause: CompiledDerivedTagMatchClause, scopes: Set<TextMatchScope>): void {
-  collectAnchorPosScopes(clause.textAny, scopes);
-  collectAnchorPosScopes(clause.textAll, scopes);
+function collectClauseAnalysisScopes(clause: CompiledDerivedTagMatchClause, scopes: Set<TextMatchScope>): void {
+  collectAnchorAnalysisScopes(clause.textAny, scopes);
+  collectAnchorAnalysisScopes(clause.textAll, scopes);
 
   for (const constraint of clause.textNear ?? []) {
-    collectAnchorPosScopes(constraint.all, scopes);
+    collectAnchorAnalysisScopes(constraint.all, scopes);
   }
 }
 
 function getCompiledRules(rules: DerivedTagRule[]): {
   rules: CompiledDerivedTagRule[];
-  posScopes: Set<TextMatchScope>;
+  analysisScopes: Set<TextMatchScope>;
 } {
   const cached = compiledRulesCache.get(rules);
   if (cached) {
@@ -565,22 +826,22 @@ function getCompiledRules(rules: DerivedTagRule[]): {
     allOf: rule.allOf?.map((clause) => compileClause(clause)),
     noneOf: rule.noneOf?.map((clause) => compileClause(clause)),
   }));
-  const posScopes = new Set<TextMatchScope>();
+  const analysisScopes = new Set<TextMatchScope>();
   for (const rule of compiledRules) {
     for (const clause of rule.anyOf ?? []) {
-      collectClausePosScopes(clause, posScopes);
+      collectClauseAnalysisScopes(clause, analysisScopes);
     }
     for (const clause of rule.allOf ?? []) {
-      collectClausePosScopes(clause, posScopes);
+      collectClauseAnalysisScopes(clause, analysisScopes);
     }
     for (const clause of rule.noneOf ?? []) {
-      collectClausePosScopes(clause, posScopes);
+      collectClauseAnalysisScopes(clause, analysisScopes);
     }
   }
 
   const compiled = {
     rules: compiledRules,
-    posScopes,
+    analysisScopes,
   };
   compiledRulesCache.set(rules, compiled);
   return compiled;
@@ -633,24 +894,73 @@ function matchPatternPlaceholder(tokens: string[], index: number, placeholder: P
   return ["aura", "burst", "cone", "cube", "emanation", "line", "radius"].includes(geometry) ? 3 : 2;
 }
 
-function findPatternLiteralEnd(tokens: string[], index: number, literalTokens: string[]): number | null {
-  if (literalTokens.length === 0) {
+function matchesTokenAnalysis(
+  token: AnalyzedToken | undefined,
+  analysis: NormalizedTokenAnalysisConstraint | undefined,
+): boolean {
+  if (!analysis) {
+    return true;
+  }
+  if (!token) {
+    return false;
+  }
+  if (analysis.pos && (!token.pos || !analysis.pos.includes(token.pos))) {
+    return false;
+  }
+  if (analysis.lemma && (!token.lemma || !analysis.lemma.includes(token.lemma))) {
+    return false;
+  }
+
+  return true;
+}
+
+function matchFixedPatternBranch(
+  view: NormalizedTextView,
+  index: number,
+  branch: FixedPatternBranch,
+): number | null {
+  if (branch.tokens.length === 0) {
     return index;
   }
 
-  for (let offset = 0; offset < literalTokens.length; offset += 1) {
-    if (tokens[index + offset] !== literalTokens[offset]) {
+  for (let offset = 0; offset < branch.tokens.length; offset += 1) {
+    if (view.tokens[index + offset] !== branch.tokens[offset]) {
+      return null;
+    }
+    if (!matchesTokenAnalysis(view.analyzedTokens[index + offset], branch.analysis?.[offset])) {
       return null;
     }
   }
 
-  return index + literalTokens.length;
+  return index + branch.tokens.length;
+}
+
+function matchPlaceholderAnalysis(
+  view: NormalizedTextView,
+  index: number,
+  length: number,
+  analysis: NormalizedTokenAnalysisConstraint[] | undefined,
+): boolean {
+  if (!analysis) {
+    return true;
+  }
+  if (analysis.length !== length) {
+    return false;
+  }
+
+  for (let offset = 0; offset < length; offset += 1) {
+    if (!matchesTokenAnalysis(view.analyzedTokens[index + offset], analysis[offset])) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 function collectPatternMatchEnds(
-  tokens: string[],
+  view: NormalizedTextView,
   index: number,
-  patternParts: PatternTokenPart[],
+  patternParts: CompiledPatternTokenPart[],
   partIndex: number,
 ): number[] {
   if (partIndex >= patternParts.length) {
@@ -663,16 +973,16 @@ function collectPatternMatchEnds(
   }
 
   if (part.type === "literal") {
-    const end = findPatternLiteralEnd(tokens, index, part.tokens);
-    return end === null ? [] : collectPatternMatchEnds(tokens, end, patternParts, partIndex + 1);
+    const end = matchFixedPatternBranch(view, index, part.branch);
+    return end === null ? [] : collectPatternMatchEnds(view, end, patternParts, partIndex + 1);
   }
 
   if (part.type === "alternative") {
     const ends = new Set<number>();
-    for (const option of part.tokenOptions) {
-      const end = findPatternLiteralEnd(tokens, index, option);
+    for (const option of part.options) {
+      const end = matchFixedPatternBranch(view, index, option);
       if (end !== null) {
-        for (const matchEnd of collectPatternMatchEnds(tokens, end, patternParts, partIndex + 1)) {
+        for (const matchEnd of collectPatternMatchEnds(view, end, patternParts, partIndex + 1)) {
           ends.add(matchEnd);
         }
       }
@@ -682,10 +992,10 @@ function collectPatternMatchEnds(
   }
 
   if (part.type === "optional") {
-    const ends = new Set<number>(collectPatternMatchEnds(tokens, index, patternParts, partIndex + 1));
-    const end = findPatternLiteralEnd(tokens, index, part.tokens);
+    const ends = new Set<number>(collectPatternMatchEnds(view, index, patternParts, partIndex + 1));
+    const end = matchFixedPatternBranch(view, index, part.branch);
     if (end !== null) {
-      for (const matchEnd of collectPatternMatchEnds(tokens, end, patternParts, partIndex + 1)) {
+      for (const matchEnd of collectPatternMatchEnds(view, end, patternParts, partIndex + 1)) {
         ends.add(matchEnd);
       }
     }
@@ -695,9 +1005,9 @@ function collectPatternMatchEnds(
 
   if (part.type === "gap") {
     const ends = new Set<number>();
-    const maxLength = Math.min(part.max, Math.max(0, tokens.length - index));
+    const maxLength = Math.min(part.max, Math.max(0, view.tokens.length - index));
     for (let length = part.min; length <= maxLength; length += 1) {
-      for (const matchEnd of collectPatternMatchEnds(tokens, index + length, patternParts, partIndex + 1)) {
+      for (const matchEnd of collectPatternMatchEnds(view, index + length, patternParts, partIndex + 1)) {
         ends.add(matchEnd);
       }
     }
@@ -705,22 +1015,22 @@ function collectPatternMatchEnds(
     return [...ends];
   }
 
-  const length = matchPatternPlaceholder(tokens, index, part.value);
-  if (length === 0) {
+  const length = matchPatternPlaceholder(view.tokens, index, part.value);
+  if (length === 0 || !matchPlaceholderAnalysis(view, index, length, part.analysis)) {
     return [];
   }
 
-  return collectPatternMatchEnds(tokens, index + length, patternParts, partIndex + 1);
+  return collectPatternMatchEnds(view, index + length, patternParts, partIndex + 1);
 }
 
-function findPatternOccurrences(view: NormalizedTextView, patternParts: PatternTokenPart[]): TextOccurrence[] {
+function findPatternOccurrences(view: NormalizedTextView, patternParts: CompiledPatternTokenPart[]): TextOccurrence[] {
   if (patternParts.length === 0) {
     return [];
   }
 
   const occurrences: TextOccurrence[] = [];
   for (let start = 0; start < view.tokens.length; start += 1) {
-    const matchEnds = collectPatternMatchEnds(view.tokens, start, patternParts, 0);
+    const matchEnds = collectPatternMatchEnds(view, start, patternParts, 0);
     for (const end of matchEnds) {
       if (end > start) {
         occurrences.push({
@@ -732,31 +1042,6 @@ function findPatternOccurrences(view: NormalizedTextView, patternParts: PatternT
   }
 
   return occurrences;
-}
-
-function matchesOccurrencePos(
-  view: NormalizedTextView,
-  occurrence: TextOccurrence,
-  posByToken: PartOfSpeech[][] | undefined,
-): boolean {
-  if (!posByToken) {
-    return true;
-  }
-
-  const occurrenceLength = occurrence.end - occurrence.start + 1;
-  if (occurrenceLength !== posByToken.length) {
-    return false;
-  }
-
-  for (let index = 0; index < posByToken.length; index += 1) {
-    const pos = view.posTags[occurrence.start + index];
-    const allowed = posByToken[index];
-    if (!pos || !allowed?.includes(pos)) {
-      return false;
-    }
-  }
-
-  return true;
 }
 
 function matchesTextAnchor(context: NormalizedDerivedTagContext, anchor: NormalizedTextAnchor): boolean {
@@ -781,8 +1066,7 @@ function findNormalizedTextOccurrences(
     return [];
   }
 
-  return findPatternOccurrences(view, normalized.patternParts)
-    .filter((occurrence) => matchesOccurrencePos(view, occurrence, normalized.posByToken));
+  return findPatternOccurrences(view, normalized.patternParts);
 }
 
 function findTextOccurrences(
@@ -1001,9 +1285,9 @@ export function normalizeDerivedTag(value: string): string {
 
 export function deriveRecordTagsFromRules(rules: DerivedTagRule[], input: DerivedTagContext): string[] {
   const compiledRules = getCompiledRules(rules);
-  const analyzeNamePos = compiledRules.posScopes.has("name") || compiledRules.posScopes.has("either");
-  const analyzeDescriptionPos = compiledRules.posScopes.has("description") || compiledRules.posScopes.has("either");
-  const analyzeBlurbPos = compiledRules.posScopes.has("blurb");
+  const analyzeName = compiledRules.analysisScopes.has("name") || compiledRules.analysisScopes.has("either");
+  const analyzeDescription = compiledRules.analysisScopes.has("description") || compiledRules.analysisScopes.has("either");
+  const analyzeBlurb = compiledRules.analysisScopes.has("blurb");
   const references = (input.references ?? []).map((reference) => ({
     key: normalizeDerivedTagReference(`${reference.packName}:${reference.name}`),
     packName: normalizeText(reference.packName),
@@ -1017,9 +1301,9 @@ export function deriveRecordTagsFromRules(rules: DerivedTagRule[], input: Derive
     subcategory: input.subcategory,
     traits: new Set(input.traits.map((trait) => normalizeText(trait)).filter(Boolean)),
     families: new Set((input.families ?? []).map((family) => normalizeText(family)).filter(Boolean)),
-    name: buildTextView(input.name, analyzeNamePos),
-    description: buildTextView(input.descriptionText ?? "", analyzeDescriptionPos),
-    blurb: buildTextView(input.blurbText ?? "", analyzeBlurbPos),
+    name: buildTextView(input.name, analyzeName),
+    description: buildTextView(input.descriptionText ?? "", analyzeDescription),
+    blurb: buildTextView(input.blurbText ?? "", analyzeBlurb),
     referenceKeys: new Set(references.map((reference) => reference.key)),
     references,
   };

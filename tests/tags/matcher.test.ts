@@ -161,14 +161,49 @@ describe("derived tag matcher extensions", () => {
     expect(tags).not.toContain("either_scope_should_ignore_blurb");
   });
 
-  it("supports POS-constrained text anchors without changing plain string matching", () => {
+  it("supports part-local token analysis on literals and mixed-length alternatives", () => {
     const rules: DerivedTagRule[] = [
       {
         tag: "noun_keep",
         category: "creature",
         anyOf: [
           {
-            textAny: [{ value: "keep", scope: "description", pos: ["NOUN"] }],
+            textAny: [{
+              scope: "description",
+              parts: [
+                {
+                  type: "literal",
+                  value: "keep",
+                  analysis: [{ pos: ["NOUN"] }],
+                },
+              ],
+            }],
+          },
+        ],
+      },
+      {
+        tag: "residence_form",
+        category: "creature",
+        anyOf: [
+          {
+            textAny: [{
+              scope: "description",
+              parts: [
+                {
+                  type: "alternative",
+                  options: [
+                    {
+                      value: "take residence",
+                      analysis: [{ pos: ["VERB"] }, { pos: ["NOUN"] }],
+                    },
+                    {
+                      value: "resides",
+                      analysis: [{ pos: ["VERB"] }],
+                    },
+                  ],
+                },
+              ],
+            }],
           },
         ],
       },
@@ -192,12 +227,20 @@ describe("derived tag matcher extensions", () => {
     })).toEqual(expect.arrayContaining(["noun_keep", "plain_keep"]));
 
     expect(deriveRecordTagsFromRules(rules, {
-      name: "Shadow Stalker",
+      name: "Castle Steward",
       category: "creature",
       subcategory: null,
-      descriptionText: "These predators keep to the deepest shadows.",
+      descriptionText: "These guardians take residence within the old stone bastion.",
       traits: [],
-    })).toEqual(expect.arrayContaining(["plain_keep"]));
+    })).toEqual(expect.arrayContaining(["residence_form"]));
+
+    expect(deriveRecordTagsFromRules(rules, {
+      name: "Citadel Ghost",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "The ghost resides within the citadel walls.",
+      traits: [],
+    })).toEqual(expect.arrayContaining(["residence_form"]));
 
     expect(deriveRecordTagsFromRules(rules, {
       name: "Shadow Stalker",
@@ -206,6 +249,144 @@ describe("derived tag matcher extensions", () => {
       descriptionText: "These predators keep to the deepest shadows.",
       traits: [],
     })).not.toContain("noun_keep");
+  });
+
+  it("supports optional pattern parts with token analysis", () => {
+    const rules: DerivedTagRule[] = [
+      {
+        tag: "fortified_residence",
+        category: "creature",
+        anyOf: [
+          {
+            textAny: [{
+              scope: "description",
+              parts: [
+                {
+                  type: "optional",
+                  value: "old",
+                  analysis: [{ pos: ["ADJ"] }],
+                },
+                {
+                  type: "literal",
+                  value: "keep",
+                  analysis: [{ pos: ["NOUN"] }],
+                },
+              ],
+            }],
+          },
+        ],
+      },
+    ];
+
+    expect(deriveRecordTagsFromRules(rules, {
+      name: "Keep Warden",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "The sentry patrols the old keep at dusk.",
+      traits: [],
+    })).toContain("fortified_residence");
+
+    expect(deriveRecordTagsFromRules(rules, {
+      name: "Keep Warden",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "The sentry patrols the keep at dusk.",
+      traits: [],
+    })).toContain("fortified_residence");
+
+    expect(deriveRecordTagsFromRules(rules, {
+      name: "Shadow Stalker",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "These predators keep to the deepest shadows.",
+      traits: [],
+    })).not.toContain("fortified_residence");
+  });
+
+  it("supports placeholder analysis", () => {
+    const rules: DerivedTagRule[] = [
+      {
+        tag: "numbered_goblins",
+        category: "creature",
+        anyOf: [
+          {
+            textAny: [{
+              scope: "description",
+              parts: [
+                {
+                  type: "placeholder",
+                  value: "number",
+                  analysis: [{ pos: ["NUM"] }],
+                },
+                {
+                  type: "literal",
+                  value: "goblins",
+                },
+              ],
+            }],
+          },
+        ],
+      },
+    ];
+
+    expect(deriveRecordTagsFromRules(rules, {
+      name: "Goblin Scout",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "3 goblins patrol the ravine at dusk.",
+      traits: [],
+    })).toContain("numbered_goblins");
+
+    expect(deriveRecordTagsFromRules(rules, {
+      name: "Goblin Scout",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Three goblins patrol the ravine at dusk.",
+      traits: [],
+    })).not.toContain("numbered_goblins");
+  });
+
+  it("fails analysis-constrained matches closed on NLP tokenization misalignment without affecting plain matching", () => {
+    const rules: DerivedTagRule[] = [
+      {
+        tag: "constrained_cant_keep",
+        category: "creature",
+        anyOf: [
+          {
+            textAny: [{
+              scope: "description",
+              parts: [
+                {
+                  type: "literal",
+                  value: "can t keep",
+                  analysis: [{ lemma: ["can"] }, { lemma: ["not"] }, { pos: ["VERB"] }],
+                },
+              ],
+            }],
+          },
+        ],
+      },
+      {
+        tag: "plain_cant_keep",
+        category: "creature",
+        anyOf: [
+          {
+            textAny: ["can t keep"],
+          },
+        ],
+      },
+    ];
+
+    const tags = deriveRecordTagsFromRules(rules, {
+      name: "Contradictory Sentry",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "The sentry can't keep a steady watch.",
+      traits: [],
+    });
+
+    expect(tags).toContain("plain_cant_keep");
+    expect(tags).not.toContain("constrained_cant_keep");
   });
 
   it("supports structured reference predicates and minimum reference matches", () => {

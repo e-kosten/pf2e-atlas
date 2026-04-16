@@ -3,6 +3,9 @@ import {
   normalizeDerivedTagReference,
   TextAnchor,
   type TextAnchorPosConstraint,
+  type TextPatternOption,
+  type TextPatternPart,
+  type TextTokenAnalysisConstraint,
   TextMatchScope,
 } from "./matcher.js";
 
@@ -14,6 +17,35 @@ const patternAnchor = (
   value,
   scope,
   ...(options?.pos ? { pos: options.pos } : {}),
+});
+const patternAnchorParts = (parts: TextPatternPart[], scope: TextMatchScope = "either"): TextAnchor => ({ parts, scope });
+const patternLiteralPart = (value: string, analysis?: TextTokenAnalysisConstraint[]): TextPatternPart => ({
+  type: "literal",
+  value,
+  ...(analysis ? { analysis } : {}),
+});
+const patternAlternativeOption = (value: string, analysis?: TextTokenAnalysisConstraint[]): TextPatternOption => ({
+  value,
+  ...(analysis ? { analysis } : {}),
+});
+const patternAlternativePart = (options: Array<string | TextPatternOption>): TextPatternPart => ({
+  type: "alternative",
+  options: options.map((option) => typeof option === "string" ? { value: option } : option),
+});
+const patternAlternativeAnchor = (options: Array<string | TextPatternOption>, scope: TextMatchScope = "either"): TextAnchor =>
+  patternAnchorParts([patternAlternativePart(options)], scope);
+const patternOptionalPart = (value: string, analysis?: TextTokenAnalysisConstraint[]): TextPatternPart => ({
+  type: "optional",
+  value,
+  ...(analysis ? { analysis } : {}),
+});
+const patternPlaceholderPart = (
+  value: "number" | "dice" | "range",
+  analysis?: TextTokenAnalysisConstraint[],
+): TextPatternPart => ({
+  type: "placeholder",
+  value,
+  ...(analysis ? { analysis } : {}),
 });
 const patternAltAnchor = (alternatives: string[], scope: TextMatchScope = "either"): TextAnchor =>
   patternAnchor(`{{alt(${alternatives.join(",")})}}`, scope);
@@ -884,7 +916,14 @@ export { normalizeDerivedTag } from "./matcher.js";
 
 export {
   patternAnchor,
+  patternAnchorParts,
   patternAltAnchor,
+  patternAlternativeAnchor,
+  patternAlternativeOption,
+  patternAlternativePart,
+  patternLiteralPart,
+  patternOptionalPart,
+  patternPlaceholderPart,
   referenceAnchor,
   OFFENSIVE_TEXT_ANCHORS,
   GEARISH_SUBCATEGORIES,

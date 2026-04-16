@@ -30,6 +30,8 @@ import {
   UNDEAD_GLOSSARY_FAMILIES,
   WEAK_PROFESSION_NAME_ANCHORS,
   patternAltAnchor,
+  patternAlternativeAnchor,
+  patternAlternativeOption,
   patternAnchor,
 } from "../shared.js";
 
@@ -592,15 +594,17 @@ const FORTRESS_SETTING_NAME_ANCHORS = [
 ];
 
 const FORTRESS_SETTING_RESIDENCE_CONTEXT_TEXT_ANCHOR = patternAltAnchor(["within", "inside", "among", "take residence", "takes residence", "taking residence", "reside", "resides", "residing", "stationed", "posted", "quartered"], "description");
+const FORTRESS_KEEP_NOUN_TEXT_ANCHOR = patternAlternativeAnchor([
+  patternAlternativeOption("keep", [{ pos: ["NOUN"] }]),
+  patternAlternativeOption("keeps", [{ pos: ["NOUN"] }]),
+], "description");
 const FORTRESS_SETTING_STRUCTURE_TEXT_ANCHORS = [
   patternAltAnchor(["fortress", "fortresses", "castle", "castles", "citadel", "citadels", "stronghold", "strongholds", "bastion", "bastions", "watchtower", "watchtowers", "rampart", "ramparts", "battlement", "battlements"], "description"),
-  patternAnchor("keep", "description", { pos: ["NOUN"] }),
-  patternAnchor("keeps", "description", { pos: ["NOUN"] }),
+  FORTRESS_KEEP_NOUN_TEXT_ANCHOR,
 ];
 const FORTRESS_SETTING_SITE_TEXT_ANCHORS = [
   patternAltAnchor(["fortress", "fortresses", "castle", "castles", "citadel", "citadels", "stronghold", "strongholds", "bastion", "bastions", "watchtower", "watchtowers", "fort", "forts", "garrison"], "description"),
-  patternAnchor("keep", "description", { pos: ["NOUN"] }),
-  patternAnchor("keeps", "description", { pos: ["NOUN"] }),
+  FORTRESS_KEEP_NOUN_TEXT_ANCHOR,
 ];
 
 const DREAMLANDS_SETTING_BLOCKER_TEXT_ANCHORS = [
