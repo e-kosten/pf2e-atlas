@@ -32,6 +32,17 @@ export interface DerivedTagSeedRecordResolution extends DerivedTagSeedRecordRefe
   recordKey: string;
 }
 
+export interface DerivedTagLegacySeedMigrationTag {
+  tag: string;
+  includeRecords?: DerivedTagSeedRecordReference[];
+  excludeRecords?: DerivedTagSeedRecordReference[];
+}
+
+export interface DerivedTagLegacySeedMigrationCategory {
+  category: SearchCategory;
+  tags: DerivedTagLegacySeedMigrationTag[];
+}
+
 export type SourceCategory = "core" | "rules" | "adventure" | "unknown";
 export type VariantSource = "baseItem" | "slug" | "namePattern" | "sourcePath" | "composite" | "none";
 export type DerivedTagAssignmentMode = "deterministic" | "editorial" | "hybrid" | "composite";

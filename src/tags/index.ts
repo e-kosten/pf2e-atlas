@@ -2,14 +2,18 @@ import { deriveRecordTagsFromRules } from "./matcher.js";
 import { normalizeDerivedTag, DerivedTagContext } from "./shared.js";
 import { uniqueSorted } from "../utils.js";
 import {
+  buildDerivedTagLegacySeedMigrationIndex,
   buildDerivedTagSeedIndex,
   deriveCatalogTagDerivation,
+  listConfiguredDerivedTagLegacySeedMigrations,
   publishDerivedTagOntology,
   resolveCatalogSeedRecordKeys,
+  type DerivedTagLegacySeedMigrationDefinition,
   type PublishedDerivedTagOntology,
   type DerivedTagDerivation,
 } from "./catalog-utils.js";
 import { DERIVED_TAG_SEED_LOOKUP } from "./catalog-seed-records.js";
+import { CREATURE_DERIVED_TAG_LEGACY_SEED_MIGRATIONS } from "./legacy-seed-migrations/creature.js";
 import {
   AFFLICTION_DERIVED_TAG_ONTOLOGY,
 } from "./ontology/affliction.js";
@@ -67,6 +71,11 @@ const DERIVED_TAG_ONTOLOGY: PublishedDerivedTagOntology = publishDerivedTagOntol
 export const DERIVED_TAG_ONTOLOGY_FAMILIES = DERIVED_TAG_ONTOLOGY.families;
 export const DERIVED_TAG_ONTOLOGY_TAGS = DERIVED_TAG_ONTOLOGY.tags;
 const DERIVED_TAG_SEED_INDEX = buildDerivedTagSeedIndex(DERIVED_TAG_ONTOLOGY, DERIVED_TAG_SEED_LOOKUP);
+const DERIVED_TAG_LEGACY_SEED_MIGRATION_INDEX = buildDerivedTagLegacySeedMigrationIndex(
+  DERIVED_TAG_ONTOLOGY,
+  DERIVED_TAG_SEED_LOOKUP,
+  [CREATURE_DERIVED_TAG_LEGACY_SEED_MIGRATIONS],
+);
 const DERIVED_TAG_EXPLICIT_ASSIGNMENT_INDEX = createDerivedTagExplicitAssignmentIndex(DERIVED_TAG_ONTOLOGY);
 
 export function deriveRecordTags(input: DerivedTagContext): string[] {
@@ -83,6 +92,7 @@ export function deriveRecordTagDerivation(
     input,
     ruleTags,
     DERIVED_TAG_EXPLICIT_ASSIGNMENT_INDEX,
+    DERIVED_TAG_LEGACY_SEED_MIGRATION_INDEX,
   );
 }
 
@@ -91,6 +101,12 @@ export function getDerivedTagSeedRecordKeys(
   scope: { category?: DerivedTagContext["category"]; subcategory?: DerivedTagContext["subcategory"] } = {},
 ): string[] {
   return resolveCatalogSeedRecordKeys(DERIVED_TAG_SEED_INDEX, normalizeDerivedTag(tag), scope);
+}
+
+export function listDerivedTagLegacySeedMigrations(
+  scope: { category?: DerivedTagContext["category"]; subcategory?: DerivedTagContext["subcategory"] } = {},
+): DerivedTagLegacySeedMigrationDefinition[] {
+  return listConfiguredDerivedTagLegacySeedMigrations(DERIVED_TAG_LEGACY_SEED_MIGRATION_INDEX, scope);
 }
 
 export function getDerivedTagFamilyTags(

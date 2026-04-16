@@ -12,6 +12,7 @@ import {
 import {
   deriveRecordTagDerivation,
   getDerivedTagSeedRecordKeys,
+  listDerivedTagLegacySeedMigrations,
 } from "../../src/tags/index.js";
 
 const seedFamilies: DerivedTagOntologyFamily[] = [
@@ -467,9 +468,9 @@ describe("derived tag seeds", () => {
       "civic_npc",
       "combatant_npc",
     ]));
-    expect(["seed", "both"]).toContain(starwatchCommandoDerivation.sources.get("profession_npc"));
-    expect(["seed", "both"]).toContain(starwatchCommandoDerivation.sources.get("civic_npc"));
-    expect(["seed", "both"]).toContain(starwatchCommandoDerivation.sources.get("combatant_npc"));
+    expect(["seed", "rule+seed"]).toContain(starwatchCommandoDerivation.sources.get("profession_npc"));
+    expect(["seed", "rule+seed"]).toContain(starwatchCommandoDerivation.sources.get("civic_npc"));
+    expect(["seed", "rule+seed"]).toContain(starwatchCommandoDerivation.sources.get("combatant_npc"));
 
     const falsePriestDerivation = deriveRecordTagDerivation({
       recordKey: "pathfinder-npc-core:OAxxUyACpMlX3q1X",
@@ -483,8 +484,8 @@ describe("derived tag seeds", () => {
       "profession_npc",
       "combatant_npc",
     ]));
-    expect(["assignment", "rule_assignment"]).toContain(falsePriestDerivation.sources.get("profession_npc"));
-    expect(["assignment", "rule_assignment"]).toContain(falsePriestDerivation.sources.get("combatant_npc"));
+    expect(["assignment", "rule+assignment"]).toContain(falsePriestDerivation.sources.get("profession_npc"));
+    expect(["assignment", "rule+assignment"]).toContain(falsePriestDerivation.sources.get("combatant_npc"));
 
     const commanderArsiellaDerivation = deriveRecordTagDerivation({
       recordKey: "claws-of-the-tyrant-bestiary:tMqtId1TKVUXe4tN",
@@ -499,9 +500,9 @@ describe("derived tag seeds", () => {
       "civic_npc",
       "combatant_npc",
     ]));
-    expect(["seed", "both"]).toContain(commanderArsiellaDerivation.sources.get("profession_npc"));
-    expect(["seed", "both"]).toContain(commanderArsiellaDerivation.sources.get("civic_npc"));
-    expect(["seed", "both"]).toContain(commanderArsiellaDerivation.sources.get("combatant_npc"));
+    expect(["seed", "rule+seed"]).toContain(commanderArsiellaDerivation.sources.get("profession_npc"));
+    expect(["seed", "rule+seed"]).toContain(commanderArsiellaDerivation.sources.get("civic_npc"));
+    expect(["seed", "rule+seed"]).toContain(commanderArsiellaDerivation.sources.get("combatant_npc"));
 
     const spiritboundAluumDerivation = deriveRecordTagDerivation({
       recordKey: "age-of-ashes-bestiary:n6FQeNsDgKaDIF7b",
@@ -545,7 +546,7 @@ describe("derived tag seeds", () => {
       traits: ["dromaar", "human", "humanoid", "orc", "troop"],
     });
     expect(dromaarCompanyDerivation.tags).toEqual(expect.arrayContaining(["battlefield_setting", "combatant_npc"]));
-    expect(dromaarCompanyDerivation.sources.get("battlefield_setting")).toBe("both");
+    expect(dromaarCompanyDerivation.sources.get("battlefield_setting")).toBe("rule+seed");
     expect(dromaarCompanyDerivation.sources.get("combatant_npc")).toBe("seed");
 
     const qadiranCamelCorpsDerivation = deriveRecordTagDerivation({
@@ -651,10 +652,17 @@ describe("derived tag seeds", () => {
       "pathfinder-monster-core:T0OAOkmk4xz0wvjJ",
       "lost-omens-bestiary:E4qscYn7U3jHoCia",
     ]));
-    expect(getDerivedTagSeedRecordKeys("faceless_horror", { category: "creature" })).toEqual(expect.arrayContaining([
-      "season-of-ghosts-bestiary:QSa1PbcvbgDv8Zpr",
-      "season-of-ghosts-bestiary:dqsQutshiegWaFPQ",
-      "season-of-ghosts-bestiary:3KNblm2fWM6XLiS7",
+    expect(getDerivedTagSeedRecordKeys("faceless_horror", { category: "creature" })).toEqual([]);
+    expect(listDerivedTagLegacySeedMigrations({ category: "creature" })).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        category: "creature",
+        tag: "faceless_horror",
+        recordKeys: expect.arrayContaining([
+          "season-of-ghosts-bestiary:QSa1PbcvbgDv8Zpr",
+          "season-of-ghosts-bestiary:dqsQutshiegWaFPQ",
+          "season-of-ghosts-bestiary:3KNblm2fWM6XLiS7",
+        ]),
+      }),
     ]));
     expect(getDerivedTagSeedRecordKeys("regeneration_threat", { category: "creature" })).toEqual(expect.arrayContaining([
       "pathfinder-monster-core-2:yHduMu4VBVUHnssz",
@@ -682,7 +690,7 @@ describe("derived tag seeds", () => {
       traits: ["dragon", "occult"],
     });
     expect(conspiratorDragonDerivation.tags).toContain("disguised_pretender");
-    expect(["assignment", "rule_assignment"]).toContain(conspiratorDragonDerivation.sources.get("disguised_pretender"));
+    expect(["assignment", "rule+assignment"]).toContain(conspiratorDragonDerivation.sources.get("disguised_pretender"));
 
     const nopperaBoDivineDerivation = deriveRecordTagDerivation({
       recordKey: "season-of-ghosts-bestiary:dqsQutshiegWaFPQ",
@@ -697,7 +705,7 @@ describe("derived tag seeds", () => {
       "faceless_horror",
     ]));
     expect(nopperaBoDivineDerivation.sources.get("disguised_pretender")).toBe("seed");
-    expect(nopperaBoDivineDerivation.sources.get("faceless_horror")).toBe("seed");
+    expect(nopperaBoDivineDerivation.sources.get("faceless_horror")).toBe("seed_migration");
 
     const cavernTrollDerivation = deriveRecordTagDerivation({
       recordKey: "pathfinder-monster-core-2:yHduMu4VBVUHnssz",
