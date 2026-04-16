@@ -14,6 +14,7 @@ import {
   toggleDerivedTagMigrationUnresolvedOnly,
   updateDerivedTagMigrationDecisionStatus,
 } from "../../src/tags/migration/review-session.js";
+import { moveSelection } from "../../src/tags/migration/terminal-ui.js";
 import type { DerivedTagMigrationSession } from "../../src/tags/migration/types.js";
 
 describe("derived tag migration tooling", () => {
@@ -281,5 +282,13 @@ describe("derived tag migration tooling", () => {
     session = toggleDerivedTagMigrationUnresolvedOnly(session);
     session = clampDerivedTagMigrationReviewIndex(session);
     expect(getDerivedTagMigrationReviewItems(session)).toHaveLength(1);
+  });
+
+  it("clamps keyboard selection movement to valid bounds", () => {
+    expect(moveSelection(0, -1, 3)).toBe(0);
+    expect(moveSelection(0, 1, 3)).toBe(1);
+    expect(moveSelection(2, 1, 3)).toBe(2);
+    expect(moveSelection(5, 0, 3)).toBe(2);
+    expect(moveSelection(0, 1, 0)).toBe(0);
   });
 });

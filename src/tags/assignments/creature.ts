@@ -8,6 +8,15 @@ export const CREATURE_DERIVED_TAG_ASSIGNMENTS: AuthoredDerivedTagAssignment[] = 
       encounter_role: ["profession_npc", "civic_npc"],
     },
     review: {
+      setting: {
+        urban_setting: {
+          mode: "include",
+          status: "needs_review",
+          confidence: "low",
+          source: "llm",
+          rationale: "Temporary manual CLI test fixture: pending review item for queue and session testing.",
+        },
+      },
       encounter_role: {
         profession_npc: {
           mode: "include",
@@ -34,6 +43,15 @@ export const CREATURE_DERIVED_TAG_ASSIGNMENTS: AuthoredDerivedTagAssignment[] = 
       encounter_role: ["civic_npc"],
     },
     review: {
+      setting: {
+        urban_setting: {
+          mode: "exclude",
+          status: "needs_review",
+          confidence: "medium",
+          source: "llm",
+          rationale: "Temporary manual CLI test fixture: pending exclusion review for queue and TUI testing.",
+        },
+      },
       encounter_role: {
         profession_npc: {
           mode: "include",
@@ -81,6 +99,13 @@ export const CREATURE_DERIVED_TAG_ASSIGNMENTS: AuthoredDerivedTagAssignment[] = 
     },
     review: {
       setting: {
+        coastal_setting: {
+          mode: "include",
+          status: "needs_review",
+          confidence: "medium",
+          source: "llm",
+          rationale: "Temporary manual CLI test fixture: pending coastal-setting review for CLI testing.",
+        },
         nautical_setting: {
           mode: "include",
           status: "approved",
@@ -98,6 +123,15 @@ export const CREATURE_DERIVED_TAG_ASSIGNMENTS: AuthoredDerivedTagAssignment[] = 
       setting: ["urban_setting"],
     },
     review: {
+      encounter_role: {
+        combatant_npc: {
+          mode: "include",
+          status: "needs_review",
+          confidence: "low",
+          source: "llm",
+          rationale: "Temporary manual CLI test fixture: pending role review to exercise mixed-family queue behavior.",
+        },
+      },
       motif: {
         disguised_pretender: {
           mode: "include",

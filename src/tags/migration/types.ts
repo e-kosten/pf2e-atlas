@@ -137,7 +137,7 @@ export type DerivedTagReviewQueueSummaryItem = {
   family: string;
   tag: string;
   count: number;
-  confidence: DerivedTagReviewConfidence | "unspecified";
+  confidence: DerivedTagReviewConfidence | "unspecified" | "mixed";
 };
 
 export type DerivedTagMigrationAuthoredState = {

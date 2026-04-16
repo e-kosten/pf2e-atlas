@@ -55,6 +55,7 @@ function flattenAssignmentDecisions(assignments: AuthoredDerivedTagAssignment[])
 export function summarizeCurrentDerivedTagReviewQueue(): DerivedTagReviewQueueSummaryItem[] {
   const state = getCurrentDerivedTagMigrationAuthoredState();
   const counts = new Map<string, DerivedTagReviewQueueSummaryItem>();
+  const confidencesByKey = new Map<string, Set<DerivedTagReviewQueueSummaryItem["confidence"]>>();
 
   for (const [category, assignments] of Object.entries(state.assignments) as Array<[SearchCategory, AuthoredDerivedTagAssignment[]]>) {
     for (const decision of flattenAssignmentDecisions(assignments)) {
@@ -62,7 +63,7 @@ export function summarizeCurrentDerivedTagReviewQueue(): DerivedTagReviewQueueSu
         continue;
       }
       const confidence = decision.confidence ?? "unspecified";
-      const key = [category, decision.family, decision.tag, confidence].join("|");
+      const key = [category, decision.family, decision.tag].join("|");
       const current = counts.get(key) ?? {
         category,
         family: decision.family,
@@ -72,7 +73,15 @@ export function summarizeCurrentDerivedTagReviewQueue(): DerivedTagReviewQueueSu
       };
       current.count += 1;
       counts.set(key, current);
+      const confidenceBucket = confidencesByKey.get(key) ?? new Set<DerivedTagReviewQueueSummaryItem["confidence"]>();
+      confidenceBucket.add(confidence);
+      confidencesByKey.set(key, confidenceBucket);
     }
+  }
+
+  for (const [key, item] of counts.entries()) {
+    const confidences = confidencesByKey.get(key) ?? new Set<DerivedTagReviewQueueSummaryItem["confidence"]>();
+    item.confidence = confidences.size <= 1 ? [...confidences][0] ?? "unspecified" : "mixed";
   }
 
   return [...counts.values()]

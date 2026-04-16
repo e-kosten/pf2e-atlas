@@ -15,6 +15,7 @@
     "discover-derived-tag-candidates": "tsx src/tags/cli/discover-semantic-candidates.ts",
     "discover-ruleable-cohorts": "tsx src/tags/cli/discover-ruleable-cohorts.ts",
     "discover-untagged-cohorts": "tsx src/tags/cli/discover-untagged-cohorts.ts",
+    "derived-tag-migration-workbench": "tsx src/tags/cli/derived-tag-migration-workbench.ts",
     "evaluate-derived-tags": "tsx src/tags/cli/evaluate-gaps.ts",
     "evaluate-derived-tag-movement": "tsx src/tags/cli/evaluate-movement.ts",
     "import-derived-tag-migration": "tsx src/tags/cli/import-derived-tag-migration.ts",
