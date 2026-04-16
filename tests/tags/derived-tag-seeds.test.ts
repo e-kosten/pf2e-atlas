@@ -396,10 +396,24 @@ describe("derived tag seeds", () => {
       "pathfinder-npc-core:OAxxUyACpMlX3q1X",
       "claws-of-the-tyrant-bestiary:tMqtId1TKVUXe4tN",
       "triumph-of-the-tusk-bestiary:xd35No1x2n1MDVCm",
+      "battlecry-bestiary:R1Ukw41ygDmnAmJk",
     ]));
     expect(getDerivedTagSeedRecordKeys("urban_setting", { category: "creature" })).toContain(
       "age-of-ashes-bestiary:n6FQeNsDgKaDIF7b",
     );
+    expect(getDerivedTagSeedRecordKeys("nautical_setting", { category: "creature" })).toEqual(expect.arrayContaining([
+      "agents-of-edgewatch-bestiary:BLRsSDFSMbZHcGDQ",
+      "agents-of-edgewatch-bestiary:d3TzpCuRJF78xHZK",
+    ]));
+    expect(getDerivedTagSeedRecordKeys("island_setting", { category: "creature" })).toEqual(expect.arrayContaining([
+      "age-of-ashes-bestiary:5dSVk2y88SLsPPON",
+      "age-of-ashes-bestiary:6AN7eagk2WrWc4im",
+      "age-of-ashes-bestiary:X6TTBlHIfJZ43OqR",
+    ]));
+    expect(getDerivedTagSeedRecordKeys("battlefield_setting", { category: "creature" })).toEqual(expect.arrayContaining([
+      "battlecry-bestiary:pC4qg7AarAty1K7K",
+      "battlecry-bestiary:R1Ukw41ygDmnAmJk",
+    ]));
 
     const starwatchCommandoDerivation = deriveRecordTagDerivation({
       recordKey: "agents-of-edgewatch-bestiary:rsKf8ixrl3yBq1gb",
@@ -460,6 +474,40 @@ describe("derived tag seeds", () => {
     });
     expect(spiritboundAluumDerivation.tags).toContain("urban_setting");
     expect(spiritboundAluumDerivation.sources.get("urban_setting")).toBe("seed");
+
+    const blackWhaleGuardDerivation = deriveRecordTagDerivation({
+      recordKey: "agents-of-edgewatch-bestiary:BLRsSDFSMbZHcGDQ",
+      name: "Black Whale Guard",
+      category: "creature",
+      subcategory: null,
+      descriptionText: null,
+      traits: ["human", "humanoid", "lawful"],
+    });
+    expect(blackWhaleGuardDerivation.tags).toContain("nautical_setting");
+    expect(blackWhaleGuardDerivation.sources.get("nautical_setting")).toBe("seed");
+
+    const mengkareDerivation = deriveRecordTagDerivation({
+      recordKey: "age-of-ashes-bestiary:6AN7eagk2WrWc4im",
+      name: "Mengkare",
+      category: "creature",
+      subcategory: null,
+      descriptionText: null,
+      traits: ["dragon", "evil", "fire", "lawful"],
+    });
+    expect(mengkareDerivation.tags).toContain("island_setting");
+    expect(mengkareDerivation.sources.get("island_setting")).toBe("seed");
+
+    const dromaarCompanyDerivation = deriveRecordTagDerivation({
+      recordKey: "battlecry-bestiary:R1Ukw41ygDmnAmJk",
+      name: "Dromaar Company",
+      category: "creature",
+      subcategory: null,
+      descriptionText: null,
+      traits: ["dromaar", "human", "humanoid", "orc", "troop"],
+    });
+    expect(dromaarCompanyDerivation.tags).toEqual(expect.arrayContaining(["battlefield_setting", "combatant_npc"]));
+    expect(dromaarCompanyDerivation.sources.get("battlefield_setting")).toBe("seed");
+    expect(dromaarCompanyDerivation.sources.get("combatant_npc")).toBe("seed");
 
     const touchedCreatureTags = [
       "dragon_spellcaster",

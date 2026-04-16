@@ -288,6 +288,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
           expect.objectContaining({ value: "maelstrom_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "cosmic_framework_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "island_setting", description: expect.any(String) }),
+          expect.objectContaining({ value: "battlefield_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "jungle_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "plains_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "canyon_setting", description: expect.any(String) }),

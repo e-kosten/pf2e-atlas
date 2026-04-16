@@ -365,6 +365,14 @@ describe("derived tag rules: creature", () => {
     })).not.toContain("civic_npc");
 
     expect(deriveRecordTags({
+      name: "Clockwork Infantry",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A clockwork infantry is a force to be reckoned with on the battlefield, advancing as a disciplined military formation.",
+      traits: ["clockwork", "construct", "mindless", "troop"],
+    })).toContain("battlefield_setting");
+
+    expect(deriveRecordTags({
       name: "Rust Hag",
       category: "creature",
       subcategory: null,
@@ -395,6 +403,14 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "The most common aluum is powered by the bound soul of a loyal city servant. Aluums are powerful metal and stone constructs originally created by the Pactmasters to maintain order in Katapesh.",
       traits: ["construct", "mindless"],
+    })).toContain("urban_setting");
+
+    expect(deriveRecordTags({
+      name: "Skulk",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Skulks gather around the periphery of large settlements, slipping through entrances and exits from cities and using access ways around sewers to watch who comes and goes from the city.",
+      traits: ["humanoid", "skulk"],
     })).toContain("urban_setting");
 
     expect(deriveRecordTags({
@@ -2232,6 +2248,33 @@ describe("derived tag rules: creature", () => {
     })).toEqual(expect.arrayContaining(["disguised_pretender", "urban_setting"]));
 
     expect(deriveRecordTags({
+      recordKey: "agents-of-edgewatch-bestiary:BLRsSDFSMbZHcGDQ",
+      name: "Black Whale Guard",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "",
+      traits: ["human", "humanoid", "lawful"],
+    })).toContain("nautical_setting");
+
+    expect(deriveRecordTags({
+      recordKey: "age-of-ashes-bestiary:6AN7eagk2WrWc4im",
+      name: "Mengkare",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "",
+      traits: ["dragon", "evil", "fire", "lawful"],
+    })).toContain("island_setting");
+
+    expect(deriveRecordTags({
+      recordKey: "battlecry-bestiary:R1Ukw41ygDmnAmJk",
+      name: "Dromaar Company",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "",
+      traits: ["dromaar", "human", "humanoid", "orc", "troop"],
+    })).toEqual(expect.arrayContaining(["battlefield_setting", "combatant_npc"]));
+
+    expect(deriveRecordTags({
       recordKey: "pathfinder-monster-core-2:yHduMu4VBVUHnssz",
       name: "Cavern Troll",
       category: "creature",
@@ -2386,6 +2429,14 @@ describe("derived tag rules: creature", () => {
       descriptionText: "Agradaemons spread sickness and delight in carrying death from one battlefield to the next.",
       traits: ["daemon", "evil", "fiend", "unholy"],
     })).toEqual(expect.arrayContaining(["abaddon_setting", "lower_plane_setting"]));
+
+    expect(deriveRecordTags({
+      name: "Agradaemon",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Agradaemons spread sickness and delight in carrying death from one battlefield to the next.",
+      traits: ["daemon", "evil", "fiend", "unholy"],
+    })).not.toContain("battlefield_setting");
 
     expect(deriveRecordTags({
       name: "Ferrugon",

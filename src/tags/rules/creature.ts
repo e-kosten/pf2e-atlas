@@ -878,6 +878,10 @@ const GRAVEYARD_SETTING_CORE_TEXT_ANCHORS = [
 const URBAN_SETTING_EXACT_TEXT_ANCHORS = [
   patternAnchor("can be found in all cities"),
   patternAnchor("found in all cities"),
+  patternAnchor("periphery of large settlements"),
+  patternAnchor("around the periphery of large settlements"),
+  patternAnchor("entrances and exits from cities"),
+  patternAnchor("access ways around sewers"),
   patternAnchor("upper echelons of society"),
   patternAnchor("city servant"),
   patternAnchor("city servants"),
@@ -895,6 +899,11 @@ const URBAN_SETTING_EXACT_TEXT_ANCHORS = [
   patternAnchor("storm sewers"),
   patternAnchor("drainage tunnel"),
   patternAnchor("drainage tunnels"),
+];
+
+const BATTLEFIELD_SETTING_TEXT_ANCHORS = [
+  patternAnchor("battlefield"),
+  patternAnchor("battlefields"),
 ];
 
 const URBAN_SETTING_GOVERNANCE_TEXT_ANCHORS = [
@@ -2038,6 +2047,9 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
           patternAnchor("hide in plain sight in cities"),
           patternAnchor("city dwelling gargoyles"),
           patternAnchor("city-dwelling gargoyles"),
+          patternAnchor("around the periphery of large settlements"),
+          patternAnchor("entrances and exits from cities"),
+          patternAnchor("access ways around sewers"),
         ],
       },
     ],
@@ -2096,6 +2108,15 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     anyOf: [
       { score: 2, textAny: URBAN_SETTING_GOVERNANCE_TEXT_ANCHORS },
       { score: 1, familiesAny: ["official"] },
+    ],
+  },
+  {
+    tag: "battlefield_setting",
+    category: "creature",
+    threshold: 3,
+    anyOf: [
+      { score: 2, textAny: BATTLEFIELD_SETTING_TEXT_ANCHORS },
+      { score: 1, traitsAny: ["troop"] },
     ],
   },
   {

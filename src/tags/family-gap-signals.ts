@@ -181,6 +181,9 @@ const EXISTING_SETTING_TAG_CUES: Record<string, SettingCueSpec> = {
     strong: ["urban", "city", "street", "alley", "sewer", "metropolis", "culvert", "drain"],
     weak: ["market"],
   },
+  battlefield_setting: {
+    strong: ["battlefield", "battlefields", "war zone", "war zones", "front line", "front lines"],
+  },
   small_settlement_setting: {
     strong: ["village", "villager", "hamlet", "small settlement", "outlying settlement"],
     weak: ["town", "townsfolk", "settlement"],

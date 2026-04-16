@@ -52,8 +52,23 @@ export const CREATURE_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
         description: "Strongly associated with the cosmic framework planes of Axis, the Boneyard, and the Maelstrom, which govern order, judgment, and transformative change.",
         nativeOntologyPolicy: "aggregates_native_signals",
       },
-      { value: "island_setting", description: "Strongly associated with islands, archipelagos, or isolated isles." },
-      { value: "nautical_setting", description: "Strongly associated with ships, sailors, wrecks, or harbors." },
+      {
+        value: "island_setting",
+        description: "Strongly associated with islands, archipelagos, or isolated isles.",
+        seedRecords: [
+          { pack: "age-of-ashes-bestiary", name: "Hermean Mutant" },
+          { pack: "age-of-ashes-bestiary", name: "Mengkare" },
+          { pack: "age-of-ashes-bestiary", name: "Dragonshard Guardian" },
+        ],
+      },
+      {
+        value: "nautical_setting",
+        description: "Strongly associated with ships, sailors, wrecks, or harbors.",
+        seedRecords: [
+          { pack: "agents-of-edgewatch-bestiary", name: "Black Whale Guard" },
+          { pack: "agents-of-edgewatch-bestiary", name: "Black Whale Guard (F3)" },
+        ],
+      },
       { value: "jungle_setting", description: "Strongly associated with jungles, rainforests, or dense tropical canopies." },
       { value: "forest_setting", description: "Strongly associated with forests, jungles, groves, or briar-choked wilds." },
       { value: "plains_setting", description: "Strongly associated with open plains, grasslands, prairies, or savannas." },
@@ -65,6 +80,14 @@ export const CREATURE_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
         description: "Strongly associated with urban encounter scenes such as cities, streets, alleys, dense buildings, markets, or sewers.",
         seedRecords: [
           { pack: "age-of-ashes-bestiary", name: "Spiritbound Aluum" },
+        ],
+      },
+      {
+        value: "battlefield_setting",
+        description: "Strongly associated with battlefields, war zones, organized military deployments, or mass-combat scenes.",
+        seedRecords: [
+          { pack: "battlecry-bestiary", name: "Archer Regiment" },
+          { pack: "battlecry-bestiary", name: "Dromaar Company" },
         ],
       },
       { value: "small_settlement_setting", description: "Strongly associated with villages, hamlets, small towns, or other low-density community settlements." },
@@ -304,6 +327,7 @@ export const CREATURE_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
           { pack: "triumph-of-the-tusk-bestiary", name: "Orc Hunter" },
           { pack: "triumph-of-the-tusk-bestiary", name: "Wingripper Wyvern Rider" },
           { pack: "wardens-of-wildwood-bestiary", name: "Hateful Logger" },
+          { pack: "battlecry-bestiary", name: "Dromaar Company" },
           { pack: "blog-bestiary", name: "Urok" },
         ],
       },
