@@ -14,18 +14,18 @@ describe("reviewed discovery records", () => {
     creature: {
       setting: {
         not_family_salient: [
-          { recordKey: "creature:1", note: "No stable habitat cue." },
-          { recordKey: "creature:2", subcategory: null },
+          { recordKey: "creature:1", pack: "creature", name: "Record One", note: "No stable habitat cue." },
+          { recordKey: "creature:2", pack: "creature", name: "Record Two", subcategory: null },
         ],
         insufficient_evidence: [
-          { recordKey: "creature:3" },
+          { recordKey: "creature:3", pack: "creature", name: "Record Three" },
         ],
       },
     },
     spell: {
       purpose: {
         manual_lore_only: [
-          { recordKey: "spell:1" },
+          { recordKey: "spell:1", pack: "spell", name: "Spell One" },
         ],
       },
     },
@@ -45,9 +45,27 @@ describe("reviewed discovery records", () => {
       category: "creature",
       family: "setting",
       reason: "not_family_salient",
-    }, registry).map((entry) => entry.recordKey)).toEqual([
-      "creature:1",
-      "creature:2",
+    }, registry)).toEqual([
+      {
+        category: "creature",
+        family: "setting",
+        reason: "not_family_salient",
+        recordKey: "creature:1",
+        pack: "creature",
+        name: "Record One",
+        subcategory: null,
+        note: "No stable habitat cue.",
+      },
+      {
+        category: "creature",
+        family: "setting",
+        reason: "not_family_salient",
+        recordKey: "creature:2",
+        pack: "creature",
+        name: "Record Two",
+        subcategory: null,
+        note: undefined,
+      },
     ]);
   });
 
