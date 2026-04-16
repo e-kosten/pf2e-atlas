@@ -1435,13 +1435,85 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>Monadic devas are angels who guide pilgrims, guard sacred roads, and watch for threats against mortal souls.</p>",
+        publicNotes: "<p>Monadic devas stand vigil along the River of Souls as it passes from the mortal realm into the Ethereal Plane. Those who seek to fish souls out for their own use stalk this metaphysical river, and it is against these predators that monadic devas fight.</p>",
       },
       traits: {
         rarity: "common",
         value: ["angel", "celestial", "holy"],
         size: {
           value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "night-hag.json"), {
+    _id: "night-hag",
+    name: "Night Hag",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 9,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>Night hags haunt the Ethereal Plane, where they prey upon mortals in their dreams. Although a night hag finds it easy to travel the Ethereal Plane and prey upon helpless souls that can't fight back, these souls are also the least desirable to the evil outsiders the night hag bargains with.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["fiend"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "xill.json"), {
+    _id: "xill",
+    name: "Xill",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 6,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>Xills visit the Material Plane, where they're often known as ethereal stalkers, primarily to maraud and kidnap creatures back to their native Ethereal Plane.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["aberration"],
+        size: {
+          value: "med",
+        },
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "pathfinder-monster-core", "ether-spider.json"), {
+    _id: "ether-spider",
+    name: "Ether Spider",
+    type: "npc",
+    system: {
+      details: {
+        level: {
+          value: 8,
+        },
+        publication: {
+          title: "Pathfinder Monster Core",
+        },
+        publicNotes: "<p>Ether spiders are members of a vague taxonomy called ethereal wildlife and are deadly predators from the Ethereal Plane. Ether spiders move between the planes with ease, making them extremely dangerous to those who can't see or attack ethereal enemies.</p>",
+      },
+      traits: {
+        rarity: "common",
+        value: ["animal"],
+        size: {
+          value: "lg",
         },
       },
     },

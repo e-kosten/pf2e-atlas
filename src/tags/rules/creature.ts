@@ -13,6 +13,7 @@ import {
   DerivedTagRule,
   DREAMLANDS_SETTING_NAME_ANCHORS,
   DREAMLANDS_SETTING_TEXT_ANCHORS,
+  ETHEREAL_SETTING_TEXT_ANCHORS,
   ELYSIUM_SETTING_TEXT_ANCHORS,
   FIRST_WORLD_SETTING_CONTEXT_TEXT_ANCHORS,
   FIRST_WORLD_SETTING_TEXT_ANCHORS,
@@ -1318,6 +1319,13 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     allOf: [
       { textAny: [patternAnchor("astral")] },
       { textAny: ASTRAL_SETTING_CONTEXT_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "ethereal_setting",
+    category: "creature",
+    anyOf: [
+      { textAny: ETHEREAL_SETTING_TEXT_ANCHORS },
     ],
   },
   {

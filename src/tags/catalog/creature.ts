@@ -11,6 +11,7 @@ export const CREATURE_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
       { value: "freshwater_setting", description: "Strongly associated with rivers, lakes, ponds, streams, springs, or other inland waters." },
       { value: "coastal_setting", description: "Strongly associated with coasts, shores, reefs, or littoral edges." },
       { value: "astral_setting", description: "Strongly associated with Astral Plane scenes, silver-void travel, or stable portal routes." },
+      { value: "ethereal_setting", description: "Strongly associated with the Ethereal Plane, its native wildlife, or recurring hunting and travel routes through it." },
       { value: "plane_of_fire_setting", description: "Strongly associated with the Plane of Fire, its native denizens, or its infernal-bright cityscapes and battlefields." },
       { value: "plane_of_air_setting", description: "Strongly associated with the Plane of Air, its native denizens, or its endless winds and cloud realms." },
       { value: "plane_of_water_setting", description: "Strongly associated with the Plane of Water, its native denizens, or its endless seas and oceanic realms." },

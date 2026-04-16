@@ -1153,6 +1153,14 @@ describe("derived tag rules: creature", () => {
     })).not.toContain("dreamlands_setting");
 
     expect(deriveRecordTags({
+      name: "Night Hag",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "They haunt the Ethereal Plane, where they prey upon mortals in their dreams, debilitating them with horrific nightmares as they rest.",
+      traits: ["fiend", "hag", "evil"],
+    })).toContain("ethereal_setting");
+
+    expect(deriveRecordTags({
       name: "Diabolic Dragon (Adult)",
       category: "creature",
       subcategory: null,
@@ -1517,6 +1525,14 @@ describe("derived tag rules: creature", () => {
       descriptionText: "When a mortal dies, their soul travels to the Boneyard in the Outer Planes where they're judged by Pharasma, though these shades merely appear as astrally projected versions of their mortal forms.",
       traits: ["astral", "shade"],
     })).not.toContain("boneyard_setting");
+
+    expect(deriveRecordTags({
+      name: "Phantom Knight",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Complications arise when a soul in queue for judgment prematurely departs from the River of Souls and is shunted into the Ethereal Plane.",
+      traits: ["spirit"],
+    })).not.toContain("ethereal_setting");
 
     expect(deriveRecordTags({
       name: "Shrine Caretaker",
@@ -2417,6 +2433,54 @@ describe("derived tag rules: creature", () => {
       descriptionText: "An astral voyager navigates silver void currents and timeless passageways between worlds.",
       traits: ["astral"],
     })).not.toContain("cosmic_framework_setting");
+
+    expect(deriveRecordTags({
+      name: "Xill",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Xills visit the Material Plane to maraud and kidnap creatures back to their native Ethereal Plane.",
+      traits: ["aberration"],
+    })).toContain("ethereal_setting");
+
+    expect(deriveRecordTags({
+      name: "Ether Spider",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Ether spiders are deadly predators from the Ethereal Plane and are members of a vague taxonomy called ethereal wildlife.",
+      traits: ["animal"],
+    })).toContain("ethereal_setting");
+
+    expect(deriveRecordTags({
+      name: "Mist Bear",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Once sated, a mist bear drifts through the Ethereal Plane as a cloud of intangible vapor.",
+      traits: ["animal"],
+    })).toContain("ethereal_setting");
+
+    expect(deriveRecordTags({
+      name: "Rift Chameleon",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A rift chameleon has a digestive tract that connects to its own pocket of the Ethereal Plane.",
+      traits: ["animal"],
+    })).toContain("ethereal_setting");
+
+    expect(deriveRecordTags({
+      name: "Miss Whisper",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Most sahkils lurk on the Ethereal Plane, but they frequently invade the Material Plane to torment mortals and spread terror.",
+      traits: ["fiend"],
+    })).toContain("ethereal_setting");
+
+    expect(deriveRecordTags({
+      name: "Monadic Deva",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "Monadic devas stand vigil along the River of Souls as it passes from the mortal realm into the Ethereal Plane.",
+      traits: ["angel", "celestial", "holy"],
+    })).not.toContain("ethereal_setting");
 
     expect(deriveRecordTags({
       name: "Shae",

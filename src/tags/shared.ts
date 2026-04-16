@@ -272,6 +272,25 @@ const ASTRAL_SETTING_CONTEXT_TEXT_ANCHORS: TextAnchor[] = [
   ]),
 ];
 
+const ETHEREAL_SETTING_TEXT_ANCHORS: TextAnchor[] = [
+  patternAnchor("native ethereal plane"),
+  patternAnchor("native to the ethereal plane"),
+  patternAnchor("from the ethereal plane"),
+  patternAnchor("on the ethereal plane"),
+  patternAnchor("haunt the ethereal plane"),
+  patternAnchor("haunts the ethereal plane"),
+  patternAnchor("lurk on the ethereal plane"),
+  patternAnchor("lurks on the ethereal plane"),
+  patternAnchor("drift through the ethereal plane"),
+  patternAnchor("drifts through the ethereal plane"),
+  patternAnchor("return to the ethereal plane"),
+  patternAnchor("returns to the ethereal plane"),
+  patternAnchor("pocket of the ethereal plane"),
+  patternAnchor("deadly predators from the ethereal plane"),
+  patternAnchor("ethereal wildlife"),
+  patternAnchor("ethereal stalker"),
+];
+
 const FIRST_WORLD_SETTING_TEXT_ANCHORS: TextAnchor[] = [
   patternAnchor("first world"),
   patternAnchor("realm of the fey"),
@@ -879,6 +898,7 @@ export {
   ASTRAL_SETTING_TEXT_ANCHORS,
   ASTRAL_SETTING_ACTIVITY_TEXT_ANCHORS,
   ASTRAL_SETTING_CONTEXT_TEXT_ANCHORS,
+  ETHEREAL_SETTING_TEXT_ANCHORS,
   FIRST_WORLD_SETTING_TEXT_ANCHORS,
   DREAMLANDS_SETTING_TEXT_ANCHORS,
   DREAMLANDS_SETTING_NAME_ANCHORS,
