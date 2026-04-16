@@ -11,13 +11,6 @@ export const CREATURE_DERIVED_TAG_ASSIGNMENTS: AuthoredDerivedTagAssignment[] = 
     },
     review: {
       setting: {
-        coastal_setting: {
-          mode: "include",
-          status: "rejected",
-          rationale: "Temporary manual CLI test fixture: pending coastal-setting review for CLI testing.",
-          confidence: "medium",
-          source: "llm"
-        },
         nautical_setting: {
           mode: "include",
           status: "approved",
@@ -39,15 +32,6 @@ export const CREATURE_DERIVED_TAG_ASSIGNMENTS: AuthoredDerivedTagAssignment[] = 
       ]
     },
     review: {
-      encounter_role: {
-        combatant_npc: {
-          mode: "include",
-          status: "rejected",
-          rationale: "Temporary manual CLI test fixture: pending role review to exercise mixed-family queue behavior.",
-          confidence: "low",
-          source: "llm"
-        }
-      },
       motif: {
         disguised_pretender: {
           mode: "include",
@@ -89,15 +73,6 @@ export const CREATURE_DERIVED_TAG_ASSIGNMENTS: AuthoredDerivedTagAssignment[] = 
           confidence: "high",
           rationale: "Presented as a role-defined academic administrator rather than as a generic monster encounter."
         }
-      },
-      setting: {
-        urban_setting: {
-          mode: "include",
-          status: "rejected",
-          rationale: "Temporary manual CLI test fixture: pending review item for queue and session testing.",
-          confidence: "low",
-          source: "llm"
-        }
       }
     }
   },
@@ -113,9 +88,6 @@ export const CREATURE_DERIVED_TAG_ASSIGNMENTS: AuthoredDerivedTagAssignment[] = 
     excluded: {
       encounter_role: [
         "civic_npc"
-      ],
-      setting: [
-        "urban_setting"
       ]
     },
     review: {
@@ -137,15 +109,6 @@ export const CREATURE_DERIVED_TAG_ASSIGNMENTS: AuthoredDerivedTagAssignment[] = 
           status: "approved",
           confidence: "high",
           rationale: "Presented as a role-defined false cleric identity rather than an untyped combatant."
-        }
-      },
-      setting: {
-        urban_setting: {
-          mode: "exclude",
-          status: "approved",
-          rationale: "Temporary manual CLI test fixture: pending exclusion review for queue and TUI testing.",
-          confidence: "medium",
-          source: "llm"
         }
       }
     }

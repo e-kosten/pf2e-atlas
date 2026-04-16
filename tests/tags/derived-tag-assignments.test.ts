@@ -346,22 +346,7 @@ describe("derived tag explicit assignments", () => {
 
   it("keeps the real authored creature assignments in a legal state", () => {
     expect(() => createDerivedTagExplicitAssignmentIndex(creatureOntology)).not.toThrow();
-    expect(buildDerivedTagPendingAssignmentViews(creatureOntology)).toEqual([
-      {
-        name: "Departmental Chair",
-        recordKey: "pathfinder-npc-core:MxcprNbX7hcpAU8p",
-        pending: {
-          setting: ["urban_setting"],
-        },
-      },
-      {
-        name: "False Priest",
-        recordKey: "pathfinder-npc-core:OAxxUyACpMlX3q1X",
-        pending: {
-          setting: ["urban_setting"],
-        },
-      },
-    ]);
+    expect(buildDerivedTagPendingAssignmentViews(creatureOntology)).toEqual([]);
   });
 
   it("applies configured creature assignments to live record keys", () => {
