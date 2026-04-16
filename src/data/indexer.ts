@@ -8,7 +8,12 @@ import { promisify } from "node:util";
 import { EmbeddingProvider } from "../embeddings.js";
 import { formatInteger } from "../shared/format.js";
 import { fileExists } from "../shared/fs.js";
-import { deriveRecordTags, getVariantInheritableTags, normalizeDerivedTag } from "../tags/index.js";
+import {
+  deriveRecordTags,
+  getVariantInheritableTags,
+  normalizeDerivedTag,
+  validateConfiguredDerivedTagAssignments,
+} from "../tags/index.js";
 import {
   PackInfo,
   PackManifestEntry,
@@ -499,6 +504,11 @@ export async function buildIndex(
 
     const indexedEntries = sourceEntries.filter((entry): entry is BuildSourceEntry & { record: NonNullable<BuildSourceEntry["record"]> } => entry.record !== null);
     assignVariantFamilies(indexedEntries);
+    validateConfiguredDerivedTagAssignments(indexedEntries.map((entry) => ({
+      recordKey: entry.record.recordKey,
+      name: entry.record.name,
+      category: entry.record.category,
+    })));
     const { aliasRows, legacyLinkRows } = await resolveBuildReferencesAndAliases({
       indexedEntries,
       sourceEntries,

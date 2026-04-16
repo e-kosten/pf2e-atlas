@@ -6,14 +6,14 @@ import { afterEach, describe, expect, it } from "vitest";
 import { loadTestService, writeJson } from "../helpers/pf2e-fixture.js";
 import { cleanupCreatedRoots, createFixture } from "../helpers/pf2e-service-fixture.js";
 
-describe("Pf2eDataService / Creature manual seeds", () => {
+describe("Pf2eDataService / Creature explicit assignments and manual seeds", () => {
   const createdRoots: string[] = [];
 
   afterEach(async () => {
     await cleanupCreatedRoots(createdRoots);
   });
 
-  it("indexes manual creature seed tags for live record keys", async () => {
+  it("indexes explicit creature assignments and remaining manual seed tags for live record keys", async () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);
 

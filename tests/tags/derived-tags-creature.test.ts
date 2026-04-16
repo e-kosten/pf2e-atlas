@@ -2239,7 +2239,7 @@ describe("derived tag rules: creature", () => {
     })).not.toContain("ambush_grabber");
   });
 
-  it("applies manual creature seeds for exact live record keys", () => {
+  it("applies explicit creature assignments and manual creature seeds for exact live record keys", () => {
     expect(deriveRecordTags({
       recordKey: "pathfinder-npc-core:MxcprNbX7hcpAU8p",
       name: "Departmental Chair",

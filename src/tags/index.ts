@@ -14,6 +14,10 @@ import { CREATURE_DERIVED_TAG_CATALOG } from "./catalog/creature.js";
 import { EQUIPMENT_DERIVED_TAG_CATALOG } from "./catalog/equipment.js";
 import { HAZARD_DERIVED_TAG_CATALOG } from "./catalog/hazard.js";
 import { SPELL_DERIVED_TAG_CATALOG } from "./catalog/spell.js";
+import {
+  createDerivedTagExplicitAssignmentIndex,
+  validateDerivedTagExplicitAssignmentsAgainstRecords,
+} from "./assignments.js";
 import { AFFLICTION_DERIVED_TAG_RULES } from "./rules/affliction.js";
 import { CREATURE_DERIVED_TAG_RULES } from "./rules/creature.js";
 import { EQUIPMENT_DERIVED_TAG_RULES } from "./rules/equipment.js";
@@ -38,6 +42,7 @@ const RAW_DERIVED_TAG_CATALOG = [
   ...CREATURE_DERIVED_TAG_CATALOG,
 ];
 const DERIVED_TAG_SEED_INDEX = buildDerivedTagSeedIndex(RAW_DERIVED_TAG_CATALOG, DERIVED_TAG_SEED_LOOKUP);
+const DERIVED_TAG_EXPLICIT_ASSIGNMENT_INDEX = createDerivedTagExplicitAssignmentIndex(RAW_DERIVED_TAG_CATALOG);
 
 export const DERIVED_TAG_CATALOG = publishDerivedTagCatalog(RAW_DERIVED_TAG_CATALOG);
 
@@ -49,7 +54,13 @@ export function deriveRecordTagDerivation(
   input: DerivedTagContext,
 ): DerivedTagDerivation {
   const ruleTags = deriveRecordTagsFromRules(DERIVED_TAG_RULES, input);
-  return deriveCatalogTagDerivation(RAW_DERIVED_TAG_CATALOG, DERIVED_TAG_SEED_INDEX, input, ruleTags);
+  return deriveCatalogTagDerivation(
+    RAW_DERIVED_TAG_CATALOG,
+    DERIVED_TAG_SEED_INDEX,
+    input,
+    ruleTags,
+    DERIVED_TAG_EXPLICIT_ASSIGNMENT_INDEX,
+  );
 }
 
 export function getDerivedTagSeedRecordKeys(
@@ -119,4 +130,10 @@ export function getVariantInheritableTags(
   }
 
   return uniqueSorted([...tags]);
+}
+
+export function validateConfiguredDerivedTagAssignments(
+  records: Iterable<{ recordKey: string; name: string; category: DerivedTagContext["category"] }>,
+): void {
+  validateDerivedTagExplicitAssignmentsAgainstRecords(records, DERIVED_TAG_EXPLICIT_ASSIGNMENT_INDEX);
 }

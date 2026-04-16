@@ -6,10 +6,19 @@ import type {
   SearchSubcategory,
 } from "../types.js";
 import { normalizeText, uniqueSorted } from "../utils.js";
+import type { DerivedTagExplicitAssignmentIndex } from "./assignments.js";
 import type { DerivedTagContext } from "./matcher.js";
 import { normalizeDerivedTag } from "./shared.js";
 
-export type DerivedTagSource = "rule" | "seed" | "both";
+type PrimaryDerivedTagSource = "rule" | "seed" | "assignment";
+export type DerivedTagSource =
+  | "rule"
+  | "seed"
+  | "assignment"
+  | "both"
+  | "rule_assignment"
+  | "seed_assignment"
+  | "rule_seed_assignment";
 
 export type DerivedTagDerivation = {
   tags: string[];
@@ -123,20 +132,44 @@ function pushSeedDefinition(
   existing.recordKeys = uniqueSorted([...existing.recordKeys, ...definition.recordKeys]);
 }
 
-function mergeSources(left: DerivedTagSource | undefined, right: DerivedTagSource): DerivedTagSource {
-  if (!left || left === right) {
-    return right;
+function normalizeSourceSet(sourceSet: Set<PrimaryDerivedTagSource>): DerivedTagSource {
+  if (sourceSet.size === 1) {
+    return [...sourceSet][0]!;
   }
-  return "both";
+  if (sourceSet.has("rule") && sourceSet.has("seed") && sourceSet.size === 2) {
+    return "both";
+  }
+  if (sourceSet.has("rule") && sourceSet.has("assignment") && sourceSet.size === 2) {
+    return "rule_assignment";
+  }
+  if (sourceSet.has("seed") && sourceSet.has("assignment") && sourceSet.size === 2) {
+    return "seed_assignment";
+  }
+  return "rule_seed_assignment";
 }
 
-function addSource(
-  sources: Map<string, DerivedTagSource>,
+function addPrimarySource(
+  sources: Map<string, Set<PrimaryDerivedTagSource>>,
   tag: string,
-  source: DerivedTagSource,
+  source: PrimaryDerivedTagSource,
 ): void {
   const normalizedTag = normalizeDerivedTag(tag);
-  sources.set(normalizedTag, mergeSources(sources.get(normalizedTag), source));
+  const existing = sources.get(normalizedTag) ?? new Set<PrimaryDerivedTagSource>();
+  existing.add(source);
+  sources.set(normalizedTag, existing);
+}
+
+function addSourceSet(
+  sources: Map<string, Set<PrimaryDerivedTagSource>>,
+  tag: string,
+  sourceSet: Set<PrimaryDerivedTagSource>,
+): void {
+  const normalizedTag = normalizeDerivedTag(tag);
+  const existing = sources.get(normalizedTag) ?? new Set<PrimaryDerivedTagSource>();
+  for (const source of sourceSet) {
+    existing.add(source);
+  }
+  sources.set(normalizedTag, existing);
 }
 
 function resolveSeedRecordKeys(
@@ -274,11 +307,12 @@ export function deriveCatalogTagDerivation(
   seedIndex: DerivedTagSeedIndex,
   input: Pick<DerivedTagContext, "recordKey" | "category" | "subcategory">,
   ruleTags: string[],
+  explicitAssignmentIndex?: DerivedTagExplicitAssignmentIndex,
 ): DerivedTagDerivation {
-  const sources = new Map<string, DerivedTagSource>();
+  const sourceSets = new Map<string, Set<PrimaryDerivedTagSource>>();
 
   for (const tag of ruleTags) {
-    addSource(sources, tag, "rule");
+    addPrimarySource(sourceSets, tag, "rule");
   }
 
   if (input.recordKey) {
@@ -291,7 +325,17 @@ export function deriveCatalogTagDerivation(
       if (!assignmentAppliesToContext(assignment, input) || blockedTags.has(assignment.tag)) {
         continue;
       }
-      addSource(sources, assignment.tag, "seed");
+      addPrimarySource(sourceSets, assignment.tag, "seed");
+    }
+
+    const explicitAssignment = explicitAssignmentIndex?.assignmentsByRecordKey.get(input.recordKey);
+    if (explicitAssignment && explicitAssignment.category === input.category) {
+      for (const tag of explicitAssignment.includeTags) {
+        addPrimarySource(sourceSets, tag, "assignment");
+      }
+      for (const tag of explicitAssignment.excludeTags) {
+        sourceSets.delete(normalizeDerivedTag(tag));
+      }
     }
   }
 
@@ -300,14 +344,26 @@ export function deriveCatalogTagDerivation(
       continue;
     }
 
-    const childSource = entry.tags.reduce<DerivedTagSource | undefined>((currentSource, tag) => {
-      const tagSource = sources.get(normalizeDerivedTag(tag.value));
-      return tagSource ? mergeSources(currentSource, tagSource) : currentSource;
+    const childSource = entry.tags.reduce<Set<PrimaryDerivedTagSource> | undefined>((currentSource, tag) => {
+      const tagSource = sourceSets.get(normalizeDerivedTag(tag.value));
+      if (!tagSource) {
+        return currentSource;
+      }
+      const merged = currentSource ?? new Set<PrimaryDerivedTagSource>();
+      for (const source of tagSource) {
+        merged.add(source);
+      }
+      return merged;
     }, undefined);
 
-    if (childSource) {
-      addSource(sources, entry.family, childSource);
+    if (childSource && childSource.size > 0) {
+      addSourceSet(sourceSets, entry.family, childSource);
     }
+  }
+
+  const sources = new Map<string, DerivedTagSource>();
+  for (const [tag, sourceSet] of sourceSets) {
+    sources.set(tag, normalizeSourceSet(sourceSet));
   }
 
   return {
