@@ -184,6 +184,12 @@ const EXISTING_SETTING_TAG_CUES: Record<string, SettingCueSpec> = {
   battlefield_setting: {
     strong: ["battlefield", "battlefields", "war zone", "war zones", "front line", "front lines"],
   },
+  geb_setting: {
+    strong: ["geb", "gebbite", "gebbites", "graydirge"],
+  },
+  gravelands_setting: {
+    strong: ["gravelands", "lastwall", "gallowspire", "fort ozem", "chernasardo"],
+  },
   small_settlement_setting: {
     strong: ["village", "villager", "hamlet", "small settlement", "outlying settlement"],
     weak: ["town", "townsfolk", "settlement"],

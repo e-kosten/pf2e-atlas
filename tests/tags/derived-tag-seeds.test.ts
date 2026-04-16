@@ -401,9 +401,27 @@ describe("derived tag seeds", () => {
     expect(getDerivedTagSeedRecordKeys("urban_setting", { category: "creature" })).toContain(
       "age-of-ashes-bestiary:n6FQeNsDgKaDIF7b",
     );
+    expect(getDerivedTagSeedRecordKeys("urban_setting", { category: "creature" })).toEqual(expect.arrayContaining([
+      "battlecry-bestiary:AHV0FTrbuPljLndw",
+      "blood-lords-bestiary:EqO67DHLlB88vSJZ",
+      "book-of-the-dead-bestiary:ol2lji9lH7PXh1uw",
+    ]));
     expect(getDerivedTagSeedRecordKeys("nautical_setting", { category: "creature" })).toEqual(expect.arrayContaining([
       "agents-of-edgewatch-bestiary:BLRsSDFSMbZHcGDQ",
       "agents-of-edgewatch-bestiary:d3TzpCuRJF78xHZK",
+    ]));
+    expect(getDerivedTagSeedRecordKeys("geb_setting", { category: "creature" })).toEqual(expect.arrayContaining([
+      "blood-lords-bestiary:IXPZR1DTdT7Tu7UG",
+      "blood-lords-bestiary:KQkouk6tku8akpmU",
+      "blood-lords-bestiary:k8NnItW7Hp79bg26",
+      "blood-lords-bestiary:vUv8SR7Pa5fONiuN",
+    ]));
+    expect(getDerivedTagSeedRecordKeys("gravelands_setting", { category: "creature" })).toEqual(expect.arrayContaining([
+      "book-of-the-dead-bestiary:gXo04F7O4pwOY698",
+      "claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E",
+      "claws-of-the-tyrant-bestiary:jSE16N2ASzN3qlN1",
+      "claws-of-the-tyrant-bestiary:tMqtId1TKVUXe4tN",
+      "claws-of-the-tyrant-bestiary:vdywUTHF4uhA7cyh",
     ]));
     expect(getDerivedTagSeedRecordKeys("island_setting", { category: "creature" })).toEqual(expect.arrayContaining([
       "age-of-ashes-bestiary:5dSVk2y88SLsPPON",
@@ -414,6 +432,13 @@ describe("derived tag seeds", () => {
       "battlecry-bestiary:pC4qg7AarAty1K7K",
       "battlecry-bestiary:R1Ukw41ygDmnAmJk",
     ]));
+    expect(getDerivedTagSeedRecordKeys("desert_setting", { category: "creature" })).toEqual(expect.arrayContaining([
+      "battlecry-bestiary:egHaHp1lqQBZdKdR",
+      "book-of-the-dead-bestiary:8qB0gj8salw8746I",
+    ]));
+    expect(getDerivedTagSeedRecordKeys("rural_setting", { category: "creature" })).toContain(
+      "book-of-the-dead-bestiary:7WqlOvjoqURmeorA",
+    );
 
     const starwatchCommandoDerivation = deriveRecordTagDerivation({
       recordKey: "agents-of-edgewatch-bestiary:rsKf8ixrl3yBq1gb",
@@ -506,8 +531,52 @@ describe("derived tag seeds", () => {
       traits: ["dromaar", "human", "humanoid", "orc", "troop"],
     });
     expect(dromaarCompanyDerivation.tags).toEqual(expect.arrayContaining(["battlefield_setting", "combatant_npc"]));
-    expect(dromaarCompanyDerivation.sources.get("battlefield_setting")).toBe("seed");
+    expect(dromaarCompanyDerivation.sources.get("battlefield_setting")).toBe("both");
     expect(dromaarCompanyDerivation.sources.get("combatant_npc")).toBe("seed");
+
+    const qadiranCamelCorpsDerivation = deriveRecordTagDerivation({
+      recordKey: "battlecry-bestiary:egHaHp1lqQBZdKdR",
+      name: "Qadiran Camel Corps",
+      category: "creature",
+      subcategory: null,
+      descriptionText: null,
+      traits: ["animal", "human", "humanoid", "troop"],
+    });
+    expect(qadiranCamelCorpsDerivation.tags).toContain("desert_setting");
+    expect(qadiranCamelCorpsDerivation.sources.get("desert_setting")).toBe("seed");
+
+    const chargharDerivation = deriveRecordTagDerivation({
+      recordKey: "blood-lords-bestiary:vUv8SR7Pa5fONiuN",
+      name: "Charghar",
+      category: "creature",
+      subcategory: null,
+      descriptionText: null,
+      traits: ["evil", "incorporeal", "spirit", "undead", "unholy"],
+    });
+    expect(chargharDerivation.tags).toContain("geb_setting");
+    expect(chargharDerivation.sources.get("geb_setting")).toBe("seed");
+
+    const commanderArsiellaSettingDerivation = deriveRecordTagDerivation({
+      recordKey: "claws-of-the-tyrant-bestiary:tMqtId1TKVUXe4tN",
+      name: "Commander Arsiella Dei",
+      category: "creature",
+      subcategory: null,
+      descriptionText: null,
+      traits: ["aiuvarin", "elf", "human", "humanoid"],
+    });
+    expect(commanderArsiellaSettingDerivation.tags).toContain("gravelands_setting");
+    expect(commanderArsiellaSettingDerivation.sources.get("gravelands_setting")).toBe("seed");
+
+    const deathCoachDerivation = deriveRecordTagDerivation({
+      recordKey: "book-of-the-dead-bestiary:7WqlOvjoqURmeorA",
+      name: "Death Coach",
+      category: "creature",
+      subcategory: null,
+      descriptionText: null,
+      traits: ["evil", "incorporeal", "spirit", "undead", "unholy"],
+    });
+    expect(deathCoachDerivation.tags).toContain("rural_setting");
+    expect(deathCoachDerivation.sources.get("rural_setting")).toBe("seed");
 
     const touchedCreatureTags = [
       "dragon_spellcaster",

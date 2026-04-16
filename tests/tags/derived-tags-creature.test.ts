@@ -373,6 +373,22 @@ describe("derived tag rules: creature", () => {
     })).toContain("battlefield_setting");
 
     expect(deriveRecordTags({
+      name: "Goblin Rabble",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A disorderly mass of goblin raiders surges forward in a loose but dangerous formation.",
+      traits: ["goblin", "humanoid", "troop"],
+    })).toContain("battlefield_setting");
+
+    expect(deriveRecordTags({
+      name: "Zombie Mammoth",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "This monstrous creature can overrun defenses and stomp foes into the ground, making it a terror on any battlefield.",
+      traits: ["undead", "zombie"],
+    })).toContain("battlefield_setting");
+
+    expect(deriveRecordTags({
       name: "Rust Hag",
       category: "creature",
       subcategory: null,
@@ -2436,7 +2452,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "Agradaemons spread sickness and delight in carrying death from one battlefield to the next.",
       traits: ["daemon", "evil", "fiend", "unholy"],
-    })).not.toContain("battlefield_setting");
+    })).toContain("battlefield_setting");
 
     expect(deriveRecordTags({
       name: "Ferrugon",

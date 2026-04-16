@@ -2113,10 +2113,10 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "battlefield_setting",
     category: "creature",
-    threshold: 3,
+    threshold: 2,
     anyOf: [
       { score: 2, textAny: BATTLEFIELD_SETTING_TEXT_ANCHORS },
-      { score: 1, traitsAny: ["troop"] },
+      { score: 2, traitsAny: ["troop"] },
     ],
   },
   {

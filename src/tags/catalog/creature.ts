@@ -69,6 +69,27 @@ export const CREATURE_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
           { pack: "agents-of-edgewatch-bestiary", name: "Black Whale Guard (F3)" },
         ],
       },
+      {
+        value: "geb_setting",
+        description: "Strongly associated with Geb, its necromantic society, or iconic locales such as Graydirge.",
+        seedRecords: [
+          { pack: "blood-lords-bestiary", name: "Bloodshroud" },
+          { pack: "blood-lords-bestiary", name: "Charghar" },
+          { pack: "blood-lords-bestiary", name: "Cobblebone Swarm" },
+          { pack: "blood-lords-bestiary", name: "Necromunculus" },
+        ],
+      },
+      {
+        value: "gravelands_setting",
+        description: "Strongly associated with the Gravelands, Lastwall's shattered front, or iconic sites such as Fort Ozem and Gallowspire.",
+        seedRecords: [
+          { pack: "book-of-the-dead-bestiary", name: "Gallowdead" },
+          { pack: "claws-of-the-tyrant-bestiary", name: "Chernasardo Ranger" },
+          { pack: "claws-of-the-tyrant-bestiary", name: "Commander Arsiella Dei" },
+          { pack: "claws-of-the-tyrant-bestiary", name: "Knight Reclaimant" },
+          { pack: "claws-of-the-tyrant-bestiary", name: "Raised Cavalry" },
+        ],
+      },
       { value: "jungle_setting", description: "Strongly associated with jungles, rainforests, or dense tropical canopies." },
       { value: "forest_setting", description: "Strongly associated with forests, jungles, groves, or briar-choked wilds." },
       { value: "plains_setting", description: "Strongly associated with open plains, grasslands, prairies, or savannas." },
@@ -80,6 +101,9 @@ export const CREATURE_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
         description: "Strongly associated with urban encounter scenes such as cities, streets, alleys, dense buildings, markets, or sewers.",
         seedRecords: [
           { pack: "age-of-ashes-bestiary", name: "Spiritbound Aluum" },
+          { pack: "battlecry-bestiary", name: "Ofalth Stampede" },
+          { pack: "blood-lords-bestiary", name: "Theater Phantasm" },
+          { pack: "book-of-the-dead-bestiary", name: "Bone Croupier" },
         ],
       },
       {
@@ -92,7 +116,14 @@ export const CREATURE_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
       },
       { value: "small_settlement_setting", description: "Strongly associated with villages, hamlets, small towns, or other low-density community settlements." },
       { value: "arctic_setting", description: "Strongly associated with snow, ice, tundra, or frozen reaches." },
-      { value: "desert_setting", description: "Strongly associated with dunes, sand, or arid wastes." },
+      {
+        value: "desert_setting",
+        description: "Strongly associated with dunes, sand, or arid wastes.",
+        seedRecords: [
+          { pack: "battlecry-bestiary", name: "Qadiran Camel Corps" },
+          { pack: "book-of-the-dead-bestiary", name: "Mummy Prophet Of Set" },
+        ],
+      },
       { value: "wasteland_setting", description: "Strongly associated with barren wastes, blasted wastelands, or desolate badlands." },
       { value: "mountain_setting", description: "Strongly associated with cliffs, peaks, passes, or rocky heights." },
       { value: "sky_setting", description: "Strongly associated with open skies, storm clouds, or high-altitude aerial habitats." },
@@ -101,7 +132,13 @@ export const CREATURE_DERIVED_TAG_CATALOG: DerivedTagCatalogEntry[] = [
       { value: "temple_setting", description: "Strongly associated with temples, shrines, monasteries, or other sacred encounter sites." },
       { value: "fortress_setting", description: "Strongly associated with castles, fortresses, citadels, watchtowers, or other fortified encounter sites." },
       { value: "volcanic_setting", description: "Strongly associated with volcanoes, calderas, lava, or magma." },
-      { value: "rural_setting", description: "Strongly associated with farms, pastures, croplands, countryside routes, mills, or other agricultural rural encounter scenes." },
+      {
+        value: "rural_setting",
+        description: "Strongly associated with farms, pastures, croplands, countryside routes, mills, or other agricultural rural encounter scenes.",
+        seedRecords: [
+          { pack: "book-of-the-dead-bestiary", name: "Death Coach" },
+        ],
+      },
     ],
   },
   {
