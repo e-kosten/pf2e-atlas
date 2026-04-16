@@ -518,6 +518,14 @@ describe("derived tag rules: creature", () => {
     })).toContain("astral_setting");
 
     expect(deriveRecordTags({
+      name: "Planar Shepherd",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "These guardians patrol stable portals and nascent demiplanes adrift in the silver void.",
+      traits: ["monitor"],
+    })).toContain("astral_setting");
+
+    expect(deriveRecordTags({
       name: "Blodeuwedd",
       category: "creature",
       subcategory: null,
@@ -588,6 +596,14 @@ describe("derived tag rules: creature", () => {
       descriptionText: "A village of commoners raised to undeath by a mass poisoning might continue to go about the settled routines of life, posing an eerie scene for living creatures who enter their village.",
       traits: ["undead"],
     })).toContain("rural_setting");
+
+    expect(deriveRecordTags({
+      name: "Village Reaver",
+      category: "creature",
+      subcategory: null,
+      descriptionText: "A cruel marauder raids villages and farms before slipping back into the hills with stolen livestock.",
+      traits: ["humanoid"],
+    })).not.toContain("rural_setting");
 
     expect(deriveRecordTags({
       name: "Swiftrun Clergy",

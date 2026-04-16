@@ -6,6 +6,10 @@ import {
 } from "./matcher.js";
 
 const patternAnchor = (value: string, scope: TextMatchScope = "either"): TextAnchor => ({ value, scope });
+const patternAltAnchor = (alternatives: string[], scope: TextMatchScope = "either"): TextAnchor =>
+  patternAnchor(`{{alt(${alternatives.join(",")})}}`, scope);
+const patternAltAnchors = (alternativeGroups: string[][], scope: TextMatchScope = "either"): TextAnchor[] =>
+  alternativeGroups.map((alternatives) => patternAltAnchor(alternatives, scope));
 
 const OFFENSIVE_TEXT_ANCHORS: TextAnchor[] = [
   patternAnchor("venom"),
@@ -119,54 +123,42 @@ const CIVIC_NPC_BLOCKER_TRAITS = [
 ];
 
 const FRESHWATER_SETTING_TEXT_ANCHORS: TextAnchor[] = [
-  patternAnchor("river"),
-  patternAnchor("rivers"),
-  patternAnchor("creek"),
-  patternAnchor("creeks"),
-  patternAnchor("lake"),
-  patternAnchor("lakes"),
-  patternAnchor("pond"),
-  patternAnchor("ponds"),
-  patternAnchor("stream"),
-  patternAnchor("streams"),
-  patternAnchor("spring"),
-  patternAnchor("springs"),
-  patternAnchor("tributary"),
-  patternAnchor("tributaries"),
+  ...patternAltAnchors([
+    ["river", "rivers"],
+    ["creek", "creeks"],
+    ["lake", "lakes"],
+    ["pond", "ponds"],
+    ["stream", "streams"],
+    ["spring", "springs"],
+    ["tributary", "tributaries"],
+  ]),
 ];
 
 const FRESHWATER_SETTING_STRONG_TEXT_ANCHORS: TextAnchor[] = [
   patternAnchor("freshwater"),
   patternAnchor("fresh water"),
-  patternAnchor("body of fresh water"),
-  patternAnchor("bodies of fresh water"),
-  patternAnchor("lake bed"),
-  patternAnchor("lake beds"),
-  patternAnchor("lakeside community"),
-  patternAnchor("lakeside communities"),
+  ...patternAltAnchors([
+    ["body of fresh water", "bodies of fresh water"],
+    ["lake bed", "lake beds"],
+    ["lakeside community", "lakeside communities"],
+  ]),
 ];
 
 const FRESHWATER_SETTING_CONTEXT_TEXT_ANCHORS: TextAnchor[] = [
   patternAnchor("native"),
-  patternAnchor("hide"),
-  patternAnchor("hides"),
-  patternAnchor("inhabit"),
-  patternAnchor("inhabits"),
-  patternAnchor("inhabiting"),
-  patternAnchor("dwell"),
-  patternAnchor("dwells"),
-  patternAnchor("dwelling"),
+  ...patternAltAnchors([
+    ["hide", "hides"],
+    ["inhabit", "inhabits", "inhabiting"],
+    ["dwell", "dwells", "dwelling"],
+  ]),
   patternAnchor("centered"),
-  patternAnchor("home"),
-  patternAnchor("homes"),
+  patternAltAnchor(["home", "homes"]),
   patternAnchor("found"),
-  patternAnchor("lurk"),
-  patternAnchor("lurks"),
-  patternAnchor("lurking"),
-  patternAnchor("protect"),
-  patternAnchor("protects"),
-  patternAnchor("ward"),
-  patternAnchor("wards"),
+  ...patternAltAnchors([
+    ["lurk", "lurks", "lurking"],
+    ["protect", "protects"],
+    ["ward", "wards"],
+  ]),
 ];
 
 const FRESHWATER_SETTING_NAME_ANCHORS: TextAnchor[] = [
@@ -176,21 +168,19 @@ const FRESHWATER_SETTING_NAME_ANCHORS: TextAnchor[] = [
 
 const FRESHWATER_SETTING_BLOCKER_TEXT_ANCHORS: TextAnchor[] = [
   patternAnchor("inner sea"),
-  patternAnchor("river kingdom"),
-  patternAnchor("river kingdoms"),
+  patternAltAnchor(["river kingdom", "river kingdoms"]),
   patternAnchor("river of souls"),
 ];
 
 const AQUATIC_SETTING_STRONG_TEXT_ANCHORS: TextAnchor[] = [
   patternAnchor("aquatic"),
   patternAnchor("underwater"),
-  patternAnchor("ocean"),
-  patternAnchor("oceans"),
-  patternAnchor("sea"),
-  patternAnchor("seas"),
+  ...patternAltAnchors([
+    ["ocean", "oceans"],
+    ["sea", "seas"],
+  ]),
   patternAnchor("pelagic"),
-  patternAnchor("fjord"),
-  patternAnchor("fjords"),
+  patternAltAnchor(["fjord", "fjords"]),
   patternAnchor("waterways"),
   patternAnchor("water dwelling"),
   patternAnchor("breathe water"),
@@ -198,58 +188,47 @@ const AQUATIC_SETTING_STRONG_TEXT_ANCHORS: TextAnchor[] = [
 
 const AQUATIC_SETTING_WEAK_TEXT_ANCHORS: TextAnchor[] = [
   patternAnchor("water"),
-  patternAnchor("wave"),
-  patternAnchor("waves"),
+  patternAltAnchor(["wave", "waves"]),
   patternAnchor("surf"),
-  patternAnchor("tide"),
-  patternAnchor("tides"),
+  patternAltAnchor(["tide", "tides"]),
   patternAnchor("tidal"),
-  patternAnchor("swim"),
-  patternAnchor("swims"),
-  patternAnchor("swimming"),
+  patternAltAnchor(["swim", "swims", "swimming"]),
   patternAnchor("flooded"),
 ];
 
 const COASTAL_SETTING_STRONG_TEXT_ANCHORS: TextAnchor[] = [
-  patternAnchor("coast"),
-  patternAnchor("coasts"),
+  patternAltAnchor(["coast", "coasts"]),
   patternAnchor("coastal"),
   patternAnchor("marine"),
-  patternAnchor("reef"),
-  patternAnchor("reefs"),
+  patternAltAnchor(["reef", "reefs"]),
   patternAnchor("littoral"),
-  patternAnchor("estuary"),
-  patternAnchor("estuaries"),
+  patternAltAnchor(["estuary", "estuaries"]),
   patternAnchor("estuarine"),
-  patternAnchor("coastal region"),
-  patternAnchor("coastal regions"),
-  patternAnchor("coral reef"),
-  patternAnchor("coral reefs"),
-  patternAnchor("marine environment"),
-  patternAnchor("marine environments"),
+  ...patternAltAnchors([
+    ["coastal region", "coastal regions"],
+    ["coral reef", "coral reefs"],
+    ["marine environment", "marine environments"],
+  ]),
   patternAnchor("ocean facing cliffs"),
   patternAnchor("along any shore"),
 ];
 
 const COASTAL_SETTING_WEAK_TEXT_ANCHORS: TextAnchor[] = [
-  patternAnchor("shore"),
-  patternAnchor("shores"),
+  patternAltAnchor(["shore", "shores"]),
   patternAnchor("shoreline"),
-  patternAnchor("coastline"),
-  patternAnchor("coastlines"),
-  patternAnchor("beach"),
-  patternAnchor("beaches"),
-  patternAnchor("harbor"),
-  patternAnchor("harbors"),
+  ...patternAltAnchors([
+    ["coastline", "coastlines"],
+    ["beach", "beaches"],
+    ["harbor", "harbors"],
+  ]),
   patternAnchor("brackish"),
   patternAnchor("coral"),
-  patternAnchor("ocean"),
-  patternAnchor("oceans"),
-  patternAnchor("sea"),
-  patternAnchor("seas"),
+  ...patternAltAnchors([
+    ["ocean", "oceans"],
+    ["sea", "seas"],
+  ]),
   patternAnchor("tidal"),
-  patternAnchor("tidepool"),
-  patternAnchor("tidepools"),
+  patternAltAnchor(["tidepool", "tidepools"]),
 ];
 
 const COASTAL_SETTING_NAME_ANCHORS: TextAnchor[] = [
@@ -266,38 +245,31 @@ const ASTRAL_SETTING_TEXT_ANCHORS: TextAnchor[] = [
   patternAnchor("silver sea"),
   patternAnchor("silver void"),
   patternAnchor("silvery gray void"),
-  patternAnchor("stable portal"),
-  patternAnchor("stable portals"),
+  patternAltAnchor(["stable portal", "stable portals"]),
 ];
 
 const ASTRAL_SETTING_ACTIVITY_TEXT_ANCHORS: TextAnchor[] = [
-  patternAnchor("ambush"),
-  patternAnchor("ambushes"),
-  patternAnchor("guardian"),
-  patternAnchor("guardians"),
-  patternAnchor("guard"),
-  patternAnchor("guards"),
+  ...patternAltAnchors([
+    ["ambush", "ambushes"],
+    ["guardian", "guardians"],
+    ["guard", "guards"],
+  ]),
   patternAnchor("home"),
-  patternAnchor("hunt"),
-  patternAnchor("hunts"),
-  patternAnchor("hunting"),
-  patternAnchor("patrol"),
-  patternAnchor("patrols"),
-  patternAnchor("protect"),
-  patternAnchor("protects"),
-  patternAnchor("travel"),
-  patternAnchor("travels"),
-  patternAnchor("traveling"),
+  ...patternAltAnchors([
+    ["hunt", "hunts", "hunting"],
+    ["patrol", "patrols"],
+    ["protect", "protects"],
+    ["travel", "travels", "traveling"],
+  ]),
 ];
 
 const ASTRAL_SETTING_CONTEXT_TEXT_ANCHORS: TextAnchor[] = [
   ...ASTRAL_SETTING_ACTIVITY_TEXT_ANCHORS,
-  patternAnchor("demiplane"),
-  patternAnchor("demiplanes"),
-  patternAnchor("portal"),
-  patternAnchor("portals"),
-  patternAnchor("stable portal"),
-  patternAnchor("stable portals"),
+  ...patternAltAnchors([
+    ["demiplane", "demiplanes"],
+    ["portal", "portals"],
+    ["stable portal", "stable portals"],
+  ]),
 ];
 
 const FIRST_WORLD_SETTING_TEXT_ANCHORS: TextAnchor[] = [
@@ -322,21 +294,19 @@ const DREAMLANDS_SETTING_NAME_ANCHORS: TextAnchor[] = [
 ];
 
 const FIRST_WORLD_SETTING_CONTEXT_TEXT_ANCHORS: TextAnchor[] = [
-  patternAnchor("boundary"),
-  patternAnchor("boundaries"),
-  patternAnchor("court"),
-  patternAnchor("courts"),
+  ...patternAltAnchors([
+    ["boundary", "boundaries"],
+    ["court", "courts"],
+  ]),
   patternAnchor("eldest"),
-  patternAnchor("home"),
-  patternAnchor("homes"),
+  patternAltAnchor(["home", "homes"]),
   patternAnchor("native"),
-  patternAnchor("natives"),
-  patternAnchor("origin"),
-  patternAnchor("origins"),
-  patternAnchor("portal"),
-  patternAnchor("portals"),
-  patternAnchor("spawn"),
-  patternAnchor("spawned"),
+  ...patternAltAnchors([
+    ["native", "natives"],
+    ["origin", "origins"],
+    ["portal", "portals"],
+    ["spawn", "spawned"],
+  ]),
   patternAnchor("worn thin"),
 ];
 
@@ -345,14 +315,11 @@ const BONEYARD_SETTING_TEXT_ANCHORS: TextAnchor[] = [
 ];
 
 const BONEYARD_SETTING_CONTEXT_TEXT_ANCHORS: TextAnchor[] = [
-  patternAnchor("guard"),
-  patternAnchor("guards"),
+  patternAltAnchor(["guard", "guards"]),
   patternAnchor("passing"),
   patternAnchor("psychopomp"),
-  patternAnchor("repair"),
-  patternAnchor("repairs"),
-  patternAnchor("sentinel"),
-  patternAnchor("sentinels"),
+  patternAltAnchor(["repair", "repairs"]),
+  patternAltAnchor(["sentinel", "sentinels"]),
   patternAnchor("guard dogs"),
   patternAnchor("repair damaged souls"),
   patternAnchor("ease a spirit s passing"),
@@ -885,6 +852,7 @@ export { normalizeDerivedTag } from "./matcher.js";
 
 export {
   patternAnchor,
+  patternAltAnchor,
   referenceAnchor,
   OFFENSIVE_TEXT_ANCHORS,
   GEARISH_SUBCATEGORIES,

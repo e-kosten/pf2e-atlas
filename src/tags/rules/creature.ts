@@ -28,6 +28,7 @@ import {
   STRONG_PROFESSION_NAME_ANCHORS,
   UNDEAD_GLOSSARY_FAMILIES,
   WEAK_PROFESSION_NAME_ANCHORS,
+  patternAltAnchor,
   patternAnchor,
 } from "../shared.js";
 
@@ -64,8 +65,8 @@ const CARNIVAL_SHOW_TEXT_ANCHORS = [
 const CARNIVAL_SHOW_CONTEXT_TEXT_NEAR = [
   {
     all: [
-      patternAnchor("{{alt(performer,performers,entertainer,entertainers,barker,barkers)}}"),
-      patternAnchor("{{alt(circus,circuses,carnival,carnivals,traveling show,traveling circus,traveling carnival,jester,jesters)}}"),
+      patternAltAnchor(["performer", "performers", "entertainer", "entertainers", "barker", "barkers"]),
+      patternAltAnchor(["circus", "circuses", "carnival", "carnivals", "traveling show", "traveling circus", "traveling carnival", "jester", "jesters"]),
     ],
     window: 6,
     scope: "description" as const,
@@ -382,8 +383,8 @@ const JUNGLE_SETTING_NAME_ANCHORS = [
 const JUNGLE_SETTING_TEXT_NEAR = [
   {
     all: [
-      patternAnchor("{{alt(jungle,jungles,rainforest,rainforests,canopy,canopies,tropical forest,tropical forests)}}", "description"),
-      patternAnchor("{{alt(native,native to,found in,found among,live,lives,living,dwell,dwells,dwelling,hunt,hunts,hunting,prowl,prowls,stalk,stalks,stalking,haunt,haunts,roost,roosts,home,homes)}}", "description"),
+      patternAltAnchor(["jungle", "jungles", "rainforest", "rainforests", "canopy", "canopies", "tropical forest", "tropical forests"], "description"),
+      patternAltAnchor(["native", "native to", "found in", "found among", "live", "lives", "living", "dwell", "dwells", "dwelling", "hunt", "hunts", "hunting", "prowl", "prowls", "stalk", "stalks", "stalking", "haunt", "haunts", "roost", "roosts", "home", "homes"], "description"),
     ],
     window: 8,
     scope: "description" as const,
@@ -436,8 +437,8 @@ const FOREST_SETTING_SUPPORT_TEXT_ANCHORS = [
 const SKY_SETTING_TEXT_NEAR = [
   {
     all: [
-      patternAnchor("{{alt(sky,skies,open sky,open skies,storm cloud,storm clouds,cloud top,cloud tops,wind current,wind currents,high altitude,high altitudes)}}", "description"),
-      patternAnchor("{{alt(soar,soars,soaring,glide,glides,gliding,hover,hovers,hovering,circle,circles,circling,wheel,wheels,wheeling,nest,nests,nesting,roost,roosts,roosting)}}", "description"),
+      patternAltAnchor(["sky", "skies", "open sky", "open skies", "storm cloud", "storm clouds", "cloud top", "cloud tops", "wind current", "wind currents", "high altitude", "high altitudes"], "description"),
+      patternAltAnchor(["soar", "soars", "soaring", "glide", "glides", "gliding", "hover", "hovers", "hovering", "circle", "circles", "circling", "wheel", "wheels", "wheeling", "nest", "nests", "nesting", "roost", "roosts", "roosting"], "description"),
     ],
     window: 8,
     scope: "description" as const,
@@ -526,15 +527,15 @@ const RURAL_SETTING_TEXT_ANCHORS = [
   patternAnchor("outlying settlement"),
 ];
 
-const RURAL_SETTING_CONTEXT_TEXT_ANCHOR = patternAnchor("{{alt(found in,dwell,dwells,dwelling,live,lives,living,haunt,haunts,hunt,hunts,hunting,prey on,preys on,patrol,patrols,prowl,prowls,protect,protects,sabotage,sabotages,siege,sieges,stalk,stalks,stalking,terrorize,terrorizes)}}", "description");
+const RURAL_SETTING_CONTEXT_TEXT_ANCHOR = patternAltAnchor(["found in", "dwell", "dwells", "dwelling", "live", "lives", "living", "haunt", "haunts", "hunt", "hunts", "hunting", "prey on", "preys on", "patrol", "patrols", "prowl", "prowls", "protect", "protects", "sabotage", "sabotages", "siege", "sieges", "stalk", "stalks", "stalking", "terrorize", "terrorizes"], "description");
 
-const RURAL_SETTING_COMMUNITY_CONTEXT_TEXT_ANCHOR = patternAnchor("{{alt(community,communities,home,homes,crop,crops,farming techniques,tending crops,tending their crops,tending the crops,tending their community)}}", "description");
+const RURAL_SETTING_COMMUNITY_CONTEXT_TEXT_ANCHOR = patternAltAnchor(["community", "communities", "home", "homes", "crop", "crops", "farming techniques", "tending crops", "tending their crops", "tending the crops", "tending their community"], "description");
 
 const RURAL_SETTING_BLOCKER_TEXT_NEAR = [
   {
     all: [
-      patternAnchor("{{alt(village,villages,farm,farms,hamlet,hamlets,countryside)}}"),
-      patternAnchor("{{alt(raid,raids,raiding,plunder,waylay,waylays,wipe out,lay waste)}}"),
+      patternAltAnchor(["village", "villages", "farm", "farms", "hamlet", "hamlets", "countryside"]),
+      patternAltAnchor(["raid", "raids", "raiding", "plunder", "waylay", "waylays", "wipe out", "lay waste"]),
     ],
     window: 6,
     scope: "description" as const,
@@ -561,7 +562,7 @@ const FORTRESS_SETTING_NAME_ANCHORS = [
   patternAnchor("watchtower", "name"),
 ];
 
-const FORTRESS_SETTING_RESIDENCE_CONTEXT_TEXT_ANCHOR = patternAnchor("{{alt(within,inside,among,take residence,takes residence,taking residence,reside,resides,residing,stationed,posted,quartered)}}", "description");
+const FORTRESS_SETTING_RESIDENCE_CONTEXT_TEXT_ANCHOR = patternAltAnchor(["within", "inside", "among", "take residence", "takes residence", "taking residence", "reside", "resides", "residing", "stationed", "posted", "quartered"], "description");
 
 const DREAMLANDS_SETTING_BLOCKER_TEXT_ANCHORS = [
   patternAnchor("find their way out of the dreamlands"),
@@ -634,28 +635,33 @@ const URBAN_SETTING_SETTLEMENT_LIST_TEXT_ANCHORS = [
   patternAnchor("towns"),
 ];
 
-const CREATURE_TERRAIN_HABITAT_CONTEXT_TEXT_ANCHOR = patternAnchor("{{alt(native,native to,found in,found among,found near,inhabit,inhabits,inhabiting,dwell,dwells,dwelling,dweller,dwellers,live,lives,living,lair,lairs,haunt,haunts,lurk,lurks,lurking,roam,roams,roaming,hunt,hunts,hunting,prowl,prowls,stalk,stalks,stalking,nest,nests,nesting,roost,roosts,patrol,patrols,home,homes,watch over,watches over,keep watch over,keeps watch over)}}", "description");
+const CREATURE_TERRAIN_HABITAT_CONTEXT_TEXT_ANCHOR = patternAltAnchor(["native", "native to", "found in", "found among", "found near", "inhabit", "inhabits", "inhabiting", "dwell", "dwells", "dwelling", "dweller", "dwellers", "live", "lives", "living", "lair", "lairs", "haunt", "haunts", "lurk", "lurks", "lurking", "roam", "roams", "roaming", "hunt", "hunts", "hunting", "prowl", "prowls", "stalk", "stalks", "stalking", "nest", "nests", "nesting", "roost", "roosts", "patrol", "patrols", "home", "homes", "watch over", "watches over", "keep watch over", "keeps watch over"], "description");
 
-const CREATURE_SITE_HABITAT_CONTEXT_TEXT_ANCHOR = patternAnchor("{{alt(found in,dwell,dwells,dwelling,live,lives,living,haunt,haunts,lurk,lurks,lurking,patrol,patrols,guard,guards,guarding,tend,tends,watch over,watches over,keep watch over,keeps watch over,home,homes)}}", "description");
+const CREATURE_SITE_HABITAT_CONTEXT_TEXT_ANCHOR = patternAltAnchor(["found in", "dwell", "dwells", "dwelling", "live", "lives", "living", "haunt", "haunts", "lurk", "lurks", "lurking", "patrol", "patrols", "guard", "guards", "guarding", "tend", "tends", "watch over", "watches over", "keep watch over", "keeps watch over", "home", "homes"], "description");
 
-const CREATURE_CANYON_HABITAT_CONTEXT_TEXT_ANCHOR = patternAnchor("{{alt(found in,dwell,dwells,dwelling,haunt,haunts,lurk,lurks,lurking,prowl,prowls,stalk,stalks,stalking,glide through,glides through,hunt,hunts,hunting,nest,nests,nesting,home,homes)}}", "description");
+const CREATURE_CANYON_HABITAT_CONTEXT_TEXT_ANCHOR = patternAltAnchor(["found in", "dwell", "dwells", "dwelling", "haunt", "haunts", "lurk", "lurks", "lurking", "prowl", "prowls", "stalk", "stalks", "stalking", "glide through", "glides through", "hunt", "hunts", "hunting", "nest", "nests", "nesting", "home", "homes"], "description");
 
-const CREATURE_SITE_FUNCTION_CONTEXT_TEXT_ANCHOR = patternAnchor("{{alt(found defending,defend,defends,defending,protect,protects,protector,protectors,guardians of,serve as the protector,serves as the protector,rarely leave,rarely leaves,watch over,watches over)}}", "description");
+const CREATURE_SITE_FUNCTION_CONTEXT_TEXT_ANCHOR = patternAltAnchor(["found defending", "defend", "defends", "defending", "protect", "protects", "protector", "protectors", "guardians of", "serve as the protector", "serves as the protector", "rarely leave", "rarely leaves", "watch over", "watches over"], "description");
 
-const CREATURE_URBAN_ACTIVITY_CONTEXT_TEXT_ANCHOR = patternAnchor("{{alt(make their home,make their homes,makes its home,call home,calls home,sneak around,sneaks around,sneaking around,stalk,stalks,stalking,prominent in,visible in,below)}}", "description");
+const CREATURE_URBAN_ACTIVITY_CONTEXT_TEXT_ANCHOR = patternAltAnchor(["make their home", "make their homes", "makes its home", "call home", "calls home", "sneak around", "sneaks around", "sneaking around", "stalk", "stalks", "stalking", "prominent in", "visible in", "below"], "description");
 
-const CREATURE_UNDERGROUND_ACTIVITY_CONTEXT_TEXT_ANCHOR = patternAnchor("{{alt(below ground,below large cities,make their home,make their homes,makes its home,call home,calls home,stalk,stalks,stalking,scour,scours,most often found)}}", "description");
+const CREATURE_UNDERGROUND_ACTIVITY_CONTEXT_TEXT_ANCHOR = patternAltAnchor(["below ground", "below large cities", "make their home", "make their homes", "makes its home", "call home", "calls home", "stalk", "stalks", "stalking", "scour", "scours", "most often found"], "description");
 
-const FRESHWATER_SETTING_HABITAT_CONTEXT_TEXT_ANCHOR = patternAnchor("{{alt(native,native to,found in,found among,inhabit,inhabits,inhabiting,dwell,dwells,dwelling,live,lives,living,call home,calls home,make their home,make their homes,makes its home,home,homes,spend most of their time in,centered on,centered around,hide,hides,lurk,lurks,lurking)}}", "description");
+const FRESHWATER_SETTING_HABITAT_CONTEXT_TEXT_ANCHOR = patternAltAnchor(["native", "native to", "found in", "found among", "inhabit", "inhabits", "inhabiting", "dwell", "dwells", "dwelling", "live", "lives", "living", "call home", "calls home", "make their home", "make their homes", "makes its home", "home", "homes", "spend most of their time in", "centered on", "centered around", "hide", "hides", "lurk", "lurks", "lurking"], "description");
 
 const createCreatureSettingTextNear = (
-  alternatives: string,
+  alternatives: string[] | string,
   contextAnchor: ReturnType<typeof patternAnchor>,
   window = 8,
 ) => [
   {
     all: [
-      patternAnchor(`{{alt(${alternatives})}}`, "description"),
+      patternAltAnchor(
+        Array.isArray(alternatives)
+          ? alternatives
+          : alternatives.split(",").map((value) => value.trim()).filter((value) => value.length > 0),
+        "description",
+      ),
       contextAnchor,
     ],
     window,
@@ -665,18 +671,18 @@ const createCreatureSettingTextNear = (
 
 const FRESHWATER_SETTING_TEXT_NEAR = [
   ...createCreatureSettingTextNear(
-    "river,rivers,lake,lakes,pond,ponds,stream,streams,spring,springs,inland water,inland waters,inland pool,inland pools",
+    ["river", "rivers", "lake", "lakes", "pond", "ponds", "stream", "streams", "spring", "springs", "inland water", "inland waters", "inland pool", "inland pools"],
     FRESHWATER_SETTING_HABITAT_CONTEXT_TEXT_ANCHOR,
   ),
 ];
 
 const DESERT_SETTING_TEXT_NEAR = [
   ...createCreatureSettingTextNear(
-    "desert,deserts,dune,dunes,arid,sandy,oasis,oases,black desert",
+    ["desert", "deserts", "dune", "dunes", "arid", "sandy", "oasis", "oases", "black desert"],
     CREATURE_TERRAIN_HABITAT_CONTEXT_TEXT_ANCHOR,
   ),
   ...createCreatureSettingTextNear(
-    "desert,deserts,dune,dunes,oasis,oases,black desert",
+    ["desert", "deserts", "dune", "dunes", "oasis", "oases", "black desert"],
     CREATURE_SITE_FUNCTION_CONTEXT_TEXT_ANCHOR,
     10,
   ),
@@ -701,11 +707,11 @@ const FRESHWATER_SETTING_EXACT_TEXT_ANCHORS = [
 
 const FOREST_SETTING_TEXT_NEAR = [
   ...createCreatureSettingTextNear(
-    "forest,forests,woodland,woodlands,woods,grove,groves,wooded area,wooded areas,forest floor,forest floors,primeval forest,primeval forests",
+    ["forest", "forests", "woodland", "woodlands", "woods", "grove", "groves", "wooded area", "wooded areas", "forest floor", "forest floors", "primeval forest", "primeval forests"],
     CREATURE_TERRAIN_HABITAT_CONTEXT_TEXT_ANCHOR,
   ),
   ...createCreatureSettingTextNear(
-    "forest,forests,woodland,woodlands,woods,grove,groves,wooded area,wooded areas,forest floor,forest floors,primeval forest,primeval forests",
+    ["forest", "forests", "woodland", "woodlands", "woods", "grove", "groves", "wooded area", "wooded areas", "forest floor", "forest floors", "primeval forest", "primeval forests"],
     CREATURE_SITE_FUNCTION_CONTEXT_TEXT_ANCHOR,
   ),
 ];
