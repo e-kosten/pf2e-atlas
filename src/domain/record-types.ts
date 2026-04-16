@@ -44,6 +44,20 @@ export interface DerivedTagOntologyFamily {
   variantInheritance?: boolean;
 }
 
+export interface DerivedTagAuthoredTag extends Omit<DerivedTagOntologyTag, "category" | "family"> {}
+
+export interface DerivedTagAuthoredFamily {
+  subcategories?: SearchSubcategory[];
+  description: string;
+  variantInheritance?: boolean;
+  tags: DerivedTagAuthoredTag[];
+}
+
+export interface DerivedTagAuthoredCategoryOntology {
+  category: SearchCategory;
+  families: Record<string, DerivedTagAuthoredFamily>;
+}
+
 export interface DerivedTagOntologyTag {
   category: SearchCategory;
   family: string;

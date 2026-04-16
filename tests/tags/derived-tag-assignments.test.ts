@@ -13,10 +13,8 @@ import {
   buildDerivedTagSeedLookup,
   deriveCatalogTagDerivation,
 } from "../../src/tags/catalog-utils.js";
-import {
-  CREATURE_DERIVED_TAG_ONTOLOGY_FAMILIES,
-  CREATURE_DERIVED_TAG_ONTOLOGY_TAGS,
-} from "../../src/tags/ontology/creature.js";
+import { CREATURE_DERIVED_TAG_ONTOLOGY } from "../../src/tags/ontology/creature.js";
+import { flattenDerivedTagAuthoredCategoryOntology } from "../../src/tags/ontology/utils.js";
 import { deriveRecordTagDerivation } from "../../src/tags/index.js";
 
 const assignmentFamilies: DerivedTagOntologyFamily[] = [
@@ -57,9 +55,10 @@ const assignmentTags: DerivedTagOntologyTag[] = [
 ];
 
 const assignmentOntology = publishDerivedTagOntology(assignmentFamilies, assignmentTags);
+const flattenedCreatureOntology = flattenDerivedTagAuthoredCategoryOntology(CREATURE_DERIVED_TAG_ONTOLOGY);
 const creatureOntology = publishDerivedTagOntology(
-  CREATURE_DERIVED_TAG_ONTOLOGY_FAMILIES,
-  CREATURE_DERIVED_TAG_ONTOLOGY_TAGS,
+  flattenedCreatureOntology.families,
+  flattenedCreatureOntology.tags,
 );
 
 describe("derived tag explicit assignments", () => {

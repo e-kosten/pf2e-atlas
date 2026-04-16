@@ -4,11 +4,12 @@ import { DatabaseSync } from "node:sqlite";
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { DerivedTagOntologyTag, DerivedTagRule } from "../../src/types.js";
-import { AFFLICTION_DERIVED_TAG_ONTOLOGY_TAGS } from "../../src/tags/ontology/affliction.js";
-import { CREATURE_DERIVED_TAG_ONTOLOGY_TAGS } from "../../src/tags/ontology/creature.js";
-import { EQUIPMENT_DERIVED_TAG_ONTOLOGY_TAGS } from "../../src/tags/ontology/equipment.js";
-import { HAZARD_DERIVED_TAG_ONTOLOGY_TAGS } from "../../src/tags/ontology/hazard.js";
-import { SPELL_DERIVED_TAG_ONTOLOGY_TAGS } from "../../src/tags/ontology/spell.js";
+import { AFFLICTION_DERIVED_TAG_ONTOLOGY } from "../../src/tags/ontology/affliction.js";
+import { CREATURE_DERIVED_TAG_ONTOLOGY } from "../../src/tags/ontology/creature.js";
+import { EQUIPMENT_DERIVED_TAG_ONTOLOGY } from "../../src/tags/ontology/equipment.js";
+import { HAZARD_DERIVED_TAG_ONTOLOGY } from "../../src/tags/ontology/hazard.js";
+import { SPELL_DERIVED_TAG_ONTOLOGY } from "../../src/tags/ontology/spell.js";
+import { flattenDerivedTagAuthoredCategoryOntology } from "../../src/tags/ontology/utils.js";
 import { AFFLICTION_DERIVED_TAG_RULES } from "../../src/tags/rules/affliction.js";
 import { CREATURE_DERIVED_TAG_RULES } from "../../src/tags/rules/creature.js";
 import { EQUIPMENT_DERIVED_TAG_RULES } from "../../src/tags/rules/equipment.js";
@@ -18,11 +19,11 @@ import { cleanupCreatedRoots, createFixture } from "../helpers/pf2e-service-fixt
 import { loadTestService } from "../helpers/pf2e-fixture.js";
 
 const DERIVED_TAG_ONTOLOGY = [
-  ...EQUIPMENT_DERIVED_TAG_ONTOLOGY_TAGS,
-  ...SPELL_DERIVED_TAG_ONTOLOGY_TAGS,
-  ...HAZARD_DERIVED_TAG_ONTOLOGY_TAGS,
-  ...AFFLICTION_DERIVED_TAG_ONTOLOGY_TAGS,
-  ...CREATURE_DERIVED_TAG_ONTOLOGY_TAGS,
+  ...flattenDerivedTagAuthoredCategoryOntology(EQUIPMENT_DERIVED_TAG_ONTOLOGY).tags,
+  ...flattenDerivedTagAuthoredCategoryOntology(SPELL_DERIVED_TAG_ONTOLOGY).tags,
+  ...flattenDerivedTagAuthoredCategoryOntology(HAZARD_DERIVED_TAG_ONTOLOGY).tags,
+  ...flattenDerivedTagAuthoredCategoryOntology(AFFLICTION_DERIVED_TAG_ONTOLOGY).tags,
+  ...flattenDerivedTagAuthoredCategoryOntology(CREATURE_DERIVED_TAG_ONTOLOGY).tags,
 ];
 
 const DERIVED_TAG_RULES = [

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { groupDerivedTagOntology } from "../../src/tags/catalog-utils.js";
+import { CREATURE_DERIVED_TAG_ONTOLOGY } from "../../src/tags/ontology/creature.js";
+import { flattenDerivedTagAuthoredCategoryOntology } from "../../src/tags/ontology/utils.js";
 import {
   DERIVED_TAG_ONTOLOGY_FAMILIES,
   DERIVED_TAG_ONTOLOGY_TAGS,
@@ -79,5 +81,28 @@ describe("derived tag ontology", () => {
     expect(equipmentPurpose?.tags).toEqual(expect.not.arrayContaining([
       expect.objectContaining({ value: "purpose" }),
     ]));
+  });
+
+  it("authors category-scoped ontology with explicit family hierarchy before flattening", () => {
+    expect(CREATURE_DERIVED_TAG_ONTOLOGY.category).toBe("creature");
+    expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.setting.description).toContain("Creature environment and encounter-setting");
+
+    const urbanSetting = CREATURE_DERIVED_TAG_ONTOLOGY.families.setting.tags.find((tag) => tag.tag === "urban_setting");
+    expect(urbanSetting).toEqual(expect.objectContaining({
+      tag: "urban_setting",
+      assignmentMode: "editorial",
+      adjacentTags: ["small_settlement_setting", "fortress_setting"],
+    }));
+
+    const flattened = flattenDerivedTagAuthoredCategoryOntology(CREATURE_DERIVED_TAG_ONTOLOGY);
+    expect(flattened.families).toContainEqual(expect.objectContaining({
+      category: "creature",
+      family: "setting",
+    }));
+    expect(flattened.tags).toContainEqual(expect.objectContaining({
+      category: "creature",
+      family: "setting",
+      tag: "urban_setting",
+    }));
   });
 });
