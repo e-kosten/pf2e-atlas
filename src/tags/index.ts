@@ -7,6 +7,7 @@ import {
   deriveCatalogTagDerivation,
   listConfiguredDerivedTagLegacySeedMigrations,
   publishDerivedTagOntology,
+  resolveLegacySeedMigrationRecordKeys,
   resolveCatalogSeedRecordKeys,
   type DerivedTagLegacySeedMigrationDefinition,
   type PublishedDerivedTagOntology,
@@ -14,6 +15,8 @@ import {
 } from "./catalog-utils.js";
 import { DERIVED_TAG_SEED_LOOKUP } from "./catalog-seed-records.js";
 import { CREATURE_DERIVED_TAG_LEGACY_SEED_MIGRATIONS } from "./legacy-seed-migrations/creature.js";
+import { HAZARD_DERIVED_TAG_LEGACY_SEED_MIGRATIONS } from "./legacy-seed-migrations/hazard.js";
+import { SPELL_DERIVED_TAG_LEGACY_SEED_MIGRATIONS } from "./legacy-seed-migrations/spell.js";
 import {
   AFFLICTION_DERIVED_TAG_ONTOLOGY,
 } from "./ontology/affliction.js";
@@ -74,7 +77,11 @@ const DERIVED_TAG_SEED_INDEX = buildDerivedTagSeedIndex(DERIVED_TAG_ONTOLOGY, DE
 const DERIVED_TAG_LEGACY_SEED_MIGRATION_INDEX = buildDerivedTagLegacySeedMigrationIndex(
   DERIVED_TAG_ONTOLOGY,
   DERIVED_TAG_SEED_LOOKUP,
-  [CREATURE_DERIVED_TAG_LEGACY_SEED_MIGRATIONS],
+  [
+    SPELL_DERIVED_TAG_LEGACY_SEED_MIGRATIONS,
+    HAZARD_DERIVED_TAG_LEGACY_SEED_MIGRATIONS,
+    CREATURE_DERIVED_TAG_LEGACY_SEED_MIGRATIONS,
+  ],
 );
 const DERIVED_TAG_EXPLICIT_ASSIGNMENT_INDEX = createDerivedTagExplicitAssignmentIndex(DERIVED_TAG_ONTOLOGY);
 
@@ -107,6 +114,13 @@ export function listDerivedTagLegacySeedMigrations(
   scope: { category?: DerivedTagContext["category"]; subcategory?: DerivedTagContext["subcategory"] } = {},
 ): DerivedTagLegacySeedMigrationDefinition[] {
   return listConfiguredDerivedTagLegacySeedMigrations(DERIVED_TAG_LEGACY_SEED_MIGRATION_INDEX, scope);
+}
+
+export function getDerivedTagLegacySeedMigrationRecordKeys(
+  tag: string,
+  scope: { category?: DerivedTagContext["category"]; subcategory?: DerivedTagContext["subcategory"] } = {},
+): string[] {
+  return resolveLegacySeedMigrationRecordKeys(DERIVED_TAG_LEGACY_SEED_MIGRATION_INDEX, normalizeDerivedTag(tag), scope);
 }
 
 export function getDerivedTagFamilyTags(

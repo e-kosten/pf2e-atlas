@@ -12,6 +12,7 @@ import {
 import {
   deriveRecordTagDerivation,
   getDerivedTagSeedRecordKeys,
+  getDerivedTagLegacySeedMigrationRecordKeys,
   listDerivedTagLegacySeedMigrations,
 } from "../../src/tags/index.js";
 
@@ -200,16 +201,16 @@ describe("derived tag seeds", () => {
       "respiratory_hazard",
     ];
     const seededHazardRecords = new Set(
-      touchedHazardTags.flatMap((tag) => getDerivedTagSeedRecordKeys(tag, { category: "hazard" })),
+      touchedHazardTags.flatMap((tag) => getDerivedTagLegacySeedMigrationRecordKeys(tag, { category: "hazard" })),
     );
 
     expect(seededHazardRecords.size).toBeGreaterThanOrEqual(50);
-    expect(getDerivedTagSeedRecordKeys("ward_trigger", { category: "hazard" })).toEqual(expect.arrayContaining([
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("ward_trigger", { category: "hazard" })).toEqual(expect.arrayContaining([
       "agents-of-edgewatch-bestiary:qy53ECS2agScE7G3",
       "extinction-curse-bestiary:1CjTIaMYUvQUkQI2",
       "season-of-ghosts-bestiary:DueMGlf6tX1bqwSS",
     ]));
-    expect(getDerivedTagSeedRecordKeys("fire_hazard", { category: "hazard" })).toEqual(expect.arrayContaining([
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("fire_hazard", { category: "hazard" })).toEqual(expect.arrayContaining([
       "hazards:O0qA1ElCOgYGEBtL",
       "stolen-fate-bestiary:UX7QKytewemOnNeX",
       "blood-lords-bestiary:lycxuueclDmiIAOF",
@@ -224,8 +225,8 @@ describe("derived tag seeds", () => {
       traits: [],
     });
     expect(mukradiDerivation.tags).toEqual(expect.arrayContaining(["spawned_attackers", "ward_trigger"]));
-    expect(mukradiDerivation.sources.get("spawned_attackers")).toBe("seed");
-    expect(mukradiDerivation.sources.get("ward_trigger")).toBe("seed");
+    expect(mukradiDerivation.sources.get("spawned_attackers")).toBe("seed_migration");
+    expect(mukradiDerivation.sources.get("ward_trigger")).toBe("seed_migration");
 
     const gasChamberDerivation = deriveRecordTagDerivation({
       recordKey: "outlaws-of-alkenstar-bestiary:QQ2Ci8E2lkxG8QIV",
@@ -240,9 +241,9 @@ describe("derived tag seeds", () => {
       "poison_hazard",
       "respiratory_hazard",
     ]));
-    expect(gasChamberDerivation.sources.get("barrier_lockdown")).toBe("seed");
-    expect(gasChamberDerivation.sources.get("poison_hazard")).toBe("seed");
-    expect(gasChamberDerivation.sources.get("respiratory_hazard")).toBe("seed");
+    expect(gasChamberDerivation.sources.get("barrier_lockdown")).toBe("seed_migration");
+    expect(gasChamberDerivation.sources.get("poison_hazard")).toBe("seed_migration");
+    expect(gasChamberDerivation.sources.get("respiratory_hazard")).toBe("seed_migration");
 
     const timeRiftDerivation = deriveRecordTagDerivation({
       recordKey: "blood-lords-bestiary:I83vD5fNYIC1s3Xg",
@@ -253,7 +254,7 @@ describe("derived tag seeds", () => {
       traits: [],
     });
     expect(timeRiftDerivation.tags).toContain("planar_breach");
-    expect(timeRiftDerivation.sources.get("planar_breach")).toBe("seed");
+    expect(timeRiftDerivation.sources.get("planar_breach")).toBe("seed_migration");
   });
 
   it("exposes the spell manual seed pass and applies representative seeded records", () => {
@@ -272,26 +273,26 @@ describe("derived tag seeds", () => {
       "eidolon_support",
     ];
     const rawSeedAdds = touchedSpellTags.reduce(
-      (count, tag) => count + getDerivedTagSeedRecordKeys(tag, { category: "spell" }).length,
+      (count, tag) => count + getDerivedTagLegacySeedMigrationRecordKeys(tag, { category: "spell" }).length,
       0,
     );
     const seededSpellRecords = new Set(
-      touchedSpellTags.flatMap((tag) => getDerivedTagSeedRecordKeys(tag, { category: "spell" })),
+      touchedSpellTags.flatMap((tag) => getDerivedTagLegacySeedMigrationRecordKeys(tag, { category: "spell" })),
     );
 
     expect(rawSeedAdds).toBeGreaterThanOrEqual(120);
     expect(seededSpellRecords.size).toBeGreaterThanOrEqual(90);
-    expect(getDerivedTagSeedRecordKeys("persistent_damage", { category: "spell" })).toEqual(expect.arrayContaining([
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("persistent_damage", { category: "spell" })).toEqual(expect.arrayContaining([
       "spells-srd:f8hRqLJaxBVhF1u0",
       "spells-srd:Z3kJty995FkrsZRb",
       "spells-srd:A16eFTRh82xIjMu8",
     ]));
-    expect(getDerivedTagSeedRecordKeys("initiative_support", { category: "spell" })).toEqual(expect.arrayContaining([
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("initiative_support", { category: "spell" })).toEqual(expect.arrayContaining([
       "spells-srd:EUMjrJJwSgsqNidi",
       "spells-srd:dqaCLzINHBiKjh4J",
       "spells-srd:I8CPe9Pp7GABqOyB",
     ]));
-    expect(getDerivedTagSeedRecordKeys("eidolon_support", { category: "spell" })).toEqual(expect.arrayContaining([
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("eidolon_support", { category: "spell" })).toEqual(expect.arrayContaining([
       "spells-srd:HStu2Yhw3iQER9tY",
       "spells-srd:AfOpnnwdZwHi2Tnc",
       "spells-srd:TYbCj4dgXDOZou9k",
@@ -306,7 +307,7 @@ describe("derived tag seeds", () => {
       traits: [],
     });
     expect(acidArrowDerivation.tags).toContain("persistent_damage");
-    expect(acidArrowDerivation.sources.get("persistent_damage")).toBe("seed");
+    expect(acidArrowDerivation.sources.get("persistent_damage")).toBe("seed_migration");
 
     const anticipatePerilDerivation = deriveRecordTagDerivation({
       recordKey: "spells-srd:EUMjrJJwSgsqNidi",
@@ -317,7 +318,7 @@ describe("derived tag seeds", () => {
       traits: [],
     });
     expect(anticipatePerilDerivation.tags).toContain("initiative_support");
-    expect(anticipatePerilDerivation.sources.get("initiative_support")).toBe("seed");
+    expect(anticipatePerilDerivation.sources.get("initiative_support")).toBe("seed_migration");
 
     const protectCompanionDerivation = deriveRecordTagDerivation({
       recordKey: "spells-srd:AfOpnnwdZwHi2Tnc",
@@ -328,7 +329,7 @@ describe("derived tag seeds", () => {
       traits: [],
     });
     expect(protectCompanionDerivation.tags).toContain("eidolon_support");
-    expect(protectCompanionDerivation.sources.get("eidolon_support")).toBe("seed");
+    expect(protectCompanionDerivation.sources.get("eidolon_support")).toBe("seed_migration");
 
     const airWalkDerivation = deriveRecordTagDerivation({
       recordKey: "spells-srd:b5sGjGlBf58f8jn0",
@@ -339,7 +340,7 @@ describe("derived tag seeds", () => {
       traits: [],
     });
     expect(airWalkDerivation.tags).toContain("mobility");
-    expect(airWalkDerivation.sources.get("mobility")).toBe("seed");
+    expect(airWalkDerivation.sources.get("mobility")).toBe("seed_migration");
 
     const returnBeaconDerivation = deriveRecordTagDerivation({
       recordKey: "spells-srd:ru3YdXajUREbKQDV",
@@ -350,7 +351,7 @@ describe("derived tag seeds", () => {
       traits: [],
     });
     expect(returnBeaconDerivation.tags).toContain("navigation");
-    expect(returnBeaconDerivation.sources.get("navigation")).toBe("seed");
+    expect(returnBeaconDerivation.sources.get("navigation")).toBe("seed_migration");
 
     const veilOfPrivacyDerivation = deriveRecordTagDerivation({
       recordKey: "spells-srd:EoKBlgf6Smt8opaU",
@@ -361,7 +362,7 @@ describe("derived tag seeds", () => {
       traits: [],
     });
     expect(veilOfPrivacyDerivation.tags).toContain("countermagic");
-    expect(veilOfPrivacyDerivation.sources.get("countermagic")).toBe("seed");
+    expect(veilOfPrivacyDerivation.sources.get("countermagic")).toBe("seed_migration");
 
     const cauterizeWoundsDerivation = deriveRecordTagDerivation({
       recordKey: "spells-srd:sBSalosrt7C4IXas",
@@ -381,76 +382,76 @@ describe("derived tag seeds", () => {
       "combatant_npc",
     ];
     const encounterRoleRawAdds = encounterRoleTags.reduce(
-      (count, tag) => count + getDerivedTagSeedRecordKeys(tag, { category: "creature" }).length,
+      (count, tag) => count + getDerivedTagLegacySeedMigrationRecordKeys(tag, { category: "creature" }).length,
       0,
     );
     const encounterRoleRecords = new Set(
-      encounterRoleTags.flatMap((tag) => getDerivedTagSeedRecordKeys(tag, { category: "creature" })),
+      encounterRoleTags.flatMap((tag) => getDerivedTagLegacySeedMigrationRecordKeys(tag, { category: "creature" })),
     );
 
     expect(encounterRoleRawAdds).toBeGreaterThanOrEqual(180);
     expect(encounterRoleRecords.size).toBeGreaterThanOrEqual(95);
-    expect(getDerivedTagSeedRecordKeys("profession_npc", { category: "creature" })).toEqual(expect.arrayContaining([
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("profession_npc", { category: "creature" })).toEqual(expect.arrayContaining([
       "agents-of-edgewatch-bestiary:rsKf8ixrl3yBq1gb",
       "claws-of-the-tyrant-bestiary:tMqtId1TKVUXe4tN",
     ]));
-    expect(getDerivedTagSeedRecordKeys("civic_npc", { category: "creature" })).toEqual(expect.arrayContaining([
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("civic_npc", { category: "creature" })).toEqual(expect.arrayContaining([
       "agents-of-edgewatch-bestiary:rsKf8ixrl3yBq1gb",
       "gatewalkers-bestiary:kneoApQfhlRhhp1R",
       "sky-kings-tomb-bestiary:OWVg3LYOdGHOYUHt",
     ]));
-    expect(getDerivedTagSeedRecordKeys("combatant_npc", { category: "creature" })).toEqual(expect.arrayContaining([
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("combatant_npc", { category: "creature" })).toEqual(expect.arrayContaining([
       "claws-of-the-tyrant-bestiary:tMqtId1TKVUXe4tN",
       "triumph-of-the-tusk-bestiary:xd35No1x2n1MDVCm",
       "battlecry-bestiary:R1Ukw41ygDmnAmJk",
     ]));
-    expect(getDerivedTagSeedRecordKeys("urban_setting", { category: "creature" })).toEqual(expect.arrayContaining([
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("urban_setting", { category: "creature" })).toEqual(expect.arrayContaining([
       "battlecry-bestiary:AHV0FTrbuPljLndw",
       "blood-lords-bestiary:EqO67DHLlB88vSJZ",
       "book-of-the-dead-bestiary:ol2lji9lH7PXh1uw",
     ]));
-    expect(getDerivedTagSeedRecordKeys("nautical_setting", { category: "creature" })).toEqual(expect.arrayContaining([
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("nautical_setting", { category: "creature" })).toEqual(expect.arrayContaining([
       "agents-of-edgewatch-bestiary:d3TzpCuRJF78xHZK",
     ]));
-    expect(getDerivedTagSeedRecordKeys("geb_setting", { category: "creature" })).toEqual(expect.arrayContaining([
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("geb_setting", { category: "creature" })).toEqual(expect.arrayContaining([
       "blood-lords-bestiary:IXPZR1DTdT7Tu7UG",
       "blood-lords-bestiary:KQkouk6tku8akpmU",
       "blood-lords-bestiary:k8NnItW7Hp79bg26",
       "blood-lords-bestiary:vUv8SR7Pa5fONiuN",
     ]));
-    expect(getDerivedTagSeedRecordKeys("gravelands_setting", { category: "creature" })).toEqual(expect.arrayContaining([
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("gravelands_setting", { category: "creature" })).toEqual(expect.arrayContaining([
       "book-of-the-dead-bestiary:gXo04F7O4pwOY698",
       "claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E",
       "claws-of-the-tyrant-bestiary:jSE16N2ASzN3qlN1",
       "claws-of-the-tyrant-bestiary:tMqtId1TKVUXe4tN",
       "claws-of-the-tyrant-bestiary:vdywUTHF4uhA7cyh",
     ]));
-    expect(getDerivedTagSeedRecordKeys("tian_xia_setting", { category: "creature" })).toEqual(expect.arrayContaining([
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("tian_xia_setting", { category: "creature" })).toEqual(expect.arrayContaining([
       "fists-of-the-ruby-phoenix-bestiary:HqN4nUnl75foBKLZ",
       "fists-of-the-ruby-phoenix-bestiary:YVP3pM7jxY9Gyouy",
       "fists-of-the-ruby-phoenix-bestiary:koRKlywSbwttifEq",
       "fists-of-the-ruby-phoenix-bestiary:zNOSSDaaCozimqaS",
     ]));
-    expect(getDerivedTagSeedRecordKeys("island_setting", { category: "creature" })).toEqual(expect.arrayContaining([
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("island_setting", { category: "creature" })).toEqual(expect.arrayContaining([
       "age-of-ashes-bestiary:5dSVk2y88SLsPPON",
       "age-of-ashes-bestiary:6AN7eagk2WrWc4im",
       "age-of-ashes-bestiary:X6TTBlHIfJZ43OqR",
     ]));
-    expect(getDerivedTagSeedRecordKeys("battlefield_setting", { category: "creature" })).toEqual(expect.arrayContaining([
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("battlefield_setting", { category: "creature" })).toEqual(expect.arrayContaining([
       "battlecry-bestiary:pC4qg7AarAty1K7K",
       "battlecry-bestiary:R1Ukw41ygDmnAmJk",
     ]));
-    expect(getDerivedTagSeedRecordKeys("desert_setting", { category: "creature" })).toEqual(expect.arrayContaining([
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("desert_setting", { category: "creature" })).toEqual(expect.arrayContaining([
       "battlecry-bestiary:egHaHp1lqQBZdKdR",
       "book-of-the-dead-bestiary:8qB0gj8salw8746I",
     ]));
-    expect(getDerivedTagSeedRecordKeys("rural_setting", { category: "creature" })).toContain(
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("rural_setting", { category: "creature" })).toContain(
       "book-of-the-dead-bestiary:7WqlOvjoqURmeorA",
     );
-    expect(getDerivedTagSeedRecordKeys("rural_setting", { category: "creature" })).toContain(
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("rural_setting", { category: "creature" })).toContain(
       "fall-of-plaguestone-bestiary:BgBTntoz1qQ3h1X5",
     );
-    expect(getDerivedTagSeedRecordKeys("small_settlement_setting", { category: "creature" })).toEqual(expect.arrayContaining([
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("small_settlement_setting", { category: "creature" })).toEqual(expect.arrayContaining([
       "extinction-curse-bestiary:OCrQtfKDFpLedE13",
       "extinction-curse-bestiary:YS8UvVGFgHP2TrY3",
     ]));
@@ -468,9 +469,9 @@ describe("derived tag seeds", () => {
       "civic_npc",
       "combatant_npc",
     ]));
-    expect(["seed", "rule+seed"]).toContain(starwatchCommandoDerivation.sources.get("profession_npc"));
-    expect(["seed", "rule+seed"]).toContain(starwatchCommandoDerivation.sources.get("civic_npc"));
-    expect(["seed", "rule+seed"]).toContain(starwatchCommandoDerivation.sources.get("combatant_npc"));
+    expect(["seed_migration", "rule+seed_migration"]).toContain(starwatchCommandoDerivation.sources.get("profession_npc"));
+    expect(["seed_migration", "rule+seed_migration"]).toContain(starwatchCommandoDerivation.sources.get("civic_npc"));
+    expect(["seed_migration", "rule+seed_migration"]).toContain(starwatchCommandoDerivation.sources.get("combatant_npc"));
 
     const falsePriestDerivation = deriveRecordTagDerivation({
       recordKey: "pathfinder-npc-core:OAxxUyACpMlX3q1X",
@@ -500,9 +501,9 @@ describe("derived tag seeds", () => {
       "civic_npc",
       "combatant_npc",
     ]));
-    expect(["seed", "rule+seed"]).toContain(commanderArsiellaDerivation.sources.get("profession_npc"));
-    expect(["seed", "rule+seed"]).toContain(commanderArsiellaDerivation.sources.get("civic_npc"));
-    expect(["seed", "rule+seed"]).toContain(commanderArsiellaDerivation.sources.get("combatant_npc"));
+    expect(["seed_migration", "rule+seed_migration"]).toContain(commanderArsiellaDerivation.sources.get("profession_npc"));
+    expect(["seed_migration", "rule+seed_migration"]).toContain(commanderArsiellaDerivation.sources.get("civic_npc"));
+    expect(["seed_migration", "rule+seed_migration"]).toContain(commanderArsiellaDerivation.sources.get("combatant_npc"));
 
     const spiritboundAluumDerivation = deriveRecordTagDerivation({
       recordKey: "age-of-ashes-bestiary:n6FQeNsDgKaDIF7b",
@@ -535,7 +536,7 @@ describe("derived tag seeds", () => {
       traits: ["dragon", "evil", "fire", "lawful"],
     });
     expect(mengkareDerivation.tags).toContain("island_setting");
-    expect(mengkareDerivation.sources.get("island_setting")).toBe("seed");
+    expect(mengkareDerivation.sources.get("island_setting")).toBe("seed_migration");
 
     const dromaarCompanyDerivation = deriveRecordTagDerivation({
       recordKey: "battlecry-bestiary:R1Ukw41ygDmnAmJk",
@@ -546,8 +547,8 @@ describe("derived tag seeds", () => {
       traits: ["dromaar", "human", "humanoid", "orc", "troop"],
     });
     expect(dromaarCompanyDerivation.tags).toEqual(expect.arrayContaining(["battlefield_setting", "combatant_npc"]));
-    expect(dromaarCompanyDerivation.sources.get("battlefield_setting")).toBe("rule+seed");
-    expect(dromaarCompanyDerivation.sources.get("combatant_npc")).toBe("seed");
+    expect(dromaarCompanyDerivation.sources.get("battlefield_setting")).toBe("rule+seed_migration");
+    expect(dromaarCompanyDerivation.sources.get("combatant_npc")).toBe("seed_migration");
 
     const qadiranCamelCorpsDerivation = deriveRecordTagDerivation({
       recordKey: "battlecry-bestiary:egHaHp1lqQBZdKdR",
@@ -558,7 +559,7 @@ describe("derived tag seeds", () => {
       traits: ["animal", "human", "humanoid", "troop"],
     });
     expect(qadiranCamelCorpsDerivation.tags).toContain("desert_setting");
-    expect(qadiranCamelCorpsDerivation.sources.get("desert_setting")).toBe("seed");
+    expect(qadiranCamelCorpsDerivation.sources.get("desert_setting")).toBe("seed_migration");
 
     const chargharDerivation = deriveRecordTagDerivation({
       recordKey: "blood-lords-bestiary:vUv8SR7Pa5fONiuN",
@@ -569,7 +570,7 @@ describe("derived tag seeds", () => {
       traits: ["evil", "incorporeal", "spirit", "undead", "unholy"],
     });
     expect(chargharDerivation.tags).toContain("geb_setting");
-    expect(chargharDerivation.sources.get("geb_setting")).toBe("seed");
+    expect(chargharDerivation.sources.get("geb_setting")).toBe("seed_migration");
 
     const commanderArsiellaSettingDerivation = deriveRecordTagDerivation({
       recordKey: "claws-of-the-tyrant-bestiary:tMqtId1TKVUXe4tN",
@@ -580,7 +581,7 @@ describe("derived tag seeds", () => {
       traits: ["aiuvarin", "elf", "human", "humanoid"],
     });
     expect(commanderArsiellaSettingDerivation.tags).toContain("gravelands_setting");
-    expect(commanderArsiellaSettingDerivation.sources.get("gravelands_setting")).toBe("seed");
+    expect(commanderArsiellaSettingDerivation.sources.get("gravelands_setting")).toBe("seed_migration");
 
     const deathCoachDerivation = deriveRecordTagDerivation({
       recordKey: "book-of-the-dead-bestiary:7WqlOvjoqURmeorA",
@@ -591,7 +592,7 @@ describe("derived tag seeds", () => {
       traits: ["evil", "incorporeal", "spirit", "undead", "unholy"],
     });
     expect(deathCoachDerivation.tags).toContain("rural_setting");
-    expect(deathCoachDerivation.sources.get("rural_setting")).toBe("seed");
+    expect(deathCoachDerivation.sources.get("rural_setting")).toBe("seed_migration");
 
     const naiYanFeiDerivation = deriveRecordTagDerivation({
       recordKey: "fists-of-the-ruby-phoenix-bestiary:HqN4nUnl75foBKLZ",
@@ -602,7 +603,7 @@ describe("derived tag seeds", () => {
       traits: ["human", "humanoid", "lawful"],
     });
     expect(naiYanFeiDerivation.tags).toContain("tian_xia_setting");
-    expect(naiYanFeiDerivation.sources.get("tian_xia_setting")).toBe("seed");
+    expect(naiYanFeiDerivation.sources.get("tian_xia_setting")).toBe("seed_migration");
 
     const drunkenFarmerDerivation = deriveRecordTagDerivation({
       recordKey: "fall-of-plaguestone-bestiary:BgBTntoz1qQ3h1X5",
@@ -613,7 +614,7 @@ describe("derived tag seeds", () => {
       traits: ["good", "human", "humanoid"],
     });
     expect(drunkenFarmerDerivation.tags).toContain("rural_setting");
-    expect(drunkenFarmerDerivation.sources.get("rural_setting")).toBe("seed");
+    expect(drunkenFarmerDerivation.sources.get("rural_setting")).toBe("seed_migration");
 
     const shoonyHierarchDerivation = deriveRecordTagDerivation({
       recordKey: "extinction-curse-bestiary:YS8UvVGFgHP2TrY3",
@@ -624,7 +625,7 @@ describe("derived tag seeds", () => {
       traits: ["good", "humanoid", "shoony"],
     });
     expect(shoonyHierarchDerivation.tags).toContain("small_settlement_setting");
-    expect(shoonyHierarchDerivation.sources.get("small_settlement_setting")).toBe("seed");
+    expect(shoonyHierarchDerivation.sources.get("small_settlement_setting")).toBe("seed_migration");
 
     const touchedCreatureTags = [
       "dragon_spellcaster",
@@ -633,26 +634,30 @@ describe("derived tag seeds", () => {
       "regeneration_threat",
     ];
     const rawSeedAdds = touchedCreatureTags.reduce(
-      (count, tag) => count + getDerivedTagSeedRecordKeys(tag, { category: "creature" }).length,
+      (count, tag) => count + getDerivedTagLegacySeedMigrationRecordKeys(tag, { category: "creature" }).length,
       0,
     );
     const seededCreatureRecords = new Set(
-      touchedCreatureTags.flatMap((tag) => getDerivedTagSeedRecordKeys(tag, { category: "creature" })),
+      touchedCreatureTags.flatMap((tag) => getDerivedTagLegacySeedMigrationRecordKeys(tag, { category: "creature" })),
     );
 
     expect(rawSeedAdds).toBeGreaterThanOrEqual(120);
     expect(seededCreatureRecords.size).toBeGreaterThanOrEqual(110);
-    expect(getDerivedTagSeedRecordKeys("dragon_spellcaster", { category: "creature" })).toEqual(expect.arrayContaining([
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("dragon_spellcaster", { category: "creature" })).toEqual(expect.arrayContaining([
       "pathfinder-bestiary:pFmaszqtsA2yt7dv",
       "pathfinder-monster-core:T0OAOkmk4xz0wvjJ",
       "lost-omens-bestiary:IG23I5XqPXeICaOH",
     ]));
-    expect(getDerivedTagSeedRecordKeys("disguised_pretender", { category: "creature" })).toEqual(expect.arrayContaining([
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("disguised_pretender", { category: "creature" })).toEqual(expect.arrayContaining([
       "season-of-ghosts-bestiary:dqsQutshiegWaFPQ",
       "pathfinder-monster-core:T0OAOkmk4xz0wvjJ",
       "lost-omens-bestiary:E4qscYn7U3jHoCia",
     ]));
-    expect(getDerivedTagSeedRecordKeys("faceless_horror", { category: "creature" })).toEqual([]);
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("faceless_horror", { category: "creature" })).toEqual(expect.arrayContaining([
+      "season-of-ghosts-bestiary:QSa1PbcvbgDv8Zpr",
+      "season-of-ghosts-bestiary:dqsQutshiegWaFPQ",
+      "season-of-ghosts-bestiary:3KNblm2fWM6XLiS7",
+    ]));
     expect(listDerivedTagLegacySeedMigrations({ category: "creature" })).toEqual(expect.arrayContaining([
       expect.objectContaining({
         category: "creature",
@@ -664,7 +669,7 @@ describe("derived tag seeds", () => {
         ]),
       }),
     ]));
-    expect(getDerivedTagSeedRecordKeys("regeneration_threat", { category: "creature" })).toEqual(expect.arrayContaining([
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("regeneration_threat", { category: "creature" })).toEqual(expect.arrayContaining([
       "pathfinder-monster-core-2:yHduMu4VBVUHnssz",
       "stolen-fate-bestiary:KgwkUtJ8czIC0KFj",
       "pathfinder-monster-core-2:1LBt5H8GekcuzDHw",
@@ -679,7 +684,7 @@ describe("derived tag seeds", () => {
       traits: ["dragon", "fire", "evil"],
     });
     expect(redDragonDerivation.tags).toContain("dragon_spellcaster");
-    expect(redDragonDerivation.sources.get("dragon_spellcaster")).toBe("seed");
+    expect(redDragonDerivation.sources.get("dragon_spellcaster")).toBe("seed_migration");
 
     const conspiratorDragonDerivation = deriveRecordTagDerivation({
       recordKey: "pathfinder-monster-core:TGYELuImcTcuX0aH",
@@ -704,7 +709,7 @@ describe("derived tag seeds", () => {
       "disguised_pretender",
       "faceless_horror",
     ]));
-    expect(nopperaBoDivineDerivation.sources.get("disguised_pretender")).toBe("seed");
+    expect(nopperaBoDivineDerivation.sources.get("disguised_pretender")).toBe("seed_migration");
     expect(nopperaBoDivineDerivation.sources.get("faceless_horror")).toBe("seed_migration");
 
     const cavernTrollDerivation = deriveRecordTagDerivation({
@@ -716,6 +721,6 @@ describe("derived tag seeds", () => {
       traits: ["earth", "giant", "humanoid", "troll"],
     });
     expect(cavernTrollDerivation.tags).toContain("regeneration_threat");
-    expect(cavernTrollDerivation.sources.get("regeneration_threat")).toBe("seed");
+    expect(cavernTrollDerivation.sources.get("regeneration_threat")).toBe("seed_migration");
   });
 });

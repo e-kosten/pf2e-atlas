@@ -4,6 +4,7 @@ import { SearchCategory, SearchSubcategory } from "../types.js";
 import { uniqueSorted } from "../utils.js";
 import {
   getDerivedTagFamilyTags,
+  getDerivedTagLegacySeedMigrationRecordKeys,
   getDerivedTagSeedRecordKeys,
   normalizeDerivedTag,
 } from "./index.js";
@@ -575,10 +576,16 @@ export function analyzeDiscoveryEvidence(
     )
     : undefined;
   const seedRecordKeys = normalizedTag && !explicitRecordKeys
-    ? getDerivedTagSeedRecordKeys(normalizedTag, {
-      category: options.category,
-      subcategory: options.subcategory,
-    })
+    ? uniqueSorted([
+      ...getDerivedTagSeedRecordKeys(normalizedTag, {
+        category: options.category,
+        subcategory: options.subcategory,
+      }),
+      ...getDerivedTagLegacySeedMigrationRecordKeys(normalizedTag, {
+        category: options.category,
+        subcategory: options.subcategory,
+      }),
+    ])
     : [];
   const taggedRecords = loadDiscoveryRecords(db, {
     category: options.category,

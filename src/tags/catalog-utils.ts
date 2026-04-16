@@ -542,6 +542,17 @@ export function listConfiguredDerivedTagLegacySeedMigrations(
       || JSON.stringify(left.subcategories ?? []).localeCompare(JSON.stringify(right.subcategories ?? [])));
 }
 
+export function resolveLegacySeedMigrationRecordKeys(
+  migrationIndex: DerivedTagLegacySeedMigrationIndex,
+  tag: string,
+  scope: { category?: SearchCategory; subcategory?: SearchSubcategory | null } = {},
+): string[] {
+  const normalizedTag = normalizeDerivedTag(tag);
+  return uniqueSorted((migrationIndex.definitionsByTag.get(normalizedTag) ?? [])
+    .filter((definition) => definitionAppliesToScope(definition, scope))
+    .flatMap((definition) => definition.recordKeys));
+}
+
 export function deriveCatalogTagDerivation(
   ontology: PublishedDerivedTagOntology,
   seedIndex: DerivedTagSeedIndex,
