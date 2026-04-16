@@ -57,20 +57,22 @@ import {
   createDerivedTagExplicitAssignmentIndex,
   validateDerivedTagExplicitAssignmentsAgainstRecords,
 } from "./assignments.js";
-import { AFFLICTION_DERIVED_TAG_RULES } from "./rules/affliction.js";
-import { CREATURE_DERIVED_TAG_RULES } from "./rules/creature.js";
-import { EQUIPMENT_DERIVED_TAG_RULES } from "./rules/equipment.js";
-import { HAZARD_DERIVED_TAG_RULES } from "./rules/hazard.js";
-import { SPELL_DERIVED_TAG_RULES } from "./rules/spell.js";
+import {
+  AFFLICTION_LEGACY_DERIVED_TAG_RULES,
+  CREATURE_LEGACY_DERIVED_TAG_RULES,
+  EQUIPMENT_LEGACY_DERIVED_TAG_RULES,
+  HAZARD_LEGACY_DERIVED_TAG_RULES,
+  SPELL_LEGACY_DERIVED_TAG_RULES,
+} from "./legacy-rules/index.js";
 
 export { normalizeDerivedTag } from "./shared.js";
 
 const LEGACY_DERIVED_TAG_RULES = [
-  ...EQUIPMENT_DERIVED_TAG_RULES,
-  ...SPELL_DERIVED_TAG_RULES,
-  ...HAZARD_DERIVED_TAG_RULES,
-  ...AFFLICTION_DERIVED_TAG_RULES,
-  ...CREATURE_DERIVED_TAG_RULES,
+  ...EQUIPMENT_LEGACY_DERIVED_TAG_RULES,
+  ...SPELL_LEGACY_DERIVED_TAG_RULES,
+  ...HAZARD_LEGACY_DERIVED_TAG_RULES,
+  ...AFFLICTION_LEGACY_DERIVED_TAG_RULES,
+  ...CREATURE_LEGACY_DERIVED_TAG_RULES,
 ];
 const AUTHORED_DERIVED_TAG_RULES = [
   ...EQUIPMENT_AUTHORED_DERIVED_TAG_RULES,

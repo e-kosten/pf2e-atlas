@@ -1,0 +1,1 @@
+export { AFFLICTION_DERIVED_TAG_RULES as AFFLICTION_LEGACY_DERIVED_TAG_RULES } from "../rules/affliction.js";

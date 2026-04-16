@@ -10,11 +10,13 @@ import { EQUIPMENT_DERIVED_TAG_ONTOLOGY } from "../../src/tags/ontology/equipmen
 import { HAZARD_DERIVED_TAG_ONTOLOGY } from "../../src/tags/ontology/hazard.js";
 import { SPELL_DERIVED_TAG_ONTOLOGY } from "../../src/tags/ontology/spell.js";
 import { flattenDerivedTagAuthoredCategoryOntology } from "../../src/tags/ontology/utils.js";
-import { AFFLICTION_DERIVED_TAG_RULES } from "../../src/tags/rules/affliction.js";
-import { CREATURE_DERIVED_TAG_RULES } from "../../src/tags/rules/creature.js";
-import { EQUIPMENT_DERIVED_TAG_RULES } from "../../src/tags/rules/equipment.js";
-import { HAZARD_DERIVED_TAG_RULES } from "../../src/tags/rules/hazard.js";
-import { SPELL_DERIVED_TAG_RULES } from "../../src/tags/rules/spell.js";
+import {
+  AFFLICTION_LEGACY_DERIVED_TAG_RULES,
+  CREATURE_LEGACY_DERIVED_TAG_RULES,
+  EQUIPMENT_LEGACY_DERIVED_TAG_RULES,
+  HAZARD_LEGACY_DERIVED_TAG_RULES,
+  SPELL_LEGACY_DERIVED_TAG_RULES,
+} from "../../src/tags/legacy-rules/index.js";
 import { cleanupCreatedRoots, createFixture } from "../helpers/pf2e-service-fixture.js";
 import { loadTestService } from "../helpers/pf2e-fixture.js";
 
@@ -26,12 +28,12 @@ const DERIVED_TAG_ONTOLOGY = [
   ...flattenDerivedTagAuthoredCategoryOntology(CREATURE_DERIVED_TAG_ONTOLOGY).tags,
 ];
 
-const DERIVED_TAG_RULES = [
-  ...EQUIPMENT_DERIVED_TAG_RULES,
-  ...SPELL_DERIVED_TAG_RULES,
-  ...HAZARD_DERIVED_TAG_RULES,
-  ...AFFLICTION_DERIVED_TAG_RULES,
-  ...CREATURE_DERIVED_TAG_RULES,
+const LEGACY_DERIVED_TAG_RULES = [
+  ...EQUIPMENT_LEGACY_DERIVED_TAG_RULES,
+  ...SPELL_LEGACY_DERIVED_TAG_RULES,
+  ...HAZARD_LEGACY_DERIVED_TAG_RULES,
+  ...AFFLICTION_LEGACY_DERIVED_TAG_RULES,
+  ...CREATURE_LEGACY_DERIVED_TAG_RULES,
 ];
 
 function buildCatalogTagRows(tags: DerivedTagOntologyTag[]) {
@@ -74,7 +76,7 @@ describe("derived tag native ontology guard", () => {
         continue;
       }
 
-      const rules = DERIVED_TAG_RULES.filter((rule) => rule.category === row.category && rule.tag === row.value);
+      const rules = LEGACY_DERIVED_TAG_RULES.filter((rule) => rule.category === row.category && rule.tag === row.value);
       const positiveRules = rules.filter((rule) => (rule.anyOf?.length ?? 0) > 0 || (rule.allOf?.length ?? 0) > 0);
       if (positiveRules.length === 0) {
         continue;

@@ -1,0 +1,1 @@
+export { EQUIPMENT_DERIVED_TAG_RULES as EQUIPMENT_LEGACY_DERIVED_TAG_RULES } from "../rules/equipment.js";
