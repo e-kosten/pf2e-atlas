@@ -2,7 +2,11 @@ import type { DerivedTagOntologyTag, SearchCategory } from "../../types.js";
 import type { PublishedDerivedTagOntology } from "./catalog-utils.js";
 import { uniqueSorted } from "../../utils.js";
 import { normalizeDerivedTag } from "./shared.js";
+import { AFFLICTION_DERIVED_TAG_ASSIGNMENTS } from "../assignments/affliction.js";
 import { CREATURE_DERIVED_TAG_ASSIGNMENTS } from "../assignments/creature.js";
+import { EQUIPMENT_DERIVED_TAG_ASSIGNMENTS } from "../assignments/equipment.js";
+import { HAZARD_DERIVED_TAG_ASSIGNMENTS } from "../assignments/hazard.js";
+import { SPELL_DERIVED_TAG_ASSIGNMENTS } from "../assignments/spell.js";
 
 export type DerivedTagReviewStatus =
   | "auto_applied"
@@ -59,7 +63,11 @@ type DerivedTagAssignmentRecordSummary = {
 };
 
 const RAW_DERIVED_TAG_ASSIGNMENTS: DerivedTagAssignmentGroup[] = [
+  { category: "affliction", assignments: AFFLICTION_DERIVED_TAG_ASSIGNMENTS },
   { category: "creature", assignments: CREATURE_DERIVED_TAG_ASSIGNMENTS },
+  { category: "equipment", assignments: EQUIPMENT_DERIVED_TAG_ASSIGNMENTS },
+  { category: "hazard", assignments: HAZARD_DERIVED_TAG_ASSIGNMENTS },
+  { category: "spell", assignments: SPELL_DERIVED_TAG_ASSIGNMENTS },
 ];
 
 function buildFamilyTagMap(
