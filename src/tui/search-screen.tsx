@@ -16,13 +16,12 @@ import type {
   Pf2eTerminalSearchSession,
 } from "./search-service.js";
 import {
-  TerminalPaneScreen,
-  TerminalTwoPaneScreen,
+  TerminalThreePaneScreen,
   getDerivedTagTerminalListNavigationAction,
   getNormalizedKeyName,
   getRenderedTerminalLineCount,
   getTerminalPaneBodyHeight,
-  getTerminalTwoPaneDetailWidth,
+  getTerminalThreePaneDimensions,
   moveSelection,
   sliceRenderedTerminalLines,
   useDerivedTagTerminalApp,
@@ -32,16 +31,9 @@ import {
 } from "./terminal-ui.js";
 import { buildOntologyExplorerEntityDetailLines } from "./ontology-explorer/entity-page.js";
 import { mapNormalizedRecordToOntologyExplorerEntityRecord } from "./ontology-explorer/entity-record.js";
-import {
-  createDerivedTagTerminalTwoPaneState,
-  getDerivedTagTerminalTwoPaneLayoutMode,
-  reduceDerivedTagTerminalTwoPaneState,
-  type DerivedTagTerminalTwoPaneAction,
-  type DerivedTagTerminalTwoPaneState,
-} from "./two-pane-state.js";
 import { clampWindowStart } from "./list-utils.js";
 
-type SearchNavigatorAction =
+type SearchWorkspaceAction =
   | "execute"
   | "mode"
   | "query"
@@ -55,72 +47,103 @@ type SearchNavigatorAction =
   | "reset"
   | "clearResults";
 
-type SearchNavigatorEntry =
-  | {
-    kind: "action";
-    action: SearchNavigatorAction;
-    label: string;
-    value: string;
-    description: string;
-    disabled?: boolean;
-  }
-  | {
-    kind: "result";
-    recordIndex: number;
-    label: string;
-    record: Pf2eTerminalSearchSession["results"][number];
-  };
+type SearchWorkspaceEntry = {
+  action: SearchWorkspaceAction;
+  label: string;
+  value: string;
+  description: string;
+  disabled?: boolean;
+};
 
-type SearchScreenState = DerivedTagTerminalTwoPaneState & {
+type SearchScreenPane = "workspace" | "results" | "detail";
+
+type SearchScreenState = {
+  activePane: SearchScreenPane;
+  detailScroll: number;
   draft: Pf2eTerminalSearchRequest;
-  selectedIndex: number;
+  workspaceSelectedIndex: number;
+  resultSelectedIndex: number;
   session: Pf2eTerminalSearchSession | null;
 };
 
 type SearchScreenAction =
-  | DerivedTagTerminalTwoPaneAction
-  | { type: "move_selection"; delta: number; itemCount: number }
-  | { type: "selection_boundary"; boundary: "start" | "end"; itemCount: number }
+  | { type: "set_active_pane"; pane: SearchScreenPane }
+  | { type: "move_workspace_selection"; delta: number; itemCount: number }
+  | { type: "workspace_selection_boundary"; boundary: "start" | "end"; itemCount: number }
+  | { type: "move_result_selection"; delta: number; itemCount: number }
+  | { type: "result_selection_boundary"; boundary: "start" | "end"; itemCount: number }
+  | { type: "move_detail"; delta: number; maxDetailScroll: number }
+  | { type: "detail_boundary"; boundary: "start" | "end"; maxDetailScroll: number }
   | { type: "set_draft"; request: Pf2eTerminalSearchRequest }
   | { type: "set_session"; session: Pf2eTerminalSearchSession }
   | { type: "clear_results" };
 
-const SEARCH_LEFT_WIDTH = 56;
+const SEARCH_LEFT_WIDTH = 36;
+const SEARCH_CENTER_WIDTH = 42;
 
 function createInitialSearchScreenState(initialRequest: Pf2eTerminalSearchRequest): SearchScreenState {
   return {
-    ...createDerivedTagTerminalTwoPaneState(),
+    activePane: "workspace",
+    detailScroll: 0,
     draft: initialRequest,
-    selectedIndex: 0,
+    workspaceSelectedIndex: 0,
+    resultSelectedIndex: 0,
     session: null,
   };
 }
 
 function searchScreenReducer(state: SearchScreenState, action: SearchScreenAction): SearchScreenState {
   switch (action.type) {
-    case "toggle_focus":
-    case "toggle_layout":
-    case "leave_detail":
-    case "move_detail":
-    case "detail_boundary":
-      return reduceDerivedTagTerminalTwoPaneState(state, action);
-    case "move_selection":
+    case "set_active_pane":
       return {
         ...state,
-        detailScroll: 0,
-        selectedIndex: action.itemCount <= 0
-          ? 0
-          : moveSelection(state.selectedIndex, action.delta, action.itemCount),
+        activePane: action.pane,
       };
-    case "selection_boundary":
+    case "move_workspace_selection":
       return {
         ...state,
         detailScroll: 0,
-        selectedIndex: action.itemCount <= 0
+        workspaceSelectedIndex: action.itemCount <= 0
+          ? 0
+          : moveSelection(state.workspaceSelectedIndex, action.delta, action.itemCount),
+      };
+    case "workspace_selection_boundary":
+      return {
+        ...state,
+        detailScroll: 0,
+        workspaceSelectedIndex: action.itemCount <= 0
           ? 0
           : action.boundary === "start"
             ? 0
             : action.itemCount - 1,
+      };
+    case "move_result_selection":
+      return {
+        ...state,
+        detailScroll: 0,
+        resultSelectedIndex: action.itemCount <= 0
+          ? 0
+          : moveSelection(state.resultSelectedIndex, action.delta, action.itemCount),
+      };
+    case "result_selection_boundary":
+      return {
+        ...state,
+        detailScroll: 0,
+        resultSelectedIndex: action.itemCount <= 0
+          ? 0
+          : action.boundary === "start"
+            ? 0
+            : action.itemCount - 1,
+      };
+    case "move_detail":
+      return {
+        ...state,
+        detailScroll: Math.max(0, Math.min(action.maxDetailScroll, state.detailScroll + action.delta)),
+      };
+    case "detail_boundary":
+      return {
+        ...state,
+        detailScroll: action.boundary === "start" ? 0 : action.maxDetailScroll,
       };
     case "set_draft":
       return {
@@ -129,16 +152,19 @@ function searchScreenReducer(state: SearchScreenState, action: SearchScreenActio
       };
     case "set_session":
       return {
-        ...createDerivedTagTerminalTwoPaneState(),
+        ...state,
+        activePane: action.session.results.length > 0 ? "results" : "workspace",
+        detailScroll: 0,
         draft: action.session.request,
-        selectedIndex: 0,
+        resultSelectedIndex: 0,
         session: action.session,
       };
     case "clear_results":
       return {
-        ...createDerivedTagTerminalTwoPaneState(),
-        draft: state.draft,
-        selectedIndex: 0,
+        ...state,
+        activePane: "workspace",
+        detailScroll: 0,
+        resultSelectedIndex: 0,
         session: null,
       };
     default:
@@ -270,10 +296,9 @@ function buildSearchResultLabel(record: Pf2eTerminalSearchSession["results"][num
   return `${record.name} | ${scope} | lvl ${level} | ${record.packLabel}`;
 }
 
-function buildNavigatorEntries(state: SearchScreenState): SearchNavigatorEntry[] {
-  const entries: SearchNavigatorEntry[] = [
+function buildWorkspaceEntries(state: SearchScreenState): SearchWorkspaceEntry[] {
+  const entries: SearchWorkspaceEntry[] = [
     {
-      kind: "action",
       action: "execute",
       label: "Run Draft Query",
       value: state.session
@@ -282,28 +307,24 @@ function buildNavigatorEntries(state: SearchScreenState): SearchNavigatorEntry[]
       description: "Run the current draft using the selected browse, search, or lookup mode.",
     },
     {
-      kind: "action",
       action: "mode",
       label: "Mode",
       value: formatMode(state.draft.mode),
       description: "Choose whether this draft should browse deterministically, run ranked search, or perform exact lookup.",
     },
     {
-      kind: "action",
       action: "query",
       label: "Query",
       value: state.draft.queryText || "(none)",
       description: "Edit the free-text portion of the draft. Browse mode can leave this empty.",
     },
     {
-      kind: "action",
       action: "category",
       label: "Category",
       value: formatSearchCategory(state.draft.filters.category),
       description: "Set the top-level category boundary for the draft.",
     },
     {
-      kind: "action",
       action: "subcategory",
       label: "Subcategory",
       value: formatSearchSubcategory(state.draft.filters.subcategory),
@@ -313,21 +334,18 @@ function buildNavigatorEntries(state: SearchScreenState): SearchNavigatorEntry[]
       disabled: !state.draft.filters.category,
     },
     {
-      kind: "action",
       action: "levels",
       label: "Levels",
       value: formatLevelRange(state.draft),
       description: "Constrain the draft to a level band such as `3-8` or `<=5`.",
     },
     {
-      kind: "action",
       action: "rarity",
       label: "Rarity",
       value: formatFilterPolicy(state.draft.filters.rarity),
       description: "Cycle rarity values through any and exclude policies in one view.",
     },
     {
-      kind: "action",
       action: "addFacet",
       label: "Edit Facet Filter",
       value: `${
@@ -339,7 +357,6 @@ function buildNavigatorEntries(state: SearchScreenState): SearchNavigatorEntry[]
       disabled: !state.draft.filters.category,
     },
     {
-      kind: "action",
       action: "removeFacet",
       label: "Clear Facet Filter",
       value: `${
@@ -351,14 +368,12 @@ function buildNavigatorEntries(state: SearchScreenState): SearchNavigatorEntry[]
       disabled: state.draft.filters.facets.length === 0 && !hasFilterPolicy(state.draft.filters.actionCost),
     },
     {
-      kind: "action",
       action: "reset",
       label: "Reset Draft",
       value: "Restore defaults",
       description: "Discard the current draft filters and return to the default workspace state.",
     },
     {
-      kind: "action",
       action: "clearResults",
       label: "Clear Results",
       value: state.session ? `${state.session.results.length} shown` : "No results",
@@ -371,7 +386,6 @@ function buildNavigatorEntries(state: SearchScreenState): SearchNavigatorEntry[]
 
   if (state.draft.mode === "search") {
     entries.splice(3, 0, {
-      kind: "action",
       action: "profile",
       label: "Profile",
       value: state.draft.searchProfile,
@@ -379,23 +393,11 @@ function buildNavigatorEntries(state: SearchScreenState): SearchNavigatorEntry[]
     });
   }
 
-  if (!state.session || state.session.results.length === 0) {
-    return entries;
-  }
-
-  return [
-    ...entries,
-    ...state.session.results.map((record, recordIndex) => ({
-      kind: "result" as const,
-      recordIndex,
-      label: `Result ${recordIndex + 1} | ${buildSearchResultLabel(record)}`,
-      record,
-    })),
-  ];
+  return entries;
 }
 
-function buildNavigatorLines(
-  entries: SearchNavigatorEntry[],
+function buildWorkspaceLines(
+  entries: SearchWorkspaceEntry[],
   selectedIndex: number,
   bodyHeight: number,
 ): DerivedTagTerminalLine[] {
@@ -403,21 +405,43 @@ function buildNavigatorLines(
   const safeIndex = Math.max(0, Math.min(selectedIndex, Math.max(0, entries.length - 1)));
   const windowStart = clampWindowStart(safeIndex, entries.length, visibleCount);
 
-  return entries.slice(windowStart, windowStart + visibleCount).map((entry, offset) => {
-    const isSelected = windowStart + offset === safeIndex;
-    if (entry.kind === "action") {
-      return {
-        text: `${entry.label} | ${entry.value}${entry.disabled ? " | unavailable" : ""}`,
-        tone: isSelected ? "selected" : entry.disabled ? "dim" : "default",
-        noWrap: true,
-      };
-    }
-    return {
-      text: entry.label,
-      tone: isSelected ? "selected" : "default",
-      noWrap: true,
-    };
-  });
+  return entries.slice(windowStart, windowStart + visibleCount).map((entry, offset) => ({
+    text: `${entry.label} | ${entry.value}${entry.disabled ? " | unavailable" : ""}`,
+    tone: windowStart + offset === safeIndex ? "selected" : entry.disabled ? "dim" : "default",
+    noWrap: true,
+  }));
+}
+
+function buildResultLines(
+  session: Pf2eTerminalSearchSession | null,
+  selectedIndex: number,
+  bodyHeight: number,
+): DerivedTagTerminalLine[] {
+  if (!session) {
+    return [
+      { text: "No applied results yet.", tone: "section" },
+      { text: "Use the left pane to set scope and filters, then run the draft query.", tone: "dim" },
+      { text: "The result list stays here once a session is applied.", tone: "dim" },
+    ];
+  }
+
+  if (session.results.length === 0) {
+    return [
+      { text: "No results in the applied session.", tone: "section" },
+      { text: `Applied mode: ${formatMode(session.request.mode)} | ${session.resultMode}`, tone: "dim" },
+      { text: "Change the draft scope or query, then run again.", tone: "dim" },
+    ];
+  }
+
+  const visibleCount = Math.max(1, bodyHeight);
+  const safeIndex = Math.max(0, Math.min(selectedIndex, session.results.length - 1));
+  const windowStart = clampWindowStart(safeIndex, session.results.length, visibleCount);
+
+  return session.results.slice(windowStart, windowStart + visibleCount).map((record, offset) => ({
+    text: buildSearchResultLabel(record),
+    tone: windowStart + offset === safeIndex ? "selected" : "default",
+    noWrap: true,
+  }));
 }
 
 function buildWorkspaceSummaryLines(state: SearchScreenState): DerivedTagTerminalLine[] {
@@ -443,10 +467,8 @@ function buildWorkspaceSummaryLines(state: SearchScreenState): DerivedTagTermina
     lines.push({ text: `Action Cost: ${formatFilterPolicy(state.draft.filters.actionCost)}`, indent: 2 });
   }
 
-  if (state.draft.filters.facets.length > 0) {
-    for (const facet of state.draft.filters.facets) {
-      lines.push({ text: formatFacetSelection(facet), indent: 2 });
-    }
+  for (const facet of state.draft.filters.facets) {
+    lines.push({ text: formatFacetSelection(facet), indent: 2 });
   }
 
   if (state.draft.sourceLabel) {
@@ -467,39 +489,37 @@ function buildWorkspaceSummaryLines(state: SearchScreenState): DerivedTagTermina
   return lines;
 }
 
-function getNavigatorEntryTitle(entry: SearchNavigatorEntry): string {
-  return entry.kind === "action" ? entry.label : "Selected Result";
-}
-
-function buildNavigatorEntryDetailLines(
-  entry: SearchNavigatorEntry,
+function buildWorkspaceEntryDetailLines(
+  entry: SearchWorkspaceEntry,
   state: SearchScreenState,
 ): DerivedTagTerminalLine[] {
-  if (entry.kind === "action") {
-    return [
-      { text: entry.label, tone: "section" },
-      { text: `Current value: ${entry.value}` },
-      {
-        text: entry.disabled
-          ? `Unavailable: ${entry.description}`
-          : entry.description,
-        tone: entry.disabled ? "warning" : "default",
-      },
-      ...(entry.disabled
-        ? []
-        : [{ text: "Press Enter to edit or act on this item.", tone: "accent" as const }]),
-      { text: "" },
-      ...buildWorkspaceSummaryLines(state),
-    ];
-  }
-
-  const resultCount = state.session?.results.length ?? 0;
   return [
-    { text: "Selected Result", tone: "section" },
-    { text: `Showing result ${entry.recordIndex + 1} of ${resultCount}` },
-    { text: "Press Enter to focus the detail pane for scrolling.", tone: "accent" },
+    { text: entry.label, tone: "section" },
+    { text: `Current value: ${entry.value}` },
+    {
+      text: entry.disabled
+        ? `Unavailable: ${entry.description}`
+        : entry.description,
+      tone: entry.disabled ? "warning" : "default",
+    },
+    ...(entry.disabled
+      ? []
+      : [{ text: "Press Enter to edit or act on this item.", tone: "accent" as const }]),
     { text: "" },
-    ...buildOntologyExplorerEntityDetailLines(mapNormalizedRecordToOntologyExplorerEntityRecord(entry.record)),
+    ...buildWorkspaceSummaryLines(state),
+  ];
+}
+
+function buildResultDetailLines(
+  record: Pf2eTerminalSearchSession["results"][number],
+  resultIndex: number,
+  resultCount: number,
+): DerivedTagTerminalLine[] {
+  return [
+    { text: "Result Preview", tone: "section" },
+    { text: `Showing result ${resultIndex + 1} of ${resultCount}` },
+    { text: "" },
+    ...buildOntologyExplorerEntityDetailLines(mapNormalizedRecordToOntologyExplorerEntityRecord(record)),
   ];
 }
 
@@ -540,6 +560,42 @@ function buildFacetRemovalEntries(
   return entries;
 }
 
+function getNextPane(activePane: SearchScreenPane): SearchScreenPane {
+  switch (activePane) {
+    case "workspace":
+      return "results";
+    case "results":
+      return "detail";
+    case "detail":
+    default:
+      return "workspace";
+  }
+}
+
+function getPreviousPane(activePane: SearchScreenPane): SearchScreenPane {
+  switch (activePane) {
+    case "workspace":
+      return "detail";
+    case "results":
+      return "workspace";
+    case "detail":
+    default:
+      return "results";
+  }
+}
+
+function buildFooterText(activePane: SearchScreenPane): string {
+  switch (activePane) {
+    case "workspace":
+      return "Up/Down select  Ctrl-U/D jump  PgUp/PgDn page  Home/End edge  Enter edit/run  Right results  / query  Tab cycle  Esc/backspace back  q back";
+    case "results":
+      return "Up/Down select  Ctrl-U/D jump  PgUp/PgDn page  Home/End edge  Left filters  Right detail  Enter detail  / query  Tab cycle  Esc filters  q back";
+    case "detail":
+    default:
+      return "Up/Down scroll  Ctrl-U/D jump  PgUp/PgDn page  Home/End edge  Left results  / query  Tab cycle  Esc results  q back";
+  }
+}
+
 export function SearchScreen({
   initialQuery,
   onBack,
@@ -558,21 +614,27 @@ export function SearchScreen({
   const [state, dispatch] = React.useReducer(searchScreenReducer, initialRequest, createInitialSearchScreenState);
   const autoRanInitialQuery = React.useRef(false);
 
-  const navigatorEntries = buildNavigatorEntries(state);
-  const selectedIndex = Math.max(0, Math.min(state.selectedIndex, Math.max(0, navigatorEntries.length - 1)));
-  const selectedEntry = navigatorEntries[selectedIndex] ?? navigatorEntries[0];
+  const workspaceEntries = buildWorkspaceEntries(state);
+  const workspaceSelectedIndex = Math.max(0, Math.min(state.workspaceSelectedIndex, Math.max(0, workspaceEntries.length - 1)));
+  const selectedWorkspaceEntry = workspaceEntries[workspaceSelectedIndex] ?? workspaceEntries[0];
+
+  const resultCount = state.session?.results.length ?? 0;
+  const resultSelectedIndex = Math.max(0, Math.min(state.resultSelectedIndex, Math.max(0, resultCount - 1)));
+  const selectedResult = resultCount > 0 ? state.session?.results[resultSelectedIndex] ?? null : null;
 
   const bodyHeight = Math.max(1, getTerminalPaneBodyHeight(size.height, {
     hasSubtitle: true,
     footerLineCount: 2,
   }));
-  const layoutMode = getDerivedTagTerminalTwoPaneLayoutMode(state);
-  const detailLines = selectedEntry
-    ? buildNavigatorEntryDetailLines(selectedEntry, state)
-    : buildWorkspaceSummaryLines(state);
+  const dimensions = getTerminalThreePaneDimensions(size.width, SEARCH_LEFT_WIDTH, SEARCH_CENTER_WIDTH);
   const selectionJumpSize = Math.max(1, Math.floor(bodyHeight / 2));
   const pageSize = Math.max(1, bodyHeight - 1);
-  const renderedDetailLineCount = getRenderedTerminalLineCount(detailLines, getTerminalTwoPaneDetailWidth(size.width, layoutMode, SEARCH_LEFT_WIDTH));
+  const detailLines = selectedResult
+    ? buildResultDetailLines(selectedResult, resultSelectedIndex, resultCount)
+    : selectedWorkspaceEntry
+      ? buildWorkspaceEntryDetailLines(selectedWorkspaceEntry, state)
+      : buildWorkspaceSummaryLines(state);
+  const renderedDetailLineCount = getRenderedTerminalLineCount(detailLines, dimensions.rightWidth);
   const maxDetailScroll = Math.max(0, renderedDetailLineCount - bodyHeight);
   const detailScroll = Math.min(state.detailScroll, maxDetailScroll);
 
@@ -908,23 +970,15 @@ export function SearchScreen({
 
   const resetDraftWorkspace = React.useCallback(() => {
     dispatch({ type: "set_draft", request: user.search.createDefaultRequest() });
+    dispatch({ type: "set_active_pane", pane: "workspace" });
   }, [user.search]);
 
-  const openSelectedNavigatorEntry = React.useCallback(() => {
-    if (!selectedEntry) {
+  const openSelectedWorkspaceEntry = React.useCallback(() => {
+    if (!selectedWorkspaceEntry || selectedWorkspaceEntry.disabled) {
       return;
     }
 
-    if (selectedEntry.kind === "result") {
-      dispatch({ type: "toggle_focus" });
-      return;
-    }
-
-    if (selectedEntry.disabled) {
-      return;
-    }
-
-    switch (selectedEntry.action) {
+    switch (selectedWorkspaceEntry.action) {
       case "execute":
         void executeRequest(state.draft);
         return;
@@ -971,13 +1025,12 @@ export function SearchScreen({
     chooseRarityFilter,
     chooseSearchProfile,
     chooseSubcategoryFilter,
-    dispatch,
     editLevelRange,
     editQueryText,
     executeRequest,
     removeFacetFilter,
     resetDraftWorkspace,
-    selectedEntry,
+    selectedWorkspaceEntry,
     state.draft,
   ]);
 
@@ -987,55 +1040,57 @@ export function SearchScreen({
     }
 
     const normalized = getNormalizedKeyName(input, key);
-    const listNavigation = getDerivedTagTerminalListNavigationAction(normalized, {
+    const workspaceNavigation = getDerivedTagTerminalListNavigationAction(normalized, {
       pageSize,
       jumpSize: selectionJumpSize,
       includeConfirmKeys: true,
-      includeHorizontalConfirmKeys: true,
+    });
+    const resultsNavigation = getDerivedTagTerminalListNavigationAction(normalized, {
+      pageSize,
+      jumpSize: selectionJumpSize,
+      includeConfirmKeys: true,
     });
     const detailNavigation = getDerivedTagTerminalListNavigationAction(normalized, {
       pageSize,
       jumpSize: selectionJumpSize,
-      includeCancelKeys: true,
-      includeHorizontalCancelKeys: true,
     });
 
     if (normalized === "ctrl_c" || normalized === "q") {
       onBack();
       return;
     }
-    if (state.activePane === "detail" && (normalized === "escape" || normalized === "backspace" || normalized === "left")) {
-      dispatch({ type: "leave_detail" });
+    if (normalized === "slash") {
+      void editQueryText();
       return;
     }
-    if (state.activePane === "list" && (normalized === "escape" || normalized === "backspace")) {
-      onBack();
+    if (normalized === "tab" || normalized === "w") {
+      dispatch({ type: "set_active_pane", pane: getNextPane(state.activePane) });
       return;
     }
-    if (normalized === "tab" || normalized === "shift_tab" || normalized === "w") {
-      dispatch({ type: "toggle_focus" });
-      return;
-    }
-    if (normalized === "z") {
-      dispatch({ type: "toggle_layout" });
+    if (normalized === "shift_tab") {
+      dispatch({ type: "set_active_pane", pane: getPreviousPane(state.activePane) });
       return;
     }
 
-    if (state.activePane === "list") {
-      if (listNavigation?.kind === "move") {
-        dispatch({ type: "move_selection", delta: listNavigation.delta, itemCount: navigatorEntries.length });
+    if (state.activePane === "workspace") {
+      if (normalized === "escape" || normalized === "backspace") {
+        onBack();
         return;
       }
-      if (listNavigation?.kind === "boundary") {
-        dispatch({ type: "selection_boundary", boundary: listNavigation.boundary, itemCount: navigatorEntries.length });
+      if (normalized === "right") {
+        dispatch({ type: "set_active_pane", pane: "results" });
         return;
       }
-      if (listNavigation?.kind === "confirm") {
-        openSelectedNavigatorEntry();
+      if (workspaceNavigation?.kind === "move") {
+        dispatch({ type: "move_workspace_selection", delta: workspaceNavigation.delta, itemCount: workspaceEntries.length });
         return;
       }
-      if (normalized === "slash") {
-        void editQueryText();
+      if (workspaceNavigation?.kind === "boundary") {
+        dispatch({ type: "workspace_selection_boundary", boundary: workspaceNavigation.boundary, itemCount: workspaceEntries.length });
+        return;
+      }
+      if (workspaceNavigation?.kind === "confirm") {
+        openSelectedWorkspaceEntry();
         return;
       }
       if (normalized === "m") {
@@ -1080,6 +1135,29 @@ export function SearchScreen({
       return;
     }
 
+    if (state.activePane === "results") {
+      if (normalized === "escape" || normalized === "backspace" || normalized === "left") {
+        dispatch({ type: "set_active_pane", pane: "workspace" });
+        return;
+      }
+      if ((normalized === "right" || resultsNavigation?.kind === "confirm") && selectedResult) {
+        dispatch({ type: "set_active_pane", pane: "detail" });
+        return;
+      }
+      if (resultsNavigation?.kind === "move") {
+        dispatch({ type: "move_result_selection", delta: resultsNavigation.delta, itemCount: resultCount });
+        return;
+      }
+      if (resultsNavigation?.kind === "boundary") {
+        dispatch({ type: "result_selection_boundary", boundary: resultsNavigation.boundary, itemCount: resultCount });
+      }
+      return;
+    }
+
+    if (normalized === "escape" || normalized === "backspace" || normalized === "left") {
+      dispatch({ type: "set_active_pane", pane: selectedResult ? "results" : "workspace" });
+      return;
+    }
     if (detailNavigation?.kind === "move") {
       dispatch({ type: "move_detail", delta: detailNavigation.delta, maxDetailScroll });
       return;
@@ -1089,51 +1167,29 @@ export function SearchScreen({
     }
   }, !busy);
 
-  if (layoutMode === "detail-only") {
-    return (
-      <TerminalPaneScreen
-        title="Browse/Search"
-        subtitle={`${buildSearchSubtitle(state)} | focused detail`}
-        pane={{
-          title: `[FOCUSED DETAIL] ${selectedEntry ? getNavigatorEntryTitle(selectedEntry) : "Workspace"}`,
-          lines: sliceRenderedTerminalLines(
-            detailLines,
-            size.width,
-            detailScroll,
-            bodyHeight,
-          ),
-          active: true,
-        }}
-        footer={[
-          {
-            text: "Up/Down scroll  Ctrl-U/D jump  PgUp/PgDn page  Home/End edge  Left/backspace list  Tab/w navigator focus  z split-view  q back",
-            tone: "dim",
-          },
-          {
-            text: `${formatDraftStatus(state)} | detail scroll ${detailScroll}/${maxDetailScroll}`,
-            tone: "accent",
-          },
-        ]}
-      />
-    );
-  }
-
   return (
-    <TerminalTwoPaneScreen
+    <TerminalThreePaneScreen
       title="Browse/Search"
       subtitle={buildSearchSubtitle(state)}
       left={{
-        title: state.activePane === "list" ? "[NAVIGATOR] Workspace Navigator" : "Workspace Navigator",
-        lines: buildNavigatorLines(navigatorEntries, selectedIndex, bodyHeight),
-        active: state.activePane === "list",
+        title: state.activePane === "workspace" ? "[WORKSPACE] Scope & Filters" : "Scope & Filters",
+        lines: buildWorkspaceLines(workspaceEntries, workspaceSelectedIndex, bodyHeight),
+        active: state.activePane === "workspace",
+      }}
+      center={{
+        title: state.activePane === "results"
+          ? `[RESULTS] ${state.session ? `${state.session.results.length}/${state.session.total} shown` : "No applied session"}`
+          : `Results${state.session ? ` | ${state.session.results.length}/${state.session.total} shown` : " | No applied session"}`,
+        lines: buildResultLines(state.session, resultSelectedIndex, bodyHeight),
+        active: state.activePane === "results",
       }}
       right={{
         title: state.activePane === "detail"
-          ? `[DETAIL] ${selectedEntry ? getNavigatorEntryTitle(selectedEntry) : "Workspace"}`
-          : selectedEntry ? getNavigatorEntryTitle(selectedEntry) : "Workspace",
+          ? `[PREVIEW] ${selectedResult ? selectedResult.name : selectedWorkspaceEntry?.label ?? "Workspace"}`
+          : `Preview${selectedResult ? ` | ${selectedResult.name}` : selectedWorkspaceEntry ? ` | ${selectedWorkspaceEntry.label}` : ""}`,
         lines: sliceRenderedTerminalLines(
           detailLines,
-          getTerminalTwoPaneDetailWidth(size.width, layoutMode, SEARCH_LEFT_WIDTH),
+          dimensions.rightWidth,
           detailScroll,
           bodyHeight,
         ),
@@ -1141,19 +1197,18 @@ export function SearchScreen({
       }}
       footer={[
         {
-          text: state.activePane === "list"
-            ? "Up/Down select  Ctrl-U/D jump  PgUp/PgDn page  Home/End edge  Enter run/edit  Right detail  Tab/w detail focus  Esc/backspace back  q back"
-            : "Up/Down scroll  Ctrl-U/D jump  PgUp/PgDn page  Home/End edge  Left/backspace list  Tab/w navigator focus  z detail-only  q back",
+          text: buildFooterText(state.activePane),
           tone: "dim",
         },
         {
           text: state.session
-            ? `${formatDraftStatus(state)} | ${navigatorEntries.length} navigator items | ${state.session.results.length}/${state.session.total} shown`
-            : `${formatDraftStatus(state)} | ${navigatorEntries.length} navigator items | ${formatMode(state.draft.mode)}`,
+            ? `${formatDraftStatus(state)} | ${state.session.results.length}/${state.session.total} shown | focus ${humanizeIdentifier(state.activePane)}`
+            : `${formatDraftStatus(state)} | ${formatMode(state.draft.mode)} | focus ${humanizeIdentifier(state.activePane)}`,
           tone: "accent",
         },
       ]}
       leftWidth={SEARCH_LEFT_WIDTH}
+      centerWidth={SEARCH_CENTER_WIDTH}
     />
   );
 }

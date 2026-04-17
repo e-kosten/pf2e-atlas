@@ -24,6 +24,10 @@ function pressUp(app: ReturnType<typeof render>): void {
   app.stdin.write("\u001b[A");
 }
 
+function pressRight(app: ReturnType<typeof render>): void {
+  app.stdin.write("\u001b[C");
+}
+
 function createTestConfig(): AppConfig {
   return {
     dataPath: "vendor/pf2e",
@@ -248,7 +252,9 @@ describe("search screen", () => {
 
     await flushInk();
     expect(app.lastFrame()).toContain("Browse/Search");
-    expect(app.lastFrame()).toContain("Workspace Navigator");
+    expect(app.lastFrame()).toContain("Scope & Filters");
+    expect(app.lastFrame()).toContain("Results | No applied session");
+    expect(app.lastFrame()).toContain("Preview | Run Draft Query");
     expect(app.lastFrame()).not.toContain("Profile |");
     expect(app.lastFrame()).not.toContain("Action Cost |");
 
@@ -325,6 +331,13 @@ describe("search screen", () => {
     });
     expect(app.lastFrame()).toContain("Draft matches applied query");
     expect(app.lastFrame()).toContain("1/1 shown");
+    expect(app.lastFrame()).toContain("Alarm Ward | spell | lvl 1");
+    expect(app.lastFrame()).toContain("Preview | Alarm Ward");
+    expect(app.lastFrame()).not.toContain("Result 1 |");
+
+    pressRight(app);
+    await flushInk();
+    expect(app.lastFrame()).toContain("[PREVIEW] Alarm Ward");
   });
 
   it("orders filter values from declarative field policies and exposes action cost through facet editing", () => {

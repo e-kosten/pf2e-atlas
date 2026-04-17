@@ -66,6 +66,17 @@ export type DerivedTagTerminalTwoPaneScreenProps = {
   leftWidth?: number;
 };
 
+export type DerivedTagTerminalThreePaneScreenProps = {
+  title: string;
+  subtitle?: string;
+  left: DerivedTagTerminalPane;
+  center: DerivedTagTerminalPane;
+  right: DerivedTagTerminalPane;
+  footer?: DerivedTagTerminalLine[];
+  leftWidth?: number;
+  centerWidth?: number;
+};
+
 type DialogOptions = {
   title: string;
   subtitle?: string;
@@ -457,6 +468,33 @@ export function getTerminalTwoPaneDetailWidth(
   }
 
   return getTerminalTwoPaneDimensions(sessionOrWidth, preferredLeftWidth).rightWidth;
+}
+
+export function getTerminalThreePaneDimensions(
+  sessionOrWidth: number | { width: number },
+  preferredLeftWidth?: number,
+  preferredCenterWidth?: number,
+): { leftWidth: number; centerWidth: number; rightWidth: number; separatorWidth: number } {
+  const totalWidth = typeof sessionOrWidth === "number" ? sessionOrWidth : sessionOrWidth.width;
+  const separatorWidth = 1;
+  const separatorCount = 2;
+  const availableWidth = Math.max(3, totalWidth - (separatorWidth * separatorCount));
+  const minimumPaneWidth = Math.max(12, Math.floor(availableWidth / 3));
+  const clampWidth = (value: number, min: number, max: number): number => Math.max(min, Math.min(value, max));
+
+  const maxLeftWidth = Math.max(minimumPaneWidth, availableWidth - (minimumPaneWidth * 2));
+  const leftWidth = clampWidth(preferredLeftWidth ?? Math.floor(totalWidth * 0.28), minimumPaneWidth, maxLeftWidth);
+
+  const maxCenterWidth = Math.max(minimumPaneWidth, availableWidth - leftWidth - minimumPaneWidth);
+  const centerWidth = clampWidth(preferredCenterWidth ?? Math.floor(totalWidth * 0.32), minimumPaneWidth, maxCenterWidth);
+  const rightWidth = Math.max(minimumPaneWidth, availableWidth - leftWidth - centerWidth);
+
+  return {
+    leftWidth,
+    centerWidth,
+    rightWidth,
+    separatorWidth,
+  };
 }
 
 export function toggleTerminalTwoPaneFocus(
@@ -1346,6 +1384,38 @@ export function TerminalTwoPaneScreen({
       <TerminalHeader title={title} subtitle={subtitle} width={size.width} />
       <Box flexDirection="row" width={size.width} height={contentHeight}>
         <TerminalPaneView pane={left} width={dimensions.leftWidth} height={contentHeight} />
+        <Text wrap="truncate-end" {...terminalToneProps("dim")}>{separator}</Text>
+        <TerminalPaneView pane={right} width={dimensions.rightWidth} height={contentHeight} />
+      </Box>
+      <TerminalFooter footer={footer} width={size.width} />
+    </Box>
+  );
+}
+
+export function TerminalThreePaneScreen({
+  title,
+  subtitle,
+  left,
+  center,
+  right,
+  footer,
+  leftWidth,
+  centerWidth,
+}: DerivedTagTerminalThreePaneScreenProps): React.JSX.Element {
+  const size = useDerivedTagTerminalSize();
+  const headerHeight = subtitle ? 3 : 2;
+  const footerHeight = footer?.length ?? 0;
+  const contentHeight = Math.max(0, size.height - headerHeight - footerHeight);
+  const dimensions = getTerminalThreePaneDimensions(size.width, leftWidth, centerWidth);
+  const separator = Array.from({ length: Math.max(1, contentHeight) }, () => "│").join("\n");
+
+  return (
+    <Box flexDirection="column" width={size.width} height={size.height}>
+      <TerminalHeader title={title} subtitle={subtitle} width={size.width} />
+      <Box flexDirection="row" width={size.width} height={contentHeight}>
+        <TerminalPaneView pane={left} width={dimensions.leftWidth} height={contentHeight} />
+        <Text wrap="truncate-end" {...terminalToneProps("dim")}>{separator}</Text>
+        <TerminalPaneView pane={center} width={dimensions.centerWidth} height={contentHeight} />
         <Text wrap="truncate-end" {...terminalToneProps("dim")}>{separator}</Text>
         <TerminalPaneView pane={right} width={dimensions.rightWidth} height={contentHeight} />
       </Box>
