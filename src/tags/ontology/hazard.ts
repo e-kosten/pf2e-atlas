@@ -4,6 +4,7 @@ export const HAZARD_DERIVED_TAG_ONTOLOGY = {
   category: "hazard",
   families: {
     mechanism: {
+      axis: "mechanism",
       description: "Hazards whose threat comes from trigger mechanisms, locking thresholds, control surfaces, or planar breaches.",
       tags: [
         {
@@ -51,6 +52,7 @@ export const HAZARD_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     function: {
+      axis: "encounter",
       description: "Hazard scene-pressure tags for alerts, lockdowns, area control, ambush punishment, attrition, and guarding valuable space.",
       tags: [
         {
@@ -165,6 +167,7 @@ export const HAZARD_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     setting: {
+      axis: "setting",
       description: "Hazard scene-placement tags for the kinds of sites and encounter spaces where the danger is most naturally retrieved.",
       tags: [
         {
@@ -259,10 +262,12 @@ export const HAZARD_DERIVED_TAG_ONTOLOGY = {
     },
     // TODO: Remove this legacy family after downstream hazard planning surfaces migrate to the consolidated function family.
     encounter_role: {
+      axis: "legacy",
       description: "Legacy family preserved for compatibility. Use function instead.",
       tags: []
     },
     haunt_manifestation: {
+      axis: "haunt",
       description: "Haunt manifestations that materially change the encounter through attackers, lures, possession, replayed trauma, or judgment.",
       tags: [
         {
@@ -315,6 +320,7 @@ export const HAZARD_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     countermeasure_profile: {
+      axis: "resolution",
       description: "Hazard tags for distinctive resolution patterns that matter for prep beyond a raw disable-skill list, especially when the real retrieval question is how the party solves or bypasses the hazard.",
       tags: [
         {
@@ -405,6 +411,7 @@ export const HAZARD_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     problem_shape: {
+      axis: "problem",
       description: "Hazard prep tags for the kind of investigation, timing, and layered-solving problem the party faces before the hazard is actually neutralized.",
       tags: [
         {
@@ -430,6 +437,7 @@ export const HAZARD_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     impact: {
+      axis: "effect",
       description: "Hazard impact tags for mental destabilization and movement-limiting effects.",
       tags: [
         {
@@ -450,6 +458,7 @@ export const HAZARD_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     environmental_danger: {
+      axis: "effect",
       description: "Hazards defined by recurring elemental or toxic environmental threats.",
       tags: [
         {
@@ -495,6 +504,7 @@ export const HAZARD_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     forced_position: {
+      axis: "effect",
       description: "Hazards that drop, collapse, or forcibly reposition creatures.",
       tags: [
         {
@@ -515,6 +525,7 @@ export const HAZARD_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     perception_control: {
+      axis: "effect",
       description: "Hazards that distort routes, orientation, or the perceived layout of a space.",
       tags: [
         {
@@ -547,6 +558,7 @@ export const HAZARD_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     attack_vector: {
+      axis: "effect",
       description: "Hazards categorized by how their attack is delivered into the scene.",
       tags: [
         {
@@ -572,4 +584,4 @@ export const HAZARD_DERIVED_TAG_ONTOLOGY = {
       ]
     }
   }
-} satisfies DerivedTagAuthoredCategoryOntology;
+} satisfies DerivedTagAuthoredCategoryOntology<"hazard">;

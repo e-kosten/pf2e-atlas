@@ -406,6 +406,7 @@ export function groupDerivedTagOntology(
         category: family.category,
         subcategories: family.subcategories,
         family: family.family,
+        axis: family.axis,
         description: family.description,
         variantInheritance: family.variantInheritance,
         tags: tags.map((tag) => ({

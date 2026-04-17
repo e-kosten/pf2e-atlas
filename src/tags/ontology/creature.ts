@@ -5,11 +5,13 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
   families: {
     // TODO: Remove this legacy family after downstream creature planning surfaces migrate to habitat_setting, site_setting, regional_setting, and planar_setting.
     setting: {
+      axis: "legacy",
       description: "Legacy umbrella family preserved for compatibility. Use the narrower creature setting families instead.",
       variantInheritance: true,
       tags: []
     },
     habitat_setting: {
+      axis: "setting",
       description: "Creature habitat tags for terrain, climate, and ecological placement such as aquatic, desert, sky, or underground retrieval.",
       variantInheritance: true,
       tags: [
@@ -108,6 +110,7 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     site_setting: {
+      axis: "setting",
       description: "Creature site and scene-placement tags for ships, settlements, ruins, temples, battlefields, graveyards, and other encounter locations.",
       variantInheritance: true,
       tags: [
@@ -219,6 +222,7 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     regional_setting: {
+      axis: "setting",
       description: "Creature setting tags for Golarion regions, major cultural spheres, and specific world locales that materially affect retrieval.",
       variantInheritance: true,
       tags: [
@@ -255,6 +259,7 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     planar_setting: {
+      axis: "setting",
       description: "Creature setting tags for planes, cosmological realms, and extraplanar retrieval patterns.",
       variantInheritance: true,
       tags: [
@@ -418,6 +423,7 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     combat_role: {
+      axis: "encounter",
       description: "Creature combat-role tags for encounter assembly, tactical reading, and balancing mixed enemy groups.",
       tags: [
         {
@@ -569,6 +575,7 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     encounter_role: {
+      axis: "scene_role",
       description: "Creature scene-slot tags for how a role-defined NPC or humanoid is used in an encounter or active scenario, separate from broader job, office, or institutional identity.",
       tags: [
         {
@@ -628,6 +635,7 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     social_role: {
+      axis: "world_role",
       description: "Creature world-facing role tags for jobs, offices, institutions, and social identities that matter outside one immediate encounter slot.",
       tags: [
         {
@@ -805,6 +813,7 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     ontology_cluster: {
+      axis: "specialization",
       description: "Creature semantic groupings that aggregate fragmented native ontology when exact traits are too narrow.",
       tags: [
         {
@@ -822,6 +831,7 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     casting_profile: {
+      axis: "specialization",
       description: "Creature prep-driving casting tags for encounter planning, tradition-aware counterplay, and shortlist searches.",
       tags: [
         {
@@ -881,6 +891,7 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     threat_profile: {
+      axis: "encounter",
       description: "Creature prep-driving threat patterns based on behavior, counterplay, or encounter consequence rather than type.",
       tags: [
         {
@@ -997,6 +1008,7 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     motif: {
+      axis: "presentation",
       description: "Creature motif tags for recurring scene and presentation themes not captured by native traits.",
       tags: [
         {
@@ -1083,6 +1095,7 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     bound_object: {
+      axis: "presentation",
       description: "Creature tags for animated objects, statues, and other bound physical forms.",
       tags: [
         {
@@ -1115,4 +1128,4 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
       ]
     }
   }
-} satisfies DerivedTagAuthoredCategoryOntology;
+} satisfies DerivedTagAuthoredCategoryOntology<"creature">;

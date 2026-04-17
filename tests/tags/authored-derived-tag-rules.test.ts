@@ -17,16 +17,19 @@ describe("authored derived tag rules", () => {
     {
       category: "creature",
       family: "setting",
+      axis: "setting",
       description: "Creature setting tags.",
     },
     {
       category: "creature",
       family: "motif",
+      axis: "presentation",
       description: "Creature motif tags.",
     },
     {
       category: "spell",
       family: "support",
+      axis: "support",
       description: "Spell support tags.",
     },
   ];

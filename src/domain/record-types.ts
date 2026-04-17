@@ -88,27 +88,75 @@ export interface DerivedTagLegacySeedMigrationCategory {
 export type SourceCategory = "core" | "rules" | "adventure" | "unknown";
 export type VariantSource = "baseItem" | "slug" | "namePattern" | "sourcePath" | "composite" | "none";
 export type DerivedTagAssignmentMode = "deterministic" | "editorial" | "hybrid" | "composite";
+export type DerivedTagOntologyCategory = "equipment" | "creature" | "hazard" | "affliction" | "spell";
+export interface DerivedTagOntologyAxisByCategory {
+  equipment:
+    | "legacy"
+    | "utility"
+    | "party_role"
+    | "item_mechanical"
+    | "effect"
+    | "infiltration";
+  creature:
+    | "legacy"
+    | "setting"
+    | "encounter"
+    | "scene_role"
+    | "world_role"
+    | "presentation"
+    | "specialization";
+  hazard:
+    | "legacy"
+    | "mechanism"
+    | "encounter"
+    | "setting"
+    | "haunt"
+    | "resolution"
+    | "problem"
+    | "effect";
+  affliction:
+    | "disease_model"
+    | "response"
+    | "behavior"
+    | "metaphysical"
+    | "effect";
+  spell:
+    | "legacy"
+    | "infiltration"
+    | "information"
+    | "mobility"
+    | "transformation"
+    | "control"
+    | "influence"
+    | "support"
+    | "summoning"
+    | "effect";
+}
+export type DerivedTagOntologyAxis<C extends DerivedTagOntologyCategory = DerivedTagOntologyCategory> =
+  DerivedTagOntologyAxisByCategory[C];
 
-export interface DerivedTagOntologyFamily {
-  category: SearchCategory;
+export interface DerivedTagOntologyFamily<C extends DerivedTagOntologyCategory = DerivedTagOntologyCategory> {
+  category: C;
   subcategories?: SearchSubcategory[];
   family: string;
+  axis: DerivedTagOntologyAxis<C>;
   description: string;
   variantInheritance?: boolean;
 }
 
 export interface DerivedTagAuthoredTag extends Omit<DerivedTagOntologyTag, "category" | "family"> {}
 
-export interface DerivedTagAuthoredFamily {
+export interface DerivedTagAuthoredFamily<C extends DerivedTagOntologyCategory = DerivedTagOntologyCategory> {
   subcategories?: SearchSubcategory[];
+  axis: DerivedTagOntologyAxis<C>;
   description: string;
   variantInheritance?: boolean;
   tags: DerivedTagAuthoredTag[];
 }
 
-export interface DerivedTagAuthoredCategoryOntology {
-  category: SearchCategory;
-  families: Record<string, DerivedTagAuthoredFamily>;
+export interface DerivedTagAuthoredCategoryOntology<C extends DerivedTagOntologyCategory = DerivedTagOntologyCategory> {
+  category: C;
+  families: Record<string, DerivedTagAuthoredFamily<C>>;
 }
 
 export interface DerivedTagOntologyTag {
@@ -142,9 +190,10 @@ export interface DerivedTagCatalogTag {
 }
 
 export interface DerivedTagCatalogEntry {
-  category: SearchCategory;
+  category: DerivedTagOntologyCategory;
   subcategories?: SearchSubcategory[];
   family: string;
+  axis: DerivedTagOntologyAxis;
   description: string;
   assignmentMode?: DerivedTagAssignmentMode;
   tags: DerivedTagCatalogTag[];

@@ -20,11 +20,13 @@ const assignmentFamilies: DerivedTagOntologyFamily[] = [
   {
     category: "equipment",
     family: "infiltration",
+    axis: "infiltration",
     description: "Equipment that helps infiltration.",
   },
   {
     category: "equipment",
     family: "security",
+    axis: "utility",
     description: "Equipment that supports security.",
   },
 ];

@@ -14,6 +14,7 @@ export function flattenDerivedTagAuthoredCategoryOntology(
     families.push({
       category: ontology.category,
       family,
+      axis: definition.axis,
       subcategories: definition.subcategories,
       description: definition.description,
       variantInheritance: definition.variantInheritance,

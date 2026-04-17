@@ -4,6 +4,7 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
   category: "equipment",
   families: {
     function: {
+      axis: "effect",
       subcategories: [
         "consumable"
       ],
@@ -67,6 +68,7 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     polarity: {
+      axis: "effect",
       subcategories: [
         "consumable"
       ],
@@ -111,6 +113,7 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
     },
     // TODO: Remove this legacy family after downstream loot-planning surfaces migrate to the narrower movement_traversal, scouting_surveillance, access_bypass, and logistics_restraint families.
     purpose: {
+      axis: "legacy",
       subcategories: [
         "gear",
         "backpack",
@@ -123,6 +126,7 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
       tags: []
     },
     movement_traversal: {
+      axis: "utility",
       subcategories: [
         "gear",
         "backpack",
@@ -161,6 +165,7 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     scouting_surveillance: {
+      axis: "utility",
       subcategories: [
         "gear",
         "backpack",
@@ -194,6 +199,7 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     access_bypass: {
+      axis: "utility",
       subcategories: [
         "gear",
         "backpack",
@@ -239,6 +245,7 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     logistics_restraint: {
+      axis: "utility",
       subcategories: [
         "gear",
         "backpack",
@@ -267,6 +274,7 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     party_role: {
+      axis: "party_role",
       description: "Party- and build-facing retrieval tags for loot that is valuable because of who benefits from it and how it changes play patterns.",
       tags: [
         {
@@ -302,6 +310,7 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     crafting_support: {
+      axis: "utility",
       subcategories: [
         "gear",
         "backpack",
@@ -367,6 +376,7 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     access_system: {
+      axis: "item_mechanical",
       subcategories: [
         "gear",
         "backpack",
@@ -396,6 +406,7 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     ammunition_payload: {
+      axis: "item_mechanical",
       subcategories: [
         "ammo"
       ],
@@ -424,6 +435,7 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     breaching: {
+      axis: "utility",
       subcategories: [
         "gear",
         "kit",
@@ -450,6 +462,7 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     impact: {
+      axis: "effect",
       subcategories: [
         "ammo",
         "consumable"
@@ -489,6 +502,7 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     expedition: {
+      axis: "utility",
       subcategories: [
         "gear",
         "backpack",
@@ -554,6 +568,7 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     communication: {
+      axis: "utility",
       subcategories: [
         "gear",
         "backpack",
@@ -627,6 +642,7 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     infiltration: {
+      axis: "infiltration",
       subcategories: [
         "gear",
         "backpack",
@@ -659,6 +675,7 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     magic_interference: {
+      axis: "utility",
       subcategories: [
         "gear",
         "backpack",
@@ -722,6 +739,7 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     defense_profile: {
+      axis: "item_mechanical",
       subcategories: [
         "gear",
         "backpack",
@@ -767,6 +785,7 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     security: {
+      axis: "utility",
       subcategories: [
         "gear",
         "backpack",
@@ -801,4 +820,4 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
       ]
     }
   }
-} satisfies DerivedTagAuthoredCategoryOntology;
+} satisfies DerivedTagAuthoredCategoryOntology<"equipment">;

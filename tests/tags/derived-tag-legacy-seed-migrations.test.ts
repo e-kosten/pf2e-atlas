@@ -18,6 +18,7 @@ const families: DerivedTagOntologyFamily[] = [
   {
     category: "equipment",
     family: "infiltration",
+    axis: "infiltration",
     description: "Equipment that helps infiltration.",
   },
 ];

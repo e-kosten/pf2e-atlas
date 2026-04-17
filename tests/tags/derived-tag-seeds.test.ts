@@ -24,16 +24,19 @@ const exemplarFamilies: DerivedTagOntologyFamily[] = [
   {
     category: "equipment",
     family: "infiltration",
+    axis: "infiltration",
     description: "Equipment that helps infiltration.",
   },
   {
     category: "spell",
     family: "infiltration",
+    axis: "infiltration",
     description: "Spells that help infiltration.",
   },
   {
     category: "creature",
     family: "motif",
+    axis: "presentation",
     description: "Creature visual motifs.",
   },
 ];

@@ -12,12 +12,14 @@ describe("derived tag ontology publication and composition", () => {
     {
       category: "spell",
       family: "transformation",
+      axis: "transformation",
       description: "Spells that alter a target's body or form.",
     },
     {
       category: "equipment",
       subcategories: ["ammo"],
       family: "ammunition_payload",
+      axis: "item_mechanical",
       description: "Ammunition payload effects.",
     },
   ];
@@ -61,6 +63,7 @@ describe("derived tag ontology publication and composition", () => {
       expect.objectContaining({
         category: "spell",
         family: "transformation",
+        axis: "transformation",
         tags: expect.arrayContaining([
           expect.objectContaining({
             value: "transformation",
@@ -80,6 +83,7 @@ describe("derived tag ontology publication and composition", () => {
       expect.objectContaining({
         category: "equipment",
         family: "ammunition_payload",
+        axis: "item_mechanical",
         tags: expect.not.arrayContaining([
           expect.objectContaining({ value: "ammunition_payload" }),
         ]),

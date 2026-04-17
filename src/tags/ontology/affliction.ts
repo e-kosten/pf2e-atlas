@@ -4,6 +4,7 @@ export const AFFLICTION_DERIVED_TAG_ONTOLOGY = {
   category: "affliction",
   families: {
     impact: {
+      axis: "effect",
       description: "Affliction impact tags for practical downstream consequences.",
       tags: [
         {
@@ -61,6 +62,7 @@ export const AFFLICTION_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     pathogenesis: {
+      axis: "disease_model",
       description: "Affliction tags for recurring infection, corruption, and body-changing disease patterns.",
       tags: [
         {
@@ -132,6 +134,7 @@ export const AFFLICTION_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     epidemiological_profile: {
+      axis: "disease_model",
       description: "Affliction tags for outbreak scale, vector style, and contagion-facing retrieval such as quarantine, source tracing, and settlement risk.",
       tags: [
         {
@@ -176,6 +179,7 @@ export const AFFLICTION_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     response_profile: {
+      axis: "response",
       description: "Affliction tags for the GM-facing response problem: quarantine, tracing the source, outbreak management, and how urgently a cure must be found.",
       tags: [
         {
@@ -217,6 +221,7 @@ export const AFFLICTION_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     behavioral_override: {
+      axis: "behavior",
       description: "Affliction tags for forced behavior and explicit agency override.",
       tags: [
         {
@@ -266,6 +271,7 @@ export const AFFLICTION_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     delivery_profile: {
+      axis: "disease_model",
       description: "Affliction tags for how exposure or transmission enters the body, breath, bloodstream, or dreaming mind.",
       tags: [
         {
@@ -325,6 +331,7 @@ export const AFFLICTION_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     progression_profile: {
+      axis: "disease_model",
       description: "Affliction tags for pacing, relapse patterns, and how the condition escalates toward its end state.",
       tags: [
         {
@@ -398,6 +405,7 @@ export const AFFLICTION_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     physiology_override: {
+      axis: "effect",
       description: "Affliction tags for forced breathing failure, catastrophic body change, and organ-level disruption.",
       tags: [
         {
@@ -452,6 +460,7 @@ export const AFFLICTION_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     metaphysical_profile: {
+      axis: "metaphysical",
       description: "Affliction tags for soul-straining corruption, curse marks, and dream- or spirit-facing torment.",
       tags: [
         {
@@ -518,4 +527,4 @@ export const AFFLICTION_DERIVED_TAG_ONTOLOGY = {
       ]
     }
   }
-} satisfies DerivedTagAuthoredCategoryOntology;
+} satisfies DerivedTagAuthoredCategoryOntology<"affliction">;

@@ -99,31 +99,37 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       expect.objectContaining({
         category: "creature",
         family: "setting",
+        axis: "legacy",
         description: expect.stringContaining("Legacy umbrella family"),
       }),
       expect.objectContaining({
         category: "creature",
         family: "habitat_setting",
+        axis: "setting",
         description: expect.stringContaining("habitat tags"),
       }),
       expect.objectContaining({
         category: "hazard",
         family: "problem_shape",
+        axis: "problem",
         description: expect.stringContaining("investigation, timing"),
       }),
       expect.objectContaining({
         category: "spell",
         family: "control",
+        axis: "control",
         description: expect.stringContaining("denying movement"),
       }),
       expect.objectContaining({
         category: "equipment",
         family: "movement_traversal",
+        axis: "utility",
         description: expect.stringContaining("move, climb, navigate"),
       }),
       expect.objectContaining({
         category: "affliction",
         family: "response_profile",
+        axis: "response",
         description: expect.stringContaining("response problem"),
       }),
     ]));
@@ -169,6 +175,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       expect.objectContaining({
         category: "equipment",
         family: "movement_traversal",
+        axis: "utility",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "navigation", description: expect.any(String) }),
           expect.objectContaining({ value: "transport", description: expect.any(String) }),
@@ -177,6 +184,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       expect.objectContaining({
         category: "equipment",
         family: "party_role",
+        axis: "party_role",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "defender_support", description: expect.any(String) }),
           expect.objectContaining({ value: "scouting_package", description: expect.any(String) }),
@@ -185,6 +193,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       expect.objectContaining({
         category: "spell",
         family: "communication",
+        axis: "information",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "scouting", description: expect.any(String) }),
           expect.objectContaining({ value: "truth_reveal", description: expect.any(String) }),
@@ -194,6 +203,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       expect.objectContaining({
         category: "spell",
         family: "support",
+        axis: "support",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "quickened_support", description: expect.any(String) }),
           expect.objectContaining({ value: "eidolon_support", description: expect.any(String) }),
@@ -202,6 +212,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       expect.objectContaining({
         category: "spell",
         family: "impact",
+        axis: "effect",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "persistent_damage", description: expect.any(String) }),
           expect.objectContaining({ value: "burst_damage", description: expect.any(String) }),
@@ -210,6 +221,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       expect.objectContaining({
         category: "hazard",
         family: "function",
+        axis: "encounter",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "zone_denial", description: expect.any(String) }),
           expect.objectContaining({ value: "sentinel_guardian", description: expect.any(String) }),
@@ -219,6 +231,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       expect.objectContaining({
         category: "hazard",
         family: "problem_shape",
+        axis: "problem",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "observation_first", description: expect.any(String) }),
           expect.objectContaining({ value: "layered_resolution", description: expect.any(String) }),
@@ -227,6 +240,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       expect.objectContaining({
         category: "affliction",
         family: "response_profile",
+        axis: "response",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "outbreak_management", description: expect.any(String) }),
           expect.objectContaining({ value: "cure_clock_urgency", description: expect.any(String) }),
@@ -235,6 +249,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       expect.objectContaining({
         category: "creature",
         family: "planar_setting",
+        axis: "setting",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "astral_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "upper_plane_setting", description: expect.any(String) }),
@@ -243,6 +258,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       expect.objectContaining({
         category: "creature",
         family: "encounter_role",
+        axis: "scene_role",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "combatant_npc", description: expect.any(String) }),
           expect.objectContaining({ value: "infiltrator_npc", description: expect.any(String) }),
@@ -251,6 +267,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       expect.objectContaining({
         category: "creature",
         family: "threat_profile",
+        axis: "encounter",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "prey_control_threat", description: expect.any(String) }),
           expect.objectContaining({ value: "minion_commander", description: expect.any(String) }),

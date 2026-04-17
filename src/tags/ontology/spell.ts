@@ -4,6 +4,7 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
   category: "spell",
   families: {
     infiltration: {
+      axis: "infiltration",
       description: "Appearance-changing and social-passing spells.",
       tags: [
         {
@@ -19,6 +20,7 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     communication: {
+      axis: "information",
       description: "Information, coordination, revelation, and sanctum-security spells for messaging, scouting, detection, and protected planning.",
       tags: [
         {
@@ -162,25 +164,30 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
     },
     // TODO: Remove this legacy family after downstream spell planning surfaces migrate to the broadened communication family.
     reconnaissance: {
+      axis: "legacy",
       description: "Legacy family preserved for compatibility. Use communication instead.",
       tags: []
     },
     // TODO: Remove this legacy family after downstream spell planning surfaces migrate to the broadened communication family.
     revelation: {
+      axis: "legacy",
       description: "Legacy family preserved for compatibility. Use communication instead.",
       tags: []
     },
     // TODO: Remove this legacy family after downstream spell planning surfaces migrate to expedition and communication.",
     wayfinding: {
+      axis: "legacy",
       description: "Legacy family preserved for compatibility. Use expedition and communication instead.",
       tags: []
     },
     // TODO: Remove this legacy family after downstream spell planning surfaces migrate to expedition.
     traversal: {
+      axis: "legacy",
       description: "Legacy family preserved for compatibility. Use expedition instead.",
       tags: []
     },
     teleportation: {
+      axis: "mobility",
       description: "Spells that blink, reposition, extract, or transport creatures across long distances or planes.",
       tags: [
         {
@@ -254,6 +261,7 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     transformation: {
+      axis: "transformation",
       description: "Spells that alter a creature's body, form, or battle shape.",
       tags: [
         {
@@ -289,6 +297,7 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     control: {
+      axis: "control",
       description: "Spells that reshape the battlefield by denying movement, sight, casting, actions, or active magic.",
       tags: [
         {
@@ -374,6 +383,7 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     influence: {
+      axis: "influence",
       description: "Spells that charm, compel, dominate, or emotionally steer a creature's behavior.",
       tags: [
         {
@@ -469,6 +479,7 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     support: {
+      axis: "support",
       description: "Spells that restore, protect, ward, or reinforce allies and targets for combat recovery, scene resilience, and expedition safety.",
       tags: [
         {
@@ -542,10 +553,12 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
     },
     // TODO: Remove this legacy family after downstream spell planning surfaces migrate to support and impact.
     attrition: {
+      axis: "legacy",
       description: "Legacy family preserved for compatibility. Use support and impact instead.",
       tags: []
     },
     summoning: {
+      axis: "summoning",
       description: "Spells that call, create, or bind temporary creatures and servitors into the scene for combat, scouting, labor, or utility retrieval.",
       tags: [
         {
@@ -605,6 +618,7 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     expedition: {
+      axis: "mobility",
       description: "Spells that support movement, travel, survival, and field logistics such as flight, route guidance, shelter, food, aquatic operations, and hostile-environment endurance.",
       tags: [
         {
@@ -671,25 +685,30 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
     },
     // TODO: Remove this legacy family after downstream spell planning surfaces migrate to support.
     tempo: {
+      axis: "legacy",
       description: "Legacy family preserved for compatibility. Use support instead.",
       tags: []
     },
     // TODO: Remove this legacy family after downstream spell planning surfaces migrate to support.
     summoner_support: {
+      axis: "legacy",
       description: "Legacy family preserved for compatibility. Use support instead.",
       tags: []
     },
     // TODO: Remove this legacy family after downstream spell planning surfaces migrate to control.
     magic_interference: {
+      axis: "legacy",
       description: "Legacy family preserved for compatibility. Use control instead.",
       tags: []
     },
     // TODO: Remove this legacy family after downstream spell planning surfaces migrate to communication.
     security: {
+      axis: "legacy",
       description: "Legacy family preserved for compatibility. Use communication instead.",
       tags: []
     },
     impact: {
+      axis: "effect",
       description: "Direct offensive outcome tags for harm, impairment, and taking priority targets or clustered foes out of the fight.",
       tags: [
         {
@@ -725,4 +744,4 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
       ]
     }
   }
-} satisfies DerivedTagAuthoredCategoryOntology;
+} satisfies DerivedTagAuthoredCategoryOntology<"spell">;
