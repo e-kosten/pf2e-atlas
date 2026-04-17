@@ -3,6 +3,7 @@ import React from "react";
 import type { OntologyDomainSummary } from "../../types.js";
 import {
   TerminalTwoPaneScreen,
+  getDerivedTagTerminalListNavigationAction,
   getNormalizedKeyName,
   getTerminalPaneBodyHeight,
   useDerivedTagTerminalApp,
@@ -34,16 +35,27 @@ export function OntologyDomainPickerScreen({
 
   useDerivedTagTerminalInput((input, key) => {
     const normalized = getNormalizedKeyName(input, key);
+    const navigation = getDerivedTagTerminalListNavigationAction(normalized, {
+      pageSize: Math.max(1, bodyHeight - 1),
+      jumpSize: Math.max(1, Math.floor(bodyHeight / 2)),
+      includeConfirmKeys: true,
+      includeHorizontalConfirmKeys: true,
+      includeVimHorizontalConfirmKeys: true,
+    });
     if (normalized === "ctrl_c" || normalized === "q" || normalized === "escape" || normalized === "backspace") {
       onBack();
       return;
     }
-    if (normalized === "up" || normalized === "k") {
-      onMove(-1, domains.length);
+    if (navigation?.kind === "move") {
+      onMove(navigation.delta, domains.length);
       return;
     }
-    if (normalized === "down" || normalized === "j") {
-      onMove(1, domains.length);
+    if (navigation?.kind === "boundary") {
+      onMove(navigation.boundary === "start" ? -selectedIndex : domains.length - 1 - selectedIndex, domains.length);
+      return;
+    }
+    if (navigation?.kind === "confirm") {
+      onOpenSelected();
       return;
     }
     if (normalized === "?") {
@@ -58,9 +70,6 @@ export function OntologyDomainPickerScreen({
         footer: [{ text: "Press any key to return.", tone: "dim" }],
       });
       return;
-    }
-    if (normalized === "enter" || normalized === "right" || normalized === "l") {
-      onOpenSelected();
     }
   });
 
@@ -83,7 +92,7 @@ export function OntologyDomainPickerScreen({
           : [{ text: "No domain selected.", tone: "dim" }],
       }}
       footer={[
-        { text: "Up/Down or j/k move  Enter select  ? help  q back", tone: "dim" },
+        { text: "Up/Down move  Ctrl-U/D jump  PgUp/PgDn page  Home/End edge  Enter/right/l select  ? help  q back", tone: "dim" },
         { text: selectedDomain?.label ?? "-", tone: "accent" },
       ]}
       leftWidth={32}

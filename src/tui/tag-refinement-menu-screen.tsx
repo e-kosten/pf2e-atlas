@@ -6,6 +6,7 @@ import type {
 } from "../tags/migration/types.js";
 import {
   TerminalTwoPaneScreen,
+  getDerivedTagTerminalListNavigationAction,
   getNormalizedKeyName,
   getTerminalPaneBodyHeight,
   useDerivedTagTerminalApp,
@@ -15,10 +16,7 @@ import {
 } from "./terminal-ui.js";
 import {
   isBackOrExitKey,
-  isConfirmKey,
   isHelpKey,
-  isMoveDownKey,
-  isMoveUpKey,
 } from "./keymap.js";
 import { buildScrollableLines } from "./list-utils.js";
 
@@ -74,6 +72,9 @@ function buildTagRefinementHelpLines(): DerivedTagTerminalLine[] {
   return [
     { text: "Navigation", tone: "section" },
     { text: "Up / Down or j / k: move between tag-refinement rows" },
+    { text: "Ctrl-U / Ctrl-D: jump through the menu" },
+    { text: "PageUp / PageDown or b / Space: page through the menu" },
+    { text: "Home / End: jump to the first or last row" },
     { text: "Enter: open the selected row" },
     { text: "q or Backspace: return to top level" },
     { text: "" },
@@ -118,17 +119,26 @@ export function TagRefinementMenuScreen({
 
   useDerivedTagTerminalInput((input, key) => {
     const normalized = getNormalizedKeyName(input, key);
+    const navigation = getDerivedTagTerminalListNavigationAction(normalized, {
+      pageSize: Math.max(1, bodyHeight - 1),
+      jumpSize: Math.max(1, Math.floor(bodyHeight / 2)),
+      includeConfirmKeys: true,
+    });
 
     if (isBackOrExitKey(normalized)) {
       onBack();
       return;
     }
-    if (isMoveUpKey(normalized)) {
-      onMove(-1, menuItems.length);
+    if (navigation?.kind === "move") {
+      onMove(navigation.delta, menuItems.length);
       return;
     }
-    if (isMoveDownKey(normalized)) {
-      onMove(1, menuItems.length);
+    if (navigation?.kind === "boundary") {
+      onMove(navigation.boundary === "start" ? -clampedSelectedIndex : menuItems.length - 1 - clampedSelectedIndex, menuItems.length);
+      return;
+    }
+    if (navigation?.kind === "confirm") {
+      onOpenSelected(menuItems);
       return;
     }
     if (isHelpKey(normalized)) {
@@ -159,9 +169,6 @@ export function TagRefinementMenuScreen({
       onQuickAction("proposal_review");
       return;
     }
-    if (isConfirmKey(normalized)) {
-      onOpenSelected(menuItems);
-    }
   });
 
   return (
@@ -177,7 +184,7 @@ export function TagRefinementMenuScreen({
         lines: buildQueueLines(queueItems),
       }}
       footer={[
-        { text: "Up/Down or j/k move  Enter select  ? help  a review all  s/r/e/p create sessions  q/back top level", tone: "dim" },
+        { text: "Up/Down move  Ctrl-U/D jump  PgUp/PgDn page  Home/End edge  Enter select  ? help  a/s/r/e/p actions  q/back top level", tone: "dim" },
         { text: `Selected: ${menuItems[clampedSelectedIndex]?.label ?? "(none)"}`, tone: "accent" },
       ]}
       leftWidth={48}

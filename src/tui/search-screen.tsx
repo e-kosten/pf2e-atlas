@@ -18,6 +18,7 @@ import type {
 import {
   TerminalPaneScreen,
   TerminalTwoPaneScreen,
+  getDerivedTagTerminalListNavigationAction,
   getNormalizedKeyName,
   getRenderedTerminalLineCount,
   getTerminalPaneBodyHeight,
@@ -964,6 +965,18 @@ export function SearchScreen({
     }
 
     const normalized = getNormalizedKeyName(input, key);
+    const listNavigation = getDerivedTagTerminalListNavigationAction(normalized, {
+      pageSize,
+      jumpSize: selectionJumpSize,
+      includeConfirmKeys: true,
+      includeHorizontalConfirmKeys: true,
+    });
+    const detailNavigation = getDerivedTagTerminalListNavigationAction(normalized, {
+      pageSize,
+      jumpSize: selectionJumpSize,
+      includeCancelKeys: true,
+      includeHorizontalCancelKeys: true,
+    });
 
     if (normalized === "ctrl_c" || normalized === "q") {
       onBack();
@@ -987,39 +1000,15 @@ export function SearchScreen({
     }
 
     if (state.activePane === "list") {
-      if (normalized === "up" || normalized === "k") {
-        dispatch({ type: "move_selection", delta: -1, itemCount: navigatorEntries.length });
+      if (listNavigation?.kind === "move") {
+        dispatch({ type: "move_selection", delta: listNavigation.delta, itemCount: navigatorEntries.length });
         return;
       }
-      if (normalized === "down" || normalized === "j") {
-        dispatch({ type: "move_selection", delta: 1, itemCount: navigatorEntries.length });
+      if (listNavigation?.kind === "boundary") {
+        dispatch({ type: "selection_boundary", boundary: listNavigation.boundary, itemCount: navigatorEntries.length });
         return;
       }
-      if (normalized === "ctrl_u") {
-        dispatch({ type: "move_selection", delta: -selectionJumpSize, itemCount: navigatorEntries.length });
-        return;
-      }
-      if (normalized === "ctrl_d") {
-        dispatch({ type: "move_selection", delta: selectionJumpSize, itemCount: navigatorEntries.length });
-        return;
-      }
-      if (normalized === "page_up" || normalized === "b") {
-        dispatch({ type: "move_selection", delta: -pageSize, itemCount: navigatorEntries.length });
-        return;
-      }
-      if (normalized === "page_down" || normalized === "space") {
-        dispatch({ type: "move_selection", delta: pageSize, itemCount: navigatorEntries.length });
-        return;
-      }
-      if (normalized === "home") {
-        dispatch({ type: "selection_boundary", boundary: "start", itemCount: navigatorEntries.length });
-        return;
-      }
-      if (normalized === "end") {
-        dispatch({ type: "selection_boundary", boundary: "end", itemCount: navigatorEntries.length });
-        return;
-      }
-      if (normalized === "right" || normalized === "enter") {
+      if (listNavigation?.kind === "confirm") {
         openSelectedNavigatorEntry();
         return;
       }
@@ -1073,36 +1062,12 @@ export function SearchScreen({
       return;
     }
 
-    if (normalized === "up" || normalized === "k") {
-      dispatch({ type: "move_detail", delta: -1, maxDetailScroll });
+    if (detailNavigation?.kind === "move") {
+      dispatch({ type: "move_detail", delta: detailNavigation.delta, maxDetailScroll });
       return;
     }
-    if (normalized === "down" || normalized === "j") {
-      dispatch({ type: "move_detail", delta: 1, maxDetailScroll });
-      return;
-    }
-    if (normalized === "ctrl_u") {
-      dispatch({ type: "move_detail", delta: -selectionJumpSize, maxDetailScroll });
-      return;
-    }
-    if (normalized === "ctrl_d") {
-      dispatch({ type: "move_detail", delta: selectionJumpSize, maxDetailScroll });
-      return;
-    }
-    if (normalized === "page_up" || normalized === "b") {
-      dispatch({ type: "move_detail", delta: -pageSize, maxDetailScroll });
-      return;
-    }
-    if (normalized === "page_down" || normalized === "space") {
-      dispatch({ type: "move_detail", delta: pageSize, maxDetailScroll });
-      return;
-    }
-    if (normalized === "home") {
-      dispatch({ type: "detail_boundary", boundary: "start", maxDetailScroll });
-      return;
-    }
-    if (normalized === "end") {
-      dispatch({ type: "detail_boundary", boundary: "end", maxDetailScroll });
+    if (detailNavigation?.kind === "boundary") {
+      dispatch({ type: "detail_boundary", boundary: detailNavigation.boundary, maxDetailScroll });
     }
   }, !busy);
 
@@ -1123,7 +1088,7 @@ export function SearchScreen({
         }}
         footer={[
           {
-            text: "Up/Down move  Enter run or edit from the navigator  Tab/w navigator focus  Left/backspace list  z split-view  q back",
+            text: "Up/Down scroll  Ctrl-U/D jump  PgUp/PgDn page  Home/End edge  Left/backspace list  Tab/w navigator focus  z split-view  q back",
             tone: "dim",
           },
           {
@@ -1159,8 +1124,8 @@ export function SearchScreen({
       footer={[
         {
           text: state.activePane === "list"
-            ? "Up/Down select  Enter run/edit  Right detail  Tab/w detail focus  Space/b page  Home/End edge  Esc/backspace back  q back"
-            : "Up/Down scroll  Left/backspace list  Tab/w navigator focus  z detail-only  Space/b page  Home/End edge  q back",
+            ? "Up/Down select  Ctrl-U/D jump  PgUp/PgDn page  Home/End edge  Enter run/edit  Right detail  Tab/w detail focus  Esc/backspace back  q back"
+            : "Up/Down scroll  Ctrl-U/D jump  PgUp/PgDn page  Home/End edge  Left/backspace list  Tab/w navigator focus  z detail-only  q back",
           tone: "dim",
         },
         {

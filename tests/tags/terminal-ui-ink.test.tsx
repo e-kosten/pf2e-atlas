@@ -137,6 +137,31 @@ function PolicyPromptHarness(): React.JSX.Element {
   );
 }
 
+function LongSelectPromptHarness(): React.JSX.Element {
+  const terminal = useDerivedTagTerminalApp();
+  const [result, setResult] = React.useState("pending");
+
+  React.useEffect(() => {
+    void terminal.promptSelectOption({
+      title: "Long Harness",
+      prompt: "Pick a longer-list value",
+      entries: Array.from({ length: 12 }, (_, index) => ({
+        value: `item-${index + 1}`,
+        label: `Item ${index + 1}`,
+      })),
+    }).then((value) => {
+      setResult(value ?? "cancelled");
+    });
+  }, []);
+
+  return (
+    <TerminalTextScreen
+      title="Harness"
+      body={[{ text: `result=${result}` }]}
+    />
+  );
+}
+
 describe("derived tag terminal ink runtime", () => {
   afterEach(() => {
     cleanup();
@@ -233,6 +258,25 @@ describe("derived tag terminal ink runtime", () => {
     app.stdin.write("\u007f");
     await flushInkFrames();
     expect(app.lastFrame()).toContain("result=any=cold|all=fire|exclude=-");
+  });
+
+  it("supports shared jump navigation inside select prompts", async () => {
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <LongSelectPromptHarness />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInkFrames();
+    expect(app.lastFrame()).toContain("Pick a longer-list value");
+
+    app.stdin.write("\u0004");
+    await flushInkFrames();
+    expect(app.lastFrame()).toContain("Selected: Item 6");
+
+    app.stdin.write("\r");
+    await flushInkFrames();
+    expect(app.lastFrame()).toContain("result=item-6");
   });
 
   it("normalizes ctrl letter combinations from both Ink key paths", () => {

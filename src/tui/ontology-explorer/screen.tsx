@@ -4,6 +4,7 @@ import type { OntologyDomainModel, OntologyNodeQuery } from "../../types.js";
 import {
   TerminalPaneScreen,
   TerminalTwoPaneScreen,
+  getDerivedTagTerminalListNavigationAction,
   getNormalizedKeyName,
   useDerivedTagTerminalApp,
   useDerivedTagTerminalInput,
@@ -228,6 +229,20 @@ export function OntologyBrowserScreen({
   useDerivedTagTerminalInput((input, key) => {
     const normalized = getNormalizedKeyName(input, key);
     const printable = key.ctrl || key.meta ? undefined : input.length === 1 ? input : undefined;
+    const listNavigation = getDerivedTagTerminalListNavigationAction(normalized, {
+      pageSize: metrics.detailPageSize,
+      jumpSize: metrics.selectionJumpSize,
+      includeConfirmKeys: true,
+      includeHorizontalConfirmKeys: true,
+      includeVimHorizontalConfirmKeys: true,
+    });
+    const detailNavigation = getDerivedTagTerminalListNavigationAction(normalized, {
+      pageSize: metrics.detailPageSize,
+      jumpSize: metrics.detailJumpSize,
+      includeCancelKeys: true,
+      includeHorizontalCancelKeys: true,
+      includeVimHorizontalCancelKeys: true,
+    });
 
     if (state.pendingListCommand && printable !== "g") {
       dispatch({ type: "set_pending_g", pending: false });
@@ -281,74 +296,30 @@ export function OntologyBrowserScreen({
     }
 
     if (state.activePane === "detail") {
-      if (normalized === "up" || normalized === "k") {
-        dispatch({ type: "move_detail", delta: -1, maxDetailScroll: metrics.maxDetailScroll });
+      if (detailNavigation?.kind === "move") {
+        dispatch({ type: "move_detail", delta: detailNavigation.delta, maxDetailScroll: metrics.maxDetailScroll });
         return;
       }
-      if (normalized === "down" || normalized === "j") {
-        dispatch({ type: "move_detail", delta: 1, maxDetailScroll: metrics.maxDetailScroll });
+      if (detailNavigation?.kind === "boundary") {
+        dispatch({ type: "detail_boundary", boundary: detailNavigation.boundary, maxDetailScroll: metrics.maxDetailScroll });
         return;
       }
-      if (normalized === "ctrl_d") {
-        dispatch({ type: "move_detail", delta: metrics.detailJumpSize, maxDetailScroll: metrics.maxDetailScroll });
-        return;
-      }
-      if (normalized === "ctrl_u") {
-        dispatch({ type: "move_detail", delta: -metrics.detailJumpSize, maxDetailScroll: metrics.maxDetailScroll });
-        return;
-      }
-      if (normalized === "page_down" || normalized === "space") {
-        dispatch({ type: "move_detail", delta: metrics.detailPageSize, maxDetailScroll: metrics.maxDetailScroll });
-        return;
-      }
-      if (normalized === "page_up" || normalized === "b") {
-        dispatch({ type: "move_detail", delta: -metrics.detailPageSize, maxDetailScroll: metrics.maxDetailScroll });
-        return;
-      }
-      if (normalized === "home") {
-        dispatch({ type: "detail_boundary", boundary: "start", maxDetailScroll: metrics.maxDetailScroll });
-        return;
-      }
-      if (normalized === "end") {
-        dispatch({ type: "detail_boundary", boundary: "end", maxDetailScroll: metrics.maxDetailScroll });
-        return;
-      }
-      if (normalized === "left" || normalized === "h" || normalized === "backspace" || normalized === "escape") {
+      if (detailNavigation?.kind === "cancel") {
         dispatch({ type: "leave_detail" });
+        return;
       }
       return;
     }
 
-    if (normalized === "up" || normalized === "k") {
-      dispatch({ type: "move_selection", delta: -1 });
+    if (listNavigation?.kind === "move") {
+      const isJump = Math.abs(listNavigation.delta) > 1;
+      dispatch(isJump
+        ? { type: "jump_selection", delta: listNavigation.delta }
+        : { type: "move_selection", delta: listNavigation.delta });
       return;
     }
-    if (normalized === "down" || normalized === "j") {
-      dispatch({ type: "move_selection", delta: 1 });
-      return;
-    }
-    if (normalized === "ctrl_d") {
-      dispatch({ type: "jump_selection", delta: metrics.selectionJumpSize });
-      return;
-    }
-    if (normalized === "ctrl_u") {
-      dispatch({ type: "jump_selection", delta: -metrics.selectionJumpSize });
-      return;
-    }
-    if (normalized === "space" || normalized === "page_down") {
-      dispatch({ type: "jump_selection", delta: metrics.detailPageSize });
-      return;
-    }
-    if (normalized === "b" || normalized === "page_up") {
-      dispatch({ type: "jump_selection", delta: -metrics.detailPageSize });
-      return;
-    }
-    if (normalized === "home") {
-      dispatch({ type: "selection_boundary", boundary: "start" });
-      return;
-    }
-    if (normalized === "end") {
-      dispatch({ type: "selection_boundary", boundary: "end" });
+    if (listNavigation?.kind === "boundary") {
+      dispatch({ type: "selection_boundary", boundary: listNavigation.boundary });
       return;
     }
     if (normalized === "g" && isExactPrintableOntologyBrowserKey(input, key, "g")) {
@@ -363,7 +334,7 @@ export function OntologyBrowserScreen({
       dispatch({ type: "selection_boundary", boundary: "end" });
       return;
     }
-    if (normalized === "right" || normalized === "l" || normalized === "enter") {
+    if (listNavigation?.kind === "confirm") {
       if (currentNodeHasChildren) {
         dispatch({ type: "drill_in" });
       } else {

@@ -520,6 +520,78 @@ export function moveSelectionWrapped(currentIndex: number, delta: number, itemCo
   return ((rawIndex % itemCount) + itemCount) % itemCount;
 }
 
+export type DerivedTagTerminalListNavigationAction =
+  | { kind: "move"; delta: number }
+  | { kind: "boundary"; boundary: "start" | "end" }
+  | { kind: "confirm" }
+  | { kind: "cancel" };
+
+export type DerivedTagTerminalListNavigationOptions = {
+  pageSize: number;
+  jumpSize?: number;
+  includeConfirmKeys?: boolean;
+  includeCancelKeys?: boolean;
+  includeHorizontalConfirmKeys?: boolean;
+  includeHorizontalCancelKeys?: boolean;
+  includeVimHorizontalConfirmKeys?: boolean;
+  includeVimHorizontalCancelKeys?: boolean;
+};
+
+export function getDerivedTagTerminalListNavigationAction(
+  normalizedKey: string,
+  options: DerivedTagTerminalListNavigationOptions,
+): DerivedTagTerminalListNavigationAction | undefined {
+  const jumpSize = options.jumpSize ?? options.pageSize;
+
+  if (normalizedKey === "up" || normalizedKey === "k") {
+    return { kind: "move", delta: -1 };
+  }
+  if (normalizedKey === "down" || normalizedKey === "j") {
+    return { kind: "move", delta: 1 };
+  }
+  if (normalizedKey === "ctrl_u") {
+    return { kind: "move", delta: -jumpSize };
+  }
+  if (normalizedKey === "ctrl_d") {
+    return { kind: "move", delta: jumpSize };
+  }
+  if (normalizedKey === "page_up" || normalizedKey === "b") {
+    return { kind: "move", delta: -options.pageSize };
+  }
+  if (normalizedKey === "page_down" || normalizedKey === "space") {
+    return { kind: "move", delta: options.pageSize };
+  }
+  if (normalizedKey === "home") {
+    return { kind: "boundary", boundary: "start" };
+  }
+  if (normalizedKey === "end") {
+    return { kind: "boundary", boundary: "end" };
+  }
+  if (
+    options.includeConfirmKeys &&
+    (
+      normalizedKey === "enter" ||
+      (options.includeHorizontalConfirmKeys && normalizedKey === "right") ||
+      (options.includeVimHorizontalConfirmKeys && normalizedKey === "l")
+    )
+  ) {
+    return { kind: "confirm" };
+  }
+  if (
+    options.includeCancelKeys &&
+    (
+      normalizedKey === "escape" ||
+      normalizedKey === "backspace" ||
+      (options.includeHorizontalCancelKeys && normalizedKey === "left") ||
+      (options.includeVimHorizontalCancelKeys && normalizedKey === "h")
+    )
+  ) {
+    return { kind: "cancel" };
+  }
+
+  return undefined;
+}
+
 export function getNormalizedKeyName(input: string, key: Key): string {
   if (input === "\r" || input === "\n") {
     return "enter";
@@ -675,7 +747,8 @@ function SelectPromptBody({
         lines: detailLines,
       }}
       footer={[
-        { text: "Up/Down or j/k move  Enter select  Esc/backspace/left cancel", tone: "dim" },
+        { text: "Up/Down move  Ctrl-U/D jump  PgUp/PgDn page  Home/End edge", tone: "dim" },
+        { text: "Enter select  Esc/backspace/left cancel", tone: "dim" },
         { text: `Selected: ${selectedOption?.label ?? "(none)"}`, tone: "accent" },
       ]}
       leftWidth={40}
@@ -747,7 +820,8 @@ function MultiSelectPromptBody({
         ],
       }}
       footer={[
-        { text: "Up/Down or j/k move  Enter or Space toggle  Esc/backspace/left return", tone: "dim" },
+        { text: "Up/Down move  Ctrl-U/D jump  PgUp/PgDn page  Home/End edge", tone: "dim" },
+        { text: "Enter or Space toggle  Esc/backspace/left return", tone: "dim" },
         { text: `${selectedValues.length} selected | Focused: ${selectedOption?.label ?? "(none)"}`, tone: "accent" },
       ]}
       leftWidth={40}
@@ -913,7 +987,8 @@ function PolicyPromptBody({
         ],
       }}
       footer={[
-        { text: "Up/Down or j/k move  Enter or Space cycle  Esc/backspace/left return", tone: "dim" },
+        { text: "Up/Down move  Ctrl-U/D jump  PgUp/PgDn page  Home/End edge", tone: "dim" },
+        { text: "Enter or Space cycle  Esc/backspace/left return", tone: "dim" },
         { text: `Cycle order: off -> ${options.allowedStates.join(" -> ")} -> off`, tone: "accent" },
       ]}
       leftWidth={40}
@@ -931,6 +1006,12 @@ function DerivedTagTerminalModalHost({
   useInput((input, key) => {
     const normalized = getNormalizedKeyName(input, key);
     const printable = getPrintableInput(input, key);
+    const modalNavigation = getDerivedTagTerminalListNavigationAction(normalized, {
+      pageSize: 10,
+      jumpSize: 5,
+      includeCancelKeys: true,
+      includeHorizontalCancelKeys: true,
+    });
 
     if (!modal) {
       return;
@@ -998,15 +1079,20 @@ function DerivedTagTerminalModalHost({
       return;
     }
 
-    if (normalized === "up" || normalized === "k") {
+    if (modalNavigation?.kind === "move") {
       setModal((current) => current && (current.kind === "select" || current.kind === "multiselect" || current.kind === "policy")
-        ? { ...current, selectedIndex: moveSelectionWrapped(current.selectedIndex, -1, current.options.entries.length) }
+        ? { ...current, selectedIndex: moveSelectionWrapped(current.selectedIndex, modalNavigation.delta, current.options.entries.length) }
         : current);
       return;
     }
-    if (normalized === "down" || normalized === "j") {
+    if (modalNavigation?.kind === "boundary") {
       setModal((current) => current && (current.kind === "select" || current.kind === "multiselect" || current.kind === "policy")
-        ? { ...current, selectedIndex: moveSelectionWrapped(current.selectedIndex, 1, current.options.entries.length) }
+        ? {
+          ...current,
+          selectedIndex: modalNavigation.boundary === "start"
+            ? 0
+            : Math.max(0, current.options.entries.length - 1),
+        }
         : current);
       return;
     }

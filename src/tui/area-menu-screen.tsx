@@ -2,6 +2,7 @@ import React from "react";
 
 import {
   TerminalTwoPaneScreen,
+  getDerivedTagTerminalListNavigationAction,
   getNormalizedKeyName,
   getTerminalPaneBodyHeight,
   useDerivedTagTerminalApp,
@@ -11,10 +12,7 @@ import {
 } from "./terminal-ui.js";
 import {
   isApplicationExitKey,
-  isConfirmKey,
   isHelpKey,
-  isMoveDownKey,
-  isMoveUpKey,
 } from "./keymap.js";
 import { buildScrollableLines } from "./list-utils.js";
 
@@ -52,6 +50,9 @@ function buildTopLevelHelpLines(): DerivedTagTerminalLine[] {
   return [
     { text: "Top-Level Help", tone: "section" },
     { text: "Up / Down or j / k: move between areas" },
+    { text: "Ctrl-U / Ctrl-D: jump through the area list" },
+    { text: "PageUp / PageDown or b / Space: page through the area list" },
+    { text: "Home / End: jump to the first or last area" },
     { text: "Enter: open the selected area" },
     { text: "q: exit the terminal app" },
   ];
@@ -84,16 +85,27 @@ export function AreaMenuScreen({
 
   useDerivedTagTerminalInput((input, key) => {
     const normalized = getNormalizedKeyName(input, key);
+    const navigation = getDerivedTagTerminalListNavigationAction(normalized, {
+      pageSize: Math.max(1, bodyHeight - 1),
+      jumpSize: Math.max(1, Math.floor(bodyHeight / 2)),
+      includeConfirmKeys: true,
+      includeHorizontalConfirmKeys: true,
+      includeVimHorizontalConfirmKeys: true,
+    });
     if (isApplicationExitKey(normalized) || normalized === "escape") {
       onQuit();
       return;
     }
-    if (isMoveUpKey(normalized)) {
-      onMove(-1);
+    if (navigation?.kind === "move") {
+      onMove(navigation.delta);
       return;
     }
-    if (isMoveDownKey(normalized)) {
-      onMove(1);
+    if (navigation?.kind === "confirm") {
+      onOpenSelectedArea();
+      return;
+    }
+    if (navigation?.kind === "boundary") {
+      onMove(navigation.boundary === "start" ? -selectedAreaIndex : areas.length - 1 - selectedAreaIndex);
       return;
     }
     if (isHelpKey(normalized)) {
@@ -103,9 +115,6 @@ export function AreaMenuScreen({
         footer: [{ text: "Press any key to return.", tone: "dim" }],
       });
       return;
-    }
-    if (isConfirmKey(normalized) || normalized === "right" || normalized === "l") {
-      onOpenSelectedArea();
     }
   });
 
@@ -122,7 +131,7 @@ export function AreaMenuScreen({
         lines: buildAreaDetailLines(selectedArea, pendingReviewCount),
       }}
       footer={[
-        { text: "Up/Down or j/k move  Enter/right/l select  ? help  q quit", tone: "dim" },
+        { text: "Up/Down move  Ctrl-U/D jump  PgUp/PgDn page  Home/End edge  Enter/right/l select  ? help  q quit", tone: "dim" },
         {
           text: `${selectedArea ? formatAreaAudience(selectedArea.audience) : "-"} | ${pendingReviewCount} pending queue slice${pendingReviewCount === 1 ? "" : "s"}`,
           tone: "accent",
