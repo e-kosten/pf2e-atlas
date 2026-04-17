@@ -19,6 +19,7 @@ import {
   moveSelectionWrapped,
   pauseForAnyKey,
   readTerminalKey,
+  readTerminalKeyOrResize,
   renderTerminalPaneScreen,
   renderTerminalTextScreen,
   renderTerminalTwoPaneScreen,
@@ -726,7 +727,7 @@ export async function runDerivedTagOntologyExplorerUi(
       });
     }
 
-    const key = await readTerminalKey(terminalSession);
+    const key = await readTerminalKeyOrResize(terminalSession);
     const normalized = key.normalizedName;
     const printableCharacter = getPrintableKeyCharacter(key);
     if (pendingListCommand && printableCharacter !== "g") {

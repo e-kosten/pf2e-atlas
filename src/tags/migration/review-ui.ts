@@ -13,6 +13,7 @@ import {
   moveSelectionWrapped,
   pauseForAnyKey,
   readTerminalKey,
+  readTerminalKeyOrResize,
   renderTerminalTextScreen,
   renderTerminalTwoPaneScreen,
   type DerivedTagTerminalLine,
@@ -178,7 +179,7 @@ export async function runDerivedTagMigrationReviewUi(
       ],
     });
 
-    const key = await readTerminalKey(terminalSession);
+    const key = await readTerminalKeyOrResize(terminalSession);
     const normalized = key.normalizedName;
 
     if (normalized === "ctrl_c") {

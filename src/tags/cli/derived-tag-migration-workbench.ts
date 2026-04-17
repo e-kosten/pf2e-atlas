@@ -23,6 +23,7 @@ import {
   promptTerminalSelectOption,
   promptTerminalTextInput,
   readTerminalKey,
+  readTerminalKeyOrResize,
   renderTerminalTextScreen,
   renderTerminalTwoPaneScreen,
   runWithDerivedTagTerminalSession,
@@ -649,7 +650,7 @@ async function runSearchPlaceholder(
       footer: [{ text: "q or Backspace return to top level", tone: "dim" }],
     });
 
-    const key = await readTerminalKey(terminalSession);
+    const key = await readTerminalKeyOrResize(terminalSession);
     if (key.normalizedName === "q" || key.normalizedName === "backspace" || key.normalizedName === "left" || key.normalizedName === "escape" || key.normalizedName === "ctrl_c") {
       return;
     }
@@ -686,7 +687,7 @@ async function runTagRefinementWorkbench(
       leftWidth: 48,
     });
 
-    const key = await readTerminalKey(terminalSession);
+    const key = await readTerminalKeyOrResize(terminalSession);
     const normalized = key.normalizedName;
 
     if (normalized === "ctrl_c" || normalized === "q" || normalized === "backspace" || normalized === "left" || normalized === "escape") {
@@ -791,7 +792,7 @@ async function runWorkbench(
       leftWidth: 32,
     });
 
-    const key = await readTerminalKey(terminalSession);
+    const key = await readTerminalKeyOrResize(terminalSession);
     const normalized = key.normalizedName;
 
     if (normalized === "ctrl_c" || normalized === "q" || normalized === "escape") {

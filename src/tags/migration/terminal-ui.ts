@@ -419,6 +419,40 @@ export async function readTerminalKey(
   });
 }
 
+export async function readTerminalKeyOrResize(
+  session: DerivedTagTerminalSession,
+): Promise<DerivedTagTerminalKey> {
+  return new Promise((resolve) => {
+    const cleanup = () => {
+      session.term.off("key", onKey);
+      session.term.off("resize", onResize);
+    };
+
+    const onKey = (name: string, matches: string[], data: DerivedTagTerminalKey["data"]) => {
+      cleanup();
+      resolve({
+        name,
+        normalizedName: normalizeKeyName(name),
+        matches,
+        data,
+      });
+    };
+
+    const onResize = () => {
+      cleanup();
+      resolve({
+        name: "resize",
+        normalizedName: "resize",
+        matches: [],
+        data: {},
+      });
+    };
+
+    session.term.on("key", onKey);
+    session.term.on("resize", onResize);
+  });
+}
+
 export async function promptTerminalTextInput(
   session: DerivedTagTerminalSession,
   options: {
