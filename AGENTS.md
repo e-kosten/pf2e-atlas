@@ -35,7 +35,13 @@ Agents must do implementation work in a dedicated git worktree, not in the share
 - Before editing tracked files, create or switch to an isolated worktree rooted at a new branch from the current `main` HEAD.
 - Do not share a checkout with another running agent, and do not reuse the user's current working tree for agent edits.
 - Commit and validate the change inside the worktree first.
-- After validation, merge or cherry-pick the resulting commit back onto `main`, rerun `npm run build` and `npm test` on `main`, and only then report the task complete.
+- When the worktree change is ready to land, inspect the shared `main` checkout first. If `main` has any uncommitted tracked changes, stop and tell the user instead of merging.
+- Before attempting to merge back, rebase the worktree branch onto the current `main` so parallel agent commits already landed on `main` are incorporated first.
+- If the rebase hits conflicts, stop there and tell the user what conflicted so they can decide the next step.
+- After a clean rebase, rerun `npm run build` and `npm test` in the rebased worktree. If either fails, stop and tell the user instead of merging.
+- Only after `main` is clean, the rebase is conflict-free, and the rebased worktree passes build and tests should the agent merge the branch back into `main`.
+- Do not assume a fast-forward merge will be available before rebasing; parallel agent work commonly means the landing branch has diverged from `main`.
+- After merging back into `main`, rerun `npm run build` and `npm test` on `main`, and only then report the task complete.
 - Remove the temporary worktree after the change has been safely integrated unless the user asks to keep it.
 
 ## Configuration & Data Notes
