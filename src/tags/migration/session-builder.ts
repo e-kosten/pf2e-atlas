@@ -85,6 +85,14 @@ function flattenCurrentPendingReviewAssignments(): Array<{
   return pending;
 }
 
+function flattenCurrentPendingLlmAssignments(): Array<{
+  category: SearchCategory;
+  decision: DerivedTagAssignmentReviewDecision;
+}> {
+  return flattenCurrentPendingReviewAssignments()
+    .filter((entry) => entry.decision.source === "llm");
+}
+
 function flattenCurrentPendingExemplarReviews(): Array<{
   category: SearchCategory;
   decision: DerivedTagExemplarReviewDecision;
@@ -105,6 +113,14 @@ function flattenCurrentPendingExemplarReviews(): Array<{
   }
 
   return pending;
+}
+
+function flattenCurrentPendingLlmExemplarReviews(): Array<{
+  category: SearchCategory;
+  decision: DerivedTagExemplarReviewDecision;
+}> {
+  return flattenCurrentPendingExemplarReviews()
+    .filter((entry) => entry.decision.source === "llm");
 }
 
 function createDecisionIndex(
@@ -478,25 +494,75 @@ function buildLegacyRuleWorkset(
   };
 }
 
-function buildNewTaggingWorkset(
+function buildProposalReviewWorkset(
   db: DatabaseSync,
   options: DerivedTagMigrationSessionCreateOptions,
 ): DerivedTagMigrationSession {
-  if (!options.category && !options.limit) {
-    throw new Error("All-category new-tagging sessions require --limit so the workset stays bounded.");
-  }
-
+  const pendingAssignments = flattenCurrentPendingLlmAssignments()
+    .filter((entry) => !options.category || entry.category === options.category)
+    .filter(() => !options.decisionKind || options.decisionKind === "assignment")
+    .filter((entry) => !options.family || normalizeDerivedTag(entry.decision.family) === normalizeDerivedTag(options.family))
+    .filter((entry) => !options.tag || normalizeDerivedTag(entry.decision.tag) === normalizeDerivedTag(options.tag));
+  const pendingExemplarReviews = flattenCurrentPendingLlmExemplarReviews()
+    .filter((entry) => !options.category || entry.category === options.category)
+    .filter(() => !options.decisionKind || options.decisionKind === "exemplar")
+    .filter((entry) => !options.tag || normalizeDerivedTag(entry.decision.tag) === normalizeDerivedTag(options.tag));
+  const uniqueRecordKeys = [...new Set([
+    ...pendingAssignments.map((entry) => entry.decision.recordKey),
+    ...pendingExemplarReviews.map((entry) => entry.decision.recordKey),
+  ])]
+    .slice(0, options.limit ?? Number.MAX_SAFE_INTEGER);
   const records = loadDerivedTagMigrationRecords(db, {
     category: options.category,
     subcategory: options.subcategory,
-    untaggedOnly: true,
-    limit: options.limit,
+    recordKeys: uniqueRecordKeys,
   }).map(toSessionRecord);
+  const recordMap = createRecordMap(records);
+  const decisionIndex = createDecisionIndex(records);
 
-  for (const record of records) {
+  for (const entry of pendingAssignments) {
+    const record = recordMap.get(entry.decision.recordKey);
+    if (!record) {
+      continue;
+    }
     appendSelectionReason(record, {
-      source: "untagged",
-      note: "Canonical record currently has no live derived tags.",
+      source: "llm_assignment_review_queue",
+      family: entry.decision.family,
+      tag: entry.decision.tag,
+      note: "LLM-generated assignment proposal still needs manual review.",
+    });
+    decisionIndex.get(entry.decision.recordKey)?.decisions.push({
+      kind: "assignment",
+      family: normalizeDerivedTag(entry.decision.family),
+      tag: normalizeDerivedTag(entry.decision.tag),
+      mode: entry.decision.mode,
+      status: "needs_review",
+      confidence: entry.decision.confidence,
+      rationale: entry.decision.rationale,
+      source: "llm",
+    });
+  }
+
+  for (const entry of pendingExemplarReviews) {
+    const record = recordMap.get(entry.decision.recordKey);
+    if (!record) {
+      continue;
+    }
+    appendSelectionReason(record, {
+      source: "llm_exemplar_review_queue",
+      tag: entry.decision.tag,
+      note: "LLM-generated exemplar proposal still needs manual review.",
+    });
+    decisionIndex.get(entry.decision.recordKey)?.decisions.push({
+      kind: "exemplar",
+      tag: normalizeDerivedTag(entry.decision.tag),
+      polarity: entry.decision.proposedPolarity === "negative" ? "negative" : "positive",
+      action: entry.decision.proposedPolarity === "drop" ? "drop" : "keep",
+      status: entry.decision.status,
+      confidence: entry.decision.confidence,
+      rationale: entry.decision.rationale,
+      source: "llm",
+      currentPolarity: entry.decision.currentPolarity,
     });
   }
 
@@ -512,13 +578,7 @@ function buildNewTaggingWorkset(
       recordCount: records.length,
     },
     records,
-    decisions: records.map((record) => ({
-      recordKey: record.recordKey,
-      name: record.name,
-      category: record.category,
-      resolutionStatus: "needs_review",
-      decisions: [],
-    })),
+    decisions: [...decisionIndex.values()],
     reviewState: {
       currentIndex: 0,
       unresolvedOnly: true,
@@ -543,5 +603,5 @@ export function buildDerivedTagMigrationSession(
   if (options.mode === "legacy_rule") {
     return buildLegacyRuleWorkset(db, options);
   }
-  return buildNewTaggingWorkset(db, options);
+  return buildProposalReviewWorkset(db, options);
 }

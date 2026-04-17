@@ -384,7 +384,7 @@ describe("derived tag migration tooling", () => {
     const session: DerivedTagMigrationSession = {
       manifest: {
         id: "test",
-        mode: "new_tagging",
+        mode: "proposal_review",
         createdAt: "2026-04-16T00:00:00.000Z",
         recordCount: 3,
       },

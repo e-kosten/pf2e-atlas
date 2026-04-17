@@ -4,7 +4,7 @@ import type { SearchCategory } from "../../types.js";
 import { listDerivedTagLegacySeedMigrations } from "../index.js";
 import { DERIVED_TAG_MANAGED_CATEGORIES } from "./list-sorting.js";
 import { getCurrentDerivedTagMigrationAuthoredState } from "./authored-state.js";
-import { countDerivedTagMigrationRecords, loadDerivedTagMigrationRecords } from "./record-loader.js";
+import { loadDerivedTagMigrationRecords } from "./record-loader.js";
 import { deriveCurrentTagSources, summarizeCurrentDerivedTagReviewQueue } from "./runtime-state.js";
 import type { DerivedTagManagedCategory, DerivedTagMigrationMode } from "./types.js";
 
@@ -133,32 +133,36 @@ function buildExemplarCleanupCategoryScopeSummary(): DerivedTagCategoryScopeSumm
   };
 }
 
-function buildNewTaggingCategoryScopeSummary(
-  db: DatabaseSync,
+function buildProposalReviewCategoryScopeSummary(
 ): DerivedTagCategoryScopeSummarySet {
+  const state = getCurrentDerivedTagMigrationAuthoredState();
   const counts = DERIVED_TAG_MANAGED_CATEGORIES.map((category) => {
-    const recordCount = countDerivedTagMigrationRecords(db, {
-      category,
-      untaggedOnly: true,
-    });
+    const assignmentCount = state.assignmentReviews[category].decisions
+      .filter((decision) => decision.source === "llm")
+      .length;
+    const exemplarCount = state.exemplarReviews[category].decisions
+      .filter((decision) => decision.status === "needs_review" && decision.source === "llm")
+      .length;
 
     return {
       category,
-      recordCount,
+      assignmentCount,
+      exemplarCount,
     };
   });
 
   return {
     allCategoriesDetailLines: [
-      formatPendingReviewChanges(0),
-      `${sum(counts.map((entry) => entry.recordCount))} untagged candidate record${sum(counts.map((entry) => entry.recordCount)) === 1 ? "" : "s"}`,
-      "All-category sessions require a limit",
+      formatPendingReviewChanges(sum(counts.map((entry) => entry.assignmentCount + entry.exemplarCount))),
+      `${sum(counts.map((entry) => entry.assignmentCount))} assignment + ${sum(counts.map((entry) => entry.exemplarCount))} exemplar`,
+      "LLM-origin proposals only",
     ],
     categories: counts.map((entry) => ({
       category: entry.category,
       detailLines: [
-        formatPendingReviewChanges(0),
-        `${entry.recordCount} untagged candidate record${entry.recordCount === 1 ? "" : "s"}`,
+        formatPendingReviewChanges(entry.assignmentCount + entry.exemplarCount),
+        `${entry.assignmentCount} assignment + ${entry.exemplarCount} exemplar`,
+        "LLM-origin proposals only",
       ],
     })),
   };
@@ -234,7 +238,7 @@ export function summarizeDerivedTagCategoryScopes(
   if (mode === "legacy_rule") {
     return buildLegacyRuleCategoryScopeSummary(db);
   }
-  return buildNewTaggingCategoryScopeSummary(db);
+  return buildProposalReviewCategoryScopeSummary();
 }
 
 export function getManagedCategoryScopeSummary(

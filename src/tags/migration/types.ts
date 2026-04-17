@@ -18,10 +18,10 @@ import type { DerivedTagSource } from "../runtime/catalog-utils.js";
 
 export type DerivedTagMigrationMode =
   | "review_queue"
+  | "proposal_review"
   | "legacy_seed"
   | "legacy_rule"
-  | "exemplar_cleanup"
-  | "new_tagging";
+  | "exemplar_cleanup";
 
 export type DerivedTagManagedCategory =
   | "affliction"
@@ -33,10 +33,11 @@ export type DerivedTagManagedCategory =
 export type DerivedTagMigrationSelectionSource =
   | "authored_review_queue"
   | "authored_exemplar_review_queue"
+  | "llm_assignment_review_queue"
+  | "llm_exemplar_review_queue"
   | "legacy_seed"
   | "legacy_rule"
-  | "exemplar_cleanup"
-  | "untagged";
+  | "exemplar_cleanup";
 
 export type DerivedTagMigrationResolutionStatus = "complete" | "needs_review";
 

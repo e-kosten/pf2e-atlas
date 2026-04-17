@@ -9,11 +9,21 @@ import type { SearchCategory, SearchSubcategory } from "../../types.js";
 
 const MODES: DerivedTagMigrationMode[] = [
   "review_queue",
+  "proposal_review",
   "legacy_seed",
   "legacy_rule",
   "exemplar_cleanup",
-  "new_tagging",
 ];
+
+function parseMode(value: string | undefined): DerivedTagMigrationMode | undefined {
+  if (!value) {
+    return undefined;
+  }
+  if (value === "new_tagging") {
+    return "proposal_review";
+  }
+  return MODES.includes(value as DerivedTagMigrationMode) ? value as DerivedTagMigrationMode : undefined;
+}
 
 function renderHelp(): string {
   return [
@@ -39,9 +49,9 @@ async function main(): Promise<void> {
   }
 
   const args = parseCliArgs(argv);
-  const mode = lastValue(args, "mode") as DerivedTagMigrationMode | undefined;
-  if (!mode || !MODES.includes(mode)) {
-    throw new Error(`Pass --mode with one of: ${MODES.join(", ")}.`);
+  const mode = parseMode(lastValue(args, "mode"));
+  if (!mode) {
+    throw new Error(`Pass --mode with one of: ${MODES.join(", ")}. "new_tagging" remains available as a compatibility alias for "proposal_review".`);
   }
 
   const { db } = await openConfiguredIndex(argv);

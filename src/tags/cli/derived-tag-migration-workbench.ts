@@ -64,11 +64,21 @@ type TagRefinementMenuItem =
   | { kind: "create_mode"; label: string; mode: DerivedTagMigrationMode }
   | { kind: "back"; label: string };
 
+function formatModeLabel(mode: DerivedTagMigrationMode): string {
+  if (mode === "proposal_review") {
+    return "AI proposal review";
+  }
+  if (mode === "review_queue") {
+    return "review queue";
+  }
+  return mode.replaceAll("_", " ");
+}
+
 const WORKBENCH_AREAS: WorkbenchArea[] = [
   {
     id: "tag_refinement",
     label: "Tag Refinement",
-    description: "Review authored queue items and create legacy-seed, legacy-rule, exemplar-cleanup, and new-tagging sessions.",
+    description: "Review authored queue items and create AI proposal, legacy-seed, legacy-rule, and exemplar-cleanup sessions.",
   },
   {
     id: "ontology_search",
@@ -150,7 +160,7 @@ function buildTagRefinementMenuItems(items: DerivedTagReviewQueueSummaryItem[]):
     { kind: "create_mode", label: "Create legacy-seed review session", mode: "legacy_seed" },
     { kind: "create_mode", label: "Create legacy-rule review session", mode: "legacy_rule" },
     { kind: "create_mode", label: "Create exemplar-cleanup review session", mode: "exemplar_cleanup" },
-    { kind: "create_mode", label: "Create new-tagging review session", mode: "new_tagging" },
+    { kind: "create_mode", label: "Create AI proposal review session", mode: "proposal_review" },
     { kind: "back", label: "Back to top level" },
   );
   return menuItems;
@@ -186,7 +196,7 @@ function renderWorkbenchHelp(terminalSession: DerivedTagTerminalSession): void {
       { text: "s create a legacy-seed session" },
       { text: "r create a legacy-rule session" },
       { text: "e create an exemplar-cleanup session" },
-      { text: "n create a new-tagging session" },
+      { text: "p create an AI proposal review session" },
     ],
     footer: [{ text: "Press any key to return.", tone: "dim" }],
   });
@@ -565,7 +575,7 @@ async function promptCustomSessionOptions(
   }
   const subcategory = subcategorySelection ?? undefined;
 
-  const familySelection = mode === "review_queue"
+  const familySelection = mode === "review_queue" || mode === "proposal_review"
     ? await promptFamily(terminalSession, category, subcategory)
     : {};
   if (familySelection === undefined) {
@@ -574,19 +584,14 @@ async function promptCustomSessionOptions(
   const resolvedCategory = category ?? familySelection.category;
   const family = familySelection.family;
 
-  const tagSelection = mode === "new_tagging"
-    ? {}
-    : await promptTag(terminalSession, resolvedCategory, subcategory, family, mode === "legacy_rule");
+  const tagSelection = await promptTag(terminalSession, resolvedCategory, subcategory, family, mode === "legacy_rule");
   if (tagSelection === undefined) {
     return undefined;
   }
   const resolvedTagCategory = resolvedCategory ?? tagSelection.category;
   const tag = tagSelection.tag;
 
-  const limitPrompt = mode === "new_tagging" && !resolvedTagCategory
-    ? "limit (required for all-category new-tagging)"
-    : "limit (blank for default)";
-  const limit = await promptInteger(terminalSession, limitPrompt, "--limit");
+  const limit = await promptInteger(terminalSession, "limit (blank for default)", "--limit");
   const exemplarLimit = mode === "exemplar_cleanup"
     ? await promptInteger(terminalSession, "exemplar-limit (blank for none)", "--exemplar-limit")
     : undefined;
@@ -627,7 +632,7 @@ async function createAndRunSession(
   } catch (error) {
     await pauseForAnyKey(
       terminalSession,
-      `Could not create the ${mode} session.\n\n${(error as Error).message}`,
+      `Could not create the ${formatModeLabel(mode)} session.\n\n${(error as Error).message}`,
     );
   }
 }
@@ -694,7 +699,7 @@ async function runTagRefinementWorkbench(
         lines: buildQueueLines(queueItems),
       },
       footer: [
-        { text: "Up/Down or j/k move  Enter select  ? help  a review all  s/r/e/n create sessions  q/back top level", tone: "dim" },
+        { text: "Up/Down or j/k move  Enter select  ? help  a review all  s/r/e/p create sessions  q/back top level", tone: "dim" },
         { text: `Selected: ${menuItems[selectedIndex]?.label ?? "(none)"}`, tone: "accent" },
       ],
       leftWidth: 48,
@@ -729,14 +734,14 @@ async function runTagRefinementWorkbench(
       }
       continue;
     }
-    if (normalized === "s" || normalized === "r" || normalized === "e" || normalized === "n") {
+    if (normalized === "s" || normalized === "r" || normalized === "e" || normalized === "p" || normalized === "n") {
       const mode: DerivedTagMigrationMode = normalized === "s"
         ? "legacy_seed"
         : normalized === "r"
           ? "legacy_rule"
           : normalized === "e"
             ? "exemplar_cleanup"
-            : "new_tagging";
+            : "proposal_review";
       const { db } = await openConfiguredIndex(argv);
       try {
         const options = await promptCustomSessionOptions(terminalSession, db, mode);

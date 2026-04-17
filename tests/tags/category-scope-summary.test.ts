@@ -133,7 +133,67 @@ describe("derived tag category scope summaries", () => {
     ]);
   });
 
-  it("shows pending review changes and candidate counts for new-tagging scope selection", () => {
+  it("shows pending LLM proposal counts for proposal-review scope selection", () => {
+    const db = createMigrationDb();
+    const nextState = structuredClone(initialState);
+    nextState.assignmentReviews.creature = {
+      category: "creature",
+      decisions: [
+        {
+          name: "Creature Scout",
+          recordKey: "creature:one",
+          family: "alarm",
+          tag: "alarm",
+          mode: "include",
+          rationale: "LLM proposal.",
+          source: "llm",
+        },
+        {
+          name: "Creature Guide",
+          recordKey: "creature:two",
+          family: "alarm",
+          tag: "alarm",
+          mode: "include",
+          rationale: "Human proposal.",
+          source: "human",
+        },
+      ],
+    };
+    nextState.exemplarReviews.spell = {
+      category: "spell",
+      decisions: [
+        {
+          name: "Arcane Bell",
+          recordKey: "spell:one",
+          tag: "alarm",
+          proposedPolarity: "positive",
+          status: "needs_review",
+          rationale: "LLM exemplar proposal.",
+          source: "llm",
+        },
+      ],
+    };
+    setCurrentDerivedTagMigrationAuthoredState(nextState);
+
+    const summary = summarizeDerivedTagCategoryScopes(db, "proposal_review");
+    expect(summary.allCategoriesDetailLines).toEqual([
+      "2 pending review changes",
+      "1 assignment + 1 exemplar",
+      "LLM-origin proposals only",
+    ]);
+    expect(summary.categories.find((entry) => entry.category === "creature")?.detailLines).toEqual([
+      "1 pending review change",
+      "1 assignment + 0 exemplar",
+      "LLM-origin proposals only",
+    ]);
+    expect(summary.categories.find((entry) => entry.category === "spell")?.detailLines).toEqual([
+      "1 pending review change",
+      "0 assignment + 1 exemplar",
+      "LLM-origin proposals only",
+    ]);
+  });
+
+  it("builds proposal-review sessions from LLM pending review items", () => {
     const db = createMigrationDb();
     insertRecord(db, {
       recordKey: "creature:one",
@@ -149,54 +209,50 @@ describe("derived tag category scope summaries", () => {
       recordKey: "equipment:one",
       name: "Tagged Toolkit",
       category: "equipment",
-      tags: ["alarm"],
     });
 
-    const summary = summarizeDerivedTagCategoryScopes(db, "new_tagging");
-    expect(summary.allCategoriesDetailLines).toEqual([
-      "0 pending review changes",
-      "2 untagged candidate records",
-      "All-category sessions require a limit",
-    ]);
-    expect(summary.categories.find((entry) => entry.category === "creature")?.detailLines).toEqual([
-      "0 pending review changes",
-      "1 untagged candidate record",
-    ]);
-    expect(summary.categories.find((entry) => entry.category === "spell")?.detailLines).toEqual([
-      "0 pending review changes",
-      "1 untagged candidate record",
-    ]);
-  });
-
-  it("requires a limit for all-category new-tagging sessions", () => {
-    const db = createMigrationDb();
-    insertRecord(db, {
-      recordKey: "creature:one",
-      name: "Creature Scout",
+    const nextState = structuredClone(initialState);
+    nextState.assignmentReviews.creature = {
       category: "creature",
-    });
-
-    expect(() => buildDerivedTagMigrationSession(db, {
-      mode: "new_tagging",
-    })).toThrow(/require --limit/i);
-  });
-
-  it("allows bounded all-category new-tagging sessions", () => {
-    const db = createMigrationDb();
-    insertRecord(db, {
-      recordKey: "creature:one",
-      name: "Creature Scout",
-      category: "creature",
-    });
-    insertRecord(db, {
-      recordKey: "spell:one",
-      name: "Arcane Bell",
+      decisions: [
+        {
+          name: "Creature Scout",
+          recordKey: "creature:one",
+          family: "alarm",
+          tag: "alarm",
+          mode: "include",
+          rationale: "LLM proposal.",
+          source: "llm",
+        },
+        {
+          name: "Tagged Toolkit",
+          recordKey: "equipment:one",
+          family: "alarm",
+          tag: "alarm",
+          mode: "include",
+          rationale: "Human proposal in wrong category slice.",
+          source: "human",
+        },
+      ],
+    };
+    nextState.exemplarReviews.spell = {
       category: "spell",
-    });
+      decisions: [
+        {
+          name: "Arcane Bell",
+          recordKey: "spell:one",
+          tag: "alarm",
+          proposedPolarity: "positive",
+          status: "needs_review",
+          rationale: "LLM exemplar proposal.",
+          source: "llm",
+        },
+      ],
+    };
+    setCurrentDerivedTagMigrationAuthoredState(nextState);
 
     const session = buildDerivedTagMigrationSession(db, {
-      mode: "new_tagging",
-      limit: 2,
+      mode: "proposal_review",
     });
 
     expect(session.manifest.category).toBeUndefined();
@@ -205,5 +261,6 @@ describe("derived tag category scope summaries", () => {
       "creature:one",
     ]);
     expect(new Set(session.records.map((record) => record.category))).toEqual(new Set(["creature", "spell"]));
+    expect(session.decisions.map((record) => record.decisions).flat().every((decision) => decision.source === "llm")).toBe(true);
   });
 });
