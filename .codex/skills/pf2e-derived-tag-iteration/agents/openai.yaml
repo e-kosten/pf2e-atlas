@@ -1,4 +1,0 @@
-interface:
-  display_name: "PF2E Tag Iteration"
-  short_description: "Iterate on PF2E derived tags with regression-first routing"
-  default_prompt: "Use $pf2e-derived-tag-iteration to route PF2E derived-tag work in the Pathfinder MCP repo with regression-first validation for noisy false positives."

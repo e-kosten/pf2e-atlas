@@ -1,0 +1,4 @@
+interface:
+  display_name: "PF2E Tag Batch"
+  short_description: "Tag new or sparse PF2E records in batches"
+  default_prompt: "Use $pf2e-tag-batch to tag a bounded batch of untagged or under-tagged PF2E records, writing confident live assignments directly and leaving only ambiguous calls for review."

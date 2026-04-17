@@ -1,0 +1,4 @@
+interface:
+  display_name: "PF2E Tag Rules"
+  short_description: "Build or refine deterministic tag rules"
+  default_prompt: "Use $pf2e-tag-rules to review a PF2E tag rule slice, decide whether it should stay deterministic or move to assignments, and implement regression-first fixes."

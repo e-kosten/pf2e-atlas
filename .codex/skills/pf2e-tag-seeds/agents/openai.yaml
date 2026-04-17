@@ -1,0 +1,4 @@
+interface:
+  display_name: "PF2E Tag Seeds"
+  short_description: "Migrate legacy seed records to future-state tags"
+  default_prompt: "Use $pf2e-tag-seeds to review records carried by legacy seed membership, convert them into future-state assignments, and keep only true exemplars."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "PF2E Tag Exemplars"
+  short_description: "Curate small, high-signal exemplar sets"
+  default_prompt: "Use $pf2e-tag-exemplars to prune or improve PF2E exemplars for one tag, keeping only strong positive and negative teaching examples."
