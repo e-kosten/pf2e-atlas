@@ -170,7 +170,13 @@ function createServices(
         };
       }
       if (field === "actionCost") {
-        return { values: [{ value: "2", count: 1 }] };
+        return {
+          values: [
+            { value: "3", count: 1 },
+            { value: "1", count: 1 },
+            { value: "2", count: 1 },
+          ],
+        };
       }
       if (field === "traits") {
         return { values: [{ value: "illusion", count: 1 }] };
@@ -321,7 +327,7 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("1/1 shown");
   });
 
-  it("orders rarity canonically and exposes action cost through facet editing", () => {
+  it("orders filter values from declarative field policies and exposes action cost through facet editing", () => {
     const services = createServices();
 
     expect(services.user.search.getRarityOptions("spell", null).map((option) => option.value)).toEqual([
@@ -329,6 +335,17 @@ describe("search screen", () => {
       "uncommon",
       "rare",
       "unique",
+    ]);
+    expect(services.user.search.getFacetValueOptions("rarity", "spell", null).map((option) => option.value)).toEqual([
+      "common",
+      "uncommon",
+      "rare",
+      "unique",
+    ]);
+    expect(services.user.search.getActionCostOptions("spell", null).map((option) => option.value)).toEqual([
+      "1",
+      "2",
+      "3",
     ]);
     expect(services.user.search.getFacetFieldOptions("spell", null).some((option) => option.value === "actionCost")).toBe(true);
   });

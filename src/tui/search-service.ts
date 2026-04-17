@@ -8,6 +8,7 @@ import {
   type MetadataFieldSemantics,
 } from "../domain/metadata-semantics.js";
 import type { MetadataFieldName } from "../domain/metadata-field-registry.js";
+import { orderFilterValues, type FilterValueOrdering } from "../domain/filter-value-ordering.js";
 import type {
   LookupOptions,
   MetadataBooleanField,
@@ -185,24 +186,6 @@ const SEARCH_MODE_OPTIONS: Pf2eTerminalSearchModeOption[] = [
 ];
 
 const FACET_FIELD_EXCLUSIONS = new Set<Pf2eTerminalFacetField>(["rarity"]);
-const RARITY_ORDER = ["common", "uncommon", "rare", "unique"] as const;
-
-function compareRarityValues(left: string, right: string): number {
-  const leftIndex = RARITY_ORDER.indexOf(left as typeof RARITY_ORDER[number]);
-  const rightIndex = RARITY_ORDER.indexOf(right as typeof RARITY_ORDER[number]);
-
-  if (leftIndex >= 0 || rightIndex >= 0) {
-    if (leftIndex < 0) {
-      return 1;
-    }
-    if (rightIndex < 0) {
-      return -1;
-    }
-    return leftIndex - rightIndex;
-  }
-
-  return left.localeCompare(right);
-}
 
 function humanizeIdentifier(value: string): string {
   return value
@@ -229,6 +212,26 @@ function formatFilterValueLabel(value: string): string {
     return "False";
   }
   return humanizeIdentifier(value);
+}
+
+function orderStringValues(values: readonly string[], ordering?: FilterValueOrdering): string[] {
+  return orderFilterValues(values.map((value) => ({ value, count: 0 })), ordering).map((entry) => entry.value);
+}
+
+function createFacetValueOptions(
+  values: ReadonlyArray<{ value: string; count: number }>,
+  options: {
+    ordering?: FilterValueOrdering;
+    labelFormatter?: (value: string) => string;
+  } = {},
+): Pf2eTerminalFacetValueOption[] {
+  const labelFormatter = options.labelFormatter ?? formatFilterValueLabel;
+  return orderFilterValues(values, options.ordering).map((entry) => ({
+    value: entry.value,
+    label: labelFormatter(entry.value),
+    description: `${entry.count} live canonical record${entry.count === 1 ? "" : "s"}.`,
+    count: entry.count,
+  }));
 }
 
 function createEmptyFilterPolicy<T extends number | string>(): Pf2eTerminalFilterValuePolicy<T> {
@@ -271,17 +274,19 @@ function compareFacetSelections(
 
 function normalizeStringPolicy(
   policy: Partial<Pf2eTerminalFilterValuePolicy<string>> | undefined,
+  ordering?: FilterValueOrdering,
 ): Pf2eTerminalFilterValuePolicy<string> {
-  const exclude = [...new Set((policy?.exclude ?? []).map((value) => String(value).trim()).filter(Boolean))]
-    .sort((left, right) => left.localeCompare(right));
+  const exclude = [...new Set((policy?.exclude ?? []).map((value) => String(value).trim()).filter(Boolean))];
   const all = [...new Set((policy?.all ?? []).map((value) => String(value).trim()).filter(Boolean))]
-    .filter((value) => !exclude.includes(value))
-    .sort((left, right) => left.localeCompare(right));
+    .filter((value) => !exclude.includes(value));
   const any = [...new Set((policy?.any ?? []).map((value) => String(value).trim()).filter(Boolean))]
-    .filter((value) => !exclude.includes(value) && !all.includes(value))
-    .sort((left, right) => left.localeCompare(right));
+    .filter((value) => !exclude.includes(value) && !all.includes(value));
 
-  return { any, all, exclude };
+  return {
+    any: orderStringValues(any, ordering),
+    all: orderStringValues(all, ordering),
+    exclude: orderStringValues(exclude, ordering),
+  };
 }
 
 function normalizeNumberPolicy(
@@ -326,7 +331,7 @@ function normalizeFacetSelection(
     return null;
   }
 
-  const normalizedPolicy = normalizeStringPolicy(facet.policy);
+  const normalizedPolicy = normalizeStringPolicy(facet.policy, fieldSemantics.valueOrdering);
   if (fieldSemantics.fieldType !== "set") {
     normalizedPolicy.all = [];
   }
@@ -374,11 +379,11 @@ function normalizeRequest(
       levelMin: normalizedLevelMin,
       levelMax: normalizedLevelMax,
       rarity: (() => {
-        const policy = normalizeStringPolicy(request.filters.rarity);
+        const policy = normalizeStringPolicy(request.filters.rarity, fieldSemanticsByName.get("rarity")?.valueOrdering);
         return {
-          any: [...policy.any].sort(compareRarityValues),
+          any: policy.any,
           all: [],
-          exclude: [...policy.exclude].sort(compareRarityValues),
+          exclude: policy.exclude,
         };
       })(),
       actionCost: (() => {
@@ -718,6 +723,10 @@ export function createPf2eTerminalSearchService(
     filterSemantics.metadataFields.map((entry) => [entry.field, entry]),
   );
 
+  function getFieldValueOrdering(field: MetadataFieldName): FilterValueOrdering | undefined {
+    return fieldSemanticsByName.get(field)?.valueOrdering;
+  }
+
   return {
     createDefaultRequest: () => createDefaultRequest(),
     createRequestFromOntologyQuery: (query) => {
@@ -751,16 +760,17 @@ export function createPf2eTerminalSearchService(
       }, fieldSemanticsByName);
     },
     getActionCostOptions: (category, subcategory) =>
-      dependencies.listFilterValues({
-        field: "actionCost",
-        ...(category ? { category } : {}),
-        ...(subcategory ? { subcategory } : {}),
-      }).values.map((entry) => ({
-        value: entry.value,
-        label: `${entry.value} action${entry.value === "1" ? "" : "s"}`,
-        description: `${entry.count} live canonical record${entry.count === 1 ? "" : "s"}.`,
-        count: entry.count,
-      })),
+      createFacetValueOptions(
+        dependencies.listFilterValues({
+          field: "actionCost",
+          ...(category ? { category } : {}),
+          ...(subcategory ? { subcategory } : {}),
+        }).values,
+        {
+          ordering: getFieldValueOrdering("actionCost"),
+          labelFormatter: (value) => `${value} action${value === "1" ? "" : "s"}`,
+        },
+      ),
     getCategoryOptions: () => {
       const vocabulary = dependencies.getSearchVocabulary();
       return [
@@ -808,30 +818,28 @@ export function createPf2eTerminalSearchService(
       }));
     },
     getFacetValueOptions: (field, category, subcategory) =>
-      dependencies.listFilterValues({
-        field,
-        ...(category ? { category } : {}),
-        ...(subcategory ? { subcategory } : {}),
-      }).values.map((entry) => ({
-        value: entry.value,
-        label: formatFilterValueLabel(entry.value),
-        description: `${entry.count} live canonical record${entry.count === 1 ? "" : "s"}.`,
-        count: entry.count,
-      })),
+      createFacetValueOptions(
+        dependencies.listFilterValues({
+          field,
+          ...(category ? { category } : {}),
+          ...(subcategory ? { subcategory } : {}),
+        }).values,
+        {
+          ordering: getFieldValueOrdering(field),
+        },
+      ),
     getProfileOptions: () => SEARCH_PROFILE_OPTIONS,
     getRarityOptions: (category, subcategory) =>
-      dependencies.listFilterValues({
-        field: "rarity",
-        ...(category ? { category } : {}),
-        ...(subcategory ? { subcategory } : {}),
-      }).values
-        .sort((left, right) => compareRarityValues(left.value, right.value))
-        .map((entry) => ({
-          value: entry.value,
-          label: formatFilterValueLabel(entry.value),
-          description: `${entry.count} live canonical record${entry.count === 1 ? "" : "s"}.`,
-          count: entry.count,
-        })),
+      createFacetValueOptions(
+        dependencies.listFilterValues({
+          field: "rarity",
+          ...(category ? { category } : {}),
+          ...(subcategory ? { subcategory } : {}),
+        }).values,
+        {
+          ordering: getFieldValueOrdering("rarity"),
+        },
+      ),
     getSubcategoryOptions: (category) => {
       if (!category) {
         return [{

@@ -13,6 +13,7 @@ import {
   type MetadataFieldName,
   type MetadataFieldType,
 } from "./metadata-field-registry.js";
+import type { FilterValueOrdering } from "./filter-value-ordering.js";
 import {
   MetadataFilterNode,
   SearchCategory,
@@ -27,6 +28,7 @@ export interface MetadataFieldSemantics {
   subcategories?: SearchSubcategory[];
   discoverable: boolean;
   notes?: string;
+  valueOrdering?: FilterValueOrdering;
 }
 
 export interface MetadataFieldTypeGroup {
@@ -286,6 +288,7 @@ export function getMetadataFieldSemantics(): MetadataFieldSemantics[] {
     subcategories: entry.subcategories ? [...entry.subcategories] : undefined,
     discoverable: Boolean(entry.discoverable),
     notes: entry.notes,
+    valueOrdering: entry.valueOrdering,
   }));
 }
 

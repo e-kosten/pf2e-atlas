@@ -1,5 +1,6 @@
 import type { NormalizedRecord } from "./record-types.js";
 import type { SearchCategory, SearchSubcategory } from "./search-types.js";
+import type { FilterValueOrdering } from "./filter-value-ordering.js";
 
 export type MetadataFieldType = "set" | "enumString" | "text" | "number" | "boolean";
 export type MetadataValueNormalization = "normalizedText" | "lowercaseTrim" | "derivedTag";
@@ -37,6 +38,7 @@ export interface MetadataFieldSpec<
   subcategories?: readonly SearchSubcategory[];
   discoverable?: boolean;
   notes?: string;
+  valueOrdering?: FilterValueOrdering;
   valueNormalization?: MetadataValueNormalization;
   selectClause: string;
   rowValueSource: MetadataRowValueSource;
@@ -483,6 +485,10 @@ export const METADATA_FIELD_REGISTRY = [
     fieldType: "enumString",
     categories: ALL_CATEGORIES,
     discoverable: true,
+    valueOrdering: {
+      kind: "canonical",
+      order: ["common", "uncommon", "rare", "unique"],
+    },
     selectClause: "r.rarity AS rarity",
     rowValueSource: { key: "rarity", kind: "string" },
     buildSqlExpression: (context) => buildRecordScalarSql(context, "rarity"),
@@ -631,6 +637,7 @@ export const METADATA_FIELD_REGISTRY = [
     fieldType: "number",
     categories: ALL_CATEGORIES,
     discoverable: true,
+    valueOrdering: { kind: "numericAsc" },
     selectClause: "COALESCE(s.action_cost, i.action_cost) AS actionCost",
     rowValueSource: { key: "actionCost", kind: "number" },
     buildSqlExpression: (context) => {
