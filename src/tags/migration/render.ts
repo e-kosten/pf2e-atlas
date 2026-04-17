@@ -1,6 +1,7 @@
 import type { DerivedTagMigrationDecision, DerivedTagMigrationSession } from "./types.js";
 import { getCurrentDerivedTagMigrationAuthoredState } from "./authored-state.js";
 import { getDerivedTagMigrationReviewItems, summarizeDerivedTagMigrationReviewProgress } from "./review-session.js";
+import { buildDerivedTagMigrationRecordContextTextLines } from "./review-detail-content.js";
 
 function describeDecision(decision: DerivedTagMigrationDecision): string {
   if (decision.kind === "assignment") {
@@ -107,10 +108,10 @@ export function renderDerivedTagMigrationReviewItem(
     `Item ${itemIndex + 1}/${itemsForRender.length}`,
     `${record.name} (${record.recordKey})`,
     `Scope: ${record.category}${record.subcategory ? `/${record.subcategory}` : ""} | level ${record.level ?? "-"}`,
+    ...buildDerivedTagMigrationRecordContextTextLines(record, decision),
     `Decision: ${describeDecision(decision)}`,
     `Status: ${renderStatus(decision.status)}`,
     `Confidence: ${"confidence" in decision ? (decision.confidence ?? "unspecified") : "n/a"}`,
-    `Current tags: ${record.currentDerivedTags.join(", ") || "(none)"}`,
     `Live assignments: ${renderLiveAssignments(record.category, record.recordKey)}`,
     `Rejected memory: ${renderAssignmentMemory(record.category, record.recordKey)}`,
     `Selection: ${record.selectionReasons.map((reason) => reason.note).join(" | ") || "(none)"}`,

@@ -7,6 +7,7 @@ import {
   toggleDerivedTagMigrationUnresolvedOnly,
   updateDerivedTagMigrationDecisionStatus,
 } from "./review-session.js";
+import { buildDerivedTagMigrationRecordContextLines } from "./review-detail-content.js";
 import { writeDerivedTagMigrationSummary } from "./cli-utils.js";
 import { writeDerivedTagMigrationSession } from "./session-store.js";
 import {
@@ -123,12 +124,11 @@ function buildSelectedReviewDetailLines(session: DerivedTagMigrationSession): De
     { text: `${record.recordKey}`, tone: "dim" },
     { text: `Item ${session.reviewState.currentIndex + 1}/${items.length}` },
     { text: `Scope: ${record.category}${record.subcategory ? `/${record.subcategory}` : ""} | level ${record.level ?? "-"}` },
+    ...buildDerivedTagMigrationRecordContextLines(record, decision),
     { text: `Resolution: ${recordDecision.resolutionStatus}` },
     { text: `Decision: ${formatDecisionSummary(decision)}` },
     { text: `Status: ${decision.status}` },
     { text: `Confidence: ${"confidence" in decision ? (decision.confidence ?? "unspecified") : "n/a"}` },
-    { text: `Current tags: ${record.currentDerivedTags.join(", ") || "(none)"}` },
-    { text: `Families: ${record.families.join(", ") || "(none)"}` },
     { text: `Selection reasons: ${selectionNotes}` },
     { text: "Rationale:", tone: "section" },
     { text: decision.rationale || "(none)", indent: 2 },

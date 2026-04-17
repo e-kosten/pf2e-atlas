@@ -25,6 +25,7 @@ import {
 } from "../../src/tags/migration/importer.js";
 import { lintDerivedTagMigrationSession } from "../../src/tags/migration/linter.js";
 import { summarizeCurrentDerivedTagReviewQueue } from "../../src/tags/migration/runtime-state.js";
+import { renderDerivedTagMigrationReviewItem } from "../../src/tags/migration/render.js";
 import {
   clampDerivedTagMigrationReviewIndex,
   getDerivedTagMigrationReviewItems,
@@ -443,6 +444,75 @@ describe("derived tag migration tooling", () => {
       resolvedActionableRecordCount: 1,
       visibleItemCount: 1,
     });
+  });
+
+  it("includes record context in rendered review items", () => {
+    const session: DerivedTagMigrationSession = {
+      manifest: {
+        id: "test",
+        mode: "proposal_review",
+        createdAt: "2026-04-16T00:00:00.000Z",
+        recordCount: 1,
+      },
+      records: [
+        {
+          recordKey: "creature:aluum",
+          name: "Spiritbound Aluum",
+          category: "creature",
+          subcategory: null,
+          packName: "creature-pack",
+          level: 16,
+          traits: ["incorporeal", "undead"],
+          families: [],
+          currentDerivedTags: ["urban_setting"],
+          currentSources: {
+            urban_setting: "assignment:human",
+          },
+          descriptionText: "A spiritbound aluum stalks city streets and abandoned alleys in search of trespassers and old grudges.",
+          blurbText: "An undead sentinel bound to a haunted district.",
+          selectionReasons: [
+            {
+              source: "exemplar_cleanup",
+              tag: "urban_setting",
+              note: "Current exemplar is part of an oversized exemplar set and needs review.",
+            },
+          ],
+        },
+      ],
+      decisions: [
+        {
+          recordKey: "creature:aluum",
+          name: "Spiritbound Aluum",
+          category: "creature",
+          resolutionStatus: "needs_review",
+          decisions: [
+            {
+              kind: "exemplar",
+              tag: "urban_setting",
+              polarity: "positive",
+              action: "keep",
+              status: "needs_review",
+              confidence: "medium",
+              rationale: "Review whether this creature remains a strong positive exemplar for \"urban_setting\".",
+              source: "llm",
+              currentPolarity: "positive",
+            },
+          ],
+        },
+      ],
+      reviewState: {
+        currentIndex: 0,
+        unresolvedOnly: true,
+        updatedAt: "2026-04-16T00:00:00.000Z",
+      },
+    };
+
+    const rendered = renderDerivedTagMigrationReviewItem(session, 0);
+
+    expect(rendered).toContain("Traits: incorporeal, undead");
+    expect(rendered).toContain("Current source for urban_setting: assignment:human");
+    expect(rendered).toContain("Blurb: An undead sentinel bound to a haunted district.");
+    expect(rendered).toContain("Description: A spiritbound aluum stalks city streets and abandoned alleys in search of trespassers and old grudges.");
   });
 
   it("clamps keyboard selection movement to valid bounds", () => {
