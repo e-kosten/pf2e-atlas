@@ -120,7 +120,7 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
         }
       ]
     },
-    // TODO: Remove this legacy family after downstream loot-planning surfaces migrate to the narrower movement_traversal, scouting_surveillance, access_bypass, and logistics_restraint families.
+    // TODO: Remove this legacy family after downstream loot-planning surfaces migrate to the narrower movement_traversal, reconnaissance, access_bypass, carry_logistics, and restraint families.
     purpose: {
       axis: "legacy",
       subcategories: [
@@ -168,7 +168,7 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
         }
       ]
     },
-    scouting_surveillance: {
+    reconnaissance: {
       axis: "utility",
       subcategories: [
         "gear",
@@ -178,7 +178,7 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
         "armor",
         "weapon"
       ],
-      description: "Equipment for recon, observation, visibility management, and tracking or anti-tracking fieldwork.",
+      description: "Equipment for recon, field observation, visibility support, evidence capture, and tracking or anti-tracking work.",
       tags: [
         {
           tag: "scouting",
@@ -189,6 +189,23 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
           tag: "illumination",
           description: "Produces or improves light in dark environments.",
           assignmentMode: "deterministic"
+        },
+        {
+          tag: "surveillance_recording",
+          description: "Captures, stores, or replays images, sound, or other evidence for later review.",
+          assignmentMode: "deterministic",
+          appliesWhen: [
+            "The item's retrieval value comes from preserving sights, sounds, or observations for later replay, proof, or analysis.",
+            "It is naturally sought as evidence capture, remote monitoring, or watch-post support rather than live conversation gear."
+          ],
+          doesNotApplyWhen: [
+            "The item only sends a live message or helps coordinate allies without retaining evidence.",
+            "The item protects against observation instead of performing it."
+          ],
+          adjacentTags: [
+            "scouting",
+            "tamper_evidence"
+          ]
         },
         {
           tag: "tracking",
@@ -226,7 +243,7 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
         }
       ]
     },
-    logistics_restraint: {
+    carry_logistics: {
       axis: "utility",
       subcategories: [
         "gear",
@@ -236,13 +253,27 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
         "armor",
         "weapon"
       ],
-      description: "Equipment that solves carrying, storage-adjacent logistics, escape, or capture problems in play.",
+      description: "Equipment for stowing, carrying, organizing, and transporting gear through play.",
       tags: [
         {
           tag: "carry_support",
           description: "Helps stow, carry, or organize equipment.",
           assignmentMode: "deterministic"
-        },
+        }
+      ]
+    },
+    restraint: {
+      axis: "utility",
+      subcategories: [
+        "gear",
+        "backpack",
+        "kit",
+        "vehicle",
+        "armor",
+        "weapon"
+      ],
+      description: "Equipment for capturing, binding, securing, or escaping restraints and immobilizing holds.",
+      tags: [
         {
           tag: "restraint_escape",
           description: "Helps break free from grabs, restraints, or similar immobilizing holds.",
@@ -630,23 +661,6 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
             "telepathic_communication",
             "message_delivery"
           ]
-        },
-        {
-          tag: "surveillance_recording",
-          description: "Captures, stores, or replays images, sound, or other evidence for later review.",
-          assignmentMode: "deterministic",
-          appliesWhen: [
-            "The item's retrieval value comes from preserving sights, sounds, or observations for later replay, proof, or analysis.",
-            "It is naturally sought as evidence capture, remote monitoring, or watch-post support rather than live conversation gear."
-          ],
-          doesNotApplyWhen: [
-            "The item only sends a live message or helps coordinate allies without retaining evidence.",
-            "The item protects against observation instead of performing it."
-          ],
-          adjacentTags: [
-            "message_delivery",
-            "scrying_protection"
-          ]
         }
       ]
     },
@@ -683,7 +697,7 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
         }
       ]
     },
-    magic_interference: {
+    anti_magic: {
       axis: "utility",
       subcategories: [
         "gear",
@@ -692,7 +706,7 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
         "vehicle",
         "consumable"
       ],
-      description: "Equipment that disrupts hostile magic or protects against it, including anti-divination and spell-defense retrieval.",
+      description: "Equipment for countering hostile magic or protecting against harmful magical effects.",
       tags: [
         {
           tag: "countermagic",
@@ -726,23 +740,6 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
           adjacentTags: [
             "countermagic",
             "hazard_shielding"
-          ]
-        },
-        {
-          tag: "scrying_protection",
-          description: "Blocks magical observation, remote viewing, or information leakage through divination-like effects.",
-          assignmentMode: "deterministic",
-          appliesWhen: [
-            "The item's main value is preventing magical spying, remote observation, or divination-led tracking.",
-            "A user would retrieve it to keep plans, rooms, or identities hidden from magical surveillance."
-          ],
-          doesNotApplyWhen: [
-            "The item only improves ordinary stealth or concealment without anti-divination protection.",
-            "The item counters magic generally but is not particularly about observation or information leakage."
-          ],
-          adjacentTags: [
-            "countermagic",
-            "concealment"
           ]
         }
       ]
@@ -802,12 +799,29 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
         "vehicle",
         "consumable"
       ],
-      description: "Intrusion-warning, seal-checking, and after-the-fact security gear for camps, vaults, cargo, and protected rooms.",
+      description: "Intrusion-warning, anti-surveillance, seal-checking, and after-the-fact security gear for camps, vaults, cargo, and protected rooms.",
       tags: [
         {
           tag: "alarm",
           description: "Alerts you or others when a watched area, threshold, or device is triggered.",
           assignmentMode: "deterministic"
+        },
+        {
+          tag: "scrying_protection",
+          description: "Blocks magical observation, remote viewing, or information leakage through divination-like effects.",
+          assignmentMode: "deterministic",
+          appliesWhen: [
+            "The item's main value is preventing magical spying, remote observation, or divination-led tracking.",
+            "A user would retrieve it to keep plans, rooms, or identities hidden from magical surveillance."
+          ],
+          doesNotApplyWhen: [
+            "The item only improves ordinary stealth or concealment without anti-divination protection.",
+            "The item counters magic generally but is not particularly about observation or information leakage."
+          ],
+          adjacentTags: [
+            "alarm",
+            "concealment"
+          ]
         },
         {
           tag: "tamper_evidence",

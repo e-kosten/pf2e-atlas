@@ -9,8 +9,11 @@ const RAW_LEGACY_FAMILY_ALIASES: Partial<Record<SearchCategory, Record<string, s
     motif: ["visual_motif", "genre_motif", "story_motif"],
   },
   equipment: {
-    purpose: ["movement_traversal", "scouting_surveillance", "access_bypass", "logistics_restraint"],
+    purpose: ["movement_traversal", "reconnaissance", "access_bypass", "carry_logistics", "restraint"],
     polarity: ["consumable_role", "delivery_profile"],
+    scouting_surveillance: ["reconnaissance"],
+    logistics_restraint: ["carry_logistics", "restraint"],
+    magic_interference: ["anti_magic"],
   },
   hazard: {
     encounter_role: ["function"],

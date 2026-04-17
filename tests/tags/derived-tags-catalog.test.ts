@@ -32,6 +32,41 @@ describe("derived tag catalog", () => {
       }),
       expect.objectContaining({
         category: "equipment",
+        family: "reconnaissance",
+        axis: "utility",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "scouting", description: expect.any(String) }),
+          expect.objectContaining({ value: "surveillance_recording", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "equipment",
+        family: "carry_logistics",
+        axis: "utility",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "carry_support", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "equipment",
+        family: "restraint",
+        axis: "utility",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "restraint_escape", description: expect.any(String) }),
+          expect.objectContaining({ value: "restraint_capture", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "equipment",
+        family: "anti_magic",
+        axis: "utility",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "countermagic", description: expect.any(String) }),
+          expect.objectContaining({ value: "magic_protection", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "equipment",
         family: "breaching",
         axis: "utility",
         tags: expect.arrayContaining([
