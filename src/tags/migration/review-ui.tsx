@@ -1,7 +1,5 @@
 import React from "react";
 
-import { importDerivedTagMigrationSession } from "./importer.js";
-import { lintDerivedTagMigrationSession } from "./linter.js";
 import {
   clampDerivedTagMigrationReviewIndex,
   getDerivedTagMigrationReviewItems,
@@ -10,8 +8,12 @@ import {
   updateDerivedTagMigrationDecisionStatus,
 } from "./review-session.js";
 import { buildDerivedTagMigrationRecordPageLines } from "./review-detail-content.js";
-import { writeDerivedTagMigrationSummary } from "./cli-utils.js";
-import { writeDerivedTagMigrationSession } from "./session-store.js";
+import {
+  DEFAULT_DERIVED_TAG_MIGRATION_REVIEW_SERVICES,
+  importDerivedTagMigrationReviewSession,
+  persistDerivedTagMigrationReviewSession,
+  type DerivedTagMigrationReviewServices,
+} from "./review-controller.js";
 import {
   TerminalPaneScreen,
   TerminalTwoPaneScreen,
@@ -38,13 +40,6 @@ import type { DerivedTagMigrationSession } from "./types.js";
 export type DerivedTagMigrationReviewResult = {
   imported: boolean;
   session: DerivedTagMigrationSession;
-};
-
-type ReviewServices = {
-  importSession: typeof importDerivedTagMigrationSession;
-  lintSession: typeof lintDerivedTagMigrationSession;
-  writeSession: typeof writeDerivedTagMigrationSession;
-  writeSummary: typeof writeDerivedTagMigrationSummary;
 };
 
 type ReviewUiState = {
@@ -82,34 +77,6 @@ const REVIEW_ACTIONS = [
 
 type ReviewActionId = (typeof REVIEW_ACTIONS)[number]["id"];
 const REVIEW_LEFT_WIDTH = 46;
-const DEFAULT_REVIEW_SERVICES: ReviewServices = {
-  importSession: importDerivedTagMigrationSession,
-  lintSession: lintDerivedTagMigrationSession,
-  writeSession: writeDerivedTagMigrationSession,
-  writeSummary: writeDerivedTagMigrationSummary,
-};
-
-function persistSession(
-  rootPath: string,
-  session: DerivedTagMigrationSession,
-  services: ReviewServices,
-): Promise<void> {
-  const progress = summarizeDerivedTagMigrationReviewProgress(session);
-  const actionableSummary = progress.actionableRecordCount > 0
-    ? `Actionable records resolved: ${progress.resolvedActionableRecordCount}/${progress.actionableRecordCount}`
-    : "Actionable review items: 0";
-  return Promise.all([
-    services.writeSession(rootPath, session),
-    services.writeSummary(rootPath, session.manifest.id, [
-      `Session: ${session.manifest.id}`,
-      `Mode: ${session.manifest.mode}`,
-      `Candidate records: ${progress.candidateRecordCount}`,
-      actionableSummary,
-      `Visible review items: ${progress.visibleItemCount}`,
-      `Updated at: ${session.reviewState.updatedAt}`,
-    ].join("\n")),
-  ]).then(() => undefined);
-}
 
 function createInitialReviewState(initialSession: DerivedTagMigrationSession): ReviewUiState {
   return {
@@ -356,20 +323,37 @@ export function DerivedTagMigrationReviewScreen({
   rootPath,
   initialSession,
   onComplete,
-  services = DEFAULT_REVIEW_SERVICES,
+  services = DEFAULT_DERIVED_TAG_MIGRATION_REVIEW_SERVICES,
 }: {
   rootPath: string;
   initialSession: DerivedTagMigrationSession;
   onComplete: (result: DerivedTagMigrationReviewResult) => void;
-  services?: ReviewServices;
+  services?: DerivedTagMigrationReviewServices;
 }): React.JSX.Element {
   const terminal = useDerivedTagTerminalApp();
   const size = useDerivedTagTerminalSize();
   const [state, dispatch] = React.useReducer(reviewReducer, initialSession, createInitialReviewState);
   const [busy, setBusy] = React.useState(false);
+  const [persistError, setPersistError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    void persistSession(rootPath, state.session, services);
+    let cancelled = false;
+
+    void persistDerivedTagMigrationReviewSession(rootPath, state.session, services)
+      .then(() => {
+        if (!cancelled) {
+          setPersistError(null);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setPersistError((error as Error).message);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [rootPath, services, state.session]);
 
   const layoutMode = normalizeTerminalTwoPaneLayoutMode(state.layoutMode, state.activePane);
@@ -399,10 +383,9 @@ export function DerivedTagMigrationReviewScreen({
   const handleImport = React.useCallback(async () => {
     setBusy(true);
     try {
-      services.lintSession(state.session);
-      await services.importSession(rootPath, state.session);
-      await persistSession(rootPath, state.session, services);
+      await importDerivedTagMigrationReviewSession(rootPath, state.session, services);
       dispatch({ type: "set_imported", imported: true });
+      setPersistError(null);
       await terminal.pauseForAnyKey(`Imported session ${state.session.manifest.id}.`);
       completeReview(true, state.session);
     } catch (error) {
@@ -554,6 +537,7 @@ export function DerivedTagMigrationReviewScreen({
         footer={[
           { text: "z split-view  Tab/w list focus  Up/Down or j/k scroll  Ctrl+U/D jump  Space/b page  Home/End edge  Esc/backspace list  Left/Right or h/l choose action  Enter apply  ? help  q quit", tone: "dim" },
           { text: detailFooterText, tone: "accent" },
+          ...(persistError ? [{ text: `Persist error: ${persistError}`, tone: "danger" as const }] : []),
         ]}
       />
     );
@@ -581,6 +565,7 @@ export function DerivedTagMigrationReviewScreen({
           tone: "dim",
         },
         { text: detailFooterText, tone: "accent" },
+        ...(persistError ? [{ text: `Persist error: ${persistError}`, tone: "danger" as const }] : []),
       ]}
       leftWidth={REVIEW_LEFT_WIDTH}
     />

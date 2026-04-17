@@ -119,6 +119,8 @@ type DerivedTagTerminalContextValue = {
   showDialog: (options: DialogOptions) => Promise<void>;
 };
 
+export type DerivedTagTerminalApp = DerivedTagTerminalContextValue;
+
 const DerivedTagTerminalContext = React.createContext<DerivedTagTerminalContextValue | null>(null);
 
 function ensureTerminalContext(): DerivedTagTerminalContextValue {
