@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import { DatabaseSync } from "node:sqlite";
+
 import type { SearchCategory, SearchSubcategory } from "../../types.js";
 import { normalizeDerivedTag } from "../index.js";
 import {
@@ -18,6 +20,7 @@ import {
   compareManagedCategory,
   DERIVED_TAG_MANAGED_CATEGORIES,
 } from "../migration/list-sorting.js";
+import { summarizeDerivedTagCategoryScopes } from "../migration/category-scope-summary.js";
 import { runDerivedTagMigrationReviewUi } from "../migration/review-ui.js";
 import { writeDerivedTagMigrationSession } from "../migration/session-store.js";
 import { buildDerivedTagMigrationSession } from "../migration/session-builder.js";
@@ -202,18 +205,20 @@ function getSessionScopeOntology() {
   return getPublishedDerivedTagMigrationOntology();
 }
 
-function buildCategorySelectOptions(required: boolean): DerivedTagTerminalSelectOption<string>[] {
-  const ontology = getSessionScopeOntology();
+function buildCategorySelectOptions(
+  mode: DerivedTagMigrationMode,
+  db: DatabaseSync,
+  required: boolean,
+): DerivedTagTerminalSelectOption<string>[] {
+  const scopeSummary = summarizeDerivedTagCategoryScopes(db, mode);
   const categoryOptions = DERIVED_TAG_MANAGED_CATEGORIES.map((category) => {
-    const families = ontology.families.filter((family) => family.category === category);
-    const tags = ontology.tags.filter((tag) => tag.category === category);
+    const detailLines = scopeSummary.categories.find((entry) => entry.category === category)?.detailLines ?? [];
     return {
       value: category,
       label: category,
       detailLines: [
         { text: category, tone: "section" },
-        { text: `${families.length} ontology families` },
-        { text: `${tags.length} ontology tags` },
+        ...detailLines.map((line) => ({ text: line })),
       ],
     } satisfies DerivedTagTerminalSelectOption<string>;
   });
@@ -228,7 +233,7 @@ function buildCategorySelectOptions(required: boolean): DerivedTagTerminalSelect
       label: "All categories",
       detailLines: [
         { text: "All categories", tone: "section" },
-        { text: "Keep the session broad and review across the managed ontology surface." },
+        ...scopeSummary.allCategoriesDetailLines.map((line) => ({ text: line })),
       ],
     },
     ...categoryOptions,
@@ -407,13 +412,15 @@ function buildTagSelectOptions(
 
 async function promptCategory(
   terminalSession: DerivedTagTerminalSession,
+  db: DatabaseSync,
+  mode: DerivedTagMigrationMode,
   required: boolean,
 ): Promise<SearchCategory | null | undefined> {
   const value = await promptTerminalSelectOption(terminalSession, {
     title: "Session Scope",
     subtitle: "Choose a category boundary for the session",
     prompt: "Categories",
-    entries: buildCategorySelectOptions(required),
+    entries: buildCategorySelectOptions(mode, db, required),
   });
 
   if (value === undefined) {
@@ -535,6 +542,7 @@ async function promptInteger(
 
 async function promptCustomSessionOptions(
   terminalSession: DerivedTagTerminalSession,
+  db: DatabaseSync,
   mode: DerivedTagMigrationMode,
 ): Promise<{
   category?: SearchCategory;
@@ -544,8 +552,8 @@ async function promptCustomSessionOptions(
   limit?: number;
   exemplarLimit?: number;
 } | undefined> {
-  const requireCategory = mode === "legacy_rule" || mode === "new_tagging";
-  const categorySelection = await promptCategory(terminalSession, requireCategory);
+  const requireCategory = mode === "legacy_rule";
+  const categorySelection = await promptCategory(terminalSession, db, mode, requireCategory);
   if (categorySelection === undefined) {
     return undefined;
   }
@@ -592,7 +600,7 @@ async function promptCustomSessionOptions(
 
 async function createAndRunSession(
   rootPath: string,
-  argv: string[],
+  db: DatabaseSync,
   mode: DerivedTagMigrationMode,
   options: {
     category?: SearchCategory;
@@ -605,24 +613,19 @@ async function createAndRunSession(
   },
   terminalSession: DerivedTagTerminalSession,
 ): Promise<void> {
-  const { db } = await openConfiguredIndex(argv);
   try {
-    try {
-      const session = buildDerivedTagMigrationSession(db, {
-        mode,
-        ...options,
-      });
-      await writeDerivedTagMigrationSession(rootPath, session);
-      await writeDerivedTagMigrationSummary(rootPath, session.manifest.id, renderDerivedTagMigrationSessionSummary(session));
-      await runDerivedTagMigrationReviewUi(rootPath, session, terminalSession);
-    } catch (error) {
-      await pauseForAnyKey(
-        terminalSession,
-        `Could not create the ${mode} session.\n\n${(error as Error).message}`,
-      );
-    }
-  } finally {
-    db.close();
+    const session = buildDerivedTagMigrationSession(db, {
+      mode,
+      ...options,
+    });
+    await writeDerivedTagMigrationSession(rootPath, session);
+    await writeDerivedTagMigrationSummary(rootPath, session.manifest.id, renderDerivedTagMigrationSessionSummary(session));
+    await runDerivedTagMigrationReviewUi(rootPath, session, terminalSession);
+  } catch (error) {
+    await pauseForAnyKey(
+      terminalSession,
+      `Could not create the ${mode} session.\n\n${(error as Error).message}`,
+    );
   }
 }
 
@@ -715,7 +718,12 @@ async function runTagRefinementWorkbench(
       continue;
     }
     if (normalized === "a" && queueItems.length > 0) {
-      await createAndRunSession(rootPath, argv, "review_queue", {}, terminalSession);
+      const { db } = await openConfiguredIndex(argv);
+      try {
+        await createAndRunSession(rootPath, db, "review_queue", {}, terminalSession);
+      } finally {
+        db.close();
+      }
       continue;
     }
     if (normalized === "s" || normalized === "r" || normalized === "e" || normalized === "n") {
@@ -726,9 +734,14 @@ async function runTagRefinementWorkbench(
           : normalized === "e"
             ? "exemplar_cleanup"
             : "new_tagging";
-      const options = await promptCustomSessionOptions(terminalSession, mode);
-      if (options) {
-        await createAndRunSession(rootPath, argv, mode, options, terminalSession);
+      const { db } = await openConfiguredIndex(argv);
+      try {
+        const options = await promptCustomSessionOptions(terminalSession, db, mode);
+        if (options) {
+          await createAndRunSession(rootPath, db, mode, options, terminalSession);
+        }
+      } finally {
+        db.close();
       }
       continue;
     }
@@ -745,22 +758,37 @@ async function runTagRefinementWorkbench(
       return;
     }
     if (selectedItem.kind === "review_all") {
-      await createAndRunSession(rootPath, argv, "review_queue", {}, terminalSession);
+      const { db } = await openConfiguredIndex(argv);
+      try {
+        await createAndRunSession(rootPath, db, "review_queue", {}, terminalSession);
+      } finally {
+        db.close();
+      }
       continue;
     }
     if (selectedItem.kind === "review_queue_item") {
-      await createAndRunSession(rootPath, argv, "review_queue", {
-        decisionKind: selectedItem.queueItem.kind,
-        category: selectedItem.queueItem.category,
-        family: selectedItem.queueItem.family,
-        tag: selectedItem.queueItem.tag,
-      }, terminalSession);
+      const { db } = await openConfiguredIndex(argv);
+      try {
+        await createAndRunSession(rootPath, db, "review_queue", {
+          decisionKind: selectedItem.queueItem.kind,
+          category: selectedItem.queueItem.category,
+          family: selectedItem.queueItem.family,
+          tag: selectedItem.queueItem.tag,
+        }, terminalSession);
+      } finally {
+        db.close();
+      }
       continue;
     }
     if (selectedItem.kind === "create_mode") {
-      const options = await promptCustomSessionOptions(terminalSession, selectedItem.mode);
-      if (options) {
-        await createAndRunSession(rootPath, argv, selectedItem.mode, options, terminalSession);
+      const { db } = await openConfiguredIndex(argv);
+      try {
+        const options = await promptCustomSessionOptions(terminalSession, db, selectedItem.mode);
+        if (options) {
+          await createAndRunSession(rootPath, db, selectedItem.mode, options, terminalSession);
+        }
+      } finally {
+        db.close();
       }
     }
   }

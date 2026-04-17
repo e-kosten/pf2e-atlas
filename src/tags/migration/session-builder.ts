@@ -482,10 +482,6 @@ function buildNewTaggingWorkset(
   db: DatabaseSync,
   options: DerivedTagMigrationSessionCreateOptions,
 ): DerivedTagMigrationSession {
-  if (!options.category) {
-    throw new Error("New tagging sessions require --category.");
-  }
-
   const records = loadDerivedTagMigrationRecords(db, {
     category: options.category,
     subcategory: options.subcategory,
