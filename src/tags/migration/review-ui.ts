@@ -13,16 +13,24 @@ import { writeDerivedTagMigrationSession } from "./session-store.js";
 import {
   getRenderedTerminalLineCount,
   getTerminalTwoPaneDimensions,
+  getTerminalTwoPaneDetailWidth,
   getTerminalPaneBodyHeight,
+  moveSelection,
   moveSelectionWrapped,
+  normalizeTerminalTwoPaneLayoutMode,
   pauseForAnyKey,
   readTerminalKey,
   readTerminalKeyOrResize,
+  renderTerminalPaneScreen,
   renderTerminalTextScreen,
   renderTerminalTwoPaneScreen,
   sliceRenderedTerminalLines,
+  toggleTerminalTwoPaneFocus,
+  toggleTerminalTwoPaneLayoutMode,
   type DerivedTagTerminalLine,
   type DerivedTagTerminalSession,
+  type DerivedTagTerminalTwoPaneFocus,
+  type DerivedTagTerminalTwoPaneLayoutMode,
 } from "./terminal-ui.js";
 import type { DerivedTagMigrationSession } from "./types.js";
 
@@ -141,13 +149,17 @@ function buildSelectedReviewDetailLines(session: DerivedTagMigrationSession): De
   ];
 }
 
-function getReviewDetailPaneWidth(terminalSession: DerivedTagTerminalSession): number {
-  return getTerminalTwoPaneDimensions(terminalSession, REVIEW_LEFT_WIDTH).rightWidth;
+function getReviewDetailPaneWidth(
+  terminalSession: DerivedTagTerminalSession,
+  layoutMode: DerivedTagTerminalTwoPaneLayoutMode,
+): number {
+  return getTerminalTwoPaneDetailWidth(terminalSession, layoutMode, REVIEW_LEFT_WIDTH);
 }
 
 function buildVisibleSelectedReviewDetailLines(
   terminalSession: DerivedTagTerminalSession,
   session: DerivedTagMigrationSession,
+  layoutMode: DerivedTagTerminalTwoPaneLayoutMode,
   detailScroll: number,
 ): DerivedTagTerminalLine[] {
   const bodyHeight = Math.max(1, getTerminalPaneBodyHeight(terminalSession, {
@@ -156,7 +168,7 @@ function buildVisibleSelectedReviewDetailLines(
   }));
   return sliceRenderedTerminalLines(
     buildSelectedReviewDetailLines(session),
-    getReviewDetailPaneWidth(terminalSession),
+    getReviewDetailPaneWidth(terminalSession, layoutMode),
     detailScroll,
     bodyHeight,
   );
@@ -170,17 +182,19 @@ function renderReviewHelp(
     title: "Derived-Tag Review Help",
     body: [
       { text: "Navigation", tone: "section" },
-      { text: "Up / Down or j / k: move between review items" },
+      { text: "Tab or w: switch focus between the review queue and detail panes" },
+      { text: "z: toggle focused detail view while detail has focus" },
+      { text: "With list focus, Up / Down or j / k move between review items" },
+      { text: "With list focus, Ctrl+U / Ctrl+D and Space / b jump through the queue" },
+      { text: "With detail focus, Up / Down or j / k scroll the selected item detail" },
+      { text: "With detail focus, Ctrl+U / Ctrl+D and Space / b jump through detail text" },
+      { text: "Home / End: jump to the start or end of the focused pane" },
+      { text: "Esc or Backspace: leave detail focus and return to the queue" },
       { text: "Left / Right or h / l: move between actions" },
       { text: "Enter: apply the highlighted action" },
       { text: "" },
       { text: "Direct actions", tone: "section" },
       { text: "a approve  r reject  n needs_review  t toggle unresolved  i import  q quit" },
-      { text: "" },
-      { text: "Detail scrolling", tone: "section" },
-      { text: "Ctrl+U / Ctrl+D: jump detail up or down by half a pane" },
-      { text: "Space / b: page detail down or up" },
-      { text: "Home / End: jump to the top or bottom of the detail pane" },
       { text: "" },
       { text: "Current action bar", tone: "section" },
       { text: formatActionBar(selectedActionIndex), tone: "accent" },
@@ -197,9 +211,12 @@ export async function runDerivedTagMigrationReviewUi(
   let session = clampDerivedTagMigrationReviewIndex(initialSession);
   let imported = false;
   let selectedActionIndex = 0;
+  let activePane: DerivedTagTerminalTwoPaneFocus = "list";
+  let layoutMode: DerivedTagTerminalTwoPaneLayoutMode = "split";
   let detailScroll = 0;
 
   while (true) {
+    layoutMode = normalizeTerminalTwoPaneLayoutMode(layoutMode, activePane);
     const items = getDerivedTagMigrationReviewItems(session);
     const progress = summarizeDerivedTagMigrationReviewProgress(session);
     const progressText = progress.actionableRecordCount > 0
@@ -210,28 +227,56 @@ export async function runDerivedTagMigrationReviewUi(
       hasSubtitle: true,
       footerLineCount: 2,
     }));
-    const renderedDetailLineCount = getRenderedTerminalLineCount(detailLines, getReviewDetailPaneWidth(terminalSession));
+    const selectionJumpSize = Math.max(1, Math.floor(bodyHeight / 2));
+    const detailJumpSize = Math.max(1, Math.floor(bodyHeight / 2));
+    const pageSize = Math.max(1, bodyHeight - 1);
+    const renderedDetailLineCount = getRenderedTerminalLineCount(detailLines, getReviewDetailPaneWidth(terminalSession, layoutMode));
     const maxDetailScroll = Math.max(0, renderedDetailLineCount - bodyHeight);
     if (detailScroll > maxDetailScroll) {
       detailScroll = maxDetailScroll;
     }
-    renderTerminalTwoPaneScreen(terminalSession, {
-      title: "Derived-Tag Review",
-      subtitle: `Session ${session.manifest.id} | ${progressText} | ${items.length} visible item${items.length === 1 ? "" : "s"} | unresolved only ${session.reviewState.unresolvedOnly ? "on" : "off"}`,
-      left: {
-        title: "Review Queue",
-        lines: buildReviewListLines(terminalSession, session),
-      },
-      right: {
-        title: "Selected Item",
-        lines: buildVisibleSelectedReviewDetailLines(terminalSession, session, detailScroll),
-      },
-      footer: [
-        { text: "Up/Down or j/k move  Ctrl+U/D jump detail  Space/b page detail  Home/End detail edge  Left/Right or h/l choose action  Enter apply  ? help  q quit", tone: "dim" },
-        { text: `${formatActionBar(selectedActionIndex)} | Detail scroll ${detailScroll}/${maxDetailScroll}`, tone: "accent" },
-      ],
-      leftWidth: REVIEW_LEFT_WIDTH,
-    });
+    const subtitle = `Session ${session.manifest.id} | ${progressText} | ${items.length} visible item${items.length === 1 ? "" : "s"} | unresolved only ${session.reviewState.unresolvedOnly ? "on" : "off"}`;
+    const detailFooterText = `${formatActionBar(selectedActionIndex)} | ${activePane} focus | ${layoutMode} layout | Detail scroll ${detailScroll}/${maxDetailScroll}`;
+    if (layoutMode === "detail-only") {
+      renderTerminalPaneScreen(terminalSession, {
+        title: "Derived-Tag Review",
+        subtitle: `${subtitle} | focused detail`,
+        pane: {
+          title: "[FOCUSED DETAIL] Selected Item",
+          lines: buildVisibleSelectedReviewDetailLines(terminalSession, session, layoutMode, detailScroll),
+          active: true,
+        },
+        footer: [
+          { text: "z split-view  Tab/w list focus  Up/Down or j/k scroll  Ctrl+U/D jump  Space/b page  Home/End edge  Esc/backspace list  Left/Right or h/l choose action  Enter apply  ? help  q quit", tone: "dim" },
+          { text: detailFooterText, tone: "accent" },
+        ],
+      });
+    } else {
+      renderTerminalTwoPaneScreen(terminalSession, {
+        title: "Derived-Tag Review",
+        subtitle,
+        left: {
+          title: activePane === "list" ? "[QUEUE] Review Queue" : "Review Queue",
+          lines: buildReviewListLines(terminalSession, session),
+          active: activePane === "list",
+        },
+        right: {
+          title: activePane === "detail" ? "[DETAIL] Selected Item" : "Selected Item",
+          lines: buildVisibleSelectedReviewDetailLines(terminalSession, session, layoutMode, detailScroll),
+          active: activePane === "detail",
+        },
+        footer: [
+          {
+            text: activePane === "list"
+              ? "Tab/w focus  z detail-only  Up/Down or j/k move  Ctrl+U/D jump queue  Space/b page queue  Home/End queue edge  Left/Right or h/l choose action  Enter apply  ? help  q quit"
+              : "Tab/w focus  z detail-only  Up/Down or j/k scroll  Ctrl+U/D jump detail  Space/b page detail  Home/End detail edge  Esc/backspace queue  Left/Right or h/l choose action  Enter apply  ? help  q quit",
+            tone: "dim",
+          },
+          { text: detailFooterText, tone: "accent" },
+        ],
+        leftWidth: REVIEW_LEFT_WIDTH,
+      });
+    }
 
     const key = await readTerminalKeyOrResize(terminalSession);
     const normalized = key.normalizedName;
@@ -242,27 +287,73 @@ export async function runDerivedTagMigrationReviewUi(
 
     let requestedAction: ReviewActionId | undefined;
 
-    if (normalized === "up" || normalized === "k") {
+    if (normalized === "tab" || normalized === "shift_tab" || normalized === "w") {
+      activePane = toggleTerminalTwoPaneFocus(activePane);
+      layoutMode = normalizeTerminalTwoPaneLayoutMode(layoutMode, activePane);
+    } else if (normalized === "z") {
+      layoutMode = toggleTerminalTwoPaneLayoutMode(layoutMode, activePane);
+    } else if (normalized === "?") {
+      renderReviewHelp(terminalSession, selectedActionIndex);
+      await readTerminalKey(terminalSession);
+      continue;
+    } else if (activePane === "detail" && (normalized === "escape" || normalized === "backspace")) {
+      activePane = "list";
+      layoutMode = "split";
+    } else if (activePane === "list" && (normalized === "up" || normalized === "k")) {
       if (items.length > 0) {
         session.reviewState.currentIndex = moveSelectionWrapped(session.reviewState.currentIndex, -1, items.length);
         detailScroll = 0;
       }
-    } else if (normalized === "down" || normalized === "j") {
+    } else if (activePane === "list" && (normalized === "down" || normalized === "j")) {
       if (items.length > 0) {
         session.reviewState.currentIndex = moveSelectionWrapped(session.reviewState.currentIndex, 1, items.length);
         detailScroll = 0;
       }
-    } else if (normalized === "ctrl_d") {
-      detailScroll = Math.min(maxDetailScroll, detailScroll + Math.max(1, Math.floor(bodyHeight / 2)));
-    } else if (normalized === "ctrl_u") {
-      detailScroll = Math.max(0, detailScroll - Math.max(1, Math.floor(bodyHeight / 2)));
-    } else if (normalized === "space" || normalized === "page_down") {
-      detailScroll = Math.min(maxDetailScroll, detailScroll + Math.max(1, bodyHeight - 1));
-    } else if (normalized === "b" || normalized === "page_up") {
-      detailScroll = Math.max(0, detailScroll - Math.max(1, bodyHeight - 1));
-    } else if (normalized === "home") {
+    } else if (activePane === "list" && normalized === "ctrl_d") {
+      if (items.length > 0) {
+        session.reviewState.currentIndex = moveSelection(session.reviewState.currentIndex, selectionJumpSize, items.length);
+        detailScroll = 0;
+      }
+    } else if (activePane === "list" && normalized === "ctrl_u") {
+      if (items.length > 0) {
+        session.reviewState.currentIndex = moveSelection(session.reviewState.currentIndex, -selectionJumpSize, items.length);
+        detailScroll = 0;
+      }
+    } else if (activePane === "list" && (normalized === "space" || normalized === "page_down")) {
+      if (items.length > 0) {
+        session.reviewState.currentIndex = moveSelection(session.reviewState.currentIndex, pageSize, items.length);
+        detailScroll = 0;
+      }
+    } else if (activePane === "list" && (normalized === "b" || normalized === "page_up")) {
+      if (items.length > 0) {
+        session.reviewState.currentIndex = moveSelection(session.reviewState.currentIndex, -pageSize, items.length);
+        detailScroll = 0;
+      }
+    } else if (activePane === "list" && normalized === "home") {
+      if (items.length > 0) {
+        session.reviewState.currentIndex = 0;
+        detailScroll = 0;
+      }
+    } else if (activePane === "list" && normalized === "end") {
+      if (items.length > 0) {
+        session.reviewState.currentIndex = items.length - 1;
+        detailScroll = 0;
+      }
+    } else if (activePane === "detail" && (normalized === "up" || normalized === "k")) {
+      detailScroll = Math.max(0, detailScroll - 1);
+    } else if (activePane === "detail" && (normalized === "down" || normalized === "j")) {
+      detailScroll = Math.min(maxDetailScroll, detailScroll + 1);
+    } else if (activePane === "detail" && normalized === "ctrl_d") {
+      detailScroll = Math.min(maxDetailScroll, detailScroll + detailJumpSize);
+    } else if (activePane === "detail" && normalized === "ctrl_u") {
+      detailScroll = Math.max(0, detailScroll - detailJumpSize);
+    } else if (activePane === "detail" && (normalized === "space" || normalized === "page_down")) {
+      detailScroll = Math.min(maxDetailScroll, detailScroll + pageSize);
+    } else if (activePane === "detail" && (normalized === "b" || normalized === "page_up")) {
+      detailScroll = Math.max(0, detailScroll - pageSize);
+    } else if (activePane === "detail" && normalized === "home") {
       detailScroll = 0;
-    } else if (normalized === "end") {
+    } else if (activePane === "detail" && normalized === "end") {
       detailScroll = maxDetailScroll;
     } else if (normalized === "left" || normalized === "h") {
       selectedActionIndex = moveSelectionWrapped(selectedActionIndex, -1, REVIEW_ACTIONS.length);
@@ -270,10 +361,6 @@ export async function runDerivedTagMigrationReviewUi(
       selectedActionIndex = moveSelectionWrapped(selectedActionIndex, 1, REVIEW_ACTIONS.length);
     } else if (normalized === "enter" || normalized === "kp_enter") {
       requestedAction = REVIEW_ACTIONS[selectedActionIndex]?.id;
-    } else if (normalized === "?") {
-      renderReviewHelp(terminalSession, selectedActionIndex);
-      await readTerminalKey(terminalSession);
-      continue;
     } else if (normalized === "a") {
       requestedAction = "approve";
     } else if (normalized === "r") {

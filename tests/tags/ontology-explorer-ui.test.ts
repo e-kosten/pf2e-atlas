@@ -15,15 +15,16 @@ import {
   moveDerivedTagOntologyExplorerDetailScrollToBoundary,
   moveDerivedTagOntologyExplorerSelection,
   moveDerivedTagOntologyExplorerSelectionToBoundary,
-  normalizeDerivedTagOntologyExplorerLayoutMode,
   normalizeDerivedTagOntologyExplorerState,
   popDerivedTagOntologyExplorerDepth,
   setDerivedTagOntologyExplorerFilter,
-  toggleDerivedTagOntologyExplorerLayoutMode,
 } from "../../src/tags/migration/ontology-explorer-ui.js";
 import {
   getRenderedTerminalLineCount,
   sliceRenderedTerminalLines,
+  normalizeTerminalTwoPaneLayoutMode,
+  toggleTerminalTwoPaneFocus,
+  toggleTerminalTwoPaneLayoutMode,
 } from "../../src/tags/migration/terminal-ui.js";
 
 function createExplorerDb(): DatabaseSync {
@@ -596,14 +597,19 @@ describe("derived tag ontology explorer", () => {
   });
 
   it("toggles focused detail layout only while detail has focus", () => {
-    expect(toggleDerivedTagOntologyExplorerLayoutMode("split", "list")).toBe("split");
-    expect(toggleDerivedTagOntologyExplorerLayoutMode("split", "detail")).toBe("detail-only");
-    expect(toggleDerivedTagOntologyExplorerLayoutMode("detail-only", "detail")).toBe("split");
+    expect(toggleTerminalTwoPaneLayoutMode("split", "list")).toBe("split");
+    expect(toggleTerminalTwoPaneLayoutMode("split", "detail")).toBe("detail-only");
+    expect(toggleTerminalTwoPaneLayoutMode("detail-only", "detail")).toBe("split");
   });
 
   it("falls back to split layout when detail focus is left", () => {
-    expect(normalizeDerivedTagOntologyExplorerLayoutMode("detail-only", "list")).toBe("split");
-    expect(normalizeDerivedTagOntologyExplorerLayoutMode("detail-only", "detail")).toBe("detail-only");
+    expect(normalizeTerminalTwoPaneLayoutMode("detail-only", "list")).toBe("split");
+    expect(normalizeTerminalTwoPaneLayoutMode("detail-only", "detail")).toBe("detail-only");
+  });
+
+  it("toggles two-pane focus generically", () => {
+    expect(toggleTerminalTwoPaneFocus("list")).toBe("detail");
+    expect(toggleTerminalTwoPaneFocus("detail")).toBe("list");
   });
 
   it("counts and slices wrapped detail rows using rendered terminal width", () => {

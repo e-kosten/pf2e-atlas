@@ -12,6 +12,7 @@ import {
   type DerivedTagOntologyExplorerTagNode,
 } from "./ontology-explorer-data.js";
 import {
+  getTerminalTwoPaneDetailWidth,
   getTerminalPaneBodyHeight,
   getTerminalTwoPaneDimensions,
   getRenderedTerminalLineCount,
@@ -24,14 +25,17 @@ import {
   renderTerminalTextScreen,
   renderTerminalTwoPaneScreen,
   sliceRenderedTerminalLines,
+  normalizeTerminalTwoPaneLayoutMode,
+  toggleTerminalTwoPaneFocus,
+  toggleTerminalTwoPaneLayoutMode,
   type DerivedTagTerminalKey,
   type DerivedTagTerminalLine,
   type DerivedTagTerminalSession,
+  type DerivedTagTerminalTwoPaneFocus,
+  type DerivedTagTerminalTwoPaneLayoutMode,
 } from "./terminal-ui.js";
 
 export type DerivedTagOntologyExplorerDepth = "category" | "family" | "tag" | "record";
-export type DerivedTagOntologyExplorerPaneFocus = "list" | "detail";
-export type DerivedTagOntologyExplorerLayoutMode = "split" | "detail-only";
 type DerivedTagOntologyExplorerMotionStyle = "wrapped" | "clamped";
 
 export type DerivedTagOntologyExplorerState = {
@@ -596,7 +600,7 @@ function buildVisibleDetailLines(
   terminalSession: DerivedTagTerminalSession,
   model: DerivedTagOntologyExplorerModel,
   state: DerivedTagOntologyExplorerState,
-  layoutMode: DerivedTagOntologyExplorerLayoutMode,
+  layoutMode: DerivedTagTerminalTwoPaneLayoutMode,
 ): DerivedTagTerminalLine[] {
   const bodyHeight = Math.max(1, getTerminalPaneBodyHeight(terminalSession, {
     hasSubtitle: true,
@@ -607,31 +611,11 @@ function buildVisibleDetailLines(
   return sliceRenderedTerminalLines(detailLines, detailWidth, state.detailScroll, bodyHeight);
 }
 
-export function normalizeDerivedTagOntologyExplorerLayoutMode(
-  layoutMode: DerivedTagOntologyExplorerLayoutMode,
-  activePane: DerivedTagOntologyExplorerPaneFocus,
-): DerivedTagOntologyExplorerLayoutMode {
-  return activePane === "detail" ? layoutMode : "split";
-}
-
-export function toggleDerivedTagOntologyExplorerLayoutMode(
-  layoutMode: DerivedTagOntologyExplorerLayoutMode,
-  activePane: DerivedTagOntologyExplorerPaneFocus,
-): DerivedTagOntologyExplorerLayoutMode {
-  if (activePane !== "detail") {
-    return "split";
-  }
-  return layoutMode === "split" ? "detail-only" : "split";
-}
-
 function getOntologyExplorerDetailPaneWidth(
   terminalSession: DerivedTagTerminalSession,
-  layoutMode: DerivedTagOntologyExplorerLayoutMode,
+  layoutMode: DerivedTagTerminalTwoPaneLayoutMode,
 ): number {
-  if (layoutMode === "detail-only") {
-    return terminalSession.term.width;
-  }
-  return getTerminalTwoPaneDimensions(terminalSession, 46).rightWidth;
+  return getTerminalTwoPaneDetailWidth(terminalSession, layoutMode, 46);
 }
 
 function renderOntologyExplorerHelp(terminalSession: DerivedTagTerminalSession): void {
@@ -664,14 +648,14 @@ export async function runDerivedTagOntologyExplorerUi(
 ): Promise<void> {
   const model = buildDerivedTagOntologyExplorerModel(db, options);
   let state = createDerivedTagOntologyExplorerState(model);
-  let activePane: DerivedTagOntologyExplorerPaneFocus = "list";
-  let layoutMode: DerivedTagOntologyExplorerLayoutMode = "split";
+  let activePane: DerivedTagTerminalTwoPaneFocus = "list";
+  let layoutMode: DerivedTagTerminalTwoPaneLayoutMode = "split";
   let searchMode = false;
   let searchInput = state.filter;
   let pendingListCommand: "g" | null = null;
 
   while (true) {
-    layoutMode = normalizeDerivedTagOntologyExplorerLayoutMode(layoutMode, activePane);
+    layoutMode = normalizeTerminalTwoPaneLayoutMode(layoutMode, activePane);
     state = normalizeDerivedTagOntologyExplorerState(model, state);
     const selection = getSelection(model, state);
     const detailLines = buildDetailLines(model, state);
@@ -796,12 +780,12 @@ export async function runDerivedTagOntologyExplorerUi(
       continue;
     }
     if (normalized === "tab" || normalized === "shift_tab" || normalized === "w") {
-      activePane = activePane === "list" ? "detail" : "list";
-      layoutMode = normalizeDerivedTagOntologyExplorerLayoutMode(layoutMode, activePane);
+      activePane = toggleTerminalTwoPaneFocus(activePane);
+      layoutMode = normalizeTerminalTwoPaneLayoutMode(layoutMode, activePane);
       continue;
     }
     if (normalized === "z") {
-      layoutMode = toggleDerivedTagOntologyExplorerLayoutMode(layoutMode, activePane);
+      layoutMode = toggleTerminalTwoPaneLayoutMode(layoutMode, activePane);
       continue;
     }
     if (normalized === "?") {

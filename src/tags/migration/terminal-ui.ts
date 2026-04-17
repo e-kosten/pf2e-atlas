@@ -43,6 +43,9 @@ export type DerivedTagTerminalPane = {
   active?: boolean;
 };
 
+export type DerivedTagTerminalTwoPaneFocus = "list" | "detail";
+export type DerivedTagTerminalTwoPaneLayoutMode = "split" | "detail-only";
+
 export type DerivedTagTerminalTwoPaneScreen = {
   title: string;
   subtitle?: string;
@@ -367,6 +370,40 @@ export function getTerminalTwoPaneDimensions(
   const rightWidth = Math.max(20, totalWidth - leftWidth - separatorWidth);
 
   return { leftWidth, rightWidth, separatorWidth };
+}
+
+export function getTerminalTwoPaneDetailWidth(
+  session: DerivedTagTerminalSession,
+  layoutMode: DerivedTagTerminalTwoPaneLayoutMode,
+  preferredLeftWidth?: number,
+): number {
+  if (layoutMode === "detail-only") {
+    return session.term.width;
+  }
+  return getTerminalTwoPaneDimensions(session, preferredLeftWidth).rightWidth;
+}
+
+export function toggleTerminalTwoPaneFocus(
+  activePane: DerivedTagTerminalTwoPaneFocus,
+): DerivedTagTerminalTwoPaneFocus {
+  return activePane === "list" ? "detail" : "list";
+}
+
+export function normalizeTerminalTwoPaneLayoutMode(
+  layoutMode: DerivedTagTerminalTwoPaneLayoutMode,
+  activePane: DerivedTagTerminalTwoPaneFocus,
+): DerivedTagTerminalTwoPaneLayoutMode {
+  return activePane === "detail" ? layoutMode : "split";
+}
+
+export function toggleTerminalTwoPaneLayoutMode(
+  layoutMode: DerivedTagTerminalTwoPaneLayoutMode,
+  activePane: DerivedTagTerminalTwoPaneFocus,
+): DerivedTagTerminalTwoPaneLayoutMode {
+  if (activePane !== "detail") {
+    return "split";
+  }
+  return layoutMode === "split" ? "detail-only" : "split";
 }
 
 export function getTerminalPaneBodyHeight(
