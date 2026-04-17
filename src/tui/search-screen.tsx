@@ -16,12 +16,12 @@ import type {
   Pf2eTerminalSearchSession,
 } from "./search-service.js";
 import {
-  TerminalThreePaneScreen,
+  TerminalTwoPaneScreen,
   getDerivedTagTerminalListNavigationAction,
   getNormalizedKeyName,
   getRenderedTerminalLineCount,
   getTerminalPaneBodyHeight,
-  getTerminalThreePaneDimensions,
+  getTerminalTwoPaneDetailWidth,
   moveSelection,
   sliceRenderedTerminalLines,
   useDerivedTagTerminalApp,
@@ -55,9 +55,11 @@ type SearchWorkspaceEntry = {
   disabled?: boolean;
 };
 
-type SearchScreenPane = "workspace" | "results" | "detail";
+type SearchScreenSurface = "workspace" | "results";
+type SearchScreenPane = "list" | "detail";
 
 type SearchScreenState = {
+  activeSurface: SearchScreenSurface;
   activePane: SearchScreenPane;
   detailScroll: number;
   draft: Pf2eTerminalSearchRequest;
@@ -67,6 +69,7 @@ type SearchScreenState = {
 };
 
 type SearchScreenAction =
+  | { type: "set_active_surface"; surface: SearchScreenSurface; pane?: SearchScreenPane }
   | { type: "set_active_pane"; pane: SearchScreenPane }
   | { type: "move_workspace_selection"; delta: number; itemCount: number }
   | { type: "workspace_selection_boundary"; boundary: "start" | "end"; itemCount: number }
@@ -78,12 +81,12 @@ type SearchScreenAction =
   | { type: "set_session"; session: Pf2eTerminalSearchSession }
   | { type: "clear_results" };
 
-const SEARCH_LEFT_WIDTH = 36;
-const SEARCH_CENTER_WIDTH = 42;
+const SEARCH_LEFT_WIDTH = 44;
 
 function createInitialSearchScreenState(initialRequest: Pf2eTerminalSearchRequest): SearchScreenState {
   return {
-    activePane: "workspace",
+    activeSurface: "workspace",
+    activePane: "list",
     detailScroll: 0,
     draft: initialRequest,
     workspaceSelectedIndex: 0,
@@ -94,10 +97,18 @@ function createInitialSearchScreenState(initialRequest: Pf2eTerminalSearchReques
 
 function searchScreenReducer(state: SearchScreenState, action: SearchScreenAction): SearchScreenState {
   switch (action.type) {
+    case "set_active_surface":
+      return {
+        ...state,
+        activeSurface: action.surface,
+        activePane: action.pane ?? "list",
+        detailScroll: 0,
+      };
     case "set_active_pane":
       return {
         ...state,
         activePane: action.pane,
+        detailScroll: action.pane === "detail" ? state.detailScroll : 0,
       };
     case "move_workspace_selection":
       return {
@@ -153,7 +164,8 @@ function searchScreenReducer(state: SearchScreenState, action: SearchScreenActio
     case "set_session":
       return {
         ...state,
-        activePane: action.session.results.length > 0 ? "results" : "workspace",
+        activeSurface: action.session.results.length > 0 ? "results" : "workspace",
+        activePane: "list",
         detailScroll: 0,
         draft: action.session.request,
         resultSelectedIndex: 0,
@@ -162,7 +174,8 @@ function searchScreenReducer(state: SearchScreenState, action: SearchScreenActio
     case "clear_results":
       return {
         ...state,
-        activePane: "workspace",
+        activeSurface: "workspace",
+        activePane: "list",
         detailScroll: 0,
         resultSelectedIndex: 0,
         session: null,
@@ -417,19 +430,10 @@ function buildResultLines(
   selectedIndex: number,
   bodyHeight: number,
 ): DerivedTagTerminalLine[] {
-  if (!session) {
+  if (!session || session.results.length === 0) {
     return [
       { text: "No applied results yet.", tone: "section" },
-      { text: "Use the left pane to set scope and filters, then run the draft query.", tone: "dim" },
-      { text: "The result list stays here once a session is applied.", tone: "dim" },
-    ];
-  }
-
-  if (session.results.length === 0) {
-    return [
-      { text: "No results in the applied session.", tone: "section" },
-      { text: `Applied mode: ${formatMode(session.request.mode)} | ${session.resultMode}`, tone: "dim" },
-      { text: "Change the draft scope or query, then run again.", tone: "dim" },
+      { text: "Run the draft query to move into result browsing.", tone: "dim" },
     ];
   }
 
@@ -560,40 +564,20 @@ function buildFacetRemovalEntries(
   return entries;
 }
 
-function getNextPane(activePane: SearchScreenPane): SearchScreenPane {
-  switch (activePane) {
-    case "workspace":
-      return "results";
-    case "results":
-      return "detail";
-    case "detail":
-    default:
-      return "workspace";
+function buildFooterText(surface: SearchScreenSurface, pane: SearchScreenPane, hasSession: boolean): string {
+  if (surface === "workspace") {
+    if (pane === "list") {
+      return "Up/Down select  Ctrl-U/D jump  PgUp/PgDn page  Home/End edge  Enter edit/run  Right preview  Tab toggle  Esc/backspace back  q back";
+    }
+    return hasSession
+      ? "Up/Down scroll  Ctrl-U/D jump  PgUp/PgDn page  Home/End edge  Left filters  Right results  Tab toggle  Esc/backspace filters  q back"
+      : "Up/Down scroll  Ctrl-U/D jump  PgUp/PgDn page  Home/End edge  Left filters  Tab toggle  Esc/backspace filters  q back";
   }
-}
 
-function getPreviousPane(activePane: SearchScreenPane): SearchScreenPane {
-  switch (activePane) {
-    case "workspace":
-      return "detail";
-    case "results":
-      return "workspace";
-    case "detail":
-    default:
-      return "results";
+  if (pane === "list") {
+    return "Up/Down select  Ctrl-U/D jump  PgUp/PgDn page  Home/End edge  Left filters  Right preview  Enter preview  Tab toggle  Esc filters  q back";
   }
-}
-
-function buildFooterText(activePane: SearchScreenPane): string {
-  switch (activePane) {
-    case "workspace":
-      return "Up/Down select  Ctrl-U/D jump  PgUp/PgDn page  Home/End edge  Enter edit/run  Right results  / query  Tab cycle  Esc/backspace back  q back";
-    case "results":
-      return "Up/Down select  Ctrl-U/D jump  PgUp/PgDn page  Home/End edge  Left filters  Right detail  Enter detail  / query  Tab cycle  Esc filters  q back";
-    case "detail":
-    default:
-      return "Up/Down scroll  Ctrl-U/D jump  PgUp/PgDn page  Home/End edge  Left results  / query  Tab cycle  Esc results  q back";
-  }
+  return "Up/Down scroll  Ctrl-U/D jump  PgUp/PgDn page  Home/End edge  Left results  Tab toggle  Esc/backspace results  q back";
 }
 
 export function SearchScreen({
@@ -621,20 +605,21 @@ export function SearchScreen({
   const resultCount = state.session?.results.length ?? 0;
   const resultSelectedIndex = Math.max(0, Math.min(state.resultSelectedIndex, Math.max(0, resultCount - 1)));
   const selectedResult = resultCount > 0 ? state.session?.results[resultSelectedIndex] ?? null : null;
+  const showingResultsSurface = Boolean(state.session) && state.activeSurface === "results";
 
   const bodyHeight = Math.max(1, getTerminalPaneBodyHeight(size.height, {
     hasSubtitle: true,
     footerLineCount: 2,
   }));
-  const dimensions = getTerminalThreePaneDimensions(size.width, SEARCH_LEFT_WIDTH, SEARCH_CENTER_WIDTH);
   const selectionJumpSize = Math.max(1, Math.floor(bodyHeight / 2));
   const pageSize = Math.max(1, bodyHeight - 1);
-  const detailLines = selectedResult
+  const detailWidth = getTerminalTwoPaneDetailWidth(size.width, "split", SEARCH_LEFT_WIDTH);
+  const detailLines = showingResultsSurface && selectedResult
     ? buildResultDetailLines(selectedResult, resultSelectedIndex, resultCount)
     : selectedWorkspaceEntry
       ? buildWorkspaceEntryDetailLines(selectedWorkspaceEntry, state)
       : buildWorkspaceSummaryLines(state);
-  const renderedDetailLineCount = getRenderedTerminalLineCount(detailLines, dimensions.rightWidth);
+  const renderedDetailLineCount = getRenderedTerminalLineCount(detailLines, detailWidth);
   const maxDetailScroll = Math.max(0, renderedDetailLineCount - bodyHeight);
   const detailScroll = Math.min(state.detailScroll, maxDetailScroll);
 
@@ -970,7 +955,7 @@ export function SearchScreen({
 
   const resetDraftWorkspace = React.useCallback(() => {
     dispatch({ type: "set_draft", request: user.search.createDefaultRequest() });
-    dispatch({ type: "set_active_pane", pane: "workspace" });
+    dispatch({ type: "set_active_surface", surface: "workspace", pane: "list" });
   }, [user.search]);
 
   const openSelectedWorkspaceEntry = React.useCallback(() => {
@@ -1040,12 +1025,7 @@ export function SearchScreen({
     }
 
     const normalized = getNormalizedKeyName(input, key);
-    const workspaceNavigation = getDerivedTagTerminalListNavigationAction(normalized, {
-      pageSize,
-      jumpSize: selectionJumpSize,
-      includeConfirmKeys: true,
-    });
-    const resultsNavigation = getDerivedTagTerminalListNavigationAction(normalized, {
+    const listNavigation = getDerivedTagTerminalListNavigationAction(normalized, {
       pageSize,
       jumpSize: selectionJumpSize,
       includeConfirmKeys: true,
@@ -1063,33 +1043,29 @@ export function SearchScreen({
       void editQueryText();
       return;
     }
-    if (normalized === "tab" || normalized === "w") {
-      dispatch({ type: "set_active_pane", pane: getNextPane(state.activePane) });
-      return;
-    }
-    if (normalized === "shift_tab") {
-      dispatch({ type: "set_active_pane", pane: getPreviousPane(state.activePane) });
+    if (normalized === "tab" || normalized === "w" || normalized === "shift_tab") {
+      dispatch({ type: "set_active_pane", pane: state.activePane === "list" ? "detail" : "list" });
       return;
     }
 
-    if (state.activePane === "workspace") {
+    if (state.activeSurface === "workspace" && state.activePane === "list") {
       if (normalized === "escape" || normalized === "backspace") {
         onBack();
         return;
       }
       if (normalized === "right") {
-        dispatch({ type: "set_active_pane", pane: "results" });
+        dispatch({ type: "set_active_pane", pane: "detail" });
         return;
       }
-      if (workspaceNavigation?.kind === "move") {
-        dispatch({ type: "move_workspace_selection", delta: workspaceNavigation.delta, itemCount: workspaceEntries.length });
+      if (listNavigation?.kind === "move") {
+        dispatch({ type: "move_workspace_selection", delta: listNavigation.delta, itemCount: workspaceEntries.length });
         return;
       }
-      if (workspaceNavigation?.kind === "boundary") {
-        dispatch({ type: "workspace_selection_boundary", boundary: workspaceNavigation.boundary, itemCount: workspaceEntries.length });
+      if (listNavigation?.kind === "boundary") {
+        dispatch({ type: "workspace_selection_boundary", boundary: listNavigation.boundary, itemCount: workspaceEntries.length });
         return;
       }
-      if (workspaceNavigation?.kind === "confirm") {
+      if (listNavigation?.kind === "confirm") {
         openSelectedWorkspaceEntry();
         return;
       }
@@ -1135,27 +1111,46 @@ export function SearchScreen({
       return;
     }
 
-    if (state.activePane === "results") {
+    if (state.activeSurface === "workspace" && state.activePane === "detail") {
       if (normalized === "escape" || normalized === "backspace" || normalized === "left") {
-        dispatch({ type: "set_active_pane", pane: "workspace" });
+        dispatch({ type: "set_active_pane", pane: "list" });
         return;
       }
-      if ((normalized === "right" || resultsNavigation?.kind === "confirm") && selectedResult) {
+      if (normalized === "right" && state.session) {
+        dispatch({ type: "set_active_surface", surface: "results", pane: "list" });
+        return;
+      }
+      if (detailNavigation?.kind === "move") {
+        dispatch({ type: "move_detail", delta: detailNavigation.delta, maxDetailScroll });
+        return;
+      }
+      if (detailNavigation?.kind === "boundary") {
+        dispatch({ type: "detail_boundary", boundary: detailNavigation.boundary, maxDetailScroll });
+      }
+      return;
+    }
+
+    if (state.activeSurface === "results" && state.activePane === "list") {
+      if (normalized === "escape" || normalized === "backspace" || normalized === "left") {
+        dispatch({ type: "set_active_surface", surface: "workspace", pane: "list" });
+        return;
+      }
+      if ((normalized === "right" || listNavigation?.kind === "confirm") && selectedResult) {
         dispatch({ type: "set_active_pane", pane: "detail" });
         return;
       }
-      if (resultsNavigation?.kind === "move") {
-        dispatch({ type: "move_result_selection", delta: resultsNavigation.delta, itemCount: resultCount });
+      if (listNavigation?.kind === "move") {
+        dispatch({ type: "move_result_selection", delta: listNavigation.delta, itemCount: resultCount });
         return;
       }
-      if (resultsNavigation?.kind === "boundary") {
-        dispatch({ type: "result_selection_boundary", boundary: resultsNavigation.boundary, itemCount: resultCount });
+      if (listNavigation?.kind === "boundary") {
+        dispatch({ type: "result_selection_boundary", boundary: listNavigation.boundary, itemCount: resultCount });
       }
       return;
     }
 
     if (normalized === "escape" || normalized === "backspace" || normalized === "left") {
-      dispatch({ type: "set_active_pane", pane: selectedResult ? "results" : "workspace" });
+      dispatch({ type: "set_active_pane", pane: "list" });
       return;
     }
     if (detailNavigation?.kind === "move") {
@@ -1168,28 +1163,37 @@ export function SearchScreen({
   }, !busy);
 
   return (
-    <TerminalThreePaneScreen
+    <TerminalTwoPaneScreen
       title="Browse/Search"
       subtitle={buildSearchSubtitle(state)}
       left={{
-        title: state.activePane === "workspace" ? "[WORKSPACE] Scope & Filters" : "Scope & Filters",
-        lines: buildWorkspaceLines(workspaceEntries, workspaceSelectedIndex, bodyHeight),
-        active: state.activePane === "workspace",
-      }}
-      center={{
-        title: state.activePane === "results"
-          ? `[RESULTS] ${state.session ? `${state.session.results.length}/${state.session.total} shown` : "No applied session"}`
-          : `Results${state.session ? ` | ${state.session.results.length}/${state.session.total} shown` : " | No applied session"}`,
-        lines: buildResultLines(state.session, resultSelectedIndex, bodyHeight),
-        active: state.activePane === "results",
+        title: showingResultsSurface
+          ? state.activePane === "list"
+            ? `[RESULTS] ${state.session ? `${state.session.results.length}/${state.session.total} shown` : "No applied session"}`
+            : `Results | ${state.session ? `${state.session.results.length}/${state.session.total} shown` : "No applied session"}`
+          : state.activePane === "list"
+            ? "[WORKSPACE] Scope & Filters"
+            : "Scope & Filters",
+        lines: showingResultsSurface
+          ? buildResultLines(state.session, resultSelectedIndex, bodyHeight)
+          : buildWorkspaceLines(workspaceEntries, workspaceSelectedIndex, bodyHeight),
+        active: state.activePane === "list",
       }}
       right={{
         title: state.activePane === "detail"
-          ? `[PREVIEW] ${selectedResult ? selectedResult.name : selectedWorkspaceEntry?.label ?? "Workspace"}`
-          : `Preview${selectedResult ? ` | ${selectedResult.name}` : selectedWorkspaceEntry ? ` | ${selectedWorkspaceEntry.label}` : ""}`,
+          ? `[PREVIEW] ${
+            showingResultsSurface
+              ? selectedResult?.name ?? "Results"
+              : selectedWorkspaceEntry?.label ?? "Workspace"
+          }`
+          : `Preview | ${
+            showingResultsSurface
+              ? selectedResult?.name ?? "Results"
+              : selectedWorkspaceEntry?.label ?? "Workspace"
+          }`,
         lines: sliceRenderedTerminalLines(
           detailLines,
-          dimensions.rightWidth,
+          detailWidth,
           detailScroll,
           bodyHeight,
         ),
@@ -1197,18 +1201,17 @@ export function SearchScreen({
       }}
       footer={[
         {
-          text: buildFooterText(state.activePane),
+          text: buildFooterText(state.activeSurface, state.activePane, Boolean(state.session)),
           tone: "dim",
         },
         {
           text: state.session
-            ? `${formatDraftStatus(state)} | ${state.session.results.length}/${state.session.total} shown | focus ${humanizeIdentifier(state.activePane)}`
-            : `${formatDraftStatus(state)} | ${formatMode(state.draft.mode)} | focus ${humanizeIdentifier(state.activePane)}`,
+            ? `${formatDraftStatus(state)} | ${state.session.results.length}/${state.session.total} shown | ${humanizeIdentifier(state.activeSurface)} ${humanizeIdentifier(state.activePane)}`
+            : `${formatDraftStatus(state)} | ${formatMode(state.draft.mode)} | ${humanizeIdentifier(state.activeSurface)} ${humanizeIdentifier(state.activePane)}`,
           tone: "accent",
         },
       ]}
       leftWidth={SEARCH_LEFT_WIDTH}
-      centerWidth={SEARCH_CENTER_WIDTH}
     />
   );
 }

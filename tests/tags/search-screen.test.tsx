@@ -253,8 +253,8 @@ describe("search screen", () => {
     await flushInk();
     expect(app.lastFrame()).toContain("Browse/Search");
     expect(app.lastFrame()).toContain("Scope & Filters");
-    expect(app.lastFrame()).toContain("Results | No applied session");
     expect(app.lastFrame()).toContain("Preview | Run Draft Query");
+    expect(app.lastFrame()).not.toContain("Results | No applied session");
     expect(app.lastFrame()).not.toContain("Profile |");
     expect(app.lastFrame()).not.toContain("Action Cost |");
 
@@ -331,6 +331,7 @@ describe("search screen", () => {
     });
     expect(app.lastFrame()).toContain("Draft matches applied query");
     expect(app.lastFrame()).toContain("1/1 shown");
+    expect(app.lastFrame()).toContain("[RESULTS] 1/1 shown");
     expect(app.lastFrame()).toContain("Alarm Ward | spell | lvl 1");
     expect(app.lastFrame()).toContain("Preview | Alarm Ward");
     expect(app.lastFrame()).not.toContain("Result 1 |");
@@ -338,6 +339,15 @@ describe("search screen", () => {
     pressRight(app);
     await flushInk();
     expect(app.lastFrame()).toContain("[PREVIEW] Alarm Ward");
+
+    app.stdin.write("\u001b[D");
+    await flushInk();
+    expect(app.lastFrame()).toContain("[RESULTS] 1/1 shown");
+
+    app.stdin.write("\u001b[D");
+    await flushInk();
+    expect(app.lastFrame()).toContain("[WORKSPACE] Scope & Filters");
+    expect(app.lastFrame()).not.toContain("[RESULTS] 1/1 shown");
   });
 
   it("orders filter values from declarative field policies and exposes action cost through facet editing", () => {
