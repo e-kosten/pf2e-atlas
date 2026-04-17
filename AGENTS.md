@@ -28,6 +28,16 @@ Vitest is the test runner. Add or update `*.test.ts` files under `tests/` for be
 
 Use trunk-based branches such as `feat/<topic>` or `fix/<topic>`. Commit messages must use Conventional Commits and include both a summary line and a description body separated by a blank line, for example `feat(search): add publication title filtering` followed by a short paragraph describing the change. Agents must commit any coherent, validated unit of work before reporting the task complete unless the user explicitly says not to commit. Do not present implementation work as finished while your tracked changes for that task remain uncommitted. Final completion messages for implementation work must include the commit SHA and commit message. Do not batch unrelated changes into one commit, and do not commit half-finished work just to create progress snapshots. If the worktree already contains unrelated uncommitted changes, leave them untouched and commit only the files for your completed unit of work, or explicitly tell the user why a clean commit boundary is blocked. When the user immediately asks for a follow-up adjustment to work that was just committed locally, prefer folding that adjustment into the same logical commit: soft-reset or otherwise rewrite the unpublished local commit, apply the requested patch, rerun relevant verification, and recommit instead of stacking a trivial fixup commit. This is a personal-project workflow with no PR step, so once a task branch is complete and validated it should be merged back into `main`. Before considering the work done, run `npm run build` and `npm test`, commit the validated changes, describe the user-facing change, report the commit SHA and message, and note any required refresh steps or data/index migration implications. If build or test verification fails, do not commit unless the user explicitly asks for that state to be committed.
 
+### Agent Worktree Policy
+
+Agents must do implementation work in a dedicated git worktree, not in the shared main checkout.
+
+- Before editing tracked files, create or switch to an isolated worktree rooted at a new branch from the current `main` HEAD.
+- Do not share a checkout with another running agent, and do not reuse the user's current working tree for agent edits.
+- Commit and validate the change inside the worktree first.
+- After validation, merge or cherry-pick the resulting commit back onto `main`, rerun `npm run build` and `npm test` on `main`, and only then report the task complete.
+- Remove the temporary worktree after the change has been safely integrated unless the user asks to keep it.
+
 ## Configuration & Data Notes
 
 Default data path is `vendor/pf2e`. Startup is offline-only: it expects a current local SQLite index and prepared embedding assets. If the PF2E checkout, embedding model, or index schema changes, rerun `npm run refresh-index` or `npm run refresh-external`.
