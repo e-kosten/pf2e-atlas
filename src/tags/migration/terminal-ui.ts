@@ -40,6 +40,7 @@ export type DerivedTagTerminalTextScreen = {
 export type DerivedTagTerminalPane = {
   title: string;
   lines: DerivedTagTerminalLine[];
+  active?: boolean;
 };
 
 export type DerivedTagTerminalTwoPaneScreen = {
@@ -180,6 +181,23 @@ function renderLines(
   lines: DerivedTagTerminalLine[],
 ): void {
   const term = session.term;
+  const renderedLines = buildRenderedTerminalLines(lines, width);
+
+  for (let row = 0; row < height; row += 1) {
+    term.moveTo(x, startY + row);
+    const line = renderedLines[row];
+    if (!line) {
+      term(" ".repeat(width));
+      continue;
+    }
+    applyTone(term, line.tone, fitToWidth(line.text, width));
+  }
+}
+
+function buildRenderedTerminalLines(
+  lines: DerivedTagTerminalLine[],
+  width: number,
+): Array<{ text: string; tone: DerivedTagTerminalTone }> {
   const renderedLines: Array<{ text: string; tone: DerivedTagTerminalTone }> = [];
 
   for (const rawLine of lines) {
@@ -196,15 +214,7 @@ function renderLines(
     }
   }
 
-  for (let row = 0; row < height; row += 1) {
-    term.moveTo(x, startY + row);
-    const line = renderedLines[row];
-    if (!line) {
-      term(" ".repeat(width));
-      continue;
-    }
-    applyTone(term, line.tone, fitToWidth(line.text, width));
-  }
+  return renderedLines;
 }
 
 function renderPane(
@@ -221,13 +231,13 @@ function renderPane(
   }
 
   term.moveTo(x, startY);
-  applyTone(term, "section", fitToWidth(pane.title, width));
+  applyTone(term, pane.active ? "selected" : "section", fitToWidth(pane.title, width));
   if (height === 1) {
     return;
   }
 
   term.moveTo(x, startY + 1);
-  applyTone(term, "dim", fitToWidth(repeatCharacter("─", width), width));
+  applyTone(term, pane.active ? "accent" : "dim", fitToWidth(repeatCharacter("─", width), width));
   renderLines(session, x, startY + 2, width, Math.max(0, height - 2), pane.lines);
 }
 
@@ -317,10 +327,7 @@ export function renderTerminalTwoPaneScreen(
   const headerBottom = renderHeader(session, screen.title, screen.subtitle);
   const footerHeight = renderFooter(session, screen.footer);
   const contentHeight = Math.max(0, session.term.height - headerBottom - footerHeight + 1);
-  const totalWidth = session.term.width;
-  const separatorWidth = 3;
-  const leftWidth = Math.max(24, Math.min(screen.leftWidth ?? Math.floor(totalWidth * 0.38), totalWidth - separatorWidth - 20));
-  const rightWidth = Math.max(20, totalWidth - leftWidth - separatorWidth);
+  const { leftWidth, rightWidth, separatorWidth } = getTerminalTwoPaneDimensions(session, screen.leftWidth);
 
   renderPane(session, 1, headerBottom, leftWidth, contentHeight, screen.left);
   session.term.moveTo(leftWidth + 2, headerBottom);
@@ -332,6 +339,18 @@ export function renderTerminalTwoPaneScreen(
   renderPane(session, leftWidth + separatorWidth, headerBottom, rightWidth, contentHeight, screen.right);
 }
 
+export function getTerminalTwoPaneDimensions(
+  session: DerivedTagTerminalSession,
+  preferredLeftWidth?: number,
+): { leftWidth: number; rightWidth: number; separatorWidth: number } {
+  const totalWidth = session.term.width;
+  const separatorWidth = 3;
+  const leftWidth = Math.max(24, Math.min(preferredLeftWidth ?? Math.floor(totalWidth * 0.38), totalWidth - separatorWidth - 20));
+  const rightWidth = Math.max(20, totalWidth - leftWidth - separatorWidth);
+
+  return { leftWidth, rightWidth, separatorWidth };
+}
+
 export function getTerminalPaneBodyHeight(
   session: DerivedTagTerminalSession,
   options: { hasSubtitle?: boolean; footerLineCount?: number },
@@ -340,6 +359,28 @@ export function getTerminalPaneBodyHeight(
   const footerHeight = options.footerLineCount ?? 0;
   const contentHeight = Math.max(0, session.term.height - headerBottom - footerHeight + 1);
   return Math.max(0, contentHeight - 2);
+}
+
+export function getRenderedTerminalLineCount(
+  lines: DerivedTagTerminalLine[],
+  width: number,
+): number {
+  return buildRenderedTerminalLines(lines, width).length;
+}
+
+export function sliceRenderedTerminalLines(
+  lines: DerivedTagTerminalLine[],
+  width: number,
+  start: number,
+  count: number,
+): DerivedTagTerminalLine[] {
+  return buildRenderedTerminalLines(lines, width)
+    .slice(start, start + count)
+    .map((line) => ({
+      text: line.text,
+      tone: line.tone,
+      noWrap: true,
+    }));
 }
 
 export async function readTerminalKey(

@@ -9,6 +9,7 @@ import {
 import {
   createDerivedTagOntologyExplorerState,
   drillIntoDerivedTagOntologyExplorer,
+  jumpDerivedTagOntologyExplorerSelection,
   moveDerivedTagOntologyExplorerDetailScroll,
   moveDerivedTagOntologyExplorerDetailScrollToBoundary,
   moveDerivedTagOntologyExplorerSelection,
@@ -17,6 +18,10 @@ import {
   popDerivedTagOntologyExplorerDepth,
   setDerivedTagOntologyExplorerFilter,
 } from "../../src/tags/migration/ontology-explorer-ui.js";
+import {
+  getRenderedTerminalLineCount,
+  sliceRenderedTerminalLines,
+} from "../../src/tags/migration/terminal-ui.js";
 
 function createExplorerDb(): DatabaseSync {
   const db = new DatabaseSync(":memory:");
@@ -399,6 +404,49 @@ describe("derived tag ontology explorer", () => {
     expect(state.selectedRecordKey).toBe("spell:three");
   });
 
+  it("clamps jump-style record movement instead of wrapping", () => {
+    const db = createExplorerDb();
+    insertRecord(db, {
+      recordKey: "spell:one",
+      name: "Alarm Ward",
+      category: "spell",
+      tags: ["alarm"],
+    });
+    insertRecord(db, {
+      recordKey: "spell:two",
+      name: "Breach Alarm",
+      category: "spell",
+      tags: ["alarm"],
+    });
+    insertRecord(db, {
+      recordKey: "spell:three",
+      name: "Watch Bell",
+      category: "spell",
+      tags: ["alarm"],
+    });
+
+    const model = buildDerivedTagOntologyExplorerModel(db);
+    const spellCategory = model.categories.find((category) => category.category === "spell");
+    const communicationFamily = spellCategory?.families.find((family) => family.family === "communication");
+    const alarmTag = communicationFamily?.tags.find((tag) => tag.tag === "alarm");
+
+    let state = createDerivedTagOntologyExplorerState(model);
+    state = normalizeDerivedTagOntologyExplorerState(model, {
+      ...state,
+      depth: "record",
+      selectedCategoryKey: "spell",
+      selectedFamilyKey: communicationFamily?.key,
+      selectedTagKey: alarmTag?.key,
+      selectedRecordKey: "spell:two",
+    });
+
+    state = jumpDerivedTagOntologyExplorerSelection(model, state, 10);
+    expect(state.selectedRecordKey).toBe("spell:three");
+
+    state = jumpDerivedTagOntologyExplorerSelection(model, state, -10);
+    expect(state.selectedRecordKey).toBe("spell:one");
+  });
+
   it("scrolls detail focus with clamping and boundary jumps", () => {
     let state = {
       depth: "record" as const,
@@ -420,6 +468,19 @@ describe("derived tag ontology explorer", () => {
 
     state = moveDerivedTagOntologyExplorerDetailScrollToBoundary(state, "start", 14);
     expect(state.detailScroll).toBe(0);
+  });
+
+  it("counts and slices wrapped detail rows using rendered terminal width", () => {
+    const lines = [
+      { text: "Short heading", tone: "section" as const },
+      { text: "This is a long wrapped detail line that should span multiple rendered terminal rows when the pane is narrow." },
+    ];
+
+    expect(getRenderedTerminalLineCount(lines, 18)).toBeGreaterThan(lines.length);
+
+    const visibleLines = sliceRenderedTerminalLines(lines, 18, 1, 3);
+    expect(visibleLines).toHaveLength(3);
+    expect(visibleLines.every((line) => line.noWrap)).toBe(true);
   });
 
   it("filters ontology node lists by normalized search text", () => {
