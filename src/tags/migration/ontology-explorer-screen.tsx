@@ -201,6 +201,11 @@ export function DerivedTagOntologyExplorerScreen({
   const effectiveState = normalizedExplorerState.detailScroll > metrics.maxDetailScroll
     ? { ...normalizedExplorerState, detailScroll: metrics.maxDetailScroll }
     : normalizedExplorerState;
+  const searchIndicator = state.searchMode
+    ? ` | /${state.searchInput}`
+    : effectiveState.filter
+      ? ` | /${effectiveState.filter}`
+      : "";
 
   useDerivedTagTerminalInput((input, key) => {
     const normalized = getNormalizedKeyName(input, key);
@@ -374,7 +379,7 @@ export function DerivedTagOntologyExplorerScreen({
     return (
       <TerminalPaneScreen
         title="Ontology Search"
-        subtitle={`${buildDerivedTagOntologyExplorerBreadcrumb(selection, effectiveState)} | depth ${effectiveState.depth} | focused detail | ${state.searchMode ? `/${state.searchInput}` : `/${effectiveState.filter}`}`}
+        subtitle={`${buildDerivedTagOntologyExplorerBreadcrumb(selection, effectiveState)} | depth ${effectiveState.depth} | focused detail${searchIndicator}`}
         pane={{
           title: `[FOCUSED DETAIL] ${effectiveState.depth === "category"
             ? "Category Details"
@@ -407,7 +412,7 @@ export function DerivedTagOntologyExplorerScreen({
   return (
     <TerminalTwoPaneScreen
       title="Ontology Search"
-      subtitle={`${buildDerivedTagOntologyExplorerBreadcrumb(selection, effectiveState)} | depth ${effectiveState.depth} | ${state.searchMode ? `/${state.searchInput}` : `/${effectiveState.filter}`}`}
+      subtitle={`${buildDerivedTagOntologyExplorerBreadcrumb(selection, effectiveState)} | depth ${effectiveState.depth}${searchIndicator}`}
       left={{
         title: `${state.activePane === "list" ? "[LIST] " : "List: "}${effectiveState.depth === "category"
           ? "Categories"

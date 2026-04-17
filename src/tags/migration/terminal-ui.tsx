@@ -522,10 +522,16 @@ export function getNormalizedKeyName(input: string, key: Key): string {
   if (key.delete) {
     return "delete";
   }
-  if (key.ctrl && input.length === 1) {
+  if (input.length === 1) {
     const code = input.codePointAt(0);
     if (code !== undefined && code >= 1 && code <= 26) {
       return `ctrl_${String.fromCodePoint(code + 96)}`;
+    }
+  }
+  if (key.ctrl && input.length === 1) {
+    const lowerInput = input.toLowerCase();
+    if (lowerInput >= "a" && lowerInput <= "z") {
+      return `ctrl_${lowerInput}`;
     }
   }
   if (input === " ") {
@@ -784,7 +790,12 @@ export function DerivedTagTerminalProvider({
 
   return (
     <DerivedTagTerminalContext.Provider value={contextValue}>
-      {modal ? <DerivedTagTerminalModalHost modal={modal} setModal={setModal} /> : children}
+      <Box display={modal ? "none" : "flex"} flexDirection="column">
+        {children}
+      </Box>
+      <Box display={modal ? "flex" : "none"} flexDirection="column">
+        {modal ? <DerivedTagTerminalModalHost modal={modal} setModal={setModal} /> : null}
+      </Box>
     </DerivedTagTerminalContext.Provider>
   );
 }

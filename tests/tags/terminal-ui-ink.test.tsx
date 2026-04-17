@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   DerivedTagTerminalProvider,
   TerminalTextScreen,
+  getNormalizedKeyName,
   useDerivedTagTerminalApp,
   useDerivedTagTerminalInput,
 } from "../../src/tags/migration/terminal-ui.js";
@@ -51,12 +52,39 @@ function SelectPromptHarness(): React.JSX.Element {
   );
 }
 
+function DialogStateHarness(): React.JSX.Element {
+  const terminal = useDerivedTagTerminalApp();
+  const [page, setPage] = React.useState("home");
+
+  useDerivedTagTerminalInput((input, key) => {
+    const normalized = getNormalizedKeyName(input, key);
+
+    if (normalized === "d") {
+      setPage("detail");
+      return;
+    }
+    if (normalized === "?") {
+      void terminal.showDialog({
+        title: "Help",
+        body: [{ text: "Press any key to return." }],
+      });
+    }
+  });
+
+  return (
+    <TerminalTextScreen
+      title="Harness"
+      body={[{ text: `page=${page}` }]}
+    />
+  );
+}
+
 describe("derived tag terminal ink runtime", () => {
   afterEach(() => {
     cleanup();
   });
 
-  it("routes modal select input through the prompt and suspends screen handlers", async () => {
+  it("suspends screen handlers while a select prompt is active", async () => {
     const app = render(
       <DerivedTagTerminalProvider>
         <SelectPromptHarness />
@@ -68,11 +96,35 @@ describe("derived tag terminal ink runtime", () => {
 
     app.stdin.write("j");
     await flushInk();
-    expect(app.lastFrame()).toContain("Selected: Second");
+    expect(app.lastFrame()).toContain("Selected: First");
+    expect(app.lastFrame()).not.toContain("appJ=1");
+  });
 
-    app.stdin.write("\r");
+  it("preserves screen state after closing a dialog modal", async () => {
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <DialogStateHarness />
+      </DerivedTagTerminalProvider>,
+    );
+
     await flushInk();
-    expect(app.lastFrame()).toContain("result=second");
-    expect(app.lastFrame()).toContain("appJ=0");
+    expect(app.lastFrame()).toContain("page=home");
+
+    app.stdin.write("d");
+    await flushInk();
+    expect(app.lastFrame()).toContain("page=detail");
+
+    app.stdin.write("?");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Help");
+
+    app.stdin.write("x");
+    await flushInk();
+    expect(app.lastFrame()).toContain("page=detail");
+  });
+
+  it("normalizes ctrl letter combinations from both Ink key paths", () => {
+    expect(getNormalizedKeyName("\u0015", {} as never)).toBe("ctrl_u");
+    expect(getNormalizedKeyName("d", { ctrl: true } as never)).toBe("ctrl_d");
   });
 });
