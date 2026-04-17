@@ -119,7 +119,7 @@ function createSearchServices(): Pf2eTerminalAppServices {
 
   return {
     config: createTestConfig(),
-    dataService: {
+    catalog: {
       getRecord: vi.fn(() => record),
       getSearchVocabulary: vi.fn(() => ({}) as never),
       listFilterValues: vi.fn(() => ({ field: "categories", values: [] }) as never),
@@ -133,40 +133,46 @@ function createSearchServices(): Pf2eTerminalAppServices {
         records: [record],
       })),
     },
-    search: {
-      getCategoryOptions: vi.fn(() => [
-        {
-          value: null,
-          label: "Any Category",
-          description: "Search across the full indexed PF2E corpus.",
-        },
-        {
-          value: "spell" satisfies SearchCategory,
-          label: "Spell",
-          description: "1 indexed canonical record.",
-        },
-      ]),
-      getProfileOptions: vi.fn(() => [
-        {
-          value: "balanced",
-          label: "Balanced",
-          description: "Default hybrid retrieval for concise themed searches.",
-        },
-        {
-          value: "lexical",
-          label: "Lexical",
-          description: "Exact-wording heavy retrieval for names and precise PF2E terms.",
-        },
-      ]),
-      runQuery,
+    user: {
+      search: {
+        getCategoryOptions: vi.fn(() => [
+          {
+            value: null,
+            label: "Any Category",
+            description: "Search across the full indexed PF2E corpus.",
+          },
+          {
+            value: "spell" satisfies SearchCategory,
+            label: "Spell",
+            description: "1 indexed canonical record.",
+          },
+        ]),
+        getProfileOptions: vi.fn(() => [
+          {
+            value: "balanced",
+            label: "Balanced",
+            description: "Default hybrid retrieval for concise themed searches.",
+          },
+          {
+            value: "lexical",
+            label: "Lexical",
+            description: "Exact-wording heavy retrieval for names and precise PF2E terms.",
+          },
+        ]),
+        runQuery,
+      },
+      ontology: {
+        loadModel: vi.fn(() => ({ categories: [] })),
+      },
     },
-    tagWorkbench: {
-      createSession: vi.fn(async () => {
-        throw new Error("not implemented");
-      }),
-      getOntologyModel: vi.fn(() => ({ categories: [] })),
-      getQueueItems: vi.fn(() => []),
-      promptAndCreateSession: vi.fn(async () => undefined),
+    dev: {
+      tagRefinement: {
+        createSession: vi.fn(async () => {
+          throw new Error("not implemented");
+        }),
+        getQueueItems: vi.fn(() => []),
+        promptAndCreateSession: vi.fn(async () => undefined),
+      },
     },
     close: vi.fn(),
   };
@@ -219,7 +225,7 @@ describe("search screen", () => {
     await flushInk();
     await flushInk();
 
-    expect(services.search.runQuery).toHaveBeenCalledWith({
+    expect(services.user.search.runQuery).toHaveBeenCalledWith({
       category: "spell",
       limit: 20,
       mode: "search",

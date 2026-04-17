@@ -20,20 +20,31 @@ import { buildScrollableLines } from "./list-utils.js";
 
 export type Pf2eTopLevelArea = {
   id: "tag_refinement" | "ontology_search" | "search";
+  audience: "user" | "dev";
   label: string;
   description: string;
 };
 
-function buildAreaDetailLines(pendingReviewCount: number): DerivedTagTerminalLine[] {
+function formatAreaAudience(audience: Pf2eTopLevelArea["audience"]): string {
+  return audience === "user" ? "User Surface" : "Development Tool";
+}
+
+function buildAreaDetailLines(
+  selectedArea: Pf2eTopLevelArea | undefined,
+  pendingReviewCount: number,
+): DerivedTagTerminalLine[] {
   return [
-    { text: "Tag Refinement", tone: "section" },
+    { text: "Selected Area", tone: "section" },
+    { text: selectedArea?.label ?? "(none)" },
+    { text: selectedArea?.description ?? "" },
+    { text: "" },
+    { text: `Audience: ${selectedArea ? formatAreaAudience(selectedArea.audience) : "-"}` },
+    { text: "" },
+    { text: "Audience Lanes", tone: "section" },
+    { text: "User Surface: Search, ontology browsing, record inspection" },
+    { text: "Development Tool: Tag refinement and review workflows" },
+    { text: "" },
     { text: `${pendingReviewCount} pending review queue slice${pendingReviewCount === 1 ? "" : "s"}` },
-    { text: "" },
-    { text: "Ontology Search", tone: "section" },
-    { text: "Browse the published ontology and drill from tags into live records." },
-    { text: "" },
-    { text: "Search", tone: "section" },
-    { text: "Reserved for the future first-class search surface powered by the indexed PF2E data service." },
   ];
 }
 
@@ -65,6 +76,7 @@ export function AreaMenuScreen({
 }): React.JSX.Element {
   const terminal = useDerivedTagTerminalApp();
   const size = useDerivedTagTerminalSize();
+  const selectedArea = areas[selectedAreaIndex];
   const bodyHeight = Math.max(1, getTerminalPaneBodyHeight(size.height, {
     hasSubtitle: true,
     footerLineCount: 2,
@@ -106,17 +118,15 @@ export function AreaMenuScreen({
         lines: buildScrollableLines(areas, selectedAreaIndex, bodyHeight),
       }}
       right={{
-        title: "Selected Area",
-        lines: [
-          { text: areas[selectedAreaIndex]?.label ?? "", tone: "section" },
-          { text: areas[selectedAreaIndex]?.description ?? "" },
-          { text: "" },
-          ...buildAreaDetailLines(pendingReviewCount),
-        ],
+        title: "Area Details",
+        lines: buildAreaDetailLines(selectedArea, pendingReviewCount),
       }}
       footer={[
         { text: "Up/Down or j/k move  Enter select  ? help  q quit", tone: "dim" },
-        { text: `${pendingReviewCount} pending queue slice${pendingReviewCount === 1 ? "" : "s"}`, tone: "accent" },
+        {
+          text: `${selectedArea ? formatAreaAudience(selectedArea.audience) : "-"} | ${pendingReviewCount} pending queue slice${pendingReviewCount === 1 ? "" : "s"}`,
+          tone: "accent",
+        },
       ]}
       leftWidth={32}
     />

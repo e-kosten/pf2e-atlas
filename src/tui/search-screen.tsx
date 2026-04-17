@@ -260,7 +260,7 @@ export function SearchScreen({
   onBack: () => void;
 }): React.JSX.Element {
   const terminal = useDerivedTagTerminalApp();
-  const { search } = usePf2eTerminalAppServices();
+  const { user } = usePf2eTerminalAppServices();
   const size = useDerivedTagTerminalSize();
   const [busy, setBusy] = React.useState(false);
   const [state, dispatch] = React.useReducer(searchScreenReducer, undefined, createInitialSearchScreenState);
@@ -307,40 +307,40 @@ export function SearchScreen({
 
     setBusy(true);
     try {
-      const session = await search.runQuery(request);
+      const session = await user.search.runQuery(request);
       dispatch({ type: "set_session", session });
     } catch (error) {
       await terminal.pauseForAnyKey(`Search failed: ${(error as Error).message}`);
     } finally {
       setBusy(false);
     }
-  }, [search, state.queryDefaults, terminal]);
+  }, [state.queryDefaults, terminal, user.search]);
 
   const chooseSearchProfile = React.useCallback(async () => {
     const selected = await terminal.promptSelectOption({
       title: "Search Profile",
       prompt: "Choose the default search profile",
-      entries: buildSearchProfileEntries(search.getProfileOptions()),
+      entries: buildSearchProfileEntries(user.search.getProfileOptions()),
       selectedValue: state.queryDefaults.searchProfile,
     });
 
     if (selected) {
       dispatch({ type: "set_profile", searchProfile: selected });
     }
-  }, [search, state.queryDefaults.searchProfile, terminal]);
+  }, [state.queryDefaults.searchProfile, terminal, user.search]);
 
   const chooseCategoryFilter = React.useCallback(async () => {
     const selected = await terminal.promptSelectOption({
       title: "Category Filter",
       prompt: "Choose the default category scope",
-      entries: buildSearchFilterEntries(search.getCategoryOptions()),
+      entries: buildSearchFilterEntries(user.search.getCategoryOptions()),
       selectedValue: state.queryDefaults.category ?? "__all__",
     });
 
     if (selected !== undefined) {
       dispatch({ type: "set_category", category: selected === "__all__" ? null : selected as SearchCategory });
     }
-  }, [search, state.queryDefaults.category, terminal]);
+  }, [state.queryDefaults.category, terminal, user.search]);
 
   useDerivedTagTerminalInput((input, key) => {
     if (busy) {

@@ -6,6 +6,7 @@ import type {
   DerivedTagMigrationMode,
   DerivedTagMigrationSession,
 } from "../tags/migration/types.js";
+import { PF2E_APP_AREAS, PF2E_TERMINAL_TITLE } from "./app-areas.js";
 import { Pf2eTerminalAppServicesProvider } from "./app-service-context.js";
 import {
   loadPf2eTerminalAppServices,
@@ -19,7 +20,7 @@ import {
   type CreatePf2eDerivedTagSessionOptions,
   type Pf2eAppRoute,
 } from "./pf2e-app-state.js";
-import { AreaMenuScreen, type Pf2eTopLevelArea } from "./area-menu-screen.js";
+import { AreaMenuScreen } from "./area-menu-screen.js";
 import { isBackOrExitKey } from "./keymap.js";
 import { DerivedTagOntologyExplorerScreen } from "./ontology-explorer/screen.js";
 import { SearchScreen } from "./search-screen.js";
@@ -32,25 +33,6 @@ import {
   useDerivedTagTerminalInput,
 } from "./terminal-ui.js";
 import { TagRefinementMenuScreen, type TagRefinementMenuItem } from "./tag-refinement-menu-screen.js";
-
-const PF2E_TERMINAL_TITLE = "PF2E Terminal";
-const PF2E_APP_AREAS: Pf2eTopLevelArea[] = [
-  {
-    id: "tag_refinement",
-    label: "Tag Refinement",
-    description: "Review authored queue items and create AI proposal, legacy-seed, legacy-rule, and exemplar-cleanup sessions.",
-  },
-  {
-    id: "ontology_search",
-    label: "Ontology Search",
-    description: "Browse category -> family -> tag -> record and inspect how derived tags map onto live indexed records.",
-  },
-  {
-    id: "search",
-    label: "Search",
-    description: "User-facing lookup and search over the same indexed PF2E data surfaced by the MCP server.",
-  },
-];
 
 function StartupErrorScreen({
   message,
@@ -94,8 +76,7 @@ export function Pf2eTerminalApp({
   const [state, dispatch] = React.useReducer(pf2eAppReducer, initialRoute, createPf2eAppState);
   const [busyMessage, setBusyMessage] = React.useState<string | null>(null);
   const route = getCurrentPf2eAppRoute(state);
-
-  const queueItems = services.tagWorkbench.getQueueItems();
+  const queueItems = services.dev.tagRefinement.getQueueItems();
 
   const runWithBusyState = React.useCallback(async <T,>(message: string, task: () => Promise<T>): Promise<T> => {
     setBusyMessage(message);
@@ -116,18 +97,18 @@ export function Pf2eTerminalApp({
   ) => {
     await runWithBusyState(`Preparing ${formatDerivedTagMigrationModeLabel(mode)} session...`, async () => {
       try {
-        const session = await services.tagWorkbench.createSession(rootPath, mode, options);
+        const session = await services.dev.tagRefinement.createSession(rootPath, mode, options);
         openReviewSession(session);
       } catch (error) {
         await terminal.pauseForAnyKey(`Could not create the ${formatDerivedTagMigrationModeLabel(mode)} session.\n\n${(error as Error).message}`);
       }
     });
-  }, [openReviewSession, rootPath, runWithBusyState, services, terminal]);
+  }, [openReviewSession, rootPath, runWithBusyState, services.dev.tagRefinement, terminal]);
 
   const startCustomSession = React.useCallback(async (mode: DerivedTagMigrationMode) => {
     await runWithBusyState(`Loading ${formatDerivedTagMigrationModeLabel(mode)} session options...`, async () => {
       try {
-        const session = await services.tagWorkbench.promptAndCreateSession(rootPath, mode, terminal);
+        const session = await services.dev.tagRefinement.promptAndCreateSession(rootPath, mode, terminal);
         if (session) {
           openReviewSession(session);
         }
@@ -135,18 +116,18 @@ export function Pf2eTerminalApp({
         await terminal.pauseForAnyKey(`Could not create the ${formatDerivedTagMigrationModeLabel(mode)} session.\n\n${(error as Error).message}`);
       }
     });
-  }, [openReviewSession, rootPath, runWithBusyState, services, terminal]);
+  }, [openReviewSession, rootPath, runWithBusyState, services.dev.tagRefinement, terminal]);
 
   const openOntology = React.useCallback(async () => {
     await runWithBusyState("Opening ontology explorer...", async () => {
       try {
-        const model = services.tagWorkbench.getOntologyModel();
+        const model = services.user.ontology.loadModel();
         dispatch({ type: "push_route", route: { kind: "ontology", model } });
       } catch (error) {
         await terminal.pauseForAnyKey(`Could not open ontology explorer.\n\n${(error as Error).message}`);
       }
     });
-  }, [runWithBusyState, services, terminal]);
+  }, [runWithBusyState, services.user.ontology, terminal]);
 
   const openSelectedArea = React.useCallback(() => {
     const selectedArea = PF2E_APP_AREAS[state.selectedAreaIndex];
