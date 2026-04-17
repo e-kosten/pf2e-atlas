@@ -5,9 +5,12 @@ import {
   getMetadataFilterSemantics,
   type MetadataFieldSemantics,
 } from "../domain/metadata-semantics.js";
+import { readMetadataGlossaryArtifact } from "../data/metadata-glossary.js";
 import { Pf2eDataService } from "../data/service.js";
 import type {
   AppConfig,
+  MetadataGlossaryArtifact,
+  MetadataGlossaryEntry,
   MetadataBooleanField,
   MetadataFilterNode,
   MetadataEnumStringField,
@@ -88,6 +91,29 @@ function buildKeyValueDetailLines(
     lines.push({ text: `${label}: ${rendered}` });
   }
   return lines;
+}
+
+function getTraitGlossaryEntry(
+  metadataGlossary: MetadataGlossaryArtifact | null,
+  value: string,
+): MetadataGlossaryEntry | undefined {
+  return metadataGlossary?.fields.traits?.[value];
+}
+
+function buildTraitDetailLines(
+  category: SearchCategory,
+  value: string,
+  liveRecordCount: number,
+  metadataGlossary: MetadataGlossaryArtifact | null,
+): OntologyNode["detailLines"] {
+  const glossaryEntry = getTraitGlossaryEntry(metadataGlossary, value);
+  return [
+    { text: glossaryEntry?.label ?? titleCaseLabel(value), tone: "section" },
+    ...(glossaryEntry?.description ? [{ text: glossaryEntry.description }] : []),
+    { text: `Trait: ${value}` },
+    { text: `Category: ${category}` },
+    { text: `Live canonical records: ${liveRecordCount}` },
+  ];
 }
 
 function buildRecordNode(recordNode: DerivedTagOntologyExplorerRecordNode): OntologyNode {
@@ -394,26 +420,38 @@ function buildFieldValueNodes(
   category: SearchCategory,
   fieldSemantics: MetadataFieldSemantics,
   values: Array<{ value: string; count: number }>,
+  metadataGlossary: MetadataGlossaryArtifact | null,
 ): OntologyNode[] {
   return values.slice(0, 12).map((entry): OntologyNode => {
     const metadata = buildMetadataValueQuery(fieldSemantics, entry.value);
+    const traitGlossaryEntry = fieldSemantics.field === "traits"
+      ? getTraitGlossaryEntry(metadataGlossary, entry.value)
+      : undefined;
     return {
       id: `${category}:${fieldSemantics.field}:${entry.value}`,
       kind: "value",
-      label: entry.value,
-      filterText: buildFilterText(category, fieldSemantics.field, entry.value),
-      listLabel: `${entry.value} | ${entry.count}`,
-      detailTitle: "Filter Value",
-      detailLines: buildKeyValueDetailLines(entry.value, [
-        ["Category", category],
-        ["Field", fieldSemantics.field],
-        ["Value", entry.value],
-        ["Live canonical records", entry.count],
-      ]),
+      label: traitGlossaryEntry?.label ?? entry.value,
+      filterText: buildFilterText(
+        category,
+        fieldSemantics.field,
+        entry.value,
+        traitGlossaryEntry?.label ?? "",
+        traitGlossaryEntry?.description ?? "",
+      ),
+      listLabel: `${traitGlossaryEntry?.label ?? entry.value} | ${entry.count}`,
+      detailTitle: fieldSemantics.field === "traits" ? "Trait Details" : "Filter Value",
+      detailLines: fieldSemantics.field === "traits"
+        ? buildTraitDetailLines(category, entry.value, entry.count, metadataGlossary)
+        : buildKeyValueDetailLines(entry.value, [
+          ["Category", category],
+          ["Field", fieldSemantics.field],
+          ["Value", entry.value],
+          ["Live canonical records", entry.count],
+        ]),
       query: metadata
         ? {
           kind: "listRecords",
-          label: "Browse records with this value",
+          label: fieldSemantics.field === "traits" ? "Browse records with this trait" : "Browse records with this value",
           filters: {
             category,
             metadata,
@@ -426,10 +464,12 @@ function buildFieldValueNodes(
 }
 
 function buildSearchSemanticsDomain(
+  config: AppConfig,
   dataService: Pick<Pf2eDataService, "getSearchVocabulary" | "listFilterValues">,
 ): OntologyDomainModel {
   const semantics = getMetadataFilterSemantics();
   const vocabulary = dataService.getSearchVocabulary();
+  const metadataGlossary = readMetadataGlossaryArtifact(config.indexPath);
   const metadataFieldsByName = new Map(semantics.metadataFields.map((entry) => [entry.field, entry]));
   const filterValuesCache = new Map<string, Array<{ value: string; count: number }>>();
 
@@ -476,7 +516,7 @@ function buildSearchSemanticsDomain(
         loadChildren: fieldSemantics.discoverable
           ? () => {
             const liveValues = getCachedFilterValues(category, field);
-            return liveValues.length > 0 ? buildFieldValueNodes(category, fieldSemantics, liveValues) : [];
+            return liveValues.length > 0 ? buildFieldValueNodes(category, fieldSemantics, liveValues, metadataGlossary) : [];
           }
           : undefined,
       };
@@ -503,15 +543,17 @@ function buildSearchSemanticsDomain(
     const traitNodes: OntologyNode[] = (commonTraitsByCategory.get(category) ?? []).map((entry): OntologyNode => ({
       id: `${category}:trait:${entry.value}`,
       kind: "trait",
-      label: entry.value,
-      filterText: buildFilterText(category, entry.value, "trait"),
-      listLabel: `${entry.value} | ${entry.count}`,
+      label: getTraitGlossaryEntry(metadataGlossary, entry.value)?.label ?? entry.value,
+      filterText: buildFilterText(
+        category,
+        entry.value,
+        "trait",
+        getTraitGlossaryEntry(metadataGlossary, entry.value)?.label ?? "",
+        getTraitGlossaryEntry(metadataGlossary, entry.value)?.description ?? "",
+      ),
+      listLabel: `${getTraitGlossaryEntry(metadataGlossary, entry.value)?.label ?? entry.value} | ${entry.count}`,
       detailTitle: "Common Trait",
-      detailLines: buildKeyValueDetailLines(entry.value, [
-        ["Category", category],
-        ["Trait", entry.value],
-        ["Live canonical records", entry.count],
-      ]),
+      detailLines: buildTraitDetailLines(category, entry.value, entry.count, metadataGlossary),
       query: {
         kind: "listRecords",
         label: "Browse records with this trait",
@@ -727,7 +769,7 @@ export function createPf2eApplicationOntologyService(
           domain = buildCatalogCategoriesDomain(dataService);
           break;
         case "searchSemantics":
-          domain = buildSearchSemanticsDomain(dataService);
+          domain = buildSearchSemanticsDomain(config, dataService);
           break;
         default: {
           const exhaustive: never = id;

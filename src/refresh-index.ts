@@ -3,6 +3,7 @@
 import { DatabaseSync } from "node:sqlite";
 
 import { loadConfig } from "./app/config.js";
+import { writeMetadataGlossaryArtifact } from "./data/metadata-glossary.js";
 import { Pf2eDataService } from "./data/service.js";
 import { ConsoleProgressReporter } from "./progress.js";
 import { writeDerivedTagOntologyExplorerDbCache } from "./tui/ontology-explorer/data.js";
@@ -71,6 +72,9 @@ async function main(): Promise<void> {
     } finally {
       cacheDb.close();
     }
+
+    progress.log("Writing the metadata glossary artifact.");
+    await writeMetadataGlossaryArtifact(config.rootPath, config.indexPath);
 
     progress.log(
       `Rebuilt PF2E index at ${config.indexPath} with ${stats.packCount} packs and ${stats.recordCount} records in ${formatDuration(Date.now() - startTime)}.`,

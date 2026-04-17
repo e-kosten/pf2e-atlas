@@ -1,15 +1,20 @@
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+
 import { describe, expect, it, vi } from "vitest";
 
 import { createPf2eApplicationOntologyService } from "../../src/app/ontology-service.js";
+import { getMetadataGlossaryArtifactPath } from "../../src/data/metadata-glossary.js";
 import type { Pf2eDataService } from "../../src/data/service.js";
-import type { AppConfig, FilterValueField, OntologyNode } from "../../src/types.js";
+import type { AppConfig, FilterValueField, MetadataGlossaryArtifact, OntologyNode } from "../../src/types.js";
 
-function createTestConfig(): AppConfig {
+function createTestConfig(indexPath = ".cache/pf2e-index.sqlite"): AppConfig {
   return {
     dataPath: "vendor/pf2e",
     rootPath: "vendor/pf2e",
     manifestPath: "vendor/pf2e/system.pf2e.json",
-    indexPath: ".cache/pf2e-index.sqlite",
+    indexPath,
     embeddings: {
       provider: "hash",
       modelId: "test-model",
@@ -64,6 +69,7 @@ function createDataService(): Pick<Pf2eDataService, "getSearchVocabulary" | "lis
     listFilterValues: vi.fn(({ field, category }) => {
       const valuesByKey: Partial<Record<`${string}:${FilterValueField}`, Array<{ value: string; count: number }>>> = {
         "spell:subcategories": [{ value: "action", count: 6 }],
+        "spell:traits": [{ value: "fire", count: 4 }],
         "spell:saveType": [{ value: "fortitude", count: 3 }],
         "spell:sustained": [{ value: "true", count: 2 }],
         "equipment:hands": [{ value: "1", count: 5 }],
@@ -150,5 +156,53 @@ describe("application ontology service", () => {
       op: "includesAny",
       values: ["fire"],
     });
+  });
+
+  it("enriches trait nodes from the metadata glossary artifact when available", () => {
+    const tempRoot = mkdtempSync(path.join(tmpdir(), "pf2e-trait-glossary-"));
+    const config = createTestConfig(path.join(tempRoot, "pf2e-index.sqlite"));
+    const artifact: MetadataGlossaryArtifact = {
+      generatedAt: "2026-04-17T00:00:00.000Z",
+      fields: {
+        traits: {
+          fire: {
+            value: "fire",
+            label: "Fire",
+            description: "Effects with the fire trait deal fire damage or manipulate fire.",
+          },
+        },
+      },
+    };
+
+    try {
+      writeFileSync(
+        getMetadataGlossaryArtifactPath(config.indexPath),
+        `${JSON.stringify(artifact, null, 2)}\n`,
+        "utf8",
+      );
+
+      const service = createPf2eApplicationOntologyService(config, createDataService());
+      const domain = service.loadDomain("searchSemantics");
+      const commonTraitNode = findNodeById(domain.rootNodes, "spell:trait:fire");
+      const traitFieldNode = findNodeById(domain.rootNodes, "spell:field:traits");
+      const traitValueNode = traitFieldNode?.loadChildren?.().find((node) => node.id === "spell:traits:fire");
+
+      expect(commonTraitNode?.label).toBe("Fire");
+      expect(commonTraitNode?.listLabel).toBe("Fire | 4");
+      expect(commonTraitNode?.detailLines.map((line) => line.text)).toEqual(expect.arrayContaining([
+        "Fire",
+        "Effects with the fire trait deal fire damage or manipulate fire.",
+        "Trait: fire",
+      ]));
+
+      expect(traitValueNode?.label).toBe("Fire");
+      expect(traitValueNode?.detailTitle).toBe("Trait Details");
+      expect(traitValueNode?.detailLines.map((line) => line.text)).toEqual(expect.arrayContaining([
+        "Fire",
+        "Effects with the fire trait deal fire damage or manipulate fire.",
+      ]));
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
   });
 });
