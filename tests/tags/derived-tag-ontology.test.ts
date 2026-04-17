@@ -60,9 +60,29 @@ describe("derived tag ontology", () => {
       ]),
       adjacentTags: ["small_settlement_setting", "fortress_setting"],
     }));
+    const truthReveal = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "spell" && tag.tag === "truth_reveal");
+    expect(truthReveal).toEqual(expect.objectContaining({
+      family: "revelation",
+      assignmentMode: "hybrid",
+      adjacentTags: ["magic_detection", "memory_manipulation"],
+      appliesWhen: expect.arrayContaining([
+        "The spell's retrieval value comes from exposing deception, forcing truthful answers, or stripping away false presentation.",
+      ]),
+    }));
+    const proceduralBypass = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "hazard" && tag.tag === "procedural_bypass");
+    expect(proceduralBypass).toEqual(expect.objectContaining({
+      family: "countermeasure_profile",
+      assignmentMode: "hybrid",
+      adjacentTags: ["physical_disarm", "false_safe_route"],
+      appliesWhen: expect.arrayContaining([
+        "The clean answer is learning and executing the hazard's safe procedure, sequence, or pattern rather than destroying it.",
+      ]),
+    }));
 
     const settingFamily = DERIVED_TAG_ONTOLOGY_FAMILIES.find((family) => family.category === "creature" && family.family === "setting");
     expect(settingFamily?.description).toContain("Creature environment and encounter-setting");
+    const combatRoleFamily = DERIVED_TAG_ONTOLOGY_FAMILIES.find((family) => family.category === "creature" && family.family === "combat_role");
+    expect(combatRoleFamily?.description).toContain("encounter assembly");
 
     const groupedCatalog = groupDerivedTagOntology({
       families: DERIVED_TAG_ONTOLOGY_FAMILIES,
@@ -76,6 +96,25 @@ describe("derived tag ontology", () => {
         compositeOfAnyTags: ["battle_form", "animal_form", "elemental_form"],
       }),
     ]));
+    const groupedCombatRole = groupedCatalog.find((entry) => entry.category === "creature" && entry.family === "combat_role");
+    expect(groupedCombatRole?.tags).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        value: "brute_combatant",
+        description: expect.any(String),
+        assignmentMode: "hybrid",
+        adjacentTags: ["defender_combatant", "artillery_combatant"],
+      }),
+      expect.objectContaining({
+        value: "artillery_combatant",
+        description: expect.any(String),
+        assignmentMode: "hybrid",
+      }),
+      expect.objectContaining({
+        value: "support_combatant",
+        description: expect.any(String),
+        assignmentMode: "hybrid",
+      }),
+    ]));
 
     const equipmentPurpose = groupedCatalog.find((entry) => entry.category === "equipment" && entry.family === "purpose");
     expect(equipmentPurpose?.tags).toEqual(expect.not.arrayContaining([
@@ -86,6 +125,7 @@ describe("derived tag ontology", () => {
   it("authors category-scoped ontology with explicit family hierarchy before flattening", () => {
     expect(CREATURE_DERIVED_TAG_ONTOLOGY.category).toBe("creature");
     expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.setting.description).toContain("Creature environment and encounter-setting");
+    expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.combat_role.description).toContain("tactical");
 
     const urbanSetting = CREATURE_DERIVED_TAG_ONTOLOGY.families.setting.tags.find((tag) => tag.tag === "urban_setting");
     expect(urbanSetting).toEqual(expect.objectContaining({
@@ -93,16 +133,64 @@ describe("derived tag ontology", () => {
       assignmentMode: "editorial",
       adjacentTags: ["small_settlement_setting", "fortress_setting"],
     }));
+    const authorityNpc = CREATURE_DERIVED_TAG_ONTOLOGY.families.social_role.tags.find((tag) => tag.tag === "authority_npc");
+    expect(authorityNpc).toEqual(expect.objectContaining({
+      tag: "authority_npc",
+      assignmentMode: "editorial",
+      adjacentTags: ["profession_npc", "civic_npc"],
+    }));
+    const guideNpc = CREATURE_DERIVED_TAG_ONTOLOGY.families.social_role.tags.find((tag) => tag.tag === "guide_npc");
+    expect(guideNpc).toEqual(expect.objectContaining({
+      tag: "guide_npc",
+      assignmentMode: "editorial",
+      adjacentTags: ["profession_npc", "rural_setting"],
+      appliesWhen: expect.arrayContaining([
+        "Leading others through terrain, routes, borders, or dangerous travel spaces is central to the creature's retrieval value.",
+      ]),
+    }));
+    const bruteCombatant = CREATURE_DERIVED_TAG_ONTOLOGY.families.combat_role.tags.find((tag) => tag.tag === "brute_combatant");
+    expect(bruteCombatant).toEqual(expect.objectContaining({
+      tag: "brute_combatant",
+      assignmentMode: "hybrid",
+      adjacentTags: ["defender_combatant", "artillery_combatant"],
+    }));
+    const telepathicCommunication = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "equipment" && tag.tag === "telepathic_communication");
+    expect(telepathicCommunication).toEqual(expect.objectContaining({
+      family: "communication",
+      assignmentMode: "deterministic",
+      adjacentTags: ["signaling", "message_delivery"],
+      appliesWhen: expect.arrayContaining([
+        "The item's retrieval value comes from silent psychic coordination, mind-to-mind speech, or communication that bypasses ordinary sound.",
+      ]),
+    }));
+    const spellScryingProtection = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "spell" && tag.tag === "scrying_protection");
+    expect(spellScryingProtection).toEqual(expect.objectContaining({
+      family: "security",
+      assignmentMode: "hybrid",
+      adjacentTags: ["alarm", "countermagic"],
+      appliesWhen: expect.arrayContaining([
+        "The spell is naturally retrieved to keep plans, sanctums, identities, or conversations hidden from magical spying.",
+      ]),
+    }));
 
     const flattened = flattenDerivedTagAuthoredCategoryOntology(CREATURE_DERIVED_TAG_ONTOLOGY);
     expect(flattened.families).toContainEqual(expect.objectContaining({
       category: "creature",
       family: "setting",
     }));
+    expect(flattened.families).toContainEqual(expect.objectContaining({
+      category: "creature",
+      family: "social_role",
+    }));
     expect(flattened.tags).toContainEqual(expect.objectContaining({
       category: "creature",
       family: "setting",
       tag: "urban_setting",
+    }));
+    expect(flattened.tags).toContainEqual(expect.objectContaining({
+      category: "creature",
+      family: "combat_role",
+      tag: "artillery_combatant",
     }));
   });
 });

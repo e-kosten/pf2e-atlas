@@ -199,6 +199,93 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
           tag: "restraint_capture",
           description: "Helps capture, bind, or keep a target restrained.",
           assignmentMode: "deterministic"
+        },
+        {
+          tag: "door_breaching",
+          description: "Helps force doors, smash barriers, or create entry through sealed or fortified access points.",
+          assignmentMode: "deterministic",
+          appliesWhen: [
+            "The item's retrieval value is getting through doors, shutters, gates, or secured entry points.",
+            "It solves access by force rather than by keys, stealth, or lock tools."
+          ],
+          doesNotApplyWhen: [
+            "The item is for larger demolition or siegework rather than point-of-entry breach.",
+            "The item bypasses access quietly through locks or trickery instead of force."
+          ],
+          adjacentTags: [
+            "lock_bypass",
+            "barrier_breaking"
+          ]
+        },
+        {
+          tag: "excavation",
+          description: "Helps dig, cut through earth or stone, or otherwise perform practical excavation work.",
+          assignmentMode: "deterministic"
+        }
+      ]
+    },
+    crafting_support: {
+      subcategories: [
+        "gear",
+        "backpack",
+        "kit",
+        "consumable"
+      ],
+      description: "Tools and supplies that enable treatment, repair, paperwork, crafting, or ritual preparation.",
+      tags: [
+        {
+          tag: "medical_support",
+          description: "Supports first aid, diagnosis, treatment, or ongoing medical care outside direct magical healing.",
+          assignmentMode: "deterministic"
+        },
+        {
+          tag: "repair_support",
+          description: "Supports item repair, patchwork, upkeep, or restoring damaged gear and structures.",
+          assignmentMode: "deterministic"
+        },
+        {
+          tag: "alchemical_crafting",
+          description: "Supports alchemical preparation, formula work, reagent handling, or crafting-related field setup.",
+          assignmentMode: "deterministic"
+        },
+        {
+          tag: "forgery_support",
+          description: "Supports document falsification, seal imitation, signature copying, or bureaucratic deception.",
+          assignmentMode: "deterministic",
+          appliesWhen: [
+            "The item's retrieval value comes from imitating documents, seals, credentials, or official paperwork.",
+            "It supports passing administrative scrutiny rather than just changing clothing or physical appearance."
+          ],
+          doesNotApplyWhen: [
+            "The item only changes appearance or supports social disguise without document work.",
+            "The item is a normal writing or archival tool with no deception-facing use."
+          ],
+          adjacentTags: [
+            "disguise",
+            "writing_recordkeeping"
+          ]
+        },
+        {
+          tag: "ritual_support",
+          description: "Supports ritual casting, ceremonial setup, circles, offerings, or other extended magical preparation.",
+          assignmentMode: "deterministic",
+          appliesWhen: [
+            "The item meaningfully supports ceremonial, circle-based, offering-based, or extended-casting magic work.",
+            "A user would retrieve it for magic preparation rather than ordinary crafting or adventuring gear."
+          ],
+          doesNotApplyWhen: [
+            "The item is only generally magical without helping ritual process or setup.",
+            "The item is mainly a focus of worship or symbolism rather than ritual procedure."
+          ],
+          adjacentTags: [
+            "alchemical_crafting",
+            "magic_protection"
+          ]
+        },
+        {
+          tag: "writing_recordkeeping",
+          description: "Supports note-taking, mapmaking, copying text, archival work, or durable information storage.",
+          assignmentMode: "deterministic"
         }
       ]
     },
@@ -259,6 +346,32 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
         }
       ]
     },
+    breaching: {
+      subcategories: [
+        "gear",
+        "kit",
+        "consumable",
+        "weapon"
+      ],
+      description: "Equipment built to break entries, tear obstacles apart, or dismantle hardened environmental features.",
+      tags: [
+        {
+          tag: "barrier_breaking",
+          description: "Designed to tear through walls, barricades, ice, webs, or other physical obstructions.",
+          assignmentMode: "deterministic"
+        },
+        {
+          tag: "siege_support",
+          description: "Supports attacking gates, fortifications, vehicles, or other larger hardened targets.",
+          assignmentMode: "deterministic"
+        },
+        {
+          tag: "demolition",
+          description: "Designed for blasting, collapsing, or otherwise violently dismantling structures and obstacles.",
+          assignmentMode: "deterministic"
+        }
+      ]
+    },
     impact: {
       subcategories: [
         "ammo",
@@ -290,6 +403,11 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
           tag: "sedation",
           description: "Induces sleep, lethargy, unconsciousness, or similar incapacitating drowsiness.",
           assignmentMode: "deterministic"
+        },
+        {
+          tag: "silencing",
+          description: "Suppresses speech, voice, or other sound-dependent action through gagging, muting, or numbing effects.",
+          assignmentMode: "deterministic"
         }
       ]
     },
@@ -320,6 +438,23 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
           tag: "aquatic_support",
           description: "Helps with swimming, underwater breathing, flotation, water-surface travel, or watercraft use.",
           assignmentMode: "deterministic"
+        },
+        {
+          tag: "camp_setup",
+          description: "Supports campsite creation, resting infrastructure, shelter setup, or extended overland staging.",
+          assignmentMode: "deterministic",
+          appliesWhen: [
+            "The item is naturally retrieved for making camp, resting outdoors, or supporting expedition downtime.",
+            "Its value is in field habitation rather than only carrying gear or feeding travelers."
+          ],
+          doesNotApplyWhen: [
+            "The item only provides sustenance, mobility, or transport without campsite infrastructure.",
+            "The item is merely general survival gear with no setup or shelter-facing role."
+          ],
+          adjacentTags: [
+            "sustenance",
+            "carry_support"
+          ]
         }
       ]
     },
@@ -339,9 +474,43 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
           assignmentMode: "deterministic"
         },
         {
+          tag: "telepathic_communication",
+          description: "Enables silent mind-to-mind coordination, psychic speech, or communication that bypasses normal hearing.",
+          assignmentMode: "deterministic",
+          appliesWhen: [
+            "The item's retrieval value comes from silent psychic coordination, mind-to-mind speech, or communication that bypasses ordinary sound.",
+            "It is naturally sought when stealth, silence, distance, or noise would make spoken coordination unreliable."
+          ],
+          doesNotApplyWhen: [
+            "The item only boosts ordinary signaling, writing, or message relay without true mind-to-mind communication.",
+            "The item is mainly about surveillance or recording rather than live coordination."
+          ],
+          adjacentTags: [
+            "signaling",
+            "message_delivery"
+          ]
+        },
+        {
           tag: "message_delivery",
           description: "Sends, stores, or relays actual content across time or distance.",
           assignmentMode: "deterministic"
+        },
+        {
+          tag: "surveillance_recording",
+          description: "Captures, stores, or replays images, sound, or other evidence for later review.",
+          assignmentMode: "deterministic",
+          appliesWhen: [
+            "The item's retrieval value comes from preserving sights, sounds, or observations for later replay, proof, or analysis.",
+            "It is naturally sought as evidence capture, remote monitoring, or watch-post support rather than live conversation gear."
+          ],
+          doesNotApplyWhen: [
+            "The item only sends a live message or helps coordinate allies without retaining evidence.",
+            "The item protects against observation instead of performing it."
+          ],
+          adjacentTags: [
+            "message_delivery",
+            "scrying_protection"
+          ]
         }
       ]
     },
@@ -380,17 +549,58 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
         "vehicle",
         "consumable"
       ],
-      description: "Equipment that disrupts hostile magic or protects against it.",
+      description: "Equipment that disrupts hostile magic or protects against it, including anti-divination and spell-defense retrieval.",
       tags: [
         {
           tag: "countermagic",
           description: "Counteracts, dispels, suppresses, or shuts down magic.",
-          assignmentMode: "deterministic"
+          assignmentMode: "deterministic",
+          appliesWhen: [
+            "The item's main value is actively cancelling, suppressing, or interfering with hostile or ongoing magic.",
+            "A user would retrieve it as an anti-magic tool rather than a general protective charm."
+          ],
+          doesNotApplyWhen: [
+            "The item only protects the wearer from magical harm without disrupting the spell itself.",
+            "The item focuses on blocking surveillance or hiding information rather than broader anti-magic interference."
+          ],
+          adjacentTags: [
+            "magic_protection",
+            "scrying_protection"
+          ]
         },
         {
           tag: "magic_protection",
           description: "Protects the user or target against hostile magical effects.",
-          assignmentMode: "deterministic"
+          assignmentMode: "deterministic",
+          appliesWhen: [
+            "The item's value comes from warding the bearer against curses, spells, hostile magical conditions, or magical damage.",
+            "Protection matters more than actually counteracting or suppressing the incoming magic."
+          ],
+          doesNotApplyWhen: [
+            "The item mainly shuts down active magic rather than defending a wearer or target.",
+            "The stronger fit is scrying_protection because surveillance denial is the specific retrieval hook."
+          ],
+          adjacentTags: [
+            "countermagic",
+            "hazard_shielding"
+          ]
+        },
+        {
+          tag: "scrying_protection",
+          description: "Blocks magical observation, remote viewing, or information leakage through divination-like effects.",
+          assignmentMode: "deterministic",
+          appliesWhen: [
+            "The item's main value is preventing magical spying, remote observation, or divination-led tracking.",
+            "A user would retrieve it to keep plans, rooms, or identities hidden from magical surveillance."
+          ],
+          doesNotApplyWhen: [
+            "The item only improves ordinary stealth or concealment without anti-divination protection.",
+            "The item counters magic generally but is not particularly about observation or information leakage."
+          ],
+          adjacentTags: [
+            "countermagic",
+            "concealment"
+          ]
         }
       ]
     },
@@ -403,7 +613,7 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
         "armor",
         "shield"
       ],
-      description: "Shield and armor tags for interception, cover, and hazard-facing protection.",
+      description: "Shield and armor tags for interception, cover, and protection against ranged fire, hazardous scenes, or vertical danger.",
       tags: [
         {
           tag: "ally_cover",
@@ -418,6 +628,23 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
         {
           tag: "hazard_shielding",
           description: "Protects against environmental hazards, area effects, or other damaging exposures.",
+          assignmentMode: "deterministic",
+          appliesWhen: [
+            "The item is naturally retrieved for surviving traps, breath weapons, alchemical blasts, or other hazardous exposure.",
+            "Protection against scenes and effects matters more than only deflecting direct weapon attacks."
+          ],
+          doesNotApplyWhen: [
+            "The item's main value is cover against arrows or weapon strikes rather than wider hazard exposure.",
+            "The item mainly protects against spells specifically, making magic_protection the stronger hook."
+          ],
+          adjacentTags: [
+            "projectile_defense",
+            "magic_protection"
+          ]
+        },
+        {
+          tag: "fall_protection",
+          description: "Reduces falling harm, cushions impact, or protects against vertical movement accidents and collapse.",
           assignmentMode: "deterministic"
         }
       ]
@@ -430,12 +657,29 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
         "vehicle",
         "consumable"
       ],
-      description: "Intrusion-warning gear and consumables.",
+      description: "Intrusion-warning, seal-checking, and after-the-fact security gear for camps, vaults, cargo, and protected rooms.",
       tags: [
         {
           tag: "alarm",
           description: "Alerts you or others when a watched area, threshold, or device is triggered.",
           assignmentMode: "deterministic"
+        },
+        {
+          tag: "tamper_evidence",
+          description: "Makes intrusion, opening, theft, or interference easier to notice after the fact.",
+          assignmentMode: "deterministic",
+          appliesWhen: [
+            "The item is naturally retrieved to reveal whether a lock, crate, seal, letter, cache, or room has been disturbed.",
+            "Evidence of interference matters more than immediate warning, direct defense, or anti-scrying."
+          ],
+          doesNotApplyWhen: [
+            "The item mainly alerts in real time when someone crosses a boundary.",
+            "The item hides or protects a target without preserving signs of intrusion."
+          ],
+          adjacentTags: [
+            "alarm",
+            "surveillance_recording"
+          ]
         }
       ]
     }

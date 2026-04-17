@@ -195,8 +195,23 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
           assignmentMode: "hybrid"
         },
         {
+          tag: "absalom_setting",
+          description: "Strongly associated with Absalom, its districts, surrounding Isle of Kortos culture, or similarly Absalom-specific civic scenes.",
+          assignmentMode: "hybrid"
+        },
+        {
           tag: "gravelands_setting",
           description: "Strongly associated with the Gravelands, Lastwall's shattered front, or iconic sites such as Fort Ozem and Gallowspire.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "mwangi_setting",
+          description: "Strongly associated with the Mwangi Expanse, its jungle polities, or similarly Mwangi-rooted regional framing.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "darklands_setting",
+          description: "Strongly associated with the Darklands as a civilization-bearing underworld region rather than generic underground terrain.",
           assignmentMode: "hybrid"
         },
         {
@@ -378,6 +393,147 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
         }
       ]
     },
+    combat_role: {
+      description: "Creature combat-role tags for encounter assembly, tactical reading, and balancing mixed enemy groups.",
+      tags: [
+        {
+          tag: "brute_combatant",
+          description: "Built to pressure the front line through durability, direct damage, and straightforward melee threat.",
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "The creature is naturally retrieved as a heavy hitter that advances, endures punishment, and threatens through direct force.",
+            "Its tactical identity is more about sturdy pressure than mobility, command, or precision control."
+          ],
+          doesNotApplyWhen: [
+            "The creature mainly operates from range, through battlefield control, or through ally support.",
+            "High damage is present but the stronger combat identity is ambush, artillery, or commander play."
+          ],
+          adjacentTags: [
+            "defender_combatant",
+            "artillery_combatant"
+          ]
+        },
+        {
+          tag: "skirmisher_combatant",
+          description: "Built around mobility, repositioning, hit-and-run pressure, or opportunistic strikes.",
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "The creature's retrieval value comes from darting movement, flanking, repositioning, or repeated opportunistic attacks.",
+            "Mobility and pressure cycling matter more than armor, command, or raw ranged bombardment."
+          ],
+          doesNotApplyWhen: [
+            "The creature mainly opens from stealth once and then behaves like another clearer combat role.",
+            "The stronger identity is brute, ambusher, or artillery rather than mobile harassment."
+          ],
+          adjacentTags: [
+            "ambusher_combatant",
+            "controller_combatant"
+          ]
+        },
+        {
+          tag: "controller_combatant",
+          description: "Built to reshape the battlefield through debuffs, forced movement, terrain control, or other tactical denial.",
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "The creature is naturally retrieved for immobilizing, repositioning, walling off, slowing, or otherwise dictating battlefield shape.",
+            "Tactical denial matters more than direct damage output."
+          ],
+          doesNotApplyWhen: [
+            "The creature only has one incidental debuff while otherwise fighting as a brute, defender, or artillery piece.",
+            "The stronger identity is support or commander rather than enemy-space control."
+          ],
+          adjacentTags: [
+            "support_combatant",
+            "artillery_combatant"
+          ]
+        },
+        {
+          tag: "artillery_combatant",
+          description: "Built to pressure targets from range through volleys, spell barrages, breath attacks, or other standoff offense.",
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "The creature is naturally retrieved as a ranged damage or spell-barrage threat that prefers distance.",
+            "Its tactical identity is standoff pressure more than command, mobility, or pure control."
+          ],
+          doesNotApplyWhen: [
+            "The creature happens to have one ranged option but still fundamentally plays as a brute, controller, or support piece.",
+            "Its main retrieval hook is casting support or battlefield control rather than ranged offense."
+          ],
+          adjacentTags: [
+            "controller_combatant",
+            "support_combatant"
+          ]
+        },
+        {
+          tag: "defender_combatant",
+          description: "Built to hold space, intercept attacks, bodyguard allies, or punish passage through a defended line.",
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "The creature is naturally retrieved for guarding chokepoints, bodyguarding allies, or making passage costly.",
+            "Space-holding matters more than raw pursuit, burst damage, or command."
+          ],
+          doesNotApplyWhen: [
+            "The creature is merely durable without a real guard, intercept, or line-holding identity.",
+            "The stronger fit is brute_combatant or another non-guardian role."
+          ],
+          adjacentTags: [
+            "brute_combatant",
+            "commander_combatant"
+          ]
+        },
+        {
+          tag: "support_combatant",
+          description: "Built to heal, buff, protect, command, or otherwise enable allied creatures more than acting as the primary damage source.",
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "The creature is naturally retrieved because it keeps allies alive, stronger, better positioned, or otherwise more dangerous.",
+            "Ally enablement matters more than its own direct kill pressure."
+          ],
+          doesNotApplyWhen: [
+            "The creature has one incidental buff or heal but is otherwise a brute, artillery, or controller.",
+            "The stronger identity is commander_combatant because leadership and coordination outweigh broad support."
+          ],
+          adjacentTags: [
+            "commander_combatant",
+            "controller_combatant"
+          ]
+        },
+        {
+          tag: "ambusher_combatant",
+          description: "Built around stealth openings, surprise rounds, sudden strike pressure, or hidden attack vectors.",
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "The creature is naturally retrieved for hidden approach, surprise attack, trapdoor positioning, or burst from concealment.",
+            "Opening from stealth is central to how it functions in an encounter."
+          ],
+          doesNotApplyWhen: [
+            "The creature only uses stealth incidentally before acting as another clearer combat role.",
+            "The stronger identity is skirmisher_combatant or artillery_combatant rather than surprise-predator play."
+          ],
+          adjacentTags: [
+            "skirmisher_combatant",
+            "brute_combatant"
+          ]
+        },
+        {
+          tag: "commander_combatant",
+          description: "Built to coordinate, direct, or elevate allied creatures through leadership, tactics, or pack-control abilities.",
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "The creature is naturally retrieved because it commands minions, improves allied action quality, or orchestrates group tactics.",
+            "Its encounter identity depends on leadership or coordination more than on solo offense."
+          ],
+          doesNotApplyWhen: [
+            "The creature only has generic support effects with no real command, minion, or tactical leadership profile.",
+            "The stronger fit is support_combatant or artillery_combatant rather than leader play."
+          ],
+          adjacentTags: [
+            "support_combatant",
+            "artillery_combatant"
+          ]
+        }
+      ]
+    },
     encounter_role: {
       description: "Creature practical-fit tags for socially embedded NPCs and role-defined humanoid combatants.",
       tags: [
@@ -434,6 +590,164 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
         }
       ]
     },
+    social_role: {
+      description: "Creature social-scene tags for concrete civilian, institutional, and profession-facing roles that help agents populate settlements, factions, travel scenes, and likely NPC contacts.",
+      tags: [
+        {
+          tag: "authority_npc",
+          description: "Presented as an officer, magistrate, noble, administrator, or other figure of formal social authority.",
+          assignmentMode: "editorial",
+          appliesWhen: [
+            "The creature's retrieval value comes from official office, rank, command, or institutional authority.",
+            "A GM would plausibly seek it as a leader, official, or governing figure within a scene."
+          ],
+          doesNotApplyWhen: [
+            "The record is only a generic combatant without meaningful office or status.",
+            "The stronger fit is profession_npc or civic_npc without a specific authority role."
+          ],
+          adjacentTags: [
+            "profession_npc",
+            "civic_npc"
+          ]
+        },
+        {
+          tag: "religious_npc",
+          description: "Presented as a priest, shrine keeper, cult officiant, monastic figure, or other explicitly religious role-holder.",
+          assignmentMode: "editorial",
+          appliesWhen: [
+            "Religious office, ritual duty, or custodianship of a faith space is central to the creature's scene value.",
+            "The creature is naturally retrieved as clergy, cult staff, or sacred-site personnel."
+          ],
+          doesNotApplyWhen: [
+            "The creature merely has divine powers without a role-defined religious identity.",
+            "Temple placement alone is better captured by temple_setting."
+          ],
+          adjacentTags: [
+            "profession_npc",
+            "temple_setting"
+          ]
+        },
+        {
+          tag: "criminal_npc",
+          description: "Presented as a thief, smuggler, assassin, gang operative, fence, or other explicitly underworld-coded role.",
+          assignmentMode: "editorial",
+          appliesWhen: [
+            "The creature is defined by illicit trade, organized crime, covert violence, or other criminal social function.",
+            "A GM would retrieve it as an underworld contact or criminal adversary rather than a generic soldier."
+          ],
+          doesNotApplyWhen: [
+            "The creature is merely hostile without underworld or crime-scene framing.",
+            "The stronger fit is combatant_npc without a distinct criminal identity."
+          ],
+          adjacentTags: [
+            "combatant_npc",
+            "profession_npc"
+          ]
+        },
+        {
+          tag: "scholar_npc",
+          description: "Presented as a sage, researcher, teacher, archivist, alchemist, or other knowledge-centered role-holder.",
+          assignmentMode: "editorial",
+          appliesWhen: [
+            "Research, teaching, scholarship, or recordkeeping is central to the creature's identity.",
+            "The creature is naturally retrieved as an academic or knowledge-scene NPC."
+          ],
+          doesNotApplyWhen: [
+            "Intelligence is incidental to a stronger combat or monster identity.",
+            "The record only implies general competence without a knowledge-centered role."
+          ],
+          adjacentTags: [
+            "profession_npc",
+            "civic_npc"
+          ]
+        },
+        {
+          tag: "healer_npc",
+          description: "Presented as a physician, battlefield medic, herbalist, chirurgeon, caretaker, or other explicitly healing-facing role-holder.",
+          assignmentMode: "editorial",
+          appliesWhen: [
+            "Medical treatment, recovery support, or caretaker duty is central to why the creature would be retrieved for a scene.",
+            "The record is naturally used as a healer, medic, apothecary, or restorative support NPC rather than only a generic scholar."
+          ],
+          doesNotApplyWhen: [
+            "The creature merely has healing magic or restorative abilities without a role-defined caregiving identity.",
+            "The stronger fit is scholar_npc, religious_npc, or civic_npc without a real healer-facing job."
+          ],
+          adjacentTags: [
+            "scholar_npc",
+            "religious_npc"
+          ]
+        },
+        {
+          tag: "merchant_npc",
+          description: "Presented as a trader, broker, shopkeeper, caravan factor, or other commerce-facing role-holder.",
+          assignmentMode: "editorial",
+          appliesWhen: [
+            "Trade, selling, bargaining, or inventory-handling is central to the creature's retrieval value.",
+            "The creature naturally fills a market, shop, caravan, or supply-scene role."
+          ],
+          doesNotApplyWhen: [
+            "The record only implies wealth or possessions without an actual merchant role.",
+            "The stronger fit is civic_npc or profession_npc without a clear commerce function."
+          ],
+          adjacentTags: [
+            "profession_npc",
+            "civic_npc"
+          ]
+        },
+        {
+          tag: "artisan_npc",
+          description: "Presented as a smith, craftsperson, builder, artisan, or other maker-facing role-holder tied to production or skilled labor.",
+          assignmentMode: "editorial",
+          appliesWhen: [
+            "Craft production, repair labor, or skilled making work is central to the creature's scene identity.",
+            "A GM would plausibly retrieve it as a blacksmith, mason, tailor, shipwright, or similarly maker-facing contact."
+          ],
+          doesNotApplyWhen: [
+            "The creature only sells goods or manages trade without being defined by making or repair work.",
+            "The stronger fit is merchant_npc, profession_npc, or civic_npc without a clear craft-labor role."
+          ],
+          adjacentTags: [
+            "merchant_npc",
+            "profession_npc"
+          ]
+        },
+        {
+          tag: "guide_npc",
+          description: "Presented as a scout, tracker, ferryman, caravan guide, wilderness pathfinder, or other route-leading specialist.",
+          assignmentMode: "editorial",
+          appliesWhen: [
+            "Leading others through terrain, routes, borders, or dangerous travel spaces is central to the creature's retrieval value.",
+            "The record is naturally used as a scout, pathfinder, navigator, or local guide rather than only a generic outdoors person."
+          ],
+          doesNotApplyWhen: [
+            "The creature merely knows the area or has survival competence without a role-defined guiding function.",
+            "The stronger fit is scholar_npc, civic_npc, or combatant_npc rather than travel-leading expertise."
+          ],
+          adjacentTags: [
+            "profession_npc",
+            "rural_setting"
+          ]
+        },
+        {
+          tag: "performer_npc",
+          description: "Presented as a musician, actor, dancer, herald, jester, or other entertainment-facing role-holder.",
+          assignmentMode: "editorial",
+          appliesWhen: [
+            "Performance, spectacle, or entertainment labor is central to the creature's scene identity.",
+            "The creature would be retrieved for theater, carnival, court entertainment, or tavern-stage scenes."
+          ],
+          doesNotApplyWhen: [
+            "The creature is only whimsical or colorful without an explicit performer role.",
+            "The stronger semantic is carnival_show rather than a role-defined entertainer."
+          ],
+          adjacentTags: [
+            "profession_npc",
+            "carnival_show"
+          ]
+        }
+      ]
+    },
     ontology_cluster: {
       description: "Creature semantic groupings that aggregate fragmented native ontology when exact traits are too narrow.",
       tags: [
@@ -457,6 +771,31 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
         {
           tag: "dragon_spellcaster",
           description: "Dragon or archdragon variant with an explicit spellcaster stat block or named spellcaster presentation.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "arcane_spellcaster",
+          description: "Creature whose spellcasting is substantially framed through arcane traditions, wizardry, runes, or similarly arcane technique.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "divine_spellcaster",
+          description: "Creature whose spellcasting is substantially framed through divine prayer, sacred miracles, or deity-facing magic.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "occult_spellcaster",
+          description: "Creature whose spellcasting is substantially framed through occult lore, spirits, emotion, dreams, or esoteric mental power.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "primal_spellcaster",
+          description: "Creature whose spellcasting is substantially framed through nature, elemental power, druidic force, or instinctive primal magic.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "ritualist_creature",
+          description: "Creature strongly associated with ritual casting, ceremonial magic, or extended occult or divine preparations.",
           assignmentMode: "hybrid"
         }
       ]
@@ -492,6 +831,36 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
         {
           tag: "ambush_grabber",
           description: "Captures prey through grabbing, constriction, swallowing whole, webbing, or drag-off ambush tactics.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "poison_threat",
+          description: "Threat defined by venom, toxic excretions, poisoned weapons, or other recurring poison delivery.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "disease_vector",
+          description: "Threat defined by spreading disease, curse-plague conditions, or infectious aftermath beyond immediate damage.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "curse_threat",
+          description: "Threat defined by curses, doom effects, or other lingering supernatural afflictions imposed on victims.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "terrain_control_threat",
+          description: "Threat defined by webs, walls, zones, hazards, or other space-shaping control that changes battlefield movement.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "summoner_commander",
+          description: "Threat defined by calling reinforcements, commanding minions, or dramatically improving allied creatures.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "death_burst_threat",
+          description: "Threat defined by explosive death effects, cursed aftermath, or punishing consequences when the creature is dropped.",
           assignmentMode: "hybrid"
         }
       ]
@@ -569,6 +938,16 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
             "faceless_horror",
             "mask_motif"
           ]
+        },
+        {
+          tag: "mirror_motif",
+          description: "Strongly associated with mirrors, reflections, duplicated selves, or reflective surfaces as a core visual or horror identity.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "stitched_horror",
+          description: "Strongly associated with sutures, patchwork flesh, sewn bodies, or visibly assembled corpse craftsmanship.",
+          assignmentMode: "hybrid"
         }
       ]
     },
@@ -583,6 +962,11 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
         {
           tag: "animated_statue",
           description: "Strongly associated with animated statues, effigies, idols, or monuments.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "possessed_object",
+          description: "Strongly associated with an inhabiting spirit or curse animating an otherwise mundane object or suit of equipment.",
           assignmentMode: "hybrid"
         }
       ]
