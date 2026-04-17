@@ -16,6 +16,14 @@ function flushInk(): Promise<void> {
   });
 }
 
+function pressDown(app: ReturnType<typeof render>): void {
+  app.stdin.write("\u001b[B");
+}
+
+function pressUp(app: ReturnType<typeof render>): void {
+  app.stdin.write("\u001b[A");
+}
+
 function createTestConfig(): AppConfig {
   return {
     dataPath: "vendor/pf2e",
@@ -207,7 +215,7 @@ describe("search screen", () => {
     cleanup();
   });
 
-  it("edits the draft workspace and executes ranked search with the selected boundaries", async () => {
+  it("supports arrow-driven navigation for editing and executing the draft workspace", async () => {
     const search = vi.fn(async (filters: SearchFilters) => ({
       searchProfile: filters.searchProfile ?? "balanced",
       mode: "hybrid" as const,
@@ -227,32 +235,23 @@ describe("search screen", () => {
 
     await flushInk();
     expect(app.lastFrame()).toContain("Browse/Search");
+    expect(app.lastFrame()).toContain("Workspace Navigator");
 
-    app.stdin.write("m");
+    pressDown(app);
+    await flushInk();
+    expect(app.lastFrame()).toContain("Mode");
+    app.stdin.write("\r");
     await flushInk();
     expect(app.lastFrame()).toContain("Workspace Mode");
-    app.stdin.write("j");
+    pressDown(app);
     await flushInk();
     app.stdin.write("\r");
     await flushInk();
 
-    app.stdin.write("p");
+    pressDown(app);
     await flushInk();
-    expect(app.lastFrame()).toContain("Search Profile");
-    app.stdin.write("j");
-    await flushInk();
+    expect(app.lastFrame()).toContain("Query");
     app.stdin.write("\r");
-    await flushInk();
-
-    app.stdin.write("c");
-    await flushInk();
-    expect(app.lastFrame()).toContain("Category Scope");
-    app.stdin.write("j");
-    await flushInk();
-    app.stdin.write("\r");
-    await flushInk();
-
-    app.stdin.write("/");
     await flushInk();
     expect(app.lastFrame()).toContain("Draft Query");
     for (const character of "ghost") {
@@ -262,7 +261,38 @@ describe("search screen", () => {
     app.stdin.write("\r");
     await flushInk();
 
-    app.stdin.write("e");
+    pressDown(app);
+    await flushInk();
+    expect(app.lastFrame()).toContain("Profile");
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Search Profile");
+    pressDown(app);
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+
+    pressDown(app);
+    await flushInk();
+    expect(app.lastFrame()).toContain("Category");
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Category Scope");
+    pressDown(app);
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+
+    pressUp(app);
+    await flushInk();
+    pressUp(app);
+    await flushInk();
+    pressUp(app);
+    await flushInk();
+    pressUp(app);
+    await flushInk();
+    expect(app.lastFrame()).toContain("Run Draft Query");
+    app.stdin.write("\r");
     await flushInk();
     await flushInk();
 
@@ -279,7 +309,7 @@ describe("search screen", () => {
       subcategory: undefined,
     });
     expect(app.lastFrame()).toContain("Draft matches applied query");
-    expect(app.lastFrame()).toContain("showing 1/1");
+    expect(app.lastFrame()).toContain("1/1 shown");
   });
 
   it("maps simple ontology browse queries into seeded workspace requests", () => {
