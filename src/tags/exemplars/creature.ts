@@ -7,14 +7,15 @@ export const CREATURE_DERIVED_TAG_EXEMPLARS = {
       tag: "urban_setting",
       positives: [
         {
-          name: "Spiritbound Aluum",
-          recordKey: "age-of-ashes-bestiary:n6FQeNsDgKaDIF7b",
+          name: "Conspirator Dragon (Adult)",
+          recordKey: "pathfinder-monster-core:TGYELuImcTcuX0aH"
         },
         {
-          name: "Conspirator Dragon (Adult)",
-          recordKey: "pathfinder-monster-core:TGYELuImcTcuX0aH",
-        },
+          name: "Spiritbound Aluum",
+          recordKey: "age-of-ashes-bestiary:n6FQeNsDgKaDIF7b"
+        }
       ],
-    },
-  ],
+      negatives: []
+    }
+  ]
 } satisfies DerivedTagExemplarCategory;
