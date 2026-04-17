@@ -3,7 +3,6 @@
 import { lastValue, parseCliArgs } from "../migration/cli-utils.js";
 import { runDerivedTagMigrationReviewUi } from "../migration/review-ui.js";
 import { readDerivedTagMigrationSession } from "../migration/session-store.js";
-import { runWithDerivedTagTerminalSession } from "../migration/terminal-ui.js";
 
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
@@ -14,8 +13,7 @@ async function main(): Promise<void> {
   }
 
   const session = await readDerivedTagMigrationSession(process.cwd(), sessionId);
-  await runWithDerivedTagTerminalSession((terminalSession) =>
-    runDerivedTagMigrationReviewUi(process.cwd(), session, terminalSession));
+  await runDerivedTagMigrationReviewUi(process.cwd(), session);
 }
 
 if (import.meta.url === new URL(process.argv[1] ?? "", "file:").href) {

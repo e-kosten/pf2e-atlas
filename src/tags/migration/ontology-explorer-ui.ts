@@ -1,4 +1,4 @@
-import { DatabaseSync } from "node:sqlite";
+import type { Key } from "ink";
 
 import type { SearchCategory } from "../../types.js";
 import { buildOntologyExplorerEntityDetailLines, buildOntologyExplorerEntitySummary } from "./entity-page.js";
@@ -12,26 +12,14 @@ import {
   type DerivedTagOntologyExplorerTagNode,
 } from "./ontology-explorer-data.js";
 import {
-  getTerminalTwoPaneDetailWidth,
-  getTerminalPaneBodyHeight,
-  getTerminalTwoPaneDimensions,
+  getPrintableInput,
   getRenderedTerminalLineCount,
+  getTerminalPaneBodyHeight,
+  getTerminalTwoPaneDetailWidth,
   moveSelection,
   moveSelectionWrapped,
-  pauseForAnyKey,
-  readTerminalKey,
-  readTerminalKeyOrResize,
-  renderTerminalPaneScreen,
-  renderTerminalTextScreen,
-  renderTerminalTwoPaneScreen,
   sliceRenderedTerminalLines,
-  normalizeTerminalTwoPaneLayoutMode,
-  toggleTerminalTwoPaneFocus,
-  toggleTerminalTwoPaneLayoutMode,
-  type DerivedTagTerminalKey,
   type DerivedTagTerminalLine,
-  type DerivedTagTerminalSession,
-  type DerivedTagTerminalTwoPaneFocus,
   type DerivedTagTerminalTwoPaneLayoutMode,
 } from "./terminal-ui.js";
 
@@ -48,13 +36,22 @@ export type DerivedTagOntologyExplorerState = {
   detailScroll: number;
 };
 
+export type DerivedTagOntologyExplorerUiState = {
+  activePane: "list" | "detail";
+  explorerState: DerivedTagOntologyExplorerState;
+  layoutMode: DerivedTagTerminalTwoPaneLayoutMode;
+  pendingListCommand: "g" | null;
+  searchInput: string;
+  searchMode: boolean;
+};
+
 type ExplorerNode =
   | DerivedTagOntologyExplorerCategoryNode
   | DerivedTagOntologyExplorerFamilyNode
   | DerivedTagOntologyExplorerTagNode
   | DerivedTagOntologyExplorerRecordNode;
 
-type ExplorerSelection = {
+export type DerivedTagOntologyExplorerSelection = {
   categories: DerivedTagOntologyExplorerCategoryNode[];
   category?: DerivedTagOntologyExplorerCategoryNode;
   families: DerivedTagOntologyExplorerFamilyNode[];
@@ -97,7 +94,10 @@ function findRecord(tag: DerivedTagOntologyExplorerTagNode | undefined, key: str
   return key ? tag?.records.find((record) => record.key === key) : undefined;
 }
 
-function getSelection(model: DerivedTagOntologyExplorerModel, state: DerivedTagOntologyExplorerState): ExplorerSelection {
+export function getDerivedTagOntologyExplorerSelection(
+  model: DerivedTagOntologyExplorerModel,
+  state: DerivedTagOntologyExplorerState,
+): DerivedTagOntologyExplorerSelection {
   const category = findCategory(model, state.selectedCategoryKey) ?? model.categories[0];
   const families = category?.families ?? [];
   const family = findFamily(category, state.selectedFamilyKey) ?? families[0];
@@ -152,7 +152,7 @@ function findNearestFilteredNode(
   return nearest?.node ?? filteredNodes[0];
 }
 
-function getNodesForDepth(selection: ExplorerSelection, depth: DerivedTagOntologyExplorerDepth): ExplorerNode[] {
+function getNodesForDepth(selection: DerivedTagOntologyExplorerSelection, depth: DerivedTagOntologyExplorerDepth): ExplorerNode[] {
   if (depth === "category") {
     return selection.categories;
   }
@@ -165,7 +165,7 @@ function getNodesForDepth(selection: ExplorerSelection, depth: DerivedTagOntolog
   return selection.records;
 }
 
-function getSelectedKeyForDepth(selection: ExplorerSelection, state: DerivedTagOntologyExplorerState): string | undefined {
+function getSelectedKeyForDepth(selection: DerivedTagOntologyExplorerSelection, state: DerivedTagOntologyExplorerState): string | undefined {
   if (state.depth === "category") {
     return selection.category?.key;
   }
@@ -196,7 +196,7 @@ export function normalizeDerivedTagOntologyExplorerState(
   model: DerivedTagOntologyExplorerModel,
   state: DerivedTagOntologyExplorerState,
 ): DerivedTagOntologyExplorerState {
-  const selection = getSelection(model, state);
+  const selection = getDerivedTagOntologyExplorerSelection(model, state);
   let nextState: DerivedTagOntologyExplorerState = {
     ...state,
     selectedCategoryKey: selection.category?.key,
@@ -243,7 +243,7 @@ export function normalizeDerivedTagOntologyExplorerState(
 }
 
 function getActiveNodes(model: DerivedTagOntologyExplorerModel, state: DerivedTagOntologyExplorerState): ExplorerNode[] {
-  const selection = getSelection(model, state);
+  const selection = getDerivedTagOntologyExplorerSelection(model, state);
   return filterOntologyExplorerNodes(getNodesForDepth(selection, state.depth), state.filter);
 }
 
@@ -309,7 +309,7 @@ function moveDerivedTagOntologyExplorerSelectionWithStyle(
   motionStyle: DerivedTagOntologyExplorerMotionStyle,
 ): DerivedTagOntologyExplorerState {
   const nextState = normalizeDerivedTagOntologyExplorerState(model, state);
-  const selection = getSelection(model, nextState);
+  const selection = getDerivedTagOntologyExplorerSelection(model, nextState);
   const nodes = getActiveNodes(model, nextState);
   if (nodes.length === 0) {
     return nextState;
@@ -333,7 +333,6 @@ export function moveDerivedTagOntologyExplorerSelectionToBoundary(
   boundary: "start" | "end",
 ): DerivedTagOntologyExplorerState {
   const nextState = normalizeDerivedTagOntologyExplorerState(model, state);
-  const selection = getSelection(model, nextState);
   const nodes = getActiveNodes(model, nextState);
   if (nodes.length === 0) {
     return nextState;
@@ -413,7 +412,24 @@ export function moveDerivedTagOntologyExplorerDetailScrollToBoundary(
   };
 }
 
-function buildBreadcrumb(selection: ExplorerSelection, state: DerivedTagOntologyExplorerState): string {
+export function createDerivedTagOntologyExplorerUiState(
+  model: DerivedTagOntologyExplorerModel,
+): DerivedTagOntologyExplorerUiState {
+  const explorerState = createDerivedTagOntologyExplorerState(model);
+  return {
+    activePane: "list",
+    explorerState,
+    layoutMode: "split",
+    pendingListCommand: null,
+    searchInput: explorerState.filter,
+    searchMode: false,
+  };
+}
+
+export function buildDerivedTagOntologyExplorerBreadcrumb(
+  selection: DerivedTagOntologyExplorerSelection,
+  state: DerivedTagOntologyExplorerState,
+): string {
   const segments = ["ontology-search"];
   if (selection.category) {
     segments.push(selection.category.category);
@@ -430,24 +446,20 @@ function buildBreadcrumb(selection: ExplorerSelection, state: DerivedTagOntology
   return segments.join(" > ");
 }
 
-function buildActiveListLines(
-  terminalSession: DerivedTagTerminalSession,
+export function buildDerivedTagOntologyExplorerListLines(
   model: DerivedTagOntologyExplorerModel,
   state: DerivedTagOntologyExplorerState,
+  bodyHeight: number,
 ): DerivedTagTerminalLine[] {
-  const visibleCount = Math.max(1, getTerminalPaneBodyHeight(terminalSession, {
-    hasSubtitle: true,
-    footerLineCount: 2,
-  }));
-  const selection = getSelection(model, state);
+  const selection = getDerivedTagOntologyExplorerSelection(model, state);
   const nodes = getActiveNodes(model, state);
   if (nodes.length === 0) {
     return [{ text: "No nodes match the current filter.", tone: "dim" }];
   }
 
   const selectedIndex = nodes.findIndex((node) => node.key === getSelectedKeyForDepth(selection, state));
-  const windowStart = clampWindowStart(Math.max(0, selectedIndex), nodes.length, visibleCount);
-  const visibleNodes = nodes.slice(windowStart, windowStart + visibleCount);
+  const windowStart = clampWindowStart(Math.max(0, selectedIndex), nodes.length, Math.max(1, bodyHeight));
+  const visibleNodes = nodes.slice(windowStart, windowStart + Math.max(1, bodyHeight));
 
   if (state.depth === "family") {
     let lastAxis: string | undefined;
@@ -509,23 +521,6 @@ function buildActiveListLines(
   });
 }
 
-function getPrintableKeyCharacter(key: DerivedTagTerminalKey): string | undefined {
-  if (!key.data.isCharacter) {
-    return undefined;
-  }
-  if (typeof key.data.codepoint === "number") {
-    return String.fromCodePoint(key.data.codepoint);
-  }
-  if (key.name === "space") {
-    return " ";
-  }
-  return key.name.length === 1 ? key.name : undefined;
-}
-
-function isExactPrintableKey(key: DerivedTagTerminalKey, value: string): boolean {
-  return getPrintableKeyCharacter(key) === value;
-}
-
 function buildCategoryDetailLines(category: DerivedTagOntologyExplorerCategoryNode): DerivedTagTerminalLine[] {
   return [
     { text: category.category, tone: "section" },
@@ -576,11 +571,11 @@ function buildTagDetailLines(tag: DerivedTagOntologyExplorerTagNode): DerivedTag
   ];
 }
 
-function buildDetailLines(
+export function buildDerivedTagOntologyExplorerDetailLines(
   model: DerivedTagOntologyExplorerModel,
   state: DerivedTagOntologyExplorerState,
 ): DerivedTagTerminalLine[] {
-  const selection = getSelection(model, state);
+  const selection = getDerivedTagOntologyExplorerSelection(model, state);
   if (state.depth === "category" && selection.category) {
     return buildCategoryDetailLines(selection.category);
   }
@@ -596,340 +591,77 @@ function buildDetailLines(
   return [{ text: "No ontology entry selected.", tone: "dim" }];
 }
 
-function buildVisibleDetailLines(
-  terminalSession: DerivedTagTerminalSession,
+export function getDerivedTagOntologyExplorerDetailPaneWidth(
+  width: number,
+  layoutMode: DerivedTagTerminalTwoPaneLayoutMode,
+): number {
+  return getTerminalTwoPaneDetailWidth(width, layoutMode, 46);
+}
+
+export function buildVisibleDerivedTagOntologyExplorerDetailLines(
   model: DerivedTagOntologyExplorerModel,
   state: DerivedTagOntologyExplorerState,
   layoutMode: DerivedTagTerminalTwoPaneLayoutMode,
+  width: number,
+  bodyHeight: number,
 ): DerivedTagTerminalLine[] {
-  const bodyHeight = Math.max(1, getTerminalPaneBodyHeight(terminalSession, {
+  return sliceRenderedTerminalLines(
+    buildDerivedTagOntologyExplorerDetailLines(model, state),
+    getDerivedTagOntologyExplorerDetailPaneWidth(width, layoutMode),
+    state.detailScroll,
+    bodyHeight,
+  );
+}
+
+export function getDerivedTagOntologyExplorerDetailMetrics(
+  model: DerivedTagOntologyExplorerModel,
+  state: DerivedTagOntologyExplorerState,
+  layoutMode: DerivedTagTerminalTwoPaneLayoutMode,
+  width: number,
+  height: number,
+): { bodyHeight: number; maxDetailScroll: number; detailJumpSize: number; detailPageSize: number; selectionJumpSize: number } {
+  const bodyHeight = Math.max(1, getTerminalPaneBodyHeight(height, {
     hasSubtitle: true,
     footerLineCount: 2,
   }));
-  const detailLines = buildDetailLines(model, state);
-  const detailWidth = getOntologyExplorerDetailPaneWidth(terminalSession, layoutMode);
-  return sliceRenderedTerminalLines(detailLines, detailWidth, state.detailScroll, bodyHeight);
+  const detailWidth = getDerivedTagOntologyExplorerDetailPaneWidth(width, layoutMode);
+  const detailLines = buildDerivedTagOntologyExplorerDetailLines(model, state);
+  const renderedDetailLineCount = getRenderedTerminalLineCount(detailLines, detailWidth);
+  return {
+    bodyHeight,
+    detailJumpSize: Math.max(1, Math.floor(bodyHeight / 2)),
+    detailPageSize: Math.max(1, bodyHeight - 1),
+    maxDetailScroll: Math.max(0, renderedDetailLineCount - bodyHeight),
+    selectionJumpSize: Math.max(1, Math.floor(bodyHeight / 2)),
+  };
 }
 
-function getOntologyExplorerDetailPaneWidth(
-  terminalSession: DerivedTagTerminalSession,
-  layoutMode: DerivedTagTerminalTwoPaneLayoutMode,
-): number {
-  return getTerminalTwoPaneDetailWidth(terminalSession, layoutMode, 46);
+export function buildDerivedTagOntologyExplorerHelpLines(): DerivedTagTerminalLine[] {
+  return [
+    { text: "Navigation", tone: "section" },
+    { text: "Up / Down or j / k: move selection within the active depth" },
+    { text: "Ctrl+U / Ctrl+D: jump up or down by half a pane without wrapping" },
+    { text: "Space / b: page down or up without wrapping" },
+    { text: "gg / G or Home / End: jump to the first or last item in the current depth" },
+    { text: "Tab or w: switch focus between the list and detail panes" },
+    { text: "z: toggle focused detail view while detail has focus" },
+    { text: "With detail focus, j/k, Ctrl+U/D, Space/b, Home/End, and Page Up/Down scroll the current detail page" },
+    { text: "Enter or Right / l: drill deeper into the hierarchy" },
+    { text: "Left / h or Backspace: go up one level" },
+    { text: "/: enter live inline search for the current depth" },
+    { text: "Esc: clear search first, otherwise go back" },
+    { text: "Page Up / Page Down: scroll long details" },
+    { text: "q: return to the top-level area selector" },
+  ];
 }
 
-function renderOntologyExplorerHelp(terminalSession: DerivedTagTerminalSession): void {
-  renderTerminalTextScreen(terminalSession, {
-    title: "Ontology Search Help",
-    body: [
-      { text: "Navigation", tone: "section" },
-      { text: "Up / Down or j / k: move selection within the active depth" },
-      { text: "Ctrl+U / Ctrl+D: jump up or down by half a pane without wrapping" },
-      { text: "Space / b: page down or up without wrapping" },
-      { text: "gg / G or Home / End: jump to the first or last item in the current depth" },
-      { text: "Tab or w: switch focus between the list and detail panes" },
-      { text: "z: toggle focused detail view while detail has focus" },
-      { text: "With detail focus, j/k, Ctrl+U/D, Space/b, Home/End, and Page Up/Down scroll the current detail page" },
-      { text: "Enter or Right / l: drill deeper into the hierarchy" },
-      { text: "Left / h or Backspace: go up one level" },
-      { text: "/: enter live inline search for the current depth" },
-      { text: "Esc: clear search first, otherwise go back" },
-      { text: "Page Up / Page Down: scroll long details" },
-      { text: "q: return to the top-level area selector" },
-    ],
-    footer: [{ text: "Press any key to return.", tone: "dim" }],
-  });
-}
-
-export async function runDerivedTagOntologyExplorerUi(
-  db: DatabaseSync,
-  terminalSession: DerivedTagTerminalSession,
-  options: { cacheKey?: string } = {},
-): Promise<void> {
-  const model = buildDerivedTagOntologyExplorerModel(db, options);
-  let state = createDerivedTagOntologyExplorerState(model);
-  let activePane: DerivedTagTerminalTwoPaneFocus = "list";
-  let layoutMode: DerivedTagTerminalTwoPaneLayoutMode = "split";
-  let searchMode = false;
-  let searchInput = state.filter;
-  let pendingListCommand: "g" | null = null;
-
-  while (true) {
-    layoutMode = normalizeTerminalTwoPaneLayoutMode(layoutMode, activePane);
-    state = normalizeDerivedTagOntologyExplorerState(model, state);
-    const selection = getSelection(model, state);
-    const detailLines = buildDetailLines(model, state);
-    const bodyHeight = Math.max(1, getTerminalPaneBodyHeight(terminalSession, {
-      hasSubtitle: true,
-      footerLineCount: 2,
-    }));
-    const detailWidth = getOntologyExplorerDetailPaneWidth(terminalSession, layoutMode);
-    const selectionJumpSize = Math.max(1, Math.floor(bodyHeight / 2));
-    const detailJumpSize = Math.max(1, Math.floor(bodyHeight / 2));
-    const detailPageSize = Math.max(1, bodyHeight - 1);
-    const renderedDetailLineCount = getRenderedTerminalLineCount(detailLines, detailWidth);
-    const maxDetailScroll = Math.max(0, renderedDetailLineCount - bodyHeight);
-    if (state.detailScroll > maxDetailScroll) {
-      state = { ...state, detailScroll: maxDetailScroll };
-    }
-
-    if (layoutMode === "detail-only") {
-      renderTerminalPaneScreen(terminalSession, {
-        title: "Ontology Search",
-        subtitle: `${buildBreadcrumb(selection, state)} | depth ${state.depth} | focused detail | ${searchMode ? `/${searchInput}` : `/${state.filter}`}`,
-        pane: {
-          title: `[FOCUSED DETAIL] ${state.depth === "category"
-            ? "Category Details"
-            : state.depth === "family"
-              ? "Family Details"
-              : state.depth === "tag"
-                ? "Tag Details"
-                : "Record Details"}`,
-          lines: buildVisibleDetailLines(terminalSession, model, state, layoutMode),
-          active: true,
-        },
-        footer: [
-          {
-            text: searchMode
-              ? "Type to filter live  Backspace edit  Enter keep filter  Esc clear and back out"
-              : "z split-view  Tab/w list focus  Up/Down or j/k scroll  Ctrl+U/D jump  Space/b page  Home/End edge  Left/backspace/esc list  / search  ? help  q back",
-            tone: "dim",
-          },
-          {
-            text: searchMode
-              ? `Search /${searchInput}`
-              : `detail focus | focused detail view | Detail scroll ${state.detailScroll}/${maxDetailScroll}`,
-            tone: "accent",
-          },
-        ],
-      });
-    } else {
-      renderTerminalTwoPaneScreen(terminalSession, {
-        title: "Ontology Search",
-        subtitle: `${buildBreadcrumb(selection, state)} | depth ${state.depth} | ${searchMode ? `/${searchInput}` : `/${state.filter}`}`,
-        left: {
-          title: `${activePane === "list" ? "[LIST] " : "List: "}${state.depth === "category"
-            ? "Categories"
-            : state.depth === "family"
-              ? "Families"
-              : state.depth === "tag"
-                ? "Tags"
-                : "Records"}`,
-          lines: buildActiveListLines(terminalSession, model, state),
-          active: activePane === "list",
-        },
-        right: {
-          title: `${activePane === "detail" ? "[DETAIL] " : "Detail: "}${state.depth === "category"
-            ? "Category Details"
-            : state.depth === "family"
-              ? "Family Details"
-              : state.depth === "tag"
-                ? "Tag Details"
-                : "Record Details"}`,
-          lines: buildVisibleDetailLines(terminalSession, model, state, layoutMode),
-          active: activePane === "detail",
-        },
-        footer: [
-          {
-            text: searchMode
-              ? "Type to filter live  Backspace edit  Enter keep filter  Esc clear and back out"
-              : "Tab/w focus  z detail-only  Up/Down or j/k move-scroll  Ctrl+U/D jump  Space/b page  gg/G edge  Enter/right drill  Left/backspace up  / search  Esc back/clear  ? help  q back",
-            tone: "dim",
-          },
-          {
-            text: searchMode
-              ? `Search /${searchInput}`
-              : `${activePane} focus | ${layoutMode} layout | Detail scroll ${state.detailScroll}/${maxDetailScroll}`,
-            tone: "accent",
-          },
-        ],
-        leftWidth: 46,
-      });
-    }
-
-    const key = await readTerminalKeyOrResize(terminalSession);
-    const normalized = key.normalizedName;
-    const printableCharacter = getPrintableKeyCharacter(key);
-    if (pendingListCommand && printableCharacter !== "g") {
-      pendingListCommand = null;
-    }
-    if (normalized === "ctrl_c" || normalized === "q") {
-      return;
-    }
-    if (searchMode) {
-      if (normalized === "enter" || normalized === "kp_enter") {
-        searchMode = false;
-        continue;
-      }
-      if (normalized === "backspace") {
-        searchInput = searchInput.slice(0, -1);
-        state = setDerivedTagOntologyExplorerFilter(model, state, searchInput);
-        continue;
-      }
-      if (normalized === "escape") {
-        searchMode = false;
-        searchInput = "";
-        state = setDerivedTagOntologyExplorerFilter(model, state, "");
-        continue;
-      }
-
-      if (printableCharacter) {
-        searchInput += printableCharacter;
-        state = setDerivedTagOntologyExplorerFilter(model, state, searchInput);
-      }
-      continue;
-    }
-    if (normalized === "tab" || normalized === "shift_tab" || normalized === "w") {
-      activePane = toggleTerminalTwoPaneFocus(activePane);
-      layoutMode = normalizeTerminalTwoPaneLayoutMode(layoutMode, activePane);
-      continue;
-    }
-    if (normalized === "z") {
-      layoutMode = toggleTerminalTwoPaneLayoutMode(layoutMode, activePane);
-      continue;
-    }
-    if (normalized === "?") {
-      renderOntologyExplorerHelp(terminalSession);
-      await readTerminalKey(terminalSession);
-      continue;
-    }
-    if (activePane === "detail") {
-      if (normalized === "up" || normalized === "k") {
-        state = moveDerivedTagOntologyExplorerDetailScroll(state, -1, maxDetailScroll);
-        continue;
-      }
-      if (normalized === "down" || normalized === "j") {
-        state = moveDerivedTagOntologyExplorerDetailScroll(state, 1, maxDetailScroll);
-        continue;
-      }
-      if (normalized === "ctrl_d") {
-        state = moveDerivedTagOntologyExplorerDetailScroll(state, detailJumpSize, maxDetailScroll);
-        continue;
-      }
-      if (normalized === "ctrl_u") {
-        state = moveDerivedTagOntologyExplorerDetailScroll(state, -detailJumpSize, maxDetailScroll);
-        continue;
-      }
-      if (normalized === "page_down") {
-        state = moveDerivedTagOntologyExplorerDetailScroll(state, detailPageSize, maxDetailScroll);
-        continue;
-      }
-      if (normalized === "space") {
-        state = moveDerivedTagOntologyExplorerDetailScroll(state, detailPageSize, maxDetailScroll);
-        continue;
-      }
-      if (normalized === "page_up") {
-        state = moveDerivedTagOntologyExplorerDetailScroll(state, -detailPageSize, maxDetailScroll);
-        continue;
-      }
-      if (normalized === "b") {
-        state = moveDerivedTagOntologyExplorerDetailScroll(state, -detailPageSize, maxDetailScroll);
-        continue;
-      }
-      if (normalized === "home") {
-        state = moveDerivedTagOntologyExplorerDetailScrollToBoundary(state, "start", maxDetailScroll);
-        continue;
-      }
-      if (normalized === "end") {
-        state = moveDerivedTagOntologyExplorerDetailScrollToBoundary(state, "end", maxDetailScroll);
-        continue;
-      }
-      if (normalized === "left" || normalized === "h" || normalized === "backspace" || normalized === "escape") {
-        activePane = "list";
-        layoutMode = "split";
-        continue;
-      }
-      continue;
-    }
-    if (normalized === "up" || normalized === "k") {
-      state = moveDerivedTagOntologyExplorerSelection(model, state, -1);
-      continue;
-    }
-    if (normalized === "down" || normalized === "j") {
-      state = moveDerivedTagOntologyExplorerSelection(model, state, 1);
-      continue;
-    }
-    if (normalized === "ctrl_d") {
-      state = jumpDerivedTagOntologyExplorerSelection(model, state, selectionJumpSize);
-      continue;
-    }
-    if (normalized === "ctrl_u") {
-      state = jumpDerivedTagOntologyExplorerSelection(model, state, -selectionJumpSize);
-      continue;
-    }
-    if (normalized === "space" || normalized === "page_down") {
-      state = jumpDerivedTagOntologyExplorerSelection(model, state, detailPageSize);
-      continue;
-    }
-    if (normalized === "b" || normalized === "page_up") {
-      state = jumpDerivedTagOntologyExplorerSelection(model, state, -detailPageSize);
-      continue;
-    }
-    if (normalized === "home") {
-      state = moveDerivedTagOntologyExplorerSelectionToBoundary(model, state, "start");
-      continue;
-    }
-    if (normalized === "end") {
-      state = moveDerivedTagOntologyExplorerSelectionToBoundary(model, state, "end");
-      continue;
-    }
-    if (normalized === "g" && isExactPrintableKey(key, "g")) {
-      if (pendingListCommand === "g") {
-        state = moveDerivedTagOntologyExplorerSelectionToBoundary(model, state, "start");
-        pendingListCommand = null;
-      } else {
-        pendingListCommand = "g";
-      }
-      continue;
-    }
-    if (normalized === "g" && isExactPrintableKey(key, "G")) {
-      state = moveDerivedTagOntologyExplorerSelectionToBoundary(model, state, "end");
-      pendingListCommand = null;
-      continue;
-    }
-    if (normalized === "right" || normalized === "l" || normalized === "enter" || normalized === "kp_enter") {
-      state = drillIntoDerivedTagOntologyExplorer(model, state);
-      activePane = "list";
-      layoutMode = "split";
-      continue;
-    }
-    if (normalized === "left" || normalized === "h" || normalized === "backspace") {
-      const nextState = popDerivedTagOntologyExplorerDepth(state);
-      if (nextState.depth === state.depth) {
-        return;
-      }
-      state = nextState;
-      activePane = "list";
-      layoutMode = "split";
-      continue;
-    }
-    if (normalized === "escape") {
-      if (state.filter) {
-        searchInput = "";
-        state = setDerivedTagOntologyExplorerFilter(model, state, "");
-        continue;
-      }
-      const nextState = popDerivedTagOntologyExplorerDepth(state);
-      if (nextState.depth === state.depth) {
-        return;
-      }
-      state = nextState;
-      activePane = "list";
-      layoutMode = "split";
-      continue;
-    }
-    if (normalized === "/" || normalized === "slash") {
-      searchMode = true;
-      searchInput = state.filter;
-      continue;
-    }
-    if (normalized === "page_down") {
-      state = { ...state, detailScroll: Math.min(maxDetailScroll, state.detailScroll + Math.max(1, Math.floor(bodyHeight / 2))) };
-      continue;
-    }
-    if (normalized === "page_up") {
-      state = { ...state, detailScroll: Math.max(0, state.detailScroll - Math.max(1, Math.floor(bodyHeight / 2))) };
-      continue;
-    }
+export function getPrintableOntologyExplorerKeyCharacter(input: string, key: Key): string | undefined {
+  if (key.ctrl || key.meta) {
+    return undefined;
   }
+  return getPrintableInput(input, key);
+}
+
+export function isExactPrintableOntologyExplorerKey(input: string, key: Key, value: string): boolean {
+  return getPrintableOntologyExplorerKeyCharacter(input, key) === value;
 }
