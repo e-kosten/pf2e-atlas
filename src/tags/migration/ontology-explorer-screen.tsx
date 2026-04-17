@@ -215,7 +215,7 @@ export function DerivedTagOntologyExplorerScreen({
       dispatch({ type: "set_pending_g", pending: false });
     }
 
-    if (normalized === "ctrl_c" || normalized === "q") {
+    if (normalized === "ctrl_c") {
       onExit();
       return;
     }
@@ -237,6 +237,11 @@ export function DerivedTagOntologyExplorerScreen({
       if (printable) {
         dispatch({ type: "append_search", character: printable });
       }
+      return;
+    }
+
+    if (normalized === "q") {
+      onExit();
       return;
     }
 
