@@ -160,7 +160,14 @@ function createServices(
     }),
     listFilterValues: vi.fn(({ field }) => {
       if (field === "rarity") {
-        return { values: [{ value: "common", count: 1 }] };
+        return {
+          values: [
+            { value: "unique", count: 1 },
+            { value: "common", count: 1 },
+            { value: "rare", count: 1 },
+            { value: "uncommon", count: 1 },
+          ],
+        };
       }
       if (field === "actionCost") {
         return { values: [{ value: "2", count: 1 }] };
@@ -236,6 +243,8 @@ describe("search screen", () => {
     await flushInk();
     expect(app.lastFrame()).toContain("Browse/Search");
     expect(app.lastFrame()).toContain("Workspace Navigator");
+    expect(app.lastFrame()).not.toContain("Profile |");
+    expect(app.lastFrame()).not.toContain("Action Cost |");
 
     pressDown(app);
     await flushInk();
@@ -310,6 +319,18 @@ describe("search screen", () => {
     });
     expect(app.lastFrame()).toContain("Draft matches applied query");
     expect(app.lastFrame()).toContain("1/1 shown");
+  });
+
+  it("orders rarity canonically and exposes action cost through facet editing", () => {
+    const services = createServices();
+
+    expect(services.user.search.getRarityOptions("spell", null).map((option) => option.value)).toEqual([
+      "common",
+      "uncommon",
+      "rare",
+      "unique",
+    ]);
+    expect(services.user.search.getFacetFieldOptions("spell", null).some((option) => option.value === "actionCost")).toBe(true);
   });
 
   it("maps simple ontology browse queries into seeded workspace requests", () => {

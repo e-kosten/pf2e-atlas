@@ -50,7 +50,6 @@ type SearchNavigatorAction =
   | "subcategory"
   | "levels"
   | "rarity"
-  | "actionCost"
   | "addFacet"
   | "removeFacet"
   | "reset"
@@ -188,6 +187,10 @@ function formatFilterPolicy<T extends number | string>(
   return parts.length > 0 ? parts.join(" | ") : "(any)";
 }
 
+function hasFilterPolicy<T extends number | string>(policy: Pf2eTerminalFilterValuePolicy<T>): boolean {
+  return policy.any.length > 0 || policy.all.length > 0 || policy.exclude.length > 0;
+}
+
 function formatFacetSelection(facet: Pf2eTerminalFacetSelection): string {
   return `${humanizeIdentifier(facet.field)}: ${formatFilterPolicy(facet.policy)}`;
 }
@@ -294,14 +297,6 @@ function buildNavigatorEntries(state: SearchScreenState): SearchNavigatorEntry[]
     },
     {
       kind: "action",
-      action: "profile",
-      label: "Profile",
-      value: state.draft.searchProfile,
-      description: "Choose the lexical, balanced, or concept retrieval profile used by ranked search.",
-      disabled: state.draft.mode !== "search",
-    },
-    {
-      kind: "action",
       action: "category",
       label: "Category",
       value: formatSearchCategory(state.draft.filters.category),
@@ -333,16 +328,11 @@ function buildNavigatorEntries(state: SearchScreenState): SearchNavigatorEntry[]
     },
     {
       kind: "action",
-      action: "actionCost",
-      label: "Action Cost",
-      value: formatFilterPolicy(state.draft.filters.actionCost),
-      description: "Cycle action costs through any and exclude policies in one view.",
-    },
-    {
-      kind: "action",
       action: "addFacet",
       label: "Edit Facet Filter",
-      value: `${state.draft.filters.facets.length} active`,
+      value: `${
+        state.draft.filters.facets.length + (hasFilterPolicy(state.draft.filters.actionCost) ? 1 : 0)
+      } active`,
       description: state.draft.filters.category
         ? "Choose a discoverable metadata field and cycle each value through any, all, or exclude."
         : "Choose a category before editing discoverable facet filters.",
@@ -352,11 +342,13 @@ function buildNavigatorEntries(state: SearchScreenState): SearchNavigatorEntry[]
       kind: "action",
       action: "removeFacet",
       label: "Clear Facet Filter",
-      value: `${state.draft.filters.facets.length} active`,
-      description: state.draft.filters.facets.length > 0
+      value: `${
+        state.draft.filters.facets.length + (hasFilterPolicy(state.draft.filters.actionCost) ? 1 : 0)
+      } active`,
+      description: state.draft.filters.facets.length > 0 || hasFilterPolicy(state.draft.filters.actionCost)
         ? "Remove an entire facet policy block from the current draft."
         : "No facet policies are currently applied.",
-      disabled: state.draft.filters.facets.length === 0,
+      disabled: state.draft.filters.facets.length === 0 && !hasFilterPolicy(state.draft.filters.actionCost),
     },
     {
       kind: "action",
@@ -376,6 +368,16 @@ function buildNavigatorEntries(state: SearchScreenState): SearchNavigatorEntry[]
       disabled: !state.session,
     },
   ];
+
+  if (state.draft.mode === "search") {
+    entries.splice(3, 0, {
+      kind: "action",
+      action: "profile",
+      label: "Profile",
+      value: state.draft.searchProfile,
+      description: "Choose the lexical, balanced, or concept retrieval profile used by ranked search.",
+    });
+  }
 
   if (!state.session || state.session.results.length === 0) {
     return entries;
@@ -423,13 +425,23 @@ function buildWorkspaceSummaryLines(state: SearchScreenState): DerivedTagTermina
     { text: "Workspace", tone: "section" },
     { text: `Draft mode: ${formatMode(state.draft.mode)}` },
     { text: `Draft query: ${state.draft.queryText || "(none)"}` },
-    { text: `Draft profile: ${state.draft.searchProfile}` },
     { text: `Scope: ${formatSearchCategory(state.draft.filters.category)} / ${formatSearchSubcategory(state.draft.filters.subcategory)}` },
     { text: `Level range: ${formatLevelRange(state.draft)}` },
     { text: `Rarity: ${formatFilterPolicy(state.draft.filters.rarity)}` },
-    { text: `Action cost: ${formatFilterPolicy(state.draft.filters.actionCost)}` },
-    { text: `Facet filters: ${state.draft.filters.facets.length}` },
+    {
+      text: `Facet filters: ${
+        state.draft.filters.facets.length + (hasFilterPolicy(state.draft.filters.actionCost) ? 1 : 0)
+      }`,
+    },
   ];
+
+  if (state.draft.mode === "search") {
+    lines.splice(3, 0, { text: `Draft profile: ${state.draft.searchProfile}` });
+  }
+
+  if (hasFilterPolicy(state.draft.filters.actionCost)) {
+    lines.push({ text: `Action Cost: ${formatFilterPolicy(state.draft.filters.actionCost)}`, indent: 2 });
+  }
 
   if (state.draft.filters.facets.length > 0) {
     for (const facet of state.draft.filters.facets) {
@@ -496,16 +508,29 @@ function buildSearchSubtitle(state: SearchScreenState): string {
   return `${draft} | ${state.session.resultMode} | ${state.session.total} result${state.session.total === 1 ? "" : "s"} | ${dirtyLabel}`;
 }
 
-function buildFacetRemovalEntries(facets: Pf2eTerminalFacetSelection[]): Array<{
+function buildFacetRemovalEntries(
+  facets: Pf2eTerminalFacetSelection[],
+  actionCost: Pf2eTerminalFilterValuePolicy<number>,
+): Array<{
   value: string;
   label: string;
   description: string;
 }> {
-  return facets.map((facet) => ({
+  const entries = facets.map((facet) => ({
     value: facet.field,
     label: humanizeIdentifier(facet.field),
     description: `Clear ${formatFilterPolicy(facet.policy)} from the current draft filter stack.`,
   }));
+
+  if (hasFilterPolicy(actionCost)) {
+    entries.unshift({
+      value: "actionCost",
+      label: "Action Cost",
+      description: `Clear ${formatFilterPolicy(actionCost)} from the current draft filter stack.`,
+    });
+  }
+
+  return entries;
 }
 
 export function SearchScreen({
@@ -711,36 +736,6 @@ export function SearchScreen({
     }));
   }, [applyDraftUpdate, state.draft.filters.category, state.draft.filters.rarity, state.draft.filters.subcategory, terminal, user.search]);
 
-  const chooseActionCostFilter = React.useCallback(async () => {
-    const options = user.search.getActionCostOptions(state.draft.filters.category, state.draft.filters.subcategory);
-    const selected = await terminal.promptPolicySelectOption({
-      title: "Action Cost Filter",
-      prompt: "Cycle draft action costs through any and exclude. Press Esc or Left when finished.",
-      allowedStates: ["any", "exclude"],
-      entries: options.map((option) => ({
-        value: option.value,
-        label: option.label,
-        description: option.description,
-      })),
-      selectedValues: {
-        any: state.draft.filters.actionCost.any.map((value) => String(value)),
-        exclude: state.draft.filters.actionCost.exclude.map((value) => String(value)),
-      },
-    });
-
-    applyDraftUpdate((request) => ({
-      ...request,
-      filters: {
-        ...request.filters,
-        actionCost: {
-          any: selected.any.map((value) => Number.parseInt(value, 10)).filter((value) => Number.isFinite(value)),
-          all: [],
-          exclude: selected.exclude.map((value) => Number.parseInt(value, 10)).filter((value) => Number.isFinite(value)),
-        },
-      },
-    }));
-  }, [applyDraftUpdate, state.draft.filters.actionCost, state.draft.filters.category, state.draft.filters.subcategory, terminal, user.search]);
-
   const editLevelRange = React.useCallback(async () => {
     const input = await terminal.promptTextInput({
       title: "Level Range",
@@ -800,11 +795,13 @@ export function SearchScreen({
       return;
     }
 
-    const valueOptions = user.search.getFacetValueOptions(
-      selectedField as Pf2eTerminalFacetField,
-      state.draft.filters.category,
-      state.draft.filters.subcategory,
-    );
+    const valueOptions = selectedField === "actionCost"
+      ? user.search.getActionCostOptions(state.draft.filters.category, state.draft.filters.subcategory)
+      : user.search.getFacetValueOptions(
+        selectedField as Pf2eTerminalFacetField,
+        state.draft.filters.category,
+        state.draft.filters.subcategory,
+      );
     if (valueOptions.length === 0) {
       await terminal.pauseForAnyKey("No live values are available for that field in the current scope.");
       return;
@@ -821,10 +818,29 @@ export function SearchScreen({
         label: option.label,
         description: option.description,
       })),
-      selectedValues: state.draft.filters.facets.find((facet) => facet.field === selectedField)?.policy,
+      selectedValues: selectedField === "actionCost"
+        ? {
+          any: state.draft.filters.actionCost.any.map((value) => String(value)),
+          exclude: state.draft.filters.actionCost.exclude.map((value) => String(value)),
+        }
+        : state.draft.filters.facets.find((facet) => facet.field === selectedField)?.policy,
     });
 
     applyDraftUpdate((request) => {
+      if (selectedField === "actionCost") {
+        return {
+          ...request,
+          filters: {
+            ...request.filters,
+            actionCost: {
+              any: selectedPolicy.any.map((value) => Number.parseInt(value, 10)).filter((value) => Number.isFinite(value)),
+              all: [],
+              exclude: selectedPolicy.exclude.map((value) => Number.parseInt(value, 10)).filter((value) => Number.isFinite(value)),
+            },
+          },
+        };
+      }
+
       const facets = [...request.filters.facets];
       const currentIndex = facets.findIndex((facet) => facet.field === selectedField);
       if (selectedPolicy.any.length === 0 && selectedPolicy.all.length === 0 && selectedPolicy.exclude.length === 0) {
@@ -860,7 +876,7 @@ export function SearchScreen({
   }, [applyDraftUpdate, state.draft.filters.category, state.draft.filters.subcategory, terminal, user.search]);
 
   const removeFacetFilter = React.useCallback(async () => {
-    if (state.draft.filters.facets.length === 0) {
+    if (state.draft.filters.facets.length === 0 && !hasFilterPolicy(state.draft.filters.actionCost)) {
       await terminal.pauseForAnyKey("There are no facet policies to clear from the draft.");
       return;
     }
@@ -868,17 +884,20 @@ export function SearchScreen({
     const selected = await terminal.promptMultiSelectOption({
       title: "Clear Facet Filter",
       prompt: "Toggle facet fields to clear. Press Esc or Left when finished.",
-      entries: buildFacetRemovalEntries(state.draft.filters.facets),
+      entries: buildFacetRemovalEntries(state.draft.filters.facets, state.draft.filters.actionCost),
       selectedValues: [],
     });
     applyDraftUpdate((request) => ({
       ...request,
       filters: {
         ...request.filters,
+        actionCost: selected.includes("actionCost")
+          ? { any: [], all: [], exclude: [] }
+          : request.filters.actionCost,
         facets: request.filters.facets.filter((facet) => !selected.includes(facet.field)),
       },
     }));
-  }, [applyDraftUpdate, state.draft.filters.facets, terminal]);
+  }, [applyDraftUpdate, state.draft.filters.actionCost, state.draft.filters.facets, terminal]);
 
   const resetDraftWorkspace = React.useCallback(() => {
     dispatch({ type: "set_draft", request: user.search.createDefaultRequest() });
@@ -923,9 +942,6 @@ export function SearchScreen({
       case "rarity":
         void chooseRarityFilter();
         return;
-      case "actionCost":
-        void chooseActionCostFilter();
-        return;
       case "addFacet":
         void addFacetFilter();
         return;
@@ -943,7 +959,6 @@ export function SearchScreen({
     }
   }, [
     addFacetFilter,
-    chooseActionCostFilter,
     chooseCategoryFilter,
     chooseMode,
     chooseRarityFilter,
@@ -1038,10 +1053,6 @@ export function SearchScreen({
       }
       if (normalized === "r") {
         void chooseRarityFilter();
-        return;
-      }
-      if (normalized === "a") {
-        void chooseActionCostFilter();
         return;
       }
       if (normalized === "f") {

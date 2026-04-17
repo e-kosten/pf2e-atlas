@@ -184,7 +184,25 @@ const SEARCH_MODE_OPTIONS: Pf2eTerminalSearchModeOption[] = [
   },
 ];
 
-const FACET_FIELD_EXCLUSIONS = new Set<Pf2eTerminalFacetField>(["rarity", "actionCost"]);
+const FACET_FIELD_EXCLUSIONS = new Set<Pf2eTerminalFacetField>(["rarity"]);
+const RARITY_ORDER = ["common", "uncommon", "rare", "unique"] as const;
+
+function compareRarityValues(left: string, right: string): number {
+  const leftIndex = RARITY_ORDER.indexOf(left as typeof RARITY_ORDER[number]);
+  const rightIndex = RARITY_ORDER.indexOf(right as typeof RARITY_ORDER[number]);
+
+  if (leftIndex >= 0 || rightIndex >= 0) {
+    if (leftIndex < 0) {
+      return 1;
+    }
+    if (rightIndex < 0) {
+      return -1;
+    }
+    return leftIndex - rightIndex;
+  }
+
+  return left.localeCompare(right);
+}
 
 function humanizeIdentifier(value: string): string {
   return value
@@ -358,9 +376,9 @@ function normalizeRequest(
       rarity: (() => {
         const policy = normalizeStringPolicy(request.filters.rarity);
         return {
-          any: policy.any,
+          any: [...policy.any].sort(compareRarityValues),
           all: [],
-          exclude: policy.exclude,
+          exclude: [...policy.exclude].sort(compareRarityValues),
         };
       })(),
       actionCost: (() => {
@@ -769,7 +787,17 @@ export function createPf2eTerminalSearchService(
         .filter((field) =>
           field.discoverable &&
           !FACET_FIELD_EXCLUSIONS.has(field.field) &&
-          ["set", "enumString", "boolean"].includes(field.fieldType),
+          (
+            ["set", "enumString", "boolean"].includes(field.fieldType) ||
+            (
+              field.field === "actionCost" &&
+              dependencies.listFilterValues({
+                field: "actionCost",
+                ...(category ? { category } : {}),
+                ...(subcategory ? { subcategory } : {}),
+              }).values.length > 0
+            )
+          ),
         );
 
       return candidateFields.map((field) => ({
@@ -796,12 +824,14 @@ export function createPf2eTerminalSearchService(
         field: "rarity",
         ...(category ? { category } : {}),
         ...(subcategory ? { subcategory } : {}),
-      }).values.map((entry) => ({
-        value: entry.value,
-        label: formatFilterValueLabel(entry.value),
-        description: `${entry.count} live canonical record${entry.count === 1 ? "" : "s"}.`,
-        count: entry.count,
-      })),
+      }).values
+        .sort((left, right) => compareRarityValues(left.value, right.value))
+        .map((entry) => ({
+          value: entry.value,
+          label: formatFilterValueLabel(entry.value),
+          description: `${entry.count} live canonical record${entry.count === 1 ? "" : "s"}.`,
+          count: entry.count,
+        })),
     getSubcategoryOptions: (category) => {
       if (!category) {
         return [{
