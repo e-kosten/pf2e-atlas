@@ -277,11 +277,12 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       }),
       expect.objectContaining({
         category: "creature",
-        family: "encounter_role",
+        family: "scene_role",
         axis: "scene_role",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "combatant_npc", description: expect.any(String) }),
           expect.objectContaining({ value: "infiltrator_npc", description: expect.any(String) }),
+          expect.objectContaining({ value: "guardian_npc", description: expect.any(String) }),
         ]),
       }),
       expect.objectContaining({

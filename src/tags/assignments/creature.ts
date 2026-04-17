@@ -19,7 +19,7 @@ export const CREATURE_DERIVED_TAG_ASSIGNMENTS: AuthoredDerivedTagAssignment[] = 
     name: "Conspirator Dragon (Adult)",
     recordKey: "pathfinder-monster-core:TGYELuImcTcuX0aH",
     applied: {
-      motif: [
+      story_motif: [
         {
           tag: "disguised_pretender",
           source: "human",
@@ -41,13 +41,15 @@ export const CREATURE_DERIVED_TAG_ASSIGNMENTS: AuthoredDerivedTagAssignment[] = 
     name: "Departmental Chair",
     recordKey: "pathfinder-npc-core:MxcprNbX7hcpAU8p",
     applied: {
-      encounter_role: [
+      scene_role: [
         {
           tag: "civic_npc",
           source: "human",
           confidence: "high",
           rationale: "Fits the civic and social fabric of an urban institution-driven scene.",
         },
+      ],
+      world_role: [
         {
           tag: "profession_npc",
           source: "human",
@@ -61,13 +63,15 @@ export const CREATURE_DERIVED_TAG_ASSIGNMENTS: AuthoredDerivedTagAssignment[] = 
     name: "False Priest",
     recordKey: "pathfinder-npc-core:OAxxUyACpMlX3q1X",
     applied: {
-      encounter_role: [
+      scene_role: [
         {
           tag: "combatant_npc",
           source: "human",
           confidence: "high",
           rationale: "The encounter framing is adversarial and battle-ready, not only social or civic.",
         },
+      ],
+      world_role: [
         {
           tag: "profession_npc",
           source: "human",
@@ -77,7 +81,7 @@ export const CREATURE_DERIVED_TAG_ASSIGNMENTS: AuthoredDerivedTagAssignment[] = 
       ],
     },
     excluded: {
-      encounter_role: [
+      scene_role: [
         {
           tag: "civic_npc",
           source: "human",

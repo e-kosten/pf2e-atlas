@@ -143,6 +143,14 @@ describe("derived tag catalog", () => {
       }),
       expect.objectContaining({
         category: "creature",
+        family: "named_locale_setting",
+        axis: "setting",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "absalom_setting", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "creature",
         family: "planar_setting",
         axis: "setting",
         tags: expect.arrayContaining([
@@ -152,11 +160,21 @@ describe("derived tag catalog", () => {
       }),
       expect.objectContaining({
         category: "creature",
-        family: "encounter_role",
+        family: "scene_role",
         axis: "scene_role",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "combatant_npc", description: expect.any(String) }),
           expect.objectContaining({ value: "infiltrator_npc", description: expect.any(String) }),
+          expect.objectContaining({ value: "guardian_npc", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "creature",
+        family: "world_role",
+        axis: "world_role",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "profession_npc", description: expect.any(String) }),
+          expect.objectContaining({ value: "authority_npc", description: expect.any(String) }),
         ]),
       }),
       expect.objectContaining({

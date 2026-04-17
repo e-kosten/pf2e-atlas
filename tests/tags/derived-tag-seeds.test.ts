@@ -35,7 +35,7 @@ const exemplarFamilies: DerivedTagOntologyFamily[] = [
   },
   {
     category: "creature",
-    family: "motif",
+    family: "visual_motif",
     axis: "presentation",
     description: "Creature visual motifs.",
   },
@@ -65,7 +65,7 @@ const exemplarTags: DerivedTagOntologyTag[] = [
   },
   {
     category: "creature",
-    family: "motif",
+    family: "visual_motif",
     tag: "mask_motif",
     description: "Mask-centric creature imagery.",
     assignmentMode: "hybrid",

@@ -175,9 +175,12 @@ describe("derived tag ontology", () => {
     expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.setting.description).toContain("Legacy umbrella family");
     expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.habitat_setting.description).toContain("habitat tags");
     expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.combat_role.description).toContain("tactical");
-    expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.encounter_role.description).toContain("scene-slot");
-    expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.social_role.description).toContain("outside one immediate encounter slot");
-    expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.motif.description).toContain("narrative framing");
+    expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.named_locale_setting.description).toContain("specific named Pathfinder");
+    expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.scene_role.description).toContain("immediate-scenario");
+    expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.world_role.description).toContain("outside one immediate encounter slot");
+    expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.visual_motif.description).toContain("visual motifs");
+    expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.genre_motif.description).toContain("genre-tone");
+    expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.story_motif.description).toContain("plot-driving motifs");
 
     const urbanSetting = CREATURE_DERIVED_TAG_ONTOLOGY.families.site_setting.tags.find((tag) => tag.tag === "urban_setting");
     expect(urbanSetting).toEqual(expect.objectContaining({
@@ -185,7 +188,7 @@ describe("derived tag ontology", () => {
       assignmentMode: "editorial",
       adjacentTags: ["small_settlement_setting", "fortress_setting"],
     }));
-    const authorityNpc = CREATURE_DERIVED_TAG_ONTOLOGY.families.social_role.tags.find((tag) => tag.tag === "authority_npc");
+    const authorityNpc = CREATURE_DERIVED_TAG_ONTOLOGY.families.world_role.tags.find((tag) => tag.tag === "authority_npc");
     expect(authorityNpc).toEqual(expect.objectContaining({
       tag: "authority_npc",
       assignmentMode: "editorial",
@@ -194,7 +197,7 @@ describe("derived tag ontology", () => {
         "Formal office or rank is the main retrieval hook, even if the creature also serves as a civic_npc or combatant_npc in the scene.",
       ]),
     }));
-    const guideNpc = CREATURE_DERIVED_TAG_ONTOLOGY.families.social_role.tags.find((tag) => tag.tag === "guide_npc");
+    const guideNpc = CREATURE_DERIVED_TAG_ONTOLOGY.families.world_role.tags.find((tag) => tag.tag === "guide_npc");
     expect(guideNpc).toEqual(expect.objectContaining({
       tag: "guide_npc",
       assignmentMode: "editorial",
@@ -203,7 +206,7 @@ describe("derived tag ontology", () => {
         "Leading others through terrain, routes, borders, or dangerous travel spaces is central to the creature's world-facing identity.",
       ]),
     }));
-    const infiltratorNpc = CREATURE_DERIVED_TAG_ONTOLOGY.families.encounter_role.tags.find((tag) => tag.tag === "infiltrator_npc");
+    const infiltratorNpc = CREATURE_DERIVED_TAG_ONTOLOGY.families.scene_role.tags.find((tag) => tag.tag === "infiltrator_npc");
     expect(infiltratorNpc).toEqual(expect.objectContaining({
       tag: "infiltrator_npc",
       assignmentMode: "editorial",
@@ -211,6 +214,12 @@ describe("derived tag ontology", () => {
       appliesWhen: expect.arrayContaining([
         "This tag answers the creature's immediate scenario function rather than its broader profession, faction post, or criminal affiliation.",
       ]),
+    }));
+    const guardianNpc = CREATURE_DERIVED_TAG_ONTOLOGY.families.scene_role.tags.find((tag) => tag.tag === "guardian_npc");
+    expect(guardianNpc).toEqual(expect.objectContaining({
+      tag: "guardian_npc",
+      assignmentMode: "editorial",
+      adjacentTags: ["combatant_npc", "authority_npc"],
     }));
     const summonerCommander = CREATURE_DERIVED_TAG_ONTOLOGY.families.threat_profile.tags.find((tag) => tag.tag === "summoner_commander");
     expect(summonerCommander).toEqual(expect.objectContaining({
@@ -227,7 +236,7 @@ describe("derived tag ontology", () => {
       assignmentMode: "hybrid",
       adjacentTags: ["defender_combatant", "artillery_combatant"],
     }));
-    const tricksterMischief = CREATURE_DERIVED_TAG_ONTOLOGY.families.motif.tags.find((tag) => tag.tag === "trickster_mischief");
+    const tricksterMischief = CREATURE_DERIVED_TAG_ONTOLOGY.families.genre_motif.tags.find((tag) => tag.tag === "trickster_mischief");
     expect(tricksterMischief).toEqual(expect.objectContaining({
       tag: "trickster_mischief",
       assignmentMode: "hybrid",
@@ -236,7 +245,7 @@ describe("derived tag ontology", () => {
         "Pranks, baiting humor, whimsical menace, or deliberate trickster conduct are a central retrieval hook.",
       ]),
     }));
-    const dreamNightmare = CREATURE_DERIVED_TAG_ONTOLOGY.families.motif.tags.find((tag) => tag.tag === "dream_nightmare");
+    const dreamNightmare = CREATURE_DERIVED_TAG_ONTOLOGY.families.genre_motif.tags.find((tag) => tag.tag === "dream_nightmare");
     expect(dreamNightmare).toEqual(expect.objectContaining({
       tag: "dream_nightmare",
       assignmentMode: "editorial",
@@ -245,7 +254,7 @@ describe("derived tag ontology", () => {
         "Dreamlands placement alone is better captured by dreamlands_setting.",
       ]),
     }));
-    const folkHorror = CREATURE_DERIVED_TAG_ONTOLOGY.families.motif.tags.find((tag) => tag.tag === "folk_horror");
+    const folkHorror = CREATURE_DERIVED_TAG_ONTOLOGY.families.genre_motif.tags.find((tag) => tag.tag === "folk_horror");
     expect(folkHorror).toEqual(expect.objectContaining({
       tag: "folk_horror",
       assignmentMode: "editorial",
@@ -254,31 +263,35 @@ describe("derived tag ontology", () => {
         "The creature evokes old-country fear, harvest rites gone wrong, scarecrow dread, witchcraft omen, or taboo-laden local folklore.",
       ]),
     }));
-    expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.motif.tags.map((tag) => tag.tag)).toEqual(expect.arrayContaining([
+    expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.visual_motif.tags.map((tag) => tag.tag)).toEqual(expect.arrayContaining([
+      "mask_motif",
+      "mirror_motif",
+      "living_toy",
+      "living_artwork",
+    ]));
+    expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.story_motif.tags.map((tag) => tag.tag)).toEqual(expect.arrayContaining([
       "prophecy_omen",
       "corrupted_sacred",
       "vengeful_tragedy",
       "paranoia_surveillance",
+      "disguised_pretender",
+      "courtly_pageantry",
       "decadence_decline",
       "ancestral_legacy",
-      "predatory_seduction",
       "seasonal_festival",
       "apocalypse_ruin",
       "forbidden_knowledge",
       "cursed_transformation",
       "obsession_fixation",
-      "innocence_twisted",
       "occult_conspiracy",
-      "industrial_grotesque",
-      "maritime_superstition",
     ]));
-    const prophecyOmen = CREATURE_DERIVED_TAG_ONTOLOGY.families.motif.tags.find((tag) => tag.tag === "prophecy_omen");
+    const prophecyOmen = CREATURE_DERIVED_TAG_ONTOLOGY.families.story_motif.tags.find((tag) => tag.tag === "prophecy_omen");
     expect(prophecyOmen).toEqual(expect.objectContaining({
       tag: "prophecy_omen",
       assignmentMode: "editorial",
       adjacentTags: ["apocalypse_ruin", "ancestral_legacy"],
     }));
-    const occultConspiracy = CREATURE_DERIVED_TAG_ONTOLOGY.families.motif.tags.find((tag) => tag.tag === "occult_conspiracy");
+    const occultConspiracy = CREATURE_DERIVED_TAG_ONTOLOGY.families.story_motif.tags.find((tag) => tag.tag === "occult_conspiracy");
     expect(occultConspiracy).toEqual(expect.objectContaining({
       tag: "occult_conspiracy",
       assignmentMode: "editorial",
@@ -335,7 +348,15 @@ describe("derived tag ontology", () => {
     }));
     expect(flattened.families).toContainEqual(expect.objectContaining({
       category: "creature",
-      family: "social_role",
+      family: "world_role",
+    }));
+    expect(flattened.families).toContainEqual(expect.objectContaining({
+      category: "creature",
+      family: "scene_role",
+    }));
+    expect(flattened.families).toContainEqual(expect.objectContaining({
+      category: "creature",
+      family: "story_motif",
     }));
     expect(flattened.tags).toContainEqual(expect.objectContaining({
       category: "creature",

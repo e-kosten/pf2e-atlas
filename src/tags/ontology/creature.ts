@@ -223,17 +223,12 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
     },
     regional_setting: {
       axis: "setting",
-      description: "Creature setting tags for Golarion regions, major cultural spheres, and specific world locales that materially affect retrieval.",
+      description: "Creature setting tags for broad Golarion regions, nations, cultural spheres, and other macro-scale canonical geographies that materially affect retrieval.",
       variantInheritance: true,
       tags: [
         {
           tag: "geb_setting",
           description: "Strongly associated with Geb, its necromantic society, or iconic locales such as Graydirge.",
-          assignmentMode: "hybrid"
-        },
-        {
-          tag: "absalom_setting",
-          description: "Strongly associated with Absalom, its districts, surrounding Isle of Kortos culture, or similarly Absalom-specific civic scenes.",
           assignmentMode: "hybrid"
         },
         {
@@ -254,6 +249,18 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
         {
           tag: "tian_xia_setting",
           description: "Strongly associated with Tian Xia regions such as Minata, Bonmu, or Tian cultural subregions like Tian-Shu, Tian-Hwan, Tian-Sing, and Tian-La.",
+          assignmentMode: "hybrid"
+        }
+      ]
+    },
+    named_locale_setting: {
+      axis: "setting",
+      description: "Creature setting tags for specific named Pathfinder cities, fortresses, ruins, landmarks, and other marquee canonical locales that are narrower than a whole region.",
+      variantInheritance: true,
+      tags: [
+        {
+          tag: "absalom_setting",
+          description: "Strongly associated with Absalom, its districts, surrounding Isle of Kortos culture, or similarly Absalom-specific civic scenes.",
           assignmentMode: "hybrid"
         }
       ]
@@ -574,9 +581,9 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
         }
       ]
     },
-    encounter_role: {
+    scene_role: {
       axis: "scene_role",
-      description: "Creature scene-slot tags for how a role-defined NPC or humanoid is used in an encounter or active scenario, separate from broader job, office, or institutional identity.",
+      description: "Creature immediate-scenario tags for how a role-defined NPC or humanoid is used in an active scene, separate from broader job, office, or institutional identity.",
       tags: [
         {
           tag: "civic_npc",
@@ -585,7 +592,7 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
           appliesWhen: [
             "The creature belongs to the civic, domestic, institutional, or everyday social fabric of the scene.",
             "A GM would plausibly retrieve it as a socially embedded NPC rather than as a combat-forward foe.",
-            "This tag answers the creature's immediate scene slot, even if a separate social_role tag explains its profession or office."
+            "This tag answers the creature's immediate scene slot, even if a separate world_role tag explains its profession or office."
           ],
           doesNotApplyWhen: [
             "The record is primarily a hostile combatant or raider.",
@@ -625,16 +632,101 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
           ],
           doesNotApplyWhen: [
             "The creature is mainly a combatant_npc or civic_npc and only uses stealth or deception incidentally.",
-            "The stronger retrieval hook is criminal_npc or another social_role tag because the world-facing identity matters more than the scene slot."
+            "The stronger retrieval hook is criminal_npc or another world_role tag because the world-facing identity matters more than the scene slot."
           ],
           adjacentTags: [
             "combatant_npc",
             "criminal_npc"
           ]
+        },
+        {
+          tag: "guardian_npc",
+          description: "Immediate-scenario guard, jailer, doorkeeper, bodyguard, or other posted protector whose scene value is holding or protecting a person, threshold, or place.",
+          assignmentMode: "editorial",
+          appliesWhen: [
+            "The creature is naturally retrieved because it is posted to guard, hold, jail, or protect a specific person, threshold, route, or space.",
+            "The protective station matters more than a broader office, profession, or general combat readiness."
+          ],
+          doesNotApplyWhen: [
+            "The creature is merely a combat-ready NPC without a clear posted protection or guard duty.",
+            "The stronger fit is authority_npc or combatant_npc because command status or generic martial opposition matters more than guarding."
+          ],
+          adjacentTags: [
+            "combatant_npc",
+            "authority_npc"
+          ]
+        },
+        {
+          tag: "watcher_npc",
+          description: "Immediate-scenario lookout, sentry, observer, or patrol-point watcher whose scene value is warning, spotting, or noticing intruders.",
+          assignmentMode: "editorial",
+          appliesWhen: [
+            "The creature is naturally retrieved as a lookout, sentry, rooftop watcher, scout-on-post, or other early-warning presence.",
+            "Observation and alarm value matter more than direct command, social office, or frontline melee identity."
+          ],
+          doesNotApplyWhen: [
+            "The creature is simply a guard or combatant without a strong surveillance or lookout function.",
+            "The stronger fit is guide_npc or civic_npc because travel knowledge or social embedding matters more than active watch duty."
+          ],
+          adjacentTags: [
+            "guardian_npc",
+            "infiltrator_npc"
+          ]
+        },
+        {
+          tag: "escort_npc",
+          description: "Immediate-scenario escort, courier companion, guide-on-mission, ward mover, or other figure whose scene value is accompanying or moving someone through danger.",
+          assignmentMode: "editorial",
+          appliesWhen: [
+            "The creature is naturally retrieved because it escorts, transports, shepherds, or accompanies another figure through a scene or route.",
+            "Its scene function is accompaniment or safe transit rather than only office, profession, or combat duty."
+          ],
+          doesNotApplyWhen: [
+            "The creature merely knows the route or protects an area without actively accompanying someone.",
+            "The stronger fit is guide_npc or guardian_npc because world-facing pathfinding or posted guard duty matters more than escorting."
+          ],
+          adjacentTags: [
+            "guide_npc",
+            "guardian_npc"
+          ]
+        },
+        {
+          tag: "captive_npc",
+          description: "Immediate-scenario prisoner, hostage, detained witness, sacrifice target, or other constrained figure whose scene value comes from being held or imperiled.",
+          assignmentMode: "editorial",
+          appliesWhen: [
+            "The creature is naturally retrieved because it is held, imprisoned, restrained, threatened, or otherwise scenically constrained.",
+            "Its immediate scenario function is being rescued, questioned, transported, or guarded rather than acting freely in the scene."
+          ],
+          doesNotApplyWhen: [
+            "The creature is merely vulnerable, socially subordinate, or under pressure without actually being a captive or detained figure.",
+            "The stronger fit is civic_npc or contact_npc because social embeddedness or information exchange matters more than captivity."
+          ],
+          adjacentTags: [
+            "guardian_npc",
+            "contact_npc"
+          ]
+        },
+        {
+          tag: "contact_npc",
+          description: "Immediate-scenario informant, broker, fixer, negotiator, witness, or other social lead whose scene value is what they know, arrange, or reveal right now.",
+          assignmentMode: "editorial",
+          appliesWhen: [
+            "The creature is naturally retrieved because it provides information, access, leverage, bargaining, or a social lead in the immediate scenario.",
+            "The scene value comes from contact utility rather than profession label, office, or direct combat role."
+          ],
+          doesNotApplyWhen: [
+            "The creature is mainly defined by its broader office, trade, or faction identity without a specific contact-facing scene function.",
+            "The stronger fit is civic_npc or profession_npc because ongoing social embedding or world role matters more than immediate lead value."
+          ],
+          adjacentTags: [
+            "civic_npc",
+            "profession_npc"
+          ]
         }
       ]
     },
-    social_role: {
+    world_role: {
       axis: "world_role",
       description: "Creature world-facing role tags for jobs, offices, institutions, and social identities that matter outside one immediate encounter slot.",
       tags: [
@@ -645,7 +737,7 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
           appliesWhen: [
             "The creature is primarily presented through a social role, job, office, or profession label.",
             "Retrieval value comes from it being a role-defined NPC rather than a species-driven monster.",
-            "This tag answers what the creature is in the world, even if a separate encounter_role tag explains how it functions in the scene."
+            "This tag answers what the creature is in the world, even if a separate scene_role tag explains how it functions in the scene."
           ],
           doesNotApplyWhen: [
             "The role label is incidental to a stronger monster or combat identity.",
@@ -1007,15 +1099,10 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
         }
       ]
     },
-    motif: {
+    visual_motif: {
       axis: "presentation",
-      description: "Creature motif tags for recurring storytelling, presentation, and scene-tone themes that players and GMs often retrieve by vibe, imagery, or narrative framing rather than habitat, role, or tactics.",
+      description: "Creature presentation tags for recurring visual motifs, object imagery, and striking appearance-driven hooks that players and GMs often retrieve by look and iconography.",
       tags: [
-        {
-          tag: "carnival_show",
-          description: "Strongly associated with carnivals, circuses, clowns, jesters, or sideshow-style presentation.",
-          assignmentMode: "hybrid"
-        },
         {
           tag: "living_toy",
           description: "Strongly associated with dolls, puppets, mannequins, or other animated playthings.",
@@ -1024,6 +1111,61 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
         {
           tag: "living_artwork",
           description: "Strongly associated with paintings, graffiti, murals, portraits, or other artworks brought to life.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "mask_motif",
+          description: "Strongly associated with masks, veils, ceremonial face-coverings, or deliberately obscured presentation.",
+          assignmentMode: "editorial",
+          appliesWhen: [
+            "Masks, veils, or deliberate face-covering are a salient presentation motif.",
+            "The obscured face is part of the creature's recurring visual identity."
+          ],
+          doesNotApplyWhen: [
+            "A mask appears once as minor equipment.",
+            "The stronger semantic is faceless_horror or disguised_pretender rather than mask imagery."
+          ],
+          adjacentTags: [
+            "disguised_pretender",
+            "faceless_horror"
+          ]
+        },
+        {
+          tag: "faceless_horror",
+          description: "Strongly associated with missing, hidden, stolen, or featureless faces.",
+          assignmentMode: "editorial",
+          appliesWhen: [
+            "Missing, stolen, hidden, or featureless faces are central to the creature's horror identity.",
+            "Face absence or erasure is a recurring motif, not just a disguise tactic."
+          ],
+          doesNotApplyWhen: [
+            "The creature is mainly about impersonation or disguise rather than facial absence.",
+            "A covered face appears only as costume or gear."
+          ],
+          adjacentTags: [
+            "disguised_pretender",
+            "mask_motif"
+          ]
+        },
+        {
+          tag: "mirror_motif",
+          description: "Strongly associated with mirrors, reflections, duplicated selves, or reflective surfaces as a core visual or horror identity.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "stitched_horror",
+          description: "Strongly associated with sutures, patchwork flesh, sewn bodies, or visibly assembled corpse craftsmanship.",
+          assignmentMode: "hybrid"
+        }
+      ]
+    },
+    genre_motif: {
+      axis: "presentation",
+      description: "Creature presentation tags for genre-tone, mood, and atmosphere-driven motifs that players and GMs often retrieve by horror flavor or story vibe.",
+      tags: [
+        {
+          tag: "carnival_show",
+          description: "Strongly associated with carnivals, circuses, clowns, jesters, or sideshow-style presentation.",
           assignmentMode: "hybrid"
         },
         {
@@ -1036,7 +1178,7 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
           ],
           doesNotApplyWhen: [
             "The creature is merely chaotic, unpredictable, or destructive without a prankster or mischief-facing identity.",
-            "Whimsical presentation appears only as surface flavor and another motif or combat role better explains why the creature is being retrieved."
+            "Whimsical presentation appears only as surface flavor and another presentation tag or combat role better explains why the creature is being retrieved."
           ],
           adjacentTags: [
             "carnival_show",
@@ -1061,6 +1203,148 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
           ]
         },
         {
+          tag: "folk_horror",
+          description: "Strongly associated with rural superstition, old customs, harvest dread, village taboos, or uncanny folklore menace.",
+          assignmentMode: "editorial",
+          appliesWhen: [
+            "The creature evokes old-country fear, harvest rites gone wrong, scarecrow dread, witchcraft omen, or taboo-laden local folklore.",
+            "Its retrieval value comes from uncanny communal belief and traditional dread, not only from being outdoors or rural."
+          ],
+          doesNotApplyWhen: [
+            "The creature is merely found in fields, forests, or villages without a real folklore or superstition-facing motif.",
+            "The stronger fit is only rural_setting, swamp_setting, or another location tag."
+          ],
+          adjacentTags: [
+            "rural_setting",
+            "funerary_mourning"
+          ]
+        },
+        {
+          tag: "seductive_temptation",
+          description: "Strongly associated with allure, seduction, dangerous invitation, or temptation into vice, doom, or compromise.",
+          assignmentMode: "editorial",
+          appliesWhen: [
+            "The creature's presentation centers on allure, invitation, enchantment through desire, or baiting victims into a doomed choice.",
+            "Retrieval value comes from temptation or dangerous attraction, not just social interaction or mechanical charm effects."
+          ],
+          doesNotApplyWhen: [
+            "The creature is merely attractive, charismatic, or capable of charm without temptation being a real story hook.",
+            "The stronger fit is disguised_pretender or courtly_pageantry rather than luring desire."
+          ],
+          adjacentTags: [
+            "disguised_pretender",
+            "courtly_pageantry"
+          ]
+        },
+        {
+          tag: "predatory_seduction",
+          description: "Strongly associated with deliberate luring, honey-trap menace, erotic predation, or invitation used explicitly as a hunting tactic.",
+          assignmentMode: "editorial",
+          appliesWhen: [
+            "The creature's presentation centers on luring prey through desire, intimacy, or false safety before the attack or betrayal lands.",
+            "Use when the hunting or consuming dynamic matters more than general temptation or glamour."
+          ],
+          doesNotApplyWhen: [
+            "The creature is alluring or corruptive without a strong predator-lure structure.",
+            "The stronger fit is seductive_temptation because dangerous attraction matters more than an explicit hunt pattern."
+          ],
+          adjacentTags: [
+            "seductive_temptation",
+            "disguised_pretender"
+          ]
+        },
+        {
+          tag: "cosmic_dread",
+          description: "Strongly associated with void vastness, star-born dread, incomprehensible revelation, or insignificance before the cosmos.",
+          assignmentMode: "editorial",
+          appliesWhen: [
+            "The creature evokes existential terror, starry abyssal scale, unknowable revelation, or the feeling of minds breaking before the universe.",
+            "A GM would plausibly retrieve it for eldritch omen, cosmic terror, or revelation-of-the-void scenes."
+          ],
+          doesNotApplyWhen: [
+            "The creature is merely alien, aberrant, or extraplanar without a strong cosmic-horror presentation.",
+            "Astral or outer-planar placement alone is better captured by setting tags."
+          ],
+          adjacentTags: [
+            "astral_setting",
+            "dream_nightmare"
+          ]
+        },
+        {
+          tag: "body_horror",
+          description: "Strongly associated with warped anatomy, invasive flesh transformation, surgical grotesquerie, or visceral physical corruption.",
+          assignmentMode: "editorial",
+          appliesWhen: [
+            "Distorted flesh, invasive alteration, exposed anatomy, or grotesque physical transformation is central to the creature's horror identity.",
+            "A GM would retrieve the creature specifically for visceral corruption, mutation, or flesh-warp scenes."
+          ],
+          doesNotApplyWhen: [
+            "The creature is merely monstrous, bloody, or physically powerful without a strong corruption-of-the-body motif.",
+            "The stronger fit is stitched_horror or disease_vector because constructed patchwork or infection aftermath matters more than bodily grotesquerie as presentation."
+          ],
+          adjacentTags: [
+            "stitched_horror",
+            "disease_vector"
+          ]
+        },
+        {
+          tag: "innocence_twisted",
+          description: "Strongly associated with childish innocence, nursery imagery, or comforting domestic symbols turned uncanny, cruel, or threatening.",
+          assignmentMode: "editorial",
+          appliesWhen: [
+            "The creature's presentation depends on childlike, gentle, or comforting imagery becoming eerie, cruel, or dangerous.",
+            "A GM would plausibly retrieve it for nursery horror, storybook menace, or innocence-corrupted scenes."
+          ],
+          doesNotApplyWhen: [
+            "The creature is merely small, playful, or associated with toys without innocence-curdled-into-menace being central.",
+            "The stronger fit is living_toy or carnival_show because animated playthings or spectacle explain the retrieval better."
+          ],
+          adjacentTags: [
+            "living_toy",
+            "carnival_show"
+          ]
+        },
+        {
+          tag: "industrial_grotesque",
+          description: "Strongly associated with smoke, gears, furnaces, exploitation, mutilating machinery, or dehumanizing industrial corruption.",
+          assignmentMode: "editorial",
+          appliesWhen: [
+            "The creature evokes factory horror, machine-maimed labor, furnace dread, or industrial systems turning flesh and society into raw material.",
+            "Retrieval value comes from industrial corruption and mechanized degradation, not just from being a construct or urban creature."
+          ],
+          doesNotApplyWhen: [
+            "The creature merely uses technology, lives in a city, or is a construct without industrial corruption or machine-horror presentation.",
+            "The stronger fit is body_horror or urban_setting because visceral corruption or city placement matters more than industrial atmosphere."
+          ],
+          adjacentTags: [
+            "body_horror",
+            "urban_setting"
+          ]
+        },
+        {
+          tag: "maritime_superstition",
+          description: "Strongly associated with cursed voyages, sea omens, sailor folklore, drowned portents, or nautical dread shaped by legend and taboo.",
+          assignmentMode: "editorial",
+          appliesWhen: [
+            "The creature is naturally retrieved for ghost-ship rumor, sailor taboo, drowned prophecy, or sea-legend scenes where folklore matters as much as location.",
+            "Use when nautical superstition and omen-laden seafaring culture are central to the creature's presentation."
+          ],
+          doesNotApplyWhen: [
+            "The creature is merely aquatic, coastal, or ship-linked without a real folklore-and-omen maritime motif.",
+            "The stronger fit is nautical_setting or folk_horror because placement or generic rural superstition matters more than sailor legend."
+          ],
+          adjacentTags: [
+            "nautical_setting",
+            "folk_horror"
+          ]
+        }
+      ]
+    },
+    story_motif: {
+      axis: "presentation",
+      description: "Creature presentation tags for narrative framing, social-scene premises, and plot-driving motifs that players and GMs often retrieve by story hook rather than habitat or tactics.",
+      tags: [
+        {
           tag: "prophecy_omen",
           description: "Strongly associated with foretelling, omen-bearing, apocalyptic signs, destiny, or a creature's role as a herald of what is to come.",
           assignmentMode: "editorial",
@@ -1070,7 +1354,7 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
           ],
           doesNotApplyWhen: [
             "The creature merely predicts events, has divination magic, or is important to the plot without a strong omen-facing presentation.",
-            "The stronger fit is apocalypse_ruin or ancestral_legacy because destiny-sign imagery is not the main motif."
+            "The stronger fit is apocalypse_ruin or ancestral_legacy because destiny-sign imagery is not the main presentation hook."
           ],
           adjacentTags: [
             "apocalypse_ruin",
@@ -1112,23 +1396,6 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
           ]
         },
         {
-          tag: "folk_horror",
-          description: "Strongly associated with rural superstition, old customs, harvest dread, village taboos, or uncanny folklore menace.",
-          assignmentMode: "editorial",
-          appliesWhen: [
-            "The creature evokes old-country fear, harvest rites gone wrong, scarecrow dread, witchcraft omen, or taboo-laden local folklore.",
-            "Its retrieval value comes from uncanny communal belief and traditional dread, not only from being outdoors or rural."
-          ],
-          doesNotApplyWhen: [
-            "The creature is merely found in fields, forests, or villages without a real folklore or superstition-facing motif.",
-            "The stronger fit is only rural_setting, swamp_setting, or another location tag."
-          ],
-          adjacentTags: [
-            "rural_setting",
-            "funerary_mourning"
-          ]
-        },
-        {
           tag: "vengeful_tragedy",
           description: "Strongly associated with betrayal, grief, injustice, or a sorrowful wrong returning as vengeance.",
           assignmentMode: "editorial",
@@ -1143,40 +1410,6 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
           adjacentTags: [
             "funerary_mourning",
             "disguised_pretender"
-          ]
-        },
-        {
-          tag: "mask_motif",
-          description: "Strongly associated with masks, veils, ceremonial face-coverings, or deliberately obscured presentation.",
-          assignmentMode: "editorial",
-          appliesWhen: [
-            "Masks, veils, or deliberate face-covering are a salient presentation motif.",
-            "The obscured face is part of the creature's recurring visual identity."
-          ],
-          doesNotApplyWhen: [
-            "A mask appears once as minor equipment.",
-            "The stronger semantic is faceless_horror or disguised_pretender rather than mask imagery."
-          ],
-          adjacentTags: [
-            "disguised_pretender",
-            "faceless_horror"
-          ]
-        },
-        {
-          tag: "faceless_horror",
-          description: "Strongly associated with missing, hidden, stolen, or featureless faces.",
-          assignmentMode: "editorial",
-          appliesWhen: [
-            "Missing, stolen, hidden, or featureless faces are central to the creature's horror identity.",
-            "Face absence or erasure is a recurring motif, not just a disguise tactic."
-          ],
-          doesNotApplyWhen: [
-            "The creature is mainly about impersonation or disguise rather than facial absence.",
-            "A covered face appears only as costume or gear."
-          ],
-          adjacentTags: [
-            "disguised_pretender",
-            "mask_motif"
           ]
         },
         {
@@ -1206,7 +1439,7 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
           ],
           doesNotApplyWhen: [
             "It merely uses stealth or deception without identity substitution.",
-            "The stronger motif is mask_motif or faceless_horror rather than impersonation."
+            "The stronger presentation tag is mask_motif or faceless_horror rather than impersonation."
           ],
           adjacentTags: [
             "faceless_horror",
@@ -1265,45 +1498,6 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
           ]
         },
         {
-          tag: "mirror_motif",
-          description: "Strongly associated with mirrors, reflections, duplicated selves, or reflective surfaces as a core visual or horror identity.",
-          assignmentMode: "hybrid"
-        },
-        {
-          tag: "seductive_temptation",
-          description: "Strongly associated with allure, seduction, dangerous invitation, or temptation into vice, doom, or compromise.",
-          assignmentMode: "editorial",
-          appliesWhen: [
-            "The creature's presentation centers on allure, invitation, enchantment through desire, or baiting victims into a doomed choice.",
-            "Retrieval value comes from temptation or dangerous attraction, not just social interaction or mechanical charm effects."
-          ],
-          doesNotApplyWhen: [
-            "The creature is merely attractive, charismatic, or capable of charm without temptation being a real story hook.",
-            "The stronger fit is disguised_pretender or courtly_pageantry rather than luring desire."
-          ],
-          adjacentTags: [
-            "disguised_pretender",
-            "courtly_pageantry"
-          ]
-        },
-        {
-          tag: "predatory_seduction",
-          description: "Strongly associated with deliberate luring, honey-trap menace, erotic predation, or invitation used explicitly as a hunting tactic.",
-          assignmentMode: "editorial",
-          appliesWhen: [
-            "The creature's presentation centers on luring prey through desire, intimacy, or false safety before the attack or betrayal lands.",
-            "Use when the hunting or consuming dynamic matters more than general temptation or glamour."
-          ],
-          doesNotApplyWhen: [
-            "The creature is alluring or corruptive without a strong predator-lure structure.",
-            "The stronger fit is seductive_temptation because dangerous attraction matters more than an explicit hunt pattern."
-          ],
-          adjacentTags: [
-            "seductive_temptation",
-            "disguised_pretender"
-          ]
-        },
-        {
           tag: "revelry_excess",
           description: "Strongly associated with feasts, drunken revels, riotous celebration, gluttony, or ecstatic overindulgence.",
           assignmentMode: "editorial",
@@ -1335,23 +1529,6 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
           adjacentTags: [
             "revelry_excess",
             "folk_horror"
-          ]
-        },
-        {
-          tag: "cosmic_dread",
-          description: "Strongly associated with void vastness, star-born dread, incomprehensible revelation, or insignificance before the cosmos.",
-          assignmentMode: "editorial",
-          appliesWhen: [
-            "The creature evokes existential terror, starry abyssal scale, unknowable revelation, or the feeling of minds breaking before the universe.",
-            "A GM would plausibly retrieve it for eldritch omen, cosmic terror, or revelation-of-the-void scenes."
-          ],
-          doesNotApplyWhen: [
-            "The creature is merely alien, aberrant, or extraplanar without a strong cosmic-horror presentation.",
-            "Astral or outer-planar placement alone is better captured by setting tags."
-          ],
-          adjacentTags: [
-            "astral_setting",
-            "dream_nightmare"
           ]
         },
         {
@@ -1397,29 +1574,12 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
             "The creature is naturally retrieved for funerary scenes, dirges, wakes, or death-ritual storytelling rather than only because it is undead."
           ],
           doesNotApplyWhen: [
-            "The creature is merely undead, ghostly, or graveyard-linked without a meaningful mourning or funerary motif.",
+            "The creature is merely undead, ghostly, or graveyard-linked without a meaningful mourning or funerary presentation.",
             "The stronger fit is graveyard_setting, boneyard_setting, or undead_adjacent without a real ritualized grief presentation."
           ],
           adjacentTags: [
             "ritual_ceremony",
             "mask_motif"
-          ]
-        },
-        {
-          tag: "body_horror",
-          description: "Strongly associated with warped anatomy, invasive flesh transformation, surgical grotesquerie, or visceral physical corruption.",
-          assignmentMode: "editorial",
-          appliesWhen: [
-            "Distorted flesh, invasive alteration, exposed anatomy, or grotesque physical transformation is central to the creature's horror identity.",
-            "A GM would retrieve the creature specifically for visceral corruption, mutation, or flesh-warp scenes."
-          ],
-          doesNotApplyWhen: [
-            "The creature is merely monstrous, bloody, or physically powerful without a strong corruption-of-the-body motif.",
-            "The stronger fit is stitched_horror or disease_vector because constructed patchwork or infection aftermath matters more than bodily grotesquerie as presentation."
-          ],
-          adjacentTags: [
-            "stitched_horror",
-            "disease_vector"
           ]
         },
         {
@@ -1431,7 +1591,7 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
             "A GM would retrieve it for cursed metamorphosis, bestial change, or body-and-identity corruption rather than only raw mutation."
           ],
           doesNotApplyWhen: [
-            "The creature merely transforms, shapeshifts, or mutates as an ability without cursed or tragic transformation being the motif.",
+            "The creature merely transforms, shapeshifts, or mutates as an ability without cursed or tragic transformation being the presentation hook.",
             "The stronger fit is body_horror or disguised_pretender because physical grotesquerie or impersonation matters more than involuntary becoming."
           ],
           adjacentTags: [
@@ -1457,23 +1617,6 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
           ]
         },
         {
-          tag: "innocence_twisted",
-          description: "Strongly associated with childish innocence, nursery imagery, or comforting domestic symbols turned uncanny, cruel, or threatening.",
-          assignmentMode: "editorial",
-          appliesWhen: [
-            "The creature's presentation depends on childlike, gentle, or comforting imagery becoming eerie, cruel, or dangerous.",
-            "A GM would plausibly retrieve it for nursery horror, storybook menace, or innocence-corrupted scenes."
-          ],
-          doesNotApplyWhen: [
-            "The creature is merely small, playful, or associated with toys without innocence-curdled-into-menace being central.",
-            "The stronger fit is living_toy or carnival_show because animated playthings or spectacle explain the retrieval better."
-          ],
-          adjacentTags: [
-            "living_toy",
-            "carnival_show"
-          ]
-        },
-        {
           tag: "occult_conspiracy",
           description: "Strongly associated with secret circles, hidden masters, esoteric cabals, or ritual networks manipulating events from the shadows.",
           assignmentMode: "editorial",
@@ -1482,7 +1625,7 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
             "Its presentation depends on covert structure and esoteric collusion, not only on individual deception or ritual practice."
           ],
           doesNotApplyWhen: [
-            "The creature merely participates in a ritual, infiltrates a group, or knows occult lore without a real cabal or conspiracy motif.",
+            "The creature merely participates in a ritual, infiltrates a group, or knows occult lore without a real cabal or conspiracy presentation.",
             "The stronger fit is ritual_ceremony, paranoia_surveillance, or forbidden_knowledge rather than hidden-network manipulation."
           ],
           adjacentTags: [
@@ -1490,45 +1633,6 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
             "forbidden_knowledge"
           ]
         },
-        {
-          tag: "industrial_grotesque",
-          description: "Strongly associated with smoke, gears, furnaces, exploitation, mutilating machinery, or dehumanizing industrial corruption.",
-          assignmentMode: "editorial",
-          appliesWhen: [
-            "The creature evokes factory horror, machine-maimed labor, furnace dread, or industrial systems turning flesh and society into raw material.",
-            "Retrieval value comes from industrial corruption and mechanized degradation, not just from being a construct or urban creature."
-          ],
-          doesNotApplyWhen: [
-            "The creature merely uses technology, lives in a city, or is a construct without industrial corruption or machine-horror presentation.",
-            "The stronger fit is body_horror or urban_setting because visceral corruption or city placement matters more than industrial atmosphere."
-          ],
-          adjacentTags: [
-            "body_horror",
-            "urban_setting"
-          ]
-        },
-        {
-          tag: "stitched_horror",
-          description: "Strongly associated with sutures, patchwork flesh, sewn bodies, or visibly assembled corpse craftsmanship.",
-          assignmentMode: "hybrid"
-        },
-        {
-          tag: "maritime_superstition",
-          description: "Strongly associated with cursed voyages, sea omens, sailor folklore, drowned portents, or nautical dread shaped by legend and taboo.",
-          assignmentMode: "editorial",
-          appliesWhen: [
-            "The creature is naturally retrieved for ghost-ship rumor, sailor taboo, drowned prophecy, or sea-legend scenes where folklore matters as much as location.",
-            "Use when nautical superstition and omen-laden seafaring culture are central to the creature's presentation."
-          ],
-          doesNotApplyWhen: [
-            "The creature is merely aquatic, coastal, or ship-linked without a real folklore-and-omen maritime motif.",
-            "The stronger fit is nautical_setting or folk_horror because placement or generic rural superstition matters more than sailor legend."
-          ],
-          adjacentTags: [
-            "nautical_setting",
-            "folk_horror"
-          ]
-        }
       ]
     },
     bound_object: {

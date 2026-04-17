@@ -22,9 +22,9 @@ describe("authored derived tag rules", () => {
     },
     {
       category: "creature",
-      family: "motif",
+      family: "visual_motif",
       axis: "presentation",
-      description: "Creature motif tags.",
+      description: "Creature visual motif tags.",
     },
     {
       category: "spell",
@@ -44,7 +44,7 @@ describe("authored derived tag rules", () => {
     },
     {
       category: "creature",
-      family: "motif",
+      family: "visual_motif",
       tag: "legacy_phrase_tag",
       description: "Legacy matcher phrase coverage.",
       assignmentMode: "deterministic",
