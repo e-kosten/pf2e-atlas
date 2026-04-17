@@ -270,6 +270,16 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
           tag: "trap_bypass",
           description: "Helps disarm, disable, or get past traps.",
           assignmentMode: "deterministic"
+        },
+        {
+          tag: "barrier_bypass",
+          description: "Helps get through barred windows, grates, force screens, or other blocked passage without relying on brute-force breaching.",
+          assignmentMode: "deterministic"
+        },
+        {
+          tag: "mechanism_manipulation",
+          description: "Helps operate levers, latches, panels, pressure surfaces, or similar scene mechanisms from a safer or more advantageous position.",
+          assignmentMode: "deterministic"
         }
       ]
     },
@@ -705,6 +715,11 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
       ],
       description: "Appearance-changing, discreet-carry, and social-passing equipment across gear and consumables.",
       tags: [
+        {
+          tag: "stealth_support",
+          description: "Helps move quietly, avoid notice, muffle noise, or otherwise support covert entry and low-profile movement.",
+          assignmentMode: "deterministic"
+        },
         {
           tag: "concealable",
           description: "Easy to hide on the person or carry discreetly.",

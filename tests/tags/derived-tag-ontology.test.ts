@@ -74,6 +74,12 @@ describe("derived tag ontology", () => {
       assignmentMode: "composite",
       compositeOfAnyTags: ["alarm", "scrying_protection", "protective_ward", "countermagic"],
     }));
+    const spellConsultation = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "spell" && tag.tag === "consultation");
+    expect(spellConsultation).toEqual(expect.objectContaining({
+      family: "consultation",
+      assignmentMode: "composite",
+      compositeOfAnyTags: ["lore_consultation", "problem_diagnosis", "omen_guidance"],
+    }));
     const spellLockBypass = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "spell" && tag.tag === "lock_bypass");
     expect(spellLockBypass).toEqual(expect.objectContaining({
       family: "access_bypass",
@@ -91,6 +97,21 @@ describe("derived tag ontology", () => {
       appliesWhen: expect.arrayContaining([
         "The spell is naturally retrieved to operate a lever, button, latch, control panel, pressure surface, or similar mechanism from a safe or unusual position.",
       ]),
+    }));
+    const equipmentStealthSupport = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "equipment" && tag.tag === "stealth_support");
+    expect(equipmentStealthSupport).toEqual(expect.objectContaining({
+      family: "infiltration",
+      assignmentMode: "deterministic",
+    }));
+    const equipmentBarrierBypass = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "equipment" && tag.tag === "barrier_bypass");
+    expect(equipmentBarrierBypass).toEqual(expect.objectContaining({
+      family: "access_bypass",
+      assignmentMode: "deterministic",
+    }));
+    const equipmentMechanismManipulation = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "equipment" && tag.tag === "mechanism_manipulation");
+    expect(equipmentMechanismManipulation).toEqual(expect.objectContaining({
+      family: "access_bypass",
+      assignmentMode: "deterministic",
     }));
 
     const urbanSetting = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "creature" && tag.tag === "urban_setting");
@@ -164,6 +185,18 @@ describe("derived tag ontology", () => {
         assignmentMode: "composite",
       }),
     ]));
+    const groupedConsultation = groupedCatalog.find((entry) => entry.category === "spell" && entry.family === "consultation");
+    expect(groupedConsultation?.axis).toBe("utility");
+    expect(groupedConsultation?.tags).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        value: "consultation",
+        assignmentMode: "composite",
+      }),
+      expect.objectContaining({
+        value: "omen_guidance",
+        assignmentMode: "hybrid",
+      }),
+    ]));
     const groupedSpellAccessBypass = groupedCatalog.find((entry) => entry.category === "spell" && entry.family === "access_bypass");
     expect(groupedSpellAccessBypass?.axis).toBe("utility");
     expect(groupedSpellAccessBypass?.tags).toEqual(expect.arrayContaining([
@@ -178,6 +211,22 @@ describe("derived tag ontology", () => {
       expect.objectContaining({
         value: "mechanism_manipulation",
         assignmentMode: "hybrid",
+      }),
+    ]));
+    const groupedEquipmentAccessBypass = groupedCatalog.find((entry) => entry.category === "equipment" && entry.family === "access_bypass");
+    expect(groupedEquipmentAccessBypass?.axis).toBe("utility");
+    expect(groupedEquipmentAccessBypass?.tags).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        value: "lock_bypass",
+        assignmentMode: "deterministic",
+      }),
+      expect.objectContaining({
+        value: "barrier_bypass",
+        assignmentMode: "deterministic",
+      }),
+      expect.objectContaining({
+        value: "mechanism_manipulation",
+        assignmentMode: "deterministic",
       }),
     ]));
     const groupedCombatRole = groupedCatalog.find((entry) => entry.category === "creature" && entry.family === "combat_role");
@@ -209,7 +258,6 @@ describe("derived tag ontology", () => {
     expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.setting.description).toContain("Legacy umbrella family");
     expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.habitat_setting.description).toContain("habitat tags");
     expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.combat_role.description).toContain("tactical");
-    expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.named_locale_setting.description).toContain("specific named Pathfinder");
     expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.scene_role.description).toContain("immediate-scenario");
     expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.social_role.description).toContain("outside one immediate encounter slot");
     expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.visual_motif.description).toContain("visual motifs");

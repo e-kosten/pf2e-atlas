@@ -3,7 +3,7 @@ import { normalizeDerivedTag } from "./shared.js";
 
 const RAW_LEGACY_FAMILY_ALIASES: Partial<Record<SearchCategory, Record<string, string[]>>> = {
   creature: {
-    setting: ["habitat_setting", "site_setting", "regional_setting", "named_locale_setting", "planar_setting"],
+    setting: ["habitat_setting", "site_setting", "regional_setting", "planar_setting"],
     encounter_role: ["scene_role", "social_role"],
     world_role: ["social_role"],
     motif: ["visual_motif", "genre_motif", "story_motif"],

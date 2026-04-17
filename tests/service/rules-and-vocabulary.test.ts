@@ -122,6 +122,12 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       }),
       expect.objectContaining({
         category: "spell",
+        family: "consultation",
+        axis: "utility",
+        description: expect.stringContaining("ask for guidance"),
+      }),
+      expect.objectContaining({
+        category: "spell",
         family: "revelation",
         axis: "utility",
         description: expect.stringContaining("Detection and revelation"),
@@ -148,6 +154,12 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       }),
       expect.objectContaining({
         category: "spell",
+        family: "consultation",
+        tag: "consultation",
+        assignmentMode: "composite",
+      }),
+      expect.objectContaining({
+        category: "spell",
         family: "revelation",
         tag: "truth_reveal",
         assignmentMode: "hybrid",
@@ -163,6 +175,12 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
         family: "control",
         tag: "countermagic",
         assignmentMode: "hybrid",
+      }),
+      expect.objectContaining({
+        category: "equipment",
+        family: "access_bypass",
+        tag: "barrier_bypass",
+        assignmentMode: "deterministic",
       }),
       expect.objectContaining({
         category: "equipment",
@@ -200,6 +218,23 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "defender_support", description: expect.any(String) }),
           expect.objectContaining({ value: "scouting_package", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "equipment",
+        family: "infiltration",
+        axis: "utility",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "stealth_support", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "spell",
+        family: "consultation",
+        axis: "utility",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "consultation", assignmentMode: "composite" }),
+          expect.objectContaining({ value: "omen_guidance", description: expect.any(String) }),
         ]),
       }),
       expect.objectContaining({

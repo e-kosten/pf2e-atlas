@@ -253,18 +253,6 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
         }
       ]
     },
-    named_locale_setting: {
-      axis: "setting",
-      description: "Creature setting tags for specific named Pathfinder cities, fortresses, ruins, landmarks, and other marquee canonical locales that are narrower than a whole region.",
-      variantInheritance: true,
-      tags: [
-        {
-          tag: "absalom_setting",
-          description: "Strongly associated with Absalom, its districts, surrounding Isle of Kortos culture, or similarly Absalom-specific civic scenes.",
-          assignmentMode: "hybrid"
-        }
-      ]
-    },
     planar_setting: {
       axis: "setting",
       description: "Creature setting tags for planes, cosmological realms, and extraplanar retrieval patterns.",

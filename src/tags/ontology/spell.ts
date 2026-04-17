@@ -246,6 +246,54 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
         }
       ]
     },
+    consultation: {
+      axis: "utility",
+      description: "Spells used to ask for guidance, gain analytical insight, diagnose hidden problems, or consult cosmic and magical knowledge beyond raw sensory scouting.",
+      tags: [
+        {
+          tag: "lore_consultation",
+          description: "Provides interpretive insight, shared knowledge, or focused understanding about a subject, clue, history, or magical situation.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "truth_reveal",
+            "problem_diagnosis"
+          ]
+        },
+        {
+          tag: "problem_diagnosis",
+          description: "Helps determine what hidden magical, spiritual, cursed, or otherwise obscure problem is actually affecting a target, site, or situation.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "curse_revelation",
+            "magic_detection"
+          ]
+        },
+        {
+          tag: "omen_guidance",
+          description: "Asks for omens, directional guidance, or advisory insight about the best course of action, likely outcome, or strategic choice.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "lore_consultation",
+            "wayfinding"
+          ]
+        },
+        {
+          tag: "consultation",
+          description: "Broad consultation umbrella for spells used to seek cosmic answers, diagnose mysteries, or gain non-sensory divinatory guidance.",
+          assignmentMode: "composite",
+          adjacentTags: [
+            "lore_consultation",
+            "problem_diagnosis",
+            "omen_guidance"
+          ],
+          compositeOfAnyTags: [
+            "lore_consultation",
+            "problem_diagnosis",
+            "omen_guidance"
+          ]
+        }
+      ]
+    },
     sensory_support: {
       axis: "utility",
       description: "Spells that improve sight, hearing, scent, or usable light so creatures can perceive and operate better in darkness or obscurity.",
