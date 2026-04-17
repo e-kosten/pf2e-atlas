@@ -1,18 +1,19 @@
 ---
 name: pf2e-tag-rules
-description: Build, replace, or refine deterministic PF2E tag rules. Use when Codex needs to review old rule coverage, tune noisy rule behavior, decide assignment takeovers, and implement future authored rules with regression-first validation.
+description: Build, replace, or refine future-state deterministic PF2E tag rules. Use when Codex needs to tune noisy authored rules, expand safe rule coverage, decide assignment takeovers for current deterministic logic, and implement regression-first rule maintenance.
 ---
 
 # PF2E Tag Rules
 
-Use this skill for deterministic rule work in the derived-tag layer.
+Use this skill for in-place deterministic rule work in the future-state derived-tag layer.
 
 This includes:
-- migrating legacy rule coverage into future authored rules or explicit assignments
-- refining noisy or underfiring deterministic rules
-- expanding deterministic rule coverage when a safe, explainable rule clearly exists
+- refining noisy or underfiring future authored rules
+- expanding deterministic rule coverage when a safe, explainable future-state rule clearly exists
+- replacing an existing future-state rule with explicit assignments when it proves too noisy
 
 Use another skill instead when:
+- the work starts from legacy rule coverage or a legacy-rule-driven cohort: use `$pf2e-tag-legacy-migration`
 - the work is mainly manual assignment coverage on untagged records: use `$pf2e-tag-batch`
 - the work starts from legacy seed membership: use `$pf2e-tag-seeds`
 - the work is mainly exemplar quality: use `$pf2e-tag-exemplars`
@@ -31,13 +32,13 @@ For the rule slice itself:
 
 ## Workflow
 
-1. Read the ontology, current authored rules, legacy rules, and relevant tests first.
+1. Read the ontology, current authored rules, and relevant tests first.
 2. Build a real-record regression set before changing rule behavior.
 3. Use discovery and evidence tools to understand the actual cohort, not just one record.
 4. Decide whether the slice is:
    - safe deterministic rule work
    - mixed rule plus assignment takeover
-   - assignment-only because the rule is too fuzzy
+   - assignment-only because the current rule is too fuzzy
 5. Write confident live assignments directly to `src/tags/assignments`.
 6. Route uncertain assignment calls to `src/tags/assignment-reviews`.
 7. Add or refine future deterministic logic in `src/tags/authored-rules` only when the rule is explainable and durable.

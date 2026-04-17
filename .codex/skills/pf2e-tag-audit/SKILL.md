@@ -24,6 +24,7 @@ Dense tagging is not proof of a bug. It is a review queue for finding:
 5. Turn suspicious records into reusable false-positive classes.
 6. Identify whether the likely fix belongs in:
    - `$pf2e-tag-rules` for deterministic rule cleanup
+   - `$pf2e-tag-legacy-migration` when the suspicious cohort is coming from legacy rule coverage that needs full future-state disposition
    - `$pf2e-tag-batch` for explicit assignment cleanup on fuzzy concepts
 7. Produce a short remediation brief with the suspicious records, suspect tags, likely cause, and recommended next skill.
 

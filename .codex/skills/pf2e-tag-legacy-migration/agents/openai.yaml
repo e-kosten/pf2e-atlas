@@ -1,0 +1,4 @@
+interface:
+  display_name: "PF2E Tag Legacy Migration"
+  short_description: "Migrate legacy derived-tag rules to future-state coverage"
+  default_prompt: "Use $pf2e-tag-legacy-migration to start from a legacy PF2E rule slice, do a full future-state pass on the touched records, and decide whether the legacy coverage becomes an authored rule, explicit assignments, or retirement."
