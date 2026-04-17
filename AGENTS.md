@@ -34,7 +34,9 @@ Use trunk-based branches such as `feat/<topic>` or `fix/<topic>`. Commit message
 Agents must do implementation work in a dedicated git worktree, not in the shared main checkout.
 
 - Before editing tracked files, create or switch to an isolated worktree rooted at a new branch from the current `main` HEAD.
-- Create agent worktrees only under a writable sandbox root available to the current session, such as `/tmp`. Do not create sibling worktrees next to the main checkout unless that path is explicitly writable in the environment.
+- Create agent worktrees only under a writable sandbox root available to the current session, such as the literal path `/tmp`. Use the literal writable-root path string itself, not a symlink-resolved equivalent such as `/private/tmp`, even if both point to the same location on the host.
+- Prefer a deterministic worktree path directly under that writable root, for example `/tmp/pathfinder-mcp-worktree-<task>`. Do not place agent worktrees anywhere else unless the instructions for the current environment explicitly name another writable root.
+- Do not create sibling worktrees next to the main checkout unless that path is explicitly writable in the environment.
 - Do not share a checkout with another running agent, and do not reuse the user's current working tree for agent edits.
 - Git commands that mutate repository state must never be run in parallel within the same repository or worktree.
 - Do not use parallel tool execution for `git add`, `git commit`, `git rebase`, `git merge`, `git cherry-pick`, `git worktree add`, `git worktree remove`, `git stash`, or any other git command that writes refs, the index, or worktree metadata.
