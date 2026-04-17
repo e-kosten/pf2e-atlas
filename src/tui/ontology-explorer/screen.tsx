@@ -1,6 +1,6 @@
 import React from "react";
 
-import type { OntologyDomainModel } from "../../types.js";
+import type { OntologyDomainModel, OntologyNodeQuery } from "../../types.js";
 import {
   TerminalPaneScreen,
   TerminalTwoPaneScreen,
@@ -187,9 +187,11 @@ function explorerReducer(
 export function OntologyBrowserScreen({
   model,
   onExit,
+  onOpenQuery,
 }: {
   model: OntologyDomainModel;
   onExit: () => void;
+  onOpenQuery?: (query: OntologyNodeQuery) => void;
 }): React.JSX.Element {
   const terminal = useDerivedTagTerminalApp();
   const size = useDerivedTagTerminalSize();
@@ -210,6 +212,7 @@ export function OntologyBrowserScreen({
   });
   const normalizedBrowserState = normalizeOntologyBrowserState(model, state.browserState);
   const selection = getOntologyBrowserSelection(model, normalizedBrowserState);
+  const selectedQuery = selection.currentNode?.query;
   const metrics = getOntologyBrowserDetailMetrics(model, normalizedBrowserState, layoutMode, size.width, size.height);
   const effectiveState = normalizedBrowserState.detailScroll > metrics.maxDetailScroll
     ? { ...normalizedBrowserState, detailScroll: metrics.maxDetailScroll }
@@ -390,6 +393,10 @@ export function OntologyBrowserScreen({
       }
       return;
     }
+    if (normalized === "o" && selectedQuery && onOpenQuery) {
+      onOpenQuery(selectedQuery);
+      return;
+    }
     if (normalized === "slash") {
       dispatch({
         type: "set_search_mode",
@@ -413,13 +420,13 @@ export function OntologyBrowserScreen({
           {
             text: state.searchMode
               ? "Type to filter live  Backspace edit  Enter keep filter  Esc clear and back out"
-              : "z split-view  Tab/w list focus  Up/Down or j/k scroll  Ctrl+U/D jump  Space/b page  Home/End edge  Left/backspace/esc list  / search  ? help  q back",
+              : "z split-view  Tab/w list focus  Up/Down or j/k scroll  Ctrl+U/D jump  Space/b page  Home/End edge  Left/backspace/esc list  o open query  / search  ? help  q back",
             tone: "dim",
           },
           {
             text: state.searchMode
               ? `Search /${state.searchInput}`
-              : `detail focus | focused detail view | Detail scroll ${effectiveState.detailScroll}/${metrics.maxDetailScroll}`,
+              : `detail focus | focused detail view | Detail scroll ${effectiveState.detailScroll}/${metrics.maxDetailScroll}${selectedQuery ? " | query ready" : ""}`,
             tone: "accent",
           },
         ]}
@@ -453,13 +460,13 @@ export function OntologyBrowserScreen({
         {
           text: state.searchMode
             ? "Type to filter live  Backspace edit  Enter keep filter  Esc clear and back out"
-            : "Tab/w focus  z detail-only  Up/Down or j/k move-scroll  Ctrl+U/D jump  Space/b page  gg/G edge  Enter/right open  Left/backspace up  / search  Esc back/clear  ? help  q back",
+            : "Tab/w focus  z detail-only  Up/Down or j/k move-scroll  Ctrl+U/D jump  Space/b page  gg/G edge  Enter/right open  o open query  Left/backspace up  / search  Esc back/clear  ? help  q back",
           tone: "dim",
         },
         {
           text: state.searchMode
             ? `Search /${state.searchInput}`
-            : `${state.activePane} focus | ${layoutMode} layout | Detail scroll ${effectiveState.detailScroll}/${metrics.maxDetailScroll}`,
+            : `${state.activePane} focus | ${layoutMode} layout | Detail scroll ${effectiveState.detailScroll}/${metrics.maxDetailScroll}${selectedQuery ? " | query ready" : ""}`,
           tone: "accent",
         },
       ]}

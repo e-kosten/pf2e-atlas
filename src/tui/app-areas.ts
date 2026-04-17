@@ -18,7 +18,7 @@ export const PF2E_APP_AREAS: Pf2eTopLevelArea[] = [
   {
     id: "search",
     audience: "user",
-    label: "Search",
-    description: "User-facing lookup and search over the same indexed PF2E data surfaced by the MCP server.",
+    label: "Browse/Search",
+    description: "A keyboard-first workbench for corpus browsing, exact lookup, ranked search, and facet-driven refinement.",
   },
 ];

@@ -1,10 +1,16 @@
 import React from "react";
 
-import type { SearchCategory, SearchProfile } from "../types.js";
+import type {
+  OntologyNodeQuery,
+  SearchCategory,
+  SearchProfile,
+  SearchSubcategory,
+} from "../types.js";
 import { usePf2eTerminalAppServices } from "./app-service-context.js";
 import type {
-  Pf2eTerminalSearchCategoryOption,
-  Pf2eTerminalSearchProfileOption,
+  Pf2eTerminalFacetField,
+  Pf2eTerminalFacetSelection,
+  Pf2eTerminalSearchMode,
   Pf2eTerminalSearchRequest,
   Pf2eTerminalSearchSession,
 } from "./search-service.js";
@@ -22,12 +28,8 @@ import {
   useDerivedTagTerminalSize,
   type DerivedTagTerminalLine,
 } from "./terminal-ui.js";
-import {
-  buildOntologyExplorerEntityDetailLines,
-} from "./ontology-explorer/entity-page.js";
-import {
-  mapNormalizedRecordToOntologyExplorerEntityRecord,
-} from "./ontology-explorer/entity-record.js";
+import { buildOntologyExplorerEntityDetailLines } from "./ontology-explorer/entity-page.js";
+import { mapNormalizedRecordToOntologyExplorerEntityRecord } from "./ontology-explorer/entity-record.js";
 import {
   createDerivedTagTerminalTwoPaneState,
   getDerivedTagTerminalTwoPaneLayoutMode,
@@ -37,16 +39,8 @@ import {
 } from "./two-pane-state.js";
 import { clampWindowStart } from "./list-utils.js";
 
-type SearchPromptMode = "lookup" | "search";
-
 type SearchScreenState = DerivedTagTerminalTwoPaneState & {
-  queryDefaults: {
-    category: SearchCategory | null;
-    limit: number;
-    mode: SearchPromptMode;
-    queryText: string;
-    searchProfile: SearchProfile;
-  };
+  draft: Pf2eTerminalSearchRequest;
   selectedIndex: number;
   session: Pf2eTerminalSearchSession | null;
 };
@@ -55,23 +49,16 @@ type SearchScreenAction =
   | DerivedTagTerminalTwoPaneAction
   | { type: "move_selection"; delta: number }
   | { type: "selection_boundary"; boundary: "start" | "end" }
-  | { type: "set_category"; category: SearchCategory | null }
-  | { type: "set_profile"; searchProfile: SearchProfile }
+  | { type: "set_draft"; request: Pf2eTerminalSearchRequest }
   | { type: "set_session"; session: Pf2eTerminalSearchSession }
   | { type: "clear_results" };
 
-const SEARCH_LEFT_WIDTH = 48;
+const SEARCH_LEFT_WIDTH = 52;
 
-function createInitialSearchScreenState(): SearchScreenState {
+function createInitialSearchScreenState(initialRequest: Pf2eTerminalSearchRequest): SearchScreenState {
   return {
     ...createDerivedTagTerminalTwoPaneState(),
-    queryDefaults: {
-      category: null,
-      limit: 20,
-      mode: "search",
-      queryText: "",
-      searchProfile: "balanced",
-    },
+    draft: initialRequest,
     selectedIndex: 0,
     session: null,
   };
@@ -101,39 +88,22 @@ function searchScreenReducer(state: SearchScreenState, action: SearchScreenActio
             ? 0
             : state.session.results.length - 1,
       };
-    case "set_category":
+    case "set_draft":
       return {
         ...state,
-        queryDefaults: {
-          ...state.queryDefaults,
-          category: action.category,
-        },
-      };
-    case "set_profile":
-      return {
-        ...state,
-        queryDefaults: {
-          ...state.queryDefaults,
-          searchProfile: action.searchProfile,
-        },
+        draft: action.request,
       };
     case "set_session":
       return {
         ...createDerivedTagTerminalTwoPaneState(),
-        queryDefaults: {
-          ...state.queryDefaults,
-          category: action.session.request.category,
-          mode: action.session.request.mode,
-          queryText: action.session.request.queryText,
-          searchProfile: action.session.request.searchProfile,
-        },
+        draft: action.session.request,
         selectedIndex: 0,
         session: action.session,
       };
     case "clear_results":
       return {
         ...createDerivedTagTerminalTwoPaneState(),
-        queryDefaults: state.queryDefaults,
+        draft: state.draft,
         selectedIndex: 0,
         session: null,
       };
@@ -142,19 +112,104 @@ function searchScreenReducer(state: SearchScreenState, action: SearchScreenActio
   }
 }
 
+function humanizeIdentifier(value: string): string {
+  return value
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .split(/[_\s-]+/)
+    .filter((segment) => segment.length > 0)
+    .map((segment) => `${segment[0]!.toUpperCase()}${segment.slice(1)}`)
+    .join(" ");
+}
+
+function formatSearchCategory(category: SearchCategory | null): string {
+  return category ? humanizeIdentifier(category) : "Any Category";
+}
+
+function formatSearchSubcategory(subcategory: SearchSubcategory | null): string {
+  return subcategory ? humanizeIdentifier(subcategory) : "Any Subcategory";
+}
+
+function formatMode(mode: Pf2eTerminalSearchMode): string {
+  return humanizeIdentifier(mode);
+}
+
+function formatFacetSelection(facet: Pf2eTerminalFacetSelection): string {
+  return `${humanizeIdentifier(facet.field)}: ${facet.values.map((value) => humanizeIdentifier(value)).join(", ")}`;
+}
+
+function formatLevelRange(request: Pf2eTerminalSearchRequest): string {
+  const { levelMin, levelMax } = request.filters;
+  if (levelMin === null && levelMax === null) {
+    return "(any)";
+  }
+  if (levelMin !== null && levelMax !== null) {
+    return levelMin === levelMax ? `L${levelMin}` : `L${levelMin}-L${levelMax}`;
+  }
+  if (levelMin !== null) {
+    return `L${levelMin}+`;
+  }
+  return `<= L${levelMax}`;
+}
+
+function formatLevelRangeInputValue(request: Pf2eTerminalSearchRequest): string {
+  const { levelMin, levelMax } = request.filters;
+  if (levelMin === null && levelMax === null) {
+    return "";
+  }
+  if (levelMin !== null && levelMax !== null) {
+    return levelMin === levelMax ? String(levelMin) : `${levelMin}-${levelMax}`;
+  }
+  if (levelMin !== null) {
+    return `${levelMin}+`;
+  }
+  return `<=${levelMax}`;
+}
+
+function formatDraftStatus(state: SearchScreenState): string {
+  if (!state.session) {
+    return "Draft not executed yet";
+  }
+  return JSON.stringify(state.draft) === JSON.stringify(state.session.request)
+    ? "Draft matches applied query"
+    : "Draft has unapplied changes";
+}
+
+function parseLevelRangeInput(value: string): { levelMin: number | null; levelMax: number | null } | string {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return { levelMin: null, levelMax: null };
+  }
+
+  const betweenMatch = trimmed.match(/^(\d+)\s*-\s*(\d+)$/);
+  if (betweenMatch) {
+    const levelMin = Number.parseInt(betweenMatch[1]!, 10);
+    const levelMax = Number.parseInt(betweenMatch[2]!, 10);
+    return { levelMin, levelMax };
+  }
+
+  const singleMatch = trimmed.match(/^\d+$/);
+  if (singleMatch) {
+    const level = Number.parseInt(trimmed, 10);
+    return { levelMin: level, levelMax: level };
+  }
+
+  const minMatch = trimmed.match(/^(\d+)\+$/);
+  if (minMatch) {
+    return { levelMin: Number.parseInt(minMatch[1]!, 10), levelMax: null };
+  }
+
+  const maxMatch = trimmed.match(/^<=?\s*(\d+)$/);
+  if (maxMatch) {
+    return { levelMin: null, levelMax: Number.parseInt(maxMatch[1]!, 10) };
+  }
+
+  return "Use `3-8`, `5`, `5+`, or `<=10`.";
+}
+
 function buildSearchResultLabel(record: Pf2eTerminalSearchSession["results"][number]): string {
   const scope = record.subcategory ? `${record.category}/${record.subcategory}` : record.category;
   const level = record.level === null ? "-" : String(record.level);
   return `${record.name} | ${scope} | lvl ${level} | ${record.packLabel}`;
-}
-
-function formatSearchCategory(category: SearchCategory | null): string {
-  if (!category) {
-    return "any category";
-  }
-  return category === "characterCreation"
-    ? "character creation"
-    : category;
 }
 
 function buildSearchListLines(
@@ -164,9 +219,10 @@ function buildSearchListLines(
 ): DerivedTagTerminalLine[] {
   if (!session || session.results.length === 0) {
     return [
-      { text: "No search results yet.", tone: "dim" },
+      { text: "No results in the current workspace session.", tone: "dim" },
       { text: "" },
-      { text: "/ run search  l exact lookup  p profile  f category", tone: "accent" },
+      { text: "e execute draft  / edit query  m mode  c category  s subcategory", tone: "accent" },
+      { text: "p profile  v levels  r rarity  a action cost  f add facet  Shift+C clear results", tone: "accent" },
     ];
   }
 
@@ -180,90 +236,121 @@ function buildSearchListLines(
   }));
 }
 
+function buildWorkspaceSummaryLines(state: SearchScreenState): DerivedTagTerminalLine[] {
+  const lines: DerivedTagTerminalLine[] = [
+    { text: "Workspace", tone: "section" },
+    { text: `Draft mode: ${formatMode(state.draft.mode)}` },
+    { text: `Draft query: ${state.draft.queryText || "(none)"}` },
+    { text: `Draft profile: ${state.draft.searchProfile}` },
+    { text: `Scope: ${formatSearchCategory(state.draft.filters.category)} / ${formatSearchSubcategory(state.draft.filters.subcategory)}` },
+    { text: `Level range: ${formatLevelRange(state.draft)}` },
+    { text: `Rarity: ${state.draft.filters.rarity ?? "(any)"}` },
+    { text: `Action cost: ${state.draft.filters.actionCost ?? "(any)"}` },
+    { text: `Facet filters: ${state.draft.filters.facets.length}` },
+  ];
+
+  if (state.draft.filters.facets.length > 0) {
+    for (const facet of state.draft.filters.facets) {
+      lines.push({ text: formatFacetSelection(facet), indent: 2 });
+    }
+  }
+
+  if (state.draft.sourceLabel) {
+    lines.push({ text: `Seeded from: ${state.draft.sourceLabel}` });
+  }
+
+  lines.push({ text: "" });
+  lines.push({ text: "Applied Session", tone: "section" });
+  lines.push({ text: formatDraftStatus(state) });
+  if (!state.session) {
+    lines.push({ text: "No applied query yet.", tone: "dim" });
+  } else {
+    lines.push({ text: `Applied mode: ${formatMode(state.session.request.mode)} | ${state.session.resultMode}` });
+    lines.push({ text: `Applied query: ${state.session.request.queryText || "(none)"}` });
+    lines.push({ text: `Results: ${state.session.results.length}/${state.session.total}` });
+  }
+
+  return lines;
+}
+
 function buildSearchIntroLines(state: SearchScreenState): DerivedTagTerminalLine[] {
   return [
-    { text: "Search and Lookup", tone: "section" },
-    { text: "This surface uses the same indexed data service as the MCP server." },
-    { text: "" },
-    { text: "Current Search Defaults", tone: "section" },
-    { text: `Search profile: ${state.queryDefaults.searchProfile}`, indent: 2 },
-    { text: `Category filter: ${formatSearchCategory(state.queryDefaults.category)}`, indent: 2 },
-    { text: `Page size: ${state.queryDefaults.limit}`, indent: 2 },
+    ...buildWorkspaceSummaryLines(state),
     { text: "" },
     { text: "Commands", tone: "section" },
-    { text: "/ run ranked or semantic search", indent: 2 },
-    { text: "l run exact name lookup", indent: 2 },
-    { text: "p choose the default search profile", indent: 2 },
-    { text: "f choose the category filter", indent: 2 },
-    { text: "c clear the current result set", indent: 2 },
+    { text: "e execute the current draft", indent: 2 },
+    { text: "/ edit query text", indent: 2 },
+    { text: "m choose browse/search/lookup mode", indent: 2 },
+    { text: "p choose the ranked-search profile", indent: 2 },
+    { text: "c choose the category scope", indent: 2 },
+    { text: "s choose the subcategory scope", indent: 2 },
+    { text: "v edit the level range", indent: 2 },
+    { text: "r choose rarity", indent: 2 },
+    { text: "a choose action cost", indent: 2 },
+    { text: "f add a discoverable facet filter", indent: 2 },
+    { text: "d remove one applied facet value", indent: 2 },
+    { text: "x reset the draft workspace", indent: 2 },
+    { text: "Shift+C clear the current results only", indent: 2 },
   ];
 }
 
-function buildSearchDetailLines(record: Pf2eTerminalSearchSession["results"][number] | undefined, state: SearchScreenState): DerivedTagTerminalLine[] {
+function buildSearchDetailLines(
+  record: Pf2eTerminalSearchSession["results"][number] | undefined,
+  state: SearchScreenState,
+): DerivedTagTerminalLine[] {
   if (!record || !state.session) {
-    return [
-      ...buildSearchIntroLines(state),
-      { text: "" },
-      { text: state.queryDefaults.queryText
-        ? `Last query: ${state.queryDefaults.queryText}`
-        : "Run a search or lookup to populate records.", tone: "dim" },
-    ];
+    return buildSearchIntroLines(state);
   }
 
-  const request = state.session.request;
   return [
-    { text: request.mode === "lookup" ? "Exact Lookup Result" : "Search Result", tone: "section" },
-    { text: `Query: ${request.queryText || "(none)"}` },
-    { text: `Category: ${formatSearchCategory(request.category)}` },
-    { text: `Search profile: ${state.session.searchProfile ?? "lookup"}` },
+    ...buildWorkspaceSummaryLines(state),
     { text: "" },
+    { text: state.session.request.mode === "lookup" ? "Selected Lookup Result" : "Selected Record", tone: "section" },
     ...buildOntologyExplorerEntityDetailLines(mapNormalizedRecordToOntologyExplorerEntityRecord(record)),
   ];
 }
 
 function buildSearchSubtitle(state: SearchScreenState): string {
-  const searchDefaults = `profile ${state.queryDefaults.searchProfile} | ${formatSearchCategory(state.queryDefaults.category)}`;
+  const draft = `${formatMode(state.draft.mode)} | ${formatSearchCategory(state.draft.filters.category)} / ${formatSearchSubcategory(state.draft.filters.subcategory)}`;
   if (!state.session) {
-    return `Run exact lookup or indexed search against the PF2E corpus | ${searchDefaults}`;
+    return `${draft} | no applied session`;
   }
 
-  return `${state.session.request.mode} | ${state.session.total} result${state.session.total === 1 ? "" : "s"} | ${searchDefaults} | query "${state.session.request.queryText}"`;
+  const dirtyLabel = JSON.stringify(state.draft) === JSON.stringify(state.session.request)
+    ? "applied"
+    : "draft pending";
+  return `${draft} | ${state.session.resultMode} | ${state.session.total} result${state.session.total === 1 ? "" : "s"} | ${dirtyLabel}`;
 }
 
-function buildSearchFilterEntries(options: Pf2eTerminalSearchCategoryOption[]): Array<{
+function buildFacetRemovalEntries(facets: Pf2eTerminalFacetSelection[]): Array<{
   value: string;
   label: string;
   description: string;
 }> {
-  return options.map((option) => ({
-    value: option.value ?? "__all__",
-    label: option.label,
-    description: option.description,
-  }));
-}
-
-function buildSearchProfileEntries(options: Pf2eTerminalSearchProfileOption[]): Array<{
-  value: SearchProfile;
-  label: string;
-  description: string;
-}> {
-  return options.map((option) => ({
-    value: option.value,
-    label: option.label,
-    description: option.description,
-  }));
+  return facets.flatMap((facet) => facet.values.map((value) => ({
+    value: `${facet.field}:${value}`,
+    label: `${humanizeIdentifier(facet.field)} = ${humanizeIdentifier(value)}`,
+    description: "Remove this value from the current draft filter stack.",
+  })));
 }
 
 export function SearchScreen({
+  initialQuery,
   onBack,
 }: {
+  initialQuery?: OntologyNodeQuery;
   onBack: () => void;
 }): React.JSX.Element {
   const terminal = useDerivedTagTerminalApp();
   const { user } = usePf2eTerminalAppServices();
   const size = useDerivedTagTerminalSize();
   const [busy, setBusy] = React.useState(false);
-  const [state, dispatch] = React.useReducer(searchScreenReducer, undefined, createInitialSearchScreenState);
+  const initialRequest = React.useMemo(
+    () => initialQuery ? user.search.createRequestFromOntologyQuery(initialQuery) : user.search.createDefaultRequest(),
+    [initialQuery, user.search],
+  );
+  const [state, dispatch] = React.useReducer(searchScreenReducer, initialRequest, createInitialSearchScreenState);
+  const autoRanInitialQuery = React.useRef(false);
 
   const bodyHeight = Math.max(1, getTerminalPaneBodyHeight(size.height, {
     hasSubtitle: true,
@@ -277,70 +364,350 @@ export function SearchScreen({
   const maxDetailScroll = Math.max(0, renderedDetailLineCount - bodyHeight);
   const detailScroll = Math.min(state.detailScroll, maxDetailScroll);
 
-  const runPrompt = React.useCallback(async (mode: SearchPromptMode) => {
-    const query = await terminal.promptTextInput({
-      title: mode === "lookup" ? "Lookup PF2E Record" : "Search PF2E Records",
-      prompt: mode === "lookup"
-        ? "Enter an exact or near-exact record name"
-        : "Enter a short natural-language search phrase",
-      defaultValue: mode === state.queryDefaults.mode ? state.queryDefaults.queryText : "",
-      hint: mode === "lookup"
-        ? "Example: Raise Shield"
-        : "Example: ghost ship captain or battlefield control spell",
-    });
+  const applyDraftUpdate = React.useCallback((update: (request: Pf2eTerminalSearchRequest) => Pf2eTerminalSearchRequest) => {
+    dispatch({ type: "set_draft", request: user.search.normalizeRequest(update(state.draft)) });
+  }, [state.draft, user.search]);
 
-    if (query === undefined) {
-      return;
-    }
-
-    const trimmed = query.trim();
-    if (!trimmed) {
-      dispatch({ type: "clear_results" });
-      return;
-    }
-
-    const request: Pf2eTerminalSearchRequest = {
-      ...state.queryDefaults,
-      mode,
-      queryText: trimmed,
-    };
-
+  const executeRequest = React.useCallback(async (request: Pf2eTerminalSearchRequest) => {
     setBusy(true);
     try {
       const session = await user.search.runQuery(request);
       dispatch({ type: "set_session", session });
     } catch (error) {
-      await terminal.pauseForAnyKey(`Search failed: ${(error as Error).message}`);
+      await terminal.pauseForAnyKey(`Workspace query failed.\n\n${(error as Error).message}`);
     } finally {
       setBusy(false);
     }
-  }, [state.queryDefaults, terminal, user.search]);
+  }, [terminal, user.search]);
+
+  React.useEffect(() => {
+    if (!initialQuery || autoRanInitialQuery.current) {
+      return;
+    }
+    autoRanInitialQuery.current = true;
+    void executeRequest(initialRequest);
+  }, [executeRequest, initialQuery, initialRequest]);
+
+  const editQueryText = React.useCallback(async () => {
+    const queryText = await terminal.promptTextInput({
+      title: "Draft Query",
+      prompt: state.draft.mode === "lookup"
+        ? "Enter an exact or near-exact record name"
+        : "Enter search text for the current draft",
+      defaultValue: state.draft.queryText,
+      hint: state.draft.mode === "lookup"
+        ? "Example: Raise Shield"
+        : "Example: ghost ship captain",
+    });
+
+    if (queryText === undefined) {
+      return;
+    }
+
+    applyDraftUpdate((request) => ({
+      ...request,
+      queryText,
+    }));
+  }, [applyDraftUpdate, state.draft.mode, state.draft.queryText, terminal]);
+
+  const chooseMode = React.useCallback(async () => {
+    const selected = await terminal.promptSelectOption({
+      title: "Workspace Mode",
+      prompt: "Choose how the current draft should execute",
+      entries: user.search.getModeOptions().map((option) => ({
+        value: option.value,
+        label: option.label,
+        description: option.description,
+      })),
+      selectedValue: state.draft.mode,
+    });
+
+    if (!selected) {
+      return;
+    }
+
+    applyDraftUpdate((request) => ({
+      ...request,
+      mode: selected,
+    }));
+  }, [applyDraftUpdate, state.draft.mode, terminal, user.search]);
 
   const chooseSearchProfile = React.useCallback(async () => {
     const selected = await terminal.promptSelectOption({
       title: "Search Profile",
-      prompt: "Choose the default search profile",
-      entries: buildSearchProfileEntries(user.search.getProfileOptions()),
-      selectedValue: state.queryDefaults.searchProfile,
+      prompt: "Choose the draft profile for ranked search mode",
+      entries: user.search.getProfileOptions().map((option) => ({
+        value: option.value,
+        label: option.label,
+        description: option.description,
+      })),
+      selectedValue: state.draft.searchProfile,
     });
 
     if (selected) {
-      dispatch({ type: "set_profile", searchProfile: selected });
+      applyDraftUpdate((request) => ({
+        ...request,
+        searchProfile: selected as SearchProfile,
+      }));
     }
-  }, [state.queryDefaults.searchProfile, terminal, user.search]);
+  }, [applyDraftUpdate, state.draft.searchProfile, terminal, user.search]);
 
   const chooseCategoryFilter = React.useCallback(async () => {
     const selected = await terminal.promptSelectOption({
-      title: "Category Filter",
-      prompt: "Choose the default category scope",
-      entries: buildSearchFilterEntries(user.search.getCategoryOptions()),
-      selectedValue: state.queryDefaults.category ?? "__all__",
+      title: "Category Scope",
+      prompt: "Choose the draft category boundary",
+      entries: user.search.getCategoryOptions().map((option) => ({
+        value: option.value ?? "__all__",
+        label: option.label,
+        description: option.description,
+      })),
+      selectedValue: state.draft.filters.category ?? "__all__",
     });
 
     if (selected !== undefined) {
-      dispatch({ type: "set_category", category: selected === "__all__" ? null : selected as SearchCategory });
+      applyDraftUpdate((request) => ({
+        ...request,
+        filters: {
+          ...request.filters,
+          category: selected === "__all__" ? null : selected as SearchCategory,
+          subcategory: null,
+        },
+      }));
     }
-  }, [state.queryDefaults.category, terminal, user.search]);
+  }, [applyDraftUpdate, state.draft.filters.category, terminal, user.search]);
+
+  const chooseSubcategoryFilter = React.useCallback(async () => {
+    if (!state.draft.filters.category) {
+      await terminal.pauseForAnyKey("Choose a category before selecting a subcategory.");
+      return;
+    }
+
+    const selected = await terminal.promptSelectOption({
+      title: "Subcategory Scope",
+      prompt: "Choose the draft subcategory boundary",
+      entries: user.search.getSubcategoryOptions(state.draft.filters.category).map((option) => ({
+        value: option.value ?? "__all__",
+        label: option.label,
+        description: option.description,
+      })),
+      selectedValue: state.draft.filters.subcategory ?? "__all__",
+    });
+
+    if (selected !== undefined) {
+      applyDraftUpdate((request) => ({
+        ...request,
+        filters: {
+          ...request.filters,
+          subcategory: selected === "__all__" ? null : selected as SearchSubcategory,
+        },
+      }));
+    }
+  }, [applyDraftUpdate, state.draft.filters.category, state.draft.filters.subcategory, terminal, user.search]);
+
+  const chooseRarityFilter = React.useCallback(async () => {
+    const options = user.search.getRarityOptions(state.draft.filters.category, state.draft.filters.subcategory);
+    const selected = await terminal.promptSelectOption({
+      title: "Rarity Filter",
+      prompt: "Choose the draft rarity boundary",
+      entries: [
+        {
+          value: "__all__",
+          label: "Any Rarity",
+          description: "Do not restrict by rarity.",
+        },
+        ...options.map((option) => ({
+          value: option.value,
+          label: option.label,
+          description: option.description,
+        })),
+      ],
+      selectedValue: state.draft.filters.rarity ?? "__all__",
+    });
+
+    if (selected !== undefined) {
+      applyDraftUpdate((request) => ({
+        ...request,
+        filters: {
+          ...request.filters,
+          rarity: selected === "__all__" ? null : selected,
+        },
+      }));
+    }
+  }, [applyDraftUpdate, state.draft.filters.category, state.draft.filters.rarity, state.draft.filters.subcategory, terminal, user.search]);
+
+  const chooseActionCostFilter = React.useCallback(async () => {
+    const options = user.search.getActionCostOptions(state.draft.filters.category, state.draft.filters.subcategory);
+    const selected = await terminal.promptSelectOption({
+      title: "Action Cost Filter",
+      prompt: "Choose the draft action-cost boundary",
+      entries: [
+        {
+          value: "__all__",
+          label: "Any Action Cost",
+          description: "Do not restrict by action cost.",
+        },
+        ...options.map((option) => ({
+          value: option.value,
+          label: option.label,
+          description: option.description,
+        })),
+      ],
+      selectedValue: state.draft.filters.actionCost === null ? "__all__" : String(state.draft.filters.actionCost),
+    });
+
+    if (selected !== undefined) {
+      applyDraftUpdate((request) => ({
+        ...request,
+        filters: {
+          ...request.filters,
+          actionCost: selected === "__all__" ? null : Number.parseInt(selected, 10),
+        },
+      }));
+    }
+  }, [applyDraftUpdate, state.draft.filters.actionCost, state.draft.filters.category, state.draft.filters.subcategory, terminal, user.search]);
+
+  const editLevelRange = React.useCallback(async () => {
+    const input = await terminal.promptTextInput({
+      title: "Level Range",
+      prompt: "Enter `3-8`, `5`, `5+`, or `<=10`. Leave blank to clear.",
+      defaultValue: formatLevelRangeInputValue(state.draft),
+      hint: "Examples: 3-8 or <=5",
+    });
+
+    if (input === undefined) {
+      return;
+    }
+
+    const parsed = parseLevelRangeInput(input);
+    if (typeof parsed === "string") {
+      await terminal.pauseForAnyKey(parsed);
+      return;
+    }
+
+    applyDraftUpdate((request) => ({
+      ...request,
+      filters: {
+        ...request.filters,
+        levelMin: parsed.levelMin,
+        levelMax: parsed.levelMax,
+      },
+    }));
+  }, [applyDraftUpdate, state.draft, terminal]);
+
+  const addFacetFilter = React.useCallback(async () => {
+    if (!state.draft.filters.category) {
+      await terminal.pauseForAnyKey("Choose a category before adding a discoverable facet filter.");
+      return;
+    }
+
+    const fieldOptions = user.search.getFacetFieldOptions(state.draft.filters.category, state.draft.filters.subcategory);
+    if (fieldOptions.length === 0) {
+      await terminal.pauseForAnyKey("No discoverable facet fields are available for the current browse scope.");
+      return;
+    }
+
+    const selectedField = await terminal.promptSelectOption({
+      title: "Facet Field",
+      prompt: "Choose a discoverable field to add to the draft",
+      entries: fieldOptions.map((option) => ({
+        value: option.value,
+        label: option.label,
+        description: option.description,
+      })),
+    });
+
+    if (!selectedField) {
+      return;
+    }
+
+    const valueOptions = user.search.getFacetValueOptions(
+      selectedField as Pf2eTerminalFacetField,
+      state.draft.filters.category,
+      state.draft.filters.subcategory,
+    );
+    if (valueOptions.length === 0) {
+      await terminal.pauseForAnyKey("No live values are available for that field in the current scope.");
+      return;
+    }
+
+    const selectedValue = await terminal.promptSelectOption({
+      title: "Facet Value",
+      prompt: `Choose a value for ${humanizeIdentifier(selectedField)}`,
+      entries: valueOptions.map((option) => ({
+        value: option.value,
+        label: option.label,
+        description: option.description,
+      })),
+    });
+
+    if (!selectedValue) {
+      return;
+    }
+
+    applyDraftUpdate((request) => {
+      const facets = [...request.filters.facets];
+      const currentIndex = facets.findIndex((facet) => facet.field === selectedField);
+      if (currentIndex >= 0) {
+        const current = facets[currentIndex]!;
+        facets[currentIndex] = {
+          field: current.field,
+          values: [...new Set([...current.values, selectedValue])],
+        };
+      } else {
+        facets.push({
+          field: selectedField as Pf2eTerminalFacetField,
+          values: [selectedValue],
+        });
+      }
+
+      return {
+        ...request,
+        filters: {
+          ...request.filters,
+          facets,
+        },
+      };
+    });
+  }, [applyDraftUpdate, state.draft.filters.category, state.draft.filters.subcategory, terminal, user.search]);
+
+  const removeFacetFilter = React.useCallback(async () => {
+    if (state.draft.filters.facets.length === 0) {
+      await terminal.pauseForAnyKey("There are no facet values to remove from the draft.");
+      return;
+    }
+
+    const selected = await terminal.promptSelectOption({
+      title: "Remove Facet Value",
+      prompt: "Choose a facet value to remove from the draft",
+      entries: buildFacetRemovalEntries(state.draft.filters.facets),
+    });
+
+    if (!selected) {
+      return;
+    }
+
+    const separatorIndex = selected.indexOf(":");
+    const field = selected.slice(0, separatorIndex) as Pf2eTerminalFacetField;
+    const value = selected.slice(separatorIndex + 1);
+    applyDraftUpdate((request) => ({
+      ...request,
+      filters: {
+        ...request.filters,
+        facets: request.filters.facets
+          .map((facet) => facet.field !== field
+            ? facet
+            : {
+              field: facet.field,
+              values: facet.values.filter((candidate) => candidate !== value),
+            })
+          .filter((facet) => facet.values.length > 0),
+      },
+    }));
+  }, [applyDraftUpdate, state.draft.filters.facets, terminal]);
+
+  const resetDraftWorkspace = React.useCallback(() => {
+    dispatch({ type: "set_draft", request: user.search.createDefaultRequest() });
+  }, [user.search]);
 
   useDerivedTagTerminalInput((input, key) => {
     if (busy) {
@@ -369,24 +736,56 @@ export function SearchScreen({
       dispatch({ type: "toggle_layout" });
       return;
     }
-    if (normalized === "slash") {
-      void runPrompt("search");
+    if (normalized === "e") {
+      void executeRequest(state.draft);
       return;
     }
-    if (normalized === "l") {
-      void runPrompt("lookup");
+    if (normalized === "slash") {
+      void editQueryText();
+      return;
+    }
+    if (normalized === "m") {
+      void chooseMode();
       return;
     }
     if (normalized === "p") {
       void chooseSearchProfile();
       return;
     }
-    if (normalized === "f") {
-      void chooseCategoryFilter();
+    if (normalized === "c") {
+      if (key.shift) {
+        dispatch({ type: "clear_results" });
+      } else {
+        void chooseCategoryFilter();
+      }
       return;
     }
-    if (normalized === "c") {
-      dispatch({ type: "clear_results" });
+    if (normalized === "s") {
+      void chooseSubcategoryFilter();
+      return;
+    }
+    if (normalized === "v") {
+      void editLevelRange();
+      return;
+    }
+    if (normalized === "r") {
+      void chooseRarityFilter();
+      return;
+    }
+    if (normalized === "a") {
+      void chooseActionCostFilter();
+      return;
+    }
+    if (normalized === "f") {
+      void addFacetFilter();
+      return;
+    }
+    if (normalized === "d") {
+      void removeFacetFilter();
+      return;
+    }
+    if (normalized === "x") {
+      resetDraftWorkspace();
       return;
     }
 
@@ -465,10 +864,10 @@ export function SearchScreen({
   if (layoutMode === "detail-only") {
     return (
       <TerminalPaneScreen
-        title="Search"
+        title="Browse/Search"
         subtitle={`${buildSearchSubtitle(state)} | focused detail`}
         pane={{
-          title: "[FOCUSED DETAIL] Selected Record",
+          title: "[FOCUSED DETAIL] Workspace",
           lines: sliceRenderedTerminalLines(
             detailLines,
             size.width,
@@ -479,11 +878,11 @@ export function SearchScreen({
         }}
         footer={[
           {
-            text: "z split-view  Tab/w list focus  Up/Down or j/k scroll  Ctrl+U/D jump  Space/b page  Home/End edge  Esc/backspace list  / search  l lookup  p profile  f category  c clear  q back",
+            text: "z split-view  Tab/w list focus  Up/Down or j/k scroll  Ctrl+U/D jump  Space/b page  Home/End edge  Esc/backspace list  e execute  / query  m mode  c category  s subcategory  v levels  r rarity  a action  f add facet  d drop facet  x reset  Shift+C clear  q back",
             tone: "dim",
           },
           {
-            text: `${state.activePane} focus | detail-only layout | Detail scroll ${detailScroll}/${maxDetailScroll}`,
+            text: `${formatDraftStatus(state)} | detail scroll ${detailScroll}/${maxDetailScroll}`,
             tone: "accent",
           },
         ]}
@@ -493,15 +892,15 @@ export function SearchScreen({
 
   return (
     <TerminalTwoPaneScreen
-      title="Search"
+      title="Browse/Search"
       subtitle={buildSearchSubtitle(state)}
       left={{
-        title: state.activePane === "list" ? "[RESULTS] Search Results" : "Search Results",
+        title: state.activePane === "list" ? "[RESULTS] Workspace Results" : "Workspace Results",
         lines: buildSearchListLines(state.session, state.selectedIndex, bodyHeight),
         active: state.activePane === "list",
       }}
       right={{
-        title: state.activePane === "detail" ? "[DETAIL] Selected Record" : "Selected Record",
+        title: state.activePane === "detail" ? "[DETAIL] Workspace & Record" : "Workspace & Record",
         lines: sliceRenderedTerminalLines(
           detailLines,
           getTerminalTwoPaneDetailWidth(size.width, layoutMode, SEARCH_LEFT_WIDTH),
@@ -513,14 +912,14 @@ export function SearchScreen({
       footer={[
         {
           text: state.activePane === "list"
-            ? "Tab/w focus  z detail-only  Up/Down or j/k move  Ctrl+U/D jump  Space/b page  Home/End edge  Enter/right detail  / search  l lookup  p profile  f category  c clear  q back"
-            : "Tab/w focus  z detail-only  Up/Down or j/k scroll  Ctrl+U/D jump  Space/b page  Home/End edge  Esc/backspace list  / search  l lookup  p profile  f category  c clear  q back",
+            ? "Tab/w focus  z detail-only  Up/Down or j/k move  Ctrl+U/D jump  Space/b page  Home/End edge  Enter/right detail  e execute  / query  m mode  c category  s subcategory  v levels  r rarity  a action  f add facet  d drop facet  x reset  Shift+C clear  q back"
+            : "Tab/w focus  z detail-only  Up/Down or j/k scroll  Ctrl+U/D jump  Space/b page  Home/End edge  Esc/backspace list  e execute  / query  m mode  c category  s subcategory  v levels  r rarity  a action  f add facet  d drop facet  x reset  Shift+C clear  q back",
           tone: "dim",
         },
         {
           text: state.session
-            ? `Query: ${state.session.request.queryText} | showing ${state.session.results.length}/${state.session.total} | ${formatSearchCategory(state.session.request.category)}`
-            : `Defaults: ${state.queryDefaults.searchProfile} | ${formatSearchCategory(state.queryDefaults.category)}`,
+            ? `${formatDraftStatus(state)} | showing ${state.session.results.length}/${state.session.total} | ${formatMode(state.draft.mode)}`
+            : `${formatDraftStatus(state)} | ${formatMode(state.draft.mode)} | ${formatSearchCategory(state.draft.filters.category)}`,
           tone: "accent",
         },
       ]}

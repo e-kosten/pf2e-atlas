@@ -1,4 +1,4 @@
-import type { SearchCategory, SearchSubcategory } from "../types.js";
+import type { OntologyNodeQuery, SearchCategory, SearchSubcategory } from "../types.js";
 import type { DerivedTagMigrationMode, DerivedTagMigrationReviewDecisionKind, DerivedTagMigrationSession } from "../tags/migration/types.js";
 import type { OntologyDomainModel } from "../types.js";
 import { moveSelectionWrapped } from "./terminal-ui.js";
@@ -6,7 +6,7 @@ import { moveSelectionWrapped } from "./terminal-ui.js";
 export type Pf2eAppRoute =
   | { kind: "areas" }
   | { kind: "tag_refinement" }
-  | { kind: "search" }
+  | { kind: "search"; initialQuery?: OntologyNodeQuery }
   | { kind: "ontology_picker" }
   | { kind: "ontology"; model: OntologyDomainModel }
   | { kind: "review"; session: DerivedTagMigrationSession };

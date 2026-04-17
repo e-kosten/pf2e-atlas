@@ -522,6 +522,7 @@ export function buildOntologyBrowserHelpLines(): DerivedTagTerminalLine[] {
     { text: "Space / b: page down or up without wrapping" },
     { text: "gg / G or Home / End: jump to the first or last entry in the current level" },
     { text: "Enter or Right / l: drill into the selected entry, or focus detail when it is a leaf" },
+    { text: "o: open the selected entry's browse or lookup query in the search workspace when available" },
     { text: "Left / h or Backspace: go up one level" },
     { text: "Tab or w: switch focus between the list and detail panes" },
     { text: "z: toggle focused detail view while detail has focus" },

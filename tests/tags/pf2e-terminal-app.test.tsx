@@ -113,12 +113,36 @@ function createRecord(overrides: Partial<NormalizedRecord> = {}): NormalizedReco
 
 function createFakeServices(overrides: Partial<Pf2eTerminalAppServices> = {}): Pf2eTerminalAppServices {
   const record = createRecord();
+  const defaultRequest = {
+    mode: "browse" as const,
+    limit: 20,
+    queryText: "",
+    searchProfile: "balanced" as const,
+    sourceLabel: null,
+    filters: {
+      category: null,
+      subcategory: null,
+      levelMin: null,
+      levelMax: null,
+      rarity: null,
+      actionCost: null,
+      facets: [],
+    },
+  };
   return {
     config: createTestConfig(),
     catalog: {
       getRecord: vi.fn(() => record),
       getSearchVocabulary: vi.fn(() => ({}) as never),
       listFilterValues: vi.fn(() => ({ field: "categories", values: [] }) as never),
+      listRecords: vi.fn(() => ({
+        searchProfile: null,
+        mode: "structured",
+        total: 1,
+        offset: 0,
+        limit: 20,
+        records: [record],
+      })),
       lookup: vi.fn(() => ({ match: record, alternatives: [] })),
       search: vi.fn(async () => ({
         searchProfile: "balanced",
@@ -131,6 +155,9 @@ function createFakeServices(overrides: Partial<Pf2eTerminalAppServices> = {}): P
     },
     user: {
       search: {
+        createDefaultRequest: vi.fn(() => defaultRequest),
+        createRequestFromOntologyQuery: vi.fn(() => defaultRequest),
+        getActionCostOptions: vi.fn(() => []),
         getCategoryOptions: vi.fn(() => [
           {
             value: null,
@@ -150,9 +177,22 @@ function createFakeServices(overrides: Partial<Pf2eTerminalAppServices> = {}): P
             description: "Default hybrid retrieval for concise themed searches.",
           },
         ]),
+        getRarityOptions: vi.fn(() => []),
+        getSubcategoryOptions: vi.fn(() => []),
+        getModeOptions: vi.fn(() => [
+          {
+            value: "browse",
+            label: "Browse",
+            description: "Deterministic listing.",
+          },
+        ]),
+        getFacetFieldOptions: vi.fn(() => []),
+        getFacetValueOptions: vi.fn(() => []),
+        normalizeRequest: vi.fn((request) => request),
         runQuery: vi.fn(async (request) => ({
           request,
           results: [record],
+          resultMode: request.mode === "browse" ? "structured" : "hybrid",
           total: 1,
           searchProfile: request.mode === "lookup" ? null : request.searchProfile,
         })),
@@ -264,7 +304,7 @@ describe("pf2e terminal app", () => {
     app.stdin.write("\r");
     await flushInk();
 
-    expect(app.lastFrame()).toContain("Search Results");
+    expect(app.lastFrame()).toContain("Browse/Search");
 
     app.stdin.write("q");
     await flushInk();

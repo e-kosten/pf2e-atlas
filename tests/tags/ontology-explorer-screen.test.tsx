@@ -30,6 +30,14 @@ function createTestOntologyModel(): OntologyDomainModel {
           { text: "Alarm", tone: "section" },
           ...Array.from({ length: 30 }, (_, index) => ({ text: `Detail line ${index + 1}` })),
         ],
+        query: {
+          kind: "listRecords",
+          label: "Browse this tag",
+          filters: {
+            category: "spell",
+            limit: 20,
+          },
+        },
       },
     ],
   };
@@ -85,6 +93,33 @@ describe("ontology browser screen", () => {
 
     expect(onExit).not.toHaveBeenCalled();
     expect(app.lastFrame()).toContain("detail focus | split layout | Detail scroll 1/");
+
+    app.unmount();
+  });
+
+  it("opens the selected node query in the search workspace when requested", async () => {
+    const model = createTestOntologyModel();
+    const onOpenQuery = vi.fn();
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <OntologyBrowserScreen model={model} onExit={vi.fn()} onOpenQuery={onOpenQuery} />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    expect(app.lastFrame()).toContain("query ready");
+
+    app.stdin.write("o");
+    await flushInk();
+
+    expect(onOpenQuery).toHaveBeenCalledWith({
+      kind: "listRecords",
+      label: "Browse this tag",
+      filters: {
+        category: "spell",
+        limit: 20,
+      },
+    });
 
     app.unmount();
   });

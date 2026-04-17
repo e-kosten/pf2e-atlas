@@ -214,6 +214,12 @@ export function Pf2eTerminalApp({
     screen = (
       <OntologyBrowserScreen
         model={route.model}
+        onOpenQuery={(query) => {
+          if (!query) {
+            return;
+          }
+          dispatch({ type: "push_route", route: { kind: "search", initialQuery: query } });
+        }}
         onExit={() => {
           if (canPopPf2eAppRoute(state)) {
             dispatch({ type: "pop_route" });
@@ -240,6 +246,7 @@ export function Pf2eTerminalApp({
   } else if (route.kind === "search") {
     screen = (
       <SearchScreen
+        initialQuery={route.initialQuery}
         onBack={() => {
           if (canPopPf2eAppRoute(state)) {
             dispatch({ type: "pop_route" });

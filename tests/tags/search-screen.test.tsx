@@ -3,7 +3,8 @@ import React from "react";
 import { cleanup, render } from "ink-testing-library";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { AppConfig, NormalizedRecord, SearchCategory } from "../../src/types.js";
+import type { AppConfig, NormalizedRecord, SearchFilters } from "../../src/types.js";
+import { createPf2eTerminalSearchService } from "../../src/tui/search-service.js";
 import { Pf2eTerminalAppServicesProvider } from "../../src/tui/app-service-context.js";
 import type { Pf2eTerminalAppServices } from "../../src/tui/app-services.js";
 import { SearchScreen } from "../../src/tui/search-screen.js";
@@ -108,14 +109,63 @@ function createRecord(overrides: Partial<NormalizedRecord> = {}): NormalizedReco
   };
 }
 
-function createSearchServices(): Pf2eTerminalAppServices {
+function createServices(
+  overrides: {
+    listRecords?: ReturnType<typeof vi.fn>;
+    lookup?: ReturnType<typeof vi.fn>;
+    search?: ReturnType<typeof vi.fn>;
+  } = {},
+): Pf2eTerminalAppServices {
   const record = createRecord();
-  const runQuery = vi.fn(async (request) => ({
-    request,
-    results: [record],
+  const listRecords = overrides.listRecords ?? vi.fn((filters: SearchFilters) => ({
+    searchProfile: null,
+    mode: "structured" as const,
     total: 1,
-    searchProfile: request.mode === "lookup" ? null : request.searchProfile,
+    offset: filters.offset ?? 0,
+    limit: filters.limit ?? 20,
+    records: [record],
   }));
+  const lookup = overrides.lookup ?? vi.fn(() => ({ match: record, alternatives: [] }));
+  const search = overrides.search ?? vi.fn(async (filters: SearchFilters) => ({
+    searchProfile: filters.searchProfile ?? "balanced",
+    mode: "hybrid" as const,
+    total: 1,
+    offset: filters.offset ?? 0,
+    limit: filters.limit ?? 20,
+    records: [record],
+  }));
+
+  const searchService = createPf2eTerminalSearchService({
+    getSearchVocabulary: () => ({
+      categories: [{ value: "spell", count: 1 }],
+      subcategories: [],
+      rarities: [{ value: "common", count: 1 }],
+      sizes: [],
+      traditions: [{ value: "arcane", count: 1 }],
+      spellKinds: [{ value: "spell", count: 1 }],
+      sourceCategories: [{ value: "core", count: 1 }],
+      commonTraitsByCategory: [],
+      commonDerivedTagsByCategory: [],
+      derivedTagOntologyFamilies: [],
+      derivedTagOntologyTags: [],
+      derivedTagCatalog: [],
+    }),
+    listFilterValues: vi.fn(({ field }) => {
+      if (field === "rarity") {
+        return { values: [{ value: "common", count: 1 }] };
+      }
+      if (field === "actionCost") {
+        return { values: [{ value: "2", count: 1 }] };
+      }
+      if (field === "traits") {
+        return { values: [{ value: "illusion", count: 1 }] };
+      }
+      return { values: [] };
+    }),
+    lookup,
+    listRecords,
+    search,
+  });
 
   return {
     config: createTestConfig(),
@@ -123,44 +173,12 @@ function createSearchServices(): Pf2eTerminalAppServices {
       getRecord: vi.fn(() => record),
       getSearchVocabulary: vi.fn(() => ({}) as never),
       listFilterValues: vi.fn(() => ({ field: "categories", values: [] }) as never),
-      lookup: vi.fn(() => ({ match: record, alternatives: [] })),
-      search: vi.fn(async () => ({
-        searchProfile: "balanced",
-        mode: "hybrid",
-        total: 1,
-        offset: 0,
-        limit: 20,
-        records: [record],
-      })),
+      listRecords,
+      lookup,
+      search,
     },
     user: {
-      search: {
-        getCategoryOptions: vi.fn(() => [
-          {
-            value: null,
-            label: "Any Category",
-            description: "Search across the full indexed PF2E corpus.",
-          },
-          {
-            value: "spell" satisfies SearchCategory,
-            label: "Spell",
-            description: "1 indexed canonical record.",
-          },
-        ]),
-        getProfileOptions: vi.fn(() => [
-          {
-            value: "balanced",
-            label: "Balanced",
-            description: "Default hybrid retrieval for concise themed searches.",
-          },
-          {
-            value: "lexical",
-            label: "Lexical",
-            description: "Exact-wording heavy retrieval for names and precise PF2E terms.",
-          },
-        ]),
-        runQuery,
-      },
+      search: searchService,
       ontology: {
         listDomains: vi.fn(() => []),
         loadDomain: vi.fn(() => ({
@@ -189,8 +207,16 @@ describe("search screen", () => {
     cleanup();
   });
 
-  it("uses the selected search profile and category when running a search", async () => {
-    const services = createSearchServices();
+  it("edits the draft workspace and executes ranked search with the selected boundaries", async () => {
+    const search = vi.fn(async (filters: SearchFilters) => ({
+      searchProfile: filters.searchProfile ?? "balanced",
+      mode: "hybrid" as const,
+      total: 1,
+      offset: 0,
+      limit: filters.limit ?? 20,
+      records: [createRecord()],
+    }));
+    const services = createServices({ search });
     const app = render(
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={services}>
@@ -199,6 +225,15 @@ describe("search screen", () => {
       </DerivedTagTerminalProvider>,
     );
 
+    await flushInk();
+    expect(app.lastFrame()).toContain("Browse/Search");
+
+    app.stdin.write("m");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Workspace Mode");
+    app.stdin.write("j");
+    await flushInk();
+    app.stdin.write("\r");
     await flushInk();
 
     app.stdin.write("p");
@@ -209,9 +244,9 @@ describe("search screen", () => {
     app.stdin.write("\r");
     await flushInk();
 
-    app.stdin.write("f");
+    app.stdin.write("c");
     await flushInk();
-    expect(app.lastFrame()).toContain("Category Filter");
+    expect(app.lastFrame()).toContain("Category Scope");
     app.stdin.write("j");
     await flushInk();
     app.stdin.write("\r");
@@ -219,26 +254,66 @@ describe("search screen", () => {
 
     app.stdin.write("/");
     await flushInk();
-    expect(app.lastFrame()).toContain("Search PF2E Records");
-
-    app.stdin.write("g");
-    app.stdin.write("h");
-    app.stdin.write("o");
-    app.stdin.write("s");
-    app.stdin.write("t");
+    expect(app.lastFrame()).toContain("Draft Query");
+    for (const character of "ghost") {
+      app.stdin.write(character);
+    }
     await flushInk();
     app.stdin.write("\r");
     await flushInk();
+
+    app.stdin.write("e");
+    await flushInk();
     await flushInk();
 
-    expect(services.user.search.runQuery).toHaveBeenCalledWith({
+    expect(search).toHaveBeenCalledWith({
+      actionCost: undefined,
       category: "spell",
+      levelMax: undefined,
+      levelMin: undefined,
       limit: 20,
-      mode: "search",
-      queryText: "ghost",
+      metadata: undefined,
+      query: "ghost",
+      rarity: undefined,
       searchProfile: "lexical",
+      subcategory: undefined,
     });
-    expect(app.lastFrame()).toContain("profile lexical");
-    expect(app.lastFrame()).toContain("spell");
+    expect(app.lastFrame()).toContain("Draft matches applied query");
+    expect(app.lastFrame()).toContain("showing 1/1");
+  });
+
+  it("maps simple ontology browse queries into seeded workspace requests", () => {
+    const services = createServices();
+    const request = services.user.search.createRequestFromOntologyQuery({
+      kind: "listRecords",
+      label: "Browse records with this trait",
+      filters: {
+        category: "spell",
+        metadata: { field: "traits", op: "includesAny", values: ["illusion"] },
+        limit: 20,
+      },
+    });
+
+    expect(request).toEqual({
+      mode: "browse",
+      limit: 20,
+      queryText: "",
+      searchProfile: "balanced",
+      sourceLabel: "Browse records with this trait",
+      filters: {
+        category: "spell",
+        subcategory: null,
+        levelMin: null,
+        levelMax: null,
+        rarity: null,
+        actionCost: null,
+        facets: [
+          {
+            field: "traits",
+            values: ["illusion"],
+          },
+        ],
+      },
+    });
   });
 });
