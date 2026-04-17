@@ -77,8 +77,8 @@ export type Pf2eTerminalSearchFilters = {
   subcategory: SearchSubcategory | null;
   levelMin: number | null;
   levelMax: number | null;
-  rarity: string | null;
-  actionCost: number | null;
+  rarities: string[];
+  actionCosts: number[];
   facets: Pf2eTerminalFacetSelection[];
 };
 
@@ -213,8 +213,8 @@ function createDefaultFilters(): Pf2eTerminalSearchFilters {
     subcategory: null,
     levelMin: null,
     levelMax: null,
-    rarity: null,
-    actionCost: null,
+    rarities: [],
+    actionCosts: [],
     facets: [],
   };
 }
@@ -309,11 +309,49 @@ function normalizeRequest(
       subcategory,
       levelMin: normalizedLevelMin,
       levelMax: normalizedLevelMax,
-      rarity: request.filters.rarity?.trim() || null,
-      actionCost: request.filters.actionCost ?? null,
+      rarities: [...new Set(request.filters.rarities.map((value) => value.trim()).filter(Boolean))]
+        .sort((left, right) => left.localeCompare(right)),
+      actionCosts: [...new Set(request.filters.actionCosts.filter((value) => Number.isFinite(value)))]
+        .sort((left, right) => left - right),
       facets: normalizedFacets,
     },
   };
+}
+
+function buildDiscreteFilterNodes(request: Pf2eTerminalSearchRequest): MetadataFilterNode[] {
+  const nodes: MetadataFilterNode[] = [];
+
+  if (request.filters.rarities.length === 1) {
+    nodes.push({
+      field: "rarity",
+      op: "eq",
+      value: request.filters.rarities[0]!,
+    });
+  } else if (request.filters.rarities.length > 1) {
+    nodes.push({
+      field: "rarity",
+      op: "in",
+      values: request.filters.rarities,
+    });
+  }
+
+  if (request.filters.actionCosts.length === 1) {
+    nodes.push({
+      field: "actionCost",
+      op: "eq",
+      value: request.filters.actionCosts[0]!,
+    });
+  } else if (request.filters.actionCosts.length > 1) {
+    nodes.push({
+      or: request.filters.actionCosts.map((value) => ({
+        field: "actionCost",
+        op: "eq",
+        value,
+      })),
+    });
+  }
+
+  return nodes;
 }
 
 function buildMetadataNodeForFacet(
@@ -379,14 +417,24 @@ function buildSearchFilters(
   request: Pf2eTerminalSearchRequest,
   fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
 ): SearchFilters {
-  const metadata = buildMetadataFilter(request.filters.facets, fieldSemanticsByName);
+  const metadataClauses = [
+    ...buildDiscreteFilterNodes(request),
+    ...request.filters.facets
+      .map((facet) => buildMetadataNodeForFacet(facet, fieldSemanticsByName))
+      .filter((node): node is MetadataFilterNode => Boolean(node)),
+  ];
+  const metadata = metadataClauses.length === 0
+    ? undefined
+    : metadataClauses.length === 1
+      ? metadataClauses[0]
+      : { and: metadataClauses };
   return {
     category: request.filters.category ?? undefined,
     subcategory: request.filters.subcategory ?? undefined,
     levelMin: request.filters.levelMin ?? undefined,
     levelMax: request.filters.levelMax ?? undefined,
-    rarity: request.filters.rarity ?? undefined,
-    actionCost: request.filters.actionCost ?? undefined,
+    rarity: undefined,
+    actionCost: undefined,
     metadata,
     limit: request.limit,
   };
@@ -487,8 +535,8 @@ export function createPf2eTerminalSearchService(
           subcategory: normalizeSearchSubcategory(query.filters.subcategory) ?? null,
           levelMin: query.filters.levelMin ?? null,
           levelMax: query.filters.levelMax ?? null,
-          rarity: query.filters.rarity ?? null,
-          actionCost: query.filters.actionCost ?? null,
+          rarities: query.filters.rarity ? [query.filters.rarity] : [],
+          actionCosts: query.filters.actionCost === undefined ? [] : [query.filters.actionCost],
           facets,
         },
       }, fieldSemanticsByName);

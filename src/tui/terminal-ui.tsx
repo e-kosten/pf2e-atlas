@@ -88,6 +88,14 @@ type SelectPromptOptions<T extends string = string> = {
   selectedValue?: T;
 };
 
+type MultiSelectPromptOptions<T extends string = string> = {
+  title: string;
+  subtitle?: string;
+  prompt: string;
+  entries: DerivedTagTerminalSelectOption<T>[];
+  selectedValues?: T[];
+};
+
 type TerminalModalState =
   | null
   | {
@@ -106,6 +114,13 @@ type TerminalModalState =
     options: SelectPromptOptions<string>;
     selectedIndex: number;
     resolve: (value: string | undefined) => void;
+  }
+  | {
+    kind: "multiselect";
+    options: MultiSelectPromptOptions<string>;
+    selectedIndex: number;
+    selectedValues: string[];
+    resolve: (value: string[]) => void;
   };
 
 type DerivedTagTerminalContextValue = {
@@ -114,6 +129,7 @@ type DerivedTagTerminalContextValue = {
   getTerminalWidth: () => number;
   modalActive: boolean;
   pauseForAnyKey: (message: string) => Promise<void>;
+  promptMultiSelectOption: <T extends string>(options: MultiSelectPromptOptions<T>) => Promise<T[]>;
   promptSelectOption: <T extends string>(options: SelectPromptOptions<T>) => Promise<T | undefined>;
   promptTextInput: (options: TextPromptOptions) => Promise<string | undefined>;
   showDialog: (options: DialogOptions) => Promise<void>;
@@ -480,6 +496,15 @@ export function moveSelectionWrapped(currentIndex: number, delta: number, itemCo
 }
 
 export function getNormalizedKeyName(input: string, key: Key): string {
+  if (input === "\r" || input === "\n") {
+    return "enter";
+  }
+  if (input === "\u001b") {
+    return "escape";
+  }
+  if (input === "\b" || input === "\u007f") {
+    return "backspace";
+  }
   if (key.upArrow) {
     return "up";
   }
@@ -633,6 +658,78 @@ function SelectPromptBody({
   );
 }
 
+function MultiSelectPromptBody({
+  options,
+  selectedIndex,
+  selectedValues,
+}: {
+  options: MultiSelectPromptOptions<string>;
+  selectedIndex: number;
+  selectedValues: string[];
+}): React.JSX.Element {
+  if (options.entries.length === 0) {
+    return (
+      <TerminalTextScreen
+        title={options.title}
+        subtitle={options.subtitle}
+        body={[
+          { text: options.prompt, tone: "section" },
+          { text: "" },
+          { text: "No options are available for this scope.", tone: "warning" },
+        ]}
+        footer={[{ text: "Esc, Backspace, or Left return", tone: "dim" }]}
+      />
+    );
+  }
+
+  const selectedOption = options.entries[selectedIndex];
+  const selectedSet = new Set(selectedValues);
+  const detailLines = selectedOption?.detailLines?.length
+    ? selectedOption.detailLines
+    : selectedOption?.description
+      ? [
+        { text: selectedOption.label, tone: "section" as const },
+        { text: selectedOption.description },
+      ]
+      : [
+        { text: selectedOption?.label ?? "(none)", tone: "section" as const },
+        { text: "No additional details.", tone: "dim" as const },
+      ];
+  const selectedLabels = options.entries
+    .filter((entry) => selectedSet.has(entry.value))
+    .map((entry) => entry.label);
+
+  return (
+    <TerminalTwoPaneScreen
+      title={options.title}
+      subtitle={options.subtitle}
+      left={{
+        title: options.prompt,
+        lines: options.entries.map((entry, index) => ({
+          text: `[${selectedSet.has(entry.value) ? "x" : " "}] ${entry.label}`,
+          tone: index === selectedIndex ? "selected" : "default",
+          noWrap: true,
+        })),
+        active: true,
+      }}
+      right={{
+        title: "Details",
+        lines: [
+          ...detailLines,
+          { text: "" },
+          { text: "Current Selection", tone: "section" },
+          { text: selectedLabels.length > 0 ? selectedLabels.join(", ") : "(none)" },
+        ],
+      }}
+      footer={[
+        { text: "Up/Down or j/k move  Enter or Space toggle  Esc/backspace/left return", tone: "dim" },
+        { text: `${selectedValues.length} selected | Focused: ${selectedOption?.label ?? "(none)"}`, tone: "accent" },
+      ]}
+      leftWidth={40}
+    />
+  );
+}
+
 function DerivedTagTerminalModalHost({
   modal,
   setModal,
@@ -683,7 +780,7 @@ function DerivedTagTerminalModalHost({
       return;
     }
 
-    if (modal.options.entries.length === 0) {
+    if (modal.kind === "select" && modal.options.entries.length === 0) {
       if (normalized === "escape" || normalized === "backspace" || normalized === "left" || normalized === "q" || normalized === "ctrl_c") {
         const resolver = modal.resolve;
         setModal(null);
@@ -692,26 +789,57 @@ function DerivedTagTerminalModalHost({
       return;
     }
 
+    if (modal.kind === "multiselect" && modal.options.entries.length === 0) {
+      if (normalized === "escape" || normalized === "backspace" || normalized === "left" || normalized === "q" || normalized === "ctrl_c") {
+        const resolver = modal.resolve;
+        setModal(null);
+        resolver([]);
+      }
+      return;
+    }
+
     if (normalized === "up" || normalized === "k") {
-      setModal((current) => current?.kind === "select"
+      setModal((current) => current && (current.kind === "select" || current.kind === "multiselect")
         ? { ...current, selectedIndex: moveSelectionWrapped(current.selectedIndex, -1, current.options.entries.length) }
         : current);
       return;
     }
     if (normalized === "down" || normalized === "j") {
-      setModal((current) => current?.kind === "select"
+      setModal((current) => current && (current.kind === "select" || current.kind === "multiselect")
         ? { ...current, selectedIndex: moveSelectionWrapped(current.selectedIndex, 1, current.options.entries.length) }
         : current);
       return;
     }
-    if (normalized === "enter" || normalized === "right" || normalized === "l") {
+    if (modal.kind === "multiselect" && (normalized === "enter" || normalized === "space")) {
+      const selected = modal.options.entries[modal.selectedIndex]?.value;
+      if (!selected) {
+        return;
+      }
+      setModal((current) => current?.kind === "multiselect"
+        ? {
+          ...current,
+          selectedValues: current.selectedValues.includes(selected)
+            ? current.selectedValues.filter((value) => value !== selected)
+            : [...current.selectedValues, selected],
+        }
+        : current);
+      return;
+    }
+    if (modal.kind === "select" && (normalized === "enter" || normalized === "right" || normalized === "l")) {
       const resolver = modal.resolve;
       const selected = modal.options.entries[modal.selectedIndex]?.value;
       setModal(null);
       resolver(selected);
       return;
     }
-    if (normalized === "escape" || normalized === "backspace" || normalized === "q" || normalized === "ctrl_c") {
+    if (modal.kind === "multiselect" && (normalized === "escape" || normalized === "backspace" || normalized === "left")) {
+      const resolver = modal.resolve;
+      const selectedValues = modal.selectedValues;
+      setModal(null);
+      resolver(selectedValues);
+      return;
+    }
+    if (modal.kind === "select" && (normalized === "escape" || normalized === "backspace" || normalized === "q" || normalized === "ctrl_c")) {
       const resolver = modal.resolve;
       setModal(null);
       resolver(undefined);
@@ -727,6 +855,15 @@ function DerivedTagTerminalModalHost({
   }
   if (modal.kind === "text") {
     return <PromptBody options={modal.options} currentValue={modal.value} />;
+  }
+  if (modal.kind === "multiselect") {
+    return (
+      <MultiSelectPromptBody
+        options={modal.options}
+        selectedIndex={modal.selectedIndex}
+        selectedValues={modal.selectedValues}
+      />
+    );
   }
 
   return <SelectPromptBody options={modal.options} selectedIndex={modal.selectedIndex} />;
@@ -759,6 +896,17 @@ export function DerivedTagTerminalProvider({
         });
       });
     },
+    promptMultiSelectOption: async <T extends string>(options: MultiSelectPromptOptions<T>) =>
+      new Promise<T[]>((resolve) => {
+        const selectedIndex = Math.max(0, options.entries.findIndex((entry) => options.selectedValues?.includes(entry.value)));
+        setModal({
+          kind: "multiselect",
+          options: options as MultiSelectPromptOptions<string>,
+          selectedIndex,
+          selectedValues: options.selectedValues ? [...options.selectedValues] : [],
+          resolve: resolve as (value: string[]) => void,
+        });
+      }),
     promptSelectOption: async <T extends string>(options: SelectPromptOptions<T>) =>
       new Promise<T | undefined>((resolve) => {
         const selectedIndex = Math.max(0, options.entries.findIndex((entry) => entry.value === options.selectedValue));

@@ -17,6 +17,12 @@ function flushInk(): Promise<void> {
   });
 }
 
+async function flushInkFrames(count = 2): Promise<void> {
+  for (let index = 0; index < count; index += 1) {
+    await flushInk();
+  }
+}
+
 function SelectPromptHarness(): React.JSX.Element {
   const terminal = useDerivedTagTerminalApp();
   const [appJPresses, setAppJPresses] = React.useState(0);
@@ -39,7 +45,7 @@ function SelectPromptHarness(): React.JSX.Element {
     }).then((value) => {
       setResult(value ?? "cancelled");
     });
-  }, [terminal]);
+  }, []);
 
   return (
     <TerminalTextScreen
@@ -75,6 +81,31 @@ function DialogStateHarness(): React.JSX.Element {
     <TerminalTextScreen
       title="Harness"
       body={[{ text: `page=${page}` }]}
+    />
+  );
+}
+
+function MultiSelectPromptHarness(): React.JSX.Element {
+  const terminal = useDerivedTagTerminalApp();
+  const [result, setResult] = React.useState("pending");
+
+  React.useEffect(() => {
+    void terminal.promptMultiSelectOption({
+      title: "Multi Harness",
+      prompt: "Toggle values",
+      entries: [
+        { value: "common", label: "Common" },
+        { value: "rare", label: "Rare" },
+      ],
+    }).then((values) => {
+      setResult(values.join(",") || "empty");
+    });
+  }, []);
+
+  return (
+    <TerminalTextScreen
+      title="Harness"
+      body={[{ text: `result=${result}` }]}
     />
   );
 }
@@ -123,7 +154,34 @@ describe("derived tag terminal ink runtime", () => {
     expect(app.lastFrame()).toContain("page=detail");
   });
 
+  it("accumulates multiselect choices until an exit key closes the prompt", async () => {
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <MultiSelectPromptHarness />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInkFrames();
+    expect(app.lastFrame()).toContain("Toggle values");
+
+    app.stdin.write("\r");
+    await flushInkFrames();
+    expect(app.lastFrame()).toContain("[x] Common");
+
+    app.stdin.write("j");
+    await flushInkFrames();
+    app.stdin.write("\r");
+    await flushInkFrames();
+    expect(app.lastFrame()).toContain("[x] Rare");
+
+    app.stdin.write("\u007f");
+    await flushInkFrames();
+    expect(app.lastFrame()).toContain("result=common,rare");
+  });
+
   it("normalizes ctrl letter combinations from both Ink key paths", () => {
+    expect(getNormalizedKeyName("\r", {} as never)).toBe("enter");
+    expect(getNormalizedKeyName("\u001b", {} as never)).toBe("escape");
     expect(getNormalizedKeyName("\u0015", {} as never)).toBe("ctrl_u");
     expect(getNormalizedKeyName("d", { ctrl: true } as never)).toBe("ctrl_d");
   });

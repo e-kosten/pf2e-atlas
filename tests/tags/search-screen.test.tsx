@@ -335,8 +335,8 @@ describe("search screen", () => {
         subcategory: null,
         levelMin: null,
         levelMax: null,
-        rarity: null,
-        actionCost: null,
+        rarities: [],
+        actionCosts: [],
         facets: [
           {
             field: "traits",

@@ -184,6 +184,13 @@ function formatLevelRange(request: Pf2eTerminalSearchRequest): string {
   return `<= L${levelMax}`;
 }
 
+function formatDiscreteFilterValues<T extends number | string>(values: T[]): string {
+  if (values.length === 0) {
+    return "(any)";
+  }
+  return values.map((value) => String(value)).join(", ");
+}
+
 function formatLevelRangeInputValue(request: Pf2eTerminalSearchRequest): string {
   const { levelMin, levelMax } = request.filters;
   if (levelMin === null && levelMax === null) {
@@ -306,14 +313,14 @@ function buildNavigatorEntries(state: SearchScreenState): SearchNavigatorEntry[]
       kind: "action",
       action: "rarity",
       label: "Rarity",
-      value: state.draft.filters.rarity ?? "(any)",
+      value: formatDiscreteFilterValues(state.draft.filters.rarities),
       description: "Restrict the draft by rarity when the current scope supports it.",
     },
     {
       kind: "action",
       action: "actionCost",
       label: "Action Cost",
-      value: state.draft.filters.actionCost === null ? "(any)" : `${state.draft.filters.actionCost}`,
+      value: formatDiscreteFilterValues(state.draft.filters.actionCosts),
       description: "Restrict the draft by action cost.",
     },
     {
@@ -404,8 +411,8 @@ function buildWorkspaceSummaryLines(state: SearchScreenState): DerivedTagTermina
     { text: `Draft profile: ${state.draft.searchProfile}` },
     { text: `Scope: ${formatSearchCategory(state.draft.filters.category)} / ${formatSearchSubcategory(state.draft.filters.subcategory)}` },
     { text: `Level range: ${formatLevelRange(state.draft)}` },
-    { text: `Rarity: ${state.draft.filters.rarity ?? "(any)"}` },
-    { text: `Action cost: ${state.draft.filters.actionCost ?? "(any)"}` },
+    { text: `Rarity: ${formatDiscreteFilterValues(state.draft.filters.rarities)}` },
+    { text: `Action cost: ${formatDiscreteFilterValues(state.draft.filters.actionCosts)}` },
     { text: `Facet filters: ${state.draft.filters.facets.length}` },
   ];
 
@@ -664,65 +671,49 @@ export function SearchScreen({
 
   const chooseRarityFilter = React.useCallback(async () => {
     const options = user.search.getRarityOptions(state.draft.filters.category, state.draft.filters.subcategory);
-    const selected = await terminal.promptSelectOption({
+    const selected = await terminal.promptMultiSelectOption({
       title: "Rarity Filter",
-      prompt: "Choose the draft rarity boundary",
+      prompt: "Toggle draft rarities. Press Esc or Left when finished.",
       entries: [
-        {
-          value: "__all__",
-          label: "Any Rarity",
-          description: "Do not restrict by rarity.",
-        },
         ...options.map((option) => ({
           value: option.value,
           label: option.label,
           description: option.description,
         })),
       ],
-      selectedValue: state.draft.filters.rarity ?? "__all__",
+      selectedValues: state.draft.filters.rarities,
     });
 
-    if (selected !== undefined) {
-      applyDraftUpdate((request) => ({
-        ...request,
-        filters: {
-          ...request.filters,
-          rarity: selected === "__all__" ? null : selected,
-        },
-      }));
-    }
-  }, [applyDraftUpdate, state.draft.filters.category, state.draft.filters.rarity, state.draft.filters.subcategory, terminal, user.search]);
+    applyDraftUpdate((request) => ({
+      ...request,
+      filters: {
+        ...request.filters,
+        rarities: selected,
+      },
+    }));
+  }, [applyDraftUpdate, state.draft.filters.category, state.draft.filters.rarities, state.draft.filters.subcategory, terminal, user.search]);
 
   const chooseActionCostFilter = React.useCallback(async () => {
     const options = user.search.getActionCostOptions(state.draft.filters.category, state.draft.filters.subcategory);
-    const selected = await terminal.promptSelectOption({
+    const selected = await terminal.promptMultiSelectOption({
       title: "Action Cost Filter",
-      prompt: "Choose the draft action-cost boundary",
-      entries: [
-        {
-          value: "__all__",
-          label: "Any Action Cost",
-          description: "Do not restrict by action cost.",
-        },
-        ...options.map((option) => ({
-          value: option.value,
-          label: option.label,
-          description: option.description,
-        })),
-      ],
-      selectedValue: state.draft.filters.actionCost === null ? "__all__" : String(state.draft.filters.actionCost),
+      prompt: "Toggle draft action costs. Press Esc or Left when finished.",
+      entries: options.map((option) => ({
+        value: option.value,
+        label: option.label,
+        description: option.description,
+      })),
+      selectedValues: state.draft.filters.actionCosts.map((value) => String(value)),
     });
 
-    if (selected !== undefined) {
-      applyDraftUpdate((request) => ({
-        ...request,
-        filters: {
-          ...request.filters,
-          actionCost: selected === "__all__" ? null : Number.parseInt(selected, 10),
-        },
-      }));
-    }
-  }, [applyDraftUpdate, state.draft.filters.actionCost, state.draft.filters.category, state.draft.filters.subcategory, terminal, user.search]);
+    applyDraftUpdate((request) => ({
+      ...request,
+      filters: {
+        ...request.filters,
+        actionCosts: selected.map((value) => Number.parseInt(value, 10)).filter((value) => Number.isFinite(value)),
+      },
+    }));
+  }, [applyDraftUpdate, state.draft.filters.actionCosts, state.draft.filters.category, state.draft.filters.subcategory, terminal, user.search]);
 
   const editLevelRange = React.useCallback(async () => {
     const input = await terminal.promptTextInput({
@@ -788,33 +779,39 @@ export function SearchScreen({
       return;
     }
 
-    const selectedValue = await terminal.promptSelectOption({
+    const selectedValues = await terminal.promptMultiSelectOption({
       title: "Facet Value",
-      prompt: `Choose a value for ${humanizeIdentifier(selectedField)}`,
+      prompt: `Toggle values for ${humanizeIdentifier(selectedField)}. Press Esc or Left when finished.`,
       entries: valueOptions.map((option) => ({
         value: option.value,
         label: option.label,
         description: option.description,
       })),
+      selectedValues: state.draft.filters.facets.find((facet) => facet.field === selectedField)?.values ?? [],
     });
-
-    if (!selectedValue) {
-      return;
-    }
 
     applyDraftUpdate((request) => {
       const facets = [...request.filters.facets];
       const currentIndex = facets.findIndex((facet) => facet.field === selectedField);
+      if (selectedValues.length === 0) {
+        return {
+          ...request,
+          filters: {
+            ...request.filters,
+            facets: facets.filter((facet) => facet.field !== selectedField),
+          },
+        };
+      }
+
       if (currentIndex >= 0) {
-        const current = facets[currentIndex]!;
         facets[currentIndex] = {
-          field: current.field,
-          values: [...new Set([...current.values, selectedValue])],
+          field: facets[currentIndex]!.field,
+          values: selectedValues,
         };
       } else {
         facets.push({
           field: selectedField as Pf2eTerminalFacetField,
-          values: [selectedValue],
+          values: selectedValues,
         });
       }
 
@@ -834,30 +831,21 @@ export function SearchScreen({
       return;
     }
 
-    const selected = await terminal.promptSelectOption({
+    const selected = await terminal.promptMultiSelectOption({
       title: "Remove Facet Value",
-      prompt: "Choose a facet value to remove from the draft",
+      prompt: "Toggle facet values to remove. Press Esc or Left when finished.",
       entries: buildFacetRemovalEntries(state.draft.filters.facets),
+      selectedValues: [],
     });
-
-    if (!selected) {
-      return;
-    }
-
-    const separatorIndex = selected.indexOf(":");
-    const field = selected.slice(0, separatorIndex) as Pf2eTerminalFacetField;
-    const value = selected.slice(separatorIndex + 1);
     applyDraftUpdate((request) => ({
       ...request,
       filters: {
         ...request.filters,
         facets: request.filters.facets
-          .map((facet) => facet.field !== field
-            ? facet
-            : {
-              field: facet.field,
-              values: facet.values.filter((candidate) => candidate !== value),
-            })
+          .map((facet) => ({
+            field: facet.field,
+            values: facet.values.filter((candidate) => !selected.includes(`${facet.field}:${candidate}`)),
+          }))
           .filter((facet) => facet.values.length > 0),
       },
     }));
