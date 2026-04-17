@@ -223,7 +223,7 @@ function queryExplorerRecordRows(
       r.record_key AS recordKey,
       r.pack_name AS packName,
       r.name AS name,
-      r.type AS type,
+      r.record_type AS type,
       r.category AS category,
       r.subcategory AS subcategory,
       r.document_type AS documentType,

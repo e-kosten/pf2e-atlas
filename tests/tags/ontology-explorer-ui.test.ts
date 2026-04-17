@@ -22,7 +22,7 @@ function createExplorerDb(): DatabaseSync {
       record_key TEXT PRIMARY KEY,
       pack_name TEXT,
       name TEXT NOT NULL,
-      type TEXT NOT NULL DEFAULT 'creature',
+      record_type TEXT NOT NULL DEFAULT 'creature',
       category TEXT NOT NULL,
       subcategory TEXT,
       document_type TEXT NOT NULL DEFAULT 'Actor',
@@ -108,7 +108,7 @@ function insertRecord(
 ): void {
   db.prepare(`
     INSERT INTO records (
-      record_key, pack_name, name, type, category, subcategory, document_type, level, rarity,
+      record_key, pack_name, name, record_type, category, subcategory, document_type, level, rarity,
       traits_json, derived_tags_json, families_json, description_text, blurb_text, is_search_canonical
     )
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)

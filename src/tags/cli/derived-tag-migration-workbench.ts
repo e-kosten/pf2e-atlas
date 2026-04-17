@@ -40,6 +40,7 @@ import type {
 const MANAGED_CATEGORIES: DerivedTagManagedCategory[] = ["affliction", "creature", "equipment", "hazard", "spell"];
 const ANY_CATEGORY = "__all_categories__";
 const ANY_SUBCATEGORY = "__all_subcategories__";
+const ANY_FAMILY = "__all_families__";
 const ANY_TAG = "__all_tags__";
 
 type TopLevelAreaId = "tag_refinement" | "ontology_search" | "search";
@@ -273,12 +274,70 @@ function buildSubcategorySelectOptions(category: SearchCategory): DerivedTagTerm
   ];
 }
 
+function familyMatchesScope(
+  category: SearchCategory | undefined,
+  subcategory: SearchSubcategory | undefined,
+  family: { category: SearchCategory; family: string; subcategories?: SearchSubcategory[]; axis: string },
+): boolean {
+  if (category && family.category !== category) {
+    return false;
+  }
+  if (!subcategory) {
+    return true;
+  }
+  if (!family.subcategories || family.subcategories.length === 0) {
+    return true;
+  }
+  return family.subcategories.includes(subcategory);
+}
+
+function buildFamilySelectOptions(
+  category: SearchCategory | undefined,
+  subcategory: SearchSubcategory | undefined,
+): DerivedTagTerminalSelectOption<string>[] {
+  const ontology = getSessionScopeOntology();
+  const familyOptions = ontology.families
+    .filter((family) => familyMatchesScope(category, subcategory, family))
+    .sort((left, right) =>
+      left.category.localeCompare(right.category)
+      || left.axis.localeCompare(right.axis)
+      || left.family.localeCompare(right.family))
+    .map((family) => ({
+      value: category ? family.family : `${family.category}:${family.family}`,
+      label: category ? `${family.axis} / ${family.family}` : `${family.category} / ${family.axis} / ${family.family}`,
+      detailLines: [
+        { text: family.family, tone: "section" },
+        { text: family.description },
+        { text: `Category: ${family.category}` },
+        { text: `Axis: ${family.axis}` },
+        { text: `Scope: ${family.subcategories?.join(", ") ?? "(all subcategories)"}` },
+        { text: `Variant inheritance: ${family.variantInheritance ? "yes" : "no"}` },
+      ],
+    } satisfies DerivedTagTerminalSelectOption<string>));
+
+  return [
+    {
+      value: ANY_FAMILY,
+      label: "All families",
+      detailLines: [
+        { text: "All families", tone: "section" },
+        { text: "Keep family unspecified and review the wider queue slice." },
+      ],
+    } satisfies DerivedTagTerminalSelectOption<string>,
+    ...familyOptions,
+  ];
+}
+
 function tagMatchesScope(
   category: SearchCategory | undefined,
   subcategory: SearchSubcategory | undefined,
+  familyKey: string | undefined,
   tag: { category: SearchCategory; family: string },
 ): boolean {
   if (category && tag.category !== category) {
+    return false;
+  }
+  if (familyKey && normalizeDerivedTag(tag.family) !== normalizeDerivedTag(familyKey)) {
     return false;
   }
   if (!subcategory) {
@@ -296,11 +355,12 @@ function tagMatchesScope(
 function buildTagSelectOptions(
   category: SearchCategory | undefined,
   subcategory: SearchSubcategory | undefined,
+  family: string | undefined,
   required: boolean,
 ): DerivedTagTerminalSelectOption<string>[] {
   const ontology = getSessionScopeOntology();
   const tagOptions = ontology.tags
-    .filter((tag) => tagMatchesScope(category, subcategory, tag))
+    .filter((tag) => tagMatchesScope(category, subcategory, family, tag))
     .sort((left, right) =>
       left.category.localeCompare(right.category)
       || left.family.localeCompare(right.family)
@@ -388,6 +448,7 @@ async function promptTag(
   terminalSession: DerivedTagTerminalSession,
   category: SearchCategory | undefined,
   subcategory: SearchSubcategory | undefined,
+  family: string | undefined,
   required: boolean,
 ): Promise<{ category?: SearchCategory; tag?: string } | undefined> {
   const value = await promptTerminalSelectOption(terminalSession, {
@@ -396,7 +457,7 @@ async function promptTag(
       ? "Choose the tag to review"
       : "Optionally narrow the session to one tag",
     prompt: "Tags",
-    entries: buildTagSelectOptions(category, subcategory, required),
+    entries: buildTagSelectOptions(category, subcategory, family, required),
   });
 
   if (value === undefined) {
@@ -415,6 +476,36 @@ async function promptTag(
     }
   }
   return { tag: value };
+}
+
+async function promptFamily(
+  terminalSession: DerivedTagTerminalSession,
+  category: SearchCategory | undefined,
+  subcategory: SearchSubcategory | undefined,
+): Promise<{ category?: SearchCategory; family?: string } | undefined> {
+  const value = await promptTerminalSelectOption(terminalSession, {
+    title: "Session Scope",
+    subtitle: "Optionally narrow the queue to one ontology family",
+    prompt: "Families",
+    entries: buildFamilySelectOptions(category, subcategory),
+  });
+
+  if (value === undefined) {
+    return undefined;
+  }
+  if (value === ANY_FAMILY) {
+    return {};
+  }
+  if (!category) {
+    const [resolvedCategory, resolvedFamily] = value.split(":", 2);
+    if (resolvedCategory && resolvedFamily) {
+      return {
+        category: resolvedCategory as SearchCategory,
+        family: resolvedFamily,
+      };
+    }
+  }
+  return { family: value };
 }
 
 async function promptInteger(
@@ -460,13 +551,22 @@ async function promptCustomSessionOptions(
   }
   const subcategory = subcategorySelection ?? undefined;
 
+  const familySelection = mode === "review_queue"
+    ? await promptFamily(terminalSession, category, subcategory)
+    : {};
+  if (familySelection === undefined) {
+    return undefined;
+  }
+  const resolvedCategory = category ?? familySelection.category;
+  const family = familySelection.family;
+
   const tagSelection = mode === "new_tagging"
     ? {}
-    : await promptTag(terminalSession, category, subcategory, mode === "legacy_rule");
+    : await promptTag(terminalSession, resolvedCategory, subcategory, family, mode === "legacy_rule");
   if (tagSelection === undefined) {
     return undefined;
   }
-  const resolvedCategory = category ?? tagSelection.category;
+  const resolvedTagCategory = resolvedCategory ?? tagSelection.category;
   const tag = tagSelection.tag;
 
   const limit = await promptInteger(terminalSession, "limit (blank for default)", "--limit");
@@ -475,8 +575,9 @@ async function promptCustomSessionOptions(
     : undefined;
 
   return {
-    category: resolvedCategory,
+    category: resolvedTagCategory,
     subcategory,
+    family,
     tag,
     limit,
     exemplarLimit,
