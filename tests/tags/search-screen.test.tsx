@@ -162,7 +162,13 @@ function createSearchServices(): Pf2eTerminalAppServices {
         runQuery,
       },
       ontology: {
-        loadModel: vi.fn(() => ({ categories: [] })),
+        listDomains: vi.fn(() => []),
+        loadDomain: vi.fn(() => ({
+          id: "catalogCategories",
+          label: "Categories",
+          description: "Test domain",
+          rootNodes: [],
+        })),
       },
     },
     dev: {

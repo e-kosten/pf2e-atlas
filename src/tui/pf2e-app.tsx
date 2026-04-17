@@ -22,7 +22,8 @@ import {
 } from "./pf2e-app-state.js";
 import { AreaMenuScreen } from "./area-menu-screen.js";
 import { isBackOrExitKey } from "./keymap.js";
-import { DerivedTagOntologyExplorerScreen } from "./ontology-explorer/screen.js";
+import { OntologyBrowserScreen } from "./ontology-explorer/screen.js";
+import { OntologyDomainPickerScreen } from "./ontology-explorer/domain-picker-screen.js";
 import { SearchScreen } from "./search-screen.js";
 import { TerminalBusyScreen } from "./shared-screens.js";
 import {
@@ -77,6 +78,7 @@ export function Pf2eTerminalApp({
   const [busyMessage, setBusyMessage] = React.useState<string | null>(null);
   const route = getCurrentPf2eAppRoute(state);
   const queueItems = services.dev.tagRefinement.getQueueItems();
+  const ontologyDomains = services.user.ontology.listDomains();
 
   const runWithBusyState = React.useCallback(async <T,>(message: string, task: () => Promise<T>): Promise<T> => {
     setBusyMessage(message);
@@ -118,16 +120,20 @@ export function Pf2eTerminalApp({
     });
   }, [openReviewSession, rootPath, runWithBusyState, services.dev.tagRefinement, terminal]);
 
-  const openOntology = React.useCallback(async () => {
-    await runWithBusyState("Opening ontology explorer...", async () => {
+  const openOntologyDomain = React.useCallback(async () => {
+    const selectedDomain = ontologyDomains[state.ontologyDomainSelectedIndex];
+    if (!selectedDomain) {
+      return;
+    }
+    await runWithBusyState(`Opening ${selectedDomain.label} ontology...`, async () => {
       try {
-        const model = services.user.ontology.loadModel();
+        const model = services.user.ontology.loadDomain(selectedDomain.id);
         dispatch({ type: "push_route", route: { kind: "ontology", model } });
       } catch (error) {
-        await terminal.pauseForAnyKey(`Could not open ontology explorer.\n\n${(error as Error).message}`);
+        await terminal.pauseForAnyKey(`Could not open the ${selectedDomain.label} ontology.\n\n${(error as Error).message}`);
       }
     });
-  }, [runWithBusyState, services.user.ontology, terminal]);
+  }, [ontologyDomains, runWithBusyState, services.user.ontology, state.ontologyDomainSelectedIndex, terminal]);
 
   const openSelectedArea = React.useCallback(() => {
     const selectedArea = PF2E_APP_AREAS[state.selectedAreaIndex];
@@ -140,11 +146,11 @@ export function Pf2eTerminalApp({
       return;
     }
     if (selectedArea.id === "ontology_search") {
-      void openOntology();
+      dispatch({ type: "push_route", route: { kind: "ontology_picker" } });
       return;
     }
     dispatch({ type: "push_route", route: { kind: "search" } });
-  }, [openOntology, state.selectedAreaIndex]);
+  }, [state.selectedAreaIndex]);
 
   const openSelectedTagRefinementItem = React.useCallback((menuItems: TagRefinementMenuItem[]) => {
     const selectedItem = menuItems[state.tagRefinementSelectedIndex];
@@ -184,9 +190,29 @@ export function Pf2eTerminalApp({
   let screen: React.JSX.Element;
   if (busyMessage) {
     screen = <TerminalBusyScreen title={PF2E_TERMINAL_TITLE} message={busyMessage} />;
+  } else if (route.kind === "ontology_picker") {
+    screen = (
+      <OntologyDomainPickerScreen
+        domains={ontologyDomains}
+        selectedIndex={state.ontologyDomainSelectedIndex}
+        onBack={() => {
+          if (canPopPf2eAppRoute(state)) {
+            dispatch({ type: "pop_route" });
+          } else {
+            onExit();
+          }
+        }}
+        onMove={(delta, itemCount) => dispatch(delta === 0
+          ? { type: "set_ontology_domain_index", index: Math.max(0, Math.min(state.ontologyDomainSelectedIndex, Math.max(0, itemCount - 1))), itemCount }
+          : { type: "move_ontology_domain", delta, itemCount })}
+        onOpenSelected={() => {
+          void openOntologyDomain();
+        }}
+      />
+    );
   } else if (route.kind === "ontology") {
     screen = (
-      <DerivedTagOntologyExplorerScreen
+      <OntologyBrowserScreen
         model={route.model}
         onExit={() => {
           if (canPopPf2eAppRoute(state)) {

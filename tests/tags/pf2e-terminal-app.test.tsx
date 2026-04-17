@@ -158,107 +158,70 @@ function createFakeServices(overrides: Partial<Pf2eTerminalAppServices> = {}): P
         })),
       },
       ontology: {
-        loadModel: vi.fn(() => ({
-          categories: [
+        listDomains: vi.fn(() => [
+          {
+            id: "derivedTags",
+            label: "Derived Tags",
+            description: "Derived tag ontology",
+          },
+          {
+            id: "catalogCategories",
+            label: "Categories",
+            description: "Category ontology",
+          },
+        ]),
+        loadDomain: vi.fn(() => ({
+          id: "derivedTags",
+          label: "Derived Tags",
+          description: "Derived tag ontology",
+          rootNodes: [
             {
+              id: "spell",
               kind: "category",
-              key: "spell",
-              category: "spell",
-              familyCount: 1,
-              tagCount: 1,
-              taggedRecordCount: 1,
+              label: "Spell",
               filterText: "spell",
-              families: [
+              listLabel: "spell | 1 family | 1 tag | 1 record",
+              detailTitle: "Category Details",
+              detailLines: [{ text: "Spell", tone: "section" }],
+              children: [
                 {
+                  id: "spell:security",
                   kind: "family",
-                  key: "spell:security",
-                  category: "spell",
-                  family: "security",
-                  axis: "utility",
-                  description: "Security spells",
-                  subcategories: undefined,
-                  variantInheritance: false,
-                  tagCount: 1,
-                  liveRecordCount: 1,
+                  label: "security",
                   filterText: "security",
-                  tags: [
+                  listLabel: "security | 1 tag | 1 live record",
+                  detailTitle: "Family Details",
+                  detailLines: [{ text: "security", tone: "section" }],
+                  groupValues: { axis: "utility" },
+                  children: [
                     {
+                      id: "spell:alarm",
                       kind: "tag",
-                      key: "spell:alarm",
-                      category: "spell",
-                      family: "security",
-                      subcategories: undefined,
-                      tag: "alarm",
-                      description: "Alarm effects",
-                      assignmentMode: "editorial",
-                      liveRecordCount: 1,
-                      authoredRuleCount: 0,
-                      exemplarPositiveCount: 0,
-                      exemplarNegativeCount: 0,
-                      legacyMigrationDefinitionCount: 0,
-                      legacyMigrationRecordCount: 0,
+                      label: "alarm",
                       filterText: "alarm",
-                      records: [
+                      listLabel: "alarm | editorial | 1 live record",
+                      detailTitle: "Tag Details",
+                      detailLines: [{ text: "alarm", tone: "section" }],
+                      children: [
                         {
+                          id: record.recordKey,
                           kind: "record",
-                          key: record.recordKey,
-                          category: "spell",
-                          tag: "alarm",
+                          label: record.name,
                           filterText: "alarm ward",
-                          record: {
-                            recordKey: record.recordKey,
-                            packName: record.packName,
-                            name: record.name,
-                            type: record.type,
-                            category: record.category,
-                            subcategory: record.subcategory,
-                            documentType: record.documentType,
-                            level: record.level,
-                            rarity: record.rarity,
-                            traits: record.traits,
-                            derivedTags: record.derivedTags,
-                            families: record.families,
-                            descriptionText: record.descriptionText,
-                            blurbText: record.blurbText,
-                            sourceCategory: record.sourceCategory,
-                            publicationTitle: record.publicationTitle,
-                            publicationRemaster: record.publicationRemaster,
-                            isUnique: record.isUnique,
-                            size: record.size,
-                            languages: record.languages,
-                            speedTypes: record.speedTypes,
-                            senses: record.senses,
-                            immunities: record.immunities,
-                            resistances: record.resistances,
-                            weaknesses: record.weaknesses,
-                            itemCategory: record.itemCategory,
-                            baseItem: record.baseItem,
-                            priceCp: record.priceCp,
-                            usage: record.usage,
-                            hands: record.hands,
-                            damageTypes: record.damageTypes,
-                            weaponGroup: record.weaponGroup,
-                            armorGroup: record.armorGroup,
-                            traditions: record.traditions,
-                            spellKinds: record.spellKinds,
-                            saveType: record.saveType,
-                            areaType: record.areaType,
-                            rangeText: record.rangeText,
-                            durationText: record.durationText,
-                            targetText: record.targetText,
-                            areaValue: record.areaValue,
-                            sustained: record.sustained,
-                            basicSave: record.basicSave,
-                            disableText: record.disableText,
-                            disableSkills: record.disableSkills,
-                            isComplex: record.isComplex,
-                          },
+                          listLabel: `${record.name} | spell | lvl 1`,
+                          detailTitle: "Record Details",
+                          detailLines: [{ text: record.name, tone: "section" }],
                         },
                       ],
                     },
                   ],
                 },
               ],
+              childPresentation: {
+                mode: "grouped",
+                groupBy: "axis",
+                render: "inline",
+              },
             },
           ],
         })),
@@ -309,7 +272,7 @@ describe("pf2e terminal app", () => {
     expect(app.lastFrame()).toContain("Choose a first-class TUI area");
   });
 
-  it("opens ontology via the app service layer", async () => {
+  it("opens the ontology domain picker and loads the selected domain", async () => {
     const services = createFakeServices();
     const app = render(
       <DerivedTagTerminalProvider>
@@ -323,9 +286,14 @@ describe("pf2e terminal app", () => {
     await flushInk();
     app.stdin.write("\r");
     await flushInk();
+    expect(app.lastFrame()).toContain("Choose an ontology-backed browse domain");
 
-    expect(services.user.ontology.loadModel).toHaveBeenCalledTimes(1);
-    expect(app.lastFrame()).toContain("Ontology Search");
+    app.stdin.write("\r");
+    await flushInk();
+
+    expect(services.user.ontology.listDomains).toHaveBeenCalled();
+    expect(services.user.ontology.loadDomain).toHaveBeenCalledWith("derivedTags");
+    expect(app.lastFrame()).toContain("Derived Tags");
   });
 
   it("closes loaded services when the bootstrap unmounts", async () => {

@@ -1,12 +1,12 @@
 import { DatabaseSync } from "node:sqlite";
 
+import {
+  createPf2eApplicationOntologyService,
+  type Pf2eApplicationOntologyService,
+} from "../app/ontology-service.js";
 import { loadPf2eApplicationRuntime, type Pf2eApplicationRuntime } from "../app/runtime.js";
 import { Pf2eDataService } from "../data/service.js";
 import type { AppConfig } from "../types.js";
-import {
-  createPf2eTerminalOntologyExplorerService,
-  type Pf2eTerminalOntologyExplorerService,
-} from "./ontology-explorer/service.js";
 import { createPf2eTerminalSearchService, type Pf2eTerminalSearchService } from "./search-service.js";
 import {
   createDerivedTagMigrationWorkbenchSession,
@@ -55,7 +55,7 @@ export type Pf2eTerminalCatalogService = Pick<
 >;
 
 export type Pf2eTerminalUserServices = {
-  ontology: Pf2eTerminalOntologyExplorerService;
+  ontology: Pf2eApplicationOntologyService;
   search: Pf2eTerminalSearchService;
 };
 
@@ -113,7 +113,7 @@ export function createPf2eTerminalAppServices(
     config,
     catalog: dataService,
     user: {
-      ontology: createPf2eTerminalOntologyExplorerService(config),
+      ontology: createPf2eApplicationOntologyService(config, dataService),
       search: createPf2eTerminalSearchService({
         getSearchVocabulary: () => dataService.getSearchVocabulary(),
         lookup: (name, options) => dataService.lookup(name, options),

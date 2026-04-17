@@ -1,6 +1,6 @@
 import React from "react";
 
-import type { DerivedTagOntologyExplorerModel } from "./data.js";
+import type { OntologyDomainModel } from "../../types.js";
 import {
   TerminalPaneScreen,
   TerminalTwoPaneScreen,
@@ -15,25 +15,26 @@ import {
   type DerivedTagTerminalTwoPaneAction,
 } from "../two-pane-state.js";
 import {
-  buildDerivedTagOntologyExplorerBreadcrumb,
-  buildDerivedTagOntologyExplorerDetailLines,
-  buildDerivedTagOntologyExplorerHelpLines,
-  buildDerivedTagOntologyExplorerListLines,
-  buildVisibleDerivedTagOntologyExplorerDetailLines,
-  createDerivedTagOntologyExplorerUiState,
-  drillIntoDerivedTagOntologyExplorer,
-  getDerivedTagOntologyExplorerDetailMetrics,
-  getDerivedTagOntologyExplorerSelection,
-  isExactPrintableOntologyExplorerKey,
-  jumpDerivedTagOntologyExplorerSelection,
-  moveDerivedTagOntologyExplorerDetailScroll,
-  moveDerivedTagOntologyExplorerDetailScrollToBoundary,
-  moveDerivedTagOntologyExplorerSelection,
-  moveDerivedTagOntologyExplorerSelectionToBoundary,
-  normalizeDerivedTagOntologyExplorerState,
-  popDerivedTagOntologyExplorerDepth,
-  setDerivedTagOntologyExplorerFilter,
-  type DerivedTagOntologyExplorerUiState,
+  buildOntologyBrowserBreadcrumb,
+  buildOntologyBrowserDetailLines,
+  buildOntologyBrowserHelpLines,
+  buildOntologyBrowserListLines,
+  buildVisibleOntologyBrowserDetailLines,
+  createOntologyBrowserUiState,
+  drillIntoOntologyBrowser,
+  getOntologyBrowserDetailMetrics,
+  getOntologyBrowserDetailTitle,
+  getOntologyBrowserSelection,
+  isExactPrintableOntologyBrowserKey,
+  jumpOntologyBrowserSelection,
+  moveOntologyBrowserDetailScroll,
+  moveOntologyBrowserDetailScrollToBoundary,
+  moveOntologyBrowserSelection,
+  moveOntologyBrowserSelectionToBoundary,
+  normalizeOntologyBrowserState,
+  popOntologyBrowserDepth,
+  setOntologyBrowserFilter,
+  type OntologyBrowserUiState,
 } from "./ui.js";
 
 type ExplorerAction =
@@ -53,30 +54,30 @@ type ExplorerAction =
   | { type: "set_pending_g"; pending: boolean };
 
 function reduceExplorerTwoPaneState(
-  state: DerivedTagOntologyExplorerUiState,
+  state: OntologyBrowserUiState,
   action: DerivedTagTerminalTwoPaneAction,
-): Pick<DerivedTagOntologyExplorerUiState, "activePane" | "layoutMode" | "explorerState"> {
+): Pick<OntologyBrowserUiState, "activePane" | "layoutMode" | "browserState"> {
   const next = reduceDerivedTagTerminalTwoPaneState({
     activePane: state.activePane,
-    detailScroll: state.explorerState.detailScroll,
+    detailScroll: state.browserState.detailScroll,
     layoutMode: state.layoutMode,
   }, action);
 
   return {
     activePane: next.activePane,
     layoutMode: next.layoutMode,
-    explorerState: {
-      ...state.explorerState,
+    browserState: {
+      ...state.browserState,
       detailScroll: next.detailScroll,
     },
   };
 }
 
 function explorerReducer(
-  model: DerivedTagOntologyExplorerModel,
-  state: DerivedTagOntologyExplorerUiState,
+  model: OntologyDomainModel,
+  state: OntologyBrowserUiState,
   action: ExplorerAction,
-): DerivedTagOntologyExplorerUiState {
+): OntologyBrowserUiState {
   switch (action.type) {
     case "toggle_focus":
     case "toggle_layout":
@@ -88,7 +89,7 @@ function explorerReducer(
     case "normalize":
       return {
         ...state,
-        explorerState: normalizeDerivedTagOntologyExplorerState(model, state.explorerState),
+        browserState: normalizeOntologyBrowserState(model, state.browserState),
       };
     case "set_search_mode":
       return {
@@ -101,7 +102,7 @@ function explorerReducer(
       const searchInput = state.searchInput + action.character;
       return {
         ...state,
-        explorerState: setDerivedTagOntologyExplorerFilter(model, state.explorerState, searchInput),
+        browserState: setOntologyBrowserFilter(model, state.browserState, searchInput),
         searchInput,
       };
     }
@@ -109,40 +110,40 @@ function explorerReducer(
       const searchInput = state.searchInput.slice(0, -1);
       return {
         ...state,
-        explorerState: setDerivedTagOntologyExplorerFilter(model, state.explorerState, searchInput),
+        browserState: setOntologyBrowserFilter(model, state.browserState, searchInput),
         searchInput,
       };
     }
     case "clear_search":
       return {
         ...state,
-        explorerState: setDerivedTagOntologyExplorerFilter(model, state.explorerState, ""),
+        browserState: setOntologyBrowserFilter(model, state.browserState, ""),
         pendingListCommand: null,
         searchInput: "",
       };
     case "move_selection":
       return {
         ...state,
-        explorerState: moveDerivedTagOntologyExplorerSelection(model, state.explorerState, action.delta),
+        browserState: moveOntologyBrowserSelection(model, state.browserState, action.delta),
         pendingListCommand: null,
       };
     case "jump_selection":
       return {
         ...state,
-        explorerState: jumpDerivedTagOntologyExplorerSelection(model, state.explorerState, action.delta),
+        browserState: jumpOntologyBrowserSelection(model, state.browserState, action.delta),
         pendingListCommand: null,
       };
     case "selection_boundary":
       return {
         ...state,
-        explorerState: moveDerivedTagOntologyExplorerSelectionToBoundary(model, state.explorerState, action.boundary),
+        browserState: moveOntologyBrowserSelectionToBoundary(model, state.browserState, action.boundary),
         pendingListCommand: null,
       };
     case "drill_in":
       return {
         ...state,
         activePane: "list",
-        explorerState: drillIntoDerivedTagOntologyExplorer(model, state.explorerState),
+        browserState: drillIntoOntologyBrowser(model, state.browserState),
         layoutMode: "split",
         pendingListCommand: null,
         searchInput: "",
@@ -152,7 +153,7 @@ function explorerReducer(
       return {
         ...state,
         activePane: "list",
-        explorerState: popDerivedTagOntologyExplorerDepth(state.explorerState),
+        browserState: popOntologyBrowserDepth(state.browserState),
         layoutMode: "split",
         pendingListCommand: null,
         searchInput: "",
@@ -162,14 +163,14 @@ function explorerReducer(
       return {
         ...state,
         ...reduceExplorerTwoPaneState(state, action),
-        explorerState: moveDerivedTagOntologyExplorerDetailScroll(state.explorerState, action.delta, action.maxDetailScroll),
+        browserState: moveOntologyBrowserDetailScroll(state.browserState, action.delta, action.maxDetailScroll),
         pendingListCommand: null,
       };
     case "detail_boundary":
       return {
         ...state,
         ...reduceExplorerTwoPaneState(state, action),
-        explorerState: moveDerivedTagOntologyExplorerDetailScrollToBoundary(state.explorerState, action.boundary, action.maxDetailScroll),
+        browserState: moveOntologyBrowserDetailScrollToBoundary(state.browserState, action.boundary, action.maxDetailScroll),
         pendingListCommand: null,
       };
     case "set_pending_g":
@@ -182,19 +183,19 @@ function explorerReducer(
   }
 }
 
-export function DerivedTagOntologyExplorerScreen({
+export function OntologyBrowserScreen({
   model,
   onExit,
 }: {
-  model: DerivedTagOntologyExplorerModel;
+  model: OntologyDomainModel;
   onExit: () => void;
 }): React.JSX.Element {
   const terminal = useDerivedTagTerminalApp();
   const size = useDerivedTagTerminalSize();
   const [state, dispatch] = React.useReducer(
-    (current: DerivedTagOntologyExplorerUiState, action: ExplorerAction) => explorerReducer(model, current, action),
+    (current: OntologyBrowserUiState, action: ExplorerAction) => explorerReducer(model, current, action),
     model,
-    createDerivedTagOntologyExplorerUiState,
+    createOntologyBrowserUiState,
   );
 
   React.useEffect(() => {
@@ -203,15 +204,17 @@ export function DerivedTagOntologyExplorerScreen({
 
   const layoutMode = getDerivedTagTerminalTwoPaneLayoutMode({
     activePane: state.activePane,
-    detailScroll: state.explorerState.detailScroll,
+    detailScroll: state.browserState.detailScroll,
     layoutMode: state.layoutMode,
   });
-  const normalizedExplorerState = normalizeDerivedTagOntologyExplorerState(model, state.explorerState);
-  const selection = getDerivedTagOntologyExplorerSelection(model, normalizedExplorerState);
-  const metrics = getDerivedTagOntologyExplorerDetailMetrics(model, normalizedExplorerState, layoutMode, size.width, size.height);
-  const effectiveState = normalizedExplorerState.detailScroll > metrics.maxDetailScroll
-    ? { ...normalizedExplorerState, detailScroll: metrics.maxDetailScroll }
-    : normalizedExplorerState;
+  const normalizedBrowserState = normalizeOntologyBrowserState(model, state.browserState);
+  const selection = getOntologyBrowserSelection(model, normalizedBrowserState);
+  const metrics = getOntologyBrowserDetailMetrics(model, normalizedBrowserState, layoutMode, size.width, size.height);
+  const effectiveState = normalizedBrowserState.detailScroll > metrics.maxDetailScroll
+    ? { ...normalizedBrowserState, detailScroll: metrics.maxDetailScroll }
+    : normalizedBrowserState;
+  const breadcrumb = buildOntologyBrowserBreadcrumb(model, effectiveState);
+  const currentNodeHasChildren = Boolean(selection.currentNode?.children && selection.currentNode.children.length > 0);
   const searchIndicator = state.searchMode
     ? ` | /${state.searchInput}`
     : effectiveState.filter
@@ -266,8 +269,8 @@ export function DerivedTagOntologyExplorerScreen({
     }
     if (normalized === "?") {
       void terminal.showDialog({
-        title: "Ontology Search Help",
-        body: buildDerivedTagOntologyExplorerHelpLines(),
+        title: "Ontology Browser Help",
+        body: buildOntologyBrowserHelpLines(),
         footer: [{ text: "Press any key to return.", tone: "dim" }],
       });
       return;
@@ -344,7 +347,7 @@ export function DerivedTagOntologyExplorerScreen({
       dispatch({ type: "selection_boundary", boundary: "end" });
       return;
     }
-    if (normalized === "g" && isExactPrintableOntologyExplorerKey(input, key, "g")) {
+    if (normalized === "g" && isExactPrintableOntologyBrowserKey(input, key, "g")) {
       if (state.pendingListCommand === "g") {
         dispatch({ type: "selection_boundary", boundary: "start" });
       } else {
@@ -352,16 +355,16 @@ export function DerivedTagOntologyExplorerScreen({
       }
       return;
     }
-    if (normalized === "g" && isExactPrintableOntologyExplorerKey(input, key, "G")) {
+    if (normalized === "g" && isExactPrintableOntologyBrowserKey(input, key, "G")) {
       dispatch({ type: "selection_boundary", boundary: "end" });
       return;
     }
-    if (normalized === "right" || normalized === "l" || normalized === "enter") {
+    if ((normalized === "right" || normalized === "l" || normalized === "enter") && currentNodeHasChildren) {
       dispatch({ type: "drill_in" });
       return;
     }
     if (normalized === "left" || normalized === "h" || normalized === "backspace") {
-      const nextState = popDerivedTagOntologyExplorerDepth(effectiveState);
+      const nextState = popOntologyBrowserDepth(effectiveState);
       if (nextState.depth === effectiveState.depth) {
         onExit();
       } else {
@@ -374,7 +377,7 @@ export function DerivedTagOntologyExplorerScreen({
         dispatch({ type: "clear_search" });
         return;
       }
-      const nextState = popDerivedTagOntologyExplorerDepth(effectiveState);
+      const nextState = popOntologyBrowserDepth(effectiveState);
       if (nextState.depth === effectiveState.depth) {
         onExit();
       } else {
@@ -394,17 +397,11 @@ export function DerivedTagOntologyExplorerScreen({
   if (layoutMode === "detail-only") {
     return (
       <TerminalPaneScreen
-        title="Ontology Search"
-        subtitle={`${buildDerivedTagOntologyExplorerBreadcrumb(selection, effectiveState)} | depth ${effectiveState.depth} | focused detail${searchIndicator}`}
+        title={model.label}
+        subtitle={`${breadcrumb} | depth ${effectiveState.depth} | focused detail${searchIndicator}`}
         pane={{
-          title: `[FOCUSED DETAIL] ${effectiveState.depth === "category"
-            ? "Category Details"
-            : effectiveState.depth === "family"
-              ? "Family Details"
-              : effectiveState.depth === "tag"
-                ? "Tag Details"
-                : "Record Details"}`,
-          lines: buildVisibleDerivedTagOntologyExplorerDetailLines(model, effectiveState, layoutMode, size.width, metrics.bodyHeight),
+          title: `[FOCUSED DETAIL] ${getOntologyBrowserDetailTitle(model, effectiveState)}`,
+          lines: buildVisibleOntologyBrowserDetailLines(model, effectiveState, layoutMode, size.width, metrics.bodyHeight),
           active: true,
         }}
         footer={[
@@ -427,28 +424,24 @@ export function DerivedTagOntologyExplorerScreen({
 
   return (
     <TerminalTwoPaneScreen
-      title="Ontology Search"
-      subtitle={`${buildDerivedTagOntologyExplorerBreadcrumb(selection, effectiveState)} | depth ${effectiveState.depth}${searchIndicator}`}
+      title={model.label}
+      subtitle={`${breadcrumb} | depth ${effectiveState.depth}${searchIndicator}`}
       left={{
-        title: `${state.activePane === "list" ? "[LIST] " : "List: "}${effectiveState.depth === "category"
-          ? "Categories"
-          : effectiveState.depth === "family"
-            ? "Families"
-            : effectiveState.depth === "tag"
-              ? "Tags"
-              : "Records"}`,
-        lines: buildDerivedTagOntologyExplorerListLines(model, effectiveState, metrics.bodyHeight),
+        title: state.activePane === "list" ? "[LIST] Ontology Entries" : "Ontology Entries",
+        lines: buildOntologyBrowserListLines(model, effectiveState, metrics.bodyHeight),
         active: state.activePane === "list",
       }}
       right={{
-        title: `${state.activePane === "detail" ? "[DETAIL] " : "Detail: "}${effectiveState.depth === "category"
-          ? "Category Details"
-          : effectiveState.depth === "family"
-            ? "Family Details"
-            : effectiveState.depth === "tag"
-              ? "Tag Details"
-              : "Record Details"}`,
-        lines: buildVisibleDerivedTagOntologyExplorerDetailLines(model, effectiveState, layoutMode, size.width, metrics.bodyHeight),
+        title: state.activePane === "detail"
+          ? `[DETAIL] ${getOntologyBrowserDetailTitle(model, effectiveState)}`
+          : getOntologyBrowserDetailTitle(model, effectiveState),
+        lines: buildVisibleOntologyBrowserDetailLines(
+          model,
+          effectiveState,
+          layoutMode,
+          size.width,
+          metrics.bodyHeight,
+        ),
         active: state.activePane === "detail",
       }}
       footer={[
