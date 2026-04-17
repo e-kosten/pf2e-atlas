@@ -145,6 +145,7 @@ describe("derived tag ontology", () => {
     expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.combat_role.description).toContain("tactical");
     expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.encounter_role.description).toContain("scene-slot");
     expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.social_role.description).toContain("outside one immediate encounter slot");
+    expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.motif.description).toContain("narrative framing");
 
     const urbanSetting = CREATURE_DERIVED_TAG_ONTOLOGY.families.site_setting.tags.find((tag) => tag.tag === "urban_setting");
     expect(urbanSetting).toEqual(expect.objectContaining({
@@ -193,6 +194,66 @@ describe("derived tag ontology", () => {
       tag: "brute_combatant",
       assignmentMode: "hybrid",
       adjacentTags: ["defender_combatant", "artillery_combatant"],
+    }));
+    const tricksterMischief = CREATURE_DERIVED_TAG_ONTOLOGY.families.motif.tags.find((tag) => tag.tag === "trickster_mischief");
+    expect(tricksterMischief).toEqual(expect.objectContaining({
+      tag: "trickster_mischief",
+      assignmentMode: "hybrid",
+      adjacentTags: ["carnival_show", "disguised_pretender"],
+      appliesWhen: expect.arrayContaining([
+        "Pranks, baiting humor, whimsical menace, or deliberate trickster conduct are a central retrieval hook.",
+      ]),
+    }));
+    const dreamNightmare = CREATURE_DERIVED_TAG_ONTOLOGY.families.motif.tags.find((tag) => tag.tag === "dream_nightmare");
+    expect(dreamNightmare).toEqual(expect.objectContaining({
+      tag: "dream_nightmare",
+      assignmentMode: "editorial",
+      adjacentTags: ["dreamlands_setting", "cosmic_dread"],
+      doesNotApplyWhen: expect.arrayContaining([
+        "Dreamlands placement alone is better captured by dreamlands_setting.",
+      ]),
+    }));
+    const folkHorror = CREATURE_DERIVED_TAG_ONTOLOGY.families.motif.tags.find((tag) => tag.tag === "folk_horror");
+    expect(folkHorror).toEqual(expect.objectContaining({
+      tag: "folk_horror",
+      assignmentMode: "editorial",
+      adjacentTags: ["rural_setting", "funerary_mourning"],
+      appliesWhen: expect.arrayContaining([
+        "The creature evokes old-country fear, harvest rites gone wrong, scarecrow dread, witchcraft omen, or taboo-laden local folklore.",
+      ]),
+    }));
+    expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.motif.tags.map((tag) => tag.tag)).toEqual(expect.arrayContaining([
+      "prophecy_omen",
+      "corrupted_sacred",
+      "vengeful_tragedy",
+      "paranoia_surveillance",
+      "decadence_decline",
+      "ancestral_legacy",
+      "predatory_seduction",
+      "seasonal_festival",
+      "apocalypse_ruin",
+      "forbidden_knowledge",
+      "cursed_transformation",
+      "obsession_fixation",
+      "innocence_twisted",
+      "occult_conspiracy",
+      "industrial_grotesque",
+      "maritime_superstition",
+    ]));
+    const prophecyOmen = CREATURE_DERIVED_TAG_ONTOLOGY.families.motif.tags.find((tag) => tag.tag === "prophecy_omen");
+    expect(prophecyOmen).toEqual(expect.objectContaining({
+      tag: "prophecy_omen",
+      assignmentMode: "editorial",
+      adjacentTags: ["apocalypse_ruin", "ancestral_legacy"],
+    }));
+    const occultConspiracy = CREATURE_DERIVED_TAG_ONTOLOGY.families.motif.tags.find((tag) => tag.tag === "occult_conspiracy");
+    expect(occultConspiracy).toEqual(expect.objectContaining({
+      tag: "occult_conspiracy",
+      assignmentMode: "editorial",
+      adjacentTags: ["paranoia_surveillance", "forbidden_knowledge"],
+      doesNotApplyWhen: expect.arrayContaining([
+        "The stronger fit is ritual_ceremony, paranoia_surveillance, or forbidden_knowledge rather than hidden-network manipulation.",
+      ]),
     }));
     const telepathicCommunication = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "equipment" && tag.tag === "telepathic_communication");
     expect(telepathicCommunication).toEqual(expect.objectContaining({

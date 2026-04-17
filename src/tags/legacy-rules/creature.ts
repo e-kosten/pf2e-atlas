@@ -326,12 +326,12 @@ const BOUND_OBJECT_STATUE_CONTEXT_TEXT_ANCHORS = [
   patternAnchor("standing guard"),
 ];
 
-const TRICKSTER_CHAOS_NAME_ANCHORS = [
+const TRICKSTER_MISCHIEF_NAME_ANCHORS = [
   patternAnchor("trickster", "name"),
   patternAnchor("tricksters", "name"),
 ];
 
-const TRICKSTER_CHAOS_TEXT_ANCHORS = [
+const TRICKSTER_MISCHIEF_TEXT_ANCHORS = [
   patternAnchor("trickster"),
   patternAnchor("tricksters"),
   patternAnchor("prank"),
@@ -2583,12 +2583,12 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     ],
   },
   {
-    tag: "trickster_chaos",
+    tag: "trickster_mischief",
     category: "creature",
     threshold: 2,
     anyOf: [
-      { score: 2, textAny: TRICKSTER_CHAOS_NAME_ANCHORS },
-      { score: 2, textAny: TRICKSTER_CHAOS_TEXT_ANCHORS },
+      { score: 2, textAny: TRICKSTER_MISCHIEF_NAME_ANCHORS },
+      { score: 2, textAny: TRICKSTER_MISCHIEF_TEXT_ANCHORS },
     ],
   },
 ];

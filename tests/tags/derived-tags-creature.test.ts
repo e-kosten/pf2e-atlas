@@ -1515,7 +1515,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "Although arguably quite friendly, fire scamps delight in fire and playing pranks on everyone they befriend.",
       traits: ["elemental", "fire"],
-    })).toContain("trickster_chaos");
+    })).toContain("trickster_mischief");
 
     expect(deriveRecordTags({
       name: "Living Mural",
@@ -1555,7 +1555,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "Brass dragons are whimsical tricksters who delight in humor and play.",
       traits: ["chaotic", "dragon", "fire"],
-    })).toContain("trickster_chaos");
+    })).toContain("trickster_mischief");
 
     expect(deriveRecordTags({
       name: "Brass Dragon",
@@ -1651,7 +1651,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "A chaotic fiend that leaves ruin in its wake.",
       traits: ["chaotic", "fiend"],
-    })).not.toContain("trickster_chaos");
+    })).not.toContain("trickster_mischief");
   });
 
   it("avoids known creature false positives and requires enough weighted evidence", () => {

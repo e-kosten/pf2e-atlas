@@ -236,7 +236,7 @@ describe("Pf2eDataService / Search and Lookup", () => {
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["small_settlement_setting"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Virulak Villager", "Swiftrun Clergy"]));
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["carnival_show"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Court Jester", "Mechanical Carny"]));
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["living_toy"] } }).records.map((record) => record.name)).toEqual(["Soulbound Doll"]);
-    expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["trickster_chaos"] } }).records.map((record) => record.name)).toEqual(["Fire Scamp"]);
+    expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["trickster_mischief"] } }).records.map((record) => record.name)).toEqual(["Fire Scamp"]);
     expect(service.listRecords({ category: "creature", metadata: { field: "families", op: "includesAny", values: ["ghost"] } }).records.map((record) => record.name)).toEqual(["Ghost Commoner"]);
     expect(service.listRecords({ category: "creature", metadata: { field: "families", op: "includesAny", values: ["lich"] } }).records.map((record) => record.name)).toEqual(["Mythic Lich"]);
     expect(service.listRecords({ category: "creature", metadata: { field: "families", op: "includesAny", values: ["seafarer"] } }).records.map((record) => record.name)).toEqual(["Bosun"]);
@@ -455,7 +455,7 @@ describe("Pf2eDataService / Search and Lookup", () => {
     expect(soulboundDoll?.derivedTags).toContain("living_toy");
     expect(soulboundDoll?.derivedTags).not.toContain("boneyard_setting");
     const fireScamp = service.lookup("Fire Scamp", { category: "creature" }).match;
-    expect(fireScamp?.derivedTags).toContain("trickster_chaos");
+    expect(fireScamp?.derivedTags).toContain("trickster_mischief");
     const ghostCommoner = service.lookup("Ghost Commoner", { category: "creature" }).match;
     expect(ghostCommoner?.families).toEqual(["ghost"]);
     const mythicLich = service.lookup("Mythic Lich", { category: "creature" }).match;
