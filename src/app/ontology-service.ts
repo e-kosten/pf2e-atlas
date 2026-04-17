@@ -450,55 +450,37 @@ function buildSearchSemanticsDomain(
 
   const rootNodes = SEARCH_CATEGORIES.map((category) => {
     const categoryFields = semantics.metadataFieldsByCategory[category] ?? [];
-    const fieldsByType = semantics.fieldTypes
-      .map((group) => ({
-        ...group,
-        fields: group.fields.filter((field) => categoryFields.includes(field)),
-      }))
-      .filter((group) => group.fields.length > 0);
-
-    const metadataFieldGroupNodes: OntologyNode[] = fieldsByType.map((group) => ({
-      id: `${category}:fieldType:${group.type}`,
-      kind: "fieldGroup",
-      label: titleCaseLabel(group.type),
-      filterText: buildFilterText(category, group.type, ...group.fields),
-      listLabel: `${group.type} | ${group.fields.length} fields`,
-      detailTitle: "Field Group Details",
-      detailLines: buildKeyValueDetailLines(titleCaseLabel(group.type), [
-        ["Category", category],
-        ["Field type", group.type],
-        ["Operators", group.operators.join(", ")],
-        ["Fields", group.fields.length],
-      ]),
-      children: group.fields.map((field) => {
-        const fieldSemantics = metadataFieldsByName.get(field)!;
-        return {
-          id: `${category}:field:${field}`,
-          kind: "field",
-          label: field,
-          filterText: buildFilterText(category, field, fieldSemantics.notes ?? "", ...(fieldSemantics.subcategories ?? [])),
-          listLabel: fieldSemantics.subcategories?.length
-            ? `${field} | ${fieldSemantics.operators.join(", ")} | ${fieldSemantics.subcategories.join(", ")}`
-            : `${field} | ${fieldSemantics.operators.join(", ")}`,
-          detailTitle: "Metadata Field Details",
-          detailLines: [
-            { text: field, tone: "section" },
-            { text: `Category: ${category}` },
-            { text: `Field type: ${fieldSemantics.fieldType}` },
-            { text: `Operators: ${fieldSemantics.operators.join(", ")}` },
-            { text: `Discoverable: ${fieldSemantics.discoverable ? "yes" : "no"}` },
-            { text: `Subcategory scope: ${fieldSemantics.subcategories?.join(", ") ?? "(all subcategories)"}` },
-            { text: `Notes: ${fieldSemantics.notes ?? "(none)"}` },
-          ],
-          loadChildren: fieldSemantics.discoverable
-            ? () => {
-              const liveValues = getCachedFilterValues(category, field);
-              return liveValues.length > 0 ? buildFieldValueNodes(category, fieldSemantics, liveValues) : [];
-            }
-            : undefined,
-        };
-      }),
-    }));
+    const metadataFieldNodes: OntologyNode[] = categoryFields.map((field): OntologyNode => {
+      const fieldSemantics = metadataFieldsByName.get(field)!;
+      return {
+        id: `${category}:field:${field}`,
+        kind: "field",
+        label: field,
+        filterText: buildFilterText(category, field, fieldSemantics.fieldType, fieldSemantics.notes ?? "", ...(fieldSemantics.subcategories ?? [])),
+        listLabel: fieldSemantics.subcategories?.length
+          ? `${field} | ${fieldSemantics.operators.join(", ")} | ${fieldSemantics.subcategories.join(", ")}`
+          : `${field} | ${fieldSemantics.operators.join(", ")}`,
+        detailTitle: "Metadata Field Details",
+        detailLines: [
+          { text: field, tone: "section" },
+          { text: `Category: ${category}` },
+          { text: `Field type: ${fieldSemantics.fieldType}` },
+          { text: `Operators: ${fieldSemantics.operators.join(", ")}` },
+          { text: `Discoverable: ${fieldSemantics.discoverable ? "yes" : "no"}` },
+          { text: `Subcategory scope: ${fieldSemantics.subcategories?.join(", ") ?? "(all subcategories)"}` },
+          { text: `Notes: ${fieldSemantics.notes ?? "(none)"}` },
+        ],
+        groupValues: {
+          fieldType: fieldSemantics.fieldType,
+        },
+        loadChildren: fieldSemantics.discoverable
+          ? () => {
+            const liveValues = getCachedFilterValues(category, field);
+            return liveValues.length > 0 ? buildFieldValueNodes(category, fieldSemantics, liveValues) : [];
+          }
+          : undefined,
+      };
+    });
 
     const advancedPredicateNodes: OntologyNode[] = semantics.advancedPredicates
       .filter((predicate) => predicate.categories.includes(category))
@@ -647,7 +629,7 @@ function buildSearchSemanticsDomain(
         children: commonDerivedTagNodes,
       });
     }
-    if (metadataFieldGroupNodes.length > 0) {
+    if (metadataFieldNodes.length > 0) {
       children.push({
         id: `${category}:metadataFields`,
         kind: "group",
@@ -659,7 +641,12 @@ function buildSearchSemanticsDomain(
           ["Category", category],
           ["Fields", categoryFields.length],
         ], "Use these typed fields after category and subcategory boundaries."),
-        children: metadataFieldGroupNodes,
+        children: metadataFieldNodes,
+        childPresentation: {
+          mode: "grouped",
+          groupBy: "fieldType",
+          render: "inline",
+        },
       });
     }
     if (advancedPredicateNodes.length > 0) {

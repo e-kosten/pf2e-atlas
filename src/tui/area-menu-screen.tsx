@@ -104,7 +104,7 @@ export function AreaMenuScreen({
       });
       return;
     }
-    if (isConfirmKey(normalized)) {
+    if (isConfirmKey(normalized) || normalized === "right" || normalized === "l") {
       onOpenSelectedArea();
     }
   });
@@ -122,7 +122,7 @@ export function AreaMenuScreen({
         lines: buildAreaDetailLines(selectedArea, pendingReviewCount),
       }}
       footer={[
-        { text: "Up/Down or j/k move  Enter select  ? help  q quit", tone: "dim" },
+        { text: "Up/Down or j/k move  Enter/right/l select  ? help  q quit", tone: "dim" },
         {
           text: `${selectedArea ? formatAreaAudience(selectedArea.audience) : "-"} | ${pendingReviewCount} pending queue slice${pendingReviewCount === 1 ? "" : "s"}`,
           tone: "accent",

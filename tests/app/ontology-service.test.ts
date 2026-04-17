@@ -102,10 +102,21 @@ describe("application ontology service", () => {
     const dataService = createDataService();
     const service = createPf2eApplicationOntologyService(createTestConfig(), dataService);
     const domain = service.loadDomain("searchSemantics");
+    const metadataFieldsNode = findNodeById(domain.rootNodes, "spell:metadataFields");
 
     expect(dataService.listFilterValues).not.toHaveBeenCalled();
     expect(dataService.listFilterValues).not.toHaveBeenCalledWith({ field: "saveType", category: "spell" });
     expect(dataService.listFilterValues).not.toHaveBeenCalledWith({ field: "hands", category: "equipment" });
+
+    expect(findNodeById(domain.rootNodes, "spell:fieldType:set")).toBeUndefined();
+    expect(metadataFieldsNode?.childPresentation).toEqual({
+      mode: "grouped",
+      groupBy: "fieldType",
+      render: "inline",
+    });
+    expect(findNodeById(domain.rootNodes, "spell:field:saveType")?.groupValues).toEqual({
+      fieldType: "enumString",
+    });
 
     const saveTypeFieldNode = findNodeById(domain.rootNodes, "spell:field:saveType");
     const sustainedFieldNode = findNodeById(domain.rootNodes, "spell:field:sustained");

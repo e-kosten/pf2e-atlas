@@ -296,6 +296,24 @@ describe("pf2e terminal app", () => {
     expect(app.lastFrame()).toContain("Derived Tags");
   });
 
+  it("opens the selected top-level area with right-arrow style confirm", async () => {
+    const services = createFakeServices();
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalApp rootPath={process.cwd()} onExit={vi.fn()} services={services} />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+
+    app.stdin.write("j");
+    await flushInk();
+    app.stdin.write("l");
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("Choose an ontology-backed browse domain");
+  });
+
   it("closes loaded services when the bootstrap unmounts", async () => {
     const services = createFakeServices();
     const loadServices = vi.fn(async () => services);
