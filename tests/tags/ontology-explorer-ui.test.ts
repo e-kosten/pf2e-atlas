@@ -10,6 +10,7 @@ import {
   createDerivedTagOntologyExplorerState,
   drillIntoDerivedTagOntologyExplorer,
   moveDerivedTagOntologyExplorerSelection,
+  moveDerivedTagOntologyExplorerSelectionToBoundary,
   normalizeDerivedTagOntologyExplorerState,
   popDerivedTagOntologyExplorerDepth,
   setDerivedTagOntologyExplorerFilter,
@@ -351,6 +352,49 @@ describe("derived tag ontology explorer", () => {
 
     state = moveDerivedTagOntologyExplorerSelection(model, state, 1);
     expect(state.selectedRecordKey).toBe("spell:two");
+  });
+
+  it("jumps record selection to the list boundaries", () => {
+    const db = createExplorerDb();
+    insertRecord(db, {
+      recordKey: "spell:one",
+      name: "Alarm Ward",
+      category: "spell",
+      tags: ["alarm"],
+    });
+    insertRecord(db, {
+      recordKey: "spell:two",
+      name: "Breach Alarm",
+      category: "spell",
+      tags: ["alarm"],
+    });
+    insertRecord(db, {
+      recordKey: "spell:three",
+      name: "Watch Bell",
+      category: "spell",
+      tags: ["alarm"],
+    });
+
+    const model = buildDerivedTagOntologyExplorerModel(db);
+    const spellCategory = model.categories.find((category) => category.category === "spell");
+    const communicationFamily = spellCategory?.families.find((family) => family.family === "communication");
+    const alarmTag = communicationFamily?.tags.find((tag) => tag.tag === "alarm");
+
+    let state = createDerivedTagOntologyExplorerState(model);
+    state = normalizeDerivedTagOntologyExplorerState(model, {
+      ...state,
+      depth: "record",
+      selectedCategoryKey: "spell",
+      selectedFamilyKey: communicationFamily?.key,
+      selectedTagKey: alarmTag?.key,
+      selectedRecordKey: "spell:two",
+    });
+
+    state = moveDerivedTagOntologyExplorerSelectionToBoundary(model, state, "start");
+    expect(state.selectedRecordKey).toBe("spell:one");
+
+    state = moveDerivedTagOntologyExplorerSelectionToBoundary(model, state, "end");
+    expect(state.selectedRecordKey).toBe("spell:three");
   });
 
   it("filters ontology node lists by normalized search text", () => {
