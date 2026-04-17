@@ -47,6 +47,7 @@ export interface OntologyNode {
   detailTitle?: string;
   detailLines: OntologyTextLine[];
   children?: OntologyNode[];
+  loadChildren?: () => OntologyNode[];
   childPresentation?: OntologyChildPresentation;
   groupValues?: Record<string, string>;
   query?: OntologyNodeQuery;

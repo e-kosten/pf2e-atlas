@@ -16,6 +16,7 @@ import {
 } from "../two-pane-state.js";
 import {
   buildOntologyBrowserBreadcrumb,
+  canDrillIntoOntologyNode,
   buildOntologyBrowserDetailLines,
   buildOntologyBrowserHelpLines,
   buildOntologyBrowserListLines,
@@ -214,7 +215,7 @@ export function OntologyBrowserScreen({
     ? { ...normalizedBrowserState, detailScroll: metrics.maxDetailScroll }
     : normalizedBrowserState;
   const breadcrumb = buildOntologyBrowserBreadcrumb(model, effectiveState);
-  const currentNodeHasChildren = Boolean(selection.currentNode?.children && selection.currentNode.children.length > 0);
+  const currentNodeHasChildren = canDrillIntoOntologyNode(selection.currentNode);
   const searchIndicator = state.searchMode
     ? ` | /${state.searchInput}`
     : effectiveState.filter
@@ -359,8 +360,12 @@ export function OntologyBrowserScreen({
       dispatch({ type: "selection_boundary", boundary: "end" });
       return;
     }
-    if ((normalized === "right" || normalized === "l" || normalized === "enter") && currentNodeHasChildren) {
-      dispatch({ type: "drill_in" });
+    if (normalized === "right" || normalized === "l" || normalized === "enter") {
+      if (currentNodeHasChildren) {
+        dispatch({ type: "drill_in" });
+      } else {
+        dispatch({ type: "toggle_focus" });
+      }
       return;
     }
     if (normalized === "left" || normalized === "h" || normalized === "backspace") {
@@ -448,7 +453,7 @@ export function OntologyBrowserScreen({
         {
           text: state.searchMode
             ? "Type to filter live  Backspace edit  Enter keep filter  Esc clear and back out"
-            : "Tab/w focus  z detail-only  Up/Down or j/k move-scroll  Ctrl+U/D jump  Space/b page  gg/G edge  Enter/right drill  Left/backspace up  / search  Esc back/clear  ? help  q back",
+            : "Tab/w focus  z detail-only  Up/Down or j/k move-scroll  Ctrl+U/D jump  Space/b page  gg/G edge  Enter/right open  Left/backspace up  / search  Esc back/clear  ? help  q back",
           tone: "dim",
         },
         {

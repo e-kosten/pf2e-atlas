@@ -70,6 +70,24 @@ function findNodeById(nodes: OntologyNode[], id: string | undefined): OntologyNo
   return id ? nodes.find((node) => node.id === id) : undefined;
 }
 
+function resolveOntologyNodeChildren(node: OntologyNode | undefined): OntologyNode[] {
+  if (!node) {
+    return [];
+  }
+  if (node.children) {
+    return node.children;
+  }
+  if (!node.loadChildren) {
+    return [];
+  }
+  node.children = node.loadChildren();
+  return node.children;
+}
+
+export function canDrillIntoOntologyNode(node: OntologyNode | undefined): boolean {
+  return Boolean(node?.children?.length || node?.loadChildren);
+}
+
 function getChildrenOfSelectedParent(model: OntologyDomainModel, state: OntologyBrowserState): { ancestors: OntologyNode[]; parent?: OntologyNode; nodes: OntologyNode[] } {
   const ancestors: OntologyNode[] = [];
   let nodes = model.rootNodes;
@@ -77,7 +95,8 @@ function getChildrenOfSelectedParent(model: OntologyDomainModel, state: Ontology
 
   for (let level = 0; level < state.depth; level += 1) {
     const selected = findNodeById(nodes, state.selectedNodeIds[level]);
-    if (!selected || !selected.children || selected.children.length === 0) {
+    const children = resolveOntologyNodeChildren(selected);
+    if (!selected || children.length === 0) {
       return {
         ancestors,
         parent,
@@ -86,7 +105,7 @@ function getChildrenOfSelectedParent(model: OntologyDomainModel, state: Ontology
     }
     ancestors.push(selected);
     parent = selected;
-    nodes = selected.children;
+    nodes = children;
   }
 
   return {
@@ -301,11 +320,12 @@ export function drillIntoOntologyBrowser(
   const nextState = normalizeOntologyBrowserState(model, state);
   const selection = getOntologyBrowserSelection(model, nextState);
   const currentNode = selection.currentNode;
-  if (!currentNode?.children || currentNode.children.length === 0) {
+  const children = resolveOntologyNodeChildren(currentNode);
+  if (children.length === 0) {
     return nextState;
   }
   const selectedNodeIds = [...nextState.selectedNodeIds];
-  selectedNodeIds[nextState.depth + 1] = currentNode.children[0]?.id ?? "";
+  selectedNodeIds[nextState.depth + 1] = children[0]?.id ?? "";
   return {
     ...nextState,
     depth: nextState.depth + 1,
@@ -501,7 +521,7 @@ export function buildOntologyBrowserHelpLines(): DerivedTagTerminalLine[] {
     { text: "Ctrl+U / Ctrl+D: jump up or down by half a pane without wrapping" },
     { text: "Space / b: page down or up without wrapping" },
     { text: "gg / G or Home / End: jump to the first or last entry in the current level" },
-    { text: "Enter or Right / l: drill into the selected entry when it has children" },
+    { text: "Enter or Right / l: drill into the selected entry, or focus detail when it is a leaf" },
     { text: "Left / h or Backspace: go up one level" },
     { text: "Tab or w: switch focus between the list and detail panes" },
     { text: "z: toggle focused detail view while detail has focus" },

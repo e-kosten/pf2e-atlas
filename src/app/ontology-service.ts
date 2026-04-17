@@ -252,15 +252,9 @@ function buildDerivedTagsDomain(config: AppConfig): OntologyDomainModel {
 
 function buildCategorySubcategoryNodes(
   category: SearchCategory,
-  dataService: Pick<Pf2eDataService, "getSearchVocabulary" | "listFilterValues">,
+  categoryCount: number,
+  liveSubcategoryCounts: Map<string, number>,
 ): OntologyNode {
-  const vocabulary = dataService.getSearchVocabulary();
-  const categoryCount = vocabulary.categories.find((entry) => entry.value === category)?.count ?? 0;
-  const liveSubcategories = dataService.listFilterValues({
-    field: "subcategories",
-    category,
-  }).values;
-  const liveSubcategoryCounts = new Map(liveSubcategories.map((entry) => [entry.value, entry.count]));
   const subcategoryNodes: OntologyNode[] = (CATEGORY_SUBCATEGORY_MAP[category] ?? []).map((subcategory): OntologyNode => ({
     id: `${category}:${subcategory}`,
     kind: "subcategory",
@@ -313,9 +307,25 @@ function buildCategorySubcategoryNodes(
 function buildCatalogCategoriesDomain(
   dataService: Pick<Pf2eDataService, "getSearchVocabulary" | "listFilterValues">,
 ): OntologyDomainModel {
+  const vocabulary = dataService.getSearchVocabulary();
+  const categoryCounts = new Map(vocabulary.categories.map((entry) => [entry.value, entry.count]));
+  const subcategoryCountsByCategory = new Map<SearchCategory, Map<string, number>>();
+
+  for (const category of SEARCH_CATEGORIES) {
+    const liveSubcategories = dataService.listFilterValues({
+      field: "subcategories",
+      category,
+    }).values;
+    subcategoryCountsByCategory.set(category, new Map(liveSubcategories.map((entry) => [entry.value, entry.count])));
+  }
+
   return {
     ...ONTOLOGY_DOMAINS.find((domain) => domain.id === "catalogCategories")!,
-    rootNodes: SEARCH_CATEGORIES.map((category) => buildCategorySubcategoryNodes(category, dataService)),
+    rootNodes: SEARCH_CATEGORIES.map((category) => buildCategorySubcategoryNodes(
+      category,
+      categoryCounts.get(category) ?? 0,
+      subcategoryCountsByCategory.get(category) ?? new Map<string, number>(),
+    )),
   };
 }
 
@@ -420,6 +430,19 @@ function buildSearchSemanticsDomain(
 ): OntologyDomainModel {
   const semantics = getMetadataFilterSemantics();
   const vocabulary = dataService.getSearchVocabulary();
+  const metadataFieldsByName = new Map(semantics.metadataFields.map((entry) => [entry.field, entry]));
+  const filterValuesCache = new Map<string, Array<{ value: string; count: number }>>();
+
+  const getCachedFilterValues = (category: SearchCategory, field: MetadataFieldSemantics["field"]): Array<{ value: string; count: number }> => {
+    const cacheKey = `${category}:${field}`;
+    const cached = filterValuesCache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+    const values = dataService.listFilterValues({ field, category }).values;
+    filterValuesCache.set(cacheKey, values);
+    return values;
+  };
 
   const commonTraitsByCategory = new Map(vocabulary.commonTraitsByCategory.map((entry) => [entry.category, entry.traits]));
   const commonDerivedTagsByCategory = new Map(vocabulary.commonDerivedTagsByCategory.map((entry) => [entry.category, entry.tags]));
@@ -448,10 +471,7 @@ function buildSearchSemanticsDomain(
         ["Fields", group.fields.length],
       ]),
       children: group.fields.map((field) => {
-        const fieldSemantics = semantics.metadataFields.find((entry) => entry.field === field)!;
-        const liveValues = fieldSemantics.discoverable
-          ? dataService.listFilterValues({ field, category }).values
-          : [];
+        const fieldSemantics = metadataFieldsByName.get(field)!;
         return {
           id: `${category}:field:${field}`,
           kind: "field",
@@ -470,7 +490,12 @@ function buildSearchSemanticsDomain(
             { text: `Subcategory scope: ${fieldSemantics.subcategories?.join(", ") ?? "(all subcategories)"}` },
             { text: `Notes: ${fieldSemantics.notes ?? "(none)"}` },
           ],
-          children: liveValues.length > 0 ? buildFieldValueNodes(category, fieldSemantics, liveValues) : undefined,
+          loadChildren: fieldSemantics.discoverable
+            ? () => {
+              const liveValues = getCachedFilterValues(category, field);
+              return liveValues.length > 0 ? buildFieldValueNodes(category, fieldSemantics, liveValues) : [];
+            }
+            : undefined,
         };
       }),
     }));
@@ -696,19 +721,34 @@ export function createPf2eApplicationOntologyService(
   config: AppConfig,
   dataService: Pick<Pf2eDataService, "getSearchVocabulary" | "listFilterValues">,
 ): Pf2eApplicationOntologyService {
+  const domainCache = new Map<OntologyDomainId, OntologyDomainModel>();
+
   return {
     listDomains: () => ONTOLOGY_DOMAINS,
     loadDomain: (id) => {
+      const cached = domainCache.get(id);
+      if (cached) {
+        return cached;
+      }
+
+      let domain: OntologyDomainModel;
       switch (id) {
         case "derivedTags":
-          return buildDerivedTagsDomain(config);
+          domain = buildDerivedTagsDomain(config);
+          break;
         case "catalogCategories":
-          return buildCatalogCategoriesDomain(dataService);
+          domain = buildCatalogCategoriesDomain(dataService);
+          break;
         case "searchSemantics":
-          return buildSearchSemanticsDomain(dataService);
+          domain = buildSearchSemanticsDomain(dataService);
+          break;
+        default: {
+          const exhaustive: never = id;
+          throw new Error(`Unknown ontology domain: ${exhaustive}`);
+        }
       }
-      const exhaustive: never = id;
-      throw new Error(`Unknown ontology domain: ${exhaustive}`);
+      domainCache.set(id, domain);
+      return domain;
     },
   };
 }

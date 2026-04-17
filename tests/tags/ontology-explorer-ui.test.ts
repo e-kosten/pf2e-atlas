@@ -138,4 +138,36 @@ describe("ontology browser ui", () => {
     expect(state.selectedNodeIds).toEqual(["spell", "spell:security"]);
     expect(state.filter).toBe("");
   });
+
+  it("resolves lazy children when drilling into a node", () => {
+    const model: OntologyDomainModel = {
+      id: "searchSemantics",
+      label: "Search Semantics",
+      description: "Lazy ontology test",
+      rootNodes: [
+        {
+          id: "spell",
+          kind: "category",
+          label: "Spell",
+          filterText: "spell",
+          detailLines: [{ text: "Spell", tone: "section" }],
+          loadChildren: () => [
+            {
+              id: "spell:saveType",
+              kind: "field",
+              label: "saveType",
+              filterText: "saveType",
+              detailLines: [{ text: "saveType", tone: "section" }],
+            },
+          ],
+        },
+      ],
+    };
+
+    const state = drillIntoOntologyBrowser(model, createOntologyBrowserState(model));
+    const selection = getOntologyBrowserSelection(model, state);
+
+    expect(selection.currentNode?.id).toBe("spell:saveType");
+    expect(model.rootNodes[0]?.children?.map((node) => node.id)).toEqual(["spell:saveType"]);
+  });
 });

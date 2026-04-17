@@ -20,23 +20,15 @@ function createTestOntologyModel(): OntologyDomainModel {
     description: "Test ontology domain",
     rootNodes: [
       {
-        id: "spell",
-        kind: "category",
-        label: "Spell",
-        filterText: "spell",
-        listLabel: "spell | 1 family",
-        detailTitle: "Category Details",
-        detailLines: [{ text: "Spell", tone: "section" }],
-        children: [
-          {
-            id: "spell:security",
-            kind: "family",
-            label: "security",
-            filterText: "security alarm",
-            listLabel: "security | 1 tag",
-            detailTitle: "Family Details",
-            detailLines: [{ text: "security", tone: "section" }],
-          },
+        id: "spell:alarm",
+        kind: "tag",
+        label: "alarm",
+        filterText: "alarm",
+        listLabel: "alarm | 1 live record",
+        detailTitle: "Tag Details",
+        detailLines: [
+          { text: "Alarm", tone: "section" },
+          ...Array.from({ length: 30 }, (_, index) => ({ text: `Detail line ${index + 1}` })),
         ],
       },
     ],
@@ -68,6 +60,31 @@ describe("ontology browser screen", () => {
 
     expect(onExit).not.toHaveBeenCalled();
     expect(app.lastFrame()).toContain("Search /q");
+
+    app.unmount();
+  });
+
+  it("focuses and scrolls the detail pane from a leaf entry", async () => {
+    const model = createTestOntologyModel();
+    const onExit = vi.fn();
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <OntologyBrowserScreen model={model} onExit={onExit} />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    expect(app.lastFrame()).toContain("list focus | split layout | Detail scroll 0/");
+
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("detail focus | split layout | Detail scroll 0/");
+
+    app.stdin.write("j");
+    await flushInk();
+
+    expect(onExit).not.toHaveBeenCalled();
+    expect(app.lastFrame()).toContain("detail focus | split layout | Detail scroll 1/");
 
     app.unmount();
   });
