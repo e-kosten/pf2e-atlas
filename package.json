@@ -27,7 +27,8 @@
     "review-derived-tag-migration": "tsx src/tags/cli/review-derived-tag-migration.ts",
     "start": "node dist/index.js",
     "summarize-derived-tag-review-queue": "tsx src/tags/cli/summarize-derived-tag-review-queue.ts",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:local-integration": "env PF2E_RUN_LOCAL_INTEGRATION_TESTS=1 vitest run tests/service/integration.local.test.ts"
   },
   "engines": {
     "node": ">=20.0.0"

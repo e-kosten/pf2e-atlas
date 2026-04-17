@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { Pf2eDataService } from "../../src/data/service.js";
 
+const RUN_LOCAL_INTEGRATION_TESTS = process.env.PF2E_RUN_LOCAL_INTEGRATION_TESTS === "1";
 const TEST_HASH_EMBEDDING = {
   provider: "hash" as const,
   modelId: "feature-hash-192",
@@ -28,7 +29,7 @@ async function hasLocalData(): Promise<boolean> {
 }
 
 describe("local PF2E integration", async () => {
-  const available = await hasLocalData();
+  const available = RUN_LOCAL_INTEGRATION_TESTS && await hasLocalData();
   const createdRoots: string[] = [];
 
   afterEach(async () => {
