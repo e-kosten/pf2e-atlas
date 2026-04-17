@@ -3,8 +3,14 @@ import type { DerivedTagAuthoredCategoryOntology } from "../../types.js";
 export const CREATURE_DERIVED_TAG_ONTOLOGY = {
   category: "creature",
   families: {
+    // TODO: Remove this legacy family after downstream creature planning surfaces migrate to habitat_setting, site_setting, regional_setting, and planar_setting.
     setting: {
-      description: "Creature environment and encounter-setting tags, covering habitats, hunting grounds, patrol zones, and other scenes where a creature predictably appears.",
+      description: "Legacy umbrella family preserved for compatibility. Use the narrower creature setting families instead.",
+      variantInheritance: true,
+      tags: []
+    },
+    habitat_setting: {
+      description: "Creature habitat tags for terrain, climate, and ecological placement such as aquatic, desert, sky, or underground retrieval.",
       variantInheritance: true,
       tags: [
         {
@@ -22,6 +28,236 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
           description: "Strongly associated with coasts, shores, reefs, or littoral edges.",
           assignmentMode: "hybrid"
         },
+        {
+          tag: "island_setting",
+          description: "Strongly associated with islands, archipelagos, or isolated isles.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "jungle_setting",
+          description: "Strongly associated with jungles, rainforests, or dense tropical canopies.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "forest_setting",
+          description: "Strongly associated with forests, jungles, groves, or briar-choked wilds.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "plains_setting",
+          description: "Strongly associated with open plains, grasslands, prairies, or savannas.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "canyon_setting",
+          description: "Strongly associated with canyons, gorges, mesas, or badlands.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "swamp_setting",
+          description: "Strongly associated with bogs, marshes, fens, or mires.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "underground_setting",
+          description: "Strongly associated with caves, tunnels, crypts, or subterranean spaces.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "arctic_setting",
+          description: "Strongly associated with snow, ice, tundra, or frozen reaches.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "desert_setting",
+          description: "Strongly associated with dunes, sand, or arid wastes.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "wasteland_setting",
+          description: "Strongly associated with barren wastes, blasted wastelands, or desolate badlands.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "mountain_setting",
+          description: "Strongly associated with cliffs, peaks, passes, or rocky heights.",
+          assignmentMode: "editorial",
+          appliesWhen: [
+            "Mountain terrain is a recurring habitat or encounter frame.",
+            "The creature is tied to peaks, passes, cliffs, or alpine strongholds."
+          ],
+          doesNotApplyWhen: [
+            "Rocky terrain is incidental rather than defining.",
+            "The creature is better described as underground_setting or sky_setting."
+          ],
+          adjacentTags: [
+            "underground_setting",
+            "sky_setting"
+          ]
+        },
+        {
+          tag: "sky_setting",
+          description: "Strongly associated with open skies, storm clouds, or high-altitude aerial habitats.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "volcanic_setting",
+          description: "Strongly associated with volcanoes, calderas, lava, or magma.",
+          assignmentMode: "hybrid"
+        }
+      ]
+    },
+    site_setting: {
+      description: "Creature site and scene-placement tags for ships, settlements, ruins, temples, battlefields, graveyards, and other encounter locations.",
+      variantInheritance: true,
+      tags: [
+        {
+          tag: "nautical_setting",
+          description: "Strongly associated with ships, sailors, wrecks, or harbors.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "urban_setting",
+          description: "Strongly associated with urban encounter scenes such as cities, streets, alleys, dense buildings, markets, or sewers.",
+          assignmentMode: "editorial",
+          appliesWhen: [
+            "The creature is primarily framed as belonging in city or sewer encounter spaces.",
+            "Urban placement is a recurring part of its identity, role, or habitat."
+          ],
+          doesNotApplyWhen: [
+            "The record merely mentions a city once.",
+            "The creature can appear in towns but is not specifically urban-coded.",
+            "The creature is better modeled by fortress_setting or small_settlement_setting."
+          ],
+          positiveSignals: [
+            "city guard roles",
+            "sewer habitat",
+            "street or alley patrol scenes",
+            "market or district anchoring"
+          ],
+          negativeSignals: [
+            "generic settlement mention",
+            "single adventure location",
+            "fortress-only residence"
+          ],
+          adjacentTags: [
+            "small_settlement_setting",
+            "fortress_setting"
+          ]
+        },
+        {
+          tag: "battlefield_setting",
+          description: "Strongly associated with battlefields, war zones, organized military deployments, or mass-combat scenes.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "small_settlement_setting",
+          description: "Strongly associated with villages, hamlets, small towns, or other low-density community settlements.",
+          assignmentMode: "editorial",
+          appliesWhen: [
+            "The creature is repeatedly framed around villages, hamlets, or small town life.",
+            "Its encounter identity is tied to low-density community spaces rather than major urban districts."
+          ],
+          doesNotApplyWhen: [
+            "The record only says the creature can appear near people.",
+            "The creature is more strongly urban, rural, or fortress-coded than village-coded."
+          ],
+          adjacentTags: [
+            "urban_setting",
+            "rural_setting"
+          ]
+        },
+        {
+          tag: "graveyard_setting",
+          description: "Strongly associated with cemeteries, tombs, barrows, or burial grounds.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "ruins_setting",
+          description: "Strongly associated with ancient ruins or derelict structures.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "temple_setting",
+          description: "Strongly associated with temples, shrines, monasteries, or other sacred encounter sites.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "fortress_setting",
+          description: "Strongly associated with castles, fortresses, citadels, watchtowers, or other fortified encounter sites.",
+          assignmentMode: "editorial",
+          appliesWhen: [
+            "Fortified structures are part of the creature's recurring encounter identity.",
+            "The creature is framed around castles, citadels, watchtowers, keeps, or defensive strongholds."
+          ],
+          doesNotApplyWhen: [
+            "The record only uses a fortress as a one-off location.",
+            "The broader identity is urban_setting or temple_setting rather than fortified-site specific."
+          ],
+          adjacentTags: [
+            "urban_setting",
+            "temple_setting"
+          ]
+        },
+        {
+          tag: "rural_setting",
+          description: "Strongly associated with farms, pastures, croplands, countryside routes, mills, or other agricultural rural encounter scenes.",
+          assignmentMode: "editorial",
+          appliesWhen: [
+            "The creature is repeatedly framed around farms, fields, mills, roadsides, or countryside scenes.",
+            "Agricultural or open-country placement is a recurring part of its encounter identity."
+          ],
+          doesNotApplyWhen: [
+            "The record only implies generic overland travel.",
+            "The creature is better modeled by small_settlement_setting or plains_setting."
+          ],
+          adjacentTags: [
+            "small_settlement_setting",
+            "plains_setting"
+          ]
+        }
+      ]
+    },
+    regional_setting: {
+      description: "Creature setting tags for Golarion regions, major cultural spheres, and specific world locales that materially affect retrieval.",
+      variantInheritance: true,
+      tags: [
+        {
+          tag: "geb_setting",
+          description: "Strongly associated with Geb, its necromantic society, or iconic locales such as Graydirge.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "absalom_setting",
+          description: "Strongly associated with Absalom, its districts, surrounding Isle of Kortos culture, or similarly Absalom-specific civic scenes.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "gravelands_setting",
+          description: "Strongly associated with the Gravelands, Lastwall's shattered front, or iconic sites such as Fort Ozem and Gallowspire.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "mwangi_setting",
+          description: "Strongly associated with the Mwangi Expanse, its jungle polities, or similarly Mwangi-rooted regional framing.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "darklands_setting",
+          description: "Strongly associated with the Darklands as a civilization-bearing underworld region rather than generic underground terrain.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "tian_xia_setting",
+          description: "Strongly associated with Tian Xia regions such as Minata, Bonmu, or Tian cultural subregions like Tian-Shu, Tian-Hwan, Tian-Sing, and Tian-La.",
+          assignmentMode: "hybrid"
+        }
+      ]
+    },
+    planar_setting: {
+      description: "Creature setting tags for planes, cosmological realms, and extraplanar retrieval patterns.",
+      variantInheritance: true,
+      tags: [
         {
           tag: "astral_setting",
           description: "Strongly associated with Astral Plane scenes, silver-void travel, or stable portal routes.",
@@ -178,218 +414,6 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
             "boneyard_setting",
             "maelstrom_setting"
           ]
-        },
-        {
-          tag: "island_setting",
-          description: "Strongly associated with islands, archipelagos, or isolated isles.",
-          assignmentMode: "hybrid"
-        },
-        {
-          tag: "nautical_setting",
-          description: "Strongly associated with ships, sailors, wrecks, or harbors.",
-          assignmentMode: "hybrid"
-        },
-        {
-          tag: "geb_setting",
-          description: "Strongly associated with Geb, its necromantic society, or iconic locales such as Graydirge.",
-          assignmentMode: "hybrid"
-        },
-        {
-          tag: "absalom_setting",
-          description: "Strongly associated with Absalom, its districts, surrounding Isle of Kortos culture, or similarly Absalom-specific civic scenes.",
-          assignmentMode: "hybrid"
-        },
-        {
-          tag: "gravelands_setting",
-          description: "Strongly associated with the Gravelands, Lastwall's shattered front, or iconic sites such as Fort Ozem and Gallowspire.",
-          assignmentMode: "hybrid"
-        },
-        {
-          tag: "mwangi_setting",
-          description: "Strongly associated with the Mwangi Expanse, its jungle polities, or similarly Mwangi-rooted regional framing.",
-          assignmentMode: "hybrid"
-        },
-        {
-          tag: "darklands_setting",
-          description: "Strongly associated with the Darklands as a civilization-bearing underworld region rather than generic underground terrain.",
-          assignmentMode: "hybrid"
-        },
-        {
-          tag: "tian_xia_setting",
-          description: "Strongly associated with Tian Xia regions such as Minata, Bonmu, or Tian cultural subregions like Tian-Shu, Tian-Hwan, Tian-Sing, and Tian-La.",
-          assignmentMode: "hybrid"
-        },
-        {
-          tag: "jungle_setting",
-          description: "Strongly associated with jungles, rainforests, or dense tropical canopies.",
-          assignmentMode: "hybrid"
-        },
-        {
-          tag: "forest_setting",
-          description: "Strongly associated with forests, jungles, groves, or briar-choked wilds.",
-          assignmentMode: "hybrid"
-        },
-        {
-          tag: "plains_setting",
-          description: "Strongly associated with open plains, grasslands, prairies, or savannas.",
-          assignmentMode: "hybrid"
-        },
-        {
-          tag: "canyon_setting",
-          description: "Strongly associated with canyons, gorges, mesas, or badlands.",
-          assignmentMode: "hybrid"
-        },
-        {
-          tag: "swamp_setting",
-          description: "Strongly associated with bogs, marshes, fens, or mires.",
-          assignmentMode: "hybrid"
-        },
-        {
-          tag: "underground_setting",
-          description: "Strongly associated with caves, tunnels, crypts, or subterranean spaces.",
-          assignmentMode: "hybrid"
-        },
-        {
-          tag: "urban_setting",
-          description: "Strongly associated with urban encounter scenes such as cities, streets, alleys, dense buildings, markets, or sewers.",
-          assignmentMode: "editorial",
-          appliesWhen: [
-            "The creature is primarily framed as belonging in city or sewer encounter spaces.",
-            "Urban placement is a recurring part of its identity, role, or habitat."
-          ],
-          doesNotApplyWhen: [
-            "The record merely mentions a city once.",
-            "The creature can appear in towns but is not specifically urban-coded.",
-            "The creature is better modeled by fortress_setting or small_settlement_setting."
-          ],
-          positiveSignals: [
-            "city guard roles",
-            "sewer habitat",
-            "street or alley patrol scenes",
-            "market or district anchoring"
-          ],
-          negativeSignals: [
-            "generic settlement mention",
-            "single adventure location",
-            "fortress-only residence"
-          ],
-          adjacentTags: [
-            "small_settlement_setting",
-            "fortress_setting"
-          ]
-        },
-        {
-          tag: "battlefield_setting",
-          description: "Strongly associated with battlefields, war zones, organized military deployments, or mass-combat scenes.",
-          assignmentMode: "hybrid"
-        },
-        {
-          tag: "small_settlement_setting",
-          description: "Strongly associated with villages, hamlets, small towns, or other low-density community settlements.",
-          assignmentMode: "editorial",
-          appliesWhen: [
-            "The creature is repeatedly framed around villages, hamlets, or small town life.",
-            "Its encounter identity is tied to low-density community spaces rather than major urban districts."
-          ],
-          doesNotApplyWhen: [
-            "The record only says the creature can appear near people.",
-            "The creature is more strongly urban, rural, or fortress-coded than village-coded."
-          ],
-          adjacentTags: [
-            "urban_setting",
-            "rural_setting"
-          ]
-        },
-        {
-          tag: "arctic_setting",
-          description: "Strongly associated with snow, ice, tundra, or frozen reaches.",
-          assignmentMode: "hybrid"
-        },
-        {
-          tag: "desert_setting",
-          description: "Strongly associated with dunes, sand, or arid wastes.",
-          assignmentMode: "hybrid"
-        },
-        {
-          tag: "wasteland_setting",
-          description: "Strongly associated with barren wastes, blasted wastelands, or desolate badlands.",
-          assignmentMode: "hybrid"
-        },
-        {
-          tag: "mountain_setting",
-          description: "Strongly associated with cliffs, peaks, passes, or rocky heights.",
-          assignmentMode: "editorial",
-          appliesWhen: [
-            "Mountain terrain is a recurring habitat or encounter frame.",
-            "The creature is tied to peaks, passes, cliffs, or alpine strongholds."
-          ],
-          doesNotApplyWhen: [
-            "Rocky terrain is incidental rather than defining.",
-            "The creature is better described as underground_setting or sky_setting."
-          ],
-          adjacentTags: [
-            "underground_setting",
-            "sky_setting"
-          ]
-        },
-        {
-          tag: "sky_setting",
-          description: "Strongly associated with open skies, storm clouds, or high-altitude aerial habitats.",
-          assignmentMode: "hybrid"
-        },
-        {
-          tag: "graveyard_setting",
-          description: "Strongly associated with cemeteries, tombs, barrows, or burial grounds.",
-          assignmentMode: "hybrid"
-        },
-        {
-          tag: "ruins_setting",
-          description: "Strongly associated with ancient ruins or derelict structures.",
-          assignmentMode: "hybrid"
-        },
-        {
-          tag: "temple_setting",
-          description: "Strongly associated with temples, shrines, monasteries, or other sacred encounter sites.",
-          assignmentMode: "hybrid"
-        },
-        {
-          tag: "fortress_setting",
-          description: "Strongly associated with castles, fortresses, citadels, watchtowers, or other fortified encounter sites.",
-          assignmentMode: "editorial",
-          appliesWhen: [
-            "Fortified structures are part of the creature's recurring encounter identity.",
-            "The creature is framed around castles, citadels, watchtowers, keeps, or defensive strongholds."
-          ],
-          doesNotApplyWhen: [
-            "The record only uses a fortress as a one-off location.",
-            "The broader identity is urban_setting or temple_setting rather than fortified-site specific."
-          ],
-          adjacentTags: [
-            "urban_setting",
-            "temple_setting"
-          ]
-        },
-        {
-          tag: "volcanic_setting",
-          description: "Strongly associated with volcanoes, calderas, lava, or magma.",
-          assignmentMode: "hybrid"
-        },
-        {
-          tag: "rural_setting",
-          description: "Strongly associated with farms, pastures, croplands, countryside routes, mills, or other agricultural rural encounter scenes.",
-          assignmentMode: "editorial",
-          appliesWhen: [
-            "The creature is repeatedly framed around farms, fields, mills, roadsides, or countryside scenes.",
-            "Agricultural or open-country placement is a recurring part of its encounter identity."
-          ],
-          doesNotApplyWhen: [
-            "The record only implies generic overland travel.",
-            "The creature is better modeled by small_settlement_setting or plains_setting."
-          ],
-          adjacentTags: [
-            "small_settlement_setting",
-            "plains_setting"
-          ]
         }
       ]
     },
@@ -431,6 +455,15 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
           ]
         },
         {
+          tag: "harrier_combatant",
+          description: "Built to chip away from safety through repeated ranged harassment, flyby pressure, or evasive standoff attacks that force pursuit.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "skirmisher_combatant",
+            "artillery_combatant"
+          ]
+        },
+        {
           tag: "controller_combatant",
           description: "Built to reshape the battlefield through debuffs, forced movement, terrain control, or other tactical denial.",
           assignmentMode: "hybrid",
@@ -460,6 +493,7 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
             "Its main retrieval hook is casting support or battlefield control rather than ranged offense."
           ],
           adjacentTags: [
+            "harrier_combatant",
             "controller_combatant",
             "support_combatant"
           ]
@@ -535,25 +569,8 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     encounter_role: {
-      description: "Creature practical-fit tags for socially embedded NPCs and role-defined humanoid combatants.",
+      description: "Creature scene-use tags for encounter-ready NPC archetypes such as civic filler, role-defined combatants, and infiltration specialists.",
       tags: [
-        {
-          tag: "profession_npc",
-          description: "Role-defined NPC such as a captain, guard, merchant, or commoner.",
-          assignmentMode: "editorial",
-          appliesWhen: [
-            "The creature is primarily presented through a social role, job, office, or profession label.",
-            "Retrieval value comes from it being a role-defined NPC rather than a species-driven monster."
-          ],
-          doesNotApplyWhen: [
-            "The role label is incidental to a stronger monster or combat identity.",
-            "The creature is better modeled only as combatant_npc or civic_npc."
-          ],
-          adjacentTags: [
-            "civic_npc",
-            "combatant_npc"
-          ]
-        },
         {
           tag: "civic_npc",
           description: "Fits the civic or social fabric of a scene and usually isn't the primary monster answer.",
@@ -584,15 +601,41 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
             "The creature is better captured by profession_npc or civic_npc without a strong combat-forward role."
           ],
           adjacentTags: [
-            "profession_npc",
+            "authority_npc",
             "civic_npc"
+          ]
+        },
+        {
+          tag: "infiltrator_npc",
+          description: "Role-defined spy, saboteur, replacer, or quiet-entry specialist whose encounter value comes from infiltration more than a straight fight.",
+          assignmentMode: "editorial",
+          adjacentTags: [
+            "combatant_npc",
+            "criminal_npc"
           ]
         }
       ]
     },
     social_role: {
-      description: "Creature social-scene tags for concrete civilian, institutional, and profession-facing roles that help agents populate settlements, factions, travel scenes, and likely NPC contacts.",
+      description: "Creature world-facing social-role tags for concrete civilian, institutional, criminal, religious, and profession-facing roles that help populate settlements, factions, and likely NPC contacts.",
       tags: [
+        {
+          tag: "profession_npc",
+          description: "Role-defined NPC such as a captain, guard, merchant, or commoner.",
+          assignmentMode: "editorial",
+          appliesWhen: [
+            "The creature is primarily presented through a social role, job, office, or profession label.",
+            "Retrieval value comes from it being a role-defined NPC rather than a species-driven monster."
+          ],
+          doesNotApplyWhen: [
+            "The role label is incidental to a stronger monster or combat identity.",
+            "The creature is better modeled only as combatant_npc or civic_npc."
+          ],
+          adjacentTags: [
+            "authority_npc",
+            "merchant_npc"
+          ]
+        },
         {
           tag: "authority_npc",
           description: "Presented as an officer, magistrate, noble, administrator, or other figure of formal social authority.",
@@ -641,7 +684,7 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
           ],
           adjacentTags: [
             "combatant_npc",
-            "profession_npc"
+            "infiltrator_npc"
           ]
         },
         {
@@ -870,6 +913,15 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
           assignmentMode: "hybrid"
         },
         {
+          tag: "prey_control_threat",
+          description: "Threat defined by holding prey in place through grabs, constriction, webbing, swallowing, or other ongoing body-control pressure.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "ambush_grabber",
+            "terrain_control_threat"
+          ]
+        },
+        {
           tag: "poison_threat",
           description: "Threat defined by venom, toxic excretions, poisoned weapons, or other recurring poison delivery.",
           assignmentMode: "hybrid"
@@ -904,6 +956,24 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
           adjacentTags: [
             "spawn_creator",
             "commander_combatant"
+          ]
+        },
+        {
+          tag: "minion_commander",
+          description: "Threat defined by directing subordinate creatures, pack members, or summoned help as an encounter engine rather than acting alone.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "summoner_commander",
+            "commander_combatant"
+          ]
+        },
+        {
+          tag: "infiltration_threat",
+          description: "Threat defined by disguise, replacement, infiltration, or remaining embedded among victims before the danger fully reveals itself.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "disguised_pretender",
+            "possession_threat"
           ]
         },
         {

@@ -109,6 +109,7 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
         }
       ]
     },
+    // TODO: Remove this legacy family after downstream loot-planning surfaces migrate to the narrower movement_traversal, scouting_surveillance, access_bypass, and logistics_restraint families.
     purpose: {
       subcategories: [
         "gear",
@@ -118,7 +119,19 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
         "armor",
         "weapon"
       ],
-      description: "Utility and logistics gear-purpose tags, including armor use cases.",
+      description: "Legacy family preserved for compatibility. Use the narrower retrieval families instead.",
+      tags: []
+    },
+    movement_traversal: {
+      subcategories: [
+        "gear",
+        "backpack",
+        "kit",
+        "vehicle",
+        "armor",
+        "weapon"
+      ],
+      description: "Equipment that helps move, climb, navigate, survive travel, or transport people and cargo.",
       tags: [
         {
           tag: "climbing",
@@ -126,33 +139,8 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
           assignmentMode: "deterministic"
         },
         {
-          tag: "lock_bypass",
-          description: "Helps open locks or bypass secured entry points.",
-          assignmentMode: "deterministic"
-        },
-        {
-          tag: "concealable",
-          description: "Easy to hide on the person or carry discreetly.",
-          assignmentMode: "deterministic"
-        },
-        {
-          tag: "scouting",
-          description: "Helps observe, survey, or reconnoiter an area.",
-          assignmentMode: "deterministic"
-        },
-        {
           tag: "mobility",
           description: "Improves movement or traversal flexibility.",
-          assignmentMode: "deterministic"
-        },
-        {
-          tag: "stealth_support",
-          description: "Helps move quietly or avoid notice.",
-          assignmentMode: "deterministic"
-        },
-        {
-          tag: "illumination",
-          description: "Produces or improves light in dark environments.",
           assignmentMode: "deterministic"
         },
         {
@@ -166,6 +154,34 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
           assignmentMode: "deterministic"
         },
         {
+          tag: "transport",
+          description: "Helps move creatures or cargo from place to place.",
+          assignmentMode: "deterministic"
+        }
+      ]
+    },
+    scouting_surveillance: {
+      subcategories: [
+        "gear",
+        "backpack",
+        "kit",
+        "vehicle",
+        "armor",
+        "weapon"
+      ],
+      description: "Equipment for recon, observation, visibility management, and tracking or anti-tracking fieldwork.",
+      tags: [
+        {
+          tag: "scouting",
+          description: "Helps observe, survey, or reconnoiter an area.",
+          assignmentMode: "deterministic"
+        },
+        {
+          tag: "illumination",
+          description: "Produces or improves light in dark environments.",
+          assignmentMode: "deterministic"
+        },
+        {
           tag: "tracking",
           description: "Helps follow trails, mark a target, or relocate something later.",
           assignmentMode: "deterministic"
@@ -174,30 +190,28 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
           tag: "anti_tracking",
           description: "Helps hide your trail, mask scent, or make pursuit harder.",
           assignmentMode: "deterministic"
-        },
+        }
+      ]
+    },
+    access_bypass: {
+      subcategories: [
+        "gear",
+        "backpack",
+        "kit",
+        "vehicle",
+        "armor",
+        "weapon"
+      ],
+      description: "Equipment for bypassing locks, traps, doors, and physical obstructions without treating every entry tool as one broad purpose bucket.",
+      tags: [
         {
-          tag: "transport",
-          description: "Helps move creatures or cargo from place to place.",
+          tag: "lock_bypass",
+          description: "Helps open locks or bypass secured entry points.",
           assignmentMode: "deterministic"
         },
         {
           tag: "trap_bypass",
           description: "Helps disarm, disable, or get past traps.",
-          assignmentMode: "deterministic"
-        },
-        {
-          tag: "carry_support",
-          description: "Helps stow, carry, or organize equipment.",
-          assignmentMode: "deterministic"
-        },
-        {
-          tag: "restraint_escape",
-          description: "Helps break free from grabs, restraints, or similar immobilizing holds.",
-          assignmentMode: "deterministic"
-        },
-        {
-          tag: "restraint_capture",
-          description: "Helps capture, bind, or keep a target restrained.",
           assignmentMode: "deterministic"
         },
         {
@@ -221,6 +235,69 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
           tag: "excavation",
           description: "Helps dig, cut through earth or stone, or otherwise perform practical excavation work.",
           assignmentMode: "deterministic"
+        }
+      ]
+    },
+    logistics_restraint: {
+      subcategories: [
+        "gear",
+        "backpack",
+        "kit",
+        "vehicle",
+        "armor",
+        "weapon"
+      ],
+      description: "Equipment that solves carrying, storage-adjacent logistics, escape, or capture problems in play.",
+      tags: [
+        {
+          tag: "carry_support",
+          description: "Helps stow, carry, or organize equipment.",
+          assignmentMode: "deterministic"
+        },
+        {
+          tag: "restraint_escape",
+          description: "Helps break free from grabs, restraints, or similar immobilizing holds.",
+          assignmentMode: "deterministic"
+        },
+        {
+          tag: "restraint_capture",
+          description: "Helps capture, bind, or keep a target restrained.",
+          assignmentMode: "deterministic"
+        }
+      ]
+    },
+    party_role: {
+      description: "Party- and build-facing retrieval tags for loot that is valuable because of who benefits from it and how it changes play patterns.",
+      tags: [
+        {
+          tag: "defender_support",
+          description: "Especially valuable to shield users, bodyguards, line-holders, or other defender-style characters.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "skirmisher_support",
+          description: "Especially valuable to mobile flankers, hit-and-run melee characters, or other skirmisher-style builds.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "caster_support",
+          description: "Especially valuable to spellcasters for magical prep, casting reliability, spell defense, or spell-adjacent utility.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "action_economy_support",
+          description: "Especially valuable because it compresses setup, speeds access, or meaningfully improves in-combat action efficiency.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "emergency_recovery",
+          description: "Especially valuable as a panic-button item for sudden healing, escape, stabilization, or critical condition rescue.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "scouting_package",
+          description: "Especially valuable to scouts, infiltrators, or advance-party play through quiet entry, recon, and information-gathering support.",
+          assignmentMode: "hybrid"
         }
       ]
     },
@@ -557,8 +634,13 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
         "vehicle",
         "consumable"
       ],
-      description: "Appearance-changing and social-passing equipment across gear and consumables.",
+      description: "Appearance-changing, discreet-carry, and social-passing equipment across gear and consumables.",
       tags: [
+        {
+          tag: "concealable",
+          description: "Easy to hide on the person or carry discreetly.",
+          assignmentMode: "deterministic"
+        },
         {
           tag: "disguise",
           description: "Helps alter appearance or impersonate another identity.",

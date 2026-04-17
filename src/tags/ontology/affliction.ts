@@ -175,6 +175,47 @@ export const AFFLICTION_DERIVED_TAG_ONTOLOGY = {
         }
       ]
     },
+    response_profile: {
+      description: "Affliction tags for the GM-facing response problem: quarantine, tracing the source, outbreak management, and how urgently a cure must be found.",
+      tags: [
+        {
+          tag: "outbreak_management",
+          description: "Naturally retrieved as a disease or curse that creates a wider containment, treatment, and community-management problem rather than only an isolated victim.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "community_outbreak",
+            "quarantine_risk"
+          ]
+        },
+        {
+          tag: "source_tracing",
+          description: "Naturally retrieved because finding the contaminated source, carrier chain, cursed origin, or initial spread event is central to solving the problem.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "carrier_vector",
+            "community_outbreak"
+          ]
+        },
+        {
+          tag: "quarantine_risk",
+          description: "Creates a strong need to isolate victims, restrict contact, or manage who can safely enter or leave an affected area.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "community_outbreak",
+            "inhaled_exposure"
+          ]
+        },
+        {
+          tag: "cure_clock_urgency",
+          description: "Creates immediate pressure to diagnose and cure the affliction before a fast-moving catastrophic endpoint arrives.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "terminal_collapse",
+            "delayed_onset"
+          ]
+        }
+      ]
+    },
     behavioral_override: {
       description: "Affliction tags for forced behavior and explicit agency override.",
       tags: [

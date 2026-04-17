@@ -17,6 +17,7 @@ import { CREATURE_DERIVED_TAG_ASSIGNMENT_MEMORY } from "../assignment-memory/cre
 import { EQUIPMENT_DERIVED_TAG_ASSIGNMENT_MEMORY } from "../assignment-memory/equipment.js";
 import { HAZARD_DERIVED_TAG_ASSIGNMENT_MEMORY } from "../assignment-memory/hazard.js";
 import { SPELL_DERIVED_TAG_ASSIGNMENT_MEMORY } from "../assignment-memory/spell.js";
+import { listLegacyDerivedTagFamilyAliases } from "./family-compatibility.js";
 
 export type DerivedTagReviewStatus =
   | "auto_applied"
@@ -143,6 +144,18 @@ function buildFamilyTagMap(
     familyTags.add(normalizeDerivedTag(tag.tag));
     categoryFamilies.set(normalizedFamily, familyTags);
     familiesByCategory.set(tag.category, categoryFamilies);
+  }
+
+  for (const [category, categoryFamilies] of familiesByCategory.entries()) {
+    for (const { legacyFamily, targetFamilies } of listLegacyDerivedTagFamilyAliases(category)) {
+      const legacyTags = categoryFamilies.get(legacyFamily) ?? new Set<string>();
+      for (const targetFamily of targetFamilies) {
+        for (const tag of categoryFamilies.get(targetFamily) ?? []) {
+          legacyTags.add(tag);
+        }
+      }
+      categoryFamilies.set(legacyFamily, legacyTags);
+    }
   }
 
   return familiesByCategory;

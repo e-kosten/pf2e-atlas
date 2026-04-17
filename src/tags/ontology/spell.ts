@@ -19,7 +19,7 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     communication: {
-      description: "Spells for signaling, telepathy, message exchange, and overcoming language barriers.",
+      description: "Information, coordination, revelation, and sanctum-security spells for messaging, scouting, detection, and protected planning.",
       tags: [
         {
           tag: "signaling",
@@ -52,12 +52,7 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
             "telepathic_link",
             "message_delivery"
           ]
-        }
-      ]
-    },
-    reconnaissance: {
-      description: "Remote-observation, target-finding, and scouting spells.",
-      tags: [
+        },
         {
           tag: "scouting",
           description: "Helps observe at a distance, extend senses, or locate a target.",
@@ -79,12 +74,7 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
             "scouting",
             "navigation"
           ]
-        }
-      ]
-    },
-    revelation: {
-      description: "Spells that reveal hidden magic, hazards, concealed creatures, curses, or otherwise suppressed truths.",
-      tags: [
+        },
         {
           tag: "magic_detection",
           description: "Reveals magical auras, spell presence, active effects, or other supernatural signatures.",
@@ -133,33 +123,62 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
             "magic_detection",
             "scouting"
           ]
-        }
-      ]
-    },
-    wayfinding: {
-      description: "Spells that guide direction, route-finding, or destination travel.",
-      tags: [
-        {
-          tag: "navigation",
-          description: "Helps orient, guide a route, or identify a destination's direction.",
-          assignmentMode: "hybrid"
-        }
-      ]
-    },
-    traversal: {
-      description: "Spells that improve movement modes, speed, or practical traversal.",
-      tags: [
-        {
-          tag: "mobility",
-          description: "Helps move faster, gain movement modes, or traverse terrain more effectively.",
-          assignmentMode: "hybrid"
         },
         {
-          tag: "flight",
-          description: "Grants flying movement, sustained aerial travel, or practical airborne maneuvering.",
-          assignmentMode: "hybrid"
+          tag: "alarm",
+          description: "Alerts you or others when a watched area, threshold, or ward is crossed.",
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "The spell is naturally retrieved to warn about intrusion, threshold crossing, tampering, or unwanted entry.",
+            "Detection and notice matter more than directly stopping the intruder."
+          ],
+          doesNotApplyWhen: [
+            "The spell mainly protects, blocks, or hides the target without providing a warning function.",
+            "The spell only reveals truth or magic generally rather than guarding a watched perimeter."
+          ],
+          adjacentTags: [
+            "protective_ward",
+            "scrying_protection"
+          ]
+        },
+        {
+          tag: "scrying_protection",
+          description: "Blocks magical observation, remote viewing, divinatory surveillance, or other information leakage from a protected target or space.",
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "The spell is naturally retrieved to keep plans, sanctums, identities, or conversations hidden from magical spying.",
+            "Its core value is denying observation or divination rather than only raising an intrusion alarm."
+          ],
+          doesNotApplyWhen: [
+            "The spell only improves mundane concealment or silence without real anti-divination protection.",
+            "The spell counters magic broadly but is not specifically about surveillance or remote observation."
+          ],
+          adjacentTags: [
+            "alarm",
+            "countermagic"
+          ]
         }
       ]
+    },
+    // TODO: Remove this legacy family after downstream spell planning surfaces migrate to the broadened communication family.
+    reconnaissance: {
+      description: "Legacy family preserved for compatibility. Use communication instead.",
+      tags: []
+    },
+    // TODO: Remove this legacy family after downstream spell planning surfaces migrate to the broadened communication family.
+    revelation: {
+      description: "Legacy family preserved for compatibility. Use communication instead.",
+      tags: []
+    },
+    // TODO: Remove this legacy family after downstream spell planning surfaces migrate to expedition and communication.",
+    wayfinding: {
+      description: "Legacy family preserved for compatibility. Use expedition and communication instead.",
+      tags: []
+    },
+    // TODO: Remove this legacy family after downstream spell planning surfaces migrate to expedition.
+    traversal: {
+      description: "Legacy family preserved for compatibility. Use expedition instead.",
+      tags: []
     },
     teleportation: {
       description: "Spells that blink, reposition, extract, or transport creatures across long distances or planes.",
@@ -270,7 +289,7 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     control: {
-      description: "Spells that pressure morale, obscure sight, or reshape the battlefield.",
+      description: "Spells that reshape the battlefield by denying movement, sight, casting, actions, or active magic.",
       tags: [
         {
           tag: "fear_pressure",
@@ -301,6 +320,56 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
           tag: "action_denial",
           description: "Denies actions through paralysis, stupefying shutdown, slowed tempo, or similarly severe turn disruption.",
           assignmentMode: "hybrid"
+        },
+        {
+          tag: "countermagic",
+          description: "Counteracts, dispels, suppresses, or shuts down magic.",
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "The spell is naturally retrieved because stopping, unravelling, or suppressing existing magic is its main job.",
+            "Anti-magic response matters more than simple protection, detection, or concealment."
+          ],
+          doesNotApplyWhen: [
+            "The spell mainly protects targets from harm without actually disrupting hostile magic.",
+            "The spell only reveals or warns about magic rather than counteracting it."
+          ],
+          adjacentTags: [
+            "magic_detection",
+            "protective_ward"
+          ]
+        },
+        {
+          tag: "forced_movement",
+          description: "Pushes, pulls, drags, or otherwise repositions a target against its will.",
+          assignmentMode: "deterministic"
+        },
+        {
+          tag: "restraint_capture",
+          description: "Restrains, immobilizes, entangles, or traps a target in place.",
+          assignmentMode: "deterministic"
+        },
+        {
+          tag: "silencing",
+          description: "Suppresses speech, sound production, verbal casting, or other voice-dependent action.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "mobility_denial",
+          description: "Pins, slows, grounds, or otherwise prevents normal repositioning without necessarily functioning as a full restraint effect.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "forced_movement",
+            "restraint_capture"
+          ]
+        },
+        {
+          tag: "anti_caster_disruption",
+          description: "Disrupts casting, punishes spell use, or specifically suppresses hostile spellcasters in the moment.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "countermagic",
+            "silencing"
+          ]
         }
       ]
     },
@@ -453,18 +522,28 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
           tag: "temporary_hp_support",
           description: "Grants temporary Hit Points or similar buffer protection instead of restoring lost Hit Points.",
           assignmentMode: "hybrid"
-        }
-      ]
-    },
-    attrition: {
-      description: "Spells that inflict ongoing harm through lingering persistent damage.",
-      tags: [
+        },
         {
-          tag: "persistent_damage",
-          description: "Directly inflicts persistent damage or grants attacks that reliably impose persistent damage.",
+          tag: "quickened_support",
+          description: "Grants extra actions, quickened condition benefits, or similar action-economy acceleration.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "initiative_support",
+          description: "Improves initiative, pre-combat readiness, or the party's opening tempo before the first turn.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "eidolon_support",
+          description: "Directly benefits an eidolon or the summoner-eidolon bond.",
           assignmentMode: "hybrid"
         }
       ]
+    },
+    // TODO: Remove this legacy family after downstream spell planning surfaces migrate to support and impact.
+    attrition: {
+      description: "Legacy family preserved for compatibility. Use support and impact instead.",
+      tags: []
     },
     summoning: {
       description: "Spells that call, create, or bind temporary creatures and servitors into the scene for combat, scouting, labor, or utility retrieval.",
@@ -495,12 +574,54 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
             "creature_summoning",
             "scouting"
           ]
+        },
+        {
+          tag: "scouting_summons",
+          description: "Creates a summon primarily valued for reconnaissance, watch duty, sensing, or forward information gathering.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "summoned_servitor",
+            "creature_summoning"
+          ]
+        },
+        {
+          tag: "screening_summons",
+          description: "Creates bodies mainly used to block space, absorb hits, or protect allies rather than maximize damage.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "creature_summoning",
+            "temporary_hp_support"
+          ]
+        },
+        {
+          tag: "offensive_summons",
+          description: "Creates summons primarily retrieved for direct damage, flanking pressure, or aggressive battlefield threat.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "creature_summoning",
+            "screening_summons"
+          ]
         }
       ]
     },
     expedition: {
-      description: "Spells that support travel, survival, and field logistics such as shelter, food, aquatic operations, and hostile-environment endurance.",
+      description: "Spells that support movement, travel, survival, and field logistics such as flight, route guidance, shelter, food, aquatic operations, and hostile-environment endurance.",
       tags: [
+        {
+          tag: "navigation",
+          description: "Helps orient, guide a route, or identify a destination's direction.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "mobility",
+          description: "Helps move faster, gain movement modes, or traverse terrain more effectively.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "flight",
+          description: "Grants flying movement, sustained aerial travel, or practical airborne maneuvering.",
+          assignmentMode: "hybrid"
+        },
         {
           tag: "aquatic_support",
           description: "Helps with swimming, underwater breathing, water-surface travel, or other aquatic movement.",
@@ -548,94 +669,28 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
         }
       ]
     },
+    // TODO: Remove this legacy family after downstream spell planning surfaces migrate to support.
     tempo: {
-      description: "Spells that improve action economy or accelerate allies.",
-      tags: [
-        {
-          tag: "quickened_support",
-          description: "Grants extra actions, quickened condition benefits, or similar action-economy acceleration.",
-          assignmentMode: "hybrid"
-        },
-        {
-          tag: "initiative_support",
-          description: "Improves initiative, pre-combat readiness, or the party's opening tempo before the first turn.",
-          assignmentMode: "hybrid"
-        }
-      ]
+      description: "Legacy family preserved for compatibility. Use support instead.",
+      tags: []
     },
+    // TODO: Remove this legacy family after downstream spell planning surfaces migrate to support.
     summoner_support: {
-      description: "Spells that specifically protect, enhance, or reposition an eidolon.",
-      tags: [
-        {
-          tag: "eidolon_support",
-          description: "Directly benefits an eidolon or the summoner-eidolon bond.",
-          assignmentMode: "hybrid"
-        }
-      ]
+      description: "Legacy family preserved for compatibility. Use support instead.",
+      tags: []
     },
+    // TODO: Remove this legacy family after downstream spell planning surfaces migrate to control.
     magic_interference: {
-      description: "Spells that disrupt, dispel, suppress, or meaningfully defend against hostile magic.",
-      tags: [
-        {
-          tag: "countermagic",
-          description: "Counteracts, dispels, suppresses, or shuts down magic.",
-          assignmentMode: "hybrid",
-          appliesWhen: [
-            "The spell is naturally retrieved because stopping, unravelling, or suppressing existing magic is its main job.",
-            "Anti-magic response matters more than simple protection, detection, or concealment."
-          ],
-          doesNotApplyWhen: [
-            "The spell mainly protects targets from harm without actually disrupting hostile magic.",
-            "The spell only reveals or warns about magic rather than counteracting it."
-          ],
-          adjacentTags: [
-            "magic_detection",
-            "protective_ward"
-          ]
-        }
-      ]
+      description: "Legacy family preserved for compatibility. Use control instead.",
+      tags: []
     },
+    // TODO: Remove this legacy family after downstream spell planning surfaces migrate to communication.
     security: {
-      description: "Spells for sanctum security, intrusion warning, and anti-surveillance protection around people, objects, or spaces.",
-      tags: [
-        {
-          tag: "alarm",
-          description: "Alerts you or others when a watched area, threshold, or ward is crossed.",
-          assignmentMode: "hybrid",
-          appliesWhen: [
-            "The spell is naturally retrieved to warn about intrusion, threshold crossing, tampering, or unwanted entry.",
-            "Detection and notice matter more than directly stopping the intruder."
-          ],
-          doesNotApplyWhen: [
-            "The spell mainly protects, blocks, or hides the target without providing a warning function.",
-            "The spell only reveals truth or magic generally rather than guarding a watched perimeter."
-          ],
-          adjacentTags: [
-            "protective_ward",
-            "scrying_protection"
-          ]
-        },
-        {
-          tag: "scrying_protection",
-          description: "Blocks magical observation, remote viewing, divinatory surveillance, or other information leakage from a protected target or space.",
-          assignmentMode: "hybrid",
-          appliesWhen: [
-            "The spell is naturally retrieved to keep plans, sanctums, identities, or conversations hidden from magical spying.",
-            "Its core value is denying observation or divination rather than only raising an intrusion alarm."
-          ],
-          doesNotApplyWhen: [
-            "The spell only improves mundane concealment or silence without real anti-divination protection.",
-            "The spell counters magic broadly but is not specifically about surveillance or remote observation."
-          ],
-          adjacentTags: [
-            "alarm",
-            "countermagic"
-          ]
-        }
-      ]
+      description: "Legacy family preserved for compatibility. Use communication instead.",
+      tags: []
     },
     impact: {
-      description: "Spells that impair minds or senses, forcibly reposition targets, or trap them in place.",
+      description: "Direct offensive outcome tags for harm, impairment, and taking priority targets or clustered foes out of the fight.",
       tags: [
         {
           tag: "mental_impairment",
@@ -648,18 +703,23 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
           assignmentMode: "deterministic"
         },
         {
-          tag: "forced_movement",
-          description: "Pushes, pulls, drags, or otherwise repositions a target against its will.",
-          assignmentMode: "deterministic"
+          tag: "persistent_damage",
+          description: "Directly inflicts persistent damage or grants attacks that reliably impose persistent damage.",
+          assignmentMode: "hybrid"
         },
         {
-          tag: "restraint_capture",
-          description: "Restrains, immobilizes, entangles, or traps a target in place.",
-          assignmentMode: "deterministic"
+          tag: "burst_damage",
+          description: "Delivers concentrated damage in a spike or splash pattern that users naturally retrieve as a damage-first answer.",
+          assignmentMode: "hybrid"
         },
         {
-          tag: "silencing",
-          description: "Suppresses speech, sound production, verbal casting, or other voice-dependent action.",
+          tag: "single_target_removal",
+          description: "Drops, banishes, petrifies, or otherwise decisively removes one important creature from the fight.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "crowd_clearing",
+          description: "Damages or wipes clusters of weaker foes and is naturally retrieved as an anti-group answer.",
           assignmentMode: "hybrid"
         }
       ]

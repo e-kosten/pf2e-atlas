@@ -51,7 +51,7 @@ export const HAZARD_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     function: {
-      description: "Hazard practical-function tags for alerts, lockdowns, separation, and encounter pressure.",
+      description: "Hazard scene-pressure tags for alerts, lockdowns, area control, ambush punishment, attrition, and guarding valuable space.",
       tags: [
         {
           tag: "alarm",
@@ -91,6 +91,15 @@ export const HAZARD_DERIVED_TAG_ONTOLOGY = {
           assignmentMode: "hybrid"
         },
         {
+          tag: "area_denial",
+          description: "Legacy synonym for zone_denial preserved for compatibility while downstream hazard planning surfaces migrate to the simpler area-control vocabulary.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "zone_denial",
+            "sentinel_guardian"
+          ]
+        },
+        {
           tag: "resource_drain",
           description: "Hazard that taxes healing, spellcasting, equipment durability, or other party resources over time.",
           assignmentMode: "hybrid"
@@ -99,6 +108,59 @@ export const HAZARD_DERIVED_TAG_ONTOLOGY = {
           tag: "forced_separation",
           description: "Hazard that splits allies apart through walls, drops, slides, teleports, or other positional disruption.",
           assignmentMode: "hybrid"
+        },
+        {
+          tag: "ambush_burst",
+          description: "Hazard designed to open with a sudden high-damage strike or surprise punish on first contact.",
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "The hazard is naturally retrieved for a sudden opener, trap-spring punish, or first-contact burst that catches intruders before a longer fight develops.",
+            "The surprise spike matters more than sustained zone control or prolonged attrition."
+          ],
+          doesNotApplyWhen: [
+            "The hazard mainly holds territory over time, guards a place persistently, or taxes resources across repeated rounds.",
+            "The stronger fit is zone_denial or attrition_pressure rather than a front-loaded strike."
+          ],
+          adjacentTags: [
+            "zone_denial",
+            "attrition_pressure"
+          ]
+        },
+        {
+          tag: "attrition_pressure",
+          description: "Hazard whose primary role is to wear the party down over time rather than deliver one decisive spike.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "pursuit_punisher",
+          description: "Hazard that punishes retreat, pursuit, escape routes, or movement through chase-style spaces.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "sentinel_guardian",
+          description: "Hazard whose role is to guard an area, treasure, threshold, or sanctum as a standing defense layer.",
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "The hazard is naturally retrieved as a guardian layer protecting a place, object, or route from intrusion.",
+            "Its value is in persistent watchfulness or defensive coverage, not just burst damage."
+          ],
+          doesNotApplyWhen: [
+            "The hazard mainly creates open-area denial with no strong guard-post identity.",
+            "The hazard is mostly an ambush opener or chase-punishment device."
+          ],
+          adjacentTags: [
+            "alarm",
+            "zone_denial"
+          ]
+        },
+        {
+          tag: "forced_separation_hazard",
+          description: "Legacy synonym for forced_separation preserved for compatibility while downstream surfaces migrate to the simpler split-party vocabulary.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "forced_separation",
+            "pursuit_punisher"
+          ]
         }
       ]
     },
@@ -195,88 +257,10 @@ export const HAZARD_DERIVED_TAG_ONTOLOGY = {
         }
       ]
     },
+    // TODO: Remove this legacy family after downstream hazard planning surfaces migrate to the consolidated function family.
     encounter_role: {
-      description: "Hazard combat-role tags for encounter assembly and understanding how the hazard pressures a scene.",
-      tags: [
-        {
-          tag: "ambush_burst",
-          description: "Hazard designed to open with a sudden high-damage strike or surprise punish on first contact.",
-          assignmentMode: "hybrid",
-          appliesWhen: [
-            "The hazard is naturally retrieved for a sudden opener, trap-spring punish, or first-contact burst that catches intruders before a longer fight develops.",
-            "The surprise spike matters more than sustained zone control or prolonged attrition."
-          ],
-          doesNotApplyWhen: [
-            "The hazard mainly holds territory over time, guards a place persistently, or taxes resources across repeated rounds.",
-            "The stronger fit is area_denial or attrition_pressure rather than a front-loaded strike."
-          ],
-          adjacentTags: [
-            "area_denial",
-            "attrition_pressure"
-          ]
-        },
-        {
-          tag: "area_denial",
-          description: "Hazard whose primary role is to control valuable space rather than only harm a single victim.",
-          assignmentMode: "hybrid",
-          appliesWhen: [
-            "The hazard is retrieved because it locks down territory, corridors, platforms, or objectives over time.",
-            "Holding or excluding movement from space matters more than one immediate damage spike."
-          ],
-          doesNotApplyWhen: [
-            "The hazard mainly punishes first contact, guards a threshold, or bursts once without sustained zone pressure.",
-            "The stronger role is ambush_burst or sentinel_guardian."
-          ],
-          adjacentTags: [
-            "zone_denial",
-            "sentinel_guardian"
-          ]
-        },
-        {
-          tag: "attrition_pressure",
-          description: "Hazard whose primary role is to wear the party down over time rather than deliver one decisive spike.",
-          assignmentMode: "hybrid"
-        },
-        {
-          tag: "pursuit_punisher",
-          description: "Hazard that punishes retreat, pursuit, escape routes, or movement through chase-style spaces.",
-          assignmentMode: "hybrid"
-        },
-        {
-          tag: "sentinel_guardian",
-          description: "Hazard whose role is to guard an area, treasure, threshold, or sanctum as a standing defense layer.",
-          assignmentMode: "hybrid",
-          appliesWhen: [
-            "The hazard is naturally retrieved as a guardian layer protecting a place, object, or route from intrusion.",
-            "Its value is in persistent watchfulness or defensive coverage, not just burst damage."
-          ],
-          doesNotApplyWhen: [
-            "The hazard mainly creates open-area denial with no strong guard-post identity.",
-            "The hazard is mostly an ambush opener or chase-punishment device."
-          ],
-          adjacentTags: [
-            "alarm",
-            "area_denial"
-          ]
-        },
-        {
-          tag: "forced_separation_hazard",
-          description: "Hazard whose encounter role is to isolate party members and break up normal formation or support lines.",
-          assignmentMode: "hybrid",
-          appliesWhen: [
-            "Splitting allies apart is a central reason to retrieve the hazard, not merely a side effect of movement.",
-            "The hazard is built to disrupt mutual support, lines of sight, or party clustering."
-          ],
-          doesNotApplyWhen: [
-            "The hazard only repositions victims without meaningfully separating the group.",
-            "The stronger role is area_denial or pursuit_punisher rather than party splitting."
-          ],
-          adjacentTags: [
-            "forced_separation",
-            "pursuit_punisher"
-          ]
-        }
-      ]
+      description: "Legacy family preserved for compatibility. Use function instead.",
+      tags: []
     },
     haunt_manifestation: {
       description: "Haunt manifestations that materially change the encounter through attackers, lures, possession, replayed trauma, or judgment.",
@@ -417,6 +401,31 @@ export const HAZARD_DERIVED_TAG_ONTOLOGY = {
             "procedural_bypass",
             "dispel_countermeasure"
           ]
+        }
+      ]
+    },
+    problem_shape: {
+      description: "Hazard prep tags for the kind of investigation, timing, and layered-solving problem the party faces before the hazard is actually neutralized.",
+      tags: [
+        {
+          tag: "observation_first",
+          description: "Hazard that rewards careful watching, clue gathering, or reading the environment before a safe approach becomes obvious.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "timing_window",
+          description: "Hazard that is best handled by acting during the right cycle, opening, lull, or repeating timing pattern.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "layered_resolution",
+          description: "Hazard that asks the party to solve multiple linked pieces rather than one single disable check or obvious answer.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "endurance_pressure",
+          description: "Hazard whose main prep problem is surviving repeated exposure long enough to finish the scene rather than landing one clean solve immediately.",
+          assignmentMode: "hybrid"
         }
       ]
     },

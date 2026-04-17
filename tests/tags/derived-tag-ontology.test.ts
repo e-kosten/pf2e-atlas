@@ -53,7 +53,7 @@ describe("derived tag ontology", () => {
 
     const urbanSetting = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "creature" && tag.tag === "urban_setting");
     expect(urbanSetting).toEqual(expect.objectContaining({
-      family: "setting",
+      family: "site_setting",
       assignmentMode: "editorial",
       appliesWhen: expect.arrayContaining([
         "The creature is primarily framed as belonging in city or sewer encounter spaces.",
@@ -62,7 +62,7 @@ describe("derived tag ontology", () => {
     }));
     const truthReveal = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "spell" && tag.tag === "truth_reveal");
     expect(truthReveal).toEqual(expect.objectContaining({
-      family: "revelation",
+      family: "communication",
       assignmentMode: "hybrid",
       adjacentTags: ["magic_detection", "memory_manipulation"],
       appliesWhen: expect.arrayContaining([
@@ -71,7 +71,7 @@ describe("derived tag ontology", () => {
     }));
     const spellTracking = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "spell" && tag.tag === "tracking");
     expect(spellTracking).toEqual(expect.objectContaining({
-      family: "reconnaissance",
+      family: "communication",
       assignmentMode: "hybrid",
       adjacentTags: ["scouting", "navigation"],
       appliesWhen: expect.arrayContaining([
@@ -80,7 +80,7 @@ describe("derived tag ontology", () => {
     }));
     const hazardRevelation = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "spell" && tag.tag === "hazard_revelation");
     expect(hazardRevelation).toEqual(expect.objectContaining({
-      family: "revelation",
+      family: "communication",
       assignmentMode: "hybrid",
       adjacentTags: ["magic_detection", "scouting"],
       appliesWhen: expect.arrayContaining([
@@ -97,8 +97,8 @@ describe("derived tag ontology", () => {
       ]),
     }));
 
-    const settingFamily = DERIVED_TAG_ONTOLOGY_FAMILIES.find((family) => family.category === "creature" && family.family === "setting");
-    expect(settingFamily?.description).toContain("Creature environment and encounter-setting");
+    const habitatFamily = DERIVED_TAG_ONTOLOGY_FAMILIES.find((family) => family.category === "creature" && family.family === "habitat_setting");
+    expect(habitatFamily?.description).toContain("habitat tags");
     const combatRoleFamily = DERIVED_TAG_ONTOLOGY_FAMILIES.find((family) => family.category === "creature" && family.family === "combat_role");
     expect(combatRoleFamily?.description).toContain("encounter assembly");
 
@@ -135,17 +135,16 @@ describe("derived tag ontology", () => {
     ]));
 
     const equipmentPurpose = groupedCatalog.find((entry) => entry.category === "equipment" && entry.family === "purpose");
-    expect(equipmentPurpose?.tags).toEqual(expect.not.arrayContaining([
-      expect.objectContaining({ value: "purpose" }),
-    ]));
+    expect(equipmentPurpose).toBeUndefined();
   });
 
   it("authors category-scoped ontology with explicit family hierarchy before flattening", () => {
     expect(CREATURE_DERIVED_TAG_ONTOLOGY.category).toBe("creature");
-    expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.setting.description).toContain("Creature environment and encounter-setting");
+    expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.setting.description).toContain("Legacy umbrella family");
+    expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.habitat_setting.description).toContain("habitat tags");
     expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.combat_role.description).toContain("tactical");
 
-    const urbanSetting = CREATURE_DERIVED_TAG_ONTOLOGY.families.setting.tags.find((tag) => tag.tag === "urban_setting");
+    const urbanSetting = CREATURE_DERIVED_TAG_ONTOLOGY.families.site_setting.tags.find((tag) => tag.tag === "urban_setting");
     expect(urbanSetting).toEqual(expect.objectContaining({
       tag: "urban_setting",
       assignmentMode: "editorial",
@@ -210,7 +209,7 @@ describe("derived tag ontology", () => {
     }));
     const spellScryingProtection = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "spell" && tag.tag === "scrying_protection");
     expect(spellScryingProtection).toEqual(expect.objectContaining({
-      family: "security",
+      family: "communication",
       assignmentMode: "hybrid",
       adjacentTags: ["alarm", "countermagic"],
       appliesWhen: expect.arrayContaining([
@@ -225,11 +224,15 @@ describe("derived tag ontology", () => {
     }));
     expect(flattened.families).toContainEqual(expect.objectContaining({
       category: "creature",
+      family: "site_setting",
+    }));
+    expect(flattened.families).toContainEqual(expect.objectContaining({
+      category: "creature",
       family: "social_role",
     }));
     expect(flattened.tags).toContainEqual(expect.objectContaining({
       category: "creature",
-      family: "setting",
+      family: "site_setting",
       tag: "urban_setting",
     }));
     expect(flattened.tags).toContainEqual(expect.objectContaining({

@@ -57,6 +57,7 @@ import {
   createDerivedTagExplicitAssignmentIndex,
   validateDerivedTagExplicitAssignmentsAgainstRecords,
 } from "./assignments.js";
+import { getLegacyDerivedTagFamilyAliases } from "./family-compatibility.js";
 import {
   AFFLICTION_LEGACY_DERIVED_TAG_RULES,
   CREATURE_LEGACY_DERIVED_TAG_RULES,
@@ -182,10 +183,15 @@ export function getDerivedTagFamilyTags(
   scope: { category?: DerivedTagContext["category"]; subcategory?: DerivedTagContext["subcategory"] } = {},
 ): string[] {
   const normalizedFamily = normalizeDerivedTag(family);
+  const requestedFamilies = new Set<string>([normalizedFamily]);
   const tags = new Set<string>();
 
   for (const ontologyFamily of DERIVED_TAG_ONTOLOGY.families) {
-    if (normalizeDerivedTag(ontologyFamily.family) !== normalizedFamily) {
+    for (const alias of getLegacyDerivedTagFamilyAliases(ontologyFamily.category, normalizedFamily)) {
+      requestedFamilies.add(alias);
+    }
+
+    if (!requestedFamilies.has(normalizeDerivedTag(ontologyFamily.family))) {
       continue;
     }
     if (scope.category && ontologyFamily.category !== scope.category) {
