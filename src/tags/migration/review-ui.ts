@@ -7,7 +7,7 @@ import {
   toggleDerivedTagMigrationUnresolvedOnly,
   updateDerivedTagMigrationDecisionStatus,
 } from "./review-session.js";
-import { buildDerivedTagMigrationRecordContextLines } from "./review-detail-content.js";
+import { buildDerivedTagMigrationRecordPageLines } from "./review-detail-content.js";
 import { writeDerivedTagMigrationSummary } from "./cli-utils.js";
 import { writeDerivedTagMigrationSession } from "./session-store.js";
 import {
@@ -120,14 +120,15 @@ function buildSelectedReviewDetailLines(session: DerivedTagMigrationSession): De
   const item = items[session.reviewState.currentIndex]!;
   const recordDecision = session.decisions[item.recordIndex]!;
   const decision = recordDecision.decisions[item.decisionIndex]!;
-  const record = session.records.find((entry) => entry.recordKey === recordDecision.recordKey)!;
+  const record = session.records.find((entry) => entry.entityRecord.recordKey === recordDecision.recordKey)!;
+  const entityRecord = record.entityRecord;
   const selectionNotes = record.selectionReasons.map((reason) => reason.note).join(" | ") || "(none)";
 
   return [
-    { text: `${record.name}`, tone: "section" },
-    { text: `${record.recordKey}`, tone: "dim" },
+    { text: `${entityRecord.name}`, tone: "section" },
+    { text: `${entityRecord.recordKey}`, tone: "dim" },
     { text: `Item ${session.reviewState.currentIndex + 1}/${items.length}` },
-    { text: `Scope: ${record.category}${record.subcategory ? `/${record.subcategory}` : ""} | level ${record.level ?? "-"}` },
+    { text: `Scope: ${entityRecord.category}${entityRecord.subcategory ? `/${entityRecord.subcategory}` : ""} | level ${entityRecord.level ?? "-"}` },
     { text: `Resolution: ${recordDecision.resolutionStatus}` },
     { text: `Decision: ${formatDecisionSummary(decision)}` },
     { text: `Status: ${decision.status}` },
@@ -135,7 +136,8 @@ function buildSelectedReviewDetailLines(session: DerivedTagMigrationSession): De
     { text: `Selection reasons: ${selectionNotes}` },
     { text: "Rationale:", tone: "section" },
     { text: decision.rationale || "(none)", indent: 2 },
-    ...buildDerivedTagMigrationRecordContextLines(record, decision),
+    { text: "" },
+    ...buildDerivedTagMigrationRecordPageLines(record),
   ];
 }
 

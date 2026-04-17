@@ -1,0 +1,229 @@
+import type { SearchCategory, SearchSubcategory, SourceCategory } from "../../types.js";
+
+export type OntologyExplorerEntityRecord = {
+  recordKey: string;
+  packName: string;
+  name: string;
+  type: string;
+  category: SearchCategory;
+  subcategory: SearchSubcategory | null;
+  documentType: string;
+  level: number | null;
+  rarity: string | null;
+  traits: string[];
+  derivedTags: string[];
+  families: string[];
+  descriptionText: string | null;
+  blurbText: string | null;
+  sourceCategory: SourceCategory;
+  publicationTitle: string | null;
+  publicationRemaster: boolean;
+  isUnique: boolean;
+  size: string | null;
+  languages: string[];
+  speedTypes: string[];
+  senses: string[];
+  immunities: string[];
+  resistances: string[];
+  weaknesses: string[];
+  itemCategory: string | null;
+  baseItem: string | null;
+  priceCp: number | null;
+  usage: string | null;
+  hands: number | null;
+  damageTypes: string[];
+  weaponGroup: string | null;
+  armorGroup: string | null;
+  traditions: string[];
+  spellKinds: string[];
+  saveType: string | null;
+  areaType: string | null;
+  rangeText: string | null;
+  durationText: string | null;
+  targetText: string | null;
+  areaValue: number | null;
+  sustained: boolean;
+  basicSave: boolean;
+  disableText: string | null;
+  disableSkills: string[];
+  isComplex: boolean;
+};
+
+export type OntologyExplorerEntityRecordRow = {
+  recordKey: string;
+  packName: string | null;
+  name: string;
+  type: string;
+  category: SearchCategory;
+  subcategory: SearchSubcategory | null;
+  documentType: string;
+  level: number | bigint | null;
+  rarity: string | null;
+  traitsJson: string;
+  derivedTagsJson: string;
+  familiesJson: string | null;
+  descriptionText: string | null;
+  blurbText: string | null;
+  sourceCategory: SourceCategory;
+  publicationTitle: string | null;
+  publicationRemaster: number;
+  isUnique: number;
+  size: string | null;
+  languagesJson: string | null;
+  speedTypesJson: string | null;
+  sensesJson: string | null;
+  immunitiesJson: string | null;
+  resistancesJson: string | null;
+  weaknessesJson: string | null;
+  itemCategory: string | null;
+  baseItem: string | null;
+  priceCp: number | bigint | null;
+  usage: string | null;
+  hands: number | bigint | null;
+  damageTypesJson: string | null;
+  weaponGroup: string | null;
+  armorGroup: string | null;
+  traditionsJson: string | null;
+  spellKindsJson: string | null;
+  saveType: string | null;
+  areaType: string | null;
+  rangeText: string | null;
+  durationText: string | null;
+  targetText: string | null;
+  areaValue: number | bigint | null;
+  sustained: number | null;
+  basicSave: number | null;
+  disableText: string | null;
+  disableSkillsJson: string | null;
+  isComplex: number | null;
+};
+
+function parseStringArray(json: string | null | undefined): string[] {
+  return json ? JSON.parse(json) as string[] : [];
+}
+
+function toNullableNumber(value: number | bigint | null): number | null {
+  return typeof value === "bigint" ? Number(value) : value;
+}
+
+export function buildOntologyExplorerEntityRecordSelectColumns(aliases: {
+  record?: string;
+  actor?: string;
+  item?: string;
+  spell?: string;
+  includeActor?: boolean;
+  includeItem?: boolean;
+  includeSpell?: boolean;
+} = {}): string[] {
+  const recordAlias = aliases.record ?? "r";
+  const actorAlias = aliases.actor ?? "a";
+  const itemAlias = aliases.item ?? "i";
+  const spellAlias = aliases.spell ?? "s";
+  const includeActor = aliases.includeActor ?? true;
+  const includeItem = aliases.includeItem ?? true;
+  const includeSpell = aliases.includeSpell ?? true;
+  const optionalColumn = (enabled: boolean, expression: string, alias: string): string =>
+    enabled ? `${expression} AS ${alias}` : `NULL AS ${alias}`;
+
+  return [
+    `${recordAlias}.record_key AS recordKey`,
+    `${recordAlias}.pack_name AS packName`,
+    `${recordAlias}.name AS name`,
+    `${recordAlias}.record_type AS type`,
+    `${recordAlias}.category AS category`,
+    `${recordAlias}.subcategory AS subcategory`,
+    `${recordAlias}.document_type AS documentType`,
+    `${recordAlias}.level AS level`,
+    `${recordAlias}.rarity AS rarity`,
+    `${recordAlias}.traits_json AS traitsJson`,
+    `${recordAlias}.derived_tags_json AS derivedTagsJson`,
+    `${recordAlias}.families_json AS familiesJson`,
+    `${recordAlias}.description_text AS descriptionText`,
+    `${recordAlias}.blurb_text AS blurbText`,
+    `${recordAlias}.source_category AS sourceCategory`,
+    `${recordAlias}.publication_title AS publicationTitle`,
+    `${recordAlias}.publication_remaster AS publicationRemaster`,
+    `${recordAlias}.is_unique AS isUnique`,
+    optionalColumn(includeActor, `${actorAlias}.size`, "size"),
+    optionalColumn(includeActor, `${actorAlias}.languages_json`, "languagesJson"),
+    optionalColumn(includeActor, `${actorAlias}.speed_types_json`, "speedTypesJson"),
+    optionalColumn(includeActor, `${actorAlias}.senses_json`, "sensesJson"),
+    optionalColumn(includeActor, `${actorAlias}.immunities_json`, "immunitiesJson"),
+    optionalColumn(includeActor, `${actorAlias}.resistances_json`, "resistancesJson"),
+    optionalColumn(includeActor, `${actorAlias}.weaknesses_json`, "weaknessesJson"),
+    optionalColumn(includeActor, `${actorAlias}.disable_text`, "disableText"),
+    optionalColumn(includeActor, `${actorAlias}.disable_skills_json`, "disableSkillsJson"),
+    optionalColumn(includeActor, `${actorAlias}.is_complex`, "isComplex"),
+    optionalColumn(includeItem, `${itemAlias}.item_category`, "itemCategory"),
+    optionalColumn(includeItem, `${itemAlias}.base_item`, "baseItem"),
+    optionalColumn(includeItem, `${itemAlias}.price_cp`, "priceCp"),
+    optionalColumn(includeItem, `${itemAlias}.usage_text`, "usage"),
+    optionalColumn(includeItem, `${itemAlias}.hands`, "hands"),
+    optionalColumn(includeItem, `${itemAlias}.damage_types_json`, "damageTypesJson"),
+    optionalColumn(includeItem, `${itemAlias}.weapon_group`, "weaponGroup"),
+    optionalColumn(includeItem, `${itemAlias}.armor_group`, "armorGroup"),
+    optionalColumn(includeSpell, `${spellAlias}.traditions_json`, "traditionsJson"),
+    optionalColumn(includeSpell, `${spellAlias}.spell_kinds_json`, "spellKindsJson"),
+    optionalColumn(includeSpell, `${spellAlias}.save_type`, "saveType"),
+    optionalColumn(includeSpell, `${spellAlias}.area_type`, "areaType"),
+    optionalColumn(includeSpell, `${spellAlias}.range_text`, "rangeText"),
+    optionalColumn(includeSpell, `${spellAlias}.duration_text`, "durationText"),
+    optionalColumn(includeSpell, `${spellAlias}.target_text`, "targetText"),
+    optionalColumn(includeSpell, `${spellAlias}.area_value`, "areaValue"),
+    optionalColumn(includeSpell, `${spellAlias}.sustained`, "sustained"),
+    optionalColumn(includeSpell, `${spellAlias}.basic_save`, "basicSave"),
+  ];
+}
+
+export function mapOntologyExplorerEntityRecordRow(
+  row: OntologyExplorerEntityRecordRow,
+): OntologyExplorerEntityRecord {
+  return {
+    recordKey: row.recordKey,
+    packName: row.packName ?? row.recordKey.split(":")[0] ?? "",
+    name: row.name,
+    type: row.type,
+    category: row.category,
+    subcategory: row.subcategory,
+    documentType: row.documentType,
+    level: toNullableNumber(row.level),
+    rarity: row.rarity,
+    traits: parseStringArray(row.traitsJson),
+    derivedTags: parseStringArray(row.derivedTagsJson),
+    families: parseStringArray(row.familiesJson),
+    descriptionText: row.descriptionText,
+    blurbText: row.blurbText,
+    sourceCategory: row.sourceCategory,
+    publicationTitle: row.publicationTitle,
+    publicationRemaster: Boolean(row.publicationRemaster),
+    isUnique: Boolean(row.isUnique),
+    size: row.size,
+    languages: parseStringArray(row.languagesJson),
+    speedTypes: parseStringArray(row.speedTypesJson),
+    senses: parseStringArray(row.sensesJson),
+    immunities: parseStringArray(row.immunitiesJson),
+    resistances: parseStringArray(row.resistancesJson),
+    weaknesses: parseStringArray(row.weaknessesJson),
+    itemCategory: row.itemCategory,
+    baseItem: row.baseItem,
+    priceCp: toNullableNumber(row.priceCp),
+    usage: row.usage,
+    hands: toNullableNumber(row.hands),
+    damageTypes: parseStringArray(row.damageTypesJson),
+    weaponGroup: row.weaponGroup,
+    armorGroup: row.armorGroup,
+    traditions: parseStringArray(row.traditionsJson),
+    spellKinds: parseStringArray(row.spellKindsJson),
+    saveType: row.saveType,
+    areaType: row.areaType,
+    rangeText: row.rangeText,
+    durationText: row.durationText,
+    targetText: row.targetText,
+    areaValue: toNullableNumber(row.areaValue),
+    sustained: Boolean(row.sustained),
+    basicSave: Boolean(row.basicSave),
+    disableText: row.disableText,
+    disableSkills: parseStringArray(row.disableSkillsJson),
+    isComplex: Boolean(row.isComplex),
+  };
+}

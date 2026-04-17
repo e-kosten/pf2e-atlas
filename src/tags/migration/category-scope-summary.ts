@@ -177,15 +177,16 @@ function buildLegacyRuleCategoryScopeSummary(
     let legacyRuleRecordCount = 0;
 
     for (const record of records) {
+      const entityRecord = record.entityRecord;
       const currentSources = deriveCurrentTagSources({
-        recordKey: record.recordKey,
-        name: record.name,
-        category: record.category,
-        subcategory: record.subcategory,
-        descriptionText: record.descriptionText,
-        blurbText: record.blurbText,
-        traits: record.traits,
-        families: record.families,
+        recordKey: entityRecord.recordKey,
+        name: entityRecord.name,
+        category: entityRecord.category,
+        subcategory: entityRecord.subcategory,
+        descriptionText: entityRecord.descriptionText,
+        blurbText: entityRecord.blurbText,
+        traits: entityRecord.traits,
+        families: entityRecord.families,
         references: record.references,
       });
       const matchedTags = Object.entries(currentSources)

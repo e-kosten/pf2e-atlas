@@ -1,54 +1,5 @@
-import type { SearchCategory, SourceCategory } from "../../types.js";
+import type { OntologyExplorerEntityRecord } from "./entity-record.js";
 import type { DerivedTagTerminalLine } from "./terminal-ui.js";
-
-export type OntologyExplorerEntityRecord = {
-  recordKey: string;
-  packName: string;
-  name: string;
-  type: string;
-  category: SearchCategory;
-  subcategory: string | null;
-  documentType: string;
-  level: number | null;
-  rarity: string | null;
-  traits: string[];
-  derivedTags: string[];
-  families: string[];
-  descriptionText: string | null;
-  blurbText: string | null;
-  sourceCategory: SourceCategory;
-  publicationTitle: string | null;
-  publicationRemaster: boolean;
-  isUnique: boolean;
-  size: string | null;
-  languages: string[];
-  speedTypes: string[];
-  senses: string[];
-  immunities: string[];
-  resistances: string[];
-  weaknesses: string[];
-  itemCategory: string | null;
-  baseItem: string | null;
-  priceCp: number | null;
-  usage: string | null;
-  hands: number | null;
-  damageTypes: string[];
-  weaponGroup: string | null;
-  armorGroup: string | null;
-  traditions: string[];
-  spellKinds: string[];
-  saveType: string | null;
-  areaType: string | null;
-  rangeText: string | null;
-  durationText: string | null;
-  targetText: string | null;
-  areaValue: number | null;
-  sustained: boolean;
-  basicSave: boolean;
-  disableText: string | null;
-  disableSkills: string[];
-  isComplex: boolean;
-};
 
 function renderNullable(value: string | number | null | undefined): string {
   if (value === null || value === undefined || value === "") {
@@ -93,11 +44,18 @@ function appendSection(lines: DerivedTagTerminalLine[], heading: string, values:
   }
 }
 
-export function buildOntologyExplorerEntityDetailLines(record: OntologyExplorerEntityRecord): DerivedTagTerminalLine[] {
-  const lines: DerivedTagTerminalLine[] = [
-    { text: record.name, tone: "section" },
-    { text: record.recordKey, tone: "dim" },
-  ];
+export function buildOntologyExplorerEntityDetailLines(
+  record: OntologyExplorerEntityRecord,
+  options: { includeHeader?: boolean } = {},
+): DerivedTagTerminalLine[] {
+  const lines: DerivedTagTerminalLine[] = [];
+
+  if (options.includeHeader ?? true) {
+    lines.push(
+      { text: record.name, tone: "section" },
+      { text: record.recordKey, tone: "dim" },
+    );
+  }
 
   appendSection(lines, "Identity", [
     ["Pack", record.packName],

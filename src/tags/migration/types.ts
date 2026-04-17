@@ -15,6 +15,7 @@ import type {
   DerivedTagReviewStatus,
 } from "../runtime/assignments.js";
 import type { DerivedTagSource } from "../runtime/catalog-utils.js";
+import type { OntologyExplorerEntityRecord } from "./entity-record.js";
 
 export type DerivedTagMigrationMode =
   | "review_queue"
@@ -49,18 +50,8 @@ export type DerivedTagMigrationSelectionReason = {
 };
 
 export type DerivedTagMigrationSessionRecord = {
-  recordKey: string;
-  name: string;
-  category: SearchCategory;
-  subcategory: SearchSubcategory | null;
-  packName: string;
-  level: number | null;
-  traits: string[];
-  families: string[];
-  currentDerivedTags: string[];
+  entityRecord: OntologyExplorerEntityRecord;
   currentSources: Record<string, DerivedTagSource>;
-  descriptionText: string | null;
-  blurbText: string | null;
   selectionReasons: DerivedTagMigrationSelectionReason[];
 };
 

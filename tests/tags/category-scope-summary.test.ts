@@ -256,11 +256,11 @@ describe("derived tag category scope summaries", () => {
     });
 
     expect(session.manifest.category).toBeUndefined();
-    expect(session.records.map((record) => record.recordKey)).toEqual([
+    expect(session.records.map((record) => record.entityRecord.recordKey)).toEqual([
       "spell:one",
       "creature:one",
     ]);
-    expect(new Set(session.records.map((record) => record.category))).toEqual(new Set(["creature", "spell"]));
+    expect(new Set(session.records.map((record) => record.entityRecord.category))).toEqual(new Set(["creature", "spell"]));
     expect(session.decisions.map((record) => record.decisions).flat().every((decision) => decision.source === "llm")).toBe(true);
   });
 
@@ -326,7 +326,7 @@ describe("derived tag category scope summaries", () => {
       family: "communication",
     });
 
-    expect(session.records.map((record) => record.recordKey)).toEqual(["spell:one"]);
+    expect(session.records.map((record) => record.entityRecord.recordKey)).toEqual(["spell:one"]);
     expect(session.decisions).toHaveLength(1);
     expect(session.decisions[0]?.decisions[0]).toMatchObject({ tag: "alarm" });
   });

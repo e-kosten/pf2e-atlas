@@ -3,6 +3,12 @@ import { DatabaseSync } from "node:sqlite";
 import { buildPlaceholders } from "../../data/rows.js";
 import type { SearchCategory, SearchSubcategory } from "../../types.js";
 import { normalizeText } from "../../utils.js";
+import {
+  buildOntologyExplorerEntityRecordSelectColumns,
+  mapOntologyExplorerEntityRecordRow,
+  type OntologyExplorerEntityRecord,
+  type OntologyExplorerEntityRecordRow,
+} from "./entity-record.js";
 
 export type DerivedTagMigrationReference = {
   recordKey: string;
@@ -14,32 +20,8 @@ export type DerivedTagMigrationReference = {
 };
 
 export type DerivedTagMigrationRecord = {
-  recordKey: string;
-  packName: string;
-  name: string;
-  category: SearchCategory;
-  subcategory: SearchSubcategory | null;
-  level: number | null;
-  traits: string[];
-  families: string[];
-  derivedTags: string[];
-  descriptionText: string | null;
-  blurbText: string | null;
+  entityRecord: OntologyExplorerEntityRecord;
   references: DerivedTagMigrationReference[];
-};
-
-type LoadedRecordRow = {
-  recordKey: string;
-  packName: string | null;
-  name: string;
-  category: string;
-  subcategory: string | null;
-  level: number | bigint | null;
-  traitsJson: string;
-  familiesJson: string | null;
-  derivedTagsJson: string;
-  descriptionText: string | null;
-  blurbText: string | null;
 };
 
 type LoadedReferenceRow = {
@@ -51,6 +33,105 @@ type LoadedReferenceRow = {
   targetSubcategory: string | null;
   targetTraitsJson: string;
 };
+
+const FULL_RECORD_ENTITY_COLUMNS = [
+  "pack_name",
+  "record_type",
+  "document_type",
+  "rarity",
+  "traits_json",
+  "derived_tags_json",
+  "families_json",
+  "description_text",
+  "blurb_text",
+  "source_category",
+  "publication_title",
+  "publication_remaster",
+  "is_unique",
+] as const;
+
+function hasTable(db: DatabaseSync, tableName: string): boolean {
+  const row = db.prepare(`
+    SELECT 1 AS present
+    FROM sqlite_master
+    WHERE type = 'table' AND name = ?
+    LIMIT 1
+  `).get(tableName) as { present: number } | undefined;
+  return Boolean(row?.present);
+}
+
+function listTableColumns(db: DatabaseSync, tableName: string): Set<string> {
+  const rows = db.prepare(`PRAGMA table_info(${tableName})`).all() as Array<{ name: string }>;
+  return new Set(rows.map((row) => row.name));
+}
+
+function buildFallbackSelectColumns(options: {
+  includeActor: boolean;
+  includeItem: boolean;
+  includeSpell: boolean;
+  recordColumns: Set<string>;
+}): string[] {
+  const { includeActor, includeItem, includeSpell, recordColumns } = options;
+  const optionalRecordColumn = (
+    column: string,
+    alias: string,
+    fallbackSql: string,
+  ): string => recordColumns.has(column) ? `r.${column} AS ${alias}` : `${fallbackSql} AS ${alias}`;
+  const optionalJoinedColumn = (
+    enabled: boolean,
+    expression: string,
+    alias: string,
+  ): string => enabled ? `${expression} AS ${alias}` : `NULL AS ${alias}`;
+
+  return [
+    "r.record_key AS recordKey",
+    optionalRecordColumn("pack_name", "packName", "NULL"),
+    "r.name AS name",
+    optionalRecordColumn("record_type", "type", "'unknown'"),
+    "r.category AS category",
+    optionalRecordColumn("subcategory", "subcategory", "NULL"),
+    optionalRecordColumn("document_type", "documentType", "'unknown'"),
+    optionalRecordColumn("level", "level", "NULL"),
+    optionalRecordColumn("rarity", "rarity", "NULL"),
+    optionalRecordColumn("traits_json", "traitsJson", "'[]'"),
+    optionalRecordColumn("derived_tags_json", "derivedTagsJson", "'[]'"),
+    optionalRecordColumn("families_json", "familiesJson", "NULL"),
+    optionalRecordColumn("description_text", "descriptionText", "NULL"),
+    optionalRecordColumn("blurb_text", "blurbText", "NULL"),
+    optionalRecordColumn("source_category", "sourceCategory", "'unknown'"),
+    optionalRecordColumn("publication_title", "publicationTitle", "NULL"),
+    optionalRecordColumn("publication_remaster", "publicationRemaster", "0"),
+    optionalRecordColumn("is_unique", "isUnique", "0"),
+    optionalJoinedColumn(includeActor, "a.size", "size"),
+    optionalJoinedColumn(includeActor, "a.languages_json", "languagesJson"),
+    optionalJoinedColumn(includeActor, "a.speed_types_json", "speedTypesJson"),
+    optionalJoinedColumn(includeActor, "a.senses_json", "sensesJson"),
+    optionalJoinedColumn(includeActor, "a.immunities_json", "immunitiesJson"),
+    optionalJoinedColumn(includeActor, "a.resistances_json", "resistancesJson"),
+    optionalJoinedColumn(includeActor, "a.weaknesses_json", "weaknessesJson"),
+    optionalJoinedColumn(includeActor, "a.disable_text", "disableText"),
+    optionalJoinedColumn(includeActor, "a.disable_skills_json", "disableSkillsJson"),
+    optionalJoinedColumn(includeActor, "a.is_complex", "isComplex"),
+    optionalJoinedColumn(includeItem, "i.item_category", "itemCategory"),
+    optionalJoinedColumn(includeItem, "i.base_item", "baseItem"),
+    optionalJoinedColumn(includeItem, "i.price_cp", "priceCp"),
+    optionalJoinedColumn(includeItem, "i.usage_text", "usage"),
+    optionalJoinedColumn(includeItem, "i.hands", "hands"),
+    optionalJoinedColumn(includeItem, "i.damage_types_json", "damageTypesJson"),
+    optionalJoinedColumn(includeItem, "i.weapon_group", "weaponGroup"),
+    optionalJoinedColumn(includeItem, "i.armor_group", "armorGroup"),
+    optionalJoinedColumn(includeSpell, "s.traditions_json", "traditionsJson"),
+    optionalJoinedColumn(includeSpell, "s.spell_kinds_json", "spellKindsJson"),
+    optionalJoinedColumn(includeSpell, "s.save_type", "saveType"),
+    optionalJoinedColumn(includeSpell, "s.area_type", "areaType"),
+    optionalJoinedColumn(includeSpell, "s.range_text", "rangeText"),
+    optionalJoinedColumn(includeSpell, "s.duration_text", "durationText"),
+    optionalJoinedColumn(includeSpell, "s.target_text", "targetText"),
+    optionalJoinedColumn(includeSpell, "s.area_value", "areaValue"),
+    optionalJoinedColumn(includeSpell, "s.sustained", "sustained"),
+    optionalJoinedColumn(includeSpell, "s.basic_save", "basicSave"),
+  ];
+}
 
 function loadReferences(
   db: DatabaseSync,
@@ -150,22 +231,38 @@ export function loadDerivedTagMigrationRecords(
   db: DatabaseSync,
   options: LoadDerivedTagMigrationRecordsOptions,
 ): DerivedTagMigrationRecord[] {
+  const includeActor = hasTable(db, "actor_records");
+  const includeItem = hasTable(db, "item_records");
+  const includeSpell = hasTable(db, "spell_records");
+  const recordColumns = listTableColumns(db, "records");
+  const hasFullRecordProjection = FULL_RECORD_ENTITY_COLUMNS.every((column) => recordColumns.has(column));
+  const selectColumns = hasFullRecordProjection
+    ? buildOntologyExplorerEntityRecordSelectColumns({
+      includeActor,
+      includeItem,
+      includeSpell,
+    })
+    : buildFallbackSelectColumns({
+      includeActor,
+      includeItem,
+      includeSpell,
+      recordColumns,
+    });
   const sql = [
     "SELECT",
-    "  r.record_key AS recordKey,",
-    "  r.pack_name AS packName,",
-    "  r.name AS name,",
-    "  r.category AS category,",
-    "  r.subcategory AS subcategory,",
-    "  r.level AS level,",
-    "  r.traits_json AS traitsJson,",
-    "  r.families_json AS familiesJson,",
-    "  r.derived_tags_json AS derivedTagsJson,",
-    "  r.description_text AS descriptionText,",
-    "  r.blurb_text AS blurbText",
+    `  ${selectColumns.join(",\n  ")}`,
     "FROM records r",
     "WHERE r.is_search_canonical = 1",
   ];
+  if (includeActor) {
+    sql.splice(3, 0, "LEFT JOIN actor_records a ON a.record_key = r.record_key");
+  }
+  if (includeItem) {
+    sql.splice(includeActor ? 4 : 3, 0, "LEFT JOIN item_records i ON i.record_key = r.record_key");
+  }
+  if (includeSpell) {
+    sql.splice((includeActor ? 1 : 0) + (includeItem ? 1 : 0) + 3, 0, "LEFT JOIN spell_records s ON s.record_key = r.record_key");
+  }
   const params: Array<string | number> = [];
   appendRecordFilters(sql, params, options);
   sql.push("ORDER BY r.name ASC, r.record_key ASC");
@@ -173,21 +270,11 @@ export function loadDerivedTagMigrationRecords(
     sql.push(`LIMIT ${Math.trunc(options.limit)}`);
   }
 
-  const rows = db.prepare(sql.join("\n")).all(...params) as LoadedRecordRow[];
+  const rows = db.prepare(sql.join("\n")).all(...params) as OntologyExplorerEntityRecordRow[];
   const referencesByRecordKey = loadReferences(db, rows.map((row) => row.recordKey));
 
   return rows.map((row) => ({
-    recordKey: row.recordKey,
-    packName: row.packName ?? row.recordKey.split(":")[0] ?? "",
-    name: row.name,
-    category: row.category as SearchCategory,
-    subcategory: (row.subcategory ?? null) as SearchSubcategory | null,
-    level: typeof row.level === "bigint" ? Number(row.level) : row.level,
-    traits: JSON.parse(row.traitsJson) as string[],
-    families: row.familiesJson ? (JSON.parse(row.familiesJson) as string[]) : [],
-    derivedTags: JSON.parse(row.derivedTagsJson) as string[],
-    descriptionText: row.descriptionText,
-    blurbText: row.blurbText,
+    entityRecord: mapOntologyExplorerEntityRecordRow(row),
     references: referencesByRecordKey.get(row.recordKey) ?? [],
   }));
 }

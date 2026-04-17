@@ -15,7 +15,7 @@ function normalizeRecordResolution(decisions: DerivedTagMigrationDecision[]): "c
 
 export function lintDerivedTagMigrationSession(session: DerivedTagMigrationSession): void {
   const ontology = getPublishedDerivedTagMigrationOntology();
-  const recordKeys = new Set(session.records.map((record) => record.recordKey));
+  const recordKeys = new Set(session.records.map((record) => record.entityRecord.recordKey));
   const seenDecisionRecords = new Set<string>();
 
   for (const decisionRecord of session.decisions) {

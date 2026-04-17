@@ -29,7 +29,7 @@ function createSessionId(options: DerivedTagMigrationSessionCreateOptions): stri
 }
 
 function createRecordMap(records: DerivedTagMigrationSessionRecord[]): Map<string, DerivedTagMigrationSessionRecord> {
-  return new Map(records.map((record) => [record.recordKey, record]));
+  return new Map(records.map((record) => [record.entityRecord.recordKey, record]));
 }
 
 function appendSelectionReason(
@@ -40,29 +40,20 @@ function appendSelectionReason(
 }
 
 function toSessionRecord(record: ReturnType<typeof loadDerivedTagMigrationRecords>[number]): DerivedTagMigrationSessionRecord {
+  const entityRecord = record.entityRecord;
   return {
-    recordKey: record.recordKey,
-    name: record.name,
-    category: record.category,
-    subcategory: record.subcategory,
-    packName: record.packName,
-    level: record.level,
-    traits: record.traits,
-    families: record.families,
-    currentDerivedTags: record.derivedTags,
+    entityRecord,
     currentSources: deriveCurrentTagSources({
-      recordKey: record.recordKey,
-      name: record.name,
-      category: record.category,
-      subcategory: record.subcategory,
-      descriptionText: record.descriptionText,
-      blurbText: record.blurbText,
-      traits: record.traits,
-      families: record.families,
+      recordKey: entityRecord.recordKey,
+      name: entityRecord.name,
+      category: entityRecord.category,
+      subcategory: entityRecord.subcategory,
+      descriptionText: entityRecord.descriptionText,
+      blurbText: entityRecord.blurbText,
+      traits: entityRecord.traits,
+      families: entityRecord.families,
       references: record.references,
     }),
-    descriptionText: record.descriptionText,
-    blurbText: record.blurbText,
     selectionReasons: [],
   };
 }
@@ -127,10 +118,10 @@ function flattenCurrentPendingLlmExemplarReviews(): Array<{
 function createDecisionIndex(
   records: DerivedTagMigrationSessionRecord[],
 ): Map<string, DerivedTagMigrationRecordDecision> {
-  return new Map(records.map((record) => [record.recordKey, {
-    recordKey: record.recordKey,
-    name: record.name,
-    category: record.category,
+  return new Map(records.map((record) => [record.entityRecord.recordKey, {
+    recordKey: record.entityRecord.recordKey,
+    name: record.entityRecord.name,
+    category: record.entityRecord.category,
     resolutionStatus: "needs_review",
     decisions: [],
   }]));
@@ -450,9 +441,9 @@ function buildLegacyRuleWorkset(
 
   const family = resolveTagFamily(options.category, options.tag);
   const decisions = candidates.map((record) => ({
-    recordKey: record.recordKey,
-    name: record.name,
-    category: record.category,
+    recordKey: record.entityRecord.recordKey,
+    name: record.entityRecord.name,
+    category: record.entityRecord.category,
     resolutionStatus: "needs_review" as const,
     decisions: [
       {

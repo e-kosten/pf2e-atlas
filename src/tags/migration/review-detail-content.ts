@@ -1,73 +1,16 @@
+import { buildOntologyExplorerEntityDetailLines } from "./entity-page.js";
 import type { DerivedTagTerminalLine } from "./terminal-ui.js";
-import type { DerivedTagMigrationDecision, DerivedTagMigrationSessionRecord } from "./types.js";
+import type { DerivedTagMigrationSessionRecord } from "./types.js";
 
-function renderList(values: string[]): string {
-  return values.length > 0 ? values.join(", ") : "(none)";
-}
-
-function normalizeNarrativeText(text: string): string {
-  return text.replace(/\s+/g, " ").trim();
-}
-
-function getDecisionTag(decision: DerivedTagMigrationDecision): string {
-  return decision.tag;
-}
-
-export function buildDerivedTagMigrationRecordContextLines(
+export function buildDerivedTagMigrationRecordPageLines(
   record: DerivedTagMigrationSessionRecord,
-  decision: DerivedTagMigrationDecision,
 ): DerivedTagTerminalLine[] {
-  const lines: DerivedTagTerminalLine[] = [
-    { text: "Record Context", tone: "section" },
-    { text: `Traits: ${renderList(record.traits)}`, indent: 2 },
-    { text: `Current tags: ${renderList(record.currentDerivedTags)}`, indent: 2 },
-  ];
-
-  const currentSource = record.currentSources[getDecisionTag(decision)];
-  if (currentSource) {
-    lines.push({ text: `Current source for ${getDecisionTag(decision)}: ${currentSource}`, indent: 2 });
-  }
-
-  if (record.blurbText) {
-    lines.push({ text: `Blurb: ${normalizeNarrativeText(record.blurbText)}`, indent: 2 });
-  }
-
-  if (record.descriptionText) {
-    const normalizedDescription = normalizeNarrativeText(record.descriptionText);
-    const normalizedBlurb = record.blurbText ? normalizeNarrativeText(record.blurbText) : null;
-    if (!normalizedBlurb || normalizedDescription !== normalizedBlurb) {
-      lines.push({ text: `Description: ${normalizedDescription}`, indent: 2 });
-    }
-  }
-
-  return lines;
+  return buildOntologyExplorerEntityDetailLines(record.entityRecord, { includeHeader: false });
 }
 
-export function buildDerivedTagMigrationRecordContextTextLines(
+export function buildDerivedTagMigrationRecordPageTextLines(
   record: DerivedTagMigrationSessionRecord,
-  decision: DerivedTagMigrationDecision,
 ): string[] {
-  const lines = [
-    `Traits: ${renderList(record.traits)}`,
-    `Current tags: ${renderList(record.currentDerivedTags)}`,
-  ];
-
-  const currentSource = record.currentSources[getDecisionTag(decision)];
-  if (currentSource) {
-    lines.push(`Current source for ${getDecisionTag(decision)}: ${currentSource}`);
-  }
-
-  if (record.blurbText) {
-    lines.push(`Blurb: ${normalizeNarrativeText(record.blurbText)}`);
-  }
-
-  if (record.descriptionText) {
-    const normalizedDescription = normalizeNarrativeText(record.descriptionText);
-    const normalizedBlurb = record.blurbText ? normalizeNarrativeText(record.blurbText) : null;
-    if (!normalizedBlurb || normalizedDescription !== normalizedBlurb) {
-      lines.push(`Description: ${normalizedDescription}`);
-    }
-  }
-
-  return lines;
+  return buildDerivedTagMigrationRecordPageLines(record)
+    .map((line) => `${" ".repeat(line.indent ?? 0)}${line.text}`);
 }

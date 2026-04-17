@@ -1,7 +1,7 @@
 import type { DerivedTagMigrationDecision, DerivedTagMigrationSession } from "./types.js";
 import { getCurrentDerivedTagMigrationAuthoredState } from "./authored-state.js";
 import { getDerivedTagMigrationReviewItems, summarizeDerivedTagMigrationReviewProgress } from "./review-session.js";
-import { buildDerivedTagMigrationRecordContextTextLines } from "./review-detail-content.js";
+import { buildDerivedTagMigrationRecordPageTextLines } from "./review-detail-content.js";
 
 function describeDecision(decision: DerivedTagMigrationDecision): string {
   if (decision.kind === "assignment") {
@@ -99,23 +99,25 @@ export function renderDerivedTagMigrationReviewItem(
 
   const item = itemsForRender[itemIndex]!;
   const recordDecision = session.decisions[item.recordIndex]!;
-  const record = session.records.find((entry) => entry.recordKey === recordDecision.recordKey)!;
+  const record = session.records.find((entry) => entry.entityRecord.recordKey === recordDecision.recordKey)!;
+  const entityRecord = record.entityRecord;
   const decision = recordDecision.decisions[item.decisionIndex]!;
 
   return [
     renderDerivedTagMigrationSessionSummary(session),
     "",
     `Item ${itemIndex + 1}/${itemsForRender.length}`,
-    `${record.name} (${record.recordKey})`,
-    `Scope: ${record.category}${record.subcategory ? `/${record.subcategory}` : ""} | level ${record.level ?? "-"}`,
+    `${entityRecord.name} (${entityRecord.recordKey})`,
+    `Scope: ${entityRecord.category}${entityRecord.subcategory ? `/${entityRecord.subcategory}` : ""} | level ${entityRecord.level ?? "-"}`,
     `Decision: ${describeDecision(decision)}`,
     `Status: ${renderStatus(decision.status)}`,
     `Confidence: ${"confidence" in decision ? (decision.confidence ?? "unspecified") : "n/a"}`,
-    `Live assignments: ${renderLiveAssignments(record.category, record.recordKey)}`,
-    `Rejected memory: ${renderAssignmentMemory(record.category, record.recordKey)}`,
+    `Live assignments: ${renderLiveAssignments(entityRecord.category, entityRecord.recordKey)}`,
+    `Rejected memory: ${renderAssignmentMemory(entityRecord.category, entityRecord.recordKey)}`,
     `Selection: ${record.selectionReasons.map((reason) => reason.note).join(" | ") || "(none)"}`,
     `Rationale: ${decision.rationale}`,
-    ...buildDerivedTagMigrationRecordContextTextLines(record, decision),
+    "",
+    ...buildDerivedTagMigrationRecordPageTextLines(record),
     ...(actionBar ? ["", actionBar] : []),
   ].join("\n");
 }

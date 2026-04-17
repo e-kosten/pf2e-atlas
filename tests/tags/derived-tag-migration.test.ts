@@ -4,7 +4,14 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import type { AuthoredDerivedTagRule, DerivedTagExemplarCategory, DerivedTagExemplarReviewCategory } from "../../src/types.js";
+import type {
+  AuthoredDerivedTagRule,
+  DerivedTagExemplarCategory,
+  DerivedTagExemplarReviewCategory,
+  SearchCategory,
+  SearchSubcategory,
+} from "../../src/types.js";
+import type { OntologyExplorerEntityRecord } from "../../src/tags/migration/entity-record.js";
 import type {
   AuthoredDerivedTagAssignment,
   DerivedTagAssignmentMemoryCategory,
@@ -35,6 +42,93 @@ import {
 } from "../../src/tags/migration/review-session.js";
 import { moveSelection } from "../../src/tags/migration/terminal-ui.js";
 import type { DerivedTagMigrationSession } from "../../src/tags/migration/types.js";
+
+function createEntityRecord(
+  overrides: Partial<OntologyExplorerEntityRecord> & Pick<OntologyExplorerEntityRecord, "recordKey" | "name" | "category">,
+): OntologyExplorerEntityRecord {
+  return {
+    recordKey: overrides.recordKey,
+    packName: overrides.packName ?? overrides.recordKey.split(":")[0] ?? "",
+    name: overrides.name,
+    type: overrides.type ?? "unknown",
+    category: overrides.category,
+    subcategory: overrides.subcategory ?? null,
+    documentType: overrides.documentType ?? "unknown",
+    level: overrides.level ?? null,
+    rarity: overrides.rarity ?? null,
+    traits: overrides.traits ?? [],
+    derivedTags: overrides.derivedTags ?? [],
+    families: overrides.families ?? [],
+    descriptionText: overrides.descriptionText ?? null,
+    blurbText: overrides.blurbText ?? null,
+    sourceCategory: overrides.sourceCategory ?? "unknown",
+    publicationTitle: overrides.publicationTitle ?? null,
+    publicationRemaster: overrides.publicationRemaster ?? false,
+    isUnique: overrides.isUnique ?? false,
+    size: overrides.size ?? null,
+    languages: overrides.languages ?? [],
+    speedTypes: overrides.speedTypes ?? [],
+    senses: overrides.senses ?? [],
+    immunities: overrides.immunities ?? [],
+    resistances: overrides.resistances ?? [],
+    weaknesses: overrides.weaknesses ?? [],
+    itemCategory: overrides.itemCategory ?? null,
+    baseItem: overrides.baseItem ?? null,
+    priceCp: overrides.priceCp ?? null,
+    usage: overrides.usage ?? null,
+    hands: overrides.hands ?? null,
+    damageTypes: overrides.damageTypes ?? [],
+    weaponGroup: overrides.weaponGroup ?? null,
+    armorGroup: overrides.armorGroup ?? null,
+    traditions: overrides.traditions ?? [],
+    spellKinds: overrides.spellKinds ?? [],
+    saveType: overrides.saveType ?? null,
+    areaType: overrides.areaType ?? null,
+    rangeText: overrides.rangeText ?? null,
+    durationText: overrides.durationText ?? null,
+    targetText: overrides.targetText ?? null,
+    areaValue: overrides.areaValue ?? null,
+    sustained: overrides.sustained ?? false,
+    basicSave: overrides.basicSave ?? false,
+    disableText: overrides.disableText ?? null,
+    disableSkills: overrides.disableSkills ?? [],
+    isComplex: overrides.isComplex ?? false,
+  };
+}
+
+function createSessionRecord(options: {
+  recordKey: string;
+  name: string;
+  category: SearchCategory;
+  subcategory?: SearchSubcategory | null;
+  packName?: string;
+  level?: number | null;
+  traits?: string[];
+  families?: string[];
+  derivedTags?: string[];
+  descriptionText?: string | null;
+  blurbText?: string | null;
+  currentSources?: DerivedTagMigrationSession["records"][number]["currentSources"];
+  selectionReasons?: DerivedTagMigrationSession["records"][number]["selectionReasons"];
+}): DerivedTagMigrationSession["records"][number] {
+  return {
+    entityRecord: createEntityRecord({
+      recordKey: options.recordKey,
+      packName: options.packName,
+      name: options.name,
+      category: options.category,
+      subcategory: options.subcategory ?? null,
+      level: options.level ?? null,
+      traits: options.traits ?? [],
+      derivedTags: options.derivedTags ?? [],
+      families: options.families ?? [],
+      descriptionText: options.descriptionText ?? null,
+      blurbText: options.blurbText ?? null,
+    }),
+    currentSources: options.currentSources ?? {},
+    selectionReasons: options.selectionReasons ?? [],
+  };
+}
 
 describe("derived tag migration tooling", () => {
   it("imports assignment review outcomes into live assignments, pending review, and rejected memory", () => {
@@ -271,21 +365,14 @@ describe("derived tag migration tooling", () => {
         recordCount: 1,
       },
       records: [
-        {
+        createSessionRecord({
           recordKey: "equipment:bell",
           name: "Watch Bell",
           category: "equipment",
           subcategory: "gear",
           packName: "equipment",
           level: 1,
-          traits: [],
-          families: [],
-          currentDerivedTags: [],
-          currentSources: {},
-          descriptionText: null,
-          blurbText: null,
-          selectionReasons: [],
-        },
+        }),
       ],
       decisions: [
         {
@@ -332,21 +419,14 @@ describe("derived tag migration tooling", () => {
         recordCount: 1,
       },
       records: [
-        {
+        createSessionRecord({
           recordKey: "equipment:bell",
           name: "Watch Bell",
           category: "equipment",
           subcategory: "gear",
           packName: "equipment",
           level: 1,
-          traits: [],
-          families: [],
-          currentDerivedTags: [],
-          currentSources: {},
-          descriptionText: null,
-          blurbText: null,
-          selectionReasons: [],
-        },
+        }),
       ],
       decisions: [
         {
@@ -455,16 +535,14 @@ describe("derived tag migration tooling", () => {
         recordCount: 1,
       },
       records: [
-        {
+        createSessionRecord({
           recordKey: "creature:aluum",
           name: "Spiritbound Aluum",
           category: "creature",
-          subcategory: null,
           packName: "creature-pack",
           level: 16,
           traits: ["incorporeal", "undead"],
-          families: [],
-          currentDerivedTags: ["urban_setting"],
+          derivedTags: ["urban_setting"],
           currentSources: {
             urban_setting: "assignment:human",
           },
@@ -477,7 +555,7 @@ describe("derived tag migration tooling", () => {
               note: "Current exemplar is part of an oversized exemplar set and needs review.",
             },
           ],
-        },
+        }),
       ],
       decisions: [
         {
@@ -510,12 +588,17 @@ describe("derived tag migration tooling", () => {
     const rendered = renderDerivedTagMigrationReviewItem(session, 0);
 
     expect(rendered.indexOf("Rationale: Review whether this creature remains a strong positive exemplar for \"urban_setting\".")).toBeLessThan(
-      rendered.indexOf("Traits: incorporeal, undead"),
+      rendered.indexOf("Identity"),
     );
+    expect(rendered).toContain("Identity");
+    expect(rendered).toContain("Retrieval");
     expect(rendered).toContain("Traits: incorporeal, undead");
-    expect(rendered).toContain("Current source for urban_setting: assignment:human");
-    expect(rendered).toContain("Blurb: An undead sentinel bound to a haunted district.");
-    expect(rendered).toContain("Description: A spiritbound aluum stalks city streets and abandoned alleys in search of trespassers and old grudges.");
+    expect(rendered).toContain("Derived tags: urban_setting");
+    expect(rendered).toContain("Blurb");
+    expect(rendered).toContain("An undead sentinel bound to a haunted district.");
+    expect(rendered).toContain("Description");
+    expect(rendered).toContain("A spiritbound aluum stalks city streets and abandoned alleys in search of trespassers and old grudges.");
+    expect(rendered).not.toContain("Current source for urban_setting");
   });
 
   it("does not truncate long record context once detail scrolling is available", () => {
@@ -534,21 +617,18 @@ describe("derived tag migration tooling", () => {
         recordCount: 1,
       },
       records: [
-        {
+        createSessionRecord({
           recordKey: "creature:aluum",
           name: "Spiritbound Aluum",
           category: "creature",
-          subcategory: null,
           packName: "creature-pack",
           level: 16,
           traits: ["construct", "mindless", "soulbound"],
-          families: [],
-          currentDerivedTags: ["urban_setting"],
+          derivedTags: ["urban_setting"],
           currentSources: {
             urban_setting: "assignment",
           },
           descriptionText: longDescription,
-          blurbText: null,
           selectionReasons: [
             {
               source: "exemplar_cleanup",
@@ -556,7 +636,7 @@ describe("derived tag migration tooling", () => {
               note: "Current exemplar is part of an oversized exemplar set and needs review.",
             },
           ],
-        },
+        }),
       ],
       decisions: [
         {
