@@ -108,7 +108,6 @@ export function renderDerivedTagMigrationReviewItem(
     `Item ${itemIndex + 1}/${itemsForRender.length}`,
     `${record.name} (${record.recordKey})`,
     `Scope: ${record.category}${record.subcategory ? `/${record.subcategory}` : ""} | level ${record.level ?? "-"}`,
-    ...buildDerivedTagMigrationRecordContextTextLines(record, decision),
     `Decision: ${describeDecision(decision)}`,
     `Status: ${renderStatus(decision.status)}`,
     `Confidence: ${"confidence" in decision ? (decision.confidence ?? "unspecified") : "n/a"}`,
@@ -116,6 +115,7 @@ export function renderDerivedTagMigrationReviewItem(
     `Rejected memory: ${renderAssignmentMemory(record.category, record.recordKey)}`,
     `Selection: ${record.selectionReasons.map((reason) => reason.note).join(" | ") || "(none)"}`,
     `Rationale: ${decision.rationale}`,
+    ...buildDerivedTagMigrationRecordContextTextLines(record, decision),
     ...(actionBar ? ["", actionBar] : []),
   ].join("\n");
 }

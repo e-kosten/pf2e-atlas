@@ -509,6 +509,9 @@ describe("derived tag migration tooling", () => {
 
     const rendered = renderDerivedTagMigrationReviewItem(session, 0);
 
+    expect(rendered.indexOf("Rationale: Review whether this creature remains a strong positive exemplar for \"urban_setting\".")).toBeLessThan(
+      rendered.indexOf("Traits: incorporeal, undead"),
+    );
     expect(rendered).toContain("Traits: incorporeal, undead");
     expect(rendered).toContain("Current source for urban_setting: assignment:human");
     expect(rendered).toContain("Blurb: An undead sentinel bound to a haunted district.");

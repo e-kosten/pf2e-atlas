@@ -11,6 +11,8 @@ import { buildDerivedTagMigrationRecordContextLines } from "./review-detail-cont
 import { writeDerivedTagMigrationSummary } from "./cli-utils.js";
 import { writeDerivedTagMigrationSession } from "./session-store.js";
 import {
+  getRenderedTerminalLineCount,
+  getTerminalTwoPaneDimensions,
   getTerminalPaneBodyHeight,
   moveSelectionWrapped,
   pauseForAnyKey,
@@ -18,6 +20,7 @@ import {
   readTerminalKeyOrResize,
   renderTerminalTextScreen,
   renderTerminalTwoPaneScreen,
+  sliceRenderedTerminalLines,
   type DerivedTagTerminalLine,
   type DerivedTagTerminalSession,
 } from "./terminal-ui.js";
@@ -54,6 +57,7 @@ const REVIEW_ACTIONS = [
 ] as const;
 
 type ReviewActionId = (typeof REVIEW_ACTIONS)[number]["id"];
+const REVIEW_LEFT_WIDTH = 46;
 
 function formatActionBar(selectedActionIndex: number): string {
   return `Actions: ${REVIEW_ACTIONS.map((action, index) => index === selectedActionIndex ? `[${action.label}]` : action.label).join("  ")}`;
@@ -124,7 +128,6 @@ function buildSelectedReviewDetailLines(session: DerivedTagMigrationSession): De
     { text: `${record.recordKey}`, tone: "dim" },
     { text: `Item ${session.reviewState.currentIndex + 1}/${items.length}` },
     { text: `Scope: ${record.category}${record.subcategory ? `/${record.subcategory}` : ""} | level ${record.level ?? "-"}` },
-    ...buildDerivedTagMigrationRecordContextLines(record, decision),
     { text: `Resolution: ${recordDecision.resolutionStatus}` },
     { text: `Decision: ${formatDecisionSummary(decision)}` },
     { text: `Status: ${decision.status}` },
@@ -132,7 +135,29 @@ function buildSelectedReviewDetailLines(session: DerivedTagMigrationSession): De
     { text: `Selection reasons: ${selectionNotes}` },
     { text: "Rationale:", tone: "section" },
     { text: decision.rationale || "(none)", indent: 2 },
+    ...buildDerivedTagMigrationRecordContextLines(record, decision),
   ];
+}
+
+function getReviewDetailPaneWidth(terminalSession: DerivedTagTerminalSession): number {
+  return getTerminalTwoPaneDimensions(terminalSession, REVIEW_LEFT_WIDTH).rightWidth;
+}
+
+function buildVisibleSelectedReviewDetailLines(
+  terminalSession: DerivedTagTerminalSession,
+  session: DerivedTagMigrationSession,
+  detailScroll: number,
+): DerivedTagTerminalLine[] {
+  const bodyHeight = Math.max(1, getTerminalPaneBodyHeight(terminalSession, {
+    hasSubtitle: true,
+    footerLineCount: 2,
+  }));
+  return sliceRenderedTerminalLines(
+    buildSelectedReviewDetailLines(session),
+    getReviewDetailPaneWidth(terminalSession),
+    detailScroll,
+    bodyHeight,
+  );
 }
 
 function renderReviewHelp(
@@ -150,6 +175,11 @@ function renderReviewHelp(
       { text: "Direct actions", tone: "section" },
       { text: "a approve  r reject  n needs_review  t toggle unresolved  i import  q quit" },
       { text: "" },
+      { text: "Detail scrolling", tone: "section" },
+      { text: "Ctrl+U / Ctrl+D: jump detail up or down by half a pane" },
+      { text: "Space / b: page detail down or up" },
+      { text: "Home / End: jump to the top or bottom of the detail pane" },
+      { text: "" },
       { text: "Current action bar", tone: "section" },
       { text: formatActionBar(selectedActionIndex), tone: "accent" },
     ],
@@ -165,6 +195,7 @@ export async function runDerivedTagMigrationReviewUi(
   let session = clampDerivedTagMigrationReviewIndex(initialSession);
   let imported = false;
   let selectedActionIndex = 0;
+  let detailScroll = 0;
 
   while (true) {
     const items = getDerivedTagMigrationReviewItems(session);
@@ -172,6 +203,16 @@ export async function runDerivedTagMigrationReviewUi(
     const progressText = progress.actionableRecordCount > 0
       ? `${progress.resolvedActionableRecordCount}/${progress.actionableRecordCount} actionable records resolved`
       : `${progress.candidateRecordCount} candidate records | 0 actionable review items`;
+    const detailLines = buildSelectedReviewDetailLines(session);
+    const bodyHeight = Math.max(1, getTerminalPaneBodyHeight(terminalSession, {
+      hasSubtitle: true,
+      footerLineCount: 2,
+    }));
+    const renderedDetailLineCount = getRenderedTerminalLineCount(detailLines, getReviewDetailPaneWidth(terminalSession));
+    const maxDetailScroll = Math.max(0, renderedDetailLineCount - bodyHeight);
+    if (detailScroll > maxDetailScroll) {
+      detailScroll = maxDetailScroll;
+    }
     renderTerminalTwoPaneScreen(terminalSession, {
       title: "Derived-Tag Review",
       subtitle: `Session ${session.manifest.id} | ${progressText} | ${items.length} visible item${items.length === 1 ? "" : "s"} | unresolved only ${session.reviewState.unresolvedOnly ? "on" : "off"}`,
@@ -181,12 +222,13 @@ export async function runDerivedTagMigrationReviewUi(
       },
       right: {
         title: "Selected Item",
-        lines: buildSelectedReviewDetailLines(session),
+        lines: buildVisibleSelectedReviewDetailLines(terminalSession, session, detailScroll),
       },
       footer: [
-        { text: "Up/Down or j/k move  Left/Right or h/l choose action  Enter apply  ? help  q quit", tone: "dim" },
-        { text: formatActionBar(selectedActionIndex), tone: "accent" },
+        { text: "Up/Down or j/k move  Ctrl+U/D jump detail  Space/b page detail  Home/End detail edge  Left/Right or h/l choose action  Enter apply  ? help  q quit", tone: "dim" },
+        { text: `${formatActionBar(selectedActionIndex)} | Detail scroll ${detailScroll}/${maxDetailScroll}`, tone: "accent" },
       ],
+      leftWidth: REVIEW_LEFT_WIDTH,
     });
 
     const key = await readTerminalKeyOrResize(terminalSession);
@@ -201,11 +243,25 @@ export async function runDerivedTagMigrationReviewUi(
     if (normalized === "up" || normalized === "k") {
       if (items.length > 0) {
         session.reviewState.currentIndex = moveSelectionWrapped(session.reviewState.currentIndex, -1, items.length);
+        detailScroll = 0;
       }
     } else if (normalized === "down" || normalized === "j") {
       if (items.length > 0) {
         session.reviewState.currentIndex = moveSelectionWrapped(session.reviewState.currentIndex, 1, items.length);
+        detailScroll = 0;
       }
+    } else if (normalized === "ctrl_d") {
+      detailScroll = Math.min(maxDetailScroll, detailScroll + Math.max(1, Math.floor(bodyHeight / 2)));
+    } else if (normalized === "ctrl_u") {
+      detailScroll = Math.max(0, detailScroll - Math.max(1, Math.floor(bodyHeight / 2)));
+    } else if (normalized === "space" || normalized === "page_down") {
+      detailScroll = Math.min(maxDetailScroll, detailScroll + Math.max(1, bodyHeight - 1));
+    } else if (normalized === "b" || normalized === "page_up") {
+      detailScroll = Math.max(0, detailScroll - Math.max(1, bodyHeight - 1));
+    } else if (normalized === "home") {
+      detailScroll = 0;
+    } else if (normalized === "end") {
+      detailScroll = maxDetailScroll;
     } else if (normalized === "left" || normalized === "h") {
       selectedActionIndex = moveSelectionWrapped(selectedActionIndex, -1, REVIEW_ACTIONS.length);
     } else if (normalized === "right" || normalized === "l") {
@@ -235,6 +291,7 @@ export async function runDerivedTagMigrationReviewUi(
     }
     if (requestedAction === "toggle_unresolved") {
       session = clampDerivedTagMigrationReviewIndex(toggleDerivedTagMigrationUnresolvedOnly(session));
+      detailScroll = 0;
     } else if (requestedAction === "approve" && items.length > 0) {
       session = clampDerivedTagMigrationReviewIndex(updateDerivedTagMigrationDecisionStatus(
         session,
