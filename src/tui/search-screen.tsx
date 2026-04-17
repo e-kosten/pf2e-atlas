@@ -1,7 +1,13 @@
 import React from "react";
 
-import type { NormalizedRecord, SearchProfile } from "../types.js";
+import type { SearchCategory, SearchProfile } from "../types.js";
 import { usePf2eTerminalAppServices } from "./app-service-context.js";
+import type {
+  Pf2eTerminalSearchCategoryOption,
+  Pf2eTerminalSearchProfileOption,
+  Pf2eTerminalSearchRequest,
+  Pf2eTerminalSearchSession,
+} from "./search-service.js";
 import {
   TerminalPaneScreen,
   TerminalTwoPaneScreen,
@@ -10,16 +16,11 @@ import {
   getTerminalPaneBodyHeight,
   getTerminalTwoPaneDetailWidth,
   moveSelection,
-  normalizeTerminalTwoPaneLayoutMode,
   sliceRenderedTerminalLines,
-  toggleTerminalTwoPaneFocus,
-  toggleTerminalTwoPaneLayoutMode,
   useDerivedTagTerminalApp,
   useDerivedTagTerminalInput,
   useDerivedTagTerminalSize,
   type DerivedTagTerminalLine,
-  type DerivedTagTerminalTwoPaneFocus,
-  type DerivedTagTerminalTwoPaneLayoutMode,
 } from "./terminal-ui.js";
 import {
   buildOntologyExplorerEntityDetailLines,
@@ -27,180 +28,230 @@ import {
 import {
   mapNormalizedRecordToOntologyExplorerEntityRecord,
 } from "./ontology-explorer/entity-record.js";
+import {
+  createDerivedTagTerminalTwoPaneState,
+  getDerivedTagTerminalTwoPaneLayoutMode,
+  reduceDerivedTagTerminalTwoPaneState,
+  type DerivedTagTerminalTwoPaneAction,
+  type DerivedTagTerminalTwoPaneState,
+} from "./two-pane-state.js";
 import { clampWindowStart } from "./list-utils.js";
 
 type SearchPromptMode = "lookup" | "search";
 
-type SearchScreenState = {
-  activePane: DerivedTagTerminalTwoPaneFocus;
-  detailScroll: number;
-  layoutMode: DerivedTagTerminalTwoPaneLayoutMode;
-  mode: SearchPromptMode;
-  queryText: string;
-  results: NormalizedRecord[];
-  searchMode: "idle" | "lookup" | "search";
-  searchProfile: SearchProfile | null;
+type SearchScreenState = DerivedTagTerminalTwoPaneState & {
+  queryDefaults: {
+    category: SearchCategory | null;
+    limit: number;
+    mode: SearchPromptMode;
+    queryText: string;
+    searchProfile: SearchProfile;
+  };
   selectedIndex: number;
-  total: number;
+  session: Pf2eTerminalSearchSession | null;
 };
 
 type SearchScreenAction =
-  | { type: "toggle_focus" }
-  | { type: "toggle_layout" }
-  | { type: "leave_detail" }
+  | DerivedTagTerminalTwoPaneAction
   | { type: "move_selection"; delta: number }
   | { type: "selection_boundary"; boundary: "start" | "end" }
-  | { type: "move_detail"; delta: number; maxDetailScroll: number }
-  | { type: "detail_boundary"; boundary: "start" | "end"; maxDetailScroll: number }
-  | { type: "set_results"; mode: SearchPromptMode; queryText: string; results: NormalizedRecord[]; total: number; searchProfile: SearchProfile | null }
+  | { type: "set_category"; category: SearchCategory | null }
+  | { type: "set_profile"; searchProfile: SearchProfile }
+  | { type: "set_session"; session: Pf2eTerminalSearchSession }
   | { type: "clear_results" };
 
 const SEARCH_LEFT_WIDTH = 48;
 
 function createInitialSearchScreenState(): SearchScreenState {
   return {
-    activePane: "list",
-    detailScroll: 0,
-    layoutMode: "split",
-    mode: "search",
-    queryText: "",
-    results: [],
-    searchMode: "idle",
-    searchProfile: null,
+    ...createDerivedTagTerminalTwoPaneState(),
+    queryDefaults: {
+      category: null,
+      limit: 20,
+      mode: "search",
+      queryText: "",
+      searchProfile: "balanced",
+    },
     selectedIndex: 0,
-    total: 0,
+    session: null,
   };
 }
 
 function searchScreenReducer(state: SearchScreenState, action: SearchScreenAction): SearchScreenState {
   switch (action.type) {
     case "toggle_focus":
-      return {
-        ...state,
-        activePane: toggleTerminalTwoPaneFocus(state.activePane),
-      };
     case "toggle_layout":
-      return {
-        ...state,
-        layoutMode: toggleTerminalTwoPaneLayoutMode(state.layoutMode, state.activePane),
-      };
     case "leave_detail":
-      return {
-        ...state,
-        activePane: "list",
-        layoutMode: "split",
-      };
+    case "move_detail":
+    case "detail_boundary":
+      return reduceDerivedTagTerminalTwoPaneState(state, action);
     case "move_selection":
       return {
         ...state,
         detailScroll: 0,
-        selectedIndex: moveSelection(state.selectedIndex, action.delta, state.results.length),
+        selectedIndex: moveSelection(state.selectedIndex, action.delta, state.session?.results.length ?? 0),
       };
     case "selection_boundary":
       return {
         ...state,
         detailScroll: 0,
-        selectedIndex: state.results.length <= 0 ? 0 : action.boundary === "start" ? 0 : state.results.length - 1,
+        selectedIndex: !state.session || state.session.results.length <= 0
+          ? 0
+          : action.boundary === "start"
+            ? 0
+            : state.session.results.length - 1,
       };
-    case "move_detail":
+    case "set_category":
       return {
         ...state,
-        detailScroll: Math.max(0, Math.min(action.maxDetailScroll, state.detailScroll + action.delta)),
+        queryDefaults: {
+          ...state.queryDefaults,
+          category: action.category,
+        },
       };
-    case "detail_boundary":
+    case "set_profile":
       return {
         ...state,
-        detailScroll: action.boundary === "start" ? 0 : action.maxDetailScroll,
+        queryDefaults: {
+          ...state.queryDefaults,
+          searchProfile: action.searchProfile,
+        },
       };
-    case "set_results":
+    case "set_session":
       return {
-        ...state,
-        activePane: "list",
-        detailScroll: 0,
-        layoutMode: "split",
-        mode: action.mode,
-        queryText: action.queryText,
-        results: action.results,
-        searchMode: action.mode,
-        searchProfile: action.searchProfile,
+        ...createDerivedTagTerminalTwoPaneState(),
+        queryDefaults: {
+          ...state.queryDefaults,
+          category: action.session.request.category,
+          mode: action.session.request.mode,
+          queryText: action.session.request.queryText,
+          searchProfile: action.session.request.searchProfile,
+        },
         selectedIndex: 0,
-        total: action.total,
+        session: action.session,
       };
     case "clear_results":
-      return createInitialSearchScreenState();
+      return {
+        ...createDerivedTagTerminalTwoPaneState(),
+        queryDefaults: state.queryDefaults,
+        selectedIndex: 0,
+        session: null,
+      };
     default:
       return state;
   }
 }
 
-function buildSearchResultLabel(record: NormalizedRecord): string {
+function buildSearchResultLabel(record: Pf2eTerminalSearchSession["results"][number]): string {
   const scope = record.subcategory ? `${record.category}/${record.subcategory}` : record.category;
   const level = record.level === null ? "-" : String(record.level);
   return `${record.name} | ${scope} | lvl ${level} | ${record.packLabel}`;
 }
 
+function formatSearchCategory(category: SearchCategory | null): string {
+  if (!category) {
+    return "any category";
+  }
+  return category === "characterCreation"
+    ? "character creation"
+    : category;
+}
+
 function buildSearchListLines(
-  records: NormalizedRecord[],
+  session: Pf2eTerminalSearchSession | null,
   selectedIndex: number,
   bodyHeight: number,
 ): DerivedTagTerminalLine[] {
-  if (records.length === 0) {
+  if (!session || session.results.length === 0) {
     return [
       { text: "No search results yet.", tone: "dim" },
       { text: "" },
-      { text: "/ run ranked search  l exact lookup", tone: "accent" },
+      { text: "/ run search  l exact lookup  p profile  f category", tone: "accent" },
     ];
   }
 
   const visibleCount = Math.max(1, bodyHeight);
-  const windowStart = clampWindowStart(selectedIndex, records.length, visibleCount);
+  const windowStart = clampWindowStart(selectedIndex, session.results.length, visibleCount);
 
-  return records.slice(windowStart, windowStart + visibleCount).map((record, offset) => ({
+  return session.results.slice(windowStart, windowStart + visibleCount).map((record, offset) => ({
     text: buildSearchResultLabel(record),
     tone: windowStart + offset === selectedIndex ? "selected" : "default",
     noWrap: true,
   }));
 }
 
-function buildSearchIntroLines(): DerivedTagTerminalLine[] {
+function buildSearchIntroLines(state: SearchScreenState): DerivedTagTerminalLine[] {
   return [
     { text: "Search and Lookup", tone: "section" },
     { text: "This surface uses the same indexed data service as the MCP server." },
     { text: "" },
+    { text: "Current Search Defaults", tone: "section" },
+    { text: `Search profile: ${state.queryDefaults.searchProfile}`, indent: 2 },
+    { text: `Category filter: ${formatSearchCategory(state.queryDefaults.category)}`, indent: 2 },
+    { text: `Page size: ${state.queryDefaults.limit}`, indent: 2 },
+    { text: "" },
     { text: "Commands", tone: "section" },
     { text: "/ run ranked or semantic search", indent: 2 },
     { text: "l run exact name lookup", indent: 2 },
+    { text: "p choose the default search profile", indent: 2 },
+    { text: "f choose the category filter", indent: 2 },
     { text: "c clear the current result set", indent: 2 },
   ];
 }
 
-function buildSearchDetailLines(record: NormalizedRecord | undefined, state: SearchScreenState): DerivedTagTerminalLine[] {
-  if (!record) {
+function buildSearchDetailLines(record: Pf2eTerminalSearchSession["results"][number] | undefined, state: SearchScreenState): DerivedTagTerminalLine[] {
+  if (!record || !state.session) {
     return [
-      ...buildSearchIntroLines(),
+      ...buildSearchIntroLines(state),
       { text: "" },
-      { text: state.queryText
-        ? `Last query: ${state.queryText}`
+      { text: state.queryDefaults.queryText
+        ? `Last query: ${state.queryDefaults.queryText}`
         : "Run a search or lookup to populate records.", tone: "dim" },
     ];
   }
 
+  const request = state.session.request;
   return [
-    { text: state.mode === "lookup" ? "Exact Lookup Result" : "Search Result", tone: "section" },
-    { text: `Query: ${state.queryText || "(none)"}` },
-    { text: `Search profile: ${state.searchProfile ?? "lookup"}` },
+    { text: request.mode === "lookup" ? "Exact Lookup Result" : "Search Result", tone: "section" },
+    { text: `Query: ${request.queryText || "(none)"}` },
+    { text: `Category: ${formatSearchCategory(request.category)}` },
+    { text: `Search profile: ${state.session.searchProfile ?? "lookup"}` },
     { text: "" },
     ...buildOntologyExplorerEntityDetailLines(mapNormalizedRecordToOntologyExplorerEntityRecord(record)),
   ];
 }
 
 function buildSearchSubtitle(state: SearchScreenState): string {
-  if (state.searchMode === "idle") {
-    return "Run exact lookup or ranked search against the indexed PF2E corpus";
+  const searchDefaults = `profile ${state.queryDefaults.searchProfile} | ${formatSearchCategory(state.queryDefaults.category)}`;
+  if (!state.session) {
+    return `Run exact lookup or indexed search against the PF2E corpus | ${searchDefaults}`;
   }
 
-  const profile = state.mode === "lookup" ? "lookup" : (state.searchProfile ?? "structured");
-  return `${state.mode} | ${state.total} result${state.total === 1 ? "" : "s"} | profile ${profile} | query "${state.queryText}"`;
+  return `${state.session.request.mode} | ${state.session.total} result${state.session.total === 1 ? "" : "s"} | ${searchDefaults} | query "${state.session.request.queryText}"`;
+}
+
+function buildSearchFilterEntries(options: Pf2eTerminalSearchCategoryOption[]): Array<{
+  value: string;
+  label: string;
+  description: string;
+}> {
+  return options.map((option) => ({
+    value: option.value ?? "__all__",
+    label: option.label,
+    description: option.description,
+  }));
+}
+
+function buildSearchProfileEntries(options: Pf2eTerminalSearchProfileOption[]): Array<{
+  value: SearchProfile;
+  label: string;
+  description: string;
+}> {
+  return options.map((option) => ({
+    value: option.value,
+    label: option.label,
+    description: option.description,
+  }));
 }
 
 export function SearchScreen({
@@ -209,7 +260,7 @@ export function SearchScreen({
   onBack: () => void;
 }): React.JSX.Element {
   const terminal = useDerivedTagTerminalApp();
-  const { dataService } = usePf2eTerminalAppServices();
+  const { search } = usePf2eTerminalAppServices();
   const size = useDerivedTagTerminalSize();
   const [busy, setBusy] = React.useState(false);
   const [state, dispatch] = React.useReducer(searchScreenReducer, undefined, createInitialSearchScreenState);
@@ -218,8 +269,8 @@ export function SearchScreen({
     hasSubtitle: true,
     footerLineCount: 2,
   }));
-  const layoutMode = normalizeTerminalTwoPaneLayoutMode(state.layoutMode, state.activePane);
-  const detailLines = buildSearchDetailLines(state.results[state.selectedIndex], state);
+  const layoutMode = getDerivedTagTerminalTwoPaneLayoutMode(state);
+  const detailLines = buildSearchDetailLines(state.session?.results[state.selectedIndex], state);
   const selectionJumpSize = Math.max(1, Math.floor(bodyHeight / 2));
   const pageSize = Math.max(1, bodyHeight - 1);
   const renderedDetailLineCount = getRenderedTerminalLineCount(detailLines, getTerminalTwoPaneDetailWidth(size.width, layoutMode, SEARCH_LEFT_WIDTH));
@@ -232,7 +283,7 @@ export function SearchScreen({
       prompt: mode === "lookup"
         ? "Enter an exact or near-exact record name"
         : "Enter a short natural-language search phrase",
-      defaultValue: mode === state.mode ? state.queryText : "",
+      defaultValue: mode === state.queryDefaults.mode ? state.queryDefaults.queryText : "",
       hint: mode === "lookup"
         ? "Example: Raise Shield"
         : "Example: ghost ship captain or battlefield control spell",
@@ -248,40 +299,48 @@ export function SearchScreen({
       return;
     }
 
+    const request: Pf2eTerminalSearchRequest = {
+      ...state.queryDefaults,
+      mode,
+      queryText: trimmed,
+    };
+
     setBusy(true);
     try {
-      if (mode === "lookup") {
-        const lookup = dataService.lookup(trimmed);
-        dispatch({
-          type: "set_results",
-          mode,
-          queryText: trimmed,
-          results: lookup.match ? [lookup.match, ...lookup.alternatives] : [],
-          total: lookup.match ? 1 + lookup.alternatives.length : 0,
-          searchProfile: null,
-        });
-        return;
-      }
-
-      const result = await dataService.search({
-        query: trimmed,
-        limit: 20,
-        searchProfile: "balanced",
-      });
-      dispatch({
-        type: "set_results",
-        mode,
-        queryText: trimmed,
-        results: result.records,
-        total: result.total,
-        searchProfile: result.searchProfile,
-      });
+      const session = await search.runQuery(request);
+      dispatch({ type: "set_session", session });
     } catch (error) {
       await terminal.pauseForAnyKey(`Search failed: ${(error as Error).message}`);
     } finally {
       setBusy(false);
     }
-  }, [dataService, state.mode, state.queryText, terminal]);
+  }, [search, state.queryDefaults, terminal]);
+
+  const chooseSearchProfile = React.useCallback(async () => {
+    const selected = await terminal.promptSelectOption({
+      title: "Search Profile",
+      prompt: "Choose the default search profile",
+      entries: buildSearchProfileEntries(search.getProfileOptions()),
+      selectedValue: state.queryDefaults.searchProfile,
+    });
+
+    if (selected) {
+      dispatch({ type: "set_profile", searchProfile: selected });
+    }
+  }, [search, state.queryDefaults.searchProfile, terminal]);
+
+  const chooseCategoryFilter = React.useCallback(async () => {
+    const selected = await terminal.promptSelectOption({
+      title: "Category Filter",
+      prompt: "Choose the default category scope",
+      entries: buildSearchFilterEntries(search.getCategoryOptions()),
+      selectedValue: state.queryDefaults.category ?? "__all__",
+    });
+
+    if (selected !== undefined) {
+      dispatch({ type: "set_category", category: selected === "__all__" ? null : selected as SearchCategory });
+    }
+  }, [search, state.queryDefaults.category, terminal]);
 
   useDerivedTagTerminalInput((input, key) => {
     if (busy) {
@@ -316,6 +375,14 @@ export function SearchScreen({
     }
     if (normalized === "l") {
       void runPrompt("lookup");
+      return;
+    }
+    if (normalized === "p") {
+      void chooseSearchProfile();
+      return;
+    }
+    if (normalized === "f") {
+      void chooseCategoryFilter();
       return;
     }
     if (normalized === "c") {
@@ -356,7 +423,7 @@ export function SearchScreen({
         dispatch({ type: "selection_boundary", boundary: "end" });
         return;
       }
-      if ((normalized === "right" || normalized === "enter") && state.results.length > 0) {
+      if ((normalized === "right" || normalized === "enter") && (state.session?.results.length ?? 0) > 0) {
         dispatch({ type: "toggle_focus" });
       }
       return;
@@ -412,7 +479,7 @@ export function SearchScreen({
         }}
         footer={[
           {
-            text: "z split-view  Tab/w list focus  Up/Down or j/k scroll  Ctrl+U/D jump  Space/b page  Home/End edge  Esc/backspace list  / search  l lookup  c clear  q back",
+            text: "z split-view  Tab/w list focus  Up/Down or j/k scroll  Ctrl+U/D jump  Space/b page  Home/End edge  Esc/backspace list  / search  l lookup  p profile  f category  c clear  q back",
             tone: "dim",
           },
           {
@@ -430,7 +497,7 @@ export function SearchScreen({
       subtitle={buildSearchSubtitle(state)}
       left={{
         title: state.activePane === "list" ? "[RESULTS] Search Results" : "Search Results",
-        lines: buildSearchListLines(state.results, state.selectedIndex, bodyHeight),
+        lines: buildSearchListLines(state.session, state.selectedIndex, bodyHeight),
         active: state.activePane === "list",
       }}
       right={{
@@ -446,14 +513,14 @@ export function SearchScreen({
       footer={[
         {
           text: state.activePane === "list"
-            ? "Tab/w focus  z detail-only  Up/Down or j/k move  Ctrl+U/D jump  Space/b page  Home/End edge  Enter/right detail  / search  l lookup  c clear  q back"
-            : "Tab/w focus  z detail-only  Up/Down or j/k scroll  Ctrl+U/D jump  Space/b page  Home/End edge  Esc/backspace list  / search  l lookup  c clear  q back",
+            ? "Tab/w focus  z detail-only  Up/Down or j/k move  Ctrl+U/D jump  Space/b page  Home/End edge  Enter/right detail  / search  l lookup  p profile  f category  c clear  q back"
+            : "Tab/w focus  z detail-only  Up/Down or j/k scroll  Ctrl+U/D jump  Space/b page  Home/End edge  Esc/backspace list  / search  l lookup  p profile  f category  c clear  q back",
           tone: "dim",
         },
         {
-          text: state.queryText
-            ? `Query: ${state.queryText} | showing ${state.results.length}/${state.total}`
-            : "No active query",
+          text: state.session
+            ? `Query: ${state.session.request.queryText} | showing ${state.session.results.length}/${state.session.total} | ${formatSearchCategory(state.session.request.category)}`
+            : `Defaults: ${state.queryDefaults.searchProfile} | ${formatSearchCategory(state.queryDefaults.category)}`,
           tone: "accent",
         },
       ]}

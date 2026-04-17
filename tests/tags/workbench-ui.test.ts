@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   createPf2eAppState,
   pf2eAppReducer,
-} from "../../src/tui/pf2e-app.js";
+} from "../../src/tui/pf2e-app-state.js";
 
 describe("derived tag migration workbench reducer", () => {
   it("wraps top-level area selection", () => {
@@ -12,6 +12,7 @@ describe("derived tag migration workbench reducer", () => {
     const next = pf2eAppReducer(initial, {
       type: "move_area",
       delta: -1,
+      itemCount: 3,
     });
 
     expect(next.selectedAreaIndex).toBe(2);

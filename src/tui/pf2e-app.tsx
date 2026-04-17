@@ -1,11 +1,9 @@
 import React from "react";
 
-import type { SearchCategory, SearchSubcategory } from "../types.js";
 import { DerivedTagMigrationReviewScreen } from "../tags/migration/review-ui.js";
 import { formatDerivedTagMigrationModeLabel } from "../tags/migration/workbench-session-prompts.js";
 import type {
   DerivedTagMigrationMode,
-  DerivedTagMigrationReviewDecisionKind,
   DerivedTagMigrationSession,
 } from "../tags/migration/types.js";
 import { Pf2eTerminalAppServicesProvider } from "./app-service-context.js";
@@ -13,40 +11,27 @@ import {
   loadPf2eTerminalAppServices,
   type Pf2eTerminalAppServices,
 } from "./app-services.js";
+import {
+  canPopPf2eAppRoute,
+  createPf2eAppState,
+  getCurrentPf2eAppRoute,
+  pf2eAppReducer,
+  type CreatePf2eDerivedTagSessionOptions,
+  type Pf2eAppRoute,
+} from "./pf2e-app-state.js";
 import { AreaMenuScreen, type Pf2eTopLevelArea } from "./area-menu-screen.js";
 import { isBackOrExitKey } from "./keymap.js";
 import { DerivedTagOntologyExplorerScreen } from "./ontology-explorer/screen.js";
-import type { DerivedTagOntologyExplorerModel } from "./ontology-explorer/data.js";
 import { SearchScreen } from "./search-screen.js";
 import { TerminalBusyScreen } from "./shared-screens.js";
 import {
   TerminalTextScreen,
   getNormalizedKeyName,
-  moveSelectionWrapped,
   runDerivedTagTerminalApp,
   useDerivedTagTerminalApp,
   useDerivedTagTerminalInput,
 } from "./terminal-ui.js";
 import { TagRefinementMenuScreen, type TagRefinementMenuItem } from "./tag-refinement-menu-screen.js";
-
-type Pf2eAppRoute =
-  | { kind: "areas" }
-  | { kind: "tag_refinement" }
-  | { kind: "search" }
-  | { kind: "ontology"; model: DerivedTagOntologyExplorerModel }
-  | { kind: "review"; session: DerivedTagMigrationSession };
-
-export type Pf2eAppState = {
-  route: Pf2eAppRoute;
-  selectedAreaIndex: number;
-  tagRefinementSelectedIndex: number;
-};
-
-export type Pf2eAppAction =
-  | { type: "move_area"; delta: number }
-  | { type: "move_tag_refinement"; delta: number; itemCount: number }
-  | { type: "set_route"; route: Pf2eAppRoute }
-  | { type: "set_tag_refinement_index"; index: number; itemCount: number };
 
 const PF2E_TERMINAL_TITLE = "PF2E Terminal";
 const PF2E_APP_AREAS: Pf2eTopLevelArea[] = [
@@ -66,43 +51,6 @@ const PF2E_APP_AREAS: Pf2eTopLevelArea[] = [
     description: "User-facing lookup and search over the same indexed PF2E data surfaced by the MCP server.",
   },
 ];
-
-export function pf2eAppReducer(state: Pf2eAppState, action: Pf2eAppAction): Pf2eAppState {
-  switch (action.type) {
-    case "move_area":
-      return {
-        ...state,
-        selectedAreaIndex: moveSelectionWrapped(state.selectedAreaIndex, action.delta, PF2E_APP_AREAS.length),
-      };
-    case "move_tag_refinement":
-      return {
-        ...state,
-        tagRefinementSelectedIndex: action.itemCount <= 0
-          ? 0
-          : moveSelectionWrapped(state.tagRefinementSelectedIndex, action.delta, action.itemCount),
-      };
-    case "set_tag_refinement_index":
-      return {
-        ...state,
-        tagRefinementSelectedIndex: action.itemCount <= 0 ? 0 : Math.max(0, Math.min(action.index, action.itemCount - 1)),
-      };
-    case "set_route":
-      return {
-        ...state,
-        route: action.route,
-      };
-    default:
-      return state;
-  }
-}
-
-export function createPf2eAppState(initialRoute: Pf2eAppRoute = { kind: "areas" }): Pf2eAppState {
-  return {
-    route: initialRoute,
-    selectedAreaIndex: 0,
-    tagRefinementSelectedIndex: 0,
-  };
-}
 
 function StartupErrorScreen({
   message,
@@ -145,6 +93,7 @@ export function Pf2eTerminalApp({
   const terminal = useDerivedTagTerminalApp();
   const [state, dispatch] = React.useReducer(pf2eAppReducer, initialRoute, createPf2eAppState);
   const [busyMessage, setBusyMessage] = React.useState<string | null>(null);
+  const route = getCurrentPf2eAppRoute(state);
 
   const queueItems = services.tagWorkbench.getQueueItems();
 
@@ -158,20 +107,12 @@ export function Pf2eTerminalApp({
   }, []);
 
   const openReviewSession = React.useCallback((session: DerivedTagMigrationSession) => {
-    dispatch({ type: "set_route", route: { kind: "review", session } });
+    dispatch({ type: "push_route", route: { kind: "review", session } });
   }, []);
 
   const createSessionAndOpenReview = React.useCallback(async (
     mode: DerivedTagMigrationMode,
-    options: {
-      category?: SearchCategory;
-      subcategory?: SearchSubcategory;
-      decisionKind?: DerivedTagMigrationReviewDecisionKind;
-      family?: string;
-      tag?: string;
-      limit?: number;
-      exemplarLimit?: number;
-    },
+    options: CreatePf2eDerivedTagSessionOptions,
   ) => {
     await runWithBusyState(`Preparing ${formatDerivedTagMigrationModeLabel(mode)} session...`, async () => {
       try {
@@ -200,7 +141,7 @@ export function Pf2eTerminalApp({
     await runWithBusyState("Opening ontology explorer...", async () => {
       try {
         const model = services.tagWorkbench.getOntologyModel();
-        dispatch({ type: "set_route", route: { kind: "ontology", model } });
+        dispatch({ type: "push_route", route: { kind: "ontology", model } });
       } catch (error) {
         await terminal.pauseForAnyKey(`Could not open ontology explorer.\n\n${(error as Error).message}`);
       }
@@ -214,14 +155,14 @@ export function Pf2eTerminalApp({
     }
 
     if (selectedArea.id === "tag_refinement") {
-      dispatch({ type: "set_route", route: { kind: "tag_refinement" } });
+      dispatch({ type: "push_route", route: { kind: "tag_refinement" } });
       return;
     }
     if (selectedArea.id === "ontology_search") {
       void openOntology();
       return;
     }
-    dispatch({ type: "set_route", route: { kind: "search" } });
+    dispatch({ type: "push_route", route: { kind: "search" } });
   }, [openOntology, state.selectedAreaIndex]);
 
   const openSelectedTagRefinementItem = React.useCallback((menuItems: TagRefinementMenuItem[]) => {
@@ -230,7 +171,7 @@ export function Pf2eTerminalApp({
       return;
     }
     if (selectedItem.kind === "back") {
-      dispatch({ type: "set_route", route: { kind: "areas" } });
+      dispatch({ type: "pop_route" });
       return;
     }
     if (selectedItem.kind === "review_all") {
@@ -262,37 +203,57 @@ export function Pf2eTerminalApp({
   let screen: React.JSX.Element;
   if (busyMessage) {
     screen = <TerminalBusyScreen title={PF2E_TERMINAL_TITLE} message={busyMessage} />;
-  } else if (state.route.kind === "ontology") {
+  } else if (route.kind === "ontology") {
     screen = (
       <DerivedTagOntologyExplorerScreen
-        model={state.route.model}
+        model={route.model}
         onExit={() => {
-          dispatch({ type: "set_route", route: { kind: "areas" } });
+          if (canPopPf2eAppRoute(state)) {
+            dispatch({ type: "pop_route" });
+          } else {
+            onExit();
+          }
         }}
       />
     );
-  } else if (state.route.kind === "review") {
+  } else if (route.kind === "review") {
     screen = (
       <DerivedTagMigrationReviewScreen
         rootPath={rootPath}
-        initialSession={state.route.session}
+        initialSession={route.session}
         onComplete={() => {
-          dispatch({ type: "set_route", route: { kind: "tag_refinement" } });
+          if (canPopPf2eAppRoute(state)) {
+            dispatch({ type: "pop_route" });
+          } else {
+            onExit();
+          }
         }}
       />
     );
-  } else if (state.route.kind === "search") {
+  } else if (route.kind === "search") {
     screen = (
       <SearchScreen
-        onBack={() => dispatch({ type: "set_route", route: { kind: "areas" } })}
+        onBack={() => {
+          if (canPopPf2eAppRoute(state)) {
+            dispatch({ type: "pop_route" });
+          } else {
+            onExit();
+          }
+        }}
       />
     );
-  } else if (state.route.kind === "tag_refinement") {
+  } else if (route.kind === "tag_refinement") {
     screen = (
       <TagRefinementMenuScreen
         selectedIndex={state.tagRefinementSelectedIndex}
         queueItems={queueItems}
-        onBack={() => dispatch({ type: "set_route", route: { kind: "areas" } })}
+        onBack={() => {
+          if (canPopPf2eAppRoute(state)) {
+            dispatch({ type: "pop_route" });
+          } else {
+            onExit();
+          }
+        }}
         onMove={(delta, itemCount) => dispatch(delta === 0
           ? { type: "set_tag_refinement_index", index: Math.max(0, Math.min(state.tagRefinementSelectedIndex, Math.max(0, itemCount - 1))), itemCount }
           : { type: "move_tag_refinement", delta, itemCount })}
@@ -307,7 +268,7 @@ export function Pf2eTerminalApp({
         selectedAreaIndex={state.selectedAreaIndex}
         areas={PF2E_APP_AREAS}
         pendingReviewCount={queueItems.length}
-        onMove={(delta) => dispatch({ type: "move_area", delta })}
+        onMove={(delta) => dispatch({ type: "move_area", delta, itemCount: PF2E_APP_AREAS.length })}
         onOpenSelectedArea={openSelectedArea}
         onQuit={onExit}
       />

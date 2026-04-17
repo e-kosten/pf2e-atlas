@@ -23,18 +23,20 @@ import {
   getTerminalTwoPaneDetailWidth,
   moveSelection,
   moveSelectionWrapped,
-  normalizeTerminalTwoPaneLayoutMode,
   sliceRenderedTerminalLines,
-  toggleTerminalTwoPaneFocus,
-  toggleTerminalTwoPaneLayoutMode,
   runDerivedTagTerminalApp,
   useDerivedTagTerminalApp,
   useDerivedTagTerminalInput,
   useDerivedTagTerminalSize,
   type DerivedTagTerminalLine,
-  type DerivedTagTerminalTwoPaneFocus,
   type DerivedTagTerminalTwoPaneLayoutMode,
 } from "../../tui/terminal-ui.js";
+import {
+  getDerivedTagTerminalTwoPaneLayoutMode,
+  reduceDerivedTagTerminalTwoPaneState,
+  type DerivedTagTerminalTwoPaneAction,
+  type DerivedTagTerminalTwoPaneState,
+} from "../../tui/two-pane-state.js";
 import type { DerivedTagMigrationSession } from "./types.js";
 
 export type DerivedTagMigrationReviewResult = {
@@ -42,19 +44,14 @@ export type DerivedTagMigrationReviewResult = {
   session: DerivedTagMigrationSession;
 };
 
-type ReviewUiState = {
-  activePane: DerivedTagTerminalTwoPaneFocus;
-  detailScroll: number;
+type ReviewUiState = DerivedTagTerminalTwoPaneState & {
   imported: boolean;
-  layoutMode: DerivedTagTerminalTwoPaneLayoutMode;
   selectedActionIndex: number;
   session: DerivedTagMigrationSession;
 };
 
 type ReviewUiAction =
-  | { type: "toggle_focus" }
-  | { type: "toggle_layout" }
-  | { type: "leave_detail" }
+  | DerivedTagTerminalTwoPaneAction
   | { type: "set_session"; session: DerivedTagMigrationSession }
   | { type: "set_imported"; imported: boolean }
   | { type: "move_list_wrapped"; delta: number; itemCount: number }
@@ -101,20 +98,11 @@ function setReviewCurrentIndex(
 function reviewReducer(state: ReviewUiState, action: ReviewUiAction): ReviewUiState {
   switch (action.type) {
     case "toggle_focus":
-      return {
-        ...state,
-        activePane: toggleTerminalTwoPaneFocus(state.activePane),
-      };
     case "toggle_layout":
-      return {
-        ...state,
-        layoutMode: toggleTerminalTwoPaneLayoutMode(state.layoutMode, state.activePane),
-      };
     case "leave_detail":
       return {
         ...state,
-        activePane: "list",
-        layoutMode: "split",
+        ...reduceDerivedTagTerminalTwoPaneState(state, action),
       };
     case "set_session":
       return {
@@ -162,15 +150,8 @@ function reviewReducer(state: ReviewUiState, action: ReviewUiAction): ReviewUiSt
         session: setReviewCurrentIndex(state.session, action.boundary === "start" ? 0 : action.itemCount - 1),
       };
     case "move_detail":
-      return {
-        ...state,
-        detailScroll: Math.max(0, Math.min(action.maxDetailScroll, state.detailScroll + action.delta)),
-      };
     case "detail_boundary":
-      return {
-        ...state,
-        detailScroll: action.boundary === "start" ? 0 : action.maxDetailScroll,
-      };
+      return reduceDerivedTagTerminalTwoPaneState(state, action);
     case "select_action":
       return {
         ...state,
@@ -356,7 +337,7 @@ export function DerivedTagMigrationReviewScreen({
     };
   }, [rootPath, services, state.session]);
 
-  const layoutMode = normalizeTerminalTwoPaneLayoutMode(state.layoutMode, state.activePane);
+  const layoutMode = getDerivedTagTerminalTwoPaneLayoutMode(state);
   const bodyHeight = Math.max(1, getTerminalPaneBodyHeight(size.height, {
     hasSubtitle: true,
     footerLineCount: 2,

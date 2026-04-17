@@ -9,6 +9,7 @@ import {
   Pf2eTerminalBootstrap,
 } from "../../src/tui/pf2e-app.js";
 import type { Pf2eTerminalAppServices } from "../../src/tui/app-services.js";
+import type { SearchCategory } from "../../src/types.js";
 import { DerivedTagTerminalProvider } from "../../src/tui/terminal-ui.js";
 
 function flushInk(): Promise<void> {
@@ -126,6 +127,33 @@ function createFakeServices(overrides: Partial<Pf2eTerminalAppServices> = {}): P
         offset: 0,
         limit: 20,
         records: [record],
+      })),
+    },
+    search: {
+      getCategoryOptions: vi.fn(() => [
+        {
+          value: null,
+          label: "Any Category",
+          description: "Search across the full indexed PF2E corpus.",
+        },
+        {
+          value: "spell" satisfies SearchCategory,
+          label: "Spell",
+          description: "1 indexed canonical record.",
+        },
+      ]),
+      getProfileOptions: vi.fn(() => [
+        {
+          value: "balanced",
+          label: "Balanced",
+          description: "Default hybrid retrieval for concise themed searches.",
+        },
+      ]),
+      runQuery: vi.fn(async (request) => ({
+        request,
+        results: [record],
+        total: 1,
+        searchProfile: request.mode === "lookup" ? null : request.searchProfile,
       })),
     },
     tagWorkbench: {

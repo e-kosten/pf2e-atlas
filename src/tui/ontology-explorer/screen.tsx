@@ -5,14 +5,15 @@ import {
   TerminalPaneScreen,
   TerminalTwoPaneScreen,
   getNormalizedKeyName,
-  normalizeTerminalTwoPaneLayoutMode,
-  toggleTerminalTwoPaneFocus,
-  toggleTerminalTwoPaneLayoutMode,
   useDerivedTagTerminalApp,
   useDerivedTagTerminalInput,
   useDerivedTagTerminalSize,
-  type DerivedTagTerminalTwoPaneLayoutMode,
 } from "../terminal-ui.js";
+import {
+  getDerivedTagTerminalTwoPaneLayoutMode,
+  reduceDerivedTagTerminalTwoPaneState,
+  type DerivedTagTerminalTwoPaneAction,
+} from "../two-pane-state.js";
 import {
   buildDerivedTagOntologyExplorerBreadcrumb,
   buildDerivedTagOntologyExplorerDetailLines,
@@ -36,9 +37,7 @@ import {
 } from "./ui.js";
 
 type ExplorerAction =
-  | { type: "toggle_focus" }
-  | { type: "toggle_layout" }
-  | { type: "leave_detail" }
+  | DerivedTagTerminalTwoPaneAction
   | { type: "normalize" }
   | { type: "set_search_mode"; searchMode: boolean; searchInput?: string }
   | { type: "append_search"; character: string }
@@ -53,6 +52,26 @@ type ExplorerAction =
   | { type: "detail_boundary"; boundary: "start" | "end"; maxDetailScroll: number }
   | { type: "set_pending_g"; pending: boolean };
 
+function reduceExplorerTwoPaneState(
+  state: DerivedTagOntologyExplorerUiState,
+  action: DerivedTagTerminalTwoPaneAction,
+): Pick<DerivedTagOntologyExplorerUiState, "activePane" | "layoutMode" | "explorerState"> {
+  const next = reduceDerivedTagTerminalTwoPaneState({
+    activePane: state.activePane,
+    detailScroll: state.explorerState.detailScroll,
+    layoutMode: state.layoutMode,
+  }, action);
+
+  return {
+    activePane: next.activePane,
+    layoutMode: next.layoutMode,
+    explorerState: {
+      ...state.explorerState,
+      detailScroll: next.detailScroll,
+    },
+  };
+}
+
 function explorerReducer(
   model: DerivedTagOntologyExplorerModel,
   state: DerivedTagOntologyExplorerUiState,
@@ -60,21 +79,11 @@ function explorerReducer(
 ): DerivedTagOntologyExplorerUiState {
   switch (action.type) {
     case "toggle_focus":
-      return {
-        ...state,
-        activePane: toggleTerminalTwoPaneFocus(state.activePane),
-        layoutMode: normalizeTerminalTwoPaneLayoutMode(state.layoutMode, toggleTerminalTwoPaneFocus(state.activePane)),
-      };
     case "toggle_layout":
-      return {
-        ...state,
-        layoutMode: toggleTerminalTwoPaneLayoutMode(state.layoutMode, state.activePane),
-      };
     case "leave_detail":
       return {
         ...state,
-        activePane: "list",
-        layoutMode: "split",
+        ...reduceExplorerTwoPaneState(state, action),
       };
     case "normalize":
       return {
@@ -152,12 +161,14 @@ function explorerReducer(
     case "move_detail":
       return {
         ...state,
+        ...reduceExplorerTwoPaneState(state, action),
         explorerState: moveDerivedTagOntologyExplorerDetailScroll(state.explorerState, action.delta, action.maxDetailScroll),
         pendingListCommand: null,
       };
     case "detail_boundary":
       return {
         ...state,
+        ...reduceExplorerTwoPaneState(state, action),
         explorerState: moveDerivedTagOntologyExplorerDetailScrollToBoundary(state.explorerState, action.boundary, action.maxDetailScroll),
         pendingListCommand: null,
       };
@@ -190,7 +201,11 @@ export function DerivedTagOntologyExplorerScreen({
     dispatch({ type: "normalize" });
   }, [model]);
 
-  const layoutMode = normalizeTerminalTwoPaneLayoutMode(state.layoutMode, state.activePane);
+  const layoutMode = getDerivedTagTerminalTwoPaneLayoutMode({
+    activePane: state.activePane,
+    detailScroll: state.explorerState.detailScroll,
+    layoutMode: state.layoutMode,
+  });
   const normalizedExplorerState = normalizeDerivedTagOntologyExplorerState(model, state.explorerState);
   const selection = getDerivedTagOntologyExplorerSelection(model, normalizedExplorerState);
   const metrics = getDerivedTagOntologyExplorerDetailMetrics(model, normalizedExplorerState, layoutMode, size.width, size.height);

@@ -5,6 +5,7 @@ import { Pf2eDataService } from "../data/service.js";
 import { RankingConfigStore } from "../search/ranking-config.js";
 import type { AppConfig } from "../types.js";
 import { buildDerivedTagOntologyExplorerModel, type DerivedTagOntologyExplorerModel } from "./ontology-explorer/data.js";
+import { createPf2eTerminalSearchService, type Pf2eTerminalSearchService } from "./search-service.js";
 import {
   createDerivedTagMigrationWorkbenchSession,
   getDerivedTagMigrationWorkbenchQueueItems,
@@ -55,6 +56,7 @@ export type Pf2eTerminalCatalogService = Pick<
 export type Pf2eTerminalAppServices = {
   config: AppConfig;
   dataService: Pf2eTerminalCatalogService;
+  search: Pf2eTerminalSearchService;
   tagWorkbench: Pf2eTerminalTagWorkbenchService;
   close: () => void;
 };
@@ -115,6 +117,11 @@ export async function loadPf2eTerminalAppServices(
   return {
     config,
     dataService,
+    search: createPf2eTerminalSearchService({
+      getSearchVocabulary: () => dataService.getSearchVocabulary(),
+      lookup: (name, options) => dataService.lookup(name, options),
+      search: (filters) => dataService.search(filters),
+    }),
     tagWorkbench: createTagWorkbenchService(config),
     close: () => {
       dataService?.close();
