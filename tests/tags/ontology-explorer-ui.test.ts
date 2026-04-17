@@ -64,11 +64,13 @@ function createExplorerDb(): DatabaseSync {
       item_category TEXT,
       base_item TEXT,
       price_cp INTEGER,
-      usage TEXT,
+      bulk_value REAL,
+      usage_text TEXT,
       hands INTEGER,
-      damage_types_json TEXT,
+      damage_types_json TEXT NOT NULL DEFAULT '[]',
       weapon_group TEXT,
-      armor_group TEXT
+      armor_group TEXT,
+      action_cost INTEGER
     );
 
     CREATE TABLE spell_records (
@@ -170,6 +172,28 @@ function insertRecord(
       null,
       0,
       0,
+    );
+  }
+
+  if (input.category === "equipment") {
+    db.prepare(`
+      INSERT INTO item_records (
+        record_key, item_category, base_item, price_cp, bulk_value, usage_text,
+        hands, damage_types_json, weapon_group, armor_group, action_cost
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      input.recordKey,
+      "gear",
+      null,
+      500,
+      null,
+      "held in 1 hand",
+      1,
+      JSON.stringify([]),
+      null,
+      null,
+      null,
     );
   }
 
@@ -370,5 +394,25 @@ describe("derived tag ontology explorer", () => {
     );
 
     expect(filtered.map((family) => family.family)).toContain("communication");
+  });
+
+  it("loads equipment record details through the live item schema columns", () => {
+    const db = createExplorerDb();
+    insertRecord(db, {
+      recordKey: "equipment:one",
+      name: "Silent Toolkit",
+      category: "equipment",
+      subcategory: "gear",
+      tags: ["concealable"],
+    });
+
+    const model = buildDerivedTagOntologyExplorerModel(db);
+    const equipmentCategory = model.categories.find((category) => category.category === "equipment");
+    const stealthFamily = equipmentCategory?.families.find((family) => family.tags.some((tag) => tag.tag === "concealable"));
+    const concealableTag = stealthFamily?.tags.find((tag) => tag.tag === "concealable");
+    const equipmentRecord = concealableTag?.records.find((record) => record.record.recordKey === "equipment:one");
+
+    expect(equipmentRecord?.record.usage).toBe("held in 1 hand");
+    expect(equipmentRecord?.record.itemCategory).toBe("gear");
   });
 });

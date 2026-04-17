@@ -251,7 +251,7 @@ function queryExplorerRecordRows(
       i.item_category AS itemCategory,
       i.base_item AS baseItem,
       i.price_cp AS priceCp,
-      i.usage AS usage,
+      i.usage_text AS usage,
       i.hands AS hands,
       i.damage_types_json AS damageTypesJson,
       i.weapon_group AS weaponGroup,
