@@ -122,6 +122,7 @@ export interface DerivedTagOntologyAxisByCategory {
     | "effect";
   spell:
     | "legacy"
+    | "planning"
     | "infiltration"
     | "information"
     | "mobility"

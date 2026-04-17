@@ -50,6 +50,30 @@ describe("derived tag ontology", () => {
       assignmentMode: "composite",
       compositeOfAnyTags: ["battle_form", "animal_form", "elemental_form"],
     }));
+    const spellReconnaissance = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "spell" && tag.tag === "reconnaissance");
+    expect(spellReconnaissance).toEqual(expect.objectContaining({
+      family: "reconnaissance",
+      assignmentMode: "composite",
+      compositeOfAnyTags: ["scouting", "tracking", "scouting_summons"],
+    }));
+    const spellRevelation = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "spell" && tag.tag === "revelation");
+    expect(spellRevelation).toEqual(expect.objectContaining({
+      family: "revelation",
+      assignmentMode: "composite",
+      compositeOfAnyTags: ["magic_detection", "invisibility_reveal", "truth_reveal", "curse_revelation", "hazard_revelation"],
+    }));
+    const spellWayfinding = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "spell" && tag.tag === "wayfinding");
+    expect(spellWayfinding).toEqual(expect.objectContaining({
+      family: "wayfinding",
+      assignmentMode: "composite",
+      compositeOfAnyTags: ["navigation", "tracking", "long_range_teleport", "planar_travel"],
+    }));
+    const spellSecurity = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "spell" && tag.tag === "security");
+    expect(spellSecurity).toEqual(expect.objectContaining({
+      family: "security",
+      assignmentMode: "composite",
+      compositeOfAnyTags: ["alarm", "scrying_protection", "protective_ward", "countermagic"],
+    }));
 
     const urbanSetting = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "creature" && tag.tag === "urban_setting");
     expect(urbanSetting).toEqual(expect.objectContaining({
@@ -112,6 +136,14 @@ describe("derived tag ontology", () => {
         value: "transformation",
         assignmentMode: "composite",
         compositeOfAnyTags: ["battle_form", "animal_form", "elemental_form"],
+      }),
+    ]));
+    const groupedRevelation = groupedCatalog.find((entry) => entry.category === "spell" && entry.family === "revelation");
+    expect(groupedRevelation?.axis).toBe("planning");
+    expect(groupedRevelation?.tags).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        value: "revelation",
+        assignmentMode: "composite",
       }),
     ]));
     const groupedCombatRole = groupedCatalog.find((entry) => entry.category === "creature" && entry.family === "combat_role");

@@ -122,7 +122,7 @@ describe("derived tag rules: spell", () => {
       subcategory: null,
       descriptionText: "You create an invisible, floating eye at a location you can see within 500 feet. It sees in all directions with your normal visual senses and continuously transmits what it sees.",
       traits: ["divination"],
-    })).toContain("scouting");
+    })).toEqual(expect.arrayContaining(["scouting", "reconnaissance"]));
 
     expect(deriveRecordTags({
       name: "Web of Eyes",
@@ -130,7 +130,7 @@ describe("derived tag rules: spell", () => {
       subcategory: null,
       descriptionText: "You place an invisible scrying sensor on each target just above their eyes. Each sensor looks where that target looks, and you can see what each target sees.",
       traits: ["concentrate", "manipulate", "scrying"],
-    })).toContain("scouting");
+    })).toEqual(expect.arrayContaining(["scouting", "reconnaissance"]));
 
     expect(deriveRecordTags({
       name: "Proliferating Eyes",
@@ -146,7 +146,7 @@ describe("derived tag rules: spell", () => {
       subcategory: null,
       descriptionText: "You press your hand to the stone, causing hand-drawn scouts to spread out from your fingers. As long as you Sustain the Spell, you can see, hear, and smell through the scouts.",
       traits: ["concentrate", "manipulate", "scrying"],
-    })).toContain("scouting");
+    })).toEqual(expect.arrayContaining(["scouting", "reconnaissance"]));
 
     expect(deriveRecordTags({
       name: "Know the Way",
@@ -154,7 +154,7 @@ describe("derived tag rules: spell", () => {
       subcategory: null,
       descriptionText: "In your mind's eye, you magically reorient yourself. You immediately know which direction is north, and you can choose a location you were at within the last 24 hours and learn what direction it lies.",
       traits: ["cantrip", "concentrate", "detection", "manipulate"],
-    })).toContain("navigation");
+    })).toEqual(expect.arrayContaining(["navigation", "wayfinding"]));
 
     expect(deriveRecordTags({
       name: "Wanderer's Guide",
@@ -162,7 +162,7 @@ describe("derived tag rules: spell", () => {
       subcategory: null,
       descriptionText: "You call upon the beyond to guide your route. When you Cast this Spell, choose a destination; you receive an inspired route to that destination, allowing you and allies who travel overland with you to reduce the movement penalty from difficult terrain by half for the duration.",
       traits: ["concentrate", "manipulate"],
-    })).toEqual(expect.arrayContaining(["navigation", "mobility"]));
+    })).toEqual(expect.arrayContaining(["navigation", "mobility", "wayfinding"]));
 
     expect(deriveRecordTags({
       name: "Spiritual Transport",
@@ -605,7 +605,7 @@ describe("derived tag rules: spell", () => {
       subcategory: null,
       descriptionText: "You ward an area to alert you when creatures enter without your permission. Whenever a creature enters the spell's area without speaking the password, alarm sends your choice of a mental alert or an audible alarm.",
       traits: ["concentrate", "manipulate"],
-    })).toContain("alarm");
+    })).toEqual(expect.arrayContaining(["alarm", "security"]));
 
     expect(deriveRecordTags({
       name: "Ravenous Portal",

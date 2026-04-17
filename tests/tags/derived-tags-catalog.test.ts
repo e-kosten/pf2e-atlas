@@ -51,6 +51,14 @@ describe("derived tag catalog", () => {
       }),
       expect.objectContaining({
         category: "spell",
+        family: "revelation",
+        axis: "planning",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "revelation", assignmentMode: "composite" }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "spell",
         family: "control",
         axis: "control",
         tags: expect.arrayContaining([

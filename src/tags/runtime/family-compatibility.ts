@@ -12,17 +12,6 @@ const RAW_LEGACY_FAMILY_ALIASES: Partial<Record<SearchCategory, Record<string, s
   hazard: {
     encounter_role: ["function"],
   },
-  spell: {
-    reconnaissance: ["communication"],
-    revelation: ["communication"],
-    wayfinding: ["communication", "expedition"],
-    traversal: ["expedition"],
-    attrition: ["impact"],
-    tempo: ["support"],
-    summoner_support: ["support"],
-    magic_interference: ["control"],
-    security: ["communication"],
-  },
 };
 
 export function getLegacyDerivedTagFamilyAliases(

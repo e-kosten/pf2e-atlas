@@ -121,6 +121,12 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
         description: expect.stringContaining("denying movement"),
       }),
       expect.objectContaining({
+        category: "spell",
+        family: "revelation",
+        axis: "planning",
+        description: expect.stringContaining("Planning-oriented umbrella"),
+      }),
+      expect.objectContaining({
         category: "equipment",
         family: "movement_traversal",
         axis: "utility",
@@ -145,6 +151,12 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
         family: "communication",
         tag: "truth_reveal",
         assignmentMode: "hybrid",
+      }),
+      expect.objectContaining({
+        category: "spell",
+        family: "revelation",
+        tag: "revelation",
+        assignmentMode: "composite",
       }),
       expect.objectContaining({
         category: "spell",
@@ -198,6 +210,14 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
           expect.objectContaining({ value: "scouting", description: expect.any(String) }),
           expect.objectContaining({ value: "truth_reveal", description: expect.any(String) }),
           expect.objectContaining({ value: "alarm", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "spell",
+        family: "security",
+        axis: "planning",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "security", assignmentMode: "composite" }),
         ]),
       }),
       expect.objectContaining({
@@ -312,7 +332,10 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       "mobility",
       "navigation",
       "persistent_damage",
+      "reconnaissance",
+      "security",
       "social_infiltration",
+      "wayfinding",
       "mental_impairment",
       "sensory_impairment",
       "forced_movement",

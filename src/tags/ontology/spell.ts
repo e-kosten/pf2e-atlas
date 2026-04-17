@@ -162,29 +162,71 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
         }
       ]
     },
-    // TODO: Remove this legacy family after downstream spell planning surfaces migrate to the broadened communication family.
     reconnaissance: {
-      axis: "legacy",
-      description: "Legacy family preserved for compatibility. Use communication instead.",
-      tags: []
+      axis: "planning",
+      description: "Planning-oriented umbrella for spells used to scout, survey, or locate creatures and places before direct engagement.",
+      tags: [
+        {
+          tag: "reconnaissance",
+          description: "Broad scouting umbrella for spells that gather remote information, extend senses, or track a target from afar.",
+          assignmentMode: "composite",
+          adjacentTags: [
+            "scouting",
+            "tracking",
+            "scouting_summons"
+          ],
+          compositeOfAnyTags: [
+            "scouting",
+            "tracking",
+            "scouting_summons"
+          ]
+        }
+      ]
     },
-    // TODO: Remove this legacy family after downstream spell planning surfaces migrate to the broadened communication family.
     revelation: {
-      axis: "legacy",
-      description: "Legacy family preserved for compatibility. Use communication instead.",
-      tags: []
+      axis: "planning",
+      description: "Planning-oriented umbrella for spells that expose hidden truths, reveal concealed dangers, or surface magical and supernatural facts.",
+      tags: [
+        {
+          tag: "revelation",
+          description: "Broad reveal umbrella for spells that detect magic, uncover deceptions, expose invisible threats, or identify hidden supernatural problems.",
+          assignmentMode: "composite",
+          adjacentTags: [
+            "magic_detection",
+            "truth_reveal",
+            "hazard_revelation"
+          ],
+          compositeOfAnyTags: [
+            "magic_detection",
+            "invisibility_reveal",
+            "truth_reveal",
+            "curse_revelation",
+            "hazard_revelation"
+          ]
+        }
+      ]
     },
-    // TODO: Remove this legacy family after downstream spell planning surfaces migrate to expedition and communication.",
     wayfinding: {
-      axis: "legacy",
-      description: "Legacy family preserved for compatibility. Use expedition and communication instead.",
-      tags: []
-    },
-    // TODO: Remove this legacy family after downstream spell planning surfaces migrate to expedition.
-    traversal: {
-      axis: "legacy",
-      description: "Legacy family preserved for compatibility. Use expedition instead.",
-      tags: []
+      axis: "planning",
+      description: "Planning-oriented umbrella for spells used to find routes, reach destinations, and solve strategic navigation or travel-location problems.",
+      tags: [
+        {
+          tag: "wayfinding",
+          description: "Broad route-and-destination umbrella for spells that orient travel, locate a target destination, or bypass distance through strategic movement magic.",
+          assignmentMode: "composite",
+          adjacentTags: [
+            "navigation",
+            "tracking",
+            "long_range_teleport"
+          ],
+          compositeOfAnyTags: [
+            "navigation",
+            "tracking",
+            "long_range_teleport",
+            "planar_travel"
+          ]
+        }
+      ]
     },
     teleportation: {
       axis: "mobility",
@@ -551,12 +593,6 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
         }
       ]
     },
-    // TODO: Remove this legacy family after downstream spell planning surfaces migrate to support and impact.
-    attrition: {
-      axis: "legacy",
-      description: "Legacy family preserved for compatibility. Use support and impact instead.",
-      tags: []
-    },
     summoning: {
       axis: "summoning",
       description: "Spells that call, create, or bind temporary creatures and servitors into the scene for combat, scouting, labor, or utility retrieval.",
@@ -683,29 +719,27 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
         }
       ]
     },
-    // TODO: Remove this legacy family after downstream spell planning surfaces migrate to support.
-    tempo: {
-      axis: "legacy",
-      description: "Legacy family preserved for compatibility. Use support instead.",
-      tags: []
-    },
-    // TODO: Remove this legacy family after downstream spell planning surfaces migrate to support.
-    summoner_support: {
-      axis: "legacy",
-      description: "Legacy family preserved for compatibility. Use support instead.",
-      tags: []
-    },
-    // TODO: Remove this legacy family after downstream spell planning surfaces migrate to control.
-    magic_interference: {
-      axis: "legacy",
-      description: "Legacy family preserved for compatibility. Use control instead.",
-      tags: []
-    },
-    // TODO: Remove this legacy family after downstream spell planning surfaces migrate to communication.
     security: {
-      axis: "legacy",
-      description: "Legacy family preserved for compatibility. Use communication instead.",
-      tags: []
+      axis: "planning",
+      description: "Planning-oriented umbrella for spells that secure camps, sanctums, rooms, thresholds, and protected people against intrusion or magical observation.",
+      tags: [
+        {
+          tag: "security",
+          description: "Broad security umbrella for spells that warn about intrusion, protect private spaces, or harden a target against magical observation and interference.",
+          assignmentMode: "composite",
+          adjacentTags: [
+            "alarm",
+            "scrying_protection",
+            "protective_ward"
+          ],
+          compositeOfAnyTags: [
+            "alarm",
+            "scrying_protection",
+            "protective_ward",
+            "countermagic"
+          ]
+        }
+      ]
     },
     impact: {
       axis: "effect",
