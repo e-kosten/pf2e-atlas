@@ -210,6 +210,7 @@ describe("derived tag ontology explorer", () => {
     const truthRevealTag = communicationFamily?.tags.find((tag) => tag.tag === "truth_reveal");
 
     expect(spellCategory?.taggedRecordCount).toBe(3);
+    expect(communicationFamily?.axis).toBeTruthy();
     expect(communicationFamily?.liveRecordCount).toBe(3);
     expect(alarmTag?.liveRecordCount).toBe(2);
     expect(truthRevealTag?.liveRecordCount).toBe(2);
@@ -349,5 +350,25 @@ describe("derived tag ontology explorer", () => {
 
     expect(filtered.map((entry) => entry.category)).toContain("creature");
     expect(filtered.some((entry) => entry.category === "spell")).toBe(false);
+  });
+
+  it("includes axis text in family filtering", () => {
+    const db = createExplorerDb();
+    insertRecord(db, {
+      recordKey: "spell:one",
+      name: "Alarm Ward",
+      category: "spell",
+      tags: ["alarm"],
+    });
+
+    const model = buildDerivedTagOntologyExplorerModel(db);
+    const spellCategory = model.categories.find((category) => category.category === "spell");
+    const communicationFamily = spellCategory?.families.find((family) => family.family === "communication");
+    const filtered = filterOntologyExplorerNodes(
+      spellCategory?.families ?? [],
+      communicationFamily?.axis ?? "",
+    );
+
+    expect(filtered.map((family) => family.family)).toContain("communication");
   });
 });

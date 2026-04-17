@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import type { SearchCategory, SearchSubcategory } from "../../types.js";
+import { normalizeDerivedTag } from "../index.js";
 import {
   openConfiguredIndex,
   parseInteger,
@@ -8,7 +9,10 @@ import {
 } from "../migration/cli-utils.js";
 import { runDerivedTagOntologyExplorerUi } from "../migration/ontology-explorer-ui.js";
 import { renderDerivedTagMigrationSessionSummary } from "../migration/render.js";
-import { summarizeCurrentDerivedTagReviewQueue } from "../migration/runtime-state.js";
+import {
+  getPublishedDerivedTagMigrationOntology,
+  summarizeCurrentDerivedTagReviewQueue,
+} from "../migration/runtime-state.js";
 import { runDerivedTagMigrationReviewUi } from "../migration/review-ui.js";
 import { writeDerivedTagMigrationSession } from "../migration/session-store.js";
 import { buildDerivedTagMigrationSession } from "../migration/session-builder.js";
@@ -16,12 +20,14 @@ import {
   getTerminalPaneBodyHeight,
   moveSelectionWrapped,
   pauseForAnyKey,
+  promptTerminalSelectOption,
   promptTerminalTextInput,
   readTerminalKey,
   renderTerminalTextScreen,
   renderTerminalTwoPaneScreen,
   runWithDerivedTagTerminalSession,
   type DerivedTagTerminalLine,
+  type DerivedTagTerminalSelectOption,
   type DerivedTagTerminalSession,
 } from "../migration/terminal-ui.js";
 import type {
@@ -32,6 +38,9 @@ import type {
 } from "../migration/types.js";
 
 const MANAGED_CATEGORIES: DerivedTagManagedCategory[] = ["affliction", "creature", "equipment", "hazard", "spell"];
+const ANY_CATEGORY = "__all_categories__";
+const ANY_SUBCATEGORY = "__all_subcategories__";
+const ANY_TAG = "__all_tags__";
 
 type TopLevelAreaId = "tag_refinement" | "ontology_search" | "search";
 
@@ -180,28 +189,232 @@ function normalizeOptional(value: string | undefined): string | undefined {
   return trimmed ? trimmed : undefined;
 }
 
+function uniqueSorted(values: string[]): string[] {
+  return [...new Set(values)].sort((left, right) => left.localeCompare(right));
+}
+
+function getSessionScopeOntology() {
+  return getPublishedDerivedTagMigrationOntology();
+}
+
+function buildCategorySelectOptions(required: boolean): DerivedTagTerminalSelectOption<string>[] {
+  const ontology = getSessionScopeOntology();
+  const categoryOptions = MANAGED_CATEGORIES.map((category) => {
+    const families = ontology.families.filter((family) => family.category === category);
+    const tags = ontology.tags.filter((tag) => tag.category === category);
+    return {
+      value: category,
+      label: category,
+      detailLines: [
+        { text: category, tone: "section" },
+        { text: `${families.length} ontology families` },
+        { text: `${tags.length} ontology tags` },
+      ],
+    } satisfies DerivedTagTerminalSelectOption<string>;
+  });
+
+  if (required) {
+    return categoryOptions;
+  }
+
+  return [
+    {
+      value: ANY_CATEGORY,
+      label: "All categories",
+      detailLines: [
+        { text: "All categories", tone: "section" },
+        { text: "Keep the session broad and review across the managed ontology surface." },
+      ],
+    },
+    ...categoryOptions,
+  ];
+}
+
+function listSubcategoriesForCategory(category: SearchCategory): SearchSubcategory[] {
+  return uniqueSorted(
+    getSessionScopeOntology().families
+      .filter((family) => family.category === category)
+      .flatMap((family) => family.subcategories ?? []),
+  ) as SearchSubcategory[];
+}
+
+function buildSubcategorySelectOptions(category: SearchCategory): DerivedTagTerminalSelectOption<string>[] {
+  const ontology = getSessionScopeOntology();
+  const subcategories = listSubcategoriesForCategory(category);
+  return [
+    {
+      value: ANY_SUBCATEGORY,
+      label: "All subcategories",
+      detailLines: [
+        { text: `${category} / all subcategories`, tone: "section" },
+        { text: "Keep the session scoped to the full category." },
+      ],
+    },
+    ...subcategories.map((subcategory) => {
+      const matchingFamilies = ontology.families.filter((family) =>
+        family.category === category && (family.subcategories?.includes(subcategory) ?? false));
+      const matchingTags = ontology.tags.filter((tag) => {
+        if (tag.category !== category) {
+          return false;
+        }
+        const family = ontology.familyByKey.get(`${tag.category}:${normalizeDerivedTag(tag.family)}` as `${SearchCategory}:${string}`);
+        return family?.subcategories?.includes(subcategory) ?? false;
+      });
+      return {
+        value: subcategory,
+        label: subcategory,
+        detailLines: [
+          { text: `${category}/${subcategory}`, tone: "section" },
+          { text: `${matchingFamilies.length} families apply` },
+          { text: `${matchingTags.length} tags apply` },
+        ],
+      } satisfies DerivedTagTerminalSelectOption<string>;
+    }),
+  ];
+}
+
+function tagMatchesScope(
+  category: SearchCategory | undefined,
+  subcategory: SearchSubcategory | undefined,
+  tag: { category: SearchCategory; family: string },
+): boolean {
+  if (category && tag.category !== category) {
+    return false;
+  }
+  if (!subcategory) {
+    return true;
+  }
+
+  const family = getSessionScopeOntology().familyByKey.get(`${tag.category}:${normalizeDerivedTag(tag.family)}` as `${SearchCategory}:${string}`);
+  if (!family?.subcategories || family.subcategories.length === 0) {
+    return true;
+  }
+
+  return family.subcategories.includes(subcategory);
+}
+
+function buildTagSelectOptions(
+  category: SearchCategory | undefined,
+  subcategory: SearchSubcategory | undefined,
+  required: boolean,
+): DerivedTagTerminalSelectOption<string>[] {
+  const ontology = getSessionScopeOntology();
+  const tagOptions = ontology.tags
+    .filter((tag) => tagMatchesScope(category, subcategory, tag))
+    .sort((left, right) =>
+      left.category.localeCompare(right.category)
+      || left.family.localeCompare(right.family)
+      || left.tag.localeCompare(right.tag))
+    .map((tag) => {
+      const family = ontology.familyByKey.get(`${tag.category}:${normalizeDerivedTag(tag.family)}` as `${SearchCategory}:${string}`);
+      return {
+        value: category ? tag.tag : `${tag.category}:${tag.tag}`,
+        label: category ? `${tag.family} / ${tag.tag}` : `${tag.category} / ${tag.family} / ${tag.tag}`,
+        detailLines: [
+          { text: tag.tag, tone: "section" },
+          { text: tag.description },
+          { text: `Category: ${tag.category}` },
+          { text: `Family: ${tag.family}` },
+          { text: `Axis: ${family?.axis ?? "(unknown)"}` },
+          { text: `Scope: ${family?.subcategories?.join(", ") ?? "(all subcategories)"}` },
+          { text: `Assignment mode: ${tag.assignmentMode}` },
+        ],
+      } satisfies DerivedTagTerminalSelectOption<string>;
+    });
+
+  if (required) {
+    return tagOptions;
+  }
+
+  return [
+    {
+      value: ANY_TAG,
+      label: "All tags",
+      detailLines: [
+        { text: "All tags", tone: "section" },
+        { text: "Keep tag unspecified and create a broader review session." },
+      ],
+    },
+    ...tagOptions,
+  ];
+}
+
 async function promptCategory(
   terminalSession: DerivedTagTerminalSession,
   required: boolean,
-): Promise<SearchCategory | undefined> {
-  while (true) {
-    const answer = normalizeOptional(await promptTerminalTextInput(terminalSession, {
-      title: "Session Scope",
-      prompt: required
-        ? `category (${MANAGED_CATEGORIES.join("/")})`
-        : `category (${MANAGED_CATEGORIES.join("/")}, blank for all)`,
-    }));
+): Promise<SearchCategory | null | undefined> {
+  const value = await promptTerminalSelectOption(terminalSession, {
+    title: "Session Scope",
+    subtitle: "Choose a category boundary for the session",
+    prompt: "Categories",
+    entries: buildCategorySelectOptions(required),
+  });
 
-    if (!answer) {
-      if (!required) {
-        return undefined;
-      }
-    } else if (MANAGED_CATEGORIES.includes(answer as DerivedTagManagedCategory)) {
-      return answer as SearchCategory;
-    }
-
-    await pauseForAnyKey(terminalSession, `Enter one of: ${MANAGED_CATEGORIES.join(", ")}.`);
+  if (value === undefined) {
+    return undefined;
   }
+  if (value === ANY_CATEGORY) {
+    return null;
+  }
+  return value as SearchCategory;
+}
+
+async function promptSubcategory(
+  terminalSession: DerivedTagTerminalSession,
+  category: SearchCategory,
+): Promise<SearchSubcategory | null | undefined> {
+  const options = buildSubcategorySelectOptions(category);
+  if (options.length <= 1) {
+    return null;
+  }
+
+  const value = await promptTerminalSelectOption(terminalSession, {
+    title: "Session Scope",
+    subtitle: `Optionally narrow ${category} to a subcategory`,
+    prompt: "Subcategories",
+    entries: options,
+  });
+
+  if (value === undefined) {
+    return undefined;
+  }
+  if (value === ANY_SUBCATEGORY) {
+    return null;
+  }
+  return value as SearchSubcategory;
+}
+
+async function promptTag(
+  terminalSession: DerivedTagTerminalSession,
+  category: SearchCategory | undefined,
+  subcategory: SearchSubcategory | undefined,
+  required: boolean,
+): Promise<{ category?: SearchCategory; tag?: string } | undefined> {
+  const value = await promptTerminalSelectOption(terminalSession, {
+    title: "Session Scope",
+    subtitle: required
+      ? "Choose the tag to review"
+      : "Optionally narrow the session to one tag",
+    prompt: "Tags",
+    entries: buildTagSelectOptions(category, subcategory, required),
+  });
+
+  if (value === undefined) {
+    return undefined;
+  }
+  if (value === ANY_TAG) {
+    return {};
+  }
+  if (!category) {
+    const [resolvedCategory, resolvedTag] = value.split(":", 2);
+    if (resolvedCategory && resolvedTag) {
+      return {
+        category: resolvedCategory as SearchCategory,
+        tag: resolvedTag,
+      };
+    }
+  }
+  return { tag: value };
 }
 
 async function promptInteger(
@@ -209,11 +422,18 @@ async function promptInteger(
   prompt: string,
   flagName: string,
 ): Promise<number | undefined> {
-  const value = normalizeOptional(await promptTerminalTextInput(terminalSession, {
-    title: "Session Scope",
-    prompt,
-  }));
-  return parseInteger(value, flagName);
+  while (true) {
+    const value = normalizeOptional(await promptTerminalTextInput(terminalSession, {
+      title: "Session Scope",
+      prompt,
+    }));
+
+    try {
+      return parseInteger(value, flagName);
+    } catch (error) {
+      await pauseForAnyKey(terminalSession, (error as Error).message);
+    }
+  }
 }
 
 async function promptCustomSessionOptions(
@@ -226,31 +446,28 @@ async function promptCustomSessionOptions(
   tag?: string;
   limit?: number;
   exemplarLimit?: number;
-}> {
+} | undefined> {
   const requireCategory = mode === "legacy_rule" || mode === "new_tagging";
-  const category = await promptCategory(terminalSession, requireCategory);
-  const subcategory = normalizeOptional(await promptTerminalTextInput(terminalSession, {
-    title: "Session Scope",
-    prompt: "subcategory (blank to skip)",
-  })) as SearchSubcategory | undefined;
-  const family = mode === "review_queue"
-    ? normalizeOptional(await promptTerminalTextInput(terminalSession, {
-      title: "Session Scope",
-      prompt: "family (blank for any)",
-    }))
-    : undefined;
-  const tagRequired = mode === "legacy_rule";
-  let tag: string | undefined;
-  while (true) {
-    tag = normalizeOptional(await promptTerminalTextInput(terminalSession, {
-      title: "Session Scope",
-      prompt: `tag${tagRequired ? "" : " (blank for any)"}`,
-    }));
-    if (tag || !tagRequired) {
-      break;
-    }
-    await pauseForAnyKey(terminalSession, "tag is required for legacy_rule sessions.");
+  const categorySelection = await promptCategory(terminalSession, requireCategory);
+  if (categorySelection === undefined) {
+    return undefined;
   }
+  const category = categorySelection ?? undefined;
+
+  const subcategorySelection = category ? await promptSubcategory(terminalSession, category) : null;
+  if (subcategorySelection === undefined) {
+    return undefined;
+  }
+  const subcategory = subcategorySelection ?? undefined;
+
+  const tagSelection = mode === "new_tagging"
+    ? {}
+    : await promptTag(terminalSession, category, subcategory, mode === "legacy_rule");
+  if (tagSelection === undefined) {
+    return undefined;
+  }
+  const resolvedCategory = category ?? tagSelection.category;
+  const tag = tagSelection.tag;
 
   const limit = await promptInteger(terminalSession, "limit (blank for default)", "--limit");
   const exemplarLimit = mode === "exemplar_cleanup"
@@ -258,9 +475,8 @@ async function promptCustomSessionOptions(
     : undefined;
 
   return {
-    category,
+    category: resolvedCategory,
     subcategory,
-    family,
     tag,
     limit,
     exemplarLimit,
@@ -284,13 +500,20 @@ async function createAndRunSession(
 ): Promise<void> {
   const { db } = await openConfiguredIndex(argv);
   try {
-    const session = buildDerivedTagMigrationSession(db, {
-      mode,
-      ...options,
-    });
-    await writeDerivedTagMigrationSession(rootPath, session);
-    await writeDerivedTagMigrationSummary(rootPath, session.manifest.id, renderDerivedTagMigrationSessionSummary(session));
-    await runDerivedTagMigrationReviewUi(rootPath, session, terminalSession);
+    try {
+      const session = buildDerivedTagMigrationSession(db, {
+        mode,
+        ...options,
+      });
+      await writeDerivedTagMigrationSession(rootPath, session);
+      await writeDerivedTagMigrationSummary(rootPath, session.manifest.id, renderDerivedTagMigrationSessionSummary(session));
+      await runDerivedTagMigrationReviewUi(rootPath, session, terminalSession);
+    } catch (error) {
+      await pauseForAnyKey(
+        terminalSession,
+        `Could not create the ${mode} session.\n\n${(error as Error).message}`,
+      );
+    }
   } finally {
     db.close();
   }
@@ -326,7 +549,7 @@ async function runSearchPlaceholder(
     });
 
     const key = await readTerminalKey(terminalSession);
-    if (key.normalizedName === "q" || key.normalizedName === "backspace" || key.normalizedName === "left" || key.normalizedName === "ctrl_c") {
+    if (key.normalizedName === "q" || key.normalizedName === "backspace" || key.normalizedName === "left" || key.normalizedName === "escape" || key.normalizedName === "ctrl_c") {
       return;
     }
   }
@@ -365,7 +588,7 @@ async function runTagRefinementWorkbench(
     const key = await readTerminalKey(terminalSession);
     const normalized = key.normalizedName;
 
-    if (normalized === "ctrl_c" || normalized === "q" || normalized === "backspace" || normalized === "left") {
+    if (normalized === "ctrl_c" || normalized === "q" || normalized === "backspace" || normalized === "left" || normalized === "escape") {
       return;
     }
 
@@ -395,7 +618,9 @@ async function runTagRefinementWorkbench(
             ? "exemplar_cleanup"
             : "new_tagging";
       const options = await promptCustomSessionOptions(terminalSession, mode);
-      await createAndRunSession(rootPath, argv, mode, options, terminalSession);
+      if (options) {
+        await createAndRunSession(rootPath, argv, mode, options, terminalSession);
+      }
       continue;
     }
     if (normalized !== "enter" && normalized !== "kp_enter") {
@@ -425,7 +650,9 @@ async function runTagRefinementWorkbench(
     }
     if (selectedItem.kind === "create_mode") {
       const options = await promptCustomSessionOptions(terminalSession, selectedItem.mode);
-      await createAndRunSession(rootPath, argv, selectedItem.mode, options, terminalSession);
+      if (options) {
+        await createAndRunSession(rootPath, argv, selectedItem.mode, options, terminalSession);
+      }
     }
   }
 }
@@ -466,7 +693,7 @@ async function runWorkbench(
     const key = await readTerminalKey(terminalSession);
     const normalized = key.normalizedName;
 
-    if (normalized === "ctrl_c" || normalized === "q") {
+    if (normalized === "ctrl_c" || normalized === "q" || normalized === "escape") {
       return;
     }
     if (normalized === "up" || normalized === "k") {

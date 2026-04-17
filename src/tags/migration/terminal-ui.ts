@@ -51,6 +51,13 @@ export type DerivedTagTerminalTwoPaneScreen = {
   leftWidth?: number;
 };
 
+export type DerivedTagTerminalSelectOption<T extends string = string> = {
+  value: T;
+  label: string;
+  description?: string;
+  detailLines?: DerivedTagTerminalLine[];
+};
+
 type Terminal = ReturnType<typeof terminalKit.createTerminal>;
 
 export type DerivedTagTerminalSession = {
@@ -274,7 +281,7 @@ export async function runWithDerivedTagTerminalSession<T>(
 ): Promise<T> {
   const session: DerivedTagTerminalSession = { term: terminal };
   terminal.fullscreen({ noAlternate: false });
-  terminal.grabInput({ mouse: "button", safe: true });
+  terminal.grabInput({ safe: true });
   terminal.windowTitle("Derived-Tag Workbench");
 
   try {
@@ -381,6 +388,121 @@ export async function promptTerminalTextInput(
     default: options.defaultValue,
   }).promise;
   return response?.trim() ? response.trim() : undefined;
+}
+
+function buildTerminalSelectListLines<T extends string>(
+  session: DerivedTagTerminalSession,
+  options: DerivedTagTerminalSelectOption<T>[],
+  selectedIndex: number,
+): DerivedTagTerminalLine[] {
+  const visibleCount = Math.max(1, getTerminalPaneBodyHeight(session, {
+    hasSubtitle: true,
+    footerLineCount: 2,
+  }));
+  const windowStart = Math.max(0, Math.min(
+    selectedIndex - Math.floor(visibleCount / 2),
+    Math.max(0, options.length - visibleCount),
+  ));
+
+  return options.slice(windowStart, windowStart + visibleCount).map((option, offset) => ({
+    text: option.label,
+    tone: windowStart + offset === selectedIndex ? "selected" : "default",
+    noWrap: true,
+  }));
+}
+
+function buildTerminalSelectDetailLines<T extends string>(
+  option: DerivedTagTerminalSelectOption<T> | undefined,
+): DerivedTagTerminalLine[] {
+  if (!option) {
+    return [{ text: "No option selected.", tone: "dim" }];
+  }
+
+  if (option.detailLines && option.detailLines.length > 0) {
+    return option.detailLines;
+  }
+
+  return option.description
+    ? [
+      { text: option.label, tone: "section" },
+      { text: option.description },
+    ]
+    : [
+      { text: option.label, tone: "section" },
+      { text: "No additional details.", tone: "dim" },
+    ];
+}
+
+export async function promptTerminalSelectOption<T extends string>(
+  session: DerivedTagTerminalSession,
+  options: {
+    title: string;
+    subtitle?: string;
+    prompt: string;
+    entries: DerivedTagTerminalSelectOption<T>[];
+    selectedValue?: T;
+  },
+): Promise<T | undefined> {
+  if (options.entries.length === 0) {
+    renderTerminalTextScreen(session, {
+      title: options.title,
+      subtitle: options.subtitle,
+      body: [
+        { text: options.prompt, tone: "section" },
+        { text: "" },
+        { text: "No options are available for this scope.", tone: "warning" },
+      ],
+      footer: [{ text: "Esc, Backspace, Left, or q cancel", tone: "dim" }],
+    });
+
+    while (true) {
+      const key = await readTerminalKey(session);
+      const normalized = key.normalizedName;
+      if (normalized === "escape" || normalized === "backspace" || normalized === "left" || normalized === "q" || normalized === "ctrl_c") {
+        return undefined;
+      }
+    }
+  }
+
+  let selectedIndex = Math.max(0, options.entries.findIndex((entry) => entry.value === options.selectedValue));
+
+  while (true) {
+    const selectedOption = options.entries[selectedIndex];
+    renderTerminalTwoPaneScreen(session, {
+      title: options.title,
+      subtitle: options.subtitle,
+      left: {
+        title: options.prompt,
+        lines: buildTerminalSelectListLines(session, options.entries, selectedIndex),
+      },
+      right: {
+        title: "Details",
+        lines: buildTerminalSelectDetailLines(selectedOption),
+      },
+      footer: [
+        { text: "Up/Down or j/k move  Enter select  Esc/backspace/left cancel", tone: "dim" },
+        { text: `Selected: ${selectedOption?.label ?? "(none)"}`, tone: "accent" },
+      ],
+      leftWidth: 40,
+    });
+
+    const key = await readTerminalKey(session);
+    const normalized = key.normalizedName;
+    if (normalized === "up" || normalized === "k") {
+      selectedIndex = moveSelectionWrapped(selectedIndex, -1, options.entries.length);
+      continue;
+    }
+    if (normalized === "down" || normalized === "j") {
+      selectedIndex = moveSelectionWrapped(selectedIndex, 1, options.entries.length);
+      continue;
+    }
+    if (normalized === "enter" || normalized === "kp_enter" || normalized === "right" || normalized === "l") {
+      return selectedOption?.value;
+    }
+    if (normalized === "escape" || normalized === "backspace" || normalized === "left" || normalized === "q" || normalized === "ctrl_c") {
+      return undefined;
+    }
+  }
 }
 
 export async function pauseForAnyKey(

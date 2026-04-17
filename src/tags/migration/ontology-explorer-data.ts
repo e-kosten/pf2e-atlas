@@ -111,6 +111,7 @@ export type DerivedTagOntologyExplorerFamilyNode = {
   key: string;
   category: SearchCategory;
   family: string;
+  axis: string;
   description: string;
   subcategories?: SearchSubcategory[];
   variantInheritance?: boolean;
@@ -168,12 +169,14 @@ function buildTagFilterText(tag: {
 function buildFamilyFilterText(family: {
   category: SearchCategory;
   family: string;
+  axis: string;
   description: string;
   subcategories?: SearchSubcategory[];
 }): string {
   return [
     family.category,
     family.family,
+    family.axis,
     family.description,
     ...(family.subcategories ?? []),
   ].join(" ").toLowerCase();
@@ -513,6 +516,7 @@ export function buildDerivedTagOntologyExplorerModel(db: DatabaseSync): DerivedT
         key: familyKey,
         category: family.category,
         family: family.family,
+        axis: family.axis,
         description: family.description,
         subcategories: family.subcategories,
         variantInheritance: family.variantInheritance,
@@ -533,6 +537,9 @@ export function buildDerivedTagOntologyExplorerModel(db: DatabaseSync): DerivedT
   return {
     categories: [...categories].map((category) => ({
       ...category,
+      families: [...category.families].sort((left, right) =>
+        left.axis.localeCompare(right.axis)
+        || left.family.localeCompare(right.family)),
       filterText: [
         category.category,
         ...category.families.map((family) => `${family.family} ${family.description}`),
