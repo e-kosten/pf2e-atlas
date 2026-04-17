@@ -13,7 +13,7 @@ import {
 import {
   getPublishedDerivedTagMigrationOntology,
 } from "./runtime-state.js";
-import type { DerivedTagTerminalApp, DerivedTagTerminalSelectOption } from "./terminal-ui.js";
+import type { DerivedTagTerminalApp, DerivedTagTerminalSelectOption } from "../../tui/terminal-ui.js";
 import type { DerivedTagMigrationMode } from "./types.js";
 
 const ANY_CATEGORY = "__all_categories__";

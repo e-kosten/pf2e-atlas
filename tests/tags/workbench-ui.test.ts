@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  createWorkbenchState,
-  workbenchReducer,
-} from "../../src/tags/migration/workbench-ui.js";
+  createPf2eAppState,
+  pf2eAppReducer,
+} from "../../src/tui/pf2e-app.js";
 
 describe("derived tag migration workbench reducer", () => {
   it("wraps top-level area selection", () => {
-    const initial = createWorkbenchState();
+    const initial = createPf2eAppState();
 
-    const next = workbenchReducer(initial, {
+    const next = pf2eAppReducer(initial, {
       type: "move_area",
       delta: -1,
     });
@@ -19,11 +19,11 @@ describe("derived tag migration workbench reducer", () => {
 
   it("clamps tag-refinement selection when the menu shrinks", () => {
     const initial = {
-      ...createWorkbenchState({ kind: "tag_refinement" }),
+      ...createPf2eAppState({ kind: "tag_refinement" }),
       tagRefinementSelectedIndex: 6,
     };
 
-    const next = workbenchReducer(initial, {
+    const next = pf2eAppReducer(initial, {
       type: "set_tag_refinement_index",
       index: 6,
       itemCount: 3,

@@ -1,5 +1,5 @@
 import type { OntologyExplorerEntityRecord } from "./entity-record.js";
-import type { DerivedTagTerminalLine } from "./terminal-ui.js";
+import type { DerivedTagTerminalLine } from "../terminal-ui.js";
 
 function renderNullable(value: string | number | null | undefined): string {
   if (value === null || value === undefined || value === "") {

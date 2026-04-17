@@ -15,7 +15,7 @@ import type {
   DerivedTagReviewStatus,
 } from "../runtime/assignments.js";
 import type { DerivedTagSource } from "../runtime/catalog-utils.js";
-import type { OntologyExplorerEntityRecord } from "./entity-record.js";
+import type { OntologyExplorerEntityRecord } from "../../tui/ontology-explorer/entity-record.js";
 
 export type DerivedTagMigrationMode =
   | "review_queue"

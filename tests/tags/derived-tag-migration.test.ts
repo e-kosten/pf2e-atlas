@@ -11,7 +11,7 @@ import type {
   SearchCategory,
   SearchSubcategory,
 } from "../../src/types.js";
-import type { OntologyExplorerEntityRecord } from "../../src/tags/migration/entity-record.js";
+import type { OntologyExplorerEntityRecord } from "../../src/tui/ontology-explorer/entity-record.js";
 import type {
   AuthoredDerivedTagAssignment,
   DerivedTagAssignmentMemoryCategory,
@@ -40,7 +40,7 @@ import {
   toggleDerivedTagMigrationUnresolvedOnly,
   updateDerivedTagMigrationDecisionStatus,
 } from "../../src/tags/migration/review-session.js";
-import { moveSelection } from "../../src/tags/migration/terminal-ui.js";
+import { moveSelection } from "../../src/tui/terminal-ui.js";
 import type { DerivedTagMigrationSession } from "../../src/tags/migration/types.js";
 
 function createEntityRecord(

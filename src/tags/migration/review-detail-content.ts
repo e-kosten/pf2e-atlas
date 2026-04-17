@@ -1,5 +1,5 @@
-import { buildOntologyExplorerEntityDetailLines } from "./entity-page.js";
-import type { DerivedTagTerminalLine } from "./terminal-ui.js";
+import { buildOntologyExplorerEntityDetailLines } from "../../tui/ontology-explorer/entity-page.js";
+import type { DerivedTagTerminalLine } from "../../tui/terminal-ui.js";
 import type { DerivedTagMigrationSessionRecord } from "./types.js";
 
 export function buildDerivedTagMigrationRecordPageLines(

@@ -1,7 +1,7 @@
 import React from "react";
 import { DatabaseSync } from "node:sqlite";
 
-import { buildDerivedTagOntologyExplorerModel } from "./ontology-explorer-data.js";
+import { buildDerivedTagOntologyExplorerModel } from "./data.js";
 import {
   TerminalPaneScreen,
   TerminalTwoPaneScreen,
@@ -13,7 +13,7 @@ import {
   useDerivedTagTerminalInput,
   useDerivedTagTerminalSize,
   type DerivedTagTerminalTwoPaneLayoutMode,
-} from "./terminal-ui.js";
+} from "../terminal-ui.js";
 import {
   buildDerivedTagOntologyExplorerBreadcrumb,
   buildDerivedTagOntologyExplorerDetailLines,
@@ -34,7 +34,7 @@ import {
   popDerivedTagOntologyExplorerDepth,
   setDerivedTagOntologyExplorerFilter,
   type DerivedTagOntologyExplorerUiState,
-} from "./ontology-explorer-ui.js";
+} from "./ui.js";
 
 type ExplorerAction =
   | { type: "toggle_focus" }

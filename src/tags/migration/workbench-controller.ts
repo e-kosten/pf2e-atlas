@@ -8,7 +8,7 @@ import {
 } from "./runtime-state.js";
 import { buildDerivedTagMigrationSession } from "./session-builder.js";
 import { writeDerivedTagMigrationSession } from "./session-store.js";
-import type { DerivedTagTerminalApp } from "./terminal-ui.js";
+import type { DerivedTagTerminalApp } from "../../tui/terminal-ui.js";
 import type {
   DerivedTagMigrationMode,
   DerivedTagMigrationReviewDecisionKind,

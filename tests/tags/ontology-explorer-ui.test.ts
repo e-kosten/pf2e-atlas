@@ -6,7 +6,7 @@ import {
   buildDerivedTagOntologyExplorerModel,
   filterOntologyExplorerNodes,
   writeDerivedTagOntologyExplorerDbCache,
-} from "../../src/tags/migration/ontology-explorer-data.js";
+} from "../../src/tui/ontology-explorer/data.js";
 import {
   buildDerivedTagOntologyExplorerListLines,
   createDerivedTagOntologyExplorerState,
@@ -19,14 +19,14 @@ import {
   normalizeDerivedTagOntologyExplorerState,
   popDerivedTagOntologyExplorerDepth,
   setDerivedTagOntologyExplorerFilter,
-} from "../../src/tags/migration/ontology-explorer-ui.js";
+} from "../../src/tui/ontology-explorer/ui.js";
 import {
   getRenderedTerminalLineCount,
   sliceRenderedTerminalLines,
   normalizeTerminalTwoPaneLayoutMode,
   toggleTerminalTwoPaneFocus,
   toggleTerminalTwoPaneLayoutMode,
-} from "../../src/tags/migration/terminal-ui.js";
+} from "../../src/tui/terminal-ui.js";
 
 function createExplorerDb(): DatabaseSync {
   const db = new DatabaseSync(":memory:");

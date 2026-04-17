@@ -4,8 +4,8 @@ import { DatabaseSync } from "node:sqlite";
 import { cleanup, render } from "ink-testing-library";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { DerivedTagOntologyExplorerScreen } from "../../src/tags/migration/ontology-explorer-screen.js";
-import { DerivedTagTerminalProvider } from "../../src/tags/migration/terminal-ui.js";
+import { DerivedTagOntologyExplorerScreen } from "../../src/tui/ontology-explorer/screen.js";
+import { DerivedTagTerminalProvider } from "../../src/tui/terminal-ui.js";
 
 function flushInk(): Promise<void> {
   return new Promise((resolve) => {

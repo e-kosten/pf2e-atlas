@@ -10,7 +10,7 @@ import {
   type DerivedTagOntologyExplorerModel,
   type DerivedTagOntologyExplorerRecordNode,
   type DerivedTagOntologyExplorerTagNode,
-} from "./ontology-explorer-data.js";
+} from "./data.js";
 import {
   getPrintableInput,
   getRenderedTerminalLineCount,
@@ -21,7 +21,7 @@ import {
   sliceRenderedTerminalLines,
   type DerivedTagTerminalLine,
   type DerivedTagTerminalTwoPaneLayoutMode,
-} from "./terminal-ui.js";
+} from "../terminal-ui.js";
 
 export type DerivedTagOntologyExplorerDepth = "category" | "family" | "tag" | "record";
 type DerivedTagOntologyExplorerMotionStyle = "wrapped" | "clamped";

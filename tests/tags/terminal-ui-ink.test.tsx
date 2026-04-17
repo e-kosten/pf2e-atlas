@@ -9,7 +9,7 @@ import {
   getNormalizedKeyName,
   useDerivedTagTerminalApp,
   useDerivedTagTerminalInput,
-} from "../../src/tags/migration/terminal-ui.js";
+} from "../../src/tui/terminal-ui.js";
 
 function flushInk(): Promise<void> {
   return new Promise((resolve) => {

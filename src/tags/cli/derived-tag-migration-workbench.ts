@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
-import { runDerivedTagMigrationWorkbenchApp } from "../migration/workbench-ui.js";
+import { runPf2eTerminalApp } from "../../tui/pf2e-app.js";
 
 async function main(): Promise<void> {
-  await runDerivedTagMigrationWorkbenchApp(process.cwd(), process.argv.slice(2));
+  await runPf2eTerminalApp(process.cwd(), process.argv.slice(2));
 }
 
 if (import.meta.url === new URL(process.argv[1] ?? "", "file:").href) {

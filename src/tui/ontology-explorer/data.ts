@@ -8,20 +8,20 @@ import type {
 import {
   getCurrentDerivedTagMigrationAuthoredState,
   getCurrentDerivedTagMigrationAuthoredStateRevision,
-} from "./authored-state.js";
+} from "../../tags/migration/authored-state.js";
 import {
   getDerivedTagExemplars,
   listDerivedTagLegacySeedMigrations,
   normalizeDerivedTag,
-} from "../index.js";
+} from "../../tags/index.js";
 import {
   buildOntologyExplorerEntityRecordSelectColumns,
   mapOntologyExplorerEntityRecordRow,
   type OntologyExplorerEntityRecord,
   type OntologyExplorerEntityRecordRow,
 } from "./entity-record.js";
-import { compareDisplayText, compareManagedCategory } from "./list-sorting.js";
-import { getPublishedDerivedTagMigrationOntology } from "./runtime-state.js";
+import { compareDisplayText, compareManagedCategory } from "../../tags/migration/list-sorting.js";
+import { getPublishedDerivedTagMigrationOntology } from "../../tags/migration/runtime-state.js";
 
 type ExplorerCountRow = {
   category: SearchCategory;

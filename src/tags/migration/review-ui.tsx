@@ -34,7 +34,7 @@ import {
   type DerivedTagTerminalLine,
   type DerivedTagTerminalTwoPaneFocus,
   type DerivedTagTerminalTwoPaneLayoutMode,
-} from "./terminal-ui.js";
+} from "../../tui/terminal-ui.js";
 import type { DerivedTagMigrationSession } from "./types.js";
 
 export type DerivedTagMigrationReviewResult = {
