@@ -479,8 +479,15 @@ function buildNavigatorEntryDetailLines(
     return [
       { text: entry.label, tone: "section" },
       { text: `Current value: ${entry.value}` },
-      { text: entry.description },
-      { text: entry.disabled ? "Enter is unavailable for the current workspace state." : "Press Enter to act on this item.", tone: entry.disabled ? "warning" : "accent" },
+      {
+        text: entry.disabled
+          ? `Unavailable: ${entry.description}`
+          : entry.description,
+        tone: entry.disabled ? "warning" : "default",
+      },
+      ...(entry.disabled
+        ? []
+        : [{ text: "Press Enter to edit or act on this item.", tone: "accent" as const }]),
       { text: "" },
       ...buildWorkspaceSummaryLines(state),
     ];
