@@ -143,6 +143,8 @@ describe("derived tag ontology", () => {
     expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.setting.description).toContain("Legacy umbrella family");
     expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.habitat_setting.description).toContain("habitat tags");
     expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.combat_role.description).toContain("tactical");
+    expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.encounter_role.description).toContain("scene-slot");
+    expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.social_role.description).toContain("outside one immediate encounter slot");
 
     const urbanSetting = CREATURE_DERIVED_TAG_ONTOLOGY.families.site_setting.tags.find((tag) => tag.tag === "urban_setting");
     expect(urbanSetting).toEqual(expect.objectContaining({
@@ -155,6 +157,9 @@ describe("derived tag ontology", () => {
       tag: "authority_npc",
       assignmentMode: "editorial",
       adjacentTags: ["profession_npc", "civic_npc"],
+      appliesWhen: expect.arrayContaining([
+        "Formal office or rank is the main retrieval hook, even if the creature also serves as a civic_npc or combatant_npc in the scene.",
+      ]),
     }));
     const guideNpc = CREATURE_DERIVED_TAG_ONTOLOGY.families.social_role.tags.find((tag) => tag.tag === "guide_npc");
     expect(guideNpc).toEqual(expect.objectContaining({
@@ -162,7 +167,16 @@ describe("derived tag ontology", () => {
       assignmentMode: "editorial",
       adjacentTags: ["profession_npc", "rural_setting"],
       appliesWhen: expect.arrayContaining([
-        "Leading others through terrain, routes, borders, or dangerous travel spaces is central to the creature's retrieval value.",
+        "Leading others through terrain, routes, borders, or dangerous travel spaces is central to the creature's world-facing identity.",
+      ]),
+    }));
+    const infiltratorNpc = CREATURE_DERIVED_TAG_ONTOLOGY.families.encounter_role.tags.find((tag) => tag.tag === "infiltrator_npc");
+    expect(infiltratorNpc).toEqual(expect.objectContaining({
+      tag: "infiltrator_npc",
+      assignmentMode: "editorial",
+      adjacentTags: ["combatant_npc", "criminal_npc"],
+      appliesWhen: expect.arrayContaining([
+        "This tag answers the creature's immediate scenario function rather than its broader profession, faction post, or criminal affiliation.",
       ]),
     }));
     const summonerCommander = CREATURE_DERIVED_TAG_ONTOLOGY.families.threat_profile.tags.find((tag) => tag.tag === "summoner_commander");

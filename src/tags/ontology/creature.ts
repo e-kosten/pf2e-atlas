@@ -569,7 +569,7 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     encounter_role: {
-      description: "Creature scene-use tags for encounter-ready NPC archetypes such as civic filler, role-defined combatants, and infiltration specialists.",
+      description: "Creature scene-slot tags for how a role-defined NPC or humanoid is used in an encounter or active scenario, separate from broader job, office, or institutional identity.",
       tags: [
         {
           tag: "civic_npc",
@@ -577,11 +577,12 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
           assignmentMode: "editorial",
           appliesWhen: [
             "The creature belongs to the civic, domestic, institutional, or everyday social fabric of the scene.",
-            "A GM would plausibly retrieve it as a socially embedded NPC rather than as a combat-forward foe."
+            "A GM would plausibly retrieve it as a socially embedded NPC rather than as a combat-forward foe.",
+            "This tag answers the creature's immediate scene slot, even if a separate social_role tag explains its profession or office."
           ],
           doesNotApplyWhen: [
             "The record is primarily a hostile combatant or raider.",
-            "The creature is only profession-labeled without clear social embeddedness."
+            "The creature is only profession-labeled without clear social embeddedness, or the profession or office itself is the main retrieval hook."
           ],
           adjacentTags: [
             "profession_npc",
@@ -590,15 +591,17 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
         },
         {
           tag: "combatant_npc",
-          description: "Role-defined humanoid combatant such as a soldier, bandit, mercenary, or cultist.",
+          description: "Scene-slot humanoid combatant such as a soldier, bandit, mercenary, or cult enforcer.",
           assignmentMode: "editorial",
           appliesWhen: [
             "The creature is presented as a role-defined humanoid adversary or martial operative.",
-            "Retrieval value comes from combat function rather than civic embedding."
+            "Retrieval value comes from combat function rather than civic embedding.",
+            "This tag answers how the creature functions in the immediate scene, even if it separately has a profession, rank, or institutional role."
           ],
           doesNotApplyWhen: [
             "The record is mainly a social or occupational NPC.",
-            "The creature is better captured by profession_npc or civic_npc without a strong combat-forward role."
+            "The creature is better captured by profession_npc or civic_npc without a strong combat-forward role.",
+            "The office, profession, or contact role is the stronger retrieval hook and combat readiness is only secondary."
           ],
           adjacentTags: [
             "authority_npc",
@@ -607,8 +610,16 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
         },
         {
           tag: "infiltrator_npc",
-          description: "Role-defined spy, saboteur, replacer, or quiet-entry specialist whose encounter value comes from infiltration more than a straight fight.",
+          description: "Scene-slot spy, saboteur, replacer, or quiet-entry specialist whose immediate scenario value comes from infiltration more than a straight fight.",
           assignmentMode: "editorial",
+          appliesWhen: [
+            "The creature is naturally retrieved as an embedded infiltrator, saboteur, impostor, spy, or quiet-entry specialist.",
+            "This tag answers the creature's immediate scenario function rather than its broader profession, faction post, or criminal affiliation."
+          ],
+          doesNotApplyWhen: [
+            "The creature is mainly a combatant_npc or civic_npc and only uses stealth or deception incidentally.",
+            "The stronger retrieval hook is criminal_npc or another social_role tag because the world-facing identity matters more than the scene slot."
+          ],
           adjacentTags: [
             "combatant_npc",
             "criminal_npc"
@@ -617,19 +628,20 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     social_role: {
-      description: "Creature world-facing social-role tags for concrete civilian, institutional, criminal, religious, and profession-facing roles that help populate settlements, factions, and likely NPC contacts.",
+      description: "Creature world-facing role tags for jobs, offices, institutions, and social identities that matter outside one immediate encounter slot.",
       tags: [
         {
           tag: "profession_npc",
-          description: "Role-defined NPC such as a captain, guard, merchant, or commoner.",
+          description: "World-facing role-defined NPC such as a captain, guard, merchant, priest, or commoner.",
           assignmentMode: "editorial",
           appliesWhen: [
             "The creature is primarily presented through a social role, job, office, or profession label.",
-            "Retrieval value comes from it being a role-defined NPC rather than a species-driven monster."
+            "Retrieval value comes from it being a role-defined NPC rather than a species-driven monster.",
+            "This tag answers what the creature is in the world, even if a separate encounter_role tag explains how it functions in the scene."
           ],
           doesNotApplyWhen: [
             "The role label is incidental to a stronger monster or combat identity.",
-            "The creature is better modeled only as combatant_npc or civic_npc."
+            "The creature is better modeled only as combatant_npc, infiltrator_npc, or civic_npc because the scene slot matters more than the job or office."
           ],
           adjacentTags: [
             "authority_npc",
@@ -642,11 +654,12 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
           assignmentMode: "editorial",
           appliesWhen: [
             "The creature's retrieval value comes from official office, rank, command, or institutional authority.",
-            "A GM would plausibly seek it as a leader, official, or governing figure within a scene."
+            "A GM would plausibly seek it as a leader, official, or governing figure.",
+            "Formal office or rank is the main retrieval hook, even if the creature also serves as a civic_npc or combatant_npc in the scene."
           ],
           doesNotApplyWhen: [
             "The record is only a generic combatant without meaningful office or status.",
-            "The stronger fit is profession_npc or civic_npc without a specific authority role."
+            "The stronger fit is profession_npc, civic_npc, or combatant_npc because status is incidental."
           ],
           adjacentTags: [
             "profession_npc",
@@ -658,7 +671,7 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
           description: "Presented as a priest, shrine keeper, cult officiant, monastic figure, or other explicitly religious role-holder.",
           assignmentMode: "editorial",
           appliesWhen: [
-            "Religious office, ritual duty, or custodianship of a faith space is central to the creature's scene value.",
+            "Religious office, ritual duty, or custodianship of a faith space is central to the creature's world-facing identity.",
             "The creature is naturally retrieved as clergy, cult staff, or sacred-site personnel."
           ],
           doesNotApplyWhen: [
@@ -692,7 +705,7 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
           description: "Presented as a sage, researcher, teacher, archivist, alchemist, or other knowledge-centered role-holder.",
           assignmentMode: "editorial",
           appliesWhen: [
-            "Research, teaching, scholarship, or recordkeeping is central to the creature's identity.",
+            "Research, teaching, scholarship, or recordkeeping is central to the creature's world-facing identity.",
             "The creature is naturally retrieved as an academic or knowledge-scene NPC."
           ],
           doesNotApplyWhen: [
@@ -709,7 +722,7 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
           description: "Presented as a physician, battlefield medic, herbalist, chirurgeon, caretaker, or other explicitly healing-facing role-holder.",
           assignmentMode: "editorial",
           appliesWhen: [
-            "Medical treatment, recovery support, or caretaker duty is central to why the creature would be retrieved for a scene.",
+            "Medical treatment, recovery support, or caretaker duty is central to the creature's world-facing identity.",
             "The record is naturally used as a healer, medic, apothecary, or restorative support NPC rather than only a generic scholar."
           ],
           doesNotApplyWhen: [
@@ -726,7 +739,7 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
           description: "Presented as a trader, broker, shopkeeper, caravan factor, or other commerce-facing role-holder.",
           assignmentMode: "editorial",
           appliesWhen: [
-            "Trade, selling, bargaining, or inventory-handling is central to the creature's retrieval value.",
+            "Trade, selling, bargaining, or inventory-handling is central to the creature's world-facing identity.",
             "The creature naturally fills a market, shop, caravan, or supply-scene role."
           ],
           doesNotApplyWhen: [
@@ -743,7 +756,7 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
           description: "Presented as a smith, craftsperson, builder, artisan, or other maker-facing role-holder tied to production or skilled labor.",
           assignmentMode: "editorial",
           appliesWhen: [
-            "Craft production, repair labor, or skilled making work is central to the creature's scene identity.",
+            "Craft production, repair labor, or skilled making work is central to the creature's world-facing identity.",
             "A GM would plausibly retrieve it as a blacksmith, mason, tailor, shipwright, or similarly maker-facing contact."
           ],
           doesNotApplyWhen: [
@@ -760,7 +773,7 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
           description: "Presented as a scout, tracker, ferryman, caravan guide, wilderness pathfinder, or other route-leading specialist.",
           assignmentMode: "editorial",
           appliesWhen: [
-            "Leading others through terrain, routes, borders, or dangerous travel spaces is central to the creature's retrieval value.",
+            "Leading others through terrain, routes, borders, or dangerous travel spaces is central to the creature's world-facing identity.",
             "The record is naturally used as a scout, pathfinder, navigator, or local guide rather than only a generic outdoors person."
           ],
           doesNotApplyWhen: [
@@ -777,7 +790,7 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
           description: "Presented as a musician, actor, dancer, herald, jester, or other entertainment-facing role-holder.",
           assignmentMode: "editorial",
           appliesWhen: [
-            "Performance, spectacle, or entertainment labor is central to the creature's scene identity.",
+            "Performance, spectacle, or entertainment labor is central to the creature's world-facing identity.",
             "The creature would be retrieved for theater, carnival, court entertainment, or tavern-stage scenes."
           ],
           doesNotApplyWhen: [
