@@ -19,6 +19,80 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
         }
       ]
     },
+    access_bypass: {
+      axis: "utility",
+      description: "Spells that open secured access, neutralize trapped entry, bypass blocked thresholds, or precisely manipulate important mechanisms.",
+      tags: [
+        {
+          tag: "lock_bypass",
+          description: "Opens locks, sealed containers, secured doors, or similar closed access points through magic rather than physical lockpicking.",
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "The spell is naturally retrieved to unlock, unseal, or open a secured entry point, door, chest, manacle, or similar closure.",
+            "Accessing something closed matters more than broad movement, damage, or generic anti-magic."
+          ],
+          doesNotApplyWhen: [
+            "The spell mainly destroys the obstacle, bypasses the whole wall, or teleports past the problem without interacting with the locked access point.",
+            "The spell only manipulates unattended objects generally and opening secured access is not a real retrieval hook."
+          ],
+          adjacentTags: [
+            "trap_bypass",
+            "barrier_bypass"
+          ]
+        },
+        {
+          tag: "trap_bypass",
+          description: "Disarms, suppresses, safely triggers, or helps bypass a trap, warded threshold, or similar trapped access problem.",
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "The spell is naturally retrieved to disable, neutralize, or get past a trap or trapped access point without simply enduring the hazard.",
+            "Trap-solving matters more than generic revelation, scouting, or damage prevention."
+          ],
+          doesNotApplyWhen: [
+            "The spell only reveals that a trap exists without helping bypass or disable it.",
+            "The spell mainly counters open combat hazards or battlefield effects rather than access-facing traps."
+          ],
+          adjacentTags: [
+            "lock_bypass",
+            "mechanism_manipulation"
+          ]
+        },
+        {
+          tag: "barrier_bypass",
+          description: "Gets a creature through a blocked threshold, wall, seal, force barrier, or magical ward that otherwise prevents passage.",
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "The spell is naturally retrieved to pass through, nullify, or ignore a blocking wall, sealed threshold, force barrier, or magical ward.",
+            "Crossing the obstruction matters more than simply traveling farther or counteracting magic in the abstract."
+          ],
+          doesNotApplyWhen: [
+            "The spell only unlocks a door or manipulates a mechanism without really solving a barrier or ward.",
+            "The spell's value is ordinary travel or relocation rather than penetrating a blocked passage."
+          ],
+          adjacentTags: [
+            "lock_bypass",
+            "countermagic"
+          ]
+        },
+        {
+          tag: "mechanism_manipulation",
+          description: "Precisely triggers, moves, holds, or operates levers, buttons, switches, pressure plates, locks, or similar scene mechanisms.",
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "The spell is naturally retrieved to operate a lever, button, latch, control panel, pressure surface, or similar mechanism from a safe or unusual position.",
+            "The mechanism interaction itself matters more than broad telekinesis, damage, or ordinary object movement."
+          ],
+          doesNotApplyWhen: [
+            "The spell only moves creatures or loose objects without a real access-, control-, or mechanism-facing use case.",
+            "The spell bypasses the obstacle by teleporting or destroying it instead of operating the mechanism."
+          ],
+          adjacentTags: [
+            "lock_bypass",
+            "trap_bypass"
+          ]
+        }
+      ]
+    },
     communication: {
       axis: "utility",
       description: "Communication and coordination spells for messaging, psychic speech, and language-bridging.",

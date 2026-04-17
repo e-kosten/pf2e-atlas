@@ -85,6 +85,16 @@ describe("derived tag catalog", () => {
       }),
       expect.objectContaining({
         category: "spell",
+        family: "access_bypass",
+        axis: "utility",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "lock_bypass", description: expect.any(String) }),
+          expect.objectContaining({ value: "barrier_bypass", description: expect.any(String) }),
+          expect.objectContaining({ value: "mechanism_manipulation", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "spell",
         family: "communication",
         axis: "utility",
         tags: expect.arrayContaining([

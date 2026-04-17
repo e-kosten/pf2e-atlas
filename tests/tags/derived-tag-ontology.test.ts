@@ -74,6 +74,24 @@ describe("derived tag ontology", () => {
       assignmentMode: "composite",
       compositeOfAnyTags: ["alarm", "scrying_protection", "protective_ward", "countermagic"],
     }));
+    const spellLockBypass = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "spell" && tag.tag === "lock_bypass");
+    expect(spellLockBypass).toEqual(expect.objectContaining({
+      family: "access_bypass",
+      assignmentMode: "hybrid",
+      adjacentTags: ["trap_bypass", "barrier_bypass"],
+      appliesWhen: expect.arrayContaining([
+        "The spell is naturally retrieved to unlock, unseal, or open a secured entry point, door, chest, manacle, or similar closure.",
+      ]),
+    }));
+    const spellMechanismManipulation = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "spell" && tag.tag === "mechanism_manipulation");
+    expect(spellMechanismManipulation).toEqual(expect.objectContaining({
+      family: "access_bypass",
+      assignmentMode: "hybrid",
+      adjacentTags: ["lock_bypass", "trap_bypass"],
+      appliesWhen: expect.arrayContaining([
+        "The spell is naturally retrieved to operate a lever, button, latch, control panel, pressure surface, or similar mechanism from a safe or unusual position.",
+      ]),
+    }));
 
     const urbanSetting = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "creature" && tag.tag === "urban_setting");
     expect(urbanSetting).toEqual(expect.objectContaining({
@@ -144,6 +162,22 @@ describe("derived tag ontology", () => {
       expect.objectContaining({
         value: "revelation",
         assignmentMode: "composite",
+      }),
+    ]));
+    const groupedSpellAccessBypass = groupedCatalog.find((entry) => entry.category === "spell" && entry.family === "access_bypass");
+    expect(groupedSpellAccessBypass?.axis).toBe("utility");
+    expect(groupedSpellAccessBypass?.tags).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        value: "lock_bypass",
+        assignmentMode: "hybrid",
+      }),
+      expect.objectContaining({
+        value: "barrier_bypass",
+        assignmentMode: "hybrid",
+      }),
+      expect.objectContaining({
+        value: "mechanism_manipulation",
+        assignmentMode: "hybrid",
       }),
     ]));
     const groupedCombatRole = groupedCatalog.find((entry) => entry.category === "creature" && entry.family === "combat_role");
