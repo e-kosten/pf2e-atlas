@@ -1,34 +1,39 @@
 import React from "react";
-import { DatabaseSync } from "node:sqlite";
 
 import type { SearchCategory, SearchSubcategory } from "../types.js";
-import { AreaMenuScreen, type Pf2eTopLevelArea } from "./area-menu-screen.js";
-import { SearchScreen } from "./search-screen.js";
-import { TagRefinementMenuScreen, type TagRefinementMenuItem } from "./tag-refinement-menu-screen.js";
-import { TerminalBusyScreen } from "./shared-screens.js";
-import { moveSelectionWrapped, runDerivedTagTerminalApp, useDerivedTagTerminalApp } from "./terminal-ui.js";
-import { DerivedTagOntologyExplorerScreen } from "./ontology-explorer/screen.js";
 import { DerivedTagMigrationReviewScreen } from "../tags/migration/review-ui.js";
-import {
-  DEFAULT_DERIVED_TAG_MIGRATION_WORKBENCH_SERVICES,
-  createDerivedTagMigrationWorkbenchSession,
-  getDerivedTagMigrationWorkbenchQueueItems,
-  openDerivedTagMigrationWorkbenchOntology,
-  promptAndCreateDerivedTagMigrationWorkbenchSession,
-  type DerivedTagMigrationWorkbenchServices,
-} from "../tags/migration/workbench-controller.js";
 import { formatDerivedTagMigrationModeLabel } from "../tags/migration/workbench-session-prompts.js";
 import type {
   DerivedTagMigrationMode,
   DerivedTagMigrationReviewDecisionKind,
   DerivedTagMigrationSession,
 } from "../tags/migration/types.js";
+import { Pf2eTerminalAppServicesProvider } from "./app-service-context.js";
+import {
+  loadPf2eTerminalAppServices,
+  type Pf2eTerminalAppServices,
+} from "./app-services.js";
+import { AreaMenuScreen, type Pf2eTopLevelArea } from "./area-menu-screen.js";
+import { isBackOrExitKey } from "./keymap.js";
+import { DerivedTagOntologyExplorerScreen } from "./ontology-explorer/screen.js";
+import type { DerivedTagOntologyExplorerModel } from "./ontology-explorer/data.js";
+import { SearchScreen } from "./search-screen.js";
+import { TerminalBusyScreen } from "./shared-screens.js";
+import {
+  TerminalTextScreen,
+  getNormalizedKeyName,
+  moveSelectionWrapped,
+  runDerivedTagTerminalApp,
+  useDerivedTagTerminalApp,
+  useDerivedTagTerminalInput,
+} from "./terminal-ui.js";
+import { TagRefinementMenuScreen, type TagRefinementMenuItem } from "./tag-refinement-menu-screen.js";
 
 type Pf2eAppRoute =
   | { kind: "areas" }
   | { kind: "tag_refinement" }
   | { kind: "search" }
-  | { kind: "ontology"; db: DatabaseSync; cacheKey?: string }
+  | { kind: "ontology"; model: DerivedTagOntologyExplorerModel }
   | { kind: "review"; session: DerivedTagMigrationSession };
 
 export type Pf2eAppState = {
@@ -58,7 +63,7 @@ const PF2E_APP_AREAS: Pf2eTopLevelArea[] = [
   {
     id: "search",
     label: "Search",
-    description: "Future first-class search surface for exact lookup, hard-filter browsing, and ranked/semantic retrieval.",
+    description: "User-facing lookup and search over the same indexed PF2E data surfaced by the MCP server.",
   },
 ];
 
@@ -99,24 +104,49 @@ export function createPf2eAppState(initialRoute: Pf2eAppRoute = { kind: "areas" 
   };
 }
 
+function StartupErrorScreen({
+  message,
+  onExit,
+}: {
+  message: string;
+  onExit: () => void;
+}): React.JSX.Element {
+  useDerivedTagTerminalInput((input, key) => {
+    const normalized = getNormalizedKeyName(input, key);
+    if (isBackOrExitKey(normalized)) {
+      onExit();
+    }
+  });
+
+  return (
+    <TerminalTextScreen
+      title={PF2E_TERMINAL_TITLE}
+      body={[
+        { text: "Could not load the PF2E app services.", tone: "section" },
+        { text: "" },
+        { text: message },
+      ]}
+      footer={[{ text: "q or Backspace exit", tone: "dim" }]}
+    />
+  );
+}
+
 export function Pf2eTerminalApp({
   rootPath,
-  argv,
   onExit,
   initialRoute = { kind: "areas" } satisfies Pf2eAppRoute,
-  services = DEFAULT_DERIVED_TAG_MIGRATION_WORKBENCH_SERVICES,
+  services,
 }: {
   rootPath: string;
-  argv: string[];
   onExit: () => void;
   initialRoute?: Pf2eAppRoute;
-  services?: DerivedTagMigrationWorkbenchServices;
+  services: Pf2eTerminalAppServices;
 }): React.JSX.Element {
   const terminal = useDerivedTagTerminalApp();
   const [state, dispatch] = React.useReducer(pf2eAppReducer, initialRoute, createPf2eAppState);
   const [busyMessage, setBusyMessage] = React.useState<string | null>(null);
 
-  const queueItems = getDerivedTagMigrationWorkbenchQueueItems(services);
+  const queueItems = services.tagWorkbench.getQueueItems();
 
   const runWithBusyState = React.useCallback(async <T,>(message: string, task: () => Promise<T>): Promise<T> => {
     setBusyMessage(message);
@@ -145,18 +175,18 @@ export function Pf2eTerminalApp({
   ) => {
     await runWithBusyState(`Preparing ${formatDerivedTagMigrationModeLabel(mode)} session...`, async () => {
       try {
-        const session = await createDerivedTagMigrationWorkbenchSession(rootPath, argv, mode, options, services);
+        const session = await services.tagWorkbench.createSession(rootPath, mode, options);
         openReviewSession(session);
       } catch (error) {
         await terminal.pauseForAnyKey(`Could not create the ${formatDerivedTagMigrationModeLabel(mode)} session.\n\n${(error as Error).message}`);
       }
     });
-  }, [argv, openReviewSession, rootPath, runWithBusyState, services, terminal]);
+  }, [openReviewSession, rootPath, runWithBusyState, services, terminal]);
 
   const startCustomSession = React.useCallback(async (mode: DerivedTagMigrationMode) => {
     await runWithBusyState(`Loading ${formatDerivedTagMigrationModeLabel(mode)} session options...`, async () => {
       try {
-        const session = await promptAndCreateDerivedTagMigrationWorkbenchSession(rootPath, argv, mode, terminal, services);
+        const session = await services.tagWorkbench.promptAndCreateSession(rootPath, mode, terminal);
         if (session) {
           openReviewSession(session);
         }
@@ -164,21 +194,18 @@ export function Pf2eTerminalApp({
         await terminal.pauseForAnyKey(`Could not create the ${formatDerivedTagMigrationModeLabel(mode)} session.\n\n${(error as Error).message}`);
       }
     });
-  }, [argv, openReviewSession, rootPath, runWithBusyState, services, terminal]);
+  }, [openReviewSession, rootPath, runWithBusyState, services, terminal]);
 
   const openOntology = React.useCallback(async () => {
     await runWithBusyState("Opening ontology explorer...", async () => {
-      const { db, cacheKey } = await openDerivedTagMigrationWorkbenchOntology(argv, services);
-      dispatch({
-        type: "set_route",
-        route: {
-          kind: "ontology",
-          cacheKey,
-          db,
-        },
-      });
+      try {
+        const model = services.tagWorkbench.getOntologyModel();
+        dispatch({ type: "set_route", route: { kind: "ontology", model } });
+      } catch (error) {
+        await terminal.pauseForAnyKey(`Could not open ontology explorer.\n\n${(error as Error).message}`);
+      }
     });
-  }, [argv, runWithBusyState, services]);
+  }, [runWithBusyState, services, terminal]);
 
   const openSelectedArea = React.useCallback(() => {
     const selectedArea = PF2E_APP_AREAS[state.selectedAreaIndex];
@@ -232,26 +259,20 @@ export function Pf2eTerminalApp({
     void startCustomSession(mode);
   }, [createSessionAndOpenReview, startCustomSession]);
 
+  let screen: React.JSX.Element;
   if (busyMessage) {
-    return <TerminalBusyScreen title={PF2E_TERMINAL_TITLE} message={busyMessage} />;
-  }
-
-  if (state.route.kind === "ontology") {
-    const route = state.route;
-    return (
+    screen = <TerminalBusyScreen title={PF2E_TERMINAL_TITLE} message={busyMessage} />;
+  } else if (state.route.kind === "ontology") {
+    screen = (
       <DerivedTagOntologyExplorerScreen
-        db={route.db}
-        options={{ cacheKey: route.cacheKey }}
+        model={state.route.model}
         onExit={() => {
-          route.db.close();
           dispatch({ type: "set_route", route: { kind: "areas" } });
         }}
       />
     );
-  }
-
-  if (state.route.kind === "review") {
-    return (
+  } else if (state.route.kind === "review") {
+    screen = (
       <DerivedTagMigrationReviewScreen
         rootPath={rootPath}
         initialSession={state.route.session}
@@ -260,18 +281,14 @@ export function Pf2eTerminalApp({
         }}
       />
     );
-  }
-
-  if (state.route.kind === "search") {
-    return (
+  } else if (state.route.kind === "search") {
+    screen = (
       <SearchScreen
         onBack={() => dispatch({ type: "set_route", route: { kind: "areas" } })}
       />
     );
-  }
-
-  if (state.route.kind === "tag_refinement") {
-    return (
+  } else if (state.route.kind === "tag_refinement") {
+    screen = (
       <TagRefinementMenuScreen
         selectedIndex={state.tagRefinementSelectedIndex}
         queueItems={queueItems}
@@ -283,17 +300,85 @@ export function Pf2eTerminalApp({
         onQuickAction={runQuickTagRefinementAction}
       />
     );
+  } else {
+    screen = (
+      <AreaMenuScreen
+        title={PF2E_TERMINAL_TITLE}
+        selectedAreaIndex={state.selectedAreaIndex}
+        areas={PF2E_APP_AREAS}
+        pendingReviewCount={queueItems.length}
+        onMove={(delta) => dispatch({ type: "move_area", delta })}
+        onOpenSelectedArea={openSelectedArea}
+        onQuit={onExit}
+      />
+    );
   }
 
   return (
-    <AreaMenuScreen
-      title={PF2E_TERMINAL_TITLE}
-      selectedAreaIndex={state.selectedAreaIndex}
-      areas={PF2E_APP_AREAS}
-      pendingReviewCount={queueItems.length}
-      onMove={(delta) => dispatch({ type: "move_area", delta })}
-      onOpenSelectedArea={openSelectedArea}
-      onQuit={onExit}
+    <Pf2eTerminalAppServicesProvider services={services}>
+      {screen}
+    </Pf2eTerminalAppServicesProvider>
+  );
+}
+
+export function Pf2eTerminalBootstrap({
+  rootPath,
+  argv,
+  onExit,
+  initialRoute = { kind: "areas" } satisfies Pf2eAppRoute,
+  loadServices = loadPf2eTerminalAppServices,
+}: {
+  rootPath: string;
+  argv: string[];
+  onExit: () => void;
+  initialRoute?: Pf2eAppRoute;
+  loadServices?: (argv: string[]) => Promise<Pf2eTerminalAppServices>;
+}): React.JSX.Element {
+  const [status, setStatus] = React.useState<
+    | { kind: "loading" }
+    | { kind: "ready"; services: Pf2eTerminalAppServices }
+    | { kind: "error"; message: string }
+  >({ kind: "loading" });
+
+  React.useEffect(() => {
+    let active = true;
+    let loadedServices: Pf2eTerminalAppServices | null = null;
+
+    void loadServices(argv)
+      .then((services) => {
+        if (!active) {
+          services.close();
+          return;
+        }
+        loadedServices = services;
+        setStatus({ kind: "ready", services });
+      })
+      .catch((error) => {
+        if (active) {
+          setStatus({ kind: "error", message: (error as Error).message });
+        }
+      });
+
+    return () => {
+      active = false;
+      loadedServices?.close();
+    };
+  }, [argv, loadServices]);
+
+  if (status.kind === "loading") {
+    return <TerminalBusyScreen title={PF2E_TERMINAL_TITLE} message="Loading PF2E app services..." />;
+  }
+
+  if (status.kind === "error") {
+    return <StartupErrorScreen message={status.message} onExit={onExit} />;
+  }
+
+  return (
+    <Pf2eTerminalApp
+      rootPath={rootPath}
+      onExit={onExit}
+      initialRoute={initialRoute}
+      services={status.services}
     />
   );
 }
@@ -307,7 +392,7 @@ function Pf2eTerminalAppRunner({
 }): React.JSX.Element {
   const terminal = useDerivedTagTerminalApp();
   return (
-    <Pf2eTerminalApp
+    <Pf2eTerminalBootstrap
       rootPath={rootPath}
       argv={argv}
       onExit={() => terminal.exitApp()}

@@ -4,6 +4,7 @@ import { DatabaseSync } from "node:sqlite";
 import { cleanup, render } from "ink-testing-library";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { buildDerivedTagOntologyExplorerModel } from "../../src/tui/ontology-explorer/data.js";
 import { DerivedTagOntologyExplorerScreen } from "../../src/tui/ontology-explorer/screen.js";
 import { DerivedTagTerminalProvider } from "../../src/tui/terminal-ui.js";
 
@@ -140,10 +141,11 @@ describe("ontology explorer screen", () => {
 
   it("treats q as search input while inline search is active", async () => {
     const db = createExplorerDb();
+    const model = buildDerivedTagOntologyExplorerModel(db);
     const onExit = vi.fn();
     const app = render(
       <DerivedTagTerminalProvider>
-        <DerivedTagOntologyExplorerScreen db={db} onExit={onExit} />
+        <DerivedTagOntologyExplorerScreen model={model} onExit={onExit} />
       </DerivedTagTerminalProvider>,
     );
 

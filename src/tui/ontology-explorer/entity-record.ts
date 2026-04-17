@@ -1,4 +1,4 @@
-import type { SearchCategory, SearchSubcategory, SourceCategory } from "../../types.js";
+import type { NormalizedRecord, SearchCategory, SearchSubcategory, SourceCategory } from "../../types.js";
 
 export type OntologyExplorerEntityRecord = {
   recordKey: string;
@@ -225,5 +225,58 @@ export function mapOntologyExplorerEntityRecordRow(
     disableText: row.disableText,
     disableSkills: parseStringArray(row.disableSkillsJson),
     isComplex: Boolean(row.isComplex),
+  };
+}
+
+export function mapNormalizedRecordToOntologyExplorerEntityRecord(
+  record: NormalizedRecord,
+): OntologyExplorerEntityRecord {
+  return {
+    recordKey: record.recordKey,
+    packName: record.packName,
+    name: record.name,
+    type: record.type,
+    category: record.category,
+    subcategory: record.subcategory,
+    documentType: record.documentType,
+    level: record.level,
+    rarity: record.rarity,
+    traits: record.traits,
+    derivedTags: record.derivedTags,
+    families: record.families,
+    descriptionText: record.descriptionText,
+    blurbText: record.blurbText,
+    sourceCategory: record.sourceCategory,
+    publicationTitle: record.publicationTitle,
+    publicationRemaster: record.publicationRemaster,
+    isUnique: record.isUnique,
+    size: record.size,
+    languages: record.languages,
+    speedTypes: record.speedTypes,
+    senses: record.senses,
+    immunities: record.immunities,
+    resistances: record.resistances,
+    weaknesses: record.weaknesses,
+    itemCategory: record.itemCategory,
+    baseItem: record.baseItem,
+    priceCp: record.priceCp,
+    usage: record.usage,
+    hands: record.hands,
+    damageTypes: record.damageTypes,
+    weaponGroup: record.weaponGroup,
+    armorGroup: record.armorGroup,
+    traditions: record.traditions,
+    spellKinds: record.spellKinds,
+    saveType: record.saveType,
+    areaType: record.areaType,
+    rangeText: record.rangeText,
+    durationText: record.durationText,
+    targetText: record.targetText,
+    areaValue: record.areaValue,
+    sustained: record.sustained,
+    basicSave: record.basicSave,
+    disableText: record.disableText,
+    disableSkills: record.disableSkills,
+    isComplex: record.isComplex,
   };
 }

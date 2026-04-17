@@ -1,7 +1,6 @@
 import React from "react";
-import { DatabaseSync } from "node:sqlite";
 
-import { buildDerivedTagOntologyExplorerModel } from "./data.js";
+import type { DerivedTagOntologyExplorerModel } from "./data.js";
 import {
   TerminalPaneScreen,
   TerminalTwoPaneScreen,
@@ -55,7 +54,7 @@ type ExplorerAction =
   | { type: "set_pending_g"; pending: boolean };
 
 function explorerReducer(
-  model: ReturnType<typeof buildDerivedTagOntologyExplorerModel>,
+  model: DerivedTagOntologyExplorerModel,
   state: DerivedTagOntologyExplorerUiState,
   action: ExplorerAction,
 ): DerivedTagOntologyExplorerUiState {
@@ -173,17 +172,14 @@ function explorerReducer(
 }
 
 export function DerivedTagOntologyExplorerScreen({
-  db,
-  options = {},
+  model,
   onExit,
 }: {
-  db: DatabaseSync;
-  options?: { cacheKey?: string };
+  model: DerivedTagOntologyExplorerModel;
   onExit: () => void;
 }): React.JSX.Element {
   const terminal = useDerivedTagTerminalApp();
   const size = useDerivedTagTerminalSize();
-  const model = React.useMemo(() => buildDerivedTagOntologyExplorerModel(db, options), [db, options]);
   const [state, dispatch] = React.useReducer(
     (current: DerivedTagOntologyExplorerUiState, action: ExplorerAction) => explorerReducer(model, current, action),
     model,
