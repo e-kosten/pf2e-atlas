@@ -16,6 +16,7 @@ import {
   normalizeDerivedTag,
 } from "../index.js";
 import type { OntologyExplorerEntityRecord } from "./entity-page.js";
+import { compareDisplayText, compareManagedCategory } from "./list-sorting.js";
 import { getPublishedDerivedTagMigrationOntology } from "./runtime-state.js";
 
 type ExplorerCountRow = {
@@ -536,7 +537,7 @@ function buildRecordNodesByTagKey(
     const records = recordKeys
       .map((recordKey) => recordsByKey.get(recordKey))
       .filter((record): record is OntologyExplorerEntityRecord => Boolean(record))
-      .sort((left, right) => left.name.localeCompare(right.name) || left.recordKey.localeCompare(right.recordKey))
+      .sort((left, right) => compareDisplayText(left.name, right.name) || left.recordKey.localeCompare(right.recordKey))
       .map((record) => ({
         kind: "record" as const,
         key: record.recordKey,
@@ -621,7 +622,8 @@ export function buildDerivedTagOntologyExplorerModel(
             records: recordNodesByTagKey.get(tagKey) ?? [],
             filterText: buildTagFilterText(tag),
           };
-        });
+        })
+        .sort((left, right) => compareDisplayText(left.tag, right.tag) || left.key.localeCompare(right.key));
 
       const familyNode: DerivedTagOntologyExplorerFamilyNode = {
         kind: "family",
@@ -647,16 +649,19 @@ export function buildDerivedTagOntologyExplorerModel(
     .values();
 
   const model = {
-    categories: [...categories].map((category) => ({
-      ...category,
-      families: [...category.families].sort((left, right) =>
-        left.axis.localeCompare(right.axis)
-        || left.family.localeCompare(right.family)),
-      filterText: [
-        category.category,
-        ...category.families.map((family) => `${family.family} ${family.description}`),
-      ].join(" ").toLowerCase(),
-    })),
+    categories: [...categories]
+      .map((category) => ({
+        ...category,
+        families: [...category.families].sort((left, right) =>
+          compareDisplayText(left.axis, right.axis)
+          || compareDisplayText(left.family, right.family)
+          || left.key.localeCompare(right.key)),
+        filterText: [
+          category.category,
+          ...category.families.map((family) => `${family.family} ${family.description}`),
+        ].join(" ").toLowerCase(),
+      }))
+      .sort((left, right) => compareManagedCategory(left.category, right.category)),
   };
 
   if (options.cacheKey) {

@@ -13,6 +13,11 @@ import {
   getPublishedDerivedTagMigrationOntology,
   summarizeCurrentDerivedTagReviewQueue,
 } from "../migration/runtime-state.js";
+import {
+  compareDisplayText,
+  compareManagedCategory,
+  DERIVED_TAG_MANAGED_CATEGORIES,
+} from "../migration/list-sorting.js";
 import { runDerivedTagMigrationReviewUi } from "../migration/review-ui.js";
 import { writeDerivedTagMigrationSession } from "../migration/session-store.js";
 import { buildDerivedTagMigrationSession } from "../migration/session-builder.js";
@@ -32,13 +37,11 @@ import {
   type DerivedTagTerminalSession,
 } from "../migration/terminal-ui.js";
 import type {
-  DerivedTagManagedCategory,
   DerivedTagMigrationMode,
   DerivedTagMigrationReviewDecisionKind,
   DerivedTagReviewQueueSummaryItem,
 } from "../migration/types.js";
 
-const MANAGED_CATEGORIES: DerivedTagManagedCategory[] = ["affliction", "creature", "equipment", "hazard", "spell"];
 const ANY_CATEGORY = "__all_categories__";
 const ANY_SUBCATEGORY = "__all_subcategories__";
 const ANY_FAMILY = "__all_families__";
@@ -192,7 +195,7 @@ function normalizeOptional(value: string | undefined): string | undefined {
 }
 
 function uniqueSorted(values: string[]): string[] {
-  return [...new Set(values)].sort((left, right) => left.localeCompare(right));
+  return [...new Set(values)].sort((left, right) => compareDisplayText(left, right) || left.localeCompare(right));
 }
 
 function getSessionScopeOntology() {
@@ -201,7 +204,7 @@ function getSessionScopeOntology() {
 
 function buildCategorySelectOptions(required: boolean): DerivedTagTerminalSelectOption<string>[] {
   const ontology = getSessionScopeOntology();
-  const categoryOptions = MANAGED_CATEGORIES.map((category) => {
+  const categoryOptions = DERIVED_TAG_MANAGED_CATEGORIES.map((category) => {
     const families = ontology.families.filter((family) => family.category === category);
     const tags = ontology.tags.filter((tag) => tag.category === category);
     return {
@@ -300,8 +303,9 @@ function buildFamilySelectOptions(
   const familyOptions = ontology.families
     .filter((family) => familyMatchesScope(category, subcategory, family))
     .sort((left, right) =>
-      left.category.localeCompare(right.category)
-      || left.axis.localeCompare(right.axis)
+      compareManagedCategory(left.category, right.category)
+      || compareDisplayText(left.axis, right.axis)
+      || compareDisplayText(left.family, right.family)
       || left.family.localeCompare(right.family))
     .map((family) => ({
       value: category ? family.family : `${family.category}:${family.family}`,
@@ -363,8 +367,9 @@ function buildTagSelectOptions(
   const tagOptions = ontology.tags
     .filter((tag) => tagMatchesScope(category, subcategory, family, tag))
     .sort((left, right) =>
-      left.category.localeCompare(right.category)
-      || left.family.localeCompare(right.family)
+      compareManagedCategory(left.category, right.category)
+      || compareDisplayText(left.family, right.family)
+      || compareDisplayText(left.tag, right.tag)
       || left.tag.localeCompare(right.tag))
     .map((tag) => {
       const family = ontology.familyByKey.get(`${tag.category}:${normalizeDerivedTag(tag.family)}` as `${SearchCategory}:${string}`);

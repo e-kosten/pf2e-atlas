@@ -10,6 +10,7 @@ import {
 } from "../runtime/assignments.js";
 import { publishDerivedTagOntology, type PublishedDerivedTagOntology } from "../runtime/catalog-utils.js";
 import type { DerivedTagSource } from "../runtime/catalog-utils.js";
+import { compareReviewQueueItems } from "./list-sorting.js";
 import type { DerivedTagMigrationDecision, DerivedTagReviewQueueSummaryItem } from "./types.js";
 import { getCurrentDerivedTagMigrationAuthoredState } from "./authored-state.js";
 
@@ -123,11 +124,5 @@ export function summarizeCurrentDerivedTagReviewQueue(): DerivedTagReviewQueueSu
     item.confidence = confidences.size <= 1 ? [...confidences][0] ?? "unspecified" : "mixed";
   }
 
-  return [...counts.values()]
-    .sort((left, right) =>
-      left.kind.localeCompare(right.kind)
-      || left.category.localeCompare(right.category)
-      || (left.family ?? "").localeCompare(right.family ?? "")
-      || left.tag.localeCompare(right.tag)
-      || left.confidence.localeCompare(right.confidence));
+  return [...counts.values()].sort(compareReviewQueueItems);
 }

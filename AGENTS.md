@@ -33,6 +33,7 @@ Use trunk-based branches such as `feat/<topic>` or `fix/<topic>`. Commit message
 Agents must do implementation work in a dedicated git worktree, not in the shared main checkout.
 
 - Before editing tracked files, create or switch to an isolated worktree rooted at a new branch from the current `main` HEAD.
+- Create agent worktrees only under a writable sandbox root available to the current session, such as `/tmp`. Do not create sibling worktrees next to the main checkout unless that path is explicitly writable in the environment.
 - Do not share a checkout with another running agent, and do not reuse the user's current working tree for agent edits.
 - Commit and validate the change inside the worktree first.
 - When the worktree change is ready to land, inspect the shared `main` checkout first. If `main` has any uncommitted tracked changes, stop and tell the user instead of merging.

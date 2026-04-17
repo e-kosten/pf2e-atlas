@@ -473,4 +473,131 @@ describe("derived tag migration tooling", () => {
       setCurrentDerivedTagMigrationAuthoredState(initialState);
     }
   });
+
+  it("sorts the review queue by kind, confidence, count, managed category order, and normalized labels", () => {
+    const initialState = getCurrentDerivedTagMigrationAuthoredState();
+
+    try {
+      const nextState = structuredClone(initialState);
+      nextState.assignmentReviews.affliction = {
+        category: "affliction",
+        decisions: [
+          {
+            name: "Affliction Alpha",
+            recordKey: "affliction:alpha",
+            family: "tracking",
+            tag: "zeta_watch",
+            mode: "include",
+            confidence: "low",
+            rationale: "Low-confidence review item.",
+          },
+          {
+            name: "Affliction Beta",
+            recordKey: "affliction:beta",
+            family: "tracking",
+            tag: "zeta_watch",
+            mode: "include",
+            confidence: "medium",
+            rationale: "Creates a mixed-confidence bucket.",
+          },
+        ],
+      };
+      nextState.assignmentReviews.creature = {
+        category: "creature",
+        decisions: [
+          {
+            name: "Creature Alpha",
+            recordKey: "creature:alpha",
+            family: "alarm",
+            tag: "alarm_2",
+            mode: "include",
+            confidence: "low",
+            rationale: "Lower numbered normalized label should sort first.",
+          },
+          {
+            name: "Creature Beta",
+            recordKey: "creature:beta",
+            family: "alarm",
+            tag: "alarm_10",
+            mode: "include",
+            confidence: "low",
+            rationale: "Higher numbered normalized label should sort later.",
+          },
+        ],
+      };
+      nextState.assignmentReviews.equipment = {
+        category: "equipment",
+        decisions: [
+          {
+            name: "Equipment Alpha",
+            recordKey: "equipment:alpha",
+            family: "infiltration",
+            tag: "social_infiltration",
+            mode: "include",
+            confidence: "high",
+            rationale: "High-confidence assignment should sort after lower-confidence items.",
+          },
+        ],
+      };
+      nextState.exemplarReviews.affliction = {
+        category: "affliction",
+        decisions: [
+          {
+            name: "Affliction Exemplar",
+            recordKey: "affliction:exemplar",
+            tag: "alarm",
+            proposedPolarity: "positive",
+            status: "needs_review",
+            confidence: "low",
+            rationale: "Exemplar items should sort after assignments.",
+          },
+        ],
+      };
+      setCurrentDerivedTagMigrationAuthoredState(nextState);
+
+      expect(summarizeCurrentDerivedTagReviewQueue().slice(0, 5)).toEqual([
+        {
+          kind: "assignment",
+          category: "affliction",
+          family: "tracking",
+          tag: "zeta_watch",
+          count: 2,
+          confidence: "mixed",
+        },
+        {
+          kind: "assignment",
+          category: "creature",
+          family: "alarm",
+          tag: "alarm_2",
+          count: 1,
+          confidence: "low",
+        },
+        {
+          kind: "assignment",
+          category: "creature",
+          family: "alarm",
+          tag: "alarm_10",
+          count: 1,
+          confidence: "low",
+        },
+        {
+          kind: "assignment",
+          category: "equipment",
+          family: "infiltration",
+          tag: "social_infiltration",
+          count: 1,
+          confidence: "high",
+        },
+        {
+          kind: "exemplar",
+          category: "affliction",
+          tag: "alarm",
+          count: 1,
+          confidence: "low",
+        },
+      ]);
+    } finally {
+      setCurrentDerivedTagMigrationAuthoredState(initialState);
+    }
+  });
 });

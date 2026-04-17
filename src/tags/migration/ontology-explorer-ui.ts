@@ -114,6 +114,40 @@ function getSelection(model: DerivedTagOntologyExplorerModel, state: DerivedTagO
   };
 }
 
+function findNearestFilteredNode(
+  nodes: ExplorerNode[],
+  filteredNodes: ExplorerNode[],
+  selectedKey: string | undefined,
+): ExplorerNode | undefined {
+  if (filteredNodes.length === 0) {
+    return undefined;
+  }
+  if (!selectedKey) {
+    return filteredNodes[0];
+  }
+
+  const selectedIndex = nodes.findIndex((node) => node.key === selectedKey);
+  if (selectedIndex < 0) {
+    return filteredNodes[0];
+  }
+
+  const filteredKeys = new Set(filteredNodes.map((node) => node.key));
+  let nearest: { node: ExplorerNode; distance: number; index: number } | null = null;
+
+  for (let index = 0; index < nodes.length; index += 1) {
+    const node = nodes[index]!;
+    if (!filteredKeys.has(node.key)) {
+      continue;
+    }
+    const distance = Math.abs(index - selectedIndex);
+    if (!nearest || distance < nearest.distance || (distance === nearest.distance && index < nearest.index)) {
+      nearest = { node, distance, index };
+    }
+  }
+
+  return nearest?.node ?? filteredNodes[0];
+}
+
 function getNodesForDepth(selection: ExplorerSelection, depth: DerivedTagOntologyExplorerDepth): ExplorerNode[] {
   if (depth === "category") {
     return selection.categories;
@@ -167,35 +201,36 @@ export function normalizeDerivedTagOntologyExplorerState(
     selectedRecordKey: selection.record?.key,
   };
 
-  const nodes = filterOntologyExplorerNodes(getNodesForDepth(selection, state.depth), state.filter);
+  const allNodes = getNodesForDepth(selection, state.depth);
+  const nodes = filterOntologyExplorerNodes(allNodes, state.filter);
   const selectedKey = getSelectedKeyForDepth(selection, nextState);
   if (nodes.length > 0 && !nodes.some((node) => node.key === selectedKey)) {
-    const first = nodes[0]!;
-    if (first.kind === "category") {
+    const nearest = findNearestFilteredNode(allNodes, nodes, selectedKey) ?? nodes[0]!;
+    if (nearest.kind === "category") {
       nextState = {
         ...nextState,
-        selectedCategoryKey: first.key,
-        selectedFamilyKey: first.families[0]?.key,
-        selectedTagKey: first.families[0]?.tags[0]?.key,
-        selectedRecordKey: first.families[0]?.tags[0]?.records[0]?.key,
+        selectedCategoryKey: nearest.key,
+        selectedFamilyKey: nearest.families[0]?.key,
+        selectedTagKey: nearest.families[0]?.tags[0]?.key,
+        selectedRecordKey: nearest.families[0]?.tags[0]?.records[0]?.key,
       };
-    } else if (first.kind === "family") {
+    } else if (nearest.kind === "family") {
       nextState = {
         ...nextState,
-        selectedFamilyKey: first.key,
-        selectedTagKey: first.tags[0]?.key,
-        selectedRecordKey: first.tags[0]?.records[0]?.key,
+        selectedFamilyKey: nearest.key,
+        selectedTagKey: nearest.tags[0]?.key,
+        selectedRecordKey: nearest.tags[0]?.records[0]?.key,
       };
-    } else if (first.kind === "tag") {
+    } else if (nearest.kind === "tag") {
       nextState = {
         ...nextState,
-        selectedTagKey: first.key,
-        selectedRecordKey: first.records[0]?.key,
+        selectedTagKey: nearest.key,
+        selectedRecordKey: nearest.records[0]?.key,
       };
     } else {
       nextState = {
         ...nextState,
-        selectedRecordKey: first.key,
+        selectedRecordKey: nearest.key,
       };
     }
   }

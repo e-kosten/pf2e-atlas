@@ -255,6 +255,47 @@ describe("derived tag ontology explorer", () => {
     ]);
   });
 
+  it("orders explorer categories by the managed category policy and tags alphabetically", () => {
+    const db = createExplorerDb();
+    insertRecord(db, {
+      recordKey: "spell:one",
+      name: "Alarm Ward",
+      category: "spell",
+      tags: ["alarm"],
+    });
+    insertRecord(db, {
+      recordKey: "creature:one",
+      name: "Sewer Stalker",
+      category: "creature",
+      tags: ["urban_setting"],
+    });
+    insertRecord(db, {
+      recordKey: "equipment:one",
+      name: "Silent Toolkit",
+      category: "equipment",
+      subcategory: "gear",
+      tags: ["alarm"],
+    });
+
+    const model = buildDerivedTagOntologyExplorerModel(db);
+    const spellCategory = model.categories.find((category) => category.category === "spell");
+    const communicationFamily = spellCategory?.families.find((family) => family.family === "communication");
+
+    expect(model.categories.map((category) => category.category)).toEqual([
+      "affliction",
+      "creature",
+      "equipment",
+      "hazard",
+      "spell",
+    ]);
+    expect(communicationFamily?.tags.slice(0, 4).map((tag) => tag.tag)).toEqual([
+      "alarm",
+      "curse_revelation",
+      "hazard_revelation",
+      "invisibility_reveal",
+    ]);
+  });
+
   it("reuses the persisted ontology explorer cache instead of rebuilding from live index tables", () => {
     const db = createExplorerDb();
     insertRecord(db, {
@@ -327,6 +368,50 @@ describe("derived tag ontology explorer", () => {
     state = setDerivedTagOntologyExplorerFilter(model, state, "reveals lies");
 
     expect(state.selectedRecordKey).toBe("spell:three");
+  });
+
+  it("chooses the nearest surviving selection when filtering removes the current row", () => {
+    const db = createExplorerDb();
+    insertRecord(db, {
+      recordKey: "spell:one",
+      name: "Alarm Ward",
+      category: "spell",
+      tags: ["alarm"],
+      descriptionText: "Amber warning light.",
+    });
+    insertRecord(db, {
+      recordKey: "spell:two",
+      name: "Breach Alarm",
+      category: "spell",
+      tags: ["alarm"],
+      descriptionText: "Middle sentinel.",
+    });
+    insertRecord(db, {
+      recordKey: "spell:three",
+      name: "Watch Bell",
+      category: "spell",
+      tags: ["alarm"],
+      descriptionText: "Amber bell chime.",
+    });
+
+    const model = buildDerivedTagOntologyExplorerModel(db);
+    const spellCategory = model.categories.find((category) => category.category === "spell");
+    const communicationFamily = spellCategory?.families.find((family) => family.family === "communication");
+    const alarmTag = communicationFamily?.tags.find((tag) => tag.tag === "alarm");
+
+    let state = createDerivedTagOntologyExplorerState(model);
+    state = normalizeDerivedTagOntologyExplorerState(model, {
+      ...state,
+      depth: "record",
+      selectedCategoryKey: "spell",
+      selectedFamilyKey: communicationFamily?.key,
+      selectedTagKey: alarmTag?.key,
+      selectedRecordKey: "spell:two",
+    });
+
+    state = setDerivedTagOntologyExplorerFilter(model, state, "amber");
+
+    expect(state.selectedRecordKey).toBe("spell:one");
   });
 
   it("navigates category -> family -> tag -> record and back without losing the current slice", () => {
