@@ -4,6 +4,7 @@ import { cleanup, render } from "ink-testing-library";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
+  type DerivedTagTerminalPolicySelection,
   DerivedTagTerminalProvider,
   TerminalTextScreen,
   getNormalizedKeyName,
@@ -110,6 +111,32 @@ function MultiSelectPromptHarness(): React.JSX.Element {
   );
 }
 
+function PolicyPromptHarness(): React.JSX.Element {
+  const terminal = useDerivedTagTerminalApp();
+  const [result, setResult] = React.useState("pending");
+
+  React.useEffect(() => {
+    void terminal.promptPolicySelectOption({
+      title: "Policy Harness",
+      prompt: "Cycle values",
+      allowedStates: ["any", "all", "exclude"],
+      entries: [
+        { value: "fire", label: "Fire" },
+        { value: "cold", label: "Cold" },
+      ],
+    }).then((selection: DerivedTagTerminalPolicySelection<string>) => {
+      setResult(`any=${selection.any.join(",") || "-"}|all=${selection.all.join(",") || "-"}|exclude=${selection.exclude.join(",") || "-"}`);
+    });
+  }, []);
+
+  return (
+    <TerminalTextScreen
+      title="Harness"
+      body={[{ text: `result=${result}` }]}
+    />
+  );
+}
+
 describe("derived tag terminal ink runtime", () => {
   afterEach(() => {
     cleanup();
@@ -177,6 +204,35 @@ describe("derived tag terminal ink runtime", () => {
     app.stdin.write("\u007f");
     await flushInkFrames();
     expect(app.lastFrame()).toContain("result=common,rare");
+  });
+
+  it("cycles policy states in a single prompt view", async () => {
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <PolicyPromptHarness />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInkFrames();
+    expect(app.lastFrame()).toContain("Cycle values");
+
+    app.stdin.write("\r");
+    await flushInkFrames();
+    expect(app.lastFrame()).toContain("[ANY] Fire");
+
+    app.stdin.write("\r");
+    await flushInkFrames();
+    expect(app.lastFrame()).toContain("[ALL] Fire");
+
+    app.stdin.write("j");
+    await flushInkFrames();
+    app.stdin.write("\r");
+    await flushInkFrames();
+    expect(app.lastFrame()).toContain("[ANY] Cold");
+
+    app.stdin.write("\u007f");
+    await flushInkFrames();
+    expect(app.lastFrame()).toContain("result=any=cold|all=fire|exclude=-");
   });
 
   it("normalizes ctrl letter combinations from both Ink key paths", () => {

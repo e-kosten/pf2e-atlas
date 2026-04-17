@@ -335,15 +335,100 @@ describe("search screen", () => {
         subcategory: null,
         levelMin: null,
         levelMax: null,
-        rarities: [],
-        actionCosts: [],
+        rarity: {
+          any: [],
+          all: [],
+          exclude: [],
+        },
+        actionCost: {
+          any: [],
+          all: [],
+          exclude: [],
+        },
         facets: [
           {
             field: "traits",
-            values: ["illusion"],
+            policy: {
+              any: ["illusion"],
+              all: [],
+              exclude: [],
+            },
           },
         ],
       },
+    });
+  });
+
+  it("translates policy-based draft filters into metadata clauses", async () => {
+    const search = vi.fn(async (filters: SearchFilters) => ({
+      searchProfile: filters.searchProfile ?? "balanced",
+      mode: "hybrid" as const,
+      total: 1,
+      offset: 0,
+      limit: filters.limit ?? 20,
+      records: [createRecord()],
+    }));
+    const services = createServices({ search });
+
+    await services.user.search.runQuery({
+      mode: "search",
+      limit: 20,
+      queryText: "ghost",
+      searchProfile: "balanced",
+      sourceLabel: null,
+      filters: {
+        category: "spell",
+        subcategory: null,
+        levelMin: null,
+        levelMax: null,
+        rarity: {
+          any: ["common"],
+          all: [],
+          exclude: ["rare"],
+        },
+        actionCost: {
+          any: [2],
+          all: [],
+          exclude: [1],
+        },
+        facets: [
+          {
+            field: "traits",
+            policy: {
+              any: ["illusion"],
+              all: ["auditory"],
+              exclude: ["emotion"],
+            },
+          },
+        ],
+      },
+    });
+
+    expect(search).toHaveBeenCalledWith({
+      actionCost: undefined,
+      category: "spell",
+      levelMax: undefined,
+      levelMin: undefined,
+      limit: 20,
+      metadata: {
+        and: [
+          { field: "rarity", op: "eq", value: "common" },
+          { field: "rarity", op: "notIn", values: ["rare"] },
+          { field: "actionCost", op: "eq", value: 2 },
+          { not: { field: "actionCost", op: "eq", value: 1 } },
+          {
+            and: [
+              { field: "traits", op: "includesAny", values: ["illusion"] },
+              { field: "traits", op: "includesAll", values: ["auditory"] },
+              { field: "traits", op: "excludesAny", values: ["emotion"] },
+            ],
+          },
+        ],
+      },
+      query: "ghost",
+      rarity: undefined,
+      searchProfile: "balanced",
+      subcategory: undefined,
     });
   });
 });

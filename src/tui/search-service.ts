@@ -63,9 +63,15 @@ export type Pf2eTerminalFacetValueOption = {
   count: number;
 };
 
+export type Pf2eTerminalFilterValuePolicy<T extends number | string = string> = {
+  any: T[];
+  all: T[];
+  exclude: T[];
+};
+
 export type Pf2eTerminalFacetSelection = {
   field: Pf2eTerminalFacetField;
-  values: string[];
+  policy: Pf2eTerminalFilterValuePolicy<string>;
 };
 
 export type Pf2eTerminalFacetField = MetadataFieldSemantics["field"];
@@ -77,8 +83,8 @@ export type Pf2eTerminalSearchFilters = {
   subcategory: SearchSubcategory | null;
   levelMin: number | null;
   levelMax: number | null;
-  rarities: string[];
-  actionCosts: number[];
+  rarity: Pf2eTerminalFilterValuePolicy<string>;
+  actionCost: Pf2eTerminalFilterValuePolicy<number>;
   facets: Pf2eTerminalFacetSelection[];
 };
 
@@ -207,14 +213,22 @@ function formatFilterValueLabel(value: string): string {
   return humanizeIdentifier(value);
 }
 
+function createEmptyFilterPolicy<T extends number | string>(): Pf2eTerminalFilterValuePolicy<T> {
+  return {
+    any: [],
+    all: [],
+    exclude: [],
+  };
+}
+
 function createDefaultFilters(): Pf2eTerminalSearchFilters {
   return {
     category: null,
     subcategory: null,
     levelMin: null,
     levelMax: null,
-    rarities: [],
-    actionCosts: [],
+    rarity: createEmptyFilterPolicy<string>(),
+    actionCost: createEmptyFilterPolicy<number>(),
     facets: [],
   };
 }
@@ -235,6 +249,36 @@ function compareFacetSelections(
   right: Pf2eTerminalFacetSelection,
 ): number {
   return left.field.localeCompare(right.field);
+}
+
+function normalizeStringPolicy(
+  policy: Partial<Pf2eTerminalFilterValuePolicy<string>> | undefined,
+): Pf2eTerminalFilterValuePolicy<string> {
+  const exclude = [...new Set((policy?.exclude ?? []).map((value) => String(value).trim()).filter(Boolean))]
+    .sort((left, right) => left.localeCompare(right));
+  const all = [...new Set((policy?.all ?? []).map((value) => String(value).trim()).filter(Boolean))]
+    .filter((value) => !exclude.includes(value))
+    .sort((left, right) => left.localeCompare(right));
+  const any = [...new Set((policy?.any ?? []).map((value) => String(value).trim()).filter(Boolean))]
+    .filter((value) => !exclude.includes(value) && !all.includes(value))
+    .sort((left, right) => left.localeCompare(right));
+
+  return { any, all, exclude };
+}
+
+function normalizeNumberPolicy(
+  policy: Partial<Pf2eTerminalFilterValuePolicy<number>> | undefined,
+): Pf2eTerminalFilterValuePolicy<number> {
+  const exclude = [...new Set((policy?.exclude ?? []).filter((value) => Number.isFinite(value)))]
+    .sort((left, right) => left - right);
+  const all = [...new Set((policy?.all ?? []).filter((value) => Number.isFinite(value)))]
+    .filter((value) => !exclude.includes(value))
+    .sort((left, right) => left - right);
+  const any = [...new Set((policy?.any ?? []).filter((value) => Number.isFinite(value)))]
+    .filter((value) => !exclude.includes(value) && !all.includes(value))
+    .sort((left, right) => left - right);
+
+  return { any, all, exclude };
 }
 
 function normalizeFacetSelection(
@@ -264,20 +308,22 @@ function normalizeFacetSelection(
     return null;
   }
 
-  const normalizedValues = [...new Set(facet.values.map((value) => String(value).trim()).filter(Boolean))]
-    .sort((left, right) => left.localeCompare(right));
-  if (normalizedValues.length === 0) {
-    return null;
+  const normalizedPolicy = normalizeStringPolicy(facet.policy);
+  if (fieldSemantics.fieldType !== "set") {
+    normalizedPolicy.all = [];
+  }
+  if (fieldSemantics.fieldType === "boolean") {
+    normalizedPolicy.any = normalizedPolicy.any.filter((value) => value === "true" || value === "false");
+    normalizedPolicy.exclude = normalizedPolicy.exclude.filter((value) => value === "true" || value === "false");
   }
 
-  if (fieldSemantics.fieldType === "boolean") {
-    const booleanValue = normalizedValues.find((value) => value === "true" || value === "false");
-    return booleanValue ? { field: facet.field, values: [booleanValue] } : null;
+  if (normalizedPolicy.any.length === 0 && normalizedPolicy.all.length === 0 && normalizedPolicy.exclude.length === 0) {
+    return null;
   }
 
   return {
     field: facet.field,
-    values: normalizedValues,
+    policy: normalizedPolicy,
   };
 }
 
@@ -309,10 +355,22 @@ function normalizeRequest(
       subcategory,
       levelMin: normalizedLevelMin,
       levelMax: normalizedLevelMax,
-      rarities: [...new Set(request.filters.rarities.map((value) => value.trim()).filter(Boolean))]
-        .sort((left, right) => left.localeCompare(right)),
-      actionCosts: [...new Set(request.filters.actionCosts.filter((value) => Number.isFinite(value)))]
-        .sort((left, right) => left - right),
+      rarity: (() => {
+        const policy = normalizeStringPolicy(request.filters.rarity);
+        return {
+          any: policy.any,
+          all: [],
+          exclude: policy.exclude,
+        };
+      })(),
+      actionCost: (() => {
+        const policy = normalizeNumberPolicy(request.filters.actionCost);
+        return {
+          any: policy.any,
+          all: [],
+          exclude: policy.exclude,
+        };
+      })(),
       facets: normalizedFacets,
     },
   };
@@ -321,33 +379,61 @@ function normalizeRequest(
 function buildDiscreteFilterNodes(request: Pf2eTerminalSearchRequest): MetadataFilterNode[] {
   const nodes: MetadataFilterNode[] = [];
 
-  if (request.filters.rarities.length === 1) {
+  if (request.filters.rarity.any.length === 1) {
     nodes.push({
       field: "rarity",
       op: "eq",
-      value: request.filters.rarities[0]!,
+      value: request.filters.rarity.any[0]!,
     });
-  } else if (request.filters.rarities.length > 1) {
+  } else if (request.filters.rarity.any.length > 1) {
     nodes.push({
       field: "rarity",
       op: "in",
-      values: request.filters.rarities,
+      values: request.filters.rarity.any,
     });
   }
 
-  if (request.filters.actionCosts.length === 1) {
+  if (request.filters.rarity.exclude.length > 0) {
+    nodes.push({
+      field: "rarity",
+      op: "notIn",
+      values: request.filters.rarity.exclude,
+    });
+  }
+
+  if (request.filters.actionCost.any.length === 1) {
     nodes.push({
       field: "actionCost",
       op: "eq",
-      value: request.filters.actionCosts[0]!,
+      value: request.filters.actionCost.any[0]!,
     });
-  } else if (request.filters.actionCosts.length > 1) {
+  } else if (request.filters.actionCost.any.length > 1) {
     nodes.push({
-      or: request.filters.actionCosts.map((value) => ({
+      or: request.filters.actionCost.any.map((value) => ({
         field: "actionCost",
         op: "eq",
         value,
       })),
+    });
+  }
+
+  if (request.filters.actionCost.exclude.length === 1) {
+    nodes.push({
+      not: {
+        field: "actionCost",
+        op: "eq",
+        value: request.filters.actionCost.exclude[0]!,
+      },
+    });
+  } else if (request.filters.actionCost.exclude.length > 1) {
+    nodes.push({
+      not: {
+        or: request.filters.actionCost.exclude.map((value) => ({
+          field: "actionCost",
+          op: "eq",
+          value,
+        })),
+      },
     });
   }
 
@@ -364,34 +450,75 @@ function buildMetadataNodeForFacet(
   }
 
   if (fieldSemantics.fieldType === "set") {
-    return {
-      field: facet.field as MetadataSetField,
-      op: "includesAny",
-      values: facet.values,
-    };
+    const clauses: MetadataFilterNode[] = [];
+    if (facet.policy.any.length > 0) {
+      clauses.push({
+        field: facet.field as MetadataSetField,
+        op: "includesAny",
+        values: facet.policy.any,
+      });
+    }
+    if (facet.policy.all.length > 0) {
+      clauses.push({
+        field: facet.field as MetadataSetField,
+        op: "includesAll",
+        values: facet.policy.all,
+      });
+    }
+    if (facet.policy.exclude.length > 0) {
+      clauses.push({
+        field: facet.field as MetadataSetField,
+        op: "excludesAny",
+        values: facet.policy.exclude,
+      });
+    }
+    return clauses.length === 0 ? null : clauses.length === 1 ? clauses[0]! : { and: clauses };
   }
 
   if (fieldSemantics.fieldType === "enumString") {
-    if (facet.values.length === 1) {
-      return {
+    const clauses: MetadataFilterNode[] = [];
+    if (facet.policy.any.length === 1) {
+      clauses.push({
         field: facet.field as MetadataEnumStringField,
         op: "eq",
-        value: facet.values[0]!,
-      };
+        value: facet.policy.any[0]!,
+      });
+    } else if (facet.policy.any.length > 1) {
+      clauses.push({
+        field: facet.field as MetadataEnumStringField,
+        op: "in",
+        values: facet.policy.any,
+      });
     }
-    return {
-      field: facet.field as MetadataEnumStringField,
-      op: "in",
-      values: facet.values,
-    };
+    if (facet.policy.exclude.length > 0) {
+      clauses.push({
+        field: facet.field as MetadataEnumStringField,
+        op: "notIn",
+        values: facet.policy.exclude,
+      });
+    }
+    return clauses.length === 0 ? null : clauses.length === 1 ? clauses[0]! : { and: clauses };
   }
 
   if (fieldSemantics.fieldType === "boolean") {
-    return {
-      field: facet.field as MetadataBooleanField,
-      op: "eq",
-      value: facet.values[0] === "true",
-    };
+    const clauses: MetadataFilterNode[] = [];
+    for (const value of facet.policy.any) {
+      clauses.push({
+        field: facet.field as MetadataBooleanField,
+        op: "eq",
+        value: value === "true",
+      });
+    }
+    for (const value of facet.policy.exclude) {
+      clauses.push({
+        not: {
+          field: facet.field as MetadataBooleanField,
+          op: "eq",
+          value: value === "true",
+        },
+      });
+    }
+    return clauses.length === 0 ? null : clauses.length === 1 ? clauses[0]! : { and: clauses };
   }
 
   return null;
@@ -448,13 +575,61 @@ function createFacetSelectionsFromMetadata(
     return [];
   }
 
-  const facets = new Map<Pf2eTerminalFacetField, Set<string>>();
+  const facets = new Map<Pf2eTerminalFacetField, Pf2eTerminalFilterValuePolicy<string>>();
+
+  const ensureFacetPolicy = (field: Pf2eTerminalFacetField): Pf2eTerminalFilterValuePolicy<string> => {
+    const existing = facets.get(field);
+    if (existing) {
+      return existing;
+    }
+    const next = createEmptyFilterPolicy<string>();
+    facets.set(field, next);
+    return next;
+  };
+
+  const addValues = (
+    field: Pf2eTerminalFacetField,
+    bucket: keyof Pf2eTerminalFilterValuePolicy<string>,
+    values: string[],
+  ): void => {
+    const policy = ensureFacetPolicy(field);
+    for (const value of values) {
+      policy[bucket].push(String(value));
+    }
+  };
 
   const collect = (node: MetadataFilterNode): boolean => {
     if ("and" in node) {
       return node.and.every((child) => collect(child));
     }
-    if ("or" in node || "not" in node) {
+    if ("or" in node) {
+      return false;
+    }
+    if ("not" in node) {
+      const child = node.not;
+      if ("and" in child || "not" in child) {
+        return false;
+      }
+      if ("or" in child) {
+        return false;
+      }
+
+      const field = child.field as Pf2eTerminalFacetField;
+      const fieldSemantics = fieldSemanticsByName.get(field);
+      if (!fieldSemantics) {
+        return false;
+      }
+
+      if (fieldSemantics.fieldType === "boolean" && child.op === "eq") {
+        addValues(field, "exclude", [String(child.value)]);
+        return true;
+      }
+
+      if (fieldSemantics.fieldType === "enumString" && child.op === "eq") {
+        addValues(field, "exclude", [String(child.value)]);
+        return true;
+      }
+
       return false;
     }
 
@@ -465,32 +640,37 @@ function createFacetSelectionsFromMetadata(
     }
 
     if (fieldSemantics.fieldType === "set" && node.op === "includesAny") {
-      const bucket = facets.get(field) ?? new Set<string>();
-      for (const value of node.values) {
-        bucket.add(String(value));
-      }
-      facets.set(field, bucket);
+      addValues(field, "any", node.values);
+      return true;
+    }
+
+    if (fieldSemantics.fieldType === "set" && node.op === "includesAll") {
+      addValues(field, "all", node.values);
+      return true;
+    }
+
+    if (fieldSemantics.fieldType === "set" && node.op === "excludesAny") {
+      addValues(field, "exclude", node.values);
       return true;
     }
 
     if (fieldSemantics.fieldType === "enumString") {
-      const bucket = facets.get(field) ?? new Set<string>();
       if (node.op === "eq") {
-        bucket.add(String(node.value));
-        facets.set(field, bucket);
+        addValues(field, "any", [String(node.value)]);
         return true;
       }
       if (node.op === "in") {
-        for (const value of node.values) {
-          bucket.add(String(value));
-        }
-        facets.set(field, bucket);
+        addValues(field, "any", node.values.map((value) => String(value)));
+        return true;
+      }
+      if (node.op === "notIn") {
+        addValues(field, "exclude", node.values.map((value) => String(value)));
         return true;
       }
     }
 
     if (fieldSemantics.fieldType === "boolean" && node.op === "eq") {
-      facets.set(field, new Set([String(node.value)]));
+      addValues(field, "any", [String(node.value)]);
       return true;
     }
 
@@ -502,10 +682,13 @@ function createFacetSelectionsFromMetadata(
   }
 
   return [...facets.entries()]
-    .map(([field, values]) => ({
+    .map(([field, policy]) => ({
       field,
-      values: [...values].sort((left, right) => left.localeCompare(right)),
+      policy: normalizeStringPolicy(policy),
     }))
+    .filter((facet) =>
+      facet.policy.any.length > 0 || facet.policy.all.length > 0 || facet.policy.exclude.length > 0,
+    )
     .sort(compareFacetSelections);
 }
 
@@ -535,8 +718,16 @@ export function createPf2eTerminalSearchService(
           subcategory: normalizeSearchSubcategory(query.filters.subcategory) ?? null,
           levelMin: query.filters.levelMin ?? null,
           levelMax: query.filters.levelMax ?? null,
-          rarities: query.filters.rarity ? [query.filters.rarity] : [],
-          actionCosts: query.filters.actionCost === undefined ? [] : [query.filters.actionCost],
+          rarity: {
+            any: query.filters.rarity ? [query.filters.rarity] : [],
+            all: [],
+            exclude: [],
+          },
+          actionCost: {
+            any: query.filters.actionCost === undefined ? [] : [query.filters.actionCost],
+            all: [],
+            exclude: [],
+          },
           facets,
         },
       }, fieldSemanticsByName);

@@ -124,8 +124,16 @@ function createFakeServices(overrides: Partial<Pf2eTerminalAppServices> = {}): P
       subcategory: null,
       levelMin: null,
       levelMax: null,
-      rarities: [],
-      actionCosts: [],
+      rarity: {
+        any: [],
+        all: [],
+        exclude: [],
+      },
+      actionCost: {
+        any: [],
+        all: [],
+        exclude: [],
+      },
       facets: [],
     },
   };

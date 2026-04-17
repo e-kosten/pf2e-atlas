@@ -10,6 +10,7 @@ import { usePf2eTerminalAppServices } from "./app-service-context.js";
 import type {
   Pf2eTerminalFacetField,
   Pf2eTerminalFacetSelection,
+  Pf2eTerminalFilterValuePolicy,
   Pf2eTerminalSearchMode,
   Pf2eTerminalSearchRequest,
   Pf2eTerminalSearchSession,
@@ -166,8 +167,28 @@ function formatMode(mode: Pf2eTerminalSearchMode): string {
   return humanizeIdentifier(mode);
 }
 
+function formatPolicyValue(value: number | string): string {
+  return typeof value === "number" ? String(value) : humanizeIdentifier(value);
+}
+
+function formatFilterPolicy<T extends number | string>(
+  policy: Pf2eTerminalFilterValuePolicy<T>,
+): string {
+  const parts: string[] = [];
+  if (policy.any.length > 0) {
+    parts.push(`any: ${policy.any.map((value) => formatPolicyValue(value)).join(", ")}`);
+  }
+  if (policy.all.length > 0) {
+    parts.push(`all: ${policy.all.map((value) => formatPolicyValue(value)).join(", ")}`);
+  }
+  if (policy.exclude.length > 0) {
+    parts.push(`exclude: ${policy.exclude.map((value) => formatPolicyValue(value)).join(", ")}`);
+  }
+  return parts.length > 0 ? parts.join(" | ") : "(any)";
+}
+
 function formatFacetSelection(facet: Pf2eTerminalFacetSelection): string {
-  return `${humanizeIdentifier(facet.field)}: ${facet.values.map((value) => humanizeIdentifier(value)).join(", ")}`;
+  return `${humanizeIdentifier(facet.field)}: ${formatFilterPolicy(facet.policy)}`;
 }
 
 function formatLevelRange(request: Pf2eTerminalSearchRequest): string {
@@ -182,13 +203,6 @@ function formatLevelRange(request: Pf2eTerminalSearchRequest): string {
     return `L${levelMin}+`;
   }
   return `<= L${levelMax}`;
-}
-
-function formatDiscreteFilterValues<T extends number | string>(values: T[]): string {
-  if (values.length === 0) {
-    return "(any)";
-  }
-  return values.map((value) => String(value)).join(", ");
 }
 
 function formatLevelRangeInputValue(request: Pf2eTerminalSearchRequest): string {
@@ -313,34 +327,34 @@ function buildNavigatorEntries(state: SearchScreenState): SearchNavigatorEntry[]
       kind: "action",
       action: "rarity",
       label: "Rarity",
-      value: formatDiscreteFilterValues(state.draft.filters.rarities),
-      description: "Restrict the draft by rarity when the current scope supports it.",
+      value: formatFilterPolicy(state.draft.filters.rarity),
+      description: "Cycle rarity values through any and exclude policies in one view.",
     },
     {
       kind: "action",
       action: "actionCost",
       label: "Action Cost",
-      value: formatDiscreteFilterValues(state.draft.filters.actionCosts),
-      description: "Restrict the draft by action cost.",
+      value: formatFilterPolicy(state.draft.filters.actionCost),
+      description: "Cycle action costs through any and exclude policies in one view.",
     },
     {
       kind: "action",
       action: "addFacet",
-      label: "Add Facet Filter",
+      label: "Edit Facet Filter",
       value: `${state.draft.filters.facets.length} active`,
       description: state.draft.filters.category
-        ? "Choose a discoverable metadata field and value from the current category scope."
-        : "Choose a category before adding discoverable facet filters.",
+        ? "Choose a discoverable metadata field and cycle each value through any, all, or exclude."
+        : "Choose a category before editing discoverable facet filters.",
       disabled: !state.draft.filters.category,
     },
     {
       kind: "action",
       action: "removeFacet",
-      label: "Remove Facet Filter",
+      label: "Clear Facet Filter",
       value: `${state.draft.filters.facets.length} active`,
       description: state.draft.filters.facets.length > 0
-        ? "Remove one facet value from the current draft filter stack."
-        : "No facet values are currently applied.",
+        ? "Remove an entire facet policy block from the current draft."
+        : "No facet policies are currently applied.",
       disabled: state.draft.filters.facets.length === 0,
     },
     {
@@ -411,8 +425,8 @@ function buildWorkspaceSummaryLines(state: SearchScreenState): DerivedTagTermina
     { text: `Draft profile: ${state.draft.searchProfile}` },
     { text: `Scope: ${formatSearchCategory(state.draft.filters.category)} / ${formatSearchSubcategory(state.draft.filters.subcategory)}` },
     { text: `Level range: ${formatLevelRange(state.draft)}` },
-    { text: `Rarity: ${formatDiscreteFilterValues(state.draft.filters.rarities)}` },
-    { text: `Action cost: ${formatDiscreteFilterValues(state.draft.filters.actionCosts)}` },
+    { text: `Rarity: ${formatFilterPolicy(state.draft.filters.rarity)}` },
+    { text: `Action cost: ${formatFilterPolicy(state.draft.filters.actionCost)}` },
     { text: `Facet filters: ${state.draft.filters.facets.length}` },
   ];
 
@@ -486,11 +500,11 @@ function buildFacetRemovalEntries(facets: Pf2eTerminalFacetSelection[]): Array<{
   label: string;
   description: string;
 }> {
-  return facets.flatMap((facet) => facet.values.map((value) => ({
-    value: `${facet.field}:${value}`,
-    label: `${humanizeIdentifier(facet.field)} = ${humanizeIdentifier(value)}`,
-    description: "Remove this value from the current draft filter stack.",
-  })));
+  return facets.map((facet) => ({
+    value: facet.field,
+    label: humanizeIdentifier(facet.field),
+    description: `Clear ${formatFilterPolicy(facet.policy)} from the current draft filter stack.`,
+  }));
 }
 
 export function SearchScreen({
@@ -671,49 +685,60 @@ export function SearchScreen({
 
   const chooseRarityFilter = React.useCallback(async () => {
     const options = user.search.getRarityOptions(state.draft.filters.category, state.draft.filters.subcategory);
-    const selected = await terminal.promptMultiSelectOption({
+    const selected = await terminal.promptPolicySelectOption({
       title: "Rarity Filter",
-      prompt: "Toggle draft rarities. Press Esc or Left when finished.",
-      entries: [
-        ...options.map((option) => ({
-          value: option.value,
-          label: option.label,
-          description: option.description,
-        })),
-      ],
-      selectedValues: state.draft.filters.rarities,
-    });
-
-    applyDraftUpdate((request) => ({
-      ...request,
-      filters: {
-        ...request.filters,
-        rarities: selected,
-      },
-    }));
-  }, [applyDraftUpdate, state.draft.filters.category, state.draft.filters.rarities, state.draft.filters.subcategory, terminal, user.search]);
-
-  const chooseActionCostFilter = React.useCallback(async () => {
-    const options = user.search.getActionCostOptions(state.draft.filters.category, state.draft.filters.subcategory);
-    const selected = await terminal.promptMultiSelectOption({
-      title: "Action Cost Filter",
-      prompt: "Toggle draft action costs. Press Esc or Left when finished.",
+      prompt: "Cycle draft rarities through any and exclude. Press Esc or Left when finished.",
+      allowedStates: ["any", "exclude"],
       entries: options.map((option) => ({
         value: option.value,
         label: option.label,
         description: option.description,
       })),
-      selectedValues: state.draft.filters.actionCosts.map((value) => String(value)),
+      selectedValues: state.draft.filters.rarity,
     });
 
     applyDraftUpdate((request) => ({
       ...request,
       filters: {
         ...request.filters,
-        actionCosts: selected.map((value) => Number.parseInt(value, 10)).filter((value) => Number.isFinite(value)),
+        rarity: {
+          any: selected.any,
+          all: [],
+          exclude: selected.exclude,
+        },
       },
     }));
-  }, [applyDraftUpdate, state.draft.filters.actionCosts, state.draft.filters.category, state.draft.filters.subcategory, terminal, user.search]);
+  }, [applyDraftUpdate, state.draft.filters.category, state.draft.filters.rarity, state.draft.filters.subcategory, terminal, user.search]);
+
+  const chooseActionCostFilter = React.useCallback(async () => {
+    const options = user.search.getActionCostOptions(state.draft.filters.category, state.draft.filters.subcategory);
+    const selected = await terminal.promptPolicySelectOption({
+      title: "Action Cost Filter",
+      prompt: "Cycle draft action costs through any and exclude. Press Esc or Left when finished.",
+      allowedStates: ["any", "exclude"],
+      entries: options.map((option) => ({
+        value: option.value,
+        label: option.label,
+        description: option.description,
+      })),
+      selectedValues: {
+        any: state.draft.filters.actionCost.any.map((value) => String(value)),
+        exclude: state.draft.filters.actionCost.exclude.map((value) => String(value)),
+      },
+    });
+
+    applyDraftUpdate((request) => ({
+      ...request,
+      filters: {
+        ...request.filters,
+        actionCost: {
+          any: selected.any.map((value) => Number.parseInt(value, 10)).filter((value) => Number.isFinite(value)),
+          all: [],
+          exclude: selected.exclude.map((value) => Number.parseInt(value, 10)).filter((value) => Number.isFinite(value)),
+        },
+      },
+    }));
+  }, [applyDraftUpdate, state.draft.filters.actionCost, state.draft.filters.category, state.draft.filters.subcategory, terminal, user.search]);
 
   const editLevelRange = React.useCallback(async () => {
     const input = await terminal.promptTextInput({
@@ -745,7 +770,7 @@ export function SearchScreen({
 
   const addFacetFilter = React.useCallback(async () => {
     if (!state.draft.filters.category) {
-      await terminal.pauseForAnyKey("Choose a category before adding a discoverable facet filter.");
+      await terminal.pauseForAnyKey("Choose a category before editing a discoverable facet filter.");
       return;
     }
 
@@ -757,7 +782,7 @@ export function SearchScreen({
 
     const selectedField = await terminal.promptSelectOption({
       title: "Facet Field",
-      prompt: "Choose a discoverable field to add to the draft",
+      prompt: "Choose a discoverable field to edit in the draft",
       entries: fieldOptions.map((option) => ({
         value: option.value,
         label: option.label,
@@ -766,6 +791,11 @@ export function SearchScreen({
     });
 
     if (!selectedField) {
+      return;
+    }
+
+    const selectedFieldOption = fieldOptions.find((option) => option.value === selectedField);
+    if (!selectedFieldOption) {
       return;
     }
 
@@ -779,21 +809,24 @@ export function SearchScreen({
       return;
     }
 
-    const selectedValues = await terminal.promptMultiSelectOption({
-      title: "Facet Value",
-      prompt: `Toggle values for ${humanizeIdentifier(selectedField)}. Press Esc or Left when finished.`,
+    const selectedPolicy = await terminal.promptPolicySelectOption({
+      title: "Facet Policy",
+      prompt: `Cycle values for ${humanizeIdentifier(selectedField)}. Press Esc or Left when finished.`,
+      allowedStates: selectedFieldOption.fieldType === "set"
+        ? ["any", "all", "exclude"]
+        : ["any", "exclude"],
       entries: valueOptions.map((option) => ({
         value: option.value,
         label: option.label,
         description: option.description,
       })),
-      selectedValues: state.draft.filters.facets.find((facet) => facet.field === selectedField)?.values ?? [],
+      selectedValues: state.draft.filters.facets.find((facet) => facet.field === selectedField)?.policy,
     });
 
     applyDraftUpdate((request) => {
       const facets = [...request.filters.facets];
       const currentIndex = facets.findIndex((facet) => facet.field === selectedField);
-      if (selectedValues.length === 0) {
+      if (selectedPolicy.any.length === 0 && selectedPolicy.all.length === 0 && selectedPolicy.exclude.length === 0) {
         return {
           ...request,
           filters: {
@@ -806,12 +839,12 @@ export function SearchScreen({
       if (currentIndex >= 0) {
         facets[currentIndex] = {
           field: facets[currentIndex]!.field,
-          values: selectedValues,
+          policy: selectedPolicy,
         };
       } else {
         facets.push({
           field: selectedField as Pf2eTerminalFacetField,
-          values: selectedValues,
+          policy: selectedPolicy,
         });
       }
 
@@ -827,13 +860,13 @@ export function SearchScreen({
 
   const removeFacetFilter = React.useCallback(async () => {
     if (state.draft.filters.facets.length === 0) {
-      await terminal.pauseForAnyKey("There are no facet values to remove from the draft.");
+      await terminal.pauseForAnyKey("There are no facet policies to clear from the draft.");
       return;
     }
 
     const selected = await terminal.promptMultiSelectOption({
-      title: "Remove Facet Value",
-      prompt: "Toggle facet values to remove. Press Esc or Left when finished.",
+      title: "Clear Facet Filter",
+      prompt: "Toggle facet fields to clear. Press Esc or Left when finished.",
       entries: buildFacetRemovalEntries(state.draft.filters.facets),
       selectedValues: [],
     });
@@ -841,12 +874,7 @@ export function SearchScreen({
       ...request,
       filters: {
         ...request.filters,
-        facets: request.filters.facets
-          .map((facet) => ({
-            field: facet.field,
-            values: facet.values.filter((candidate) => !selected.includes(`${facet.field}:${candidate}`)),
-          }))
-          .filter((facet) => facet.values.length > 0),
+        facets: request.filters.facets.filter((facet) => !selected.includes(facet.field)),
       },
     }));
   }, [applyDraftUpdate, state.draft.filters.facets, terminal]);

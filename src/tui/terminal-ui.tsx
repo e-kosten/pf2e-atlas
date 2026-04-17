@@ -96,6 +96,23 @@ type MultiSelectPromptOptions<T extends string = string> = {
   selectedValues?: T[];
 };
 
+export type DerivedTagTerminalPolicyState = "any" | "all" | "exclude";
+
+export type DerivedTagTerminalPolicySelection<T extends string = string> = {
+  any: T[];
+  all: T[];
+  exclude: T[];
+};
+
+type PolicyPromptOptions<T extends string = string> = {
+  title: string;
+  subtitle?: string;
+  prompt: string;
+  entries: DerivedTagTerminalSelectOption<T>[];
+  allowedStates: DerivedTagTerminalPolicyState[];
+  selectedValues?: Partial<DerivedTagTerminalPolicySelection<T>>;
+};
+
 type TerminalModalState =
   | null
   | {
@@ -121,6 +138,13 @@ type TerminalModalState =
     selectedIndex: number;
     selectedValues: string[];
     resolve: (value: string[]) => void;
+  }
+  | {
+    kind: "policy";
+    options: PolicyPromptOptions<string>;
+    selectedIndex: number;
+    valueStates: Record<string, DerivedTagTerminalPolicyState | undefined>;
+    resolve: (value: DerivedTagTerminalPolicySelection<string>) => void;
   };
 
 type DerivedTagTerminalContextValue = {
@@ -129,6 +153,7 @@ type DerivedTagTerminalContextValue = {
   getTerminalWidth: () => number;
   modalActive: boolean;
   pauseForAnyKey: (message: string) => Promise<void>;
+  promptPolicySelectOption: <T extends string>(options: PolicyPromptOptions<T>) => Promise<DerivedTagTerminalPolicySelection<T>>;
   promptMultiSelectOption: <T extends string>(options: MultiSelectPromptOptions<T>) => Promise<T[]>;
   promptSelectOption: <T extends string>(options: SelectPromptOptions<T>) => Promise<T | undefined>;
   promptTextInput: (options: TextPromptOptions) => Promise<string | undefined>;
@@ -730,6 +755,172 @@ function MultiSelectPromptBody({
   );
 }
 
+function createEmptyPolicySelection<T extends string>(): DerivedTagTerminalPolicySelection<T> {
+  return {
+    any: [],
+    all: [],
+    exclude: [],
+  };
+}
+
+function getPolicyStateForValue(
+  value: string,
+  valueStates: Record<string, DerivedTagTerminalPolicyState | undefined>,
+): DerivedTagTerminalPolicyState | undefined {
+  return valueStates[value];
+}
+
+function policyStateLabel(state: DerivedTagTerminalPolicyState | undefined): string {
+  switch (state) {
+    case "any":
+      return "ANY";
+    case "all":
+      return "ALL";
+    case "exclude":
+      return "NOT";
+    default:
+      return " ";
+  }
+}
+
+function createValueStateLookup(
+  selection: Partial<DerivedTagTerminalPolicySelection<string>> | undefined,
+): Record<string, DerivedTagTerminalPolicyState | undefined> {
+  const valueStates: Record<string, DerivedTagTerminalPolicyState | undefined> = {};
+
+  for (const value of selection?.exclude ?? []) {
+    valueStates[value] = "exclude";
+  }
+  for (const value of selection?.all ?? []) {
+    valueStates[value] = "all";
+  }
+  for (const value of selection?.any ?? []) {
+    valueStates[value] = "any";
+  }
+
+  return valueStates;
+}
+
+function buildPolicySelection(
+  entries: DerivedTagTerminalSelectOption<string>[],
+  valueStates: Record<string, DerivedTagTerminalPolicyState | undefined>,
+): DerivedTagTerminalPolicySelection<string> {
+  const selection = createEmptyPolicySelection<string>();
+
+  for (const entry of entries) {
+    const state = getPolicyStateForValue(entry.value, valueStates);
+    if (!state) {
+      continue;
+    }
+    selection[state].push(entry.value);
+  }
+
+  selection.any.sort((left, right) => left.localeCompare(right));
+  selection.all.sort((left, right) => left.localeCompare(right));
+  selection.exclude.sort((left, right) => left.localeCompare(right));
+  return selection;
+}
+
+function cyclePolicyState(
+  currentState: DerivedTagTerminalPolicyState | undefined,
+  allowedStates: DerivedTagTerminalPolicyState[],
+): DerivedTagTerminalPolicyState | undefined {
+  const stateOrder: Array<DerivedTagTerminalPolicyState | undefined> = [undefined, ...allowedStates];
+  const currentIndex = stateOrder.findIndex((state) => state === currentState);
+  const nextIndex = (currentIndex + 1) % stateOrder.length;
+  return stateOrder[nextIndex];
+}
+
+function buildPolicySummaryLines(
+  options: PolicyPromptOptions<string>,
+  valueStates: Record<string, DerivedTagTerminalPolicyState | undefined>,
+): DerivedTagTerminalLine[] {
+  const selection = buildPolicySelection(options.entries, valueStates);
+  const labelsByValue = new Map(options.entries.map((entry) => [entry.value, entry.label]));
+  const allowedStateSet = new Set(options.allowedStates);
+  const summaryStates = options.allowedStates;
+
+  return summaryStates.map((state) => ({
+    text: `${state[0]!.toUpperCase()}${state.slice(1)}: ${
+      selection[state].length > 0
+        ? selection[state].map((value) => labelsByValue.get(value) ?? value).join(", ")
+        : "(none)"
+    }`,
+    tone: allowedStateSet.has(state) ? "default" : "dim",
+  }));
+}
+
+function PolicyPromptBody({
+  options,
+  selectedIndex,
+  valueStates,
+}: {
+  options: PolicyPromptOptions<string>;
+  selectedIndex: number;
+  valueStates: Record<string, DerivedTagTerminalPolicyState | undefined>;
+}): React.JSX.Element {
+  if (options.entries.length === 0) {
+    return (
+      <TerminalTextScreen
+        title={options.title}
+        subtitle={options.subtitle}
+        body={[
+          { text: options.prompt, tone: "section" },
+          { text: "" },
+          { text: "No options are available for this scope.", tone: "warning" },
+        ]}
+        footer={[{ text: "Esc, Backspace, or Left return", tone: "dim" }]}
+      />
+    );
+  }
+
+  const selectedOption = options.entries[selectedIndex];
+  const selectedState = selectedOption ? getPolicyStateForValue(selectedOption.value, valueStates) : undefined;
+  const detailLines = selectedOption?.detailLines?.length
+    ? selectedOption.detailLines
+    : selectedOption?.description
+      ? [
+        { text: selectedOption.label, tone: "section" as const },
+        { text: selectedOption.description },
+      ]
+      : [
+        { text: selectedOption?.label ?? "(none)", tone: "section" as const },
+        { text: "No additional details.", tone: "dim" as const },
+      ];
+
+  return (
+    <TerminalTwoPaneScreen
+      title={options.title}
+      subtitle={options.subtitle}
+      left={{
+        title: options.prompt,
+        lines: options.entries.map((entry, index) => ({
+          text: `[${policyStateLabel(getPolicyStateForValue(entry.value, valueStates))}] ${entry.label}`,
+          tone: index === selectedIndex ? "selected" : "default",
+          noWrap: true,
+        })),
+        active: true,
+      }}
+      right={{
+        title: "Details",
+        lines: [
+          ...detailLines,
+          { text: "" },
+          { text: `Focused policy: ${selectedState ?? "off"}`, tone: "accent" },
+          { text: "" },
+          { text: "Current Policy", tone: "section" },
+          ...buildPolicySummaryLines(options, valueStates),
+        ],
+      }}
+      footer={[
+        { text: "Up/Down or j/k move  Enter or Space cycle  Esc/backspace/left return", tone: "dim" },
+        { text: `Cycle order: off -> ${options.allowedStates.join(" -> ")} -> off`, tone: "accent" },
+      ]}
+      leftWidth={40}
+    />
+  );
+}
+
 function DerivedTagTerminalModalHost({
   modal,
   setModal,
@@ -798,14 +989,23 @@ function DerivedTagTerminalModalHost({
       return;
     }
 
+    if (modal.kind === "policy" && modal.options.entries.length === 0) {
+      if (normalized === "escape" || normalized === "backspace" || normalized === "left" || normalized === "q" || normalized === "ctrl_c") {
+        const resolver = modal.resolve;
+        setModal(null);
+        resolver(createEmptyPolicySelection());
+      }
+      return;
+    }
+
     if (normalized === "up" || normalized === "k") {
-      setModal((current) => current && (current.kind === "select" || current.kind === "multiselect")
+      setModal((current) => current && (current.kind === "select" || current.kind === "multiselect" || current.kind === "policy")
         ? { ...current, selectedIndex: moveSelectionWrapped(current.selectedIndex, -1, current.options.entries.length) }
         : current);
       return;
     }
     if (normalized === "down" || normalized === "j") {
-      setModal((current) => current && (current.kind === "select" || current.kind === "multiselect")
+      setModal((current) => current && (current.kind === "select" || current.kind === "multiselect" || current.kind === "policy")
         ? { ...current, selectedIndex: moveSelectionWrapped(current.selectedIndex, 1, current.options.entries.length) }
         : current);
       return;
@@ -839,6 +1039,29 @@ function DerivedTagTerminalModalHost({
       resolver(selectedValues);
       return;
     }
+    if (modal.kind === "policy" && (normalized === "enter" || normalized === "space")) {
+      const selected = modal.options.entries[modal.selectedIndex]?.value;
+      if (!selected) {
+        return;
+      }
+      setModal((current) => current?.kind === "policy"
+        ? {
+          ...current,
+          valueStates: {
+            ...current.valueStates,
+            [selected]: cyclePolicyState(current.valueStates[selected], current.options.allowedStates),
+          },
+        }
+        : current);
+      return;
+    }
+    if (modal.kind === "policy" && (normalized === "escape" || normalized === "backspace" || normalized === "left" || normalized === "q" || normalized === "ctrl_c")) {
+      const resolver = modal.resolve;
+      const selection = buildPolicySelection(modal.options.entries, modal.valueStates);
+      setModal(null);
+      resolver(selection);
+      return;
+    }
     if (modal.kind === "select" && (normalized === "escape" || normalized === "backspace" || normalized === "q" || normalized === "ctrl_c")) {
       const resolver = modal.resolve;
       setModal(null);
@@ -862,6 +1085,15 @@ function DerivedTagTerminalModalHost({
         options={modal.options}
         selectedIndex={modal.selectedIndex}
         selectedValues={modal.selectedValues}
+      />
+    );
+  }
+  if (modal.kind === "policy") {
+    return (
+      <PolicyPromptBody
+        options={modal.options}
+        selectedIndex={modal.selectedIndex}
+        valueStates={modal.valueStates}
       />
     );
   }
@@ -896,6 +1128,25 @@ export function DerivedTagTerminalProvider({
         });
       });
     },
+    promptPolicySelectOption: async <T extends string>(options: PolicyPromptOptions<T>) =>
+      new Promise<DerivedTagTerminalPolicySelection<T>>((resolve) => {
+        const initialSelection = createEmptyPolicySelection<string>();
+        initialSelection.any = options.selectedValues?.any ? [...options.selectedValues.any] : [];
+        initialSelection.all = options.selectedValues?.all ? [...options.selectedValues.all] : [];
+        initialSelection.exclude = options.selectedValues?.exclude ? [...options.selectedValues.exclude] : [];
+        const valueStates = createValueStateLookup(initialSelection);
+        const selectedIndex = Math.max(
+          0,
+          options.entries.findIndex((entry) => valueStates[entry.value] !== undefined),
+        );
+        setModal({
+          kind: "policy",
+          options: options as PolicyPromptOptions<string>,
+          selectedIndex,
+          valueStates,
+          resolve: resolve as (value: DerivedTagTerminalPolicySelection<string>) => void,
+        });
+      }),
     promptMultiSelectOption: async <T extends string>(options: MultiSelectPromptOptions<T>) =>
       new Promise<T[]>((resolve) => {
         const selectedIndex = Math.max(0, options.entries.findIndex((entry) => options.selectedValues?.includes(entry.value)));
