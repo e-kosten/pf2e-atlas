@@ -35,12 +35,20 @@ Agents must do implementation work in a dedicated git worktree, not in the share
 - Before editing tracked files, create or switch to an isolated worktree rooted at a new branch from the current `main` HEAD.
 - Create agent worktrees only under a writable sandbox root available to the current session, such as `/tmp`. Do not create sibling worktrees next to the main checkout unless that path is explicitly writable in the environment.
 - Do not share a checkout with another running agent, and do not reuse the user's current working tree for agent edits.
+- Git commands that mutate repository state must never be run in parallel within the same repository or worktree.
+- Do not use parallel tool execution for `git add`, `git commit`, `git rebase`, `git merge`, `git cherry-pick`, `git worktree add`, `git worktree remove`, `git stash`, or any other git command that writes refs, the index, or worktree metadata.
+- Do not use `multi_tool_use.parallel` for git commands unless every git command in that batch is strictly read-only.
+- Serialize all git write operations and wait for each one to finish before starting the next.
+- Treat `.git/index`, `.git/ORIG_HEAD`, `.git/refs/*`, and `.git/worktrees/*` as shared lock-producing paths.
+- Never run `git add` and `git commit` in parallel.
+- Never run `git status` in parallel with git write operations in the same worktree.
 - Commit and validate the change inside the worktree first.
 - When the worktree change is ready to land, inspect the shared `main` checkout first. If `main` has any uncommitted tracked changes, stop and tell the user instead of merging.
 - Before attempting to merge back, rebase the worktree branch onto the current `main` so parallel agent commits already landed on `main` are incorporated first.
 - If the rebase hits conflicts, stop there and tell the user what conflicted so they can decide the next step.
 - After a clean rebase, rerun `npm run build` and `npm test` in the rebased worktree. If either fails, stop and tell the user instead of merging.
 - Only after `main` is clean, the rebase is conflict-free, and the rebased worktree passes build and tests should the agent merge the branch back into `main`.
+- Merging back into the shared `main` checkout can require sandbox approval because git updates shared refs such as `ORIG_HEAD`; request escalation when the environment blocks that write.
 - Do not assume a fast-forward merge will be available before rebasing; parallel agent work commonly means the landing branch has diverged from `main`.
 - After merging back into `main`, rerun `npm run build` and `npm test` on `main`, and only then report the task complete.
 - Remove the temporary worktree after the change has been safely integrated unless the user asks to keep it.
