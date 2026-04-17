@@ -101,8 +101,7 @@ export interface DerivedTagOntologyAxisByCategory {
     | "legacy"
     | "setting"
     | "encounter"
-    | "scene_role"
-    | "world_role"
+    | "npc_role"
     | "presentation"
     | "specialization";
   hazard:

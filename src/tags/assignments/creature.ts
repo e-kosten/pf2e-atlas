@@ -49,7 +49,7 @@ export const CREATURE_DERIVED_TAG_ASSIGNMENTS: AuthoredDerivedTagAssignment[] = 
           rationale: "Fits the civic and social fabric of an urban institution-driven scene.",
         },
       ],
-      world_role: [
+      social_role: [
         {
           tag: "profession_npc",
           source: "human",
@@ -71,7 +71,7 @@ export const CREATURE_DERIVED_TAG_ASSIGNMENTS: AuthoredDerivedTagAssignment[] = 
           rationale: "The encounter framing is adversarial and battle-ready, not only social or civic.",
         },
       ],
-      world_role: [
+      social_role: [
         {
           tag: "profession_npc",
           source: "human",

@@ -161,7 +161,7 @@ describe("derived tag catalog", () => {
       expect.objectContaining({
         category: "creature",
         family: "scene_role",
-        axis: "scene_role",
+        axis: "npc_role",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "combatant_npc", description: expect.any(String) }),
           expect.objectContaining({ value: "infiltrator_npc", description: expect.any(String) }),
@@ -170,8 +170,8 @@ describe("derived tag catalog", () => {
       }),
       expect.objectContaining({
         category: "creature",
-        family: "world_role",
-        axis: "world_role",
+        family: "social_role",
+        axis: "npc_role",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "profession_npc", description: expect.any(String) }),
           expect.objectContaining({ value: "authority_npc", description: expect.any(String) }),

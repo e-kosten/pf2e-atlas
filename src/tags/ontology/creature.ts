@@ -582,7 +582,7 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     scene_role: {
-      axis: "scene_role",
+      axis: "npc_role",
       description: "Creature immediate-scenario tags for how a role-defined NPC or humanoid is used in an active scene, separate from broader job, office, or institutional identity.",
       tags: [
         {
@@ -592,7 +592,7 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
           appliesWhen: [
             "The creature belongs to the civic, domestic, institutional, or everyday social fabric of the scene.",
             "A GM would plausibly retrieve it as a socially embedded NPC rather than as a combat-forward foe.",
-            "This tag answers the creature's immediate scene slot, even if a separate world_role tag explains its profession or office."
+            "This tag answers the creature's immediate scene slot, even if a separate social_role tag explains its profession or office."
           ],
           doesNotApplyWhen: [
             "The record is primarily a hostile combatant or raider.",
@@ -632,7 +632,7 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
           ],
           doesNotApplyWhen: [
             "The creature is mainly a combatant_npc or civic_npc and only uses stealth or deception incidentally.",
-            "The stronger retrieval hook is criminal_npc or another world_role tag because the world-facing identity matters more than the scene slot."
+            "The stronger retrieval hook is criminal_npc or another social_role tag because the world-facing identity matters more than the scene slot."
           ],
           adjacentTags: [
             "combatant_npc",
@@ -726,13 +726,13 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
         }
       ]
     },
-    world_role: {
-      axis: "world_role",
-      description: "Creature world-facing role tags for jobs, offices, institutions, and social identities that matter outside one immediate encounter slot.",
+    social_role: {
+      axis: "npc_role",
+      description: "Creature social-role tags for jobs, offices, institutions, and social identities that matter outside one immediate encounter slot.",
       tags: [
         {
           tag: "profession_npc",
-          description: "World-facing role-defined NPC such as a captain, guard, merchant, priest, or commoner.",
+          description: "Role-defined NPC such as a captain, guard, merchant, priest, or commoner.",
           assignmentMode: "editorial",
           appliesWhen: [
             "The creature is primarily presented through a social role, job, office, or profession label.",

@@ -177,7 +177,7 @@ describe("derived tag ontology", () => {
     expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.combat_role.description).toContain("tactical");
     expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.named_locale_setting.description).toContain("specific named Pathfinder");
     expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.scene_role.description).toContain("immediate-scenario");
-    expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.world_role.description).toContain("outside one immediate encounter slot");
+    expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.social_role.description).toContain("outside one immediate encounter slot");
     expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.visual_motif.description).toContain("visual motifs");
     expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.genre_motif.description).toContain("genre-tone");
     expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.story_motif.description).toContain("plot-driving motifs");
@@ -188,7 +188,7 @@ describe("derived tag ontology", () => {
       assignmentMode: "editorial",
       adjacentTags: ["small_settlement_setting", "fortress_setting"],
     }));
-    const authorityNpc = CREATURE_DERIVED_TAG_ONTOLOGY.families.world_role.tags.find((tag) => tag.tag === "authority_npc");
+    const authorityNpc = CREATURE_DERIVED_TAG_ONTOLOGY.families.social_role.tags.find((tag) => tag.tag === "authority_npc");
     expect(authorityNpc).toEqual(expect.objectContaining({
       tag: "authority_npc",
       assignmentMode: "editorial",
@@ -197,7 +197,7 @@ describe("derived tag ontology", () => {
         "Formal office or rank is the main retrieval hook, even if the creature also serves as a civic_npc or combatant_npc in the scene.",
       ]),
     }));
-    const guideNpc = CREATURE_DERIVED_TAG_ONTOLOGY.families.world_role.tags.find((tag) => tag.tag === "guide_npc");
+    const guideNpc = CREATURE_DERIVED_TAG_ONTOLOGY.families.social_role.tags.find((tag) => tag.tag === "guide_npc");
     expect(guideNpc).toEqual(expect.objectContaining({
       tag: "guide_npc",
       assignmentMode: "editorial",
@@ -348,7 +348,7 @@ describe("derived tag ontology", () => {
     }));
     expect(flattened.families).toContainEqual(expect.objectContaining({
       category: "creature",
-      family: "world_role",
+      family: "social_role",
     }));
     expect(flattened.families).toContainEqual(expect.objectContaining({
       category: "creature",
