@@ -8,6 +8,7 @@ import {
   writeDerivedTagOntologyExplorerDbCache,
 } from "../../src/tags/migration/ontology-explorer-data.js";
 import {
+  buildDerivedTagOntologyExplorerListLines,
   createDerivedTagOntologyExplorerState,
   drillIntoDerivedTagOntologyExplorer,
   jumpDerivedTagOntologyExplorerSelection,
@@ -370,6 +371,68 @@ describe("derived tag ontology explorer", () => {
     state = setDerivedTagOntologyExplorerFilter(model, state, "reveals lies");
 
     expect(state.selectedRecordKey).toBe("spell:three");
+  });
+
+  it("matches family depth against descendant tag metadata", () => {
+    const db = createExplorerDb();
+    insertRecord(db, {
+      recordKey: "spell:one",
+      name: "Zone of Truth",
+      category: "spell",
+      tags: ["truth_reveal"],
+      descriptionText: "Forces honesty.",
+    });
+
+    const model = buildDerivedTagOntologyExplorerModel(db);
+    const spellCategory = model.categories.find((category) => category.category === "spell");
+    const targetFamily = spellCategory?.families.find((family) =>
+      family.tags.some((tag) => tag.tag === "truth_reveal"));
+    const nonMatchingFamily = spellCategory?.families.find((family) => family.key !== targetFamily?.key);
+
+    expect(targetFamily).toBeTruthy();
+    expect(nonMatchingFamily).toBeTruthy();
+
+    let state = createDerivedTagOntologyExplorerState(model);
+    state = normalizeDerivedTagOntologyExplorerState(model, {
+      ...state,
+      depth: "family",
+      selectedCategoryKey: "spell",
+      selectedFamilyKey: nonMatchingFamily?.key,
+    });
+
+    state = setDerivedTagOntologyExplorerFilter(model, state, "truth_reveal");
+
+    const lines = buildDerivedTagOntologyExplorerListLines(model, state, 20);
+    expect(lines.some((line) => line.text.startsWith(`${targetFamily?.family} |`))).toBe(true);
+  });
+
+  it("does not match family depth against descendant record text", () => {
+    const db = createExplorerDb();
+    insertRecord(db, {
+      recordKey: "spell:one",
+      name: "Watchful Truth",
+      category: "spell",
+      tags: ["alarm"],
+      descriptionText: "Amber bell chime.",
+    });
+
+    const model = buildDerivedTagOntologyExplorerModel(db);
+    const spellCategory = model.categories.find((category) => category.category === "spell");
+    const communicationFamily = spellCategory?.families.find((family) => family.family === "communication");
+
+    let state = createDerivedTagOntologyExplorerState(model);
+    state = normalizeDerivedTagOntologyExplorerState(model, {
+      ...state,
+      depth: "family",
+      selectedCategoryKey: "spell",
+      selectedFamilyKey: communicationFamily?.key,
+    });
+
+    state = setDerivedTagOntologyExplorerFilter(model, state, "amber bell");
+
+    expect(buildDerivedTagOntologyExplorerListLines(model, state, 10)).toEqual([
+      { text: "No nodes match the current filter.", tone: "dim" },
+    ]);
   });
 
   it("chooses the nearest surviving selection when filtering removes the current row", () => {

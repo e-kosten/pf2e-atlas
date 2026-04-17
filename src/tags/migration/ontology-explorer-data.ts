@@ -137,19 +137,34 @@ function buildTagFilterText(tag: {
   ].join(" ").toLowerCase();
 }
 
-function buildFamilyFilterText(family: {
+function buildFamilyFilterText(
+  family: {
   category: SearchCategory;
   family: string;
   axis: string;
   description: string;
   subcategories?: SearchSubcategory[];
-}): string {
+  },
+  tags: Array<{ filterText: string }>,
+): string {
   return [
     family.category,
     family.family,
     family.axis,
     family.description,
     ...(family.subcategories ?? []),
+    ...tags.map((tag) => tag.filterText),
+  ].join(" ").toLowerCase();
+}
+
+function buildCategoryFilterText(
+  category: SearchCategory,
+  families: Array<{ family: string; description: string; filterText: string }>,
+): string {
+  return [
+    category,
+    ...families.map((family) => `${family.family} ${family.description}`),
+    ...families.map((family) => family.filterText),
   ].join(" ").toLowerCase();
 }
 
@@ -493,7 +508,7 @@ export function buildDerivedTagOntologyExplorerModel(
         tagCount: tags.length,
         liveRecordCount: familyCounts.get(familyKey) ?? 0,
         tags,
-        filterText: buildFamilyFilterText(family),
+        filterText: buildFamilyFilterText(family, tags),
       };
 
       categoryNode.familyCount += 1;
@@ -512,10 +527,7 @@ export function buildDerivedTagOntologyExplorerModel(
           compareDisplayText(left.axis, right.axis)
           || compareDisplayText(left.family, right.family)
           || left.key.localeCompare(right.key)),
-        filterText: [
-          category.category,
-          ...category.families.map((family) => `${family.family} ${family.description}`),
-        ].join(" ").toLowerCase(),
+        filterText: buildCategoryFilterText(category.category, category.families),
       }))
       .sort((left, right) => compareManagedCategory(left.category, right.category)),
   };
