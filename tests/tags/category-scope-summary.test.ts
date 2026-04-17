@@ -263,4 +263,71 @@ describe("derived tag category scope summaries", () => {
     expect(new Set(session.records.map((record) => record.category))).toEqual(new Set(["creature", "spell"]));
     expect(session.decisions.map((record) => record.decisions).flat().every((decision) => decision.source === "llm")).toBe(true);
   });
+
+  it("keeps proposal-review sessions empty when no LLM proposals match", () => {
+    const db = createMigrationDb();
+    insertRecord(db, {
+      recordKey: "creature:one",
+      name: "Creature Scout",
+      category: "creature",
+    });
+
+    const session = buildDerivedTagMigrationSession(db, {
+      mode: "proposal_review",
+    });
+
+    expect(session.manifest.recordCount).toBe(0);
+    expect(session.records).toEqual([]);
+    expect(session.decisions).toEqual([]);
+  });
+
+  it("filters proposal-review exemplar items by family", () => {
+    const db = createMigrationDb();
+    insertRecord(db, {
+      recordKey: "spell:one",
+      name: "Arcane Bell",
+      category: "spell",
+    });
+    insertRecord(db, {
+      recordKey: "spell:two",
+      name: "Fog Veil",
+      category: "spell",
+    });
+
+    const nextState = structuredClone(initialState);
+    nextState.exemplarReviews.spell = {
+      category: "spell",
+      decisions: [
+        {
+          name: "Arcane Bell",
+          recordKey: "spell:one",
+          tag: "alarm",
+          proposedPolarity: "positive",
+          status: "needs_review",
+          rationale: "Alarm exemplar.",
+          source: "llm",
+        },
+        {
+          name: "Fog Veil",
+          recordKey: "spell:two",
+          tag: "social_infiltration",
+          proposedPolarity: "positive",
+          status: "needs_review",
+          rationale: "Infiltration exemplar.",
+          source: "llm",
+        },
+      ],
+    };
+    setCurrentDerivedTagMigrationAuthoredState(nextState);
+
+    const session = buildDerivedTagMigrationSession(db, {
+      mode: "proposal_review",
+      category: "spell",
+      family: "communication",
+    });
+
+    expect(session.records.map((record) => record.recordKey)).toEqual(["spell:one"]);
+    expect(session.decisions).toHaveLength(1);
+    expect(session.decisions[0]?.decisions[0]).toMatchObject({ tag: "alarm" });
+  });
 });

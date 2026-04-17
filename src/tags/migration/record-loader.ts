@@ -120,9 +120,13 @@ function appendRecordFilters(
   if (options.untaggedOnly) {
     sql.push("AND NOT EXISTS (SELECT 1 FROM record_derived_tags d WHERE d.record_key = r.record_key)");
   }
-  if (options.recordKeys && options.recordKeys.length > 0) {
-    sql.push(`AND r.record_key IN (${buildPlaceholders(options.recordKeys)})`);
-    params.push(...options.recordKeys);
+  if (options.recordKeys) {
+    if (options.recordKeys.length === 0) {
+      sql.push("AND 0 = 1");
+    } else {
+      sql.push(`AND r.record_key IN (${buildPlaceholders(options.recordKeys)})`);
+      params.push(...options.recordKeys);
+    }
   }
 }
 

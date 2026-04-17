@@ -9,6 +9,7 @@ import {
   parseInteger,
   writeDerivedTagMigrationSummary,
 } from "../migration/cli-utils.js";
+import { getActionableSessionScopeKeys } from "../migration/actionable-session-scope.js";
 import { runDerivedTagOntologyExplorerUi } from "../migration/ontology-explorer-ui.js";
 import { renderDerivedTagMigrationSessionSummary } from "../migration/render.js";
 import {
@@ -311,12 +312,16 @@ function familyMatchesScope(
 }
 
 function buildFamilySelectOptions(
+  mode: DerivedTagMigrationMode,
   category: SearchCategory | undefined,
   subcategory: SearchSubcategory | undefined,
+  exemplarLimit: number | undefined,
 ): DerivedTagTerminalSelectOption<string>[] {
   const ontology = getSessionScopeOntology();
+  const actionableScope = getActionableSessionScopeKeys(mode, exemplarLimit);
   const familyOptions = ontology.families
     .filter((family) => familyMatchesScope(category, subcategory, family))
+    .filter((family) => !actionableScope || actionableScope.familyKeys.has(`${family.category}:${normalizeDerivedTag(family.family)}` as `${SearchCategory}:${string}`))
     .sort((left, right) =>
       compareManagedCategory(left.category, right.category)
       || compareDisplayText(left.axis, right.axis)
@@ -373,14 +378,18 @@ function tagMatchesScope(
 }
 
 function buildTagSelectOptions(
+  mode: DerivedTagMigrationMode,
   category: SearchCategory | undefined,
   subcategory: SearchSubcategory | undefined,
   family: string | undefined,
+  exemplarLimit: number | undefined,
   required: boolean,
 ): DerivedTagTerminalSelectOption<string>[] {
   const ontology = getSessionScopeOntology();
+  const actionableScope = getActionableSessionScopeKeys(mode, exemplarLimit);
   const tagOptions = ontology.tags
     .filter((tag) => tagMatchesScope(category, subcategory, family, tag))
+    .filter((tag) => !actionableScope || actionableScope.tagKeys.has(`${tag.category}:${normalizeDerivedTag(tag.tag)}` as `${SearchCategory}:${string}`))
     .sort((left, right) =>
       compareManagedCategory(left.category, right.category)
       || compareDisplayText(left.family, right.family)
@@ -469,9 +478,11 @@ async function promptSubcategory(
 
 async function promptTag(
   terminalSession: DerivedTagTerminalSession,
+  mode: DerivedTagMigrationMode,
   category: SearchCategory | undefined,
   subcategory: SearchSubcategory | undefined,
   family: string | undefined,
+  exemplarLimit: number | undefined,
   required: boolean,
 ): Promise<{ category?: SearchCategory; tag?: string } | undefined> {
   const value = await promptTerminalSelectOption(terminalSession, {
@@ -480,7 +491,7 @@ async function promptTag(
       ? "Choose the tag to review"
       : "Optionally narrow the session to one tag",
     prompt: "Tags",
-    entries: buildTagSelectOptions(category, subcategory, family, required),
+    entries: buildTagSelectOptions(mode, category, subcategory, family, exemplarLimit, required),
   });
 
   if (value === undefined) {
@@ -503,14 +514,16 @@ async function promptTag(
 
 async function promptFamily(
   terminalSession: DerivedTagTerminalSession,
+  mode: DerivedTagMigrationMode,
   category: SearchCategory | undefined,
   subcategory: SearchSubcategory | undefined,
+  exemplarLimit: number | undefined,
 ): Promise<{ category?: SearchCategory; family?: string } | undefined> {
   const value = await promptTerminalSelectOption(terminalSession, {
     title: "Session Scope",
     subtitle: "Optionally narrow the queue to one ontology family",
     prompt: "Families",
-    entries: buildFamilySelectOptions(category, subcategory),
+    entries: buildFamilySelectOptions(mode, category, subcategory, exemplarLimit),
   });
 
   if (value === undefined) {
@@ -575,8 +588,12 @@ async function promptCustomSessionOptions(
   }
   const subcategory = subcategorySelection ?? undefined;
 
-  const familySelection = mode === "review_queue" || mode === "proposal_review"
-    ? await promptFamily(terminalSession, category, subcategory)
+  const exemplarLimit = mode === "exemplar_cleanup"
+    ? await promptInteger(terminalSession, "exemplar-limit (blank for none)", "--exemplar-limit")
+    : undefined;
+
+  const familySelection = mode === "review_queue" || mode === "proposal_review" || mode === "exemplar_cleanup"
+    ? await promptFamily(terminalSession, mode, category, subcategory, exemplarLimit)
     : {};
   if (familySelection === undefined) {
     return undefined;
@@ -584,7 +601,15 @@ async function promptCustomSessionOptions(
   const resolvedCategory = category ?? familySelection.category;
   const family = familySelection.family;
 
-  const tagSelection = await promptTag(terminalSession, resolvedCategory, subcategory, family, mode === "legacy_rule");
+  const tagSelection = await promptTag(
+    terminalSession,
+    mode,
+    resolvedCategory,
+    subcategory,
+    family,
+    exemplarLimit,
+    mode === "legacy_rule",
+  );
   if (tagSelection === undefined) {
     return undefined;
   }
@@ -592,9 +617,6 @@ async function promptCustomSessionOptions(
   const tag = tagSelection.tag;
 
   const limit = await promptInteger(terminalSession, "limit (blank for default)", "--limit");
-  const exemplarLimit = mode === "exemplar_cleanup"
-    ? await promptInteger(terminalSession, "exemplar-limit (blank for none)", "--exemplar-limit")
-    : undefined;
 
   return {
     category: resolvedTagCategory,

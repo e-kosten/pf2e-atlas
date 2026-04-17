@@ -6,6 +6,7 @@ import {
 } from "../index.js";
 import type { DerivedTagAssignmentReviewDecision } from "../runtime/assignments.js";
 import { normalizeDerivedTag } from "../runtime/shared.js";
+import { matchesDerivedTagFamilyFilter } from "./actionable-session-scope.js";
 import { getCurrentDerivedTagMigrationAuthoredState } from "./authored-state.js";
 import { loadDerivedTagMigrationRecords } from "./record-loader.js";
 import { deriveCurrentTagSources, getPublishedDerivedTagMigrationOntology } from "./runtime-state.js";
@@ -236,6 +237,7 @@ function buildReviewQueueWorkset(
   const pendingExemplarReviews = flattenCurrentPendingExemplarReviews()
     .filter((entry) => !options.category || entry.category === options.category)
     .filter(() => !options.decisionKind || options.decisionKind === "exemplar")
+    .filter((entry) => matchesDerivedTagFamilyFilter(entry.category, entry.decision.tag, options.family))
     .filter((entry) => !options.tag || normalizeDerivedTag(entry.decision.tag) === normalizeDerivedTag(options.tag));
   const uniqueRecordKeys = [...new Set([
     ...pendingAssignments.map((entry) => entry.decision.recordKey),
@@ -340,6 +342,7 @@ function buildExemplarCleanupWorkset(
   type ExemplarSet = (typeof state.exemplars)[DerivedTagManagedCategory]["exemplars"][number];
   const tagsToReview = categories
     .flatMap((category) => state.exemplars[category].exemplars
+      .filter((entry: ExemplarSet) => matchesDerivedTagFamilyFilter(category, entry.tag, options.family))
       .filter((entry: ExemplarSet) =>
         !options.tag || normalizeDerivedTag(entry.tag) === normalizeDerivedTag(options.tag))
       .filter((entry: ExemplarSet) => options.exemplarLimit === undefined
@@ -506,6 +509,7 @@ function buildProposalReviewWorkset(
   const pendingExemplarReviews = flattenCurrentPendingLlmExemplarReviews()
     .filter((entry) => !options.category || entry.category === options.category)
     .filter(() => !options.decisionKind || options.decisionKind === "exemplar")
+    .filter((entry) => matchesDerivedTagFamilyFilter(entry.category, entry.decision.tag, options.family))
     .filter((entry) => !options.tag || normalizeDerivedTag(entry.decision.tag) === normalizeDerivedTag(options.tag));
   const uniqueRecordKeys = [...new Set([
     ...pendingAssignments.map((entry) => entry.decision.recordKey),
