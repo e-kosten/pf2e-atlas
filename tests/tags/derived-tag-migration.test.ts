@@ -518,6 +518,80 @@ describe("derived tag migration tooling", () => {
     expect(rendered).toContain("Description: A spiritbound aluum stalks city streets and abandoned alleys in search of trespassers and old grudges.");
   });
 
+  it("does not truncate long record context once detail scrolling is available", () => {
+    const longDescription = [
+      "Whereas most aluums are animated by the souls of volunteers loyal to Katapesh,",
+      "the Pactmasters created a handful of more capable and deadly aluums powered by",
+      "the souls of a dozen or more dangerous criminals. These spiritbound aluums are",
+      "rarely used as peacekeepers, instead serving as assassins, elite bodyguards, or",
+      "riot control during times of martial law.",
+    ].join(" ");
+    const session: DerivedTagMigrationSession = {
+      manifest: {
+        id: "test",
+        mode: "exemplar_cleanup",
+        createdAt: "2026-04-16T00:00:00.000Z",
+        recordCount: 1,
+      },
+      records: [
+        {
+          recordKey: "creature:aluum",
+          name: "Spiritbound Aluum",
+          category: "creature",
+          subcategory: null,
+          packName: "creature-pack",
+          level: 16,
+          traits: ["construct", "mindless", "soulbound"],
+          families: [],
+          currentDerivedTags: ["urban_setting"],
+          currentSources: {
+            urban_setting: "assignment",
+          },
+          descriptionText: longDescription,
+          blurbText: null,
+          selectionReasons: [
+            {
+              source: "exemplar_cleanup",
+              tag: "urban_setting",
+              note: "Current exemplar is part of an oversized exemplar set and needs review.",
+            },
+          ],
+        },
+      ],
+      decisions: [
+        {
+          recordKey: "creature:aluum",
+          name: "Spiritbound Aluum",
+          category: "creature",
+          resolutionStatus: "needs_review",
+          decisions: [
+            {
+              kind: "exemplar",
+              tag: "urban_setting",
+              polarity: "positive",
+              action: "keep",
+              status: "needs_review",
+              confidence: "medium",
+              rationale: "Review whether this creature remains a strong positive exemplar for \"urban_setting\".",
+              source: "llm",
+              currentPolarity: "positive",
+            },
+          ],
+        },
+      ],
+      reviewState: {
+        currentIndex: 0,
+        unresolvedOnly: true,
+        updatedAt: "2026-04-16T00:00:00.000Z",
+      },
+    };
+
+    const rendered = renderDerivedTagMigrationReviewItem(session, 0);
+
+    expect(rendered).toContain(longDescription);
+    expect(rendered).not.toContain("that...");
+  });
+
   it("clamps keyboard selection movement to valid bounds", () => {
     expect(moveSelection(0, -1, 3)).toBe(0);
     expect(moveSelection(0, 1, 3)).toBe(1);

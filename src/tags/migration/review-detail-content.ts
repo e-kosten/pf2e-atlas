@@ -9,17 +9,6 @@ function normalizeNarrativeText(text: string): string {
   return text.replace(/\s+/g, " ").trim();
 }
 
-function compactNarrativeText(text: string, maxLength = 420): string {
-  const normalized = normalizeNarrativeText(text);
-  if (normalized.length <= maxLength) {
-    return normalized;
-  }
-
-  const boundary = normalized.lastIndexOf(" ", maxLength - 1);
-  const cutoff = boundary >= Math.floor(maxLength * 0.6) ? boundary : maxLength - 1;
-  return `${normalized.slice(0, cutoff).trimEnd()}...`;
-}
-
 function getDecisionTag(decision: DerivedTagMigrationDecision): string {
   return decision.tag;
 }
@@ -40,14 +29,14 @@ export function buildDerivedTagMigrationRecordContextLines(
   }
 
   if (record.blurbText) {
-    lines.push({ text: `Blurb: ${compactNarrativeText(record.blurbText)}`, indent: 2 });
+    lines.push({ text: `Blurb: ${normalizeNarrativeText(record.blurbText)}`, indent: 2 });
   }
 
   if (record.descriptionText) {
     const normalizedDescription = normalizeNarrativeText(record.descriptionText);
     const normalizedBlurb = record.blurbText ? normalizeNarrativeText(record.blurbText) : null;
     if (!normalizedBlurb || normalizedDescription !== normalizedBlurb) {
-      lines.push({ text: `Description: ${compactNarrativeText(record.descriptionText)}`, indent: 2 });
+      lines.push({ text: `Description: ${normalizedDescription}`, indent: 2 });
     }
   }
 
@@ -69,14 +58,14 @@ export function buildDerivedTagMigrationRecordContextTextLines(
   }
 
   if (record.blurbText) {
-    lines.push(`Blurb: ${compactNarrativeText(record.blurbText)}`);
+    lines.push(`Blurb: ${normalizeNarrativeText(record.blurbText)}`);
   }
 
   if (record.descriptionText) {
     const normalizedDescription = normalizeNarrativeText(record.descriptionText);
     const normalizedBlurb = record.blurbText ? normalizeNarrativeText(record.blurbText) : null;
     if (!normalizedBlurb || normalizedDescription !== normalizedBlurb) {
-      lines.push(`Description: ${compactNarrativeText(record.descriptionText)}`);
+      lines.push(`Description: ${normalizedDescription}`);
     }
   }
 
