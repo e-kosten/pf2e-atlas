@@ -1,6 +1,5 @@
 import { importDerivedTagMigrationSession } from "./importer.js";
 import { lintDerivedTagMigrationSession } from "./linter.js";
-import { renderDerivedTagMigrationReviewItem, renderDerivedTagMigrationSessionSummary } from "./render.js";
 import {
   clampDerivedTagMigrationReviewIndex,
   getDerivedTagMigrationReviewItems,
@@ -10,12 +9,14 @@ import {
 import { writeDerivedTagMigrationSummary } from "./cli-utils.js";
 import { writeDerivedTagMigrationSession } from "./session-store.js";
 import {
-  clearTerminalScreen,
-  moveSelection,
+  getTerminalPaneBodyHeight,
   moveSelectionWrapped,
   pauseForAnyKey,
   readTerminalKey,
-  terminalTheme,
+  renderTerminalTextScreen,
+  renderTerminalTwoPaneScreen,
+  type DerivedTagTerminalLine,
+  type DerivedTagTerminalSession,
 } from "./terminal-ui.js";
 import type { DerivedTagMigrationSession } from "./types.js";
 
@@ -26,7 +27,12 @@ export type DerivedTagMigrationReviewResult = {
 
 async function persistSession(rootPath: string, session: DerivedTagMigrationSession): Promise<void> {
   await writeDerivedTagMigrationSession(rootPath, session);
-  await writeDerivedTagMigrationSummary(rootPath, session.manifest.id, renderDerivedTagMigrationSessionSummary(session));
+  await writeDerivedTagMigrationSummary(rootPath, session.manifest.id, [
+    `Session: ${session.manifest.id}`,
+    `Mode: ${session.manifest.mode}`,
+    `Visible review items: ${getDerivedTagMigrationReviewItems(session).length}`,
+    `Updated at: ${session.reviewState.updatedAt}`,
+  ].join("\n"));
 }
 
 const REVIEW_ACTIONS = [
@@ -40,105 +46,165 @@ const REVIEW_ACTIONS = [
 
 type ReviewActionId = (typeof REVIEW_ACTIONS)[number]["id"];
 
-function renderReviewActionBar(selectedActionIndex: number): string {
-  const labels = REVIEW_ACTIONS
-    .map((action, index) => {
-      const baseLabel = action.id === "approve"
-        ? terminalTheme.positiveAction(action.label)
-        : action.id === "reject"
-          ? terminalTheme.negativeAction(action.label)
-          : action.id === "needs_review"
-            ? terminalTheme.cautionAction(action.label)
-            : action.id === "quit"
-              ? terminalTheme.warning(action.label)
-              : terminalTheme.neutralAction(action.label);
-      return index === selectedActionIndex ? terminalTheme.selectedAction(action.label) : baseLabel;
-    });
-  return [
-    terminalTheme.dim("Controls: Up/Down or j/k move item  Left/Right or h/l choose action  Enter apply  ? help  q quit"),
-    labels.join("  "),
-  ].join("\n");
+function formatActionBar(selectedActionIndex: number): string {
+  return `Actions: ${REVIEW_ACTIONS.map((action, index) => index === selectedActionIndex ? `[${action.label}]` : action.label).join("  ")}`;
 }
 
-function clampActionIndex(currentIndex: number): number {
-  return moveSelection(currentIndex, 0, REVIEW_ACTIONS.length);
+function formatDecisionSummary(decision: DerivedTagMigrationSession["decisions"][number]["decisions"][number]): string {
+  if (decision.kind === "assignment") {
+    return `${decision.family}.${decision.tag} ${decision.mode}`;
+  }
+  if (decision.kind === "exemplar") {
+    return `${decision.tag} exemplar ${decision.action}`;
+  }
+  return `${decision.tag} ${decision.decision}`;
 }
 
-function renderReviewHelp(): string {
+function clampWindowStart(selectedIndex: number, itemCount: number, visibleCount: number): number {
+  if (visibleCount <= 0 || itemCount <= visibleCount) {
+    return 0;
+  }
+  const centered = selectedIndex - Math.floor(visibleCount / 2);
+  return Math.max(0, Math.min(centered, itemCount - visibleCount));
+}
+
+function buildReviewListLines(
+  terminalSession: DerivedTagTerminalSession,
+  session: DerivedTagMigrationSession,
+): DerivedTagTerminalLine[] {
+  const items = getDerivedTagMigrationReviewItems(session);
+  if (items.length === 0) {
+    return [{ text: "No review items match the current filter.", tone: "dim" }];
+  }
+
+  const visibleCount = Math.max(1, getTerminalPaneBodyHeight(terminalSession, {
+    hasSubtitle: true,
+    footerLineCount: 2,
+  }));
+  const windowStart = clampWindowStart(session.reviewState.currentIndex, items.length, visibleCount);
+
+  return items.slice(windowStart, windowStart + visibleCount).map((item, offset) => {
+    const recordDecision = session.decisions[item.recordIndex]!;
+    const decision = recordDecision.decisions[item.decisionIndex]!;
+    const isSelected = windowStart + offset === session.reviewState.currentIndex;
+    return {
+      text: `${recordDecision.name} | ${decision.status} | ${formatDecisionSummary(decision)}`,
+      tone: isSelected ? "selected" : "default",
+      noWrap: true,
+    };
+  });
+}
+
+function buildSelectedReviewDetailLines(session: DerivedTagMigrationSession): DerivedTagTerminalLine[] {
+  const items = getDerivedTagMigrationReviewItems(session);
+  if (items.length === 0) {
+    return [
+      { text: `Session ${session.manifest.id}`, tone: "section" },
+      { text: "No review items matched the current filters.", tone: "dim" },
+    ];
+  }
+
+  const item = items[session.reviewState.currentIndex]!;
+  const recordDecision = session.decisions[item.recordIndex]!;
+  const decision = recordDecision.decisions[item.decisionIndex]!;
+  const record = session.records.find((entry) => entry.recordKey === recordDecision.recordKey)!;
+  const selectionNotes = record.selectionReasons.map((reason) => reason.note).join(" | ") || "(none)";
+
   return [
-    terminalTheme.heading("Review Help"),
-    "",
-    "Navigation:",
-    "- Up / Down or j / k: move between review items",
-    "- Left / Right or h / l: move between available actions",
-    "- Movement wraps at the ends of the list and action bar",
-    "",
-    "Decision actions:",
-    "- Enter: apply the currently highlighted action chip",
-    "- a: approve current item",
-    "  Confirm that the proposed assignment, exemplar decision, or rule decision is correct and should be imported.",
-    "- r: reject current item",
-    "  Mark the current proposal as not accepted. Rejected assignment decisions move into assignment memory; rejected exemplar review items are cleared from the pending queue without changing live exemplars.",
-    "- n: mark current item as needs_review",
-    "  Put the item back into the unresolved queue so it remains visible in future passes.",
-    "",
-    "Workflow actions:",
-    "- t: toggle unresolved-only filtering",
-    "  Switch between only unresolved items and the full session, including already reviewed decisions.",
-    "- i: lint and import the session",
-    "  Validate that the session is internally legal, then write approved outcomes back into authored assignments, exemplars, and future authored rules.",
-    "- q: save and quit",
-    "  Persist scratch review progress without importing anything.",
-    "",
-    "Display:",
-    "- The current record view is the selected review item",
-    "- The highlighted action chip is the action Enter will execute",
-    "- approved and auto-applied assignment decisions update live assignments; needs_review stays in assignment reviews and rejected moves to assignment memory",
-    "- approved exemplar review decisions update live exemplar files and then leave the review queue",
-  ].join("\n");
+    { text: `${record.name}`, tone: "section" },
+    { text: `${record.recordKey}`, tone: "dim" },
+    { text: `Item ${session.reviewState.currentIndex + 1}/${items.length}` },
+    { text: `Scope: ${record.category}${record.subcategory ? `/${record.subcategory}` : ""} | level ${record.level ?? "-"}` },
+    { text: `Resolution: ${recordDecision.resolutionStatus}` },
+    { text: `Decision: ${formatDecisionSummary(decision)}` },
+    { text: `Status: ${decision.status}` },
+    { text: `Confidence: ${"confidence" in decision ? (decision.confidence ?? "unspecified") : "n/a"}` },
+    { text: `Current tags: ${record.currentDerivedTags.join(", ") || "(none)"}` },
+    { text: `Families: ${record.families.join(", ") || "(none)"}` },
+    { text: `Selection reasons: ${selectionNotes}` },
+    { text: "Rationale:", tone: "section" },
+    { text: decision.rationale || "(none)", indent: 2 },
+  ];
+}
+
+function renderReviewHelp(
+  terminalSession: DerivedTagTerminalSession,
+  selectedActionIndex: number,
+): void {
+  renderTerminalTextScreen(terminalSession, {
+    title: "Derived-Tag Review Help",
+    body: [
+      { text: "Navigation", tone: "section" },
+      { text: "Up / Down or j / k: move between review items" },
+      { text: "Left / Right or h / l: move between actions" },
+      { text: "Enter: apply the highlighted action" },
+      { text: "" },
+      { text: "Direct actions", tone: "section" },
+      { text: "a approve  r reject  n needs_review  t toggle unresolved  i import  q quit" },
+      { text: "" },
+      { text: "Current action bar", tone: "section" },
+      { text: formatActionBar(selectedActionIndex), tone: "accent" },
+    ],
+    footer: [{ text: "Press any key to return.", tone: "dim" }],
+  });
 }
 
 export async function runDerivedTagMigrationReviewUi(
   rootPath: string,
   initialSession: DerivedTagMigrationSession,
+  terminalSession: DerivedTagTerminalSession,
 ): Promise<DerivedTagMigrationReviewResult> {
   let session = clampDerivedTagMigrationReviewIndex(initialSession);
   let imported = false;
   let selectedActionIndex = 0;
 
   while (true) {
-    selectedActionIndex = clampActionIndex(selectedActionIndex);
-    clearTerminalScreen();
     const items = getDerivedTagMigrationReviewItems(session);
-    console.log(items.length > 0
-      ? renderDerivedTagMigrationReviewItem(session, session.reviewState.currentIndex, renderReviewActionBar(selectedActionIndex))
-      : renderDerivedTagMigrationReviewItem(session, session.reviewState.currentIndex, renderReviewActionBar(selectedActionIndex)));
+    const resolvedCount = session.decisions.filter((decision) => decision.resolutionStatus === "complete").length;
+    renderTerminalTwoPaneScreen(terminalSession, {
+      title: "Derived-Tag Review",
+      subtitle: `Session ${session.manifest.id} | ${resolvedCount}/${session.decisions.length} records resolved | ${items.length} visible item${items.length === 1 ? "" : "s"} | unresolved only ${session.reviewState.unresolvedOnly ? "on" : "off"}`,
+      left: {
+        title: "Review Queue",
+        lines: buildReviewListLines(terminalSession, session),
+      },
+      right: {
+        title: "Selected Item",
+        lines: buildSelectedReviewDetailLines(session),
+      },
+      footer: [
+        { text: "Up/Down or j/k move  Left/Right or h/l choose action  Enter apply  ? help  q quit", tone: "dim" },
+        { text: formatActionBar(selectedActionIndex), tone: "accent" },
+      ],
+    });
 
-    const key = await readTerminalKey();
-    const normalized = key.sequence.toLowerCase();
+    const key = await readTerminalKey(terminalSession);
+    const normalized = key.normalizedName;
 
-    if (key.ctrl && key.name === "c") {
+    if (normalized === "ctrl_c") {
       break;
     }
 
     let requestedAction: ReviewActionId | undefined;
 
-    if (key.name === "up" || normalized === "k") {
+    if (normalized === "up" || normalized === "k") {
       if (items.length > 0) {
         session.reviewState.currentIndex = moveSelectionWrapped(session.reviewState.currentIndex, -1, items.length);
       }
-    } else if (key.name === "down" || normalized === "j") {
+    } else if (normalized === "down" || normalized === "j") {
       if (items.length > 0) {
         session.reviewState.currentIndex = moveSelectionWrapped(session.reviewState.currentIndex, 1, items.length);
       }
-    } else if (key.name === "left" || normalized === "h") {
+    } else if (normalized === "left" || normalized === "h") {
       selectedActionIndex = moveSelectionWrapped(selectedActionIndex, -1, REVIEW_ACTIONS.length);
-    } else if (key.name === "right" || normalized === "l") {
+    } else if (normalized === "right" || normalized === "l") {
       selectedActionIndex = moveSelectionWrapped(selectedActionIndex, 1, REVIEW_ACTIONS.length);
-    } else if (key.name === "return" || key.name === "enter") {
+    } else if (normalized === "enter" || normalized === "kp_enter") {
       requestedAction = REVIEW_ACTIONS[selectedActionIndex]?.id;
     } else if (normalized === "?") {
-      await pauseForAnyKey(renderReviewHelp());
+      renderReviewHelp(terminalSession, selectedActionIndex);
+      await readTerminalKey(terminalSession);
+      continue;
     } else if (normalized === "a") {
       requestedAction = "approve";
     } else if (normalized === "r") {
@@ -182,10 +248,10 @@ export async function runDerivedTagMigrationReviewUi(
         await importDerivedTagMigrationSession(rootPath, session);
         imported = true;
         await persistSession(rootPath, session);
-        await pauseForAnyKey(`Imported session ${session.manifest.id}.`);
+        await pauseForAnyKey(terminalSession, `Imported session ${session.manifest.id}.`);
         break;
       } catch (error) {
-        await pauseForAnyKey(`Import failed: ${(error as Error).message}`);
+        await pauseForAnyKey(terminalSession, `Import failed: ${(error as Error).message}`);
       }
     }
 
