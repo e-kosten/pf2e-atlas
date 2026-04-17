@@ -1,116 +1,398 @@
-import { createInterface } from "node:readline/promises";
-import { emitKeypressEvents } from "node:readline";
-import { stdin as input, stdout as output } from "node:process";
+import terminalKit from "terminal-kit";
+
+export type DerivedTagTerminalTone =
+  | "default"
+  | "heading"
+  | "section"
+  | "dim"
+  | "accent"
+  | "success"
+  | "warning"
+  | "danger"
+  | "selected";
 
 export type DerivedTagTerminalKey = {
-  name?: string;
-  sequence: string;
-  ctrl?: boolean;
-  meta?: boolean;
-  shift?: boolean;
+  name: string;
+  normalizedName: string;
+  matches: string[];
+  data: {
+    codepoint?: number;
+    code?: number | Buffer;
+    isCharacter?: boolean;
+    meta?: string;
+  };
 };
 
-let keypressInitialized = false;
-const ANSI = {
-  reset: "\x1B[0m",
-  bold: "\x1B[1m",
-  dim: "\x1B[2m",
-  black: "\x1B[30m",
-  red: "\x1B[31m",
-  green: "\x1B[32m",
-  yellow: "\x1B[33m",
-  blue: "\x1B[34m",
-  magenta: "\x1B[35m",
-  cyan: "\x1B[36m",
-  white: "\x1B[97m",
-  bgBlue: "\x1B[44m",
-  bgCyan: "\x1B[46m",
-  bgGreen: "\x1B[42m",
-  bgRed: "\x1B[41m",
-  bgYellow: "\x1B[43m",
-} as const;
-
-export function clearTerminalScreen(): void {
-  output.write("\x1B[2J\x1B[0f");
-}
-
-function styleText(text: string, ...codes: string[]): string {
-  if (!output.isTTY) {
-    return text;
-  }
-  return `${codes.join("")}${text}${ANSI.reset}`;
-}
-
-export const terminalTheme = {
-  heading: (text: string) => styleText(text, ANSI.bold, ANSI.cyan),
-  section: (text: string) => styleText(text, ANSI.bold),
-  dim: (text: string) => styleText(text, ANSI.dim),
-  muted: (text: string) => styleText(text, ANSI.dim),
-  success: (text: string) => styleText(text, ANSI.green),
-  warning: (text: string) => styleText(text, ANSI.yellow),
-  danger: (text: string) => styleText(text, ANSI.red),
-  accent: (text: string) => styleText(text, ANSI.cyan),
-  selectedLine: (text: string) => styleText(text, ANSI.bold, ANSI.white, ANSI.bgBlue),
-  selectedAction: (text: string) => styleText(` ${text} `, ANSI.bold, ANSI.black, ANSI.bgYellow),
-  selectedMarker: (text: string) => styleText(text, ANSI.bold, ANSI.yellow),
-  positiveAction: (text: string) => styleText(text, ANSI.green),
-  negativeAction: (text: string) => styleText(text, ANSI.red),
-  cautionAction: (text: string) => styleText(text, ANSI.yellow),
-  neutralAction: (text: string) => styleText(text, ANSI.cyan),
-  successBadge: (text: string) => styleText(` ${text} `, ANSI.bold, ANSI.black, ANSI.bgGreen),
-  dangerBadge: (text: string) => styleText(` ${text} `, ANSI.bold, ANSI.white, ANSI.bgRed),
-  warningBadge: (text: string) => styleText(` ${text} `, ANSI.bold, ANSI.black, ANSI.bgYellow),
+export type DerivedTagTerminalLine = {
+  text: string;
+  tone?: DerivedTagTerminalTone;
+  indent?: number;
+  noWrap?: boolean;
 };
 
-function ensureKeypressEvents(): void {
-  if (keypressInitialized) {
-    return;
-  }
-  emitKeypressEvents(input);
-  keypressInitialized = true;
+export type DerivedTagTerminalTextScreen = {
+  title: string;
+  subtitle?: string;
+  body: DerivedTagTerminalLine[];
+  footer?: DerivedTagTerminalLine[];
+};
+
+export type DerivedTagTerminalPane = {
+  title: string;
+  lines: DerivedTagTerminalLine[];
+};
+
+export type DerivedTagTerminalTwoPaneScreen = {
+  title: string;
+  subtitle?: string;
+  left: DerivedTagTerminalPane;
+  right: DerivedTagTerminalPane;
+  footer?: DerivedTagTerminalLine[];
+  leftWidth?: number;
+};
+
+type Terminal = ReturnType<typeof terminalKit.createTerminal>;
+
+export type DerivedTagTerminalSession = {
+  term: Terminal;
+};
+
+const { terminal } = terminalKit;
+const { stringWidth, truncateString } = terminalKit;
+
+function normalizeKeyName(name: string): string {
+  return name.toLowerCase();
 }
 
-export async function readTerminalKey(promptText?: string): Promise<DerivedTagTerminalKey> {
-  if (!input.isTTY) {
-    const rl = createInterface({ input, output });
-    try {
-      const answer = (await rl.question(promptText ?? "")).trim().toLowerCase();
-      return {
-        name: answer,
-        sequence: answer,
-      };
-    } finally {
-      rl.close();
+function repeatCharacter(character: string, width: number): string {
+  return width > 0 ? character.repeat(width) : "";
+}
+
+function fitToWidth(text: string, width: number): string {
+  if (width <= 0) {
+    return "";
+  }
+  const truncated = truncateString(text, width);
+  const paddingWidth = Math.max(0, width - stringWidth(truncated));
+  return `${truncated}${" ".repeat(paddingWidth)}`;
+}
+
+function wrapPlainText(text: string, width: number): string[] {
+  if (width <= 0) {
+    return [];
+  }
+
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (!normalized) {
+    return [""];
+  }
+
+  const words = normalized.split(" ");
+  const lines: string[] = [];
+  let current = "";
+
+  for (const word of words) {
+    if (!current) {
+      current = word;
+      continue;
+    }
+
+    const candidate = `${current} ${word}`;
+    if (stringWidth(candidate) <= width) {
+      current = candidate;
+      continue;
+    }
+
+    lines.push(current);
+    if (stringWidth(word) <= width) {
+      current = word;
+      continue;
+    }
+
+    let remaining = word;
+    while (stringWidth(remaining) > width) {
+      lines.push(truncateString(remaining, width));
+      remaining = remaining.slice(truncateString(remaining, width).length);
+    }
+    current = remaining;
+  }
+
+  if (current) {
+    lines.push(current);
+  }
+
+  return lines.length > 0 ? lines : [""];
+}
+
+function normalizeLine(line: DerivedTagTerminalLine): Required<DerivedTagTerminalLine> {
+  return {
+    text: line.text,
+    tone: line.tone ?? "default",
+    indent: line.indent ?? 0,
+    noWrap: line.noWrap ?? false,
+  };
+}
+
+function applyTone(term: Terminal, tone: DerivedTagTerminalTone, text: string): void {
+  switch (tone) {
+    case "heading":
+      term.bold.cyan(text);
+      return;
+    case "section":
+      term.bold(text);
+      return;
+    case "dim":
+      term.dim(text);
+      return;
+    case "accent":
+      term.cyan(text);
+      return;
+    case "success":
+      term.green(text);
+      return;
+    case "warning":
+      term.yellow(text);
+      return;
+    case "danger":
+      term.red(text);
+      return;
+    case "selected":
+      term.inverse.bold(text);
+      return;
+    default:
+      term(text);
+  }
+}
+
+function renderLines(
+  session: DerivedTagTerminalSession,
+  x: number,
+  startY: number,
+  width: number,
+  height: number,
+  lines: DerivedTagTerminalLine[],
+): void {
+  const term = session.term;
+  const renderedLines: Array<{ text: string; tone: DerivedTagTerminalTone }> = [];
+
+  for (const rawLine of lines) {
+    const line = normalizeLine(rawLine);
+    const indent = " ".repeat(Math.max(0, line.indent));
+    const usableWidth = Math.max(1, width - indent.length);
+    const wrapped = line.noWrap ? [truncateString(line.text, usableWidth)] : wrapPlainText(line.text, usableWidth);
+
+    for (const segment of wrapped) {
+      renderedLines.push({
+        text: `${indent}${segment}`,
+        tone: line.tone,
+      });
     }
   }
 
-  if (promptText) {
-    output.write(promptText);
+  for (let row = 0; row < height; row += 1) {
+    term.moveTo(x, startY + row);
+    const line = renderedLines[row];
+    if (!line) {
+      term(" ".repeat(width));
+      continue;
+    }
+    applyTone(term, line.tone, fitToWidth(line.text, width));
+  }
+}
+
+function renderPane(
+  session: DerivedTagTerminalSession,
+  x: number,
+  startY: number,
+  width: number,
+  height: number,
+  pane: DerivedTagTerminalPane,
+): void {
+  const term = session.term;
+  if (width <= 0 || height <= 0) {
+    return;
   }
 
-  ensureKeypressEvents();
-  input.setRawMode(true);
-  input.resume();
+  term.moveTo(x, startY);
+  applyTone(term, "section", fitToWidth(pane.title, width));
+  if (height === 1) {
+    return;
+  }
 
+  term.moveTo(x, startY + 1);
+  applyTone(term, "dim", fitToWidth(repeatCharacter("─", width), width));
+  renderLines(session, x, startY + 2, width, Math.max(0, height - 2), pane.lines);
+}
+
+function renderHeader(
+  session: DerivedTagTerminalSession,
+  title: string,
+  subtitle: string | undefined,
+): number {
+  const term = session.term;
+  const width = term.width;
+  term.moveTo(1, 1);
+  applyTone(term, "heading", fitToWidth(title, width));
+
+  if (!subtitle) {
+    term.moveTo(1, 2);
+    applyTone(term, "dim", fitToWidth(repeatCharacter("═", width), width));
+    return 3;
+  }
+
+  term.moveTo(1, 2);
+  applyTone(term, "accent", fitToWidth(subtitle, width));
+  term.moveTo(1, 3);
+  applyTone(term, "dim", fitToWidth(repeatCharacter("═", width), width));
+  return 4;
+}
+
+function renderFooter(
+  session: DerivedTagTerminalSession,
+  footer: DerivedTagTerminalLine[] | undefined,
+): number {
+  if (!footer || footer.length === 0) {
+    return 0;
+  }
+
+  const term = session.term;
+  const width = term.width;
+  const renderedFooter = footer.slice(-Math.max(1, term.height - 1));
+  const startY = term.height - renderedFooter.length + 1;
+
+  for (let index = 0; index < renderedFooter.length; index += 1) {
+    term.moveTo(1, startY + index);
+    const line = normalizeLine(renderedFooter[index]!);
+    applyTone(term, line.tone, fitToWidth(line.text, width));
+  }
+
+  return renderedFooter.length;
+}
+
+export async function runWithDerivedTagTerminalSession<T>(
+  callback: (session: DerivedTagTerminalSession) => Promise<T>,
+): Promise<T> {
+  const session: DerivedTagTerminalSession = { term: terminal };
+  terminal.fullscreen({ noAlternate: false });
+  terminal.grabInput({ mouse: "button", safe: true });
+  terminal.windowTitle("Derived-Tag Workbench");
+
+  try {
+    return await callback(session);
+  } finally {
+    terminal.styleReset();
+    terminal.grabInput(false);
+    terminal.fullscreen(false);
+    await terminal.asyncCleanup();
+  }
+}
+
+export function clearTerminalScreen(session: DerivedTagTerminalSession): void {
+  session.term.clear();
+}
+
+export function renderTerminalTextScreen(
+  session: DerivedTagTerminalSession,
+  screen: DerivedTagTerminalTextScreen,
+): void {
+  clearTerminalScreen(session);
+  const headerBottom = renderHeader(session, screen.title, screen.subtitle);
+  const footerHeight = renderFooter(session, screen.footer);
+  const bodyHeight = Math.max(0, session.term.height - headerBottom - footerHeight + 1);
+  renderLines(session, 1, headerBottom, session.term.width, bodyHeight, screen.body);
+}
+
+export function renderTerminalTwoPaneScreen(
+  session: DerivedTagTerminalSession,
+  screen: DerivedTagTerminalTwoPaneScreen,
+): void {
+  clearTerminalScreen(session);
+  const headerBottom = renderHeader(session, screen.title, screen.subtitle);
+  const footerHeight = renderFooter(session, screen.footer);
+  const contentHeight = Math.max(0, session.term.height - headerBottom - footerHeight + 1);
+  const totalWidth = session.term.width;
+  const separatorWidth = 3;
+  const leftWidth = Math.max(24, Math.min(screen.leftWidth ?? Math.floor(totalWidth * 0.38), totalWidth - separatorWidth - 20));
+  const rightWidth = Math.max(20, totalWidth - leftWidth - separatorWidth);
+
+  renderPane(session, 1, headerBottom, leftWidth, contentHeight, screen.left);
+  session.term.moveTo(leftWidth + 2, headerBottom);
+  applyTone(session.term, "dim", fitToWidth("│", 1));
+  for (let row = 1; row < contentHeight; row += 1) {
+    session.term.moveTo(leftWidth + 2, headerBottom + row);
+    applyTone(session.term, "dim", fitToWidth("│", 1));
+  }
+  renderPane(session, leftWidth + separatorWidth, headerBottom, rightWidth, contentHeight, screen.right);
+}
+
+export function getTerminalPaneBodyHeight(
+  session: DerivedTagTerminalSession,
+  options: { hasSubtitle?: boolean; footerLineCount?: number },
+): number {
+  const headerBottom = options.hasSubtitle ? 4 : 3;
+  const footerHeight = options.footerLineCount ?? 0;
+  const contentHeight = Math.max(0, session.term.height - headerBottom - footerHeight + 1);
+  return Math.max(0, contentHeight - 2);
+}
+
+export async function readTerminalKey(
+  session: DerivedTagTerminalSession,
+): Promise<DerivedTagTerminalKey> {
   return new Promise((resolve) => {
-    const onKeypress = (sequence: string, key: Omit<DerivedTagTerminalKey, "sequence">) => {
-      input.off("keypress", onKeypress);
-      input.setRawMode(false);
-      input.pause();
+    const onKey = (name: string, matches: string[], data: DerivedTagTerminalKey["data"]) => {
+      session.term.off("key", onKey);
       resolve({
-        sequence,
-        ...key,
+        name,
+        normalizedName: normalizeKeyName(name),
+        matches,
+        data,
       });
     };
 
-    input.on("keypress", onKeypress);
+    session.term.on("key", onKey);
   });
 }
 
-export async function pauseForAnyKey(message: string): Promise<void> {
-  console.log(`\n${message}`);
-  await readTerminalKey("Press any key to continue...");
-  console.log();
+export async function promptTerminalTextInput(
+  session: DerivedTagTerminalSession,
+  options: {
+    title: string;
+    prompt: string;
+    defaultValue?: string;
+    hint?: string;
+  },
+): Promise<string | undefined> {
+  renderTerminalTextScreen(session, {
+    title: options.title,
+    body: [
+      { text: options.prompt, tone: "section" },
+      ...(options.hint ? [{ text: options.hint, tone: "dim" as const }] : []),
+      { text: "" },
+      { text: options.defaultValue ? `Default: ${options.defaultValue}` : "Leave blank to skip.", tone: "dim" },
+    ],
+    footer: [{ text: "Enter submit  Esc cancel", tone: "dim" }],
+  });
+
+  session.term.moveTo(1, Math.min(session.term.height, 6));
+  session.term.eraseLine();
+  session.term("> ");
+  const response = await session.term.inputField({
+    cancelable: true,
+    default: options.defaultValue,
+  }).promise;
+  return response?.trim() ? response.trim() : undefined;
+}
+
+export async function pauseForAnyKey(
+  session: DerivedTagTerminalSession,
+  message: string,
+): Promise<void> {
+  renderTerminalTextScreen(session, {
+    title: "Derived-Tag Workbench",
+    body: message.split("\n").map((line) => ({ text: line })),
+    footer: [{ text: "Press any key to continue.", tone: "dim" }],
+  });
+  await readTerminalKey(session);
 }
 
 export function moveSelection(currentIndex: number, delta: number, itemCount: number): number {

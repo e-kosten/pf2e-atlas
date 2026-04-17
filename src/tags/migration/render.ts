@@ -1,7 +1,6 @@
 import type { DerivedTagMigrationDecision, DerivedTagMigrationSession } from "./types.js";
 import { getCurrentDerivedTagMigrationAuthoredState } from "./authored-state.js";
 import { getDerivedTagMigrationReviewItems } from "./review-session.js";
-import { terminalTheme } from "./terminal-ui.js";
 
 function describeDecision(decision: DerivedTagMigrationDecision): string {
   if (decision.kind === "assignment") {
@@ -62,27 +61,21 @@ function renderAssignmentMemory(category: string, recordKey: string): string {
 }
 
 function renderStatus(value: string): string {
-  if (value === "approved" || value === "complete") {
-    return terminalTheme.successBadge(value);
-  }
-  if (value === "rejected") {
-    return terminalTheme.dangerBadge(value);
-  }
-  return terminalTheme.warningBadge(value);
+  return value;
 }
 
 export function renderDerivedTagMigrationSessionSummary(session: DerivedTagMigrationSession): string {
   const items = getDerivedTagMigrationReviewItems(session);
   const resolvedCount = session.decisions.filter((decision) => decision.resolutionStatus === "complete").length;
   return [
-    terminalTheme.heading(`Session: ${session.manifest.id}`),
-    `Mode: ${terminalTheme.accent(session.manifest.mode)}`,
+    `Session: ${session.manifest.id}`,
+    `Mode: ${session.manifest.mode}`,
     `Category: ${session.manifest.category ?? "(all)"}`,
     `Tag: ${session.manifest.tag ?? "(any)"}`,
     `Records: ${session.manifest.recordCount}`,
     `Resolved records: ${resolvedCount}/${session.decisions.length}`,
     `Visible review items: ${items.length}`,
-    `Unresolved only: ${session.reviewState.unresolvedOnly ? terminalTheme.warningBadge("yes") : terminalTheme.dim("no")}`,
+    `Unresolved only: ${session.reviewState.unresolvedOnly ? "yes" : "no"}`,
   ].join("\n");
 }
 
@@ -109,8 +102,8 @@ export function renderDerivedTagMigrationReviewItem(
   return [
     renderDerivedTagMigrationSessionSummary(session),
     "",
-    terminalTheme.section(`Item ${itemIndex + 1}/${items.length}`),
-    terminalTheme.accent(`${record.name} (${record.recordKey})`),
+    `Item ${itemIndex + 1}/${items.length}`,
+    `${record.name} (${record.recordKey})`,
     `Scope: ${record.category}${record.subcategory ? `/${record.subcategory}` : ""} | level ${record.level ?? "-"}`,
     `Decision: ${describeDecision(decision)}`,
     `Status: ${renderStatus(decision.status)}`,

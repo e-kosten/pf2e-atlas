@@ -1,26 +1,28 @@
 #!/usr/bin/env node
 
-import { createInterface, type Interface } from "node:readline/promises";
-import { stdin as input, stdout as output } from "node:process";
-
 import type { SearchCategory, SearchSubcategory } from "../../types.js";
 import {
   openConfiguredIndex,
   parseInteger,
   writeDerivedTagMigrationSummary,
 } from "../migration/cli-utils.js";
+import { runDerivedTagOntologyExplorerUi } from "../migration/ontology-explorer-ui.js";
 import { renderDerivedTagMigrationSessionSummary } from "../migration/render.js";
 import { summarizeCurrentDerivedTagReviewQueue } from "../migration/runtime-state.js";
 import { runDerivedTagMigrationReviewUi } from "../migration/review-ui.js";
 import { writeDerivedTagMigrationSession } from "../migration/session-store.js";
 import { buildDerivedTagMigrationSession } from "../migration/session-builder.js";
 import {
-  clearTerminalScreen,
-  moveSelection,
+  getTerminalPaneBodyHeight,
   moveSelectionWrapped,
   pauseForAnyKey,
+  promptTerminalTextInput,
   readTerminalKey,
-  terminalTheme,
+  renderTerminalTextScreen,
+  renderTerminalTwoPaneScreen,
+  runWithDerivedTagTerminalSession,
+  type DerivedTagTerminalLine,
+  type DerivedTagTerminalSession,
 } from "../migration/terminal-ui.js";
 import type {
   DerivedTagManagedCategory,
@@ -35,6 +37,7 @@ type WorkbenchMenuItem =
   | { kind: "review_queue_item"; label: string; queueItem: DerivedTagReviewQueueSummaryItem }
   | { kind: "review_all"; label: string }
   | { kind: "create_mode"; label: string; mode: DerivedTagMigrationMode }
+  | { kind: "explore_ontology"; label: string }
   | { kind: "quit"; label: string };
 
 function buildWorkbenchMenuItems(items: DerivedTagReviewQueueSummaryItem[]): WorkbenchMenuItem[] {
@@ -58,101 +61,92 @@ function buildWorkbenchMenuItems(items: DerivedTagReviewQueueSummaryItem[]): Wor
     { kind: "create_mode", label: "Create legacy-rule review session", mode: "legacy_rule" },
     { kind: "create_mode", label: "Create exemplar-cleanup review session", mode: "exemplar_cleanup" },
     { kind: "create_mode", label: "Create new-tagging review session", mode: "new_tagging" },
+    { kind: "explore_ontology", label: "Explore ontology" },
     { kind: "quit", label: "Quit" },
   );
   return menuItems;
 }
 
-function renderWorkbenchHome(items: DerivedTagReviewQueueSummaryItem[], menuItems: WorkbenchMenuItem[], selectedIndex: number): string {
-  const renderedMenu = menuItems.map((item, index) => {
-    if (index === selectedIndex) {
-      return `${terminalTheme.selectedMarker(">")} ${terminalTheme.selectedLine(item.label)}`;
-    }
-    return `  ${item.label}`;
+function clampWindowStart(selectedIndex: number, itemCount: number, visibleCount: number): number {
+  if (visibleCount <= 0 || itemCount <= visibleCount) {
+    return 0;
+  }
+  const centered = selectedIndex - Math.floor(visibleCount / 2);
+  return Math.max(0, Math.min(centered, itemCount - visibleCount));
+}
+
+function buildMenuLines(
+  terminalSession: DerivedTagTerminalSession,
+  menuItems: WorkbenchMenuItem[],
+  selectedIndex: number,
+): DerivedTagTerminalLine[] {
+  const visibleCount = Math.max(1, getTerminalPaneBodyHeight(terminalSession, {
+    hasSubtitle: true,
+    footerLineCount: 2,
+  }));
+  const windowStart = clampWindowStart(selectedIndex, menuItems.length, visibleCount);
+
+  return menuItems.slice(windowStart, windowStart + visibleCount).map((item, offset) => ({
+    text: item.label,
+    tone: windowStart + offset === selectedIndex ? "selected" : "default",
+    noWrap: true,
+  }));
+}
+
+function buildQueueLines(queueItems: DerivedTagReviewQueueSummaryItem[]): DerivedTagTerminalLine[] {
+  if (queueItems.length === 0) {
+    return [{ text: "No pending authored review items.", tone: "dim" }];
+  }
+
+  return queueItems.flatMap((item) => {
+    const scope = item.kind === "assignment"
+      ? `${item.category} ${item.family}.${item.tag}`
+      : `${item.category} exemplar.${item.tag}`;
+    return [
+      { text: scope, tone: "section" as const },
+      { text: `confidence=${item.confidence} count=${item.count}`, indent: 2 },
+    ];
   });
-
-  return [
-    terminalTheme.heading("Derived-Tag Migration Workbench"),
-    "",
-    terminalTheme.section("Pending review queue:"),
-    ...(items.length > 0
-      ? items.map((item) => {
-        const confidence = item.confidence === "low"
-          ? terminalTheme.danger(item.confidence)
-          : item.confidence === "medium"
-            ? terminalTheme.warning(item.confidence)
-            : item.confidence === "mixed"
-            ? terminalTheme.accent(item.confidence)
-              : terminalTheme.success(item.confidence);
-        const scope = item.kind === "assignment"
-          ? `${item.category} ${item.family}.${item.tag}`
-          : `${item.category} exemplar.${item.tag}`;
-        return `- ${scope} confidence=${confidence} count=${item.count}`;
-      })
-      : [terminalTheme.dim("No pending authored review items.")]),
-    "",
-    terminalTheme.section("Menu:"),
-    ...renderedMenu,
-    "",
-    terminalTheme.dim("Controls: Up/Down or j/k move  Enter select  ? help  q quit"),
-  ].join("\n");
 }
 
-function renderWorkbenchHelp(): string {
-  return [
-    terminalTheme.heading("Workbench Help"),
-    "",
-    "Navigation:",
-    "- Up / Down or j / k: move between workbench menu rows",
-    "- Movement wraps at the top and bottom of the menu",
-    "- Enter: open the selected row",
-    "",
-    "Queue review:",
-    "- a: review all currently pending unresolved authored review items",
-    "- Queue rows: open a focused review_queue session for one assignment or exemplar slice",
-    "- The queue is selective review only: confident live-authored changes should not appear here",
-    "- Assignment queue items come from `src/tags/assignment-reviews`; rejected assignment outcomes are kept separately in `src/tags/assignment-memory`",
-    "",
-    "Create session shortcuts:",
-    "- s: create a legacy-seed review session",
-    "  Review records currently carried forward from old seed-based tagging. Use this to decide two things per touched record: which tags should become explicit long-term assignments, and whether the record should remain an exemplar at all.",
-    "- r: create a legacy-rule review session",
-    "  Review records currently tagged by an old heuristic rule. Use this when deciding whether a legacy rule should be replaced by a future authored rule, converted into explicit assignments, or dropped as too noisy.",
-    "- e: create an exemplar-cleanup review session",
-    "  Review oversized exemplar sets and prune them down to the strongest teaching examples. This is about ontology explanation quality, not runtime tagging coverage.",
-    "- n: create a new-tagging review session",
-    "  Review currently untagged records and assign their future-state explicit tags. Use this for forward coverage work once legacy cleanup is not the source of truth anymore.",
-    "",
-    "Other:",
-    "- q: quit",
-    "",
-    "Session prompts:",
-    "- Create entries will ask for any scope they need, such as category, tag, or limit",
-    "- category narrows the record type being reviewed",
-    "- tag/family narrows the work to one ontology slice when applicable",
-    "- limit keeps manual passes small and reviewable",
-    "",
-    "Exemplar review:",
-    "- Exemplars are not runtime tagging state",
-    "- Only uncertain exemplar decisions should go into review; confident exemplar changes should be written directly",
-  ].join("\n");
+function renderWorkbenchHelp(terminalSession: DerivedTagTerminalSession): void {
+  renderTerminalTextScreen(terminalSession, {
+    title: "Derived-Tag Workbench Help",
+    body: [
+      { text: "Navigation", tone: "section" },
+      { text: "Up / Down or j / k: move between workbench menu rows" },
+      { text: "Enter: open the selected row" },
+      { text: "" },
+      { text: "Shortcuts", tone: "section" },
+      { text: "a review all queue items" },
+      { text: "s create a legacy-seed session" },
+      { text: "r create a legacy-rule session" },
+      { text: "e create an exemplar-cleanup session" },
+      { text: "n create a new-tagging session" },
+      { text: "o open the ontology explorer" },
+      { text: "q quit" },
+    ],
+    footer: [{ text: "Press any key to return.", tone: "dim" }],
+  });
 }
 
-function normalizeOptional(value: string): string | undefined {
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : undefined;
+function normalizeOptional(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
 }
 
 async function promptCategory(
-  rl: Interface,
+  terminalSession: DerivedTagTerminalSession,
   required: boolean,
 ): Promise<SearchCategory | undefined> {
-  const label = required
-    ? `category (${MANAGED_CATEGORIES.join("/")})`
-    : `category (${MANAGED_CATEGORIES.join("/")}, blank for all)`;
-
   while (true) {
-    const answer = normalizeOptional(await rl.question(`${label}: `) ?? "");
+    const answer = normalizeOptional(await promptTerminalTextInput(terminalSession, {
+      title: "Session Scope",
+      prompt: required
+        ? `category (${MANAGED_CATEGORIES.join("/")})`
+        : `category (${MANAGED_CATEGORIES.join("/")}, blank for all)`,
+    }));
+
     if (!answer) {
       if (!required) {
         return undefined;
@@ -160,12 +154,25 @@ async function promptCategory(
     } else if (MANAGED_CATEGORIES.includes(answer as DerivedTagManagedCategory)) {
       return answer as SearchCategory;
     }
-    console.log(`Enter one of: ${MANAGED_CATEGORIES.join(", ")}.`);
+
+    await pauseForAnyKey(terminalSession, `Enter one of: ${MANAGED_CATEGORIES.join(", ")}.`);
   }
 }
 
+async function promptInteger(
+  terminalSession: DerivedTagTerminalSession,
+  prompt: string,
+  flagName: string,
+): Promise<number | undefined> {
+  const value = normalizeOptional(await promptTerminalTextInput(terminalSession, {
+    title: "Session Scope",
+    prompt,
+  }));
+  return parseInteger(value, flagName);
+}
+
 async function promptCustomSessionOptions(
-  rl: Interface,
+  terminalSession: DerivedTagTerminalSession,
   mode: DerivedTagMigrationMode,
 ): Promise<{
   category?: SearchCategory;
@@ -176,23 +183,33 @@ async function promptCustomSessionOptions(
   exemplarLimit?: number;
 }> {
   const requireCategory = mode === "legacy_rule" || mode === "new_tagging";
-  const category = await promptCategory(rl, requireCategory);
-  const subcategory = normalizeOptional(await rl.question("subcategory (blank to skip): ")) as SearchSubcategory | undefined;
+  const category = await promptCategory(terminalSession, requireCategory);
+  const subcategory = normalizeOptional(await promptTerminalTextInput(terminalSession, {
+    title: "Session Scope",
+    prompt: "subcategory (blank to skip)",
+  })) as SearchSubcategory | undefined;
   const family = mode === "review_queue"
-    ? normalizeOptional(await rl.question("family (blank for any): "))
+    ? normalizeOptional(await promptTerminalTextInput(terminalSession, {
+      title: "Session Scope",
+      prompt: "family (blank for any)",
+    }))
     : undefined;
   const tagRequired = mode === "legacy_rule";
   let tag: string | undefined;
   while (true) {
-    tag = normalizeOptional(await rl.question(`tag${tagRequired ? "" : " (blank for any)"}: `));
+    tag = normalizeOptional(await promptTerminalTextInput(terminalSession, {
+      title: "Session Scope",
+      prompt: `tag${tagRequired ? "" : " (blank for any)"}`,
+    }));
     if (tag || !tagRequired) {
       break;
     }
-    console.log("tag is required for legacy_rule sessions.");
+    await pauseForAnyKey(terminalSession, "tag is required for legacy_rule sessions.");
   }
-  const limitInput = normalizeOptional(await rl.question("limit (blank for default): "));
-  const exemplarLimitInput = mode === "exemplar_cleanup"
-    ? normalizeOptional(await rl.question("exemplar-limit (blank for none): "))
+
+  const limit = await promptInteger(terminalSession, "limit (blank for default)", "--limit");
+  const exemplarLimit = mode === "exemplar_cleanup"
+    ? await promptInteger(terminalSession, "exemplar-limit (blank for none)", "--exemplar-limit")
     : undefined;
 
   return {
@@ -200,8 +217,8 @@ async function promptCustomSessionOptions(
     subcategory,
     family,
     tag,
-    limit: parseInteger(limitInput, "--limit"),
-    exemplarLimit: parseInteger(exemplarLimitInput, "--exemplar-limit"),
+    limit,
+    exemplarLimit,
   };
 }
 
@@ -218,6 +235,7 @@ async function createAndRunSession(
     limit?: number;
     exemplarLimit?: number;
   },
+  terminalSession: DerivedTagTerminalSession,
 ): Promise<void> {
   const { db } = await openConfiguredIndex(argv);
   try {
@@ -227,67 +245,95 @@ async function createAndRunSession(
     });
     await writeDerivedTagMigrationSession(rootPath, session);
     await writeDerivedTagMigrationSummary(rootPath, session.manifest.id, renderDerivedTagMigrationSessionSummary(session));
-    await runDerivedTagMigrationReviewUi(rootPath, session);
+    await runDerivedTagMigrationReviewUi(rootPath, session, terminalSession);
   } finally {
     db.close();
   }
 }
 
-async function main(): Promise<void> {
-  const rootPath = process.cwd();
-  const argv = process.argv.slice(2);
+async function openOntologyExplorer(
+  argv: string[],
+  terminalSession: DerivedTagTerminalSession,
+): Promise<void> {
+  const { db } = await openConfiguredIndex(argv);
+  try {
+    await runDerivedTagOntologyExplorerUi(db, terminalSession);
+  } finally {
+    db.close();
+  }
+}
+
+async function runWorkbench(
+  terminalSession: DerivedTagTerminalSession,
+  rootPath: string,
+  argv: string[],
+): Promise<void> {
   let selectedIndex = 0;
 
   while (true) {
     const queueItems = summarizeCurrentDerivedTagReviewQueue();
     const menuItems = buildWorkbenchMenuItems(queueItems);
-    selectedIndex = moveSelection(selectedIndex, 0, menuItems.length);
-    clearTerminalScreen();
-    console.log(renderWorkbenchHome(queueItems, menuItems, selectedIndex));
+    selectedIndex = Math.max(0, Math.min(selectedIndex, Math.max(0, menuItems.length - 1)));
 
-    const key = await readTerminalKey();
-    const normalized = key.sequence.toLowerCase();
+    renderTerminalTwoPaneScreen(terminalSession, {
+      title: "Derived-Tag Migration Workbench",
+      subtitle: `${queueItems.length} queue slice${queueItems.length === 1 ? "" : "s"} pending review`,
+      left: {
+        title: "Menu",
+        lines: buildMenuLines(terminalSession, menuItems, selectedIndex),
+      },
+      right: {
+        title: "Pending Review Queue",
+        lines: buildQueueLines(queueItems),
+      },
+      footer: [
+        { text: "Up/Down or j/k move  Enter select  ? help  a review all  s/r/e/n create sessions  o explore ontology  q quit", tone: "dim" },
+        { text: `Selected: ${menuItems[selectedIndex]?.label ?? "(none)"}`, tone: "accent" },
+      ],
+      leftWidth: 48,
+    });
 
-    if ((key.ctrl && key.name === "c") || normalized === "q") {
+    const key = await readTerminalKey(terminalSession);
+    const normalized = key.normalizedName;
+
+    if (normalized === "ctrl_c" || normalized === "q") {
       return;
     }
 
-    if (key.name === "up" || normalized === "k") {
+    if (normalized === "up" || normalized === "k") {
       selectedIndex = moveSelectionWrapped(selectedIndex, -1, menuItems.length);
       continue;
     }
-    if (key.name === "down" || normalized === "j") {
+    if (normalized === "down" || normalized === "j") {
       selectedIndex = moveSelectionWrapped(selectedIndex, 1, menuItems.length);
       continue;
     }
-    if (key.name !== "return" && key.name !== "enter") {
-      if (normalized === "?") {
-        await pauseForAnyKey(renderWorkbenchHelp());
-        continue;
-      }
-      if (normalized === "a" && queueItems.length > 0) {
-        await createAndRunSession(rootPath, argv, "review_queue", {});
-        continue;
-      }
-      if (normalized === "s" || normalized === "r" || normalized === "e" || normalized === "n") {
-        const mode: DerivedTagMigrationMode = normalized === "s"
-          ? "legacy_seed"
-          : normalized === "r"
-            ? "legacy_rule"
-            : normalized === "e"
-              ? "exemplar_cleanup"
-              : "new_tagging";
-        const optionsRl = createInterface({ input, output });
-        let options: Awaited<ReturnType<typeof promptCustomSessionOptions>> | undefined;
-        try {
-          clearTerminalScreen();
-          console.log(`Create ${mode} session\n`);
-          options = await promptCustomSessionOptions(optionsRl, mode);
-        } finally {
-          optionsRl.close();
-        }
-        await createAndRunSession(rootPath, argv, mode, options ?? {});
-      }
+    if (normalized === "?") {
+      renderWorkbenchHelp(terminalSession);
+      await readTerminalKey(terminalSession);
+      continue;
+    }
+    if (normalized === "a" && queueItems.length > 0) {
+      await createAndRunSession(rootPath, argv, "review_queue", {}, terminalSession);
+      continue;
+    }
+    if (normalized === "o") {
+      await openOntologyExplorer(argv, terminalSession);
+      continue;
+    }
+    if (normalized === "s" || normalized === "r" || normalized === "e" || normalized === "n") {
+      const mode: DerivedTagMigrationMode = normalized === "s"
+        ? "legacy_seed"
+        : normalized === "r"
+          ? "legacy_rule"
+          : normalized === "e"
+            ? "exemplar_cleanup"
+            : "new_tagging";
+      const options = await promptCustomSessionOptions(terminalSession, mode);
+      await createAndRunSession(rootPath, argv, mode, options, terminalSession);
+      continue;
+    }
+    if (normalized !== "enter" && normalized !== "kp_enter") {
       continue;
     }
 
@@ -300,7 +346,7 @@ async function main(): Promise<void> {
       return;
     }
     if (selectedItem.kind === "review_all") {
-      await createAndRunSession(rootPath, argv, "review_queue", {});
+      await createAndRunSession(rootPath, argv, "review_queue", {}, terminalSession);
       continue;
     }
     if (selectedItem.kind === "review_queue_item") {
@@ -309,23 +355,24 @@ async function main(): Promise<void> {
         category: selectedItem.queueItem.category,
         family: selectedItem.queueItem.family,
         tag: selectedItem.queueItem.tag,
-      });
+      }, terminalSession);
       continue;
     }
     if (selectedItem.kind === "create_mode") {
-      const optionsRl = createInterface({ input, output });
-      let options: Awaited<ReturnType<typeof promptCustomSessionOptions>> | undefined;
-      try {
-        clearTerminalScreen();
-        console.log(`Create ${selectedItem.mode} session\n`);
-        options = await promptCustomSessionOptions(optionsRl, selectedItem.mode);
-      } finally {
-        optionsRl.close();
-      }
-      await createAndRunSession(rootPath, argv, selectedItem.mode, options ?? {});
+      const options = await promptCustomSessionOptions(terminalSession, selectedItem.mode);
+      await createAndRunSession(rootPath, argv, selectedItem.mode, options, terminalSession);
       continue;
     }
+    if (selectedItem.kind === "explore_ontology") {
+      await openOntologyExplorer(argv, terminalSession);
+    }
   }
+}
+
+async function main(): Promise<void> {
+  const rootPath = process.cwd();
+  const argv = process.argv.slice(2);
+  await runWithDerivedTagTerminalSession((terminalSession) => runWorkbench(terminalSession, rootPath, argv));
 }
 
 if (import.meta.url === new URL(process.argv[1] ?? "", "file:").href) {
