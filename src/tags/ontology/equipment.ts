@@ -31,6 +31,36 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
           assignmentMode: "deterministic"
         },
         {
+          tag: "anti_fear",
+          description: "Helps resist fear, recover from frightened effects, or steady courage.",
+          assignmentMode: "deterministic"
+        },
+        {
+          tag: "anti_confusion",
+          description: "Helps clear confusion, restore mental steadiness, or recover from disordered thinking.",
+          assignmentMode: "deterministic"
+        },
+        {
+          tag: "anti_paralysis",
+          description: "Helps break paralysis, restore movement, or free a creature from immobilizing body shutdown.",
+          assignmentMode: "deterministic"
+        },
+        {
+          tag: "anti_petrification",
+          description: "Helps prevent or reverse petrification and other stone-turning effects.",
+          assignmentMode: "deterministic"
+        },
+        {
+          tag: "anti_bleed",
+          description: "Helps staunch bleeding, end persistent bleed damage, or close ongoing wounds.",
+          assignmentMode: "deterministic"
+        },
+        {
+          tag: "curse_removal",
+          description: "Helps remove, break, or counteract curses.",
+          assignmentMode: "deterministic"
+        },
+        {
           tag: "condition_support",
           description: "Helps clear or mitigate harmful conditions.",
           assignmentMode: "deterministic"

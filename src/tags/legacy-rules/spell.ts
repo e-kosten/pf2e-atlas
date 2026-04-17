@@ -262,6 +262,50 @@ const SPELL_SENSORY_IMPAIRMENT_BLOCKER_TEXT_ANCHORS = [
   patternAnchor("unveiled"),
 ];
 
+const SPELL_SENSES_SUPPORT_TEXT_ANCHORS = [
+  patternAnchor("darkvision"),
+  patternAnchor("low-light vision"),
+  patternAnchor("low light vision"),
+  patternAnchor("see in the dark"),
+  patternAnchor("see invisible"),
+  patternAnchor("pierce illusions and see invisible"),
+  patternAnchor("heighten your senses"),
+  patternAnchor("heightened senses"),
+  patternAnchor("sharpen your vision"),
+  patternAnchor("sharpen your senses"),
+  patternAnchor("imprecise scent"),
+  patternAnchor("scent with a"),
+  patternAnchor("tremorsense"),
+  patternAnchor("lifesense"),
+];
+
+const SPELL_SENSES_SUPPORT_BLOCKER_TEXT_ANCHORS = [
+  patternAnchor("floating eye"),
+  patternAnchor("scrying sensor"),
+  patternAnchor("transmits what it sees"),
+  patternAnchor("see what each target sees"),
+  patternAnchor("perceive through"),
+  patternAnchor("through the magical eye sensor"),
+  patternAnchor("through the scouts"),
+];
+
+const SPELL_ILLUMINATION_TEXT_ANCHORS = [
+  patternAnchor("bright light"),
+  patternAnchor("shed light"),
+  patternAnchor("sheds light"),
+  patternAnchor("shed bright light"),
+  patternAnchor("sheds bright light"),
+  patternAnchor("emit light"),
+  patternAnchor("emits light"),
+  patternAnchor("illuminate the area"),
+  patternAnchor("illuminates the area"),
+  patternAnchor("create light"),
+  patternAnchor("creates light"),
+  patternAnchor("produce light"),
+  patternAnchor("produces light"),
+  patternAnchor("light for the campsite"),
+];
+
 const SPELL_FORCED_MOVEMENT_TEXT_ANCHORS = [
   patternAnchor("forced movement"),
   patternAnchor("drag each target directly toward you"),
@@ -329,6 +373,9 @@ const FEAR_PRESSURE_BLOCKER_TEXT_ANCHORS = [
   patternAnchor("protects against fear"),
   patternAnchor("bonus against fear"),
   patternAnchor("immune to fear"),
+  patternAnchor("remove frightened"),
+  patternAnchor("reduce frightened"),
+  patternAnchor("counteract an effect applying"),
 ];
 
 const CONCEALMENT_NAME_ANCHORS = [
@@ -474,6 +521,66 @@ const AFFLICTION_CLEANUP_TEXT_ANCHORS = [
   patternAnchor("wash away the affliction"),
   patternAnchor("counteract poison"),
   patternAnchor("counteract disease"),
+];
+
+const ANTI_FEAR_TEXT_ANCHORS = [
+  patternAnchor("against fear"),
+  patternAnchor("against fear effects"),
+  patternAnchor("protects against fear"),
+  patternAnchor("bonus against fear"),
+  patternAnchor("immune to fear"),
+  patternAnchor("remove frightened"),
+  patternAnchor("reduce frightened"),
+  patternAnchor("frightened condition"),
+  patternAnchor("the frightened condition"),
+  patternAnchor("steady courage"),
+];
+
+const ANTI_CONFUSION_TEXT_ANCHORS = [
+  patternAnchor("against confusion"),
+  patternAnchor("confused condition"),
+  patternAnchor("the confused condition"),
+  patternAnchor("remove confusion"),
+  patternAnchor("remove the confused condition"),
+  patternAnchor("counteract confusion"),
+  patternAnchor("steady a disordered mind"),
+  patternAnchor("clear confusion from the target s mind"),
+];
+
+const ANTI_PARALYSIS_TEXT_ANCHORS = [
+  patternAnchor("against paralysis"),
+  patternAnchor("free the target from paralysis"),
+  patternAnchor("remove paralysis"),
+  patternAnchor("remove the paralyzed condition"),
+  patternAnchor("end paralysis"),
+  patternAnchor("restore movement to paralyzed limbs"),
+];
+
+const ANTI_PETRIFICATION_TEXT_ANCHORS = [
+  patternAnchor("against petrification"),
+  patternAnchor("restore flesh from stone"),
+  patternAnchor("restore a petrified creature"),
+  patternAnchor("reverse petrification"),
+  patternAnchor("counteract petrification"),
+  patternAnchor("counteracting petrification"),
+  patternAnchor("remove the petrified condition"),
+];
+
+const ANTI_BLEED_TEXT_ANCHORS = [
+  patternAnchor("stop bleeding"),
+  patternAnchor("staunch bleeding"),
+  patternAnchor("staunch persistent bleed damage"),
+  patternAnchor("end persistent bleed damage"),
+  patternAnchor("close bleeding wounds"),
+];
+
+const CURSE_REMOVAL_TEXT_ANCHORS = [
+  patternAnchor("remove curse"),
+  patternAnchor("remove a curse"),
+  patternAnchor("lift a curse"),
+  patternAnchor("break a curse"),
+  patternAnchor("counteract a curse"),
+  patternAnchor("end a curse"),
 ];
 
 const ESCAPE_SUPPORT_NAME_ANCHORS = [
@@ -704,6 +811,51 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
     ],
     noneOf: [
       { textAny: SPELL_SCOUTING_BLOCKER_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "senses_support",
+    category: "spell",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: SPELL_SENSES_SUPPORT_TEXT_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            all: [
+              patternAnchor("{{alt(target,you,ally,creature)}}"),
+              patternAnchor("{{alt(darkvision,see invisible,scent,tremorsense,lifesense)}}"),
+            ],
+            window: 8,
+            scope: "description",
+          },
+        ],
+      },
+    ],
+    noneOf: [
+      { textAny: SPELL_SENSES_SUPPORT_BLOCKER_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "illumination",
+    category: "spell",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: SPELL_ILLUMINATION_TEXT_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            all: [
+              patternAnchor("{{alt(light,glow,glowing,illuminate,illuminates)}}"),
+              patternAnchor("{{alt(area,darkness,camp,campsite,radius)}}"),
+            ],
+            window: 8,
+            scope: "description",
+          },
+        ],
+      },
     ],
   },
   {
@@ -1221,6 +1373,80 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
           },
         ],
       },
+    ],
+  },
+  {
+    tag: "anti_fear",
+    category: "spell",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: ANTI_FEAR_TEXT_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            all: [
+              patternAnchor("{{alt(counteract,remove,reduce,protect)}}"),
+              patternAnchor("{{alt(frightened,fear)}}"),
+            ],
+            window: 8,
+            scope: "description",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    tag: "anti_confusion",
+    category: "spell",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: ANTI_CONFUSION_TEXT_ANCHORS },
+      {
+        score: 2,
+        textNear: [
+          {
+            all: [
+              patternAnchor("{{alt(counteract,remove,clear,steady)}}"),
+              patternAnchor("{{alt(confused,confusion)}}"),
+            ],
+            window: 8,
+            scope: "description",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    tag: "anti_paralysis",
+    category: "spell",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: ANTI_PARALYSIS_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "anti_petrification",
+    category: "spell",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: ANTI_PETRIFICATION_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "anti_bleed",
+    category: "spell",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: ANTI_BLEED_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "curse_removal",
+    category: "spell",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: CURSE_REMOVAL_TEXT_ANCHORS },
     ],
   },
   {

@@ -530,7 +530,7 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
     type: "spell",
     system: {
       description: {
-        value: "<p>You drive mental contamination from the target's mind and counteract an effect applying one of the following conditions.</p>",
+        value: "<p>You drive mental contamination from the target's mind and counteract an effect applying the frightened or confused condition.</p>",
       },
       level: {
         value: 4,
@@ -541,6 +541,94 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
       traits: {
         rarity: "common",
         traditions: ["divine", "occult"],
+        value: ["healing"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "spells", "see-the-unseen.json"), {
+    _id: "spell-see-the-unseen-1",
+    name: "See the Unseen",
+    type: "spell",
+    system: {
+      description: {
+        value: "<p>You pierce illusions and see invisible creatures for the duration.</p>",
+      },
+      level: {
+        value: 2,
+      },
+      publication: {
+        title: "Pathfinder Dark Archive",
+      },
+      traits: {
+        rarity: "common",
+        traditions: ["arcane", "occult"],
+        value: ["divination"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "spells", "warm-glow.json"), {
+    _id: "spell-warm-glow-1",
+    name: "Warm Glow",
+    type: "spell",
+    system: {
+      description: {
+        value: "<p>The spell creates comfortable warmth and light for the campsite.</p>",
+      },
+      level: {
+        value: 1,
+      },
+      publication: {
+        title: "Pathfinder Player Core",
+      },
+      traits: {
+        rarity: "common",
+        traditions: ["arcane", "primal"],
+        value: ["evocation"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "spells", "break-curse.json"), {
+    _id: "spell-break-curse-1",
+    name: "Break Curse",
+    type: "spell",
+    system: {
+      description: {
+        value: "<p>You remove a curse from the target and can restore flesh from stone, counteracting petrification.</p>",
+      },
+      level: {
+        value: 5,
+      },
+      publication: {
+        title: "Pathfinder Dark Archive",
+      },
+      traits: {
+        rarity: "common",
+        traditions: ["divine", "occult"],
+        value: ["healing"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "spells", "restorative-surge.json"), {
+    _id: "spell-restorative-surge-1",
+    name: "Restorative Surge",
+    type: "spell",
+    system: {
+      description: {
+        value: "<p>You restore movement to paralyzed limbs and staunch persistent bleed damage in the target.</p>",
+      },
+      level: {
+        value: 4,
+      },
+      publication: {
+        title: "Pathfinder Player Core",
+      },
+      traits: {
+        rarity: "common",
+        traditions: ["divine", "primal"],
         value: ["healing"],
       },
     },

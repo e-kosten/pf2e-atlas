@@ -21,6 +21,46 @@ describe("derived tag rules: equipment", () => {
     })).toEqual(expect.arrayContaining(["beneficial", "condition_support", "mental_recovery"]));
 
     expect(deriveRecordTags({
+      name: "Courage Tonic",
+      category: "equipment",
+      subcategory: "consumable",
+      descriptionText: "This restorative tonic steadies the emotions, protects against fear effects, and helps recover from confusion.",
+      traits: ["alchemical", "consumable"],
+    })).toEqual(expect.arrayContaining(["beneficial", "anti_fear", "anti_confusion"]));
+
+    expect(deriveRecordTags({
+      name: "Cursebreak Elixir",
+      category: "equipment",
+      subcategory: "consumable",
+      descriptionText: "This bitter elixir can remove a curse or lift a curse from the drinker.",
+      traits: ["consumable", "magical", "elixir"],
+    })).toEqual(expect.arrayContaining(["beneficial", "curse_removal"]));
+
+    expect(deriveRecordTags({
+      name: "Stonebody Remedy",
+      category: "equipment",
+      subcategory: "consumable",
+      descriptionText: "This cloudy remedy helps against petrification and can restore flesh from stone before the body fully locks.",
+      traits: ["consumable", "magical", "elixir"],
+    })).toEqual(expect.arrayContaining(["beneficial", "anti_petrification"]));
+
+    expect(deriveRecordTags({
+      name: "Unbinding Draught",
+      category: "equipment",
+      subcategory: "consumable",
+      descriptionText: "This draught restores movement to paralyzed limbs and helps against paralysis.",
+      traits: ["consumable", "magical", "potion"],
+    })).toEqual(expect.arrayContaining(["beneficial", "anti_paralysis"]));
+
+    expect(deriveRecordTags({
+      name: "Staunching Salve",
+      category: "equipment",
+      subcategory: "consumable",
+      descriptionText: "Spread over an injury, this salve helps stop bleeding and end persistent bleed damage.",
+      traits: ["consumable", "alchemical"],
+    })).toEqual(expect.arrayContaining(["beneficial", "anti_bleed"]));
+
+    expect(deriveRecordTags({
       name: "Fire Ward Elixir",
       category: "equipment",
       subcategory: "consumable",

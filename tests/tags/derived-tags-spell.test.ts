@@ -269,6 +269,40 @@ describe("derived tag rules: spell", () => {
     })).not.toContain("mobility");
   });
 
+  it("derives spell sensory support and illumination tags", () => {
+    expect(deriveRecordTags({
+      name: "See the Unseen",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You pierce illusions and see invisible creatures for the duration.",
+      traits: ["divination"],
+    })).toContain("senses_support");
+
+    expect(deriveRecordTags({
+      name: "Darkvision",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "The target gains darkvision and can see in the dark for 1 hour.",
+      traits: ["transmutation"],
+    })).toContain("senses_support");
+
+    expect(deriveRecordTags({
+      name: "Warm Glow",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "The spell creates comfortable warmth and light for the campsite.",
+      traits: ["evocation"],
+    })).toContain("illumination");
+
+    expect(deriveRecordTags({
+      name: "Scouting Eye",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You create an invisible, floating eye at a location you can see within 500 feet. It sees in all directions with your normal visual senses and continuously transmits what it sees.",
+      traits: ["divination"],
+    })).not.toContain("senses_support");
+  });
+
   it("derives spell transformation tags and promotes the family tag", () => {
     expect(deriveRecordTags({
       name: "Metamorphosis",
@@ -524,6 +558,40 @@ describe("derived tag rules: spell", () => {
     })).not.toContain("escape_support");
   });
 
+  it("derives spell narrow remediation tags", () => {
+    expect(deriveRecordTags({
+      name: "Clear Mind",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You drive mental contamination from the target's mind and counteract an effect applying the frightened or confused condition.",
+      traits: ["healing"],
+    })).toEqual(expect.arrayContaining(["condition_support", "anti_fear", "anti_confusion"]));
+
+    expect(deriveRecordTags({
+      name: "Break Curse",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You remove a curse from the target and can restore flesh from stone, counteracting petrification.",
+      traits: ["healing"],
+    })).toEqual(expect.arrayContaining(["affliction_cleanup", "curse_removal", "anti_petrification"]));
+
+    expect(deriveRecordTags({
+      name: "Restorative Surge",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You restore movement to paralyzed limbs and staunch persistent bleed damage in the target.",
+      traits: ["healing"],
+    })).toEqual(expect.arrayContaining(["anti_paralysis", "anti_bleed"]));
+
+    expect(deriveRecordTags({
+      name: "Terror Bloom",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You plant fear in the target and it becomes frightened 2.",
+      traits: ["emotion", "fear", "mental"],
+    })).not.toEqual(expect.arrayContaining(["anti_fear", "anti_confusion", "anti_paralysis", "anti_petrification", "anti_bleed", "curse_removal"]));
+  });
+
   it("derives spell expedition and tempo support tags", () => {
     expect(deriveRecordTags({
       name: "Water Breathing",
@@ -733,7 +801,7 @@ describe("derived tag rules: spell", () => {
       name: "Clear Mind",
       category: "spell",
       subcategory: null,
-      descriptionText: "You drive mental contamination from the target's mind and counteract an effect applying one of the following conditions.",
+      descriptionText: "You drive mental contamination from the target's mind and counteract an effect applying the frightened or confused condition.",
       traits: ["healing"],
     })).toContain("condition_support");
 

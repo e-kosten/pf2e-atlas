@@ -204,6 +204,56 @@ const AMMO_MANAGEMENT_TEXT_ANCHORS = [
   patternAnchor("capacity or repeating traits"),
 ];
 
+const EQUIPMENT_ANTI_FEAR_TEXT_ANCHORS = [
+  patternAnchor("against fear"),
+  patternAnchor("against fear effects"),
+  patternAnchor("protects against fear"),
+  patternAnchor("bonus against fear"),
+  patternAnchor("frightened"),
+  patternAnchor("steady the emotions"),
+];
+
+const EQUIPMENT_ANTI_CONFUSION_TEXT_ANCHORS = [
+  patternAnchor("against confusion"),
+  patternAnchor("confused"),
+  patternAnchor("confusion"),
+  patternAnchor("recover from mental conditions"),
+  patternAnchor("clear the mind"),
+  patternAnchor("steady the mind"),
+];
+
+const EQUIPMENT_ANTI_PARALYSIS_TEXT_ANCHORS = [
+  patternAnchor("against paralysis"),
+  patternAnchor("paralyzed"),
+  patternAnchor("paralysis"),
+  patternAnchor("restore movement"),
+  patternAnchor("free stiffened limbs"),
+];
+
+const EQUIPMENT_ANTI_PETRIFICATION_TEXT_ANCHORS = [
+  patternAnchor("against petrification"),
+  patternAnchor("petrified"),
+  patternAnchor("petrification"),
+  patternAnchor("turn to stone"),
+  patternAnchor("restore flesh from stone"),
+];
+
+const EQUIPMENT_ANTI_BLEED_TEXT_ANCHORS = [
+  patternAnchor("stop bleeding"),
+  patternAnchor("staunch bleeding"),
+  patternAnchor("persistent bleed damage"),
+  patternAnchor("close wounds"),
+  patternAnchor("seal the wound"),
+];
+
+const EQUIPMENT_CURSE_REMOVAL_TEXT_ANCHORS = [
+  patternAnchor("remove curse"),
+  patternAnchor("remove a curse"),
+  patternAnchor("lift a curse"),
+  patternAnchor("break a curse"),
+  patternAnchor("counteract a curse"),
+];
+
 const ARMOR_STEALTH_SUPPORT_TEXT_ANCHORS = [
   patternAnchor("avoid notice"),
   patternAnchor("hidden on your person"),
@@ -549,6 +599,14 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
           patternAnchor("steady the emotions"),
           patternAnchor("see in the dark"),
           patternAnchor("fortune effect"),
+          patternAnchor("remove curse"),
+          patternAnchor("lift a curse"),
+          patternAnchor("against petrification"),
+          patternAnchor("restore flesh from stone"),
+          patternAnchor("against paralysis"),
+          patternAnchor("restore movement to paralyzed limbs"),
+          patternAnchor("stop bleeding"),
+          patternAnchor("staunch bleeding"),
         ],
       },
     ],
@@ -583,6 +641,60 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     requiresTags: ["beneficial"],
     anyOf: [
       { textAny: [patternAnchor("antiplague"), patternAnchor("against disease"), patternAnchor("against diseases"), patternAnchor("protect against disease"), patternAnchor("resist disease"), patternAnchor("ward off disease")] },
+    ],
+  },
+  {
+    tag: "anti_fear",
+    category: "equipment",
+    subcategories: ["consumable"],
+    requiresTags: ["beneficial"],
+    anyOf: [
+      { textAny: EQUIPMENT_ANTI_FEAR_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "anti_confusion",
+    category: "equipment",
+    subcategories: ["consumable"],
+    requiresTags: ["beneficial"],
+    anyOf: [
+      { textAny: EQUIPMENT_ANTI_CONFUSION_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "anti_paralysis",
+    category: "equipment",
+    subcategories: ["consumable"],
+    requiresTags: ["beneficial"],
+    anyOf: [
+      { textAny: EQUIPMENT_ANTI_PARALYSIS_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "anti_petrification",
+    category: "equipment",
+    subcategories: ["consumable"],
+    requiresTags: ["beneficial"],
+    anyOf: [
+      { textAny: EQUIPMENT_ANTI_PETRIFICATION_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "anti_bleed",
+    category: "equipment",
+    subcategories: ["consumable"],
+    requiresTags: ["beneficial"],
+    anyOf: [
+      { textAny: EQUIPMENT_ANTI_BLEED_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "curse_removal",
+    category: "equipment",
+    subcategories: ["consumable"],
+    requiresTags: ["beneficial"],
+    anyOf: [
+      { textAny: EQUIPMENT_CURSE_REMOVAL_TEXT_ANCHORS },
     ],
   },
   {

@@ -585,7 +585,7 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "consumable",
     system: {
       description: {
-        value: "<p>This bottled catharsis steadies the emotions and helps recover from mental conditions.</p>",
+        value: "<p>This bottled catharsis steadies the emotions, helps recover from mental conditions, and protects the drinker against fear or confusion.</p>",
       },
       publication: {
         title: "Pathfinder Treasure Vault (Remastered)",
@@ -594,6 +594,78 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
       traits: {
         rarity: "common",
         value: ["alchemical", "consumable"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment", "cursebreak-elixir.json"), {
+    _id: "cursebreak-elixir-1",
+    name: "Cursebreak Elixir",
+    type: "consumable",
+    system: {
+      description: {
+        value: "<p>This bitter elixir can remove a curse or lift a curse from the drinker.</p>",
+      },
+      publication: {
+        title: "Pathfinder Treasure Vault",
+      },
+      traits: {
+        rarity: "common",
+        value: ["consumable", "magical", "elixir"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment", "stonebody-remedy.json"), {
+    _id: "stonebody-remedy-1",
+    name: "Stonebody Remedy",
+    type: "consumable",
+    system: {
+      description: {
+        value: "<p>This cloudy remedy helps against petrification and can restore flesh from stone before the body fully locks.</p>",
+      },
+      publication: {
+        title: "Pathfinder Treasure Vault",
+      },
+      traits: {
+        rarity: "common",
+        value: ["consumable", "magical", "elixir"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment", "unbinding-draught.json"), {
+    _id: "unbinding-draught-1",
+    name: "Unbinding Draught",
+    type: "consumable",
+    system: {
+      description: {
+        value: "<p>This draught restores movement to paralyzed limbs and helps against paralysis.</p>",
+      },
+      publication: {
+        title: "Pathfinder Treasure Vault",
+      },
+      traits: {
+        rarity: "common",
+        value: ["consumable", "magical", "potion"],
+      },
+    },
+  });
+
+  await writeJson(path.join(packRoot, "equipment", "staunching-salve.json"), {
+    _id: "staunching-salve-1",
+    name: "Staunching Salve",
+    type: "consumable",
+    system: {
+      description: {
+        value: "<p>Spread over an injury, this salve helps stop bleeding and end persistent bleed damage.</p>",
+      },
+      publication: {
+        title: "Pathfinder Treasure Vault",
+      },
+      traits: {
+        rarity: "common",
+        value: ["consumable", "alchemical"],
       },
     },
   });

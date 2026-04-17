@@ -329,7 +329,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     expect(service.listFilterValues({
       field: "derivedTags",
       category: "equipment",
-    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["alarm", "beneficial", "offensive", "climbing", "lock_bypass", "mental_recovery", "carry_support", "tracking", "anti_tracking", "restraint_escape", "restraint_capture", "mobility_impairment", "sensory_impairment", "mental_impairment", "sedation", "spell_payload"]));
+    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["alarm", "beneficial", "offensive", "climbing", "lock_bypass", "mental_recovery", "anti_fear", "anti_confusion", "anti_paralysis", "anti_petrification", "anti_bleed", "curse_removal", "carry_support", "tracking", "anti_tracking", "restraint_escape", "restraint_capture", "mobility_impairment", "sensory_impairment", "mental_impairment", "sedation", "spell_payload"]));
     expect(service.listFilterValues({
       field: "derivedTags",
       category: "spell",
@@ -339,10 +339,12 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       "disguise",
       "eidolon_support",
       "initiative_support",
+      "illumination",
       "mobility",
       "navigation",
       "persistent_damage",
       "reconnaissance",
+      "senses_support",
       "security",
       "social_infiltration",
       "wayfinding",
@@ -350,6 +352,12 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       "sensory_impairment",
       "forced_movement",
       "restraint_capture",
+      "anti_fear",
+      "anti_confusion",
+      "anti_paralysis",
+      "anti_petrification",
+      "anti_bleed",
+      "curse_removal",
     ]));
     expect(service.listFilterValues({
       field: "derivedTags",
@@ -405,8 +413,8 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     })).toEqual({
       field: "publicationTitle",
       values: [
-        { value: "Pathfinder Player Core", count: 16 },
-        { value: "Pathfinder Dark Archive", count: 4 },
+        { value: "Pathfinder Player Core", count: 18 },
+        { value: "Pathfinder Dark Archive", count: 6 },
         { value: "Pathfinder Secrets of Magic", count: 3 },
         { value: "Pathfinder Rage of Elements", count: 1 },
       ],
@@ -423,10 +431,10 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     })).toEqual({
       field: "traditions",
       values: [
-        { value: "arcane", count: 15 },
-        { value: "occult", count: 15 },
-        { value: "divine", count: 9 },
-        { value: "primal", count: 8 },
+        { value: "arcane", count: 17 },
+        { value: "occult", count: 17 },
+        { value: "divine", count: 11 },
+        { value: "primal", count: 10 },
       ],
     });
 
@@ -551,7 +559,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     })).toEqual({
       field: "packs",
       values: [
-        { value: "Spells", count: 15 },
+        { value: "Spells", count: 19 },
         { value: "Spells SRD", count: 9 },
       ],
     });

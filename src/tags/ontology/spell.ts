@@ -172,6 +172,30 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
         }
       ]
     },
+    sensory_support: {
+      axis: "utility",
+      description: "Spells that improve sight, hearing, scent, or usable light so creatures can perceive and operate better in darkness or obscurity.",
+      tags: [
+        {
+          tag: "senses_support",
+          description: "Enhances vision or other senses through darkvision, see invisible, sharpened perception, scent, or similar perceptual upgrades.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "scouting",
+            "invisibility_reveal"
+          ]
+        },
+        {
+          tag: "illumination",
+          description: "Produces practical light that brightens darkness, reveals an area, or lets creatures see more clearly.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "senses_support",
+            "line_of_sight_control"
+          ]
+        }
+      ]
+    },
     wayfinding: {
       axis: "utility",
       description: "Planning-oriented umbrella for spells used to find routes, reach destinations, and solve strategic navigation or travel-location problems.",
@@ -504,6 +528,60 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
           tag: "affliction_cleanup",
           description: "Cleanses, cures, neutralizes, or removes disease, poison, curse, or similar afflictions.",
           assignmentMode: "hybrid"
+        },
+        {
+          tag: "anti_fear",
+          description: "Counters frightened or fear effects, bolsters courage, or protects a target against fear.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "condition_support",
+            "anti_confusion"
+          ]
+        },
+        {
+          tag: "anti_confusion",
+          description: "Ends confusion, steadies a disordered mind, or protects a target from confusion-like mental unraveling.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "condition_support",
+            "anti_fear"
+          ]
+        },
+        {
+          tag: "anti_paralysis",
+          description: "Ends paralysis, restores bodily function, or frees a target from magic or afflictions that leave it unable to move.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "condition_support",
+            "escape_support"
+          ]
+        },
+        {
+          tag: "anti_petrification",
+          description: "Prevents, reverses, or counteracts petrification and other turn-to-stone effects.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "affliction_cleanup",
+            "condition_support"
+          ]
+        },
+        {
+          tag: "anti_bleed",
+          description: "Staunches bleeding, ends persistent bleed damage, or closes wounds that keep draining a target.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "healing_support",
+            "condition_support"
+          ]
+        },
+        {
+          tag: "curse_removal",
+          description: "Specifically removes, breaks, or counteracts curses rather than only cleaning up afflictions in general.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "affliction_cleanup",
+            "anti_petrification"
+          ]
         },
         {
           tag: "escape_support",
