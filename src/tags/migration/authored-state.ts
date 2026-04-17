@@ -159,11 +159,13 @@ function buildImportedDerivedTagMigrationAuthoredState(): DerivedTagMigrationAut
 }
 
 let currentDerivedTagMigrationAuthoredState: DerivedTagMigrationAuthoredState | null = null;
+let currentDerivedTagMigrationAuthoredStateRevision = 0;
 
 export function setCurrentDerivedTagMigrationAuthoredState(
   state: DerivedTagMigrationAuthoredState,
 ): void {
   currentDerivedTagMigrationAuthoredState = clone(state);
+  currentDerivedTagMigrationAuthoredStateRevision += 1;
 }
 
 export function getCurrentDerivedTagMigrationAuthoredState(): DerivedTagMigrationAuthoredState {
@@ -171,6 +173,10 @@ export function getCurrentDerivedTagMigrationAuthoredState(): DerivedTagMigratio
     currentDerivedTagMigrationAuthoredState = buildImportedDerivedTagMigrationAuthoredState();
   }
   return clone(currentDerivedTagMigrationAuthoredState);
+}
+
+export function getCurrentDerivedTagMigrationAuthoredStateRevision(): number {
+  return currentDerivedTagMigrationAuthoredStateRevision;
 }
 
 function isValidIdentifier(value: string): boolean {

@@ -625,9 +625,11 @@ async function openOntologySearch(
   argv: string[],
   terminalSession: DerivedTagTerminalSession,
 ): Promise<void> {
-  const { db } = await openConfiguredIndex(argv);
+  const { db, config } = await openConfiguredIndex(argv);
   try {
-    await runDerivedTagOntologyExplorerUi(db, terminalSession);
+    await runDerivedTagOntologyExplorerUi(db, terminalSession, {
+      cacheKey: config.indexPath,
+    });
   } finally {
     db.close();
   }

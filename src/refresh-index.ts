@@ -1,8 +1,11 @@
 #!/usr/bin/env node
 
+import { DatabaseSync } from "node:sqlite";
+
 import { loadConfig } from "./app/config.js";
 import { Pf2eDataService } from "./data/service.js";
 import { ConsoleProgressReporter } from "./progress.js";
+import { writeDerivedTagOntologyExplorerDbCache } from "./tags/migration/ontology-explorer-data.js";
 
 function formatDuration(durationMs: number): string {
   const totalSeconds = Math.max(0, Math.round(durationMs / 1000));
@@ -59,10 +62,19 @@ async function main(): Promise<void> {
     for (const warning of service.warnings) {
       progress.log(warning);
     }
+    service.close();
+
+    progress.log("Materializing the ontology explorer cache.");
+    const cacheDb = new DatabaseSync(config.indexPath);
+    try {
+      writeDerivedTagOntologyExplorerDbCache(cacheDb);
+    } finally {
+      cacheDb.close();
+    }
+
     progress.log(
       `Rebuilt PF2E index at ${config.indexPath} with ${stats.packCount} packs and ${stats.recordCount} records in ${formatDuration(Date.now() - startTime)}.`,
     );
-    service.close();
   } catch (error) {
     progress.clear();
     throw error;

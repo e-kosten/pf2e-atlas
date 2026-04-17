@@ -7,11 +7,14 @@ import type {
   SourceCategory,
 } from "../../types.js";
 import {
+  getCurrentDerivedTagMigrationAuthoredState,
+  getCurrentDerivedTagMigrationAuthoredStateRevision,
+} from "./authored-state.js";
+import {
   getDerivedTagExemplars,
   listDerivedTagLegacySeedMigrations,
   normalizeDerivedTag,
 } from "../index.js";
-import { getCurrentDerivedTagMigrationAuthoredState } from "./authored-state.js";
 import type { OntologyExplorerEntityRecord } from "./entity-page.js";
 import { getPublishedDerivedTagMigrationOntology } from "./runtime-state.js";
 
@@ -135,6 +138,22 @@ export type DerivedTagOntologyExplorerCategoryNode = {
 export type DerivedTagOntologyExplorerModel = {
   categories: DerivedTagOntologyExplorerCategoryNode[];
 };
+
+type DerivedTagOntologyExplorerDbCache = {
+  tagCounts: Record<string, number>;
+  familyCounts: Record<string, number>;
+  categoryCounts: Record<string, number>;
+  recordNodesByTagKey: Record<string, DerivedTagOntologyExplorerRecordNode[]>;
+};
+
+type DerivedTagOntologyExplorerModelCacheEntry = {
+  authoredStateRevision: number;
+  model: DerivedTagOntologyExplorerModel;
+};
+
+const ONTOLOGY_EXPLORER_CACHE_ROW_ID = 1;
+const explorerDbCacheByKey = new Map<string, DerivedTagOntologyExplorerDbCache>();
+const explorerModelCacheByKey = new Map<string, DerivedTagOntologyExplorerModelCacheEntry>();
 
 function parseStringArray(json: string | null | undefined): string[] {
   return json ? JSON.parse(json) as string[] : [];
@@ -325,8 +344,7 @@ function rowToEntityRecord(row: ExplorerRecordRow): OntologyExplorerEntityRecord
   };
 }
 
-function buildAuthoredRuleCounts(): Map<string, number> {
-  const state = getCurrentDerivedTagMigrationAuthoredState();
+function buildAuthoredRuleCounts(state: ReturnType<typeof getCurrentDerivedTagMigrationAuthoredState>): Map<string, number> {
   const counts = new Map<string, number>();
 
   for (const [category, rules] of Object.entries(state.authoredRules) as Array<[SearchCategory, typeof state.authoredRules[keyof typeof state.authoredRules]]>) {
@@ -339,9 +357,10 @@ function buildAuthoredRuleCounts(): Map<string, number> {
   return counts;
 }
 
-function buildExemplarCounts(): Map<string, { positive: number; negative: number }> {
+function buildExemplarCounts(
+  state: ReturnType<typeof getCurrentDerivedTagMigrationAuthoredState>,
+): Map<string, { positive: number; negative: number }> {
   const counts = new Map<string, { positive: number; negative: number }>();
-  const state = getCurrentDerivedTagMigrationAuthoredState();
 
   for (const [category, exemplarCategory] of Object.entries(state.exemplars) as Array<[SearchCategory, typeof state.exemplars[keyof typeof state.exemplars]]>) {
     for (const exemplar of exemplarCategory.exemplars) {
@@ -424,6 +443,82 @@ function buildLiveCountMaps(rows: ExplorerCountRow[]): {
   return { tagCounts, familyCounts, categoryCounts, recordKeysByTagKey };
 }
 
+function ensureOntologyExplorerCacheTable(db: DatabaseSync): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS derived_tag_ontology_explorer_cache (
+      id INTEGER PRIMARY KEY CHECK (id = ${ONTOLOGY_EXPLORER_CACHE_ROW_ID}),
+      payload_json TEXT NOT NULL
+    )
+  `);
+}
+
+function toSerializableLiveCounts(liveCounts: ReturnType<typeof buildLiveCountMaps>): Omit<DerivedTagOntologyExplorerDbCache, "recordNodesByTagKey"> {
+  return {
+    tagCounts: Object.fromEntries(liveCounts.tagCounts),
+    familyCounts: Object.fromEntries(liveCounts.familyCounts),
+    categoryCounts: Object.fromEntries(liveCounts.categoryCounts),
+  };
+}
+
+function mapFromCountRecord(record: Record<string, number>): Map<string, number> {
+  return new Map(Object.entries(record));
+}
+
+function buildDerivedTagOntologyExplorerDbCache(
+  db: DatabaseSync,
+): DerivedTagOntologyExplorerDbCache {
+  const liveCounts = buildLiveCountMaps(queryCanonicalTagRows(db));
+  const recordNodesByTagKey = buildRecordNodesByTagKey(db, liveCounts.recordKeysByTagKey);
+
+  return {
+    ...toSerializableLiveCounts(liveCounts),
+    recordNodesByTagKey: Object.fromEntries(recordNodesByTagKey),
+  };
+}
+
+function readDerivedTagOntologyExplorerDbCache(
+  db: DatabaseSync,
+): DerivedTagOntologyExplorerDbCache | null {
+  try {
+    const row = db.prepare(`
+      SELECT payload_json AS payloadJson
+      FROM derived_tag_ontology_explorer_cache
+      WHERE id = ?
+    `).get(ONTOLOGY_EXPLORER_CACHE_ROW_ID) as { payloadJson?: string } | undefined;
+    return row?.payloadJson ? JSON.parse(row.payloadJson) as DerivedTagOntologyExplorerDbCache : null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeDerivedTagOntologyExplorerDbCache(db: DatabaseSync): void {
+  const payload = JSON.stringify(buildDerivedTagOntologyExplorerDbCache(db));
+  ensureOntologyExplorerCacheTable(db);
+  db.prepare(`
+    INSERT INTO derived_tag_ontology_explorer_cache (id, payload_json)
+    VALUES (?, ?)
+    ON CONFLICT(id) DO UPDATE SET payload_json = excluded.payload_json
+  `).run(ONTOLOGY_EXPLORER_CACHE_ROW_ID, payload);
+}
+
+function loadDerivedTagOntologyExplorerDbCache(
+  db: DatabaseSync,
+  cacheKey?: string,
+): DerivedTagOntologyExplorerDbCache {
+  if (cacheKey) {
+    const cached = explorerDbCacheByKey.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+  }
+
+  const resolved = readDerivedTagOntologyExplorerDbCache(db) ?? buildDerivedTagOntologyExplorerDbCache(db);
+  if (cacheKey) {
+    explorerDbCacheByKey.set(cacheKey, resolved);
+  }
+  return resolved;
+}
+
 function buildRecordNodesByTagKey(
   db: DatabaseSync,
   rowsByTagKey: Map<string, string[]>,
@@ -456,13 +551,30 @@ function buildRecordNodesByTagKey(
   return nodesByTagKey;
 }
 
-export function buildDerivedTagOntologyExplorerModel(db: DatabaseSync): DerivedTagOntologyExplorerModel {
+export function buildDerivedTagOntologyExplorerModel(
+  db: DatabaseSync,
+  options: { cacheKey?: string } = {},
+): DerivedTagOntologyExplorerModel {
+  const authoredStateRevision = getCurrentDerivedTagMigrationAuthoredStateRevision();
+  if (options.cacheKey) {
+    const cached = explorerModelCacheByKey.get(options.cacheKey);
+    if (cached && cached.authoredStateRevision === authoredStateRevision) {
+      return cached.model;
+    }
+  }
+
   const ontology = getPublishedDerivedTagMigrationOntology();
-  const liveCounts = buildLiveCountMaps(queryCanonicalTagRows(db));
-  const authoredRuleCounts = buildAuthoredRuleCounts();
-  const exemplarCounts = buildExemplarCounts();
+  const authoredState = getCurrentDerivedTagMigrationAuthoredState();
+  const dbCache = loadDerivedTagOntologyExplorerDbCache(db, options.cacheKey);
+  const tagCounts = mapFromCountRecord(dbCache.tagCounts);
+  const familyCounts = mapFromCountRecord(dbCache.familyCounts);
+  const categoryCounts = new Map(
+    Object.entries(dbCache.categoryCounts) as Array<[SearchCategory, number]>,
+  );
+  const recordNodesByTagKey = new Map(Object.entries(dbCache.recordNodesByTagKey));
+  const authoredRuleCounts = buildAuthoredRuleCounts(authoredState);
+  const exemplarCounts = buildExemplarCounts(authoredState);
   const legacyMigrationCounts = buildLegacyMigrationCounts();
-  const recordNodesByTagKey = buildRecordNodesByTagKey(db, liveCounts.recordKeysByTagKey);
 
   const categories = ontology.families
     .reduce<Map<SearchCategory, DerivedTagOntologyExplorerCategoryNode>>((bucket, family) => {
@@ -472,7 +584,7 @@ export function buildDerivedTagOntologyExplorerModel(db: DatabaseSync): DerivedT
         category: family.category,
         familyCount: 0,
         tagCount: 0,
-        taggedRecordCount: liveCounts.categoryCounts.get(family.category) ?? 0,
+        taggedRecordCount: categoryCounts.get(family.category) ?? 0,
         families: [],
         filterText: family.category.toLowerCase(),
       };
@@ -500,7 +612,7 @@ export function buildDerivedTagOntologyExplorerModel(db: DatabaseSync): DerivedT
             adjacentTags: tag.adjacentTags,
             compositeOfAnyTags: tag.compositeOfAnyTags,
             variantInheritance: tag.variantInheritance,
-            liveRecordCount: liveCounts.tagCounts.get(tagKey) ?? 0,
+            liveRecordCount: tagCounts.get(tagKey) ?? 0,
             authoredRuleCount: authoredRuleCounts.get(tagKey) ?? 0,
             exemplarPositiveCount: exemplars.positive,
             exemplarNegativeCount: exemplars.negative,
@@ -521,7 +633,7 @@ export function buildDerivedTagOntologyExplorerModel(db: DatabaseSync): DerivedT
         subcategories: family.subcategories,
         variantInheritance: family.variantInheritance,
         tagCount: tags.length,
-        liveRecordCount: liveCounts.familyCounts.get(familyKey) ?? 0,
+        liveRecordCount: familyCounts.get(familyKey) ?? 0,
         tags,
         filterText: buildFamilyFilterText(family),
       };
@@ -534,7 +646,7 @@ export function buildDerivedTagOntologyExplorerModel(db: DatabaseSync): DerivedT
     }, new Map())
     .values();
 
-  return {
+  const model = {
     categories: [...categories].map((category) => ({
       ...category,
       families: [...category.families].sort((left, right) =>
@@ -546,6 +658,15 @@ export function buildDerivedTagOntologyExplorerModel(db: DatabaseSync): DerivedT
       ].join(" ").toLowerCase(),
     })),
   };
+
+  if (options.cacheKey) {
+    explorerModelCacheByKey.set(options.cacheKey, {
+      authoredStateRevision,
+      model,
+    });
+  }
+
+  return model;
 }
 
 export function filterOntologyExplorerNodes<T extends { filterText: string }>(

@@ -625,8 +625,9 @@ function renderOntologyExplorerHelp(terminalSession: DerivedTagTerminalSession):
 export async function runDerivedTagOntologyExplorerUi(
   db: DatabaseSync,
   terminalSession: DerivedTagTerminalSession,
+  options: { cacheKey?: string } = {},
 ): Promise<void> {
-  const model = buildDerivedTagOntologyExplorerModel(db);
+  const model = buildDerivedTagOntologyExplorerModel(db, options);
   let state = createDerivedTagOntologyExplorerState(model);
   let activePane: DerivedTagOntologyExplorerPaneFocus = "list";
   let layoutMode: DerivedTagOntologyExplorerLayoutMode = "split";

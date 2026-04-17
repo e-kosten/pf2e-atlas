@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildDerivedTagOntologyExplorerModel,
   filterOntologyExplorerNodes,
+  writeDerivedTagOntologyExplorerDbCache,
 } from "../../src/tags/migration/ontology-explorer-data.js";
 import {
   createDerivedTagOntologyExplorerState,
@@ -248,6 +249,43 @@ describe("derived tag ontology explorer", () => {
     expect(communicationFamily?.liveRecordCount).toBe(3);
     expect(alarmTag?.liveRecordCount).toBe(2);
     expect(truthRevealTag?.liveRecordCount).toBe(2);
+    expect(alarmTag?.records.map((record) => record.record.name)).toEqual([
+      "Alarm Ward",
+      "Watchful Truth",
+    ]);
+  });
+
+  it("reuses the persisted ontology explorer cache instead of rebuilding from live index tables", () => {
+    const db = createExplorerDb();
+    insertRecord(db, {
+      recordKey: "spell:one",
+      name: "Alarm Ward",
+      category: "spell",
+      tags: ["alarm"],
+      descriptionText: "Warns against intruders.",
+    });
+    insertRecord(db, {
+      recordKey: "spell:three",
+      name: "Watchful Truth",
+      category: "spell",
+      tags: ["alarm"],
+      descriptionText: "Both warns and reveals lies.",
+    });
+
+    writeDerivedTagOntologyExplorerDbCache(db);
+
+    db.exec(`
+      DELETE FROM record_derived_tags;
+      DELETE FROM spell_records;
+      DELETE FROM records;
+    `);
+
+    const model = buildDerivedTagOntologyExplorerModel(db);
+    const spellCategory = model.categories.find((category) => category.category === "spell");
+    const communicationFamily = spellCategory?.families.find((family) => family.family === "communication");
+    const alarmTag = communicationFamily?.tags.find((tag) => tag.tag === "alarm");
+
+    expect(alarmTag?.liveRecordCount).toBe(2);
     expect(alarmTag?.records.map((record) => record.record.name)).toEqual([
       "Alarm Ward",
       "Watchful Truth",
