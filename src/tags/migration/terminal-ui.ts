@@ -52,6 +52,13 @@ export type DerivedTagTerminalTwoPaneScreen = {
   leftWidth?: number;
 };
 
+export type DerivedTagTerminalPaneScreen = {
+  title: string;
+  subtitle?: string;
+  pane: DerivedTagTerminalPane;
+  footer?: DerivedTagTerminalLine[];
+};
+
 export type DerivedTagTerminalSelectOption<T extends string = string> = {
   value: T;
   label: string;
@@ -337,6 +344,17 @@ export function renderTerminalTwoPaneScreen(
     applyTone(session.term, "dim", fitToWidth("│", 1));
   }
   renderPane(session, leftWidth + separatorWidth, headerBottom, rightWidth, contentHeight, screen.right);
+}
+
+export function renderTerminalPaneScreen(
+  session: DerivedTagTerminalSession,
+  screen: DerivedTagTerminalPaneScreen,
+): void {
+  clearTerminalScreen(session);
+  const headerBottom = renderHeader(session, screen.title, screen.subtitle);
+  const footerHeight = renderFooter(session, screen.footer);
+  const contentHeight = Math.max(0, session.term.height - headerBottom - footerHeight + 1);
+  renderPane(session, 1, headerBottom, session.term.width, contentHeight, screen.pane);
 }
 
 export function getTerminalTwoPaneDimensions(
