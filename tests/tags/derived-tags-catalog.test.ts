@@ -71,7 +71,15 @@ describe("derived tag catalog", () => {
         family: "communication",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "signaling", description: expect.any(String) }),
+          expect.objectContaining({ value: "translation_support", description: expect.any(String) }),
           expect.objectContaining({ value: "message_delivery", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "equipment",
+        family: "expedition",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "environmental_adaptation", description: expect.any(String) }),
         ]),
       }),
       expect.objectContaining({
@@ -120,6 +128,7 @@ describe("derived tag catalog", () => {
         family: "communication",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "signaling", description: expect.any(String) }),
+          expect.objectContaining({ value: "translation_support", description: expect.any(String) }),
           expect.objectContaining({ value: "message_delivery", description: expect.any(String) }),
         ]),
       }),
@@ -128,6 +137,14 @@ describe("derived tag catalog", () => {
         family: "reconnaissance",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "scouting", description: expect.any(String) }),
+          expect.objectContaining({ value: "tracking", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "spell",
+        family: "revelation",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "hazard_revelation", description: expect.any(String) }),
         ]),
       }),
       expect.objectContaining({
@@ -199,6 +216,7 @@ describe("derived tag catalog", () => {
           expect.objectContaining({ value: "aquatic_support", description: expect.any(String) }),
           expect.objectContaining({ value: "sustenance", description: expect.any(String) }),
           expect.objectContaining({ value: "field_shelter", description: expect.any(String) }),
+          expect.objectContaining({ value: "environmental_adaptation", description: expect.any(String) }),
         ]),
       }),
       expect.objectContaining({

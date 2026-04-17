@@ -44,7 +44,19 @@ export const AFFLICTION_DERIVED_TAG_ONTOLOGY = {
         {
           tag: "action_denial",
           description: "Prevents normal action-taking through paralysis, stupefying shutdown, or similarly severe operational lockout.",
-          assignmentMode: "hybrid"
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "The affliction is naturally retrieved because victims become unable to act, respond, or complete normal turns through paralysis, shutdown, or severe stupor.",
+            "Operational lockout matters more than ordinary weakness, pain, or mood distortion."
+          ],
+          doesNotApplyWhen: [
+            "The affliction only slows, weakens, or frightens the victim without truly preventing action-taking.",
+            "The stronger fit is mobility_impairment, sedation, or mental_impairment rather than hard action denial."
+          ],
+          adjacentTags: [
+            "mobility_impairment",
+            "sedation"
+          ]
         }
       ]
     },
@@ -174,12 +186,36 @@ export const AFFLICTION_DERIVED_TAG_ONTOLOGY = {
         {
           tag: "violence_compulsion",
           description: "Forces hostile aggression, murderous rage, or other attack-driven loss of self-control.",
-          assignmentMode: "hybrid"
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "The affliction is naturally retrieved because it drives victims to attack, maul, murder, or lash out at others.",
+            "Violent outward aggression matters more than truthful speech, self-harm, or generic loss of agency."
+          ],
+          doesNotApplyWhen: [
+            "The affliction only makes the victim reckless, confused, or generally compelled without a real violence-forward pattern.",
+            "The stronger fit is self_destructive_impulse or compulsion because aggression toward others is not central."
+          ],
+          adjacentTags: [
+            "compulsion",
+            "self_destructive_impulse"
+          ]
         },
         {
           tag: "truth_compulsion",
           description: "Forces confession, honesty, or involuntary revelation against the victim's will.",
-          assignmentMode: "hybrid"
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "The affliction is naturally retrieved because victims are forced to confess, answer honestly, or reveal hidden information.",
+            "Involuntary disclosure matters more than broad obedience, mood change, or self-harm."
+          ],
+          doesNotApplyWhen: [
+            "The affliction only compels action or speech generally without a truth-telling or confession-facing hook.",
+            "The stronger fit is compulsion or cognitive_impairment rather than forced honesty."
+          ],
+          adjacentTags: [
+            "compulsion",
+            "self_destructive_impulse"
+          ]
         },
         {
           tag: "self_destructive_impulse",
@@ -253,12 +289,36 @@ export const AFFLICTION_DERIVED_TAG_ONTOLOGY = {
         {
           tag: "delayed_onset",
           description: "Affliction whose symptoms, danger, or full transformation emerge after a notable delay rather than immediately.",
-          assignmentMode: "hybrid"
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "The affliction is naturally retrieved because the real danger appears after an incubation period, hidden delay, or deceptively quiet initial stage.",
+            "The timing gap between exposure and serious consequence matters to prep, diagnosis, or quarantine decisions."
+          ],
+          doesNotApplyWhen: [
+            "The affliction starts harming victims right away even if it worsens later.",
+            "The stronger fit is recurrent_flare or cumulative_transformation because the main hook is cycling or progressive change rather than delayed emergence."
+          ],
+          adjacentTags: [
+            "recurrent_flare",
+            "cumulative_transformation"
+          ]
         },
         {
           tag: "recurrent_flare",
           description: "Affliction that subsides and returns in episodes, repeating attacks, or cyclical symptom spikes.",
-          assignmentMode: "hybrid"
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "The affliction is naturally retrieved because symptoms repeatedly subside and then surge back in cycles, attacks, or flare-ups.",
+            "Its pacing matters as a recurring problem rather than a single steady decline."
+          ],
+          doesNotApplyWhen: [
+            "The affliction mainly incubates once and then worsens in a straight line.",
+            "The stronger fit is delayed_onset or terminal_collapse because recurrence is not the main progression hook."
+          ],
+          adjacentTags: [
+            "delayed_onset",
+            "terminal_collapse"
+          ]
         },
         {
           tag: "cumulative_transformation",
@@ -312,7 +372,19 @@ export const AFFLICTION_DERIVED_TAG_ONTOLOGY = {
         {
           tag: "hemorrhagic_failure",
           description: "Causes uncontrolled bleeding, blood loss, vessel rupture, or similar collapse of the body's circulatory integrity.",
-          assignmentMode: "hybrid"
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "The affliction is naturally retrieved because bleeding, blood loss, ruptured vessels, or circulatory collapse are major consequences rather than incidental symptoms.",
+            "The bodily failure pattern matters more than the source theme of the disease."
+          ],
+          doesNotApplyWhen: [
+            "The affliction only references corrupted blood as flavor without major bleeding or circulatory breakdown consequences.",
+            "The stronger fit is blood_rot or physical_debilitation because hemorrhage is not the core downstream effect."
+          ],
+          adjacentTags: [
+            "blood_rot",
+            "physical_debilitation"
+          ]
         },
         {
           tag: "petrification",

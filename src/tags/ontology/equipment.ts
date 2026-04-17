@@ -422,7 +422,7 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
         "shield",
         "weapon"
       ],
-      description: "Travel, provisioning, mounted-combat, and aquatic-operations equipment.",
+      description: "Travel, provisioning, mounted-combat, aquatic-operations, and hostile-environment-survival equipment.",
       tags: [
         {
           tag: "mounted_support",
@@ -438,6 +438,24 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
           tag: "aquatic_support",
           description: "Helps with swimming, underwater breathing, flotation, water-surface travel, or watercraft use.",
           assignmentMode: "deterministic"
+        },
+        {
+          tag: "environmental_adaptation",
+          description: "Helps travelers endure extreme weather, thin air, smoke, pressure, or other dangerous environmental exposure.",
+          assignmentMode: "deterministic",
+          appliesWhen: [
+            "The item's retrieval value comes from surviving punishing climate, altitude, breathing hazards, immersion pressure, or similar expedition environments.",
+            "It is naturally sought as environmental survival gear rather than a general defense item or campsite tool."
+          ],
+          doesNotApplyWhen: [
+            "The item only protects against one incoming attack or hazard burst without broader travel-survival use.",
+            "The item mainly creates camp infrastructure, carries provisions, or improves aquatic movement instead of adapting the user to the environment."
+          ],
+          adjacentTags: [
+            "aquatic_support",
+            "camp_setup",
+            "hazard_shielding"
+          ]
         },
         {
           tag: "camp_setup",
@@ -466,7 +484,7 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
         "vehicle",
         "consumable"
       ],
-      description: "Coordination, signaling, and message-relay equipment.",
+      description: "Coordination, signaling, language-bridging, and message-relay equipment.",
       tags: [
         {
           tag: "signaling",
@@ -494,6 +512,23 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
           tag: "message_delivery",
           description: "Sends, stores, or relays actual content across time or distance.",
           assignmentMode: "deterministic"
+        },
+        {
+          tag: "translation_support",
+          description: "Bridges language barriers through translation, deciphering, script interpretation, or speech-understanding aids.",
+          assignmentMode: "deterministic",
+          appliesWhen: [
+            "The item's retrieval value comes from understanding foreign languages, translating speech, or decoding otherwise unreadable text or symbols.",
+            "It is naturally sought when communication fails because of language barriers rather than distance or secrecy."
+          ],
+          doesNotApplyWhen: [
+            "The item only stores, relays, or broadcasts messages without solving comprehension.",
+            "The item only provides psychic communication between already understood participants."
+          ],
+          adjacentTags: [
+            "telepathic_communication",
+            "message_delivery"
+          ]
         },
         {
           tag: "surveillance_recording",

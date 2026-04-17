@@ -19,7 +19,7 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     communication: {
-      description: "Spells for signaling, telepathy, and message exchange.",
+      description: "Spells for signaling, telepathy, message exchange, and overcoming language barriers.",
       tags: [
         {
           tag: "signaling",
@@ -35,21 +35,55 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
           tag: "message_delivery",
           description: "Sends, stores, or relays actual content across time or distance.",
           assignmentMode: "deterministic"
+        },
+        {
+          tag: "translation_support",
+          description: "Bridges spoken or written language barriers through translation, comprehension, deciphering, or magically shared understanding.",
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "The spell is naturally retrieved to understand, translate, or make oneself understood across otherwise incompatible languages or scripts.",
+            "Language access matters more than merely sending a message or speaking silently."
+          ],
+          doesNotApplyWhen: [
+            "The spell only transmits content farther or more privately without solving a language barrier.",
+            "The spell reveals truth, thoughts, or memories without actually translating speech or writing."
+          ],
+          adjacentTags: [
+            "telepathic_link",
+            "message_delivery"
+          ]
         }
       ]
     },
     reconnaissance: {
-      description: "Remote-observation and scouting spells.",
+      description: "Remote-observation, target-finding, and scouting spells.",
       tags: [
         {
           tag: "scouting",
           description: "Helps observe at a distance, extend senses, or locate a target.",
           assignmentMode: "hybrid"
+        },
+        {
+          tag: "tracking",
+          description: "Locates a specific creature, object, or destination, or follows a supernatural trail toward it.",
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "The spell is naturally retrieved to find a named target, trace a quarry, or point the caster toward a specific creature, object, or place.",
+            "Target location matters more than broad sensory surveillance or general route guidance."
+          ],
+          doesNotApplyWhen: [
+            "The spell mainly reveals an area, extends senses, or scouts without locking onto a specific target.",
+            "The spell only helps orient a journey or choose a route once the destination is already known."
+          ],
+          adjacentTags: [
+            "scouting",
+            "navigation"
+          ]
         }
       ]
     },
     revelation: {
-      description: "Spells that reveal hidden magic, concealed creatures, curses, or otherwise suppressed truths.",
+      description: "Spells that reveal hidden magic, hazards, concealed creatures, curses, or otherwise suppressed truths.",
       tags: [
         {
           tag: "magic_detection",
@@ -82,6 +116,23 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
           tag: "curse_revelation",
           description: "Identifies curses, spiritual corruption, or other malign supernatural bindings on a target.",
           assignmentMode: "hybrid"
+        },
+        {
+          tag: "hazard_revelation",
+          description: "Reveals hidden traps, secret wards, concealed passage dangers, or other obscured environmental threats.",
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "The spell is naturally retrieved to uncover traps, hidden dangers, secret magical wards, or dangerous concealed features in a location.",
+            "Hazard discovery matters more than general magical detection or long-range scouting."
+          ],
+          doesNotApplyWhen: [
+            "The spell only detects magic, invisible creatures, or truth without specifically surfacing dangerous hidden features.",
+            "The spell merely scouts an area from afar without exposing concealed trap logic or hazard placement."
+          ],
+          adjacentTags: [
+            "magic_detection",
+            "scouting"
+          ]
         }
       ]
     },
@@ -448,7 +499,7 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     expedition: {
-      description: "Spells that support travel, survival, and field logistics such as shelter, food, and aquatic operations.",
+      description: "Spells that support travel, survival, and field logistics such as shelter, food, aquatic operations, and hostile-environment endurance.",
       tags: [
         {
           tag: "aquatic_support",
@@ -475,6 +526,24 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
           adjacentTags: [
             "protective_ward",
             "planar_travel"
+          ]
+        },
+        {
+          tag: "environmental_adaptation",
+          description: "Helps creatures endure hostile climates, thin air, smoke, pressure, vacuum, or other expedition-grade environmental extremes.",
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "The spell is naturally retrieved to survive extreme heat, cold, altitude, smoke, pressure, or other punishing environmental conditions during travel or exploration.",
+            "Environmental endurance matters more than only resisting one attack form or creating a place to rest."
+          ],
+          doesNotApplyWhen: [
+            "The spell mainly grants combat resistance, a protective ward, or aquatic mobility without broader expedition-survival value.",
+            "The spell only creates shelter or sustenance rather than adapting creatures to the surrounding environment."
+          ],
+          adjacentTags: [
+            "aquatic_support",
+            "field_shelter",
+            "resistance_support"
           ]
         }
       ]

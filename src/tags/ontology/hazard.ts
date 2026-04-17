@@ -34,7 +34,19 @@ export const HAZARD_DERIVED_TAG_ONTOLOGY = {
         {
           tag: "planar_breach",
           description: "Hazard centered on a portal, rift, tear, breach, or other unstable opening in reality.",
-          assignmentMode: "hybrid"
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "An unstable portal, planar tear, extradimensional rupture, or reality breach is the central mechanism of the hazard.",
+            "The hazard is naturally retrieved for cosmological leakage, portal instability, or something dangerous coming through a breach."
+          ],
+          doesNotApplyWhen: [
+            "The hazard is merely magical or teleportive without a real opening in reality as the core hazard engine.",
+            "The stronger fit is dispel_countermeasure or procedural_bypass because the planar flavor is incidental."
+          ],
+          adjacentTags: [
+            "dispel_countermeasure",
+            "procedural_bypass"
+          ]
         }
       ]
     },
@@ -59,7 +71,19 @@ export const HAZARD_DERIVED_TAG_ONTOLOGY = {
         {
           tag: "spawned_attackers",
           description: "Hazard that summons, creates, or releases separate attackers into the scene.",
-          assignmentMode: "hybrid"
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "The hazard is naturally retrieved because it adds new hostile creatures, constructs, swarms, or manifestations to the scene.",
+            "The extra attackers matter as separate encounter pressure rather than only as a damage effect."
+          ],
+          doesNotApplyWhen: [
+            "The hazard only deals direct damage, restrains victims, or creates a temporary illusion without generating distinct assailants.",
+            "The stronger fit is phantom_assailants when the threat is specifically a haunt manifestation rather than a broader hazard function."
+          ],
+          adjacentTags: [
+            "alarm",
+            "phantom_assailants"
+          ]
         },
         {
           tag: "zone_denial",
@@ -145,7 +169,19 @@ export const HAZARD_DERIVED_TAG_ONTOLOGY = {
         {
           tag: "bridge_passage_hazard",
           description: "Hazard strongly associated with bridges, chokepoints, gates, stairwells, or forced passage bottlenecks.",
-          assignmentMode: "hybrid"
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "The hazard is naturally retrieved for narrow crossings, gates, stairwells, or other spaces where intruders must pass through a constrained route.",
+            "Forced-passage geometry matters more than a broader dungeon, urban, or wilderness setting identity."
+          ],
+          doesNotApplyWhen: [
+            "The hazard only happens to sit near a doorway or bridge once without the chokepoint being central to its design.",
+            "The stronger fit is threshold_lockdown or forced_movement because the route bottleneck is not the main retrieval hook."
+          ],
+          adjacentTags: [
+            "threshold_lockdown",
+            "forced_movement"
+          ]
         },
         {
           tag: "aquatic_hazard",
@@ -165,7 +201,19 @@ export const HAZARD_DERIVED_TAG_ONTOLOGY = {
         {
           tag: "ambush_burst",
           description: "Hazard designed to open with a sudden high-damage strike or surprise punish on first contact.",
-          assignmentMode: "hybrid"
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "The hazard is naturally retrieved for a sudden opener, trap-spring punish, or first-contact burst that catches intruders before a longer fight develops.",
+            "The surprise spike matters more than sustained zone control or prolonged attrition."
+          ],
+          doesNotApplyWhen: [
+            "The hazard mainly holds territory over time, guards a place persistently, or taxes resources across repeated rounds.",
+            "The stronger fit is area_denial or attrition_pressure rather than a front-loaded strike."
+          ],
+          adjacentTags: [
+            "area_denial",
+            "attrition_pressure"
+          ]
         },
         {
           tag: "area_denial",
@@ -256,7 +304,19 @@ export const HAZARD_DERIVED_TAG_ONTOLOGY = {
         {
           tag: "replayed_tragedy",
           description: "Haunt that re-enacts a murder, betrayal, execution, disaster, or other fixed traumatic event.",
-          assignmentMode: "hybrid"
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "The haunt is naturally retrieved because it replays a specific past calamity, crime, execution, or emotional flashpoint as its core manifestation.",
+            "The narrative repetition of an old event matters more than generic life drain, possession, or battlefield disruption."
+          ],
+          doesNotApplyWhen: [
+            "The haunt is only sad, angry, or spiritually active without reenacting a fixed historical scene.",
+            "The stronger fit is judgment_haunt or lure_compulsion because the recurring tragedy itself is not the central hook."
+          ],
+          adjacentTags: [
+            "judgment_haunt",
+            "appeasement_countermeasure"
+          ]
         },
         {
           tag: "possession_haunt",

@@ -766,12 +766,24 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     casting_profile: {
-      description: "Creature prep-driving casting tags for encounter planning and shortlist searches.",
+      description: "Creature prep-driving casting tags for encounter planning, tradition-aware counterplay, and shortlist searches.",
       tags: [
         {
           tag: "dragon_spellcaster",
           description: "Dragon or archdragon variant with an explicit spellcaster stat block or named spellcaster presentation.",
-          assignmentMode: "hybrid"
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "Use when a dragon or archdragon variant explicitly presents meaningful spellcasting as part of its encounter identity.",
+            "The spellcasting matters for prep and counterplay beyond incidental magical flavor."
+          ],
+          doesNotApplyWhen: [
+            "The dragon only has innate magical flavor, one-off magical actions, or a few utility effects without real spellcaster framing.",
+            "The stronger fit is only a tradition-specific spellcaster tag without a dragon-specific spellcaster presentation."
+          ],
+          adjacentTags: [
+            "arcane_spellcaster",
+            "ritualist_creature"
+          ]
         },
         {
           tag: "arcane_spellcaster",
@@ -796,7 +808,19 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
         {
           tag: "ritualist_creature",
           description: "Creature strongly associated with ritual casting, ceremonial magic, or extended occult or divine preparations.",
-          assignmentMode: "hybrid"
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "Use when ceremonial, circle-based, sacrificial, or extended-casting magic is a major reason to retrieve the creature.",
+            "The creature is naturally used as a ritual leader, ritual threat, or ritual-supporting encounter element."
+          ],
+          doesNotApplyWhen: [
+            "The creature merely casts normal encounter spells without a meaningful ritual identity.",
+            "The stronger fit is a tradition spellcaster tag and ritual work is only incidental flavor."
+          ],
+          adjacentTags: [
+            "divine_spellcaster",
+            "occult_spellcaster"
+          ]
         }
       ]
     },
@@ -806,7 +830,19 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
         {
           tag: "possession_threat",
           description: "Can possess, body-snatch, or take control of a victim from within.",
-          assignmentMode: "hybrid"
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "Use when entering, riding, replacing, or controlling a host body is a major reason to retrieve the creature.",
+            "The possession dynamic matters more than ordinary charm, domination, or haunting flavor."
+          ],
+          doesNotApplyWhen: [
+            "The creature only compels, frightens, or mentally influences targets without true body-occupying takeover.",
+            "The stronger fit is curse_threat or summoner_commander because possession is not central to encounter prep."
+          ],
+          adjacentTags: [
+            "curse_threat",
+            "summoner_commander"
+          ]
         },
         {
           tag: "life_drain_threat",
@@ -856,7 +892,19 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
         {
           tag: "summoner_commander",
           description: "Threat defined by calling reinforcements, commanding minions, or dramatically improving allied creatures.",
-          assignmentMode: "hybrid"
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "Use when the creature's main prep significance is that it adds bodies, coordinates allies, or sharply elevates nearby minions.",
+            "The encounter meaningfully changes because of its leadership, summoning, or reinforcement engine."
+          ],
+          doesNotApplyWhen: [
+            "The creature only has one minor ally-facing buff or an incidental summon without changing encounter structure.",
+            "The stronger fit is support_combatant or spawn_creator because command and reinforcement are not the real threat hook."
+          ],
+          adjacentTags: [
+            "spawn_creator",
+            "commander_combatant"
+          ]
         },
         {
           tag: "death_burst_threat",
@@ -967,7 +1015,19 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
         {
           tag: "possessed_object",
           description: "Strongly associated with an inhabiting spirit or curse animating an otherwise mundane object or suit of equipment.",
-          assignmentMode: "hybrid"
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "Use when a spirit, ghost, curse, or other external presence is explicitly what animates the object.",
+            "The inhabiting presence matters more than the object's construction, material, or generic animation."
+          ],
+          doesNotApplyWhen: [
+            "The object is simply animated by magic, clockwork, or sculpted animation with no real possessing force.",
+            "The stronger fit is animated_object or animated_statue because possession is not central."
+          ],
+          adjacentTags: [
+            "animated_object",
+            "possession_threat"
+          ]
         }
       ]
     }

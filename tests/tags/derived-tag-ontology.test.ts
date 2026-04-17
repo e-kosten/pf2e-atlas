@@ -69,6 +69,24 @@ describe("derived tag ontology", () => {
         "The spell's retrieval value comes from exposing deception, forcing truthful answers, or stripping away false presentation.",
       ]),
     }));
+    const spellTracking = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "spell" && tag.tag === "tracking");
+    expect(spellTracking).toEqual(expect.objectContaining({
+      family: "reconnaissance",
+      assignmentMode: "hybrid",
+      adjacentTags: ["scouting", "navigation"],
+      appliesWhen: expect.arrayContaining([
+        "The spell is naturally retrieved to find a named target, trace a quarry, or point the caster toward a specific creature, object, or place.",
+      ]),
+    }));
+    const hazardRevelation = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "spell" && tag.tag === "hazard_revelation");
+    expect(hazardRevelation).toEqual(expect.objectContaining({
+      family: "revelation",
+      assignmentMode: "hybrid",
+      adjacentTags: ["magic_detection", "scouting"],
+      appliesWhen: expect.arrayContaining([
+        "The spell is naturally retrieved to uncover traps, hidden dangers, secret magical wards, or dangerous concealed features in a location.",
+      ]),
+    }));
     const proceduralBypass = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "hazard" && tag.tag === "procedural_bypass");
     expect(proceduralBypass).toEqual(expect.objectContaining({
       family: "countermeasure_profile",
@@ -148,6 +166,15 @@ describe("derived tag ontology", () => {
         "Leading others through terrain, routes, borders, or dangerous travel spaces is central to the creature's retrieval value.",
       ]),
     }));
+    const summonerCommander = CREATURE_DERIVED_TAG_ONTOLOGY.families.threat_profile.tags.find((tag) => tag.tag === "summoner_commander");
+    expect(summonerCommander).toEqual(expect.objectContaining({
+      tag: "summoner_commander",
+      assignmentMode: "hybrid",
+      adjacentTags: ["spawn_creator", "commander_combatant"],
+      appliesWhen: expect.arrayContaining([
+        "Use when the creature's main prep significance is that it adds bodies, coordinates allies, or sharply elevates nearby minions.",
+      ]),
+    }));
     const bruteCombatant = CREATURE_DERIVED_TAG_ONTOLOGY.families.combat_role.tags.find((tag) => tag.tag === "brute_combatant");
     expect(bruteCombatant).toEqual(expect.objectContaining({
       tag: "brute_combatant",
@@ -161,6 +188,24 @@ describe("derived tag ontology", () => {
       adjacentTags: ["signaling", "message_delivery"],
       appliesWhen: expect.arrayContaining([
         "The item's retrieval value comes from silent psychic coordination, mind-to-mind speech, or communication that bypasses ordinary sound.",
+      ]),
+    }));
+    const equipmentTranslationSupport = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "equipment" && tag.tag === "translation_support");
+    expect(equipmentTranslationSupport).toEqual(expect.objectContaining({
+      family: "communication",
+      assignmentMode: "deterministic",
+      adjacentTags: ["telepathic_communication", "message_delivery"],
+      appliesWhen: expect.arrayContaining([
+        "The item's retrieval value comes from understanding foreign languages, translating speech, or decoding otherwise unreadable text or symbols.",
+      ]),
+    }));
+    const equipmentEnvironmentalAdaptation = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "equipment" && tag.tag === "environmental_adaptation");
+    expect(equipmentEnvironmentalAdaptation).toEqual(expect.objectContaining({
+      family: "expedition",
+      assignmentMode: "deterministic",
+      adjacentTags: ["aquatic_support", "camp_setup", "hazard_shielding"],
+      appliesWhen: expect.arrayContaining([
+        "The item's retrieval value comes from surviving punishing climate, altitude, breathing hazards, immersion pressure, or similar expedition environments.",
       ]),
     }));
     const spellScryingProtection = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "spell" && tag.tag === "scrying_protection");
