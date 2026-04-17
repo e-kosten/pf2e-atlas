@@ -323,7 +323,7 @@ describe("derived tag category scope summaries", () => {
     const session = buildDerivedTagMigrationSession(db, {
       mode: "proposal_review",
       category: "spell",
-      family: "communication",
+      family: "security",
     });
 
     expect(session.records.map((record) => record.entityRecord.recordKey)).toEqual(["spell:one"]);

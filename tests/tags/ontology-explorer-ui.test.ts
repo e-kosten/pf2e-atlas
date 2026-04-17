@@ -241,13 +241,15 @@ describe("derived tag ontology explorer", () => {
 
     const model = buildDerivedTagOntologyExplorerModel(db);
     const spellCategory = model.categories.find((category) => category.category === "spell");
-    const communicationFamily = spellCategory?.families.find((family) => family.family === "communication");
-    const alarmTag = communicationFamily?.tags.find((tag) => tag.tag === "alarm");
-    const truthRevealTag = communicationFamily?.tags.find((tag) => tag.tag === "truth_reveal");
+    const securityFamily = spellCategory?.families.find((family) => family.family === "security");
+    const revelationFamily = spellCategory?.families.find((family) => family.family === "revelation");
+    const alarmTag = securityFamily?.tags.find((tag) => tag.tag === "alarm");
+    const truthRevealTag = revelationFamily?.tags.find((tag) => tag.tag === "truth_reveal");
 
     expect(spellCategory?.taggedRecordCount).toBe(3);
-    expect(communicationFamily?.axis).toBeTruthy();
-    expect(communicationFamily?.liveRecordCount).toBe(3);
+    expect(securityFamily?.axis).toBeTruthy();
+    expect(securityFamily?.liveRecordCount).toBe(2);
+    expect(revelationFamily?.liveRecordCount).toBe(2);
     expect(alarmTag?.liveRecordCount).toBe(2);
     expect(truthRevealTag?.liveRecordCount).toBe(2);
     expect(alarmTag?.records.map((record) => record.record.name)).toEqual([
@@ -280,7 +282,7 @@ describe("derived tag ontology explorer", () => {
 
     const model = buildDerivedTagOntologyExplorerModel(db);
     const spellCategory = model.categories.find((category) => category.category === "spell");
-    const communicationFamily = spellCategory?.families.find((family) => family.family === "communication");
+    const securityFamily = spellCategory?.families.find((family) => family.family === "security");
 
     expect(model.categories.map((category) => category.category)).toEqual([
       "affliction",
@@ -289,11 +291,10 @@ describe("derived tag ontology explorer", () => {
       "hazard",
       "spell",
     ]);
-    expect(communicationFamily?.tags.slice(0, 4).map((tag) => tag.tag)).toEqual([
+    expect(securityFamily?.tags.map((tag) => tag.tag)).toEqual([
       "alarm",
-      "curse_revelation",
-      "hazard_revelation",
-      "invisibility_reveal",
+      "scrying_protection",
+      "security",
     ]);
   });
 
@@ -324,8 +325,8 @@ describe("derived tag ontology explorer", () => {
 
     const model = buildDerivedTagOntologyExplorerModel(db);
     const spellCategory = model.categories.find((category) => category.category === "spell");
-    const communicationFamily = spellCategory?.families.find((family) => family.family === "communication");
-    const alarmTag = communicationFamily?.tags.find((tag) => tag.tag === "alarm");
+    const securityFamily = spellCategory?.families.find((family) => family.family === "security");
+    const alarmTag = securityFamily?.tags.find((tag) => tag.tag === "alarm");
 
     expect(alarmTag?.liveRecordCount).toBe(2);
     expect(alarmTag?.records.map((record) => record.record.name)).toEqual([
@@ -353,15 +354,15 @@ describe("derived tag ontology explorer", () => {
 
     const model = buildDerivedTagOntologyExplorerModel(db);
     const spellCategory = model.categories.find((category) => category.category === "spell");
-    const communicationFamily = spellCategory?.families.find((family) => family.family === "communication");
-    const alarmTag = communicationFamily?.tags.find((tag) => tag.tag === "alarm");
+    const securityFamily = spellCategory?.families.find((family) => family.family === "security");
+    const alarmTag = securityFamily?.tags.find((tag) => tag.tag === "alarm");
 
     let state = createDerivedTagOntologyExplorerState(model);
     state = normalizeDerivedTagOntologyExplorerState(model, {
       ...state,
       depth: "record",
       selectedCategoryKey: "spell",
-      selectedFamilyKey: communicationFamily?.key,
+      selectedFamilyKey: securityFamily?.key,
       selectedTagKey: alarmTag?.key,
       selectedRecordKey: "spell:one",
     });
@@ -397,15 +398,15 @@ describe("derived tag ontology explorer", () => {
 
     const model = buildDerivedTagOntologyExplorerModel(db);
     const spellCategory = model.categories.find((category) => category.category === "spell");
-    const communicationFamily = spellCategory?.families.find((family) => family.family === "communication");
-    const alarmTag = communicationFamily?.tags.find((tag) => tag.tag === "alarm");
+    const securityFamily = spellCategory?.families.find((family) => family.family === "security");
+    const alarmTag = securityFamily?.tags.find((tag) => tag.tag === "alarm");
 
     let state = createDerivedTagOntologyExplorerState(model);
     state = normalizeDerivedTagOntologyExplorerState(model, {
       ...state,
       depth: "record",
       selectedCategoryKey: "spell",
-      selectedFamilyKey: communicationFamily?.key,
+      selectedFamilyKey: securityFamily?.key,
       selectedTagKey: alarmTag?.key,
       selectedRecordKey: "spell:two",
     });
@@ -470,15 +471,15 @@ describe("derived tag ontology explorer", () => {
 
     const model = buildDerivedTagOntologyExplorerModel(db);
     const spellCategory = model.categories.find((category) => category.category === "spell");
-    const communicationFamily = spellCategory?.families.find((family) => family.family === "communication");
-    const alarmTag = communicationFamily?.tags.find((tag) => tag.tag === "alarm");
+    const securityFamily = spellCategory?.families.find((family) => family.family === "security");
+    const alarmTag = securityFamily?.tags.find((tag) => tag.tag === "alarm");
 
     let state = createDerivedTagOntologyExplorerState(model);
     state = normalizeDerivedTagOntologyExplorerState(model, {
       ...state,
       depth: "record",
       selectedCategoryKey: "spell",
-      selectedFamilyKey: communicationFamily?.key,
+      selectedFamilyKey: securityFamily?.key,
       selectedTagKey: alarmTag?.key,
       selectedRecordKey: "spell:one",
     });
@@ -510,15 +511,15 @@ describe("derived tag ontology explorer", () => {
 
     const model = buildDerivedTagOntologyExplorerModel(db);
     const spellCategory = model.categories.find((category) => category.category === "spell");
-    const communicationFamily = spellCategory?.families.find((family) => family.family === "communication");
-    const alarmTag = communicationFamily?.tags.find((tag) => tag.tag === "alarm");
+    const securityFamily = spellCategory?.families.find((family) => family.family === "security");
+    const alarmTag = securityFamily?.tags.find((tag) => tag.tag === "alarm");
 
     let state = createDerivedTagOntologyExplorerState(model);
     state = normalizeDerivedTagOntologyExplorerState(model, {
       ...state,
       depth: "record",
       selectedCategoryKey: "spell",
-      selectedFamilyKey: communicationFamily?.key,
+      selectedFamilyKey: securityFamily?.key,
       selectedTagKey: alarmTag?.key,
       selectedRecordKey: "spell:two",
     });
@@ -553,15 +554,15 @@ describe("derived tag ontology explorer", () => {
 
     const model = buildDerivedTagOntologyExplorerModel(db);
     const spellCategory = model.categories.find((category) => category.category === "spell");
-    const communicationFamily = spellCategory?.families.find((family) => family.family === "communication");
-    const alarmTag = communicationFamily?.tags.find((tag) => tag.tag === "alarm");
+    const securityFamily = spellCategory?.families.find((family) => family.family === "security");
+    const alarmTag = securityFamily?.tags.find((tag) => tag.tag === "alarm");
 
     let state = createDerivedTagOntologyExplorerState(model);
     state = normalizeDerivedTagOntologyExplorerState(model, {
       ...state,
       depth: "record",
       selectedCategoryKey: "spell",
-      selectedFamilyKey: communicationFamily?.key,
+      selectedFamilyKey: securityFamily?.key,
       selectedTagKey: alarmTag?.key,
       selectedRecordKey: "spell:two",
     });
@@ -659,13 +660,13 @@ describe("derived tag ontology explorer", () => {
 
     const model = buildDerivedTagOntologyExplorerModel(db);
     const spellCategory = model.categories.find((category) => category.category === "spell");
-    const communicationFamily = spellCategory?.families.find((family) => family.family === "communication");
+    const securityFamily = spellCategory?.families.find((family) => family.family === "security");
     const filtered = filterOntologyExplorerNodes(
       spellCategory?.families ?? [],
-      communicationFamily?.axis ?? "",
+      securityFamily?.axis ?? "",
     );
 
-    expect(filtered.map((family) => family.family)).toContain("communication");
+    expect(filtered.map((family) => family.family)).toContain("security");
   });
 
   it("loads equipment record details through the live item schema columns", () => {

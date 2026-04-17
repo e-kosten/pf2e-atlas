@@ -667,7 +667,7 @@ export const CREATURE_DERIVED_TAG_LEGACY_SEED_MIGRATIONS = {
       ]
     },
     {
-      tag: "combatant_npc",
+      tag: "enforcer_npc",
       includeRecords: [
         {
           pack: "pathfinder-npc-core",

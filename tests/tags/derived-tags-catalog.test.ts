@@ -27,7 +27,16 @@ describe("derived tag catalog", () => {
         axis: "utility",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "lock_bypass", description: expect.any(String) }),
+          expect.objectContaining({ value: "trap_bypass", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "equipment",
+        family: "breaching",
+        axis: "utility",
+        tags: expect.arrayContaining([
           expect.objectContaining({ value: "door_breaching", description: expect.any(String) }),
+          expect.objectContaining({ value: "barrier_breaking", description: expect.any(String) }),
         ]),
       }),
       expect.objectContaining({
@@ -42,25 +51,34 @@ describe("derived tag catalog", () => {
       expect.objectContaining({
         category: "spell",
         family: "communication",
-        axis: "information",
+        axis: "utility",
         tags: expect.arrayContaining([
-          expect.objectContaining({ value: "tracking", description: expect.any(String) }),
-          expect.objectContaining({ value: "truth_reveal", description: expect.any(String) }),
-          expect.objectContaining({ value: "alarm", description: expect.any(String) }),
+          expect.objectContaining({ value: "message_delivery", description: expect.any(String) }),
+          expect.objectContaining({ value: "translation_support", description: expect.any(String) }),
         ]),
       }),
       expect.objectContaining({
         category: "spell",
         family: "revelation",
-        axis: "planning",
+        axis: "utility",
         tags: expect.arrayContaining([
+          expect.objectContaining({ value: "truth_reveal", description: expect.any(String) }),
           expect.objectContaining({ value: "revelation", assignmentMode: "composite" }),
         ]),
       }),
       expect.objectContaining({
         category: "spell",
+        family: "security",
+        axis: "utility",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "alarm", description: expect.any(String) }),
+          expect.objectContaining({ value: "security", assignmentMode: "composite" }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "spell",
         family: "control",
-        axis: "control",
+        axis: "battlefield",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "countermagic", description: expect.any(String) }),
           expect.objectContaining({ value: "mobility_denial", description: expect.any(String) }),
@@ -163,7 +181,7 @@ describe("derived tag catalog", () => {
         family: "scene_role",
         axis: "npc_role",
         tags: expect.arrayContaining([
-          expect.objectContaining({ value: "combatant_npc", description: expect.any(String) }),
+          expect.objectContaining({ value: "enforcer_npc", description: expect.any(String) }),
           expect.objectContaining({ value: "infiltrator_npc", description: expect.any(String) }),
           expect.objectContaining({ value: "guardian_npc", description: expect.any(String) }),
         ]),
@@ -183,7 +201,7 @@ describe("derived tag catalog", () => {
         axis: "encounter",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "prey_control_threat", description: expect.any(String) }),
-          expect.objectContaining({ value: "minion_commander", description: expect.any(String) }),
+          expect.objectContaining({ value: "reinforcement_threat", description: expect.any(String) }),
           expect.objectContaining({ value: "infiltration_threat", description: expect.any(String) }),
         ]),
       }),

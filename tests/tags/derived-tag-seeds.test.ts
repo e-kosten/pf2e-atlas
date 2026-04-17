@@ -24,13 +24,13 @@ const exemplarFamilies: DerivedTagOntologyFamily[] = [
   {
     category: "equipment",
     family: "infiltration",
-    axis: "infiltration",
+    axis: "utility",
     description: "Equipment that helps infiltration.",
   },
   {
     category: "spell",
     family: "infiltration",
-    axis: "infiltration",
+    axis: "utility",
     description: "Spells that help infiltration.",
   },
   {
@@ -393,7 +393,7 @@ describe("derived tag exemplars and legacy seed migrations", () => {
     const encounterRoleTags = [
       "profession_npc",
       "civic_npc",
-      "combatant_npc",
+      "enforcer_npc",
     ];
     const encounterRoleRawAdds = encounterRoleTags.reduce(
       (count, tag) => count + getDerivedTagLegacySeedMigrationRecordKeys(tag, { category: "creature" }).length,
@@ -414,7 +414,7 @@ describe("derived tag exemplars and legacy seed migrations", () => {
       "gatewalkers-bestiary:kneoApQfhlRhhp1R",
       "sky-kings-tomb-bestiary:OWVg3LYOdGHOYUHt",
     ]));
-    expect(getDerivedTagLegacySeedMigrationRecordKeys("combatant_npc", { category: "creature" })).toEqual(expect.arrayContaining([
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("enforcer_npc", { category: "creature" })).toEqual(expect.arrayContaining([
       "claws-of-the-tyrant-bestiary:tMqtId1TKVUXe4tN",
       "triumph-of-the-tusk-bestiary:xd35No1x2n1MDVCm",
       "battlecry-bestiary:R1Ukw41ygDmnAmJk",
@@ -481,11 +481,11 @@ describe("derived tag exemplars and legacy seed migrations", () => {
     expect(starwatchCommandoDerivation.tags).toEqual(expect.arrayContaining([
       "profession_npc",
       "civic_npc",
-      "combatant_npc",
+      "enforcer_npc",
     ]));
     expect(["seed_migration", "legacy_rule+seed_migration"]).toContain(starwatchCommandoDerivation.sources.get("profession_npc"));
     expect(["seed_migration", "legacy_rule+seed_migration"]).toContain(starwatchCommandoDerivation.sources.get("civic_npc"));
-    expect(["seed_migration", "legacy_rule+seed_migration"]).toContain(starwatchCommandoDerivation.sources.get("combatant_npc"));
+    expect(["seed_migration", "legacy_rule+seed_migration"]).toContain(starwatchCommandoDerivation.sources.get("enforcer_npc"));
 
     const falsePriestDerivation = deriveRecordTagDerivation({
       recordKey: "pathfinder-npc-core:OAxxUyACpMlX3q1X",
@@ -497,10 +497,10 @@ describe("derived tag exemplars and legacy seed migrations", () => {
     });
     expect(falsePriestDerivation.tags).toEqual(expect.arrayContaining([
       "profession_npc",
-      "combatant_npc",
+      "enforcer_npc",
     ]));
     expect(["assignment", "legacy_rule+assignment"]).toContain(falsePriestDerivation.sources.get("profession_npc"));
-    expect(["assignment", "legacy_rule+assignment"]).toContain(falsePriestDerivation.sources.get("combatant_npc"));
+    expect(["assignment", "legacy_rule+assignment"]).toContain(falsePriestDerivation.sources.get("enforcer_npc"));
 
     const commanderArsiellaDerivation = deriveRecordTagDerivation({
       recordKey: "claws-of-the-tyrant-bestiary:tMqtId1TKVUXe4tN",
@@ -513,11 +513,11 @@ describe("derived tag exemplars and legacy seed migrations", () => {
     expect(commanderArsiellaDerivation.tags).toEqual(expect.arrayContaining([
       "profession_npc",
       "civic_npc",
-      "combatant_npc",
+      "enforcer_npc",
     ]));
     expect(["seed_migration", "legacy_rule+seed_migration"]).toContain(commanderArsiellaDerivation.sources.get("profession_npc"));
     expect(["seed_migration", "legacy_rule+seed_migration"]).toContain(commanderArsiellaDerivation.sources.get("civic_npc"));
-    expect(["seed_migration", "legacy_rule+seed_migration"]).toContain(commanderArsiellaDerivation.sources.get("combatant_npc"));
+    expect(["seed_migration", "legacy_rule+seed_migration"]).toContain(commanderArsiellaDerivation.sources.get("enforcer_npc"));
 
     const spiritboundAluumDerivation = deriveRecordTagDerivation({
       recordKey: "age-of-ashes-bestiary:n6FQeNsDgKaDIF7b",
@@ -560,9 +560,9 @@ describe("derived tag exemplars and legacy seed migrations", () => {
       descriptionText: null,
       traits: ["dromaar", "human", "humanoid", "orc", "troop"],
     });
-    expect(dromaarCompanyDerivation.tags).toEqual(expect.arrayContaining(["battlefield_setting", "combatant_npc"]));
+    expect(dromaarCompanyDerivation.tags).toEqual(expect.arrayContaining(["battlefield_setting", "enforcer_npc"]));
     expect(dromaarCompanyDerivation.sources.get("battlefield_setting")).toBe("legacy_rule+seed_migration");
-    expect(dromaarCompanyDerivation.sources.get("combatant_npc")).toBe("seed_migration");
+    expect(dromaarCompanyDerivation.sources.get("enforcer_npc")).toBe("seed_migration");
 
     const qadiranCamelCorpsDerivation = deriveRecordTagDerivation({
       recordKey: "battlecry-bestiary:egHaHp1lqQBZdKdR",

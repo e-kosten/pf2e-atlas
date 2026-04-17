@@ -96,7 +96,7 @@ describe("variant base tag inheritance", () => {
     expect(inheritable).toContain("mountain_setting");
     expect(inheritable).toContain("urban_setting");
     expect(inheritable).not.toContain("profession_npc");
-    expect(inheritable).not.toContain("combatant_npc");
+    expect(inheritable).not.toContain("enforcer_npc");
   });
 
   it("inherits opted-in setting tags from an explicit canonical creature base", () => {

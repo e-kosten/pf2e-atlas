@@ -4,7 +4,7 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
   category: "spell",
   families: {
     infiltration: {
-      axis: "infiltration",
+      axis: "utility",
       description: "Appearance-changing and social-passing spells.",
       tags: [
         {
@@ -20,8 +20,8 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     communication: {
-      axis: "information",
-      description: "Information, coordination, revelation, and sanctum-security spells for messaging, scouting, detection, and protected planning.",
+      axis: "utility",
+      description: "Communication and coordination spells for messaging, psychic speech, and language-bridging.",
       tags: [
         {
           tag: "signaling",
@@ -55,6 +55,12 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
             "message_delivery"
           ]
         },
+      ]
+    },
+    reconnaissance: {
+      axis: "utility",
+      description: "Reconnaissance spells for surveying areas, extending senses, and locating specific targets before engagement.",
+      tags: [
         {
           tag: "scouting",
           description: "Helps observe at a distance, extend senses, or locate a target.",
@@ -77,6 +83,27 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
             "navigation"
           ]
         },
+        {
+          tag: "reconnaissance",
+          description: "Broad scouting umbrella for spells that gather remote information, extend senses, or track a target from afar.",
+          assignmentMode: "composite",
+          adjacentTags: [
+            "scouting",
+            "tracking",
+            "scouting_summons"
+          ],
+          compositeOfAnyTags: [
+            "scouting",
+            "tracking",
+            "scouting_summons"
+          ]
+        }
+      ]
+    },
+    revelation: {
+      axis: "utility",
+      description: "Detection and revelation spells that expose hidden truths, concealed dangers, and supernatural facts.",
+      tags: [
         {
           tag: "magic_detection",
           description: "Reveals magical auras, spell presence, active effects, or other supernatural signatures.",
@@ -127,67 +154,6 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
           ]
         },
         {
-          tag: "alarm",
-          description: "Alerts you or others when a watched area, threshold, or ward is crossed.",
-          assignmentMode: "hybrid",
-          appliesWhen: [
-            "The spell is naturally retrieved to warn about intrusion, threshold crossing, tampering, or unwanted entry.",
-            "Detection and notice matter more than directly stopping the intruder."
-          ],
-          doesNotApplyWhen: [
-            "The spell mainly protects, blocks, or hides the target without providing a warning function.",
-            "The spell only reveals truth or magic generally rather than guarding a watched perimeter."
-          ],
-          adjacentTags: [
-            "protective_ward",
-            "scrying_protection"
-          ]
-        },
-        {
-          tag: "scrying_protection",
-          description: "Blocks magical observation, remote viewing, divinatory surveillance, or other information leakage from a protected target or space.",
-          assignmentMode: "hybrid",
-          appliesWhen: [
-            "The spell is naturally retrieved to keep plans, sanctums, identities, or conversations hidden from magical spying.",
-            "Its core value is denying observation or divination rather than only raising an intrusion alarm."
-          ],
-          doesNotApplyWhen: [
-            "The spell only improves mundane concealment or silence without real anti-divination protection.",
-            "The spell counters magic broadly but is not specifically about surveillance or remote observation."
-          ],
-          adjacentTags: [
-            "alarm",
-            "countermagic"
-          ]
-        }
-      ]
-    },
-    reconnaissance: {
-      axis: "planning",
-      description: "Planning-oriented umbrella for spells used to scout, survey, or locate creatures and places before direct engagement.",
-      tags: [
-        {
-          tag: "reconnaissance",
-          description: "Broad scouting umbrella for spells that gather remote information, extend senses, or track a target from afar.",
-          assignmentMode: "composite",
-          adjacentTags: [
-            "scouting",
-            "tracking",
-            "scouting_summons"
-          ],
-          compositeOfAnyTags: [
-            "scouting",
-            "tracking",
-            "scouting_summons"
-          ]
-        }
-      ]
-    },
-    revelation: {
-      axis: "planning",
-      description: "Planning-oriented umbrella for spells that expose hidden truths, reveal concealed dangers, or surface magical and supernatural facts.",
-      tags: [
-        {
           tag: "revelation",
           description: "Broad reveal umbrella for spells that detect magic, uncover deceptions, expose invisible threats, or identify hidden supernatural problems.",
           assignmentMode: "composite",
@@ -207,7 +173,7 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     wayfinding: {
-      axis: "planning",
+      axis: "utility",
       description: "Planning-oriented umbrella for spells used to find routes, reach destinations, and solve strategic navigation or travel-location problems.",
       tags: [
         {
@@ -229,7 +195,7 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     teleportation: {
-      axis: "mobility",
+      axis: "utility",
       description: "Spells that blink, reposition, extract, or transport creatures across long distances or planes.",
       tags: [
         {
@@ -339,7 +305,7 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     control: {
-      axis: "control",
+      axis: "battlefield",
       description: "Spells that reshape the battlefield by denying movement, sight, casting, actions, or active magic.",
       tags: [
         {
@@ -654,7 +620,7 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     expedition: {
-      axis: "mobility",
+      axis: "utility",
       description: "Spells that support movement, travel, survival, and field logistics such as flight, route guidance, shelter, food, aquatic operations, and hostile-environment endurance.",
       tags: [
         {
@@ -720,9 +686,43 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     security: {
-      axis: "planning",
-      description: "Planning-oriented umbrella for spells that secure camps, sanctums, rooms, thresholds, and protected people against intrusion or magical observation.",
+      axis: "utility",
+      description: "Security spells for intrusion warning, anti-scrying, and protected spaces, including broad security umbrellas.",
       tags: [
+        {
+          tag: "alarm",
+          description: "Alerts you or others when a watched area, threshold, or ward is crossed.",
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "The spell is naturally retrieved to warn about intrusion, threshold crossing, tampering, or unwanted entry.",
+            "Detection and notice matter more than directly stopping the intruder."
+          ],
+          doesNotApplyWhen: [
+            "The spell mainly protects, blocks, or hides the target without providing a warning function.",
+            "The spell only reveals truth or magic generally rather than guarding a watched perimeter."
+          ],
+          adjacentTags: [
+            "protective_ward",
+            "scrying_protection"
+          ]
+        },
+        {
+          tag: "scrying_protection",
+          description: "Blocks magical observation, remote viewing, divinatory surveillance, or other information leakage from a protected target or space.",
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "The spell is naturally retrieved to keep plans, sanctums, identities, or conversations hidden from magical spying.",
+            "Its core value is denying observation or divination rather than only raising an intrusion alarm."
+          ],
+          doesNotApplyWhen: [
+            "The spell only improves mundane concealment or silence without real anti-divination protection.",
+            "The spell counters magic broadly but is not specifically about surveillance or remote observation."
+          ],
+          adjacentTags: [
+            "alarm",
+            "countermagic"
+          ]
+        },
         {
           tag: "security",
           description: "Broad security umbrella for spells that warn about intrusion, protect private spaces, or harden a target against magical observation and interference.",

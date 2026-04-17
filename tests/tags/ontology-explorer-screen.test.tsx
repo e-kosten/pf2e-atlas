@@ -104,7 +104,7 @@ function createExplorerDb(): DatabaseSync {
     null,
     JSON.stringify([]),
     JSON.stringify(["alarm"]),
-    JSON.stringify(["communication"]),
+    JSON.stringify(["security"]),
     "Warns against intruders.",
     null,
   );

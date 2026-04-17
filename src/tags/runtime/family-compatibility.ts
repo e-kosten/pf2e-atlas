@@ -10,6 +10,7 @@ const RAW_LEGACY_FAMILY_ALIASES: Partial<Record<SearchCategory, Record<string, s
   },
   equipment: {
     purpose: ["movement_traversal", "scouting_surveillance", "access_bypass", "logistics_restraint"],
+    polarity: ["consumable_role", "delivery_profile"],
   },
   hazard: {
     encounter_role: ["function"],

@@ -61,7 +61,7 @@ describe("actionable session scope keys", () => {
 
     expect([...keys!.familyKeys]).toEqual(expect.arrayContaining([
       "creature:alarm",
-      "spell:communication",
+      "spell:security",
     ]));
     expect([...keys!.tagKeys]).toEqual(expect.arrayContaining([
       "creature:alarm",
@@ -95,7 +95,7 @@ describe("actionable session scope keys", () => {
   });
 
   it("matches tags to ontology families for family-filtered exemplar reviews", () => {
-    expect(matchesDerivedTagFamilyFilter("spell", "alarm", "communication")).toBe(true);
-    expect(matchesDerivedTagFamilyFilter("spell", "alarm", "security")).toBe(false);
+    expect(matchesDerivedTagFamilyFilter("spell", "alarm", "security")).toBe(true);
+    expect(matchesDerivedTagFamilyFilter("spell", "alarm", "communication")).toBe(false);
   });
 });

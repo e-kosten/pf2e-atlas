@@ -86,7 +86,7 @@ describe("derived tag ontology", () => {
     }));
     const truthReveal = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "spell" && tag.tag === "truth_reveal");
     expect(truthReveal).toEqual(expect.objectContaining({
-      family: "communication",
+      family: "revelation",
       assignmentMode: "hybrid",
       adjacentTags: ["magic_detection", "memory_manipulation"],
       appliesWhen: expect.arrayContaining([
@@ -95,7 +95,7 @@ describe("derived tag ontology", () => {
     }));
     const spellTracking = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "spell" && tag.tag === "tracking");
     expect(spellTracking).toEqual(expect.objectContaining({
-      family: "communication",
+      family: "reconnaissance",
       assignmentMode: "hybrid",
       adjacentTags: ["scouting", "navigation"],
       appliesWhen: expect.arrayContaining([
@@ -104,7 +104,7 @@ describe("derived tag ontology", () => {
     }));
     const hazardRevelation = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "spell" && tag.tag === "hazard_revelation");
     expect(hazardRevelation).toEqual(expect.objectContaining({
-      family: "communication",
+      family: "revelation",
       assignmentMode: "hybrid",
       adjacentTags: ["magic_detection", "scouting"],
       appliesWhen: expect.arrayContaining([
@@ -139,7 +139,7 @@ describe("derived tag ontology", () => {
       }),
     ]));
     const groupedRevelation = groupedCatalog.find((entry) => entry.category === "spell" && entry.family === "revelation");
-    expect(groupedRevelation?.axis).toBe("planning");
+    expect(groupedRevelation?.axis).toBe("utility");
     expect(groupedRevelation?.tags).toEqual(expect.arrayContaining([
       expect.objectContaining({
         value: "revelation",
@@ -194,7 +194,7 @@ describe("derived tag ontology", () => {
       assignmentMode: "editorial",
       adjacentTags: ["profession_npc", "civic_npc"],
       appliesWhen: expect.arrayContaining([
-        "Formal office or rank is the main retrieval hook, even if the creature also serves as a civic_npc or combatant_npc in the scene.",
+        "Formal office or rank is the main retrieval hook, even if the creature also serves as a civic_npc or enforcer_npc in the scene.",
       ]),
     }));
     const guideNpc = CREATURE_DERIVED_TAG_ONTOLOGY.families.social_role.tags.find((tag) => tag.tag === "guide_npc");
@@ -210,7 +210,7 @@ describe("derived tag ontology", () => {
     expect(infiltratorNpc).toEqual(expect.objectContaining({
       tag: "infiltrator_npc",
       assignmentMode: "editorial",
-      adjacentTags: ["combatant_npc", "criminal_npc"],
+      adjacentTags: ["enforcer_npc", "criminal_npc"],
       appliesWhen: expect.arrayContaining([
         "This tag answers the creature's immediate scenario function rather than its broader profession, faction post, or criminal affiliation.",
       ]),
@@ -219,15 +219,15 @@ describe("derived tag ontology", () => {
     expect(guardianNpc).toEqual(expect.objectContaining({
       tag: "guardian_npc",
       assignmentMode: "editorial",
-      adjacentTags: ["combatant_npc", "authority_npc"],
+      adjacentTags: ["enforcer_npc", "watcher_npc"],
     }));
-    const summonerCommander = CREATURE_DERIVED_TAG_ONTOLOGY.families.threat_profile.tags.find((tag) => tag.tag === "summoner_commander");
-    expect(summonerCommander).toEqual(expect.objectContaining({
-      tag: "summoner_commander",
+    const reinforcementThreat = CREATURE_DERIVED_TAG_ONTOLOGY.families.threat_profile.tags.find((tag) => tag.tag === "reinforcement_threat");
+    expect(reinforcementThreat).toEqual(expect.objectContaining({
+      tag: "reinforcement_threat",
       assignmentMode: "hybrid",
       adjacentTags: ["spawn_creator", "commander_combatant"],
       appliesWhen: expect.arrayContaining([
-        "Use when the creature's main prep significance is that it adds bodies, coordinates allies, or sharply elevates nearby minions.",
+        "Use when the creature's main prep significance is that it adds bodies, activates subordinates, or sharply force-multiplies nearby allies.",
       ]),
     }));
     const bruteCombatant = CREATURE_DERIVED_TAG_ONTOLOGY.families.combat_role.tags.find((tag) => tag.tag === "brute_combatant");
@@ -329,7 +329,7 @@ describe("derived tag ontology", () => {
     }));
     const spellScryingProtection = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "spell" && tag.tag === "scrying_protection");
     expect(spellScryingProtection).toEqual(expect.objectContaining({
-      family: "communication",
+      family: "security",
       assignmentMode: "hybrid",
       adjacentTags: ["alarm", "countermagic"],
       appliesWhen: expect.arrayContaining([

@@ -195,13 +195,13 @@ describe("Pf2eDataService / Creature explicit assignments, true seeds, and legac
     ]));
     expect(service.lookup("False Priest", { category: "creature" }).match?.derivedTags).toEqual(expect.arrayContaining([
       "profession_npc",
-      "combatant_npc",
+      "enforcer_npc",
     ]));
-    expect(service.lookup("Mage Knight", { category: "creature" }).match?.derivedTags).toContain("combatant_npc");
+    expect(service.lookup("Mage Knight", { category: "creature" }).match?.derivedTags).toContain("enforcer_npc");
     expect(service.lookup("Mercenary Enforcer", { category: "creature" }).match?.derivedTags).toEqual(expect.arrayContaining([
       "profession_npc",
       "civic_npc",
-      "combatant_npc",
+      "enforcer_npc",
     ]));
     expect(service.lookup("Animated Axe", { category: "creature" }).match?.derivedTags).toContain("animated_object");
     expect(service.lookup("Noppera-Bo Impersonator (Arcane)", { category: "creature" }).match?.derivedTags).toEqual(expect.arrayContaining([

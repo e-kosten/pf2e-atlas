@@ -67,12 +67,12 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
         }
       ]
     },
-    polarity: {
+    consumable_role: {
       axis: "effect",
       subcategories: [
         "consumable"
       ],
-      description: "Offense/support polarity and delivery-style consumable tags.",
+      description: "Consumable role tags for whether an item is primarily hostile, self-directed, or meant to aid another creature.",
       tags: [
         {
           tag: "offensive",
@@ -88,7 +88,16 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
           tag: "ally_support",
           description: "Support consumable that can directly benefit another creature.",
           assignmentMode: "deterministic"
-        },
+        }
+      ]
+    },
+    delivery_profile: {
+      axis: "effect",
+      subcategories: [
+        "consumable"
+      ],
+      description: "Consumable delivery tags for how a hostile item is applied, delivered, or introduced to the target.",
+      tags: [
         {
           tag: "weapon_applied",
           description: "Offensive consumable applied to a weapon before use.",
@@ -135,7 +144,7 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
         "armor",
         "weapon"
       ],
-      description: "Equipment that helps move, climb, navigate, survive travel, or transport people and cargo.",
+      description: "Equipment that helps move, climb, navigate, or transport creatures and cargo from place to place.",
       tags: [
         {
           tag: "climbing",
@@ -145,11 +154,6 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
         {
           tag: "mobility",
           description: "Improves movement or traversal flexibility.",
-          assignmentMode: "deterministic"
-        },
-        {
-          tag: "survival",
-          description: "Supports wilderness travel, shelter, or long-term field use.",
           assignmentMode: "deterministic"
         },
         {
@@ -208,7 +212,7 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
         "armor",
         "weapon"
       ],
-      description: "Equipment for bypassing locks, traps, doors, and physical obstructions without treating every entry tool as one broad purpose bucket.",
+      description: "Equipment for technical or precision bypass of locks, traps, and secured access points without folding force-entry tools into the same bucket.",
       tags: [
         {
           tag: "lock_bypass",
@@ -218,28 +222,6 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
         {
           tag: "trap_bypass",
           description: "Helps disarm, disable, or get past traps.",
-          assignmentMode: "deterministic"
-        },
-        {
-          tag: "door_breaching",
-          description: "Helps force doors, smash barriers, or create entry through sealed or fortified access points.",
-          assignmentMode: "deterministic",
-          appliesWhen: [
-            "The item's retrieval value is getting through doors, shutters, gates, or secured entry points.",
-            "It solves access by force rather than by keys, stealth, or lock tools."
-          ],
-          doesNotApplyWhen: [
-            "The item is for larger demolition or siegework rather than point-of-entry breach.",
-            "The item bypasses access quietly through locks or trickery instead of force."
-          ],
-          adjacentTags: [
-            "lock_bypass",
-            "barrier_breaking"
-          ]
-        },
-        {
-          tag: "excavation",
-          description: "Helps dig, cut through earth or stone, or otherwise perform practical excavation work.",
           assignmentMode: "deterministic"
         }
       ]
@@ -442,11 +424,33 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
         "consumable",
         "weapon"
       ],
-      description: "Equipment built to break entries, tear obstacles apart, or dismantle hardened environmental features.",
+      description: "Equipment built to force entry, open routes through barriers, or dismantle hardened environmental features.",
       tags: [
+        {
+          tag: "door_breaching",
+          description: "Helps force doors, shutters, gates, or similar entry points open by strength, impact, or destructive entry.",
+          assignmentMode: "deterministic",
+          appliesWhen: [
+            "The item's retrieval value is getting through doors, shutters, gates, or secured entry points.",
+            "It solves access by force rather than by keys, stealth, or lock tools."
+          ],
+          doesNotApplyWhen: [
+            "The item is for larger demolition or siegework rather than point-of-entry breach.",
+            "The item bypasses access quietly through locks or trickery instead of force."
+          ],
+          adjacentTags: [
+            "lock_bypass",
+            "barrier_breaking"
+          ]
+        },
         {
           tag: "barrier_breaking",
           description: "Designed to tear through walls, barricades, ice, webs, or other physical obstructions.",
+          assignmentMode: "deterministic"
+        },
+        {
+          tag: "excavation",
+          description: "Helps dig, cut through earth or stone, or otherwise open a route by excavation or practical earth-moving work.",
           assignmentMode: "deterministic"
         },
         {
@@ -513,8 +517,13 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
         "shield",
         "weapon"
       ],
-      description: "Travel, provisioning, mounted-combat, aquatic-operations, and hostile-environment-survival equipment.",
+      description: "Field-sustainment equipment for expedition travel, provisioning, camp life, aquatic operations, and hostile-environment endurance.",
       tags: [
+        {
+          tag: "survival",
+          description: "Supports wilderness travel, shelter, or long-term field use.",
+          assignmentMode: "deterministic"
+        },
         {
           tag: "mounted_support",
           description: "Supports mounted combat, rider control, saddle use, or mount-specific loadouts.",
@@ -642,7 +651,7 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
       ]
     },
     infiltration: {
-      axis: "infiltration",
+      axis: "utility",
       subcategories: [
         "gear",
         "backpack",

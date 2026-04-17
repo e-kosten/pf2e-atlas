@@ -2421,7 +2421,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     ],
   },
   {
-    tag: "combatant_npc",
+    tag: "enforcer_npc",
     category: "creature",
     threshold: 2,
     noneOf: [

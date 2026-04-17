@@ -564,19 +564,19 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
         },
         {
           tag: "commander_combatant",
-          description: "Built to coordinate, direct, or elevate allied creatures through leadership, tactics, or pack-control abilities.",
+          description: "Built to coordinate allies round to round through leadership, tactics, or command-driven positioning.",
           assignmentMode: "hybrid",
           appliesWhen: [
-            "The creature is naturally retrieved because it commands minions, improves allied action quality, or orchestrates group tactics.",
-            "Its encounter identity depends on leadership or coordination more than on solo offense."
+            "The creature is naturally retrieved because its round-to-round battle role is directing allies, calling tactics, or coordinating a group.",
+            "Leadership and coordination matter more than its own solo offense, brute durability, or passive aura support."
           ],
           doesNotApplyWhen: [
-            "The creature only has generic support effects with no real command, minion, or tactical leadership profile.",
-            "The stronger fit is support_combatant or artillery_combatant rather than leader play."
+            "The creature only has generic support effects with no clear command or tactical leadership role in the moment-to-moment fight.",
+            "The stronger fit is support_combatant, artillery_combatant, or reinforcement_threat rather than leader play."
           ],
           adjacentTags: [
             "support_combatant",
-            "artillery_combatant"
+            "reinforcement_threat"
           ]
         }
       ]
@@ -600,22 +600,22 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
           ],
           adjacentTags: [
             "profession_npc",
-            "combatant_npc"
+            "enforcer_npc"
           ]
         },
         {
-          tag: "combatant_npc",
-          description: "Scene-slot humanoid combatant such as a soldier, bandit, mercenary, or cult enforcer.",
+          tag: "enforcer_npc",
+          description: "Scene-slot fight-first humanoid adversary such as a soldier, bandit, mercenary, or other overt martial enforcer.",
           assignmentMode: "editorial",
           appliesWhen: [
-            "The creature is presented as a role-defined humanoid adversary or martial operative.",
-            "Retrieval value comes from combat function rather than civic embedding.",
+            "The creature is presented as a role-defined humanoid adversary whose immediate scene value is direct martial pressure, enforcement, or armed opposition.",
+            "Retrieval value comes from being a fight-first scene answer rather than a civic, social, or watch-post role.",
             "This tag answers how the creature functions in the immediate scene, even if it separately has a profession, rank, or institutional role."
           ],
           doesNotApplyWhen: [
-            "The record is mainly a social or occupational NPC.",
-            "The creature is better captured by profession_npc or civic_npc without a strong combat-forward role.",
-            "The office, profession, or contact role is the stronger retrieval hook and combat readiness is only secondary."
+            "The record is mainly a social, occupational, escort, or posted-guard NPC whose scene identity is not primarily direct armed opposition.",
+            "The creature is better captured by profession_npc, civic_npc, guardian_npc, or watcher_npc without a strong fight-first role.",
+            "The office, profession, surveillance role, or posted protection duty is the stronger retrieval hook and combat readiness is only secondary."
           ],
           adjacentTags: [
             "authority_npc",
@@ -631,29 +631,29 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
             "This tag answers the creature's immediate scenario function rather than its broader profession, faction post, or criminal affiliation."
           ],
           doesNotApplyWhen: [
-            "The creature is mainly a combatant_npc or civic_npc and only uses stealth or deception incidentally.",
+            "The creature is mainly an enforcer_npc or civic_npc and only uses stealth or deception incidentally.",
             "The stronger retrieval hook is criminal_npc or another social_role tag because the world-facing identity matters more than the scene slot."
           ],
           adjacentTags: [
-            "combatant_npc",
+            "enforcer_npc",
             "criminal_npc"
           ]
         },
         {
           tag: "guardian_npc",
-          description: "Immediate-scenario guard, jailer, doorkeeper, bodyguard, or other posted protector whose scene value is holding or protecting a person, threshold, or place.",
+          description: "Immediate-scenario guard, jailer, doorkeeper, bodyguard, or other posted protector whose scene value is physically holding or protecting a person, threshold, or place.",
           assignmentMode: "editorial",
           appliesWhen: [
             "The creature is naturally retrieved because it is posted to guard, hold, jail, or protect a specific person, threshold, route, or space.",
-            "The protective station matters more than a broader office, profession, or general combat readiness."
+            "Posted protection or interdiction matters more than general combat readiness, surveillance, or broad social authority."
           ],
           doesNotApplyWhen: [
-            "The creature is merely a combat-ready NPC without a clear posted protection or guard duty.",
-            "The stronger fit is authority_npc or combatant_npc because command status or generic martial opposition matters more than guarding."
+            "The creature is merely combat-ready without a clear posted protection, bodyguard, or threshold-holding duty.",
+            "The stronger fit is authority_npc, enforcer_npc, or watcher_npc because command status, generic martial opposition, or alarm duty matters more than guarding."
           ],
           adjacentTags: [
-            "combatant_npc",
-            "authority_npc"
+            "enforcer_npc",
+            "watcher_npc"
           ]
         },
         {
@@ -662,10 +662,10 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
           assignmentMode: "editorial",
           appliesWhen: [
             "The creature is naturally retrieved as a lookout, sentry, rooftop watcher, scout-on-post, or other early-warning presence.",
-            "Observation and alarm value matter more than direct command, social office, or frontline melee identity."
+            "Observation and alarm value matter more than physically blocking passage, bodyguarding a charge, or acting as a general frontline enforcer."
           ],
           doesNotApplyWhen: [
-            "The creature is simply a guard or combatant without a strong surveillance or lookout function.",
+            "The creature is simply a posted guard or enforcer without a strong surveillance, early-warning, or lookout function.",
             "The stronger fit is guide_npc or civic_npc because travel knowledge or social embedding matters more than active watch duty."
           ],
           adjacentTags: [
@@ -678,12 +678,12 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
           description: "Immediate-scenario escort, courier companion, guide-on-mission, ward mover, or other figure whose scene value is accompanying or moving someone through danger.",
           assignmentMode: "editorial",
           appliesWhen: [
-            "The creature is naturally retrieved because it escorts, transports, shepherds, or accompanies another figure through a scene or route.",
-            "Its scene function is accompaniment or safe transit rather than only office, profession, or combat duty."
+            "The creature is naturally retrieved because it actively escorts, transports, shepherds, or accompanies another figure through a dangerous scene or route.",
+            "Its scene function is movement-with-charge or safe transit rather than only office, profession, or posted guard duty."
           ],
           doesNotApplyWhen: [
-            "The creature merely knows the route or protects an area without actively accompanying someone.",
-            "The stronger fit is guide_npc or guardian_npc because world-facing pathfinding or posted guard duty matters more than escorting."
+            "The creature merely knows the route, provides directions, or protects a place without actively accompanying someone.",
+            "The stronger fit is guide_npc or guardian_npc because route expertise or posted guard duty matters more than accompaniment."
           ],
           adjacentTags: [
             "guide_npc",
@@ -700,29 +700,12 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
           ],
           doesNotApplyWhen: [
             "The creature is merely vulnerable, socially subordinate, or under pressure without actually being a captive or detained figure.",
-            "The stronger fit is civic_npc or contact_npc because social embeddedness or information exchange matters more than captivity."
+            "The stronger fit is civic_npc or profession_npc because social embeddedness or world role matters more than captivity."
           ],
           adjacentTags: [
             "guardian_npc",
-            "contact_npc"
-          ]
-        },
-        {
-          tag: "contact_npc",
-          description: "Immediate-scenario informant, broker, fixer, negotiator, witness, or other social lead whose scene value is what they know, arrange, or reveal right now.",
-          assignmentMode: "editorial",
-          appliesWhen: [
-            "The creature is naturally retrieved because it provides information, access, leverage, bargaining, or a social lead in the immediate scenario.",
-            "The scene value comes from contact utility rather than profession label, office, or direct combat role."
+            "civic_npc"
           ],
-          doesNotApplyWhen: [
-            "The creature is mainly defined by its broader office, trade, or faction identity without a specific contact-facing scene function.",
-            "The stronger fit is civic_npc or profession_npc because ongoing social embedding or world role matters more than immediate lead value."
-          ],
-          adjacentTags: [
-            "civic_npc",
-            "profession_npc"
-          ]
         }
       ]
     },
@@ -741,7 +724,7 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
           ],
           doesNotApplyWhen: [
             "The role label is incidental to a stronger monster or combat identity.",
-            "The creature is better modeled only as combatant_npc, infiltrator_npc, or civic_npc because the scene slot matters more than the job or office."
+            "The creature is better modeled only as enforcer_npc, infiltrator_npc, or civic_npc because the scene slot matters more than the job or office."
           ],
           adjacentTags: [
             "authority_npc",
@@ -755,11 +738,11 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
           appliesWhen: [
             "The creature's retrieval value comes from official office, rank, command, or institutional authority.",
             "A GM would plausibly seek it as a leader, official, or governing figure.",
-            "Formal office or rank is the main retrieval hook, even if the creature also serves as a civic_npc or combatant_npc in the scene."
+            "Formal office or rank is the main retrieval hook, even if the creature also serves as a civic_npc or enforcer_npc in the scene."
           ],
           doesNotApplyWhen: [
             "The record is only a generic combatant without meaningful office or status.",
-            "The stronger fit is profession_npc, civic_npc, or combatant_npc because status is incidental."
+            "The stronger fit is profession_npc, civic_npc, or enforcer_npc because status is incidental."
           ],
           adjacentTags: [
             "profession_npc",
@@ -793,10 +776,10 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
           ],
           doesNotApplyWhen: [
             "The creature is merely hostile without underworld or crime-scene framing.",
-            "The stronger fit is combatant_npc without a distinct criminal identity."
+            "The stronger fit is enforcer_npc without a distinct criminal identity."
           ],
           adjacentTags: [
-            "combatant_npc",
+            "enforcer_npc",
             "infiltrator_npc"
           ]
         },
@@ -878,7 +861,7 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
           ],
           doesNotApplyWhen: [
             "The creature merely knows the area or has survival competence without a role-defined guiding function.",
-            "The stronger fit is scholar_npc, civic_npc, or combatant_npc rather than travel-leading expertise."
+            "The stronger fit is scholar_npc, civic_npc, or enforcer_npc rather than travel-leading expertise."
           ],
           adjacentTags: [
             "profession_npc",
@@ -996,11 +979,11 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
           ],
           doesNotApplyWhen: [
             "The creature only compels, frightens, or mentally influences targets without true body-occupying takeover.",
-            "The stronger fit is curse_threat or summoner_commander because possession is not central to encounter prep."
+            "The stronger fit is curse_threat or reinforcement_threat because possession is not central to encounter prep."
           ],
           adjacentTags: [
             "curse_threat",
-            "summoner_commander"
+            "reinforcement_threat"
           ]
         },
         {
@@ -1058,28 +1041,19 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
           assignmentMode: "hybrid"
         },
         {
-          tag: "summoner_commander",
-          description: "Threat defined by calling reinforcements, commanding minions, or dramatically improving allied creatures.",
+          tag: "reinforcement_threat",
+          description: "Threat defined by materially changing encounter structure through added bodies, activated subordinates, or sharply elevated allied creatures.",
           assignmentMode: "hybrid",
           appliesWhen: [
-            "Use when the creature's main prep significance is that it adds bodies, coordinates allies, or sharply elevates nearby minions.",
-            "The encounter meaningfully changes because of its leadership, summoning, or reinforcement engine."
+            "Use when the creature's main prep significance is that it adds bodies, activates subordinates, or sharply force-multiplies nearby allies.",
+            "The encounter meaningfully changes because of its reinforcement engine rather than just because it personally hits hard."
           ],
           doesNotApplyWhen: [
-            "The creature only has one minor ally-facing buff or an incidental summon without changing encounter structure.",
-            "The stronger fit is support_combatant or spawn_creator because command and reinforcement are not the real threat hook."
+            "The creature only has one minor ally-facing buff or an incidental summon without materially changing encounter structure.",
+            "The stronger fit is support_combatant, commander_combatant, or spawn_creator because reinforcement is not the real threat hook."
           ],
           adjacentTags: [
             "spawn_creator",
-            "commander_combatant"
-          ]
-        },
-        {
-          tag: "minion_commander",
-          description: "Threat defined by directing subordinate creatures, pack members, or summoned help as an encounter engine rather than acting alone.",
-          assignmentMode: "hybrid",
-          adjacentTags: [
-            "summoner_commander",
             "commander_combatant"
           ]
         },

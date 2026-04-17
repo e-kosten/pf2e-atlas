@@ -20,7 +20,7 @@ const assignmentFamilies: DerivedTagOntologyFamily[] = [
   {
     category: "equipment",
     family: "infiltration",
-    axis: "infiltration",
+    axis: "utility",
     description: "Equipment that helps infiltration.",
   },
   {
@@ -423,7 +423,7 @@ describe("derived tag explicit assignments", () => {
       descriptionText: null,
       traits: ["human", "humanoid"],
     });
-    expect(falsePriest.tags).toEqual(expect.arrayContaining(["profession_npc", "combatant_npc"]));
+    expect(falsePriest.tags).toEqual(expect.arrayContaining(["profession_npc", "enforcer_npc"]));
     expect(falsePriest.tags).not.toContain("civic_npc");
 
     const spiritboundAluum = deriveRecordTagDerivation({

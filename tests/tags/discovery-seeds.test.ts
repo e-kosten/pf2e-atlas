@@ -208,7 +208,7 @@ describe("exemplar-backed discovery integration", () => {
         traits: ["human"],
         descriptionText: "A veteran soldier watches the city gates.",
         vector: [0, 1, 0],
-        tags: ["combatant_npc"],
+        tags: ["enforcer_npc"],
       });
 
       const report = analyzeDiscoveryEvidence(db, {
@@ -260,7 +260,7 @@ describe("exemplar-backed discovery integration", () => {
         traits: ["humanoid"],
         descriptionText: "A generic thug with no stable habitat cues.",
         vector: [0, 1, 0],
-        tags: ["combatant_npc"],
+        tags: ["enforcer_npc"],
       });
 
       const defaultReport = analyzeDiscoveryEvidence(db, {

@@ -232,7 +232,7 @@ describe("Pf2eDataService / Search and Lookup", () => {
     expect(civicNpcNames).not.toContain("Fortress Warden");
     expect(civicNpcNames).not.toContain("Hellknight Gaoler");
     expect(civicNpcNames).not.toContain("Wealthy Vigilante");
-    expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["combatant_npc"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Bandit", "Fortress Warden", "Hellknight Gaoler"]));
+    expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["enforcer_npc"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Bandit", "Fortress Warden", "Hellknight Gaoler"]));
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["rural_setting"] } }).records.map((record) => record.name)).toContain("Scarecrow");
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["rural_setting"] } }).records.map((record) => record.name)).toContain("Swiftrun Clergy");
     expect(service.listRecords({ category: "creature", metadata: { field: "derivedTags", op: "includesAny", values: ["small_settlement_setting"] } }).records.map((record) => record.name)).toEqual(expect.arrayContaining(["Virulak Villager", "Swiftrun Clergy"]));
@@ -389,7 +389,7 @@ describe("Pf2eDataService / Search and Lookup", () => {
     const templeCustodian = service.lookup("Temple Custodian", { category: "creature" }).match;
     expect(templeCustodian?.derivedTags).toContain("temple_setting");
     const fortressWarden = service.lookup("Fortress Warden", { category: "creature" }).match;
-    expect(fortressWarden?.derivedTags).toEqual(expect.arrayContaining(["fortress_setting", "profession_npc", "combatant_npc"]));
+    expect(fortressWarden?.derivedTags).toEqual(expect.arrayContaining(["fortress_setting", "profession_npc", "enforcer_npc"]));
     expect(fortressWarden?.derivedTags).not.toContain("civic_npc");
     const watchOfficer = service.lookup("Watch Officer", { category: "creature", pack: "pathfinder-npc-core" }).match;
     expect(watchOfficer?.derivedTags).toEqual(expect.arrayContaining(["urban_setting"]));
@@ -423,13 +423,13 @@ describe("Pf2eDataService / Search and Lookup", () => {
     expect(travelingPriestOfDesna?.derivedTags).not.toContain("civic_npc");
     const guildEngineer = service.lookup("Guild Engineer", { category: "creature" }).match;
     expect(guildEngineer?.derivedTags).toEqual(expect.arrayContaining(["profession_npc", "civic_npc"]));
-    expect(guildEngineer?.derivedTags).not.toContain("combatant_npc");
+    expect(guildEngineer?.derivedTags).not.toContain("enforcer_npc");
     expect(boggardMireScout?.derivedTags).toEqual(expect.arrayContaining(["swamp_setting", "profession_npc"]));
     expect(boggardMireScout?.derivedTags).not.toContain("civic_npc");
     const bandit = service.lookup("Bandit", { category: "creature" }).match;
-    expect(bandit?.derivedTags).toContain("combatant_npc");
+    expect(bandit?.derivedTags).toContain("enforcer_npc");
     const hellknightGaoler = service.lookup("Hellknight Gaoler", { category: "creature" }).match;
-    expect(hellknightGaoler?.derivedTags).toEqual(expect.arrayContaining(["profession_npc", "combatant_npc"]));
+    expect(hellknightGaoler?.derivedTags).toEqual(expect.arrayContaining(["profession_npc", "enforcer_npc"]));
     expect(hellknightGaoler?.derivedTags).not.toContain("civic_npc");
     const scarecrow = service.lookup("Scarecrow", { category: "creature" }).match;
     expect(scarecrow?.derivedTags).toContain("rural_setting");

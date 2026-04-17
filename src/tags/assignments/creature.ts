@@ -65,7 +65,7 @@ export const CREATURE_DERIVED_TAG_ASSIGNMENTS: AuthoredDerivedTagAssignment[] = 
     applied: {
       scene_role: [
         {
-          tag: "combatant_npc",
+          tag: "enforcer_npc",
           source: "human",
           confidence: "high",
           rationale: "The encounter framing is adversarial and battle-ready, not only social or civic.",

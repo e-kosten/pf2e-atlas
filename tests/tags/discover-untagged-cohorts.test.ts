@@ -440,7 +440,7 @@ describe("discover untagged cohorts", () => {
         traits: ["construct"],
         descriptionText: "An animate guardian stands watch over an old keep and its bastion.",
         vector: [0.97, 0.03, 0],
-        tags: ["combatant_npc"],
+        tags: ["enforcer_npc"],
       });
       insertRecord(db, {
         recordKey: "creature:bastion-shade",

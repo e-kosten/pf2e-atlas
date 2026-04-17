@@ -386,7 +386,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "A grim defender patrols the walls of a mountain fortress and ancient citadel.",
       traits: ["humanoid"],
-    })).toEqual(expect.arrayContaining(["fortress_setting", "mountain_setting", "profession_npc", "combatant_npc"]));
+    })).toEqual(expect.arrayContaining(["fortress_setting", "mountain_setting", "profession_npc", "enforcer_npc"]));
 
     expect(deriveRecordTags({
       name: "Fortress Warden",
@@ -1069,7 +1069,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "Bandits waylay travelers and plunder their valuables before disappearing back to their wilderness hideouts.",
       traits: ["human", "humanoid"],
-    })).toContain("combatant_npc");
+    })).toContain("enforcer_npc");
 
     expect(deriveRecordTags({
       name: "Watch Officer",
@@ -1125,7 +1125,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "An adjutant and armiger who fights alongside the order in disciplined battle formations.",
       traits: ["human", "humanoid"],
-    })).toContain("combatant_npc");
+    })).toContain("enforcer_npc");
 
     expect(deriveRecordTags({
       name: "Hellknight Sergeant",
@@ -1133,7 +1133,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "The sergeant leads disciplined enforcers in brutal close-quarters battle.",
       traits: ["human", "humanoid"],
-    })).toContain("combatant_npc");
+    })).toContain("enforcer_npc");
 
     expect(deriveRecordTags({
       name: "City Scribe",
@@ -1181,7 +1181,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "A disciplined hellknight gaoler escorts prisoners and enforces the order's brutal routines.",
       traits: ["human", "humanoid"],
-    })).toEqual(expect.arrayContaining(["profession_npc", "combatant_npc"]));
+    })).toEqual(expect.arrayContaining(["profession_npc", "enforcer_npc"]));
 
     expect(deriveRecordTags({
       name: "Hellknight Gaoler",
@@ -1205,7 +1205,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "A veteran noble funds expeditions and stewards the city's public works.",
       traits: ["human", "humanoid"],
-    })).not.toContain("combatant_npc");
+    })).not.toContain("enforcer_npc");
 
     expect(deriveRecordTags({
       name: "Gendarme",
@@ -1213,7 +1213,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "Powerful governments retain gendarmes to guard important magistrates and capture unusually dangerous criminals.",
       traits: ["human", "humanoid"],
-    })).toContain("combatant_npc");
+    })).toContain("enforcer_npc");
 
     expect(deriveRecordTags({
       name: "Line Infantry",
@@ -1221,7 +1221,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "Disciplined line infantry hold the battle line in ordered formations.",
       traits: ["human", "humanoid"],
-    })).toContain("combatant_npc");
+    })).toContain("enforcer_npc");
 
     expect(deriveRecordTags({
       name: "Unnamed Traveler",
@@ -1229,7 +1229,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "A traveler passes through town in search of lodging.",
       traits: ["human", "humanoid"],
-    })).not.toEqual(expect.arrayContaining(["profession_npc", "civic_npc", "combatant_npc"]));
+    })).not.toEqual(expect.arrayContaining(["profession_npc", "civic_npc", "enforcer_npc"]));
 
     expect(deriveRecordTags({
       name: "Unnamed Traveler",
@@ -1797,7 +1797,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "These diligent machines guard their assigned posts tirelessly.",
       traits: ["clockwork", "construct", "mindless"],
-    })).not.toContain("combatant_npc");
+    })).not.toContain("enforcer_npc");
 
     expect(deriveRecordTags({
       name: "Harbor Watcher",
@@ -2228,7 +2228,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "A human clerk who keeps records and works at the courthouse.",
       traits: ["human", "humanoid"],
-    })).not.toContain("combatant_npc");
+    })).not.toContain("enforcer_npc");
 
     expect(deriveRecordTags({
       name: "Stone Lion Cub",
@@ -2256,7 +2256,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "An armored spellcaster trained for frontline battle.",
       traits: ["human", "humanoid"],
-    })).toContain("combatant_npc");
+    })).toContain("enforcer_npc");
 
     expect(deriveRecordTags({
       recordKey: "season-of-ghosts-bestiary:V67VC975O8iC1Yq2",
@@ -2328,7 +2328,7 @@ describe("derived tag rules: creature", () => {
       subcategory: null,
       descriptionText: "",
       traits: ["dromaar", "human", "humanoid", "orc", "troop"],
-    })).toEqual(expect.arrayContaining(["battlefield_setting", "combatant_npc"]));
+    })).toEqual(expect.arrayContaining(["battlefield_setting", "enforcer_npc"]));
 
     expect(deriveRecordTags({
       recordKey: "pathfinder-monster-core-2:yHduMu4VBVUHnssz",

@@ -95,8 +95,7 @@ export interface DerivedTagOntologyAxisByCategory {
     | "utility"
     | "party_role"
     | "item_mechanical"
-    | "effect"
-    | "infiltration";
+    | "effect";
   creature:
     | "legacy"
     | "setting"
@@ -121,12 +120,9 @@ export interface DerivedTagOntologyAxisByCategory {
     | "effect";
   spell:
     | "legacy"
-    | "planning"
-    | "infiltration"
-    | "information"
-    | "mobility"
+    | "utility"
+    | "battlefield"
     | "transformation"
-    | "control"
     | "influence"
     | "support"
     | "summoning"
