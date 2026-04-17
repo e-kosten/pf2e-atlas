@@ -9,9 +9,9 @@ Use this skill when a task starts from legacy seed membership but the desired ou
 
 This is a **live-authoring** skill:
 - edit the real authored files directly
-- write confident assignment decisions as `auto_applied`
+- write confident assignment decisions directly into `src/tags/assignments`
 - write confident exemplar changes directly into live exemplar files
-- leave only uncertain assignment decisions as `needs_review`
+- leave only uncertain assignment decisions in `src/tags/assignment-reviews`
 - leave only uncertain exemplar decisions in `src/tags/exemplar-reviews`
 
 Do not use the migration workbench as the default output sink for confident work. The workbench is only for the unresolved subset.
@@ -34,13 +34,11 @@ Once a record is touched in this pass, it should be as complete as possible for 
 3. For each touched record, do a full record pass.
    Decide all clear long-term assignments across the ontology, not only the original seed tag.
 4. Write confident assignments directly.
-   - add or update authored assignment review entries
-   - use `auto_applied` for confident decisions
-   - sync them into live `applied` / `excluded`
+   - add or update live authored assignments in `src/tags/assignments`
+   - include durable provenance on the live decision
 5. Route uncertain assignments to review.
-   - write them into authored assignment `review`
-   - use `needs_review`
-   - do not sync them into live `applied` / `excluded`
+   - write them into `src/tags/assignment-reviews`
+   - do not place them in live assignments
 6. Evaluate exemplar quality separately from tagging.
    Exemplar decisions are about whether the record teaches the tag boundary well, not merely whether the tag applies.
 7. Write confident exemplar outcomes directly.
@@ -59,4 +57,3 @@ Once a record is touched in this pass, it should be as complete as possible for 
 - Do not use exemplars as disguised membership lists.
 - If a record is a poor teaching example, remove it from exemplars even if the tag still applies.
 - Keep exemplar-review entries only for true ambiguity.
-

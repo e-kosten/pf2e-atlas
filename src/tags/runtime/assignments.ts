@@ -7,6 +7,16 @@ import { CREATURE_DERIVED_TAG_ASSIGNMENTS } from "../assignments/creature.js";
 import { EQUIPMENT_DERIVED_TAG_ASSIGNMENTS } from "../assignments/equipment.js";
 import { HAZARD_DERIVED_TAG_ASSIGNMENTS } from "../assignments/hazard.js";
 import { SPELL_DERIVED_TAG_ASSIGNMENTS } from "../assignments/spell.js";
+import { AFFLICTION_DERIVED_TAG_ASSIGNMENT_REVIEWS } from "../assignment-reviews/affliction.js";
+import { CREATURE_DERIVED_TAG_ASSIGNMENT_REVIEWS } from "../assignment-reviews/creature.js";
+import { EQUIPMENT_DERIVED_TAG_ASSIGNMENT_REVIEWS } from "../assignment-reviews/equipment.js";
+import { HAZARD_DERIVED_TAG_ASSIGNMENT_REVIEWS } from "../assignment-reviews/hazard.js";
+import { SPELL_DERIVED_TAG_ASSIGNMENT_REVIEWS } from "../assignment-reviews/spell.js";
+import { AFFLICTION_DERIVED_TAG_ASSIGNMENT_MEMORY } from "../assignment-memory/affliction.js";
+import { CREATURE_DERIVED_TAG_ASSIGNMENT_MEMORY } from "../assignment-memory/creature.js";
+import { EQUIPMENT_DERIVED_TAG_ASSIGNMENT_MEMORY } from "../assignment-memory/equipment.js";
+import { HAZARD_DERIVED_TAG_ASSIGNMENT_MEMORY } from "../assignment-memory/hazard.js";
+import { SPELL_DERIVED_TAG_ASSIGNMENT_MEMORY } from "../assignment-memory/spell.js";
 
 export type DerivedTagReviewStatus =
   | "auto_applied"
@@ -18,26 +28,61 @@ export type DerivedTagReviewConfidence = "high" | "medium" | "low";
 
 export type DerivedTagReviewSource = "human" | "llm";
 
-export type DerivedTagReviewEntry = {
-  mode: "include" | "exclude";
-  status: DerivedTagReviewStatus;
+export type DerivedTagAssignmentDecisionSource = "human" | "llm_auto" | "llm_reviewed";
+
+export type DerivedTagAssignmentDecision = {
+  tag: string;
+  source: DerivedTagAssignmentDecisionSource;
   confidence?: DerivedTagReviewConfidence;
   rationale: string;
-  source?: DerivedTagReviewSource;
 };
 
 export type AuthoredDerivedTagAssignment = {
   name: string;
   recordKey: string;
-  applied?: Record<string, string[]>;
-  excluded?: Record<string, string[]>;
-  review?: Record<string, Record<string, DerivedTagReviewEntry>>;
+  applied?: Record<string, DerivedTagAssignmentDecision[]>;
+  excluded?: Record<string, DerivedTagAssignmentDecision[]>;
+};
+
+export type DerivedTagAssignmentReviewDecision = {
+  name: string;
+  recordKey: string;
+  family: string;
+  tag: string;
+  mode: "include" | "exclude";
+  confidence?: DerivedTagReviewConfidence;
+  rationale: string;
+  source?: DerivedTagReviewSource;
+};
+
+export type DerivedTagAssignmentReviewCategory = {
+  category: SearchCategory;
+  decisions: DerivedTagAssignmentReviewDecision[];
+};
+
+export type DerivedTagAssignmentMemoryDecision = {
+  name: string;
+  recordKey: string;
+  family: string;
+  tag: string;
+  mode: "include" | "exclude";
+  confidence?: DerivedTagReviewConfidence;
+  rationale: string;
+  source?: DerivedTagReviewSource;
+};
+
+export type DerivedTagAssignmentMemoryCategory = {
+  category: SearchCategory;
+  decisions: DerivedTagAssignmentMemoryDecision[];
 };
 
 type DerivedTagAssignmentGroup = {
   category: SearchCategory;
   assignments: AuthoredDerivedTagAssignment[];
 };
+
+type DerivedTagAssignmentReviewGroup = DerivedTagAssignmentReviewCategory;
+type DerivedTagAssignmentMemoryGroup = DerivedTagAssignmentMemoryCategory;
 
 export type DerivedTagExplicitAssignment = {
   category: SearchCategory;
@@ -70,6 +115,22 @@ const RAW_DERIVED_TAG_ASSIGNMENTS: DerivedTagAssignmentGroup[] = [
   { category: "spell", assignments: SPELL_DERIVED_TAG_ASSIGNMENTS },
 ];
 
+const RAW_DERIVED_TAG_ASSIGNMENT_REVIEWS: DerivedTagAssignmentReviewGroup[] = [
+  AFFLICTION_DERIVED_TAG_ASSIGNMENT_REVIEWS,
+  CREATURE_DERIVED_TAG_ASSIGNMENT_REVIEWS,
+  EQUIPMENT_DERIVED_TAG_ASSIGNMENT_REVIEWS,
+  HAZARD_DERIVED_TAG_ASSIGNMENT_REVIEWS,
+  SPELL_DERIVED_TAG_ASSIGNMENT_REVIEWS,
+];
+
+const RAW_DERIVED_TAG_ASSIGNMENT_MEMORY: DerivedTagAssignmentMemoryGroup[] = [
+  AFFLICTION_DERIVED_TAG_ASSIGNMENT_MEMORY,
+  CREATURE_DERIVED_TAG_ASSIGNMENT_MEMORY,
+  EQUIPMENT_DERIVED_TAG_ASSIGNMENT_MEMORY,
+  HAZARD_DERIVED_TAG_ASSIGNMENT_MEMORY,
+  SPELL_DERIVED_TAG_ASSIGNMENT_MEMORY,
+];
+
 function buildFamilyTagMap(
   tags: DerivedTagOntologyTag[],
 ): Map<SearchCategory, Map<string, Set<string>>> {
@@ -87,45 +148,36 @@ function buildFamilyTagMap(
   return familiesByCategory;
 }
 
-type NormalizedFamilyTagMap = Map<string, Set<string>>;
+type NormalizedFamilyDecisionMap = Map<string, Map<string, DerivedTagAssignmentDecision>>;
 
-type NormalizedReviewMap = Map<string, Map<string, DerivedTagReviewEntry>>;
-
-type NormalizedAuthoredDerivedTagAssignment = {
-  includeByFamily: NormalizedFamilyTagMap;
-  excludeByFamily: NormalizedFamilyTagMap;
-  reviewByFamily: NormalizedReviewMap;
-};
-
-function createEmptyFamilyTagMap(): NormalizedFamilyTagMap {
-  return new Map<string, Set<string>>();
+function createEmptyFamilyDecisionMap(): NormalizedFamilyDecisionMap {
+  return new Map<string, Map<string, DerivedTagAssignmentDecision>>();
 }
 
-function addNormalizedTag(
-  bucket: NormalizedFamilyTagMap,
-  family: string,
-  tag: string,
-): void {
-  const familyTags = bucket.get(family) ?? new Set<string>();
-  familyTags.add(tag);
-  bucket.set(family, familyTags);
+function normalizeAssignmentDecision(
+  decision: DerivedTagAssignmentDecision,
+): DerivedTagAssignmentDecision {
+  return {
+    ...decision,
+    tag: normalizeDerivedTag(decision.tag),
+  };
 }
 
 function normalizeFamilyTagAssignments(
-  groupedTags: Record<string, string[]> | undefined,
+  groupedDecisions: Record<string, DerivedTagAssignmentDecision[]> | undefined,
   category: SearchCategory,
   familyTagMap: Map<SearchCategory, Map<string, Set<string>>>,
   fieldName: "applied" | "excluded",
   recordKey: string,
-): NormalizedFamilyTagMap {
-  const normalizedAssignments = createEmptyFamilyTagMap();
-  if (!groupedTags) {
+): NormalizedFamilyDecisionMap {
+  const normalizedAssignments = createEmptyFamilyDecisionMap();
+  if (!groupedDecisions) {
     return normalizedAssignments;
   }
 
   const categoryFamilies = familyTagMap.get(category) ?? new Map<string, Set<string>>();
 
-  for (const [rawFamily, rawTags] of Object.entries(groupedTags)) {
+  for (const [rawFamily, rawDecisions] of Object.entries(groupedDecisions)) {
     const normalizedFamily = normalizeDerivedTag(rawFamily);
     const familyTags = categoryFamilies.get(normalizedFamily);
     if (!familyTags) {
@@ -134,62 +186,33 @@ function normalizeFamilyTagAssignments(
       );
     }
 
-    for (const rawTag of rawTags) {
-      const normalizedTag = normalizeDerivedTag(rawTag);
-      if (!familyTags.has(normalizedTag)) {
+    const familyDecisions = normalizedAssignments.get(normalizedFamily) ?? new Map<string, DerivedTagAssignmentDecision>();
+    for (const rawDecision of rawDecisions) {
+      const normalizedDecision = normalizeAssignmentDecision(rawDecision);
+      if (!familyTags.has(normalizedDecision.tag)) {
         throw new Error(
-          `Derived tag assignment ${fieldName} tag "${rawTag}" for "${recordKey}" does not belong to family "${rawFamily}" in category "${category}".`,
+          `Derived tag assignment ${fieldName} tag "${rawDecision.tag}" for "${recordKey}" does not belong to family "${rawFamily}" in category "${category}".`,
         );
       }
-      addNormalizedTag(normalizedAssignments, normalizedFamily, normalizedTag);
+      if (familyDecisions.has(normalizedDecision.tag)) {
+        throw new Error(
+          `Derived tag assignment ${fieldName} for "${recordKey}" repeats "${rawFamily}.${normalizedDecision.tag}".`,
+        );
+      }
+      familyDecisions.set(normalizedDecision.tag, normalizedDecision);
+    }
+    if (familyDecisions.size > 0) {
+      normalizedAssignments.set(normalizedFamily, familyDecisions);
     }
   }
 
   return normalizedAssignments;
 }
 
-function normalizeReviewAssignments(
-  review: AuthoredDerivedTagAssignment["review"],
-  category: SearchCategory,
-  familyTagMap: Map<SearchCategory, Map<string, Set<string>>>,
-  recordKey: string,
-): NormalizedReviewMap {
-  const reviewByFamily = new Map<string, Map<string, DerivedTagReviewEntry>>();
-  if (!review) {
-    return reviewByFamily;
-  }
-
-  const categoryFamilies = familyTagMap.get(category) ?? new Map<string, Set<string>>();
-
-  for (const [rawFamily, taggedReview] of Object.entries(review)) {
-    const normalizedFamily = normalizeDerivedTag(rawFamily);
-    const familyTags = categoryFamilies.get(normalizedFamily);
-    if (!familyTags) {
-      throw new Error(
-        `Derived tag assignment review family "${rawFamily}" for "${recordKey}" does not exist in category "${category}".`,
-      );
-    }
-
-    const familyReview = reviewByFamily.get(normalizedFamily) ?? new Map<string, DerivedTagReviewEntry>();
-    for (const [rawTag, reviewEntry] of Object.entries(taggedReview)) {
-      const normalizedTag = normalizeDerivedTag(rawTag);
-      if (!familyTags.has(normalizedTag)) {
-        throw new Error(
-          `Derived tag assignment review tag "${rawTag}" for "${recordKey}" does not belong to family "${rawFamily}" in category "${category}".`,
-        );
-      }
-      familyReview.set(normalizedTag, reviewEntry);
-    }
-    reviewByFamily.set(normalizedFamily, familyReview);
-  }
-
-  return reviewByFamily;
-}
-
-function flattenNormalizedAssignments(assignments: NormalizedFamilyTagMap): string[] {
+function flattenNormalizedAssignments(assignments: NormalizedFamilyDecisionMap): string[] {
   const flattenedTags = new Set<string>();
-  for (const familyTags of assignments.values()) {
-    for (const tag of familyTags) {
+  for (const familyDecisions of assignments.values()) {
+    for (const tag of familyDecisions.keys()) {
       flattenedTags.add(tag);
     }
   }
@@ -197,62 +220,26 @@ function flattenNormalizedAssignments(assignments: NormalizedFamilyTagMap): stri
   return uniqueSorted([...flattenedTags]);
 }
 
-function hasNormalizedTag(
-  assignments: NormalizedFamilyTagMap,
+function hasNormalizedDecision(
+  assignments: NormalizedFamilyDecisionMap,
   family: string,
   tag: string,
 ): boolean {
   return assignments.get(family)?.has(tag) ?? false;
 }
 
-function getReviewEntry(
-  reviewByFamily: NormalizedReviewMap,
-  family: string,
-  tag: string,
-): DerivedTagReviewEntry | undefined {
-  return reviewByFamily.get(family)?.get(tag);
-}
-
 function renderQualifiedTag(family: string, tag: string): string {
   return `${family}.${tag}`;
-}
-
-function buildPendingView(
-  assignment: AuthoredDerivedTagAssignment,
-  reviewByFamily: NormalizedReviewMap,
-): DerivedTagPendingAssignmentView | null {
-  const pendingByFamily: Record<string, string[]> = {};
-
-  for (const family of uniqueSorted([...reviewByFamily.keys()])) {
-    const familyReview = reviewByFamily.get(family);
-    if (!familyReview) {
-      continue;
-    }
-
-    const pendingTags = uniqueSorted(
-      [...familyReview.entries()]
-        .filter(([, reviewEntry]) => reviewEntry.status === "needs_review")
-        .map(([tag]) => tag),
-    );
-    if (pendingTags.length > 0) {
-      pendingByFamily[family] = pendingTags;
-    }
-  }
-
-  return Object.keys(pendingByFamily).length > 0
-    ? {
-        name: assignment.name,
-        recordKey: assignment.recordKey,
-        pending: pendingByFamily,
-      }
-    : null;
 }
 
 function normalizeAssignment(
   assignment: AuthoredDerivedTagAssignment,
   category: SearchCategory,
   familyTagMap: Map<SearchCategory, Map<string, Set<string>>>,
-): NormalizedAuthoredDerivedTagAssignment {
+): {
+  includeByFamily: NormalizedFamilyDecisionMap;
+  excludeByFamily: NormalizedFamilyDecisionMap;
+} {
   const includeByFamily = normalizeFamilyTagAssignments(
     assignment.applied,
     category,
@@ -267,12 +254,6 @@ function normalizeAssignment(
     "excluded",
     assignment.recordKey,
   );
-  const reviewByFamily = normalizeReviewAssignments(
-    assignment.review,
-    category,
-    familyTagMap,
-    assignment.recordKey,
-  );
 
   for (const family of uniqueSorted([...includeByFamily.keys()])) {
     const includedTags = includeByFamily.get(family);
@@ -280,111 +261,154 @@ function normalizeAssignment(
       continue;
     }
 
-    for (const tag of includedTags) {
-      if (hasNormalizedTag(excludeByFamily, family, tag)) {
+    for (const tag of uniqueSorted([...includedTags.keys()])) {
+      if (hasNormalizedDecision(excludeByFamily, family, tag)) {
         throw new Error(
           `Derived tag assignment for "${assignment.recordKey}" places "${renderQualifiedTag(family, tag)}" in both applied and excluded.`,
         );
       }
-
-      const reviewEntry = getReviewEntry(reviewByFamily, family, tag);
-      if (!reviewEntry) {
-        throw new Error(
-          `Derived tag assignment for "${assignment.recordKey}" is missing review metadata for applied tag "${renderQualifiedTag(family, tag)}".`,
-        );
-      }
-      if (reviewEntry.mode !== "include") {
-        throw new Error(
-          `Derived tag assignment for "${assignment.recordKey}" marks applied tag "${renderQualifiedTag(family, tag)}" with review mode "${reviewEntry.mode}".`,
-        );
-      }
-      if (reviewEntry.status !== "approved" && reviewEntry.status !== "auto_applied") {
-        throw new Error(
-          `Derived tag assignment for "${assignment.recordKey}" places "${renderQualifiedTag(family, tag)}" in applied but review status is "${reviewEntry.status}".`,
-        );
-      }
     }
   }
 
-  for (const family of uniqueSorted([...excludeByFamily.keys()])) {
-    const excludedTags = excludeByFamily.get(family);
-    if (!excludedTags) {
-      continue;
-    }
-
-    for (const tag of excludedTags) {
-      const reviewEntry = getReviewEntry(reviewByFamily, family, tag);
-      if (!reviewEntry) {
-        throw new Error(
-          `Derived tag assignment for "${assignment.recordKey}" is missing review metadata for excluded tag "${renderQualifiedTag(family, tag)}".`,
-        );
-      }
-      if (reviewEntry.mode !== "exclude") {
-        throw new Error(
-          `Derived tag assignment for "${assignment.recordKey}" marks excluded tag "${renderQualifiedTag(family, tag)}" with review mode "${reviewEntry.mode}".`,
-        );
-      }
-      if (reviewEntry.status !== "approved" && reviewEntry.status !== "auto_applied") {
-        throw new Error(
-          `Derived tag assignment for "${assignment.recordKey}" places "${renderQualifiedTag(family, tag)}" in excluded but review status is "${reviewEntry.status}".`,
-        );
-      }
-    }
-  }
-
-  for (const family of uniqueSorted([...reviewByFamily.keys()])) {
-    const familyReview = reviewByFamily.get(family);
-    if (!familyReview) {
-      continue;
-    }
-
-    for (const tag of uniqueSorted([...familyReview.keys()])) {
-      const reviewEntry = familyReview.get(tag)!;
-      const isApplied = hasNormalizedTag(includeByFamily, family, tag);
-      const isExcluded = hasNormalizedTag(excludeByFamily, family, tag);
-      const qualifiedTag = renderQualifiedTag(family, tag);
-
-      if (reviewEntry.status === "needs_review" || reviewEntry.status === "rejected") {
-        if (isApplied || isExcluded) {
-          throw new Error(
-            `Derived tag assignment for "${assignment.recordKey}" keeps "${qualifiedTag}" live even though review status is "${reviewEntry.status}".`,
-          );
-        }
-        continue;
-      }
-
-      if (reviewEntry.mode === "include") {
-        if (isExcluded) {
-          throw new Error(
-            `Derived tag assignment for "${assignment.recordKey}" marks "${qualifiedTag}" as include in review but places it in excluded.`,
-          );
-        }
-        if (!isApplied) {
-          throw new Error(
-            `Derived tag assignment for "${assignment.recordKey}" review marks "${qualifiedTag}" as "${reviewEntry.status}" include but it is missing from applied.`,
-          );
-        }
-        continue;
-      }
-
-      if (isApplied) {
-        throw new Error(
-          `Derived tag assignment for "${assignment.recordKey}" marks "${qualifiedTag}" as exclude in review but places it in applied.`,
-        );
-      }
-      if (!isExcluded) {
-        throw new Error(
-          `Derived tag assignment for "${assignment.recordKey}" review marks "${qualifiedTag}" as "${reviewEntry.status}" exclude but it is missing from excluded.`,
-        );
-      }
-    }
+  if (includeByFamily.size === 0 && excludeByFamily.size === 0) {
+    throw new Error(
+      `Derived tag assignment for "${assignment.recordKey}" must include at least one applied or excluded tag.`,
+    );
   }
 
   return {
     includeByFamily,
     excludeByFamily,
-    reviewByFamily,
   };
+}
+
+function validateFamilyTagReference(
+  fieldName: string,
+  category: SearchCategory,
+  familyTagMap: Map<SearchCategory, Map<string, Set<string>>>,
+  recordKey: string,
+  family: string,
+  tag: string,
+): { family: string; tag: string } {
+  const normalizedFamily = normalizeDerivedTag(family);
+  const normalizedTag = normalizeDerivedTag(tag);
+  const categoryFamilies = familyTagMap.get(category) ?? new Map<string, Set<string>>();
+  const familyTags = categoryFamilies.get(normalizedFamily);
+
+  if (!familyTags) {
+    throw new Error(
+      `Derived tag ${fieldName} family "${family}" for "${recordKey}" does not exist in category "${category}".`,
+    );
+  }
+  if (!familyTags.has(normalizedTag)) {
+    throw new Error(
+      `Derived tag ${fieldName} tag "${tag}" for "${recordKey}" does not belong to family "${family}" in category "${category}".`,
+    );
+  }
+
+  return { family: normalizedFamily, tag: normalizedTag };
+}
+
+function reviewIdentity(decision: Pick<DerivedTagAssignmentReviewDecision, "recordKey" | "family" | "tag" | "mode">): string {
+  return [
+    decision.recordKey,
+    normalizeDerivedTag(decision.family),
+    normalizeDerivedTag(decision.tag),
+    decision.mode,
+  ].join("|");
+}
+
+function memoryIdentity(decision: Pick<DerivedTagAssignmentMemoryDecision, "recordKey" | "family" | "tag" | "mode">): string {
+  return [
+    decision.recordKey,
+    normalizeDerivedTag(decision.family),
+    normalizeDerivedTag(decision.tag),
+    decision.mode,
+  ].join("|");
+}
+
+export function buildDerivedTagPendingAssignmentViews(
+  ontology: PublishedDerivedTagOntology,
+  groups: DerivedTagAssignmentReviewGroup[] = RAW_DERIVED_TAG_ASSIGNMENT_REVIEWS,
+): DerivedTagPendingAssignmentView[] {
+  const familyTagMap = buildFamilyTagMap(ontology.tags);
+  const seenDecisionKeys = new Set<string>();
+  const pendingByRecord = new Map<string, DerivedTagPendingAssignmentView>();
+
+  for (const group of groups) {
+    for (const decision of group.decisions) {
+      const validated = validateFamilyTagReference(
+        "assignment review",
+        group.category,
+        familyTagMap,
+        decision.recordKey,
+        decision.family,
+        decision.tag,
+      );
+      const key = reviewIdentity(decision);
+      if (seenDecisionKeys.has(key)) {
+        throw new Error(`Derived tag assignment review repeats "${validated.family}.${validated.tag}" (${decision.mode}) for "${decision.recordKey}".`);
+      }
+      const oppositeKey = reviewIdentity({
+        recordKey: decision.recordKey,
+        family: validated.family,
+        tag: validated.tag,
+        mode: decision.mode === "include" ? "exclude" : "include",
+      });
+      if (seenDecisionKeys.has(oppositeKey)) {
+        throw new Error(
+          `Derived tag assignment review places "${validated.family}.${validated.tag}" in both include and exclude for "${decision.recordKey}".`,
+        );
+      }
+      seenDecisionKeys.add(key);
+
+      const pendingView = pendingByRecord.get(decision.recordKey) ?? {
+        name: decision.name,
+        recordKey: decision.recordKey,
+        pending: {},
+      };
+      if (pendingView.name !== decision.name) {
+        throw new Error(
+          `Derived tag assignment reviews disagree on canonical name for "${decision.recordKey}".`,
+        );
+      }
+      const current = pendingView.pending[validated.family] ?? [];
+      current.push(validated.tag);
+      pendingView.pending[validated.family] = uniqueSorted(current);
+      pendingByRecord.set(decision.recordKey, pendingView);
+    }
+  }
+
+  return [...pendingByRecord.values()]
+    .sort((left, right) => left.name.localeCompare(right.name) || left.recordKey.localeCompare(right.recordKey));
+}
+
+export function validateDerivedTagAssignmentMemory(
+  ontology: PublishedDerivedTagOntology,
+  groups: DerivedTagAssignmentMemoryGroup[] = RAW_DERIVED_TAG_ASSIGNMENT_MEMORY,
+): void {
+  const familyTagMap = buildFamilyTagMap(ontology.tags);
+  const seenDecisionKeys = new Set<string>();
+
+  for (const group of groups) {
+    for (const decision of group.decisions) {
+      validateFamilyTagReference(
+        "assignment memory",
+        group.category,
+        familyTagMap,
+        decision.recordKey,
+        decision.family,
+        decision.tag,
+      );
+      const key = memoryIdentity(decision);
+      if (seenDecisionKeys.has(key)) {
+        throw new Error(
+          `Derived tag assignment memory repeats "${normalizeDerivedTag(decision.family)}.${normalizeDerivedTag(decision.tag)}" (${decision.mode}) for "${decision.recordKey}".`,
+        );
+      }
+      seenDecisionKeys.add(key);
+    }
+  }
 }
 
 export function buildDerivedTagExplicitAssignmentIndex(
@@ -416,30 +440,6 @@ export function buildDerivedTagExplicitAssignmentIndex(
   }
 
   return { assignmentsByRecordKey };
-}
-
-export function buildDerivedTagPendingAssignmentViews(
-  ontology: PublishedDerivedTagOntology,
-  groups: DerivedTagAssignmentGroup[] = RAW_DERIVED_TAG_ASSIGNMENTS,
-): DerivedTagPendingAssignmentView[] {
-  const familyTagMap = buildFamilyTagMap(ontology.tags);
-  const pendingViews: DerivedTagPendingAssignmentView[] = [];
-
-  for (const group of groups) {
-    for (const assignment of group.assignments) {
-      const normalizedAssignment = normalizeAssignment(
-        assignment,
-        group.category,
-        familyTagMap,
-      );
-      const pendingView = buildPendingView(assignment, normalizedAssignment.reviewByFamily);
-      if (pendingView) {
-        pendingViews.push(pendingView);
-      }
-    }
-  }
-
-  return pendingViews;
 }
 
 export function validateDerivedTagExplicitAssignmentsAgainstRecords(

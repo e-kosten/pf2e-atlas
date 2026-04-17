@@ -6,7 +6,7 @@ import {
 } from "../index.js";
 import {
   buildDerivedTagPendingAssignmentViews,
-  type AuthoredDerivedTagAssignment,
+  type DerivedTagAssignmentReviewCategory,
 } from "../runtime/assignments.js";
 import { publishDerivedTagOntology, type PublishedDerivedTagOntology } from "../runtime/catalog-utils.js";
 import type { DerivedTagSource } from "../runtime/catalog-utils.js";
@@ -28,28 +28,30 @@ export function deriveCurrentTagSources(input: Parameters<typeof deriveRecordTag
 }
 
 export function getCurrentDerivedTagPendingAssignmentViews() {
-  return buildDerivedTagPendingAssignmentViews(getPublishedDerivedTagMigrationOntology());
+  const state = getCurrentDerivedTagMigrationAuthoredState();
+  return buildDerivedTagPendingAssignmentViews(
+    getPublishedDerivedTagMigrationOntology(),
+    Object.values(state.assignmentReviews) as DerivedTagAssignmentReviewCategory[],
+  );
 }
 
-function flattenAssignmentDecisions(assignments: AuthoredDerivedTagAssignment[]): DerivedTagMigrationDecision[] {
-  const decisions: DerivedTagMigrationDecision[] = [];
-  for (const assignment of assignments) {
-    for (const [family, familyReview] of Object.entries(assignment.review ?? {})) {
-      for (const [tag, reviewEntry] of Object.entries(familyReview)) {
-        decisions.push({
-          kind: "assignment",
-          family,
-          tag,
-          mode: reviewEntry.mode,
-          status: reviewEntry.status,
-          confidence: reviewEntry.confidence,
-          rationale: reviewEntry.rationale,
-          source: reviewEntry.source,
-        });
-      }
-    }
-  }
-  return decisions;
+function flattenAssignmentReviewDecisions(
+  assignmentReviews: DerivedTagAssignmentReviewCategory[],
+): Array<{ category: SearchCategory; decision: DerivedTagMigrationDecision }> {
+  return assignmentReviews.flatMap((categoryReview) =>
+    categoryReview.decisions.map((reviewDecision) => ({
+      category: categoryReview.category,
+      decision: {
+        kind: "assignment" as const,
+        family: reviewDecision.family,
+        tag: reviewDecision.tag,
+        mode: reviewDecision.mode,
+        status: "needs_review" as const,
+        confidence: reviewDecision.confidence,
+        rationale: reviewDecision.rationale,
+        source: reviewDecision.source,
+      },
+    })));
 }
 
 function flattenExemplarReviewDecisions(exemplarReviews: DerivedTagExemplarReviewDecision[]): DerivedTagMigrationDecision[] {
@@ -71,27 +73,27 @@ export function summarizeCurrentDerivedTagReviewQueue(): DerivedTagReviewQueueSu
   const counts = new Map<string, DerivedTagReviewQueueSummaryItem>();
   const confidencesByKey = new Map<string, Set<DerivedTagReviewQueueSummaryItem["confidence"]>>();
 
-  for (const [category, assignments] of Object.entries(state.assignments) as Array<[SearchCategory, AuthoredDerivedTagAssignment[]]>) {
-    for (const decision of flattenAssignmentDecisions(assignments)) {
-      if (decision.kind !== "assignment" || decision.status !== "needs_review") {
-        continue;
-      }
-      const confidence = decision.confidence ?? "unspecified";
-      const key = ["assignment", category, decision.family, decision.tag].join("|");
-      const current = counts.get(key) ?? {
-        kind: "assignment",
-        category,
-        family: decision.family,
-        tag: decision.tag,
-        count: 0,
-        confidence,
-      };
-      current.count += 1;
-      counts.set(key, current);
-      const confidenceBucket = confidencesByKey.get(key) ?? new Set<DerivedTagReviewQueueSummaryItem["confidence"]>();
-      confidenceBucket.add(confidence);
-      confidencesByKey.set(key, confidenceBucket);
+  for (const { category, decision } of flattenAssignmentReviewDecisions(
+    Object.values(state.assignmentReviews) as DerivedTagAssignmentReviewCategory[],
+  )) {
+    if (decision.kind !== "assignment") {
+      continue;
     }
+    const confidence = decision.confidence ?? "unspecified";
+    const key = ["assignment", category, decision.family, decision.tag].join("|");
+    const current = counts.get(key) ?? {
+      kind: "assignment",
+      category,
+      family: decision.family,
+      tag: decision.tag,
+      count: 0,
+      confidence,
+    };
+    current.count += 1;
+    counts.set(key, current);
+    const confidenceBucket = confidencesByKey.get(key) ?? new Set<DerivedTagReviewQueueSummaryItem["confidence"]>();
+    confidenceBucket.add(confidence);
+    confidencesByKey.set(key, confidenceBucket);
   }
 
   for (const [category, exemplarReviewCategory] of Object.entries(state.exemplarReviews) as Array<[SearchCategory, { decisions: DerivedTagExemplarReviewDecision[] }]>) {

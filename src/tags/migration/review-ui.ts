@@ -78,7 +78,7 @@ function renderReviewHelp(): string {
     "- a: approve current item",
     "  Confirm that the proposed assignment, exemplar decision, or rule decision is correct and should be imported.",
     "- r: reject current item",
-    "  Mark the current proposal as not accepted. Rejected assignment decisions remain as review metadata; rejected exemplar review items are cleared from the pending queue without changing live exemplars.",
+    "  Mark the current proposal as not accepted. Rejected assignment decisions move into assignment memory; rejected exemplar review items are cleared from the pending queue without changing live exemplars.",
     "- n: mark current item as needs_review",
     "  Put the item back into the unresolved queue so it remains visible in future passes.",
     "",
@@ -93,7 +93,7 @@ function renderReviewHelp(): string {
     "Display:",
     "- The current record view is the selected review item",
     "- The highlighted action chip is the action Enter will execute",
-    "- approved and auto-applied assignment decisions feed live applied/excluded state; needs_review and rejected remain review metadata",
+    "- approved and auto-applied assignment decisions update live assignments; needs_review stays in assignment reviews and rejected moves to assignment memory",
     "- approved exemplar review decisions update live exemplar files and then leave the review queue",
   ].join("\n");
 }

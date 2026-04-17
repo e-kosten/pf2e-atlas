@@ -5,7 +5,11 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import type { AuthoredDerivedTagRule, DerivedTagExemplarCategory, DerivedTagExemplarReviewCategory } from "../../src/types.js";
-import type { AuthoredDerivedTagAssignment } from "../../src/tags/runtime/assignments.js";
+import type {
+  AuthoredDerivedTagAssignment,
+  DerivedTagAssignmentMemoryCategory,
+  DerivedTagAssignmentReviewCategory,
+} from "../../src/tags/runtime/assignments.js";
 import {
   getCurrentDerivedTagMigrationAuthoredState,
   setCurrentDerivedTagMigrationAuthoredState,
@@ -13,6 +17,8 @@ import {
 } from "../../src/tags/migration/authored-state.js";
 import {
   applyMigrationSessionToAssignments,
+  applyMigrationSessionToAssignmentMemory,
+  applyMigrationSessionToAssignmentReviews,
   applyMigrationSessionToAuthoredRules,
   applyMigrationSessionToExemplars,
   applyMigrationSessionToExemplarReviews,
@@ -29,149 +35,131 @@ import { moveSelection } from "../../src/tags/migration/terminal-ui.js";
 import type { DerivedTagMigrationSession } from "../../src/tags/migration/types.js";
 
 describe("derived tag migration tooling", () => {
-  it("imports assignment review outcomes into live and non-live states", () => {
-    const assignments: AuthoredDerivedTagAssignment[] = [
-      {
-        name: "Watch Bell",
-        recordKey: "equipment:bell",
-        review: {
-          security: {
-            alarm: {
-              mode: "include",
-              status: "needs_review",
-              confidence: "medium",
-              rationale: "Pending manual review.",
-            },
-          },
+  it("imports assignment review outcomes into live assignments, pending review, and rejected memory", () => {
+    const assignments: AuthoredDerivedTagAssignment[] = [];
+    const assignmentReviews: DerivedTagAssignmentReviewCategory = {
+      category: "equipment",
+      decisions: [
+        {
+          name: "Watch Bell",
+          recordKey: "equipment:bell",
+          family: "security",
+          tag: "alarm",
+          mode: "include",
+          confidence: "medium",
+          rationale: "Pending manual review.",
         },
+      ],
+    };
+    const assignmentMemory: DerivedTagAssignmentMemoryCategory = {
+      category: "equipment",
+      decisions: [],
+    };
+
+    const sessionDecisions = [
+      {
+        recordKey: "equipment:bell",
+        name: "Watch Bell",
+        category: "equipment" as const,
+        resolutionStatus: "complete" as const,
+        decisions: [
+          {
+            kind: "assignment" as const,
+            family: "security",
+            tag: "alarm",
+            mode: "include" as const,
+            status: "approved" as const,
+            confidence: "high" as const,
+            rationale: "Confirmed by review.",
+            source: "llm" as const,
+          },
+          {
+            kind: "assignment" as const,
+            family: "infiltration",
+            tag: "disguise",
+            mode: "exclude" as const,
+            status: "rejected" as const,
+            confidence: "low" as const,
+            rationale: "Rejected negative proposal should remain non-live.",
+            source: "llm" as const,
+          },
+        ],
       },
     ];
 
-    const migrated = applyMigrationSessionToAssignments(assignments, [
+    expect(applyMigrationSessionToAssignments(assignments, sessionDecisions)).toEqual([
       {
-        recordKey: "equipment:bell",
         name: "Watch Bell",
+        recordKey: "equipment:bell",
+        applied: {
+          security: [
+            {
+              tag: "alarm",
+              source: "llm_reviewed",
+              confidence: "high",
+              rationale: "Confirmed by review.",
+            },
+          ],
+        },
+      },
+    ]);
+    expect(applyMigrationSessionToAssignmentReviews(assignmentReviews, sessionDecisions)).toEqual({
+      category: "equipment",
+      decisions: [],
+    });
+    expect(applyMigrationSessionToAssignmentMemory(assignmentMemory, sessionDecisions)).toEqual({
+      category: "equipment",
+      decisions: [
+        {
+          name: "Watch Bell",
+          recordKey: "equipment:bell",
+          family: "infiltration",
+          tag: "disguise",
+          mode: "exclude",
+          confidence: "low",
+          rationale: "Rejected negative proposal should remain non-live.",
+          source: "llm",
+        },
+      ],
+    });
+  });
+
+  it("imports auto-applied assignment proposals directly into live assignments", () => {
+    const assignments: AuthoredDerivedTagAssignment[] = [];
+
+    expect(applyMigrationSessionToAssignments(assignments, [
+      {
+        recordKey: "equipment:mask",
+        name: "Masquerade Mask",
         category: "equipment",
         resolutionStatus: "complete",
         decisions: [
           {
             kind: "assignment",
-            family: "security",
-            tag: "alarm",
-            mode: "include",
-            status: "approved",
-            confidence: "high",
-            rationale: "Confirmed by review.",
-          },
-          {
-            kind: "assignment",
             family: "infiltration",
-            tag: "disguise",
-            mode: "exclude",
-            status: "rejected",
-            confidence: "low",
-            rationale: "Rejected negative proposal should remain non-live.",
+            tag: "social_infiltration",
+            mode: "include",
+            status: "auto_applied",
+            confidence: "high",
+            rationale: "High-confidence direct tagging call.",
+            source: "llm",
           },
         ],
       },
-    ]);
-
-    expect(migrated).toEqual([
+    ])).toEqual([
       {
-        name: "Watch Bell",
-        recordKey: "equipment:bell",
+        name: "Masquerade Mask",
+        recordKey: "equipment:mask",
         applied: {
-          security: ["alarm"],
-        },
-        review: {
-          infiltration: {
-            disguise: {
-              mode: "exclude",
-              status: "rejected",
-              confidence: "low",
-              rationale: "Rejected negative proposal should remain non-live.",
-            },
-          },
-          security: {
-            alarm: {
-              mode: "include",
-              status: "approved",
+          infiltration: [
+            {
+              tag: "social_infiltration",
+              source: "llm_auto",
               confidence: "high",
-              rationale: "Confirmed by review.",
+              rationale: "High-confidence direct tagging call.",
             },
-          },
-        },
-      },
-    ]);
-  });
-
-  it("imports approved exemplar and authored rule proposals", () => {
-    const exemplars: DerivedTagExemplarCategory = {
-      category: "creature",
-      exemplars: [
-        {
-          tag: "urban_setting",
-          positives: [{ recordKey: "creature:old", name: "Old Urban Example" }],
-        },
-      ],
-    };
-    const rules: AuthoredDerivedTagRule[] = [];
-
-    const sessionDecisions = [
-      {
-        recordKey: "creature:new",
-        name: "New Urban Example",
-        category: "creature" as const,
-        resolutionStatus: "complete" as const,
-        decisions: [
-          {
-            kind: "exemplar" as const,
-            tag: "urban_setting",
-            polarity: "positive" as const,
-            action: "keep" as const,
-            status: "approved" as const,
-            rationale: "Strong exemplar.",
-          },
-          {
-            kind: "rule" as const,
-            tag: "urban_setting",
-            decision: "recreate_authored" as const,
-            status: "approved" as const,
-            rationale: "Safe deterministic slice.",
-            authoredRules: [
-              {
-                tag: "urban_setting",
-                category: "creature",
-                intent: "deterministic",
-                kind: "trait_match",
-                when: { traitsAll: ["clockwork"] },
-              },
-            ],
-          },
-        ],
-      },
-    ];
-
-    expect(applyMigrationSessionToExemplars(exemplars, sessionDecisions)).toEqual({
-      category: "creature",
-      exemplars: [
-        {
-          tag: "urban_setting",
-          positives: [
-            { recordKey: "creature:new", name: "New Urban Example" },
-            { recordKey: "creature:old", name: "Old Urban Example" },
           ],
-          negatives: [],
         },
-      ],
-    });
-    expect(applyMigrationSessionToAuthoredRules(rules, sessionDecisions)).toEqual([
-      {
-        tag: "urban_setting",
-        category: "creature",
-        intent: "deterministic",
-        kind: "trait_match",
-        when: { traitsAll: ["clockwork"] },
       },
     ]);
   });
@@ -229,6 +217,47 @@ describe("derived tag migration tooling", () => {
       category: "creature",
       decisions: [],
     });
+  });
+
+  it("imports approved authored rule proposals", () => {
+    const rules: AuthoredDerivedTagRule[] = [];
+
+    const sessionDecisions = [
+      {
+        recordKey: "creature:new",
+        name: "New Urban Example",
+        category: "creature" as const,
+        resolutionStatus: "complete" as const,
+        decisions: [
+          {
+            kind: "rule" as const,
+            tag: "urban_setting",
+            decision: "recreate_authored" as const,
+            status: "approved" as const,
+            rationale: "Safe deterministic slice.",
+            authoredRules: [
+              {
+                tag: "urban_setting",
+                category: "creature",
+                intent: "deterministic",
+                kind: "trait_match",
+                when: { traitsAll: ["clockwork"] },
+              },
+            ],
+          },
+        ],
+      },
+    ];
+
+    expect(applyMigrationSessionToAuthoredRules(rules, sessionDecisions)).toEqual([
+      {
+        tag: "urban_setting",
+        category: "creature",
+        intent: "deterministic",
+        kind: "trait_match",
+        when: { traitsAll: ["clockwork"] },
+      },
+    ]);
   });
 
   it("lints contradictory migration sessions", () => {
@@ -369,40 +398,70 @@ describe("derived tag migration tooling", () => {
           name: "Watch Bell",
           recordKey: "equipment:bell",
           applied: {
-            security: ["alarm"],
-          },
-          review: {
-            security: {
-              alarm: {
-                mode: "include",
-                status: "approved",
+            security: [
+              {
+                tag: "alarm",
+                source: "human",
                 rationale: "Confirmed during migration review.",
               },
-            },
+            ],
           },
         },
       ];
-      nextState.exemplarReviews.equipment = [
-        {
-          category: "equipment",
-          decisions: [
-            {
-              name: "Watch Bell",
-              recordKey: "equipment:bell",
-              tag: "alarm",
-              proposedPolarity: "positive",
-              status: "needs_review",
-              rationale: "Maybe a good positive teaching example.",
-            },
-          ],
-        },
-      ][0];
+      nextState.assignmentReviews.equipment = {
+        category: "equipment",
+        decisions: [
+          {
+            name: "Smoke Veil",
+            recordKey: "equipment:veil",
+            family: "infiltration",
+            tag: "social_infiltration",
+            mode: "include",
+            rationale: "Pending manual confirmation.",
+          },
+        ],
+      };
+      nextState.assignmentMemory.equipment = {
+        category: "equipment",
+        decisions: [
+          {
+            name: "Watch Bell",
+            recordKey: "equipment:bell",
+            family: "infiltration",
+            tag: "disguise",
+            mode: "exclude",
+            rationale: "Rejected earlier proposal.",
+          },
+        ],
+      };
+      nextState.exemplarReviews.equipment = {
+        category: "equipment",
+        decisions: [
+          {
+            name: "Watch Bell",
+            recordKey: "equipment:bell",
+            tag: "alarm",
+            proposedPolarity: "positive",
+            status: "needs_review",
+            rationale: "Maybe a good positive teaching example.",
+          },
+        ],
+      };
 
       await writeDerivedTagMigrationAuthoredState(tempRoot, nextState, ["equipment"]);
 
       expect(getCurrentDerivedTagMigrationAuthoredState().assignments.equipment).toEqual(nextState.assignments.equipment);
+      expect(getCurrentDerivedTagMigrationAuthoredState().assignmentReviews.equipment).toEqual(nextState.assignmentReviews.equipment);
+      expect(getCurrentDerivedTagMigrationAuthoredState().assignmentMemory.equipment).toEqual(nextState.assignmentMemory.equipment);
       expect(getCurrentDerivedTagMigrationAuthoredState().exemplarReviews.equipment).toEqual(nextState.exemplarReviews.equipment);
       expect(summarizeCurrentDerivedTagReviewQueue()).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          kind: "assignment",
+          category: "equipment",
+          family: "infiltration",
+          tag: "social_infiltration",
+          count: 1,
+        }),
         expect.objectContaining({
           kind: "exemplar",
           category: "equipment",

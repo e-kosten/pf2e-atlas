@@ -40,7 +40,7 @@ The output should be a smaller, stronger teaching set, not a large list of recor
 6. Route uncertain exemplar edits to review.
    Add or update entries in `src/tags/exemplar-reviews/<category>.ts`.
 7. If a touched record has clearly wrong or missing explicit assignments, fix that too.
-   Do not leave obvious tagging debt behind on records you are already reviewing.
+   Write confident live fixes directly to `src/tags/assignments` and leave only ambiguous assignment calls in `src/tags/assignment-reviews`.
 8. Validate with `npm run build` and `npm test`.
 
 ## Important Rules
@@ -49,4 +49,3 @@ The output should be a smaller, stronger teaching set, not a large list of recor
 - Negative exemplars should teach a meaningful nearby boundary, not just be random non-members.
 - Keep exemplar sets short.
 - Confident exemplar changes should bypass the workbench entirely.
-

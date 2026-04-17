@@ -127,15 +127,14 @@ describe("derived tag legacy seed migrations", () => {
           {
             name: "Mask",
             recordKey: "equipment:mask",
-            excluded: { infiltration: ["disguise"] },
-            review: {
-              infiltration: {
-                disguise: {
-                  mode: "exclude",
-                  status: "approved",
+            excluded: {
+              infiltration: [
+                {
+                  tag: "disguise",
+                  source: "human",
                   rationale: "This record is being intentionally suppressed during review.",
                 },
-              },
+              ],
             },
           },
         ],

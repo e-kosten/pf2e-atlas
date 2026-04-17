@@ -8,6 +8,20 @@ import { EQUIPMENT_DERIVED_TAG_ASSIGNMENTS } from "../assignments/equipment.js";
 import { HAZARD_DERIVED_TAG_ASSIGNMENTS } from "../assignments/hazard.js";
 import { SPELL_DERIVED_TAG_ASSIGNMENTS } from "../assignments/spell.js";
 import {
+  AFFLICTION_DERIVED_TAG_ASSIGNMENT_MEMORY,
+  CREATURE_DERIVED_TAG_ASSIGNMENT_MEMORY,
+  EQUIPMENT_DERIVED_TAG_ASSIGNMENT_MEMORY,
+  HAZARD_DERIVED_TAG_ASSIGNMENT_MEMORY,
+  SPELL_DERIVED_TAG_ASSIGNMENT_MEMORY,
+} from "../assignment-memory/index.js";
+import {
+  AFFLICTION_DERIVED_TAG_ASSIGNMENT_REVIEWS,
+  CREATURE_DERIVED_TAG_ASSIGNMENT_REVIEWS,
+  EQUIPMENT_DERIVED_TAG_ASSIGNMENT_REVIEWS,
+  HAZARD_DERIVED_TAG_ASSIGNMENT_REVIEWS,
+  SPELL_DERIVED_TAG_ASSIGNMENT_REVIEWS,
+} from "../assignment-reviews/index.js";
+import {
   AFFLICTION_AUTHORED_DERIVED_TAG_RULES,
   CREATURE_AUTHORED_DERIVED_TAG_RULES,
   EQUIPMENT_AUTHORED_DERIVED_TAG_RULES,
@@ -28,7 +42,11 @@ import {
   HAZARD_DERIVED_TAG_EXEMPLAR_REVIEWS,
   SPELL_DERIVED_TAG_EXEMPLAR_REVIEWS,
 } from "../exemplar-reviews/index.js";
-import type { AuthoredDerivedTagAssignment } from "../runtime/assignments.js";
+import type {
+  AuthoredDerivedTagAssignment,
+  DerivedTagAssignmentMemoryCategory,
+  DerivedTagAssignmentReviewCategory,
+} from "../runtime/assignments.js";
 import type { DerivedTagManagedCategory, DerivedTagMigrationAuthoredState } from "./types.js";
 
 const CATEGORY_UPPER: Record<DerivedTagManagedCategory, string> = {
@@ -41,36 +59,48 @@ const CATEGORY_UPPER: Record<DerivedTagManagedCategory, string> = {
 
 export const CATEGORY_FILE_PATHS: Record<DerivedTagManagedCategory, {
   assignment: string;
+  assignmentReview: string;
+  assignmentMemory: string;
   exemplar: string;
   exemplarReview: string;
   authoredRule: string;
 }> = {
   affliction: {
     assignment: path.join("src", "tags", "assignments", "affliction.ts"),
+    assignmentReview: path.join("src", "tags", "assignment-reviews", "affliction.ts"),
+    assignmentMemory: path.join("src", "tags", "assignment-memory", "affliction.ts"),
     exemplar: path.join("src", "tags", "exemplars", "affliction.ts"),
     exemplarReview: path.join("src", "tags", "exemplar-reviews", "affliction.ts"),
     authoredRule: path.join("src", "tags", "authored-rules", "affliction.ts"),
   },
   creature: {
     assignment: path.join("src", "tags", "assignments", "creature.ts"),
+    assignmentReview: path.join("src", "tags", "assignment-reviews", "creature.ts"),
+    assignmentMemory: path.join("src", "tags", "assignment-memory", "creature.ts"),
     exemplar: path.join("src", "tags", "exemplars", "creature.ts"),
     exemplarReview: path.join("src", "tags", "exemplar-reviews", "creature.ts"),
     authoredRule: path.join("src", "tags", "authored-rules", "creature.ts"),
   },
   equipment: {
     assignment: path.join("src", "tags", "assignments", "equipment.ts"),
+    assignmentReview: path.join("src", "tags", "assignment-reviews", "equipment.ts"),
+    assignmentMemory: path.join("src", "tags", "assignment-memory", "equipment.ts"),
     exemplar: path.join("src", "tags", "exemplars", "equipment.ts"),
     exemplarReview: path.join("src", "tags", "exemplar-reviews", "equipment.ts"),
     authoredRule: path.join("src", "tags", "authored-rules", "equipment.ts"),
   },
   hazard: {
     assignment: path.join("src", "tags", "assignments", "hazard.ts"),
+    assignmentReview: path.join("src", "tags", "assignment-reviews", "hazard.ts"),
+    assignmentMemory: path.join("src", "tags", "assignment-memory", "hazard.ts"),
     exemplar: path.join("src", "tags", "exemplars", "hazard.ts"),
     exemplarReview: path.join("src", "tags", "exemplar-reviews", "hazard.ts"),
     authoredRule: path.join("src", "tags", "authored-rules", "hazard.ts"),
   },
   spell: {
     assignment: path.join("src", "tags", "assignments", "spell.ts"),
+    assignmentReview: path.join("src", "tags", "assignment-reviews", "spell.ts"),
+    assignmentMemory: path.join("src", "tags", "assignment-memory", "spell.ts"),
     exemplar: path.join("src", "tags", "exemplars", "spell.ts"),
     exemplarReview: path.join("src", "tags", "exemplar-reviews", "spell.ts"),
     authoredRule: path.join("src", "tags", "authored-rules", "spell.ts"),
@@ -89,6 +119,20 @@ function buildImportedDerivedTagMigrationAuthoredState(): DerivedTagMigrationAut
       equipment: clone(EQUIPMENT_DERIVED_TAG_ASSIGNMENTS),
       hazard: clone(HAZARD_DERIVED_TAG_ASSIGNMENTS),
       spell: clone(SPELL_DERIVED_TAG_ASSIGNMENTS),
+    },
+    assignmentReviews: {
+      affliction: clone(AFFLICTION_DERIVED_TAG_ASSIGNMENT_REVIEWS),
+      creature: clone(CREATURE_DERIVED_TAG_ASSIGNMENT_REVIEWS),
+      equipment: clone(EQUIPMENT_DERIVED_TAG_ASSIGNMENT_REVIEWS),
+      hazard: clone(HAZARD_DERIVED_TAG_ASSIGNMENT_REVIEWS),
+      spell: clone(SPELL_DERIVED_TAG_ASSIGNMENT_REVIEWS),
+    },
+    assignmentMemory: {
+      affliction: clone(AFFLICTION_DERIVED_TAG_ASSIGNMENT_MEMORY),
+      creature: clone(CREATURE_DERIVED_TAG_ASSIGNMENT_MEMORY),
+      equipment: clone(EQUIPMENT_DERIVED_TAG_ASSIGNMENT_MEMORY),
+      hazard: clone(HAZARD_DERIVED_TAG_ASSIGNMENT_MEMORY),
+      spell: clone(SPELL_DERIVED_TAG_ASSIGNMENT_MEMORY),
     },
     exemplars: {
       affliction: clone(AFFLICTION_DERIVED_TAG_EXEMPLARS),
@@ -183,6 +227,32 @@ function renderAssignmentFile(category: DerivedTagManagedCategory, assignments: 
   ].join("\n");
 }
 
+function renderAssignmentReviewFile(
+  category: DerivedTagManagedCategory,
+  assignmentReviews: DerivedTagAssignmentReviewCategory,
+): string {
+  const exportName = `${CATEGORY_UPPER[category]}_DERIVED_TAG_ASSIGNMENT_REVIEWS`;
+  return [
+    "import type { DerivedTagAssignmentReviewCategory } from \"../runtime/assignments.js\";",
+    "",
+    `export const ${exportName} = ${renderTsValue(assignmentReviews)} satisfies DerivedTagAssignmentReviewCategory;`,
+    "",
+  ].join("\n");
+}
+
+function renderAssignmentMemoryFile(
+  category: DerivedTagManagedCategory,
+  assignmentMemory: DerivedTagAssignmentMemoryCategory,
+): string {
+  const exportName = `${CATEGORY_UPPER[category]}_DERIVED_TAG_ASSIGNMENT_MEMORY`;
+  return [
+    "import type { DerivedTagAssignmentMemoryCategory } from \"../runtime/assignments.js\";",
+    "",
+    `export const ${exportName} = ${renderTsValue(assignmentMemory)} satisfies DerivedTagAssignmentMemoryCategory;`,
+    "",
+  ].join("\n");
+}
+
 function renderExemplarFile(category: DerivedTagManagedCategory, exemplars: DerivedTagExemplarCategory): string {
   const exportName = `${CATEGORY_UPPER[category]}_DERIVED_TAG_EXEMPLARS`;
   return [
@@ -221,6 +291,8 @@ export async function writeDerivedTagMigrationAuthoredState(
   for (const category of categories) {
     const files = CATEGORY_FILE_PATHS[category];
     await mkdir(path.dirname(path.join(rootPath, files.assignment)), { recursive: true });
+    await mkdir(path.dirname(path.join(rootPath, files.assignmentReview)), { recursive: true });
+    await mkdir(path.dirname(path.join(rootPath, files.assignmentMemory)), { recursive: true });
     await mkdir(path.dirname(path.join(rootPath, files.exemplar)), { recursive: true });
     await mkdir(path.dirname(path.join(rootPath, files.exemplarReview)), { recursive: true });
     await mkdir(path.dirname(path.join(rootPath, files.authoredRule)), { recursive: true });
@@ -228,6 +300,16 @@ export async function writeDerivedTagMigrationAuthoredState(
     await writeFile(
       path.join(rootPath, files.assignment),
       renderAssignmentFile(category, state.assignments[category]),
+      "utf8",
+    );
+    await writeFile(
+      path.join(rootPath, files.assignmentReview),
+      renderAssignmentReviewFile(category, state.assignmentReviews[category]),
+      "utf8",
+    );
+    await writeFile(
+      path.join(rootPath, files.assignmentMemory),
+      renderAssignmentMemoryFile(category, state.assignmentMemory[category]),
       "utf8",
     );
     await writeFile(

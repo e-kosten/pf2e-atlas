@@ -111,6 +111,7 @@ function renderWorkbenchHelp(): string {
     "- a: review all currently pending unresolved authored review items",
     "- Queue rows: open a focused review_queue session for one assignment or exemplar slice",
     "- The queue is selective review only: confident live-authored changes should not appear here",
+    "- Assignment queue items come from `src/tags/assignment-reviews`; rejected assignment outcomes are kept separately in `src/tags/assignment-memory`",
     "",
     "Create session shortcuts:",
     "- s: create a legacy-seed review session",

@@ -4,7 +4,7 @@ import type { DerivedTagExemplarReviewDecision, SearchCategory } from "../../typ
 import {
   listDerivedTagLegacySeedMigrations,
 } from "../index.js";
-import type { AuthoredDerivedTagAssignment } from "../runtime/assignments.js";
+import type { DerivedTagAssignmentReviewDecision } from "../runtime/assignments.js";
 import { normalizeDerivedTag } from "../runtime/shared.js";
 import { getCurrentDerivedTagMigrationAuthoredState } from "./authored-state.js";
 import { loadDerivedTagMigrationRecords } from "./record-loader.js";
@@ -68,28 +68,17 @@ function toSessionRecord(record: ReturnType<typeof loadDerivedTagMigrationRecord
 
 function flattenCurrentPendingReviewAssignments(): Array<{
   category: SearchCategory;
-  assignment: AuthoredDerivedTagAssignment;
-  family: string;
-  tag: string;
+  decision: DerivedTagAssignmentReviewDecision;
 }> {
   const state = getCurrentDerivedTagMigrationAuthoredState();
   const pending: Array<{
     category: SearchCategory;
-    assignment: AuthoredDerivedTagAssignment;
-    family: string;
-    tag: string;
+    decision: DerivedTagAssignmentReviewDecision;
   }> = [];
 
-  for (const [category, assignments] of Object.entries(state.assignments) as Array<[SearchCategory, AuthoredDerivedTagAssignment[]]>) {
-    for (const assignment of assignments) {
-      for (const [family, familyReview] of Object.entries(assignment.review ?? {})) {
-        for (const [tag, reviewEntry] of Object.entries(familyReview)) {
-          if (reviewEntry.status !== "needs_review") {
-            continue;
-          }
-          pending.push({ category, assignment, family, tag });
-        }
-      }
+  for (const [category, assignmentReviewCategory] of Object.entries(state.assignmentReviews) as Array<[SearchCategory, { decisions: DerivedTagAssignmentReviewDecision[] }]>) {
+    for (const decision of assignmentReviewCategory.decisions) {
+      pending.push({ category, decision });
     }
   }
 
@@ -226,14 +215,14 @@ function buildReviewQueueWorkset(
   const pendingAssignments = flattenCurrentPendingReviewAssignments()
     .filter((entry) => !options.category || entry.category === options.category)
     .filter(() => !options.decisionKind || options.decisionKind === "assignment")
-    .filter((entry) => !options.family || normalizeDerivedTag(entry.family) === normalizeDerivedTag(options.family))
-    .filter((entry) => !options.tag || normalizeDerivedTag(entry.tag) === normalizeDerivedTag(options.tag));
+    .filter((entry) => !options.family || normalizeDerivedTag(entry.decision.family) === normalizeDerivedTag(options.family))
+    .filter((entry) => !options.tag || normalizeDerivedTag(entry.decision.tag) === normalizeDerivedTag(options.tag));
   const pendingExemplarReviews = flattenCurrentPendingExemplarReviews()
     .filter((entry) => !options.category || entry.category === options.category)
     .filter(() => !options.decisionKind || options.decisionKind === "exemplar")
     .filter((entry) => !options.tag || normalizeDerivedTag(entry.decision.tag) === normalizeDerivedTag(options.tag));
   const uniqueRecordKeys = [...new Set([
-    ...pendingAssignments.map((entry) => entry.assignment.recordKey),
+    ...pendingAssignments.map((entry) => entry.decision.recordKey),
     ...pendingExemplarReviews.map((entry) => entry.decision.recordKey),
   ])]
     .slice(0, options.limit ?? Number.MAX_SAFE_INTEGER);
@@ -246,29 +235,25 @@ function buildReviewQueueWorkset(
   const decisionIndex = createDecisionIndex(records);
 
   for (const entry of pendingAssignments) {
-    const record = recordMap.get(entry.assignment.recordKey);
+    const record = recordMap.get(entry.decision.recordKey);
     if (!record) {
       continue;
     }
     appendSelectionReason(record, {
       source: "authored_review_queue",
-      family: entry.family,
-      tag: entry.tag,
+      family: entry.decision.family,
+      tag: entry.decision.tag,
       note: "Existing authored assignment review entry still needs manual confirmation.",
     });
-    const reviewEntry = entry.assignment.review?.[entry.family]?.[entry.tag];
-    if (!reviewEntry) {
-      continue;
-    }
-    decisionIndex.get(entry.assignment.recordKey)?.decisions.push({
+    decisionIndex.get(entry.decision.recordKey)?.decisions.push({
       kind: "assignment",
-      family: normalizeDerivedTag(entry.family),
-      tag: normalizeDerivedTag(entry.tag),
-      mode: reviewEntry.mode,
-      status: reviewEntry.status,
-      confidence: reviewEntry.confidence,
-      rationale: reviewEntry.rationale,
-      source: reviewEntry.source,
+      family: normalizeDerivedTag(entry.decision.family),
+      tag: normalizeDerivedTag(entry.decision.tag),
+      mode: entry.decision.mode,
+      status: "needs_review",
+      confidence: entry.decision.confidence,
+      rationale: entry.decision.rationale,
+      source: entry.decision.source,
     });
   }
 

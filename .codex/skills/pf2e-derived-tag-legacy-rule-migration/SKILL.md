@@ -12,7 +12,8 @@ This is **not** only a rule-audit skill. It is also a full record-by-record migr
 This is a **live-authoring** skill:
 - confident explicit assignments are written directly into authored assignment files
 - confident future authored rules are written directly into `src/tags/authored-rules`
-- only uncertain assignments or uncertain rule disposition should go to review
+- only uncertain assignments go into `src/tags/assignment-reviews`
+- only uncertain rule disposition should go to review
 
 ## Required Output
 
@@ -34,9 +35,9 @@ For the legacy rule itself:
 3. For each touched record, do a full future-state tagging pass.
    Do not only patch the one legacy-rule tag.
 4. Write confident assignment decisions directly.
-   Use `auto_applied` for confident decisions and sync live `applied` / `excluded`.
+   Update `src/tags/assignments` directly with durable provenance.
 5. Route uncertain assignment calls to review.
-   Use assignment `needs_review`.
+   Write them into `src/tags/assignment-reviews`.
 6. Decide the rule disposition.
    - if a safe deterministic future authored rule clearly exists, write it directly
    - if the rule is too noisy, replace it with explicit assignments only
@@ -50,4 +51,3 @@ For the legacy rule itself:
 - Every touched record gets the same full long-term treatment as a seed-migration record.
 - Do not preserve a noisy rule out of historical preference.
 - Do not defer obvious high-confidence assignments to the workbench.
-

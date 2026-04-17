@@ -8,6 +8,8 @@ import type {
 } from "../../types.js";
 import type {
   AuthoredDerivedTagAssignment,
+  DerivedTagAssignmentMemoryCategory,
+  DerivedTagAssignmentReviewCategory,
   DerivedTagReviewConfidence,
   DerivedTagReviewSource,
   DerivedTagReviewStatus,
@@ -154,6 +156,8 @@ export type DerivedTagReviewQueueSummaryItem = {
 
 export type DerivedTagMigrationAuthoredState = {
   assignments: Record<DerivedTagManagedCategory, AuthoredDerivedTagAssignment[]>;
+  assignmentReviews: Record<DerivedTagManagedCategory, DerivedTagAssignmentReviewCategory>;
+  assignmentMemory: Record<DerivedTagManagedCategory, DerivedTagAssignmentMemoryCategory>;
   exemplars: Record<DerivedTagManagedCategory, DerivedTagExemplarCategory>;
   exemplarReviews: Record<DerivedTagManagedCategory, DerivedTagExemplarReviewCategory>;
   authoredRules: Record<DerivedTagManagedCategory, AuthoredDerivedTagRule[]>;

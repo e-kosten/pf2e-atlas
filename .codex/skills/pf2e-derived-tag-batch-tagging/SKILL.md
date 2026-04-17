@@ -9,7 +9,7 @@ Use this skill for forward coverage work on records that are currently untagged 
 
 This is a **live-authoring** skill:
 - confident assignment decisions are written directly into authored assignment files
-- only ambiguous assignment decisions become `needs_review`
+- only ambiguous assignment decisions go into `src/tags/assignment-reviews`
 - ontology gaps are surfaced as explicit notes instead of being papered over with weak heuristics
 
 ## Required Output
@@ -30,9 +30,9 @@ While doing so:
 2. Read the relevant ontology slice before tagging.
 3. For each touched record, do a full future-state pass across the ontology.
 4. Write confident assignment decisions directly.
-   Use `auto_applied` and sync live `applied` / `excluded`.
+   Update `src/tags/assignments` directly with durable provenance.
 5. Route only ambiguous assignment decisions to review.
-   Use `needs_review`.
+   Write them into `src/tags/assignment-reviews`.
 6. If a touched record is clearly a strong or weak teaching example for a tag, update exemplars too.
    Confident exemplar decisions go directly to live exemplars; uncertain ones go to exemplar reviews.
 7. Capture ontology gaps explicitly instead of compensating with brittle logic.
@@ -44,4 +44,3 @@ While doing so:
 - Do not leave obvious high-confidence work for the workbench.
 - If a record is touched, settle its future-state tagging as completely as possible.
 - Treat the workbench as a small ambiguity resolver, not as the main authoring path.
-
