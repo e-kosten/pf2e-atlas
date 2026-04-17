@@ -9,6 +9,8 @@ import {
 import {
   createDerivedTagOntologyExplorerState,
   drillIntoDerivedTagOntologyExplorer,
+  moveDerivedTagOntologyExplorerDetailScroll,
+  moveDerivedTagOntologyExplorerDetailScrollToBoundary,
   moveDerivedTagOntologyExplorerSelection,
   moveDerivedTagOntologyExplorerSelectionToBoundary,
   normalizeDerivedTagOntologyExplorerState,
@@ -395,6 +397,29 @@ describe("derived tag ontology explorer", () => {
 
     state = moveDerivedTagOntologyExplorerSelectionToBoundary(model, state, "end");
     expect(state.selectedRecordKey).toBe("spell:three");
+  });
+
+  it("scrolls detail focus with clamping and boundary jumps", () => {
+    let state = {
+      depth: "record" as const,
+      filter: "",
+      detailScroll: 3,
+    };
+
+    state = moveDerivedTagOntologyExplorerDetailScroll(state, 5, 10);
+    expect(state.detailScroll).toBe(8);
+
+    state = moveDerivedTagOntologyExplorerDetailScroll(state, 5, 10);
+    expect(state.detailScroll).toBe(10);
+
+    state = moveDerivedTagOntologyExplorerDetailScroll(state, -20, 10);
+    expect(state.detailScroll).toBe(0);
+
+    state = moveDerivedTagOntologyExplorerDetailScrollToBoundary(state, "end", 14);
+    expect(state.detailScroll).toBe(14);
+
+    state = moveDerivedTagOntologyExplorerDetailScrollToBoundary(state, "start", 14);
+    expect(state.detailScroll).toBe(0);
   });
 
   it("filters ontology node lists by normalized search text", () => {
