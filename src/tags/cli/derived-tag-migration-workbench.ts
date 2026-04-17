@@ -33,15 +33,88 @@ import type {
 
 const MANAGED_CATEGORIES: DerivedTagManagedCategory[] = ["affliction", "creature", "equipment", "hazard", "spell"];
 
-type WorkbenchMenuItem =
+type TopLevelAreaId = "tag_refinement" | "ontology_search" | "search";
+
+type WorkbenchArea = {
+  id: TopLevelAreaId;
+  label: string;
+  description: string;
+};
+
+type TagRefinementMenuItem =
   | { kind: "review_queue_item"; label: string; queueItem: DerivedTagReviewQueueSummaryItem }
   | { kind: "review_all"; label: string }
   | { kind: "create_mode"; label: string; mode: DerivedTagMigrationMode }
-  | { kind: "explore_ontology"; label: string }
-  | { kind: "quit"; label: string };
+  | { kind: "back"; label: string };
 
-function buildWorkbenchMenuItems(items: DerivedTagReviewQueueSummaryItem[]): WorkbenchMenuItem[] {
-  const menuItems: WorkbenchMenuItem[] = [];
+const WORKBENCH_AREAS: WorkbenchArea[] = [
+  {
+    id: "tag_refinement",
+    label: "Tag Refinement",
+    description: "Review authored queue items and create legacy-seed, legacy-rule, exemplar-cleanup, and new-tagging sessions.",
+  },
+  {
+    id: "ontology_search",
+    label: "Ontology Search",
+    description: "Browse category -> family -> tag -> record and inspect how derived tags map onto live indexed records.",
+  },
+  {
+    id: "search",
+    label: "Search",
+    description: "Future first-class search surface for exact lookup, hard-filter browsing, and ranked/semantic retrieval.",
+  },
+];
+
+function clampWindowStart(selectedIndex: number, itemCount: number, visibleCount: number): number {
+  if (visibleCount <= 0 || itemCount <= visibleCount) {
+    return 0;
+  }
+  const centered = selectedIndex - Math.floor(visibleCount / 2);
+  return Math.max(0, Math.min(centered, itemCount - visibleCount));
+}
+
+function buildScrollableLines<T extends { label: string }>(
+  terminalSession: DerivedTagTerminalSession,
+  items: T[],
+  selectedIndex: number,
+): DerivedTagTerminalLine[] {
+  const visibleCount = Math.max(1, getTerminalPaneBodyHeight(terminalSession, {
+    hasSubtitle: true,
+    footerLineCount: 2,
+  }));
+  const windowStart = clampWindowStart(selectedIndex, items.length, visibleCount);
+
+  return items.slice(windowStart, windowStart + visibleCount).map((item, offset) => ({
+    text: item.label,
+    tone: windowStart + offset === selectedIndex ? "selected" : "default",
+    noWrap: true,
+  }));
+}
+
+function buildAreaDetailLines(queueItems: DerivedTagReviewQueueSummaryItem[]): DerivedTagTerminalLine[] {
+  return [
+    { text: "Tag Refinement", tone: "section" },
+    { text: `${queueItems.length} pending review queue slice${queueItems.length === 1 ? "" : "s"}` },
+    { text: "" },
+    { text: "Ontology Search", tone: "section" },
+    { text: "Browse the published ontology and drill from tags into live records." },
+    { text: "" },
+    { text: "Search", tone: "section" },
+    { text: "Reserved for the future TUI search surface powered by the same project search capabilities as the MCP server." },
+  ];
+}
+
+function buildTopLevelHelpLines(): DerivedTagTerminalLine[] {
+  return [
+    { text: "Top-Level Help", tone: "section" },
+    { text: "Up / Down or j / k: move between areas" },
+    { text: "Enter: open the selected area" },
+    { text: "q: exit the TUI" },
+  ];
+}
+
+function buildTagRefinementMenuItems(items: DerivedTagReviewQueueSummaryItem[]): TagRefinementMenuItem[] {
+  const menuItems: TagRefinementMenuItem[] = [];
   if (items.length > 0) {
     menuItems.push({ kind: "review_all", label: "Review all pending queue items" });
     for (const item of items) {
@@ -61,36 +134,9 @@ function buildWorkbenchMenuItems(items: DerivedTagReviewQueueSummaryItem[]): Wor
     { kind: "create_mode", label: "Create legacy-rule review session", mode: "legacy_rule" },
     { kind: "create_mode", label: "Create exemplar-cleanup review session", mode: "exemplar_cleanup" },
     { kind: "create_mode", label: "Create new-tagging review session", mode: "new_tagging" },
-    { kind: "explore_ontology", label: "Explore ontology" },
-    { kind: "quit", label: "Quit" },
+    { kind: "back", label: "Back to top level" },
   );
   return menuItems;
-}
-
-function clampWindowStart(selectedIndex: number, itemCount: number, visibleCount: number): number {
-  if (visibleCount <= 0 || itemCount <= visibleCount) {
-    return 0;
-  }
-  const centered = selectedIndex - Math.floor(visibleCount / 2);
-  return Math.max(0, Math.min(centered, itemCount - visibleCount));
-}
-
-function buildMenuLines(
-  terminalSession: DerivedTagTerminalSession,
-  menuItems: WorkbenchMenuItem[],
-  selectedIndex: number,
-): DerivedTagTerminalLine[] {
-  const visibleCount = Math.max(1, getTerminalPaneBodyHeight(terminalSession, {
-    hasSubtitle: true,
-    footerLineCount: 2,
-  }));
-  const windowStart = clampWindowStart(selectedIndex, menuItems.length, visibleCount);
-
-  return menuItems.slice(windowStart, windowStart + visibleCount).map((item, offset) => ({
-    text: item.label,
-    tone: windowStart + offset === selectedIndex ? "selected" : "default",
-    noWrap: true,
-  }));
 }
 
 function buildQueueLines(queueItems: DerivedTagReviewQueueSummaryItem[]): DerivedTagTerminalLine[] {
@@ -111,11 +157,12 @@ function buildQueueLines(queueItems: DerivedTagReviewQueueSummaryItem[]): Derive
 
 function renderWorkbenchHelp(terminalSession: DerivedTagTerminalSession): void {
   renderTerminalTextScreen(terminalSession, {
-    title: "Derived-Tag Workbench Help",
+    title: "Tag Refinement Help",
     body: [
       { text: "Navigation", tone: "section" },
-      { text: "Up / Down or j / k: move between workbench menu rows" },
+      { text: "Up / Down or j / k: move between tag-refinement rows" },
       { text: "Enter: open the selected row" },
+      { text: "q or Backspace: return to top level" },
       { text: "" },
       { text: "Shortcuts", tone: "section" },
       { text: "a review all queue items" },
@@ -123,8 +170,6 @@ function renderWorkbenchHelp(terminalSession: DerivedTagTerminalSession): void {
       { text: "r create a legacy-rule session" },
       { text: "e create an exemplar-cleanup session" },
       { text: "n create a new-tagging session" },
-      { text: "o open the ontology explorer" },
-      { text: "q quit" },
     ],
     footer: [{ text: "Press any key to return.", tone: "dim" }],
   });
@@ -251,7 +296,7 @@ async function createAndRunSession(
   }
 }
 
-async function openOntologyExplorer(
+async function openOntologySearch(
   argv: string[],
   terminalSession: DerivedTagTerminalSession,
 ): Promise<void> {
@@ -263,7 +308,31 @@ async function openOntologyExplorer(
   }
 }
 
-async function runWorkbench(
+async function runSearchPlaceholder(
+  terminalSession: DerivedTagTerminalSession,
+): Promise<void> {
+  while (true) {
+    renderTerminalTextScreen(terminalSession, {
+      title: "Search",
+      body: [
+        { text: "This area is reserved for the future first-class TUI search surface.", tone: "section" },
+        { text: "" },
+        { text: "Planned capabilities:" },
+        { text: "Exact name lookup, category-aware hard filters, deterministic listing, and ranked/semantic search over the same indexed PF2E data surfaced by the MCP server.", indent: 2 },
+        { text: "" },
+        { text: "Entity pages in Ontology Search are the groundwork for this future surface.", tone: "dim" },
+      ],
+      footer: [{ text: "q or Backspace return to top level", tone: "dim" }],
+    });
+
+    const key = await readTerminalKey(terminalSession);
+    if (key.normalizedName === "q" || key.normalizedName === "backspace" || key.normalizedName === "left" || key.normalizedName === "ctrl_c") {
+      return;
+    }
+  }
+}
+
+async function runTagRefinementWorkbench(
   terminalSession: DerivedTagTerminalSession,
   rootPath: string,
   argv: string[],
@@ -272,22 +341,22 @@ async function runWorkbench(
 
   while (true) {
     const queueItems = summarizeCurrentDerivedTagReviewQueue();
-    const menuItems = buildWorkbenchMenuItems(queueItems);
+    const menuItems = buildTagRefinementMenuItems(queueItems);
     selectedIndex = Math.max(0, Math.min(selectedIndex, Math.max(0, menuItems.length - 1)));
 
     renderTerminalTwoPaneScreen(terminalSession, {
-      title: "Derived-Tag Migration Workbench",
+      title: "Tag Refinement",
       subtitle: `${queueItems.length} queue slice${queueItems.length === 1 ? "" : "s"} pending review`,
       left: {
         title: "Menu",
-        lines: buildMenuLines(terminalSession, menuItems, selectedIndex),
+        lines: buildScrollableLines(terminalSession, menuItems, selectedIndex),
       },
       right: {
         title: "Pending Review Queue",
         lines: buildQueueLines(queueItems),
       },
       footer: [
-        { text: "Up/Down or j/k move  Enter select  ? help  a review all  s/r/e/n create sessions  o explore ontology  q quit", tone: "dim" },
+        { text: "Up/Down or j/k move  Enter select  ? help  a review all  s/r/e/n create sessions  q/back top level", tone: "dim" },
         { text: `Selected: ${menuItems[selectedIndex]?.label ?? "(none)"}`, tone: "accent" },
       ],
       leftWidth: 48,
@@ -296,7 +365,7 @@ async function runWorkbench(
     const key = await readTerminalKey(terminalSession);
     const normalized = key.normalizedName;
 
-    if (normalized === "ctrl_c" || normalized === "q") {
+    if (normalized === "ctrl_c" || normalized === "q" || normalized === "backspace" || normalized === "left") {
       return;
     }
 
@@ -315,10 +384,6 @@ async function runWorkbench(
     }
     if (normalized === "a" && queueItems.length > 0) {
       await createAndRunSession(rootPath, argv, "review_queue", {}, terminalSession);
-      continue;
-    }
-    if (normalized === "o") {
-      await openOntologyExplorer(argv, terminalSession);
       continue;
     }
     if (normalized === "s" || normalized === "r" || normalized === "e" || normalized === "n") {
@@ -342,7 +407,7 @@ async function runWorkbench(
       continue;
     }
 
-    if (selectedItem.kind === "quit") {
+    if (selectedItem.kind === "back") {
       return;
     }
     if (selectedItem.kind === "review_all") {
@@ -361,11 +426,84 @@ async function runWorkbench(
     if (selectedItem.kind === "create_mode") {
       const options = await promptCustomSessionOptions(terminalSession, selectedItem.mode);
       await createAndRunSession(rootPath, argv, selectedItem.mode, options, terminalSession);
+    }
+  }
+}
+
+async function runWorkbench(
+  terminalSession: DerivedTagTerminalSession,
+  rootPath: string,
+  argv: string[],
+): Promise<void> {
+  let selectedAreaIndex = 0;
+
+  while (true) {
+    const queueItems = summarizeCurrentDerivedTagReviewQueue();
+
+    renderTerminalTwoPaneScreen(terminalSession, {
+      title: "PF2E Tag TUI",
+      subtitle: "Choose a first-class TUI area",
+      left: {
+        title: "Areas",
+        lines: buildScrollableLines(terminalSession, WORKBENCH_AREAS, selectedAreaIndex),
+      },
+      right: {
+        title: "Selected Area",
+        lines: [
+          { text: WORKBENCH_AREAS[selectedAreaIndex]?.label ?? "", tone: "section" },
+          { text: WORKBENCH_AREAS[selectedAreaIndex]?.description ?? "" },
+          { text: "" },
+          ...buildAreaDetailLines(queueItems),
+        ],
+      },
+      footer: [
+        { text: "Up/Down or j/k move  Enter select  ? help  q quit", tone: "dim" },
+        { text: `${queueItems.length} pending queue slice${queueItems.length === 1 ? "" : "s"}`, tone: "accent" },
+      ],
+      leftWidth: 32,
+    });
+
+    const key = await readTerminalKey(terminalSession);
+    const normalized = key.normalizedName;
+
+    if (normalized === "ctrl_c" || normalized === "q") {
+      return;
+    }
+    if (normalized === "up" || normalized === "k") {
+      selectedAreaIndex = moveSelectionWrapped(selectedAreaIndex, -1, WORKBENCH_AREAS.length);
       continue;
     }
-    if (selectedItem.kind === "explore_ontology") {
-      await openOntologyExplorer(argv, terminalSession);
+    if (normalized === "down" || normalized === "j") {
+      selectedAreaIndex = moveSelectionWrapped(selectedAreaIndex, 1, WORKBENCH_AREAS.length);
+      continue;
     }
+    if (normalized === "?") {
+      renderTerminalTextScreen(terminalSession, {
+        title: "Top-Level Help",
+        body: buildTopLevelHelpLines(),
+        footer: [{ text: "Press any key to return.", tone: "dim" }],
+      });
+      await readTerminalKey(terminalSession);
+      continue;
+    }
+    if (normalized !== "enter" && normalized !== "kp_enter") {
+      continue;
+    }
+
+    const selectedArea = WORKBENCH_AREAS[selectedAreaIndex];
+    if (!selectedArea) {
+      continue;
+    }
+
+    if (selectedArea.id === "tag_refinement") {
+      await runTagRefinementWorkbench(terminalSession, rootPath, argv);
+      continue;
+    }
+    if (selectedArea.id === "ontology_search") {
+      await openOntologySearch(argv, terminalSession);
+      continue;
+    }
+    await runSearchPlaceholder(terminalSession);
   }
 }
 
