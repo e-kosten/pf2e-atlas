@@ -1,6 +1,6 @@
 import type { DerivedTagMigrationDecision, DerivedTagMigrationSession } from "./types.js";
 import { getCurrentDerivedTagMigrationAuthoredState } from "./authored-state.js";
-import { getDerivedTagMigrationReviewItems } from "./review-session.js";
+import { getDerivedTagMigrationReviewItems, summarizeDerivedTagMigrationReviewProgress } from "./review-session.js";
 
 function describeDecision(decision: DerivedTagMigrationDecision): string {
   if (decision.kind === "assignment") {
@@ -65,16 +65,18 @@ function renderStatus(value: string): string {
 }
 
 export function renderDerivedTagMigrationSessionSummary(session: DerivedTagMigrationSession): string {
-  const items = getDerivedTagMigrationReviewItems(session);
-  const resolvedCount = session.decisions.filter((decision) => decision.resolutionStatus === "complete").length;
+  const progress = summarizeDerivedTagMigrationReviewProgress(session);
+  const actionableSummary = progress.actionableRecordCount > 0
+    ? `Actionable records resolved: ${progress.resolvedActionableRecordCount}/${progress.actionableRecordCount}`
+    : "Actionable review items: 0";
   return [
     `Session: ${session.manifest.id}`,
     `Mode: ${session.manifest.mode}`,
     `Category: ${session.manifest.category ?? "(all)"}`,
     `Tag: ${session.manifest.tag ?? "(any)"}`,
-    `Records: ${session.manifest.recordCount}`,
-    `Resolved records: ${resolvedCount}/${session.decisions.length}`,
-    `Visible review items: ${items.length}`,
+    `Candidate records: ${progress.candidateRecordCount}`,
+    actionableSummary,
+    `Visible review items: ${progress.visibleItemCount}`,
     `Unresolved only: ${session.reviewState.unresolvedOnly ? "yes" : "no"}`,
   ].join("\n");
 }
@@ -84,8 +86,8 @@ export function renderDerivedTagMigrationReviewItem(
   itemIndex: number,
   actionBar?: string,
 ): string {
-  const items = getDerivedTagMigrationReviewItems(session);
-  if (items.length === 0) {
+  const itemsForRender = getDerivedTagMigrationReviewItems(session);
+  if (itemsForRender.length === 0) {
     return [
       renderDerivedTagMigrationSessionSummary(session),
       "",
@@ -94,7 +96,7 @@ export function renderDerivedTagMigrationReviewItem(
     ].join("\n");
   }
 
-  const item = items[itemIndex]!;
+  const item = itemsForRender[itemIndex]!;
   const recordDecision = session.decisions[item.recordIndex]!;
   const record = session.records.find((entry) => entry.recordKey === recordDecision.recordKey)!;
   const decision = recordDecision.decisions[item.decisionIndex]!;
@@ -102,7 +104,7 @@ export function renderDerivedTagMigrationReviewItem(
   return [
     renderDerivedTagMigrationSessionSummary(session),
     "",
-    `Item ${itemIndex + 1}/${items.length}`,
+    `Item ${itemIndex + 1}/${itemsForRender.length}`,
     `${record.name} (${record.recordKey})`,
     `Scope: ${record.category}${record.subcategory ? `/${record.subcategory}` : ""} | level ${record.level ?? "-"}`,
     `Decision: ${describeDecision(decision)}`,

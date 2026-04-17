@@ -28,6 +28,7 @@ import { summarizeCurrentDerivedTagReviewQueue } from "../../src/tags/migration/
 import {
   clampDerivedTagMigrationReviewIndex,
   getDerivedTagMigrationReviewItems,
+  summarizeDerivedTagMigrationReviewProgress,
   toggleDerivedTagMigrationUnresolvedOnly,
   updateDerivedTagMigrationDecisionStatus,
 } from "../../src/tags/migration/review-session.js";
@@ -377,6 +378,71 @@ describe("derived tag migration tooling", () => {
     session = toggleDerivedTagMigrationUnresolvedOnly(session);
     session = clampDerivedTagMigrationReviewIndex(session);
     expect(getDerivedTagMigrationReviewItems(session)).toHaveLength(1);
+  });
+
+  it("reports candidate and actionable review progress separately", () => {
+    const session: DerivedTagMigrationSession = {
+      manifest: {
+        id: "test",
+        mode: "new_tagging",
+        createdAt: "2026-04-16T00:00:00.000Z",
+        recordCount: 3,
+      },
+      records: [],
+      decisions: [
+        {
+          recordKey: "creature:one",
+          name: "Creature One",
+          category: "creature",
+          resolutionStatus: "needs_review",
+          decisions: [],
+        },
+        {
+          recordKey: "creature:two",
+          name: "Creature Two",
+          category: "creature",
+          resolutionStatus: "complete",
+          decisions: [
+            {
+              kind: "assignment",
+              family: "alarm",
+              tag: "alarm",
+              mode: "include",
+              status: "approved",
+              rationale: "Approved.",
+            },
+          ],
+        },
+        {
+          recordKey: "spell:one",
+          name: "Spell One",
+          category: "spell",
+          resolutionStatus: "needs_review",
+          decisions: [
+            {
+              kind: "assignment",
+              family: "alarm",
+              tag: "alarm",
+              mode: "include",
+              status: "needs_review",
+              rationale: "Needs review.",
+            },
+          ],
+        },
+      ],
+      reviewState: {
+        currentIndex: 0,
+        unresolvedOnly: true,
+        updatedAt: "2026-04-16T00:00:00.000Z",
+      },
+    };
+
+    expect(summarizeDerivedTagMigrationReviewProgress(session)).toEqual({
+      candidateRecordCount: 3,
+      actionableRecordCount: 2,
+      resolvedActionableRecordCount: 1,
+      visibleItemCount: 1,
+    });
   });
 
   it("clamps keyboard selection movement to valid bounds", () => {

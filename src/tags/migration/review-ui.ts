@@ -3,6 +3,7 @@ import { lintDerivedTagMigrationSession } from "./linter.js";
 import {
   clampDerivedTagMigrationReviewIndex,
   getDerivedTagMigrationReviewItems,
+  summarizeDerivedTagMigrationReviewProgress,
   toggleDerivedTagMigrationUnresolvedOnly,
   updateDerivedTagMigrationDecisionStatus,
 } from "./review-session.js";
@@ -27,11 +28,17 @@ export type DerivedTagMigrationReviewResult = {
 };
 
 async function persistSession(rootPath: string, session: DerivedTagMigrationSession): Promise<void> {
+  const progress = summarizeDerivedTagMigrationReviewProgress(session);
+  const actionableSummary = progress.actionableRecordCount > 0
+    ? `Actionable records resolved: ${progress.resolvedActionableRecordCount}/${progress.actionableRecordCount}`
+    : "Actionable review items: 0";
   await writeDerivedTagMigrationSession(rootPath, session);
   await writeDerivedTagMigrationSummary(rootPath, session.manifest.id, [
     `Session: ${session.manifest.id}`,
     `Mode: ${session.manifest.mode}`,
-    `Visible review items: ${getDerivedTagMigrationReviewItems(session).length}`,
+    `Candidate records: ${progress.candidateRecordCount}`,
+    actionableSummary,
+    `Visible review items: ${progress.visibleItemCount}`,
     `Updated at: ${session.reviewState.updatedAt}`,
   ].join("\n"));
 }
@@ -161,10 +168,13 @@ export async function runDerivedTagMigrationReviewUi(
 
   while (true) {
     const items = getDerivedTagMigrationReviewItems(session);
-    const resolvedCount = session.decisions.filter((decision) => decision.resolutionStatus === "complete").length;
+    const progress = summarizeDerivedTagMigrationReviewProgress(session);
+    const progressText = progress.actionableRecordCount > 0
+      ? `${progress.resolvedActionableRecordCount}/${progress.actionableRecordCount} actionable records resolved`
+      : `${progress.candidateRecordCount} candidate records | 0 actionable review items`;
     renderTerminalTwoPaneScreen(terminalSession, {
       title: "Derived-Tag Review",
-      subtitle: `Session ${session.manifest.id} | ${resolvedCount}/${session.decisions.length} records resolved | ${items.length} visible item${items.length === 1 ? "" : "s"} | unresolved only ${session.reviewState.unresolvedOnly ? "on" : "off"}`,
+      subtitle: `Session ${session.manifest.id} | ${progressText} | ${items.length} visible item${items.length === 1 ? "" : "s"} | unresolved only ${session.reviewState.unresolvedOnly ? "on" : "off"}`,
       left: {
         title: "Review Queue",
         lines: buildReviewListLines(terminalSession, session),

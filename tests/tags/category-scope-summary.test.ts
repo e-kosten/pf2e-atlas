@@ -117,23 +117,23 @@ describe("derived tag category scope summaries", () => {
     const summary = summarizeDerivedTagCategoryScopes(db, "review_queue");
 
     expect(summary.allCategoriesDetailLines).toEqual([
-      "1 assignment decisions pending",
-      "1 exemplar decisions pending",
+      "2 pending review changes",
+      "1 assignment + 1 exemplar",
       "2 queue slices",
     ]);
     expect(summary.categories.find((entry) => entry.category === "creature")?.detailLines).toEqual([
-      "1 assignment decision pending",
-      "0 exemplar decisions pending",
+      "1 pending review change",
+      "1 assignment + 0 exemplar",
       "1 queue slice",
     ]);
     expect(summary.categories.find((entry) => entry.category === "spell")?.detailLines).toEqual([
-      "0 assignment decisions pending",
-      "1 exemplar decision pending",
+      "1 pending review change",
+      "0 assignment + 1 exemplar",
       "1 queue slice",
     ]);
   });
 
-  it("shows untagged counts by category and allows new-tagging sessions across all categories", () => {
+  it("shows pending review changes and candidate counts for new-tagging scope selection", () => {
     const db = createMigrationDb();
     insertRecord(db, {
       recordKey: "creature:one",
@@ -154,20 +154,49 @@ describe("derived tag category scope summaries", () => {
 
     const summary = summarizeDerivedTagCategoryScopes(db, "new_tagging");
     expect(summary.allCategoriesDetailLines).toEqual([
-      "2 untagged canonical records",
-      "Review across all managed categories",
+      "0 pending review changes",
+      "2 untagged candidate records",
+      "All-category sessions require a limit",
     ]);
     expect(summary.categories.find((entry) => entry.category === "creature")?.detailLines).toEqual([
-      "1 untagged canonical record",
-      "Ready for new-tagging review",
+      "0 pending review changes",
+      "1 untagged candidate record",
     ]);
     expect(summary.categories.find((entry) => entry.category === "spell")?.detailLines).toEqual([
-      "1 untagged canonical record",
-      "Ready for new-tagging review",
+      "0 pending review changes",
+      "1 untagged candidate record",
     ]);
+  });
+
+  it("requires a limit for all-category new-tagging sessions", () => {
+    const db = createMigrationDb();
+    insertRecord(db, {
+      recordKey: "creature:one",
+      name: "Creature Scout",
+      category: "creature",
+    });
+
+    expect(() => buildDerivedTagMigrationSession(db, {
+      mode: "new_tagging",
+    })).toThrow(/require --limit/i);
+  });
+
+  it("allows bounded all-category new-tagging sessions", () => {
+    const db = createMigrationDb();
+    insertRecord(db, {
+      recordKey: "creature:one",
+      name: "Creature Scout",
+      category: "creature",
+    });
+    insertRecord(db, {
+      recordKey: "spell:one",
+      name: "Arcane Bell",
+      category: "spell",
+    });
 
     const session = buildDerivedTagMigrationSession(db, {
       mode: "new_tagging",
+      limit: 2,
     });
 
     expect(session.manifest.category).toBeUndefined();

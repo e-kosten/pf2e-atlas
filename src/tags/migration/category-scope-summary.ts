@@ -4,7 +4,7 @@ import type { SearchCategory } from "../../types.js";
 import { listDerivedTagLegacySeedMigrations } from "../index.js";
 import { DERIVED_TAG_MANAGED_CATEGORIES } from "./list-sorting.js";
 import { getCurrentDerivedTagMigrationAuthoredState } from "./authored-state.js";
-import { loadDerivedTagMigrationRecords } from "./record-loader.js";
+import { countDerivedTagMigrationRecords, loadDerivedTagMigrationRecords } from "./record-loader.js";
 import { deriveCurrentTagSources, summarizeCurrentDerivedTagReviewQueue } from "./runtime-state.js";
 import type { DerivedTagManagedCategory, DerivedTagMigrationMode } from "./types.js";
 
@@ -20,6 +20,10 @@ export type DerivedTagCategoryScopeSummarySet = {
 
 function sum(values: number[]): number {
   return values.reduce((total, value) => total + value, 0);
+}
+
+function formatPendingReviewChanges(count: number): string {
+  return `${count} pending review change${count === 1 ? "" : "s"}`;
 }
 
 function toManagedCategory(category: SearchCategory): DerivedTagManagedCategory {
@@ -56,15 +60,15 @@ function buildReviewQueueCategoryScopeSummary(): DerivedTagCategoryScopeSummaryS
 
   return {
     allCategoriesDetailLines: [
-      `${sum(counts.map((entry) => entry.assignmentCount))} assignment decisions pending`,
-      `${sum(counts.map((entry) => entry.exemplarCount))} exemplar decisions pending`,
+      formatPendingReviewChanges(sum(counts.map((entry) => entry.assignmentCount + entry.exemplarCount))),
+      `${sum(counts.map((entry) => entry.assignmentCount))} assignment + ${sum(counts.map((entry) => entry.exemplarCount))} exemplar`,
       `${sum(counts.map((entry) => entry.queueSliceCount))} queue slices`,
     ],
     categories: counts.map((entry) => ({
       category: entry.category,
       detailLines: [
-        `${entry.assignmentCount} assignment decision${entry.assignmentCount === 1 ? "" : "s"} pending`,
-        `${entry.exemplarCount} exemplar decision${entry.exemplarCount === 1 ? "" : "s"} pending`,
+        formatPendingReviewChanges(entry.assignmentCount + entry.exemplarCount),
+        `${entry.assignmentCount} assignment + ${entry.exemplarCount} exemplar`,
         `${entry.queueSliceCount} queue slice${entry.queueSliceCount === 1 ? "" : "s"}`,
       ],
     })),
@@ -133,10 +137,10 @@ function buildNewTaggingCategoryScopeSummary(
   db: DatabaseSync,
 ): DerivedTagCategoryScopeSummarySet {
   const counts = DERIVED_TAG_MANAGED_CATEGORIES.map((category) => {
-    const recordCount = loadDerivedTagMigrationRecords(db, {
+    const recordCount = countDerivedTagMigrationRecords(db, {
       category,
       untaggedOnly: true,
-    }).length;
+    });
 
     return {
       category,
@@ -146,14 +150,15 @@ function buildNewTaggingCategoryScopeSummary(
 
   return {
     allCategoriesDetailLines: [
-      `${sum(counts.map((entry) => entry.recordCount))} untagged canonical records`,
-      "Review across all managed categories",
+      formatPendingReviewChanges(0),
+      `${sum(counts.map((entry) => entry.recordCount))} untagged candidate record${sum(counts.map((entry) => entry.recordCount)) === 1 ? "" : "s"}`,
+      "All-category sessions require a limit",
     ],
     categories: counts.map((entry) => ({
       category: entry.category,
       detailLines: [
-        `${entry.recordCount} untagged canonical record${entry.recordCount === 1 ? "" : "s"}`,
-        "Ready for new-tagging review",
+        formatPendingReviewChanges(0),
+        `${entry.recordCount} untagged candidate record${entry.recordCount === 1 ? "" : "s"}`,
       ],
     })),
   };

@@ -5,6 +5,13 @@ export type DerivedTagMigrationReviewItem = {
   decisionIndex: number;
 };
 
+export type DerivedTagMigrationReviewProgress = {
+  candidateRecordCount: number;
+  actionableRecordCount: number;
+  resolvedActionableRecordCount: number;
+  visibleItemCount: number;
+};
+
 export function getDerivedTagMigrationReviewItems(
   session: DerivedTagMigrationSession,
 ): DerivedTagMigrationReviewItem[] {
@@ -18,6 +25,21 @@ export function getDerivedTagMigrationReviewItems(
     });
   });
   return items;
+}
+
+export function summarizeDerivedTagMigrationReviewProgress(
+  session: DerivedTagMigrationSession,
+): DerivedTagMigrationReviewProgress {
+  const actionableDecisions = session.decisions.filter((recordDecision) => recordDecision.decisions.length > 0);
+
+  return {
+    candidateRecordCount: session.manifest.recordCount,
+    actionableRecordCount: actionableDecisions.length,
+    resolvedActionableRecordCount: actionableDecisions
+      .filter((recordDecision) => recordDecision.resolutionStatus === "complete")
+      .length,
+    visibleItemCount: getDerivedTagMigrationReviewItems(session).length,
+  };
 }
 
 export function updateDerivedTagMigrationDecisionStatus(

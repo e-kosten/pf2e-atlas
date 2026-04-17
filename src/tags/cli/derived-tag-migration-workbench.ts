@@ -583,7 +583,10 @@ async function promptCustomSessionOptions(
   const resolvedTagCategory = resolvedCategory ?? tagSelection.category;
   const tag = tagSelection.tag;
 
-  const limit = await promptInteger(terminalSession, "limit (blank for default)", "--limit");
+  const limitPrompt = mode === "new_tagging" && !resolvedTagCategory
+    ? "limit (required for all-category new-tagging)"
+    : "limit (blank for default)";
+  const limit = await promptInteger(terminalSession, limitPrompt, "--limit");
   const exemplarLimit = mode === "exemplar_cleanup"
     ? await promptInteger(terminalSession, "exemplar-limit (blank for none)", "--exemplar-limit")
     : undefined;

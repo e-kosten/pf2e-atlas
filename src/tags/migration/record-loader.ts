@@ -100,6 +100,48 @@ export type LoadDerivedTagMigrationRecordsOptions = {
   limit?: number;
 };
 
+function appendRecordFilters(
+  sql: string[],
+  params: Array<string | number>,
+  options: LoadDerivedTagMigrationRecordsOptions,
+): void {
+  if (options.category) {
+    sql.push("AND r.category = ?");
+    params.push(options.category);
+  }
+  if (options.subcategory) {
+    sql.push("AND r.subcategory = ?");
+    params.push(options.subcategory);
+  }
+  if (options.requireTag) {
+    sql.push("AND EXISTS (SELECT 1 FROM record_derived_tags d WHERE d.record_key = r.record_key AND d.tag = ?)");
+    params.push(normalizeText(options.requireTag));
+  }
+  if (options.untaggedOnly) {
+    sql.push("AND NOT EXISTS (SELECT 1 FROM record_derived_tags d WHERE d.record_key = r.record_key)");
+  }
+  if (options.recordKeys && options.recordKeys.length > 0) {
+    sql.push(`AND r.record_key IN (${buildPlaceholders(options.recordKeys)})`);
+    params.push(...options.recordKeys);
+  }
+}
+
+export function countDerivedTagMigrationRecords(
+  db: DatabaseSync,
+  options: LoadDerivedTagMigrationRecordsOptions,
+): number {
+  const sql = [
+    "SELECT COUNT(*) AS count",
+    "FROM records r",
+    "WHERE r.is_search_canonical = 1",
+  ];
+  const params: Array<string | number> = [];
+  appendRecordFilters(sql, params, options);
+
+  const row = db.prepare(sql.join("\n")).get(...params) as { count: number | bigint } | undefined;
+  return typeof row?.count === "bigint" ? Number(row.count) : (row?.count ?? 0);
+}
+
 export function loadDerivedTagMigrationRecords(
   db: DatabaseSync,
   options: LoadDerivedTagMigrationRecordsOptions,
@@ -121,26 +163,7 @@ export function loadDerivedTagMigrationRecords(
     "WHERE r.is_search_canonical = 1",
   ];
   const params: Array<string | number> = [];
-
-  if (options.category) {
-    sql.push("AND r.category = ?");
-    params.push(options.category);
-  }
-  if (options.subcategory) {
-    sql.push("AND r.subcategory = ?");
-    params.push(options.subcategory);
-  }
-  if (options.requireTag) {
-    sql.push("AND EXISTS (SELECT 1 FROM record_derived_tags d WHERE d.record_key = r.record_key AND d.tag = ?)");
-    params.push(normalizeText(options.requireTag));
-  }
-  if (options.untaggedOnly) {
-    sql.push("AND NOT EXISTS (SELECT 1 FROM record_derived_tags d WHERE d.record_key = r.record_key)");
-  }
-  if (options.recordKeys && options.recordKeys.length > 0) {
-    sql.push(`AND r.record_key IN (${buildPlaceholders(options.recordKeys)})`);
-    params.push(...options.recordKeys);
-  }
+  appendRecordFilters(sql, params, options);
   sql.push("ORDER BY r.name ASC, r.record_key ASC");
   if (options.limit && options.limit > 0) {
     sql.push(`LIMIT ${Math.trunc(options.limit)}`);

@@ -482,6 +482,10 @@ function buildNewTaggingWorkset(
   db: DatabaseSync,
   options: DerivedTagMigrationSessionCreateOptions,
 ): DerivedTagMigrationSession {
+  if (!options.category && !options.limit) {
+    throw new Error("All-category new-tagging sessions require --limit so the workset stays bounded.");
+  }
+
   const records = loadDerivedTagMigrationRecords(db, {
     category: options.category,
     subcategory: options.subcategory,
