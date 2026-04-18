@@ -123,4 +123,59 @@ describe("ontology browser screen", () => {
 
     app.unmount();
   });
+
+  it("opens list-record queries on confirm for search semantics leaves", async () => {
+    const model: OntologyDomainModel = {
+      id: "searchSemantics",
+      label: "Search Semantics",
+      description: "Test search semantics domain",
+      rootNodes: [
+        {
+          id: "creature:publicationTitle:rage-of-elements",
+          kind: "value",
+          label: "Pathfinder Rage of Elements",
+          filterText: "pathfinder rage of elements",
+          listLabel: "Pathfinder Rage of Elements | 81",
+          detailTitle: "Filter Value",
+          detailLines: [
+            { text: "Pathfinder Rage of Elements", tone: "section" },
+            { text: "Live canonical records: 81" },
+            { text: "Press Enter or o to open the full matching set in the shared result reader." },
+          ],
+          query: {
+            kind: "listRecords",
+            label: "Browse records with this value",
+            filters: {
+              category: "creature",
+              metadata: { field: "publicationTitle", op: "contains", value: "Pathfinder Rage of Elements" },
+              limit: 20,
+            },
+          },
+        },
+      ],
+    };
+    const onOpenQuery = vi.fn();
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <OntologyBrowserScreen model={model} onExit={vi.fn()} onOpenQuery={onOpenQuery} />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+
+    app.stdin.write("\r");
+    await flushInk();
+
+    expect(onOpenQuery).toHaveBeenCalledWith({
+      kind: "listRecords",
+      label: "Browse records with this value",
+      filters: {
+        category: "creature",
+        metadata: { field: "publicationTitle", op: "contains", value: "Pathfinder Rage of Elements" },
+        limit: 20,
+      },
+    });
+
+    app.unmount();
+  });
 });
