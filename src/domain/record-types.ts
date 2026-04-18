@@ -89,6 +89,14 @@ export type SourceCategory = "core" | "rules" | "adventure" | "unknown";
 export type VariantSource = "baseItem" | "slug" | "namePattern" | "sourcePath" | "composite" | "none";
 export type DerivedTagAssignmentMode = "deterministic" | "editorial" | "hybrid" | "composite";
 export type DerivedTagOntologyCategory = "equipment" | "creature" | "hazard" | "affliction" | "spell";
+export type DerivedTagCompositeSelector =
+  | { kind: "tag"; tag: string }
+  | {
+    kind: "family";
+    family: string;
+    include?: "leaf_tags" | "all_tags";
+    excludeTags?: string[];
+  };
 export interface DerivedTagOntologyAxisByCategory {
   equipment:
     | "legacy"
@@ -140,7 +148,9 @@ export interface DerivedTagOntologyFamily<C extends DerivedTagOntologyCategory =
   variantInheritance?: boolean;
 }
 
-export interface DerivedTagAuthoredTag extends Omit<DerivedTagOntologyTag, "category" | "family"> {}
+export interface DerivedTagAuthoredTag extends Omit<DerivedTagOntologyTag, "category" | "family"> {
+  compositeOfAny?: DerivedTagCompositeSelector[];
+}
 
 export interface DerivedTagAuthoredFamily<C extends DerivedTagOntologyCategory = DerivedTagOntologyCategory> {
   subcategories?: SearchSubcategory[];

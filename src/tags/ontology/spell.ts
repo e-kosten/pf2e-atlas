@@ -1,4 +1,5 @@
 import type { DerivedTagAuthoredCategoryOntology } from "../../types.js";
+import { fromFamily, fromTag } from "./utils.js";
 
 export const SPELL_DERIVED_TAG_ONTOLOGY = {
   category: "spell",
@@ -166,10 +167,9 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
             "tracking",
             "scouting_summons"
           ],
-          compositeOfAnyTags: [
-            "scouting",
-            "tracking",
-            "scouting_summons"
+          compositeOfAny: [
+            fromFamily("reconnaissance"),
+            fromTag("scouting_summons")
           ]
         }
       ]
@@ -236,12 +236,8 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
             "truth_reveal",
             "hazard_revelation"
           ],
-          compositeOfAnyTags: [
-            "magic_detection",
-            "invisibility_reveal",
-            "truth_reveal",
-            "curse_revelation",
-            "hazard_revelation"
+          compositeOfAny: [
+            fromFamily("revelation")
           ]
         }
       ]
@@ -286,10 +282,8 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
             "problem_diagnosis",
             "omen_guidance"
           ],
-          compositeOfAnyTags: [
-            "lore_consultation",
-            "problem_diagnosis",
-            "omen_guidance"
+          compositeOfAny: [
+            fromFamily("consultation")
           ]
         }
       ]
@@ -331,11 +325,11 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
             "tracking",
             "long_range_teleport"
           ],
-          compositeOfAnyTags: [
-            "navigation",
-            "tracking",
-            "long_range_teleport",
-            "planar_travel"
+          compositeOfAny: [
+            fromTag("navigation"),
+            fromTag("tracking"),
+            fromTag("long_range_teleport"),
+            fromTag("planar_travel")
           ]
         }
       ]
@@ -427,10 +421,8 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
             "animal_form",
             "elemental_form"
           ],
-          compositeOfAnyTags: [
-            "battle_form",
-            "animal_form",
-            "elemental_form"
+          compositeOfAny: [
+            fromFamily("transformation")
           ]
         },
         {
@@ -932,11 +924,10 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
             "scrying_protection",
             "protective_ward"
           ],
-          compositeOfAnyTags: [
-            "alarm",
-            "scrying_protection",
-            "protective_ward",
-            "countermagic"
+          compositeOfAny: [
+            fromFamily("security"),
+            fromTag("protective_ward"),
+            fromTag("countermagic")
           ]
         }
       ]
