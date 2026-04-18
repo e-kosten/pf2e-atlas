@@ -788,6 +788,30 @@ export function getNormalizedKeyName(input: string, key: Key): string {
   if (key.return) {
     return "enter";
   }
+  if (input === "\u001b[A") {
+    return "up";
+  }
+  if (input === "\u001b[B") {
+    return "down";
+  }
+  if (input === "\u001b[C") {
+    return "right";
+  }
+  if (input === "\u001b[D") {
+    return "left";
+  }
+  if (input === "\u001b[5~") {
+    return "page_up";
+  }
+  if (input === "\u001b[6~") {
+    return "page_down";
+  }
+  if (input === "\u001b[H" || input === "\u001bOH") {
+    return "home";
+  }
+  if (input === "\u001b[F" || input === "\u001bOF") {
+    return "end";
+  }
   if (key.escape) {
     return "escape";
   }
@@ -1466,7 +1490,7 @@ function DerivedTagTerminalModalHost({
       resolver(selection);
       return;
     }
-    if (modal.kind === "select" && (normalized === "escape" || normalized === "backspace" || normalized === "q" || normalized === "ctrl_c")) {
+    if (modal.kind === "select" && (normalized === "escape" || normalized === "backspace" || normalized === "left" || normalized === "q" || normalized === "ctrl_c")) {
       const resolver = modal.resolve;
       setModal(null);
       resolver(undefined);

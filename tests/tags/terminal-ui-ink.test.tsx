@@ -334,6 +334,41 @@ describe("derived tag terminal ink runtime", () => {
     expect(getNormalizedKeyName("\u001b", { leftArrow: true } as never)).toBe("left");
   });
 
+  it("normalizes raw ANSI escape sequences for common navigation keys", () => {
+    expect(getNormalizedKeyName("\u001b[A", {} as never)).toBe("up");
+    expect(getNormalizedKeyName("\u001b[B", {} as never)).toBe("down");
+    expect(getNormalizedKeyName("\u001b[C", {} as never)).toBe("right");
+    expect(getNormalizedKeyName("\u001b[D", {} as never)).toBe("left");
+    expect(getNormalizedKeyName("\u001b[5~", {} as never)).toBe("page_up");
+    expect(getNormalizedKeyName("\u001b[6~", {} as never)).toBe("page_down");
+  });
+
+  it("supports raw right-select and raw left-return inside select prompts", async () => {
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <SelectPromptHarness />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInkFrames();
+    app.stdin.write("\u001b[C");
+    await flushInkFrames();
+    expect(app.lastFrame()).toContain("result=first");
+
+    app.unmount();
+
+    const cancelApp = render(
+      <DerivedTagTerminalProvider>
+        <SelectPromptHarness />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInkFrames();
+    cancelApp.stdin.write("\u001b[D");
+    await flushInkFrames();
+    expect(cancelApp.lastFrame()).toContain("result=cancelled");
+  });
+
   it("resolves shared gg and G list-boundary navigation", () => {
     const options = { pageSize: 10 };
 
