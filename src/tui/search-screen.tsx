@@ -1,6 +1,7 @@
 import React from "react";
 
 import type {
+  OntologyDomainModel,
   OntologyNodeQuery,
   SearchCategory,
   SearchCountResult,
@@ -34,6 +35,11 @@ import {
 } from "./terminal-ui.js";
 import { buildOntologyExplorerEntityDetailLines } from "./ontology-explorer/entity-page.js";
 import { mapNormalizedRecordToOntologyExplorerEntityRecord } from "./ontology-explorer/entity-record.js";
+import { buildSearchFacetPickerModel } from "./ontology-explorer/facet-picker-model.js";
+import {
+  OntologyPickerScreen,
+  type OntologyPickerSelectionMap,
+} from "./ontology-explorer/picker-screen.js";
 import { clampWindowStart } from "./list-utils.js";
 
 type SearchWorkspaceAction =
@@ -65,6 +71,12 @@ type SearchCountState = {
   status: "idle" | "loading" | "ready" | "error";
   result: SearchCountResult | null;
   message: string | null;
+};
+
+type SearchFacetPickerSession = {
+  model: OntologyDomainModel;
+  initialSelections: OntologyPickerSelectionMap;
+  scopedFields: string[];
 };
 
 type SearchScreenState = {
@@ -846,6 +858,89 @@ function buildFacetRemovalEntries(
   return entries;
 }
 
+function createEmptyStringPolicy(): OntologyPickerSelectionMap[string] {
+  return {
+    any: [],
+    all: [],
+    exclude: [],
+  };
+}
+
+function buildFacetPickerInitialSelections(
+  request: Pf2eTerminalSearchRequest,
+  scopedFields: string[],
+): OntologyPickerSelectionMap {
+  const initialSelections = Object.fromEntries(
+    scopedFields.map((field) => [field, createEmptyStringPolicy()]),
+  ) as OntologyPickerSelectionMap;
+
+  for (const facet of request.filters.facets) {
+    if (!scopedFields.includes(facet.field)) {
+      continue;
+    }
+    initialSelections[facet.field] = {
+      any: [...facet.policy.any],
+      all: [...facet.policy.all],
+      exclude: [...facet.policy.exclude],
+    };
+  }
+
+  if (scopedFields.includes("actionCost")) {
+    initialSelections.actionCost = {
+      any: request.filters.actionCost.any.map((value) => String(value)),
+      all: [],
+      exclude: request.filters.actionCost.exclude.map((value) => String(value)),
+    };
+  }
+
+  return initialSelections;
+}
+
+function applyFacetPickerSelectionsToRequest(
+  request: Pf2eTerminalSearchRequest,
+  selections: OntologyPickerSelectionMap,
+  scopedFields: string[],
+): Pf2eTerminalSearchRequest {
+  const retainedFacets = request.filters.facets.filter((facet) => !scopedFields.includes(facet.field));
+  const nextFacets = [...retainedFacets];
+
+  for (const field of scopedFields) {
+    if (field === "actionCost") {
+      continue;
+    }
+    const selection = selections[field] ?? createEmptyStringPolicy();
+    if (selection.any.length === 0 && selection.all.length === 0 && selection.exclude.length === 0) {
+      continue;
+    }
+    nextFacets.push({
+      field: field as Pf2eTerminalFacetField,
+      policy: {
+        any: [...selection.any],
+        all: [...selection.all],
+        exclude: [...selection.exclude],
+      },
+    });
+  }
+
+  const actionCostSelection = selections.actionCost ?? createEmptyStringPolicy();
+  return {
+    ...request,
+    filters: {
+      ...request.filters,
+      actionCost: {
+        any: actionCostSelection.any
+          .map((value) => Number.parseInt(value, 10))
+          .filter((value) => Number.isFinite(value)),
+        all: [],
+        exclude: actionCostSelection.exclude
+          .map((value) => Number.parseInt(value, 10))
+          .filter((value) => Number.isFinite(value)),
+      },
+      facets: nextFacets,
+    },
+  };
+}
+
 function buildFooterText(
   state: SearchScreenState,
   loadingMore: boolean,
@@ -875,6 +970,7 @@ export function SearchScreen({
   const size = useDerivedTagTerminalSize();
   const [busy, setBusy] = React.useState(false);
   const [loadingMore, setLoadingMore] = React.useState(false);
+  const [facetPickerSession, setFacetPickerSession] = React.useState<SearchFacetPickerSession | null>(null);
   const [countState, setCountState] = React.useState<SearchCountState>({
     status: "idle",
     result: null,
@@ -1345,104 +1441,26 @@ export function SearchScreen({
       return;
     }
 
-    const selectedField = await terminal.promptSelectOption({
-      title: "Facet Field",
-      prompt: "Choose a discoverable field to edit in the draft",
-      entries: fieldOptions.map((option) => ({
-        value: option.value,
-        label: option.label,
-        description: option.description,
-      })),
+    const searchSemanticsDomain = user.ontology.loadDomain("searchSemantics");
+    const model = buildSearchFacetPickerModel(searchSemanticsDomain, {
+      category: state.draft.filters.category,
+      subcategory: state.draft.filters.subcategory,
+      fieldOptions,
     });
-
-    if (!selectedField) {
+    if (model.rootNodes.length === 0) {
+      await terminal.pauseForAnyKey("No ontology-backed facet hierarchy is available for that scope.");
       return;
     }
 
-    const selectedFieldOption = fieldOptions.find((option) => option.value === selectedField);
-    if (!selectedFieldOption) {
-      return;
-    }
-
-    const valueOptions = selectedField === "actionCost"
-      ? user.search.getActionCostOptions(state.draft.filters.category, state.draft.filters.subcategory)
-      : user.search.getFacetValueOptions(
-        selectedField as Pf2eTerminalFacetField,
-        state.draft.filters.category,
-        state.draft.filters.subcategory,
-      );
-    if (valueOptions.length === 0) {
-      await terminal.pauseForAnyKey("No live values are available for that field in the current scope.");
-      return;
-    }
-
-    const selectedPolicy = await terminal.promptPolicySelectOption({
-      title: "Facet Policy",
-      prompt: `Cycle values for ${humanizeIdentifier(selectedField)}. Press Esc or Left when finished.`,
-      allowedStates: selectedFieldOption.fieldType === "set"
-        ? ["any", "all", "exclude"]
-        : ["any", "exclude"],
-      entries: valueOptions.map((option) => ({
-        value: option.value,
-        label: option.label,
-        description: option.description,
-      })),
-      selectedValues: selectedField === "actionCost"
-        ? {
-          any: state.draft.filters.actionCost.any.map((value) => String(value)),
-          exclude: state.draft.filters.actionCost.exclude.map((value) => String(value)),
-        }
-        : state.draft.filters.facets.find((facet) => facet.field === selectedField)?.policy,
+    setFacetPickerSession({
+      model,
+      initialSelections: buildFacetPickerInitialSelections(
+        state.draft,
+        fieldOptions.map((option) => option.value),
+      ),
+      scopedFields: fieldOptions.map((option) => option.value),
     });
-
-    applyDraftUpdate((request) => {
-      if (selectedField === "actionCost") {
-        return {
-          ...request,
-          filters: {
-            ...request.filters,
-            actionCost: {
-              any: selectedPolicy.any.map((value) => Number.parseInt(value, 10)).filter((value) => Number.isFinite(value)),
-              all: [],
-              exclude: selectedPolicy.exclude.map((value) => Number.parseInt(value, 10)).filter((value) => Number.isFinite(value)),
-            },
-          },
-        };
-      }
-
-      const facets = [...request.filters.facets];
-      const currentIndex = facets.findIndex((facet) => facet.field === selectedField);
-      if (selectedPolicy.any.length === 0 && selectedPolicy.all.length === 0 && selectedPolicy.exclude.length === 0) {
-        return {
-          ...request,
-          filters: {
-            ...request.filters,
-            facets: facets.filter((facet) => facet.field !== selectedField),
-          },
-        };
-      }
-
-      if (currentIndex >= 0) {
-        facets[currentIndex] = {
-          field: facets[currentIndex]!.field,
-          policy: selectedPolicy,
-        };
-      } else {
-        facets.push({
-          field: selectedField as Pf2eTerminalFacetField,
-          policy: selectedPolicy,
-        });
-      }
-
-      return {
-        ...request,
-        filters: {
-          ...request.filters,
-          facets,
-        },
-      };
-    });
-  }, [applyDraftUpdate, state.draft.filters.category, state.draft.filters.subcategory, terminal, user.search]);
+  }, [state.draft, state.draft.filters.category, state.draft.filters.subcategory, terminal, user.ontology, user.search]);
 
   const removeFacetFilter = React.useCallback(async () => {
     if (state.draft.filters.facets.length === 0 && !hasFilterPolicy(state.draft.filters.actionCost)) {
@@ -1467,6 +1485,19 @@ export function SearchScreen({
       },
     }));
   }, [applyDraftUpdate, state.draft.filters.actionCost, state.draft.filters.facets, terminal]);
+
+  const applyFacetPicker = React.useCallback((selection: OntologyPickerSelectionMap) => {
+    if (!facetPickerSession) {
+      return;
+    }
+    applyDraftUpdate((request) =>
+      applyFacetPickerSelectionsToRequest(request, selection, facetPickerSession.scopedFields));
+    setFacetPickerSession(null);
+  }, [applyDraftUpdate, facetPickerSession]);
+
+  const cancelFacetPicker = React.useCallback(() => {
+    setFacetPickerSession(null);
+  }, []);
 
   const resetDraftWorkspace = React.useCallback(() => {
     dispatch({ type: "set_draft", request: user.search.createDefaultRequest() });
@@ -1671,7 +1702,18 @@ export function SearchScreen({
     if (detailNavigation.action?.kind === "boundary") {
       dispatch({ type: "detail_boundary", boundary: detailNavigation.action.boundary, maxDetailScroll });
     }
-  }, !busy);
+  }, !busy && !facetPickerSession);
+
+  if (facetPickerSession) {
+    return (
+      <OntologyPickerScreen
+        model={facetPickerSession.model}
+        initialSelections={facetPickerSession.initialSelections}
+        onApply={applyFacetPicker}
+        onCancel={cancelFacetPicker}
+      />
+    );
+  }
 
   return (
     <TerminalTwoPaneScreen

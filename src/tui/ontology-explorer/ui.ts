@@ -39,6 +39,12 @@ export type OntologyBrowserSelection = {
   currentParent?: OntologyNode;
 };
 
+export type OntologyBrowserListRow = {
+  kind: "group" | "node";
+  node?: OntologyNode;
+  line: DerivedTagTerminalLine;
+};
+
 type GroupRenderMode = "flat" | "inline";
 
 function titleCaseLabel(value: string): string {
@@ -413,10 +419,26 @@ export function buildOntologyBrowserListLines(
   state: OntologyBrowserState,
   bodyHeight: number,
 ): DerivedTagTerminalLine[] {
+  return buildOntologyBrowserListRows(model, state, bodyHeight).map((row) => row.line);
+}
+
+export function buildOntologyBrowserListRows(
+  model: OntologyDomainModel,
+  state: OntologyBrowserState,
+  bodyHeight: number,
+  renderNodeLine: (node: OntologyNode, isSelected: boolean) => DerivedTagTerminalLine = (node, isSelected) => ({
+    text: node.listLabel ?? node.label,
+    tone: isSelected ? "selected" : "default",
+    noWrap: true,
+  }),
+): OntologyBrowserListRow[] {
   const selection = getOntologyBrowserSelection(model, state);
   const nodes = selection.currentNodes;
   if (nodes.length === 0) {
-    return [{ text: "No ontology entries match the current filter.", tone: "dim" }];
+    return [{
+      kind: "group",
+      line: { text: "No ontology entries match the current filter.", tone: "dim" },
+    }];
   }
 
   const selectedIndex = nodes.findIndex((node) => node.id === selection.currentNode?.id);
@@ -426,35 +448,41 @@ export function buildOntologyBrowserListLines(
 
   if (renderMode === "inline" && selection.currentParent?.childPresentation?.mode === "grouped") {
     const groupBy = selection.currentParent.childPresentation.groupBy;
-    const lines: DerivedTagTerminalLine[] = [];
+    const rows: OntologyBrowserListRow[] = [];
     let lastGroup: string | undefined;
 
     for (const [offset, node] of visibleNodes.entries()) {
       const groupValue = node.groupValues?.[groupBy];
       if (groupValue && groupValue !== lastGroup) {
         if (lastGroup !== undefined) {
-          lines.push({ text: "" });
+          rows.push({
+            kind: "group",
+            line: { text: "" },
+          });
         }
-        lines.push({
-          text: titleCaseLabel(groupValue),
-          tone: "section",
-          noWrap: true,
+        rows.push({
+          kind: "group",
+          line: {
+            text: titleCaseLabel(groupValue),
+            tone: "section",
+            noWrap: true,
+          },
         });
         lastGroup = groupValue;
       }
-      lines.push({
-        text: node.listLabel ?? node.label,
-        tone: windowStart + offset === Math.max(0, selectedIndex) ? "selected" : "default",
-        noWrap: true,
+      rows.push({
+        kind: "node",
+        node,
+        line: renderNodeLine(node, windowStart + offset === Math.max(0, selectedIndex)),
       });
     }
-    return lines;
+    return rows;
   }
 
   return visibleNodes.map((node, offset) => ({
-    text: node.listLabel ?? node.label,
-    tone: windowStart + offset === Math.max(0, selectedIndex) ? "selected" : "default",
-    noWrap: true,
+    kind: "node" as const,
+    node,
+    line: renderNodeLine(node, windowStart + offset === Math.max(0, selectedIndex)),
   }));
 }
 

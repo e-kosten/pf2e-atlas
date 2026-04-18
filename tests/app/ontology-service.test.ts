@@ -135,6 +135,8 @@ describe("application ontology service", () => {
     expect(dataService.listFilterValues).toHaveBeenCalledWith({ field: "saveType", category: "spell" });
     expect(dataService.listFilterValues).toHaveBeenCalledWith({ field: "sustained", category: "spell" });
     expect(dataService.listFilterValues).toHaveBeenCalledWith({ field: "hands", category: "equipment" });
+    expect(saveTypeFieldNode?.listLabel).toBe("saveType");
+    expect(saveTypeFieldNode?.detailLines.map((line) => line.text)).not.toContain("Operators: eq, in, notIn");
 
     expect(saveTypeValueNodes.find((node) => node.id === "spell:saveType:fortitude")?.query?.filters.metadata).toEqual({
       field: "saveType",
@@ -204,5 +206,40 @@ describe("application ontology service", () => {
     } finally {
       rmSync(tempRoot, { recursive: true, force: true });
     }
+  });
+
+  it("loads the full discoverable value set instead of truncating to a common subset", () => {
+    const values = Array.from({ length: 14 }, (_, index) => ({
+      value: `trait-${index + 1}`,
+      count: index + 1,
+    }));
+    const dataService: Pick<Pf2eDataService, "getSearchVocabulary" | "listFilterValues"> = {
+      getSearchVocabulary: vi.fn(() => ({
+        categories: [{ value: "spell", count: 14 }],
+        subcategories: [],
+        rarities: [],
+        sizes: [],
+        traditions: [],
+        spellKinds: [],
+        sourceCategories: [],
+        commonTraitsByCategory: [],
+        commonDerivedTagsByCategory: [],
+        derivedTagOntologyFamilies: [],
+        derivedTagOntologyTags: [],
+        derivedTagCatalog: [],
+      })),
+      listFilterValues: vi.fn(({ field, category }) => ({
+        field,
+        values: field === "traits" && category === "spell" ? values : [],
+      })),
+    };
+
+    const service = createPf2eApplicationOntologyService(createTestConfig(), dataService);
+    const domain = service.loadDomain("searchSemantics");
+    const traitFieldNode = findNodeById(domain.rootNodes, "spell:field:traits");
+    const traitValueNodes = traitFieldNode?.loadChildren?.() ?? [];
+
+    expect(traitValueNodes).toHaveLength(14);
+    expect(traitValueNodes.at(-1)?.id).toBe("spell:traits:trait-14");
   });
 });

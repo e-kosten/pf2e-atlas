@@ -3,7 +3,7 @@ import React from "react";
 import { cleanup, render } from "ink-testing-library";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { AppConfig, NormalizedRecord, SearchCountResult, SearchFilters } from "../../src/types.js";
+import type { AppConfig, NormalizedRecord, OntologyDomainModel, SearchCountResult, SearchFilters } from "../../src/types.js";
 import { createPf2eTerminalSearchService } from "../../src/tui/search-service.js";
 import { Pf2eTerminalAppServicesProvider } from "../../src/tui/app-service-context.js";
 import type { Pf2eTerminalAppServices } from "../../src/tui/app-services.js";
@@ -289,6 +289,60 @@ function createServices(
       },
     },
     close: vi.fn(),
+  };
+}
+
+function createFacetPickerOntologyDomain(): OntologyDomainModel {
+  return {
+    id: "searchSemantics",
+    label: "Search Semantics",
+    description: "Test facet picker domain",
+    rootNodes: [
+      {
+        id: "searchSemantics:spell",
+        kind: "category",
+        label: "Spell",
+        shortLabel: "spell",
+        filterText: "spell",
+        detailTitle: "Search Semantics",
+        detailLines: [{ text: "Spell", tone: "section" }],
+        children: [
+          {
+            id: "spell:metadataFields",
+            kind: "group",
+            label: "Metadata Fields",
+            filterText: "metadata fields",
+            detailTitle: "Metadata Fields",
+            detailLines: [{ text: "Metadata Fields", tone: "section" }],
+            children: [
+              {
+                id: "spell:field:traits",
+                kind: "field",
+                label: "traits",
+                filterText: "traits",
+                listLabel: "traits | includesAny, includesAll, excludesAny",
+                detailTitle: "Metadata Field Details",
+                detailLines: [{ text: "traits", tone: "section" }],
+                loadChildren: () => [
+                  {
+                    id: "spell:traits:illusion",
+                    kind: "value",
+                    label: "Illusion",
+                    filterText: "illusion",
+                    listLabel: "Illusion | 1",
+                    detailTitle: "Trait Details",
+                    detailLines: [
+                      { text: "Illusion", tone: "section" },
+                      { text: "Live canonical records: 1" },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
   };
 }
 
@@ -1209,5 +1263,57 @@ describe("search screen", () => {
       sortSeed: undefined,
       subcategory: undefined,
     });
+  });
+
+  it("opens the shared ontology picker for facet editing and applies selected values back into the draft", async () => {
+    const services = createServices();
+    services.user.search.getFacetFieldOptions = vi.fn(() => [{
+      value: "traits",
+      label: "Traits",
+      description: "Trait facet for the current browse scope.",
+      fieldType: "set",
+    }]);
+    services.user.ontology.loadDomain = vi.fn((id: string) => {
+      if (id === "searchSemantics") {
+        return createFacetPickerOntologyDomain();
+      }
+      return {
+        id: "derivedTags",
+        label: "Derived Tags",
+        description: "Unused test domain",
+        rootNodes: [],
+      };
+    });
+
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen onBack={vi.fn()} />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+
+    app.stdin.write("c");
+    await flushInk();
+    pressDown(app);
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+
+    app.stdin.write("f");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Facet Picker");
+    expect(app.lastFrame()).toContain("Spell Facet Filters");
+
+    app.stdin.write("\r");
+    await flushInk();
+    app.stdin.write(" ");
+    await flushInk();
+    app.stdin.write("a");
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("Traits: any: Illusion");
   });
 });

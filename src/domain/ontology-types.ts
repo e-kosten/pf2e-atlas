@@ -26,6 +26,15 @@ export interface OntologyNodeQuery {
   filters: SearchFilters;
 }
 
+export type OntologySelectionState = "any" | "all" | "exclude";
+
+export interface OntologyNodeSelection {
+  field: string;
+  fieldLabel: string;
+  value: string;
+  allowedStates: OntologySelectionState[];
+}
+
 export type OntologyChildPresentation =
   | { mode: "flat" }
   | {
@@ -51,6 +60,7 @@ export interface OntologyNode {
   childPresentation?: OntologyChildPresentation;
   groupValues?: Record<string, string>;
   query?: OntologyNodeQuery;
+  selection?: OntologyNodeSelection;
 }
 
 export interface OntologyDomainSummary {

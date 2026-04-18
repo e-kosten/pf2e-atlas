@@ -146,6 +146,30 @@ function buildRecordNode(recordNode: DerivedTagOntologyExplorerRecordNode): Onto
   };
 }
 
+function buildTagSampleDetailLines(
+  tag: DerivedTagOntologyExplorerTagNode,
+  limit = 4,
+): OntologyNode["detailLines"] {
+  const sampleRecords = tag.records.slice(0, limit);
+  if (sampleRecords.length === 0) {
+    return [
+      { text: "Live sample records:", tone: "section" },
+      { text: "(none)", indent: 2 },
+    ];
+  }
+
+  return [
+    { text: "Live sample records:", tone: "section" },
+    ...sampleRecords.flatMap((recordNode) => {
+      const preview = recordNode.record.blurbText ?? recordNode.record.descriptionText ?? "";
+      return [
+        { text: buildOntologyExplorerEntitySummary(recordNode.record), indent: 2 },
+        ...(preview ? [{ text: preview, indent: 4 }] : []),
+      ];
+    }),
+  ];
+}
+
 function buildTagNode(tag: DerivedTagOntologyExplorerTagNode): OntologyNode {
   return {
     id: tag.key,
@@ -189,6 +213,7 @@ function buildTagNode(tag: DerivedTagOntologyExplorerTagNode): OntologyNode {
       { text: tag.positiveSignals?.join(" | ") ?? "(none)", indent: 2 },
       { text: "Negative signals:", tone: "section" },
       { text: tag.negativeSignals?.join(" | ") ?? "(none)", indent: 2 },
+      ...buildTagSampleDetailLines(tag),
     ],
     children: tag.records.map(buildRecordNode),
     query: {
@@ -422,7 +447,7 @@ function buildFieldValueNodes(
   values: Array<{ value: string; count: number }>,
   metadataGlossary: MetadataGlossaryArtifact | null,
 ): OntologyNode[] {
-  return values.slice(0, 12).map((entry): OntologyNode => {
+  return values.map((entry): OntologyNode => {
     const metadata = buildMetadataValueQuery(fieldSemantics, entry.value);
     const traitGlossaryEntry = fieldSemantics.field === "traits"
       ? getTraitGlossaryEntry(metadataGlossary, entry.value)
@@ -469,6 +494,12 @@ function buildSearchSemanticsDomain(
 ): OntologyDomainModel {
   const semantics = getMetadataFilterSemantics();
   const vocabulary = dataService.getSearchVocabulary();
+  let derivedTagDomain: OntologyDomainModel | null = null;
+  try {
+    derivedTagDomain = buildDerivedTagsDomain(config);
+  } catch {
+    derivedTagDomain = null;
+  }
   const metadataGlossary = readMetadataGlossaryArtifact(config.indexPath);
   const metadataFieldsByName = new Map(semantics.metadataFields.map((entry) => [entry.field, entry]));
   const filterValuesCache = new Map<string, Array<{ value: string; count: number }>>();
@@ -487,38 +518,51 @@ function buildSearchSemanticsDomain(
   const commonTraitsByCategory = new Map(vocabulary.commonTraitsByCategory.map((entry) => [entry.category, entry.traits]));
   const commonDerivedTagsByCategory = new Map(vocabulary.commonDerivedTagsByCategory.map((entry) => [entry.category, entry.tags]));
   const examplesByCategory = semantics.examplesByCategory;
+  const derivedTagCategoryNodes = new Map(
+    (derivedTagDomain?.rootNodes ?? [])
+      .filter((node): node is OntologyNode => node.kind === "category" && Boolean(node.shortLabel))
+      .map((node) => [node.shortLabel as SearchCategory, node] as const),
+  );
 
   const rootNodes = SEARCH_CATEGORIES.map((category) => {
     const categoryFields = semantics.metadataFieldsByCategory[category] ?? [];
     const metadataFieldNodes: OntologyNode[] = categoryFields.map((field): OntologyNode => {
       const fieldSemantics = metadataFieldsByName.get(field)!;
+      const derivedTagCategoryNode = field === "derivedTags" ? derivedTagCategoryNodes.get(category) : undefined;
       return {
         id: `${category}:field:${field}`,
         kind: "field",
         label: field,
         filterText: buildFilterText(category, field, fieldSemantics.fieldType, fieldSemantics.notes ?? "", ...(fieldSemantics.subcategories ?? [])),
-        listLabel: fieldSemantics.subcategories?.length
-          ? `${field} | ${fieldSemantics.operators.join(", ")} | ${fieldSemantics.subcategories.join(", ")}`
-          : `${field} | ${fieldSemantics.operators.join(", ")}`,
+        listLabel: field,
         detailTitle: "Metadata Field Details",
         detailLines: [
           { text: field, tone: "section" },
           { text: `Category: ${category}` },
           { text: `Field type: ${fieldSemantics.fieldType}` },
-          { text: `Operators: ${fieldSemantics.operators.join(", ")}` },
           { text: `Discoverable: ${fieldSemantics.discoverable ? "yes" : "no"}` },
           { text: `Subcategory scope: ${fieldSemantics.subcategories?.join(", ") ?? "(all subcategories)"}` },
           { text: `Notes: ${fieldSemantics.notes ?? "(none)"}` },
+          ...(field === "derivedTags"
+            ? [{ text: "This field exposes the full authored derived-tag hierarchy instead of a flat live-value list." }]
+            : []),
         ],
         groupValues: {
           fieldType: fieldSemantics.fieldType,
         },
-        loadChildren: fieldSemantics.discoverable
-          ? () => {
-            const liveValues = getCachedFilterValues(category, field);
-            return liveValues.length > 0 ? buildFieldValueNodes(category, fieldSemantics, liveValues, metadataGlossary) : [];
+        ...(field === "derivedTags" && derivedTagCategoryNode?.children
+          ? {
+            children: derivedTagCategoryNode.children.map((node) => ({ ...node })),
+            childPresentation: derivedTagCategoryNode.childPresentation,
           }
-          : undefined,
+          : {
+            loadChildren: fieldSemantics.discoverable
+              ? () => {
+                const liveValues = getCachedFilterValues(category, field);
+                return liveValues.length > 0 ? buildFieldValueNodes(category, fieldSemantics, liveValues, metadataGlossary) : [];
+              }
+              : undefined,
+          }),
       };
     });
 
