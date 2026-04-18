@@ -15,14 +15,27 @@ import {
   type DerivedTagMigrationReviewServices,
 } from "./review-controller.js";
 import {
+  buildDerivedTagTerminalActionTargetHelpLines,
+  createDerivedTagTerminalActionTargetState,
+  formatDerivedTagTerminalActionTargetBar,
+  getDerivedTagTerminalActionTargetInteractionActions,
+  reduceDerivedTagTerminalActionTargetState,
+  resolveDerivedTagTerminalActionTargetIntent,
+  type DerivedTagTerminalActionTargetAction,
+  type DerivedTagTerminalActionTargetOption,
+  type DerivedTagTerminalActionTargetState,
+} from "../../tui/action-target.js";
+import {
   TerminalPaneScreen,
   TerminalTwoPaneScreen,
+  createDerivedTagTerminalListNavigationState,
   getNormalizedKeyName,
   getRenderedTerminalLineCount,
   getTerminalPaneBodyHeight,
   getTerminalTwoPaneDetailWidth,
   moveSelection,
   moveSelectionWrapped,
+  resolveDerivedTagTerminalListNavigationAction,
   sliceRenderedTerminalLines,
   runDerivedTagTerminalApp,
   useDerivedTagTerminalApp,
@@ -31,7 +44,13 @@ import {
   type DerivedTagTerminalLine,
   type DerivedTagTerminalTwoPaneLayoutMode,
 } from "../../tui/terminal-ui.js";
-import { TERMINAL_DIALOG_RETURN_FOOTER } from "../../tui/interaction-bindings.js";
+import {
+  TERMINAL_DIALOG_RETURN_FOOTER,
+  buildTerminalInteractionHelpLines,
+  formatTerminalInteractionFooter,
+  resolveTerminalInteractionAction,
+  type TerminalInteractionAction,
+} from "../../tui/interaction-bindings.js";
 import {
   getDerivedTagTerminalTwoPaneLayoutMode,
   reduceDerivedTagTerminalTwoPaneState,
@@ -45,9 +64,8 @@ export type DerivedTagMigrationReviewResult = {
   session: DerivedTagMigrationSession;
 };
 
-type ReviewUiState = DerivedTagTerminalTwoPaneState & {
+type ReviewUiState = DerivedTagTerminalTwoPaneState & DerivedTagTerminalActionTargetState & {
   imported: boolean;
-  selectedActionIndex: number;
   session: DerivedTagMigrationSession;
 };
 
@@ -60,18 +78,18 @@ type ReviewUiAction =
   | { type: "list_boundary"; boundary: "start" | "end"; itemCount: number }
   | { type: "move_detail"; delta: number; maxDetailScroll: number }
   | { type: "detail_boundary"; boundary: "start" | "end"; maxDetailScroll: number }
-  | { type: "select_action"; delta: number; actionCount: number }
+  | DerivedTagTerminalActionTargetAction
   | { type: "apply_decision_status"; item: { recordIndex: number; decisionIndex: number }; status: DerivedTagMigrationSession["decisions"][number]["decisions"][number]["status"] }
   | { type: "toggle_unresolved" };
 
 const REVIEW_ACTIONS = [
-  { id: "approve", label: "Approve" },
-  { id: "reject", label: "Reject" },
-  { id: "needs_review", label: "Needs Review" },
-  { id: "toggle_unresolved", label: "Toggle Unresolved" },
-  { id: "import", label: "Lint + Import" },
-  { id: "quit", label: "Quit" },
-] as const;
+  { id: "approve", label: "Approve", description: "Mark the current review item approved." },
+  { id: "reject", label: "Reject", description: "Mark the current review item rejected." },
+  { id: "needs_review", label: "Needs Review", description: "Keep the item unresolved for later follow-up." },
+  { id: "toggle_unresolved", label: "Toggle Unresolved", description: "Switch the queue between all items and unresolved-only items." },
+  { id: "import", label: "Lint + Import", description: "Run import for the current session after validation." },
+  { id: "quit", label: "Quit", description: "Finish the review UI and return the current session state." },
+] as const satisfies readonly DerivedTagTerminalActionTargetOption[];
 
 type ReviewActionId = (typeof REVIEW_ACTIONS)[number]["id"];
 const REVIEW_LEFT_WIDTH = 46;
@@ -79,10 +97,10 @@ const REVIEW_LEFT_WIDTH = 46;
 function createInitialReviewState(initialSession: DerivedTagMigrationSession): ReviewUiState {
   return {
     activePane: "list",
+    ...createDerivedTagTerminalActionTargetState(),
     detailScroll: 0,
     imported: false,
     layoutMode: "split",
-    selectedActionIndex: 0,
     session: clampDerivedTagMigrationReviewIndex(initialSession),
   };
 }
@@ -153,11 +171,10 @@ function reviewReducer(state: ReviewUiState, action: ReviewUiAction): ReviewUiSt
     case "move_detail":
     case "detail_boundary":
       return reduceDerivedTagTerminalTwoPaneState(state, action);
-    case "select_action":
-      return {
-        ...state,
-        selectedActionIndex: moveSelectionWrapped(state.selectedActionIndex, action.delta, action.actionCount),
-      };
+    case "toggle_target":
+    case "leave_actions":
+    case "move_action":
+      return reduceDerivedTagTerminalActionTargetState(state, action);
     case "apply_decision_status":
       return {
         ...state,
@@ -176,10 +193,6 @@ function reviewReducer(state: ReviewUiState, action: ReviewUiAction): ReviewUiSt
     default:
       return state;
   }
-}
-
-function formatActionBar(selectedActionIndex: number): string {
-  return `Actions: ${REVIEW_ACTIONS.map((action, index) => index === selectedActionIndex ? `[${action.label}]` : action.label).join("  ")}`;
 }
 
 function formatDecisionSummary(decision: DerivedTagMigrationSession["decisions"][number]["decisions"][number]): string {
@@ -279,25 +292,55 @@ function buildVisibleSelectedReviewDetailLines(
   );
 }
 
-function buildReviewHelpLines(selectedActionIndex: number): DerivedTagTerminalLine[] {
+function getReviewContentNavigationActions(activePane: DerivedTagTerminalTwoPaneState["activePane"]): TerminalInteractionAction[] {
+  return activePane === "list"
+    ? [
+      { id: "move", helpText: "move between review items" },
+      { id: "jump", helpText: "jump through the review queue" },
+      { id: "page", helpText: "page through the review queue" },
+      { id: "edge", helpText: "jump to the first or last review item" },
+    ]
+    : [
+      { id: "scroll", helpText: "scroll the selected record detail" },
+      { id: "jump", helpText: "jump through the selected record detail" },
+      { id: "page", helpText: "page through the selected record detail" },
+      { id: "edge", helpText: "jump to the start or end of the selected detail" },
+    ];
+}
+
+function getReviewPaneInteractionActions(activePane: DerivedTagTerminalTwoPaneState["activePane"]): TerminalInteractionAction[] {
   return [
-    { text: "Navigation", tone: "section" },
-    { text: "Tab or w: switch focus between the review queue and detail panes" },
-    { text: "z: toggle focused detail view while detail has focus" },
-    { text: "With list focus, Up / Down or j / k move between review items" },
-    { text: "With list focus, Ctrl+U / Ctrl+D and Space / b jump through the queue" },
-    { text: "With detail focus, Up / Down or j / k scroll the selected item detail" },
-    { text: "With detail focus, Ctrl+U / Ctrl+D and Space / b jump through detail text" },
-    { text: "Home / End: jump to the start or end of the focused pane" },
-    { text: "Esc or Backspace: leave detail focus and return to the queue" },
-    { text: "Left / Right or h / l: move between actions" },
-    { text: "Enter: apply the highlighted action" },
+    { id: "focus", helpText: "switch between the review queue and selected-item detail" },
+    { id: "layout", helpText: "toggle split view vs focused detail while detail has focus" },
+    ...(activePane === "detail"
+      ? [{ id: "close" as const, label: "queue focus", helpText: "return focus to the review queue" }]
+      : []),
+    { id: "help", helpText: "show this help" },
+  ];
+}
+
+function buildReviewHelpLines(state: ReviewUiState): DerivedTagTerminalLine[] {
+  return [
+    ...buildTerminalInteractionHelpLines([
+      {
+        title: "Content Navigation",
+        actions: getReviewContentNavigationActions(state.activePane),
+      },
+      {
+        title: "Pane Controls",
+        actions: getReviewPaneInteractionActions(state.activePane),
+      },
+    ]),
     { text: "" },
-    { text: "Direct actions", tone: "section" },
-    { text: "a approve  r reject  n needs_review  t toggle unresolved  i import  q quit" },
+    ...buildDerivedTagTerminalActionTargetHelpLines({
+      orientation: "horizontal",
+      visibility: "persistent",
+      actions: [...REVIEW_ACTIONS],
+      contentHelpText: "While the rail is focused, only the action-target keys act on it. Use : or Escape to return to content navigation.",
+    }),
     { text: "" },
-    { text: "Current action bar", tone: "section" },
-    { text: formatActionBar(selectedActionIndex), tone: "accent" },
+    { text: "Current Action Rail", tone: "section" },
+    { text: formatDerivedTagTerminalActionTargetBar(REVIEW_ACTIONS, state), tone: "accent" },
   ];
 }
 
@@ -317,6 +360,7 @@ export function DerivedTagMigrationReviewScreen({
   const [state, dispatch] = React.useReducer(reviewReducer, initialSession, createInitialReviewState);
   const [busy, setBusy] = React.useState(false);
   const [persistError, setPersistError] = React.useState<string | null>(null);
+  const navigationStateRef = React.useRef(createDerivedTagTerminalListNavigationState());
 
   React.useEffect(() => {
     let cancelled = false;
@@ -356,7 +400,8 @@ export function DerivedTagMigrationReviewScreen({
   const maxDetailScroll = Math.max(0, renderedDetailLineCount - bodyHeight);
   const detailScroll = Math.min(state.detailScroll, maxDetailScroll);
   const subtitle = `Session ${state.session.manifest.id} | ${progressText} | ${items.length} visible item${items.length === 1 ? "" : "s"} | unresolved only ${state.session.reviewState.unresolvedOnly ? "on" : "off"}`;
-  const detailFooterText = `${formatActionBar(state.selectedActionIndex)} | ${state.activePane} focus | ${layoutMode} layout | Detail scroll ${detailScroll}/${maxDetailScroll}`;
+  const actionBarText = formatDerivedTagTerminalActionTargetBar(REVIEW_ACTIONS, state);
+  const detailFooterText = `${actionBarText} | ${state.activePane} focus | ${layoutMode} layout | Detail scroll ${detailScroll}/${maxDetailScroll}`;
 
   const completeReview = React.useCallback((imported: boolean, session: DerivedTagMigrationSession) => {
     onComplete({ imported, session });
@@ -406,103 +451,95 @@ export function DerivedTagMigrationReviewScreen({
     }
   }, [completeReview, handleImport, items, state.imported, state.session]);
 
+  const activeNavigationActions = getReviewContentNavigationActions(state.activePane);
+  const paneInteractionActions = getReviewPaneInteractionActions(state.activePane);
+  const actionTargetInteractionActions = getDerivedTagTerminalActionTargetInteractionActions(state, "horizontal");
+  const footerInteractionActions = state.activeTarget === "actions"
+    ? [...actionTargetInteractionActions, { id: "help" as const }]
+    : [...activeNavigationActions, ...paneInteractionActions, ...actionTargetInteractionActions];
+
   useDerivedTagTerminalInput((input, key) => {
     if (busy) {
       return;
     }
     const normalized = getNormalizedKeyName(input, key);
-    let requestedAction: ReviewActionId | undefined;
+    const actionTargetIntent = resolveDerivedTagTerminalActionTargetIntent(normalized, state, "horizontal");
+    const interactionAction = resolveTerminalInteractionAction(normalized, paneInteractionActions);
 
     if (normalized === "ctrl_c") {
-      requestedAction = "quit";
-    } else if (normalized === "tab" || normalized === "shift_tab" || normalized === "w") {
-      dispatch({ type: "toggle_focus" });
+      void requestAction("quit");
       return;
-    } else if (normalized === "z") {
-      dispatch({ type: "toggle_layout" });
+    }
+    if (actionTargetIntent?.kind === "toggle_target") {
+      dispatch({ type: "toggle_target" });
+      navigationStateRef.current = createDerivedTagTerminalListNavigationState();
       return;
-    } else if (normalized === "?") {
+    }
+    if (actionTargetIntent?.kind === "leave_actions") {
+      dispatch({ type: "leave_actions" });
+      return;
+    }
+    if (actionTargetIntent?.kind === "move_action") {
+      dispatch({ type: "move_action", delta: actionTargetIntent.delta, actionCount: REVIEW_ACTIONS.length });
+      return;
+    }
+    if (actionTargetIntent?.kind === "apply_action") {
+      const requestedAction = REVIEW_ACTIONS[state.selectedActionIndex]?.id;
+      if (requestedAction) {
+        void requestAction(requestedAction);
+      }
+      return;
+    }
+    if (interactionAction?.id === "help") {
       void terminal.showDialog({
         title: "Derived-Tag Review Help",
-        body: buildReviewHelpLines(state.selectedActionIndex),
+        body: buildReviewHelpLines(state),
         footer: [{ text: TERMINAL_DIALOG_RETURN_FOOTER, tone: "dim" }],
       });
       return;
-    } else if (state.activePane === "detail" && (normalized === "escape" || normalized === "backspace")) {
-      dispatch({ type: "leave_detail" });
-      return;
-    } else if (state.activePane === "list" && (normalized === "up" || normalized === "k")) {
-      dispatch({ type: "move_list_wrapped", delta: -1, itemCount: items.length });
-      return;
-    } else if (state.activePane === "list" && (normalized === "down" || normalized === "j")) {
-      dispatch({ type: "move_list_wrapped", delta: 1, itemCount: items.length });
-      return;
-    } else if (state.activePane === "list" && normalized === "ctrl_d") {
-      dispatch({ type: "move_list_clamped", delta: selectionJumpSize, itemCount: items.length });
-      return;
-    } else if (state.activePane === "list" && normalized === "ctrl_u") {
-      dispatch({ type: "move_list_clamped", delta: -selectionJumpSize, itemCount: items.length });
-      return;
-    } else if (state.activePane === "list" && (normalized === "space" || normalized === "page_down")) {
-      dispatch({ type: "move_list_clamped", delta: pageSize, itemCount: items.length });
-      return;
-    } else if (state.activePane === "list" && (normalized === "b" || normalized === "page_up")) {
-      dispatch({ type: "move_list_clamped", delta: -pageSize, itemCount: items.length });
-      return;
-    } else if (state.activePane === "list" && normalized === "home") {
-      dispatch({ type: "list_boundary", boundary: "start", itemCount: items.length });
-      return;
-    } else if (state.activePane === "list" && normalized === "end") {
-      dispatch({ type: "list_boundary", boundary: "end", itemCount: items.length });
-      return;
-    } else if (state.activePane === "detail" && (normalized === "up" || normalized === "k")) {
-      dispatch({ type: "move_detail", delta: -1, maxDetailScroll });
-      return;
-    } else if (state.activePane === "detail" && (normalized === "down" || normalized === "j")) {
-      dispatch({ type: "move_detail", delta: 1, maxDetailScroll });
-      return;
-    } else if (state.activePane === "detail" && normalized === "ctrl_d") {
-      dispatch({ type: "move_detail", delta: detailJumpSize, maxDetailScroll });
-      return;
-    } else if (state.activePane === "detail" && normalized === "ctrl_u") {
-      dispatch({ type: "move_detail", delta: -detailJumpSize, maxDetailScroll });
-      return;
-    } else if (state.activePane === "detail" && (normalized === "space" || normalized === "page_down")) {
-      dispatch({ type: "move_detail", delta: pageSize, maxDetailScroll });
-      return;
-    } else if (state.activePane === "detail" && (normalized === "b" || normalized === "page_up")) {
-      dispatch({ type: "move_detail", delta: -pageSize, maxDetailScroll });
-      return;
-    } else if (state.activePane === "detail" && normalized === "home") {
-      dispatch({ type: "detail_boundary", boundary: "start", maxDetailScroll });
-      return;
-    } else if (state.activePane === "detail" && normalized === "end") {
-      dispatch({ type: "detail_boundary", boundary: "end", maxDetailScroll });
-      return;
-    } else if (normalized === "left" || normalized === "h") {
-      dispatch({ type: "select_action", delta: -1, actionCount: REVIEW_ACTIONS.length });
-      return;
-    } else if (normalized === "right" || normalized === "l") {
-      dispatch({ type: "select_action", delta: 1, actionCount: REVIEW_ACTIONS.length });
-      return;
-    } else if (normalized === "enter") {
-      requestedAction = REVIEW_ACTIONS[state.selectedActionIndex]?.id;
-    } else if (normalized === "a") {
-      requestedAction = "approve";
-    } else if (normalized === "r") {
-      requestedAction = "reject";
-    } else if (normalized === "n") {
-      requestedAction = "needs_review";
-    } else if (normalized === "t") {
-      requestedAction = "toggle_unresolved";
-    } else if (normalized === "i") {
-      requestedAction = "import";
-    } else if (normalized === "q") {
-      requestedAction = "quit";
     }
+    if (state.activeTarget === "actions") {
+      return;
+    }
+    if (interactionAction?.id === "focus") {
+      dispatch({ type: "toggle_focus" });
+      navigationStateRef.current = createDerivedTagTerminalListNavigationState();
+      return;
+    }
+    if (interactionAction?.id === "layout") {
+      dispatch({ type: "toggle_layout" });
+      navigationStateRef.current = createDerivedTagTerminalListNavigationState();
+      return;
+    }
+    if (interactionAction?.id === "close" && state.activePane === "detail") {
+      dispatch({ type: "leave_detail" });
+      navigationStateRef.current = createDerivedTagTerminalListNavigationState();
+      return;
+    }
+    const navigation = resolveDerivedTagTerminalListNavigationAction(input, key, {
+      pageSize,
+      jumpSize: state.activePane === "list" ? selectionJumpSize : detailJumpSize,
+    }, navigationStateRef.current);
+    navigationStateRef.current = navigation.state;
 
-    if (requestedAction) {
-      void requestAction(requestedAction);
+    if (navigation.action?.kind === "move") {
+      if (state.activePane === "list") {
+        if (Math.abs(navigation.action.delta) === 1) {
+          dispatch({ type: "move_list_wrapped", delta: navigation.action.delta, itemCount: items.length });
+        } else {
+          dispatch({ type: "move_list_clamped", delta: navigation.action.delta, itemCount: items.length });
+        }
+        return;
+      }
+      dispatch({ type: "move_detail", delta: navigation.action.delta, maxDetailScroll });
+      return;
+    }
+    if (navigation.action?.kind === "boundary") {
+      if (state.activePane === "list") {
+        dispatch({ type: "list_boundary", boundary: navigation.action.boundary, itemCount: items.length });
+        return;
+      }
+      dispatch({ type: "detail_boundary", boundary: navigation.action.boundary, maxDetailScroll });
     }
   }, !busy);
 
@@ -517,7 +554,7 @@ export function DerivedTagMigrationReviewScreen({
           active: true,
         }}
         footer={[
-          { text: "z split-view  Tab/w list focus  Up/Down or j/k scroll  Ctrl+U/D jump  Space/b page  Home/End edge  Esc/backspace list  Left/Right or h/l choose action  Enter apply  ? help  q quit", tone: "dim" },
+          { text: formatTerminalInteractionFooter(footerInteractionActions), tone: "dim" },
           { text: detailFooterText, tone: "accent" },
           ...(persistError ? [{ text: `Persist error: ${persistError}`, tone: "danger" as const }] : []),
         ]}
@@ -540,12 +577,7 @@ export function DerivedTagMigrationReviewScreen({
         active: state.activePane === "detail",
       }}
       footer={[
-        {
-          text: state.activePane === "list"
-            ? "Tab/w focus  z detail-only  Up/Down or j/k move  Ctrl+U/D jump queue  Space/b page queue  Home/End queue edge  Left/Right or h/l choose action  Enter apply  ? help  q quit"
-            : "Tab/w focus  z detail-only  Up/Down or j/k scroll  Ctrl+U/D jump detail  Space/b page detail  Home/End detail edge  Esc/backspace queue  Left/Right or h/l choose action  Enter apply  ? help  q quit",
-          tone: "dim",
-        },
+        { text: formatTerminalInteractionFooter(footerInteractionActions), tone: "dim" },
         { text: detailFooterText, tone: "accent" },
         ...(persistError ? [{ text: `Persist error: ${persistError}`, tone: "danger" as const }] : []),
       ]}

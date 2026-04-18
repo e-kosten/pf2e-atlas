@@ -8,6 +8,7 @@ import {
   isFocusToggleKey,
   isHelpKey,
   isLayoutToggleKey,
+  isMoveLeftKey,
   isMoveRightKey,
   isSearchKey,
 } from "./keymap.js";
@@ -26,6 +27,7 @@ export type TerminalInteractionLine = {
 
 export type TerminalInteractionActionId =
   | "move"
+  | "moveHorizontal"
   | "scroll"
   | "jump"
   | "page"
@@ -45,6 +47,9 @@ export type TerminalInteractionActionId =
   | "help"
   | "quit"
   | "commands"
+  | "actions"
+  | "apply"
+  | "close"
   | "execute";
 
 export type TerminalInteractionAction = {
@@ -82,6 +87,11 @@ const TERMINAL_INTERACTION_DEFINITIONS: Record<TerminalInteractionActionId, Term
   move: {
     footerKeys: "Up/Down",
     helpKeys: "Up / Down or j / k",
+    defaultLabel: "move",
+  },
+  moveHorizontal: {
+    footerKeys: "Left/Right",
+    helpKeys: "Left / Right or h / l",
     defaultLabel: "move",
   },
   scroll: {
@@ -179,6 +189,21 @@ const TERMINAL_INTERACTION_DEFINITIONS: Record<TerminalInteractionActionId, Term
     helpKeys: ":",
     defaultLabel: "commands",
   },
+  actions: {
+    footerKeys: ":",
+    helpKeys: ":",
+    defaultLabel: "actions",
+  },
+  apply: {
+    footerKeys: "Enter",
+    helpKeys: "Enter",
+    defaultLabel: "apply",
+  },
+  close: {
+    footerKeys: "Esc",
+    helpKeys: "Escape",
+    defaultLabel: "close",
+  },
   execute: {
     footerKeys: "Tab",
     helpKeys: "Tab",
@@ -217,6 +242,8 @@ function matchesTerminalInteractionAction(actionId: TerminalInteractionActionId,
       return Boolean(getCycleDirection(normalizedKey));
     case "cycleReverse":
       return Boolean(getReverseCycleDirection(normalizedKey));
+    case "moveHorizontal":
+      return isMoveLeftKey(normalizedKey) || isMoveRightKey(normalizedKey);
     case "back":
     case "return":
       return isBackNavigationKey(normalizedKey);
@@ -231,7 +258,12 @@ function matchesTerminalInteractionAction(actionId: TerminalInteractionActionId,
     case "quit":
       return normalizedKey === "q";
     case "commands":
+    case "actions":
       return isCommandPaletteKey(normalizedKey);
+    case "apply":
+      return isConfirmKey(normalizedKey);
+    case "close":
+      return normalizedKey === "escape";
     case "execute":
       return normalizedKey === "tab" || normalizedKey === "shift_tab";
     default:

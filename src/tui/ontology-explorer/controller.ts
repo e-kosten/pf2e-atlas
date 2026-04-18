@@ -20,9 +20,6 @@ import {
   type DerivedTagTerminalLine,
 } from "../terminal-ui.js";
 import {
-  isSearchKey,
-} from "../keymap.js";
-import {
   resolveTerminalInteractionAction,
   type TerminalInteractionAction,
 } from "../interaction-bindings.js";
@@ -469,7 +466,7 @@ export function useOntologyExplorerController(
       }
       return;
     }
-    if (interactionAction?.id === "search" || isSearchKey(normalizedKey)) {
+    if (interactionAction?.id === "search") {
       dispatch({
         type: "set_search_mode",
         searchMode: true,

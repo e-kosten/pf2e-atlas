@@ -5,8 +5,18 @@ import type {
   DerivedTagReviewQueueSummaryItem,
 } from "../tags/migration/types.js";
 import {
+  buildDerivedTagTerminalActionTargetHelpLines,
+  createDerivedTagTerminalActionTargetState,
+  formatDerivedTagTerminalActionTargetBar,
+  getDerivedTagTerminalActionTargetInteractionActions,
+  reduceDerivedTagTerminalActionTargetState,
+  resolveDerivedTagTerminalActionTargetIntent,
+  shouldRenderDerivedTagTerminalActionTarget,
+  type DerivedTagTerminalActionTargetOption,
+  type DerivedTagTerminalActionTargetState,
+} from "./action-target.js";
+import {
   TerminalTwoPaneScreen,
-  type DerivedTagTerminalCommandOption,
   createDerivedTagTerminalListNavigationState,
   getNormalizedKeyName,
   getTerminalPaneBodyHeight,
@@ -22,7 +32,6 @@ import {
   formatTerminalInteractionFooter,
   resolveTerminalInteractionAction,
   type TerminalInteractionAction,
-  type TerminalInteractionCommand,
 } from "./interaction-bindings.js";
 import { isBackOrExitKey } from "./keymap.js";
 import { buildScrollableLines } from "./list-utils.js";
@@ -33,6 +42,8 @@ type TagRefinementCommandId =
   | "legacy_rule"
   | "exemplar_cleanup"
   | "proposal_review";
+
+type TagRefinementUiState = DerivedTagTerminalActionTargetState;
 
 export type TagRefinementMenuItem =
   | { kind: "review_queue_item"; label: string; queueItem: DerivedTagReviewQueueSummaryItem }
@@ -82,91 +93,88 @@ function buildQueueLines(queueItems: DerivedTagReviewQueueSummaryItem[]): Derive
   });
 }
 
-function buildTagRefinementHelpLines(hasQueueItems: boolean): DerivedTagTerminalLine[] {
-  const actionActions = getTagRefinementInteractionActions().map((action) => ({
-    ...action,
-    helpText: action.id === "select"
-      ? "open the selected row"
-      : action.id === "commands"
-        ? "open tag-refinement commands"
-        : action.id === "help"
-          ? "show this help"
-          : "return to the top level",
-  }));
-
-  return buildTerminalInteractionHelpLines([
-    {
-      title: "Navigation",
-      actions: [
-        { id: "move", helpText: "move between tag-refinement rows" },
-        { id: "jump", helpText: "jump through the menu" },
-        { id: "page", helpText: "page through the menu" },
-        { id: "edge", helpText: "jump to the first or last row" },
-      ],
-    },
-    {
-      title: "Actions",
-      actions: actionActions,
-    },
-    {
-      title: "Commands",
-      commands: buildTagRefinementCommandEntries(hasQueueItems).map<TerminalInteractionCommand>((command) => ({
-        label: command.label,
-        description: command.description ?? "No additional details.",
-      })),
-    },
-  ]);
-}
-
 function getTagRefinementInteractionActions(): TerminalInteractionAction[] {
   return [
     { id: "select" },
-    { id: "commands" },
+    { id: "actions" },
     { id: "help" },
     { id: "back", label: "top level" },
     { id: "quit", label: "top level" },
   ];
 }
 
-function buildTagRefinementCommandEntries(
+function buildTagRefinementActionEntries(
   hasQueueItems: boolean,
-): DerivedTagTerminalCommandOption<TagRefinementCommandId>[] {
-  const entries: DerivedTagTerminalCommandOption<TagRefinementCommandId>[] = [];
+): DerivedTagTerminalActionTargetOption<TagRefinementCommandId>[] {
+  const entries: DerivedTagTerminalActionTargetOption<TagRefinementCommandId>[] = [];
   if (hasQueueItems) {
     entries.push({
-      value: "review_all",
+      id: "review_all",
       label: "Review All Pending Queue Items",
       description: "Create a queue review session covering all pending items.",
-      keywords: ["queue", "review", "all"],
     });
   }
   entries.push(
     {
-      value: "legacy_seed",
+      id: "legacy_seed",
       label: "Create Legacy-Seed Review Session",
       description: "Start a custom legacy-seed review session.",
-      keywords: ["seed", "legacy"],
     },
     {
-      value: "legacy_rule",
+      id: "legacy_rule",
       label: "Create Legacy-Rule Review Session",
       description: "Start a custom legacy-rule review session.",
-      keywords: ["rule", "legacy"],
     },
     {
-      value: "exemplar_cleanup",
+      id: "exemplar_cleanup",
       label: "Create Exemplar-Cleanup Review Session",
       description: "Start a custom exemplar-cleanup review session.",
-      keywords: ["exemplar", "cleanup"],
     },
     {
-      value: "proposal_review",
+      id: "proposal_review",
       label: "Create AI Proposal Review Session",
       description: "Start a custom AI proposal review session.",
-      keywords: ["proposal", "ai"],
     },
   );
   return entries;
+}
+
+function buildTagRefinementHelpLines(
+  actionEntries: DerivedTagTerminalActionTargetOption<TagRefinementCommandId>[],
+): DerivedTagTerminalLine[] {
+  return [
+    ...buildTerminalInteractionHelpLines([
+      {
+        title: "Navigation",
+        actions: [
+          { id: "move", helpText: "move between tag-refinement rows" },
+          { id: "jump", helpText: "jump through the menu" },
+          { id: "page", helpText: "page through the menu" },
+          { id: "edge", helpText: "jump to the first or last row" },
+        ],
+      },
+      {
+        title: "Actions",
+        actions: getTagRefinementInteractionActions().map((action) => ({
+          ...action,
+          helpText: action.id === "select"
+            ? "open the selected row"
+            : action.id === "actions"
+              ? "focus the tag-refinement actions rail"
+              : action.id === "help"
+                ? "show this help"
+                : "return to the top level",
+        })),
+      },
+    ]),
+    { text: "" },
+    ...buildDerivedTagTerminalActionTargetHelpLines({
+      orientation: "horizontal",
+      visibility: "onDemand",
+      actions: actionEntries,
+      contentHelpText: "The action rail replaces the old command palette on this screen.",
+    }),
+  ];
 }
 
 export function TagRefinementMenuScreen({
@@ -187,11 +195,17 @@ export function TagRefinementMenuScreen({
   const terminal = useDerivedTagTerminalApp();
   const size = useDerivedTagTerminalSize();
   const navigationStateRef = React.useRef(createDerivedTagTerminalListNavigationState());
+  const [actionTargetState, dispatchActionTarget] = React.useReducer(
+    reduceDerivedTagTerminalActionTargetState<TagRefinementUiState>,
+    undefined,
+    () => createDerivedTagTerminalActionTargetState(),
+  );
   const bodyHeight = Math.max(1, getTerminalPaneBodyHeight(size.height, {
     hasSubtitle: true,
     footerLineCount: 2,
   }));
   const menuItems = buildTagRefinementMenuItems(queueItems);
+  const actionEntries = buildTagRefinementActionEntries(queueItems.length > 0);
   const clampedSelectedIndex = Math.max(0, Math.min(selectedIndex, Math.max(0, menuItems.length - 1)));
 
   React.useEffect(() => {
@@ -200,24 +214,17 @@ export function TagRefinementMenuScreen({
     }
   }, [clampedSelectedIndex, menuItems.length, onMove, selectedIndex]);
 
-  const openCommandPalette = React.useCallback(async () => {
-    const selected = await terminal.promptCommandPalette({
-      title: "Tag Refinement Commands",
-      prompt: "Filter tag-refinement commands",
-      entries: buildTagRefinementCommandEntries(queueItems.length > 0),
-    });
-    if (!selected) {
-      return;
-    }
-    if (selected === "review_all") {
+  const runActionTargetCommand = React.useCallback((commandId: TagRefinementCommandId) => {
+    if (commandId === "review_all") {
       onQuickAction("review_all");
       return;
     }
-    onQuickAction(selected);
-  }, [onQuickAction, queueItems.length, terminal]);
+    onQuickAction(commandId);
+  }, [onQuickAction]);
 
   useDerivedTagTerminalInput((input, key) => {
     const normalized = getNormalizedKeyName(input, key);
+    const actionTargetIntent = resolveDerivedTagTerminalActionTargetIntent(normalized, actionTargetState, "horizontal");
     const navigation = resolveDerivedTagTerminalListNavigationAction(input, key, {
       pageSize: Math.max(1, bodyHeight - 1),
       jumpSize: Math.max(1, Math.floor(bodyHeight / 2)),
@@ -226,7 +233,41 @@ export function TagRefinementMenuScreen({
     navigationStateRef.current = navigation.state;
     const interactionAction = resolveTerminalInteractionAction(normalized, getTagRefinementInteractionActions());
 
-    if (normalized === "ctrl_c" || isBackOrExitKey(normalized) || interactionAction?.id === "back" || interactionAction?.id === "quit") {
+    if (normalized === "ctrl_c") {
+      onBack();
+      return;
+    }
+    if (actionTargetIntent?.kind === "toggle_target") {
+      dispatchActionTarget({ type: "toggle_target" });
+      navigationStateRef.current = createDerivedTagTerminalListNavigationState();
+      return;
+    }
+    if (actionTargetIntent?.kind === "leave_actions") {
+      dispatchActionTarget({ type: "leave_actions" });
+      return;
+    }
+    if (actionTargetIntent?.kind === "move_action") {
+      dispatchActionTarget({ type: "move_action", delta: actionTargetIntent.delta, actionCount: actionEntries.length });
+      return;
+    }
+    if (actionTargetIntent?.kind === "apply_action") {
+      const selectedAction = actionEntries[actionTargetState.selectedActionIndex];
+      if (selectedAction) {
+        runActionTargetCommand(selectedAction.id);
+      }
+      return;
+    }
+    if (actionTargetState.activeTarget === "actions") {
+      if (interactionAction?.id === "help") {
+        void terminal.showDialog({
+          title: "Tag Refinement Help",
+          body: buildTagRefinementHelpLines(actionEntries),
+          footer: [{ text: TERMINAL_DIALOG_RETURN_FOOTER, tone: "dim" }],
+        });
+      }
+      return;
+    }
+    if (isBackOrExitKey(normalized) || interactionAction?.id === "back" || interactionAction?.id === "quit") {
       onBack();
       return;
     }
@@ -245,14 +286,10 @@ export function TagRefinementMenuScreen({
       onOpenSelected(menuItems);
       return;
     }
-    if (interactionAction?.id === "commands") {
-      void openCommandPalette();
-      return;
-    }
     if (interactionAction?.id === "help") {
       void terminal.showDialog({
         title: "Tag Refinement Help",
-        body: buildTagRefinementHelpLines(queueItems.length > 0),
+        body: buildTagRefinementHelpLines(actionEntries),
         footer: [{ text: TERMINAL_DIALOG_RETURN_FOOTER, tone: "dim" }],
       });
       return;
@@ -272,8 +309,20 @@ export function TagRefinementMenuScreen({
         lines: buildQueueLines(queueItems),
       }}
       footer={[
-        { text: formatTerminalInteractionFooter([{ id: "move" }, { id: "jump" }, { id: "page" }, { id: "edge" }, ...getTagRefinementInteractionActions()]), tone: "dim" },
-        { text: `Selected: ${menuItems[clampedSelectedIndex]?.label ?? "(none)"}`, tone: "accent" },
+        {
+          text: formatTerminalInteractionFooter(
+            actionTargetState.activeTarget === "actions"
+              ? [...getDerivedTagTerminalActionTargetInteractionActions(actionTargetState, "horizontal"), { id: "help" }]
+              : [{ id: "move" }, { id: "jump" }, { id: "page" }, { id: "edge" }, ...getTagRefinementInteractionActions()],
+          ),
+          tone: "dim",
+        },
+        {
+          text: shouldRenderDerivedTagTerminalActionTarget(actionTargetState, "onDemand")
+            ? formatDerivedTagTerminalActionTargetBar(actionEntries, actionTargetState)
+            : `Selected: ${menuItems[clampedSelectedIndex]?.label ?? "(none)"}`,
+          tone: "accent",
+        },
       ]}
       leftWidth={48}
     />
