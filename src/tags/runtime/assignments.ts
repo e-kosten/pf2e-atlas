@@ -161,6 +161,20 @@ function buildFamilyTagMap(
   return familiesByCategory;
 }
 
+function buildTagMap(
+  tags: DerivedTagOntologyTag[],
+): Map<SearchCategory, Map<string, DerivedTagOntologyTag>> {
+  const tagsByCategory = new Map<SearchCategory, Map<string, DerivedTagOntologyTag>>();
+
+  for (const tag of tags) {
+    const categoryTags = tagsByCategory.get(tag.category) ?? new Map<string, DerivedTagOntologyTag>();
+    categoryTags.set(normalizeDerivedTag(tag.tag), tag);
+    tagsByCategory.set(tag.category, categoryTags);
+  }
+
+  return tagsByCategory;
+}
+
 type NormalizedFamilyDecisionMap = Map<string, Map<string, DerivedTagAssignmentDecision>>;
 
 function createEmptyFamilyDecisionMap(): NormalizedFamilyDecisionMap {
@@ -180,6 +194,7 @@ function normalizeFamilyTagAssignments(
   groupedDecisions: Record<string, DerivedTagAssignmentDecision[]> | undefined,
   category: SearchCategory,
   familyTagMap: Map<SearchCategory, Map<string, Set<string>>>,
+  tagMap: Map<SearchCategory, Map<string, DerivedTagOntologyTag>>,
   fieldName: "applied" | "excluded",
   recordKey: string,
 ): NormalizedFamilyDecisionMap {
@@ -189,6 +204,7 @@ function normalizeFamilyTagAssignments(
   }
 
   const categoryFamilies = familyTagMap.get(category) ?? new Map<string, Set<string>>();
+  const categoryTags = tagMap.get(category) ?? new Map<string, DerivedTagOntologyTag>();
 
   for (const [rawFamily, rawDecisions] of Object.entries(groupedDecisions)) {
     const normalizedFamily = normalizeDerivedTag(rawFamily);
@@ -205,6 +221,17 @@ function normalizeFamilyTagAssignments(
       if (!familyTags.has(normalizedDecision.tag)) {
         throw new Error(
           `Derived tag assignment ${fieldName} tag "${rawDecision.tag}" for "${recordKey}" does not belong to family "${rawFamily}" in category "${category}".`,
+        );
+      }
+      const ontologyTag = categoryTags.get(normalizedDecision.tag);
+      if (!ontologyTag) {
+        throw new Error(
+          `Derived tag assignment ${fieldName} tag "${rawDecision.tag}" for "${recordKey}" does not exist in category "${category}".`,
+        );
+      }
+      if (ontologyTag.assignmentMode === "composite") {
+        throw new Error(
+          `Derived tag assignment ${fieldName} tag "${rawDecision.tag}" for "${recordKey}" cannot target composite tag "${ontologyTag.tag}"; assign one of its child tags instead.`,
         );
       }
       if (familyDecisions.has(normalizedDecision.tag)) {
@@ -249,6 +276,7 @@ function normalizeAssignment(
   assignment: AuthoredDerivedTagAssignment,
   category: SearchCategory,
   familyTagMap: Map<SearchCategory, Map<string, Set<string>>>,
+  tagMap: Map<SearchCategory, Map<string, DerivedTagOntologyTag>>,
 ): {
   includeByFamily: NormalizedFamilyDecisionMap;
   excludeByFamily: NormalizedFamilyDecisionMap;
@@ -257,6 +285,7 @@ function normalizeAssignment(
     assignment.applied,
     category,
     familyTagMap,
+    tagMap,
     "applied",
     assignment.recordKey,
   );
@@ -264,6 +293,7 @@ function normalizeAssignment(
     assignment.excluded,
     category,
     familyTagMap,
+    tagMap,
     "excluded",
     assignment.recordKey,
   );
@@ -299,6 +329,7 @@ function validateFamilyTagReference(
   fieldName: string,
   category: SearchCategory,
   familyTagMap: Map<SearchCategory, Map<string, Set<string>>>,
+  tagMap: Map<SearchCategory, Map<string, DerivedTagOntologyTag>>,
   recordKey: string,
   family: string,
   tag: string,
@@ -307,6 +338,7 @@ function validateFamilyTagReference(
   const normalizedTag = normalizeDerivedTag(tag);
   const categoryFamilies = familyTagMap.get(category) ?? new Map<string, Set<string>>();
   const familyTags = categoryFamilies.get(normalizedFamily);
+  const ontologyTag = tagMap.get(category)?.get(normalizedTag);
 
   if (!familyTags) {
     throw new Error(
@@ -316,6 +348,16 @@ function validateFamilyTagReference(
   if (!familyTags.has(normalizedTag)) {
     throw new Error(
       `Derived tag ${fieldName} tag "${tag}" for "${recordKey}" does not belong to family "${family}" in category "${category}".`,
+    );
+  }
+  if (!ontologyTag) {
+    throw new Error(
+      `Derived tag ${fieldName} tag "${tag}" for "${recordKey}" does not exist in category "${category}".`,
+    );
+  }
+  if (ontologyTag.assignmentMode === "composite") {
+    throw new Error(
+      `Derived tag ${fieldName} tag "${tag}" for "${recordKey}" cannot target composite tag "${ontologyTag.tag}"; assign one of its child tags instead.`,
     );
   }
 
@@ -345,6 +387,7 @@ export function buildDerivedTagPendingAssignmentViews(
   groups: DerivedTagAssignmentReviewGroup[] = RAW_DERIVED_TAG_ASSIGNMENT_REVIEWS,
 ): DerivedTagPendingAssignmentView[] {
   const familyTagMap = buildFamilyTagMap(ontology.tags);
+  const tagMap = buildTagMap(ontology.tags);
   const seenDecisionKeys = new Set<string>();
   const pendingByRecord = new Map<string, DerivedTagPendingAssignmentView>();
 
@@ -354,6 +397,7 @@ export function buildDerivedTagPendingAssignmentViews(
         "assignment review",
         group.category,
         familyTagMap,
+        tagMap,
         decision.recordKey,
         decision.family,
         decision.tag,
@@ -401,6 +445,7 @@ export function validateDerivedTagAssignmentMemory(
   groups: DerivedTagAssignmentMemoryGroup[] = RAW_DERIVED_TAG_ASSIGNMENT_MEMORY,
 ): void {
   const familyTagMap = buildFamilyTagMap(ontology.tags);
+  const tagMap = buildTagMap(ontology.tags);
   const seenDecisionKeys = new Set<string>();
 
   for (const group of groups) {
@@ -409,6 +454,7 @@ export function validateDerivedTagAssignmentMemory(
         "assignment memory",
         group.category,
         familyTagMap,
+        tagMap,
         decision.recordKey,
         decision.family,
         decision.tag,
@@ -429,6 +475,7 @@ export function buildDerivedTagExplicitAssignmentIndex(
   groups: DerivedTagAssignmentGroup[] = RAW_DERIVED_TAG_ASSIGNMENTS,
 ): DerivedTagExplicitAssignmentIndex {
   const familyTagMap = buildFamilyTagMap(ontology.tags);
+  const tagMap = buildTagMap(ontology.tags);
   const assignmentsByRecordKey = new Map<string, DerivedTagExplicitAssignment>();
 
   for (const group of groups) {
@@ -441,6 +488,7 @@ export function buildDerivedTagExplicitAssignmentIndex(
         assignment,
         group.category,
         familyTagMap,
+        tagMap,
       );
 
       assignmentsByRecordKey.set(assignment.recordKey, {

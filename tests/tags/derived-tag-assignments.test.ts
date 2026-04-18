@@ -29,6 +29,12 @@ const assignmentFamilies: DerivedTagOntologyFamily[] = [
     axis: "utility",
     description: "Equipment that supports security.",
   },
+  {
+    category: "equipment",
+    family: "reconnaissance",
+    axis: "utility",
+    description: "Equipment that supports scouting and tracking.",
+  },
 ];
 
 const assignmentTags: DerivedTagOntologyTag[] = [
@@ -52,6 +58,28 @@ const assignmentTags: DerivedTagOntologyTag[] = [
     tag: "alarm",
     description: "Warns of intruders.",
     assignmentMode: "deterministic",
+  },
+  {
+    category: "equipment",
+    family: "reconnaissance",
+    tag: "scouting",
+    description: "Supports observation and recon.",
+    assignmentMode: "deterministic",
+  },
+  {
+    category: "equipment",
+    family: "reconnaissance",
+    tag: "tracking",
+    description: "Supports following and relocating targets.",
+    assignmentMode: "deterministic",
+  },
+  {
+    category: "equipment",
+    family: "reconnaissance",
+    tag: "reconnaissance",
+    description: "Broad scouting umbrella.",
+    assignmentMode: "composite",
+    compositeOfAnyTags: ["scouting", "tracking"],
   },
 ];
 
@@ -301,6 +329,27 @@ describe("derived tag explicit assignments", () => {
         ],
       },
     ])).toThrow(/repeats/);
+
+    expect(() => buildDerivedTagExplicitAssignmentIndex(assignmentOntology, [
+      {
+        category: "equipment",
+        assignments: [
+          {
+            name: "Spyglass Kit",
+            recordKey: "equipment:spyglass-kit",
+            applied: {
+              reconnaissance: [
+                {
+                  tag: "reconnaissance",
+                  source: "human",
+                  rationale: "Composite umbrella tags should not be assigned directly.",
+                },
+              ],
+            },
+          },
+        ],
+      },
+    ])).toThrow(/cannot target composite tag/i);
   });
 
   it("throws on illegal assignment review and memory states", () => {
@@ -328,6 +377,22 @@ describe("derived tag explicit assignments", () => {
       },
     ])).toThrow(/repeats/);
 
+    expect(() => buildDerivedTagPendingAssignmentViews(assignmentOntology, [
+      {
+        category: "equipment",
+        decisions: [
+          {
+            name: "Spyglass Kit",
+            recordKey: "equipment:spyglass-kit",
+            family: "reconnaissance",
+            tag: "reconnaissance",
+            mode: "include",
+            rationale: "Pending review should also reject composite targets.",
+          },
+        ],
+      },
+    ])).toThrow(/cannot target composite tag/i);
+
     expect(() => validateDerivedTagAssignmentMemory(assignmentOntology, [
       {
         category: "equipment",
@@ -351,6 +416,22 @@ describe("derived tag explicit assignments", () => {
         ],
       },
     ])).toThrow(/repeats/);
+
+    expect(() => validateDerivedTagAssignmentMemory(assignmentOntology, [
+      {
+        category: "equipment",
+        decisions: [
+          {
+            name: "Spyglass Kit",
+            recordKey: "equipment:spyglass-kit",
+            family: "reconnaissance",
+            tag: "reconnaissance",
+            mode: "include",
+            rationale: "Memory should also reject composite targets.",
+          },
+        ],
+      },
+    ])).toThrow(/cannot target composite tag/i);
   });
 
   it("merges explicit assignments into derivation and applies exclusions without family promotion", () => {
