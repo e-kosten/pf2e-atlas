@@ -37,7 +37,13 @@ export default defineConfig(
     },
   },
   {
-    files: ["src/tui/**/*screen*.tsx", "src/tui/pf2e-app.tsx"],
+    files: ["src/tui/**/*.{ts,tsx}"],
+    ignores: [
+      "src/tui/keymap.ts",
+      "src/tui/interaction-bindings.ts",
+      "src/tui/action-target.ts",
+      "src/tui/terminal-ui.tsx",
+    ],
     rules: {
       "no-restricted-imports": [
         "error",
@@ -46,7 +52,7 @@ export default defineConfig(
             {
               group: ["**/keymap.js"],
               message:
-                "Screen-level TUI code must use interaction-bindings, action-target, or terminal-ui helpers instead of importing keymap directly.",
+                "TUI feature code must use interaction-bindings, action-target, or terminal-ui helpers instead of importing keymap directly.",
             },
           ],
         },
