@@ -6,8 +6,25 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
   families: {
     infiltration: {
       axis: "utility",
-      description: "Appearance-changing and social-passing spells.",
+      description: "Quiet-entry, appearance-changing, and social-passing spells.",
       tags: [
+        {
+          tag: "stealth_support",
+          description: "Helps move quietly, avoid notice, suppress noisy presence, or otherwise support covert entry and low-profile movement.",
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "The spell is naturally retrieved to help a creature move quietly, avoid notice, pass unseen, or keep a covert approach from drawing attention.",
+            "The retrieval hook is quiet entry or low-profile movement rather than only broad battlefield obscurity."
+          ],
+          doesNotApplyWhen: [
+            "The spell only creates a combat concealment effect or visual obstruction without really supporting a covert approach.",
+            "The spell changes appearance or social presentation without materially helping the target move unnoticed."
+          ],
+          adjacentTags: [
+            "concealment",
+            "silencing"
+          ]
+        },
         {
           tag: "disguise",
           description: "Helps alter appearance or impersonate another identity.",
@@ -17,6 +34,19 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
           tag: "social_infiltration",
           description: "Helps blend into a group or pass under social scrutiny.",
           assignmentMode: "deterministic"
+        },
+        {
+          tag: "infiltration",
+          description: "Broad infiltration umbrella for quiet-entry, disguise, and covert social-passing spells.",
+          assignmentMode: "composite",
+          adjacentTags: [
+            "stealth_support",
+            "disguise",
+            "social_infiltration"
+          ],
+          compositeOfAny: [
+            fromFamily("infiltration")
+          ]
         }
       ]
     },
@@ -104,7 +134,7 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
           assignmentMode: "deterministic"
         },
         {
-          tag: "telepathic_link",
+          tag: "telepathic_communication",
           description: "Creates direct mind-to-mind communication, silent tactical coordination, or psychic speech between creatures.",
           assignmentMode: "hybrid"
         },
@@ -126,7 +156,7 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
             "The spell reveals truth, thoughts, or memories without actually translating speech or writing."
           ],
           adjacentTags: [
-            "telepathic_link",
+            "telepathic_communication",
             "message_delivery"
           ]
         },
@@ -284,6 +314,88 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
           ],
           compositeOfAny: [
             fromFamily("consultation")
+          ]
+        }
+      ]
+    },
+    resolution: {
+      axis: "utility",
+      description: "Spells used to directly solve curses, hauntings, contamination, outbreak containment problems, and hidden supernatural causes rather than merely endure or diagnose them.",
+      tags: [
+        {
+          tag: "curse_removal",
+          description: "Breaks, removes, or counteracts curses as a direct answer path rather than only suppressing symptoms.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "exorcism",
+            "sanctification"
+          ]
+        },
+        {
+          tag: "exorcism",
+          description: "Banishes, expels, or spiritually drives out a hostile spirit, possession, haunt, or invading supernatural presence.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "curse_removal",
+            "sanctification"
+          ]
+        },
+        {
+          tag: "sanctification",
+          description: "Consecrates, hallowes, purifies, or spiritually cleanses a creature, object, or site to solve a malign supernatural problem.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "exorcism",
+            "protective_ward"
+          ]
+        },
+        {
+          tag: "quarantine_containment",
+          description: "Helps isolate victims, secure a dangerous area, or impose protective boundaries that stop spread while the problem is being solved.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "protective_ward",
+            "contamination_cleanup"
+          ]
+        },
+        {
+          tag: "contamination_cleanup",
+          description: "Cleanses tainted residue, neutralizes corrupted ground, removes lingering pollution, or purifies a contaminated space.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "quarantine_containment",
+            "source_cleanup"
+          ]
+        },
+        {
+          tag: "source_revelation",
+          description: "Reveals the hidden source, curse anchor, carrier, infected origin, or spreading point of a supernatural or outbreak problem.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "problem_diagnosis",
+            "source_cleanup"
+          ]
+        },
+        {
+          tag: "source_cleanup",
+          description: "Neutralizes, destroys, seals, or cleans up the cursed object, infected origin, corrupted site, or anchored source driving the problem.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "source_revelation",
+            "contamination_cleanup"
+          ]
+        },
+        {
+          tag: "resolution",
+          description: "Broad resolution umbrella for spells that break curses, expel hostile presences, contain spread, purify contamination, or solve a supernatural problem at its source.",
+          assignmentMode: "composite",
+          adjacentTags: [
+            "curse_removal",
+            "exorcism",
+            "source_cleanup"
+          ],
+          compositeOfAny: [
+            fromFamily("resolution")
           ]
         }
       ]
@@ -686,15 +798,6 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
           adjacentTags: [
             "healing_support",
             "condition_support"
-          ]
-        },
-        {
-          tag: "curse_removal",
-          description: "Specifically removes, breaks, or counteracts curses rather than only cleaning up afflictions in general.",
-          assignmentMode: "hybrid",
-          adjacentTags: [
-            "affliction_cleanup",
-            "anti_petrification"
           ]
         },
         {

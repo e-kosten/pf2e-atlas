@@ -10,7 +10,7 @@ describe("derived tag rules: spell", () => {
       subcategory: null,
       descriptionText: "You create an illusion that disguises the target and helps them pass as someone else.",
       traits: ["illusion"],
-    })).toEqual(expect.arrayContaining(["disguise", "social_infiltration"]));
+    })).toEqual(expect.arrayContaining(["disguise", "social_infiltration", "infiltration"]));
 
     expect(deriveRecordTags({
       name: "Humanoid Form",
@@ -18,7 +18,15 @@ describe("derived tag rules: spell", () => {
       subcategory: null,
       descriptionText: "You transform your appearance to that of a Small or Medium humanoid.",
       traits: ["polymorph"],
-    })).toEqual(expect.arrayContaining(["disguise", "social_infiltration"]));
+    })).toEqual(expect.arrayContaining(["disguise", "social_infiltration", "infiltration"]));
+
+    expect(deriveRecordTags({
+      name: "Quiet Approach",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You muffle the sound of the target's movement so they can move quietly and remain unnoticed while approaching a guarded door.",
+      traits: ["illusion", "subtle"],
+    })).toEqual(expect.arrayContaining(["stealth_support", "infiltration"]));
 
     expect(deriveRecordTags({
       name: "Mimic Undead",
@@ -42,7 +50,7 @@ describe("derived tag rules: spell", () => {
       subcategory: null,
       descriptionText: "While in a crowd of roughly similar creatures, your appearance becomes bland and nondescript. This counts as setting up a disguise for Impersonate and helps you go incognito among the crowd.",
       traits: ["focus", "visual"],
-    })).toEqual(expect.arrayContaining(["disguise", "social_infiltration"]));
+    })).toEqual(expect.arrayContaining(["disguise", "social_infiltration", "infiltration"]));
 
     expect(deriveRecordTags({
       name: "Befitting Attire",
@@ -573,7 +581,7 @@ describe("derived tag rules: spell", () => {
       subcategory: null,
       descriptionText: "You remove a curse from the target and can restore flesh from stone, counteracting petrification.",
       traits: ["healing"],
-    })).toEqual(expect.arrayContaining(["affliction_cleanup", "curse_removal", "anti_petrification"]));
+    })).toEqual(expect.arrayContaining(["affliction_cleanup", "curse_removal", "anti_petrification", "resolution"]));
 
     expect(deriveRecordTags({
       name: "Restorative Surge",

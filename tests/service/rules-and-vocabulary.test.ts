@@ -157,10 +157,22 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
         description: expect.stringContaining("play-pattern-facing"),
       }),
       expect.objectContaining({
+        category: "equipment",
+        family: "resolution",
+        axis: "utility",
+        description: expect.stringContaining("break curses"),
+      }),
+      expect.objectContaining({
         category: "creature",
         family: "corruption_profile",
         axis: "specialization",
         description: expect.stringContaining("corruption and taint"),
+      }),
+      expect.objectContaining({
+        category: "spell",
+        family: "resolution",
+        axis: "utility",
+        description: expect.stringContaining("solve curses"),
       }),
     ]));
     expect(vocabulary.derivedTagOntologyTags).toEqual(expect.arrayContaining([
@@ -172,9 +184,21 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       }),
       expect.objectContaining({
         category: "spell",
+        family: "infiltration",
+        tag: "infiltration",
+        assignmentMode: "composite",
+      }),
+      expect.objectContaining({
+        category: "spell",
         family: "consultation",
         tag: "consultation",
         assignmentMode: "composite",
+      }),
+      expect.objectContaining({
+        category: "spell",
+        family: "communication",
+        tag: "telepathic_communication",
+        assignmentMode: "hybrid",
       }),
       expect.objectContaining({
         category: "spell",
@@ -217,6 +241,12 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
         family: "play_pattern",
         tag: "shield_support",
         assignmentMode: "hybrid",
+      }),
+      expect.objectContaining({
+        category: "equipment",
+        family: "resolution",
+        tag: "resolution",
+        assignmentMode: "composite",
       }),
       expect.objectContaining({
         category: "hazard",
@@ -281,6 +311,24 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
         ]),
       }),
       expect.objectContaining({
+        category: "equipment",
+        family: "resolution",
+        axis: "utility",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "resolution", assignmentMode: "composite" }),
+          expect.objectContaining({ value: "sanctification", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "spell",
+        family: "infiltration",
+        axis: "utility",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "stealth_support", description: expect.any(String) }),
+          expect.objectContaining({ value: "infiltration", assignmentMode: "composite" }),
+        ]),
+      }),
+      expect.objectContaining({
         category: "spell",
         family: "consultation",
         axis: "utility",
@@ -294,8 +342,18 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
         family: "communication",
         axis: "utility",
         tags: expect.arrayContaining([
+          expect.objectContaining({ value: "telepathic_communication", description: expect.any(String) }),
           expect.objectContaining({ value: "message_delivery", description: expect.any(String) }),
           expect.objectContaining({ value: "translation_support", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "spell",
+        family: "resolution",
+        axis: "utility",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "resolution", assignmentMode: "composite" }),
+          expect.objectContaining({ value: "source_revelation", description: expect.any(String) }),
         ]),
       }),
       expect.objectContaining({

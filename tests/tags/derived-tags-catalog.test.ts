@@ -81,6 +81,17 @@ describe("derived tag catalog", () => {
       }),
       expect.objectContaining({
         category: "equipment",
+        family: "resolution",
+        axis: "utility",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "resolution", assignmentMode: "composite" }),
+          expect.objectContaining({ value: "curse_removal", description: expect.any(String) }),
+          expect.objectContaining({ value: "sanctification", description: expect.any(String) }),
+          expect.objectContaining({ value: "quarantine_containment", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "equipment",
         family: "offensive_profile",
         axis: "effect",
         tags: expect.arrayContaining([
@@ -120,6 +131,15 @@ describe("derived tag catalog", () => {
       }),
       expect.objectContaining({
         category: "spell",
+        family: "infiltration",
+        axis: "utility",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "stealth_support", description: expect.any(String) }),
+          expect.objectContaining({ value: "infiltration", assignmentMode: "composite" }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "spell",
         family: "consultation",
         axis: "utility",
         tags: expect.arrayContaining([
@@ -133,8 +153,20 @@ describe("derived tag catalog", () => {
         family: "communication",
         axis: "utility",
         tags: expect.arrayContaining([
+          expect.objectContaining({ value: "telepathic_communication", description: expect.any(String) }),
           expect.objectContaining({ value: "message_delivery", description: expect.any(String) }),
           expect.objectContaining({ value: "translation_support", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "spell",
+        family: "resolution",
+        axis: "utility",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "resolution", assignmentMode: "composite" }),
+          expect.objectContaining({ value: "curse_removal", description: expect.any(String) }),
+          expect.objectContaining({ value: "source_revelation", description: expect.any(String) }),
+          expect.objectContaining({ value: "source_cleanup", description: expect.any(String) }),
         ]),
       }),
       expect.objectContaining({

@@ -57,11 +57,6 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
           assignmentMode: "deterministic"
         },
         {
-          tag: "curse_removal",
-          description: "Helps remove, break, or counteract curses.",
-          assignmentMode: "deterministic"
-        },
-        {
           tag: "condition_support",
           description: "Helps clear or mitigate harmful conditions.",
           assignmentMode: "deterministic"
@@ -569,6 +564,84 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
           tag: "writing_recordkeeping",
           description: "Supports note-taking, mapmaking, copying text, archival work, or durable information storage.",
           assignmentMode: "deterministic"
+        }
+      ]
+    },
+    resolution: {
+      axis: "utility",
+      subcategories: [
+        "gear",
+        "backpack",
+        "kit",
+        "consumable"
+      ],
+      description: "Equipment used to break curses, sanctify spaces, contain spread, clean corrupted sites, or deal with a problem at its source.",
+      tags: [
+        {
+          tag: "curse_removal",
+          description: "Helps remove, break, or counteract curses as a direct answer path rather than only easing symptoms.",
+          assignmentMode: "deterministic",
+          adjacentTags: [
+            "sanctification",
+            "source_cleanup"
+          ]
+        },
+        {
+          tag: "sanctification",
+          description: "Supports hallowing, consecration, spiritual purification, or cleansing rites applied to a creature, object, or site.",
+          assignmentMode: "deterministic",
+          appliesWhen: [
+            "The item's retrieval value comes from consecrating, hallowing, purifying, or spiritually cleansing a target or place.",
+            "It is naturally sought as part of sacred-site cleanup, anti-haunt work, or ritual purification rather than general divine symbolism."
+          ],
+          doesNotApplyWhen: [
+            "The item is only religious, ceremonial, or devotional without materially helping purification or consecration.",
+            "The stronger fit is ritual_support because the item supports a broad rite rather than sanctification in particular."
+          ],
+          adjacentTags: [
+            "ritual_support",
+            "curse_removal"
+          ]
+        },
+        {
+          tag: "quarantine_containment",
+          description: "Helps isolate victims, secure contaminated areas, or impose practical containment procedures that stop spread while treatment proceeds.",
+          assignmentMode: "deterministic",
+          adjacentTags: [
+            "contamination_cleanup",
+            "source_cleanup"
+          ]
+        },
+        {
+          tag: "contamination_cleanup",
+          description: "Helps neutralize tainted residue, clean corrupted surfaces, purify contaminated supplies, or scrub a dangerous site back to safety.",
+          assignmentMode: "deterministic",
+          adjacentTags: [
+            "quarantine_containment",
+            "source_cleanup"
+          ]
+        },
+        {
+          tag: "source_cleanup",
+          description: "Helps find, remove, neutralize, or safely dispose of the cursed object, infected material, corrupted remains, or other source driving the problem.",
+          assignmentMode: "deterministic",
+          adjacentTags: [
+            "contamination_cleanup",
+            "ritual_support"
+          ]
+        },
+        {
+          tag: "resolution",
+          description: "Broad resolution umbrella for equipment used to break curses, sanctify places, contain spread, clean contamination, or solve a problem at its source.",
+          assignmentMode: "composite",
+          adjacentTags: [
+            "curse_removal",
+            "contamination_cleanup",
+            "source_cleanup"
+          ],
+          compositeOfAny: [
+            fromFamily("resolution")
+          ]
         }
       ]
     },

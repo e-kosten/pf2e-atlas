@@ -111,6 +111,19 @@ const RESISTANCE_SUPPORT_TEXT_ANCHORS = [
   patternAnchor("protects against sonic"),
 ];
 
+const SPELL_STEALTH_SUPPORT_TEXT_ANCHORS = [
+  patternAnchor("move quietly"),
+  patternAnchor("avoid notice"),
+  patternAnchor("without drawing attention"),
+  patternAnchor("unnoticed"),
+  patternAnchor("remain unnoticed"),
+  patternAnchor("stay unnoticed"),
+  patternAnchor("muffle the sound"),
+  patternAnchor("silent movement"),
+  patternAnchor("stealth"),
+  patternAnchor("sneak"),
+];
+
 const TRANSFORMATION_NAME_ANCHORS = [
   patternAnchor("metamorphosis", "name"),
   patternAnchor("polymorph", "name"),
@@ -682,6 +695,14 @@ const QUICKENED_SUPPORT_TEXT_ANCHORS = [
 ];
 
 export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
+  {
+    tag: "stealth_support",
+    category: "spell",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: SPELL_STEALTH_SUPPORT_TEXT_ANCHORS },
+    ],
+  },
   {
     tag: "disguise",
     category: "spell",

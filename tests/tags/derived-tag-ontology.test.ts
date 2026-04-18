@@ -103,6 +103,21 @@ describe("derived tag ontology", () => {
       family: "infiltration",
       assignmentMode: "deterministic",
     }));
+    const spellStealthSupport = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "spell" && tag.tag === "stealth_support");
+    expect(spellStealthSupport).toEqual(expect.objectContaining({
+      family: "infiltration",
+      assignmentMode: "hybrid",
+      adjacentTags: ["concealment", "silencing"],
+      appliesWhen: expect.arrayContaining([
+        "The spell is naturally retrieved to help a creature move quietly, avoid notice, pass unseen, or keep a covert approach from drawing attention.",
+      ]),
+    }));
+    const spellInfiltration = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "spell" && tag.tag === "infiltration");
+    expect(spellInfiltration).toEqual(expect.objectContaining({
+      family: "infiltration",
+      assignmentMode: "composite",
+      compositeOfAnyTags: ["stealth_support", "disguise", "social_infiltration"],
+    }));
     const equipmentBarrierBypass = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "equipment" && tag.tag === "barrier_bypass");
     expect(equipmentBarrierBypass).toEqual(expect.objectContaining({
       family: "access_bypass",
@@ -146,6 +161,18 @@ describe("derived tag ontology", () => {
       family: "resolution_profile",
       assignmentMode: "hybrid",
       adjacentTags: ["countermagic_resolution", "ritual_appeasement_resolution"],
+    }));
+    const spellResolution = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "spell" && tag.tag === "resolution");
+    expect(spellResolution).toEqual(expect.objectContaining({
+      family: "resolution",
+      assignmentMode: "composite",
+      compositeOfAnyTags: ["curse_removal", "exorcism", "sanctification", "quarantine_containment", "contamination_cleanup", "source_revelation", "source_cleanup"],
+    }));
+    const equipmentResolution = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "equipment" && tag.tag === "resolution");
+    expect(equipmentResolution).toEqual(expect.objectContaining({
+      family: "resolution",
+      assignmentMode: "composite",
+      compositeOfAnyTags: ["curse_removal", "sanctification", "quarantine_containment", "contamination_cleanup", "source_cleanup"],
     }));
     const fungalInfested = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "creature" && tag.tag === "fungal_infested");
     expect(fungalInfested).toEqual(expect.objectContaining({
@@ -536,6 +563,12 @@ describe("derived tag ontology", () => {
       appliesWhen: expect.arrayContaining([
         "The item's retrieval value comes from understanding foreign languages, translating speech, or decoding otherwise unreadable text or symbols.",
       ]),
+    }));
+    const spellTelepathicCommunication = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "spell" && tag.tag === "telepathic_communication");
+    expect(spellTelepathicCommunication).toEqual(expect.objectContaining({
+      family: "communication",
+      assignmentMode: "hybrid",
+      description: expect.stringContaining("mind-to-mind communication"),
     }));
     const equipmentEnvironmentalAdaptation = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "equipment" && tag.tag === "environmental_adaptation");
     expect(equipmentEnvironmentalAdaptation).toEqual(expect.objectContaining({
