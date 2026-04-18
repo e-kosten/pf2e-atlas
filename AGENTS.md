@@ -41,6 +41,7 @@ Agents must do implementation work in a dedicated git worktree, not in the share
 - Prefer a deterministic worktree path directly under that writable root, for example `/tmp/pathfinder-mcp-worktree-<task>`. Do not place agent worktrees anywhere else unless the instructions for the current environment explicitly name another writable root.
 - Do not create sibling worktrees next to the main checkout unless that path is explicitly writable in the environment.
 - Do not share a checkout with another running agent, and do not reuse the user's current working tree for agent edits.
+- When a temporary worktree needs project dependencies and the dependency manifests have not changed, prefer symlinking the primary checkout's installed dependency directory into the worktree instead of reinstalling. For this repo, if `package.json` and `package-lock.json` match the primary checkout, it is acceptable to symlink that checkout's `node_modules` into the worktree for validation runs.
 - Git commands that mutate repository state must never be run in parallel within the same repository or worktree.
 - Do not use parallel tool execution for `git add`, `git commit`, `git rebase`, `git merge`, `git cherry-pick`, `git worktree add`, `git worktree remove`, `git stash`, or any other git command that writes refs, the index, or worktree metadata.
 - Do not use `multi_tool_use.parallel` for git commands unless every git command in that batch is strictly read-only.
