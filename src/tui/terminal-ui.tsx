@@ -49,7 +49,7 @@ export type DerivedTagTerminalPane = {
   active?: boolean;
 };
 
-export type DerivedTagTerminalSelectOption<T extends string = string> = {
+export type DerivedTagTerminalSelectOption<T = string> = {
   value: T;
   label: string;
   description?: string;
@@ -126,12 +126,29 @@ type TextPromptOptions = {
   presentation?: TerminalModalPresentation;
 };
 
-type SelectPromptOptions<T extends string = string> = {
+export type DerivedTagTerminalSelectPromptResult<T = string> = { kind: "cancelled" } | { kind: "selected"; value: T };
+
+export type DerivedTagTerminalOptionalSelectPromptResult<T = string> =
+  | { kind: "cancelled" }
+  | { kind: "all" }
+  | { kind: "selected"; value: T };
+
+type SelectPromptOptions<T = string> = {
   title: string;
   subtitle?: string;
   prompt: string;
   entries: DerivedTagTerminalSelectOption<T>[];
   selectedValue?: T;
+  presentation?: TerminalModalPresentation;
+};
+
+type OptionalSelectPromptOptions<T = string> = {
+  title: string;
+  subtitle?: string;
+  prompt: string;
+  allOption: Pick<DerivedTagTerminalSelectOption<string>, "label" | "description" | "detailLines">;
+  entries: DerivedTagTerminalSelectOption<T>[];
+  selectedValue?: T | null;
   presentation?: TerminalModalPresentation;
 };
 
@@ -170,6 +187,28 @@ type CommandPaletteOptions<T extends string = string> = {
   presentation?: TerminalModalPresentation;
 };
 
+type TerminalSelectOptionDetails = Pick<
+  DerivedTagTerminalSelectOption<unknown>,
+  "label" | "description" | "detailLines"
+>;
+
+type TerminalSelectModalEntry =
+  | (TerminalSelectOptionDetails & {
+      kind: "selected";
+      value: unknown;
+    })
+  | (TerminalSelectOptionDetails & {
+      kind: "all";
+    });
+
+type TerminalSelectModalOptions = {
+  title: string;
+  subtitle?: string;
+  prompt: string;
+  entries: TerminalSelectModalEntry[];
+  presentation?: TerminalModalPresentation;
+};
+
 type TerminalModalState =
   | null
   | {
@@ -185,9 +224,11 @@ type TerminalModalState =
     }
   | {
       kind: "select";
-      options: SelectPromptOptions<string>;
+      options: TerminalSelectModalOptions;
       selectedIndex: number;
-      resolve: (value: string | undefined) => void;
+      resolve: (
+        value: DerivedTagTerminalSelectPromptResult<unknown> | DerivedTagTerminalOptionalSelectPromptResult<unknown>,
+      ) => void;
     }
   | {
       kind: "multiselect";
@@ -218,11 +259,14 @@ type DerivedTagTerminalContextValue = {
   modalActive: boolean;
   pauseForAnyKey: (message: string) => Promise<void>;
   promptCommandPalette: <T extends string>(options: CommandPaletteOptions<T>) => Promise<T | undefined>;
+  promptOptionalSelectOption: <T>(
+    options: OptionalSelectPromptOptions<T>,
+  ) => Promise<DerivedTagTerminalOptionalSelectPromptResult<T>>;
   promptPolicySelectOption: <T extends string>(
     options: PolicyPromptOptions<T>,
   ) => Promise<DerivedTagTerminalPolicySelection<T>>;
   promptMultiSelectOption: <T extends string>(options: MultiSelectPromptOptions<T>) => Promise<T[]>;
-  promptSelectOption: <T extends string>(options: SelectPromptOptions<T>) => Promise<T | undefined>;
+  promptSelectOption: <T>(options: SelectPromptOptions<T>) => Promise<DerivedTagTerminalSelectPromptResult<T>>;
   promptTextInput: (options: TextPromptOptions) => Promise<string | undefined>;
   showDialog: (options: DialogOptions) => Promise<void>;
 };
@@ -981,7 +1025,7 @@ function clampPromptSelectionIndex(selectedIndex: number, itemCount: number): nu
   return Math.max(0, Math.min(selectedIndex, itemCount - 1));
 }
 
-function buildPromptDetailLines(option: DerivedTagTerminalSelectOption<string> | undefined): DerivedTagTerminalLine[] {
+function buildPromptDetailLines(option: TerminalSelectOptionDetails | undefined): DerivedTagTerminalLine[] {
   if (option?.detailLines?.length) {
     return option.detailLines;
   }
@@ -993,6 +1037,55 @@ function buildPromptDetailLines(option: DerivedTagTerminalSelectOption<string> |
     { text: option?.label ?? "(none)", tone: "section" },
     { text: "No additional details.", tone: "dim" },
   ];
+}
+
+function buildSelectModalOptions<T>(options: SelectPromptOptions<T>): TerminalSelectModalOptions {
+  return {
+    title: options.title,
+    subtitle: options.subtitle,
+    prompt: options.prompt,
+    entries: options.entries.map((entry) => ({
+      kind: "selected" as const,
+      value: entry.value,
+      label: entry.label,
+      description: entry.description,
+      detailLines: entry.detailLines,
+    })),
+    presentation: options.presentation,
+  };
+}
+
+function buildOptionalSelectModalOptions<T>(options: OptionalSelectPromptOptions<T>): TerminalSelectModalOptions {
+  return {
+    title: options.title,
+    subtitle: options.subtitle,
+    prompt: options.prompt,
+    entries: [
+      {
+        kind: "all" as const,
+        label: options.allOption.label,
+        description: options.allOption.description,
+        detailLines: options.allOption.detailLines,
+      },
+      ...options.entries.map((entry) => ({
+        kind: "selected" as const,
+        value: entry.value,
+        label: entry.label,
+        description: entry.description,
+        detailLines: entry.detailLines,
+      })),
+    ],
+    presentation: options.presentation,
+  };
+}
+
+function getSelectPromptInitialIndex(entries: TerminalSelectModalEntry[], selectedValue: unknown): number {
+  return Math.max(
+    0,
+    entries.findIndex((entry) =>
+      entry.kind === "all" ? selectedValue === null : Object.is(entry.value, selectedValue),
+    ),
+  );
 }
 
 function filterCommandPaletteEntries(
@@ -1203,7 +1296,7 @@ function SelectPromptBody({
   width,
   height,
 }: {
-  options: SelectPromptOptions<string>;
+  options: TerminalSelectModalOptions;
   selectedIndex: number;
   width: number;
   height: number;
@@ -1781,7 +1874,7 @@ function DerivedTagTerminalModalHost({
         if (isBackNavigationKey(normalized) || normalized === "q" || normalized === "ctrl_c") {
           const resolver = modal.resolve;
           setModal(null);
-          resolver(undefined);
+          resolver({ kind: "cancelled" });
         }
         return;
       }
@@ -1850,9 +1943,13 @@ function DerivedTagTerminalModalHost({
       }
       if (modal.kind === "select" && selectLikeAction?.id === "select") {
         const resolver = modal.resolve;
-        const selected = modal.options.entries[modal.selectedIndex]?.value;
+        const selected = modal.options.entries[modal.selectedIndex];
         setModal(null);
-        resolver(selected);
+        if (!selected) {
+          resolver({ kind: "cancelled" });
+          return;
+        }
+        resolver(selected.kind === "all" ? { kind: "all" } : { kind: "selected", value: selected.value });
         return;
       }
       if (modal.kind === "multiselect" && multiSelectLikeAction?.id === "return") {
@@ -1902,7 +1999,7 @@ function DerivedTagTerminalModalHost({
       ) {
         const resolver = modal.resolve;
         setModal(null);
-        resolver(undefined);
+        resolver({ kind: "cancelled" });
       }
     },
     { isActive: modal !== null },
@@ -2002,6 +2099,20 @@ export function DerivedTagTerminalProvider({ children }: { children: React.React
             resolve: resolve as (value: string | undefined) => void,
           });
         }),
+      promptOptionalSelectOption: async <T,>(options: OptionalSelectPromptOptions<T>) =>
+        new Promise<DerivedTagTerminalOptionalSelectPromptResult<T>>((resolve) => {
+          const modalOptions = buildOptionalSelectModalOptions(options);
+          setModal({
+            kind: "select",
+            options: modalOptions,
+            selectedIndex: getSelectPromptInitialIndex(modalOptions.entries, options.selectedValue),
+            resolve: resolve as (
+              value:
+                | DerivedTagTerminalSelectPromptResult<unknown>
+                | DerivedTagTerminalOptionalSelectPromptResult<unknown>,
+            ) => void,
+          });
+        }),
       promptPolicySelectOption: async <T extends string>(options: PolicyPromptOptions<T>) =>
         new Promise<DerivedTagTerminalPolicySelection<T>>((resolve) => {
           const initialSelection = createEmptyPolicySelection<string>();
@@ -2035,17 +2146,18 @@ export function DerivedTagTerminalProvider({ children }: { children: React.React
             resolve: resolve as (value: string[]) => void,
           });
         }),
-      promptSelectOption: async <T extends string>(options: SelectPromptOptions<T>) =>
-        new Promise<T | undefined>((resolve) => {
-          const selectedIndex = Math.max(
-            0,
-            options.entries.findIndex((entry) => entry.value === options.selectedValue),
-          );
+      promptSelectOption: async <T,>(options: SelectPromptOptions<T>) =>
+        new Promise<DerivedTagTerminalSelectPromptResult<T>>((resolve) => {
+          const modalOptions = buildSelectModalOptions(options);
           setModal({
             kind: "select",
-            options: options as SelectPromptOptions<string>,
-            selectedIndex,
-            resolve: resolve as (value: string | undefined) => void,
+            options: modalOptions,
+            selectedIndex: getSelectPromptInitialIndex(modalOptions.entries, options.selectedValue),
+            resolve: resolve as (
+              value:
+                | DerivedTagTerminalSelectPromptResult<unknown>
+                | DerivedTagTerminalOptionalSelectPromptResult<unknown>,
+            ) => void,
           });
         }),
       promptTextInput: async (options: TextPromptOptions) =>

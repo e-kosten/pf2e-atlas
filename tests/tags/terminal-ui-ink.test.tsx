@@ -5,7 +5,9 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   createDerivedTagTerminalListNavigationState,
+  type DerivedTagTerminalOptionalSelectPromptResult,
   type DerivedTagTerminalPolicySelection,
+  type DerivedTagTerminalSelectPromptResult,
   DerivedTagTerminalProvider,
   TerminalTextScreen,
   getDerivedTagTerminalListNavigationAction,
@@ -25,6 +27,17 @@ async function flushInkFrames(count = 2): Promise<void> {
   for (let index = 0; index < count; index += 1) {
     await flushInk();
   }
+}
+
+function formatSelectResult<T>(result: DerivedTagTerminalSelectPromptResult<T>): string {
+  return result.kind === "selected" ? String(result.value) : "cancelled";
+}
+
+function formatOptionalSelectResult<T>(result: DerivedTagTerminalOptionalSelectPromptResult<T>): string {
+  if (result.kind === "selected") {
+    return String(result.value);
+  }
+  return result.kind;
 }
 
 function SelectPromptHarness(): React.JSX.Element {
@@ -48,8 +61,8 @@ function SelectPromptHarness(): React.JSX.Element {
           { value: "second", label: "Second" },
         ],
       })
-      .then((value) => {
-        setResult(value ?? "cancelled");
+      .then((result) => {
+        setResult(formatSelectResult(result));
       });
   }, []);
 
@@ -176,8 +189,34 @@ function LongSelectPromptHarness(): React.JSX.Element {
           label: `Item ${index + 1}`,
         })),
       })
-      .then((value) => {
-        setResult(value ?? "cancelled");
+      .then((result) => {
+        setResult(formatSelectResult(result));
+      });
+  }, []);
+
+  return <TerminalTextScreen title="Harness" body={[{ text: `result=${result}` }]} />;
+}
+
+function OptionalSelectPromptHarness(): React.JSX.Element {
+  const terminal = useDerivedTagTerminalApp();
+  const [result, setResult] = React.useState("pending");
+
+  React.useEffect(() => {
+    void terminal
+      .promptOptionalSelectOption({
+        title: "Optional Harness",
+        prompt: "Pick a value or keep the full scope",
+        allOption: {
+          label: "All values",
+          description: "Keep the full scope.",
+        },
+        entries: [
+          { value: "first", label: "First" },
+          { value: "second", label: "Second" },
+        ],
+      })
+      .then((selection) => {
+        setResult(formatOptionalSelectResult(selection));
       });
   }, []);
 
@@ -362,6 +401,36 @@ describe("derived tag terminal ink runtime", () => {
     app.stdin.write("\r");
     await flushInkFrames();
     expect(app.lastFrame()).toContain("result=item-6");
+  });
+
+  it("supports typed all-selections without sentinel values", async () => {
+    const allApp = render(
+      <DerivedTagTerminalProvider>
+        <OptionalSelectPromptHarness />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInkFrames();
+    expect(allApp.lastFrame()).toContain("Pick a value or keep the full scope");
+
+    allApp.stdin.write("\r");
+    await flushInkFrames();
+    expect(allApp.lastFrame()).toContain("result=all");
+
+    allApp.unmount();
+
+    const selectedApp = render(
+      <DerivedTagTerminalProvider>
+        <OptionalSelectPromptHarness />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInkFrames();
+    selectedApp.stdin.write("j");
+    await flushInkFrames();
+    selectedApp.stdin.write("\r");
+    await flushInkFrames();
+    expect(selectedApp.lastFrame()).toContain("result=first");
   });
 
   it("filters and selects commands through the shared command palette", async () => {

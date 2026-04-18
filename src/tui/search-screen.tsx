@@ -1264,7 +1264,7 @@ export function SearchScreen({
       return;
     }
 
-    const selected = await terminal.promptSelectOption({
+    const result = await terminal.promptSelectOption({
       title: "Result Sort",
       prompt: "Choose how the current result reader should be ordered",
       entries: user.search.getResultSortOptions(state.session.request.mode).map((option) => ({
@@ -1275,13 +1275,13 @@ export function SearchScreen({
       selectedValue: state.session.sort,
     });
 
-    if (!selected || selected === state.session.sort) {
+    if (result.kind !== "selected" || result.value === state.session.sort) {
       return;
     }
 
     setBusy(true);
     try {
-      const session = await user.search.changeSort(state.session, selected);
+      const session = await user.search.changeSort(state.session, result.value);
       dispatch({ type: "set_session", session });
     } catch (error) {
       await terminal.pauseForAnyKey(`Result sort failed.\n\n${(error as Error).message}`);
@@ -1495,7 +1495,7 @@ export function SearchScreen({
   }, [applyDraftUpdate, state.draft.mode, state.draft.queryText, terminal]);
 
   const chooseMode = React.useCallback(async () => {
-    const selected = await terminal.promptSelectOption({
+    const result = await terminal.promptSelectOption({
       title: "Workspace Mode",
       prompt: "Choose how the current query setup should execute",
       entries: user.search.getModeOptions().map((option) => ({
@@ -1506,18 +1506,18 @@ export function SearchScreen({
       selectedValue: state.draft.mode,
     });
 
-    if (!selected) {
+    if (result.kind !== "selected") {
       return;
     }
 
     applyDraftUpdate((request) => ({
       ...request,
-      mode: selected,
+      mode: result.value,
     }));
   }, [applyDraftUpdate, state.draft.mode, terminal, user.search]);
 
   const chooseSearchProfile = React.useCallback(async () => {
-    const selected = await terminal.promptSelectOption({
+    const result = await terminal.promptSelectOption({
       title: "Search Profile",
       prompt: "Choose the current profile for ranked search mode",
       entries: user.search.getProfileOptions().map((option) => ({
@@ -1528,36 +1528,43 @@ export function SearchScreen({
       selectedValue: state.draft.searchProfile,
     });
 
-    if (selected) {
+    if (result.kind === "selected") {
       applyDraftUpdate((request) => ({
         ...request,
-        searchProfile: selected,
+        searchProfile: result.value,
       }));
     }
   }, [applyDraftUpdate, state.draft.searchProfile, terminal, user.search]);
 
   const chooseCategoryFilter = React.useCallback(async () => {
-    const selected = await terminal.promptSelectOption({
+    const [allCategoryOption, ...categoryEntries] = user.search.getCategoryOptions();
+    const result = await terminal.promptOptionalSelectOption({
       title: "Category Scope",
       prompt: "Choose the current category boundary",
-      entries: user.search.getCategoryOptions().map((option) => ({
-        value: option.value ?? "__all__",
+      allOption: {
+        label: allCategoryOption?.label ?? "Any Category",
+        description: allCategoryOption?.description,
+      },
+      entries: categoryEntries.map((option) => ({
+        value: option.value,
         label: option.label,
         description: option.description,
       })),
-      selectedValue: state.draft.filters.category ?? "__all__",
+      selectedValue: state.draft.filters.category ?? null,
     });
 
-    if (selected !== undefined) {
-      applyDraftUpdate((request) => ({
-        ...request,
-        filters: {
-          ...request.filters,
-          category: selected === "__all__" ? null : (selected as SearchCategory),
-          subcategory: null,
-        },
-      }));
+    if (result.kind === "cancelled") {
+      return;
     }
+
+    applyDraftUpdate((request) => ({
+      ...request,
+      filters: {
+        ...request.filters,
+        category: result.kind === "all" ? null : result.value,
+        subcategory: null,
+      },
+    }));
   }, [applyDraftUpdate, state.draft.filters.category, terminal, user.search]);
 
   const chooseSubcategoryFilter = React.useCallback(async () => {
@@ -1566,26 +1573,35 @@ export function SearchScreen({
       return;
     }
 
-    const selected = await terminal.promptSelectOption({
+    const [allSubcategoryOption, ...subcategoryEntries] = user.search.getSubcategoryOptions(
+      state.draft.filters.category,
+    );
+    const result = await terminal.promptOptionalSelectOption({
       title: "Subcategory Scope",
       prompt: "Choose the current subcategory boundary",
-      entries: user.search.getSubcategoryOptions(state.draft.filters.category).map((option) => ({
-        value: option.value ?? "__all__",
+      allOption: {
+        label: allSubcategoryOption?.label ?? "Any Subcategory",
+        description: allSubcategoryOption?.description,
+      },
+      entries: subcategoryEntries.map((option) => ({
+        value: option.value,
         label: option.label,
         description: option.description,
       })),
-      selectedValue: state.draft.filters.subcategory ?? "__all__",
+      selectedValue: state.draft.filters.subcategory ?? null,
     });
 
-    if (selected !== undefined) {
-      applyDraftUpdate((request) => ({
-        ...request,
-        filters: {
-          ...request.filters,
-          subcategory: selected === "__all__" ? null : (selected as SearchSubcategory),
-        },
-      }));
+    if (result.kind === "cancelled") {
+      return;
     }
+
+    applyDraftUpdate((request) => ({
+      ...request,
+      filters: {
+        ...request.filters,
+        subcategory: result.kind === "all" ? null : result.value,
+      },
+    }));
   }, [applyDraftUpdate, state.draft.filters.category, state.draft.filters.subcategory, terminal, user.search]);
 
   const chooseRarityFilter = React.useCallback(async () => {

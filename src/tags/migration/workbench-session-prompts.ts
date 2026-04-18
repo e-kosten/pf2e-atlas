@@ -11,11 +11,6 @@ import { getPublishedDerivedTagMigrationOntology } from "./runtime-state.js";
 import type { DerivedTagTerminalApp, DerivedTagTerminalSelectOption } from "../../tui/terminal-ui.js";
 import type { DerivedTagMigrationMode } from "./types.js";
 
-const ANY_CATEGORY = "__all_categories__";
-const ANY_SUBCATEGORY = "__all_subcategories__";
-const ANY_FAMILY = "__all_families__";
-const ANY_TAG = "__all_tags__";
-
 export type DerivedTagMigrationWorkbenchSessionOptions = {
   category?: SearchCategory;
   subcategory?: SearchSubcategory;
@@ -55,10 +50,9 @@ function getSessionScopeOntology() {
 function buildCategorySelectOptions(
   mode: DerivedTagMigrationMode,
   db: DatabaseSync,
-  required: boolean,
-): DerivedTagTerminalSelectOption<SearchCategory | typeof ANY_CATEGORY>[] {
+): DerivedTagTerminalSelectOption<SearchCategory>[] {
   const scopeSummary = summarizeDerivedTagCategoryScopes(db, mode);
-  const categoryOptions = DERIVED_TAG_MANAGED_CATEGORIES.map((category) => {
+  return DERIVED_TAG_MANAGED_CATEGORIES.map((category) => {
     const detailLines = scopeSummary.categories.find((entry) => entry.category === category)?.detailLines ?? [];
     return {
       value: category,
@@ -66,22 +60,20 @@ function buildCategorySelectOptions(
       detailLines: [{ text: category, tone: "section" }, ...detailLines.map((line) => ({ text: line }))],
     } satisfies DerivedTagTerminalSelectOption<string>;
   });
+}
 
-  if (required) {
-    return categoryOptions;
-  }
-
-  return [
-    {
-      value: ANY_CATEGORY,
-      label: "All categories",
-      detailLines: [
-        { text: "All categories", tone: "section" },
-        ...scopeSummary.allCategoriesDetailLines.map((line) => ({ text: line })),
-      ],
-    },
-    ...categoryOptions,
-  ];
+function buildAllCategoryOption(
+  mode: DerivedTagMigrationMode,
+  db: DatabaseSync,
+): Pick<DerivedTagTerminalSelectOption<string>, "label" | "description" | "detailLines"> {
+  const scopeSummary = summarizeDerivedTagCategoryScopes(db, mode);
+  return {
+    label: "All categories",
+    detailLines: [
+      { text: "All categories", tone: "section" },
+      ...scopeSummary.allCategoriesDetailLines.map((line) => ({ text: line })),
+    ],
+  };
 }
 
 function listSubcategoriesForCategory(category: SearchCategory): SearchSubcategory[] {
@@ -92,42 +84,42 @@ function listSubcategoriesForCategory(category: SearchCategory): SearchSubcatego
   ) as SearchSubcategory[];
 }
 
-function buildSubcategorySelectOptions(
-  category: SearchCategory,
-): DerivedTagTerminalSelectOption<SearchSubcategory | typeof ANY_SUBCATEGORY>[] {
+function buildSubcategorySelectOptions(category: SearchCategory): DerivedTagTerminalSelectOption<SearchSubcategory>[] {
   const ontology = getSessionScopeOntology();
   const subcategories = listSubcategoriesForCategory(category);
-  return [
-    {
-      value: ANY_SUBCATEGORY,
-      label: "All subcategories",
+  return subcategories.map((subcategory) => {
+    const matchingFamilies = ontology.families.filter(
+      (family) => family.category === category && (family.subcategories?.includes(subcategory) ?? false),
+    );
+    const matchingTags = ontology.tags.filter((tag) => {
+      if (tag.category !== category) {
+        return false;
+      }
+      const family = ontology.familyByKey.get(buildOntologyKey(tag.category, tag.family));
+      return family?.subcategories?.includes(subcategory) ?? false;
+    });
+    return {
+      value: subcategory,
+      label: subcategory,
       detailLines: [
-        { text: `${category} / all subcategories`, tone: "section" },
-        { text: "Keep the session scoped to the full category." },
+        { text: `${category}/${subcategory}`, tone: "section" },
+        { text: `${matchingFamilies.length} families apply` },
+        { text: `${matchingTags.length} tags apply` },
       ],
-    },
-    ...subcategories.map((subcategory) => {
-      const matchingFamilies = ontology.families.filter(
-        (family) => family.category === category && (family.subcategories?.includes(subcategory) ?? false),
-      );
-      const matchingTags = ontology.tags.filter((tag) => {
-        if (tag.category !== category) {
-          return false;
-        }
-        const family = ontology.familyByKey.get(buildOntologyKey(tag.category, tag.family));
-        return family?.subcategories?.includes(subcategory) ?? false;
-      });
-      return {
-        value: subcategory,
-        label: subcategory,
-        detailLines: [
-          { text: `${category}/${subcategory}`, tone: "section" },
-          { text: `${matchingFamilies.length} families apply` },
-          { text: `${matchingTags.length} tags apply` },
-        ],
-      } satisfies DerivedTagTerminalSelectOption<string>;
-    }),
-  ];
+    } satisfies DerivedTagTerminalSelectOption<string>;
+  });
+}
+
+function buildAllSubcategoryOption(
+  category: SearchCategory,
+): Pick<DerivedTagTerminalSelectOption<string>, "label" | "description" | "detailLines"> {
+  return {
+    label: "All subcategories",
+    detailLines: [
+      { text: `${category} / all subcategories`, tone: "section" },
+      { text: "Keep the session scoped to the full category." },
+    ],
+  };
 }
 
 function familyMatchesScope(
@@ -189,17 +181,17 @@ function buildFamilySelectOptions(
         }) satisfies DerivedTagTerminalSelectOption<string>,
     );
 
-  return [
-    {
-      value: ANY_FAMILY,
-      label: "All families",
-      detailLines: [
-        { text: "All families", tone: "section" },
-        { text: "Keep family unspecified and review the wider queue slice." },
-      ],
-    } satisfies DerivedTagTerminalSelectOption<string>,
-    ...familyOptions,
-  ];
+  return familyOptions;
+}
+
+function buildAllFamilyOption(): Pick<DerivedTagTerminalSelectOption<string>, "label" | "description" | "detailLines"> {
+  return {
+    label: "All families",
+    detailLines: [
+      { text: "All families", tone: "section" },
+      { text: "Keep family unspecified and review the wider queue slice." },
+    ],
+  };
 }
 
 function tagMatchesScope(
@@ -232,11 +224,10 @@ function buildTagSelectOptions(
   subcategory: SearchSubcategory | undefined,
   family: string | undefined,
   exemplarLimit: number | undefined,
-  required: boolean,
 ): DerivedTagTerminalSelectOption<string>[] {
   const ontology = getSessionScopeOntology();
   const actionableScope = getActionableSessionScopeKeys(mode, exemplarLimit);
-  const tagOptions = ontology.tags
+  return ontology.tags
     .filter((tag) => tagMatchesScope(category, subcategory, family, tag))
     .filter((tag) => !actionableScope || actionableScope.tagKeys.has(buildOntologyKey(tag.category, tag.tag)))
     .sort(
@@ -262,22 +253,16 @@ function buildTagSelectOptions(
         ],
       } satisfies DerivedTagTerminalSelectOption<string>;
     });
+}
 
-  if (required) {
-    return tagOptions;
-  }
-
-  return [
-    {
-      value: ANY_TAG,
-      label: "All tags",
-      detailLines: [
-        { text: "All tags", tone: "section" },
-        { text: "Keep tag unspecified and create a broader review session." },
-      ],
-    },
-    ...tagOptions,
-  ];
+function buildAllTagOption(): Pick<DerivedTagTerminalSelectOption<string>, "label" | "description" | "detailLines"> {
+  return {
+    label: "All tags",
+    detailLines: [
+      { text: "All tags", tone: "section" },
+      { text: "Keep tag unspecified and create a broader review session." },
+    ],
+  };
 }
 
 async function promptCategory(
@@ -286,20 +271,29 @@ async function promptCategory(
   mode: DerivedTagMigrationMode,
   required: boolean,
 ): Promise<SearchCategory | null | undefined> {
-  const value = await terminal.promptSelectOption<SearchCategory | typeof ANY_CATEGORY>({
+  const entries = buildCategorySelectOptions(mode, db);
+  if (required) {
+    const result = await terminal.promptSelectOption({
+      title: "Session Scope",
+      subtitle: "Choose a category boundary for the session",
+      prompt: "Categories",
+      entries,
+    });
+    return result.kind === "selected" ? result.value : undefined;
+  }
+
+  const result = await terminal.promptOptionalSelectOption({
     title: "Session Scope",
     subtitle: "Choose a category boundary for the session",
     prompt: "Categories",
-    entries: buildCategorySelectOptions(mode, db, required),
+    allOption: buildAllCategoryOption(mode, db),
+    entries,
   });
 
-  if (value === undefined) {
+  if (result.kind === "cancelled") {
     return undefined;
   }
-  if (value === ANY_CATEGORY) {
-    return null;
-  }
-  return value;
+  return result.kind === "all" ? null : result.value;
 }
 
 async function promptSubcategory(
@@ -307,24 +301,22 @@ async function promptSubcategory(
   category: SearchCategory,
 ): Promise<SearchSubcategory | null | undefined> {
   const options = buildSubcategorySelectOptions(category);
-  if (options.length <= 1) {
+  if (options.length === 0) {
     return null;
   }
 
-  const value = await terminal.promptSelectOption<SearchSubcategory | typeof ANY_SUBCATEGORY>({
+  const result = await terminal.promptOptionalSelectOption({
     title: "Session Scope",
     subtitle: `Optionally narrow ${category} to a subcategory`,
     prompt: "Subcategories",
     entries: options,
+    allOption: buildAllSubcategoryOption(category),
   });
 
-  if (value === undefined) {
+  if (result.kind === "cancelled") {
     return undefined;
   }
-  if (value === ANY_SUBCATEGORY) {
-    return null;
-  }
-  return value;
+  return result.kind === "all" ? null : result.value;
 }
 
 async function promptTag(
@@ -336,19 +328,29 @@ async function promptTag(
   exemplarLimit: number | undefined,
   required: boolean,
 ): Promise<{ category?: SearchCategory; tag?: string } | undefined> {
-  const value = await terminal.promptSelectOption({
-    title: "Session Scope",
-    subtitle: required ? "Choose the tag to review" : "Optionally narrow the session to one tag",
-    prompt: "Tags",
-    entries: buildTagSelectOptions(mode, category, subcategory, family, exemplarLimit, required),
-  });
+  const entries = buildTagSelectOptions(mode, category, subcategory, family, exemplarLimit);
+  const result = required
+    ? await terminal.promptSelectOption({
+        title: "Session Scope",
+        subtitle: "Choose the tag to review",
+        prompt: "Tags",
+        entries,
+      })
+    : await terminal.promptOptionalSelectOption({
+        title: "Session Scope",
+        subtitle: "Optionally narrow the session to one tag",
+        prompt: "Tags",
+        entries,
+        allOption: buildAllTagOption(),
+      });
 
-  if (value === undefined) {
+  if (result.kind === "cancelled") {
     return undefined;
   }
-  if (value === ANY_TAG) {
+  if (result.kind === "all") {
     return {};
   }
+  const value = result.value;
   if (!category) {
     const [resolvedCategory, resolvedTag] = value.split(":", 2);
     const normalizedCategory = normalizeSearchCategory(resolvedCategory);
@@ -369,19 +371,21 @@ async function promptFamily(
   subcategory: SearchSubcategory | undefined,
   exemplarLimit: number | undefined,
 ): Promise<{ category?: SearchCategory; family?: string } | undefined> {
-  const value = await terminal.promptSelectOption({
+  const result = await terminal.promptOptionalSelectOption({
     title: "Session Scope",
     subtitle: "Optionally narrow the queue to one ontology family",
     prompt: "Families",
     entries: buildFamilySelectOptions(mode, category, subcategory, exemplarLimit),
+    allOption: buildAllFamilyOption(),
   });
 
-  if (value === undefined) {
+  if (result.kind === "cancelled") {
     return undefined;
   }
-  if (value === ANY_FAMILY) {
+  if (result.kind === "all") {
     return {};
   }
+  const value = result.value;
   if (!category) {
     const [resolvedCategory, resolvedFamily] = value.split(":", 2);
     const normalizedCategory = normalizeSearchCategory(resolvedCategory);
