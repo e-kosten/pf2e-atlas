@@ -1,4 +1,11 @@
 import type { NormalizedRecord, SearchCategory, SearchSubcategory, SourceCategory } from "../../types.js";
+import {
+  parseSearchCategoryValue,
+  parseSearchSubcategoryForCategory,
+  parseSourceCategoryValue,
+  parseStringArrayJson,
+  toSqliteNumber,
+} from "../../data/sql-row-decoding.js";
 
 export type OntologyExplorerEntityRecord = {
   recordKey: string;
@@ -54,8 +61,8 @@ export type OntologyExplorerEntityRecordRow = {
   packName: string | null;
   name: string;
   type: string;
-  category: SearchCategory;
-  subcategory: SearchSubcategory | null;
+  category: string;
+  subcategory: string | null;
   documentType: string;
   level: number | bigint | null;
   rarity: string | null;
@@ -64,7 +71,7 @@ export type OntologyExplorerEntityRecordRow = {
   familiesJson: string | null;
   descriptionText: string | null;
   blurbText: string | null;
-  sourceCategory: SourceCategory;
+  sourceCategory: string;
   publicationTitle: string | null;
   publicationRemaster: number;
   isUnique: number;
@@ -98,12 +105,8 @@ export type OntologyExplorerEntityRecordRow = {
   isComplex: number | null;
 };
 
-function parseStringArray(json: string | null | undefined): string[] {
-  return json ? (JSON.parse(json) as string[]) : [];
-}
-
-function toNullableNumber(value: number | bigint | null): number | null {
-  return typeof value === "bigint" ? Number(value) : value;
+function toNullableNumber(value: number | bigint | null, context: string): number | null {
+  return value == null ? null : toSqliteNumber(value, context);
 }
 
 export function buildOntologyExplorerEntityRecordSelectColumns(
@@ -178,52 +181,93 @@ export function buildOntologyExplorerEntityRecordSelectColumns(
 }
 
 export function mapOntologyExplorerEntityRecordRow(row: OntologyExplorerEntityRecordRow): OntologyExplorerEntityRecord {
+  const category = parseSearchCategoryValue(row.category, `ontology explorer record "${row.recordKey}"`);
   return {
     recordKey: row.recordKey,
     packName: row.packName ?? row.recordKey.split(":")[0] ?? "",
     name: row.name,
     type: row.type,
-    category: row.category,
-    subcategory: row.subcategory,
+    category,
+    subcategory: parseSearchSubcategoryForCategory(
+      category,
+      row.subcategory,
+      `ontology explorer record "${row.recordKey}"`,
+    ),
     documentType: row.documentType,
-    level: toNullableNumber(row.level),
+    level: toNullableNumber(row.level, `ontology explorer level for "${row.recordKey}"`),
     rarity: row.rarity,
-    traits: parseStringArray(row.traitsJson),
-    derivedTags: parseStringArray(row.derivedTagsJson),
-    families: parseStringArray(row.familiesJson),
+    traits: parseStringArrayJson(row.traitsJson, "traitsJson", `ontology explorer record "${row.recordKey}"`),
+    derivedTags: parseStringArrayJson(
+      row.derivedTagsJson,
+      "derivedTagsJson",
+      `ontology explorer record "${row.recordKey}"`,
+    ),
+    families: parseStringArrayJson(row.familiesJson, "familiesJson", `ontology explorer record "${row.recordKey}"`),
     descriptionText: row.descriptionText,
     blurbText: row.blurbText,
-    sourceCategory: row.sourceCategory,
+    sourceCategory: parseSourceCategoryValue(row.sourceCategory, `ontology explorer record "${row.recordKey}"`),
     publicationTitle: row.publicationTitle,
     publicationRemaster: Boolean(row.publicationRemaster),
     isUnique: Boolean(row.isUnique),
     size: row.size,
-    languages: parseStringArray(row.languagesJson),
-    speedTypes: parseStringArray(row.speedTypesJson),
-    senses: parseStringArray(row.sensesJson),
-    immunities: parseStringArray(row.immunitiesJson),
-    resistances: parseStringArray(row.resistancesJson),
-    weaknesses: parseStringArray(row.weaknessesJson),
+    languages: parseStringArrayJson(row.languagesJson, "languagesJson", `ontology explorer record "${row.recordKey}"`),
+    speedTypes: parseStringArrayJson(
+      row.speedTypesJson,
+      "speedTypesJson",
+      `ontology explorer record "${row.recordKey}"`,
+    ),
+    senses: parseStringArrayJson(row.sensesJson, "sensesJson", `ontology explorer record "${row.recordKey}"`),
+    immunities: parseStringArrayJson(
+      row.immunitiesJson,
+      "immunitiesJson",
+      `ontology explorer record "${row.recordKey}"`,
+    ),
+    resistances: parseStringArrayJson(
+      row.resistancesJson,
+      "resistancesJson",
+      `ontology explorer record "${row.recordKey}"`,
+    ),
+    weaknesses: parseStringArrayJson(
+      row.weaknessesJson,
+      "weaknessesJson",
+      `ontology explorer record "${row.recordKey}"`,
+    ),
     itemCategory: row.itemCategory,
     baseItem: row.baseItem,
-    priceCp: toNullableNumber(row.priceCp),
+    priceCp: toNullableNumber(row.priceCp, `ontology explorer price for "${row.recordKey}"`),
     usage: row.usage,
-    hands: toNullableNumber(row.hands),
-    damageTypes: parseStringArray(row.damageTypesJson),
+    hands: toNullableNumber(row.hands, `ontology explorer hands for "${row.recordKey}"`),
+    damageTypes: parseStringArrayJson(
+      row.damageTypesJson,
+      "damageTypesJson",
+      `ontology explorer record "${row.recordKey}"`,
+    ),
     weaponGroup: row.weaponGroup,
     armorGroup: row.armorGroup,
-    traditions: parseStringArray(row.traditionsJson),
-    spellKinds: parseStringArray(row.spellKindsJson),
+    traditions: parseStringArrayJson(
+      row.traditionsJson,
+      "traditionsJson",
+      `ontology explorer record "${row.recordKey}"`,
+    ),
+    spellKinds: parseStringArrayJson(
+      row.spellKindsJson,
+      "spellKindsJson",
+      `ontology explorer record "${row.recordKey}"`,
+    ),
     saveType: row.saveType,
     areaType: row.areaType,
     rangeText: row.rangeText,
     durationText: row.durationText,
     targetText: row.targetText,
-    areaValue: toNullableNumber(row.areaValue),
+    areaValue: toNullableNumber(row.areaValue, `ontology explorer area value for "${row.recordKey}"`),
     sustained: Boolean(row.sustained),
     basicSave: Boolean(row.basicSave),
     disableText: row.disableText,
-    disableSkills: parseStringArray(row.disableSkillsJson),
+    disableSkills: parseStringArrayJson(
+      row.disableSkillsJson,
+      "disableSkillsJson",
+      `ontology explorer record "${row.recordKey}"`,
+    ),
     isComplex: Boolean(row.isComplex),
   };
 }

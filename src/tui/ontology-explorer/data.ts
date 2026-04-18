@@ -14,9 +14,16 @@ import {
 } from "./entity-record.js";
 import { compareDisplayText, compareManagedCategory } from "../../tags/migration/list-sorting.js";
 import { getPublishedDerivedTagMigrationOntology } from "../../tags/migration/runtime-state.js";
+import { parseSearchCategoryValue } from "../../data/sql-row-decoding.js";
 
 type ExplorerCountRow = {
   category: SearchCategory;
+  tag: string;
+  recordKey: string;
+};
+
+type RawExplorerCountRow = {
+  category: string;
   tag: string;
   recordKey: string;
 };
@@ -187,16 +194,21 @@ function buildRecordFilterText(tag: string, record: OntologyExplorerEntityRecord
 }
 
 function queryCanonicalTagRows(db: DatabaseSync): ExplorerCountRow[] {
-  return db
-    .prepare(
-      `
+  return (
+    db
+      .prepare(
+        `
     SELECT r.category AS category, d.tag AS tag, d.record_key AS recordKey
     FROM record_derived_tags d
     JOIN records r ON r.record_key = d.record_key
     WHERE r.is_search_canonical = 1
   `,
-    )
-    .all() as ExplorerCountRow[];
+      )
+      .all() as RawExplorerCountRow[]
+  ).map((row) => ({
+    ...row,
+    category: parseSearchCategoryValue(row.category, `ontology explorer live count row "${row.recordKey}"`),
+  }));
 }
 
 function queryExplorerRecordRows(db: DatabaseSync, recordKeys: string[]): OntologyExplorerEntityRecordRow[] {
