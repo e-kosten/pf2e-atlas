@@ -15,11 +15,11 @@ import {
   type Pf2eAppRoute,
 } from "./pf2e-app-state.js";
 import { AreaMenuScreen } from "./area-menu-screen.js";
-import { isBackOrExitKey } from "./keymap.js";
 import { OntologyBrowserScreen } from "./ontology-explorer/screen.js";
 import { OntologyDomainPickerScreen } from "./ontology-explorer/domain-picker-screen.js";
 import { SearchScreen } from "./search-screen.js";
 import { TerminalBusyScreen } from "./shared-screens.js";
+import { resolveTerminalInteractionAction } from "./interaction-bindings.js";
 import {
   TerminalTextScreen,
   getNormalizedKeyName,
@@ -32,7 +32,8 @@ import { TagRefinementMenuScreen, type TagRefinementMenuItem } from "./tag-refin
 function StartupErrorScreen({ message, onExit }: { message: string; onExit: () => void }): React.JSX.Element {
   useDerivedTagTerminalInput((input, key) => {
     const normalized = getNormalizedKeyName(input, key);
-    if (isBackOrExitKey(normalized)) {
+    const interactionAction = resolveTerminalInteractionAction(normalized, [{ id: "back" }, { id: "quit" }]);
+    if (normalized === "ctrl_c" || interactionAction?.id === "back" || interactionAction?.id === "quit") {
       onExit();
     }
   });

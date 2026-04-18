@@ -36,5 +36,22 @@ export default defineConfig(
       "preserve-caught-error": "error",
     },
   },
+  {
+    files: ["src/tui/**/*screen*.tsx", "src/tui/pf2e-app.tsx"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["**/keymap.js"],
+              message:
+                "Screen-level TUI code must use interaction-bindings, action-target, or terminal-ui helpers instead of importing keymap directly.",
+            },
+          ],
+        },
+      ],
+    },
+  },
   prettierConfig,
 );

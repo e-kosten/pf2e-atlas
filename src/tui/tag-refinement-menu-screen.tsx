@@ -30,7 +30,6 @@ import {
   resolveTerminalInteractionAction,
   type TerminalInteractionAction,
 } from "./interaction-bindings.js";
-import { isBackOrExitKey } from "./keymap.js";
 import { buildScrollableLines } from "./list-utils.js";
 
 type TagRefinementCommandId = "review_all" | "legacy_seed" | "legacy_rule" | "exemplar_cleanup" | "proposal_review";
@@ -273,7 +272,7 @@ export function TagRefinementMenuScreen({
       }
       return;
     }
-    if (isBackOrExitKey(normalized) || interactionAction?.id === "back" || interactionAction?.id === "quit") {
+    if (interactionAction?.id === "back" || interactionAction?.id === "quit") {
       onBack();
       return;
     }
