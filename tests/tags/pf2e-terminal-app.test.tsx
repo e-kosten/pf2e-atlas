@@ -140,6 +140,7 @@ function createFakeServices(overrides: Partial<Pf2eTerminalAppServices> = {}): P
   return {
     config: createTestConfig(),
     catalog: {
+      closeSearchWindow: vi.fn(),
       countRecords: vi.fn(async () => ({
         searchProfile: "lexical",
         mode: "lexical",
@@ -160,6 +161,32 @@ function createFakeServices(overrides: Partial<Pf2eTerminalAppServices> = {}): P
         records: [record],
       })),
       lookup: vi.fn(() => ({ match: record, alternatives: [] })),
+      openSearchWindow: vi.fn(async () => ({
+        id: "window-1",
+        searchProfile: "balanced",
+        mode: "hybrid",
+        sort: "alphabetical",
+        sortSeed: null,
+        total: 1,
+        offset: 0,
+        limit: 20,
+        hasMore: false,
+        nextOffset: null,
+        records: [record],
+      })),
+      readSearchWindowPage: vi.fn(() => ({
+        id: "window-1",
+        searchProfile: "balanced",
+        mode: "hybrid",
+        sort: "alphabetical",
+        sortSeed: null,
+        total: 1,
+        offset: 0,
+        limit: 20,
+        hasMore: false,
+        nextOffset: null,
+        records: [record],
+      })),
       search: vi.fn(async () => ({
         searchProfile: "balanced",
         mode: "hybrid",
@@ -222,6 +249,7 @@ function createFakeServices(overrides: Partial<Pf2eTerminalAppServices> = {}): P
           total: 1,
         })),
         executeQuery: vi.fn(async (request) => ({
+          windowId: "window-1",
           request,
           results: [record],
           resultMode: request.mode === "browse" ? "structured" : "hybrid",

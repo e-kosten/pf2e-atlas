@@ -123,9 +123,12 @@ function createRecord(overrides: Partial<NormalizedRecord> = {}): NormalizedReco
 
 function createServices(
   overrides: {
+    closeSearchWindow?: ReturnType<typeof vi.fn>;
     countRecords?: ReturnType<typeof vi.fn>;
     listRecords?: ReturnType<typeof vi.fn>;
     lookup?: ReturnType<typeof vi.fn>;
+    openSearchWindow?: ReturnType<typeof vi.fn>;
+    readSearchWindowPage?: ReturnType<typeof vi.fn>;
     search?: ReturnType<typeof vi.fn>;
   } = {},
 ): Pf2eTerminalAppServices {
@@ -158,8 +161,41 @@ function createServices(
     nextOffset: null,
     records: [record],
   }));
+  const openSearchWindow = overrides.openSearchWindow ?? vi.fn(async (filters: SearchFilters, options?: { mode?: "browse" | "search" | "lookup" }) => {
+    const result = options?.mode === "browse"
+      ? listRecords(filters)
+      : await search(filters);
+    return {
+      id: "window-1",
+      searchProfile: result.searchProfile,
+      mode: result.mode,
+      sort: result.sort,
+      sortSeed: filters.sortSeed ?? null,
+      total: result.total,
+      offset: result.offset,
+      limit: result.limit,
+      hasMore: result.hasMore,
+      nextOffset: result.nextOffset,
+      records: result.records,
+    };
+  });
+  const readSearchWindowPage = overrides.readSearchWindowPage ?? vi.fn((windowId: string, offset: number, limit: number) => ({
+    id: windowId,
+    searchProfile: "balanced" as const,
+    mode: "hybrid" as const,
+    sort: "ranked" as const,
+    sortSeed: null,
+    total: 1,
+    offset,
+    limit,
+    hasMore: false,
+    nextOffset: null,
+    records: [record],
+  }));
+  const closeSearchWindow = overrides.closeSearchWindow ?? vi.fn();
 
   const searchService = createPf2eTerminalSearchService({
+    closeSearchWindow,
     countRecords,
     getSearchVocabulary: () => ({
       categories: [{ value: "spell", count: 1 }],
@@ -202,6 +238,8 @@ function createServices(
     }),
     lookup,
     listRecords,
+    openSearchWindow,
+    readSearchWindowPage,
     search,
   });
 
@@ -214,7 +252,10 @@ function createServices(
       listFilterValues: vi.fn(() => ({ field: "categories", values: [] }) as never),
       listRecords,
       lookup,
+      openSearchWindow,
+      readSearchWindowPage,
       search,
+      closeSearchWindow,
     },
     user: {
       search: searchService,
@@ -334,12 +375,11 @@ describe("search screen", () => {
     await flushInk();
     await flushInk();
 
-    expect(search).toHaveBeenCalledWith({
+    expect(search).toHaveBeenCalledWith(expect.objectContaining({
       actionCost: undefined,
       category: "spell",
       levelMax: undefined,
       levelMin: undefined,
-      limit: 50,
       metadata: undefined,
       offset: 0,
       query: "ghost",
@@ -348,7 +388,8 @@ describe("search screen", () => {
       sort: "ranked",
       sortSeed: undefined,
       subcategory: undefined,
-    });
+    }));
+    expect(search.mock.calls[0]?.[0]?.limit).toBeGreaterThan(50);
     expect(app.lastFrame()).toContain("Draft matches applied query");
     expect(app.lastFrame()).toContain("1/1 loaded");
     expect(app.lastFrame()).toContain("[RESULTS] 1/1 loaded | Ranked");
@@ -367,6 +408,220 @@ describe("search screen", () => {
     await flushInk();
     expect(app.lastFrame()).toContain("[DRAFT] Scope & Filters");
     expect(app.lastFrame()).not.toContain("[RESULTS] 1/1 loaded | Ranked");
+  });
+
+  it("loads the next result page through the window reader instead of rerunning the search", async () => {
+    const firstPageRecords = [
+      createRecord({ recordKey: "spell:a", id: "a", name: "Alarm Ward" }),
+      createRecord({ recordKey: "spell:b", id: "b", name: "Arcane Echo" }),
+    ];
+    const secondPageRecords = [
+      createRecord({ recordKey: "spell:c", id: "c", name: "Beacon Sigil" }),
+    ];
+    const openSearchWindow = vi.fn(async () => ({
+      id: "window-1",
+      searchProfile: null,
+      mode: "structured" as const,
+      sort: "alphabetical" as const,
+      sortSeed: null,
+      total: 3,
+      offset: 0,
+      limit: 2,
+      hasMore: true,
+      nextOffset: 2,
+      records: firstPageRecords,
+    }));
+    const readSearchWindowPage = vi.fn(() => ({
+      id: "window-1",
+      searchProfile: null,
+      mode: "structured" as const,
+      sort: "alphabetical" as const,
+      sortSeed: null,
+      total: 3,
+      offset: 2,
+      limit: 2,
+      hasMore: false,
+      nextOffset: null,
+      records: secondPageRecords,
+    }));
+    const search = vi.fn(async () => ({
+      searchProfile: "balanced" as const,
+      mode: "hybrid" as const,
+      sort: "ranked" as const,
+      total: 0,
+      offset: 0,
+      limit: 50,
+      hasMore: false,
+      nextOffset: null,
+      records: [],
+    }));
+    const services = createServices({ openSearchWindow, readSearchWindowPage, search });
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen onBack={vi.fn()} />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    app.stdin.write("\t");
+    await flushInk();
+    await flushInk();
+    await flushInk();
+
+    expect(openSearchWindow).toHaveBeenCalledTimes(1);
+    expect(readSearchWindowPage).toHaveBeenCalledTimes(1);
+    expect(search).not.toHaveBeenCalled();
+    expect(app.lastFrame()).toContain("Beacon Sigil");
+    expect(app.lastFrame()).toContain("3/3 loaded | Alphabetical");
+  });
+
+  it("prefetches the full result set for small totals so paging stays invisible", async () => {
+    const firstPageRecords = Array.from({ length: 120 }, (_, index) => createRecord({
+      recordKey: `spell:${index}`,
+      id: `${index}`,
+      name: `Spell ${index}`,
+    }));
+    const secondPageRecords = Array.from({ length: 80 }, (_, index) => createRecord({
+      recordKey: `spell:${index + 120}`,
+      id: `${index + 120}`,
+      name: `Spell ${index + 120}`,
+    }));
+    const openSearchWindow = vi.fn(async () => ({
+      id: "window-1",
+      searchProfile: null,
+      mode: "structured" as const,
+      sort: "alphabetical" as const,
+      sortSeed: null,
+      total: 200,
+      offset: 0,
+      limit: 120,
+      hasMore: true,
+      nextOffset: 120,
+      records: firstPageRecords,
+    }));
+    const readSearchWindowPage = vi.fn(() => ({
+      id: "window-1",
+      searchProfile: null,
+      mode: "structured" as const,
+      sort: "alphabetical" as const,
+      sortSeed: null,
+      total: 200,
+      offset: 120,
+      limit: 120,
+      hasMore: false,
+      nextOffset: null,
+      records: secondPageRecords,
+    }));
+    const services = createServices({ openSearchWindow, readSearchWindowPage });
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen onBack={vi.fn()} />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    app.stdin.write("\t");
+    await flushInk();
+    await flushInk();
+    await flushInk();
+
+    expect(openSearchWindow).toHaveBeenCalledTimes(1);
+    expect(readSearchWindowPage).toHaveBeenCalledTimes(1);
+    expect(app.lastFrame()).toContain("200/200 loaded | Alphabetical");
+  });
+
+  it("carries the applied execution window size forward into later page loads", async () => {
+    const services = createServices({
+      openSearchWindow: vi.fn(async () => ({
+        id: "window-1",
+        searchProfile: null,
+        mode: "structured" as const,
+        sort: "alphabetical" as const,
+        sortSeed: null,
+        total: 200,
+        offset: 0,
+        limit: 120,
+        hasMore: true,
+        nextOffset: 120,
+        records: [createRecord()],
+      })),
+      readSearchWindowPage: vi.fn(() => ({
+        id: "window-1",
+        searchProfile: null,
+        mode: "structured" as const,
+        sort: "alphabetical" as const,
+        sortSeed: null,
+        total: 200,
+        offset: 120,
+        limit: 120,
+        hasMore: false,
+        nextOffset: null,
+        records: [createRecord({ recordKey: "spell:b", id: "b", name: "Beacon Sigil" })],
+      })),
+    });
+
+    const session = await services.user.search.executeQuery(services.user.search.createDefaultRequest(), {
+      sort: "alphabetical",
+      limit: 120,
+    });
+    await services.user.search.loadMore(session);
+
+    expect(session.request.limit).toBe(120);
+    expect(services.catalog.readSearchWindowPage).toHaveBeenCalledWith("window-1", 120, 120);
+  });
+
+  it("loads enough future pages to restore a wider local result buffer", async () => {
+    const services = createServices({
+      openSearchWindow: vi.fn(async () => ({
+        id: "window-1",
+        searchProfile: null,
+        mode: "structured" as const,
+        sort: "alphabetical" as const,
+        sortSeed: null,
+        total: 1000,
+        offset: 0,
+        limit: 120,
+        hasMore: true,
+        nextOffset: 120,
+        records: Array.from({ length: 120 }, (_, index) => createRecord({
+          recordKey: `spell:${index}`,
+          id: `${index}`,
+          name: `Spell ${index}`,
+        })),
+      })),
+      readSearchWindowPage: vi.fn((windowId: string, offset: number, limit: number) => ({
+        id: windowId,
+        searchProfile: null,
+        mode: "structured" as const,
+        sort: "alphabetical" as const,
+        sortSeed: null,
+        total: 1000,
+        offset,
+        limit,
+        hasMore: offset + limit < 1000,
+        nextOffset: offset + limit < 1000 ? offset + limit : null,
+        records: Array.from({ length: limit }, (_, index) => createRecord({
+          recordKey: `spell:${offset + index}`,
+          id: `${offset + index}`,
+          name: `Spell ${offset + index}`,
+        })),
+      })),
+    });
+
+    const session = await services.user.search.executeQuery(services.user.search.createDefaultRequest(), {
+      sort: "alphabetical",
+      limit: 120,
+    });
+    const buffered = await services.user.search.loadMore(session, { minimumLoadedCount: 301 });
+
+    expect(buffered.loadedCount).toBe(360);
+    expect(buffered.nextOffset).toBe(360);
+    expect(services.catalog.readSearchWindowPage).toHaveBeenNthCalledWith(1, "window-1", 120, 120);
+    expect(services.catalog.readSearchWindowPage).toHaveBeenNthCalledWith(2, "window-1", 240, 120);
   });
 
   it("orders filter values from declarative field policies and exposes action cost through facet editing", () => {

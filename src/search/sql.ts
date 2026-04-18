@@ -19,6 +19,7 @@ import {
   NormalizedRecord,
   SearchCategory,
   SearchScope,
+  SearchSort,
   SearchSubcategory,
 } from "../types.js";
 import {
@@ -353,6 +354,90 @@ export function buildCandidateQuery(
   }, options);
 
   return { sql: sql.join("\n"), params };
+}
+
+function appendCandidateOrderBy(sql: string[], sort: SearchSort): void {
+  switch (sort) {
+    case "levelAsc":
+      sql.push("ORDER BY CASE WHEN r.level IS NULL THEN 1 ELSE 0 END ASC, r.level ASC, r.name COLLATE NOCASE ASC, r.pack_label COLLATE NOCASE ASC, r.id ASC");
+      return;
+    case "levelDesc":
+      sql.push("ORDER BY CASE WHEN r.level IS NULL THEN 1 ELSE 0 END ASC, r.level DESC, r.name COLLATE NOCASE ASC, r.pack_label COLLATE NOCASE ASC, r.id ASC");
+      return;
+    case "alphabetical":
+    default:
+      sql.push("ORDER BY r.name COLLATE NOCASE ASC, r.pack_label COLLATE NOCASE ASC, r.id ASC");
+  }
+}
+
+export function buildCandidateCountQuery(
+  filters: NormalizedSearchFilters,
+  options: { recordKeys?: string[] } = {},
+): { sql: string; params: SqlValue[] } {
+  const sql = [
+    "SELECT COUNT(*) AS total",
+    "FROM records r",
+    "LEFT JOIN actor_records a ON a.record_key = r.record_key",
+    "LEFT JOIN item_records i ON i.record_key = r.record_key",
+    "LEFT JOIN spell_records s ON s.record_key = r.record_key",
+    "WHERE 1 = 1",
+  ];
+  const params: SqlValue[] = [];
+  applySearchFilterClauses(sql, params, filters, {
+    records: "r",
+    actor: "a",
+    item: "i",
+    spell: "s",
+  }, options);
+
+  return { sql: sql.join("\n"), params };
+}
+
+export function buildCandidateKeyQuery(
+  filters: NormalizedSearchFilters,
+  options: { recordKeys?: string[] } = {},
+): { sql: string; params: SqlValue[] } {
+  const sql = [
+    "SELECT r.record_key AS recordKey",
+    "FROM records r",
+    "LEFT JOIN actor_records a ON a.record_key = r.record_key",
+    "LEFT JOIN item_records i ON i.record_key = r.record_key",
+    "LEFT JOIN spell_records s ON s.record_key = r.record_key",
+    "WHERE 1 = 1",
+  ];
+  const params: SqlValue[] = [];
+  applySearchFilterClauses(sql, params, filters, {
+    records: "r",
+    actor: "a",
+    item: "i",
+    spell: "s",
+  }, options);
+
+  return { sql: sql.join("\n"), params };
+}
+
+export function buildPagedCandidateQuery(
+  filters: NormalizedSearchFilters,
+  sort: SearchSort,
+  offset: number,
+  limit: number,
+  includeSearchText = false,
+  includeEmbedding = false,
+  options: { recordKeys?: string[] } = {},
+): { sql: string; params: SqlValue[] } {
+  if (sort === "ranked" || sort === "random") {
+    throw new Error(`Paged candidate query does not support ${sort} ordering.`);
+  }
+
+  const { sql, params } = buildCandidateQuery(filters, includeSearchText, includeEmbedding, options);
+  const lines = [sql];
+  appendCandidateOrderBy(lines, sort);
+  lines.push("LIMIT ?");
+  lines.push("OFFSET ?");
+  return {
+    sql: lines.join("\n"),
+    params: [...params, limit, offset],
+  };
 }
 
 export function buildFilterValueQuery(query: FilterValueQuery, filters: NormalizedSearchFilters): { sql: string; params: SqlValue[] } {

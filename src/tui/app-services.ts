@@ -51,7 +51,16 @@ export type Pf2eTerminalTagWorkbenchService = {
 
 export type Pf2eTerminalCatalogService = Pick<
   Pf2eDataService,
-  "countRecords" | "getRecord" | "getSearchVocabulary" | "listFilterValues" | "listRecords" | "lookup" | "search"
+  | "closeSearchWindow"
+  | "countRecords"
+  | "getRecord"
+  | "getSearchVocabulary"
+  | "listFilterValues"
+  | "listRecords"
+  | "lookup"
+  | "openSearchWindow"
+  | "readSearchWindowPage"
+  | "search"
 >;
 
 export type Pf2eTerminalUserServices = {
@@ -115,11 +124,14 @@ export function createPf2eTerminalAppServices(
     user: {
       ontology: createPf2eApplicationOntologyService(config, dataService),
       search: createPf2eTerminalSearchService({
+        closeSearchWindow: (windowId) => dataService.closeSearchWindow(windowId),
         countRecords: (filters, options) => dataService.countRecords(filters, options),
         getSearchVocabulary: () => dataService.getSearchVocabulary(),
         listFilterValues: (query) => dataService.listFilterValues(query),
         lookup: (name, options) => dataService.lookup(name, options),
         listRecords: (filters) => dataService.listRecords(filters),
+        openSearchWindow: (filters, options) => dataService.openSearchWindow(filters, options),
+        readSearchWindowPage: (windowId, offset, limit) => dataService.readSearchWindowPage(windowId, offset, limit),
         search: (filters) => dataService.search(filters),
       }),
     },

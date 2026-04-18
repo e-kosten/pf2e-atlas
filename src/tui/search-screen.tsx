@@ -91,6 +91,12 @@ type SearchScreenAction =
 
 const SEARCH_LEFT_WIDTH = 44;
 const LIVE_COUNT_DEBOUNCE_MS = 150;
+const EAGER_RESULT_BUFFER_LIMIT = 250;
+const MIN_RESULT_WINDOW_LIMIT = 120;
+const RESULT_WINDOW_PAGE_MULTIPLIER = 8;
+const RESULT_PRELOAD_PAGE_MULTIPLIER = 4;
+const RESULT_PRELOAD_JUMP_MULTIPLIER = 6;
+const RESULT_BUFFER_TARGET_MULTIPLIER = 3;
 
 function createInitialSearchScreenState(initialRequest: Pf2eTerminalSearchRequest): SearchScreenState {
   return {
@@ -102,6 +108,64 @@ function createInitialSearchScreenState(initialRequest: Pf2eTerminalSearchReques
     resultSelectedIndex: 0,
     session: null,
   };
+}
+
+function getSearchResultWindowMetrics(bodyHeight: number): {
+  selectionJumpSize: number;
+  pageSize: number;
+  windowLimit: number;
+  preloadThreshold: number;
+  targetAheadBuffer: number;
+} {
+  const selectionJumpSize = Math.max(1, Math.floor(bodyHeight / 2));
+  const pageSize = Math.max(1, bodyHeight - 1);
+  const windowLimit = Math.max(
+    MIN_RESULT_WINDOW_LIMIT,
+    pageSize * RESULT_WINDOW_PAGE_MULTIPLIER,
+    selectionJumpSize * (RESULT_WINDOW_PAGE_MULTIPLIER + 2),
+  );
+  const preloadThreshold = Math.min(
+    Math.max(1, windowLimit - 1),
+    Math.max(
+      pageSize * RESULT_PRELOAD_PAGE_MULTIPLIER,
+      selectionJumpSize * RESULT_PRELOAD_JUMP_MULTIPLIER,
+    ),
+  );
+  const targetAheadBuffer = Math.max(
+    pageSize * RESULT_BUFFER_TARGET_MULTIPLIER,
+    windowLimit * RESULT_BUFFER_TARGET_MULTIPLIER,
+  );
+
+  return {
+    selectionJumpSize,
+    pageSize,
+    windowLimit,
+    preloadThreshold,
+    targetAheadBuffer,
+  };
+}
+
+function getSearchResultBufferTarget(
+  session: Pf2eTerminalSearchSession,
+  selectedIndex: number,
+  metrics: {
+    preloadThreshold: number;
+    targetAheadBuffer: number;
+  },
+): number {
+  if (session.total <= EAGER_RESULT_BUFFER_LIMIT) {
+    return session.total;
+  }
+
+  const remainingAhead = session.results.length - selectedIndex - 1;
+  if (remainingAhead > metrics.preloadThreshold) {
+    return session.loadedCount;
+  }
+
+  return Math.min(
+    session.total,
+    Math.max(session.loadedCount, selectedIndex + 1 + metrics.targetAheadBuffer),
+  );
 }
 
 function searchScreenReducer(state: SearchScreenState, action: SearchScreenAction): SearchScreenState {
@@ -528,7 +592,7 @@ function buildResultLines(
   if (loadingMore) {
     lines.push({ text: "Loading more results...", tone: "accent" });
   } else if (session.hasMore) {
-    lines.push({ text: `${session.loadedCount}/${session.total} loaded. Move down to fetch more.`, tone: "dim" });
+    lines.push({ text: `${session.loadedCount}/${session.total} loaded. The result buffer fills automatically as you move.`, tone: "dim" });
   }
 
   return lines;
@@ -727,8 +791,13 @@ export function SearchScreen({
     hasSubtitle: true,
     footerLineCount: 2,
   }));
-  const selectionJumpSize = Math.max(1, Math.floor(bodyHeight / 2));
-  const pageSize = Math.max(1, bodyHeight - 1);
+  const {
+    selectionJumpSize,
+    pageSize,
+    windowLimit: resultWindowLimit,
+    preloadThreshold,
+    targetAheadBuffer,
+  } = getSearchResultWindowMetrics(bodyHeight);
   const detailWidth = getTerminalTwoPaneDetailWidth(size.width, "split", SEARCH_LEFT_WIDTH);
   const detailLines = state.layout === "results" && selectedResult && state.session
     ? buildResultDetailLines(selectedResult, state.session, resultSelectedIndex)
@@ -755,14 +824,17 @@ export function SearchScreen({
       const sort = state.session && state.session.request.mode === request.mode
         ? state.session.sort
         : user.search.getDefaultSort(request.mode);
-      const session = await user.search.executeQuery(request, { sort });
+      const session = await user.search.executeQuery(request, {
+        sort,
+        limit: Math.max(request.limit, resultWindowLimit),
+      });
       dispatch({ type: "set_session", session });
     } catch (error) {
       await terminal.pauseForAnyKey(`Workspace query failed.\n\n${(error as Error).message}`);
     } finally {
       setBusy(false);
     }
-  }, [state.session, terminal, user.search]);
+  }, [resultWindowLimit, state.session, terminal, user.search]);
 
   const chooseResultSort = React.useCallback(async () => {
     if (!state.session) {
@@ -856,30 +928,52 @@ export function SearchScreen({
       return;
     }
 
-    const loadThreshold = Math.max(2, Math.floor(pageSize / 3));
-    if (resultSelectedIndex < state.session.results.length - loadThreshold) {
+    const targetLoadedCount = getSearchResultBufferTarget(state.session, resultSelectedIndex, {
+      preloadThreshold,
+      targetAheadBuffer,
+    });
+    if (targetLoadedCount <= state.session.loadedCount) {
       return;
     }
 
-    const sessionKey = `${state.session.request.mode}:${state.session.sort}:${state.session.nextOffset ?? "end"}:${state.session.loadedCount}`;
+    const sessionKey =
+      `${state.session.windowId}:${state.session.sort}:${state.session.nextOffset ?? "end"}:` +
+      `${state.session.loadedCount}:${targetLoadedCount}`;
     if (loadingMore || loadMoreSessionKeyRef.current === sessionKey) {
       return;
     }
 
+    let cancelled = false;
     loadMoreSessionKeyRef.current = sessionKey;
     setLoadingMore(true);
-    void user.search.loadMore(state.session)
+    void user.search.loadMore(state.session, { minimumLoadedCount: targetLoadedCount })
       .then((session) => {
+        if (cancelled) {
+          return;
+        }
         dispatch({ type: "set_session", session, showResults: true, preserveSelection: true });
       })
       .catch(async (error) => {
+        if (cancelled) {
+          return;
+        }
         await terminal.pauseForAnyKey(`Loading more results failed.\n\n${(error as Error).message}`);
       })
       .finally(() => {
+        if (loadMoreSessionKeyRef.current === sessionKey) {
+          loadMoreSessionKeyRef.current = null;
+          setLoadingMore(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+      if (loadMoreSessionKeyRef.current === sessionKey) {
         loadMoreSessionKeyRef.current = null;
         setLoadingMore(false);
-      });
-  }, [loadingMore, pageSize, resultSelectedIndex, state.layout, state.session, terminal, user.search]);
+      }
+    };
+  }, [loadingMore, preloadThreshold, resultSelectedIndex, state.layout, state.session, targetAheadBuffer, terminal, user.search]);
 
   const editQueryText = React.useCallback(async () => {
     const queryText = await terminal.promptTextInput({

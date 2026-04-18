@@ -1666,4 +1666,37 @@ describe("Pf2eDataService / Search and Lookup", () => {
     }, { mode: "browse" });
     expect(browseCount.total).toBe(service.listRecords({ category: "spell", limit: 1 }).total);
   });
+
+  it("opens stable browse windows with deterministic paging and seeded random ordering", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+
+    const service = await loadTestService(fixture);
+
+    const alphabeticalWindow = await service.openSearchWindow({
+      category: "spell",
+      sort: "alphabetical",
+      limit: 2,
+    }, { mode: "browse" });
+    const nextAlphabeticalPage = service.readSearchWindowPage(alphabeticalWindow.id, alphabeticalWindow.nextOffset ?? 0, 2);
+    expect(alphabeticalWindow.records).toHaveLength(2);
+    expect(nextAlphabeticalPage.records[0]?.recordKey).not.toBe(alphabeticalWindow.records[0]?.recordKey);
+
+    const randomWindowA = await service.openSearchWindow({
+      category: "spell",
+      sort: "random",
+      sortSeed: 12345,
+      limit: 3,
+    }, { mode: "browse" });
+    const randomWindowA2 = service.readSearchWindowPage(randomWindowA.id, randomWindowA.nextOffset ?? 0, 3);
+    const randomWindowB = await service.openSearchWindow({
+      category: "spell",
+      sort: "random",
+      sortSeed: 12345,
+      limit: 3,
+    }, { mode: "browse" });
+
+    expect(randomWindowA.records.map((record) => record.recordKey)).toEqual(randomWindowB.records.map((record) => record.recordKey));
+    expect(randomWindowA2.records.every((record) => !randomWindowA.records.some((prior) => prior.recordKey === record.recordKey))).toBe(true);
+  });
 });

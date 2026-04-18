@@ -31,7 +31,10 @@ import {
   RuleGraphCollectionResult,
   SearchCountResult,
   SearchFilters,
+  SearchSort,
   SearchResult,
+  SearchWindow,
+  SearchWindowPage,
 } from "../types.js";
 import { normalizeSearchScope } from "../search/sql.js";
 import { formatInteger } from "../shared/format.js";
@@ -61,8 +64,11 @@ import {
 import { buildIndex, buildReusableEmbeddingLookup, computeSourceSignature, removeIndexFiles } from "./indexer.js";
 import type { StageTiming } from "./index-types.js";
 import {
+  fetchCandidateCount,
+  fetchCandidateRecordKeys,
   fetchCandidates,
   fetchLexicalRetrievalRows,
+  fetchPagedCandidates,
   fetchRecordRow,
   fetchRecordRowsByKeys,
   fetchReferenceEdgeRows,
@@ -73,6 +79,7 @@ import {
   getRuleGraph as getRuleGraphRuntime,
 } from "./rule-runtime.js";
 import {
+  buildSearchWindowSnapshot,
   countSearchResults as countSearchResultsRuntime,
   countStructuredSearch as countStructuredSearchRuntime,
   listRecords as listRecordsRuntime,
@@ -197,6 +204,30 @@ function normalizeRecordKeyFilter(values: string[] | undefined): string[] | unde
   return [...new Set(normalized)];
 }
 
+type RuntimeSearchWindow =
+  | {
+    id: string;
+    kind: "browsePaged";
+    normalizedFilters: NormalizedSearchFilters;
+    mode: SearchWindow["mode"];
+    searchProfile: SearchWindow["searchProfile"];
+    sort: Exclude<SearchSort, "ranked" | "random">;
+    sortSeed: null;
+    total: number;
+  }
+  | {
+    id: string;
+    kind: "recordKeys";
+    mode: SearchWindow["mode"];
+    searchProfile: SearchWindow["searchProfile"];
+    sort: SearchSort;
+    sortSeed: number | null;
+    total: number;
+    orderedRecordKeys: string[];
+  };
+
+const MAX_SEARCH_WINDOWS = 24;
+
 export class Pf2eDataService {
   readonly packs: PackInfo[];
   readonly warnings: string[];
@@ -208,6 +239,8 @@ export class Pf2eDataService {
   private readonly rankingConfigStore: RankingConfigStore | null;
   private readonly aliasesByRecordKey: Map<string, string[]>;
   private readonly legacyLinksByRecordKey: Map<string, LinkedRecordSummary[]>;
+  private readonly searchWindows: Map<string, RuntimeSearchWindow>;
+  private searchWindowCounter: number;
 
   private constructor(
     db: DatabaseSync,
@@ -227,6 +260,8 @@ export class Pf2eDataService {
     this.rankingConfigStore = rankingConfigStore;
     this.aliasesByRecordKey = loadAliasesByRecordKey(db);
     this.legacyLinksByRecordKey = loadLegacyLinksByRecordKey(db);
+    this.searchWindows = new Map();
+    this.searchWindowCounter = 0;
   }
 
   static async load(rootPath: string, manifestPath: string, options: LoadOptions = {}): Promise<Pf2eDataService> {
@@ -554,6 +589,10 @@ export class Pf2eDataService {
       rankingConfig: this.rankingConfigStore?.getConfig() ?? DEFAULT_RANKING_CONFIG,
       rankingConfigStatus: this.getRankingConfigStatus(),
       decorateRecord: (record: NormalizedRecord) => this.decorateRecord(record),
+      fetchCandidateCount: (filters: NormalizedSearchFilters, options: { recordKeys?: string[] } = {}) =>
+        fetchCandidateCount(this.db, filters, options),
+      fetchPagedCandidates: (filters: NormalizedSearchFilters, sort: SearchSort, offset: number, limit: number) =>
+        fetchPagedCandidates(this.db, filters, sort, offset, limit),
       getAliases: (recordKey: string) => this.aliasesByRecordKey.get(recordKey) ?? [],
       fetchCandidates: (
         filters: NormalizedSearchFilters,
@@ -566,6 +605,68 @@ export class Pf2eDataService {
       fetchSemanticRetrievalRows: (filters: NormalizedSearchFilters, queryVector: Float32Array, limit: number) =>
         fetchSemanticRetrievalRows(this.db, filters, queryVector, limit),
     };
+  }
+
+  private createSearchWindowId(): string {
+    this.searchWindowCounter += 1;
+    return `search-window-${this.searchWindowCounter}`;
+  }
+
+  private rememberSearchWindow(window: RuntimeSearchWindow): RuntimeSearchWindow {
+    this.searchWindows.set(window.id, window);
+    while (this.searchWindows.size > MAX_SEARCH_WINDOWS) {
+      const oldestId = this.searchWindows.keys().next().value as string | undefined;
+      if (!oldestId) {
+        break;
+      }
+      this.searchWindows.delete(oldestId);
+    }
+    return window;
+  }
+
+  private createSearchWindowPage(
+    window: RuntimeSearchWindow,
+    offset: number,
+    limit: number,
+    records: NormalizedRecord[],
+  ): SearchWindowPage {
+    const hasMore = offset + records.length < window.total;
+    return {
+      id: window.id,
+      searchProfile: window.searchProfile,
+      mode: window.mode,
+      sort: window.sort,
+      sortSeed: window.sortSeed,
+      total: window.total,
+      offset,
+      limit,
+      hasMore,
+      nextOffset: hasMore ? offset + records.length : null,
+      records,
+    };
+  }
+
+  private readSearchWindowRecords(window: RuntimeSearchWindow, offset: number, limit: number): SearchWindowPage {
+    if (window.kind === "browsePaged") {
+      const rows = fetchPagedCandidates(this.db, window.normalizedFilters, window.sort, offset, limit);
+      return this.createSearchWindowPage(
+        window,
+        offset,
+        limit,
+        rows.map((row) => this.decorateRecord(rowToRecord(row))),
+      );
+    }
+
+    const recordKeys = window.orderedRecordKeys.slice(offset, offset + limit);
+    return this.createSearchWindowPage(window, offset, limit, this.getRecordsByKeys(recordKeys));
+  }
+
+  private hashSearchWindowKey(recordKey: string, seed: number): number {
+    let hash = seed | 0;
+    for (let index = 0; index < recordKey.length; index += 1) {
+      hash = Math.imul(hash ^ recordKey.charCodeAt(index), 16777619);
+    }
+    return hash >>> 0;
   }
 
   private searchStructured(filters: SearchFilters): SearchResult {
@@ -613,6 +714,80 @@ export class Pf2eDataService {
     }
 
     return countSearchResultsRuntime(searchFilters, normalizedFilters, this.runtimeSearchDependencies());
+  }
+
+  async openSearchWindow(
+    filters: SearchFilters,
+    options: { mode?: "browse" | "search" | "lookup" } = {},
+  ): Promise<SearchWindowPage> {
+    const mode = options.mode ?? "search";
+    const runtime = this.runtimeSearchDependencies();
+    const normalizedFilters = this.normalizeSearchFilters(filters);
+
+    if (mode === "browse") {
+      validateFilters(normalizedFilters, "list");
+      const sort = normalizedFilters.sort === "ranked" || !normalizedFilters.sort
+        ? "alphabetical"
+        : normalizedFilters.sort;
+      if (sort !== "random") {
+        const window = this.rememberSearchWindow({
+          id: this.createSearchWindowId(),
+          kind: "browsePaged",
+          normalizedFilters,
+          mode: "structured",
+          searchProfile: null,
+          sort,
+          sortSeed: null,
+          total: fetchCandidateCount(this.db, normalizedFilters),
+        });
+        return this.readSearchWindowRecords(window, normalizedFilters.offset ?? 0, normalizedFilters.limit ?? 20);
+      }
+
+      const sortSeed = normalizedFilters.sortSeed ?? 0;
+      const orderedRecordKeys = fetchCandidateRecordKeys(this.db, normalizedFilters)
+        .sort((left, right) => {
+          const leftHash = this.hashSearchWindowKey(left, sortSeed);
+          const rightHash = this.hashSearchWindowKey(right, sortSeed);
+          return leftHash - rightHash || left.localeCompare(right);
+        });
+      const window = this.rememberSearchWindow({
+        id: this.createSearchWindowId(),
+        kind: "recordKeys",
+        mode: "structured",
+        searchProfile: null,
+        sort,
+        sortSeed,
+        total: orderedRecordKeys.length,
+        orderedRecordKeys,
+      });
+      return this.readSearchWindowRecords(window, normalizedFilters.offset ?? 0, normalizedFilters.limit ?? 20);
+    }
+
+    validateFilters(normalizedFilters, "search");
+    const snapshot = await buildSearchWindowSnapshot(filters, normalizedFilters, runtime);
+    const window = this.rememberSearchWindow({
+      id: this.createSearchWindowId(),
+      kind: "recordKeys",
+      mode: snapshot.mode,
+      searchProfile: snapshot.searchProfile,
+      sort: snapshot.sort,
+      sortSeed: normalizedFilters.sortSeed ?? null,
+      total: snapshot.records.length,
+      orderedRecordKeys: snapshot.records.map((record) => record.recordKey),
+    });
+    return this.readSearchWindowRecords(window, normalizedFilters.offset ?? 0, normalizedFilters.limit ?? 20);
+  }
+
+  readSearchWindowPage(windowId: string, offset: number, limit: number): SearchWindowPage {
+    const window = this.searchWindows.get(windowId);
+    if (!window) {
+      throw new Error(`Search window "${windowId}" is no longer available.`);
+    }
+    return this.readSearchWindowRecords(window, offset, limit);
+  }
+
+  closeSearchWindow(windowId: string): void {
+    this.searchWindows.delete(windowId);
   }
 
   async search(filters: SearchFilters): Promise<SearchResult> {

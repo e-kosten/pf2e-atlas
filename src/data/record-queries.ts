@@ -2,14 +2,18 @@ import { DatabaseSync } from "node:sqlite";
 
 import type { RuleReferenceEdge } from "../types.js";
 import {
+  buildCandidateCountQuery,
+  buildCandidateKeyQuery,
   buildCandidateQuery,
+  buildPagedCandidateQuery,
   buildSharedRecordSelectFields,
   buildLexicalRetrievalQuery,
   buildSemanticRetrievalQuery,
 } from "../search/sql.js";
 import type { NormalizedSearchFilters } from "./service-types.js";
-import { buildPlaceholders, CandidateRow, ReferenceEdgeRow } from "./rows.js";
+import { buildPlaceholders, CandidateRow, ReferenceEdgeRow, sqliteRowCount } from "./rows.js";
 import type { LexicalRetrievalRow, SemanticRetrievalRow } from "../search/ranking.js";
+import type { SearchSort } from "../types.js";
 
 function encodeVector(vector: Float32Array): Buffer {
   return Buffer.from(vector.buffer.slice(vector.byteOffset, vector.byteOffset + vector.byteLength));
@@ -40,6 +44,35 @@ export function fetchCandidates(
   options: { recordKeys?: string[] } = {},
 ): CandidateRow[] {
   const { sql, params } = buildCandidateQuery(filters, includeSearchText, includeEmbedding, options);
+  return db.prepare(sql).all(...params) as CandidateRow[];
+}
+
+export function fetchCandidateCount(
+  db: DatabaseSync,
+  filters: NormalizedSearchFilters,
+  options: { recordKeys?: string[] } = {},
+): number {
+  const { sql, params } = buildCandidateCountQuery(filters, options);
+  return sqliteRowCount(db.prepare(sql).get(...params) as Record<string, unknown> | undefined);
+}
+
+export function fetchCandidateRecordKeys(
+  db: DatabaseSync,
+  filters: NormalizedSearchFilters,
+  options: { recordKeys?: string[] } = {},
+): string[] {
+  const { sql, params } = buildCandidateKeyQuery(filters, options);
+  return (db.prepare(sql).all(...params) as Array<{ recordKey: string }>).map((row) => row.recordKey);
+}
+
+export function fetchPagedCandidates(
+  db: DatabaseSync,
+  filters: NormalizedSearchFilters,
+  sort: SearchSort,
+  offset: number,
+  limit: number,
+): CandidateRow[] {
+  const { sql, params } = buildPagedCandidateQuery(filters, sort, offset, limit);
   return db.prepare(sql).all(...params) as CandidateRow[];
 }
 

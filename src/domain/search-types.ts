@@ -189,6 +189,23 @@ export interface SearchCountResult {
   total: number;
 }
 
+export interface SearchWindow {
+  id: string;
+  searchProfile: SearchProfile | null;
+  mode: SearchMode;
+  sort: SearchSort;
+  sortSeed: number | null;
+  total: number;
+}
+
+export interface SearchWindowPage extends SearchWindow {
+  offset: number;
+  limit: number;
+  hasMore: boolean;
+  nextOffset: number | null;
+  records: NormalizedRecord[];
+}
+
 export interface SearchQueryAnalysis {
   rawQuery: string;
   normalizedQuery: string;

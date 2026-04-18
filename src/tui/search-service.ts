@@ -25,6 +25,7 @@ import type {
   SearchResult,
   SearchSort,
   SearchSubcategory,
+  SearchWindowPage,
 } from "../types.js";
 import type { SearchVocabularyResult } from "../data/vocabulary.js";
 
@@ -108,6 +109,7 @@ export type Pf2eTerminalSearchRequest = {
 };
 
 export type Pf2eTerminalSearchSession = {
+  windowId: string;
   request: Pf2eTerminalSearchRequest;
   results: NormalizedRecord[];
   resultMode: SearchMode;
@@ -151,7 +153,10 @@ export type Pf2eTerminalSearchService = {
   getSubcategoryOptions: (category: SearchCategory | null) => Pf2eTerminalSearchSubcategoryOption[];
   getModeOptions: () => Pf2eTerminalSearchModeOption[];
   getDefaultSort: (mode: Pf2eTerminalSearchMode) => Pf2eTerminalSearchSort;
-  loadMore: (session: Pf2eTerminalSearchSession) => Promise<Pf2eTerminalSearchSession>;
+  loadMore: (
+    session: Pf2eTerminalSearchSession,
+    options?: { minimumLoadedCount?: number },
+  ) => Promise<Pf2eTerminalSearchSession>;
   normalizeRequest: (request: Pf2eTerminalSearchRequest) => Pf2eTerminalSearchRequest;
   changeSort: (
     session: Pf2eTerminalSearchSession,
@@ -160,6 +165,7 @@ export type Pf2eTerminalSearchService = {
 };
 
 type SearchServiceDependencies = {
+  closeSearchWindow: (windowId: string) => void;
   countRecords: (
     filters: SearchFilters,
     options?: { mode?: "browse" | "search" | "lookup"; lexicalOnly?: boolean },
@@ -175,6 +181,11 @@ type SearchServiceDependencies = {
     options?: LookupOptions,
   ) => { match: NormalizedRecord | null; alternatives: NormalizedRecord[] };
   listRecords: (filters: SearchFilters) => SearchResult;
+  openSearchWindow: (
+    filters: SearchFilters,
+    options?: { mode?: "browse" | "search" | "lookup" },
+  ) => Promise<SearchWindowPage>;
+  readSearchWindowPage: (windowId: string, offset: number, limit: number) => SearchWindowPage;
   search: (filters: SearchFilters) => Promise<SearchResult>;
 };
 
@@ -862,7 +873,7 @@ export function createPf2eTerminalSearchService(
     return fieldSemanticsByName.get(field)?.valueOrdering;
   }
 
-  async function fetchSearchResultPage(
+  function buildWindowFilters(
     request: Pf2eTerminalSearchRequest,
     options: {
       sort: Pf2eTerminalSearchSort;
@@ -870,44 +881,42 @@ export function createPf2eTerminalSearchService(
       limit: number;
       offset?: number;
     },
-  ): Promise<SearchResult> {
+  ): SearchFilters {
     const offset = options.offset ?? 0;
-    if (request.mode === "browse") {
-      return dependencies.listRecords(buildSearchFilters(request, fieldSemanticsByName, {
-        limit: options.limit,
-        offset,
-        sort: options.sort,
-        sortSeed: options.sortSeed,
-      }));
-    }
-
     if (request.mode === "lookup") {
-      return dependencies.search(buildSearchFilters(request, fieldSemanticsByName, {
+      return buildSearchFilters(request, fieldSemanticsByName, {
         limit: options.limit,
         offset,
         nameQuery: request.queryText,
         sort: options.sort,
         sortSeed: options.sortSeed,
-      }));
+      });
     }
 
-    return dependencies.search(buildSearchFilters(request, fieldSemanticsByName, {
+    return buildSearchFilters(request, fieldSemanticsByName, {
       limit: options.limit,
       offset,
-      query: request.queryText,
-      searchProfile: request.searchProfile,
+      query: request.mode === "search" ? request.queryText : undefined,
+      searchProfile: request.mode === "search" ? request.searchProfile : undefined,
       sort: options.sort,
       sortSeed: options.sortSeed,
-    }));
+    });
   }
 
   function createSessionFromResult(
     request: Pf2eTerminalSearchRequest,
-    result: SearchResult,
-    sortSeed: number | null,
+    result: SearchWindowPage,
   ): Pf2eTerminalSearchSession {
+    const sessionRequest = result.limit === request.limit
+      ? request
+      : {
+          ...request,
+          limit: result.limit,
+        };
+
     return {
-      request,
+      windowId: result.id,
+      request: sessionRequest,
       results: result.records,
       resultMode: result.mode,
       total: result.total,
@@ -916,7 +925,7 @@ export function createPf2eTerminalSearchService(
       nextOffset: result.nextOffset,
       searchProfile: result.searchProfile,
       sort: result.sort,
-      sortSeed,
+      sortSeed: result.sortSeed,
     };
   }
 
@@ -1099,44 +1108,60 @@ export function createPf2eTerminalSearchService(
       const sort = options.sort ?? getDefaultSort(normalizedRequest.mode);
       const sortSeed = sort === "random" ? createSortSeed(sort) : null;
       const limit = options.limit ?? normalizedRequest.limit;
-      const result = await fetchSearchResultPage(normalizedRequest, {
+      const result = await dependencies.openSearchWindow(buildWindowFilters(normalizedRequest, {
         sort,
         sortSeed,
         limit,
-      });
-      return createSessionFromResult(normalizedRequest, result, sortSeed);
+      }), { mode: normalizedRequest.mode });
+      return createSessionFromResult(normalizedRequest, result);
     },
-    loadMore: async (session) => {
+    loadMore: async (session, options = {}) => {
       if (!session.hasMore || session.nextOffset === null) {
         return session;
       }
 
-      const result = await fetchSearchResultPage(session.request, {
-        sort: session.sort,
-        sortSeed: session.sortSeed,
-        limit: session.request.limit,
-        offset: session.nextOffset,
-      });
+      const minimumLoadedCount = Math.max(
+        session.loadedCount + 1,
+        options.minimumLoadedCount ?? (session.loadedCount + session.request.limit),
+      );
+      let nextSession = session;
 
-      return {
-        ...session,
-        results: [...session.results, ...result.records],
-        total: result.total,
-        loadedCount: session.results.length + result.records.length,
-        hasMore: result.hasMore,
-        nextOffset: result.nextOffset,
-        resultMode: result.mode,
-        searchProfile: result.searchProfile,
-      };
+      while (nextSession.hasMore && nextSession.nextOffset !== null && nextSession.loadedCount < minimumLoadedCount) {
+        const result = dependencies.readSearchWindowPage(
+          nextSession.windowId,
+          nextSession.nextOffset,
+          nextSession.request.limit,
+        );
+
+        nextSession = {
+          ...nextSession,
+          request: result.limit === nextSession.request.limit
+            ? nextSession.request
+            : {
+                ...nextSession.request,
+                limit: result.limit,
+              },
+          results: [...nextSession.results, ...result.records],
+          total: result.total,
+          loadedCount: nextSession.results.length + result.records.length,
+          hasMore: result.hasMore,
+          nextOffset: result.nextOffset,
+          resultMode: result.mode,
+          searchProfile: result.searchProfile,
+        };
+      }
+
+      return nextSession;
     },
     changeSort: async (session, sort) => {
+      dependencies.closeSearchWindow(session.windowId);
       const sortSeed = sort === "random" ? createSortSeed(sort) : null;
-      const result = await fetchSearchResultPage(session.request, {
+      const result = await dependencies.openSearchWindow(buildWindowFilters(session.request, {
         sort,
         sortSeed,
         limit: Math.max(session.request.limit, session.loadedCount),
-      });
-      return createSessionFromResult(session.request, result, sortSeed);
+      }), { mode: session.request.mode });
+      return createSessionFromResult(session.request, result);
     },
   };
 }
