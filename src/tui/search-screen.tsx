@@ -83,6 +83,7 @@ type SearchScreenAction =
   | { type: "move_workspace_selection"; delta: number; itemCount: number }
   | { type: "workspace_selection_boundary"; boundary: "start" | "end"; itemCount: number }
   | { type: "move_result_selection"; delta: number; itemCount: number }
+  | { type: "set_result_selection"; index: number; itemCount: number }
   | { type: "result_selection_boundary"; boundary: "start" | "end"; itemCount: number }
   | { type: "move_detail"; delta: number; maxDetailScroll: number }
   | { type: "detail_boundary"; boundary: "start" | "end"; maxDetailScroll: number }
@@ -97,6 +98,7 @@ const MIN_RESULT_WINDOW_LIMIT = 120;
 const RESULT_WINDOW_PAGE_MULTIPLIER = 8;
 const RESULT_PRELOAD_PAGE_MULTIPLIER = 4;
 const RESULT_PRELOAD_JUMP_MULTIPLIER = 6;
+const RESULT_WINDOW_FETCH_DEBOUNCE_MS = 40;
 
 function createInitialSearchScreenState(initialRequest: Pf2eTerminalSearchRequest): SearchScreenState {
   return {
@@ -261,6 +263,14 @@ function searchScreenReducer(state: SearchScreenState, action: SearchScreenActio
         resultSelectedIndex: action.itemCount <= 0
           ? 0
           : moveSelection(state.resultSelectedIndex, action.delta, action.itemCount),
+      };
+    case "set_result_selection":
+      return {
+        ...state,
+        detailScroll: 0,
+        resultSelectedIndex: action.itemCount <= 0
+          ? 0
+          : clampAbsoluteSelection(action.index, action.itemCount),
       };
     case "result_selection_boundary":
       return {
@@ -490,6 +500,23 @@ function formatCountSummary(countState: SearchCountState, request: Pf2eTerminalS
     return `${countState.result.total} ${noun}${countState.result.total === 1 ? "" : "es"}`;
   }
   return "Count pending";
+}
+
+export function parseJumpToResultInput(input: string, total: number): number | string {
+  const normalized = input.replace(/[,_\s]+/g, "");
+  if (!/^\d+$/.test(normalized)) {
+    return "Enter a result number such as `6000`.";
+  }
+
+  const parsed = Number.parseInt(normalized, 10);
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return "Result numbers start at 1.";
+  }
+  if (parsed > total) {
+    return `Result ${parsed} is out of range. Valid positions are 1-${total}.`;
+  }
+
+  return parsed - 1;
 }
 
 function formatDraftStatus(state: SearchScreenState): string {
@@ -821,11 +848,11 @@ function buildFooterText(
 
   if (state.activePane === "list") {
     return loadingMore
-      ? "Up/Down select  Ctrl-U/D jump  PgUp/PgDn page  gg/G or Home/End edge  Left draft  Right preview  Enter preview  Tab toggle  O sort  Loading more..."
-      : "Up/Down select  Ctrl-U/D jump  PgUp/PgDn page  gg/G or Home/End edge  Left draft  Right preview  Enter preview  Tab toggle  O sort  q back";
+      ? "Up/Down select  Ctrl-U/D jump  PgUp/PgDn page  gg/G or Home/End edge  n/: jump-to  Left draft  Right preview  Enter preview  Tab toggle  O sort  Loading more..."
+      : "Up/Down select  Ctrl-U/D jump  PgUp/PgDn page  gg/G or Home/End edge  n/: jump-to  Left draft  Right preview  Enter preview  Tab toggle  O sort  q back";
   }
 
-  return "Up/Down scroll  Ctrl-U/D jump  PgUp/PgDn page  gg/G or Home/End edge  Left results  Tab toggle  O sort  Esc/backspace results  q back";
+  return "Up/Down scroll  Ctrl-U/D jump  PgUp/PgDn page  gg/G or Home/End edge  n/: jump-to  Left results  Tab toggle  O sort  Esc/backspace results  q back";
 }
 
 export function SearchScreen({
@@ -852,6 +879,7 @@ export function SearchScreen({
   const [state, dispatch] = React.useReducer(searchScreenReducer, initialRequest, createInitialSearchScreenState);
   const autoRanInitialQuery = React.useRef(false);
   const loadMoreSessionKeyRef = React.useRef<string | null>(null);
+  const loadMoreTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const listNavigationStateRef = React.useRef(createDerivedTagTerminalListNavigationState());
   const detailNavigationStateRef = React.useRef(createDerivedTagTerminalListNavigationState());
 
@@ -944,6 +972,34 @@ export function SearchScreen({
     }
   }, [state.session, terminal, user.search]);
 
+  const jumpToResultPosition = React.useCallback(async () => {
+    if (!state.session || state.session.total <= 0) {
+      return;
+    }
+
+    const input = await terminal.promptTextInput({
+      title: "Jump To Result",
+      prompt: `Enter a result number between 1 and ${state.session.total}.`,
+      hint: `Current: ${resultSelectedIndex + 1}  Example: 6000`,
+    });
+
+    if (input === undefined) {
+      return;
+    }
+
+    const parsed = parseJumpToResultInput(input, state.session.total);
+    if (typeof parsed === "string") {
+      await terminal.pauseForAnyKey(parsed);
+      return;
+    }
+
+    dispatch({
+      type: "set_result_selection",
+      index: parsed,
+      itemCount: state.session.total,
+    });
+  }, [resultSelectedIndex, state.session, terminal]);
+
   React.useEffect(() => {
     if (!initialQuery || autoRanInitialQuery.current) {
       return;
@@ -1001,11 +1057,17 @@ export function SearchScreen({
   }, [state.draft, user.search]);
 
   React.useEffect(() => {
+    if (loadMoreTimerRef.current) {
+      clearTimeout(loadMoreTimerRef.current);
+      loadMoreTimerRef.current = null;
+    }
     if (!state.session || state.layout !== "results" || state.session.total <= 0) {
       return;
     }
 
-    const targetWindow = getSearchResultWindowTarget(state.session, resultSelectedIndex, {
+    const currentSession = state.session;
+
+    const targetWindow = getSearchResultWindowTarget(currentSession, resultSelectedIndex, {
       windowLimit: resultWindowLimit,
       preloadThreshold,
     });
@@ -1014,40 +1076,46 @@ export function SearchScreen({
     }
 
     const sessionKey =
-      `${state.session.windowId}:${state.session.sort}:${state.session.windowOffset}:${state.session.loadedCount}:` +
-      `${targetWindow.offset}:${targetWindow.limit}:${resultSelectedIndex}`;
+      `${currentSession.windowId}:${currentSession.sort}:${currentSession.windowOffset}:${currentSession.loadedCount}:` +
+      `${targetWindow.offset}:${targetWindow.limit}`;
     if (loadingMore || loadMoreSessionKeyRef.current === sessionKey) {
       return;
     }
 
     let cancelled = false;
-    loadMoreSessionKeyRef.current = sessionKey;
-    setLoadingMore(true);
-    void user.search.readResultWindow(state.session, targetWindow)
-      .then((session) => {
-        if (cancelled) {
-          return;
-        }
-        dispatch({ type: "set_session", session, showResults: true, preserveSelection: true });
-      })
-      .catch(async (error) => {
-        if (cancelled) {
-          return;
-        }
-        await terminal.pauseForAnyKey(`Loading more results failed.\n\n${(error as Error).message}`);
-      })
-      .finally(() => {
-        if (loadMoreSessionKeyRef.current === sessionKey) {
-          loadMoreSessionKeyRef.current = null;
-          setLoadingMore(false);
-        }
-      });
+    loadMoreTimerRef.current = setTimeout(() => {
+      if (cancelled) {
+        return;
+      }
+
+      loadMoreSessionKeyRef.current = sessionKey;
+      setLoadingMore(true);
+      void user.search.readResultWindow(currentSession, targetWindow)
+        .then((session) => {
+          if (cancelled) {
+            return;
+          }
+          dispatch({ type: "set_session", session, showResults: true, preserveSelection: true });
+        })
+        .catch(async (error) => {
+          if (cancelled) {
+            return;
+          }
+          await terminal.pauseForAnyKey(`Loading more results failed.\n\n${(error as Error).message}`);
+        })
+        .finally(() => {
+          if (loadMoreSessionKeyRef.current === sessionKey) {
+            loadMoreSessionKeyRef.current = null;
+            setLoadingMore(false);
+          }
+        });
+    }, RESULT_WINDOW_FETCH_DEBOUNCE_MS);
 
     return () => {
       cancelled = true;
-      if (loadMoreSessionKeyRef.current === sessionKey) {
-        loadMoreSessionKeyRef.current = null;
-        setLoadingMore(false);
+      if (loadMoreTimerRef.current) {
+        clearTimeout(loadMoreTimerRef.current);
+        loadMoreTimerRef.current = null;
       }
     };
   }, [loadingMore, preloadThreshold, resultSelectedIndex, resultWindowLimit, state.layout, state.session, terminal, user.search]);
@@ -1520,6 +1588,10 @@ export function SearchScreen({
 
     if (normalized === "o" || normalized === "s") {
       void chooseResultSort();
+      return;
+    }
+    if (normalized === "n" || normalized === ":") {
+      void jumpToResultPosition();
       return;
     }
     if (normalized === "tab" || normalized === "shift_tab") {

@@ -7,12 +7,18 @@ import type { AppConfig, NormalizedRecord, SearchCountResult, SearchFilters } fr
 import { createPf2eTerminalSearchService } from "../../src/tui/search-service.js";
 import { Pf2eTerminalAppServicesProvider } from "../../src/tui/app-service-context.js";
 import type { Pf2eTerminalAppServices } from "../../src/tui/app-services.js";
-import { SearchScreen } from "../../src/tui/search-screen.js";
+import { SearchScreen, parseJumpToResultInput } from "../../src/tui/search-screen.js";
 import { DerivedTagTerminalProvider } from "../../src/tui/terminal-ui.js";
 
 function flushInk(): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, 0);
+  });
+}
+
+function flushDebouncedWindowRead(): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, 60);
   });
 }
 
@@ -468,6 +474,7 @@ describe("search screen", () => {
     app.stdin.write("\t");
     await flushInk();
     await flushInk();
+    await flushDebouncedWindowRead();
     await flushInk();
 
     expect(openSearchWindow).toHaveBeenCalledTimes(1);
@@ -578,6 +585,7 @@ describe("search screen", () => {
     app.stdin.write("\t");
     await flushInk();
     await flushInk();
+    await flushDebouncedWindowRead();
     await flushInk();
 
     expect(openSearchWindow).toHaveBeenCalledTimes(1);
@@ -727,7 +735,7 @@ describe("search screen", () => {
 
     app.stdin.write("G");
     await flushInk();
-    await flushInk();
+    await flushDebouncedWindowRead();
     await flushInk();
 
     const finalWindowCall = readSearchWindowPage.mock.calls.at(-1);
@@ -791,7 +799,7 @@ describe("search screen", () => {
 
     app.stdin.write("G");
     await flushInk();
-    await flushInk();
+    await flushDebouncedWindowRead();
     await flushInk();
 
     const initialReadCount = readSearchWindowPage.mock.calls.length;
@@ -860,7 +868,7 @@ describe("search screen", () => {
       app.stdin.write("\u0004");
       await flushInk();
     }
-    await flushInk();
+    await flushDebouncedWindowRead();
     await flushInk();
 
     expect(readSearchWindowPage.mock.calls.length).toBeGreaterThan(0);
@@ -868,6 +876,76 @@ describe("search screen", () => {
     expect(readSearchWindowPage.mock.calls.every((call) => (call[2] as number) > 100)).toBe(true);
     const finalWindowSize = readSearchWindowPage.mock.calls.at(-1)?.[2];
     expect(app.lastFrame()).toContain(`[RESULTS] ${finalWindowSize}/1000 loaded | Alphabetical`);
+  });
+
+  it("coalesces rapid Ctrl-D jumps into a single latest window read", async () => {
+    const openSearchWindow = vi.fn(async () => ({
+      id: "window-1",
+      searchProfile: null,
+      mode: "structured" as const,
+      sort: "alphabetical" as const,
+      sortSeed: null,
+      total: 1000,
+      offset: 0,
+      limit: 120,
+      hasMore: true,
+      nextOffset: 120,
+      records: Array.from({ length: 120 }, (_, index) => createRecord({
+        recordKey: `spell:${index}`,
+        id: `${index}`,
+        name: `Spell ${index}`,
+      })),
+    }));
+    const readSearchWindowPage = vi.fn((windowId: string, offset: number, limit: number) => ({
+      id: windowId,
+      searchProfile: null,
+      mode: "structured" as const,
+      sort: "alphabetical" as const,
+      sortSeed: null,
+      total: 1000,
+      offset,
+      limit,
+      hasMore: offset + limit < 1000,
+      nextOffset: offset + limit < 1000 ? offset + limit : null,
+      records: Array.from({ length: Math.min(limit, 1000 - offset) }, (_, index) => createRecord({
+        recordKey: `spell:${offset + index}`,
+        id: `${offset + index}`,
+        name: `Spell ${offset + index}`,
+      })),
+    }));
+    const services = createServices({ openSearchWindow, readSearchWindowPage });
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen onBack={vi.fn()} />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    app.stdin.write("\t");
+    await flushInk();
+    await flushInk();
+
+    for (let index = 0; index < 80; index += 1) {
+      app.stdin.write("\u0004");
+    }
+
+    await flushInk();
+    await flushDebouncedWindowRead();
+    await flushInk();
+
+    expect(readSearchWindowPage).toHaveBeenCalledTimes(1);
+    expect(readSearchWindowPage.mock.calls[0]?.[0]).toBe("window-1");
+    expect((readSearchWindowPage.mock.calls[0]?.[1] as number) > 0).toBe(true);
+  });
+
+  it("parses jump-to-position input into an absolute result index", () => {
+    expect(parseJumpToResultInput("600", 1000)).toBe(599);
+    expect(parseJumpToResultInput("6,000", 10000)).toBe(5999);
+    expect(parseJumpToResultInput("0", 1000)).toBe("Result numbers start at 1.");
+    expect(parseJumpToResultInput("1200", 1000)).toBe("Result 1200 is out of range. Valid positions are 1-1000.");
+    expect(parseJumpToResultInput("six hundred", 1000)).toBe("Enter a result number such as `6000`.");
   });
 
   it("orders filter values from declarative field policies and exposes action cost through facet editing", () => {
