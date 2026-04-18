@@ -405,7 +405,7 @@ describe("search screen", () => {
     pressDown(app);
     await flushInk();
     expect(app.lastFrame()).toContain("Mode");
-    pressLeft(app);
+    pressRight(app);
     await flushInk();
     expect(app.lastFrame()).toContain("Workspace Mode");
     pressDown(app);
@@ -496,6 +496,28 @@ describe("search screen", () => {
     await flushInk();
     expect(app.lastFrame()).toContain("[SETUP] Scope & Filters");
     expect(app.lastFrame()).not.toContain("[RESULTS] 1/1 | Buf 1 | Ranked");
+  });
+
+  it("uses left to back out of the setup workspace instead of opening the selected item", async () => {
+    const onBack = vi.fn();
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={createServices()}>
+          <SearchScreen onBack={onBack} />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    pressDown(app);
+    await flushInk();
+    expect(app.lastFrame()).toContain("Mode");
+
+    pressLeft(app);
+    await flushInk();
+
+    expect(onBack).toHaveBeenCalledTimes(1);
+    expect(app.lastFrame()).not.toContain("Workspace Mode");
   });
 
   it("loads the next result page through the window reader instead of rerunning the search", async () => {
