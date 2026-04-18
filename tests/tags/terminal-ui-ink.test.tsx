@@ -111,6 +111,29 @@ function DialogStateHarness(): React.JSX.Element {
   );
 }
 
+function LongDialogHarness(): React.JSX.Element {
+  const terminal = useDerivedTagTerminalApp();
+
+  useDerivedTagTerminalInput((input, key) => {
+    const normalized = getNormalizedKeyName(input, key);
+    if (normalized === "?") {
+      void terminal.showDialog({
+        title: "Long Help",
+        body: Array.from({ length: 8 }, (_, index) => ({
+          text: `Line ${index + 1}: detailed help content.`,
+        })),
+      });
+    }
+  });
+
+  return (
+    <TerminalTextScreen
+      title="Harness"
+      body={[{ text: "page=home" }]}
+    />
+  );
+}
+
 function MultiSelectPromptHarness(): React.JSX.Element {
   const terminal = useDerivedTagTerminalApp();
   const [result, setResult] = React.useState("pending");
@@ -273,6 +296,23 @@ describe("derived tag terminal ink runtime", () => {
     expect(app.lastFrame()).toContain("page=detail");
   });
 
+  it("grows inline dialogs to fit longer help content", async () => {
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <LongDialogHarness />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInkFrames();
+    app.stdin.write("?");
+    await flushInkFrames();
+
+    expect(app.lastFrame()).toContain("Long Help");
+    expect(app.lastFrame()).toContain("Line 1: detailed help content.");
+    expect(app.lastFrame()).toContain("Line 8: detailed help content.");
+    expect(app.lastFrame()).toContain("page=home");
+  });
+
   it("accumulates multiselect choices until an exit key closes the prompt", async () => {
     const app = render(
       <DerivedTagTerminalProvider>
@@ -358,6 +398,7 @@ describe("derived tag terminal ink runtime", () => {
     await flushInkFrames();
     expect(app.lastFrame()).toContain("Command Palette");
     expect(app.lastFrame()).toContain("Mode");
+    expect(app.lastFrame()).toContain("Enter/→ select");
 
     app.stdin.write("f");
     await flushInkFrames();

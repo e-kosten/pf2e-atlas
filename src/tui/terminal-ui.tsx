@@ -1544,15 +1544,89 @@ function PolicyPromptBody({
   );
 }
 
-function getInlineModalHeight(modal: TerminalModalState, totalRows: number): number {
+function clampInlineModalHeight(totalRows: number, desiredHeight: number): number {
+  const minimumMainHeight = 3;
+  const maximumInlineHeight = Math.max(4, totalRows - minimumMainHeight);
+  return Math.max(4, Math.min(desiredHeight, maximumInlineHeight));
+}
+
+function getInlineDialogHeight(
+  modal: Extract<TerminalModalState, { kind: "dialog" }>,
+  totalRows: number,
+  width: number,
+): number {
+  const footer = modal.options.footer ?? [{ text: TERMINAL_DIALOG_CONTINUE_FOOTER, tone: "dim" }];
+  const bodyLineCount = getRenderedTerminalLineCount(modal.options.body, width);
+  return clampInlineModalHeight(totalRows, bodyLineCount + footer.length + 3);
+}
+
+function getInlineTextPromptHeight(
+  modal: Extract<TerminalModalState, { kind: "text" }>,
+  totalRows: number,
+  width: number,
+): number {
+  const lines: DerivedTagTerminalLine[] = [
+    ...(modal.options.hint ? [{ text: modal.options.hint, tone: "accent" as const }] : []),
+    { text: `> ${modal.value || ""}`, tone: "selected" },
+    { text: modal.options.defaultValue ? `Default: ${modal.options.defaultValue}` : "Leave blank to skip.", tone: "dim" },
+  ];
+  return clampInlineModalHeight(totalRows, getRenderedTerminalLineCount(lines, width) + 4);
+}
+
+function getInlineCommandPaletteHeight(
+  modal: Extract<TerminalModalState, { kind: "command" }>,
+  totalRows: number,
+  width: number,
+): number {
+  const filteredEntries = filterCommandPaletteEntries(modal.options.entries, modal.filterText);
+  if (filteredEntries.length === 0) {
+    const lines: DerivedTagTerminalLine[] = [
+      { text: modal.options.prompt, tone: "section" },
+      { text: `Filter: ${modal.filterText || "(none)"}`, tone: "accent" },
+      { text: "No commands match the current filter.", tone: "warning" },
+    ];
+    return clampInlineModalHeight(totalRows, getRenderedTerminalLineCount(lines, width) + 5);
+  }
+
+  const clampedSelectedIndex = clampPromptSelectionIndex(modal.selectedIndex, filteredEntries.length);
+  const selectedOption = filteredEntries[clampedSelectedIndex];
+  const dimensions = getTerminalTwoPaneDimensions(width, 38);
+  const detailLines = [
+    ...(selectedOption?.detailLines ?? [
+      { text: selectedOption?.label ?? "(none)", tone: "section" as const },
+      { text: selectedOption?.description ?? "No additional details." },
+      ...(selectedOption?.aliases?.length
+        ? [{ text: `Aliases: ${selectedOption.aliases.join(", ")}`, tone: "accent" as const }]
+        : []),
+    ]),
+    { text: "" },
+    { text: `Filter: ${modal.filterText || "(none)"}`, tone: "accent" as const },
+  ];
+  const entryCount = filteredEntries.length;
+  const detailLineCount = getRenderedTerminalLineCount(detailLines, dimensions.rightWidth);
+  const bodyHeight = Math.max(entryCount + 2, detailLineCount + 2);
+  return clampInlineModalHeight(totalRows, bodyHeight + 6);
+}
+
+function getInlineModalHeight(modal: TerminalModalState, totalRows: number, width: number): number {
   if (!modal || getModalPresentation(modal) !== "inline") {
     return 0;
   }
 
-  const minimumMainHeight = 10;
-  const maximumInlineHeight = Math.max(4, totalRows - minimumMainHeight);
-  const desiredHeight = modal.kind === "text" || modal.kind === "dialog" ? 6 : 10;
-  return Math.max(4, Math.min(desiredHeight, maximumInlineHeight));
+  switch (modal.kind) {
+    case "dialog":
+      return getInlineDialogHeight(modal, totalRows, width);
+    case "text":
+      return getInlineTextPromptHeight(modal, totalRows, width);
+    case "command":
+      return getInlineCommandPaletteHeight(modal, totalRows, width);
+    case "select":
+    case "multiselect":
+    case "policy":
+      return clampInlineModalHeight(totalRows, 10);
+    default:
+      return clampInlineModalHeight(totalRows, 10);
+  }
 }
 
 function DerivedTagTerminalModalHost({
@@ -1895,7 +1969,7 @@ export function DerivedTagTerminalProvider({
   const { columns, rows } = useWindowSize();
   const [modal, setModal] = React.useState<TerminalModalState>(null);
   const modalPresentation = React.useMemo(() => getModalPresentation(modal), [modal]);
-  const inlineModalHeight = React.useMemo(() => getInlineModalHeight(modal, rows), [modal, rows]);
+  const inlineModalHeight = React.useMemo(() => getInlineModalHeight(modal, rows, columns), [columns, modal, rows]);
   const availableRows = modalPresentation === "screen"
     ? 0
     : Math.max(0, rows - inlineModalHeight);

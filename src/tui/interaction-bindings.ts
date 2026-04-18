@@ -74,7 +74,7 @@ export type TerminalInteractionHelpSection = {
 export const TERMINAL_DIALOG_RETURN_FOOTER = "Press any key to return.";
 export const TERMINAL_DIALOG_CONTINUE_FOOTER = "Press any key to continue.";
 export const TERMINAL_TEXT_INPUT_FOOTER = "Type text  Enter submit  Backspace edit  Esc cancel";
-export const TERMINAL_COMMAND_PALETTE_FILTER_FOOTER = "Type to filter  Enter/Right select  Backspace edit  Esc cancel";
+export const TERMINAL_COMMAND_PALETTE_FILTER_FOOTER = "Type to filter  Enter/→ select  Backspace edit  Esc cancel";
 export const TERMINAL_LIVE_FILTER_FOOTER = "Type to filter live  Backspace edit  Enter keep filter  Esc clear and back out";
 
 type TerminalInteractionDefinition = {
@@ -85,18 +85,18 @@ type TerminalInteractionDefinition = {
 
 const TERMINAL_INTERACTION_DEFINITIONS: Record<TerminalInteractionActionId, TerminalInteractionDefinition> = {
   move: {
-    footerKeys: "Up/Down",
-    helpKeys: "Up / Down or j / k",
+    footerKeys: "↑/↓",
+    helpKeys: "↑ / ↓ or j / k",
     defaultLabel: "move",
   },
   moveHorizontal: {
-    footerKeys: "Left/Right",
-    helpKeys: "Left / Right or h / l",
+    footerKeys: "←/→",
+    helpKeys: "← / → or h / l",
     defaultLabel: "move",
   },
   scroll: {
-    footerKeys: "Up/Down",
-    helpKeys: "Up / Down or j / k",
+    footerKeys: "↑/↓",
+    helpKeys: "↑ / ↓ or j / k",
     defaultLabel: "scroll",
   },
   jump: {
@@ -105,33 +105,33 @@ const TERMINAL_INTERACTION_DEFINITIONS: Record<TerminalInteractionActionId, Term
     defaultLabel: "jump",
   },
   page: {
-    footerKeys: "PgUp/PgDn or b/f",
-    helpKeys: "PageUp / PageDown or b / f",
+    footerKeys: "b/f",
+    helpKeys: "b / f or PageUp / PageDown",
     defaultLabel: "page",
   },
   edge: {
-    footerKeys: "gg/G or Home/End",
+    footerKeys: "gg/G",
     helpKeys: "gg / G or Home / End",
     defaultLabel: "edge",
   },
   select: {
-    footerKeys: "Enter/Right",
-    helpKeys: "Enter / Right or l",
+    footerKeys: "Enter/→",
+    helpKeys: "Enter / → or l",
     defaultLabel: "select",
   },
   open: {
-    footerKeys: "Enter/Right",
-    helpKeys: "Enter / Right or l",
+    footerKeys: "Enter/→",
+    helpKeys: "Enter / → or l",
     defaultLabel: "open",
   },
   preview: {
-    footerKeys: "Enter/Right",
-    helpKeys: "Enter / Right or l",
+    footerKeys: "Enter/→",
+    helpKeys: "Enter / → or l",
     defaultLabel: "preview",
   },
   edit: {
-    footerKeys: "Enter/Right/Space",
-    helpKeys: "Enter / Right or l / Space",
+    footerKeys: "Enter/→/Space",
+    helpKeys: "Enter / → or l / Space",
     defaultLabel: "edit",
   },
   toggle: {
@@ -150,13 +150,13 @@ const TERMINAL_INTERACTION_DEFINITIONS: Record<TerminalInteractionActionId, Term
     defaultLabel: "reverse cycle",
   },
   back: {
-    footerKeys: "Left/Esc/backspace",
-    helpKeys: "Left / h or Escape / Backspace",
+    footerKeys: "←/Esc",
+    helpKeys: "← or h / Escape / Backspace",
     defaultLabel: "back",
   },
   return: {
-    footerKeys: "Left/Esc/backspace",
-    helpKeys: "Left / h or Escape / Backspace",
+    footerKeys: "←/Esc",
+    helpKeys: "← or h / Escape / Backspace",
     defaultLabel: "return",
   },
   focus: {
