@@ -35,19 +35,12 @@ import {
   type DerivedTagTerminalLine,
 } from "./terminal-ui.js";
 import {
-  isBackNavigationKey,
-  isCommandPaletteKey,
-  isFocusToggleKey,
-  isHelpKey,
-  isMoveLeftKey,
-  isMoveRightKey,
-  isSearchKey,
-} from "./keymap.js";
-import {
+  TERMINAL_DIALOG_RETURN_FOOTER,
   buildTerminalInteractionHelpLines,
   formatTerminalInteractionFooter,
   type TerminalInteractionAction,
   type TerminalInteractionCommand,
+  resolveTerminalInteractionAction,
 } from "./interaction-bindings.js";
 import { buildOntologyExplorerEntityDetailLines } from "./ontology-explorer/entity-page.js";
 import { mapNormalizedRecordToOntologyExplorerEntityRecord } from "./ontology-explorer/entity-record.js";
@@ -993,6 +986,39 @@ function buildResultCommandPaletteEntries(
   ];
 }
 
+function getSearchDraftInteractionActions(): TerminalInteractionAction[] {
+  return [
+    { id: "edit" },
+    { id: "execute" },
+    { id: "search", label: "query" },
+    { id: "commands" },
+    { id: "help" },
+    { id: "back" },
+    { id: "quit", label: "back" },
+  ];
+}
+
+function getSearchResultListInteractionActions(): TerminalInteractionAction[] {
+  return [
+    { id: "back", label: "setup" },
+    { id: "preview" },
+    { id: "focus", label: "pane" },
+    { id: "commands" },
+    { id: "help" },
+    { id: "quit", label: "back" },
+  ];
+}
+
+function getSearchResultDetailInteractionActions(): TerminalInteractionAction[] {
+  return [
+    { id: "back", label: "results" },
+    { id: "focus", label: "pane" },
+    { id: "commands" },
+    { id: "help" },
+    { id: "quit", label: "back" },
+  ];
+}
+
 function buildSearchFooterText(
   state: SearchScreenState,
   loadingMore: boolean,
@@ -1003,12 +1029,7 @@ function buildSearchFooterText(
       { id: "jump" },
       { id: "page" },
       { id: "edge" },
-      { id: "edit" },
-      { id: "execute" },
-      { id: "search", label: "query" },
-      { id: "commands" },
-      { id: "back" },
-      { id: "quit", label: "back" },
+      ...getSearchDraftInteractionActions(),
     ]);
   }
 
@@ -1018,11 +1039,7 @@ function buildSearchFooterText(
       { id: "jump" },
       { id: "page" },
       { id: "edge" },
-      { id: "back", label: "setup" },
-      { id: "preview" },
-      { id: "focus", label: "pane" },
-      { id: "commands" },
-      { id: "quit", label: "back" },
+      ...getSearchResultListInteractionActions(),
     ]);
     return loadingMore ? `${footer}  Loading more...` : footer;
   }
@@ -1032,10 +1049,7 @@ function buildSearchFooterText(
     { id: "jump" },
     { id: "page" },
     { id: "edge" },
-    { id: "back", label: "results" },
-    { id: "focus", label: "pane" },
-    { id: "commands" },
-    { id: "quit", label: "back" },
+    ...getSearchResultDetailInteractionActions(),
   ]);
 }
 
@@ -1051,12 +1065,19 @@ function buildSearchHelpLines(
       { id: "edge", helpText: "jump to the start or end of the setup list" },
     ];
     const actionActions: TerminalInteractionAction[] = [
-      { id: "edit", helpText: "edit the focused setup row or act on it" },
-      { id: "execute", helpText: "execute the current setup and switch to results" },
-      { id: "search", label: "edit query", helpText: "edit the current query text" },
-      { id: "commands", helpText: "open the setup command palette" },
-      { id: "back", helpText: "leave browse/search" },
-      { id: "quit", label: "back", helpText: "leave browse/search" },
+      ...getSearchDraftInteractionActions().map<TerminalInteractionAction>((action) => ({
+        ...action,
+        helpText: action.id === "edit"
+          ? "edit the focused setup row or act on it"
+          : action.id === "execute"
+            ? "execute the current setup and switch to results"
+            : action.id === "search"
+              ? "edit the current query text"
+              : action.id === "commands"
+                ? "open the setup command palette"
+                : "leave browse/search",
+        label: action.id === "search" ? "edit query" : action.label,
+      })),
     ];
     return buildTerminalInteractionHelpLines([
       {
@@ -1084,20 +1105,24 @@ function buildSearchHelpLines(
     { id: "page", helpText: state.activePane === "list" ? "page through the active result pane" : "page through the preview pane" },
     { id: "edge", helpText: "jump to the start or end of the active pane" },
   ];
-  const resultActions: TerminalInteractionAction[] = state.activePane === "list"
-    ? [
-      { id: "preview", helpText: "open the focused result preview" },
-      { id: "back", label: "setup", helpText: "return to Scope & Filters" },
-      { id: "focus", label: "toggle pane", helpText: "switch focus between results and preview" },
-      { id: "commands", helpText: "open the results command palette" },
-      { id: "quit", label: "back", helpText: "leave browse/search" },
-    ]
-    : [
-      { id: "back", label: "results", helpText: "return to the result list" },
-      { id: "focus", label: "toggle pane", helpText: "switch focus between results and preview" },
-      { id: "commands", helpText: "open the results command palette" },
-      { id: "quit", label: "back", helpText: "leave browse/search" },
-    ];
+  const resultActions: TerminalInteractionAction[] = (state.activePane === "list"
+    ? getSearchResultListInteractionActions()
+    : getSearchResultDetailInteractionActions())
+    .map((action) => ({
+      ...action,
+      helpText: action.id === "preview"
+        ? "open the focused result preview"
+        : action.id === "back" && state.activePane === "list"
+          ? "return to Scope & Filters"
+          : action.id === "back"
+            ? "return to the result list"
+            : action.id === "focus"
+              ? "switch focus between results and preview"
+              : action.id === "commands"
+                ? "open the results command palette"
+                : "leave browse/search",
+      label: action.id === "focus" ? "toggle pane" : action.label,
+    }));
 
   return buildTerminalInteractionHelpLines([
     {
@@ -1663,10 +1688,6 @@ export function SearchScreen({
     setFacetPickerSession(null);
   }, [applyDraftUpdate, facetPickerSession]);
 
-  const cancelFacetPicker = React.useCallback(() => {
-    setFacetPickerSession(null);
-  }, []);
-
   const resetDraftWorkspace = React.useCallback(() => {
     const defaultRequest = user.search.createDefaultRequest();
     draftRef.current = defaultRequest;
@@ -1767,7 +1788,7 @@ export function SearchScreen({
     void terminal.showDialog({
       title: state.layout === "draft" ? "Search Setup Help" : "Search Results Help",
       body: buildSearchHelpLines(state, workspaceEntries),
-      footer: [{ text: "Press any key to return.", tone: "dim" }],
+      footer: [{ text: TERMINAL_DIALOG_RETURN_FOOTER, tone: "dim" }],
     });
   }, [state, terminal, workspaceEntries]);
 
@@ -1788,35 +1809,43 @@ export function SearchScreen({
       jumpSize: selectionJumpSize,
     }, detailNavigationStateRef.current);
     detailNavigationStateRef.current = detailNavigation.state;
+    const interactionActions = state.layout === "draft"
+      ? getSearchDraftInteractionActions()
+      : state.activePane === "list"
+        ? getSearchResultListInteractionActions()
+        : getSearchResultDetailInteractionActions();
+    const interactionAction = resolveTerminalInteractionAction(normalized, interactionActions);
 
-    if (normalized === "ctrl_c" || normalized === "q") {
+    if (normalized === "ctrl_c") {
       exitSearchScreen();
       return;
     }
-    if (isHelpKey(normalized)) {
+
+    if (interactionAction?.id === "help") {
       showSearchHelp();
       return;
     }
-    if (isSearchKey(normalized)) {
+    if (interactionAction?.id === "quit") {
+      exitSearchScreen();
+      return;
+    }
+
+    if (state.layout === "draft" && interactionAction?.id === "search") {
       void editQueryText();
       return;
     }
 
     if (state.layout === "draft") {
-      if (isCommandPaletteKey(normalized)) {
+      if (interactionAction?.id === "commands") {
         void openDraftCommandPalette();
         return;
       }
-      if (normalized === "tab" || normalized === "shift_tab") {
+      if (interactionAction?.id === "execute") {
         void executeRequest(state.draft);
         return;
       }
-      if (isBackNavigationKey(normalized)) {
+      if (interactionAction?.id === "back") {
         exitSearchScreen();
-        return;
-      }
-      if (normalized === "space") {
-        openSelectedWorkspaceEntry();
         return;
       }
       if (listNavigation.action?.kind === "move") {
@@ -1831,33 +1860,29 @@ export function SearchScreen({
         });
         return;
       }
-      if (listNavigation.action?.kind === "confirm") {
-        openSelectedWorkspaceEntry();
-        return;
-      }
-      if (isMoveRightKey(normalized)) {
+      if (interactionAction?.id === "edit") {
         openSelectedWorkspaceEntry();
         return;
       }
       return;
     }
 
-    if (isCommandPaletteKey(normalized)) {
+    if (interactionAction?.id === "commands") {
       void openResultCommandPalette();
       return;
     }
 
-    if (isFocusToggleKey(normalized)) {
+    if (interactionAction?.id === "focus") {
       dispatch({ type: "set_active_pane", pane: state.activePane === "list" ? "detail" : "list" });
       return;
     }
 
     if (state.activePane === "list") {
-      if (isBackNavigationKey(normalized)) {
+      if (interactionAction?.id === "back") {
         dispatch({ type: "set_layout", layout: "draft", pane: "list" });
         return;
       }
-      if ((isMoveRightKey(normalized) || listNavigation.action?.kind === "confirm") && selectedResult) {
+      if (interactionAction?.id === "preview" && selectedResult) {
         dispatch({ type: "set_active_pane", pane: "detail" });
         return;
       }
@@ -1871,7 +1896,7 @@ export function SearchScreen({
       return;
     }
 
-    if (isBackNavigationKey(normalized)) {
+    if (interactionAction?.id === "back") {
       dispatch({ type: "set_active_pane", pane: "list" });
       return;
     }
@@ -1890,7 +1915,6 @@ export function SearchScreen({
         model={facetPickerSession.model}
         initialSelections={facetPickerSession.initialSelections}
         onApply={applyFacetPicker}
-        onCancel={cancelFacetPicker}
       />
     );
   }

@@ -12,6 +12,7 @@ import {
   type DerivedTagTerminalLine,
 } from "./terminal-ui.js";
 import {
+  TERMINAL_DIALOG_RETURN_FOOTER,
   buildTerminalInteractionHelpLines,
   formatTerminalInteractionFooter,
 } from "./interaction-bindings.js";
@@ -128,7 +129,7 @@ export function AreaMenuScreen({
       void terminal.showDialog({
         title: "Top-Level Help",
         body: buildTopLevelHelpLines(),
-        footer: [{ text: "Press any key to return.", tone: "dim" }],
+        footer: [{ text: TERMINAL_DIALOG_RETURN_FOOTER, tone: "dim" }],
       });
       return;
     }

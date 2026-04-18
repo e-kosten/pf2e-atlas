@@ -20,7 +20,13 @@ import {
   isPageDownKey,
   isPageUpKey,
 } from "./keymap.js";
-import { formatTerminalInteractionFooter } from "./interaction-bindings.js";
+import {
+  TERMINAL_COMMAND_PALETTE_FILTER_FOOTER,
+  TERMINAL_DIALOG_CONTINUE_FOOTER,
+  TERMINAL_TEXT_INPUT_FOOTER,
+  formatTerminalInteractionFooter,
+  resolveTerminalInteractionAction,
+} from "./interaction-bindings.js";
 
 export type DerivedTagTerminalTone =
   | "default"
@@ -1042,7 +1048,7 @@ function PromptBody({
           ]}
         />
       )}
-      footer={[{ text: "Type text  Enter submit  Backspace edit  Esc cancel", tone: "dim" }]}
+      footer={[{ text: TERMINAL_TEXT_INPUT_FOOTER, tone: "dim" }]}
       width={width}
       height={height}
       showTopBorder={options.presentation !== "screen"}
@@ -1128,7 +1134,7 @@ function CommandPaletteBody({
       )}
       footer={[
         { text: formatTerminalInteractionFooter([{ id: "move" }, { id: "jump" }, { id: "page" }, { id: "edge" }]), tone: "dim" },
-        { text: "Type to filter  Enter/Right select  Backspace edit  Esc cancel", tone: "dim" },
+        { text: TERMINAL_COMMAND_PALETTE_FILTER_FOOTER, tone: "dim" },
         { text: `${filteredEntries.length} command${filteredEntries.length === 1 ? "" : "s"} visible`, tone: "accent" },
       ]}
       width={width}
@@ -1492,6 +1498,18 @@ function DerivedTagTerminalModalHost({
   useInput((input, key) => {
     const normalized = getNormalizedKeyName(input, key);
     const printable = getPrintableInput(input, key);
+    const selectLikeAction = resolveTerminalInteractionAction(normalized, [
+      { id: "select" },
+      { id: "back", label: "cancel" },
+    ]);
+    const multiSelectLikeAction = resolveTerminalInteractionAction(normalized, [
+      { id: "toggle" },
+      { id: "return" },
+    ]);
+    const policyLikeAction = resolveTerminalInteractionAction(normalized, [
+      { id: "cycle" },
+      { id: "return" },
+    ]);
     const modalNavigation = resolveDerivedTagTerminalListNavigationAction(input, key, {
       pageSize: 10,
       jumpSize: 5,
@@ -1596,14 +1614,14 @@ function DerivedTagTerminalModalHost({
           : current);
         return;
       }
-      if (isConfirmKey(normalized) || isMoveRightKey(normalized)) {
+      if (selectLikeAction?.id === "select") {
         const resolver = modal.resolve;
         const selected = filteredEntries[clampedSelectedIndex]?.value;
         setModal(null);
         resolver(selected);
         return;
       }
-      if (isBackNavigationKey(normalized) || normalized === "q" || normalized === "ctrl_c") {
+      if (selectLikeAction?.id === "back" || normalized === "q" || normalized === "ctrl_c") {
         const resolver = modal.resolve;
         setModal(null);
         resolver(undefined);
@@ -1662,7 +1680,7 @@ function DerivedTagTerminalModalHost({
         : current);
       return;
     }
-    if (modal.kind === "multiselect" && isConfirmOrToggleKey(normalized)) {
+    if (modal.kind === "multiselect" && multiSelectLikeAction?.id === "toggle") {
       const selected = modal.options.entries[modal.selectedIndex]?.value;
       if (!selected) {
         return;
@@ -1677,14 +1695,14 @@ function DerivedTagTerminalModalHost({
         : current);
       return;
     }
-    if (modal.kind === "select" && (isConfirmKey(normalized) || isMoveRightKey(normalized))) {
+    if (modal.kind === "select" && selectLikeAction?.id === "select") {
       const resolver = modal.resolve;
       const selected = modal.options.entries[modal.selectedIndex]?.value;
       setModal(null);
       resolver(selected);
       return;
     }
-    if (modal.kind === "multiselect" && isBackNavigationKey(normalized)) {
+    if (modal.kind === "multiselect" && multiSelectLikeAction?.id === "return") {
       const resolver = modal.resolve;
       const selectedValues = modal.selectedValues;
       setModal(null);
@@ -1693,7 +1711,7 @@ function DerivedTagTerminalModalHost({
     }
     const cycleDirection = getCycleDirection(normalized);
 
-    if (modal.kind === "policy" && cycleDirection) {
+    if (modal.kind === "policy" && policyLikeAction?.id === "cycle" && cycleDirection) {
       const selected = modal.options.entries[modal.selectedIndex]?.value;
       if (!selected) {
         return;
@@ -1709,14 +1727,14 @@ function DerivedTagTerminalModalHost({
         : current);
       return;
     }
-    if (modal.kind === "policy" && (isBackNavigationKey(normalized) || normalized === "q" || normalized === "ctrl_c")) {
+    if (modal.kind === "policy" && (policyLikeAction?.id === "return" || normalized === "q" || normalized === "ctrl_c")) {
       const resolver = modal.resolve;
       const selection = buildPolicySelection(modal.options.entries, modal.valueStates);
       setModal(null);
       resolver(selection);
       return;
     }
-    if (modal.kind === "select" && (isBackNavigationKey(normalized) || normalized === "q" || normalized === "ctrl_c")) {
+    if (modal.kind === "select" && (selectLikeAction?.id === "back" || normalized === "q" || normalized === "ctrl_c")) {
       const resolver = modal.resolve;
       setModal(null);
       resolver(undefined);
@@ -1739,7 +1757,7 @@ function DerivedTagTerminalModalHost({
             lines={modal.options.body}
           />
         )}
-        footer={modal.options.footer ?? [{ text: "Press any key to continue.", tone: "dim" }]}
+        footer={modal.options.footer ?? [{ text: TERMINAL_DIALOG_CONTINUE_FOOTER, tone: "dim" }]}
         width={width}
         height={height}
         showTopBorder={presentation === "inline"}
@@ -1819,7 +1837,7 @@ export function DerivedTagTerminalProvider({
           options: {
             title: "Derived-Tag Workbench",
             body: message.split("\n").map((line) => ({ text: line })),
-            footer: [{ text: "Press any key to continue.", tone: "dim" }],
+            footer: [{ text: TERMINAL_DIALOG_CONTINUE_FOOTER, tone: "dim" }],
           },
           resolve,
         });

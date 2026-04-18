@@ -1,3 +1,15 @@
+import {
+  isBackNavigationKey,
+  isCommandPaletteKey,
+  isConfirmKey,
+  isConfirmOrToggleKey,
+  isFocusToggleKey,
+  isHelpKey,
+  isLayoutToggleKey,
+  isMoveRightKey,
+  isSearchKey,
+} from "./keymap.js";
+
 export type TerminalInteractionTone =
   | "default"
   | "section"
@@ -50,6 +62,12 @@ export type TerminalInteractionHelpSection = {
   commands?: TerminalInteractionCommand[];
   lines?: TerminalInteractionLine[];
 };
+
+export const TERMINAL_DIALOG_RETURN_FOOTER = "Press any key to return.";
+export const TERMINAL_DIALOG_CONTINUE_FOOTER = "Press any key to continue.";
+export const TERMINAL_TEXT_INPUT_FOOTER = "Type text  Enter submit  Backspace edit  Esc cancel";
+export const TERMINAL_COMMAND_PALETTE_FILTER_FOOTER = "Type to filter  Enter/Right select  Backspace edit  Esc cancel";
+export const TERMINAL_LIVE_FILTER_FOOTER = "Type to filter live  Backspace edit  Enter keep filter  Esc clear and back out";
 
 type TerminalInteractionDefinition = {
   footerKeys: string;
@@ -175,6 +193,46 @@ export function formatTerminalInteractionFooter(actions: TerminalInteractionActi
       return `${definition.footerKeys} ${getInteractionLabel(action)}`;
     })
     .join("  ");
+}
+
+function matchesTerminalInteractionAction(actionId: TerminalInteractionActionId, normalizedKey: string): boolean {
+  switch (actionId) {
+    case "select":
+    case "open":
+    case "preview":
+      return isConfirmKey(normalizedKey) || isMoveRightKey(normalizedKey);
+    case "edit":
+      return isConfirmOrToggleKey(normalizedKey) || isMoveRightKey(normalizedKey);
+    case "toggle":
+    case "cycle":
+      return isConfirmOrToggleKey(normalizedKey);
+    case "back":
+    case "return":
+      return isBackNavigationKey(normalizedKey);
+    case "focus":
+      return isFocusToggleKey(normalizedKey);
+    case "layout":
+      return isLayoutToggleKey(normalizedKey);
+    case "search":
+      return isSearchKey(normalizedKey);
+    case "help":
+      return isHelpKey(normalizedKey);
+    case "quit":
+      return normalizedKey === "q";
+    case "commands":
+      return isCommandPaletteKey(normalizedKey);
+    case "execute":
+      return normalizedKey === "tab" || normalizedKey === "shift_tab";
+    default:
+      return false;
+  }
+}
+
+export function resolveTerminalInteractionAction(
+  normalizedKey: string,
+  actions: TerminalInteractionAction[],
+): TerminalInteractionAction | undefined {
+  return actions.find((action) => matchesTerminalInteractionAction(action.id, normalizedKey));
 }
 
 function buildActionHelpLine(action: TerminalInteractionAction): TerminalInteractionLine {

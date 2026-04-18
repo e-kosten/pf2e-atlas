@@ -80,7 +80,6 @@ describe("ontology picker screen", () => {
         <OntologyPickerScreen
           model={createPickerModel()}
           onApply={onApply}
-          onCancel={vi.fn()}
         />
       </DerivedTagTerminalProvider>,
     );
@@ -110,7 +109,6 @@ describe("ontology picker screen", () => {
         <OntologyPickerScreen
           model={createPickerModel()}
           onApply={onApply}
-          onCancel={vi.fn()}
         />
       </DerivedTagTerminalProvider>,
     );
@@ -138,7 +136,6 @@ describe("ontology picker screen", () => {
         <OntologyPickerScreen
           model={createPickerModel()}
           onApply={onApply}
-          onCancel={vi.fn()}
         />
       </DerivedTagTerminalProvider>,
     );
@@ -182,7 +179,6 @@ describe("ontology picker screen", () => {
         <OntologyPickerScreen
           model={model}
           onApply={onApply}
-          onCancel={vi.fn()}
         />
       </DerivedTagTerminalProvider>,
     );
@@ -203,13 +199,11 @@ describe("ontology picker screen", () => {
 
   it("returns current selections when q exits the picker", async () => {
     const onApply = vi.fn();
-    const onCancel = vi.fn();
     const app = render(
       <DerivedTagTerminalProvider>
         <OntologyPickerScreen
           model={createPickerModel()}
           onApply={onApply}
-          onCancel={onCancel}
         />
       </DerivedTagTerminalProvider>,
     );
@@ -229,12 +223,10 @@ describe("ontology picker screen", () => {
         exclude: [],
       },
     });
-    expect(onCancel).not.toHaveBeenCalled();
   });
 
   it("returns current selections when left exits from the root", async () => {
     const onApply = vi.fn();
-    const onCancel = vi.fn();
     const rootSelectableModel: OntologyDomainModel = {
       id: "searchSemantics",
       label: "Traits",
@@ -262,7 +254,6 @@ describe("ontology picker screen", () => {
         <OntologyPickerScreen
           model={rootSelectableModel}
           onApply={onApply}
-          onCancel={onCancel}
         />
       </DerivedTagTerminalProvider>,
     );
@@ -280,6 +271,5 @@ describe("ontology picker screen", () => {
         exclude: [],
       },
     });
-    expect(onCancel).not.toHaveBeenCalled();
   });
 });

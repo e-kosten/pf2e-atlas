@@ -8,6 +8,8 @@ import {
   useDerivedTagTerminalApp,
 } from "../terminal-ui.js";
 import {
+  TERMINAL_DIALOG_RETURN_FOOTER,
+  TERMINAL_LIVE_FILTER_FOOTER,
   buildTerminalInteractionHelpLines,
   formatTerminalInteractionFooter,
   type TerminalInteractionAction,
@@ -20,8 +22,14 @@ import {
 function buildOntologyBrowserFooterText(
   controller: ReturnType<typeof useOntologyExplorerController>,
 ): string {
+  return formatTerminalInteractionFooter(getOntologyBrowserInteractionActions(controller));
+}
+
+function getOntologyBrowserInteractionActions(
+  controller: Pick<ReturnType<typeof useOntologyExplorerController>, "layoutMode" | "state">,
+): TerminalInteractionAction[] {
   if (controller.layoutMode === "detail-only") {
-    return formatTerminalInteractionFooter([
+    return [
       { id: "scroll" },
       { id: "jump" },
       { id: "page" },
@@ -32,11 +40,11 @@ function buildOntologyBrowserFooterText(
       { id: "commands" },
       { id: "help" },
       { id: "quit", label: "back" },
-    ]);
+    ];
   }
 
   if (controller.state.activePane === "list") {
-    return formatTerminalInteractionFooter([
+    return [
       { id: "move" },
       { id: "jump" },
       { id: "page" },
@@ -49,10 +57,10 @@ function buildOntologyBrowserFooterText(
       { id: "commands" },
       { id: "help" },
       { id: "quit", label: "back" },
-    ]);
+    ];
   }
 
-  return formatTerminalInteractionFooter([
+  return [
     { id: "scroll" },
     { id: "jump" },
     { id: "page" },
@@ -64,7 +72,7 @@ function buildOntologyBrowserFooterText(
     { id: "commands" },
     { id: "help" },
     { id: "quit", label: "back" },
-  ]);
+  ];
 }
 
 function buildOntologyCommandEntries(
@@ -93,19 +101,27 @@ function buildOntologyBrowserHelpLines(
     { id: "page", helpText: "page through the active pane" },
     { id: "edge", helpText: "jump to the start or end of the active pane" },
   ];
-  const actionActions: TerminalInteractionAction[] = [];
-  if (controller.layoutMode === "detail-only" || controller.state.activePane === "list") {
-    actionActions.push({ id: "open", label: "open", helpText: "drill into the focused node or open its query" });
-  }
-  actionActions.push(
-    { id: "focus", label: "toggle pane", helpText: "switch focus between list and detail" },
-    { id: "layout", helpText: "toggle split and detail-only layouts" },
-    { id: "back", helpText: "move up a level or leave the active pane" },
-    { id: "search", helpText: "start live filtering" },
-    { id: "commands", helpText: "open the ontology command palette" },
-    { id: "help", helpText: "show this help" },
-    { id: "quit", label: "back", helpText: "leave ontology browsing" },
-  );
+  const actionActions: TerminalInteractionAction[] = getOntologyBrowserInteractionActions(controller)
+    .filter((action) => !["move", "scroll", "jump", "page", "edge"].includes(action.id))
+    .map((action) => ({
+      ...action,
+      helpText: action.id === "open"
+        ? "drill into the focused node or open its query"
+        : action.id === "focus"
+          ? "switch focus between list and detail"
+          : action.id === "layout"
+            ? "toggle split and detail-only layouts"
+            : action.id === "back"
+              ? "move up a level or leave the active pane"
+              : action.id === "search"
+                ? "start live filtering"
+                : action.id === "commands"
+                  ? "open the ontology command palette"
+                  : action.id === "help"
+                    ? "show this help"
+                    : "leave ontology browsing",
+      label: action.id === "focus" ? "toggle pane" : action.label,
+    }));
 
   return buildTerminalInteractionHelpLines([
     {
@@ -155,12 +171,9 @@ export function OntologyBrowserScreen({
       }
       return false;
     },
-    onKey: (keyContext) => {
-      const { normalizedKey } = keyContext;
-      if (normalizedKey !== "?") {
-        if (normalizedKey !== ":") {
-          return false;
-        }
+    getInteractionActions: getOntologyBrowserInteractionActions,
+    onAction: (action, keyContext) => {
+      if (action.id === "commands") {
         const commandEntries = buildOntologyCommandEntries(keyContext, onOpenQuery);
         if (commandEntries.length === 0) {
           return true;
@@ -176,10 +189,13 @@ export function OntologyBrowserScreen({
         });
         return true;
       }
+      if (action.id !== "help") {
+        return false;
+      }
       void terminal.showDialog({
         title: "Ontology Browser Help",
         body: buildOntologyBrowserHelpLines(keyContext, onOpenQuery),
-        footer: [{ text: "Press any key to return.", tone: "dim" }],
+        footer: [{ text: TERMINAL_DIALOG_RETURN_FOOTER, tone: "dim" }],
       });
       return true;
     },
@@ -198,7 +214,7 @@ export function OntologyBrowserScreen({
         footer={[
           {
             text: controller.state.searchMode
-              ? "Type to filter live  Backspace edit  Enter keep filter  Esc clear and back out"
+              ? TERMINAL_LIVE_FILTER_FOOTER
               : buildOntologyBrowserFooterText(controller),
             tone: "dim",
           },
@@ -232,7 +248,7 @@ export function OntologyBrowserScreen({
       footer={[
         {
           text: controller.state.searchMode
-            ? "Type to filter live  Backspace edit  Enter keep filter  Esc clear and back out"
+            ? TERMINAL_LIVE_FILTER_FOOTER
             : buildOntologyBrowserFooterText(controller),
           tone: "dim",
         },

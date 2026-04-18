@@ -17,6 +17,7 @@ import {
   type DerivedTagTerminalLine,
 } from "./terminal-ui.js";
 import {
+  TERMINAL_DIALOG_RETURN_FOOTER,
   buildTerminalInteractionHelpLines,
   formatTerminalInteractionFooter,
   type TerminalInteractionCommand,
@@ -232,7 +233,7 @@ export function TagRefinementMenuScreen({
       void terminal.showDialog({
         title: "Tag Refinement Help",
         body: buildTagRefinementHelpLines(queueItems.length > 0),
-        footer: [{ text: "Press any key to return.", tone: "dim" }],
+        footer: [{ text: TERMINAL_DIALOG_RETURN_FOOTER, tone: "dim" }],
       });
       return;
     }

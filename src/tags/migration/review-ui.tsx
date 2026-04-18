@@ -31,6 +31,7 @@ import {
   type DerivedTagTerminalLine,
   type DerivedTagTerminalTwoPaneLayoutMode,
 } from "../../tui/terminal-ui.js";
+import { TERMINAL_DIALOG_RETURN_FOOTER } from "../../tui/interaction-bindings.js";
 import {
   getDerivedTagTerminalTwoPaneLayoutMode,
   reduceDerivedTagTerminalTwoPaneState,
@@ -424,7 +425,7 @@ export function DerivedTagMigrationReviewScreen({
       void terminal.showDialog({
         title: "Derived-Tag Review Help",
         body: buildReviewHelpLines(state.selectedActionIndex),
-        footer: [{ text: "Press any key to return.", tone: "dim" }],
+        footer: [{ text: TERMINAL_DIALOG_RETURN_FOOTER, tone: "dim" }],
       });
       return;
     } else if (state.activePane === "detail" && (normalized === "escape" || normalized === "backspace")) {

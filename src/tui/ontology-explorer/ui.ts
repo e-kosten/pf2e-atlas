@@ -540,24 +540,6 @@ export function getOntologyBrowserDetailMetrics(
   };
 }
 
-export function buildOntologyBrowserHelpLines(): DerivedTagTerminalLine[] {
-  return [
-    { text: "Navigation", tone: "section" },
-    { text: "Up / Down or j / k: move selection within the current ontology level" },
-    { text: "Ctrl+U / Ctrl+D: jump up or down by half a pane without wrapping" },
-    { text: "Space / b: page down or up without wrapping" },
-    { text: "gg / G or Home / End: jump to the first or last entry in the current level" },
-    { text: "Enter or Right / l: drill into the selected entry, open its browse query when that leaf exposes one, or focus detail when it is a leaf" },
-    { text: "o: open the selected entry's browse or lookup query in the search workspace when available" },
-    { text: "Left / h or Backspace: go up one level" },
-    { text: "Tab or w: switch focus between the list and detail panes" },
-    { text: "z: toggle focused detail view while detail has focus" },
-    { text: "/: enter live inline filtering for the current level" },
-    { text: "Esc: clear the filter first, otherwise go back" },
-    { text: "q: return to the ontology domain picker" },
-  ];
-}
-
 export function getPrintableOntologyBrowserKeyCharacter(input: string, key: Key): string | undefined {
   if (key.ctrl || key.meta) {
     return undefined;

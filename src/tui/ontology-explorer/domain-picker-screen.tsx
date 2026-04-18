@@ -12,6 +12,7 @@ import {
   useDerivedTagTerminalSize,
 } from "../terminal-ui.js";
 import {
+  TERMINAL_DIALOG_RETURN_FOOTER,
   buildTerminalInteractionHelpLines,
   formatTerminalInteractionFooter,
 } from "../interaction-bindings.js";
@@ -90,7 +91,7 @@ export function OntologyDomainPickerScreen({
             ],
           },
         ]),
-        footer: [{ text: "Press any key to return.", tone: "dim" }],
+        footer: [{ text: TERMINAL_DIALOG_RETURN_FOOTER, tone: "dim" }],
       });
       return;
     }

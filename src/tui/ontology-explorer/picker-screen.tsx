@@ -8,8 +8,11 @@ import {
   type DerivedTagTerminalLine,
 } from "../terminal-ui.js";
 import {
+  TERMINAL_DIALOG_RETURN_FOOTER,
+  TERMINAL_LIVE_FILTER_FOOTER,
   buildTerminalInteractionHelpLines,
   formatTerminalInteractionFooter,
+  type TerminalInteractionAction,
 } from "../interaction-bindings.js";
 import { getCycleDirection } from "../keymap.js";
 import { useOntologyExplorerController } from "./controller.js";
@@ -173,8 +176,14 @@ function buildPickerListLines(
 function buildFacetPickerFooterText(
   controller: ReturnType<typeof useOntologyExplorerController>,
 ): string {
+  return formatTerminalInteractionFooter(getFacetPickerInteractionActions(controller));
+}
+
+function getFacetPickerInteractionActions(
+  controller: Pick<ReturnType<typeof useOntologyExplorerController>, "layoutMode" | "state">,
+): TerminalInteractionAction[] {
   if (controller.layoutMode === "detail-only") {
-    return formatTerminalInteractionFooter([
+    return [
       { id: "scroll" },
       { id: "jump" },
       { id: "page" },
@@ -185,11 +194,11 @@ function buildFacetPickerFooterText(
       { id: "search" },
       { id: "help" },
       { id: "quit", label: "return" },
-    ]);
+    ];
   }
 
   if (controller.state.activePane === "list") {
-    return formatTerminalInteractionFooter([
+    return [
       { id: "move", label: "select" },
       { id: "jump" },
       { id: "page" },
@@ -201,10 +210,10 @@ function buildFacetPickerFooterText(
       { id: "search" },
       { id: "help" },
       { id: "quit", label: "return" },
-    ]);
+    ];
   }
 
-  return formatTerminalInteractionFooter([
+  return [
     { id: "scroll" },
     { id: "jump" },
     { id: "page" },
@@ -215,12 +224,32 @@ function buildFacetPickerFooterText(
     { id: "search" },
     { id: "help" },
     { id: "quit", label: "return" },
-  ]);
+  ];
 }
 
 function buildFacetPickerHelpLines(
   controller: Pick<ReturnType<typeof useOntologyExplorerController>, "layoutMode" | "state">,
 ): DerivedTagTerminalLine[] {
+  const actionActions = getFacetPickerInteractionActions(controller)
+    .filter((action) => !["move", "scroll", "jump", "page", "edge"].includes(action.id))
+    .map((action) => ({
+      ...action,
+      helpText: action.id === "cycle"
+        ? "cycle the focused policy through off, any, all, and exclude"
+        : action.id === "focus"
+          ? "switch focus between values and detail"
+          : action.id === "layout"
+            ? "toggle split and detail-only layouts"
+            : action.id === "back"
+              ? "move up a level or leave the active pane"
+              : action.id === "search"
+                ? "start live filtering"
+                : action.id === "help"
+                  ? "show this help"
+                  : "apply the current facet state and return",
+      label: action.id === "focus" ? "toggle pane" : action.label,
+    }));
+
   return buildTerminalInteractionHelpLines([
     {
       title: "Navigation",
@@ -233,15 +262,7 @@ function buildFacetPickerHelpLines(
     },
     {
       title: "Actions",
-      actions: [
-        { id: "cycle", helpText: "cycle the focused policy through off, any, all, and exclude" },
-        { id: "focus", label: "toggle pane", helpText: "switch focus between values and detail" },
-        { id: "layout", helpText: "toggle split and detail-only layouts" },
-        { id: "back", helpText: "move up a level or leave the active pane" },
-        { id: "search", helpText: "start live filtering" },
-        { id: "help", helpText: "show this help" },
-        { id: "quit", label: "return", helpText: "apply the current facet state and return" },
-      ],
+      actions: actionActions,
     },
   ]);
 }
@@ -250,12 +271,10 @@ export function OntologyPickerScreen({
   model,
   initialSelections,
   onApply,
-  onCancel,
 }: {
   model: OntologyDomainModel;
   initialSelections?: OntologyPickerSelectionMap;
   onApply: (selection: OntologyPickerSelectionMap) => void;
-  onCancel: () => void;
 }): React.JSX.Element {
   const terminal = useDerivedTagTerminalApp();
   const [selections, setSelections] = React.useState<OntologyPickerSelectionMap>(() => {
@@ -290,6 +309,7 @@ export function OntologyPickerScreen({
     onExit: returnWithSelections,
     getDetailLines: ({ selection }) => buildPickerDetailLines(selections, selection.currentNode),
     getDetailTitle: () => "Detail",
+    getInteractionActions: getFacetPickerInteractionActions,
     onConfirm: ({ currentNode, normalizedKey }) => {
       const cycleDirection = getCycleDirection(normalizedKey);
       if (!cycleDirection) {
@@ -301,27 +321,20 @@ export function OntologyPickerScreen({
       updateSelections((current) => toggleNodeSelection(currentNode, current, cycleDirection));
       return true;
     },
-    onKey: (keyContext) => {
-      const { currentNode, normalizedKey } = keyContext;
-      if (normalizedKey === "?") {
+    onAction: (action, keyContext) => {
+      if (action.id === "help") {
         void terminal.showDialog({
           title: "Facet Picker Help",
           body: buildFacetPickerHelpLines(keyContext),
-          footer: [{ text: "Press any key to return.", tone: "dim" }],
+          footer: [{ text: TERMINAL_DIALOG_RETURN_FOOTER, tone: "dim" }],
         });
         return true;
       }
-      if (normalizedKey === "space") {
-        if (currentNode?.selection) {
-          updateSelections((current) => toggleNodeSelection(currentNode, current, 1));
-        }
-        return true;
+      if (action.id !== "cycle" || !keyContext.currentNode?.selection) {
+        return false;
       }
-      if (normalizedKey === "q") {
-        returnWithSelections();
-        return true;
-      }
-      return false;
+      updateSelections((current) => toggleNodeSelection(keyContext.currentNode, current, 1));
+      return true;
     },
   });
 
@@ -338,7 +351,7 @@ export function OntologyPickerScreen({
         footer={[
           {
             text: controller.state.searchMode
-              ? "Type to filter live  Backspace edit  Enter keep filter  Esc clear and back out"
+              ? TERMINAL_LIVE_FILTER_FOOTER
               : buildFacetPickerFooterText(controller),
             tone: "dim",
           },
@@ -370,7 +383,7 @@ export function OntologyPickerScreen({
       footer={[
         {
           text: controller.state.searchMode
-            ? "Type to filter live  Backspace edit  Enter keep filter  Esc clear and back out"
+            ? TERMINAL_LIVE_FILTER_FOOTER
             : buildFacetPickerFooterText(controller),
           tone: "dim",
         },

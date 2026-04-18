@@ -20,11 +20,12 @@ import {
   type DerivedTagTerminalLine,
 } from "../terminal-ui.js";
 import {
-  isBackNavigationKey,
-  isFocusToggleKey,
-  isLayoutToggleKey,
   isSearchKey,
 } from "../keymap.js";
+import {
+  resolveTerminalInteractionAction,
+  type TerminalInteractionAction,
+} from "../interaction-bindings.js";
 import {
   getDerivedTagTerminalTwoPaneLayoutMode,
   reduceDerivedTagTerminalTwoPaneState,
@@ -97,6 +98,8 @@ type OntologyExplorerControllerOptions = {
   model: OntologyDomainModel;
   onExit: () => void;
   onConfirm?: (context: OntologyExplorerKeyContext) => boolean;
+  getInteractionActions?: (context: OntologyExplorerControllerContext) => TerminalInteractionAction[];
+  onAction?: (action: TerminalInteractionAction, context: OntologyExplorerKeyContext) => boolean;
   onKey?: (context: OntologyExplorerKeyContext) => boolean;
   onOpenQuery?: (query: OntologyNodeQuery) => void;
   escapeClearsFilterBeforeExit?: boolean;
@@ -340,6 +343,8 @@ export function useOntologyExplorerController(
       normalizedKey,
       printable,
     };
+    const interactionActions = options.getInteractionActions?.(context) ?? [];
+    const interactionAction = resolveTerminalInteractionAction(normalizedKey, interactionActions);
 
     if (normalizedKey === "ctrl_c") {
       options.onExit();
@@ -370,19 +375,6 @@ export function useOntologyExplorerController(
       return;
     }
 
-    if (normalizedKey === "q") {
-      options.onExit();
-      return;
-    }
-    if (isFocusToggleKey(normalizedKey)) {
-      dispatch({ type: "toggle_focus" });
-      return;
-    }
-    if (isLayoutToggleKey(normalizedKey)) {
-      dispatch({ type: "toggle_layout" });
-      return;
-    }
-
     if (state.activePane === "detail") {
       if (detailNavigation.action?.kind === "move") {
         dispatch({ type: "move_detail", delta: detailNavigation.action.delta, maxDetailScroll: context.maxDetailScroll });
@@ -392,7 +384,26 @@ export function useOntologyExplorerController(
         dispatch({ type: "detail_boundary", boundary: detailNavigation.action.boundary, maxDetailScroll: context.maxDetailScroll });
         return;
       }
-      if (detailNavigation.action?.kind === "cancel") {
+      if (interactionAction && options.onAction?.(interactionAction, keyContext)) {
+        return;
+      }
+      if (interactionAction?.id === "quit") {
+        options.onExit();
+        return;
+      }
+      if (interactionAction?.id === "focus") {
+        dispatch({ type: "toggle_focus" });
+        return;
+      }
+      if (interactionAction?.id === "layout") {
+        dispatch({ type: "toggle_layout" });
+        return;
+      }
+      if (interactionAction?.id === "back" || interactionAction?.id === "return") {
+        dispatch({ type: "leave_detail" });
+        return;
+      }
+      if (normalizedKey === "escape") {
         dispatch({ type: "leave_detail" });
         return;
       }
@@ -421,15 +432,6 @@ export function useOntologyExplorerController(
       }
       return;
     }
-    if (isBackNavigationKey(normalizedKey)) {
-      const nextState = popOntologyBrowserDepth(context.effectiveState);
-      if (nextState.depth === context.effectiveState.depth) {
-        options.onExit();
-      } else {
-        dispatch({ type: "pop_depth" });
-      }
-      return;
-    }
     if (normalizedKey === "escape") {
       if ((options.escapeClearsFilterBeforeExit ?? true) && context.effectiveState.filter) {
         dispatch({ type: "clear_search" });
@@ -443,7 +445,31 @@ export function useOntologyExplorerController(
       }
       return;
     }
-    if (isSearchKey(normalizedKey)) {
+    if (interactionAction && options.onAction?.(interactionAction, keyContext)) {
+      return;
+    }
+    if (interactionAction?.id === "quit") {
+      options.onExit();
+      return;
+    }
+    if (interactionAction?.id === "focus") {
+      dispatch({ type: "toggle_focus" });
+      return;
+    }
+    if (interactionAction?.id === "layout") {
+      dispatch({ type: "toggle_layout" });
+      return;
+    }
+    if (interactionAction?.id === "back" || interactionAction?.id === "return") {
+      const nextState = popOntologyBrowserDepth(context.effectiveState);
+      if (nextState.depth === context.effectiveState.depth) {
+        options.onExit();
+      } else {
+        dispatch({ type: "pop_depth" });
+      }
+      return;
+    }
+    if (interactionAction?.id === "search" || isSearchKey(normalizedKey)) {
       dispatch({
         type: "set_search_mode",
         searchMode: true,
