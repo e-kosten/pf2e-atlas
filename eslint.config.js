@@ -22,7 +22,9 @@ export default defineConfig(
     files: ["**/*.{ts,tsx}"],
     languageOptions: {
       parserOptions: {
-        project: "./tsconfig.eslint.json",
+        projectService: {
+          allowDefaultProject: ["vitest.config.ts"],
+        },
         tsconfigRootDir: import.meta.dirname,
       },
     },
