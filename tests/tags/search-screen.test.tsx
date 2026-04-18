@@ -396,7 +396,7 @@ describe("search screen", () => {
       subcategory: undefined,
     }));
     expect(search.mock.calls[0]?.[0]?.limit).toBeGreaterThan(50);
-    expect(app.lastFrame()).toContain("Draft matches applied query");
+    expect(app.lastFrame()).toContain("Workspace matches applied query");
     expect(app.lastFrame()).toContain("1/1 | Buf 1 | Win 1-1");
     expect(app.lastFrame()).toContain("[RESULTS] 1/1 | Buf 1 | Ranked");
     expect(app.lastFrame()).toContain("Alarm Ward | spell | lvl 1");
@@ -876,7 +876,6 @@ describe("search screen", () => {
     expect(readSearchWindowPage.mock.calls.every((call) => (call[2] as number) > 100)).toBe(true);
     const finalWindowSize = readSearchWindowPage.mock.calls.at(-1)?.[2];
     expect(app.lastFrame()).toContain(`| Buf ${finalWindowSize} | Alphabetical`);
-    expect(app.lastFrame()).toContain(`Pos 241/1,000 | Buf ${finalWindowSize}`);
   });
 
   it("coalesces rapid Ctrl-D jumps into a single latest window read", async () => {

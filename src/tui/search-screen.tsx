@@ -231,13 +231,6 @@ function formatResultPosition(selectedIndex: number, total: number): string {
   return `${formatCount(selectedIndex + 1)}/${formatCount(total)}`;
 }
 
-function formatResultReaderStatus(
-  session: Pf2eTerminalSearchSession,
-  selectedIndex: number,
-): string {
-  return `Pos ${formatResultPosition(selectedIndex, session.total)} | Buf ${formatCount(session.loadedCount)} | Win ${getSessionBufferRange(session)}`;
-}
-
 function searchScreenReducer(state: SearchScreenState, action: SearchScreenAction): SearchScreenState {
   switch (action.type) {
     case "set_layout":
@@ -540,11 +533,11 @@ export function parseJumpToResultInput(input: string, total: number): number | s
 
 function formatDraftStatus(state: SearchScreenState): string {
   if (!state.session) {
-    return "Draft not executed yet";
+    return "No applied query yet";
   }
   return JSON.stringify(state.draft) === JSON.stringify(state.session.request)
-    ? "Draft matches applied query"
-    : "Draft has unapplied changes";
+    ? "Workspace matches applied query"
+    : "Workspace has unapplied changes";
 }
 
 function buildWorkspaceEntries(state: SearchScreenState, countState: SearchCountState): SearchWorkspaceEntry[] {
@@ -693,11 +686,6 @@ function buildResultLines(
 
   if (loadingMore) {
     lines.push({ text: `Loading around ${formatResultPosition(selectedIndex, session.total)}...`, tone: "accent" });
-  } else if (session.loadedCount < session.total) {
-    lines.push({
-      text: formatResultReaderStatus(session, selectedIndex),
-      tone: "dim",
-    });
   }
 
   return lines;
