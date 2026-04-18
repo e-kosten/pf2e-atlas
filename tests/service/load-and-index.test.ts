@@ -15,6 +15,17 @@ import {
 } from "../helpers/pf2e-fixture.js";
 import { cleanupCreatedRoots, createFixture } from "../helpers/pf2e-service-fixture.js";
 
+type DerivedRawRecord = {
+  _derived: {
+    aliasNormalizationKeys?: string[];
+    normalizationKey?: string;
+  };
+};
+
+function parseDerivedRawRecord(rawJson: string): DerivedRawRecord {
+  return JSON.parse(rawJson) as DerivedRawRecord;
+}
+
 describe("Pf2eDataService / Load and Index", () => {
   const createdRoots: string[] = [];
 
@@ -402,7 +413,7 @@ describe("Pf2eDataService / Load and Index", () => {
     expect(canonicalRows.map((row) => row.name)).toEqual(["Ghoul Fever", "Lethargy Poison"]);
     expect(instanceRows.total).toBe(6);
     expect(ghoulCanonicalRows).toHaveLength(1);
-    expect(JSON.parse(ghoulCanonicalRows[0]!.rawJson)._derived.aliasNormalizationKeys).toEqual(
+    expect(parseDerivedRawRecord(ghoulCanonicalRows[0]!.rawJson)._derived.aliasNormalizationKeys).toEqual(
       expect.arrayContaining([
         "record:bestiary-family-ability-glossary:ghoulfeversource",
         "slug:disease:ghoul fever",
@@ -410,9 +421,9 @@ describe("Pf2eDataService / Load and Index", () => {
       ]),
     );
     expect(ghoulInstanceRows).toHaveLength(4);
-    expect(new Set(ghoulInstanceRows.map((row) => JSON.parse(row.rawJson)._derived.normalizationKey))).toEqual(
-      new Set(["record:bestiary-family-ability-glossary:ghoulfeversource"]),
-    );
+    expect(
+      new Set(ghoulInstanceRows.map((row) => parseDerivedRawRecord(row.rawJson)._derived.normalizationKey)),
+    ).toEqual(new Set(["record:bestiary-family-ability-glossary:ghoulfeversource"]));
     expect(ghoulBruteRow?.searchText).toContain("Ghoul Fever");
     expect(ghoulBruteRow?.searchText).toContain("disease");
     expect(ghoulBruteRow?.searchText).toContain("Sickened 1");

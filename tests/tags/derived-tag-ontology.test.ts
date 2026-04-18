@@ -5,6 +5,22 @@ import { CREATURE_DERIVED_TAG_ONTOLOGY } from "../../src/tags/ontology/creature.
 import { flattenDerivedTagAuthoredCategoryOntology } from "../../src/tags/ontology/utils.js";
 import { DERIVED_TAG_ONTOLOGY_FAMILIES, DERIVED_TAG_ONTOLOGY_TAGS } from "../../src/tags/index.js";
 
+function matcherAnyString(): unknown {
+  return expect.any(String);
+}
+
+function matcherArrayContaining(values: unknown[]): unknown {
+  return expect.arrayContaining(values);
+}
+
+function matcherObjectContaining(value: Record<string, unknown>): unknown {
+  return expect.objectContaining(value);
+}
+
+function matcherStringContaining(value: string): unknown {
+  return expect.stringContaining(value);
+}
+
 describe("derived tag ontology", () => {
   it("publishes unique category-scoped families and tags with assignment modes", () => {
     const familiesByCategory = new Map<string, Set<string>>();
@@ -45,7 +61,7 @@ describe("derived tag ontology", () => {
       (tag) => tag.category === "spell" && tag.tag === "transformation",
     );
     expect(spellTransformation).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         tag: "transformation",
         assignmentMode: "composite",
         compositeOfAnyTags: ["battle_form", "animal_form", "elemental_form"],
@@ -55,7 +71,7 @@ describe("derived tag ontology", () => {
       (tag) => tag.category === "spell" && tag.tag === "reconnaissance",
     );
     expect(spellReconnaissance).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "reconnaissance",
         assignmentMode: "composite",
         compositeOfAnyTags: ["scouting", "tracking", "scouting_summons"],
@@ -65,7 +81,7 @@ describe("derived tag ontology", () => {
       (tag) => tag.category === "spell" && tag.tag === "revelation",
     );
     expect(spellRevelation).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "revelation",
         assignmentMode: "composite",
         compositeOfAnyTags: [
@@ -81,7 +97,7 @@ describe("derived tag ontology", () => {
       (tag) => tag.category === "spell" && tag.tag === "wayfinding",
     );
     expect(spellWayfinding).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "wayfinding",
         assignmentMode: "composite",
         compositeOfAnyTags: ["navigation", "tracking", "long_range_teleport", "planar_travel"],
@@ -89,7 +105,7 @@ describe("derived tag ontology", () => {
     );
     const spellSecurity = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "spell" && tag.tag === "security");
     expect(spellSecurity).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "security",
         assignmentMode: "composite",
         compositeOfAnyTags: ["alarm", "scrying_protection", "protective_ward", "countermagic"],
@@ -99,7 +115,7 @@ describe("derived tag ontology", () => {
       (tag) => tag.category === "spell" && tag.tag === "consultation",
     );
     expect(spellConsultation).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "consultation",
         assignmentMode: "composite",
         compositeOfAnyTags: ["lore_consultation", "problem_diagnosis", "omen_guidance"],
@@ -109,11 +125,11 @@ describe("derived tag ontology", () => {
       (tag) => tag.category === "spell" && tag.tag === "lock_bypass",
     );
     expect(spellLockBypass).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "access_bypass",
         assignmentMode: "hybrid",
         adjacentTags: ["trap_bypass", "barrier_bypass"],
-        appliesWhen: expect.arrayContaining([
+        appliesWhen: matcherArrayContaining([
           "The spell is naturally retrieved to unlock, unseal, or open a secured entry point, door, chest, manacle, or similar closure.",
         ]),
       }),
@@ -122,11 +138,11 @@ describe("derived tag ontology", () => {
       (tag) => tag.category === "spell" && tag.tag === "mechanism_manipulation",
     );
     expect(spellMechanismManipulation).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "access_bypass",
         assignmentMode: "hybrid",
         adjacentTags: ["lock_bypass", "trap_bypass"],
-        appliesWhen: expect.arrayContaining([
+        appliesWhen: matcherArrayContaining([
           "The spell is naturally retrieved to operate a lever, button, latch, control panel, pressure surface, or similar mechanism from a safe or unusual position.",
         ]),
       }),
@@ -135,7 +151,7 @@ describe("derived tag ontology", () => {
       (tag) => tag.category === "equipment" && tag.tag === "stealth_support",
     );
     expect(equipmentStealthSupport).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "infiltration",
         assignmentMode: "deterministic",
       }),
@@ -144,11 +160,11 @@ describe("derived tag ontology", () => {
       (tag) => tag.category === "spell" && tag.tag === "stealth_support",
     );
     expect(spellStealthSupport).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "infiltration",
         assignmentMode: "hybrid",
         adjacentTags: ["concealment", "silencing"],
-        appliesWhen: expect.arrayContaining([
+        appliesWhen: matcherArrayContaining([
           "The spell is naturally retrieved to help a creature move quietly, avoid notice, pass unseen, or keep a covert approach from drawing attention.",
         ]),
       }),
@@ -157,7 +173,7 @@ describe("derived tag ontology", () => {
       (tag) => tag.category === "spell" && tag.tag === "infiltration",
     );
     expect(spellInfiltration).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "infiltration",
         assignmentMode: "composite",
         compositeOfAnyTags: ["stealth_support", "disguise", "social_infiltration"],
@@ -167,7 +183,7 @@ describe("derived tag ontology", () => {
       (tag) => tag.category === "equipment" && tag.tag === "barrier_bypass",
     );
     expect(equipmentBarrierBypass).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "access_bypass",
         assignmentMode: "deterministic",
       }),
@@ -176,7 +192,7 @@ describe("derived tag ontology", () => {
       (tag) => tag.category === "equipment" && tag.tag === "mechanism_manipulation",
     );
     expect(equipmentMechanismManipulation).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "access_bypass",
         assignmentMode: "deterministic",
       }),
@@ -185,7 +201,7 @@ describe("derived tag ontology", () => {
       (tag) => tag.category === "equipment" && tag.tag === "reconnaissance",
     );
     expect(equipmentReconnaissance).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "reconnaissance",
         assignmentMode: "composite",
         compositeOfAnyTags: ["scouting", "illumination", "surveillance_recording", "tracking", "anti_tracking"],
@@ -195,7 +211,7 @@ describe("derived tag ontology", () => {
       (tag) => tag.category === "equipment" && tag.tag === "security",
     );
     expect(equipmentSecurity).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "security",
         assignmentMode: "composite",
         compositeOfAnyTags: ["alarm", "scrying_protection", "tamper_evidence"],
@@ -205,7 +221,7 @@ describe("derived tag ontology", () => {
       (tag) => tag.category === "equipment" && tag.tag === "burst_damage",
     );
     expect(equipmentBurstDamage).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "offensive_profile",
         assignmentMode: "hybrid",
         adjacentTags: ["crowd_clearing", "persistent_damage"],
@@ -215,7 +231,7 @@ describe("derived tag ontology", () => {
       (tag) => tag.category === "equipment" && tag.tag === "scout_support",
     );
     expect(scoutSupport).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "party_role",
         assignmentMode: "hybrid",
       }),
@@ -224,7 +240,7 @@ describe("derived tag ontology", () => {
       (tag) => tag.category === "equipment" && tag.tag === "shield_support",
     );
     expect(shieldSupport).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "play_pattern",
         assignmentMode: "hybrid",
       }),
@@ -233,7 +249,7 @@ describe("derived tag ontology", () => {
       (tag) => tag.category === "affliction" && tag.tag === "cursebreaking_resolution",
     );
     expect(cursebreakingResolution).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "resolution_profile",
         assignmentMode: "hybrid",
         adjacentTags: ["countermagic_resolution", "ritual_appeasement_resolution"],
@@ -243,7 +259,7 @@ describe("derived tag ontology", () => {
       (tag) => tag.category === "spell" && tag.tag === "resolution",
     );
     expect(spellResolution).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "resolution",
         assignmentMode: "composite",
         compositeOfAnyTags: [
@@ -262,7 +278,7 @@ describe("derived tag ontology", () => {
       (tag) => tag.category === "spell" && tag.tag === "communication",
     );
     expect(spellCommunication).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "communication",
         assignmentMode: "composite",
         compositeOfAnyTags: ["signaling", "telepathic_communication", "message_delivery", "translation_support"],
@@ -272,7 +288,7 @@ describe("derived tag ontology", () => {
       (tag) => tag.category === "equipment" && tag.tag === "resolution",
     );
     expect(equipmentResolution).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "resolution",
         assignmentMode: "composite",
         compositeOfAnyTags: [
@@ -290,7 +306,7 @@ describe("derived tag ontology", () => {
       (tag) => tag.category === "creature" && tag.tag === "fungal_infested",
     );
     expect(fungalInfested).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "corruption_profile",
         assignmentMode: "hybrid",
         adjacentTags: ["disease_vector", "body_horror"],
@@ -301,10 +317,10 @@ describe("derived tag ontology", () => {
       (tag) => tag.category === "creature" && tag.tag === "urban_setting",
     );
     expect(urbanSetting).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "site_setting",
         assignmentMode: "editorial",
-        appliesWhen: expect.arrayContaining([
+        appliesWhen: matcherArrayContaining([
           "The creature is primarily framed as belonging in city or sewer encounter spaces.",
         ]),
         adjacentTags: ["small_settlement_setting", "fortress_setting"],
@@ -314,11 +330,11 @@ describe("derived tag ontology", () => {
       (tag) => tag.category === "creature" && tag.tag === "organized_undead_society_setting",
     );
     expect(organizedUndeadSocietySetting).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "regional_setting",
         assignmentMode: "hybrid",
         adjacentTags: ["undead_war_torn_region_setting", "urban_setting"],
-        appliesWhen: expect.arrayContaining([
+        appliesWhen: matcherArrayContaining([
           "Use when the creature is naturally retrieved for an undead-ruled state, necromantic civil order, corpse-backed labor system, or other organized deathless society rather than an isolated tomb or graveyard.",
         ]),
       }),
@@ -327,31 +343,31 @@ describe("derived tag ontology", () => {
       (tag) => tag.category === "creature" && tag.tag === "gothic_horror_land_setting",
     );
     expect(gothicHorrorLandSetting).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "regional_setting",
         assignmentMode: "hybrid",
         adjacentTags: ["graveyard_setting", "folk_horror"],
-        description: expect.stringContaining("Ustalav"),
+        description: matcherStringContaining("Ustalav"),
       }),
     );
     const truthReveal = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "spell" && tag.tag === "truth_reveal");
     expect(truthReveal).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "revelation",
         assignmentMode: "hybrid",
         adjacentTags: ["magic_detection", "memory_manipulation"],
-        appliesWhen: expect.arrayContaining([
+        appliesWhen: matcherArrayContaining([
           "The spell's retrieval value comes from exposing deception, forcing truthful answers, or stripping away false presentation.",
         ]),
       }),
     );
     const spellTracking = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "spell" && tag.tag === "tracking");
     expect(spellTracking).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "reconnaissance",
         assignmentMode: "hybrid",
         adjacentTags: ["scouting", "navigation"],
-        appliesWhen: expect.arrayContaining([
+        appliesWhen: matcherArrayContaining([
           "The spell is naturally retrieved to find a named target, trace a quarry, or point the caster toward a specific creature, object, or place.",
         ]),
       }),
@@ -360,11 +376,11 @@ describe("derived tag ontology", () => {
       (tag) => tag.category === "spell" && tag.tag === "hazard_revelation",
     );
     expect(hazardRevelation).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "revelation",
         assignmentMode: "hybrid",
         adjacentTags: ["magic_detection", "scouting"],
-        appliesWhen: expect.arrayContaining([
+        appliesWhen: matcherArrayContaining([
           "The spell is naturally retrieved to uncover traps, hidden dangers, secret magical wards, or dangerous concealed features in a location.",
         ]),
       }),
@@ -373,11 +389,11 @@ describe("derived tag ontology", () => {
       (tag) => tag.category === "hazard" && tag.tag === "procedural_bypass",
     );
     expect(proceduralBypass).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "countermeasure_profile",
         assignmentMode: "hybrid",
         adjacentTags: ["physical_disarm", "false_safe_route"],
-        appliesWhen: expect.arrayContaining([
+        appliesWhen: matcherArrayContaining([
           "The clean answer is learning and executing the hazard's safe procedure, sequence, or pattern rather than destroying it.",
         ]),
       }),
@@ -386,7 +402,7 @@ describe("derived tag ontology", () => {
       (tag) => tag.category === "spell" && tag.tag === "expedition",
     );
     expect(spellExpedition).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "expedition",
         assignmentMode: "composite",
         compositeOfAnyTags: [
@@ -404,11 +420,11 @@ describe("derived tag ontology", () => {
       (tag) => tag.category === "hazard" && tag.tag === "source_tracing",
     );
     expect(hazardSourceTracing).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "problem_shape",
         assignmentMode: "hybrid",
         adjacentTags: ["observation_first", "source_cleanup_countermeasure"],
-        appliesWhen: expect.arrayContaining([
+        appliesWhen: matcherArrayContaining([
           "The hazard is naturally retrieved because identifying the source object, origin point, or contamination engine is a major part of solving it.",
         ]),
       }),
@@ -417,11 +433,11 @@ describe("derived tag ontology", () => {
       (tag) => tag.category === "hazard" && tag.tag === "contamination_cleanup_countermeasure",
     );
     expect(contaminationCleanupCountermeasure).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "countermeasure_profile",
         assignmentMode: "hybrid",
         adjacentTags: ["quarantine_containment_countermeasure", "source_cleanup_countermeasure"],
-        appliesWhen: expect.arrayContaining([
+        appliesWhen: matcherArrayContaining([
           "The hazard is naturally retrieved because cleansing tainted ground, polluted air, cursed runoff, spores, or lingering residue is a core answer path.",
         ]),
       }),
@@ -430,17 +446,17 @@ describe("derived tag ontology", () => {
       (tag) => tag.category === "hazard" && tag.tag === "environmental_hazard",
     );
     expect(environmentalHazard).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "environmental_danger",
         assignmentMode: "composite",
-        compositeOfAnyTags: expect.arrayContaining(["fire_hazard", "contamination_hazard", "cursefield_hazard"]),
+        compositeOfAnyTags: matcherArrayContaining(["fire_hazard", "contamination_hazard", "cursefield_hazard"]),
       }),
     );
     const perceptionHazard = DERIVED_TAG_ONTOLOGY_TAGS.find(
       (tag) => tag.category === "hazard" && tag.tag === "perception_hazard",
     );
     expect(perceptionHazard).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "perception_control",
         assignmentMode: "composite",
         compositeOfAnyTags: ["navigation_disruption", "illusion_assault", "false_safe_route"],
@@ -450,7 +466,7 @@ describe("derived tag ontology", () => {
       (tag) => tag.category === "hazard" && tag.tag === "guarding_hazard",
     );
     expect(guardingHazard).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "function",
         assignmentMode: "composite",
         compositeOfAnyTags: ["alarm", "barrier_lockdown", "sentinel_guardian"],
@@ -460,7 +476,7 @@ describe("derived tag ontology", () => {
       (tag) => tag.category === "creature" && tag.tag === "crew_member",
     );
     expect(crewMember).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "cohort_role",
         assignmentMode: "editorial",
         adjacentTags: ["nautical_setting", "escort_npc"],
@@ -488,8 +504,8 @@ describe("derived tag ontology", () => {
       (entry) => entry.category === "spell" && entry.family === "transformation",
     );
     expect(groupedTransformation?.tags).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
+      matcherArrayContaining([
+        matcherObjectContaining({
           value: "transformation",
           assignmentMode: "composite",
           compositeOfAnyTags: ["battle_form", "animal_form", "elemental_form"],
@@ -501,8 +517,8 @@ describe("derived tag ontology", () => {
     );
     expect(groupedRevelation?.axis).toBe("utility");
     expect(groupedRevelation?.tags).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
+      matcherArrayContaining([
+        matcherObjectContaining({
           value: "revelation",
           assignmentMode: "composite",
         }),
@@ -513,12 +529,12 @@ describe("derived tag ontology", () => {
     );
     expect(groupedConsultation?.axis).toBe("utility");
     expect(groupedConsultation?.tags).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
+      matcherArrayContaining([
+        matcherObjectContaining({
           value: "consultation",
           assignmentMode: "composite",
         }),
-        expect.objectContaining({
+        matcherObjectContaining({
           value: "omen_guidance",
           assignmentMode: "hybrid",
         }),
@@ -529,16 +545,16 @@ describe("derived tag ontology", () => {
     );
     expect(groupedSpellAccessBypass?.axis).toBe("utility");
     expect(groupedSpellAccessBypass?.tags).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
+      matcherArrayContaining([
+        matcherObjectContaining({
           value: "lock_bypass",
           assignmentMode: "hybrid",
         }),
-        expect.objectContaining({
+        matcherObjectContaining({
           value: "barrier_bypass",
           assignmentMode: "hybrid",
         }),
-        expect.objectContaining({
+        matcherObjectContaining({
           value: "mechanism_manipulation",
           assignmentMode: "hybrid",
         }),
@@ -549,16 +565,16 @@ describe("derived tag ontology", () => {
     );
     expect(groupedEquipmentAccessBypass?.axis).toBe("utility");
     expect(groupedEquipmentAccessBypass?.tags).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
+      matcherArrayContaining([
+        matcherObjectContaining({
           value: "lock_bypass",
           assignmentMode: "deterministic",
         }),
-        expect.objectContaining({
+        matcherObjectContaining({
           value: "barrier_bypass",
           assignmentMode: "deterministic",
         }),
-        expect.objectContaining({
+        matcherObjectContaining({
           value: "mechanism_manipulation",
           assignmentMode: "deterministic",
         }),
@@ -569,12 +585,12 @@ describe("derived tag ontology", () => {
     );
     expect(groupedEquipmentPlayPattern?.axis).toBe("party_role");
     expect(groupedEquipmentPlayPattern?.tags).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
+      matcherArrayContaining([
+        matcherObjectContaining({
           value: "shield_support",
           assignmentMode: "hybrid",
         }),
-        expect.objectContaining({
+        matcherObjectContaining({
           value: "action_economy_support",
           assignmentMode: "hybrid",
         }),
@@ -585,12 +601,12 @@ describe("derived tag ontology", () => {
     );
     expect(groupedEquipmentOffensiveProfile?.axis).toBe("effect");
     expect(groupedEquipmentOffensiveProfile?.tags).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
+      matcherArrayContaining([
+        matcherObjectContaining({
           value: "burst_damage",
           assignmentMode: "hybrid",
         }),
-        expect.objectContaining({
+        matcherObjectContaining({
           value: "anti_caster_disruption",
           assignmentMode: "hybrid",
         }),
@@ -600,12 +616,12 @@ describe("derived tag ontology", () => {
       (entry) => entry.category === "hazard" && entry.family === "environmental_danger",
     );
     expect(groupedHazardEnvironmentalDanger?.tags).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
+      matcherArrayContaining([
+        matcherObjectContaining({
           value: "environmental_hazard",
           assignmentMode: "composite",
         }),
-        expect.objectContaining({
+        matcherObjectContaining({
           value: "contamination_hazard",
           assignmentMode: "hybrid",
         }),
@@ -616,12 +632,12 @@ describe("derived tag ontology", () => {
     );
     expect(groupedCreatureCohortRole?.axis).toBe("encounter");
     expect(groupedCreatureCohortRole?.tags).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
+      matcherArrayContaining([
+        matcherObjectContaining({
           value: "crew_member",
           assignmentMode: "editorial",
         }),
-        expect.objectContaining({
+        matcherObjectContaining({
           value: "patrol_member",
           assignmentMode: "editorial",
         }),
@@ -631,21 +647,21 @@ describe("derived tag ontology", () => {
       (entry) => entry.category === "creature" && entry.family === "combat_role",
     );
     expect(groupedCombatRole?.tags).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
+      matcherArrayContaining([
+        matcherObjectContaining({
           value: "brute_combatant",
-          description: expect.any(String),
+          description: matcherAnyString(),
           assignmentMode: "hybrid",
           adjacentTags: ["defender_combatant", "artillery_combatant"],
         }),
-        expect.objectContaining({
+        matcherObjectContaining({
           value: "artillery_combatant",
-          description: expect.any(String),
+          description: matcherAnyString(),
           assignmentMode: "hybrid",
         }),
-        expect.objectContaining({
+        matcherObjectContaining({
           value: "support_combatant",
-          description: expect.any(String),
+          description: matcherAnyString(),
           assignmentMode: "hybrid",
         }),
       ]),
@@ -676,7 +692,7 @@ describe("derived tag ontology", () => {
       (tag) => tag.tag === "urban_setting",
     );
     expect(urbanSetting).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         tag: "urban_setting",
         assignmentMode: "editorial",
         adjacentTags: ["small_settlement_setting", "fortress_setting"],
@@ -686,22 +702,22 @@ describe("derived tag ontology", () => {
       (tag) => tag.tag === "authority_npc",
     );
     expect(authorityNpc).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         tag: "authority_npc",
         assignmentMode: "editorial",
         adjacentTags: ["profession_npc", "civic_npc"],
-        appliesWhen: expect.arrayContaining([
+        appliesWhen: matcherArrayContaining([
           "Formal office or rank is the main retrieval hook, even if the creature also serves as a civic_npc or enforcer_npc in the scene.",
         ]),
       }),
     );
     const guideNpc = CREATURE_DERIVED_TAG_ONTOLOGY.families.social_role.tags.find((tag) => tag.tag === "guide_npc");
     expect(guideNpc).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         tag: "guide_npc",
         assignmentMode: "editorial",
         adjacentTags: ["profession_npc", "rural_setting"],
-        appliesWhen: expect.arrayContaining([
+        appliesWhen: matcherArrayContaining([
           "Leading others through terrain, routes, borders, or dangerous travel spaces is central to the creature's world-facing identity.",
         ]),
       }),
@@ -710,11 +726,11 @@ describe("derived tag ontology", () => {
       (tag) => tag.tag === "infiltrator_npc",
     );
     expect(infiltratorNpc).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         tag: "infiltrator_npc",
         assignmentMode: "editorial",
         adjacentTags: ["enforcer_npc", "criminal_npc"],
-        appliesWhen: expect.arrayContaining([
+        appliesWhen: matcherArrayContaining([
           "This tag answers the creature's immediate scenario function rather than its broader profession, faction post, or criminal affiliation.",
         ]),
       }),
@@ -723,7 +739,7 @@ describe("derived tag ontology", () => {
       (tag) => tag.tag === "guardian_npc",
     );
     expect(guardianNpc).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         tag: "guardian_npc",
         assignmentMode: "editorial",
         adjacentTags: ["enforcer_npc", "watcher_npc"],
@@ -733,11 +749,11 @@ describe("derived tag ontology", () => {
       (tag) => tag.tag === "reinforcement_threat",
     );
     expect(reinforcementThreat).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         tag: "reinforcement_threat",
         assignmentMode: "hybrid",
         adjacentTags: ["spawn_creator", "commander_combatant"],
-        appliesWhen: expect.arrayContaining([
+        appliesWhen: matcherArrayContaining([
           "Use when the creature's main prep significance is that it adds bodies, activates subordinates, or sharply force-multiplies nearby allies.",
         ]),
       }),
@@ -746,7 +762,7 @@ describe("derived tag ontology", () => {
       (tag) => tag.tag === "brute_combatant",
     );
     expect(bruteCombatant).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         tag: "brute_combatant",
         assignmentMode: "hybrid",
         adjacentTags: ["defender_combatant", "artillery_combatant"],
@@ -756,7 +772,7 @@ describe("derived tag ontology", () => {
       (tag) => tag.tag === "crew_member",
     );
     expect(crewMemberAuthored).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         tag: "crew_member",
         assignmentMode: "editorial",
         adjacentTags: ["nautical_setting", "escort_npc"],
@@ -766,11 +782,11 @@ describe("derived tag ontology", () => {
       (tag) => tag.tag === "trickster_mischief",
     );
     expect(tricksterMischief).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         tag: "trickster_mischief",
         assignmentMode: "hybrid",
         adjacentTags: ["carnival_show", "disguised_pretender"],
-        appliesWhen: expect.arrayContaining([
+        appliesWhen: matcherArrayContaining([
           "Pranks, baiting humor, whimsical menace, or deliberate trickster conduct are a central retrieval hook.",
         ]),
       }),
@@ -779,31 +795,31 @@ describe("derived tag ontology", () => {
       (tag) => tag.tag === "dream_nightmare",
     );
     expect(dreamNightmare).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         tag: "dream_nightmare",
         assignmentMode: "editorial",
         adjacentTags: ["dreamlands_setting", "cosmic_dread"],
-        doesNotApplyWhen: expect.arrayContaining([
+        doesNotApplyWhen: matcherArrayContaining([
           "Dreamlands placement alone is better captured by dreamlands_setting.",
         ]),
       }),
     );
     const folkHorror = CREATURE_DERIVED_TAG_ONTOLOGY.families.genre_motif.tags.find((tag) => tag.tag === "folk_horror");
     expect(folkHorror).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         tag: "folk_horror",
         assignmentMode: "editorial",
         adjacentTags: ["rural_setting", "funerary_mourning"],
-        appliesWhen: expect.arrayContaining([
+        appliesWhen: matcherArrayContaining([
           "The creature evokes old-country fear, harvest rites gone wrong, scarecrow dread, witchcraft omen, or taboo-laden local folklore.",
         ]),
       }),
     );
     expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.visual_motif.tags.map((tag) => tag.tag)).toEqual(
-      expect.arrayContaining(["mask_motif", "mirror_motif", "living_toy", "living_artwork"]),
+      matcherArrayContaining(["mask_motif", "mirror_motif", "living_toy", "living_artwork"]),
     );
     expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.story_motif.tags.map((tag) => tag.tag)).toEqual(
-      expect.arrayContaining([
+      matcherArrayContaining([
         "prophecy_omen",
         "corrupted_sacred",
         "vengeful_tragedy",
@@ -824,7 +840,7 @@ describe("derived tag ontology", () => {
       (tag) => tag.tag === "prophecy_omen",
     );
     expect(prophecyOmen).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         tag: "prophecy_omen",
         assignmentMode: "editorial",
         adjacentTags: ["apocalypse_ruin", "ancestral_legacy"],
@@ -834,11 +850,11 @@ describe("derived tag ontology", () => {
       (tag) => tag.tag === "occult_conspiracy",
     );
     expect(occultConspiracy).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         tag: "occult_conspiracy",
         assignmentMode: "editorial",
         adjacentTags: ["paranoia_surveillance", "forbidden_knowledge"],
-        doesNotApplyWhen: expect.arrayContaining([
+        doesNotApplyWhen: matcherArrayContaining([
           "The stronger fit is ritual_ceremony, paranoia_surveillance, or forbidden_knowledge rather than hidden-network manipulation.",
         ]),
       }),
@@ -847,11 +863,11 @@ describe("derived tag ontology", () => {
       (tag) => tag.category === "equipment" && tag.tag === "telepathic_communication",
     );
     expect(telepathicCommunication).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "communication",
         assignmentMode: "deterministic",
         adjacentTags: ["signaling", "message_delivery"],
-        appliesWhen: expect.arrayContaining([
+        appliesWhen: matcherArrayContaining([
           "The item's retrieval value comes from silent psychic coordination, mind-to-mind speech, or communication that bypasses ordinary sound.",
         ]),
       }),
@@ -860,11 +876,11 @@ describe("derived tag ontology", () => {
       (tag) => tag.category === "equipment" && tag.tag === "translation_support",
     );
     expect(equipmentTranslationSupport).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "communication",
         assignmentMode: "deterministic",
         adjacentTags: ["telepathic_communication", "message_delivery"],
-        appliesWhen: expect.arrayContaining([
+        appliesWhen: matcherArrayContaining([
           "The item's retrieval value comes from understanding foreign languages, translating speech, or decoding otherwise unreadable text or symbols.",
         ]),
       }),
@@ -873,17 +889,17 @@ describe("derived tag ontology", () => {
       (tag) => tag.category === "spell" && tag.tag === "telepathic_communication",
     );
     expect(spellTelepathicCommunication).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "communication",
         assignmentMode: "hybrid",
-        description: expect.stringContaining("mind-to-mind communication"),
+        description: matcherStringContaining("mind-to-mind communication"),
       }),
     );
     const spellAntiPoison = DERIVED_TAG_ONTOLOGY_TAGS.find(
       (tag) => tag.category === "spell" && tag.tag === "anti_poison",
     );
     expect(spellAntiPoison).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "support",
         assignmentMode: "hybrid",
         adjacentTags: ["affliction_cleanup", "anti_disease"],
@@ -893,7 +909,7 @@ describe("derived tag ontology", () => {
       (tag) => tag.category === "spell" && tag.tag === "ritual_appeasement",
     );
     expect(spellRitualAppeasement).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "resolution",
         assignmentMode: "hybrid",
         adjacentTags: ["sanctification", "exorcism"],
@@ -903,11 +919,11 @@ describe("derived tag ontology", () => {
       (tag) => tag.category === "equipment" && tag.tag === "source_revelation",
     );
     expect(equipmentSourceRevelation).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "resolution",
         assignmentMode: "deterministic",
         adjacentTags: ["source_cleanup", "contamination_cleanup"],
-        appliesWhen: expect.arrayContaining([
+        appliesWhen: matcherArrayContaining([
           "The item's retrieval value comes from finding or confirming the hidden source of a curse, contamination, outbreak, or spiritually tainted problem.",
         ]),
       }),
@@ -916,11 +932,11 @@ describe("derived tag ontology", () => {
       (tag) => tag.category === "equipment" && tag.tag === "ritual_appeasement",
     );
     expect(equipmentRitualAppeasement).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "resolution",
         assignmentMode: "deterministic",
         adjacentTags: ["ritual_support", "sanctification"],
-        appliesWhen: expect.arrayContaining([
+        appliesWhen: matcherArrayContaining([
           "The item's retrieval value comes from helping perform offerings, appeasement rites, restitution rituals, or ceremonial observance meant to settle a supernatural grievance.",
         ]),
       }),
@@ -929,11 +945,11 @@ describe("derived tag ontology", () => {
       (tag) => tag.category === "equipment" && tag.tag === "environmental_adaptation",
     );
     expect(equipmentEnvironmentalAdaptation).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "expedition",
         assignmentMode: "deterministic",
         adjacentTags: ["aquatic_support", "camp_setup", "hazard_shielding"],
-        appliesWhen: expect.arrayContaining([
+        appliesWhen: matcherArrayContaining([
           "The item's retrieval value comes from surviving punishing climate, altitude, breathing hazards, immersion pressure, or similar expedition environments.",
         ]),
       }),
@@ -942,11 +958,11 @@ describe("derived tag ontology", () => {
       (tag) => tag.category === "spell" && tag.tag === "scrying_protection",
     );
     expect(spellScryingProtection).toEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         family: "security",
         assignmentMode: "hybrid",
         adjacentTags: ["alarm", "countermagic"],
-        appliesWhen: expect.arrayContaining([
+        appliesWhen: matcherArrayContaining([
           "The spell is naturally retrieved to keep plans, sanctums, identities, or conversations hidden from magical spying.",
         ]),
       }),
@@ -954,57 +970,57 @@ describe("derived tag ontology", () => {
 
     const flattened = flattenDerivedTagAuthoredCategoryOntology(CREATURE_DERIVED_TAG_ONTOLOGY);
     expect(flattened.families).toContainEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         category: "creature",
         family: "setting",
       }),
     );
     expect(flattened.families).toContainEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         category: "creature",
         family: "site_setting",
       }),
     );
     expect(flattened.families).toContainEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         category: "creature",
         family: "social_role",
       }),
     );
     expect(flattened.families).toContainEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         category: "creature",
         family: "scene_role",
       }),
     );
     expect(flattened.families).toContainEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         category: "creature",
         family: "cohort_role",
       }),
     );
     expect(flattened.families).toContainEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         category: "creature",
         family: "story_motif",
       }),
     );
     expect(flattened.tags).toContainEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         category: "creature",
         family: "site_setting",
         tag: "urban_setting",
       }),
     );
     expect(flattened.tags).toContainEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         category: "creature",
         family: "combat_role",
         tag: "artillery_combatant",
       }),
     );
     expect(flattened.tags).toContainEqual(
-      expect.objectContaining({
+      matcherObjectContaining({
         category: "creature",
         family: "cohort_role",
         tag: "crew_member",
