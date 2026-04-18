@@ -8,9 +8,21 @@ import {
 } from "../domain/actor-metrics.js";
 import { inferItemMetricValueType, normalizeItemMetricKey } from "../domain/item-metrics.js";
 import {
-  getMetadataFieldSpec,
+  getMetadataBooleanFieldSpec,
+  getMetadataBooleanRecordValue,
+  getMetadataEnumStringFieldSpec,
+  getMetadataNumberFieldSpec,
+  getMetadataNumberRecordValue,
+  getMetadataSetFieldSpec,
+  getMetadataSetRecordValues,
+  getMetadataStringRecordValue,
+  getMetadataTextFieldSpec,
+  isMetadataBooleanField,
+  isMetadataEnumStringField,
   isMetadataFieldName,
-  type MetadataFieldName,
+  isMetadataNumberField,
+  isMetadataSetField,
+  isMetadataTextField,
   type MetadataFieldSpecEntry,
   type MetadataSqlSourceContext,
   type MetadataValueNormalization,
@@ -36,7 +48,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 }
 
 function normalizeMetadataValue(field: MetadataSetField | MetadataEnumStringField, value: string): string {
-  const spec = getMetadataFieldSpec(field as MetadataFieldName);
+  const spec = isMetadataSetField(field) ? getMetadataSetFieldSpec(field) : getMetadataEnumStringFieldSpec(field);
   const normalization = spec.valueNormalization ?? inferMetadataValueNormalization(spec);
 
   switch (normalization) {
@@ -112,6 +124,36 @@ function metricSqlOperator(op: "==" | "!=" | ">" | ">=" | "<" | "<="): "=" | "<>
 
 function normalizeMetadataValues(field: MetadataSetField | MetadataEnumStringField, values: string[]): string[] {
   return [...new Set(values.map((value) => normalizeMetadataValue(field, value)).filter(Boolean))];
+}
+
+function isMetadataSetPredicate(
+  predicate: MetadataPredicate,
+): predicate is Extract<MetadataPredicate, { field: MetadataSetField }> {
+  return isMetadataSetField(predicate.field);
+}
+
+function isMetadataEnumStringPredicate(
+  predicate: MetadataPredicate,
+): predicate is Extract<MetadataPredicate, { field: MetadataEnumStringField }> {
+  return isMetadataEnumStringField(predicate.field);
+}
+
+function isMetadataTextPredicate(
+  predicate: MetadataPredicate,
+): predicate is Extract<MetadataPredicate, { field: MetadataTextStringField }> {
+  return isMetadataTextField(predicate.field);
+}
+
+function isMetadataNumberPredicate(
+  predicate: MetadataPredicate,
+): predicate is Extract<MetadataPredicate, { field: MetadataNumberField }> {
+  return isMetadataNumberField(predicate.field);
+}
+
+function isMetadataBooleanPredicate(
+  predicate: MetadataPredicate,
+): predicate is Extract<MetadataPredicate, { field: MetadataBooleanField }> {
+  return isMetadataBooleanField(predicate.field);
 }
 
 export function normalizeMetadataFilterNode(node: MetadataFilterNode): MetadataFilterNode {
@@ -285,9 +327,7 @@ export function normalizeMetadataFilterNode(node: MetadataFilterNode): MetadataF
     throw new Error(`Unknown metadata field "${field}".`);
   }
 
-  const spec = getMetadataFieldSpec(field);
-
-  if (spec.fieldType === "set") {
+  if (isMetadataSetField(field)) {
     if (!["includesAny", "includesAll", "excludesAny"].includes(op)) {
       throw new Error(`Unsupported metadata operator "${op}" for set field "${field}".`);
     }
@@ -301,22 +341,22 @@ export function normalizeMetadataFilterNode(node: MetadataFilterNode): MetadataF
     }
 
     return {
-      field: field as MetadataSetField,
+      field,
       op: op as "includesAny" | "includesAll" | "excludesAny",
-      values: normalizeMetadataValues(field as MetadataSetField, raw.values),
+      values: normalizeMetadataValues(field, raw.values),
     };
   }
 
-  if (spec.fieldType === "enumString") {
+  if (isMetadataEnumStringField(field)) {
     if (op === "eq") {
       if (typeof raw.value !== "string") {
         throw new Error(`metadata predicate "${field}" with op "eq" requires a string value.`);
       }
 
       return {
-        field: field as MetadataEnumStringField,
+        field,
         op,
-        value: normalizeMetadataValue(field as MetadataEnumStringField, raw.value),
+        value: normalizeMetadataValue(field, raw.value),
       };
     }
 
@@ -330,28 +370,28 @@ export function normalizeMetadataFilterNode(node: MetadataFilterNode): MetadataF
       }
 
       return {
-        field: field as MetadataEnumStringField,
+        field,
         op,
-        values: normalizeMetadataValues(field as MetadataEnumStringField, raw.values),
+        values: normalizeMetadataValues(field, raw.values),
       };
     }
 
     throw new Error(`Unsupported metadata operator "${op}" for string field "${field}".`);
   }
 
-  if (spec.fieldType === "text") {
+  if (isMetadataTextField(field)) {
     if (!["contains", "notContains"].includes(op) || typeof raw.value !== "string") {
       throw new Error(`metadata predicate "${field}" requires op "contains" or "notContains" with a string value.`);
     }
 
     return {
-      field: field as MetadataTextStringField,
+      field,
       op: op as "contains" | "notContains",
       value: normalizeMetadataTextMatchValue(raw.value),
     };
   }
 
-  if (spec.fieldType === "number") {
+  if (isMetadataNumberField(field)) {
     if (op === "between") {
       if (
         typeof raw.min !== "number" ||
@@ -366,7 +406,7 @@ export function normalizeMetadataFilterNode(node: MetadataFilterNode): MetadataF
       }
 
       return {
-        field: field as MetadataNumberField,
+        field,
         op,
         min: raw.min,
         max: raw.max,
@@ -378,10 +418,14 @@ export function normalizeMetadataFilterNode(node: MetadataFilterNode): MetadataF
     }
 
     return {
-      field: field as MetadataNumberField,
+      field,
       op: op as "eq" | "gte" | "lte",
       value: raw.value,
     };
+  }
+
+  if (!isMetadataBooleanField(field)) {
+    throw new Error("Unknown metadata field.");
   }
 
   if (op !== "eq" || typeof raw.value !== "boolean") {
@@ -389,7 +433,7 @@ export function normalizeMetadataFilterNode(node: MetadataFilterNode): MetadataF
   }
 
   return {
-    field: field as MetadataBooleanField,
+    field,
     op,
     value: raw.value,
   };
@@ -546,7 +590,7 @@ function buildItemMetricCompareClause(
 }
 
 function buildMetadataJsonArraySql(context: MetadataSqlContext, field: MetadataSetField): string {
-  const spec = getMetadataFieldSpec(field as MetadataFieldName);
+  const spec = getMetadataSetFieldSpec(field);
   return spec.buildSqlExpression ? spec.buildSqlExpression(context) : "[]";
 }
 
@@ -554,7 +598,13 @@ function buildMetadataScalarSqlExpression(
   context: MetadataSqlContext,
   field: MetadataEnumStringField | MetadataTextStringField | MetadataNumberField | MetadataBooleanField,
 ): string {
-  const spec = getMetadataFieldSpec(field as MetadataFieldName);
+  const spec = isMetadataEnumStringField(field)
+    ? getMetadataEnumStringFieldSpec(field)
+    : isMetadataTextField(field)
+      ? getMetadataTextFieldSpec(field)
+      : isMetadataNumberField(field)
+        ? getMetadataNumberFieldSpec(field)
+        : getMetadataBooleanFieldSpec(field);
   if (!spec.buildSqlExpression) {
     throw new Error(`Metadata field "${field}" does not provide a SQL expression.`);
   }
@@ -626,60 +676,58 @@ function buildMetadataPredicateClause(
     return buildItemMetricCompareClause(predicate, context);
   }
 
-  const spec = getMetadataFieldSpec(predicate.field);
-  if (spec.fieldType === "set") {
-    const setPredicate = predicate as Extract<MetadataPredicate, { field: MetadataSetField }>;
-    return buildMetadataSetPredicateClause(setPredicate.field, setPredicate.op, setPredicate.values, context);
+  if (isMetadataSetPredicate(predicate)) {
+    return buildMetadataSetPredicateClause(predicate.field, predicate.op, predicate.values, context);
   }
 
-  if (spec.fieldType === "enumString") {
-    const stringPredicate = predicate as Extract<MetadataPredicate, { field: MetadataEnumStringField }>;
-    const expression = buildMetadataScalarSqlExpression(context, stringPredicate.field);
-    if (stringPredicate.op === "eq") {
+  if (isMetadataEnumStringPredicate(predicate)) {
+    const expression = buildMetadataScalarSqlExpression(context, predicate.field);
+    if (predicate.op === "eq") {
       return {
         clause: `LOWER(COALESCE(${expression}, '')) = ?`,
-        params: [stringPredicate.value],
+        params: [predicate.value],
       };
     }
 
-    const placeholders = stringPredicate.values.map(() => "?").join(", ");
+    const placeholders = predicate.values.map(() => "?").join(", ");
     return {
-      clause: `LOWER(COALESCE(${expression}, '')) ${stringPredicate.op === "notIn" ? "NOT " : ""}IN (${placeholders})`,
-      params: stringPredicate.values,
+      clause: `LOWER(COALESCE(${expression}, '')) ${predicate.op === "notIn" ? "NOT " : ""}IN (${placeholders})`,
+      params: predicate.values,
     };
   }
 
-  if (spec.fieldType === "text") {
-    const textPredicate = predicate as Extract<MetadataPredicate, { field: MetadataTextStringField }>;
-    const expression = buildMetadataScalarSqlExpression(context, textPredicate.field);
+  if (isMetadataTextPredicate(predicate)) {
+    const expression = buildMetadataScalarSqlExpression(context, predicate.field);
     return {
-      clause: `LOWER(COALESCE(${expression}, '')) ${textPredicate.op === "notContains" ? "NOT " : ""}LIKE ?`,
-      params: [`%${textPredicate.value}%`],
+      clause: `LOWER(COALESCE(${expression}, '')) ${predicate.op === "notContains" ? "NOT " : ""}LIKE ?`,
+      params: [`%${predicate.value}%`],
     };
   }
 
-  if (spec.fieldType === "number") {
-    const numberPredicate = predicate as Extract<MetadataPredicate, { field: MetadataNumberField }>;
-    const expression = buildMetadataScalarSqlExpression(context, numberPredicate.field);
-    if (numberPredicate.op === "between") {
+  if (isMetadataNumberPredicate(predicate)) {
+    const expression = buildMetadataScalarSqlExpression(context, predicate.field);
+    if (predicate.op === "between") {
       return {
         clause: `(${expression} >= ? AND ${expression} <= ?)`,
-        params: [numberPredicate.min, numberPredicate.max],
+        params: [predicate.min, predicate.max],
       };
     }
 
-    const operator = numberPredicate.op === "eq" ? "=" : numberPredicate.op === "gte" ? ">=" : "<=";
+    const operator = predicate.op === "eq" ? "=" : predicate.op === "gte" ? ">=" : "<=";
     return {
       clause: `${expression} ${operator} ?`,
-      params: [numberPredicate.value],
+      params: [predicate.value],
     };
   }
 
-  const booleanPredicate = predicate as Extract<MetadataPredicate, { field: MetadataBooleanField }>;
-  const expression = buildMetadataScalarSqlExpression(context, booleanPredicate.field);
+  if (!isMetadataBooleanPredicate(predicate)) {
+    throw new Error("Unknown metadata field.");
+  }
+
+  const expression = buildMetadataScalarSqlExpression(context, predicate.field);
   return {
     clause: `COALESCE(${expression}, 0) = ?`,
-    params: [booleanPredicate.value ? 1 : 0],
+    params: [predicate.value ? 1 : 0],
   };
 }
 
@@ -727,29 +775,6 @@ export function appendMetadataFilterClauses(
 
   const compiled = buildMetadataFilterClause(metadata, context);
   appendClause(sql, params, `AND ${compiled.clause}`, ...compiled.params);
-}
-
-function getRecordSetValues(record: NormalizedRecord, field: MetadataSetField): string[] {
-  const spec = getMetadataFieldSpec(field as MetadataFieldName);
-  return record[spec.recordProperty] as string[];
-}
-
-function getRecordStringValue(
-  record: NormalizedRecord,
-  field: MetadataEnumStringField | MetadataTextStringField,
-): string | null {
-  const spec = getMetadataFieldSpec(field as MetadataFieldName);
-  return record[spec.recordProperty] as string | null;
-}
-
-function getRecordNumberValue(record: NormalizedRecord, field: MetadataNumberField): number | null {
-  const spec = getMetadataFieldSpec(field as MetadataFieldName);
-  return record[spec.recordProperty] as number | null;
-}
-
-function getRecordBooleanValue(record: NormalizedRecord, field: MetadataBooleanField): boolean {
-  const spec = getMetadataFieldSpec(field as MetadataFieldName);
-  return record[spec.recordProperty] as boolean;
 }
 
 function compareActorMetricValues(
@@ -834,65 +859,57 @@ export function recordMatchesMetadataFilter(record: NormalizedRecord, node: Meta
     return compareActorMetricValues(leftValue, node.op, rightValue);
   }
 
-  const spec = getMetadataFieldSpec(node.field);
-
-  if (spec.fieldType === "set") {
-    const setPredicate = node as Extract<MetadataPredicate, { field: MetadataSetField }>;
+  if (isMetadataSetPredicate(node)) {
     const normalizedValues = new Set(
-      getRecordSetValues(record, setPredicate.field)
-        .map((value) => normalizeMetadataValue(setPredicate.field, value))
+      getMetadataSetRecordValues(record, node.field)
+        .map((value) => normalizeMetadataValue(node.field, value))
         .filter(Boolean),
     );
-    if (setPredicate.op === "includesAll") {
-      return setPredicate.values.every((value) => normalizedValues.has(value));
+    if (node.op === "includesAll") {
+      return node.values.every((value) => normalizedValues.has(value));
     }
-    if (setPredicate.op === "includesAny") {
-      return setPredicate.values.some((value) => normalizedValues.has(value));
+    if (node.op === "includesAny") {
+      return node.values.some((value) => normalizedValues.has(value));
     }
-    return !setPredicate.values.some((value) => normalizedValues.has(value));
+    return !node.values.some((value) => normalizedValues.has(value));
   }
 
-  if (spec.fieldType === "enumString") {
-    const stringPredicate = node as Extract<MetadataPredicate, { field: MetadataEnumStringField }>;
-    const normalizedValue = normalizeMetadataValue(
-      stringPredicate.field,
-      getRecordStringValue(record, stringPredicate.field) ?? "",
-    );
-    if (stringPredicate.op === "eq") {
-      return normalizedValue === stringPredicate.value;
+  if (isMetadataEnumStringPredicate(node)) {
+    const normalizedValue = normalizeMetadataValue(node.field, getMetadataStringRecordValue(record, node.field) ?? "");
+    if (node.op === "eq") {
+      return normalizedValue === node.value;
     }
-    if (stringPredicate.op === "in") {
-      return stringPredicate.values.includes(normalizedValue);
+    if (node.op === "in") {
+      return node.values.includes(normalizedValue);
     }
-    return !stringPredicate.values.includes(normalizedValue);
+    return !node.values.includes(normalizedValue);
   }
 
-  if (spec.fieldType === "text") {
-    const textPredicate = node as Extract<MetadataPredicate, { field: MetadataTextStringField }>;
-    const normalizedValue = normalizeMetadataTextMatchValue(getRecordStringValue(record, textPredicate.field) ?? "");
-    return textPredicate.op === "contains"
-      ? normalizedValue.includes(textPredicate.value)
-      : !normalizedValue.includes(textPredicate.value);
+  if (isMetadataTextPredicate(node)) {
+    const normalizedValue = normalizeMetadataTextMatchValue(getMetadataStringRecordValue(record, node.field) ?? "");
+    return node.op === "contains" ? normalizedValue.includes(node.value) : !normalizedValue.includes(node.value);
   }
 
-  if (spec.fieldType === "number") {
-    const numberPredicate = node as Extract<MetadataPredicate, { field: MetadataNumberField }>;
-    const numericValue = getRecordNumberValue(record, numberPredicate.field);
+  if (isMetadataNumberPredicate(node)) {
+    const numericValue = getMetadataNumberRecordValue(record, node.field);
     if (numericValue === null) {
       return false;
     }
-    if (numberPredicate.op === "between") {
-      return numericValue >= numberPredicate.min && numericValue <= numberPredicate.max;
+    if (node.op === "between") {
+      return numericValue >= node.min && numericValue <= node.max;
     }
-    if (numberPredicate.op === "eq") {
-      return numericValue === numberPredicate.value;
+    if (node.op === "eq") {
+      return numericValue === node.value;
     }
-    if (numberPredicate.op === "gte") {
-      return numericValue >= numberPredicate.value;
+    if (node.op === "gte") {
+      return numericValue >= node.value;
     }
-    return numericValue <= numberPredicate.value;
+    return numericValue <= node.value;
   }
 
-  const booleanPredicate = node as Extract<MetadataPredicate, { field: MetadataBooleanField }>;
-  return getRecordBooleanValue(record, booleanPredicate.field) === booleanPredicate.value;
+  if (!isMetadataBooleanPredicate(node)) {
+    throw new Error("Unknown metadata field.");
+  }
+
+  return getMetadataBooleanRecordValue(record, node.field) === node.value;
 }

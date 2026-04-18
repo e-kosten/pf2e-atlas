@@ -811,6 +811,19 @@ export const METADATA_FIELD_REGISTRY = [
 
 export type MetadataFieldSpecEntry = (typeof METADATA_FIELD_REGISTRY)[number];
 export type MetadataFieldName = MetadataFieldSpecEntry["field"];
+export type MetadataFieldSpecByType<FieldType extends MetadataFieldType> = Extract<
+  MetadataFieldSpecEntry,
+  { fieldType: FieldType }
+>;
+export type MetadataFieldNameByType<FieldType extends MetadataFieldType> = MetadataFieldSpecByType<FieldType>["field"];
+
+type MetadataRecordValueByFieldType = {
+  set: string[];
+  enumString: string | null;
+  text: string | null;
+  number: number | null;
+  boolean: boolean;
+};
 
 export const METADATA_FIELD_KIND_OPERATORS = {
   set: ["includesAny", "includesAll", "excludesAny"],
@@ -823,6 +836,33 @@ export const METADATA_FIELD_KIND_OPERATORS = {
 export const METADATA_FIELD_SPEC_BY_NAME = new Map<MetadataFieldName, MetadataFieldSpecEntry>(
   METADATA_FIELD_REGISTRY.map((entry) => [entry.field, entry]),
 );
+const METADATA_FIELD_NAMES_BY_TYPE = {
+  set: new Set<MetadataFieldNameByType<"set">>(
+    METADATA_FIELD_REGISTRY.filter((entry): entry is MetadataFieldSpecByType<"set"> => entry.fieldType === "set").map(
+      (entry) => entry.field,
+    ),
+  ),
+  enumString: new Set<MetadataFieldNameByType<"enumString">>(
+    METADATA_FIELD_REGISTRY.filter(
+      (entry): entry is MetadataFieldSpecByType<"enumString"> => entry.fieldType === "enumString",
+    ).map((entry) => entry.field),
+  ),
+  text: new Set<MetadataFieldNameByType<"text">>(
+    METADATA_FIELD_REGISTRY.filter((entry): entry is MetadataFieldSpecByType<"text"> => entry.fieldType === "text").map(
+      (entry) => entry.field,
+    ),
+  ),
+  number: new Set<MetadataFieldNameByType<"number">>(
+    METADATA_FIELD_REGISTRY.filter(
+      (entry): entry is MetadataFieldSpecByType<"number"> => entry.fieldType === "number",
+    ).map((entry) => entry.field),
+  ),
+  boolean: new Set<MetadataFieldNameByType<"boolean">>(
+    METADATA_FIELD_REGISTRY.filter(
+      (entry): entry is MetadataFieldSpecByType<"boolean"> => entry.fieldType === "boolean",
+    ).map((entry) => entry.field),
+  ),
+} as const;
 
 export function getMetadataFieldSpec(field: MetadataFieldName): MetadataFieldSpecEntry {
   const spec = METADATA_FIELD_SPEC_BY_NAME.get(field);
@@ -834,6 +874,97 @@ export function getMetadataFieldSpec(field: MetadataFieldName): MetadataFieldSpe
 
 export function isMetadataFieldName(field: string): field is MetadataFieldName {
   return METADATA_FIELD_SPEC_BY_NAME.has(field as MetadataFieldName);
+}
+
+function getMetadataFieldSpecByType<FieldType extends MetadataFieldType>(
+  field: MetadataFieldNameByType<FieldType>,
+  fieldType: FieldType,
+): MetadataFieldSpecByType<FieldType> {
+  const spec = getMetadataFieldSpec(field);
+  if (spec.fieldType !== fieldType) {
+    throw new Error(`Metadata field "${field}" is not a ${fieldType} field.`);
+  }
+  return spec as MetadataFieldSpecByType<FieldType>;
+}
+
+function getMetadataRecordValue<FieldType extends MetadataFieldType>(
+  record: NormalizedRecord,
+  spec: MetadataFieldSpecByType<FieldType>,
+): MetadataRecordValueByFieldType[FieldType] {
+  return record[spec.recordProperty] as MetadataRecordValueByFieldType[FieldType];
+}
+
+export function isMetadataSetField(field: string): field is MetadataFieldNameByType<"set"> {
+  return METADATA_FIELD_NAMES_BY_TYPE.set.has(field as MetadataFieldNameByType<"set">);
+}
+
+export function isMetadataEnumStringField(field: string): field is MetadataFieldNameByType<"enumString"> {
+  return METADATA_FIELD_NAMES_BY_TYPE.enumString.has(field as MetadataFieldNameByType<"enumString">);
+}
+
+export function isMetadataTextField(field: string): field is MetadataFieldNameByType<"text"> {
+  return METADATA_FIELD_NAMES_BY_TYPE.text.has(field as MetadataFieldNameByType<"text">);
+}
+
+export function isMetadataNumberField(field: string): field is MetadataFieldNameByType<"number"> {
+  return METADATA_FIELD_NAMES_BY_TYPE.number.has(field as MetadataFieldNameByType<"number">);
+}
+
+export function isMetadataBooleanField(field: string): field is MetadataFieldNameByType<"boolean"> {
+  return METADATA_FIELD_NAMES_BY_TYPE.boolean.has(field as MetadataFieldNameByType<"boolean">);
+}
+
+export function getMetadataSetFieldSpec(field: MetadataFieldNameByType<"set">): MetadataFieldSpecByType<"set"> {
+  return getMetadataFieldSpecByType(field, "set");
+}
+
+export function getMetadataEnumStringFieldSpec(
+  field: MetadataFieldNameByType<"enumString">,
+): MetadataFieldSpecByType<"enumString"> {
+  return getMetadataFieldSpecByType(field, "enumString");
+}
+
+export function getMetadataTextFieldSpec(field: MetadataFieldNameByType<"text">): MetadataFieldSpecByType<"text"> {
+  return getMetadataFieldSpecByType(field, "text");
+}
+
+export function getMetadataNumberFieldSpec(
+  field: MetadataFieldNameByType<"number">,
+): MetadataFieldSpecByType<"number"> {
+  return getMetadataFieldSpecByType(field, "number");
+}
+
+export function getMetadataBooleanFieldSpec(
+  field: MetadataFieldNameByType<"boolean">,
+): MetadataFieldSpecByType<"boolean"> {
+  return getMetadataFieldSpecByType(field, "boolean");
+}
+
+export function getMetadataSetRecordValues(record: NormalizedRecord, field: MetadataFieldNameByType<"set">): string[] {
+  return getMetadataRecordValue(record, getMetadataSetFieldSpec(field));
+}
+
+export function getMetadataStringRecordValue(
+  record: NormalizedRecord,
+  field: MetadataFieldNameByType<"enumString"> | MetadataFieldNameByType<"text">,
+): string | null {
+  return isMetadataEnumStringField(field)
+    ? getMetadataRecordValue(record, getMetadataEnumStringFieldSpec(field))
+    : getMetadataRecordValue(record, getMetadataTextFieldSpec(field));
+}
+
+export function getMetadataNumberRecordValue(
+  record: NormalizedRecord,
+  field: MetadataFieldNameByType<"number">,
+): number | null {
+  return getMetadataRecordValue(record, getMetadataNumberFieldSpec(field));
+}
+
+export function getMetadataBooleanRecordValue(
+  record: NormalizedRecord,
+  field: MetadataFieldNameByType<"boolean">,
+): boolean {
+  return getMetadataRecordValue(record, getMetadataBooleanFieldSpec(field));
 }
 
 export function getMetadataRecordSelectClauses(): string[] {
