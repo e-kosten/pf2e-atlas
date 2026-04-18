@@ -510,7 +510,7 @@ function buildSearchSemanticsDomain(
 ): OntologyDomainModel {
   const semantics = getMetadataFilterSemantics();
   const vocabulary = dataService.getSearchVocabulary();
-  let derivedTagDomain: OntologyDomainModel | null = null;
+  let derivedTagDomain: OntologyDomainModel | null;
   try {
     derivedTagDomain = buildDerivedTagsDomain(config);
   } catch {

@@ -280,9 +280,9 @@ export async function buildIndex(
   let processedPackCount = 0;
   const sourceEntries: BuildSourceEntry[] = [];
   const scanStartTime = Date.now();
-  let scanNormalizationDurationMs = 0;
-  let resolutionDurationMs = 0;
-  let recordStorageDurationMs = 0;
+  let scanNormalizationDurationMs: number;
+  let resolutionDurationMs: number;
+  let recordStorageDurationMs: number;
   let embeddingGenerationDurationMs = 0;
   let vecInsertDurationMs = 0;
   let reusedCanonicalEmbeddingCount = 0;

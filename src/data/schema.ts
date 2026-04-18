@@ -428,6 +428,7 @@ export function loadRequiredVectorExtension(
     const reason = error instanceof Error ? error.message : String(error);
     throw new Error(
       `Failed to load required sqlite-vec extension. Fix the installation and retry startup. Underlying error: ${reason}`,
+      { cause: error },
     );
   }
 }

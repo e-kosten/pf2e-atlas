@@ -32,8 +32,8 @@ export default defineConfig(
   },
   {
     rules: {
-      "no-useless-assignment": "off",
-      "preserve-caught-error": "off",
+      "no-useless-assignment": "error",
+      "preserve-caught-error": "error",
     },
   },
   prettierConfig,

@@ -155,7 +155,7 @@ export async function createEmbeddingProvider(
       warnings: [],
     };
   } catch (error) {
-    throw new Error(buildRuntimeEmbeddingErrorMessage(config, error));
+    throw new Error(buildRuntimeEmbeddingErrorMessage(config, error), { cause: error });
   }
 }
 
