@@ -2,38 +2,12 @@ import React from "react";
 
 import type { OntologyDomainModel, OntologyNode, OntologySelectionState } from "../../types.js";
 import {
+  TerminalPaneScreen,
   TerminalTwoPaneScreen,
-  createDerivedTagTerminalListNavigationState,
-  getNormalizedKeyName,
-  getRenderedTerminalLineCount,
-  getTerminalPaneBodyHeight,
-  getTerminalTwoPaneDetailWidth,
-  resolveDerivedTagTerminalListNavigationAction,
-  sliceRenderedTerminalLines,
-  useDerivedTagTerminalInput,
-  useDerivedTagTerminalSize,
   type DerivedTagTerminalLine,
 } from "../terminal-ui.js";
-import {
-  getDerivedTagTerminalTwoPaneLayoutMode,
-  reduceDerivedTagTerminalTwoPaneState,
-  type DerivedTagTerminalTwoPaneAction,
-} from "../two-pane-state.js";
-import {
-  buildOntologyBrowserBreadcrumb,
-  buildOntologyBrowserListRows,
-  canDrillIntoOntologyNode,
-  createOntologyBrowserUiState,
-  drillIntoOntologyBrowser,
-  getOntologyBrowserSelection,
-  jumpOntologyBrowserSelection,
-  moveOntologyBrowserSelection,
-  moveOntologyBrowserSelectionToBoundary,
-  normalizeOntologyBrowserState,
-  popOntologyBrowserDepth,
-  setOntologyBrowserFilter,
-  type OntologyBrowserUiState,
-} from "./ui.js";
+import { useOntologyExplorerController } from "./controller.js";
+import { buildOntologyBrowserListRows } from "./ui.js";
 
 export type OntologyPickerFieldSelection = {
   any: string[];
@@ -42,22 +16,6 @@ export type OntologyPickerFieldSelection = {
 };
 
 export type OntologyPickerSelectionMap = Record<string, OntologyPickerFieldSelection>;
-
-type PickerAction =
-  | DerivedTagTerminalTwoPaneAction
-  | { type: "normalize" }
-  | { type: "set_search_mode"; searchMode: boolean; searchInput?: string }
-  | { type: "append_search"; character: string }
-  | { type: "backspace_search" }
-  | { type: "clear_search" }
-  | { type: "move_selection"; delta: number }
-  | { type: "jump_selection"; delta: number }
-  | { type: "selection_boundary"; boundary: "start" | "end" }
-  | { type: "drill_in" }
-  | { type: "pop_depth" }
-  | { type: "cycle_selection" }
-  | { type: "move_detail"; delta: number; maxDetailScroll: number }
-  | { type: "detail_boundary"; boundary: "start" | "end"; maxDetailScroll: number };
 
 function cloneSelectionMap(selection: OntologyPickerSelectionMap): OntologyPickerSelectionMap {
   return Object.fromEntries(
@@ -179,24 +137,22 @@ function buildSelectionSummaryLines(
 }
 
 function buildPickerDetailLines(
-  model: OntologyDomainModel,
-  state: OntologyBrowserUiState,
   selections: OntologyPickerSelectionMap,
+  currentNode: OntologyNode | undefined,
 ): DerivedTagTerminalLine[] {
-  const selection = getOntologyBrowserSelection(model, state.browserState);
   return [
-    ...(selection.currentNode?.detailLines ?? [{ text: "No ontology entry selected.", tone: "dim" }]),
-    ...buildSelectionSummaryLines(selections, selection.currentNode),
+    ...(currentNode?.detailLines ?? [{ text: "No ontology entry selected.", tone: "dim" }]),
+    ...buildSelectionSummaryLines(selections, currentNode),
   ];
 }
 
 function buildPickerListLines(
   model: OntologyDomainModel,
-  state: OntologyBrowserUiState,
   bodyHeight: number,
+  state: ReturnType<typeof useOntologyExplorerController>,
   selections: OntologyPickerSelectionMap,
 ): DerivedTagTerminalLine[] {
-  return buildOntologyBrowserListRows(model, state.browserState, bodyHeight, (node, isSelected) => {
+  return buildOntologyBrowserListRows(model, state.effectiveState, bodyHeight, (node, isSelected) => {
     const stateLabel = node.selection ? `[${policyStateLabel(getNodeSelectionState(node, selections))}] ` : "";
     return {
       text: `${stateLabel}${node.listLabel ?? node.label}`,
@@ -204,128 +160,6 @@ function buildPickerListLines(
       noWrap: true,
     };
   }).map((row) => row.line);
-}
-
-function reducePickerTwoPaneState(
-  state: OntologyBrowserUiState,
-  action: DerivedTagTerminalTwoPaneAction,
-): Pick<OntologyBrowserUiState, "activePane" | "layoutMode" | "browserState"> {
-  const next = reduceDerivedTagTerminalTwoPaneState({
-    activePane: state.activePane,
-    detailScroll: state.browserState.detailScroll,
-    layoutMode: state.layoutMode,
-  }, action);
-
-  return {
-    activePane: next.activePane,
-    layoutMode: next.layoutMode,
-    browserState: {
-      ...state.browserState,
-      detailScroll: next.detailScroll,
-    },
-  };
-}
-
-function pickerReducer(
-  model: OntologyDomainModel,
-  state: OntologyBrowserUiState,
-  action: PickerAction,
-): OntologyBrowserUiState {
-  switch (action.type) {
-    case "toggle_focus":
-    case "toggle_layout":
-    case "leave_detail":
-      return {
-        ...state,
-        ...reducePickerTwoPaneState(state, action),
-      };
-    case "normalize":
-      return {
-        ...state,
-        browserState: normalizeOntologyBrowserState(model, state.browserState),
-      };
-    case "set_search_mode":
-      return {
-        ...state,
-        searchInput: action.searchInput ?? state.searchInput,
-        searchMode: action.searchMode,
-      };
-    case "append_search": {
-      const searchInput = state.searchInput + action.character;
-      return {
-        ...state,
-        browserState: setOntologyBrowserFilter(model, state.browserState, searchInput),
-        searchInput,
-      };
-    }
-    case "backspace_search": {
-      const searchInput = state.searchInput.slice(0, -1);
-      return {
-        ...state,
-        browserState: setOntologyBrowserFilter(model, state.browserState, searchInput),
-        searchInput,
-      };
-    }
-    case "clear_search":
-      return {
-        ...state,
-        browserState: setOntologyBrowserFilter(model, state.browserState, ""),
-        searchInput: "",
-      };
-    case "move_selection":
-      return {
-        ...state,
-        browserState: moveOntologyBrowserSelection(model, state.browserState, action.delta),
-      };
-    case "jump_selection":
-      return {
-        ...state,
-        browserState: jumpOntologyBrowserSelection(model, state.browserState, action.delta),
-      };
-    case "selection_boundary":
-      return {
-        ...state,
-        browserState: moveOntologyBrowserSelectionToBoundary(model, state.browserState, action.boundary),
-      };
-    case "drill_in":
-      return {
-        ...state,
-        activePane: "list",
-        browserState: drillIntoOntologyBrowser(model, state.browserState),
-        layoutMode: "split",
-        searchInput: "",
-        searchMode: false,
-      };
-    case "pop_depth":
-      return {
-        ...state,
-        activePane: "list",
-        browserState: popOntologyBrowserDepth(state.browserState),
-        layoutMode: "split",
-        searchInput: "",
-        searchMode: false,
-      };
-    case "move_detail":
-      return {
-        ...state,
-        ...reducePickerTwoPaneState(state, action),
-        browserState: {
-          ...state.browserState,
-          detailScroll: Math.max(0, Math.min(action.maxDetailScroll, state.browserState.detailScroll + action.delta)),
-        },
-      };
-    case "detail_boundary":
-      return {
-        ...state,
-        ...reducePickerTwoPaneState(state, action),
-        browserState: {
-          ...state.browserState,
-          detailScroll: action.boundary === "start" ? 0 : action.maxDetailScroll,
-        },
-      };
-    default:
-      return state;
-  }
 }
 
 export function OntologyPickerScreen({
@@ -339,12 +173,6 @@ export function OntologyPickerScreen({
   onApply: (selection: OntologyPickerSelectionMap) => void;
   onCancel: () => void;
 }): React.JSX.Element {
-  const size = useDerivedTagTerminalSize();
-  const [state, dispatch] = React.useReducer(
-    (current: OntologyBrowserUiState, action: PickerAction) => pickerReducer(model, current, action),
-    model,
-    createOntologyBrowserUiState,
-  );
   const [selections, setSelections] = React.useState<OntologyPickerSelectionMap>(() => {
     const emptySelections = createEmptySelectionMap(model);
     return initialSelections
@@ -353,171 +181,88 @@ export function OntologyPickerScreen({
   });
 
   React.useEffect(() => {
-    dispatch({ type: "normalize" });
     const emptySelections = createEmptySelectionMap(model);
     setSelections(initialSelections ? { ...emptySelections, ...cloneSelectionMap(initialSelections) } : emptySelections);
   }, [initialSelections, model]);
 
-  const layoutMode = getDerivedTagTerminalTwoPaneLayoutMode({
-    activePane: state.activePane,
-    detailScroll: state.browserState.detailScroll,
-    layoutMode: state.layoutMode,
-  });
-  const normalizedBrowserState = normalizeOntologyBrowserState(model, state.browserState);
-  const selection = getOntologyBrowserSelection(model, normalizedBrowserState);
-  const metrics = {
-    bodyHeight: Math.max(1, getTerminalPaneBodyHeight(size.height, {
-      hasSubtitle: true,
-      footerLineCount: 2,
-    })),
-    detailWidth: getTerminalTwoPaneDetailWidth(size.width, layoutMode, 48),
-  };
-  const detailLines = buildPickerDetailLines(model, { ...state, browserState: normalizedBrowserState }, selections);
-  const renderedDetailLineCount = getRenderedTerminalLineCount(detailLines, metrics.detailWidth);
-  const maxDetailScroll = Math.max(0, renderedDetailLineCount - metrics.bodyHeight);
-  const effectiveState = normalizedBrowserState.detailScroll > maxDetailScroll
-    ? { ...normalizedBrowserState, detailScroll: maxDetailScroll }
-    : normalizedBrowserState;
-  const breadcrumb = buildOntologyBrowserBreadcrumb(model, effectiveState);
-  const listNavigationStateRef = React.useRef(createDerivedTagTerminalListNavigationState());
-  const detailNavigationStateRef = React.useRef(createDerivedTagTerminalListNavigationState());
-  const currentNode = selection.currentNode;
-
-  useDerivedTagTerminalInput((input, key) => {
-    const normalized = getNormalizedKeyName(input, key);
-    const printable = key.ctrl || key.meta ? undefined : input.length === 1 ? input : undefined;
-    const listNavigation = resolveDerivedTagTerminalListNavigationAction(input, key, {
-      pageSize: Math.max(1, metrics.bodyHeight - 1),
-      jumpSize: Math.max(1, Math.floor(metrics.bodyHeight / 2)),
-      includeConfirmKeys: true,
-      includeHorizontalConfirmKeys: true,
-      includeVimHorizontalConfirmKeys: true,
-    }, listNavigationStateRef.current);
-    listNavigationStateRef.current = listNavigation.state;
-    const detailNavigation = resolveDerivedTagTerminalListNavigationAction(input, key, {
-      pageSize: Math.max(1, metrics.bodyHeight - 1),
-      jumpSize: Math.max(1, Math.floor(metrics.bodyHeight / 2)),
-      includeCancelKeys: true,
-      includeHorizontalCancelKeys: true,
-      includeVimHorizontalCancelKeys: true,
-    }, detailNavigationStateRef.current);
-    detailNavigationStateRef.current = detailNavigation.state;
-
-    if (normalized === "ctrl_c" || normalized === "q") {
-      onCancel();
-      return;
-    }
-
-    if (state.searchMode) {
-      if (normalized === "enter") {
-        dispatch({ type: "set_search_mode", searchMode: false });
-        return;
+  const controller = useOntologyExplorerController({
+    model,
+    onExit: onCancel,
+    getDetailLines: ({ selection }) => buildPickerDetailLines(selections, selection.currentNode),
+    getDetailTitle: () => "Detail",
+    onConfirm: ({ currentNode }) => {
+      if (!currentNode?.selection) {
+        return false;
       }
-      if (normalized === "backspace") {
-        dispatch({ type: "backspace_search" });
-        return;
-      }
-      if (normalized === "escape") {
-        dispatch({ type: "clear_search" });
-        dispatch({ type: "set_search_mode", searchMode: false, searchInput: "" });
-        return;
-      }
-      if (printable) {
-        dispatch({ type: "append_search", character: printable });
-      }
-      return;
-    }
-
-    if (normalized === "a") {
-      onApply(selections);
-      return;
-    }
-    if (normalized === "slash") {
-      dispatch({ type: "set_search_mode", searchMode: true, searchInput: state.searchInput });
-      return;
-    }
-    if (normalized === "tab" || normalized === "shift_tab" || normalized === "w") {
-      dispatch({ type: "toggle_focus" });
-      return;
-    }
-    if (normalized === "z") {
-      dispatch({ type: "toggle_layout" });
-      return;
-    }
-    if ((normalized === "space" || normalized === "enter") && currentNode?.selection) {
       setSelections((current) => toggleNodeSelection(currentNode, current));
-      return;
-    }
-
-    if (state.activePane === "detail") {
-      if (detailNavigation.action?.kind === "move") {
-        dispatch({ type: "move_detail", delta: detailNavigation.action.delta, maxDetailScroll });
-        return;
-      }
-      if (detailNavigation.action?.kind === "boundary") {
-        dispatch({ type: "detail_boundary", boundary: detailNavigation.action.boundary, maxDetailScroll });
-        return;
-      }
-      if (detailNavigation.action?.kind === "cancel") {
-        dispatch({ type: "leave_detail" });
-        return;
-      }
-      return;
-    }
-
-    if (listNavigation.action?.kind === "move") {
-      const isJump = Math.abs(listNavigation.action.delta) > 1;
-      dispatch(isJump
-        ? { type: "jump_selection", delta: listNavigation.action.delta }
-        : { type: "move_selection", delta: listNavigation.action.delta });
-      return;
-    }
-    if (listNavigation.action?.kind === "boundary") {
-      dispatch({ type: "selection_boundary", boundary: listNavigation.action.boundary });
-      return;
-    }
-    if (listNavigation.action?.kind === "confirm") {
-      if (currentNode?.selection) {
+      return true;
+    },
+    onKey: ({ currentNode, normalizedKey }) => {
+      if (normalizedKey === "space" && currentNode?.selection) {
         setSelections((current) => toggleNodeSelection(currentNode, current));
-      } else if (canDrillIntoOntologyNode(currentNode)) {
-        dispatch({ type: "drill_in" });
-      } else {
-        dispatch({ type: "toggle_focus" });
+        return true;
       }
-      return;
-    }
-    if (normalized === "left" || normalized === "h" || normalized === "backspace" || normalized === "escape") {
-      const nextState = popOntologyBrowserDepth(effectiveState);
-      if (nextState.depth === effectiveState.depth) {
-        onCancel();
-        return;
+      if (normalizedKey === "a") {
+        onApply(selections);
+        return true;
       }
-      dispatch({ type: "pop_depth" });
-      return;
-    }
+      return false;
+    },
   });
+
+  if (controller.layoutMode === "detail-only") {
+    return (
+      <TerminalPaneScreen
+        title="Facet Picker"
+        subtitle={`${model.label} | ${controller.breadcrumb}${controller.searchIndicator}`}
+        pane={{
+          title: "[FOCUSED DETAIL] Detail",
+          lines: controller.visibleDetailLines,
+          active: true,
+        }}
+        footer={[
+          {
+            text: controller.state.searchMode
+              ? "Type to filter live  Backspace edit  Enter keep filter  Esc clear and back out"
+              : "z split-view  Tab/w values focus  Up/Down or j/k scroll  Ctrl+U/D jump  Space/b page  Home/End edge  Left/backspace/esc values  Enter/Space cycle  a apply  q cancel",
+            tone: "dim",
+          },
+          {
+            text: controller.state.searchMode
+              ? `Search /${controller.state.searchInput}`
+              : `detail focus | focused detail view | Policy ${policyStateLabel(getNodeSelectionState(controller.currentNode, selections))} | Detail scroll ${controller.effectiveState.detailScroll}/${controller.maxDetailScroll}`,
+            tone: "accent",
+          },
+        ]}
+      />
+    );
+  }
 
   return (
     <TerminalTwoPaneScreen
       title="Facet Picker"
-      subtitle={`${model.label} | ${breadcrumb}`}
+      subtitle={`${model.label} | ${controller.breadcrumb}${controller.searchIndicator}`}
       left={{
-        title: state.activePane === "list" ? "[VALUES]" : "Values",
-        lines: buildPickerListLines(model, { ...state, browserState: effectiveState }, metrics.bodyHeight, selections),
-        active: state.activePane === "list",
+        title: controller.state.activePane === "list" ? "[VALUES]" : "Values",
+        lines: buildPickerListLines(model, controller.bodyHeight, controller, selections),
+        active: controller.state.activePane === "list",
       }}
       right={{
-        title: state.activePane === "detail" ? "[DETAIL]" : "Detail",
-        lines: sliceRenderedTerminalLines(detailLines, metrics.detailWidth, effectiveState.detailScroll, metrics.bodyHeight),
-        active: state.activePane === "detail",
+        title: controller.state.activePane === "detail" ? "[DETAIL]" : "Detail",
+        lines: controller.visibleDetailLines,
+        active: controller.state.activePane === "detail",
       }}
       footer={[
         {
-          text: "Up/Down move  Ctrl-U/D jump  PgUp/PgDn page  gg/G or Home/End edge  Enter/Space cycle  Enter drills non-selectable branches  / filter  Tab focus  z layout  a apply  Esc/backspace cancel",
+          text: controller.state.searchMode
+            ? "Type to filter live  Backspace edit  Enter keep filter  Esc clear and back out"
+            : "Tab/w focus  z detail-only  Up/Down or j/k move-scroll  Ctrl+U/D jump  Space/b page  gg/G edge  Enter/Space cycle  Left/backspace up  / search  Esc back/clear  a apply  q cancel",
           tone: "dim",
         },
         {
-          text: `Focused: ${currentNode?.label ?? "(none)"} | Policy ${policyStateLabel(getNodeSelectionState(currentNode, selections))} | Detail scroll ${effectiveState.detailScroll}/${maxDetailScroll}`,
+          text: controller.state.searchMode
+            ? `Search /${controller.state.searchInput}`
+            : `Focused: ${controller.currentNode?.label ?? "(none)"} | Policy ${policyStateLabel(getNodeSelectionState(controller.currentNode, selections))} | ${controller.state.activePane} focus | Detail scroll ${controller.effectiveState.detailScroll}/${controller.maxDetailScroll}`,
           tone: "accent",
         },
       ]}

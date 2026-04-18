@@ -17,11 +17,13 @@ import type {
   MetadataNumberField,
   MetadataSetField,
   MetadataTextStringField,
+  NormalizedRecord,
   OntologyDomainId,
   OntologyDomainModel,
   OntologyDomainSummary,
   OntologyNode,
   SearchCategory,
+  SearchFilters,
   SearchSubcategory,
 } from "../types.js";
 import { normalizeText } from "../utils.js";
@@ -37,6 +39,7 @@ import {
   buildOntologyExplorerEntityDetailLines,
   buildOntologyExplorerEntitySummary,
 } from "../tui/ontology-explorer/entity-page.js";
+import { mapNormalizedRecordToOntologyExplorerEntityRecord } from "../tui/ontology-explorer/entity-record.js";
 
 export type Pf2eApplicationOntologyService = {
   listDomains: () => OntologyDomainSummary[];
@@ -60,6 +63,8 @@ const ONTOLOGY_DOMAINS: OntologyDomainSummary[] = [
     description: "Explore category-specific metadata fields, examples, common values, and advanced search predicates.",
   },
 ];
+
+const SEARCH_SEMANTICS_RECORD_PREVIEW_LIMIT = 20;
 
 function titleCaseLabel(value: string): string {
   return value
@@ -114,6 +119,75 @@ function buildTraitDetailLines(
     { text: `Category: ${category}` },
     { text: `Live canonical records: ${liveRecordCount}` },
   ];
+}
+
+function buildRecordPreviewHint(liveRecordCount: number): string {
+  if (liveRecordCount <= SEARCH_SEMANTICS_RECORD_PREVIEW_LIMIT) {
+    return "Drill in to inspect matching records directly, or press o to open the browse query.";
+  }
+  return `Drill in to inspect the first ${SEARCH_SEMANTICS_RECORD_PREVIEW_LIMIT} alphabetical matches, or press o to open the full browse query.`;
+}
+
+function buildSearchSemanticsRecordNode(record: NormalizedRecord): OntologyNode {
+  const entityRecord = mapNormalizedRecordToOntologyExplorerEntityRecord(record);
+  return {
+    id: `record:${record.recordKey}`,
+    kind: "record",
+    label: record.name,
+    filterText: buildFilterText(
+      record.recordKey,
+      record.name,
+      record.category,
+      record.subcategory ?? "",
+      record.descriptionText ?? "",
+      record.blurbText ?? "",
+      ...record.traits,
+      ...record.derivedTags,
+    ),
+    listLabel: buildOntologyExplorerEntitySummary(entityRecord),
+    detailTitle: "Record Details",
+    detailLines: buildOntologyExplorerEntityDetailLines(entityRecord),
+    query: {
+      kind: "lookup",
+      label: "Open exact record lookup",
+      filters: {
+        nameQuery: record.name,
+        category: record.category,
+        subcategory: record.subcategory ?? undefined,
+        limit: 5,
+      },
+    },
+  };
+}
+
+function buildSearchSemanticsRecordBrowseProps(
+  dataService: Pick<Pf2eDataService, "listRecords">,
+  queryLabel: string,
+  filters: SearchFilters,
+): Pick<OntologyNode, "loadChildren" | "query"> {
+  let cachedChildren: OntologyNode[] | null = null;
+
+  return {
+    loadChildren: () => {
+      if (!cachedChildren) {
+        const result = dataService.listRecords({
+          ...filters,
+          limit: SEARCH_SEMANTICS_RECORD_PREVIEW_LIMIT,
+          sort: "alphabetical",
+        });
+        cachedChildren = result.records.map((record) => buildSearchSemanticsRecordNode(record));
+      }
+      return cachedChildren;
+    },
+    query: {
+      kind: "listRecords",
+      label: queryLabel,
+      filters: {
+        ...filters,
+        limit: SEARCH_SEMANTICS_RECORD_PREVIEW_LIMIT,
+      },
+    },
+  };
 }
 
 function buildRecordNode(recordNode: DerivedTagOntologyExplorerRecordNode): OntologyNode {
@@ -442,6 +516,7 @@ function buildMetadataValueQuery(
 }
 
 function buildFieldValueNodes(
+  dataService: Pick<Pf2eDataService, "listRecords">,
   category: SearchCategory,
   fieldSemantics: MetadataFieldSemantics,
   values: Array<{ value: string; count: number }>,
@@ -452,6 +527,16 @@ function buildFieldValueNodes(
     const traitGlossaryEntry = fieldSemantics.field === "traits"
       ? getTraitGlossaryEntry(metadataGlossary, entry.value)
       : undefined;
+    const recordBrowseProps = metadata
+      ? buildSearchSemanticsRecordBrowseProps(
+        dataService,
+        fieldSemantics.field === "traits" ? "Browse records with this trait" : "Browse records with this value",
+        {
+          category,
+          metadata,
+        },
+      )
+      : {};
     return {
       id: `${category}:${fieldSemantics.field}:${entry.value}`,
       kind: "value",
@@ -466,31 +551,24 @@ function buildFieldValueNodes(
       listLabel: `${traitGlossaryEntry?.label ?? entry.value} | ${entry.count}`,
       detailTitle: fieldSemantics.field === "traits" ? "Trait Details" : "Filter Value",
       detailLines: fieldSemantics.field === "traits"
-        ? buildTraitDetailLines(category, entry.value, entry.count, metadataGlossary)
+        ? [
+          ...buildTraitDetailLines(category, entry.value, entry.count, metadataGlossary),
+          { text: buildRecordPreviewHint(entry.count) },
+        ]
         : buildKeyValueDetailLines(entry.value, [
           ["Category", category],
           ["Field", fieldSemantics.field],
           ["Value", entry.value],
           ["Live canonical records", entry.count],
-        ]),
-      query: metadata
-        ? {
-          kind: "listRecords",
-          label: fieldSemantics.field === "traits" ? "Browse records with this trait" : "Browse records with this value",
-          filters: {
-            category,
-            metadata,
-            limit: 20,
-          },
-        }
-        : undefined,
+        ], buildRecordPreviewHint(entry.count)),
+      ...recordBrowseProps,
     };
   });
 }
 
 function buildSearchSemanticsDomain(
   config: AppConfig,
-  dataService: Pick<Pf2eDataService, "getSearchVocabulary" | "listFilterValues">,
+  dataService: Pick<Pf2eDataService, "getSearchVocabulary" | "listFilterValues" | "listRecords">,
 ): OntologyDomainModel {
   const semantics = getMetadataFilterSemantics();
   const vocabulary = dataService.getSearchVocabulary();
@@ -517,6 +595,12 @@ function buildSearchSemanticsDomain(
 
   const commonTraitsByCategory = new Map(vocabulary.commonTraitsByCategory.map((entry) => [entry.category, entry.traits]));
   const commonDerivedTagsByCategory = new Map(vocabulary.commonDerivedTagsByCategory.map((entry) => [entry.category, entry.tags]));
+  const liveSubcategoryCountsByCategory = new Map(
+    SEARCH_CATEGORIES.map((category) => [
+      category,
+      new Map(dataService.listFilterValues({ field: "subcategories", category }).values.map((entry) => [entry.value, entry.count])),
+    ]),
+  );
   const examplesByCategory = semantics.examplesByCategory;
   const derivedTagCategoryNodes = new Map(
     (derivedTagDomain?.rootNodes ?? [])
@@ -525,6 +609,7 @@ function buildSearchSemanticsDomain(
   );
 
   const rootNodes = SEARCH_CATEGORIES.map((category) => {
+    const liveSubcategoryCounts = liveSubcategoryCountsByCategory.get(category) ?? new Map<string, number>();
     const categoryFields = semantics.metadataFieldsByCategory[category] ?? [];
     const metadataFieldNodes: OntologyNode[] = categoryFields.map((field): OntologyNode => {
       const fieldSemantics = metadataFieldsByName.get(field)!;
@@ -543,6 +628,9 @@ function buildSearchSemanticsDomain(
           { text: `Discoverable: ${fieldSemantics.discoverable ? "yes" : "no"}` },
           { text: `Subcategory scope: ${fieldSemantics.subcategories?.join(", ") ?? "(all subcategories)"}` },
           { text: `Notes: ${fieldSemantics.notes ?? "(none)"}` },
+          ...(fieldSemantics.discoverable
+            ? [{ text: "Drill in to browse the full live value space for this field, then drill again to inspect matching records." }]
+            : []),
           ...(field === "derivedTags"
             ? [{ text: "This field exposes the full authored derived-tag hierarchy instead of a flat live-value list." }]
             : []),
@@ -559,7 +647,9 @@ function buildSearchSemanticsDomain(
             loadChildren: fieldSemantics.discoverable
               ? () => {
                 const liveValues = getCachedFilterValues(category, field);
-                return liveValues.length > 0 ? buildFieldValueNodes(category, fieldSemantics, liveValues, metadataGlossary) : [];
+                return liveValues.length > 0
+                  ? buildFieldValueNodes(dataService, category, fieldSemantics, liveValues, metadataGlossary)
+                  : [];
               }
               : undefined,
           }),
@@ -597,16 +687,14 @@ function buildSearchSemanticsDomain(
       ),
       listLabel: `${getTraitGlossaryEntry(metadataGlossary, entry.value)?.label ?? entry.value} | ${entry.count}`,
       detailTitle: "Common Trait",
-      detailLines: buildTraitDetailLines(category, entry.value, entry.count, metadataGlossary),
-      query: {
-        kind: "listRecords",
-        label: "Browse records with this trait",
-        filters: {
-          category,
-          metadata: { field: "traits", op: "includesAny", values: [entry.value] },
-          limit: 20,
-        },
-      },
+      detailLines: [
+        ...buildTraitDetailLines(category, entry.value, entry.count, metadataGlossary),
+        { text: buildRecordPreviewHint(entry.count) },
+      ],
+      ...buildSearchSemanticsRecordBrowseProps(dataService, "Browse records with this trait", {
+        category,
+        metadata: { field: "traits", op: "includesAny", values: [entry.value] },
+      }),
     }));
 
     const commonDerivedTagNodes: OntologyNode[] = (commonDerivedTagsByCategory.get(category) ?? []).map((entry): OntologyNode => ({
@@ -620,16 +708,11 @@ function buildSearchSemanticsDomain(
         ["Category", category],
         ["Derived tag", entry.value],
         ["Live canonical records", entry.count],
-      ]),
-      query: {
-        kind: "listRecords",
-        label: "Browse records with this derived tag",
-        filters: {
-          category,
-          metadata: { field: "derivedTags", op: "includesAny", values: [entry.value] },
-          limit: 20,
-        },
-      },
+      ], buildRecordPreviewHint(entry.count)),
+      ...buildSearchSemanticsRecordBrowseProps(dataService, "Browse records with this derived tag", {
+        category,
+        metadata: { field: "derivedTags", op: "includesAny", values: [entry.value] },
+      }),
     }));
 
     const exampleNodes: OntologyNode[] = (examplesByCategory[category] ?? []).map((example, index): OntologyNode => ({
@@ -652,21 +735,17 @@ function buildSearchSemanticsDomain(
       kind: "subcategory",
       label: subcategory,
       filterText: buildFilterText(category, subcategory),
-      listLabel: subcategory,
+      listLabel: `${subcategory} | ${liveSubcategoryCounts.get(subcategory) ?? 0}`,
       detailTitle: "Subcategory Boundary",
       detailLines: buildKeyValueDetailLines(subcategory, [
         ["Category", category],
         ["Subcategory", subcategory],
-      ]),
-      query: {
-        kind: "listRecords",
-        label: "Browse this subcategory",
-        filters: {
-          category,
-          subcategory,
-          limit: 20,
-        },
-      },
+        ["Live canonical records", liveSubcategoryCounts.get(subcategory) ?? 0],
+      ], buildRecordPreviewHint(liveSubcategoryCounts.get(subcategory) ?? 0)),
+      ...buildSearchSemanticsRecordBrowseProps(dataService, "Browse this subcategory", {
+        category,
+        subcategory,
+      }),
     }));
 
     const children: OntologyNode[] = [];
@@ -792,7 +871,7 @@ function buildSearchSemanticsDomain(
 
 export function createPf2eApplicationOntologyService(
   config: AppConfig,
-  dataService: Pick<Pf2eDataService, "getSearchVocabulary" | "listFilterValues">,
+  dataService: Pick<Pf2eDataService, "getSearchVocabulary" | "listFilterValues" | "listRecords">,
 ): Pf2eApplicationOntologyService {
   const domainCache = new Map<OntologyDomainId, OntologyDomainModel>();
 

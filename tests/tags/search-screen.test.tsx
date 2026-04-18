@@ -316,24 +316,46 @@ function createFacetPickerOntologyDomain(): OntologyDomainModel {
             detailLines: [{ text: "Metadata Fields", tone: "section" }],
             children: [
               {
-                id: "spell:field:traits",
+                id: "spell:field:derivedTags",
                 kind: "field",
-                label: "traits",
-                filterText: "traits",
-                listLabel: "traits | includesAny, includesAll, excludesAny",
+                label: "derivedTags",
+                filterText: "derived tags",
+                listLabel: "derivedTags",
                 detailTitle: "Metadata Field Details",
-                detailLines: [{ text: "traits", tone: "section" }],
-                loadChildren: () => [
+                detailLines: [{ text: "derivedTags", tone: "section" }],
+                childPresentation: {
+                  mode: "grouped",
+                  groupBy: "axis",
+                  render: "inline",
+                },
+                children: [
                   {
-                    id: "spell:traits:illusion",
-                    kind: "value",
-                    label: "Illusion",
-                    filterText: "illusion",
-                    listLabel: "Illusion | 1",
-                    detailTitle: "Trait Details",
+                    id: "spell:family:regional-setting",
+                    kind: "family",
+                    label: "regional_setting",
+                    filterText: "regional setting coastal setting",
+                    listLabel: "regional_setting | 1 tag",
+                    detailTitle: "Family Details",
                     detailLines: [
-                      { text: "Illusion", tone: "section" },
-                      { text: "Live canonical records: 1" },
+                      { text: "regional_setting", tone: "section" },
+                      { text: "Axis: environment" },
+                    ],
+                    groupValues: {
+                      axis: "environment",
+                    },
+                    children: [
+                      {
+                        id: "spell:derivedTags:coastal_setting",
+                        kind: "tag",
+                        label: "coastal_setting",
+                        filterText: "coastal setting",
+                        listLabel: "coastal_setting",
+                        detailTitle: "Tag Details",
+                        detailLines: [
+                          { text: "coastal_setting", tone: "section" },
+                          { text: "Live canonical records: 1" },
+                        ],
+                      },
                     ],
                   },
                 ],
@@ -1265,12 +1287,12 @@ describe("search screen", () => {
     });
   });
 
-  it("opens the shared ontology picker for facet editing and applies selected values back into the draft", async () => {
+  it("opens the shared ontology picker for derived-tag facet editing and preserves axis grouping", async () => {
     const services = createServices();
     services.user.search.getFacetFieldOptions = vi.fn(() => [{
-      value: "traits",
-      label: "Traits",
-      description: "Trait facet for the current browse scope.",
+      value: "derivedTags",
+      label: "Derived Tags",
+      description: "Derived-tag facet for the current browse scope.",
       fieldType: "set",
     }]);
     services.user.ontology.loadDomain = vi.fn((id: string) => {
@@ -1309,11 +1331,15 @@ describe("search screen", () => {
 
     app.stdin.write("\r");
     await flushInk();
-    app.stdin.write(" ");
+    expect(app.lastFrame()).toContain("Environment");
+
+    app.stdin.write("\r");
+    await flushInk();
+    app.stdin.write("\r");
     await flushInk();
     app.stdin.write("a");
     await flushInk();
 
-    expect(app.lastFrame()).toContain("Traits: any: Illusion");
+    expect(app.lastFrame()).toContain("Derived Tags: any: Coastal Setting");
   });
 });

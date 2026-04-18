@@ -37,27 +37,41 @@ function getAllowedStates(fieldType: Pf2eTerminalFacetFieldOption["fieldType"]):
   return fieldType === "set" ? ["any", "all", "exclude"] : ["any", "exclude"];
 }
 
+type OntologySelectionResolver = (node: OntologyNode) => OntologyNode["selection"];
+
 function annotateSelectableNodes(
   node: OntologyNode,
-  fieldOption: Pf2eTerminalFacetFieldOption,
+  resolveSelection: OntologySelectionResolver,
 ): OntologyNode {
   const cloned = cloneOntologyNode(node);
-  if (isSelectableValueNode(cloned, fieldOption.value)) {
-    cloned.selection = {
-      field: fieldOption.value,
-      fieldLabel: fieldOption.label,
-      value: fieldOption.value === "derivedTags" ? cloned.label : cloned.id.split(":").slice(-1)[0] ?? cloned.label,
-      allowedStates: getAllowedStates(fieldOption.fieldType),
-    };
+  const selection = resolveSelection(cloned);
+  if (selection) {
+    cloned.selection = selection;
   }
   if (cloned.children) {
-    cloned.children = cloned.children.map((child) => annotateSelectableNodes(child, fieldOption));
+    cloned.children = cloned.children.map((child) => annotateSelectableNodes(child, resolveSelection));
   }
   if (cloned.loadChildren) {
     const loadChildren = cloned.loadChildren;
-    cloned.loadChildren = () => loadChildren().map((child) => annotateSelectableNodes(child, fieldOption));
+    cloned.loadChildren = () => loadChildren().map((child) => annotateSelectableNodes(child, resolveSelection));
   }
   return cloned;
+}
+
+function buildFieldSelectionResolver(
+  fieldOption: Pf2eTerminalFacetFieldOption,
+): OntologySelectionResolver {
+  return (node) => {
+    if (!isSelectableValueNode(node, fieldOption.value)) {
+      return undefined;
+    }
+    return {
+      field: fieldOption.value,
+      fieldLabel: fieldOption.label,
+      value: fieldOption.value === "derivedTags" ? node.label : node.id.split(":").slice(-1)[0] ?? node.label,
+      allowedStates: getAllowedStates(fieldOption.fieldType),
+    };
+  };
 }
 
 function findNodeById(nodes: OntologyNode[], id: string): OntologyNode | undefined {
@@ -93,7 +107,7 @@ export function buildSearchFacetPickerModel(
   const rootNodes = options.fieldOptions
     .map((fieldOption) => {
       const fieldNode = fieldNodesById.get(`${options.category}:field:${fieldOption.value}`);
-      return fieldNode ? annotateSelectableNodes(fieldNode, fieldOption) : null;
+      return fieldNode ? annotateSelectableNodes(fieldNode, buildFieldSelectionResolver(fieldOption)) : null;
     })
     .filter((node): node is OntologyNode => Boolean(node))
     .map((node) => ({
