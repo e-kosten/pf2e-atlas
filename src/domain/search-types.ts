@@ -3,6 +3,7 @@ import type { NormalizedRecord } from "./record-types.js";
 import { METADATA_FIELD_REGISTRY } from "./metadata-field-registry.js";
 
 export type SearchProfile = "lexical" | "balanced" | "concept";
+export type SearchSort = "ranked" | "alphabetical" | "levelAsc" | "levelDesc" | "random";
 
 export type SearchCategory =
   | "equipment"
@@ -91,6 +92,8 @@ export type SearchMode = "structured" | "lexical" | "hybrid";
 
 export interface SearchFilters {
   searchProfile?: SearchProfile;
+  sort?: SearchSort;
+  sortSeed?: number;
   explain?: boolean;
   nameQuery?: string;
   query?: string;
@@ -170,11 +173,20 @@ export interface LookupResult {
 export interface SearchResult {
   searchProfile: SearchProfile | null;
   mode: SearchMode;
+  sort: SearchSort;
   total: number;
   offset: number;
   limit: number;
+  hasMore: boolean;
+  nextOffset: number | null;
   records: NormalizedRecord[];
   explain?: SearchExplainResult;
+}
+
+export interface SearchCountResult {
+  searchProfile: SearchProfile | null;
+  mode: SearchMode;
+  total: number;
 }
 
 export interface SearchQueryAnalysis {

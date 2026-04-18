@@ -3,7 +3,7 @@ import React from "react";
 import { cleanup, render } from "ink-testing-library";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { AppConfig, NormalizedRecord, SearchFilters } from "../../src/types.js";
+import type { AppConfig, NormalizedRecord, SearchCountResult, SearchFilters } from "../../src/types.js";
 import { createPf2eTerminalSearchService } from "../../src/tui/search-service.js";
 import { Pf2eTerminalAppServicesProvider } from "../../src/tui/app-service-context.js";
 import type { Pf2eTerminalAppServices } from "../../src/tui/app-services.js";
@@ -123,31 +123,44 @@ function createRecord(overrides: Partial<NormalizedRecord> = {}): NormalizedReco
 
 function createServices(
   overrides: {
+    countRecords?: ReturnType<typeof vi.fn>;
     listRecords?: ReturnType<typeof vi.fn>;
     lookup?: ReturnType<typeof vi.fn>;
     search?: ReturnType<typeof vi.fn>;
   } = {},
 ): Pf2eTerminalAppServices {
   const record = createRecord();
+  const countRecords = overrides.countRecords ?? vi.fn(async () => ({
+    searchProfile: "lexical",
+    mode: "lexical" as const,
+    total: 1,
+  } satisfies SearchCountResult));
   const listRecords = overrides.listRecords ?? vi.fn((filters: SearchFilters) => ({
     searchProfile: null,
     mode: "structured" as const,
+    sort: filters.sort ?? "alphabetical",
     total: 1,
     offset: filters.offset ?? 0,
     limit: filters.limit ?? 20,
+    hasMore: false,
+    nextOffset: null,
     records: [record],
   }));
   const lookup = overrides.lookup ?? vi.fn(() => ({ match: record, alternatives: [] }));
   const search = overrides.search ?? vi.fn(async (filters: SearchFilters) => ({
     searchProfile: filters.searchProfile ?? "balanced",
     mode: "hybrid" as const,
+    sort: filters.sort ?? "ranked",
     total: 1,
     offset: filters.offset ?? 0,
     limit: filters.limit ?? 20,
+    hasMore: false,
+    nextOffset: null,
     records: [record],
   }));
 
   const searchService = createPf2eTerminalSearchService({
+    countRecords,
     getSearchVocabulary: () => ({
       categories: [{ value: "spell", count: 1 }],
       subcategories: [],
@@ -195,6 +208,7 @@ function createServices(
   return {
     config: createTestConfig(),
     catalog: {
+      countRecords,
       getRecord: vi.fn(() => record),
       getSearchVocabulary: vi.fn(() => ({}) as never),
       listFilterValues: vi.fn(() => ({ field: "categories", values: [] }) as never),
@@ -236,9 +250,12 @@ describe("search screen", () => {
     const search = vi.fn(async (filters: SearchFilters) => ({
       searchProfile: filters.searchProfile ?? "balanced",
       mode: "hybrid" as const,
+      sort: filters.sort ?? "ranked",
       total: 1,
       offset: 0,
-      limit: filters.limit ?? 20,
+      limit: filters.limit ?? 50,
+      hasMore: false,
+      nextOffset: null,
       records: [createRecord()],
     }));
     const services = createServices({ search });
@@ -252,9 +269,9 @@ describe("search screen", () => {
 
     await flushInk();
     expect(app.lastFrame()).toContain("Browse/Search");
-    expect(app.lastFrame()).toContain("Scope & Filters");
-    expect(app.lastFrame()).toContain("Preview | Run Draft Query");
-    expect(app.lastFrame()).not.toContain("Results | No applied session");
+    expect(app.lastFrame()).toContain("[DRAFT] Scope & Filters");
+    expect(app.lastFrame()).toContain("Draft Status");
+    expect(app.lastFrame()).toContain("Execute Query");
     expect(app.lastFrame()).not.toContain("Profile |");
     expect(app.lastFrame()).not.toContain("Action Cost |");
 
@@ -312,8 +329,8 @@ describe("search screen", () => {
     await flushInk();
     pressUp(app);
     await flushInk();
-    expect(app.lastFrame()).toContain("Run Draft Query");
-    app.stdin.write("\r");
+    expect(app.lastFrame()).toContain("Execute Query");
+    app.stdin.write("\t");
     await flushInk();
     await flushInk();
 
@@ -322,19 +339,21 @@ describe("search screen", () => {
       category: "spell",
       levelMax: undefined,
       levelMin: undefined,
-      limit: 20,
+      limit: 50,
       metadata: undefined,
+      offset: 0,
       query: "ghost",
       rarity: undefined,
       searchProfile: "lexical",
+      sort: "ranked",
+      sortSeed: undefined,
       subcategory: undefined,
     });
     expect(app.lastFrame()).toContain("Draft matches applied query");
-    expect(app.lastFrame()).toContain("1/1 shown");
-    expect(app.lastFrame()).toContain("[RESULTS] 1/1 shown");
+    expect(app.lastFrame()).toContain("1/1 loaded");
+    expect(app.lastFrame()).toContain("[RESULTS] 1/1 loaded | Ranked");
     expect(app.lastFrame()).toContain("Alarm Ward | spell | lvl 1");
     expect(app.lastFrame()).toContain("Preview | Alarm Ward");
-    expect(app.lastFrame()).not.toContain("Result 1 |");
 
     pressRight(app);
     await flushInk();
@@ -342,12 +361,12 @@ describe("search screen", () => {
 
     app.stdin.write("\u001b[D");
     await flushInk();
-    expect(app.lastFrame()).toContain("[RESULTS] 1/1 shown");
+    expect(app.lastFrame()).toContain("[RESULTS] 1/1 loaded | Ranked");
 
     app.stdin.write("\u001b[D");
     await flushInk();
-    expect(app.lastFrame()).toContain("[WORKSPACE] Scope & Filters");
-    expect(app.lastFrame()).not.toContain("[RESULTS] 1/1 shown");
+    expect(app.lastFrame()).toContain("[DRAFT] Scope & Filters");
+    expect(app.lastFrame()).not.toContain("[RESULTS] 1/1 loaded | Ranked");
   });
 
   it("orders filter values from declarative field policies and exposes action cost through facet editing", () => {
@@ -424,14 +443,17 @@ describe("search screen", () => {
     const search = vi.fn(async (filters: SearchFilters) => ({
       searchProfile: filters.searchProfile ?? "balanced",
       mode: "hybrid" as const,
+      sort: filters.sort ?? "ranked",
       total: 1,
       offset: 0,
       limit: filters.limit ?? 20,
+      hasMore: false,
+      nextOffset: null,
       records: [createRecord()],
     }));
     const services = createServices({ search });
 
-    await services.user.search.runQuery({
+    await services.user.search.executeQuery({
       mode: "search",
       limit: 20,
       queryText: "ghost",
@@ -486,9 +508,12 @@ describe("search screen", () => {
           },
         ],
       },
+      offset: 0,
       query: "ghost",
       rarity: undefined,
       searchProfile: "balanced",
+      sort: "ranked",
+      sortSeed: undefined,
       subcategory: undefined,
     });
   });

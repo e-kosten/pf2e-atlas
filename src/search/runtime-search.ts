@@ -26,10 +26,12 @@ import {
 } from "./ranking.js";
 import {
   NormalizedRecord,
+  SearchCountResult,
   SearchExplainResult,
   SearchFilters,
   SearchRecordExplanation,
   SearchResult,
+  SearchSort,
 } from "../types.js";
 import { clampLimit, clampOffset, normalizeText } from "../utils.js";
 import type { RankingConfig } from "./ranking-config.js";
@@ -49,6 +51,69 @@ function nameScore(query: string, record: NormalizedRecord, aliases: string[] = 
 
 function sortRecords(left: NormalizedRecord, right: NormalizedRecord): number {
   return left.name.localeCompare(right.name) || left.packLabel.localeCompare(right.packLabel) || left.id.localeCompare(right.id);
+}
+
+function compareNullableLevel(left: number | null, right: number | null): number {
+  if (left === null && right === null) {
+    return 0;
+  }
+  if (left === null) {
+    return 1;
+  }
+  if (right === null) {
+    return -1;
+  }
+  return left - right;
+}
+
+function hashRecordSortSeed(recordKey: string, seed: number): number {
+  let hash = seed | 0;
+  for (let index = 0; index < recordKey.length; index += 1) {
+    hash = Math.imul(hash ^ recordKey.charCodeAt(index), 16777619);
+  }
+  return hash >>> 0;
+}
+
+function compareRecordsForSort(
+  left: NormalizedRecord,
+  right: NormalizedRecord,
+  sort: SearchSort,
+  sortSeed: number,
+): number {
+  switch (sort) {
+    case "levelAsc":
+      return compareNullableLevel(left.level, right.level) || sortRecords(left, right);
+    case "levelDesc":
+      return compareNullableLevel(right.level, left.level) || sortRecords(left, right);
+    case "random":
+      return (
+        hashRecordSortSeed(left.recordKey, sortSeed) - hashRecordSortSeed(right.recordKey, sortSeed) ||
+        sortRecords(left, right)
+      );
+    case "alphabetical":
+    case "ranked":
+    default:
+      return sortRecords(left, right);
+  }
+}
+
+function createSearchResultPage(
+  options: Omit<SearchResult, "hasMore" | "nextOffset">,
+): SearchResult {
+  const hasMore = options.offset + options.records.length < options.total;
+  return {
+    ...options,
+    hasMore,
+    nextOffset: hasMore ? options.offset + options.records.length : null,
+  };
+}
+
+function createSearchCountResult(result: SearchResult): SearchCountResult {
+  return {
+    searchProfile: result.searchProfile,
+    mode: result.mode,
+    total: result.total,
+  };
 }
 
 function buildFtsQuery(query: string): string | null {
@@ -97,6 +162,8 @@ export function searchStructured(
   const offset = clampOffset(normalizedFilters.offset);
   const mode = resolveSearchMode(normalizedFilters, "search");
   const searchProfile = resolveSearchProfile(normalizedFilters, "search", mode);
+  const sort = normalizedFilters.sort ?? "ranked";
+  const sortSeed = normalizedFilters.sortSeed ?? 0;
   const candidates = deps.fetchCandidates(normalizedFilters);
   const scored = candidates
     .map((candidate) => {
@@ -121,16 +188,22 @@ export function searchStructured(
 
       return true;
     })
-    .sort((left, right) => right.score - left.score || sortRecords(left.record, right.record));
+    .sort((left, right) => {
+      if (sort === "ranked") {
+        return right.score - left.score || sortRecords(left.record, right.record);
+      }
+      return compareRecordsForSort(left.record, right.record, sort, sortSeed);
+    });
 
-  return {
+  return createSearchResultPage({
     searchProfile,
     mode: "structured",
+    sort,
     total: scored.length,
     offset,
     limit,
     records: scored.slice(offset, offset + limit).map(({ record }) => record),
-  };
+  });
 }
 
 export function listRecords(
@@ -139,16 +212,19 @@ export function listRecords(
 ): SearchResult {
   const limit = clampLimit(normalizedFilters.limit);
   const offset = clampOffset(normalizedFilters.offset);
+  const sort = normalizedFilters.sort === "ranked" || !normalizedFilters.sort ? "alphabetical" : normalizedFilters.sort;
+  const sortSeed = normalizedFilters.sortSeed ?? 0;
   const records = deps.fetchCandidates(normalizedFilters).map((row) => deps.decorateRecord(rowToRecord(row)));
-  records.sort((left, right) => sortRecords(left, right));
-  return {
+  records.sort((left, right) => compareRecordsForSort(left, right, sort, sortSeed));
+  return createSearchResultPage({
     searchProfile: null,
     mode: "structured",
+    sort,
     total: records.length,
     offset,
     limit,
     records: records.slice(offset, offset + limit),
-  };
+  });
 }
 
 export async function search(
@@ -160,6 +236,8 @@ export async function search(
   const offset = clampOffset(normalizedFilters.offset);
   const mode = resolveSearchMode(normalizedFilters, "search");
   const searchProfile = resolveSearchProfile(normalizedFilters, "search", mode);
+  const sort = normalizedFilters.sort ?? "ranked";
+  const sortSeed = normalizedFilters.sortSeed ?? 0;
   const rawSemanticQuery = normalizedFilters.query?.trim() || "";
   const rawLexicalQuery = normalizedFilters.query?.trim() || normalizedFilters.nameQuery?.trim() || "";
   const rawExcludeQuery = normalizedFilters.excludeQuery?.trim() || "";
@@ -248,7 +326,12 @@ export async function search(
 
           return true;
         })
-        .sort((left, right) => right.totalScore - left.totalScore || sortRecords(left.record, right.record));
+        .sort((left, right) => {
+          if (sort === "ranked") {
+            return right.totalScore - left.totalScore || sortRecords(left.record, right.record);
+          }
+          return compareRecordsForSort(left.record, right.record, sort, sortSeed);
+        });
     }
 
     if (mode === "lexical") {
@@ -288,12 +371,15 @@ export async function search(
           return true;
         })
         .sort((left, right) => {
-          return (
-            right.totalScore - left.totalScore ||
-            right.lexicalRerankScore - left.lexicalRerankScore ||
-            compareOptionalRanks(left.lexicalRank, right.lexicalRank) ||
-            sortRecords(left.record, right.record)
-          );
+          if (sort === "ranked") {
+            return (
+              right.totalScore - left.totalScore ||
+              right.lexicalRerankScore - left.lexicalRerankScore ||
+              compareOptionalRanks(left.lexicalRank, right.lexicalRank) ||
+              sortRecords(left.record, right.record)
+            );
+          }
+          return compareRecordsForSort(left.record, right.record, sort, sortSeed);
         });
     }
 
@@ -362,14 +448,17 @@ export async function search(
         };
       })
       .sort((left, right) => {
-        return (
-          right.totalScore - left.totalScore ||
-          right.fusionScore - left.fusionScore ||
-          compareOptionalRanks(left.semanticRank, right.semanticRank) ||
-          compareOptionalRanks(left.lexicalRank, right.lexicalRank) ||
-          right.lexicalRerankScore - left.lexicalRerankScore ||
-          sortRecords(left.record, right.record)
-        );
+        if (sort === "ranked") {
+          return (
+            right.totalScore - left.totalScore ||
+            right.fusionScore - left.fusionScore ||
+            compareOptionalRanks(left.semanticRank, right.semanticRank) ||
+            compareOptionalRanks(left.lexicalRank, right.lexicalRank) ||
+            right.lexicalRerankScore - left.lexicalRerankScore ||
+            sortRecords(left.record, right.record)
+          );
+        }
+        return compareRecordsForSort(left.record, right.record, sort, sortSeed);
       });
   })();
 
@@ -402,15 +491,31 @@ export async function search(
       }
     : undefined;
 
-  return {
+  return createSearchResultPage({
     searchProfile,
     mode,
+    sort,
     total: scored.length,
     offset,
     limit,
     records: page.map(({ record }) => record),
     explain,
-  };
+  });
+}
+
+export function countStructuredSearch(
+  normalizedFilters: NormalizedSearchFilters,
+  deps: RuntimeSearchDependencies,
+): SearchCountResult {
+  return createSearchCountResult(searchStructured(normalizedFilters, deps));
+}
+
+export function countSearchResults(
+  filters: SearchFilters,
+  normalizedFilters: NormalizedSearchFilters,
+  deps: RuntimeSearchDependencies,
+): Promise<SearchCountResult> {
+  return search(filters, normalizedFilters, deps).then((result) => createSearchCountResult(result));
 }
 
 export function lookup(

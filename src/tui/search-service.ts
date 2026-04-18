@@ -18,10 +18,12 @@ import type {
   NormalizedRecord,
   OntologyNodeQuery,
   SearchCategory,
+  SearchCountResult,
   SearchFilters,
   SearchMode,
   SearchProfile,
   SearchResult,
+  SearchSort,
   SearchSubcategory,
 } from "../types.js";
 import type { SearchVocabularyResult } from "../data/vocabulary.js";
@@ -46,6 +48,12 @@ export type Pf2eTerminalSearchProfileOption = {
 
 export type Pf2eTerminalSearchModeOption = {
   value: Pf2eTerminalSearchMode;
+  label: string;
+  description: string;
+};
+
+export type Pf2eTerminalSearchSortOption = {
+  value: Pf2eTerminalSearchSort;
   label: string;
   description: string;
 };
@@ -78,6 +86,7 @@ export type Pf2eTerminalFacetSelection = {
 export type Pf2eTerminalFacetField = MetadataFieldSemantics["field"];
 
 export type Pf2eTerminalSearchMode = "browse" | "search" | "lookup";
+export type Pf2eTerminalSearchSort = SearchSort;
 
 export type Pf2eTerminalSearchFilters = {
   category: SearchCategory | null;
@@ -103,12 +112,22 @@ export type Pf2eTerminalSearchSession = {
   results: NormalizedRecord[];
   resultMode: SearchMode;
   total: number;
+  loadedCount: number;
+  hasMore: boolean;
+  nextOffset: number | null;
   searchProfile: SearchProfile | null;
+  sort: Pf2eTerminalSearchSort;
+  sortSeed: number | null;
 };
 
 export type Pf2eTerminalSearchService = {
   createDefaultRequest: () => Pf2eTerminalSearchRequest;
   createRequestFromOntologyQuery: (query: OntologyNodeQuery) => Pf2eTerminalSearchRequest;
+  countQuery: (request: Pf2eTerminalSearchRequest) => Promise<SearchCountResult>;
+  executeQuery: (
+    request: Pf2eTerminalSearchRequest,
+    options?: { sort?: Pf2eTerminalSearchSort; limit?: number },
+  ) => Promise<Pf2eTerminalSearchSession>;
   getActionCostOptions: (
     category: SearchCategory | null,
     subcategory: SearchSubcategory | null,
@@ -124,17 +143,27 @@ export type Pf2eTerminalSearchService = {
     subcategory: SearchSubcategory | null,
   ) => Pf2eTerminalFacetValueOption[];
   getProfileOptions: () => Pf2eTerminalSearchProfileOption[];
+  getResultSortOptions: (mode: Pf2eTerminalSearchMode) => Pf2eTerminalSearchSortOption[];
   getRarityOptions: (
     category: SearchCategory | null,
     subcategory: SearchSubcategory | null,
   ) => Pf2eTerminalFacetValueOption[];
   getSubcategoryOptions: (category: SearchCategory | null) => Pf2eTerminalSearchSubcategoryOption[];
   getModeOptions: () => Pf2eTerminalSearchModeOption[];
+  getDefaultSort: (mode: Pf2eTerminalSearchMode) => Pf2eTerminalSearchSort;
+  loadMore: (session: Pf2eTerminalSearchSession) => Promise<Pf2eTerminalSearchSession>;
   normalizeRequest: (request: Pf2eTerminalSearchRequest) => Pf2eTerminalSearchRequest;
-  runQuery: (request: Pf2eTerminalSearchRequest) => Promise<Pf2eTerminalSearchSession>;
+  changeSort: (
+    session: Pf2eTerminalSearchSession,
+    sort: Pf2eTerminalSearchSort,
+  ) => Promise<Pf2eTerminalSearchSession>;
 };
 
 type SearchServiceDependencies = {
+  countRecords: (
+    filters: SearchFilters,
+    options?: { mode?: "browse" | "search" | "lookup"; lexicalOnly?: boolean },
+  ) => Promise<SearchCountResult>;
   getSearchVocabulary: () => SearchVocabularyResult;
   listFilterValues: (query: {
     field: MetadataFieldName | "actionCost" | "rarity";
@@ -184,6 +213,85 @@ const SEARCH_MODE_OPTIONS: Pf2eTerminalSearchModeOption[] = [
     description: "Exact or near-exact name lookup within the current category boundaries.",
   },
 ];
+
+const SEARCH_SORT_OPTIONS: Record<Pf2eTerminalSearchMode, Pf2eTerminalSearchSortOption[]> = {
+  browse: [
+    {
+      value: "alphabetical",
+      label: "Alphabetical",
+      description: "Read deterministic browse results in name order.",
+    },
+    {
+      value: "levelAsc",
+      label: "Level Low-High",
+      description: "Read results from lowest level to highest level.",
+    },
+    {
+      value: "levelDesc",
+      label: "Level High-Low",
+      description: "Read results from highest level to lowest level.",
+    },
+    {
+      value: "random",
+      label: "Random",
+      description: "Shuffle browse results into a stable random session order.",
+    },
+  ],
+  search: [
+    {
+      value: "ranked",
+      label: "Ranked",
+      description: "Keep the current search profile's relevance order.",
+    },
+    {
+      value: "alphabetical",
+      label: "Alphabetical",
+      description: "Read matched results in name order.",
+    },
+    {
+      value: "levelAsc",
+      label: "Level Low-High",
+      description: "Read matched results from lowest level to highest level.",
+    },
+    {
+      value: "levelDesc",
+      label: "Level High-Low",
+      description: "Read matched results from highest level to lowest level.",
+    },
+    {
+      value: "random",
+      label: "Random",
+      description: "Shuffle matched results into a stable random session order.",
+    },
+  ],
+  lookup: [
+    {
+      value: "ranked",
+      label: "Closest Match",
+      description: "Keep the best name-match ordering for lookup results.",
+    },
+    {
+      value: "alphabetical",
+      label: "Alphabetical",
+      description: "Read lookup matches in name order.",
+    },
+    {
+      value: "levelAsc",
+      label: "Level Low-High",
+      description: "Read lookup matches from lowest level to highest level.",
+    },
+    {
+      value: "levelDesc",
+      label: "Level High-Low",
+      description: "Read lookup matches from highest level to lowest level.",
+    },
+    {
+      value: "random",
+      label: "Random",
+      description: "Shuffle lookup matches into a stable random session order.",
+    },
+  ],
+};
 
 const FACET_FIELD_EXCLUSIONS = new Set<Pf2eTerminalFacetField>(["rarity"]);
 
@@ -257,12 +365,24 @@ function createDefaultFilters(): Pf2eTerminalSearchFilters {
 function createDefaultRequest(): Pf2eTerminalSearchRequest {
   return {
     mode: "browse",
-    limit: 20,
+    limit: 50,
     queryText: "",
     searchProfile: "balanced",
     sourceLabel: null,
     filters: createDefaultFilters(),
   };
+}
+
+function getDefaultSort(mode: Pf2eTerminalSearchMode): Pf2eTerminalSearchSort {
+  return mode === "browse" ? "alphabetical" : "ranked";
+}
+
+function createSortSeed(sort: Pf2eTerminalSearchSort): number | null {
+  if (sort !== "random") {
+    return null;
+  }
+
+  return Math.trunc(Date.now() % 2147483647);
 }
 
 function compareFacetSelections(
@@ -566,6 +686,15 @@ function buildMetadataFilter(
 function buildSearchFilters(
   request: Pf2eTerminalSearchRequest,
   fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
+  options: {
+    limit?: number;
+    offset?: number;
+    query?: string;
+    nameQuery?: string;
+    searchProfile?: SearchProfile;
+    sort?: SearchSort;
+    sortSeed?: number | null;
+  } = {},
 ): SearchFilters {
   const metadataClauses = [
     ...buildDiscreteFilterNodes(request),
@@ -586,7 +715,13 @@ function buildSearchFilters(
     rarity: undefined,
     actionCost: undefined,
     metadata,
-    limit: request.limit,
+    limit: options.limit ?? request.limit,
+    offset: options.offset ?? 0,
+    query: options.query,
+    nameQuery: options.nameQuery,
+    searchProfile: options.searchProfile,
+    sort: options.sort,
+    sortSeed: options.sortSeed ?? undefined,
   };
 }
 
@@ -727,6 +862,64 @@ export function createPf2eTerminalSearchService(
     return fieldSemanticsByName.get(field)?.valueOrdering;
   }
 
+  async function fetchSearchResultPage(
+    request: Pf2eTerminalSearchRequest,
+    options: {
+      sort: Pf2eTerminalSearchSort;
+      sortSeed: number | null;
+      limit: number;
+      offset?: number;
+    },
+  ): Promise<SearchResult> {
+    const offset = options.offset ?? 0;
+    if (request.mode === "browse") {
+      return dependencies.listRecords(buildSearchFilters(request, fieldSemanticsByName, {
+        limit: options.limit,
+        offset,
+        sort: options.sort,
+        sortSeed: options.sortSeed,
+      }));
+    }
+
+    if (request.mode === "lookup") {
+      return dependencies.search(buildSearchFilters(request, fieldSemanticsByName, {
+        limit: options.limit,
+        offset,
+        nameQuery: request.queryText,
+        sort: options.sort,
+        sortSeed: options.sortSeed,
+      }));
+    }
+
+    return dependencies.search(buildSearchFilters(request, fieldSemanticsByName, {
+      limit: options.limit,
+      offset,
+      query: request.queryText,
+      searchProfile: request.searchProfile,
+      sort: options.sort,
+      sortSeed: options.sortSeed,
+    }));
+  }
+
+  function createSessionFromResult(
+    request: Pf2eTerminalSearchRequest,
+    result: SearchResult,
+    sortSeed: number | null,
+  ): Pf2eTerminalSearchSession {
+    return {
+      request,
+      results: result.records,
+      resultMode: result.mode,
+      total: result.total,
+      loadedCount: result.records.length,
+      hasMore: result.hasMore,
+      nextOffset: result.nextOffset,
+      searchProfile: result.searchProfile,
+      sort: result.sort,
+      sortSeed,
+    };
+  }
+
   return {
     createDefaultRequest: () => createDefaultRequest(),
     createRequestFromOntologyQuery: (query) => {
@@ -829,6 +1022,7 @@ export function createPf2eTerminalSearchService(
         },
       ),
     getProfileOptions: () => SEARCH_PROFILE_OPTIONS,
+    getResultSortOptions: (mode) => SEARCH_SORT_OPTIONS[mode],
     getRarityOptions: (category, subcategory) =>
       createFacetValueOptions(
         dependencies.listFilterValues({
@@ -863,41 +1057,86 @@ export function createPf2eTerminalSearchService(
       ];
     },
     getModeOptions: () => SEARCH_MODE_OPTIONS,
+    getDefaultSort: (mode) => getDefaultSort(mode),
     normalizeRequest: (request) => normalizeRequest(request, fieldSemanticsByName),
-    runQuery: async (request) => {
+    countQuery: async (request) => {
       const normalizedRequest = normalizeRequest(request, fieldSemanticsByName);
       if (normalizedRequest.mode === "lookup") {
-        const lookupOptions: LookupOptions | undefined = normalizedRequest.filters.category || normalizedRequest.filters.subcategory
-          ? {
-            ...(normalizedRequest.filters.category ? { category: normalizedRequest.filters.category } : {}),
-            ...(normalizedRequest.filters.subcategory ? { subcategory: normalizedRequest.filters.subcategory } : {}),
-          }
-          : undefined;
-        const lookup = dependencies.lookup(normalizedRequest.queryText, lookupOptions);
-        return {
-          request: normalizedRequest,
-          results: lookup.match ? [lookup.match, ...lookup.alternatives] : [],
-          resultMode: "lexical",
-          total: lookup.match ? 1 + lookup.alternatives.length : 0,
-          searchProfile: null,
-        };
+        if (!normalizedRequest.queryText) {
+          return {
+            searchProfile: null,
+            mode: "structured",
+            total: 0,
+          };
+        }
+        return dependencies.countRecords(
+          buildSearchFilters(normalizedRequest, fieldSemanticsByName, {
+            limit: 1,
+            nameQuery: normalizedRequest.queryText,
+          }),
+          { mode: "lookup" },
+        );
       }
 
-      const filters = buildSearchFilters(normalizedRequest, fieldSemanticsByName);
-      const result = normalizedRequest.mode === "browse"
-        ? dependencies.listRecords(filters)
-        : await dependencies.search({
-          ...filters,
+      if (normalizedRequest.mode === "browse" || !normalizedRequest.queryText) {
+        return dependencies.countRecords(
+          buildSearchFilters(normalizedRequest, fieldSemanticsByName, { limit: 1 }),
+          { mode: "browse" },
+        );
+      }
+
+      return dependencies.countRecords(
+        buildSearchFilters(normalizedRequest, fieldSemanticsByName, {
+          limit: 1,
           query: normalizedRequest.queryText,
           searchProfile: normalizedRequest.searchProfile,
-        });
+        }),
+        { mode: "search", lexicalOnly: true },
+      );
+    },
+    executeQuery: async (request, options = {}) => {
+      const normalizedRequest = normalizeRequest(request, fieldSemanticsByName);
+      const sort = options.sort ?? getDefaultSort(normalizedRequest.mode);
+      const sortSeed = sort === "random" ? createSortSeed(sort) : null;
+      const limit = options.limit ?? normalizedRequest.limit;
+      const result = await fetchSearchResultPage(normalizedRequest, {
+        sort,
+        sortSeed,
+        limit,
+      });
+      return createSessionFromResult(normalizedRequest, result, sortSeed);
+    },
+    loadMore: async (session) => {
+      if (!session.hasMore || session.nextOffset === null) {
+        return session;
+      }
+
+      const result = await fetchSearchResultPage(session.request, {
+        sort: session.sort,
+        sortSeed: session.sortSeed,
+        limit: session.request.limit,
+        offset: session.nextOffset,
+      });
+
       return {
-        request: normalizedRequest,
-        results: result.records,
-        resultMode: result.mode,
+        ...session,
+        results: [...session.results, ...result.records],
         total: result.total,
+        loadedCount: session.results.length + result.records.length,
+        hasMore: result.hasMore,
+        nextOffset: result.nextOffset,
+        resultMode: result.mode,
         searchProfile: result.searchProfile,
       };
+    },
+    changeSort: async (session, sort) => {
+      const sortSeed = sort === "random" ? createSortSeed(sort) : null;
+      const result = await fetchSearchResultPage(session.request, {
+        sort,
+        sortSeed,
+        limit: Math.max(session.request.limit, session.loadedCount),
+      });
+      return createSessionFromResult(session.request, result, sortSeed);
     },
   };
 }

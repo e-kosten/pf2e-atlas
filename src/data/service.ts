@@ -29,6 +29,7 @@ import {
   NormalizedRecord,
   PackInfo,
   RuleGraphCollectionResult,
+  SearchCountResult,
   SearchFilters,
   SearchResult,
 } from "../types.js";
@@ -72,6 +73,8 @@ import {
   getRuleGraph as getRuleGraphRuntime,
 } from "./rule-runtime.js";
 import {
+  countSearchResults as countSearchResultsRuntime,
+  countStructuredSearch as countStructuredSearchRuntime,
   listRecords as listRecordsRuntime,
   lookup as lookupRuntime,
   search as searchRuntime,
@@ -575,6 +578,41 @@ export class Pf2eDataService {
     const normalizedFilters = this.normalizeSearchFilters(filters);
     validateFilters(normalizedFilters, "list");
     return listRecordsRuntime(normalizedFilters, this.runtimeSearchDependencies());
+  }
+
+  async countRecords(
+    filters: SearchFilters,
+    options: { mode?: "browse" | "search" | "lookup"; lexicalOnly?: boolean } = {},
+  ): Promise<SearchCountResult> {
+    const mode = options.mode ?? "search";
+
+    if (mode === "browse") {
+      const normalizedFilters = this.normalizeSearchFilters({
+        ...filters,
+        offset: 0,
+        limit: 1,
+      });
+      validateFilters(normalizedFilters, "list");
+      return countStructuredSearchRuntime(normalizedFilters, this.runtimeSearchDependencies());
+    }
+
+    const searchFilters: SearchFilters = {
+      ...filters,
+      offset: 0,
+      limit: 1,
+    };
+    if (options.lexicalOnly && searchFilters.query?.trim()) {
+      searchFilters.searchProfile = "lexical";
+    }
+
+    const normalizedFilters = this.normalizeSearchFilters(searchFilters);
+    validateFilters(normalizedFilters, "search");
+
+    if (mode === "lookup") {
+      return countStructuredSearchRuntime(normalizedFilters, this.runtimeSearchDependencies());
+    }
+
+    return countSearchResultsRuntime(searchFilters, normalizedFilters, this.runtimeSearchDependencies());
   }
 
   async search(filters: SearchFilters): Promise<SearchResult> {

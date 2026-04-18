@@ -1621,4 +1621,49 @@ describe("Pf2eDataService / Search and Lookup", () => {
     expect(animatedArmor?.derivedTags).toContain("animated_object");
     expect(animatedArmor?.derivedTags).not.toContain("bound_object");
   });
+
+  it("supports paged result windows, manual sorts, and live count queries", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+
+    const service = await loadTestService(fixture);
+
+    const alphabeticalPage = service.listRecords({
+      category: "spell",
+      sort: "alphabetical",
+      limit: 2,
+    });
+    expect(alphabeticalPage.sort).toBe("alphabetical");
+    expect(alphabeticalPage.hasMore).toBe(true);
+    expect(alphabeticalPage.nextOffset).toBe(2);
+    expect(alphabeticalPage.records).toHaveLength(2);
+
+    const nextAlphabeticalPage = service.listRecords({
+      category: "spell",
+      sort: "alphabetical",
+      limit: 2,
+      offset: alphabeticalPage.nextOffset ?? 0,
+    });
+    expect(nextAlphabeticalPage.records[0]?.name).not.toBe(alphabeticalPage.records[0]?.name);
+
+    const levelDesc = service.listRecords({
+      category: "spell",
+      sort: "levelDesc",
+      limit: 5,
+    });
+    expect(levelDesc.sort).toBe("levelDesc");
+    expect((levelDesc.records[0]?.level ?? -1) >= (levelDesc.records[1]?.level ?? -1)).toBe(true);
+
+    const lexicalCount = await service.countRecords({
+      category: "creature",
+      query: "ghost",
+    }, { mode: "search", lexicalOnly: true });
+    expect(lexicalCount.mode).toBe("lexical");
+    expect(lexicalCount.total).toBeGreaterThan(0);
+
+    const browseCount = await service.countRecords({
+      category: "spell",
+    }, { mode: "browse" });
+    expect(browseCount.total).toBe(service.listRecords({ category: "spell", limit: 1 }).total);
+  });
 });

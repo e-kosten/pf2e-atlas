@@ -115,7 +115,7 @@ function createFakeServices(overrides: Partial<Pf2eTerminalAppServices> = {}): P
   const record = createRecord();
   const defaultRequest = {
     mode: "browse" as const,
-    limit: 20,
+    limit: 50,
     queryText: "",
     searchProfile: "balanced" as const,
     sourceLabel: null,
@@ -140,24 +140,35 @@ function createFakeServices(overrides: Partial<Pf2eTerminalAppServices> = {}): P
   return {
     config: createTestConfig(),
     catalog: {
+      countRecords: vi.fn(async () => ({
+        searchProfile: "lexical",
+        mode: "lexical",
+        total: 1,
+      })),
       getRecord: vi.fn(() => record),
       getSearchVocabulary: vi.fn(() => ({}) as never),
       listFilterValues: vi.fn(() => ({ field: "categories", values: [] }) as never),
       listRecords: vi.fn(() => ({
         searchProfile: null,
         mode: "structured",
+        sort: "alphabetical",
         total: 1,
         offset: 0,
         limit: 20,
+        hasMore: false,
+        nextOffset: null,
         records: [record],
       })),
       lookup: vi.fn(() => ({ match: record, alternatives: [] })),
       search: vi.fn(async () => ({
         searchProfile: "balanced",
         mode: "hybrid",
+        sort: "ranked",
         total: 1,
         offset: 0,
         limit: 20,
+        hasMore: false,
+        nextOffset: null,
         records: [record],
       })),
     },
@@ -196,14 +207,34 @@ function createFakeServices(overrides: Partial<Pf2eTerminalAppServices> = {}): P
         ]),
         getFacetFieldOptions: vi.fn(() => []),
         getFacetValueOptions: vi.fn(() => []),
+        getResultSortOptions: vi.fn(() => [
+          {
+            value: "alphabetical",
+            label: "Alphabetical",
+            description: "Read matched results in name order.",
+          },
+        ]),
         normalizeRequest: vi.fn((request) => request),
-        runQuery: vi.fn(async (request) => ({
+        getDefaultSort: vi.fn(() => "alphabetical"),
+        countQuery: vi.fn(async () => ({
+          searchProfile: "lexical",
+          mode: "lexical",
+          total: 1,
+        })),
+        executeQuery: vi.fn(async (request) => ({
           request,
           results: [record],
           resultMode: request.mode === "browse" ? "structured" : "hybrid",
           total: 1,
+          loadedCount: 1,
+          hasMore: false,
+          nextOffset: null,
           searchProfile: request.mode === "lookup" ? null : request.searchProfile,
+          sort: "alphabetical",
+          sortSeed: null,
         })),
+        loadMore: vi.fn(async (session) => session),
+        changeSort: vi.fn(async (session) => session),
       },
       ontology: {
         listDomains: vi.fn(() => [
