@@ -247,10 +247,7 @@ const ANIMAL_FORM_TEXT_ANCHORS = [
   patternAnchor("dinosaur battle form"),
 ];
 
-const ELEMENTAL_FORM_TEXT_ANCHORS = [
-  patternAnchor("elemental form"),
-  patternAnchor("elemental battle form"),
-];
+const ELEMENTAL_FORM_TEXT_ANCHORS = [patternAnchor("elemental form"), patternAnchor("elemental battle form")];
 
 const SPELL_MENTAL_IMPAIRMENT_TEXT_ANCHORS = [
   patternAnchor("frightened"),
@@ -717,9 +714,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
     tag: "stealth_support",
     category: "spell",
     threshold: 2,
-    anyOf: [
-      { score: 2, textAny: SPELL_STEALTH_SUPPORT_TEXT_ANCHORS },
-    ],
+    anyOf: [{ score: 2, textAny: SPELL_STEALTH_SUPPORT_TEXT_ANCHORS }],
   },
   {
     tag: "disguise",
@@ -739,35 +734,24 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         ],
       },
     ],
-    noneOf: [
-      { textAny: SPELL_DISGUISE_BLOCKER_TEXT_ANCHORS },
-    ],
+    noneOf: [{ textAny: SPELL_DISGUISE_BLOCKER_TEXT_ANCHORS }],
   },
   {
     tag: "social_infiltration",
     category: "spell",
     requiresTags: ["disguise"],
-    anyOf: [
-      { textAny: SOCIAL_INFILTRATION_TEXT_ANCHORS },
-      { textAny: SPELL_DISGUISE_TEXT_ANCHORS },
-    ],
-    noneOf: [
-      { textAny: SPELL_DISGUISE_BLOCKER_TEXT_ANCHORS },
-    ],
+    anyOf: [{ textAny: SOCIAL_INFILTRATION_TEXT_ANCHORS }, { textAny: SPELL_DISGUISE_TEXT_ANCHORS }],
+    noneOf: [{ textAny: SPELL_DISGUISE_BLOCKER_TEXT_ANCHORS }],
   },
   {
     tag: "social_infiltration",
     category: "spell",
-    anyOf: [
-      { textAny: SPELL_SOCIAL_INFILTRATION_TEXT_ANCHORS },
-    ],
+    anyOf: [{ textAny: SPELL_SOCIAL_INFILTRATION_TEXT_ANCHORS }],
   },
   {
     tag: "social_infiltration",
     category: "spell",
-    allOf: [
-      { textAny: [patternAnchor("mask", "name"), patternAnchor("mask", "description")] },
-    ],
+    allOf: [{ textAny: [patternAnchor("mask", "name"), patternAnchor("mask", "description")] }],
     anyOf: [
       {
         textNear: [
@@ -798,9 +782,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
       { score: 1, textAny: SIGNALING_NAME_ANCHORS },
       { score: 2, textAny: SIGNALING_TEXT_ANCHORS },
     ],
-    noneOf: [
-      { textAny: ALARM_STRONG_TEXT_ANCHORS },
-    ],
+    noneOf: [{ textAny: ALARM_STRONG_TEXT_ANCHORS }],
   },
   {
     tag: "message_delivery",
@@ -813,19 +795,14 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            all: [
-              patternAnchor("message"),
-              patternAnchor("{{alt(mental,whisper,note,respond,response)}}"),
-            ],
+            all: [patternAnchor("message"), patternAnchor("{{alt(mental,whisper,note,respond,response)}}")],
             window: 6,
             scope: "description",
           },
         ],
       },
     ],
-    noneOf: [
-      { textAny: MESSAGE_DELIVERY_BLOCKER_TEXT_ANCHORS },
-    ],
+    noneOf: [{ textAny: MESSAGE_DELIVERY_BLOCKER_TEXT_ANCHORS }],
   },
   {
     tag: "scouting",
@@ -837,10 +814,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
       { score: 2, textAny: SPELL_SCOUTING_TEXT_ANCHORS },
       {
         score: 2,
-        textAll: [
-          patternAnchor("senses"),
-          patternAnchor("through"),
-        ],
+        textAll: [patternAnchor("senses"), patternAnchor("through")],
         textAny: [
           patternAnchor("through the ear"),
           patternAnchor("through its eyes"),
@@ -848,9 +822,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         ],
       },
     ],
-    noneOf: [
-      { textAny: SPELL_SCOUTING_BLOCKER_TEXT_ANCHORS },
-    ],
+    noneOf: [{ textAny: SPELL_SCOUTING_BLOCKER_TEXT_ANCHORS }],
   },
   {
     tag: "senses_support",
@@ -872,9 +844,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         ],
       },
     ],
-    noneOf: [
-      { textAny: SPELL_SENSES_SUPPORT_BLOCKER_TEXT_ANCHORS },
-    ],
+    noneOf: [{ textAny: SPELL_SENSES_SUPPORT_BLOCKER_TEXT_ANCHORS }],
   },
   {
     tag: "illumination",
@@ -927,9 +897,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         ],
       },
     ],
-    noneOf: [
-      { textAny: SPELL_MOBILITY_BLOCKER_TEXT_ANCHORS },
-    ],
+    noneOf: [{ textAny: SPELL_MOBILITY_BLOCKER_TEXT_ANCHORS }],
   },
   {
     tag: "mental_impairment",
@@ -952,9 +920,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         ],
       },
     ],
-    noneOf: [
-      { textAny: SPELL_MENTAL_IMPAIRMENT_BLOCKER_TEXT_ANCHORS },
-    ],
+    noneOf: [{ textAny: SPELL_MENTAL_IMPAIRMENT_BLOCKER_TEXT_ANCHORS }],
   },
   {
     tag: "sensory_impairment",
@@ -976,9 +942,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         ],
       },
     ],
-    noneOf: [
-      { textAny: SPELL_SENSORY_IMPAIRMENT_BLOCKER_TEXT_ANCHORS },
-    ],
+    noneOf: [{ textAny: SPELL_SENSORY_IMPAIRMENT_BLOCKER_TEXT_ANCHORS }],
   },
   {
     tag: "forced_movement",
@@ -1000,9 +964,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         ],
       },
     ],
-    noneOf: [
-      { textAny: SPELL_MOBILITY_BLOCKER_TEXT_ANCHORS },
-    ],
+    noneOf: [{ textAny: SPELL_MOBILITY_BLOCKER_TEXT_ANCHORS }],
   },
   {
     tag: "restraint_capture",
@@ -1024,9 +986,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         ],
       },
     ],
-    noneOf: [
-      { textAny: SPELL_RESTRAINT_CAPTURE_BLOCKER_TEXT_ANCHORS },
-    ],
+    noneOf: [{ textAny: SPELL_RESTRAINT_CAPTURE_BLOCKER_TEXT_ANCHORS }],
   },
   {
     tag: "fear_pressure",
@@ -1050,9 +1010,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         ],
       },
     ],
-    noneOf: [
-      { textAny: FEAR_PRESSURE_BLOCKER_TEXT_ANCHORS },
-    ],
+    noneOf: [{ textAny: FEAR_PRESSURE_BLOCKER_TEXT_ANCHORS }],
   },
   {
     tag: "concealment",
@@ -1061,7 +1019,17 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
     anyOf: [
       { score: 1, traitsAny: ["illusion", "shadow"] },
       { score: 1, textAny: CONCEALMENT_NAME_ANCHORS },
-      { score: 1, textAny: [patternAnchor("veil"), patternAnchor("conceal"), patternAnchor("concealed"), patternAnchor("undetected"), patternAnchor("invisible"), patternAnchor("hidden")] },
+      {
+        score: 1,
+        textAny: [
+          patternAnchor("veil"),
+          patternAnchor("conceal"),
+          patternAnchor("concealed"),
+          patternAnchor("undetected"),
+          patternAnchor("invisible"),
+          patternAnchor("hidden"),
+        ],
+      },
       { score: 2, textAny: CONCEALMENT_TEXT_ANCHORS },
       {
         score: 2,
@@ -1077,9 +1045,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         ],
       },
     ],
-    noneOf: [
-      { textAny: CONCEALMENT_BLOCKER_TEXT_ANCHORS },
-    ],
+    noneOf: [{ textAny: CONCEALMENT_BLOCKER_TEXT_ANCHORS }],
   },
   {
     tag: "line_of_sight_control",
@@ -1115,7 +1081,9 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         textNear: [
           {
             all: [
-              patternAnchor("{{alt(difficult terrain,wall,barrier,cage,obstacle,obstacles,entangle,web,grease,passage,prison)}}"),
+              patternAnchor(
+                "{{alt(difficult terrain,wall,barrier,cage,obstacle,obstacles,entangle,web,grease,passage,prison)}}",
+              ),
               patternAnchor("{{alt(movement,hindering,blocks passage,slow pursuit)}}"),
             ],
             window: 7,
@@ -1160,7 +1128,13 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
       },
     ],
     noneOf: [
-      { textAny: [patternAnchor("without affecting"), patternAnchor("without effect on"), patternAnchor("does not affect")] },
+      {
+        textAny: [
+          patternAnchor("without affecting"),
+          patternAnchor("without effect on"),
+          patternAnchor("does not affect"),
+        ],
+      },
     ],
   },
   {
@@ -1184,9 +1158,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         ],
       },
     ],
-    noneOf: [
-      { textAny: SPELL_MOBILITY_BLOCKER_TEXT_ANCHORS },
-    ],
+    noneOf: [{ textAny: SPELL_MOBILITY_BLOCKER_TEXT_ANCHORS }],
   },
   {
     tag: "aquatic_support",
@@ -1295,9 +1267,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         ],
       },
     ],
-    noneOf: [
-      { textAny: TRANSFORMATION_BLOCKER_TEXT_ANCHORS },
-    ],
+    noneOf: [{ textAny: TRANSFORMATION_BLOCKER_TEXT_ANCHORS }],
   },
   {
     tag: "battle_form",
@@ -1317,9 +1287,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         ],
       },
     ],
-    noneOf: [
-      { textAny: TRANSFORMATION_BLOCKER_TEXT_ANCHORS },
-    ],
+    noneOf: [{ textAny: TRANSFORMATION_BLOCKER_TEXT_ANCHORS }],
   },
   {
     tag: "animal_form",
@@ -1339,9 +1307,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         ],
       },
     ],
-    noneOf: [
-      { textAny: TRANSFORMATION_BLOCKER_TEXT_ANCHORS },
-    ],
+    noneOf: [{ textAny: TRANSFORMATION_BLOCKER_TEXT_ANCHORS }],
   },
   {
     tag: "elemental_form",
@@ -1361,9 +1327,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         ],
       },
     ],
-    noneOf: [
-      { textAny: TRANSFORMATION_BLOCKER_TEXT_ANCHORS },
-    ],
+    noneOf: [{ textAny: TRANSFORMATION_BLOCKER_TEXT_ANCHORS }],
   },
   {
     tag: "temporary_hp_support",
@@ -1379,9 +1343,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         ],
       },
     ],
-    noneOf: [
-      { textAny: BATTLE_FORM_TEXT_ANCHORS },
-    ],
+    noneOf: [{ textAny: BATTLE_FORM_TEXT_ANCHORS }],
   },
   {
     tag: "healing_support",
@@ -1460,49 +1422,37 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
     tag: "anti_poison",
     category: "spell",
     threshold: 2,
-    anyOf: [
-      { score: 2, textAny: ANTI_POISON_TEXT_ANCHORS },
-    ],
+    anyOf: [{ score: 2, textAny: ANTI_POISON_TEXT_ANCHORS }],
   },
   {
     tag: "anti_disease",
     category: "spell",
     threshold: 2,
-    anyOf: [
-      { score: 2, textAny: ANTI_DISEASE_TEXT_ANCHORS },
-    ],
+    anyOf: [{ score: 2, textAny: ANTI_DISEASE_TEXT_ANCHORS }],
   },
   {
     tag: "anti_paralysis",
     category: "spell",
     threshold: 2,
-    anyOf: [
-      { score: 2, textAny: ANTI_PARALYSIS_TEXT_ANCHORS },
-    ],
+    anyOf: [{ score: 2, textAny: ANTI_PARALYSIS_TEXT_ANCHORS }],
   },
   {
     tag: "anti_petrification",
     category: "spell",
     threshold: 2,
-    anyOf: [
-      { score: 2, textAny: ANTI_PETRIFICATION_TEXT_ANCHORS },
-    ],
+    anyOf: [{ score: 2, textAny: ANTI_PETRIFICATION_TEXT_ANCHORS }],
   },
   {
     tag: "anti_bleed",
     category: "spell",
     threshold: 2,
-    anyOf: [
-      { score: 2, textAny: ANTI_BLEED_TEXT_ANCHORS },
-    ],
+    anyOf: [{ score: 2, textAny: ANTI_BLEED_TEXT_ANCHORS }],
   },
   {
     tag: "curse_removal",
     category: "spell",
     threshold: 2,
-    anyOf: [
-      { score: 2, textAny: CURSE_REMOVAL_TEXT_ANCHORS },
-    ],
+    anyOf: [{ score: 2, textAny: CURSE_REMOVAL_TEXT_ANCHORS }],
   },
   {
     tag: "protective_ward",
@@ -1525,9 +1475,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         ],
       },
     ],
-    noneOf: [
-      { textAny: [...ALARM_STRONG_TEXT_ANCHORS, ...ALARM_TRIGGER_TEXT_ANCHORS] },
-    ],
+    noneOf: [{ textAny: [...ALARM_STRONG_TEXT_ANCHORS, ...ALARM_TRIGGER_TEXT_ANCHORS] }],
   },
   {
     tag: "death_prevention",
@@ -1540,10 +1488,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
         score: 2,
         textNear: [
           {
-            all: [
-              patternAnchor("stabilize"),
-              patternAnchor("{{alt(dying,die,death)}}"),
-            ],
+            all: [patternAnchor("stabilize"), patternAnchor("{{alt(dying,die,death)}}")],
             window: 6,
             scope: "description",
           },
@@ -1583,9 +1528,7 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
       { score: 2, referencesAny: COUNTERMAGIC_REFERENCE_ANCHORS },
       {
         score: 2,
-        textAll: [
-          patternAnchor("counteract"),
-        ],
+        textAll: [patternAnchor("counteract")],
         textAny: [
           patternAnchor("magic effect"),
           patternAnchor("magical effect"),

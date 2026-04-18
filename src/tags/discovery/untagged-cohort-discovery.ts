@@ -9,10 +9,7 @@ import {
   type ReviewedDiscoveryApplicationSummary,
   type ReviewedDiscoveryReason,
 } from "./discovery-reviewed-records.js";
-import {
-  classifyFamilyGapFeature,
-  type FamilyGapFeatureBucket,
-} from "./family-gap-signals.js";
+import { classifyFamilyGapFeature, type FamilyGapFeatureBucket } from "./family-gap-signals.js";
 import {
   extractDiscoveryGramRange,
   isDiscoveryNoisePhrase,
@@ -22,10 +19,7 @@ import {
   resolveDiscoveryGramRange,
   tokenizeDiscoveryText,
 } from "./discovery-normalization.js";
-import {
-  type DiscoveryAnalysisRecord,
-  loadDiscoveryRecords,
-} from "./discovery-records.js";
+import { type DiscoveryAnalysisRecord, loadDiscoveryRecords } from "./discovery-records.js";
 import { summarizeDiscoverySources } from "./discovery-source-summary.js";
 import type { CohortRecommendation } from "./cohort-discovery.js";
 
@@ -113,14 +107,7 @@ export type UntaggedCohortReport = {
   cohorts: UntaggedCohortCluster[];
 };
 
-type DiscoveryFeatureKind =
-  | "name"
-  | "name_phrase"
-  | "text"
-  | "text_phrase"
-  | "trait"
-  | "target"
-  | "scope";
+type DiscoveryFeatureKind = "name" | "name_phrase" | "text" | "text_phrase" | "trait" | "target" | "scope";
 
 type DiscoveryFeature = {
   key: string;
@@ -348,11 +335,14 @@ function deriveReviewFlags(
   if (nameAnchors.length >= 2 && dominantNameSupport >= nameSeriesSupportFloor) {
     flags.push("name-series");
   }
-  if (sourceSummary.hasUsableSourceSignals && sourceSummary.dominantSourceShare > 0 && sourceSummary.sourceScope && (
-    (sourceSummary.sourceScope === "source-slice" && sourceSummary.sourceSliceCount === 1) ||
-    (sourceSummary.sourceScope === "publication" && sourceSummary.publicationCount === 1) ||
-    (sourceSummary.sourceScope === "pack" && sourceSummary.sourceCount === 1)
-  )) {
+  if (
+    sourceSummary.hasUsableSourceSignals &&
+    sourceSummary.dominantSourceShare > 0 &&
+    sourceSummary.sourceScope &&
+    ((sourceSummary.sourceScope === "source-slice" && sourceSummary.sourceSliceCount === 1) ||
+      (sourceSummary.sourceScope === "publication" && sourceSummary.publicationCount === 1) ||
+      (sourceSummary.sourceScope === "pack" && sourceSummary.sourceCount === 1))
+  ) {
     flags.push("source-local");
   } else if (sourceSummary.hasUsableSourceSignals && sourceSummary.dominantSourceShare >= 0.75) {
     flags.push("source-heavy");
@@ -470,7 +460,11 @@ function dedupeFeatures(features: DiscoveryFeature[]): DiscoveryFeature[] {
 function collectFeatureSupport(
   records: DiscoveryAnalysisRecord[],
   options: Pick<UntaggedCohortOptions, "minGramLength" | "maxGramLength"> = {},
-): { counts: Map<string, number>; byKey: Map<string, DiscoveryFeature>; featuresByRecordKey: Map<string, DiscoveryFeature[]> } {
+): {
+  counts: Map<string, number>;
+  byKey: Map<string, DiscoveryFeature>;
+  featuresByRecordKey: Map<string, DiscoveryFeature[]>;
+} {
   const counts = new Map<string, number>();
   const byKey = new Map<string, DiscoveryFeature>();
   const featuresByRecordKey = new Map<string, DiscoveryFeature[]>();
@@ -511,9 +505,10 @@ function isEligibleSimilarityFeature(
     }
   }
 
-  const maxFraction = feature.kind === "trait" || feature.kind === "target" || feature.kind === "scope"
-    ? MAX_STRUCTURED_FEATURE_FRACTION
-    : MAX_TEXT_FEATURE_FRACTION;
+  const maxFraction =
+    feature.kind === "trait" || feature.kind === "target" || feature.kind === "scope"
+      ? MAX_STRUCTURED_FEATURE_FRACTION
+      : MAX_TEXT_FEATURE_FRACTION;
   if (support > Math.max(3, Math.floor(totalRecords * maxFraction))) {
     return false;
   }
@@ -532,10 +527,21 @@ function buildRecordNodes(
   return untagged.map((record) => {
     const features = featureSupport.featuresByRecordKey.get(record.recordKey) ?? [];
     const informative = features
-      .filter((feature) => isEligibleSimilarityFeature(feature, featureSupport.counts.get(feature.key) ?? 0, totalRecords, minSupport, options))
-      .sort((left, right) =>
-        (featureSupport.counts.get(left.key) ?? Number.POSITIVE_INFINITY) - (featureSupport.counts.get(right.key) ?? Number.POSITIVE_INFINITY) ||
-        left.display.localeCompare(right.display))
+      .filter((feature) =>
+        isEligibleSimilarityFeature(
+          feature,
+          featureSupport.counts.get(feature.key) ?? 0,
+          totalRecords,
+          minSupport,
+          options,
+        ),
+      )
+      .sort(
+        (left, right) =>
+          (featureSupport.counts.get(left.key) ?? Number.POSITIVE_INFINITY) -
+            (featureSupport.counts.get(right.key) ?? Number.POSITIVE_INFINITY) ||
+          left.display.localeCompare(right.display),
+      )
       .slice(0, MAX_INFORMATIVE_FEATURES_PER_RECORD)
       .map((feature) => feature.key);
 
@@ -592,7 +598,9 @@ function buildNeighborGraph(
         continue;
       }
 
-      const sharedFeatures = [...node.informativeFeatureKeys].filter((key) => candidate.informativeFeatureKeys.has(key)).length;
+      const sharedFeatures = [...node.informativeFeatureKeys].filter((key) =>
+        candidate.informativeFeatureKeys.has(key),
+      ).length;
       if (sharedFeatures === 0) {
         continue;
       }
@@ -600,12 +608,13 @@ function buildNeighborGraph(
       const union = new Set([...node.informativeFeatureKeys, ...candidate.informativeFeatureKeys]).size;
       const featureJaccard = union > 0 ? sharedFeatures / union : 0;
       const cosine = cosineSimilarity(node.record.vector, candidate.record.vector);
-      const sameFamily = node.record.variantFamilyKey !== null && node.record.variantFamilyKey === candidate.record.variantFamilyKey;
-      const hybridBase = (Math.max(0, cosine) * 0.45) + (featureJaccard * 0.4) + (Math.min(1, sharedFeatures / 4) * 0.15);
+      const sameFamily =
+        node.record.variantFamilyKey !== null && node.record.variantFamilyKey === candidate.record.variantFamilyKey;
+      const hybridBase = Math.max(0, cosine) * 0.45 + featureJaccard * 0.4 + Math.min(1, sharedFeatures / 4) * 0.15;
       const hybrid = sameFamily ? hybridBase - 0.18 : hybridBase;
       const shouldLink = sameFamily
         ? sharedFeatures >= 3 && hybrid >= 0.34
-        : (hybrid >= 0.36 || (sharedFeatures >= 2 && hybrid >= 0.26));
+        : hybrid >= 0.36 || (sharedFeatures >= 2 && hybrid >= 0.26);
       if (!shouldLink) {
         continue;
       }
@@ -623,10 +632,7 @@ function buildNeighborGraph(
   return graph;
 }
 
-function collectComponents(
-  nodes: RecordNode[],
-  graph: Map<string, Set<string>>,
-): string[][] {
+function collectComponents(nodes: RecordNode[], graph: Map<string, Set<string>>): string[][] {
   const seen = new Set<string>();
   const components: string[][] = [];
 
@@ -689,10 +695,12 @@ function rankClusterAnchors(
   }
 
   const minLift = Math.max(1, options.minFeatureLift ?? DEFAULT_MIN_FEATURE_LIFT);
-  const memberFamilyCount = new Set(memberKeys.map((recordKey) => {
-    const record = recordsByKey.get(recordKey);
-    return record ? variantFamilyIdentity(record) : recordKey;
-  })).size;
+  const memberFamilyCount = new Set(
+    memberKeys.map((recordKey) => {
+      const record = recordsByKey.get(recordKey);
+      return record ? variantFamilyIdentity(record) : recordKey;
+    }),
+  ).size;
   const baselineFamilyCount = new Set([...recordsByKey.values()].map((record) => variantFamilyIdentity(record))).size;
   const rankedEntries: RankedFeature[] = [];
   for (const [key, supportSet] of supportCounts.entries()) {
@@ -707,13 +715,16 @@ function rankClusterAnchors(
     const baselineRatio = (baselineCount + 1) / Math.max(1, baselineFamilyCount + 2);
     const lift = baselineRatio > 0 ? clusterRatio / baselineRatio : support;
     const classification = classifyFamilyGapFeature(options.family, feature.kind, feature.display);
-    if (options.familyGapSignals && (classification.bucket !== "possible_place_anchor" || isNameFeatureKind(feature.kind))) {
+    if (
+      options.familyGapSignals &&
+      (classification.bucket !== "possible_place_anchor" || isNameFeatureKind(feature.kind))
+    ) {
       continue;
     }
     const qualityMultiplier = Math.max(
       0.3,
-      (classification.cueLocality - (classification.cueAmbiguityPenalty * 0.55)) *
-      (1 - (classification.boilerplateRisk * 0.4)),
+      (classification.cueLocality - classification.cueAmbiguityPenalty * 0.55) *
+        (1 - classification.boilerplateRisk * 0.4),
     );
     rankedEntries.push({
       key,
@@ -722,7 +733,12 @@ function rankClusterAnchors(
       support,
       baselineSupport: baselineCount,
       lift,
-      score: support * Math.max(1, lift) * featureSpecificityWeight(feature.kind, feature.display) * classification.familyConceptWeight * qualityMultiplier,
+      score:
+        support *
+        Math.max(1, lift) *
+        featureSpecificityWeight(feature.kind, feature.display) *
+        classification.familyConceptWeight *
+        qualityMultiplier,
       bucket: classification.bucket,
       existingTagOverlaps: classification.existingTagOverlaps,
       cueStrength: classification.cueStrength,
@@ -734,12 +750,14 @@ function rankClusterAnchors(
 
   return rankedEntries
     .filter((entry) => entry.support >= Math.max(2, Math.ceil(memberFamilyCount * 0.45)) && entry.lift >= minLift)
-    .sort((left, right) =>
-      right.score - left.score ||
-      right.support - left.support ||
-      right.lift - left.lift ||
-      featureTokenCount(left.value) - featureTokenCount(right.value) ||
-      left.value.localeCompare(right.value))
+    .sort(
+      (left, right) =>
+        right.score - left.score ||
+        right.support - left.support ||
+        right.lift - left.lift ||
+        featureTokenCount(left.value) - featureTokenCount(right.value) ||
+        left.value.localeCompare(right.value),
+    )
     .slice(0, 6);
 }
 
@@ -844,27 +862,44 @@ function buildCandidateCohorts(
   const rankedClusters = components
     .map((memberKeys, componentIndex) => {
       if (
-        componentIndex === 0
-        || (componentIndex + 1) % Math.max(10, Math.ceil(components.length / 10)) === 0
-        || componentIndex + 1 === components.length
+        componentIndex === 0 ||
+        (componentIndex + 1) % Math.max(10, Math.ceil(components.length / 10)) === 0 ||
+        componentIndex + 1 === components.length
       ) {
-        const percent = Math.max(1, Math.min(100, Math.round(((componentIndex + 1) / Math.max(1, components.length)) * 100)));
-        options.progressStatusLogger?.(`Scoring cohort candidates ${percent}% (${componentIndex + 1}/${components.length}).`);
+        const percent = Math.max(
+          1,
+          Math.min(100, Math.round(((componentIndex + 1) / Math.max(1, components.length)) * 100)),
+        );
+        options.progressStatusLogger?.(
+          `Scoring cohort candidates ${percent}% (${componentIndex + 1}/${components.length}).`,
+        );
       }
 
-      const members = memberKeys.map((recordKey) => recordsByKey.get(recordKey)).filter((record): record is DiscoveryAnalysisRecord => Boolean(record));
+      const members = memberKeys
+        .map((recordKey) => recordsByKey.get(recordKey))
+        .filter((record): record is DiscoveryAnalysisRecord => Boolean(record));
       const clusterAnchors = rankClusterAnchors(memberKeys, featureSupport, baselineSupport, recordsByKey, options);
-      const centroid = normalizeVector(averageVectors(members.map((record) => record.vector).filter((vector) => vector.length > 0)));
+      const centroid = normalizeVector(
+        averageVectors(members.map((record) => record.vector).filter((vector) => vector.length > 0)),
+      );
       const memberSimilarities = members.map((record) => ({
         record,
         similarity: cosineSimilarity(record.vector, centroid),
       }));
-      const averageSimilarity = memberSimilarities.reduce((total, entry) => total + entry.similarity, 0) / Math.max(1, memberSimilarities.length);
+      const averageSimilarity =
+        memberSimilarities.reduce((total, entry) => total + entry.similarity, 0) /
+        Math.max(1, memberSimilarities.length);
       const distinctVariantFamilies = distinctVariantFamilyCount(members);
-      const sharedTraits = [...new Set(members.flatMap((member) => member.traits))]
-        .filter((trait) => members.every((member) => member.traits.includes(trait)));
+      const sharedTraits = [...new Set(members.flatMap((member) => member.traits))].filter((trait) =>
+        members.every((member) => member.traits.includes(trait)),
+      );
       const sourceSummary = summarizeDiscoverySources(members);
-      const reviewFlags = deriveReviewFlags(clusterAnchors, uniqueSorted(sharedTraits), sourceSummary, distinctVariantFamilies);
+      const reviewFlags = deriveReviewFlags(
+        clusterAnchors,
+        uniqueSorted(sharedTraits),
+        sourceSummary,
+        distinctVariantFamilies,
+      );
       const nonNameAnchors = clusterAnchors
         .filter((anchor) => !isNameFeatureKind(anchor.kind))
         .map((anchor) => anchor.value)
@@ -876,45 +911,56 @@ function buildCandidateCohorts(
       const localityFactor = averageAnchorLocality(clusterAnchors);
       const overlapShare = dominantOverlapShare(clusterAnchors);
       const boilerplateRisk = averageBoilerplateRisk(clusterAnchors);
-      const contrastRecords = selectDistinctContrastRecords(nonMembers
-        .map((record) => {
-          const similarity = cosineSimilarity(record.vector, centroid);
-          const featureSet = allFeatureKeysByRecordKey.get(record.recordKey) ?? new Set<string>();
-          const overlap = signatureKeys.filter((key) => featureSet.has(key)).length;
-          return { record, similarity, overlap };
-        })
-        .filter((entry) => signatureKeySet.size === 0 || entry.overlap < Math.max(1, Math.ceil(signatureKeySet.size / 2)))
-        .sort((left, right) => right.similarity - left.similarity || left.record.name.localeCompare(right.record.name))
-      , 5);
+      const contrastRecords = selectDistinctContrastRecords(
+        nonMembers
+          .map((record) => {
+            const similarity = cosineSimilarity(record.vector, centroid);
+            const featureSet = allFeatureKeysByRecordKey.get(record.recordKey) ?? new Set<string>();
+            const overlap = signatureKeys.filter((key) => featureSet.has(key)).length;
+            return { record, similarity, overlap };
+          })
+          .filter(
+            (entry) => signatureKeySet.size === 0 || entry.overlap < Math.max(1, Math.ceil(signatureKeySet.size / 2)),
+          )
+          .sort(
+            (left, right) => right.similarity - left.similarity || left.record.name.localeCompare(right.record.name),
+          ),
+        5,
+      );
 
       const sizeFactor = Math.min(1, members.length / 6);
       const familyDiversity = distinctVariantFamilies / Math.max(1, members.length);
       const similarityFactor = Math.max(0, Math.min(1, averageSimilarity));
-      const density = signatureKeys.length > 0
-        ? members.reduce((total, member) => {
-          const featureSet = allFeatureKeysByRecordKey.get(member.recordKey) ?? new Set<string>();
-          const overlap = signatureKeys.filter((key) => featureSet.has(key)).length;
-          return total + (overlap / signatureKeys.length);
-        }, 0) / Math.max(1, members.length)
-        : 0;
-      const liftFactor = clusterAnchors.length > 0
-        ? Math.max(0, Math.min(1, (clusterAnchors[0]!.lift ?? 0) / 6))
-        : 0;
+      const density =
+        signatureKeys.length > 0
+          ? members.reduce((total, member) => {
+              const featureSet = allFeatureKeysByRecordKey.get(member.recordKey) ?? new Set<string>();
+              const overlap = signatureKeys.filter((key) => featureSet.has(key)).length;
+              return total + overlap / signatureKeys.length;
+            }, 0) / Math.max(1, members.length)
+          : 0;
+      const liftFactor = clusterAnchors.length > 0 ? Math.max(0, Math.min(1, (clusterAnchors[0]!.lift ?? 0) / 6)) : 0;
       const localityBonus = clusterAnchors.length > 0 ? localityFactor * 0.12 : 0;
       const overlapCoherenceBonus = clusterAnchors.length > 0 ? overlapShare * 0.08 : 0;
-      const lexicalOnlyPenalty = clusterAnchors.length > 0 && clusterAnchors.every((anchor) => isLexicalFeatureKind(anchor.kind)) && sharedTraits.length === 0
-        ? 0.18
-        : 0;
+      const lexicalOnlyPenalty =
+        clusterAnchors.length > 0 &&
+        clusterAnchors.every((anchor) => isLexicalFeatureKind(anchor.kind)) &&
+        sharedTraits.length === 0
+          ? 0.18
+          : 0;
       const noAnchorPenalty = clusterAnchors.length === 0 ? 0.18 : 0;
-      const nameOnlyPenalty = clusterAnchors.length > 0 && clusterAnchors.every((anchor) => anchor.kind === "name" || anchor.kind === "name_phrase")
-        ? 0.08
-        : 0;
-      const traitOnlyPenalty = clusterAnchors.length > 0 && clusterAnchors.every((anchor) => anchor.kind === "trait") && sharedTraits.length <= 1
-        ? 0.12
-        : 0;
-      const nameSeriesPenalty = reviewFlags.includes("name-series")
-        ? nonNameAnchors.length >= 2 ? 0.08 : 0.18
-        : 0;
+      const nameOnlyPenalty =
+        clusterAnchors.length > 0 &&
+        clusterAnchors.every((anchor) => anchor.kind === "name" || anchor.kind === "name_phrase")
+          ? 0.08
+          : 0;
+      const traitOnlyPenalty =
+        clusterAnchors.length > 0 &&
+        clusterAnchors.every((anchor) => anchor.kind === "trait") &&
+        sharedTraits.length <= 1
+          ? 0.12
+          : 0;
+      const nameSeriesPenalty = reviewFlags.includes("name-series") ? (nonNameAnchors.length >= 2 ? 0.08 : 0.18) : 0;
       const sourcePenalty = reviewFlags.includes("source-local")
         ? 0.16
         : reviewFlags.includes("source-heavy")
@@ -922,42 +968,42 @@ function buildCandidateCohorts(
           : 0;
       const weakLocalityPenalty = reviewFlags.includes("weak-locality") ? 0.12 : 0;
       const mixedCuePenalty = reviewFlags.includes("mixed-setting-cues") ? 0.14 : 0;
-      const boilerplatePenalty = reviewFlags.includes("boilerplate-heavy")
-        ? 0.08
-        : boilerplateRisk * 0.08;
+      const boilerplatePenalty = reviewFlags.includes("boilerplate-heavy") ? 0.08 : boilerplateRisk * 0.08;
       const score = Math.max(
         0,
         Math.min(
           1,
-          (sizeFactor * 0.25) +
-          (familyDiversity * 0.25) +
-          (similarityFactor * 0.2) +
-          (density * 0.2) +
-          (liftFactor * 0.1) +
-          localityBonus +
-          overlapCoherenceBonus -
-          lexicalOnlyPenalty -
-          noAnchorPenalty -
-          nameOnlyPenalty -
-          traitOnlyPenalty -
-          nameSeriesPenalty -
-          sourcePenalty -
-          weakLocalityPenalty -
-          mixedCuePenalty -
-          boilerplatePenalty,
+          sizeFactor * 0.25 +
+            familyDiversity * 0.25 +
+            similarityFactor * 0.2 +
+            density * 0.2 +
+            liftFactor * 0.1 +
+            localityBonus +
+            overlapCoherenceBonus -
+            lexicalOnlyPenalty -
+            noAnchorPenalty -
+            nameOnlyPenalty -
+            traitOnlyPenalty -
+            nameSeriesPenalty -
+            sourcePenalty -
+            weakLocalityPenalty -
+            mixedCuePenalty -
+            boilerplatePenalty,
         ),
       );
       const overlappingTags = uniqueSorted(clusterAnchors.flatMap((anchor) => anchor.existingTagOverlaps ?? []));
-      const classification: "new_concept_candidate" | "existing_tag_coverage_gap" | "context_only" = overlappingTags.length > 0
-        ? "existing_tag_coverage_gap"
-        : clusterAnchors.some((anchor) => anchor.bucket === "possible_place_anchor")
-          ? "new_concept_candidate"
-          : "context_only";
-      const familyGapRecommendation: "new-tag" | "extend-existing-tag" | "manual-only" = classification === "existing_tag_coverage_gap"
-        ? "extend-existing-tag"
-        : classification === "new_concept_candidate"
-          ? "new-tag"
-          : "manual-only";
+      const classification: "new_concept_candidate" | "existing_tag_coverage_gap" | "context_only" =
+        overlappingTags.length > 0
+          ? "existing_tag_coverage_gap"
+          : clusterAnchors.some((anchor) => anchor.bucket === "possible_place_anchor")
+            ? "new_concept_candidate"
+            : "context_only";
+      const familyGapRecommendation: "new-tag" | "extend-existing-tag" | "manual-only" =
+        classification === "existing_tag_coverage_gap"
+          ? "extend-existing-tag"
+          : classification === "new_concept_candidate"
+            ? "new-tag"
+            : "manual-only";
 
       return {
         signature: uniqueSorted(signatureDisplay).slice(0, 4),
@@ -978,25 +1024,34 @@ function buildCandidateCohorts(
         anchorSupport: clusterAnchors[0]?.support ?? 0,
         anchorLift: clusterAnchors[0]?.lift ?? 0,
         score,
-        recommendation: recommendClusterForAnchors(score, clusterAnchors, uniqueSorted(sharedTraits), nonNameAnchors, reviewFlags),
+        recommendation: recommendClusterForAnchors(
+          score,
+          clusterAnchors,
+          uniqueSorted(sharedTraits),
+          nonNameAnchors,
+          reviewFlags,
+        ),
         classification,
         familyGapRecommendation,
         overlappingTags,
         representativeRecords: selectRepresentativeRecords(
-          memberSimilarities
-            .sort((left, right) => right.similarity - left.similarity || left.record.name.localeCompare(right.record.name)),
+          memberSimilarities.sort(
+            (left, right) => right.similarity - left.similarity || left.record.name.localeCompare(right.record.name),
+          ),
         ),
         contrastRecords,
         rankedAnchors: clusterAnchors,
       };
     })
     .filter((cluster) => cluster.signature.length > 0 || cluster.size >= 3)
-    .sort((left, right) =>
-      right.score - left.score ||
-      right.distinctVariantFamilies - left.distinctVariantFamilies ||
-      right.size - left.size ||
-      right.averageSimilarity - left.averageSimilarity ||
-      left.signature.join(" ").localeCompare(right.signature.join(" ")))
+    .sort(
+      (left, right) =>
+        right.score - left.score ||
+        right.distinctVariantFamilies - left.distinctVariantFamilies ||
+        right.size - left.size ||
+        right.averageSimilarity - left.averageSimilarity ||
+        left.signature.join(" ").localeCompare(right.signature.join(" ")),
+    )
     .slice(0, cohortLimit);
   const anchorTermByValue = new Map<string, UntaggedCohortAnchor>();
   for (const cluster of rankedClusters) {
@@ -1015,7 +1070,9 @@ function buildCandidateCohorts(
         !existing ||
         candidate.score > existing.score ||
         (candidate.score === existing.score && candidate.support > existing.support) ||
-        (candidate.score === existing.score && candidate.support === existing.support && candidate.value.localeCompare(existing.value) < 0)
+        (candidate.score === existing.score &&
+          candidate.support === existing.support &&
+          candidate.value.localeCompare(existing.value) < 0)
       ) {
         anchorTermByValue.set(anchor.value, candidate);
       }
@@ -1025,21 +1082,24 @@ function buildCandidateCohorts(
   return {
     cohorts: rankedClusters.map(({ rankedAnchors: _rankedAnchors, ...cluster }) => cluster),
     anchorTerms: [...anchorTermByValue.values()]
-      .sort((left, right) => right.score - left.score || right.support - left.support || right.lift - left.lift || left.value.localeCompare(right.value))
+      .sort(
+        (left, right) =>
+          right.score - left.score ||
+          right.support - left.support ||
+          right.lift - left.lift ||
+          left.value.localeCompare(right.value),
+      )
       .slice(0, Math.max(1, Math.min(options.anchorLimit ?? DEFAULT_ANCHOR_LIMIT, 50))),
   };
 }
 
-export function discoverUntaggedCohorts(
-  db: DatabaseSync,
-  options: UntaggedCohortOptions,
-): UntaggedCohortReport {
+export function discoverUntaggedCohorts(db: DatabaseSync, options: UntaggedCohortOptions): UntaggedCohortReport {
   const normalizedFamily = options.family ? normalizeDerivedTag(options.family) : undefined;
   const familyTags = normalizedFamily
     ? getDerivedTagFamilyTags(normalizedFamily, {
-      category: options.category,
-      subcategory: options.subcategory,
-    })
+        category: options.category,
+        subcategory: options.subcategory,
+      })
     : [];
   const overallStartTime = Date.now();
   const logPhase = (label: string, startTime: number): void => {
@@ -1047,18 +1107,16 @@ export function discoverUntaggedCohorts(
   };
   const reviewedSelection = normalizedFamily
     ? getReviewedDiscoverySelection({
-      category: options.category,
-      subcategory: options.subcategory,
-      family: normalizedFamily,
-      includeReviewed: options.includeReviewed,
-      reviewReason: options.reviewReason,
-    })
+        category: options.category,
+        subcategory: options.subcategory,
+        family: normalizedFamily,
+        includeReviewed: options.includeReviewed,
+        reviewReason: options.reviewReason,
+      })
     : undefined;
   const reviewedRecordKeys = reviewedSelection?.mode === "filtered" ? reviewedSelection.recordKeys : undefined;
   const reviewedExcludedRecordKeys = reviewedSelection?.mode === "excluded" ? reviewedSelection.recordKeys : undefined;
-  const reviewedSummary = reviewedSelection
-    ? summarizeReviewedDiscoverySelection(reviewedSelection)
-    : undefined;
+  const reviewedSummary = reviewedSelection ? summarizeReviewedDiscoverySelection(reviewedSelection) : undefined;
 
   options.progressStatusLogger?.("Loading untagged records.");
   const untaggedStartTime = Date.now();
@@ -1085,15 +1143,17 @@ export function discoverUntaggedCohorts(
   logPhase(`Loaded ${baseline.length} baseline records`, baselineStartTime);
   const covered = normalizedFamily
     ? loadDiscoveryRecords(db, {
-      category: options.category,
-      subcategory: options.subcategory,
-      requireAnyDerivedTags: familyTags,
-      includeVectors: false,
-    })
+        category: options.category,
+        subcategory: options.subcategory,
+        requireAnyDerivedTags: familyTags,
+        includeVectors: false,
+      })
     : [];
   if (untagged.length === 0) {
     if (normalizedFamily) {
-      throw new Error(`No canonical records without derived tags in family "${normalizedFamily}" matched the requested scope.`);
+      throw new Error(
+        `No canonical records without derived tags in family "${normalizedFamily}" matched the requested scope.`,
+      );
     }
     throw new Error("No untagged canonical records matched the requested scope.");
   }
@@ -1115,11 +1175,16 @@ export function discoverUntaggedCohorts(
     untaggedRecordCount: untagged.length,
     baselineRecordCount: baseline.length,
     coveredRecordCount: covered.length > 0 ? covered.length : undefined,
-    liveTags: covered.length > 0
-      ? uniqueSorted([...new Set(covered.flatMap((record) =>
-        record.derivedTags.filter((tag) => familyTags.includes(normalizeDerivedTag(tag))),
-      ))])
-      : undefined,
+    liveTags:
+      covered.length > 0
+        ? uniqueSorted([
+            ...new Set(
+              covered.flatMap((record) =>
+                record.derivedTags.filter((tag) => familyTags.includes(normalizeDerivedTag(tag))),
+              ),
+            ),
+          ])
+        : undefined,
     reviewedRecords: reviewedSummary,
     anchorTerms,
     cohorts,

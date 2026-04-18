@@ -64,25 +64,26 @@ const CREATURE_AND_HAZARD = ["creature", "hazard"] as const satisfies readonly S
 const EQUIPMENT_ONLY = ["equipment"] as const satisfies readonly SearchCategory[];
 const SPELL_ONLY = ["spell"] as const satisfies readonly SearchCategory[];
 const EQUIPMENT_AND_SPELL = ["equipment", "spell"] as const satisfies readonly SearchCategory[];
-const DERIVED_TAG_CATEGORIES = ["equipment", "creature", "hazard", "affliction", "spell"] as const satisfies readonly SearchCategory[];
+const DERIVED_TAG_CATEGORIES = [
+  "equipment",
+  "creature",
+  "hazard",
+  "affliction",
+  "spell",
+] as const satisfies readonly SearchCategory[];
 
 function defineMetadataField<
   const Field extends string,
   const RecordProperty extends keyof NormalizedRecord,
   const FieldType extends MetadataFieldType,
->(
-  spec: MetadataFieldSpec<Field, RecordProperty, FieldType>,
-): MetadataFieldSpec<Field, RecordProperty, FieldType> {
+>(spec: MetadataFieldSpec<Field, RecordProperty, FieldType>): MetadataFieldSpec<Field, RecordProperty, FieldType> {
   return spec;
 }
 
-function buildScalarLookupSql(
-  recordKeyExpr: string,
-  alias: string | undefined,
-  column: string,
-  table: string,
-): string {
-  return alias ? `${alias}.${column}` : `(SELECT meta.${column} FROM ${table} meta WHERE meta.record_key = ${recordKeyExpr})`;
+function buildScalarLookupSql(recordKeyExpr: string, alias: string | undefined, column: string, table: string): string {
+  return alias
+    ? `${alias}.${column}`
+    : `(SELECT meta.${column} FROM ${table} meta WHERE meta.record_key = ${recordKeyExpr})`;
 }
 
 function buildRecordScalarSql(context: MetadataSqlSourceContext, column: string): string {
@@ -123,12 +124,14 @@ export const METADATA_FIELD_REGISTRY = [
     fieldType: "set",
     categories: CREATURE_ONLY,
     discoverable: true,
-    notes: "Creature family facet derived from glossary-backed monster families plus allowlisted Pathfinder NPC Core cohort folders.",
+    notes:
+      "Creature family facet derived from glossary-backed monster families plus allowlisted Pathfinder NPC Core cohort folders.",
     selectClause: "r.families_json AS familiesJson",
     rowValueSource: { key: "familiesJson", kind: "jsonArray" },
-    buildSqlExpression: (context) => context.recordsAlias
-      ? buildFamiliesArraySql(context.recordsAlias)
-      : `COALESCE((SELECT meta.families_json FROM records meta WHERE meta.record_key = ${context.recordKeyExpr}), '[]')`,
+    buildSqlExpression: (context) =>
+      context.recordsAlias
+        ? buildFamiliesArraySql(context.recordsAlias)
+        : `COALESCE((SELECT meta.families_json FROM records meta WHERE meta.record_key = ${context.recordKeyExpr}), '[]')`,
     buildFilterValueSource: () => ({
       joins: [`JOIN json_each(${buildFamiliesArraySql("r")}) AS family`],
       valueExpression: "LOWER(family.value)",
@@ -159,7 +162,8 @@ export const METADATA_FIELD_REGISTRY = [
     discoverable: true,
     selectClause: "s.traditions_json AS traditionsJson",
     rowValueSource: { key: "traditionsJson", kind: "jsonArray" },
-    buildSqlExpression: (context) => `COALESCE(${buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "traditions_json", "spell_records")}, '[]')`,
+    buildSqlExpression: (context) =>
+      `COALESCE(${buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "traditions_json", "spell_records")}, '[]')`,
     buildFilterValueSource: () => ({
       joins: ["JOIN json_each(COALESCE(s.traditions_json, '[]')) AS tradition"],
       valueExpression: "tradition.value",
@@ -174,7 +178,8 @@ export const METADATA_FIELD_REGISTRY = [
     discoverable: true,
     selectClause: "s.spell_kinds_json AS spellKindsJson",
     rowValueSource: { key: "spellKindsJson", kind: "jsonArray" },
-    buildSqlExpression: (context) => `COALESCE(${buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "spell_kinds_json", "spell_records")}, '[]')`,
+    buildSqlExpression: (context) =>
+      `COALESCE(${buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "spell_kinds_json", "spell_records")}, '[]')`,
     buildFilterValueSource: () => ({
       joins: ["JOIN json_each(COALESCE(s.spell_kinds_json, '[]')) AS spell_kind"],
       valueExpression: "spell_kind.value",
@@ -210,7 +215,8 @@ export const METADATA_FIELD_REGISTRY = [
     discoverable: true,
     selectClause: "a.languages_json AS languagesJson",
     rowValueSource: { key: "languagesJson", kind: "jsonArray" },
-    buildSqlExpression: (context) => `COALESCE(${buildScalarLookupSql(context.recordKeyExpr, context.actorAlias, "languages_json", "actor_records")}, '[]')`,
+    buildSqlExpression: (context) =>
+      `COALESCE(${buildScalarLookupSql(context.recordKeyExpr, context.actorAlias, "languages_json", "actor_records")}, '[]')`,
     buildFilterValueSource: () => ({
       joins: ["JOIN json_each(COALESCE(a.languages_json, '[]')) AS language"],
       valueExpression: "language.value",
@@ -225,7 +231,8 @@ export const METADATA_FIELD_REGISTRY = [
     discoverable: true,
     selectClause: "a.speed_types_json AS speedTypesJson",
     rowValueSource: { key: "speedTypesJson", kind: "jsonArray" },
-    buildSqlExpression: (context) => `COALESCE(${buildScalarLookupSql(context.recordKeyExpr, context.actorAlias, "speed_types_json", "actor_records")}, '[]')`,
+    buildSqlExpression: (context) =>
+      `COALESCE(${buildScalarLookupSql(context.recordKeyExpr, context.actorAlias, "speed_types_json", "actor_records")}, '[]')`,
     buildFilterValueSource: () => ({
       joins: ["JOIN json_each(COALESCE(a.speed_types_json, '[]')) AS speed_type"],
       valueExpression: "speed_type.value",
@@ -241,7 +248,8 @@ export const METADATA_FIELD_REGISTRY = [
     notes: "Creature sense types such as darkvision, low light vision, or scent.",
     selectClause: "a.senses_json AS sensesJson",
     rowValueSource: { key: "sensesJson", kind: "jsonArray" },
-    buildSqlExpression: (context) => `COALESCE(${buildScalarLookupSql(context.recordKeyExpr, context.actorAlias, "senses_json", "actor_records")}, '[]')`,
+    buildSqlExpression: (context) =>
+      `COALESCE(${buildScalarLookupSql(context.recordKeyExpr, context.actorAlias, "senses_json", "actor_records")}, '[]')`,
     buildFilterValueSource: () => ({
       joins: ["JOIN json_each(COALESCE(a.senses_json, '[]')) AS sense"],
       valueExpression: "sense.value",
@@ -256,7 +264,8 @@ export const METADATA_FIELD_REGISTRY = [
     discoverable: true,
     selectClause: "a.immunities_json AS immunitiesJson",
     rowValueSource: { key: "immunitiesJson", kind: "jsonArray" },
-    buildSqlExpression: (context) => `COALESCE(${buildScalarLookupSql(context.recordKeyExpr, context.actorAlias, "immunities_json", "actor_records")}, '[]')`,
+    buildSqlExpression: (context) =>
+      `COALESCE(${buildScalarLookupSql(context.recordKeyExpr, context.actorAlias, "immunities_json", "actor_records")}, '[]')`,
     buildFilterValueSource: () => ({
       joins: ["JOIN json_each(COALESCE(a.immunities_json, '[]')) AS immunity"],
       valueExpression: "immunity.value",
@@ -271,7 +280,8 @@ export const METADATA_FIELD_REGISTRY = [
     discoverable: true,
     selectClause: "a.resistances_json AS resistancesJson",
     rowValueSource: { key: "resistancesJson", kind: "jsonArray" },
-    buildSqlExpression: (context) => `COALESCE(${buildScalarLookupSql(context.recordKeyExpr, context.actorAlias, "resistances_json", "actor_records")}, '[]')`,
+    buildSqlExpression: (context) =>
+      `COALESCE(${buildScalarLookupSql(context.recordKeyExpr, context.actorAlias, "resistances_json", "actor_records")}, '[]')`,
     buildFilterValueSource: () => ({
       joins: ["JOIN json_each(COALESCE(a.resistances_json, '[]')) AS resistance"],
       valueExpression: "resistance.value",
@@ -286,7 +296,8 @@ export const METADATA_FIELD_REGISTRY = [
     discoverable: true,
     selectClause: "a.weaknesses_json AS weaknessesJson",
     rowValueSource: { key: "weaknessesJson", kind: "jsonArray" },
-    buildSqlExpression: (context) => `COALESCE(${buildScalarLookupSql(context.recordKeyExpr, context.actorAlias, "weaknesses_json", "actor_records")}, '[]')`,
+    buildSqlExpression: (context) =>
+      `COALESCE(${buildScalarLookupSql(context.recordKeyExpr, context.actorAlias, "weaknesses_json", "actor_records")}, '[]')`,
     buildFilterValueSource: () => ({
       joins: ["JOIN json_each(COALESCE(a.weaknesses_json, '[]')) AS weakness"],
       valueExpression: "weakness.value",
@@ -302,7 +313,8 @@ export const METADATA_FIELD_REGISTRY = [
     notes: "Structured hazard disable skills parsed from disable text when PF2E markup provides a clear anchor.",
     selectClause: "a.disable_skills_json AS disableSkillsJson",
     rowValueSource: { key: "disableSkillsJson", kind: "jsonArray" },
-    buildSqlExpression: (context) => `COALESCE(${buildScalarLookupSql(context.recordKeyExpr, context.actorAlias, "disable_skills_json", "actor_records")}, '[]')`,
+    buildSqlExpression: (context) =>
+      `COALESCE(${buildScalarLookupSql(context.recordKeyExpr, context.actorAlias, "disable_skills_json", "actor_records")}, '[]')`,
     buildFilterValueSource: () => ({
       joins: ["JOIN json_each(COALESCE(a.disable_skills_json, '[]')) AS disable_skill"],
       valueExpression: "disable_skill.value",
@@ -350,7 +362,8 @@ export const METADATA_FIELD_REGISTRY = [
     discoverable: true,
     selectClause: "a.size AS size",
     rowValueSource: { key: "size", kind: "string" },
-    buildSqlExpression: (context) => buildScalarLookupSql(context.recordKeyExpr, context.actorAlias, "size", "actor_records"),
+    buildSqlExpression: (context) =>
+      buildScalarLookupSql(context.recordKeyExpr, context.actorAlias, "size", "actor_records"),
     buildFilterValueSource: () => ({
       valueExpression: "a.size",
       nonEmptyClause: "AND a.size IS NOT NULL AND a.size <> ''",
@@ -365,7 +378,8 @@ export const METADATA_FIELD_REGISTRY = [
     discoverable: true,
     selectClause: "i.usage_text AS usage",
     rowValueSource: { key: "usage", kind: "string" },
-    buildSqlExpression: (context) => buildScalarLookupSql(context.recordKeyExpr, context.itemAlias, "usage_text", "item_records"),
+    buildSqlExpression: (context) =>
+      buildScalarLookupSql(context.recordKeyExpr, context.itemAlias, "usage_text", "item_records"),
     buildFilterValueSource: () => ({
       valueExpression: "i.usage_text",
       nonEmptyClause: "AND i.usage_text IS NOT NULL AND i.usage_text <> ''",
@@ -381,7 +395,8 @@ export const METADATA_FIELD_REGISTRY = [
     discoverable: true,
     selectClause: "i.weapon_group AS weaponGroup",
     rowValueSource: { key: "weaponGroup", kind: "string" },
-    buildSqlExpression: (context) => buildScalarLookupSql(context.recordKeyExpr, context.itemAlias, "weapon_group", "item_records"),
+    buildSqlExpression: (context) =>
+      buildScalarLookupSql(context.recordKeyExpr, context.itemAlias, "weapon_group", "item_records"),
     buildFilterValueSource: () => ({
       valueExpression: "i.weapon_group",
       nonEmptyClause: "AND i.weapon_group IS NOT NULL AND i.weapon_group <> ''",
@@ -397,7 +412,8 @@ export const METADATA_FIELD_REGISTRY = [
     discoverable: true,
     selectClause: "i.armor_group AS armorGroup",
     rowValueSource: { key: "armorGroup", kind: "string" },
-    buildSqlExpression: (context) => buildScalarLookupSql(context.recordKeyExpr, context.itemAlias, "armor_group", "item_records"),
+    buildSqlExpression: (context) =>
+      buildScalarLookupSql(context.recordKeyExpr, context.itemAlias, "armor_group", "item_records"),
     buildFilterValueSource: () => ({
       valueExpression: "i.armor_group",
       nonEmptyClause: "AND i.armor_group IS NOT NULL AND i.armor_group <> ''",
@@ -412,7 +428,8 @@ export const METADATA_FIELD_REGISTRY = [
     discoverable: true,
     selectClause: "i.item_category AS itemCategory",
     rowValueSource: { key: "itemCategory", kind: "string" },
-    buildSqlExpression: (context) => buildScalarLookupSql(context.recordKeyExpr, context.itemAlias, "item_category", "item_records"),
+    buildSqlExpression: (context) =>
+      buildScalarLookupSql(context.recordKeyExpr, context.itemAlias, "item_category", "item_records"),
     buildFilterValueSource: () => ({
       valueExpression: "i.item_category",
       nonEmptyClause: "AND i.item_category IS NOT NULL AND i.item_category <> ''",
@@ -427,7 +444,8 @@ export const METADATA_FIELD_REGISTRY = [
     discoverable: true,
     selectClause: "i.base_item AS baseItem",
     rowValueSource: { key: "baseItem", kind: "string" },
-    buildSqlExpression: (context) => buildScalarLookupSql(context.recordKeyExpr, context.itemAlias, "base_item", "item_records"),
+    buildSqlExpression: (context) =>
+      buildScalarLookupSql(context.recordKeyExpr, context.itemAlias, "base_item", "item_records"),
     buildFilterValueSource: () => ({
       valueExpression: "i.base_item",
       nonEmptyClause: "AND i.base_item IS NOT NULL AND i.base_item <> ''",
@@ -442,7 +460,8 @@ export const METADATA_FIELD_REGISTRY = [
     discoverable: true,
     selectClause: "s.save_type AS saveType",
     rowValueSource: { key: "saveType", kind: "string" },
-    buildSqlExpression: (context) => buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "save_type", "spell_records"),
+    buildSqlExpression: (context) =>
+      buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "save_type", "spell_records"),
     buildFilterValueSource: () => ({
       valueExpression: "s.save_type",
       nonEmptyClause: "AND s.save_type IS NOT NULL AND s.save_type <> ''",
@@ -457,7 +476,8 @@ export const METADATA_FIELD_REGISTRY = [
     discoverable: true,
     selectClause: "s.area_type AS areaType",
     rowValueSource: { key: "areaType", kind: "string" },
-    buildSqlExpression: (context) => buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "area_type", "spell_records"),
+    buildSqlExpression: (context) =>
+      buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "area_type", "spell_records"),
     buildFilterValueSource: () => ({
       valueExpression: "s.area_type",
       nonEmptyClause: "AND s.area_type IS NOT NULL AND s.area_type <> ''",
@@ -472,7 +492,8 @@ export const METADATA_FIELD_REGISTRY = [
     discoverable: true,
     selectClause: "s.duration_unit AS durationUnit",
     rowValueSource: { key: "durationUnit", kind: "string" },
-    buildSqlExpression: (context) => buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "duration_unit", "spell_records"),
+    buildSqlExpression: (context) =>
+      buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "duration_unit", "spell_records"),
     buildFilterValueSource: () => ({
       valueExpression: "s.duration_unit",
       nonEmptyClause: "AND s.duration_unit IS NOT NULL AND s.duration_unit <> ''",
@@ -536,7 +557,8 @@ export const METADATA_FIELD_REGISTRY = [
     categories: SPELL_ONLY,
     selectClause: "s.range_text AS rangeText",
     rowValueSource: { key: "rangeText", kind: "string" },
-    buildSqlExpression: (context) => buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "range_text", "spell_records"),
+    buildSqlExpression: (context) =>
+      buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "range_text", "spell_records"),
     presentation: "summary",
   }),
   defineMetadataField({
@@ -546,7 +568,8 @@ export const METADATA_FIELD_REGISTRY = [
     categories: SPELL_ONLY,
     selectClause: "s.duration_text AS durationText",
     rowValueSource: { key: "durationText", kind: "string" },
-    buildSqlExpression: (context) => buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "duration_text", "spell_records"),
+    buildSqlExpression: (context) =>
+      buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "duration_text", "spell_records"),
     presentation: "summary",
   }),
   defineMetadataField({
@@ -556,7 +579,8 @@ export const METADATA_FIELD_REGISTRY = [
     categories: SPELL_ONLY,
     selectClause: "s.target_text AS targetText",
     rowValueSource: { key: "targetText", kind: "string" },
-    buildSqlExpression: (context) => buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "target_text", "spell_records"),
+    buildSqlExpression: (context) =>
+      buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "target_text", "spell_records"),
     presentation: "summary",
   }),
   defineMetadataField({
@@ -566,7 +590,8 @@ export const METADATA_FIELD_REGISTRY = [
     categories: ["hazard"],
     selectClause: "a.disable_text AS disableText",
     rowValueSource: { key: "disableText", kind: "string" },
-    buildSqlExpression: (context) => buildScalarLookupSql(context.recordKeyExpr, context.actorAlias, "disable_text", "actor_records"),
+    buildSqlExpression: (context) =>
+      buildScalarLookupSql(context.recordKeyExpr, context.actorAlias, "disable_text", "actor_records"),
     presentation: "detail",
   }),
   defineMetadataField({
@@ -618,7 +643,8 @@ export const METADATA_FIELD_REGISTRY = [
     categories: EQUIPMENT_ONLY,
     selectClause: "i.price_cp AS priceCp",
     rowValueSource: { key: "priceCp", kind: "number" },
-    buildSqlExpression: (context) => buildScalarLookupSql(context.recordKeyExpr, context.itemAlias, "price_cp", "item_records"),
+    buildSqlExpression: (context) =>
+      buildScalarLookupSql(context.recordKeyExpr, context.itemAlias, "price_cp", "item_records"),
     presentation: "detail",
   }),
   defineMetadataField({
@@ -628,7 +654,8 @@ export const METADATA_FIELD_REGISTRY = [
     categories: EQUIPMENT_ONLY,
     selectClause: "i.bulk_value AS bulkValue",
     rowValueSource: { key: "bulkValue", kind: "number" },
-    buildSqlExpression: (context) => buildScalarLookupSql(context.recordKeyExpr, context.itemAlias, "bulk_value", "item_records"),
+    buildSqlExpression: (context) =>
+      buildScalarLookupSql(context.recordKeyExpr, context.itemAlias, "bulk_value", "item_records"),
     presentation: "detail",
   }),
   defineMetadataField({
@@ -660,7 +687,8 @@ export const METADATA_FIELD_REGISTRY = [
     discoverable: true,
     selectClause: "i.hands AS hands",
     rowValueSource: { key: "hands", kind: "number" },
-    buildSqlExpression: (context) => buildScalarLookupSql(context.recordKeyExpr, context.itemAlias, "hands", "item_records"),
+    buildSqlExpression: (context) =>
+      buildScalarLookupSql(context.recordKeyExpr, context.itemAlias, "hands", "item_records"),
     buildFilterValueSource: () => ({
       valueExpression: "CAST(i.hands AS TEXT)",
       nonEmptyClause: "AND i.hands IS NOT NULL",
@@ -675,9 +703,11 @@ export const METADATA_FIELD_REGISTRY = [
     discoverable: true,
     selectClause: "s.range_value AS rangeValue",
     rowValueSource: { key: "rangeValue", kind: "number" },
-    buildSqlExpression: (context) => buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "range_value", "spell_records"),
+    buildSqlExpression: (context) =>
+      buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "range_value", "spell_records"),
     buildFilterValueSource: () => ({
-      valueExpression: "CASE WHEN s.range_value = CAST(s.range_value AS INTEGER) THEN CAST(CAST(s.range_value AS INTEGER) AS TEXT) ELSE CAST(s.range_value AS TEXT) END",
+      valueExpression:
+        "CASE WHEN s.range_value = CAST(s.range_value AS INTEGER) THEN CAST(CAST(s.range_value AS INTEGER) AS TEXT) ELSE CAST(s.range_value AS TEXT) END",
       nonEmptyClause: "AND s.range_value IS NOT NULL",
     }),
     presentation: "detail",
@@ -690,9 +720,11 @@ export const METADATA_FIELD_REGISTRY = [
     discoverable: true,
     selectClause: "s.area_value AS areaValue",
     rowValueSource: { key: "areaValue", kind: "number" },
-    buildSqlExpression: (context) => buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "area_value", "spell_records"),
+    buildSqlExpression: (context) =>
+      buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "area_value", "spell_records"),
     buildFilterValueSource: () => ({
-      valueExpression: "CASE WHEN s.area_value = CAST(s.area_value AS INTEGER) THEN CAST(CAST(s.area_value AS INTEGER) AS TEXT) ELSE CAST(s.area_value AS TEXT) END",
+      valueExpression:
+        "CASE WHEN s.area_value = CAST(s.area_value AS INTEGER) THEN CAST(CAST(s.area_value AS INTEGER) AS TEXT) ELSE CAST(s.area_value AS TEXT) END",
       nonEmptyClause: "AND s.area_value IS NOT NULL",
     }),
     presentation: "summary",
@@ -735,7 +767,8 @@ export const METADATA_FIELD_REGISTRY = [
     discoverable: true,
     selectClause: "s.sustained AS sustained",
     rowValueSource: { key: "sustained", kind: "booleanNumber" },
-    buildSqlExpression: (context) => buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "sustained", "spell_records"),
+    buildSqlExpression: (context) =>
+      buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "sustained", "spell_records"),
     buildFilterValueSource: () => ({
       valueExpression: "CASE s.sustained WHEN 1 THEN 'true' ELSE 'false' END",
       nonEmptyClause: "AND s.sustained IS NOT NULL",
@@ -750,7 +783,8 @@ export const METADATA_FIELD_REGISTRY = [
     discoverable: true,
     selectClause: "s.basic_save AS basicSave",
     rowValueSource: { key: "basicSave", kind: "booleanNumber" },
-    buildSqlExpression: (context) => buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "basic_save", "spell_records"),
+    buildSqlExpression: (context) =>
+      buildScalarLookupSql(context.recordKeyExpr, context.spellAlias, "basic_save", "spell_records"),
     buildFilterValueSource: () => ({
       valueExpression: "CASE s.basic_save WHEN 1 THEN 'true' ELSE 'false' END",
       nonEmptyClause: "AND s.basic_save IS NOT NULL",
@@ -765,7 +799,8 @@ export const METADATA_FIELD_REGISTRY = [
     discoverable: true,
     selectClause: "a.is_complex AS isComplex",
     rowValueSource: { key: "isComplex", kind: "booleanNumber" },
-    buildSqlExpression: (context) => buildScalarLookupSql(context.recordKeyExpr, context.actorAlias, "is_complex", "actor_records"),
+    buildSqlExpression: (context) =>
+      buildScalarLookupSql(context.recordKeyExpr, context.actorAlias, "is_complex", "actor_records"),
     buildFilterValueSource: () => ({
       valueExpression: "CASE a.is_complex WHEN 1 THEN 'true' ELSE 'false' END",
       nonEmptyClause: "AND a.is_complex IS NOT NULL",
@@ -805,6 +840,8 @@ export function getMetadataRecordSelectClauses(): string[] {
   return METADATA_FIELD_REGISTRY.map((entry) => entry.selectClause);
 }
 
-export function getMetadataFieldSpecsByPresentation(presentation: Exclude<MetadataPresentation, "none">): MetadataFieldSpecEntry[] {
+export function getMetadataFieldSpecsByPresentation(
+  presentation: Exclude<MetadataPresentation, "none">,
+): MetadataFieldSpecEntry[] {
   return METADATA_FIELD_REGISTRY.filter((entry) => entry.presentation === presentation);
 }

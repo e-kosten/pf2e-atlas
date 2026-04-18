@@ -77,10 +77,7 @@ describe("ontology picker screen", () => {
     const onApply = vi.fn();
     const app = render(
       <DerivedTagTerminalProvider>
-        <OntologyPickerScreen
-          model={createPickerModel()}
-          onApply={onApply}
-        />
+        <OntologyPickerScreen model={createPickerModel()} onApply={onApply} />
       </DerivedTagTerminalProvider>,
     );
 
@@ -106,10 +103,7 @@ describe("ontology picker screen", () => {
     const onApply = vi.fn();
     const app = render(
       <DerivedTagTerminalProvider>
-        <OntologyPickerScreen
-          model={createPickerModel()}
-          onApply={onApply}
-        />
+        <OntologyPickerScreen model={createPickerModel()} onApply={onApply} />
       </DerivedTagTerminalProvider>,
     );
 
@@ -133,10 +127,7 @@ describe("ontology picker screen", () => {
     const onApply = vi.fn();
     const app = render(
       <DerivedTagTerminalProvider>
-        <OntologyPickerScreen
-          model={createPickerModel()}
-          onApply={onApply}
-        />
+        <OntologyPickerScreen model={createPickerModel()} onApply={onApply} />
       </DerivedTagTerminalProvider>,
     );
 
@@ -176,10 +167,7 @@ describe("ontology picker screen", () => {
     };
     const app = render(
       <DerivedTagTerminalProvider>
-        <OntologyPickerScreen
-          model={model}
-          onApply={onApply}
-        />
+        <OntologyPickerScreen model={model} onApply={onApply} />
       </DerivedTagTerminalProvider>,
     );
 
@@ -201,10 +189,7 @@ describe("ontology picker screen", () => {
     const onApply = vi.fn();
     const app = render(
       <DerivedTagTerminalProvider>
-        <OntologyPickerScreen
-          model={createPickerModel()}
-          onApply={onApply}
-        />
+        <OntologyPickerScreen model={createPickerModel()} onApply={onApply} />
       </DerivedTagTerminalProvider>,
     );
 
@@ -251,10 +236,7 @@ describe("ontology picker screen", () => {
     };
     const app = render(
       <DerivedTagTerminalProvider>
-        <OntologyPickerScreen
-          model={rootSelectableModel}
-          onApply={onApply}
-        />
+        <OntologyPickerScreen model={rootSelectableModel} onApply={onApply} />
       </DerivedTagTerminalProvider>,
     );
 

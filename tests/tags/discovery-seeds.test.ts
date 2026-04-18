@@ -93,17 +93,23 @@ function insertRecord(
     tags?: string[];
   },
 ): void {
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO records (
       record_key, name, normalized_name, pack_name, publication_title, folder_id, source_path, category, subcategory,
       variant_family_key, variant_base_name, variant_label, variant_axes_json,
       level, traits_json, derived_tags_json, description_text, is_search_canonical
     )
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, '[]', NULL, ?, ?, ?, 1)
-  `).run(
+  `,
+  ).run(
     input.recordKey,
     input.name,
-    input.name.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " "),
+    input.name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim()
+      .replace(/\s+/g, " "),
     input.packName ?? input.recordKey.split(":")[0] ?? input.recordKey,
     input.publicationTitle ?? null,
     input.folderId ?? null,
@@ -171,10 +177,7 @@ describe("exemplar-backed discovery integration", () => {
       });
 
       expect(report.cohortSize).toBe(2);
-      expect(report.representativeRecords.map((record) => record.recordKey)).toEqual([
-        "spell:seed-1",
-        "spell:seed-2",
-      ]);
+      expect(report.representativeRecords.map((record) => record.recordKey)).toEqual(["spell:seed-1", "spell:seed-2"]);
     } finally {
       db.close();
     }
@@ -231,9 +234,7 @@ describe("exemplar-backed discovery integration", () => {
   it("excludes reviewed-negative family-gap records by default and can audit one reviewed bucket", () => {
     const db = createDiscoveryDb();
     try {
-      REVIEWED_DISCOVERY_RECORDS.creature!.setting!.not_family_salient = [
-        { recordKey: "creature:generic-thug" },
-      ];
+      REVIEWED_DISCOVERY_RECORDS.creature!.setting!.not_family_salient = [{ recordKey: "creature:generic-thug" }];
 
       insertRecord(db, {
         recordKey: "creature:fortress-ghost",
@@ -270,11 +271,13 @@ describe("exemplar-backed discovery integration", () => {
         limit: 4,
       });
       expect(defaultReport.familyGap?.uncoveredCount).toBe(1);
-      expect(defaultReport.reviewedRecords).toEqual(expect.objectContaining({
-        mode: "excluded",
-        scopedCount: 1,
-        appliedCount: 1,
-      }));
+      expect(defaultReport.reviewedRecords).toEqual(
+        expect.objectContaining({
+          mode: "excluded",
+          scopedCount: 1,
+          appliedCount: 1,
+        }),
+      );
 
       const reviewedReport = analyzeDiscoveryEvidence(db, {
         category: "creature",
@@ -285,15 +288,15 @@ describe("exemplar-backed discovery integration", () => {
         limit: 4,
       });
       expect(reviewedReport.cohortSize).toBe(1);
-      expect(reviewedReport.representativeRecords.map((record) => record.recordKey)).toEqual([
-        "creature:generic-thug",
-      ]);
-      expect(reviewedReport.reviewedRecords).toEqual(expect.objectContaining({
-        mode: "filtered",
-        reviewReason: "not_family_salient",
-        scopedCount: 1,
-        appliedCount: 1,
-      }));
+      expect(reviewedReport.representativeRecords.map((record) => record.recordKey)).toEqual(["creature:generic-thug"]);
+      expect(reviewedReport.reviewedRecords).toEqual(
+        expect.objectContaining({
+          mode: "filtered",
+          reviewReason: "not_family_salient",
+          scopedCount: 1,
+          appliedCount: 1,
+        }),
+      );
     } finally {
       db.close();
     }
@@ -338,10 +341,7 @@ describe("exemplar-backed discovery integration", () => {
 
       expect(report.sourceTag).toBe("mask_motif");
       expect(report.exemplarCount).toBe(2);
-      expect(report.resolvedExemplars.map((record) => record.recordKey)).toEqual([
-        "spell:seed-1",
-        "spell:seed-2",
-      ]);
+      expect(report.resolvedExemplars.map((record) => record.recordKey)).toEqual(["spell:seed-1", "spell:seed-2"]);
     } finally {
       db.close();
     }

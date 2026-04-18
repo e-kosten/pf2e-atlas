@@ -1,10 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
 
 import { CATEGORY_SUBCATEGORY_MAP, SEARCH_CATEGORIES } from "../domain/categories.js";
-import {
-  getMetadataFilterSemantics,
-  type MetadataFieldSemantics,
-} from "../domain/metadata-semantics.js";
+import { getMetadataFilterSemantics, type MetadataFieldSemantics } from "../domain/metadata-semantics.js";
 import { readMetadataGlossaryArtifact } from "../data/metadata-glossary.js";
 import { Pf2eDataService } from "../data/service.js";
 import type {
@@ -52,7 +49,8 @@ const ONTOLOGY_DOMAINS: OntologyDomainSummary[] = [
   {
     id: "catalogCategories",
     label: "Categories",
-    description: "Browse top-level catalog categories and subcategories with live record counts and ready-to-run browse scopes.",
+    description:
+      "Browse top-level catalog categories and subcategories with live record counts and ready-to-run browse scopes.",
   },
   {
     id: "searchSemantics",
@@ -71,7 +69,7 @@ function titleCaseLabel(value: string): string {
 
 function buildFilterText(...values: Array<string | null | undefined>): string {
   return values
-    .flatMap((value) => value ? [value] : [])
+    .flatMap((value) => (value ? [value] : []))
     .map((value) => normalizeText(value))
     .filter(Boolean)
     .join(" ");
@@ -150,10 +148,7 @@ function buildRecordNode(recordNode: DerivedTagOntologyExplorerRecordNode): Onto
   };
 }
 
-function buildTagSampleDetailLines(
-  tag: DerivedTagOntologyExplorerTagNode,
-  limit = 4,
-): OntologyNode["detailLines"] {
+function buildTagSampleDetailLines(tag: DerivedTagOntologyExplorerTagNode, limit = 4): OntologyNode["detailLines"] {
   const sampleRecords = tag.records.slice(0, limit);
   if (sampleRecords.length === 0) {
     return [
@@ -201,12 +196,16 @@ function buildTagNode(tag: DerivedTagOntologyExplorerTagNode): OntologyNode {
       { text: `Scope: ${tag.subcategories?.join(", ") ?? "(all subcategories)"}` },
       { text: `Assignment mode: ${tag.assignmentMode}` },
       { text: `Native ontology policy: ${tag.nativeOntologyPolicy ?? "(none)"}` },
-      { text: `Variant inheritance override: ${tag.variantInheritance === undefined ? "(inherit family setting)" : tag.variantInheritance ? "yes" : "no"}` },
+      {
+        text: `Variant inheritance override: ${tag.variantInheritance === undefined ? "(inherit family setting)" : tag.variantInheritance ? "yes" : "no"}`,
+      },
       { text: `Live canonical records: ${tag.liveRecordCount}` },
       { text: `Record pages: ${tag.records.length}` },
       { text: `Authored rules: ${tag.authoredRuleCount}` },
       { text: `Exemplars: +${tag.exemplarPositiveCount} / -${tag.exemplarNegativeCount}` },
-      { text: `Legacy seed migrations: ${tag.legacyMigrationDefinitionCount} definitions across ${tag.legacyMigrationRecordCount} records` },
+      {
+        text: `Legacy seed migrations: ${tag.legacyMigrationDefinitionCount} definitions across ${tag.legacyMigrationRecordCount} records`,
+      },
       { text: `Adjacent tags: ${tag.adjacentTags?.join(", ") ?? "(none)"}` },
       { text: `Composite children: ${tag.compositeOfAnyTags?.join(", ") ?? "(none)"}` },
       { text: "Applies when:", tone: "section" },
@@ -295,7 +294,9 @@ function buildCategoryNode(category: DerivedTagOntologyExplorerCategoryNode): On
 function buildDerivedTagsDomain(config: AppConfig): OntologyDomainModel {
   const db = new DatabaseSync(config.indexPath);
   try {
-    const model: DerivedTagOntologyExplorerModel = buildDerivedTagOntologyExplorerModel(db, { cacheKey: config.indexPath });
+    const model: DerivedTagOntologyExplorerModel = buildDerivedTagOntologyExplorerModel(db, {
+      cacheKey: config.indexPath,
+    });
     return {
       ...ONTOLOGY_DOMAINS.find((domain) => domain.id === "derivedTags")!,
       rootNodes: model.categories.map(buildCategoryNode),
@@ -310,29 +311,31 @@ function buildCategorySubcategoryNodes(
   categoryCount: number,
   liveSubcategoryCounts: Map<string, number>,
 ): OntologyNode {
-  const subcategoryNodes: OntologyNode[] = (CATEGORY_SUBCATEGORY_MAP[category] ?? []).map((subcategory): OntologyNode => ({
-    id: `${category}:${subcategory}`,
-    kind: "subcategory",
-    label: titleCaseLabel(subcategory),
-    shortLabel: subcategory,
-    filterText: buildFilterText(category, subcategory),
-    listLabel: `${subcategory} | ${liveSubcategoryCounts.get(subcategory) ?? 0} live records`,
-    detailTitle: "Subcategory Details",
-    detailLines: buildKeyValueDetailLines(titleCaseLabel(subcategory), [
-      ["Category", category],
-      ["Subcategory", subcategory],
-      ["Live canonical records", liveSubcategoryCounts.get(subcategory) ?? 0],
-    ]),
-    query: {
-      kind: "listRecords",
-      label: "Browse this subcategory",
-      filters: {
-        category,
-        subcategory,
-        limit: 20,
+  const subcategoryNodes: OntologyNode[] = (CATEGORY_SUBCATEGORY_MAP[category] ?? []).map(
+    (subcategory): OntologyNode => ({
+      id: `${category}:${subcategory}`,
+      kind: "subcategory",
+      label: titleCaseLabel(subcategory),
+      shortLabel: subcategory,
+      filterText: buildFilterText(category, subcategory),
+      listLabel: `${subcategory} | ${liveSubcategoryCounts.get(subcategory) ?? 0} live records`,
+      detailTitle: "Subcategory Details",
+      detailLines: buildKeyValueDetailLines(titleCaseLabel(subcategory), [
+        ["Category", category],
+        ["Subcategory", subcategory],
+        ["Live canonical records", liveSubcategoryCounts.get(subcategory) ?? 0],
+      ]),
+      query: {
+        kind: "listRecords",
+        label: "Browse this subcategory",
+        filters: {
+          category,
+          subcategory,
+          limit: 20,
+        },
       },
-    },
-  }));
+    }),
+  );
 
   return {
     id: category,
@@ -376,11 +379,13 @@ function buildCatalogCategoriesDomain(
 
   return {
     ...ONTOLOGY_DOMAINS.find((domain) => domain.id === "catalogCategories")!,
-    rootNodes: SEARCH_CATEGORIES.map((category) => buildCategorySubcategoryNodes(
-      category,
-      categoryCounts.get(category) ?? 0,
-      subcategoryCountsByCategory.get(category) ?? new Map<string, number>(),
-    )),
+    rootNodes: SEARCH_CATEGORIES.map((category) =>
+      buildCategorySubcategoryNodes(
+        category,
+        categoryCounts.get(category) ?? 0,
+        subcategoryCountsByCategory.get(category) ?? new Map<string, number>(),
+      ),
+    ),
   };
 }
 
@@ -426,10 +431,10 @@ function buildMetadataValueQuery(
       const numericValue = Number(value);
       return Number.isFinite(numericValue)
         ? {
-          field: fieldSemantics.field as MetadataNumberField,
-          op: "eq",
-          value: numericValue,
-        }
+            field: fieldSemantics.field as MetadataNumberField,
+            op: "eq",
+            value: numericValue,
+          }
         : undefined;
     }
     case "boolean": {
@@ -437,10 +442,10 @@ function buildMetadataValueQuery(
       return booleanValue === undefined
         ? undefined
         : {
-          field: fieldSemantics.field as MetadataBooleanField,
-          op: "eq",
-          value: booleanValue,
-        };
+            field: fieldSemantics.field as MetadataBooleanField,
+            op: "eq",
+            value: booleanValue,
+          };
     }
   }
 }
@@ -453,9 +458,8 @@ function buildFieldValueNodes(
 ): OntologyNode[] {
   return values.map((entry): OntologyNode => {
     const metadata = buildMetadataValueQuery(fieldSemantics, entry.value);
-    const traitGlossaryEntry = fieldSemantics.field === "traits"
-      ? getTraitGlossaryEntry(metadataGlossary, entry.value)
-      : undefined;
+    const traitGlossaryEntry =
+      fieldSemantics.field === "traits" ? getTraitGlossaryEntry(metadataGlossary, entry.value) : undefined;
     return {
       id: `${category}:${fieldSemantics.field}:${entry.value}`,
       kind: "value",
@@ -469,27 +473,33 @@ function buildFieldValueNodes(
       ),
       listLabel: `${traitGlossaryEntry?.label ?? entry.value} | ${entry.count}`,
       detailTitle: fieldSemantics.field === "traits" ? "Trait Details" : "Filter Value",
-      detailLines: fieldSemantics.field === "traits"
-        ? [
-          ...buildTraitDetailLines(category, entry.value, entry.count, metadataGlossary),
-          { text: buildResultReaderHint() },
-        ]
-        : buildKeyValueDetailLines(entry.value, [
-          ["Category", category],
-          ["Field", fieldSemantics.field],
-          ["Value", entry.value],
-          ["Live canonical records", entry.count],
-        ], buildResultReaderHint()),
+      detailLines:
+        fieldSemantics.field === "traits"
+          ? [
+              ...buildTraitDetailLines(category, entry.value, entry.count, metadataGlossary),
+              { text: buildResultReaderHint() },
+            ]
+          : buildKeyValueDetailLines(
+              entry.value,
+              [
+                ["Category", category],
+                ["Field", fieldSemantics.field],
+                ["Value", entry.value],
+                ["Live canonical records", entry.count],
+              ],
+              buildResultReaderHint(),
+            ),
       query: metadata
         ? {
-          kind: "listRecords",
-          label: fieldSemantics.field === "traits" ? "Browse records with this trait" : "Browse records with this value",
-          filters: {
-            category,
-            metadata,
-            limit: 20,
-          },
-        }
+            kind: "listRecords",
+            label:
+              fieldSemantics.field === "traits" ? "Browse records with this trait" : "Browse records with this value",
+            filters: {
+              category,
+              metadata,
+              limit: 20,
+            },
+          }
         : undefined,
     };
   });
@@ -511,7 +521,10 @@ function buildSearchSemanticsDomain(
   const metadataFieldsByName = new Map(semantics.metadataFields.map((entry) => [entry.field, entry]));
   const filterValuesCache = new Map<string, Array<{ value: string; count: number }>>();
 
-  const getCachedFilterValues = (category: SearchCategory, field: MetadataFieldSemantics["field"]): Array<{ value: string; count: number }> => {
+  const getCachedFilterValues = (
+    category: SearchCategory,
+    field: MetadataFieldSemantics["field"],
+  ): Array<{ value: string; count: number }> => {
     const cacheKey = `${category}:${field}`;
     const cached = filterValuesCache.get(cacheKey);
     if (cached) {
@@ -522,12 +535,20 @@ function buildSearchSemanticsDomain(
     return values;
   };
 
-  const commonTraitsByCategory = new Map(vocabulary.commonTraitsByCategory.map((entry) => [entry.category, entry.traits]));
-  const commonDerivedTagsByCategory = new Map(vocabulary.commonDerivedTagsByCategory.map((entry) => [entry.category, entry.tags]));
+  const commonTraitsByCategory = new Map(
+    vocabulary.commonTraitsByCategory.map((entry) => [entry.category, entry.traits]),
+  );
+  const commonDerivedTagsByCategory = new Map(
+    vocabulary.commonDerivedTagsByCategory.map((entry) => [entry.category, entry.tags]),
+  );
   const liveSubcategoryCountsByCategory = new Map(
     SEARCH_CATEGORIES.map((category) => [
       category,
-      new Map(dataService.listFilterValues({ field: "subcategories", category }).values.map((entry) => [entry.value, entry.count])),
+      new Map(
+        dataService
+          .listFilterValues({ field: "subcategories", category })
+          .values.map((entry) => [entry.value, entry.count]),
+      ),
     ]),
   );
   const examplesByCategory = semantics.examplesByCategory;
@@ -547,7 +568,13 @@ function buildSearchSemanticsDomain(
         id: `${category}:field:${field}`,
         kind: "field",
         label: field,
-        filterText: buildFilterText(category, field, fieldSemantics.fieldType, fieldSemantics.notes ?? "", ...(fieldSemantics.subcategories ?? [])),
+        filterText: buildFilterText(
+          category,
+          field,
+          fieldSemantics.fieldType,
+          fieldSemantics.notes ?? "",
+          ...(fieldSemantics.subcategories ?? []),
+        ),
         listLabel: field,
         detailTitle: "Metadata Field Details",
         detailLines: [
@@ -558,10 +585,18 @@ function buildSearchSemanticsDomain(
           { text: `Subcategory scope: ${fieldSemantics.subcategories?.join(", ") ?? "(all subcategories)"}` },
           { text: `Notes: ${fieldSemantics.notes ?? "(none)"}` },
           ...(fieldSemantics.discoverable
-            ? [{ text: "Drill in to browse the full live value space for this field, then open matching records in the shared result reader." }]
+            ? [
+                {
+                  text: "Drill in to browse the full live value space for this field, then open matching records in the shared result reader.",
+                },
+              ]
             : []),
           ...(field === "derivedTags"
-            ? [{ text: "This field exposes the full authored derived-tag hierarchy instead of a flat live-value list." }]
+            ? [
+                {
+                  text: "This field exposes the full authored derived-tag hierarchy instead of a flat live-value list.",
+                },
+              ]
             : []),
         ],
         groupValues: {
@@ -569,128 +604,146 @@ function buildSearchSemanticsDomain(
         },
         ...(field === "derivedTags" && derivedTagCategoryNode?.children
           ? {
-            children: derivedTagCategoryNode.children.map((node) => ({ ...node })),
-            childPresentation: derivedTagCategoryNode.childPresentation,
-          }
+              children: derivedTagCategoryNode.children.map((node) => ({ ...node })),
+              childPresentation: derivedTagCategoryNode.childPresentation,
+            }
           : {
-            loadChildren: fieldSemantics.discoverable
-              ? () => {
-                const liveValues = getCachedFilterValues(category, field);
-                return liveValues.length > 0
-                  ? buildFieldValueNodes(category, fieldSemantics, liveValues, metadataGlossary)
-                  : [];
-              }
-              : undefined,
-          }),
+              loadChildren: fieldSemantics.discoverable
+                ? () => {
+                    const liveValues = getCachedFilterValues(category, field);
+                    return liveValues.length > 0
+                      ? buildFieldValueNodes(category, fieldSemantics, liveValues, metadataGlossary)
+                      : [];
+                  }
+                : undefined,
+            }),
       };
     });
 
     const advancedPredicateNodes: OntologyNode[] = semantics.advancedPredicates
       .filter((predicate) => predicate.categories.includes(category))
-      .map((predicate): OntologyNode => ({
-        id: `${category}:advanced:${predicate.name}`,
-        kind: "advancedPredicate",
-        label: predicate.name,
-        filterText: buildFilterText(category, predicate.name, predicate.description),
-        listLabel: `${predicate.name} | ${predicate.operators.join(", ")}`,
-        detailTitle: "Advanced Predicate Details",
+      .map(
+        (predicate): OntologyNode => ({
+          id: `${category}:advanced:${predicate.name}`,
+          kind: "advancedPredicate",
+          label: predicate.name,
+          filterText: buildFilterText(category, predicate.name, predicate.description),
+          listLabel: `${predicate.name} | ${predicate.operators.join(", ")}`,
+          detailTitle: "Advanced Predicate Details",
+          detailLines: [
+            { text: predicate.name, tone: "section" },
+            { text: predicate.description },
+            { text: `Category: ${category}` },
+            { text: `Operators: ${predicate.operators.join(", ")}` },
+            { text: `Example: ${JSON.stringify(predicate.example)}` },
+          ],
+        }),
+      );
+
+    const traitNodes: OntologyNode[] = (commonTraitsByCategory.get(category) ?? []).map(
+      (entry): OntologyNode => ({
+        id: `${category}:trait:${entry.value}`,
+        kind: "trait",
+        label: getTraitGlossaryEntry(metadataGlossary, entry.value)?.label ?? entry.value,
+        filterText: buildFilterText(
+          category,
+          entry.value,
+          "trait",
+          getTraitGlossaryEntry(metadataGlossary, entry.value)?.label ?? "",
+          getTraitGlossaryEntry(metadataGlossary, entry.value)?.description ?? "",
+        ),
+        listLabel: `${getTraitGlossaryEntry(metadataGlossary, entry.value)?.label ?? entry.value} | ${entry.count}`,
+        detailTitle: "Common Trait",
         detailLines: [
-          { text: predicate.name, tone: "section" },
-          { text: predicate.description },
-          { text: `Category: ${category}` },
-          { text: `Operators: ${predicate.operators.join(", ")}` },
-          { text: `Example: ${JSON.stringify(predicate.example)}` },
+          ...buildTraitDetailLines(category, entry.value, entry.count, metadataGlossary),
+          { text: buildResultReaderHint() },
         ],
-      }));
-
-    const traitNodes: OntologyNode[] = (commonTraitsByCategory.get(category) ?? []).map((entry): OntologyNode => ({
-      id: `${category}:trait:${entry.value}`,
-      kind: "trait",
-      label: getTraitGlossaryEntry(metadataGlossary, entry.value)?.label ?? entry.value,
-      filterText: buildFilterText(
-        category,
-        entry.value,
-        "trait",
-        getTraitGlossaryEntry(metadataGlossary, entry.value)?.label ?? "",
-        getTraitGlossaryEntry(metadataGlossary, entry.value)?.description ?? "",
-      ),
-      listLabel: `${getTraitGlossaryEntry(metadataGlossary, entry.value)?.label ?? entry.value} | ${entry.count}`,
-      detailTitle: "Common Trait",
-      detailLines: [
-        ...buildTraitDetailLines(category, entry.value, entry.count, metadataGlossary),
-        { text: buildResultReaderHint() },
-      ],
-      query: {
-        kind: "listRecords",
-        label: "Browse records with this trait",
-        filters: {
-          category,
-          metadata: { field: "traits", op: "includesAny", values: [entry.value] },
-          limit: 20,
+        query: {
+          kind: "listRecords",
+          label: "Browse records with this trait",
+          filters: {
+            category,
+            metadata: { field: "traits", op: "includesAny", values: [entry.value] },
+            limit: 20,
+          },
         },
-      },
-    }));
+      }),
+    );
 
-    const commonDerivedTagNodes: OntologyNode[] = (commonDerivedTagsByCategory.get(category) ?? []).map((entry): OntologyNode => ({
-      id: `${category}:derivedTag:${entry.value}`,
-      kind: "derivedTagValue",
-      label: entry.value,
-      filterText: buildFilterText(category, entry.value, "derived tag"),
-      listLabel: `${entry.value} | ${entry.count}`,
-      detailTitle: "Common Derived Tag",
-      detailLines: buildKeyValueDetailLines(entry.value, [
-        ["Category", category],
-        ["Derived tag", entry.value],
-        ["Live canonical records", entry.count],
-      ], buildResultReaderHint()),
-      query: {
-        kind: "listRecords",
-        label: "Browse records with this derived tag",
-        filters: {
-          category,
-          metadata: { field: "derivedTags", op: "includesAny", values: [entry.value] },
-          limit: 20,
+    const commonDerivedTagNodes: OntologyNode[] = (commonDerivedTagsByCategory.get(category) ?? []).map(
+      (entry): OntologyNode => ({
+        id: `${category}:derivedTag:${entry.value}`,
+        kind: "derivedTagValue",
+        label: entry.value,
+        filterText: buildFilterText(category, entry.value, "derived tag"),
+        listLabel: `${entry.value} | ${entry.count}`,
+        detailTitle: "Common Derived Tag",
+        detailLines: buildKeyValueDetailLines(
+          entry.value,
+          [
+            ["Category", category],
+            ["Derived tag", entry.value],
+            ["Live canonical records", entry.count],
+          ],
+          buildResultReaderHint(),
+        ),
+        query: {
+          kind: "listRecords",
+          label: "Browse records with this derived tag",
+          filters: {
+            category,
+            metadata: { field: "derivedTags", op: "includesAny", values: [entry.value] },
+            limit: 20,
+          },
         },
-      },
-    }));
+      }),
+    );
 
-    const exampleNodes: OntologyNode[] = (examplesByCategory[category] ?? []).map((example, index): OntologyNode => ({
-      id: `${category}:example:${index}`,
-      kind: "example",
-      label: example.label,
-      filterText: buildFilterText(category, example.label, example.notes ?? ""),
-      listLabel: example.label,
-      detailTitle: "Example Predicate",
-      detailLines: [
-        { text: example.label, tone: "section" },
-        { text: `Category: ${category}` },
-        { text: `Predicate: ${JSON.stringify(example.metadata)}` },
-        { text: `Notes: ${example.notes ?? "(none)"}` },
-      ],
-    }));
+    const exampleNodes: OntologyNode[] = (examplesByCategory[category] ?? []).map(
+      (example, index): OntologyNode => ({
+        id: `${category}:example:${index}`,
+        kind: "example",
+        label: example.label,
+        filterText: buildFilterText(category, example.label, example.notes ?? ""),
+        listLabel: example.label,
+        detailTitle: "Example Predicate",
+        detailLines: [
+          { text: example.label, tone: "section" },
+          { text: `Category: ${category}` },
+          { text: `Predicate: ${JSON.stringify(example.metadata)}` },
+          { text: `Notes: ${example.notes ?? "(none)"}` },
+        ],
+      }),
+    );
 
-    const subcategoryNodes: OntologyNode[] = (CATEGORY_SUBCATEGORY_MAP[category] ?? []).map((subcategory): OntologyNode => ({
-      id: `${category}:subcategory:${subcategory}`,
-      kind: "subcategory",
-      label: subcategory,
-      filterText: buildFilterText(category, subcategory),
-      listLabel: `${subcategory} | ${liveSubcategoryCounts.get(subcategory) ?? 0}`,
-      detailTitle: "Subcategory Boundary",
-      detailLines: buildKeyValueDetailLines(subcategory, [
-        ["Category", category],
-        ["Subcategory", subcategory],
-        ["Live canonical records", liveSubcategoryCounts.get(subcategory) ?? 0],
-      ], buildResultReaderHint()),
-      query: {
-        kind: "listRecords",
-        label: "Browse this subcategory",
-        filters: {
-          category,
+    const subcategoryNodes: OntologyNode[] = (CATEGORY_SUBCATEGORY_MAP[category] ?? []).map(
+      (subcategory): OntologyNode => ({
+        id: `${category}:subcategory:${subcategory}`,
+        kind: "subcategory",
+        label: subcategory,
+        filterText: buildFilterText(category, subcategory),
+        listLabel: `${subcategory} | ${liveSubcategoryCounts.get(subcategory) ?? 0}`,
+        detailTitle: "Subcategory Boundary",
+        detailLines: buildKeyValueDetailLines(
           subcategory,
-          limit: 20,
+          [
+            ["Category", category],
+            ["Subcategory", subcategory],
+            ["Live canonical records", liveSubcategoryCounts.get(subcategory) ?? 0],
+          ],
+          buildResultReaderHint(),
+        ),
+        query: {
+          kind: "listRecords",
+          label: "Browse this subcategory",
+          filters: {
+            category,
+            subcategory,
+            limit: 20,
+          },
         },
-      },
-    }));
+      }),
+    );
 
     const children: OntologyNode[] = [];
     if (subcategoryNodes.length > 0) {
@@ -728,7 +781,11 @@ function buildSearchSemanticsDomain(
         id: `${category}:commonDerivedTags`,
         kind: "group",
         label: "Common Derived Tags",
-        filterText: buildFilterText(category, "common derived tags", ...commonDerivedTagNodes.map((node) => node.label)),
+        filterText: buildFilterText(
+          category,
+          "common derived tags",
+          ...commonDerivedTagNodes.map((node) => node.label),
+        ),
         listLabel: `Common derived tags | ${commonDerivedTagNodes.length}`,
         detailTitle: "Common Derived Tags",
         detailLines: buildKeyValueDetailLines("Common Derived Tags", [
@@ -746,10 +803,14 @@ function buildSearchSemanticsDomain(
         filterText: buildFilterText(category, "metadata fields", ...categoryFields),
         listLabel: `Metadata fields | ${categoryFields.length}`,
         detailTitle: "Metadata Fields",
-        detailLines: buildKeyValueDetailLines("Metadata Fields", [
-          ["Category", category],
-          ["Fields", categoryFields.length],
-        ], "Use these typed fields after category and subcategory boundaries."),
+        detailLines: buildKeyValueDetailLines(
+          "Metadata Fields",
+          [
+            ["Category", category],
+            ["Fields", categoryFields.length],
+          ],
+          "Use these typed fields after category and subcategory boundaries.",
+        ),
         children: metadataFieldNodes,
         childPresentation: {
           mode: "grouped",
@@ -763,7 +824,11 @@ function buildSearchSemanticsDomain(
         id: `${category}:advancedPredicates`,
         kind: "group",
         label: "Advanced Predicates",
-        filterText: buildFilterText(category, "advanced predicates", ...advancedPredicateNodes.map((node) => node.label)),
+        filterText: buildFilterText(
+          category,
+          "advanced predicates",
+          ...advancedPredicateNodes.map((node) => node.label),
+        ),
         listLabel: `Advanced predicates | ${advancedPredicateNodes.length}`,
         detailTitle: "Advanced Predicates",
         detailLines: buildKeyValueDetailLines("Advanced Predicates", [
@@ -797,12 +862,16 @@ function buildSearchSemanticsDomain(
       filterText: buildFilterText(category, ...categoryFields),
       listLabel: `${category} | ${children.length} groups`,
       detailTitle: "Search Semantics",
-      detailLines: buildKeyValueDetailLines(titleCaseLabel(category), [
-        ["Category", category],
-        ["Subcategories", (CATEGORY_SUBCATEGORY_MAP[category] ?? []).length],
-        ["Metadata fields", categoryFields.length],
-        ["Advanced predicates", advancedPredicateNodes.length],
-      ], "Explore category-specific search semantics, discoverable fields, and example predicates."),
+      detailLines: buildKeyValueDetailLines(
+        titleCaseLabel(category),
+        [
+          ["Category", category],
+          ["Subcategories", (CATEGORY_SUBCATEGORY_MAP[category] ?? []).length],
+          ["Metadata fields", categoryFields.length],
+          ["Advanced predicates", advancedPredicateNodes.length],
+        ],
+        "Explore category-specific search semantics, discoverable fields, and example predicates.",
+      ),
       children,
     };
   });

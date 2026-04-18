@@ -20,21 +20,18 @@ const RAW_LEGACY_FAMILY_ALIASES: Partial<Record<SearchCategory, Record<string, s
   },
 };
 
-export function getLegacyDerivedTagFamilyAliases(
-  category: SearchCategory,
-  family: string,
-): string[] {
+export function getLegacyDerivedTagFamilyAliases(category: SearchCategory, family: string): string[] {
   const normalizedFamily = normalizeDerivedTag(family);
-  return (RAW_LEGACY_FAMILY_ALIASES[category]?.[normalizedFamily] ?? [])
-    .map((candidate) => normalizeDerivedTag(candidate));
+  return (RAW_LEGACY_FAMILY_ALIASES[category]?.[normalizedFamily] ?? []).map((candidate) =>
+    normalizeDerivedTag(candidate),
+  );
 }
 
 export function listLegacyDerivedTagFamilyAliases(
   category: SearchCategory,
 ): Array<{ legacyFamily: string; targetFamilies: string[] }> {
-  return Object.entries(RAW_LEGACY_FAMILY_ALIASES[category] ?? {})
-    .map(([legacyFamily, targetFamilies]) => ({
-      legacyFamily: normalizeDerivedTag(legacyFamily),
-      targetFamilies: targetFamilies.map((candidate) => normalizeDerivedTag(candidate)),
-    }));
+  return Object.entries(RAW_LEGACY_FAMILY_ALIASES[category] ?? {}).map(([legacyFamily, targetFamilies]) => ({
+    legacyFamily: normalizeDerivedTag(legacyFamily),
+    targetFamilies: targetFamilies.map((candidate) => normalizeDerivedTag(candidate)),
+  }));
 }

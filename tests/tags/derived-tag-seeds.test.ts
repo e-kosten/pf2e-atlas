@@ -1,13 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type {
-  DerivedTagExemplarCategory,
-  DerivedTagOntologyFamily,
-  DerivedTagOntologyTag,
-} from "../../src/types.js";
-import {
-  publishDerivedTagOntology,
-} from "../../src/tags/runtime/catalog-utils.js";
+import type { DerivedTagExemplarCategory, DerivedTagOntologyFamily, DerivedTagOntologyTag } from "../../src/types.js";
+import { publishDerivedTagOntology } from "../../src/tags/runtime/catalog-utils.js";
 import {
   publishDerivedTagExemplars,
   resolveDerivedTagExemplarRecordKeys,
@@ -124,63 +118,77 @@ describe("derived tag exemplars and legacy seed migrations", () => {
   });
 
   it("fails fast when an exemplar references an unknown ontology tag", () => {
-    expect(() => publishDerivedTagExemplars(exemplarOntology, [
-      {
-        category: "equipment",
-        exemplars: [
-          {
-            tag: "unknown_tag",
-            positives: [{ name: "Mask", recordKey: "equipment:mask" }],
-          },
-        ],
-      },
-    ])).toThrow(/does not exist in the published ontology/);
+    expect(() =>
+      publishDerivedTagExemplars(exemplarOntology, [
+        {
+          category: "equipment",
+          exemplars: [
+            {
+              tag: "unknown_tag",
+              positives: [{ name: "Mask", recordKey: "equipment:mask" }],
+            },
+          ],
+        },
+      ]),
+    ).toThrow(/does not exist in the published ontology/);
   });
 
   it("rejects duplicate and conflicting exemplar records", () => {
-    expect(() => publishDerivedTagExemplars(exemplarOntology, [
-      {
-        category: "equipment",
-        exemplars: [
-          {
-            tag: "disguise",
-            positives: [
-              { name: "Mask", recordKey: "equipment:mask" },
-              { name: "Mask", recordKey: "equipment:mask" },
-            ],
-          },
-        ],
-      },
-    ])).toThrow(/repeats record/);
+    expect(() =>
+      publishDerivedTagExemplars(exemplarOntology, [
+        {
+          category: "equipment",
+          exemplars: [
+            {
+              tag: "disguise",
+              positives: [
+                { name: "Mask", recordKey: "equipment:mask" },
+                { name: "Mask", recordKey: "equipment:mask" },
+              ],
+            },
+          ],
+        },
+      ]),
+    ).toThrow(/repeats record/);
 
-    expect(() => publishDerivedTagExemplars(exemplarOntology, [
-      {
-        category: "equipment",
-        exemplars: [
-          {
-            tag: "disguise",
-            positives: [{ name: "Mask", recordKey: "equipment:mask" }],
-            negatives: [{ name: "Mask", recordKey: "equipment:mask" }],
-          },
-        ],
-      },
-    ])).toThrow(/both positive and negative/);
+    expect(() =>
+      publishDerivedTagExemplars(exemplarOntology, [
+        {
+          category: "equipment",
+          exemplars: [
+            {
+              tag: "disguise",
+              positives: [{ name: "Mask", recordKey: "equipment:mask" }],
+              negatives: [{ name: "Mask", recordKey: "equipment:mask" }],
+            },
+          ],
+        },
+      ]),
+    ).toThrow(/both positive and negative/);
   });
 
   it("validates exemplar name drift against canonical records when present", () => {
     const exemplars = publishDerivedTagExemplars(exemplarOntology, authoredExemplars);
 
-    expect(() => validateDerivedTagExemplarsAgainstRecords([
-      { recordKey: "equipment:mask", name: "Mask", category: "equipment" },
-      { recordKey: "equipment:veil", name: "Veil", category: "equipment" },
-      { recordKey: "equipment:blocked", name: "Blocked Mask", category: "equipment" },
-      { recordKey: "spell:illusory-disguise", name: "Illusory Disguise", category: "spell" },
-      { recordKey: "creature:masked-priest", name: "Masked Priest", category: "creature" },
-    ], exemplars)).not.toThrow();
+    expect(() =>
+      validateDerivedTagExemplarsAgainstRecords(
+        [
+          { recordKey: "equipment:mask", name: "Mask", category: "equipment" },
+          { recordKey: "equipment:veil", name: "Veil", category: "equipment" },
+          { recordKey: "equipment:blocked", name: "Blocked Mask", category: "equipment" },
+          { recordKey: "spell:illusory-disguise", name: "Illusory Disguise", category: "spell" },
+          { recordKey: "creature:masked-priest", name: "Masked Priest", category: "creature" },
+        ],
+        exemplars,
+      ),
+    ).not.toThrow();
 
-    expect(() => validateDerivedTagExemplarsAgainstRecords([
-      { recordKey: "equipment:mask", name: "Different Mask", category: "equipment" },
-    ], exemplars)).toThrow(/expected name/);
+    expect(() =>
+      validateDerivedTagExemplarsAgainstRecords(
+        [{ recordKey: "equipment:mask", name: "Different Mask", category: "equipment" }],
+        exemplars,
+      ),
+    ).toThrow(/expected name/);
   });
 
   it("exposes configured exemplars separately from live tag derivation", () => {
@@ -219,16 +227,20 @@ describe("derived tag exemplars and legacy seed migrations", () => {
     );
 
     expect(seededHazardRecords.size).toBeGreaterThanOrEqual(50);
-    expect(getDerivedTagLegacySeedMigrationRecordKeys("ward_trigger", { category: "hazard" })).toEqual(expect.arrayContaining([
-      "agents-of-edgewatch-bestiary:qy53ECS2agScE7G3",
-      "extinction-curse-bestiary:1CjTIaMYUvQUkQI2",
-      "season-of-ghosts-bestiary:DueMGlf6tX1bqwSS",
-    ]));
-    expect(getDerivedTagLegacySeedMigrationRecordKeys("fire_hazard", { category: "hazard" })).toEqual(expect.arrayContaining([
-      "hazards:O0qA1ElCOgYGEBtL",
-      "stolen-fate-bestiary:UX7QKytewemOnNeX",
-      "blood-lords-bestiary:lycxuueclDmiIAOF",
-    ]));
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("ward_trigger", { category: "hazard" })).toEqual(
+      expect.arrayContaining([
+        "agents-of-edgewatch-bestiary:qy53ECS2agScE7G3",
+        "extinction-curse-bestiary:1CjTIaMYUvQUkQI2",
+        "season-of-ghosts-bestiary:DueMGlf6tX1bqwSS",
+      ]),
+    );
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("fire_hazard", { category: "hazard" })).toEqual(
+      expect.arrayContaining([
+        "hazards:O0qA1ElCOgYGEBtL",
+        "stolen-fate-bestiary:UX7QKytewemOnNeX",
+        "blood-lords-bestiary:lycxuueclDmiIAOF",
+      ]),
+    );
 
     const mukradiDerivation = deriveRecordTagDerivation({
       recordKey: "extinction-curse-bestiary:1CjTIaMYUvQUkQI2",
@@ -250,11 +262,9 @@ describe("derived tag exemplars and legacy seed migrations", () => {
       descriptionText: null,
       traits: [],
     });
-    expect(gasChamberDerivation.tags).toEqual(expect.arrayContaining([
-      "barrier_lockdown",
-      "poison_hazard",
-      "respiratory_hazard",
-    ]));
+    expect(gasChamberDerivation.tags).toEqual(
+      expect.arrayContaining(["barrier_lockdown", "poison_hazard", "respiratory_hazard"]),
+    );
     expect(gasChamberDerivation.sources.get("barrier_lockdown")).toBe("seed_migration");
     expect(gasChamberDerivation.sources.get("poison_hazard")).toBe("seed_migration");
     expect(gasChamberDerivation.sources.get("respiratory_hazard")).toBe("seed_migration");
@@ -296,21 +306,27 @@ describe("derived tag exemplars and legacy seed migrations", () => {
 
     expect(rawSeedAdds).toBeGreaterThanOrEqual(120);
     expect(seededSpellRecords.size).toBeGreaterThanOrEqual(90);
-    expect(getDerivedTagLegacySeedMigrationRecordKeys("persistent_damage", { category: "spell" })).toEqual(expect.arrayContaining([
-      "spells-srd:f8hRqLJaxBVhF1u0",
-      "spells-srd:Z3kJty995FkrsZRb",
-      "spells-srd:A16eFTRh82xIjMu8",
-    ]));
-    expect(getDerivedTagLegacySeedMigrationRecordKeys("initiative_support", { category: "spell" })).toEqual(expect.arrayContaining([
-      "spells-srd:EUMjrJJwSgsqNidi",
-      "spells-srd:dqaCLzINHBiKjh4J",
-      "spells-srd:I8CPe9Pp7GABqOyB",
-    ]));
-    expect(getDerivedTagLegacySeedMigrationRecordKeys("eidolon_support", { category: "spell" })).toEqual(expect.arrayContaining([
-      "spells-srd:HStu2Yhw3iQER9tY",
-      "spells-srd:AfOpnnwdZwHi2Tnc",
-      "spells-srd:TYbCj4dgXDOZou9k",
-    ]));
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("persistent_damage", { category: "spell" })).toEqual(
+      expect.arrayContaining([
+        "spells-srd:f8hRqLJaxBVhF1u0",
+        "spells-srd:Z3kJty995FkrsZRb",
+        "spells-srd:A16eFTRh82xIjMu8",
+      ]),
+    );
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("initiative_support", { category: "spell" })).toEqual(
+      expect.arrayContaining([
+        "spells-srd:EUMjrJJwSgsqNidi",
+        "spells-srd:dqaCLzINHBiKjh4J",
+        "spells-srd:I8CPe9Pp7GABqOyB",
+      ]),
+    );
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("eidolon_support", { category: "spell" })).toEqual(
+      expect.arrayContaining([
+        "spells-srd:HStu2Yhw3iQER9tY",
+        "spells-srd:AfOpnnwdZwHi2Tnc",
+        "spells-srd:TYbCj4dgXDOZou9k",
+      ]),
+    );
 
     const acidArrowDerivation = deriveRecordTagDerivation({
       recordKey: "spells-srd:f8hRqLJaxBVhF1u0",
@@ -390,11 +406,7 @@ describe("derived tag exemplars and legacy seed migrations", () => {
   });
 
   it("exposes the creature manual seed pass and applies representative seeded records", () => {
-    const encounterRoleTags = [
-      "profession_npc",
-      "civic_npc",
-      "enforcer_npc",
-    ];
+    const encounterRoleTags = ["profession_npc", "civic_npc", "enforcer_npc"];
     const encounterRoleRawAdds = encounterRoleTags.reduce(
       (count, tag) => count + getDerivedTagLegacySeedMigrationRecordKeys(tag, { category: "creature" }).length,
       0,
@@ -405,70 +417,90 @@ describe("derived tag exemplars and legacy seed migrations", () => {
 
     expect(encounterRoleRawAdds).toBeGreaterThanOrEqual(180);
     expect(encounterRoleRecords.size).toBeGreaterThanOrEqual(95);
-    expect(getDerivedTagLegacySeedMigrationRecordKeys("profession_npc", { category: "creature" })).toEqual(expect.arrayContaining([
-      "agents-of-edgewatch-bestiary:rsKf8ixrl3yBq1gb",
-      "claws-of-the-tyrant-bestiary:tMqtId1TKVUXe4tN",
-    ]));
-    expect(getDerivedTagLegacySeedMigrationRecordKeys("civic_npc", { category: "creature" })).toEqual(expect.arrayContaining([
-      "agents-of-edgewatch-bestiary:rsKf8ixrl3yBq1gb",
-      "gatewalkers-bestiary:kneoApQfhlRhhp1R",
-      "sky-kings-tomb-bestiary:OWVg3LYOdGHOYUHt",
-    ]));
-    expect(getDerivedTagLegacySeedMigrationRecordKeys("enforcer_npc", { category: "creature" })).toEqual(expect.arrayContaining([
-      "claws-of-the-tyrant-bestiary:tMqtId1TKVUXe4tN",
-      "triumph-of-the-tusk-bestiary:xd35No1x2n1MDVCm",
-      "battlecry-bestiary:R1Ukw41ygDmnAmJk",
-    ]));
-    expect(getDerivedTagLegacySeedMigrationRecordKeys("urban_setting", { category: "creature" })).toEqual(expect.arrayContaining([
-      "battlecry-bestiary:AHV0FTrbuPljLndw",
-      "blood-lords-bestiary:EqO67DHLlB88vSJZ",
-      "book-of-the-dead-bestiary:ol2lji9lH7PXh1uw",
-    ]));
-    expect(getDerivedTagLegacySeedMigrationRecordKeys("nautical_setting", { category: "creature" })).toEqual(expect.arrayContaining([
-      "agents-of-edgewatch-bestiary:d3TzpCuRJF78xHZK",
-    ]));
-    expect(getDerivedTagLegacySeedMigrationRecordKeys("organized_undead_society_setting", { category: "creature" })).toEqual(expect.arrayContaining([
-      "blood-lords-bestiary:IXPZR1DTdT7Tu7UG",
-      "blood-lords-bestiary:KQkouk6tku8akpmU",
-      "blood-lords-bestiary:k8NnItW7Hp79bg26",
-      "blood-lords-bestiary:vUv8SR7Pa5fONiuN",
-    ]));
-    expect(getDerivedTagLegacySeedMigrationRecordKeys("undead_war_torn_region_setting", { category: "creature" })).toEqual(expect.arrayContaining([
-      "book-of-the-dead-bestiary:gXo04F7O4pwOY698",
-      "claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E",
-      "claws-of-the-tyrant-bestiary:jSE16N2ASzN3qlN1",
-      "claws-of-the-tyrant-bestiary:tMqtId1TKVUXe4tN",
-      "claws-of-the-tyrant-bestiary:vdywUTHF4uhA7cyh",
-    ]));
-    expect(getDerivedTagLegacySeedMigrationRecordKeys("tian_xia_setting", { category: "creature" })).toEqual(expect.arrayContaining([
-      "fists-of-the-ruby-phoenix-bestiary:HqN4nUnl75foBKLZ",
-      "fists-of-the-ruby-phoenix-bestiary:YVP3pM7jxY9Gyouy",
-      "fists-of-the-ruby-phoenix-bestiary:koRKlywSbwttifEq",
-      "fists-of-the-ruby-phoenix-bestiary:zNOSSDaaCozimqaS",
-    ]));
-    expect(getDerivedTagLegacySeedMigrationRecordKeys("island_setting", { category: "creature" })).toEqual(expect.arrayContaining([
-      "age-of-ashes-bestiary:5dSVk2y88SLsPPON",
-      "age-of-ashes-bestiary:6AN7eagk2WrWc4im",
-      "age-of-ashes-bestiary:X6TTBlHIfJZ43OqR",
-    ]));
-    expect(getDerivedTagLegacySeedMigrationRecordKeys("battlefield_setting", { category: "creature" })).toEqual(expect.arrayContaining([
-      "battlecry-bestiary:pC4qg7AarAty1K7K",
-      "battlecry-bestiary:R1Ukw41ygDmnAmJk",
-    ]));
-    expect(getDerivedTagLegacySeedMigrationRecordKeys("desert_setting", { category: "creature" })).toEqual(expect.arrayContaining([
-      "battlecry-bestiary:egHaHp1lqQBZdKdR",
-      "book-of-the-dead-bestiary:8qB0gj8salw8746I",
-    ]));
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("profession_npc", { category: "creature" })).toEqual(
+      expect.arrayContaining([
+        "agents-of-edgewatch-bestiary:rsKf8ixrl3yBq1gb",
+        "claws-of-the-tyrant-bestiary:tMqtId1TKVUXe4tN",
+      ]),
+    );
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("civic_npc", { category: "creature" })).toEqual(
+      expect.arrayContaining([
+        "agents-of-edgewatch-bestiary:rsKf8ixrl3yBq1gb",
+        "gatewalkers-bestiary:kneoApQfhlRhhp1R",
+        "sky-kings-tomb-bestiary:OWVg3LYOdGHOYUHt",
+      ]),
+    );
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("enforcer_npc", { category: "creature" })).toEqual(
+      expect.arrayContaining([
+        "claws-of-the-tyrant-bestiary:tMqtId1TKVUXe4tN",
+        "triumph-of-the-tusk-bestiary:xd35No1x2n1MDVCm",
+        "battlecry-bestiary:R1Ukw41ygDmnAmJk",
+      ]),
+    );
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("urban_setting", { category: "creature" })).toEqual(
+      expect.arrayContaining([
+        "battlecry-bestiary:AHV0FTrbuPljLndw",
+        "blood-lords-bestiary:EqO67DHLlB88vSJZ",
+        "book-of-the-dead-bestiary:ol2lji9lH7PXh1uw",
+      ]),
+    );
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("nautical_setting", { category: "creature" })).toEqual(
+      expect.arrayContaining(["agents-of-edgewatch-bestiary:d3TzpCuRJF78xHZK"]),
+    );
+    expect(
+      getDerivedTagLegacySeedMigrationRecordKeys("organized_undead_society_setting", { category: "creature" }),
+    ).toEqual(
+      expect.arrayContaining([
+        "blood-lords-bestiary:IXPZR1DTdT7Tu7UG",
+        "blood-lords-bestiary:KQkouk6tku8akpmU",
+        "blood-lords-bestiary:k8NnItW7Hp79bg26",
+        "blood-lords-bestiary:vUv8SR7Pa5fONiuN",
+      ]),
+    );
+    expect(
+      getDerivedTagLegacySeedMigrationRecordKeys("undead_war_torn_region_setting", { category: "creature" }),
+    ).toEqual(
+      expect.arrayContaining([
+        "book-of-the-dead-bestiary:gXo04F7O4pwOY698",
+        "claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E",
+        "claws-of-the-tyrant-bestiary:jSE16N2ASzN3qlN1",
+        "claws-of-the-tyrant-bestiary:tMqtId1TKVUXe4tN",
+        "claws-of-the-tyrant-bestiary:vdywUTHF4uhA7cyh",
+      ]),
+    );
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("tian_xia_setting", { category: "creature" })).toEqual(
+      expect.arrayContaining([
+        "fists-of-the-ruby-phoenix-bestiary:HqN4nUnl75foBKLZ",
+        "fists-of-the-ruby-phoenix-bestiary:YVP3pM7jxY9Gyouy",
+        "fists-of-the-ruby-phoenix-bestiary:koRKlywSbwttifEq",
+        "fists-of-the-ruby-phoenix-bestiary:zNOSSDaaCozimqaS",
+      ]),
+    );
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("island_setting", { category: "creature" })).toEqual(
+      expect.arrayContaining([
+        "age-of-ashes-bestiary:5dSVk2y88SLsPPON",
+        "age-of-ashes-bestiary:6AN7eagk2WrWc4im",
+        "age-of-ashes-bestiary:X6TTBlHIfJZ43OqR",
+      ]),
+    );
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("battlefield_setting", { category: "creature" })).toEqual(
+      expect.arrayContaining(["battlecry-bestiary:pC4qg7AarAty1K7K", "battlecry-bestiary:R1Ukw41ygDmnAmJk"]),
+    );
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("desert_setting", { category: "creature" })).toEqual(
+      expect.arrayContaining(["battlecry-bestiary:egHaHp1lqQBZdKdR", "book-of-the-dead-bestiary:8qB0gj8salw8746I"]),
+    );
     expect(getDerivedTagLegacySeedMigrationRecordKeys("rural_setting", { category: "creature" })).toContain(
       "book-of-the-dead-bestiary:7WqlOvjoqURmeorA",
     );
     expect(getDerivedTagLegacySeedMigrationRecordKeys("rural_setting", { category: "creature" })).toContain(
       "fall-of-plaguestone-bestiary:BgBTntoz1qQ3h1X5",
     );
-    expect(getDerivedTagLegacySeedMigrationRecordKeys("small_settlement_setting", { category: "creature" })).toEqual(expect.arrayContaining([
-      "extinction-curse-bestiary:OCrQtfKDFpLedE13",
-      "extinction-curse-bestiary:YS8UvVGFgHP2TrY3",
-    ]));
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("small_settlement_setting", { category: "creature" })).toEqual(
+      expect.arrayContaining([
+        "extinction-curse-bestiary:OCrQtfKDFpLedE13",
+        "extinction-curse-bestiary:YS8UvVGFgHP2TrY3",
+      ]),
+    );
 
     const starwatchCommandoDerivation = deriveRecordTagDerivation({
       recordKey: "agents-of-edgewatch-bestiary:rsKf8ixrl3yBq1gb",
@@ -478,14 +510,18 @@ describe("derived tag exemplars and legacy seed migrations", () => {
       descriptionText: null,
       traits: ["human", "humanoid", "lawful"],
     });
-    expect(starwatchCommandoDerivation.tags).toEqual(expect.arrayContaining([
-      "profession_npc",
-      "civic_npc",
-      "enforcer_npc",
-    ]));
-    expect(["seed_migration", "legacy_rule+seed_migration"]).toContain(starwatchCommandoDerivation.sources.get("profession_npc"));
-    expect(["seed_migration", "legacy_rule+seed_migration"]).toContain(starwatchCommandoDerivation.sources.get("civic_npc"));
-    expect(["seed_migration", "legacy_rule+seed_migration"]).toContain(starwatchCommandoDerivation.sources.get("enforcer_npc"));
+    expect(starwatchCommandoDerivation.tags).toEqual(
+      expect.arrayContaining(["profession_npc", "civic_npc", "enforcer_npc"]),
+    );
+    expect(["seed_migration", "legacy_rule+seed_migration"]).toContain(
+      starwatchCommandoDerivation.sources.get("profession_npc"),
+    );
+    expect(["seed_migration", "legacy_rule+seed_migration"]).toContain(
+      starwatchCommandoDerivation.sources.get("civic_npc"),
+    );
+    expect(["seed_migration", "legacy_rule+seed_migration"]).toContain(
+      starwatchCommandoDerivation.sources.get("enforcer_npc"),
+    );
 
     const falsePriestDerivation = deriveRecordTagDerivation({
       recordKey: "pathfinder-npc-core:OAxxUyACpMlX3q1X",
@@ -495,10 +531,7 @@ describe("derived tag exemplars and legacy seed migrations", () => {
       descriptionText: null,
       traits: ["human", "humanoid"],
     });
-    expect(falsePriestDerivation.tags).toEqual(expect.arrayContaining([
-      "profession_npc",
-      "enforcer_npc",
-    ]));
+    expect(falsePriestDerivation.tags).toEqual(expect.arrayContaining(["profession_npc", "enforcer_npc"]));
     expect(["assignment", "legacy_rule+assignment"]).toContain(falsePriestDerivation.sources.get("profession_npc"));
     expect(["assignment", "legacy_rule+assignment"]).toContain(falsePriestDerivation.sources.get("enforcer_npc"));
 
@@ -510,14 +543,18 @@ describe("derived tag exemplars and legacy seed migrations", () => {
       descriptionText: null,
       traits: ["aiuvarin", "elf", "human", "humanoid"],
     });
-    expect(commanderArsiellaDerivation.tags).toEqual(expect.arrayContaining([
-      "profession_npc",
-      "civic_npc",
-      "enforcer_npc",
-    ]));
-    expect(["seed_migration", "legacy_rule+seed_migration"]).toContain(commanderArsiellaDerivation.sources.get("profession_npc"));
-    expect(["seed_migration", "legacy_rule+seed_migration"]).toContain(commanderArsiellaDerivation.sources.get("civic_npc"));
-    expect(["seed_migration", "legacy_rule+seed_migration"]).toContain(commanderArsiellaDerivation.sources.get("enforcer_npc"));
+    expect(commanderArsiellaDerivation.tags).toEqual(
+      expect.arrayContaining(["profession_npc", "civic_npc", "enforcer_npc"]),
+    );
+    expect(["seed_migration", "legacy_rule+seed_migration"]).toContain(
+      commanderArsiellaDerivation.sources.get("profession_npc"),
+    );
+    expect(["seed_migration", "legacy_rule+seed_migration"]).toContain(
+      commanderArsiellaDerivation.sources.get("civic_npc"),
+    );
+    expect(["seed_migration", "legacy_rule+seed_migration"]).toContain(
+      commanderArsiellaDerivation.sources.get("enforcer_npc"),
+    );
 
     const spiritboundAluumDerivation = deriveRecordTagDerivation({
       recordKey: "age-of-ashes-bestiary:n6FQeNsDgKaDIF7b",
@@ -641,12 +678,7 @@ describe("derived tag exemplars and legacy seed migrations", () => {
     expect(shoonyHierarchDerivation.tags).toContain("small_settlement_setting");
     expect(shoonyHierarchDerivation.sources.get("small_settlement_setting")).toBe("seed_migration");
 
-    const touchedCreatureTags = [
-      "dragon_spellcaster",
-      "disguised_pretender",
-      "faceless_horror",
-      "regeneration_threat",
-    ];
+    const touchedCreatureTags = ["dragon_spellcaster", "disguised_pretender", "faceless_horror", "regeneration_threat"];
     const rawSeedAdds = touchedCreatureTags.reduce(
       (count, tag) => count + getDerivedTagLegacySeedMigrationRecordKeys(tag, { category: "creature" }).length,
       0,
@@ -657,37 +689,47 @@ describe("derived tag exemplars and legacy seed migrations", () => {
 
     expect(rawSeedAdds).toBeGreaterThanOrEqual(120);
     expect(seededCreatureRecords.size).toBeGreaterThanOrEqual(110);
-    expect(getDerivedTagLegacySeedMigrationRecordKeys("dragon_spellcaster", { category: "creature" })).toEqual(expect.arrayContaining([
-      "pathfinder-bestiary:pFmaszqtsA2yt7dv",
-      "pathfinder-monster-core:T0OAOkmk4xz0wvjJ",
-      "lost-omens-bestiary:IG23I5XqPXeICaOH",
-    ]));
-    expect(getDerivedTagLegacySeedMigrationRecordKeys("disguised_pretender", { category: "creature" })).toEqual(expect.arrayContaining([
-      "season-of-ghosts-bestiary:dqsQutshiegWaFPQ",
-      "pathfinder-monster-core:T0OAOkmk4xz0wvjJ",
-      "lost-omens-bestiary:E4qscYn7U3jHoCia",
-    ]));
-    expect(getDerivedTagLegacySeedMigrationRecordKeys("faceless_horror", { category: "creature" })).toEqual(expect.arrayContaining([
-      "season-of-ghosts-bestiary:QSa1PbcvbgDv8Zpr",
-      "season-of-ghosts-bestiary:dqsQutshiegWaFPQ",
-      "season-of-ghosts-bestiary:3KNblm2fWM6XLiS7",
-    ]));
-    expect(listDerivedTagLegacySeedMigrations({ category: "creature" })).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        category: "creature",
-        tag: "faceless_horror",
-        recordKeys: expect.arrayContaining([
-          "season-of-ghosts-bestiary:QSa1PbcvbgDv8Zpr",
-          "season-of-ghosts-bestiary:dqsQutshiegWaFPQ",
-          "season-of-ghosts-bestiary:3KNblm2fWM6XLiS7",
-        ]),
-      }),
-    ]));
-    expect(getDerivedTagLegacySeedMigrationRecordKeys("regeneration_threat", { category: "creature" })).toEqual(expect.arrayContaining([
-      "pathfinder-monster-core-2:yHduMu4VBVUHnssz",
-      "stolen-fate-bestiary:KgwkUtJ8czIC0KFj",
-      "pathfinder-monster-core-2:1LBt5H8GekcuzDHw",
-    ]));
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("dragon_spellcaster", { category: "creature" })).toEqual(
+      expect.arrayContaining([
+        "pathfinder-bestiary:pFmaszqtsA2yt7dv",
+        "pathfinder-monster-core:T0OAOkmk4xz0wvjJ",
+        "lost-omens-bestiary:IG23I5XqPXeICaOH",
+      ]),
+    );
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("disguised_pretender", { category: "creature" })).toEqual(
+      expect.arrayContaining([
+        "season-of-ghosts-bestiary:dqsQutshiegWaFPQ",
+        "pathfinder-monster-core:T0OAOkmk4xz0wvjJ",
+        "lost-omens-bestiary:E4qscYn7U3jHoCia",
+      ]),
+    );
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("faceless_horror", { category: "creature" })).toEqual(
+      expect.arrayContaining([
+        "season-of-ghosts-bestiary:QSa1PbcvbgDv8Zpr",
+        "season-of-ghosts-bestiary:dqsQutshiegWaFPQ",
+        "season-of-ghosts-bestiary:3KNblm2fWM6XLiS7",
+      ]),
+    );
+    expect(listDerivedTagLegacySeedMigrations({ category: "creature" })).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          category: "creature",
+          tag: "faceless_horror",
+          recordKeys: expect.arrayContaining([
+            "season-of-ghosts-bestiary:QSa1PbcvbgDv8Zpr",
+            "season-of-ghosts-bestiary:dqsQutshiegWaFPQ",
+            "season-of-ghosts-bestiary:3KNblm2fWM6XLiS7",
+          ]),
+        }),
+      ]),
+    );
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("regeneration_threat", { category: "creature" })).toEqual(
+      expect.arrayContaining([
+        "pathfinder-monster-core-2:yHduMu4VBVUHnssz",
+        "stolen-fate-bestiary:KgwkUtJ8czIC0KFj",
+        "pathfinder-monster-core-2:1LBt5H8GekcuzDHw",
+      ]),
+    );
 
     const redDragonDerivation = deriveRecordTagDerivation({
       recordKey: "pathfinder-bestiary:pFmaszqtsA2yt7dv",
@@ -709,7 +751,9 @@ describe("derived tag exemplars and legacy seed migrations", () => {
       traits: ["dragon", "occult"],
     });
     expect(conspiratorDragonDerivation.tags).toContain("disguised_pretender");
-    expect(["assignment", "legacy_rule+assignment"]).toContain(conspiratorDragonDerivation.sources.get("disguised_pretender"));
+    expect(["assignment", "legacy_rule+assignment"]).toContain(
+      conspiratorDragonDerivation.sources.get("disguised_pretender"),
+    );
 
     const nopperaBoDivineDerivation = deriveRecordTagDerivation({
       recordKey: "season-of-ghosts-bestiary:dqsQutshiegWaFPQ",
@@ -719,10 +763,7 @@ describe("derived tag exemplars and legacy seed migrations", () => {
       descriptionText: null,
       traits: ["aberration", "chaotic", "evil"],
     });
-    expect(nopperaBoDivineDerivation.tags).toEqual(expect.arrayContaining([
-      "disguised_pretender",
-      "faceless_horror",
-    ]));
+    expect(nopperaBoDivineDerivation.tags).toEqual(expect.arrayContaining(["disguised_pretender", "faceless_horror"]));
     expect(nopperaBoDivineDerivation.sources.get("disguised_pretender")).toBe("seed_migration");
     expect(nopperaBoDivineDerivation.sources.get("faceless_horror")).toBe("seed_migration");
 

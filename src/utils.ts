@@ -33,7 +33,7 @@ export function stripHtml(value: string | null | undefined): string | null {
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&#39;/g, "'")
-    .replace(/&quot;/g, "\"")
+    .replace(/&quot;/g, '"')
     .replace(/\s+\n/g, "\n")
     .replace(/\n\s+/g, "\n")
     .replace(/[ \t]+/g, " ")
@@ -119,5 +119,5 @@ export function bigramDice(query: string, candidate: string): number {
     }
   }
 
-  return (2 * overlap) / ((query.length - 1) + (candidate.length - 1));
+  return (2 * overlap) / (query.length - 1 + (candidate.length - 1));
 }

@@ -2,16 +2,10 @@ import React from "react";
 
 import { DerivedTagMigrationReviewScreen } from "../tags/migration/review-ui.js";
 import { formatDerivedTagMigrationModeLabel } from "../tags/migration/workbench-session-prompts.js";
-import type {
-  DerivedTagMigrationMode,
-  DerivedTagMigrationSession,
-} from "../tags/migration/types.js";
+import type { DerivedTagMigrationMode, DerivedTagMigrationSession } from "../tags/migration/types.js";
 import { PF2E_APP_AREAS, PF2E_TERMINAL_TITLE } from "./app-areas.js";
 import { Pf2eTerminalAppServicesProvider } from "./app-service-context.js";
-import {
-  loadPf2eTerminalAppServices,
-  type Pf2eTerminalAppServices,
-} from "./app-services.js";
+import { loadPf2eTerminalAppServices, type Pf2eTerminalAppServices } from "./app-services.js";
 import {
   canPopPf2eAppRoute,
   createPf2eAppState,
@@ -35,13 +29,7 @@ import {
 } from "./terminal-ui.js";
 import { TagRefinementMenuScreen, type TagRefinementMenuItem } from "./tag-refinement-menu-screen.js";
 
-function StartupErrorScreen({
-  message,
-  onExit,
-}: {
-  message: string;
-  onExit: () => void;
-}): React.JSX.Element {
+function StartupErrorScreen({ message, onExit }: { message: string; onExit: () => void }): React.JSX.Element {
   useDerivedTagTerminalInput((input, key) => {
     const normalized = getNormalizedKeyName(input, key);
     if (isBackOrExitKey(normalized)) {
@@ -52,11 +40,7 @@ function StartupErrorScreen({
   return (
     <TerminalTextScreen
       title={PF2E_TERMINAL_TITLE}
-      body={[
-        { text: "Could not load the PF2E app services.", tone: "section" },
-        { text: "" },
-        { text: message },
-      ]}
+      body={[{ text: "Could not load the PF2E app services.", tone: "section" }, { text: "" }, { text: message }]}
       footer={[{ text: "q or Backspace exit", tone: "dim" }]}
     />
   );
@@ -93,32 +77,39 @@ export function Pf2eTerminalApp({
     dispatch({ type: "push_route", route: { kind: "review", session } });
   }, []);
 
-  const createSessionAndOpenReview = React.useCallback(async (
-    mode: DerivedTagMigrationMode,
-    options: CreatePf2eDerivedTagSessionOptions,
-  ) => {
-    await runWithBusyState(`Preparing ${formatDerivedTagMigrationModeLabel(mode)} session...`, async () => {
-      try {
-        const session = await services.dev.tagRefinement.createSession(rootPath, mode, options);
-        openReviewSession(session);
-      } catch (error) {
-        await terminal.pauseForAnyKey(`Could not create the ${formatDerivedTagMigrationModeLabel(mode)} session.\n\n${(error as Error).message}`);
-      }
-    });
-  }, [openReviewSession, rootPath, runWithBusyState, services.dev.tagRefinement, terminal]);
-
-  const startCustomSession = React.useCallback(async (mode: DerivedTagMigrationMode) => {
-    await runWithBusyState(`Loading ${formatDerivedTagMigrationModeLabel(mode)} session options...`, async () => {
-      try {
-        const session = await services.dev.tagRefinement.promptAndCreateSession(rootPath, mode, terminal);
-        if (session) {
+  const createSessionAndOpenReview = React.useCallback(
+    async (mode: DerivedTagMigrationMode, options: CreatePf2eDerivedTagSessionOptions) => {
+      await runWithBusyState(`Preparing ${formatDerivedTagMigrationModeLabel(mode)} session...`, async () => {
+        try {
+          const session = await services.dev.tagRefinement.createSession(rootPath, mode, options);
           openReviewSession(session);
+        } catch (error) {
+          await terminal.pauseForAnyKey(
+            `Could not create the ${formatDerivedTagMigrationModeLabel(mode)} session.\n\n${(error as Error).message}`,
+          );
         }
-      } catch (error) {
-        await terminal.pauseForAnyKey(`Could not create the ${formatDerivedTagMigrationModeLabel(mode)} session.\n\n${(error as Error).message}`);
-      }
-    });
-  }, [openReviewSession, rootPath, runWithBusyState, services.dev.tagRefinement, terminal]);
+      });
+    },
+    [openReviewSession, rootPath, runWithBusyState, services.dev.tagRefinement, terminal],
+  );
+
+  const startCustomSession = React.useCallback(
+    async (mode: DerivedTagMigrationMode) => {
+      await runWithBusyState(`Loading ${formatDerivedTagMigrationModeLabel(mode)} session options...`, async () => {
+        try {
+          const session = await services.dev.tagRefinement.promptAndCreateSession(rootPath, mode, terminal);
+          if (session) {
+            openReviewSession(session);
+          }
+        } catch (error) {
+          await terminal.pauseForAnyKey(
+            `Could not create the ${formatDerivedTagMigrationModeLabel(mode)} session.\n\n${(error as Error).message}`,
+          );
+        }
+      });
+    },
+    [openReviewSession, rootPath, runWithBusyState, services.dev.tagRefinement, terminal],
+  );
 
   const openOntologyDomain = React.useCallback(async () => {
     const selectedDomain = ontologyDomains[state.ontologyDomainSelectedIndex];
@@ -130,7 +121,9 @@ export function Pf2eTerminalApp({
         const model = services.user.ontology.loadDomain(selectedDomain.id);
         dispatch({ type: "push_route", route: { kind: "ontology", model } });
       } catch (error) {
-        await terminal.pauseForAnyKey(`Could not open the ${selectedDomain.label} ontology.\n\n${(error as Error).message}`);
+        await terminal.pauseForAnyKey(
+          `Could not open the ${selectedDomain.label} ontology.\n\n${(error as Error).message}`,
+        );
       }
     });
   }, [ontologyDomains, runWithBusyState, services.user.ontology, state.ontologyDomainSelectedIndex, terminal]);
@@ -152,40 +145,46 @@ export function Pf2eTerminalApp({
     dispatch({ type: "push_route", route: { kind: "search" } });
   }, [state.selectedAreaIndex]);
 
-  const openSelectedTagRefinementItem = React.useCallback((menuItems: TagRefinementMenuItem[]) => {
-    const selectedItem = menuItems[state.tagRefinementSelectedIndex];
-    if (!selectedItem) {
-      return;
-    }
-    if (selectedItem.kind === "back") {
-      dispatch({ type: "pop_route" });
-      return;
-    }
-    if (selectedItem.kind === "review_all") {
-      void createSessionAndOpenReview("review_queue", {});
-      return;
-    }
-    if (selectedItem.kind === "review_queue_item") {
-      void createSessionAndOpenReview("review_queue", {
-        decisionKind: selectedItem.queueItem.kind,
-        category: selectedItem.queueItem.category,
-        family: selectedItem.queueItem.family,
-        tag: selectedItem.queueItem.tag,
-      });
-      return;
-    }
-    if (selectedItem.kind === "create_mode") {
-      void startCustomSession(selectedItem.mode);
-    }
-  }, [createSessionAndOpenReview, startCustomSession, state.tagRefinementSelectedIndex]);
+  const openSelectedTagRefinementItem = React.useCallback(
+    (menuItems: TagRefinementMenuItem[]) => {
+      const selectedItem = menuItems[state.tagRefinementSelectedIndex];
+      if (!selectedItem) {
+        return;
+      }
+      if (selectedItem.kind === "back") {
+        dispatch({ type: "pop_route" });
+        return;
+      }
+      if (selectedItem.kind === "review_all") {
+        void createSessionAndOpenReview("review_queue", {});
+        return;
+      }
+      if (selectedItem.kind === "review_queue_item") {
+        void createSessionAndOpenReview("review_queue", {
+          decisionKind: selectedItem.queueItem.kind,
+          category: selectedItem.queueItem.category,
+          family: selectedItem.queueItem.family,
+          tag: selectedItem.queueItem.tag,
+        });
+        return;
+      }
+      if (selectedItem.kind === "create_mode") {
+        void startCustomSession(selectedItem.mode);
+      }
+    },
+    [createSessionAndOpenReview, startCustomSession, state.tagRefinementSelectedIndex],
+  );
 
-  const runQuickTagRefinementAction = React.useCallback((mode: "review_all" | DerivedTagMigrationMode) => {
-    if (mode === "review_all") {
-      void createSessionAndOpenReview("review_queue", {});
-      return;
-    }
-    void startCustomSession(mode);
-  }, [createSessionAndOpenReview, startCustomSession]);
+  const runQuickTagRefinementAction = React.useCallback(
+    (mode: "review_all" | DerivedTagMigrationMode) => {
+      if (mode === "review_all") {
+        void createSessionAndOpenReview("review_queue", {});
+        return;
+      }
+      void startCustomSession(mode);
+    },
+    [createSessionAndOpenReview, startCustomSession],
+  );
 
   let screen: React.JSX.Element;
   if (busyMessage) {
@@ -202,9 +201,17 @@ export function Pf2eTerminalApp({
             onExit();
           }
         }}
-        onMove={(delta, itemCount) => dispatch(delta === 0
-          ? { type: "set_ontology_domain_index", index: Math.max(0, Math.min(state.ontologyDomainSelectedIndex, Math.max(0, itemCount - 1))), itemCount }
-          : { type: "move_ontology_domain", delta, itemCount })}
+        onMove={(delta, itemCount) =>
+          dispatch(
+            delta === 0
+              ? {
+                  type: "set_ontology_domain_index",
+                  index: Math.max(0, Math.min(state.ontologyDomainSelectedIndex, Math.max(0, itemCount - 1))),
+                  itemCount,
+                }
+              : { type: "move_ontology_domain", delta, itemCount },
+          )
+        }
         onOpenSelected={() => {
           void openOntologyDomain();
         }}
@@ -268,9 +275,17 @@ export function Pf2eTerminalApp({
             onExit();
           }
         }}
-        onMove={(delta, itemCount) => dispatch(delta === 0
-          ? { type: "set_tag_refinement_index", index: Math.max(0, Math.min(state.tagRefinementSelectedIndex, Math.max(0, itemCount - 1))), itemCount }
-          : { type: "move_tag_refinement", delta, itemCount })}
+        onMove={(delta, itemCount) =>
+          dispatch(
+            delta === 0
+              ? {
+                  type: "set_tag_refinement_index",
+                  index: Math.max(0, Math.min(state.tagRefinementSelectedIndex, Math.max(0, itemCount - 1))),
+                  itemCount,
+                }
+              : { type: "move_tag_refinement", delta, itemCount },
+          )
+        }
         onOpenSelected={openSelectedTagRefinementItem}
         onQuickAction={runQuickTagRefinementAction}
       />
@@ -289,11 +304,7 @@ export function Pf2eTerminalApp({
     );
   }
 
-  return (
-    <Pf2eTerminalAppServicesProvider services={services}>
-      {screen}
-    </Pf2eTerminalAppServicesProvider>
-  );
+  return <Pf2eTerminalAppServicesProvider services={services}>{screen}</Pf2eTerminalAppServicesProvider>;
 }
 
 export function Pf2eTerminalBootstrap({
@@ -310,9 +321,7 @@ export function Pf2eTerminalBootstrap({
   loadServices?: (argv: string[]) => Promise<Pf2eTerminalAppServices>;
 }): React.JSX.Element {
   const [status, setStatus] = React.useState<
-    | { kind: "loading" }
-    | { kind: "ready"; services: Pf2eTerminalAppServices }
-    | { kind: "error"; message: string }
+    { kind: "loading" } | { kind: "ready"; services: Pf2eTerminalAppServices } | { kind: "error"; message: string }
   >({ kind: "loading" });
 
   React.useEffect(() => {
@@ -348,38 +357,14 @@ export function Pf2eTerminalBootstrap({
     return <StartupErrorScreen message={status.message} onExit={onExit} />;
   }
 
-  return (
-    <Pf2eTerminalApp
-      rootPath={rootPath}
-      onExit={onExit}
-      initialRoute={initialRoute}
-      services={status.services}
-    />
-  );
+  return <Pf2eTerminalApp rootPath={rootPath} onExit={onExit} initialRoute={initialRoute} services={status.services} />;
 }
 
-function Pf2eTerminalAppRunner({
-  rootPath,
-  argv,
-}: {
-  rootPath: string;
-  argv: string[];
-}): React.JSX.Element {
+function Pf2eTerminalAppRunner({ rootPath, argv }: { rootPath: string; argv: string[] }): React.JSX.Element {
   const terminal = useDerivedTagTerminalApp();
-  return (
-    <Pf2eTerminalBootstrap
-      rootPath={rootPath}
-      argv={argv}
-      onExit={() => terminal.exitApp()}
-    />
-  );
+  return <Pf2eTerminalBootstrap rootPath={rootPath} argv={argv} onExit={() => terminal.exitApp()} />;
 }
 
-export async function runPf2eTerminalApp(
-  rootPath: string,
-  argv: string[],
-): Promise<void> {
-  await runDerivedTagTerminalApp(
-    <Pf2eTerminalAppRunner rootPath={rootPath} argv={argv} />,
-  );
+export async function runPf2eTerminalApp(rootPath: string, argv: string[]): Promise<void> {
+  await runDerivedTagTerminalApp(<Pf2eTerminalAppRunner rootPath={rootPath} argv={argv} />);
 }

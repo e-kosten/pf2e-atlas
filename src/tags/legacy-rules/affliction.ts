@@ -8,7 +8,9 @@ import {
 
 const AFFLICTION_HEALING_SUPPRESSION_TEXT_ANCHORS = [
   patternAnchor("{{alt(can't, cannot)}} {{alt(heal damage, be healed)}}"),
-  patternAnchor("{{alt(regain, regains)}} {{opt(only )}}half as many hit points from {{alt(healing, healing effects, all healing, all healing effects)}}"),
+  patternAnchor(
+    "{{alt(regain, regains)}} {{opt(only )}}half as many hit points from {{alt(healing, healing effects, all healing, all healing effects)}}",
+  ),
   patternAnchor("gains no benefit from healing"),
   patternAnchor("{{alt(can't, cannot)}} be reduced below stage {{number}}, nor the damage from it healed"),
   patternAnchor("{{alt(can't, cannot)}} heal {{opt(the )}}damage it takes"),
@@ -287,9 +289,7 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "mobility_impairment",
     category: "affliction",
-    anyOf: [
-      { textAny: AFFLICTION_MOBILITY_TEXT_ANCHORS },
-    ],
+    anyOf: [{ textAny: AFFLICTION_MOBILITY_TEXT_ANCHORS }],
   },
   {
     tag: "physical_debilitation",
@@ -325,9 +325,7 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
     tag: "healing_suppression",
     category: "affliction",
     threshold: 2,
-    anyOf: [
-      { score: 2, textAny: AFFLICTION_HEALING_SUPPRESSION_TEXT_ANCHORS },
-    ],
+    anyOf: [{ score: 2, textAny: AFFLICTION_HEALING_SUPPRESSION_TEXT_ANCHORS }],
   },
   {
     tag: "cognitive_impairment",
@@ -341,7 +339,9 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
         textNear: [
           {
             all: [
-              patternAnchor("{{alt(mind,mind's,mental,thinking,thought,thoughts,decision,decision-making,faculties,capacity,memory,memories)}}"),
+              patternAnchor(
+                "{{alt(mind,mind's,mental,thinking,thought,thoughts,decision,decision-making,faculties,capacity,memory,memories)}}",
+              ),
               patternAnchor("{{alt(stupefied,dulls,clouds,inhibits,fractured,mud)}}"),
             ],
             window: 6,
@@ -437,9 +437,7 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
         ],
       },
     ],
-    noneOf: [
-      { textAny: AFFLICTION_ROT_DECAY_BLOCKER_TEXT_ANCHORS },
-    ],
+    noneOf: [{ textAny: AFFLICTION_ROT_DECAY_BLOCKER_TEXT_ANCHORS }],
   },
   {
     tag: "infestation_implant",
@@ -485,7 +483,9 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
           {
             all: [
               patternAnchor("{{alt(must,forced,compelled,controlled,commanded,driven)}}"),
-              patternAnchor("{{alt(behavior,action,actions,obey,truth,lies,move,attack,eat,allies,loyalty,cravings,betray,join)}}"),
+              patternAnchor(
+                "{{alt(behavior,action,actions,obey,truth,lies,move,attack,eat,allies,loyalty,cravings,betray,join)}}",
+              ),
             ],
             window: 5,
             scope: "description",
@@ -508,7 +508,9 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
             all: [
               patternAnchor("{{alt(turn,turns,transforms,transformation,mutates)}}"),
               patternAnchor("{{alt(body,flesh,skin,lungs,tissues)}}"),
-              patternAnchor("{{alt(crystal,crystalline,petrified,sprout,bloom,plant,fungus,fungal,root,roots,bark,jelly)}}"),
+              patternAnchor(
+                "{{alt(crystal,crystalline,petrified,sprout,bloom,plant,fungus,fungal,root,roots,bark,jelly)}}",
+              ),
             ],
             window: 8,
             scope: "description",
@@ -516,9 +518,7 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
         ],
       },
     ],
-    noneOf: [
-      { textAny: [patternAnchor("moral corruption"), patternAnchor("spiritual corruption")] },
-    ],
+    noneOf: [{ textAny: [patternAnchor("moral corruption"), patternAnchor("spiritual corruption")] }],
   },
   {
     tag: "void_soul_corruption",
@@ -542,7 +542,9 @@ export const AFFLICTION_DERIVED_TAG_RULES: DerivedTagRule[] = [
           {
             all: [
               patternAnchor("{{alt(dream,dreams,nightmare,nightmares)}}"),
-              patternAnchor("{{alt(terrifying,visions,torment,torments,haunting,can't be awakened,cannot be awakened)}}"),
+              patternAnchor(
+                "{{alt(terrifying,visions,torment,torments,haunting,can't be awakened,cannot be awakened)}}",
+              ),
             ],
             window: 8,
             scope: "description",

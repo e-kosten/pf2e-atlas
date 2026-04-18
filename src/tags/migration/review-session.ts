@@ -35,9 +35,9 @@ export function summarizeDerivedTagMigrationReviewProgress(
   return {
     candidateRecordCount: session.manifest.recordCount,
     actionableRecordCount: actionableDecisions.length,
-    resolvedActionableRecordCount: actionableDecisions
-      .filter((recordDecision) => recordDecision.resolutionStatus === "complete")
-      .length,
+    resolvedActionableRecordCount: actionableDecisions.filter(
+      (recordDecision) => recordDecision.resolutionStatus === "complete",
+    ).length,
     visibleItemCount: getDerivedTagMigrationReviewItems(session).length,
   };
 }
@@ -74,9 +74,7 @@ export function toggleDerivedTagMigrationUnresolvedOnly(
   return next;
 }
 
-export function clampDerivedTagMigrationReviewIndex(
-  session: DerivedTagMigrationSession,
-): DerivedTagMigrationSession {
+export function clampDerivedTagMigrationReviewIndex(session: DerivedTagMigrationSession): DerivedTagMigrationSession {
   const next = structuredClone(session);
   const items = getDerivedTagMigrationReviewItems(next);
   if (items.length === 0) {

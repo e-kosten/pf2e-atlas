@@ -118,9 +118,8 @@ export function parseOptions(argv: string[]): DiscoveryEvidenceOptions {
   resolveDiscoveryGramRange(options);
   return {
     ...options,
-    reviewReason: options.reviewReason && isReviewedDiscoveryReason(options.reviewReason)
-      ? options.reviewReason
-      : undefined,
+    reviewReason:
+      options.reviewReason && isReviewedDiscoveryReason(options.reviewReason) ? options.reviewReason : undefined,
   };
 }
 
@@ -159,16 +158,19 @@ export function formatHelp(): string {
 }
 
 function formatReviewedSummary(summary: ReviewedDiscoveryApplicationSummary): string[] {
-  const label = summary.mode === "excluded"
-    ? "Excluded reviewed records"
-    : summary.mode === "included"
-      ? "Included reviewed records"
-      : `Filtered reviewed records${summary.reviewReason ? ` (${summary.reviewReason})` : ""}`;
+  const label =
+    summary.mode === "excluded"
+      ? "Excluded reviewed records"
+      : summary.mode === "included"
+        ? "Included reviewed records"
+        : `Filtered reviewed records${summary.reviewReason ? ` (${summary.reviewReason})` : ""}`;
   return [
     `${label}: ${summary.appliedCount}/${summary.scopedCount}`,
-    `Reviewed reason counts: ${summary.reasonCounts.length > 0
-      ? summary.reasonCounts.map((entry) => `${entry.reason}=${entry.count}`).join(", ")
-      : "(none)"}`,
+    `Reviewed reason counts: ${
+      summary.reasonCounts.length > 0
+        ? summary.reasonCounts.map((entry) => `${entry.reason}=${entry.count}`).join(", ")
+        : "(none)"
+    }`,
   ];
 }
 
@@ -176,14 +178,18 @@ function formatTerms(label: string, terms: DiscoveryEvidenceReport["nameTokens"]
   return [
     `${label}:`,
     ...(terms.length > 0
-      ? terms.map((term) =>
-        `- ${term.value} support=${term.cohortSupport}/${Math.max(1, term.baselineSupport)} lift=${term.lift.toFixed(2)} examples=${term.examples.join(" | ")}`)
+      ? terms.map(
+          (term) =>
+            `- ${term.value} support=${term.cohortSupport}/${Math.max(1, term.baselineSupport)} lift=${term.lift.toFixed(2)} examples=${term.examples.join(" | ")}`,
+        )
       : ["- (none)"]),
   ];
 }
 
 export function formatEvidenceReport(report: DiscoveryEvidenceReport): string {
-  const scope = report.subcategory ? `${report.category}/${report.subcategory}` : (report.category ?? "all canonical records");
+  const scope = report.subcategory
+    ? `${report.category}/${report.subcategory}`
+    : (report.category ?? "all canonical records");
   const lines = [
     "Evidence summary:",
     `- Scope: ${scope}`,
@@ -192,18 +198,18 @@ export function formatEvidenceReport(report: DiscoveryEvidenceReport): string {
     `- Baseline size: ${report.baselineSize}`,
     ...(report.familyGap
       ? [
-        `- Covered family records: ${report.familyGap.coveredCount}`,
-        `- Uncovered family records: ${report.familyGap.uncoveredCount}`,
-        `- Live family tags: ${report.familyGap.liveTags.join(", ") || "(none)"}`,
-      ]
+          `- Covered family records: ${report.familyGap.coveredCount}`,
+          `- Uncovered family records: ${report.familyGap.uncoveredCount}`,
+          `- Live family tags: ${report.familyGap.liveTags.join(", ") || "(none)"}`,
+        ]
       : []),
-    ...(report.reviewedRecords
-      ? formatReviewedSummary(report.reviewedRecords).map((line) => `- ${line}`)
-      : []),
+    ...(report.reviewedRecords ? formatReviewedSummary(report.reviewedRecords).map((line) => `- ${line}`) : []),
     "",
     "Representative records:",
     ...(report.representativeRecords.length > 0
-      ? report.representativeRecords.map((record) => `- ${record.name} (${record.recordKey}) traits=${record.traits.join(", ") || "(none)"}`)
+      ? report.representativeRecords.map(
+          (record) => `- ${record.name} (${record.recordKey}) traits=${record.traits.join(", ") || "(none)"}`,
+        )
       : ["- (none)"]),
     "",
     ...formatTerms("Name tokens", report.nameTokens),
@@ -219,25 +225,31 @@ export function formatEvidenceReport(report: DiscoveryEvidenceReport): string {
     ...formatTerms("Reference features", report.references),
     ...(report.familyGap
       ? [
-        "",
-        "Likely new concepts:",
-        ...(report.familyGap.likelyNewConcepts.length > 0
-          ? report.familyGap.likelyNewConcepts.map((term) =>
-            `- ${term.value} gap_lift=${term.gapLift.toFixed(2)} covered=${term.coveredSupport} baseline=${term.baselineSupport} score=${term.score.toFixed(2)} examples=${term.examples.join(" | ")}`)
-          : ["- (none)"]),
-        "",
-        "Likely existing-tag coverage gaps:",
-        ...(report.familyGap.existingTagCoverageGaps.length > 0
-          ? report.familyGap.existingTagCoverageGaps.map((term) =>
-            `- ${term.value} overlaps=${term.existingTagOverlaps.join(", ")} gap_lift=${term.gapLift.toFixed(2)} covered=${term.coveredSupport} score=${term.score.toFixed(2)} examples=${term.examples.join(" | ")}`)
-          : ["- (none)"]),
-        "",
-        "Suppressed generic anchors:",
-        ...(report.familyGap.suppressedTerms.length > 0
-          ? report.familyGap.suppressedTerms.map((term) =>
-            `- ${term.value} reason=${term.suppressionReason ?? "suppressed"} score=${term.score.toFixed(2)} examples=${term.examples.join(" | ")}`)
-          : ["- (none)"]),
-      ]
+          "",
+          "Likely new concepts:",
+          ...(report.familyGap.likelyNewConcepts.length > 0
+            ? report.familyGap.likelyNewConcepts.map(
+                (term) =>
+                  `- ${term.value} gap_lift=${term.gapLift.toFixed(2)} covered=${term.coveredSupport} baseline=${term.baselineSupport} score=${term.score.toFixed(2)} examples=${term.examples.join(" | ")}`,
+              )
+            : ["- (none)"]),
+          "",
+          "Likely existing-tag coverage gaps:",
+          ...(report.familyGap.existingTagCoverageGaps.length > 0
+            ? report.familyGap.existingTagCoverageGaps.map(
+                (term) =>
+                  `- ${term.value} overlaps=${term.existingTagOverlaps.join(", ")} gap_lift=${term.gapLift.toFixed(2)} covered=${term.coveredSupport} score=${term.score.toFixed(2)} examples=${term.examples.join(" | ")}`,
+              )
+            : ["- (none)"]),
+          "",
+          "Suppressed generic anchors:",
+          ...(report.familyGap.suppressedTerms.length > 0
+            ? report.familyGap.suppressedTerms.map(
+                (term) =>
+                  `- ${term.value} reason=${term.suppressionReason ?? "suppressed"} score=${term.score.toFixed(2)} examples=${term.examples.join(" | ")}`,
+              )
+            : ["- (none)"]),
+        ]
       : []),
   ];
 

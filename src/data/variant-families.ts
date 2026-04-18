@@ -1,16 +1,8 @@
 import path from "node:path";
 
-import type {
-  BuildSourceEntry,
-  NormalizedIndexRecord,
-} from "./index-types.js";
+import type { BuildSourceEntry, NormalizedIndexRecord } from "./index-types.js";
 import type { VariantSource } from "../types.js";
-import {
-  firstString,
-  getNested,
-  normalizeText,
-  uniqueSorted,
-} from "../utils.js";
+import { firstString, getNested, normalizeText, uniqueSorted } from "../utils.js";
 
 const GRADE_LABELS = new Set(["minor", "lesser", "moderate", "greater", "major", "true"]);
 const DAMAGE_TYPE_LABELS = new Set(["acid", "cold", "electricity", "fire", "poison", "sonic", "void", "vitality"]);
@@ -43,28 +35,26 @@ const STRUCTURAL_LINE_PREFIXES = [
 const UUID_PATTERN = /@UUID\[([^\]]+)\](?:\{([^}]+)\})?/g;
 const CHECK_PATTERN = /@Check\[[^\]]+\](?:\{([^}]+)\})?/g;
 const INLINE_PATTERN = /@[A-Z][A-Za-z]+\[[^\]]+\](?:\{([^}]+)\})?/g;
-const SMALL_NUMBER_WORDS = new Set([
-  "one",
-  "two",
-  "three",
-  "four",
-  "five",
-  "six",
-  "seven",
-  "eight",
-  "nine",
-  "ten",
+const SMALL_NUMBER_WORDS = new Set(["one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"]);
+const TITLE_GLUE_TOKENS = new Set([
+  "a",
+  "an",
+  "the",
+  "of",
+  "and",
+  "or",
+  "for",
+  "to",
+  "in",
+  "on",
+  "at",
+  "with",
+  "without",
+  "type",
+  "mark",
 ]);
-const TITLE_GLUE_TOKENS = new Set(["a", "an", "the", "of", "and", "or", "for", "to", "in", "on", "at", "with", "without", "type", "mark"]);
 
-export type VariantAxis =
-  | "rank"
-  | "grade"
-  | "damageType"
-  | "tradition"
-  | "dragonAge"
-  | "specialization"
-  | "other";
+export type VariantAxis = "rank" | "grade" | "damageType" | "tradition" | "dragonAge" | "specialization" | "other";
 
 type TitleCandidate = {
   baseName: string;
@@ -209,7 +199,9 @@ function parseParentheticalCandidate(name: string): TitleCandidate | null {
 }
 
 function parseTrailingSuffixCandidate(name: string): TitleCandidate | null {
-  const match = name.match(/^(.*?)(?:\s+|-)(\d+(?:st|nd|rd|th)[-\s]+(?:rank|level)(?:\s+spell)?|Minor|Lesser|Moderate|Greater|Major|True)$/i);
+  const match = name.match(
+    /^(.*?)(?:\s+|-)(\d+(?:st|nd|rd|th)[-\s]+(?:rank|level)(?:\s+spell)?|Minor|Lesser|Moderate|Greater|Major|True)$/i,
+  );
   const baseName = match?.[1]?.trim() ?? "";
   const rawLabel = match?.[2]?.trim() ?? "";
   if (!baseName || !rawLabel) {
@@ -283,9 +275,11 @@ function parsePathFallbackCandidate(record: NormalizedIndexRecord): TitleCandida
 }
 
 function parseStructuredCandidate(entry: IndexedRecordEntry): TitleCandidate | null {
-  return parseParentheticalCandidate(entry.record.name)
-    ?? parseTrailingSuffixCandidate(entry.record.name)
-    ?? parsePathFallbackCandidate(entry.record);
+  return (
+    parseParentheticalCandidate(entry.record.name) ??
+    parseTrailingSuffixCandidate(entry.record.name) ??
+    parsePathFallbackCandidate(entry.record)
+  );
 }
 
 function parseEntryStructuredCandidate(entry: IndexedRecordEntry): TitleCandidate | null {
@@ -387,7 +381,9 @@ function creatureFamilyKey(baseName: string): string {
 }
 
 function deriveCreatureReferenceAxes(labels: string[]): VariantAxis[] {
-  const axes = [...new Set(labels.flatMap((label) => inferVariantAxes(label)).filter((axis) => axis !== "other"))] as VariantAxis[];
+  const axes = [
+    ...new Set(labels.flatMap((label) => inferVariantAxes(label)).filter((axis) => axis !== "other")),
+  ] as VariantAxis[];
   axes.sort((left, right) => left.localeCompare(right));
   return axes;
 }
@@ -421,7 +417,10 @@ function isGenderOnlyCreatureReference(labels: string[]): boolean {
   return labels.length > 0 && labels.every((label) => GENDER_LABELS.has(normalizeText(label)));
 }
 
-function isRejectedGenderOnlyCreatureReference(baseTokens: string[], resolvedBaseEntries: IndexedRecordEntry[]): boolean {
+function isRejectedGenderOnlyCreatureReference(
+  baseTokens: string[],
+  resolvedBaseEntries: IndexedRecordEntry[],
+): boolean {
   if (baseTokens.length <= 1) {
     return true;
   }
@@ -525,7 +524,10 @@ function parseCreatureReferenceCandidate(
       continue;
     }
 
-    if (isGenderOnlyCreatureReference(labelTokens) && isRejectedGenderOnlyCreatureReference(baseTokens, resolvedBaseEntries)) {
+    if (
+      isGenderOnlyCreatureReference(labelTokens) &&
+      isRejectedGenderOnlyCreatureReference(baseTokens, resolvedBaseEntries)
+    ) {
       continue;
     }
 
@@ -582,9 +584,7 @@ function parseCreatureSuffixFamilyCandidate(
 }
 
 function normalizeTitleToken(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "");
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
 function tokenizeTitle(name: string): TitleToken[] {
@@ -727,11 +727,7 @@ function variantGroupKey(entry: IndexedRecordEntry, baseName: string): string {
     return creatureFamilyKey(baseName);
   }
 
-  return [
-    entry.record.category,
-    toFamilySlug(entry.pack.name),
-    toFamilySlug(baseName),
-  ].join(":");
+  return [entry.record.category, toFamilySlug(entry.pack.name), toFamilySlug(baseName)].join(":");
 }
 
 function memberKey(entry: IndexedRecordEntry): string {
@@ -760,9 +756,12 @@ function bestDescriptionTemplate(members: GroupMember[]): GroupMember | null {
         return sum;
       }
 
-      return sum + Math.max(
-        leadBlockSimilarity(member.leadBlock, candidate.leadBlock),
-        tokenSequenceSimilarity(member.leadBlock, candidate.leadBlock),
+      return (
+        sum +
+        Math.max(
+          leadBlockSimilarity(member.leadBlock, candidate.leadBlock),
+          tokenSequenceSimilarity(member.leadBlock, candidate.leadBlock),
+        )
       );
     }, 0);
     if (total > bestScore) {
@@ -793,12 +792,18 @@ function deriveDescriptionMembers(members: GroupMember[]): GroupMember[] {
         return true;
       }
 
-      return descriptionPasses(template.leadBlock, member.leadBlock)
-        || tokenSequenceSimilarity(template.leadBlock, member.leadBlock) >= 0.75;
+      return (
+        descriptionPasses(template.leadBlock, member.leadBlock) ||
+        tokenSequenceSimilarity(template.leadBlock, member.leadBlock) >= 0.75
+      );
     });
 }
 
-function includeExactBaseMembers(descriptionMembers: GroupMember[], allMembers: GroupMember[], baseName: string): GroupMember[] {
+function includeExactBaseMembers(
+  descriptionMembers: GroupMember[],
+  allMembers: GroupMember[],
+  baseName: string,
+): GroupMember[] {
   const included = new Map(descriptionMembers.map((member) => [member.entry.record.recordKey, member]));
   for (const member of allMembers) {
     if (isExactBaseMember(member, baseName)) {
@@ -822,9 +827,7 @@ function cleanDerivedLabel(value: string): string | null {
 }
 
 function meaningfulTitleSequence(tokens: TitleToken[]): string[] {
-  return tokens
-    .filter((token) => token.meaningful)
-    .map((token) => token.normalized);
+  return tokens.filter((token) => token.meaningful).map((token) => token.normalized);
 }
 
 function longestCommonSubsequence(left: string[], right: string[]): string[] {
@@ -947,7 +950,14 @@ function needsBroaderEvidence(members: GroupMember[], baseName: string, sharedTi
     .filter((member) => !isExactBaseMember(member, effectiveBase))
     .every((member) => member.candidate.confidence <= 0.52);
   const hasSharedTitleBase = Boolean(sharedTitleBase && normalizeText(sharedTitleBase).length > 0);
-  return !hasBase && !hasStructuredAxis && !hasStackedLabel && reliesOnLooseStemOnly && !hasSharedTitleBase && members.length < 4;
+  return (
+    !hasBase &&
+    !hasStructuredAxis &&
+    !hasStackedLabel &&
+    reliesOnLooseStemOnly &&
+    !hasSharedTitleBase &&
+    members.length < 4
+  );
 }
 
 function exactBaseCandidate(baseName: string): TitleCandidate {
@@ -979,14 +989,21 @@ function assignGroup(
     member.entry.record.variantBaseName = baseName;
     member.entry.record.variantLabel = derivedLabels?.get(member.entry.record.recordKey) ?? member.candidate.label;
     member.entry.record.variantAxes = axes;
-    member.entry.record.variantConfidence = Math.min(0.99, confidence + boost + Math.min(0.08, member.descriptionScore * 0.12));
+    member.entry.record.variantConfidence = Math.min(
+      0.99,
+      confidence + boost + Math.min(0.08, member.descriptionScore * 0.12),
+    );
     member.entry.record.variantSource = source;
   }
 }
 
 export function assignVariantFamilies(entries: IndexedRecordEntry[]): void {
-  const eligibleEntries = entries.filter((entry) =>
-    entry.record.category === "equipment" || entry.record.category === "spell" || entry.record.category === "creature");
+  const eligibleEntries = entries.filter(
+    (entry) =>
+      entry.record.category === "equipment" ||
+      entry.record.category === "spell" ||
+      entry.record.category === "creature",
+  );
   const byExactName = new Map<string, IndexedRecordEntry[]>();
   const candidateGroups = new Map<string, CandidateGroup>();
   const knownCreatureBaseNames = new Set<string>();
@@ -999,8 +1016,11 @@ export function assignVariantFamilies(entries: IndexedRecordEntry[]): void {
     bucket.push(entry);
     byExactName.set(exactKey, bucket);
 
-    const candidate = parseEntryStructuredCandidate(entry)
-      ?? (entry.record.category === "creature" ? null : buildSuffixScaffoldCandidate(entry) ?? buildLooseStemCandidate(entry));
+    const candidate =
+      parseEntryStructuredCandidate(entry) ??
+      (entry.record.category === "creature"
+        ? null
+        : (buildSuffixScaffoldCandidate(entry) ?? buildLooseStemCandidate(entry)));
     if (!candidate) {
       continue;
     }
@@ -1095,9 +1115,10 @@ export function assignVariantFamilies(entries: IndexedRecordEntry[]): void {
 
   for (const group of candidateGroups.values()) {
     const normalizedBase = normalizeText(group.baseName);
-    const baseLookupKey = group.category === "creature"
-      ? `${group.category}:${normalizedBase}`
-      : `${group.category}:${group.packName}:${normalizedBase}`;
+    const baseLookupKey =
+      group.category === "creature"
+        ? `${group.category}:${normalizedBase}`
+        : `${group.category}:${group.packName}:${normalizedBase}`;
     const baseMembers = byExactName.get(baseLookupKey) ?? [];
     for (const entry of baseMembers) {
       if (group.members.has(memberKey(entry))) {
@@ -1124,9 +1145,12 @@ export function assignVariantFamilies(entries: IndexedRecordEntry[]): void {
       continue;
     }
 
-    const fallbackMembers = members.filter((member) => member.candidate.fallbackEligible || isExactBaseMember(member, group.baseName));
+    const fallbackMembers = members.filter(
+      (member) => member.candidate.fallbackEligible || isExactBaseMember(member, group.baseName),
+    );
     const labeledMembers = members.filter((member) => Boolean(member.candidate.label));
-    const canUseFallback = labeledMembers.length > 0 && labeledMembers.every((member) => member.candidate.fallbackEligible);
+    const canUseFallback =
+      labeledMembers.length > 0 && labeledMembers.every((member) => member.candidate.fallbackEligible);
     if (canUseFallback && fallbackMembers.length >= 2 && groupHasMeaningfulLabels(fallbackMembers)) {
       const sources = new Set(fallbackMembers.map((member) => member.candidate.source));
       const source = sources.size === 1 ? [...sources][0]! : "composite";
@@ -1143,7 +1167,8 @@ export function assignVariantFamilies(entries: IndexedRecordEntry[]): void {
         continue;
       }
 
-      const averageScore = descriptionMembers.reduce((sum, member) => sum + member.descriptionScore, 0) / descriptionMembers.length;
+      const averageScore =
+        descriptionMembers.reduce((sum, member) => sum + member.descriptionScore, 0) / descriptionMembers.length;
       assignGroup(
         descriptionMembers,
         resolvedBaseName,

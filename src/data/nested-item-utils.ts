@@ -1,11 +1,4 @@
-import {
-  firstString,
-  getNested,
-  normalizeText,
-  stripHtml,
-  toStringArray,
-  uniqueSorted,
-} from "../utils.js";
+import { firstString, getNested, normalizeText, stripHtml, toStringArray, uniqueSorted } from "../utils.js";
 
 const UUID_REFERENCE_PATTERN = /@UUID\[([^\]]+)\](?:\{([^}]+)\})?/g;
 
@@ -75,7 +68,11 @@ export function getRecordSlug(raw: Record<string, unknown>): string | null {
 }
 
 export function detectAfflictionFamily(raw: Record<string, unknown>): AfflictionFamily | null {
-  const normalizedTraits = new Set(getRecordTraits(raw).map((trait) => normalizeText(trait)).filter(Boolean));
+  const normalizedTraits = new Set(
+    getRecordTraits(raw)
+      .map((trait) => normalizeText(trait))
+      .filter(Boolean),
+  );
   const systemCategory = normalizeText(firstString(getNested(raw, ["system", "category"])) ?? "");
 
   if (normalizedTraits.has("disease") || systemCategory === "disease") {
@@ -102,10 +99,7 @@ export function hasAfflictionShape(raw: Record<string, unknown>): boolean {
   return /saving throw/i.test(descriptionText) && /stage 1/i.test(descriptionText);
 }
 
-export function buildEmbeddedItemSearchChunks(
-  raw: Record<string, unknown>,
-  maxChunks: number | null = null,
-): string[] {
+export function buildEmbeddedItemSearchChunks(raw: Record<string, unknown>, maxChunks: number | null = null): string[] {
   const chunks: string[] = [];
   const seen = new Set<string>();
   const items = getNested(raw, ["items"]);

@@ -53,11 +53,12 @@ function buildAreaDetailLines(
 function buildTopLevelHelpLines(): DerivedTagTerminalLine[] {
   const actionActions = getAreaMenuInteractionActions().map((action) => ({
     ...action,
-    helpText: action.id === "select"
-      ? "open the selected area"
-      : action.id === "help"
-        ? "show this help"
-        : "exit the terminal app",
+    helpText:
+      action.id === "select"
+        ? "open the selected area"
+        : action.id === "help"
+          ? "show this help"
+          : "exit the terminal app",
   }));
 
   return buildTerminalInteractionHelpLines([
@@ -78,11 +79,7 @@ function buildTopLevelHelpLines(): DerivedTagTerminalLine[] {
 }
 
 function getAreaMenuInteractionActions(): TerminalInteractionAction[] {
-  return [
-    { id: "select" },
-    { id: "help" },
-    { id: "quit", label: "quit" },
-  ];
+  return [{ id: "select" }, { id: "help" }, { id: "quit", label: "quit" }];
 }
 
 export function AreaMenuScreen({
@@ -106,19 +103,27 @@ export function AreaMenuScreen({
   const size = useDerivedTagTerminalSize();
   const selectedArea = areas[selectedAreaIndex];
   const navigationStateRef = React.useRef(createDerivedTagTerminalListNavigationState());
-  const bodyHeight = Math.max(1, getTerminalPaneBodyHeight(size.height, {
-    hasSubtitle: true,
-    footerLineCount: 2,
-  }));
+  const bodyHeight = Math.max(
+    1,
+    getTerminalPaneBodyHeight(size.height, {
+      hasSubtitle: true,
+      footerLineCount: 2,
+    }),
+  );
 
   useDerivedTagTerminalInput((input, key) => {
     const normalized = getNormalizedKeyName(input, key);
-    const navigation = resolveDerivedTagTerminalListNavigationAction(input, key, {
-      pageSize: Math.max(1, bodyHeight - 1),
-      jumpSize: Math.max(1, Math.floor(bodyHeight / 2)),
-      includeConfirmKeys: true,
-      includeHorizontalConfirmKeys: true,
-    }, navigationStateRef.current);
+    const navigation = resolveDerivedTagTerminalListNavigationAction(
+      input,
+      key,
+      {
+        pageSize: Math.max(1, bodyHeight - 1),
+        jumpSize: Math.max(1, Math.floor(bodyHeight / 2)),
+        includeConfirmKeys: true,
+        includeHorizontalConfirmKeys: true,
+      },
+      navigationStateRef.current,
+    );
     navigationStateRef.current = navigation.state;
     const interactionAction = resolveTerminalInteractionAction(normalized, getAreaMenuInteractionActions());
 
@@ -161,7 +166,16 @@ export function AreaMenuScreen({
         lines: buildAreaDetailLines(selectedArea, pendingReviewCount),
       }}
       footer={[
-        { text: formatTerminalInteractionFooter([{ id: "move" }, { id: "jump" }, { id: "page" }, { id: "edge" }, ...getAreaMenuInteractionActions()]), tone: "dim" },
+        {
+          text: formatTerminalInteractionFooter([
+            { id: "move" },
+            { id: "jump" },
+            { id: "page" },
+            { id: "edge" },
+            ...getAreaMenuInteractionActions(),
+          ]),
+          tone: "dim",
+        },
         {
           text: `${selectedArea ? formatAreaAudience(selectedArea.audience) : "-"} | ${pendingReviewCount} pending queue slice${pendingReviewCount === 1 ? "" : "s"}`,
           tone: "accent",

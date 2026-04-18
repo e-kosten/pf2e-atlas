@@ -34,15 +34,7 @@ type GenericFeatureKind =
   | "target"
   | "scope";
 
-const VARIANT_MARKERS = new Set([
-  "adult",
-  "ancient",
-  "young",
-  "spellcaster",
-  "bb",
-  "level",
-  "elite",
-]);
+const VARIANT_MARKERS = new Set(["adult", "ancient", "young", "spellcaster", "bb", "level", "elite"]);
 
 const TAXONOMY_TERMS = new Set([
   "aberration",
@@ -236,10 +228,33 @@ const EXISTING_SETTING_TAG_CUES: Record<string, SettingCueSpec> = {
     strong: ["ruin", "ruins", "derelict", "collapsed", "crumbling", "lost city"],
   },
   temple_setting: {
-    strong: ["temple", "shrine", "cathedral", "monastery", "chapel", "sanctuary", "abbey", "holy site", "cloister", "ziggurat"],
+    strong: [
+      "temple",
+      "shrine",
+      "cathedral",
+      "monastery",
+      "chapel",
+      "sanctuary",
+      "abbey",
+      "holy site",
+      "cloister",
+      "ziggurat",
+    ],
   },
   fortress_setting: {
-    strong: ["fortress", "citadel", "keep", "stronghold", "bastion", "watchtower", "garrison", "castle", "fort", "battlement", "rampart"],
+    strong: [
+      "fortress",
+      "citadel",
+      "keep",
+      "stronghold",
+      "bastion",
+      "watchtower",
+      "garrison",
+      "castle",
+      "fort",
+      "battlement",
+      "rampart",
+    ],
   },
   volcanic_setting: {
     strong: ["volcanic", "volcano", "lava", "magma", "caldera", "cinder"],
@@ -250,15 +265,9 @@ const EXISTING_SETTING_TAG_CUES: Record<string, SettingCueSpec> = {
   },
 };
 
-const NOVEL_SETTING_STRONG_CUES = [
-  "erebus",
-  "stygia",
-];
+const NOVEL_SETTING_STRONG_CUES = ["erebus", "stygia"];
 
-const NOVEL_SETTING_WEAK_CUES = [
-  "penumbral",
-  "umbral",
-];
+const NOVEL_SETTING_WEAK_CUES = ["penumbral", "umbral"];
 
 const AMBIGUOUS_SINGLE_TOKEN_CUES = new Set([
   "ash",
@@ -306,10 +315,7 @@ function surfaceIncludesCue(surface: string, candidate: string): boolean {
   return pattern.test(surface);
 }
 
-function collectCueMatches(
-  surface: string,
-  cueSpecs: Record<string, SettingCueSpec>,
-): SettingCueMatch[] {
+function collectCueMatches(surface: string, cueSpecs: Record<string, SettingCueSpec>): SettingCueMatch[] {
   const matches: SettingCueMatch[] = [];
   for (const [tag, spec] of Object.entries(cueSpecs)) {
     for (const cue of spec.strong) {
@@ -355,12 +361,16 @@ function collectCueMatches(
 }
 
 function choosePrimaryCue(matches: SettingCueMatch[]): SettingCueMatch | null {
-  return matches
-    .slice()
-    .sort((left, right) =>
-      strengthPriority(right.strength) - strengthPriority(left.strength) ||
-      right.cue.length - left.cue.length ||
-      left.cue.localeCompare(right.cue))[0] ?? null;
+  return (
+    matches
+      .slice()
+      .sort(
+        (left, right) =>
+          strengthPriority(right.strength) - strengthPriority(left.strength) ||
+          right.cue.length - left.cue.length ||
+          left.cue.localeCompare(right.cue),
+      )[0] ?? null
+  );
 }
 
 function strengthPriority(value: SettingCueMatch["strength"]): number {
@@ -376,10 +386,7 @@ function strengthPriority(value: SettingCueMatch["strength"]): number {
   return 0;
 }
 
-function computeCueLocality(
-  surface: string,
-  matches: SettingCueMatch[],
-): number {
+function computeCueLocality(surface: string, matches: SettingCueMatch[]): number {
   if (matches.length === 0) {
     return 0.35;
   }
@@ -387,18 +394,24 @@ function computeCueLocality(
   const primary = choosePrimaryCue(matches);
   const tokenCount = countSurfaceTokens(surface);
   const overlapCount = new Set(matches.map((match) => match.tag).filter((tag): tag is string => tag !== null)).size;
-  const base = primary?.strength === "novel"
-    ? 1
-    : primary?.strength === "strong"
-      ? tokenCount > 1 ? 1 : 0.96
-      : tokenCount > 1 ? 0.7 : 0.48;
+  const base =
+    primary?.strength === "novel"
+      ? 1
+      : primary?.strength === "strong"
+        ? tokenCount > 1
+          ? 1
+          : 0.96
+        : tokenCount > 1
+          ? 0.7
+          : 0.48;
   const overlapPenalty = overlapCount > 2 ? 0.18 : overlapCount === 2 ? 0.08 : 0;
   return Math.max(0.3, Math.min(1, base - overlapPenalty));
 }
 
 function computeCueAmbiguityPenalty(matches: SettingCueMatch[]): number {
   const strongMatches = matches.filter((match) => match.strength === "strong" || match.strength === "novel");
-  const overlapCount = new Set(strongMatches.map((match) => match.tag).filter((tag): tag is string => tag !== null)).size;
+  const overlapCount = new Set(strongMatches.map((match) => match.tag).filter((tag): tag is string => tag !== null))
+    .size;
   if (overlapCount >= 3) {
     return 0.28;
   }
@@ -436,20 +449,15 @@ function computeFamilyConceptWeight(
   boilerplateRisk: number,
 ): number {
   const primary = choosePrimaryCue(matches);
-  const baseWeight = primary?.strength === "novel"
-    ? 1.8
-    : primary?.strength === "strong"
-      ? 1.35
-      : primary?.strength === "weak"
-        ? 0.55
-        : 0.45;
-  return Math.max(
-    0.18,
-    baseWeight +
-    (cueLocality * 0.18) -
-    cueAmbiguityPenalty -
-    (boilerplateRisk * 0.45),
-  );
+  const baseWeight =
+    primary?.strength === "novel"
+      ? 1.8
+      : primary?.strength === "strong"
+        ? 1.35
+        : primary?.strength === "weak"
+          ? 0.55
+          : 0.45;
+  return Math.max(0.18, baseWeight + cueLocality * 0.18 - cueAmbiguityPenalty - boilerplateRisk * 0.45);
 }
 
 export function classifyFamilyGapFeature(
@@ -491,9 +499,9 @@ export function classifyFamilyGapFeature(
   }
 
   if (
-    VARIANT_MARKERS.has(surface)
-    || /\blevel\b/.test(surface)
-    || /\b(?:adult|ancient|young|spellcaster|elite)\b/.test(surface)
+    VARIANT_MARKERS.has(surface) ||
+    /\blevel\b/.test(surface) ||
+    /\b(?:adult|ancient|young|spellcaster|elite)\b/.test(surface)
   ) {
     return {
       bucket: "variant_marker",

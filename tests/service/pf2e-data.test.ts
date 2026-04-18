@@ -15,12 +15,7 @@ import {
   TEST_HASH_EMBEDDING,
   writeJson,
 } from "../helpers/pf2e-fixture.js";
-import {
-  cleanupCreatedRoots,
-  createFixture,
-  createHardFilterFixture,
-} from "../helpers/pf2e-service-fixture.js";
-
+import { cleanupCreatedRoots, createFixture, createHardFilterFixture } from "../helpers/pf2e-service-fixture.js";
 
 describe("Pf2eDataService", () => {
   const createdRoots: string[] = [];

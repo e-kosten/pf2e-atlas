@@ -55,10 +55,12 @@ function insertGapRecord(
     tags?: string[];
   },
 ): void {
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO records (record_key, name, category, subcategory, level, traits_json, description_text, is_search_canonical)
     VALUES (?, ?, ?, ?, ?, ?, ?, 1)
-  `).run(
+  `,
+  ).run(
     input.recordKey,
     input.name,
     input.category,
@@ -67,10 +69,7 @@ function insertGapRecord(
     JSON.stringify(input.traits ?? []),
     input.descriptionText ?? null,
   );
-  db.prepare("INSERT INTO embeddings (record_key, vector_blob) VALUES (?, ?)").run(
-    input.recordKey,
-    blob(input.vector),
-  );
+  db.prepare("INSERT INTO embeddings (record_key, vector_blob) VALUES (?, ?)").run(input.recordKey, blob(input.vector));
   for (const tag of input.tags ?? []) {
     db.prepare("INSERT INTO record_derived_tags (record_key, tag) VALUES (?, ?)").run(input.recordKey, tag);
   }
@@ -279,12 +278,14 @@ describe("derived tag gap evaluator", () => {
         vector: [0.98, 0.02, 0],
       });
 
-      expect(() => evaluateDerivedTagGaps(db, {
-        tag: "disguise",
-        category: "spell",
-        exemplarCategory: "equipment",
-        exemplarSubcategory: "gear",
-      })).toThrow(/matched exemplar scope "equipment\/gear"/i);
+      expect(() =>
+        evaluateDerivedTagGaps(db, {
+          tag: "disguise",
+          category: "spell",
+          exemplarCategory: "equipment",
+          exemplarSubcategory: "gear",
+        }),
+      ).toThrow(/matched exemplar scope "equipment\/gear"/i);
     } finally {
       db.close();
     }

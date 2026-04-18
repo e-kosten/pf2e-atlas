@@ -3,9 +3,7 @@ import { DatabaseSync } from "node:sqlite";
 import type { SearchCategory, SearchSubcategory } from "../../types.js";
 import { openConfiguredIndex, writeDerivedTagMigrationSummary } from "./cli-utils.js";
 import { renderDerivedTagMigrationSessionSummary } from "./render.js";
-import {
-  summarizeCurrentDerivedTagReviewQueue,
-} from "./runtime-state.js";
+import { summarizeCurrentDerivedTagReviewQueue } from "./runtime-state.js";
 import { buildDerivedTagMigrationSession } from "./session-builder.js";
 import { writeDerivedTagMigrationSession } from "./session-store.js";
 import type { DerivedTagTerminalApp } from "../../tui/terminal-ui.js";
@@ -15,7 +13,10 @@ import type {
   DerivedTagMigrationSession,
   DerivedTagReviewQueueSummaryItem,
 } from "./types.js";
-import { promptDerivedTagMigrationWorkbenchSessionOptions, type DerivedTagMigrationWorkbenchSessionOptions } from "./workbench-session-prompts.js";
+import {
+  promptDerivedTagMigrationWorkbenchSessionOptions,
+  type DerivedTagMigrationWorkbenchSessionOptions,
+} from "./workbench-session-prompts.js";
 
 export type DerivedTagMigrationWorkbenchServices = {
   buildSession: typeof buildDerivedTagMigrationSession;

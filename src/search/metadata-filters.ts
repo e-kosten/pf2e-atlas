@@ -6,10 +6,7 @@ import {
   normalizeActorMetricTextValue,
   type ActorMetricValue,
 } from "../domain/actor-metrics.js";
-import {
-  inferItemMetricValueType,
-  normalizeItemMetricKey,
-} from "../domain/item-metrics.js";
+import { inferItemMetricValueType, normalizeItemMetricKey } from "../domain/item-metrics.js";
 import {
   getMetadataFieldSpec,
   isMetadataFieldName,
@@ -33,8 +30,7 @@ import { normalizeDerivedTag } from "../tags/index.js";
 import { normalizeText } from "../utils.js";
 import type { SqlValue } from "../data/service-types.js";
 
-export type MetadataSqlContext = {
-} & MetadataSqlSourceContext;
+export type MetadataSqlContext = {} & MetadataSqlSourceContext;
 
 const ACTOR_METRIC_FIELD_NAMES = new Set<string>(["actorMetric", "actorMetricCompare"]);
 const ITEM_METRIC_FIELD_NAMES = new Set<string>(["itemMetric", "itemMetricCompare"]);
@@ -300,7 +296,11 @@ export function normalizeMetadataFilterNode(node: MetadataFilterNode): MetadataF
       throw new Error(`Unsupported metadata operator "${op}" for set field "${field}".`);
     }
 
-    if (!Array.isArray(raw.values) || raw.values.length === 0 || !raw.values.every((value): value is string => typeof value === "string")) {
+    if (
+      !Array.isArray(raw.values) ||
+      raw.values.length === 0 ||
+      !raw.values.every((value): value is string => typeof value === "string")
+    ) {
       throw new Error(`metadata predicate "${field}" requires a non-empty string values array.`);
     }
 
@@ -325,7 +325,11 @@ export function normalizeMetadataFilterNode(node: MetadataFilterNode): MetadataF
     }
 
     if (op === "in" || op === "notIn") {
-      if (!Array.isArray(raw.values) || raw.values.length === 0 || !raw.values.every((value): value is string => typeof value === "string")) {
+      if (
+        !Array.isArray(raw.values) ||
+        raw.values.length === 0 ||
+        !raw.values.every((value): value is string => typeof value === "string")
+      ) {
         throw new Error(`metadata predicate "${field}" with op "${op}" requires a non-empty string values array.`);
       }
 
@@ -353,7 +357,12 @@ export function normalizeMetadataFilterNode(node: MetadataFilterNode): MetadataF
 
   if (spec.fieldType === "number") {
     if (op === "between") {
-      if (typeof raw.min !== "number" || !Number.isFinite(raw.min) || typeof raw.max !== "number" || !Number.isFinite(raw.max)) {
+      if (
+        typeof raw.min !== "number" ||
+        !Number.isFinite(raw.min) ||
+        typeof raw.max !== "number" ||
+        !Number.isFinite(raw.max)
+      ) {
         throw new Error(`metadata predicate "${field}" with op "between" requires finite min and max numbers.`);
       }
       if (raw.min > raw.max) {
@@ -540,13 +549,10 @@ function buildItemMetricCompareClause(
   };
 }
 
-function buildScalarLookupSql(
-  recordKeyExpr: string,
-  alias: string | undefined,
-  column: string,
-  table: string,
-): string {
-  return alias ? `${alias}.${column}` : `(SELECT meta.${column} FROM ${table} meta WHERE meta.record_key = ${recordKeyExpr})`;
+function buildScalarLookupSql(recordKeyExpr: string, alias: string | undefined, column: string, table: string): string {
+  return alias
+    ? `${alias}.${column}`
+    : `(SELECT meta.${column} FROM ${table} meta WHERE meta.record_key = ${recordKeyExpr})`;
 }
 
 function buildMetadataJsonArraySql(context: MetadataSqlContext, field: MetadataSetField): string {
@@ -738,7 +744,10 @@ function getRecordSetValues(record: NormalizedRecord, field: MetadataSetField): 
   return record[spec.recordProperty] as string[];
 }
 
-function getRecordStringValue(record: NormalizedRecord, field: MetadataEnumStringField | MetadataTextStringField): string | null {
+function getRecordStringValue(
+  record: NormalizedRecord,
+  field: MetadataEnumStringField | MetadataTextStringField,
+): string | null {
   const spec = getMetadataFieldSpec(field as MetadataFieldName);
   return record[spec.recordProperty] as string | null;
 }
@@ -753,7 +762,11 @@ function getRecordBooleanValue(record: NormalizedRecord, field: MetadataBooleanF
   return record[spec.recordProperty] as boolean;
 }
 
-function compareActorMetricValues(left: ActorMetricValue, op: "==" | "!=" | ">" | ">=" | "<" | "<=", right: ActorMetricValue): boolean {
+function compareActorMetricValues(
+  left: ActorMetricValue,
+  op: "==" | "!=" | ">" | ">=" | "<" | "<=",
+  right: ActorMetricValue,
+): boolean {
   switch (op) {
     case "==":
       return left === right;
@@ -835,7 +848,11 @@ export function recordMatchesMetadataFilter(record: NormalizedRecord, node: Meta
 
   if (spec.fieldType === "set") {
     const setPredicate = node as Extract<MetadataPredicate, { field: MetadataSetField }>;
-    const normalizedValues = new Set(getRecordSetValues(record, setPredicate.field).map((value) => normalizeMetadataValue(setPredicate.field, value)).filter(Boolean));
+    const normalizedValues = new Set(
+      getRecordSetValues(record, setPredicate.field)
+        .map((value) => normalizeMetadataValue(setPredicate.field, value))
+        .filter(Boolean),
+    );
     if (setPredicate.op === "includesAll") {
       return setPredicate.values.every((value) => normalizedValues.has(value));
     }
@@ -847,7 +864,10 @@ export function recordMatchesMetadataFilter(record: NormalizedRecord, node: Meta
 
   if (spec.fieldType === "enumString") {
     const stringPredicate = node as Extract<MetadataPredicate, { field: MetadataEnumStringField }>;
-    const normalizedValue = normalizeMetadataValue(stringPredicate.field, getRecordStringValue(record, stringPredicate.field) ?? "");
+    const normalizedValue = normalizeMetadataValue(
+      stringPredicate.field,
+      getRecordStringValue(record, stringPredicate.field) ?? "",
+    );
     if (stringPredicate.op === "eq") {
       return normalizedValue === stringPredicate.value;
     }

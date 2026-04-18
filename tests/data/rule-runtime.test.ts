@@ -1,12 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { collectRuleQuestionContext, getRuleGraph } from "../../src/data/rule-runtime.js";
-import type {
-  LookupQuery,
-  LookupResult,
-  NormalizedRecord,
-  RuleReferenceEdge,
-} from "../../src/types.js";
+import type { LookupQuery, LookupResult, NormalizedRecord, RuleReferenceEdge } from "../../src/types.js";
 import type { ReferenceEdgeRow } from "../../src/data/rows.js";
 
 function createRecord(recordKey: string, name = recordKey): NormalizedRecord {
@@ -116,19 +111,20 @@ describe("rule runtime", () => {
       },
     ];
 
-    const graph = getRuleGraph(["rule:target"], {
-      includeBacklinks: true,
-      maxBacklinksPerPrimary: 2,
-    }, {
-      fetchReferenceEdgeRows: (direction: RuleReferenceEdge["direction"]) => direction === "backlink" ? rows : [],
-      getRecordsByKeys: (recordKeys) => recordKeys.map((recordKey) => createRecord(recordKey)),
-      lookupMany: () => [],
-    });
+    const graph = getRuleGraph(
+      ["rule:target"],
+      {
+        includeBacklinks: true,
+        maxBacklinksPerPrimary: 2,
+      },
+      {
+        fetchReferenceEdgeRows: (direction: RuleReferenceEdge["direction"]) => (direction === "backlink" ? rows : []),
+        getRecordsByKeys: (recordKeys) => recordKeys.map((recordKey) => createRecord(recordKey)),
+        lookupMany: () => [],
+      },
+    );
 
-    expect(graph.backlinks.edges.map((edge) => edge.fromRecordKey)).toEqual([
-      "rule:action",
-      "rule:feat",
-    ]);
+    expect(graph.backlinks.edges.map((edge) => edge.fromRecordKey)).toEqual(["rule:action", "rule:feat"]);
     expect(graph.edges).toEqual(graph.backlinks.edges);
   });
 
@@ -142,25 +138,28 @@ describe("rule runtime", () => {
       }));
     });
 
-    const context = collectRuleQuestionContext({
-      question: 'How does "Grabbed" interact with "Hidden"?',
-      includeBacklinks: false,
-    }, {
-      fetchReferenceEdgeRows: () => [
-        {
-          fromRecordKey: "rule:grabbed",
-          toRecordKey: "rule:hidden",
-          displayText: "Hidden",
-          referenceText: "Hidden",
-          fromPackName: "conditionitems",
-          fromRecordType: "condition",
-          fromDocumentType: "Item",
-          fromSourceCategory: "core",
-        },
-      ],
-      getRecordsByKeys: (recordKeys) => recordKeys.map((recordKey) => createRecord(recordKey)),
-      lookupMany,
-    });
+    const context = collectRuleQuestionContext(
+      {
+        question: 'How does "Grabbed" interact with "Hidden"?',
+        includeBacklinks: false,
+      },
+      {
+        fetchReferenceEdgeRows: () => [
+          {
+            fromRecordKey: "rule:grabbed",
+            toRecordKey: "rule:hidden",
+            displayText: "Hidden",
+            referenceText: "Hidden",
+            fromPackName: "conditionitems",
+            fromRecordType: "condition",
+            fromDocumentType: "Item",
+            fromSourceCategory: "core",
+          },
+        ],
+        getRecordsByKeys: (recordKeys) => recordKeys.map((recordKey) => createRecord(recordKey)),
+        lookupMany,
+      },
+    );
 
     expect(lookupMany).toHaveBeenCalledWith([{ name: "Grabbed" }, { name: "Hidden" }], { coreOnly: undefined });
     expect(context.primary.map((result) => result.match?.name)).toEqual(["Grabbed", "Hidden"]);

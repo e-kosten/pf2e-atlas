@@ -392,7 +392,9 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
           {
             all: [
               patternAnchor("{{alt(rune,glyph,sigil,ward,seal,symbol,inscription)}}"),
-              patternAnchor("{{alt(trigger,triggered,activate,activated,touch,touches,step,steps,enter,enters,approach,approaches,open,opened,disturb,disturbed,cross,crosses)}}"),
+              patternAnchor(
+                "{{alt(trigger,triggered,activate,activated,touch,touches,step,steps,enter,enters,approach,approaches,open,opened,disturb,disturbed,cross,crosses)}}",
+              ),
             ],
             window: 6,
             scope: "description",
@@ -513,7 +515,9 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
           {
             all: [
               patternAnchor("{{alt(door,doors,gate,gates,threshold,thresholds,doorway,entrance,portcullis,latch)}}"),
-              patternAnchor("{{alt(lock,locks,locked,seal,seals,sealed,close,closes,closed,shut,bar,bars,drop,drops,block,blocks)}}"),
+              patternAnchor(
+                "{{alt(lock,locks,locked,seal,seals,sealed,close,closes,closed,shut,bar,bars,drop,drops,block,blocks)}}",
+              ),
             ],
             window: 5,
             scope: "description",
@@ -522,7 +526,13 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
       },
     ],
     noneOf: [
-      { textAny: [patternAnchor("cave in"), patternAnchor("collapses the tunnel"), patternAnchor("collapse the passage")] },
+      {
+        textAny: [
+          patternAnchor("cave in"),
+          patternAnchor("collapses the tunnel"),
+          patternAnchor("collapse the passage"),
+        ],
+      },
     ],
   },
   {
@@ -579,8 +589,12 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
         textNear: [
           {
             all: [
-              patternAnchor("{{alt(button,buttons,lever,levers,console,consoles,panel,panels,switch,switches,dial,dials,crank,cranks,wheel,wheels,tumbler,tumblers)}}"),
-              patternAnchor("{{alt(press,presses,push,pushes,pull,pulls,flip,flips,turn,turns,operate,operates,activate,activates,control,controls,controlled,set,slide,slides,deactivate,deactivates)}}"),
+              patternAnchor(
+                "{{alt(button,buttons,lever,levers,console,consoles,panel,panels,switch,switches,dial,dials,crank,cranks,wheel,wheels,tumbler,tumblers)}}",
+              ),
+              patternAnchor(
+                "{{alt(press,presses,push,pushes,pull,pulls,flip,flips,turn,turns,operate,operates,activate,activates,control,controls,controlled,set,slide,slides,deactivate,deactivates)}}",
+              ),
             ],
             window: 5,
             scope: "description",
@@ -639,7 +653,9 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
         textNear: [
           {
             all: [
-              patternAnchor("{{alt(portal,portals,rift,rifts,breach,breaches,tear,tears,fissure,fissures,void,opening,openings)}}"),
+              patternAnchor(
+                "{{alt(portal,portals,rift,rifts,breach,breaches,tear,tears,fissure,fissures,void,opening,openings)}}",
+              ),
               patternAnchor("{{alt(open,opens,opening,opened,unstable,seam,seams,reality,planar)}}"),
             ],
             window: 6,
@@ -649,7 +665,15 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
       },
     ],
     noneOf: [
-      { textAny: [patternAnchor("teleportation circle"), patternAnchor("safe portal"), patternAnchor("portal travel"), patternAnchor("protective ward"), patternAnchor("ward against portals")] },
+      {
+        textAny: [
+          patternAnchor("teleportation circle"),
+          patternAnchor("safe portal"),
+          patternAnchor("portal travel"),
+          patternAnchor("protective ward"),
+          patternAnchor("ward against portals"),
+        ],
+      },
     ],
   },
   {
@@ -673,8 +697,12 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
         textNear: [
           {
             all: [
-              patternAnchor("{{alt(summon,summons,call,calls,conjure,conjures,conjuring,spawn,spawns,replaced,peel,peel themselves,disgorge,disgorges)}}"),
-              patternAnchor("{{alt(guards,guardians,archers,devil,demons,duplicates,dreams,ghost,shadows,attack,attacker,attackers,creature,creatures,being)}}"),
+              patternAnchor(
+                "{{alt(summon,summons,call,calls,conjure,conjures,conjuring,spawn,spawns,replaced,peel,peel themselves,disgorge,disgorges)}}",
+              ),
+              patternAnchor(
+                "{{alt(guards,guardians,archers,devil,demons,duplicates,dreams,ghost,shadows,attack,attacker,attackers,creature,creatures,being)}}",
+              ),
             ],
             window: 6,
             scope: "description",
@@ -688,9 +716,7 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "hazard",
     subcategories: ["haunt"],
     threshold: 2,
-    anyOf: [
-      { score: 2, textAny: HAUNT_LIFE_DRAIN_TEXT_ANCHORS },
-    ],
+    anyOf: [{ score: 2, textAny: HAUNT_LIFE_DRAIN_TEXT_ANCHORS }],
   },
   {
     tag: "phantom_assailants",
@@ -705,7 +731,9 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
           {
             all: [
               patternAnchor("{{alt(ghostly,spectral,phantom,spirit,spirits,undead,apparition,wraith)}}"),
-              patternAnchor("{{alt(attack,attacks,attacker,attackers,assailant,assailants,swarm,swarms,chase,rush,slaughter,devour,converge,crush,bite,brawl,battle,soldiers,archers,bolts)}}"),
+              patternAnchor(
+                "{{alt(attack,attacks,attacker,attackers,assailant,assailants,swarm,swarms,chase,rush,slaughter,devour,converge,crush,bite,brawl,battle,soldiers,archers,bolts)}}",
+              ),
             ],
             window: 6,
             scope: "description",
@@ -719,18 +747,14 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "hazard",
     subcategories: ["haunt"],
     threshold: 2,
-    anyOf: [
-      { score: 2, textAny: HAUNT_LURE_COMPULSION_TEXT_ANCHORS },
-    ],
+    anyOf: [{ score: 2, textAny: HAUNT_LURE_COMPULSION_TEXT_ANCHORS }],
   },
   {
     tag: "battlefield_disruption",
     category: "hazard",
     subcategories: ["haunt"],
     threshold: 2,
-    anyOf: [
-      { score: 2, textAny: HAUNT_BATTLEFIELD_DISRUPTION_TEXT_ANCHORS },
-    ],
+    anyOf: [{ score: 2, textAny: HAUNT_BATTLEFIELD_DISRUPTION_TEXT_ANCHORS }],
   },
   {
     tag: "restraint_capture",
@@ -834,7 +858,10 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
             scope: "description",
           },
           {
-            all: [patternAnchor("{{alt(door,doors,gate,gates)}}"), patternAnchor("{{alt(fall forward,falls forward)}}")],
+            all: [
+              patternAnchor("{{alt(door,doors,gate,gates)}}"),
+              patternAnchor("{{alt(fall forward,falls forward)}}"),
+            ],
             window: 6,
             scope: "description",
           },
@@ -1009,9 +1036,7 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
         ],
       },
     ],
-    noneOf: [
-      { textAny: HAZARD_ALARM_TEXT_ANCHORS },
-    ],
+    noneOf: [{ textAny: HAZARD_ALARM_TEXT_ANCHORS }],
   },
   {
     tag: "respiratory_hazard",
@@ -1174,9 +1199,7 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
         ],
       },
     ],
-    noneOf: [
-      { textAny: HAZARD_SPAWNED_ATTACKERS_TEXT_ANCHORS },
-    ],
+    noneOf: [{ textAny: HAZARD_SPAWNED_ATTACKERS_TEXT_ANCHORS }],
   },
   {
     tag: "illusion_assault",
@@ -1198,9 +1221,7 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
         ],
       },
     ],
-    noneOf: [
-      { textAny: HAZARD_SPAWNED_ATTACKERS_TEXT_ANCHORS },
-    ],
+    noneOf: [{ textAny: HAZARD_SPAWNED_ATTACKERS_TEXT_ANCHORS }],
   },
   {
     tag: "overhead_strike",
@@ -1224,7 +1245,14 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
       { score: 1, textAny: HAZARD_OVERHEAD_STRIKE_TEXT_ANCHORS },
     ],
     noneOf: [
-      { textAny: [patternAnchor("floor collapses"), patternAnchor("drop a creature"), patternAnchor("drops a creature"), patternAnchor("pit")] },
+      {
+        textAny: [
+          patternAnchor("floor collapses"),
+          patternAnchor("drop a creature"),
+          patternAnchor("drops a creature"),
+          patternAnchor("pit"),
+        ],
+      },
     ],
   },
   {
@@ -1275,11 +1303,7 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
       },
       {
         score: 1,
-        textAny: [
-          patternAnchor("psychic"),
-          patternAnchor("mental"),
-          patternAnchor("mind"),
-        ],
+        textAny: [patternAnchor("psychic"), patternAnchor("mental"), patternAnchor("mind")],
       },
     ],
   },
@@ -1313,9 +1337,7 @@ export const HAZARD_DERIVED_TAG_RULES: DerivedTagRule[] = [
       },
       {
         score: 1,
-        textAny: [
-          patternAnchor("slowed"),
-        ],
+        textAny: [patternAnchor("slowed")],
       },
     ],
   },

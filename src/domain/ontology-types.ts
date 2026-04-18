@@ -38,12 +38,12 @@ export interface OntologyNodeSelection {
 export type OntologyChildPresentation =
   | { mode: "flat" }
   | {
-    mode: "grouped";
-    groupBy: string;
-    render: "inline" | "navigable" | "auto";
-    autoInlineMaxGroups?: number;
-    autoInlineMaxChildren?: number;
-  };
+      mode: "grouped";
+      groupBy: string;
+      render: "inline" | "navigable" | "auto";
+      autoInlineMaxGroups?: number;
+      autoInlineMaxChildren?: number;
+    };
 
 export interface OntologyNode {
   id: string;

@@ -1,4 +1,10 @@
-import type { OntologyDomainModel, OntologyNode, OntologySelectionState, SearchCategory, SearchSubcategory } from "../../types.js";
+import type {
+  OntologyDomainModel,
+  OntologyNode,
+  OntologySelectionState,
+  SearchCategory,
+  SearchSubcategory,
+} from "../../types.js";
 import type { Pf2eTerminalFacetFieldOption } from "../search-service.js";
 
 function titleCaseLabel(value: string): string {
@@ -13,9 +19,7 @@ function cloneOntologyNode(node: OntologyNode): OntologyNode {
   return {
     ...node,
     children: node.children?.map(cloneOntologyNode),
-    loadChildren: node.loadChildren
-      ? () => node.loadChildren!().map(cloneOntologyNode)
-      : undefined,
+    loadChildren: node.loadChildren ? () => node.loadChildren!().map(cloneOntologyNode) : undefined,
     childPresentation: node.childPresentation ? { ...node.childPresentation } : undefined,
     groupValues: node.groupValues ? { ...node.groupValues } : undefined,
     query: node.query ? { ...node.query, filters: { ...node.query.filters } } : undefined,
@@ -23,10 +27,7 @@ function cloneOntologyNode(node: OntologyNode): OntologyNode {
   };
 }
 
-function isSelectableValueNode(
-  node: OntologyNode,
-  field: string,
-): boolean {
+function isSelectableValueNode(node: OntologyNode, field: string): boolean {
   if (field === "derivedTags") {
     return node.kind === "tag";
   }
@@ -39,10 +40,7 @@ function getAllowedStates(fieldType: Pf2eTerminalFacetFieldOption["fieldType"]):
 
 type OntologySelectionResolver = (node: OntologyNode) => OntologyNode["selection"];
 
-function annotateSelectableNodes(
-  node: OntologyNode,
-  resolveSelection: OntologySelectionResolver,
-): OntologyNode {
+function annotateSelectableNodes(node: OntologyNode, resolveSelection: OntologySelectionResolver): OntologyNode {
   const cloned = cloneOntologyNode(node);
   const selection = resolveSelection(cloned);
   if (selection) {
@@ -58,9 +56,7 @@ function annotateSelectableNodes(
   return cloned;
 }
 
-function buildFieldSelectionResolver(
-  fieldOption: Pf2eTerminalFacetFieldOption,
-): OntologySelectionResolver {
+function buildFieldSelectionResolver(fieldOption: Pf2eTerminalFacetFieldOption): OntologySelectionResolver {
   return (node) => {
     if (!isSelectableValueNode(node, fieldOption.value)) {
       return undefined;
@@ -68,7 +64,7 @@ function buildFieldSelectionResolver(
     return {
       field: fieldOption.value,
       fieldLabel: fieldOption.label,
-      value: fieldOption.value === "derivedTags" ? node.label : node.id.split(":").slice(-1)[0] ?? node.label,
+      value: fieldOption.value === "derivedTags" ? node.label : (node.id.split(":").slice(-1)[0] ?? node.label),
       allowedStates: getAllowedStates(fieldOption.fieldType),
     };
   };

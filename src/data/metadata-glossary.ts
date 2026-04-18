@@ -2,10 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import type {
-  MetadataGlossaryArtifact,
-  MetadataGlossaryEntry,
-} from "../types.js";
+import type { MetadataGlossaryArtifact, MetadataGlossaryEntry } from "../types.js";
 
 const TRAIT_LABEL_PATTERN = /["']?([a-z0-9-]+)["']?:\s*"PF2E\.Trait(?!Description)([A-Za-z0-9]+)"/g;
 const TRAIT_DESCRIPTION_PATTERN = /["']?([a-z0-9-]+)["']?:\s*"PF2E\.TraitDescription([A-Za-z0-9]+)"/g;
@@ -56,19 +53,28 @@ export function extractTraitGlossaryEntries(
   rawLang: unknown,
 ): Record<string, MetadataGlossaryEntry> {
   const labelsBySlug = collectTraitLocalizationKeys(traitsConfigSource, TRAIT_LABEL_PATTERN, "Trait");
-  const descriptionsBySlug = collectTraitLocalizationKeys(traitsConfigSource, TRAIT_DESCRIPTION_PATTERN, "TraitDescription");
+  const descriptionsBySlug = collectTraitLocalizationKeys(
+    traitsConfigSource,
+    TRAIT_DESCRIPTION_PATTERN,
+    "TraitDescription",
+  );
   const pf2eLang = getPf2eLangEntries(rawLang);
-  const slugs = [...new Set([...labelsBySlug.keys(), ...descriptionsBySlug.keys()])].sort((left, right) => left.localeCompare(right));
+  const slugs = [...new Set([...labelsBySlug.keys(), ...descriptionsBySlug.keys()])].sort((left, right) =>
+    left.localeCompare(right),
+  );
 
   return Object.fromEntries(
     slugs.map((slug): [string, MetadataGlossaryEntry] => {
       const labelKey = labelsBySlug.get(slug);
       const descriptionKey = descriptionsBySlug.get(slug);
-      return [slug, {
-        value: slug,
-        label: labelKey ? (pf2eLang[labelKey] ?? fallbackLabel(slug)) : fallbackLabel(slug),
-        description: descriptionKey ? (pf2eLang[descriptionKey] ?? null) : null,
-      }];
+      return [
+        slug,
+        {
+          value: slug,
+          label: labelKey ? (pf2eLang[labelKey] ?? fallbackLabel(slug)) : fallbackLabel(slug),
+          description: descriptionKey ? (pf2eLang[descriptionKey] ?? null) : null,
+        },
+      ];
     }),
   );
 }
@@ -93,7 +99,10 @@ export async function buildMetadataGlossaryArtifact(rootPath: string): Promise<M
   };
 }
 
-export async function writeMetadataGlossaryArtifact(rootPath: string, indexPath: string): Promise<MetadataGlossaryArtifact> {
+export async function writeMetadataGlossaryArtifact(
+  rootPath: string,
+  indexPath: string,
+): Promise<MetadataGlossaryArtifact> {
   const artifact = await buildMetadataGlossaryArtifact(rootPath);
   const artifactPath = getMetadataGlossaryArtifactPath(indexPath);
   await mkdir(path.dirname(artifactPath), { recursive: true });

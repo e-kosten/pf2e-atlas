@@ -2,7 +2,11 @@ import { DatabaseSync } from "node:sqlite";
 
 import { SearchCategory, SearchSubcategory } from "../../types.js";
 import { uniqueSorted } from "../../utils.js";
-import { getDerivedTagExemplarRecordKeys, getDerivedTagLegacySeedMigrationRecordKeys, normalizeDerivedTag } from "../index.js";
+import {
+  getDerivedTagExemplarRecordKeys,
+  getDerivedTagLegacySeedMigrationRecordKeys,
+  normalizeDerivedTag,
+} from "../index.js";
 import {
   type DiscoveryEvidenceKind,
   type DiscoveryEvidenceTerm,
@@ -15,10 +19,7 @@ import {
   type ResolvedDiscoveryExemplar,
 } from "./discovery-records.js";
 import { summarizeDiscoverySources } from "./discovery-source-summary.js";
-import {
-  isDiscoveryNoiseToken,
-  tokenizeDiscoveryText,
-} from "./discovery-normalization.js";
+import { isDiscoveryNoiseToken, tokenizeDiscoveryText } from "./discovery-normalization.js";
 
 const DEFAULT_CANDIDATE_LIMIT = 40;
 const DEFAULT_COHORT_LIMIT = 8;
@@ -67,10 +68,12 @@ export type RuleableCohortReport = {
     name: string;
     similarity: number;
   }>;
-  cohorts: Array<DerivedTagCandidateCluster & {
-    score: number;
-    recommendation: CohortRecommendation;
-  }>;
+  cohorts: Array<
+    DerivedTagCandidateCluster & {
+      score: number;
+      recommendation: CohortRecommendation;
+    }
+  >;
 };
 
 export type RuleableCohortOptions = {
@@ -256,7 +259,9 @@ function buildRecordFeatureSet(record: DiscoveryAnalysisRecord): Set<string> {
   }
   for (const reference of record.references) {
     features.add(`ref-target:${reference.targetName.toLowerCase()}`);
-    features.add(`ref-scope:${reference.targetCategory}${reference.targetSubcategory ? `/${reference.targetSubcategory}` : ""}`);
+    features.add(
+      `ref-scope:${reference.targetCategory}${reference.targetSubcategory ? `/${reference.targetSubcategory}` : ""}`,
+    );
   }
   return features;
 }
@@ -266,10 +271,7 @@ function isNameAnchorKind(kind: DiscoveryEvidenceKind): boolean {
 }
 
 function isLexicalAnchorKind(kind: DiscoveryEvidenceKind): boolean {
-  return kind === "nameToken" ||
-    kind === "namePhrase" ||
-    kind === "descriptionToken" ||
-    kind === "descriptionPhrase";
+  return kind === "nameToken" || kind === "namePhrase" || kind === "descriptionToken" || kind === "descriptionPhrase";
 }
 
 function deriveReviewFlags(
@@ -280,11 +282,18 @@ function deriveReviewFlags(
   distinctVariantFamilies: number,
 ): string[] {
   const flags: string[] = [];
-  const sharedKinds = sharedAnchors.map((anchor) => anchorByValue.get(anchor)?.kind).filter((kind): kind is DiscoveryEvidenceKind => Boolean(kind));
-  const nameAnchors = sharedAnchors.filter((anchor) => isNameAnchorKind(anchorByValue.get(anchor)?.kind ?? "descriptionToken"));
+  const sharedKinds = sharedAnchors
+    .map((anchor) => anchorByValue.get(anchor)?.kind)
+    .filter((kind): kind is DiscoveryEvidenceKind => Boolean(kind));
+  const nameAnchors = sharedAnchors.filter((anchor) =>
+    isNameAnchorKind(anchorByValue.get(anchor)?.kind ?? "descriptionToken"),
+  );
   const lexicalOnly = sharedKinds.length > 0 && sharedKinds.every((kind) => isLexicalAnchorKind(kind));
   const traitOnly = sharedKinds.length > 0 && sharedKinds.every((kind) => kind === "trait");
-  const dominantNameSupport = nameAnchors.reduce((maxSupport, anchor) => Math.max(maxSupport, anchorByValue.get(anchor)?.cohortSupport ?? 0), 0);
+  const dominantNameSupport = nameAnchors.reduce(
+    (maxSupport, anchor) => Math.max(maxSupport, anchorByValue.get(anchor)?.cohortSupport ?? 0),
+    0,
+  );
   const nameSeriesSupportFloor = Math.max(2, Math.ceil(distinctVariantFamilies * 0.6));
 
   if (sharedAnchors.length === 0) {
@@ -299,16 +308,22 @@ function deriveReviewFlags(
   if (nameAnchors.length >= 2 && dominantNameSupport >= nameSeriesSupportFloor) {
     flags.push("name-series");
   }
-  if (sourceSummary.hasUsableSourceSignals && sourceSummary.dominantSourceShare > 0 && sourceSummary.sourceScope && (
-    (sourceSummary.sourceScope === "source-slice" && sourceSummary.sourceSliceCount === 1) ||
-    (sourceSummary.sourceScope === "publication" && sourceSummary.publicationCount === 1) ||
-    (sourceSummary.sourceScope === "pack" && sourceSummary.sourceCount === 1)
-  )) {
+  if (
+    sourceSummary.hasUsableSourceSignals &&
+    sourceSummary.dominantSourceShare > 0 &&
+    sourceSummary.sourceScope &&
+    ((sourceSummary.sourceScope === "source-slice" && sourceSummary.sourceSliceCount === 1) ||
+      (sourceSummary.sourceScope === "publication" && sourceSummary.publicationCount === 1) ||
+      (sourceSummary.sourceScope === "pack" && sourceSummary.sourceCount === 1))
+  ) {
     flags.push("source-local");
   } else if (sourceSummary.hasUsableSourceSignals && sourceSummary.dominantSourceShare >= 0.75) {
     flags.push("source-heavy");
   }
-  if (sharedAnchors.length > 0 && sharedAnchors.every((anchor) => isNameAnchorKind(anchorByValue.get(anchor)?.kind ?? "descriptionToken"))) {
+  if (
+    sharedAnchors.length > 0 &&
+    sharedAnchors.every((anchor) => isNameAnchorKind(anchorByValue.get(anchor)?.kind ?? "descriptionToken"))
+  ) {
     flags.push("name-anchored");
   }
 
@@ -320,7 +335,10 @@ function deriveAnchorVocabulary(
   baseline: DiscoveryAnalysisRecord[],
 ): DiscoveryEvidenceTerm[] {
   const minimumSupport = exemplars.length > 1 ? 2 : 1;
-  const evidence = analyzeDiscoveryEvidenceFromRecords(dedupeVariantFamilies(exemplars), baseline, { limit: 10, exampleLimit: 3 });
+  const evidence = analyzeDiscoveryEvidenceFromRecords(dedupeVariantFamilies(exemplars), baseline, {
+    limit: 10,
+    exampleLimit: 3,
+  });
   return [
     ...evidence.traits.slice(0, 4),
     ...evidence.nameTokens.slice(0, 4),
@@ -329,15 +347,21 @@ function deriveAnchorVocabulary(
   ]
     .sort((left, right) => right.score - left.score || left.value.localeCompare(right.value))
     .filter((entry, index, all) => all.findIndex((candidate) => candidate.value === entry.value) === index)
-    .filter((entry, _, all) =>
-      !entry.value.startsWith("scope:") ||
-      !all.some((candidate) => candidate.value.startsWith("target:") && candidate.cohortSupport >= entry.cohortSupport))
+    .filter(
+      (entry, _, all) =>
+        !entry.value.startsWith("scope:") ||
+        !all.some(
+          (candidate) => candidate.value.startsWith("target:") && candidate.cohortSupport >= entry.cohortSupport,
+        ),
+    )
     .filter((entry) => entry.cohortSupport >= minimumSupport)
-    .filter((entry) =>
-      entry.value.startsWith("target:") ||
-      entry.value.startsWith("scope:") ||
-      entry.lift >= 1.15 ||
-      (entry.cohortSupport === exemplars.length && entry.cohortSupport >= 3))
+    .filter(
+      (entry) =>
+        entry.value.startsWith("target:") ||
+        entry.value.startsWith("scope:") ||
+        entry.lift >= 1.15 ||
+        (entry.cohortSupport === exemplars.length && entry.cohortSupport >= 3),
+    )
     .slice(0, 10);
 }
 
@@ -347,27 +371,40 @@ function rankCandidates(
   anchors: DiscoveryEvidenceTerm[],
   options: RuleableCohortOptions,
 ): RankedCandidate[] {
-  const centroid = normalizeVector(averageVectors(exemplars.map((record) => record.vector).filter((vector) => vector.length > 0)));
+  const centroid = normalizeVector(
+    averageVectors(exemplars.map((record) => record.vector).filter((vector) => vector.length > 0)),
+  );
   const anchorSet = new Set(anchors.map((anchor) => anchor.value));
   const anchorByValue = new Map(anchors.map((anchor) => [anchor.value, anchor] as const));
-  const maxAnchorScore = Math.max(1, anchors.reduce((total, anchor) => total + Math.max(0, anchor.score), 0));
+  const maxAnchorScore = Math.max(
+    1,
+    anchors.reduce((total, anchor) => total + Math.max(0, anchor.score), 0),
+  );
   const limit = Math.max(1, Math.min(options.candidateLimit ?? DEFAULT_CANDIDATE_LIMIT, 200));
   const minSimilarity = options.minSimilarity ?? Number.NEGATIVE_INFINITY;
 
   const rankedCandidates = candidates
     .map((record) => {
       const featureSet = buildRecordFeatureSet(record);
-      const anchorOverlap = [...anchorSet].filter((anchor) =>
-        featureSet.has(anchor.startsWith("target:") || anchor.startsWith("scope:") ? `ref-${anchor}` : anchor.includes(":") ? anchor : `text:${anchor}`) ||
-        featureSet.has(`trait:${anchor}`) ||
-        featureSet.has(`name:${anchor}`) ||
-        featureSet.has(`text:${anchor}`),
+      const anchorOverlap = [...anchorSet].filter(
+        (anchor) =>
+          featureSet.has(
+            anchor.startsWith("target:") || anchor.startsWith("scope:")
+              ? `ref-${anchor}`
+              : anchor.includes(":")
+                ? anchor
+                : `text:${anchor}`,
+          ) ||
+          featureSet.has(`trait:${anchor}`) ||
+          featureSet.has(`name:${anchor}`) ||
+          featureSet.has(`text:${anchor}`),
       );
       const anchorScore = anchorOverlap.reduce((total, anchor) => total + (anchorByValue.get(anchor)?.score ?? 0), 0);
       const normalizedAnchorScore = Math.max(0, Math.min(1, anchorScore / maxAnchorScore));
-      const hybridScore = normalizedAnchorScore > 0
-        ? (normalizedAnchorScore * 0.55) + (cosineSimilarity(record.vector, centroid) * 0.45)
-        : cosineSimilarity(record.vector, centroid);
+      const hybridScore =
+        normalizedAnchorScore > 0
+          ? normalizedAnchorScore * 0.55 + cosineSimilarity(record.vector, centroid) * 0.45
+          : cosineSimilarity(record.vector, centroid);
       return {
         ...record,
         similarity: cosineSimilarity(record.vector, centroid),
@@ -377,30 +414,34 @@ function rankCandidates(
       };
     })
     .filter((candidate) => candidate.similarity >= minSimilarity)
-    .filter((candidate, _, ranked) =>
-      !anchors.length ||
-      !ranked.some((entry) => entry.anchorScore > 0) ||
-      candidate.anchorScore > 0)
-    .sort((left, right) =>
-      right.hybridScore - left.hybridScore ||
-      right.anchorScore - left.anchorScore ||
-      right.similarity - left.similarity ||
-      right.anchorOverlap.length - left.anchorOverlap.length ||
-      left.name.localeCompare(right.name))
+    .filter(
+      (candidate, _, ranked) =>
+        !anchors.length || !ranked.some((entry) => entry.anchorScore > 0) || candidate.anchorScore > 0,
+    )
+    .sort(
+      (left, right) =>
+        right.hybridScore - left.hybridScore ||
+        right.anchorScore - left.anchorScore ||
+        right.similarity - left.similarity ||
+        right.anchorOverlap.length - left.anchorOverlap.length ||
+        left.name.localeCompare(right.name),
+    )
     .slice(0, limit);
 
   return rankedCandidates;
 }
 
-function buildSignature(
-  candidate: RankedCandidate,
-  anchorByValue: Map<string, DiscoveryEvidenceTerm>,
-): string[] {
-  const preferred = [...new Set(candidate.anchorOverlap
-    .slice()
-    .sort((left, right) =>
-      (anchorByValue.get(right)?.score ?? 0) - (anchorByValue.get(left)?.score ?? 0) ||
-      left.localeCompare(right)))].slice(0, 4);
+function buildSignature(candidate: RankedCandidate, anchorByValue: Map<string, DiscoveryEvidenceTerm>): string[] {
+  const preferred = [
+    ...new Set(
+      candidate.anchorOverlap
+        .slice()
+        .sort(
+          (left, right) =>
+            (anchorByValue.get(right)?.score ?? 0) - (anchorByValue.get(left)?.score ?? 0) || left.localeCompare(right),
+        ),
+    ),
+  ].slice(0, 4);
   if (preferred.length > 0) {
     return preferred;
   }
@@ -417,7 +458,9 @@ function recommendCluster(
   sharedTraits: string[],
   reviewFlags: string[],
 ): CohortRecommendation {
-  const sharedKinds = sharedAnchors.map((anchor) => anchorByValue.get(anchor)?.kind).filter((kind): kind is DiscoveryEvidenceKind => Boolean(kind));
+  const sharedKinds = sharedAnchors
+    .map((anchor) => anchorByValue.get(anchor)?.kind)
+    .filter((kind): kind is DiscoveryEvidenceKind => Boolean(kind));
   const lexicalOnly = sharedKinds.length > 0 && sharedKinds.every((kind) => isLexicalAnchorKind(kind));
   const traitOnly = sharedKinds.length > 0 && sharedKinds.every((kind) => kind === "trait");
 
@@ -483,26 +526,38 @@ function clusterCandidates(
   return [...buckets.entries()]
     .map(([key, bucket]) => {
       const signature = key === "__semantic_only__" ? [] : key.split("||");
-      const averageSimilarity = bucket.reduce((total, candidate) => total + candidate.similarity, 0) / Math.max(1, bucket.length);
+      const averageSimilarity =
+        bucket.reduce((total, candidate) => total + candidate.similarity, 0) / Math.max(1, bucket.length);
       const distinctVariantFamilies = distinctVariantFamilyCount(bucket);
       const sourceSummary = summarizeDiscoverySources(bucket);
-      const sharedTraits = [...new Set(bucket.flatMap((candidate) => candidate.traits))]
-        .filter((trait) => bucket.every((candidate) => candidate.traits.includes(trait)));
+      const sharedTraits = [...new Set(bucket.flatMap((candidate) => candidate.traits))].filter((trait) =>
+        bucket.every((candidate) => candidate.traits.includes(trait)),
+      );
       const sharedAnchors = signature.filter((anchor) => anchorValues.has(anchor));
       const nonNameAnchors = sharedAnchors
         .filter((anchor) => !isNameAnchorKind(anchorByValue.get(anchor)?.kind ?? "descriptionToken"))
         .slice(0, 4);
-      const sharedKinds = sharedAnchors.map((anchor) => anchorByValue.get(anchor)?.kind).filter((kind): kind is DiscoveryEvidenceKind => Boolean(kind));
+      const sharedKinds = sharedAnchors
+        .map((anchor) => anchorByValue.get(anchor)?.kind)
+        .filter((kind): kind is DiscoveryEvidenceKind => Boolean(kind));
       const lexicalOnly = sharedKinds.length > 0 && sharedKinds.every((kind) => isLexicalAnchorKind(kind));
       const traitOnly = sharedKinds.length > 0 && sharedKinds.every((kind) => kind === "trait");
-      const nameOnly = sharedKinds.length > 0 && sharedKinds.every((kind) => kind === "nameToken" || kind === "namePhrase");
-      const reviewFlags = deriveReviewFlags(sharedAnchors, uniqueSorted(sharedTraits), anchorByValue, sourceSummary, distinctVariantFamilies);
-      const averageAnchorStrength = sharedAnchors.length === 0
-        ? 0
-        : sharedAnchors.reduce((total, anchor) => {
-          const lift = anchorByValue.get(anchor)?.lift ?? 1;
-          return total + Math.min(1, Math.log2(1 + Math.max(1, lift)) / 3);
-        }, 0) / sharedAnchors.length;
+      const nameOnly =
+        sharedKinds.length > 0 && sharedKinds.every((kind) => kind === "nameToken" || kind === "namePhrase");
+      const reviewFlags = deriveReviewFlags(
+        sharedAnchors,
+        uniqueSorted(sharedTraits),
+        anchorByValue,
+        sourceSummary,
+        distinctVariantFamilies,
+      );
+      const averageAnchorStrength =
+        sharedAnchors.length === 0
+          ? 0
+          : sharedAnchors.reduce((total, anchor) => {
+              const lift = anchorByValue.get(anchor)?.lift ?? 1;
+              return total + Math.min(1, Math.log2(1 + Math.max(1, lift)) / 3);
+            }, 0) / sharedAnchors.length;
       const density = sharedAnchors.length / Math.max(1, signature.length || 1);
       const sizeFactor = Math.min(1, bucket.length / 5);
       const familyDiversity = distinctVariantFamilies / Math.max(1, bucket.length);
@@ -511,9 +566,7 @@ function clusterCandidates(
       const lexicalOnlyPenalty = lexicalOnly && sharedTraits.length === 0 ? 0.18 : lexicalOnly ? 0.1 : 0;
       const nameOnlyPenalty = nameOnly ? 0.08 : 0;
       const semanticOnlyPenalty = sharedAnchors.length === 0 ? 0.18 : 0;
-      const nameSeriesPenalty = reviewFlags.includes("name-series")
-        ? nonNameAnchors.length >= 2 ? 0.08 : 0.18
-        : 0;
+      const nameSeriesPenalty = reviewFlags.includes("name-series") ? (nonNameAnchors.length >= 2 ? 0.08 : 0.18) : 0;
       const sourcePenalty = reviewFlags.includes("source-local")
         ? 0.16
         : reviewFlags.includes("source-heavy")
@@ -523,17 +576,17 @@ function clusterCandidates(
         0,
         Math.min(
           1,
-          (sizeFactor * 0.2) +
-          (familyDiversity * 0.2) +
-          (similarityFactor * 0.2) +
-          (density * 0.15) +
-          (averageAnchorStrength * 0.25) -
-          traitPenalty -
-          lexicalOnlyPenalty -
-          nameOnlyPenalty -
-          semanticOnlyPenalty -
-          nameSeriesPenalty -
-          sourcePenalty,
+          sizeFactor * 0.2 +
+            familyDiversity * 0.2 +
+            similarityFactor * 0.2 +
+            density * 0.15 +
+            averageAnchorStrength * 0.25 -
+            traitPenalty -
+            lexicalOnlyPenalty -
+            nameOnlyPenalty -
+            semanticOnlyPenalty -
+            nameSeriesPenalty -
+            sourcePenalty,
         ),
       );
 
@@ -560,70 +613,79 @@ function clusterCandidates(
             .sort((left, right) => right.similarity - left.similarity || left.name.localeCompare(right.name)),
         ),
         score,
-        recommendation: recommendCluster(score, sharedAnchors, nonNameAnchors, averageAnchorStrength, anchorByValue, uniqueSorted(sharedTraits), reviewFlags),
+        recommendation: recommendCluster(
+          score,
+          sharedAnchors,
+          nonNameAnchors,
+          averageAnchorStrength,
+          anchorByValue,
+          uniqueSorted(sharedTraits),
+          reviewFlags,
+        ),
       };
     })
-    .sort((left, right) =>
-      right.score - left.score ||
-      right.distinctVariantFamilies - left.distinctVariantFamilies ||
-      right.size - left.size ||
-      right.averageSimilarity - left.averageSimilarity ||
-      left.signature.join(" ").localeCompare(right.signature.join(" ")))
+    .sort(
+      (left, right) =>
+        right.score - left.score ||
+        right.distinctVariantFamilies - left.distinctVariantFamilies ||
+        right.size - left.size ||
+        right.averageSimilarity - left.averageSimilarity ||
+        left.signature.join(" ").localeCompare(right.signature.join(" ")),
+    )
     .slice(0, cohortLimit);
 }
 
-export function discoverRuleableCohorts(
-  db: DatabaseSync,
-  options: RuleableCohortOptions,
-): RuleableCohortReport {
+export function discoverRuleableCohorts(db: DatabaseSync, options: RuleableCohortOptions): RuleableCohortReport {
   const normalizedTag = options.tag ? normalizeDerivedTag(options.tag) : null;
   const seedRecordKeys = normalizedTag
     ? uniqueSorted([
-      ...getDerivedTagExemplarRecordKeys(normalizedTag, {
-        category: options.category,
-        subcategory: options.subcategory,
-      }),
-      ...getDerivedTagLegacySeedMigrationRecordKeys(normalizedTag, {
-        category: options.category,
-        subcategory: options.subcategory,
-      }),
-    ])
+        ...getDerivedTagExemplarRecordKeys(normalizedTag, {
+          category: options.category,
+          subcategory: options.subcategory,
+        }),
+        ...getDerivedTagLegacySeedMigrationRecordKeys(normalizedTag, {
+          category: options.category,
+          subcategory: options.subcategory,
+        }),
+      ])
     : [];
   const resolvedExemplars: ResolvedDiscoveryExemplar[] = normalizedTag
     ? mergeUniqueRecords([
-      ...loadDiscoveryRecords(db, {
-        category: options.category,
-        subcategory: options.subcategory,
-        requireTag: normalizedTag,
-        includeVectors: true,
-      }),
-      ...(seedRecordKeys.length > 0
-        ? loadDiscoveryRecords(db, {
+        ...loadDiscoveryRecords(db, {
           category: options.category,
           subcategory: options.subcategory,
-          recordKeys: seedRecordKeys,
+          requireTag: normalizedTag,
           includeVectors: true,
-        })
-        : []),
-    ]).map((record) => ({
-      query: record.recordKey,
-      matchedBy: "recordKey" as const,
-      ...record,
-    }))
+        }),
+        ...(seedRecordKeys.length > 0
+          ? loadDiscoveryRecords(db, {
+              category: options.category,
+              subcategory: options.subcategory,
+              recordKeys: seedRecordKeys,
+              includeVectors: true,
+            })
+          : []),
+      ]).map((record) => ({
+        query: record.recordKey,
+        matchedBy: "recordKey" as const,
+        ...record,
+      }))
     : resolveDiscoveryExemplars(db, {
-      category: options.category,
-      subcategory: options.subcategory,
-      exemplarNames: options.exemplarNames,
-      exemplarRecordKeys: options.exemplarRecordKeys,
-    });
+        category: options.category,
+        subcategory: options.subcategory,
+        exemplarNames: options.exemplarNames,
+        exemplarRecordKeys: options.exemplarRecordKeys,
+      });
   if (resolvedExemplars.length === 0) {
     throw new Error("Ruleable cohort discovery requires at least one exemplar or an existing tag.");
   }
 
-  const category = options.category ?? inferSingleValue(
-    resolvedExemplars.map((record) => record.category),
-    "category",
-  );
+  const category =
+    options.category ??
+    inferSingleValue(
+      resolvedExemplars.map((record) => record.category),
+      "category",
+    );
   const subcategory = options.subcategory ?? null;
   const exemplarKeys = resolvedExemplars.map((record) => record.recordKey);
   const baseline = loadDiscoveryRecords(db, {
@@ -643,9 +705,12 @@ export function discoverRuleableCohorts(
   const rankedCandidates = rankCandidates(familyDistinctExemplars, candidates, anchors, options);
   const cohorts = clusterCandidates(rankedCandidates, anchors, options);
   const anchorValues = new Set(anchors.map((anchor) => anchor.value));
-  const contrastRecords = selectDistinctContrastCandidates(rankedCandidates
-    .filter((candidate) => candidate.anchorOverlap.filter((anchor) => anchorValues.has(anchor)).length <= 1)
-  , 6);
+  const contrastRecords = selectDistinctContrastCandidates(
+    rankedCandidates.filter(
+      (candidate) => candidate.anchorOverlap.filter((anchor) => anchorValues.has(anchor)).length <= 1,
+    ),
+    6,
+  );
 
   return {
     category,
@@ -668,7 +733,9 @@ export function discoverRuleableCohorts(
 function inferSingleValue<T>(values: T[], label: string): T {
   const uniqueValues = [...new Set(values)];
   if (uniqueValues.length !== 1) {
-    throw new Error(`Exemplars span multiple ${label} values. Pass --${label} explicitly to define the candidate scope.`);
+    throw new Error(
+      `Exemplars span multiple ${label} values. Pass --${label} explicitly to define the candidate scope.`,
+    );
   }
 
   return uniqueValues[0]!;

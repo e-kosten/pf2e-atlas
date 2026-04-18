@@ -1,10 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
 
 import { groupDerivedTagOntology } from "../tags/runtime/catalog-utils.js";
-import {
-  DERIVED_TAG_ONTOLOGY_FAMILIES,
-  DERIVED_TAG_ONTOLOGY_TAGS,
-} from "../tags/index.js";
+import { DERIVED_TAG_ONTOLOGY_FAMILIES, DERIVED_TAG_ONTOLOGY_TAGS } from "../tags/index.js";
 import type {
   DerivedTagCatalogEntry,
   DerivedTagOntologyFamily,
@@ -156,12 +153,14 @@ export function getSearchVocabulary(
 
   const traditionCounts = new Map<string, number>();
   const traditionRows = db
-    .prepare(`
+    .prepare(
+      `
       SELECT s.traditions_json AS traditionsJson
       FROM spell_records s
       JOIN records r ON r.record_key = s.record_key
       WHERE r.is_search_canonical = 1
-    `)
+    `,
+    )
     .all() as Array<{ traditionsJson: string }>;
   for (const row of traditionRows) {
     const traditions = JSON.parse(row.traditionsJson) as string[];
@@ -180,12 +179,14 @@ export function getSearchVocabulary(
 
   const spellKindCounts = new Map<string, number>();
   const spellKindRows = db
-    .prepare(`
+    .prepare(
+      `
       SELECT s.spell_kinds_json AS spellKindsJson
       FROM spell_records s
       JOIN records r ON r.record_key = s.record_key
       WHERE r.is_search_canonical = 1
-    `)
+    `,
+    )
     .all() as Array<{ spellKindsJson: string }>;
   for (const row of spellKindRows) {
     const spellKinds = JSON.parse(row.spellKindsJson) as string[];

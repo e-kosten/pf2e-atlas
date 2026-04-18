@@ -1,9 +1,6 @@
 import { DatabaseSync } from "node:sqlite";
 
-import {
-  createPf2eApplicationOntologyService,
-  type Pf2eApplicationOntologyService,
-} from "../app/ontology-service.js";
+import { createPf2eApplicationOntologyService, type Pf2eApplicationOntologyService } from "../app/ontology-service.js";
 import { loadPf2eApplicationRuntime, type Pf2eApplicationRuntime } from "../app/runtime.js";
 import { Pf2eDataService } from "../data/service.js";
 import type { AppConfig } from "../types.js";
@@ -15,12 +12,8 @@ import {
   type DerivedTagMigrationWorkbenchServices,
   type DerivedTagMigrationWorkbenchSessionCreationOptions,
 } from "../tags/migration/workbench-controller.js";
-import {
-  buildDerivedTagMigrationSession,
-} from "../tags/migration/session-builder.js";
-import {
-  summarizeCurrentDerivedTagReviewQueue,
-} from "../tags/migration/runtime-state.js";
+import { buildDerivedTagMigrationSession } from "../tags/migration/session-builder.js";
+import { summarizeCurrentDerivedTagReviewQueue } from "../tags/migration/runtime-state.js";
 import { writeDerivedTagMigrationSession } from "../tags/migration/session-store.js";
 import { writeDerivedTagMigrationSummary } from "../tags/migration/cli-utils.js";
 import type { DerivedTagTerminalApp } from "./terminal-ui.js";
@@ -107,9 +100,7 @@ function createTagWorkbenchService(config: AppConfig): Pf2eTerminalTagWorkbenchS
   };
 }
 
-export async function loadPf2eTerminalAppServices(
-  argv: string[],
-): Promise<Pf2eTerminalAppServices> {
+export async function loadPf2eTerminalAppServices(argv: string[]): Promise<Pf2eTerminalAppServices> {
   const runtime = await loadPf2eApplicationRuntime(argv);
   return createPf2eTerminalAppServices(runtime);
 }

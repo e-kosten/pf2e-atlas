@@ -8,6 +8,7 @@ description: Tag new or under-tagged PF2E records in bounded batches. Use when C
 Use this skill for forward coverage work on records that are currently untagged or under-tagged.
 
 This is a **live-authoring** skill:
+
 - confident assignment decisions go directly into `src/tags/assignments`
 - only ambiguous assignment decisions go into `src/tags/assignment-reviews`
 - confident exemplar updates go directly into `src/tags/exemplars`
@@ -16,6 +17,7 @@ This is a **live-authoring** skill:
 ## Required Output
 
 For every touched record:
+
 - decide the record's long-term explicit assignments across the ontology
 - update exemplars when the teaching value is obvious
 - leave only true ambiguity for review

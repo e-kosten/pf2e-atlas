@@ -185,7 +185,7 @@ function extractMetadataValuesFromRow(row: CandidateRow): Partial<NormalizedReco
 }
 
 export function rowToRecord(row: CandidateRow, raw: Record<string, unknown> | null = null): NormalizedRecord {
-  const resolvedRaw = raw ?? (row.rawJson ? JSON.parse(row.rawJson) as Record<string, unknown> : {});
+  const resolvedRaw = raw ?? (row.rawJson ? (JSON.parse(row.rawJson) as Record<string, unknown>) : {});
   const metadata = extractMetadataValuesFromRow(row);
   return {
     recordKey: row.recordKey,
@@ -225,7 +225,9 @@ export function getLookupMatchType(query: string, record: NormalizedRecord | nul
 
   const normalizedQuery = normalizeText(query);
   if (normalizeText(record.name) === normalizedQuery) {
-    return normalizeText(query) === normalizeText(record.name) && query.trim() === record.name ? "exact" : "normalized_exact";
+    return normalizeText(query) === normalizeText(record.name) && query.trim() === record.name
+      ? "exact"
+      : "normalized_exact";
   }
 
   return "fuzzy";

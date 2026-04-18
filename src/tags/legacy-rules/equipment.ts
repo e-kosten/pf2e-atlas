@@ -192,10 +192,7 @@ const WEAPON_STAGING_TEXT_ANCHORS = [
   patternAnchor("attuned weapons in the bandolier"),
 ];
 
-const AMMO_MANAGEMENT_NAME_ANCHORS = [
-  patternAnchor("magazine", "name"),
-  patternAnchor("autoload", "name"),
-];
+const AMMO_MANAGEMENT_NAME_ANCHORS = [patternAnchor("magazine", "name"), patternAnchor("autoload", "name")];
 
 const AMMO_MANAGEMENT_TEXT_ANCHORS = [
   patternAnchor("reload a magazine"),
@@ -482,7 +479,9 @@ const EQUIPMENT_IMPACT_PHYSICAL_TEXT_ANCHORS = [
 ];
 
 const EQUIPMENT_HOSTILE_TARGET_TEXT_NEAR = patternAnchor("{{alt(target,creature,creatures,victim,victims,foe,foes)}}");
-const EQUIPMENT_HOSTILE_DELIVERY_TEXT_NEAR = patternAnchor("{{alt(afflicts,afflict,exposed,expose,fails its save,failed save,must attempt,must succeed,on a failed save,poison,toxin,struck,hits,drinks,drink)}}");
+const EQUIPMENT_HOSTILE_DELIVERY_TEXT_NEAR = patternAnchor(
+  "{{alt(afflicts,afflict,exposed,expose,fails its save,failed save,must attempt,must succeed,on a failed save,poison,toxin,struck,hits,drinks,drink)}}",
+);
 
 const EQUIPMENT_IMPACT_BLOCKER_TEXT_ANCHORS = [
   patternAnchor("you gain"),
@@ -499,10 +498,7 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     tag: "offensive",
     category: "equipment",
     subcategories: ["consumable"],
-    anyOf: [
-      { traitsAny: ["poison", "bomb"] },
-      { textAny: OFFENSIVE_TEXT_ANCHORS },
-    ],
+    anyOf: [{ traitsAny: ["poison", "bomb"] }, { textAny: OFFENSIVE_TEXT_ANCHORS }],
   },
   {
     tag: "thrown_offense",
@@ -511,7 +507,15 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     requiresTags: ["offensive"],
     anyOf: [
       { traitsAny: ["bomb"] },
-      { textAny: [patternAnchor("thrown"), patternAnchor("hurl"), patternAnchor("lob"), patternAnchor("splash weapon"), patternAnchor("throw the bomb")] },
+      {
+        textAny: [
+          patternAnchor("thrown"),
+          patternAnchor("hurl"),
+          patternAnchor("lob"),
+          patternAnchor("splash weapon"),
+          patternAnchor("throw the bomb"),
+        ],
+      },
     ],
   },
   {
@@ -520,7 +524,15 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     subcategories: ["consumable"],
     requiresTags: ["offensive"],
     anyOf: [
-      { textAny: [patternAnchor("apply to a weapon"), patternAnchor("coat a weapon"), patternAnchor("weapon poison"), patternAnchor("smeared on a weapon"), patternAnchor("applied to a weapon")] },
+      {
+        textAny: [
+          patternAnchor("apply to a weapon"),
+          patternAnchor("coat a weapon"),
+          patternAnchor("weapon poison"),
+          patternAnchor("smeared on a weapon"),
+          patternAnchor("applied to a weapon"),
+        ],
+      },
     ],
   },
   {
@@ -529,7 +541,15 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     subcategories: ["consumable"],
     requiresTags: ["offensive"],
     anyOf: [
-      { textAny: [patternAnchor("ingested poison"), patternAnchor("must be eaten"), patternAnchor("must be drunk"), patternAnchor("consumed by the target"), patternAnchor("when swallowed")] },
+      {
+        textAny: [
+          patternAnchor("ingested poison"),
+          patternAnchor("must be eaten"),
+          patternAnchor("must be drunk"),
+          patternAnchor("consumed by the target"),
+          patternAnchor("when swallowed"),
+        ],
+      },
     ],
   },
   {
@@ -538,7 +558,14 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     subcategories: ["consumable"],
     requiresTags: ["offensive"],
     anyOf: [
-      { textAny: [patternAnchor("contact poison"), patternAnchor("through skin contact"), patternAnchor("through contact"), patternAnchor("absorbed through the skin")] },
+      {
+        textAny: [
+          patternAnchor("contact poison"),
+          patternAnchor("through skin contact"),
+          patternAnchor("through contact"),
+          patternAnchor("absorbed through the skin"),
+        ],
+      },
     ],
   },
   {
@@ -610,10 +637,7 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
         ],
       },
     ],
-    noneOf: [
-      { traitsAny: ["poison", "bomb"] },
-      { textAny: OFFENSIVE_TEXT_ANCHORS },
-    ],
+    noneOf: [{ traitsAny: ["poison", "bomb"] }, { textAny: OFFENSIVE_TEXT_ANCHORS }],
   },
   {
     tag: "healing_support",
@@ -622,7 +646,15 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     requiresTags: ["beneficial"],
     anyOf: [
       { traitsAny: ["healing"] },
-      { textAny: [patternAnchor("elixir of life"), patternAnchor("healing"), patternAnchor("restore hit points"), patternAnchor("restore hp"), patternAnchor("regain hit points")] },
+      {
+        textAny: [
+          patternAnchor("elixir of life"),
+          patternAnchor("healing"),
+          patternAnchor("restore hit points"),
+          patternAnchor("restore hp"),
+          patternAnchor("regain hit points"),
+        ],
+      },
     ],
   },
   {
@@ -631,7 +663,18 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     subcategories: ["consumable"],
     requiresTags: ["beneficial"],
     anyOf: [
-      { textAny: [patternAnchor("antidote"), patternAnchor("against poison"), patternAnchor("against poisons"), patternAnchor("protect against poison"), patternAnchor("protects you against poisons"), patternAnchor("resist poison"), patternAnchor("ward off poison"), patternAnchor("persistent poison damage")] },
+      {
+        textAny: [
+          patternAnchor("antidote"),
+          patternAnchor("against poison"),
+          patternAnchor("against poisons"),
+          patternAnchor("protect against poison"),
+          patternAnchor("protects you against poisons"),
+          patternAnchor("resist poison"),
+          patternAnchor("ward off poison"),
+          patternAnchor("persistent poison damage"),
+        ],
+      },
     ],
   },
   {
@@ -640,7 +683,16 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     subcategories: ["consumable"],
     requiresTags: ["beneficial"],
     anyOf: [
-      { textAny: [patternAnchor("antiplague"), patternAnchor("against disease"), patternAnchor("against diseases"), patternAnchor("protect against disease"), patternAnchor("resist disease"), patternAnchor("ward off disease")] },
+      {
+        textAny: [
+          patternAnchor("antiplague"),
+          patternAnchor("against disease"),
+          patternAnchor("against diseases"),
+          patternAnchor("protect against disease"),
+          patternAnchor("resist disease"),
+          patternAnchor("ward off disease"),
+        ],
+      },
     ],
   },
   {
@@ -648,54 +700,42 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "equipment",
     subcategories: ["consumable"],
     requiresTags: ["beneficial"],
-    anyOf: [
-      { textAny: EQUIPMENT_ANTI_FEAR_TEXT_ANCHORS },
-    ],
+    anyOf: [{ textAny: EQUIPMENT_ANTI_FEAR_TEXT_ANCHORS }],
   },
   {
     tag: "anti_confusion",
     category: "equipment",
     subcategories: ["consumable"],
     requiresTags: ["beneficial"],
-    anyOf: [
-      { textAny: EQUIPMENT_ANTI_CONFUSION_TEXT_ANCHORS },
-    ],
+    anyOf: [{ textAny: EQUIPMENT_ANTI_CONFUSION_TEXT_ANCHORS }],
   },
   {
     tag: "anti_paralysis",
     category: "equipment",
     subcategories: ["consumable"],
     requiresTags: ["beneficial"],
-    anyOf: [
-      { textAny: EQUIPMENT_ANTI_PARALYSIS_TEXT_ANCHORS },
-    ],
+    anyOf: [{ textAny: EQUIPMENT_ANTI_PARALYSIS_TEXT_ANCHORS }],
   },
   {
     tag: "anti_petrification",
     category: "equipment",
     subcategories: ["consumable"],
     requiresTags: ["beneficial"],
-    anyOf: [
-      { textAny: EQUIPMENT_ANTI_PETRIFICATION_TEXT_ANCHORS },
-    ],
+    anyOf: [{ textAny: EQUIPMENT_ANTI_PETRIFICATION_TEXT_ANCHORS }],
   },
   {
     tag: "anti_bleed",
     category: "equipment",
     subcategories: ["consumable"],
     requiresTags: ["beneficial"],
-    anyOf: [
-      { textAny: EQUIPMENT_ANTI_BLEED_TEXT_ANCHORS },
-    ],
+    anyOf: [{ textAny: EQUIPMENT_ANTI_BLEED_TEXT_ANCHORS }],
   },
   {
     tag: "curse_removal",
     category: "equipment",
     subcategories: ["consumable"],
     requiresTags: ["beneficial"],
-    anyOf: [
-      { textAny: EQUIPMENT_CURSE_REMOVAL_TEXT_ANCHORS },
-    ],
+    anyOf: [{ textAny: EQUIPMENT_CURSE_REMOVAL_TEXT_ANCHORS }],
   },
   {
     tag: "condition_support",
@@ -703,7 +743,16 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     subcategories: ["consumable"],
     requiresTags: ["beneficial"],
     anyOf: [
-      { textAny: [patternAnchor("condition"), patternAnchor("catharsis"), patternAnchor("soothe the mind"), patternAnchor("steady the emotions"), patternAnchor("calm overwhelming emotions"), patternAnchor("recover from mental conditions")] },
+      {
+        textAny: [
+          patternAnchor("condition"),
+          patternAnchor("catharsis"),
+          patternAnchor("soothe the mind"),
+          patternAnchor("steady the emotions"),
+          patternAnchor("calm overwhelming emotions"),
+          patternAnchor("recover from mental conditions"),
+        ],
+      },
     ],
   },
   {
@@ -712,7 +761,21 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     subcategories: ["consumable"],
     requiresTags: ["beneficial"],
     anyOf: [
-      { textAny: [patternAnchor("soothe the mind"), patternAnchor("steady the emotions"), patternAnchor("calm overwhelming emotions"), patternAnchor("mental condition"), patternAnchor("mental conditions"), patternAnchor("emotion"), patternAnchor("emotions"), patternAnchor("frightened"), patternAnchor("stupefied"), patternAnchor("confused"), patternAnchor("mental effect")] },
+      {
+        textAny: [
+          patternAnchor("soothe the mind"),
+          patternAnchor("steady the emotions"),
+          patternAnchor("calm overwhelming emotions"),
+          patternAnchor("mental condition"),
+          patternAnchor("mental conditions"),
+          patternAnchor("emotion"),
+          patternAnchor("emotions"),
+          patternAnchor("frightened"),
+          patternAnchor("stupefied"),
+          patternAnchor("confused"),
+          patternAnchor("mental effect"),
+        ],
+      },
     ],
   },
   {
@@ -721,9 +784,28 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     subcategories: ["consumable"],
     requiresTags: ["beneficial"],
     anyOf: [
-      { textAny: [patternAnchor("escape"), patternAnchor("slip away"), patternAnchor("break free"), patternAnchor("flee"), patternAnchor("evade"), patternAnchor("concealing smoke"), patternAnchor("vanish from sight"), patternAnchor("misty")] },
+      {
+        textAny: [
+          patternAnchor("escape"),
+          patternAnchor("slip away"),
+          patternAnchor("break free"),
+          patternAnchor("flee"),
+          patternAnchor("evade"),
+          patternAnchor("concealing smoke"),
+          patternAnchor("vanish from sight"),
+          patternAnchor("misty"),
+        ],
+      },
       { referencesAny: [referenceAnchor("actionspf2e", "Escape")] },
-      { textAny: [patternAnchor("grabbed"), patternAnchor("restrained"), patternAnchor("immobilized"), patternAnchor("slip free"), patternAnchor("break the grab")] },
+      {
+        textAny: [
+          patternAnchor("grabbed"),
+          patternAnchor("restrained"),
+          patternAnchor("immobilized"),
+          patternAnchor("slip free"),
+          patternAnchor("break the grab"),
+        ],
+      },
     ],
   },
   {
@@ -732,7 +814,17 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     subcategories: ["consumable"],
     requiresTags: ["beneficial"],
     anyOf: [
-      { textAny: [patternAnchor("darkvision"), patternAnchor("see in the dark"), patternAnchor("low light vision"), patternAnchor("keen senses"), patternAnchor("sharpen your vision"), patternAnchor("see invisible"), patternAnchor("scent")] },
+      {
+        textAny: [
+          patternAnchor("darkvision"),
+          patternAnchor("see in the dark"),
+          patternAnchor("low light vision"),
+          patternAnchor("keen senses"),
+          patternAnchor("sharpen your vision"),
+          patternAnchor("see invisible"),
+          patternAnchor("scent"),
+        ],
+      },
     ],
   },
   {
@@ -741,7 +833,22 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     subcategories: ["consumable"],
     requiresTags: ["beneficial"],
     anyOf: [
-      { textAny: [patternAnchor("resistance to fire"), patternAnchor("resistance to cold"), patternAnchor("resistance to electricity"), patternAnchor("resistance to acid"), patternAnchor("resistance to sonic"), patternAnchor("resistance to energy"), patternAnchor("energy resistance"), patternAnchor("against fire damage"), patternAnchor("against cold damage"), patternAnchor("against electricity damage"), patternAnchor("against acid damage"), patternAnchor("against sonic damage")] },
+      {
+        textAny: [
+          patternAnchor("resistance to fire"),
+          patternAnchor("resistance to cold"),
+          patternAnchor("resistance to electricity"),
+          patternAnchor("resistance to acid"),
+          patternAnchor("resistance to sonic"),
+          patternAnchor("resistance to energy"),
+          patternAnchor("energy resistance"),
+          patternAnchor("against fire damage"),
+          patternAnchor("against cold damage"),
+          patternAnchor("against electricity damage"),
+          patternAnchor("against acid damage"),
+          patternAnchor("against sonic damage"),
+        ],
+      },
     ],
   },
   {
@@ -750,7 +857,22 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     subcategories: ["consumable"],
     requiresTags: ["beneficial"],
     anyOf: [
-      { textAny: [patternAnchor("gain a bonus"), patternAnchor("bonus to"), patternAnchor("bolster"), patternAnchor("enhance"), patternAnchor("empower"), patternAnchor("heighten your senses"), patternAnchor("increase your speed"), patternAnchor("resistance to"), patternAnchor("grants resistance"), patternAnchor("temporary hit points"), patternAnchor("additional protection"), patternAnchor("absorb damage")] },
+      {
+        textAny: [
+          patternAnchor("gain a bonus"),
+          patternAnchor("bonus to"),
+          patternAnchor("bolster"),
+          patternAnchor("enhance"),
+          patternAnchor("empower"),
+          patternAnchor("heighten your senses"),
+          patternAnchor("increase your speed"),
+          patternAnchor("resistance to"),
+          patternAnchor("grants resistance"),
+          patternAnchor("temporary hit points"),
+          patternAnchor("additional protection"),
+          patternAnchor("absorb damage"),
+        ],
+      },
     ],
   },
   {
@@ -798,7 +920,25 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     subcategories: ["consumable"],
     requiresTags: ["beneficial"],
     anyOf: [
-      { textAny: [patternAnchor("you gain"), patternAnchor("the drinker gains"), patternAnchor("gain a bonus"), patternAnchor("you become"), patternAnchor("you gain resistance"), patternAnchor("you gain darkvision"), patternAnchor("protects you against"), patternAnchor("when you drink"), patternAnchor("after you drink"), patternAnchor("upon drinking"), patternAnchor("drinking this"), patternAnchor("spreading the salve on exposed skin"), patternAnchor("after applying"), patternAnchor("grants you"), patternAnchor("giving you")] },
+      {
+        textAny: [
+          patternAnchor("you gain"),
+          patternAnchor("the drinker gains"),
+          patternAnchor("gain a bonus"),
+          patternAnchor("you become"),
+          patternAnchor("you gain resistance"),
+          patternAnchor("you gain darkvision"),
+          patternAnchor("protects you against"),
+          patternAnchor("when you drink"),
+          patternAnchor("after you drink"),
+          patternAnchor("upon drinking"),
+          patternAnchor("drinking this"),
+          patternAnchor("spreading the salve on exposed skin"),
+          patternAnchor("after applying"),
+          patternAnchor("grants you"),
+          patternAnchor("giving you"),
+        ],
+      },
     ],
   },
   {
@@ -807,7 +947,19 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     subcategories: ["consumable"],
     requiresTags: ["beneficial"],
     anyOf: [
-      { textAny: [patternAnchor("target gains"), patternAnchor("target regains"), patternAnchor("an ally gains"), patternAnchor("creature gains"), patternAnchor("creature regains"), patternAnchor("creature that drinks gains"), patternAnchor("the drinker gains"), patternAnchor("applied to a creature"), patternAnchor("the wearer gains")] },
+      {
+        textAny: [
+          patternAnchor("target gains"),
+          patternAnchor("target regains"),
+          patternAnchor("an ally gains"),
+          patternAnchor("creature gains"),
+          patternAnchor("creature regains"),
+          patternAnchor("creature that drinks gains"),
+          patternAnchor("the drinker gains"),
+          patternAnchor("applied to a creature"),
+          patternAnchor("the wearer gains"),
+        ],
+      },
     ],
   },
   {
@@ -815,7 +967,16 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "equipment",
     subcategories: GEARISH_SUBCATEGORIES,
     anyOf: [
-      { textAny: [patternAnchor("climb"), patternAnchor("climbing"), patternAnchor("rappel"), patternAnchor("rappelling"), patternAnchor("piton"), patternAnchor("grappling")] },
+      {
+        textAny: [
+          patternAnchor("climb"),
+          patternAnchor("climbing"),
+          patternAnchor("rappel"),
+          patternAnchor("rappelling"),
+          patternAnchor("piton"),
+          patternAnchor("grappling"),
+        ],
+      },
     ],
   },
   {
@@ -824,7 +985,16 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     subcategories: GEARISH_SUBCATEGORIES,
     threshold: 2,
     anyOf: [
-      { score: 2, textAny: [patternAnchor("mobility"), patternAnchor("move quickly"), patternAnchor("increase your speed"), patternAnchor("rappel"), patternAnchor("climbing")] },
+      {
+        score: 2,
+        textAny: [
+          patternAnchor("mobility"),
+          patternAnchor("move quickly"),
+          patternAnchor("increase your speed"),
+          patternAnchor("rappel"),
+          patternAnchor("climbing"),
+        ],
+      },
       {
         score: 2,
         textAny: [
@@ -850,27 +1020,21 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "equipment",
     subcategories: [...AMMO_SUBCATEGORIES],
     threshold: 2,
-    anyOf: [
-      { score: 2, textAny: AMMO_MOBILITY_TEXT_ANCHORS },
-    ],
+    anyOf: [{ score: 2, textAny: AMMO_MOBILITY_TEXT_ANCHORS }],
   },
   {
     tag: "mobility",
     category: "equipment",
     subcategories: ARMOR_SUBCATEGORIES,
     threshold: 2,
-    anyOf: [
-      { score: 2, textAny: ARMOR_MOBILITY_TEXT_ANCHORS },
-    ],
+    anyOf: [{ score: 2, textAny: ARMOR_MOBILITY_TEXT_ANCHORS }],
   },
   {
     tag: "mobility_impairment",
     category: "equipment",
     subcategories: ["ammo"],
     threshold: 2,
-    anyOf: [
-      { score: 2, textAny: EQUIPMENT_IMPACT_MOBILITY_TEXT_ANCHORS },
-    ],
+    anyOf: [{ score: 2, textAny: EQUIPMENT_IMPACT_MOBILITY_TEXT_ANCHORS }],
   },
   {
     tag: "mobility_impairment",
@@ -882,29 +1046,29 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
       { score: 2, textAny: EQUIPMENT_IMPACT_MOBILITY_TEXT_ANCHORS },
       {
         score: 2,
-        textNear: [{
-          all: [
-            EQUIPMENT_HOSTILE_TARGET_TEXT_NEAR,
-            EQUIPMENT_HOSTILE_DELIVERY_TEXT_NEAR,
-            patternAnchor("{{alt(immobilized,restrained,grabbed,slowed,sticks to the ground,stuck to the surface,wrap around its legs,hold a creature in place,encase the target,-10-foot status penalty to its speed,speed penalty)}}"),
-          ],
-          window: 10,
-          scope: "description" as const,
-        }],
+        textNear: [
+          {
+            all: [
+              EQUIPMENT_HOSTILE_TARGET_TEXT_NEAR,
+              EQUIPMENT_HOSTILE_DELIVERY_TEXT_NEAR,
+              patternAnchor(
+                "{{alt(immobilized,restrained,grabbed,slowed,sticks to the ground,stuck to the surface,wrap around its legs,hold a creature in place,encase the target,-10-foot status penalty to its speed,speed penalty)}}",
+              ),
+            ],
+            window: 10,
+            scope: "description" as const,
+          },
+        ],
       },
     ],
-    noneOf: [
-      { textAny: EQUIPMENT_IMPACT_BLOCKER_TEXT_ANCHORS },
-    ],
+    noneOf: [{ textAny: EQUIPMENT_IMPACT_BLOCKER_TEXT_ANCHORS }],
   },
   {
     tag: "sensory_impairment",
     category: "equipment",
     subcategories: ["ammo"],
     threshold: 2,
-    anyOf: [
-      { score: 2, textAny: EQUIPMENT_IMPACT_SENSORY_TEXT_ANCHORS },
-    ],
+    anyOf: [{ score: 2, textAny: EQUIPMENT_IMPACT_SENSORY_TEXT_ANCHORS }],
   },
   {
     tag: "sensory_impairment",
@@ -916,29 +1080,27 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
       { score: 2, textAny: EQUIPMENT_IMPACT_SENSORY_TEXT_ANCHORS },
       {
         score: 2,
-        textNear: [{
-          all: [
-            EQUIPMENT_HOSTILE_TARGET_TEXT_NEAR,
-            EQUIPMENT_HOSTILE_DELIVERY_TEXT_NEAR,
-            patternAnchor("{{alt(blinded,blind,dazzled,deafened)}}"),
-          ],
-          window: 10,
-          scope: "description" as const,
-        }],
+        textNear: [
+          {
+            all: [
+              EQUIPMENT_HOSTILE_TARGET_TEXT_NEAR,
+              EQUIPMENT_HOSTILE_DELIVERY_TEXT_NEAR,
+              patternAnchor("{{alt(blinded,blind,dazzled,deafened)}}"),
+            ],
+            window: 10,
+            scope: "description" as const,
+          },
+        ],
       },
     ],
-    noneOf: [
-      { textAny: EQUIPMENT_IMPACT_BLOCKER_TEXT_ANCHORS },
-    ],
+    noneOf: [{ textAny: EQUIPMENT_IMPACT_BLOCKER_TEXT_ANCHORS }],
   },
   {
     tag: "mental_impairment",
     category: "equipment",
     subcategories: ["ammo"],
     threshold: 2,
-    anyOf: [
-      { score: 2, textAny: EQUIPMENT_IMPACT_MENTAL_TEXT_ANCHORS },
-    ],
+    anyOf: [{ score: 2, textAny: EQUIPMENT_IMPACT_MENTAL_TEXT_ANCHORS }],
   },
   {
     tag: "mental_impairment",
@@ -950,29 +1112,29 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
       { score: 2, textAny: EQUIPMENT_IMPACT_MENTAL_TEXT_ANCHORS },
       {
         score: 2,
-        textNear: [{
-          all: [
-            EQUIPMENT_HOSTILE_TARGET_TEXT_NEAR,
-            EQUIPMENT_HOSTILE_DELIVERY_TEXT_NEAR,
-            patternAnchor("{{alt(frightened,stupefied,confused,hallucinations,hallucinatory,mental damage,mind control)}}"),
-          ],
-          window: 10,
-          scope: "description" as const,
-        }],
+        textNear: [
+          {
+            all: [
+              EQUIPMENT_HOSTILE_TARGET_TEXT_NEAR,
+              EQUIPMENT_HOSTILE_DELIVERY_TEXT_NEAR,
+              patternAnchor(
+                "{{alt(frightened,stupefied,confused,hallucinations,hallucinatory,mental damage,mind control)}}",
+              ),
+            ],
+            window: 10,
+            scope: "description" as const,
+          },
+        ],
       },
     ],
-    noneOf: [
-      { textAny: EQUIPMENT_IMPACT_BLOCKER_TEXT_ANCHORS },
-    ],
+    noneOf: [{ textAny: EQUIPMENT_IMPACT_BLOCKER_TEXT_ANCHORS }],
   },
   {
     tag: "physical_debilitation",
     category: "equipment",
     subcategories: ["ammo"],
     threshold: 2,
-    anyOf: [
-      { score: 2, textAny: EQUIPMENT_IMPACT_PHYSICAL_TEXT_ANCHORS },
-    ],
+    anyOf: [{ score: 2, textAny: EQUIPMENT_IMPACT_PHYSICAL_TEXT_ANCHORS }],
   },
   {
     tag: "physical_debilitation",
@@ -983,29 +1145,27 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
       { score: 2, textAny: EQUIPMENT_IMPACT_PHYSICAL_TEXT_ANCHORS },
       {
         score: 2,
-        textNear: [{
-          all: [
-            EQUIPMENT_HOSTILE_TARGET_TEXT_NEAR,
-            EQUIPMENT_HOSTILE_DELIVERY_TEXT_NEAR,
-            patternAnchor("{{alt(clumsy,drained,enfeebled,fatigued,sickened,weakened)}}"),
-          ],
-          window: 10,
-          scope: "description" as const,
-        }],
+        textNear: [
+          {
+            all: [
+              EQUIPMENT_HOSTILE_TARGET_TEXT_NEAR,
+              EQUIPMENT_HOSTILE_DELIVERY_TEXT_NEAR,
+              patternAnchor("{{alt(clumsy,drained,enfeebled,fatigued,sickened,weakened)}}"),
+            ],
+            window: 10,
+            scope: "description" as const,
+          },
+        ],
       },
     ],
-    noneOf: [
-      { textAny: EQUIPMENT_IMPACT_BLOCKER_TEXT_ANCHORS },
-    ],
+    noneOf: [{ textAny: EQUIPMENT_IMPACT_BLOCKER_TEXT_ANCHORS }],
   },
   {
     tag: "sedation",
     category: "equipment",
     subcategories: ["ammo"],
     threshold: 2,
-    anyOf: [
-      { score: 2, textAny: EQUIPMENT_IMPACT_SEDATION_TEXT_ANCHORS },
-    ],
+    anyOf: [{ score: 2, textAny: EQUIPMENT_IMPACT_SEDATION_TEXT_ANCHORS }],
   },
   {
     tag: "sedation",
@@ -1017,27 +1177,40 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
       { score: 2, textAny: EQUIPMENT_IMPACT_SEDATION_TEXT_ANCHORS },
       {
         score: 2,
-        textNear: [{
-          all: [
-            EQUIPMENT_HOSTILE_TARGET_TEXT_NEAR,
-            EQUIPMENT_HOSTILE_DELIVERY_TEXT_NEAR,
-            patternAnchor("{{alt(unconscious,falls asleep,fall asleep,drowsy,drowsiness,lethargic,sleep,can't wake up)}}"),
-          ],
-          window: 10,
-          scope: "description" as const,
-        }],
+        textNear: [
+          {
+            all: [
+              EQUIPMENT_HOSTILE_TARGET_TEXT_NEAR,
+              EQUIPMENT_HOSTILE_DELIVERY_TEXT_NEAR,
+              patternAnchor(
+                "{{alt(unconscious,falls asleep,fall asleep,drowsy,drowsiness,lethargic,sleep,can't wake up)}}",
+              ),
+            ],
+            window: 10,
+            scope: "description" as const,
+          },
+        ],
       },
     ],
-    noneOf: [
-      { textAny: EQUIPMENT_IMPACT_BLOCKER_TEXT_ANCHORS },
-    ],
+    noneOf: [{ textAny: EQUIPMENT_IMPACT_BLOCKER_TEXT_ANCHORS }],
   },
   {
     tag: "lock_bypass",
     category: "equipment",
     subcategories: GEARISH_SUBCATEGORIES,
     anyOf: [
-      { textAny: [patternAnchor("lockpick"), patternAnchor("lockpicks"), patternAnchor("pick locks"), patternAnchor("picking locks"), patternAnchor("bypass locks"), patternAnchor("thieves tools"), patternAnchor("thieves tools"), patternAnchor("toolkit")] },
+      {
+        textAny: [
+          patternAnchor("lockpick"),
+          patternAnchor("lockpicks"),
+          patternAnchor("pick locks"),
+          patternAnchor("picking locks"),
+          patternAnchor("bypass locks"),
+          patternAnchor("thieves tools"),
+          patternAnchor("thieves tools"),
+          patternAnchor("toolkit"),
+        ],
+      },
     ],
   },
   {
@@ -1074,7 +1247,18 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "equipment",
     subcategories: SCOUTING_SUBCATEGORIES,
     anyOf: [
-      { textAny: [patternAnchor("scout"), patternAnchor("scouting"), patternAnchor("survey"), patternAnchor("recon"), patternAnchor("observe from afar"), patternAnchor("spyglass"), patternAnchor("precise sense"), patternAnchor("hearing as a precise sense")] },
+      {
+        textAny: [
+          patternAnchor("scout"),
+          patternAnchor("scouting"),
+          patternAnchor("survey"),
+          patternAnchor("recon"),
+          patternAnchor("observe from afar"),
+          patternAnchor("spyglass"),
+          patternAnchor("precise sense"),
+          patternAnchor("hearing as a precise sense"),
+        ],
+      },
     ],
   },
   {
@@ -1082,7 +1266,16 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "equipment",
     subcategories: GEARISH_SUBCATEGORIES,
     anyOf: [
-      { textAny: [patternAnchor("stealth"), patternAnchor("quiet"), patternAnchor("silent"), patternAnchor("without drawing attention"), patternAnchor("avoid notice"), patternAnchor("infiltration")] },
+      {
+        textAny: [
+          patternAnchor("stealth"),
+          patternAnchor("quiet"),
+          patternAnchor("silent"),
+          patternAnchor("without drawing attention"),
+          patternAnchor("avoid notice"),
+          patternAnchor("infiltration"),
+        ],
+      },
       { textAny: [patternAnchor("concealable"), patternAnchor("hidden on your person")] },
     ],
   },
@@ -1091,9 +1284,7 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "equipment",
     subcategories: ARMOR_SUBCATEGORIES,
     threshold: 2,
-    anyOf: [
-      { score: 2, textAny: ARMOR_STEALTH_SUPPORT_TEXT_ANCHORS },
-    ],
+    anyOf: [{ score: 2, textAny: ARMOR_STEALTH_SUPPORT_TEXT_ANCHORS }],
   },
   {
     tag: "concealment",
@@ -1104,41 +1295,39 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
       { score: 2, textAny: CONCEALMENT_TEXT_ANCHORS },
       {
         score: 2,
-        textAny: [
-          patternAnchor("concealed"),
-          patternAnchor("concealment"),
-        ],
+        textAny: [patternAnchor("concealed"), patternAnchor("concealment")],
       },
     ],
-    noneOf: [
-      { textAny: CONCEALMENT_BLOCKER_TEXT_ANCHORS },
-    ],
+    noneOf: [{ textAny: CONCEALMENT_BLOCKER_TEXT_ANCHORS }],
   },
   {
     tag: "disguise",
     category: "equipment",
     subcategories: DISGUISE_WEAPON_SUBCATEGORIES,
-    anyOf: [
-      { textAny: DISGUISE_TEXT_ANCHORS },
-      { referencesAny: DISGUISE_REFERENCE_ANCHORS },
-    ],
+    anyOf: [{ textAny: DISGUISE_TEXT_ANCHORS }, { referencesAny: DISGUISE_REFERENCE_ANCHORS }],
   },
   {
     tag: "social_infiltration",
     category: "equipment",
     subcategories: DISGUISE_SUBCATEGORIES,
     requiresTags: ["disguise"],
-    anyOf: [
-      { textAny: SOCIAL_INFILTRATION_TEXT_ANCHORS },
-      { referencesAny: SOCIAL_INFILTRATION_REFERENCE_ANCHORS },
-    ],
+    anyOf: [{ textAny: SOCIAL_INFILTRATION_TEXT_ANCHORS }, { referencesAny: SOCIAL_INFILTRATION_REFERENCE_ANCHORS }],
   },
   {
     tag: "illumination",
     category: "equipment",
     subcategories: GEARISH_SUBCATEGORIES,
     anyOf: [
-      { textAny: [patternAnchor("light"), patternAnchor("illumination"), patternAnchor("lantern"), patternAnchor("torch"), patternAnchor("glow"), patternAnchor("illuminate")] },
+      {
+        textAny: [
+          patternAnchor("light"),
+          patternAnchor("illumination"),
+          patternAnchor("lantern"),
+          patternAnchor("torch"),
+          patternAnchor("glow"),
+          patternAnchor("illuminate"),
+        ],
+      },
     ],
   },
   {
@@ -1167,16 +1356,23 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "equipment",
     subcategories: [...AMMO_SUBCATEGORIES],
     threshold: 2,
-    anyOf: [
-      { score: 2, textAny: AMMO_ILLUMINATION_TEXT_ANCHORS },
-    ],
+    anyOf: [{ score: 2, textAny: AMMO_ILLUMINATION_TEXT_ANCHORS }],
   },
   {
     tag: "survival",
     category: "equipment",
     subcategories: GEARISH_SUBCATEGORIES,
     anyOf: [
-      { textAny: [patternAnchor("camp"), patternAnchor("forage"), patternAnchor("wilderness"), patternAnchor("survival"), patternAnchor("shelter"), patternAnchor("weatherproof")] },
+      {
+        textAny: [
+          patternAnchor("camp"),
+          patternAnchor("forage"),
+          patternAnchor("wilderness"),
+          patternAnchor("survival"),
+          patternAnchor("shelter"),
+          patternAnchor("weatherproof"),
+        ],
+      },
     ],
   },
   {
@@ -1184,9 +1380,7 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "equipment",
     subcategories: ARMOR_SUBCATEGORIES,
     threshold: 2,
-    anyOf: [
-      { score: 2, textAny: ARMOR_SURVIVAL_TEXT_ANCHORS },
-    ],
+    anyOf: [{ score: 2, textAny: ARMOR_SURVIVAL_TEXT_ANCHORS }],
   },
   {
     tag: "mounted_support",
@@ -1207,9 +1401,7 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
       { score: 2, textAny: EQUIPMENT_SUSTENANCE_NAME_ANCHORS },
       { score: 2, textAny: EQUIPMENT_SUSTENANCE_TEXT_ANCHORS },
     ],
-    noneOf: [
-      { textAny: EQUIPMENT_SUSTENANCE_BLOCKER_TEXT_ANCHORS },
-    ],
+    noneOf: [{ textAny: EQUIPMENT_SUSTENANCE_BLOCKER_TEXT_ANCHORS }],
   },
   {
     tag: "aquatic_support",
@@ -1220,9 +1412,7 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
       { score: 2, textAny: EQUIPMENT_AQUATIC_SUPPORT_NAME_ANCHORS },
       { score: 2, textAny: EQUIPMENT_AQUATIC_SUPPORT_TEXT_ANCHORS },
     ],
-    noneOf: [
-      { textAny: EQUIPMENT_AQUATIC_SUPPORT_BLOCKER_TEXT_ANCHORS },
-    ],
+    noneOf: [{ textAny: EQUIPMENT_AQUATIC_SUPPORT_BLOCKER_TEXT_ANCHORS }],
   },
   {
     tag: "navigation",
@@ -1282,27 +1472,16 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
       },
       {
         score: 2,
-        textAll: [
-          patternAnchor("survival"),
-          patternAnchor("sense direction"),
-          patternAnchor("track"),
-        ],
+        textAll: [patternAnchor("survival"), patternAnchor("sense direction"), patternAnchor("track")],
       },
       {
         score: 2,
-        textAll: [
-          patternAnchor("survival"),
-          patternAnchor("scent"),
-        ],
+        textAll: [patternAnchor("survival"), patternAnchor("scent")],
         referencesAny: [referenceAnchor("actionspf2e", "Track")],
       },
       {
         score: 2,
-        textAll: [
-          patternAnchor("survival"),
-          patternAnchor("scent"),
-          patternAnchor("track"),
-        ],
+        textAll: [patternAnchor("survival"), patternAnchor("scent"), patternAnchor("track")],
       },
       { score: 1, textAny: [patternAnchor("tracker", "name"), patternAnchor("tracking", "name")] },
     ],
@@ -1357,14 +1536,8 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
       },
       {
         score: 2,
-        textAll: [
-          patternAnchor("stealth"),
-          patternAnchor("hide"),
-          patternAnchor("sneak"),
-        ],
-        textAny: [
-          patternAnchor("against creatures using primarily smell"),
-        ],
+        textAll: [patternAnchor("stealth"), patternAnchor("hide"), patternAnchor("sneak")],
+        textAny: [patternAnchor("against creatures using primarily smell")],
       },
       { score: 2, textAny: [patternAnchor("trackless", "name")] },
     ],
@@ -1385,7 +1558,17 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "equipment",
     subcategories: GEARISH_SUBCATEGORIES,
     anyOf: [
-      { textAny: [patternAnchor("transport"), patternAnchor("wagon"), patternAnchor("sled"), patternAnchor("boat"), patternAnchor("vehicle"), patternAnchor("carry riders"), patternAnchor("haul passengers")] },
+      {
+        textAny: [
+          patternAnchor("transport"),
+          patternAnchor("wagon"),
+          patternAnchor("sled"),
+          patternAnchor("boat"),
+          patternAnchor("vehicle"),
+          patternAnchor("carry riders"),
+          patternAnchor("haul passengers"),
+        ],
+      },
     ],
   },
   {
@@ -1403,9 +1586,7 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "equipment",
     subcategories: [...AMMO_SUBCATEGORIES],
     threshold: 2,
-    anyOf: [
-      { score: 2, textAny: AMMO_SIGNALING_TEXT_ANCHORS },
-    ],
+    anyOf: [{ score: 2, textAny: AMMO_SIGNALING_TEXT_ANCHORS }],
   },
   {
     tag: "message_delivery",
@@ -1416,9 +1597,7 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
       { score: 2, textAny: MESSAGE_DELIVERY_EQUIPMENT_NAME_ANCHORS },
       { score: 2, textAny: MESSAGE_DELIVERY_TEXT_ANCHORS },
     ],
-    noneOf: [
-      { textAny: MESSAGE_DELIVERY_BLOCKER_TEXT_ANCHORS },
-    ],
+    noneOf: [{ textAny: MESSAGE_DELIVERY_BLOCKER_TEXT_ANCHORS }],
   },
   {
     tag: "alarm",
@@ -1436,7 +1615,15 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "equipment",
     subcategories: GEARISH_SUBCATEGORIES,
     anyOf: [
-      { textAny: [patternAnchor("disarm a trap"), patternAnchor("disable device"), patternAnchor("trap mechanism"), patternAnchor("tripwire"), patternAnchor("bypass a trap")] },
+      {
+        textAny: [
+          patternAnchor("disarm a trap"),
+          patternAnchor("disable device"),
+          patternAnchor("trap mechanism"),
+          patternAnchor("tripwire"),
+          patternAnchor("bypass a trap"),
+        ],
+      },
     ],
   },
   {
@@ -1444,7 +1631,18 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "equipment",
     subcategories: GEARISH_SUBCATEGORIES,
     anyOf: [
-      { textAny: [patternAnchor("storage"), patternAnchor("stow"), patternAnchor("carry"), patternAnchor("haul"), patternAnchor("pouch"), patternAnchor("backpack"), patternAnchor("container"), patternAnchor("pack")] },
+      {
+        textAny: [
+          patternAnchor("storage"),
+          patternAnchor("stow"),
+          patternAnchor("carry"),
+          patternAnchor("haul"),
+          patternAnchor("pouch"),
+          patternAnchor("backpack"),
+          patternAnchor("container"),
+          patternAnchor("pack"),
+        ],
+      },
     ],
   },
   {
@@ -1452,9 +1650,7 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "equipment",
     subcategories: ARMOR_SUBCATEGORIES,
     threshold: 2,
-    anyOf: [
-      { score: 2, textAny: ARMOR_CARRY_SUPPORT_TEXT_ANCHORS },
-    ],
+    anyOf: [{ score: 2, textAny: ARMOR_CARRY_SUPPORT_TEXT_ANCHORS }],
   },
   {
     tag: "extradimensional_storage",
@@ -1497,9 +1693,7 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
       { score: 2, referencesAny: COUNTERMAGIC_REFERENCE_ANCHORS },
       {
         score: 2,
-        textAll: [
-          patternAnchor("counteract"),
-        ],
+        textAll: [patternAnchor("counteract")],
         textAny: [
           patternAnchor("magic effect"),
           patternAnchor("magical effect"),
@@ -1531,27 +1725,21 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "equipment",
     subcategories: DEFENSE_SUBCATEGORIES,
     threshold: 2,
-    anyOf: [
-      { score: 2, textAny: DEFENSE_ALLY_COVER_TEXT_ANCHORS },
-    ],
+    anyOf: [{ score: 2, textAny: DEFENSE_ALLY_COVER_TEXT_ANCHORS }],
   },
   {
     tag: "projectile_defense",
     category: "equipment",
     subcategories: DEFENSE_SUBCATEGORIES,
     threshold: 2,
-    anyOf: [
-      { score: 2, textAny: DEFENSE_PROJECTILE_TEXT_ANCHORS },
-    ],
+    anyOf: [{ score: 2, textAny: DEFENSE_PROJECTILE_TEXT_ANCHORS }],
   },
   {
     tag: "hazard_shielding",
     category: "equipment",
     subcategories: DEFENSE_SUBCATEGORIES,
     threshold: 2,
-    anyOf: [
-      { score: 2, textAny: DEFENSE_HAZARD_TEXT_ANCHORS },
-    ],
+    anyOf: [{ score: 2, textAny: DEFENSE_HAZARD_TEXT_ANCHORS }],
   },
   {
     tag: "restraint_escape",
@@ -1572,16 +1760,11 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
       },
       {
         score: 2,
-        textAny: [
-          patternAnchor("free someone from manacles"),
-          patternAnchor("free yourself from manacles"),
-        ],
+        textAny: [patternAnchor("free someone from manacles"), patternAnchor("free yourself from manacles")],
       },
       {
         score: 2,
-        textAll: [
-          patternAnchor("bonus to athletics checks"),
-        ],
+        textAll: [patternAnchor("bonus to athletics checks")],
         referencesAny: [referenceAnchor("actionspf2e", "Escape")],
       },
     ],
@@ -1637,10 +1820,7 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
       },
       {
         score: 2,
-        textAny: [
-          patternAnchor("functions as a typical net"),
-          patternAnchor("grapple with the net"),
-        ],
+        textAny: [patternAnchor("functions as a typical net"), patternAnchor("grapple with the net")],
         referencesAny: [referenceAnchor("actionspf2e", "Grapple")],
       },
     ],
@@ -1659,36 +1839,28 @@ export const EQUIPMENT_DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "equipment",
     subcategories: [...AMMO_SUBCATEGORIES],
     threshold: 1,
-    anyOf: [
-      { score: 1, textAny: AMMO_RESTRAINT_CAPTURE_TEXT_ANCHORS },
-    ],
+    anyOf: [{ score: 1, textAny: AMMO_RESTRAINT_CAPTURE_TEXT_ANCHORS }],
   },
   {
     tag: "creature_bane",
     category: "equipment",
     subcategories: [...AMMO_SUBCATEGORIES],
     threshold: 2,
-    anyOf: [
-      { score: 2, textAny: AMMO_CREATURE_BANE_TEXT_ANCHORS },
-    ],
+    anyOf: [{ score: 2, textAny: AMMO_CREATURE_BANE_TEXT_ANCHORS }],
   },
   {
     tag: "elemental_payload",
     category: "equipment",
     subcategories: [...AMMO_SUBCATEGORIES],
     threshold: 2,
-    anyOf: [
-      { score: 2, textAny: AMMO_ELEMENTAL_PAYLOAD_TEXT_ANCHORS },
-    ],
+    anyOf: [{ score: 2, textAny: AMMO_ELEMENTAL_PAYLOAD_TEXT_ANCHORS }],
   },
   {
     tag: "explosive_payload",
     category: "equipment",
     subcategories: [...AMMO_SUBCATEGORIES],
     threshold: 2,
-    anyOf: [
-      { score: 2, textAny: AMMO_EXPLOSIVE_PAYLOAD_TEXT_ANCHORS },
-    ],
+    anyOf: [{ score: 2, textAny: AMMO_EXPLOSIVE_PAYLOAD_TEXT_ANCHORS }],
   },
   {
     tag: "spell_payload",

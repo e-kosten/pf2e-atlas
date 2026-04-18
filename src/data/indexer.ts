@@ -14,15 +14,8 @@ import {
   normalizeDerivedTag,
   validateConfiguredDerivedTagAssignments,
 } from "../tags/index.js";
-import {
-  PackInfo,
-  PackManifestEntry,
-} from "../types.js";
-import {
-  firstString,
-  normalizeText,
-  uniqueSorted,
-} from "../utils.js";
+import { PackInfo, PackManifestEntry } from "../types.js";
+import { firstString, normalizeText, uniqueSorted } from "../utils.js";
 import {
   ActorIndexData,
   BuildIndexResult,
@@ -36,9 +29,7 @@ import {
   SpellIndexData,
   StageTiming,
 } from "./index-types.js";
-import {
-  INDEX_SCHEMA_VERSION,
-} from "./schema.js";
+import { INDEX_SCHEMA_VERSION } from "./schema.js";
 import {
   buildSemanticEmbeddingText,
   isExcludedPackName,
@@ -48,15 +39,10 @@ import {
   parseSpellIndexData,
   shouldExcludeRecordFromIndex,
 } from "./record-normalization.js";
-import {
-  buildDerivedAfflictionArtifacts,
-} from "./derived-afflictions.js";
+import { buildDerivedAfflictionArtifacts } from "./derived-afflictions.js";
 import { applyVariantBaseTagInheritance } from "./variant-tag-inheritance.js";
 import { assignVariantFamilies } from "./variant-families.js";
-import {
-  extractRulesReferences,
-  resolveBuildReferencesAndAliases,
-} from "./references.js";
+import { extractRulesReferences, resolveBuildReferencesAndAliases } from "./references.js";
 
 const execFileAsync = promisify(execFile);
 const VEC_TEXT_NONE = "";
@@ -172,9 +158,11 @@ function shouldLogProgressUpdate(
   interval: number,
   now: number,
 ): boolean {
-  return processed === total ||
-    (processed - lastLoggedProcessed) >= interval ||
-    (now - lastLoggedTime) >= PACK_PROGRESS_LOG_INTERVAL_MS;
+  return (
+    processed === total ||
+    processed - lastLoggedProcessed >= interval ||
+    now - lastLoggedTime >= PACK_PROGRESS_LOG_INTERVAL_MS
+  );
 }
 
 async function isGitCheckout(rootPath: string): Promise<boolean> {
@@ -202,7 +190,17 @@ export async function computeSourceSignature(rootPath: string, manifestPath: str
         execFileAsync("git", ["-C", rootPath, "status", "--porcelain", "--untracked-files=no"], { timeout: 10_000 }),
         execFileAsync(
           "git",
-          ["-C", rootPath, "ls-files", "--others", "--exclude-standard", "--full-name", "--", "*.json", ":(glob)**/*.json"],
+          [
+            "-C",
+            rootPath,
+            "ls-files",
+            "--others",
+            "--exclude-standard",
+            "--full-name",
+            "--",
+            "*.json",
+            ":(glob)**/*.json",
+          ],
           { timeout: 10_000 },
         ),
       ]);
@@ -383,9 +381,7 @@ export async function buildIndex(
 
   db.exec("BEGIN");
   try {
-    progressLogger?.(
-      `Building SQLite index from ${formatInteger(includedManifestPacks.length)} PF2E packs.`,
-    );
+    progressLogger?.(`Building SQLite index from ${formatInteger(includedManifestPacks.length)} PF2E packs.`);
     insertMetadata.run("schema_version", String(INDEX_SCHEMA_VERSION));
     insertMetadata.run("source_signature", sourceSignature);
     insertMetadata.run("embedding_provider", embeddingProvider.identity.provider);
@@ -444,9 +440,10 @@ export async function buildIndex(
           });
           const processedFiles = fileIndex + 1;
           const now = Date.now();
-          const shouldLogProgress = processedFiles === filePaths.length ||
-            (processedFiles - lastLoggedFileCount) >= progressInterval ||
-            (now - lastProgressLogTime) >= PACK_PROGRESS_LOG_INTERVAL_MS;
+          const shouldLogProgress =
+            processedFiles === filePaths.length ||
+            processedFiles - lastLoggedFileCount >= progressInterval ||
+            now - lastProgressLogTime >= PACK_PROGRESS_LOG_INTERVAL_MS;
 
           if (shouldLogProgress) {
             progressStatusLogger?.(
@@ -475,10 +472,11 @@ export async function buildIndex(
 
         const processedFiles = fileIndex + 1;
         const now = Date.now();
-        const shouldLogProgress = processedFiles === 1 ||
+        const shouldLogProgress =
+          processedFiles === 1 ||
           processedFiles === filePaths.length ||
-          (processedFiles - lastLoggedFileCount) >= progressInterval ||
-          (now - lastProgressLogTime) >= PACK_PROGRESS_LOG_INTERVAL_MS;
+          processedFiles - lastLoggedFileCount >= progressInterval ||
+          now - lastProgressLogTime >= PACK_PROGRESS_LOG_INTERVAL_MS;
 
         if (shouldLogProgress) {
           progressStatusLogger?.(
@@ -502,13 +500,17 @@ export async function buildIndex(
     progressLogger?.("Finished scanning pack files. Resolving verified remaster aliases.");
     const resolutionStartTime = Date.now();
 
-    const indexedEntries = sourceEntries.filter((entry): entry is BuildSourceEntry & { record: NonNullable<BuildSourceEntry["record"]> } => entry.record !== null);
+    const indexedEntries = sourceEntries.filter(
+      (entry): entry is BuildSourceEntry & { record: NonNullable<BuildSourceEntry["record"]> } => entry.record !== null,
+    );
     assignVariantFamilies(indexedEntries);
-    validateConfiguredDerivedTagAssignments(indexedEntries.map((entry) => ({
-      recordKey: entry.record.recordKey,
-      name: entry.record.name,
-      category: entry.record.category,
-    })));
+    validateConfiguredDerivedTagAssignments(
+      indexedEntries.map((entry) => ({
+        recordKey: entry.record.recordKey,
+        name: entry.record.name,
+        category: entry.record.category,
+      })),
+    );
     const { aliasRows, legacyLinkRows } = await resolveBuildReferencesAndAliases({
       indexedEntries,
       sourceEntries,
@@ -560,14 +562,16 @@ export async function buildIndex(
 
       resolvedRecordCount += 1;
       const now = Date.now();
-      if (shouldLogProgressUpdate(
-        resolvedRecordCount,
-        totalResolutionRecords,
-        lastLoggedResolvedRecordCount,
-        lastResolutionProgressLogTime,
-        resolutionProgressInterval,
-        now,
-      )) {
+      if (
+        shouldLogProgressUpdate(
+          resolvedRecordCount,
+          totalResolutionRecords,
+          lastLoggedResolvedRecordCount,
+          lastResolutionProgressLogTime,
+          resolutionProgressInterval,
+          now,
+        )
+      ) {
         logResolutionProgress();
         lastLoggedResolvedRecordCount = resolvedRecordCount;
         lastResolutionProgressLogTime = now;
@@ -591,14 +595,16 @@ export async function buildIndex(
 
       resolvedRecordCount += 1;
       const now = Date.now();
-      if (shouldLogProgressUpdate(
-        resolvedRecordCount,
-        totalResolutionRecords,
-        lastLoggedResolvedRecordCount,
-        lastResolutionProgressLogTime,
-        resolutionProgressInterval,
-        now,
-      )) {
+      if (
+        shouldLogProgressUpdate(
+          resolvedRecordCount,
+          totalResolutionRecords,
+          lastLoggedResolvedRecordCount,
+          lastResolutionProgressLogTime,
+          resolutionProgressInterval,
+          now,
+        )
+      ) {
         logResolutionProgress();
         lastLoggedResolvedRecordCount = resolvedRecordCount;
         lastResolutionProgressLogTime = now;
@@ -607,7 +613,10 @@ export async function buildIndex(
 
     const creatureVariantInheritableTags = getVariantInheritableTags({ category: "creature" });
     if (creatureVariantInheritableTags.length > 0) {
-      applyVariantBaseTagInheritance(indexedEntries.map((entry) => entry.record), creatureVariantInheritableTags);
+      applyVariantBaseTagInheritance(
+        indexedEntries.map((entry) => entry.record),
+        creatureVariantInheritableTags,
+      );
     }
 
     progressLogger?.(
@@ -876,9 +885,10 @@ export async function buildIndex(
 
       writtenRecordCount += 1;
       const now = Date.now();
-      const shouldLogProgress = writtenRecordCount === writableEntries.length ||
-        (writtenRecordCount - lastLoggedRecordCount) >= recordWriteProgressInterval ||
-        (now - lastRecordProgressLogTime) >= PACK_PROGRESS_LOG_INTERVAL_MS;
+      const shouldLogProgress =
+        writtenRecordCount === writableEntries.length ||
+        writtenRecordCount - lastLoggedRecordCount >= recordWriteProgressInterval ||
+        now - lastRecordProgressLogTime >= PACK_PROGRESS_LOG_INTERVAL_MS;
 
       if (shouldLogProgress) {
         progressStatusLogger?.(
@@ -920,7 +930,12 @@ export async function buildIndex(
           reusableEmbedding.semanticInputHash === entry.semanticInputHash &&
           reusableEmbedding.dimensions === embeddingProvider.identity.dimensions
         ) {
-          insertEmbedding.run(record.recordKey, embeddingProvider.identity.dimensions, entry.semanticInputHash, reusableEmbedding.vectorBlob);
+          insertEmbedding.run(
+            record.recordKey,
+            embeddingProvider.identity.dimensions,
+            entry.semanticInputHash,
+            reusableEmbedding.vectorBlob,
+          );
           insertVecEmbedding.run(
             record.recordKey,
             reusableEmbedding.vectorBlob,
@@ -951,7 +966,9 @@ export async function buildIndex(
 
       if (pendingRegeneration.length > 0) {
         const embeddingStartTime = Date.now();
-        const embeddings = await embeddingProvider.embedMany(pendingRegeneration.map((entry) => entry.encodedEmbeddingInput));
+        const embeddings = await embeddingProvider.embedMany(
+          pendingRegeneration.map((entry) => entry.encodedEmbeddingInput),
+        );
         embeddingGenerationDurationMs += Date.now() - embeddingStartTime;
 
         for (const [batchIndex, entry] of pendingRegeneration.entries()) {
@@ -959,7 +976,12 @@ export async function buildIndex(
           const encodedEmbedding = encodeVector(embedding);
           const record = entry.record;
 
-          insertEmbedding.run(record.recordKey, embeddingProvider.identity.dimensions, entry.semanticInputHash, encodedEmbedding);
+          insertEmbedding.run(
+            record.recordKey,
+            embeddingProvider.identity.dimensions,
+            entry.semanticInputHash,
+            encodedEmbedding,
+          );
           insertVecEmbedding.run(
             record.recordKey,
             encodedEmbedding,
@@ -988,9 +1010,10 @@ export async function buildIndex(
 
       processedCanonicalEmbeddingCount += batch.length;
       const now = Date.now();
-      const shouldLogProgress = processedCanonicalEmbeddingCount === canonicalEmbeddingCount ||
-        (processedCanonicalEmbeddingCount - lastLoggedProcessedEmbeddingCount) >= embeddingProgressInterval ||
-        (now - lastEmbeddingProgressLogTime) >= PACK_PROGRESS_LOG_INTERVAL_MS;
+      const shouldLogProgress =
+        processedCanonicalEmbeddingCount === canonicalEmbeddingCount ||
+        processedCanonicalEmbeddingCount - lastLoggedProcessedEmbeddingCount >= embeddingProgressInterval ||
+        now - lastEmbeddingProgressLogTime >= PACK_PROGRESS_LOG_INTERVAL_MS;
 
       if (shouldLogProgress) {
         progressStatusLogger?.(
@@ -1006,11 +1029,22 @@ export async function buildIndex(
     );
 
     for (const alias of aliasRows) {
-      insertAlias.run(alias.canonicalRecordKey, alias.aliasText, alias.normalizedAlias, alias.sourceKind, alias.sourceRef);
+      insertAlias.run(
+        alias.canonicalRecordKey,
+        alias.aliasText,
+        alias.normalizedAlias,
+        alias.sourceKind,
+        alias.sourceRef,
+      );
     }
 
     for (const legacyLink of legacyLinkRows) {
-      insertLegacyLink.run(legacyLink.canonicalRecordKey, legacyLink.legacyRecordKey, legacyLink.sourceKind, legacyLink.sourceRef);
+      insertLegacyLink.run(
+        legacyLink.canonicalRecordKey,
+        legacyLink.legacyRecordKey,
+        legacyLink.sourceKind,
+        legacyLink.sourceRef,
+      );
     }
 
     db.exec("COMMIT");

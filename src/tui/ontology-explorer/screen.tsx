@@ -15,13 +15,9 @@ import {
   type TerminalInteractionAction,
 } from "../interaction-bindings.js";
 import { useOntologyExplorerController } from "./controller.js";
-import {
-  buildOntologyBrowserListLines,
-} from "./ui.js";
+import { buildOntologyBrowserListLines } from "./ui.js";
 
-function buildOntologyBrowserFooterText(
-  controller: ReturnType<typeof useOntologyExplorerController>,
-): string {
+function buildOntologyBrowserFooterText(controller: ReturnType<typeof useOntologyExplorerController>): string {
   return formatTerminalInteractionFooter(getOntologyBrowserInteractionActions(controller));
 }
 
@@ -83,12 +79,14 @@ function buildOntologyCommandEntries(
     return [];
   }
 
-  return [{
-    value: "openQuery",
-    label: "Open Query",
-    description: "Open the focused ontology query in browse/search.",
-    keywords: ["search", "browse", "records"],
-  }];
+  return [
+    {
+      value: "openQuery",
+      label: "Open Query",
+      description: "Open the focused ontology query in browse/search.",
+      keywords: ["search", "browse", "records"],
+    },
+  ];
 }
 
 function buildOntologyBrowserHelpLines(
@@ -96,7 +94,10 @@ function buildOntologyBrowserHelpLines(
   onOpenQuery?: (query: OntologyNodeQuery) => void,
 ) {
   const navigationActions: TerminalInteractionAction[] = [
-    { id: controller.state.activePane === "list" && controller.layoutMode !== "detail-only" ? "move" : "scroll", helpText: "move through the active pane" },
+    {
+      id: controller.state.activePane === "list" && controller.layoutMode !== "detail-only" ? "move" : "scroll",
+      helpText: "move through the active pane",
+    },
     { id: "jump", helpText: "jump through the active pane" },
     { id: "page", helpText: "page through the active pane" },
     { id: "edge", helpText: "jump to the start or end of the active pane" },
@@ -105,21 +106,22 @@ function buildOntologyBrowserHelpLines(
     .filter((action) => !["move", "scroll", "jump", "page", "edge"].includes(action.id))
     .map((action) => ({
       ...action,
-      helpText: action.id === "open"
-        ? "drill into the focused node or open its query"
-        : action.id === "focus"
-          ? "switch focus between list and detail"
-          : action.id === "layout"
-            ? "toggle split and detail-only layouts"
-            : action.id === "back"
-              ? "move up a level or leave the active pane"
-              : action.id === "search"
-                ? "start live filtering"
-                : action.id === "commands"
-                  ? "open the ontology command palette"
-                  : action.id === "help"
-                    ? "show this help"
-                    : "leave ontology browsing",
+      helpText:
+        action.id === "open"
+          ? "drill into the focused node or open its query"
+          : action.id === "focus"
+            ? "switch focus between list and detail"
+            : action.id === "layout"
+              ? "toggle split and detail-only layouts"
+              : action.id === "back"
+                ? "move up a level or leave the active pane"
+                : action.id === "search"
+                  ? "start live filtering"
+                  : action.id === "commands"
+                    ? "open the ontology command palette"
+                    : action.id === "help"
+                      ? "show this help"
+                      : "leave ontology browsing",
       label: action.id === "focus" ? "toggle pane" : action.label,
     }));
 
@@ -139,9 +141,10 @@ function buildOntologyBrowserHelpLines(
         description: command.description ?? "No additional details.",
         aliases: command.aliases,
       })),
-      lines: buildOntologyCommandEntries(controller, onOpenQuery).length === 0
-        ? [{ text: "No additional palette commands are available for the current node.", tone: "dim" }]
-        : [],
+      lines:
+        buildOntologyCommandEntries(controller, onOpenQuery).length === 0
+          ? [{ text: "No additional palette commands are available for the current node.", tone: "dim" }]
+          : [],
     },
   ]);
 }
@@ -161,11 +164,7 @@ export function OntologyBrowserScreen({
     onExit,
     onOpenQuery,
     onConfirm: ({ currentNode, currentNodeHasChildren }) => {
-      if (
-        !currentNodeHasChildren &&
-        currentNode?.query?.kind === "listRecords" &&
-        model.id !== "derivedTags"
-      ) {
+      if (!currentNodeHasChildren && currentNode?.query?.kind === "listRecords" && model.id !== "derivedTags") {
         onOpenQuery?.(currentNode.query);
         return true;
       }
@@ -178,15 +177,17 @@ export function OntologyBrowserScreen({
         if (commandEntries.length === 0) {
           return true;
         }
-        void terminal.promptCommandPalette({
-          title: "Ontology Commands",
-          prompt: "Filter ontology commands",
-          entries: commandEntries,
-        }).then((selected) => {
-          if (selected === "openQuery" && keyContext.selectedQuery) {
-            onOpenQuery?.(keyContext.selectedQuery);
-          }
-        });
+        void terminal
+          .promptCommandPalette({
+            title: "Ontology Commands",
+            prompt: "Filter ontology commands",
+            entries: commandEntries,
+          })
+          .then((selected) => {
+            if (selected === "openQuery" && keyContext.selectedQuery) {
+              onOpenQuery?.(keyContext.selectedQuery);
+            }
+          });
         return true;
       }
       if (action.id !== "help") {
@@ -239,17 +240,13 @@ export function OntologyBrowserScreen({
         active: controller.state.activePane === "list",
       }}
       right={{
-        title: controller.state.activePane === "detail"
-          ? `[DETAIL] ${controller.detailTitle}`
-          : controller.detailTitle,
+        title: controller.state.activePane === "detail" ? `[DETAIL] ${controller.detailTitle}` : controller.detailTitle,
         lines: controller.visibleDetailLines,
         active: controller.state.activePane === "detail",
       }}
       footer={[
         {
-          text: controller.state.searchMode
-            ? TERMINAL_LIVE_FILTER_FOOTER
-            : buildOntologyBrowserFooterText(controller),
+          text: controller.state.searchMode ? TERMINAL_LIVE_FILTER_FOOTER : buildOntologyBrowserFooterText(controller),
           tone: "dim",
         },
         {

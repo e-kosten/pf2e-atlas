@@ -33,10 +33,10 @@ describe("loadConfig", () => {
     await mkdir(explicitDataPath, { recursive: true });
     await writeFile(path.join(explicitDataPath, "system.pf2e.json"), JSON.stringify({ packs: [] }));
 
-    const config = await loadConfig(
-      ["--data-path", explicitDataPath, "--index-path", explicitIndexPath],
-      { PF2E_DATA_PATH: "/tmp/ignored", PF2E_INDEX_PATH: "/tmp/ignored.sqlite" },
-    );
+    const config = await loadConfig(["--data-path", explicitDataPath, "--index-path", explicitIndexPath], {
+      PF2E_DATA_PATH: "/tmp/ignored",
+      PF2E_INDEX_PATH: "/tmp/ignored.sqlite",
+    });
 
     expect(config.rootPath).toBe(explicitDataPath);
     expect(config.manifestPath).toBe(path.join(explicitDataPath, "system.pf2e.json"));

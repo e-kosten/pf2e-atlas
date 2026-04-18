@@ -8,10 +8,7 @@ import type { PublishedDerivedTagOntology } from "../runtime/catalog-utils.js";
 import type { DerivedTagRule, ReferencePredicate, TextAnchor, TextNearConstraint } from "../runtime/matcher.js";
 import { normalizeDerivedTag } from "../runtime/shared.js";
 
-function normalizeStringList(
-  values: string[] | undefined,
-  context: string,
-): string[] | undefined {
+function normalizeStringList(values: string[] | undefined, context: string): string[] | undefined {
   if (!values) {
     return undefined;
   }
@@ -24,13 +21,11 @@ function normalizeStringList(
   return normalized;
 }
 
-function normalizeTextValue(
-  value: DerivedTagAuthoredTextValue,
-  context: string,
-): TextAnchor {
-  const normalized = typeof value === "string"
-    ? { value, scope: "either" as const }
-    : { value: value.value, scope: value.scope ?? "either" as const };
+function normalizeTextValue(value: DerivedTagAuthoredTextValue, context: string): TextAnchor {
+  const normalized =
+    typeof value === "string"
+      ? { value, scope: "either" as const }
+      : { value: value.value, scope: value.scope ?? ("either" as const) };
 
   if (normalized.value.includes("{{") || normalized.value.includes("}}")) {
     throw new Error(`${context} cannot use matcher pattern syntax.`);
@@ -39,9 +34,7 @@ function normalizeTextValue(
     throw new Error(`${context} must include non-empty text.`);
   }
 
-  return typeof value === "string"
-    ? normalized.value
-    : normalized;
+  return typeof value === "string" ? normalized.value : normalized;
 }
 
 function normalizeTextValues(
@@ -59,10 +52,7 @@ function normalizeTextValues(
   return values.map((value, index) => normalizeTextValue(value, `${context}[${index}]`));
 }
 
-function normalizeReferencePredicate(
-  predicate: ReferencePredicate,
-  context: string,
-): ReferencePredicate {
+function normalizeReferencePredicate(predicate: ReferencePredicate, context: string): ReferencePredicate {
   const nameAny = normalizeStringList(predicate.nameAny, `${context}.nameAny`);
   const traitsAny = normalizeStringList(predicate.traitsAny, `${context}.traitsAny`);
   const traitsAll = normalizeStringList(predicate.traitsAll, `${context}.traitsAll`);
@@ -118,7 +108,9 @@ function normalizeTextNearConstraints(
     }
 
     return {
-      all: constraint.all.map((value, anchorIndex) => normalizeTextValue(value, `${context}[${index}].all[${anchorIndex}]`)),
+      all: constraint.all.map((value, anchorIndex) =>
+        normalizeTextValue(value, `${context}[${index}].all[${anchorIndex}]`),
+      ),
       window: constraint.window,
       ...(constraint.ordered ? { ordered: true } : {}),
       ...(constraint.scope ? { scope: constraint.scope } : {}),
@@ -202,14 +194,13 @@ function compileBlockers(
   return clauses;
 }
 
-function validateRuleTag(
-  ontology: PublishedDerivedTagOntology,
-  rule: AuthoredDerivedTagRule,
-): void {
+function validateRuleTag(ontology: PublishedDerivedTagOntology, rule: AuthoredDerivedTagRule): void {
   const normalizedTag = normalizeDerivedTag(rule.tag);
   const ontologyTag = ontology.tagByKey.get(`${rule.category}:${normalizedTag}`);
   if (!ontologyTag) {
-    throw new Error(`Authored derived tag rule "${normalizedTag}" in category "${rule.category}" does not exist in the published ontology.`);
+    throw new Error(
+      `Authored derived tag rule "${normalizedTag}" in category "${rule.category}" does not exist in the published ontology.`,
+    );
   }
 
   if (rule.subcategories && rule.subcategories.length > 0) {
@@ -229,14 +220,19 @@ function validateCompositeRule(
   ontology: PublishedDerivedTagOntology,
   rule: Extract<AuthoredDerivedTagRule, { kind: "composite_tag" }>,
 ): string[] {
-  const normalizedAnyTags = normalizeStringList(rule.when.anyTags, `Authored derived tag rule "${rule.tag}".when.anyTags`);
+  const normalizedAnyTags = normalizeStringList(
+    rule.when.anyTags,
+    `Authored derived tag rule "${rule.tag}".when.anyTags`,
+  );
   if (!normalizedAnyTags) {
     throw new Error(`Authored derived tag rule "${rule.tag}" must include at least one composite child tag.`);
   }
 
   const ontologyTag = ontology.tagByKey.get(`${rule.category}:${normalizeDerivedTag(rule.tag)}`);
   if (!ontologyTag) {
-    throw new Error(`Authored derived tag composite rule "${rule.tag}" in category "${rule.category}" does not exist in the published ontology.`);
+    throw new Error(
+      `Authored derived tag composite rule "${rule.tag}" in category "${rule.category}" does not exist in the published ontology.`,
+    );
   }
 
   if (ontologyTag.compositeOfAnyTags && ontologyTag.compositeOfAnyTags.length > 0) {
@@ -256,10 +252,7 @@ function validateCompositeRule(
   return normalizedAnyTags;
 }
 
-function compileAuthoredRule(
-  ontology: PublishedDerivedTagOntology,
-  rule: AuthoredDerivedTagRule,
-): DerivedTagRule[] {
+function compileAuthoredRule(ontology: PublishedDerivedTagOntology, rule: AuthoredDerivedTagRule): DerivedTagRule[] {
   validateRuleTag(ontology, rule);
   const base = {
     tag: normalizeDerivedTag(rule.tag),
@@ -273,55 +266,91 @@ function compileAuthoredRule(
 
   switch (rule.kind) {
     case "trait_match": {
-      const traitsAny = normalizeStringList(rule.when.traitsAny, `Authored derived tag rule "${rule.tag}".when.traitsAny`);
-      const traitsAll = normalizeStringList(rule.when.traitsAll, `Authored derived tag rule "${rule.tag}".when.traitsAll`);
+      const traitsAny = normalizeStringList(
+        rule.when.traitsAny,
+        `Authored derived tag rule "${rule.tag}".when.traitsAny`,
+      );
+      const traitsAll = normalizeStringList(
+        rule.when.traitsAll,
+        `Authored derived tag rule "${rule.tag}".when.traitsAll`,
+      );
       const noneOf = compileBlockers(rule.blockers, `Authored derived tag rule "${rule.tag}".blockers`);
       if (!traitsAny && !traitsAll) {
         throw new Error(`Authored derived tag trait rule "${rule.tag}" must declare traitsAny or traitsAll.`);
       }
-      return [{
-        ...base,
-        anyOf: [{ ...(traitsAny ? { traitsAny } : {}), ...(traitsAll ? { traitsAll } : {}) }],
-        ...(noneOf ? { noneOf } : {}),
-      }];
+      return [
+        {
+          ...base,
+          anyOf: [{ ...(traitsAny ? { traitsAny } : {}), ...(traitsAll ? { traitsAll } : {}) }],
+          ...(noneOf ? { noneOf } : {}),
+        },
+      ];
     }
     case "family_match": {
-      const familiesAny = normalizeStringList(rule.when.familiesAny, `Authored derived tag rule "${rule.tag}".when.familiesAny`);
-      const familiesAll = normalizeStringList(rule.when.familiesAll, `Authored derived tag rule "${rule.tag}".when.familiesAll`);
+      const familiesAny = normalizeStringList(
+        rule.when.familiesAny,
+        `Authored derived tag rule "${rule.tag}".when.familiesAny`,
+      );
+      const familiesAll = normalizeStringList(
+        rule.when.familiesAll,
+        `Authored derived tag rule "${rule.tag}".when.familiesAll`,
+      );
       const noneOf = compileBlockers(rule.blockers, `Authored derived tag rule "${rule.tag}".blockers`);
       if (!familiesAny && !familiesAll) {
         throw new Error(`Authored derived tag family rule "${rule.tag}" must declare familiesAny or familiesAll.`);
       }
-      return [{
-        ...base,
-        anyOf: [{ ...(familiesAny ? { familiesAny } : {}), ...(familiesAll ? { familiesAll } : {}) }],
-        ...(noneOf ? { noneOf } : {}),
-      }];
+      return [
+        {
+          ...base,
+          anyOf: [{ ...(familiesAny ? { familiesAny } : {}), ...(familiesAll ? { familiesAll } : {}) }],
+          ...(noneOf ? { noneOf } : {}),
+        },
+      ];
     }
     case "reference_match": {
-      const referencesAny = normalizeStringList(rule.when.referencesAny, `Authored derived tag rule "${rule.tag}".when.referencesAny`);
-      const referencesAll = normalizeStringList(rule.when.referencesAll, `Authored derived tag rule "${rule.tag}".when.referencesAll`);
-      const referencesWhere = normalizeReferencePredicates(rule.when.referencesWhere as ReferencePredicate[] | undefined, `Authored derived tag rule "${rule.tag}".when.referencesWhere`);
+      const referencesAny = normalizeStringList(
+        rule.when.referencesAny,
+        `Authored derived tag rule "${rule.tag}".when.referencesAny`,
+      );
+      const referencesAll = normalizeStringList(
+        rule.when.referencesAll,
+        `Authored derived tag rule "${rule.tag}".when.referencesAll`,
+      );
+      const referencesWhere = normalizeReferencePredicates(
+        rule.when.referencesWhere as ReferencePredicate[] | undefined,
+        `Authored derived tag rule "${rule.tag}".when.referencesWhere`,
+      );
       const noneOf = compileBlockers(rule.blockers, `Authored derived tag rule "${rule.tag}".blockers`);
       if (!referencesAny && !referencesAll && !referencesWhere) {
-        throw new Error(`Authored derived tag reference rule "${rule.tag}" must declare referencesAny, referencesAll, or referencesWhere.`);
+        throw new Error(
+          `Authored derived tag reference rule "${rule.tag}" must declare referencesAny, referencesAll, or referencesWhere.`,
+        );
       }
-      if (rule.when.minReferenceMatches !== undefined && (!Number.isInteger(rule.when.minReferenceMatches) || rule.when.minReferenceMatches <= 0)) {
+      if (
+        rule.when.minReferenceMatches !== undefined &&
+        (!Number.isInteger(rule.when.minReferenceMatches) || rule.when.minReferenceMatches <= 0)
+      ) {
         throw new Error(`Authored derived tag rule "${rule.tag}".when.minReferenceMatches must be a positive integer.`);
       }
       if (rule.when.minReferenceMatches !== undefined && !referencesWhere) {
         throw new Error(`Authored derived tag rule "${rule.tag}".when.minReferenceMatches requires referencesWhere.`);
       }
-      return [{
-        ...base,
-        anyOf: [{
-          ...(referencesAny ? { referencesAny } : {}),
-          ...(referencesAll ? { referencesAll } : {}),
-          ...(referencesWhere ? { referencesWhere } : {}),
-          ...(rule.when.minReferenceMatches !== undefined ? { minReferenceMatches: rule.when.minReferenceMatches } : {}),
-        }],
-        ...(noneOf ? { noneOf } : {}),
-      }];
+      return [
+        {
+          ...base,
+          anyOf: [
+            {
+              ...(referencesAny ? { referencesAny } : {}),
+              ...(referencesAll ? { referencesAll } : {}),
+              ...(referencesWhere ? { referencesWhere } : {}),
+              ...(rule.when.minReferenceMatches !== undefined
+                ? { minReferenceMatches: rule.when.minReferenceMatches }
+                : {}),
+            },
+          ],
+          ...(noneOf ? { noneOf } : {}),
+        },
+      ];
     }
     case "composite_tag": {
       const anyTags = validateCompositeRule(ontology, rule);
@@ -337,20 +366,27 @@ function compileAuthoredRule(
       if (!textAny && !textAll) {
         throw new Error(`Authored derived tag exact text rule "${rule.tag}" must declare textAny or textAll.`);
       }
-      return [{
-        ...base,
-        anyOf: [{ ...(textAny ? { textAny } : {}), ...(textAll ? { textAll } : {}) }],
-        ...(noneOf ? { noneOf } : {}),
-      }];
+      return [
+        {
+          ...base,
+          anyOf: [{ ...(textAny ? { textAny } : {}), ...(textAll ? { textAll } : {}) }],
+          ...(noneOf ? { noneOf } : {}),
+        },
+      ];
     }
     case "text_context_match": {
-      const textNear = normalizeTextNearConstraints(rule.when.textNear, `Authored derived tag rule "${rule.tag}".when.textNear`);
+      const textNear = normalizeTextNearConstraints(
+        rule.when.textNear,
+        `Authored derived tag rule "${rule.tag}".when.textNear`,
+      );
       const noneOf = compileBlockers(rule.blockers, `Authored derived tag rule "${rule.tag}".blockers`);
-      return [{
-        ...base,
-        anyOf: [{ textNear }],
-        ...(noneOf ? { noneOf } : {}),
-      }];
+      return [
+        {
+          ...base,
+          anyOf: [{ textNear }],
+          ...(noneOf ? { noneOf } : {}),
+        },
+      ];
     }
   }
 }

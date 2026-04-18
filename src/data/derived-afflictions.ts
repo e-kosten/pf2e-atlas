@@ -172,24 +172,26 @@ function collectOccurrenceLinkedNames(raw: Record<string, unknown>): string[] {
   return extractLinkedNamesFromMarkup(getRecordDescriptionMarkup(raw));
 }
 
-function buildOccurrenceSearchText(name: string, family: AfflictionFamily, traits: string[], linkedNames: string[]): string {
-  return uniqueSorted([
-    name,
-    family,
-    ...traits,
-    ...linkedNames,
-  ].filter(Boolean)).join("\n");
+function buildOccurrenceSearchText(
+  name: string,
+  family: AfflictionFamily,
+  traits: string[],
+  linkedNames: string[],
+): string {
+  return uniqueSorted([name, family, ...traits, ...linkedNames].filter(Boolean)).join("\n");
 }
 
-function buildCanonicalSearchText(name: string, family: AfflictionFamily, traits: string[], slug: string | null, linkedNames: string[]): string {
+function buildCanonicalSearchText(
+  name: string,
+  family: AfflictionFamily,
+  traits: string[],
+  slug: string | null,
+  linkedNames: string[],
+): string {
   const slugAlias = slug ? slug.replace(/[-_]+/g, " ") : null;
-  return uniqueSorted([
-    name,
-    family,
-    slugAlias,
-    ...traits,
-    ...linkedNames,
-  ].filter((value): value is string => Boolean(value))).join("\n");
+  return uniqueSorted(
+    [name, family, slugAlias, ...traits, ...linkedNames].filter((value): value is string => Boolean(value)),
+  ).join("\n");
 }
 
 function toDerivedPackBuildInfo(name: string, label: string): PackBuildInfo {
@@ -314,10 +316,12 @@ function collectEmbeddedOccurrences(
     const compendiumSource = getCompendiumSource(childRaw);
     const parsedCompendiumSource = parseCompendiumSource(compendiumSource);
     const sourceRecord = parsedCompendiumSource
-      ? recordsByPackAndId.get(buildPackAndIdKey(parsedCompendiumSource.packName, parsedCompendiumSource.id))?.record ?? null
+      ? (recordsByPackAndId.get(buildPackAndIdKey(parsedCompendiumSource.packName, parsedCompendiumSource.id))
+          ?.record ?? null)
       : null;
     const sourceRaw = parsedCompendiumSource
-      ? recordsByPackAndId.get(buildPackAndIdKey(parsedCompendiumSource.packName, parsedCompendiumSource.id))?.raw ?? null
+      ? (recordsByPackAndId.get(buildPackAndIdKey(parsedCompendiumSource.packName, parsedCompendiumSource.id))?.raw ??
+        null)
       : null;
     const childId = typeof childRaw._id === "string" && childRaw._id.length > 0 ? childRaw._id : `item-${itemIndex}`;
     occurrences.push({
@@ -451,9 +455,14 @@ export function buildDerivedAfflictionArtifacts(indexedEntries: IndexedBuildEntr
   const derivedRecords: DerivedBuildEntry[] = [];
   const derivedEdges: DerivedReferenceEdgeRow[] = [];
   const canonicalPack = toDerivedPackBuildInfo(DERIVED_AFFLICTIONS_PACK_NAME, DERIVED_AFFLICTIONS_PACK_LABEL);
-  const instancePack = toDerivedPackBuildInfo(DERIVED_AFFLICTION_INSTANCES_PACK_NAME, DERIVED_AFFLICTION_INSTANCES_PACK_LABEL);
+  const instancePack = toDerivedPackBuildInfo(
+    DERIVED_AFFLICTION_INSTANCES_PACK_NAME,
+    DERIVED_AFFLICTION_INSTANCES_PACK_LABEL,
+  );
 
-  for (const [groupKey, groupedOccurrences] of [...occurrencesByIdentity.entries()].sort((left, right) => left[0].localeCompare(right[0]))) {
+  for (const [groupKey, groupedOccurrences] of [...occurrencesByIdentity.entries()].sort((left, right) =>
+    left[0].localeCompare(right[0]),
+  )) {
     const clusters = clusterOccurrences(groupedOccurrences);
     for (const cluster of clusters) {
       const candidate = chooseAuthoritativeCandidate(cluster);
@@ -516,7 +525,8 @@ export function buildDerivedAfflictionArtifacts(indexedEntries: IndexedBuildEntr
         blurbText: candidate.authoritativeRecord?.blurbText ?? null,
         hasDescription: Boolean(canonicalDescriptionText),
         descriptionSnippet: buildDescriptionSnippet(canonicalDescriptionText),
-        sourceCategory: candidate.authoritativeRecord?.sourceCategory ?? representativeOccurrence.hostRecord.sourceCategory,
+        sourceCategory:
+          candidate.authoritativeRecord?.sourceCategory ?? representativeOccurrence.hostRecord.sourceCategory,
         folderId: null,
         families: [],
         variantFamilyKey: null,
@@ -598,7 +608,8 @@ export function buildDerivedAfflictionArtifacts(indexedEntries: IndexedBuildEntr
           traits: occurrence.traits,
           derivedTags: [],
           publicationTitle: occurrence.sourceRecord?.publicationTitle ?? occurrence.hostRecord.publicationTitle,
-          publicationRemaster: occurrence.sourceRecord?.publicationRemaster ?? occurrence.hostRecord.publicationRemaster,
+          publicationRemaster:
+            occurrence.sourceRecord?.publicationRemaster ?? occurrence.hostRecord.publicationRemaster,
           descriptionText: instanceDescriptionText,
           blurbText: null,
           hasDescription: Boolean(instanceDescriptionText),
@@ -648,7 +659,12 @@ export function buildDerivedAfflictionArtifacts(indexedEntries: IndexedBuildEntr
           actorMetrics: {},
           itemMetrics: {},
           rangeValue: null,
-          searchText: buildOccurrenceSearchText(occurrence.name, occurrence.family, occurrence.traits, occurrence.linkedNames),
+          searchText: buildOccurrenceSearchText(
+            occurrence.name,
+            occurrence.family,
+            occurrence.traits,
+            occurrence.linkedNames,
+          ),
         };
         const instanceRaw = buildInstanceRaw(instanceId, occurrence, canonicalRecordKey, identityKey);
         instanceRaw._derived = {

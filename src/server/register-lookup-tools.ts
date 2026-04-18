@@ -14,13 +14,17 @@ export function registerLookupTools(server: McpServer, dataService: Pf2eDataServ
   server.registerTool(
     "pf2e_lookup",
     {
-      description: "Find the best-matching PF2E record by name. Use this first for exact named lookups such as feats, spells, items, creatures, actions, and conditions. For the full search ontology, use pf2e_get_search_semantics.",
+      description:
+        "Find the best-matching PF2E record by name. Use this first for exact named lookups such as feats, spells, items, creatures, actions, and conditions. For the full search ontology, use pf2e_get_search_semantics.",
       inputSchema: {
         name: z.string().describe("Record name to look up."),
         pack: z.string().optional().describe("Optional pack name or label."),
         category: searchCategorySchema.optional().describe(CATEGORY_HINT_DESCRIPTION),
         subcategory: searchSubcategorySchema.optional().describe(SUBCATEGORY_HINT_DESCRIPTION),
-        detail: z.enum(["minimal", "standard", "full"]).optional().describe("Response detail level. Defaults to full for backward compatibility."),
+        detail: z
+          .enum(["minimal", "standard", "full"])
+          .optional()
+          .describe("Response detail level. Defaults to full for backward compatibility."),
         includeAlternatives: z.boolean().optional().describe("Include alternative matches. Defaults to true."),
       },
     },
@@ -59,18 +63,25 @@ export function registerLookupTools(server: McpServer, dataService: Pf2eDataServ
   server.registerTool(
     "pf2e_lookup_many",
     {
-      description: "Resolve multiple PF2E names in one call. Use this for batches of exact named lookups when you want compact match metadata.",
+      description:
+        "Resolve multiple PF2E names in one call. Use this for batches of exact named lookups when you want compact match metadata.",
       inputSchema: {
-        queries: z.array(
-          z.object({
-            name: z.string().describe("Record name to look up."),
-            pack: z.string().optional().describe("Optional pack name or label."),
-            category: searchCategorySchema.optional().describe(CATEGORY_HINT_DESCRIPTION),
-            subcategory: searchSubcategorySchema.optional().describe(SUBCATEGORY_HINT_DESCRIPTION),
-          }),
-        ).min(1).max(25),
+        queries: z
+          .array(
+            z.object({
+              name: z.string().describe("Record name to look up."),
+              pack: z.string().optional().describe("Optional pack name or label."),
+              category: searchCategorySchema.optional().describe(CATEGORY_HINT_DESCRIPTION),
+              subcategory: searchSubcategorySchema.optional().describe(SUBCATEGORY_HINT_DESCRIPTION),
+            }),
+          )
+          .min(1)
+          .max(25),
         coreOnly: z.boolean().optional().describe("Restrict primary matches to core content."),
-        detail: z.enum(["minimal", "standard", "full"]).optional().describe("Response detail level. Defaults to minimal."),
+        detail: z
+          .enum(["minimal", "standard", "full"])
+          .optional()
+          .describe("Response detail level. Defaults to minimal."),
         includeAlternatives: z.boolean().optional().describe("Include alternative matches. Defaults to false."),
       },
     },
@@ -88,7 +99,9 @@ export function registerLookupTools(server: McpServer, dataService: Pf2eDataServ
             query: result.query,
             matchType: result.matchType,
             match: result.match ? summarizeRecord(result.match, detail) : null,
-            alternatives: includeAlternatives ? result.alternatives.map((record) => summarizeRecord(record, detail)) : [],
+            alternatives: includeAlternatives
+              ? result.alternatives.map((record) => summarizeRecord(record, detail))
+              : [],
           })),
         },
       };
@@ -131,7 +144,10 @@ export function registerLookupTools(server: McpServer, dataService: Pf2eDataServ
       description: "Fetch multiple exact PF2E records by canonical recordKey.",
       inputSchema: {
         recordKeys: z.array(z.string()).min(1).max(100).describe("Canonical keys in the form packName:recordId."),
-        detail: z.enum(["minimal", "standard", "full"]).optional().describe("Response detail level. Defaults to standard."),
+        detail: z
+          .enum(["minimal", "standard", "full"])
+          .optional()
+          .describe("Response detail level. Defaults to standard."),
       },
     },
     async ({ recordKeys, detail = "standard" }) => {

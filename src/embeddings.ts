@@ -24,11 +24,7 @@ type TransformersModule = {
     cacheDir?: string;
     localModelPath?: string;
   };
-  pipeline: (
-    task: "feature-extraction",
-    model: string,
-    options?: Record<string, unknown>,
-  ) => Promise<FeatureExtractor>;
+  pipeline: (task: "feature-extraction", model: string, options?: Record<string, unknown>) => Promise<FeatureExtractor>;
 };
 
 export type EmbeddingProviderIdentity = {
@@ -123,10 +119,13 @@ export class HuggingFaceEmbeddingProvider implements EmbeddingProvider {
       return vectors;
     }
 
-    const output = await this.extractor(normalizedEntries.map((entry) => entry.text), {
-      pooling: "mean",
-      normalize: true,
-    });
+    const output = await this.extractor(
+      normalizedEntries.map((entry) => entry.text),
+      {
+        pooling: "mean",
+        normalize: true,
+      },
+    );
     const data = toFloat32Array(output.data);
     const dimensions = Number(output.dims?.at(-1) ?? this.identity.dimensions);
 
@@ -140,7 +139,9 @@ export class HuggingFaceEmbeddingProvider implements EmbeddingProvider {
   }
 }
 
-export async function createEmbeddingProvider(config: EmbeddingConfig): Promise<{ provider: EmbeddingProvider; warnings: string[] }> {
+export async function createEmbeddingProvider(
+  config: EmbeddingConfig,
+): Promise<{ provider: EmbeddingProvider; warnings: string[] }> {
   if (config.provider === "hash") {
     return {
       provider: new HashEmbeddingProvider(),
@@ -176,9 +177,7 @@ export async function prepareEmbeddingAssets(
     allowRemoteModels: true,
     progressLogger: options.progressLogger,
   });
-  options.progressLogger?.(
-    `Embedding model ${config.modelId} is ready with ${dimensions} dimensions.`,
-  );
+  options.progressLogger?.(`Embedding model ${config.modelId} is ready with ${dimensions} dimensions.`);
   return {
     provider: buildProviderIdentity(config, dimensions),
     cachePath: config.cachePath,
@@ -197,7 +196,7 @@ async function initializeHuggingFaceExtractor(
   }
 
   options.progressLogger?.("Loading @huggingface/transformers.");
-  const transformers = await import("@huggingface/transformers") as unknown as TransformersModule;
+  const transformers = (await import("@huggingface/transformers")) as unknown as TransformersModule;
   transformers.env.allowLocalModels = true;
   transformers.env.allowRemoteModels = options.allowRemoteModels;
   transformers.env.cacheDir = config.cachePath;

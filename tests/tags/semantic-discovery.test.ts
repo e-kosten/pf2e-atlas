@@ -67,13 +67,20 @@ function insertDiscoveryRecord(
     tags?: string[];
   },
 ): void {
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO records (record_key, name, normalized_name, category, subcategory, level, traits_json, derived_tags_json, description_text, is_search_canonical)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
-  `).run(
+  `,
+  ).run(
     input.recordKey,
     input.name,
-    input.normalizedName ?? input.name.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " "),
+    input.normalizedName ??
+      input.name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim()
+        .replace(/\s+/g, " "),
     input.category,
     input.subcategory ?? null,
     input.level ?? null,
@@ -81,18 +88,21 @@ function insertDiscoveryRecord(
     JSON.stringify(input.derivedTags ?? []),
     input.descriptionText ?? null,
   );
-  db.prepare("INSERT INTO embeddings (record_key, vector_blob) VALUES (?, ?)").run(
-    input.recordKey,
-    blob(input.vector),
-  );
+  db.prepare("INSERT INTO embeddings (record_key, vector_blob) VALUES (?, ?)").run(input.recordKey, blob(input.vector));
   for (const alias of input.aliases ?? []) {
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO record_aliases (canonical_record_key, alias_text, normalized_alias, source_kind, source_ref)
       VALUES (?, ?, ?, 'test', ?)
-    `).run(
+    `,
+    ).run(
       input.recordKey,
       alias,
-      alias.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " "),
+      alias
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim()
+        .replace(/\s+/g, " "),
       alias,
     );
   }
@@ -179,12 +189,20 @@ describe("semantic discovery evaluator", () => {
       expect(result.category).toBe("creature");
       expect(result.exemplarCount).toBe(2);
       expect(result.candidateCount).toBe(3);
-      expect(result.resolvedExemplars).toEqual(expect.arrayContaining([
-        expect.objectContaining({ query: "Ghost Commoner", matchedBy: "name", recordKey: "creature:ghost-commoner" }),
-        expect.objectContaining({ query: "Pirate Ghost Captain", matchedBy: "alias", recordKey: "creature:ghost-pirate-captain" }),
-      ]));
+      expect(result.resolvedExemplars).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ query: "Ghost Commoner", matchedBy: "name", recordKey: "creature:ghost-commoner" }),
+          expect.objectContaining({
+            query: "Pirate Ghost Captain",
+            matchedBy: "alias",
+            recordKey: "creature:ghost-pirate-captain",
+          }),
+        ]),
+      );
       expect(result.commonTraits).toEqual(expect.arrayContaining(["undead", "human"]));
-      expect(result.sharedTokens.map((entry) => entry.value)).toEqual(expect.arrayContaining(["abandoned", "mournful", "whispered"]));
+      expect(result.sharedTokens.map((entry) => entry.value)).toEqual(
+        expect.arrayContaining(["abandoned", "mournful", "whispered"]),
+      );
       expect(result.sharedPhrases.map((entry) => entry.value)).toContain("whispered laments drift nightly");
       expect(result.candidates.map((entry) => entry.name)).toEqual(["Haunted Bosun", "Dockside Ruffian"]);
       expect(result.candidates[0]?.sharedTraits).toEqual(expect.arrayContaining(["undead", "human"]));
@@ -217,10 +235,12 @@ describe("semantic discovery evaluator", () => {
         vector: [0.9, 0.1, 0],
       });
 
-      expect(() => discoverSemanticCandidates(db, {
-        category: "creature",
-        exemplarNames: ["Watcher"],
-      })).toThrow(/ambiguous/i);
+      expect(() =>
+        discoverSemanticCandidates(db, {
+          category: "creature",
+          exemplarNames: ["Watcher"],
+        }),
+      ).toThrow(/ambiguous/i);
     } finally {
       db.close();
     }

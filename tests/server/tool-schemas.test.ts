@@ -41,7 +41,10 @@ describe("tool schemas", () => {
     expect(filterValueFieldSchema.safeParse("actorMetrics")).toMatchObject({ success: true, data: "actorMetrics" });
     expect(filterValueFieldSchema.safeParse("itemMetrics")).toMatchObject({ success: true, data: "itemMetrics" });
     expect(filterValueFieldSchema.safeParse("sourceCategory")).toMatchObject({ success: true, data: "sourceCategory" });
-    expect(filterValueFieldSchema.safeParse("publicationTitle")).toMatchObject({ success: true, data: "publicationTitle" });
+    expect(filterValueFieldSchema.safeParse("publicationTitle")).toMatchObject({
+      success: true,
+      data: "publicationTitle",
+    });
     expect(filterValueFieldSchema.safeParse("weaponGroup")).toMatchObject({ success: true, data: "weaponGroup" });
     expect(filterValueFieldSchema.safeParse("actionCost")).toMatchObject({ success: true, data: "actionCost" });
     expect(filterValueFieldSchema.safeParse("hands")).toMatchObject({ success: true, data: "hands" });
@@ -60,108 +63,140 @@ describe("tool schemas", () => {
   });
 
   it("validates grouped metadata filter predicates", () => {
-    expect(metadataFilterSchema.safeParse({
-      and: [
-        { field: "traits", op: "includesAny", values: ["undead"] },
-        { field: "sourceCategory", op: "eq", value: "core" },
-      ],
-    }).success).toBe(true);
+    expect(
+      metadataFilterSchema.safeParse({
+        and: [
+          { field: "traits", op: "includesAny", values: ["undead"] },
+          { field: "sourceCategory", op: "eq", value: "core" },
+        ],
+      }).success,
+    ).toBe(true);
 
-    expect(metadataFilterSchema.safeParse({
-      field: "publicationTitle",
-      op: "contains",
-      value: "Player Core",
-    }).success).toBe(true);
+    expect(
+      metadataFilterSchema.safeParse({
+        field: "publicationTitle",
+        op: "contains",
+        value: "Player Core",
+      }).success,
+    ).toBe(true);
 
-    expect(metadataFilterSchema.safeParse({
-      field: "hands",
-      op: "between",
-      min: 1,
-      max: 2,
-    }).success).toBe(true);
+    expect(
+      metadataFilterSchema.safeParse({
+        field: "hands",
+        op: "between",
+        min: 1,
+        max: 2,
+      }).success,
+    ).toBe(true);
 
-    expect(metadataFilterSchema.safeParse({
-      field: "saveType",
-      op: "eq",
-      value: "reflex",
-    }).success).toBe(true);
+    expect(
+      metadataFilterSchema.safeParse({
+        field: "saveType",
+        op: "eq",
+        value: "reflex",
+      }).success,
+    ).toBe(true);
 
-    expect(metadataFilterSchema.safeParse({
-      field: "areaType",
-      op: "in",
-      values: ["burst", "cone"],
-    }).success).toBe(true);
+    expect(
+      metadataFilterSchema.safeParse({
+        field: "areaType",
+        op: "in",
+        values: ["burst", "cone"],
+      }).success,
+    ).toBe(true);
 
-    expect(metadataFilterSchema.safeParse({
-      field: "durationUnit",
-      op: "eq",
-      value: "minute",
-    }).success).toBe(true);
+    expect(
+      metadataFilterSchema.safeParse({
+        field: "durationUnit",
+        op: "eq",
+        value: "minute",
+      }).success,
+    ).toBe(true);
 
-    expect(metadataFilterSchema.safeParse({
-      field: "rangeText",
-      op: "contains",
-      value: "feet",
-    }).success).toBe(true);
+    expect(
+      metadataFilterSchema.safeParse({
+        field: "rangeText",
+        op: "contains",
+        value: "feet",
+      }).success,
+    ).toBe(true);
 
-    expect(metadataFilterSchema.safeParse({
-      field: "sustained",
-      op: "eq",
-      value: true,
-    }).success).toBe(true);
+    expect(
+      metadataFilterSchema.safeParse({
+        field: "sustained",
+        op: "eq",
+        value: true,
+      }).success,
+    ).toBe(true);
 
-    expect(metadataFilterSchema.safeParse({
-      field: "senses",
-      op: "includesAny",
-      values: ["darkvision"],
-    }).success).toBe(true);
+    expect(
+      metadataFilterSchema.safeParse({
+        field: "senses",
+        op: "includesAny",
+        values: ["darkvision"],
+      }).success,
+    ).toBe(true);
 
-    expect(metadataFilterSchema.safeParse({
-      field: "disableSkills",
-      op: "includesAny",
-      values: ["thievery"],
-    }).success).toBe(true);
+    expect(
+      metadataFilterSchema.safeParse({
+        field: "disableSkills",
+        op: "includesAny",
+        values: ["thievery"],
+      }).success,
+    ).toBe(true);
 
-    expect(metadataFilterSchema.safeParse({
-      field: "actorMetric",
-      metric: "ability.int.mod",
-      op: ">=",
-      value: 4,
-    }).success).toBe(true);
+    expect(
+      metadataFilterSchema.safeParse({
+        field: "actorMetric",
+        metric: "ability.int.mod",
+        op: ">=",
+        value: 4,
+      }).success,
+    ).toBe(true);
 
-    expect(metadataFilterSchema.safeParse({
-      field: "actorMetric",
-      metric: "save.best",
-      op: "==",
-      value: "will",
-    }).success).toBe(true);
+    expect(
+      metadataFilterSchema.safeParse({
+        field: "actorMetric",
+        metric: "save.best",
+        op: "==",
+        value: "will",
+      }).success,
+    ).toBe(true);
 
-    expect(metadataFilterSchema.safeParse({
-      field: "actorMetricCompare",
-      leftMetric: "ability.int.mod",
-      op: ">",
-      rightMetric: "ability.cha.mod",
-    }).success).toBe(true);
+    expect(
+      metadataFilterSchema.safeParse({
+        field: "actorMetricCompare",
+        leftMetric: "ability.int.mod",
+        op: ">",
+        rightMetric: "ability.cha.mod",
+      }).success,
+    ).toBe(true);
 
-    expect(metadataFilterSchema.safeParse({
-      field: "itemMetric",
-      metric: "weapon.reload",
-      op: "==",
-      value: 1,
-    }).success).toBe(true);
+    expect(
+      metadataFilterSchema.safeParse({
+        field: "itemMetric",
+        metric: "weapon.reload",
+        op: "==",
+        value: 1,
+      }).success,
+    ).toBe(true);
 
-    expect(metadataFilterSchema.safeParse({
-      field: "itemMetricCompare",
-      leftMetric: "shield.hp",
-      op: ">",
-      rightMetric: "shield.bt",
-    }).success).toBe(true);
+    expect(
+      metadataFilterSchema.safeParse({
+        field: "itemMetricCompare",
+        leftMetric: "shield.hp",
+        op: ">",
+        rightMetric: "shield.bt",
+      }).success,
+    ).toBe(true);
 
-    expect(metadataFilterSchema.safeParse({
-      field: "traits",
-      op: "eq",
-      value: "undead",
-    }).success).toBe(false);
+    expect(
+      metadataFilterSchema.safeParse({
+        field: "traits",
+        op: "eq",
+        value: "undead",
+      }).success,
+    ).toBe(false);
   });
 
   it("accepts the canonical search category labels", () => {
@@ -179,14 +214,16 @@ describe("tool schemas", () => {
   it("suggests the parent category when a subcategory is passed as category", () => {
     const result = searchCategorySchema.safeParse("action");
     expect(result.success).toBe(false);
-    expect(result.error.issues[0]?.message).toBe('Unknown top-level category "action". Try category:"rule", subcategory:"action".');
+    expect(result.error.issues[0]?.message).toBe(
+      'Unknown top-level category "action". Try category:"rule", subcategory:"action".',
+    );
   });
 
   it("falls back to the valid category list for unknown values", () => {
     const result = searchCategorySchema.safeParse("foo");
     expect(result.success).toBe(false);
     expect(result.error.issues[0]?.message).toBe(
-      "Unknown top-level category \"foo\". Valid categories: equipment, feat, creature, hazard, affliction, rule, spell, characterCreation, lore.",
+      'Unknown top-level category "foo". Valid categories: equipment, feat, creature, hazard, affliction, rule, spell, characterCreation, lore.',
     );
   });
 

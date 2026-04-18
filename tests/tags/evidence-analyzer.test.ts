@@ -6,7 +6,9 @@ import {
 } from "../../src/tags/evaluation/evidence-analyzer.js";
 import type { DiscoveryAnalysisRecord } from "../../src/tags/discovery/discovery-records.js";
 
-function record(input: Partial<DiscoveryAnalysisRecord> & Pick<DiscoveryAnalysisRecord, "recordKey" | "name" | "category">): DiscoveryAnalysisRecord {
+function record(
+  input: Partial<DiscoveryAnalysisRecord> & Pick<DiscoveryAnalysisRecord, "recordKey" | "name" | "category">,
+): DiscoveryAnalysisRecord {
   const sourceKey = input.sourceKey ?? input.recordKey.split(":")[0] ?? input.recordKey;
   return {
     recordKey: input.recordKey,
@@ -99,7 +101,8 @@ describe("derived-tag evidence analyzer", () => {
         recordKey: "equipment:1",
         name: "Skyhook Harness",
         category: "equipment",
-        descriptionText: "Activate 1 command. Effect @UUID[Compendium.pf2e.equipment-srd.Item.Rope]{Skyhook} line launches upward.",
+        descriptionText:
+          "Activate 1 command. Effect @UUID[Compendium.pf2e.equipment-srd.Item.Rope]{Skyhook} line launches upward.",
       }),
       record({
         recordKey: "equipment:2",
@@ -172,7 +175,8 @@ describe("derived-tag evidence analyzer", () => {
         name: "Rune Arc",
         category: "spell",
         traits: ["force"],
-        descriptionText: "A crackling line of force whips through the air. The silver observatory arch hums softly nearby.",
+        descriptionText:
+          "A crackling line of force whips through the air. The silver observatory arch hums softly nearby.",
         references: [
           {
             targetRecordKey: "rule:1",
@@ -326,12 +330,18 @@ describe("derived-tag evidence analyzer", () => {
       { limit: 6, exampleLimit: 2 },
     );
 
-    expect(report.existingTagCoverageGaps.some((term) =>
-      term.value === "shadow plane" &&
-      term.existingTagOverlaps.includes("shadow_plane_setting"))).toBe(true);
-    expect(report.existingTagCoverageGaps.some((term) =>
-      (term.value === "darklands" || term.value === "orv") &&
-      term.existingTagOverlaps.includes("underground_setting"))).toBe(true);
+    expect(
+      report.existingTagCoverageGaps.some(
+        (term) => term.value === "shadow plane" && term.existingTagOverlaps.includes("shadow_plane_setting"),
+      ),
+    ).toBe(true);
+    expect(
+      report.existingTagCoverageGaps.some(
+        (term) =>
+          (term.value === "darklands" || term.value === "orv") &&
+          term.existingTagOverlaps.includes("underground_setting"),
+      ),
+    ).toBe(true);
     expect(report.suppressedTerms.length).toBeGreaterThan(0);
   });
 });

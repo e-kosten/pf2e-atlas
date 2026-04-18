@@ -44,7 +44,8 @@ import { moveSelection } from "../../src/tui/terminal-ui.js";
 import type { DerivedTagMigrationSession } from "../../src/tags/migration/types.js";
 
 function createEntityRecord(
-  overrides: Partial<OntologyExplorerEntityRecord> & Pick<OntologyExplorerEntityRecord, "recordKey" | "name" | "category">,
+  overrides: Partial<OntologyExplorerEntityRecord> &
+    Pick<OntologyExplorerEntityRecord, "recordKey" | "name" | "category">,
 ): OntologyExplorerEntityRecord {
   return {
     recordKey: overrides.recordKey,
@@ -223,26 +224,28 @@ describe("derived tag migration tooling", () => {
   it("imports auto-applied assignment proposals directly into live assignments", () => {
     const assignments: AuthoredDerivedTagAssignment[] = [];
 
-    expect(applyMigrationSessionToAssignments(assignments, [
-      {
-        recordKey: "equipment:mask",
-        name: "Masquerade Mask",
-        category: "equipment",
-        resolutionStatus: "complete",
-        decisions: [
-          {
-            kind: "assignment",
-            family: "infiltration",
-            tag: "social_infiltration",
-            mode: "include",
-            status: "auto_applied",
-            confidence: "high",
-            rationale: "High-confidence direct tagging call.",
-            source: "llm",
-          },
-        ],
-      },
-    ])).toEqual([
+    expect(
+      applyMigrationSessionToAssignments(assignments, [
+        {
+          recordKey: "equipment:mask",
+          name: "Masquerade Mask",
+          category: "equipment",
+          resolutionStatus: "complete",
+          decisions: [
+            {
+              kind: "assignment",
+              family: "infiltration",
+              tag: "social_infiltration",
+              mode: "include",
+              status: "auto_applied",
+              confidence: "high",
+              rationale: "High-confidence direct tagging call.",
+              source: "llm",
+            },
+          ],
+        },
+      ]),
+    ).toEqual([
       {
         name: "Masquerade Mask",
         recordKey: "equipment:mask",
@@ -546,7 +549,8 @@ describe("derived tag migration tooling", () => {
           currentSources: {
             urban_setting: "assignment:human",
           },
-          descriptionText: "A spiritbound aluum stalks city streets and abandoned alleys in search of trespassers and old grudges.",
+          descriptionText:
+            "A spiritbound aluum stalks city streets and abandoned alleys in search of trespassers and old grudges.",
           blurbText: "An undead sentinel bound to a haunted district.",
           selectionReasons: [
             {
@@ -571,7 +575,7 @@ describe("derived tag migration tooling", () => {
               action: "keep",
               status: "needs_review",
               confidence: "medium",
-              rationale: "Review whether this creature remains a strong positive exemplar for \"urban_setting\".",
+              rationale: 'Review whether this creature remains a strong positive exemplar for "urban_setting".',
               source: "llm",
               currentPolarity: "positive",
             },
@@ -587,9 +591,11 @@ describe("derived tag migration tooling", () => {
 
     const rendered = renderDerivedTagMigrationReviewItem(session, 0);
 
-    expect(rendered.indexOf("Rationale: Review whether this creature remains a strong positive exemplar for \"urban_setting\".")).toBeLessThan(
-      rendered.indexOf("Identity"),
-    );
+    expect(
+      rendered.indexOf(
+        'Rationale: Review whether this creature remains a strong positive exemplar for "urban_setting".',
+      ),
+    ).toBeLessThan(rendered.indexOf("Identity"));
     expect(rendered).toContain("Identity");
     expect(rendered).toContain("Retrieval");
     expect(rendered).toContain("Traits: incorporeal, undead");
@@ -597,7 +603,9 @@ describe("derived tag migration tooling", () => {
     expect(rendered).toContain("Blurb");
     expect(rendered).toContain("An undead sentinel bound to a haunted district.");
     expect(rendered).toContain("Description");
-    expect(rendered).toContain("A spiritbound aluum stalks city streets and abandoned alleys in search of trespassers and old grudges.");
+    expect(rendered).toContain(
+      "A spiritbound aluum stalks city streets and abandoned alleys in search of trespassers and old grudges.",
+    );
     expect(rendered).not.toContain("Current source for urban_setting");
   });
 
@@ -652,7 +660,7 @@ describe("derived tag migration tooling", () => {
               action: "keep",
               status: "needs_review",
               confidence: "medium",
-              rationale: "Review whether this creature remains a strong positive exemplar for \"urban_setting\".",
+              rationale: 'Review whether this creature remains a strong positive exemplar for "urban_setting".',
               source: "llm",
               currentPolarity: "positive",
             },
@@ -743,25 +751,35 @@ describe("derived tag migration tooling", () => {
 
       await writeDerivedTagMigrationAuthoredState(tempRoot, nextState, ["equipment"]);
 
-      expect(getCurrentDerivedTagMigrationAuthoredState().assignments.equipment).toEqual(nextState.assignments.equipment);
-      expect(getCurrentDerivedTagMigrationAuthoredState().assignmentReviews.equipment).toEqual(nextState.assignmentReviews.equipment);
-      expect(getCurrentDerivedTagMigrationAuthoredState().assignmentMemory.equipment).toEqual(nextState.assignmentMemory.equipment);
-      expect(getCurrentDerivedTagMigrationAuthoredState().exemplarReviews.equipment).toEqual(nextState.exemplarReviews.equipment);
-      expect(summarizeCurrentDerivedTagReviewQueue()).toEqual(expect.arrayContaining([
-        expect.objectContaining({
-          kind: "assignment",
-          category: "equipment",
-          family: "infiltration",
-          tag: "social_infiltration",
-          count: 1,
-        }),
-        expect.objectContaining({
-          kind: "exemplar",
-          category: "equipment",
-          tag: "alarm",
-          count: 1,
-        }),
-      ]));
+      expect(getCurrentDerivedTagMigrationAuthoredState().assignments.equipment).toEqual(
+        nextState.assignments.equipment,
+      );
+      expect(getCurrentDerivedTagMigrationAuthoredState().assignmentReviews.equipment).toEqual(
+        nextState.assignmentReviews.equipment,
+      );
+      expect(getCurrentDerivedTagMigrationAuthoredState().assignmentMemory.equipment).toEqual(
+        nextState.assignmentMemory.equipment,
+      );
+      expect(getCurrentDerivedTagMigrationAuthoredState().exemplarReviews.equipment).toEqual(
+        nextState.exemplarReviews.equipment,
+      );
+      expect(summarizeCurrentDerivedTagReviewQueue()).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            kind: "assignment",
+            category: "equipment",
+            family: "infiltration",
+            tag: "social_infiltration",
+            count: 1,
+          }),
+          expect.objectContaining({
+            kind: "exemplar",
+            category: "equipment",
+            tag: "alarm",
+            count: 1,
+          }),
+        ]),
+      );
     } finally {
       setCurrentDerivedTagMigrationAuthoredState(initialState);
     }

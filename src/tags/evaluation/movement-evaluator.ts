@@ -52,34 +52,34 @@ export type DerivedTagTagMovement = {
 
 export type DerivedTagMovementWarning =
   | {
-    kind: "category_drop";
-    category: SearchCategory;
-    deltaCoveragePoints: number;
-    message: string;
-  }
+      kind: "category_drop";
+      category: SearchCategory;
+      deltaCoveragePoints: number;
+      message: string;
+    }
   | {
-    kind: "category_gain_below";
-    category: SearchCategory;
-    deltaCoveragePoints: number;
-    minimumExpectedGain: number;
-    message: string;
-  }
+      kind: "category_gain_below";
+      category: SearchCategory;
+      deltaCoveragePoints: number;
+      minimumExpectedGain: number;
+      message: string;
+    }
   | {
-    kind: "tag_drop";
-    category: SearchCategory;
-    tag: string;
-    deltaCount: number;
-    deltaCoveragePoints: number;
-    message: string;
-  }
+      kind: "tag_drop";
+      category: SearchCategory;
+      tag: string;
+      deltaCount: number;
+      deltaCoveragePoints: number;
+      message: string;
+    }
   | {
-    kind: "tag_gain_below";
-    category: SearchCategory;
-    tag: string;
-    deltaCount: number;
-    minimumExpectedGain: number;
-    message: string;
-  };
+      kind: "tag_gain_below";
+      category: SearchCategory;
+      tag: string;
+      deltaCount: number;
+      minimumExpectedGain: number;
+      message: string;
+    };
 
 export type DerivedTagMovementEvaluation = {
   categories: DerivedTagCategoryMovement[];
@@ -125,17 +125,17 @@ export function evaluateDerivedTagMovement(
 
   const tags = options.category
     ? mergeTagStats(
-      loadTagStats(baselineDb, options.category, normalizedTags),
-      loadTagStats(currentDb, options.category, normalizedTags),
-      loadTagRecordStats(baselineDb, options.category, normalizedTags, options.sampleLimit),
-      loadTagRecordStats(currentDb, options.category, normalizedTags, options.sampleLimit),
-      options.category,
-      categoryTotals.get(options.category) ?? { baselineTotal: 0, currentTotal: 0 },
-      {
-        ...options,
-        tags: normalizedTags,
-      },
-    )
+        loadTagStats(baselineDb, options.category, normalizedTags),
+        loadTagStats(currentDb, options.category, normalizedTags),
+        loadTagRecordStats(baselineDb, options.category, normalizedTags, options.sampleLimit),
+        loadTagRecordStats(currentDb, options.category, normalizedTags, options.sampleLimit),
+        options.category,
+        categoryTotals.get(options.category) ?? { baselineTotal: 0, currentTotal: 0 },
+        {
+          ...options,
+          tags: normalizedTags,
+        },
+      )
     : [];
 
   const warnings = collectWarnings(categories, tags, options);
@@ -152,7 +152,9 @@ function normalizeTagList(tags?: string[]): string[] {
 }
 
 function loadCategoryStats(db: DatabaseSync): Map<SearchCategory, { total: number; tagged: number }> {
-  const rows = db.prepare(`
+  const rows = db
+    .prepare(
+      `
     SELECT
       r.category AS category,
       COUNT(*) AS total,
@@ -164,15 +166,19 @@ function loadCategoryStats(db: DatabaseSync): Map<SearchCategory, { total: numbe
     FROM records r
     WHERE r.is_search_canonical = 1
     GROUP BY r.category
-  `).all() as CategoryStatRow[];
+  `,
+    )
+    .all() as CategoryStatRow[];
 
-  return new Map(rows.map((row) => [
-    row.category as SearchCategory,
-    {
-      total: toNumber(row.total),
-      tagged: toNumber(row.tagged),
-    },
-  ]));
+  return new Map(
+    rows.map((row) => [
+      row.category as SearchCategory,
+      {
+        total: toNumber(row.total),
+        tagged: toNumber(row.tagged),
+      },
+    ]),
+  );
 }
 
 function mergeCategoryStats(
@@ -204,11 +210,7 @@ function mergeCategoryStats(
   });
 }
 
-function loadTagStats(
-  db: DatabaseSync,
-  category: SearchCategory,
-  tags?: string[],
-): Map<string, number> {
+function loadTagStats(db: DatabaseSync, category: SearchCategory, tags?: string[]): Map<string, number> {
   const sql = [
     "SELECT",
     "  d.tag AS tag,",
@@ -281,9 +283,7 @@ function mergeTagStats(
   options: DerivedTagMovementEvaluationOptions,
 ): DerivedTagTagMovement[] {
   const explicitTags = options.tags ?? [];
-  const tags = explicitTags.length > 0
-    ? explicitTags
-    : Array.from(new Set([...baseline.keys(), ...current.keys()]));
+  const tags = explicitTags.length > 0 ? explicitTags : Array.from(new Set([...baseline.keys(), ...current.keys()]));
 
   const merged = tags
     .map((tag) => {
@@ -396,7 +396,8 @@ function collectWarnings(
   for (const tag of tags) {
     const gainTriggered = options.warnTagGainBelowCount !== undefined && tag.deltaCount < options.warnTagGainBelowCount;
     const countTriggered = options.warnTagDropCount !== undefined && tag.deltaCount <= -options.warnTagDropCount;
-    const pointsTriggered = options.warnTagDropPoints !== undefined && tag.deltaCoveragePoints <= -options.warnTagDropPoints;
+    const pointsTriggered =
+      options.warnTagDropPoints !== undefined && tag.deltaCoveragePoints <= -options.warnTagDropPoints;
 
     if (gainTriggered) {
       warnings.push({

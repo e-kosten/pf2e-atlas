@@ -1,9 +1,5 @@
 import type { DerivedTagExemplarReviewDecision, SearchCategory } from "../../types.js";
-import {
-  DERIVED_TAG_ONTOLOGY_FAMILIES,
-  DERIVED_TAG_ONTOLOGY_TAGS,
-  deriveRecordTagDerivation,
-} from "../index.js";
+import { DERIVED_TAG_ONTOLOGY_FAMILIES, DERIVED_TAG_ONTOLOGY_TAGS, deriveRecordTagDerivation } from "../index.js";
 import {
   buildDerivedTagPendingAssignmentViews,
   type DerivedTagAssignmentReviewCategory,
@@ -23,7 +19,9 @@ export function getPublishedDerivedTagMigrationOntology(): PublishedDerivedTagOn
   return publishedOntologyCache;
 }
 
-export function deriveCurrentTagSources(input: Parameters<typeof deriveRecordTagDerivation>[0]): Record<string, DerivedTagSource> {
+export function deriveCurrentTagSources(
+  input: Parameters<typeof deriveRecordTagDerivation>[0],
+): Record<string, DerivedTagSource> {
   const derivation = deriveRecordTagDerivation(input);
   return Object.fromEntries([...derivation.sources.entries()]) as Record<string, DerivedTagSource>;
 }
@@ -52,10 +50,13 @@ function flattenAssignmentReviewDecisions(
         rationale: reviewDecision.rationale,
         source: reviewDecision.source,
       },
-    })));
+    })),
+  );
 }
 
-function flattenExemplarReviewDecisions(exemplarReviews: DerivedTagExemplarReviewDecision[]): DerivedTagMigrationDecision[] {
+function flattenExemplarReviewDecisions(
+  exemplarReviews: DerivedTagExemplarReviewDecision[],
+): DerivedTagMigrationDecision[] {
   return exemplarReviews.map((reviewDecision) => ({
     kind: "exemplar" as const,
     tag: reviewDecision.tag,
@@ -97,7 +98,9 @@ export function summarizeCurrentDerivedTagReviewQueue(): DerivedTagReviewQueueSu
     confidencesByKey.set(key, confidenceBucket);
   }
 
-  for (const [category, exemplarReviewCategory] of Object.entries(state.exemplarReviews) as Array<[SearchCategory, { decisions: DerivedTagExemplarReviewDecision[] }]>) {
+  for (const [category, exemplarReviewCategory] of Object.entries(state.exemplarReviews) as Array<
+    [SearchCategory, { decisions: DerivedTagExemplarReviewDecision[] }]
+  >) {
     for (const decision of flattenExemplarReviewDecisions(exemplarReviewCategory.decisions)) {
       if (decision.kind !== "exemplar" || decision.status !== "needs_review") {
         continue;
@@ -121,7 +124,7 @@ export function summarizeCurrentDerivedTagReviewQueue(): DerivedTagReviewQueueSu
 
   for (const [key, item] of counts.entries()) {
     const confidences = confidencesByKey.get(key) ?? new Set<DerivedTagReviewQueueSummaryItem["confidence"]>();
-    item.confidence = confidences.size <= 1 ? [...confidences][0] ?? "unspecified" : "mixed";
+    item.confidence = confidences.size <= 1 ? ([...confidences][0] ?? "unspecified") : "mixed";
   }
 
   return [...counts.values()].sort(compareReviewQueueItems);

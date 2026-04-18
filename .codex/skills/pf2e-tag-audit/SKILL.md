@@ -8,6 +8,7 @@ description: Audit suspicious PF2E tag density and overfit behavior. Use when Co
 Use this skill when the first sign of trouble is suspicious tag density rather than one clearly broken rule.
 
 Dense tagging is not proof of a bug. It is a review queue for finding:
+
 - overly broad weak anchors
 - same-family tag explosions
 - incidental source phrases that trigger setting or motif tags

@@ -196,8 +196,12 @@ export function formatSemanticDiscoveryReport(result: SemanticDiscoveryResult): 
   }
   lines.push("");
   lines.push("Interpretation notes:");
-  lines.push("- Similarity is discovery support only. Convert recurring evidence into explicit, explainable derived-tag rules before tagging.");
-  lines.push("- If contrast records look as plausible as top candidates, the concept may be too subjective to model safely.");
+  lines.push(
+    "- Similarity is discovery support only. Convert recurring evidence into explicit, explainable derived-tag rules before tagging.",
+  );
+  lines.push(
+    "- If contrast records look as plausible as top candidates, the concept may be too subjective to model safely.",
+  );
 
   return lines.join("\n");
 }

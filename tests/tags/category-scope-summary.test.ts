@@ -56,13 +56,15 @@ function insertRecord(
     tags?: string[];
   },
 ): void {
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO records (
       record_key, pack_name, name, category, subcategory, level,
       traits_json, families_json, derived_tags_json, description_text, blurb_text, is_search_canonical
     )
     VALUES (?, ?, ?, ?, ?, NULL, '[]', NULL, ?, NULL, NULL, 1)
-  `).run(
+  `,
+  ).run(
     input.recordKey,
     input.recordKey.split(":")[0] ?? "",
     input.name,
@@ -256,12 +258,16 @@ describe("derived tag category scope summaries", () => {
     });
 
     expect(session.manifest.category).toBeUndefined();
-    expect(session.records.map((record) => record.entityRecord.recordKey)).toEqual([
-      "spell:one",
-      "creature:one",
-    ]);
-    expect(new Set(session.records.map((record) => record.entityRecord.category))).toEqual(new Set(["creature", "spell"]));
-    expect(session.decisions.map((record) => record.decisions).flat().every((decision) => decision.source === "llm")).toBe(true);
+    expect(session.records.map((record) => record.entityRecord.recordKey)).toEqual(["spell:one", "creature:one"]);
+    expect(new Set(session.records.map((record) => record.entityRecord.category))).toEqual(
+      new Set(["creature", "spell"]),
+    );
+    expect(
+      session.decisions
+        .map((record) => record.decisions)
+        .flat()
+        .every((decision) => decision.source === "llm"),
+    ).toBe(true);
   });
 
   it("keeps proposal-review sessions empty when no LLM proposals match", () => {

@@ -31,15 +31,12 @@ function insertMovementRecord(
     isSearchCanonical?: boolean;
   },
 ): void {
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO records (record_key, name, category, is_search_canonical)
     VALUES (?, ?, ?, ?)
-  `).run(
-    input.recordKey,
-    input.name ?? input.recordKey,
-    input.category,
-    input.isSearchCanonical === false ? 0 : 1,
-  );
+  `,
+  ).run(input.recordKey, input.name ?? input.recordKey, input.category, input.isSearchCanonical === false ? 0 : 1);
 
   for (const tag of input.tags ?? []) {
     db.prepare("INSERT INTO record_derived_tags (record_key, tag) VALUES (?, ?)").run(input.recordKey, tag);
@@ -52,7 +49,11 @@ describe("derived tag movement evaluator", () => {
     const currentDb = createMovementDb();
 
     try {
-      insertMovementRecord(baselineDb, { recordKey: "creature:1", category: "creature", tags: ["urban_setting", "temple_setting"] });
+      insertMovementRecord(baselineDb, {
+        recordKey: "creature:1",
+        category: "creature",
+        tags: ["urban_setting", "temple_setting"],
+      });
       insertMovementRecord(baselineDb, { recordKey: "creature:2", category: "creature", tags: ["urban_setting"] });
       insertMovementRecord(baselineDb, { recordKey: "creature:3", category: "creature" });
       insertMovementRecord(baselineDb, { recordKey: "spell:1", category: "spell", tags: ["mobility"] });
@@ -106,9 +107,7 @@ describe("derived tag movement evaluator", () => {
           currentCoveragePercent: (2 / 3) * 100,
           deltaCount: 1,
           deltaCoveragePoints: (1 / 3) * 100,
-          gainedRecords: [
-            { recordKey: "creature:2", name: "creature:2" },
-          ],
+          gainedRecords: [{ recordKey: "creature:2", name: "creature:2" }],
           lostRecords: [],
         },
       ]);
@@ -123,8 +122,16 @@ describe("derived tag movement evaluator", () => {
     const currentDb = createMovementDb();
 
     try {
-      insertMovementRecord(baselineDb, { recordKey: "creature:1", category: "creature", tags: ["underground_setting"] });
-      insertMovementRecord(baselineDb, { recordKey: "creature:2", category: "creature", tags: ["underground_setting"] });
+      insertMovementRecord(baselineDb, {
+        recordKey: "creature:1",
+        category: "creature",
+        tags: ["underground_setting"],
+      });
+      insertMovementRecord(baselineDb, {
+        recordKey: "creature:2",
+        category: "creature",
+        tags: ["underground_setting"],
+      });
       insertMovementRecord(baselineDb, { recordKey: "creature:3", category: "creature", tags: ["urban_setting"] });
       insertMovementRecord(baselineDb, { recordKey: "creature:4", category: "creature" });
 
@@ -169,12 +176,8 @@ describe("derived tag movement evaluator", () => {
           currentCoveragePercent: 25,
           deltaCount: 0,
           deltaCoveragePoints: 0,
-          gainedRecords: [
-            { recordKey: "creature:1", name: "creature:1" },
-          ],
-          lostRecords: [
-            { recordKey: "creature:3", name: "creature:3" },
-          ],
+          gainedRecords: [{ recordKey: "creature:1", name: "creature:1" }],
+          lostRecords: [{ recordKey: "creature:3", name: "creature:3" }],
         },
       ]);
 
@@ -228,12 +231,27 @@ describe("derived tag movement evaluator", () => {
     const currentDb = createMovementDb();
 
     try {
-      insertMovementRecord(baselineDb, { recordKey: "creature:1", name: "Baseline Hunter", category: "creature", tags: ["swamp_setting"] });
+      insertMovementRecord(baselineDb, {
+        recordKey: "creature:1",
+        name: "Baseline Hunter",
+        category: "creature",
+        tags: ["swamp_setting"],
+      });
       insertMovementRecord(baselineDb, { recordKey: "creature:2", name: "Common Scout", category: "creature" });
       insertMovementRecord(baselineDb, { recordKey: "creature:3", name: "Common Guard", category: "creature" });
 
-      insertMovementRecord(currentDb, { recordKey: "creature:1", name: "Baseline Hunter", category: "creature", tags: ["swamp_setting"] });
-      insertMovementRecord(currentDb, { recordKey: "creature:2", name: "Common Scout", category: "creature", tags: ["swamp_setting"] });
+      insertMovementRecord(currentDb, {
+        recordKey: "creature:1",
+        name: "Baseline Hunter",
+        category: "creature",
+        tags: ["swamp_setting"],
+      });
+      insertMovementRecord(currentDb, {
+        recordKey: "creature:2",
+        name: "Common Scout",
+        category: "creature",
+        tags: ["swamp_setting"],
+      });
       insertMovementRecord(currentDb, { recordKey: "creature:3", name: "Common Guard", category: "creature" });
 
       const result = evaluateDerivedTagMovement(baselineDb, currentDb, {
@@ -253,9 +271,7 @@ describe("derived tag movement evaluator", () => {
           currentCoveragePercent: (2 / 3) * 100,
           deltaCount: 1,
           deltaCoveragePoints: (1 / 3) * 100,
-          gainedRecords: [
-            { recordKey: "creature:2", name: "Common Scout" },
-          ],
+          gainedRecords: [{ recordKey: "creature:2", name: "Common Scout" }],
           lostRecords: [],
         },
       ]);
@@ -281,9 +297,11 @@ describe("derived tag movement evaluator", () => {
     const currentDb = createMovementDb();
 
     try {
-      expect(() => evaluateDerivedTagMovement(baselineDb, currentDb, {
-        tags: ["urban_setting"],
-      })).toThrow(/requires a category scope/i);
+      expect(() =>
+        evaluateDerivedTagMovement(baselineDb, currentDb, {
+          tags: ["urban_setting"],
+        }),
+      ).toThrow(/requires a category scope/i);
     } finally {
       baselineDb.close();
       currentDb.close();

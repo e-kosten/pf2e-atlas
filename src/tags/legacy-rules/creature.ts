@@ -69,7 +69,17 @@ const CARNIVAL_SHOW_CONTEXT_TEXT_NEAR = [
   {
     all: [
       patternAltAnchor(["performer", "performers", "entertainer", "entertainers", "barker", "barkers"]),
-      patternAltAnchor(["circus", "circuses", "carnival", "carnivals", "traveling show", "traveling circus", "traveling carnival", "jester", "jesters"]),
+      patternAltAnchor([
+        "circus",
+        "circuses",
+        "carnival",
+        "carnivals",
+        "traveling show",
+        "traveling circus",
+        "traveling carnival",
+        "jester",
+        "jesters",
+      ]),
     ],
     window: 6,
     scope: "description" as const,
@@ -104,10 +114,7 @@ const LIVING_TOY_TEXT_ANCHORS = [
   patternAnchor("dressmaker s dummy"),
 ];
 
-const LIVING_ARTWORK_NAME_ANCHORS = [
-  patternAnchor("living graffiti", "name"),
-  patternAnchor("living mural", "name"),
-];
+const LIVING_ARTWORK_NAME_ANCHORS = [patternAnchor("living graffiti", "name"), patternAnchor("living mural", "name")];
 
 const LIVING_ARTWORK_TEXT_ANCHORS = [
   patternAnchor("living graffiti"),
@@ -146,10 +153,7 @@ const MASK_MOTIF_TEXT_ANCHORS = [
   patternAnchor("conceal its face"),
 ];
 
-const FACELESS_HORROR_NAME_ANCHORS = [
-  patternAnchor("faceless", "name"),
-  patternAnchor("featureless", "name"),
-];
+const FACELESS_HORROR_NAME_ANCHORS = [patternAnchor("faceless", "name"), patternAnchor("featureless", "name")];
 
 const FACELESS_HORROR_TEXT_ANCHORS = [
   patternAnchor("no face"),
@@ -326,10 +330,7 @@ const BOUND_OBJECT_STATUE_CONTEXT_TEXT_ANCHORS = [
   patternAnchor("standing guard"),
 ];
 
-const TRICKSTER_MISCHIEF_NAME_ANCHORS = [
-  patternAnchor("trickster", "name"),
-  patternAnchor("tricksters", "name"),
-];
+const TRICKSTER_MISCHIEF_NAME_ANCHORS = [patternAnchor("trickster", "name"), patternAnchor("tricksters", "name")];
 
 const TRICKSTER_MISCHIEF_TEXT_ANCHORS = [
   patternAnchor("trickster"),
@@ -402,16 +403,44 @@ const PLANE_OF_EARTH_SETTING_TEXT_ANCHORS = [
   patternAnchor("coming from the plane of earth"),
 ];
 
-const JUNGLE_SETTING_NAME_ANCHORS = [
-  patternAnchor("jungle", "name"),
-  patternAnchor("rainforest", "name"),
-];
+const JUNGLE_SETTING_NAME_ANCHORS = [patternAnchor("jungle", "name"), patternAnchor("rainforest", "name")];
 
 const JUNGLE_SETTING_TEXT_NEAR = [
   {
     all: [
-      patternAltAnchor(["jungle", "jungles", "rainforest", "rainforests", "canopy", "canopies", "tropical forest", "tropical forests"], "description"),
-      patternAltAnchor(["native", "native to", "found in", "found among", "live", "lives", "living", "dwell", "dwells", "dwelling", "hunt", "hunts", "hunting", "prowl", "prowls", "stalk", "stalks", "stalking", "haunt", "haunts", "roost", "roosts", "home", "homes"], "description"),
+      patternAltAnchor(
+        ["jungle", "jungles", "rainforest", "rainforests", "canopy", "canopies", "tropical forest", "tropical forests"],
+        "description",
+      ),
+      patternAltAnchor(
+        [
+          "native",
+          "native to",
+          "found in",
+          "found among",
+          "live",
+          "lives",
+          "living",
+          "dwell",
+          "dwells",
+          "dwelling",
+          "hunt",
+          "hunts",
+          "hunting",
+          "prowl",
+          "prowls",
+          "stalk",
+          "stalks",
+          "stalking",
+          "haunt",
+          "haunts",
+          "roost",
+          "roosts",
+          "home",
+          "homes",
+        ],
+        "description",
+      ),
     ],
     window: 8,
     scope: "description" as const,
@@ -464,17 +493,56 @@ const FOREST_SETTING_SUPPORT_TEXT_ANCHORS = [
 const SKY_SETTING_TEXT_NEAR = [
   {
     all: [
-      patternAltAnchor(["sky", "skies", "open sky", "open skies", "storm cloud", "storm clouds", "cloud top", "cloud tops", "wind current", "wind currents", "high altitude", "high altitudes"], "description"),
-      patternAltAnchor(["soar", "soars", "soaring", "glide", "glides", "gliding", "hover", "hovers", "hovering", "circle", "circles", "circling", "wheel", "wheels", "wheeling", "nest", "nests", "nesting", "roost", "roosts", "roosting"], "description"),
+      patternAltAnchor(
+        [
+          "sky",
+          "skies",
+          "open sky",
+          "open skies",
+          "storm cloud",
+          "storm clouds",
+          "cloud top",
+          "cloud tops",
+          "wind current",
+          "wind currents",
+          "high altitude",
+          "high altitudes",
+        ],
+        "description",
+      ),
+      patternAltAnchor(
+        [
+          "soar",
+          "soars",
+          "soaring",
+          "glide",
+          "glides",
+          "gliding",
+          "hover",
+          "hovers",
+          "hovering",
+          "circle",
+          "circles",
+          "circling",
+          "wheel",
+          "wheels",
+          "wheeling",
+          "nest",
+          "nests",
+          "nesting",
+          "roost",
+          "roosts",
+          "roosting",
+        ],
+        "description",
+      ),
     ],
     window: 8,
     scope: "description" as const,
   },
 ];
 
-const SKY_SETTING_NAME_ANCHORS = [
-  patternAnchor("{{alt(sky,stormcrown)}} {{alt(dragon,archdragon)}}", "name"),
-];
+const SKY_SETTING_NAME_ANCHORS = [patternAnchor("{{alt(sky,stormcrown)}} {{alt(dragon,archdragon)}}", "name")];
 
 const DESERT_SETTING_NAME_ANCHORS = [
   patternAnchor("desert", "name"),
@@ -532,9 +600,7 @@ const DESERT_SETTING_SUPPORT_TEXT_ANCHORS = [
   patternAnchor("homes"),
 ];
 
-const RURAL_SETTING_NAME_ANCHORS = [
-  patternAnchor("scarecrow", "name"),
-];
+const RURAL_SETTING_NAME_ANCHORS = [patternAnchor("scarecrow", "name")];
 
 const RURAL_SETTING_TEXT_ANCHORS = [
   patternAnchor("farm"),
@@ -559,7 +625,40 @@ const RURAL_SETTING_TEXT_ANCHORS = [
   patternAnchor("farming techniques"),
 ];
 
-const RURAL_SETTING_CONTEXT_TEXT_ANCHOR = patternAltAnchor(["found in", "dwell", "dwells", "dwelling", "live", "lives", "living", "haunt", "haunts", "hunt", "hunts", "hunting", "prey on", "preys on", "patrol", "patrols", "prowl", "prowls", "protect", "protects", "sabotage", "sabotages", "siege", "sieges", "stalk", "stalks", "stalking", "terrorize", "terrorizes"], "description");
+const RURAL_SETTING_CONTEXT_TEXT_ANCHOR = patternAltAnchor(
+  [
+    "found in",
+    "dwell",
+    "dwells",
+    "dwelling",
+    "live",
+    "lives",
+    "living",
+    "haunt",
+    "haunts",
+    "hunt",
+    "hunts",
+    "hunting",
+    "prey on",
+    "preys on",
+    "patrol",
+    "patrols",
+    "prowl",
+    "prowls",
+    "protect",
+    "protects",
+    "sabotage",
+    "sabotages",
+    "siege",
+    "sieges",
+    "stalk",
+    "stalks",
+    "stalking",
+    "terrorize",
+    "terrorizes",
+  ],
+  "description",
+);
 
 const RURAL_SETTING_BLOCKER_TEXT_NEAR = [
   {
@@ -595,26 +694,56 @@ const SMALL_SETTLEMENT_SETTING_EXACT_TEXT_ANCHORS = [
   patternAnchor("lizardfolk settlements are typically constructed partially underwater and partially above"),
 ];
 
-const SMALL_SETTLEMENT_SETTING_COMMUNITY_CONTEXT_TEXT_ANCHOR = patternAltAnchor([
-  "community",
-  "communities",
-  "hidden and safe",
-  "well-being",
-  "protect their homes",
-  "protect their community",
-  "trusted with their well-being",
-], "description");
+const SMALL_SETTLEMENT_SETTING_COMMUNITY_CONTEXT_TEXT_ANCHOR = patternAltAnchor(
+  [
+    "community",
+    "communities",
+    "hidden and safe",
+    "well-being",
+    "protect their homes",
+    "protect their community",
+    "trusted with their well-being",
+  ],
+  "description",
+);
 
-const SMALL_SETTLEMENT_SETTING_PERIMETER_CONTEXT_TEXT_ANCHOR = patternAltAnchor([
-  "keep watch on the outskirts of",
-  "outskirts of",
-], "description");
+const SMALL_SETTLEMENT_SETTING_PERIMETER_CONTEXT_TEXT_ANCHOR = patternAltAnchor(
+  ["keep watch on the outskirts of", "outskirts of"],
+  "description",
+);
 
 const SMALL_SETTLEMENT_SETTING_BLOCKER_TEXT_NEAR = [
   {
     all: [
-      patternAltAnchor(["village", "villages", "villager", "villagers", "hamlet", "hamlets", "town", "towns", "townsfolk", "settlement", "settlements"]),
-      patternAltAnchor(["raid", "raids", "raiding", "plunder", "waylay", "waylays", "wipe out", "lay waste", "assault", "assaults", "destroy", "destroys", "siege", "sieges"]),
+      patternAltAnchor([
+        "village",
+        "villages",
+        "villager",
+        "villagers",
+        "hamlet",
+        "hamlets",
+        "town",
+        "towns",
+        "townsfolk",
+        "settlement",
+        "settlements",
+      ]),
+      patternAltAnchor([
+        "raid",
+        "raids",
+        "raiding",
+        "plunder",
+        "waylay",
+        "waylays",
+        "wipe out",
+        "lay waste",
+        "assault",
+        "assaults",
+        "destroy",
+        "destroys",
+        "siege",
+        "sieges",
+      ]),
     ],
     window: 8,
     scope: "description" as const,
@@ -633,33 +762,79 @@ const URBAN_SETTING_NAME_ANCHORS = [
   patternAnchor("watch officer", "name"),
 ];
 
-const FORTRESS_SETTING_RESIDENCE_CONTEXT_TEXT_ANCHOR = patternAltAnchor(["within", "inside", "among", "take residence", "takes residence", "taking residence", "reside", "resides", "residing", "stationed", "posted", "quartered"], "description");
-const FORTRESS_KEEP_NOUN_TEXT_ANCHOR = patternAlternativeAnchor([
-  patternAlternativeOption("keep", [{ pos: ["NOUN"] }]),
-  patternAlternativeOption("keeps", [{ pos: ["NOUN"] }]),
-], "description");
+const FORTRESS_SETTING_RESIDENCE_CONTEXT_TEXT_ANCHOR = patternAltAnchor(
+  [
+    "within",
+    "inside",
+    "among",
+    "take residence",
+    "takes residence",
+    "taking residence",
+    "reside",
+    "resides",
+    "residing",
+    "stationed",
+    "posted",
+    "quartered",
+  ],
+  "description",
+);
+const FORTRESS_KEEP_NOUN_TEXT_ANCHOR = patternAlternativeAnchor(
+  [patternAlternativeOption("keep", [{ pos: ["NOUN"] }]), patternAlternativeOption("keeps", [{ pos: ["NOUN"] }])],
+  "description",
+);
 const FORTRESS_SETTING_STRUCTURE_TEXT_ANCHORS = [
-  patternAltAnchor(["fortress", "fortresses", "castle", "castles", "citadel", "citadels", "stronghold", "strongholds", "bastion", "bastions", "watchtower", "watchtowers", "rampart", "ramparts", "battlement", "battlements"], "description"),
+  patternAltAnchor(
+    [
+      "fortress",
+      "fortresses",
+      "castle",
+      "castles",
+      "citadel",
+      "citadels",
+      "stronghold",
+      "strongholds",
+      "bastion",
+      "bastions",
+      "watchtower",
+      "watchtowers",
+      "rampart",
+      "ramparts",
+      "battlement",
+      "battlements",
+    ],
+    "description",
+  ),
   FORTRESS_KEEP_NOUN_TEXT_ANCHOR,
 ];
 const FORTRESS_SETTING_SITE_TEXT_ANCHORS = [
-  patternAltAnchor(["fortress", "fortresses", "castle", "castles", "citadel", "citadels", "stronghold", "strongholds", "bastion", "bastions", "watchtower", "watchtowers"], "description"),
+  patternAltAnchor(
+    [
+      "fortress",
+      "fortresses",
+      "castle",
+      "castles",
+      "citadel",
+      "citadels",
+      "stronghold",
+      "strongholds",
+      "bastion",
+      "bastions",
+      "watchtower",
+      "watchtowers",
+    ],
+    "description",
+  ),
   FORTRESS_KEEP_NOUN_TEXT_ANCHOR,
 ];
-const FORTRESS_SETTING_NAME_ANCHORS = [
-  patternAnchor("watchtower", "name"),
-  patternAnchor("watchtowers", "name"),
-];
+const FORTRESS_SETTING_NAME_ANCHORS = [patternAnchor("watchtower", "name"), patternAnchor("watchtowers", "name")];
 
 const DREAMLANDS_SETTING_BLOCKER_TEXT_ANCHORS = [
   patternAnchor("find their way out of the dreamlands"),
   patternAnchor("out of the dreamlands and into the waking world"),
 ];
 
-const DREAMLANDS_SETTING_EXTRA_NAME_ANCHORS = [
-  patternAnchor("leng", "name"),
-  patternAnchor("dreamscraper", "name"),
-];
+const DREAMLANDS_SETTING_EXTRA_NAME_ANCHORS = [patternAnchor("leng", "name"), patternAnchor("dreamscraper", "name")];
 
 const DREAMLANDS_SETTING_EXTRA_TEXT_ANCHORS = [
   patternAnchor("dimension of dreams"),
@@ -667,10 +842,7 @@ const DREAMLANDS_SETTING_EXTRA_TEXT_ANCHORS = [
   patternAnchor("nightmare realm"),
 ];
 
-const HELL_SETTING_BLOCKER_TEXT_ANCHORS = [
-  patternAnchor("hellknight"),
-  patternAnchor("hellspawn"),
-];
+const HELL_SETTING_BLOCKER_TEXT_ANCHORS = [patternAnchor("hellknight"), patternAnchor("hellspawn")];
 
 const HELL_SETTING_NAME_ANCHORS = [
   patternAnchor("diabolic", "name"),
@@ -679,9 +851,7 @@ const HELL_SETTING_NAME_ANCHORS = [
   patternAnchor("hellwasp", "name"),
 ];
 
-const ABYSS_SETTING_BLOCKER_TEXT_ANCHORS = [
-  patternAnchor("against the abyss"),
-];
+const ABYSS_SETTING_BLOCKER_TEXT_ANCHORS = [patternAnchor("against the abyss")];
 
 const SWAMP_SETTING_NAME_ANCHORS = [
   patternAnchor("swamp", "name"),
@@ -722,10 +892,7 @@ const SWAMP_SETTING_TEXT_ANCHORS = [
   patternAnchor("tropical swamps"),
 ];
 
-const NAUTICAL_SETTING_NAME_ANCHORS = [
-  patternAnchor("dockhand", "name"),
-  patternAnchor("thief of ships", "name"),
-];
+const NAUTICAL_SETTING_NAME_ANCHORS = [patternAnchor("dockhand", "name"), patternAnchor("thief of ships", "name")];
 
 const NAUTICAL_SETTING_TEXT_ANCHORS = [
   patternAnchor("aboard ship"),
@@ -748,20 +915,225 @@ const URBAN_SETTING_SETTLEMENT_LIST_TEXT_ANCHORS = [
   patternAnchor("towns"),
 ];
 
-const CREATURE_TERRAIN_HABITAT_CONTEXT_TEXT_ANCHOR = patternAltAnchor(["native", "native to", "found in", "found among", "found near", "inhabit", "inhabits", "inhabiting", "dwell", "dwells", "dwelling", "dweller", "dwellers", "live", "lives", "living", "lair", "lairs", "haunt", "haunts", "lurk", "lurks", "lurking", "roam", "roams", "roaming", "hunt", "hunts", "hunting", "prowl", "prowls", "stalk", "stalks", "stalking", "nest", "nests", "nesting", "roost", "roosts", "patrol", "patrols", "home", "homes", "watch over", "watches over", "keep watch over", "keeps watch over"], "description");
+const CREATURE_TERRAIN_HABITAT_CONTEXT_TEXT_ANCHOR = patternAltAnchor(
+  [
+    "native",
+    "native to",
+    "found in",
+    "found among",
+    "found near",
+    "inhabit",
+    "inhabits",
+    "inhabiting",
+    "dwell",
+    "dwells",
+    "dwelling",
+    "dweller",
+    "dwellers",
+    "live",
+    "lives",
+    "living",
+    "lair",
+    "lairs",
+    "haunt",
+    "haunts",
+    "lurk",
+    "lurks",
+    "lurking",
+    "roam",
+    "roams",
+    "roaming",
+    "hunt",
+    "hunts",
+    "hunting",
+    "prowl",
+    "prowls",
+    "stalk",
+    "stalks",
+    "stalking",
+    "nest",
+    "nests",
+    "nesting",
+    "roost",
+    "roosts",
+    "patrol",
+    "patrols",
+    "home",
+    "homes",
+    "watch over",
+    "watches over",
+    "keep watch over",
+    "keeps watch over",
+  ],
+  "description",
+);
 
-const CREATURE_SITE_HABITAT_CONTEXT_TEXT_ANCHOR = patternAltAnchor(["found in", "dwell", "dwells", "dwelling", "live", "lives", "living", "haunt", "haunts", "lurk", "lurks", "lurking", "patrol", "patrols", "guard", "guards", "guarding", "tend", "tends", "watch over", "watches over", "keep watch over", "keeps watch over", "home", "homes"], "description");
+const CREATURE_SITE_HABITAT_CONTEXT_TEXT_ANCHOR = patternAltAnchor(
+  [
+    "found in",
+    "dwell",
+    "dwells",
+    "dwelling",
+    "live",
+    "lives",
+    "living",
+    "haunt",
+    "haunts",
+    "lurk",
+    "lurks",
+    "lurking",
+    "patrol",
+    "patrols",
+    "guard",
+    "guards",
+    "guarding",
+    "tend",
+    "tends",
+    "watch over",
+    "watches over",
+    "keep watch over",
+    "keeps watch over",
+    "home",
+    "homes",
+  ],
+  "description",
+);
 
-const CREATURE_CANYON_HABITAT_CONTEXT_TEXT_ANCHOR = patternAltAnchor(["found in", "dwell", "dwells", "dwelling", "haunt", "haunts", "lurk", "lurks", "lurking", "prowl", "prowls", "stalk", "stalks", "stalking", "glide through", "glides through", "hunt", "hunts", "hunting", "nest", "nests", "nesting", "home", "homes"], "description");
+const CREATURE_CANYON_HABITAT_CONTEXT_TEXT_ANCHOR = patternAltAnchor(
+  [
+    "found in",
+    "dwell",
+    "dwells",
+    "dwelling",
+    "haunt",
+    "haunts",
+    "lurk",
+    "lurks",
+    "lurking",
+    "prowl",
+    "prowls",
+    "stalk",
+    "stalks",
+    "stalking",
+    "glide through",
+    "glides through",
+    "hunt",
+    "hunts",
+    "hunting",
+    "nest",
+    "nests",
+    "nesting",
+    "home",
+    "homes",
+  ],
+  "description",
+);
 
-const CREATURE_SITE_FUNCTION_CONTEXT_TEXT_ANCHOR = patternAltAnchor(["found defending", "defend", "defends", "defending", "protect", "protects", "protector", "protectors", "guardians of", "serve as the protector", "serves as the protector", "rarely leave", "rarely leaves", "watch over", "watches over"], "description");
+const CREATURE_SITE_FUNCTION_CONTEXT_TEXT_ANCHOR = patternAltAnchor(
+  [
+    "found defending",
+    "defend",
+    "defends",
+    "defending",
+    "protect",
+    "protects",
+    "protector",
+    "protectors",
+    "guardians of",
+    "serve as the protector",
+    "serves as the protector",
+    "rarely leave",
+    "rarely leaves",
+    "watch over",
+    "watches over",
+  ],
+  "description",
+);
 
-const CREATURE_URBAN_ACTIVITY_CONTEXT_TEXT_ANCHOR = patternAltAnchor(["make their home", "make their homes", "makes its home", "call home", "calls home", "sneak around", "sneaks around", "sneaking around", "stalk", "stalks", "stalking", "prominent in", "visible in", "below"], "description");
-const CREATURE_URBAN_SCENE_CONTEXT_TEXT_ANCHOR = patternAltAnchor(["sneak around", "sneaks around", "sneaking around", "hide in plain sight", "hides in plain sight", "prominent in", "visible in"], "description");
+const CREATURE_URBAN_ACTIVITY_CONTEXT_TEXT_ANCHOR = patternAltAnchor(
+  [
+    "make their home",
+    "make their homes",
+    "makes its home",
+    "call home",
+    "calls home",
+    "sneak around",
+    "sneaks around",
+    "sneaking around",
+    "stalk",
+    "stalks",
+    "stalking",
+    "prominent in",
+    "visible in",
+    "below",
+  ],
+  "description",
+);
+const CREATURE_URBAN_SCENE_CONTEXT_TEXT_ANCHOR = patternAltAnchor(
+  [
+    "sneak around",
+    "sneaks around",
+    "sneaking around",
+    "hide in plain sight",
+    "hides in plain sight",
+    "prominent in",
+    "visible in",
+  ],
+  "description",
+);
 
-const CREATURE_UNDERGROUND_ACTIVITY_CONTEXT_TEXT_ANCHOR = patternAltAnchor(["below ground", "below large cities", "make their home", "make their homes", "makes its home", "call home", "calls home", "stalk", "stalks", "stalking", "scour", "scours", "most often found"], "description");
+const CREATURE_UNDERGROUND_ACTIVITY_CONTEXT_TEXT_ANCHOR = patternAltAnchor(
+  [
+    "below ground",
+    "below large cities",
+    "make their home",
+    "make their homes",
+    "makes its home",
+    "call home",
+    "calls home",
+    "stalk",
+    "stalks",
+    "stalking",
+    "scour",
+    "scours",
+    "most often found",
+  ],
+  "description",
+);
 
-const FRESHWATER_SETTING_HABITAT_CONTEXT_TEXT_ANCHOR = patternAltAnchor(["native", "native to", "found in", "found among", "inhabit", "inhabits", "inhabiting", "dwell", "dwells", "dwelling", "live", "lives", "living", "call home", "calls home", "make their home", "make their homes", "makes its home", "home", "homes", "spend most of their time in", "centered on", "centered around", "hide", "hides", "lurk", "lurks", "lurking"], "description");
+const FRESHWATER_SETTING_HABITAT_CONTEXT_TEXT_ANCHOR = patternAltAnchor(
+  [
+    "native",
+    "native to",
+    "found in",
+    "found among",
+    "inhabit",
+    "inhabits",
+    "inhabiting",
+    "dwell",
+    "dwells",
+    "dwelling",
+    "live",
+    "lives",
+    "living",
+    "call home",
+    "calls home",
+    "make their home",
+    "make their homes",
+    "makes its home",
+    "home",
+    "homes",
+    "spend most of their time in",
+    "centered on",
+    "centered around",
+    "hide",
+    "hides",
+    "lurk",
+    "lurks",
+    "lurking",
+  ],
+  "description",
+);
 
 const createCreatureSettingTextNear = (
   alternatives: string[] | string,
@@ -773,7 +1145,10 @@ const createCreatureSettingTextNear = (
       patternAltAnchor(
         Array.isArray(alternatives)
           ? alternatives
-          : alternatives.split(",").map((value) => value.trim()).filter((value) => value.length > 0),
+          : alternatives
+              .split(",")
+              .map((value) => value.trim())
+              .filter((value) => value.length > 0),
         "description",
       ),
       contextAnchor,
@@ -787,18 +1162,31 @@ const createCreatureSettingTextNearAnchors = (
   anchors: Array<ReturnType<typeof patternAnchor>>,
   contextAnchor: ReturnType<typeof patternAnchor>,
   window = 8,
-) => anchors.map((anchor) => ({
-    all: [
-      anchor,
-      contextAnchor,
-    ],
+) =>
+  anchors.map((anchor) => ({
+    all: [anchor, contextAnchor],
     window,
     scope: "description" as const,
   }));
 
 const FRESHWATER_SETTING_TEXT_NEAR = [
   ...createCreatureSettingTextNear(
-    ["river", "rivers", "lake", "lakes", "pond", "ponds", "stream", "streams", "spring", "springs", "inland water", "inland waters", "inland pool", "inland pools"],
+    [
+      "river",
+      "rivers",
+      "lake",
+      "lakes",
+      "pond",
+      "ponds",
+      "stream",
+      "streams",
+      "spring",
+      "springs",
+      "inland water",
+      "inland waters",
+      "inland pool",
+      "inland pools",
+    ],
     FRESHWATER_SETTING_HABITAT_CONTEXT_TEXT_ANCHOR,
   ),
 ];
@@ -834,11 +1222,39 @@ const FRESHWATER_SETTING_EXACT_TEXT_ANCHORS = [
 
 const FOREST_SETTING_TEXT_NEAR = [
   ...createCreatureSettingTextNear(
-    ["forest", "forests", "woodland", "woodlands", "woods", "grove", "groves", "wooded area", "wooded areas", "forest floor", "forest floors", "primeval forest", "primeval forests"],
+    [
+      "forest",
+      "forests",
+      "woodland",
+      "woodlands",
+      "woods",
+      "grove",
+      "groves",
+      "wooded area",
+      "wooded areas",
+      "forest floor",
+      "forest floors",
+      "primeval forest",
+      "primeval forests",
+    ],
     CREATURE_TERRAIN_HABITAT_CONTEXT_TEXT_ANCHOR,
   ),
   ...createCreatureSettingTextNear(
-    ["forest", "forests", "woodland", "woodlands", "woods", "grove", "groves", "wooded area", "wooded areas", "forest floor", "forest floors", "primeval forest", "primeval forests"],
+    [
+      "forest",
+      "forests",
+      "woodland",
+      "woodlands",
+      "woods",
+      "grove",
+      "groves",
+      "wooded area",
+      "wooded areas",
+      "forest floor",
+      "forest floors",
+      "primeval forest",
+      "primeval forests",
+    ],
     CREATURE_SITE_FUNCTION_CONTEXT_TEXT_ANCHOR,
   ),
 ];
@@ -855,9 +1271,7 @@ const FOREST_SETTING_EXACT_TEXT_ANCHORS = [
   patternAnchor("within prehistoric forests"),
 ];
 
-const CANYON_OR_CAVERNS_TEXT_ANCHORS = [
-  patternAnchor("canyons or caverns", "description"),
-];
+const CANYON_OR_CAVERNS_TEXT_ANCHORS = [patternAnchor("canyons or caverns", "description")];
 
 const UNDERGROUND_SETTING_EXACT_TEXT_ANCHORS = [
   patternAnchor("subterranean monster"),
@@ -926,10 +1340,7 @@ const URBAN_SETTING_EXACT_TEXT_ANCHORS = [
   patternAnchor("drainage tunnels"),
 ];
 
-const BATTLEFIELD_SETTING_TEXT_ANCHORS = [
-  patternAnchor("battlefield"),
-  patternAnchor("battlefields"),
-];
+const BATTLEFIELD_SETTING_TEXT_ANCHORS = [patternAnchor("battlefield"), patternAnchor("battlefields")];
 
 const URBAN_SETTING_GOVERNANCE_TEXT_ANCHORS = [
   patternAnchor("town watch"),
@@ -1112,8 +1523,14 @@ const COMBATANT_NPC_WEAK_NAME_ANCHORS = [
 ];
 
 const COMBATANT_NPC_CONTEXT_NAME_ANCHORS = [
-  patternAnchor("veteran {{gap(2)}} {{alt(armiger,bastion,bladecaller,guard,hellknight,officer,sergeant,soldier,warlord)}}", "name"),
-  patternAnchor("{{alt(armiger,bastion,bladecaller,guard,hellknight,officer,sergeant,soldier,warlord)}} {{gap(2)}} veteran", "name"),
+  patternAnchor(
+    "veteran {{gap(2)}} {{alt(armiger,bastion,bladecaller,guard,hellknight,officer,sergeant,soldier,warlord)}}",
+    "name",
+  ),
+  patternAnchor(
+    "{{alt(armiger,bastion,bladecaller,guard,hellknight,officer,sergeant,soldier,warlord)}} {{gap(2)}} veteran",
+    "name",
+  ),
 ];
 
 const ANIMATED_OBJECT_NAME_ANCHORS = [
@@ -1270,45 +1687,32 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "undead_adjacent",
     category: "creature",
-    anyOf: [
-      { traitsAny: ["undead", "ghost", "skeleton", "ghoul"] },
-      { familiesAny: UNDEAD_GLOSSARY_FAMILIES },
-    ],
+    anyOf: [{ traitsAny: ["undead", "ghost", "skeleton", "ghoul"] }, { familiesAny: UNDEAD_GLOSSARY_FAMILIES }],
   },
   {
     tag: "possession_threat",
     category: "creature",
-    anyOf: [
-      { textAny: POSSESSION_THREAT_TEXT_ANCHORS },
-    ],
+    anyOf: [{ textAny: POSSESSION_THREAT_TEXT_ANCHORS }],
   },
   {
     tag: "life_drain_threat",
     category: "creature",
-    anyOf: [
-      { textAny: LIFE_DRAIN_THREAT_TEXT_ANCHORS },
-    ],
+    anyOf: [{ textAny: LIFE_DRAIN_THREAT_TEXT_ANCHORS }],
   },
   {
     tag: "spawn_creator",
     category: "creature",
-    anyOf: [
-      { textAny: SPAWN_CREATOR_TEXT_ANCHORS },
-    ],
+    anyOf: [{ textAny: SPAWN_CREATOR_TEXT_ANCHORS }],
   },
   {
     tag: "petrification_threat",
     category: "creature",
-    anyOf: [
-      { textAny: PETRIFICATION_THREAT_TEXT_ANCHORS },
-    ],
+    anyOf: [{ textAny: PETRIFICATION_THREAT_TEXT_ANCHORS }],
   },
   {
     tag: "regeneration_threat",
     category: "creature",
-    anyOf: [
-      { textAny: REGENERATION_THREAT_TEXT_ANCHORS },
-    ],
+    anyOf: [{ textAny: REGENERATION_THREAT_TEXT_ANCHORS }],
   },
   {
     tag: "ambush_grabber",
@@ -1334,14 +1738,24 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
           patternAnchor("pull victims into"),
         ],
       },
-      { score: 1, textAny: [patternAnchor("grabbed"), patternAnchor("grabs prey"), patternAnchor("webbed"), patternAnchor("ambush predator")] },
+      {
+        score: 1,
+        textAny: [
+          patternAnchor("grabbed"),
+          patternAnchor("grabs prey"),
+          patternAnchor("webbed"),
+          patternAnchor("ambush predator"),
+        ],
+      },
       {
         score: 2,
         textNear: [
           {
             all: [
               patternAnchor("{{alt(ambush,lying in wait,lurks,lurking)}}"),
-              patternAnchor("{{alt(grab,grabs,grapple,grapples,constrict,constricts,swallow,snatch,snatches,drag,drags,carry off,carries off)}}"),
+              patternAnchor(
+                "{{alt(grab,grabs,grapple,grapples,constrict,constricts,swallow,snatch,snatches,drag,drags,carry off,carries off)}}",
+              ),
             ],
             window: 7,
             scope: "description",
@@ -1354,9 +1768,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     tag: "freshwater_setting",
     category: "creature",
     threshold: 2,
-    noneOf: [
-      { textAny: FRESHWATER_SETTING_BLOCKER_TEXT_ANCHORS },
-    ],
+    noneOf: [{ textAny: FRESHWATER_SETTING_BLOCKER_TEXT_ANCHORS }],
     anyOf: [
       { score: 2, textAny: FRESHWATER_SETTING_STRONG_TEXT_ANCHORS },
       { score: 2, textAny: FRESHWATER_SETTING_EXACT_TEXT_ANCHORS },
@@ -1370,17 +1782,13 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "aquatic_setting",
     category: "creature",
-    anyOf: [
-      { traitsAny: ["azarketi"] },
-    ],
+    anyOf: [{ traitsAny: ["azarketi"] }],
   },
   {
     tag: "aquatic_setting",
     category: "creature",
     threshold: 2,
-    noneOf: [
-      { textAny: [patternAnchor("inner sea")] },
-    ],
+    noneOf: [{ textAny: [patternAnchor("inner sea")] }],
     anyOf: [
       { score: 3, traitsAny: ["water", "aquatic", "amphibious"] },
       { score: 2, textAny: AQUATIC_SETTING_STRONG_TEXT_ANCHORS },
@@ -1405,91 +1813,62 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "astral_setting",
     category: "creature",
-    anyOf: [
-      { traitsAny: ["astral"] },
-    ],
+    anyOf: [{ traitsAny: ["astral"] }],
   },
   {
     tag: "astral_setting",
     category: "creature",
-    anyOf: [
-      { textAny: ASTRAL_SETTING_TEXT_ANCHORS },
-    ],
+    anyOf: [{ textAny: ASTRAL_SETTING_TEXT_ANCHORS }],
   },
   {
     tag: "astral_setting",
     category: "creature",
-    allOf: [
-      { textAny: [patternAnchor("astral")] },
-      { textAny: ASTRAL_SETTING_CONTEXT_TEXT_ANCHORS },
-    ],
+    allOf: [{ textAny: [patternAnchor("astral")] }, { textAny: ASTRAL_SETTING_CONTEXT_TEXT_ANCHORS }],
   },
   {
     tag: "ethereal_setting",
     category: "creature",
-    anyOf: [
-      { textAny: ETHEREAL_SETTING_TEXT_ANCHORS },
-    ],
+    anyOf: [{ textAny: ETHEREAL_SETTING_TEXT_ANCHORS }],
   },
   {
     tag: "plane_of_fire_setting",
     category: "creature",
-    anyOf: [
-      { traitsAll: ["elemental", "fire"] },
-      { traitsAll: ["genie", "fire"] },
-    ],
+    anyOf: [{ traitsAll: ["elemental", "fire"] }, { traitsAll: ["genie", "fire"] }],
   },
   {
     tag: "plane_of_fire_setting",
     category: "creature",
-    anyOf: [
-      { textAny: PLANE_OF_FIRE_SETTING_TEXT_ANCHORS },
-    ],
+    anyOf: [{ textAny: PLANE_OF_FIRE_SETTING_TEXT_ANCHORS }],
   },
   {
     tag: "plane_of_air_setting",
     category: "creature",
-    anyOf: [
-      { traitsAll: ["elemental", "air"] },
-      { traitsAll: ["genie", "air"] },
-    ],
+    anyOf: [{ traitsAll: ["elemental", "air"] }, { traitsAll: ["genie", "air"] }],
   },
   {
     tag: "plane_of_air_setting",
     category: "creature",
-    anyOf: [
-      { textAny: PLANE_OF_AIR_SETTING_TEXT_ANCHORS },
-    ],
+    anyOf: [{ textAny: PLANE_OF_AIR_SETTING_TEXT_ANCHORS }],
   },
   {
     tag: "plane_of_water_setting",
     category: "creature",
-    anyOf: [
-      { traitsAll: ["elemental", "water"] },
-      { traitsAll: ["genie", "water"] },
-    ],
+    anyOf: [{ traitsAll: ["elemental", "water"] }, { traitsAll: ["genie", "water"] }],
   },
   {
     tag: "plane_of_water_setting",
     category: "creature",
-    anyOf: [
-      { textAny: PLANE_OF_WATER_SETTING_TEXT_ANCHORS },
-    ],
+    anyOf: [{ textAny: PLANE_OF_WATER_SETTING_TEXT_ANCHORS }],
   },
   {
     tag: "plane_of_earth_setting",
     category: "creature",
-    anyOf: [
-      { traitsAll: ["elemental", "earth"] },
-      { traitsAll: ["genie", "earth"] },
-    ],
+    anyOf: [{ traitsAll: ["elemental", "earth"] }, { traitsAll: ["genie", "earth"] }],
   },
   {
     tag: "plane_of_earth_setting",
     category: "creature",
-    anyOf: [
-      { textAny: PLANE_OF_EARTH_SETTING_TEXT_ANCHORS },
-    ],
+    anyOf: [{ textAny: PLANE_OF_EARTH_SETTING_TEXT_ANCHORS }],
   },
   {
     tag: "elemental_plane_setting",
@@ -1514,9 +1893,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "first_world_setting",
     category: "creature",
-    allOf: [
-      { textAny: FIRST_WORLD_SETTING_TEXT_ANCHORS },
-    ],
+    allOf: [{ textAny: FIRST_WORLD_SETTING_TEXT_ANCHORS }],
     threshold: 1,
     anyOf: [
       { score: 1, traitsAny: ["fey", "tane"] },
@@ -1526,19 +1903,13 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "dreamlands_setting",
     category: "creature",
-    noneOf: [
-      { textAny: DREAMLANDS_SETTING_BLOCKER_TEXT_ANCHORS },
-    ],
-    anyOf: [
-      { traitsAny: ["dream"] },
-    ],
+    noneOf: [{ textAny: DREAMLANDS_SETTING_BLOCKER_TEXT_ANCHORS }],
+    anyOf: [{ traitsAny: ["dream"] }],
   },
   {
     tag: "dreamlands_setting",
     category: "creature",
-    noneOf: [
-      { textAny: DREAMLANDS_SETTING_BLOCKER_TEXT_ANCHORS },
-    ],
+    noneOf: [{ textAny: DREAMLANDS_SETTING_BLOCKER_TEXT_ANCHORS }],
     threshold: 2,
     anyOf: [
       { score: 2, textAny: DREAMLANDS_SETTING_NAME_ANCHORS },
@@ -1550,23 +1921,17 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "boneyard_setting",
     category: "creature",
-    anyOf: [
-      { traitsAny: ["psychopomp"] },
-    ],
+    anyOf: [{ traitsAny: ["psychopomp"] }],
   },
   {
     tag: "boneyard_setting",
     category: "creature",
-    anyOf: [
-      { textAny: [patternAnchor("shade (boneyard)", "name")] },
-    ],
+    anyOf: [{ textAny: [patternAnchor("shade (boneyard)", "name")] }],
   },
   {
     tag: "boneyard_setting",
     category: "creature",
-    allOf: [
-      { textAny: BONEYARD_SETTING_TEXT_ANCHORS },
-    ],
+    allOf: [{ textAny: BONEYARD_SETTING_TEXT_ANCHORS }],
     threshold: 1,
     anyOf: [
       { score: 1, traitsAny: ["psychopomp"] },
@@ -1577,16 +1942,12 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "heaven_setting",
     category: "creature",
-    anyOf: [
-      { traitsAny: ["archon"] },
-    ],
+    anyOf: [{ traitsAny: ["archon"] }],
   },
   {
     tag: "heaven_setting",
     category: "creature",
-    anyOf: [
-      { textAny: [patternAnchor("shade (heaven)", "name")] },
-    ],
+    anyOf: [{ textAny: [patternAnchor("shade (heaven)", "name")] }],
   },
   {
     tag: "heaven_setting",
@@ -1600,16 +1961,12 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "nirvana_setting",
     category: "creature",
-    anyOf: [
-      { traitsAny: ["agathion"] },
-    ],
+    anyOf: [{ traitsAny: ["agathion"] }],
   },
   {
     tag: "nirvana_setting",
     category: "creature",
-    anyOf: [
-      { textAny: [patternAnchor("shade (nirvana)", "name")] },
-    ],
+    anyOf: [{ textAny: [patternAnchor("shade (nirvana)", "name")] }],
   },
   {
     tag: "nirvana_setting",
@@ -1623,16 +1980,12 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "elysium_setting",
     category: "creature",
-    anyOf: [
-      { traitsAny: ["azata"] },
-    ],
+    anyOf: [{ traitsAny: ["azata"] }],
   },
   {
     tag: "elysium_setting",
     category: "creature",
-    anyOf: [
-      { textAny: [patternAnchor("shade (elysium)", "name")] },
-    ],
+    anyOf: [{ textAny: [patternAnchor("shade (elysium)", "name")] }],
   },
   {
     tag: "elysium_setting",
@@ -1646,9 +1999,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "upper_plane_setting",
     category: "creature",
-    anyOf: [
-      { traitsAny: ["angel"] },
-    ],
+    anyOf: [{ traitsAny: ["angel"] }],
   },
   {
     tag: "upper_plane_setting",
@@ -1669,9 +2020,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     tag: "hell_setting",
     category: "creature",
     threshold: 3,
-    noneOf: [
-      { textAny: HELL_SETTING_BLOCKER_TEXT_ANCHORS },
-    ],
+    noneOf: [{ textAny: HELL_SETTING_BLOCKER_TEXT_ANCHORS }],
     anyOf: [
       { score: 3, textAny: HELL_SETTING_NAME_ANCHORS },
       { score: 2, textAny: HELL_SETTING_TEXT_ANCHORS },
@@ -1681,17 +2030,13 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "hell_setting",
     category: "creature",
-    anyOf: [
-      { textAny: [patternAnchor("shade (hell)", "name")] },
-    ],
+    anyOf: [{ textAny: [patternAnchor("shade (hell)", "name")] }],
   },
   {
     tag: "abyss_setting",
     category: "creature",
     threshold: 3,
-    noneOf: [
-      { textAny: ABYSS_SETTING_BLOCKER_TEXT_ANCHORS },
-    ],
+    noneOf: [{ textAny: ABYSS_SETTING_BLOCKER_TEXT_ANCHORS }],
     anyOf: [
       { score: 2, textAny: ABYSS_SETTING_TEXT_ANCHORS },
       { score: 1, traitsAny: ["demon", "fiend", "qlippoth"] },
@@ -1700,16 +2045,12 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "abyss_setting",
     category: "creature",
-    anyOf: [
-      { textAny: [patternAnchor("shade (outer rifts)", "name")] },
-    ],
+    anyOf: [{ textAny: [patternAnchor("shade (outer rifts)", "name")] }],
   },
   {
     tag: "abaddon_setting",
     category: "creature",
-    anyOf: [
-      { traitsAny: ["daemon"] },
-    ],
+    anyOf: [{ traitsAny: ["daemon"] }],
   },
   {
     tag: "abaddon_setting",
@@ -1723,9 +2064,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "lower_plane_setting",
     category: "creature",
-    anyOf: [
-      { traitsAny: ["devil", "demon", "daemon", "qlippoth"] },
-    ],
+    anyOf: [{ traitsAny: ["devil", "demon", "daemon", "qlippoth"] }],
   },
   {
     tag: "lower_plane_setting",
@@ -1745,9 +2084,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "cosmic_framework_setting",
     category: "creature",
-    anyOf: [
-      { traitsAny: ["monitor"] },
-    ],
+    anyOf: [{ traitsAny: ["monitor"] }],
   },
   {
     tag: "cosmic_framework_setting",
@@ -1767,31 +2104,23 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "axis_setting",
     category: "creature",
-    anyOf: [
-      { traitsAny: ["aeon", "inevitable"] },
-    ],
+    anyOf: [{ traitsAny: ["aeon", "inevitable"] }],
   },
   {
     tag: "axis_setting",
     category: "creature",
-    anyOf: [
-      { textAny: [patternAnchor("shade (axis)", "name")] },
-    ],
+    anyOf: [{ textAny: [patternAnchor("shade (axis)", "name")] }],
   },
   {
     tag: "axis_setting",
     category: "creature",
     threshold: 2,
-    anyOf: [
-      { score: 2, textAny: AXIS_SETTING_TEXT_ANCHORS },
-    ],
+    anyOf: [{ score: 2, textAny: AXIS_SETTING_TEXT_ANCHORS }],
   },
   {
     tag: "shadow_plane_setting",
     category: "creature",
-    anyOf: [
-      { traitsAny: ["caligni", "fetchling"] },
-    ],
+    anyOf: [{ traitsAny: ["caligni", "fetchling"] }],
   },
   {
     tag: "shadow_plane_setting",
@@ -1806,16 +2135,12 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "maelstrom_setting",
     category: "creature",
-    anyOf: [
-      { traitsAny: ["protean"] },
-    ],
+    anyOf: [{ traitsAny: ["protean"] }],
   },
   {
     tag: "maelstrom_setting",
     category: "creature",
-    anyOf: [
-      { textAny: [patternAnchor("shade (maelstrom)", "name")] },
-    ],
+    anyOf: [{ textAny: [patternAnchor("shade (maelstrom)", "name")] }],
   },
   {
     tag: "maelstrom_setting",
@@ -1880,7 +2205,18 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
           patternAnchor("shipwreck"),
         ],
       },
-      { score: 1, textAny: [patternAnchor("ship"), patternAnchor("ships"), patternAnchor("captain"), patternAnchor("vessel"), patternAnchor("vessels"), patternAnchor("deck"), patternAnchor("decks")] },
+      {
+        score: 1,
+        textAny: [
+          patternAnchor("ship"),
+          patternAnchor("ships"),
+          patternAnchor("captain"),
+          patternAnchor("vessel"),
+          patternAnchor("vessels"),
+          patternAnchor("deck"),
+          patternAnchor("decks"),
+        ],
+      },
       { score: 1, textAny: [patternAnchor("harbor"), patternAnchor("harbors")] },
     ],
   },
@@ -1966,16 +2302,12 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "swamp_setting",
     category: "creature",
-    anyOf: [
-      { textAny: [patternAnchor("swamp", "name"), patternAnchor("swamps", "name")] },
-    ],
+    anyOf: [{ textAny: [patternAnchor("swamp", "name"), patternAnchor("swamps", "name")] }],
   },
   {
     tag: "tian_xia_setting",
     category: "creature",
-    anyOf: [
-      { textAny: TIAN_XIA_SETTING_TEXT_ANCHORS },
-    ],
+    anyOf: [{ textAny: TIAN_XIA_SETTING_TEXT_ANCHORS }],
   },
   {
     tag: "underground_setting",
@@ -2162,9 +2494,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     tag: "rural_setting",
     category: "creature",
     threshold: 2,
-    noneOf: [
-      { textNear: RURAL_SETTING_BLOCKER_TEXT_NEAR },
-    ],
+    noneOf: [{ textNear: RURAL_SETTING_BLOCKER_TEXT_NEAR }],
     anyOf: [
       { score: 2, textAny: RURAL_SETTING_NAME_ANCHORS },
       { score: 2, textAny: RURAL_SETTING_TEXT_ANCHORS },
@@ -2182,7 +2512,19 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     category: "creature",
     threshold: 2,
     anyOf: [
-      { score: 2, textAny: [patternAnchor("arctic"), patternAnchor("snow"), patternAnchor("snows"), patternAnchor("tundra"), patternAnchor("frozen"), patternAnchor("glacier"), patternAnchor("glaciers"), patternAnchor("icebound")] },
+      {
+        score: 2,
+        textAny: [
+          patternAnchor("arctic"),
+          patternAnchor("snow"),
+          patternAnchor("snows"),
+          patternAnchor("tundra"),
+          patternAnchor("frozen"),
+          patternAnchor("glacier"),
+          patternAnchor("glaciers"),
+          patternAnchor("icebound"),
+        ],
+      },
       { score: 1, textAny: [patternAnchor("ice"), patternAnchor("icy")] },
     ],
   },
@@ -2267,7 +2609,9 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
           {
             all: [
               patternAnchor("{{alt(crypt,crypts,tomb,tombs,catacomb,catacombs,burial chamber,burial chambers)}}"),
-              patternAnchor("{{alt(guardian,guards,guarding,haunts,dwells,lurks,patrols,watches over,buried dead,buried)}}"),
+              patternAnchor(
+                "{{alt(guardian,guards,guarding,haunts,dwells,lurks,patrols,watches over,buried dead,buried)}}",
+              ),
             ],
             window: 6,
             scope: "description",
@@ -2341,7 +2685,10 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
           10,
         ),
       },
-      { score: 2, textAny: [patternAnchor("place of worship", "description"), patternAnchor("house of worship", "description")] },
+      {
+        score: 2,
+        textAny: [patternAnchor("place of worship", "description"), patternAnchor("house of worship", "description")],
+      },
     ],
   },
   {
@@ -2391,7 +2738,15 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
       { score: 2, textAny: VOLCANIC_SETTING_EXACT_TEXT_ANCHORS },
       { score: 2, textNear: VOLCANIC_SETTING_TEXT_NEAR },
       { score: 2, textAny: [patternAnchor("lava field", "description"), patternAnchor("lava fields", "description")] },
-      { score: 1, textAny: [patternAnchor("ash", "description"), patternAnchor("ashen", "description"), patternAnchor("cinder", "description"), patternAnchor("cinders", "description")] },
+      {
+        score: 1,
+        textAny: [
+          patternAnchor("ash", "description"),
+          patternAnchor("ashen", "description"),
+          patternAnchor("cinder", "description"),
+          patternAnchor("cinders", "description"),
+        ],
+      },
     ],
   },
   {
@@ -2466,7 +2821,9 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
         textNear: [
           {
             all: [
-              patternAnchor("{{alt(painting,painted,portrait,mural,graffiti,illustration,drawing,two dimensional,flat surface)}}"),
+              patternAnchor(
+                "{{alt(painting,painted,portrait,mural,graffiti,illustration,drawing,two dimensional,flat surface)}}",
+              ),
               patternAnchor("{{alt(comes to life,come to life,given life,animated,animate)}}"),
             ],
             window: 6,
@@ -2483,16 +2840,19 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     anyOf: [
       { score: 2, textAny: MASK_MOTIF_NAME_ANCHORS },
       { score: 2, textAny: MASK_MOTIF_TEXT_ANCHORS },
-      { score: 1, textNear: [
-        {
-          all: [
-            patternAnchor("{{alt(mask,masked,veil,veiled)}}"),
-            patternAnchor("{{alt(face,faces,head,features,conceal,conceals,hide,hides)}}"),
-          ],
-          window: 5,
-          scope: "description" as const,
-        },
-      ] },
+      {
+        score: 1,
+        textNear: [
+          {
+            all: [
+              patternAnchor("{{alt(mask,masked,veil,veiled)}}"),
+              patternAnchor("{{alt(face,faces,head,features,conceal,conceals,hide,hides)}}"),
+            ],
+            window: 5,
+            scope: "description" as const,
+          },
+        ],
+      },
     ],
   },
   {
@@ -2502,16 +2862,19 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
     anyOf: [
       { score: 2, textAny: FACELESS_HORROR_NAME_ANCHORS },
       { score: 2, textAny: FACELESS_HORROR_TEXT_ANCHORS },
-      { score: 1, textNear: [
-        {
-          all: [
-            patternAnchor("{{alt(faceless,featureless,blank,empty)}}"),
-            patternAnchor("{{alt(face,faces,stolen,gone,hidden)}}"),
-          ],
-          window: 5,
-          scope: "description" as const,
-        },
-      ] },
+      {
+        score: 1,
+        textNear: [
+          {
+            all: [
+              patternAnchor("{{alt(faceless,featureless,blank,empty)}}"),
+              patternAnchor("{{alt(face,faces,stolen,gone,hidden)}}"),
+            ],
+            window: 5,
+            scope: "description" as const,
+          },
+        ],
+      },
     ],
   },
   {
@@ -2527,9 +2890,7 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "animated_object",
     category: "creature",
-    allOf: [
-      { traitsAny: ["construct"] },
-    ],
+    allOf: [{ traitsAny: ["construct"] }],
     threshold: 2,
     noneOf: [
       { traitsAny: BOUND_OBJECT_LIVING_BLOCKER_TRAITS },
@@ -2543,8 +2904,12 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
         textNear: [
           {
             all: [
-              patternAnchor("{{alt(animated,animate,animates,animation,brought to life,brought to unlife,comes to life)}}"),
-              patternAnchor("{{alt(object,objects,armor,armors,doll,dolls,cart,carts,broom,brooms,cookware,door,doors,figurine,figurines,mannequin,mannequins,dummy,dummies,scarecrow,scarecrows,silverware,blade,blades,axe,axes,fireplace,fireplaces,vessel,vessels,cauldron,cauldrons,table,tables,chair,chairs,stool,stools,tool,tools)}}"),
+              patternAnchor(
+                "{{alt(animated,animate,animates,animation,brought to life,brought to unlife,comes to life)}}",
+              ),
+              patternAnchor(
+                "{{alt(object,objects,armor,armors,doll,dolls,cart,carts,broom,brooms,cookware,door,doors,figurine,figurines,mannequin,mannequins,dummy,dummies,scarecrow,scarecrows,silverware,blade,blades,axe,axes,fireplace,fireplaces,vessel,vessels,cauldron,cauldrons,table,tables,chair,chairs,stool,stools,tool,tools)}}",
+              ),
             ],
             window: 4,
             scope: "either",
@@ -2556,14 +2921,21 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
   {
     tag: "animated_statue",
     category: "creature",
-    allOf: [
-      { traitsAny: ["construct"] },
-    ],
+    allOf: [{ traitsAny: ["construct"] }],
     threshold: 2,
     noneOf: [
       { textAny: BOUND_OBJECT_MIMIC_BLOCKERS },
       { textAny: BOUND_OBJECT_FIGURATIVE_BLOCKERS },
-      { textAny: [patternAnchor("stone animal"), patternAnchor("stone animals"), patternAnchor("stone beast"), patternAnchor("stone beasts"), patternAnchor("stone creature"), patternAnchor("stone creatures")] },
+      {
+        textAny: [
+          patternAnchor("stone animal"),
+          patternAnchor("stone animals"),
+          patternAnchor("stone beast"),
+          patternAnchor("stone beasts"),
+          patternAnchor("stone creature"),
+          patternAnchor("stone creatures"),
+        ],
+      },
     ],
     anyOf: [
       { score: 2, textAny: ANIMATED_STATUE_NAME_ANCHORS },
@@ -2573,7 +2945,9 @@ export const CREATURE_DERIVED_TAG_RULES: DerivedTagRule[] = [
           {
             all: [
               patternAnchor("{{alt(statue,statues,effigy,effigies,idol,idols,monument,monuments)}}"),
-              patternAnchor("{{alt(animated,animate,animates,animation,guardian,guardians,sentinel,sentinels,watch,watcher,watchers,protect,protects,comes to life,brought to life,stands guard,standing guard)}}"),
+              patternAnchor(
+                "{{alt(animated,animate,animates,animation,guardian,guardians,sentinel,sentinels,watch,watcher,watchers,protect,protects,comes to life,brought to life,stands guard,standing guard)}}",
+              ),
             ],
             window: 5,
             scope: "either",

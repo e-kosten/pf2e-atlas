@@ -118,11 +118,7 @@ export function fetchRecordRowsByKeys(db: DatabaseSync, recordKeys: string[]): C
     .all(...recordKeys) as CandidateRow[];
 }
 
-export function fetchRecordRow(
-  db: DatabaseSync,
-  recordKeyOrPack: string,
-  maybeId?: string,
-): CandidateRow | undefined {
+export function fetchRecordRow(db: DatabaseSync, recordKeyOrPack: string, maybeId?: string): CandidateRow | undefined {
   if (maybeId) {
     return db
       .prepare(
@@ -148,21 +144,25 @@ export function fetchReferenceEdgeRows(
   db: DatabaseSync,
   direction: RuleReferenceEdge["direction"],
   recordKeys: string[],
-  {
-    coreOnly = false,
-  }: { coreOnly?: boolean } = {},
+  { coreOnly = false }: { coreOnly?: boolean } = {},
 ): ReferenceEdgeRow[] {
   if (recordKeys.length === 0) {
     return [];
   }
 
   const placeholders = buildPlaceholders(recordKeys);
-  const targetFilter = direction === "outgoing"
-    ? (coreOnly ? "AND target.source_category = 'core'" : "")
-    : (coreOnly ? "AND re.from_source_category = 'core'" : "AND re.from_source_category IN ('core', 'rules')");
-  const backlinkFilter = direction === "backlink"
-    ? "AND (re.from_record_type = 'action' OR re.from_record_type = 'feat' OR LOWER(re.from_pack_name) = 'classfeatures')"
-    : "";
+  const targetFilter =
+    direction === "outgoing"
+      ? coreOnly
+        ? "AND target.source_category = 'core'"
+        : ""
+      : coreOnly
+        ? "AND re.from_source_category = 'core'"
+        : "AND re.from_source_category IN ('core', 'rules')";
+  const backlinkFilter =
+    direction === "backlink"
+      ? "AND (re.from_record_type = 'action' OR re.from_record_type = 'feat' OR LOWER(re.from_pack_name) = 'classfeatures')"
+      : "";
   const keyColumn = direction === "outgoing" ? "re.from_record_key" : "re.to_record_key";
 
   return db

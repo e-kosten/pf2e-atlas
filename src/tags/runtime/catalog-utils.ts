@@ -70,17 +70,11 @@ export type PublishedDerivedTagOntology = {
   tagsByFamilyKey: Map<OntologyFamilyKey, DerivedTagOntologyTag[]>;
 };
 
-function familyKey(
-  category: SearchCategory,
-  family: string,
-): OntologyFamilyKey {
+function familyKey(category: SearchCategory, family: string): OntologyFamilyKey {
   return `${category}:${normalizeDerivedTag(family)}`;
 }
 
-function tagKey(
-  category: SearchCategory,
-  tag: string,
-): OntologyTagKey {
+function tagKey(category: SearchCategory, tag: string): OntologyTagKey {
   return `${category}:${normalizeDerivedTag(tag)}`;
 }
 
@@ -131,10 +125,14 @@ function pushAssignment(
   assignment: TagOwnedRecordAssignment,
 ): void {
   const current = bucket.get(recordKey) ?? [];
-  if (!current.some((candidate) =>
-    candidate.tag === assignment.tag &&
-    candidate.category === assignment.category &&
-    JSON.stringify(candidate.subcategories ?? []) === JSON.stringify(assignment.subcategories ?? []))) {
+  if (
+    !current.some(
+      (candidate) =>
+        candidate.tag === assignment.tag &&
+        candidate.category === assignment.category &&
+        JSON.stringify(candidate.subcategories ?? []) === JSON.stringify(assignment.subcategories ?? []),
+    )
+  ) {
     current.push(assignment);
     bucket.set(recordKey, current);
   }
@@ -145,9 +143,11 @@ function pushSeedDefinition(
   definition: TagOwnedRecordDefinition,
 ): void {
   const current = bucket.get(definition.tag) ?? [];
-  const existing = current.find((candidate) =>
-    candidate.category === definition.category &&
-    JSON.stringify(candidate.subcategories ?? []) === JSON.stringify(definition.subcategories ?? []));
+  const existing = current.find(
+    (candidate) =>
+      candidate.category === definition.category &&
+      JSON.stringify(candidate.subcategories ?? []) === JSON.stringify(definition.subcategories ?? []),
+  );
 
   if (!existing) {
     current.push(definition);
@@ -166,9 +166,7 @@ const PRIMARY_SOURCE_ORDER: PrimaryDerivedTagSource[] = [
 ];
 
 function normalizeSourceSet(sourceSet: Set<PrimaryDerivedTagSource>): DerivedTagSource {
-  return PRIMARY_SOURCE_ORDER
-    .filter((source) => sourceSet.has(source))
-    .join("+") as DerivedTagSource;
+  return PRIMARY_SOURCE_ORDER.filter((source) => sourceSet.has(source)).join("+") as DerivedTagSource;
 }
 
 function addPrimarySource(
@@ -225,9 +223,7 @@ function resolveRecordReferences(
   return uniqueSorted(resolvedRecordKeys);
 }
 
-function buildTagsByFamilyKey(
-  tags: DerivedTagOntologyTag[],
-): Map<OntologyFamilyKey, DerivedTagOntologyTag[]> {
+function buildTagsByFamilyKey(tags: DerivedTagOntologyTag[]): Map<OntologyFamilyKey, DerivedTagOntologyTag[]> {
   const tagsByFamilyKey = new Map<OntologyFamilyKey, DerivedTagOntologyTag[]>();
 
   for (const tag of tags) {
@@ -240,9 +236,7 @@ function buildTagsByFamilyKey(
   return tagsByFamilyKey;
 }
 
-export function buildDerivedTagSeedLookup(
-  resolutions: DerivedTagSeedRecordResolution[],
-): DerivedTagSeedLookup {
+export function buildDerivedTagSeedLookup(resolutions: DerivedTagSeedRecordResolution[]): DerivedTagSeedLookup {
   const lookup = new Map<string, string[]>();
 
   for (const resolution of resolutions) {
@@ -348,7 +342,9 @@ export function publishDerivedTagOntology(
   for (const tag of tags) {
     const normalizedTagKey = tagKey(tag.category, tag.tag);
     if (!tag.assignmentMode) {
-      throw new Error(`Derived tag "${normalizeDerivedTag(tag.tag)}" in category "${tag.category}" is missing assignmentMode.`);
+      throw new Error(
+        `Derived tag "${normalizeDerivedTag(tag.tag)}" in category "${tag.category}" is missing assignmentMode.`,
+      );
     }
 
     const normalizedFamilyKey = familyKey(tag.category, tag.family);
@@ -393,7 +389,8 @@ export function publishDerivedTagOntology(
 }
 
 export function groupDerivedTagOntology(
-  ontology: Pick<PublishedDerivedTagOntology, "families" | "tags"> & Partial<Pick<PublishedDerivedTagOntology, "tagsByFamilyKey">>,
+  ontology: Pick<PublishedDerivedTagOntology, "families" | "tags"> &
+    Partial<Pick<PublishedDerivedTagOntology, "tagsByFamilyKey">>,
 ): DerivedTagCatalogEntry[] {
   const tagsByFamilyKey = ontology.tagsByFamilyKey ?? buildTagsByFamilyKey(ontology.tags);
 
@@ -487,10 +484,12 @@ export function listConfiguredDerivedTagLegacySeedMigrations(
   return uniqueSorted([...migrationIndex.definitionsByTag.keys()])
     .flatMap((tag) => migrationIndex.definitionsByTag.get(tag) ?? [])
     .filter((definition) => definitionAppliesToScope(definition, scope))
-    .sort((left, right) =>
-      left.category.localeCompare(right.category)
-      || left.tag.localeCompare(right.tag)
-      || JSON.stringify(left.subcategories ?? []).localeCompare(JSON.stringify(right.subcategories ?? [])));
+    .sort(
+      (left, right) =>
+        left.category.localeCompare(right.category) ||
+        left.tag.localeCompare(right.tag) ||
+        JSON.stringify(left.subcategories ?? []).localeCompare(JSON.stringify(right.subcategories ?? [])),
+    );
 }
 
 export function resolveLegacySeedMigrationRecordKeys(
@@ -499,28 +498,28 @@ export function resolveLegacySeedMigrationRecordKeys(
   scope: { category?: SearchCategory; subcategory?: SearchSubcategory | null } = {},
 ): string[] {
   const normalizedTag = normalizeDerivedTag(tag);
-  return uniqueSorted((migrationIndex.definitionsByTag.get(normalizedTag) ?? [])
-    .filter((definition) => definitionAppliesToScope(definition, scope))
-    .flatMap((definition) => definition.recordKeys));
+  return uniqueSorted(
+    (migrationIndex.definitionsByTag.get(normalizedTag) ?? [])
+      .filter((definition) => definitionAppliesToScope(definition, scope))
+      .flatMap((definition) => definition.recordKeys),
+  );
 }
 
 export function deriveCatalogTagDerivation(
   ontology: PublishedDerivedTagOntology,
   input: Pick<DerivedTagContext, "recordKey" | "category" | "subcategory">,
-  ruleTags: string[] | {
-    authoredRuleTags?: string[];
-    legacyRuleTags?: string[];
-  },
+  ruleTags:
+    | string[]
+    | {
+        authoredRuleTags?: string[];
+        legacyRuleTags?: string[];
+      },
   explicitAssignmentIndex?: DerivedTagExplicitAssignmentIndex,
   legacySeedMigrationIndex?: DerivedTagLegacySeedMigrationIndex,
 ): DerivedTagDerivation {
   const sourceSets = new Map<string, Set<PrimaryDerivedTagSource>>();
-  const authoredRuleTags = Array.isArray(ruleTags)
-    ? []
-    : (ruleTags.authoredRuleTags ?? []);
-  const legacyRuleTags = Array.isArray(ruleTags)
-    ? ruleTags
-    : (ruleTags.legacyRuleTags ?? []);
+  const authoredRuleTags = Array.isArray(ruleTags) ? [] : (ruleTags.authoredRuleTags ?? []);
+  const legacyRuleTags = Array.isArray(ruleTags) ? ruleTags : (ruleTags.legacyRuleTags ?? []);
 
   for (const tag of authoredRuleTags) {
     addPrimarySource(sourceSets, tag, "authored_rule");
@@ -572,17 +571,20 @@ export function deriveCatalogTagDerivation(
         continue;
       }
 
-      const compositeSources = tag.compositeOfAnyTags.reduce<Set<PrimaryDerivedTagSource> | undefined>((currentSource, childTag) => {
-        const childSource = sourceSets.get(normalizeDerivedTag(childTag));
-        if (!childSource) {
-          return currentSource;
-        }
-        const merged = currentSource ?? new Set<PrimaryDerivedTagSource>();
-        for (const source of childSource) {
-          merged.add(source);
-        }
-        return merged;
-      }, undefined);
+      const compositeSources = tag.compositeOfAnyTags.reduce<Set<PrimaryDerivedTagSource> | undefined>(
+        (currentSource, childTag) => {
+          const childSource = sourceSets.get(normalizeDerivedTag(childTag));
+          if (!childSource) {
+            return currentSource;
+          }
+          const merged = currentSource ?? new Set<PrimaryDerivedTagSource>();
+          for (const source of childSource) {
+            merged.add(source);
+          }
+          return merged;
+        },
+        undefined,
+      );
 
       if (!compositeSources || compositeSources.size === 0) {
         continue;

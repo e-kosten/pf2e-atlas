@@ -77,7 +77,10 @@ function resolveCompositeSelectors(
   const normalizedTags = resolvedTags.filter((value) => value !== normalizeDerivedTag(tag.tag));
 
   if (normalizedTags.length === 0) {
-    if ((tag.compositeOfAnyTags && tag.compositeOfAnyTags.length > 0) || (tag.compositeOfAny && tag.compositeOfAny.length > 0)) {
+    if (
+      (tag.compositeOfAnyTags && tag.compositeOfAnyTags.length > 0) ||
+      (tag.compositeOfAny && tag.compositeOfAny.length > 0)
+    ) {
       throw new Error(
         `Derived tag "${normalizeDerivedTag(tag.tag)}" in category "${ontology.category}" resolved an empty composite child list.`,
       );
@@ -88,9 +91,10 @@ function resolveCompositeSelectors(
   return normalizedTags;
 }
 
-export function flattenDerivedTagAuthoredCategoryOntology(
-  ontology: DerivedTagAuthoredCategoryOntology,
-): { families: DerivedTagOntologyFamily[]; tags: DerivedTagOntologyTag[] } {
+export function flattenDerivedTagAuthoredCategoryOntology(ontology: DerivedTagAuthoredCategoryOntology): {
+  families: DerivedTagOntologyFamily[];
+  tags: DerivedTagOntologyTag[];
+} {
   const families: DerivedTagOntologyFamily[] = [];
   const tags: DerivedTagOntologyTag[] = [];
   const familyEntries = new Map<string, DerivedTagAuthoredTag[]>();

@@ -1,9 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
 
 import type { DerivedTagExemplarReviewDecision, SearchCategory } from "../../types.js";
-import {
-  listDerivedTagLegacySeedMigrations,
-} from "../index.js";
+import { listDerivedTagLegacySeedMigrations } from "../index.js";
 import type { DerivedTagAssignmentReviewDecision } from "../runtime/assignments.js";
 import { normalizeDerivedTag } from "../runtime/shared.js";
 import { matchesDerivedTagFamilyFilter } from "./actionable-session-scope.js";
@@ -39,7 +37,9 @@ function appendSelectionReason(
   record.selectionReasons.push(reason);
 }
 
-function toSessionRecord(record: ReturnType<typeof loadDerivedTagMigrationRecords>[number]): DerivedTagMigrationSessionRecord {
+function toSessionRecord(
+  record: ReturnType<typeof loadDerivedTagMigrationRecords>[number],
+): DerivedTagMigrationSessionRecord {
   const entityRecord = record.entityRecord;
   return {
     entityRecord,
@@ -68,7 +68,9 @@ function flattenCurrentPendingReviewAssignments(): Array<{
     decision: DerivedTagAssignmentReviewDecision;
   }> = [];
 
-  for (const [category, assignmentReviewCategory] of Object.entries(state.assignmentReviews) as Array<[SearchCategory, { decisions: DerivedTagAssignmentReviewDecision[] }]>) {
+  for (const [category, assignmentReviewCategory] of Object.entries(state.assignmentReviews) as Array<
+    [SearchCategory, { decisions: DerivedTagAssignmentReviewDecision[] }]
+  >) {
     for (const decision of assignmentReviewCategory.decisions) {
       pending.push({ category, decision });
     }
@@ -81,8 +83,7 @@ function flattenCurrentPendingLlmAssignments(): Array<{
   category: SearchCategory;
   decision: DerivedTagAssignmentReviewDecision;
 }> {
-  return flattenCurrentPendingReviewAssignments()
-    .filter((entry) => entry.decision.source === "llm");
+  return flattenCurrentPendingReviewAssignments().filter((entry) => entry.decision.source === "llm");
 }
 
 function flattenCurrentPendingExemplarReviews(): Array<{
@@ -95,7 +96,9 @@ function flattenCurrentPendingExemplarReviews(): Array<{
     decision: DerivedTagExemplarReviewDecision;
   }> = [];
 
-  for (const [category, exemplarReviewCategory] of Object.entries(state.exemplarReviews) as Array<[SearchCategory, { decisions: DerivedTagExemplarReviewDecision[] }]>) {
+  for (const [category, exemplarReviewCategory] of Object.entries(state.exemplarReviews) as Array<
+    [SearchCategory, { decisions: DerivedTagExemplarReviewDecision[] }]
+  >) {
     for (const decision of exemplarReviewCategory.decisions) {
       if (decision.status !== "needs_review") {
         continue;
@@ -111,20 +114,24 @@ function flattenCurrentPendingLlmExemplarReviews(): Array<{
   category: SearchCategory;
   decision: DerivedTagExemplarReviewDecision;
 }> {
-  return flattenCurrentPendingExemplarReviews()
-    .filter((entry) => entry.decision.source === "llm");
+  return flattenCurrentPendingExemplarReviews().filter((entry) => entry.decision.source === "llm");
 }
 
 function createDecisionIndex(
   records: DerivedTagMigrationSessionRecord[],
 ): Map<string, DerivedTagMigrationRecordDecision> {
-  return new Map(records.map((record) => [record.entityRecord.recordKey, {
-    recordKey: record.entityRecord.recordKey,
-    name: record.entityRecord.name,
-    category: record.entityRecord.category,
-    resolutionStatus: "needs_review",
-    decisions: [],
-  }]));
+  return new Map(
+    records.map((record) => [
+      record.entityRecord.recordKey,
+      {
+        recordKey: record.entityRecord.recordKey,
+        name: record.entityRecord.name,
+        category: record.entityRecord.category,
+        resolutionStatus: "needs_review",
+        decisions: [],
+      },
+    ]),
+  );
 }
 
 function resolveTagFamily(category: SearchCategory, tag: string): string {
@@ -141,11 +148,14 @@ function buildLegacySeedWorkset(
   options: DerivedTagMigrationSessionCreateOptions,
 ): DerivedTagMigrationSession {
   const scope = { category: options.category, subcategory: options.subcategory };
-  const definitions = listDerivedTagLegacySeedMigrations(scope)
-    .filter((definition) => !options.tag || normalizeDerivedTag(definition.tag) === normalizeDerivedTag(options.tag));
+  const definitions = listDerivedTagLegacySeedMigrations(scope).filter(
+    (definition) => !options.tag || normalizeDerivedTag(definition.tag) === normalizeDerivedTag(options.tag),
+  );
 
-  const recordKeys = [...new Set(definitions.flatMap((definition) => definition.recordKeys))]
-    .slice(0, options.limit ?? Number.MAX_SAFE_INTEGER);
+  const recordKeys = [...new Set(definitions.flatMap((definition) => definition.recordKeys))].slice(
+    0,
+    options.limit ?? Number.MAX_SAFE_INTEGER,
+  );
   const records = loadDerivedTagMigrationRecords(db, {
     category: options.category,
     subcategory: options.subcategory,
@@ -176,7 +186,8 @@ function buildLegacySeedWorkset(
           mode: "include",
           status: "needs_review",
           confidence: "medium",
-          rationale: "Legacy seed migration currently supplies this tag; review whether to convert it into an explicit assignment.",
+          rationale:
+            "Legacy seed migration currently supplies this tag; review whether to convert it into an explicit assignment.",
           source: "llm",
         });
       }
@@ -223,18 +234,21 @@ function buildReviewQueueWorkset(
   const pendingAssignments = flattenCurrentPendingReviewAssignments()
     .filter((entry) => !options.category || entry.category === options.category)
     .filter(() => !options.decisionKind || options.decisionKind === "assignment")
-    .filter((entry) => !options.family || normalizeDerivedTag(entry.decision.family) === normalizeDerivedTag(options.family))
+    .filter(
+      (entry) => !options.family || normalizeDerivedTag(entry.decision.family) === normalizeDerivedTag(options.family),
+    )
     .filter((entry) => !options.tag || normalizeDerivedTag(entry.decision.tag) === normalizeDerivedTag(options.tag));
   const pendingExemplarReviews = flattenCurrentPendingExemplarReviews()
     .filter((entry) => !options.category || entry.category === options.category)
     .filter(() => !options.decisionKind || options.decisionKind === "exemplar")
     .filter((entry) => matchesDerivedTagFamilyFilter(entry.category, entry.decision.tag, options.family))
     .filter((entry) => !options.tag || normalizeDerivedTag(entry.decision.tag) === normalizeDerivedTag(options.tag));
-  const uniqueRecordKeys = [...new Set([
-    ...pendingAssignments.map((entry) => entry.decision.recordKey),
-    ...pendingExemplarReviews.map((entry) => entry.decision.recordKey),
-  ])]
-    .slice(0, options.limit ?? Number.MAX_SAFE_INTEGER);
+  const uniqueRecordKeys = [
+    ...new Set([
+      ...pendingAssignments.map((entry) => entry.decision.recordKey),
+      ...pendingExemplarReviews.map((entry) => entry.decision.recordKey),
+    ]),
+  ].slice(0, options.limit ?? Number.MAX_SAFE_INTEGER);
   const records = loadDerivedTagMigrationRecords(db, {
     category: options.category,
     subcategory: options.subcategory,
@@ -313,11 +327,11 @@ function buildReviewQueueWorkset(
 
 function toManagedCategory(category: SearchCategory): DerivedTagManagedCategory {
   if (
-    category !== "affliction"
-    && category !== "creature"
-    && category !== "equipment"
-    && category !== "hazard"
-    && category !== "spell"
+    category !== "affliction" &&
+    category !== "creature" &&
+    category !== "equipment" &&
+    category !== "hazard" &&
+    category !== "spell"
   ) {
     throw new Error(`Derived-tag migration session builder does not manage category "${category}".`);
   }
@@ -329,21 +343,31 @@ function buildExemplarCleanupWorkset(
   options: DerivedTagMigrationSessionCreateOptions,
 ): DerivedTagMigrationSession {
   const state = getCurrentDerivedTagMigrationAuthoredState();
-  const categories = options.category ? [toManagedCategory(options.category)] : (Object.keys(state.exemplars) as DerivedTagManagedCategory[]);
+  const categories = options.category
+    ? [toManagedCategory(options.category)]
+    : (Object.keys(state.exemplars) as DerivedTagManagedCategory[]);
   type ExemplarSet = (typeof state.exemplars)[DerivedTagManagedCategory]["exemplars"][number];
-  const tagsToReview = categories
-    .flatMap((category) => state.exemplars[category].exemplars
+  const tagsToReview = categories.flatMap((category) =>
+    state.exemplars[category].exemplars
       .filter((entry: ExemplarSet) => matchesDerivedTagFamilyFilter(category, entry.tag, options.family))
+      .filter(
+        (entry: ExemplarSet) => !options.tag || normalizeDerivedTag(entry.tag) === normalizeDerivedTag(options.tag),
+      )
       .filter((entry: ExemplarSet) =>
-        !options.tag || normalizeDerivedTag(entry.tag) === normalizeDerivedTag(options.tag))
-      .filter((entry: ExemplarSet) => options.exemplarLimit === undefined
-        ? true
-        : ((entry.positives?.length ?? 0) + (entry.negatives?.length ?? 0)) > options.exemplarLimit)
-      .map((entry) => ({ category, exemplarSet: entry })));
-  const recordKeys = [...new Set(tagsToReview.flatMap(({ exemplarSet }) => [
-    ...(exemplarSet.positives ?? []).map((record) => record.recordKey),
-    ...(exemplarSet.negatives ?? []).map((record) => record.recordKey),
-  ]))].slice(0, options.limit ?? Number.MAX_SAFE_INTEGER);
+        options.exemplarLimit === undefined
+          ? true
+          : (entry.positives?.length ?? 0) + (entry.negatives?.length ?? 0) > options.exemplarLimit,
+      )
+      .map((entry) => ({ category, exemplarSet: entry })),
+  );
+  const recordKeys = [
+    ...new Set(
+      tagsToReview.flatMap(({ exemplarSet }) => [
+        ...(exemplarSet.positives ?? []).map((record) => record.recordKey),
+        ...(exemplarSet.negatives ?? []).map((record) => record.recordKey),
+      ]),
+    ),
+  ].slice(0, options.limit ?? Number.MAX_SAFE_INTEGER);
   const records = loadDerivedTagMigrationRecords(db, {
     category: options.category,
     subcategory: options.subcategory,
@@ -433,7 +457,8 @@ function buildLegacyRuleWorkset(
     subcategory: options.subcategory,
     requireTag: options.tag,
     limit: options.limit,
-  }).map(toSessionRecord)
+  })
+    .map(toSessionRecord)
     .filter((record) => {
       const source = record.currentSources[normalizeDerivedTag(options.tag!)] ?? "";
       return source.includes("legacy_rule");
@@ -453,7 +478,8 @@ function buildLegacyRuleWorkset(
         mode: "include" as const,
         status: "needs_review" as const,
         confidence: "medium" as const,
-        rationale: "Legacy rule currently supplies this tag; review whether to replace it with an explicit assignment or a future authored rule.",
+        rationale:
+          "Legacy rule currently supplies this tag; review whether to replace it with an explicit assignment or a future authored rule.",
         source: "llm" as const,
       },
     ] satisfies DerivedTagMigrationDecision[],
@@ -495,18 +521,21 @@ function buildProposalReviewWorkset(
   const pendingAssignments = flattenCurrentPendingLlmAssignments()
     .filter((entry) => !options.category || entry.category === options.category)
     .filter(() => !options.decisionKind || options.decisionKind === "assignment")
-    .filter((entry) => !options.family || normalizeDerivedTag(entry.decision.family) === normalizeDerivedTag(options.family))
+    .filter(
+      (entry) => !options.family || normalizeDerivedTag(entry.decision.family) === normalizeDerivedTag(options.family),
+    )
     .filter((entry) => !options.tag || normalizeDerivedTag(entry.decision.tag) === normalizeDerivedTag(options.tag));
   const pendingExemplarReviews = flattenCurrentPendingLlmExemplarReviews()
     .filter((entry) => !options.category || entry.category === options.category)
     .filter(() => !options.decisionKind || options.decisionKind === "exemplar")
     .filter((entry) => matchesDerivedTagFamilyFilter(entry.category, entry.decision.tag, options.family))
     .filter((entry) => !options.tag || normalizeDerivedTag(entry.decision.tag) === normalizeDerivedTag(options.tag));
-  const uniqueRecordKeys = [...new Set([
-    ...pendingAssignments.map((entry) => entry.decision.recordKey),
-    ...pendingExemplarReviews.map((entry) => entry.decision.recordKey),
-  ])]
-    .slice(0, options.limit ?? Number.MAX_SAFE_INTEGER);
+  const uniqueRecordKeys = [
+    ...new Set([
+      ...pendingAssignments.map((entry) => entry.decision.recordKey),
+      ...pendingExemplarReviews.map((entry) => entry.decision.recordKey),
+    ]),
+  ].slice(0, options.limit ?? Number.MAX_SAFE_INTEGER);
   const records = loadDerivedTagMigrationRecords(db, {
     category: options.category,
     subcategory: options.subcategory,

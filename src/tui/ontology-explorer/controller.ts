@@ -2,11 +2,7 @@ import React from "react";
 
 import type { Key } from "ink";
 
-import type {
-  OntologyDomainModel,
-  OntologyNode,
-  OntologyNodeQuery,
-} from "../../types.js";
+import type { OntologyDomainModel, OntologyNode, OntologyNodeQuery } from "../../types.js";
 import {
   createDerivedTagTerminalListNavigationState,
   getNormalizedKeyName,
@@ -19,10 +15,7 @@ import {
   useDerivedTagTerminalSize,
   type DerivedTagTerminalLine,
 } from "../terminal-ui.js";
-import {
-  resolveTerminalInteractionAction,
-  type TerminalInteractionAction,
-} from "../interaction-bindings.js";
+import { resolveTerminalInteractionAction, type TerminalInteractionAction } from "../interaction-bindings.js";
 import {
   getDerivedTagTerminalTwoPaneLayoutMode,
   reduceDerivedTagTerminalTwoPaneState,
@@ -116,11 +109,14 @@ function reduceExplorerTwoPaneState(
   state: OntologyBrowserUiState,
   action: DerivedTagTerminalTwoPaneAction,
 ): Pick<OntologyBrowserUiState, "activePane" | "layoutMode" | "browserState"> {
-  const next = reduceDerivedTagTerminalTwoPaneState({
-    activePane: state.activePane,
-    detailScroll: state.browserState.detailScroll,
-    layoutMode: state.layoutMode,
-  }, action);
+  const next = reduceDerivedTagTerminalTwoPaneState(
+    {
+      activePane: state.activePane,
+      detailScroll: state.browserState.detailScroll,
+      layoutMode: state.layoutMode,
+    },
+    action,
+  );
 
   return {
     activePane: next.activePane,
@@ -221,17 +217,18 @@ function ontologyExplorerReducer(
       return {
         ...state,
         ...reduceExplorerTwoPaneState(state, action),
-        browserState: moveOntologyBrowserDetailScrollToBoundary(state.browserState, action.boundary, action.maxDetailScroll),
+        browserState: moveOntologyBrowserDetailScrollToBoundary(
+          state.browserState,
+          action.boundary,
+          action.maxDetailScroll,
+        ),
       };
     default:
       return state;
   }
 }
 
-function buildOntologyBrowserBreadcrumb(
-  model: OntologyDomainModel,
-  selection: OntologyBrowserSelection,
-): string {
+function buildOntologyBrowserBreadcrumb(model: OntologyDomainModel, selection: OntologyBrowserSelection): string {
   const segments = [model.label, ...selection.ancestors.map((node) => node.label)];
   if (selection.currentNode && selection.currentNodes.length > 0) {
     segments.push(selection.currentNode.label);
@@ -262,26 +259,32 @@ export function useOntologyExplorerController(
   });
   const normalizedBrowserState = normalizeOntologyBrowserState(model, state.browserState);
   const selection = getOntologyBrowserSelection(model, normalizedBrowserState);
-  const detailLines = options.getDetailLines?.({
-    model,
-    state: { ...state, browserState: normalizedBrowserState },
-    selection,
-  }) ?? buildOntologyBrowserDetailLines(model, normalizedBrowserState);
-  const detailTitle = options.getDetailTitle?.({
-    model,
-    state: { ...state, browserState: normalizedBrowserState },
-    selection,
-  }) ?? getOntologyBrowserDetailTitle(model, normalizedBrowserState);
-  const bodyHeight = Math.max(1, getTerminalPaneBodyHeight(size.height, {
-    hasSubtitle: true,
-    footerLineCount: 2,
-  }));
+  const detailLines =
+    options.getDetailLines?.({
+      model,
+      state: { ...state, browserState: normalizedBrowserState },
+      selection,
+    }) ?? buildOntologyBrowserDetailLines(model, normalizedBrowserState);
+  const detailTitle =
+    options.getDetailTitle?.({
+      model,
+      state: { ...state, browserState: normalizedBrowserState },
+      selection,
+    }) ?? getOntologyBrowserDetailTitle(model, normalizedBrowserState);
+  const bodyHeight = Math.max(
+    1,
+    getTerminalPaneBodyHeight(size.height, {
+      hasSubtitle: true,
+      footerLineCount: 2,
+    }),
+  );
   const detailWidth = getTerminalTwoPaneDetailWidth(size.width, layoutMode, 46);
   const renderedDetailLineCount = getRenderedTerminalLineCount(detailLines, detailWidth);
   const maxDetailScroll = Math.max(0, renderedDetailLineCount - bodyHeight);
-  const effectiveState = normalizedBrowserState.detailScroll > maxDetailScroll
-    ? { ...normalizedBrowserState, detailScroll: maxDetailScroll }
-    : normalizedBrowserState;
+  const effectiveState =
+    normalizedBrowserState.detailScroll > maxDetailScroll
+      ? { ...normalizedBrowserState, detailScroll: maxDetailScroll }
+      : normalizedBrowserState;
   const selectedQuery = selection.currentNode?.query;
   const currentNodeHasChildren = canDrillIntoOntologyNode(selection.currentNode);
   const searchIndicator = state.searchMode
@@ -317,19 +320,29 @@ export function useOntologyExplorerController(
   useDerivedTagTerminalInput((input, key) => {
     const normalizedKey = getNormalizedKeyName(input, key);
     const printable = key.ctrl || key.meta ? undefined : input.length === 1 ? input : undefined;
-    const listNavigation = resolveDerivedTagTerminalListNavigationAction(input, key, {
-      pageSize: context.detailPageSize,
-      jumpSize: context.selectionJumpSize,
-      includeConfirmKeys: true,
-      includeHorizontalConfirmKeys: true,
-    }, listNavigationStateRef.current);
+    const listNavigation = resolveDerivedTagTerminalListNavigationAction(
+      input,
+      key,
+      {
+        pageSize: context.detailPageSize,
+        jumpSize: context.selectionJumpSize,
+        includeConfirmKeys: true,
+        includeHorizontalConfirmKeys: true,
+      },
+      listNavigationStateRef.current,
+    );
     listNavigationStateRef.current = listNavigation.state;
-    const detailNavigation = resolveDerivedTagTerminalListNavigationAction(input, key, {
-      pageSize: context.detailPageSize,
-      jumpSize: context.detailJumpSize,
-      includeCancelKeys: true,
-      includeHorizontalCancelKeys: true,
-    }, detailNavigationStateRef.current);
+    const detailNavigation = resolveDerivedTagTerminalListNavigationAction(
+      input,
+      key,
+      {
+        pageSize: context.detailPageSize,
+        jumpSize: context.detailJumpSize,
+        includeCancelKeys: true,
+        includeHorizontalCancelKeys: true,
+      },
+      detailNavigationStateRef.current,
+    );
     detailNavigationStateRef.current = detailNavigation.state;
 
     const keyContext: OntologyExplorerKeyContext = {
@@ -374,11 +387,19 @@ export function useOntologyExplorerController(
 
     if (state.activePane === "detail") {
       if (detailNavigation.action?.kind === "move") {
-        dispatch({ type: "move_detail", delta: detailNavigation.action.delta, maxDetailScroll: context.maxDetailScroll });
+        dispatch({
+          type: "move_detail",
+          delta: detailNavigation.action.delta,
+          maxDetailScroll: context.maxDetailScroll,
+        });
         return;
       }
       if (detailNavigation.action?.kind === "boundary") {
-        dispatch({ type: "detail_boundary", boundary: detailNavigation.action.boundary, maxDetailScroll: context.maxDetailScroll });
+        dispatch({
+          type: "detail_boundary",
+          boundary: detailNavigation.action.boundary,
+          maxDetailScroll: context.maxDetailScroll,
+        });
         return;
       }
       if (interactionAction && options.onAction?.(interactionAction, keyContext)) {
@@ -409,9 +430,11 @@ export function useOntologyExplorerController(
 
     if (listNavigation.action?.kind === "move") {
       const isJump = Math.abs(listNavigation.action.delta) > 1;
-      dispatch(isJump
-        ? { type: "jump_selection", delta: listNavigation.action.delta }
-        : { type: "move_selection", delta: listNavigation.action.delta });
+      dispatch(
+        isJump
+          ? { type: "jump_selection", delta: listNavigation.action.delta }
+          : { type: "move_selection", delta: listNavigation.action.delta },
+      );
       return;
     }
     if (listNavigation.action?.kind === "boundary") {

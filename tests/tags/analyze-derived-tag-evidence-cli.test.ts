@@ -1,85 +1,83 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  formatHelp,
-  formatEvidenceReport,
-  parseOptions,
-} from "../../src/tags/cli/analyze-derived-tag-evidence.js";
+import { formatHelp, formatEvidenceReport, parseOptions } from "../../src/tags/cli/analyze-derived-tag-evidence.js";
 
 describe("derived-tag evidence CLI helpers", () => {
   it("parses scope, record keys, family filtering, and untagged mode", () => {
     const options = parseOptions([
-      "--category", "equipment",
-      "--subcategory", "gear",
-      "--family", "purpose",
+      "--category",
+      "equipment",
+      "--subcategory",
+      "gear",
+      "--family",
+      "purpose",
       "--family-gap-signals",
       "--include-reviewed",
-      "--record-key", "equipment:1",
-      "--exclude-record-key", "equipment:2",
+      "--record-key",
+      "equipment:1",
+      "--exclude-record-key",
+      "equipment:2",
       "--untagged",
-      "--review-reason", "not_family_salient",
-      "--limit", "9",
-      "--min-gram-length", "3",
-      "--max-gram-length", "5",
+      "--review-reason",
+      "not_family_salient",
+      "--limit",
+      "9",
+      "--min-gram-length",
+      "3",
+      "--max-gram-length",
+      "5",
     ]);
 
-    expect(options).toEqual(expect.objectContaining({
-      category: "equipment",
-      subcategory: "gear",
-      family: "purpose",
-      familyGapSignals: true,
-      includeReviewed: true,
-      recordKeys: ["equipment:1"],
-      excludeRecordKeys: ["equipment:2"],
-      reviewReason: "not_family_salient",
-      untaggedOnly: true,
-      limit: 9,
-      minGramLength: 3,
-      maxGramLength: 5,
-    }));
+    expect(options).toEqual(
+      expect.objectContaining({
+        category: "equipment",
+        subcategory: "gear",
+        family: "purpose",
+        familyGapSignals: true,
+        includeReviewed: true,
+        recordKeys: ["equipment:1"],
+        excludeRecordKeys: ["equipment:2"],
+        reviewReason: "not_family_salient",
+        untaggedOnly: true,
+        limit: 9,
+        minGramLength: 3,
+        maxGramLength: 5,
+      }),
+    );
   });
 
   it("rejects invalid gram length ranges", () => {
-    expect(() => parseOptions([
-      "--category", "equipment",
-      "--min-gram-length", "1",
-    ])).toThrow(/min-gram-length/i);
+    expect(() => parseOptions(["--category", "equipment", "--min-gram-length", "1"])).toThrow(/min-gram-length/i);
 
-    expect(() => parseOptions([
-      "--category", "equipment",
-      "--min-gram-length", "5",
-      "--max-gram-length", "4",
-    ])).toThrow(/less than or equal/i);
+    expect(() => parseOptions(["--category", "equipment", "--min-gram-length", "5", "--max-gram-length", "4"])).toThrow(
+      /less than or equal/i,
+    );
   });
 
   it("requires category-scoped family filtering and rejects tag plus family", () => {
-    expect(() => parseOptions([
-      "--family", "setting",
-    ])).toThrow(/category/i);
+    expect(() => parseOptions(["--family", "setting"])).toThrow(/category/i);
 
-    expect(() => parseOptions([
-      "--category", "creature",
-      "--tag", "fortress_setting",
-      "--family", "setting",
-    ])).toThrow(/either --tag .* or --family/i);
+    expect(() => parseOptions(["--category", "creature", "--tag", "fortress_setting", "--family", "setting"])).toThrow(
+      /either --tag .* or --family/i,
+    );
 
-    expect(() => parseOptions([
-      "--category", "creature",
-      "--family-gap-signals",
-    ])).toThrow(/family-gap-signals/i);
+    expect(() => parseOptions(["--category", "creature", "--family-gap-signals"])).toThrow(/family-gap-signals/i);
 
-    expect(() => parseOptions([
-      "--category", "creature",
-      "--family", "setting",
-      "--review-reason", "not_family_salient",
-      "--untagged",
-    ])).toThrow(/include-reviewed/i);
+    expect(() =>
+      parseOptions([
+        "--category",
+        "creature",
+        "--family",
+        "setting",
+        "--review-reason",
+        "not_family_salient",
+        "--untagged",
+      ]),
+    ).toThrow(/include-reviewed/i);
 
-    expect(() => parseOptions([
-      "--category", "creature",
-      "--family", "setting",
-      "--include-reviewed",
-    ])).toThrow(/untagged|family-gap/i);
+    expect(() => parseOptions(["--category", "creature", "--family", "setting", "--include-reviewed"])).toThrow(
+      /untagged|family-gap/i,
+    );
   });
 
   it("renders a readable evidence report", () => {
@@ -89,7 +87,17 @@ describe("derived-tag evidence CLI helpers", () => {
       family: "setting",
       cohortSize: 4,
       baselineSize: 20,
-      nameTokens: [{ value: "mask", support: 3, cohortSupport: 3, baselineSupport: 4, lift: 3.75, score: 11.25, examples: ["Mask of Cinders"] }],
+      nameTokens: [
+        {
+          value: "mask",
+          support: 3,
+          cohortSupport: 3,
+          baselineSupport: 4,
+          lift: 3.75,
+          score: 11.25,
+          examples: ["Mask of Cinders"],
+        },
+      ],
       namePhrases: [],
       descriptionTokens: [],
       descriptionPhrases: [],
@@ -159,9 +167,7 @@ describe("derived-tag evidence CLI helpers", () => {
         appliedCount: 3,
         reasonCounts: [{ reason: "not_family_salient", count: 3 }],
       },
-      representativeRecords: [
-        { recordKey: "spell:1", name: "Mask of Cinders", traits: ["fire", "illusion"] },
-      ],
+      representativeRecords: [{ recordKey: "spell:1", name: "Mask of Cinders", traits: ["fire", "illusion"] }],
     });
 
     expect(report).toContain("Evidence summary:");

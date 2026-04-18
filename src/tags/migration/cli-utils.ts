@@ -55,7 +55,9 @@ export function parseInteger(value: string | undefined, flagName: string): numbe
   return parsed;
 }
 
-export async function openConfiguredIndex(argv: string[]): Promise<{ db: DatabaseSync; config: Awaited<ReturnType<typeof loadConfig>> }> {
+export async function openConfiguredIndex(
+  argv: string[],
+): Promise<{ db: DatabaseSync; config: Awaited<ReturnType<typeof loadConfig>> }> {
   const config = await loadConfig(argv);
   await access(config.indexPath, constants.R_OK);
   return {

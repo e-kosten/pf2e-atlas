@@ -59,14 +59,8 @@ describe("actionable session scope keys", () => {
 
     const keys = getActionableSessionScopeKeys("proposal_review", undefined);
 
-    expect([...keys!.familyKeys]).toEqual(expect.arrayContaining([
-      "creature:alarm",
-      "spell:security",
-    ]));
-    expect([...keys!.tagKeys]).toEqual(expect.arrayContaining([
-      "creature:alarm",
-      "spell:alarm",
-    ]));
+    expect([...keys!.familyKeys]).toEqual(expect.arrayContaining(["creature:alarm", "spell:security"]));
+    expect([...keys!.tagKeys]).toEqual(expect.arrayContaining(["creature:alarm", "spell:alarm"]));
   });
 
   it("filters exemplar cleanup keys by exemplar limit", () => {
@@ -76,7 +70,10 @@ describe("actionable session scope keys", () => {
       exemplars: [
         {
           tag: "alarm",
-          positives: [{ recordKey: "creature:one", name: "One" }, { recordKey: "creature:two", name: "Two" }],
+          positives: [
+            { recordKey: "creature:one", name: "One" },
+            { recordKey: "creature:two", name: "Two" },
+          ],
           negatives: [{ recordKey: "creature:three", name: "Three" }],
         },
         {

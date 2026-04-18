@@ -1,7 +1,11 @@
 import { DatabaseSync } from "node:sqlite";
 
 import { uniqueSorted } from "../../utils.js";
-import { getDerivedTagExemplarRecordKeys, getDerivedTagLegacySeedMigrationRecordKeys, normalizeDerivedTag } from "../index.js";
+import {
+  getDerivedTagExemplarRecordKeys,
+  getDerivedTagLegacySeedMigrationRecordKeys,
+  normalizeDerivedTag,
+} from "../index.js";
 import { SearchCategory, SearchSubcategory } from "../../types.js";
 import { type DiscoveryEvidenceTerm, analyzeDiscoveryEvidenceFromRecords } from "./evidence-analyzer.js";
 import { tokenizeDiscoveryText } from "../discovery/discovery-normalization.js";
@@ -103,12 +107,15 @@ export function evaluateDerivedTagGaps(
     }),
   ]);
   if (exemplars.length === 0) {
-    throw new Error(`No canonical records with derived tag "${normalizedTag}" matched exemplar scope "${renderScope(exemplarScope)}".`);
+    throw new Error(
+      `No canonical records with derived tag "${normalizedTag}" matched exemplar scope "${renderScope(exemplarScope)}".`,
+    );
   }
 
   const exemplarKeys = new Set(exemplars.map((record) => record.recordKey));
-  const candidates = loadGapRecords(db, { ...candidateScope, tag: normalizedTag, mode: "untagged" })
-    .filter((record) => !exemplarKeys.has(record.recordKey));
+  const candidates = loadGapRecords(db, { ...candidateScope, tag: normalizedTag, mode: "untagged" }).filter(
+    (record) => !exemplarKeys.has(record.recordKey),
+  );
   return rankDerivedTagGapCandidates(exemplars, candidates, {
     ...options,
     tag: normalizedTag,
@@ -167,7 +174,9 @@ export function rankDerivedTagGapCandidates(
       traits: record.traits,
       similarityToCentroid: cosineSimilarity(record.vector, centroid),
     }))
-    .sort((left, right) => right.similarityToCentroid - left.similarityToCentroid || left.name.localeCompare(right.name))
+    .sort(
+      (left, right) => right.similarityToCentroid - left.similarityToCentroid || left.name.localeCompare(right.name),
+    )
     .slice(0, exemplarLimit);
 
   return {
@@ -364,14 +373,9 @@ function toAnalysisRecord(record: DerivedTagGapRecord) {
   };
 }
 
-function countAnchorOverlap(
-  text: string | null,
-  anchors: DiscoveryEvidenceTerm[],
-): number {
+function countAnchorOverlap(text: string | null, anchors: DiscoveryEvidenceTerm[]): number {
   const tokens = new Set(tokenizeDiscoveryText(text ?? "", { filterStopwords: true }));
-  return anchors.filter((anchor) =>
-    anchor.value.split(" ").every((token) => tokens.has(token))
-  ).length;
+  return anchors.filter((anchor) => anchor.value.split(" ").every((token) => tokens.has(token))).length;
 }
 
 function buildCandidateCohorts(
@@ -385,9 +389,7 @@ function buildCandidateCohorts(
 
   for (const candidate of candidates) {
     const tokens = new Set(tokenizeDiscoveryText(candidate.descriptionText ?? "", { filterStopwords: true }));
-    const signature = anchors
-      .filter((anchor) => anchor.split(" ").every((token) => tokens.has(token)))
-      .slice(0, 4);
+    const signature = anchors.filter((anchor) => anchor.split(" ").every((token) => tokens.has(token))).slice(0, 4);
     const key = signature.length > 0 ? signature.join("||") : "__semantic_only__";
     const bucket = buckets.get(key) ?? [];
     bucket.push(candidate);

@@ -15,12 +15,7 @@ import {
   TEST_HASH_EMBEDDING,
   writeJson,
 } from "../helpers/pf2e-fixture.js";
-import {
-  cleanupCreatedRoots,
-  createFixture,
-  createHardFilterFixture,
-} from "../helpers/pf2e-service-fixture.js";
-
+import { cleanupCreatedRoots, createFixture, createHardFilterFixture } from "../helpers/pf2e-service-fixture.js";
 
 describe("Pf2eDataService / Rules and Vocabulary", () => {
   const createdRoots: string[] = [];
@@ -83,469 +78,494 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     const service = await loadTestService(fixture);
 
     const vocabulary = service.getSearchVocabulary({ traitLimitPerCategory: 4 });
-    expect(vocabulary.categories.map((entry) => entry.value)).toEqual(expect.arrayContaining(["creature", "spell", "rule", "feat"]));
-    expect(vocabulary.subcategories.map((entry) => entry.value)).toEqual(expect.arrayContaining(["condition", "action", "trap"]));
+    expect(vocabulary.categories.map((entry) => entry.value)).toEqual(
+      expect.arrayContaining(["creature", "spell", "rule", "feat"]),
+    );
+    expect(vocabulary.subcategories.map((entry) => entry.value)).toEqual(
+      expect.arrayContaining(["condition", "action", "trap"]),
+    );
     expect(vocabulary.subcategories.map((entry) => entry.value)).not.toContain("primal");
-    expect(vocabulary.rarities.map((entry) => entry.value)).toEqual(expect.arrayContaining(["common", "uncommon", "rare", "unique"]));
+    expect(vocabulary.rarities.map((entry) => entry.value)).toEqual(
+      expect.arrayContaining(["common", "uncommon", "rare", "unique"]),
+    );
     expect(vocabulary.sizes.map((entry) => entry.value)).toEqual(expect.arrayContaining(["med", "sm", "lg"]));
     expect(vocabulary.traditions.map((entry) => entry.value)).toContain("primal");
     expect(vocabulary.spellKinds.map((entry) => entry.value)).toContain("focus");
-    expect(vocabulary.commonTraitsByCategory.find((entry) => entry.category === "creature")?.traits.length).toBeGreaterThan(0);
-    expect(vocabulary.commonDerivedTagsByCategory.find((entry) => entry.category === "equipment")?.tags.length).toBeGreaterThan(0);
-    expect(vocabulary.commonDerivedTagsByCategory.find((entry) => entry.category === "spell")?.tags.length).toBeGreaterThan(0);
-    expect(vocabulary.commonDerivedTagsByCategory.find((entry) => entry.category === "hazard")?.tags.length).toBeGreaterThan(0);
-    expect(vocabulary.commonDerivedTagsByCategory.find((entry) => entry.category === "affliction")?.tags.length).toBeGreaterThan(0);
-    expect(vocabulary.derivedTagOntologyFamilies).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        category: "creature",
-        family: "setting",
-        axis: "legacy",
-        description: expect.stringContaining("Legacy umbrella family"),
-      }),
-      expect.objectContaining({
-        category: "creature",
-        family: "habitat_setting",
-        axis: "setting",
-        description: expect.stringContaining("habitat tags"),
-      }),
-      expect.objectContaining({
-        category: "hazard",
-        family: "problem_shape",
-        axis: "problem",
-        description: expect.stringContaining("investigation, timing"),
-      }),
-      expect.objectContaining({
-        category: "spell",
-        family: "control",
-        axis: "battlefield",
-        description: expect.stringContaining("denying movement"),
-      }),
-      expect.objectContaining({
-        category: "spell",
-        family: "consultation",
-        axis: "utility",
-        description: expect.stringContaining("ask for guidance"),
-      }),
-      expect.objectContaining({
-        category: "spell",
-        family: "revelation",
-        axis: "utility",
-        description: expect.stringContaining("Detection and revelation"),
-      }),
-      expect.objectContaining({
-        category: "equipment",
-        family: "movement_traversal",
-        axis: "utility",
-        description: expect.stringContaining("move, climb, navigate"),
-      }),
-      expect.objectContaining({
-        category: "affliction",
-        family: "response_profile",
-        axis: "response",
-        description: expect.stringContaining("response problem"),
-      }),
-      expect.objectContaining({
-        category: "affliction",
-        family: "resolution_profile",
-        axis: "response",
-        description: expect.stringContaining("remedies"),
-      }),
-      expect.objectContaining({
-        category: "equipment",
-        family: "play_pattern",
-        axis: "party_role",
-        description: expect.stringContaining("play-pattern-facing"),
-      }),
-      expect.objectContaining({
-        category: "equipment",
-        family: "resolution",
-        axis: "utility",
-        description: expect.stringContaining("break curses"),
-      }),
-      expect.objectContaining({
-        category: "creature",
-        family: "corruption_profile",
-        axis: "specialization",
-        description: expect.stringContaining("corruption and taint"),
-      }),
-      expect.objectContaining({
-        category: "spell",
-        family: "resolution",
-        axis: "utility",
-        description: expect.stringContaining("solve curses"),
-      }),
-      expect.objectContaining({
-        category: "spell",
-        family: "expedition",
-        axis: "utility",
-        description: expect.stringContaining("travel"),
-      }),
-    ]));
-    expect(vocabulary.derivedTagOntologyTags).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        category: "creature",
-        family: "site_setting",
-        tag: "urban_setting",
-        assignmentMode: "editorial",
-      }),
-      expect.objectContaining({
-        category: "spell",
-        family: "infiltration",
-        tag: "infiltration",
-        assignmentMode: "composite",
-      }),
-      expect.objectContaining({
-        category: "spell",
-        family: "consultation",
-        tag: "consultation",
-        assignmentMode: "composite",
-      }),
-      expect.objectContaining({
-        category: "spell",
-        family: "communication",
-        tag: "telepathic_communication",
-        assignmentMode: "hybrid",
-      }),
-      expect.objectContaining({
-        category: "spell",
-        family: "communication",
-        tag: "communication",
-        assignmentMode: "composite",
-      }),
-      expect.objectContaining({
-        category: "spell",
-        family: "expedition",
-        tag: "expedition",
-        assignmentMode: "composite",
-      }),
-      expect.objectContaining({
-        category: "spell",
-        family: "support",
-        tag: "anti_poison",
-        assignmentMode: "hybrid",
-      }),
-      expect.objectContaining({
-        category: "spell",
-        family: "resolution",
-        tag: "ritual_appeasement",
-        assignmentMode: "hybrid",
-      }),
-      expect.objectContaining({
-        category: "spell",
-        family: "revelation",
-        tag: "truth_reveal",
-        assignmentMode: "hybrid",
-      }),
-      expect.objectContaining({
-        category: "spell",
-        family: "revelation",
-        tag: "revelation",
-        assignmentMode: "composite",
-      }),
-      expect.objectContaining({
-        category: "spell",
-        family: "control",
-        tag: "countermagic",
-        assignmentMode: "hybrid",
-      }),
-      expect.objectContaining({
-        category: "equipment",
-        family: "access_bypass",
-        tag: "barrier_bypass",
-        assignmentMode: "deterministic",
-      }),
-      expect.objectContaining({
-        category: "equipment",
-        family: "party_role",
-        tag: "defender_support",
-        assignmentMode: "hybrid",
-      }),
-      expect.objectContaining({
-        category: "equipment",
-        family: "party_role",
-        tag: "scout_support",
-        assignmentMode: "hybrid",
-      }),
-      expect.objectContaining({
-        category: "equipment",
-        family: "play_pattern",
-        tag: "shield_support",
-        assignmentMode: "hybrid",
-      }),
-      expect.objectContaining({
-        category: "equipment",
-        family: "resolution",
-        tag: "resolution",
-        assignmentMode: "composite",
-      }),
-      expect.objectContaining({
-        category: "equipment",
-        family: "resolution",
-        tag: "source_revelation",
-        assignmentMode: "deterministic",
-      }),
-      expect.objectContaining({
-        category: "equipment",
-        family: "resolution",
-        tag: "ritual_appeasement",
-        assignmentMode: "deterministic",
-      }),
-      expect.objectContaining({
-        category: "hazard",
-        family: "countermeasure_profile",
-        tag: "contamination_cleanup_countermeasure",
-        assignmentMode: "hybrid",
-      }),
-      expect.objectContaining({
-        category: "hazard",
-        family: "problem_shape",
-        tag: "source_tracing",
-        assignmentMode: "hybrid",
-      }),
-      expect.objectContaining({
-        category: "hazard",
-        family: "function",
-        tag: "sentinel_guardian",
-        assignmentMode: "hybrid",
-      }),
-      expect.objectContaining({
-        category: "affliction",
-        family: "response_profile",
-        tag: "outbreak_management",
-        assignmentMode: "hybrid",
-      }),
-      expect.objectContaining({
-        category: "affliction",
-        family: "resolution_profile",
-        tag: "cursebreaking_resolution",
-        assignmentMode: "hybrid",
-      }),
-      expect.objectContaining({
-        category: "creature",
-        family: "corruption_profile",
-        tag: "fungal_infested",
-        assignmentMode: "hybrid",
-      }),
-    ]));
-    expect(vocabulary.derivedTagCatalog).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        category: "equipment",
-        family: "movement_traversal",
-        axis: "utility",
-        tags: expect.arrayContaining([
-          expect.objectContaining({ value: "navigation", description: expect.any(String) }),
-          expect.objectContaining({ value: "transport", description: expect.any(String) }),
-        ]),
-      }),
-      expect.objectContaining({
-        category: "equipment",
-        family: "party_role",
-        axis: "party_role",
-        tags: expect.arrayContaining([
-          expect.objectContaining({ value: "defender_support", description: expect.any(String) }),
-          expect.objectContaining({ value: "scout_support", description: expect.any(String) }),
-          expect.objectContaining({ value: "face_support", description: expect.any(String) }),
-        ]),
-      }),
-      expect.objectContaining({
-        category: "equipment",
-        family: "play_pattern",
-        axis: "party_role",
-        tags: expect.arrayContaining([
-          expect.objectContaining({ value: "shield_support", description: expect.any(String) }),
-          expect.objectContaining({ value: "action_economy_support", description: expect.any(String) }),
-        ]),
-      }),
-      expect.objectContaining({
-        category: "equipment",
-        family: "infiltration",
-        axis: "utility",
-        tags: expect.arrayContaining([
-          expect.objectContaining({ value: "stealth_support", description: expect.any(String) }),
-        ]),
-      }),
-      expect.objectContaining({
-        category: "equipment",
-        family: "resolution",
-        axis: "utility",
-        tags: expect.arrayContaining([
-          expect.objectContaining({ value: "resolution", assignmentMode: "composite" }),
-          expect.objectContaining({ value: "ritual_appeasement", description: expect.any(String) }),
-          expect.objectContaining({ value: "sanctification", description: expect.any(String) }),
-        ]),
-      }),
-      expect.objectContaining({
-        category: "spell",
-        family: "infiltration",
-        axis: "utility",
-        tags: expect.arrayContaining([
-          expect.objectContaining({ value: "stealth_support", description: expect.any(String) }),
-          expect.objectContaining({ value: "infiltration", assignmentMode: "composite" }),
-        ]),
-      }),
-      expect.objectContaining({
-        category: "spell",
-        family: "consultation",
-        axis: "utility",
-        tags: expect.arrayContaining([
-          expect.objectContaining({ value: "consultation", assignmentMode: "composite" }),
-          expect.objectContaining({ value: "omen_guidance", description: expect.any(String) }),
-        ]),
-      }),
-      expect.objectContaining({
-        category: "spell",
-        family: "communication",
-        axis: "utility",
-        tags: expect.arrayContaining([
-          expect.objectContaining({ value: "communication", assignmentMode: "composite" }),
-          expect.objectContaining({ value: "telepathic_communication", description: expect.any(String) }),
-          expect.objectContaining({ value: "message_delivery", description: expect.any(String) }),
-          expect.objectContaining({ value: "translation_support", description: expect.any(String) }),
-        ]),
-      }),
-      expect.objectContaining({
-        category: "spell",
-        family: "expedition",
-        axis: "utility",
-        tags: expect.arrayContaining([
-          expect.objectContaining({ value: "expedition", assignmentMode: "composite" }),
-          expect.objectContaining({ value: "field_shelter", description: expect.any(String) }),
-        ]),
-      }),
-      expect.objectContaining({
-        category: "spell",
-        family: "resolution",
-        axis: "utility",
-        tags: expect.arrayContaining([
-          expect.objectContaining({ value: "resolution", assignmentMode: "composite" }),
-          expect.objectContaining({ value: "ritual_appeasement", description: expect.any(String) }),
-          expect.objectContaining({ value: "source_revelation", description: expect.any(String) }),
-        ]),
-      }),
-      expect.objectContaining({
-        category: "spell",
-        family: "security",
-        axis: "utility",
-        tags: expect.arrayContaining([
-          expect.objectContaining({ value: "alarm", description: expect.any(String) }),
-          expect.objectContaining({ value: "security", assignmentMode: "composite" }),
-        ]),
-      }),
-      expect.objectContaining({
-        category: "spell",
-        family: "revelation",
-        axis: "utility",
-        tags: expect.arrayContaining([
-          expect.objectContaining({ value: "truth_reveal", description: expect.any(String) }),
-          expect.objectContaining({ value: "revelation", assignmentMode: "composite" }),
-        ]),
-      }),
-      expect.objectContaining({
-        category: "spell",
-        family: "support",
-        axis: "support",
-        tags: expect.arrayContaining([
-          expect.objectContaining({ value: "anti_poison", description: expect.any(String) }),
-          expect.objectContaining({ value: "anti_disease", description: expect.any(String) }),
-          expect.objectContaining({ value: "quickened_support", description: expect.any(String) }),
-          expect.objectContaining({ value: "eidolon_support", description: expect.any(String) }),
-        ]),
-      }),
-      expect.objectContaining({
-        category: "spell",
-        family: "impact",
-        axis: "effect",
-        tags: expect.arrayContaining([
-          expect.objectContaining({ value: "persistent_damage", description: expect.any(String) }),
-          expect.objectContaining({ value: "burst_damage", description: expect.any(String) }),
-        ]),
-      }),
-      expect.objectContaining({
-        category: "hazard",
-        family: "function",
-        axis: "encounter",
-        tags: expect.arrayContaining([
-          expect.objectContaining({ value: "zone_denial", description: expect.any(String) }),
-          expect.objectContaining({ value: "sentinel_guardian", description: expect.any(String) }),
-          expect.objectContaining({ value: "forced_separation_hazard", description: expect.any(String) }),
-        ]),
-      }),
-      expect.objectContaining({
-        category: "hazard",
-        family: "countermeasure_profile",
-        axis: "resolution",
-        tags: expect.arrayContaining([
-          expect.objectContaining({ value: "quarantine_containment_countermeasure", description: expect.any(String) }),
-          expect.objectContaining({ value: "contamination_cleanup_countermeasure", description: expect.any(String) }),
-        ]),
-      }),
-      expect.objectContaining({
-        category: "hazard",
-        family: "problem_shape",
-        axis: "problem",
-        tags: expect.arrayContaining([
-          expect.objectContaining({ value: "observation_first", description: expect.any(String) }),
-          expect.objectContaining({ value: "source_tracing", description: expect.any(String) }),
-          expect.objectContaining({ value: "layered_resolution", description: expect.any(String) }),
-        ]),
-      }),
-      expect.objectContaining({
-        category: "affliction",
-        family: "response_profile",
-        axis: "response",
-        tags: expect.arrayContaining([
-          expect.objectContaining({ value: "outbreak_management", description: expect.any(String) }),
-          expect.objectContaining({ value: "cure_clock_urgency", description: expect.any(String) }),
-        ]),
-      }),
-      expect.objectContaining({
-        category: "affliction",
-        family: "resolution_profile",
-        axis: "response",
-        tags: expect.arrayContaining([
-          expect.objectContaining({ value: "countermagic_resolution", description: expect.any(String) }),
-          expect.objectContaining({ value: "quarantine_containment_resolution", description: expect.any(String) }),
-        ]),
-      }),
-      expect.objectContaining({
-        category: "creature",
-        family: "planar_setting",
-        axis: "setting",
-        tags: expect.arrayContaining([
-          expect.objectContaining({ value: "astral_setting", description: expect.any(String) }),
-          expect.objectContaining({ value: "upper_plane_setting", description: expect.any(String) }),
-        ]),
-      }),
-      expect.objectContaining({
-        category: "creature",
-        family: "scene_role",
-        axis: "npc_role",
-        tags: expect.arrayContaining([
-          expect.objectContaining({ value: "enforcer_npc", description: expect.any(String) }),
-          expect.objectContaining({ value: "infiltrator_npc", description: expect.any(String) }),
-          expect.objectContaining({ value: "guardian_npc", description: expect.any(String) }),
-        ]),
-      }),
-      expect.objectContaining({
-        category: "creature",
-        family: "threat_profile",
-        axis: "encounter",
-        tags: expect.arrayContaining([
-          expect.objectContaining({ value: "prey_control_threat", description: expect.any(String) }),
-          expect.objectContaining({ value: "reinforcement_threat", description: expect.any(String) }),
-          expect.objectContaining({ value: "infiltration_threat", description: expect.any(String) }),
-        ]),
-      }),
-      expect.objectContaining({
-        category: "creature",
-        family: "corruption_profile",
-        axis: "specialization",
-        tags: expect.arrayContaining([
-          expect.objectContaining({ value: "blight_tainted", description: expect.any(String) }),
-          expect.objectContaining({ value: "void_tainted", description: expect.any(String) }),
-        ]),
-      }),
-    ]));
+    expect(
+      vocabulary.commonTraitsByCategory.find((entry) => entry.category === "creature")?.traits.length,
+    ).toBeGreaterThan(0);
+    expect(
+      vocabulary.commonDerivedTagsByCategory.find((entry) => entry.category === "equipment")?.tags.length,
+    ).toBeGreaterThan(0);
+    expect(
+      vocabulary.commonDerivedTagsByCategory.find((entry) => entry.category === "spell")?.tags.length,
+    ).toBeGreaterThan(0);
+    expect(
+      vocabulary.commonDerivedTagsByCategory.find((entry) => entry.category === "hazard")?.tags.length,
+    ).toBeGreaterThan(0);
+    expect(
+      vocabulary.commonDerivedTagsByCategory.find((entry) => entry.category === "affliction")?.tags.length,
+    ).toBeGreaterThan(0);
+    expect(vocabulary.derivedTagOntologyFamilies).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          category: "creature",
+          family: "setting",
+          axis: "legacy",
+          description: expect.stringContaining("Legacy umbrella family"),
+        }),
+        expect.objectContaining({
+          category: "creature",
+          family: "habitat_setting",
+          axis: "setting",
+          description: expect.stringContaining("habitat tags"),
+        }),
+        expect.objectContaining({
+          category: "hazard",
+          family: "problem_shape",
+          axis: "problem",
+          description: expect.stringContaining("investigation, timing"),
+        }),
+        expect.objectContaining({
+          category: "spell",
+          family: "control",
+          axis: "battlefield",
+          description: expect.stringContaining("denying movement"),
+        }),
+        expect.objectContaining({
+          category: "spell",
+          family: "consultation",
+          axis: "utility",
+          description: expect.stringContaining("ask for guidance"),
+        }),
+        expect.objectContaining({
+          category: "spell",
+          family: "revelation",
+          axis: "utility",
+          description: expect.stringContaining("Detection and revelation"),
+        }),
+        expect.objectContaining({
+          category: "equipment",
+          family: "movement_traversal",
+          axis: "utility",
+          description: expect.stringContaining("move, climb, navigate"),
+        }),
+        expect.objectContaining({
+          category: "affliction",
+          family: "response_profile",
+          axis: "response",
+          description: expect.stringContaining("response problem"),
+        }),
+        expect.objectContaining({
+          category: "affliction",
+          family: "resolution_profile",
+          axis: "response",
+          description: expect.stringContaining("remedies"),
+        }),
+        expect.objectContaining({
+          category: "equipment",
+          family: "play_pattern",
+          axis: "party_role",
+          description: expect.stringContaining("play-pattern-facing"),
+        }),
+        expect.objectContaining({
+          category: "equipment",
+          family: "resolution",
+          axis: "utility",
+          description: expect.stringContaining("break curses"),
+        }),
+        expect.objectContaining({
+          category: "creature",
+          family: "corruption_profile",
+          axis: "specialization",
+          description: expect.stringContaining("corruption and taint"),
+        }),
+        expect.objectContaining({
+          category: "spell",
+          family: "resolution",
+          axis: "utility",
+          description: expect.stringContaining("solve curses"),
+        }),
+        expect.objectContaining({
+          category: "spell",
+          family: "expedition",
+          axis: "utility",
+          description: expect.stringContaining("travel"),
+        }),
+      ]),
+    );
+    expect(vocabulary.derivedTagOntologyTags).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          category: "creature",
+          family: "site_setting",
+          tag: "urban_setting",
+          assignmentMode: "editorial",
+        }),
+        expect.objectContaining({
+          category: "spell",
+          family: "infiltration",
+          tag: "infiltration",
+          assignmentMode: "composite",
+        }),
+        expect.objectContaining({
+          category: "spell",
+          family: "consultation",
+          tag: "consultation",
+          assignmentMode: "composite",
+        }),
+        expect.objectContaining({
+          category: "spell",
+          family: "communication",
+          tag: "telepathic_communication",
+          assignmentMode: "hybrid",
+        }),
+        expect.objectContaining({
+          category: "spell",
+          family: "communication",
+          tag: "communication",
+          assignmentMode: "composite",
+        }),
+        expect.objectContaining({
+          category: "spell",
+          family: "expedition",
+          tag: "expedition",
+          assignmentMode: "composite",
+        }),
+        expect.objectContaining({
+          category: "spell",
+          family: "support",
+          tag: "anti_poison",
+          assignmentMode: "hybrid",
+        }),
+        expect.objectContaining({
+          category: "spell",
+          family: "resolution",
+          tag: "ritual_appeasement",
+          assignmentMode: "hybrid",
+        }),
+        expect.objectContaining({
+          category: "spell",
+          family: "revelation",
+          tag: "truth_reveal",
+          assignmentMode: "hybrid",
+        }),
+        expect.objectContaining({
+          category: "spell",
+          family: "revelation",
+          tag: "revelation",
+          assignmentMode: "composite",
+        }),
+        expect.objectContaining({
+          category: "spell",
+          family: "control",
+          tag: "countermagic",
+          assignmentMode: "hybrid",
+        }),
+        expect.objectContaining({
+          category: "equipment",
+          family: "access_bypass",
+          tag: "barrier_bypass",
+          assignmentMode: "deterministic",
+        }),
+        expect.objectContaining({
+          category: "equipment",
+          family: "party_role",
+          tag: "defender_support",
+          assignmentMode: "hybrid",
+        }),
+        expect.objectContaining({
+          category: "equipment",
+          family: "party_role",
+          tag: "scout_support",
+          assignmentMode: "hybrid",
+        }),
+        expect.objectContaining({
+          category: "equipment",
+          family: "play_pattern",
+          tag: "shield_support",
+          assignmentMode: "hybrid",
+        }),
+        expect.objectContaining({
+          category: "equipment",
+          family: "resolution",
+          tag: "resolution",
+          assignmentMode: "composite",
+        }),
+        expect.objectContaining({
+          category: "equipment",
+          family: "resolution",
+          tag: "source_revelation",
+          assignmentMode: "deterministic",
+        }),
+        expect.objectContaining({
+          category: "equipment",
+          family: "resolution",
+          tag: "ritual_appeasement",
+          assignmentMode: "deterministic",
+        }),
+        expect.objectContaining({
+          category: "hazard",
+          family: "countermeasure_profile",
+          tag: "contamination_cleanup_countermeasure",
+          assignmentMode: "hybrid",
+        }),
+        expect.objectContaining({
+          category: "hazard",
+          family: "problem_shape",
+          tag: "source_tracing",
+          assignmentMode: "hybrid",
+        }),
+        expect.objectContaining({
+          category: "hazard",
+          family: "function",
+          tag: "sentinel_guardian",
+          assignmentMode: "hybrid",
+        }),
+        expect.objectContaining({
+          category: "affliction",
+          family: "response_profile",
+          tag: "outbreak_management",
+          assignmentMode: "hybrid",
+        }),
+        expect.objectContaining({
+          category: "affliction",
+          family: "resolution_profile",
+          tag: "cursebreaking_resolution",
+          assignmentMode: "hybrid",
+        }),
+        expect.objectContaining({
+          category: "creature",
+          family: "corruption_profile",
+          tag: "fungal_infested",
+          assignmentMode: "hybrid",
+        }),
+      ]),
+    );
+    expect(vocabulary.derivedTagCatalog).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          category: "equipment",
+          family: "movement_traversal",
+          axis: "utility",
+          tags: expect.arrayContaining([
+            expect.objectContaining({ value: "navigation", description: expect.any(String) }),
+            expect.objectContaining({ value: "transport", description: expect.any(String) }),
+          ]),
+        }),
+        expect.objectContaining({
+          category: "equipment",
+          family: "party_role",
+          axis: "party_role",
+          tags: expect.arrayContaining([
+            expect.objectContaining({ value: "defender_support", description: expect.any(String) }),
+            expect.objectContaining({ value: "scout_support", description: expect.any(String) }),
+            expect.objectContaining({ value: "face_support", description: expect.any(String) }),
+          ]),
+        }),
+        expect.objectContaining({
+          category: "equipment",
+          family: "play_pattern",
+          axis: "party_role",
+          tags: expect.arrayContaining([
+            expect.objectContaining({ value: "shield_support", description: expect.any(String) }),
+            expect.objectContaining({ value: "action_economy_support", description: expect.any(String) }),
+          ]),
+        }),
+        expect.objectContaining({
+          category: "equipment",
+          family: "infiltration",
+          axis: "utility",
+          tags: expect.arrayContaining([
+            expect.objectContaining({ value: "stealth_support", description: expect.any(String) }),
+          ]),
+        }),
+        expect.objectContaining({
+          category: "equipment",
+          family: "resolution",
+          axis: "utility",
+          tags: expect.arrayContaining([
+            expect.objectContaining({ value: "resolution", assignmentMode: "composite" }),
+            expect.objectContaining({ value: "ritual_appeasement", description: expect.any(String) }),
+            expect.objectContaining({ value: "sanctification", description: expect.any(String) }),
+          ]),
+        }),
+        expect.objectContaining({
+          category: "spell",
+          family: "infiltration",
+          axis: "utility",
+          tags: expect.arrayContaining([
+            expect.objectContaining({ value: "stealth_support", description: expect.any(String) }),
+            expect.objectContaining({ value: "infiltration", assignmentMode: "composite" }),
+          ]),
+        }),
+        expect.objectContaining({
+          category: "spell",
+          family: "consultation",
+          axis: "utility",
+          tags: expect.arrayContaining([
+            expect.objectContaining({ value: "consultation", assignmentMode: "composite" }),
+            expect.objectContaining({ value: "omen_guidance", description: expect.any(String) }),
+          ]),
+        }),
+        expect.objectContaining({
+          category: "spell",
+          family: "communication",
+          axis: "utility",
+          tags: expect.arrayContaining([
+            expect.objectContaining({ value: "communication", assignmentMode: "composite" }),
+            expect.objectContaining({ value: "telepathic_communication", description: expect.any(String) }),
+            expect.objectContaining({ value: "message_delivery", description: expect.any(String) }),
+            expect.objectContaining({ value: "translation_support", description: expect.any(String) }),
+          ]),
+        }),
+        expect.objectContaining({
+          category: "spell",
+          family: "expedition",
+          axis: "utility",
+          tags: expect.arrayContaining([
+            expect.objectContaining({ value: "expedition", assignmentMode: "composite" }),
+            expect.objectContaining({ value: "field_shelter", description: expect.any(String) }),
+          ]),
+        }),
+        expect.objectContaining({
+          category: "spell",
+          family: "resolution",
+          axis: "utility",
+          tags: expect.arrayContaining([
+            expect.objectContaining({ value: "resolution", assignmentMode: "composite" }),
+            expect.objectContaining({ value: "ritual_appeasement", description: expect.any(String) }),
+            expect.objectContaining({ value: "source_revelation", description: expect.any(String) }),
+          ]),
+        }),
+        expect.objectContaining({
+          category: "spell",
+          family: "security",
+          axis: "utility",
+          tags: expect.arrayContaining([
+            expect.objectContaining({ value: "alarm", description: expect.any(String) }),
+            expect.objectContaining({ value: "security", assignmentMode: "composite" }),
+          ]),
+        }),
+        expect.objectContaining({
+          category: "spell",
+          family: "revelation",
+          axis: "utility",
+          tags: expect.arrayContaining([
+            expect.objectContaining({ value: "truth_reveal", description: expect.any(String) }),
+            expect.objectContaining({ value: "revelation", assignmentMode: "composite" }),
+          ]),
+        }),
+        expect.objectContaining({
+          category: "spell",
+          family: "support",
+          axis: "support",
+          tags: expect.arrayContaining([
+            expect.objectContaining({ value: "anti_poison", description: expect.any(String) }),
+            expect.objectContaining({ value: "anti_disease", description: expect.any(String) }),
+            expect.objectContaining({ value: "quickened_support", description: expect.any(String) }),
+            expect.objectContaining({ value: "eidolon_support", description: expect.any(String) }),
+          ]),
+        }),
+        expect.objectContaining({
+          category: "spell",
+          family: "impact",
+          axis: "effect",
+          tags: expect.arrayContaining([
+            expect.objectContaining({ value: "persistent_damage", description: expect.any(String) }),
+            expect.objectContaining({ value: "burst_damage", description: expect.any(String) }),
+          ]),
+        }),
+        expect.objectContaining({
+          category: "hazard",
+          family: "function",
+          axis: "encounter",
+          tags: expect.arrayContaining([
+            expect.objectContaining({ value: "zone_denial", description: expect.any(String) }),
+            expect.objectContaining({ value: "sentinel_guardian", description: expect.any(String) }),
+            expect.objectContaining({ value: "forced_separation_hazard", description: expect.any(String) }),
+          ]),
+        }),
+        expect.objectContaining({
+          category: "hazard",
+          family: "countermeasure_profile",
+          axis: "resolution",
+          tags: expect.arrayContaining([
+            expect.objectContaining({
+              value: "quarantine_containment_countermeasure",
+              description: expect.any(String),
+            }),
+            expect.objectContaining({ value: "contamination_cleanup_countermeasure", description: expect.any(String) }),
+          ]),
+        }),
+        expect.objectContaining({
+          category: "hazard",
+          family: "problem_shape",
+          axis: "problem",
+          tags: expect.arrayContaining([
+            expect.objectContaining({ value: "observation_first", description: expect.any(String) }),
+            expect.objectContaining({ value: "source_tracing", description: expect.any(String) }),
+            expect.objectContaining({ value: "layered_resolution", description: expect.any(String) }),
+          ]),
+        }),
+        expect.objectContaining({
+          category: "affliction",
+          family: "response_profile",
+          axis: "response",
+          tags: expect.arrayContaining([
+            expect.objectContaining({ value: "outbreak_management", description: expect.any(String) }),
+            expect.objectContaining({ value: "cure_clock_urgency", description: expect.any(String) }),
+          ]),
+        }),
+        expect.objectContaining({
+          category: "affliction",
+          family: "resolution_profile",
+          axis: "response",
+          tags: expect.arrayContaining([
+            expect.objectContaining({ value: "countermagic_resolution", description: expect.any(String) }),
+            expect.objectContaining({ value: "quarantine_containment_resolution", description: expect.any(String) }),
+          ]),
+        }),
+        expect.objectContaining({
+          category: "creature",
+          family: "planar_setting",
+          axis: "setting",
+          tags: expect.arrayContaining([
+            expect.objectContaining({ value: "astral_setting", description: expect.any(String) }),
+            expect.objectContaining({ value: "upper_plane_setting", description: expect.any(String) }),
+          ]),
+        }),
+        expect.objectContaining({
+          category: "creature",
+          family: "scene_role",
+          axis: "npc_role",
+          tags: expect.arrayContaining([
+            expect.objectContaining({ value: "enforcer_npc", description: expect.any(String) }),
+            expect.objectContaining({ value: "infiltrator_npc", description: expect.any(String) }),
+            expect.objectContaining({ value: "guardian_npc", description: expect.any(String) }),
+          ]),
+        }),
+        expect.objectContaining({
+          category: "creature",
+          family: "threat_profile",
+          axis: "encounter",
+          tags: expect.arrayContaining([
+            expect.objectContaining({ value: "prey_control_threat", description: expect.any(String) }),
+            expect.objectContaining({ value: "reinforcement_threat", description: expect.any(String) }),
+            expect.objectContaining({ value: "infiltration_threat", description: expect.any(String) }),
+          ]),
+        }),
+        expect.objectContaining({
+          category: "creature",
+          family: "corruption_profile",
+          axis: "specialization",
+          tags: expect.arrayContaining([
+            expect.objectContaining({ value: "blight_tainted", description: expect.any(String) }),
+            expect.objectContaining({ value: "void_tainted", description: expect.any(String) }),
+          ]),
+        }),
+      ]),
+    );
   });
 
   it("lists live filter values across supported fields and scopes", async () => {
@@ -554,11 +574,13 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
 
     const service = await loadTestService(fixture);
 
-    expect(service.listFilterValues({
-      field: "traits",
-      category: "hazard",
-      subcategory: "trap",
-    })).toEqual({
+    expect(
+      service.listFilterValues({
+        field: "traits",
+        category: "hazard",
+        subcategory: "trap",
+      }),
+    ).toEqual({
       field: "traits",
       values: [
         { value: "trap", count: 16 },
@@ -567,66 +589,168 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       ],
     });
 
-    expect(service.listFilterValues({
-      field: "derivedTags",
-      category: "equipment",
-    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["alarm", "beneficial", "offensive", "climbing", "lock_bypass", "mental_recovery", "anti_fear", "anti_confusion", "anti_paralysis", "anti_petrification", "anti_bleed", "curse_removal", "carry_support", "tracking", "anti_tracking", "restraint_escape", "restraint_capture", "mobility_impairment", "sensory_impairment", "mental_impairment", "sedation", "spell_payload"]));
-    expect(service.listFilterValues({
-      field: "derivedTags",
-      category: "spell",
-    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining([
-      "alarm",
-      "countermagic",
-      "disguise",
-      "eidolon_support",
-      "initiative_support",
-      "illumination",
-      "mobility",
-      "navigation",
-      "persistent_damage",
-      "reconnaissance",
-      "senses_support",
-      "security",
-      "social_infiltration",
-      "wayfinding",
-      "mental_impairment",
-      "sensory_impairment",
-      "forced_movement",
-      "restraint_capture",
-      "anti_fear",
-      "anti_confusion",
-      "anti_paralysis",
-      "anti_petrification",
-      "anti_bleed",
-      "curse_removal",
-    ]));
-    expect(service.listFilterValues({
-      field: "derivedTags",
-      category: "hazard",
-    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["alarm", "mobility_impairment", "restraint_capture", "respiratory_hazard", "water_hazard", "spawned_attackers", "navigation_disruption", "illusion_assault", "overhead_strike"]));
-    expect(service.listFilterValues({
-      field: "derivedTags",
-      category: "affliction",
-    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining([
-      "healing_suppression",
-      "mental_impairment",
-      "mobility_impairment",
-      "sedation",
-      "respiratory_impairment",
-      "transformative_corruption",
-      "rot_decay",
-      "infestation_implant",
-      "compulsion",
-    ]));
-    expect(service.listFilterValues({
-      field: "derivedTags",
-      category: "creature",
-    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["aquatic_setting", "freshwater_setting", "coastal_setting", "astral_setting", "ethereal_setting", "plane_of_fire_setting", "plane_of_air_setting", "plane_of_water_setting", "plane_of_earth_setting", "elemental_plane_setting", "first_world_setting", "boneyard_setting", "heaven_setting", "nirvana_setting", "elysium_setting", "upper_plane_setting", "hell_setting", "abyss_setting", "abaddon_setting", "lower_plane_setting", "axis_setting", "shadow_plane_setting", "maelstrom_setting", "cosmic_framework_setting", "island_setting", "jungle_setting", "sky_setting", "temple_setting", "small_settlement_setting", "rural_setting", "civic_npc", "enforcer_npc", "carnival_show", "living_toy", "living_artwork", "trickster_mischief"]));
+    expect(
+      service
+        .listFilterValues({
+          field: "derivedTags",
+          category: "equipment",
+        })
+        .values.map((entry) => entry.value),
+    ).toEqual(
+      expect.arrayContaining([
+        "alarm",
+        "beneficial",
+        "offensive",
+        "climbing",
+        "lock_bypass",
+        "mental_recovery",
+        "anti_fear",
+        "anti_confusion",
+        "anti_paralysis",
+        "anti_petrification",
+        "anti_bleed",
+        "curse_removal",
+        "carry_support",
+        "tracking",
+        "anti_tracking",
+        "restraint_escape",
+        "restraint_capture",
+        "mobility_impairment",
+        "sensory_impairment",
+        "mental_impairment",
+        "sedation",
+        "spell_payload",
+      ]),
+    );
+    expect(
+      service
+        .listFilterValues({
+          field: "derivedTags",
+          category: "spell",
+        })
+        .values.map((entry) => entry.value),
+    ).toEqual(
+      expect.arrayContaining([
+        "alarm",
+        "countermagic",
+        "disguise",
+        "eidolon_support",
+        "initiative_support",
+        "illumination",
+        "mobility",
+        "navigation",
+        "persistent_damage",
+        "reconnaissance",
+        "senses_support",
+        "security",
+        "social_infiltration",
+        "wayfinding",
+        "mental_impairment",
+        "sensory_impairment",
+        "forced_movement",
+        "restraint_capture",
+        "anti_fear",
+        "anti_confusion",
+        "anti_paralysis",
+        "anti_petrification",
+        "anti_bleed",
+        "curse_removal",
+      ]),
+    );
+    expect(
+      service
+        .listFilterValues({
+          field: "derivedTags",
+          category: "hazard",
+        })
+        .values.map((entry) => entry.value),
+    ).toEqual(
+      expect.arrayContaining([
+        "alarm",
+        "mobility_impairment",
+        "restraint_capture",
+        "respiratory_hazard",
+        "water_hazard",
+        "spawned_attackers",
+        "navigation_disruption",
+        "illusion_assault",
+        "overhead_strike",
+      ]),
+    );
+    expect(
+      service
+        .listFilterValues({
+          field: "derivedTags",
+          category: "affliction",
+        })
+        .values.map((entry) => entry.value),
+    ).toEqual(
+      expect.arrayContaining([
+        "healing_suppression",
+        "mental_impairment",
+        "mobility_impairment",
+        "sedation",
+        "respiratory_impairment",
+        "transformative_corruption",
+        "rot_decay",
+        "infestation_implant",
+        "compulsion",
+      ]),
+    );
+    expect(
+      service
+        .listFilterValues({
+          field: "derivedTags",
+          category: "creature",
+        })
+        .values.map((entry) => entry.value),
+    ).toEqual(
+      expect.arrayContaining([
+        "aquatic_setting",
+        "freshwater_setting",
+        "coastal_setting",
+        "astral_setting",
+        "ethereal_setting",
+        "plane_of_fire_setting",
+        "plane_of_air_setting",
+        "plane_of_water_setting",
+        "plane_of_earth_setting",
+        "elemental_plane_setting",
+        "first_world_setting",
+        "boneyard_setting",
+        "heaven_setting",
+        "nirvana_setting",
+        "elysium_setting",
+        "upper_plane_setting",
+        "hell_setting",
+        "abyss_setting",
+        "abaddon_setting",
+        "lower_plane_setting",
+        "axis_setting",
+        "shadow_plane_setting",
+        "maelstrom_setting",
+        "cosmic_framework_setting",
+        "island_setting",
+        "jungle_setting",
+        "sky_setting",
+        "temple_setting",
+        "small_settlement_setting",
+        "rural_setting",
+        "civic_npc",
+        "enforcer_npc",
+        "carnival_show",
+        "living_toy",
+        "living_artwork",
+        "trickster_mischief",
+      ]),
+    );
 
-    expect(service.listFilterValues({
-      field: "families",
-      category: "creature",
-    })).toEqual({
+    expect(
+      service.listFilterValues({
+        field: "families",
+        category: "creature",
+      }),
+    ).toEqual({
       field: "families",
       values: [
         { value: "ghost", count: 1 },
@@ -637,10 +761,12 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       ],
     });
 
-    expect(service.listFilterValues({
-      field: "subcategories",
-      category: "hazard",
-    })).toEqual({
+    expect(
+      service.listFilterValues({
+        field: "subcategories",
+        category: "hazard",
+      }),
+    ).toEqual({
       field: "subcategories",
       values: [
         { value: "trap", count: 16 },
@@ -648,10 +774,12 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       ],
     });
 
-    expect(service.listFilterValues({
-      field: "publicationTitle",
-      category: "spell",
-    })).toEqual({
+    expect(
+      service.listFilterValues({
+        field: "publicationTitle",
+        category: "spell",
+      }),
+    ).toEqual({
       field: "publicationTitle",
       values: [
         { value: "Pathfinder Player Core", count: 18 },
@@ -661,15 +789,21 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       ],
     });
 
-    expect(service.listFilterValues({
-      field: "sourceCategory",
-      category: "creature",
-    }).values.map((entry) => entry.value)).toEqual(["core", "rules", "adventure"]);
+    expect(
+      service
+        .listFilterValues({
+          field: "sourceCategory",
+          category: "creature",
+        })
+        .values.map((entry) => entry.value),
+    ).toEqual(["core", "rules", "adventure"]);
 
-    expect(service.listFilterValues({
-      field: "traditions",
-      category: "spell",
-    })).toEqual({
+    expect(
+      service.listFilterValues({
+        field: "traditions",
+        category: "spell",
+      }),
+    ).toEqual({
       field: "traditions",
       values: [
         { value: "arcane", count: 17 },
@@ -679,10 +813,12 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       ],
     });
 
-    expect(service.listFilterValues({
-      field: "spellKinds",
-    category: "spell",
-    })).toEqual({
+    expect(
+      service.listFilterValues({
+        field: "spellKinds",
+        category: "spell",
+      }),
+    ).toEqual({
       field: "spellKinds",
       values: [
         { value: "cantrip", count: 1 },
@@ -690,10 +826,12 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       ],
     });
 
-    expect(service.listFilterValues({
-      field: "saveType",
-      category: "spell",
-    })).toEqual({
+    expect(
+      service.listFilterValues({
+        field: "saveType",
+        category: "spell",
+      }),
+    ).toEqual({
       field: "saveType",
       values: [
         { value: "fortitude", count: 1 },
@@ -702,10 +840,12 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       ],
     });
 
-    expect(service.listFilterValues({
-      field: "areaType",
-      category: "spell",
-    })).toEqual({
+    expect(
+      service.listFilterValues({
+        field: "areaType",
+        category: "spell",
+      }),
+    ).toEqual({
       field: "areaType",
       values: [
         { value: "burst", count: 1 },
@@ -713,10 +853,12 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       ],
     });
 
-    expect(service.listFilterValues({
-      field: "durationUnit",
-      category: "spell",
-    })).toEqual({
+    expect(
+      service.listFilterValues({
+        field: "durationUnit",
+        category: "spell",
+      }),
+    ).toEqual({
       field: "durationUnit",
       values: [
         { value: "minute", count: 2 },
@@ -724,80 +866,138 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       ],
     });
 
-    expect(service.listFilterValues({
-      field: "weaponGroup",
-      category: "equipment",
-    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["bomb", "sword"]));
+    expect(
+      service
+        .listFilterValues({
+          field: "weaponGroup",
+          category: "equipment",
+        })
+        .values.map((entry) => entry.value),
+    ).toEqual(expect.arrayContaining(["bomb", "sword"]));
 
-    expect(service.listFilterValues({
-      field: "usage",
-      category: "equipment",
-    }).values.map((entry) => entry.value)).toEqual(["held-in-one-hand"]);
+    expect(
+      service
+        .listFilterValues({
+          field: "usage",
+          category: "equipment",
+        })
+        .values.map((entry) => entry.value),
+    ).toEqual(["held-in-one-hand"]);
 
-    expect(service.listFilterValues({
-      field: "hands",
-      category: "equipment",
-    }).values.map((entry) => entry.value)).toEqual(["1"]);
+    expect(
+      service
+        .listFilterValues({
+          field: "hands",
+          category: "equipment",
+        })
+        .values.map((entry) => entry.value),
+    ).toEqual(["1"]);
 
-    expect(service.listFilterValues({
-      field: "actionCost",
-      category: "spell",
-    }).values.map((entry) => entry.value)).toEqual(["2"]);
+    expect(
+      service
+        .listFilterValues({
+          field: "actionCost",
+          category: "spell",
+        })
+        .values.map((entry) => entry.value),
+    ).toEqual(["2"]);
 
-    expect(service.listFilterValues({
-      field: "rangeValue",
-      category: "spell",
-    }).values.map((entry) => entry.value)).toEqual(["30", "60"]);
+    expect(
+      service
+        .listFilterValues({
+          field: "rangeValue",
+          category: "spell",
+        })
+        .values.map((entry) => entry.value),
+    ).toEqual(["30", "60"]);
 
-    expect(service.listFilterValues({
-      field: "areaValue",
-      category: "spell",
-    }).values.map((entry) => entry.value)).toEqual(["30", "5"]);
+    expect(
+      service
+        .listFilterValues({
+          field: "areaValue",
+          category: "spell",
+        })
+        .values.map((entry) => entry.value),
+    ).toEqual(["30", "5"]);
 
-    expect(service.listFilterValues({
-      field: "sustained",
-      category: "spell",
-    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["false", "true"]));
+    expect(
+      service
+        .listFilterValues({
+          field: "sustained",
+          category: "spell",
+        })
+        .values.map((entry) => entry.value),
+    ).toEqual(expect.arrayContaining(["false", "true"]));
 
-    expect(service.listFilterValues({
-      field: "basicSave",
-      category: "spell",
-    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["false", "true"]));
+    expect(
+      service
+        .listFilterValues({
+          field: "basicSave",
+          category: "spell",
+        })
+        .values.map((entry) => entry.value),
+    ).toEqual(expect.arrayContaining(["false", "true"]));
 
-    expect(service.listFilterValues({
-      field: "damageTypes",
-      category: "equipment",
-    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["positive", "slashing"]));
+    expect(
+      service
+        .listFilterValues({
+          field: "damageTypes",
+          category: "equipment",
+        })
+        .values.map((entry) => entry.value),
+    ).toEqual(expect.arrayContaining(["positive", "slashing"]));
 
-    expect(service.listFilterValues({
-      field: "itemCategory",
-      category: "equipment",
-    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["backpack", "consumable", "equipment", "weapon"]));
+    expect(
+      service
+        .listFilterValues({
+          field: "itemCategory",
+          category: "equipment",
+        })
+        .values.map((entry) => entry.value),
+    ).toEqual(expect.arrayContaining(["backpack", "consumable", "equipment", "weapon"]));
 
-    expect(service.listFilterValues({
-      field: "baseItem",
-      category: "equipment",
-    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["alchemical-bomb", "longsword"]));
+    expect(
+      service
+        .listFilterValues({
+          field: "baseItem",
+          category: "equipment",
+        })
+        .values.map((entry) => entry.value),
+    ).toEqual(expect.arrayContaining(["alchemical-bomb", "longsword"]));
 
-    expect(service.listFilterValues({
-      field: "rarity",
-      category: "creature",
-    }).values.map((entry) => entry.value)).toEqual(["common", "uncommon", "rare", "unique"]);
+    expect(
+      service
+        .listFilterValues({
+          field: "rarity",
+          category: "creature",
+        })
+        .values.map((entry) => entry.value),
+    ).toEqual(["common", "uncommon", "rare", "unique"]);
 
-    expect(service.listFilterValues({
-      field: "size",
-      category: "creature",
-    }).values.map((entry) => entry.value)).toEqual(["med", "lg", "sm", "huge", "tiny"]);
+    expect(
+      service
+        .listFilterValues({
+          field: "size",
+          category: "creature",
+        })
+        .values.map((entry) => entry.value),
+    ).toEqual(["med", "lg", "sm", "huge", "tiny"]);
 
-    expect(service.listFilterValues({
-      field: "sources",
-      category: "creature",
-    }).values.map((entry) => entry.value)).toEqual(["core", "rules", "adventure"]);
+    expect(
+      service
+        .listFilterValues({
+          field: "sources",
+          category: "creature",
+        })
+        .values.map((entry) => entry.value),
+    ).toEqual(["core", "rules", "adventure"]);
 
-    expect(service.listFilterValues({
-      field: "packs",
-      category: "spell",
-    })).toEqual({
+    expect(
+      service.listFilterValues({
+        field: "packs",
+        category: "spell",
+      }),
+    ).toEqual({
       field: "packs",
       values: [
         { value: "Spells", count: 19 },
@@ -805,13 +1005,15 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       ],
     });
 
-    expect(service.listFilterValues({
-      field: "categories",
-      scopes: [
-        { category: "hazards", subcategories: ["traps"] },
-        { category: "rules", subcategories: ["conditions"] },
-      ],
-    })).toEqual({
+    expect(
+      service.listFilterValues({
+        field: "categories",
+        scopes: [
+          { category: "hazards", subcategories: ["traps"] },
+          { category: "rules", subcategories: ["conditions"] },
+        ],
+      }),
+    ).toEqual({
       field: "categories",
       values: [
         { value: "hazard", count: 16 },
@@ -819,10 +1021,12 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       ],
     });
 
-    expect(() => service.listFilterValues({
-      field: "traits",
-      scopes: [{ category: "feat", subcategories: ["action"] }],
-    })).toThrow(/does not belong to category "feat"/i);
+    expect(() =>
+      service.listFilterValues({
+        field: "traits",
+        scopes: [{ category: "feat", subcategories: ["action"] }],
+      }),
+    ).toThrow(/does not belong to category "feat"/i);
   });
 
   it("discovers live actor and item metric keys and scalar values through filter-value listing", async () => {
@@ -831,39 +1035,43 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
 
     const service = await loadTestService(fixture);
 
-    expect(service.listFilterValues({
-      field: "actorMetrics",
-      category: "creature",
-      metricPrefix: "ability",
-    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining([
-      "ability.cha.mod",
-      "ability.dex.mod",
-      "ability.int.mod",
-      "ability.str.mod",
-    ]));
+    expect(
+      service
+        .listFilterValues({
+          field: "actorMetrics",
+          category: "creature",
+          metricPrefix: "ability",
+        })
+        .values.map((entry) => entry.value),
+    ).toEqual(expect.arrayContaining(["ability.cha.mod", "ability.dex.mod", "ability.int.mod", "ability.str.mod"]));
 
-    expect(service.listFilterValues({
-      field: "actorMetrics",
-      category: "creature",
-      metricPrefix: "speed",
-    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining([
-      "speed.fly.value",
-      "speed.land.value",
-    ]));
+    expect(
+      service
+        .listFilterValues({
+          field: "actorMetrics",
+          category: "creature",
+          metricPrefix: "speed",
+        })
+        .values.map((entry) => entry.value),
+    ).toEqual(expect.arrayContaining(["speed.fly.value", "speed.land.value"]));
 
-    expect(service.listFilterValues({
-      field: "actorMetrics",
-      category: "creature",
-      metricPrefix: "sense",
-    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining([
-      "sense.scent.range",
-    ]));
+    expect(
+      service
+        .listFilterValues({
+          field: "actorMetrics",
+          category: "creature",
+          metricPrefix: "sense",
+        })
+        .values.map((entry) => entry.value),
+    ).toEqual(expect.arrayContaining(["sense.scent.range"]));
 
-    expect(service.listFilterValues({
-      field: "actorMetrics",
-      category: "creature",
-      metric: "save.best",
-    })).toEqual({
+    expect(
+      service.listFilterValues({
+        field: "actorMetrics",
+        category: "creature",
+        metric: "save.best",
+      }),
+    ).toEqual({
       field: "actorMetrics",
       values: [
         { value: "fort", count: 1 },
@@ -872,11 +1080,13 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       ],
     });
 
-    expect(service.listFilterValues({
-      field: "actorMetrics",
-      category: "creature",
-      metric: "skill.arcana.proficient",
-    })).toEqual({
+    expect(
+      service.listFilterValues({
+        field: "actorMetrics",
+        category: "creature",
+        metric: "skill.arcana.proficient",
+      }),
+    ).toEqual({
       field: "actorMetrics",
       values: [
         { value: "false", count: 2 },
@@ -884,41 +1094,52 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       ],
     });
 
-    expect(() => service.listFilterValues({
-      field: "actorMetrics",
-      category: "creature",
-      metric: "ability.int.mod",
-    })).toThrow(/text and boolean metrics/i);
+    expect(() =>
+      service.listFilterValues({
+        field: "actorMetrics",
+        category: "creature",
+        metric: "ability.int.mod",
+      }),
+    ).toThrow(/text and boolean metrics/i);
 
-    expect(service.listFilterValues({
-      field: "actorMetrics",
-      category: "hazard",
-      metricPrefix: "stealth",
-    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining([
-      "stealth.dc",
-      "stealth.mod",
-    ]));
+    expect(
+      service
+        .listFilterValues({
+          field: "actorMetrics",
+          category: "hazard",
+          metricPrefix: "stealth",
+        })
+        .values.map((entry) => entry.value),
+    ).toEqual(expect.arrayContaining(["stealth.dc", "stealth.mod"]));
 
-    expect(service.listFilterValues({
-      field: "actorMetrics",
-      category: "hazard",
-      metricPrefix: "disable",
-    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining([
-      "disable.dc.max",
-      "disable.dc.min",
-      "disable.crafting.dc.min",
-      "disable.crafting.rank.min",
-      "disable.thievery.dc.min",
-      "disable.thievery.rank.min",
-      "disable.religion.dc.min",
-      "disable.religion.rank.min",
-    ]));
+    expect(
+      service
+        .listFilterValues({
+          field: "actorMetrics",
+          category: "hazard",
+          metricPrefix: "disable",
+        })
+        .values.map((entry) => entry.value),
+    ).toEqual(
+      expect.arrayContaining([
+        "disable.dc.max",
+        "disable.dc.min",
+        "disable.crafting.dc.min",
+        "disable.crafting.rank.min",
+        "disable.thievery.dc.min",
+        "disable.thievery.rank.min",
+        "disable.religion.dc.min",
+        "disable.religion.rank.min",
+      ]),
+    );
 
-    expect(service.listFilterValues({
-      field: "actorMetrics",
-      category: "hazard",
-      metric: "save.best",
-    })).toEqual({
+    expect(
+      service.listFilterValues({
+        field: "actorMetrics",
+        category: "hazard",
+        metric: "save.best",
+      }),
+    ).toEqual({
       field: "actorMetrics",
       values: [
         { value: "fort", count: 1 },
@@ -926,60 +1147,85 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       ],
     });
 
-    expect(service.listFilterValues({
-      field: "itemMetrics",
-      category: "equipment",
-      metricPrefix: "weapon",
-    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining([
-      "weapon.damage_dice",
-      "weapon.damage_die_faces",
-      "weapon.range_increment",
-      "weapon.reload",
-    ]));
+    expect(
+      service
+        .listFilterValues({
+          field: "itemMetrics",
+          category: "equipment",
+          metricPrefix: "weapon",
+        })
+        .values.map((entry) => entry.value),
+    ).toEqual(
+      expect.arrayContaining([
+        "weapon.damage_dice",
+        "weapon.damage_die_faces",
+        "weapon.range_increment",
+        "weapon.reload",
+      ]),
+    );
 
-    expect(service.listFilterValues({
-      field: "itemMetrics",
-      category: "equipment",
-      metricPrefix: "shield",
-    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining([
-      "shield.ac_bonus",
-      "shield.bt",
-      "shield.hardness",
-      "shield.hp",
-    ]));
+    expect(
+      service
+        .listFilterValues({
+          field: "itemMetrics",
+          category: "equipment",
+          metricPrefix: "shield",
+        })
+        .values.map((entry) => entry.value),
+    ).toEqual(expect.arrayContaining(["shield.ac_bonus", "shield.bt", "shield.hardness", "shield.hp"]));
 
-    expect(service.listFilterValues({
-      field: "itemMetrics",
-      category: "equipment",
-      metricPrefix: "armor",
-    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining([
-      "armor.ac_bonus",
-      "armor.check_penalty",
-      "armor.dex_cap",
-      "armor.speed_penalty",
-      "armor.strength",
-    ]));
+    expect(
+      service
+        .listFilterValues({
+          field: "itemMetrics",
+          category: "equipment",
+          metricPrefix: "armor",
+        })
+        .values.map((entry) => entry.value),
+    ).toEqual(
+      expect.arrayContaining([
+        "armor.ac_bonus",
+        "armor.check_penalty",
+        "armor.dex_cap",
+        "armor.speed_penalty",
+        "armor.strength",
+      ]),
+    );
 
-    expect(service.listFilterValues({
-      field: "senses",
-      category: "creature",
-    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["darkvision", "scent"]));
+    expect(
+      service
+        .listFilterValues({
+          field: "senses",
+          category: "creature",
+        })
+        .values.map((entry) => entry.value),
+    ).toEqual(expect.arrayContaining(["darkvision", "scent"]));
 
-    expect(service.listFilterValues({
-      field: "disableSkills",
-      category: "hazard",
-    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["crafting", "religion", "thievery"]));
+    expect(
+      service
+        .listFilterValues({
+          field: "disableSkills",
+          category: "hazard",
+        })
+        .values.map((entry) => entry.value),
+    ).toEqual(expect.arrayContaining(["crafting", "religion", "thievery"]));
 
-    expect(service.listFilterValues({
-      field: "isComplex",
-      category: "hazard",
-    }).values.map((entry) => entry.value)).toEqual(expect.arrayContaining(["false", "true"]));
+    expect(
+      service
+        .listFilterValues({
+          field: "isComplex",
+          category: "hazard",
+        })
+        .values.map((entry) => entry.value),
+    ).toEqual(expect.arrayContaining(["false", "true"]));
 
-    expect(() => service.listFilterValues({
-      field: "itemMetrics",
-      category: "equipment",
-      metric: "weapon.reload",
-    })).toThrow(/text and boolean metrics/i);
+    expect(() =>
+      service.listFilterValues({
+        field: "itemMetrics",
+        category: "equipment",
+        metric: "weapon.reload",
+      }),
+    ).toThrow(/text and boolean metrics/i);
   });
 
   it("collects rule question context without synthesis", async () => {

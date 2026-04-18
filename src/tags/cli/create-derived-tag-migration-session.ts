@@ -1,6 +1,12 @@
 #!/usr/bin/env node
 
-import { openConfiguredIndex, lastValue, parseCliArgs, parseInteger, writeDerivedTagMigrationSummary } from "../migration/cli-utils.js";
+import {
+  openConfiguredIndex,
+  lastValue,
+  parseCliArgs,
+  parseInteger,
+  writeDerivedTagMigrationSummary,
+} from "../migration/cli-utils.js";
 import { renderDerivedTagMigrationSessionSummary } from "../migration/render.js";
 import { writeDerivedTagMigrationSession } from "../migration/session-store.js";
 import { buildDerivedTagMigrationSession } from "../migration/session-builder.js";
@@ -22,7 +28,7 @@ function parseMode(value: string | undefined): DerivedTagMigrationMode | undefin
   if (value === "new_tagging") {
     return "proposal_review";
   }
-  return MODES.includes(value as DerivedTagMigrationMode) ? value as DerivedTagMigrationMode : undefined;
+  return MODES.includes(value as DerivedTagMigrationMode) ? (value as DerivedTagMigrationMode) : undefined;
 }
 
 function renderHelp(): string {
@@ -51,7 +57,9 @@ async function main(): Promise<void> {
   const args = parseCliArgs(argv);
   const mode = parseMode(lastValue(args, "mode"));
   if (!mode) {
-    throw new Error(`Pass --mode with one of: ${MODES.join(", ")}. "new_tagging" remains available as a compatibility alias for "proposal_review".`);
+    throw new Error(
+      `Pass --mode with one of: ${MODES.join(", ")}. "new_tagging" remains available as a compatibility alias for "proposal_review".`,
+    );
   }
 
   const { db } = await openConfiguredIndex(argv);

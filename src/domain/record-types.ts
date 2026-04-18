@@ -92,49 +92,17 @@ export type DerivedTagOntologyCategory = "equipment" | "creature" | "hazard" | "
 export type DerivedTagCompositeSelector =
   | { kind: "tag"; tag: string }
   | {
-    kind: "family";
-    family: string;
-    include?: "leaf_tags" | "all_tags";
-    excludeTags?: string[];
-  };
+      kind: "family";
+      family: string;
+      include?: "leaf_tags" | "all_tags";
+      excludeTags?: string[];
+    };
 export interface DerivedTagOntologyAxisByCategory {
-  equipment:
-    | "legacy"
-    | "utility"
-    | "party_role"
-    | "item_mechanical"
-    | "effect";
-  creature:
-    | "legacy"
-    | "setting"
-    | "encounter"
-    | "npc_role"
-    | "presentation"
-    | "specialization";
-  hazard:
-    | "legacy"
-    | "mechanism"
-    | "encounter"
-    | "setting"
-    | "haunt"
-    | "resolution"
-    | "problem"
-    | "effect";
-  affliction:
-    | "disease_model"
-    | "response"
-    | "behavior"
-    | "metaphysical"
-    | "effect";
-  spell:
-    | "legacy"
-    | "utility"
-    | "battlefield"
-    | "transformation"
-    | "influence"
-    | "support"
-    | "summoning"
-    | "effect";
+  equipment: "legacy" | "utility" | "party_role" | "item_mechanical" | "effect";
+  creature: "legacy" | "setting" | "encounter" | "npc_role" | "presentation" | "specialization";
+  hazard: "legacy" | "mechanism" | "encounter" | "setting" | "haunt" | "resolution" | "problem" | "effect";
+  affliction: "disease_model" | "response" | "behavior" | "metaphysical" | "effect";
+  spell: "legacy" | "utility" | "battlefield" | "transformation" | "influence" | "support" | "summoning" | "effect";
 }
 export type DerivedTagOntologyAxis<C extends DerivedTagOntologyCategory = DerivedTagOntologyCategory> =
   DerivedTagOntologyAxisByCategory[C];

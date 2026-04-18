@@ -121,7 +121,7 @@ const FOUNDRY_INLINE_TAG_WITH_LABEL_PATTERN = /@[a-z]+(?:\.[a-z]+)?\[[^\]]+\]\{(
 const FOUNDRY_INLINE_TAG_PATTERN = /@[a-z]+(?:\.[a-z]+)?\[[^\]]+\]/gi;
 const FOUNDRY_INLINE_ROLL_WITH_LABEL_PATTERN = /\[\[[^\]]+\]\]\{([^}]*)\}/g;
 const FOUNDRY_INLINE_ROLL_PATTERN = /\[\[[^\]]+\]\]/g;
-const DICE_EXPRESSION_PATTERN = /\b\d+d\d+(?:\s*[+\-]\s*\d+)?\b/gi;
+const DICE_EXPRESSION_PATTERN = /\b\d+d\d+(?:\s*[+-]\s*\d+)?\b/gi;
 const MEASUREMENT_PATTERN = /\b\d+\s*(?:-\s*)?(?:foot|feet|ft|mile|miles|meter|meters|yard|yards)\b/gi;
 const STANDALONE_NUMBER_PATTERN = /\b\d+\b/g;
 
@@ -176,10 +176,7 @@ export function normalizeDiscoveryText(value: string): string {
   return restorePlaceholders(normalized);
 }
 
-export function tokenizeDiscoveryText(
-  value: string,
-  options: { filterStopwords?: boolean } = {},
-): string[] {
+export function tokenizeDiscoveryText(value: string, options: { filterStopwords?: boolean } = {}): string[] {
   const tokens = normalizeDiscoveryText(value).split(" ").filter(Boolean);
   if (!options.filterStopwords) {
     return tokens;
@@ -197,10 +194,12 @@ export function isDiscoveryPlaceholder(value: string): boolean {
 }
 
 export function isDiscoveryNoiseToken(value: string): boolean {
-  return isDiscoveryPlaceholder(value) ||
+  return (
+    isDiscoveryPlaceholder(value) ||
     /^[a-z]$/.test(value) ||
     DISCOVERY_STOPWORDS.has(value) ||
-    DISCOVERY_NOISE_TOKENS.has(value);
+    DISCOVERY_NOISE_TOKENS.has(value)
+  );
 }
 
 export function isDiscoveryNoisePhrase(value: string): boolean {
@@ -238,26 +237,34 @@ export function extractDiscoveryNgrams(
   return occurrences;
 }
 
-export function resolveDiscoveryGramRange(
-  options: DiscoveryGramRangeOptions = {},
-): ResolvedDiscoveryGramRange {
+export function resolveDiscoveryGramRange(options: DiscoveryGramRangeOptions = {}): ResolvedDiscoveryGramRange {
   const minGramLength = options.minGramLength ?? DEFAULT_DISCOVERY_MIN_GRAM_LENGTH;
   const maxGramLength = options.maxGramLength ?? DEFAULT_DISCOVERY_MAX_GRAM_LENGTH;
 
   if (!Number.isInteger(minGramLength)) {
-    throw new Error(`Expected --min-gram-length to be an integer between ${MIN_DISCOVERY_GRAM_LENGTH} and ${MAX_DISCOVERY_GRAM_LENGTH}.`);
+    throw new Error(
+      `Expected --min-gram-length to be an integer between ${MIN_DISCOVERY_GRAM_LENGTH} and ${MAX_DISCOVERY_GRAM_LENGTH}.`,
+    );
   }
   if (!Number.isInteger(maxGramLength)) {
-    throw new Error(`Expected --max-gram-length to be an integer between ${MIN_DISCOVERY_GRAM_LENGTH} and ${MAX_DISCOVERY_GRAM_LENGTH}.`);
+    throw new Error(
+      `Expected --max-gram-length to be an integer between ${MIN_DISCOVERY_GRAM_LENGTH} and ${MAX_DISCOVERY_GRAM_LENGTH}.`,
+    );
   }
   if (minGramLength < MIN_DISCOVERY_GRAM_LENGTH || minGramLength > MAX_DISCOVERY_GRAM_LENGTH) {
-    throw new Error(`Expected --min-gram-length to be between ${MIN_DISCOVERY_GRAM_LENGTH} and ${MAX_DISCOVERY_GRAM_LENGTH}, received "${minGramLength}".`);
+    throw new Error(
+      `Expected --min-gram-length to be between ${MIN_DISCOVERY_GRAM_LENGTH} and ${MAX_DISCOVERY_GRAM_LENGTH}, received "${minGramLength}".`,
+    );
   }
   if (maxGramLength < MIN_DISCOVERY_GRAM_LENGTH || maxGramLength > MAX_DISCOVERY_GRAM_LENGTH) {
-    throw new Error(`Expected --max-gram-length to be between ${MIN_DISCOVERY_GRAM_LENGTH} and ${MAX_DISCOVERY_GRAM_LENGTH}, received "${maxGramLength}".`);
+    throw new Error(
+      `Expected --max-gram-length to be between ${MIN_DISCOVERY_GRAM_LENGTH} and ${MAX_DISCOVERY_GRAM_LENGTH}, received "${maxGramLength}".`,
+    );
   }
   if (minGramLength > maxGramLength) {
-    throw new Error(`Expected --min-gram-length (${minGramLength}) to be less than or equal to --max-gram-length (${maxGramLength}).`);
+    throw new Error(
+      `Expected --min-gram-length (${minGramLength}) to be less than or equal to --max-gram-length (${maxGramLength}).`,
+    );
   }
 
   return {

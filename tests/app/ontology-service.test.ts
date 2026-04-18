@@ -7,12 +7,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createPf2eApplicationOntologyService } from "../../src/app/ontology-service.js";
 import { getMetadataGlossaryArtifactPath } from "../../src/data/metadata-glossary.js";
 import type { Pf2eDataService } from "../../src/data/service.js";
-import type {
-  AppConfig,
-  FilterValueField,
-  MetadataGlossaryArtifact,
-  OntologyNode,
-} from "../../src/types.js";
+import type { AppConfig, FilterValueField, MetadataGlossaryArtifact, OntologyNode } from "../../src/types.js";
 
 function createTestConfig(indexPath = ".cache/pf2e-index.sqlite"): AppConfig {
   return {
@@ -61,12 +56,8 @@ function createDataService(): Pick<Pf2eDataService, "getSearchVocabulary" | "lis
       traditions: [],
       spellKinds: [],
       sourceCategories: [],
-      commonTraitsByCategory: [
-        { category: "spell", traits: [{ value: "fire", count: 4 }] },
-      ],
-      commonDerivedTagsByCategory: [
-        { category: "spell", tags: [{ value: "alarm", count: 2 }] },
-      ],
+      commonTraitsByCategory: [{ category: "spell", traits: [{ value: "fire", count: 4 }] }],
+      commonDerivedTagsByCategory: [{ category: "spell", tags: [{ value: "alarm", count: 2 }] }],
       derivedTagOntologyFamilies: [],
       derivedTagOntologyTags: [],
       derivedTagCatalog: [],
@@ -201,18 +192,19 @@ describe("application ontology service", () => {
 
       expect(commonTraitNode?.label).toBe("Fire");
       expect(commonTraitNode?.listLabel).toBe("Fire | 4");
-      expect(commonTraitNode?.detailLines.map((line) => line.text)).toEqual(expect.arrayContaining([
-        "Fire",
-        "Effects with the fire trait deal fire damage or manipulate fire.",
-        "Trait: fire",
-      ]));
+      expect(commonTraitNode?.detailLines.map((line) => line.text)).toEqual(
+        expect.arrayContaining([
+          "Fire",
+          "Effects with the fire trait deal fire damage or manipulate fire.",
+          "Trait: fire",
+        ]),
+      );
 
       expect(traitValueNode?.label).toBe("Fire");
       expect(traitValueNode?.detailTitle).toBe("Trait Details");
-      expect(traitValueNode?.detailLines.map((line) => line.text)).toEqual(expect.arrayContaining([
-        "Fire",
-        "Effects with the fire trait deal fire damage or manipulate fire.",
-      ]));
+      expect(traitValueNode?.detailLines.map((line) => line.text)).toEqual(
+        expect.arrayContaining(["Fire", "Effects with the fire trait deal fire damage or manipulate fire."]),
+      );
     } finally {
       rmSync(tempRoot, { recursive: true, force: true });
     }

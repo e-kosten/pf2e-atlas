@@ -16,7 +16,8 @@ export type SearchCategory =
   | "characterCreation"
   | "lore";
 
-export type SearchCategoryInput = SearchCategory
+export type SearchCategoryInput =
+  | SearchCategory
   | "feats"
   | "creatures"
   | "hazards"
@@ -57,7 +58,8 @@ export type SearchSubcategory =
   | "deity"
   | "journal";
 
-export type SearchSubcategoryInput = SearchSubcategory
+export type SearchSubcategoryInput =
+  | SearchSubcategory
   | "actions"
   | "conditions"
   | "effects"
@@ -116,9 +118,9 @@ export interface SearchFilters {
   limit?: number;
 }
 
-const METADATA_FILTER_VALUE_FIELDS = METADATA_FIELD_REGISTRY
-  .filter((entry) => entry.discoverable)
-  .map((entry) => entry.field);
+const METADATA_FILTER_VALUE_FIELDS = METADATA_FIELD_REGISTRY.filter((entry) => entry.discoverable).map(
+  (entry) => entry.field,
+);
 
 export const FILTER_VALUE_FIELDS = [
   ...METADATA_FILTER_VALUE_FIELDS,

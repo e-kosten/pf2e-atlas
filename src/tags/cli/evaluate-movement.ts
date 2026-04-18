@@ -89,7 +89,10 @@ function parseOptions(argv: string[]): CliOptions {
       .filter((tag) => tag.length > 0),
     limit: parseInteger(args.limit, "--limit"),
     sampleLimit: parseInteger(args["sample-limit"], "--sample-limit"),
-    warnCategoryGainBelowPoints: parseFloatValue(args["warn-category-gain-below-points"], "--warn-category-gain-below-points"),
+    warnCategoryGainBelowPoints: parseFloatValue(
+      args["warn-category-gain-below-points"],
+      "--warn-category-gain-below-points",
+    ),
     warnCategoryDropPoints: parseFloatValue(args["warn-category-drop-points"], "--warn-category-drop-points"),
     warnTagGainBelowCount: parseInteger(args["warn-tag-gain-below-count"], "--warn-tag-gain-below-count"),
     warnTagDropCount: parseInteger(args["warn-tag-drop-count"], "--warn-tag-drop-count"),
@@ -119,10 +122,7 @@ function formatRecordMovement(label: string, records: DerivedTagTagMovement["gai
     return [];
   }
 
-  return [
-    `  ${label}:`,
-    ...records.map((record) => `    - ${record.name} [${record.recordKey}]`),
-  ];
+  return [`  ${label}:`, ...records.map((record) => `    - ${record.name} [${record.recordKey}]`)];
 }
 
 async function assertReadable(pathToCheck: string, errorMessage: string): Promise<void> {

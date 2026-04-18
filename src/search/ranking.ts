@@ -33,9 +33,11 @@ export type SemanticRetrievalRow = {
 
 function isSocietyPublication(publicationTitle: string | null): boolean {
   const normalized = normalizeText(publicationTitle ?? "");
-  return normalized.startsWith("pathfinder society scenario") ||
+  return (
+    normalized.startsWith("pathfinder society scenario") ||
     normalized.startsWith("pathfinder society special") ||
-    normalized.startsWith("pathfinder society intro");
+    normalized.startsWith("pathfinder society intro")
+  );
 }
 
 function isSocietyPack(packName: string): boolean {
@@ -62,7 +64,12 @@ export function packQualityScore(record: NormalizedRecord, rankingConfig: Rankin
     score += rankingConfig.packQuality.effectPenalty;
   }
 
-  if (normalizedPack === "actions" || normalizedPack === "spells" || normalizedPack === "equipment" || normalizedPack === "feats") {
+  if (
+    normalizedPack === "actions" ||
+    normalizedPack === "spells" ||
+    normalizedPack === "equipment" ||
+    normalizedPack === "feats"
+  ) {
     score += rankingConfig.packQuality.utilityPackBoost;
   }
 
@@ -83,14 +90,17 @@ export function sourceQualityScore(record: NormalizedRecord, rankingConfig: Rank
   return rankingConfig.sourceQuality.unknown;
 }
 
-export function rarityPreferenceScore(record: NormalizedRecord, filters: SearchFilters, rankingConfig: RankingConfig): number {
+export function rarityPreferenceScore(
+  record: NormalizedRecord,
+  filters: SearchFilters,
+  rankingConfig: RankingConfig,
+): number {
   const normalizedRarity = normalizeText(record.rarity ?? "");
   let score = 0;
 
   if (normalizedRarity === "common" || normalizedRarity === "uncommon") {
-    score += normalizedRarity === "common"
-      ? rankingConfig.rarityPreference.common
-      : rankingConfig.rarityPreference.uncommon;
+    score +=
+      normalizedRarity === "common" ? rankingConfig.rarityPreference.common : rankingConfig.rarityPreference.uncommon;
   } else if (normalizedRarity === "rare") {
     score += rankingConfig.rarityPreference.rare;
   } else if (normalizedRarity === "unique") {
@@ -104,7 +114,11 @@ export function rarityPreferenceScore(record: NormalizedRecord, filters: SearchF
   return score;
 }
 
-export function sourcePenaltyScore(record: NormalizedRecord, filters: SearchFilters, rankingConfig: RankingConfig): number {
+export function sourcePenaltyScore(
+  record: NormalizedRecord,
+  filters: SearchFilters,
+  rankingConfig: RankingConfig,
+): number {
   if (record.hasDescription || !filters.query?.trim()) {
     return 0;
   }
@@ -230,7 +244,7 @@ export function hasStructuredFilterSignal(filters: SearchFilters): boolean {
     filters.metadata ||
     filters.priceMin !== undefined ||
     filters.priceMax !== undefined ||
-    filters.actionCost !== undefined
+    filters.actionCost !== undefined,
   );
 }
 
@@ -298,10 +312,7 @@ export function buildRerankAdjustments(
 }
 
 export function sumRerankAdjustments(adjustments: RerankAdjustments): number {
-  return adjustments.packQuality +
-    adjustments.sourceQuality +
-    adjustments.rarityPreference +
-    adjustments.sourcePenalty;
+  return adjustments.packQuality + adjustments.sourceQuality + adjustments.rarityPreference + adjustments.sourcePenalty;
 }
 
 export function buildLexicalSignal(
@@ -312,14 +323,8 @@ export function buildLexicalSignal(
   rankingConfig: RankingConfig,
 ): LexicalSignal {
   const ftsScore = lexicalQuery.length > 0 ? (lexicalMatches.get(record.recordKey) ?? 0) : 0;
-  const descriptionTextScore =
-    lexicalQuery.length > 0
-      ? queryTextScore(lexicalQuery, record.descriptionText ?? "")
-      : 0;
-  const traitTextScore =
-    lexicalQuery.length > 0
-      ? queryTextScore(lexicalQuery, buildTraitText(record))
-      : 0;
+  const descriptionTextScore = lexicalQuery.length > 0 ? queryTextScore(lexicalQuery, record.descriptionText ?? "") : 0;
+  const traitTextScore = lexicalQuery.length > 0 ? queryTextScore(lexicalQuery, buildTraitText(record)) : 0;
   const themeName = literalQueryWeights
     ? scoreWeightedOverlap(literalQueryWeights.nameWeights, tokenize(record.name), 1.5)
     : { score: 0, matchedTokens: [] };
@@ -328,13 +333,11 @@ export function buildLexicalSignal(
     : { score: 0, matchedTokens: [] };
   const lexicalWeights = rankingConfig.lexicalChannels;
   const lexicalScoreBeforeNormalization =
-    (ftsScore * lexicalWeights.fullTextSearch) +
-    (descriptionTextScore * lexicalWeights.descriptionText) +
-    (themeName.score * lexicalWeights.themeName) +
-    (Math.max(traitTextScore, themeTraits.score) * lexicalWeights.themeTraits);
-  const normalizationMultiplier = !record.hasDescription
-    ? 1 / (1 - lexicalWeights.descriptionText)
-    : 1;
+    ftsScore * lexicalWeights.fullTextSearch +
+    descriptionTextScore * lexicalWeights.descriptionText +
+    themeName.score * lexicalWeights.themeName +
+    Math.max(traitTextScore, themeTraits.score) * lexicalWeights.themeTraits;
+  const normalizationMultiplier = !record.hasDescription ? 1 / (1 - lexicalWeights.descriptionText) : 1;
   const lexicalScore = lexicalScoreBeforeNormalization * normalizationMultiplier;
 
   return {
@@ -392,7 +395,7 @@ export function buildNormalizedRankScoreMap(recordKeysInRankOrder: string[]): Ma
   const scores = new Map<string, number>();
   const total = recordKeysInRankOrder.length;
   recordKeysInRankOrder.forEach((recordKey, index) => {
-    scores.set(recordKey, total <= 1 ? 1 : 1 - (index / (total - 1)));
+    scores.set(recordKey, total <= 1 ? 1 : 1 - index / (total - 1));
   });
   return scores;
 }

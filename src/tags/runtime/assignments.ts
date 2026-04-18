@@ -19,11 +19,7 @@ import { HAZARD_DERIVED_TAG_ASSIGNMENT_MEMORY } from "../assignment-memory/hazar
 import { SPELL_DERIVED_TAG_ASSIGNMENT_MEMORY } from "../assignment-memory/spell.js";
 import { listLegacyDerivedTagFamilyAliases } from "./family-compatibility.js";
 
-export type DerivedTagReviewStatus =
-  | "auto_applied"
-  | "needs_review"
-  | "approved"
-  | "rejected";
+export type DerivedTagReviewStatus = "auto_applied" | "needs_review" | "approved" | "rejected";
 
 export type DerivedTagReviewConfidence = "high" | "medium" | "low";
 
@@ -132,9 +128,7 @@ const RAW_DERIVED_TAG_ASSIGNMENT_MEMORY: DerivedTagAssignmentMemoryGroup[] = [
   SPELL_DERIVED_TAG_ASSIGNMENT_MEMORY,
 ];
 
-function buildFamilyTagMap(
-  tags: DerivedTagOntologyTag[],
-): Map<SearchCategory, Map<string, Set<string>>> {
+function buildFamilyTagMap(tags: DerivedTagOntologyTag[]): Map<SearchCategory, Map<string, Set<string>>> {
   const familiesByCategory = new Map<SearchCategory, Map<string, Set<string>>>();
 
   for (const tag of tags) {
@@ -161,9 +155,7 @@ function buildFamilyTagMap(
   return familiesByCategory;
 }
 
-function buildTagMap(
-  tags: DerivedTagOntologyTag[],
-): Map<SearchCategory, Map<string, DerivedTagOntologyTag>> {
+function buildTagMap(tags: DerivedTagOntologyTag[]): Map<SearchCategory, Map<string, DerivedTagOntologyTag>> {
   const tagsByCategory = new Map<SearchCategory, Map<string, DerivedTagOntologyTag>>();
 
   for (const tag of tags) {
@@ -181,9 +173,7 @@ function createEmptyFamilyDecisionMap(): NormalizedFamilyDecisionMap {
   return new Map<string, Map<string, DerivedTagAssignmentDecision>>();
 }
 
-function normalizeAssignmentDecision(
-  decision: DerivedTagAssignmentDecision,
-): DerivedTagAssignmentDecision {
+function normalizeAssignmentDecision(decision: DerivedTagAssignmentDecision): DerivedTagAssignmentDecision {
   return {
     ...decision,
     tag: normalizeDerivedTag(decision.tag),
@@ -215,7 +205,8 @@ function normalizeFamilyTagAssignments(
       );
     }
 
-    const familyDecisions = normalizedAssignments.get(normalizedFamily) ?? new Map<string, DerivedTagAssignmentDecision>();
+    const familyDecisions =
+      normalizedAssignments.get(normalizedFamily) ?? new Map<string, DerivedTagAssignmentDecision>();
     for (const rawDecision of rawDecisions) {
       const normalizedDecision = normalizeAssignmentDecision(rawDecision);
       if (!familyTags.has(normalizedDecision.tag)) {
@@ -260,11 +251,7 @@ function flattenNormalizedAssignments(assignments: NormalizedFamilyDecisionMap):
   return uniqueSorted([...flattenedTags]);
 }
 
-function hasNormalizedDecision(
-  assignments: NormalizedFamilyDecisionMap,
-  family: string,
-  tag: string,
-): boolean {
+function hasNormalizedDecision(assignments: NormalizedFamilyDecisionMap, family: string, tag: string): boolean {
   return assignments.get(family)?.has(tag) ?? false;
 }
 
@@ -364,7 +351,9 @@ function validateFamilyTagReference(
   return { family: normalizedFamily, tag: normalizedTag };
 }
 
-function reviewIdentity(decision: Pick<DerivedTagAssignmentReviewDecision, "recordKey" | "family" | "tag" | "mode">): string {
+function reviewIdentity(
+  decision: Pick<DerivedTagAssignmentReviewDecision, "recordKey" | "family" | "tag" | "mode">,
+): string {
   return [
     decision.recordKey,
     normalizeDerivedTag(decision.family),
@@ -373,7 +362,9 @@ function reviewIdentity(decision: Pick<DerivedTagAssignmentReviewDecision, "reco
   ].join("|");
 }
 
-function memoryIdentity(decision: Pick<DerivedTagAssignmentMemoryDecision, "recordKey" | "family" | "tag" | "mode">): string {
+function memoryIdentity(
+  decision: Pick<DerivedTagAssignmentMemoryDecision, "recordKey" | "family" | "tag" | "mode">,
+): string {
   return [
     decision.recordKey,
     normalizeDerivedTag(decision.family),
@@ -404,7 +395,9 @@ export function buildDerivedTagPendingAssignmentViews(
       );
       const key = reviewIdentity(decision);
       if (seenDecisionKeys.has(key)) {
-        throw new Error(`Derived tag assignment review repeats "${validated.family}.${validated.tag}" (${decision.mode}) for "${decision.recordKey}".`);
+        throw new Error(
+          `Derived tag assignment review repeats "${validated.family}.${validated.tag}" (${decision.mode}) for "${decision.recordKey}".`,
+        );
       }
       const oppositeKey = reviewIdentity({
         recordKey: decision.recordKey,
@@ -425,9 +418,7 @@ export function buildDerivedTagPendingAssignmentViews(
         pending: {},
       };
       if (pendingView.name !== decision.name) {
-        throw new Error(
-          `Derived tag assignment reviews disagree on canonical name for "${decision.recordKey}".`,
-        );
+        throw new Error(`Derived tag assignment reviews disagree on canonical name for "${decision.recordKey}".`);
       }
       const current = pendingView.pending[validated.family] ?? [];
       current.push(validated.tag);
@@ -436,8 +427,9 @@ export function buildDerivedTagPendingAssignmentViews(
     }
   }
 
-  return [...pendingByRecord.values()]
-    .sort((left, right) => left.name.localeCompare(right.name) || left.recordKey.localeCompare(right.recordKey));
+  return [...pendingByRecord.values()].sort(
+    (left, right) => left.name.localeCompare(right.name) || left.recordKey.localeCompare(right.recordKey),
+  );
 }
 
 export function validateDerivedTagAssignmentMemory(
@@ -484,12 +476,7 @@ export function buildDerivedTagExplicitAssignmentIndex(
         throw new Error(`Duplicate explicit derived tag assignment for "${assignment.recordKey}".`);
       }
 
-      const normalizedAssignment = normalizeAssignment(
-        assignment,
-        group.category,
-        familyTagMap,
-        tagMap,
-      );
+      const normalizedAssignment = normalizeAssignment(assignment, group.category, familyTagMap, tagMap);
 
       assignmentsByRecordKey.set(assignment.recordKey, {
         category: group.category,

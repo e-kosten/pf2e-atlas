@@ -51,12 +51,16 @@ const FULL_RECORD_ENTITY_COLUMNS = [
 ] as const;
 
 function hasTable(db: DatabaseSync, tableName: string): boolean {
-  const row = db.prepare(`
+  const row = db
+    .prepare(
+      `
     SELECT 1 AS present
     FROM sqlite_master
     WHERE type = 'table' AND name = ?
     LIMIT 1
-  `).get(tableName) as { present: number } | undefined;
+  `,
+    )
+    .get(tableName) as { present: number } | undefined;
   return Boolean(row?.present);
 }
 
@@ -72,16 +76,10 @@ function buildFallbackSelectColumns(options: {
   recordColumns: Set<string>;
 }): string[] {
   const { includeActor, includeItem, includeSpell, recordColumns } = options;
-  const optionalRecordColumn = (
-    column: string,
-    alias: string,
-    fallbackSql: string,
-  ): string => recordColumns.has(column) ? `r.${column} AS ${alias}` : `${fallbackSql} AS ${alias}`;
-  const optionalJoinedColumn = (
-    enabled: boolean,
-    expression: string,
-    alias: string,
-  ): string => enabled ? `${expression} AS ${alias}` : `NULL AS ${alias}`;
+  const optionalRecordColumn = (column: string, alias: string, fallbackSql: string): string =>
+    recordColumns.has(column) ? `r.${column} AS ${alias}` : `${fallbackSql} AS ${alias}`;
+  const optionalJoinedColumn = (enabled: boolean, expression: string, alias: string): string =>
+    enabled ? `${expression} AS ${alias}` : `NULL AS ${alias}`;
 
   return [
     "r.record_key AS recordKey",
@@ -133,15 +131,14 @@ function buildFallbackSelectColumns(options: {
   ];
 }
 
-function loadReferences(
-  db: DatabaseSync,
-  recordKeys: string[],
-): Map<string, DerivedTagMigrationReference[]> {
+function loadReferences(db: DatabaseSync, recordKeys: string[]): Map<string, DerivedTagMigrationReference[]> {
   if (recordKeys.length === 0) {
     return new Map();
   }
 
-  const rows = db.prepare(`
+  const rows = db
+    .prepare(
+      `
     SELECT
       re.from_record_key AS fromRecordKey,
       re.to_record_key AS targetRecordKey,
@@ -153,7 +150,9 @@ function loadReferences(
     FROM reference_edges re
     JOIN records target ON target.record_key = re.to_record_key
     WHERE re.from_record_key IN (${buildPlaceholders(recordKeys)})
-  `).all(...recordKeys) as LoadedReferenceRow[];
+  `,
+    )
+    .all(...recordKeys) as LoadedReferenceRow[];
 
   const referencesByRecordKey = new Map<string, DerivedTagMigrationReference[]>();
   for (const row of rows) {
@@ -215,11 +214,7 @@ export function countDerivedTagMigrationRecords(
   db: DatabaseSync,
   options: LoadDerivedTagMigrationRecordsOptions,
 ): number {
-  const sql = [
-    "SELECT COUNT(*) AS count",
-    "FROM records r",
-    "WHERE r.is_search_canonical = 1",
-  ];
+  const sql = ["SELECT COUNT(*) AS count", "FROM records r", "WHERE r.is_search_canonical = 1"];
   const params: Array<string | number> = [];
   appendRecordFilters(sql, params, options);
 
@@ -238,22 +233,17 @@ export function loadDerivedTagMigrationRecords(
   const hasFullRecordProjection = FULL_RECORD_ENTITY_COLUMNS.every((column) => recordColumns.has(column));
   const selectColumns = hasFullRecordProjection
     ? buildOntologyExplorerEntityRecordSelectColumns({
-      includeActor,
-      includeItem,
-      includeSpell,
-    })
+        includeActor,
+        includeItem,
+        includeSpell,
+      })
     : buildFallbackSelectColumns({
-      includeActor,
-      includeItem,
-      includeSpell,
-      recordColumns,
-    });
-  const sql = [
-    "SELECT",
-    `  ${selectColumns.join(",\n  ")}`,
-    "FROM records r",
-    "WHERE r.is_search_canonical = 1",
-  ];
+        includeActor,
+        includeItem,
+        includeSpell,
+        recordColumns,
+      });
+  const sql = ["SELECT", `  ${selectColumns.join(",\n  ")}`, "FROM records r", "WHERE r.is_search_canonical = 1"];
   if (includeActor) {
     sql.splice(3, 0, "LEFT JOIN actor_records a ON a.record_key = r.record_key");
   }
@@ -261,7 +251,11 @@ export function loadDerivedTagMigrationRecords(
     sql.splice(includeActor ? 4 : 3, 0, "LEFT JOIN item_records i ON i.record_key = r.record_key");
   }
   if (includeSpell) {
-    sql.splice((includeActor ? 1 : 0) + (includeItem ? 1 : 0) + 3, 0, "LEFT JOIN spell_records s ON s.record_key = r.record_key");
+    sql.splice(
+      (includeActor ? 1 : 0) + (includeItem ? 1 : 0) + 3,
+      0,
+      "LEFT JOIN spell_records s ON s.record_key = r.record_key",
+    );
   }
   const params: Array<string | number> = [];
   appendRecordFilters(sql, params, options);
@@ -271,7 +265,10 @@ export function loadDerivedTagMigrationRecords(
   }
 
   const rows = db.prepare(sql.join("\n")).all(...params) as OntologyExplorerEntityRecordRow[];
-  const referencesByRecordKey = loadReferences(db, rows.map((row) => row.recordKey));
+  const referencesByRecordKey = loadReferences(
+    db,
+    rows.map((row) => row.recordKey),
+  );
 
   return rows.map((row) => ({
     entityRecord: mapOntologyExplorerEntityRecordRow(row),

@@ -11,11 +11,7 @@ export function Pf2eTerminalAppServicesProvider({
   children: React.ReactNode;
   services: Pf2eTerminalAppServices;
 }): React.JSX.Element {
-  return (
-    <Pf2eTerminalAppServicesContext.Provider value={services}>
-      {children}
-    </Pf2eTerminalAppServicesContext.Provider>
-  );
+  return <Pf2eTerminalAppServicesContext.Provider value={services}>{children}</Pf2eTerminalAppServicesContext.Provider>;
 }
 
 export function usePf2eTerminalAppServices(): Pf2eTerminalAppServices {

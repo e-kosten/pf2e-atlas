@@ -10,1659 +10,1659 @@ export const CREATURE_DERIVED_TAG_LEGACY_SEED_MIGRATIONS = {
       includeRecords: [
         {
           pack: "season-of-ghosts-bestiary",
-          name: "Noppera-Bo Impersonator (Arcane)"
+          name: "Noppera-Bo Impersonator (Arcane)",
         },
         {
           pack: "season-of-ghosts-bestiary",
-          name: "Noppera-Bo Impersonator (Divine)"
+          name: "Noppera-Bo Impersonator (Divine)",
         },
         {
           pack: "season-of-ghosts-bestiary",
-          name: "Noppera-Bo Impersonator (Martial)"
+          name: "Noppera-Bo Impersonator (Martial)",
         },
         {
           pack: "season-of-ghosts-bestiary",
-          name: "Noppera-Bo Impersonator (Occult)"
+          name: "Noppera-Bo Impersonator (Occult)",
         },
         {
           pack: "season-of-ghosts-bestiary",
-          name: "Noppera-Bo Impersonator (Primal)"
+          name: "Noppera-Bo Impersonator (Primal)",
         },
         {
           pack: "season-of-ghosts-bestiary",
-          name: "Noppera-Bo Impersonator (Skilled)"
-        }
-      ]
+          name: "Noppera-Bo Impersonator (Skilled)",
+        },
+      ],
     },
     {
       tag: "island_setting",
       includeRecords: [
         {
           pack: "age-of-ashes-bestiary",
-          name: "Hermean Mutant"
+          name: "Hermean Mutant",
         },
         {
           pack: "age-of-ashes-bestiary",
-          name: "Mengkare"
+          name: "Mengkare",
         },
         {
           pack: "age-of-ashes-bestiary",
-          name: "Dragonshard Guardian"
-        }
-      ]
+          name: "Dragonshard Guardian",
+        },
+      ],
     },
     {
       tag: "nautical_setting",
       includeRecords: [
         {
           pack: "agents-of-edgewatch-bestiary",
-          name: "Black Whale Guard (F3)"
-        }
-      ]
+          name: "Black Whale Guard (F3)",
+        },
+      ],
     },
     {
       tag: "organized_undead_society_setting",
       includeRecords: [
         {
           pack: "blood-lords-bestiary",
-          name: "Bloodshroud"
+          name: "Bloodshroud",
         },
         {
           pack: "blood-lords-bestiary",
-          name: "Charghar"
+          name: "Charghar",
         },
         {
           pack: "blood-lords-bestiary",
-          name: "Cobblebone Swarm"
+          name: "Cobblebone Swarm",
         },
         {
           pack: "blood-lords-bestiary",
-          name: "Necromunculus"
-        }
-      ]
+          name: "Necromunculus",
+        },
+      ],
     },
     {
       tag: "undead_war_torn_region_setting",
       includeRecords: [
         {
           pack: "book-of-the-dead-bestiary",
-          name: "Gallowdead"
+          name: "Gallowdead",
         },
         {
           pack: "claws-of-the-tyrant-bestiary",
-          name: "Chernasardo Ranger"
+          name: "Chernasardo Ranger",
         },
         {
           pack: "claws-of-the-tyrant-bestiary",
-          name: "Commander Arsiella Dei"
+          name: "Commander Arsiella Dei",
         },
         {
           pack: "claws-of-the-tyrant-bestiary",
-          name: "Knight Reclaimant"
+          name: "Knight Reclaimant",
         },
         {
           pack: "claws-of-the-tyrant-bestiary",
-          name: "Raised Cavalry"
-        }
-      ]
+          name: "Raised Cavalry",
+        },
+      ],
     },
     {
       tag: "tian_xia_setting",
       includeRecords: [
         {
           pack: "fists-of-the-ruby-phoenix-bestiary",
-          name: "Amihan"
+          name: "Amihan",
         },
         {
           pack: "fists-of-the-ruby-phoenix-bestiary",
-          name: "Caustic Monitor"
+          name: "Caustic Monitor",
         },
         {
           pack: "fists-of-the-ruby-phoenix-bestiary",
-          name: "Jaiban"
+          name: "Jaiban",
         },
         {
           pack: "fists-of-the-ruby-phoenix-bestiary",
-          name: "Nai Yan Fei"
-        }
-      ]
+          name: "Nai Yan Fei",
+        },
+      ],
     },
     {
       tag: "urban_setting",
       includeRecords: [
         {
           pack: "battlecry-bestiary",
-          name: "Ofalth Stampede"
+          name: "Ofalth Stampede",
         },
         {
           pack: "blood-lords-bestiary",
-          name: "Theater Phantasm"
+          name: "Theater Phantasm",
         },
         {
           pack: "book-of-the-dead-bestiary",
-          name: "Bone Croupier"
-        }
-      ]
+          name: "Bone Croupier",
+        },
+      ],
     },
     {
       tag: "battlefield_setting",
       includeRecords: [
         {
           pack: "battlecry-bestiary",
-          name: "Archer Regiment"
+          name: "Archer Regiment",
         },
         {
           pack: "battlecry-bestiary",
-          name: "Dromaar Company"
-        }
-      ]
+          name: "Dromaar Company",
+        },
+      ],
     },
     {
       tag: "small_settlement_setting",
       includeRecords: [
         {
           pack: "extinction-curse-bestiary",
-          name: "Shoony Hierarch"
+          name: "Shoony Hierarch",
         },
         {
           pack: "extinction-curse-bestiary",
-          name: "Shoony Militia Member"
-        }
-      ]
+          name: "Shoony Militia Member",
+        },
+      ],
     },
     {
       tag: "desert_setting",
       includeRecords: [
         {
           pack: "battlecry-bestiary",
-          name: "Qadiran Camel Corps"
+          name: "Qadiran Camel Corps",
         },
         {
           pack: "book-of-the-dead-bestiary",
-          name: "Mummy Prophet Of Set"
-        }
-      ]
+          name: "Mummy Prophet Of Set",
+        },
+      ],
     },
     {
       tag: "rural_setting",
       includeRecords: [
         {
           pack: "fall-of-plaguestone-bestiary",
-          name: "Drunken Farmer"
+          name: "Drunken Farmer",
         },
         {
           pack: "book-of-the-dead-bestiary",
-          name: "Death Coach"
-        }
-      ]
+          name: "Death Coach",
+        },
+      ],
     },
     {
       tag: "profession_npc",
       includeRecords: [
         {
           pack: "pathfinder-npc-core",
-          name: "Arms Dealer"
+          name: "Arms Dealer",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Artillerist"
+          name: "Artillerist",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Astronomer"
+          name: "Astronomer",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Beast Tamer"
+          name: "Beast Tamer",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Catfolk Name Collector"
+          name: "Catfolk Name Collector",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Chronicler"
+          name: "Chronicler",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Construction Worker"
+          name: "Construction Worker",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Court Historian"
+          name: "Court Historian",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Courtesan"
+          name: "Courtesan",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Dockhand"
+          name: "Dockhand",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Driver"
+          name: "Driver",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Dromaar Lorekeeper"
+          name: "Dromaar Lorekeeper",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Envoy"
+          name: "Envoy",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Expedition Leader"
+          name: "Expedition Leader",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Gunsmith"
+          name: "Gunsmith",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Halfling Head Chef"
+          name: "Halfling Head Chef",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Halfling Yarnspinner"
+          name: "Halfling Yarnspinner",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Harrow Reader"
+          name: "Harrow Reader",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Innkeeper"
+          name: "Innkeeper",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Local Herbalist"
+          name: "Local Herbalist",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Messenger"
+          name: "Messenger",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Miner"
+          name: "Miner",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Natural Scientist"
+          name: "Natural Scientist",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Orc Agriculturist"
+          name: "Orc Agriculturist",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Orc Gamekeeper"
+          name: "Orc Gamekeeper",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Dwarf Smith"
+          name: "Dwarf Smith",
         },
         {
           pack: "hellbreakers-bestiary",
-          name: "Captain Lamperia Bane"
+          name: "Captain Lamperia Bane",
         },
         {
           pack: "hellbreakers-bestiary",
-          name: "False Hellbreaker"
+          name: "False Hellbreaker",
         },
         {
           pack: "hellbreakers-bestiary",
-          name: "Hecatinia"
+          name: "Hecatinia",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Changeling Hellknight"
+          name: "Changeling Hellknight",
         },
         {
           pack: "revenge-of-the-runelords-bestiary",
-          name: "Lograsi"
+          name: "Lograsi",
         },
         {
           pack: "age-of-ashes-bestiary",
-          name: "Bloody Blade Mercenary"
+          name: "Bloody Blade Mercenary",
         },
         {
           pack: "age-of-ashes-bestiary",
-          name: "Ekujae Guardian"
+          name: "Ekujae Guardian",
         },
         {
           pack: "age-of-ashes-bestiary",
-          name: "Scarlet Triad Boss"
+          name: "Scarlet Triad Boss",
         },
         {
           pack: "age-of-ashes-bestiary",
-          name: "Scarlet Triad Sniper"
+          name: "Scarlet Triad Sniper",
         },
         {
           pack: "agents-of-edgewatch-bestiary",
-          name: "Norgorberite Poisoner"
+          name: "Norgorberite Poisoner",
         },
         {
           pack: "agents-of-edgewatch-bestiary",
-          name: "Skinsaw Murderer"
+          name: "Skinsaw Murderer",
         },
         {
           pack: "agents-of-edgewatch-bestiary",
-          name: "Starwatch Commando"
+          name: "Starwatch Commando",
         },
         {
           pack: "agents-of-edgewatch-bestiary",
-          name: "Sleepless Sun Veteran"
+          name: "Sleepless Sun Veteran",
         },
         {
           pack: "blood-lords-bestiary",
-          name: "Nwanyian Archer"
+          name: "Nwanyian Archer",
         },
         {
           pack: "blog-bestiary",
-          name: "Urok"
+          name: "Urok",
         },
         {
           pack: "claws-of-the-tyrant-bestiary",
-          name: "Commander Arsiella Dei"
+          name: "Commander Arsiella Dei",
         },
         {
           pack: "hellbreakers-bestiary",
-          name: "Adjutant Hellknight Armiger"
+          name: "Adjutant Hellknight Armiger",
         },
         {
           pack: "hellbreakers-bestiary",
-          name: "Isgeri Slayer"
+          name: "Isgeri Slayer",
         },
         {
           pack: "hellbreakers-bestiary",
-          name: "Jordis Serelli"
+          name: "Jordis Serelli",
         },
         {
           pack: "kingmaker-bestiary",
-          name: "Cleansed Cultist"
+          name: "Cleansed Cultist",
         },
         {
           pack: "kingmaker-bestiary",
-          name: "False Priestess"
+          name: "False Priestess",
         },
         {
           pack: "kingmaker-bestiary",
-          name: "Thresholder Disciple"
+          name: "Thresholder Disciple",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Virtuous Defender"
+          name: "Virtuous Defender",
         },
         {
           pack: "menace-under-otari-bestiary",
-          name: "Drow Priestess (BB)"
+          name: "Drow Priestess (BB)",
         },
         {
           pack: "menace-under-otari-bestiary",
-          name: "Kobold Boss Zolgran (BB)"
+          name: "Kobold Boss Zolgran (BB)",
         },
         {
           pack: "outlaws-of-alkenstar-bestiary",
-          name: "Corrupt Shieldmarshal (Clan Pistol)"
+          name: "Corrupt Shieldmarshal (Clan Pistol)",
         },
         {
           pack: "outlaws-of-alkenstar-bestiary",
-          name: "Gilded Gunner Assassin"
+          name: "Gilded Gunner Assassin",
         },
         {
           pack: "outlaws-of-alkenstar-bestiary",
-          name: "Gilded Gunner Goon"
+          name: "Gilded Gunner Goon",
         },
         {
           pack: "pathfinder-bestiary-3",
-          name: "Android Infiltrator"
+          name: "Android Infiltrator",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Cultist"
+          name: "Cultist",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Demonbane Warrior"
+          name: "Demonbane Warrior",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Dwarf General"
+          name: "Dwarf General",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Enigmatic Conspirant"
+          name: "Enigmatic Conspirant",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Exiled Revolutionary"
+          name: "Exiled Revolutionary",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Infantry Soldier"
+          name: "Infantry Soldier",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Knight"
+          name: "Knight",
         },
         {
           pack: "prey-for-death-bestiary",
-          name: "Berserker Ordulf"
+          name: "Berserker Ordulf",
         },
         {
           pack: "prey-for-death-bestiary",
-          name: "Ordulf Bladecaller"
+          name: "Ordulf Bladecaller",
         },
         {
           pack: "season-of-ghosts-bestiary",
-          name: "Mercenary Enforcer"
+          name: "Mercenary Enforcer",
         },
         {
           pack: "seven-dooms-for-sandpoint-bestiary",
-          name: "Devil's Disciple"
+          name: "Devil's Disciple",
         },
         {
           pack: "sky-kings-tomb-bestiary",
-          name: "Hryngar King's Agent"
+          name: "Hryngar King's Agent",
         },
         {
           pack: "strength-of-thousands-bestiary",
-          name: "Sun Warrior Brigade"
+          name: "Sun Warrior Brigade",
         },
         {
           pack: "the-enmity-cycle-bestiary",
-          name: "Scorching Sun Cultist"
+          name: "Scorching Sun Cultist",
         },
         {
           pack: "fists-of-the-ruby-phoenix-bestiary",
-          name: "Weapon Master"
-        }
-      ]
+          name: "Weapon Master",
+        },
+      ],
     },
     {
       tag: "civic_npc",
       includeRecords: [
         {
           pack: "pathfinder-npc-core",
-          name: "Astronomer"
+          name: "Astronomer",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Beast Tamer"
+          name: "Beast Tamer",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Catfolk Name Collector"
+          name: "Catfolk Name Collector",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Chronicler"
+          name: "Chronicler",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Construction Worker"
+          name: "Construction Worker",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Court Historian"
+          name: "Court Historian",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Courtesan"
+          name: "Courtesan",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Dockhand"
+          name: "Dockhand",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Driver"
+          name: "Driver",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Dromaar Lorekeeper"
+          name: "Dromaar Lorekeeper",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Envoy"
+          name: "Envoy",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Expedition Leader"
+          name: "Expedition Leader",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Gunsmith"
+          name: "Gunsmith",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Halfling Head Chef"
+          name: "Halfling Head Chef",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Halfling Yarnspinner"
+          name: "Halfling Yarnspinner",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Harrow Reader"
+          name: "Harrow Reader",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Innkeeper"
+          name: "Innkeeper",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Local Herbalist"
+          name: "Local Herbalist",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Messenger"
+          name: "Messenger",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Miner"
+          name: "Miner",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Natural Scientist"
+          name: "Natural Scientist",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Orc Agriculturist"
+          name: "Orc Agriculturist",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Orc Gamekeeper"
+          name: "Orc Gamekeeper",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Dwarf Smith"
+          name: "Dwarf Smith",
         },
         {
           pack: "hellbreakers-bestiary",
-          name: "Captain Lamperia Bane"
+          name: "Captain Lamperia Bane",
         },
         {
           pack: "hellbreakers-bestiary",
-          name: "Hecatinia"
+          name: "Hecatinia",
         },
         {
           pack: "agents-of-edgewatch-bestiary",
-          name: "Starwatch Commando"
+          name: "Starwatch Commando",
         },
         {
           pack: "agents-of-edgewatch-bestiary",
-          name: "Sleepless Sun Veteran"
+          name: "Sleepless Sun Veteran",
         },
         {
           pack: "blood-lords-bestiary",
-          name: "Firebrand Bastion"
+          name: "Firebrand Bastion",
         },
         {
           pack: "blood-lords-bestiary",
-          name: "Nwanyian Archer"
+          name: "Nwanyian Archer",
         },
         {
           pack: "claws-of-the-tyrant-bestiary",
-          name: "Commander Arsiella Dei"
+          name: "Commander Arsiella Dei",
         },
         {
           pack: "gatewalkers-bestiary",
-          name: "Oaksteward Enforcer"
+          name: "Oaksteward Enforcer",
         },
         {
           pack: "gatewalkers-bestiary",
-          name: "Oaksteward Enforcer (Gatehouse)"
+          name: "Oaksteward Enforcer (Gatehouse)",
         },
         {
           pack: "hellbreakers-bestiary",
-          name: "Adjutant Hellknight Armiger"
+          name: "Adjutant Hellknight Armiger",
         },
         {
           pack: "hellbreakers-bestiary",
-          name: "Jordis Serelli"
+          name: "Jordis Serelli",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Changeling Hellknight"
+          name: "Changeling Hellknight",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Virtuous Defender"
+          name: "Virtuous Defender",
         },
         {
           pack: "outlaws-of-alkenstar-bestiary",
-          name: "Corrupt Shieldmarshal (Clan Pistol)"
+          name: "Corrupt Shieldmarshal (Clan Pistol)",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Dwarf General"
+          name: "Dwarf General",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Enigmatic Conspirant"
+          name: "Enigmatic Conspirant",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Exiled Revolutionary"
+          name: "Exiled Revolutionary",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Knight"
+          name: "Knight",
         },
         {
           pack: "season-of-ghosts-bestiary",
-          name: "Mercenary Enforcer"
+          name: "Mercenary Enforcer",
         },
         {
           pack: "sky-kings-tomb-bestiary",
-          name: "Hryngar King's Agent"
+          name: "Hryngar King's Agent",
         },
         {
           pack: "age-of-ashes-bestiary",
-          name: "Ekujae Guardian"
-        }
-      ]
+          name: "Ekujae Guardian",
+        },
+      ],
     },
     {
       tag: "enforcer_npc",
       includeRecords: [
         {
           pack: "pathfinder-npc-core",
-          name: "Artillerist"
+          name: "Artillerist",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Heavy Cavalry"
+          name: "Heavy Cavalry",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Hellknight Cavalry Brigade"
+          name: "Hellknight Cavalry Brigade",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Hobgoblin Battalion"
+          name: "Hobgoblin Battalion",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Hobgoblin Spellbreaker"
+          name: "Hobgoblin Spellbreaker",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Kholo Pragmatist"
+          name: "Kholo Pragmatist",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Kobold Egg Guardian"
+          name: "Kobold Egg Guardian",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Legbreaker"
+          name: "Legbreaker",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Mage Knight"
+          name: "Mage Knight",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Mixed Martial Artist"
+          name: "Mixed Martial Artist",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Musketeer"
+          name: "Musketeer",
         },
         {
           pack: "pathfinder-monster-core",
-          name: "Orc Commander"
+          name: "Orc Commander",
         },
         {
           pack: "pathfinder-monster-core",
-          name: "Orc Veteran"
+          name: "Orc Veteran",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Orc Veteran Master"
+          name: "Orc Veteran Master",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Orc Skullcrushers"
+          name: "Orc Skullcrushers",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Knight"
+          name: "Knight",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Dwarf Battalion"
+          name: "Dwarf Battalion",
         },
         {
           pack: "age-of-ashes-bestiary",
-          name: "Scarlet Triad Boss"
+          name: "Scarlet Triad Boss",
         },
         {
           pack: "age-of-ashes-bestiary",
-          name: "Scarlet Triad Enforcer"
+          name: "Scarlet Triad Enforcer",
         },
         {
           pack: "agents-of-edgewatch-bestiary",
-          name: "Sleepless Sun Veteran"
+          name: "Sleepless Sun Veteran",
         },
         {
           pack: "blood-lords-bestiary",
-          name: "Nwanyian Archer"
+          name: "Nwanyian Archer",
         },
         {
           pack: "hellbreakers-bestiary",
-          name: "Captain Lamperia Bane"
+          name: "Captain Lamperia Bane",
         },
         {
           pack: "hellbreakers-bestiary",
-          name: "False Hellbreaker"
+          name: "False Hellbreaker",
         },
         {
           pack: "hellbreakers-bestiary",
-          name: "Hecatinia"
+          name: "Hecatinia",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Changeling Hellknight"
+          name: "Changeling Hellknight",
         },
         {
           pack: "kingmaker-bestiary",
-          name: "Thresholder Disciple"
+          name: "Thresholder Disciple",
         },
         {
           pack: "prey-for-death-bestiary",
-          name: "Berserker Ordulf"
+          name: "Berserker Ordulf",
         },
         {
           pack: "revenge-of-the-runelords-bestiary",
-          name: "Lograsi"
+          name: "Lograsi",
         },
         {
           pack: "agents-of-edgewatch-bestiary",
-          name: "Copper Hand Rogue"
+          name: "Copper Hand Rogue",
         },
         {
           pack: "agents-of-edgewatch-bestiary",
-          name: "Gref"
+          name: "Gref",
         },
         {
           pack: "agents-of-edgewatch-bestiary",
-          name: "Kekker"
+          name: "Kekker",
         },
         {
           pack: "agents-of-edgewatch-bestiary",
-          name: "Starwatch Commando"
+          name: "Starwatch Commando",
         },
         {
           pack: "age-of-ashes-bestiary",
-          name: "Bloody Blade Mercenary"
+          name: "Bloody Blade Mercenary",
         },
         {
           pack: "age-of-ashes-bestiary",
-          name: "Dmiri Yoltosha"
+          name: "Dmiri Yoltosha",
         },
         {
           pack: "age-of-ashes-bestiary",
-          name: "Ekujae Guardian"
+          name: "Ekujae Guardian",
         },
         {
           pack: "age-of-ashes-bestiary",
-          name: "Laslunn"
+          name: "Laslunn",
         },
         {
           pack: "age-of-ashes-bestiary",
-          name: "Scarlet Triad Sniper"
+          name: "Scarlet Triad Sniper",
         },
         {
           pack: "claws-of-the-tyrant-bestiary",
-          name: "Commander Arsiella Dei"
+          name: "Commander Arsiella Dei",
         },
         {
           pack: "crown-of-the-kobold-king-bestiary",
-          name: "Dark Talon Kobold"
+          name: "Dark Talon Kobold",
         },
         {
           pack: "crown-of-the-kobold-king-bestiary",
-          name: "Foolish Hunter"
+          name: "Foolish Hunter",
         },
         {
           pack: "crown-of-the-kobold-king-bestiary",
-          name: "Gurtlekep"
+          name: "Gurtlekep",
         },
         {
           pack: "crown-of-the-kobold-king-bestiary",
-          name: "Kapmek"
+          name: "Kapmek",
         },
         {
           pack: "crown-of-the-kobold-king-bestiary",
-          name: "Ygrik"
+          name: "Ygrik",
         },
         {
           pack: "fall-of-plaguestone-bestiary",
-          name: "Graytusk"
+          name: "Graytusk",
         },
         {
           pack: "fists-of-the-ruby-phoenix-bestiary",
-          name: "Archery Specialist"
+          name: "Archery Specialist",
         },
         {
           pack: "fists-of-the-ruby-phoenix-bestiary",
-          name: "Master Xun"
+          name: "Master Xun",
         },
         {
           pack: "fists-of-the-ruby-phoenix-bestiary",
-          name: "Ran-to (Level 20)"
+          name: "Ran-to (Level 20)",
         },
         {
           pack: "fists-of-the-ruby-phoenix-bestiary",
-          name: "Troff Frostknuckles"
+          name: "Troff Frostknuckles",
         },
         {
           pack: "hellbreakers-bestiary",
-          name: "Chelaxian Loyalist"
+          name: "Chelaxian Loyalist",
         },
         {
           pack: "hellbreakers-bestiary",
-          name: "Isgeri Slayer"
+          name: "Isgeri Slayer",
         },
         {
           pack: "hellbreakers-bestiary",
-          name: "Jordis Serelli"
+          name: "Jordis Serelli",
         },
         {
           pack: "kingmaker-bestiary",
-          name: "Ameon Trask"
+          name: "Ameon Trask",
         },
         {
           pack: "kingmaker-bestiary",
-          name: "Villamor Koth"
+          name: "Villamor Koth",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Anadi Hunter"
+          name: "Anadi Hunter",
         },
         {
           pack: "outlaws-of-alkenstar-bestiary",
-          name: "Corrupt Shieldmarshal (Clan Pistol)"
+          name: "Corrupt Shieldmarshal (Clan Pistol)",
         },
         {
           pack: "outlaws-of-alkenstar-bestiary",
-          name: "Gilded Gunner Assassin"
+          name: "Gilded Gunner Assassin",
         },
         {
           pack: "outlaws-of-alkenstar-bestiary",
-          name: "Gilded Gunner Goon"
+          name: "Gilded Gunner Goon",
         },
         {
           pack: "outlaws-of-alkenstar-bestiary",
-          name: "Gilded Gunner Safecracker"
+          name: "Gilded Gunner Safecracker",
         },
         {
           pack: "pathfinder-bestiary-3",
-          name: "Android Infiltrator"
+          name: "Android Infiltrator",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Cultist"
+          name: "Cultist",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Gang Leader"
+          name: "Gang Leader",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Hero Hunter"
+          name: "Hero Hunter",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Monster Hunter"
+          name: "Monster Hunter",
         },
         {
           pack: "pathfinder-npc-core",
-          name: "Wealthy Vigilante"
+          name: "Wealthy Vigilante",
         },
         {
           pack: "prey-for-death-bestiary",
-          name: "Gorumite Veteran"
+          name: "Gorumite Veteran",
         },
         {
           pack: "quest-for-the-frozen-flame-bestiary",
-          name: "Graylok Ambusher"
+          name: "Graylok Ambusher",
         },
         {
           pack: "rusthenge-bestiary",
-          name: "Fallen Acolyte"
+          name: "Fallen Acolyte",
         },
         {
           pack: "rusthenge-bestiary",
-          name: "Rustsworn Initiate"
+          name: "Rustsworn Initiate",
         },
         {
           pack: "season-of-ghosts-bestiary",
-          name: "Mercenary Enforcer"
+          name: "Mercenary Enforcer",
         },
         {
           pack: "seven-dooms-for-sandpoint-bestiary",
-          name: "Devil's Disciple"
+          name: "Devil's Disciple",
         },
         {
           pack: "shadows-at-sundown-bestiary",
-          name: "Yniesse Zenderholm"
+          name: "Yniesse Zenderholm",
         },
         {
           pack: "sky-kings-tomb-bestiary",
-          name: "Blacknoon Apprentice"
+          name: "Blacknoon Apprentice",
         },
         {
           pack: "sky-kings-tomb-bestiary",
-          name: "Hrungul Ironeye"
+          name: "Hrungul Ironeye",
         },
         {
           pack: "sky-kings-tomb-bestiary",
-          name: "Hryngar King's Agent"
+          name: "Hryngar King's Agent",
         },
         {
           pack: "strength-of-thousands-bestiary",
-          name: "Crimson Acolyte"
+          name: "Crimson Acolyte",
         },
         {
           pack: "strength-of-thousands-bestiary",
-          name: "Cyclops Bully"
+          name: "Cyclops Bully",
         },
         {
           pack: "the-enmity-cycle-bestiary",
-          name: "Scorching Sun Cultist"
+          name: "Scorching Sun Cultist",
         },
         {
           pack: "the-slithering-bestiary",
-          name: "Aspis Technician"
+          name: "Aspis Technician",
         },
         {
           pack: "troubles-in-otari-bestiary",
-          name: "Orc Scrapper"
+          name: "Orc Scrapper",
         },
         {
           pack: "triumph-of-the-tusk-bestiary",
-          name: "Molog"
+          name: "Molog",
         },
         {
           pack: "triumph-of-the-tusk-bestiary",
-          name: "Orc Hunter"
+          name: "Orc Hunter",
         },
         {
           pack: "triumph-of-the-tusk-bestiary",
-          name: "Wingripper Wyvern Rider"
+          name: "Wingripper Wyvern Rider",
         },
         {
           pack: "wardens-of-wildwood-bestiary",
-          name: "Hateful Logger"
+          name: "Hateful Logger",
         },
         {
           pack: "battlecry-bestiary",
-          name: "Dromaar Company"
+          name: "Dromaar Company",
         },
         {
           pack: "blog-bestiary",
-          name: "Urok"
-        }
-      ]
+          name: "Urok",
+        },
+      ],
     },
     {
       tag: "sinspawn_family",
       includeRecords: [
         {
           pack: "pathfinder-monster-core",
-          name: "Envyspawn"
+          name: "Envyspawn",
         },
         {
           pack: "pathfinder-monster-core",
-          name: "Gluttonyspawn"
+          name: "Gluttonyspawn",
         },
         {
           pack: "pathfinder-monster-core",
-          name: "Greedspawn"
+          name: "Greedspawn",
         },
         {
           pack: "pathfinder-monster-core",
-          name: "Lustspawn"
+          name: "Lustspawn",
         },
         {
           pack: "pathfinder-monster-core",
-          name: "Pridespawn"
+          name: "Pridespawn",
         },
         {
           pack: "pathfinder-monster-core",
-          name: "Slothspawn"
+          name: "Slothspawn",
         },
         {
           pack: "pathfinder-monster-core",
-          name: "Wrathspawn"
+          name: "Wrathspawn",
         },
         {
           pack: "pathfinder-monster-core-2",
-          name: "Atrixyl"
+          name: "Atrixyl",
         },
         {
           pack: "battlecry-bestiary",
-          name: "Sinswarm"
+          name: "Sinswarm",
         },
         {
           pack: "revenge-of-the-runelords-bestiary",
-          name: "Greedspawn"
+          name: "Greedspawn",
         },
         {
           pack: "revenge-of-the-runelords-bestiary",
-          name: "Pridespawn Sentinel"
+          name: "Pridespawn Sentinel",
         },
         {
           pack: "revenge-of-the-runelords-bestiary",
-          name: "Knight of Malice"
+          name: "Knight of Malice",
         },
         {
           pack: "seven-dooms-for-sandpoint-bestiary",
-          name: "Greedspawn"
-        }
-      ]
+          name: "Greedspawn",
+        },
+      ],
     },
     {
       tag: "dragon_spellcaster",
       includeRecords: [
         {
           pack: "lost-omens-bestiary",
-          name: "Adamantine Archdragon (Spellcaster)"
+          name: "Adamantine Archdragon (Spellcaster)",
         },
         {
           pack: "pathfinder-monster-core",
-          name: "Adamantine Dragon (Adult, Spellcaster)"
+          name: "Adamantine Dragon (Adult, Spellcaster)",
         },
         {
           pack: "pathfinder-monster-core",
-          name: "Adamantine Dragon (Ancient, Spellcaster)"
+          name: "Adamantine Dragon (Ancient, Spellcaster)",
         },
         {
           pack: "pathfinder-monster-core",
-          name: "Adamantine Dragon (Young, Spellcaster)"
+          name: "Adamantine Dragon (Young, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Barrage Archdragon (Spellcaster)"
+          name: "Barrage Archdragon (Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Barrage Dragon (Adult, Spellcaster)"
+          name: "Barrage Dragon (Adult, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Barrage Dragon (Ancient, Spellcaster)"
+          name: "Barrage Dragon (Ancient, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Barrage Dragon (Young, Spellcaster)"
+          name: "Barrage Dragon (Young, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Cloud Archdragon (Spellcaster)"
+          name: "Cloud Archdragon (Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Cloud Dragon (Adult, Spellcaster)"
+          name: "Cloud Dragon (Adult, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Cloud Dragon (Ancient, Spellcaster)"
+          name: "Cloud Dragon (Ancient, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Cloud Dragon (Young, Spellcaster)"
+          name: "Cloud Dragon (Young, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Conspirator Archdragon (Spellcaster)"
+          name: "Conspirator Archdragon (Spellcaster)",
         },
         {
           pack: "pathfinder-monster-core",
-          name: "Conspirator Dragon (Adult, Spellcaster)"
+          name: "Conspirator Dragon (Adult, Spellcaster)",
         },
         {
           pack: "pathfinder-monster-core",
-          name: "Conspirator Dragon (Ancient, Spellcaster)"
+          name: "Conspirator Dragon (Ancient, Spellcaster)",
         },
         {
           pack: "pathfinder-monster-core",
-          name: "Conspirator Dragon (Young, Spellcaster)"
+          name: "Conspirator Dragon (Young, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Crystal Archdragon (Spellcaster)"
+          name: "Crystal Archdragon (Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Crystal Dragon (Adult, Spellcaster)"
+          name: "Crystal Dragon (Adult, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Crystal Dragon (Ancient, Spellcaster)"
+          name: "Crystal Dragon (Ancient, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Crystal Dragon (Young, Spellcaster)"
+          name: "Crystal Dragon (Young, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Delight Archdragon (Spellcaster)"
+          name: "Delight Archdragon (Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Delight Dragon (Adult, Spellcaster)"
+          name: "Delight Dragon (Adult, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Delight Dragon (Ancient, Spellcaster)"
+          name: "Delight Dragon (Ancient, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Delight Dragon (Young, Spellcaster)"
+          name: "Delight Dragon (Young, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Diabolic Archdragon (Spellcaster)"
+          name: "Diabolic Archdragon (Spellcaster)",
         },
         {
           pack: "pathfinder-monster-core",
-          name: "Diabolic Dragon (Adult, Spellcaster)"
+          name: "Diabolic Dragon (Adult, Spellcaster)",
         },
         {
           pack: "pathfinder-monster-core",
-          name: "Diabolic Dragon (Ancient, Spellcaster)"
+          name: "Diabolic Dragon (Ancient, Spellcaster)",
         },
         {
           pack: "pathfinder-monster-core",
-          name: "Diabolic Dragon (Young, Spellcaster)"
+          name: "Diabolic Dragon (Young, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Empyreal Archdragon (Spellcaster)"
+          name: "Empyreal Archdragon (Spellcaster)",
         },
         {
           pack: "pathfinder-monster-core",
-          name: "Empyreal Dragon (Adult, Spellcaster)"
+          name: "Empyreal Dragon (Adult, Spellcaster)",
         },
         {
           pack: "pathfinder-monster-core",
-          name: "Empyreal Dragon (Ancient, Spellcaster)"
+          name: "Empyreal Dragon (Ancient, Spellcaster)",
         },
         {
           pack: "pathfinder-monster-core",
-          name: "Empyreal Dragon (Young, Spellcaster)"
+          name: "Empyreal Dragon (Young, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Fortune Archdragon (Spellcaster)"
+          name: "Fortune Archdragon (Spellcaster)",
         },
         {
           pack: "pathfinder-monster-core",
-          name: "Fortune Dragon (Adult, Spellcaster)"
+          name: "Fortune Dragon (Adult, Spellcaster)",
         },
         {
           pack: "pathfinder-monster-core",
-          name: "Fortune Dragon (Ancient, Spellcaster)"
+          name: "Fortune Dragon (Ancient, Spellcaster)",
         },
         {
           pack: "pathfinder-monster-core",
-          name: "Fortune Dragon (Young, Spellcaster)"
+          name: "Fortune Dragon (Young, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Mocking Archdragon (Spellcaster)"
+          name: "Mocking Archdragon (Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Mocking Dragon (Adult, Spellcaster)"
+          name: "Mocking Dragon (Adult, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Mocking Dragon (Ancient, Spellcaster)"
+          name: "Mocking Dragon (Ancient, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Mocking Dragon (Young, Spellcaster)"
+          name: "Mocking Dragon (Young, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Oath Archdragon (Spellcaster)"
+          name: "Oath Archdragon (Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Oath Dragon (Adult, Spellcaster)"
+          name: "Oath Dragon (Adult, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Oath Dragon (Ancient, Spellcaster)"
+          name: "Oath Dragon (Ancient, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Oath Dragon (Young, Spellcaster)"
+          name: "Oath Dragon (Young, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Omen Archdragon (Spellcaster)"
+          name: "Omen Archdragon (Spellcaster)",
         },
         {
           pack: "pathfinder-monster-core",
-          name: "Omen Dragon (Adult, Spellcaster)"
+          name: "Omen Dragon (Adult, Spellcaster)",
         },
         {
           pack: "pathfinder-monster-core",
-          name: "Omen Dragon (Ancient, Spellcaster)"
+          name: "Omen Dragon (Ancient, Spellcaster)",
         },
         {
           pack: "pathfinder-monster-core",
-          name: "Omen Dragon (Young, Spellcaster)"
+          name: "Omen Dragon (Young, Spellcaster)",
         },
         {
           pack: "pathfinder-bestiary",
-          name: "Red Dragon (Adult, Spellcaster)"
+          name: "Red Dragon (Adult, Spellcaster)",
         },
         {
           pack: "pathfinder-bestiary",
-          name: "Red Dragon (Ancient, Spellcaster)"
+          name: "Red Dragon (Ancient, Spellcaster)",
         },
         {
           pack: "pathfinder-bestiary",
-          name: "Red Dragon (Young, Spellcaster)"
+          name: "Red Dragon (Young, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Requiem Archdragon (Spellcaster)"
+          name: "Requiem Archdragon (Spellcaster)",
         },
         {
           pack: "pathfinder-monster-core-2",
-          name: "Requiem Dragon (Adult, Spellcaster)"
+          name: "Requiem Dragon (Adult, Spellcaster)",
         },
         {
           pack: "pathfinder-monster-core-2",
-          name: "Requiem Dragon (Ancient, Spellcaster)"
+          name: "Requiem Dragon (Ancient, Spellcaster)",
         },
         {
           pack: "pathfinder-monster-core-2",
-          name: "Requiem Dragon (Young, Spellcaster)"
+          name: "Requiem Dragon (Young, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Rune Archdragon (Spellcaster)"
+          name: "Rune Archdragon (Spellcaster)",
         },
         {
           pack: "pathfinder-monster-core-2",
-          name: "Rune Dragon (Adult, Spellcaster)"
+          name: "Rune Dragon (Adult, Spellcaster)",
         },
         {
           pack: "pathfinder-monster-core-2",
-          name: "Rune Dragon (Ancient, Spellcaster)"
+          name: "Rune Dragon (Ancient, Spellcaster)",
         },
         {
           pack: "pathfinder-monster-core-2",
-          name: "Rune Dragon (Young, Spellcaster)"
+          name: "Rune Dragon (Young, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Sage Archdragon (Spellcaster)"
+          name: "Sage Archdragon (Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Sage Dragon (Adult, Spellcaster)"
+          name: "Sage Dragon (Adult, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Sage Dragon (Ancient, Spellcaster)"
+          name: "Sage Dragon (Ancient, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Sage Dragon (Young, Spellcaster)"
+          name: "Sage Dragon (Young, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Sky Archdragon (Spellcaster)"
+          name: "Sky Archdragon (Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Sky Dragon (Adult, Spellcaster)"
+          name: "Sky Dragon (Adult, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Sky Dragon (Ancient, Spellcaster)"
+          name: "Sky Dragon (Ancient, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Sky Dragon (Young, Spellcaster)"
+          name: "Sky Dragon (Young, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Stormcrown Archdragon (Spellcaster)"
+          name: "Stormcrown Archdragon (Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Stormcrown Dragon (Adult, Spellcaster)"
+          name: "Stormcrown Dragon (Adult, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Stormcrown Dragon (Ancient, Spellcaster)"
+          name: "Stormcrown Dragon (Ancient, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Stormcrown Dragon (Young, Spellcaster)"
+          name: "Stormcrown Dragon (Young, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Time Archdragon (Spellcaster)"
+          name: "Time Archdragon (Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Time Dragon (Adult, Spellcaster)"
+          name: "Time Dragon (Adult, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Time Dragon (Ancient, Spellcaster)"
+          name: "Time Dragon (Ancient, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Time Dragon (Young, Spellcaster)"
+          name: "Time Dragon (Young, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Umbral Archdragon (Spellcaster)"
+          name: "Umbral Archdragon (Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Umbral Dragon (Adult, Spellcaster)"
+          name: "Umbral Dragon (Adult, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Umbral Dragon (Ancient, Spellcaster)"
+          name: "Umbral Dragon (Ancient, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Umbral Dragon (Young, Spellcaster)"
+          name: "Umbral Dragon (Young, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Vizier Archdragon (Spellcaster)"
+          name: "Vizier Archdragon (Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Vizier Dragon (Adult, Spellcaster)"
+          name: "Vizier Dragon (Adult, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Vizier Dragon (Ancient, Spellcaster)"
+          name: "Vizier Dragon (Ancient, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Vizier Dragon (Young, Spellcaster)"
+          name: "Vizier Dragon (Young, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Vorpal Archdragon (Spellcaster)"
+          name: "Vorpal Archdragon (Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Vorpal Dragon (Adult, Spellcaster)"
+          name: "Vorpal Dragon (Adult, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Vorpal Dragon (Ancient, Spellcaster)"
+          name: "Vorpal Dragon (Ancient, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Vorpal Dragon (Young, Spellcaster)"
+          name: "Vorpal Dragon (Young, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Wailing Archdragon (Spellcaster)"
+          name: "Wailing Archdragon (Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Wailing Dragon (Adult, Spellcaster)"
+          name: "Wailing Dragon (Adult, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Wailing Dragon (Ancient, Spellcaster)"
+          name: "Wailing Dragon (Ancient, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Wailing Dragon (Young, Spellcaster)"
+          name: "Wailing Dragon (Young, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Whisper Archdragon (Spellcaster)"
+          name: "Whisper Archdragon (Spellcaster)",
         },
         {
           pack: "pathfinder-monster-core-2",
-          name: "Whisper Dragon (Adult, Spellcaster)"
+          name: "Whisper Dragon (Adult, Spellcaster)",
         },
         {
           pack: "pathfinder-monster-core-2",
-          name: "Whisper Dragon (Ancient, Spellcaster)"
+          name: "Whisper Dragon (Ancient, Spellcaster)",
         },
         {
           pack: "pathfinder-monster-core-2",
-          name: "Whisper Dragon (Young, Spellcaster)"
+          name: "Whisper Dragon (Young, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Wish Archdragon (Spellcaster)"
+          name: "Wish Archdragon (Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Wish Dragon (Adult, Spellcaster)"
+          name: "Wish Dragon (Adult, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Wish Dragon (Ancient, Spellcaster)"
+          name: "Wish Dragon (Ancient, Spellcaster)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Wish Dragon (Young, Spellcaster)"
-        }
-      ]
+          name: "Wish Dragon (Young, Spellcaster)",
+        },
+      ],
     },
     {
       tag: "regeneration_threat",
       includeRecords: [
         {
           pack: "pathfinder-monster-core-2",
-          name: "Cavern Troll"
+          name: "Cavern Troll",
         },
         {
           pack: "menace-under-otari-bestiary",
-          name: "Forest Troll (BB)"
+          name: "Forest Troll (BB)",
         },
         {
           pack: "stolen-fate-bestiary",
-          name: "Gegnir"
+          name: "Gegnir",
         },
         {
           pack: "kingmaker-bestiary",
-          name: "Gurija"
+          name: "Gurija",
         },
         {
           pack: "kingmaker-bestiary",
-          name: "Hargulka"
+          name: "Hargulka",
         },
         {
           pack: "pathfinder-monster-core-2",
-          name: "Jotund Troll"
+          name: "Jotund Troll",
         },
         {
           pack: "triumph-of-the-tusk-bestiary",
-          name: "Marguk Cleftneck"
+          name: "Marguk Cleftneck",
         },
         {
           pack: "rage-of-elements-bestiary",
-          name: "Nightwood Guardian"
+          name: "Nightwood Guardian",
         },
         {
           pack: "pathfinder-monster-core-2",
-          name: "Two-Headed Troll"
-        }
-      ]
+          name: "Two-Headed Troll",
+        },
+      ],
     },
     {
       tag: "disguised_pretender",
       includeRecords: [
         {
           pack: "pathfinder-npc-core",
-          name: "Master of Disguise"
+          name: "Master of Disguise",
         },
         {
           pack: "book-of-the-dead-bestiary",
-          name: "Ecorche"
+          name: "Ecorche",
         },
         {
           pack: "kingmaker-bestiary",
-          name: "Virthad"
+          name: "Virthad",
         },
         {
           pack: "kingmaker-bestiary",
-          name: "Fetch Stalker"
+          name: "Fetch Stalker",
         },
         {
           pack: "pathfinder-bestiary",
-          name: "Doppelganger"
+          name: "Doppelganger",
         },
         {
           pack: "pathfinder-bestiary",
-          name: "Green Hag"
+          name: "Green Hag",
         },
         {
           pack: "pathfinder-bestiary",
-          name: "Raja Rakshasa"
+          name: "Raja Rakshasa",
         },
         {
           pack: "pathfinder-monster-core",
-          name: "Cuckoo Hag"
+          name: "Cuckoo Hag",
         },
         {
           pack: "pathfinder-monster-core",
-          name: "Gimmerling"
+          name: "Gimmerling",
         },
         {
           pack: "season-of-ghosts-bestiary",
-          name: "Noppera-bo Grunt"
+          name: "Noppera-bo Grunt",
         },
         {
           pack: "season-of-ghosts-bestiary",
-          name: "Noppera-bo Trickster"
+          name: "Noppera-bo Trickster",
         },
         {
           pack: "season-of-ghosts-bestiary",
-          name: "Noppera-Bo Impersonator (Arcane)"
+          name: "Noppera-Bo Impersonator (Arcane)",
         },
         {
           pack: "season-of-ghosts-bestiary",
-          name: "Noppera-Bo Impersonator (Divine)"
+          name: "Noppera-Bo Impersonator (Divine)",
         },
         {
           pack: "season-of-ghosts-bestiary",
-          name: "Noppera-Bo Impersonator (Martial)"
+          name: "Noppera-Bo Impersonator (Martial)",
         },
         {
           pack: "season-of-ghosts-bestiary",
-          name: "Noppera-Bo Impersonator (Occult)"
+          name: "Noppera-Bo Impersonator (Occult)",
         },
         {
           pack: "season-of-ghosts-bestiary",
-          name: "Noppera-Bo Impersonator (Primal)"
+          name: "Noppera-Bo Impersonator (Primal)",
         },
         {
           pack: "season-of-ghosts-bestiary",
-          name: "Noppera-Bo Impersonator (Skilled)"
+          name: "Noppera-Bo Impersonator (Skilled)",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Conspirator Archdragon"
+          name: "Conspirator Archdragon",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Conspirator Archdragon (Spellcaster)"
+          name: "Conspirator Archdragon (Spellcaster)",
         },
         {
           pack: "pathfinder-monster-core",
-          name: "Conspirator Dragon (Adult, Spellcaster)"
+          name: "Conspirator Dragon (Adult, Spellcaster)",
         },
         {
           pack: "pathfinder-monster-core",
-          name: "Conspirator Dragon (Ancient)"
+          name: "Conspirator Dragon (Ancient)",
         },
         {
           pack: "pathfinder-monster-core",
-          name: "Conspirator Dragon (Ancient, Spellcaster)"
+          name: "Conspirator Dragon (Ancient, Spellcaster)",
         },
         {
           pack: "pathfinder-monster-core",
-          name: "Conspirator Dragon (Young)"
+          name: "Conspirator Dragon (Young)",
         },
         {
           pack: "pathfinder-monster-core",
-          name: "Conspirator Dragon (Young, Spellcaster)"
-        }
-      ]
+          name: "Conspirator Dragon (Young, Spellcaster)",
+        },
+      ],
     },
     {
       tag: "animated_object",
       includeRecords: [
         {
           pack: "age-of-ashes-bestiary",
-          name: "Animated Dragonstorm"
+          name: "Animated Dragonstorm",
         },
         {
           pack: "blood-lords-bestiary",
-          name: "Animated Fireplace"
+          name: "Animated Fireplace",
         },
         {
           pack: "curtain-call-bestiary",
-          name: "Animated Boiler"
+          name: "Animated Boiler",
         },
         {
           pack: "gatewalkers-bestiary",
-          name: "Quarry Construct"
+          name: "Quarry Construct",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Animated Bamboo Figurine"
+          name: "Animated Bamboo Figurine",
         },
         {
           pack: "lost-omens-bestiary",
-          name: "Animated Kite"
+          name: "Animated Kite",
         },
         {
           pack: "myth-speaker-bestiary",
-          name: "Animated Panoply"
+          name: "Animated Panoply",
         },
         {
           pack: "one-shot-bestiary",
-          name: "Soulbound Guardian"
+          name: "Soulbound Guardian",
         },
         {
           pack: "outlaws-of-alkenstar-bestiary",
-          name: "Glass Elephant"
+          name: "Glass Elephant",
         },
         {
           pack: "pathfinder-monster-core-2",
-          name: "Animated Trebuchet"
+          name: "Animated Trebuchet",
         },
         {
           pack: "quest-for-the-frozen-flame-bestiary",
-          name: "Weykoward"
+          name: "Weykoward",
         },
         {
           pack: "season-of-ghosts-bestiary",
-          name: "Animated Axe"
-        }
-      ]
-    }
-  ]
+          name: "Animated Axe",
+        },
+      ],
+    },
+  ],
 } satisfies DerivedTagLegacySeedMigrationCategory;

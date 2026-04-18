@@ -57,7 +57,9 @@ function ensureAssignment(
   return created;
 }
 
-function mapAssignmentDecisionSource(decision: DerivedTagMigrationAssignmentDecision): DerivedTagAssignmentDecisionSource {
+function mapAssignmentDecisionSource(
+  decision: DerivedTagMigrationAssignmentDecision,
+): DerivedTagAssignmentDecisionSource {
   if (decision.status === "auto_applied") {
     return "llm_auto";
   }
@@ -70,9 +72,7 @@ function mapAssignmentDecisionSource(decision: DerivedTagMigrationAssignmentDeci
   return "human";
 }
 
-function toStoredAssignmentDecision(
-  decision: DerivedTagMigrationAssignmentDecision,
-): DerivedTagAssignmentDecision {
+function toStoredAssignmentDecision(decision: DerivedTagMigrationAssignmentDecision): DerivedTagAssignmentDecision {
   return {
     tag: normalizeDerivedTag(decision.tag),
     source: mapAssignmentDecisionSource(decision),
@@ -112,8 +112,9 @@ function upsertAssignmentTag(
 ): Record<string, DerivedTagAssignmentDecision[]> {
   const current = groupedAssignments?.[family] ?? [];
   const filtered = current.filter((entry) => normalizeDerivedTag(entry.tag) !== normalizeDerivedTag(decision.tag));
-  const nextFamilyAssignments = [...filtered, decision]
-    .sort((left, right) => normalizeDerivedTag(left.tag).localeCompare(normalizeDerivedTag(right.tag)));
+  const nextFamilyAssignments = [...filtered, decision].sort((left, right) =>
+    normalizeDerivedTag(left.tag).localeCompare(normalizeDerivedTag(right.tag)),
+  );
 
   return {
     ...(groupedAssignments ?? {}),
@@ -131,9 +132,12 @@ function sortGroupedAssignmentDecisions(
   return Object.fromEntries(
     Object.entries(groupedAssignments)
       .sort(([left], [right]) => left.localeCompare(right))
-      .map(([family, decisions]) => [family, decisions
-        .map((decision) => ({ ...decision, tag: normalizeDerivedTag(decision.tag) }))
-        .sort((left, right) => normalizeDerivedTag(left.tag).localeCompare(normalizeDerivedTag(right.tag)))]),
+      .map(([family, decisions]) => [
+        family,
+        decisions
+          .map((decision) => ({ ...decision, tag: normalizeDerivedTag(decision.tag) }))
+          .sort((left, right) => normalizeDerivedTag(left.tag).localeCompare(normalizeDerivedTag(right.tag))),
+      ]),
   );
 }
 
@@ -180,8 +184,7 @@ export function applyMigrationSessionToAssignments(
   for (const recordDecision of sessionDecisions) {
     const assignmentDecisions = recordDecision.decisions.filter(
       (decision): decision is DerivedTagMigrationAssignmentDecision =>
-        decision.kind === "assignment"
-        && (decision.status === "approved" || decision.status === "auto_applied"),
+        decision.kind === "assignment" && (decision.status === "approved" || decision.status === "auto_applied"),
     );
     if (assignmentDecisions.length === 0) {
       continue;
@@ -214,13 +217,14 @@ function toAssignmentReviewDecision(
 function sortAssignmentReviewCategory(
   assignmentReviews: DerivedTagAssignmentReviewCategory,
 ): DerivedTagAssignmentReviewCategory {
-  assignmentReviews.decisions = [...assignmentReviews.decisions]
-    .sort((left, right) =>
-      normalizeDerivedTag(left.family).localeCompare(normalizeDerivedTag(right.family))
-      || normalizeDerivedTag(left.tag).localeCompare(normalizeDerivedTag(right.tag))
-      || left.name.localeCompare(right.name)
-      || left.recordKey.localeCompare(right.recordKey)
-      || left.mode.localeCompare(right.mode));
+  assignmentReviews.decisions = [...assignmentReviews.decisions].sort(
+    (left, right) =>
+      normalizeDerivedTag(left.family).localeCompare(normalizeDerivedTag(right.family)) ||
+      normalizeDerivedTag(left.tag).localeCompare(normalizeDerivedTag(right.tag)) ||
+      left.name.localeCompare(right.name) ||
+      left.recordKey.localeCompare(right.recordKey) ||
+      left.mode.localeCompare(right.mode),
+  );
   return assignmentReviews;
 }
 
@@ -270,13 +274,14 @@ function toAssignmentMemoryDecision(
 function sortAssignmentMemoryCategory(
   assignmentMemory: DerivedTagAssignmentMemoryCategory,
 ): DerivedTagAssignmentMemoryCategory {
-  assignmentMemory.decisions = [...assignmentMemory.decisions]
-    .sort((left, right) =>
-      normalizeDerivedTag(left.family).localeCompare(normalizeDerivedTag(right.family))
-      || normalizeDerivedTag(left.tag).localeCompare(normalizeDerivedTag(right.tag))
-      || left.name.localeCompare(right.name)
-      || left.recordKey.localeCompare(right.recordKey)
-      || left.mode.localeCompare(right.mode));
+  assignmentMemory.decisions = [...assignmentMemory.decisions].sort(
+    (left, right) =>
+      normalizeDerivedTag(left.family).localeCompare(normalizeDerivedTag(right.family)) ||
+      normalizeDerivedTag(left.tag).localeCompare(normalizeDerivedTag(right.tag)) ||
+      left.name.localeCompare(right.name) ||
+      left.recordKey.localeCompare(right.recordKey) ||
+      left.mode.localeCompare(right.mode),
+  );
   return assignmentMemory;
 }
 
@@ -322,7 +327,9 @@ function ensureExemplarSet(
 }
 
 function sortExemplarRecords(records: DerivedTagExemplarRecord[]): DerivedTagExemplarRecord[] {
-  return [...records].sort((left, right) => left.name.localeCompare(right.name) || left.recordKey.localeCompare(right.recordKey));
+  return [...records].sort(
+    (left, right) => left.name.localeCompare(right.name) || left.recordKey.localeCompare(right.recordKey),
+  );
 }
 
 function withoutExemplarRecord(
@@ -397,7 +404,9 @@ function exemplarReviewIdentity(decision: Pick<DerivedTagExemplarReviewDecision,
   return `${decision.recordKey}:${normalizeDerivedTag(decision.tag)}`;
 }
 
-function memoryIdentity(decision: Pick<DerivedTagAssignmentMemoryDecision, "recordKey" | "family" | "tag" | "mode">): string {
+function memoryIdentity(
+  decision: Pick<DerivedTagAssignmentMemoryDecision, "recordKey" | "family" | "tag" | "mode">,
+): string {
   return [
     decision.recordKey,
     normalizeDerivedTag(decision.family),
@@ -453,11 +462,12 @@ export function applyMigrationSessionToExemplarReviews(
     }
   }
 
-  nextExemplarReviews.decisions = [...decisionsByIdentity.values()]
-    .sort((left, right) =>
-      normalizeDerivedTag(left.tag).localeCompare(normalizeDerivedTag(right.tag))
-      || left.name.localeCompare(right.name)
-      || left.recordKey.localeCompare(right.recordKey));
+  nextExemplarReviews.decisions = [...decisionsByIdentity.values()].sort(
+    (left, right) =>
+      normalizeDerivedTag(left.tag).localeCompare(normalizeDerivedTag(right.tag)) ||
+      left.name.localeCompare(right.name) ||
+      left.recordKey.localeCompare(right.recordKey),
+  );
 
   return nextExemplarReviews;
 }
@@ -495,19 +505,21 @@ export function applyMigrationSessionToAuthoredRules(
     }
   }
 
-  return nextRules.sort((left, right) =>
-    normalizeDerivedTag(left.tag).localeCompare(normalizeDerivedTag(right.tag))
-    || left.kind.localeCompare(right.kind)
-    || JSON.stringify(left).localeCompare(JSON.stringify(right)));
+  return nextRules.sort(
+    (left, right) =>
+      normalizeDerivedTag(left.tag).localeCompare(normalizeDerivedTag(right.tag)) ||
+      left.kind.localeCompare(right.kind) ||
+      JSON.stringify(left).localeCompare(JSON.stringify(right)),
+  );
 }
 
 function toManagedCategory(category: SearchCategory): DerivedTagManagedCategory {
   if (
-    category !== "affliction"
-    && category !== "creature"
-    && category !== "equipment"
-    && category !== "hazard"
-    && category !== "spell"
+    category !== "affliction" &&
+    category !== "creature" &&
+    category !== "equipment" &&
+    category !== "hazard" &&
+    category !== "spell"
   ) {
     throw new Error(`Derived-tag migration importer does not manage category "${category}".`);
   }
@@ -515,7 +527,9 @@ function toManagedCategory(category: SearchCategory): DerivedTagManagedCategory 
 }
 
 function categoriesTouchedBySession(session: DerivedTagMigrationSession): DerivedTagManagedCategory[] {
-  return uniqueSorted(session.decisions.map((decision) => toManagedCategory(decision.category))) as DerivedTagManagedCategory[];
+  return uniqueSorted(
+    session.decisions.map((decision) => toManagedCategory(decision.category)),
+  ) as DerivedTagManagedCategory[];
 }
 
 function applySessionToState(
@@ -526,12 +540,27 @@ function applySessionToState(
 
   for (const category of categoriesTouchedBySession(session)) {
     const relevantDecisions = session.decisions.filter((decision) => decision.category === category);
-    nextState.assignments[category] = applyMigrationSessionToAssignments(nextState.assignments[category], relevantDecisions);
-    nextState.assignmentReviews[category] = applyMigrationSessionToAssignmentReviews(nextState.assignmentReviews[category], relevantDecisions);
-    nextState.assignmentMemory[category] = applyMigrationSessionToAssignmentMemory(nextState.assignmentMemory[category], relevantDecisions);
+    nextState.assignments[category] = applyMigrationSessionToAssignments(
+      nextState.assignments[category],
+      relevantDecisions,
+    );
+    nextState.assignmentReviews[category] = applyMigrationSessionToAssignmentReviews(
+      nextState.assignmentReviews[category],
+      relevantDecisions,
+    );
+    nextState.assignmentMemory[category] = applyMigrationSessionToAssignmentMemory(
+      nextState.assignmentMemory[category],
+      relevantDecisions,
+    );
     nextState.exemplars[category] = applyMigrationSessionToExemplars(nextState.exemplars[category], relevantDecisions);
-    nextState.exemplarReviews[category] = applyMigrationSessionToExemplarReviews(nextState.exemplarReviews[category], relevantDecisions);
-    nextState.authoredRules[category] = applyMigrationSessionToAuthoredRules(nextState.authoredRules[category], relevantDecisions);
+    nextState.exemplarReviews[category] = applyMigrationSessionToExemplarReviews(
+      nextState.exemplarReviews[category],
+      relevantDecisions,
+    );
+    nextState.authoredRules[category] = applyMigrationSessionToAuthoredRules(
+      nextState.authoredRules[category],
+      relevantDecisions,
+    );
   }
 
   return nextState;

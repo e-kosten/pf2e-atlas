@@ -8,5 +8,5 @@ HOOK_DIR="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
 require_linked_worktree
 require_non_main_branch
 
-echo "Running pre-push verification (build + test)..." >&2
+echo "Running pre-push verification (lint + format + build + test)..." >&2
 npm run verify

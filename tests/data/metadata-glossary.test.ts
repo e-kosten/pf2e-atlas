@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  extractTraitGlossaryEntries,
-  getMetadataGlossaryArtifactPath,
-} from "../../src/data/metadata-glossary.js";
+import { extractTraitGlossaryEntries, getMetadataGlossaryArtifactPath } from "../../src/data/metadata-glossary.js";
 
 describe("metadata glossary", () => {
   it("extracts trait labels and descriptions from PF2E config and language data", () => {

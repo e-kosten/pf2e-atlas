@@ -186,10 +186,10 @@ export function discoverSemanticCandidates(
   options: SemanticDiscoveryOptions,
 ): SemanticDiscoveryResult {
   const resolvedByKey = (options.exemplarRecordKeys ?? []).map((recordKey) =>
-    resolveExemplarByRecordKey(db, recordKey, options.category, options.subcategory)
+    resolveExemplarByRecordKey(db, recordKey, options.category, options.subcategory),
   );
   const resolvedByName = (options.exemplarNames ?? []).map((name) =>
-    resolveExemplarByName(db, name, options.category, options.subcategory)
+    resolveExemplarByName(db, name, options.category, options.subcategory),
   );
   const resolvedExemplars = [...resolvedByKey, ...resolvedByName];
   if (resolvedExemplars.length === 0) {
@@ -252,7 +252,11 @@ export function rankSemanticDiscoveryCandidates(
   const commonTraitLimit = clampPositiveInteger(options.commonTraitLimit, DEFAULT_COMMON_TRAIT_LIMIT, 25);
   const sharedTokenLimit = clampPositiveInteger(options.sharedTokenLimit, DEFAULT_SHARED_TOKEN_LIMIT, 25);
   const sharedPhraseLimit = clampPositiveInteger(options.sharedPhraseLimit, DEFAULT_SHARED_PHRASE_LIMIT, 25);
-  const candidateEvidenceLimit = clampPositiveInteger(options.candidateEvidenceLimit, DEFAULT_CANDIDATE_EVIDENCE_LIMIT, 50);
+  const candidateEvidenceLimit = clampPositiveInteger(
+    options.candidateEvidenceLimit,
+    DEFAULT_CANDIDATE_EVIDENCE_LIMIT,
+    50,
+  );
   const minSimilarity = options.minSimilarity ?? Number.NEGATIVE_INFINITY;
   const commonTraits = collectCommonTraits(validExemplars, commonTraitLimit);
   const gramRange = resolveDiscoveryGramRange(options);
@@ -286,10 +290,14 @@ export function rankSemanticDiscoveryCandidates(
     count: rankedCandidates.filter((candidate) => candidate.similarity >= bucket).length,
   }));
   const candidateKeys = new Set(topCandidates.map((candidate) => candidate.recordKey));
-  const contrastMinSimilarity = Number.isFinite(minSimilarity)
-    ? Math.max(0, minSimilarity - 0.05)
-    : 0.6;
-  const contrastRecords = pickContrastRecords(rankedCandidates, candidateKeys, commonTraits, contrastMinSimilarity, contrastLimit);
+  const contrastMinSimilarity = Number.isFinite(minSimilarity) ? Math.max(0, minSimilarity - 0.05) : 0.6;
+  const contrastRecords = pickContrastRecords(
+    rankedCandidates,
+    candidateKeys,
+    commonTraits,
+    contrastMinSimilarity,
+    contrastLimit,
+  );
   const representativeExemplars = validExemplars
     .map((record) => ({
       name: record.name,
@@ -298,7 +306,9 @@ export function rankSemanticDiscoveryCandidates(
       traits: [...record.traits],
       similarityToCentroid: cosineSimilarity(record.vector, centroid),
     }))
-    .sort((left, right) => right.similarityToCentroid - left.similarityToCentroid || left.name.localeCompare(right.name))
+    .sort(
+      (left, right) => right.similarityToCentroid - left.similarityToCentroid || left.name.localeCompare(right.name),
+    )
     .slice(0, exemplarLimit);
   const category = options.category ?? validExemplars[0]!.category;
 
@@ -319,11 +329,13 @@ export function rankSemanticDiscoveryCandidates(
   };
 }
 
-function resolveDiscoveryScope(
-  options: SemanticDiscoveryOptions,
-  exemplars: LoadedDiscoveryRow[],
-): DiscoveryScope {
-  const category = options.category ?? inferSingleValue(exemplars.map((record) => record.category as SearchCategory), "category");
+function resolveDiscoveryScope(options: SemanticDiscoveryOptions, exemplars: LoadedDiscoveryRow[]): DiscoveryScope {
+  const category =
+    options.category ??
+    inferSingleValue(
+      exemplars.map((record) => record.category as SearchCategory),
+      "category",
+    );
   const subcategory = options.subcategory;
 
   return {
@@ -335,7 +347,9 @@ function resolveDiscoveryScope(
 function inferSingleValue<T>(values: T[], label: string): T {
   const uniqueValues = [...new Set(values)];
   if (uniqueValues.length !== 1) {
-    throw new Error(`Exemplars span multiple ${label} values. Pass --${label} explicitly to define the candidate scope.`);
+    throw new Error(
+      `Exemplars span multiple ${label} values. Pass --${label} explicitly to define the candidate scope.`,
+    );
   }
 
   return uniqueValues[0]!;
@@ -603,8 +617,14 @@ function scoreEvidenceTerms(
 ): SemanticDiscoveryEvidenceTerm[] {
   const exemplarCounts = collectEvidenceCounts(exemplarTexts, options.extractor);
   const candidateCounts = collectEvidenceCounts(candidateTexts, options.extractor);
-  const exemplarMinimum = exemplarTexts.length === 0 ? Number.POSITIVE_INFINITY : Math.min(exemplarTexts.length, Math.max(2, Math.ceil(exemplarTexts.length * 0.5)));
-  const candidateMinimum = candidateTexts.length === 0 ? Number.POSITIVE_INFINITY : Math.min(candidateTexts.length, Math.max(2, Math.ceil(candidateTexts.length * 0.3)));
+  const exemplarMinimum =
+    exemplarTexts.length === 0
+      ? Number.POSITIVE_INFINITY
+      : Math.min(exemplarTexts.length, Math.max(2, Math.ceil(exemplarTexts.length * 0.5)));
+  const candidateMinimum =
+    candidateTexts.length === 0
+      ? Number.POSITIVE_INFINITY
+      : Math.min(candidateTexts.length, Math.max(2, Math.ceil(candidateTexts.length * 0.3)));
   const values = new Set([...exemplarCounts.keys(), ...candidateCounts.keys()]);
 
   return [...values]
@@ -619,19 +639,17 @@ function scoreEvidenceTerms(
       };
     })
     .filter((entry) => entry.exemplarSupport >= exemplarMinimum || entry.candidateSupport >= candidateMinimum)
-    .sort((left, right) =>
-      right.support - left.support ||
-      right.exemplarSupport - left.exemplarSupport ||
-      right.candidateSupport - left.candidateSupport ||
-      left.value.localeCompare(right.value)
+    .sort(
+      (left, right) =>
+        right.support - left.support ||
+        right.exemplarSupport - left.exemplarSupport ||
+        right.candidateSupport - left.candidateSupport ||
+        left.value.localeCompare(right.value),
     )
     .slice(0, options.limit);
 }
 
-function collectEvidenceCounts(
-  texts: string[],
-  extractor: (text: string) => Set<string>,
-): Map<string, number> {
+function collectEvidenceCounts(texts: string[], extractor: (text: string) => Set<string>): Map<string, number> {
   const counts = new Map<string, number>();
   for (const text of texts) {
     for (const value of extractor(text)) {

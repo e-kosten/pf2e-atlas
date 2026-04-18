@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  createPf2eAppState,
-  pf2eAppReducer,
-} from "../../src/tui/pf2e-app-state.js";
+import { createPf2eAppState, pf2eAppReducer } from "../../src/tui/pf2e-app-state.js";
 
 describe("derived tag migration workbench reducer", () => {
   it("wraps top-level area selection", () => {

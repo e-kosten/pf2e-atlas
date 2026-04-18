@@ -46,13 +46,17 @@ async function canRead(targetPath: string): Promise<boolean> {
 export async function loadConfig(argv = process.argv.slice(2), env = process.env): Promise<AppConfig> {
   const args = parseCliArgs(argv);
   const configuredPath = args["data-path"] ?? env.PF2E_DATA_PATH ?? path.join(process.cwd(), "vendor", "pf2e");
-  const configuredIndexPath = args["index-path"] ?? env.PF2E_INDEX_PATH ?? path.join(process.cwd(), ".cache", "pf2e-index.sqlite");
+  const configuredIndexPath =
+    args["index-path"] ?? env.PF2E_INDEX_PATH ?? path.join(process.cwd(), ".cache", "pf2e-index.sqlite");
   const configuredEmbeddingProvider = args["embedding-provider"] ?? env.PF2E_EMBEDDING_PROVIDER ?? "hf-local";
   const configuredEmbeddingModel = args["embedding-model"] ?? env.PF2E_EMBEDDING_MODEL ?? DEFAULT_EMBEDDING_MODEL_ID;
-  const configuredEmbeddingRevision = args["embedding-revision"] ?? env.PF2E_EMBEDDING_REVISION ?? DEFAULT_EMBEDDING_REVISION;
-  const configuredEmbeddingCachePath = args["embedding-cache-path"] ?? env.PF2E_EMBEDDING_CACHE_PATH ?? path.join(process.cwd(), ".cache", "hf-models");
+  const configuredEmbeddingRevision =
+    args["embedding-revision"] ?? env.PF2E_EMBEDDING_REVISION ?? DEFAULT_EMBEDDING_REVISION;
+  const configuredEmbeddingCachePath =
+    args["embedding-cache-path"] ?? env.PF2E_EMBEDDING_CACHE_PATH ?? path.join(process.cwd(), ".cache", "hf-models");
   const configuredEmbeddingLocalModelPath = args["embedding-local-model-path"] ?? env.PF2E_EMBEDDING_LOCAL_MODEL_PATH;
-  const configuredRankingConfigPath = args["ranking-config-path"] ?? env.PF2E_RANKING_CONFIG_PATH ?? path.join(process.cwd(), "pf2e-ranking.json");
+  const configuredRankingConfigPath =
+    args["ranking-config-path"] ?? env.PF2E_RANKING_CONFIG_PATH ?? path.join(process.cwd(), "pf2e-ranking.json");
 
   const rootPath = path.resolve(expandHome(configuredPath));
   const indexPath = path.resolve(expandHome(configuredIndexPath));
@@ -61,10 +65,7 @@ export async function loadConfig(argv = process.argv.slice(2), env = process.env
     ? path.resolve(expandHome(configuredEmbeddingLocalModelPath))
     : null;
   const rankingConfigPath = path.resolve(expandHome(configuredRankingConfigPath));
-  const manifestCandidates = [
-    path.join(rootPath, "system.pf2e.json"),
-    path.join(rootPath, "static", "system.json"),
-  ];
+  const manifestCandidates = [path.join(rootPath, "system.pf2e.json"), path.join(rootPath, "static", "system.json")];
 
   for (const candidate of manifestCandidates) {
     if (await canRead(candidate)) {

@@ -24,12 +24,7 @@ export type DerivedTagMigrationMode =
   | "legacy_rule"
   | "exemplar_cleanup";
 
-export type DerivedTagManagedCategory =
-  | "affliction"
-  | "creature"
-  | "equipment"
-  | "hazard"
-  | "spell";
+export type DerivedTagManagedCategory = "affliction" | "creature" | "equipment" | "hazard" | "spell";
 
 export type DerivedTagMigrationSelectionSource =
   | "authored_review_queue"

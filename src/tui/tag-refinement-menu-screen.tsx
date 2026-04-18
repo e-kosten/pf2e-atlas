@@ -1,9 +1,6 @@
 import React from "react";
 
-import type {
-  DerivedTagMigrationMode,
-  DerivedTagReviewQueueSummaryItem,
-} from "../tags/migration/types.js";
+import type { DerivedTagMigrationMode, DerivedTagReviewQueueSummaryItem } from "../tags/migration/types.js";
 import {
   buildDerivedTagTerminalActionTargetHelpLines,
   buildDerivedTagTerminalActionTargetLine,
@@ -36,12 +33,7 @@ import {
 import { isBackOrExitKey } from "./keymap.js";
 import { buildScrollableLines } from "./list-utils.js";
 
-type TagRefinementCommandId =
-  | "review_all"
-  | "legacy_seed"
-  | "legacy_rule"
-  | "exemplar_cleanup"
-  | "proposal_review";
+type TagRefinementCommandId = "review_all" | "legacy_seed" | "legacy_rule" | "exemplar_cleanup" | "proposal_review";
 
 type TagRefinementUiState = DerivedTagTerminalActionTargetState;
 
@@ -57,9 +49,10 @@ export function buildTagRefinementMenuItems(items: DerivedTagReviewQueueSummaryI
     menuItems.push({ kind: "review_all", label: "Review all pending queue items" });
     for (const item of items) {
       const kindLabel = item.kind === "assignment" ? "assignment" : "exemplar";
-      const scope = item.kind === "assignment"
-        ? `${item.category} ${item.family}.${item.tag}`
-        : `${item.category} exemplar.${item.tag}`;
+      const scope =
+        item.kind === "assignment"
+          ? `${item.category} ${item.family}.${item.tag}`
+          : `${item.category} exemplar.${item.tag}`;
       menuItems.push({
         kind: "review_queue_item",
         label: `Review ${kindLabel} ${scope}  confidence=${item.confidence}  count=${item.count}`,
@@ -83,9 +76,10 @@ function buildQueueLines(queueItems: DerivedTagReviewQueueSummaryItem[]): Derive
   }
 
   return queueItems.flatMap((item) => {
-    const scope = item.kind === "assignment"
-      ? `${item.category} ${item.family}.${item.tag}`
-      : `${item.category} exemplar.${item.tag}`;
+    const scope =
+      item.kind === "assignment"
+        ? `${item.category} ${item.family}.${item.tag}`
+        : `${item.category} exemplar.${item.tag}`;
     return [
       { text: scope, tone: "section" as const },
       { text: `confidence=${item.confidence} count=${item.count}`, indent: 2 },
@@ -157,13 +151,14 @@ function buildTagRefinementHelpLines(
         title: "Actions",
         actions: getTagRefinementInteractionActions().map((action) => ({
           ...action,
-          helpText: action.id === "select"
-            ? "open the selected row"
-            : action.id === "actions"
-              ? "focus the tag-refinement actions rail"
-              : action.id === "help"
-                ? "show this help"
-                : "return to the top level",
+          helpText:
+            action.id === "select"
+              ? "open the selected row"
+              : action.id === "actions"
+                ? "focus the tag-refinement actions rail"
+                : action.id === "help"
+                  ? "show this help"
+                  : "return to the top level",
         })),
       },
     ]),
@@ -200,10 +195,13 @@ export function TagRefinementMenuScreen({
     undefined,
     () => createDerivedTagTerminalActionTargetState(),
   );
-  const bodyHeight = Math.max(1, getTerminalPaneBodyHeight(size.height, {
-    hasSubtitle: true,
-    footerLineCount: 2,
-  }));
+  const bodyHeight = Math.max(
+    1,
+    getTerminalPaneBodyHeight(size.height, {
+      hasSubtitle: true,
+      footerLineCount: 2,
+    }),
+  );
   const menuItems = buildTagRefinementMenuItems(queueItems);
   const actionEntries = buildTagRefinementActionEntries(queueItems.length > 0);
   const clampedSelectedIndex = Math.max(0, Math.min(selectedIndex, Math.max(0, menuItems.length - 1)));
@@ -214,22 +212,30 @@ export function TagRefinementMenuScreen({
     }
   }, [clampedSelectedIndex, menuItems.length, onMove, selectedIndex]);
 
-  const runActionTargetCommand = React.useCallback((commandId: TagRefinementCommandId) => {
-    if (commandId === "review_all") {
-      onQuickAction("review_all");
-      return;
-    }
-    onQuickAction(commandId);
-  }, [onQuickAction]);
+  const runActionTargetCommand = React.useCallback(
+    (commandId: TagRefinementCommandId) => {
+      if (commandId === "review_all") {
+        onQuickAction("review_all");
+        return;
+      }
+      onQuickAction(commandId);
+    },
+    [onQuickAction],
+  );
 
   useDerivedTagTerminalInput((input, key) => {
     const normalized = getNormalizedKeyName(input, key);
     const actionTargetIntent = resolveDerivedTagTerminalActionTargetIntent(normalized, actionTargetState, "horizontal");
-    const navigation = resolveDerivedTagTerminalListNavigationAction(input, key, {
-      pageSize: Math.max(1, bodyHeight - 1),
-      jumpSize: Math.max(1, Math.floor(bodyHeight / 2)),
-      includeConfirmKeys: true,
-    }, navigationStateRef.current);
+    const navigation = resolveDerivedTagTerminalListNavigationAction(
+      input,
+      key,
+      {
+        pageSize: Math.max(1, bodyHeight - 1),
+        jumpSize: Math.max(1, Math.floor(bodyHeight / 2)),
+        includeConfirmKeys: true,
+      },
+      navigationStateRef.current,
+    );
     navigationStateRef.current = navigation.state;
     const interactionAction = resolveTerminalInteractionAction(normalized, getTagRefinementInteractionActions());
 
@@ -312,8 +318,17 @@ export function TagRefinementMenuScreen({
         {
           text: formatTerminalInteractionFooter(
             actionTargetState.activeTarget === "actions"
-              ? [...getDerivedTagTerminalActionTargetInteractionActions(actionTargetState, "horizontal"), { id: "help" }]
-              : [{ id: "move" }, { id: "jump" }, { id: "page" }, { id: "edge" }, ...getTagRefinementInteractionActions()],
+              ? [
+                  ...getDerivedTagTerminalActionTargetInteractionActions(actionTargetState, "horizontal"),
+                  { id: "help" },
+                ]
+              : [
+                  { id: "move" },
+                  { id: "jump" },
+                  { id: "page" },
+                  { id: "edge" },
+                  ...getTagRefinementInteractionActions(),
+                ],
           ),
           tone: "dim",
         },

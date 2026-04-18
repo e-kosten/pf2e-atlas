@@ -1,11 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { assignVariantFamilies } from "../../src/data/variant-families.js";
-import type {
-  BuildSourceEntry,
-  NormalizedIndexRecord,
-  PackBuildInfo,
-} from "../../src/data/index-types.js";
+import type { BuildSourceEntry, NormalizedIndexRecord, PackBuildInfo } from "../../src/data/index-types.js";
 
 function createRecord(input: {
   recordKey: string;
@@ -468,19 +464,22 @@ describe("variant family normalization", () => {
         recordKey: "equipment:lock-poor",
         name: "Lock (Poor)",
         sourcePath: "vendor/pf2e/packs/pf2e/equipment/lock-poor.json",
-        descriptionText: "Picking a poor lock requires one successful Check[thievery|dc:15|traits:action:pick-a-lock|immutable:true] check.",
+        descriptionText:
+          "Picking a poor lock requires one successful Check[thievery|dc:15|traits:action:pick-a-lock|immutable:true] check.",
       }),
       createEntry({
         recordKey: "equipment:lock-average",
         name: "Lock (Average)",
         sourcePath: "vendor/pf2e/packs/pf2e/equipment/lock-average.json",
-        descriptionText: "Picking an average lock requires four successful Check[thievery|dc:25|traits:action:pick-a-lock|immutable:true] checks.",
+        descriptionText:
+          "Picking an average lock requires four successful Check[thievery|dc:25|traits:action:pick-a-lock|immutable:true] checks.",
       }),
       createEntry({
         recordKey: "equipment:lock-superior",
         name: "Lock (Superior)",
         sourcePath: "vendor/pf2e/packs/pf2e/equipment/lock-superior.json",
-        descriptionText: "Picking a superior lock requires six successful Check[thievery|dc:40|traits:action:pick-a-lock|immutable:true] checks.",
+        descriptionText:
+          "Picking a superior lock requires six successful Check[thievery|dc:40|traits:action:pick-a-lock|immutable:true] checks.",
       }),
     ];
 

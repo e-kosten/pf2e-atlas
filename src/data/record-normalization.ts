@@ -1,7 +1,4 @@
-import {
-  classifyRecordCategory,
-  extractSpellTraditions,
-} from "../domain/categories.js";
+import { classifyRecordCategory, extractSpellTraditions } from "../domain/categories.js";
 import {
   ACTOR_ABILITY_KEYS,
   ACTOR_SAVE_KEYS,
@@ -11,10 +8,7 @@ import {
   normalizeRawSaveKey,
   slugifyActorMetricSegment,
 } from "../domain/actor-metrics.js";
-import {
-  type ItemMetricMap,
-  slugifyItemMetricSegment,
-} from "../domain/item-metrics.js";
+import { type ItemMetricMap, slugifyItemMetricSegment } from "../domain/item-metrics.js";
 import type { SourceCategory } from "../types.js";
 import {
   buildEmbeddedItemSearchChunks,
@@ -23,14 +17,7 @@ import {
   getRecordDescriptionText,
   getRecordTraits,
 } from "./nested-item-utils.js";
-import {
-  firstString,
-  getNested,
-  normalizeText,
-  stripHtml,
-  toStringArray,
-  uniqueSorted,
-} from "../utils.js";
+import { firstString, getNested, normalizeText, stripHtml, toStringArray, uniqueSorted } from "../utils.js";
 import type {
   ActorIndexData,
   ItemIndexData,
@@ -77,8 +64,10 @@ function getPublicationTitle(raw: Record<string, unknown>): string | null {
 }
 
 export function getPublicationRemaster(raw: Record<string, unknown>): boolean {
-  return getNested(raw, ["system", "publication", "remaster"]) === true ||
-    getNested(raw, ["system", "details", "publication", "remaster"]) === true;
+  return (
+    getNested(raw, ["system", "publication", "remaster"]) === true ||
+    getNested(raw, ["system", "details", "publication", "remaster"]) === true
+  );
 }
 
 export function getDescriptionMarkup(raw: Record<string, unknown>): string | null {
@@ -169,9 +158,7 @@ function parsePerceptionMetric(raw: Record<string, unknown>): number | null {
   }
 
   return asNumber(
-    getNested(perception, ["mod"]) ??
-      getNested(perception, ["modifier"]) ??
-      getNested(perception, ["value"]),
+    getNested(perception, ["mod"]) ?? getNested(perception, ["modifier"]) ?? getNested(perception, ["value"]),
   );
 }
 
@@ -198,9 +185,7 @@ function parseHitPointMetrics(raw: Record<string, unknown>): ActorMetricMap {
   const value = asNumber(getNested(hp, ["value"]));
   const max = asNumber(getNested(hp, ["max"]));
   const brokenThreshold = asNumber(
-    getNested(hp, ["brokenThreshold"]) ??
-      getNested(hp, ["broken"]) ??
-      getNested(hp, ["bt"]),
+    getNested(hp, ["brokenThreshold"]) ?? getNested(hp, ["broken"]) ?? getNested(hp, ["bt"]),
   );
 
   if (value !== null) {
@@ -225,9 +210,7 @@ function parseStealthMetrics(raw: Record<string, unknown>): ActorMetricMap {
   }
 
   const stealthMod = asNumber(
-    getNested(stealth, ["value"]) ??
-      getNested(stealth, ["mod"]) ??
-      getNested(stealth, ["modifier"]),
+    getNested(stealth, ["value"]) ?? getNested(stealth, ["mod"]) ?? getNested(stealth, ["modifier"]),
   );
   const stealthDc = asNumber(getNested(stealth, ["dc"])) ?? (stealthMod !== null ? stealthMod + 10 : null);
 
@@ -286,9 +269,7 @@ function parseSkillMetrics(raw: Record<string, unknown>): ActorMetricMap {
     }
 
     const skillMod = asNumber(
-      getNested(skillValue, ["mod"]) ??
-        getNested(skillValue, ["modifier"]) ??
-        getNested(skillValue, ["value"]),
+      getNested(skillValue, ["mod"]) ?? getNested(skillValue, ["modifier"]) ?? getNested(skillValue, ["value"]),
     );
     const skillRank = asNumber(getNested(skillValue, ["rank"]));
 
@@ -376,7 +357,10 @@ function parseHazardDisableData(raw: Record<string, unknown>): ParsedHazardDisab
   for (const match of checkMatches) {
     const body = match[1] ?? "";
     const trailingText = stripHtml(match[2] ?? "") ?? "";
-    const segments = body.split("|").map((segment) => segment.trim()).filter(Boolean);
+    const segments = body
+      .split("|")
+      .map((segment) => segment.trim())
+      .filter(Boolean);
     const dcSegment = segments.find((segment) => /^dc\s*:/i.test(segment));
     const dc = dcSegment ? parseNumericLikeValue(dcSegment.replace(/^dc\s*:/i, "")) : null;
     const primarySkillSegment = segments.find((segment) => !segment.includes(":"));
@@ -393,7 +377,13 @@ function parseHazardDisableData(raw: Record<string, unknown>): ParsedHazardDisab
         dcValuesBySkill.set(primarySkill, [...(dcValuesBySkill.get(primarySkill) ?? []), dc]);
       }
       if (leadingRankMatch?.[1]) {
-        rankBySkill.set(primarySkill, Math.max(rankBySkill.get(primarySkill) ?? 0, HAZARD_DISABLE_PROFICIENCY_RANKS[leadingRankMatch[1].toLowerCase()] ?? 0));
+        rankBySkill.set(
+          primarySkill,
+          Math.max(
+            rankBySkill.get(primarySkill) ?? 0,
+            HAZARD_DISABLE_PROFICIENCY_RANKS[leadingRankMatch[1].toLowerCase()] ?? 0,
+          ),
+        );
       }
     }
 
@@ -406,7 +396,13 @@ function parseHazardDisableData(raw: Record<string, unknown>): ParsedHazardDisab
           dcValuesBySkill.set(skillKey, [...(dcValuesBySkill.get(skillKey) ?? []), dc]);
         }
         if (skillMatch[1]) {
-          rankBySkill.set(skillKey, Math.max(rankBySkill.get(skillKey) ?? 0, HAZARD_DISABLE_PROFICIENCY_RANKS[skillMatch[1].toLowerCase()] ?? 0));
+          rankBySkill.set(
+            skillKey,
+            Math.max(
+              rankBySkill.get(skillKey) ?? 0,
+              HAZARD_DISABLE_PROFICIENCY_RANKS[skillMatch[1].toLowerCase()] ?? 0,
+            ),
+          );
         }
       }
     }
@@ -545,7 +541,7 @@ function normalizePriceToCopper(rawValue: unknown): number | null {
   const sp = asNumber(price.sp) ?? 0;
   const cp = asNumber(price.cp) ?? 0;
   const pp = asNumber(price.pp) ?? 0;
-  const total = (pp * 1000) + (gp * 100) + (sp * 10) + cp;
+  const total = pp * 1000 + gp * 100 + sp * 10 + cp;
   return total > 0 ? total : null;
 }
 
@@ -661,10 +657,7 @@ function parseWeaponRangeIncrement(raw: Record<string, unknown>): number | null 
 }
 
 function parseWeaponReload(raw: Record<string, unknown>): number | null {
-  return parseNumericLikeValue(
-    getNested(raw, ["system", "reload", "value"]) ??
-      getNested(raw, ["system", "reload"]),
-  );
+  return parseNumericLikeValue(getNested(raw, ["system", "reload", "value"]) ?? getNested(raw, ["system", "reload"]));
 }
 
 function parseDamageDieFaces(rawValue: unknown): number | null {
@@ -786,7 +779,11 @@ function parseRangeValue(raw: Record<string, unknown>): number | null {
 }
 
 function extractSpellKinds(raw: Record<string, unknown>): string[] {
-  const spellTraits = new Set(getRecordTraits(raw).map((trait) => normalizeText(trait)).filter(Boolean));
+  const spellTraits = new Set(
+    getRecordTraits(raw)
+      .map((trait) => normalizeText(trait))
+      .filter(Boolean),
+  );
   return ["focus", "ritual", "cantrip"].filter((kind) => spellTraits.has(kind));
 }
 
@@ -854,7 +851,10 @@ function buildActorSemanticItemChunks(raw: Record<string, unknown>): string[] {
   return buildEmbeddedItemSearchChunks(raw, MAX_ACTOR_SEMANTIC_ITEM_CHUNKS);
 }
 
-function buildSearchText(raw: Record<string, unknown>, base: { name: string; descriptionText: string | null; traits: string[] }): string {
+function buildSearchText(
+  raw: Record<string, unknown>,
+  base: { name: string; descriptionText: string | null; traits: string[] },
+): string {
   const chunks: string[] = [base.name, ...base.traits];
   if (base.descriptionText) {
     chunks.push(base.descriptionText);
@@ -868,7 +868,11 @@ function buildSearchText(raw: Record<string, unknown>, base: { name: string; des
     .trim();
 }
 
-export function buildSemanticEmbeddingText(record: NormalizedIndexRecord, raw: Record<string, unknown>, aliases: string[]): string {
+export function buildSemanticEmbeddingText(
+  record: NormalizedIndexRecord,
+  raw: Record<string, unknown>,
+  aliases: string[],
+): string {
   const chunks: string[] = [];
   const seen = new Set<string>();
 
@@ -921,12 +925,14 @@ function buildDescriptionSnippet(descriptionText: string | null): string | null 
 
 function isCorePublication(publicationTitle: string | null): boolean {
   const normalized = normalizeText(publicationTitle ?? "");
-  return normalized === "pathfinder player core" ||
+  return (
+    normalized === "pathfinder player core" ||
     normalized === "pathfinder player core 2" ||
     normalized === "pathfinder gm core" ||
     normalized === "pathfinder monster core" ||
     normalized === "pathfinder monster core 2" ||
-    normalized === "pathfinder beginner box";
+    normalized === "pathfinder beginner box"
+  );
 }
 
 function isAdventurePublication(publicationTitle: string | null): boolean {
@@ -935,28 +941,30 @@ function isAdventurePublication(publicationTitle: string | null): boolean {
     return false;
   }
 
-  return normalized.includes("adventure path") ||
+  return (
+    normalized.includes("adventure path") ||
     normalized.includes("pathfinder society") ||
     normalized.includes("quest") ||
     normalized.includes("one shot") ||
     normalized.includes("special") ||
     normalized.startsWith("pathfinder adventure ") ||
-    /^pathfinder \d+ /.test(normalized);
+    /^pathfinder \d+ /.test(normalized)
+  );
 }
 
 function isAdventurePack(packName: string): boolean {
   const normalizedPack = normalizeText(packName);
-  return normalizedPack.startsWith("pfs ") ||
-    normalizedPack.includes("one shot") ||
-    normalizedPack.includes("quest");
+  return normalizedPack.startsWith("pfs ") || normalizedPack.includes("one shot") || normalizedPack.includes("quest");
 }
 
 export function isExcludedPackName(packName: string): boolean {
   const normalized = normalizeText(packName);
-  return normalized.startsWith("pfs ") ||
+  return (
+    normalized.startsWith("pfs ") ||
     normalized === "pathfinder society boons" ||
     normalized === "macros" ||
-    normalized === "action macros";
+    normalized === "action macros"
+  );
 }
 
 function isExcludedSocietyEffectPath(sourcePath: string): boolean {
@@ -967,7 +975,11 @@ function isPfsBoonRecord(raw: Record<string, unknown>): boolean {
   return normalizeText(firstString(getNested(raw, ["system", "category"])) ?? "") === "pfsboon";
 }
 
-export function shouldExcludeRecordFromIndex(pack: PackBuildInfo, sourcePath: string, raw: Record<string, unknown>): boolean {
+export function shouldExcludeRecordFromIndex(
+  pack: PackBuildInfo,
+  sourcePath: string,
+  raw: Record<string, unknown>,
+): boolean {
   if (isExcludedPackName(pack.name) || isExcludedSocietyEffectPath(sourcePath) || isPfsBoonRecord(raw)) {
     return true;
   }
@@ -1000,7 +1012,11 @@ function getSourceCategory(packName: string, publicationTitle: string | null): S
   return "unknown";
 }
 
-export function normalizeIndexRecord(pack: PackBuildInfo, sourcePath: string, raw: Record<string, unknown>): NormalizedIndexRecord {
+export function normalizeIndexRecord(
+  pack: PackBuildInfo,
+  sourcePath: string,
+  raw: Record<string, unknown>,
+): NormalizedIndexRecord {
   const id = firstString(raw._id);
   const name = firstString(raw.name);
   const recordType = firstString(raw.type) ?? "unknown";

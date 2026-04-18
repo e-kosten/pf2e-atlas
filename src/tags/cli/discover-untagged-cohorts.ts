@@ -126,9 +126,8 @@ export function parseOptions(argv: string[]): UntaggedCohortOptions {
   resolveDiscoveryGramRange(options);
   return {
     ...options,
-    reviewReason: options.reviewReason && isReviewedDiscoveryReason(options.reviewReason)
-      ? options.reviewReason
-      : undefined,
+    reviewReason:
+      options.reviewReason && isReviewedDiscoveryReason(options.reviewReason) ? options.reviewReason : undefined,
   };
 }
 
@@ -165,16 +164,19 @@ export function formatHelp(): string {
 }
 
 function formatReviewedSummary(summary: ReviewedDiscoveryApplicationSummary): string[] {
-  const label = summary.mode === "excluded"
-    ? "Excluded reviewed records"
-    : summary.mode === "included"
-      ? "Included reviewed records"
-      : `Filtered reviewed records${summary.reviewReason ? ` (${summary.reviewReason})` : ""}`;
+  const label =
+    summary.mode === "excluded"
+      ? "Excluded reviewed records"
+      : summary.mode === "included"
+        ? "Included reviewed records"
+        : `Filtered reviewed records${summary.reviewReason ? ` (${summary.reviewReason})` : ""}`;
   return [
     `- ${label}: ${summary.appliedCount}/${summary.scopedCount}`,
-    `- Reviewed reason counts: ${summary.reasonCounts.length > 0
-      ? summary.reasonCounts.map((entry) => `${entry.reason}=${entry.count}`).join(", ")
-      : "(none)"}`,
+    `- Reviewed reason counts: ${
+      summary.reasonCounts.length > 0
+        ? summary.reasonCounts.map((entry) => `${entry.reason}=${entry.count}`).join(", ")
+        : "(none)"
+    }`,
   ];
 }
 
@@ -192,27 +194,33 @@ export function formatUntaggedCohortReport(report: UntaggedCohortReport): string
     "",
     "Top anchors:",
     ...(report.anchorTerms.length > 0
-      ? report.anchorTerms.map((anchor) =>
-        `- ${anchor.value} support=${anchor.support} baseline=${anchor.baselineSupport} lift=${anchor.lift.toFixed(2)} score=${anchor.score.toFixed(2)}${anchor.existingTagOverlaps && anchor.existingTagOverlaps.length > 0 ? ` overlaps=${anchor.existingTagOverlaps.join(", ")}` : ""}`)
+      ? report.anchorTerms.map(
+          (anchor) =>
+            `- ${anchor.value} support=${anchor.support} baseline=${anchor.baselineSupport} lift=${anchor.lift.toFixed(2)} score=${anchor.score.toFixed(2)}${anchor.existingTagOverlaps && anchor.existingTagOverlaps.length > 0 ? ` overlaps=${anchor.existingTagOverlaps.join(", ")}` : ""}`,
+        )
       : ["- (none)"]),
     "",
     "Recommended cohorts:",
     ...(report.cohorts.length > 0
       ? report.cohorts.flatMap((cohort) => [
-        `- ${cohort.recommendation} score=${cohort.score.toFixed(2)} size=${cohort.size} families=${cohort.distinctVariantFamilies} sources=${cohort.sourceCount} publications=${cohort.publicationCount} source_slices=${cohort.sourceSliceCount} signature=${cohort.signature.join(", ")}${cohort.classification ? ` classification=${cohort.classification}` : ""}${cohort.familyGapRecommendation ? ` family_gap=${cohort.familyGapRecommendation}` : ""}`,
-        ...(cohort.overlappingTags && cohort.overlappingTags.length > 0
-          ? [`  overlaps=${cohort.overlappingTags.join(", ")}`]
-          : []),
-        `  non_name=${cohort.nonNameAnchors.join(", ") || "(none)"} flags=${cohort.reviewFlags.join(", ") || "(none)"}`,
-        `  ${formatDiscoverySourceContext(cohort)}`,
-        ...cohort.representativeRecords.map((record) => `  ${record.name} (${record.recordKey}) score=${record.similarity.toFixed(3)}`),
-        ...(cohort.contrastRecords.length > 0
-          ? [
-            "  contrast:",
-            ...cohort.contrastRecords.map((record) => `    ${record.name} (${record.recordKey}) score=${record.similarity.toFixed(3)}`),
-          ]
-          : []),
-      ])
+          `- ${cohort.recommendation} score=${cohort.score.toFixed(2)} size=${cohort.size} families=${cohort.distinctVariantFamilies} sources=${cohort.sourceCount} publications=${cohort.publicationCount} source_slices=${cohort.sourceSliceCount} signature=${cohort.signature.join(", ")}${cohort.classification ? ` classification=${cohort.classification}` : ""}${cohort.familyGapRecommendation ? ` family_gap=${cohort.familyGapRecommendation}` : ""}`,
+          ...(cohort.overlappingTags && cohort.overlappingTags.length > 0
+            ? [`  overlaps=${cohort.overlappingTags.join(", ")}`]
+            : []),
+          `  non_name=${cohort.nonNameAnchors.join(", ") || "(none)"} flags=${cohort.reviewFlags.join(", ") || "(none)"}`,
+          `  ${formatDiscoverySourceContext(cohort)}`,
+          ...cohort.representativeRecords.map(
+            (record) => `  ${record.name} (${record.recordKey}) score=${record.similarity.toFixed(3)}`,
+          ),
+          ...(cohort.contrastRecords.length > 0
+            ? [
+                "  contrast:",
+                ...cohort.contrastRecords.map(
+                  (record) => `    ${record.name} (${record.recordKey}) score=${record.similarity.toFixed(3)}`,
+                ),
+              ]
+            : []),
+        ])
       : ["- (none)"]),
   ];
 

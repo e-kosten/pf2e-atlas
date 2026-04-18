@@ -18,7 +18,10 @@ const patternAnchor = (
   scope,
   ...(options?.pos ? { pos: options.pos } : {}),
 });
-const patternAnchorParts = (parts: TextPatternPart[], scope: TextMatchScope = "either"): TextAnchor => ({ parts, scope });
+const patternAnchorParts = (parts: TextPatternPart[], scope: TextMatchScope = "either"): TextAnchor => ({
+  parts,
+  scope,
+});
 const patternLiteralPart = (value: string, analysis?: TextTokenAnalysisConstraint[]): TextPatternPart => ({
   type: "literal",
   value,
@@ -30,10 +33,12 @@ const patternAlternativeOption = (value: string, analysis?: TextTokenAnalysisCon
 });
 const patternAlternativePart = (options: Array<string | TextPatternOption>): TextPatternPart => ({
   type: "alternative",
-  options: options.map((option) => typeof option === "string" ? { value: option } : option),
+  options: options.map((option) => (typeof option === "string" ? { value: option } : option)),
 });
-const patternAlternativeAnchor = (options: Array<string | TextPatternOption>, scope: TextMatchScope = "either"): TextAnchor =>
-  patternAnchorParts([patternAlternativePart(options)], scope);
+const patternAlternativeAnchor = (
+  options: Array<string | TextPatternOption>,
+  scope: TextMatchScope = "either",
+): TextAnchor => patternAnchorParts([patternAlternativePart(options)], scope);
 const patternOptionalPart = (value: string, analysis?: TextTokenAnalysisConstraint[]): TextPatternPart => ({
   type: "optional",
   value,
@@ -202,10 +207,7 @@ const FRESHWATER_SETTING_CONTEXT_TEXT_ANCHORS: TextAnchor[] = [
   ]),
 ];
 
-const FRESHWATER_SETTING_NAME_ANCHORS: TextAnchor[] = [
-  patternAnchor("pond", "name"),
-  patternAnchor("spring", "name"),
-];
+const FRESHWATER_SETTING_NAME_ANCHORS: TextAnchor[] = [patternAnchor("pond", "name"), patternAnchor("spring", "name")];
 
 const FRESHWATER_SETTING_BLOCKER_TEXT_ANCHORS: TextAnchor[] = [
   patternAnchor("inner sea"),
@@ -370,9 +372,7 @@ const FIRST_WORLD_SETTING_CONTEXT_TEXT_ANCHORS: TextAnchor[] = [
   patternAnchor("worn thin"),
 ];
 
-const BONEYARD_SETTING_TEXT_ANCHORS: TextAnchor[] = [
-  patternAnchor("boneyard"),
-];
+const BONEYARD_SETTING_TEXT_ANCHORS: TextAnchor[] = [patternAnchor("boneyard")];
 
 const BONEYARD_SETTING_CONTEXT_TEXT_ANCHORS: TextAnchor[] = [
   patternAltAnchor(["guard", "guards"]),
@@ -478,10 +478,7 @@ const SOCIAL_INFILTRATION_REFERENCE_ANCHORS = [
   referenceAnchor("spells-srd", "Illusory Disguise"),
 ];
 
-const SPELL_DISGUISE_NAME_ANCHORS: TextAnchor[] = [
-  patternAnchor("disguise", "name"),
-  patternAnchor("visage", "name"),
-];
+const SPELL_DISGUISE_NAME_ANCHORS: TextAnchor[] = [patternAnchor("disguise", "name"), patternAnchor("visage", "name")];
 
 const SPELL_DISGUISE_TEXT_ANCHORS: TextAnchor[] = [
   patternAnchor("appear as another creature"),
@@ -545,9 +542,7 @@ const MOBILITY_REFERENCE_ANCHORS = [
   referenceAnchor("actionspf2e", "Swim"),
 ];
 
-const NAVIGATION_REFERENCE_ANCHORS = [
-  referenceAnchor("actionspf2e", "Sense Direction"),
-];
+const NAVIGATION_REFERENCE_ANCHORS = [referenceAnchor("actionspf2e", "Sense Direction")];
 
 const TRACKING_REFERENCE_ANCHORS = [
   referenceAnchor("actionspf2e", "Track"),

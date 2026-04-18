@@ -4,16 +4,13 @@ import type {
   ActorMetricValue,
   ActorMetricValueType,
 } from "./actor-metrics.js";
-import {
-  normalizeActorMetricKey,
-  normalizeActorMetricPrefix,
-  slugifyActorMetricSegment,
-} from "./actor-metrics.js";
+import { normalizeActorMetricKey, normalizeActorMetricPrefix, slugifyActorMetricSegment } from "./actor-metrics.js";
 
 export const ITEM_METRIC_DISCOVERY_NAMESPACES = [
   {
     prefix: "armor.",
-    description: "Armor metrics such as armor.ac_bonus, armor.dex_cap, armor.strength, armor.check_penalty, and armor.speed_penalty.",
+    description:
+      "Armor metrics such as armor.ac_bonus, armor.dex_cap, armor.strength, armor.check_penalty, and armor.speed_penalty.",
   },
   {
     prefix: "shield.",
@@ -21,7 +18,8 @@ export const ITEM_METRIC_DISCOVERY_NAMESPACES = [
   },
   {
     prefix: "weapon.",
-    description: "Weapon metrics such as weapon.range_increment, weapon.reload, weapon.damage_dice, and weapon.damage_die_faces.",
+    description:
+      "Weapon metrics such as weapon.range_increment, weapon.reload, weapon.damage_dice, and weapon.damage_die_faces.",
   },
 ] as const;
 

@@ -8,9 +8,6 @@ export function buildDerivedTagMigrationRecordPageLines(
   return buildOntologyExplorerEntityDetailLines(record.entityRecord, { includeHeader: false });
 }
 
-export function buildDerivedTagMigrationRecordPageTextLines(
-  record: DerivedTagMigrationSessionRecord,
-): string[] {
-  return buildDerivedTagMigrationRecordPageLines(record)
-    .map((line) => `${" ".repeat(line.indent ?? 0)}${line.text}`);
+export function buildDerivedTagMigrationRecordPageTextLines(record: DerivedTagMigrationSessionRecord): string[] {
+  return buildDerivedTagMigrationRecordPageLines(record).map((line) => `${" ".repeat(line.indent ?? 0)}${line.text}`);
 }

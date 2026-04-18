@@ -8,6 +8,7 @@ description: Curate PF2E derived-tag exemplars into small, high-signal teaching 
 Use this skill when the task is primarily about exemplar quality rather than runtime tagging coverage.
 
 This is a **live-authoring** skill:
+
 - confident exemplar keep/drop decisions go directly into `src/tags/exemplars`
 - only uncertain exemplar decisions go into `src/tags/exemplar-reviews`
 - if a touched record clearly needs assignment cleanup, fix that too instead of ignoring it
@@ -15,6 +16,7 @@ This is a **live-authoring** skill:
 ## Required Output
 
 For each touched record:
+
 - decide whether it should remain a positive exemplar
 - become or remain a negative exemplar
 - be removed from exemplar use entirely

@@ -14,10 +14,7 @@ import {
   type ReviewedDiscoveryApplicationSummary,
   type ReviewedDiscoveryReason,
 } from "../discovery/discovery-reviewed-records.js";
-import {
-  classifyFamilyGapFeature,
-  type FamilyGapFeatureBucket,
-} from "../discovery/family-gap-signals.js";
+import { classifyFamilyGapFeature, type FamilyGapFeatureBucket } from "../discovery/family-gap-signals.js";
 import {
   extractDiscoveryGramRange,
   isDiscoveryNoisePhrase,
@@ -26,10 +23,7 @@ import {
   resolveDiscoveryGramRange,
   tokenizeDiscoveryText,
 } from "../discovery/discovery-normalization.js";
-import {
-  type DiscoveryAnalysisRecord,
-  loadDiscoveryRecords,
-} from "../discovery/discovery-records.js";
+import { type DiscoveryAnalysisRecord, loadDiscoveryRecords } from "../discovery/discovery-records.js";
 
 const DEFAULT_EVIDENCE_LIMIT = 12;
 const DEFAULT_EXAMPLE_LIMIT = 3;
@@ -160,8 +154,9 @@ function collectRecordFeatureSet(
   };
 
   if (featureType === "nameTokens") {
-    const values = tokenizeDiscoveryText(record.name, { filterStopwords: true })
-      .filter((value) => !isDiscoveryNoiseToken(value));
+    const values = tokenizeDiscoveryText(record.name, { filterStopwords: true }).filter(
+      (value) => !isDiscoveryNoiseToken(value),
+    );
     for (const value of values) {
       appendExample(value, record.name);
     }
@@ -169,8 +164,9 @@ function collectRecordFeatureSet(
   }
 
   if (featureType === "namePhrases") {
-    const phrases = extractDiscoveryGramRange(record.name, options, { filterStopwords: true })
-      .filter((phrase) => !isDiscoveryNoisePhrase(phrase.normalized));
+    const phrases = extractDiscoveryGramRange(record.name, options, { filterStopwords: true }).filter(
+      (phrase) => !isDiscoveryNoisePhrase(phrase.normalized),
+    );
     for (const phrase of phrases) {
       appendExample(phrase.normalized, record.name);
     }
@@ -178,8 +174,9 @@ function collectRecordFeatureSet(
   }
 
   if (featureType === "descriptionTokens") {
-    const values = tokenizeDiscoveryText(record.descriptionText ?? "", { filterStopwords: true })
-      .filter((value) => !isDiscoveryNoiseToken(value));
+    const values = tokenizeDiscoveryText(record.descriptionText ?? "", { filterStopwords: true }).filter(
+      (value) => !isDiscoveryNoiseToken(value),
+    );
     for (const value of values) {
       appendExample(value, record.descriptionText ?? record.name);
     }
@@ -187,8 +184,9 @@ function collectRecordFeatureSet(
   }
 
   if (featureType === "descriptionPhrases") {
-    const phrases = extractDiscoveryGramRange(record.descriptionText ?? "", options, { filterStopwords: true })
-      .filter((phrase) => !isDiscoveryNoisePhrase(phrase.normalized));
+    const phrases = extractDiscoveryGramRange(record.descriptionText ?? "", options, { filterStopwords: true }).filter(
+      (phrase) => !isDiscoveryNoisePhrase(phrase.normalized),
+    );
     for (const phrase of phrases) {
       appendExample(phrase.normalized, record.descriptionText ?? record.name);
     }
@@ -205,7 +203,10 @@ function collectRecordFeatureSet(
 
   const values = [
     ...record.references.map((reference) => `target:${normalizeDiscoveryFeature(reference.targetName)}`),
-    ...record.references.map((reference) => `scope:${reference.targetCategory}${reference.targetSubcategory ? `/${reference.targetSubcategory}` : ""}`),
+    ...record.references.map(
+      (reference) =>
+        `scope:${reference.targetCategory}${reference.targetSubcategory ? `/${reference.targetSubcategory}` : ""}`,
+    ),
   ];
   for (const reference of record.references) {
     appendExample(`target:${normalizeDiscoveryFeature(reference.targetName)}`, reference.targetName);
@@ -268,11 +269,7 @@ function evidenceKindWeight(kind: DiscoveryEvidenceKind): number {
   }
 }
 
-function evidenceSupportMultiplier(
-  kind: DiscoveryEvidenceKind,
-  support: number,
-  cohortSize: number,
-): number {
+function evidenceSupportMultiplier(kind: DiscoveryEvidenceKind, support: number, cohortSize: number): number {
   const requiresRepeatedSupport = kind === "descriptionToken" || kind === "descriptionPhrase";
   if (!requiresRepeatedSupport || cohortSize < 3 || support >= 2) {
     return 1;
@@ -281,24 +278,20 @@ function evidenceSupportMultiplier(
   return kind === "descriptionPhrase" ? 0.3 : 0.18;
 }
 
-function evidenceConcentrationMultiplier(
-  kind: DiscoveryEvidenceKind,
-  support: number,
-  cohortSize: number,
-): number {
+function evidenceConcentrationMultiplier(kind: DiscoveryEvidenceKind, support: number, cohortSize: number): number {
   if (cohortSize <= 1) {
     return 1;
   }
 
   const supportRatio = support / cohortSize;
   if (kind === "reference" || kind === "trait") {
-    return 0.9 + (supportRatio * 0.45);
+    return 0.9 + supportRatio * 0.45;
   }
   if (kind === "descriptionToken" || kind === "descriptionPhrase") {
-    return 0.7 + (supportRatio * 0.45);
+    return 0.7 + supportRatio * 0.45;
   }
 
-  return 0.78 + (supportRatio * 0.35);
+  return 0.78 + supportRatio * 0.35;
 }
 
 function rankEvidenceTerms(
@@ -334,11 +327,13 @@ function rankEvidenceTerms(
         examples: [...cohort.examples].slice(0, exampleLimit),
       };
     })
-    .sort((left, right) =>
-      right.score - left.score ||
-      right.cohortSupport - left.cohortSupport ||
-      right.lift - left.lift ||
-      left.value.localeCompare(right.value))
+    .sort(
+      (left, right) =>
+        right.score - left.score ||
+        right.cohortSupport - left.cohortSupport ||
+        right.lift - left.lift ||
+        left.value.localeCompare(right.value),
+    )
     .slice(0, limit);
 }
 
@@ -347,20 +342,21 @@ function mergeFamilyGapTerms(terms: FamilyGapEvidenceTerm[]): FamilyGapEvidenceT
   for (const term of terms) {
     const existing = byValue.get(term.value);
     if (
-      !existing
-      || term.score > existing.score
-      || (term.score === existing.score && term.cohortSupport > existing.cohortSupport)
+      !existing ||
+      term.score > existing.score ||
+      (term.score === existing.score && term.cohortSupport > existing.cohortSupport)
     ) {
       byValue.set(term.value, term);
     }
   }
 
-  return [...byValue.values()]
-    .sort((left, right) =>
+  return [...byValue.values()].sort(
+    (left, right) =>
       right.score - left.score ||
       right.gapLift - left.gapLift ||
       right.cohortSupport - left.cohortSupport ||
-      left.value.localeCompare(right.value));
+      left.value.localeCompare(right.value),
+  );
 }
 
 function rankFamilyGapTerms(
@@ -388,8 +384,8 @@ function rankFamilyGapTerms(
       const classification = classifyFamilyGapFeature(family, kind, value);
       const qualityMultiplier = Math.max(
         0.3,
-        (classification.cueLocality - (classification.cueAmbiguityPenalty * 0.55)) *
-        (1 - (classification.boilerplateRisk * 0.4)),
+        (classification.cueLocality - classification.cueAmbiguityPenalty * 0.55) *
+          (1 - classification.boilerplateRisk * 0.4),
       );
       const score =
         uncovered.support *
@@ -417,11 +413,13 @@ function rankFamilyGapTerms(
         suppressionReason: classification.suppressionReason,
       } satisfies FamilyGapEvidenceTerm;
     })
-    .sort((left, right) =>
-      right.score - left.score ||
-      right.gapLift - left.gapLift ||
-      right.cohortSupport - left.cohortSupport ||
-      left.value.localeCompare(right.value))
+    .sort(
+      (left, right) =>
+        right.score - left.score ||
+        right.gapLift - left.gapLift ||
+        right.cohortSupport - left.cohortSupport ||
+        left.value.localeCompare(right.value),
+    )
     .slice(0, Math.max(limit * 3, limit));
 }
 
@@ -472,9 +470,7 @@ export function analyzeFamilyGapEvidenceFromRecords(
   const existingTagCoverageGaps = surfacedTerms
     .filter((term) => term.bucket === "possible_place_anchor" && term.existingTagOverlaps.length > 0)
     .slice(0, limit);
-  const suppressedTerms = mergedTerms
-    .filter((term) => term.suppressionReason !== null)
-    .slice(0, limit);
+  const suppressedTerms = mergedTerms.filter((term) => term.suppressionReason !== null).slice(0, limit);
 
   return {
     coveredCount: covered.length,
@@ -509,7 +505,18 @@ export function analyzeDiscoveryEvidenceFromRecords(
     featureTypes.map((featureType) => {
       const cohortSupport = collectFeatureSupport(cohort, featureType, exampleLimit, gramRange);
       const baselineSupport = collectFeatureSupport(baseline, featureType, exampleLimit, gramRange);
-      return [featureType, rankEvidenceTerms(cohortSupport, baselineSupport, cohort.length, baseline.length, limit, exampleLimit, featureType)];
+      return [
+        featureType,
+        rankEvidenceTerms(
+          cohortSupport,
+          baselineSupport,
+          cohort.length,
+          baseline.length,
+          limit,
+          exampleLimit,
+          featureType,
+        ),
+      ];
     }),
   ) as Record<(typeof featureTypes)[number], DiscoveryEvidenceTerm[]>;
 
@@ -536,57 +543,57 @@ function mergeUniqueRecords(records: DiscoveryAnalysisRecord[]): DiscoveryAnalys
   return [...uniqueRecords.values()];
 }
 
-export function analyzeDiscoveryEvidence(
-  db: DatabaseSync,
-  options: DiscoveryEvidenceOptions,
-): DiscoveryEvidenceReport {
+export function analyzeDiscoveryEvidence(db: DatabaseSync, options: DiscoveryEvidenceOptions): DiscoveryEvidenceReport {
   const explicitRecordKeys = options.recordKeys;
   const normalizedTag = options.tag ? normalizeDerivedTag(options.tag) : undefined;
   const normalizedFamily = options.family ? normalizeDerivedTag(options.family) : undefined;
   const familyTags = normalizedFamily
     ? getDerivedTagFamilyTags(normalizedFamily, {
-      category: options.category,
-      subcategory: options.subcategory,
-    })
+        category: options.category,
+        subcategory: options.subcategory,
+      })
     : [];
   if (options.familyGapSignals && !normalizedFamily) {
     throw new Error("Pass --family <derived-tag-family> when using --family-gap-signals.");
   }
-  const reviewedSelection = normalizedFamily && (options.familyGapSignals || options.untaggedOnly)
-    ? getReviewedDiscoverySelection({
-      category: options.category,
-      subcategory: options.subcategory,
-      family: normalizedFamily,
-      includeReviewed: options.includeReviewed,
-      reviewReason: options.reviewReason,
-    })
-    : undefined;
+  const reviewedSelection =
+    normalizedFamily && (options.familyGapSignals || options.untaggedOnly)
+      ? getReviewedDiscoverySelection({
+          category: options.category,
+          subcategory: options.subcategory,
+          family: normalizedFamily,
+          includeReviewed: options.includeReviewed,
+          reviewReason: options.reviewReason,
+        })
+      : undefined;
   const applyReviewedSelection = !explicitRecordKeys || explicitRecordKeys.length === 0;
-  const reviewedRecordKeys = applyReviewedSelection && reviewedSelection?.mode === "filtered"
-    ? reviewedSelection.recordKeys
-    : explicitRecordKeys;
+  const reviewedRecordKeys =
+    applyReviewedSelection && reviewedSelection?.mode === "filtered"
+      ? reviewedSelection.recordKeys
+      : explicitRecordKeys;
   const reviewedExcludedRecordKeys = uniqueSorted([
     ...(options.excludeRecordKeys ?? []),
     ...(applyReviewedSelection && reviewedSelection?.mode === "excluded" ? reviewedSelection.recordKeys : []),
   ]);
   const reviewedSummary = reviewedSelection
     ? summarizeReviewedDiscoverySelection(
-      reviewedSelection,
-      applyReviewedSelection ? reviewedSelection.recordKeys.length : 0,
-    )
+        reviewedSelection,
+        applyReviewedSelection ? reviewedSelection.recordKeys.length : 0,
+      )
     : undefined;
-  const seedRecordKeys = normalizedTag && !explicitRecordKeys
-    ? uniqueSorted([
-      ...getDerivedTagExemplarRecordKeys(normalizedTag, {
-        category: options.category,
-        subcategory: options.subcategory,
-      }),
-      ...getDerivedTagLegacySeedMigrationRecordKeys(normalizedTag, {
-        category: options.category,
-        subcategory: options.subcategory,
-      }),
-    ])
-    : [];
+  const seedRecordKeys =
+    normalizedTag && !explicitRecordKeys
+      ? uniqueSorted([
+          ...getDerivedTagExemplarRecordKeys(normalizedTag, {
+            category: options.category,
+            subcategory: options.subcategory,
+          }),
+          ...getDerivedTagLegacySeedMigrationRecordKeys(normalizedTag, {
+            category: options.category,
+            subcategory: options.subcategory,
+          }),
+        ])
+      : [];
   const taggedRecords = loadDiscoveryRecords(db, {
     category: options.category,
     subcategory: options.subcategory,
@@ -599,15 +606,16 @@ export function analyzeDiscoveryEvidence(
     untaggedOnly: options.untaggedOnly && familyTags.length === 0,
     includeVectors: false,
   });
-  const seededRecords = seedRecordKeys.length > 0
-    ? loadDiscoveryRecords(db, {
-      category: options.category,
-      subcategory: options.subcategory,
-      recordKeys: seedRecordKeys,
-      excludeRecordKeys: reviewedExcludedRecordKeys,
-      includeVectors: false,
-    })
-    : [];
+  const seededRecords =
+    seedRecordKeys.length > 0
+      ? loadDiscoveryRecords(db, {
+          category: options.category,
+          subcategory: options.subcategory,
+          recordKeys: seedRecordKeys,
+          excludeRecordKeys: reviewedExcludedRecordKeys,
+          includeVectors: false,
+        })
+      : [];
   const cohort = mergeUniqueRecords([...taggedRecords, ...seededRecords]);
   const baseline = loadDiscoveryRecords(db, {
     category: options.category,
@@ -629,9 +637,11 @@ export function analyzeDiscoveryEvidence(
       requireAnyDerivedTags: familyTags,
       includeVectors: false,
     });
-    const liveTags = uniqueSorted([...new Set(covered.flatMap((record) =>
-      record.derivedTags.filter((tag) => familyTags.includes(normalizeDerivedTag(tag))),
-    ))]);
+    const liveTags = uniqueSorted([
+      ...new Set(
+        covered.flatMap((record) => record.derivedTags.filter((tag) => familyTags.includes(normalizeDerivedTag(tag)))),
+      ),
+    ]);
     const report = analyzeDiscoveryEvidenceFromRecords(uncovered, baseline, options);
     return {
       category: options.category ?? null,
@@ -640,13 +650,11 @@ export function analyzeDiscoveryEvidence(
       reviewedRecords: reviewedSummary,
       ...report,
       familyGap: analyzeFamilyGapEvidenceFromRecords(uncovered, covered, baseline, normalizedFamily, liveTags, options),
-      representativeRecords: uncovered
-        .slice(0, Math.min(5, uncovered.length))
-        .map((record) => ({
-          recordKey: record.recordKey,
-          name: record.name,
-          traits: uniqueSorted([...record.traits]),
-        })),
+      representativeRecords: uncovered.slice(0, Math.min(5, uncovered.length)).map((record) => ({
+        recordKey: record.recordKey,
+        name: record.name,
+        traits: uniqueSorted([...record.traits]),
+      })),
     };
   }
 
@@ -657,12 +665,10 @@ export function analyzeDiscoveryEvidence(
     family: normalizedFamily ?? null,
     reviewedRecords: reviewedSummary,
     ...report,
-    representativeRecords: cohort
-      .slice(0, Math.min(5, cohort.length))
-      .map((record) => ({
-        recordKey: record.recordKey,
-        name: record.name,
-        traits: uniqueSorted([...record.traits]),
-      })),
+    representativeRecords: cohort.slice(0, Math.min(5, cohort.length)).map((record) => ({
+      recordKey: record.recordKey,
+      name: record.name,
+      traits: uniqueSorted([...record.traits]),
+    })),
   };
 }

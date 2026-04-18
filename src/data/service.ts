@@ -2,10 +2,7 @@ import { mkdir, rename } from "node:fs/promises";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
-import {
-  createEmbeddingProvider,
-  EmbeddingProvider,
-} from "../embeddings.js";
+import { createEmbeddingProvider, EmbeddingProvider } from "../embeddings.js";
 import {
   categorySupportsSubcategory,
   getSearchCategoryErrorMessage,
@@ -39,11 +36,7 @@ import {
 import { normalizeSearchScope } from "../search/sql.js";
 import { formatInteger } from "../shared/format.js";
 import { fileExists } from "../shared/fs.js";
-import {
-  getLookupMatchType,
-  rowToRecord,
-  sqliteRowCount,
-} from "./rows.js";
+import { getLookupMatchType, rowToRecord, sqliteRowCount } from "./rows.js";
 import {
   buildMissingIndexError,
   buildStaleIndexError,
@@ -57,10 +50,7 @@ import {
   loadPacksFromIndex,
   openDatabase,
 } from "./schema.js";
-import {
-  hasStructuredFilterSignal,
-  resolveSearchMode,
-} from "../search/ranking.js";
+import { hasStructuredFilterSignal, resolveSearchMode } from "../search/ranking.js";
 import { buildIndex, buildReusableEmbeddingLookup, computeSourceSignature, removeIndexFiles } from "./indexer.js";
 import type { StageTiming } from "./index-types.js";
 import {
@@ -98,9 +88,7 @@ import {
 type LoadOptions = {
   indexPath?: string;
   embedding?: EmbeddingConfig;
-  embeddingProviderFactory?: (
-    config: EmbeddingConfig,
-  ) => Promise<{ provider: EmbeddingProvider; warnings: string[] }>;
+  embeddingProviderFactory?: (config: EmbeddingConfig) => Promise<{ provider: EmbeddingProvider; warnings: string[] }>;
   rankingConfigStore?: RankingConfigStore;
   progressLogger?: (message: string) => void;
   progressStatusLogger?: (message: string) => void;
@@ -158,7 +146,12 @@ function validateFilters(filters: NormalizedSearchFilters, context: "list" | "se
     throw new Error("query requires a themed search profile such as balanced or concept.");
   }
 
-  if (context === "search" && !filters.query?.trim() && !filters.nameQuery?.trim() && !hasStructuredFilterSignal(filters)) {
+  if (
+    context === "search" &&
+    !filters.query?.trim() &&
+    !filters.nameQuery?.trim() &&
+    !hasStructuredFilterSignal(filters)
+  ) {
     throw new Error("pf2e_search requires search text and/or at least one structured filter.");
   }
 
@@ -198,23 +191,20 @@ function normalizeRecordKeyFilter(values: string[] | undefined): string[] | unde
     return undefined;
   }
 
-  const normalized = values
-    .map((value) => value.trim())
-    .filter((value) => value.length > 0);
+  const normalized = values.map((value) => value.trim()).filter((value) => value.length > 0);
   return [...new Set(normalized)];
 }
 
-type RuntimeSearchWindow =
-  {
-    id: string;
-    kind: "recordKeys";
-    mode: SearchWindow["mode"];
-    searchProfile: SearchWindow["searchProfile"];
-    sort: SearchSort;
-    sortSeed: number | null;
-    total: number;
-    orderedRecordKeys: string[];
-  };
+type RuntimeSearchWindow = {
+  id: string;
+  kind: "recordKeys";
+  mode: SearchWindow["mode"];
+  searchProfile: SearchWindow["searchProfile"];
+  sort: SearchSort;
+  sortSeed: number | null;
+  total: number;
+  orderedRecordKeys: string[];
+};
 
 const MAX_SEARCH_WINDOWS = 24;
 
@@ -289,7 +279,11 @@ export class Pf2eDataService {
     );
   }
 
-  static async rebuildIndex(rootPath: string, manifestPath: string, options: LoadOptions = {}): Promise<Pf2eDataService> {
+  static async rebuildIndex(
+    rootPath: string,
+    manifestPath: string,
+    options: LoadOptions = {},
+  ): Promise<Pf2eDataService> {
     const rebuildStartTime = Date.now();
     const indexPath = options.indexPath ?? defaultIndexPath(manifestPath);
     const tempIndexPath = `${indexPath}.rebuild-${process.pid}-${Date.now()}`;
@@ -322,20 +316,28 @@ export class Pf2eDataService {
           });
           const reuseInvalidReason = getEmbeddingReuseInvalidReason(previousDb, embeddingProvider);
           if (reuseInvalidReason) {
-            options.progressLogger?.(`Embedding reuse unavailable: ${reuseInvalidReason}. Regenerating all canonical embeddings.`);
+            options.progressLogger?.(
+              `Embedding reuse unavailable: ${reuseInvalidReason}. Regenerating all canonical embeddings.`,
+            );
             previousDb.close();
             previousDb = null;
           } else {
-            options.progressLogger?.("Reusing unchanged canonical embeddings from the existing index when semantic inputs match.");
+            options.progressLogger?.(
+              "Reusing unchanged canonical embeddings from the existing index when semantic inputs match.",
+            );
             reusableEmbeddingLookup = buildReusableEmbeddingLookup(previousDb);
           }
         } catch (error) {
-          options.progressLogger?.(`Embedding reuse unavailable: ${(error as Error).message}. Regenerating all canonical embeddings.`);
+          options.progressLogger?.(
+            `Embedding reuse unavailable: ${(error as Error).message}. Regenerating all canonical embeddings.`,
+          );
           previousDb?.close();
           previousDb = null;
         }
       } else {
-        options.progressLogger?.("Embedding reuse unavailable: no existing index found. Regenerating all canonical embeddings.");
+        options.progressLogger?.(
+          "Embedding reuse unavailable: no existing index found. Regenerating all canonical embeddings.",
+        );
       }
     }
 
@@ -352,12 +354,7 @@ export class Pf2eDataService {
       const schemaCreationStartTime = Date.now();
       createSchema(tempDb, embeddingProvider.identity.dimensions);
       const schemaCreationDurationMs = Date.now() - schemaCreationStartTime;
-      const {
-        packs,
-        warnings,
-        recordCount,
-        stageTimings,
-      } = await buildIndex(
+      const { packs, warnings, recordCount, stageTimings } = await buildIndex(
         tempDb,
         rootPath,
         manifestPath,
@@ -423,13 +420,15 @@ export class Pf2eDataService {
   }
 
   getRankingConfigStatus() {
-    return this.rankingConfigStore?.getStatus() ?? {
-      path: "<defaults>",
-      source: "default" as const,
-      revision: 1,
-      loadedAt: new Date(0).toISOString(),
-      lastError: null,
-    };
+    return (
+      this.rankingConfigStore?.getStatus() ?? {
+        path: "<defaults>",
+        source: "default" as const,
+        revision: 1,
+        loadedAt: new Date(0).toISOString(),
+        lastError: null,
+      }
+    );
   }
 
   getPack(packValue: string): PackInfo | undefined {
@@ -460,16 +459,13 @@ export class Pf2eDataService {
   }
 
   private normalizeSearchFilters(filters: SearchFilters): NormalizedSearchFilters {
-    const normalizedCategory = filters.category !== undefined
-      ? normalizeSearchCategory(filters.category)
-      : null;
+    const normalizedCategory = filters.category !== undefined ? normalizeSearchCategory(filters.category) : null;
     if (filters.category !== undefined && !normalizedCategory) {
       throw new Error(getSearchCategoryErrorMessage(String(filters.category)));
     }
 
-    const normalizedSubcategory = filters.subcategory !== undefined
-      ? normalizeSearchSubcategory(filters.subcategory)
-      : null;
+    const normalizedSubcategory =
+      filters.subcategory !== undefined ? normalizeSearchSubcategory(filters.subcategory) : null;
     if (filters.subcategory !== undefined && !normalizedSubcategory) {
       throw new Error(getSearchSubcategoryErrorMessage(String(filters.subcategory)));
     }
@@ -504,7 +500,9 @@ export class Pf2eDataService {
   getRecordsByKeys(recordKeys: string[]): NormalizedRecord[] {
     const rows = fetchRecordRowsByKeys(this.db, [...new Set(recordKeys)]);
     const byKey = new Map(rows.map((row) => [row.recordKey, this.decorateRecord(rowToRecord(row))]));
-    return [...new Set(recordKeys)].map((recordKey) => byKey.get(recordKey)).filter((record): record is NormalizedRecord => Boolean(record));
+    return [...new Set(recordKeys)]
+      .map((recordKey) => byKey.get(recordKey))
+      .filter((record): record is NormalizedRecord => Boolean(record));
   }
 
   lookupMany(queries: LookupQuery[], options: { coreOnly?: boolean } = {}): LookupResult[] {
@@ -552,17 +550,21 @@ export class Pf2eDataService {
       maxBacklinksPerPrimary?: number;
     } = {},
   ): RuleGraphCollectionResult {
-    return getRuleGraphRuntime(recordKeys, {
-      coreOnly,
-      includeOutgoing,
-      includeBacklinks,
-      maxOutgoingPerPrimary,
-      maxBacklinksPerPrimary,
-    }, {
-      fetchReferenceEdgeRows: (direction, keys, options) => fetchReferenceEdgeRows(this.db, direction, keys, options),
-      getRecordsByKeys: (keys) => this.getRecordsByKeys(keys),
-      lookupMany: (queries, options) => this.lookupMany(queries, options),
-    });
+    return getRuleGraphRuntime(
+      recordKeys,
+      {
+        coreOnly,
+        includeOutgoing,
+        includeBacklinks,
+        maxOutgoingPerPrimary,
+        maxBacklinksPerPrimary,
+      },
+      {
+        fetchReferenceEdgeRows: (direction, keys, options) => fetchReferenceEdgeRows(this.db, direction, keys, options),
+        getRecordsByKeys: (keys) => this.getRecordsByKeys(keys),
+        lookupMany: (queries, options) => this.lookupMany(queries, options),
+      },
+    );
   }
 
   collectRuleQuestionContext(input: CollectRuleQuestionContextInput): CollectRuleQuestionContextResult {
@@ -706,18 +708,17 @@ export class Pf2eDataService {
 
     if (mode === "browse") {
       validateFilters(normalizedFilters, "list");
-      const sort = normalizedFilters.sort === "ranked" || !normalizedFilters.sort
-        ? "alphabetical"
-        : normalizedFilters.sort;
+      const sort =
+        normalizedFilters.sort === "ranked" || !normalizedFilters.sort ? "alphabetical" : normalizedFilters.sort;
       const sortSeed = sort === "random" ? (normalizedFilters.sortSeed ?? 0) : null;
-      const orderedRecordKeys = sort === "random"
-        ? fetchCandidateRecordKeys(this.db, normalizedFilters)
-          .sort((left, right) => {
-            const leftHash = this.hashSearchWindowKey(left, sortSeed ?? 0);
-            const rightHash = this.hashSearchWindowKey(right, sortSeed ?? 0);
-            return leftHash - rightHash || left.localeCompare(right);
-          })
-        : fetchCandidateRecordKeys(this.db, normalizedFilters, sort);
+      const orderedRecordKeys =
+        sort === "random"
+          ? fetchCandidateRecordKeys(this.db, normalizedFilters).sort((left, right) => {
+              const leftHash = this.hashSearchWindowKey(left, sortSeed ?? 0);
+              const rightHash = this.hashSearchWindowKey(right, sortSeed ?? 0);
+              return leftHash - rightHash || left.localeCompare(right);
+            })
+          : fetchCandidateRecordKeys(this.db, normalizedFilters, sort);
       const window = this.rememberSearchWindow({
         id: this.createSearchWindowId(),
         kind: "recordKeys",
@@ -764,7 +765,10 @@ export class Pf2eDataService {
     return searchRuntime(filters, normalizedFilters, this.runtimeSearchDependencies());
   }
 
-  lookup(name: string, options: LookupOptions = {}): { match: NormalizedRecord | null; alternatives: NormalizedRecord[] } {
+  lookup(
+    name: string,
+    options: LookupOptions = {},
+  ): { match: NormalizedRecord | null; alternatives: NormalizedRecord[] } {
     const filters = this.normalizeSearchFilters({
       nameQuery: name,
       pack: options.pack,

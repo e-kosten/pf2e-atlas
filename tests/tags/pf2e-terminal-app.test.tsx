@@ -4,10 +4,7 @@ import { cleanup, render } from "ink-testing-library";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AppConfig, NormalizedRecord } from "../../src/types.js";
-import {
-  Pf2eTerminalApp,
-  Pf2eTerminalBootstrap,
-} from "../../src/tui/pf2e-app.js";
+import { Pf2eTerminalApp, Pf2eTerminalBootstrap } from "../../src/tui/pf2e-app.js";
 import type { Pf2eTerminalAppServices } from "../../src/tui/app-services.js";
 import type { SearchCategory } from "../../src/types.js";
 import { DerivedTagTerminalProvider } from "../../src/tui/terminal-ui.js";
@@ -428,12 +425,7 @@ describe("pf2e terminal app", () => {
     const loadServices = vi.fn(async () => services);
     const app = render(
       <DerivedTagTerminalProvider>
-        <Pf2eTerminalBootstrap
-          rootPath={process.cwd()}
-          argv={[]}
-          onExit={vi.fn()}
-          loadServices={loadServices}
-        />
+        <Pf2eTerminalBootstrap rootPath={process.cwd()} argv={[]} onExit={vi.fn()} loadServices={loadServices} />
       </DerivedTagTerminalProvider>,
     );
 

@@ -1,26 +1,19 @@
-import {
-  METADATA_FIELD_REGISTRY,
-  type MetadataFieldName,
-  type MetadataFieldType,
-} from "./metadata-field-registry.js";
-import type {
-  ActorMetricNumericOperator,
-  ActorMetricScalarOperator,
-} from "./actor-metrics.js";
-import type {
-  ItemMetricNumericOperator,
-  ItemMetricScalarOperator,
-} from "./item-metrics.js";
+import { METADATA_FIELD_REGISTRY, type MetadataFieldName, type MetadataFieldType } from "./metadata-field-registry.js";
+import type { ActorMetricNumericOperator, ActorMetricScalarOperator } from "./actor-metrics.js";
+import type { ItemMetricNumericOperator, ItemMetricScalarOperator } from "./item-metrics.js";
 
-type MetadataFieldNameByType<FieldType extends MetadataFieldType> =
-  Extract<(typeof METADATA_FIELD_REGISTRY)[number], { fieldType: FieldType }>["field"];
+type MetadataFieldNameByType<FieldType extends MetadataFieldType> = Extract<
+  (typeof METADATA_FIELD_REGISTRY)[number],
+  { fieldType: FieldType }
+>["field"];
 
 function fieldNamesForType<FieldType extends MetadataFieldType>(
   fieldType: FieldType,
 ): MetadataFieldNameByType<FieldType>[] {
-  return METADATA_FIELD_REGISTRY
-    .filter((entry): entry is Extract<(typeof METADATA_FIELD_REGISTRY)[number], { fieldType: FieldType }> => entry.fieldType === fieldType)
-    .map((entry) => entry.field) as MetadataFieldNameByType<FieldType>[];
+  return METADATA_FIELD_REGISTRY.filter(
+    (entry): entry is Extract<(typeof METADATA_FIELD_REGISTRY)[number], { fieldType: FieldType }> =>
+      entry.fieldType === fieldType,
+  ).map((entry) => entry.field) as MetadataFieldNameByType<FieldType>[];
 }
 
 export const METADATA_SET_FIELDS = fieldNamesForType("set");
@@ -52,15 +45,15 @@ export type MetadataSetPredicate = {
 
 export type MetadataEnumStringPredicate =
   | {
-    field: MetadataEnumStringField;
-    op: "eq";
-    value: string;
-  }
+      field: MetadataEnumStringField;
+      op: "eq";
+      value: string;
+    }
   | {
-    field: MetadataEnumStringField;
-    op: "in" | "notIn";
-    values: string[];
-  };
+      field: MetadataEnumStringField;
+      op: "in" | "notIn";
+      values: string[];
+    };
 
 export type MetadataTextStringPredicate = {
   field: MetadataTextStringField;
@@ -70,16 +63,16 @@ export type MetadataTextStringPredicate = {
 
 export type MetadataNumberPredicate =
   | {
-    field: MetadataNumberField;
-    op: "eq" | "gte" | "lte";
-    value: number;
-  }
+      field: MetadataNumberField;
+      op: "eq" | "gte" | "lte";
+      value: number;
+    }
   | {
-    field: MetadataNumberField;
-    op: "between";
-    min: number;
-    max: number;
-  };
+      field: MetadataNumberField;
+      op: "between";
+      min: number;
+      max: number;
+    };
 
 export type MetadataBooleanPredicate = {
   field: MetadataBooleanField;
@@ -89,17 +82,17 @@ export type MetadataBooleanPredicate = {
 
 export type ActorMetricPredicate =
   | {
-    field: "actorMetric";
-    metric: string;
-    op: ActorMetricNumericOperator;
-    value: number;
-  }
+      field: "actorMetric";
+      metric: string;
+      op: ActorMetricNumericOperator;
+      value: number;
+    }
   | {
-    field: "actorMetric";
-    metric: string;
-    op: ActorMetricScalarOperator;
-    value: string | boolean;
-  };
+      field: "actorMetric";
+      metric: string;
+      op: ActorMetricScalarOperator;
+      value: string | boolean;
+    };
 
 export type ActorMetricComparePredicate = {
   field: "actorMetricCompare";
@@ -110,17 +103,17 @@ export type ActorMetricComparePredicate = {
 
 export type ItemMetricPredicate =
   | {
-    field: "itemMetric";
-    metric: string;
-    op: ItemMetricNumericOperator;
-    value: number;
-  }
+      field: "itemMetric";
+      metric: string;
+      op: ItemMetricNumericOperator;
+      value: number;
+    }
   | {
-    field: "itemMetric";
-    metric: string;
-    op: ItemMetricScalarOperator;
-    value: string | boolean;
-  };
+      field: "itemMetric";
+      metric: string;
+      op: ItemMetricScalarOperator;
+      value: string | boolean;
+    };
 
 export type ItemMetricComparePredicate = {
   field: "itemMetricCompare";

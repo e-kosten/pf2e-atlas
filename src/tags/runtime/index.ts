@@ -37,21 +37,11 @@ import {
 import { CREATURE_DERIVED_TAG_LEGACY_SEED_MIGRATIONS } from "../legacy-seed-migrations/creature.js";
 import { HAZARD_DERIVED_TAG_LEGACY_SEED_MIGRATIONS } from "../legacy-seed-migrations/hazard.js";
 import { SPELL_DERIVED_TAG_LEGACY_SEED_MIGRATIONS } from "../legacy-seed-migrations/spell.js";
-import {
-  AFFLICTION_DERIVED_TAG_ONTOLOGY,
-} from "../ontology/affliction.js";
-import {
-  CREATURE_DERIVED_TAG_ONTOLOGY,
-} from "../ontology/creature.js";
-import {
-  EQUIPMENT_DERIVED_TAG_ONTOLOGY,
-} from "../ontology/equipment.js";
-import {
-  HAZARD_DERIVED_TAG_ONTOLOGY,
-} from "../ontology/hazard.js";
-import {
-  SPELL_DERIVED_TAG_ONTOLOGY,
-} from "../ontology/spell.js";
+import { AFFLICTION_DERIVED_TAG_ONTOLOGY } from "../ontology/affliction.js";
+import { CREATURE_DERIVED_TAG_ONTOLOGY } from "../ontology/creature.js";
+import { EQUIPMENT_DERIVED_TAG_ONTOLOGY } from "../ontology/equipment.js";
+import { HAZARD_DERIVED_TAG_ONTOLOGY } from "../ontology/hazard.js";
+import { SPELL_DERIVED_TAG_ONTOLOGY } from "../ontology/spell.js";
 import { flattenDerivedTagAuthoredCategoryOntology } from "../ontology/utils.js";
 import {
   createDerivedTagExplicitAssignmentIndex,
@@ -90,12 +80,15 @@ const AUTHORED_DERIVED_TAG_ONTOLOGIES = [
   AFFLICTION_DERIVED_TAG_ONTOLOGY,
   CREATURE_DERIVED_TAG_ONTOLOGY,
 ];
-const FLATTENED_AUTHORED_DERIVED_TAG_ONTOLOGIES = AUTHORED_DERIVED_TAG_ONTOLOGIES
-  .map((ontology) => flattenDerivedTagAuthoredCategoryOntology(ontology));
-const AUTHORED_DERIVED_TAG_ONTOLOGY_FAMILIES = FLATTENED_AUTHORED_DERIVED_TAG_ONTOLOGIES
-  .flatMap((ontology) => ontology.families);
-const AUTHORED_DERIVED_TAG_ONTOLOGY_TAGS = FLATTENED_AUTHORED_DERIVED_TAG_ONTOLOGIES
-  .flatMap((ontology) => ontology.tags);
+const FLATTENED_AUTHORED_DERIVED_TAG_ONTOLOGIES = AUTHORED_DERIVED_TAG_ONTOLOGIES.map((ontology) =>
+  flattenDerivedTagAuthoredCategoryOntology(ontology),
+);
+const AUTHORED_DERIVED_TAG_ONTOLOGY_FAMILIES = FLATTENED_AUTHORED_DERIVED_TAG_ONTOLOGIES.flatMap(
+  (ontology) => ontology.families,
+);
+const AUTHORED_DERIVED_TAG_ONTOLOGY_TAGS = FLATTENED_AUTHORED_DERIVED_TAG_ONTOLOGIES.flatMap(
+  (ontology) => ontology.tags,
+);
 
 const DERIVED_TAG_ONTOLOGY: PublishedDerivedTagOntology = publishDerivedTagOntology(
   AUTHORED_DERIVED_TAG_ONTOLOGY_FAMILIES,
@@ -116,25 +109,20 @@ const DERIVED_TAG_LEGACY_SEED_MIGRATION_INDEX = buildDerivedTagLegacySeedMigrati
     CREATURE_DERIVED_TAG_LEGACY_SEED_MIGRATIONS,
   ],
 );
-const DERIVED_TAG_EXEMPLARS: PublishedDerivedTagExemplars = publishDerivedTagExemplars(
-  DERIVED_TAG_ONTOLOGY,
-  [
-    EQUIPMENT_DERIVED_TAG_EXEMPLARS,
-    SPELL_DERIVED_TAG_EXEMPLARS,
-    HAZARD_DERIVED_TAG_EXEMPLARS,
-    AFFLICTION_DERIVED_TAG_EXEMPLARS,
-    CREATURE_DERIVED_TAG_EXEMPLARS,
-  ],
-);
+const DERIVED_TAG_EXEMPLARS: PublishedDerivedTagExemplars = publishDerivedTagExemplars(DERIVED_TAG_ONTOLOGY, [
+  EQUIPMENT_DERIVED_TAG_EXEMPLARS,
+  SPELL_DERIVED_TAG_EXEMPLARS,
+  HAZARD_DERIVED_TAG_EXEMPLARS,
+  AFFLICTION_DERIVED_TAG_EXEMPLARS,
+  CREATURE_DERIVED_TAG_EXEMPLARS,
+]);
 const DERIVED_TAG_EXPLICIT_ASSIGNMENT_INDEX = createDerivedTagExplicitAssignmentIndex(DERIVED_TAG_ONTOLOGY);
 
 export function deriveRecordTags(input: DerivedTagContext): string[] {
   return deriveRecordTagDerivation(input).tags;
 }
 
-export function deriveRecordTagDerivation(
-  input: DerivedTagContext,
-): DerivedTagDerivation {
+export function deriveRecordTagDerivation(input: DerivedTagContext): DerivedTagDerivation {
   const authoredRuleTags = deriveRecordTagsFromRules(COMPILED_AUTHORED_DERIVED_TAG_RULES, input);
   const legacyRuleTags = deriveRecordTagsFromRules(LEGACY_DERIVED_TAG_RULES, input);
   return deriveCatalogTagDerivation(

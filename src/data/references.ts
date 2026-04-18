@@ -2,13 +2,7 @@ import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 
 import { fileExists } from "../shared/fs.js";
-import {
-  firstString,
-  getNested,
-  normalizeText,
-  stripHtml,
-  uniqueSorted,
-} from "../utils.js";
+import { firstString, getNested, normalizeText, stripHtml, uniqueSorted } from "../utils.js";
 import type {
   BuildSourceEntry,
   ExtractedReference,
@@ -193,7 +187,7 @@ async function loadFolderFamilyMap(pack: Pick<PackBuildInfo, "name" | "resolvedP
   }
 
   const folderPath = path.join(pack.resolvedPath, "_folders.json");
-  if (!await fileExists(folderPath)) {
+  if (!(await fileExists(folderPath))) {
     return new Map();
   }
 
@@ -230,7 +224,9 @@ function assignFamilies(
   const families = new Set<string>();
 
   if (entry.record.folderId) {
-    const folderFamily = folderFamilyByPackAndFolderId.get(buildPackAndFolderKey(entry.record.packName, entry.record.folderId));
+    const folderFamily = folderFamilyByPackAndFolderId.get(
+      buildPackAndFolderKey(entry.record.packName, entry.record.folderId),
+    );
     if (folderFamily && shouldKeepFolderFamily(entry.record.packName, folderFamily)) {
       families.add(folderFamily);
     }
@@ -368,7 +364,7 @@ function resolveAliasSourceName(
     recordsByPackAndName,
     recordsByName,
   );
-  return recordKey ? (recordsByKey.get(recordKey)?.name ?? null) : (directText || null);
+  return recordKey ? (recordsByKey.get(recordKey)?.name ?? null) : directText || null;
 }
 
 function splitAliasListText(segment: string): string[] {
@@ -439,11 +435,13 @@ function extractResolvedJournalTargets(
     return [];
   }
 
-  return [{
-    recordKey: recordKey!,
-    record,
-    displayText: null,
-  }];
+  return [
+    {
+      recordKey: recordKey!,
+      record,
+      displayText: null,
+    },
+  ];
 }
 
 function extractIntroListAliases(
@@ -453,7 +451,13 @@ function extractIntroListAliases(
   recordsByName: Map<string, string[]>,
   recordsByKey: Map<string, NormalizedIndexRecord>,
 ): { aliasTexts: string[]; targetRecordKey: string } | null {
-  const targets = extractResolvedJournalTargets(listHtml, recordsByPackAndId, recordsByPackAndName, recordsByName, recordsByKey);
+  const targets = extractResolvedJournalTargets(
+    listHtml,
+    recordsByPackAndId,
+    recordsByPackAndName,
+    recordsByName,
+    recordsByKey,
+  );
   if (targets.length !== 1) {
     return null;
   }
@@ -635,13 +639,25 @@ function extractRemasterJournalAliases(
         continue;
       }
 
-      const targets = extractResolvedJournalTargets(newCell, recordsByPackAndId, recordsByPackAndName, recordsByName, recordsByKey);
+      const targets = extractResolvedJournalTargets(
+        newCell,
+        recordsByPackAndId,
+        recordsByPackAndName,
+        recordsByName,
+        recordsByKey,
+      );
       if (targets.length === 0) {
         continue;
       }
 
       if (targets.length === 1) {
-        const oldName = resolveAliasSourceName(oldCell, recordsByPackAndId, recordsByPackAndName, recordsByName, recordsByKey);
+        const oldName = resolveAliasSourceName(
+          oldCell,
+          recordsByPackAndId,
+          recordsByPackAndName,
+          recordsByName,
+          recordsByKey,
+        );
         if (
           !oldName ||
           hasConflictingJournalDisplayTarget(
@@ -714,7 +730,12 @@ function extractCompendiumSourceAliases(
 
       const targetRecord = recordsByKey.get(targetRecordKey);
       const embeddedRemaster = getPublicationRemaster(embedded);
-      if (!targetRecord || embeddedRemaster || !targetRecord.publicationRemaster || shouldIgnoreCompendiumAlias(aliasText, targetRecord.name)) {
+      if (
+        !targetRecord ||
+        embeddedRemaster ||
+        !targetRecord.publicationRemaster ||
+        shouldIgnoreCompendiumAlias(aliasText, targetRecord.name)
+      ) {
         continue;
       }
 
@@ -735,12 +756,7 @@ function dedupeAliasRows(rows: RecordAliasRow[]): RecordAliasRow[] {
   const seen = new Set<string>();
   const deduped: RecordAliasRow[] = [];
   for (const row of rows) {
-    const key = [
-      row.canonicalRecordKey,
-      row.normalizedAlias,
-      row.sourceKind,
-      row.sourceRef,
-    ].join("\u0000");
+    const key = [row.canonicalRecordKey, row.normalizedAlias, row.sourceKind, row.sourceRef].join("\u0000");
     if (seen.has(key)) {
       continue;
     }
@@ -756,12 +772,7 @@ function dedupeLegacyLinkRows(rows: RecordLegacyLinkRow[]): RecordLegacyLinkRow[
   const seen = new Set<string>();
   const deduped: RecordLegacyLinkRow[] = [];
   for (const row of rows) {
-    const key = [
-      row.canonicalRecordKey,
-      row.legacyRecordKey,
-      row.sourceKind,
-      row.sourceRef,
-    ].join("\u0000");
+    const key = [row.canonicalRecordKey, row.legacyRecordKey, row.sourceKind, row.sourceRef].join("\u0000");
     if (seen.has(key)) {
       continue;
     }
@@ -773,7 +784,9 @@ function dedupeLegacyLinkRows(rows: RecordLegacyLinkRow[]): RecordLegacyLinkRow[
   return deduped;
 }
 
-function buildIndexedRecordMaps(indexedEntries: Array<BuildSourceEntry & { record: NormalizedIndexRecord }>): IndexedRecordMaps {
+function buildIndexedRecordMaps(
+  indexedEntries: Array<BuildSourceEntry & { record: NormalizedIndexRecord }>,
+): IndexedRecordMaps {
   const recordsByKey = new Map(indexedEntries.map((entry) => [entry.record.recordKey, entry.record]));
   const recordsByPackAndId = new Map<string, string>();
   const recordsByPackAndName = new Map<string, string[]>();
@@ -801,26 +814,15 @@ function buildIndexedRecordMaps(indexedEntries: Array<BuildSourceEntry & { recor
   };
 }
 
-export async function resolveBuildReferencesAndAliases(
-  options: {
-    indexedEntries: Array<BuildSourceEntry & { record: NormalizedIndexRecord }>;
-    sourceEntries: BuildSourceEntry[];
-    packs: Array<Pick<PackBuildInfo, "name" | "resolvedPath">>;
-    rootPath: string;
-  },
-): Promise<{ aliasRows: RecordAliasRow[]; legacyLinkRows: RecordLegacyLinkRow[] }> {
-  const {
-    indexedEntries,
-    sourceEntries,
-    packs,
-    rootPath,
-  } = options;
-  const {
-    recordsByKey,
-    recordsByPackAndId,
-    recordsByPackAndName,
-    recordsByName,
-  } = buildIndexedRecordMaps(indexedEntries);
+export async function resolveBuildReferencesAndAliases(options: {
+  indexedEntries: Array<BuildSourceEntry & { record: NormalizedIndexRecord }>;
+  sourceEntries: BuildSourceEntry[];
+  packs: Array<Pick<PackBuildInfo, "name" | "resolvedPath">>;
+  rootPath: string;
+}): Promise<{ aliasRows: RecordAliasRow[]; legacyLinkRows: RecordLegacyLinkRow[] }> {
+  const { indexedEntries, sourceEntries, packs, rootPath } = options;
+  const { recordsByKey, recordsByPackAndId, recordsByPackAndName, recordsByName } =
+    buildIndexedRecordMaps(indexedEntries);
 
   const glossaryFamilyByRecordKey = new Map<string, string>();
   const folderFamilyByPackAndFolderId = new Map<string, string>();
@@ -846,18 +848,14 @@ export async function resolveBuildReferencesAndAliases(
     assignFamilies(entry, recordsByPackAndId, glossaryFamilyByRecordKey, folderFamilyByPackAndFolderId);
 
     entry.resolvedReferences = entry.references
-      .map((reference) => resolveExtractedReference(
-        reference,
-        recordsByPackAndId,
-        recordsByPackAndName,
-        recordsByName,
-        recordsByKey,
-      ))
+      .map((reference) =>
+        resolveExtractedReference(reference, recordsByPackAndId, recordsByPackAndName, recordsByName, recordsByKey),
+      )
       .filter((reference): reference is ResolvedBuildReference => Boolean(reference));
   }
 
   let aliasRows: RecordAliasRow[] = [];
-  let legacyLinkRows: RecordLegacyLinkRow[] = [];
+  const legacyLinkRows: RecordLegacyLinkRow[] = [];
 
   const migrationDir = path.join(rootPath, "src", "module", "migration", "migrations");
   try {

@@ -39,27 +39,21 @@ function SelectPromptHarness(): React.JSX.Element {
   });
 
   React.useEffect(() => {
-    void terminal.promptSelectOption({
-      title: "Harness Prompt",
-      prompt: "Pick a value",
-      entries: [
-        { value: "first", label: "First" },
-        { value: "second", label: "Second" },
-      ],
-    }).then((value) => {
-      setResult(value ?? "cancelled");
-    });
+    void terminal
+      .promptSelectOption({
+        title: "Harness Prompt",
+        prompt: "Pick a value",
+        entries: [
+          { value: "first", label: "First" },
+          { value: "second", label: "Second" },
+        ],
+      })
+      .then((value) => {
+        setResult(value ?? "cancelled");
+      });
   }, []);
 
-  return (
-    <TerminalTextScreen
-      title="Harness"
-      body={[
-        { text: `result=${result}` },
-        { text: `appJ=${appJPresses}` },
-      ]}
-    />
-  );
+  return <TerminalTextScreen title="Harness" body={[{ text: `result=${result}` }, { text: `appJ=${appJPresses}` }]} />;
 }
 
 function TextPromptHarness(): React.JSX.Element {
@@ -67,21 +61,18 @@ function TextPromptHarness(): React.JSX.Element {
   const [result, setResult] = React.useState("pending");
 
   React.useEffect(() => {
-    void terminal.promptTextInput({
-      title: "Text Harness",
-      prompt: "Enter a short value",
-      hint: "Quick inline prompt",
-    }).then((value) => {
-      setResult(value ?? "cancelled");
-    });
+    void terminal
+      .promptTextInput({
+        title: "Text Harness",
+        prompt: "Enter a short value",
+        hint: "Quick inline prompt",
+      })
+      .then((value) => {
+        setResult(value ?? "cancelled");
+      });
   }, []);
 
-  return (
-    <TerminalTextScreen
-      title="Harness"
-      body={[{ text: `result=${result}` }]}
-    />
-  );
+  return <TerminalTextScreen title="Harness" body={[{ text: `result=${result}` }]} />;
 }
 
 function DialogStateHarness(): React.JSX.Element {
@@ -103,12 +94,7 @@ function DialogStateHarness(): React.JSX.Element {
     }
   });
 
-  return (
-    <TerminalTextScreen
-      title="Harness"
-      body={[{ text: `page=${page}` }]}
-    />
-  );
+  return <TerminalTextScreen title="Harness" body={[{ text: `page=${page}` }]} />;
 }
 
 function LongDialogHarness(): React.JSX.Element {
@@ -126,12 +112,7 @@ function LongDialogHarness(): React.JSX.Element {
     }
   });
 
-  return (
-    <TerminalTextScreen
-      title="Harness"
-      body={[{ text: "page=home" }]}
-    />
-  );
+  return <TerminalTextScreen title="Harness" body={[{ text: "page=home" }]} />;
 }
 
 function MultiSelectPromptHarness(): React.JSX.Element {
@@ -139,24 +120,21 @@ function MultiSelectPromptHarness(): React.JSX.Element {
   const [result, setResult] = React.useState("pending");
 
   React.useEffect(() => {
-    void terminal.promptMultiSelectOption({
-      title: "Multi Harness",
-      prompt: "Toggle values",
-      entries: [
-        { value: "common", label: "Common" },
-        { value: "rare", label: "Rare" },
-      ],
-    }).then((values) => {
-      setResult(values.join(",") || "empty");
-    });
+    void terminal
+      .promptMultiSelectOption({
+        title: "Multi Harness",
+        prompt: "Toggle values",
+        entries: [
+          { value: "common", label: "Common" },
+          { value: "rare", label: "Rare" },
+        ],
+      })
+      .then((values) => {
+        setResult(values.join(",") || "empty");
+      });
   }, []);
 
-  return (
-    <TerminalTextScreen
-      title="Harness"
-      body={[{ text: `result=${result}` }]}
-    />
-  );
+  return <TerminalTextScreen title="Harness" body={[{ text: `result=${result}` }]} />;
 }
 
 function PolicyPromptHarness(): React.JSX.Element {
@@ -164,25 +142,24 @@ function PolicyPromptHarness(): React.JSX.Element {
   const [result, setResult] = React.useState("pending");
 
   React.useEffect(() => {
-    void terminal.promptPolicySelectOption({
-      title: "Policy Harness",
-      prompt: "Cycle values",
-      allowedStates: ["any", "all", "exclude"],
-      entries: [
-        { value: "fire", label: "Fire" },
-        { value: "cold", label: "Cold" },
-      ],
-    }).then((selection: DerivedTagTerminalPolicySelection<string>) => {
-      setResult(`any=${selection.any.join(",") || "-"}|all=${selection.all.join(",") || "-"}|exclude=${selection.exclude.join(",") || "-"}`);
-    });
+    void terminal
+      .promptPolicySelectOption({
+        title: "Policy Harness",
+        prompt: "Cycle values",
+        allowedStates: ["any", "all", "exclude"],
+        entries: [
+          { value: "fire", label: "Fire" },
+          { value: "cold", label: "Cold" },
+        ],
+      })
+      .then((selection: DerivedTagTerminalPolicySelection<string>) => {
+        setResult(
+          `any=${selection.any.join(",") || "-"}|all=${selection.all.join(",") || "-"}|exclude=${selection.exclude.join(",") || "-"}`,
+        );
+      });
   }, []);
 
-  return (
-    <TerminalTextScreen
-      title="Harness"
-      body={[{ text: `result=${result}` }]}
-    />
-  );
+  return <TerminalTextScreen title="Harness" body={[{ text: `result=${result}` }]} />;
 }
 
 function LongSelectPromptHarness(): React.JSX.Element {
@@ -190,24 +167,21 @@ function LongSelectPromptHarness(): React.JSX.Element {
   const [result, setResult] = React.useState("pending");
 
   React.useEffect(() => {
-    void terminal.promptSelectOption({
-      title: "Long Harness",
-      prompt: "Pick a longer-list value",
-      entries: Array.from({ length: 12 }, (_, index) => ({
-        value: `item-${index + 1}`,
-        label: `Item ${index + 1}`,
-      })),
-    }).then((value) => {
-      setResult(value ?? "cancelled");
-    });
+    void terminal
+      .promptSelectOption({
+        title: "Long Harness",
+        prompt: "Pick a longer-list value",
+        entries: Array.from({ length: 12 }, (_, index) => ({
+          value: `item-${index + 1}`,
+          label: `Item ${index + 1}`,
+        })),
+      })
+      .then((value) => {
+        setResult(value ?? "cancelled");
+      });
   }, []);
 
-  return (
-    <TerminalTextScreen
-      title="Harness"
-      body={[{ text: `result=${result}` }]}
-    />
-  );
+  return <TerminalTextScreen title="Harness" body={[{ text: `result=${result}` }]} />;
 }
 
 function CommandPaletteHarness(): React.JSX.Element {
@@ -215,24 +189,26 @@ function CommandPaletteHarness(): React.JSX.Element {
   const [result, setResult] = React.useState("pending");
 
   React.useEffect(() => {
-    void terminal.promptCommandPalette({
-      title: "Command Palette",
-      prompt: "Filter commands",
-      entries: [
-        { value: "mode", label: "Mode", description: "Choose the search mode.", aliases: ["m"] },
-        { value: "facet", label: "Edit Facet Filter", description: "Edit ontology-backed facet filters.", aliases: ["f"] },
-      ],
-    }).then((value) => {
-      setResult(value ?? "cancelled");
-    });
+    void terminal
+      .promptCommandPalette({
+        title: "Command Palette",
+        prompt: "Filter commands",
+        entries: [
+          { value: "mode", label: "Mode", description: "Choose the search mode.", aliases: ["m"] },
+          {
+            value: "facet",
+            label: "Edit Facet Filter",
+            description: "Edit ontology-backed facet filters.",
+            aliases: ["f"],
+          },
+        ],
+      })
+      .then((value) => {
+        setResult(value ?? "cancelled");
+      });
   }, []);
 
-  return (
-    <TerminalTextScreen
-      title="Harness"
-      body={[{ text: `result=${result}` }]}
-    />
-  );
+  return <TerminalTextScreen title="Harness" body={[{ text: `result=${result}` }]} />;
 }
 
 describe("derived tag terminal ink runtime", () => {
@@ -484,25 +460,33 @@ describe("derived tag terminal ink runtime", () => {
   });
 
   it("treats vim horizontal keys as the same list-navigation semantics", () => {
-    expect(getDerivedTagTerminalListNavigationAction("l", {
-      pageSize: 10,
-      includeConfirmKeys: true,
-      includeHorizontalConfirmKeys: true,
-    })).toEqual({ kind: "confirm" });
-    expect(getDerivedTagTerminalListNavigationAction("h", {
-      pageSize: 10,
-      includeCancelKeys: true,
-      includeHorizontalCancelKeys: true,
-    })).toEqual({ kind: "cancel" });
+    expect(
+      getDerivedTagTerminalListNavigationAction("l", {
+        pageSize: 10,
+        includeConfirmKeys: true,
+        includeHorizontalConfirmKeys: true,
+      }),
+    ).toEqual({ kind: "confirm" });
+    expect(
+      getDerivedTagTerminalListNavigationAction("h", {
+        pageSize: 10,
+        includeCancelKeys: true,
+        includeHorizontalCancelKeys: true,
+      }),
+    ).toEqual({ kind: "cancel" });
   });
 
   it("keeps space available for selection while using f for shared page-down navigation", () => {
-    expect(getDerivedTagTerminalListNavigationAction("space", {
-      pageSize: 10,
-    })).toBeUndefined();
-    expect(getDerivedTagTerminalListNavigationAction("f", {
-      pageSize: 10,
-    })).toEqual({ kind: "move", delta: 10 });
+    expect(
+      getDerivedTagTerminalListNavigationAction("space", {
+        pageSize: 10,
+      }),
+    ).toBeUndefined();
+    expect(
+      getDerivedTagTerminalListNavigationAction("f", {
+        pageSize: 10,
+      }),
+    ).toEqual({ kind: "move", delta: 10 });
   });
 
   it("resolves shared gg and G list-boundary navigation", () => {

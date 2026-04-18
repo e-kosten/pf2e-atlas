@@ -51,10 +51,7 @@ export function buildOntologyExplorerEntityDetailLines(
   const lines: DerivedTagTerminalLine[] = [];
 
   if (options.includeHeader ?? true) {
-    lines.push(
-      { text: record.name, tone: "section" },
-      { text: record.recordKey, tone: "dim" },
-    );
+    lines.push({ text: record.name, tone: "section" }, { text: record.recordKey, tone: "dim" });
   }
 
   appendSection(lines, "Identity", [

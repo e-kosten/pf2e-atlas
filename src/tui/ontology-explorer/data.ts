@@ -1,19 +1,11 @@
 import { DatabaseSync } from "node:sqlite";
 
-import type {
-  DerivedTagAssignmentMode,
-  SearchCategory,
-  SearchSubcategory,
-} from "../../types.js";
+import type { DerivedTagAssignmentMode, SearchCategory, SearchSubcategory } from "../../types.js";
 import {
   getCurrentDerivedTagMigrationAuthoredState,
   getCurrentDerivedTagMigrationAuthoredStateRevision,
 } from "../../tags/migration/authored-state.js";
-import {
-  getDerivedTagExemplars,
-  listDerivedTagLegacySeedMigrations,
-  normalizeDerivedTag,
-} from "../../tags/index.js";
+import { getDerivedTagExemplars, listDerivedTagLegacySeedMigrations, normalizeDerivedTag } from "../../tags/index.js";
 import {
   buildOntologyExplorerEntityRecordSelectColumns,
   mapOntologyExplorerEntityRecordRow,
@@ -134,16 +126,18 @@ function buildTagFilterText(tag: {
     ...(tag.negativeSignals ?? []),
     ...(tag.adjacentTags ?? []),
     ...(tag.compositeOfAnyTags ?? []),
-  ].join(" ").toLowerCase();
+  ]
+    .join(" ")
+    .toLowerCase();
 }
 
 function buildFamilyFilterText(
   family: {
-  category: SearchCategory;
-  family: string;
-  axis: string;
-  description: string;
-  subcategories?: SearchSubcategory[];
+    category: SearchCategory;
+    family: string;
+    axis: string;
+    description: string;
+    subcategories?: SearchSubcategory[];
   },
   tags: Array<{ filterText: string }>,
 ): string {
@@ -154,7 +148,9 @@ function buildFamilyFilterText(
     family.description,
     ...(family.subcategories ?? []),
     ...tags.map((tag) => tag.filterText),
-  ].join(" ").toLowerCase();
+  ]
+    .join(" ")
+    .toLowerCase();
 }
 
 function buildCategoryFilterText(
@@ -165,7 +161,9 @@ function buildCategoryFilterText(
     category,
     ...families.map((family) => `${family.family} ${family.description}`),
     ...families.map((family) => family.filterText),
-  ].join(" ").toLowerCase();
+  ]
+    .join(" ")
+    .toLowerCase();
 }
 
 function buildRecordFilterText(tag: string, record: OntologyExplorerEntityRecord): string {
@@ -183,29 +181,34 @@ function buildRecordFilterText(tag: string, record: OntologyExplorerEntityRecord
     ...(record.families ?? []),
     record.blurbText ?? "",
     record.descriptionText ?? "",
-  ].join(" ").toLowerCase();
+  ]
+    .join(" ")
+    .toLowerCase();
 }
 
 function queryCanonicalTagRows(db: DatabaseSync): ExplorerCountRow[] {
-  return db.prepare(`
+  return db
+    .prepare(
+      `
     SELECT r.category AS category, d.tag AS tag, d.record_key AS recordKey
     FROM record_derived_tags d
     JOIN records r ON r.record_key = d.record_key
     WHERE r.is_search_canonical = 1
-  `).all() as ExplorerCountRow[];
+  `,
+    )
+    .all() as ExplorerCountRow[];
 }
 
-function queryExplorerRecordRows(
-  db: DatabaseSync,
-  recordKeys: string[],
-): OntologyExplorerEntityRecordRow[] {
+function queryExplorerRecordRows(db: DatabaseSync, recordKeys: string[]): OntologyExplorerEntityRecordRow[] {
   if (recordKeys.length === 0) {
     return [];
   }
 
   const placeholders = recordKeys.map(() => "?").join(", ");
   const selectColumns = buildOntologyExplorerEntityRecordSelectColumns();
-  return db.prepare(`
+  return db
+    .prepare(
+      `
     SELECT
       ${selectColumns.join(",\n      ")}
     FROM records r
@@ -213,13 +216,19 @@ function queryExplorerRecordRows(
     LEFT JOIN item_records i ON i.record_key = r.record_key
     LEFT JOIN spell_records s ON s.record_key = r.record_key
     WHERE r.record_key IN (${placeholders})
-  `).all(...recordKeys) as OntologyExplorerEntityRecordRow[];
+  `,
+    )
+    .all(...recordKeys) as OntologyExplorerEntityRecordRow[];
 }
 
-function buildAuthoredRuleCounts(state: ReturnType<typeof getCurrentDerivedTagMigrationAuthoredState>): Map<string, number> {
+function buildAuthoredRuleCounts(
+  state: ReturnType<typeof getCurrentDerivedTagMigrationAuthoredState>,
+): Map<string, number> {
   const counts = new Map<string, number>();
 
-  for (const [category, rules] of Object.entries(state.authoredRules) as Array<[SearchCategory, typeof state.authoredRules[keyof typeof state.authoredRules]]>) {
+  for (const [category, rules] of Object.entries(state.authoredRules) as Array<
+    [SearchCategory, (typeof state.authoredRules)[keyof typeof state.authoredRules]]
+  >) {
     for (const rule of rules) {
       const key = `${category}:${normalizeDerivedTag(rule.tag)}`;
       counts.set(key, (counts.get(key) ?? 0) + 1);
@@ -234,7 +243,9 @@ function buildExemplarCounts(
 ): Map<string, { positive: number; negative: number }> {
   const counts = new Map<string, { positive: number; negative: number }>();
 
-  for (const [category, exemplarCategory] of Object.entries(state.exemplars) as Array<[SearchCategory, typeof state.exemplars[keyof typeof state.exemplars]]>) {
+  for (const [category, exemplarCategory] of Object.entries(state.exemplars) as Array<
+    [SearchCategory, (typeof state.exemplars)[keyof typeof state.exemplars]]
+  >) {
     for (const exemplar of exemplarCategory.exemplars) {
       const key = `${category}:${normalizeDerivedTag(exemplar.tag)}`;
       counts.set(key, {
@@ -324,7 +335,9 @@ function ensureOntologyExplorerCacheTable(db: DatabaseSync): void {
   `);
 }
 
-function toSerializableLiveCounts(liveCounts: ReturnType<typeof buildLiveCountMaps>): Omit<DerivedTagOntologyExplorerDbCache, "recordNodesByTagKey"> {
+function toSerializableLiveCounts(
+  liveCounts: ReturnType<typeof buildLiveCountMaps>,
+): Omit<DerivedTagOntologyExplorerDbCache, "recordNodesByTagKey"> {
   return {
     tagCounts: Object.fromEntries(liveCounts.tagCounts),
     familyCounts: Object.fromEntries(liveCounts.familyCounts),
@@ -336,9 +349,7 @@ function mapFromCountRecord(record: Record<string, number>): Map<string, number>
   return new Map(Object.entries(record));
 }
 
-function buildDerivedTagOntologyExplorerDbCache(
-  db: DatabaseSync,
-): DerivedTagOntologyExplorerDbCache {
+function buildDerivedTagOntologyExplorerDbCache(db: DatabaseSync): DerivedTagOntologyExplorerDbCache {
   const liveCounts = buildLiveCountMaps(queryCanonicalTagRows(db));
   const recordNodesByTagKey = buildRecordNodesByTagKey(db, liveCounts.recordKeysByTagKey);
 
@@ -348,16 +359,18 @@ function buildDerivedTagOntologyExplorerDbCache(
   };
 }
 
-function readDerivedTagOntologyExplorerDbCache(
-  db: DatabaseSync,
-): DerivedTagOntologyExplorerDbCache | null {
+function readDerivedTagOntologyExplorerDbCache(db: DatabaseSync): DerivedTagOntologyExplorerDbCache | null {
   try {
-    const row = db.prepare(`
+    const row = db
+      .prepare(
+        `
       SELECT payload_json AS payloadJson
       FROM derived_tag_ontology_explorer_cache
       WHERE id = ?
-    `).get(ONTOLOGY_EXPLORER_CACHE_ROW_ID) as { payloadJson?: string } | undefined;
-    return row?.payloadJson ? JSON.parse(row.payloadJson) as DerivedTagOntologyExplorerDbCache : null;
+    `,
+      )
+      .get(ONTOLOGY_EXPLORER_CACHE_ROW_ID) as { payloadJson?: string } | undefined;
+    return row?.payloadJson ? (JSON.parse(row.payloadJson) as DerivedTagOntologyExplorerDbCache) : null;
   } catch {
     return null;
   }
@@ -366,17 +379,16 @@ function readDerivedTagOntologyExplorerDbCache(
 export function writeDerivedTagOntologyExplorerDbCache(db: DatabaseSync): void {
   const payload = JSON.stringify(buildDerivedTagOntologyExplorerDbCache(db));
   ensureOntologyExplorerCacheTable(db);
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO derived_tag_ontology_explorer_cache (id, payload_json)
     VALUES (?, ?)
     ON CONFLICT(id) DO UPDATE SET payload_json = excluded.payload_json
-  `).run(ONTOLOGY_EXPLORER_CACHE_ROW_ID, payload);
+  `,
+  ).run(ONTOLOGY_EXPLORER_CACHE_ROW_ID, payload);
 }
 
-function loadDerivedTagOntologyExplorerDbCache(
-  db: DatabaseSync,
-  cacheKey?: string,
-): DerivedTagOntologyExplorerDbCache {
+function loadDerivedTagOntologyExplorerDbCache(db: DatabaseSync, cacheKey?: string): DerivedTagOntologyExplorerDbCache {
   if (cacheKey) {
     const cached = explorerDbCacheByKey.get(cacheKey);
     if (cached) {
@@ -440,9 +452,7 @@ export function buildDerivedTagOntologyExplorerModel(
   const dbCache = loadDerivedTagOntologyExplorerDbCache(db, options.cacheKey);
   const tagCounts = mapFromCountRecord(dbCache.tagCounts);
   const familyCounts = mapFromCountRecord(dbCache.familyCounts);
-  const categoryCounts = new Map(
-    Object.entries(dbCache.categoryCounts) as Array<[SearchCategory, number]>,
-  );
+  const categoryCounts = new Map(Object.entries(dbCache.categoryCounts) as Array<[SearchCategory, number]>);
   const recordNodesByTagKey = new Map(Object.entries(dbCache.recordNodesByTagKey));
   const authoredRuleCounts = buildAuthoredRuleCounts(authoredState);
   const exemplarCounts = buildExemplarCounts(authoredState);
@@ -523,10 +533,12 @@ export function buildDerivedTagOntologyExplorerModel(
     categories: [...categories]
       .map((category) => ({
         ...category,
-        families: [...category.families].sort((left, right) =>
-          compareDisplayText(left.axis, right.axis)
-          || compareDisplayText(left.family, right.family)
-          || left.key.localeCompare(right.key)),
+        families: [...category.families].sort(
+          (left, right) =>
+            compareDisplayText(left.axis, right.axis) ||
+            compareDisplayText(left.family, right.family) ||
+            left.key.localeCompare(right.key),
+        ),
         filterText: buildCategoryFilterText(category.category, category.families),
       }))
       .sort((left, right) => compareManagedCategory(left.category, right.category)),
@@ -542,10 +554,7 @@ export function buildDerivedTagOntologyExplorerModel(
   return model;
 }
 
-export function filterOntologyExplorerNodes<T extends { filterText: string }>(
-  nodes: T[],
-  filter: string,
-): T[] {
+export function filterOntologyExplorerNodes<T extends { filterText: string }>(nodes: T[], filter: string): T[] {
   const normalized = filter.trim().toLowerCase();
   if (!normalized) {
     return nodes;
@@ -558,8 +567,11 @@ export function getPublishedExemplarPresence(
   tag: string,
 ): { positive: number; negative: number } {
   const exemplars = getDerivedTagExemplars(tag, { category });
-  return exemplars.reduce((totals, exemplarSet) => ({
-    positive: totals.positive + (exemplarSet.positives?.length ?? 0),
-    negative: totals.negative + (exemplarSet.negatives?.length ?? 0),
-  }), { positive: 0, negative: 0 });
+  return exemplars.reduce(
+    (totals, exemplarSet) => ({
+      positive: totals.positive + (exemplarSet.positives?.length ?? 0),
+      negative: totals.negative + (exemplarSet.negatives?.length ?? 0),
+    }),
+    { positive: 0, negative: 0 },
+  );
 }

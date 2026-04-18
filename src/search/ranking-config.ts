@@ -148,11 +148,7 @@ function readOptionalNumber(source: Record<string, unknown>, key: string, label:
   return value;
 }
 
-function applySection<T extends Record<string, number>>(
-  current: T,
-  override: unknown,
-  label: string,
-): T {
+function applySection<T extends Record<string, number>>(current: T, override: unknown, label: string): T {
   if (override === undefined) {
     return current;
   }

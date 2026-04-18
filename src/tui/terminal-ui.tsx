@@ -1,13 +1,5 @@
 import React from "react";
-import {
-  Box,
-  Text,
-  render as renderInkApp,
-  useApp,
-  useInput,
-  useWindowSize,
-  type Key,
-} from "ink";
+import { Box, Text, render as renderInkApp, useApp, useInput, useWindowSize, type Key } from "ink";
 import {
   isBackNavigationKey,
   isConfirmKey,
@@ -183,43 +175,43 @@ type CommandPaletteOptions<T extends string = string> = {
 type TerminalModalState =
   | null
   | {
-    kind: "dialog";
-    options: DialogOptions;
-    resolve: () => void;
-  }
+      kind: "dialog";
+      options: DialogOptions;
+      resolve: () => void;
+    }
   | {
-    kind: "text";
-    options: TextPromptOptions;
-    value: string;
-    resolve: (value: string | undefined) => void;
-  }
+      kind: "text";
+      options: TextPromptOptions;
+      value: string;
+      resolve: (value: string | undefined) => void;
+    }
   | {
-    kind: "select";
-    options: SelectPromptOptions<string>;
-    selectedIndex: number;
-    resolve: (value: string | undefined) => void;
-  }
+      kind: "select";
+      options: SelectPromptOptions<string>;
+      selectedIndex: number;
+      resolve: (value: string | undefined) => void;
+    }
   | {
-    kind: "multiselect";
-    options: MultiSelectPromptOptions<string>;
-    selectedIndex: number;
-    selectedValues: string[];
-    resolve: (value: string[]) => void;
-  }
+      kind: "multiselect";
+      options: MultiSelectPromptOptions<string>;
+      selectedIndex: number;
+      selectedValues: string[];
+      resolve: (value: string[]) => void;
+    }
   | {
-    kind: "policy";
-    options: PolicyPromptOptions<string>;
-    selectedIndex: number;
-    valueStates: Record<string, DerivedTagTerminalPolicyState | undefined>;
-    resolve: (value: DerivedTagTerminalPolicySelection<string>) => void;
-  }
+      kind: "policy";
+      options: PolicyPromptOptions<string>;
+      selectedIndex: number;
+      valueStates: Record<string, DerivedTagTerminalPolicyState | undefined>;
+      resolve: (value: DerivedTagTerminalPolicySelection<string>) => void;
+    }
   | {
-    kind: "command";
-    options: CommandPaletteOptions<string>;
-    filterText: string;
-    selectedIndex: number;
-    resolve: (value: string | undefined) => void;
-  };
+      kind: "command";
+      options: CommandPaletteOptions<string>;
+      filterText: string;
+      selectedIndex: number;
+      resolve: (value: string | undefined) => void;
+    };
 
 type DerivedTagTerminalContextValue = {
   exitApp: (result?: unknown) => void;
@@ -228,7 +220,9 @@ type DerivedTagTerminalContextValue = {
   modalActive: boolean;
   pauseForAnyKey: (message: string) => Promise<void>;
   promptCommandPalette: <T extends string>(options: CommandPaletteOptions<T>) => Promise<T | undefined>;
-  promptPolicySelectOption: <T extends string>(options: PolicyPromptOptions<T>) => Promise<DerivedTagTerminalPolicySelection<T>>;
+  promptPolicySelectOption: <T extends string>(
+    options: PolicyPromptOptions<T>,
+  ) => Promise<DerivedTagTerminalPolicySelection<T>>;
   promptMultiSelectOption: <T extends string>(options: MultiSelectPromptOptions<T>) => Promise<T[]>;
   promptSelectOption: <T extends string>(options: SelectPromptOptions<T>) => Promise<T | undefined>;
   promptTextInput: (options: TextPromptOptions) => Promise<string | undefined>;
@@ -278,10 +272,7 @@ function truncateText(text: string, width: number): string {
   return characters.slice(0, width).join("");
 }
 
-function truncateSegments(
-  segments: DerivedTagTerminalSegment[],
-  width: number,
-): DerivedTagTerminalSegment[] {
+function truncateSegments(segments: DerivedTagTerminalSegment[], width: number): DerivedTagTerminalSegment[] {
   if (width <= 0 || segments.length === 0) {
     return [];
   }
@@ -367,7 +358,8 @@ function buildRenderedTerminalLines(
   lines: DerivedTagTerminalLine[],
   width: number,
 ): Array<{ text: string; tone: DerivedTagTerminalTone; segments?: DerivedTagTerminalSegment[] }> {
-  const renderedLines: Array<{ text: string; tone: DerivedTagTerminalTone; segments?: DerivedTagTerminalSegment[] }> = [];
+  const renderedLines: Array<{ text: string; tone: DerivedTagTerminalTone; segments?: DerivedTagTerminalSegment[] }> =
+    [];
 
   for (const rawLine of lines) {
     const line = normalizeLine(rawLine);
@@ -454,10 +446,10 @@ function TerminalRows({
         <Text key={index} wrap="truncate-end" {...terminalToneProps(line.tone)}>
           {line.segments && line.segments.length > 0
             ? line.segments.map((segment, segmentIndex) => (
-              <Text key={segmentIndex} {...terminalToneProps(segment.tone ?? "default")}>
-                {segment.text}
-              </Text>
-            ))
+                <Text key={segmentIndex} {...terminalToneProps(segment.tone ?? "default")}>
+                  {segment.text}
+                </Text>
+              ))
             : fitToWidth(line.text, width)}
         </Text>
       ))}
@@ -508,10 +500,10 @@ function TerminalFooter({
         <Text key={index} wrap="truncate-end" {...terminalToneProps(line.tone ?? "default")}>
           {line.segments && line.segments.length > 0
             ? line.segments.map((segment, segmentIndex) => (
-              <Text key={segmentIndex} {...terminalToneProps(segment.tone ?? "default")}>
-                {segment.text}
-              </Text>
-            ))
+                <Text key={segmentIndex} {...terminalToneProps(segment.tone ?? "default")}>
+                  {segment.text}
+                </Text>
+              ))
             : fitToWidth(line.text, width)}
         </Text>
       ))}
@@ -607,17 +599,17 @@ export function useDerivedTagTerminalApp(): DerivedTagTerminalContextValue {
   return ensureTerminalContext();
 }
 
-export function useDerivedTagTerminalInput(
-  handler: (input: string, key: Key) => void,
-  isActive = true,
-): void {
+export function useDerivedTagTerminalInput(handler: (input: string, key: Key) => void, isActive = true): void {
   const terminal = ensureTerminalContext();
-  useInput((input, key) => {
-    if (terminal.modalActive) {
-      return;
-    }
-    handler(input, key);
-  }, { isActive });
+  useInput(
+    (input, key) => {
+      if (terminal.modalActive) {
+        return;
+      }
+      handler(input, key);
+    },
+    { isActive },
+  );
 }
 
 export function useDerivedTagTerminalSize(): { width: number; height: number } {
@@ -645,7 +637,10 @@ export function getTerminalTwoPaneDimensions(
 ): { leftWidth: number; rightWidth: number; separatorWidth: number } {
   const totalWidth = typeof sessionOrWidth === "number" ? sessionOrWidth : sessionOrWidth.width;
   const separatorWidth = 1;
-  const leftWidth = Math.max(24, Math.min(preferredLeftWidth ?? Math.floor(totalWidth * 0.38), totalWidth - separatorWidth - 20));
+  const leftWidth = Math.max(
+    24,
+    Math.min(preferredLeftWidth ?? Math.floor(totalWidth * 0.38), totalWidth - separatorWidth - 20),
+  );
   const rightWidth = Math.max(20, totalWidth - leftWidth - separatorWidth);
 
   return { leftWidth, rightWidth, separatorWidth };
@@ -671,15 +666,19 @@ export function getTerminalThreePaneDimensions(
   const totalWidth = typeof sessionOrWidth === "number" ? sessionOrWidth : sessionOrWidth.width;
   const separatorWidth = 1;
   const separatorCount = 2;
-  const availableWidth = Math.max(3, totalWidth - (separatorWidth * separatorCount));
+  const availableWidth = Math.max(3, totalWidth - separatorWidth * separatorCount);
   const minimumPaneWidth = Math.max(12, Math.floor(availableWidth / 3));
   const clampWidth = (value: number, min: number, max: number): number => Math.max(min, Math.min(value, max));
 
-  const maxLeftWidth = Math.max(minimumPaneWidth, availableWidth - (minimumPaneWidth * 2));
+  const maxLeftWidth = Math.max(minimumPaneWidth, availableWidth - minimumPaneWidth * 2);
   const leftWidth = clampWidth(preferredLeftWidth ?? Math.floor(totalWidth * 0.28), minimumPaneWidth, maxLeftWidth);
 
   const maxCenterWidth = Math.max(minimumPaneWidth, availableWidth - leftWidth - minimumPaneWidth);
-  const centerWidth = clampWidth(preferredCenterWidth ?? Math.floor(totalWidth * 0.32), minimumPaneWidth, maxCenterWidth);
+  const centerWidth = clampWidth(
+    preferredCenterWidth ?? Math.floor(totalWidth * 0.32),
+    minimumPaneWidth,
+    maxCenterWidth,
+  );
   const rightWidth = Math.max(minimumPaneWidth, availableWidth - leftWidth - centerWidth);
 
   return {
@@ -690,9 +689,7 @@ export function getTerminalThreePaneDimensions(
   };
 }
 
-export function toggleTerminalTwoPaneFocus(
-  activePane: DerivedTagTerminalTwoPaneFocus,
-): DerivedTagTerminalTwoPaneFocus {
+export function toggleTerminalTwoPaneFocus(activePane: DerivedTagTerminalTwoPaneFocus): DerivedTagTerminalTwoPaneFocus {
   return activePane === "list" ? "detail" : "list";
 }
 
@@ -713,10 +710,7 @@ export function toggleTerminalTwoPaneLayoutMode(
   return layoutMode === "split" ? "detail-only" : "split";
 }
 
-export function getRenderedTerminalLineCount(
-  lines: DerivedTagTerminalLine[],
-  width: number,
-): number {
+export function getRenderedTerminalLineCount(lines: DerivedTagTerminalLine[], width: number): number {
   return buildRenderedTerminalLines(lines, width).length;
 }
 
@@ -808,19 +802,13 @@ export function getDerivedTagTerminalListNavigationAction(
   }
   if (
     options.includeConfirmKeys &&
-    (
-      isConfirmKey(normalizedKey) ||
-      (options.includeHorizontalConfirmKeys && isMoveRightKey(normalizedKey))
-    )
+    (isConfirmKey(normalizedKey) || (options.includeHorizontalConfirmKeys && isMoveRightKey(normalizedKey)))
   ) {
     return { kind: "confirm" };
   }
   if (
     options.includeCancelKeys &&
-    (
-      isBackNavigationKey(normalizedKey) ||
-      (options.includeHorizontalCancelKeys && isMoveLeftKey(normalizedKey))
-    )
+    (isBackNavigationKey(normalizedKey) || (options.includeHorizontalCancelKeys && isMoveLeftKey(normalizedKey)))
   ) {
     return { kind: "cancel" };
   }
@@ -995,17 +983,12 @@ function clampPromptSelectionIndex(selectedIndex: number, itemCount: number): nu
   return Math.max(0, Math.min(selectedIndex, itemCount - 1));
 }
 
-function buildPromptDetailLines(
-  option: DerivedTagTerminalSelectOption<string> | undefined,
-): DerivedTagTerminalLine[] {
+function buildPromptDetailLines(option: DerivedTagTerminalSelectOption<string> | undefined): DerivedTagTerminalLine[] {
   if (option?.detailLines?.length) {
     return option.detailLines;
   }
   if (option?.description) {
-    return [
-      { text: option.label, tone: "section" },
-      { text: option.description },
-    ];
+    return [{ text: option.label, tone: "section" }, { text: option.description }];
   }
 
   return [
@@ -1029,12 +1012,7 @@ function filterCommandPaletteEntries(
   }
 
   return entries.filter((entry) => {
-    const searchableText = [
-      entry.label,
-      entry.description ?? "",
-      ...(entry.aliases ?? []),
-      ...(entry.keywords ?? []),
-    ]
+    const searchableText = [entry.label, entry.description ?? "", ...(entry.aliases ?? []), ...(entry.keywords ?? [])]
       .join(" ")
       .toLowerCase();
 
@@ -1083,7 +1061,9 @@ function InlinePromptTwoPaneBody({
         width={dimensions.leftWidth}
         height={height}
       />
-      <Text wrap="truncate-end" {...terminalToneProps("dim")}>{separator}</Text>
+      <Text wrap="truncate-end" {...terminalToneProps("dim")}>
+        {separator}
+      </Text>
       <TerminalPaneView
         pane={{
           title: focusedLabel,
@@ -1111,7 +1091,7 @@ function PromptBody({
     <TerminalInlinePromptPanel
       title={options.title}
       subtitle={options.prompt}
-      body={(
+      body={
         <InlinePromptMessageBody
           width={width}
           height={Math.max(0, height - 4)}
@@ -1121,7 +1101,7 @@ function PromptBody({
             { text: options.defaultValue ? `Default: ${options.defaultValue}` : "Leave blank to skip.", tone: "dim" },
           ]}
         />
-      )}
+      }
       footer={[{ text: TERMINAL_TEXT_INPUT_FOOTER, tone: "dim" }]}
       width={width}
       height={height}
@@ -1151,7 +1131,7 @@ function CommandPaletteBody({
       <TerminalInlinePromptPanel
         title={options.title}
         subtitle={options.subtitle ?? options.prompt}
-        body={(
+        body={
           <InlinePromptMessageBody
             width={width}
             height={Math.max(0, height - 4)}
@@ -1161,10 +1141,8 @@ function CommandPaletteBody({
               { text: "No commands match the current filter.", tone: "warning" },
             ]}
           />
-        )}
-        footer={[
-          { text: "Type to filter  Backspace edit  Esc cancel", tone: "dim" },
-        ]}
+        }
+        footer={[{ text: "Type to filter  Backspace edit  Esc cancel", tone: "dim" }]}
         width={width}
         height={height}
         showTopBorder={options.presentation !== "screen"}
@@ -1182,7 +1160,7 @@ function CommandPaletteBody({
     <TerminalInlinePromptPanel
       title={options.title}
       subtitle={options.subtitle ?? options.prompt}
-      body={(
+      body={
         <InlinePromptTwoPaneBody
           prompt={filterText ? `Filter: ${filterText}` : options.prompt}
           entries={visibleEntries.map((entry, offset) => ({
@@ -1205,9 +1183,12 @@ function CommandPaletteBody({
           width={width}
           height={contentHeight}
         />
-      )}
+      }
       footer={[
-        { text: formatTerminalInteractionFooter([{ id: "move" }, { id: "jump" }, { id: "page" }, { id: "edge" }]), tone: "dim" },
+        {
+          text: formatTerminalInteractionFooter([{ id: "move" }, { id: "jump" }, { id: "page" }, { id: "edge" }]),
+          tone: "dim",
+        },
         { text: TERMINAL_COMMAND_PALETTE_FILTER_FOOTER, tone: "dim" },
         { text: `${filteredEntries.length} command${filteredEntries.length === 1 ? "" : "s"} visible`, tone: "accent" },
       ]}
@@ -1234,7 +1215,7 @@ function SelectPromptBody({
       <TerminalInlinePromptPanel
         title={options.title}
         subtitle={options.subtitle ?? options.prompt}
-        body={(
+        body={
           <InlinePromptMessageBody
             width={width}
             height={Math.max(0, height - 4)}
@@ -1243,7 +1224,7 @@ function SelectPromptBody({
               { text: "No options are available for this scope.", tone: "warning" },
             ]}
           />
-        )}
+        }
         footer={[{ text: "Esc/backspace/left/q cancel", tone: "dim" }]}
         width={width}
         height={height}
@@ -1262,7 +1243,7 @@ function SelectPromptBody({
     <TerminalInlinePromptPanel
       title={options.title}
       subtitle={options.subtitle}
-      body={(
+      body={
         <InlinePromptTwoPaneBody
           prompt={options.prompt}
           entries={visibleEntries.map((entry, offset) => ({
@@ -1279,9 +1260,12 @@ function SelectPromptBody({
           width={width}
           height={contentHeight}
         />
-      )}
+      }
       footer={[
-        { text: formatTerminalInteractionFooter([{ id: "move" }, { id: "jump" }, { id: "page" }, { id: "edge" }]), tone: "dim" },
+        {
+          text: formatTerminalInteractionFooter([{ id: "move" }, { id: "jump" }, { id: "page" }, { id: "edge" }]),
+          tone: "dim",
+        },
         { text: formatTerminalInteractionFooter([{ id: "select" }, { id: "back", label: "cancel" }]), tone: "dim" },
         { text: `${selectedIndex + 1}/${options.entries.length} focused`, tone: "accent" },
       ]}
@@ -1310,7 +1294,7 @@ function MultiSelectPromptBody({
       <TerminalInlinePromptPanel
         title={options.title}
         subtitle={options.subtitle ?? options.prompt}
-        body={(
+        body={
           <InlinePromptMessageBody
             width={width}
             height={Math.max(0, height - 4)}
@@ -1319,7 +1303,7 @@ function MultiSelectPromptBody({
               { text: "No options are available for this scope.", tone: "warning" },
             ]}
           />
-        )}
+        }
         footer={[{ text: formatTerminalInteractionFooter([{ id: "back", label: "return" }]), tone: "dim" }]}
         width={width}
         height={height}
@@ -1330,9 +1314,7 @@ function MultiSelectPromptBody({
 
   const selectedOption = options.entries[selectedIndex];
   const selectedSet = new Set(selectedValues);
-  const selectedLabels = options.entries
-    .filter((entry) => selectedSet.has(entry.value))
-    .map((entry) => entry.label);
+  const selectedLabels = options.entries.filter((entry) => selectedSet.has(entry.value)).map((entry) => entry.label);
   const contentHeight = Math.max(1, height - 6);
   const visibleCount = Math.max(1, contentHeight - 2);
   const windowStart = clampInlinePromptWindowStart(selectedIndex, options.entries.length, visibleCount);
@@ -1342,7 +1324,7 @@ function MultiSelectPromptBody({
     <TerminalInlinePromptPanel
       title={options.title}
       subtitle={options.subtitle}
-      body={(
+      body={
         <InlinePromptTwoPaneBody
           prompt={options.prompt}
           entries={visibleEntries.map((entry, offset) => ({
@@ -1360,9 +1342,12 @@ function MultiSelectPromptBody({
           width={width}
           height={contentHeight}
         />
-      )}
+      }
       footer={[
-        { text: formatTerminalInteractionFooter([{ id: "move" }, { id: "jump" }, { id: "page" }, { id: "edge" }]), tone: "dim" },
+        {
+          text: formatTerminalInteractionFooter([{ id: "move" }, { id: "jump" }, { id: "page" }, { id: "edge" }]),
+          tone: "dim",
+        },
         { text: formatTerminalInteractionFooter([{ id: "toggle" }, { id: "return" }]), tone: "dim" },
         { text: `${selectedValues.length} selected | Focused: ${selectedOption?.label ?? "(none)"}`, tone: "accent" },
       ]}
@@ -1446,7 +1431,7 @@ function cyclePolicyState(
 ): DerivedTagTerminalPolicyState | undefined {
   const stateOrder: Array<DerivedTagTerminalPolicyState | undefined> = [undefined, ...allowedStates];
   const currentIndex = stateOrder.findIndex((state) => state === currentState);
-  const nextIndex = ((currentIndex + direction) % stateOrder.length + stateOrder.length) % stateOrder.length;
+  const nextIndex = (((currentIndex + direction) % stateOrder.length) + stateOrder.length) % stateOrder.length;
   return stateOrder[nextIndex];
 }
 
@@ -1484,7 +1469,7 @@ function PolicyPromptBody({
       <TerminalInlinePromptPanel
         title={options.title}
         subtitle={options.subtitle ?? options.prompt}
-        body={(
+        body={
           <InlinePromptMessageBody
             width={width}
             height={Math.max(0, height - 4)}
@@ -1493,7 +1478,7 @@ function PolicyPromptBody({
               { text: "No options are available for this scope.", tone: "warning" },
             ]}
           />
-        )}
+        }
         footer={[{ text: formatTerminalInteractionFooter([{ id: "return" }]), tone: "dim" }]}
         width={width}
         height={height}
@@ -1513,7 +1498,7 @@ function PolicyPromptBody({
     <TerminalInlinePromptPanel
       title={options.title}
       subtitle={options.subtitle}
-      body={(
+      body={
         <InlinePromptTwoPaneBody
           prompt={options.prompt}
           entries={visibleEntries.map((entry, offset) => ({
@@ -1531,9 +1516,12 @@ function PolicyPromptBody({
           width={width}
           height={contentHeight}
         />
-      )}
+      }
       footer={[
-        { text: formatTerminalInteractionFooter([{ id: "move" }, { id: "jump" }, { id: "page" }, { id: "edge" }]), tone: "dim" },
+        {
+          text: formatTerminalInteractionFooter([{ id: "move" }, { id: "jump" }, { id: "page" }, { id: "edge" }]),
+          tone: "dim",
+        },
         { text: formatTerminalInteractionFooter([{ id: "cycle" }, { id: "return" }]), tone: "dim" },
         { text: `Cycle order: off -> ${options.allowedStates.join(" -> ")} -> off`, tone: "accent" },
       ]}
@@ -1568,7 +1556,10 @@ function getInlineTextPromptHeight(
   const lines: DerivedTagTerminalLine[] = [
     ...(modal.options.hint ? [{ text: modal.options.hint, tone: "accent" as const }] : []),
     { text: `> ${modal.value || ""}`, tone: "selected" },
-    { text: modal.options.defaultValue ? `Default: ${modal.options.defaultValue}` : "Leave blank to skip.", tone: "dim" },
+    {
+      text: modal.options.defaultValue ? `Default: ${modal.options.defaultValue}` : "Leave blank to skip.",
+      tone: "dim",
+    },
   ];
   return clampInlineModalHeight(totalRows, getRenderedTerminalLineCount(lines, width) + 4);
 }
@@ -1643,252 +1634,281 @@ function DerivedTagTerminalModalHost({
   const listNavigationStateRef = React.useRef(createDerivedTagTerminalListNavigationState());
   const presentation = getModalPresentation(modal);
 
-  useInput((input, key) => {
-    const normalized = getNormalizedKeyName(input, key);
-    const printable = getPrintableInput(input, key);
-    const selectLikeAction = resolveTerminalInteractionAction(normalized, [
-      { id: "select" },
-      { id: "back", label: "cancel" },
-    ]);
-    const multiSelectLikeAction = resolveTerminalInteractionAction(normalized, [
-      { id: "toggle" },
-      { id: "return" },
-    ]);
-    const policyLikeAction = resolveTerminalInteractionAction(normalized, [
-      { id: "cycle" },
-      { id: "cycleReverse" },
-      { id: "return" },
-    ]);
-    const modalNavigation = resolveDerivedTagTerminalListNavigationAction(input, key, {
-      pageSize: 10,
-      jumpSize: 5,
-      includeCancelKeys: true,
-      includeHorizontalCancelKeys: true,
-    }, listNavigationStateRef.current);
-    listNavigationStateRef.current = modalNavigation.state;
+  useInput(
+    (input, key) => {
+      const normalized = getNormalizedKeyName(input, key);
+      const printable = getPrintableInput(input, key);
+      const selectLikeAction = resolveTerminalInteractionAction(normalized, [
+        { id: "select" },
+        { id: "back", label: "cancel" },
+      ]);
+      const multiSelectLikeAction = resolveTerminalInteractionAction(normalized, [{ id: "toggle" }, { id: "return" }]);
+      const policyLikeAction = resolveTerminalInteractionAction(normalized, [
+        { id: "cycle" },
+        { id: "cycleReverse" },
+        { id: "return" },
+      ]);
+      const modalNavigation = resolveDerivedTagTerminalListNavigationAction(
+        input,
+        key,
+        {
+          pageSize: 10,
+          jumpSize: 5,
+          includeCancelKeys: true,
+          includeHorizontalCancelKeys: true,
+        },
+        listNavigationStateRef.current,
+      );
+      listNavigationStateRef.current = modalNavigation.state;
 
-    if (!modal) {
-      listNavigationStateRef.current = createDerivedTagTerminalListNavigationState();
-      return;
-    }
-
-    if (modal.kind === "dialog") {
-      const resolver = modal.resolve;
-      setModal(null);
-      resolver();
-      return;
-    }
-
-    if (modal.kind === "text") {
-      if (normalized === "enter") {
-        const resolver = modal.resolve;
-        const trimmed = modal.value.trim();
-        setModal(null);
-        resolver(trimmed ? trimmed : undefined);
+      if (!modal) {
+        listNavigationStateRef.current = createDerivedTagTerminalListNavigationState();
         return;
       }
-      if (normalized === "escape") {
+
+      if (modal.kind === "dialog") {
         const resolver = modal.resolve;
         setModal(null);
-        resolver(undefined);
+        resolver();
         return;
       }
-      if (normalized === "backspace") {
-        setModal((current) => current?.kind === "text"
-          ? { ...current, value: [...current.value].slice(0, -1).join("") }
-          : current);
-        return;
-      }
-      if (printable) {
-        setModal((current) => current?.kind === "text"
-          ? { ...current, value: current.value + printable }
-          : current);
-      }
-      return;
-    }
 
-    const modalNavigationAction = modalNavigation.action;
-
-    if (modal.kind === "command") {
-      const filteredEntries = filterCommandPaletteEntries(modal.options.entries, modal.filterText);
-      const clampedSelectedIndex = clampPromptSelectionIndex(modal.selectedIndex, filteredEntries.length);
-
-      if (normalized === "backspace") {
-        if (modal.filterText.length === 0) {
+      if (modal.kind === "text") {
+        if (normalized === "enter") {
+          const resolver = modal.resolve;
+          const trimmed = modal.value.trim();
+          setModal(null);
+          resolver(trimmed ? trimmed : undefined);
+          return;
+        }
+        if (normalized === "escape") {
           const resolver = modal.resolve;
           setModal(null);
           resolver(undefined);
           return;
         }
-        setModal((current) => current?.kind === "command"
-          ? {
-            ...current,
-            filterText: [...current.filterText].slice(0, -1).join(""),
-            selectedIndex: 0,
-          }
-          : current);
+        if (normalized === "backspace") {
+          setModal((current) =>
+            current?.kind === "text" ? { ...current, value: [...current.value].slice(0, -1).join("") } : current,
+          );
+          return;
+        }
+        if (printable) {
+          setModal((current) =>
+            current?.kind === "text" ? { ...current, value: current.value + printable } : current,
+          );
+        }
         return;
       }
-      if (printable) {
-        setModal((current) => current?.kind === "command"
-          ? {
-            ...current,
-            filterText: current.filterText + printable,
-            selectedIndex: 0,
+
+      const modalNavigationAction = modalNavigation.action;
+
+      if (modal.kind === "command") {
+        const filteredEntries = filterCommandPaletteEntries(modal.options.entries, modal.filterText);
+        const clampedSelectedIndex = clampPromptSelectionIndex(modal.selectedIndex, filteredEntries.length);
+
+        if (normalized === "backspace") {
+          if (modal.filterText.length === 0) {
+            const resolver = modal.resolve;
+            setModal(null);
+            resolver(undefined);
+            return;
           }
-          : current);
+          setModal((current) =>
+            current?.kind === "command"
+              ? {
+                  ...current,
+                  filterText: [...current.filterText].slice(0, -1).join(""),
+                  selectedIndex: 0,
+                }
+              : current,
+          );
+          return;
+        }
+        if (printable) {
+          setModal((current) =>
+            current?.kind === "command"
+              ? {
+                  ...current,
+                  filterText: current.filterText + printable,
+                  selectedIndex: 0,
+                }
+              : current,
+          );
+          return;
+        }
+        if (modalNavigationAction?.kind === "move") {
+          setModal((current) =>
+            current?.kind === "command"
+              ? {
+                  ...current,
+                  selectedIndex: moveSelectionWrapped(
+                    clampedSelectedIndex,
+                    modalNavigationAction.delta,
+                    filteredEntries.length,
+                  ),
+                }
+              : current,
+          );
+          return;
+        }
+        if (modalNavigationAction?.kind === "boundary") {
+          setModal((current) =>
+            current?.kind === "command"
+              ? {
+                  ...current,
+                  selectedIndex:
+                    modalNavigationAction.boundary === "start" ? 0 : Math.max(0, filteredEntries.length - 1),
+                }
+              : current,
+          );
+          return;
+        }
+        if (selectLikeAction?.id === "select") {
+          const resolver = modal.resolve;
+          const selected = filteredEntries[clampedSelectedIndex]?.value;
+          setModal(null);
+          resolver(selected);
+          return;
+        }
+        if (selectLikeAction?.id === "back" || normalized === "q" || normalized === "ctrl_c") {
+          const resolver = modal.resolve;
+          setModal(null);
+          resolver(undefined);
+        }
         return;
       }
+
+      if (modal.kind === "select" && modal.options.entries.length === 0) {
+        if (isBackNavigationKey(normalized) || normalized === "q" || normalized === "ctrl_c") {
+          const resolver = modal.resolve;
+          setModal(null);
+          resolver(undefined);
+        }
+        return;
+      }
+
+      if (modal.kind === "multiselect" && modal.options.entries.length === 0) {
+        if (isBackNavigationKey(normalized) || normalized === "q" || normalized === "ctrl_c") {
+          const resolver = modal.resolve;
+          setModal(null);
+          resolver([]);
+        }
+        return;
+      }
+
+      if (modal.kind === "policy" && modal.options.entries.length === 0) {
+        if (isBackNavigationKey(normalized) || normalized === "q" || normalized === "ctrl_c") {
+          const resolver = modal.resolve;
+          setModal(null);
+          resolver(createEmptyPolicySelection());
+        }
+        return;
+      }
+
       if (modalNavigationAction?.kind === "move") {
-        setModal((current) => current?.kind === "command"
-          ? {
-            ...current,
-            selectedIndex: moveSelectionWrapped(
-              clampedSelectedIndex,
-              modalNavigationAction.delta,
-              filteredEntries.length,
-            ),
-          }
-          : current);
+        setModal((current) =>
+          current && (current.kind === "select" || current.kind === "multiselect" || current.kind === "policy")
+            ? {
+                ...current,
+                selectedIndex: moveSelectionWrapped(
+                  current.selectedIndex,
+                  modalNavigationAction.delta,
+                  current.options.entries.length,
+                ),
+              }
+            : current,
+        );
         return;
       }
       if (modalNavigationAction?.kind === "boundary") {
-        setModal((current) => current?.kind === "command"
-          ? {
-            ...current,
-            selectedIndex: modalNavigationAction.boundary === "start"
-              ? 0
-              : Math.max(0, filteredEntries.length - 1),
-          }
-          : current);
+        setModal((current) =>
+          current && (current.kind === "select" || current.kind === "multiselect" || current.kind === "policy")
+            ? {
+                ...current,
+                selectedIndex:
+                  modalNavigationAction.boundary === "start" ? 0 : Math.max(0, current.options.entries.length - 1),
+              }
+            : current,
+        );
         return;
       }
-      if (selectLikeAction?.id === "select") {
+      if (modal.kind === "multiselect" && multiSelectLikeAction?.id === "toggle") {
+        const selected = modal.options.entries[modal.selectedIndex]?.value;
+        if (!selected) {
+          return;
+        }
+        setModal((current) =>
+          current?.kind === "multiselect"
+            ? {
+                ...current,
+                selectedValues: current.selectedValues.includes(selected)
+                  ? current.selectedValues.filter((value) => value !== selected)
+                  : [...current.selectedValues, selected],
+              }
+            : current,
+        );
+        return;
+      }
+      if (modal.kind === "select" && selectLikeAction?.id === "select") {
         const resolver = modal.resolve;
-        const selected = filteredEntries[clampedSelectedIndex]?.value;
+        const selected = modal.options.entries[modal.selectedIndex]?.value;
         setModal(null);
         resolver(selected);
         return;
       }
-      if (selectLikeAction?.id === "back" || normalized === "q" || normalized === "ctrl_c") {
+      if (modal.kind === "multiselect" && multiSelectLikeAction?.id === "return") {
+        const resolver = modal.resolve;
+        const selectedValues = modal.selectedValues;
+        setModal(null);
+        resolver(selectedValues);
+        return;
+      }
+      const cycleDirection = getTerminalInteractionCycleDirection(normalized, policyLikeAction);
+
+      if (modal.kind === "policy" && cycleDirection) {
+        const selected = modal.options.entries[modal.selectedIndex]?.value;
+        if (!selected) {
+          return;
+        }
+        setModal((current) =>
+          current?.kind === "policy"
+            ? {
+                ...current,
+                valueStates: {
+                  ...current.valueStates,
+                  [selected]: cyclePolicyState(
+                    current.valueStates[selected],
+                    current.options.allowedStates,
+                    cycleDirection,
+                  ),
+                },
+              }
+            : current,
+        );
+        return;
+      }
+      if (
+        modal.kind === "policy" &&
+        (policyLikeAction?.id === "return" || normalized === "q" || normalized === "ctrl_c")
+      ) {
+        const resolver = modal.resolve;
+        const selection = buildPolicySelection(modal.options.entries, modal.valueStates);
+        setModal(null);
+        resolver(selection);
+        return;
+      }
+      if (
+        modal.kind === "select" &&
+        (selectLikeAction?.id === "back" || normalized === "q" || normalized === "ctrl_c")
+      ) {
         const resolver = modal.resolve;
         setModal(null);
         resolver(undefined);
       }
-      return;
-    }
-
-    if (modal.kind === "select" && modal.options.entries.length === 0) {
-      if (isBackNavigationKey(normalized) || normalized === "q" || normalized === "ctrl_c") {
-        const resolver = modal.resolve;
-        setModal(null);
-        resolver(undefined);
-      }
-      return;
-    }
-
-    if (modal.kind === "multiselect" && modal.options.entries.length === 0) {
-      if (isBackNavigationKey(normalized) || normalized === "q" || normalized === "ctrl_c") {
-        const resolver = modal.resolve;
-        setModal(null);
-        resolver([]);
-      }
-      return;
-    }
-
-    if (modal.kind === "policy" && modal.options.entries.length === 0) {
-      if (isBackNavigationKey(normalized) || normalized === "q" || normalized === "ctrl_c") {
-        const resolver = modal.resolve;
-        setModal(null);
-        resolver(createEmptyPolicySelection());
-      }
-      return;
-    }
-
-    if (modalNavigationAction?.kind === "move") {
-      setModal((current) => current && (current.kind === "select" || current.kind === "multiselect" || current.kind === "policy")
-        ? {
-            ...current,
-            selectedIndex: moveSelectionWrapped(
-              current.selectedIndex,
-              modalNavigationAction.delta,
-              current.options.entries.length,
-            ),
-          }
-        : current);
-      return;
-    }
-    if (modalNavigationAction?.kind === "boundary") {
-      setModal((current) => current && (current.kind === "select" || current.kind === "multiselect" || current.kind === "policy")
-        ? {
-          ...current,
-          selectedIndex: modalNavigationAction.boundary === "start"
-            ? 0
-            : Math.max(0, current.options.entries.length - 1),
-        }
-        : current);
-      return;
-    }
-    if (modal.kind === "multiselect" && multiSelectLikeAction?.id === "toggle") {
-      const selected = modal.options.entries[modal.selectedIndex]?.value;
-      if (!selected) {
-        return;
-      }
-      setModal((current) => current?.kind === "multiselect"
-        ? {
-          ...current,
-          selectedValues: current.selectedValues.includes(selected)
-            ? current.selectedValues.filter((value) => value !== selected)
-            : [...current.selectedValues, selected],
-        }
-        : current);
-      return;
-    }
-    if (modal.kind === "select" && selectLikeAction?.id === "select") {
-      const resolver = modal.resolve;
-      const selected = modal.options.entries[modal.selectedIndex]?.value;
-      setModal(null);
-      resolver(selected);
-      return;
-    }
-    if (modal.kind === "multiselect" && multiSelectLikeAction?.id === "return") {
-      const resolver = modal.resolve;
-      const selectedValues = modal.selectedValues;
-      setModal(null);
-      resolver(selectedValues);
-      return;
-    }
-    const cycleDirection = getTerminalInteractionCycleDirection(normalized, policyLikeAction);
-
-    if (modal.kind === "policy" && cycleDirection) {
-      const selected = modal.options.entries[modal.selectedIndex]?.value;
-      if (!selected) {
-        return;
-      }
-      setModal((current) => current?.kind === "policy"
-        ? {
-          ...current,
-          valueStates: {
-            ...current.valueStates,
-            [selected]: cyclePolicyState(current.valueStates[selected], current.options.allowedStates, cycleDirection),
-          },
-        }
-        : current);
-      return;
-    }
-    if (modal.kind === "policy" && (policyLikeAction?.id === "return" || normalized === "q" || normalized === "ctrl_c")) {
-      const resolver = modal.resolve;
-      const selection = buildPolicySelection(modal.options.entries, modal.valueStates);
-      setModal(null);
-      resolver(selection);
-      return;
-    }
-    if (modal.kind === "select" && (selectLikeAction?.id === "back" || normalized === "q" || normalized === "ctrl_c")) {
-      const resolver = modal.resolve;
-      setModal(null);
-      resolver(undefined);
-    }
-  }, { isActive: modal !== null });
+    },
+    { isActive: modal !== null },
+  );
 
   if (!modal) {
     return null;
@@ -1899,13 +1919,7 @@ function DerivedTagTerminalModalHost({
       <TerminalInlinePromptPanel
         title={modal.options.title}
         subtitle={modal.options.subtitle}
-        body={(
-          <InlinePromptMessageBody
-            width={width}
-            height={Math.max(0, height - 4)}
-            lines={modal.options.body}
-          />
-        )}
+        body={<InlinePromptMessageBody width={width} height={Math.max(0, height - 4)} lines={modal.options.body} />}
         footer={modal.options.footer ?? [{ text: TERMINAL_DIALOG_CONTINUE_FOOTER, tone: "dim" }]}
         width={width}
         height={height}
@@ -1914,14 +1928,7 @@ function DerivedTagTerminalModalHost({
     );
   }
   if (modal.kind === "text") {
-    return (
-      <PromptBody
-        options={modal.options}
-        currentValue={modal.value}
-        width={width}
-        height={height}
-      />
-    );
+    return <PromptBody options={modal.options} currentValue={modal.value} width={width} height={height} />;
   }
   if (modal.kind === "command") {
     return (
@@ -1960,127 +1967,118 @@ function DerivedTagTerminalModalHost({
   return <SelectPromptBody options={modal.options} selectedIndex={modal.selectedIndex} width={width} height={height} />;
 }
 
-export function DerivedTagTerminalProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}): React.JSX.Element {
+export function DerivedTagTerminalProvider({ children }: { children: React.ReactNode }): React.JSX.Element {
   const { exit } = useApp();
   const { columns, rows } = useWindowSize();
   const [modal, setModal] = React.useState<TerminalModalState>(null);
   const modalPresentation = React.useMemo(() => getModalPresentation(modal), [modal]);
   const inlineModalHeight = React.useMemo(() => getInlineModalHeight(modal, rows, columns), [columns, modal, rows]);
-  const availableRows = modalPresentation === "screen"
-    ? 0
-    : Math.max(0, rows - inlineModalHeight);
+  const availableRows = modalPresentation === "screen" ? 0 : Math.max(0, rows - inlineModalHeight);
 
-  const contextValue = React.useMemo<DerivedTagTerminalContextValue>(() => ({
-    exitApp: exit,
-    getTerminalHeight: () => availableRows,
-    getTerminalWidth: () => columns,
-    modalActive: modal !== null,
-    pauseForAnyKey: async (message: string) => {
-      await new Promise<void>((resolve) => {
-        setModal({
-          kind: "dialog",
-          options: {
-            title: "Derived-Tag Workbench",
-            body: message.split("\n").map((line) => ({ text: line })),
-            footer: [{ text: TERMINAL_DIALOG_CONTINUE_FOOTER, tone: "dim" }],
-          },
-          resolve,
+  const contextValue = React.useMemo<DerivedTagTerminalContextValue>(
+    () => ({
+      exitApp: exit,
+      getTerminalHeight: () => availableRows,
+      getTerminalWidth: () => columns,
+      modalActive: modal !== null,
+      pauseForAnyKey: async (message: string) => {
+        await new Promise<void>((resolve) => {
+          setModal({
+            kind: "dialog",
+            options: {
+              title: "Derived-Tag Workbench",
+              body: message.split("\n").map((line) => ({ text: line })),
+              footer: [{ text: TERMINAL_DIALOG_CONTINUE_FOOTER, tone: "dim" }],
+            },
+            resolve,
+          });
         });
-      });
-    },
-    promptCommandPalette: async <T extends string>(options: CommandPaletteOptions<T>) =>
-      new Promise<T | undefined>((resolve) => {
-        setModal({
-          kind: "command",
-          options: options as CommandPaletteOptions<string>,
-          filterText: "",
-          selectedIndex: 0,
-          resolve: resolve as (value: string | undefined) => void,
-        });
-      }),
-    promptPolicySelectOption: async <T extends string>(options: PolicyPromptOptions<T>) =>
-      new Promise<DerivedTagTerminalPolicySelection<T>>((resolve) => {
-        const initialSelection = createEmptyPolicySelection<string>();
-        initialSelection.any = options.selectedValues?.any ? [...options.selectedValues.any] : [];
-        initialSelection.all = options.selectedValues?.all ? [...options.selectedValues.all] : [];
-        initialSelection.exclude = options.selectedValues?.exclude ? [...options.selectedValues.exclude] : [];
-        const valueStates = createValueStateLookup(initialSelection);
-        const selectedIndex = Math.max(
-          0,
-          options.entries.findIndex((entry) => valueStates[entry.value] !== undefined),
-        );
-        setModal({
-          kind: "policy",
-          options: options as PolicyPromptOptions<string>,
-          selectedIndex,
-          valueStates,
-          resolve: resolve as (value: DerivedTagTerminalPolicySelection<string>) => void,
-        });
-      }),
-    promptMultiSelectOption: async <T extends string>(options: MultiSelectPromptOptions<T>) =>
-      new Promise<T[]>((resolve) => {
-        const selectedIndex = Math.max(0, options.entries.findIndex((entry) => options.selectedValues?.includes(entry.value)));
-        setModal({
-          kind: "multiselect",
-          options: options as MultiSelectPromptOptions<string>,
-          selectedIndex,
-          selectedValues: options.selectedValues ? [...options.selectedValues] : [],
-          resolve: resolve as (value: string[]) => void,
-        });
-      }),
-    promptSelectOption: async <T extends string>(options: SelectPromptOptions<T>) =>
-      new Promise<T | undefined>((resolve) => {
-        const selectedIndex = Math.max(0, options.entries.findIndex((entry) => entry.value === options.selectedValue));
-        setModal({
-          kind: "select",
-          options: options as SelectPromptOptions<string>,
-          selectedIndex,
-          resolve: resolve as (value: string | undefined) => void,
-        });
-      }),
-    promptTextInput: async (options: TextPromptOptions) =>
-      new Promise<string | undefined>((resolve) => {
-        setModal({
-          kind: "text",
-          options,
-          value: options.defaultValue ?? "",
-          resolve,
-        });
-      }),
-    showDialog: async (options: DialogOptions) =>
-      new Promise<void>((resolve) => {
-        setModal({
-          kind: "dialog",
-          options,
-          resolve,
-        });
-      }),
-  }), [availableRows, columns, exit, modal]);
+      },
+      promptCommandPalette: async <T extends string>(options: CommandPaletteOptions<T>) =>
+        new Promise<T | undefined>((resolve) => {
+          setModal({
+            kind: "command",
+            options: options as CommandPaletteOptions<string>,
+            filterText: "",
+            selectedIndex: 0,
+            resolve: resolve as (value: string | undefined) => void,
+          });
+        }),
+      promptPolicySelectOption: async <T extends string>(options: PolicyPromptOptions<T>) =>
+        new Promise<DerivedTagTerminalPolicySelection<T>>((resolve) => {
+          const initialSelection = createEmptyPolicySelection<string>();
+          initialSelection.any = options.selectedValues?.any ? [...options.selectedValues.any] : [];
+          initialSelection.all = options.selectedValues?.all ? [...options.selectedValues.all] : [];
+          initialSelection.exclude = options.selectedValues?.exclude ? [...options.selectedValues.exclude] : [];
+          const valueStates = createValueStateLookup(initialSelection);
+          const selectedIndex = Math.max(
+            0,
+            options.entries.findIndex((entry) => valueStates[entry.value] !== undefined),
+          );
+          setModal({
+            kind: "policy",
+            options: options as PolicyPromptOptions<string>,
+            selectedIndex,
+            valueStates,
+            resolve: resolve as (value: DerivedTagTerminalPolicySelection<string>) => void,
+          });
+        }),
+      promptMultiSelectOption: async <T extends string>(options: MultiSelectPromptOptions<T>) =>
+        new Promise<T[]>((resolve) => {
+          const selectedIndex = Math.max(
+            0,
+            options.entries.findIndex((entry) => options.selectedValues?.includes(entry.value)),
+          );
+          setModal({
+            kind: "multiselect",
+            options: options as MultiSelectPromptOptions<string>,
+            selectedIndex,
+            selectedValues: options.selectedValues ? [...options.selectedValues] : [],
+            resolve: resolve as (value: string[]) => void,
+          });
+        }),
+      promptSelectOption: async <T extends string>(options: SelectPromptOptions<T>) =>
+        new Promise<T | undefined>((resolve) => {
+          const selectedIndex = Math.max(
+            0,
+            options.entries.findIndex((entry) => entry.value === options.selectedValue),
+          );
+          setModal({
+            kind: "select",
+            options: options as SelectPromptOptions<string>,
+            selectedIndex,
+            resolve: resolve as (value: string | undefined) => void,
+          });
+        }),
+      promptTextInput: async (options: TextPromptOptions) =>
+        new Promise<string | undefined>((resolve) => {
+          setModal({
+            kind: "text",
+            options,
+            value: options.defaultValue ?? "",
+            resolve,
+          });
+        }),
+      showDialog: async (options: DialogOptions) =>
+        new Promise<void>((resolve) => {
+          setModal({
+            kind: "dialog",
+            options,
+            resolve,
+          });
+        }),
+    }),
+    [availableRows, columns, exit, modal],
+  );
 
   return (
     <DerivedTagTerminalContext.Provider value={contextValue}>
       {modal && modalPresentation === "screen" ? (
-        <DerivedTagTerminalModalHost
-          modal={modal}
-          setModal={setModal}
-          width={columns}
-          height={rows}
-        />
+        <DerivedTagTerminalModalHost modal={modal} setModal={setModal} width={columns} height={rows} />
       ) : null}
-      <Box flexDirection="column">
-        {children}
-      </Box>
+      <Box flexDirection="column">{children}</Box>
       {modal && modalPresentation === "inline" ? (
-        <DerivedTagTerminalModalHost
-          modal={modal}
-          setModal={setModal}
-          width={columns}
-          height={inlineModalHeight}
-        />
+        <DerivedTagTerminalModalHost modal={modal} setModal={setModal} width={columns} height={inlineModalHeight} />
       ) : null}
     </DerivedTagTerminalContext.Provider>
   );
@@ -2147,7 +2145,9 @@ export function TerminalTwoPaneScreen({
       <TerminalHeader title={title} subtitle={subtitle} width={size.width} />
       <Box flexDirection="row" width={size.width} height={contentHeight}>
         <TerminalPaneView pane={left} width={dimensions.leftWidth} height={contentHeight} />
-        <Text wrap="truncate-end" {...terminalToneProps("dim")}>{separator}</Text>
+        <Text wrap="truncate-end" {...terminalToneProps("dim")}>
+          {separator}
+        </Text>
         <TerminalPaneView pane={right} width={dimensions.rightWidth} height={contentHeight} />
       </Box>
       <TerminalFooter footer={footer} width={size.width} />
@@ -2177,9 +2177,13 @@ export function TerminalThreePaneScreen({
       <TerminalHeader title={title} subtitle={subtitle} width={size.width} />
       <Box flexDirection="row" width={size.width} height={contentHeight}>
         <TerminalPaneView pane={left} width={dimensions.leftWidth} height={contentHeight} />
-        <Text wrap="truncate-end" {...terminalToneProps("dim")}>{separator}</Text>
+        <Text wrap="truncate-end" {...terminalToneProps("dim")}>
+          {separator}
+        </Text>
         <TerminalPaneView pane={center} width={dimensions.centerWidth} height={contentHeight} />
-        <Text wrap="truncate-end" {...terminalToneProps("dim")}>{separator}</Text>
+        <Text wrap="truncate-end" {...terminalToneProps("dim")}>
+          {separator}
+        </Text>
         <TerminalPaneView pane={right} width={dimensions.rightWidth} height={contentHeight} />
       </Box>
       <TerminalFooter footer={footer} width={size.width} />
@@ -2188,14 +2192,11 @@ export function TerminalThreePaneScreen({
 }
 
 export async function runDerivedTagTerminalApp(node: React.ReactElement): Promise<void> {
-  const instance = renderInkApp(
-    <DerivedTagTerminalProvider>{node}</DerivedTagTerminalProvider>,
-    {
-      alternateScreen: true,
-      exitOnCtrlC: false,
-      patchConsole: true,
-    },
-  );
+  const instance = renderInkApp(<DerivedTagTerminalProvider>{node}</DerivedTagTerminalProvider>, {
+    alternateScreen: true,
+    exitOnCtrlC: false,
+    patchConsole: true,
+  });
 
   try {
     await instance.waitUntilExit();

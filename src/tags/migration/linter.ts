@@ -40,16 +40,22 @@ export function lintDerivedTagMigrationSession(session: DerivedTagMigrationSessi
       if (decision.kind === "assignment") {
         const key = qualifiedKey(decision.family, decision.tag);
         if (seenAssignments.has(`${key}:${decision.mode}`)) {
-          throw new Error(`Migration session repeats assignment decision "${key}" (${decision.mode}) for "${decisionRecord.recordKey}".`);
+          throw new Error(
+            `Migration session repeats assignment decision "${key}" (${decision.mode}) for "${decisionRecord.recordKey}".`,
+          );
         }
         seenAssignments.add(`${key}:${decision.mode}`);
 
         const ontologyTag = ontology.tagByKey.get(`${decisionRecord.category}:${normalizeDerivedTag(decision.tag)}`);
         if (!ontologyTag) {
-          throw new Error(`Migration session assignment "${key}" for "${decisionRecord.recordKey}" does not exist in the ontology.`);
+          throw new Error(
+            `Migration session assignment "${key}" for "${decisionRecord.recordKey}" does not exist in the ontology.`,
+          );
         }
         if (normalizeDerivedTag(ontologyTag.family) !== normalizeDerivedTag(decision.family)) {
-          throw new Error(`Migration session assignment "${key}" for "${decisionRecord.recordKey}" uses the wrong family.`);
+          throw new Error(
+            `Migration session assignment "${key}" for "${decisionRecord.recordKey}" uses the wrong family.`,
+          );
         }
       } else if (decision.kind === "exemplar") {
         const key = `${normalizeDerivedTag(decision.tag)}:${decision.polarity}`;
@@ -60,15 +66,24 @@ export function lintDerivedTagMigrationSession(session: DerivedTagMigrationSessi
 
         const ontologyTag = ontology.tagByKey.get(`${decisionRecord.category}:${normalizeDerivedTag(decision.tag)}`);
         if (!ontologyTag) {
-          throw new Error(`Migration session exemplar tag "${decision.tag}" for "${decisionRecord.recordKey}" does not exist in the ontology.`);
+          throw new Error(
+            `Migration session exemplar tag "${decision.tag}" for "${decisionRecord.recordKey}" does not exist in the ontology.`,
+          );
         }
       } else {
         const ontologyTag = ontology.tagByKey.get(`${decisionRecord.category}:${normalizeDerivedTag(decision.tag)}`);
         if (!ontologyTag) {
-          throw new Error(`Migration session rule tag "${decision.tag}" for "${decisionRecord.recordKey}" does not exist in the ontology.`);
+          throw new Error(
+            `Migration session rule tag "${decision.tag}" for "${decisionRecord.recordKey}" does not exist in the ontology.`,
+          );
         }
-        if (decision.decision === "recreate_authored" && (!decision.authoredRules || decision.authoredRules.length === 0)) {
-          throw new Error(`Migration session rule decision for "${decisionRecord.recordKey}" must include authoredRules when recreating an authored rule.`);
+        if (
+          decision.decision === "recreate_authored" &&
+          (!decision.authoredRules || decision.authoredRules.length === 0)
+        ) {
+          throw new Error(
+            `Migration session rule decision for "${decisionRecord.recordKey}" must include authoredRules when recreating an authored rule.`,
+          );
         }
       }
     }
@@ -77,7 +92,9 @@ export function lintDerivedTagMigrationSession(session: DerivedTagMigrationSessi
       const [qualified, mode] = assignment.split(":");
       const opposite = `${qualified}:${mode === "include" ? "exclude" : "include"}`;
       if (seenAssignments.has(opposite)) {
-        throw new Error(`Migration session places "${qualified}" in both include and exclude for "${decisionRecord.recordKey}".`);
+        throw new Error(
+          `Migration session places "${qualified}" in both include and exclude for "${decisionRecord.recordKey}".`,
+        );
       }
     }
   }

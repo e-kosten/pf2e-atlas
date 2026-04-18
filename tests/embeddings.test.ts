@@ -11,8 +11,6 @@ describe("embedding providers", () => {
     const batchVectors = await provider.embedMany(texts);
 
     expect(batchVectors).toHaveLength(texts.length);
-    expect(batchVectors.map((vector) => Array.from(vector))).toEqual(
-      singleVectors.map((vector) => Array.from(vector)),
-    );
+    expect(batchVectors.map((vector) => Array.from(vector))).toEqual(singleVectors.map((vector) => Array.from(vector)));
   });
 });

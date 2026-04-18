@@ -63,7 +63,8 @@ export const ACTOR_METRIC_DISCOVERY_NAMESPACES = [
   },
   {
     prefix: "disable.",
-    description: "Hazard disable metrics such as disable.dc.min, disable.thievery.dc.min, and disable.thievery.rank.min.",
+    description:
+      "Hazard disable metrics such as disable.dc.min, disable.thievery.dc.min, and disable.thievery.rank.min.",
   },
 ] as const;
 

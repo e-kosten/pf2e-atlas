@@ -28,11 +28,11 @@ function formatPendingReviewChanges(count: number): string {
 
 function toManagedCategory(category: SearchCategory): DerivedTagManagedCategory {
   if (
-    category !== "affliction"
-    && category !== "creature"
-    && category !== "equipment"
-    && category !== "hazard"
-    && category !== "spell"
+    category !== "affliction" &&
+    category !== "creature" &&
+    category !== "equipment" &&
+    category !== "hazard" &&
+    category !== "spell"
   ) {
     throw new Error(`Derived-tag migration session builder does not manage category "${category}".`);
   }
@@ -45,9 +45,9 @@ function buildReviewQueueCategoryScopeSummary(): DerivedTagCategoryScopeSummaryS
 
   const counts = DERIVED_TAG_MANAGED_CATEGORIES.map((category) => {
     const assignmentCount = state.assignmentReviews[category].decisions.length;
-    const exemplarCount = state.exemplarReviews[category].decisions
-      .filter((decision) => decision.status === "needs_review")
-      .length;
+    const exemplarCount = state.exemplarReviews[category].decisions.filter(
+      (decision) => decision.status === "needs_review",
+    ).length;
     const queueSliceCount = queueSummary.filter((item) => item.category === category).length;
 
     return {
@@ -133,16 +133,15 @@ function buildExemplarCleanupCategoryScopeSummary(): DerivedTagCategoryScopeSumm
   };
 }
 
-function buildProposalReviewCategoryScopeSummary(
-): DerivedTagCategoryScopeSummarySet {
+function buildProposalReviewCategoryScopeSummary(): DerivedTagCategoryScopeSummarySet {
   const state = getCurrentDerivedTagMigrationAuthoredState();
   const counts = DERIVED_TAG_MANAGED_CATEGORIES.map((category) => {
-    const assignmentCount = state.assignmentReviews[category].decisions
-      .filter((decision) => decision.source === "llm")
-      .length;
-    const exemplarCount = state.exemplarReviews[category].decisions
-      .filter((decision) => decision.status === "needs_review" && decision.source === "llm")
-      .length;
+    const assignmentCount = state.assignmentReviews[category].decisions.filter(
+      (decision) => decision.source === "llm",
+    ).length;
+    const exemplarCount = state.exemplarReviews[category].decisions.filter(
+      (decision) => decision.status === "needs_review" && decision.source === "llm",
+    ).length;
 
     return {
       category,
@@ -168,9 +167,7 @@ function buildProposalReviewCategoryScopeSummary(
   };
 }
 
-function buildLegacyRuleCategoryScopeSummary(
-  db: DatabaseSync,
-): DerivedTagCategoryScopeSummarySet {
+function buildLegacyRuleCategoryScopeSummary(db: DatabaseSync): DerivedTagCategoryScopeSummarySet {
   const counts = DERIVED_TAG_MANAGED_CATEGORIES.map((category) => {
     const records = loadDerivedTagMigrationRecords(db, { category });
     const legacyRuleTags = new Set<string>();

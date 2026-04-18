@@ -99,22 +99,24 @@ export type OntologyExplorerEntityRecordRow = {
 };
 
 function parseStringArray(json: string | null | undefined): string[] {
-  return json ? JSON.parse(json) as string[] : [];
+  return json ? (JSON.parse(json) as string[]) : [];
 }
 
 function toNullableNumber(value: number | bigint | null): number | null {
   return typeof value === "bigint" ? Number(value) : value;
 }
 
-export function buildOntologyExplorerEntityRecordSelectColumns(aliases: {
-  record?: string;
-  actor?: string;
-  item?: string;
-  spell?: string;
-  includeActor?: boolean;
-  includeItem?: boolean;
-  includeSpell?: boolean;
-} = {}): string[] {
+export function buildOntologyExplorerEntityRecordSelectColumns(
+  aliases: {
+    record?: string;
+    actor?: string;
+    item?: string;
+    spell?: string;
+    includeActor?: boolean;
+    includeItem?: boolean;
+    includeSpell?: boolean;
+  } = {},
+): string[] {
   const recordAlias = aliases.record ?? "r";
   const actorAlias = aliases.actor ?? "a";
   const itemAlias = aliases.item ?? "i";
@@ -175,9 +177,7 @@ export function buildOntologyExplorerEntityRecordSelectColumns(aliases: {
   ];
 }
 
-export function mapOntologyExplorerEntityRecordRow(
-  row: OntologyExplorerEntityRecordRow,
-): OntologyExplorerEntityRecord {
+export function mapOntologyExplorerEntityRecordRow(row: OntologyExplorerEntityRecordRow): OntologyExplorerEntityRecord {
   return {
     recordKey: row.recordKey,
     packName: row.packName ?? row.recordKey.split(":")[0] ?? "",

@@ -1,5 +1,9 @@
 import type { OntologyNodeQuery, SearchCategory, SearchSubcategory } from "../types.js";
-import type { DerivedTagMigrationMode, DerivedTagMigrationReviewDecisionKind, DerivedTagMigrationSession } from "../tags/migration/types.js";
+import type {
+  DerivedTagMigrationMode,
+  DerivedTagMigrationReviewDecisionKind,
+  DerivedTagMigrationSession,
+} from "../tags/migration/types.js";
 import type { OntologyDomainModel } from "../types.js";
 import { moveSelectionWrapped } from "./terminal-ui.js";
 
@@ -62,33 +66,36 @@ export function pf2eAppReducer(state: Pf2eAppState, action: Pf2eAppAction): Pf2e
     case "move_area":
       return {
         ...state,
-        selectedAreaIndex: action.itemCount <= 0
-          ? 0
-          : moveSelectionWrapped(state.selectedAreaIndex, action.delta, action.itemCount),
+        selectedAreaIndex:
+          action.itemCount <= 0 ? 0 : moveSelectionWrapped(state.selectedAreaIndex, action.delta, action.itemCount),
       };
     case "move_tag_refinement":
       return {
         ...state,
-        tagRefinementSelectedIndex: action.itemCount <= 0
-          ? 0
-          : moveSelectionWrapped(state.tagRefinementSelectedIndex, action.delta, action.itemCount),
+        tagRefinementSelectedIndex:
+          action.itemCount <= 0
+            ? 0
+            : moveSelectionWrapped(state.tagRefinementSelectedIndex, action.delta, action.itemCount),
       };
     case "set_tag_refinement_index":
       return {
         ...state,
-        tagRefinementSelectedIndex: action.itemCount <= 0 ? 0 : Math.max(0, Math.min(action.index, action.itemCount - 1)),
+        tagRefinementSelectedIndex:
+          action.itemCount <= 0 ? 0 : Math.max(0, Math.min(action.index, action.itemCount - 1)),
       };
     case "move_ontology_domain":
       return {
         ...state,
-        ontologyDomainSelectedIndex: action.itemCount <= 0
-          ? 0
-          : moveSelectionWrapped(state.ontologyDomainSelectedIndex, action.delta, action.itemCount),
+        ontologyDomainSelectedIndex:
+          action.itemCount <= 0
+            ? 0
+            : moveSelectionWrapped(state.ontologyDomainSelectedIndex, action.delta, action.itemCount),
       };
     case "set_ontology_domain_index":
       return {
         ...state,
-        ontologyDomainSelectedIndex: action.itemCount <= 0 ? 0 : Math.max(0, Math.min(action.index, action.itemCount - 1)),
+        ontologyDomainSelectedIndex:
+          action.itemCount <= 0 ? 0 : Math.max(0, Math.min(action.index, action.itemCount - 1)),
       };
     case "push_route":
       return {

@@ -5,10 +5,7 @@ import { constants } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 
 import { loadConfig } from "../../app/config.js";
-import {
-  discoverRuleableCohorts,
-  type RuleableCohortReport,
-} from "../discovery/cohort-discovery.js";
+import { discoverRuleableCohorts, type RuleableCohortReport } from "../discovery/cohort-discovery.js";
 import { formatDiscoverySourceContext } from "../discovery/discovery-source-report.js";
 import { parseOptions } from "./cluster-derived-tag-candidates.js";
 
@@ -24,9 +21,9 @@ export function formatRuleableCohortReport(report: RuleableCohortReport): string
     "Top cohorts:",
     ...(report.cohorts.length > 0
       ? report.cohorts.flatMap((cohort) => [
-        `- ${cohort.recommendation} score=${cohort.score.toFixed(2)} size=${cohort.size} families=${cohort.distinctVariantFamilies} sources=${cohort.sourceCount} publications=${cohort.publicationCount} source_slices=${cohort.sourceSliceCount} signature=${cohort.signature.join(", ") || "(semantic only)"} non_name=${cohort.nonNameAnchors.join(", ") || "(none)"} flags=${cohort.reviewFlags.join(", ") || "(none)"}`,
-        `  ${formatDiscoverySourceContext(cohort)}`,
-      ])
+          `- ${cohort.recommendation} score=${cohort.score.toFixed(2)} size=${cohort.size} families=${cohort.distinctVariantFamilies} sources=${cohort.sourceCount} publications=${cohort.publicationCount} source_slices=${cohort.sourceSliceCount} signature=${cohort.signature.join(", ") || "(semantic only)"} non_name=${cohort.nonNameAnchors.join(", ") || "(none)"} flags=${cohort.reviewFlags.join(", ") || "(none)"}`,
+          `  ${formatDiscoverySourceContext(cohort)}`,
+        ])
       : ["- (none)"]),
     "",
     "Anchor terms:",
@@ -36,7 +33,9 @@ export function formatRuleableCohortReport(report: RuleableCohortReport): string
     "",
     "Contrast records:",
     ...(report.contrastRecords.length > 0
-      ? report.contrastRecords.map((record) => `- ${record.name} (${record.recordKey}) score=${record.similarity.toFixed(3)}`)
+      ? report.contrastRecords.map(
+          (record) => `- ${record.name} (${record.recordKey}) score=${record.similarity.toFixed(3)}`,
+        )
       : ["- (none)"]),
   ];
 

@@ -97,9 +97,7 @@ Example MCP client entry:
   "mcpServers": {
     "pathfinder-2e-foundry": {
       "command": "node",
-      "args": [
-        "/Users/<user>/projects/pathfinder-mcp/pathfinder-2e-foundry-mcp/dist/index.js"
-      ]
+      "args": ["/Users/<user>/projects/pathfinder-mcp/pathfinder-2e-foundry-mcp/dist/index.js"]
     }
   }
 }

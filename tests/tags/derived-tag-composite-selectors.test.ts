@@ -1,11 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { DerivedTagAuthoredCategoryOntology, DerivedTagOntologyTag } from "../../src/types.js";
-import {
-  flattenDerivedTagAuthoredCategoryOntology,
-  fromFamily,
-  fromTag,
-} from "../../src/tags/ontology/utils.js";
+import { flattenDerivedTagAuthoredCategoryOntology, fromFamily, fromTag } from "../../src/tags/ontology/utils.js";
 
 function findTag(tags: DerivedTagOntologyTag[], tag: string): DerivedTagOntologyTag | undefined {
   return tags.find((entry) => entry.tag === tag);
@@ -57,10 +53,7 @@ describe("derived tag authored composite selectors", () => {
               tag: "security",
               description: "Security umbrella.",
               assignmentMode: "composite",
-              compositeOfAny: [
-                fromFamily("reconnaissance"),
-                fromTag("countermagic"),
-              ],
+              compositeOfAny: [fromFamily("reconnaissance"), fromTag("countermagic")],
             },
           ],
         },
@@ -68,11 +61,7 @@ describe("derived tag authored composite selectors", () => {
     } satisfies DerivedTagAuthoredCategoryOntology<"spell">;
 
     const flattened = flattenDerivedTagAuthoredCategoryOntology(ontology);
-    expect(findTag(flattened.tags, "security")?.compositeOfAnyTags).toEqual([
-      "scouting",
-      "tracking",
-      "countermagic",
-    ]);
+    expect(findTag(flattened.tags, "security")?.compositeOfAnyTags).toEqual(["scouting", "tracking", "countermagic"]);
   });
 
   it("supports exclusions and optional inclusion of composite family tags", () => {
@@ -103,17 +92,13 @@ describe("derived tag authored composite selectors", () => {
               tag: "filtered_reveal",
               description: "Filtered reveal umbrella.",
               assignmentMode: "composite",
-              compositeOfAny: [
-                fromFamily("revelation", { excludeTags: ["truth_reveal"] }),
-              ],
+              compositeOfAny: [fromFamily("revelation", { excludeTags: ["truth_reveal"] })],
             },
             {
               tag: "all_reveal",
               description: "All reveal umbrella.",
               assignmentMode: "composite",
-              compositeOfAny: [
-                fromFamily("revelation", { include: "all_tags" }),
-              ],
+              compositeOfAny: [fromFamily("revelation", { include: "all_tags" })],
             },
           ],
         },
@@ -121,9 +106,7 @@ describe("derived tag authored composite selectors", () => {
     } satisfies DerivedTagAuthoredCategoryOntology<"spell">;
 
     const flattened = flattenDerivedTagAuthoredCategoryOntology(ontology);
-    expect(findTag(flattened.tags, "filtered_reveal")?.compositeOfAnyTags).toEqual([
-      "magic_detection",
-    ]);
+    expect(findTag(flattened.tags, "filtered_reveal")?.compositeOfAnyTags).toEqual(["magic_detection"]);
     expect(findTag(flattened.tags, "all_reveal")?.compositeOfAnyTags).toEqual([
       "magic_detection",
       "truth_reveal",
@@ -149,9 +132,7 @@ describe("derived tag authored composite selectors", () => {
               tag: "filtered_reveal",
               description: "Filtered reveal umbrella.",
               assignmentMode: "composite",
-              compositeOfAny: [
-                fromFamily("revelation", { excludeTags: ["missing_tag"] }),
-              ],
+              compositeOfAny: [fromFamily("revelation", { excludeTags: ["missing_tag"] })],
             },
           ],
         },

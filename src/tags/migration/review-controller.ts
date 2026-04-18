@@ -1,9 +1,7 @@
 import { writeDerivedTagMigrationSummary } from "./cli-utils.js";
 import { importDerivedTagMigrationSession } from "./importer.js";
 import { lintDerivedTagMigrationSession } from "./linter.js";
-import {
-  summarizeDerivedTagMigrationReviewProgress,
-} from "./review-session.js";
+import { summarizeDerivedTagMigrationReviewProgress } from "./review-session.js";
 import { writeDerivedTagMigrationSession } from "./session-store.js";
 import type { DerivedTagMigrationSession } from "./types.js";
 
@@ -21,13 +19,12 @@ export const DEFAULT_DERIVED_TAG_MIGRATION_REVIEW_SERVICES: DerivedTagMigrationR
   writeSummary: writeDerivedTagMigrationSummary,
 };
 
-export function renderDerivedTagMigrationReviewSummary(
-  session: DerivedTagMigrationSession,
-): string {
+export function renderDerivedTagMigrationReviewSummary(session: DerivedTagMigrationSession): string {
   const progress = summarizeDerivedTagMigrationReviewProgress(session);
-  const actionableSummary = progress.actionableRecordCount > 0
-    ? `Actionable records resolved: ${progress.resolvedActionableRecordCount}/${progress.actionableRecordCount}`
-    : "Actionable review items: 0";
+  const actionableSummary =
+    progress.actionableRecordCount > 0
+      ? `Actionable records resolved: ${progress.resolvedActionableRecordCount}/${progress.actionableRecordCount}`
+      : "Actionable review items: 0";
 
   return [
     `Session: ${session.manifest.id}`,

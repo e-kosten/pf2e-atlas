@@ -27,8 +27,9 @@ function summarizeDimension(values: string[]): DimensionSummary {
     counts.set(value, (counts.get(value) ?? 0) + 1);
   }
 
-  const sortedValues = [...counts.entries()]
-    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]));
+  const sortedValues = [...counts.entries()].sort(
+    (left, right) => right[1] - left[1] || left[0].localeCompare(right[0]),
+  );
   const total = sortedValues.reduce((sum, [, count]) => sum + count, 0);
   return {
     count: sortedValues.length,
@@ -44,15 +45,11 @@ function collectPackValues(records: DiscoveryAnalysisRecord[]): string[] {
 }
 
 function collectPublicationValues(records: DiscoveryAnalysisRecord[]): string[] {
-  return records
-    .map((record) => record.publicationTitle?.trim() ?? "")
-    .filter(Boolean);
+  return records.map((record) => record.publicationTitle?.trim() ?? "").filter(Boolean);
 }
 
 function collectSourceSliceValues(records: DiscoveryAnalysisRecord[]): string[] {
-  return records
-    .map((record) => record.sourcePathSlice?.trim() ?? "")
-    .filter(Boolean);
+  return records.map((record) => record.sourcePathSlice?.trim() ?? "").filter(Boolean);
 }
 
 function choosePrimaryScope(

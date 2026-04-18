@@ -1,10 +1,6 @@
 import type { Key } from "ink";
 
-import type {
-  OntologyChildPresentation,
-  OntologyDomainModel,
-  OntologyNode,
-} from "../../types.js";
+import type { OntologyChildPresentation, OntologyDomainModel, OntologyNode } from "../../types.js";
 import {
   getPrintableInput,
   getRenderedTerminalLineCount,
@@ -93,7 +89,10 @@ export function canDrillIntoOntologyNode(node: OntologyNode | undefined): boolea
   return Boolean(node?.children?.length || node?.loadChildren);
 }
 
-function getChildrenOfSelectedParent(model: OntologyDomainModel, state: OntologyBrowserState): { ancestors: OntologyNode[]; parent?: OntologyNode; nodes: OntologyNode[] } {
+function getChildrenOfSelectedParent(
+  model: OntologyDomainModel,
+  state: OntologyBrowserState,
+): { ancestors: OntologyNode[]; parent?: OntologyNode; nodes: OntologyNode[] } {
   const ancestors: OntologyNode[] = [];
   let nodes = model.rootNodes;
   let parent: OntologyNode | undefined;
@@ -120,7 +119,11 @@ function getChildrenOfSelectedParent(model: OntologyDomainModel, state: Ontology
   };
 }
 
-function findNearestFilteredNode(nodes: OntologyNode[], filteredNodes: OntologyNode[], selectedId: string | undefined): OntologyNode | undefined {
+function findNearestFilteredNode(
+  nodes: OntologyNode[],
+  filteredNodes: OntologyNode[],
+  selectedId: string | undefined,
+): OntologyNode | undefined {
   if (filteredNodes.length === 0) {
     return undefined;
   }
@@ -179,9 +182,8 @@ export function normalizeOntologyBrowserState(
 
     const filteredNodes = level === nextDepth ? filterNodes(nodes, state.filter) : nodes;
     const selected = nodes.find((node) => node.id === nextSelectedNodeIds[level]);
-    const normalized = level === nextDepth
-      ? findNearestFilteredNode(nodes, filteredNodes, selected?.id)
-      : selected ?? nodes[0];
+    const normalized =
+      level === nextDepth ? findNearestFilteredNode(nodes, filteredNodes, selected?.id) : (selected ?? nodes[0]);
     nextSelectedNodeIds[level] = normalized?.id ?? nodes[0]!.id;
 
     if (level === nextDepth) {
@@ -209,9 +211,10 @@ export function getOntologyBrowserSelection(
   const normalized = normalizeOntologyBrowserState(model, state);
   const { ancestors, parent, nodes } = getChildrenOfSelectedParent(model, normalized);
   const currentNodes = filterNodes(nodes, normalized.filter);
-  const currentNode = currentNodes.find((node) => node.id === normalized.selectedNodeIds[normalized.depth])
-    ?? findNearestFilteredNode(nodes, currentNodes, normalized.selectedNodeIds[normalized.depth])
-    ?? currentNodes[0];
+  const currentNode =
+    currentNodes.find((node) => node.id === normalized.selectedNodeIds[normalized.depth]) ??
+    findNearestFilteredNode(nodes, currentNodes, normalized.selectedNodeIds[normalized.depth]) ??
+    currentNodes[0];
 
   return {
     ancestors,
@@ -225,10 +228,7 @@ function getCurrentNodes(model: OntologyDomainModel, state: OntologyBrowserState
   return getOntologyBrowserSelection(model, state).currentNodes;
 }
 
-function shouldInlineGroups(
-  presentation: OntologyChildPresentation | undefined,
-  nodes: OntologyNode[],
-): boolean {
+function shouldInlineGroups(presentation: OntologyChildPresentation | undefined, nodes: OntologyNode[]): boolean {
   if (!presentation || presentation.mode !== "grouped") {
     return false;
   }
@@ -242,9 +242,11 @@ function shouldInlineGroups(
   const groups = new Set(
     nodes.map((node) => node.groupValues?.[presentation.groupBy]).filter((value): value is string => Boolean(value)),
   );
-  return groups.size > 0
-    && groups.size <= (presentation.autoInlineMaxGroups ?? 6)
-    && nodes.length <= (presentation.autoInlineMaxChildren ?? 30);
+  return (
+    groups.size > 0 &&
+    groups.size <= (presentation.autoInlineMaxGroups ?? 6) &&
+    nodes.length <= (presentation.autoInlineMaxChildren ?? 30)
+  );
 }
 
 function getGroupRenderMode(parent: OntologyNode | undefined, nodes: OntologyNode[]): GroupRenderMode {
@@ -279,9 +281,10 @@ function moveOntologyBrowserSelectionWithStyle(
     return nextState;
   }
   const currentIndex = nodes.findIndex((node) => node.id === nextState.selectedNodeIds[nextState.depth]);
-  const targetIndex = motionStyle === "wrapped"
-    ? moveSelectionWrapped(Math.max(0, currentIndex), delta, nodes.length)
-    : moveSelection(Math.max(0, currentIndex), delta, nodes.length);
+  const targetIndex =
+    motionStyle === "wrapped"
+      ? moveSelectionWrapped(Math.max(0, currentIndex), delta, nodes.length)
+      : moveSelection(Math.max(0, currentIndex), delta, nodes.length);
   const target = nodes[targetIndex];
   if (!target) {
     return nextState;
@@ -340,9 +343,7 @@ export function drillIntoOntologyBrowser(
   };
 }
 
-export function popOntologyBrowserDepth(
-  state: OntologyBrowserState,
-): OntologyBrowserState {
+export function popOntologyBrowserDepth(state: OntologyBrowserState): OntologyBrowserState {
   if (state.depth === 0) {
     return state;
   }
@@ -389,9 +390,7 @@ export function moveOntologyBrowserDetailScrollToBoundary(
   };
 }
 
-export function createOntologyBrowserUiState(
-  model: OntologyDomainModel,
-): OntologyBrowserUiState {
+export function createOntologyBrowserUiState(model: OntologyDomainModel): OntologyBrowserUiState {
   const browserState = createOntologyBrowserState(model);
   return {
     activePane: "list",
@@ -402,10 +401,7 @@ export function createOntologyBrowserUiState(
   };
 }
 
-export function buildOntologyBrowserBreadcrumb(
-  model: OntologyDomainModel,
-  state: OntologyBrowserState,
-): string {
+export function buildOntologyBrowserBreadcrumb(model: OntologyDomainModel, state: OntologyBrowserState): string {
   const selection = getOntologyBrowserSelection(model, state);
   const segments = [model.label, ...selection.ancestors.map((node) => node.label)];
   if (selection.currentNode && selection.currentNodes.length > 0) {
@@ -435,10 +431,12 @@ export function buildOntologyBrowserListRows(
   const selection = getOntologyBrowserSelection(model, state);
   const nodes = selection.currentNodes;
   if (nodes.length === 0) {
-    return [{
-      kind: "group",
-      line: { text: "No ontology entries match the current filter.", tone: "dim" },
-    }];
+    return [
+      {
+        kind: "group",
+        line: { text: "No ontology entries match the current filter.", tone: "dim" },
+      },
+    ];
   }
 
   const selectedIndex = nodes.findIndex((node) => node.id === selection.currentNode?.id);
@@ -494,10 +492,7 @@ export function buildOntologyBrowserDetailLines(
   return selection.currentNode?.detailLines ?? [{ text: "No ontology entry selected.", tone: "dim" }];
 }
 
-export function getOntologyBrowserDetailTitle(
-  model: OntologyDomainModel,
-  state: OntologyBrowserState,
-): string {
+export function getOntologyBrowserDetailTitle(model: OntologyDomainModel, state: OntologyBrowserState): string {
   const selection = getOntologyBrowserSelection(model, state);
   return selection.currentNode?.detailTitle ?? "Details";
 }
@@ -523,11 +518,20 @@ export function getOntologyBrowserDetailMetrics(
   layoutMode: DerivedTagTerminalTwoPaneLayoutMode,
   width: number,
   height: number,
-): { bodyHeight: number; maxDetailScroll: number; detailJumpSize: number; detailPageSize: number; selectionJumpSize: number } {
-  const bodyHeight = Math.max(1, getTerminalPaneBodyHeight(height, {
-    hasSubtitle: true,
-    footerLineCount: 2,
-  }));
+): {
+  bodyHeight: number;
+  maxDetailScroll: number;
+  detailJumpSize: number;
+  detailPageSize: number;
+  selectionJumpSize: number;
+} {
+  const bodyHeight = Math.max(
+    1,
+    getTerminalPaneBodyHeight(height, {
+      hasSubtitle: true,
+      footerLineCount: 2,
+    }),
+  );
   const detailWidth = getTerminalTwoPaneDetailWidth(width, layoutMode, 46);
   const detailLines = buildOntologyBrowserDetailLines(model, state);
   const renderedDetailLineCount = getRenderedTerminalLineCount(detailLines, detailWidth);

@@ -108,7 +108,8 @@ describe("Pf2eDataService / Creature explicit assignments, true seeds, and legac
           details: {
             level: { value: 6 },
             publication: { title: "Pathfinder Adventure Path" },
-            publicNotes: "<p>A veteran mercenary who keeps order with steel and intimidation while serving as hired town muscle.</p>",
+            publicNotes:
+              "<p>A veteran mercenary who keeps order with steel and intimidation while serving as hired town muscle.</p>",
           },
           traits: {
             rarity: "common",
@@ -142,7 +143,8 @@ describe("Pf2eDataService / Creature explicit assignments, true seeds, and legac
           details: {
             level: { value: 12 },
             publication: { title: "Pathfinder Monster Core" },
-            publicNotes: "<p>Hidden among the shadows and upper echelons of society are the conspirator dragons. However, as most conspirator dragons meet others while in disguise, they do their best to maintain their disguise.</p>",
+            publicNotes:
+              "<p>Hidden among the shadows and upper echelons of society are the conspirator dragons. However, as most conspirator dragons meet others while in disguise, they do their best to maintain their disguise.</p>",
           },
           traits: {
             rarity: "common",
@@ -159,7 +161,8 @@ describe("Pf2eDataService / Creature explicit assignments, true seeds, and legac
           details: {
             level: { value: 12 },
             publication: { title: "Pathfinder Monster Core" },
-            publicNotes: "<p>Hidden among the shadows and upper echelons of society are the conspirator dragons. Their spellcaster variants lean even harder into manipulation and intrigue.</p>",
+            publicNotes:
+              "<p>Hidden among the shadows and upper echelons of society are the conspirator dragons. Their spellcaster variants lean even harder into manipulation and intrigue.</p>",
           },
           traits: {
             rarity: "common",
@@ -176,7 +179,8 @@ describe("Pf2eDataService / Creature explicit assignments, true seeds, and legac
           details: {
             level: { value: 6 },
             publication: { title: "Pathfinder Adventure Path" },
-            publicNotes: "<p>A faceless infiltrator trained to steal identities with practiced supernatural disguise.</p>",
+            publicNotes:
+              "<p>A faceless infiltrator trained to steal identities with practiced supernatural disguise.</p>",
           },
           traits: {
             rarity: "common",
@@ -189,38 +193,34 @@ describe("Pf2eDataService / Creature explicit assignments, true seeds, and legac
 
     const service = await loadTestService(fixture);
 
-    expect(service.lookup("Departmental Chair", { category: "creature" }).match?.derivedTags).toEqual(expect.arrayContaining([
-      "profession_npc",
-      "civic_npc",
-    ]));
-    expect(service.lookup("False Priest", { category: "creature" }).match?.derivedTags).toEqual(expect.arrayContaining([
-      "profession_npc",
-      "enforcer_npc",
-    ]));
+    expect(service.lookup("Departmental Chair", { category: "creature" }).match?.derivedTags).toEqual(
+      expect.arrayContaining(["profession_npc", "civic_npc"]),
+    );
+    expect(service.lookup("False Priest", { category: "creature" }).match?.derivedTags).toEqual(
+      expect.arrayContaining(["profession_npc", "enforcer_npc"]),
+    );
     expect(service.lookup("Mage Knight", { category: "creature" }).match?.derivedTags).toContain("enforcer_npc");
-    expect(service.lookup("Mercenary Enforcer", { category: "creature" }).match?.derivedTags).toEqual(expect.arrayContaining([
-      "profession_npc",
-      "civic_npc",
-      "enforcer_npc",
-    ]));
+    expect(service.lookup("Mercenary Enforcer", { category: "creature" }).match?.derivedTags).toEqual(
+      expect.arrayContaining(["profession_npc", "civic_npc", "enforcer_npc"]),
+    );
     expect(service.lookup("Animated Axe", { category: "creature" }).match?.derivedTags).toContain("animated_object");
-    expect(service.lookup("Noppera-Bo Impersonator (Arcane)", { category: "creature" }).match?.derivedTags).toEqual(expect.arrayContaining([
-      "disguised_pretender",
-      "faceless_horror",
-    ]));
+    expect(service.lookup("Noppera-Bo Impersonator (Arcane)", { category: "creature" }).match?.derivedTags).toEqual(
+      expect.arrayContaining(["disguised_pretender", "faceless_horror"]),
+    );
     expect(service.lookup("Envyspawn", { category: "creature" }).match?.derivedTags).toContain("sinspawn_family");
-    expect(service.lookup("Conspirator Dragon (Adult)", { category: "creature" }).match?.derivedTags).toEqual(expect.arrayContaining([
-      "disguised_pretender",
-      "urban_setting",
-    ]));
-    expect(service.lookup("Conspirator Dragon (Adult, Spellcaster)", { category: "creature" }).match?.derivedTags).toEqual(expect.arrayContaining([
-      "disguised_pretender",
-      "dragon_spellcaster",
-      "urban_setting",
-    ]));
-    expect(service.listRecords({
-      category: "creature",
-      metadata: { field: "derivedTags", op: "includesAny", values: ["sinspawn_family"] },
-    }).records.map((record) => record.name)).toContain("Envyspawn");
+    expect(service.lookup("Conspirator Dragon (Adult)", { category: "creature" }).match?.derivedTags).toEqual(
+      expect.arrayContaining(["disguised_pretender", "urban_setting"]),
+    );
+    expect(
+      service.lookup("Conspirator Dragon (Adult, Spellcaster)", { category: "creature" }).match?.derivedTags,
+    ).toEqual(expect.arrayContaining(["disguised_pretender", "dragon_spellcaster", "urban_setting"]));
+    expect(
+      service
+        .listRecords({
+          category: "creature",
+          metadata: { field: "derivedTags", op: "includesAny", values: ["sinspawn_family"] },
+        })
+        .records.map((record) => record.name),
+    ).toContain("Envyspawn");
   });
 });

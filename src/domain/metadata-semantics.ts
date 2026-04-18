@@ -4,9 +4,7 @@ import {
   ACTOR_METRIC_NUMERIC_OPERATORS,
   ACTOR_METRIC_SCALAR_OPERATORS,
 } from "./actor-metrics.js";
-import {
-  ITEM_METRIC_DISCOVERY_NAMESPACES,
-} from "./item-metrics.js";
+import { ITEM_METRIC_DISCOVERY_NAMESPACES } from "./item-metrics.js";
 import {
   METADATA_FIELD_KIND_OPERATORS,
   METADATA_FIELD_REGISTRY,
@@ -14,11 +12,7 @@ import {
   type MetadataFieldType,
 } from "./metadata-field-registry.js";
 import type { FilterValueOrdering } from "./filter-value-ordering.js";
-import {
-  MetadataFilterNode,
-  SearchCategory,
-  SearchSubcategory,
-} from "../types.js";
+import { MetadataFilterNode, SearchCategory, SearchSubcategory } from "../types.js";
 
 export interface MetadataFieldSemantics {
   field: MetadataFieldName;
@@ -56,7 +50,9 @@ export interface MetadataFilterSemantics {
   fieldTypes: MetadataFieldTypeGroup[];
   metadataFields: MetadataFieldSemantics[];
   metadataFieldsByCategory: Record<SearchCategory, MetadataFieldName[]>;
-  metadataFieldsByCategoryAndSubcategory: Partial<Record<SearchCategory, Partial<Record<SearchSubcategory, MetadataFieldName[]>>>>;
+  metadataFieldsByCategoryAndSubcategory: Partial<
+    Record<SearchCategory, Partial<Record<SearchSubcategory, MetadataFieldName[]>>>
+  >;
   examplesByCategory: Partial<Record<SearchCategory, MetadataCategoryExample[]>>;
   advancedPredicates: MetadataAdvancedPredicateSemantics[];
   actorMetricDiscovery?: {
@@ -175,7 +171,8 @@ const ADVANCED_PREDICATES: MetadataAdvancedPredicateSemantics[] = [
     name: "actorMetric",
     categories: ACTOR_METRIC_CATEGORIES,
     operators: [...new Set([...ACTOR_METRIC_NUMERIC_OPERATORS, ...ACTOR_METRIC_SCALAR_OPERATORS])],
-    description: "Generic keyed actor metric predicate for creature and hazard stats, saves, and other actor-shaped metrics.",
+    description:
+      "Generic keyed actor metric predicate for creature and hazard stats, saves, and other actor-shaped metrics.",
     example: {
       field: "actorMetric",
       metric: "ability.int.mod",
@@ -306,7 +303,7 @@ export function getMetadataFilterSemantics(): MetadataFilterSemantics {
       filterValueField: "actorMetrics",
       namespaces: ACTOR_METRIC_DISCOVERY_NAMESPACES.map((entry) => ({ ...entry })),
       notes: [
-        "Use pf2e_list_filter_values with field:\"actorMetrics\" to enumerate live metric keys in the current corpus.",
+        'Use pf2e_list_filter_values with field:"actorMetrics" to enumerate live metric keys in the current corpus.',
         "Set metricPrefix to narrow discovery to one namespace such as ability., save., skill., ac., hp., hardness., perception., or stealth.",
         "Set metric to a text or boolean metric such as save.best or skill.arcana.proficient to enumerate live values.",
       ],
@@ -315,14 +312,16 @@ export function getMetadataFilterSemantics(): MetadataFilterSemantics {
       filterValueField: "itemMetrics",
       namespaces: ITEM_METRIC_DISCOVERY_NAMESPACES.map((entry) => ({ ...entry })),
       notes: [
-        "Use pf2e_list_filter_values with field:\"itemMetrics\" to enumerate live metric keys in the current corpus.",
+        'Use pf2e_list_filter_values with field:"itemMetrics" to enumerate live metric keys in the current corpus.',
         "Set metricPrefix to narrow discovery to one namespace such as weapon., armor., or shield.",
         "Set metric to a text or boolean metric to enumerate live values when such metrics are available.",
       ],
     },
     discoverableFieldLookupWorkflow: {
-      semanticsFirst: "Call pf2e_get_search_semantics first to learn which metadata fields and operators are meaningful for the target category or subcategory.",
-      filterValuesSecond: "Call pf2e_list_filter_values only for fields marked discoverable:true or for field:\"actorMetrics\" or field:\"itemMetrics\" when you need live corpus values for a chosen metric namespace.",
+      semanticsFirst:
+        "Call pf2e_get_search_semantics first to learn which metadata fields and operators are meaningful for the target category or subcategory.",
+      filterValuesSecond:
+        'Call pf2e_list_filter_values only for fields marked discoverable:true or for field:"actorMetrics" or field:"itemMetrics" when you need live corpus values for a chosen metric namespace.',
     },
   };
 }

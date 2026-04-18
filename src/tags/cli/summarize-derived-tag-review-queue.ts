@@ -11,9 +11,10 @@ async function main(): Promise<void> {
 
   console.log("Derived-tag review queue:");
   for (const item of summary) {
-    const scope = item.kind === "assignment"
-      ? `${item.category} ${item.family}.${item.tag}`
-      : `${item.category} exemplar.${item.tag}`;
+    const scope =
+      item.kind === "assignment"
+        ? `${item.category} ${item.family}.${item.tag}`
+        : `${item.category} exemplar.${item.tag}`;
     console.log(`- ${scope} confidence=${item.confidence} count=${item.count}`);
   }
 }

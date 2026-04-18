@@ -119,7 +119,7 @@ export function deriveSourcePathSlice(packName: string, sourcePath: string | nul
   if (packIndex >= 0) {
     const relative = normalizedPath.slice(packIndex + packMarker.length);
     const segments = relative.split("/").filter(Boolean);
-    return segments.length >= 2 ? segments[0] ?? null : null;
+    return segments.length >= 2 ? (segments[0] ?? null) : null;
   }
 
   const segments = normalizedPath.split("/").filter(Boolean);
@@ -131,10 +131,7 @@ export function deriveSourcePathSlice(packName: string, sourcePath: string | nul
   return null;
 }
 
-function toDiscoveryRecord(
-  row: LoadedRecordRow,
-  references: DiscoveryReferenceRecord[],
-): DiscoveryAnalysisRecord {
+function toDiscoveryRecord(row: LoadedRecordRow, references: DiscoveryReferenceRecord[]): DiscoveryAnalysisRecord {
   const separatorIndex = row.recordKey.indexOf(":");
   const sourceKey = separatorIndex >= 0 ? row.recordKey.slice(0, separatorIndex) : row.recordKey;
   const packName = row.packName ?? sourceKey;
@@ -162,16 +159,15 @@ function toDiscoveryRecord(
   };
 }
 
-function loadReferencesForRecords(
-  db: DatabaseSync,
-  recordKeys: string[],
-): Map<string, DiscoveryReferenceRecord[]> {
+function loadReferencesForRecords(db: DatabaseSync, recordKeys: string[]): Map<string, DiscoveryReferenceRecord[]> {
   if (recordKeys.length === 0) {
     return new Map();
   }
 
   const placeholders = buildPlaceholders(recordKeys);
-  const rows = db.prepare(`
+  const rows = db
+    .prepare(
+      `
     SELECT
       re.from_record_key AS fromRecordKey,
       re.to_record_key AS targetRecordKey,
@@ -184,7 +180,9 @@ function loadReferencesForRecords(
     FROM reference_edges re
     JOIN records target ON target.record_key = re.to_record_key
     WHERE re.from_record_key IN (${placeholders})
-  `).all(...recordKeys) as LoadedReferenceRow[];
+  `,
+    )
+    .all(...recordKeys) as LoadedReferenceRow[];
 
   const referencesByRecordKey = new Map<string, DiscoveryReferenceRecord[]>();
   for (const row of rows) {
@@ -204,10 +202,7 @@ function loadReferencesForRecords(
   return referencesByRecordKey;
 }
 
-export function loadDiscoveryRecords(
-  db: DatabaseSync,
-  options: DiscoveryRecordLoadOptions,
-): DiscoveryAnalysisRecord[] {
+export function loadDiscoveryRecords(db: DatabaseSync, options: DiscoveryRecordLoadOptions): DiscoveryAnalysisRecord[] {
   const sql = [
     "SELECT",
     "  r.record_key AS recordKey,",
@@ -246,7 +241,9 @@ export function loadDiscoveryRecords(
     params.push(options.requireTag);
   }
   if (options.requireAnyDerivedTags && options.requireAnyDerivedTags.length > 0) {
-    sql.push(`AND EXISTS (SELECT 1 FROM record_derived_tags d WHERE d.record_key = r.record_key AND d.tag IN (${buildPlaceholders(options.requireAnyDerivedTags)}))`);
+    sql.push(
+      `AND EXISTS (SELECT 1 FROM record_derived_tags d WHERE d.record_key = r.record_key AND d.tag IN (${buildPlaceholders(options.requireAnyDerivedTags)}))`,
+    );
     params.push(...options.requireAnyDerivedTags);
   }
   if (options.excludeDerivedTag) {
@@ -254,7 +251,9 @@ export function loadDiscoveryRecords(
     params.push(options.excludeDerivedTag);
   }
   if (options.excludeAnyDerivedTags && options.excludeAnyDerivedTags.length > 0) {
-    sql.push(`AND NOT EXISTS (SELECT 1 FROM record_derived_tags d WHERE d.record_key = r.record_key AND d.tag IN (${buildPlaceholders(options.excludeAnyDerivedTags)}))`);
+    sql.push(
+      `AND NOT EXISTS (SELECT 1 FROM record_derived_tags d WHERE d.record_key = r.record_key AND d.tag IN (${buildPlaceholders(options.excludeAnyDerivedTags)}))`,
+    );
     params.push(...options.excludeAnyDerivedTags);
   }
   if (options.untaggedOnly) {
@@ -270,15 +269,14 @@ export function loadDiscoveryRecords(
   }
 
   const rows = db.prepare(sql.join("\n")).all(...params) as LoadedRecordRow[];
-  const referencesByRecordKey = loadReferencesForRecords(db, rows.map((row) => row.recordKey));
+  const referencesByRecordKey = loadReferencesForRecords(
+    db,
+    rows.map((row) => row.recordKey),
+  );
   return rows.map((row) => toDiscoveryRecord(row, referencesByRecordKey.get(row.recordKey) ?? []));
 }
 
-function resolveNameExemplar(
-  db: DatabaseSync,
-  query: string,
-  options: DiscoveryExemplarOptions,
-): ResolvedExemplarRow {
+function resolveNameExemplar(db: DatabaseSync, query: string, options: DiscoveryExemplarOptions): ResolvedExemplarRow {
   const normalized = normalizeText(query);
   const sql = [
     "SELECT",
@@ -398,7 +396,10 @@ export function resolveDiscoveryExemplars(
   }
 
   const uniqueRows = dedupeExemplarRows(rows);
-  const referencesByRecordKey = loadReferencesForRecords(db, uniqueRows.map((row) => row.recordKey));
+  const referencesByRecordKey = loadReferencesForRecords(
+    db,
+    uniqueRows.map((row) => row.recordKey),
+  );
   return uniqueRows.map((row) => ({
     query: row.query,
     matchedBy: row.matchedBy,

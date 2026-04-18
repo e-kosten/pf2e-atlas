@@ -16,11 +16,11 @@ function describeDecision(decision: DerivedTagMigrationDecision): string {
 
 function toManagedCategory(category: string): "affliction" | "creature" | "equipment" | "hazard" | "spell" | null {
   if (
-    category === "affliction"
-    || category === "creature"
-    || category === "equipment"
-    || category === "hazard"
-    || category === "spell"
+    category === "affliction" ||
+    category === "creature" ||
+    category === "equipment" ||
+    category === "hazard" ||
+    category === "spell"
   ) {
     return category;
   }
@@ -39,10 +39,12 @@ function renderLiveAssignments(category: string, recordKey: string): string {
     return "(none)";
   }
 
-  const renderedApplied = Object.entries(assignment.applied ?? {})
-    .flatMap(([family, decisions]) => decisions.map((decision) => `${family}.${decision.tag}`));
-  const renderedExcluded = Object.entries(assignment.excluded ?? {})
-    .flatMap(([family, decisions]) => decisions.map((decision) => `!${family}.${decision.tag}`));
+  const renderedApplied = Object.entries(assignment.applied ?? {}).flatMap(([family, decisions]) =>
+    decisions.map((decision) => `${family}.${decision.tag}`),
+  );
+  const renderedExcluded = Object.entries(assignment.excluded ?? {}).flatMap(([family, decisions]) =>
+    decisions.map((decision) => `!${family}.${decision.tag}`),
+  );
   const rendered = [...renderedApplied, ...renderedExcluded];
   return rendered.length > 0 ? rendered.join(", ") : "(none)";
 }
@@ -67,9 +69,10 @@ function renderStatus(value: string): string {
 
 export function renderDerivedTagMigrationSessionSummary(session: DerivedTagMigrationSession): string {
   const progress = summarizeDerivedTagMigrationReviewProgress(session);
-  const actionableSummary = progress.actionableRecordCount > 0
-    ? `Actionable records resolved: ${progress.resolvedActionableRecordCount}/${progress.actionableRecordCount}`
-    : "Actionable review items: 0";
+  const actionableSummary =
+    progress.actionableRecordCount > 0
+      ? `Actionable records resolved: ${progress.resolvedActionableRecordCount}/${progress.actionableRecordCount}`
+      : "Actionable review items: 0";
   return [
     `Session: ${session.manifest.id}`,
     `Mode: ${session.manifest.mode}`,

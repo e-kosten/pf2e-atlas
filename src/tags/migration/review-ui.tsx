@@ -64,10 +64,11 @@ export type DerivedTagMigrationReviewResult = {
   session: DerivedTagMigrationSession;
 };
 
-type ReviewUiState = DerivedTagTerminalTwoPaneState & DerivedTagTerminalActionTargetState & {
-  imported: boolean;
-  session: DerivedTagMigrationSession;
-};
+type ReviewUiState = DerivedTagTerminalTwoPaneState &
+  DerivedTagTerminalActionTargetState & {
+    imported: boolean;
+    session: DerivedTagMigrationSession;
+  };
 
 type ReviewUiAction =
   | DerivedTagTerminalTwoPaneAction
@@ -79,14 +80,22 @@ type ReviewUiAction =
   | { type: "move_detail"; delta: number; maxDetailScroll: number }
   | { type: "detail_boundary"; boundary: "start" | "end"; maxDetailScroll: number }
   | DerivedTagTerminalActionTargetAction
-  | { type: "apply_decision_status"; item: { recordIndex: number; decisionIndex: number }; status: DerivedTagMigrationSession["decisions"][number]["decisions"][number]["status"] }
+  | {
+      type: "apply_decision_status";
+      item: { recordIndex: number; decisionIndex: number };
+      status: DerivedTagMigrationSession["decisions"][number]["decisions"][number]["status"];
+    }
   | { type: "toggle_unresolved" };
 
 const REVIEW_ACTIONS = [
   { id: "approve", label: "Approve", description: "Mark the current review item approved." },
   { id: "reject", label: "Reject", description: "Mark the current review item rejected." },
   { id: "needs_review", label: "Needs Review", description: "Keep the item unresolved for later follow-up." },
-  { id: "toggle_unresolved", label: "Toggle Unresolved", description: "Switch the queue between all items and unresolved-only items." },
+  {
+    id: "toggle_unresolved",
+    label: "Toggle Unresolved",
+    description: "Switch the queue between all items and unresolved-only items.",
+  },
   { id: "import", label: "Lint + Import", description: "Run import for the current session after validation." },
   { id: "quit", label: "Quit", description: "Finish the review UI and return the current session state." },
 ] as const satisfies readonly DerivedTagTerminalActionTargetOption[];
@@ -105,10 +114,7 @@ function createInitialReviewState(initialSession: DerivedTagMigrationSession): R
   };
 }
 
-function setReviewCurrentIndex(
-  session: DerivedTagMigrationSession,
-  nextIndex: number,
-): DerivedTagMigrationSession {
+function setReviewCurrentIndex(session: DerivedTagMigrationSession, nextIndex: number): DerivedTagMigrationSession {
   const next = structuredClone(session);
   next.reviewState.currentIndex = nextIndex;
   return next;
@@ -178,11 +184,9 @@ function reviewReducer(state: ReviewUiState, action: ReviewUiAction): ReviewUiSt
     case "apply_decision_status":
       return {
         ...state,
-        session: clampDerivedTagMigrationReviewIndex(updateDerivedTagMigrationDecisionStatus(
-          state.session,
-          action.item,
-          action.status,
-        )),
+        session: clampDerivedTagMigrationReviewIndex(
+          updateDerivedTagMigrationDecisionStatus(state.session, action.item, action.status),
+        ),
       };
     case "toggle_unresolved":
       return {
@@ -213,10 +217,7 @@ function clampWindowStart(selectedIndex: number, itemCount: number, visibleCount
   return Math.max(0, Math.min(centered, itemCount - visibleCount));
 }
 
-function buildReviewListLines(
-  session: DerivedTagMigrationSession,
-  bodyHeight: number,
-): DerivedTagTerminalLine[] {
+function buildReviewListLines(session: DerivedTagMigrationSession, bodyHeight: number): DerivedTagTerminalLine[] {
   const items = getDerivedTagMigrationReviewItems(session);
   if (items.length === 0) {
     return [{ text: "No review items match the current filter.", tone: "dim" }];
@@ -257,7 +258,9 @@ function buildSelectedReviewDetailLines(session: DerivedTagMigrationSession): De
     { text: entityRecord.name, tone: "section" },
     { text: entityRecord.recordKey, tone: "dim" },
     { text: `Item ${session.reviewState.currentIndex + 1}/${items.length}` },
-    { text: `Scope: ${entityRecord.category}${entityRecord.subcategory ? `/${entityRecord.subcategory}` : ""} | level ${entityRecord.level ?? "-"}` },
+    {
+      text: `Scope: ${entityRecord.category}${entityRecord.subcategory ? `/${entityRecord.subcategory}` : ""} | level ${entityRecord.level ?? "-"}`,
+    },
     { text: `Resolution: ${recordDecision.resolutionStatus}` },
     { text: `Decision: ${formatDecisionSummary(decision)}` },
     { text: `Status: ${decision.status}` },
@@ -270,10 +273,7 @@ function buildSelectedReviewDetailLines(session: DerivedTagMigrationSession): De
   ];
 }
 
-function getReviewDetailPaneWidth(
-  width: number,
-  layoutMode: DerivedTagTerminalTwoPaneLayoutMode,
-): number {
+function getReviewDetailPaneWidth(width: number, layoutMode: DerivedTagTerminalTwoPaneLayoutMode): number {
   return getTerminalTwoPaneDetailWidth(width, layoutMode, REVIEW_LEFT_WIDTH);
 }
 
@@ -292,23 +292,27 @@ function buildVisibleSelectedReviewDetailLines(
   );
 }
 
-function getReviewContentNavigationActions(activePane: DerivedTagTerminalTwoPaneState["activePane"]): TerminalInteractionAction[] {
+function getReviewContentNavigationActions(
+  activePane: DerivedTagTerminalTwoPaneState["activePane"],
+): TerminalInteractionAction[] {
   return activePane === "list"
     ? [
-      { id: "move", helpText: "move between review items" },
-      { id: "jump", helpText: "jump through the review queue" },
-      { id: "page", helpText: "page through the review queue" },
-      { id: "edge", helpText: "jump to the first or last review item" },
-    ]
+        { id: "move", helpText: "move between review items" },
+        { id: "jump", helpText: "jump through the review queue" },
+        { id: "page", helpText: "page through the review queue" },
+        { id: "edge", helpText: "jump to the first or last review item" },
+      ]
     : [
-      { id: "scroll", helpText: "scroll the selected record detail" },
-      { id: "jump", helpText: "jump through the selected record detail" },
-      { id: "page", helpText: "page through the selected record detail" },
-      { id: "edge", helpText: "jump to the start or end of the selected detail" },
-    ];
+        { id: "scroll", helpText: "scroll the selected record detail" },
+        { id: "jump", helpText: "jump through the selected record detail" },
+        { id: "page", helpText: "page through the selected record detail" },
+        { id: "edge", helpText: "jump to the start or end of the selected detail" },
+      ];
 }
 
-function getReviewPaneInteractionActions(activePane: DerivedTagTerminalTwoPaneState["activePane"]): TerminalInteractionAction[] {
+function getReviewPaneInteractionActions(
+  activePane: DerivedTagTerminalTwoPaneState["activePane"],
+): TerminalInteractionAction[] {
   return [
     { id: "focus", helpText: "switch between the review queue and selected-item detail" },
     { id: "layout", helpText: "toggle split view vs focused detail while detail has focus" },
@@ -336,7 +340,8 @@ function buildReviewHelpLines(state: ReviewUiState): DerivedTagTerminalLine[] {
       orientation: "horizontal",
       visibility: "persistent",
       actions: [...REVIEW_ACTIONS],
-      contentHelpText: "While the rail is focused, only the action-target keys act on it. Use : or Escape to return to content navigation.",
+      contentHelpText:
+        "While the rail is focused, only the action-target keys act on it. Use : or Escape to return to content navigation.",
     }),
     { text: "" },
     { text: "Current Action Rail", tone: "section" },
@@ -384,29 +389,39 @@ export function DerivedTagMigrationReviewScreen({
 
   const layoutMode = getDerivedTagTerminalTwoPaneLayoutMode(state);
   const footerLineCount = 3 + (persistError ? 1 : 0);
-  const bodyHeight = Math.max(1, getTerminalPaneBodyHeight(size.height, {
-    hasSubtitle: true,
-    footerLineCount,
-  }));
+  const bodyHeight = Math.max(
+    1,
+    getTerminalPaneBodyHeight(size.height, {
+      hasSubtitle: true,
+      footerLineCount,
+    }),
+  );
   const items = getDerivedTagMigrationReviewItems(state.session);
   const progress = summarizeDerivedTagMigrationReviewProgress(state.session);
-  const progressText = progress.actionableRecordCount > 0
-    ? `${progress.resolvedActionableRecordCount}/${progress.actionableRecordCount} actionable records resolved`
-    : `${progress.candidateRecordCount} candidate records | 0 actionable review items`;
+  const progressText =
+    progress.actionableRecordCount > 0
+      ? `${progress.resolvedActionableRecordCount}/${progress.actionableRecordCount} actionable records resolved`
+      : `${progress.candidateRecordCount} candidate records | 0 actionable review items`;
   const detailLines = buildSelectedReviewDetailLines(state.session);
   const selectionJumpSize = Math.max(1, Math.floor(bodyHeight / 2));
   const detailJumpSize = Math.max(1, Math.floor(bodyHeight / 2));
   const pageSize = Math.max(1, bodyHeight - 1);
-  const renderedDetailLineCount = getRenderedTerminalLineCount(detailLines, getReviewDetailPaneWidth(size.width, layoutMode));
+  const renderedDetailLineCount = getRenderedTerminalLineCount(
+    detailLines,
+    getReviewDetailPaneWidth(size.width, layoutMode),
+  );
   const maxDetailScroll = Math.max(0, renderedDetailLineCount - bodyHeight);
   const detailScroll = Math.min(state.detailScroll, maxDetailScroll);
   const subtitle = `Session ${state.session.manifest.id} | ${progressText} | ${items.length} visible item${items.length === 1 ? "" : "s"} | unresolved only ${state.session.reviewState.unresolvedOnly ? "on" : "off"}`;
   const actionBarLine = buildDerivedTagTerminalActionTargetLine(REVIEW_ACTIONS, state);
   const detailFooterText = `${state.activePane} focus | ${layoutMode} layout | Detail scroll ${detailScroll}/${maxDetailScroll}`;
 
-  const completeReview = React.useCallback((imported: boolean, session: DerivedTagMigrationSession) => {
-    onComplete({ imported, session });
-  }, [onComplete]);
+  const completeReview = React.useCallback(
+    (imported: boolean, session: DerivedTagMigrationSession) => {
+      onComplete({ imported, session });
+    },
+    [onComplete],
+  );
 
   const handleImport = React.useCallback(async () => {
     setBusy(true);
@@ -423,41 +438,45 @@ export function DerivedTagMigrationReviewScreen({
     }
   }, [completeReview, rootPath, services, state.session, terminal]);
 
-  const requestAction = React.useCallback(async (actionId: ReviewActionId) => {
-    if (actionId === "quit") {
-      completeReview(state.imported, state.session);
-      return;
-    }
-    if (actionId === "toggle_unresolved") {
-      dispatch({ type: "toggle_unresolved" });
-      return;
-    }
-    if (actionId === "import") {
-      await handleImport();
-      return;
-    }
-    if (items.length === 0) {
-      return;
-    }
-    const item = items[state.session.reviewState.currentIndex];
-    if (!item) {
-      return;
-    }
-    if (actionId === "approve") {
-      dispatch({ type: "apply_decision_status", item, status: "approved" });
-    } else if (actionId === "reject") {
-      dispatch({ type: "apply_decision_status", item, status: "rejected" });
-    } else if (actionId === "needs_review") {
-      dispatch({ type: "apply_decision_status", item, status: "needs_review" });
-    }
-  }, [completeReview, handleImport, items, state.imported, state.session]);
+  const requestAction = React.useCallback(
+    async (actionId: ReviewActionId) => {
+      if (actionId === "quit") {
+        completeReview(state.imported, state.session);
+        return;
+      }
+      if (actionId === "toggle_unresolved") {
+        dispatch({ type: "toggle_unresolved" });
+        return;
+      }
+      if (actionId === "import") {
+        await handleImport();
+        return;
+      }
+      if (items.length === 0) {
+        return;
+      }
+      const item = items[state.session.reviewState.currentIndex];
+      if (!item) {
+        return;
+      }
+      if (actionId === "approve") {
+        dispatch({ type: "apply_decision_status", item, status: "approved" });
+      } else if (actionId === "reject") {
+        dispatch({ type: "apply_decision_status", item, status: "rejected" });
+      } else if (actionId === "needs_review") {
+        dispatch({ type: "apply_decision_status", item, status: "needs_review" });
+      }
+    },
+    [completeReview, handleImport, items, state.imported, state.session],
+  );
 
   const activeNavigationActions = getReviewContentNavigationActions(state.activePane);
   const paneInteractionActions = getReviewPaneInteractionActions(state.activePane);
   const actionTargetInteractionActions = getDerivedTagTerminalActionTargetInteractionActions(state, "horizontal");
-  const footerInteractionActions = state.activeTarget === "actions"
-    ? [...actionTargetInteractionActions, { id: "help" as const }]
-    : [...activeNavigationActions, ...paneInteractionActions, ...actionTargetInteractionActions];
+  const footerInteractionActions =
+    state.activeTarget === "actions"
+      ? [...actionTargetInteractionActions, { id: "help" as const }]
+      : [...activeNavigationActions, ...paneInteractionActions, ...actionTargetInteractionActions];
 
   useDerivedTagTerminalInput((input, key) => {
     if (busy) {
@@ -517,10 +536,15 @@ export function DerivedTagMigrationReviewScreen({
       navigationStateRef.current = createDerivedTagTerminalListNavigationState();
       return;
     }
-    const navigation = resolveDerivedTagTerminalListNavigationAction(input, key, {
-      pageSize,
-      jumpSize: state.activePane === "list" ? selectionJumpSize : detailJumpSize,
-    }, navigationStateRef.current);
+    const navigation = resolveDerivedTagTerminalListNavigationAction(
+      input,
+      key,
+      {
+        pageSize,
+        jumpSize: state.activePane === "list" ? selectionJumpSize : detailJumpSize,
+      },
+      navigationStateRef.current,
+    );
     navigationStateRef.current = navigation.state;
 
     if (navigation.action?.kind === "move") {
@@ -599,11 +623,7 @@ function DerivedTagMigrationReviewRoot({
   onComplete: (result: DerivedTagMigrationReviewResult) => void;
 }): React.JSX.Element {
   return (
-    <DerivedTagMigrationReviewScreen
-      rootPath={rootPath}
-      initialSession={initialSession}
-      onComplete={onComplete}
-    />
+    <DerivedTagMigrationReviewScreen rootPath={rootPath} initialSession={initialSession} onComplete={onComplete} />
   );
 }
 

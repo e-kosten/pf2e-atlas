@@ -8,10 +8,7 @@ import {
   validateDerivedTagAssignmentMemory,
   validateDerivedTagExplicitAssignmentsAgainstRecords,
 } from "../../src/tags/runtime/assignments.js";
-import {
-  publishDerivedTagOntology,
-  deriveCatalogTagDerivation,
-} from "../../src/tags/runtime/catalog-utils.js";
+import { publishDerivedTagOntology, deriveCatalogTagDerivation } from "../../src/tags/runtime/catalog-utils.js";
 import { CREATURE_DERIVED_TAG_ONTOLOGY } from "../../src/tags/ontology/creature.js";
 import { flattenDerivedTagAuthoredCategoryOntology } from "../../src/tags/ontology/utils.js";
 import { deriveRecordTagDerivation } from "../../src/tags/index.js";
@@ -85,10 +82,7 @@ const assignmentTags: DerivedTagOntologyTag[] = [
 
 const assignmentOntology = publishDerivedTagOntology(assignmentFamilies, assignmentTags);
 const flattenedCreatureOntology = flattenDerivedTagAuthoredCategoryOntology(CREATURE_DERIVED_TAG_ONTOLOGY);
-const creatureOntology = publishDerivedTagOntology(
-  flattenedCreatureOntology.families,
-  flattenedCreatureOntology.tags,
-);
+const creatureOntology = publishDerivedTagOntology(flattenedCreatureOntology.families, flattenedCreatureOntology.tags);
 
 describe("derived tag explicit assignments", () => {
   it("flattens applied and excluded assignments into concrete include and exclude tags", () => {
@@ -133,47 +127,51 @@ describe("derived tag explicit assignments", () => {
   });
 
   it("rejects unknown families and wrong-family tags", () => {
-    expect(() => buildDerivedTagExplicitAssignmentIndex(assignmentOntology, [
-      {
-        category: "equipment",
-        assignments: [
-          {
-            name: "Masquerade Mask",
-            recordKey: "equipment:mask",
-            applied: {
-              stealth: [
-                {
-                  tag: "social_infiltration",
-                  source: "human",
-                  rationale: "Invalid family.",
-                },
-              ],
+    expect(() =>
+      buildDerivedTagExplicitAssignmentIndex(assignmentOntology, [
+        {
+          category: "equipment",
+          assignments: [
+            {
+              name: "Masquerade Mask",
+              recordKey: "equipment:mask",
+              applied: {
+                stealth: [
+                  {
+                    tag: "social_infiltration",
+                    source: "human",
+                    rationale: "Invalid family.",
+                  },
+                ],
+              },
             },
-          },
-        ],
-      },
-    ])).toThrow(/does not exist/);
+          ],
+        },
+      ]),
+    ).toThrow(/does not exist/);
 
-    expect(() => buildDerivedTagExplicitAssignmentIndex(assignmentOntology, [
-      {
-        category: "equipment",
-        assignments: [
-          {
-            name: "Masquerade Mask",
-            recordKey: "equipment:mask",
-            applied: {
-              security: [
-                {
-                  tag: "social_infiltration",
-                  source: "human",
-                  rationale: "Invalid family placement.",
-                },
-              ],
+    expect(() =>
+      buildDerivedTagExplicitAssignmentIndex(assignmentOntology, [
+        {
+          category: "equipment",
+          assignments: [
+            {
+              name: "Masquerade Mask",
+              recordKey: "equipment:mask",
+              applied: {
+                security: [
+                  {
+                    tag: "social_infiltration",
+                    source: "human",
+                    rationale: "Invalid family placement.",
+                  },
+                ],
+              },
             },
-          },
-        ],
-      },
-    ])).toThrow(/does not belong to family/);
+          ],
+        },
+      ]),
+    ).toThrow(/does not belong to family/);
   });
 
   it("validates canonical name drift only when the record is present in the build", () => {
@@ -199,12 +197,18 @@ describe("derived tag explicit assignments", () => {
     ]);
 
     expect(() => validateDerivedTagExplicitAssignmentsAgainstRecords([], assignmentIndex)).not.toThrow();
-    expect(() => validateDerivedTagExplicitAssignmentsAgainstRecords([
-      { recordKey: "equipment:mask", name: "Masquerade Mask", category: "equipment" },
-    ], assignmentIndex)).not.toThrow();
-    expect(() => validateDerivedTagExplicitAssignmentsAgainstRecords([
-      { recordKey: "equipment:mask", name: "Different Name", category: "equipment" },
-    ], assignmentIndex)).toThrow(/expected name/);
+    expect(() =>
+      validateDerivedTagExplicitAssignmentsAgainstRecords(
+        [{ recordKey: "equipment:mask", name: "Masquerade Mask", category: "equipment" }],
+        assignmentIndex,
+      ),
+    ).not.toThrow();
+    expect(() =>
+      validateDerivedTagExplicitAssignmentsAgainstRecords(
+        [{ recordKey: "equipment:mask", name: "Different Name", category: "equipment" }],
+        assignmentIndex,
+      ),
+    ).toThrow(/expected name/);
   });
 
   it("derives pending assignments from assignment review files without making them live", () => {
@@ -235,22 +239,24 @@ describe("derived tag explicit assignments", () => {
       excludeTags: [],
     });
 
-    expect(buildDerivedTagPendingAssignmentViews(assignmentOntology, [
-      {
-        category: "equipment",
-        decisions: [
-          {
-            name: "Watch Bell",
-            recordKey: "equipment:bell",
-            family: "security",
-            tag: "alarm",
-            mode: "include",
-            confidence: "medium",
-            rationale: "Likely security-oriented, but the signal may be too weak to auto-apply.",
-          },
-        ],
-      },
-    ])).toEqual([
+    expect(
+      buildDerivedTagPendingAssignmentViews(assignmentOntology, [
+        {
+          category: "equipment",
+          decisions: [
+            {
+              name: "Watch Bell",
+              recordKey: "equipment:bell",
+              family: "security",
+              tag: "alarm",
+              mode: "include",
+              confidence: "medium",
+              rationale: "Likely security-oriented, but the signal may be too weak to auto-apply.",
+            },
+          ],
+        },
+      ]),
+    ).toEqual([
       {
         name: "Watch Bell",
         recordKey: "equipment:bell",
@@ -262,176 +268,192 @@ describe("derived tag explicit assignments", () => {
   });
 
   it("throws on illegal live assignment states", () => {
-    expect(() => buildDerivedTagExplicitAssignmentIndex(assignmentOntology, [
-      {
-        category: "equipment",
-        assignments: [
-          {
-            name: "Masquerade Mask",
-            recordKey: "equipment:mask",
-          },
-        ],
-      },
-    ])).toThrow(/at least one applied or excluded tag/);
+    expect(() =>
+      buildDerivedTagExplicitAssignmentIndex(assignmentOntology, [
+        {
+          category: "equipment",
+          assignments: [
+            {
+              name: "Masquerade Mask",
+              recordKey: "equipment:mask",
+            },
+          ],
+        },
+      ]),
+    ).toThrow(/at least one applied or excluded tag/);
 
-    expect(() => buildDerivedTagExplicitAssignmentIndex(assignmentOntology, [
-      {
-        category: "equipment",
-        assignments: [
-          {
-            name: "Masquerade Mask",
-            recordKey: "equipment:mask",
-            applied: {
-              infiltration: [
-                {
-                  tag: "social_infiltration",
-                  source: "human",
-                  rationale: "Conflicting live placement should be rejected.",
-                },
-              ],
+    expect(() =>
+      buildDerivedTagExplicitAssignmentIndex(assignmentOntology, [
+        {
+          category: "equipment",
+          assignments: [
+            {
+              name: "Masquerade Mask",
+              recordKey: "equipment:mask",
+              applied: {
+                infiltration: [
+                  {
+                    tag: "social_infiltration",
+                    source: "human",
+                    rationale: "Conflicting live placement should be rejected.",
+                  },
+                ],
+              },
+              excluded: {
+                infiltration: [
+                  {
+                    tag: "social_infiltration",
+                    source: "human",
+                    rationale: "Conflicting live placement should be rejected.",
+                  },
+                ],
+              },
             },
-            excluded: {
-              infiltration: [
-                {
-                  tag: "social_infiltration",
-                  source: "human",
-                  rationale: "Conflicting live placement should be rejected.",
-                },
-              ],
-            },
-          },
-        ],
-      },
-    ])).toThrow(/both applied and excluded/);
+          ],
+        },
+      ]),
+    ).toThrow(/both applied and excluded/);
 
-    expect(() => buildDerivedTagExplicitAssignmentIndex(assignmentOntology, [
-      {
-        category: "equipment",
-        assignments: [
-          {
-            name: "Watch Bell",
-            recordKey: "equipment:bell",
-            applied: {
-              security: [
-                {
-                  tag: "alarm",
-                  source: "human",
-                  rationale: "Duplicate live entries should be rejected.",
-                },
-                {
-                  tag: "alarm",
-                  source: "human",
-                  rationale: "Duplicate live entries should be rejected.",
-                },
-              ],
+    expect(() =>
+      buildDerivedTagExplicitAssignmentIndex(assignmentOntology, [
+        {
+          category: "equipment",
+          assignments: [
+            {
+              name: "Watch Bell",
+              recordKey: "equipment:bell",
+              applied: {
+                security: [
+                  {
+                    tag: "alarm",
+                    source: "human",
+                    rationale: "Duplicate live entries should be rejected.",
+                  },
+                  {
+                    tag: "alarm",
+                    source: "human",
+                    rationale: "Duplicate live entries should be rejected.",
+                  },
+                ],
+              },
             },
-          },
-        ],
-      },
-    ])).toThrow(/repeats/);
+          ],
+        },
+      ]),
+    ).toThrow(/repeats/);
 
-    expect(() => buildDerivedTagExplicitAssignmentIndex(assignmentOntology, [
-      {
-        category: "equipment",
-        assignments: [
-          {
-            name: "Spyglass Kit",
-            recordKey: "equipment:spyglass-kit",
-            applied: {
-              reconnaissance: [
-                {
-                  tag: "reconnaissance",
-                  source: "human",
-                  rationale: "Composite umbrella tags should not be assigned directly.",
-                },
-              ],
+    expect(() =>
+      buildDerivedTagExplicitAssignmentIndex(assignmentOntology, [
+        {
+          category: "equipment",
+          assignments: [
+            {
+              name: "Spyglass Kit",
+              recordKey: "equipment:spyglass-kit",
+              applied: {
+                reconnaissance: [
+                  {
+                    tag: "reconnaissance",
+                    source: "human",
+                    rationale: "Composite umbrella tags should not be assigned directly.",
+                  },
+                ],
+              },
             },
-          },
-        ],
-      },
-    ])).toThrow(/cannot target composite tag/i);
+          ],
+        },
+      ]),
+    ).toThrow(/cannot target composite tag/i);
   });
 
   it("throws on illegal assignment review and memory states", () => {
-    expect(() => buildDerivedTagPendingAssignmentViews(assignmentOntology, [
-      {
-        category: "equipment",
-        decisions: [
-          {
-            name: "Watch Bell",
-            recordKey: "equipment:bell",
-            family: "security",
-            tag: "alarm",
-            mode: "include",
-            rationale: "One pending review entry.",
-          },
-          {
-            name: "Watch Bell",
-            recordKey: "equipment:bell",
-            family: "security",
-            tag: "alarm",
-            mode: "include",
-            rationale: "Duplicate pending review entry.",
-          },
-        ],
-      },
-    ])).toThrow(/repeats/);
+    expect(() =>
+      buildDerivedTagPendingAssignmentViews(assignmentOntology, [
+        {
+          category: "equipment",
+          decisions: [
+            {
+              name: "Watch Bell",
+              recordKey: "equipment:bell",
+              family: "security",
+              tag: "alarm",
+              mode: "include",
+              rationale: "One pending review entry.",
+            },
+            {
+              name: "Watch Bell",
+              recordKey: "equipment:bell",
+              family: "security",
+              tag: "alarm",
+              mode: "include",
+              rationale: "Duplicate pending review entry.",
+            },
+          ],
+        },
+      ]),
+    ).toThrow(/repeats/);
 
-    expect(() => buildDerivedTagPendingAssignmentViews(assignmentOntology, [
-      {
-        category: "equipment",
-        decisions: [
-          {
-            name: "Spyglass Kit",
-            recordKey: "equipment:spyglass-kit",
-            family: "reconnaissance",
-            tag: "reconnaissance",
-            mode: "include",
-            rationale: "Pending review should also reject composite targets.",
-          },
-        ],
-      },
-    ])).toThrow(/cannot target composite tag/i);
+    expect(() =>
+      buildDerivedTagPendingAssignmentViews(assignmentOntology, [
+        {
+          category: "equipment",
+          decisions: [
+            {
+              name: "Spyglass Kit",
+              recordKey: "equipment:spyglass-kit",
+              family: "reconnaissance",
+              tag: "reconnaissance",
+              mode: "include",
+              rationale: "Pending review should also reject composite targets.",
+            },
+          ],
+        },
+      ]),
+    ).toThrow(/cannot target composite tag/i);
 
-    expect(() => validateDerivedTagAssignmentMemory(assignmentOntology, [
-      {
-        category: "equipment",
-        decisions: [
-          {
-            name: "Watch Bell",
-            recordKey: "equipment:bell",
-            family: "security",
-            tag: "alarm",
-            mode: "include",
-            rationale: "Rejected once.",
-          },
-          {
-            name: "Watch Bell",
-            recordKey: "equipment:bell",
-            family: "security",
-            tag: "alarm",
-            mode: "include",
-            rationale: "Rejected twice with the same identity.",
-          },
-        ],
-      },
-    ])).toThrow(/repeats/);
+    expect(() =>
+      validateDerivedTagAssignmentMemory(assignmentOntology, [
+        {
+          category: "equipment",
+          decisions: [
+            {
+              name: "Watch Bell",
+              recordKey: "equipment:bell",
+              family: "security",
+              tag: "alarm",
+              mode: "include",
+              rationale: "Rejected once.",
+            },
+            {
+              name: "Watch Bell",
+              recordKey: "equipment:bell",
+              family: "security",
+              tag: "alarm",
+              mode: "include",
+              rationale: "Rejected twice with the same identity.",
+            },
+          ],
+        },
+      ]),
+    ).toThrow(/repeats/);
 
-    expect(() => validateDerivedTagAssignmentMemory(assignmentOntology, [
-      {
-        category: "equipment",
-        decisions: [
-          {
-            name: "Spyglass Kit",
-            recordKey: "equipment:spyglass-kit",
-            family: "reconnaissance",
-            tag: "reconnaissance",
-            mode: "include",
-            rationale: "Memory should also reject composite targets.",
-          },
-        ],
-      },
-    ])).toThrow(/cannot target composite tag/i);
+    expect(() =>
+      validateDerivedTagAssignmentMemory(assignmentOntology, [
+        {
+          category: "equipment",
+          decisions: [
+            {
+              name: "Spyglass Kit",
+              recordKey: "equipment:spyglass-kit",
+              family: "reconnaissance",
+              tag: "reconnaissance",
+              mode: "include",
+              rationale: "Memory should also reject composite targets.",
+            },
+          ],
+        },
+      ]),
+    ).toThrow(/cannot target composite tag/i);
   });
 
   it("merges explicit assignments into derivation and applies exclusions without family promotion", () => {
@@ -534,7 +556,8 @@ describe("derived tag explicit assignments", () => {
       name: "Conspirator Dragon (Adult)",
       category: "creature",
       subcategory: null,
-      descriptionText: "Hidden among the shadows and upper echelons of society are the conspirator dragons. However, as most conspirator dragons meet others while in disguise, they do their best to maintain their disguise.",
+      descriptionText:
+        "Hidden among the shadows and upper echelons of society are the conspirator dragons. However, as most conspirator dragons meet others while in disguise, they do their best to maintain their disguise.",
       traits: ["dragon", "occult"],
     });
     expect(conspiratorDragon.tags).toEqual(expect.arrayContaining(["disguised_pretender", "urban_setting"]));

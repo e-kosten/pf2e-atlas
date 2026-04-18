@@ -144,8 +144,12 @@ async function main(): Promise<void> {
     const result = evaluateDerivedTagGaps(db, options);
 
     console.log(`Tag: ${result.tag}`);
-    console.log(`Candidate scope: ${formatScope(result.candidateCategory ?? undefined, result.candidateSubcategory ?? undefined)}`);
-    console.log(`Exemplar scope: ${formatScope(result.exemplarCategory ?? undefined, result.exemplarSubcategory ?? undefined)}`);
+    console.log(
+      `Candidate scope: ${formatScope(result.candidateCategory ?? undefined, result.candidateSubcategory ?? undefined)}`,
+    );
+    console.log(
+      `Exemplar scope: ${formatScope(result.exemplarCategory ?? undefined, result.exemplarSubcategory ?? undefined)}`,
+    );
     console.log(`Tagged exemplars: ${result.exemplarCount}`);
     console.log(`Untagged candidates considered: ${result.candidateCount}`);
     console.log(`Common exemplar traits: ${formatTraits(result.commonTraits)}`);

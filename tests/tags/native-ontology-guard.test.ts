@@ -51,12 +51,12 @@ function keyFor(category: string, value: string): string {
 
 function clauseHasNonTraitEvidence(clause: NonNullable<DerivedTagRule["anyOf"]>[number]): boolean {
   return Boolean(
-    clause.textAny?.length
-      || clause.textAll?.length
-      || clause.textNear?.length
-      || clause.referencesAny?.length
-      || clause.referencesAll?.length
-      || clause.referencesWhere?.length,
+    clause.textAny?.length ||
+    clause.textAll?.length ||
+    clause.textNear?.length ||
+    clause.referencesAny?.length ||
+    clause.referencesAll?.length ||
+    clause.referencesWhere?.length,
   );
 }
 
@@ -82,10 +82,9 @@ describe("derived tag native ontology guard", () => {
         continue;
       }
 
-      const hasNonTraitEvidence = positiveRules.some((rule) => [
-        ...(rule.anyOf ?? []),
-        ...(rule.allOf ?? []),
-      ].some((clause) => clauseHasNonTraitEvidence(clause)));
+      const hasNonTraitEvidence = positiveRules.some((rule) =>
+        [...(rule.anyOf ?? []), ...(rule.allOf ?? [])].some((clause) => clauseHasNonTraitEvidence(clause)),
+      );
 
       if (!hasNonTraitEvidence) {
         violations.push(keyFor(row.category, row.value));
@@ -104,19 +103,27 @@ describe("derived tag native ontology guard", () => {
 
     const db = new DatabaseSync(indexPath, { readonly: true });
     try {
-      const tagRows = db.prepare(`
+      const tagRows = db
+        .prepare(
+          `
         SELECT r.category AS category, rdt.tag AS tag, r.record_key AS recordKey
         FROM record_derived_tags rdt
         JOIN records r ON r.record_key = rdt.record_key
         WHERE r.is_search_canonical = 1
-      `).all() as Array<{ category: string; tag: string; recordKey: string }>;
+      `,
+        )
+        .all() as Array<{ category: string; tag: string; recordKey: string }>;
 
-      const traitRows = db.prepare(`
+      const traitRows = db
+        .prepare(
+          `
         SELECT r.category AS category, rt.trait AS trait, r.record_key AS recordKey
         FROM record_traits rt
         JOIN records r ON r.record_key = rt.record_key
         WHERE r.is_search_canonical = 1
-      `).all() as Array<{ category: string; trait: string; recordKey: string }>;
+      `,
+        )
+        .all() as Array<{ category: string; trait: string; recordKey: string }>;
 
       const tagSets = new Map<string, Set<string>>();
       for (const row of tagRows) {

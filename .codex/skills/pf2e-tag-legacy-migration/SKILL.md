@@ -10,6 +10,7 @@ Use this skill when the starting point is a legacy rule, legacy-rule-derived coh
 This is not only a rule-audit skill. It owns the full transition from legacy coverage to future-state behavior.
 
 This is a live-authoring skill:
+
 - confident explicit assignments go directly into `src/tags/assignments`
 - confident future authored rules go directly into `src/tags/authored-rules`
 - confident exemplar updates go directly into `src/tags/exemplars` when touched records clearly improve or weaken teaching value
@@ -19,11 +20,13 @@ This is a live-authoring skill:
 ## Required Output
 
 For every touched record:
+
 - perform a full future-state tagging pass across the ontology, not just the original legacy tag
 - decide the record's durable explicit assignment set
 - decide whether the record has exemplar implications worth updating
 
 For the legacy rule slice itself:
+
 - decide whether it should be:
   - recreated as a future authored rule
   - replaced by explicit assignments

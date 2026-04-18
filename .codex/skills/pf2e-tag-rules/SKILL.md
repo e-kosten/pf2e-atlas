@@ -8,11 +8,13 @@ description: Build, replace, or refine future-state deterministic PF2E tag rules
 Use this skill for in-place deterministic rule work in the future-state derived-tag layer.
 
 This includes:
+
 - refining noisy or underfiring future authored rules
 - expanding deterministic rule coverage when a safe, explainable future-state rule clearly exists
 - replacing an existing future-state rule with explicit assignments when it proves too noisy
 
 Use another skill instead when:
+
 - the work starts from legacy rule coverage or a legacy-rule-driven cohort: use `$pf2e-tag-legacy-migration`
 - the work is mainly manual assignment coverage on untagged records: use `$pf2e-tag-batch`
 - the work starts from legacy seed membership: use `$pf2e-tag-seeds`
@@ -22,10 +24,12 @@ Use another skill instead when:
 ## Required Output
 
 For every touched record:
+
 - decide whether its tags should remain rule-driven or move to explicit assignments
 - add or update regression cases before broad rule edits
 
 For the rule slice itself:
+
 - decide whether it should be kept as a deterministic authored rule
 - narrowed or redesigned
 - replaced by explicit assignments when it is too noisy

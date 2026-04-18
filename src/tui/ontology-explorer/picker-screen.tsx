@@ -28,11 +28,14 @@ export type OntologyPickerSelectionMap = Record<string, OntologyPickerFieldSelec
 
 function cloneSelectionMap(selection: OntologyPickerSelectionMap): OntologyPickerSelectionMap {
   return Object.fromEntries(
-    Object.entries(selection).map(([field, values]) => [field, {
-      any: [...values.any],
-      all: [...values.all],
-      exclude: [...values.exclude],
-    }]),
+    Object.entries(selection).map(([field, values]) => [
+      field,
+      {
+        any: [...values.any],
+        all: [...values.all],
+        exclude: [...values.exclude],
+      },
+    ]),
   );
 }
 
@@ -70,7 +73,7 @@ function cycleSelectionState(
 ): OntologySelectionState | undefined {
   const stateOrder: Array<OntologySelectionState | undefined> = [undefined, ...allowedStates];
   const currentIndex = stateOrder.findIndex((state) => state === currentState);
-  return stateOrder[((currentIndex + direction) % stateOrder.length + stateOrder.length) % stateOrder.length];
+  return stateOrder[(((currentIndex + direction) % stateOrder.length) + stateOrder.length) % stateOrder.length];
 }
 
 function createEmptySelectionMap(model: OntologyDomainModel): OntologyPickerSelectionMap {
@@ -83,9 +86,7 @@ function createEmptySelectionMap(model: OntologyDomainModel): OntologyPickerSele
   };
   model.rootNodes.forEach(visit);
 
-  return Object.fromEntries(
-    [...fields].map((field) => [field, { any: [], all: [], exclude: [] }]),
-  );
+  return Object.fromEntries([...fields].map((field) => [field, { any: [], all: [], exclude: [] }]));
 }
 
 function toggleNodeSelection(
@@ -102,7 +103,11 @@ function toggleNodeSelection(
   fieldSelection.all = fieldSelection.all.filter((value) => value !== node.selection!.value);
   fieldSelection.exclude = fieldSelection.exclude.filter((value) => value !== node.selection!.value);
 
-  const nextState = cycleSelectionState(getNodeSelectionState(node, selections), node.selection.allowedStates, direction);
+  const nextState = cycleSelectionState(
+    getNodeSelectionState(node, selections),
+    node.selection.allowedStates,
+    direction,
+  );
   if (nextState) {
     fieldSelection[nextState].push(node.selection.value);
     fieldSelection[nextState].sort((left, right) => left.localeCompare(right));
@@ -115,19 +120,19 @@ function buildSelectionSummaryLines(
   selections: OntologyPickerSelectionMap,
   focusedNode: OntologyNode | undefined,
 ): DerivedTagTerminalLine[] {
-  const lines: DerivedTagTerminalLine[] = [
-    { text: "" },
-    { text: "Current selection", tone: "section" },
-  ];
+  const lines: DerivedTagTerminalLine[] = [{ text: "" }, { text: "Current selection", tone: "section" }];
   if (focusedNode?.selection) {
     lines.push({ text: `${focusedNode.selection.fieldLabel}: ${focusedNode.label}` });
-    lines.push({ text: `Focused policy: ${policyStateLabel(getNodeSelectionState(focusedNode, selections))}`, tone: "accent" });
+    lines.push({
+      text: `Focused policy: ${policyStateLabel(getNodeSelectionState(focusedNode, selections))}`,
+      tone: "accent",
+    });
   } else {
     lines.push({ text: "Focused node is not selectable.", tone: "dim" });
   }
 
-  const selectionEntries = Object.entries(selections).filter(([, selection]) =>
-    selection.any.length > 0 || selection.all.length > 0 || selection.exclude.length > 0,
+  const selectionEntries = Object.entries(selections).filter(
+    ([, selection]) => selection.any.length > 0 || selection.all.length > 0 || selection.exclude.length > 0,
   );
   lines.push({ text: "" });
   lines.push({ text: "Current filters", tone: "section" });
@@ -173,9 +178,7 @@ function buildPickerListLines(
   }).map((row) => row.line);
 }
 
-function buildFacetPickerFooterText(
-  controller: ReturnType<typeof useOntologyExplorerController>,
-): string {
+function buildFacetPickerFooterText(controller: ReturnType<typeof useOntologyExplorerController>): string {
   return formatTerminalInteractionFooter(getFacetPickerInteractionActions(controller));
 }
 
@@ -234,19 +237,20 @@ function buildFacetPickerHelpLines(
     .filter((action) => !["move", "scroll", "jump", "page", "edge"].includes(action.id))
     .map((action) => ({
       ...action,
-      helpText: action.id === "cycle"
-        ? "cycle the focused policy through off, any, all, and exclude"
-        : action.id === "focus"
-          ? "switch focus between values and detail"
-          : action.id === "layout"
-            ? "toggle split and detail-only layouts"
-            : action.id === "back"
-              ? "move up a level or leave the active pane"
-              : action.id === "search"
-                ? "start live filtering"
-                : action.id === "help"
-                  ? "show this help"
-                  : "apply the current facet state and return",
+      helpText:
+        action.id === "cycle"
+          ? "cycle the focused policy through off, any, all, and exclude"
+          : action.id === "focus"
+            ? "switch focus between values and detail"
+            : action.id === "layout"
+              ? "toggle split and detail-only layouts"
+              : action.id === "back"
+                ? "move up a level or leave the active pane"
+                : action.id === "search"
+                  ? "start live filtering"
+                  : action.id === "help"
+                    ? "show this help"
+                    : "apply the current facet state and return",
       label: action.id === "focus" ? "toggle pane" : action.label,
     }));
 
@@ -254,7 +258,10 @@ function buildFacetPickerHelpLines(
     {
       title: "Navigation",
       actions: [
-        { id: controller.state.activePane === "list" && controller.layoutMode !== "detail-only" ? "move" : "scroll", helpText: "move through the active pane" },
+        {
+          id: controller.state.activePane === "list" && controller.layoutMode !== "detail-only" ? "move" : "scroll",
+          helpText: "move through the active pane",
+        },
         { id: "jump", helpText: "jump through the active pane" },
         { id: "page", helpText: "page through the active pane" },
         { id: "edge", helpText: "jump to the start or end of the active pane" },
@@ -279,9 +286,7 @@ export function OntologyPickerScreen({
   const terminal = useDerivedTagTerminalApp();
   const [selections, setSelections] = React.useState<OntologyPickerSelectionMap>(() => {
     const emptySelections = createEmptySelectionMap(model);
-    return initialSelections
-      ? { ...emptySelections, ...cloneSelectionMap(initialSelections) }
-      : emptySelections;
+    return initialSelections ? { ...emptySelections, ...cloneSelectionMap(initialSelections) } : emptySelections;
   });
   const selectionsRef = React.useRef(selections);
 
@@ -294,11 +299,14 @@ export function OntologyPickerScreen({
     setSelections(nextSelections);
   }, [initialSelections, model]);
 
-  const updateSelections = React.useCallback((update: (current: OntologyPickerSelectionMap) => OntologyPickerSelectionMap) => {
-    const next = update(selectionsRef.current);
-    selectionsRef.current = next;
-    setSelections(next);
-  }, []);
+  const updateSelections = React.useCallback(
+    (update: (current: OntologyPickerSelectionMap) => OntologyPickerSelectionMap) => {
+      const next = update(selectionsRef.current);
+      selectionsRef.current = next;
+      setSelections(next);
+    },
+    [],
+  );
 
   const returnWithSelections = React.useCallback(() => {
     onApply(selectionsRef.current);
@@ -350,9 +358,7 @@ export function OntologyPickerScreen({
         }}
         footer={[
           {
-            text: controller.state.searchMode
-              ? TERMINAL_LIVE_FILTER_FOOTER
-              : buildFacetPickerFooterText(controller),
+            text: controller.state.searchMode ? TERMINAL_LIVE_FILTER_FOOTER : buildFacetPickerFooterText(controller),
             tone: "dim",
           },
           {
@@ -382,9 +388,7 @@ export function OntologyPickerScreen({
       }}
       footer={[
         {
-          text: controller.state.searchMode
-            ? TERMINAL_LIVE_FILTER_FOOTER
-            : buildFacetPickerFooterText(controller),
+          text: controller.state.searchMode ? TERMINAL_LIVE_FILTER_FOOTER : buildFacetPickerFooterText(controller),
           tone: "dim",
         },
         {

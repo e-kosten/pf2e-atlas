@@ -119,7 +119,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>These oversized rodents are made of smoldering charcoal and elemental fire. Even other fire elementals are glad when they are summoned away from the Plane of Fire.</p>",
+        publicNotes:
+          "<p>These oversized rodents are made of smoldering charcoal and elemental fire. Even other fire elementals are glad when they are summoned away from the Plane of Fire.</p>",
       },
       traits: {
         rarity: "common",
@@ -143,7 +144,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>Elemental hurricanes embody the ferocity of violent windstorms. Hailing from the Plane of Air, these beings appear in a variety of sizes and shapes.</p>",
+        publicNotes:
+          "<p>Elemental hurricanes embody the ferocity of violent windstorms. Hailing from the Plane of Air, these beings appear in a variety of sizes and shapes.</p>",
       },
       traits: {
         rarity: "common",
@@ -438,7 +440,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder NPC Core",
         },
-        publicNotes: "<p>Artillerists are often employed on ships to manage their cannons and harpoons, but their primary role is the maintenance and operation of siege weapons.</p>",
+        publicNotes:
+          "<p>Artillerists are often employed on ships to manage their cannons and harpoons, but their primary role is the maintenance and operation of siege weapons.</p>",
       },
       traits: {
         rarity: "common",
@@ -462,7 +465,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder NPC Core",
         },
-        publicNotes: "<p>Working to load and unload cargo from ships, dockhands are considered unruly, but many stay focused and work hard until the job is done.</p>",
+        publicNotes:
+          "<p>Working to load and unload cargo from ships, dockhands are considered unruly, but many stay focused and work hard until the job is done.</p>",
       },
       traits: {
         rarity: "common",
@@ -523,7 +527,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Bestiary 2",
         },
-        publicNotes: "<p>Bog mummies rarely, if ever, leave their marshy realms, rising from the acidic morass of a peat bog or muddy swamp to pursue old vengeance.</p>",
+        publicNotes:
+          "<p>Bog mummies rarely, if ever, leave their marshy realms, rising from the acidic morass of a peat bog or muddy swamp to pursue old vengeance.</p>",
       },
       traits: {
         rarity: "common",
@@ -571,7 +576,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Lost Omens: Monsters of Myth",
         },
-        publicNotes: "<p>The titanic crustacean wears the hulls of ruined ships as her shell, and those who know Tehialai offer her tribute to ward off her predation.</p>",
+        publicNotes:
+          "<p>The titanic crustacean wears the hulls of ruined ships as her shell, and those who know Tehialai offer her tribute to ward off her predation.</p>",
       },
       traits: {
         rarity: "rare",
@@ -595,7 +601,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Bestiary 2",
         },
-        publicNotes: "<p>The monstrous, bloated spiders from the windswept realm of Leng build eerie, dangerous lairs with the aid of magically compelled slaves.</p>",
+        publicNotes:
+          "<p>The monstrous, bloated spiders from the windswept realm of Leng build eerie, dangerous lairs with the aid of magically compelled slaves.</p>",
       },
       traits: {
         rarity: "uncommon",
@@ -619,7 +626,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>Diabolic dragons are powerful, cunning, and tyrannical living creatures that break off from Hell to enact its will.</p>",
+        publicNotes:
+          "<p>Diabolic dragons are powerful, cunning, and tyrannical living creatures that break off from Hell to enact its will.</p>",
       },
       traits: {
         rarity: "uncommon",
@@ -643,7 +651,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core 2",
         },
-        publicNotes: "<p>Nightgaunts often gather in vast colonies in the Dreamlands, where they entertain each other by sharing emotion memories of their meals through strange caresses.</p>",
+        publicNotes:
+          "<p>Nightgaunts often gather in vast colonies in the Dreamlands, where they entertain each other by sharing emotion memories of their meals through strange caresses.</p>",
       },
       traits: {
         rarity: "common",
@@ -667,7 +676,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>These amorphous masses of sewage and other detritus make their way through filthy culverts beneath cities large and small.</p>",
+        publicNotes:
+          "<p>These amorphous masses of sewage and other detritus make their way through filthy culverts beneath cities large and small.</p>",
       },
       traits: {
         rarity: "common",
@@ -691,7 +701,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core 2",
         },
-        publicNotes: "<p>These small masses of protoplasm emerge from the drainage culverts beneath a city after a rainfall to feed on bits of organic matter that collect in streetside gutters.</p>",
+        publicNotes:
+          "<p>These small masses of protoplasm emerge from the drainage culverts beneath a city after a rainfall to feed on bits of organic matter that collect in streetside gutters.</p>",
       },
       traits: {
         rarity: "common",
@@ -715,7 +726,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Fists of the Ruby Phoenix",
         },
-        publicNotes: "<p>The mysterious undead known as shadows lurk in dark places and feed on those who stray too far from the light.</p>",
+        publicNotes:
+          "<p>The mysterious undead known as shadows lurk in dark places and feed on those who stray too far from the light.</p>",
       },
       traits: {
         rarity: "common",
@@ -739,7 +751,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Book of the Dead",
         },
-        publicNotes: "<p>Hunter wights renew their hunt with equal vigor, frequently taking residence within abandoned watchtowers and keeps.</p>",
+        publicNotes:
+          "<p>Hunter wights renew their hunt with equal vigor, frequently taking residence within abandoned watchtowers and keeps.</p>",
       },
       traits: {
         rarity: "common",
@@ -763,7 +776,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Blood Lords",
         },
-        publicNotes: "<p>A village of commoners raised to undeath by a mass poisoning might continue to go about the settled routines of life, posing an eerie scene for living creatures who enter their village.</p>",
+        publicNotes:
+          "<p>A village of commoners raised to undeath by a mass poisoning might continue to go about the settled routines of life, posing an eerie scene for living creatures who enter their village.</p>",
       },
       traits: {
         rarity: "common",
@@ -787,7 +801,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Hellbreakers",
         },
-        publicNotes: "<p>Swiftrun is a small settlement dedicated to Erastil, barely large enough to be considered a village. Its priests are devoted to community and peace, and would rather spend their days tending their crops and community than shedding blood.</p>",
+        publicNotes:
+          "<p>Swiftrun is a small settlement dedicated to Erastil, barely large enough to be considered a village. Its priests are devoted to community and peace, and would rather spend their days tending their crops and community than shedding blood.</p>",
       },
       traits: {
         rarity: "common",
@@ -835,7 +850,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>Usually found in freshwater rivers and lakes, an electric eel is not particularly aggressive.</p>",
+        publicNotes:
+          "<p>Usually found in freshwater rivers and lakes, an electric eel is not particularly aggressive.</p>",
       },
       traits: {
         rarity: "common",
@@ -859,7 +875,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>These legendary creatures lurking in remote lakes inhabit cool inland waters, spy upon the shores of their lakes, and occasionally rise near the beach or a silty lake bed.</p>",
+        publicNotes:
+          "<p>These legendary creatures lurking in remote lakes inhabit cool inland waters, spy upon the shores of their lakes, and occasionally rise near the beach or a silty lake bed.</p>",
       },
       traits: {
         rarity: "common",
@@ -883,7 +900,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>Legendary creatures lurking in remote lakes, water orms often spy upon the shores of their lakes and surface near the beach when curiosity overtakes caution.</p>",
+        publicNotes:
+          "<p>Legendary creatures lurking in remote lakes, water orms often spy upon the shores of their lakes and surface near the beach when curiosity overtakes caution.</p>",
       },
       traits: {
         rarity: "common",
@@ -907,7 +925,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>Old Herok is a water orm that hides in deep lakes, watching the shores of its inland domain and surfacing near lonely beaches only when it must.</p>",
+        publicNotes:
+          "<p>Old Herok is a water orm that hides in deep lakes, watching the shores of its inland domain and surfacing near lonely beaches only when it must.</p>",
       },
       traits: {
         rarity: "rare",
@@ -931,7 +950,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>Naiads protect streams, ponds, springs, and other natural bodies of fresh water where river tributaries meet beneath forest canopies.</p>",
+        publicNotes:
+          "<p>Naiads protect streams, ponds, springs, and other natural bodies of fresh water where river tributaries meet beneath forest canopies.</p>",
       },
       traits: {
         rarity: "common",
@@ -955,7 +975,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>Naiad queens rule over pristine wildernesses centered on untouched lakes or other bodies of fresh water.</p>",
+        publicNotes:
+          "<p>Naiad queens rule over pristine wildernesses centered on untouched lakes or other bodies of fresh water.</p>",
       },
       traits: {
         rarity: "common",
@@ -979,7 +1000,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>Coldmire ponds are sentient bodies of living water that crawl along the ground or drift through still inland pools.</p>",
+        publicNotes:
+          "<p>Coldmire ponds are sentient bodies of living water that crawl along the ground or drift through still inland pools.</p>",
       },
       traits: {
         rarity: "common",
@@ -1003,7 +1025,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>A boiling spring is a humanoid water elemental made of scalding steam and bubbling water from a geothermal spring.</p>",
+        publicNotes:
+          "<p>A boiling spring is a humanoid water elemental made of scalding steam and bubbling water from a geothermal spring.</p>",
       },
       traits: {
         rarity: "common",
@@ -1027,7 +1050,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Adventure Path",
         },
-        publicNotes: "<p>Since his flight from Numeria, Castruccio Irovetti has ruled Pitax for years and remains a major player in this River Kingdom's political scene.</p>",
+        publicNotes:
+          "<p>Since his flight from Numeria, Castruccio Irovetti has ruled Pitax for years and remains a major player in this River Kingdom's political scene.</p>",
       },
       traits: {
         rarity: "unique",
@@ -1051,7 +1075,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>Long-abandoned gardens still grow along the Sphinx River in Osirion, where many apothecary bees prowl for flowers that meet their standards.</p>",
+        publicNotes:
+          "<p>Long-abandoned gardens still grow along the Sphinx River in Osirion, where many apothecary bees prowl for flowers that meet their standards.</p>",
       },
       traits: {
         rarity: "common",
@@ -1075,7 +1100,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>Astradaemons hunt the pathways between life and death and stalk the banks of the River of Souls in the Astral Plane.</p>",
+        publicNotes:
+          "<p>Astradaemons hunt the pathways between life and death and stalk the banks of the River of Souls in the Astral Plane.</p>",
       },
       traits: {
         rarity: "common",
@@ -1099,7 +1125,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>Long and slender, sea drakes have fins down the length of their backs and webbing between their talons. Although most sea drakes make their roosts high on ocean-facing cliffs, it isn't unheard of for them to dwell in underwater caves.</p>",
+        publicNotes:
+          "<p>Long and slender, sea drakes have fins down the length of their backs and webbing between their talons. Although most sea drakes make their roosts high on ocean-facing cliffs, it isn't unheard of for them to dwell in underwater caves.</p>",
       },
       traits: {
         rarity: "common",
@@ -1123,7 +1150,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>The mysterious blodeuwedds dwell in those parts of the world where the boundaries between the Material Plane and the First World have worn thin, or around portals between the two planes.</p>",
+        publicNotes:
+          "<p>The mysterious blodeuwedds dwell in those parts of the world where the boundaries between the Material Plane and the First World have worn thin, or around portals between the two planes.</p>",
       },
       traits: {
         rarity: "common",
@@ -1147,7 +1175,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>Catrinas meet souls in the Boneyard, patiently explaining the finality of death and guiding spirits toward a calm passage into the afterlife.</p>",
+        publicNotes:
+          "<p>Catrinas meet souls in the Boneyard, patiently explaining the finality of death and guiding spirits toward a calm passage into the afterlife.</p>",
       },
       traits: {
         rarity: "common",
@@ -1171,7 +1200,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core 2",
         },
-        publicNotes: "<p>Requiem dragons are stewards of the River of Souls and the process through which souls reach their final destination in the afterlife. Some follow individual souls from their first entry into the river through to their judgment in the Boneyard.</p>",
+        publicNotes:
+          "<p>Requiem dragons are stewards of the River of Souls and the process through which souls reach their final destination in the afterlife. Some follow individual souls from their first entry into the river through to their judgment in the Boneyard.</p>",
       },
       traits: {
         rarity: "common",
@@ -1219,7 +1249,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>Agathions are born from petitioners who achieved enlightenment in life or after death and received Nirvana's blessing.</p>",
+        publicNotes:
+          "<p>Agathions are born from petitioners who achieved enlightenment in life or after death and received Nirvana's blessing.</p>",
       },
       traits: {
         rarity: "common",
@@ -1243,7 +1274,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>Ghaeles are fiend-hunting knights of Elysium and champions of the freedom to take up arms against oppressors.</p>",
+        publicNotes:
+          "<p>Ghaeles are fiend-hunting knights of Elysium and champions of the freedom to take up arms against oppressors.</p>",
       },
       traits: {
         rarity: "common",
@@ -1267,7 +1299,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>The three major celestial planes-Heaven, Nirvana, and Elysium-each have their own respective dragons. Empyreal dragons have a direct connection to Heaven.</p>",
+        publicNotes:
+          "<p>The three major celestial planes-Heaven, Nirvana, and Elysium-each have their own respective dragons. Empyreal dragons have a direct connection to Heaven.</p>",
       },
       traits: {
         rarity: "common",
@@ -1291,7 +1324,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>These devils from the first layer of Hell serve their betters by ensnaring those who are easily tempted.</p>",
+        publicNotes:
+          "<p>These devils from the first layer of Hell serve their betters by ensnaring those who are easily tempted.</p>",
       },
       traits: {
         rarity: "common",
@@ -1339,7 +1373,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>These twisted embodiments of violence and spite are spawned from eddies of angry and warped souls amid Abaddon's mists. Denizens of the bleak and terrible plane of Abaddon, daemons are shaped by and devoted to the destruction of life in all its forms.</p>",
+        publicNotes:
+          "<p>These twisted embodiments of violence and spite are spawned from eddies of angry and warped souls amid Abaddon's mists. Denizens of the bleak and terrible plane of Abaddon, daemons are shaped by and devoted to the destruction of life in all its forms.</p>",
       },
       traits: {
         rarity: "common",
@@ -1363,7 +1398,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>Most axiomites live in the perfect city of Axis, which they continually act to improve. At the onset of the Convergence, a council of pleroma aeons appeared in the Eternal City of Axis.</p>",
+        publicNotes:
+          "<p>Most axiomites live in the perfect city of Axis, which they continually act to improve. At the onset of the Convergence, a council of pleroma aeons appeared in the Eternal City of Axis.</p>",
       },
       traits: {
         rarity: "common",
@@ -1411,7 +1447,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>Naunets serve as the scouts and rank-and-file troops of protean armies. Proteans are manifestations of chaos made flesh, natives of the Maelstrom.</p>",
+        publicNotes:
+          "<p>Naunets serve as the scouts and rank-and-file troops of protean armies. Proteans are manifestations of chaos made flesh, natives of the Maelstrom.</p>",
       },
       traits: {
         rarity: "common",
@@ -1435,7 +1472,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>Monadic devas stand vigil along the River of Souls as it passes from the mortal realm into the Ethereal Plane. Those who seek to fish souls out for their own use stalk this metaphysical river, and it is against these predators that monadic devas fight.</p>",
+        publicNotes:
+          "<p>Monadic devas stand vigil along the River of Souls as it passes from the mortal realm into the Ethereal Plane. Those who seek to fish souls out for their own use stalk this metaphysical river, and it is against these predators that monadic devas fight.</p>",
       },
       traits: {
         rarity: "common",
@@ -1459,7 +1497,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>Night hags haunt the Ethereal Plane, where they prey upon mortals in their dreams. Although a night hag finds it easy to travel the Ethereal Plane and prey upon helpless souls that can't fight back, these souls are also the least desirable to the evil outsiders the night hag bargains with.</p>",
+        publicNotes:
+          "<p>Night hags haunt the Ethereal Plane, where they prey upon mortals in their dreams. Although a night hag finds it easy to travel the Ethereal Plane and prey upon helpless souls that can't fight back, these souls are also the least desirable to the evil outsiders the night hag bargains with.</p>",
       },
       traits: {
         rarity: "common",
@@ -1483,7 +1522,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>Xills visit the Material Plane, where they're often known as ethereal stalkers, primarily to maraud and kidnap creatures back to their native Ethereal Plane.</p>",
+        publicNotes:
+          "<p>Xills visit the Material Plane, where they're often known as ethereal stalkers, primarily to maraud and kidnap creatures back to their native Ethereal Plane.</p>",
       },
       traits: {
         rarity: "common",
@@ -1507,7 +1547,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>Ether spiders are members of a vague taxonomy called ethereal wildlife and are deadly predators from the Ethereal Plane. Ether spiders move between the planes with ease, making them extremely dangerous to those who can't see or attack ethereal enemies.</p>",
+        publicNotes:
+          "<p>Ether spiders are members of a vague taxonomy called ethereal wildlife and are deadly predators from the Ethereal Plane. Ether spiders move between the planes with ease, making them extremely dangerous to those who can't see or attack ethereal enemies.</p>",
       },
       traits: {
         rarity: "common",
@@ -1531,7 +1572,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>Kadamels are archon guardians who hold patient vigil over sacred pathways and inviolable sanctums.</p>",
+        publicNotes:
+          "<p>Kadamels are archon guardians who hold patient vigil over sacred pathways and inviolable sanctums.</p>",
       },
       traits: {
         rarity: "common",
@@ -1579,7 +1621,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>Bralanis are azatas who revel in swift travel, uprising, and the liberation of the oppressed.</p>",
+        publicNotes:
+          "<p>Bralanis are azatas who revel in swift travel, uprising, and the liberation of the oppressed.</p>",
       },
       traits: {
         rarity: "common",
@@ -1627,7 +1670,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>Hegessiks are protean saboteurs that unravel hierarchies, fortifications, and rigid plans.</p>",
+        publicNotes:
+          "<p>Hegessiks are protean saboteurs that unravel hierarchies, fortifications, and rigid plans.</p>",
       },
       traits: {
         rarity: "common",
@@ -1699,7 +1743,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>Ferrugons are relentless devils who excel at siege warfare, discipline, and infernal command.</p>",
+        publicNotes:
+          "<p>Ferrugons are relentless devils who excel at siege warfare, discipline, and infernal command.</p>",
       },
       traits: {
         rarity: "common",
@@ -1747,7 +1792,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>This combusted haunts a shrine and sometimes throws itself into lakes or rivers, believing the water will quiet the flames consuming it.</p>",
+        publicNotes:
+          "<p>This combusted haunts a shrine and sometimes throws itself into lakes or rivers, believing the water will quiet the flames consuming it.</p>",
       },
       traits: {
         rarity: "common",
@@ -1771,7 +1817,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder NPC Core",
         },
-        publicNotes: "<p>By night, this member of the nobility dons a false identity to mete out violent, extralegal justice.</p>",
+        publicNotes:
+          "<p>By night, this member of the nobility dons a false identity to mete out violent, extralegal justice.</p>",
       },
       traits: {
         rarity: "common",
@@ -1795,7 +1842,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder NPC Core",
         },
-        publicNotes: "<p>Though court jesters are often the targets of easy mockery and idle amusements, this jester hides malice behind painted smiles and a razor wit.</p>",
+        publicNotes:
+          "<p>Though court jesters are often the targets of easy mockery and idle amusements, this jester hides malice behind painted smiles and a razor wit.</p>",
       },
       traits: {
         rarity: "common",
@@ -1819,7 +1867,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>Mechanical carnies are constructs manufactured to serve as entertainers, cleaners, and guards at carnivals and circuses.</p>",
+        publicNotes:
+          "<p>Mechanical carnies are constructs manufactured to serve as entertainers, cleaners, and guards at carnivals and circuses.</p>",
       },
       traits: {
         rarity: "uncommon",
@@ -1843,7 +1892,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>Soulbound dolls are eerie mannequins or playthings that have been imbued with a small piece of a deceased mortal's soul.</p>",
+        publicNotes:
+          "<p>Soulbound dolls are eerie mannequins or playthings that have been imbued with a small piece of a deceased mortal's soul.</p>",
       },
       traits: {
         rarity: "uncommon",
@@ -1867,7 +1917,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>Although arguably quite friendly, fire scamps delight in fire and playing pranks on everyone they befriend.</p>",
+        publicNotes:
+          "<p>Although arguably quite friendly, fire scamps delight in fire and playing pranks on everyone they befriend.</p>",
       },
       traits: {
         rarity: "uncommon",
@@ -1891,7 +1942,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Adventure Path",
         },
-        publicNotes: "<p>This two-dimensional mural has come to life as a mindless construct that peels itself from the wall to attack intruders.</p>",
+        publicNotes:
+          "<p>This two-dimensional mural has come to life as a mindless construct that peels itself from the wall to attack intruders.</p>",
       },
       traits: {
         rarity: "uncommon",
@@ -1915,7 +1967,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>A solemn creature wearing a ceremonial mask and veiled face to hide its identity from the living.</p>",
+        publicNotes:
+          "<p>A solemn creature wearing a ceremonial mask and veiled face to hide its identity from the living.</p>",
       },
       traits: {
         rarity: "common",
@@ -2035,7 +2088,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>This parasite can possess a victim and take control of the victim's body from within, abandoning the host only when badly wounded.</p>",
+        publicNotes:
+          "<p>This parasite can possess a victim and take control of the victim's body from within, abandoning the host only when badly wounded.</p>",
       },
       traits: {
         rarity: "uncommon",
@@ -2059,7 +2113,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>This fiend siphons souls from the dying, drains life from survivors, and stores stolen vitality in a black iron reliquary.</p>",
+        publicNotes:
+          "<p>This fiend siphons souls from the dying, drains life from survivors, and stores stolen vitality in a black iron reliquary.</p>",
       },
       traits: {
         rarity: "uncommon",
@@ -2083,7 +2138,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>The brood mother implants eggs in living hosts. Fresh horrors burst from the host within a day and join their creator's swarm.</p>",
+        publicNotes:
+          "<p>The brood mother implants eggs in living hosts. Fresh horrors burst from the host within a day and join their creator's swarm.</p>",
       },
       traits: {
         rarity: "rare",
@@ -2131,7 +2187,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>The monster's regeneration knits torn flesh in moments. It can't be killed unless acid or fire first suppresses its regeneration.</p>",
+        publicNotes:
+          "<p>The monster's regeneration knits torn flesh in moments. It can't be killed unless acid or fire first suppresses its regeneration.</p>",
       },
       traits: {
         rarity: "common",
@@ -2155,7 +2212,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>An ambush predator lurking in ruined rafters, it snares prey in sticky webs, leaves victims webbed, and drags prey into darkness.</p>",
+        publicNotes:
+          "<p>An ambush predator lurking in ruined rafters, it snares prey in sticky webs, leaves victims webbed, and drags prey into darkness.</p>",
       },
       traits: {
         rarity: "common",
@@ -2179,7 +2237,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>The herald assumes a false identity, infiltrates courts, and impersonates priests to replace them.</p>",
+        publicNotes:
+          "<p>The herald assumes a false identity, infiltrates courts, and impersonates priests to replace them.</p>",
       },
       traits: {
         rarity: "uncommon",
@@ -2395,7 +2454,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Bestiary",
         },
-        publicNotes: "<p>Storm giants are looming but benevolent stewards of sea and sky, often serving as the natural guardians of tropical islands, coastlines, or rocky archipelagos.</p>",
+        publicNotes:
+          "<p>Storm giants are looming but benevolent stewards of sea and sky, often serving as the natural guardians of tropical islands, coastlines, or rocky archipelagos.</p>",
       },
       traits: {
         rarity: "common",
@@ -2419,7 +2479,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder #166: Despair on Danger Island",
         },
-        publicNotes: "<p>Renowned in Tengah folklore as divinely gifted artisans and crafters, anugobus are a curious group of tiny humanoids native to the central islands of Minata. Countless stories describe anugobus sneaking around Minatan cities to tinker with and improve upon other humanoids' structures and architecture. In reality, anugobus are as diverse as any species of humanoid, though they all have innate gifts for mending and construction, and they can walk on walls and ceilings. Nearly all verifiable anugobu encounters have taken place on the isles of Minata. Any project can be an anugobu's wonder, from repairing a majestic cathedral to hunting a particularly dangerous animal to exploring a mysterious cave.</p>",
+        publicNotes:
+          "<p>Renowned in Tengah folklore as divinely gifted artisans and crafters, anugobus are a curious group of tiny humanoids native to the central islands of Minata. Countless stories describe anugobus sneaking around Minatan cities to tinker with and improve upon other humanoids' structures and architecture. In reality, anugobus are as diverse as any species of humanoid, though they all have innate gifts for mending and construction, and they can walk on walls and ceilings. Nearly all verifiable anugobu encounters have taken place on the isles of Minata. Any project can be an anugobu's wonder, from repairing a majestic cathedral to hunting a particularly dangerous animal to exploring a mysterious cave.</p>",
       },
       traits: {
         rarity: "common",
@@ -2443,7 +2504,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>This gug predator is native to the Darklands and lurks in subterranean tunnels and caverns, dragging prey back to its lightless lair.</p>",
+        publicNotes:
+          "<p>This gug predator is native to the Darklands and lurks in subterranean tunnels and caverns, dragging prey back to its lightless lair.</p>",
       },
       traits: {
         rarity: "common",
@@ -2467,7 +2529,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>Before their ancient clash with humanity devastated their civilization, serpentfolk were masters of a sprawling underground empire. Today, the central realm of the Darklands retains the old name of that empire: Sekamina.</p>",
+        publicNotes:
+          "<p>Before their ancient clash with humanity devastated their civilization, serpentfolk were masters of a sprawling underground empire. Today, the central realm of the Darklands retains the old name of that empire: Sekamina.</p>",
       },
       traits: {
         rarity: "uncommon",
@@ -2491,7 +2554,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>Some serpentfolk identify as members of the Coils of Ydersius. Today, the central realm of the Darklands retains the old name of the serpentfolk empire that once dominated this region: Sekamina.</p>",
+        publicNotes:
+          "<p>Some serpentfolk identify as members of the Coils of Ydersius. Today, the central realm of the Darklands retains the old name of the serpentfolk empire that once dominated this region: Sekamina.</p>",
       },
       traits: {
         rarity: "uncommon",
@@ -2515,7 +2579,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder NPC Core",
         },
-        publicNotes: "<p>Often leading a small team of lower-ranking guards, watch officers patrol their assigned areas to maintain order and enforce laws.</p>",
+        publicNotes:
+          "<p>Often leading a small team of lower-ranking guards, watch officers patrol their assigned areas to maintain order and enforce laws.</p>",
       },
       traits: {
         rarity: "common",
@@ -2539,7 +2604,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder #191: The Destiny War",
         },
-        publicNotes: "<p>The most common aluum is powered by the bound soul of a loyal city servant. Aluums are powerful metal and stone constructs originally created by the Pactmasters to maintain order in Katapesh.</p>",
+        publicNotes:
+          "<p>The most common aluum is powered by the bound soul of a loyal city servant. Aluums are powerful metal and stone constructs originally created by the Pactmasters to maintain order in Katapesh.</p>",
       },
       traits: {
         rarity: "uncommon",
@@ -2563,7 +2629,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder #149: Against the Scarlet Triad",
         },
-        publicNotes: "<p>Whereas most aluums are animated by the souls of volunteers loyal to Katapesh, these spiritbound aluums serve as riot control during times of martial law. Aluums are powerful metal and stone constructs originally created by the Pactmasters to maintain order in Katapesh.</p>",
+        publicNotes:
+          "<p>Whereas most aluums are animated by the souls of volunteers loyal to Katapesh, these spiritbound aluums serve as riot control during times of martial law. Aluums are powerful metal and stone constructs originally created by the Pactmasters to maintain order in Katapesh.</p>",
       },
       traits: {
         rarity: "rare",
@@ -2587,7 +2654,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Bestiary",
         },
-        publicNotes: "<p>Their lairs are often situated in dangerous places, with volcanoes being a favorite spot, as they find them foreboding and the constant warmth is comfortable.</p>",
+        publicNotes:
+          "<p>Their lairs are often situated in dangerous places, with volcanoes being a favorite spot, as they find them foreboding and the constant warmth is comfortable.</p>",
       },
       traits: {
         rarity: "common",
@@ -2611,7 +2679,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Lost Omens Draconic Codex",
         },
-        publicNotes: "<p>Today, though their nature is primarily still connected with the element of fire, an underworld dragon can consume wood with ease, lay claim to the minerals and gems in the rocks and stone, and die to form volcanoes that create more land masses.</p>",
+        publicNotes:
+          "<p>Today, though their nature is primarily still connected with the element of fire, an underworld dragon can consume wood with ease, lay claim to the minerals and gems in the rocks and stone, and die to form volcanoes that create more land masses.</p>",
       },
       traits: {
         rarity: "common",
@@ -2635,7 +2704,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder #190: The Choosing",
         },
-        publicNotes: "<p>Although nagaji might be encountered in diverse cities and urban centers, their communities are concentrated in environments that suit their biology, namely jungles and tropical forests.</p>",
+        publicNotes:
+          "<p>Although nagaji might be encountered in diverse cities and urban centers, their communities are concentrated in environments that suit their biology, namely jungles and tropical forests.</p>",
       },
       traits: {
         rarity: "rare",
@@ -2659,7 +2729,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core 2",
         },
-        publicNotes: "<p>The elect have golden halos and ghostly wings, but they otherwise appear as their mortal forms.</p>",
+        publicNotes:
+          "<p>The elect have golden halos and ghostly wings, but they otherwise appear as their mortal forms.</p>",
       },
       traits: {
         rarity: "common",
@@ -2779,7 +2850,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>These hardy mountain dwellers surpass their lowlander cousins in stubbornness and agility, making their homes among steep peaks and rocky slopes.</p>",
+        publicNotes:
+          "<p>These hardy mountain dwellers surpass their lowlander cousins in stubbornness and agility, making their homes among steep peaks and rocky slopes.</p>",
       },
       traits: {
         rarity: "common",
@@ -2803,7 +2875,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Bestiary 2",
         },
-        publicNotes: "<p>Thunderbirds soar high above storm clouds and wheel through the open sky before nesting on remote mountain aeries.</p>",
+        publicNotes:
+          "<p>Thunderbirds soar high above storm clouds and wheel through the open sky before nesting on remote mountain aeries.</p>",
       },
       traits: {
         rarity: "common",
@@ -2989,7 +3062,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>A silent ward flares when a creature crosses the threshold, raising the alarm and alerting nearby guards.</p>",
+        publicNotes:
+          "<p>A silent ward flares when a creature crosses the threshold, raising the alarm and alerting nearby guards.</p>",
       },
       traits: {
         rarity: "common",
@@ -3010,7 +3084,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>A glowing sigil lashes out with force bands to bind intruders in place until they @UUID[Compendium.pf2e.actionspf2e.Item.Escape]{Escape}.</p><p>The creature becomes @UUID[Compendium.pf2e.conditionitems.Item.Restrained]{Restrained}.</p>",
+        publicNotes:
+          "<p>A glowing sigil lashes out with force bands to bind intruders in place until they @UUID[Compendium.pf2e.actionspf2e.Item.Escape]{Escape}.</p><p>The creature becomes @UUID[Compendium.pf2e.conditionitems.Item.Restrained]{Restrained}.</p>",
       },
       traits: {
         rarity: "common",
@@ -3031,7 +3106,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Adventure Path",
         },
-        publicNotes: "<p>Magic sigils hidden in the grain of the wooden door trigger a magic trap that damages the mind of anyone attempting to pick the door's lock.</p>",
+        publicNotes:
+          "<p>Magic sigils hidden in the grain of the wooden door trigger a magic trap that damages the mind of anyone attempting to pick the door's lock.</p>",
       },
       traits: {
         rarity: "common",
@@ -3052,7 +3128,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Adventure Path",
         },
-        publicNotes: "<p>Psychically enhanced illusions flood the minds of creatures in the hallway with memories of their past failures.</p>",
+        publicNotes:
+          "<p>Psychically enhanced illusions flood the minds of creatures in the hallway with memories of their past failures.</p>",
       },
       traits: {
         rarity: "common",
@@ -3115,7 +3192,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Adventure Path",
         },
-        publicNotes: "<p>The creature becomes immobilized in the sticky web and remains held fast until it tears free.</p>",
+        publicNotes:
+          "<p>The creature becomes immobilized in the sticky web and remains held fast until it tears free.</p>",
       },
       traits: {
         rarity: "common",
@@ -3178,7 +3256,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>A spring slams and locks the room's door before four hidden gas vents begin pumping poison gas into the chamber.</p>",
+        publicNotes:
+          "<p>A spring slams and locks the room's door before four hidden gas vents begin pumping poison gas into the chamber.</p>",
       },
       traits: {
         rarity: "common",
@@ -3199,7 +3278,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>A glowing rune inscribed across the threshold summons masked guardians when a creature crosses the ward.</p>",
+        publicNotes:
+          "<p>A glowing rune inscribed across the threshold summons masked guardians when a creature crosses the ward.</p>",
       },
       traits: {
         rarity: "common",
@@ -3283,7 +3363,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>A trapdoor covers a 10-foot-square pit that's 30 feet deep and has 5 feet of water at the bottom.</p>",
+        publicNotes:
+          "<p>A trapdoor covers a 10-foot-square pit that's 30 feet deep and has 5 feet of water at the bottom.</p>",
       },
       traits: {
         rarity: "common",
@@ -3304,7 +3385,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>Metal supports twist and shear off the bridge, causing stretches of the structure to collapse.</p>",
+        publicNotes:
+          "<p>Metal supports twist and shear off the bridge, causing stretches of the structure to collapse.</p>",
       },
       traits: {
         rarity: "common",
@@ -3632,7 +3714,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder NPC Core",
         },
-        publicNotes: "<p>Bandits waylay travelers and plunder their valuables before disappearing back to their wilderness hideouts.</p>",
+        publicNotes:
+          "<p>Bandits waylay travelers and plunder their valuables before disappearing back to their wilderness hideouts.</p>",
       },
       traits: {
         rarity: "common",
@@ -3656,7 +3739,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder NPC Core",
         },
-        publicNotes: "<p>A meticulous guild engineer keeps the city's lifts and aqueduct pumps working for the community.</p>",
+        publicNotes:
+          "<p>A meticulous guild engineer keeps the city's lifts and aqueduct pumps working for the community.</p>",
       },
       traits: {
         rarity: "common",
@@ -3704,7 +3788,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder NPC Core",
         },
-        publicNotes: "<p>High priests are the leaders of larger churches and similar religious establishments, watching over the lower-ranking clergy and ensuring the surrounding community is taken care of.</p>",
+        publicNotes:
+          "<p>High priests are the leaders of larger churches and similar religious establishments, watching over the lower-ranking clergy and ensuring the surrounding community is taken care of.</p>",
       },
       traits: {
         rarity: "common",
@@ -3752,7 +3837,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder NPC Core",
         },
-        publicNotes: "<p>A disciplined hellknight gaoler escorts prisoners and enforces the order's brutal routines.</p>",
+        publicNotes:
+          "<p>A disciplined hellknight gaoler escorts prisoners and enforces the order's brutal routines.</p>",
       },
       traits: {
         rarity: "common",
@@ -3776,7 +3862,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Lost Omens Character Guide",
         },
-        publicNotes: "<p>Paravicars use their considerable infernal powers to reinforce their positions in the Hellknight hierarchy.</p>",
+        publicNotes:
+          "<p>Paravicars use their considerable infernal powers to reinforce their positions in the Hellknight hierarchy.</p>",
       },
       traits: {
         rarity: "common",
@@ -3893,7 +3980,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Adventure Path",
         },
-        publicNotes: "<p>Tiny runes carved around a doorframe confound creatures into circling the room or hallway they attempted to exit.</p>",
+        publicNotes:
+          "<p>Tiny runes carved around a doorframe confound creatures into circling the room or hallway they attempted to exit.</p>",
       },
       traits: {
         rarity: "common",
@@ -3914,7 +4002,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Adventure Path",
         },
-        publicNotes: "<p>One of the carvings on the mural suddenly animates and clambers out of the painting to become a real creature in the middle of the chamber.</p>",
+        publicNotes:
+          "<p>One of the carvings on the mural suddenly animates and clambers out of the painting to become a real creature in the middle of the chamber.</p>",
       },
       traits: {
         rarity: "common",
@@ -3956,7 +4045,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Adventure Path",
         },
-        publicNotes: "<p>Eerie shapes manifest within the doorway as it's opened, conjuring a group of four animate dreams into being.</p>",
+        publicNotes:
+          "<p>Eerie shapes manifest within the doorway as it's opened, conjuring a group of four animate dreams into being.</p>",
       },
       traits: {
         rarity: "common",
@@ -3977,7 +4067,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Adventure Path",
         },
-        publicNotes: "<p>An ornate wheel is mounted on a pole and controlled by a lever that can be triggered manually or by a nearby sensor.</p>",
+        publicNotes:
+          "<p>An ornate wheel is mounted on a pole and controlled by a lever that can be triggered manually or by a nearby sensor.</p>",
       },
       traits: {
         rarity: "common",
@@ -3998,7 +4089,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Adventure Path",
         },
-        publicNotes: "<p>A hidden stone rod causes two immense stone doors to fall forward from their gate, crushing anything beneath them.</p>",
+        publicNotes:
+          "<p>A hidden stone rod causes two immense stone doors to fall forward from their gate, crushing anything beneath them.</p>",
       },
       traits: {
         rarity: "common",
@@ -4019,7 +4111,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>An old heavy crossbow is hidden in a pile of trash, loaded with a wooden spear, and connected to the rope holding the door.</p>",
+        publicNotes:
+          "<p>An old heavy crossbow is hidden in a pile of trash, loaded with a wooden spear, and connected to the rope holding the door.</p>",
       },
       traits: {
         rarity: "common",
@@ -4040,7 +4133,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder GM Core",
         },
-        publicNotes: "<p>Fun-house mirrors distort a viewer's reflection, painfully reshaping their body to match what appears in the reflected images.</p>",
+        publicNotes:
+          "<p>Fun-house mirrors distort a viewer's reflection, painfully reshaping their body to match what appears in the reflected images.</p>",
       },
       traits: {
         rarity: "common",
@@ -4061,7 +4155,8 @@ export async function writeCreatureFixtureData(packRoot: string): Promise<void> 
         publication: {
           title: "Pathfinder Monster Core",
         },
-        publicNotes: "<p>A pressure-sensitive floorboard connects to a beam holding up debris in the crawlway's ceiling.</p>",
+        publicNotes:
+          "<p>A pressure-sensitive floorboard connects to a beam holding up debris in the crawlway's ceiling.</p>",
       },
       traits: {
         rarity: "common",

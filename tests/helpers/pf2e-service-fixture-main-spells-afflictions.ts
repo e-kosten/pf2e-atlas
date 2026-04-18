@@ -9,7 +9,8 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
     type: "spell",
     system: {
       description: {
-        value: "<p>You ward an area to alert you when creatures enter without your permission.</p><p>Whenever a Small or larger corporeal creature enters the spell's area without speaking the password, alarm sends your choice of a mental alert or an audible alarm.</p>",
+        value:
+          "<p>You ward an area to alert you when creatures enter without your permission.</p><p>Whenever a Small or larger corporeal creature enters the spell's area without speaking the password, alarm sends your choice of a mental alert or an audible alarm.</p>",
       },
       level: {
         value: 1,
@@ -193,7 +194,8 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
     type: "spell",
     system: {
       description: {
-        value: "<p>You place an invisible scrying sensor on each target just above their eyes.</p><p>Each sensor looks where that target looks, and you can see what each target sees.</p>",
+        value:
+          "<p>You place an invisible scrying sensor on each target just above their eyes.</p><p>Each sensor looks where that target looks, and you can see what each target sees.</p>",
       },
       level: {
         value: 3,
@@ -215,7 +217,8 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
     type: "spell",
     system: {
       description: {
-        value: "<p>You press your hand to the stone, causing hand-drawn scouts to spread out from your fingers.</p><p>As long as you Sustain the Spell, you can see, hear, and smell through the scouts.</p>",
+        value:
+          "<p>You press your hand to the stone, causing hand-drawn scouts to spread out from your fingers.</p><p>As long as you Sustain the Spell, you can see, hear, and smell through the scouts.</p>",
       },
       duration: {
         sustained: true,
@@ -266,7 +269,8 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
     type: "spell",
     system: {
       description: {
-        value: "<p>You record a message up to 5 minutes long and inscribe a special rune on any flat unattended surface or small object within reach.</p><p>You also specify a trigger that creatures must meet to hear the message.</p>",
+        value:
+          "<p>You record a message up to 5 minutes long and inscribe a special rune on any flat unattended surface or small object within reach.</p><p>You also specify a trigger that creatures must meet to hear the message.</p>",
       },
       level: {
         value: 2,
@@ -288,7 +292,8 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
     type: "spell",
     system: {
       description: {
-        value: "<p>You send the creature a mental message of 25 words or fewer, and it can respond immediately with its own message of 25 words or fewer.</p>",
+        value:
+          "<p>You send the creature a mental message of 25 words or fewer, and it can respond immediately with its own message of 25 words or fewer.</p>",
       },
       level: {
         value: 5,
@@ -310,7 +315,8 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
     type: "spell",
     system: {
       description: {
-        value: "<p>A warding circle protects the target and grants a bonus to AC while they stand within the sanctified space.</p>",
+        value:
+          "<p>A warding circle protects the target and grants a bonus to AC while they stand within the sanctified space.</p>",
       },
       level: {
         value: 3,
@@ -376,7 +382,8 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
     type: "spell",
     system: {
       description: {
-        value: "<p>The target can walk on the surface of water and move across liquid surfaces as if they were solid ground.</p>",
+        value:
+          "<p>The target can walk on the surface of water and move across liquid surfaces as if they were solid ground.</p>",
       },
       level: {
         value: 3,
@@ -398,7 +405,8 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
     type: "spell",
     system: {
       description: {
-        value: "<p>The target can walk on air as if it were solid ground.</p><p>It can ascend and descend in this way at a maximum of a 45-degree angle.</p>",
+        value:
+          "<p>The target can walk on air as if it were solid ground.</p><p>It can ascend and descend in this way at a maximum of a 45-degree angle.</p>",
       },
       level: {
         value: 4,
@@ -420,7 +428,8 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
     type: "spell",
     system: {
       description: {
-        value: "<p>You create a unique planar beacon somewhere within the spell's range that remains in place.</p><p>You can use the beacon later to find and return to that location.</p>",
+        value:
+          "<p>You create a unique planar beacon somewhere within the spell's range that remains in place.</p><p>You can use the beacon later to find and return to that location.</p>",
       },
       level: {
         value: 5,
@@ -442,7 +451,8 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
     type: "spell",
     system: {
       description: {
-        value: "<p>You conjure an arrow of acid that keeps corroding the target after it hits.</p><p>On a hit, you deal 3d8 acid damage plus persistent acid damage.</p>",
+        value:
+          "<p>You conjure an arrow of acid that keeps corroding the target after it hits.</p><p>On a hit, you deal 3d8 acid damage plus persistent acid damage.</p>",
       },
       level: {
         value: 2,
@@ -464,7 +474,8 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
     type: "spell",
     system: {
       description: {
-        value: "<p>You grant the target brief foresight.</p><p>The target gains a +1 status bonus to its next initiative roll, after which the spell ends.</p>",
+        value:
+          "<p>You grant the target brief foresight.</p><p>The target gains a +1 status bonus to its next initiative roll, after which the spell ends.</p>",
       },
       level: {
         value: 1,
@@ -486,7 +497,8 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
     type: "spell",
     system: {
       description: {
-        value: "<p>You extend your aura as a magical shield that protects your eidolon or minion.</p><p>The target gains a +1 circumstance bonus to AC until the start of your next turn.</p>",
+        value:
+          "<p>You extend your aura as a magical shield that protects your eidolon or minion.</p><p>The target gains a +1 circumstance bonus to AC until the start of your next turn.</p>",
       },
       level: {
         value: 1,
@@ -508,7 +520,8 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
     type: "spell",
     system: {
       description: {
-        value: "<p>You erect protective wards that make the target difficult to detect via magic.</p><p>Veil of privacy attempts to counteract all detection, revelation, and scrying effects used against the target.</p>",
+        value:
+          "<p>You erect protective wards that make the target difficult to detect via magic.</p><p>Veil of privacy attempts to counteract all detection, revelation, and scrying effects used against the target.</p>",
       },
       level: {
         value: 3,
@@ -530,7 +543,8 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
     type: "spell",
     system: {
       description: {
-        value: "<p>You drive mental contamination from the target's mind and counteract an effect applying the frightened or confused condition.</p>",
+        value:
+          "<p>You drive mental contamination from the target's mind and counteract an effect applying the frightened or confused condition.</p>",
       },
       level: {
         value: 4,
@@ -596,7 +610,8 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
     type: "spell",
     system: {
       description: {
-        value: "<p>You remove a curse from the target and can restore flesh from stone, counteracting petrification.</p>",
+        value:
+          "<p>You remove a curse from the target and can restore flesh from stone, counteracting petrification.</p>",
       },
       level: {
         value: 5,
@@ -640,7 +655,8 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
     type: "spell",
     system: {
       description: {
-        value: "<p>You plant fear in the target; it must attempt a Will save.</p><p>The target becomes Frightened 2.</p>",
+        value:
+          "<p>You plant fear in the target; it must attempt a Will save.</p><p>The target becomes Frightened 2.</p>",
       },
       level: {
         value: 1,
@@ -714,7 +730,8 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
     type: "spell",
     system: {
       description: {
-        value: "<p>You call forth a powerful blast of pressurized water that bludgeons the target and knocks it back.</p>",
+        value:
+          "<p>You call forth a powerful blast of pressurized water that bludgeons the target and knocks it back.</p>",
       },
       level: {
         value: 1,
@@ -756,7 +773,8 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
     type: "spell",
     system: {
       description: {
-        value: "<p>You completely surround a Large or smaller creature in immobile illusory walls, trapping it inside a false prison it can't escape.</p>",
+        value:
+          "<p>You completely surround a Large or smaller creature in immobile illusory walls, trapping it inside a false prison it can't escape.</p>",
       },
       level: {
         value: 5,
@@ -820,7 +838,8 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
     type: "affliction",
     system: {
       description: {
-        value: "<p>Stage 2 regains half as many Hit Points from all healing. Stage 4 gains no benefit from healing.</p>",
+        value:
+          "<p>Stage 2 regains half as many Hit Points from all healing. Stage 4 gains no benefit from healing.</p>",
       },
       level: {
         value: 6,
@@ -841,7 +860,8 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
     type: "affliction",
     system: {
       description: {
-        value: "<p>This widespread illness can sweep through entire communities, leaving few unaffected.</p><p><strong>Stage 1</strong> fatigued.</p>",
+        value:
+          "<p>This widespread illness can sweep through entire communities, leaving few unaffected.</p><p><strong>Stage 1</strong> fatigued.</p>",
       },
       level: {
         value: 4,
@@ -862,7 +882,8 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
     type: "affliction",
     system: {
       description: {
-        value: "<p>This toxin erodes the connection between body and soul, tricking the latter into assuming the former has already died.</p><p><strong>Stage 1</strong> void damage and doomed 1.</p>",
+        value:
+          "<p>This toxin erodes the connection between body and soul, tricking the latter into assuming the former has already died.</p><p><strong>Stage 1</strong> void damage and doomed 1.</p>",
       },
       level: {
         value: 13,
@@ -883,7 +904,8 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
     type: "affliction",
     system: {
       description: {
-        value: "<p>The victim's mind fills with terrifying visions.</p><p><strong>Stage 3</strong> The victim falls unconscious and can't be awakened.</p>",
+        value:
+          "<p>The victim's mind fills with terrifying visions.</p><p><strong>Stage 3</strong> The victim falls unconscious and can't be awakened.</p>",
       },
       level: {
         value: 9,
@@ -922,7 +944,8 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
     type: "affliction",
     system: {
       description: {
-        value: "<p>This soporific chemical quickly induces a deep unconsciousness and makes the victim sleep normally.</p>",
+        value:
+          "<p>This soporific chemical quickly induces a deep unconsciousness and makes the victim sleep normally.</p>",
       },
       level: {
         value: 2,
@@ -985,7 +1008,8 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
     type: "affliction",
     system: {
       description: {
-        value: "<p>The poison forces the victim to speak only the truth and can use no actions but to answer questions put to them.</p>",
+        value:
+          "<p>The poison forces the victim to speak only the truth and can use no actions but to answer questions put to them.</p>",
       },
       level: {
         value: 5,
@@ -1006,7 +1030,8 @@ export async function writeSpellAndAfflictionFixtureData(packRoot: string): Prom
     type: "affliction",
     system: {
       description: {
-        value: "<p>The victim can't breathe properly as the disease leaves the lungs starved for air and the body breathless.</p>",
+        value:
+          "<p>The victim can't breathe properly as the disease leaves the lungs starved for air and the body breathless.</p>",
       },
       level: {
         value: 7,

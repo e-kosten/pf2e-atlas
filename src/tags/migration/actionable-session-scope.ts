@@ -16,11 +16,7 @@ function createEmptyScopeKeys(): DerivedTagActionableSessionScopeKeys {
   };
 }
 
-function addTag(
-  keys: DerivedTagActionableSessionScopeKeys,
-  category: SearchCategory,
-  tag: string,
-): void {
+function addTag(keys: DerivedTagActionableSessionScopeKeys, category: SearchCategory, tag: string): void {
   const normalizedTag = normalizeDerivedTag(tag);
   keys.tagKeys.add(`${category}:${normalizedTag}` as `${SearchCategory}:${string}`);
 
@@ -33,11 +29,7 @@ function addTag(
   keys.familyKeys.add(`${category}:${normalizeDerivedTag(ontologyTag.family)}` as `${SearchCategory}:${string}`);
 }
 
-function addFamily(
-  keys: DerivedTagActionableSessionScopeKeys,
-  category: SearchCategory,
-  family: string,
-): void {
+function addFamily(keys: DerivedTagActionableSessionScopeKeys, category: SearchCategory, family: string): void {
   keys.familyKeys.add(`${category}:${normalizeDerivedTag(family)}` as `${SearchCategory}:${string}`);
 }
 
@@ -63,7 +55,9 @@ function buildProposalReviewScopeKeys(): DerivedTagActionableSessionScopeKeys {
   const state = getCurrentDerivedTagMigrationAuthoredState();
   const keys = createEmptyScopeKeys();
 
-  for (const [category, assignmentReviews] of Object.entries(state.assignmentReviews) as Array<[SearchCategory, { decisions: Array<{ family: string; tag: string; source?: string }> }]>) {
+  for (const [category, assignmentReviews] of Object.entries(state.assignmentReviews) as Array<
+    [SearchCategory, { decisions: Array<{ family: string; tag: string; source?: string }> }]
+  >) {
     for (const decision of assignmentReviews.decisions) {
       if (decision.source !== "llm") {
         continue;
@@ -73,7 +67,9 @@ function buildProposalReviewScopeKeys(): DerivedTagActionableSessionScopeKeys {
     }
   }
 
-  for (const [category, exemplarReviews] of Object.entries(state.exemplarReviews) as Array<[SearchCategory, { decisions: Array<{ tag: string; status: string; source?: string }> }]>) {
+  for (const [category, exemplarReviews] of Object.entries(state.exemplarReviews) as Array<
+    [SearchCategory, { decisions: Array<{ tag: string; status: string; source?: string }> }]
+  >) {
     for (const decision of exemplarReviews.decisions) {
       if (decision.status !== "needs_review" || decision.source !== "llm") {
         continue;
@@ -85,9 +81,7 @@ function buildProposalReviewScopeKeys(): DerivedTagActionableSessionScopeKeys {
   return keys;
 }
 
-function buildExemplarCleanupScopeKeys(
-  exemplarLimit: number | undefined,
-): DerivedTagActionableSessionScopeKeys {
+function buildExemplarCleanupScopeKeys(exemplarLimit: number | undefined): DerivedTagActionableSessionScopeKeys {
   const state = getCurrentDerivedTagMigrationAuthoredState();
   const keys = createEmptyScopeKeys();
   const categories = Object.keys(state.exemplars) as DerivedTagManagedCategory[];

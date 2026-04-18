@@ -1,45 +1,60 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  formatSemanticDiscoveryReport,
-  parseOptions,
-} from "../../src/tags/cli/discover-semantic-candidates.js";
+import { formatSemanticDiscoveryReport, parseOptions } from "../../src/tags/cli/discover-semantic-candidates.js";
 
 describe("semantic discovery CLI helpers", () => {
   it("parses repeated exemplar flags and numeric options", () => {
     const options = parseOptions([
-      "--category", "creature",
-      "--name", "Ghost Commoner",
-      "--name", "Ghost Pirate Captain",
-      "--record-key", "creature:ghost-commoner",
-      "--candidate-limit", "12",
-      "--contrast-limit", "4",
-      "--min-similarity", "0.82",
-      "--exclude-derived-tag", "haunt_theme",
-      "--min-gram-length", "4",
-      "--max-gram-length", "5",
+      "--category",
+      "creature",
+      "--name",
+      "Ghost Commoner",
+      "--name",
+      "Ghost Pirate Captain",
+      "--record-key",
+      "creature:ghost-commoner",
+      "--candidate-limit",
+      "12",
+      "--contrast-limit",
+      "4",
+      "--min-similarity",
+      "0.82",
+      "--exclude-derived-tag",
+      "haunt_theme",
+      "--min-gram-length",
+      "4",
+      "--max-gram-length",
+      "5",
     ]);
 
-    expect(options).toEqual(expect.objectContaining({
-      category: "creature",
-      exemplarNames: ["Ghost Commoner", "Ghost Pirate Captain"],
-      exemplarRecordKeys: ["creature:ghost-commoner"],
-      limit: 12,
-      contrastLimit: 4,
-      minSimilarity: 0.82,
-      excludeDerivedTag: "haunt_theme",
-      minGramLength: 4,
-      maxGramLength: 5,
-    }));
+    expect(options).toEqual(
+      expect.objectContaining({
+        category: "creature",
+        exemplarNames: ["Ghost Commoner", "Ghost Pirate Captain"],
+        exemplarRecordKeys: ["creature:ghost-commoner"],
+        limit: 12,
+        contrastLimit: 4,
+        minSimilarity: 0.82,
+        excludeDerivedTag: "haunt_theme",
+        minGramLength: 4,
+        maxGramLength: 5,
+      }),
+    );
   });
 
   it("rejects invalid semantic gram ranges", () => {
-    expect(() => parseOptions([
-      "--category", "creature",
-      "--name", "Ghost Commoner",
-      "--min-gram-length", "5",
-      "--max-gram-length", "2",
-    ])).toThrow(/less than or equal/i);
+    expect(() =>
+      parseOptions([
+        "--category",
+        "creature",
+        "--name",
+        "Ghost Commoner",
+        "--min-gram-length",
+        "5",
+        "--max-gram-length",
+        "2",
+      ]),
+    ).toThrow(/less than or equal/i);
   });
 
   it("renders a readable semantic discovery report", () => {

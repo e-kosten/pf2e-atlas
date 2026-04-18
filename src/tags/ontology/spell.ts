@@ -10,119 +10,104 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
       tags: [
         {
           tag: "stealth_support",
-          description: "Helps move quietly, avoid notice, suppress noisy presence, or otherwise support covert entry and low-profile movement.",
+          description:
+            "Helps move quietly, avoid notice, suppress noisy presence, or otherwise support covert entry and low-profile movement.",
           assignmentMode: "hybrid",
           appliesWhen: [
             "The spell is naturally retrieved to help a creature move quietly, avoid notice, pass unseen, or keep a covert approach from drawing attention.",
-            "The retrieval hook is quiet entry or low-profile movement rather than only broad battlefield obscurity."
+            "The retrieval hook is quiet entry or low-profile movement rather than only broad battlefield obscurity.",
           ],
           doesNotApplyWhen: [
             "The spell only creates a combat concealment effect or visual obstruction without really supporting a covert approach.",
-            "The spell changes appearance or social presentation without materially helping the target move unnoticed."
+            "The spell changes appearance or social presentation without materially helping the target move unnoticed.",
           ],
-          adjacentTags: [
-            "concealment",
-            "silencing"
-          ]
+          adjacentTags: ["concealment", "silencing"],
         },
         {
           tag: "disguise",
           description: "Helps alter appearance or impersonate another identity.",
-          assignmentMode: "deterministic"
+          assignmentMode: "deterministic",
         },
         {
           tag: "social_infiltration",
           description: "Helps blend into a group or pass under social scrutiny.",
-          assignmentMode: "deterministic"
+          assignmentMode: "deterministic",
         },
         {
           tag: "infiltration",
           description: "Broad infiltration umbrella for quiet-entry, disguise, and covert social-passing spells.",
           assignmentMode: "composite",
-          adjacentTags: [
-            "stealth_support",
-            "disguise",
-            "social_infiltration"
-          ],
-          compositeOfAny: [
-            fromFamily("infiltration")
-          ]
-        }
-      ]
+          adjacentTags: ["stealth_support", "disguise", "social_infiltration"],
+          compositeOfAny: [fromFamily("infiltration")],
+        },
+      ],
     },
     access_bypass: {
       axis: "utility",
-      description: "Spells that open secured access, neutralize trapped entry, bypass blocked thresholds, or precisely manipulate important mechanisms.",
+      description:
+        "Spells that open secured access, neutralize trapped entry, bypass blocked thresholds, or precisely manipulate important mechanisms.",
       tags: [
         {
           tag: "lock_bypass",
-          description: "Opens locks, sealed containers, secured doors, or similar closed access points through magic rather than physical lockpicking.",
+          description:
+            "Opens locks, sealed containers, secured doors, or similar closed access points through magic rather than physical lockpicking.",
           assignmentMode: "hybrid",
           appliesWhen: [
             "The spell is naturally retrieved to unlock, unseal, or open a secured entry point, door, chest, manacle, or similar closure.",
-            "Accessing something closed matters more than broad movement, damage, or generic anti-magic."
+            "Accessing something closed matters more than broad movement, damage, or generic anti-magic.",
           ],
           doesNotApplyWhen: [
             "The spell mainly destroys the obstacle, bypasses the whole wall, or teleports past the problem without interacting with the locked access point.",
-            "The spell only manipulates unattended objects generally and opening secured access is not a real retrieval hook."
+            "The spell only manipulates unattended objects generally and opening secured access is not a real retrieval hook.",
           ],
-          adjacentTags: [
-            "trap_bypass",
-            "barrier_bypass"
-          ]
+          adjacentTags: ["trap_bypass", "barrier_bypass"],
         },
         {
           tag: "trap_bypass",
-          description: "Disarms, suppresses, safely triggers, or helps bypass a trap, warded threshold, or similar trapped access problem.",
+          description:
+            "Disarms, suppresses, safely triggers, or helps bypass a trap, warded threshold, or similar trapped access problem.",
           assignmentMode: "hybrid",
           appliesWhen: [
             "The spell is naturally retrieved to disable, neutralize, or get past a trap or trapped access point without simply enduring the hazard.",
-            "Trap-solving matters more than generic revelation, scouting, or damage prevention."
+            "Trap-solving matters more than generic revelation, scouting, or damage prevention.",
           ],
           doesNotApplyWhen: [
             "The spell only reveals that a trap exists without helping bypass or disable it.",
-            "The spell mainly counters open combat hazards or battlefield effects rather than access-facing traps."
+            "The spell mainly counters open combat hazards or battlefield effects rather than access-facing traps.",
           ],
-          adjacentTags: [
-            "lock_bypass",
-            "mechanism_manipulation"
-          ]
+          adjacentTags: ["lock_bypass", "mechanism_manipulation"],
         },
         {
           tag: "barrier_bypass",
-          description: "Gets a creature through a blocked threshold, wall, seal, force barrier, or magical ward that otherwise prevents passage.",
+          description:
+            "Gets a creature through a blocked threshold, wall, seal, force barrier, or magical ward that otherwise prevents passage.",
           assignmentMode: "hybrid",
           appliesWhen: [
             "The spell is naturally retrieved to pass through, nullify, or ignore a blocking wall, sealed threshold, force barrier, or magical ward.",
-            "Crossing the obstruction matters more than simply traveling farther or counteracting magic in the abstract."
+            "Crossing the obstruction matters more than simply traveling farther or counteracting magic in the abstract.",
           ],
           doesNotApplyWhen: [
             "The spell only unlocks a door or manipulates a mechanism without really solving a barrier or ward.",
-            "The spell's value is ordinary travel or relocation rather than penetrating a blocked passage."
+            "The spell's value is ordinary travel or relocation rather than penetrating a blocked passage.",
           ],
-          adjacentTags: [
-            "lock_bypass",
-            "countermagic"
-          ]
+          adjacentTags: ["lock_bypass", "countermagic"],
         },
         {
           tag: "mechanism_manipulation",
-          description: "Precisely triggers, moves, holds, or operates levers, buttons, switches, pressure plates, locks, or similar scene mechanisms.",
+          description:
+            "Precisely triggers, moves, holds, or operates levers, buttons, switches, pressure plates, locks, or similar scene mechanisms.",
           assignmentMode: "hybrid",
           appliesWhen: [
             "The spell is naturally retrieved to operate a lever, button, latch, control panel, pressure surface, or similar mechanism from a safe or unusual position.",
-            "The mechanism interaction itself matters more than broad telekinesis, damage, or ordinary object movement."
+            "The mechanism interaction itself matters more than broad telekinesis, damage, or ordinary object movement.",
           ],
           doesNotApplyWhen: [
             "The spell only moves creatures or loose objects without a real access-, control-, or mechanism-facing use case.",
-            "The spell bypasses the obstacle by teleporting or destroying it instead of operating the mechanism."
+            "The spell bypasses the obstacle by teleporting or destroying it instead of operating the mechanism.",
           ],
-          adjacentTags: [
-            "lock_bypass",
-            "trap_bypass"
-          ]
-        }
-      ]
+          adjacentTags: ["lock_bypass", "trap_bypass"],
+        },
+      ],
     },
     communication: {
       axis: "utility",
@@ -131,106 +116,93 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
         {
           tag: "signaling",
           description: "Helps draw attention, mark a location, or coordinate allies.",
-          assignmentMode: "deterministic"
+          assignmentMode: "deterministic",
         },
         {
           tag: "telepathic_communication",
-          description: "Creates direct mind-to-mind communication, silent tactical coordination, or psychic speech between creatures.",
-          assignmentMode: "hybrid"
+          description:
+            "Creates direct mind-to-mind communication, silent tactical coordination, or psychic speech between creatures.",
+          assignmentMode: "hybrid",
         },
         {
           tag: "message_delivery",
           description: "Sends, stores, or relays actual content across time or distance.",
-          assignmentMode: "deterministic"
+          assignmentMode: "deterministic",
         },
         {
           tag: "translation_support",
-          description: "Bridges spoken or written language barriers through translation, comprehension, deciphering, or magically shared understanding.",
+          description:
+            "Bridges spoken or written language barriers through translation, comprehension, deciphering, or magically shared understanding.",
           assignmentMode: "hybrid",
           appliesWhen: [
             "The spell is naturally retrieved to understand, translate, or make oneself understood across otherwise incompatible languages or scripts.",
-            "Language access matters more than merely sending a message or speaking silently."
+            "Language access matters more than merely sending a message or speaking silently.",
           ],
           doesNotApplyWhen: [
             "The spell only transmits content farther or more privately without solving a language barrier.",
-            "The spell reveals truth, thoughts, or memories without actually translating speech or writing."
+            "The spell reveals truth, thoughts, or memories without actually translating speech or writing.",
           ],
-          adjacentTags: [
-            "telepathic_communication",
-            "message_delivery"
-          ]
+          adjacentTags: ["telepathic_communication", "message_delivery"],
         },
         {
           tag: "communication",
-          description: "Broad communication umbrella for spells used to signal allies, relay messages, bridge language barriers, or coordinate silently.",
+          description:
+            "Broad communication umbrella for spells used to signal allies, relay messages, bridge language barriers, or coordinate silently.",
           assignmentMode: "composite",
-          adjacentTags: [
-            "signaling",
-            "telepathic_communication",
-            "message_delivery",
-            "translation_support"
-          ],
-          compositeOfAny: [
-            fromFamily("communication")
-          ]
+          adjacentTags: ["signaling", "telepathic_communication", "message_delivery", "translation_support"],
+          compositeOfAny: [fromFamily("communication")],
         },
-      ]
+      ],
     },
     reconnaissance: {
       axis: "utility",
-      description: "Reconnaissance spells for surveying areas, extending senses, and locating specific targets before engagement.",
+      description:
+        "Reconnaissance spells for surveying areas, extending senses, and locating specific targets before engagement.",
       tags: [
         {
           tag: "scouting",
           description: "Helps observe at a distance, extend senses, or locate a target.",
-          assignmentMode: "hybrid"
+          assignmentMode: "hybrid",
         },
         {
           tag: "tracking",
-          description: "Locates a specific creature, object, or destination, or follows a supernatural trail toward it.",
+          description:
+            "Locates a specific creature, object, or destination, or follows a supernatural trail toward it.",
           assignmentMode: "hybrid",
           appliesWhen: [
             "The spell is naturally retrieved to find a named target, trace a quarry, or point the caster toward a specific creature, object, or place.",
-            "Target location matters more than broad sensory surveillance or general route guidance."
+            "Target location matters more than broad sensory surveillance or general route guidance.",
           ],
           doesNotApplyWhen: [
             "The spell mainly reveals an area, extends senses, or scouts without locking onto a specific target.",
-            "The spell only helps orient a journey or choose a route once the destination is already known."
+            "The spell only helps orient a journey or choose a route once the destination is already known.",
           ],
-          adjacentTags: [
-            "scouting",
-            "navigation"
-          ]
+          adjacentTags: ["scouting", "navigation"],
         },
         {
           tag: "reconnaissance",
-          description: "Broad scouting umbrella for spells that gather remote information, extend senses, or track a target from afar.",
+          description:
+            "Broad scouting umbrella for spells that gather remote information, extend senses, or track a target from afar.",
           assignmentMode: "composite",
-          adjacentTags: [
-            "scouting",
-            "tracking",
-            "scouting_summons"
-          ],
-          compositeOfAny: [
-            fromFamily("reconnaissance"),
-            fromTag("scouting_summons")
-          ]
-        }
-      ]
+          adjacentTags: ["scouting", "tracking", "scouting_summons"],
+          compositeOfAny: [fromFamily("reconnaissance"), fromTag("scouting_summons")],
+        },
+      ],
     },
     revelation: {
       axis: "utility",
-      description: "Detection and revelation spells that expose hidden truths, concealed dangers, and supernatural facts.",
+      description:
+        "Detection and revelation spells that expose hidden truths, concealed dangers, and supernatural facts.",
       tags: [
         {
           tag: "magic_detection",
           description: "Reveals magical auras, spell presence, active effects, or other supernatural signatures.",
-          assignmentMode: "hybrid"
+          assignmentMode: "hybrid",
         },
         {
           tag: "invisibility_reveal",
           description: "Exposes invisible, hidden, concealed, or magically obscured creatures and objects.",
-          assignmentMode: "hybrid"
+          assignmentMode: "hybrid",
         },
         {
           tag: "truth_reveal",
@@ -238,238 +210,191 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
           assignmentMode: "hybrid",
           appliesWhen: [
             "The spell's retrieval value comes from exposing deception, forcing truthful answers, or stripping away false presentation.",
-            "A user would plausibly look for it when they need an answer spell rather than a sensor spell."
+            "A user would plausibly look for it when they need an answer spell rather than a sensor spell.",
           ],
           doesNotApplyWhen: [
             "The spell only detects magic, invisibility, or general auras without interrogating truth or deception.",
-            "The spell mainly alters memory or emotions rather than revealing facts."
+            "The spell mainly alters memory or emotions rather than revealing facts.",
           ],
-          adjacentTags: [
-            "magic_detection",
-            "memory_manipulation"
-          ]
+          adjacentTags: ["magic_detection", "memory_manipulation"],
         },
         {
           tag: "curse_revelation",
           description: "Identifies curses, spiritual corruption, or other malign supernatural bindings on a target.",
-          assignmentMode: "hybrid"
+          assignmentMode: "hybrid",
         },
         {
           tag: "hazard_revelation",
-          description: "Reveals hidden traps, secret wards, concealed passage dangers, or other obscured environmental threats.",
+          description:
+            "Reveals hidden traps, secret wards, concealed passage dangers, or other obscured environmental threats.",
           assignmentMode: "hybrid",
           appliesWhen: [
             "The spell is naturally retrieved to uncover traps, hidden dangers, secret magical wards, or dangerous concealed features in a location.",
-            "Hazard discovery matters more than general magical detection or long-range scouting."
+            "Hazard discovery matters more than general magical detection or long-range scouting.",
           ],
           doesNotApplyWhen: [
             "The spell only detects magic, invisible creatures, or truth without specifically surfacing dangerous hidden features.",
-            "The spell merely scouts an area from afar without exposing concealed trap logic or hazard placement."
+            "The spell merely scouts an area from afar without exposing concealed trap logic or hazard placement.",
           ],
-          adjacentTags: [
-            "magic_detection",
-            "scouting"
-          ]
+          adjacentTags: ["magic_detection", "scouting"],
         },
         {
           tag: "revelation",
-          description: "Broad reveal umbrella for spells that detect magic, uncover deceptions, expose invisible threats, or identify hidden supernatural problems.",
+          description:
+            "Broad reveal umbrella for spells that detect magic, uncover deceptions, expose invisible threats, or identify hidden supernatural problems.",
           assignmentMode: "composite",
-          adjacentTags: [
-            "magic_detection",
-            "truth_reveal",
-            "hazard_revelation"
-          ],
-          compositeOfAny: [
-            fromFamily("revelation")
-          ]
-        }
-      ]
+          adjacentTags: ["magic_detection", "truth_reveal", "hazard_revelation"],
+          compositeOfAny: [fromFamily("revelation")],
+        },
+      ],
     },
     consultation: {
       axis: "utility",
-      description: "Spells used to ask for guidance, gain analytical insight, diagnose hidden problems, or consult cosmic and magical knowledge beyond raw sensory scouting.",
+      description:
+        "Spells used to ask for guidance, gain analytical insight, diagnose hidden problems, or consult cosmic and magical knowledge beyond raw sensory scouting.",
       tags: [
         {
           tag: "lore_consultation",
-          description: "Provides interpretive insight, shared knowledge, or focused understanding about a subject, clue, history, or magical situation.",
+          description:
+            "Provides interpretive insight, shared knowledge, or focused understanding about a subject, clue, history, or magical situation.",
           assignmentMode: "hybrid",
-          adjacentTags: [
-            "truth_reveal",
-            "problem_diagnosis"
-          ]
+          adjacentTags: ["truth_reveal", "problem_diagnosis"],
         },
         {
           tag: "problem_diagnosis",
-          description: "Helps determine what hidden magical, spiritual, cursed, or otherwise obscure problem is actually affecting a target, site, or situation.",
+          description:
+            "Helps determine what hidden magical, spiritual, cursed, or otherwise obscure problem is actually affecting a target, site, or situation.",
           assignmentMode: "hybrid",
-          adjacentTags: [
-            "curse_revelation",
-            "magic_detection"
-          ]
+          adjacentTags: ["curse_revelation", "magic_detection"],
         },
         {
           tag: "omen_guidance",
-          description: "Asks for omens, directional guidance, or advisory insight about the best course of action, likely outcome, or strategic choice.",
+          description:
+            "Asks for omens, directional guidance, or advisory insight about the best course of action, likely outcome, or strategic choice.",
           assignmentMode: "hybrid",
-          adjacentTags: [
-            "lore_consultation",
-            "wayfinding"
-          ]
+          adjacentTags: ["lore_consultation", "wayfinding"],
         },
         {
           tag: "consultation",
-          description: "Broad consultation umbrella for spells used to seek cosmic answers, diagnose mysteries, or gain non-sensory divinatory guidance.",
+          description:
+            "Broad consultation umbrella for spells used to seek cosmic answers, diagnose mysteries, or gain non-sensory divinatory guidance.",
           assignmentMode: "composite",
-          adjacentTags: [
-            "lore_consultation",
-            "problem_diagnosis",
-            "omen_guidance"
-          ],
-          compositeOfAny: [
-            fromFamily("consultation")
-          ]
-        }
-      ]
+          adjacentTags: ["lore_consultation", "problem_diagnosis", "omen_guidance"],
+          compositeOfAny: [fromFamily("consultation")],
+        },
+      ],
     },
     resolution: {
       axis: "utility",
-      description: "Spells used to directly solve curses, hauntings, appeasement problems, contamination, outbreak containment problems, and hidden supernatural causes rather than merely endure or diagnose them.",
+      description:
+        "Spells used to directly solve curses, hauntings, appeasement problems, contamination, outbreak containment problems, and hidden supernatural causes rather than merely endure or diagnose them.",
       tags: [
         {
           tag: "curse_removal",
-          description: "Breaks, removes, or counteracts curses as a direct answer path rather than only suppressing symptoms.",
+          description:
+            "Breaks, removes, or counteracts curses as a direct answer path rather than only suppressing symptoms.",
           assignmentMode: "hybrid",
-          adjacentTags: [
-            "exorcism",
-            "sanctification"
-          ]
+          adjacentTags: ["exorcism", "sanctification"],
         },
         {
           tag: "exorcism",
-          description: "Banishes, expels, or spiritually drives out a hostile spirit, possession, haunt, or invading supernatural presence.",
+          description:
+            "Banishes, expels, or spiritually drives out a hostile spirit, possession, haunt, or invading supernatural presence.",
           assignmentMode: "hybrid",
-          adjacentTags: [
-            "curse_removal",
-            "sanctification"
-          ]
+          adjacentTags: ["curse_removal", "sanctification"],
         },
         {
           tag: "sanctification",
-          description: "Consecrates, hallowes, purifies, or spiritually cleanses a creature, object, or site to solve a malign supernatural problem.",
+          description:
+            "Consecrates, hallowes, purifies, or spiritually cleanses a creature, object, or site to solve a malign supernatural problem.",
           assignmentMode: "hybrid",
-          adjacentTags: [
-            "ritual_appeasement",
-            "exorcism",
-            "protective_ward"
-          ]
+          adjacentTags: ["ritual_appeasement", "exorcism", "protective_ward"],
         },
         {
           tag: "ritual_appeasement",
-          description: "Ends a supernatural problem through offerings, restitution, funerary respect, ritual observance, or otherwise satisfying a spiritual demand rather than expelling the presence outright.",
+          description:
+            "Ends a supernatural problem through offerings, restitution, funerary respect, ritual observance, or otherwise satisfying a spiritual demand rather than expelling the presence outright.",
           assignmentMode: "hybrid",
-          adjacentTags: [
-            "sanctification",
-            "exorcism"
-          ]
+          adjacentTags: ["sanctification", "exorcism"],
         },
         {
           tag: "quarantine_containment",
-          description: "Helps isolate victims, secure a dangerous area, or impose protective boundaries that stop spread while the problem is being solved.",
+          description:
+            "Helps isolate victims, secure a dangerous area, or impose protective boundaries that stop spread while the problem is being solved.",
           assignmentMode: "hybrid",
-          adjacentTags: [
-            "protective_ward",
-            "contamination_cleanup"
-          ]
+          adjacentTags: ["protective_ward", "contamination_cleanup"],
         },
         {
           tag: "contamination_cleanup",
-          description: "Cleanses tainted residue, neutralizes corrupted ground, removes lingering pollution, or purifies a contaminated space.",
+          description:
+            "Cleanses tainted residue, neutralizes corrupted ground, removes lingering pollution, or purifies a contaminated space.",
           assignmentMode: "hybrid",
-          adjacentTags: [
-            "quarantine_containment",
-            "source_cleanup"
-          ]
+          adjacentTags: ["quarantine_containment", "source_cleanup"],
         },
         {
           tag: "source_revelation",
-          description: "Reveals the hidden source, curse anchor, carrier, infected origin, or spreading point of a supernatural or outbreak problem.",
+          description:
+            "Reveals the hidden source, curse anchor, carrier, infected origin, or spreading point of a supernatural or outbreak problem.",
           assignmentMode: "hybrid",
-          adjacentTags: [
-            "problem_diagnosis",
-            "source_cleanup"
-          ]
+          adjacentTags: ["problem_diagnosis", "source_cleanup"],
         },
         {
           tag: "source_cleanup",
-          description: "Neutralizes, destroys, seals, or cleans up the cursed object, infected origin, corrupted site, or anchored source driving the problem.",
+          description:
+            "Neutralizes, destroys, seals, or cleans up the cursed object, infected origin, corrupted site, or anchored source driving the problem.",
           assignmentMode: "hybrid",
-          adjacentTags: [
-            "source_revelation",
-            "contamination_cleanup"
-          ]
+          adjacentTags: ["source_revelation", "contamination_cleanup"],
         },
         {
           tag: "resolution",
-          description: "Broad resolution umbrella for spells that break curses, expel hostile presences, contain spread, purify contamination, or solve a supernatural problem at its source.",
+          description:
+            "Broad resolution umbrella for spells that break curses, expel hostile presences, contain spread, purify contamination, or solve a supernatural problem at its source.",
           assignmentMode: "composite",
-          adjacentTags: [
-            "curse_removal",
-            "exorcism",
-            "ritual_appeasement",
-            "source_cleanup"
-          ],
-          compositeOfAny: [
-            fromFamily("resolution")
-          ]
-        }
-      ]
+          adjacentTags: ["curse_removal", "exorcism", "ritual_appeasement", "source_cleanup"],
+          compositeOfAny: [fromFamily("resolution")],
+        },
+      ],
     },
     sensory_support: {
       axis: "utility",
-      description: "Spells that improve sight, hearing, scent, or usable light so creatures can perceive and operate better in darkness or obscurity.",
+      description:
+        "Spells that improve sight, hearing, scent, or usable light so creatures can perceive and operate better in darkness or obscurity.",
       tags: [
         {
           tag: "senses_support",
-          description: "Enhances vision or other senses through darkvision, see invisible, sharpened perception, scent, or similar perceptual upgrades.",
+          description:
+            "Enhances vision or other senses through darkvision, see invisible, sharpened perception, scent, or similar perceptual upgrades.",
           assignmentMode: "hybrid",
-          adjacentTags: [
-            "scouting",
-            "invisibility_reveal"
-          ]
+          adjacentTags: ["scouting", "invisibility_reveal"],
         },
         {
           tag: "illumination",
-          description: "Produces practical light that brightens darkness, reveals an area, or lets creatures see more clearly.",
+          description:
+            "Produces practical light that brightens darkness, reveals an area, or lets creatures see more clearly.",
           assignmentMode: "hybrid",
-          adjacentTags: [
-            "senses_support",
-            "line_of_sight_control"
-          ]
-        }
-      ]
+          adjacentTags: ["senses_support", "line_of_sight_control"],
+        },
+      ],
     },
     wayfinding: {
       axis: "utility",
-      description: "Planning-oriented umbrella for spells used to find routes, reach destinations, and solve strategic navigation or travel-location problems.",
+      description:
+        "Planning-oriented umbrella for spells used to find routes, reach destinations, and solve strategic navigation or travel-location problems.",
       tags: [
         {
           tag: "wayfinding",
-          description: "Broad route-and-destination umbrella for spells that orient travel, locate a target destination, or bypass distance through strategic movement magic.",
+          description:
+            "Broad route-and-destination umbrella for spells that orient travel, locate a target destination, or bypass distance through strategic movement magic.",
           assignmentMode: "composite",
-          adjacentTags: [
-            "navigation",
-            "tracking",
-            "long_range_teleport"
-          ],
+          adjacentTags: ["navigation", "tracking", "long_range_teleport"],
           compositeOfAny: [
             fromTag("navigation"),
             fromTag("tracking"),
             fromTag("long_range_teleport"),
-            fromTag("planar_travel")
-          ]
-        }
-      ]
+            fromTag("planar_travel"),
+          ],
+        },
+      ],
     },
     teleportation: {
       axis: "utility",
@@ -477,37 +402,33 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
       tags: [
         {
           tag: "short_range_teleport",
-          description: "Teleports a creature across a short tactical distance, usually within the same scene or encounter area.",
+          description:
+            "Teleports a creature across a short tactical distance, usually within the same scene or encounter area.",
           assignmentMode: "hybrid",
           appliesWhen: [
             "The spell repositions a creature within the current encounter or scene rather than serving as expedition travel.",
-            "The tactical blink or reposition is itself a major reason to retrieve the spell."
+            "The tactical blink or reposition is itself a major reason to retrieve the spell.",
           ],
           doesNotApplyWhen: [
             "The spell is mainly about escaping custody, extracting allies, or long-distance transport.",
-            "The spell primarily crosses planes or major overland distances."
+            "The spell primarily crosses planes or major overland distances.",
           ],
-          adjacentTags: [
-            "extraction_teleport",
-            "long_range_teleport"
-          ]
+          adjacentTags: ["extraction_teleport", "long_range_teleport"],
         },
         {
           tag: "extraction_teleport",
-          description: "Teleports a creature out of danger, through restraints, or away from immediate threat pressure.",
+          description:
+            "Teleports a creature out of danger, through restraints, or away from immediate threat pressure.",
           assignmentMode: "hybrid",
           appliesWhen: [
             "The spell is naturally retrieved as an escape, rescue, or anti-capture tool rather than only a movement spell.",
-            "The reposition breaks danger, confinement, or immediate battlefield pressure."
+            "The reposition breaks danger, confinement, or immediate battlefield pressure.",
           ],
           doesNotApplyWhen: [
             "The spell is mostly a neutral short-range blink or a long-distance travel effect.",
-            "The spell primarily opens planar movement rather than emergency extraction."
+            "The spell primarily opens planar movement rather than emergency extraction.",
           ],
-          adjacentTags: [
-            "short_range_teleport",
-            "escape_support"
-          ]
+          adjacentTags: ["short_range_teleport", "escape_support"],
         },
         {
           tag: "long_range_teleport",
@@ -515,16 +436,13 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
           assignmentMode: "hybrid",
           appliesWhen: [
             "The spell is naturally retrieved for strategic travel, relocation, or bypassing long routes.",
-            "The destination scale is substantially larger than one encounter map or immediate tactical space."
+            "The destination scale is substantially larger than one encounter map or immediate tactical space.",
           ],
           doesNotApplyWhen: [
             "The spell is mainly a tactical blink, extraction, or planar crossing effect.",
-            "The spell only repositions creatures within the same immediate scene."
+            "The spell only repositions creatures within the same immediate scene.",
           ],
-          adjacentTags: [
-            "short_range_teleport",
-            "planar_travel"
-          ]
+          adjacentTags: ["short_range_teleport", "planar_travel"],
         },
         {
           tag: "planar_travel",
@@ -532,18 +450,15 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
           assignmentMode: "hybrid",
           appliesWhen: [
             "Crossing into another plane, demiplane, or extraplanar route is central to the spell's retrieval value.",
-            "The spell is naturally retrieved for cosmological travel rather than mundane relocation."
+            "The spell is naturally retrieved for cosmological travel rather than mundane relocation.",
           ],
           doesNotApplyWhen: [
             "The spell only teleports within the same plane or functions as a normal long-distance travel tool.",
-            "Extradimensional storage or shelter is present without real plane-crossing travel."
+            "Extradimensional storage or shelter is present without real plane-crossing travel.",
           ],
-          adjacentTags: [
-            "long_range_teleport",
-            "field_shelter"
-          ]
-        }
-      ]
+          adjacentTags: ["long_range_teleport", "field_shelter"],
+        },
+      ],
     },
     transformation: {
       axis: "transformation",
@@ -553,31 +468,25 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
           tag: "transformation",
           description: "Spells that alter a creature's body, form, or battle shape.",
           assignmentMode: "composite",
-          adjacentTags: [
-            "battle_form",
-            "animal_form",
-            "elemental_form"
-          ],
-          compositeOfAny: [
-            fromFamily("transformation")
-          ]
+          adjacentTags: ["battle_form", "animal_form", "elemental_form"],
+          compositeOfAny: [fromFamily("transformation")],
         },
         {
           tag: "battle_form",
           description: "Transforms a creature into a combat-ready form with new statistics or battle-form language.",
-          assignmentMode: "deterministic"
+          assignmentMode: "deterministic",
         },
         {
           tag: "animal_form",
           description: "Transforms a creature into an animal, beast, pest, or similar natural form.",
-          assignmentMode: "deterministic"
+          assignmentMode: "deterministic",
         },
         {
           tag: "elemental_form",
           description: "Transforms a creature into an elemental form.",
-          assignmentMode: "deterministic"
-        }
-      ]
+          assignmentMode: "deterministic",
+        },
+      ],
     },
     control: {
       axis: "battlefield",
@@ -586,32 +495,34 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
         {
           tag: "fear_pressure",
           description: "Forces fear, panic, dread, or morale collapse onto a target.",
-          assignmentMode: "deterministic"
+          assignmentMode: "deterministic",
         },
         {
           tag: "concealment",
           description: "Makes a creature hard to see, hidden, concealed, or undetected.",
-          assignmentMode: "deterministic"
+          assignmentMode: "deterministic",
         },
         {
           tag: "line_of_sight_control",
           description: "Blocks vision, obscures sight lines, or denies clear observation across an area.",
-          assignmentMode: "deterministic"
+          assignmentMode: "deterministic",
         },
         {
           tag: "battlefield_disruption",
           description: "Creates area denial, difficult terrain, barriers, or other battlefield obstacles.",
-          assignmentMode: "deterministic"
+          assignmentMode: "deterministic",
         },
         {
           tag: "barrier_creation",
-          description: "Creates a wall, dome, cage, force barrier, or other discrete blocking structure that reshapes access lines.",
-          assignmentMode: "hybrid"
+          description:
+            "Creates a wall, dome, cage, force barrier, or other discrete blocking structure that reshapes access lines.",
+          assignmentMode: "hybrid",
         },
         {
           tag: "action_denial",
-          description: "Denies actions through paralysis, stupefying shutdown, slowed tempo, or similarly severe turn disruption.",
-          assignmentMode: "hybrid"
+          description:
+            "Denies actions through paralysis, stupefying shutdown, slowed tempo, or similarly severe turn disruption.",
+          assignmentMode: "hybrid",
         },
         {
           tag: "countermagic",
@@ -619,51 +530,44 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
           assignmentMode: "hybrid",
           appliesWhen: [
             "The spell is naturally retrieved because stopping, unravelling, or suppressing existing magic is its main job.",
-            "Anti-magic response matters more than simple protection, detection, or concealment."
+            "Anti-magic response matters more than simple protection, detection, or concealment.",
           ],
           doesNotApplyWhen: [
             "The spell mainly protects targets from harm without actually disrupting hostile magic.",
-            "The spell only reveals or warns about magic rather than counteracting it."
+            "The spell only reveals or warns about magic rather than counteracting it.",
           ],
-          adjacentTags: [
-            "magic_detection",
-            "protective_ward"
-          ]
+          adjacentTags: ["magic_detection", "protective_ward"],
         },
         {
           tag: "forced_movement",
           description: "Pushes, pulls, drags, or otherwise repositions a target against its will.",
-          assignmentMode: "deterministic"
+          assignmentMode: "deterministic",
         },
         {
           tag: "restraint_capture",
           description: "Restrains, immobilizes, entangles, or traps a target in place.",
-          assignmentMode: "deterministic"
+          assignmentMode: "deterministic",
         },
         {
           tag: "silencing",
           description: "Suppresses speech, sound production, verbal casting, or other voice-dependent action.",
-          assignmentMode: "hybrid"
+          assignmentMode: "hybrid",
         },
         {
           tag: "mobility_denial",
-          description: "Pins, slows, grounds, or otherwise prevents normal repositioning without necessarily functioning as a full restraint effect.",
+          description:
+            "Pins, slows, grounds, or otherwise prevents normal repositioning without necessarily functioning as a full restraint effect.",
           assignmentMode: "hybrid",
-          adjacentTags: [
-            "forced_movement",
-            "restraint_capture"
-          ]
+          adjacentTags: ["forced_movement", "restraint_capture"],
         },
         {
           tag: "anti_caster_disruption",
-          description: "Disrupts casting, punishes spell use, or specifically suppresses hostile spellcasters in the moment.",
+          description:
+            "Disrupts casting, punishes spell use, or specifically suppresses hostile spellcasters in the moment.",
           assignmentMode: "hybrid",
-          adjacentTags: [
-            "countermagic",
-            "silencing"
-          ]
-        }
-      ]
+          adjacentTags: ["countermagic", "silencing"],
+        },
+      ],
     },
     influence: {
       axis: "influence",
@@ -671,20 +575,18 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
       tags: [
         {
           tag: "charm_influence",
-          description: "Wins cooperation through friendliness, fascination, admiration, or magically altered social regard.",
+          description:
+            "Wins cooperation through friendliness, fascination, admiration, or magically altered social regard.",
           assignmentMode: "hybrid",
           appliesWhen: [
             "The spell's main value is improving a target's attitude, trust, or willingness to cooperate.",
-            "The spell changes social reception more than it scripts exact behavior."
+            "The spell changes social reception more than it scripts exact behavior.",
           ],
           doesNotApplyWhen: [
             "The spell compels exact actions, overrides agency, or takes total control.",
-            "The spell only manipulates mood without establishing a social bond or regard shift."
+            "The spell only manipulates mood without establishing a social bond or regard shift.",
           ],
-          adjacentTags: [
-            "emotion_control",
-            "compulsion_control"
-          ]
+          adjacentTags: ["emotion_control", "compulsion_control"],
         },
         {
           tag: "compulsion_control",
@@ -692,16 +594,13 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
           assignmentMode: "hybrid",
           appliesWhen: [
             "The spell explicitly pressures the target into doing something, moving somewhere, or obeying a commanded pattern.",
-            "Loss of agency is more important than affection, calm, or broad mood change."
+            "Loss of agency is more important than affection, calm, or broad mood change.",
           ],
           doesNotApplyWhen: [
             "The spell merely charms or emotionally softens the target.",
-            "The spell fully dominates the target over sustained actions rather than issuing narrower commands."
+            "The spell fully dominates the target over sustained actions rather than issuing narrower commands.",
           ],
-          adjacentTags: [
-            "charm_influence",
-            "domination"
-          ]
+          adjacentTags: ["charm_influence", "domination"],
         },
         {
           tag: "emotion_control",
@@ -709,21 +608,18 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
           assignmentMode: "hybrid",
           appliesWhen: [
             "The spell is naturally retrieved for changing a creature's feelings, morale, or emotional volatility.",
-            "The emotional state change matters more than explicit obedience or truth extraction."
+            "The emotional state change matters more than explicit obedience or truth extraction.",
           ],
           doesNotApplyWhen: [
             "The spell chiefly compels discrete actions or sustained domination.",
-            "The spell only inflicts fear as damage pressure without broader emotional steering."
+            "The spell only inflicts fear as damage pressure without broader emotional steering.",
           ],
-          adjacentTags: [
-            "fear_pressure",
-            "charm_influence"
-          ]
+          adjacentTags: ["fear_pressure", "charm_influence"],
         },
         {
           tag: "sleep_magic",
           description: "Puts creatures to sleep, into magical slumber, or into a similarly enforced dormant state.",
-          assignmentMode: "deterministic"
+          assignmentMode: "deterministic",
         },
         {
           tag: "memory_manipulation",
@@ -731,16 +627,13 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
           assignmentMode: "hybrid",
           appliesWhen: [
             "The spell is naturally retrieved for altering what a target remembers, forgets, or believes it experienced.",
-            "Memory editing is more central than charm, emotion, or truth exposure."
+            "Memory editing is more central than charm, emotion, or truth exposure.",
           ],
           doesNotApplyWhen: [
             "The spell only reveals truth or emotions without changing stored recollection.",
-            "The spell primarily imposes obedience or domination in the present moment."
+            "The spell primarily imposes obedience or domination in the present moment.",
           ],
-          adjacentTags: [
-            "truth_reveal",
-            "charm_influence"
-          ]
+          adjacentTags: ["truth_reveal", "charm_influence"],
         },
         {
           tag: "domination",
@@ -748,105 +641,87 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
           assignmentMode: "hybrid",
           appliesWhen: [
             "The spell grants ongoing, high-authority control over what the target does rather than just one compelled action.",
-            "A user would retrieve it as a takeover spell, not merely a charm or suggestion spell."
+            "A user would retrieve it as a takeover spell, not merely a charm or suggestion spell.",
           ],
           doesNotApplyWhen: [
             "The spell only improves attitude, stirs emotion, or issues narrower one-off compulsions.",
-            "The spell mainly suppresses actions without redirecting them under the caster's control."
+            "The spell mainly suppresses actions without redirecting them under the caster's control.",
           ],
-          adjacentTags: [
-            "compulsion_control",
-            "action_denial"
-          ]
-        }
-      ]
+          adjacentTags: ["compulsion_control", "action_denial"],
+        },
+      ],
     },
     support: {
       axis: "support",
-      description: "Spells that restore, protect, ward, or reinforce allies and targets for combat recovery, scene resilience, and expedition safety.",
+      description:
+        "Spells that restore, protect, ward, or reinforce allies and targets for combat recovery, scene resilience, and expedition safety.",
       tags: [
         {
           tag: "healing_support",
           description: "Directly restores hit points or accelerates recovery.",
-          assignmentMode: "hybrid"
+          assignmentMode: "hybrid",
         },
         {
           tag: "condition_support",
           description: "Delays, suppresses, or removes afflictions and conditions.",
-          assignmentMode: "hybrid"
+          assignmentMode: "hybrid",
         },
         {
           tag: "affliction_cleanup",
           description: "Cleanses, cures, neutralizes, or removes disease, poison, curse, or similar afflictions.",
-          assignmentMode: "hybrid"
+          assignmentMode: "hybrid",
         },
         {
           tag: "anti_poison",
-          description: "Cures poison, counters toxic afflictions, or protects a target against venom and similar poisoning effects.",
+          description:
+            "Cures poison, counters toxic afflictions, or protects a target against venom and similar poisoning effects.",
           assignmentMode: "hybrid",
-          adjacentTags: [
-            "affliction_cleanup",
-            "anti_disease"
-          ]
+          adjacentTags: ["affliction_cleanup", "anti_disease"],
         },
         {
           tag: "anti_disease",
-          description: "Cures disease, counteracts infections, or protects a target against plague, fever, and similar disease effects.",
+          description:
+            "Cures disease, counteracts infections, or protects a target against plague, fever, and similar disease effects.",
           assignmentMode: "hybrid",
-          adjacentTags: [
-            "affliction_cleanup",
-            "anti_poison"
-          ]
+          adjacentTags: ["affliction_cleanup", "anti_poison"],
         },
         {
           tag: "anti_fear",
           description: "Counters frightened or fear effects, bolsters courage, or protects a target against fear.",
           assignmentMode: "hybrid",
-          adjacentTags: [
-            "condition_support",
-            "anti_confusion"
-          ]
+          adjacentTags: ["condition_support", "anti_confusion"],
         },
         {
           tag: "anti_confusion",
-          description: "Ends confusion, steadies a disordered mind, or protects a target from confusion-like mental unraveling.",
+          description:
+            "Ends confusion, steadies a disordered mind, or protects a target from confusion-like mental unraveling.",
           assignmentMode: "hybrid",
-          adjacentTags: [
-            "condition_support",
-            "anti_fear"
-          ]
+          adjacentTags: ["condition_support", "anti_fear"],
         },
         {
           tag: "anti_paralysis",
-          description: "Ends paralysis, restores bodily function, or frees a target from magic or afflictions that leave it unable to move.",
+          description:
+            "Ends paralysis, restores bodily function, or frees a target from magic or afflictions that leave it unable to move.",
           assignmentMode: "hybrid",
-          adjacentTags: [
-            "condition_support",
-            "escape_support"
-          ]
+          adjacentTags: ["condition_support", "escape_support"],
         },
         {
           tag: "anti_petrification",
           description: "Prevents, reverses, or counteracts petrification and other turn-to-stone effects.",
           assignmentMode: "hybrid",
-          adjacentTags: [
-            "affliction_cleanup",
-            "condition_support"
-          ]
+          adjacentTags: ["affliction_cleanup", "condition_support"],
         },
         {
           tag: "anti_bleed",
-          description: "Staunches bleeding, ends persistent bleed damage, or closes wounds that keep draining a target.",
+          description:
+            "Staunches bleeding, ends persistent bleed damage, or closes wounds that keep draining a target.",
           assignmentMode: "hybrid",
-          adjacentTags: [
-            "healing_support",
-            "condition_support"
-          ]
+          adjacentTags: ["healing_support", "condition_support"],
         },
         {
           tag: "escape_support",
           description: "Helps a creature slip away, break free, flee, or evade pursuit.",
-          assignmentMode: "hybrid"
+          assignmentMode: "hybrid",
         },
         {
           tag: "protective_ward",
@@ -854,137 +729,129 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
           assignmentMode: "hybrid",
           appliesWhen: [
             "The spell is naturally retrieved as a defensive ward, sanctuary, or protective boundary rather than only a resistance buff.",
-            "Its value comes from shielding a creature, object, or space against incoming harm or intrusion."
+            "Its value comes from shielding a creature, object, or space against incoming harm or intrusion.",
           ],
           doesNotApplyWhen: [
             "The spell only grants resistance, temporary Hit Points, or healing without a real warding or boundary element.",
-            "The spell is mainly an alarm, anti-scrying, or mobility tool rather than direct protection."
+            "The spell is mainly an alarm, anti-scrying, or mobility tool rather than direct protection.",
           ],
-          adjacentTags: [
-            "alarm",
-            "resistance_support"
-          ]
+          adjacentTags: ["alarm", "resistance_support"],
         },
         {
           tag: "death_prevention",
           description: "Prevents death, stabilizes the dying, or brings a creature back from the brink.",
-          assignmentMode: "hybrid"
+          assignmentMode: "hybrid",
         },
         {
           tag: "resistance_support",
           description: "Grants resistance or immunity against energy, damage, or hazards.",
-          assignmentMode: "hybrid"
+          assignmentMode: "hybrid",
         },
         {
           tag: "temporary_hp_support",
           description: "Grants temporary Hit Points or similar buffer protection instead of restoring lost Hit Points.",
-          assignmentMode: "hybrid"
+          assignmentMode: "hybrid",
         },
         {
           tag: "quickened_support",
           description: "Grants extra actions, quickened condition benefits, or similar action-economy acceleration.",
-          assignmentMode: "hybrid"
+          assignmentMode: "hybrid",
         },
         {
           tag: "initiative_support",
           description: "Improves initiative, pre-combat readiness, or the party's opening tempo before the first turn.",
-          assignmentMode: "hybrid"
+          assignmentMode: "hybrid",
         },
         {
           tag: "eidolon_support",
           description: "Directly benefits an eidolon or the summoner-eidolon bond.",
-          assignmentMode: "hybrid"
-        }
-      ]
+          assignmentMode: "hybrid",
+        },
+      ],
     },
     summoning: {
       axis: "summoning",
-      description: "Spells that call, create, or bind temporary creatures and servitors into the scene for combat, scouting, labor, or utility retrieval.",
+      description:
+        "Spells that call, create, or bind temporary creatures and servitors into the scene for combat, scouting, labor, or utility retrieval.",
       tags: [
         {
           tag: "creature_summoning",
-          description: "Summons, conjures, or calls creatures to act as temporary allies, tools, or battlefield assets.",
-          assignmentMode: "hybrid"
+          description:
+            "Summons, conjures, or calls creatures to act as temporary allies, tools, or battlefield assets.",
+          assignmentMode: "hybrid",
         },
         {
           tag: "undead_summoning",
           description: "Summons, calls, or manifests undead entities, spirits of the dead, or corpse-driven servitors.",
-          assignmentMode: "hybrid"
+          assignmentMode: "hybrid",
         },
         {
           tag: "summoned_servitor",
-          description: "Creates a helper, laborer, scout, mount, or similarly task-focused magical servitor rather than a pure combat summon.",
+          description:
+            "Creates a helper, laborer, scout, mount, or similarly task-focused magical servitor rather than a pure combat summon.",
           assignmentMode: "hybrid",
           appliesWhen: [
             "The spell is naturally retrieved for utility help, labor, scouting, transport, or task performance rather than frontline combat stats.",
-            "The conjured ally behaves more like a helper or specialist tool than a main battle summon."
+            "The conjured ally behaves more like a helper or specialist tool than a main battle summon.",
           ],
           doesNotApplyWhen: [
             "The spell's main value is summoning a combat creature to attack, flank, or absorb hits.",
-            "The spell only creates an object, barrier, or terrain effect without a real servant-like entity."
+            "The spell only creates an object, barrier, or terrain effect without a real servant-like entity.",
           ],
-          adjacentTags: [
-            "creature_summoning",
-            "scouting"
-          ]
+          adjacentTags: ["creature_summoning", "scouting"],
         },
         {
           tag: "scouting_summons",
-          description: "Creates a summon primarily valued for reconnaissance, watch duty, sensing, or forward information gathering.",
+          description:
+            "Creates a summon primarily valued for reconnaissance, watch duty, sensing, or forward information gathering.",
           assignmentMode: "hybrid",
-          adjacentTags: [
-            "summoned_servitor",
-            "creature_summoning"
-          ]
+          adjacentTags: ["summoned_servitor", "creature_summoning"],
         },
         {
           tag: "screening_summons",
-          description: "Creates bodies mainly used to block space, absorb hits, or protect allies rather than maximize damage.",
+          description:
+            "Creates bodies mainly used to block space, absorb hits, or protect allies rather than maximize damage.",
           assignmentMode: "hybrid",
-          adjacentTags: [
-            "creature_summoning",
-            "temporary_hp_support"
-          ]
+          adjacentTags: ["creature_summoning", "temporary_hp_support"],
         },
         {
           tag: "offensive_summons",
-          description: "Creates summons primarily retrieved for direct damage, flanking pressure, or aggressive battlefield threat.",
+          description:
+            "Creates summons primarily retrieved for direct damage, flanking pressure, or aggressive battlefield threat.",
           assignmentMode: "hybrid",
-          adjacentTags: [
-            "creature_summoning",
-            "screening_summons"
-          ]
-        }
-      ]
+          adjacentTags: ["creature_summoning", "screening_summons"],
+        },
+      ],
     },
     expedition: {
       axis: "utility",
-      description: "Spells that support movement, travel, survival, and field logistics such as flight, route guidance, shelter, food, aquatic operations, and hostile-environment endurance.",
+      description:
+        "Spells that support movement, travel, survival, and field logistics such as flight, route guidance, shelter, food, aquatic operations, and hostile-environment endurance.",
       tags: [
         {
           tag: "navigation",
           description: "Helps orient, guide a route, or identify a destination's direction.",
-          assignmentMode: "hybrid"
+          assignmentMode: "hybrid",
         },
         {
           tag: "mobility",
           description: "Helps move faster, gain movement modes, or traverse terrain more effectively.",
-          assignmentMode: "hybrid"
+          assignmentMode: "hybrid",
         },
         {
           tag: "flight",
           description: "Grants flying movement, sustained aerial travel, or practical airborne maneuvering.",
-          assignmentMode: "hybrid"
+          assignmentMode: "hybrid",
         },
         {
           tag: "aquatic_support",
           description: "Helps with swimming, underwater breathing, water-surface travel, or other aquatic movement.",
-          assignmentMode: "deterministic"
+          assignmentMode: "deterministic",
         },
         {
           tag: "sustenance",
           description: "Provides food, water, rations, or practical nourishment for travel and survival.",
-          assignmentMode: "deterministic"
+          assignmentMode: "deterministic",
         },
         {
           tag: "field_shelter",
@@ -992,44 +859,35 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
           assignmentMode: "hybrid",
           appliesWhen: [
             "The spell is naturally retrieved to create a campsite refuge, safe resting place, or expedition shelter in hostile territory.",
-            "Its value is prolonged field habitation or protected rest rather than momentary combat defense."
+            "Its value is prolonged field habitation or protected rest rather than momentary combat defense.",
           ],
           doesNotApplyWhen: [
             "The spell only creates a brief combat ward, cover effect, or instant defensive barrier.",
-            "The spell merely transports creatures away instead of establishing a place to rest."
+            "The spell merely transports creatures away instead of establishing a place to rest.",
           ],
-          adjacentTags: [
-            "protective_ward",
-            "planar_travel"
-          ]
+          adjacentTags: ["protective_ward", "planar_travel"],
         },
         {
           tag: "environmental_adaptation",
-          description: "Helps creatures endure hostile climates, thin air, smoke, pressure, vacuum, or other expedition-grade environmental extremes.",
+          description:
+            "Helps creatures endure hostile climates, thin air, smoke, pressure, vacuum, or other expedition-grade environmental extremes.",
           assignmentMode: "hybrid",
           appliesWhen: [
             "The spell is naturally retrieved to survive extreme heat, cold, altitude, smoke, pressure, or other punishing environmental conditions during travel or exploration.",
-            "Environmental endurance matters more than only resisting one attack form or creating a place to rest."
+            "Environmental endurance matters more than only resisting one attack form or creating a place to rest.",
           ],
           doesNotApplyWhen: [
             "The spell mainly grants combat resistance, a protective ward, or aquatic mobility without broader expedition-survival value.",
-            "The spell only creates shelter or sustenance rather than adapting creatures to the surrounding environment."
+            "The spell only creates shelter or sustenance rather than adapting creatures to the surrounding environment.",
           ],
-          adjacentTags: [
-            "aquatic_support",
-            "field_shelter",
-            "resistance_support"
-          ]
+          adjacentTags: ["aquatic_support", "field_shelter", "resistance_support"],
         },
         {
           tag: "expedition",
-          description: "Broad expedition umbrella for spells used for routefinding, travel-ready movement, shelter, sustainment, aquatic operations, and hostile-environment survival.",
+          description:
+            "Broad expedition umbrella for spells used for routefinding, travel-ready movement, shelter, sustainment, aquatic operations, and hostile-environment survival.",
           assignmentMode: "composite",
-          adjacentTags: [
-            "navigation",
-            "field_shelter",
-            "environmental_adaptation"
-          ],
+          adjacentTags: ["navigation", "field_shelter", "environmental_adaptation"],
           compositeOfAny: [
             fromTag("navigation"),
             fromTag("flight"),
@@ -1037,14 +895,15 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
             fromTag("sustenance"),
             fromTag("field_shelter"),
             fromTag("environmental_adaptation"),
-            fromTag("wayfinding")
-          ]
-        }
-      ]
+            fromTag("wayfinding"),
+          ],
+        },
+      ],
     },
     security: {
       axis: "utility",
-      description: "Security spells for intrusion warning, anti-scrying, and protected spaces, including broad security umbrellas.",
+      description:
+        "Security spells for intrusion warning, anti-scrying, and protected spaces, including broad security umbrellas.",
       tags: [
         {
           tag: "alarm",
@@ -1052,86 +911,78 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
           assignmentMode: "hybrid",
           appliesWhen: [
             "The spell is naturally retrieved to warn about intrusion, threshold crossing, tampering, or unwanted entry.",
-            "Detection and notice matter more than directly stopping the intruder."
+            "Detection and notice matter more than directly stopping the intruder.",
           ],
           doesNotApplyWhen: [
             "The spell mainly protects, blocks, or hides the target without providing a warning function.",
-            "The spell only reveals truth or magic generally rather than guarding a watched perimeter."
+            "The spell only reveals truth or magic generally rather than guarding a watched perimeter.",
           ],
-          adjacentTags: [
-            "protective_ward",
-            "scrying_protection"
-          ]
+          adjacentTags: ["protective_ward", "scrying_protection"],
         },
         {
           tag: "scrying_protection",
-          description: "Blocks magical observation, remote viewing, divinatory surveillance, or other information leakage from a protected target or space.",
+          description:
+            "Blocks magical observation, remote viewing, divinatory surveillance, or other information leakage from a protected target or space.",
           assignmentMode: "hybrid",
           appliesWhen: [
             "The spell is naturally retrieved to keep plans, sanctums, identities, or conversations hidden from magical spying.",
-            "Its core value is denying observation or divination rather than only raising an intrusion alarm."
+            "Its core value is denying observation or divination rather than only raising an intrusion alarm.",
           ],
           doesNotApplyWhen: [
             "The spell only improves mundane concealment or silence without real anti-divination protection.",
-            "The spell counters magic broadly but is not specifically about surveillance or remote observation."
+            "The spell counters magic broadly but is not specifically about surveillance or remote observation.",
           ],
-          adjacentTags: [
-            "alarm",
-            "countermagic"
-          ]
+          adjacentTags: ["alarm", "countermagic"],
         },
         {
           tag: "security",
-          description: "Broad security umbrella for spells that warn about intrusion, protect private spaces, or harden a target against magical observation and interference.",
+          description:
+            "Broad security umbrella for spells that warn about intrusion, protect private spaces, or harden a target against magical observation and interference.",
           assignmentMode: "composite",
-          adjacentTags: [
-            "alarm",
-            "scrying_protection",
-            "protective_ward"
-          ],
-          compositeOfAny: [
-            fromFamily("security"),
-            fromTag("protective_ward"),
-            fromTag("countermagic")
-          ]
-        }
-      ]
+          adjacentTags: ["alarm", "scrying_protection", "protective_ward"],
+          compositeOfAny: [fromFamily("security"), fromTag("protective_ward"), fromTag("countermagic")],
+        },
+      ],
     },
     impact: {
       axis: "effect",
-      description: "Direct offensive outcome tags for harm, impairment, and taking priority targets or clustered foes out of the fight.",
+      description:
+        "Direct offensive outcome tags for harm, impairment, and taking priority targets or clustered foes out of the fight.",
       tags: [
         {
           tag: "mental_impairment",
-          description: "Impairs thought, composure, or agency through fear, confusion, or similarly hostile mental effects.",
-          assignmentMode: "deterministic"
+          description:
+            "Impairs thought, composure, or agency through fear, confusion, or similarly hostile mental effects.",
+          assignmentMode: "deterministic",
         },
         {
           tag: "sensory_impairment",
           description: "Blinds, deafens, or otherwise directly suppresses a creature's senses.",
-          assignmentMode: "deterministic"
+          assignmentMode: "deterministic",
         },
         {
           tag: "persistent_damage",
           description: "Directly inflicts persistent damage or grants attacks that reliably impose persistent damage.",
-          assignmentMode: "hybrid"
+          assignmentMode: "hybrid",
         },
         {
           tag: "burst_damage",
-          description: "Delivers concentrated damage in a spike or splash pattern that users naturally retrieve as a damage-first answer.",
-          assignmentMode: "hybrid"
+          description:
+            "Delivers concentrated damage in a spike or splash pattern that users naturally retrieve as a damage-first answer.",
+          assignmentMode: "hybrid",
         },
         {
           tag: "single_target_removal",
-          description: "Drops, banishes, petrifies, or otherwise decisively removes one important creature from the fight.",
-          assignmentMode: "hybrid"
+          description:
+            "Drops, banishes, petrifies, or otherwise decisively removes one important creature from the fight.",
+          assignmentMode: "hybrid",
         },
         {
           tag: "crowd_clearing",
           description: "Damages or wipes clusters of weaker foes and is naturally retrieved as an anti-group answer.",
-          assignmentMode: "hybrid"
-        }
-      ]
-    }
-  }
+          assignmentMode: "hybrid",
+        },
+      ],
+    },
+  },
 } satisfies DerivedTagAuthoredCategoryOntology<"spell">;

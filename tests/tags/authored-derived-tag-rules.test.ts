@@ -1,14 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type {
-  AuthoredDerivedTagRule,
-  DerivedTagOntologyFamily,
-  DerivedTagOntologyTag,
-} from "../../src/types.js";
-import {
-  deriveCatalogTagDerivation,
-  publishDerivedTagOntology,
-} from "../../src/tags/runtime/catalog-utils.js";
+import type { AuthoredDerivedTagRule, DerivedTagOntologyFamily, DerivedTagOntologyTag } from "../../src/types.js";
+import { deriveCatalogTagDerivation, publishDerivedTagOntology } from "../../src/tags/runtime/catalog-utils.js";
 import { compileAuthoredDerivedTagRules } from "../../src/tags/authored-rules/compiler.js";
 import { deriveRecordTagsFromRules, type DerivedTagRule } from "../../src/tags/runtime/matcher.js";
 
@@ -128,11 +121,7 @@ describe("authored derived tag rules", () => {
       },
     );
 
-    expect(derivation.tags).toEqual([
-      "elemental_plane_setting",
-      "legacy_phrase_tag",
-      "plane_of_fire_setting",
-    ]);
+    expect(derivation.tags).toEqual(["elemental_plane_setting", "legacy_phrase_tag", "plane_of_fire_setting"]);
     expect(derivation.sources.get("plane_of_fire_setting")).toBe("authored_rule");
     expect(derivation.sources.get("legacy_phrase_tag")).toBe("legacy_rule");
     expect(derivation.sources.get("elemental_plane_setting")).toBe("authored_rule");
@@ -186,6 +175,8 @@ describe("authored derived tag rules", () => {
       },
     ];
 
-    expect(() => compileAuthoredDerivedTagRules(ontology, authoredRules)).toThrow(/duplicates ontology composite behavior/);
+    expect(() => compileAuthoredDerivedTagRules(ontology, authoredRules)).toThrow(
+      /duplicates ontology composite behavior/,
+    );
   });
 });

@@ -3,14 +3,8 @@ import { DatabaseSync } from "node:sqlite";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { REVIEWED_DISCOVERY_RECORDS } from "../../src/tags/discovery/discovery-reviewed-records.js";
-import {
-  discoverUntaggedCohorts,
-} from "../../src/tags/discovery/untagged-cohort-discovery.js";
-import {
-  formatHelp,
-  formatUntaggedCohortReport,
-  parseOptions,
-} from "../../src/tags/cli/discover-untagged-cohorts.js";
+import { discoverUntaggedCohorts } from "../../src/tags/discovery/untagged-cohort-discovery.js";
+import { formatHelp, formatUntaggedCohortReport, parseOptions } from "../../src/tags/cli/discover-untagged-cohorts.js";
 
 function vector(values: number[]): Float32Array {
   return Float32Array.from(values);
@@ -86,17 +80,23 @@ function insertRecord(
     tags?: string[];
   },
 ): void {
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO records (
       record_key, name, normalized_name, pack_name, publication_title, folder_id, source_path, category, subcategory,
       variant_family_key, variant_base_name, variant_label, variant_axes_json,
       level, traits_json, derived_tags_json, description_text, is_search_canonical
     )
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, 1)
-  `).run(
+  `,
+  ).run(
     input.recordKey,
     input.name,
-    input.name.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " "),
+    input.name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim()
+      .replace(/\s+/g, " "),
     input.packName ?? input.recordKey.split(":")[0] ?? input.recordKey,
     input.publicationTitle ?? null,
     input.folderId ?? null,
@@ -118,24 +118,35 @@ function insertRecord(
 }
 
 function insertReference(db: DatabaseSync, fromRecordKey: string, toRecordKey: string, toRecordName: string): void {
-  db.prepare(`
+  db.prepare(
+    `
     INSERT OR IGNORE INTO records (
       record_key, name, normalized_name, pack_name, publication_title, folder_id, source_path, category, subcategory,
       variant_family_key, variant_base_name, variant_label, variant_axes_json,
       level, traits_json, derived_tags_json, description_text, is_search_canonical
     )
     VALUES (?, ?, ?, 'equipment-srd', NULL, NULL, NULL, 'spell', NULL, NULL, NULL, NULL, '[]', NULL, '[]', '[]', NULL, 1)
-  `).run(
+  `,
+  ).run(
     toRecordKey,
     toRecordName,
-    toRecordName.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " "),
+    toRecordName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim()
+      .replace(/\s+/g, " "),
   );
-  db.prepare("INSERT OR IGNORE INTO embeddings (record_key, vector_blob) VALUES (?, ?)").run(toRecordKey, blob([0, 0, 1]));
-  db.prepare(`
+  db.prepare("INSERT OR IGNORE INTO embeddings (record_key, vector_blob) VALUES (?, ?)").run(
+    toRecordKey,
+    blob([0, 0, 1]),
+  );
+  db.prepare(
+    `
     INSERT INTO reference_edges (
       from_record_key, to_record_key, display_text, reference_text, from_pack_name, from_record_type, from_document_type, from_source_category
     ) VALUES (?, ?, NULL, ?, 'equipment-srd', 'equipment', 'equipment', 'rules')
-  `).run(fromRecordKey, toRecordKey, `ref:${fromRecordKey}:${toRecordKey}`);
+  `,
+  ).run(fromRecordKey, toRecordKey, `ref:${fromRecordKey}:${toRecordKey}`);
 }
 
 describe("discover untagged cohorts", () => {
@@ -157,7 +168,8 @@ describe("discover untagged cohorts", () => {
         category: "equipment",
         subcategory: "gear",
         traits: ["illusion", "magical"],
-        descriptionText: "A masquerade scarf helps you change outfits and hide your identity with superficial sewing tricks.",
+        descriptionText:
+          "A masquerade scarf helps you change outfits and hide your identity with superficial sewing tricks.",
         vector: [1, 0, 0],
       });
       insertRecord(db, {
@@ -166,7 +178,8 @@ describe("discover untagged cohorts", () => {
         category: "equipment",
         subcategory: "gear",
         traits: ["illusion", "magical"],
-        descriptionText: "This outfit uses sewing techniques to enable quick change and disguise work during a masquerade.",
+        descriptionText:
+          "This outfit uses sewing techniques to enable quick change and disguise work during a masquerade.",
         vector: [0.99, 0.01, 0],
       });
       insertRecord(db, {
@@ -253,9 +266,13 @@ describe("discover untagged cohorts", () => {
       expect(report.anchorTerms.map((anchor) => anchor.value)).toContain("masquerade");
       expect(report.cohorts.length).toBeGreaterThan(0);
       expect(report.cohorts[0]?.size).toBeGreaterThanOrEqual(2);
-      expect(report.cohorts.some((cohort) =>
-        cohort.signature.some((term) => term.includes("masquerade")) &&
-        cohort.representativeRecords.some((record) => record.name === "Masquerade Scarf"))).toBe(true);
+      expect(
+        report.cohorts.some(
+          (cohort) =>
+            cohort.signature.some((term) => term.includes("masquerade")) &&
+            cohort.representativeRecords.some((record) => record.name === "Masquerade Scarf"),
+        ),
+      ).toBe(true);
     } finally {
       db.close();
     }
@@ -308,18 +325,28 @@ describe("discover untagged cohorts", () => {
 
   it("parses CLI options and renders a readable report", () => {
     const options = parseOptions([
-      "--category", "equipment",
-      "--subcategory", "gear",
-      "--family", "purpose",
+      "--category",
+      "equipment",
+      "--subcategory",
+      "gear",
+      "--family",
+      "purpose",
       "--family-gap-signals",
       "--include-reviewed",
-      "--review-reason", "manual_lore_only",
-      "--cohort-limit", "5",
-      "--anchor-limit", "12",
-      "--min-feature-support", "3",
-      "--min-feature-lift", "2.5",
-      "--min-gram-length", "4",
-      "--max-gram-length", "5",
+      "--review-reason",
+      "manual_lore_only",
+      "--cohort-limit",
+      "5",
+      "--anchor-limit",
+      "12",
+      "--min-feature-support",
+      "3",
+      "--min-feature-lift",
+      "2.5",
+      "--min-gram-length",
+      "4",
+      "--max-gram-length",
+      "5",
     ]);
 
     expect(options).toEqual({
@@ -353,7 +380,14 @@ describe("discover untagged cohorts", () => {
         reasonCounts: [{ reason: "not_family_salient", count: 4 }],
       },
       anchorTerms: [
-        { value: "masquerade", support: 4, baselineSupport: 5, lift: 4.8, score: 19.2, existingTagOverlaps: ["temple_setting"] },
+        {
+          value: "masquerade",
+          support: 4,
+          baselineSupport: 5,
+          lift: 4.8,
+          score: 19.2,
+          existingTagOverlaps: ["temple_setting"],
+        },
       ],
       cohorts: [
         {
@@ -379,12 +413,8 @@ describe("discover untagged cohorts", () => {
           classification: "existing_tag_coverage_gap",
           familyGapRecommendation: "extend-existing-tag",
           overlappingTags: ["temple_setting"],
-          representativeRecords: [
-            { recordKey: "equipment:1", name: "Masquerade Scarf", similarity: 0.88 },
-          ],
-          contrastRecords: [
-            { recordKey: "equipment:2", name: "Clandestine Cloak", similarity: 0.73 },
-          ],
+          representativeRecords: [{ recordKey: "equipment:1", name: "Masquerade Scarf", similarity: 0.88 }],
+          contrastRecords: [{ recordKey: "equipment:2", name: "Clandestine Cloak", similarity: 0.73 }],
         },
       ],
     });
@@ -526,11 +556,13 @@ describe("discover untagged cohorts", () => {
         anchorLimit: 8,
       });
       expect(defaultReport.untaggedRecordCount).toBe(2);
-      expect(defaultReport.reviewedRecords).toEqual(expect.objectContaining({
-        mode: "excluded",
-        scopedCount: 2,
-        appliedCount: 2,
-      }));
+      expect(defaultReport.reviewedRecords).toEqual(
+        expect.objectContaining({
+          mode: "excluded",
+          scopedCount: 2,
+          appliedCount: 2,
+        }),
+      );
 
       const reviewedReport = discoverUntaggedCohorts(db, {
         category: "creature",
@@ -541,15 +573,22 @@ describe("discover untagged cohorts", () => {
         anchorLimit: 8,
       });
       expect(reviewedReport.untaggedRecordCount).toBe(2);
-      expect(reviewedReport.reviewedRecords).toEqual(expect.objectContaining({
-        mode: "filtered",
-        reviewReason: "not_family_salient",
-        scopedCount: 2,
-        appliedCount: 2,
-      }));
-      expect(reviewedReport.cohorts.every((cohort) =>
-        cohort.representativeRecords.every((record) =>
-          record.recordKey === "creature:generic-raider" || record.recordKey === "creature:generic-marauder"))).toBe(true);
+      expect(reviewedReport.reviewedRecords).toEqual(
+        expect.objectContaining({
+          mode: "filtered",
+          reviewReason: "not_family_salient",
+          scopedCount: 2,
+          appliedCount: 2,
+        }),
+      );
+      expect(
+        reviewedReport.cohorts.every((cohort) =>
+          cohort.representativeRecords.every(
+            (record) =>
+              record.recordKey === "creature:generic-raider" || record.recordKey === "creature:generic-marauder",
+          ),
+        ),
+      ).toBe(true);
     } finally {
       db.close();
     }
@@ -653,15 +692,24 @@ describe("discover untagged cohorts", () => {
       });
 
       expect(report.anchorTerms.map((anchor) => anchor.value)).not.toContain("dragon");
-      expect(report.cohorts.some((cohort) =>
-        cohort.classification === "new_concept_candidate" &&
-        cohort.signature.includes("erebus"))).toBe(true);
-      expect(report.cohorts.some((cohort) =>
-        cohort.classification === "existing_tag_coverage_gap" &&
-        cohort.overlappingTags?.includes("shadow_plane_setting"))).toBe(true);
-      expect(report.cohorts.some((cohort) =>
-        cohort.classification === "existing_tag_coverage_gap" &&
-        cohort.overlappingTags?.includes("forest_setting"))).toBe(true);
+      expect(
+        report.cohorts.some(
+          (cohort) => cohort.classification === "new_concept_candidate" && cohort.signature.includes("erebus"),
+        ),
+      ).toBe(true);
+      expect(
+        report.cohorts.some(
+          (cohort) =>
+            cohort.classification === "existing_tag_coverage_gap" &&
+            cohort.overlappingTags?.includes("shadow_plane_setting"),
+        ),
+      ).toBe(true);
+      expect(
+        report.cohorts.some(
+          (cohort) =>
+            cohort.classification === "existing_tag_coverage_gap" && cohort.overlappingTags?.includes("forest_setting"),
+        ),
+      ).toBe(true);
     } finally {
       db.close();
     }
@@ -760,23 +808,20 @@ describe("discover untagged cohorts", () => {
 
       expect(report.cohorts[0]?.overlappingTags ?? []).toContain("fortress_setting");
       expect(report.cohorts[0]?.recommendation).not.toBe("reject");
-      expect(report.cohorts.some((cohort) =>
-        cohort.representativeRecords.some((record) => record.name.includes("Storm Dragon")))).toBe(false);
+      expect(
+        report.cohorts.some((cohort) =>
+          cohort.representativeRecords.some((record) => record.name.includes("Storm Dragon")),
+        ),
+      ).toBe(false);
     } finally {
       db.close();
     }
   });
 
   it("rejects invalid CLI gram ranges", () => {
-    expect(() => parseOptions([
-      "--category", "equipment",
-      "--max-gram-length", "6",
-    ])).toThrow(/max-gram-length/i);
+    expect(() => parseOptions(["--category", "equipment", "--max-gram-length", "6"])).toThrow(/max-gram-length/i);
 
-    expect(() => parseOptions([
-      "--category", "creature",
-      "--family-gap-signals",
-    ])).toThrow(/family-gap-signals/i);
+    expect(() => parseOptions(["--category", "creature", "--family-gap-signals"])).toThrow(/family-gap-signals/i);
   });
 
   it("renders help with family-scoped semantics", () => {
@@ -873,8 +918,12 @@ describe("discover untagged cohorts", () => {
       expect(report.cohorts.length).toBeGreaterThan(0);
       expect(report.cohorts.every((cohort) => cohort.distinctVariantFamilies <= cohort.size)).toBe(true);
       expect(report.cohorts[0]?.distinctVariantFamilies).toBeGreaterThanOrEqual(1);
-      expect(report.cohorts.some((cohort) =>
-        cohort.representativeRecords.filter((record) => record.name.startsWith("Wand of Choking Mist")).length <= 1)).toBe(true);
+      expect(
+        report.cohorts.some(
+          (cohort) =>
+            cohort.representativeRecords.filter((record) => record.name.startsWith("Wand of Choking Mist")).length <= 1,
+        ),
+      ).toBe(true);
     } finally {
       db.close();
     }
@@ -952,8 +1001,11 @@ describe("discover untagged cohorts", () => {
         minFeatureLift: 1.1,
       });
 
-      expect(report.cohorts.every((cohort) =>
-        cohort.contrastRecords.filter((record) => record.name.startsWith("Words of Wisdom")).length <= 1)).toBe(true);
+      expect(
+        report.cohorts.every(
+          (cohort) => cohort.contrastRecords.filter((record) => record.name.startsWith("Words of Wisdom")).length <= 1,
+        ),
+      ).toBe(true);
     } finally {
       db.close();
     }

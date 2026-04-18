@@ -3,11 +3,7 @@ import {
   normalizeActorMetricKey,
   normalizeActorMetricPrefix,
 } from "../domain/actor-metrics.js";
-import {
-  inferItemMetricValueType,
-  normalizeItemMetricKey,
-  normalizeItemMetricPrefix,
-} from "../domain/item-metrics.js";
+import { inferItemMetricValueType, normalizeItemMetricKey, normalizeItemMetricPrefix } from "../domain/item-metrics.js";
 import {
   getMetadataFieldSpec,
   getMetadataRecordSelectClauses,
@@ -107,9 +103,7 @@ export function normalizeSearchScope(scope: SearchScope): NormalizedSearchScope 
     return canonicalSubcategory;
   });
 
-  const uniqueSubcategories = subcategories
-    ? uniqueSorted(subcategories) as SearchSubcategory[]
-    : undefined;
+  const uniqueSubcategories = subcategories ? (uniqueSorted(subcategories) as SearchSubcategory[]) : undefined;
 
   return {
     category,
@@ -117,14 +111,15 @@ export function normalizeSearchScope(scope: SearchScope): NormalizedSearchScope 
   };
 }
 
-export function resolveEffectiveCategory(filters: Pick<NormalizedSearchFilters, "category" | "subcategory" | "scopes">): SearchCategory | null {
+export function resolveEffectiveCategory(
+  filters: Pick<NormalizedSearchFilters, "category" | "subcategory" | "scopes">,
+): SearchCategory | null {
   if (filters.scopes && filters.scopes.length > 0) {
     return null;
   }
 
-  const inferredCategoryFromSubcategory = !filters.category && filters.subcategory
-    ? getCategoryForSubcategory(filters.subcategory)
-    : null;
+  const inferredCategoryFromSubcategory =
+    !filters.category && filters.subcategory ? getCategoryForSubcategory(filters.subcategory) : null;
   return filters.category ?? inferredCategoryFromSubcategory;
 }
 
@@ -132,7 +127,10 @@ function appendScopedCategoryClauses(
   sql: string[],
   params: SqlValue[],
   scopes: NormalizedSearchScope[],
-  renderTerm: (category: SearchCategory, subcategories: SearchSubcategory[] | undefined) => { clause: string; values: SqlValue[] },
+  renderTerm: (
+    category: SearchCategory,
+    subcategories: SearchSubcategory[] | undefined,
+  ) => { clause: string; values: SqlValue[] },
 ): void {
   const renderedScopes = scopes.map((scope) => renderTerm(scope.category, scope.subcategories));
   appendWhereClause(
@@ -203,7 +201,12 @@ function applySearchFilterClauses(
     }
 
     if (filters.subcategory) {
-      appendWhereClause(sql, params, `AND LOWER(COALESCE(${recordAlias}.subcategory, '')) = LOWER(?)`, filters.subcategory);
+      appendWhereClause(
+        sql,
+        params,
+        `AND LOWER(COALESCE(${recordAlias}.subcategory, '')) = LOWER(?)`,
+        filters.subcategory,
+      );
     }
   }
 
@@ -228,16 +231,27 @@ function applySearchFilterClauses(
   }
 
   if (filters.actionCost !== undefined) {
-    appendWhereClause(sql, params, `AND COALESCE(${spellAlias}.action_cost, ${itemAlias}.action_cost) = ?`, filters.actionCost);
+    appendWhereClause(
+      sql,
+      params,
+      `AND COALESCE(${spellAlias}.action_cost, ${itemAlias}.action_cost) = ?`,
+      filters.actionCost,
+    );
   }
 
-  appendMetadataFilterClauses(sql, params, filters.metadata, {
-    recordKeyExpr: `${recordAlias}.record_key`,
-    recordsAlias: recordAlias,
-    actorAlias,
-    itemAlias,
-    spellAlias,
-  }, appendWhereClause);
+  appendMetadataFilterClauses(
+    sql,
+    params,
+    filters.metadata,
+    {
+      recordKeyExpr: `${recordAlias}.record_key`,
+      recordsAlias: recordAlias,
+      actorAlias,
+      itemAlias,
+      spellAlias,
+    },
+    appendWhereClause,
+  );
 }
 
 const BASE_RECORD_SELECT_FIELDS = [
@@ -283,14 +297,8 @@ const BASE_RECORD_SELECT_FIELDS = [
   ), '[]') AS itemMetricsJson`,
 ] as const;
 
-export function buildSharedRecordSelectFields(
-  includeSearchText = false,
-  includeEmbedding = false,
-): string[] {
-  const fields = [
-    ...BASE_RECORD_SELECT_FIELDS,
-    ...getMetadataRecordSelectClauses(),
-  ];
+export function buildSharedRecordSelectFields(includeSearchText = false, includeEmbedding = false): string[] {
+  const fields = [...BASE_RECORD_SELECT_FIELDS, ...getMetadataRecordSelectClauses()];
 
   if (includeSearchText) {
     fields.push("r.search_text AS searchText");
@@ -346,12 +354,18 @@ export function buildCandidateQuery(
 
   sql.push("WHERE 1 = 1");
   const params: SqlValue[] = [];
-  applySearchFilterClauses(sql, params, filters, {
-    records: "r",
-    actor: "a",
-    item: "i",
-    spell: "s",
-  }, options);
+  applySearchFilterClauses(
+    sql,
+    params,
+    filters,
+    {
+      records: "r",
+      actor: "a",
+      item: "i",
+      spell: "s",
+    },
+    options,
+  );
 
   return { sql: sql.join("\n"), params };
 }
@@ -359,10 +373,14 @@ export function buildCandidateQuery(
 function appendCandidateOrderBy(sql: string[], sort: SearchSort): void {
   switch (sort) {
     case "levelAsc":
-      sql.push("ORDER BY CASE WHEN r.level IS NULL THEN 1 ELSE 0 END ASC, r.level ASC, r.name COLLATE NOCASE ASC, r.pack_label COLLATE NOCASE ASC, r.id ASC");
+      sql.push(
+        "ORDER BY CASE WHEN r.level IS NULL THEN 1 ELSE 0 END ASC, r.level ASC, r.name COLLATE NOCASE ASC, r.pack_label COLLATE NOCASE ASC, r.id ASC",
+      );
       return;
     case "levelDesc":
-      sql.push("ORDER BY CASE WHEN r.level IS NULL THEN 1 ELSE 0 END ASC, r.level DESC, r.name COLLATE NOCASE ASC, r.pack_label COLLATE NOCASE ASC, r.id ASC");
+      sql.push(
+        "ORDER BY CASE WHEN r.level IS NULL THEN 1 ELSE 0 END ASC, r.level DESC, r.name COLLATE NOCASE ASC, r.pack_label COLLATE NOCASE ASC, r.id ASC",
+      );
       return;
     case "alphabetical":
     default:
@@ -383,12 +401,18 @@ export function buildCandidateCountQuery(
     "WHERE 1 = 1",
   ];
   const params: SqlValue[] = [];
-  applySearchFilterClauses(sql, params, filters, {
-    records: "r",
-    actor: "a",
-    item: "i",
-    spell: "s",
-  }, options);
+  applySearchFilterClauses(
+    sql,
+    params,
+    filters,
+    {
+      records: "r",
+      actor: "a",
+      item: "i",
+      spell: "s",
+    },
+    options,
+  );
 
   return { sql: sql.join("\n"), params };
 }
@@ -407,12 +431,18 @@ export function buildCandidateKeyQuery(
     "WHERE 1 = 1",
   ];
   const params: SqlValue[] = [];
-  applySearchFilterClauses(sql, params, filters, {
-    records: "r",
-    actor: "a",
-    item: "i",
-    spell: "s",
-  }, options);
+  applySearchFilterClauses(
+    sql,
+    params,
+    filters,
+    {
+      records: "r",
+      actor: "a",
+      item: "i",
+      spell: "s",
+    },
+    options,
+  );
 
   if (sort) {
     appendCandidateOrderBy(sql, sort);
@@ -445,7 +475,10 @@ export function buildPagedCandidateQuery(
   };
 }
 
-export function buildFilterValueQuery(query: FilterValueQuery, filters: NormalizedSearchFilters): { sql: string; params: SqlValue[] } {
+export function buildFilterValueQuery(
+  query: FilterValueQuery,
+  filters: NormalizedSearchFilters,
+): { sql: string; params: SqlValue[] } {
   const { field } = query;
   if (field !== "actorMetrics" && field !== "itemMetrics" && (query.metricPrefix || query.metric)) {
     throw new Error("metricPrefix and metric are only supported when field is actorMetrics or itemMetrics.");
@@ -469,61 +502,61 @@ export function buildFilterValueQuery(query: FilterValueQuery, filters: Normaliz
   } else {
     switch (field) {
       case "actorMetrics":
-      joins.push("JOIN actor_metrics am ON am.record_key = r.record_key");
-      if (query.metric) {
-        const normalizedMetric = normalizeActorMetricKey(query.metric);
-        const metricType = inferActorMetricValueType(normalizedMetric);
-        if (!metricType) {
-          throw new Error(`Unknown actor metric "${query.metric}".`);
-        }
+        joins.push("JOIN actor_metrics am ON am.record_key = r.record_key");
+        if (query.metric) {
+          const normalizedMetric = normalizeActorMetricKey(query.metric);
+          const metricType = inferActorMetricValueType(normalizedMetric);
+          if (!metricType) {
+            throw new Error(`Unknown actor metric "${query.metric}".`);
+          }
 
-        postFilterParams.push(normalizedMetric);
-        postFilterClauses.push("AND am.metric_key = ?");
-        if (metricType === "text") {
-          valueExpression = "am.text_value";
-          postFilterClauses.push("AND am.value_type = 'text' AND am.text_value IS NOT NULL AND am.text_value <> ''");
-        } else if (metricType === "boolean") {
-          valueExpression = "CASE am.bool_value WHEN 1 THEN 'true' ELSE 'false' END";
-          postFilterClauses.push("AND am.value_type = 'boolean' AND am.bool_value IS NOT NULL");
+          postFilterParams.push(normalizedMetric);
+          postFilterClauses.push("AND am.metric_key = ?");
+          if (metricType === "text") {
+            valueExpression = "am.text_value";
+            postFilterClauses.push("AND am.value_type = 'text' AND am.text_value IS NOT NULL AND am.text_value <> ''");
+          } else if (metricType === "boolean") {
+            valueExpression = "CASE am.bool_value WHEN 1 THEN 'true' ELSE 'false' END";
+            postFilterClauses.push("AND am.value_type = 'boolean' AND am.bool_value IS NOT NULL");
+          } else {
+            throw new Error("actorMetrics value listing only supports text and boolean metrics.");
+          }
         } else {
-          throw new Error("actorMetrics value listing only supports text and boolean metrics.");
+          valueExpression = "am.metric_key";
+          if (query.metricPrefix) {
+            postFilterParams.push(`${normalizeActorMetricPrefix(query.metricPrefix)}%`);
+            postFilterClauses.push("AND am.metric_key LIKE ?");
+          }
         }
-      } else {
-        valueExpression = "am.metric_key";
-        if (query.metricPrefix) {
-          postFilterParams.push(`${normalizeActorMetricPrefix(query.metricPrefix)}%`);
-          postFilterClauses.push("AND am.metric_key LIKE ?");
-        }
-      }
-      break;
+        break;
       case "itemMetrics":
-      joins.push("JOIN item_metrics im ON im.record_key = r.record_key");
-      if (query.metric) {
-        const normalizedMetric = normalizeItemMetricKey(query.metric);
-        const metricType = inferItemMetricValueType(normalizedMetric);
-        if (!metricType) {
-          throw new Error(`Unknown item metric "${query.metric}".`);
-        }
+        joins.push("JOIN item_metrics im ON im.record_key = r.record_key");
+        if (query.metric) {
+          const normalizedMetric = normalizeItemMetricKey(query.metric);
+          const metricType = inferItemMetricValueType(normalizedMetric);
+          if (!metricType) {
+            throw new Error(`Unknown item metric "${query.metric}".`);
+          }
 
-        postFilterParams.push(normalizedMetric);
-        postFilterClauses.push("AND im.metric_key = ?");
-        if (metricType === "text") {
-          valueExpression = "im.text_value";
-          postFilterClauses.push("AND im.value_type = 'text' AND im.text_value IS NOT NULL AND im.text_value <> ''");
-        } else if (metricType === "boolean") {
-          valueExpression = "CASE im.bool_value WHEN 1 THEN 'true' ELSE 'false' END";
-          postFilterClauses.push("AND im.value_type = 'boolean' AND im.bool_value IS NOT NULL");
+          postFilterParams.push(normalizedMetric);
+          postFilterClauses.push("AND im.metric_key = ?");
+          if (metricType === "text") {
+            valueExpression = "im.text_value";
+            postFilterClauses.push("AND im.value_type = 'text' AND im.text_value IS NOT NULL AND im.text_value <> ''");
+          } else if (metricType === "boolean") {
+            valueExpression = "CASE im.bool_value WHEN 1 THEN 'true' ELSE 'false' END";
+            postFilterClauses.push("AND im.value_type = 'boolean' AND im.bool_value IS NOT NULL");
+          } else {
+            throw new Error("itemMetrics value listing only supports text and boolean metrics.");
+          }
         } else {
-          throw new Error("itemMetrics value listing only supports text and boolean metrics.");
+          valueExpression = "im.metric_key";
+          if (query.metricPrefix) {
+            postFilterParams.push(`${normalizeItemMetricPrefix(query.metricPrefix)}%`);
+            postFilterClauses.push("AND im.metric_key LIKE ?");
+          }
         }
-      } else {
-        valueExpression = "im.metric_key";
-        if (query.metricPrefix) {
-          postFilterParams.push(`${normalizeItemMetricPrefix(query.metricPrefix)}%`);
-          postFilterClauses.push("AND im.metric_key LIKE ?");
-        }
-      }
-      break;
+        break;
       case "sources":
         valueExpression = "r.source_category";
         break;
@@ -557,7 +590,11 @@ export function buildFilterValueQuery(query: FilterValueQuery, filters: Normaliz
   return { sql: sql.join("\n"), params };
 }
 
-export function buildLexicalRetrievalQuery(filters: NormalizedSearchFilters, query: string, limit: number): { sql: string; params: SqlValue[] } {
+export function buildLexicalRetrievalQuery(
+  filters: NormalizedSearchFilters,
+  query: string,
+  limit: number,
+): { sql: string; params: SqlValue[] } {
   const sql = [
     "SELECT r.record_key AS recordKey, bm25(records_fts, 8.0, 1.5) AS rank",
     "FROM records_fts",
@@ -590,7 +627,10 @@ function normalizeVectorText(value: string | null | undefined): string {
   return normalizeText(value ?? "") || "";
 }
 
-export function buildSemanticRetrievalQuery(filters: NormalizedSearchFilters, limit: number): { sql: string; params: SqlValue[] } {
+export function buildSemanticRetrievalQuery(
+  filters: NormalizedSearchFilters,
+  limit: number,
+): { sql: string; params: SqlValue[] } {
   const sql = [
     "SELECT record_key AS recordKey, distance",
     "FROM record_embeddings",
@@ -613,7 +653,10 @@ export function buildSemanticRetrievalQuery(filters: NormalizedSearchFilters, li
       const placeholders = subcategories.map(() => "?").join(", ");
       return {
         clause: `(category = ? AND subcategory IN (${placeholders}))`,
-        values: [normalizeVectorText(category), ...subcategories.map((subcategory) => normalizeVectorText(subcategory))],
+        values: [
+          normalizeVectorText(category),
+          ...subcategories.map((subcategory) => normalizeVectorText(subcategory)),
+        ],
       };
     });
   } else {
@@ -647,9 +690,15 @@ export function buildSemanticRetrievalQuery(filters: NormalizedSearchFilters, li
     appendWhereClause(sql, params, "AND action_cost = ?", BigInt(filters.actionCost));
   }
 
-  appendMetadataFilterClauses(sql, params, filters.metadata, {
-    recordKeyExpr: "record_embeddings.record_key",
-  }, appendWhereClause);
+  appendMetadataFilterClauses(
+    sql,
+    params,
+    filters.metadata,
+    {
+      recordKeyExpr: "record_embeddings.record_key",
+    },
+    appendWhereClause,
+  );
 
   return { sql: sql.join("\n"), params };
 }

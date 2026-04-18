@@ -29,53 +29,59 @@ async function hasLocalData(): Promise<boolean> {
 }
 
 describe("local PF2E integration", async () => {
-  const available = RUN_LOCAL_INTEGRATION_TESTS && await hasLocalData();
+  const available = RUN_LOCAL_INTEGRATION_TESTS && (await hasLocalData());
   const createdRoots: string[] = [];
 
   afterEach(async () => {
-    await Promise.all(
-      createdRoots.splice(0).map(async (root) => rm(root, { recursive: true, force: true })),
-    );
+    await Promise.all(createdRoots.splice(0).map(async (root) => rm(root, { recursive: true, force: true })));
   });
 
-  it.runIf(available)("rebuilds a fresh SQLite index and can resolve known records", async () => {
-    const tempRoot = await mkdtemp(path.join(os.tmpdir(), "pf2e-local-integration-"));
-    createdRoots.push(tempRoot);
-    const indexPath = path.join(tempRoot, "pf2e-index.sqlite");
-    const service = await Pf2eDataService.rebuildIndex(localRoot, manifestPath, {
-      indexPath,
-      embedding: TEST_HASH_EMBEDDING,
-    });
+  it.runIf(available)(
+    "rebuilds a fresh SQLite index and can resolve known records",
+    async () => {
+      const tempRoot = await mkdtemp(path.join(os.tmpdir(), "pf2e-local-integration-"));
+      createdRoots.push(tempRoot);
+      const indexPath = path.join(tempRoot, "pf2e-index.sqlite");
+      const service = await Pf2eDataService.rebuildIndex(localRoot, manifestPath, {
+        indexPath,
+        embedding: TEST_HASH_EMBEDDING,
+      });
 
-    expect(await access(indexPath, constants.R_OK).then(() => true)).toBe(true);
-    expect(service.listPacks().length).toBeGreaterThan(50);
-    expect(service.lookup("Raise a Shield").match?.packLabel).toBe("Actions");
-    expect(service.lookup("Analysis Eye").match?.packLabel).toBe("Equipment");
-    expect(service.lookup("Cythnigot", { category: "creature" }).match?.type).toBe("npc");
-    service.close();
-  }, 60000);
+      expect(await access(indexPath, constants.R_OK).then(() => true)).toBe(true);
+      expect(service.listPacks().length).toBeGreaterThan(50);
+      expect(service.lookup("Raise a Shield").match?.packLabel).toBe("Actions");
+      expect(service.lookup("Analysis Eye").match?.packLabel).toBe("Equipment");
+      expect(service.lookup("Cythnigot", { category: "creature" }).match?.type).toBe("npc");
+      service.close();
+    },
+    60000,
+  );
 
-  it.runIf(available)("reuses a cached SQLite index when the PF2E source is unchanged", async () => {
-    const tempRoot = await mkdtemp(path.join(os.tmpdir(), "pf2e-local-cache-"));
-    createdRoots.push(tempRoot);
-    const indexPath = path.join(tempRoot, "pf2e-index.sqlite");
+  it.runIf(available)(
+    "reuses a cached SQLite index when the PF2E source is unchanged",
+    async () => {
+      const tempRoot = await mkdtemp(path.join(os.tmpdir(), "pf2e-local-cache-"));
+      createdRoots.push(tempRoot);
+      const indexPath = path.join(tempRoot, "pf2e-index.sqlite");
 
-    const firstService = await Pf2eDataService.rebuildIndex(localRoot, manifestPath, {
-      indexPath,
-      embedding: TEST_HASH_EMBEDDING,
-    });
-    expect(firstService.lookup("Raise a Shield").match?.packLabel).toBe("Actions");
-    firstService.close();
+      const firstService = await Pf2eDataService.rebuildIndex(localRoot, manifestPath, {
+        indexPath,
+        embedding: TEST_HASH_EMBEDDING,
+      });
+      expect(firstService.lookup("Raise a Shield").match?.packLabel).toBe("Actions");
+      firstService.close();
 
-    const firstMtime = (await stat(indexPath)).mtimeMs;
-    const secondService = await Pf2eDataService.load(localRoot, manifestPath, {
-      indexPath,
-      embedding: TEST_HASH_EMBEDDING,
-    });
-    expect(secondService.lookup("Analysis Eye").match?.packLabel).toBe("Equipment");
-    secondService.close();
-    const secondMtime = (await stat(indexPath)).mtimeMs;
+      const firstMtime = (await stat(indexPath)).mtimeMs;
+      const secondService = await Pf2eDataService.load(localRoot, manifestPath, {
+        indexPath,
+        embedding: TEST_HASH_EMBEDDING,
+      });
+      expect(secondService.lookup("Analysis Eye").match?.packLabel).toBe("Equipment");
+      secondService.close();
+      const secondMtime = (await stat(indexPath)).mtimeMs;
 
-    expect(secondMtime).toBe(firstMtime);
-  }, 60000);
+      expect(secondMtime).toBe(firstMtime);
+    },
+    60000,
+  );
 });

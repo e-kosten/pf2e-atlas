@@ -32,21 +32,14 @@ const reviewQueueConfidencePriority = new Map<DerivedTagReviewQueueSummaryItem["
 ]);
 
 export function normalizeSortLabel(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[_-]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  return value.toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
 }
 
 export function compareDisplayText(left: string, right: string): number {
   return DISPLAY_TEXT_COLLATOR.compare(normalizeSortLabel(left), normalizeSortLabel(right));
 }
 
-export function compareOptionalDisplayText(
-  left: string | null | undefined,
-  right: string | null | undefined,
-): number {
+export function compareOptionalDisplayText(left: string | null | undefined, right: string | null | undefined): number {
   if (left && right) {
     return compareDisplayText(left, right) || DISPLAY_TEXT_COLLATOR.compare(left, right);
   }
@@ -77,11 +70,15 @@ export function compareReviewQueueItems(
   left: DerivedTagReviewQueueSummaryItem,
   right: DerivedTagReviewQueueSummaryItem,
 ): number {
-  return (reviewQueueKindPriority.get(left.kind) ?? Number.MAX_SAFE_INTEGER) - (reviewQueueKindPriority.get(right.kind) ?? Number.MAX_SAFE_INTEGER)
-    || (reviewQueueConfidencePriority.get(left.confidence) ?? Number.MAX_SAFE_INTEGER) - (reviewQueueConfidencePriority.get(right.confidence) ?? Number.MAX_SAFE_INTEGER)
-    || right.count - left.count
-    || compareManagedCategory(left.category, right.category)
-    || compareOptionalDisplayText(left.family, right.family)
-    || compareDisplayText(left.tag, right.tag)
-    || left.tag.localeCompare(right.tag);
+  return (
+    (reviewQueueKindPriority.get(left.kind) ?? Number.MAX_SAFE_INTEGER) -
+      (reviewQueueKindPriority.get(right.kind) ?? Number.MAX_SAFE_INTEGER) ||
+    (reviewQueueConfidencePriority.get(left.confidence) ?? Number.MAX_SAFE_INTEGER) -
+      (reviewQueueConfidencePriority.get(right.confidence) ?? Number.MAX_SAFE_INTEGER) ||
+    right.count - left.count ||
+    compareManagedCategory(left.category, right.category) ||
+    compareOptionalDisplayText(left.family, right.family) ||
+    compareDisplayText(left.tag, right.tag) ||
+    left.tag.localeCompare(right.tag)
+  );
 }

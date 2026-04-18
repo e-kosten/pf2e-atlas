@@ -85,9 +85,7 @@ export function publishDerivedTagExemplars(
 
       const key = exemplarKey(category.category, normalizedTag);
       if (exemplarsByKey.has(key)) {
-        throw new Error(
-          `Duplicate derived tag exemplar "${normalizedTag}" in category "${category.category}".`,
-        );
+        throw new Error(`Duplicate derived tag exemplar "${normalizedTag}" in category "${category.category}".`);
       }
 
       const publishedSet: PublishedDerivedTagExemplarSet = {
@@ -126,8 +124,11 @@ export function resolveDerivedTagExemplarRecordKeys(
   tag: string,
   scope: { category?: SearchCategory; subcategory?: SearchSubcategory | null } = {},
 ): string[] {
-  return uniqueSorted(getPublishedDerivedTagExemplars(exemplars, tag, scope)
-    .flatMap((entry) => entry.positives.map((record) => record.recordKey)));
+  return uniqueSorted(
+    getPublishedDerivedTagExemplars(exemplars, tag, scope).flatMap((entry) =>
+      entry.positives.map((record) => record.recordKey),
+    ),
+  );
 }
 
 export function validateDerivedTagExemplarsAgainstRecords(

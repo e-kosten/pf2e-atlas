@@ -86,17 +86,23 @@ function insertRecord(
     aliases?: string[];
   },
 ): void {
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO records (
       record_key, name, normalized_name, pack_name, publication_title, folder_id, source_path, category, subcategory,
       variant_family_key, variant_base_name, variant_label, variant_axes_json,
       level, traits_json, derived_tags_json, description_text, is_search_canonical
     )
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, 1)
-  `).run(
+  `,
+  ).run(
     input.recordKey,
     input.name,
-    input.name.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " "),
+    input.name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim()
+      .replace(/\s+/g, " "),
     input.packName ?? input.recordKey.split(":")[0] ?? input.recordKey,
     input.publicationTitle ?? null,
     input.folderId ?? null,
@@ -116,36 +122,53 @@ function insertRecord(
     db.prepare("INSERT INTO record_derived_tags (record_key, tag) VALUES (?, ?)").run(input.recordKey, tag);
   }
   for (const alias of input.aliases ?? []) {
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO record_aliases (canonical_record_key, alias_text, normalized_alias, source_kind, source_ref)
       VALUES (?, ?, ?, 'test', 'alias')
-    `).run(
+    `,
+    ).run(
       input.recordKey,
       alias,
-      alias.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " "),
+      alias
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim()
+        .replace(/\s+/g, " "),
     );
   }
 }
 
 function insertReference(db: DatabaseSync, fromRecordKey: string, toRecordKey: string, toRecordName: string): void {
-  db.prepare(`
+  db.prepare(
+    `
     INSERT OR IGNORE INTO records (
       record_key, name, normalized_name, pack_name, publication_title, folder_id, source_path, category, subcategory,
       variant_family_key, variant_base_name, variant_label, variant_axes_json,
       level, traits_json, derived_tags_json, description_text, is_search_canonical
     )
     VALUES (?, ?, ?, 'actionspf2e', NULL, NULL, NULL, 'rule', 'action', NULL, NULL, NULL, '[]', NULL, '[]', '[]', NULL, 1)
-  `).run(
+  `,
+  ).run(
     toRecordKey,
     toRecordName,
-    toRecordName.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " "),
+    toRecordName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim()
+      .replace(/\s+/g, " "),
   );
-  db.prepare("INSERT OR IGNORE INTO embeddings (record_key, vector_blob) VALUES (?, ?)").run(toRecordKey, blob([0, 0, 1]));
-  db.prepare(`
+  db.prepare("INSERT OR IGNORE INTO embeddings (record_key, vector_blob) VALUES (?, ?)").run(
+    toRecordKey,
+    blob([0, 0, 1]),
+  );
+  db.prepare(
+    `
     INSERT INTO reference_edges (
       from_record_key, to_record_key, display_text, reference_text, from_pack_name, from_record_type, from_document_type, from_source_category
     ) VALUES (?, ?, NULL, ?, 'actionspf2e', 'spell', 'spell', 'rules')
-  `).run(fromRecordKey, toRecordKey, `ref:${fromRecordKey}:${toRecordKey}`);
+  `,
+  ).run(fromRecordKey, toRecordKey, `ref:${fromRecordKey}:${toRecordKey}`);
 }
 
 describe("ruleable cohort discovery", () => {
@@ -277,7 +300,9 @@ describe("ruleable cohort discovery", () => {
         cohortLimit: 3,
       });
 
-      expect(report.contrastRecords.filter((record) => record.name.startsWith("Words of Wisdom")).length).toBeLessThanOrEqual(1);
+      expect(
+        report.contrastRecords.filter((record) => record.name.startsWith("Words of Wisdom")).length,
+      ).toBeLessThanOrEqual(1);
     } finally {
       db.close();
     }

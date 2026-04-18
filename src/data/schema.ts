@@ -4,16 +4,8 @@ import { DatabaseSync } from "node:sqlite";
 
 import * as sqliteVec from "sqlite-vec";
 
-import {
-  DEFAULT_EMBEDDING_MODEL_ID,
-  DEFAULT_EMBEDDING_REVISION,
-  EmbeddingProvider,
-} from "../embeddings.js";
-import {
-  EmbeddingConfig,
-  LinkedRecordSummary,
-  PackInfo,
-} from "../types.js";
+import { DEFAULT_EMBEDDING_MODEL_ID, DEFAULT_EMBEDDING_REVISION, EmbeddingProvider } from "../embeddings.js";
+import { EmbeddingConfig, LinkedRecordSummary, PackInfo } from "../types.js";
 import { uniqueSorted } from "../utils.js";
 
 export const INDEX_SCHEMA_VERSION = 24;
@@ -282,7 +274,8 @@ export function defaultIndexPath(manifestPath: string): string {
 
 export function loadPacksFromIndex(db: DatabaseSync): PackInfo[] {
   const rows = db
-    .prepare(`
+    .prepare(
+      `
       SELECT
         name,
         label,
@@ -292,7 +285,8 @@ export function loadPacksFromIndex(db: DatabaseSync): PackInfo[] {
         record_count AS recordCount
       FROM packs
       ORDER BY label ASC
-    `)
+    `,
+    )
     .all() as Array<Record<string, unknown>>;
 
   return rows.map((row) => ({
@@ -306,11 +300,15 @@ export function loadPacksFromIndex(db: DatabaseSync): PackInfo[] {
 }
 
 export function loadAliasesByRecordKey(db: DatabaseSync): Map<string, string[]> {
-  const rows = db.prepare(`
+  const rows = db
+    .prepare(
+      `
     SELECT canonical_record_key AS canonicalRecordKey, alias_text AS aliasText
     FROM record_aliases
     ORDER BY canonical_record_key ASC, alias_text ASC
-  `).all() as Array<{ canonicalRecordKey: string; aliasText: string }>;
+  `,
+    )
+    .all() as Array<{ canonicalRecordKey: string; aliasText: string }>;
 
   const aliasesByRecordKey = new Map<string, string[]>();
   for (const row of rows) {
@@ -323,7 +321,9 @@ export function loadAliasesByRecordKey(db: DatabaseSync): Map<string, string[]> 
 }
 
 export function loadLegacyLinksByRecordKey(db: DatabaseSync): Map<string, LinkedRecordSummary[]> {
-  const rows = db.prepare(`
+  const rows = db
+    .prepare(
+      `
     SELECT
       rll.canonical_record_key AS canonicalRecordKey,
       rll.legacy_record_key AS legacyRecordKey,
@@ -331,7 +331,9 @@ export function loadLegacyLinksByRecordKey(db: DatabaseSync): Map<string, Linked
     FROM record_legacy_links rll
     JOIN records ON records.record_key = rll.legacy_record_key
     ORDER BY rll.canonical_record_key ASC, records.name ASC, rll.legacy_record_key ASC
-  `).all() as Array<{ canonicalRecordKey: string; legacyRecordKey: string; legacyName: string }>;
+  `,
+    )
+    .all() as Array<{ canonicalRecordKey: string; legacyRecordKey: string; legacyName: string }>;
 
   const linksByRecordKey = new Map<string, LinkedRecordSummary[]>();
   for (const row of rows) {
@@ -351,14 +353,15 @@ export function readMetadata(db: DatabaseSync): Map<string, string> {
   return new Map(rows.map((row) => [row.key, row.value]));
 }
 
-export function canReuseIndex(db: DatabaseSync, sourceSignature: string, embeddingProvider: EmbeddingProvider): boolean {
+export function canReuseIndex(
+  db: DatabaseSync,
+  sourceSignature: string,
+  embeddingProvider: EmbeddingProvider,
+): boolean {
   return getIndexInvalidReason(db, sourceSignature, embeddingProvider) === null;
 }
 
-export function getEmbeddingReuseInvalidReason(
-  db: DatabaseSync,
-  embeddingProvider: EmbeddingProvider,
-): string | null {
+export function getEmbeddingReuseInvalidReason(db: DatabaseSync, embeddingProvider: EmbeddingProvider): string | null {
   try {
     const metadata = readMetadata(db);
     if (metadata.get("schema_version") !== String(INDEX_SCHEMA_VERSION)) {
@@ -423,11 +426,16 @@ export function loadRequiredVectorExtension(
     db.enableLoadExtension(false);
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
-    throw new Error(`Failed to load required sqlite-vec extension. Fix the installation and retry startup. Underlying error: ${reason}`);
+    throw new Error(
+      `Failed to load required sqlite-vec extension. Fix the installation and retry startup. Underlying error: ${reason}`,
+    );
   }
 }
 
-export function openDatabase(indexPath: string, options: { vectorExtensionLoader?: (db: DatabaseSync) => void } = {}): DatabaseSync {
+export function openDatabase(
+  indexPath: string,
+  options: { vectorExtensionLoader?: (db: DatabaseSync) => void } = {},
+): DatabaseSync {
   const db = new DatabaseSync(indexPath, { allowExtension: true });
   loadRequiredVectorExtension(db, options.vectorExtensionLoader);
   return db;

@@ -3,7 +3,13 @@ import React from "react";
 import { cleanup, render } from "ink-testing-library";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { AppConfig, NormalizedRecord, OntologyDomainModel, SearchCountResult, SearchFilters } from "../../src/types.js";
+import type {
+  AppConfig,
+  NormalizedRecord,
+  OntologyDomainModel,
+  SearchCountResult,
+  SearchFilters,
+} from "../../src/types.js";
 import { createPf2eTerminalSearchService } from "../../src/tui/search-service.js";
 import { Pf2eTerminalAppServicesProvider } from "../../src/tui/app-service-context.js";
 import type { Pf2eTerminalAppServices } from "../../src/tui/app-services.js";
@@ -143,65 +149,76 @@ function createServices(
   } = {},
 ): Pf2eTerminalAppServices {
   const record = createRecord();
-  const countRecords = overrides.countRecords ?? vi.fn(async () => ({
-    searchProfile: "lexical",
-    mode: "lexical" as const,
-    total: 1,
-  } satisfies SearchCountResult));
-  const listRecords = overrides.listRecords ?? vi.fn((filters: SearchFilters) => ({
-    searchProfile: null,
-    mode: "structured" as const,
-    sort: filters.sort ?? "alphabetical",
-    total: 1,
-    offset: filters.offset ?? 0,
-    limit: filters.limit ?? 20,
-    hasMore: false,
-    nextOffset: null,
-    records: [record],
-  }));
+  const countRecords =
+    overrides.countRecords ??
+    vi.fn(
+      async () =>
+        ({
+          searchProfile: "lexical",
+          mode: "lexical" as const,
+          total: 1,
+        }) satisfies SearchCountResult,
+    );
+  const listRecords =
+    overrides.listRecords ??
+    vi.fn((filters: SearchFilters) => ({
+      searchProfile: null,
+      mode: "structured" as const,
+      sort: filters.sort ?? "alphabetical",
+      total: 1,
+      offset: filters.offset ?? 0,
+      limit: filters.limit ?? 20,
+      hasMore: false,
+      nextOffset: null,
+      records: [record],
+    }));
   const lookup = overrides.lookup ?? vi.fn(() => ({ match: record, alternatives: [] }));
-  const search = overrides.search ?? vi.fn(async (filters: SearchFilters) => ({
-    searchProfile: filters.searchProfile ?? "balanced",
-    mode: "hybrid" as const,
-    sort: filters.sort ?? "ranked",
-    total: 1,
-    offset: filters.offset ?? 0,
-    limit: filters.limit ?? 20,
-    hasMore: false,
-    nextOffset: null,
-    records: [record],
-  }));
-  const openSearchWindow = overrides.openSearchWindow ?? vi.fn(async (filters: SearchFilters, options?: { mode?: "browse" | "search" | "lookup" }) => {
-    const result = options?.mode === "browse"
-      ? listRecords(filters)
-      : await search(filters);
-    return {
-      id: "window-1",
-      searchProfile: result.searchProfile,
-      mode: result.mode,
-      sort: result.sort,
-      sortSeed: filters.sortSeed ?? null,
-      total: result.total,
-      offset: result.offset,
-      limit: result.limit,
-      hasMore: result.hasMore,
-      nextOffset: result.nextOffset,
-      records: result.records,
-    };
-  });
-  const readSearchWindowPage = overrides.readSearchWindowPage ?? vi.fn((windowId: string, offset: number, limit: number) => ({
-    id: windowId,
-    searchProfile: "balanced" as const,
-    mode: "hybrid" as const,
-    sort: "ranked" as const,
-    sortSeed: null,
-    total: 1,
-    offset,
-    limit,
-    hasMore: false,
-    nextOffset: null,
-    records: [record],
-  }));
+  const search =
+    overrides.search ??
+    vi.fn(async (filters: SearchFilters) => ({
+      searchProfile: filters.searchProfile ?? "balanced",
+      mode: "hybrid" as const,
+      sort: filters.sort ?? "ranked",
+      total: 1,
+      offset: filters.offset ?? 0,
+      limit: filters.limit ?? 20,
+      hasMore: false,
+      nextOffset: null,
+      records: [record],
+    }));
+  const openSearchWindow =
+    overrides.openSearchWindow ??
+    vi.fn(async (filters: SearchFilters, options?: { mode?: "browse" | "search" | "lookup" }) => {
+      const result = options?.mode === "browse" ? listRecords(filters) : await search(filters);
+      return {
+        id: "window-1",
+        searchProfile: result.searchProfile,
+        mode: result.mode,
+        sort: result.sort,
+        sortSeed: filters.sortSeed ?? null,
+        total: result.total,
+        offset: result.offset,
+        limit: result.limit,
+        hasMore: result.hasMore,
+        nextOffset: result.nextOffset,
+        records: result.records,
+      };
+    });
+  const readSearchWindowPage =
+    overrides.readSearchWindowPage ??
+    vi.fn((windowId: string, offset: number, limit: number) => ({
+      id: windowId,
+      searchProfile: "balanced" as const,
+      mode: "hybrid" as const,
+      sort: "ranked" as const,
+      sortSeed: null,
+      total: 1,
+      offset,
+      limit,
+      hasMore: false,
+      nextOffset: null,
+      records: [record],
+    }));
   const closeSearchWindow = overrides.closeSearchWindow ?? vi.fn();
 
   const searchService = createPf2eTerminalSearchService({
@@ -336,10 +353,7 @@ function createFacetPickerOntologyDomain(): OntologyDomainModel {
                     filterText: "regional setting coastal setting",
                     listLabel: "regional_setting | 1 tag",
                     detailTitle: "Family Details",
-                    detailLines: [
-                      { text: "regional_setting", tone: "section" },
-                      { text: "Axis: environment" },
-                    ],
+                    detailLines: [{ text: "regional_setting", tone: "section" }, { text: "Axis: environment" }],
                     groupValues: {
                       axis: "environment",
                     },
@@ -461,20 +475,22 @@ describe("search screen", () => {
     await flushInk();
     await flushInk();
 
-    expect(search).toHaveBeenCalledWith(expect.objectContaining({
-      actionCost: undefined,
-      category: "spell",
-      levelMax: undefined,
-      levelMin: undefined,
-      metadata: undefined,
-      offset: 0,
-      query: "ghost",
-      rarity: undefined,
-      searchProfile: "lexical",
-      sort: "ranked",
-      sortSeed: undefined,
-      subcategory: undefined,
-    }));
+    expect(search).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actionCost: undefined,
+        category: "spell",
+        levelMax: undefined,
+        levelMin: undefined,
+        metadata: undefined,
+        offset: 0,
+        query: "ghost",
+        rarity: undefined,
+        searchProfile: "lexical",
+        sort: "ranked",
+        sortSeed: undefined,
+        subcategory: undefined,
+      }),
+    );
     expect(search.mock.calls[0]?.[0]?.limit).toBeGreaterThan(50);
     expect(app.lastFrame()).toContain("Current setup matches applied query");
     expect(app.lastFrame()).toContain("1/1 | Buf 1 | Win 1-1");
@@ -587,12 +603,14 @@ describe("search screen", () => {
 
   it("uses space to open the selected setup item and carries facet edits back into the workspace", async () => {
     const services = createServices();
-    services.user.search.getFacetFieldOptions = vi.fn(() => [{
-      value: "derivedTags",
-      label: "Derived Tags",
-      description: "Derived-tag facet for the current browse scope.",
-      fieldType: "set",
-    }]);
+    services.user.search.getFacetFieldOptions = vi.fn(() => [
+      {
+        value: "derivedTags",
+        label: "Derived Tags",
+        description: "Derived-tag facet for the current browse scope.",
+        fieldType: "set",
+      },
+    ]);
     services.user.ontology.loadDomain = vi.fn((id: string) => {
       if (id === "searchSemantics") {
         return createFacetPickerOntologyDomain();
@@ -660,9 +678,7 @@ describe("search screen", () => {
       createRecord({ recordKey: "spell:a", id: "a", name: "Alarm Ward" }),
       createRecord({ recordKey: "spell:b", id: "b", name: "Arcane Echo" }),
     ];
-    const secondPageRecords = [
-      createRecord({ recordKey: "spell:c", id: "c", name: "Beacon Sigil" }),
-    ];
+    const secondPageRecords = [createRecord({ recordKey: "spell:c", id: "c", name: "Beacon Sigil" })];
     const openSearchWindow = vi.fn(async () => ({
       id: "window-1",
       searchProfile: null,
@@ -724,7 +740,8 @@ describe("search screen", () => {
   });
 
   it("closes the previous backend window when a new applied session replaces it", async () => {
-    const openSearchWindow = vi.fn()
+    const openSearchWindow = vi
+      .fn()
       .mockResolvedValueOnce({
         id: "window-1",
         searchProfile: null,
@@ -885,16 +902,20 @@ describe("search screen", () => {
   });
 
   it("prefetches the full result set for small totals so paging stays invisible", async () => {
-    const firstPageRecords = Array.from({ length: 120 }, (_, index) => createRecord({
-      recordKey: `spell:${index}`,
-      id: `${index}`,
-      name: `Spell ${index}`,
-    }));
-    const secondPageRecords = Array.from({ length: 80 }, (_, index) => createRecord({
-      recordKey: `spell:${index + 120}`,
-      id: `${index + 120}`,
-      name: `Spell ${index + 120}`,
-    }));
+    const firstPageRecords = Array.from({ length: 120 }, (_, index) =>
+      createRecord({
+        recordKey: `spell:${index}`,
+        id: `${index}`,
+        name: `Spell ${index}`,
+      }),
+    );
+    const secondPageRecords = Array.from({ length: 80 }, (_, index) =>
+      createRecord({
+        recordKey: `spell:${index + 120}`,
+        id: `${index + 120}`,
+        name: `Spell ${index + 120}`,
+      }),
+    );
     const openSearchWindow = vi.fn(async () => ({
       id: "window-1",
       searchProfile: null,
@@ -995,11 +1016,13 @@ describe("search screen", () => {
         limit: 120,
         hasMore: true,
         nextOffset: 120,
-        records: Array.from({ length: 120 }, (_, index) => createRecord({
-          recordKey: `spell:${index}`,
-          id: `${index}`,
-          name: `Spell ${index}`,
-        })),
+        records: Array.from({ length: 120 }, (_, index) =>
+          createRecord({
+            recordKey: `spell:${index}`,
+            id: `${index}`,
+            name: `Spell ${index}`,
+          }),
+        ),
       })),
       readSearchWindowPage: vi.fn((windowId: string, offset: number, limit: number) => ({
         id: windowId,
@@ -1012,11 +1035,13 @@ describe("search screen", () => {
         limit,
         hasMore: offset + limit < 1000,
         nextOffset: offset + limit < 1000 ? offset + limit : null,
-        records: Array.from({ length: limit }, (_, index) => createRecord({
-          recordKey: `spell:${offset + index}`,
-          id: `${offset + index}`,
-          name: `Spell ${offset + index}`,
-        })),
+        records: Array.from({ length: limit }, (_, index) =>
+          createRecord({
+            recordKey: `spell:${offset + index}`,
+            id: `${offset + index}`,
+            name: `Spell ${offset + index}`,
+          }),
+        ),
       })),
     });
 
@@ -1033,11 +1058,13 @@ describe("search screen", () => {
   });
 
   it("jumps G to the last true result page rather than the end of the loaded prefix", async () => {
-    const firstPageRecords = Array.from({ length: 120 }, (_, index) => createRecord({
-      recordKey: `spell:${index}`,
-      id: `${index}`,
-      name: `Spell ${index}`,
-    }));
+    const firstPageRecords = Array.from({ length: 120 }, (_, index) =>
+      createRecord({
+        recordKey: `spell:${index}`,
+        id: `${index}`,
+        name: `Spell ${index}`,
+      }),
+    );
     const openSearchWindow = vi.fn(async () => ({
       id: "window-1",
       searchProfile: null,
@@ -1062,11 +1089,13 @@ describe("search screen", () => {
       limit,
       hasMore: false,
       nextOffset: null,
-      records: Array.from({ length: Math.min(limit, 1000 - offset) }, (_, index) => createRecord({
-        recordKey: `spell:${offset + index}`,
-        id: `${offset + index}`,
-        name: `Spell ${offset + index}`,
-      })),
+      records: Array.from({ length: Math.min(limit, 1000 - offset) }, (_, index) =>
+        createRecord({
+          recordKey: `spell:${offset + index}`,
+          id: `${offset + index}`,
+          name: `Spell ${offset + index}`,
+        }),
+      ),
     }));
     const services = createServices({ openSearchWindow, readSearchWindowPage });
     const app = render(
@@ -1097,11 +1126,13 @@ describe("search screen", () => {
   });
 
   it("does not keep rereading the same terminal window while moving inside the last page", async () => {
-    const firstPageRecords = Array.from({ length: 120 }, (_, index) => createRecord({
-      recordKey: `spell:${index}`,
-      id: `${index}`,
-      name: `Spell ${index}`,
-    }));
+    const firstPageRecords = Array.from({ length: 120 }, (_, index) =>
+      createRecord({
+        recordKey: `spell:${index}`,
+        id: `${index}`,
+        name: `Spell ${index}`,
+      }),
+    );
     const openSearchWindow = vi.fn(async () => ({
       id: "window-1",
       searchProfile: null,
@@ -1126,11 +1157,13 @@ describe("search screen", () => {
       limit,
       hasMore: false,
       nextOffset: null,
-      records: Array.from({ length: Math.min(limit, 1000 - offset) }, (_, index) => createRecord({
-        recordKey: `spell:${offset + index}`,
-        id: `${offset + index}`,
-        name: `Spell ${offset + index}`,
-      })),
+      records: Array.from({ length: Math.min(limit, 1000 - offset) }, (_, index) =>
+        createRecord({
+          recordKey: `spell:${offset + index}`,
+          id: `${offset + index}`,
+          name: `Spell ${offset + index}`,
+        }),
+      ),
     }));
     const services = createServices({ openSearchWindow, readSearchWindowPage });
     const app = render(
@@ -1164,11 +1197,13 @@ describe("search screen", () => {
   });
 
   it("slides the result window instead of growing it without bound", async () => {
-    const firstPageRecords = Array.from({ length: 120 }, (_, index) => createRecord({
-      recordKey: `spell:${index}`,
-      id: `${index}`,
-      name: `Spell ${index}`,
-    }));
+    const firstPageRecords = Array.from({ length: 120 }, (_, index) =>
+      createRecord({
+        recordKey: `spell:${index}`,
+        id: `${index}`,
+        name: `Spell ${index}`,
+      }),
+    );
     const openSearchWindow = vi.fn(async () => ({
       id: "window-1",
       searchProfile: null,
@@ -1193,11 +1228,13 @@ describe("search screen", () => {
       limit,
       hasMore: true,
       nextOffset: offset + limit,
-      records: Array.from({ length: limit }, (_, index) => createRecord({
-        recordKey: `spell:${offset + index}`,
-        id: `${offset + index}`,
-        name: `Spell ${offset + index}`,
-      })),
+      records: Array.from({ length: limit }, (_, index) =>
+        createRecord({
+          recordKey: `spell:${offset + index}`,
+          id: `${offset + index}`,
+          name: `Spell ${offset + index}`,
+        }),
+      ),
     }));
     const services = createServices({ openSearchWindow, readSearchWindowPage });
     const app = render(
@@ -1239,11 +1276,13 @@ describe("search screen", () => {
       limit: 120,
       hasMore: true,
       nextOffset: 120,
-      records: Array.from({ length: 120 }, (_, index) => createRecord({
-        recordKey: `spell:${index}`,
-        id: `${index}`,
-        name: `Spell ${index}`,
-      })),
+      records: Array.from({ length: 120 }, (_, index) =>
+        createRecord({
+          recordKey: `spell:${index}`,
+          id: `${index}`,
+          name: `Spell ${index}`,
+        }),
+      ),
     }));
     const readSearchWindowPage = vi.fn((windowId: string, offset: number, limit: number) => ({
       id: windowId,
@@ -1256,11 +1295,13 @@ describe("search screen", () => {
       limit,
       hasMore: offset + limit < 1000,
       nextOffset: offset + limit < 1000 ? offset + limit : null,
-      records: Array.from({ length: Math.min(limit, 1000 - offset) }, (_, index) => createRecord({
-        recordKey: `spell:${offset + index}`,
-        id: `${offset + index}`,
-        name: `Spell ${offset + index}`,
-      })),
+      records: Array.from({ length: Math.min(limit, 1000 - offset) }, (_, index) =>
+        createRecord({
+          recordKey: `spell:${offset + index}`,
+          id: `${offset + index}`,
+          name: `Spell ${offset + index}`,
+        }),
+      ),
     }));
     const services = createServices({ openSearchWindow, readSearchWindowPage });
     const app = render(
@@ -1317,7 +1358,9 @@ describe("search screen", () => {
       "2",
       "3",
     ]);
-    expect(services.user.search.getFacetFieldOptions("spell", null).some((option) => option.value === "actionCost")).toBe(true);
+    expect(
+      services.user.search.getFacetFieldOptions("spell", null).some((option) => option.value === "actionCost"),
+    ).toBe(true);
   });
 
   it("maps simple ontology browse queries into seeded workspace requests", () => {
@@ -1448,12 +1491,14 @@ describe("search screen", () => {
 
   it("opens the shared ontology picker for derived-tag facet editing and preserves axis grouping", async () => {
     const services = createServices();
-    services.user.search.getFacetFieldOptions = vi.fn(() => [{
-      value: "derivedTags",
-      label: "Derived Tags",
-      description: "Derived-tag facet for the current browse scope.",
-      fieldType: "set",
-    }]);
+    services.user.search.getFacetFieldOptions = vi.fn(() => [
+      {
+        value: "derivedTags",
+        label: "Derived Tags",
+        description: "Derived-tag facet for the current browse scope.",
+        fieldType: "set",
+      },
+    ]);
     services.user.ontology.loadDomain = vi.fn((id: string) => {
       if (id === "searchSemantics") {
         return createFacetPickerOntologyDomain();

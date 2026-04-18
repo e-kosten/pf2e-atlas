@@ -98,17 +98,19 @@ describe("derived tag legacy seed migrations", () => {
   });
 
   it("rejects unknown migration tags and lets explicit assignment exclusions override migrated tags", () => {
-    expect(() => buildDerivedTagLegacySeedMigrationIndex(ontology, seedLookup, [
-      {
-        category: "equipment",
-        tags: [
-          {
-            tag: "unknown_tag",
-            includeRecords: [{ pack: "equipment-srd", name: "Mask" }],
-          },
-        ],
-      },
-    ])).toThrow(/does not exist in the published ontology/);
+    expect(() =>
+      buildDerivedTagLegacySeedMigrationIndex(ontology, seedLookup, [
+        {
+          category: "equipment",
+          tags: [
+            {
+              tag: "unknown_tag",
+              includeRecords: [{ pack: "equipment-srd", name: "Mask" }],
+            },
+          ],
+        },
+      ]),
+    ).toThrow(/does not exist in the published ontology/);
 
     const migrationIndex = buildDerivedTagLegacySeedMigrationIndex(ontology, seedLookup, [
       {

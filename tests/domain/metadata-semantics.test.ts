@@ -7,50 +7,47 @@ describe("metadata search semantics", () => {
   it("lists meaningful metadata fields by category", () => {
     const semantics = getMetadataFilterSemantics();
 
-    expect(semantics.metadataFieldsByCategory.equipment).toEqual(expect.arrayContaining([
-      "usage",
-      "hands",
-      "weaponGroup",
-      "armorGroup",
-      "itemCategory",
-      "baseItem",
-      "damageTypes",
-      "variantAxes",
-      "variantFamilyKey",
-      "variantBaseName",
-      "variantLabel",
-    ]));
-    expect(semantics.metadataFieldsByCategory.creature).toEqual(expect.arrayContaining([
-      "families",
-      "languages",
-      "immunities",
-      "size",
-    ]));
-    expect(semantics.metadataFieldsByCategory.spell).toEqual(expect.arrayContaining([
-      "derivedTags",
-      "traditions",
-      "spellKinds",
-      "saveType",
-      "areaType",
-      "durationUnit",
-      "damageTypes",
-      "rangeValue",
-      "areaValue",
-      "sustained",
-      "basicSave",
-      "variantAxes",
-      "variantFamilyKey",
-      "variantBaseName",
-      "variantLabel",
-    ]));
-    expect(semantics.metadataFieldsByCategory.hazard).toEqual(expect.arrayContaining([
-      "derivedTags",
-      "disableSkills",
-      "isComplex",
-    ]));
-    expect(semantics.metadataFieldsByCategory.affliction).toEqual(expect.arrayContaining([
-      "derivedTags",
-    ]));
+    expect(semantics.metadataFieldsByCategory.equipment).toEqual(
+      expect.arrayContaining([
+        "usage",
+        "hands",
+        "weaponGroup",
+        "armorGroup",
+        "itemCategory",
+        "baseItem",
+        "damageTypes",
+        "variantAxes",
+        "variantFamilyKey",
+        "variantBaseName",
+        "variantLabel",
+      ]),
+    );
+    expect(semantics.metadataFieldsByCategory.creature).toEqual(
+      expect.arrayContaining(["families", "languages", "immunities", "size"]),
+    );
+    expect(semantics.metadataFieldsByCategory.spell).toEqual(
+      expect.arrayContaining([
+        "derivedTags",
+        "traditions",
+        "spellKinds",
+        "saveType",
+        "areaType",
+        "durationUnit",
+        "damageTypes",
+        "rangeValue",
+        "areaValue",
+        "sustained",
+        "basicSave",
+        "variantAxes",
+        "variantFamilyKey",
+        "variantBaseName",
+        "variantLabel",
+      ]),
+    );
+    expect(semantics.metadataFieldsByCategory.hazard).toEqual(
+      expect.arrayContaining(["derivedTags", "disableSkills", "isComplex"]),
+    );
+    expect(semantics.metadataFieldsByCategory.affliction).toEqual(expect.arrayContaining(["derivedTags"]));
   });
 
   it("keeps subcategory narrowing sparse and explicit", () => {
@@ -67,37 +64,39 @@ describe("metadata search semantics", () => {
       .filter((entry) => entry.discoverable)
       .map((entry) => entry.field);
 
-    expect(discoverableFields).toEqual(expect.arrayContaining([
-      "traits",
-      "families",
-      "sourceCategory",
-      "traditions",
-      "spellKinds",
-      "saveType",
-      "areaType",
-      "weaponGroup",
-      "armorGroup",
-      "usage",
-      "actionCost",
-      "hands",
-      "rangeValue",
-      "areaValue",
-      "durationUnit",
-      "sustained",
-      "basicSave",
-      "senses",
-      "disableSkills",
-      "isComplex",
-      "itemCategory",
-      "baseItem",
-      "size",
-      "rarity",
-      "publicationTitle",
-      "variantAxes",
-      "variantFamilyKey",
-      "variantBaseName",
-      "variantLabel",
-    ]));
+    expect(discoverableFields).toEqual(
+      expect.arrayContaining([
+        "traits",
+        "families",
+        "sourceCategory",
+        "traditions",
+        "spellKinds",
+        "saveType",
+        "areaType",
+        "weaponGroup",
+        "armorGroup",
+        "usage",
+        "actionCost",
+        "hands",
+        "rangeValue",
+        "areaValue",
+        "durationUnit",
+        "sustained",
+        "basicSave",
+        "senses",
+        "disableSkills",
+        "isComplex",
+        "itemCategory",
+        "baseItem",
+        "size",
+        "rarity",
+        "publicationTitle",
+        "variantAxes",
+        "variantFamilyKey",
+        "variantBaseName",
+        "variantLabel",
+      ]),
+    );
     expect(discoverableFields).not.toContain("publicationRemaster");
 
     for (const field of discoverableFields) {
@@ -116,31 +115,45 @@ describe("metadata search semantics", () => {
   it("documents advanced creature metric predicates separately from fixed metadata fields", () => {
     const semantics = getMetadataFilterSemantics();
 
-    expect(semantics.advancedPredicates).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        name: "actorMetric",
-        categories: ["creature", "hazard"],
-        operators: expect.arrayContaining([">=", "=="]),
-      }),
-      expect.objectContaining({
-        name: "actorMetricCompare",
-        categories: ["creature", "hazard"],
-        operators: expect.arrayContaining([">", "!="]),
-      }),
-      expect.objectContaining({
-        name: "itemMetric",
-        categories: ["equipment"],
-        operators: expect.arrayContaining([">=", "=="]),
-      }),
-      expect.objectContaining({
-        name: "itemMetricCompare",
-        categories: ["equipment"],
-        operators: expect.arrayContaining([">", "!="]),
-      }),
-    ]));
+    expect(semantics.advancedPredicates).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: "actorMetric",
+          categories: ["creature", "hazard"],
+          operators: expect.arrayContaining([">=", "=="]),
+        }),
+        expect.objectContaining({
+          name: "actorMetricCompare",
+          categories: ["creature", "hazard"],
+          operators: expect.arrayContaining([">", "!="]),
+        }),
+        expect.objectContaining({
+          name: "itemMetric",
+          categories: ["equipment"],
+          operators: expect.arrayContaining([">=", "=="]),
+        }),
+        expect.objectContaining({
+          name: "itemMetricCompare",
+          categories: ["equipment"],
+          operators: expect.arrayContaining([">", "!="]),
+        }),
+      ]),
+    );
     expect(semantics.actorMetricDiscovery?.filterValueField).toBe("actorMetrics");
     expect(semantics.actorMetricDiscovery?.namespaces.map((entry) => entry.prefix)).toEqual(
-      expect.arrayContaining(["ability.", "save.", "skill.", "perception.", "ac.", "hp.", "hardness.", "stealth.", "speed.", "sense.", "disable."]),
+      expect.arrayContaining([
+        "ability.",
+        "save.",
+        "skill.",
+        "perception.",
+        "ac.",
+        "hp.",
+        "hardness.",
+        "stealth.",
+        "speed.",
+        "sense.",
+        "disable.",
+      ]),
     );
     expect(semantics.itemMetricDiscovery?.filterValueField).toBe("itemMetrics");
     expect(semantics.itemMetricDiscovery?.namespaces.map((entry) => entry.prefix)).toEqual(

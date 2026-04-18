@@ -15,12 +15,7 @@ import {
   TEST_HASH_EMBEDDING,
   writeJson,
 } from "../helpers/pf2e-fixture.js";
-import {
-  cleanupCreatedRoots,
-  createFixture,
-  createHardFilterFixture,
-} from "../helpers/pf2e-service-fixture.js";
-
+import { cleanupCreatedRoots, createFixture, createHardFilterFixture } from "../helpers/pf2e-service-fixture.js";
 
 describe("Pf2eDataService / Load and Index", () => {
   const createdRoots: string[] = [];
@@ -33,11 +28,13 @@ describe("Pf2eDataService / Load and Index", () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);
 
-    await expect(loadTestService(fixture, {
-      vectorExtensionLoader: () => {
-        throw new Error("simulated extension load failure");
-      },
-    })).rejects.toThrow(/Failed to load required sqlite-vec extension/);
+    await expect(
+      loadTestService(fixture, {
+        vectorExtensionLoader: () => {
+          throw new Error("simulated extension load failure");
+        },
+      }),
+    ).rejects.toThrow(/Failed to load required sqlite-vec extension/);
   });
 
   it("uses batched semantic-only embedding text during rebuild", async () => {
@@ -63,9 +60,7 @@ describe("Pf2eDataService / Load and Index", () => {
     expect(tracking.embedCalls).toHaveLength(0);
     expect(tracking.embedManyCalls.length).toBeGreaterThan(0);
 
-    const shipCaptainText = tracking.embedManyCalls
-      .flat()
-      .find((text) => text.includes("Ship Captain"));
+    const shipCaptainText = tracking.embedManyCalls.flat().find((text) => text.includes("Ship Captain"));
     expect(shipCaptainText).toBeDefined();
     expect(shipCaptainText).toContain("Deck Order 1");
     expect(shipCaptainText).toContain("auditory");
@@ -73,7 +68,9 @@ describe("Pf2eDataService / Load and Index", () => {
     expect(shipCaptainText).not.toContain("Deck Order 41");
 
     const db = new DatabaseSync(indexPath);
-    const row = db.prepare("SELECT search_text AS searchText FROM records WHERE name = ?").get("Ship Captain") as { searchText: string } | undefined;
+    const row = db.prepare("SELECT search_text AS searchText FROM records WHERE name = ?").get("Ship Captain") as
+      | { searchText: string }
+      | undefined;
     db.close();
 
     expect(row?.searchText).toContain("Deck Order 41");
@@ -86,29 +83,32 @@ describe("Pf2eDataService / Load and Index", () => {
     createdRoots.push(fixture.root);
     const indexPath = path.join(fixture.root, ".cache", "pf2e-index.sqlite");
 
-    await import("node:fs/promises").then(({ mkdir }) => mkdir(
-      path.join(fixture.root, "packs", "pf2e", "bestiary-family-ability-glossary", "ghoul"),
-      { recursive: true },
-    ));
+    await import("node:fs/promises").then(({ mkdir }) =>
+      mkdir(path.join(fixture.root, "packs", "pf2e", "bestiary-family-ability-glossary", "ghoul"), { recursive: true }),
+    );
 
-    await writeJson(path.join(fixture.root, "packs", "pf2e", "bestiary-family-ability-glossary", "ghoul", "ghoul-fever.json"), {
-      _id: "ghoulfeversource",
-      name: "Ghoul Fever",
-      type: "action",
-      system: {
-        category: "offensive",
-        description: {
-          value: "<p><strong>Saving Throw</strong> @Check[fortitude|dc:18]</p><p><strong>Stage 1</strong> @UUID[Compendium.pf2e.conditionitems.Item.Sickened]{Sickened 1} (1 day)</p><p><strong>Stage 2</strong> @UUID[Compendium.pf2e.conditionitems.Item.Unconscious] (1 day)</p>",
-        },
-        publication: {
-          title: "Pathfinder Monster Core",
-        },
-        traits: {
-          rarity: "common",
-          value: ["disease"],
+    await writeJson(
+      path.join(fixture.root, "packs", "pf2e", "bestiary-family-ability-glossary", "ghoul", "ghoul-fever.json"),
+      {
+        _id: "ghoulfeversource",
+        name: "Ghoul Fever",
+        type: "action",
+        system: {
+          category: "offensive",
+          description: {
+            value:
+              "<p><strong>Saving Throw</strong> @Check[fortitude|dc:18]</p><p><strong>Stage 1</strong> @UUID[Compendium.pf2e.conditionitems.Item.Sickened]{Sickened 1} (1 day)</p><p><strong>Stage 2</strong> @UUID[Compendium.pf2e.conditionitems.Item.Unconscious] (1 day)</p>",
+          },
+          publication: {
+            title: "Pathfinder Monster Core",
+          },
+          traits: {
+            rarity: "common",
+            value: ["disease"],
+          },
         },
       },
-    });
+    );
     await writeJson(path.join(fixture.root, "packs", "pf2e", "equipment-srd", "lethargy-poison.json"), {
       _id: "lethargypoison",
       name: "Lethargy Poison",
@@ -116,7 +116,8 @@ describe("Pf2eDataService / Load and Index", () => {
       system: {
         category: "poison",
         description: {
-          value: "<p><strong>Saving Throw</strong> @Check[fortitude|dc:20]</p><p><strong>Maximum Duration</strong> 4 rounds</p><p><strong>Stage 1</strong> @UUID[Compendium.pf2e.conditionitems.Item.Slowed]{Slowed 1} (1 round)</p><p><strong>Stage 2</strong> @UUID[Compendium.pf2e.conditionitems.Item.Unconscious] (1 round)</p>",
+          value:
+            "<p><strong>Saving Throw</strong> @Check[fortitude|dc:20]</p><p><strong>Maximum Duration</strong> 4 rounds</p><p><strong>Stage 1</strong> @UUID[Compendium.pf2e.conditionitems.Item.Slowed]{Slowed 1} (1 round)</p><p><strong>Stage 2</strong> @UUID[Compendium.pf2e.conditionitems.Item.Unconscious] (1 round)</p>",
         },
         level: {
           value: 2,
@@ -151,7 +152,8 @@ describe("Pf2eDataService / Load and Index", () => {
             category: "offensive",
             slug: "ghoul-ghoul-fever",
             description: {
-              value: "<p><strong>Saving Throw</strong> @Check[fortitude|dc:18]</p><p><strong>Stage 1</strong> @UUID[Compendium.pf2e.conditionitems.Item.Sickened]{Sickened 1} (1 day)</p><p><strong>Stage 2</strong> @UUID[Compendium.pf2e.conditionitems.Item.Unconscious] (1 day)</p>",
+              value:
+                "<p><strong>Saving Throw</strong> @Check[fortitude|dc:18]</p><p><strong>Stage 1</strong> @UUID[Compendium.pf2e.conditionitems.Item.Sickened]{Sickened 1} (1 day)</p><p><strong>Stage 2</strong> @UUID[Compendium.pf2e.conditionitems.Item.Unconscious] (1 day)</p>",
             },
             traits: {
               value: ["disease"],
@@ -194,7 +196,8 @@ describe("Pf2eDataService / Load and Index", () => {
             category: "poison",
             slug: "lethargy-poison",
             description: {
-              value: "<p><strong>Saving Throw</strong> @Check[fortitude|dc:20]</p><p><strong>Maximum Duration</strong> 4 rounds</p><p><strong>Stage 1</strong> @UUID[Compendium.pf2e.conditionitems.Item.Slowed]{Slowed 1} (1 round)</p><p><strong>Stage 2</strong> @UUID[Compendium.pf2e.conditionitems.Item.Unconscious] (1 round)</p>",
+              value:
+                "<p><strong>Saving Throw</strong> @Check[fortitude|dc:20]</p><p><strong>Maximum Duration</strong> 4 rounds</p><p><strong>Stage 1</strong> @UUID[Compendium.pf2e.conditionitems.Item.Slowed]{Slowed 1} (1 round)</p><p><strong>Stage 2</strong> @UUID[Compendium.pf2e.conditionitems.Item.Unconscious] (1 round)</p>",
             },
             traits: {
               value: ["injury", "poison", "sleep"],
@@ -249,7 +252,8 @@ describe("Pf2eDataService / Load and Index", () => {
             category: "offensive",
             slug: "ghoul-fever",
             description: {
-              value: "<p><strong>Saving Throw</strong> @Check[fortitude|dc:18]</p><p><strong>Stage 1</strong> @UUID[Compendium.pf2e.conditionitems.Item.Sickened]{Sickened 1} (1 day)</p><p><strong>Stage 2</strong> @UUID[Compendium.pf2e.conditionitems.Item.Unconscious] (1 day)</p>",
+              value:
+                "<p><strong>Saving Throw</strong> @Check[fortitude|dc:18]</p><p><strong>Stage 1</strong> @UUID[Compendium.pf2e.conditionitems.Item.Sickened]{Sickened 1} (1 day)</p><p><strong>Stage 2</strong> @UUID[Compendium.pf2e.conditionitems.Item.Unconscious] (1 day)</p>",
             },
             traits: {
               value: ["disease"],
@@ -288,7 +292,8 @@ describe("Pf2eDataService / Load and Index", () => {
           system: {
             category: "offensive",
             description: {
-              value: "<p><strong>Saving Throw</strong> @Check[fortitude|dc:18]</p><p><strong>Stage 1</strong> @UUID[Compendium.pf2e.conditionitems.Item.Sickened]{Sickened 1} (1 day)</p><p><strong>Stage 2</strong> @UUID[Compendium.pf2e.conditionitems.Item.Unconscious] (1 day)</p>",
+              value:
+                "<p><strong>Saving Throw</strong> @Check[fortitude|dc:18]</p><p><strong>Stage 1</strong> @UUID[Compendium.pf2e.conditionitems.Item.Sickened]{Sickened 1} (1 day)</p><p><strong>Stage 2</strong> @UUID[Compendium.pf2e.conditionitems.Item.Unconscious] (1 day)</p>",
             },
             traits: {
               value: ["disease"],
@@ -347,43 +352,65 @@ describe("Pf2eDataService / Load and Index", () => {
     expect(graph.outgoing.records.map((record) => record.name)).toContain("Ghoul Brute");
 
     const db = new DatabaseSync(indexPath);
-    const canonicalRows = db.prepare(`
+    const canonicalRows = db
+      .prepare(
+        `
       SELECT name, raw_json AS rawJson
       FROM records
       WHERE pack_name = 'derived-afflictions'
       ORDER BY name ASC
-    `).all() as Array<{ name: string; rawJson: string }>;
-    const instanceRows = db.prepare(`
+    `,
+      )
+      .all() as Array<{ name: string; rawJson: string }>;
+    const instanceRows = db
+      .prepare(
+        `
       SELECT COUNT(*) AS total
       FROM records
       WHERE pack_name = 'derived-affliction-instances'
-    `).get() as { total: number };
-    const ghoulCanonicalRows = db.prepare(`
+    `,
+      )
+      .get() as { total: number };
+    const ghoulCanonicalRows = db
+      .prepare(
+        `
       SELECT record_key AS recordKey, raw_json AS rawJson
       FROM records
       WHERE pack_name = 'derived-afflictions' AND name = 'Ghoul Fever'
-    `).all() as Array<{ recordKey: string; rawJson: string }>;
-    const ghoulInstanceRows = db.prepare(`
+    `,
+      )
+      .all() as Array<{ recordKey: string; rawJson: string }>;
+    const ghoulInstanceRows = db
+      .prepare(
+        `
       SELECT raw_json AS rawJson
       FROM records
       WHERE pack_name = 'derived-affliction-instances' AND name = 'Ghoul Fever'
       ORDER BY record_key ASC
-    `).all() as Array<{ rawJson: string }>;
-    const ghoulBruteRow = db.prepare(`
+    `,
+      )
+      .all() as Array<{ rawJson: string }>;
+    const ghoulBruteRow = db
+      .prepare(
+        `
       SELECT search_text AS searchText
       FROM records
       WHERE name = 'Ghoul Brute'
-    `).get() as { searchText: string } | undefined;
+    `,
+      )
+      .get() as { searchText: string } | undefined;
     db.close();
 
     expect(canonicalRows.map((row) => row.name)).toEqual(["Ghoul Fever", "Lethargy Poison"]);
     expect(instanceRows.total).toBe(6);
     expect(ghoulCanonicalRows).toHaveLength(1);
-    expect(JSON.parse(ghoulCanonicalRows[0]!.rawJson)._derived.aliasNormalizationKeys).toEqual(expect.arrayContaining([
-      "record:bestiary-family-ability-glossary:ghoulfeversource",
-      "slug:disease:ghoul fever",
-      "name:disease:ghoul fever",
-    ]));
+    expect(JSON.parse(ghoulCanonicalRows[0]!.rawJson)._derived.aliasNormalizationKeys).toEqual(
+      expect.arrayContaining([
+        "record:bestiary-family-ability-glossary:ghoulfeversource",
+        "slug:disease:ghoul fever",
+        "name:disease:ghoul fever",
+      ]),
+    );
     expect(ghoulInstanceRows).toHaveLength(4);
     expect(new Set(ghoulInstanceRows.map((row) => JSON.parse(row.rawJson)._derived.normalizationKey))).toEqual(
       new Set(["record:bestiary-family-ability-glossary:ghoulfeversource"]),
@@ -436,13 +463,19 @@ describe("Pf2eDataService / Load and Index", () => {
     service.close();
 
     const db = new DatabaseSync(indexPath);
-    const row = db.prepare(`
+    const row = db
+      .prepare(
+        `
       SELECT
         description_text AS descriptionText,
         blurb_text AS blurbText
       FROM records
       WHERE record_key = ?
-    `).get("pathfinder-monster-core:venexustest") as { descriptionText: string | null; blurbText: string | null } | undefined;
+    `,
+      )
+      .get("pathfinder-monster-core:venexustest") as
+      | { descriptionText: string | null; blurbText: string | null }
+      | undefined;
     db.close();
 
     expect(row).toEqual({
@@ -465,7 +498,8 @@ describe("Pf2eDataService / Load and Index", () => {
           details: {
             level: { value: 6 },
             publication: { title: "Pathfinder Monster Core" },
-            publicNotes: "<p>Dwelling on glacial mountaintops or in ice caverns beneath forbidding tundra, white dragons stalk the frozen wilderness.</p>",
+            publicNotes:
+              "<p>Dwelling on glacial mountaintops or in ice caverns beneath forbidding tundra, white dragons stalk the frozen wilderness.</p>",
           },
           traits: {
             rarity: "common",
@@ -482,7 +516,8 @@ describe("Pf2eDataService / Load and Index", () => {
           details: {
             level: { value: 10 },
             publication: { title: "Pathfinder Monster Core" },
-            publicNotes: "<p>Dwelling on glacial mountaintops or in ice caverns beneath forbidding tundra, white dragons stalk the frozen wilderness.</p>",
+            publicNotes:
+              "<p>Dwelling on glacial mountaintops or in ice caverns beneath forbidding tundra, white dragons stalk the frozen wilderness.</p>",
           },
           traits: {
             rarity: "common",
@@ -514,11 +549,9 @@ describe("Pf2eDataService / Load and Index", () => {
     const service = await loadTestService(fixture, { indexPath });
     const venexus = service.lookup("Venexus", { category: "creature" }).match;
 
-    expect(venexus?.derivedTags).toEqual(expect.arrayContaining([
-      "arctic_setting",
-      "mountain_setting",
-      "underground_setting",
-    ]));
+    expect(venexus?.derivedTags).toEqual(
+      expect.arrayContaining(["arctic_setting", "mountain_setting", "underground_setting"]),
+    );
     service.close();
   });
 
@@ -568,19 +601,25 @@ describe("Pf2eDataService / Load and Index", () => {
     service.close();
 
     const db = new DatabaseSync(indexPath);
-    const row = db.prepare(`
+    const row = db
+      .prepare(
+        `
       SELECT variant_family_key AS variantFamilyKey,
              variant_base_name AS variantBaseName,
              variant_label AS variantLabel,
              variant_source AS variantSource
       FROM records
       WHERE name = 'War Wraith'
-    `).get() as {
-      variantFamilyKey: string | null;
-      variantBaseName: string | null;
-      variantLabel: string | null;
-      variantSource: string;
-    } | undefined;
+    `,
+      )
+      .get() as
+      | {
+          variantFamilyKey: string | null;
+          variantBaseName: string | null;
+          variantLabel: string | null;
+          variantSource: string;
+        }
+      | undefined;
     db.close();
 
     expect(row?.variantFamilyKey).toBe("creature:family:wraith");
@@ -603,7 +642,8 @@ describe("Pf2eDataService / Load and Index", () => {
           details: {
             level: { value: 6 },
             publication: { title: "Pathfinder Monster Core" },
-            publicNotes: "<p>Wraiths gather with others of their kind in places where death and mayhem are commonplace. In these places, the living do well to keep to the light. Wraiths are smart enough to take advantage of their incorporeality in combat, so they keep to tortuous caverns or structures with hallways, and avoid open areas.</p>",
+            publicNotes:
+              "<p>Wraiths gather with others of their kind in places where death and mayhem are commonplace. In these places, the living do well to keep to the light. Wraiths are smart enough to take advantage of their incorporeality in combat, so they keep to tortuous caverns or structures with hallways, and avoid open areas.</p>",
           },
           traits: {
             rarity: "common",
@@ -620,7 +660,8 @@ describe("Pf2eDataService / Load and Index", () => {
           details: {
             level: { value: 16 },
             publication: { title: "Pathfinder Adventure Path" },
-            publicNotes: "<p>Wraiths gather with others of their kind in places where death and mayhem are commonplace. Ruins, sewers, and abandoned buildings provide sanctuary for wraiths during the day. Wraiths are smart enough to take advantage of their incorporeality in combat, so they keep to tortuous caverns or structures with hallways and avoid open areas.</p>",
+            publicNotes:
+              "<p>Wraiths gather with others of their kind in places where death and mayhem are commonplace. Ruins, sewers, and abandoned buildings provide sanctuary for wraiths during the day. Wraiths are smart enough to take advantage of their incorporeality in combat, so they keep to tortuous caverns or structures with hallways and avoid open areas.</p>",
           },
           traits: {
             rarity: "common",
@@ -634,7 +675,9 @@ describe("Pf2eDataService / Load and Index", () => {
     const service = await loadTestService(fixture, { indexPath });
 
     expect(service.lookup("Wraith", { category: "creature" }).match?.derivedTags).not.toContain("fortress_setting");
-    expect(service.lookup("Watchtower Wraith", { category: "creature" }).match?.derivedTags).toContain("fortress_setting");
+    expect(service.lookup("Watchtower Wraith", { category: "creature" }).match?.derivedTags).toContain(
+      "fortress_setting",
+    );
 
     service.close();
   });
@@ -656,16 +699,18 @@ describe("Pf2eDataService / Load and Index", () => {
     service.close();
 
     expect(progressLogs).toContain("Index rebuild stage timings:");
-    expect(progressLogs).toEqual(expect.arrayContaining([
-      expect.stringMatching(/- Embedding provider load:/),
-      expect.stringMatching(/- Source signature:/),
-      expect.stringMatching(/- Scan and normalize records:/),
-      expect.stringMatching(/- Resolve families, references, tags, and aliases:/),
-      expect.stringMatching(/- Write records and lexical search metadata:/),
-      expect.stringMatching(/- Generate canonical embeddings:/),
-      expect.stringMatching(/- Insert vector rows:/),
-      expect.stringMatching(/- Total rebuild time:/),
-    ]));
+    expect(progressLogs).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/- Embedding provider load:/),
+        expect.stringMatching(/- Source signature:/),
+        expect.stringMatching(/- Scan and normalize records:/),
+        expect.stringMatching(/- Resolve families, references, tags, and aliases:/),
+        expect.stringMatching(/- Write records and lexical search metadata:/),
+        expect.stringMatching(/- Generate canonical embeddings:/),
+        expect.stringMatching(/- Insert vector rows:/),
+        expect.stringMatching(/- Total rebuild time:/),
+      ]),
+    );
   });
 
   it("keeps glossary families and NPC Core cohort folders while dropping other folder-derived families", async () => {
@@ -709,21 +754,33 @@ describe("Pf2eDataService / Load and Index", () => {
     service.close();
 
     const db = new DatabaseSync(indexPath);
-    const bosunRow = db.prepare(`
+    const bosunRow = db
+      .prepare(
+        `
       SELECT families_json AS familiesJson
       FROM records
       WHERE name = 'Bosun'
-    `).get() as { familiesJson: string } | undefined;
-    const harborLookoutRow = db.prepare(`
+    `,
+      )
+      .get() as { familiesJson: string } | undefined;
+    const harborLookoutRow = db
+      .prepare(
+        `
       SELECT families_json AS familiesJson
       FROM records
       WHERE name = 'Harbor Lookout'
-    `).get() as { familiesJson: string } | undefined;
-    const ghostCommonerRow = db.prepare(`
+    `,
+      )
+      .get() as { familiesJson: string } | undefined;
+    const ghostCommonerRow = db
+      .prepare(
+        `
       SELECT families_json AS familiesJson
       FROM records
       WHERE name = 'Ghost Commoner'
-    `).get() as { familiesJson: string } | undefined;
+    `,
+      )
+      .get() as { familiesJson: string } | undefined;
     db.close();
 
     expect(JSON.parse(bosunRow?.familiesJson ?? "[]")).toEqual(["seafarer"]);
@@ -747,9 +804,7 @@ describe("Pf2eDataService / Load and Index", () => {
     });
     service.close();
 
-    expect(progressStatuses).toEqual(expect.arrayContaining([
-      expect.stringMatching(/\[resolve\] Derived tags/),
-    ]));
+    expect(progressStatuses).toEqual(expect.arrayContaining([expect.stringMatching(/\[resolve\] Derived tags/)]));
   });
 
   it("reuses all canonical embeddings when semantic inputs are unchanged", async () => {
@@ -896,7 +951,9 @@ describe("Pf2eDataService / Load and Index", () => {
     expect(rebuiltTexts).toHaveLength(1);
     expect(rebuiltTexts[0]).toContain("Plains Runner");
     expect(rebuiltTexts[0]).toContain("canyon_setting");
-    expect(rebuiltService.lookup("Plains Runner", { category: "creature" }).match?.derivedTags).toContain("canyon_setting");
+    expect(rebuiltService.lookup("Plains Runner", { category: "creature" }).match?.derivedTags).toContain(
+      "canyon_setting",
+    );
     rebuiltService.close();
   });
 
@@ -966,11 +1023,15 @@ describe("Pf2eDataService / Load and Index", () => {
     await writeJson(plainsRunnerPath, originalPlainsRunner);
 
     const db = new DatabaseSync(indexPath);
-    const row = db.prepare(`
+    const row = db
+      .prepare(
+        `
       SELECT derived_tags_json AS derivedTagsJson
       FROM records
       WHERE name = 'Plains Runner'
-    `).get() as { derivedTagsJson: string } | undefined;
+    `,
+      )
+      .get() as { derivedTagsJson: string } | undefined;
     db.close();
 
     expect(JSON.parse(row?.derivedTagsJson ?? "[]")).toContain("plains_setting");
@@ -1011,9 +1072,9 @@ describe("Pf2eDataService / Load and Index", () => {
     });
     rebuiltService.close();
 
-    expect(progressLogs).toEqual(expect.arrayContaining([
-      expect.stringMatching(/Embedding reuse unavailable: embedding model changed/i),
-    ]));
+    expect(progressLogs).toEqual(
+      expect.arrayContaining([expect.stringMatching(/Embedding reuse unavailable: embedding model changed/i)]),
+    );
     expect(tracking.embedManyCalls.flat().length).toBeGreaterThan(0);
   });
 
@@ -1148,7 +1209,10 @@ describe("Pf2eDataService / Load and Index", () => {
 
     let db = new DatabaseSync(indexPath);
     let metadata = new Map(
-      (db.prepare("SELECT key, value FROM metadata").all() as Array<{ key: string; value: string }>).map((row) => [row.key, row.value]),
+      (db.prepare("SELECT key, value FROM metadata").all() as Array<{ key: string; value: string }>).map((row) => [
+        row.key,
+        row.value,
+      ]),
     );
     db.close();
     expect(metadata.get("embedding_provider")).toBe("hf-local");
@@ -1169,7 +1233,10 @@ describe("Pf2eDataService / Load and Index", () => {
 
     db = new DatabaseSync(indexPath);
     metadata = new Map(
-      (db.prepare("SELECT key, value FROM metadata").all() as Array<{ key: string; value: string }>).map((row) => [row.key, row.value]),
+      (db.prepare("SELECT key, value FROM metadata").all() as Array<{ key: string; value: string }>).map((row) => [
+        row.key,
+        row.value,
+      ]),
     );
     db.close();
     expect(metadata.get("embedding_model")).toBe("model-a");
@@ -1200,7 +1267,10 @@ describe("Pf2eDataService / Load and Index", () => {
 
     db = new DatabaseSync(indexPath);
     metadata = new Map(
-      (db.prepare("SELECT key, value FROM metadata").all() as Array<{ key: string; value: string }>).map((row) => [row.key, row.value]),
+      (db.prepare("SELECT key, value FROM metadata").all() as Array<{ key: string; value: string }>).map((row) => [
+        row.key,
+        row.value,
+      ]),
     );
     db.close();
     expect(metadata.get("embedding_model")).toBe("model-b");

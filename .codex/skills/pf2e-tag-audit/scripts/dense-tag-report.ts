@@ -130,7 +130,10 @@ function getThreshold(options: Options): number {
   return 5;
 }
 
-function getBaselines(db: DatabaseSync, category?: CoveredCategory): Array<{ category: CoveredCategory; taggedRecords: number; avgTags: number; maxTags: number }> {
+function getBaselines(
+  db: DatabaseSync,
+  category?: CoveredCategory,
+): Array<{ category: CoveredCategory; taggedRecords: number; avgTags: number; maxTags: number }> {
   const categories = category ? [category] : COVERED_CATEGORIES;
   const statement = db.prepare(`
     WITH per_record AS (
@@ -189,12 +192,18 @@ function getDenseRecords(db: DatabaseSync, options: Options, threshold: number):
 }
 
 function getTagsForRecord(db: DatabaseSync, recordKey: string): string[] {
-  return (db.prepare(`
+  return (
+    db
+      .prepare(
+        `
     SELECT tag
     FROM record_derived_tags
     WHERE record_key = ?
     ORDER BY tag ASC
-  `).all(recordKey) as TagRow[]).map((row) => row.tag);
+  `,
+      )
+      .all(recordKey) as TagRow[]
+  ).map((row) => row.tag);
 }
 
 function summarizeFamilies(category: CoveredCategory, tags: string[]): Array<{ family: string; count: number }> {
@@ -218,7 +227,9 @@ function printHumanReadable(
   console.log("");
   console.log("Category baselines:");
   for (const baseline of baselines) {
-    console.log(`- ${baseline.category}: ${baseline.taggedRecords} tagged, avg ${baseline.avgTags.toFixed(3)}, max ${baseline.maxTags}`);
+    console.log(
+      `- ${baseline.category}: ${baseline.taggedRecords} tagged, avg ${baseline.avgTags.toFixed(3)}, max ${baseline.maxTags}`,
+    );
   }
 
   console.log("");
@@ -230,9 +241,10 @@ function printHumanReadable(
   console.log("Candidates:");
   for (const row of rows) {
     const repeatedFamilies = row.familyCounts.filter((entry) => entry.count > 1);
-    const familySummary = repeatedFamilies.length > 0
-      ? repeatedFamilies.map((entry) => `${entry.family}=${entry.count}`).join(", ")
-      : row.familyCounts.map((entry) => `${entry.family}=${entry.count}`).join(", ");
+    const familySummary =
+      repeatedFamilies.length > 0
+        ? repeatedFamilies.map((entry) => `${entry.family}=${entry.count}`).join(", ")
+        : row.familyCounts.map((entry) => `${entry.family}=${entry.count}`).join(", ");
     console.log(`- [${row.category}] ${row.name} (${row.tagCount} tags)`);
     console.log(`  ${row.recordKey}`);
     console.log(`  families: ${familySummary}`);
@@ -259,11 +271,17 @@ function main(): void {
     });
 
     if (options.json) {
-      console.log(JSON.stringify({
-        threshold,
-        baselines,
-        records: denseRecords,
-      }, null, 2));
+      console.log(
+        JSON.stringify(
+          {
+            threshold,
+            baselines,
+            records: denseRecords,
+          },
+          null,
+          2,
+        ),
+      );
       return;
     }
 

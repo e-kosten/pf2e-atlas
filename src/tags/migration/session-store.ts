@@ -123,7 +123,11 @@ export async function writeDerivedTagMigrationSession(
   await writeFile(path.join(directory, "manifest.json"), JSON.stringify(session.manifest, null, 2) + "\n", "utf8");
   await writeFile(path.join(directory, "records.jsonl"), lineSeparatedJson(session.records), "utf8");
   await writeFile(path.join(directory, "decisions.jsonl"), lineSeparatedJson(session.decisions), "utf8");
-  await writeFile(path.join(directory, "review-state.json"), JSON.stringify(session.reviewState, null, 2) + "\n", "utf8");
+  await writeFile(
+    path.join(directory, "review-state.json"),
+    JSON.stringify(session.reviewState, null, 2) + "\n",
+    "utf8",
+  );
 }
 
 export async function readDerivedTagMigrationSession(
@@ -140,8 +144,9 @@ export async function readDerivedTagMigrationSession(
 
   return {
     manifest: JSON.parse(manifestRaw) as DerivedTagMigrationSessionManifest,
-    records: parseJsonLines<DerivedTagMigrationSessionRecord | LegacyDerivedTagMigrationSessionRecord>(recordsRaw)
-      .map((record) => normalizeSessionRecord(record)),
+    records: parseJsonLines<DerivedTagMigrationSessionRecord | LegacyDerivedTagMigrationSessionRecord>(recordsRaw).map(
+      (record) => normalizeSessionRecord(record),
+    ),
     decisions: parseJsonLines<DerivedTagMigrationRecordDecision>(decisionsRaw),
     reviewState: JSON.parse(reviewStateRaw) as DerivedTagMigrationSessionReviewState,
   };

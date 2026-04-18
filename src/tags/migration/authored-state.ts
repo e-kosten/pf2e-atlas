@@ -1,7 +1,11 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import type { AuthoredDerivedTagRule, DerivedTagExemplarCategory, DerivedTagExemplarReviewCategory } from "../../types.js";
+import type {
+  AuthoredDerivedTagRule,
+  DerivedTagExemplarCategory,
+  DerivedTagExemplarReviewCategory,
+} from "../../types.js";
 import { AFFLICTION_DERIVED_TAG_ASSIGNMENTS } from "../assignments/affliction.js";
 import { CREATURE_DERIVED_TAG_ASSIGNMENTS } from "../assignments/creature.js";
 import { EQUIPMENT_DERIVED_TAG_ASSIGNMENTS } from "../assignments/equipment.js";
@@ -57,14 +61,17 @@ const CATEGORY_UPPER: Record<DerivedTagManagedCategory, string> = {
   spell: "SPELL",
 };
 
-export const CATEGORY_FILE_PATHS: Record<DerivedTagManagedCategory, {
-  assignment: string;
-  assignmentReview: string;
-  assignmentMemory: string;
-  exemplar: string;
-  exemplarReview: string;
-  authoredRule: string;
-}> = {
+export const CATEGORY_FILE_PATHS: Record<
+  DerivedTagManagedCategory,
+  {
+    assignment: string;
+    assignmentReview: string;
+    assignmentMemory: string;
+    exemplar: string;
+    exemplarReview: string;
+    authoredRule: string;
+  }
+> = {
   affliction: {
     assignment: path.join("src", "tags", "assignments", "affliction.ts"),
     assignmentReview: path.join("src", "tags", "assignment-reviews", "affliction.ts"),
@@ -161,9 +168,7 @@ function buildImportedDerivedTagMigrationAuthoredState(): DerivedTagMigrationAut
 let currentDerivedTagMigrationAuthoredState: DerivedTagMigrationAuthoredState | null = null;
 let currentDerivedTagMigrationAuthoredStateRevision = 0;
 
-export function setCurrentDerivedTagMigrationAuthoredState(
-  state: DerivedTagMigrationAuthoredState,
-): void {
+export function setCurrentDerivedTagMigrationAuthoredState(state: DerivedTagMigrationAuthoredState): void {
   currentDerivedTagMigrationAuthoredState = clone(state);
   currentDerivedTagMigrationAuthoredStateRevision += 1;
 }
@@ -201,13 +206,13 @@ function renderTsValue(value: unknown, level = 0): string {
     if (value.length === 0) {
       return "[]";
     }
-    const rendered = value
-      .map((entry) => `${indent(level + 1)}${renderTsValue(entry, level + 1)}`)
-      .join(",\n");
+    const rendered = value.map((entry) => `${indent(level + 1)}${renderTsValue(entry, level + 1)}`).join(",\n");
     return `[\n${rendered}\n${indent(level)}]`;
   }
   if (typeof value === "object") {
-    const entries = Object.entries(value as Record<string, unknown>).filter(([, entryValue]) => entryValue !== undefined);
+    const entries = Object.entries(value as Record<string, unknown>).filter(
+      ([, entryValue]) => entryValue !== undefined,
+    );
     if (entries.length === 0) {
       return "{}";
     }
@@ -223,10 +228,13 @@ function renderTsValue(value: unknown, level = 0): string {
   throw new Error(`Unsupported value type in TypeScript serializer: ${typeof value}.`);
 }
 
-function renderAssignmentFile(category: DerivedTagManagedCategory, assignments: AuthoredDerivedTagAssignment[]): string {
+function renderAssignmentFile(
+  category: DerivedTagManagedCategory,
+  assignments: AuthoredDerivedTagAssignment[],
+): string {
   const exportName = `${CATEGORY_UPPER[category]}_DERIVED_TAG_ASSIGNMENTS`;
   return [
-    "import type { AuthoredDerivedTagAssignment } from \"../runtime/assignments.js\";",
+    'import type { AuthoredDerivedTagAssignment } from "../runtime/assignments.js";',
     "",
     `export const ${exportName}: AuthoredDerivedTagAssignment[] = ${renderTsValue(assignments)};`,
     "",
@@ -239,7 +247,7 @@ function renderAssignmentReviewFile(
 ): string {
   const exportName = `${CATEGORY_UPPER[category]}_DERIVED_TAG_ASSIGNMENT_REVIEWS`;
   return [
-    "import type { DerivedTagAssignmentReviewCategory } from \"../runtime/assignments.js\";",
+    'import type { DerivedTagAssignmentReviewCategory } from "../runtime/assignments.js";',
     "",
     `export const ${exportName} = ${renderTsValue(assignmentReviews)} satisfies DerivedTagAssignmentReviewCategory;`,
     "",
@@ -252,7 +260,7 @@ function renderAssignmentMemoryFile(
 ): string {
   const exportName = `${CATEGORY_UPPER[category]}_DERIVED_TAG_ASSIGNMENT_MEMORY`;
   return [
-    "import type { DerivedTagAssignmentMemoryCategory } from \"../runtime/assignments.js\";",
+    'import type { DerivedTagAssignmentMemoryCategory } from "../runtime/assignments.js";',
     "",
     `export const ${exportName} = ${renderTsValue(assignmentMemory)} satisfies DerivedTagAssignmentMemoryCategory;`,
     "",
@@ -262,17 +270,20 @@ function renderAssignmentMemoryFile(
 function renderExemplarFile(category: DerivedTagManagedCategory, exemplars: DerivedTagExemplarCategory): string {
   const exportName = `${CATEGORY_UPPER[category]}_DERIVED_TAG_EXEMPLARS`;
   return [
-    "import type { DerivedTagExemplarCategory } from \"../../types.js\";",
+    'import type { DerivedTagExemplarCategory } from "../../types.js";',
     "",
     `export const ${exportName} = ${renderTsValue(exemplars)} satisfies DerivedTagExemplarCategory;`,
     "",
   ].join("\n");
 }
 
-function renderExemplarReviewFile(category: DerivedTagManagedCategory, exemplarReviews: DerivedTagExemplarReviewCategory): string {
+function renderExemplarReviewFile(
+  category: DerivedTagManagedCategory,
+  exemplarReviews: DerivedTagExemplarReviewCategory,
+): string {
   const exportName = `${CATEGORY_UPPER[category]}_DERIVED_TAG_EXEMPLAR_REVIEWS`;
   return [
-    "import type { DerivedTagExemplarReviewCategory } from \"../../types.js\";",
+    'import type { DerivedTagExemplarReviewCategory } from "../../types.js";',
     "",
     `export const ${exportName} = ${renderTsValue(exemplarReviews)} satisfies DerivedTagExemplarReviewCategory;`,
     "",
@@ -282,7 +293,7 @@ function renderExemplarReviewFile(category: DerivedTagManagedCategory, exemplarR
 function renderAuthoredRuleFile(category: DerivedTagManagedCategory, rules: AuthoredDerivedTagRule[]): string {
   const exportName = `${CATEGORY_UPPER[category]}_AUTHORED_DERIVED_TAG_RULES`;
   return [
-    "import type { AuthoredDerivedTagRule } from \"../../types.js\";",
+    'import type { AuthoredDerivedTagRule } from "../../types.js";',
     "",
     `export const ${exportName}: AuthoredDerivedTagRule[] = ${renderTsValue(rules)};`,
     "",

@@ -45,14 +45,15 @@ function resolveVariantBaseTags(
   const baseByFamily = new Map<string, VariantBaseResolution>();
 
   for (const [familyKey, familyRecords] of recordsByFamily) {
-    const explicitBase = familyRecords.find((record) =>
-      record.variantLabel === null &&
-      record.variantBaseName !== null &&
-      record.name === record.variantBaseName);
+    const explicitBase = familyRecords.find(
+      (record) =>
+        record.variantLabel === null && record.variantBaseName !== null && record.name === record.variantBaseName,
+    );
 
     if (explicitBase) {
-      const baseTags = (directTagsByRecordKey.get(explicitBase.recordKey) ?? [])
-        .filter((tag) => inheritableTags.has(tag));
+      const baseTags = (directTagsByRecordKey.get(explicitBase.recordKey) ?? []).filter((tag) =>
+        inheritableTags.has(tag),
+      );
       baseByFamily.set(familyKey, {
         baseRecordKey: explicitBase.recordKey,
         baseTags,
@@ -62,8 +63,7 @@ function resolveVariantBaseTags(
 
     const nonUniqueSiblingTags = familyRecords
       .filter((record) => !record.isUnique)
-      .map((record) => (directTagsByRecordKey.get(record.recordKey) ?? [])
-        .filter((tag) => inheritableTags.has(tag)));
+      .map((record) => (directTagsByRecordKey.get(record.recordKey) ?? []).filter((tag) => inheritableTags.has(tag)));
 
     // Many creature families have only labeled forms like age brackets, so fall back
     // to the stable inheritable tag intersection across standard non-unique siblings.
@@ -89,10 +89,9 @@ export function applyVariantBaseTagInheritance(
     return new Map();
   }
 
-  const directTagsByRecordKey = new Map(records.map((record) => [
-    record.recordKey,
-    normalizedTags(record.derivedTags),
-  ]));
+  const directTagsByRecordKey = new Map(
+    records.map((record) => [record.recordKey, normalizedTags(record.derivedTags)]),
+  );
   const baseByFamily = resolveVariantBaseTags(records, directTagsByRecordKey, inheritableTags);
   const inheritedTagsByRecordKey = new Map<string, string[]>();
 

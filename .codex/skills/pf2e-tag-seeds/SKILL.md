@@ -8,6 +8,7 @@ description: Review legacy seed-carried PF2E records and convert them into futur
 Use this skill when a task starts from legacy seed membership but the desired outcome is future-state authored tagging.
 
 This is a **live-authoring** skill:
+
 - confident assignments go directly into `src/tags/assignments`
 - confident exemplar changes go directly into `src/tags/exemplars`
 - only uncertain assignment calls go into `src/tags/assignment-reviews`
@@ -16,6 +17,7 @@ This is a **live-authoring** skill:
 ## Required Output
 
 For every touched record:
+
 - perform a full future-state tagging pass across the ontology, not just the seeded tag
 - decide the record's long-term explicit assignments
 - decide whether the record should remain a positive exemplar, become a negative exemplar, or be dropped entirely

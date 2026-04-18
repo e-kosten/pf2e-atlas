@@ -31,7 +31,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "action",
     system: {
       description: {
-        value: "<p>You scan for things. Success can reveal @UUID[Compendium.pf2e.conditionitems.Item.Hidden]{Hidden} creatures.</p>",
+        value:
+          "<p>You scan for things. Success can reveal @UUID[Compendium.pf2e.conditionitems.Item.Hidden]{Hidden} creatures.</p>",
       },
       level: {
         value: 1,
@@ -126,7 +127,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "action",
     system: {
       description: {
-        value: "<p>You attempt to break free from being @UUID[Compendium.pf2e.conditionitems.Item.Grabbed]{Grabbed} or @UUID[Compendium.pf2e.conditionitems.Item.Restrained]{Restrained}.</p>",
+        value:
+          "<p>You attempt to break free from being @UUID[Compendium.pf2e.conditionitems.Item.Grabbed]{Grabbed} or @UUID[Compendium.pf2e.conditionitems.Item.Restrained]{Restrained}.</p>",
       },
       publication: {
         title: "Pathfinder Player Core",
@@ -287,7 +289,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "condition",
     system: {
       description: {
-        value: "<p>You cannot see. Blinded overrides @UUID[Compendium.pf2e.conditionitems.Item.Dazzled]. You can @UUID[Compendium.pf2e.actions.Item.Seek]{Seek} to find creatures.</p>",
+        value:
+          "<p>You cannot see. Blinded overrides @UUID[Compendium.pf2e.conditionitems.Item.Dazzled]. You can @UUID[Compendium.pf2e.actions.Item.Seek]{Seek} to find creatures.</p>",
       },
       publication: {
         title: "Pathfinder Player Core",
@@ -321,7 +324,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "condition",
     system: {
       description: {
-        value: "<p>You are held in place and can use @UUID[Compendium.pf2e.actionspf2e.Item.Escape]{Escape} to break free.</p>",
+        value:
+          "<p>You are held in place and can use @UUID[Compendium.pf2e.actionspf2e.Item.Escape]{Escape} to break free.</p>",
       },
       publication: {
         title: "Pathfinder Player Core",
@@ -338,7 +342,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "condition",
     system: {
       description: {
-        value: "<p>You are tightly bound and usually need to @UUID[Compendium.pf2e.actionspf2e.Item.Escape]{Escape}.</p>",
+        value:
+          "<p>You are tightly bound and usually need to @UUID[Compendium.pf2e.actionspf2e.Item.Escape]{Escape}.</p>",
       },
       publication: {
         title: "Pathfinder Player Core",
@@ -415,7 +420,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "backpack",
     system: {
       description: {
-        value: "<p>This incredibly spacious bandolier can hold up to 4 one-handed crossbows or firearms that take no more than 1 action to completely reload.</p><p>You empower one of the attuned weapons in the bandolier, then Interact to draw the weapon.</p>",
+        value:
+          "<p>This incredibly spacious bandolier can hold up to 4 one-handed crossbows or firearms that take no more than 1 action to completely reload.</p><p>You empower one of the attuned weapons in the bandolier, then Interact to draw the weapon.</p>",
       },
       publication: {
         title: "Pathfinder Guns & Gears",
@@ -585,7 +591,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "consumable",
     system: {
       description: {
-        value: "<p>This bottled catharsis steadies the emotions, helps recover from mental conditions, and protects the drinker against fear or confusion.</p>",
+        value:
+          "<p>This bottled catharsis steadies the emotions, helps recover from mental conditions, and protects the drinker against fear or confusion.</p>",
       },
       publication: {
         title: "Pathfinder Treasure Vault (Remastered)",
@@ -622,7 +629,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "consumable",
     system: {
       description: {
-        value: "<p>This cloudy remedy helps against petrification and can restore flesh from stone before the body fully locks.</p>",
+        value:
+          "<p>This cloudy remedy helps against petrification and can restore flesh from stone before the body fully locks.</p>",
       },
       publication: {
         title: "Pathfinder Treasure Vault",
@@ -694,7 +702,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "consumable",
     system: {
       description: {
-        value: "<p>Once activated, the mask sharpens odors, giving you imprecise scent with a 60-foot range.</p><p>When you use Survival to @UUID[Compendium.pf2e.actionspf2e.Item.Track]{Track} a creature by its scent, the mask grants you a +3 item bonus to your Survival check.</p>",
+        value:
+          "<p>Once activated, the mask sharpens odors, giving you imprecise scent with a 60-foot range.</p><p>When you use Survival to @UUID[Compendium.pf2e.actionspf2e.Item.Track]{Track} a creature by its scent, the mask grants you a +3 item bonus to your Survival check.</p>",
       },
       publication: {
         title: "Pathfinder Treasure Vault",
@@ -712,7 +721,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "consumable",
     system: {
       description: {
-        value: "<p>This oily mix can be applied to a creature to reduce and cover any ordinary odors they produce. The creature receives a +2 item bonus to Stealth checks to @UUID[Compendium.pf2e.actionspf2e.Item.Hide]{Hide} or @UUID[Compendium.pf2e.actionspf2e.Item.Sneak]{Sneak} against creatures using primarily smell. This bonus also applies to the DC to @UUID[Compendium.pf2e.actionspf2e.Item.Track]{Track} the creature by scent.</p>",
+        value:
+          "<p>This oily mix can be applied to a creature to reduce and cover any ordinary odors they produce. The creature receives a +2 item bonus to Stealth checks to @UUID[Compendium.pf2e.actionspf2e.Item.Hide]{Hide} or @UUID[Compendium.pf2e.actionspf2e.Item.Sneak]{Sneak} against creatures using primarily smell. This bonus also applies to the DC to @UUID[Compendium.pf2e.actionspf2e.Item.Track]{Track} the creature by scent.</p>",
       },
       publication: {
         title: "Pathfinder Treasure Vault",
@@ -730,7 +740,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "consumable",
     system: {
       description: {
-        value: "<p>Benefit You gain fast healing 2.</p><p>Drawback Any creature attempting to @UUID[Compendium.pf2e.actionspf2e.Item.Track]{Track} you in the next 24 hours gains a +4 circumstance bonus to their check.</p>",
+        value:
+          "<p>Benefit You gain fast healing 2.</p><p>Drawback Any creature attempting to @UUID[Compendium.pf2e.actionspf2e.Item.Track]{Track} you in the next 24 hours gains a +4 circumstance bonus to their check.</p>",
       },
       publication: {
         title: "Pathfinder Treasure Vault",
@@ -748,7 +759,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "consumable",
     system: {
       description: {
-        value: "<p>Trigger You attempt to @UUID[Compendium.pf2e.actionspf2e.Item.Escape]{Escape}.</p><p>The escape fulu is a charm worn in case of kidnapping. When you activate this fulu, you gain a +2 status bonus to checks to Escape for 1 minute.</p>",
+        value:
+          "<p>Trigger You attempt to @UUID[Compendium.pf2e.actionspf2e.Item.Escape]{Escape}.</p><p>The escape fulu is a charm worn in case of kidnapping. When you activate this fulu, you gain a +2 status bonus to checks to Escape for 1 minute.</p>",
       },
       publication: {
         title: "Pathfinder Lost Omens Tian Xia Character Guide",
@@ -766,7 +778,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "consumable",
     system: {
       description: {
-        value: "<p>Trigger You attempt to @UUID[Compendium.pf2e.actionspf2e.Item.Sense Direction]{Sense Direction}.</p><p>This fulu shows constellations and arrows across the night sky. Your attempt to Sense Direction functions as if you have a compass, and you use the outcome one degree of success better than the result of your Survival check.</p>",
+        value:
+          "<p>Trigger You attempt to @UUID[Compendium.pf2e.actionspf2e.Item.Sense Direction]{Sense Direction}.</p><p>This fulu shows constellations and arrows across the night sky. Your attempt to Sense Direction functions as if you have a compass, and you use the outcome one degree of success better than the result of your Survival check.</p>",
       },
       publication: {
         title: "Pathfinder Lost Omens Tian Xia Character Guide",
@@ -784,7 +797,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "consumable",
     system: {
       description: {
-        value: "<p>Once you've eaten the stew, it improves your ability to sense and follow tracks for 24 hours. You gain a +1 item bonus to Survival checks to @UUID[Compendium.pf2e.actionspf2e.Item.Cover Tracks]{Cover Tracks} and @UUID[Compendium.pf2e.actionspf2e.Item.Track]{Track}.</p>",
+        value:
+          "<p>Once you've eaten the stew, it improves your ability to sense and follow tracks for 24 hours. You gain a +1 item bonus to Survival checks to @UUID[Compendium.pf2e.actionspf2e.Item.Cover Tracks]{Cover Tracks} and @UUID[Compendium.pf2e.actionspf2e.Item.Track]{Track}.</p>",
       },
       publication: {
         title: "Pathfinder Treasure Vault",
@@ -802,7 +816,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "consumable",
     system: {
       description: {
-        value: "<p>This slender vial appears to hold clean, clear water with a faintly fruity scent. Drinking a ration tonic magically nourishes you with the equivalent of a day's worth of food and water.</p>",
+        value:
+          "<p>This slender vial appears to hold clean, clear water with a faintly fruity scent. Drinking a ration tonic magically nourishes you with the equivalent of a day's worth of food and water.</p>",
       },
       publication: {
         title: "Pathfinder Treasure Vault",
@@ -820,7 +835,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "consumable",
     system: {
       description: {
-        value: "<p>Upon imbibing this potion, you take on the appearance of a specific type of creature for 2d12 hours.</p>",
+        value:
+          "<p>Upon imbibing this potion, you take on the appearance of a specific type of creature for 2d12 hours.</p>",
       },
       publication: {
         title: "Pathfinder Treasure Vault",
@@ -856,7 +872,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "equipment",
     system: {
       description: {
-        value: "<p>These comfortable and practical boots slip on easily and fill you with boundless energy. The treads of these boots provide exceptional traction, with improved grip on surfaces you would traditionally have difficulty traversing. While wearing the boots, you gain a +3 item bonus to Acrobatics checks to @UUID[Compendium.pf2e.actionspf2e.Item.Balance]{Balance} and to Athletics checks to @UUID[Compendium.pf2e.actionspf2e.Item.High Jump]{High Jump} and @UUID[Compendium.pf2e.actionspf2e.Item.Long Jump]{Long Jump}.</p>",
+        value:
+          "<p>These comfortable and practical boots slip on easily and fill you with boundless energy. The treads of these boots provide exceptional traction, with improved grip on surfaces you would traditionally have difficulty traversing. While wearing the boots, you gain a +3 item bonus to Acrobatics checks to @UUID[Compendium.pf2e.actionspf2e.Item.Balance]{Balance} and to Athletics checks to @UUID[Compendium.pf2e.actionspf2e.Item.High Jump]{High Jump} and @UUID[Compendium.pf2e.actionspf2e.Item.Long Jump]{Long Jump}.</p>",
       },
       publication: {
         title: "Pathfinder Treasure Vault",
@@ -892,7 +909,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "equipment",
     system: {
       description: {
-        value: "<p>Each war saddle is specifically fitted to a mount's body type and has numerous straps that can secure you on your mount.</p>",
+        value:
+          "<p>Each war saddle is specifically fitted to a mount's body type and has numerous straps that can secure you on your mount.</p>",
       },
       publication: {
         title: "Pathfinder Player Core",
@@ -910,7 +928,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "equipment",
     system: {
       description: {
-        value: "<p>Veteran sailors like to wear this jaunty blue collar. It can even save your life if you fall overboard, and while wearing it you gain a swim Speed.</p>",
+        value:
+          "<p>Veteran sailors like to wear this jaunty blue collar. It can even save your life if you fall overboard, and while wearing it you gain a swim Speed.</p>",
       },
       publication: {
         title: "Pathfinder Treasure Vault",
@@ -928,7 +947,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "equipment",
     system: {
       description: {
-        value: "<p>This polished wooden ring constantly refreshes your body and mind. While wearing it, you need to eat and drink only once per week.</p>",
+        value:
+          "<p>This polished wooden ring constantly refreshes your body and mind. While wearing it, you need to eat and drink only once per week.</p>",
       },
       publication: {
         title: "Pathfinder Treasure Vault",
@@ -946,7 +966,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "equipment",
     system: {
       description: {
-        value: "<p>While wearing these goggles, you gain a +1 bonus to Survival checks to @UUID[Compendium.pf2e.actionspf2e.Item.Sense Direction]{Sense Direction} and @UUID[Compendium.pf2e.actionspf2e.Item.Track]{Track}. If you fail a check to Track, you can try again after 30 minutes rather than an hour.</p>",
+        value:
+          "<p>While wearing these goggles, you gain a +1 bonus to Survival checks to @UUID[Compendium.pf2e.actionspf2e.Item.Sense Direction]{Sense Direction} and @UUID[Compendium.pf2e.actionspf2e.Item.Track]{Track}. If you fail a check to Track, you can try again after 30 minutes rather than an hour.</p>",
       },
       publication: {
         title: "Pathfinder Treasure Vault",
@@ -964,7 +985,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "equipment",
     system: {
       description: {
-        value: "<p>Tracking tags are attached to wild animals to track their movements and identify individual creatures among a herd.</p>",
+        value:
+          "<p>Tracking tags are attached to wild animals to track their movements and identify individual creatures among a herd.</p>",
       },
       publication: {
         title: "Pathfinder Player Core",
@@ -982,7 +1004,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "equipment",
     system: {
       description: {
-        value: "<p>Trackless footwear is favored by anyone fleeing pursuit. While wearing it, you gain a +4 item bonus to the DC to track you.</p>",
+        value:
+          "<p>Trackless footwear is favored by anyone fleeing pursuit. While wearing it, you gain a +4 item bonus to the DC to track you.</p>",
       },
       publication: {
         title: "Pathfinder Treasure Vault",
@@ -1000,7 +1023,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "armor",
     system: {
       description: {
-        value: "<p>This cloak-like armor muffles stray noise, remains exceptionally quiet, and helps you avoid notice in dim corridors.</p>",
+        value:
+          "<p>This cloak-like armor muffles stray noise, remains exceptionally quiet, and helps you avoid notice in dim corridors.</p>",
       },
       publication: {
         title: "Pathfinder Treasure Vault",
@@ -1018,7 +1042,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "consumable",
     system: {
       description: {
-        value: "<p>You create an alarm snare by rigging one or more noisy objects to a trip wire or pressure plate.</p><p>When a Small or larger creature enters the square, the snare makes a noise loud enough that it can be heard by all creatures in the range you designated.</p>",
+        value:
+          "<p>You create an alarm snare by rigging one or more noisy objects to a trip wire or pressure plate.</p><p>When a Small or larger creature enters the square, the snare makes a noise loud enough that it can be heard by all creatures in the range you designated.</p>",
       },
       publication: {
         title: "Pathfinder GM Core",
@@ -1036,7 +1061,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "consumable",
     system: {
       description: {
-        value: "<p>Using materials specific to the area, you connect a sound-making component to a trip wire or a pressure plate.</p><p>This snare is like an alarm snare, but its subtle sound blends into ambient noise.</p>",
+        value:
+          "<p>Using materials specific to the area, you connect a sound-making component to a trip wire or a pressure plate.</p><p>This snare is like an alarm snare, but its subtle sound blends into ambient noise.</p>",
       },
       publication: {
         title: "Pathfinder GM Core",
@@ -1054,7 +1080,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "consumable",
     system: {
       description: {
-        value: "<p>A sentry fulu depicts an armed guard.</p><p>When you activate the fulu, it keeps watch over an area in a 20-foot burst. If a creature enters the area without giving the password, the sentry creates either an audible or mental alarm.</p>",
+        value:
+          "<p>A sentry fulu depicts an armed guard.</p><p>When you activate the fulu, it keeps watch over an area in a 20-foot burst. If a creature enters the area without giving the password, the sentry creates either an audible or mental alarm.</p>",
       },
       publication: {
         title: "Pathfinder Tian Xia Character Guide",
@@ -1072,7 +1099,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "equipment",
     system: {
       description: {
-        value: "<p>This sturdy tile resembles a pressure plate.</p><p>When the amount of weight you specify is placed on the floorbell, it emits an ear-piercing wail. A floorbell can also ring an alarm if a weight you specify is removed from it.</p>",
+        value:
+          "<p>This sturdy tile resembles a pressure plate.</p><p>When the amount of weight you specify is placed on the floorbell, it emits an ear-piercing wail. A floorbell can also ring an alarm if a weight you specify is removed from it.</p>",
       },
       publication: {
         title: "Pathfinder GM Core",
@@ -1090,7 +1118,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "consumable",
     system: {
       description: {
-        value: "<p>Flare beacons create an incredibly bright light for a brief period of time.</p><p>They are often used to signal others to the beacon's location, to coordinate assaults, to request rescue, or for other similar reasons.</p>",
+        value:
+          "<p>Flare beacons create an incredibly bright light for a brief period of time.</p><p>They are often used to signal others to the beacon's location, to coordinate assaults, to request rescue, or for other similar reasons.</p>",
       },
       publication: {
         title: "Pathfinder Guns & Gears",
@@ -1108,7 +1137,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "ammo",
     system: {
       description: {
-        value: "<p>The shaft of a beacon shot is studded with tiny flecks of glimmering gemstones.</p><p>When an activated beacon shot hits a target, it embeds itself into that target and spews sparks for 1 minute.</p>",
+        value:
+          "<p>The shaft of a beacon shot is studded with tiny flecks of glimmering gemstones.</p><p>When an activated beacon shot hits a target, it embeds itself into that target and spews sparks for 1 minute.</p>",
       },
       publication: {
         title: "Pathfinder Guns & Gears",
@@ -1144,7 +1174,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "weapon",
     system: {
       description: {
-        value: "<p>This fashionable cane's handle hides a dueling pistol fired through the thin, painted cap at the bottom of the cane.</p>",
+        value:
+          "<p>This fashionable cane's handle hides a dueling pistol fired through the thin, painted cap at the bottom of the cane.</p>",
       },
       publication: {
         title: "Pathfinder Guns & Gears",
@@ -1162,7 +1193,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "equipment",
     system: {
       description: {
-        value: "<p>While it may seem nothing more than a curiosity, this coin becomes a powerful agent of fortune when activated.</p><p>If you fail a check or attack, flip the coin. On a lucky result, you get a 12 on the die instead.</p>",
+        value:
+          "<p>While it may seem nothing more than a curiosity, this coin becomes a powerful agent of fortune when activated.</p><p>If you fail a check or attack, flip the coin. On a lucky result, you get a 12 on the die instead.</p>",
       },
       publication: {
         title: "Pathfinder Treasure Vault",
@@ -1180,7 +1212,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "ammo",
     system: {
       description: {
-        value: "<p>When activated, the reservoir of alchemical reagents in elemental ammunition atomizes on impact, dealing persistent acid damage to the target.</p>",
+        value:
+          "<p>When activated, the reservoir of alchemical reagents in elemental ammunition atomizes on impact, dealing persistent acid damage to the target.</p>",
       },
       publication: {
         title: "Pathfinder Guns & Gears",
@@ -1198,7 +1231,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "ammo",
     system: {
       description: {
-        value: "<p>When an activated disintegration bolt hits a target, it is subject to a disintegrate spell requiring a Fortitude save.</p>",
+        value:
+          "<p>When an activated disintegration bolt hits a target, it is subject to a disintegrate spell requiring a Fortitude save.</p>",
       },
       publication: {
         title: "Pathfinder Treasure Vault",
@@ -1216,7 +1250,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "ammo",
     system: {
       description: {
-        value: "<p>When an activated bola shot hits a target, it deals nonlethal bludgeoning damage.</p><p>Critical Success The target falls prone and is stunned 1.</p>",
+        value:
+          "<p>When an activated bola shot hits a target, it deals nonlethal bludgeoning damage.</p><p>Critical Success The target falls prone and is stunned 1.</p>",
       },
       publication: {
         title: "Pathfinder Guns & Gears",
@@ -1234,7 +1269,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "ammo",
     system: {
       description: {
-        value: "<p>When an activated glue bullet hits a target, the creature becomes immobilized and stuck to the surface until it @UUID[Compendium.pf2e.actionspf2e.Item.Escape]{Escape}s.</p>",
+        value:
+          "<p>When an activated glue bullet hits a target, the creature becomes immobilized and stuck to the surface until it @UUID[Compendium.pf2e.actionspf2e.Item.Escape]{Escape}s.</p>",
       },
       publication: {
         title: "Pathfinder Guns & Gears",
@@ -1252,7 +1288,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "ammo",
     system: {
       description: {
-        value: "<p>When an activated blindpepper bolt hits a target, the creature must attempt a save or become blinded by the caustic pepper cloud.</p>",
+        value:
+          "<p>When an activated blindpepper bolt hits a target, the creature must attempt a save or become blinded by the caustic pepper cloud.</p>",
       },
       publication: {
         title: "Pathfinder Guns & Gears",
@@ -1306,7 +1343,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "equipment",
     system: {
       description: {
-        value: "<p>Spellcasters can cast spells into countering charms that they've invested or that are invested by a willing creature.</p><p>The spell's effect doesn't occur; the spell's power is instead stored within the charm.</p>",
+        value:
+          "<p>Spellcasters can cast spells into countering charms that they've invested or that are invested by a willing creature.</p><p>The spell's effect doesn't occur; the spell's power is instead stored within the charm.</p>",
       },
       publication: {
         title: "Pathfinder Treasure Vault",
@@ -1324,7 +1362,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "consumable",
     system: {
       description: {
-        value: "<p>This oil contains energy that repels nearly all types of magic.</p><p>When you apply this oil to armor, the creature wearing the armor becomes immune to all spells, effects of magic items, and effects with the magical trait for 1 minute.</p>",
+        value:
+          "<p>This oil contains energy that repels nearly all types of magic.</p><p>When you apply this oil to armor, the creature wearing the armor becomes immune to all spells, effects of magic items, and effects with the magical trait for 1 minute.</p>",
       },
       publication: {
         title: "Pathfinder Treasure Vault",
@@ -1342,7 +1381,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "equipment",
     system: {
       description: {
-        value: "<p>You usually need a disguise kit to set up a disguise in order to @UUID[Compendium.pf2e.actionspf2e.Item.Impersonate]{Impersonate} someone.</p>",
+        value:
+          "<p>You usually need a disguise kit to set up a disguise in order to @UUID[Compendium.pf2e.actionspf2e.Item.Impersonate]{Impersonate} someone.</p>",
       },
       publication: {
         title: "Pathfinder Player Core",
@@ -1360,7 +1400,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "equipment",
     system: {
       description: {
-        value: "<p>A quick-change outfit is in fact two separate outfits sewn together, allowing you to switch quickly between the two outfits.</p>",
+        value:
+          "<p>A quick-change outfit is in fact two separate outfits sewn together, allowing you to switch quickly between the two outfits.</p>",
       },
       publication: {
         title: "Pathfinder Lost Omens Firebrands",
@@ -1378,7 +1419,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "equipment",
     system: {
       description: {
-        value: "<p>You arrange the scarf over your lower face, and it casts @UUID[Compendium.pf2e.spells-srd.Item.Illusory Disguise]{Illusory Disguise} on you.</p>",
+        value:
+          "<p>You arrange the scarf over your lower face, and it casts @UUID[Compendium.pf2e.spells-srd.Item.Illusory Disguise]{Illusory Disguise} on you.</p>",
       },
       publication: {
         title: "Pathfinder Treasure Vault",
@@ -1396,7 +1438,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "equipment",
     system: {
       description: {
-        value: "<p>Your armor responds to your desire to break free of a creature grabbing you by growing spikes.</p><p>Trigger You become @UUID[Compendium.pf2e.conditionitems.Item.Grabbed]{Grabbed}, @UUID[Compendium.pf2e.conditionitems.Item.Restrained]{Restrained}, or another immobilizing effect that would hold you until you @UUID[Compendium.pf2e.actionspf2e.Item.Escape]{Escape}.</p>",
+        value:
+          "<p>Your armor responds to your desire to break free of a creature grabbing you by growing spikes.</p><p>Trigger You become @UUID[Compendium.pf2e.conditionitems.Item.Grabbed]{Grabbed}, @UUID[Compendium.pf2e.conditionitems.Item.Restrained]{Restrained}, or another immobilizing effect that would hold you until you @UUID[Compendium.pf2e.actionspf2e.Item.Escape]{Escape}.</p>",
       },
       publication: {
         title: "Pathfinder Treasure Vault",
@@ -1414,7 +1457,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "equipment",
     system: {
       description: {
-        value: "<p>This bracelet has three charms depicting a dagger, a shield, and a rose. Whenever you roll a success to free someone from manacles, it counts as two successes.</p>",
+        value:
+          "<p>This bracelet has three charms depicting a dagger, a shield, and a rose. Whenever you roll a success to free someone from manacles, it counts as two successes.</p>",
       },
       publication: {
         title: "Pathfinder Treasure Vault",
@@ -1432,7 +1476,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "equipment",
     system: {
       description: {
-        value: "<p>These handcuffs possess a ratcheting lock system in each cuff that allows them to be quickly cinched down on a captive's limbs, even if they're actively resisting.</p>",
+        value:
+          "<p>These handcuffs possess a ratcheting lock system in each cuff that allows them to be quickly cinched down on a captive's limbs, even if they're actively resisting.</p>",
       },
       publication: {
         title: "Pathfinder GM Core",
@@ -1450,7 +1495,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "equipment",
     system: {
       description: {
-        value: "<p>This sturdy pole has a rope attached to one end in a loop. You can pull the handle side of the rope to tighten the loop. Using this loop, you can @UUID[Compendium.pf2e.actionspf2e.Item.Grapple]{Grapple} without having a free hand.</p>",
+        value:
+          "<p>This sturdy pole has a rope attached to one end in a loop. You can pull the handle side of the rope to tighten the loop. Using this loop, you can @UUID[Compendium.pf2e.actionspf2e.Item.Grapple]{Grapple} without having a free hand.</p>",
       },
       publication: {
         title: "Pathfinder GM Core",
@@ -1468,7 +1514,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "equipment",
     system: {
       description: {
-        value: "<p>This enchanted lasso is a @UUID[Compendium.pf2e.equipment-srd.Item.Net]{Net} that can be used to @UUID[Compendium.pf2e.actionspf2e.Item.Grapple]{Grapple} creatures up to 30 feet away and has an @UUID[Compendium.pf2e.actionspf2e.Item.Escape]{Escape} DC of 18.</p>",
+        value:
+          "<p>This enchanted lasso is a @UUID[Compendium.pf2e.equipment-srd.Item.Net]{Net} that can be used to @UUID[Compendium.pf2e.actionspf2e.Item.Grapple]{Grapple} creatures up to 30 feet away and has an @UUID[Compendium.pf2e.actionspf2e.Item.Escape]{Escape} DC of 18.</p>",
       },
       publication: {
         title: "Pathfinder Lost Omens Knights of Lastwall",
@@ -1486,7 +1533,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "equipment",
     system: {
       description: {
-        value: "<p>Injigo's Loving Embrace functions as a typical net. You gain a +1 item bonus to Athletics checks to @UUID[Compendium.pf2e.actionspf2e.Item.Grapple]{Grapple} with the net.</p><p>The creature must succeed at a DC 25 check to @UUID[Compendium.pf2e.actionspf2e.Item.Escape]{Escape} the net.</p>",
+        value:
+          "<p>Injigo's Loving Embrace functions as a typical net. You gain a +1 item bonus to Athletics checks to @UUID[Compendium.pf2e.actionspf2e.Item.Grapple]{Grapple} with the net.</p><p>The creature must succeed at a DC 25 check to @UUID[Compendium.pf2e.actionspf2e.Item.Escape]{Escape} the net.</p>",
       },
       publication: {
         title: "Pathfinder Treasure Vault",
@@ -1504,7 +1552,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "equipment",
     system: {
       description: {
-        value: "<p>These manacles are nearly indistinguishable from real manacles upon inspection, but contain a hidden release that enables a wearer who knows the location of the release to free themselves with a single Interact action.</p>",
+        value:
+          "<p>These manacles are nearly indistinguishable from real manacles upon inspection, but contain a hidden release that enables a wearer who knows the location of the release to free themselves with a single Interact action.</p>",
       },
       publication: {
         title: "Pathfinder Lost Omens Impossible Lands",
@@ -1522,7 +1571,8 @@ export async function writeRulesAndItemsFixtureData(root: string, packRoot: stri
     type: "equipment",
     system: {
       description: {
-        value: "<p>When the manacles are locked around an immobilized creature's wrists, they begin to sap the life out of the victim.</p>",
+        value:
+          "<p>When the manacles are locked around an immobilized creature's wrists, they begin to sap the life out of the victim.</p>",
       },
       publication: {
         title: "Pathfinder Lost Omens Gods & Magic",

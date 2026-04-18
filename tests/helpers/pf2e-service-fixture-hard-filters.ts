@@ -39,10 +39,30 @@ export async function createHardFilterFixture(): Promise<{ root: string; manifes
       { name: "feats-srd", label: "Feats", path: "packs/feats-srd", type: "Item" },
       { name: "macros", label: "Macros", path: "packs/macros", type: "Macro" },
       { name: "pathfinder-bestiary", label: "Pathfinder Bestiary", path: "packs/pathfinder-bestiary", type: "Actor" },
-      { name: "pathfinder-bestiary-2", label: "Pathfinder Bestiary 2", path: "packs/pathfinder-bestiary-2", type: "Actor" },
-      { name: "pathfinder-monster-core-2", label: "Pathfinder Monster Core 2", path: "packs/pathfinder-monster-core-2", type: "Actor" },
-      { name: "pathfinder-society-boons", label: "Pathfinder Society Boons", path: "packs/pathfinder-society-boons", type: "Item" },
-      { name: "pfs-introductions-bestiary", label: "Pathfinder Society Introductions", path: "packs/pfs-introductions-bestiary", type: "Actor" },
+      {
+        name: "pathfinder-bestiary-2",
+        label: "Pathfinder Bestiary 2",
+        path: "packs/pathfinder-bestiary-2",
+        type: "Actor",
+      },
+      {
+        name: "pathfinder-monster-core-2",
+        label: "Pathfinder Monster Core 2",
+        path: "packs/pathfinder-monster-core-2",
+        type: "Actor",
+      },
+      {
+        name: "pathfinder-society-boons",
+        label: "Pathfinder Society Boons",
+        path: "packs/pathfinder-society-boons",
+        type: "Item",
+      },
+      {
+        name: "pfs-introductions-bestiary",
+        label: "Pathfinder Society Introductions",
+        path: "packs/pfs-introductions-bestiary",
+        type: "Actor",
+      },
       { name: "pfs-season-3-bestiary", label: "Season 3", path: "packs/pfs-season-3-bestiary", type: "Actor" },
     ],
   });
@@ -177,10 +197,7 @@ export async function createHardFilterFixture(): Promise<{ root: string; manifes
       },
       perception: {
         mod: 15,
-        senses: [
-          { type: "darkvision" },
-          { type: "scent", range: 30, acuity: "imprecise" },
-        ],
+        senses: [{ type: "darkvision" }, { type: "scent", range: 30, acuity: "imprecise" }],
       },
       saves: {
         fortitude: { value: 12 },
@@ -195,9 +212,7 @@ export async function createHardFilterFixture(): Promise<{ root: string; manifes
       attributes: {
         speed: {
           value: 25,
-          otherSpeeds: [
-            { type: "fly", value: 40 },
-          ],
+          otherSpeeds: [{ type: "fly", value: 40 }],
         },
       },
       traits: {
@@ -682,14 +697,16 @@ export async function createHardFilterFixture(): Promise<{ root: string; manifes
     _id: "macro-raise-a-shield",
     name: "Raise a Shield",
     type: "script",
-    command: "game.pf2e.actions.raiseAShield({ actors: [token?.actor ?? actor ?? game.user.character].filter((actor) => actor) })",
+    command:
+      "game.pf2e.actions.raiseAShield({ actors: [token?.actor ?? actor ?? game.user.character].filter((actor) => actor) })",
   });
 
   await writeJson(path.join(packRoot, "macros", "treat-wounds.json"), {
     _id: "macro-treat-wounds",
     name: "Treat Wounds",
     type: "script",
-    command: "game.pf2e.actions.treatWounds({ event, actors: [token?.actor ?? actor ?? game.user.character].filter((actor) => actor) })",
+    command:
+      "game.pf2e.actions.treatWounds({ event, actors: [token?.actor ?? actor ?? game.user.character].filter((actor) => actor) })",
   });
 
   await writeJson(path.join(packRoot, "campaign-effects", "pathfinder-society", "effect-magical-mentor.json"), {

@@ -14,9 +14,9 @@ export type DerivedTagAuthoredTextScope = "either" | "name" | "description" | "b
 export type DerivedTagAuthoredTextValue =
   | string
   | {
-    value: string;
-    scope?: DerivedTagAuthoredTextScope;
-  };
+      value: string;
+      scope?: DerivedTagAuthoredTextScope;
+    };
 
 export interface DerivedTagAuthoredReferencePredicate {
   category?: SearchCategory;

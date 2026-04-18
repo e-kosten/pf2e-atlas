@@ -10,318 +10,318 @@ export const HAZARD_DERIVED_TAG_LEGACY_SEED_MIGRATIONS = {
       includeRecords: [
         {
           pack: "sky-kings-tomb-bestiary",
-          name: "Buried Shock Glyph"
+          name: "Buried Shock Glyph",
         },
         {
           pack: "shades-of-blood-bestiary",
-          name: "Conundrum Ward"
+          name: "Conundrum Ward",
         },
         {
           pack: "quest-for-the-frozen-flame-bestiary",
-          name: "Death's Slumber Ward"
+          name: "Death's Slumber Ward",
         },
         {
           pack: "blood-lords-bestiary",
-          name: "Glyph of Warding (B8)"
+          name: "Glyph of Warding (B8)",
         },
         {
           pack: "blood-lords-bestiary",
-          name: "Glyph of Warding (D5)"
+          name: "Glyph of Warding (D5)",
         },
         {
           pack: "kingmaker-bestiary",
-          name: "Glyph of Warding (Kingmaker)"
+          name: "Glyph of Warding (Kingmaker)",
         },
         {
           pack: "agents-of-edgewatch-bestiary",
-          name: "Kharnas's Lesser Glyph"
+          name: "Kharnas's Lesser Glyph",
         },
         {
           pack: "extinction-curse-bestiary",
-          name: "Krooth Summoning Rune"
+          name: "Krooth Summoning Rune",
         },
         {
           pack: "age-of-ashes-bestiary",
-          name: "Luminous Ward"
+          name: "Luminous Ward",
         },
         {
           pack: "curtain-call-bestiary",
-          name: "Mask Summoning Rune"
+          name: "Mask Summoning Rune",
         },
         {
           pack: "extinction-curse-bestiary",
-          name: "Mukradi Summoning Runes"
+          name: "Mukradi Summoning Runes",
         },
         {
           pack: "hazards",
-          name: "Pharaoh's Ward"
+          name: "Pharaoh's Ward",
         },
         {
           pack: "strength-of-thousands-bestiary",
-          name: "Serpent Ward"
+          name: "Serpent Ward",
         },
         {
           pack: "the-slithering-bestiary",
-          name: "Stalker Summoning Rune"
+          name: "Stalker Summoning Rune",
         },
         {
           pack: "strength-of-thousands-bestiary",
-          name: "Stinger Ward Trap"
+          name: "Stinger Ward Trap",
         },
         {
           pack: "hazards",
-          name: "Summoning Rune"
+          name: "Summoning Rune",
         },
         {
           pack: "agents-of-edgewatch-bestiary",
-          name: "Summoning Rune (Barbazu Devil)"
+          name: "Summoning Rune (Barbazu Devil)",
         },
         {
           pack: "agents-of-edgewatch-bestiary",
-          name: "Summoning Rune (Cinder Rat)"
+          name: "Summoning Rune (Cinder Rat)",
         },
         {
           pack: "blood-lords-bestiary",
-          name: "Summoning Rune (Cockatrice)"
+          name: "Summoning Rune (Cockatrice)",
         },
         {
           pack: "season-of-ghosts-bestiary",
-          name: "Witherweird Runes"
-        }
-      ]
+          name: "Witherweird Runes",
+        },
+      ],
     },
     {
       tag: "threshold_lockdown",
       includeRecords: [
         {
           pack: "curtain-call-bestiary",
-          name: "Archway Barrier"
+          name: "Archway Barrier",
         },
         {
           pack: "curtain-call-bestiary",
-          name: "Harmonic Barrier"
-        }
-      ]
+          name: "Harmonic Barrier",
+        },
+      ],
     },
     {
       tag: "planar_breach",
       includeRecords: [
         {
           pack: "pathfinder-dark-archive",
-          name: "Exhaling Portal"
+          name: "Exhaling Portal",
         },
         {
           pack: "hazards",
-          name: "Planar Rift"
+          name: "Planar Rift",
         },
         {
           pack: "blood-lords-bestiary",
-          name: "Time Rift"
-        }
-      ]
+          name: "Time Rift",
+        },
+      ],
     },
     {
       tag: "restraint_capture",
       includeRecords: [
         {
           pack: "book-of-the-dead-bestiary",
-          name: "Phantom Jailer"
-        }
-      ]
+          name: "Phantom Jailer",
+        },
+      ],
     },
     {
       tag: "barrier_lockdown",
       includeRecords: [
         {
           pack: "curtain-call-bestiary",
-          name: "Archway Barrier"
+          name: "Archway Barrier",
         },
         {
           pack: "curtain-call-bestiary",
-          name: "Harmonic Barrier"
+          name: "Harmonic Barrier",
         },
         {
           pack: "outlaws-of-alkenstar-bestiary",
-          name: "Subduing Gas Chamber"
-        }
-      ]
+          name: "Subduing Gas Chamber",
+        },
+      ],
     },
     {
       tag: "spawned_attackers",
       includeRecords: [
         {
           pack: "extinction-curse-bestiary",
-          name: "Mukradi Summoning Runes"
+          name: "Mukradi Summoning Runes",
         },
         {
           pack: "gatewalkers-bestiary",
-          name: "Haunted Aiudara"
+          name: "Haunted Aiudara",
         },
         {
           pack: "hazards",
-          name: "Malevolent Mannequins"
+          name: "Malevolent Mannequins",
         },
         {
           pack: "curtain-call-bestiary",
-          name: "Mocking Puppets"
+          name: "Mocking Puppets",
         },
         {
           pack: "hellbreakers-bestiary",
-          name: "Play Time"
-        }
-      ]
+          name: "Play Time",
+        },
+      ],
     },
     {
       tag: "phantom_assailants",
       includeRecords: [
         {
           pack: "gatewalkers-bestiary",
-          name: "Haunted Aiudara"
+          name: "Haunted Aiudara",
         },
         {
           pack: "book-of-the-dead-bestiary",
-          name: "Ghost Stampede"
+          name: "Ghost Stampede",
         },
         {
           pack: "book-of-the-dead-bestiary",
-          name: "Phantom Jailer"
+          name: "Phantom Jailer",
         },
         {
           pack: "curtain-call-bestiary",
-          name: "Spectral Opera"
+          name: "Spectral Opera",
         },
         {
           pack: "triumph-of-the-tusk-bestiary",
-          name: "Trampling Livestock"
-        }
-      ]
+          name: "Trampling Livestock",
+        },
+      ],
     },
     {
       tag: "fire_hazard",
       includeRecords: [
         {
           pack: "spore-war-bestiary",
-          name: "Enhanced Fireball Rune"
+          name: "Enhanced Fireball Rune",
         },
         {
           pack: "hazards",
-          name: "Fireball Rune"
+          name: "Fireball Rune",
         },
         {
           pack: "hazards",
-          name: "Eternal Flame"
+          name: "Eternal Flame",
         },
         {
           pack: "fists-of-the-ruby-phoenix-bestiary",
-          name: "Floating Flamethrower"
+          name: "Floating Flamethrower",
         },
         {
           pack: "quest-for-the-frozen-flame-bestiary",
-          name: "Forest Fire"
+          name: "Forest Fire",
         },
         {
           pack: "shades-of-blood-bestiary",
-          name: "Furious Flame"
+          name: "Furious Flame",
         },
         {
           pack: "claws-of-the-tyrant-bestiary",
-          name: "Iomedae's Flame"
+          name: "Iomedae's Flame",
         },
         {
           pack: "stolen-fate-bestiary",
-          name: "Stage Fire"
+          name: "Stage Fire",
         },
         {
           pack: "kingmaker-bestiary",
-          name: "Stygian Fires"
+          name: "Stygian Fires",
         },
         {
           pack: "troubles-in-otari-bestiary",
-          name: "Tongues of Flame"
+          name: "Tongues of Flame",
         },
         {
           pack: "blood-lords-bestiary",
-          name: "Unstable Fiendflame Cage"
-        }
-      ]
+          name: "Unstable Fiendflame Cage",
+        },
+      ],
     },
     {
       tag: "poison_hazard",
       includeRecords: [
         {
           pack: "extinction-curse-bestiary",
-          name: "Dream Pollen Pod"
+          name: "Dream Pollen Pod",
         },
         {
           pack: "extinction-curse-bestiary",
-          name: "Envenomed Thorns Trap"
+          name: "Envenomed Thorns Trap",
         },
         {
           pack: "prey-for-death-bestiary",
-          name: "Flensing Floor"
+          name: "Flensing Floor",
         },
         {
           pack: "gatewalkers-bestiary",
-          name: "Formian Sting Trench"
+          name: "Formian Sting Trench",
         },
         {
           pack: "agents-of-edgewatch-bestiary",
-          name: "Needling Stairs"
+          name: "Needling Stairs",
         },
         {
           pack: "one-shot-bestiary",
-          name: "Poisoned Lock (Lionlodge)"
+          name: "Poisoned Lock (Lionlodge)",
         },
         {
           pack: "extinction-curse-bestiary",
-          name: "Poisoned Secret Door Trap"
+          name: "Poisoned Secret Door Trap",
         },
         {
           pack: "gatewalkers-bestiary",
-          name: "Poisonous Atmosphere"
+          name: "Poisonous Atmosphere",
         },
         {
           pack: "hazards",
-          name: "Poisonous Mold"
+          name: "Poisonous Mold",
         },
         {
           pack: "wardens-of-wildwood-bestiary",
-          name: "Poisonous Pollen Trap"
+          name: "Poisonous Pollen Trap",
         },
         {
           pack: "gatewalkers-bestiary",
-          name: "Soporific Lecture"
+          name: "Soporific Lecture",
         },
         {
           pack: "outlaws-of-alkenstar-bestiary",
-          name: "Subduing Gas Chamber"
+          name: "Subduing Gas Chamber",
         },
         {
           pack: "strength-of-thousands-bestiary",
-          name: "Venom Pool"
+          name: "Venom Pool",
         },
         {
           pack: "hazards",
-          name: "Yellow Mold"
-        }
-      ]
+          name: "Yellow Mold",
+        },
+      ],
     },
     {
       tag: "respiratory_hazard",
       includeRecords: [
         {
           pack: "gatewalkers-bestiary",
-          name: "Poisonous Atmosphere"
+          name: "Poisonous Atmosphere",
         },
         {
           pack: "gatewalkers-bestiary",
-          name: "Soporific Lecture"
+          name: "Soporific Lecture",
         },
         {
           pack: "outlaws-of-alkenstar-bestiary",
-          name: "Subduing Gas Chamber"
-        }
-      ]
-    }
-  ]
+          name: "Subduing Gas Chamber",
+        },
+      ],
+    },
+  ],
 } satisfies DerivedTagLegacySeedMigrationCategory;

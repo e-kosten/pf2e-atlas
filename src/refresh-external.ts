@@ -46,11 +46,13 @@ async function runStep(step: RefreshStep, index: number, total: number): Promise
         return;
       }
 
-      reject(new Error(
-        signal
-          ? `${step.label} exited due to signal ${signal}.`
-          : `${step.label} exited with code ${code ?? "unknown"}.`,
-      ));
+      reject(
+        new Error(
+          signal
+            ? `${step.label} exited due to signal ${signal}.`
+            : `${step.label} exited with code ${code ?? "unknown"}.`,
+        ),
+      );
     });
   });
 
@@ -59,7 +61,9 @@ async function runStep(step: RefreshStep, index: number, total: number): Promise
 
 async function main(): Promise<void> {
   const startTime = Date.now();
-  console.error("Refreshing external assets. The first run can take several minutes while model assets download and the index is rebuilt.");
+  console.error(
+    "Refreshing external assets. The first run can take several minutes while model assets download and the index is rebuilt.",
+  );
 
   for (const [index, step] of STEPS.entries()) {
     await runStep(step, index + 1, STEPS.length);

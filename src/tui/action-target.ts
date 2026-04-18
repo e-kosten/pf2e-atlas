@@ -6,14 +6,8 @@ import {
   isMoveRightKey,
   isMoveUpKey,
 } from "./keymap.js";
-import type {
-  DerivedTagTerminalLine,
-  DerivedTagTerminalSegment,
-} from "./terminal-ui.js";
-import type {
-  TerminalInteractionAction,
-  TerminalInteractionHelpSection,
-} from "./interaction-bindings.js";
+import type { DerivedTagTerminalLine, DerivedTagTerminalSegment } from "./terminal-ui.js";
+import type { TerminalInteractionAction, TerminalInteractionHelpSection } from "./interaction-bindings.js";
 import { buildTerminalInteractionHelpLines } from "./interaction-bindings.js";
 
 export type DerivedTagTerminalActionTargetFocus = "content" | "actions";
@@ -77,11 +71,7 @@ export function reduceDerivedTagTerminalActionTargetState<TState extends Derived
     case "move_action":
       return {
         ...state,
-        selectedActionIndex: moveSelectionWrapped(
-          state.selectedActionIndex,
-          action.delta,
-          action.actionCount,
-        ),
+        selectedActionIndex: moveSelectionWrapped(state.selectedActionIndex, action.delta, action.actionCount),
       };
     default:
       return state;
@@ -131,9 +121,7 @@ export function formatDerivedTagTerminalActionTargetBar<T extends string>(
 ): string {
   return [
     "Actions:",
-    ...actions.map((action, index) => (
-      index === state.selectedActionIndex ? ` ${action.label} ` : action.label
-    )),
+    ...actions.map((action, index) => (index === state.selectedActionIndex ? ` ${action.label} ` : action.label)),
   ].join("  ");
 }
 
@@ -152,11 +140,7 @@ export function buildDerivedTagTerminalActionTargetLine<T extends string>(
     segments.push({ text: "  ", tone: "default" });
     segments.push({
       text: index === state.selectedActionIndex ? ` ${action.label} ` : action.label,
-      tone: index === state.selectedActionIndex
-        ? "selected"
-        : state.activeTarget === "actions"
-          ? "accent"
-          : "default",
+      tone: index === state.selectedActionIndex ? "selected" : state.activeTarget === "actions" ? "accent" : "default",
     });
   });
 
@@ -190,23 +174,22 @@ export function getDerivedTagTerminalActionTargetInteractionActions(
   return [{ id: "actions", label: "focus actions" }];
 }
 
-export function buildDerivedTagTerminalActionTargetHelpLines(
-  options: {
-    contentHelpText?: string;
-    orientation: DerivedTagTerminalActionTargetOrientation;
-    visibility: DerivedTagTerminalActionTargetVisibility;
-    actions: readonly DerivedTagTerminalActionTargetOption[];
-  },
-): Array<{ text: string; tone?: "default" | "section" | "dim" | "accent"; indent?: number }> {
+export function buildDerivedTagTerminalActionTargetHelpLines(options: {
+  contentHelpText?: string;
+  orientation: DerivedTagTerminalActionTargetOrientation;
+  visibility: DerivedTagTerminalActionTargetVisibility;
+  actions: readonly DerivedTagTerminalActionTargetOption[];
+}): Array<{ text: string; tone?: "default" | "section" | "dim" | "accent"; indent?: number }> {
   const sections: TerminalInteractionHelpSection[] = [
     {
       title: "Enter Actions",
       actions: [{ id: "actions", label: "focus actions" }],
       lines: [
         {
-          text: options.visibility === "persistent"
-            ? "The action rail stays visible, but it only takes focus after you press :."
-            : "Press : to open the action rail, then move inside it with the action-target keys.",
+          text:
+            options.visibility === "persistent"
+              ? "The action rail stays visible, but it only takes focus after you press :."
+              : "Press : to open the action rail, then move inside it with the action-target keys.",
         },
       ],
     },

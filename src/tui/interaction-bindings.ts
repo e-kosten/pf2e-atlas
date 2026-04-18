@@ -13,11 +13,7 @@ import {
   isSearchKey,
 } from "./keymap.js";
 
-export type TerminalInteractionTone =
-  | "default"
-  | "section"
-  | "dim"
-  | "accent";
+export type TerminalInteractionTone = "default" | "section" | "dim" | "accent";
 
 export type TerminalInteractionLine = {
   text: string;
@@ -75,7 +71,8 @@ export const TERMINAL_DIALOG_RETURN_FOOTER = "Press any key to return.";
 export const TERMINAL_DIALOG_CONTINUE_FOOTER = "Press any key to continue.";
 export const TERMINAL_TEXT_INPUT_FOOTER = "Type text  Enter submit  Backspace edit  Esc cancel";
 export const TERMINAL_COMMAND_PALETTE_FILTER_FOOTER = "Type to filter  Enter/→ select  Backspace edit  Esc cancel";
-export const TERMINAL_LIVE_FILTER_FOOTER = "Type to filter live  Backspace edit  Enter keep filter  Esc clear and back out";
+export const TERMINAL_LIVE_FILTER_FOOTER =
+  "Type to filter live  Backspace edit  Enter keep filter  Esc clear and back out";
 
 type TerminalInteractionDefinition = {
   footerKeys: string;
@@ -299,9 +296,7 @@ function buildActionHelpLine(action: TerminalInteractionAction): TerminalInterac
 }
 
 function buildCommandHelpLine(command: TerminalInteractionCommand): TerminalInteractionLine {
-  const aliasLabel = command.aliases && command.aliases.length > 0
-    ? `  aliases: ${command.aliases.join(", ")}`
-    : "";
+  const aliasLabel = command.aliases && command.aliases.length > 0 ? `  aliases: ${command.aliases.join(", ")}` : "";
   return {
     text: `${command.label}${aliasLabel}  ${command.description}`,
   };

@@ -45,10 +45,7 @@ import {
 import { buildOntologyExplorerEntityDetailLines } from "./ontology-explorer/entity-page.js";
 import { mapNormalizedRecordToOntologyExplorerEntityRecord } from "./ontology-explorer/entity-record.js";
 import { buildSearchFacetPickerModel } from "./ontology-explorer/facet-picker-model.js";
-import {
-  OntologyPickerScreen,
-  type OntologyPickerSelectionMap,
-} from "./ontology-explorer/picker-screen.js";
+import { OntologyPickerScreen, type OntologyPickerSelectionMap } from "./ontology-explorer/picker-screen.js";
 import { clampWindowStart } from "./list-utils.js";
 
 type SearchWorkspaceAction =
@@ -150,10 +147,7 @@ function getSearchResultWindowMetrics(bodyHeight: number): {
   );
   const preloadThreshold = Math.min(
     Math.max(1, windowLimit - 1),
-    Math.max(
-      pageSize * RESULT_PRELOAD_PAGE_MULTIPLIER,
-      selectionJumpSize * RESULT_PRELOAD_JUMP_MULTIPLIER,
-    ),
+    Math.max(pageSize * RESULT_PRELOAD_PAGE_MULTIPLIER, selectionJumpSize * RESULT_PRELOAD_JUMP_MULTIPLIER),
   );
   return {
     selectionJumpSize,
@@ -174,7 +168,7 @@ function getSearchResultWindowTarget(
     windowLimit: number;
     preloadThreshold: number;
   },
-) : { offset: number; limit: number } | null {
+): { offset: number; limit: number } | null {
   if (session.total <= 0) {
     return null;
   }
@@ -185,16 +179,10 @@ function getSearchResultWindowTarget(
       : { offset: 0, limit: session.total };
   }
 
-  const windowSize = Math.min(
-    session.total,
-    Math.max(session.request.limit, metrics.windowLimit),
-  );
+  const windowSize = Math.min(session.total, Math.max(session.request.limit, metrics.windowLimit));
   const windowStart = session.windowOffset;
   const windowEnd = session.windowOffset + session.results.length;
-  const minimumBuffer = Math.min(
-    metrics.preloadThreshold,
-    Math.max(1, Math.floor(windowSize / 3)),
-  );
+  const minimumBuffer = Math.min(metrics.preloadThreshold, Math.max(1, Math.floor(windowSize / 3)));
   const remainingBehind = selectedIndex - windowStart;
   const remainingAhead = windowEnd - selectedIndex - 1;
 
@@ -233,9 +221,7 @@ function getSessionRecordAtIndex(
   }
 
   const localIndex = selectedIndex - session.windowOffset;
-  return localIndex >= 0 && localIndex < session.results.length
-    ? session.results[localIndex] ?? null
-    : null;
+  return localIndex >= 0 && localIndex < session.results.length ? (session.results[localIndex] ?? null) : null;
 }
 
 function getSessionBufferRange(session: Pf2eTerminalSearchSession): string {
@@ -273,45 +259,33 @@ function searchScreenReducer(state: SearchScreenState, action: SearchScreenActio
       return {
         ...state,
         detailScroll: 0,
-        workspaceSelectedIndex: action.itemCount <= 0
-          ? 0
-          : moveSelection(state.workspaceSelectedIndex, action.delta, action.itemCount),
+        workspaceSelectedIndex:
+          action.itemCount <= 0 ? 0 : moveSelection(state.workspaceSelectedIndex, action.delta, action.itemCount),
       };
     case "workspace_selection_boundary":
       return {
         ...state,
         detailScroll: 0,
-        workspaceSelectedIndex: action.itemCount <= 0
-          ? 0
-          : action.boundary === "start"
-            ? 0
-            : action.itemCount - 1,
+        workspaceSelectedIndex: action.itemCount <= 0 ? 0 : action.boundary === "start" ? 0 : action.itemCount - 1,
       };
     case "move_result_selection":
       return {
         ...state,
         detailScroll: 0,
-        resultSelectedIndex: action.itemCount <= 0
-          ? 0
-          : moveSelection(state.resultSelectedIndex, action.delta, action.itemCount),
+        resultSelectedIndex:
+          action.itemCount <= 0 ? 0 : moveSelection(state.resultSelectedIndex, action.delta, action.itemCount),
       };
     case "set_result_selection":
       return {
         ...state,
         detailScroll: 0,
-        resultSelectedIndex: action.itemCount <= 0
-          ? 0
-          : clampAbsoluteSelection(action.index, action.itemCount),
+        resultSelectedIndex: action.itemCount <= 0 ? 0 : clampAbsoluteSelection(action.index, action.itemCount),
       };
     case "result_selection_boundary":
       return {
         ...state,
         detailScroll: 0,
-        resultSelectedIndex: action.itemCount <= 0
-          ? 0
-          : action.boundary === "start"
-            ? 0
-            : action.itemCount - 1,
+        resultSelectedIndex: action.itemCount <= 0 ? 0 : action.boundary === "start" ? 0 : action.itemCount - 1,
       };
     case "move_detail":
       return {
@@ -336,9 +310,7 @@ function searchScreenReducer(state: SearchScreenState, action: SearchScreenActio
         activePane: action.showResults === false ? state.activePane : "list",
         detailScroll: 0,
         draft: action.session.request,
-        resultSelectedIndex: action.preserveSelection
-          ? Math.min(state.resultSelectedIndex, maxIndex)
-          : 0,
+        resultSelectedIndex: action.preserveSelection ? Math.min(state.resultSelectedIndex, maxIndex) : 0,
         session: action.session,
       };
     }
@@ -396,9 +368,7 @@ function formatCount(value: number): string {
   return value.toLocaleString("en-US");
 }
 
-function formatFilterPolicy<T extends number | string>(
-  policy: Pf2eTerminalFilterValuePolicy<T>,
-): string {
+function formatFilterPolicy<T extends number | string>(policy: Pf2eTerminalFilterValuePolicy<T>): string {
   const parts: string[] = [];
   if (policy.any.length > 0) {
     parts.push(`any: ${policy.any.map((value) => formatPolicyValue(value)).join(", ")}`);
@@ -571,7 +541,7 @@ function buildWorkspaceEntries(state: SearchScreenState, countState: SearchCount
       label: "Execute Query",
       value: formatCountSummary(countState, state.draft),
       description: executeAvailability.disabled
-        ? executeAvailability.reason ?? "Unavailable for the current query setup."
+        ? (executeAvailability.reason ?? "Unavailable for the current query setup.")
         : "Apply the current query setup and switch into the results reader.",
       disabled: executeAvailability.disabled,
     },
@@ -579,15 +549,17 @@ function buildWorkspaceEntries(state: SearchScreenState, countState: SearchCount
       action: "mode",
       label: "Mode",
       value: formatMode(state.draft.mode),
-      description: "Choose whether this query setup should browse deterministically, run ranked search, or perform exact lookup-style matching.",
+      description:
+        "Choose whether this query setup should browse deterministically, run ranked search, or perform exact lookup-style matching.",
     },
     {
       action: "query",
       label: "Query",
       value: state.draft.queryText || "(none)",
-      description: state.draft.mode === "lookup"
-        ? "Edit the lookup text used to find near-exact record names."
-        : "Edit the free-text portion of the query setup. Browse mode can leave this empty.",
+      description:
+        state.draft.mode === "lookup"
+          ? "Edit the lookup text used to find near-exact record names."
+          : "Edit the free-text portion of the query setup. Browse mode can leave this empty.",
     },
     {
       action: "category",
@@ -629,9 +601,10 @@ function buildWorkspaceEntries(state: SearchScreenState, countState: SearchCount
       action: "removeFacet",
       label: "Clear Facet Filter",
       value: `${state.draft.filters.facets.length + (hasFilterPolicy(state.draft.filters.actionCost) ? 1 : 0)} active`,
-      description: state.draft.filters.facets.length > 0 || hasFilterPolicy(state.draft.filters.actionCost)
-        ? "Remove an entire facet policy block from the current query setup."
-        : "No facet policies are currently applied.",
+      description:
+        state.draft.filters.facets.length > 0 || hasFilterPolicy(state.draft.filters.actionCost)
+          ? "Remove an entire facet policy block from the current query setup."
+          : "No facet policies are currently applied.",
       disabled: state.draft.filters.facets.length === 0 && !hasFilterPolicy(state.draft.filters.actionCost),
     },
     {
@@ -699,13 +672,18 @@ function buildResultLines(
   const safeIndex = Math.max(0, Math.min(localSelectedIndex, session.results.length - 1));
   const windowStart = clampWindowStart(safeIndex, session.results.length, resultWindowCount);
 
-  const lines: DerivedTagTerminalLine[] = session.results.slice(windowStart, windowStart + resultWindowCount).map((record, offset) => ({
-    text: buildSearchResultLabel(record),
-    tone: localSelectedIndex >= 0 && localSelectedIndex < session.results.length && windowStart + offset === localSelectedIndex
-      ? "selected"
-      : "default",
-    noWrap: true,
-  }));
+  const lines: DerivedTagTerminalLine[] = session.results
+    .slice(windowStart, windowStart + resultWindowCount)
+    .map((record, offset) => ({
+      text: buildSearchResultLabel(record),
+      tone:
+        localSelectedIndex >= 0 &&
+        localSelectedIndex < session.results.length &&
+        windowStart + offset === localSelectedIndex
+          ? "selected"
+          : "default",
+      noWrap: true,
+    }));
 
   if (loadingMore) {
     lines.push({ text: `Loading around ${formatResultPosition(selectedIndex, session.total)}...`, tone: "accent" });
@@ -728,19 +706,20 @@ function buildPendingResultDetailLines(
   ];
 }
 
-function buildDraftSummaryLines(
-  state: SearchScreenState,
-  countState: SearchCountState,
-): DerivedTagTerminalLine[] {
+function buildDraftSummaryLines(state: SearchScreenState, countState: SearchCountState): DerivedTagTerminalLine[] {
   const executeAvailability = getExecuteAvailability(state.draft);
   const lines: DerivedTagTerminalLine[] = [
     { text: "Query Summary", tone: "section" },
     { text: `Mode: ${formatMode(state.draft.mode)}` },
     { text: `Query: ${state.draft.queryText || "(none)"}` },
-    { text: `Scope: ${formatSearchCategory(state.draft.filters.category)} / ${formatSearchSubcategory(state.draft.filters.subcategory)}` },
+    {
+      text: `Scope: ${formatSearchCategory(state.draft.filters.category)} / ${formatSearchSubcategory(state.draft.filters.subcategory)}`,
+    },
     { text: `Levels: ${formatLevelRange(state.draft)}` },
     { text: `Rarity: ${formatFilterPolicy(state.draft.filters.rarity)}` },
-    { text: `Facet filters: ${state.draft.filters.facets.length + (hasFilterPolicy(state.draft.filters.actionCost) ? 1 : 0)}` },
+    {
+      text: `Facet filters: ${state.draft.filters.facets.length + (hasFilterPolicy(state.draft.filters.actionCost) ? 1 : 0)}`,
+    },
   ];
 
   if (state.draft.mode === "search") {
@@ -804,15 +783,18 @@ function buildWorkspaceEntryDetailLines(
     { text: entry.label, tone: "section" },
     { text: `Current value: ${entry.value}` },
     {
-      text: entry.disabled
-        ? `Unavailable: ${entry.description}`
-        : entry.description,
+      text: entry.disabled ? `Unavailable: ${entry.description}` : entry.description,
       tone: descriptionTone,
     },
     ...(entry.disabled
       ? []
       : entry.action === "execute"
-        ? [{ text: "Press Enter, Right, Space, or Tab to execute the current query setup and switch to results.", tone: "accent" as const }]
+        ? [
+            {
+              text: "Press Enter, Right, Space, or Tab to execute the current query setup and switch to results.",
+              tone: "accent" as const,
+            },
+          ]
         : [{ text: "Press Enter, Right, or Space to edit or act on this item.", tone: "accent" as const }]),
     { text: "" },
     ...buildDraftSummaryLines(state, countState),
@@ -958,9 +940,7 @@ function buildDraftCommandPaletteEntries(
   return workspaceEntries.map((entry) => ({
     value: entry.action,
     label: entry.label,
-    description: entry.disabled
-      ? `Unavailable. ${entry.description}`
-      : entry.description,
+    description: entry.disabled ? `Unavailable. ${entry.description}` : entry.description,
     keywords: [entry.value],
   }));
 }
@@ -1019,10 +999,7 @@ function getSearchResultDetailInteractionActions(): TerminalInteractionAction[] 
   ];
 }
 
-function buildSearchFooterText(
-  state: SearchScreenState,
-  loadingMore: boolean,
-): string {
+function buildSearchFooterText(state: SearchScreenState, loadingMore: boolean): string {
   if (state.layout === "draft") {
     return formatTerminalInteractionFooter([
       { id: "move", label: "select" },
@@ -1067,17 +1044,18 @@ function buildSearchHelpLines(
     const actionActions: TerminalInteractionAction[] = [
       ...getSearchDraftInteractionActions().map<TerminalInteractionAction>((action) => ({
         ...action,
-        helpText: action.id === "edit"
-          ? "edit the focused setup row or act on it"
-          : action.id === "execute"
-            ? "execute the current setup and switch to results"
-            : action.id === "search"
-              ? "edit the current query text"
-              : action.id === "commands"
-                ? "open the setup command palette"
-                : action.id === "help"
-                  ? "show search setup help"
-                : "leave browse/search",
+        helpText:
+          action.id === "edit"
+            ? "edit the focused setup row or act on it"
+            : action.id === "execute"
+              ? "execute the current setup and switch to results"
+              : action.id === "search"
+                ? "edit the current query text"
+                : action.id === "commands"
+                  ? "open the setup command palette"
+                  : action.id === "help"
+                    ? "show search setup help"
+                    : "leave browse/search",
         label: action.id === "search" ? "edit query" : action.label,
       })),
     ];
@@ -1102,17 +1080,26 @@ function buildSearchHelpLines(
   }
 
   const navigationActions: TerminalInteractionAction[] = [
-    { id: state.activePane === "list" ? "move" : "scroll", label: state.activePane === "list" ? "move through results" : "scroll the preview" },
-    { id: "jump", helpText: state.activePane === "list" ? "jump through the active result pane" : "jump through the preview pane" },
-    { id: "page", helpText: state.activePane === "list" ? "page through the active result pane" : "page through the preview pane" },
+    {
+      id: state.activePane === "list" ? "move" : "scroll",
+      label: state.activePane === "list" ? "move through results" : "scroll the preview",
+    },
+    {
+      id: "jump",
+      helpText: state.activePane === "list" ? "jump through the active result pane" : "jump through the preview pane",
+    },
+    {
+      id: "page",
+      helpText: state.activePane === "list" ? "page through the active result pane" : "page through the preview pane",
+    },
     { id: "edge", helpText: "jump to the start or end of the active pane" },
   ];
-  const resultActions: TerminalInteractionAction[] = (state.activePane === "list"
-    ? getSearchResultListInteractionActions()
-    : getSearchResultDetailInteractionActions())
-    .map((action) => ({
-      ...action,
-      helpText: action.id === "preview"
+  const resultActions: TerminalInteractionAction[] = (
+    state.activePane === "list" ? getSearchResultListInteractionActions() : getSearchResultDetailInteractionActions()
+  ).map((action) => ({
+    ...action,
+    helpText:
+      action.id === "preview"
         ? "open the focused result preview"
         : action.id === "back" && state.activePane === "list"
           ? "return to Scope & Filters"
@@ -1124,9 +1111,9 @@ function buildSearchHelpLines(
                 ? "open the results command palette"
                 : action.id === "help"
                   ? "show search results help"
-                : "leave browse/search",
-      label: action.id === "focus" ? "toggle pane" : action.label,
-    }));
+                  : "leave browse/search",
+    label: action.id === "focus" ? "toggle pane" : action.label,
+  }));
 
   return buildTerminalInteractionHelpLines([
     {
@@ -1167,7 +1154,8 @@ export function SearchScreen({
     message: null,
   });
   const initialRequest = React.useMemo(
-    () => initialQuery ? user.search.createRequestFromOntologyQuery(initialQuery) : user.search.createDefaultRequest(),
+    () =>
+      initialQuery ? user.search.createRequestFromOntologyQuery(initialQuery) : user.search.createDefaultRequest(),
     [initialQuery, user.search],
   );
   const [state, dispatch] = React.useReducer(searchScreenReducer, initialRequest, createInitialSearchScreenState);
@@ -1180,17 +1168,23 @@ export function SearchScreen({
   const activeSessionRef = React.useRef<Pf2eTerminalSearchSession | null>(null);
 
   const workspaceEntries = buildWorkspaceEntries(state, countState);
-  const workspaceSelectedIndex = Math.max(0, Math.min(state.workspaceSelectedIndex, Math.max(0, workspaceEntries.length - 1)));
+  const workspaceSelectedIndex = Math.max(
+    0,
+    Math.min(state.workspaceSelectedIndex, Math.max(0, workspaceEntries.length - 1)),
+  );
   const selectedWorkspaceEntry = workspaceEntries[workspaceSelectedIndex] ?? workspaceEntries[0];
 
   const resultCount = state.session?.total ?? 0;
   const resultSelectedIndex = clampAbsoluteSelection(state.resultSelectedIndex, resultCount);
   const selectedResult = resultCount > 0 ? getSessionRecordAtIndex(state.session, resultSelectedIndex) : null;
 
-  const bodyHeight = Math.max(1, getTerminalPaneBodyHeight(size.height, {
-    hasSubtitle: true,
-    footerLineCount: 2,
-  }));
+  const bodyHeight = Math.max(
+    1,
+    getTerminalPaneBodyHeight(size.height, {
+      hasSubtitle: true,
+      footerLineCount: 2,
+    }),
+  );
   const {
     selectionJumpSize,
     pageSize,
@@ -1198,29 +1192,36 @@ export function SearchScreen({
     preloadThreshold,
   } = getSearchResultWindowMetrics(bodyHeight);
   const detailWidth = getTerminalTwoPaneDetailWidth(size.width, "split", SEARCH_LEFT_WIDTH);
-  const detailLines = state.layout === "results" && state.session
-    ? selectedResult
-      ? buildResultDetailLines(selectedResult, state.session, resultSelectedIndex)
-      : buildPendingResultDetailLines(state.session, resultSelectedIndex)
-    : selectedWorkspaceEntry
-      ? buildWorkspaceEntryDetailLines(selectedWorkspaceEntry, state, countState)
-      : buildDraftSummaryLines(state, countState);
+  const detailLines =
+    state.layout === "results" && state.session
+      ? selectedResult
+        ? buildResultDetailLines(selectedResult, state.session, resultSelectedIndex)
+        : buildPendingResultDetailLines(state.session, resultSelectedIndex)
+      : selectedWorkspaceEntry
+        ? buildWorkspaceEntryDetailLines(selectedWorkspaceEntry, state, countState)
+        : buildDraftSummaryLines(state, countState);
   const renderedDetailLineCount = getRenderedTerminalLineCount(detailLines, detailWidth);
   const maxDetailScroll = Math.max(0, renderedDetailLineCount - bodyHeight);
   const detailScroll = Math.min(state.detailScroll, maxDetailScroll);
 
-  const applyDraftUpdate = React.useCallback((update: (request: Pf2eTerminalSearchRequest) => Pf2eTerminalSearchRequest) => {
-    const nextRequest = user.search.normalizeRequest(update(draftRef.current));
-    draftRef.current = nextRequest;
-    dispatch({ type: "set_draft", request: nextRequest });
-  }, [user.search]);
+  const applyDraftUpdate = React.useCallback(
+    (update: (request: Pf2eTerminalSearchRequest) => Pf2eTerminalSearchRequest) => {
+      const nextRequest = user.search.normalizeRequest(update(draftRef.current));
+      draftRef.current = nextRequest;
+      dispatch({ type: "set_draft", request: nextRequest });
+    },
+    [user.search],
+  );
 
-  const disposeSession = React.useCallback((session: Pf2eTerminalSearchSession | null) => {
-    if (!session) {
-      return;
-    }
-    user.search.disposeSession(session);
-  }, [user.search]);
+  const disposeSession = React.useCallback(
+    (session: Pf2eTerminalSearchSession | null) => {
+      if (!session) {
+        return;
+      }
+      user.search.disposeSession(session);
+    },
+    [user.search],
+  );
 
   const exitSearchScreen = React.useCallback(() => {
     const activeSession = activeSessionRef.current;
@@ -1231,29 +1232,33 @@ export function SearchScreen({
     onBack();
   }, [disposeSession, onBack]);
 
-  const executeRequest = React.useCallback(async (request: Pf2eTerminalSearchRequest) => {
-    const availability = getExecuteAvailability(request);
-    if (availability.disabled) {
-      await terminal.pauseForAnyKey(availability.reason ?? "This query setup cannot be executed yet.");
-      return;
-    }
+  const executeRequest = React.useCallback(
+    async (request: Pf2eTerminalSearchRequest) => {
+      const availability = getExecuteAvailability(request);
+      if (availability.disabled) {
+        await terminal.pauseForAnyKey(availability.reason ?? "This query setup cannot be executed yet.");
+        return;
+      }
 
-    setBusy(true);
-    try {
-      const sort = state.session && state.session.request.mode === request.mode
-        ? state.session.sort
-        : user.search.getDefaultSort(request.mode);
-      const session = await user.search.executeQuery(request, {
-        sort,
-        limit: Math.max(request.limit, resultWindowLimit),
-      });
-      dispatch({ type: "set_session", session });
-    } catch (error) {
-      await terminal.pauseForAnyKey(`Workspace query failed.\n\n${(error as Error).message}`);
-    } finally {
-      setBusy(false);
-    }
-  }, [resultWindowLimit, state.session, terminal, user.search]);
+      setBusy(true);
+      try {
+        const sort =
+          state.session && state.session.request.mode === request.mode
+            ? state.session.sort
+            : user.search.getDefaultSort(request.mode);
+        const session = await user.search.executeQuery(request, {
+          sort,
+          limit: Math.max(request.limit, resultWindowLimit),
+        });
+        dispatch({ type: "set_session", session });
+      } catch (error) {
+        await terminal.pauseForAnyKey(`Workspace query failed.\n\n${(error as Error).message}`);
+      } finally {
+        setBusy(false);
+      }
+    },
+    [resultWindowLimit, state.session, terminal, user.search],
+  );
 
   const chooseResultSort = React.useCallback(async () => {
     if (!state.session) {
@@ -1335,13 +1340,16 @@ export function SearchScreen({
     activeSessionRef.current = nextSession;
   }, [disposeSession, state.session]);
 
-  React.useEffect(() => () => {
-    const activeSession = activeSessionRef.current;
-    if (activeSession) {
-      disposeSession(activeSession);
-      activeSessionRef.current = null;
-    }
-  }, [disposeSession]);
+  React.useEffect(
+    () => () => {
+      const activeSession = activeSessionRef.current;
+      if (activeSession) {
+        disposeSession(activeSession);
+        activeSessionRef.current = null;
+      }
+    },
+    [disposeSession],
+  );
 
   React.useEffect(() => {
     const availability = getExecuteAvailability(state.draft);
@@ -1362,7 +1370,8 @@ export function SearchScreen({
     }));
 
     const timeout = setTimeout(() => {
-      void user.search.countQuery(state.draft)
+      void user.search
+        .countQuery(state.draft)
         .then((result) => {
           if (cancelled) {
             return;
@@ -1425,7 +1434,8 @@ export function SearchScreen({
 
       loadMoreSessionKeyRef.current = sessionKey;
       setLoadingMore(true);
-      void user.search.readResultWindow(currentSession, targetWindow)
+      void user.search
+        .readResultWindow(currentSession, targetWindow)
         .then((session) => {
           if (cancelled) {
             return;
@@ -1453,18 +1463,26 @@ export function SearchScreen({
         loadMoreTimerRef.current = null;
       }
     };
-  }, [loadingMore, preloadThreshold, resultSelectedIndex, resultWindowLimit, state.layout, state.session, terminal, user.search]);
+  }, [
+    loadingMore,
+    preloadThreshold,
+    resultSelectedIndex,
+    resultWindowLimit,
+    state.layout,
+    state.session,
+    terminal,
+    user.search,
+  ]);
 
   const editQueryText = React.useCallback(async () => {
     const queryText = await terminal.promptTextInput({
       title: "Query Text",
-      prompt: state.draft.mode === "lookup"
-        ? "Enter an exact or near-exact record name"
-        : "Enter search text for the current query setup",
+      prompt:
+        state.draft.mode === "lookup"
+          ? "Enter an exact or near-exact record name"
+          : "Enter search text for the current query setup",
       defaultValue: state.draft.queryText,
-      hint: state.draft.mode === "lookup"
-        ? "Example: Raise Shield"
-        : "Example: ghost ship captain",
+      hint: state.draft.mode === "lookup" ? "Example: Raise Shield" : "Example: ghost ship captain",
     });
 
     if (queryText === undefined) {
@@ -1536,7 +1554,7 @@ export function SearchScreen({
         ...request,
         filters: {
           ...request.filters,
-          category: selected === "__all__" ? null : selected as SearchCategory,
+          category: selected === "__all__" ? null : (selected as SearchCategory),
           subcategory: null,
         },
       }));
@@ -1565,7 +1583,7 @@ export function SearchScreen({
         ...request,
         filters: {
           ...request.filters,
-          subcategory: selected === "__all__" ? null : selected as SearchSubcategory,
+          subcategory: selected === "__all__" ? null : (selected as SearchSubcategory),
         },
       }));
     }
@@ -1596,7 +1614,14 @@ export function SearchScreen({
         },
       },
     }));
-  }, [applyDraftUpdate, state.draft.filters.category, state.draft.filters.rarity, state.draft.filters.subcategory, terminal, user.search]);
+  }, [
+    applyDraftUpdate,
+    state.draft.filters.category,
+    state.draft.filters.rarity,
+    state.draft.filters.subcategory,
+    terminal,
+    user.search,
+  ]);
 
   const editLevelRange = React.useCallback(async () => {
     const input = await terminal.promptTextInput({
@@ -1632,7 +1657,10 @@ export function SearchScreen({
       return;
     }
 
-    const fieldOptions = user.search.getFacetFieldOptions(state.draft.filters.category, state.draft.filters.subcategory);
+    const fieldOptions = user.search.getFacetFieldOptions(
+      state.draft.filters.category,
+      state.draft.filters.subcategory,
+    );
     if (fieldOptions.length === 0) {
       await terminal.pauseForAnyKey("No discoverable facet fields are available for the current browse scope.");
       return;
@@ -1657,7 +1685,14 @@ export function SearchScreen({
       ),
       scopedFields: fieldOptions.map((option) => option.value),
     });
-  }, [state.draft, state.draft.filters.category, state.draft.filters.subcategory, terminal, user.ontology, user.search]);
+  }, [
+    state.draft,
+    state.draft.filters.category,
+    state.draft.filters.subcategory,
+    terminal,
+    user.ontology,
+    user.search,
+  ]);
 
   const removeFacetFilter = React.useCallback(async () => {
     if (state.draft.filters.facets.length === 0 && !hasFilterPolicy(state.draft.filters.actionCost)) {
@@ -1675,22 +1710,24 @@ export function SearchScreen({
       ...request,
       filters: {
         ...request.filters,
-        actionCost: selected.includes("actionCost")
-          ? { any: [], all: [], exclude: [] }
-          : request.filters.actionCost,
+        actionCost: selected.includes("actionCost") ? { any: [], all: [], exclude: [] } : request.filters.actionCost,
         facets: request.filters.facets.filter((facet) => !selected.includes(facet.field)),
       },
     }));
   }, [applyDraftUpdate, state.draft.filters.actionCost, state.draft.filters.facets, terminal]);
 
-  const applyFacetPicker = React.useCallback((selection: OntologyPickerSelectionMap) => {
-    if (!facetPickerSession) {
-      return;
-    }
-    applyDraftUpdate((request) =>
-      applyFacetPickerSelectionsToRequest(request, selection, facetPickerSession.scopedFields));
-    setFacetPickerSession(null);
-  }, [applyDraftUpdate, facetPickerSession]);
+  const applyFacetPicker = React.useCallback(
+    (selection: OntologyPickerSelectionMap) => {
+      if (!facetPickerSession) {
+        return;
+      }
+      applyDraftUpdate((request) =>
+        applyFacetPickerSelectionsToRequest(request, selection, facetPickerSession.scopedFields),
+      );
+      setFacetPickerSession(null);
+    },
+    [applyDraftUpdate, facetPickerSession],
+  );
 
   const resetDraftWorkspace = React.useCallback(() => {
     const defaultRequest = user.search.createDefaultRequest();
@@ -1699,61 +1736,64 @@ export function SearchScreen({
     dispatch({ type: "set_layout", layout: "draft", pane: "list" });
   }, [user.search]);
 
-  const runWorkspaceAction = React.useCallback((action: SearchWorkspaceAction) => {
-    switch (action) {
-      case "execute":
-        void executeRequest(state.draft);
-        return;
-      case "mode":
-        void chooseMode();
-        return;
-      case "query":
-        void editQueryText();
-        return;
-      case "profile":
-        void chooseSearchProfile();
-        return;
-      case "category":
-        void chooseCategoryFilter();
-        return;
-      case "subcategory":
-        void chooseSubcategoryFilter();
-        return;
-      case "levels":
-        void editLevelRange();
-        return;
-      case "rarity":
-        void chooseRarityFilter();
-        return;
-      case "addFacet":
-        void addFacetFilter();
-        return;
-      case "removeFacet":
-        void removeFacetFilter();
-        return;
-      case "reset":
-        resetDraftWorkspace();
-        return;
-      case "clearResults":
-        dispatch({ type: "clear_results" });
-        return;
-      default:
-        return;
-    }
-  }, [
-    addFacetFilter,
-    chooseCategoryFilter,
-    chooseMode,
-    chooseRarityFilter,
-    chooseSearchProfile,
-    chooseSubcategoryFilter,
-    editLevelRange,
-    editQueryText,
-    executeRequest,
-    removeFacetFilter,
-    resetDraftWorkspace,
-    state.draft,
-  ]);
+  const runWorkspaceAction = React.useCallback(
+    (action: SearchWorkspaceAction) => {
+      switch (action) {
+        case "execute":
+          void executeRequest(state.draft);
+          return;
+        case "mode":
+          void chooseMode();
+          return;
+        case "query":
+          void editQueryText();
+          return;
+        case "profile":
+          void chooseSearchProfile();
+          return;
+        case "category":
+          void chooseCategoryFilter();
+          return;
+        case "subcategory":
+          void chooseSubcategoryFilter();
+          return;
+        case "levels":
+          void editLevelRange();
+          return;
+        case "rarity":
+          void chooseRarityFilter();
+          return;
+        case "addFacet":
+          void addFacetFilter();
+          return;
+        case "removeFacet":
+          void removeFacetFilter();
+          return;
+        case "reset":
+          resetDraftWorkspace();
+          return;
+        case "clearResults":
+          dispatch({ type: "clear_results" });
+          return;
+        default:
+          return;
+      }
+    },
+    [
+      addFacetFilter,
+      chooseCategoryFilter,
+      chooseMode,
+      chooseRarityFilter,
+      chooseSearchProfile,
+      chooseSubcategoryFilter,
+      editLevelRange,
+      editQueryText,
+      executeRequest,
+      removeFacetFilter,
+      resetDraftWorkspace,
+      state.draft,
+    ],
+  );
 
   const openSelectedWorkspaceEntry = React.useCallback(() => {
     if (!selectedWorkspaceEntry || selectedWorkspaceEntry.disabled) {
@@ -1802,22 +1842,33 @@ export function SearchScreen({
     }
 
     const normalized = getNormalizedKeyName(input, key);
-    const listNavigation = resolveDerivedTagTerminalListNavigationAction(input, key, {
-      pageSize,
-      jumpSize: selectionJumpSize,
-      includeConfirmKeys: true,
-    }, listNavigationStateRef.current);
+    const listNavigation = resolveDerivedTagTerminalListNavigationAction(
+      input,
+      key,
+      {
+        pageSize,
+        jumpSize: selectionJumpSize,
+        includeConfirmKeys: true,
+      },
+      listNavigationStateRef.current,
+    );
     listNavigationStateRef.current = listNavigation.state;
-    const detailNavigation = resolveDerivedTagTerminalListNavigationAction(input, key, {
-      pageSize,
-      jumpSize: selectionJumpSize,
-    }, detailNavigationStateRef.current);
+    const detailNavigation = resolveDerivedTagTerminalListNavigationAction(
+      input,
+      key,
+      {
+        pageSize,
+        jumpSize: selectionJumpSize,
+      },
+      detailNavigationStateRef.current,
+    );
     detailNavigationStateRef.current = detailNavigation.state;
-    const interactionActions = state.layout === "draft"
-      ? getSearchDraftInteractionActions()
-      : state.activePane === "list"
-        ? getSearchResultListInteractionActions()
-        : getSearchResultDetailInteractionActions();
+    const interactionActions =
+      state.layout === "draft"
+        ? getSearchDraftInteractionActions()
+        : state.activePane === "list"
+          ? getSearchResultListInteractionActions()
+          : getSearchResultDetailInteractionActions();
     const interactionAction = resolveTerminalInteractionAction(normalized, interactionActions);
 
     if (normalized === "ctrl_c") {
@@ -1853,7 +1904,11 @@ export function SearchScreen({
         return;
       }
       if (listNavigation.action?.kind === "move") {
-        dispatch({ type: "move_workspace_selection", delta: listNavigation.action.delta, itemCount: workspaceEntries.length });
+        dispatch({
+          type: "move_workspace_selection",
+          delta: listNavigation.action.delta,
+          itemCount: workspaceEntries.length,
+        });
         return;
       }
       if (listNavigation.action?.kind === "boundary") {
@@ -1895,7 +1950,11 @@ export function SearchScreen({
         return;
       }
       if (listNavigation.action?.kind === "boundary") {
-        dispatch({ type: "result_selection_boundary", boundary: listNavigation.action.boundary, itemCount: resultCount });
+        dispatch({
+          type: "result_selection_boundary",
+          boundary: listNavigation.action.boundary,
+          itemCount: resultCount,
+        });
       }
       return;
     }
@@ -1928,28 +1987,26 @@ export function SearchScreen({
       title="Browse/Search"
       subtitle={buildSearchSubtitle(state, countState)}
       left={{
-        title: state.layout === "draft"
-          ? "[SETUP] Scope & Filters"
-          : state.activePane === "list"
-            ? `[RESULTS] ${state.session ? `${formatResultPosition(resultSelectedIndex, state.session.total)} | Buf ${formatCount(state.session.loadedCount)} | ${formatSort(state.session.sort)}` : "No applied session"}`
-            : `Results | ${state.session ? `${formatResultPosition(resultSelectedIndex, state.session.total)} | ${formatSort(state.session.sort)}` : "No applied session"}`,
-        lines: state.layout === "draft"
-          ? buildWorkspaceLines(workspaceEntries, workspaceSelectedIndex, bodyHeight)
-          : buildResultLines(state.session, resultSelectedIndex, bodyHeight, loadingMore),
+        title:
+          state.layout === "draft"
+            ? "[SETUP] Scope & Filters"
+            : state.activePane === "list"
+              ? `[RESULTS] ${state.session ? `${formatResultPosition(resultSelectedIndex, state.session.total)} | Buf ${formatCount(state.session.loadedCount)} | ${formatSort(state.session.sort)}` : "No applied session"}`
+              : `Results | ${state.session ? `${formatResultPosition(resultSelectedIndex, state.session.total)} | ${formatSort(state.session.sort)}` : "No applied session"}`,
+        lines:
+          state.layout === "draft"
+            ? buildWorkspaceLines(workspaceEntries, workspaceSelectedIndex, bodyHeight)
+            : buildResultLines(state.session, resultSelectedIndex, bodyHeight, loadingMore),
         active: state.layout === "results" ? state.activePane === "list" : true,
       }}
       right={{
-        title: state.layout === "results"
-          ? state.activePane === "detail"
-            ? `[PREVIEW] ${selectedResult?.name ?? "Results"}`
-            : `Preview | ${selectedResult?.name ?? "Results"}`
-          : "Query Status",
-        lines: sliceRenderedTerminalLines(
-          detailLines,
-          detailWidth,
-          detailScroll,
-          bodyHeight,
-        ),
+        title:
+          state.layout === "results"
+            ? state.activePane === "detail"
+              ? `[PREVIEW] ${selectedResult?.name ?? "Results"}`
+              : `Preview | ${selectedResult?.name ?? "Results"}`
+            : "Query Status",
+        lines: sliceRenderedTerminalLines(detailLines, detailWidth, detailScroll, bodyHeight),
         active: state.layout === "results" && state.activePane === "detail",
       }}
       footer={[
@@ -1958,9 +2015,10 @@ export function SearchScreen({
           tone: "dim",
         },
         {
-          text: state.layout === "results" && state.session
-            ? `${formatDraftStatus(state)} | ${formatResultPosition(resultSelectedIndex, state.session.total)} | Buf ${formatCount(state.session.loadedCount)} | Win ${getSessionBufferRange(state.session)}`
-            : `${formatDraftStatus(state)} | ${formatCountSummary(countState, state.draft)} | Scope & Filters`,
+          text:
+            state.layout === "results" && state.session
+              ? `${formatDraftStatus(state)} | ${formatResultPosition(resultSelectedIndex, state.session.total)} | Buf ${formatCount(state.session.loadedCount)} | Win ${getSessionBufferRange(state.session)}`
+              : `${formatDraftStatus(state)} | ${formatCountSummary(countState, state.draft)} | Scope & Filters`,
           tone: "accent",
         },
       ]}
