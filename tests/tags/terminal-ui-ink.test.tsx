@@ -178,6 +178,8 @@ describe("derived tag terminal ink runtime", () => {
 
     await flushInk();
     expect(app.lastFrame()).toContain("Pick a value");
+    expect(app.lastFrame()).toContain("result=pending");
+    expect(app.lastFrame()).toContain("Harness");
 
     app.stdin.write("j");
     await flushInk();
@@ -202,6 +204,7 @@ describe("derived tag terminal ink runtime", () => {
     app.stdin.write("?");
     await flushInk();
     expect(app.lastFrame()).toContain("Help");
+    expect(app.lastFrame()).toContain("page=detail");
 
     app.stdin.write("x");
     await flushInk();
@@ -217,6 +220,7 @@ describe("derived tag terminal ink runtime", () => {
 
     await flushInkFrames();
     expect(app.lastFrame()).toContain("Toggle values");
+    expect(app.lastFrame()).toContain("result=pending");
 
     app.stdin.write("\r");
     await flushInkFrames();
@@ -242,6 +246,7 @@ describe("derived tag terminal ink runtime", () => {
 
     await flushInkFrames();
     expect(app.lastFrame()).toContain("Cycle values");
+    expect(app.lastFrame()).toContain("result=pending");
 
     app.stdin.write("\r");
     await flushInkFrames();

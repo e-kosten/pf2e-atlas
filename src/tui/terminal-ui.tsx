@@ -77,6 +77,15 @@ export type DerivedTagTerminalThreePaneScreenProps = {
   centerWidth?: number;
 };
 
+type DerivedTagTerminalInlinePromptPanelProps = {
+  title: string;
+  subtitle?: string;
+  body: React.ReactNode;
+  footer?: DerivedTagTerminalLine[];
+  width: number;
+  height: number;
+};
+
 type DialogOptions = {
   title: string;
   subtitle?: string;
@@ -415,6 +424,36 @@ function TerminalPaneView({
   );
 }
 
+function TerminalInlinePromptPanel({
+  title,
+  subtitle,
+  body,
+  footer,
+  width,
+  height,
+}: DerivedTagTerminalInlinePromptPanelProps): React.JSX.Element {
+  const footerHeight = footer?.length ?? 0;
+  const bodyHeight = Math.max(0, height - 3 - footerHeight);
+
+  return (
+    <Box flexDirection="column" width={width} height={height}>
+      <Text wrap="truncate-end" {...terminalToneProps("dim")}>
+        {fitToWidth("─".repeat(Math.max(0, width)), width)}
+      </Text>
+      <Text wrap="truncate-end" {...terminalToneProps("selected")}>
+        {fitToWidth(title, width)}
+      </Text>
+      <Text wrap="truncate-end" {...terminalToneProps(subtitle ? "accent" : "dim")}>
+        {fitToWidth(subtitle ?? "", width)}
+      </Text>
+      <Box width={width} height={bodyHeight}>
+        {body}
+      </Box>
+      <TerminalFooter footer={footer} width={width} />
+    </Box>
+  );
+}
+
 export function useDerivedTagTerminalApp(): DerivedTagTerminalContextValue {
   return ensureTerminalContext();
 }
@@ -424,7 +463,12 @@ export function useDerivedTagTerminalInput(
   isActive = true,
 ): void {
   const terminal = ensureTerminalContext();
-  useInput(handler, { isActive: isActive && !terminal.modalActive });
+  useInput((input, key) => {
+    if (terminal.modalActive) {
+      return;
+    }
+    handler(input, key);
+  }, { isActive });
 }
 
 export function useDerivedTagTerminalSize(): { width: number; height: number } {
@@ -767,24 +811,117 @@ export function isExactPrintableTerminalKey(input: string, key: Key, expected: s
   return expected.length === 1 && getPrintableInput(input, key) === expected;
 }
 
+function clampInlinePromptWindowStart(selectedIndex: number, itemCount: number, visibleCount: number): number {
+  if (itemCount <= visibleCount) {
+    return 0;
+  }
+
+  const centered = selectedIndex - Math.floor(visibleCount / 2);
+  return Math.max(0, Math.min(centered, itemCount - visibleCount));
+}
+
+function buildPromptDetailLines(
+  option: DerivedTagTerminalSelectOption<string> | undefined,
+): DerivedTagTerminalLine[] {
+  if (option?.detailLines?.length) {
+    return option.detailLines;
+  }
+  if (option?.description) {
+    return [
+      { text: option.label, tone: "section" },
+      { text: option.description },
+    ];
+  }
+
+  return [
+    { text: option?.label ?? "(none)", tone: "section" },
+    { text: "No additional details.", tone: "dim" },
+  ];
+}
+
+function InlinePromptMessageBody({
+  lines,
+  width,
+  height,
+}: {
+  lines: DerivedTagTerminalLine[];
+  width: number;
+  height: number;
+}): React.JSX.Element {
+  return <TerminalRows lines={renderRows(lines, width, height)} width={width} />;
+}
+
+function InlinePromptTwoPaneBody({
+  prompt,
+  entries,
+  detailLines,
+  focusedLabel,
+  width,
+  height,
+}: {
+  prompt: string;
+  entries: DerivedTagTerminalLine[];
+  detailLines: DerivedTagTerminalLine[];
+  focusedLabel: string;
+  width: number;
+  height: number;
+}): React.JSX.Element {
+  const dimensions = getTerminalTwoPaneDimensions(width, 38);
+  const separator = Array.from({ length: Math.max(1, height) }, () => "│").join("\n");
+
+  return (
+    <Box flexDirection="row" width={width} height={height}>
+      <TerminalPaneView
+        pane={{
+          title: prompt,
+          lines: entries,
+          active: true,
+        }}
+        width={dimensions.leftWidth}
+        height={height}
+      />
+      <Text wrap="truncate-end" {...terminalToneProps("dim")}>{separator}</Text>
+      <TerminalPaneView
+        pane={{
+          title: focusedLabel,
+          lines: detailLines,
+        }}
+        width={dimensions.rightWidth}
+        height={height}
+      />
+    </Box>
+  );
+}
+
 function PromptBody({
   options,
   currentValue,
+  width,
+  height,
 }: {
   options: TextPromptOptions;
   currentValue: string;
+  width: number;
+  height: number;
 }): React.JSX.Element {
   return (
-    <TerminalTextScreen
+    <TerminalInlinePromptPanel
       title={options.title}
-      body={[
-        { text: options.prompt, tone: "section" },
-        ...(options.hint ? [{ text: options.hint, tone: "dim" as const }] : []),
-        { text: "" },
-        { text: `> ${currentValue}` },
-        { text: options.defaultValue ? `Default: ${options.defaultValue}` : "Leave blank to skip.", tone: "dim" },
-      ]}
+      subtitle={options.prompt}
+      body={(
+        <InlinePromptMessageBody
+          width={width}
+          height={Math.max(0, height - 4)}
+          lines={[
+            ...(options.hint ? [{ text: options.hint, tone: "accent" as const }] : []),
+            { text: `> ${currentValue || ""}`, tone: "selected" },
+            { text: options.defaultValue ? `Default: ${options.defaultValue}` : "Leave blank to skip.", tone: "dim" },
+          ]}
+        />
+      )}
       footer={[{ text: "Type text  Enter submit  Backspace edit  Esc cancel", tone: "dim" }]}
+      width={width}
+      height={height}
     />
   );
 }
@@ -792,61 +929,71 @@ function PromptBody({
 function SelectPromptBody({
   options,
   selectedIndex,
+  width,
+  height,
 }: {
   options: SelectPromptOptions<string>;
   selectedIndex: number;
+  width: number;
+  height: number;
 }): React.JSX.Element {
   if (options.entries.length === 0) {
     return (
-      <TerminalTextScreen
+      <TerminalInlinePromptPanel
         title={options.title}
-        subtitle={options.subtitle}
-        body={[
-          { text: options.prompt, tone: "section" },
-          { text: "" },
-          { text: "No options are available for this scope.", tone: "warning" },
-        ]}
+        subtitle={options.subtitle ?? options.prompt}
+        body={(
+          <InlinePromptMessageBody
+            width={width}
+            height={Math.max(0, height - 4)}
+            lines={[
+              { text: options.prompt, tone: "section" },
+              { text: "No options are available for this scope.", tone: "warning" },
+            ]}
+          />
+        )}
         footer={[{ text: "Esc, Backspace, Left, or q cancel", tone: "dim" }]}
+        width={width}
+        height={height}
       />
     );
   }
 
   const selectedOption = options.entries[selectedIndex];
-  const detailLines = selectedOption?.detailLines?.length
-    ? selectedOption.detailLines
-    : selectedOption?.description
-      ? [
-        { text: selectedOption.label, tone: "section" as const },
-        { text: selectedOption.description },
-      ]
-      : [
-        { text: selectedOption?.label ?? "(none)", tone: "section" as const },
-        { text: "No additional details.", tone: "dim" as const },
-      ];
+  const contentHeight = Math.max(1, height - 6);
+  const visibleCount = Math.max(1, contentHeight - 2);
+  const windowStart = clampInlinePromptWindowStart(selectedIndex, options.entries.length, visibleCount);
+  const visibleEntries = options.entries.slice(windowStart, windowStart + visibleCount);
 
   return (
-    <TerminalTwoPaneScreen
+    <TerminalInlinePromptPanel
       title={options.title}
       subtitle={options.subtitle}
-      left={{
-        title: options.prompt,
-        lines: options.entries.map((entry, index) => ({
-          text: entry.label,
-          tone: index === selectedIndex ? "selected" : "default",
-          noWrap: true,
-        })),
-        active: true,
-      }}
-      right={{
-        title: "Details",
-        lines: detailLines,
-      }}
+      body={(
+        <InlinePromptTwoPaneBody
+          prompt={options.prompt}
+          entries={visibleEntries.map((entry, offset) => ({
+            text: entry.label,
+            tone: windowStart + offset === selectedIndex ? "selected" : "default",
+            noWrap: true,
+          }))}
+          detailLines={[
+            ...buildPromptDetailLines(selectedOption),
+            { text: "" },
+            { text: `Selected: ${selectedOption?.label ?? "(none)"}`, tone: "accent" },
+          ]}
+          focusedLabel={`Selected: ${selectedOption?.label ?? "(none)"}`}
+          width={width}
+          height={contentHeight}
+        />
+      )}
       footer={[
         { text: "Up/Down move  Ctrl-U/D jump  PgUp/PgDn page  Home/End edge", tone: "dim" },
         { text: "Enter select  Esc/backspace/left cancel", tone: "dim" },
-        { text: `Selected: ${selectedOption?.label ?? "(none)"}`, tone: "accent" },
+        { text: `${selectedIndex + 1}/${options.entries.length} focused`, tone: "accent" },
       ]}
-      leftWidth={40}
+      width={width}
+      height={height}
     />
   );
 }
@@ -855,71 +1002,77 @@ function MultiSelectPromptBody({
   options,
   selectedIndex,
   selectedValues,
+  width,
+  height,
 }: {
   options: MultiSelectPromptOptions<string>;
   selectedIndex: number;
   selectedValues: string[];
+  width: number;
+  height: number;
 }): React.JSX.Element {
   if (options.entries.length === 0) {
     return (
-      <TerminalTextScreen
+      <TerminalInlinePromptPanel
         title={options.title}
-        subtitle={options.subtitle}
-        body={[
-          { text: options.prompt, tone: "section" },
-          { text: "" },
-          { text: "No options are available for this scope.", tone: "warning" },
-        ]}
+        subtitle={options.subtitle ?? options.prompt}
+        body={(
+          <InlinePromptMessageBody
+            width={width}
+            height={Math.max(0, height - 4)}
+            lines={[
+              { text: options.prompt, tone: "section" },
+              { text: "No options are available for this scope.", tone: "warning" },
+            ]}
+          />
+        )}
         footer={[{ text: "Esc, Backspace, or Left return", tone: "dim" }]}
+        width={width}
+        height={height}
       />
     );
   }
 
   const selectedOption = options.entries[selectedIndex];
   const selectedSet = new Set(selectedValues);
-  const detailLines = selectedOption?.detailLines?.length
-    ? selectedOption.detailLines
-    : selectedOption?.description
-      ? [
-        { text: selectedOption.label, tone: "section" as const },
-        { text: selectedOption.description },
-      ]
-      : [
-        { text: selectedOption?.label ?? "(none)", tone: "section" as const },
-        { text: "No additional details.", tone: "dim" as const },
-      ];
   const selectedLabels = options.entries
     .filter((entry) => selectedSet.has(entry.value))
     .map((entry) => entry.label);
+  const contentHeight = Math.max(1, height - 6);
+  const visibleCount = Math.max(1, contentHeight - 2);
+  const windowStart = clampInlinePromptWindowStart(selectedIndex, options.entries.length, visibleCount);
+  const visibleEntries = options.entries.slice(windowStart, windowStart + visibleCount);
 
   return (
-    <TerminalTwoPaneScreen
+    <TerminalInlinePromptPanel
       title={options.title}
       subtitle={options.subtitle}
-      left={{
-        title: options.prompt,
-        lines: options.entries.map((entry, index) => ({
-          text: `[${selectedSet.has(entry.value) ? "x" : " "}] ${entry.label}`,
-          tone: index === selectedIndex ? "selected" : "default",
-          noWrap: true,
-        })),
-        active: true,
-      }}
-      right={{
-        title: "Details",
-        lines: [
-          ...detailLines,
-          { text: "" },
-          { text: "Current Selection", tone: "section" },
-          { text: selectedLabels.length > 0 ? selectedLabels.join(", ") : "(none)" },
-        ],
-      }}
+      body={(
+        <InlinePromptTwoPaneBody
+          prompt={options.prompt}
+          entries={visibleEntries.map((entry, offset) => ({
+            text: `[${selectedSet.has(entry.value) ? "x" : " "}] ${entry.label}`,
+            tone: windowStart + offset === selectedIndex ? "selected" : "default",
+            noWrap: true,
+          }))}
+          detailLines={[
+            ...buildPromptDetailLines(selectedOption),
+            { text: "" },
+            { text: "Current Selection", tone: "section" },
+            { text: selectedLabels.length > 0 ? selectedLabels.join(", ") : "(none)" },
+          ]}
+          focusedLabel={`Focused ${selectedIndex + 1}/${options.entries.length}`}
+          width={width}
+          height={contentHeight}
+        />
+      )}
       footer={[
         { text: "Up/Down move  Ctrl-U/D jump  PgUp/PgDn page  Home/End edge", tone: "dim" },
         { text: "Enter or Space toggle  Esc/backspace/left return", tone: "dim" },
         { text: `${selectedValues.length} selected | Focused: ${selectedOption?.label ?? "(none)"}`, tone: "accent" },
       ]}
-      leftWidth={40}
+      width={width}
+      height={height}
     />
   );
 }
@@ -1006,16 +1159,13 @@ function buildPolicySummaryLines(
 ): DerivedTagTerminalLine[] {
   const selection = buildPolicySelection(options.entries, valueStates);
   const labelsByValue = new Map(options.entries.map((entry) => [entry.value, entry.label]));
-  const allowedStateSet = new Set(options.allowedStates);
-  const summaryStates = options.allowedStates;
 
-  return summaryStates.map((state) => ({
+  return options.allowedStates.map((state) => ({
     text: `${state[0]!.toUpperCase()}${state.slice(1)}: ${
       selection[state].length > 0
         ? selection[state].map((value) => labelsByValue.get(value) ?? value).join(", ")
         : "(none)"
     }`,
-    tone: allowedStateSet.has(state) ? "default" : "dim",
   }));
 }
 
@@ -1023,80 +1173,99 @@ function PolicyPromptBody({
   options,
   selectedIndex,
   valueStates,
+  width,
+  height,
 }: {
   options: PolicyPromptOptions<string>;
   selectedIndex: number;
   valueStates: Record<string, DerivedTagTerminalPolicyState | undefined>;
+  width: number;
+  height: number;
 }): React.JSX.Element {
   if (options.entries.length === 0) {
     return (
-      <TerminalTextScreen
+      <TerminalInlinePromptPanel
         title={options.title}
-        subtitle={options.subtitle}
-        body={[
-          { text: options.prompt, tone: "section" },
-          { text: "" },
-          { text: "No options are available for this scope.", tone: "warning" },
-        ]}
+        subtitle={options.subtitle ?? options.prompt}
+        body={(
+          <InlinePromptMessageBody
+            width={width}
+            height={Math.max(0, height - 4)}
+            lines={[
+              { text: options.prompt, tone: "section" },
+              { text: "No options are available for this scope.", tone: "warning" },
+            ]}
+          />
+        )}
         footer={[{ text: "Esc, Backspace, or Left return", tone: "dim" }]}
+        width={width}
+        height={height}
       />
     );
   }
 
   const selectedOption = options.entries[selectedIndex];
   const selectedState = selectedOption ? getPolicyStateForValue(selectedOption.value, valueStates) : undefined;
-  const detailLines = selectedOption?.detailLines?.length
-    ? selectedOption.detailLines
-    : selectedOption?.description
-      ? [
-        { text: selectedOption.label, tone: "section" as const },
-        { text: selectedOption.description },
-      ]
-      : [
-        { text: selectedOption?.label ?? "(none)", tone: "section" as const },
-        { text: "No additional details.", tone: "dim" as const },
-      ];
+  const contentHeight = Math.max(1, height - 6);
+  const visibleCount = Math.max(1, contentHeight - 2);
+  const windowStart = clampInlinePromptWindowStart(selectedIndex, options.entries.length, visibleCount);
+  const visibleEntries = options.entries.slice(windowStart, windowStart + visibleCount);
 
   return (
-    <TerminalTwoPaneScreen
+    <TerminalInlinePromptPanel
       title={options.title}
       subtitle={options.subtitle}
-      left={{
-        title: options.prompt,
-        lines: options.entries.map((entry, index) => ({
-          text: `[${policyStateLabel(getPolicyStateForValue(entry.value, valueStates))}] ${entry.label}`,
-          tone: index === selectedIndex ? "selected" : "default",
-          noWrap: true,
-        })),
-        active: true,
-      }}
-      right={{
-        title: "Details",
-        lines: [
-          ...detailLines,
-          { text: "" },
-          { text: `Focused policy: ${selectedState ?? "off"}`, tone: "accent" },
-          { text: "" },
-          { text: "Current Policy", tone: "section" },
-          ...buildPolicySummaryLines(options, valueStates),
-        ],
-      }}
+      body={(
+        <InlinePromptTwoPaneBody
+          prompt={options.prompt}
+          entries={visibleEntries.map((entry, offset) => ({
+            text: `[${policyStateLabel(getPolicyStateForValue(entry.value, valueStates))}] ${entry.label}`,
+            tone: windowStart + offset === selectedIndex ? "selected" : "default",
+            noWrap: true,
+          }))}
+          detailLines={[
+            ...buildPromptDetailLines(selectedOption),
+            { text: "" },
+            { text: `Focused policy: ${selectedState ?? "off"}`, tone: "accent" },
+            ...buildPolicySummaryLines(options, valueStates),
+          ]}
+          focusedLabel={`Focused ${selectedIndex + 1}/${options.entries.length}`}
+          width={width}
+          height={contentHeight}
+        />
+      )}
       footer={[
         { text: "Up/Down move  Ctrl-U/D jump  PgUp/PgDn page  Home/End edge", tone: "dim" },
         { text: "Enter or Space cycle  Esc/backspace/left return", tone: "dim" },
         { text: `Cycle order: off -> ${options.allowedStates.join(" -> ")} -> off`, tone: "accent" },
       ]}
-      leftWidth={40}
+      width={width}
+      height={height}
     />
   );
+}
+
+function getInlineModalHeight(modal: TerminalModalState, totalRows: number): number {
+  if (!modal) {
+    return 0;
+  }
+
+  const minimumMainHeight = 10;
+  const maximumInlineHeight = Math.max(4, totalRows - minimumMainHeight);
+  const desiredHeight = modal.kind === "text" || modal.kind === "dialog" ? 6 : 10;
+  return Math.max(4, Math.min(desiredHeight, maximumInlineHeight));
 }
 
 function DerivedTagTerminalModalHost({
   modal,
   setModal,
+  width,
+  height,
 }: {
   modal: TerminalModalState;
   setModal: React.Dispatch<React.SetStateAction<TerminalModalState>>;
+  width: number;
+  height: number;
 }): React.JSX.Element | null {
   const listNavigationStateRef = React.useRef(createDerivedTagTerminalListNavigationState());
 
@@ -1268,10 +1437,25 @@ function DerivedTagTerminalModalHost({
   }
 
   if (modal.kind === "dialog") {
-    return <TerminalTextScreen {...modal.options} />;
+    return (
+      <TerminalInlinePromptPanel
+        title={modal.options.title}
+        subtitle={modal.options.subtitle}
+        body={(
+          <InlinePromptMessageBody
+            width={width}
+            height={Math.max(0, height - 4)}
+            lines={modal.options.body}
+          />
+        )}
+        footer={modal.options.footer ?? [{ text: "Press any key to continue.", tone: "dim" }]}
+        width={width}
+        height={height}
+      />
+    );
   }
   if (modal.kind === "text") {
-    return <PromptBody options={modal.options} currentValue={modal.value} />;
+    return <PromptBody options={modal.options} currentValue={modal.value} width={width} height={height} />;
   }
   if (modal.kind === "multiselect") {
     return (
@@ -1279,6 +1463,8 @@ function DerivedTagTerminalModalHost({
         options={modal.options}
         selectedIndex={modal.selectedIndex}
         selectedValues={modal.selectedValues}
+        width={width}
+        height={height}
       />
     );
   }
@@ -1288,11 +1474,13 @@ function DerivedTagTerminalModalHost({
         options={modal.options}
         selectedIndex={modal.selectedIndex}
         valueStates={modal.valueStates}
+        width={width}
+        height={height}
       />
     );
   }
 
-  return <SelectPromptBody options={modal.options} selectedIndex={modal.selectedIndex} />;
+  return <SelectPromptBody options={modal.options} selectedIndex={modal.selectedIndex} width={width} height={height} />;
 }
 
 export function DerivedTagTerminalProvider({
@@ -1303,10 +1491,12 @@ export function DerivedTagTerminalProvider({
   const { exit } = useApp();
   const { columns, rows } = useWindowSize();
   const [modal, setModal] = React.useState<TerminalModalState>(null);
+  const modalHeight = React.useMemo(() => getInlineModalHeight(modal, rows), [modal, rows]);
+  const availableRows = Math.max(0, rows - modalHeight);
 
   const contextValue = React.useMemo<DerivedTagTerminalContextValue>(() => ({
     exitApp: exit,
-    getTerminalHeight: () => rows,
+    getTerminalHeight: () => availableRows,
     getTerminalWidth: () => columns,
     modalActive: modal !== null,
     pauseForAnyKey: async (message: string) => {
@@ -1379,16 +1569,21 @@ export function DerivedTagTerminalProvider({
           resolve,
         });
       }),
-  }), [columns, exit, modal, rows]);
+  }), [availableRows, columns, exit, modal]);
 
   return (
     <DerivedTagTerminalContext.Provider value={contextValue}>
-      <Box display={modal ? "none" : "flex"} flexDirection="column">
+      <Box flexDirection="column">
         {children}
       </Box>
-      <Box display={modal ? "flex" : "none"} flexDirection="column">
-        {modal ? <DerivedTagTerminalModalHost modal={modal} setModal={setModal} /> : null}
-      </Box>
+      {modal ? (
+        <DerivedTagTerminalModalHost
+          modal={modal}
+          setModal={setModal}
+          width={columns}
+          height={modalHeight}
+        />
+      ) : null}
     </DerivedTagTerminalContext.Provider>
   );
 }
