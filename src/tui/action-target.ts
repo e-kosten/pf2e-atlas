@@ -7,6 +7,10 @@ import {
   isMoveUpKey,
 } from "./keymap.js";
 import type {
+  DerivedTagTerminalLine,
+  DerivedTagTerminalSegment,
+} from "./terminal-ui.js";
+import type {
   TerminalInteractionAction,
   TerminalInteractionHelpSection,
 } from "./interaction-bindings.js";
@@ -125,10 +129,42 @@ export function formatDerivedTagTerminalActionTargetBar<T extends string>(
   actions: readonly DerivedTagTerminalActionTargetOption<T>[],
   state: DerivedTagTerminalActionTargetState,
 ): string {
-  const prefix = state.activeTarget === "actions" ? "[ACTIONS]" : "Actions";
-  return `${prefix}: ${actions.map((action, index) => (
-    index === state.selectedActionIndex ? `[${action.label}]` : action.label
-  )).join("  ")}`;
+  return [
+    "Actions:",
+    ...actions.map((action, index) => (
+      index === state.selectedActionIndex ? ` ${action.label} ` : action.label
+    )),
+  ].join("  ");
+}
+
+export function buildDerivedTagTerminalActionTargetLine<T extends string>(
+  actions: readonly DerivedTagTerminalActionTargetOption<T>[],
+  state: DerivedTagTerminalActionTargetState,
+): DerivedTagTerminalLine {
+  const segments: DerivedTagTerminalSegment[] = [
+    {
+      text: "Actions:",
+      tone: state.activeTarget === "actions" ? "section" : "dim",
+    },
+  ];
+
+  actions.forEach((action, index) => {
+    segments.push({ text: "  ", tone: "default" });
+    segments.push({
+      text: index === state.selectedActionIndex ? ` ${action.label} ` : action.label,
+      tone: index === state.selectedActionIndex
+        ? "selected"
+        : state.activeTarget === "actions"
+          ? "accent"
+          : "default",
+    });
+  });
+
+  return {
+    text: "",
+    segments,
+    noWrap: true,
+  };
 }
 
 export function shouldRenderDerivedTagTerminalActionTarget(

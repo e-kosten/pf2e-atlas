@@ -6,8 +6,8 @@ import type {
 } from "../tags/migration/types.js";
 import {
   buildDerivedTagTerminalActionTargetHelpLines,
+  buildDerivedTagTerminalActionTargetLine,
   createDerivedTagTerminalActionTargetState,
-  formatDerivedTagTerminalActionTargetBar,
   getDerivedTagTerminalActionTargetInteractionActions,
   reduceDerivedTagTerminalActionTargetState,
   resolveDerivedTagTerminalActionTargetIntent,
@@ -317,12 +317,9 @@ export function TagRefinementMenuScreen({
           ),
           tone: "dim",
         },
-        {
-          text: shouldRenderDerivedTagTerminalActionTarget(actionTargetState, "onDemand")
-            ? formatDerivedTagTerminalActionTargetBar(actionEntries, actionTargetState)
-            : `Selected: ${menuItems[clampedSelectedIndex]?.label ?? "(none)"}`,
-          tone: "accent",
-        },
+        shouldRenderDerivedTagTerminalActionTarget(actionTargetState, "onDemand")
+          ? buildDerivedTagTerminalActionTargetLine(actionEntries, actionTargetState)
+          : { text: `Selected: ${menuItems[clampedSelectedIndex]?.label ?? "(none)"}`, tone: "accent" },
       ]}
       leftWidth={48}
     />

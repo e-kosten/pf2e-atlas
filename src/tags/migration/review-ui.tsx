@@ -16,8 +16,8 @@ import {
 } from "./review-controller.js";
 import {
   buildDerivedTagTerminalActionTargetHelpLines,
+  buildDerivedTagTerminalActionTargetLine,
   createDerivedTagTerminalActionTargetState,
-  formatDerivedTagTerminalActionTargetBar,
   getDerivedTagTerminalActionTargetInteractionActions,
   reduceDerivedTagTerminalActionTargetState,
   resolveDerivedTagTerminalActionTargetIntent,
@@ -340,7 +340,7 @@ function buildReviewHelpLines(state: ReviewUiState): DerivedTagTerminalLine[] {
     }),
     { text: "" },
     { text: "Current Action Rail", tone: "section" },
-    { text: formatDerivedTagTerminalActionTargetBar(REVIEW_ACTIONS, state), tone: "accent" },
+    buildDerivedTagTerminalActionTargetLine(REVIEW_ACTIONS, state),
   ];
 }
 
@@ -383,9 +383,10 @@ export function DerivedTagMigrationReviewScreen({
   }, [rootPath, services, state.session]);
 
   const layoutMode = getDerivedTagTerminalTwoPaneLayoutMode(state);
+  const footerLineCount = 3 + (persistError ? 1 : 0);
   const bodyHeight = Math.max(1, getTerminalPaneBodyHeight(size.height, {
     hasSubtitle: true,
-    footerLineCount: 2,
+    footerLineCount,
   }));
   const items = getDerivedTagMigrationReviewItems(state.session);
   const progress = summarizeDerivedTagMigrationReviewProgress(state.session);
@@ -400,8 +401,8 @@ export function DerivedTagMigrationReviewScreen({
   const maxDetailScroll = Math.max(0, renderedDetailLineCount - bodyHeight);
   const detailScroll = Math.min(state.detailScroll, maxDetailScroll);
   const subtitle = `Session ${state.session.manifest.id} | ${progressText} | ${items.length} visible item${items.length === 1 ? "" : "s"} | unresolved only ${state.session.reviewState.unresolvedOnly ? "on" : "off"}`;
-  const actionBarText = formatDerivedTagTerminalActionTargetBar(REVIEW_ACTIONS, state);
-  const detailFooterText = `${actionBarText} | ${state.activePane} focus | ${layoutMode} layout | Detail scroll ${detailScroll}/${maxDetailScroll}`;
+  const actionBarLine = buildDerivedTagTerminalActionTargetLine(REVIEW_ACTIONS, state);
+  const detailFooterText = `${state.activePane} focus | ${layoutMode} layout | Detail scroll ${detailScroll}/${maxDetailScroll}`;
 
   const completeReview = React.useCallback((imported: boolean, session: DerivedTagMigrationSession) => {
     onComplete({ imported, session });
@@ -555,6 +556,7 @@ export function DerivedTagMigrationReviewScreen({
         }}
         footer={[
           { text: formatTerminalInteractionFooter(footerInteractionActions), tone: "dim" },
+          actionBarLine,
           { text: detailFooterText, tone: "accent" },
           ...(persistError ? [{ text: `Persist error: ${persistError}`, tone: "danger" as const }] : []),
         ]}
@@ -578,6 +580,7 @@ export function DerivedTagMigrationReviewScreen({
       }}
       footer={[
         { text: formatTerminalInteractionFooter(footerInteractionActions), tone: "dim" },
+        actionBarLine,
         { text: detailFooterText, tone: "accent" },
         ...(persistError ? [{ text: `Persist error: ${persistError}`, tone: "danger" as const }] : []),
       ]}

@@ -35,7 +35,9 @@ describe("tag refinement menu screen", () => {
     await flushInk();
     app.stdin.write(":");
     await flushInk();
-    expect(app.lastFrame()).toContain("[ACTIONS]: [Create Legacy-Seed Review Session]");
+    expect(app.lastFrame()).toContain("Actions:");
+    expect(app.lastFrame()).toContain("Create Legacy-Seed Review Session");
+    expect(app.lastFrame()).not.toContain("[ACTIONS]");
     app.stdin.write("\r");
     await flushInk();
 

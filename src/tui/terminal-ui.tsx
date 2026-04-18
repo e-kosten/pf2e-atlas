@@ -40,8 +40,14 @@ export type DerivedTagTerminalTone =
   | "danger"
   | "selected";
 
+export type DerivedTagTerminalSegment = {
+  text: string;
+  tone?: DerivedTagTerminalTone;
+};
+
 export type DerivedTagTerminalLine = {
   text: string;
+  segments?: DerivedTagTerminalSegment[];
   tone?: DerivedTagTerminalTone;
   indent?: number;
   noWrap?: boolean;
@@ -243,11 +249,16 @@ function ensureTerminalContext(): DerivedTagTerminalContextValue {
 
 function normalizeLine(line: DerivedTagTerminalLine): Required<DerivedTagTerminalLine> {
   return {
-    text: line.text,
+    text: line.text ?? "",
+    segments: line.segments ?? [],
     tone: line.tone ?? "default",
     indent: line.indent ?? 0,
     noWrap: line.noWrap ?? false,
   };
+}
+
+function segmentText(segments: DerivedTagTerminalSegment[]): string {
+  return segments.map((segment) => segment.text).join("");
 }
 
 function visibleWidth(text: string): number {
@@ -265,6 +276,37 @@ function truncateText(text: string, width: number): string {
   }
 
   return characters.slice(0, width).join("");
+}
+
+function truncateSegments(
+  segments: DerivedTagTerminalSegment[],
+  width: number,
+): DerivedTagTerminalSegment[] {
+  if (width <= 0 || segments.length === 0) {
+    return [];
+  }
+
+  const truncated: DerivedTagTerminalSegment[] = [];
+  let remainingWidth = width;
+
+  for (const segment of segments) {
+    if (remainingWidth <= 0) {
+      break;
+    }
+    const segmentWidth = visibleWidth(segment.text);
+    if (segmentWidth <= remainingWidth) {
+      truncated.push(segment);
+      remainingWidth -= segmentWidth;
+      continue;
+    }
+    truncated.push({
+      text: truncateText(segment.text, remainingWidth),
+      tone: segment.tone,
+    });
+    break;
+  }
+
+  return truncated;
 }
 
 function fitToWidth(text: string, width: number): string {
@@ -324,13 +366,32 @@ function wrapPlainText(text: string, width: number): string[] {
 function buildRenderedTerminalLines(
   lines: DerivedTagTerminalLine[],
   width: number,
-): Array<{ text: string; tone: DerivedTagTerminalTone }> {
-  const renderedLines: Array<{ text: string; tone: DerivedTagTerminalTone }> = [];
+): Array<{ text: string; tone: DerivedTagTerminalTone; segments?: DerivedTagTerminalSegment[] }> {
+  const renderedLines: Array<{ text: string; tone: DerivedTagTerminalTone; segments?: DerivedTagTerminalSegment[] }> = [];
 
   for (const rawLine of lines) {
     const line = normalizeLine(rawLine);
     const indent = " ".repeat(Math.max(0, line.indent));
     const usableWidth = Math.max(1, width - indent.length);
+
+    if (line.segments.length > 0) {
+      const segmentsWithIndent = indent
+        ? [{ text: indent, tone: "default" as const }, ...line.segments]
+        : line.segments;
+      const renderedSegments = truncateSegments(
+        line.noWrap
+          ? segmentsWithIndent
+          : [{ text: truncateText(segmentText(segmentsWithIndent), width), tone: line.tone }],
+        width,
+      );
+      renderedLines.push({
+        text: segmentText(renderedSegments),
+        tone: line.tone,
+        segments: renderedSegments,
+      });
+      continue;
+    }
+
     const wrapped = line.noWrap ? [truncateText(line.text, usableWidth)] : wrapPlainText(line.text, usableWidth);
 
     for (const segment of wrapped) {
@@ -348,9 +409,9 @@ function renderRows(
   lines: DerivedTagTerminalLine[],
   width: number,
   height: number,
-): Array<{ text: string; tone: DerivedTagTerminalTone }> {
+): Array<{ text: string; tone: DerivedTagTerminalTone; segments?: DerivedTagTerminalSegment[] }> {
   const rows = buildRenderedTerminalLines(lines, width);
-  const rendered: Array<{ text: string; tone: DerivedTagTerminalTone }> = [];
+  const rendered: Array<{ text: string; tone: DerivedTagTerminalTone; segments?: DerivedTagTerminalSegment[] }> = [];
   for (let index = 0; index < height; index += 1) {
     rendered.push(rows[index] ?? { text: "", tone: "default" });
   }
@@ -384,14 +445,20 @@ function TerminalRows({
   lines,
   width,
 }: {
-  lines: Array<{ text: string; tone: DerivedTagTerminalTone }>;
+  lines: Array<{ text: string; tone: DerivedTagTerminalTone; segments?: DerivedTagTerminalSegment[] }>;
   width: number;
 }): React.JSX.Element {
   return (
     <Box flexDirection="column" width={width}>
       {lines.map((line, index) => (
         <Text key={index} wrap="truncate-end" {...terminalToneProps(line.tone)}>
-          {fitToWidth(line.text, width)}
+          {line.segments && line.segments.length > 0
+            ? line.segments.map((segment, segmentIndex) => (
+              <Text key={segmentIndex} {...terminalToneProps(segment.tone ?? "default")}>
+                {segment.text}
+              </Text>
+            ))
+            : fitToWidth(line.text, width)}
         </Text>
       ))}
     </Box>
@@ -439,7 +506,13 @@ function TerminalFooter({
     <Box flexDirection="column" width={width}>
       {footer.map((line, index) => (
         <Text key={index} wrap="truncate-end" {...terminalToneProps(line.tone ?? "default")}>
-          {fitToWidth(line.text, width)}
+          {line.segments && line.segments.length > 0
+            ? line.segments.map((segment, segmentIndex) => (
+              <Text key={segmentIndex} {...terminalToneProps(segment.tone ?? "default")}>
+                {segment.text}
+              </Text>
+            ))
+            : fitToWidth(line.text, width)}
         </Text>
       ))}
     </Box>
