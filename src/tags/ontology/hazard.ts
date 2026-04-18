@@ -1,4 +1,5 @@
 import type { DerivedTagAuthoredCategoryOntology } from "../../types.js";
+import { fromFamily, fromTag } from "./utils.js";
 
 export const HAZARD_DERIVED_TAG_ONTOLOGY = {
   category: "hazard",
@@ -162,6 +163,21 @@ export const HAZARD_DERIVED_TAG_ONTOLOGY = {
           adjacentTags: [
             "forced_separation",
             "pursuit_punisher"
+          ]
+        },
+        {
+          tag: "guarding_hazard",
+          description: "Broad guarding umbrella for hazards that warn, lock down, or stand watch over a threshold, object, or protected space.",
+          assignmentMode: "composite",
+          adjacentTags: [
+            "alarm",
+            "barrier_lockdown",
+            "sentinel_guardian"
+          ],
+          compositeOfAny: [
+            fromTag("alarm"),
+            fromTag("barrier_lockdown"),
+            fromTag("sentinel_guardian")
           ]
         }
       ]
@@ -500,6 +516,55 @@ export const HAZARD_DERIVED_TAG_ONTOLOGY = {
           tag: "water_hazard",
           description: "Hazard centered on floods, geysers, waves, surges, or other dangerous water exposure.",
           assignmentMode: "hybrid"
+        },
+        {
+          tag: "contamination_hazard",
+          description: "Hazard centered on tainted residue, corruptive seepage, drifting spores, cursed runoff, or other lingering contamination of a space.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "poison_hazard",
+            "respiratory_hazard"
+          ]
+        },
+        {
+          tag: "blight_hazard",
+          description: "Hazard centered on ecological ruin, land-sickening corruption, withering growth, or terrain spoiled by supernatural blight.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "contamination_hazard",
+            "overgrowth_hazard"
+          ]
+        },
+        {
+          tag: "overgrowth_hazard",
+          description: "Hazard centered on choking roots, hostile vines, grasping thorns, or other dangerous living overgrowth that turns terrain against intruders.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "blight_hazard",
+            "forced_movement"
+          ]
+        },
+        {
+          tag: "cursefield_hazard",
+          description: "Hazard centered on cursed ground, spiritually poisoned space, or a zone whose danger comes from active supernatural contamination rather than one mechanism.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "contamination_hazard",
+            "judgment_haunt"
+          ]
+        },
+        {
+          tag: "environmental_hazard",
+          description: "Broad environmental umbrella for elemental, toxic, contaminating, and terrain-corrupting hazards that threaten a space through recurring exposure.",
+          assignmentMode: "composite",
+          adjacentTags: [
+            "fire_hazard",
+            "poison_hazard",
+            "contamination_hazard"
+          ],
+          compositeOfAny: [
+            fromFamily("environmental_danger")
+          ]
         }
       ]
     },
@@ -521,6 +586,20 @@ export const HAZARD_DERIVED_TAG_ONTOLOGY = {
           tag: "forced_movement",
           description: "Hazard that pushes, pulls, drags, submerges, or otherwise forcibly repositions creatures.",
           assignmentMode: "deterministic"
+        },
+        {
+          tag: "displacement_hazard",
+          description: "Broad displacement umbrella for hazards that drop, collapse, shove, or split creatures apart through positional disruption.",
+          assignmentMode: "composite",
+          adjacentTags: [
+            "pitfall",
+            "collapse_hazard",
+            "forced_separation"
+          ],
+          compositeOfAny: [
+            fromFamily("forced_position"),
+            fromTag("forced_separation")
+          ]
         }
       ]
     },
@@ -553,6 +632,19 @@ export const HAZARD_DERIVED_TAG_ONTOLOGY = {
           adjacentTags: [
             "navigation_disruption",
             "procedural_bypass"
+          ]
+        },
+        {
+          tag: "perception_hazard",
+          description: "Broad perception umbrella for hazards that attack through distorted routes, hostile illusion, or deceptive pathing rather than direct force alone.",
+          assignmentMode: "composite",
+          adjacentTags: [
+            "navigation_disruption",
+            "illusion_assault",
+            "false_safe_route"
+          ],
+          compositeOfAny: [
+            fromFamily("perception_control")
           ]
         }
       ]

@@ -1,4 +1,5 @@
 import type { DerivedTagAuthoredCategoryOntology } from "../../types.js";
+import { fromFamily } from "./utils.js";
 
 export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
   category: "equipment",
@@ -195,6 +196,19 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
           tag: "transport",
           description: "Helps move creatures or cargo from place to place.",
           assignmentMode: "deterministic"
+        },
+        {
+          tag: "movement_traversal",
+          description: "Broad movement-and-travel umbrella for equipment that solves climbing, routefinding, repositioning, or transport problems.",
+          assignmentMode: "composite",
+          adjacentTags: [
+            "climbing",
+            "navigation",
+            "transport"
+          ],
+          compositeOfAny: [
+            fromFamily("movement_traversal")
+          ]
         }
       ]
     },
@@ -246,6 +260,19 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
           tag: "anti_tracking",
           description: "Helps hide your trail, mask scent, or make pursuit harder.",
           assignmentMode: "deterministic"
+        },
+        {
+          tag: "reconnaissance",
+          description: "Broad recon umbrella for equipment used to scout, illuminate, record evidence, track targets, or frustrate pursuit.",
+          assignmentMode: "composite",
+          adjacentTags: [
+            "scouting",
+            "tracking",
+            "anti_tracking"
+          ],
+          compositeOfAny: [
+            fromFamily("reconnaissance")
+          ]
         }
       ]
     },
@@ -309,6 +336,7 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
         "backpack",
         "kit",
         "vehicle",
+        "consumable",
         "armor",
         "weapon"
       ],
@@ -323,6 +351,61 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
           tag: "restraint_capture",
           description: "Helps capture, bind, or keep a target restrained.",
           assignmentMode: "deterministic"
+        }
+      ]
+    },
+    offensive_profile: {
+      axis: "effect",
+      subcategories: [
+        "ammo",
+        "consumable"
+      ],
+      description: "Hostile consumable and ammunition tags for bombs, payloads, smoke effects, sticky control, and other offensive retrieval patterns that are not just status impairments.",
+      tags: [
+        {
+          tag: "burst_damage",
+          description: "Delivers a front-loaded blast, detonation, or splash pattern that users naturally retrieve as immediate damage.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "crowd_clearing",
+            "persistent_damage"
+          ]
+        },
+        {
+          tag: "persistent_damage",
+          description: "Imposes ongoing damage through burning, acid, bleed, poison, or another lingering payload that keeps hurting after the initial hit.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "burst_damage",
+            "physical_debilitation"
+          ]
+        },
+        {
+          tag: "line_of_sight_control",
+          description: "Obscures vision, fills an area with smoke, or otherwise denies clear sight lines as the item's main offensive or tactical job.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "sensory_impairment",
+            "restraint_capture"
+          ]
+        },
+        {
+          tag: "anti_caster_disruption",
+          description: "Punishes casting, disrupts concentration, or is naturally retrieved to make enemy spell use unreliable.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "silencing",
+            "countermagic"
+          ]
+        },
+        {
+          tag: "crowd_clearing",
+          description: "Excels at damaging clusters, swarms, or tightly packed weaker enemies rather than focusing on one target.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "burst_damage",
+            "line_of_sight_control"
+          ]
         }
       ]
     },
@@ -594,6 +677,19 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
           tag: "demolition",
           description: "Designed for blasting, collapsing, or otherwise violently dismantling structures and obstacles.",
           assignmentMode: "deterministic"
+        },
+        {
+          tag: "breaching",
+          description: "Broad force-entry umbrella for equipment used to break doors, barriers, fortifications, or route-blocking structures.",
+          assignmentMode: "composite",
+          adjacentTags: [
+            "door_breaching",
+            "barrier_breaking",
+            "demolition"
+          ],
+          compositeOfAny: [
+            fromFamily("breaching")
+          ]
         }
       ]
     },
@@ -705,6 +801,19 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
             "sustenance",
             "carry_support"
           ]
+        },
+        {
+          tag: "expedition",
+          description: "Broad expedition umbrella for travel gear, camp support, sustainment, mounts, aquatic operations, and hostile-environment endurance.",
+          assignmentMode: "composite",
+          adjacentTags: [
+            "survival",
+            "sustenance",
+            "environmental_adaptation"
+          ],
+          compositeOfAny: [
+            fromFamily("expedition")
+          ]
         }
       ]
     },
@@ -762,6 +871,19 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
             "telepathic_communication",
             "message_delivery"
           ]
+        },
+        {
+          tag: "communication",
+          description: "Broad communication umbrella for equipment used to signal allies, relay messages, bridge language barriers, or coordinate silently.",
+          assignmentMode: "composite",
+          adjacentTags: [
+            "signaling",
+            "telepathic_communication",
+            "message_delivery"
+          ],
+          compositeOfAny: [
+            fromFamily("communication")
+          ]
         }
       ]
     },
@@ -800,6 +922,19 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
           tag: "concealment",
           description: "Helps obscure a creature, item, or area from sight or make it harder to perceive.",
           assignmentMode: "deterministic"
+        },
+        {
+          tag: "infiltration",
+          description: "Broad infiltration umbrella for quiet-entry, discreet-carry, disguise, and covert-passing equipment.",
+          assignmentMode: "composite",
+          adjacentTags: [
+            "stealth_support",
+            "disguise",
+            "social_infiltration"
+          ],
+          compositeOfAny: [
+            fromFamily("infiltration")
+          ]
         }
       ]
     },
@@ -944,6 +1079,19 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
           adjacentTags: [
             "alarm",
             "surveillance_recording"
+          ]
+        },
+        {
+          tag: "security",
+          description: "Broad security umbrella for gear that warns about intrusion, blocks magical spying, or reveals after-the-fact interference.",
+          assignmentMode: "composite",
+          adjacentTags: [
+            "alarm",
+            "scrying_protection",
+            "tamper_evidence"
+          ],
+          compositeOfAny: [
+            fromFamily("security")
           ]
         }
       ]

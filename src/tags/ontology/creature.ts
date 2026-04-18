@@ -569,6 +569,93 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
         }
       ]
     },
+    cohort_role: {
+      axis: "encounter",
+      description: "Creature roster-construction tags for the kinds of crews, patrols, cult cells, packs, and retinues a creature naturally belongs to in a scene.",
+      tags: [
+        {
+          tag: "patrol_member",
+          description: "Naturally retrieved as part of a watch patrol, sentry route, street sweep, border detail, or other recurring patrol formation.",
+          assignmentMode: "editorial",
+          adjacentTags: [
+            "watcher_npc",
+            "urban_setting"
+          ]
+        },
+        {
+          tag: "warband_member",
+          description: "Naturally retrieved as one body in a raiding party, battle line, war camp, or other organized hostile fighting band.",
+          assignmentMode: "editorial",
+          adjacentTags: [
+            "commander_combatant",
+            "battlefield_setting"
+          ]
+        },
+        {
+          tag: "crew_member",
+          description: "Naturally retrieved as part of a ship crew, dock crew, wreck complement, or other nautical working roster that belongs together in one scene.",
+          assignmentMode: "editorial",
+          adjacentTags: [
+            "nautical_setting",
+            "escort_npc"
+          ]
+        },
+        {
+          tag: "cult_member",
+          description: "Naturally retrieved as one member of a ritual circle, hidden sect, temple conspiracy, or other cultic roster built around shared devotion or doctrine.",
+          assignmentMode: "editorial",
+          adjacentTags: [
+            "religious_npc",
+            "ritualist_creature"
+          ]
+        },
+        {
+          tag: "court_entourage",
+          description: "Naturally retrieved as part of a courtly retinue, noble household, ceremonial train, or political chamber roster around a central authority figure.",
+          assignmentMode: "editorial",
+          adjacentTags: [
+            "authority_npc",
+            "courtly_pageantry"
+          ]
+        },
+        {
+          tag: "criminal_cell",
+          description: "Naturally retrieved as part of a gang, smuggling ring, burglary team, or other underworld roster that functions through a small coordinated cell.",
+          assignmentMode: "editorial",
+          adjacentTags: [
+            "criminal_npc",
+            "infiltrator_npc"
+          ]
+        },
+        {
+          tag: "pack_hunter",
+          description: "Naturally retrieved because the creature hunts as part of a pack, coordinated ambush group, or pursuit cluster rather than as a solitary predator.",
+          assignmentMode: "editorial",
+          adjacentTags: [
+            "ambusher_combatant",
+            "skirmisher_combatant"
+          ]
+        },
+        {
+          tag: "infestation_member",
+          description: "Naturally retrieved as one body in a swarm-like infestation, burrowing colony, parasite outbreak, or other many-body nuisance roster.",
+          assignmentMode: "editorial",
+          adjacentTags: [
+            "parasite_ridden",
+            "plaguebearing"
+          ]
+        },
+        {
+          tag: "guardian_retinue",
+          description: "Naturally retrieved as one member of a posted defense roster around a leader, relic, sanctum, or protected threshold rather than as an independent threat.",
+          assignmentMode: "editorial",
+          adjacentTags: [
+            "guardian_npc",
+            "defender_combatant"
+          ]
+        }
+      ]
+    },
     scene_role: {
       axis: "npc_role",
       description: "Creature immediate-scenario tags for how a role-defined NPC or humanoid is used in an active scene, separate from broader job, office, or institutional identity.",

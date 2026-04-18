@@ -113,6 +113,24 @@ describe("derived tag ontology", () => {
       family: "access_bypass",
       assignmentMode: "deterministic",
     }));
+    const equipmentReconnaissance = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "equipment" && tag.tag === "reconnaissance");
+    expect(equipmentReconnaissance).toEqual(expect.objectContaining({
+      family: "reconnaissance",
+      assignmentMode: "composite",
+      compositeOfAnyTags: ["scouting", "illumination", "surveillance_recording", "tracking", "anti_tracking"],
+    }));
+    const equipmentSecurity = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "equipment" && tag.tag === "security");
+    expect(equipmentSecurity).toEqual(expect.objectContaining({
+      family: "security",
+      assignmentMode: "composite",
+      compositeOfAnyTags: ["alarm", "scrying_protection", "tamper_evidence"],
+    }));
+    const equipmentBurstDamage = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "equipment" && tag.tag === "burst_damage");
+    expect(equipmentBurstDamage).toEqual(expect.objectContaining({
+      family: "offensive_profile",
+      assignmentMode: "hybrid",
+      adjacentTags: ["crowd_clearing", "persistent_damage"],
+    }));
     const scoutSupport = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "equipment" && tag.tag === "scout_support");
     expect(scoutSupport).toEqual(expect.objectContaining({
       family: "party_role",
@@ -181,11 +199,37 @@ describe("derived tag ontology", () => {
         "The clean answer is learning and executing the hazard's safe procedure, sequence, or pattern rather than destroying it.",
       ]),
     }));
+    const environmentalHazard = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "hazard" && tag.tag === "environmental_hazard");
+    expect(environmentalHazard).toEqual(expect.objectContaining({
+      family: "environmental_danger",
+      assignmentMode: "composite",
+      compositeOfAnyTags: expect.arrayContaining(["fire_hazard", "contamination_hazard", "cursefield_hazard"]),
+    }));
+    const perceptionHazard = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "hazard" && tag.tag === "perception_hazard");
+    expect(perceptionHazard).toEqual(expect.objectContaining({
+      family: "perception_control",
+      assignmentMode: "composite",
+      compositeOfAnyTags: ["navigation_disruption", "illusion_assault", "false_safe_route"],
+    }));
+    const guardingHazard = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "hazard" && tag.tag === "guarding_hazard");
+    expect(guardingHazard).toEqual(expect.objectContaining({
+      family: "function",
+      assignmentMode: "composite",
+      compositeOfAnyTags: ["alarm", "barrier_lockdown", "sentinel_guardian"],
+    }));
+    const crewMember = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "creature" && tag.tag === "crew_member");
+    expect(crewMember).toEqual(expect.objectContaining({
+      family: "cohort_role",
+      assignmentMode: "editorial",
+      adjacentTags: ["nautical_setting", "escort_npc"],
+    }));
 
     const habitatFamily = DERIVED_TAG_ONTOLOGY_FAMILIES.find((family) => family.category === "creature" && family.family === "habitat_setting");
     expect(habitatFamily?.description).toContain("habitat tags");
     const combatRoleFamily = DERIVED_TAG_ONTOLOGY_FAMILIES.find((family) => family.category === "creature" && family.family === "combat_role");
     expect(combatRoleFamily?.description).toContain("encounter assembly");
+    const cohortRoleFamily = DERIVED_TAG_ONTOLOGY_FAMILIES.find((family) => family.category === "creature" && family.family === "cohort_role");
+    expect(cohortRoleFamily?.description).toContain("roster-construction");
 
     const groupedCatalog = groupDerivedTagOntology({
       families: DERIVED_TAG_ONTOLOGY_FAMILIES,
@@ -263,6 +307,41 @@ describe("derived tag ontology", () => {
         assignmentMode: "hybrid",
       }),
     ]));
+    const groupedEquipmentOffensiveProfile = groupedCatalog.find((entry) => entry.category === "equipment" && entry.family === "offensive_profile");
+    expect(groupedEquipmentOffensiveProfile?.axis).toBe("effect");
+    expect(groupedEquipmentOffensiveProfile?.tags).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        value: "burst_damage",
+        assignmentMode: "hybrid",
+      }),
+      expect.objectContaining({
+        value: "anti_caster_disruption",
+        assignmentMode: "hybrid",
+      }),
+    ]));
+    const groupedHazardEnvironmentalDanger = groupedCatalog.find((entry) => entry.category === "hazard" && entry.family === "environmental_danger");
+    expect(groupedHazardEnvironmentalDanger?.tags).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        value: "environmental_hazard",
+        assignmentMode: "composite",
+      }),
+      expect.objectContaining({
+        value: "contamination_hazard",
+        assignmentMode: "hybrid",
+      }),
+    ]));
+    const groupedCreatureCohortRole = groupedCatalog.find((entry) => entry.category === "creature" && entry.family === "cohort_role");
+    expect(groupedCreatureCohortRole?.axis).toBe("encounter");
+    expect(groupedCreatureCohortRole?.tags).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        value: "crew_member",
+        assignmentMode: "editorial",
+      }),
+      expect.objectContaining({
+        value: "patrol_member",
+        assignmentMode: "editorial",
+      }),
+    ]));
     const groupedCombatRole = groupedCatalog.find((entry) => entry.category === "creature" && entry.family === "combat_role");
     expect(groupedCombatRole?.tags).toEqual(expect.arrayContaining([
       expect.objectContaining({
@@ -292,6 +371,7 @@ describe("derived tag ontology", () => {
     expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.setting.description).toContain("Legacy umbrella family");
     expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.habitat_setting.description).toContain("habitat tags");
     expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.combat_role.description).toContain("tactical");
+    expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.cohort_role.description).toContain("roster-construction");
     expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.scene_role.description).toContain("immediate-scenario");
     expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.social_role.description).toContain("outside one immediate encounter slot");
     expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.corruption_profile.description).toContain("corruption and taint");
@@ -352,6 +432,12 @@ describe("derived tag ontology", () => {
       tag: "brute_combatant",
       assignmentMode: "hybrid",
       adjacentTags: ["defender_combatant", "artillery_combatant"],
+    }));
+    const crewMemberAuthored = CREATURE_DERIVED_TAG_ONTOLOGY.families.cohort_role.tags.find((tag) => tag.tag === "crew_member");
+    expect(crewMemberAuthored).toEqual(expect.objectContaining({
+      tag: "crew_member",
+      assignmentMode: "editorial",
+      adjacentTags: ["nautical_setting", "escort_npc"],
     }));
     const tricksterMischief = CREATURE_DERIVED_TAG_ONTOLOGY.families.genre_motif.tags.find((tag) => tag.tag === "trickster_mischief");
     expect(tricksterMischief).toEqual(expect.objectContaining({
@@ -473,6 +559,10 @@ describe("derived tag ontology", () => {
     }));
     expect(flattened.families).toContainEqual(expect.objectContaining({
       category: "creature",
+      family: "cohort_role",
+    }));
+    expect(flattened.families).toContainEqual(expect.objectContaining({
+      category: "creature",
       family: "story_motif",
     }));
     expect(flattened.tags).toContainEqual(expect.objectContaining({
@@ -484,6 +574,11 @@ describe("derived tag ontology", () => {
       category: "creature",
       family: "combat_role",
       tag: "artillery_combatant",
+    }));
+    expect(flattened.tags).toContainEqual(expect.objectContaining({
+      category: "creature",
+      family: "cohort_role",
+      tag: "crew_member",
     }));
   });
 });
