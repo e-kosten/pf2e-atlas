@@ -76,7 +76,7 @@ export function extractRulesReferences(raw: Record<string, unknown>): ExtractedR
 function extractUuidReferences(markup: string): ExtractedReference[] {
   const extracted: ExtractedReference[] = [];
   for (const match of markup.matchAll(UUID_REFERENCE_PATTERN)) {
-    const referenceText = match[0]!;
+    const referenceText = match[0];
     const target = match[1]!;
     const displayText = match[2] ?? null;
     const parsed = target.match(COMPILED_REFERENCE_PATTERN);

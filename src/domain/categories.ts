@@ -1,4 +1,4 @@
-import { SearchCategory, SearchCategoryInput, SearchSubcategory, SearchSubcategoryInput } from "../types.js";
+import { SearchCategory, SearchSubcategory } from "../types.js";
 import { firstString, getNested, normalizeText, toStringArray, uniqueSorted } from "../utils.js";
 
 export const SEARCH_CATEGORIES = [
@@ -80,14 +80,12 @@ const SUBCATEGORY_TO_CATEGORIES = new Map<string, SearchCategory[]>(
 export const VALID_SEARCH_CATEGORY_LIST = SEARCH_CATEGORIES.join(", ");
 export const VALID_SEARCH_SUBCATEGORY_LIST = SEARCH_SUBCATEGORIES.join(", ");
 
-export function normalizeSearchCategory(value: SearchCategoryInput | string | null | undefined): SearchCategory | null {
+export function normalizeSearchCategory(value: string | null | undefined): SearchCategory | null {
   const normalized = normalizeText(value ?? "");
   return CATEGORY_INPUT_ALIASES.get(normalized) ?? null;
 }
 
-export function normalizeSearchSubcategory(
-  value: SearchSubcategoryInput | string | null | undefined,
-): SearchSubcategory | null {
+export function normalizeSearchSubcategory(value: string | null | undefined): SearchSubcategory | null {
   const normalized = normalizeText(value ?? "");
   return SUBCATEGORY_INPUT_ALIASES.get(normalized) ?? null;
 }
@@ -104,9 +102,7 @@ export function categorySupportsSubcategory(category: SearchCategory, subcategor
   return CATEGORY_SUBCATEGORY_MAP[category].includes(subcategory);
 }
 
-export function getCategoryForSubcategory(
-  subcategory: SearchSubcategoryInput | string | null | undefined,
-): SearchCategory | null {
+export function getCategoryForSubcategory(subcategory: string | null | undefined): SearchCategory | null {
   const canonicalSubcategory = normalizeSearchSubcategory(subcategory);
   if (!canonicalSubcategory) {
     return null;

@@ -908,7 +908,7 @@ export function createPf2eApplicationOntologyService(
           break;
         default: {
           const exhaustive: never = id;
-          throw new Error(`Unknown ontology domain: ${exhaustive}`);
+          throw new Error(`Unknown ontology domain: ${String(exhaustive)}`);
         }
       }
       domainCache.set(id, domain);

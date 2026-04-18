@@ -607,7 +607,7 @@ export class Pf2eDataService {
   private rememberSearchWindow(window: RuntimeSearchWindow): RuntimeSearchWindow {
     this.searchWindows.set(window.id, window);
     while (this.searchWindows.size > MAX_SEARCH_WINDOWS) {
-      const oldestId = this.searchWindows.keys().next().value as string | undefined;
+      const oldestId = this.searchWindows.keys().next().value;
       if (!oldestId) {
         break;
       }

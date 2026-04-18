@@ -5,7 +5,6 @@ import type {
   OntologyNodeQuery,
   SearchCategory,
   SearchCountResult,
-  SearchProfile,
   SearchSubcategory,
 } from "../types.js";
 import { usePf2eTerminalAppServices } from "./app-service-context.js";
@@ -1282,7 +1281,7 @@ export function SearchScreen({
 
     setBusy(true);
     try {
-      const session = await user.search.changeSort(state.session, selected as Pf2eTerminalSearchSort);
+      const session = await user.search.changeSort(state.session, selected);
       dispatch({ type: "set_session", session });
     } catch (error) {
       await terminal.pauseForAnyKey(`Result sort failed.\n\n${(error as Error).message}`);
@@ -1532,7 +1531,7 @@ export function SearchScreen({
     if (selected) {
       applyDraftUpdate((request) => ({
         ...request,
-        searchProfile: selected as SearchProfile,
+        searchProfile: selected,
       }));
     }
   }, [applyDraftUpdate, state.draft.searchProfile, terminal, user.search]);

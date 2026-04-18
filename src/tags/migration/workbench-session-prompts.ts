@@ -1,5 +1,6 @@
 import { DatabaseSync } from "node:sqlite";
 
+import { normalizeSearchCategory } from "../../domain/categories.js";
 import type { SearchCategory, SearchSubcategory } from "../../types.js";
 import { normalizeDerivedTag } from "../index.js";
 import { parseInteger } from "./cli-utils.js";
@@ -23,6 +24,10 @@ export type DerivedTagMigrationWorkbenchSessionOptions = {
   limit?: number;
   exemplarLimit?: number;
 };
+
+function buildOntologyKey(category: SearchCategory, value: string): `${SearchCategory}:${string}` {
+  return `${category}:${normalizeDerivedTag(value)}`;
+}
 
 export function formatDerivedTagMigrationModeLabel(mode: DerivedTagMigrationMode): string {
   if (mode === "proposal_review") {
@@ -51,7 +56,7 @@ function buildCategorySelectOptions(
   mode: DerivedTagMigrationMode,
   db: DatabaseSync,
   required: boolean,
-): DerivedTagTerminalSelectOption<string>[] {
+): DerivedTagTerminalSelectOption<SearchCategory | typeof ANY_CATEGORY>[] {
   const scopeSummary = summarizeDerivedTagCategoryScopes(db, mode);
   const categoryOptions = DERIVED_TAG_MANAGED_CATEGORIES.map((category) => {
     const detailLines = scopeSummary.categories.find((entry) => entry.category === category)?.detailLines ?? [];
@@ -87,7 +92,9 @@ function listSubcategoriesForCategory(category: SearchCategory): SearchSubcatego
   ) as SearchSubcategory[];
 }
 
-function buildSubcategorySelectOptions(category: SearchCategory): DerivedTagTerminalSelectOption<string>[] {
+function buildSubcategorySelectOptions(
+  category: SearchCategory,
+): DerivedTagTerminalSelectOption<SearchSubcategory | typeof ANY_SUBCATEGORY>[] {
   const ontology = getSessionScopeOntology();
   const subcategories = listSubcategoriesForCategory(category);
   return [
@@ -107,9 +114,7 @@ function buildSubcategorySelectOptions(category: SearchCategory): DerivedTagTerm
         if (tag.category !== category) {
           return false;
         }
-        const family = ontology.familyByKey.get(
-          `${tag.category}:${normalizeDerivedTag(tag.family)}` as `${SearchCategory}:${string}`,
-        );
+        const family = ontology.familyByKey.get(buildOntologyKey(tag.category, tag.family));
         return family?.subcategories?.includes(subcategory) ?? false;
       });
       return {
@@ -213,9 +218,7 @@ function tagMatchesScope(
     return true;
   }
 
-  const family = getSessionScopeOntology().familyByKey.get(
-    `${tag.category}:${normalizeDerivedTag(tag.family)}` as `${SearchCategory}:${string}`,
-  );
+  const family = getSessionScopeOntology().familyByKey.get(buildOntologyKey(tag.category, tag.family));
   if (!family?.subcategories || family.subcategories.length === 0) {
     return true;
   }
@@ -235,11 +238,7 @@ function buildTagSelectOptions(
   const actionableScope = getActionableSessionScopeKeys(mode, exemplarLimit);
   const tagOptions = ontology.tags
     .filter((tag) => tagMatchesScope(category, subcategory, family, tag))
-    .filter(
-      (tag) =>
-        !actionableScope ||
-        actionableScope.tagKeys.has(`${tag.category}:${normalizeDerivedTag(tag.tag)}` as `${SearchCategory}:${string}`),
-    )
+    .filter((tag) => !actionableScope || actionableScope.tagKeys.has(buildOntologyKey(tag.category, tag.tag)))
     .sort(
       (left, right) =>
         compareManagedCategory(left.category, right.category) ||
@@ -248,9 +247,7 @@ function buildTagSelectOptions(
         left.tag.localeCompare(right.tag),
     )
     .map((tag) => {
-      const resolvedFamily = ontology.familyByKey.get(
-        `${tag.category}:${normalizeDerivedTag(tag.family)}` as `${SearchCategory}:${string}`,
-      );
+      const resolvedFamily = ontology.familyByKey.get(buildOntologyKey(tag.category, tag.family));
       return {
         value: category ? tag.tag : `${tag.category}:${tag.tag}`,
         label: category ? `${tag.family} / ${tag.tag}` : `${tag.category} / ${tag.family} / ${tag.tag}`,
@@ -289,7 +286,7 @@ async function promptCategory(
   mode: DerivedTagMigrationMode,
   required: boolean,
 ): Promise<SearchCategory | null | undefined> {
-  const value = await terminal.promptSelectOption({
+  const value = await terminal.promptSelectOption<SearchCategory | typeof ANY_CATEGORY>({
     title: "Session Scope",
     subtitle: "Choose a category boundary for the session",
     prompt: "Categories",
@@ -302,7 +299,7 @@ async function promptCategory(
   if (value === ANY_CATEGORY) {
     return null;
   }
-  return value as SearchCategory;
+  return value;
 }
 
 async function promptSubcategory(
@@ -314,7 +311,7 @@ async function promptSubcategory(
     return null;
   }
 
-  const value = await terminal.promptSelectOption({
+  const value = await terminal.promptSelectOption<SearchSubcategory | typeof ANY_SUBCATEGORY>({
     title: "Session Scope",
     subtitle: `Optionally narrow ${category} to a subcategory`,
     prompt: "Subcategories",
@@ -327,7 +324,7 @@ async function promptSubcategory(
   if (value === ANY_SUBCATEGORY) {
     return null;
   }
-  return value as SearchSubcategory;
+  return value;
 }
 
 async function promptTag(
@@ -354,9 +351,10 @@ async function promptTag(
   }
   if (!category) {
     const [resolvedCategory, resolvedTag] = value.split(":", 2);
-    if (resolvedCategory && resolvedTag) {
+    const normalizedCategory = normalizeSearchCategory(resolvedCategory);
+    if (normalizedCategory && resolvedTag) {
       return {
-        category: resolvedCategory as SearchCategory,
+        category: normalizedCategory,
         tag: resolvedTag,
       };
     }
@@ -386,9 +384,10 @@ async function promptFamily(
   }
   if (!category) {
     const [resolvedCategory, resolvedFamily] = value.split(":", 2);
-    if (resolvedCategory && resolvedFamily) {
+    const normalizedCategory = normalizeSearchCategory(resolvedCategory);
+    if (normalizedCategory && resolvedFamily) {
       return {
-        category: resolvedCategory as SearchCategory,
+        category: normalizedCategory,
         family: resolvedFamily,
       };
     }

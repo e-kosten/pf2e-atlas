@@ -1259,7 +1259,7 @@ describe("search screen", () => {
 
     expect(readSearchWindowPage.mock.calls.length).toBeGreaterThan(0);
     expect(readSearchWindowPage.mock.calls.every((call) => call[0] === "window-1")).toBe(true);
-    expect(readSearchWindowPage.mock.calls.every((call) => (call[2] as number) > 100)).toBe(true);
+    expect(readSearchWindowPage.mock.calls.every((call) => call[2] > 100)).toBe(true);
     const finalWindowSize = readSearchWindowPage.mock.calls.at(-1)?.[2];
     expect(app.lastFrame()).toContain(`| Buf ${finalWindowSize} | Alphabetical`);
   });

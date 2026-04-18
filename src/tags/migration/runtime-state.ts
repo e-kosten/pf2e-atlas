@@ -23,14 +23,14 @@ export function deriveCurrentTagSources(
   input: Parameters<typeof deriveRecordTagDerivation>[0],
 ): Record<string, DerivedTagSource> {
   const derivation = deriveRecordTagDerivation(input);
-  return Object.fromEntries([...derivation.sources.entries()]) as Record<string, DerivedTagSource>;
+  return Object.fromEntries([...derivation.sources.entries()]);
 }
 
 export function getCurrentDerivedTagPendingAssignmentViews() {
   const state = getCurrentDerivedTagMigrationAuthoredState();
   return buildDerivedTagPendingAssignmentViews(
     getPublishedDerivedTagMigrationOntology(),
-    Object.values(state.assignmentReviews) as DerivedTagAssignmentReviewCategory[],
+    Object.values(state.assignmentReviews),
   );
 }
 
@@ -75,9 +75,7 @@ export function summarizeCurrentDerivedTagReviewQueue(): DerivedTagReviewQueueSu
   const counts = new Map<string, DerivedTagReviewQueueSummaryItem>();
   const confidencesByKey = new Map<string, Set<DerivedTagReviewQueueSummaryItem["confidence"]>>();
 
-  for (const { category, decision } of flattenAssignmentReviewDecisions(
-    Object.values(state.assignmentReviews) as DerivedTagAssignmentReviewCategory[],
-  )) {
+  for (const { category, decision } of flattenAssignmentReviewDecisions(Object.values(state.assignmentReviews))) {
     if (decision.kind !== "assignment") {
       continue;
     }

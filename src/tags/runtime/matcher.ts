@@ -286,9 +286,12 @@ function analyzeTextTokens(normalized: string, tokens: string[]): AnalyzedToken[
   }
 
   const doc = nlp.readDoc(normalized);
-  const analyzedTokens = doc.tokens().out(its.normal) as string[];
+  // wink-nlp token extraction expects the library-provided helpers directly.
+  // eslint-disable-next-line @typescript-eslint/unbound-method
+  const analyzedTokens = doc.tokens().out(its.normal);
+  // eslint-disable-next-line @typescript-eslint/unbound-method
   const analyzedPos = doc.tokens().out(its.pos) as PartOfSpeech[];
-  const analyzedLemmas = doc.tokens().out(its.lemma as unknown as typeof its.normal) as string[];
+  const analyzedLemmas = doc.tokens().out((index, rdd, _cache, addons) => its.lemma(index, rdd, addons));
   if (
     analyzedTokens.length !== tokens.length ||
     analyzedPos.length !== tokens.length ||

@@ -151,7 +151,7 @@ export function normalizeMetadataFilterNode(node: MetadataFilterNode): MetadataF
     const metric = normalizeActorMetricName(raw.metric, "actorMetric.metric");
     const metricType = inferActorMetricValueType(metric);
     if (!metricType) {
-      throw new Error(`Unknown actor metric "${raw.metric}".`);
+      throw new Error(`Unknown actor metric "${String(raw.metric)}".`);
     }
 
     if (metricType === "number") {
@@ -218,7 +218,7 @@ export function normalizeMetadataFilterNode(node: MetadataFilterNode): MetadataF
     const metric = normalizeItemMetricName(raw.metric, "itemMetric.metric");
     const metricType = inferItemMetricValueType(metric);
     if (!metricType) {
-      throw new Error(`Unknown item metric "${raw.metric}".`);
+      throw new Error(`Unknown item metric "${String(raw.metric)}".`);
     }
 
     if (metricType === "number") {
@@ -626,7 +626,7 @@ function buildMetadataPredicateClause(
     return buildItemMetricCompareClause(predicate, context);
   }
 
-  const spec = getMetadataFieldSpec(predicate.field as MetadataFieldName);
+  const spec = getMetadataFieldSpec(predicate.field);
   if (spec.fieldType === "set") {
     const setPredicate = predicate as Extract<MetadataPredicate, { field: MetadataSetField }>;
     return buildMetadataSetPredicateClause(setPredicate.field, setPredicate.op, setPredicate.values, context);
@@ -834,7 +834,7 @@ export function recordMatchesMetadataFilter(record: NormalizedRecord, node: Meta
     return compareActorMetricValues(leftValue, node.op, rightValue);
   }
 
-  const spec = getMetadataFieldSpec(node.field as MetadataFieldName);
+  const spec = getMetadataFieldSpec(node.field);
 
   if (spec.fieldType === "set") {
     const setPredicate = node as Extract<MetadataPredicate, { field: MetadataSetField }>;

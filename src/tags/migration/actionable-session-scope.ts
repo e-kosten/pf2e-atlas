@@ -9,6 +9,10 @@ export type DerivedTagActionableSessionScopeKeys = {
   tagKeys: Set<`${SearchCategory}:${string}`>;
 };
 
+function buildScopeKey(category: SearchCategory, value: string): `${SearchCategory}:${string}` {
+  return `${category}:${normalizeDerivedTag(value)}`;
+}
+
 function createEmptyScopeKeys(): DerivedTagActionableSessionScopeKeys {
   return {
     familyKeys: new Set<`${SearchCategory}:${string}`>(),
@@ -18,19 +22,19 @@ function createEmptyScopeKeys(): DerivedTagActionableSessionScopeKeys {
 
 function addTag(keys: DerivedTagActionableSessionScopeKeys, category: SearchCategory, tag: string): void {
   const normalizedTag = normalizeDerivedTag(tag);
-  keys.tagKeys.add(`${category}:${normalizedTag}` as `${SearchCategory}:${string}`);
+  keys.tagKeys.add(`${category}:${normalizedTag}`);
 
   const ontology = getPublishedDerivedTagMigrationOntology();
-  const ontologyTag = ontology.tagByKey.get(`${category}:${normalizedTag}` as `${SearchCategory}:${string}`);
+  const ontologyTag = ontology.tagByKey.get(`${category}:${normalizedTag}`);
   if (!ontologyTag) {
     return;
   }
 
-  keys.familyKeys.add(`${category}:${normalizeDerivedTag(ontologyTag.family)}` as `${SearchCategory}:${string}`);
+  keys.familyKeys.add(buildScopeKey(category, ontologyTag.family));
 }
 
 function addFamily(keys: DerivedTagActionableSessionScopeKeys, category: SearchCategory, family: string): void {
-  keys.familyKeys.add(`${category}:${normalizeDerivedTag(family)}` as `${SearchCategory}:${string}`);
+  keys.familyKeys.add(buildScopeKey(category, family));
 }
 
 export function matchesDerivedTagFamilyFilter(
@@ -43,7 +47,7 @@ export function matchesDerivedTagFamilyFilter(
   }
 
   const ontology = getPublishedDerivedTagMigrationOntology();
-  const ontologyTag = ontology.tagByKey.get(`${category}:${normalizeDerivedTag(tag)}` as `${SearchCategory}:${string}`);
+  const ontologyTag = ontology.tagByKey.get(buildScopeKey(category, tag));
   if (!ontologyTag) {
     return false;
   }

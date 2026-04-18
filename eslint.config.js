@@ -6,7 +6,7 @@ import tseslint from "typescript-eslint";
 
 export default defineConfig(
   {
-    ignores: [".cache/**", "coverage/**", "dist/**", "node_modules/**", "scratch/**", "vendor/pf2e/**"],
+    ignores: [".cache/**", ".codex/**", "coverage/**", "dist/**", "node_modules/**", "scratch/**", "vendor/pf2e/**"],
   },
   {
     files: ["**/*.{js,mjs,cjs,ts,tsx}"],
@@ -18,6 +18,21 @@ export default defineConfig(
   },
   js.configs.recommended,
   tseslint.configs.recommended,
+  {
+    files: ["**/*.{ts,tsx}"],
+    languageOptions: {
+      parserOptions: {
+        project: "./tsconfig.eslint.json",
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+    rules: {
+      "@typescript-eslint/no-unnecessary-type-assertion": "error",
+      "@typescript-eslint/restrict-template-expressions": "error",
+      "@typescript-eslint/no-redundant-type-constituents": "error",
+      "@typescript-eslint/unbound-method": "error",
+    },
+  },
   {
     files: ["**/*.{ts,tsx}"],
     rules: {
