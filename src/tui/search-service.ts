@@ -127,6 +127,7 @@ export type Pf2eTerminalSearchService = {
   createDefaultRequest: () => Pf2eTerminalSearchRequest;
   createRequestFromOntologyQuery: (query: OntologyNodeQuery) => Pf2eTerminalSearchRequest;
   countQuery: (request: Pf2eTerminalSearchRequest) => Promise<SearchCountResult>;
+  disposeSession: (session: Pf2eTerminalSearchSession) => void;
   executeQuery: (
     request: Pf2eTerminalSearchRequest,
     options?: { sort?: Pf2eTerminalSearchSort; limit?: number },
@@ -1108,6 +1109,9 @@ export function createPf2eTerminalSearchService(
         }),
         { mode: "search", lexicalOnly: true },
       );
+    },
+    disposeSession: (session) => {
+      dependencies.closeSearchWindow(session.windowId);
     },
     executeQuery: async (request, options = {}) => {
       const normalizedRequest = normalizeRequest(request, fieldSemanticsByName);

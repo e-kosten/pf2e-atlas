@@ -890,6 +890,7 @@ export function SearchScreen({
   const loadMoreTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const listNavigationStateRef = React.useRef(createDerivedTagTerminalListNavigationState());
   const detailNavigationStateRef = React.useRef(createDerivedTagTerminalListNavigationState());
+  const activeSessionRef = React.useRef<Pf2eTerminalSearchSession | null>(null);
 
   const workspaceEntries = buildWorkspaceEntries(state, countState);
   const workspaceSelectedIndex = Math.max(0, Math.min(state.workspaceSelectedIndex, Math.max(0, workspaceEntries.length - 1)));
@@ -924,6 +925,22 @@ export function SearchScreen({
   const applyDraftUpdate = React.useCallback((update: (request: Pf2eTerminalSearchRequest) => Pf2eTerminalSearchRequest) => {
     dispatch({ type: "set_draft", request: user.search.normalizeRequest(update(state.draft)) });
   }, [state.draft, user.search]);
+
+  const disposeSession = React.useCallback((session: Pf2eTerminalSearchSession | null) => {
+    if (!session) {
+      return;
+    }
+    user.search.disposeSession(session);
+  }, [user.search]);
+
+  const exitSearchScreen = React.useCallback(() => {
+    const activeSession = activeSessionRef.current;
+    if (activeSession) {
+      disposeSession(activeSession);
+      activeSessionRef.current = null;
+    }
+    onBack();
+  }, [disposeSession, onBack]);
 
   const executeRequest = React.useCallback(async (request: Pf2eTerminalSearchRequest) => {
     const availability = getExecuteAvailability(request);
@@ -1015,6 +1032,23 @@ export function SearchScreen({
     autoRanInitialQuery.current = true;
     void executeRequest(initialRequest);
   }, [executeRequest, initialQuery, initialRequest]);
+
+  React.useEffect(() => {
+    const previousSession = activeSessionRef.current;
+    const nextSession = state.session;
+    if (previousSession && previousSession.windowId !== nextSession?.windowId) {
+      disposeSession(previousSession);
+    }
+    activeSessionRef.current = nextSession;
+  }, [disposeSession, state.session]);
+
+  React.useEffect(() => () => {
+    const activeSession = activeSessionRef.current;
+    if (activeSession) {
+      disposeSession(activeSession);
+      activeSessionRef.current = null;
+    }
+  }, [disposeSession]);
 
   React.useEffect(() => {
     const availability = getExecuteAvailability(state.draft);
@@ -1519,7 +1553,7 @@ export function SearchScreen({
     detailNavigationStateRef.current = detailNavigation.state;
 
     if (normalized === "ctrl_c" || normalized === "q") {
-      onBack();
+      exitSearchScreen();
       return;
     }
     if (normalized === "slash") {
@@ -1533,7 +1567,7 @@ export function SearchScreen({
         return;
       }
       if (normalized === "escape" || normalized === "backspace") {
-        onBack();
+        exitSearchScreen();
         return;
       }
       if (listNavigation.action?.kind === "move") {

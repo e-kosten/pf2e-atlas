@@ -34,6 +34,10 @@ function pressRight(app: ReturnType<typeof render>): void {
   app.stdin.write("\u001b[C");
 }
 
+function pressLeft(app: ReturnType<typeof render>): void {
+  app.stdin.write("\u001b[D");
+}
+
 function createTestConfig(): AppConfig {
   return {
     dataPath: "vendor/pf2e",
@@ -482,6 +486,116 @@ describe("search screen", () => {
     expect(search).not.toHaveBeenCalled();
     expect(app.lastFrame()).toContain("Beacon Sigil");
     expect(app.lastFrame()).toContain("[RESULTS] 1/3 | Buf 3 | Alphabetical");
+  });
+
+  it("closes the previous backend window when a new applied session replaces it", async () => {
+    const openSearchWindow = vi.fn()
+      .mockResolvedValueOnce({
+        id: "window-1",
+        searchProfile: null,
+        mode: "structured" as const,
+        sort: "alphabetical" as const,
+        sortSeed: null,
+        total: 1,
+        offset: 0,
+        limit: 120,
+        hasMore: false,
+        nextOffset: null,
+        records: [createRecord({ recordKey: "spell:a", id: "a", name: "Alarm Ward" })],
+      })
+      .mockResolvedValueOnce({
+        id: "window-2",
+        searchProfile: null,
+        mode: "structured" as const,
+        sort: "alphabetical" as const,
+        sortSeed: null,
+        total: 1,
+        offset: 0,
+        limit: 120,
+        hasMore: false,
+        nextOffset: null,
+        records: [createRecord({ recordKey: "spell:b", id: "b", name: "Beacon Sigil" })],
+      });
+    const closeSearchWindow = vi.fn();
+    const services = createServices({ openSearchWindow, closeSearchWindow });
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen onBack={vi.fn()} />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    app.stdin.write("\t");
+    await flushInk();
+    await flushInk();
+
+    pressLeft(app);
+    await flushInk();
+    app.stdin.write("\t");
+    await flushInk();
+    await flushInk();
+
+    expect(closeSearchWindow).toHaveBeenCalledTimes(1);
+    expect(closeSearchWindow).toHaveBeenCalledWith("window-1");
+    expect(app.lastFrame()).toContain("Beacon Sigil");
+  });
+
+  it("closes the active backend window when applied results are discarded", async () => {
+    const closeSearchWindow = vi.fn();
+    const services = createServices({ closeSearchWindow });
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen onBack={vi.fn()} />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    app.stdin.write("\t");
+    await flushInk();
+    await flushInk();
+
+    pressLeft(app);
+    await flushInk();
+    app.stdin.write("G");
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+
+    expect(closeSearchWindow).toHaveBeenCalledTimes(1);
+    expect(closeSearchWindow).toHaveBeenCalledWith("window-1");
+    expect(app.lastFrame()).toContain("No applied query yet");
+  });
+
+  it("closes the active backend window when the search screen exits", async () => {
+    const closeSearchWindow = vi.fn();
+    const services = createServices({ closeSearchWindow });
+    const onBack = vi.fn();
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen onBack={onBack} />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    app.stdin.write("\t");
+    await flushInk();
+    await flushInk();
+
+    app.stdin.write("q");
+    await flushInk();
+
+    expect(onBack).toHaveBeenCalledTimes(1);
+    expect(closeSearchWindow).toHaveBeenCalledTimes(1);
+    expect(closeSearchWindow).toHaveBeenCalledWith("window-1");
+
+    app.unmount();
   });
 
   it("supports shared gg and G navigation in the result reader", async () => {
