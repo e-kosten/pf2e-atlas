@@ -6,9 +6,10 @@ import type {
 } from "../tags/migration/types.js";
 import {
   TerminalTwoPaneScreen,
-  getDerivedTagTerminalListNavigationAction,
+  createDerivedTagTerminalListNavigationState,
   getNormalizedKeyName,
   getTerminalPaneBodyHeight,
+  resolveDerivedTagTerminalListNavigationAction,
   useDerivedTagTerminalApp,
   useDerivedTagTerminalInput,
   useDerivedTagTerminalSize,
@@ -74,7 +75,7 @@ function buildTagRefinementHelpLines(): DerivedTagTerminalLine[] {
     { text: "Up / Down or j / k: move between tag-refinement rows" },
     { text: "Ctrl-U / Ctrl-D: jump through the menu" },
     { text: "PageUp / PageDown or b / Space: page through the menu" },
-    { text: "Home / End: jump to the first or last row" },
+    { text: "gg / G or Home / End: jump to the first or last row" },
     { text: "Enter: open the selected row" },
     { text: "q or Backspace: return to top level" },
     { text: "" },
@@ -104,6 +105,7 @@ export function TagRefinementMenuScreen({
 }): React.JSX.Element {
   const terminal = useDerivedTagTerminalApp();
   const size = useDerivedTagTerminalSize();
+  const navigationStateRef = React.useRef(createDerivedTagTerminalListNavigationState());
   const bodyHeight = Math.max(1, getTerminalPaneBodyHeight(size.height, {
     hasSubtitle: true,
     footerLineCount: 2,
@@ -119,25 +121,29 @@ export function TagRefinementMenuScreen({
 
   useDerivedTagTerminalInput((input, key) => {
     const normalized = getNormalizedKeyName(input, key);
-    const navigation = getDerivedTagTerminalListNavigationAction(normalized, {
+    const navigation = resolveDerivedTagTerminalListNavigationAction(input, key, {
       pageSize: Math.max(1, bodyHeight - 1),
       jumpSize: Math.max(1, Math.floor(bodyHeight / 2)),
       includeConfirmKeys: true,
-    });
+    }, navigationStateRef.current);
+    navigationStateRef.current = navigation.state;
 
     if (isBackOrExitKey(normalized)) {
       onBack();
       return;
     }
-    if (navigation?.kind === "move") {
-      onMove(navigation.delta, menuItems.length);
+    if (navigation.action?.kind === "move") {
+      onMove(navigation.action.delta, menuItems.length);
       return;
     }
-    if (navigation?.kind === "boundary") {
-      onMove(navigation.boundary === "start" ? -clampedSelectedIndex : menuItems.length - 1 - clampedSelectedIndex, menuItems.length);
+    if (navigation.action?.kind === "boundary") {
+      onMove(
+        navigation.action.boundary === "start" ? -clampedSelectedIndex : menuItems.length - 1 - clampedSelectedIndex,
+        menuItems.length,
+      );
       return;
     }
-    if (navigation?.kind === "confirm") {
+    if (navigation.action?.kind === "confirm") {
       onOpenSelected(menuItems);
       return;
     }

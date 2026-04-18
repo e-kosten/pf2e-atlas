@@ -19,12 +19,13 @@ import type {
 } from "./search-service.js";
 import {
   TerminalTwoPaneScreen,
-  getDerivedTagTerminalListNavigationAction,
+  createDerivedTagTerminalListNavigationState,
   getNormalizedKeyName,
   getRenderedTerminalLineCount,
   getTerminalPaneBodyHeight,
   getTerminalTwoPaneDetailWidth,
   moveSelection,
+  resolveDerivedTagTerminalListNavigationAction,
   sliceRenderedTerminalLines,
   useDerivedTagTerminalApp,
   useDerivedTagTerminalInput,
@@ -742,16 +743,16 @@ function buildFooterText(
   loadingMore: boolean,
 ): string {
   if (state.layout === "draft") {
-    return "Up/Down select  Ctrl-U/D jump  PgUp/PgDn page  Home/End edge  Enter edit  Tab execute  / query  Esc/backspace back  q back";
+    return "Up/Down select  Ctrl-U/D jump  PgUp/PgDn page  gg/G or Home/End edge  Enter edit  Tab execute  / query  Esc/backspace back  q back";
   }
 
   if (state.activePane === "list") {
     return loadingMore
-      ? "Up/Down select  Ctrl-U/D jump  PgUp/PgDn page  Home/End edge  Left draft  Right preview  Enter preview  Tab toggle  O sort  Loading more..."
-      : "Up/Down select  Ctrl-U/D jump  PgUp/PgDn page  Home/End edge  Left draft  Right preview  Enter preview  Tab toggle  O sort  q back";
+      ? "Up/Down select  Ctrl-U/D jump  PgUp/PgDn page  gg/G or Home/End edge  Left draft  Right preview  Enter preview  Tab toggle  O sort  Loading more..."
+      : "Up/Down select  Ctrl-U/D jump  PgUp/PgDn page  gg/G or Home/End edge  Left draft  Right preview  Enter preview  Tab toggle  O sort  q back";
   }
 
-  return "Up/Down scroll  Ctrl-U/D jump  PgUp/PgDn page  Home/End edge  Left results  Tab toggle  O sort  Esc/backspace results  q back";
+  return "Up/Down scroll  Ctrl-U/D jump  PgUp/PgDn page  gg/G or Home/End edge  Left results  Tab toggle  O sort  Esc/backspace results  q back";
 }
 
 export function SearchScreen({
@@ -778,6 +779,8 @@ export function SearchScreen({
   const [state, dispatch] = React.useReducer(searchScreenReducer, initialRequest, createInitialSearchScreenState);
   const autoRanInitialQuery = React.useRef(false);
   const loadMoreSessionKeyRef = React.useRef<string | null>(null);
+  const listNavigationStateRef = React.useRef(createDerivedTagTerminalListNavigationState());
+  const detailNavigationStateRef = React.useRef(createDerivedTagTerminalListNavigationState());
 
   const workspaceEntries = buildWorkspaceEntries(state, countState);
   const workspaceSelectedIndex = Math.max(0, Math.min(state.workspaceSelectedIndex, Math.max(0, workspaceEntries.length - 1)));
@@ -1353,15 +1356,17 @@ export function SearchScreen({
     }
 
     const normalized = getNormalizedKeyName(input, key);
-    const listNavigation = getDerivedTagTerminalListNavigationAction(normalized, {
+    const listNavigation = resolveDerivedTagTerminalListNavigationAction(input, key, {
       pageSize,
       jumpSize: selectionJumpSize,
       includeConfirmKeys: true,
-    });
-    const detailNavigation = getDerivedTagTerminalListNavigationAction(normalized, {
+    }, listNavigationStateRef.current);
+    listNavigationStateRef.current = listNavigation.state;
+    const detailNavigation = resolveDerivedTagTerminalListNavigationAction(input, key, {
       pageSize,
       jumpSize: selectionJumpSize,
-    });
+    }, detailNavigationStateRef.current);
+    detailNavigationStateRef.current = detailNavigation.state;
 
     if (normalized === "ctrl_c" || normalized === "q") {
       onBack();
@@ -1381,15 +1386,19 @@ export function SearchScreen({
         onBack();
         return;
       }
-      if (listNavigation?.kind === "move") {
-        dispatch({ type: "move_workspace_selection", delta: listNavigation.delta, itemCount: workspaceEntries.length });
+      if (listNavigation.action?.kind === "move") {
+        dispatch({ type: "move_workspace_selection", delta: listNavigation.action.delta, itemCount: workspaceEntries.length });
         return;
       }
-      if (listNavigation?.kind === "boundary") {
-        dispatch({ type: "workspace_selection_boundary", boundary: listNavigation.boundary, itemCount: workspaceEntries.length });
+      if (listNavigation.action?.kind === "boundary") {
+        dispatch({
+          type: "workspace_selection_boundary",
+          boundary: listNavigation.action.boundary,
+          itemCount: workspaceEntries.length,
+        });
         return;
       }
-      if (listNavigation?.kind === "confirm") {
+      if (listNavigation.action?.kind === "confirm") {
         openSelectedWorkspaceEntry();
         return;
       }
@@ -1449,16 +1458,16 @@ export function SearchScreen({
         dispatch({ type: "set_layout", layout: "draft", pane: "list" });
         return;
       }
-      if ((normalized === "right" || listNavigation?.kind === "confirm") && selectedResult) {
+      if ((normalized === "right" || listNavigation.action?.kind === "confirm") && selectedResult) {
         dispatch({ type: "set_active_pane", pane: "detail" });
         return;
       }
-      if (listNavigation?.kind === "move") {
-        dispatch({ type: "move_result_selection", delta: listNavigation.delta, itemCount: resultCount });
+      if (listNavigation.action?.kind === "move") {
+        dispatch({ type: "move_result_selection", delta: listNavigation.action.delta, itemCount: resultCount });
         return;
       }
-      if (listNavigation?.kind === "boundary") {
-        dispatch({ type: "result_selection_boundary", boundary: listNavigation.boundary, itemCount: resultCount });
+      if (listNavigation.action?.kind === "boundary") {
+        dispatch({ type: "result_selection_boundary", boundary: listNavigation.action.boundary, itemCount: resultCount });
       }
       return;
     }
@@ -1467,12 +1476,12 @@ export function SearchScreen({
       dispatch({ type: "set_active_pane", pane: "list" });
       return;
     }
-    if (detailNavigation?.kind === "move") {
-      dispatch({ type: "move_detail", delta: detailNavigation.delta, maxDetailScroll });
+    if (detailNavigation.action?.kind === "move") {
+      dispatch({ type: "move_detail", delta: detailNavigation.action.delta, maxDetailScroll });
       return;
     }
-    if (detailNavigation?.kind === "boundary") {
-      dispatch({ type: "detail_boundary", boundary: detailNavigation.boundary, maxDetailScroll });
+    if (detailNavigation.action?.kind === "boundary") {
+      dispatch({ type: "detail_boundary", boundary: detailNavigation.action.boundary, maxDetailScroll });
     }
   }, !busy);
 

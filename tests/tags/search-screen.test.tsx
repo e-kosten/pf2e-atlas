@@ -477,6 +477,57 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("3/3 loaded | Alphabetical");
   });
 
+  it("supports shared gg and G navigation in the result reader", async () => {
+    const records = [
+      createRecord({ recordKey: "spell:a", id: "a", name: "Alarm Ward" }),
+      createRecord({ recordKey: "spell:b", id: "b", name: "Arcane Echo" }),
+      createRecord({ recordKey: "spell:c", id: "c", name: "Beacon Sigil" }),
+    ];
+    const services = createServices({
+      openSearchWindow: vi.fn(async () => ({
+        id: "window-1",
+        searchProfile: null,
+        mode: "structured" as const,
+        sort: "alphabetical" as const,
+        sortSeed: null,
+        total: 3,
+        offset: 0,
+        limit: 120,
+        hasMore: false,
+        nextOffset: null,
+        records,
+      })),
+    });
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen onBack={vi.fn()} />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    app.stdin.write("\t");
+    await flushInk();
+    await flushInk();
+
+    app.stdin.write("G");
+    await flushInk();
+    pressRight(app);
+    await flushInk();
+    expect(app.lastFrame()).toContain("[PREVIEW] Beacon Sigil");
+
+    app.stdin.write("\u001b[D");
+    await flushInk();
+    app.stdin.write("g");
+    await flushInk();
+    app.stdin.write("g");
+    await flushInk();
+    pressRight(app);
+    await flushInk();
+    expect(app.lastFrame()).toContain("[PREVIEW] Alarm Ward");
+  });
+
   it("prefetches the full result set for small totals so paging stays invisible", async () => {
     const firstPageRecords = Array.from({ length: 120 }, (_, index) => createRecord({
       recordKey: `spell:${index}`,

@@ -4,8 +4,9 @@ import type { OntologyDomainModel, OntologyNodeQuery } from "../../types.js";
 import {
   TerminalPaneScreen,
   TerminalTwoPaneScreen,
-  getDerivedTagTerminalListNavigationAction,
+  createDerivedTagTerminalListNavigationState,
   getNormalizedKeyName,
+  resolveDerivedTagTerminalListNavigationAction,
   useDerivedTagTerminalApp,
   useDerivedTagTerminalInput,
   useDerivedTagTerminalSize,
@@ -27,7 +28,6 @@ import {
   getOntologyBrowserDetailMetrics,
   getOntologyBrowserDetailTitle,
   getOntologyBrowserSelection,
-  isExactPrintableOntologyBrowserKey,
   jumpOntologyBrowserSelection,
   moveOntologyBrowserDetailScroll,
   moveOntologyBrowserDetailScrollToBoundary,
@@ -52,8 +52,7 @@ type ExplorerAction =
   | { type: "drill_in" }
   | { type: "pop_depth" }
   | { type: "move_detail"; delta: number; maxDetailScroll: number }
-  | { type: "detail_boundary"; boundary: "start" | "end"; maxDetailScroll: number }
-  | { type: "set_pending_g"; pending: boolean };
+  | { type: "detail_boundary"; boundary: "start" | "end"; maxDetailScroll: number };
 
 function reduceExplorerTwoPaneState(
   state: OntologyBrowserUiState,
@@ -96,7 +95,6 @@ function explorerReducer(
     case "set_search_mode":
       return {
         ...state,
-        pendingListCommand: null,
         searchInput: action.searchInput ?? state.searchInput,
         searchMode: action.searchMode,
       };
@@ -120,26 +118,22 @@ function explorerReducer(
       return {
         ...state,
         browserState: setOntologyBrowserFilter(model, state.browserState, ""),
-        pendingListCommand: null,
         searchInput: "",
       };
     case "move_selection":
       return {
         ...state,
         browserState: moveOntologyBrowserSelection(model, state.browserState, action.delta),
-        pendingListCommand: null,
       };
     case "jump_selection":
       return {
         ...state,
         browserState: jumpOntologyBrowserSelection(model, state.browserState, action.delta),
-        pendingListCommand: null,
       };
     case "selection_boundary":
       return {
         ...state,
         browserState: moveOntologyBrowserSelectionToBoundary(model, state.browserState, action.boundary),
-        pendingListCommand: null,
       };
     case "drill_in":
       return {
@@ -147,7 +141,6 @@ function explorerReducer(
         activePane: "list",
         browserState: drillIntoOntologyBrowser(model, state.browserState),
         layoutMode: "split",
-        pendingListCommand: null,
         searchInput: "",
         searchMode: false,
       };
@@ -157,7 +150,6 @@ function explorerReducer(
         activePane: "list",
         browserState: popOntologyBrowserDepth(state.browserState),
         layoutMode: "split",
-        pendingListCommand: null,
         searchInput: "",
         searchMode: false,
       };
@@ -166,19 +158,12 @@ function explorerReducer(
         ...state,
         ...reduceExplorerTwoPaneState(state, action),
         browserState: moveOntologyBrowserDetailScroll(state.browserState, action.delta, action.maxDetailScroll),
-        pendingListCommand: null,
       };
     case "detail_boundary":
       return {
         ...state,
         ...reduceExplorerTwoPaneState(state, action),
         browserState: moveOntologyBrowserDetailScrollToBoundary(state.browserState, action.boundary, action.maxDetailScroll),
-        pendingListCommand: null,
-      };
-    case "set_pending_g":
-      return {
-        ...state,
-        pendingListCommand: action.pending ? "g" : null,
       };
     default:
       return state;
@@ -220,6 +205,8 @@ export function OntologyBrowserScreen({
     : normalizedBrowserState;
   const breadcrumb = buildOntologyBrowserBreadcrumb(model, effectiveState);
   const currentNodeHasChildren = canDrillIntoOntologyNode(selection.currentNode);
+  const listNavigationStateRef = React.useRef(createDerivedTagTerminalListNavigationState());
+  const detailNavigationStateRef = React.useRef(createDerivedTagTerminalListNavigationState());
   const searchIndicator = state.searchMode
     ? ` | /${state.searchInput}`
     : effectiveState.filter
@@ -229,24 +216,22 @@ export function OntologyBrowserScreen({
   useDerivedTagTerminalInput((input, key) => {
     const normalized = getNormalizedKeyName(input, key);
     const printable = key.ctrl || key.meta ? undefined : input.length === 1 ? input : undefined;
-    const listNavigation = getDerivedTagTerminalListNavigationAction(normalized, {
+    const listNavigation = resolveDerivedTagTerminalListNavigationAction(input, key, {
       pageSize: metrics.detailPageSize,
       jumpSize: metrics.selectionJumpSize,
       includeConfirmKeys: true,
       includeHorizontalConfirmKeys: true,
       includeVimHorizontalConfirmKeys: true,
-    });
-    const detailNavigation = getDerivedTagTerminalListNavigationAction(normalized, {
+    }, listNavigationStateRef.current);
+    listNavigationStateRef.current = listNavigation.state;
+    const detailNavigation = resolveDerivedTagTerminalListNavigationAction(input, key, {
       pageSize: metrics.detailPageSize,
       jumpSize: metrics.detailJumpSize,
       includeCancelKeys: true,
       includeHorizontalCancelKeys: true,
       includeVimHorizontalCancelKeys: true,
-    });
-
-    if (state.pendingListCommand && printable !== "g") {
-      dispatch({ type: "set_pending_g", pending: false });
-    }
+    }, detailNavigationStateRef.current);
+    detailNavigationStateRef.current = detailNavigation.state;
 
     if (normalized === "ctrl_c") {
       onExit();
@@ -296,45 +281,33 @@ export function OntologyBrowserScreen({
     }
 
     if (state.activePane === "detail") {
-      if (detailNavigation?.kind === "move") {
-        dispatch({ type: "move_detail", delta: detailNavigation.delta, maxDetailScroll: metrics.maxDetailScroll });
+      if (detailNavigation.action?.kind === "move") {
+        dispatch({ type: "move_detail", delta: detailNavigation.action.delta, maxDetailScroll: metrics.maxDetailScroll });
         return;
       }
-      if (detailNavigation?.kind === "boundary") {
-        dispatch({ type: "detail_boundary", boundary: detailNavigation.boundary, maxDetailScroll: metrics.maxDetailScroll });
+      if (detailNavigation.action?.kind === "boundary") {
+        dispatch({ type: "detail_boundary", boundary: detailNavigation.action.boundary, maxDetailScroll: metrics.maxDetailScroll });
         return;
       }
-      if (detailNavigation?.kind === "cancel") {
+      if (detailNavigation.action?.kind === "cancel") {
         dispatch({ type: "leave_detail" });
         return;
       }
       return;
     }
 
-    if (listNavigation?.kind === "move") {
-      const isJump = Math.abs(listNavigation.delta) > 1;
+    if (listNavigation.action?.kind === "move") {
+      const isJump = Math.abs(listNavigation.action.delta) > 1;
       dispatch(isJump
-        ? { type: "jump_selection", delta: listNavigation.delta }
-        : { type: "move_selection", delta: listNavigation.delta });
+        ? { type: "jump_selection", delta: listNavigation.action.delta }
+        : { type: "move_selection", delta: listNavigation.action.delta });
       return;
     }
-    if (listNavigation?.kind === "boundary") {
-      dispatch({ type: "selection_boundary", boundary: listNavigation.boundary });
+    if (listNavigation.action?.kind === "boundary") {
+      dispatch({ type: "selection_boundary", boundary: listNavigation.action.boundary });
       return;
     }
-    if (normalized === "g" && isExactPrintableOntologyBrowserKey(input, key, "g")) {
-      if (state.pendingListCommand === "g") {
-        dispatch({ type: "selection_boundary", boundary: "start" });
-      } else {
-        dispatch({ type: "set_pending_g", pending: true });
-      }
-      return;
-    }
-    if (normalized === "g" && isExactPrintableOntologyBrowserKey(input, key, "G")) {
-      dispatch({ type: "selection_boundary", boundary: "end" });
-      return;
-    }
-    if (listNavigation?.kind === "confirm") {
+    if (listNavigation.action?.kind === "confirm") {
       if (currentNodeHasChildren) {
         dispatch({ type: "drill_in" });
       } else {

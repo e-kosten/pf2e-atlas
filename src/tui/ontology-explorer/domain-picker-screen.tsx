@@ -3,9 +3,10 @@ import React from "react";
 import type { OntologyDomainSummary } from "../../types.js";
 import {
   TerminalTwoPaneScreen,
-  getDerivedTagTerminalListNavigationAction,
+  createDerivedTagTerminalListNavigationState,
   getNormalizedKeyName,
   getTerminalPaneBodyHeight,
+  resolveDerivedTagTerminalListNavigationAction,
   useDerivedTagTerminalApp,
   useDerivedTagTerminalInput,
   useDerivedTagTerminalSize,
@@ -27,6 +28,7 @@ export function OntologyDomainPickerScreen({
 }): React.JSX.Element {
   const terminal = useDerivedTagTerminalApp();
   const size = useDerivedTagTerminalSize();
+  const navigationStateRef = React.useRef(createDerivedTagTerminalListNavigationState());
   const selectedDomain = domains[selectedIndex];
   const bodyHeight = Math.max(1, getTerminalPaneBodyHeight(size.height, {
     hasSubtitle: true,
@@ -35,26 +37,27 @@ export function OntologyDomainPickerScreen({
 
   useDerivedTagTerminalInput((input, key) => {
     const normalized = getNormalizedKeyName(input, key);
-    const navigation = getDerivedTagTerminalListNavigationAction(normalized, {
+    const navigation = resolveDerivedTagTerminalListNavigationAction(input, key, {
       pageSize: Math.max(1, bodyHeight - 1),
       jumpSize: Math.max(1, Math.floor(bodyHeight / 2)),
       includeConfirmKeys: true,
       includeHorizontalConfirmKeys: true,
       includeVimHorizontalConfirmKeys: true,
-    });
+    }, navigationStateRef.current);
+    navigationStateRef.current = navigation.state;
     if (normalized === "ctrl_c" || normalized === "q" || normalized === "escape" || normalized === "backspace") {
       onBack();
       return;
     }
-    if (navigation?.kind === "move") {
-      onMove(navigation.delta, domains.length);
+    if (navigation.action?.kind === "move") {
+      onMove(navigation.action.delta, domains.length);
       return;
     }
-    if (navigation?.kind === "boundary") {
-      onMove(navigation.boundary === "start" ? -selectedIndex : domains.length - 1 - selectedIndex, domains.length);
+    if (navigation.action?.kind === "boundary") {
+      onMove(navigation.action.boundary === "start" ? -selectedIndex : domains.length - 1 - selectedIndex, domains.length);
       return;
     }
-    if (navigation?.kind === "confirm") {
+    if (navigation.action?.kind === "confirm") {
       onOpenSelected();
       return;
     }
@@ -92,7 +95,7 @@ export function OntologyDomainPickerScreen({
           : [{ text: "No domain selected.", tone: "dim" }],
       }}
       footer={[
-        { text: "Up/Down move  Ctrl-U/D jump  PgUp/PgDn page  Home/End edge  Enter/right/l select  ? help  q back", tone: "dim" },
+        { text: "Up/Down move  Ctrl-U/D jump  PgUp/PgDn page  gg/G or Home/End edge  Enter/right/l select  ? help  q back", tone: "dim" },
         { text: selectedDomain?.label ?? "-", tone: "accent" },
       ]}
       leftWidth={32}

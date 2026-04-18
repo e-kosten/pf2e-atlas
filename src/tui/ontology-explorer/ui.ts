@@ -28,7 +28,6 @@ export type OntologyBrowserUiState = {
   activePane: "list" | "detail";
   browserState: OntologyBrowserState;
   layoutMode: DerivedTagTerminalTwoPaneLayoutMode;
-  pendingListCommand: "g" | null;
   searchInput: string;
   searchMode: boolean;
 };
@@ -392,7 +391,6 @@ export function createOntologyBrowserUiState(
     activePane: "list",
     browserState,
     layoutMode: "split",
-    pendingListCommand: null,
     searchInput: browserState.filter,
     searchMode: false,
   };

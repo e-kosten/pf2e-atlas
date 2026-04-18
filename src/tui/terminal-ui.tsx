@@ -564,6 +564,10 @@ export type DerivedTagTerminalListNavigationAction =
   | { kind: "confirm" }
   | { kind: "cancel" };
 
+export type DerivedTagTerminalListNavigationState = {
+  pendingBoundaryPrefix: "g" | null;
+};
+
 export type DerivedTagTerminalListNavigationOptions = {
   pageSize: number;
   jumpSize?: number;
@@ -574,6 +578,12 @@ export type DerivedTagTerminalListNavigationOptions = {
   includeVimHorizontalConfirmKeys?: boolean;
   includeVimHorizontalCancelKeys?: boolean;
 };
+
+export function createDerivedTagTerminalListNavigationState(): DerivedTagTerminalListNavigationState {
+  return {
+    pendingBoundaryPrefix: null,
+  };
+}
 
 export function getDerivedTagTerminalListNavigationAction(
   normalizedKey: string,
@@ -628,6 +638,49 @@ export function getDerivedTagTerminalListNavigationAction(
   }
 
   return undefined;
+}
+
+export function resolveDerivedTagTerminalListNavigationAction(
+  input: string,
+  key: Key,
+  options: DerivedTagTerminalListNavigationOptions,
+  state: DerivedTagTerminalListNavigationState = createDerivedTagTerminalListNavigationState(),
+): {
+  action: DerivedTagTerminalListNavigationAction | undefined;
+  state: DerivedTagTerminalListNavigationState;
+} {
+  const normalized = getNormalizedKeyName(input, key);
+  const clearedState = createDerivedTagTerminalListNavigationState();
+
+  if (normalized === "g") {
+    if (isExactPrintableTerminalKey(input, key, "G")) {
+      return {
+        action: { kind: "boundary", boundary: "end" },
+        state: clearedState,
+      };
+    }
+
+    if (isExactPrintableTerminalKey(input, key, "g")) {
+      if (state.pendingBoundaryPrefix === "g") {
+        return {
+          action: { kind: "boundary", boundary: "start" },
+          state: clearedState,
+        };
+      }
+
+      return {
+        action: undefined,
+        state: {
+          pendingBoundaryPrefix: "g",
+        },
+      };
+    }
+  }
+
+  return {
+    action: getDerivedTagTerminalListNavigationAction(normalized, options),
+    state: clearedState,
+  };
 }
 
 export function getNormalizedKeyName(input: string, key: Key): string {
@@ -708,6 +761,10 @@ export function getPrintableInput(input: string, key: Key): string | undefined {
     return undefined;
   }
   return input;
+}
+
+export function isExactPrintableTerminalKey(input: string, key: Key, expected: string): boolean {
+  return expected.length === 1 && getPrintableInput(input, key) === expected;
 }
 
 function PromptBody({
@@ -1041,17 +1098,21 @@ function DerivedTagTerminalModalHost({
   modal: TerminalModalState;
   setModal: React.Dispatch<React.SetStateAction<TerminalModalState>>;
 }): React.JSX.Element | null {
+  const listNavigationStateRef = React.useRef(createDerivedTagTerminalListNavigationState());
+
   useInput((input, key) => {
     const normalized = getNormalizedKeyName(input, key);
     const printable = getPrintableInput(input, key);
-    const modalNavigation = getDerivedTagTerminalListNavigationAction(normalized, {
+    const modalNavigation = resolveDerivedTagTerminalListNavigationAction(input, key, {
       pageSize: 10,
       jumpSize: 5,
       includeCancelKeys: true,
       includeHorizontalCancelKeys: true,
-    });
+    }, listNavigationStateRef.current);
+    listNavigationStateRef.current = modalNavigation.state;
 
     if (!modal) {
+      listNavigationStateRef.current = createDerivedTagTerminalListNavigationState();
       return;
     }
 
@@ -1117,17 +1178,26 @@ function DerivedTagTerminalModalHost({
       return;
     }
 
-    if (modalNavigation?.kind === "move") {
+    const modalNavigationAction = modalNavigation.action;
+
+    if (modalNavigationAction?.kind === "move") {
       setModal((current) => current && (current.kind === "select" || current.kind === "multiselect" || current.kind === "policy")
-        ? { ...current, selectedIndex: moveSelectionWrapped(current.selectedIndex, modalNavigation.delta, current.options.entries.length) }
+        ? {
+            ...current,
+            selectedIndex: moveSelectionWrapped(
+              current.selectedIndex,
+              modalNavigationAction.delta,
+              current.options.entries.length,
+            ),
+          }
         : current);
       return;
     }
-    if (modalNavigation?.kind === "boundary") {
+    if (modalNavigationAction?.kind === "boundary") {
       setModal((current) => current && (current.kind === "select" || current.kind === "multiselect" || current.kind === "policy")
         ? {
           ...current,
-          selectedIndex: modalNavigation.boundary === "start"
+          selectedIndex: modalNavigationAction.boundary === "start"
             ? 0
             : Math.max(0, current.options.entries.length - 1),
         }

@@ -2,9 +2,10 @@ import React from "react";
 
 import {
   TerminalTwoPaneScreen,
-  getDerivedTagTerminalListNavigationAction,
+  createDerivedTagTerminalListNavigationState,
   getNormalizedKeyName,
   getTerminalPaneBodyHeight,
+  resolveDerivedTagTerminalListNavigationAction,
   useDerivedTagTerminalApp,
   useDerivedTagTerminalInput,
   useDerivedTagTerminalSize,
@@ -52,7 +53,7 @@ function buildTopLevelHelpLines(): DerivedTagTerminalLine[] {
     { text: "Up / Down or j / k: move between areas" },
     { text: "Ctrl-U / Ctrl-D: jump through the area list" },
     { text: "PageUp / PageDown or b / Space: page through the area list" },
-    { text: "Home / End: jump to the first or last area" },
+    { text: "gg / G or Home / End: jump to the first or last area" },
     { text: "Enter: open the selected area" },
     { text: "q: exit the terminal app" },
   ];
@@ -78,6 +79,7 @@ export function AreaMenuScreen({
   const terminal = useDerivedTagTerminalApp();
   const size = useDerivedTagTerminalSize();
   const selectedArea = areas[selectedAreaIndex];
+  const navigationStateRef = React.useRef(createDerivedTagTerminalListNavigationState());
   const bodyHeight = Math.max(1, getTerminalPaneBodyHeight(size.height, {
     hasSubtitle: true,
     footerLineCount: 2,
@@ -85,27 +87,28 @@ export function AreaMenuScreen({
 
   useDerivedTagTerminalInput((input, key) => {
     const normalized = getNormalizedKeyName(input, key);
-    const navigation = getDerivedTagTerminalListNavigationAction(normalized, {
+    const navigation = resolveDerivedTagTerminalListNavigationAction(input, key, {
       pageSize: Math.max(1, bodyHeight - 1),
       jumpSize: Math.max(1, Math.floor(bodyHeight / 2)),
       includeConfirmKeys: true,
       includeHorizontalConfirmKeys: true,
       includeVimHorizontalConfirmKeys: true,
-    });
+    }, navigationStateRef.current);
+    navigationStateRef.current = navigation.state;
     if (isApplicationExitKey(normalized) || normalized === "escape") {
       onQuit();
       return;
     }
-    if (navigation?.kind === "move") {
-      onMove(navigation.delta);
+    if (navigation.action?.kind === "move") {
+      onMove(navigation.action.delta);
       return;
     }
-    if (navigation?.kind === "confirm") {
+    if (navigation.action?.kind === "confirm") {
       onOpenSelectedArea();
       return;
     }
-    if (navigation?.kind === "boundary") {
-      onMove(navigation.boundary === "start" ? -selectedAreaIndex : areas.length - 1 - selectedAreaIndex);
+    if (navigation.action?.kind === "boundary") {
+      onMove(navigation.action.boundary === "start" ? -selectedAreaIndex : areas.length - 1 - selectedAreaIndex);
       return;
     }
     if (isHelpKey(normalized)) {
@@ -131,7 +134,7 @@ export function AreaMenuScreen({
         lines: buildAreaDetailLines(selectedArea, pendingReviewCount),
       }}
       footer={[
-        { text: "Up/Down move  Ctrl-U/D jump  PgUp/PgDn page  Home/End edge  Enter/right/l select  ? help  q quit", tone: "dim" },
+        { text: "Up/Down move  Ctrl-U/D jump  PgUp/PgDn page  gg/G or Home/End edge  Enter/right/l select  ? help  q quit", tone: "dim" },
         {
           text: `${selectedArea ? formatAreaAudience(selectedArea.audience) : "-"} | ${pendingReviewCount} pending queue slice${pendingReviewCount === 1 ? "" : "s"}`,
           tone: "accent",

@@ -4,10 +4,12 @@ import { cleanup, render } from "ink-testing-library";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
+  createDerivedTagTerminalListNavigationState,
   type DerivedTagTerminalPolicySelection,
   DerivedTagTerminalProvider,
   TerminalTextScreen,
   getNormalizedKeyName,
+  resolveDerivedTagTerminalListNavigationAction,
   useDerivedTagTerminalApp,
   useDerivedTagTerminalInput,
 } from "../../src/tui/terminal-ui.js";
@@ -284,5 +286,21 @@ describe("derived tag terminal ink runtime", () => {
     expect(getNormalizedKeyName("\u001b", {} as never)).toBe("escape");
     expect(getNormalizedKeyName("\u0015", {} as never)).toBe("ctrl_u");
     expect(getNormalizedKeyName("d", { ctrl: true } as never)).toBe("ctrl_d");
+  });
+
+  it("resolves shared gg and G list-boundary navigation", () => {
+    const options = { pageSize: 10 };
+
+    const firstG = resolveDerivedTagTerminalListNavigationAction("g", {} as never, options);
+    expect(firstG.action).toBeUndefined();
+    expect(firstG.state.pendingBoundaryPrefix).toBe("g");
+
+    const secondG = resolveDerivedTagTerminalListNavigationAction("g", {} as never, options, firstG.state);
+    expect(secondG.action).toEqual({ kind: "boundary", boundary: "start" });
+    expect(secondG.state).toEqual(createDerivedTagTerminalListNavigationState());
+
+    const upperG = resolveDerivedTagTerminalListNavigationAction("G", {} as never, options);
+    expect(upperG.action).toEqual({ kind: "boundary", boundary: "end" });
+    expect(upperG.state).toEqual(createDerivedTagTerminalListNavigationState());
   });
 });
