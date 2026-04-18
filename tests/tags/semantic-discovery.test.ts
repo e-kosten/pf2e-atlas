@@ -305,4 +305,63 @@ describe("semantic discovery evaluator", () => {
     expect(result.candidateCount).toBe(1);
     expect(result.candidates.map((entry) => entry.name)).toEqual(["Likely Candidate"]);
   });
+
+  it("rejects invalid decoded category rows", () => {
+    const db = createSemanticDiscoveryDb();
+    try {
+      insertDiscoveryRecord(db, {
+        recordKey: "bad:record",
+        name: "Broken Exemplar",
+        category: "not-a-real-category",
+        level: 3,
+        traits: ["undead"],
+        derivedTags: [],
+        descriptionText: "Broken row.",
+        vector: [1, 0, 0],
+      });
+
+      expect(() =>
+        discoverSemanticCandidates(db, {
+          exemplarRecordKeys: ["bad:record"],
+        }),
+      ).toThrow('Invalid discovery category "not-a-real-category"');
+    } finally {
+      db.close();
+    }
+  });
+
+  it("rejects malformed trait arrays in decoded exemplar rows", () => {
+    const db = createSemanticDiscoveryDb();
+    try {
+      db.prepare(
+        `
+          INSERT INTO records (
+            record_key, name, normalized_name, category, subcategory, level, traits_json, derived_tags_json, description_text, is_search_canonical
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+        `,
+      ).run(
+        "creature:broken-traits",
+        "Broken Traits",
+        "broken traits",
+        "creature",
+        null,
+        3,
+        '{"not":"an array"}',
+        "[]",
+        "Broken row.",
+      );
+      db.prepare("INSERT INTO embeddings (record_key, vector_blob) VALUES (?, ?)").run(
+        "creature:broken-traits",
+        blob([1, 0, 0]),
+      );
+
+      expect(() =>
+        discoverSemanticCandidates(db, {
+          exemplarRecordKeys: ["creature:broken-traits"],
+        }),
+      ).toThrow('Expected traitsJson for "creature:broken-traits" to be a JSON string array.');
+    } finally {
+      db.close();
+    }
+  });
 });

@@ -9,6 +9,12 @@ import {
 import { SearchCategory, SearchSubcategory } from "../../types.js";
 import { type DiscoveryEvidenceTerm, analyzeDiscoveryEvidenceFromRecords } from "./evidence-analyzer.js";
 import { tokenizeDiscoveryText } from "../discovery/discovery-normalization.js";
+import {
+  decodeDiscoveryVector,
+  parseDiscoveryCategory,
+  parseDiscoveryStringArrayJson,
+  parseDiscoverySubcategory,
+} from "../discovery/row-decoding.js";
 
 export type DerivedTagGapRecord = {
   recordKey: string;
@@ -88,6 +94,20 @@ type LoadedGapRow = {
   descriptionText: string | null;
   vectorBlob: Uint8Array;
 };
+
+function toDerivedTagGapRecord(row: LoadedGapRow): DerivedTagGapRecord {
+  const category = parseDiscoveryCategory(row.category, row.recordKey);
+  return {
+    recordKey: row.recordKey,
+    name: row.name,
+    category,
+    subcategory: parseDiscoverySubcategory(category, row.subcategory, row.recordKey),
+    level: typeof row.level === "bigint" ? Number(row.level) : row.level,
+    traits: parseDiscoveryStringArrayJson(row.traitsJson, "traitsJson", row.recordKey),
+    descriptionText: row.descriptionText,
+    vector: decodeDiscoveryVector(row.vectorBlob),
+  };
+}
 
 export function evaluateDerivedTagGaps(
   db: DatabaseSync,
@@ -278,16 +298,7 @@ function loadGapRecords(
   }
 
   const rows = db.prepare(sql.join("\n")).all(...params) as LoadedGapRow[];
-  return rows.map((row) => ({
-    recordKey: row.recordKey,
-    name: row.name,
-    category: row.category as SearchCategory,
-    subcategory: (row.subcategory ?? null) as SearchSubcategory | null,
-    level: typeof row.level === "bigint" ? Number(row.level) : row.level,
-    traits: JSON.parse(row.traitsJson) as string[],
-    descriptionText: row.descriptionText,
-    vector: decodeVector(row.vectorBlob),
-  }));
+  return rows.map(toDerivedTagGapRecord);
 }
 
 function loadGapRecordsByRecordKeys(
@@ -325,25 +336,7 @@ function loadGapRecordsByRecordKeys(
   }
 
   const rows = db.prepare(sql.join("\n")).all(...params) as LoadedGapRow[];
-  return rows.map((row) => ({
-    recordKey: row.recordKey,
-    name: row.name,
-    category: row.category as SearchCategory,
-    subcategory: (row.subcategory ?? null) as SearchSubcategory | null,
-    level: typeof row.level === "bigint" ? Number(row.level) : row.level,
-    traits: JSON.parse(row.traitsJson) as string[],
-    descriptionText: row.descriptionText,
-    vector: decodeVector(row.vectorBlob),
-  }));
-}
-
-function decodeVector(blob: Uint8Array | null | undefined): Float32Array {
-  if (!blob || blob.byteLength === 0) {
-    return new Float32Array(0);
-  }
-
-  const copy = Uint8Array.from(blob);
-  return new Float32Array(copy.buffer);
+  return rows.map(toDerivedTagGapRecord);
 }
 
 function toAnalysisRecord(record: DerivedTagGapRecord) {

@@ -290,4 +290,42 @@ describe("derived tag gap evaluator", () => {
       db.close();
     }
   });
+
+  it("rejects invalid decoded gap subcategories", () => {
+    const db = createGapEvaluatorDb();
+    try {
+      insertGapRecord(db, {
+        recordKey: "equipment:1",
+        name: "Tagged Example",
+        category: "equipment",
+        subcategory: "gear",
+        level: 5,
+        traits: ["magical"],
+        descriptionText: "Tagged exemplar.",
+        vector: [1, 0, 0],
+        tags: ["disguise"],
+      });
+      insertGapRecord(db, {
+        recordKey: "spell:1",
+        name: "Broken Candidate",
+        category: "spell",
+        subcategory: "action",
+        level: 1,
+        traits: ["illusion"],
+        descriptionText: "Invalid subcategory row.",
+        vector: [0.9, 0.1, 0],
+      });
+
+      expect(() =>
+        evaluateDerivedTagGaps(db, {
+          tag: "disguise",
+          category: "spell",
+          exemplarCategory: "equipment",
+          exemplarSubcategory: "gear",
+        }),
+      ).toThrow('Invalid discovery subcategory "action" for spell record');
+    } finally {
+      db.close();
+    }
+  });
 });

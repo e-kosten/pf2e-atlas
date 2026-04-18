@@ -5,6 +5,13 @@ import { tokenize } from "../../search/ranking.js";
 import { normalizeText } from "../../utils.js";
 import { resolveDiscoveryGramRange } from "./discovery-normalization.js";
 import { normalizeDerivedTag } from "../index.js";
+import {
+  decodeDiscoveryVector,
+  parseDiscoveryCategory,
+  parseDiscoveryStringArrayJson,
+  parseDiscoverySubcategory,
+  parseResolvedExemplarMatchType,
+} from "./row-decoding.js";
 
 const DEFAULT_CANDIDATE_LIMIT = 25;
 const DEFAULT_EXEMPLAR_LIMIT = 8;
@@ -196,7 +203,8 @@ export function discoverSemanticCandidates(
     throw new Error("Provide at least one exemplar via --name or --record-key.");
   }
 
-  const scope = resolveDiscoveryScope(options, resolvedExemplars);
+  const exemplarRecords = resolvedExemplars.map(toSemanticDiscoveryRecord);
+  const scope = resolveDiscoveryScope(options, exemplarRecords);
   const exemplarRecordKeys = new Set(resolvedExemplars.map((record) => record.recordKey));
   const candidateRecords = loadCandidateRecords(db, scope, {
     excludeRecordKeys: exemplarRecordKeys,
@@ -204,7 +212,7 @@ export function discoverSemanticCandidates(
   });
 
   return rankSemanticDiscoveryCandidates(
-    resolvedExemplars.map(toSemanticDiscoveryRecord),
+    exemplarRecords,
     candidateRecords,
     {
       ...options,
@@ -329,11 +337,14 @@ export function rankSemanticDiscoveryCandidates(
   };
 }
 
-function resolveDiscoveryScope(options: SemanticDiscoveryOptions, exemplars: LoadedDiscoveryRow[]): DiscoveryScope {
+function resolveDiscoveryScope(
+  options: SemanticDiscoveryOptions,
+  exemplars: SemanticDiscoveryRecord[],
+): DiscoveryScope {
   const category =
     options.category ??
     inferSingleValue(
-      exemplars.map((record) => record.category as SearchCategory),
+      exemplars.map((record) => record.category),
       "category",
     );
   const subcategory = options.subcategory;
@@ -394,7 +405,7 @@ function resolveExemplarByRecordKey(
   }
   row.query = recordKey;
 
-  if (decodeVector(row.vectorBlob).length === 0) {
+  if (decodeDiscoveryVector(row.vectorBlob).length === 0) {
     throw new Error(`Exemplar "${row.name}" (${recordKey}) does not have a usable embedding vector.`);
   }
 
@@ -470,7 +481,7 @@ function resolveExemplarByName(
 }
 
 function ensureUsableEmbedding(row: LoadedDiscoveryRow, query: string): void {
-  if (decodeVector(row.vectorBlob).length === 0) {
+  if (decodeDiscoveryVector(row.vectorBlob).length === 0) {
     throw new Error(`Resolved exemplar "${query}" to "${row.name}", but it does not have a usable embedding vector.`);
   }
 }
@@ -487,29 +498,33 @@ function dedupeLoadedRows(rows: LoadedDiscoveryRow[]): LoadedDiscoveryRow[] {
 }
 
 function toSemanticDiscoveryRecord(row: LoadedDiscoveryRow): SemanticDiscoveryRecord {
+  const category = parseDiscoveryCategory(row.category, row.recordKey);
   return {
     recordKey: row.recordKey,
     name: row.name,
-    category: row.category as SearchCategory,
-    subcategory: (row.subcategory ?? null) as SearchSubcategory | null,
+    category,
+    subcategory: parseDiscoverySubcategory(category, row.subcategory, row.recordKey),
     level: typeof row.level === "bigint" ? Number(row.level) : row.level,
-    traits: JSON.parse(row.traitsJson) as string[],
-    derivedTags: JSON.parse(row.derivedTagsJson) as string[],
+    traits: parseDiscoveryStringArrayJson(row.traitsJson, "traitsJson", row.recordKey),
+    derivedTags: parseDiscoveryStringArrayJson(row.derivedTagsJson, "derivedTagsJson", row.recordKey),
     descriptionText: row.descriptionText,
-    vector: decodeVector(row.vectorBlob),
+    vector: decodeDiscoveryVector(row.vectorBlob),
   };
 }
 
 function toResolvedSemanticExemplar(row: LoadedDiscoveryRow): ResolvedSemanticExemplar {
+  const category = parseDiscoveryCategory(row.category, row.recordKey);
   return {
-    query: row.query ?? (row.matchedBy === "recordKey" ? row.recordKey : row.name),
-    matchedBy: (row.matchedBy as ResolvedSemanticExemplar["matchedBy"] | undefined) ?? "recordKey",
+    query:
+      row.query ??
+      (parseResolvedExemplarMatchType(row.matchedBy, row.recordKey) === "recordKey" ? row.recordKey : row.name),
+    matchedBy: parseResolvedExemplarMatchType(row.matchedBy, row.recordKey),
     recordKey: row.recordKey,
     name: row.name,
-    category: row.category as SearchCategory,
-    subcategory: (row.subcategory ?? null) as SearchSubcategory | null,
+    category,
+    subcategory: parseDiscoverySubcategory(category, row.subcategory, row.recordKey),
     level: typeof row.level === "bigint" ? Number(row.level) : row.level,
-    traits: JSON.parse(row.traitsJson) as string[],
+    traits: parseDiscoveryStringArrayJson(row.traitsJson, "traitsJson", row.recordKey),
   };
 }
 
@@ -715,15 +730,6 @@ function pickContrastRecords(
     .filter((candidate) => !selected.has(candidate.recordKey))
     .slice(0, limit - primary.length);
   return [...primary, ...fallback];
-}
-
-function decodeVector(blob: Uint8Array | null | undefined): Float32Array {
-  if (!blob || blob.byteLength === 0) {
-    return new Float32Array(0);
-  }
-
-  const copy = Uint8Array.from(blob);
-  return new Float32Array(copy.buffer);
 }
 
 function averageVectors(vectors: Float32Array[]): Float32Array {
