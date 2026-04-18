@@ -7,8 +7,11 @@ Core application code lives in `src/`. The MCP server entrypoint is `src/index.t
 ## Build, Test, and Development Commands
 
 - `npm install`: install dependencies.
+- `npm run install-hooks`: configure this clone to use the tracked git hooks in `.githooks/`.
+- `npm run preflight`: verify the current checkout is a linked worktree on a non-`main` branch.
 - `npm run build`: compile TypeScript to `dist/` with `tsc`.
 - `npm test`: run the Vitest suite once.
+- `npm run verify`: run the required validation pair (`build` + `test`).
 - `npm run dev`: run the stdio MCP server from source with `tsx`.
 - `npm run start`: run the built server from `dist/index.js`.
 - `npm run refresh-data`: pull the vendored PF2E checkout.

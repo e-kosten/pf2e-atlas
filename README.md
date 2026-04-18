@@ -82,6 +82,8 @@ This repo uses a simple trunk-based Git workflow:
 
 - keep `main` as the primary branch
 - create short-lived branches for work such as `feat/<topic>` or `fix/<topic>`
+- install the tracked git hooks with `npm run install-hooks`
+- run `npm run preflight` before starting implementation work in a new shell
 - validate with `npm run build` and `npm test` before merging
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for the local workflow details.

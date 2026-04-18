@@ -1,0 +1,12 @@
+#!/bin/sh
+
+set -eu
+
+HOOK_DIR="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
+. "$HOOK_DIR/../scripts/git-hooks/common.sh"
+
+require_linked_worktree
+require_non_main_branch
+
+echo "Running pre-push verification (build + test)..." >&2
+npm run verify

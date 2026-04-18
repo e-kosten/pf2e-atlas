@@ -81,6 +81,8 @@ Install dependencies and build:
 
 ```bash
 npm install
+npm run install-hooks
+npm run preflight
 npm run build
 ```
 
@@ -101,9 +103,14 @@ npm run dev
 Run these before opening a branch for review or merging back to `main`:
 
 ```bash
-npm run build
-npm test
+npm run verify
 ```
+
+Tracked git hooks live in `.githooks/` and enforce:
+
+- `pre-commit`: fail from the primary checkout or branch `main`
+- `commit-msg`: require Conventional Commits with a blank-line-separated body
+- `pre-push`: rerun `npm run verify`
 
 ## Vendored PF2E Data
 

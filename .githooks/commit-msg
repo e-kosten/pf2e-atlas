@@ -1,0 +1,9 @@
+#!/bin/sh
+
+set -eu
+
+HOOK_DIR="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
+. "$HOOK_DIR/../scripts/git-hooks/common.sh"
+
+validate_commit_message "$1"
+
