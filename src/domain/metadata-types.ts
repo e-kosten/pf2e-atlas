@@ -1,4 +1,4 @@
-import { METADATA_FIELD_REGISTRY, type MetadataFieldName, type MetadataFieldType } from "./metadata-field-registry.js";
+import { METADATA_FIELD_REGISTRY, type MetadataFieldType } from "./metadata-field-registry.js";
 import type { ActorMetricNumericOperator, ActorMetricScalarOperator } from "./actor-metrics.js";
 import type { ItemMetricNumericOperator, ItemMetricScalarOperator } from "./item-metrics.js";
 

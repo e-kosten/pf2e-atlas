@@ -2,8 +2,6 @@ import * as z from "zod/v4";
 
 import { ACTOR_METRIC_NUMERIC_OPERATORS, ACTOR_METRIC_SCALAR_OPERATORS } from "../domain/actor-metrics.js";
 import {
-  CATEGORY_SUBCATEGORY_MAP,
-  SEARCH_CATEGORIES,
   VALID_SEARCH_CATEGORY_LIST,
   getCategoryForSubcategory,
   getSearchCategoryErrorMessage,

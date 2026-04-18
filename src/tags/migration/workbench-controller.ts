@@ -1,6 +1,5 @@
 import { DatabaseSync } from "node:sqlite";
 
-import type { SearchCategory, SearchSubcategory } from "../../types.js";
 import { openConfiguredIndex, writeDerivedTagMigrationSummary } from "./cli-utils.js";
 import { renderDerivedTagMigrationSessionSummary } from "./render.js";
 import { summarizeCurrentDerivedTagReviewQueue } from "./runtime-state.js";

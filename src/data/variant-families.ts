@@ -35,7 +35,6 @@ const STRUCTURAL_LINE_PREFIXES = [
 const UUID_PATTERN = /@UUID\[([^\]]+)\](?:\{([^}]+)\})?/g;
 const CHECK_PATTERN = /@Check\[[^\]]+\](?:\{([^}]+)\})?/g;
 const INLINE_PATTERN = /@[A-Z][A-Za-z]+\[[^\]]+\](?:\{([^}]+)\})?/g;
-const SMALL_NUMBER_WORDS = new Set(["one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"]);
 const TITLE_GLUE_TOKENS = new Set([
   "a",
   "an",

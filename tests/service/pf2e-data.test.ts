@@ -1,21 +1,7 @@
-import path from "node:path";
-import { DatabaseSync } from "node:sqlite";
-
 import { afterEach, describe, expect, it } from "vitest";
 
-import { Pf2eDataService } from "../../src/data/service.js";
-import { RankingConfigStore } from "../../src/search/ranking-config.js";
-import {
-  createCapturingEmbeddingProviderFactory,
-  createEmbeddingBatchTrackingProviderFactory,
-  createFakeEmbeddingProviderFactory,
-  initializeGitFixture,
-  loadTestService,
-  openPreparedTestService,
-  TEST_HASH_EMBEDDING,
-  writeJson,
-} from "../helpers/pf2e-fixture.js";
-import { cleanupCreatedRoots, createFixture, createHardFilterFixture } from "../helpers/pf2e-service-fixture.js";
+import { loadTestService } from "../helpers/pf2e-fixture.js";
+import { cleanupCreatedRoots, createFixture } from "../helpers/pf2e-service-fixture.js";
 
 describe("Pf2eDataService", () => {
   const createdRoots: string[] = [];

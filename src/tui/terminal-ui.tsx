@@ -3,8 +3,6 @@ import { Box, Text, render as renderInkApp, useApp, useInput, useWindowSize, typ
 import {
   isBackNavigationKey,
   isConfirmKey,
-  isConfirmOrToggleKey,
-  getCycleDirection,
   isMoveDownKey,
   isMoveLeftKey,
   isMoveRightKey,

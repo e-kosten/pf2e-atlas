@@ -114,7 +114,8 @@ export function flattenDerivedTagAuthoredCategoryOntology(ontology: DerivedTagAu
   for (const [family, definition] of Object.entries(ontology.families)) {
     for (const tag of definition.tags) {
       const compositeOfAnyTags = resolveCompositeSelectors(ontology, tag, familyEntries);
-      const { compositeOfAny, ...publishedTag } = tag;
+      const publishedTag = { ...tag };
+      delete publishedTag.compositeOfAny;
       tags.push({
         category: ontology.category,
         family,

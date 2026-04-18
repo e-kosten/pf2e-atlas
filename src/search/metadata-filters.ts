@@ -16,7 +16,6 @@ import {
   type MetadataValueNormalization,
 } from "../domain/metadata-field-registry.js";
 import {
-  METADATA_BOOLEAN_FIELDS,
   MetadataBooleanField,
   MetadataEnumStringField,
   MetadataFilterNode,
@@ -31,9 +30,6 @@ import { normalizeText } from "../utils.js";
 import type { SqlValue } from "../data/service-types.js";
 
 export type MetadataSqlContext = {} & MetadataSqlSourceContext;
-
-const ACTOR_METRIC_FIELD_NAMES = new Set<string>(["actorMetric", "actorMetricCompare"]);
-const ITEM_METRIC_FIELD_NAMES = new Set<string>(["itemMetric", "itemMetricCompare"]);
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -547,12 +543,6 @@ function buildItemMetricCompareClause(
     )`,
     params: [predicate.leftMetric, predicate.rightMetric],
   };
-}
-
-function buildScalarLookupSql(recordKeyExpr: string, alias: string | undefined, column: string, table: string): string {
-  return alias
-    ? `${alias}.${column}`
-    : `(SELECT meta.${column} FROM ${table} meta WHERE meta.record_key = ${recordKeyExpr})`;
 }
 
 function buildMetadataJsonArraySql(context: MetadataSqlContext, field: MetadataSetField): string {

@@ -678,22 +678,6 @@ function buildMetadataNodeForFacet(
   return null;
 }
 
-function buildMetadataFilter(
-  facets: Pf2eTerminalFacetSelection[],
-  fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
-): MetadataFilterNode | undefined {
-  const clauses = facets
-    .map((facet) => buildMetadataNodeForFacet(facet, fieldSemanticsByName))
-    .filter((node): node is MetadataFilterNode => Boolean(node));
-  if (clauses.length === 0) {
-    return undefined;
-  }
-  if (clauses.length === 1) {
-    return clauses[0];
-  }
-  return { and: clauses };
-}
-
 function buildSearchFilters(
   request: Pf2eTerminalSearchRequest,
   fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,

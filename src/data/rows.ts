@@ -1,7 +1,6 @@
 import type {
   ActorMetricMap,
   ItemMetricMap,
-  LinkedRecordSummary,
   LookupResult,
   NormalizedRecord,
   RuleReferenceEdge,

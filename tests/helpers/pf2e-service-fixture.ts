@@ -6,7 +6,7 @@ import { writeJson } from "./pf2e-fixture.js";
 import { writeCreatureFixtureData } from "./pf2e-service-fixture-main-creatures.js";
 import { writeRulesAndItemsFixtureData } from "./pf2e-service-fixture-main-rules-items.js";
 import { writeSpellAndAfflictionFixtureData } from "./pf2e-service-fixture-main-spells-afflictions.js";
-import { cleanupCreatedRoots, ServiceTestFixture } from "./pf2e-service-fixture-runtime.js";
+import type { ServiceTestFixture } from "./pf2e-service-fixture-runtime.js";
 
 export async function createFixture(): Promise<ServiceTestFixture> {
   const root = await mkdtemp(path.join(os.tmpdir(), "pf2e-mcp-test-"));

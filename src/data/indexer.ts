@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdir, readdir, readFile, rm, stat } from "node:fs/promises";
+import { readdir, readFile, rm, stat } from "node:fs/promises";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { promisify } from "node:util";
@@ -15,7 +15,7 @@ import {
   validateConfiguredDerivedTagAssignments,
 } from "../tags/index.js";
 import { PackInfo, PackManifestEntry } from "../types.js";
-import { firstString, normalizeText, uniqueSorted } from "../utils.js";
+import { normalizeText, uniqueSorted } from "../utils.js";
 import {
   ActorIndexData,
   BuildIndexResult,
@@ -23,11 +23,9 @@ import {
   ItemIndexData,
   NormalizedIndexRecord,
   PackBuildInfo,
-  PendingCanonicalEmbedding,
   PendingCanonicalEmbeddingWithHash,
   ResolvedBuildReference,
   SpellIndexData,
-  StageTiming,
 } from "./index-types.js";
 import { INDEX_SCHEMA_VERSION } from "./schema.js";
 import {

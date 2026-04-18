@@ -3,7 +3,6 @@ import os from "node:os";
 import path from "node:path";
 
 import { writeJson } from "./pf2e-fixture.js";
-import type { ServiceTestFixture } from "./pf2e-service-fixture-runtime.js";
 
 export async function createHardFilterFixture(): Promise<{ root: string; manifestPath: string }> {
   const root = await mkdtemp(path.join(os.tmpdir(), "pf2e-mcp-filter-test-"));

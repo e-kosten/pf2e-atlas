@@ -761,19 +761,6 @@ function rankClusterAnchors(
     .slice(0, 6);
 }
 
-function recommendCluster(score: number): CohortRecommendation {
-  if (score >= 0.72) {
-    return "rule-led";
-  }
-  if (score >= 0.5) {
-    return "hybrid";
-  }
-  if (score >= 0.3) {
-    return "manual-only";
-  }
-  return "reject";
-}
-
 function recommendClusterForAnchors(
   score: number,
   anchors: RankedFeature[],

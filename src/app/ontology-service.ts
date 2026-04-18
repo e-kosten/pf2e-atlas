@@ -19,7 +19,6 @@ import type {
   OntologyDomainSummary,
   OntologyNode,
   SearchCategory,
-  SearchSubcategory,
 } from "../types.js";
 import { normalizeText } from "../utils.js";
 import {
