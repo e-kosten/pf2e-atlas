@@ -373,7 +373,7 @@ describe("search screen", () => {
     cleanup();
   });
 
-  it("supports arrow-driven navigation for editing and executing the draft workspace", async () => {
+  it("supports arrow-driven navigation for editing and executing the query workspace", async () => {
     const search = vi.fn(async (filters: SearchFilters) => ({
       searchProfile: filters.searchProfile ?? "balanced",
       mode: "hybrid" as const,
@@ -396,8 +396,8 @@ describe("search screen", () => {
 
     await flushInk();
     expect(app.lastFrame()).toContain("Browse/Search");
-    expect(app.lastFrame()).toContain("[DRAFT] Scope & Filters");
-    expect(app.lastFrame()).toContain("Draft Status");
+    expect(app.lastFrame()).toContain("[SETUP] Scope & Filters");
+    expect(app.lastFrame()).toContain("Query Status");
     expect(app.lastFrame()).toContain("Execute Query");
     expect(app.lastFrame()).not.toContain("Profile |");
     expect(app.lastFrame()).not.toContain("Action Cost |");
@@ -405,7 +405,7 @@ describe("search screen", () => {
     pressDown(app);
     await flushInk();
     expect(app.lastFrame()).toContain("Mode");
-    app.stdin.write("\r");
+    pressLeft(app);
     await flushInk();
     expect(app.lastFrame()).toContain("Workspace Mode");
     pressDown(app);
@@ -418,7 +418,7 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Query");
     app.stdin.write("\r");
     await flushInk();
-    expect(app.lastFrame()).toContain("Draft Query");
+    expect(app.lastFrame()).toContain("Query Text");
     for (const character of "ghost") {
       app.stdin.write(character);
     }
@@ -476,11 +476,13 @@ describe("search screen", () => {
       subcategory: undefined,
     }));
     expect(search.mock.calls[0]?.[0]?.limit).toBeGreaterThan(50);
-    expect(app.lastFrame()).toContain("Workspace matches applied query");
+    expect(app.lastFrame()).toContain("Current setup matches applied query");
     expect(app.lastFrame()).toContain("1/1 | Buf 1 | Win 1-1");
     expect(app.lastFrame()).toContain("[RESULTS] 1/1 | Buf 1 | Ranked");
     expect(app.lastFrame()).toContain("Alarm Ward | spell | lvl 1");
     expect(app.lastFrame()).toContain("Preview | Alarm Ward");
+    expect(app.lastFrame()).toContain("Left setup");
+    expect(app.lastFrame()).not.toContain("Left draft");
 
     pressRight(app);
     await flushInk();
@@ -492,7 +494,7 @@ describe("search screen", () => {
 
     app.stdin.write("\u001b[D");
     await flushInk();
-    expect(app.lastFrame()).toContain("[DRAFT] Scope & Filters");
+    expect(app.lastFrame()).toContain("[SETUP] Scope & Filters");
     expect(app.lastFrame()).not.toContain("[RESULTS] 1/1 | Buf 1 | Ranked");
   });
 
@@ -1324,6 +1326,7 @@ describe("search screen", () => {
     app.stdin.write("\r");
     await flushInk();
 
+    expect(app.lastFrame()).toContain("Edit Facet Filter | 0 active");
     app.stdin.write("f");
     await flushInk();
     expect(app.lastFrame()).toContain("Facet Picker");
@@ -1340,6 +1343,7 @@ describe("search screen", () => {
     app.stdin.write("a");
     await flushInk();
 
+    expect(app.lastFrame()).toContain("Edit Facet Filter | 1 active");
     expect(app.lastFrame()).toContain("Derived Tags: any: Coastal Setting");
   });
 });

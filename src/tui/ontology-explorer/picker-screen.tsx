@@ -119,7 +119,7 @@ function buildSelectionSummaryLines(
     selection.any.length > 0 || selection.all.length > 0 || selection.exclude.length > 0,
   );
   lines.push({ text: "" });
-  lines.push({ text: "Applied draft preview", tone: "section" });
+  lines.push({ text: "Current filter preview", tone: "section" });
   if (selectionEntries.length === 0) {
     lines.push({ text: "No facet values selected yet.", tone: "dim" });
     return lines;
@@ -179,11 +179,22 @@ export function OntologyPickerScreen({
       ? { ...emptySelections, ...cloneSelectionMap(initialSelections) }
       : emptySelections;
   });
+  const selectionsRef = React.useRef(selections);
 
   React.useEffect(() => {
     const emptySelections = createEmptySelectionMap(model);
-    setSelections(initialSelections ? { ...emptySelections, ...cloneSelectionMap(initialSelections) } : emptySelections);
+    const nextSelections = initialSelections
+      ? { ...emptySelections, ...cloneSelectionMap(initialSelections) }
+      : emptySelections;
+    selectionsRef.current = nextSelections;
+    setSelections(nextSelections);
   }, [initialSelections, model]);
+
+  const updateSelections = React.useCallback((update: (current: OntologyPickerSelectionMap) => OntologyPickerSelectionMap) => {
+    const next = update(selectionsRef.current);
+    selectionsRef.current = next;
+    setSelections(next);
+  }, []);
 
   const controller = useOntologyExplorerController({
     model,
@@ -194,16 +205,18 @@ export function OntologyPickerScreen({
       if (!currentNode?.selection) {
         return false;
       }
-      setSelections((current) => toggleNodeSelection(currentNode, current));
+      updateSelections((current) => toggleNodeSelection(currentNode, current));
       return true;
     },
     onKey: ({ currentNode, normalizedKey }) => {
-      if (normalizedKey === "space" && currentNode?.selection) {
-        setSelections((current) => toggleNodeSelection(currentNode, current));
+      if (normalizedKey === "space") {
+        if (currentNode?.selection) {
+          updateSelections((current) => toggleNodeSelection(currentNode, current));
+        }
         return true;
       }
       if (normalizedKey === "a") {
-        onApply(selections);
+        onApply(selectionsRef.current);
         return true;
       }
       return false;
@@ -224,7 +237,7 @@ export function OntologyPickerScreen({
           {
             text: controller.state.searchMode
               ? "Type to filter live  Backspace edit  Enter keep filter  Esc clear and back out"
-              : "z split-view  Tab/w values focus  Up/Down or j/k scroll  Ctrl+U/D jump  Space/b page  Home/End edge  Left/backspace/esc values  Enter/Space cycle  a apply  q cancel",
+              : "z split-view  Tab/w values focus  Up/Down or j/k scroll  Ctrl+U/D jump  b page  Home/End edge  Left/backspace/esc values  Enter/Space cycle  a apply  q cancel",
             tone: "dim",
           },
           {
@@ -256,7 +269,7 @@ export function OntologyPickerScreen({
         {
           text: controller.state.searchMode
             ? "Type to filter live  Backspace edit  Enter keep filter  Esc clear and back out"
-            : "Tab/w focus  z detail-only  Up/Down or j/k move-scroll  Ctrl+U/D jump  Space/b page  gg/G edge  Enter/Space cycle  Left/backspace up  / search  Esc back/clear  a apply  q cancel",
+            : "Tab/w focus  z detail-only  Up/Down or j/k move-scroll  Ctrl+U/D jump  b page  gg/G edge  Enter/Space cycle  Left/backspace up  / search  Esc back/clear  a apply  q cancel",
           tone: "dim",
         },
         {

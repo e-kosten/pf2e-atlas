@@ -102,4 +102,74 @@ describe("ontology picker screen", () => {
     expect(onApply).not.toHaveBeenCalled();
     expect(app.lastFrame()).not.toContain("Harbor Haunt");
   });
+
+  it("applies the latest selection when apply follows a toggle immediately", async () => {
+    const onApply = vi.fn();
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <OntologyPickerScreen
+          model={createPickerModel()}
+          onApply={onApply}
+          onCancel={vi.fn()}
+        />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    app.stdin.write("\r");
+    app.stdin.write("a");
+    await flushInk();
+
+    expect(onApply).toHaveBeenCalledWith({
+      derivedTags: {
+        any: ["coastal_setting"],
+        all: [],
+        exclude: [],
+      },
+    });
+  });
+
+  it("consumes space on non-selectable nodes instead of paging the list", async () => {
+    const onApply = vi.fn();
+    const model: OntologyDomainModel = {
+      ...createPickerModel(),
+      rootNodes: [
+        createPickerModel().rootNodes[0]!,
+        {
+          id: "creature:field:languages",
+          kind: "field",
+          label: "languages",
+          filterText: "languages",
+          listLabel: "languages",
+          detailTitle: "Metadata Field Details",
+          detailLines: [{ text: "languages", tone: "section" }],
+          children: [],
+        },
+      ],
+    };
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <OntologyPickerScreen
+          model={model}
+          onApply={onApply}
+          onCancel={vi.fn()}
+        />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    expect(app.lastFrame()).toContain("derivedTags");
+    expect(app.lastFrame()).toContain("languages");
+    expect(app.lastFrame()).toContain("Focused: derivedTags");
+
+    app.stdin.write(" ");
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("derivedTags");
+    expect(app.lastFrame()).toContain("languages");
+    expect(app.lastFrame()).toContain("Focused: derivedTags");
+    expect(onApply).not.toHaveBeenCalled();
+  });
 });

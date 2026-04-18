@@ -548,8 +548,8 @@ function formatDraftStatus(state: SearchScreenState): string {
     return "No applied query yet";
   }
   return JSON.stringify(state.draft) === JSON.stringify(state.session.request)
-    ? "Workspace matches applied query"
-    : "Workspace has unapplied changes";
+    ? "Current setup matches applied query"
+    : "Current setup has unapplied changes";
 }
 
 function buildWorkspaceEntries(state: SearchScreenState, countState: SearchCountState): SearchWorkspaceEntry[] {
@@ -560,15 +560,15 @@ function buildWorkspaceEntries(state: SearchScreenState, countState: SearchCount
       label: "Execute Query",
       value: formatCountSummary(countState, state.draft),
       description: executeAvailability.disabled
-        ? executeAvailability.reason ?? "Unavailable for the current draft."
-        : "Apply the current draft and switch into the results reader.",
+        ? executeAvailability.reason ?? "Unavailable for the current query setup."
+        : "Apply the current query setup and switch into the results reader.",
       disabled: executeAvailability.disabled,
     },
     {
       action: "mode",
       label: "Mode",
       value: formatMode(state.draft.mode),
-      description: "Choose whether this draft should browse deterministically, run ranked search, or perform exact lookup-style matching.",
+      description: "Choose whether this query setup should browse deterministically, run ranked search, or perform exact lookup-style matching.",
     },
     {
       action: "query",
@@ -576,20 +576,20 @@ function buildWorkspaceEntries(state: SearchScreenState, countState: SearchCount
       value: state.draft.queryText || "(none)",
       description: state.draft.mode === "lookup"
         ? "Edit the lookup text used to find near-exact record names."
-        : "Edit the free-text portion of the draft. Browse mode can leave this empty.",
+        : "Edit the free-text portion of the query setup. Browse mode can leave this empty.",
     },
     {
       action: "category",
       label: "Category",
       value: formatSearchCategory(state.draft.filters.category),
-      description: "Set the top-level category boundary for the draft.",
+      description: "Set the top-level category boundary for this query setup.",
     },
     {
       action: "subcategory",
       label: "Subcategory",
       value: formatSearchSubcategory(state.draft.filters.subcategory),
       description: state.draft.filters.category
-        ? "Set the within-category boundary for the draft."
+        ? "Set the within-category boundary for this query setup."
         : "Choose a category first, then refine to a subcategory.",
       disabled: !state.draft.filters.category,
     },
@@ -597,7 +597,7 @@ function buildWorkspaceEntries(state: SearchScreenState, countState: SearchCount
       action: "levels",
       label: "Levels",
       value: formatLevelRange(state.draft),
-      description: "Constrain the draft to a level band such as `3-8` or `<=5`.",
+      description: "Constrain this query setup to a level band such as `3-8` or `<=5`.",
     },
     {
       action: "rarity",
@@ -619,22 +619,22 @@ function buildWorkspaceEntries(state: SearchScreenState, countState: SearchCount
       label: "Clear Facet Filter",
       value: `${state.draft.filters.facets.length + (hasFilterPolicy(state.draft.filters.actionCost) ? 1 : 0)} active`,
       description: state.draft.filters.facets.length > 0 || hasFilterPolicy(state.draft.filters.actionCost)
-        ? "Remove an entire facet policy block from the current draft."
+        ? "Remove an entire facet policy block from the current query setup."
         : "No facet policies are currently applied.",
       disabled: state.draft.filters.facets.length === 0 && !hasFilterPolicy(state.draft.filters.actionCost),
     },
     {
       action: "reset",
-      label: "Reset Draft",
+      label: "Reset Filters",
       value: "Restore defaults",
-      description: "Discard the current draft filters and return to the default workspace state.",
+      description: "Discard the current query setup and return to the default scope and filters.",
     },
     {
       action: "clearResults",
       label: "Discard Applied Results",
       value: state.session ? `${state.session.loadedCount}/${state.session.total} loaded` : "No results",
       description: state.session
-        ? "Clear the applied result reader while leaving the draft untouched."
+        ? "Clear the applied result reader while leaving the current query setup untouched."
         : "There is no applied result reader to discard.",
       disabled: !state.session,
     },
@@ -677,7 +677,7 @@ function buildResultLines(
   if (!session || session.results.length === 0) {
     return [
       { text: "No applied results yet.", tone: "section" },
-      { text: "Execute the draft to switch into the result reader.", tone: "dim" },
+      { text: "Execute the current query setup to switch into the result reader.", tone: "dim" },
     ];
   }
 
@@ -723,7 +723,7 @@ function buildDraftSummaryLines(
 ): DerivedTagTerminalLine[] {
   const executeAvailability = getExecuteAvailability(state.draft);
   const lines: DerivedTagTerminalLine[] = [
-    { text: "Draft Summary", tone: "section" },
+    { text: "Query Summary", tone: "section" },
     { text: `Mode: ${formatMode(state.draft.mode)}` },
     { text: `Query: ${state.draft.queryText || "(none)"}` },
     { text: `Scope: ${formatSearchCategory(state.draft.filters.category)} / ${formatSearchSubcategory(state.draft.filters.subcategory)}` },
@@ -751,9 +751,9 @@ function buildDraftSummaryLines(
   lines.push({ text: "" });
   lines.push({ text: "Live Count", tone: "section" });
   if (executeAvailability.disabled) {
-    lines.push({ text: executeAvailability.reason ?? "Unavailable for the current draft.", tone: "warning" });
+    lines.push({ text: executeAvailability.reason ?? "Unavailable for the current query setup.", tone: "warning" });
   } else if (countState.status === "loading") {
-    lines.push({ text: "Counting lexical matches for the current draft...", tone: "accent" });
+    lines.push({ text: "Counting lexical matches for the current query setup...", tone: "accent" });
   } else if (countState.status === "error") {
     lines.push({ text: countState.message ?? "Live count unavailable.", tone: "warning" });
   } else if (countState.status === "ready" && countState.result) {
@@ -765,7 +765,7 @@ function buildDraftSummaryLines(
     lines.push({ text: "Count pending.", tone: "dim" });
   }
 
-  lines.push({ text: "Tab executes the draft and opens the results reader.", tone: "accent" });
+  lines.push({ text: "Tab executes the current query setup and opens the results reader.", tone: "accent" });
 
   lines.push({ text: "" });
   lines.push({ text: "Applied Session", tone: "section" });
@@ -801,7 +801,7 @@ function buildWorkspaceEntryDetailLines(
     ...(entry.disabled
       ? []
       : entry.action === "execute"
-        ? [{ text: "Press Enter or Tab to execute the draft and switch to results.", tone: "accent" as const }]
+        ? [{ text: "Press Enter, Left, Right, or Tab to execute the current query setup and switch to results.", tone: "accent" as const }]
         : [{ text: "Press Enter to edit or act on this item.", tone: "accent" as const }]),
     { text: "" },
     ...buildDraftSummaryLines(state, countState),
@@ -844,14 +844,14 @@ function buildFacetRemovalEntries(
   const entries = facets.map((facet) => ({
     value: facet.field,
     label: humanizeIdentifier(facet.field),
-    description: `Clear ${formatFilterPolicy(facet.policy)} from the current draft filter stack.`,
+    description: `Clear ${formatFilterPolicy(facet.policy)} from the current query setup.`,
   }));
 
   if (hasFilterPolicy(actionCost)) {
     entries.unshift({
       value: "actionCost",
       label: "Action Cost",
-      description: `Clear ${formatFilterPolicy(actionCost)} from the current draft filter stack.`,
+      description: `Clear ${formatFilterPolicy(actionCost)} from the current query setup.`,
     });
   }
 
@@ -946,13 +946,13 @@ function buildFooterText(
   loadingMore: boolean,
 ): string {
   if (state.layout === "draft") {
-    return "Up/Down select  Ctrl-U/D jump  PgUp/PgDn page  gg/G or Home/End edge  Enter edit  Tab execute  / query  Esc/backspace back  q back";
+    return "Up/Down select  Ctrl-U/D jump  PgUp/PgDn page  gg/G or Home/End edge  Enter/Left/Right edit  Tab execute  / query  Esc/backspace back  q back";
   }
 
   if (state.activePane === "list") {
     return loadingMore
-      ? "Up/Down select  Ctrl-U/D jump  PgUp/PgDn page  gg/G or Home/End edge  n/: jump-to  Left draft  Right preview  Enter preview  Tab toggle  O sort  Loading more..."
-      : "Up/Down select  Ctrl-U/D jump  PgUp/PgDn page  gg/G or Home/End edge  n/: jump-to  Left draft  Right preview  Enter preview  Tab toggle  O sort  q back";
+      ? "Up/Down select  Ctrl-U/D jump  PgUp/PgDn page  gg/G or Home/End edge  n/: jump-to  Left setup  Right preview  Enter preview  Tab toggle  O sort  Loading more..."
+      : "Up/Down select  Ctrl-U/D jump  PgUp/PgDn page  gg/G or Home/End edge  n/: jump-to  Left setup  Right preview  Enter preview  Tab toggle  O sort  q back";
   }
 
   return "Up/Down scroll  Ctrl-U/D jump  PgUp/PgDn page  gg/G or Home/End edge  n/: jump-to  Left results  Tab toggle  O sort  Esc/backspace results  q back";
@@ -981,6 +981,7 @@ export function SearchScreen({
     [initialQuery, user.search],
   );
   const [state, dispatch] = React.useReducer(searchScreenReducer, initialRequest, createInitialSearchScreenState);
+  const draftRef = React.useRef(initialRequest);
   const autoRanInitialQuery = React.useRef(false);
   const loadMoreSessionKeyRef = React.useRef<string | null>(null);
   const loadMoreTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1019,8 +1020,10 @@ export function SearchScreen({
   const detailScroll = Math.min(state.detailScroll, maxDetailScroll);
 
   const applyDraftUpdate = React.useCallback((update: (request: Pf2eTerminalSearchRequest) => Pf2eTerminalSearchRequest) => {
-    dispatch({ type: "set_draft", request: user.search.normalizeRequest(update(state.draft)) });
-  }, [state.draft, user.search]);
+    const nextRequest = user.search.normalizeRequest(update(draftRef.current));
+    draftRef.current = nextRequest;
+    dispatch({ type: "set_draft", request: nextRequest });
+  }, [user.search]);
 
   const disposeSession = React.useCallback((session: Pf2eTerminalSearchSession | null) => {
     if (!session) {
@@ -1041,7 +1044,7 @@ export function SearchScreen({
   const executeRequest = React.useCallback(async (request: Pf2eTerminalSearchRequest) => {
     const availability = getExecuteAvailability(request);
     if (availability.disabled) {
-      await terminal.pauseForAnyKey(availability.reason ?? "This draft cannot be executed yet.");
+      await terminal.pauseForAnyKey(availability.reason ?? "This query setup cannot be executed yet.");
       return;
     }
 
@@ -1128,6 +1131,10 @@ export function SearchScreen({
     autoRanInitialQuery.current = true;
     void executeRequest(initialRequest);
   }, [executeRequest, initialQuery, initialRequest]);
+
+  React.useEffect(() => {
+    draftRef.current = state.draft;
+  }, [state.draft]);
 
   React.useEffect(() => {
     const previousSession = activeSessionRef.current;
@@ -1260,10 +1267,10 @@ export function SearchScreen({
 
   const editQueryText = React.useCallback(async () => {
     const queryText = await terminal.promptTextInput({
-      title: "Draft Query",
+      title: "Query Text",
       prompt: state.draft.mode === "lookup"
         ? "Enter an exact or near-exact record name"
-        : "Enter search text for the current draft",
+        : "Enter search text for the current query setup",
       defaultValue: state.draft.queryText,
       hint: state.draft.mode === "lookup"
         ? "Example: Raise Shield"
@@ -1283,7 +1290,7 @@ export function SearchScreen({
   const chooseMode = React.useCallback(async () => {
     const selected = await terminal.promptSelectOption({
       title: "Workspace Mode",
-      prompt: "Choose how the current draft should execute",
+      prompt: "Choose how the current query setup should execute",
       entries: user.search.getModeOptions().map((option) => ({
         value: option.value,
         label: option.label,
@@ -1305,7 +1312,7 @@ export function SearchScreen({
   const chooseSearchProfile = React.useCallback(async () => {
     const selected = await terminal.promptSelectOption({
       title: "Search Profile",
-      prompt: "Choose the draft profile for ranked search mode",
+      prompt: "Choose the current profile for ranked search mode",
       entries: user.search.getProfileOptions().map((option) => ({
         value: option.value,
         label: option.label,
@@ -1325,7 +1332,7 @@ export function SearchScreen({
   const chooseCategoryFilter = React.useCallback(async () => {
     const selected = await terminal.promptSelectOption({
       title: "Category Scope",
-      prompt: "Choose the draft category boundary",
+      prompt: "Choose the current category boundary",
       entries: user.search.getCategoryOptions().map((option) => ({
         value: option.value ?? "__all__",
         label: option.label,
@@ -1354,7 +1361,7 @@ export function SearchScreen({
 
     const selected = await terminal.promptSelectOption({
       title: "Subcategory Scope",
-      prompt: "Choose the draft subcategory boundary",
+      prompt: "Choose the current subcategory boundary",
       entries: user.search.getSubcategoryOptions(state.draft.filters.category).map((option) => ({
         value: option.value ?? "__all__",
         label: option.label,
@@ -1378,7 +1385,7 @@ export function SearchScreen({
     const options = user.search.getRarityOptions(state.draft.filters.category, state.draft.filters.subcategory);
     const selected = await terminal.promptPolicySelectOption({
       title: "Rarity Filter",
-      prompt: "Cycle draft rarities through include and exclude. Press Esc or Left when finished.",
+      prompt: "Cycle rarities through include and exclude. Press Esc or Left when finished.",
       allowedStates: ["any", "exclude"],
       entries: options.map((option) => ({
         value: option.value,
@@ -1464,7 +1471,7 @@ export function SearchScreen({
 
   const removeFacetFilter = React.useCallback(async () => {
     if (state.draft.filters.facets.length === 0 && !hasFilterPolicy(state.draft.filters.actionCost)) {
-      await terminal.pauseForAnyKey("There are no facet policies to clear from the draft.");
+      await terminal.pauseForAnyKey("There are no facet policies to clear from the current query setup.");
       return;
     }
 
@@ -1500,7 +1507,9 @@ export function SearchScreen({
   }, []);
 
   const resetDraftWorkspace = React.useCallback(() => {
-    dispatch({ type: "set_draft", request: user.search.createDefaultRequest() });
+    const defaultRequest = user.search.createDefaultRequest();
+    draftRef.current = defaultRequest;
+    dispatch({ type: "set_draft", request: defaultRequest });
     dispatch({ type: "set_layout", layout: "draft", pane: "list" });
   }, [user.search]);
 
@@ -1617,6 +1626,10 @@ export function SearchScreen({
         openSelectedWorkspaceEntry();
         return;
       }
+      if (normalized === "left" || normalized === "right") {
+        openSelectedWorkspaceEntry();
+        return;
+      }
       if (normalized === "m") {
         void chooseMode();
         return;
@@ -1721,7 +1734,7 @@ export function SearchScreen({
       subtitle={buildSearchSubtitle(state, countState)}
       left={{
         title: state.layout === "draft"
-          ? "[DRAFT] Scope & Filters"
+          ? "[SETUP] Scope & Filters"
           : state.activePane === "list"
             ? `[RESULTS] ${state.session ? `${formatResultPosition(resultSelectedIndex, state.session.total)} | Buf ${formatCount(state.session.loadedCount)} | ${formatSort(state.session.sort)}` : "No applied session"}`
             : `Results | ${state.session ? `${formatResultPosition(resultSelectedIndex, state.session.total)} | ${formatSort(state.session.sort)}` : "No applied session"}`,
@@ -1735,7 +1748,7 @@ export function SearchScreen({
           ? state.activePane === "detail"
             ? `[PREVIEW] ${selectedResult?.name ?? "Results"}`
             : `Preview | ${selectedResult?.name ?? "Results"}`
-          : "Draft Status",
+          : "Query Status",
         lines: sliceRenderedTerminalLines(
           detailLines,
           detailWidth,
@@ -1752,7 +1765,7 @@ export function SearchScreen({
         {
           text: state.layout === "results" && state.session
             ? `${formatDraftStatus(state)} | ${formatResultPosition(resultSelectedIndex, state.session.total)} | Buf ${formatCount(state.session.loadedCount)} | Win ${getSessionBufferRange(state.session)}`
-            : `${formatDraftStatus(state)} | ${formatCountSummary(countState, state.draft)} | Draft Workspace`,
+            : `${formatDraftStatus(state)} | ${formatCountSummary(countState, state.draft)} | Scope & Filters`,
           tone: "accent",
         },
       ]}
