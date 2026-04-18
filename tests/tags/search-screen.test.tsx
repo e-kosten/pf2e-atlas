@@ -520,6 +520,71 @@ describe("search screen", () => {
     expect(app.lastFrame()).not.toContain("Workspace Mode");
   });
 
+  it("uses space to open the selected setup item and carries facet edits back into the workspace", async () => {
+    const services = createServices();
+    services.user.search.getFacetFieldOptions = vi.fn(() => [{
+      value: "derivedTags",
+      label: "Derived Tags",
+      description: "Derived-tag facet for the current browse scope.",
+      fieldType: "set",
+    }]);
+    services.user.ontology.loadDomain = vi.fn((id: string) => {
+      if (id === "searchSemantics") {
+        return createFacetPickerOntologyDomain();
+      }
+      return {
+        id: "derivedTags",
+        label: "Derived Tags",
+        description: "Unused test domain",
+        rootNodes: [],
+      };
+    });
+
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen onBack={vi.fn()} />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+
+    app.stdin.write("c");
+    await flushInk();
+    pressDown(app);
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+
+    for (let step = 0; step < 7; step += 1) {
+      pressDown(app);
+      await flushInk();
+    }
+    expect(app.lastFrame()).toContain("Edit Facet Filter | 0 active");
+
+    app.stdin.write(" ");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Facet Picker");
+
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Environment");
+
+    app.stdin.write("\r");
+    await flushInk();
+    app.stdin.write(" ");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Current filters");
+    expect(app.lastFrame()).toContain("derivedTags: any=coastal_setting");
+
+    app.stdin.write("a");
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("Edit Facet Filter | 1 active");
+    expect(app.lastFrame()).toContain("Derived Tags: any: Coastal Setting");
+  });
+
   it("loads the next result page through the window reader instead of rerunning the search", async () => {
     const firstPageRecords = [
       createRecord({ recordKey: "spell:a", id: "a", name: "Alarm Ward" }),

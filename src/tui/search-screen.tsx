@@ -801,8 +801,8 @@ function buildWorkspaceEntryDetailLines(
     ...(entry.disabled
       ? []
       : entry.action === "execute"
-        ? [{ text: "Press Enter, Right, or Tab to execute the current query setup and switch to results.", tone: "accent" as const }]
-        : [{ text: "Press Enter or Right to edit or act on this item.", tone: "accent" as const }]),
+        ? [{ text: "Press Enter, Right, Space, or Tab to execute the current query setup and switch to results.", tone: "accent" as const }]
+        : [{ text: "Press Enter, Right, or Space to edit or act on this item.", tone: "accent" as const }]),
     { text: "" },
     ...buildDraftSummaryLines(state, countState),
   ];
@@ -946,7 +946,7 @@ function buildFooterText(
   loadingMore: boolean,
 ): string {
   if (state.layout === "draft") {
-    return "Up/Down select  Ctrl-U/D jump  PgUp/PgDn page  gg/G or Home/End edge  Enter/Right edit  Tab execute  / query  Left/Esc/backspace back  q back";
+    return "Up/Down select  Ctrl-U/D jump  PgUp/PgDn page  gg/G or Home/End edge  Enter/Right/Space edit  Tab execute  / query  Left/Esc/backspace back  q back";
   }
 
   if (state.activePane === "list") {
@@ -1608,6 +1608,10 @@ export function SearchScreen({
       }
       if (normalized === "escape" || normalized === "backspace" || normalized === "left") {
         exitSearchScreen();
+        return;
+      }
+      if (normalized === "space") {
+        openSelectedWorkspaceEntry();
         return;
       }
       if (listNavigation.action?.kind === "move") {

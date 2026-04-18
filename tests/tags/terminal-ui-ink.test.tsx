@@ -329,6 +329,11 @@ describe("derived tag terminal ink runtime", () => {
     expect(getNormalizedKeyName("d", { ctrl: true } as never)).toBe("ctrl_d");
   });
 
+  it("prefers Ink arrow-key flags over raw escape input", () => {
+    expect(getNormalizedKeyName("\u001b", { rightArrow: true } as never)).toBe("right");
+    expect(getNormalizedKeyName("\u001b", { leftArrow: true } as never)).toBe("left");
+  });
+
   it("resolves shared gg and G list-boundary navigation", () => {
     const options = { pageSize: 10 };
 

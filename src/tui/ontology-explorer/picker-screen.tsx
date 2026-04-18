@@ -119,7 +119,7 @@ function buildSelectionSummaryLines(
     selection.any.length > 0 || selection.all.length > 0 || selection.exclude.length > 0,
   );
   lines.push({ text: "" });
-  lines.push({ text: "Current filter preview", tone: "section" });
+  lines.push({ text: "Current filters", tone: "section" });
   if (selectionEntries.length === 0) {
     lines.push({ text: "No facet values selected yet.", tone: "dim" });
     return lines;

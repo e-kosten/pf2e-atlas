@@ -761,15 +761,6 @@ export function resolveDerivedTagTerminalListNavigationAction(
 }
 
 export function getNormalizedKeyName(input: string, key: Key): string {
-  if (input === "\r" || input === "\n") {
-    return "enter";
-  }
-  if (input === "\u001b") {
-    return "escape";
-  }
-  if (input === "\b" || input === "\u007f") {
-    return "backspace";
-  }
   if (key.upArrow) {
     return "up";
   }
@@ -811,6 +802,15 @@ export function getNormalizedKeyName(input: string, key: Key): string {
   }
   if (key.delete) {
     return "delete";
+  }
+  if (input === "\r" || input === "\n") {
+    return "enter";
+  }
+  if (input === "\u001b") {
+    return "escape";
+  }
+  if (input === "\b" || input === "\u007f") {
+    return "backspace";
   }
   if (input.length === 1) {
     const code = input.codePointAt(0);
