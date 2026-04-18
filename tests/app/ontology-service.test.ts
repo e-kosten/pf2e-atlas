@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createPf2eApplicationOntologyService } from "../../src/app/ontology-service.js";
 import { getMetadataGlossaryArtifactPath } from "../../src/data/metadata-glossary.js";
+import type { SearchVocabularyResult } from "../../src/data/vocabulary.js";
 import type { Pf2eDataService } from "../../src/data/service.js";
 import type { AppConfig, FilterValueField, MetadataGlossaryArtifact, OntologyNode } from "../../src/types.js";
 
@@ -44,25 +45,26 @@ function findNodeById(nodes: OntologyNode[], id: string): OntologyNode | undefin
 }
 
 function createDataService(): Pick<Pf2eDataService, "getSearchVocabulary" | "listFilterValues"> {
+  const vocabulary: SearchVocabularyResult = {
+    categories: [
+      { value: "spell", count: 12 },
+      { value: "equipment", count: 5 },
+    ],
+    subcategories: [{ value: "action", count: 6 }],
+    rarities: [],
+    sizes: [],
+    traditions: [],
+    spellKinds: [],
+    sourceCategories: [],
+    commonTraitsByCategory: [{ category: "spell", traits: [{ value: "fire", count: 4 }] }],
+    commonDerivedTagsByCategory: [{ category: "spell", tags: [{ value: "alarm", count: 2 }] }],
+    derivedTagOntologyFamilies: [],
+    derivedTagOntologyTags: [],
+    derivedTagCatalog: [],
+  };
   return {
-    getSearchVocabulary: vi.fn(() => ({
-      categories: [
-        { value: "spell", count: 12 },
-        { value: "equipment", count: 5 },
-      ],
-      subcategories: [{ value: "action", count: 6 }],
-      rarities: [],
-      sizes: [],
-      traditions: [],
-      spellKinds: [],
-      sourceCategories: [],
-      commonTraitsByCategory: [{ category: "spell", traits: [{ value: "fire", count: 4 }] }],
-      commonDerivedTagsByCategory: [{ category: "spell", tags: [{ value: "alarm", count: 2 }] }],
-      derivedTagOntologyFamilies: [],
-      derivedTagOntologyTags: [],
-      derivedTagCatalog: [],
-    })),
-    listFilterValues: vi.fn(({ field, category }) => {
+    getSearchVocabulary: vi.fn(() => vocabulary),
+    listFilterValues: vi.fn(({ field, category }: { field: FilterValueField; category?: string }) => {
       const valuesByKey: Partial<Record<`${string}:${FilterValueField}`, Array<{ value: string; count: number }>>> = {
         "spell:subcategories": [{ value: "action", count: 6 }],
         "spell:traits": [{ value: "fire", count: 4 }],
@@ -230,7 +232,7 @@ describe("application ontology service", () => {
         derivedTagOntologyTags: [],
         derivedTagCatalog: [],
       })),
-      listFilterValues: vi.fn(({ field, category }) => ({
+      listFilterValues: vi.fn(({ field, category }: { field: FilterValueField; category?: string }) => ({
         field,
         values: field === "traits" && category === "spell" ? values : [],
       })),

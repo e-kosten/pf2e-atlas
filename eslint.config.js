@@ -39,6 +39,9 @@ export default defineConfig(
       "@typescript-eslint/prefer-promise-reject-errors": "error",
       "@typescript-eslint/no-base-to-string": "error",
       "@typescript-eslint/restrict-plus-operands": "error",
+      "@typescript-eslint/no-unsafe-assignment": "error",
+      "@typescript-eslint/no-unsafe-member-access": "error",
+      "@typescript-eslint/no-unsafe-return": "error",
     },
   },
   {

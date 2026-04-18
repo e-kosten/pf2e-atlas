@@ -50,13 +50,21 @@ function keyFor(category: string, value: string): string {
 }
 
 function clauseHasNonTraitEvidence(clause: NonNullable<DerivedTagRule["anyOf"]>[number]): boolean {
+  const candidate = clause as {
+    textAny?: string[];
+    textAll?: string[];
+    textNear?: string[];
+    referencesAny?: string[];
+    referencesAll?: string[];
+    referencesWhere?: unknown[];
+  };
   return Boolean(
-    clause.textAny?.length ||
-    clause.textAll?.length ||
-    clause.textNear?.length ||
-    clause.referencesAny?.length ||
-    clause.referencesAll?.length ||
-    clause.referencesWhere?.length,
+    candidate.textAny?.length ||
+    candidate.textAll?.length ||
+    candidate.textNear?.length ||
+    candidate.referencesAny?.length ||
+    candidate.referencesAll?.length ||
+    candidate.referencesWhere?.length,
   );
 }
 

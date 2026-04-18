@@ -3,6 +3,14 @@ import { describe, expect, it } from "vitest";
 import { getMetadataFilterSemantics } from "../../src/domain/metadata-semantics.js";
 import { filterValueFieldSchema } from "../../src/server/tool-schemas.js";
 
+function matcherArrayContaining(values: unknown[]): unknown {
+  return expect.arrayContaining(values);
+}
+
+function matcherObjectContaining(value: Record<string, unknown>): unknown {
+  return expect.objectContaining(value);
+}
+
 describe("metadata search semantics", () => {
   it("lists meaningful metadata fields by category", () => {
     const semantics = getMetadataFilterSemantics();
@@ -116,26 +124,26 @@ describe("metadata search semantics", () => {
     const semantics = getMetadataFilterSemantics();
 
     expect(semantics.advancedPredicates).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
+      matcherArrayContaining([
+        matcherObjectContaining({
           name: "actorMetric",
           categories: ["creature", "hazard"],
-          operators: expect.arrayContaining([">=", "=="]),
+          operators: matcherArrayContaining([">=", "=="]),
         }),
-        expect.objectContaining({
+        matcherObjectContaining({
           name: "actorMetricCompare",
           categories: ["creature", "hazard"],
-          operators: expect.arrayContaining([">", "!="]),
+          operators: matcherArrayContaining([">", "!="]),
         }),
-        expect.objectContaining({
+        matcherObjectContaining({
           name: "itemMetric",
           categories: ["equipment"],
-          operators: expect.arrayContaining([">=", "=="]),
+          operators: matcherArrayContaining([">=", "=="]),
         }),
-        expect.objectContaining({
+        matcherObjectContaining({
           name: "itemMetricCompare",
           categories: ["equipment"],
-          operators: expect.arrayContaining([">", "!="]),
+          operators: matcherArrayContaining([">", "!="]),
         }),
       ]),
     );

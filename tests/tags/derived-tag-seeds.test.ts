@@ -14,6 +14,14 @@ import {
   listDerivedTagLegacySeedMigrations,
 } from "../../src/tags/index.js";
 
+function matcherArrayContaining(values: unknown[]): unknown {
+  return expect.arrayContaining(values);
+}
+
+function matcherObjectContaining(value: Record<string, unknown>): unknown {
+  return expect.objectContaining(value);
+}
+
 const exemplarFamilies: DerivedTagOntologyFamily[] = [
   {
     category: "equipment",
@@ -711,11 +719,11 @@ describe("derived tag exemplars and legacy seed migrations", () => {
       ]),
     );
     expect(listDerivedTagLegacySeedMigrations({ category: "creature" })).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
+      matcherArrayContaining([
+        matcherObjectContaining({
           category: "creature",
           tag: "faceless_horror",
-          recordKeys: expect.arrayContaining([
+          recordKeys: matcherArrayContaining([
             "season-of-ghosts-bestiary:QSa1PbcvbgDv8Zpr",
             "season-of-ghosts-bestiary:dqsQutshiegWaFPQ",
             "season-of-ghosts-bestiary:3KNblm2fWM6XLiS7",

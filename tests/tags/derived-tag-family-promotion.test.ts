@@ -7,6 +7,18 @@ import {
   publishDerivedTagOntology,
 } from "../../src/tags/runtime/catalog-utils.js";
 
+function matcherArrayContaining(values: unknown[]): unknown {
+  return expect.arrayContaining(values);
+}
+
+function matcherObjectContaining(value: Record<string, unknown>): unknown {
+  return expect.objectContaining(value);
+}
+
+function matcherNotArrayContaining(values: unknown[]): unknown {
+  return expect.not.arrayContaining(values);
+}
+
 describe("derived tag ontology publication and composition", () => {
   const families: DerivedTagOntologyFamily[] = [
     {
@@ -60,32 +72,32 @@ describe("derived tag ontology publication and composition", () => {
   it("publishes explicit ontology records and groups them without auto-promoting the family name", () => {
     const grouped = groupDerivedTagOntology(publishDerivedTagOntology(families, tags));
     expect(grouped).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
+      matcherArrayContaining([
+        matcherObjectContaining({
           category: "spell",
           family: "transformation",
           axis: "transformation",
-          tags: expect.arrayContaining([
-            expect.objectContaining({
+          tags: matcherArrayContaining([
+            matcherObjectContaining({
               value: "transformation",
               assignmentMode: "composite",
               compositeOfAnyTags: ["battle_form", "animal_form"],
             }),
-            expect.objectContaining({
+            matcherObjectContaining({
               value: "battle_form",
               assignmentMode: "deterministic",
             }),
-            expect.objectContaining({
+            matcherObjectContaining({
               value: "animal_form",
               assignmentMode: "deterministic",
             }),
           ]),
         }),
-        expect.objectContaining({
+        matcherObjectContaining({
           category: "equipment",
           family: "ammunition_payload",
           axis: "item_mechanical",
-          tags: expect.not.arrayContaining([expect.objectContaining({ value: "ammunition_payload" })]),
+          tags: matcherNotArrayContaining([matcherObjectContaining({ value: "ammunition_payload" })]),
         }),
       ]),
     );
