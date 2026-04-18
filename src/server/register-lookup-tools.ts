@@ -28,7 +28,7 @@ export function registerLookupTools(server: McpServer, dataService: Pf2eDataServ
         includeAlternatives: z.boolean().optional().describe("Include alternative matches. Defaults to true."),
       },
     },
-    async ({ name, detail = "full", includeAlternatives = true, ...options }) => {
+    ({ name, detail = "full", includeAlternatives = true, ...options }) => {
       const lookup = dataService.lookup(name, options);
       if (!lookup.match) {
         return {
@@ -85,7 +85,7 @@ export function registerLookupTools(server: McpServer, dataService: Pf2eDataServ
         includeAlternatives: z.boolean().optional().describe("Include alternative matches. Defaults to false."),
       },
     },
-    async ({ queries, coreOnly, detail = "minimal", includeAlternatives = false }) => {
+    ({ queries, coreOnly, detail = "minimal", includeAlternatives = false }) => {
       const results = dataService.lookupMany(queries, { coreOnly });
       return {
         content: [
@@ -116,7 +116,7 @@ export function registerLookupTools(server: McpServer, dataService: Pf2eDataServ
         recordKey: z.string().describe("Canonical key in the form packName:recordId."),
       },
     },
-    async ({ recordKey }) => {
+    ({ recordKey }) => {
       const record = dataService.getRecord(recordKey);
 
       if (!record) {
@@ -150,7 +150,7 @@ export function registerLookupTools(server: McpServer, dataService: Pf2eDataServ
           .describe("Response detail level. Defaults to standard."),
       },
     },
-    async ({ recordKeys, detail = "standard" }) => {
+    ({ recordKeys, detail = "standard" }) => {
       const records = dataService.getRecordsByKeys(recordKeys);
       return {
         content: [

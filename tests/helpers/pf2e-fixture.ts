@@ -60,18 +60,19 @@ export function createFakeEmbeddingProviderFactory(
     return vector;
   };
 
-  return async () => ({
-    provider: {
-      identity,
-      async embed(text: string): Promise<Float32Array> {
-        return buildVector(text);
+  return () =>
+    Promise.resolve({
+      provider: {
+        identity,
+        embed(text: string): Promise<Float32Array> {
+          return Promise.resolve(buildVector(text));
+        },
+        embedMany(texts: string[]): Promise<Float32Array[]> {
+          return Promise.resolve(texts.map((text) => buildVector(text)));
+        },
       },
-      async embedMany(texts: string[]): Promise<Float32Array[]> {
-        return texts.map((text) => buildVector(text));
-      },
-    },
-    warnings,
-  });
+      warnings,
+    });
 }
 
 export function createCapturingEmbeddingProviderFactory(
@@ -87,18 +88,19 @@ export function createCapturingEmbeddingProviderFactory(
     return vector;
   };
 
-  return async () => ({
-    provider: {
-      identity,
-      async embed(text: string): Promise<Float32Array> {
-        return buildVector(text);
+  return () =>
+    Promise.resolve({
+      provider: {
+        identity,
+        embed(text: string): Promise<Float32Array> {
+          return Promise.resolve(buildVector(text));
+        },
+        embedMany(texts: string[]): Promise<Float32Array[]> {
+          return Promise.resolve(texts.map((text) => buildVector(text)));
+        },
       },
-      async embedMany(texts: string[]): Promise<Float32Array[]> {
-        return texts.map((text) => buildVector(text));
-      },
-    },
-    warnings: [],
-  });
+      warnings: [],
+    });
 }
 
 export function createEmbeddingBatchTrackingProviderFactory(
@@ -113,18 +115,19 @@ export function createEmbeddingBatchTrackingProviderFactory(
     return vector;
   };
 
-  return async () => ({
-    provider: {
-      identity,
-      async embed(text: string): Promise<Float32Array> {
-        state.embedCalls.push(text);
-        return buildVector(text);
+  return () =>
+    Promise.resolve({
+      provider: {
+        identity,
+        embed(text: string): Promise<Float32Array> {
+          state.embedCalls.push(text);
+          return Promise.resolve(buildVector(text));
+        },
+        embedMany(texts: string[]): Promise<Float32Array[]> {
+          state.embedManyCalls.push([...texts]);
+          return Promise.resolve(texts.map((text) => buildVector(text)));
+        },
       },
-      async embedMany(texts: string[]): Promise<Float32Array[]> {
-        state.embedManyCalls.push([...texts]);
-        return texts.map((text) => buildVector(text));
-      },
-    },
-    warnings: [],
-  });
+      warnings: [],
+    });
 }

@@ -62,12 +62,12 @@ export class HashEmbeddingProvider implements EmbeddingProvider {
     };
   }
 
-  async embed(text: string): Promise<Float32Array> {
-    return this.embedNormalized(normalizeText(text));
+  embed(text: string): Promise<Float32Array> {
+    return Promise.resolve(this.embedNormalized(normalizeText(text)));
   }
 
-  async embedMany(texts: string[]): Promise<Float32Array[]> {
-    return texts.map((text) => this.embedNormalized(normalizeText(text)));
+  embedMany(texts: string[]): Promise<Float32Array[]> {
+    return Promise.resolve(texts.map((text) => this.embedNormalized(normalizeText(text))));
   }
 
   private embedNormalized(normalized: string): Float32Array {

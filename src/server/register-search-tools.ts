@@ -40,7 +40,7 @@ export function registerSearchTools(
           .describe("Maximum common traits to return per category. Defaults to 12."),
       },
     },
-    async ({ traitLimitPerCategory }) => {
+    ({ traitLimitPerCategory }) => {
       const vocabulary = dataService.getSearchVocabulary({ traitLimitPerCategory });
       const metadataSemantics = getMetadataFilterSemantics();
       return {
@@ -230,7 +230,7 @@ export function registerSearchTools(
           ),
       },
     },
-    async (input) => {
+    (input) => {
       const result = dataService.listFilterValues(input);
       return {
         content: [
@@ -253,7 +253,7 @@ export function registerSearchTools(
       description:
         "List available PF2E packs with labels, document types, and record counts. Use pf2e_get_search_semantics for the category and subcategory ontology.",
     },
-    async () => {
+    () => {
       const packs = dataService.listPacks().map(summarizePack);
       return {
         content: [
@@ -280,7 +280,7 @@ export function registerSearchTools(
         pack: z.string().describe("Pack name or label, for example spells or Pathfinder Monster Core."),
       },
     },
-    async ({ pack }) => {
+    ({ pack }) => {
       const match = dataService.getPack(pack);
       if (!match) {
         throw new Error(`Unknown pack: ${pack}`);
@@ -338,7 +338,7 @@ export function registerSearchTools(
         limit: z.number().int().optional().describe("Pagination limit, max 100."),
       },
     },
-    async (input) => {
+    (input) => {
       const result = dataService.listRecords(input);
       return {
         content: [

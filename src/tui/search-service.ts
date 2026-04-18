@@ -1062,15 +1062,15 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
     getModeOptions: () => SEARCH_MODE_OPTIONS,
     getDefaultSort: (mode) => getDefaultSort(mode),
     normalizeRequest: (request) => normalizeRequest(request, fieldSemanticsByName),
-    countQuery: async (request) => {
+    countQuery: (request) => {
       const normalizedRequest = normalizeRequest(request, fieldSemanticsByName);
       if (normalizedRequest.mode === "lookup") {
         if (!normalizedRequest.queryText) {
-          return {
+          return Promise.resolve({
             searchProfile: null,
             mode: "structured",
             total: 0,
-          };
+          });
         }
         return dependencies.countRecords(
           buildSearchFilters(normalizedRequest, fieldSemanticsByName, {
@@ -1114,9 +1114,9 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
       );
       return createSessionFromResult(normalizedRequest, result);
     },
-    loadMore: async (session, options = {}) => {
+    loadMore: (session, options = {}) => {
       if (!session.hasMore || session.nextOffset === null) {
-        return session;
+        return Promise.resolve(session);
       }
 
       const minimumLoadedCount = Math.max(
@@ -1151,14 +1151,14 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
         };
       }
 
-      return nextSession;
+      return Promise.resolve(nextSession);
     },
-    readResultWindow: async (session, options) => {
+    readResultWindow: (session, options) => {
       const limit = Math.max(1, options.limit);
       const clampedOffset = Math.max(0, Math.min(options.offset, Math.max(0, session.total - limit)));
       const result = dependencies.readSearchWindowPage(session.windowId, clampedOffset, limit);
 
-      return {
+      return Promise.resolve({
         ...session,
         request:
           result.limit === session.request.limit
@@ -1175,7 +1175,7 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
         nextOffset: result.nextOffset,
         resultMode: result.mode,
         searchProfile: result.searchProfile,
-      };
+      });
     },
     changeSort: async (session, sort) => {
       dependencies.closeSearchWindow(session.windowId);

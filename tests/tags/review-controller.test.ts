@@ -111,16 +111,19 @@ describe("derived tag review controller", () => {
       lintSession: vi.fn(() => {
         calls.push("lint");
       }),
-      importSession: vi.fn(async () => {
+      importSession: vi.fn(() => {
         calls.push("import");
+        return Promise.resolve();
       }),
-      writeSession: vi.fn(async (_rootPath: string, _session: DerivedTagMigrationSession) => {
+      writeSession: vi.fn((_rootPath: string, _session: DerivedTagMigrationSession) => {
         calls.push("writeSession");
+        return Promise.resolve();
       }),
-      writeSummary: vi.fn(async (_rootPath: string, _sessionId: string, summary: string) => {
+      writeSummary: vi.fn((_rootPath: string, _sessionId: string, summary: string) => {
         calls.push("writeSummary");
         expect(summary).toContain("Session: session-1");
         expect(summary).toContain("Actionable records resolved: 1/1");
+        return Promise.resolve();
       }),
     };
 

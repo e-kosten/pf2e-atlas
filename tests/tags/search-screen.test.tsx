@@ -151,13 +151,12 @@ function createServices(
   const record = createRecord();
   const countRecords =
     overrides.countRecords ??
-    vi.fn(
-      async () =>
-        ({
-          searchProfile: "lexical",
-          mode: "lexical" as const,
-          total: 1,
-        }) satisfies SearchCountResult,
+    vi.fn(() =>
+      Promise.resolve({
+        searchProfile: "lexical",
+        mode: "lexical" as const,
+        total: 1,
+      } satisfies SearchCountResult),
     );
   const listRecords =
     overrides.listRecords ??
@@ -175,17 +174,19 @@ function createServices(
   const lookup = overrides.lookup ?? vi.fn(() => ({ match: record, alternatives: [] }));
   const search =
     overrides.search ??
-    vi.fn(async (filters: SearchFilters) => ({
-      searchProfile: filters.searchProfile ?? "balanced",
-      mode: "hybrid" as const,
-      sort: filters.sort ?? "ranked",
-      total: 1,
-      offset: filters.offset ?? 0,
-      limit: filters.limit ?? 20,
-      hasMore: false,
-      nextOffset: null,
-      records: [record],
-    }));
+    vi.fn((filters: SearchFilters) =>
+      Promise.resolve({
+        searchProfile: filters.searchProfile ?? "balanced",
+        mode: "hybrid" as const,
+        sort: filters.sort ?? "ranked",
+        total: 1,
+        offset: filters.offset ?? 0,
+        limit: filters.limit ?? 20,
+        hasMore: false,
+        nextOffset: null,
+        records: [record],
+      }),
+    );
   const openSearchWindow =
     overrides.openSearchWindow ??
     vi.fn(async (filters: SearchFilters, options?: { mode?: "browse" | "search" | "lookup" }) => {
@@ -298,11 +299,9 @@ function createServices(
     },
     dev: {
       tagRefinement: {
-        createSession: vi.fn(async () => {
-          throw new Error("not implemented");
-        }),
+        createSession: vi.fn(() => Promise.reject(new Error("not implemented"))),
         getQueueItems: vi.fn(() => []),
-        promptAndCreateSession: vi.fn(async () => undefined),
+        promptAndCreateSession: vi.fn(() => Promise.resolve(undefined)),
       },
     },
     close: vi.fn(),
@@ -388,17 +387,19 @@ describe("search screen", () => {
   });
 
   it("supports arrow-driven navigation for editing and executing the query workspace", async () => {
-    const search = vi.fn(async (filters: SearchFilters) => ({
-      searchProfile: filters.searchProfile ?? "balanced",
-      mode: "hybrid" as const,
-      sort: filters.sort ?? "ranked",
-      total: 1,
-      offset: 0,
-      limit: filters.limit ?? 50,
-      hasMore: false,
-      nextOffset: null,
-      records: [createRecord()],
-    }));
+    const search = vi.fn((filters: SearchFilters) =>
+      Promise.resolve({
+        searchProfile: filters.searchProfile ?? "balanced",
+        mode: "hybrid" as const,
+        sort: filters.sort ?? "ranked",
+        total: 1,
+        offset: 0,
+        limit: filters.limit ?? 50,
+        hasMore: false,
+        nextOffset: null,
+        records: [createRecord()],
+      }),
+    );
     const services = createServices({ search });
     const app = render(
       <DerivedTagTerminalProvider>
@@ -679,19 +680,21 @@ describe("search screen", () => {
       createRecord({ recordKey: "spell:b", id: "b", name: "Arcane Echo" }),
     ];
     const secondPageRecords = [createRecord({ recordKey: "spell:c", id: "c", name: "Beacon Sigil" })];
-    const openSearchWindow = vi.fn(async () => ({
-      id: "window-1",
-      searchProfile: null,
-      mode: "structured" as const,
-      sort: "alphabetical" as const,
-      sortSeed: null,
-      total: 3,
-      offset: 0,
-      limit: 2,
-      hasMore: true,
-      nextOffset: 2,
-      records: firstPageRecords,
-    }));
+    const openSearchWindow = vi.fn(() =>
+      Promise.resolve({
+        id: "window-1",
+        searchProfile: null,
+        mode: "structured" as const,
+        sort: "alphabetical" as const,
+        sortSeed: null,
+        total: 3,
+        offset: 0,
+        limit: 2,
+        hasMore: true,
+        nextOffset: 2,
+        records: firstPageRecords,
+      }),
+    );
     const readSearchWindowPage = vi.fn(() => ({
       id: "window-1",
       searchProfile: null,
@@ -705,17 +708,19 @@ describe("search screen", () => {
       nextOffset: null,
       records: [...firstPageRecords, ...secondPageRecords],
     }));
-    const search = vi.fn(async () => ({
-      searchProfile: "balanced" as const,
-      mode: "hybrid" as const,
-      sort: "ranked" as const,
-      total: 0,
-      offset: 0,
-      limit: 50,
-      hasMore: false,
-      nextOffset: null,
-      records: [],
-    }));
+    const search = vi.fn(() =>
+      Promise.resolve({
+        searchProfile: "balanced" as const,
+        mode: "hybrid" as const,
+        sort: "ranked" as const,
+        total: 0,
+        offset: 0,
+        limit: 50,
+        hasMore: false,
+        nextOffset: null,
+        records: [],
+      }),
+    );
     const services = createServices({ openSearchWindow, readSearchWindowPage, search });
     const app = render(
       <DerivedTagTerminalProvider>
@@ -857,19 +862,21 @@ describe("search screen", () => {
       createRecord({ recordKey: "spell:c", id: "c", name: "Beacon Sigil" }),
     ];
     const services = createServices({
-      openSearchWindow: vi.fn(async () => ({
-        id: "window-1",
-        searchProfile: null,
-        mode: "structured" as const,
-        sort: "alphabetical" as const,
-        sortSeed: null,
-        total: 3,
-        offset: 0,
-        limit: 120,
-        hasMore: false,
-        nextOffset: null,
-        records,
-      })),
+      openSearchWindow: vi.fn(() =>
+        Promise.resolve({
+          id: "window-1",
+          searchProfile: null,
+          mode: "structured" as const,
+          sort: "alphabetical" as const,
+          sortSeed: null,
+          total: 3,
+          offset: 0,
+          limit: 120,
+          hasMore: false,
+          nextOffset: null,
+          records,
+        }),
+      ),
     });
     const app = render(
       <DerivedTagTerminalProvider>
@@ -916,19 +923,21 @@ describe("search screen", () => {
         name: `Spell ${index + 120}`,
       }),
     );
-    const openSearchWindow = vi.fn(async () => ({
-      id: "window-1",
-      searchProfile: null,
-      mode: "structured" as const,
-      sort: "alphabetical" as const,
-      sortSeed: null,
-      total: 200,
-      offset: 0,
-      limit: 120,
-      hasMore: true,
-      nextOffset: 120,
-      records: firstPageRecords,
-    }));
+    const openSearchWindow = vi.fn(() =>
+      Promise.resolve({
+        id: "window-1",
+        searchProfile: null,
+        mode: "structured" as const,
+        sort: "alphabetical" as const,
+        sortSeed: null,
+        total: 200,
+        offset: 0,
+        limit: 120,
+        hasMore: true,
+        nextOffset: 120,
+        records: firstPageRecords,
+      }),
+    );
     const readSearchWindowPage = vi.fn(() => ({
       id: "window-1",
       searchProfile: null,
@@ -965,19 +974,21 @@ describe("search screen", () => {
 
   it("carries the applied execution window size forward into later page loads", async () => {
     const services = createServices({
-      openSearchWindow: vi.fn(async () => ({
-        id: "window-1",
-        searchProfile: null,
-        mode: "structured" as const,
-        sort: "alphabetical" as const,
-        sortSeed: null,
-        total: 200,
-        offset: 0,
-        limit: 120,
-        hasMore: true,
-        nextOffset: 120,
-        records: [createRecord()],
-      })),
+      openSearchWindow: vi.fn(() =>
+        Promise.resolve({
+          id: "window-1",
+          searchProfile: null,
+          mode: "structured" as const,
+          sort: "alphabetical" as const,
+          sortSeed: null,
+          total: 200,
+          offset: 0,
+          limit: 120,
+          hasMore: true,
+          nextOffset: 120,
+          records: [createRecord()],
+        }),
+      ),
       readSearchWindowPage: vi.fn(() => ({
         id: "window-1",
         searchProfile: null,
@@ -1005,25 +1016,27 @@ describe("search screen", () => {
 
   it("loads enough future pages to restore a wider local result buffer", async () => {
     const services = createServices({
-      openSearchWindow: vi.fn(async () => ({
-        id: "window-1",
-        searchProfile: null,
-        mode: "structured" as const,
-        sort: "alphabetical" as const,
-        sortSeed: null,
-        total: 1000,
-        offset: 0,
-        limit: 120,
-        hasMore: true,
-        nextOffset: 120,
-        records: Array.from({ length: 120 }, (_, index) =>
-          createRecord({
-            recordKey: `spell:${index}`,
-            id: `${index}`,
-            name: `Spell ${index}`,
-          }),
-        ),
-      })),
+      openSearchWindow: vi.fn(() =>
+        Promise.resolve({
+          id: "window-1",
+          searchProfile: null,
+          mode: "structured" as const,
+          sort: "alphabetical" as const,
+          sortSeed: null,
+          total: 1000,
+          offset: 0,
+          limit: 120,
+          hasMore: true,
+          nextOffset: 120,
+          records: Array.from({ length: 120 }, (_, index) =>
+            createRecord({
+              recordKey: `spell:${index}`,
+              id: `${index}`,
+              name: `Spell ${index}`,
+            }),
+          ),
+        }),
+      ),
       readSearchWindowPage: vi.fn((windowId: string, offset: number, limit: number) => ({
         id: windowId,
         searchProfile: null,
@@ -1065,19 +1078,21 @@ describe("search screen", () => {
         name: `Spell ${index}`,
       }),
     );
-    const openSearchWindow = vi.fn(async () => ({
-      id: "window-1",
-      searchProfile: null,
-      mode: "structured" as const,
-      sort: "alphabetical" as const,
-      sortSeed: null,
-      total: 1000,
-      offset: 0,
-      limit: 120,
-      hasMore: true,
-      nextOffset: 120,
-      records: firstPageRecords,
-    }));
+    const openSearchWindow = vi.fn(() =>
+      Promise.resolve({
+        id: "window-1",
+        searchProfile: null,
+        mode: "structured" as const,
+        sort: "alphabetical" as const,
+        sortSeed: null,
+        total: 1000,
+        offset: 0,
+        limit: 120,
+        hasMore: true,
+        nextOffset: 120,
+        records: firstPageRecords,
+      }),
+    );
     const readSearchWindowPage = vi.fn((windowId: string, offset: number, limit: number) => ({
       id: windowId,
       searchProfile: null,
@@ -1133,19 +1148,21 @@ describe("search screen", () => {
         name: `Spell ${index}`,
       }),
     );
-    const openSearchWindow = vi.fn(async () => ({
-      id: "window-1",
-      searchProfile: null,
-      mode: "structured" as const,
-      sort: "alphabetical" as const,
-      sortSeed: null,
-      total: 1000,
-      offset: 0,
-      limit: 120,
-      hasMore: true,
-      nextOffset: 120,
-      records: firstPageRecords,
-    }));
+    const openSearchWindow = vi.fn(() =>
+      Promise.resolve({
+        id: "window-1",
+        searchProfile: null,
+        mode: "structured" as const,
+        sort: "alphabetical" as const,
+        sortSeed: null,
+        total: 1000,
+        offset: 0,
+        limit: 120,
+        hasMore: true,
+        nextOffset: 120,
+        records: firstPageRecords,
+      }),
+    );
     const readSearchWindowPage = vi.fn((windowId: string, offset: number, limit: number) => ({
       id: windowId,
       searchProfile: null,
@@ -1204,19 +1221,21 @@ describe("search screen", () => {
         name: `Spell ${index}`,
       }),
     );
-    const openSearchWindow = vi.fn(async () => ({
-      id: "window-1",
-      searchProfile: null,
-      mode: "structured" as const,
-      sort: "alphabetical" as const,
-      sortSeed: null,
-      total: 1000,
-      offset: 0,
-      limit: 120,
-      hasMore: true,
-      nextOffset: 120,
-      records: firstPageRecords,
-    }));
+    const openSearchWindow = vi.fn(() =>
+      Promise.resolve({
+        id: "window-1",
+        searchProfile: null,
+        mode: "structured" as const,
+        sort: "alphabetical" as const,
+        sortSeed: null,
+        total: 1000,
+        offset: 0,
+        limit: 120,
+        hasMore: true,
+        nextOffset: 120,
+        records: firstPageRecords,
+      }),
+    );
     const readSearchWindowPage = vi.fn((windowId: string, offset: number, limit: number) => ({
       id: windowId,
       searchProfile: null,
@@ -1265,25 +1284,27 @@ describe("search screen", () => {
   });
 
   it("coalesces rapid Ctrl-D jumps into a single latest window read", async () => {
-    const openSearchWindow = vi.fn(async () => ({
-      id: "window-1",
-      searchProfile: null,
-      mode: "structured" as const,
-      sort: "alphabetical" as const,
-      sortSeed: null,
-      total: 1000,
-      offset: 0,
-      limit: 120,
-      hasMore: true,
-      nextOffset: 120,
-      records: Array.from({ length: 120 }, (_, index) =>
-        createRecord({
-          recordKey: `spell:${index}`,
-          id: `${index}`,
-          name: `Spell ${index}`,
-        }),
-      ),
-    }));
+    const openSearchWindow = vi.fn(() =>
+      Promise.resolve({
+        id: "window-1",
+        searchProfile: null,
+        mode: "structured" as const,
+        sort: "alphabetical" as const,
+        sortSeed: null,
+        total: 1000,
+        offset: 0,
+        limit: 120,
+        hasMore: true,
+        nextOffset: 120,
+        records: Array.from({ length: 120 }, (_, index) =>
+          createRecord({
+            recordKey: `spell:${index}`,
+            id: `${index}`,
+            name: `Spell ${index}`,
+          }),
+        ),
+      }),
+    );
     const readSearchWindowPage = vi.fn((windowId: string, offset: number, limit: number) => ({
       id: windowId,
       searchProfile: null,
@@ -1411,17 +1432,19 @@ describe("search screen", () => {
   });
 
   it("translates policy-based draft filters into metadata clauses", async () => {
-    const search = vi.fn(async (filters: SearchFilters) => ({
-      searchProfile: filters.searchProfile ?? "balanced",
-      mode: "hybrid" as const,
-      sort: filters.sort ?? "ranked",
-      total: 1,
-      offset: 0,
-      limit: filters.limit ?? 20,
-      hasMore: false,
-      nextOffset: null,
-      records: [createRecord()],
-    }));
+    const search = vi.fn((filters: SearchFilters) =>
+      Promise.resolve({
+        searchProfile: filters.searchProfile ?? "balanced",
+        mode: "hybrid" as const,
+        sort: filters.sort ?? "ranked",
+        total: 1,
+        offset: 0,
+        limit: filters.limit ?? 20,
+        hasMore: false,
+        nextOffset: null,
+        records: [createRecord()],
+      }),
+    );
     const services = createServices({ search });
 
     await services.user.search.executeQuery({

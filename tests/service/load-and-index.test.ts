@@ -998,23 +998,24 @@ describe("Pf2eDataService / Load and Index", () => {
         indexPath,
         embedding: TEST_HASH_EMBEDDING,
         reuseEmbeddings: true,
-        embeddingProviderFactory: async () => ({
-          provider: {
-            identity: {
-              provider: "hash",
-              model: "feature-hash-192",
-              revision: null,
-              dimensions: 192,
+        embeddingProviderFactory: () =>
+          Promise.resolve({
+            provider: {
+              identity: {
+                provider: "hash",
+                model: "feature-hash-192",
+                revision: null,
+                dimensions: 192,
+              },
+              embed(text: string): Promise<Float32Array> {
+                return Promise.reject(new Error(`Unexpected embed() call for ${text}`));
+              },
+              embedMany(): Promise<Float32Array[]> {
+                return Promise.reject(new Error("simulated embedding failure"));
+              },
             },
-            async embed(text: string): Promise<Float32Array> {
-              throw new Error(`Unexpected embed() call for ${text}`);
-            },
-            async embedMany(): Promise<Float32Array[]> {
-              throw new Error("simulated embedding failure");
-            },
-          },
-          warnings: [],
-        }),
+            warnings: [],
+          }),
       }),
     ).rejects.toThrow(/simulated embedding failure/);
 
@@ -1308,9 +1309,7 @@ describe("Pf2eDataService / Load and Index", () => {
           cachePath: path.join(fixture.root, ".cache", "hf-models"),
           localModelPath: null,
         },
-        embeddingProviderFactory: async () => {
-          throw new Error("cached model assets not found");
-        },
+        embeddingProviderFactory: () => Promise.reject(new Error("cached model assets not found")),
       }),
     ).rejects.toThrow(/cached model assets not found/);
   });

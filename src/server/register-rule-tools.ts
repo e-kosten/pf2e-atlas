@@ -48,7 +48,7 @@ export function registerRuleTools(server: McpServer, dataService: Pf2eDataServic
         includeAlternatives: z.boolean().optional().describe("Include alternative primary matches. Defaults to false."),
       },
     },
-    async ({
+    ({
       rules,
       question,
       coreOnly,
@@ -141,7 +141,7 @@ export function registerRuleTools(server: McpServer, dataService: Pf2eDataServic
           .describe("Response detail level. Defaults to minimal."),
       },
     },
-    async ({
+    ({
       recordKeys,
       coreOnly,
       includeOutgoing,

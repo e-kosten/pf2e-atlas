@@ -74,10 +74,11 @@ export type Pf2eTerminalAppServices = {
 };
 
 function createConfiguredWorkbenchServices(config: AppConfig): DerivedTagMigrationWorkbenchServices {
-  const openIndex = async (_argv: string[]): Promise<{ db: DatabaseSync; config: AppConfig }> => ({
-    config,
-    db: new DatabaseSync(config.indexPath),
-  });
+  const openIndex = (_argv: string[]): Promise<{ db: DatabaseSync; config: AppConfig }> =>
+    Promise.resolve({
+      config,
+      db: new DatabaseSync(config.indexPath),
+    });
 
   return {
     buildSession: buildDerivedTagMigrationSession,

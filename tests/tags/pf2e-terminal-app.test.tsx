@@ -138,11 +138,13 @@ function createFakeServices(overrides: Partial<Pf2eTerminalAppServices> = {}): P
     config: createTestConfig(),
     catalog: {
       closeSearchWindow: vi.fn(),
-      countRecords: vi.fn(async () => ({
-        searchProfile: "lexical",
-        mode: "lexical",
-        total: 1,
-      })),
+      countRecords: vi.fn(() =>
+        Promise.resolve({
+          searchProfile: "lexical",
+          mode: "lexical",
+          total: 1,
+        }),
+      ),
       getRecord: vi.fn(() => record),
       getSearchVocabulary: vi.fn(() => ({}) as never),
       listFilterValues: vi.fn(() => ({ field: "categories", values: [] }) as never),
@@ -158,19 +160,21 @@ function createFakeServices(overrides: Partial<Pf2eTerminalAppServices> = {}): P
         records: [record],
       })),
       lookup: vi.fn(() => ({ match: record, alternatives: [] })),
-      openSearchWindow: vi.fn(async () => ({
-        id: "window-1",
-        searchProfile: "balanced",
-        mode: "hybrid",
-        sort: "alphabetical",
-        sortSeed: null,
-        total: 1,
-        offset: 0,
-        limit: 20,
-        hasMore: false,
-        nextOffset: null,
-        records: [record],
-      })),
+      openSearchWindow: vi.fn(() =>
+        Promise.resolve({
+          id: "window-1",
+          searchProfile: "balanced",
+          mode: "hybrid",
+          sort: "alphabetical",
+          sortSeed: null,
+          total: 1,
+          offset: 0,
+          limit: 20,
+          hasMore: false,
+          nextOffset: null,
+          records: [record],
+        }),
+      ),
       readSearchWindowPage: vi.fn(() => ({
         id: "window-1",
         searchProfile: "balanced",
@@ -184,17 +188,19 @@ function createFakeServices(overrides: Partial<Pf2eTerminalAppServices> = {}): P
         nextOffset: null,
         records: [record],
       })),
-      search: vi.fn(async () => ({
-        searchProfile: "balanced",
-        mode: "hybrid",
-        sort: "ranked",
-        total: 1,
-        offset: 0,
-        limit: 20,
-        hasMore: false,
-        nextOffset: null,
-        records: [record],
-      })),
+      search: vi.fn(() =>
+        Promise.resolve({
+          searchProfile: "balanced",
+          mode: "hybrid",
+          sort: "ranked",
+          total: 1,
+          offset: 0,
+          limit: 20,
+          hasMore: false,
+          nextOffset: null,
+          records: [record],
+        }),
+      ),
     },
     user: {
       search: {
@@ -240,28 +246,32 @@ function createFakeServices(overrides: Partial<Pf2eTerminalAppServices> = {}): P
         ]),
         normalizeRequest: vi.fn((request) => request),
         getDefaultSort: vi.fn(() => "alphabetical"),
-        countQuery: vi.fn(async () => ({
-          searchProfile: "lexical",
-          mode: "lexical",
-          total: 1,
-        })),
-        executeQuery: vi.fn(async (request) => ({
-          windowId: "window-1",
-          request,
-          results: [record],
-          windowOffset: 0,
-          resultMode: request.mode === "browse" ? "structured" : "hybrid",
-          total: 1,
-          loadedCount: 1,
-          hasMore: false,
-          nextOffset: null,
-          searchProfile: request.mode === "lookup" ? null : request.searchProfile,
-          sort: "alphabetical",
-          sortSeed: null,
-        })),
-        loadMore: vi.fn(async (session) => session),
-        readResultWindow: vi.fn(async (session) => session),
-        changeSort: vi.fn(async (session) => session),
+        countQuery: vi.fn(() =>
+          Promise.resolve({
+            searchProfile: "lexical",
+            mode: "lexical",
+            total: 1,
+          }),
+        ),
+        executeQuery: vi.fn((request) =>
+          Promise.resolve({
+            windowId: "window-1",
+            request,
+            results: [record],
+            windowOffset: 0,
+            resultMode: request.mode === "browse" ? "structured" : "hybrid",
+            total: 1,
+            loadedCount: 1,
+            hasMore: false,
+            nextOffset: null,
+            searchProfile: request.mode === "lookup" ? null : request.searchProfile,
+            sort: "alphabetical",
+            sortSeed: null,
+          }),
+        ),
+        loadMore: vi.fn((session) => Promise.resolve(session)),
+        readResultWindow: vi.fn((session) => Promise.resolve(session)),
+        changeSort: vi.fn((session) => Promise.resolve(session)),
       },
       ontology: {
         listDomains: vi.fn(() => [
@@ -335,11 +345,9 @@ function createFakeServices(overrides: Partial<Pf2eTerminalAppServices> = {}): P
     },
     dev: {
       tagRefinement: {
-        createSession: vi.fn(async () => {
-          throw new Error("not implemented");
-        }),
+        createSession: vi.fn(() => Promise.reject(new Error("not implemented"))),
         getQueueItems: vi.fn(() => []),
-        promptAndCreateSession: vi.fn(async () => undefined),
+        promptAndCreateSession: vi.fn(() => Promise.resolve(undefined)),
       },
     },
     close: vi.fn(),
@@ -422,7 +430,7 @@ describe("pf2e terminal app", () => {
 
   it("closes loaded services when the bootstrap unmounts", async () => {
     const services = createFakeServices();
-    const loadServices = vi.fn(async () => services);
+    const loadServices = vi.fn(() => Promise.resolve(services));
     const app = render(
       <DerivedTagTerminalProvider>
         <Pf2eTerminalBootstrap rootPath={process.cwd()} argv={[]} onExit={vi.fn()} loadServices={loadServices} />

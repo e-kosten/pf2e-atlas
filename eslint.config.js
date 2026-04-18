@@ -31,6 +31,7 @@ export default defineConfig(
       "@typescript-eslint/restrict-template-expressions": "error",
       "@typescript-eslint/no-redundant-type-constituents": "error",
       "@typescript-eslint/unbound-method": "error",
+      "@typescript-eslint/require-await": "error",
     },
   },
   {
