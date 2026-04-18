@@ -1,7 +1,12 @@
 import { DatabaseSync } from "node:sqlite";
 
 import { buildPlaceholders } from "../../data/rows.js";
-import { SearchCategory, SearchSubcategory } from "../../types.js";
+import {
+  categorySupportsSubcategory,
+  normalizeSearchCategory,
+  normalizeSearchSubcategory,
+} from "../../domain/categories.js";
+import { SearchCategory, SearchSubcategory, SourceCategory } from "../../types.js";
 import { normalizeText } from "../../utils.js";
 
 export type DiscoveryReferenceRecord = {
@@ -11,7 +16,7 @@ export type DiscoveryReferenceRecord = {
   targetSubcategory: SearchSubcategory | null;
   fromPackName: string;
   fromRecordType: string;
-  fromSourceCategory: string;
+  fromSourceCategory: SourceCategory;
 };
 
 export type DiscoveryAnalysisRecord = {
@@ -131,10 +136,78 @@ export function deriveSourcePathSlice(packName: string, sourcePath: string | nul
   return null;
 }
 
+function parseStringArrayJson(value: string | null | undefined, fieldName: string, recordKey: string): string[] {
+  if (!value) {
+    return [];
+  }
+
+  const parsed: unknown = JSON.parse(value);
+  if (!Array.isArray(parsed)) {
+    throw new Error(`Expected ${fieldName} for "${recordKey}" to be a JSON string array.`);
+  }
+
+  const result: string[] = [];
+  for (const entry of parsed) {
+    if (typeof entry !== "string") {
+      throw new Error(`Expected ${fieldName} for "${recordKey}" to be a JSON string array.`);
+    }
+    if (entry.length > 0) {
+      result.push(entry);
+    }
+  }
+
+  return result;
+}
+
+function parseDiscoveryCategory(category: string, recordKey: string): SearchCategory {
+  const normalized = normalizeSearchCategory(category);
+  if (!normalized) {
+    throw new Error(`Invalid discovery category "${category}" for "${recordKey}".`);
+  }
+
+  return normalized;
+}
+
+function parseDiscoverySubcategory(
+  category: SearchCategory,
+  subcategory: string | null,
+  recordKey: string,
+): SearchSubcategory | null {
+  if (!subcategory) {
+    return null;
+  }
+
+  const normalized = normalizeSearchSubcategory(subcategory);
+  if (!normalized) {
+    throw new Error(`Invalid discovery subcategory "${subcategory}" for "${recordKey}".`);
+  }
+  if (!categorySupportsSubcategory(category, normalized)) {
+    throw new Error(`Invalid discovery subcategory "${subcategory}" for ${category} record "${recordKey}".`);
+  }
+
+  return normalized;
+}
+
+function parseSourceCategory(sourceCategory: string, recordKey: string): SourceCategory {
+  switch (normalizeText(sourceCategory)) {
+    case "core":
+      return "core";
+    case "rules":
+      return "rules";
+    case "adventure":
+      return "adventure";
+    case "unknown":
+      return "unknown";
+    default:
+      throw new Error(`Invalid discovery source category "${sourceCategory}" for "${recordKey}".`);
+  }
+}
+
 function toDiscoveryRecord(row: LoadedRecordRow, references: DiscoveryReferenceRecord[]): DiscoveryAnalysisRecord {
   const separatorIndex = row.recordKey.indexOf(":");
   const sourceKey = separatorIndex >= 0 ? row.recordKey.slice(0, separatorIndex) : row.recordKey;
   const packName = row.packName ?? sourceKey;
+  const category = parseDiscoveryCategory(row.category, row.recordKey);
   return {
     recordKey: row.recordKey,
     sourceKey,
@@ -144,15 +217,15 @@ function toDiscoveryRecord(row: LoadedRecordRow, references: DiscoveryReferenceR
     sourcePath: row.sourcePath,
     sourcePathSlice: deriveSourcePathSlice(packName, row.sourcePath),
     name: row.name,
-    category: row.category as SearchCategory,
-    subcategory: (row.subcategory ?? null) as SearchSubcategory | null,
+    category,
+    subcategory: parseDiscoverySubcategory(category, row.subcategory, row.recordKey),
     variantFamilyKey: row.variantFamilyKey,
     variantBaseName: row.variantBaseName,
     variantLabel: row.variantLabel,
-    variantAxes: row.variantAxesJson ? (JSON.parse(row.variantAxesJson) as string[]) : [],
+    variantAxes: parseStringArrayJson(row.variantAxesJson, "variantAxesJson", row.recordKey),
     level: typeof row.level === "bigint" ? Number(row.level) : row.level,
-    traits: JSON.parse(row.traitsJson) as string[],
-    derivedTags: row.derivedTagsJson ? (JSON.parse(row.derivedTagsJson) as string[]) : [],
+    traits: parseStringArrayJson(row.traitsJson, "traitsJson", row.recordKey),
+    derivedTags: parseStringArrayJson(row.derivedTagsJson, "derivedTagsJson", row.recordKey),
     descriptionText: row.descriptionText,
     vector: decodeDiscoveryVector(row.vectorBlob),
     references,
@@ -187,14 +260,15 @@ function loadReferencesForRecords(db: DatabaseSync, recordKeys: string[]): Map<s
   const referencesByRecordKey = new Map<string, DiscoveryReferenceRecord[]>();
   for (const row of rows) {
     const bucket = referencesByRecordKey.get(row.fromRecordKey) ?? [];
+    const targetCategory = parseDiscoveryCategory(row.targetCategory, row.targetRecordKey);
     bucket.push({
       targetRecordKey: row.targetRecordKey,
       targetName: row.targetName,
-      targetCategory: row.targetCategory as SearchCategory,
-      targetSubcategory: (row.targetSubcategory ?? null) as SearchSubcategory | null,
+      targetCategory,
+      targetSubcategory: parseDiscoverySubcategory(targetCategory, row.targetSubcategory, row.targetRecordKey),
       fromPackName: row.fromPackName,
       fromRecordType: row.fromRecordType,
-      fromSourceCategory: row.fromSourceCategory,
+      fromSourceCategory: parseSourceCategory(row.fromSourceCategory, row.fromRecordKey),
     });
     referencesByRecordKey.set(row.fromRecordKey, bucket);
   }
@@ -352,42 +426,57 @@ function dedupeExemplarRows(rows: ResolvedExemplarRow[]): ResolvedExemplarRow[] 
   return [...byRecordKey.values()];
 }
 
+function loadSingleDiscoveryRecord(
+  db: DatabaseSync,
+  options: DiscoveryRecordLoadOptions & { recordKey: string },
+): DiscoveryAnalysisRecord {
+  const records = loadDiscoveryRecords(db, {
+    category: options.category,
+    subcategory: options.subcategory,
+    recordKeys: [options.recordKey],
+    includeVectors: options.includeVectors,
+    includeDerivedTags: options.includeDerivedTags,
+  });
+  const record = records[0];
+  if (!record) {
+    throw new Error(`Could not resolve exemplar record key "${options.recordKey}" within the requested scope.`);
+  }
+
+  return record;
+}
+
 export function resolveDiscoveryExemplars(
   db: DatabaseSync,
   options: DiscoveryExemplarOptions,
 ): ResolvedDiscoveryExemplar[] {
   const rows: ResolvedExemplarRow[] = [];
   for (const recordKey of options.exemplarRecordKeys ?? []) {
-    const records = loadDiscoveryRecords(db, {
+    const record = loadSingleDiscoveryRecord(db, {
       category: options.category,
       subcategory: options.subcategory,
-      recordKeys: [recordKey],
+      recordKey,
       includeVectors: true,
     });
-    if (records.length === 0) {
-      throw new Error(`Could not resolve exemplar record key "${recordKey}" within the requested scope.`);
-    }
-
     rows.push({
       query: recordKey,
       matchedBy: "recordKey",
-      recordKey: records[0]!.recordKey,
-      packName: records[0]!.packName,
-      publicationTitle: records[0]!.publicationTitle,
-      folderId: records[0]!.folderId,
-      sourcePath: records[0]!.sourcePath,
-      name: records[0]!.name,
-      category: records[0]!.category,
-      subcategory: records[0]!.subcategory,
-      variantFamilyKey: records[0]!.variantFamilyKey,
-      variantBaseName: records[0]!.variantBaseName,
-      variantLabel: records[0]!.variantLabel,
-      variantAxesJson: JSON.stringify(records[0]!.variantAxes),
-      level: records[0]!.level,
-      traitsJson: JSON.stringify(records[0]!.traits),
-      derivedTagsJson: JSON.stringify(records[0]!.derivedTags),
-      descriptionText: records[0]!.descriptionText,
-      vectorBlob: records[0]!.vector.length > 0 ? new Uint8Array(records[0]!.vector.buffer.slice(0)) : null,
+      recordKey: record.recordKey,
+      packName: record.packName,
+      publicationTitle: record.publicationTitle,
+      folderId: record.folderId,
+      sourcePath: record.sourcePath,
+      name: record.name,
+      category: record.category,
+      subcategory: record.subcategory,
+      variantFamilyKey: record.variantFamilyKey,
+      variantBaseName: record.variantBaseName,
+      variantLabel: record.variantLabel,
+      variantAxesJson: JSON.stringify(record.variantAxes),
+      level: record.level,
+      traitsJson: JSON.stringify(record.traits),
+      derivedTagsJson: JSON.stringify(record.derivedTags),
+      descriptionText: record.descriptionText,
+      vectorBlob: record.vector.length > 0 ? new Uint8Array(record.vector.buffer.slice(0)) : null,
     });
   }
 

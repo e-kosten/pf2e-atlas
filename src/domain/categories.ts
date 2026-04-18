@@ -76,6 +76,7 @@ const SUBCATEGORY_TO_CATEGORIES = new Map<string, SearchCategory[]>(
     return [normalizeText(subcategory), categories] as const;
   }),
 );
+const FEAT_SYSTEM_SUBCATEGORIES = new Set<SearchSubcategory>(["class", "ancestry", "skill", "general"]);
 
 export const VALID_SEARCH_CATEGORY_LIST = SEARCH_CATEGORIES.join(", ");
 export const VALID_SEARCH_SUBCATEGORY_LIST = SEARCH_SUBCATEGORIES.join(", ");
@@ -164,8 +165,9 @@ function inferFeatSubcategories(
     return "archetype";
   }
 
-  if (["class", "ancestry", "skill", "general"].includes(systemCategory)) {
-    return systemCategory as SearchSubcategory;
+  const featSystemSubcategory = normalizeSearchSubcategory(systemCategory);
+  if (featSystemSubcategory && FEAT_SYSTEM_SUBCATEGORIES.has(featSystemSubcategory)) {
+    return featSystemSubcategory;
   }
 
   if (systemCategory === "deityboon" || systemCategory === "curse") {
