@@ -438,11 +438,11 @@ describe("search screen", () => {
       sort: "alphabetical" as const,
       sortSeed: null,
       total: 3,
-      offset: 2,
-      limit: 2,
+      offset: 0,
+      limit: 3,
       hasMore: false,
       nextOffset: null,
-      records: secondPageRecords,
+      records: [...firstPageRecords, ...secondPageRecords],
     }));
     const search = vi.fn(async () => ({
       searchProfile: "balanced" as const,
@@ -559,11 +559,11 @@ describe("search screen", () => {
       sort: "alphabetical" as const,
       sortSeed: null,
       total: 200,
-      offset: 120,
-      limit: 120,
+      offset: 0,
+      limit: 200,
       hasMore: false,
       nextOffset: null,
-      records: secondPageRecords,
+      records: [...firstPageRecords, ...secondPageRecords],
     }));
     const services = createServices({ openSearchWindow, readSearchWindowPage });
     const app = render(
@@ -673,6 +673,134 @@ describe("search screen", () => {
     expect(buffered.nextOffset).toBe(360);
     expect(services.catalog.readSearchWindowPage).toHaveBeenNthCalledWith(1, "window-1", 120, 120);
     expect(services.catalog.readSearchWindowPage).toHaveBeenNthCalledWith(2, "window-1", 240, 120);
+  });
+
+  it("jumps G to the last true result page rather than the end of the loaded prefix", async () => {
+    const firstPageRecords = Array.from({ length: 120 }, (_, index) => createRecord({
+      recordKey: `spell:${index}`,
+      id: `${index}`,
+      name: `Spell ${index}`,
+    }));
+    const openSearchWindow = vi.fn(async () => ({
+      id: "window-1",
+      searchProfile: null,
+      mode: "structured" as const,
+      sort: "alphabetical" as const,
+      sortSeed: null,
+      total: 1000,
+      offset: 0,
+      limit: 120,
+      hasMore: true,
+      nextOffset: 120,
+      records: firstPageRecords,
+    }));
+    const readSearchWindowPage = vi.fn((windowId: string, offset: number, limit: number) => ({
+      id: windowId,
+      searchProfile: null,
+      mode: "structured" as const,
+      sort: "alphabetical" as const,
+      sortSeed: null,
+      total: 1000,
+      offset,
+      limit,
+      hasMore: false,
+      nextOffset: null,
+      records: Array.from({ length: Math.min(limit, 1000 - offset) }, (_, index) => createRecord({
+        recordKey: `spell:${offset + index}`,
+        id: `${offset + index}`,
+        name: `Spell ${offset + index}`,
+      })),
+    }));
+    const services = createServices({ openSearchWindow, readSearchWindowPage });
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen onBack={vi.fn()} />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    app.stdin.write("\t");
+    await flushInk();
+    await flushInk();
+
+    app.stdin.write("G");
+    await flushInk();
+    await flushInk();
+    await flushInk();
+
+    const finalWindowCall = readSearchWindowPage.mock.calls.at(-1);
+    expect(finalWindowCall?.[0]).toBe("window-1");
+    expect((finalWindowCall?.[1] ?? 0) + (finalWindowCall?.[2] ?? 0)).toBe(1000);
+
+    pressRight(app);
+    await flushInk();
+    expect(app.lastFrame()).toMatch(/(\[PREVIEW\]|Preview \|) Spell 999/);
+  });
+
+  it("slides the result window instead of growing it without bound", async () => {
+    const firstPageRecords = Array.from({ length: 120 }, (_, index) => createRecord({
+      recordKey: `spell:${index}`,
+      id: `${index}`,
+      name: `Spell ${index}`,
+    }));
+    const openSearchWindow = vi.fn(async () => ({
+      id: "window-1",
+      searchProfile: null,
+      mode: "structured" as const,
+      sort: "alphabetical" as const,
+      sortSeed: null,
+      total: 1000,
+      offset: 0,
+      limit: 120,
+      hasMore: true,
+      nextOffset: 120,
+      records: firstPageRecords,
+    }));
+    const readSearchWindowPage = vi.fn((windowId: string, offset: number, limit: number) => ({
+      id: windowId,
+      searchProfile: null,
+      mode: "structured" as const,
+      sort: "alphabetical" as const,
+      sortSeed: null,
+      total: 1000,
+      offset,
+      limit,
+      hasMore: true,
+      nextOffset: offset + limit,
+      records: Array.from({ length: limit }, (_, index) => createRecord({
+        recordKey: `spell:${offset + index}`,
+        id: `${offset + index}`,
+        name: `Spell ${offset + index}`,
+      })),
+    }));
+    const services = createServices({ openSearchWindow, readSearchWindowPage });
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen onBack={vi.fn()} />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    app.stdin.write("\t");
+    await flushInk();
+    await flushInk();
+
+    for (let index = 0; index < 30; index += 1) {
+      app.stdin.write("\u0004");
+      await flushInk();
+    }
+    await flushInk();
+    await flushInk();
+
+    expect(readSearchWindowPage.mock.calls.length).toBeGreaterThan(0);
+    expect(readSearchWindowPage.mock.calls.every((call) => call[0] === "window-1")).toBe(true);
+    expect(readSearchWindowPage.mock.calls.every((call) => (call[2] as number) > 100)).toBe(true);
+    const finalWindowSize = readSearchWindowPage.mock.calls.at(-1)?.[2];
+    expect(app.lastFrame()).toContain(`[RESULTS] ${finalWindowSize}/1000 loaded | Alphabetical`);
   });
 
   it("orders filter values from declarative field policies and exposes action cost through facet editing", () => {

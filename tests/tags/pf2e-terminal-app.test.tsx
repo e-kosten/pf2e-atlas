@@ -252,6 +252,7 @@ function createFakeServices(overrides: Partial<Pf2eTerminalAppServices> = {}): P
           windowId: "window-1",
           request,
           results: [record],
+          windowOffset: 0,
           resultMode: request.mode === "browse" ? "structured" : "hybrid",
           total: 1,
           loadedCount: 1,
@@ -262,6 +263,7 @@ function createFakeServices(overrides: Partial<Pf2eTerminalAppServices> = {}): P
           sortSeed: null,
         })),
         loadMore: vi.fn(async (session) => session),
+        readResultWindow: vi.fn(async (session) => session),
         changeSort: vi.fn(async (session) => session),
       },
       ontology: {

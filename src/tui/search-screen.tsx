@@ -97,7 +97,6 @@ const MIN_RESULT_WINDOW_LIMIT = 120;
 const RESULT_WINDOW_PAGE_MULTIPLIER = 8;
 const RESULT_PRELOAD_PAGE_MULTIPLIER = 4;
 const RESULT_PRELOAD_JUMP_MULTIPLIER = 6;
-const RESULT_BUFFER_TARGET_MULTIPLIER = 3;
 
 function createInitialSearchScreenState(initialRequest: Pf2eTerminalSearchRequest): SearchScreenState {
   return {
@@ -116,7 +115,6 @@ function getSearchResultWindowMetrics(bodyHeight: number): {
   pageSize: number;
   windowLimit: number;
   preloadThreshold: number;
-  targetAheadBuffer: number;
 } {
   const selectionJumpSize = Math.max(1, Math.floor(bodyHeight / 2));
   const pageSize = Math.max(1, bodyHeight - 1);
@@ -132,41 +130,86 @@ function getSearchResultWindowMetrics(bodyHeight: number): {
       selectionJumpSize * RESULT_PRELOAD_JUMP_MULTIPLIER,
     ),
   );
-  const targetAheadBuffer = Math.max(
-    pageSize * RESULT_BUFFER_TARGET_MULTIPLIER,
-    windowLimit * RESULT_BUFFER_TARGET_MULTIPLIER,
-  );
-
   return {
     selectionJumpSize,
     pageSize,
     windowLimit,
     preloadThreshold,
-    targetAheadBuffer,
   };
 }
 
-function getSearchResultBufferTarget(
+function clampAbsoluteSelection(index: number, total: number): number {
+  return Math.max(0, Math.min(index, Math.max(0, total - 1)));
+}
+
+function getSearchResultWindowTarget(
   session: Pf2eTerminalSearchSession,
   selectedIndex: number,
   metrics: {
+    windowLimit: number;
     preloadThreshold: number;
-    targetAheadBuffer: number;
   },
-): number {
+) : { offset: number; limit: number } | null {
+  if (session.total <= 0) {
+    return null;
+  }
+
   if (session.total <= EAGER_RESULT_BUFFER_LIMIT) {
-    return session.total;
+    return session.windowOffset === 0 && session.results.length >= session.total
+      ? null
+      : { offset: 0, limit: session.total };
   }
 
-  const remainingAhead = session.results.length - selectedIndex - 1;
-  if (remainingAhead > metrics.preloadThreshold) {
-    return session.loadedCount;
-  }
-
-  return Math.min(
+  const windowSize = Math.min(
     session.total,
-    Math.max(session.loadedCount, selectedIndex + 1 + metrics.targetAheadBuffer),
+    Math.max(session.request.limit, metrics.windowLimit),
   );
+  const windowStart = session.windowOffset;
+  const windowEnd = session.windowOffset + session.results.length;
+  const minimumBuffer = Math.min(
+    metrics.preloadThreshold,
+    Math.max(1, Math.floor(windowSize / 3)),
+  );
+  const remainingBehind = selectedIndex - windowStart;
+  const remainingAhead = windowEnd - selectedIndex - 1;
+
+  if (
+    selectedIndex >= windowStart &&
+    selectedIndex < windowEnd &&
+    remainingBehind >= minimumBuffer &&
+    remainingAhead >= minimumBuffer
+  ) {
+    return null;
+  }
+
+  const beforeBuffer = Math.max(minimumBuffer, Math.floor(windowSize / 3));
+  const maxOffset = Math.max(0, session.total - windowSize);
+  return {
+    offset: Math.max(0, Math.min(maxOffset, selectedIndex - beforeBuffer)),
+    limit: windowSize,
+  };
+}
+
+function getSessionRecordAtIndex(
+  session: Pf2eTerminalSearchSession | null,
+  selectedIndex: number,
+): Pf2eTerminalSearchSession["results"][number] | null {
+  if (!session || session.results.length === 0) {
+    return null;
+  }
+
+  const localIndex = selectedIndex - session.windowOffset;
+  return localIndex >= 0 && localIndex < session.results.length
+    ? session.results[localIndex] ?? null
+    : null;
+}
+
+function getSessionBufferRange(session: Pf2eTerminalSearchSession): string {
+  if (session.results.length === 0) {
+    return "empty";
+  }
+
+  return `${session.windowOffset + 1}-${session.windowOffset + session.results.length}`;
 }
 
 function searchScreenReducer(state: SearchScreenState, action: SearchScreenAction): SearchScreenState {
@@ -236,7 +279,7 @@ function searchScreenReducer(state: SearchScreenState, action: SearchScreenActio
         draft: action.request,
       };
     case "set_session": {
-      const maxIndex = Math.max(0, action.session.results.length - 1);
+      const maxIndex = Math.max(0, action.session.total - 1);
       return {
         ...state,
         layout: action.showResults === false ? state.layout : "results",
@@ -579,24 +622,44 @@ function buildResultLines(
   }
 
   const visibleCount = Math.max(1, bodyHeight);
-  const statusRows = loadingMore || session.hasMore ? 1 : 0;
+  const statusRows = loadingMore || session.loadedCount < session.total ? 1 : 0;
   const resultWindowCount = Math.max(1, visibleCount - statusRows);
-  const safeIndex = Math.max(0, Math.min(selectedIndex, session.results.length - 1));
+  const localSelectedIndex = selectedIndex - session.windowOffset;
+  const safeIndex = Math.max(0, Math.min(localSelectedIndex, session.results.length - 1));
   const windowStart = clampWindowStart(safeIndex, session.results.length, resultWindowCount);
 
   const lines: DerivedTagTerminalLine[] = session.results.slice(windowStart, windowStart + resultWindowCount).map((record, offset) => ({
     text: buildSearchResultLabel(record),
-    tone: windowStart + offset === safeIndex ? "selected" : "default",
+    tone: localSelectedIndex >= 0 && localSelectedIndex < session.results.length && windowStart + offset === localSelectedIndex
+      ? "selected"
+      : "default",
     noWrap: true,
   }));
 
   if (loadingMore) {
-    lines.push({ text: "Loading more results...", tone: "accent" });
-  } else if (session.hasMore) {
-    lines.push({ text: `${session.loadedCount}/${session.total} loaded. The result buffer fills automatically as you move.`, tone: "dim" });
+    lines.push({ text: `Loading results around ${selectedIndex + 1}/${session.total}...`, tone: "accent" });
+  } else if (session.loadedCount < session.total) {
+    lines.push({
+      text: `${session.loadedCount}/${session.total} buffered. Window ${getSessionBufferRange(session)} loads automatically as you move.`,
+      tone: "dim",
+    });
   }
 
   return lines;
+}
+
+function buildPendingResultDetailLines(
+  session: Pf2eTerminalSearchSession,
+  resultIndex: number,
+): DerivedTagTerminalLine[] {
+  return [
+    { text: "Result Preview", tone: "section" },
+    { text: `Showing result ${resultIndex + 1} of ${session.total}` },
+    { text: `Sort: ${formatSort(session.sort)}` },
+    { text: "" },
+    { text: "Loading the result window around the current selection.", tone: "accent" },
+    { text: `Current buffer: ${getSessionBufferRange(session)}`, tone: "dim" },
+  ];
 }
 
 function buildDraftSummaryLines(
@@ -656,7 +719,8 @@ function buildDraftSummaryLines(
     lines.push({ text: "No applied query yet.", tone: "dim" });
   } else {
     lines.push({ text: `Sort: ${formatSort(state.session.sort)}` });
-    lines.push({ text: `Loaded: ${state.session.loadedCount}/${state.session.total}` });
+    lines.push({ text: `Buffered: ${state.session.loadedCount}/${state.session.total}` });
+    lines.push({ text: `Window: ${getSessionBufferRange(state.session)}` });
     lines.push({ text: `Applied mode: ${formatMode(state.session.request.mode)} | ${state.session.resultMode}` });
   }
 
@@ -786,9 +850,9 @@ export function SearchScreen({
   const workspaceSelectedIndex = Math.max(0, Math.min(state.workspaceSelectedIndex, Math.max(0, workspaceEntries.length - 1)));
   const selectedWorkspaceEntry = workspaceEntries[workspaceSelectedIndex] ?? workspaceEntries[0];
 
-  const resultCount = state.session?.results.length ?? 0;
-  const resultSelectedIndex = Math.max(0, Math.min(state.resultSelectedIndex, Math.max(0, resultCount - 1)));
-  const selectedResult = resultCount > 0 ? state.session?.results[resultSelectedIndex] ?? null : null;
+  const resultCount = state.session?.total ?? 0;
+  const resultSelectedIndex = clampAbsoluteSelection(state.resultSelectedIndex, resultCount);
+  const selectedResult = resultCount > 0 ? getSessionRecordAtIndex(state.session, resultSelectedIndex) : null;
 
   const bodyHeight = Math.max(1, getTerminalPaneBodyHeight(size.height, {
     hasSubtitle: true,
@@ -799,11 +863,12 @@ export function SearchScreen({
     pageSize,
     windowLimit: resultWindowLimit,
     preloadThreshold,
-    targetAheadBuffer,
   } = getSearchResultWindowMetrics(bodyHeight);
   const detailWidth = getTerminalTwoPaneDetailWidth(size.width, "split", SEARCH_LEFT_WIDTH);
-  const detailLines = state.layout === "results" && selectedResult && state.session
-    ? buildResultDetailLines(selectedResult, state.session, resultSelectedIndex)
+  const detailLines = state.layout === "results" && state.session
+    ? selectedResult
+      ? buildResultDetailLines(selectedResult, state.session, resultSelectedIndex)
+      : buildPendingResultDetailLines(state.session, resultSelectedIndex)
     : selectedWorkspaceEntry
       ? buildWorkspaceEntryDetailLines(selectedWorkspaceEntry, state, countState)
       : buildDraftSummaryLines(state, countState);
@@ -927,21 +992,21 @@ export function SearchScreen({
   }, [state.draft, user.search]);
 
   React.useEffect(() => {
-    if (!state.session || !state.session.hasMore || state.layout !== "results") {
+    if (!state.session || state.layout !== "results" || state.session.total <= 0) {
       return;
     }
 
-    const targetLoadedCount = getSearchResultBufferTarget(state.session, resultSelectedIndex, {
+    const targetWindow = getSearchResultWindowTarget(state.session, resultSelectedIndex, {
+      windowLimit: resultWindowLimit,
       preloadThreshold,
-      targetAheadBuffer,
     });
-    if (targetLoadedCount <= state.session.loadedCount) {
+    if (!targetWindow) {
       return;
     }
 
     const sessionKey =
-      `${state.session.windowId}:${state.session.sort}:${state.session.nextOffset ?? "end"}:` +
-      `${state.session.loadedCount}:${targetLoadedCount}`;
+      `${state.session.windowId}:${state.session.sort}:${state.session.windowOffset}:${state.session.loadedCount}:` +
+      `${targetWindow.offset}:${targetWindow.limit}:${resultSelectedIndex}`;
     if (loadingMore || loadMoreSessionKeyRef.current === sessionKey) {
       return;
     }
@@ -949,7 +1014,7 @@ export function SearchScreen({
     let cancelled = false;
     loadMoreSessionKeyRef.current = sessionKey;
     setLoadingMore(true);
-    void user.search.loadMore(state.session, { minimumLoadedCount: targetLoadedCount })
+    void user.search.readResultWindow(state.session, targetWindow)
       .then((session) => {
         if (cancelled) {
           return;
@@ -976,7 +1041,7 @@ export function SearchScreen({
         setLoadingMore(false);
       }
     };
-  }, [loadingMore, preloadThreshold, resultSelectedIndex, state.layout, state.session, targetAheadBuffer, terminal, user.search]);
+  }, [loadingMore, preloadThreshold, resultSelectedIndex, resultWindowLimit, state.layout, state.session, terminal, user.search]);
 
   const editQueryText = React.useCallback(async () => {
     const queryText = await terminal.promptTextInput({

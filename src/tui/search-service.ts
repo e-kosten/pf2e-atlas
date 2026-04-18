@@ -112,6 +112,7 @@ export type Pf2eTerminalSearchSession = {
   windowId: string;
   request: Pf2eTerminalSearchRequest;
   results: NormalizedRecord[];
+  windowOffset: number;
   resultMode: SearchMode;
   total: number;
   loadedCount: number;
@@ -156,6 +157,10 @@ export type Pf2eTerminalSearchService = {
   loadMore: (
     session: Pf2eTerminalSearchSession,
     options?: { minimumLoadedCount?: number },
+  ) => Promise<Pf2eTerminalSearchSession>;
+  readResultWindow: (
+    session: Pf2eTerminalSearchSession,
+    options: { offset: number; limit: number },
   ) => Promise<Pf2eTerminalSearchSession>;
   normalizeRequest: (request: Pf2eTerminalSearchRequest) => Pf2eTerminalSearchRequest;
   changeSort: (
@@ -918,6 +923,7 @@ export function createPf2eTerminalSearchService(
       windowId: result.id,
       request: sessionRequest,
       results: result.records,
+      windowOffset: result.offset,
       resultMode: result.mode,
       total: result.total,
       loadedCount: result.records.length,
@@ -1152,6 +1158,33 @@ export function createPf2eTerminalSearchService(
       }
 
       return nextSession;
+    },
+    readResultWindow: async (session, options) => {
+      const limit = Math.max(1, options.limit);
+      const clampedOffset = Math.max(0, Math.min(options.offset, Math.max(0, session.total - limit)));
+      const result = dependencies.readSearchWindowPage(
+        session.windowId,
+        clampedOffset,
+        limit,
+      );
+
+      return {
+        ...session,
+        request: result.limit === session.request.limit
+          ? session.request
+          : {
+              ...session.request,
+              limit: result.limit,
+            },
+        results: result.records,
+        windowOffset: result.offset,
+        total: result.total,
+        loadedCount: result.records.length,
+        hasMore: result.hasMore,
+        nextOffset: result.nextOffset,
+        resultMode: result.mode,
+        searchProfile: result.searchProfile,
+      };
     },
     changeSort: async (session, sort) => {
       dependencies.closeSearchWindow(session.windowId);
