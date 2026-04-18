@@ -172,4 +172,86 @@ describe("ontology picker screen", () => {
     expect(app.lastFrame()).toContain("Focused: derivedTags");
     expect(onApply).not.toHaveBeenCalled();
   });
+
+  it("returns current selections when q exits the picker", async () => {
+    const onApply = vi.fn();
+    const onCancel = vi.fn();
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <OntologyPickerScreen
+          model={createPickerModel()}
+          onApply={onApply}
+          onCancel={onCancel}
+        />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    app.stdin.write("q");
+    await flushInk();
+
+    expect(onApply).toHaveBeenCalledWith({
+      derivedTags: {
+        any: ["coastal_setting"],
+        all: [],
+        exclude: [],
+      },
+    });
+    expect(onCancel).not.toHaveBeenCalled();
+  });
+
+  it("returns current selections when left exits from the root", async () => {
+    const onApply = vi.fn();
+    const onCancel = vi.fn();
+    const rootSelectableModel: OntologyDomainModel = {
+      id: "searchSemantics",
+      label: "Traits",
+      description: "Picker test domain",
+      rootNodes: [
+        {
+          id: "spell:trait:fire",
+          kind: "trait",
+          label: "fire",
+          filterText: "fire",
+          listLabel: "fire",
+          detailTitle: "Trait Details",
+          detailLines: [{ text: "fire", tone: "section" }],
+          selection: {
+            field: "traits",
+            fieldLabel: "Traits",
+            value: "fire",
+            allowedStates: ["any", "all", "exclude"],
+          },
+        },
+      ],
+    };
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <OntologyPickerScreen
+          model={rootSelectableModel}
+          onApply={onApply}
+          onCancel={onCancel}
+        />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    app.stdin.write(" ");
+    await flushInk();
+    app.stdin.write("\u001b[D");
+    await flushInk();
+
+    expect(onApply).toHaveBeenCalledWith({
+      traits: {
+        any: ["fire"],
+        all: [],
+        exclude: [],
+      },
+    });
+    expect(onCancel).not.toHaveBeenCalled();
+  });
 });

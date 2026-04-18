@@ -196,9 +196,13 @@ export function OntologyPickerScreen({
     setSelections(next);
   }, []);
 
+  const returnWithSelections = React.useCallback(() => {
+    onApply(selectionsRef.current);
+  }, [onApply]);
+
   const controller = useOntologyExplorerController({
     model,
-    onExit: onCancel,
+    onExit: returnWithSelections,
     getDetailLines: ({ selection }) => buildPickerDetailLines(selections, selection.currentNode),
     getDetailTitle: () => "Detail",
     onConfirm: ({ currentNode }) => {
@@ -215,8 +219,12 @@ export function OntologyPickerScreen({
         }
         return true;
       }
+      if (normalizedKey === "q") {
+        returnWithSelections();
+        return true;
+      }
       if (normalizedKey === "a") {
-        onApply(selectionsRef.current);
+        returnWithSelections();
         return true;
       }
       return false;
@@ -237,7 +245,7 @@ export function OntologyPickerScreen({
           {
             text: controller.state.searchMode
               ? "Type to filter live  Backspace edit  Enter keep filter  Esc clear and back out"
-              : "z split-view  Tab/w values focus  Up/Down or j/k scroll  Ctrl+U/D jump  b page  Home/End edge  Left/backspace/esc values  Enter/Space cycle  a apply  q cancel",
+              : "z split-view  Tab/w values focus  Up/Down or j/k scroll  Ctrl+U/D jump  b page  Home/End edge  Left/backspace/esc values  Enter/Space cycle  a/q return",
             tone: "dim",
           },
           {
@@ -269,7 +277,7 @@ export function OntologyPickerScreen({
         {
           text: controller.state.searchMode
             ? "Type to filter live  Backspace edit  Enter keep filter  Esc clear and back out"
-            : "Tab/w focus  z detail-only  Up/Down or j/k move-scroll  Ctrl+U/D jump  b page  gg/G edge  Enter/Space cycle  Left/backspace up  / search  Esc back/clear  a apply  q cancel",
+            : "Tab/w focus  z detail-only  Up/Down or j/k move-scroll  Ctrl+U/D jump  b page  gg/G edge  Enter/Space cycle  Left/backspace up  / search  Esc back/clear  a/q return",
           tone: "dim",
         },
         {
