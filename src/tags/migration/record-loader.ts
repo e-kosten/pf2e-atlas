@@ -1,6 +1,12 @@
 import { DatabaseSync } from "node:sqlite";
 
 import { buildPlaceholders } from "../../data/rows.js";
+import {
+  parseSearchCategoryValue,
+  parseSearchSubcategoryForCategory,
+  parseStringArrayJson,
+  toSqliteNumber,
+} from "../../data/sql-row-decoding.js";
 import type { SearchCategory, SearchSubcategory } from "../../types.js";
 import { normalizeText } from "../../utils.js";
 import {
@@ -157,13 +163,22 @@ function loadReferences(db: DatabaseSync, recordKeys: string[]): Map<string, Der
   const referencesByRecordKey = new Map<string, DerivedTagMigrationReference[]>();
   for (const row of rows) {
     const bucket = referencesByRecordKey.get(row.fromRecordKey) ?? [];
+    const category = parseSearchCategoryValue(row.targetCategory, `migration reference "${row.targetRecordKey}"`);
     bucket.push({
       recordKey: row.targetRecordKey,
       packName: row.targetPackName ?? row.targetRecordKey.split(":")[0] ?? "",
       name: row.targetName,
-      category: row.targetCategory as SearchCategory,
-      subcategory: (row.targetSubcategory ?? null) as SearchSubcategory | null,
-      traits: JSON.parse(row.targetTraitsJson) as string[],
+      category,
+      subcategory: parseSearchSubcategoryForCategory(
+        category,
+        row.targetSubcategory,
+        `migration reference "${row.targetRecordKey}"`,
+      ),
+      traits: parseStringArrayJson(
+        row.targetTraitsJson,
+        "targetTraitsJson",
+        `migration reference "${row.targetRecordKey}"`,
+      ),
     });
     referencesByRecordKey.set(row.fromRecordKey, bucket);
   }
@@ -219,7 +234,7 @@ export function countDerivedTagMigrationRecords(
   appendRecordFilters(sql, params, options);
 
   const row = db.prepare(sql.join("\n")).get(...params) as { count: number | bigint } | undefined;
-  return typeof row?.count === "bigint" ? Number(row.count) : (row?.count ?? 0);
+  return row ? toSqliteNumber(row.count, "migration record count") : 0;
 }
 
 export function loadDerivedTagMigrationRecords(
