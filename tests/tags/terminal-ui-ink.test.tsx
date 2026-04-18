@@ -8,6 +8,7 @@ import {
   type DerivedTagTerminalPolicySelection,
   DerivedTagTerminalProvider,
   TerminalTextScreen,
+  getDerivedTagTerminalListNavigationAction,
   getNormalizedKeyName,
   resolveDerivedTagTerminalListNavigationAction,
   useDerivedTagTerminalApp,
@@ -367,6 +368,45 @@ describe("derived tag terminal ink runtime", () => {
     cancelApp.stdin.write("\u001b[D");
     await flushInkFrames();
     expect(cancelApp.lastFrame()).toContain("result=cancelled");
+  });
+
+  it("treats vim horizontal keys as the same confirm and cancel semantics", async () => {
+    const confirmApp = render(
+      <DerivedTagTerminalProvider>
+        <SelectPromptHarness />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInkFrames();
+    confirmApp.stdin.write("l");
+    await flushInkFrames();
+    expect(confirmApp.lastFrame()).toContain("result=first");
+
+    confirmApp.unmount();
+
+    const cancelApp = render(
+      <DerivedTagTerminalProvider>
+        <SelectPromptHarness />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInkFrames();
+    cancelApp.stdin.write("h");
+    await flushInkFrames();
+    expect(cancelApp.lastFrame()).toContain("result=cancelled");
+  });
+
+  it("treats vim horizontal keys as the same list-navigation semantics", () => {
+    expect(getDerivedTagTerminalListNavigationAction("l", {
+      pageSize: 10,
+      includeConfirmKeys: true,
+      includeHorizontalConfirmKeys: true,
+    })).toEqual({ kind: "confirm" });
+    expect(getDerivedTagTerminalListNavigationAction("h", {
+      pageSize: 10,
+      includeCancelKeys: true,
+      includeHorizontalCancelKeys: true,
+    })).toEqual({ kind: "cancel" });
   });
 
   it("resolves shared gg and G list-boundary navigation", () => {

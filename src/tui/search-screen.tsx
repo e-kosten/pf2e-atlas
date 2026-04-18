@@ -33,6 +33,11 @@ import {
   useDerivedTagTerminalSize,
   type DerivedTagTerminalLine,
 } from "./terminal-ui.js";
+import {
+  isBackNavigationKey,
+  isMoveLeftKey,
+  isMoveRightKey,
+} from "./keymap.js";
 import { buildOntologyExplorerEntityDetailLines } from "./ontology-explorer/entity-page.js";
 import { mapNormalizedRecordToOntologyExplorerEntityRecord } from "./ontology-explorer/entity-record.js";
 import { buildSearchFacetPickerModel } from "./ontology-explorer/facet-picker-model.js";
@@ -1606,7 +1611,7 @@ export function SearchScreen({
         void executeRequest(state.draft);
         return;
       }
-      if (normalized === "escape" || normalized === "backspace" || normalized === "left") {
+      if (isBackNavigationKey(normalized)) {
         exitSearchScreen();
         return;
       }
@@ -1630,7 +1635,7 @@ export function SearchScreen({
         openSelectedWorkspaceEntry();
         return;
       }
-      if (normalized === "right") {
+      if (isMoveRightKey(normalized)) {
         openSelectedWorkspaceEntry();
         return;
       }
@@ -1690,11 +1695,11 @@ export function SearchScreen({
     }
 
     if (state.activePane === "list") {
-      if (normalized === "escape" || normalized === "backspace" || normalized === "left") {
+      if (isBackNavigationKey(normalized)) {
         dispatch({ type: "set_layout", layout: "draft", pane: "list" });
         return;
       }
-      if ((normalized === "right" || listNavigation.action?.kind === "confirm") && selectedResult) {
+      if ((isMoveRightKey(normalized) || listNavigation.action?.kind === "confirm") && selectedResult) {
         dispatch({ type: "set_active_pane", pane: "detail" });
         return;
       }
@@ -1708,7 +1713,7 @@ export function SearchScreen({
       return;
     }
 
-    if (normalized === "escape" || normalized === "backspace" || normalized === "left") {
+    if (isBackNavigationKey(normalized)) {
       dispatch({ type: "set_active_pane", pane: "list" });
       return;
     }

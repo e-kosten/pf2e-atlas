@@ -8,6 +8,16 @@ import {
   useWindowSize,
   type Key,
 } from "ink";
+import {
+  isBackNavigationKey,
+  isConfirmKey,
+  isMoveDownKey,
+  isMoveLeftKey,
+  isMoveRightKey,
+  isMoveUpKey,
+  isPageDownKey,
+  isPageUpKey,
+} from "./keymap.js";
 
 export type DerivedTagTerminalTone =
   | "default"
@@ -652,8 +662,6 @@ export type DerivedTagTerminalListNavigationOptions = {
   includeCancelKeys?: boolean;
   includeHorizontalConfirmKeys?: boolean;
   includeHorizontalCancelKeys?: boolean;
-  includeVimHorizontalConfirmKeys?: boolean;
-  includeVimHorizontalCancelKeys?: boolean;
 };
 
 export function createDerivedTagTerminalListNavigationState(): DerivedTagTerminalListNavigationState {
@@ -668,10 +676,10 @@ export function getDerivedTagTerminalListNavigationAction(
 ): DerivedTagTerminalListNavigationAction | undefined {
   const jumpSize = options.jumpSize ?? options.pageSize;
 
-  if (normalizedKey === "up" || normalizedKey === "k") {
+  if (isMoveUpKey(normalizedKey)) {
     return { kind: "move", delta: -1 };
   }
-  if (normalizedKey === "down" || normalizedKey === "j") {
+  if (isMoveDownKey(normalizedKey)) {
     return { kind: "move", delta: 1 };
   }
   if (normalizedKey === "ctrl_u") {
@@ -680,10 +688,10 @@ export function getDerivedTagTerminalListNavigationAction(
   if (normalizedKey === "ctrl_d") {
     return { kind: "move", delta: jumpSize };
   }
-  if (normalizedKey === "page_up" || normalizedKey === "b") {
+  if (isPageUpKey(normalizedKey)) {
     return { kind: "move", delta: -options.pageSize };
   }
-  if (normalizedKey === "page_down" || normalizedKey === "space") {
+  if (isPageDownKey(normalizedKey) || normalizedKey === "space") {
     return { kind: "move", delta: options.pageSize };
   }
   if (normalizedKey === "home") {
@@ -695,9 +703,8 @@ export function getDerivedTagTerminalListNavigationAction(
   if (
     options.includeConfirmKeys &&
     (
-      normalizedKey === "enter" ||
-      (options.includeHorizontalConfirmKeys && normalizedKey === "right") ||
-      (options.includeVimHorizontalConfirmKeys && normalizedKey === "l")
+      isConfirmKey(normalizedKey) ||
+      (options.includeHorizontalConfirmKeys && isMoveRightKey(normalizedKey))
     )
   ) {
     return { kind: "confirm" };
@@ -705,10 +712,8 @@ export function getDerivedTagTerminalListNavigationAction(
   if (
     options.includeCancelKeys &&
     (
-      normalizedKey === "escape" ||
-      normalizedKey === "backspace" ||
-      (options.includeHorizontalCancelKeys && normalizedKey === "left") ||
-      (options.includeVimHorizontalCancelKeys && normalizedKey === "h")
+      isBackNavigationKey(normalizedKey) ||
+      (options.includeHorizontalCancelKeys && isMoveLeftKey(normalizedKey))
     )
   ) {
     return { kind: "cancel" };
@@ -1386,7 +1391,7 @@ function DerivedTagTerminalModalHost({
     }
 
     if (modal.kind === "select" && modal.options.entries.length === 0) {
-      if (normalized === "escape" || normalized === "backspace" || normalized === "left" || normalized === "q" || normalized === "ctrl_c") {
+      if (isBackNavigationKey(normalized) || normalized === "q" || normalized === "ctrl_c") {
         const resolver = modal.resolve;
         setModal(null);
         resolver(undefined);
@@ -1395,7 +1400,7 @@ function DerivedTagTerminalModalHost({
     }
 
     if (modal.kind === "multiselect" && modal.options.entries.length === 0) {
-      if (normalized === "escape" || normalized === "backspace" || normalized === "left" || normalized === "q" || normalized === "ctrl_c") {
+      if (isBackNavigationKey(normalized) || normalized === "q" || normalized === "ctrl_c") {
         const resolver = modal.resolve;
         setModal(null);
         resolver([]);
@@ -1404,7 +1409,7 @@ function DerivedTagTerminalModalHost({
     }
 
     if (modal.kind === "policy" && modal.options.entries.length === 0) {
-      if (normalized === "escape" || normalized === "backspace" || normalized === "left" || normalized === "q" || normalized === "ctrl_c") {
+      if (isBackNavigationKey(normalized) || normalized === "q" || normalized === "ctrl_c") {
         const resolver = modal.resolve;
         setModal(null);
         resolver(createEmptyPolicySelection());
@@ -1453,14 +1458,14 @@ function DerivedTagTerminalModalHost({
         : current);
       return;
     }
-    if (modal.kind === "select" && (normalized === "enter" || normalized === "right" || normalized === "l")) {
+    if (modal.kind === "select" && (isConfirmKey(normalized) || isMoveRightKey(normalized))) {
       const resolver = modal.resolve;
       const selected = modal.options.entries[modal.selectedIndex]?.value;
       setModal(null);
       resolver(selected);
       return;
     }
-    if (modal.kind === "multiselect" && (normalized === "escape" || normalized === "backspace" || normalized === "left")) {
+    if (modal.kind === "multiselect" && isBackNavigationKey(normalized)) {
       const resolver = modal.resolve;
       const selectedValues = modal.selectedValues;
       setModal(null);
@@ -1483,14 +1488,14 @@ function DerivedTagTerminalModalHost({
         : current);
       return;
     }
-    if (modal.kind === "policy" && (normalized === "escape" || normalized === "backspace" || normalized === "left" || normalized === "q" || normalized === "ctrl_c")) {
+    if (modal.kind === "policy" && (isBackNavigationKey(normalized) || normalized === "q" || normalized === "ctrl_c")) {
       const resolver = modal.resolve;
       const selection = buildPolicySelection(modal.options.entries, modal.valueStates);
       setModal(null);
       resolver(selection);
       return;
     }
-    if (modal.kind === "select" && (normalized === "escape" || normalized === "backspace" || normalized === "left" || normalized === "q" || normalized === "ctrl_c")) {
+    if (modal.kind === "select" && (isBackNavigationKey(normalized) || normalized === "q" || normalized === "ctrl_c")) {
       const resolver = modal.resolve;
       setModal(null);
       resolver(undefined);

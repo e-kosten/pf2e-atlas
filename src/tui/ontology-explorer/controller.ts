@@ -19,6 +19,7 @@ import {
   useDerivedTagTerminalSize,
   type DerivedTagTerminalLine,
 } from "../terminal-ui.js";
+import { isBackNavigationKey } from "../keymap.js";
 import {
   getDerivedTagTerminalTwoPaneLayoutMode,
   reduceDerivedTagTerminalTwoPaneState,
@@ -316,7 +317,6 @@ export function useOntologyExplorerController(
       jumpSize: context.selectionJumpSize,
       includeConfirmKeys: true,
       includeHorizontalConfirmKeys: true,
-      includeVimHorizontalConfirmKeys: true,
     }, listNavigationStateRef.current);
     listNavigationStateRef.current = listNavigation.state;
     const detailNavigation = resolveDerivedTagTerminalListNavigationAction(input, key, {
@@ -324,7 +324,6 @@ export function useOntologyExplorerController(
       jumpSize: context.detailJumpSize,
       includeCancelKeys: true,
       includeHorizontalCancelKeys: true,
-      includeVimHorizontalCancelKeys: true,
     }, detailNavigationStateRef.current);
     detailNavigationStateRef.current = detailNavigation.state;
 
@@ -417,7 +416,7 @@ export function useOntologyExplorerController(
       }
       return;
     }
-    if (normalizedKey === "left" || normalizedKey === "h" || normalizedKey === "backspace") {
+    if (isBackNavigationKey(normalizedKey)) {
       const nextState = popOntologyBrowserDepth(context.effectiveState);
       if (nextState.depth === context.effectiveState.depth) {
         options.onExit();

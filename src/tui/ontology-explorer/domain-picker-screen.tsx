@@ -11,6 +11,7 @@ import {
   useDerivedTagTerminalInput,
   useDerivedTagTerminalSize,
 } from "../terminal-ui.js";
+import { isBackNavigationKey, isApplicationExitKey } from "../keymap.js";
 import { buildScrollableLines } from "../list-utils.js";
 
 export function OntologyDomainPickerScreen({
@@ -42,10 +43,9 @@ export function OntologyDomainPickerScreen({
       jumpSize: Math.max(1, Math.floor(bodyHeight / 2)),
       includeConfirmKeys: true,
       includeHorizontalConfirmKeys: true,
-      includeVimHorizontalConfirmKeys: true,
     }, navigationStateRef.current);
     navigationStateRef.current = navigation.state;
-    if (normalized === "ctrl_c" || normalized === "q" || normalized === "escape" || normalized === "backspace") {
+    if (isApplicationExitKey(normalized) || isBackNavigationKey(normalized)) {
       onBack();
       return;
     }

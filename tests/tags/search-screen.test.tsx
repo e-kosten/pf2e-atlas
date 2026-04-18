@@ -520,6 +520,28 @@ describe("search screen", () => {
     expect(app.lastFrame()).not.toContain("Workspace Mode");
   });
 
+  it("treats vim horizontal keys as the same setup and subprompt navigation semantics", async () => {
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={createServices()}>
+          <SearchScreen onBack={vi.fn()} />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    pressDown(app);
+    await flushInk();
+
+    app.stdin.write("l");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Workspace Mode");
+
+    app.stdin.write("h");
+    await flushInk();
+    expect(app.lastFrame()).toContain("[SETUP] Scope & Filters");
+  });
+
   it("uses space to open the selected setup item and carries facet edits back into the workspace", async () => {
     const services = createServices();
     services.user.search.getFacetFieldOptions = vi.fn(() => [{

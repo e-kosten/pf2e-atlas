@@ -92,7 +92,6 @@ export function AreaMenuScreen({
       jumpSize: Math.max(1, Math.floor(bodyHeight / 2)),
       includeConfirmKeys: true,
       includeHorizontalConfirmKeys: true,
-      includeVimHorizontalConfirmKeys: true,
     }, navigationStateRef.current);
     navigationStateRef.current = navigation.state;
     if (isApplicationExitKey(normalized) || normalized === "escape") {
