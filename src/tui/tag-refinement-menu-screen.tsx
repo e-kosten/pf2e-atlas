@@ -20,13 +20,11 @@ import {
   TERMINAL_DIALOG_RETURN_FOOTER,
   buildTerminalInteractionHelpLines,
   formatTerminalInteractionFooter,
+  resolveTerminalInteractionAction,
+  type TerminalInteractionAction,
   type TerminalInteractionCommand,
 } from "./interaction-bindings.js";
-import {
-  isBackOrExitKey,
-  isCommandPaletteKey,
-  isHelpKey,
-} from "./keymap.js";
+import { isBackOrExitKey } from "./keymap.js";
 import { buildScrollableLines } from "./list-utils.js";
 
 type TagRefinementCommandId =
@@ -85,6 +83,17 @@ function buildQueueLines(queueItems: DerivedTagReviewQueueSummaryItem[]): Derive
 }
 
 function buildTagRefinementHelpLines(hasQueueItems: boolean): DerivedTagTerminalLine[] {
+  const actionActions = getTagRefinementInteractionActions().map((action) => ({
+    ...action,
+    helpText: action.id === "select"
+      ? "open the selected row"
+      : action.id === "commands"
+        ? "open tag-refinement commands"
+        : action.id === "help"
+          ? "show this help"
+          : "return to the top level",
+  }));
+
   return buildTerminalInteractionHelpLines([
     {
       title: "Navigation",
@@ -93,11 +102,11 @@ function buildTagRefinementHelpLines(hasQueueItems: boolean): DerivedTagTerminal
         { id: "jump", helpText: "jump through the menu" },
         { id: "page", helpText: "page through the menu" },
         { id: "edge", helpText: "jump to the first or last row" },
-        { id: "select", helpText: "open the selected row" },
-        { id: "commands", helpText: "open tag-refinement commands" },
-        { id: "back", helpText: "return to the top level" },
-        { id: "help", helpText: "show this help" },
       ],
+    },
+    {
+      title: "Actions",
+      actions: actionActions,
     },
     {
       title: "Commands",
@@ -107,6 +116,16 @@ function buildTagRefinementHelpLines(hasQueueItems: boolean): DerivedTagTerminal
       })),
     },
   ]);
+}
+
+function getTagRefinementInteractionActions(): TerminalInteractionAction[] {
+  return [
+    { id: "select" },
+    { id: "commands" },
+    { id: "help" },
+    { id: "back", label: "top level" },
+    { id: "quit", label: "top level" },
+  ];
 }
 
 function buildTagRefinementCommandEntries(
@@ -205,8 +224,9 @@ export function TagRefinementMenuScreen({
       includeConfirmKeys: true,
     }, navigationStateRef.current);
     navigationStateRef.current = navigation.state;
+    const interactionAction = resolveTerminalInteractionAction(normalized, getTagRefinementInteractionActions());
 
-    if (isBackOrExitKey(normalized)) {
+    if (normalized === "ctrl_c" || isBackOrExitKey(normalized) || interactionAction?.id === "back" || interactionAction?.id === "quit") {
       onBack();
       return;
     }
@@ -221,15 +241,15 @@ export function TagRefinementMenuScreen({
       );
       return;
     }
-    if (navigation.action?.kind === "confirm") {
+    if (interactionAction?.id === "select") {
       onOpenSelected(menuItems);
       return;
     }
-    if (isCommandPaletteKey(normalized)) {
+    if (interactionAction?.id === "commands") {
       void openCommandPalette();
       return;
     }
-    if (isHelpKey(normalized)) {
+    if (interactionAction?.id === "help") {
       void terminal.showDialog({
         title: "Tag Refinement Help",
         body: buildTagRefinementHelpLines(queueItems.length > 0),
@@ -252,7 +272,7 @@ export function TagRefinementMenuScreen({
         lines: buildQueueLines(queueItems),
       }}
       footer={[
-        { text: formatTerminalInteractionFooter([{ id: "move" }, { id: "jump" }, { id: "page" }, { id: "edge" }, { id: "select" }, { id: "commands" }, { id: "help" }, { id: "back", label: "top level" }]), tone: "dim" },
+        { text: formatTerminalInteractionFooter([{ id: "move" }, { id: "jump" }, { id: "page" }, { id: "edge" }, ...getTagRefinementInteractionActions()]), tone: "dim" },
         { text: `Selected: ${menuItems[clampedSelectedIndex]?.label ?? "(none)"}`, tone: "accent" },
       ]}
       leftWidth={48}

@@ -45,10 +45,13 @@ export function isConfirmOrToggleKey(normalizedKey: string): boolean {
 export type TerminalCycleDirection = 1 | -1;
 
 export function getCycleDirection(normalizedKey: string): TerminalCycleDirection | undefined {
-  // Reserve a shared reverse-cycle hook here later instead of letting screens invent their own keys.
   if (isConfirmOrToggleKey(normalizedKey)) {
     return 1;
   }
+  return undefined;
+}
+
+export function getReverseCycleDirection(_normalizedKey: string): TerminalCycleDirection | undefined {
   return undefined;
 }
 

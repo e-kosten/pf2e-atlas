@@ -15,11 +15,9 @@ import {
   TERMINAL_DIALOG_RETURN_FOOTER,
   buildTerminalInteractionHelpLines,
   formatTerminalInteractionFooter,
+  resolveTerminalInteractionAction,
+  type TerminalInteractionAction,
 } from "./interaction-bindings.js";
-import {
-  isApplicationExitKey,
-  isHelpKey,
-} from "./keymap.js";
 import { buildScrollableLines } from "./list-utils.js";
 
 export type Pf2eTopLevelArea = {
@@ -53,6 +51,15 @@ function buildAreaDetailLines(
 }
 
 function buildTopLevelHelpLines(): DerivedTagTerminalLine[] {
+  const actionActions = getAreaMenuInteractionActions().map((action) => ({
+    ...action,
+    helpText: action.id === "select"
+      ? "open the selected area"
+      : action.id === "help"
+        ? "show this help"
+        : "exit the terminal app",
+  }));
+
   return buildTerminalInteractionHelpLines([
     {
       title: "Navigation",
@@ -65,13 +72,17 @@ function buildTopLevelHelpLines(): DerivedTagTerminalLine[] {
     },
     {
       title: "Actions",
-      actions: [
-        { id: "select", helpText: "open the selected area" },
-        { id: "help", helpText: "show this help" },
-        { id: "quit", label: "quit", helpText: "exit the terminal app" },
-      ],
+      actions: actionActions,
     },
   ]);
+}
+
+function getAreaMenuInteractionActions(): TerminalInteractionAction[] {
+  return [
+    { id: "select" },
+    { id: "help" },
+    { id: "quit", label: "quit" },
+  ];
 }
 
 export function AreaMenuScreen({
@@ -109,7 +120,9 @@ export function AreaMenuScreen({
       includeHorizontalConfirmKeys: true,
     }, navigationStateRef.current);
     navigationStateRef.current = navigation.state;
-    if (isApplicationExitKey(normalized) || normalized === "escape") {
+    const interactionAction = resolveTerminalInteractionAction(normalized, getAreaMenuInteractionActions());
+
+    if (normalized === "ctrl_c" || normalized === "escape" || interactionAction?.id === "quit") {
       onQuit();
       return;
     }
@@ -117,7 +130,7 @@ export function AreaMenuScreen({
       onMove(navigation.action.delta);
       return;
     }
-    if (navigation.action?.kind === "confirm") {
+    if (interactionAction?.id === "select") {
       onOpenSelectedArea();
       return;
     }
@@ -125,7 +138,7 @@ export function AreaMenuScreen({
       onMove(navigation.action.boundary === "start" ? -selectedAreaIndex : areas.length - 1 - selectedAreaIndex);
       return;
     }
-    if (isHelpKey(normalized)) {
+    if (interactionAction?.id === "help") {
       void terminal.showDialog({
         title: "Top-Level Help",
         body: buildTopLevelHelpLines(),
@@ -148,7 +161,7 @@ export function AreaMenuScreen({
         lines: buildAreaDetailLines(selectedArea, pendingReviewCount),
       }}
       footer={[
-        { text: formatTerminalInteractionFooter([{ id: "move" }, { id: "jump" }, { id: "page" }, { id: "edge" }, { id: "select" }, { id: "help" }, { id: "quit", label: "quit" }]), tone: "dim" },
+        { text: formatTerminalInteractionFooter([{ id: "move" }, { id: "jump" }, { id: "page" }, { id: "edge" }, ...getAreaMenuInteractionActions()]), tone: "dim" },
         {
           text: `${selectedArea ? formatAreaAudience(selectedArea.audience) : "-"} | ${pendingReviewCount} pending queue slice${pendingReviewCount === 1 ? "" : "s"}`,
           tone: "accent",

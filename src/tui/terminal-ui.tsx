@@ -25,6 +25,7 @@ import {
   TERMINAL_DIALOG_CONTINUE_FOOTER,
   TERMINAL_TEXT_INPUT_FOOTER,
   formatTerminalInteractionFooter,
+  getTerminalInteractionCycleDirection,
   resolveTerminalInteractionAction,
 } from "./interaction-bindings.js";
 
@@ -1508,6 +1509,7 @@ function DerivedTagTerminalModalHost({
     ]);
     const policyLikeAction = resolveTerminalInteractionAction(normalized, [
       { id: "cycle" },
+      { id: "cycleReverse" },
       { id: "return" },
     ]);
     const modalNavigation = resolveDerivedTagTerminalListNavigationAction(input, key, {
@@ -1709,9 +1711,9 @@ function DerivedTagTerminalModalHost({
       resolver(selectedValues);
       return;
     }
-    const cycleDirection = getCycleDirection(normalized);
+    const cycleDirection = getTerminalInteractionCycleDirection(normalized, policyLikeAction);
 
-    if (modal.kind === "policy" && policyLikeAction?.id === "cycle" && cycleDirection) {
+    if (modal.kind === "policy" && cycleDirection) {
       const selected = modal.options.entries[modal.selectedIndex]?.value;
       if (!selected) {
         return;

@@ -12,9 +12,9 @@ import {
   TERMINAL_LIVE_FILTER_FOOTER,
   buildTerminalInteractionHelpLines,
   formatTerminalInteractionFooter,
+  getTerminalInteractionCycleDirection,
   type TerminalInteractionAction,
 } from "../interaction-bindings.js";
-import { getCycleDirection } from "../keymap.js";
 import { useOntologyExplorerController } from "./controller.js";
 import { buildOntologyBrowserListRows } from "./ui.js";
 
@@ -311,7 +311,7 @@ export function OntologyPickerScreen({
     getDetailTitle: () => "Detail",
     getInteractionActions: getFacetPickerInteractionActions,
     onConfirm: ({ currentNode, normalizedKey }) => {
-      const cycleDirection = getCycleDirection(normalizedKey);
+      const cycleDirection = getTerminalInteractionCycleDirection(normalizedKey, { id: "cycle" });
       if (!cycleDirection) {
         return false;
       }

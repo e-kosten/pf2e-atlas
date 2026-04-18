@@ -1075,6 +1075,8 @@ function buildSearchHelpLines(
               ? "edit the current query text"
               : action.id === "commands"
                 ? "open the setup command palette"
+                : action.id === "help"
+                  ? "show search setup help"
                 : "leave browse/search",
         label: action.id === "search" ? "edit query" : action.label,
       })),
@@ -1120,6 +1122,8 @@ function buildSearchHelpLines(
               ? "switch focus between results and preview"
               : action.id === "commands"
                 ? "open the results command palette"
+                : action.id === "help"
+                  ? "show search results help"
                 : "leave browse/search",
       label: action.id === "focus" ? "toggle pane" : action.label,
     }));

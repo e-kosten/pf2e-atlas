@@ -15,9 +15,52 @@ import {
   TERMINAL_DIALOG_RETURN_FOOTER,
   buildTerminalInteractionHelpLines,
   formatTerminalInteractionFooter,
+  resolveTerminalInteractionAction,
+  type TerminalInteractionAction,
 } from "../interaction-bindings.js";
-import { isBackNavigationKey, isApplicationExitKey } from "../keymap.js";
 import { buildScrollableLines } from "../list-utils.js";
+
+function getOntologyDomainPickerInteractionActions(): TerminalInteractionAction[] {
+  return [
+    { id: "select" },
+    { id: "back", label: "back" },
+    { id: "help" },
+    { id: "quit", label: "back" },
+  ];
+}
+
+function buildOntologyDomainPickerHelpLines() {
+  return buildTerminalInteractionHelpLines([
+    {
+      title: "Navigation",
+      actions: [
+        { id: "move", helpText: "move between ontology domains" },
+        { id: "jump", helpText: "jump through the domain list" },
+        { id: "page", helpText: "page through the domain list" },
+        { id: "edge", helpText: "jump to the first or last domain" },
+      ],
+    },
+    {
+      title: "Actions",
+      actions: getOntologyDomainPickerInteractionActions().map((action) => ({
+        ...action,
+        helpText: action.id === "select"
+          ? "open the selected domain"
+          : action.id === "help"
+            ? "show this help"
+            : "return to the previous area",
+      })),
+    },
+    {
+      title: "Domains",
+      lines: [
+        { text: "Derived Tags: authored tag ontology with live record coverage." },
+        { text: "Categories: public catalog category and subcategory browsing." },
+        { text: "Search Semantics: metadata field and search-vocabulary discovery." },
+      ],
+    },
+  ]);
+}
 
 export function OntologyDomainPickerScreen({
   domains,
@@ -50,7 +93,9 @@ export function OntologyDomainPickerScreen({
       includeHorizontalConfirmKeys: true,
     }, navigationStateRef.current);
     navigationStateRef.current = navigation.state;
-    if (isApplicationExitKey(normalized) || isBackNavigationKey(normalized)) {
+    const interactionAction = resolveTerminalInteractionAction(normalized, getOntologyDomainPickerInteractionActions());
+
+    if (normalized === "ctrl_c" || interactionAction?.id === "back" || interactionAction?.id === "quit") {
       onBack();
       return;
     }
@@ -62,35 +107,14 @@ export function OntologyDomainPickerScreen({
       onMove(navigation.action.boundary === "start" ? -selectedIndex : domains.length - 1 - selectedIndex, domains.length);
       return;
     }
-    if (navigation.action?.kind === "confirm") {
+    if (interactionAction?.id === "select") {
       onOpenSelected();
       return;
     }
-    if (normalized === "?") {
+    if (interactionAction?.id === "help") {
       void terminal.showDialog({
         title: "Ontology Domains",
-        body: buildTerminalInteractionHelpLines([
-          {
-            title: "Navigation",
-            actions: [
-              { id: "move", helpText: "move between ontology domains" },
-              { id: "jump", helpText: "jump through the domain list" },
-              { id: "page", helpText: "page through the domain list" },
-              { id: "edge", helpText: "jump to the first or last domain" },
-              { id: "select", helpText: "open the selected domain" },
-              { id: "back", helpText: "return to the previous area" },
-              { id: "help", helpText: "show this help" },
-            ],
-          },
-          {
-            title: "Domains",
-            lines: [
-              { text: "Derived Tags: authored tag ontology with live record coverage." },
-              { text: "Categories: public catalog category and subcategory browsing." },
-              { text: "Search Semantics: metadata field and search-vocabulary discovery." },
-            ],
-          },
-        ]),
+        body: buildOntologyDomainPickerHelpLines(),
         footer: [{ text: TERMINAL_DIALOG_RETURN_FOOTER, tone: "dim" }],
       });
       return;
@@ -116,7 +140,7 @@ export function OntologyDomainPickerScreen({
           : [{ text: "No domain selected.", tone: "dim" }],
       }}
       footer={[
-        { text: formatTerminalInteractionFooter([{ id: "move" }, { id: "jump" }, { id: "page" }, { id: "edge" }, { id: "select" }, { id: "help" }, { id: "quit", label: "back" }]), tone: "dim" },
+        { text: formatTerminalInteractionFooter([{ id: "move" }, { id: "jump" }, { id: "page" }, { id: "edge" }, ...getOntologyDomainPickerInteractionActions()]), tone: "dim" },
         { text: selectedDomain?.label ?? "-", tone: "accent" },
       ]}
       leftWidth={32}

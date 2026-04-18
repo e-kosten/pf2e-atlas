@@ -3,6 +3,8 @@ import {
   isCommandPaletteKey,
   isConfirmKey,
   isConfirmOrToggleKey,
+  getCycleDirection,
+  getReverseCycleDirection,
   isFocusToggleKey,
   isHelpKey,
   isLayoutToggleKey,
@@ -34,6 +36,7 @@ export type TerminalInteractionActionId =
   | "edit"
   | "toggle"
   | "cycle"
+  | "cycleReverse"
   | "back"
   | "return"
   | "focus"
@@ -131,6 +134,11 @@ const TERMINAL_INTERACTION_DEFINITIONS: Record<TerminalInteractionActionId, Term
     helpKeys: "Enter / Space",
     defaultLabel: "cycle",
   },
+  cycleReverse: {
+    footerKeys: "Unbound",
+    helpKeys: "Unbound",
+    defaultLabel: "reverse cycle",
+  },
   back: {
     footerKeys: "Left/Esc/backspace",
     helpKeys: "Left / h or Escape / Backspace",
@@ -204,8 +212,11 @@ function matchesTerminalInteractionAction(actionId: TerminalInteractionActionId,
     case "edit":
       return isConfirmOrToggleKey(normalizedKey) || isMoveRightKey(normalizedKey);
     case "toggle":
-    case "cycle":
       return isConfirmOrToggleKey(normalizedKey);
+    case "cycle":
+      return Boolean(getCycleDirection(normalizedKey));
+    case "cycleReverse":
+      return Boolean(getReverseCycleDirection(normalizedKey));
     case "back":
     case "return":
       return isBackNavigationKey(normalizedKey);
@@ -233,6 +244,19 @@ export function resolveTerminalInteractionAction(
   actions: TerminalInteractionAction[],
 ): TerminalInteractionAction | undefined {
   return actions.find((action) => matchesTerminalInteractionAction(action.id, normalizedKey));
+}
+
+export function getTerminalInteractionCycleDirection(
+  normalizedKey: string,
+  action: TerminalInteractionAction | undefined,
+): 1 | -1 | undefined {
+  if (action?.id === "cycle") {
+    return getCycleDirection(normalizedKey);
+  }
+  if (action?.id === "cycleReverse") {
+    return getReverseCycleDirection(normalizedKey);
+  }
+  return undefined;
 }
 
 function buildActionHelpLine(action: TerminalInteractionAction): TerminalInteractionLine {
