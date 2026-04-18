@@ -42,6 +42,16 @@ export function isConfirmOrToggleKey(normalizedKey: string): boolean {
   return normalizedKey === "enter" || normalizedKey === "space";
 }
 
+export type TerminalCycleDirection = 1 | -1;
+
+export function getCycleDirection(normalizedKey: string): TerminalCycleDirection | undefined {
+  // Reserve a shared reverse-cycle hook here later instead of letting screens invent their own keys.
+  if (isConfirmOrToggleKey(normalizedKey)) {
+    return 1;
+  }
+  return undefined;
+}
+
 export function isHelpKey(normalizedKey: string): boolean {
   return normalizedKey === "?";
 }

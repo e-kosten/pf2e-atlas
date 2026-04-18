@@ -103,7 +103,7 @@ describe("ontology picker screen", () => {
     expect(app.lastFrame()).not.toContain("Harbor Haunt");
   });
 
-  it("applies the latest selection when apply follows a toggle immediately", async () => {
+  it("applies the latest selection when return follows a toggle immediately", async () => {
     const onApply = vi.fn();
     const app = render(
       <DerivedTagTerminalProvider>
@@ -119,7 +119,7 @@ describe("ontology picker screen", () => {
     app.stdin.write("\r");
     await flushInk();
     app.stdin.write("\r");
-    app.stdin.write("a");
+    app.stdin.write("q");
     await flushInk();
 
     expect(onApply).toHaveBeenCalledWith({
@@ -129,6 +129,34 @@ describe("ontology picker screen", () => {
         exclude: [],
       },
     });
+  });
+
+  it("uses right-arrow to drill into selectable nodes with children instead of cycling them", async () => {
+    const onApply = vi.fn();
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <OntologyPickerScreen
+          model={createPickerModel()}
+          onApply={onApply}
+          onCancel={vi.fn()}
+        />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+
+    app.stdin.write("\u001b[C");
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("Harbor Haunt");
+    expect(app.lastFrame()).toContain("Policy off");
+    expect(app.lastFrame()).toContain("derivedTags: any=coastal_setting");
+    expect(app.lastFrame()).not.toContain("Policy all");
+    expect(onApply).not.toHaveBeenCalled();
   });
 
   it("consumes space on non-selectable nodes instead of paging the list", async () => {

@@ -11,6 +11,7 @@ import {
   buildTerminalInteractionHelpLines,
   formatTerminalInteractionFooter,
 } from "../interaction-bindings.js";
+import { getCycleDirection } from "../keymap.js";
 import { useOntologyExplorerController } from "./controller.js";
 import { buildOntologyBrowserListRows } from "./ui.js";
 
@@ -62,10 +63,11 @@ function getNodeSelectionState(
 function cycleSelectionState(
   currentState: OntologySelectionState | undefined,
   allowedStates: OntologySelectionState[],
+  direction: 1 | -1 = 1,
 ): OntologySelectionState | undefined {
   const stateOrder: Array<OntologySelectionState | undefined> = [undefined, ...allowedStates];
   const currentIndex = stateOrder.findIndex((state) => state === currentState);
-  return stateOrder[(currentIndex + 1) % stateOrder.length];
+  return stateOrder[((currentIndex + direction) % stateOrder.length + stateOrder.length) % stateOrder.length];
 }
 
 function createEmptySelectionMap(model: OntologyDomainModel): OntologyPickerSelectionMap {
@@ -86,6 +88,7 @@ function createEmptySelectionMap(model: OntologyDomainModel): OntologyPickerSele
 function toggleNodeSelection(
   node: OntologyNode | undefined,
   selections: OntologyPickerSelectionMap,
+  direction: 1 | -1 = 1,
 ): OntologyPickerSelectionMap {
   if (!node?.selection) {
     return selections;
@@ -96,7 +99,7 @@ function toggleNodeSelection(
   fieldSelection.all = fieldSelection.all.filter((value) => value !== node.selection!.value);
   fieldSelection.exclude = fieldSelection.exclude.filter((value) => value !== node.selection!.value);
 
-  const nextState = cycleSelectionState(getNodeSelectionState(node, selections), node.selection.allowedStates);
+  const nextState = cycleSelectionState(getNodeSelectionState(node, selections), node.selection.allowedStates, direction);
   if (nextState) {
     fieldSelection[nextState].push(node.selection.value);
     fieldSelection[nextState].sort((left, right) => left.localeCompare(right));
@@ -239,9 +242,6 @@ function buildFacetPickerHelpLines(
         { id: "help", helpText: "show this help" },
         { id: "quit", label: "return", helpText: "apply the current facet state and return" },
       ],
-      lines: [
-        { text: "Apply aliases: q, a", tone: "accent" },
-      ],
     },
   ]);
 }
@@ -290,11 +290,15 @@ export function OntologyPickerScreen({
     onExit: returnWithSelections,
     getDetailLines: ({ selection }) => buildPickerDetailLines(selections, selection.currentNode),
     getDetailTitle: () => "Detail",
-    onConfirm: ({ currentNode }) => {
+    onConfirm: ({ currentNode, normalizedKey }) => {
+      const cycleDirection = getCycleDirection(normalizedKey);
+      if (!cycleDirection) {
+        return false;
+      }
       if (!currentNode?.selection) {
         return false;
       }
-      updateSelections((current) => toggleNodeSelection(currentNode, current));
+      updateSelections((current) => toggleNodeSelection(currentNode, current, cycleDirection));
       return true;
     },
     onKey: (keyContext) => {
@@ -309,15 +313,11 @@ export function OntologyPickerScreen({
       }
       if (normalizedKey === "space") {
         if (currentNode?.selection) {
-          updateSelections((current) => toggleNodeSelection(currentNode, current));
+          updateSelections((current) => toggleNodeSelection(currentNode, current, 1));
         }
         return true;
       }
       if (normalizedKey === "q") {
-        returnWithSelections();
-        return true;
-      }
-      if (normalizedKey === "a") {
         returnWithSelections();
         return true;
       }

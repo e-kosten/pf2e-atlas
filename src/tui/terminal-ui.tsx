@@ -12,6 +12,7 @@ import {
   isBackNavigationKey,
   isConfirmKey,
   isConfirmOrToggleKey,
+  getCycleDirection,
   isMoveDownKey,
   isMoveLeftKey,
   isMoveRightKey,
@@ -1361,10 +1362,11 @@ function buildPolicySelection(
 function cyclePolicyState(
   currentState: DerivedTagTerminalPolicyState | undefined,
   allowedStates: DerivedTagTerminalPolicyState[],
+  direction: 1 | -1 = 1,
 ): DerivedTagTerminalPolicyState | undefined {
   const stateOrder: Array<DerivedTagTerminalPolicyState | undefined> = [undefined, ...allowedStates];
   const currentIndex = stateOrder.findIndex((state) => state === currentState);
-  const nextIndex = (currentIndex + 1) % stateOrder.length;
+  const nextIndex = ((currentIndex + direction) % stateOrder.length + stateOrder.length) % stateOrder.length;
   return stateOrder[nextIndex];
 }
 
@@ -1689,7 +1691,9 @@ function DerivedTagTerminalModalHost({
       resolver(selectedValues);
       return;
     }
-    if (modal.kind === "policy" && isConfirmOrToggleKey(normalized)) {
+    const cycleDirection = getCycleDirection(normalized);
+
+    if (modal.kind === "policy" && cycleDirection) {
       const selected = modal.options.entries[modal.selectedIndex]?.value;
       if (!selected) {
         return;
@@ -1699,7 +1703,7 @@ function DerivedTagTerminalModalHost({
           ...current,
           valueStates: {
             ...current.valueStates,
-            [selected]: cyclePolicyState(current.valueStates[selected], current.options.allowedStates),
+            [selected]: cyclePolicyState(current.valueStates[selected], current.options.allowedStates, cycleDirection),
           },
         }
         : current);

@@ -79,7 +79,6 @@ function buildOntologyCommandEntries(
     value: "openQuery",
     label: "Open Query",
     description: "Open the focused ontology query in browse/search.",
-    aliases: ["o"],
     keywords: ["search", "browse", "records"],
   }];
 }

@@ -566,6 +566,25 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Workspace Mode");
   });
 
+  it("does not treat old page-specific letters as live setup commands", async () => {
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={createServices()}>
+          <SearchScreen onBack={vi.fn()} />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    expect(app.lastFrame()).toContain("[SETUP] Scope & Filters");
+
+    app.stdin.write("c");
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("[SETUP] Scope & Filters");
+    expect(app.lastFrame()).not.toContain("Category Scope");
+  });
+
   it("uses space to open the selected setup item and carries facet edits back into the workspace", async () => {
     const services = createServices();
     services.user.search.getFacetFieldOptions = vi.fn(() => [{
@@ -589,18 +608,23 @@ describe("search screen", () => {
     const app = render(
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={services}>
-          <SearchScreen onBack={vi.fn()} />
+          <SearchScreen
+            initialQuery={{
+              kind: "listRecords",
+              label: "Browse spells",
+              filters: {
+                category: "spell",
+                limit: 20,
+              },
+            }}
+            onBack={vi.fn()}
+          />
         </Pf2eTerminalAppServicesProvider>
       </DerivedTagTerminalProvider>,
     );
 
     await flushInk();
-
-    app.stdin.write("c");
-    await flushInk();
-    pressDown(app);
-    await flushInk();
-    app.stdin.write("\r");
+    pressLeft(app);
     await flushInk();
 
     for (let step = 0; step < 7; step += 1) {
@@ -624,7 +648,7 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Current filters");
     expect(app.lastFrame()).toContain("derivedTags: any=coastal_setting");
 
-    app.stdin.write("a");
+    app.stdin.write("q");
     await flushInk();
 
     expect(app.lastFrame()).toContain("Edit Facet Filter | 1 active");
@@ -1445,18 +1469,23 @@ describe("search screen", () => {
     const app = render(
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={services}>
-          <SearchScreen onBack={vi.fn()} />
+          <SearchScreen
+            initialQuery={{
+              kind: "listRecords",
+              label: "Browse spells",
+              filters: {
+                category: "spell",
+                limit: 20,
+              },
+            }}
+            onBack={vi.fn()}
+          />
         </Pf2eTerminalAppServicesProvider>
       </DerivedTagTerminalProvider>,
     );
 
     await flushInk();
-
-    app.stdin.write("c");
-    await flushInk();
-    pressDown(app);
-    await flushInk();
-    app.stdin.write("\r");
+    pressLeft(app);
     await flushInk();
 
     expect(app.lastFrame()).toContain("Edit Facet Filter | 0 active");
@@ -1477,7 +1506,7 @@ describe("search screen", () => {
     await flushInk();
     app.stdin.write("\r");
     await flushInk();
-    app.stdin.write("a");
+    app.stdin.write("q");
     await flushInk();
 
     expect(app.lastFrame()).toContain("Edit Facet Filter | 1 active");

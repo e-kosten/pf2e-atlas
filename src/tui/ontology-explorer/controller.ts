@@ -443,10 +443,6 @@ export function useOntologyExplorerController(
       }
       return;
     }
-    if (normalizedKey === "o" && context.selectedQuery && options.onOpenQuery) {
-      options.onOpenQuery(context.selectedQuery);
-      return;
-    }
     if (isSearchKey(normalizedKey)) {
       dispatch({
         type: "set_search_mode",

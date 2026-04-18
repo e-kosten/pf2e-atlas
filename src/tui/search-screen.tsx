@@ -959,23 +959,6 @@ function applyFacetPickerSelectionsToRequest(
   };
 }
 
-const SEARCH_WORKSPACE_COMMAND_ALIASES: Partial<Record<SearchWorkspaceAction, string[]>> = {
-  execute: ["e"],
-  mode: ["m"],
-  profile: ["p"],
-  category: ["c"],
-  subcategory: ["s"],
-  levels: ["v"],
-  rarity: ["r"],
-  removeFacet: ["d"],
-  reset: ["x"],
-};
-
-const SEARCH_RESULT_COMMAND_ALIASES: Record<SearchResultCommandId, string[]> = {
-  jumpToResult: ["n"],
-  sortResults: ["o", "s"],
-};
-
 function buildDraftCommandPaletteEntries(
   workspaceEntries: SearchWorkspaceEntry[],
 ): DerivedTagTerminalCommandOption<SearchWorkspaceAction>[] {
@@ -985,7 +968,6 @@ function buildDraftCommandPaletteEntries(
     description: entry.disabled
       ? `Unavailable. ${entry.description}`
       : entry.description,
-    aliases: SEARCH_WORKSPACE_COMMAND_ALIASES[entry.action] ?? [],
     keywords: [entry.value],
   }));
 }
@@ -998,7 +980,6 @@ function buildResultCommandPaletteEntries(
       value: "jumpToResult",
       label: "Jump to Result",
       description: "Jump to an absolute result position in the active result set.",
-      aliases: SEARCH_RESULT_COMMAND_ALIASES.jumpToResult,
       keywords: ["position", "goto"],
     },
     {
@@ -1007,7 +988,6 @@ function buildResultCommandPaletteEntries(
       description: state.session
         ? `Switch result ordering from ${formatSort(state.session.sort)}.`
         : "Change the active result ordering.",
-      aliases: SEARCH_RESULT_COMMAND_ALIASES.sortResults,
       keywords: ["order", "ranking"],
     },
   ];
@@ -1859,41 +1839,6 @@ export function SearchScreen({
         openSelectedWorkspaceEntry();
         return;
       }
-      if (normalized === "m") {
-        void chooseMode();
-        return;
-      }
-      if (normalized === "p") {
-        void chooseSearchProfile();
-        return;
-      }
-      if (normalized === "c") {
-        void chooseCategoryFilter();
-        return;
-      }
-      if (normalized === "s") {
-        void chooseSubcategoryFilter();
-        return;
-      }
-      if (normalized === "v") {
-        void editLevelRange();
-        return;
-      }
-      if (normalized === "r") {
-        void chooseRarityFilter();
-        return;
-      }
-      if (normalized === "d") {
-        void removeFacetFilter();
-        return;
-      }
-      if (normalized === "x") {
-        resetDraftWorkspace();
-        return;
-      }
-      if (normalized === "e") {
-        void executeRequest(state.draft);
-      }
       return;
     }
 
@@ -1902,14 +1847,6 @@ export function SearchScreen({
       return;
     }
 
-    if (normalized === "o" || normalized === "s") {
-      void chooseResultSort();
-      return;
-    }
-    if (normalized === "n") {
-      void jumpToResultPosition();
-      return;
-    }
     if (isFocusToggleKey(normalized)) {
       dispatch({ type: "set_active_pane", pane: state.activePane === "list" ? "detail" : "list" });
       return;

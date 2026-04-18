@@ -6,6 +6,7 @@ import type {
 } from "../tags/migration/types.js";
 import {
   TerminalTwoPaneScreen,
+  type DerivedTagTerminalCommandOption,
   createDerivedTagTerminalListNavigationState,
   getNormalizedKeyName,
   getTerminalPaneBodyHeight,
@@ -18,12 +19,21 @@ import {
 import {
   buildTerminalInteractionHelpLines,
   formatTerminalInteractionFooter,
+  type TerminalInteractionCommand,
 } from "./interaction-bindings.js";
 import {
   isBackOrExitKey,
+  isCommandPaletteKey,
   isHelpKey,
 } from "./keymap.js";
 import { buildScrollableLines } from "./list-utils.js";
+
+type TagRefinementCommandId =
+  | "review_all"
+  | "legacy_seed"
+  | "legacy_rule"
+  | "exemplar_cleanup"
+  | "proposal_review";
 
 export type TagRefinementMenuItem =
   | { kind: "review_queue_item"; label: string; queueItem: DerivedTagReviewQueueSummaryItem }
@@ -73,7 +83,7 @@ function buildQueueLines(queueItems: DerivedTagReviewQueueSummaryItem[]): Derive
   });
 }
 
-function buildTagRefinementHelpLines(): DerivedTagTerminalLine[] {
+function buildTagRefinementHelpLines(hasQueueItems: boolean): DerivedTagTerminalLine[] {
   return buildTerminalInteractionHelpLines([
     {
       title: "Navigation",
@@ -83,21 +93,60 @@ function buildTagRefinementHelpLines(): DerivedTagTerminalLine[] {
         { id: "page", helpText: "page through the menu" },
         { id: "edge", helpText: "jump to the first or last row" },
         { id: "select", helpText: "open the selected row" },
+        { id: "commands", helpText: "open tag-refinement commands" },
         { id: "back", helpText: "return to the top level" },
         { id: "help", helpText: "show this help" },
       ],
     },
     {
-      title: "Quick Actions",
-      lines: [
-        { text: "Review All  aliases: a  review all queue items" },
-        { text: "Legacy Seed  aliases: s  create a legacy-seed session" },
-        { text: "Legacy Rule  aliases: r  create a legacy-rule session" },
-        { text: "Exemplar Cleanup  aliases: e  create an exemplar-cleanup session" },
-        { text: "AI Proposal Review  aliases: p, n  create an AI proposal review session" },
-      ],
+      title: "Commands",
+      commands: buildTagRefinementCommandEntries(hasQueueItems).map<TerminalInteractionCommand>((command) => ({
+        label: command.label,
+        description: command.description ?? "No additional details.",
+      })),
     },
   ]);
+}
+
+function buildTagRefinementCommandEntries(
+  hasQueueItems: boolean,
+): DerivedTagTerminalCommandOption<TagRefinementCommandId>[] {
+  const entries: DerivedTagTerminalCommandOption<TagRefinementCommandId>[] = [];
+  if (hasQueueItems) {
+    entries.push({
+      value: "review_all",
+      label: "Review All Pending Queue Items",
+      description: "Create a queue review session covering all pending items.",
+      keywords: ["queue", "review", "all"],
+    });
+  }
+  entries.push(
+    {
+      value: "legacy_seed",
+      label: "Create Legacy-Seed Review Session",
+      description: "Start a custom legacy-seed review session.",
+      keywords: ["seed", "legacy"],
+    },
+    {
+      value: "legacy_rule",
+      label: "Create Legacy-Rule Review Session",
+      description: "Start a custom legacy-rule review session.",
+      keywords: ["rule", "legacy"],
+    },
+    {
+      value: "exemplar_cleanup",
+      label: "Create Exemplar-Cleanup Review Session",
+      description: "Start a custom exemplar-cleanup review session.",
+      keywords: ["exemplar", "cleanup"],
+    },
+    {
+      value: "proposal_review",
+      label: "Create AI Proposal Review Session",
+      description: "Start a custom AI proposal review session.",
+      keywords: ["proposal", "ai"],
+    },
+  );
+  return entries;
 }
 
 export function TagRefinementMenuScreen({
@@ -131,6 +180,22 @@ export function TagRefinementMenuScreen({
     }
   }, [clampedSelectedIndex, menuItems.length, onMove, selectedIndex]);
 
+  const openCommandPalette = React.useCallback(async () => {
+    const selected = await terminal.promptCommandPalette({
+      title: "Tag Refinement Commands",
+      prompt: "Filter tag-refinement commands",
+      entries: buildTagRefinementCommandEntries(queueItems.length > 0),
+    });
+    if (!selected) {
+      return;
+    }
+    if (selected === "review_all") {
+      onQuickAction("review_all");
+      return;
+    }
+    onQuickAction(selected);
+  }, [onQuickAction, queueItems.length, terminal]);
+
   useDerivedTagTerminalInput((input, key) => {
     const normalized = getNormalizedKeyName(input, key);
     const navigation = resolveDerivedTagTerminalListNavigationAction(input, key, {
@@ -159,32 +224,16 @@ export function TagRefinementMenuScreen({
       onOpenSelected(menuItems);
       return;
     }
+    if (isCommandPaletteKey(normalized)) {
+      void openCommandPalette();
+      return;
+    }
     if (isHelpKey(normalized)) {
       void terminal.showDialog({
         title: "Tag Refinement Help",
-        body: buildTagRefinementHelpLines(),
+        body: buildTagRefinementHelpLines(queueItems.length > 0),
         footer: [{ text: "Press any key to return.", tone: "dim" }],
       });
-      return;
-    }
-    if (normalized === "a" && queueItems.length > 0) {
-      onQuickAction("review_all");
-      return;
-    }
-    if (normalized === "s") {
-      onQuickAction("legacy_seed");
-      return;
-    }
-    if (normalized === "r") {
-      onQuickAction("legacy_rule");
-      return;
-    }
-    if (normalized === "e") {
-      onQuickAction("exemplar_cleanup");
-      return;
-    }
-    if (normalized === "p" || normalized === "n") {
-      onQuickAction("proposal_review");
       return;
     }
   });
@@ -202,7 +251,7 @@ export function TagRefinementMenuScreen({
         lines: buildQueueLines(queueItems),
       }}
       footer={[
-        { text: `${formatTerminalInteractionFooter([{ id: "move" }, { id: "jump" }, { id: "page" }, { id: "edge" }, { id: "select" }, { id: "help" }, { id: "back", label: "top level" }])}  a/s/r/e/p actions`, tone: "dim" },
+        { text: formatTerminalInteractionFooter([{ id: "move" }, { id: "jump" }, { id: "page" }, { id: "edge" }, { id: "select" }, { id: "commands" }, { id: "help" }, { id: "back", label: "top level" }]), tone: "dim" },
         { text: `Selected: ${menuItems[clampedSelectedIndex]?.label ?? "(none)"}`, tone: "accent" },
       ]}
       leftWidth={48}

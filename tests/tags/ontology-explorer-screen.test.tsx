@@ -109,7 +109,15 @@ describe("ontology browser screen", () => {
     await flushInk();
     expect(app.lastFrame()).toContain("query ready");
 
-    app.stdin.write("o");
+    app.stdin.write(":");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Ontology Commands");
+
+    for (const character of "open query") {
+      app.stdin.write(character);
+    }
+    await flushInk();
+    app.stdin.write("\r");
     await flushInk();
 
     expect(onOpenQuery).toHaveBeenCalledWith({
@@ -120,6 +128,24 @@ describe("ontology browser screen", () => {
         limit: 20,
       },
     });
+
+    app.unmount();
+  });
+
+  it("does not treat old page-specific letters as live ontology commands", async () => {
+    const model = createTestOntologyModel();
+    const onOpenQuery = vi.fn();
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <OntologyBrowserScreen model={model} onExit={vi.fn()} onOpenQuery={onOpenQuery} />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    app.stdin.write("o");
+    await flushInk();
+
+    expect(onOpenQuery).not.toHaveBeenCalled();
 
     app.unmount();
   });
