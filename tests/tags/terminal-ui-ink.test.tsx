@@ -61,6 +61,28 @@ function SelectPromptHarness(): React.JSX.Element {
   );
 }
 
+function TextPromptHarness(): React.JSX.Element {
+  const terminal = useDerivedTagTerminalApp();
+  const [result, setResult] = React.useState("pending");
+
+  React.useEffect(() => {
+    void terminal.promptTextInput({
+      title: "Text Harness",
+      prompt: "Enter a short value",
+      hint: "Quick inline prompt",
+    }).then((value) => {
+      setResult(value ?? "cancelled");
+    });
+  }, []);
+
+  return (
+    <TerminalTextScreen
+      title="Harness"
+      body={[{ text: `result=${result}` }]}
+    />
+  );
+}
+
 function DialogStateHarness(): React.JSX.Element {
   const terminal = useDerivedTagTerminalApp();
   const [page, setPage] = React.useState("home");
@@ -178,13 +200,27 @@ describe("derived tag terminal ink runtime", () => {
 
     await flushInk();
     expect(app.lastFrame()).toContain("Pick a value");
-    expect(app.lastFrame()).toContain("result=pending");
-    expect(app.lastFrame()).toContain("Harness");
+    expect(app.lastFrame()).not.toContain("result=pending");
+    expect(app.lastFrame()).not.toContain("appJ=0");
 
     app.stdin.write("j");
     await flushInk();
     expect(app.lastFrame()).toContain("Selected: First");
     expect(app.lastFrame()).not.toContain("appJ=1");
+  });
+
+  it("keeps quick text prompts inline with the current screen", async () => {
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <TextPromptHarness />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInkFrames();
+    expect(app.lastFrame()).toContain("Enter a short value");
+    expect(app.lastFrame()).toContain("Quick inline prompt");
+    expect(app.lastFrame()).toContain("result=pending");
+    expect(app.lastFrame()).toContain("Harness");
   });
 
   it("preserves screen state after closing a dialog modal", async () => {
@@ -220,7 +256,7 @@ describe("derived tag terminal ink runtime", () => {
 
     await flushInkFrames();
     expect(app.lastFrame()).toContain("Toggle values");
-    expect(app.lastFrame()).toContain("result=pending");
+    expect(app.lastFrame()).not.toContain("result=pending");
 
     app.stdin.write("\r");
     await flushInkFrames();
@@ -246,7 +282,7 @@ describe("derived tag terminal ink runtime", () => {
 
     await flushInkFrames();
     expect(app.lastFrame()).toContain("Cycle values");
-    expect(app.lastFrame()).toContain("result=pending");
+    expect(app.lastFrame()).not.toContain("result=pending");
 
     app.stdin.write("\r");
     await flushInkFrames();

@@ -84,13 +84,17 @@ type DerivedTagTerminalInlinePromptPanelProps = {
   footer?: DerivedTagTerminalLine[];
   width: number;
   height: number;
+  showTopBorder?: boolean;
 };
+
+type TerminalModalPresentation = "inline" | "screen";
 
 type DialogOptions = {
   title: string;
   subtitle?: string;
   body: DerivedTagTerminalLine[];
   footer?: DerivedTagTerminalLine[];
+  presentation?: TerminalModalPresentation;
 };
 
 type TextPromptOptions = {
@@ -98,6 +102,7 @@ type TextPromptOptions = {
   prompt: string;
   defaultValue?: string;
   hint?: string;
+  presentation?: TerminalModalPresentation;
 };
 
 type SelectPromptOptions<T extends string = string> = {
@@ -106,6 +111,7 @@ type SelectPromptOptions<T extends string = string> = {
   prompt: string;
   entries: DerivedTagTerminalSelectOption<T>[];
   selectedValue?: T;
+  presentation?: TerminalModalPresentation;
 };
 
 type MultiSelectPromptOptions<T extends string = string> = {
@@ -114,6 +120,7 @@ type MultiSelectPromptOptions<T extends string = string> = {
   prompt: string;
   entries: DerivedTagTerminalSelectOption<T>[];
   selectedValues?: T[];
+  presentation?: TerminalModalPresentation;
 };
 
 export type DerivedTagTerminalPolicyState = "any" | "all" | "exclude";
@@ -131,6 +138,7 @@ type PolicyPromptOptions<T extends string = string> = {
   entries: DerivedTagTerminalSelectOption<T>[];
   allowedStates: DerivedTagTerminalPolicyState[];
   selectedValues?: Partial<DerivedTagTerminalPolicySelection<T>>;
+  presentation?: TerminalModalPresentation;
 };
 
 type TerminalModalState =
@@ -431,15 +439,19 @@ function TerminalInlinePromptPanel({
   footer,
   width,
   height,
+  showTopBorder = true,
 }: DerivedTagTerminalInlinePromptPanelProps): React.JSX.Element {
   const footerHeight = footer?.length ?? 0;
-  const bodyHeight = Math.max(0, height - 3 - footerHeight);
+  const headerHeight = showTopBorder ? 3 : 2;
+  const bodyHeight = Math.max(0, height - headerHeight - footerHeight);
 
   return (
     <Box flexDirection="column" width={width} height={height}>
-      <Text wrap="truncate-end" {...terminalToneProps("dim")}>
-        {fitToWidth("─".repeat(Math.max(0, width)), width)}
-      </Text>
+      {showTopBorder ? (
+        <Text wrap="truncate-end" {...terminalToneProps("dim")}>
+          {fitToWidth("─".repeat(Math.max(0, width)), width)}
+        </Text>
+      ) : null}
       <Text wrap="truncate-end" {...terminalToneProps("selected")}>
         {fitToWidth(title, width)}
       </Text>
@@ -452,6 +464,27 @@ function TerminalInlinePromptPanel({
       <TerminalFooter footer={footer} width={width} />
     </Box>
   );
+}
+
+function getModalPresentation(modal: TerminalModalState): TerminalModalPresentation | null {
+  if (!modal) {
+    return null;
+  }
+
+  switch (modal.kind) {
+    case "dialog":
+      return modal.options.presentation ?? "inline";
+    case "text":
+      return modal.options.presentation ?? "inline";
+    case "select":
+      return modal.options.presentation ?? "screen";
+    case "multiselect":
+      return modal.options.presentation ?? "screen";
+    case "policy":
+      return modal.options.presentation ?? "screen";
+    default:
+      return "screen";
+  }
 }
 
 export function useDerivedTagTerminalApp(): DerivedTagTerminalContextValue {
@@ -922,6 +955,7 @@ function PromptBody({
       footer={[{ text: "Type text  Enter submit  Backspace edit  Esc cancel", tone: "dim" }]}
       width={width}
       height={height}
+      showTopBorder={options.presentation !== "screen"}
     />
   );
 }
@@ -955,6 +989,7 @@ function SelectPromptBody({
         footer={[{ text: "Esc, Backspace, Left, or q cancel", tone: "dim" }]}
         width={width}
         height={height}
+        showTopBorder={options.presentation !== "screen"}
       />
     );
   }
@@ -994,6 +1029,7 @@ function SelectPromptBody({
       ]}
       width={width}
       height={height}
+      showTopBorder={options.presentation !== "screen"}
     />
   );
 }
@@ -1029,6 +1065,7 @@ function MultiSelectPromptBody({
         footer={[{ text: "Esc, Backspace, or Left return", tone: "dim" }]}
         width={width}
         height={height}
+        showTopBorder={options.presentation !== "screen"}
       />
     );
   }
@@ -1073,6 +1110,7 @@ function MultiSelectPromptBody({
       ]}
       width={width}
       height={height}
+      showTopBorder={options.presentation !== "screen"}
     />
   );
 }
@@ -1200,6 +1238,7 @@ function PolicyPromptBody({
         footer={[{ text: "Esc, Backspace, or Left return", tone: "dim" }]}
         width={width}
         height={height}
+        showTopBorder={options.presentation !== "screen"}
       />
     );
   }
@@ -1241,12 +1280,13 @@ function PolicyPromptBody({
       ]}
       width={width}
       height={height}
+      showTopBorder={options.presentation !== "screen"}
     />
   );
 }
 
 function getInlineModalHeight(modal: TerminalModalState, totalRows: number): number {
-  if (!modal) {
+  if (!modal || getModalPresentation(modal) !== "inline") {
     return 0;
   }
 
@@ -1268,6 +1308,7 @@ function DerivedTagTerminalModalHost({
   height: number;
 }): React.JSX.Element | null {
   const listNavigationStateRef = React.useRef(createDerivedTagTerminalListNavigationState());
+  const presentation = getModalPresentation(modal);
 
   useInput((input, key) => {
     const normalized = getNormalizedKeyName(input, key);
@@ -1451,11 +1492,19 @@ function DerivedTagTerminalModalHost({
         footer={modal.options.footer ?? [{ text: "Press any key to continue.", tone: "dim" }]}
         width={width}
         height={height}
+        showTopBorder={presentation === "inline"}
       />
     );
   }
   if (modal.kind === "text") {
-    return <PromptBody options={modal.options} currentValue={modal.value} width={width} height={height} />;
+    return (
+      <PromptBody
+        options={modal.options}
+        currentValue={modal.value}
+        width={width}
+        height={height}
+      />
+    );
   }
   if (modal.kind === "multiselect") {
     return (
@@ -1491,8 +1540,11 @@ export function DerivedTagTerminalProvider({
   const { exit } = useApp();
   const { columns, rows } = useWindowSize();
   const [modal, setModal] = React.useState<TerminalModalState>(null);
-  const modalHeight = React.useMemo(() => getInlineModalHeight(modal, rows), [modal, rows]);
-  const availableRows = Math.max(0, rows - modalHeight);
+  const modalPresentation = React.useMemo(() => getModalPresentation(modal), [modal]);
+  const inlineModalHeight = React.useMemo(() => getInlineModalHeight(modal, rows), [modal, rows]);
+  const availableRows = modalPresentation === "screen"
+    ? 0
+    : Math.max(0, rows - inlineModalHeight);
 
   const contextValue = React.useMemo<DerivedTagTerminalContextValue>(() => ({
     exitApp: exit,
@@ -1573,15 +1625,23 @@ export function DerivedTagTerminalProvider({
 
   return (
     <DerivedTagTerminalContext.Provider value={contextValue}>
-      <Box flexDirection="column">
-        {children}
-      </Box>
-      {modal ? (
+      {modal && modalPresentation === "screen" ? (
         <DerivedTagTerminalModalHost
           modal={modal}
           setModal={setModal}
           width={columns}
-          height={modalHeight}
+          height={rows}
+        />
+      ) : null}
+      <Box flexDirection="column">
+        {children}
+      </Box>
+      {modal && modalPresentation === "inline" ? (
+        <DerivedTagTerminalModalHost
+          modal={modal}
+          setModal={setModal}
+          width={columns}
+          height={inlineModalHeight}
         />
       ) : null}
     </DerivedTagTerminalContext.Provider>
