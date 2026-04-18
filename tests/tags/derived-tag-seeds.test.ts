@@ -427,13 +427,13 @@ describe("derived tag exemplars and legacy seed migrations", () => {
     expect(getDerivedTagLegacySeedMigrationRecordKeys("nautical_setting", { category: "creature" })).toEqual(expect.arrayContaining([
       "agents-of-edgewatch-bestiary:d3TzpCuRJF78xHZK",
     ]));
-    expect(getDerivedTagLegacySeedMigrationRecordKeys("geb_setting", { category: "creature" })).toEqual(expect.arrayContaining([
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("organized_undead_society_setting", { category: "creature" })).toEqual(expect.arrayContaining([
       "blood-lords-bestiary:IXPZR1DTdT7Tu7UG",
       "blood-lords-bestiary:KQkouk6tku8akpmU",
       "blood-lords-bestiary:k8NnItW7Hp79bg26",
       "blood-lords-bestiary:vUv8SR7Pa5fONiuN",
     ]));
-    expect(getDerivedTagLegacySeedMigrationRecordKeys("gravelands_setting", { category: "creature" })).toEqual(expect.arrayContaining([
+    expect(getDerivedTagLegacySeedMigrationRecordKeys("undead_war_torn_region_setting", { category: "creature" })).toEqual(expect.arrayContaining([
       "book-of-the-dead-bestiary:gXo04F7O4pwOY698",
       "claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E",
       "claws-of-the-tyrant-bestiary:jSE16N2ASzN3qlN1",
@@ -583,8 +583,8 @@ describe("derived tag exemplars and legacy seed migrations", () => {
       descriptionText: null,
       traits: ["evil", "incorporeal", "spirit", "undead", "unholy"],
     });
-    expect(chargharDerivation.tags).toContain("geb_setting");
-    expect(chargharDerivation.sources.get("geb_setting")).toBe("seed_migration");
+    expect(chargharDerivation.tags).toContain("organized_undead_society_setting");
+    expect(chargharDerivation.sources.get("organized_undead_society_setting")).toBe("seed_migration");
 
     const commanderArsiellaSettingDerivation = deriveRecordTagDerivation({
       recordKey: "claws-of-the-tyrant-bestiary:tMqtId1TKVUXe4tN",
@@ -594,8 +594,8 @@ describe("derived tag exemplars and legacy seed migrations", () => {
       descriptionText: null,
       traits: ["aiuvarin", "elf", "human", "humanoid"],
     });
-    expect(commanderArsiellaSettingDerivation.tags).toContain("gravelands_setting");
-    expect(commanderArsiellaSettingDerivation.sources.get("gravelands_setting")).toBe("seed_migration");
+    expect(commanderArsiellaSettingDerivation.tags).toContain("undead_war_torn_region_setting");
+    expect(commanderArsiellaSettingDerivation.sources.get("undead_war_torn_region_setting")).toBe("seed_migration");
 
     const deathCoachDerivation = deriveRecordTagDerivation({
       recordKey: "book-of-the-dead-bestiary:7WqlOvjoqURmeorA",

@@ -264,7 +264,9 @@ describe("derived tag catalog", () => {
         family: "regional_setting",
         axis: "setting",
         tags: expect.arrayContaining([
-          expect.objectContaining({ value: "geb_setting", description: expect.any(String) }),
+          expect.objectContaining({ value: "organized_undead_society_setting", description: expect.any(String) }),
+          expect.objectContaining({ value: "gothic_horror_land_setting", description: expect.any(String) }),
+          expect.objectContaining({ value: "alien_technology_wasteland_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "tian_xia_setting", description: expect.any(String) }),
         ]),
       }),

@@ -61,7 +61,7 @@ export const CREATURE_DERIVED_TAG_LEGACY_SEED_MIGRATIONS = {
       ]
     },
     {
-      tag: "geb_setting",
+      tag: "organized_undead_society_setting",
       includeRecords: [
         {
           pack: "blood-lords-bestiary",
@@ -82,7 +82,7 @@ export const CREATURE_DERIVED_TAG_LEGACY_SEED_MIGRATIONS = {
       ]
     },
     {
-      tag: "gravelands_setting",
+      tag: "undead_war_torn_region_setting",
       includeRecords: [
         {
           pack: "book-of-the-dead-bestiary",

@@ -223,32 +223,124 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
     },
     regional_setting: {
       axis: "setting",
-      description: "Creature setting tags for broad Golarion regions, nations, cultural spheres, and other macro-scale canonical geographies that materially affect retrieval.",
+      description: "Creature setting tags for broad Golarion macro-regions plus portable thematic macro-regions derived from iconic Pathfinder settings when those lenses materially affect encounter planning and retrieval.",
       variantInheritance: true,
       tags: [
         {
-          tag: "geb_setting",
-          description: "Strongly associated with Geb, its necromantic society, or iconic locales such as Graydirge.",
-          assignmentMode: "hybrid"
+          tag: "organized_undead_society_setting",
+          description: "Strongly associated with organized undead societies, corpse labor, necromantic bureaucracy, and courtly undead institutions. In Golarion, this primarily corresponds to Geb.",
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "Use when the creature is naturally retrieved for an undead-ruled state, necromantic civil order, corpse-backed labor system, or other organized deathless society rather than an isolated tomb or graveyard.",
+            "The planning value comes from undead institutions, court politics, civic structure, or civilized undead social roles as much as from simple undead presence."
+          ],
+          doesNotApplyWhen: [
+            "The creature is merely undead, tomb-dwelling, or cemetery-haunting without a meaningful link to a broader undead social order.",
+            "The stronger fit is undead_war_torn_region_setting because the retrieval hook is an undead occupation zone or shattered crusader frontier rather than a stable undead society."
+          ],
+          adjacentTags: [
+            "undead_war_torn_region_setting",
+            "urban_setting"
+          ]
         },
         {
-          tag: "gravelands_setting",
-          description: "Strongly associated with the Gravelands, Lastwall's shattered front, or iconic sites such as Fort Ozem and Gallowspire.",
-          assignmentMode: "hybrid"
+          tag: "gothic_horror_land_setting",
+          description: "Strongly associated with Gothic-horror lands of mist, superstition, graveyard dread, cursed nobility, and classic night monsters. In Golarion, this primarily corresponds to Ustalav.",
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "Use when the creature is naturally retrieved for Gothic-horror encounter planning: decaying manors, haunted villages, graveyard menace, superstitious communities, or classic monster-fiction mood.",
+            "The planning value comes from atmospheric horror identity, cursed lineage, or old-world dread rather than only from one undead, fiend, or shapeshifter trait."
+          ],
+          doesNotApplyWhen: [
+            "The creature is simply spooky, undead, or cursed without a real Gothic-horror social or atmospheric frame.",
+            "The stronger fit is story_motif or genre_motif because the retrieval hook is a narrower narrative motif rather than a full regional horror lens."
+          ],
+          adjacentTags: [
+            "graveyard_setting",
+            "folk_horror"
+          ]
+        },
+        {
+          tag: "alien_technology_wasteland_setting",
+          description: "Strongly associated with alien technology, robots, mutants, strange metal ruins, and science-fantasy wastelands. In Golarion, this primarily corresponds to Numeria.",
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "Use when the creature is naturally retrieved for weird-tech wilderness, star-metal ruins, robot-haunted badlands, mutant frontiers, or barbarian-meets-super-science planning.",
+            "The planning value comes from science-fantasy intrusion into the region's creature ecology rather than only from a single construct or technological gimmick."
+          ],
+          doesNotApplyWhen: [
+            "The creature only uses one technological item or construct-like ability without a broader weird-tech regional frame.",
+            "The stronger fit is bound_object or a combat-role tag because the planning value is tactical rather than regional or thematic."
+          ],
+          adjacentTags: [
+            "magic_blight_wasteland_setting",
+            "animated_object"
+          ]
+        },
+        {
+          tag: "magic_blight_wasteland_setting",
+          description: "Strongly associated with arcane devastation, dead-magic pockets, wild-magic scars, magical storms, and survival in a magically broken wasteland. In Golarion, this primarily corresponds to the Mana Wastes.",
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "Use when the creature is naturally retrieved for dead-magic deserts, wild-magic badlands, spellscar survival, mutation-causing arcane fallout, or regions where magic itself has wounded the landscape.",
+            "The planning value comes from magical environmental breakage and wasteland adaptation rather than only from one magical trait or one regional nation."
+          ],
+          doesNotApplyWhen: [
+            "The creature is merely magical, arcane, or mutated without a meaningful tie to a magic-blasted regional wasteland.",
+            "The stronger fit is alien_technology_wasteland_setting because the retrieval hook is weird technology, robots, or alien ruins rather than magical landscape scarring."
+          ],
+          adjacentTags: [
+            "alien_technology_wasteland_setting",
+            "wasteland_setting"
+          ]
+        },
+        {
+          tag: "undead_war_torn_region_setting",
+          description: "Strongly associated with undead occupation, shattered crusader lands, haunted battlefields, refugee pressure, and ruined strongholds under deathless siege. In Golarion, this primarily corresponds to the Gravelands.",
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "Use when the creature is naturally retrieved for undead war-frontier planning: ruined forts, haunted battlefields, occupied borderlands, refugee routes, or crusader-collapse aftermath.",
+            "The planning value comes from a region still actively shaped by undead war, occupation, or collapse rather than by a stable undead social order."
+          ],
+          doesNotApplyWhen: [
+            "The creature is simply undead, martial, or grim without a meaningful tie to an undead-ravaged frontier or occupied war zone.",
+            "The stronger fit is organized_undead_society_setting because the retrieval hook is necromantic civilization rather than a shattered war front."
+          ],
+          adjacentTags: [
+            "organized_undead_society_setting",
+            "battlefield_setting"
+          ]
+        },
+        {
+          tag: "demonic_scar_frontier_setting",
+          description: "Strongly associated with demon-scarred frontiers, reclaimed homelands, abyss-tainted wilderness, and recovery after planar catastrophe. In Golarion, this primarily corresponds to the Sarkoris Scar.",
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "Use when the creature is naturally retrieved for post-invasion frontier planning: planar scars, reclaimed sacred sites, demon-torn wastelands, lingering abyssal corruption, or survival after a world-rending incursion.",
+            "The planning value comes from a land still shaped by demonic devastation and reclamation rather than from generic fiendish wilderness or one demonic trait."
+          ],
+          doesNotApplyWhen: [
+            "The creature is merely demonic, corrupted, or extraplanar without a real frontier-of-reclamation regional frame.",
+            "The stronger fit is planar_setting or corruption_profile because the retrieval hook is cosmological origin or body-horror taint rather than a scarred regional frontier."
+          ],
+          adjacentTags: [
+            "battlefield_setting",
+            "void_tainted"
+          ]
         },
         {
           tag: "mwangi_setting",
-          description: "Strongly associated with the Mwangi Expanse, its jungle polities, or similarly Mwangi-rooted regional framing.",
+          description: "Strongly associated with the Mwangi Expanse, its jungle polities, and Mwangi-rooted regional framing that materially affects creature planning and retrieval.",
           assignmentMode: "hybrid"
         },
         {
           tag: "darklands_setting",
-          description: "Strongly associated with the Darklands as a civilization-bearing underworld region rather than generic underground terrain.",
+          description: "Strongly associated with the Darklands as a civilization-bearing underworld macro-region rather than generic underground terrain or one cave network.",
           assignmentMode: "hybrid"
         },
         {
           tag: "tian_xia_setting",
-          description: "Strongly associated with Tian Xia regions such as Minata, Bonmu, or Tian cultural subregions like Tian-Shu, Tian-Hwan, Tian-Sing, and Tian-La.",
+          description: "Strongly associated with Tian Xia and its major cultural subregions, where Tian-rooted regional framing materially affects creature planning and retrieval.",
           assignmentMode: "hybrid"
         }
       ]

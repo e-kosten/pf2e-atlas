@@ -163,6 +163,22 @@ describe("derived tag ontology", () => {
       ]),
       adjacentTags: ["small_settlement_setting", "fortress_setting"],
     }));
+    const organizedUndeadSocietySetting = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "creature" && tag.tag === "organized_undead_society_setting");
+    expect(organizedUndeadSocietySetting).toEqual(expect.objectContaining({
+      family: "regional_setting",
+      assignmentMode: "hybrid",
+      adjacentTags: ["undead_war_torn_region_setting", "urban_setting"],
+      appliesWhen: expect.arrayContaining([
+        "Use when the creature is naturally retrieved for an undead-ruled state, necromantic civil order, corpse-backed labor system, or other organized deathless society rather than an isolated tomb or graveyard.",
+      ]),
+    }));
+    const gothicHorrorLandSetting = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "creature" && tag.tag === "gothic_horror_land_setting");
+    expect(gothicHorrorLandSetting).toEqual(expect.objectContaining({
+      family: "regional_setting",
+      assignmentMode: "hybrid",
+      adjacentTags: ["graveyard_setting", "folk_horror"],
+      description: expect.stringContaining("Ustalav"),
+    }));
     const truthReveal = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "spell" && tag.tag === "truth_reveal");
     expect(truthReveal).toEqual(expect.objectContaining({
       family: "revelation",

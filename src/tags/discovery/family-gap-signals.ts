@@ -184,11 +184,24 @@ const EXISTING_SETTING_TAG_CUES: Record<string, SettingCueSpec> = {
   battlefield_setting: {
     strong: ["battlefield", "battlefields", "war zone", "war zones", "front line", "front lines"],
   },
-  geb_setting: {
+  organized_undead_society_setting: {
     strong: ["geb", "gebbite", "gebbites", "graydirge"],
   },
-  gravelands_setting: {
+  gothic_horror_land_setting: {
+    strong: ["ustalav", "gallowspire", "whispering tyrant", "mist-shrouded", "decaying manor", "gothic"],
+    weak: ["vampire", "werewolf"],
+  },
+  alien_technology_wasteland_setting: {
+    strong: ["numeria", "technic league", "robot", "android", "alien", "metal dungeon", "rain of stars"],
+  },
+  magic_blight_wasteland_setting: {
+    strong: ["mana wastes", "spellscar", "dead magic", "wild magic", "alkenstar"],
+  },
+  undead_war_torn_region_setting: {
     strong: ["gravelands", "lastwall", "gallowspire", "fort ozem", "chernasardo"],
+  },
+  demonic_scar_frontier_setting: {
+    strong: ["sarkoris scar", "worldwound", "demon-torn", "abyssal scar", "deskari"],
   },
   tian_xia_setting: {
     strong: ["tian xia", "tian-shu", "tian-hwan", "tian-sing", "tian-la", "minata", "bonmu", "goka", "minkai"],
