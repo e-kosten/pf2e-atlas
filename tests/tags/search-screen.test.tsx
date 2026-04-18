@@ -397,8 +397,8 @@ describe("search screen", () => {
     }));
     expect(search.mock.calls[0]?.[0]?.limit).toBeGreaterThan(50);
     expect(app.lastFrame()).toContain("Draft matches applied query");
-    expect(app.lastFrame()).toContain("1/1 loaded");
-    expect(app.lastFrame()).toContain("[RESULTS] 1/1 loaded | Ranked");
+    expect(app.lastFrame()).toContain("1/1 | Buf 1 | Win 1-1");
+    expect(app.lastFrame()).toContain("[RESULTS] 1/1 | Buf 1 | Ranked");
     expect(app.lastFrame()).toContain("Alarm Ward | spell | lvl 1");
     expect(app.lastFrame()).toContain("Preview | Alarm Ward");
 
@@ -408,12 +408,12 @@ describe("search screen", () => {
 
     app.stdin.write("\u001b[D");
     await flushInk();
-    expect(app.lastFrame()).toContain("[RESULTS] 1/1 loaded | Ranked");
+    expect(app.lastFrame()).toContain("[RESULTS] 1/1 | Buf 1 | Ranked");
 
     app.stdin.write("\u001b[D");
     await flushInk();
     expect(app.lastFrame()).toContain("[DRAFT] Scope & Filters");
-    expect(app.lastFrame()).not.toContain("[RESULTS] 1/1 loaded | Ranked");
+    expect(app.lastFrame()).not.toContain("[RESULTS] 1/1 | Buf 1 | Ranked");
   });
 
   it("loads the next result page through the window reader instead of rerunning the search", async () => {
@@ -481,7 +481,7 @@ describe("search screen", () => {
     expect(readSearchWindowPage).toHaveBeenCalledTimes(1);
     expect(search).not.toHaveBeenCalled();
     expect(app.lastFrame()).toContain("Beacon Sigil");
-    expect(app.lastFrame()).toContain("3/3 loaded | Alphabetical");
+    expect(app.lastFrame()).toContain("[RESULTS] 1/3 | Buf 3 | Alphabetical");
   });
 
   it("supports shared gg and G navigation in the result reader", async () => {
@@ -590,7 +590,7 @@ describe("search screen", () => {
 
     expect(openSearchWindow).toHaveBeenCalledTimes(1);
     expect(readSearchWindowPage).toHaveBeenCalledTimes(1);
-    expect(app.lastFrame()).toContain("200/200 loaded | Alphabetical");
+    expect(app.lastFrame()).toContain("[RESULTS] 1/200 | Buf 200 | Alphabetical");
   });
 
   it("carries the applied execution window size forward into later page loads", async () => {
@@ -875,7 +875,8 @@ describe("search screen", () => {
     expect(readSearchWindowPage.mock.calls.every((call) => call[0] === "window-1")).toBe(true);
     expect(readSearchWindowPage.mock.calls.every((call) => (call[2] as number) > 100)).toBe(true);
     const finalWindowSize = readSearchWindowPage.mock.calls.at(-1)?.[2];
-    expect(app.lastFrame()).toContain(`[RESULTS] ${finalWindowSize}/1000 loaded | Alphabetical`);
+    expect(app.lastFrame()).toContain(`| Buf ${finalWindowSize} | Alphabetical`);
+    expect(app.lastFrame()).toContain(`Pos 241/1,000 | Buf ${finalWindowSize}`);
   });
 
   it("coalesces rapid Ctrl-D jumps into a single latest window read", async () => {

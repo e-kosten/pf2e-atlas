@@ -220,7 +220,22 @@ function getSessionBufferRange(session: Pf2eTerminalSearchSession): string {
     return "empty";
   }
 
-  return `${session.windowOffset + 1}-${session.windowOffset + session.results.length}`;
+  return `${formatCount(session.windowOffset + 1)}-${formatCount(session.windowOffset + session.results.length)}`;
+}
+
+function formatResultPosition(selectedIndex: number, total: number): string {
+  if (total <= 0) {
+    return "0/0";
+  }
+
+  return `${formatCount(selectedIndex + 1)}/${formatCount(total)}`;
+}
+
+function formatResultReaderStatus(
+  session: Pf2eTerminalSearchSession,
+  selectedIndex: number,
+): string {
+  return `Pos ${formatResultPosition(selectedIndex, session.total)} | Buf ${formatCount(session.loadedCount)} | Win ${getSessionBufferRange(session)}`;
 }
 
 function searchScreenReducer(state: SearchScreenState, action: SearchScreenAction): SearchScreenState {
@@ -359,6 +374,10 @@ function formatSort(sort: Pf2eTerminalSearchSort): string {
 
 function formatPolicyValue(value: number | string): string {
   return typeof value === "number" ? String(value) : humanizeIdentifier(value);
+}
+
+function formatCount(value: number): string {
+  return value.toLocaleString("en-US");
 }
 
 function formatFilterPolicy<T extends number | string>(
@@ -673,10 +692,10 @@ function buildResultLines(
   }));
 
   if (loadingMore) {
-    lines.push({ text: `Loading results around ${selectedIndex + 1}/${session.total}...`, tone: "accent" });
+    lines.push({ text: `Loading around ${formatResultPosition(selectedIndex, session.total)}...`, tone: "accent" });
   } else if (session.loadedCount < session.total) {
     lines.push({
-      text: `${session.loadedCount}/${session.total} buffered. Window ${getSessionBufferRange(session)} loads automatically as you move.`,
+      text: formatResultReaderStatus(session, selectedIndex),
       tone: "dim",
     });
   }
@@ -690,7 +709,7 @@ function buildPendingResultDetailLines(
 ): DerivedTagTerminalLine[] {
   return [
     { text: "Result Preview", tone: "section" },
-    { text: `Showing result ${resultIndex + 1} of ${session.total}` },
+    { text: `Showing result ${formatResultPosition(resultIndex, session.total)}` },
     { text: `Sort: ${formatSort(session.sort)}` },
     { text: "" },
     { text: "Loading the result window around the current selection.", tone: "accent" },
@@ -755,7 +774,8 @@ function buildDraftSummaryLines(
     lines.push({ text: "No applied query yet.", tone: "dim" });
   } else {
     lines.push({ text: `Sort: ${formatSort(state.session.sort)}` });
-    lines.push({ text: `Buffered: ${state.session.loadedCount}/${state.session.total}` });
+    lines.push({ text: `Position: ${formatResultPosition(state.resultSelectedIndex, state.session.total)}` });
+    lines.push({ text: `Buffered: ${formatCount(state.session.loadedCount)}` });
     lines.push({ text: `Window: ${getSessionBufferRange(state.session)}` });
     lines.push({ text: `Applied mode: ${formatMode(state.session.request.mode)} | ${state.session.resultMode}` });
   }
@@ -795,7 +815,7 @@ function buildResultDetailLines(
 ): DerivedTagTerminalLine[] {
   return [
     { text: "Result Preview", tone: "section" },
-    { text: `Showing result ${resultIndex + 1} of ${session.total}` },
+    { text: `Showing result ${formatResultPosition(resultIndex, session.total)}` },
     { text: `Sort: ${formatSort(session.sort)}` },
     { text: "" },
     ...buildOntologyExplorerEntityDetailLines(mapNormalizedRecordToOntologyExplorerEntityRecord(record)),
@@ -810,7 +830,7 @@ function buildSearchSubtitle(state: SearchScreenState, countState: SearchCountSt
   if (!state.session) {
     return `${draft} | no applied session`;
   }
-  return `${draft} | ${formatSort(state.session.sort)} | ${state.session.loadedCount}/${state.session.total} loaded | ${formatDraftStatus(state)}`;
+  return `${draft} | ${formatSort(state.session.sort)} | ${formatResultPosition(state.resultSelectedIndex, state.session.total)} | ${formatDraftStatus(state)}`;
 }
 
 function buildFacetRemovalEntries(
@@ -1639,8 +1659,8 @@ export function SearchScreen({
         title: state.layout === "draft"
           ? "[DRAFT] Scope & Filters"
           : state.activePane === "list"
-            ? `[RESULTS] ${state.session ? `${state.session.loadedCount}/${state.session.total} loaded | ${formatSort(state.session.sort)}` : "No applied session"}`
-            : `Results | ${state.session ? `${state.session.loadedCount}/${state.session.total} loaded | ${formatSort(state.session.sort)}` : "No applied session"}`,
+            ? `[RESULTS] ${state.session ? `${formatResultPosition(resultSelectedIndex, state.session.total)} | Buf ${formatCount(state.session.loadedCount)} | ${formatSort(state.session.sort)}` : "No applied session"}`
+            : `Results | ${state.session ? `${formatResultPosition(resultSelectedIndex, state.session.total)} | ${formatSort(state.session.sort)}` : "No applied session"}`,
         lines: state.layout === "draft"
           ? buildWorkspaceLines(workspaceEntries, workspaceSelectedIndex, bodyHeight)
           : buildResultLines(state.session, resultSelectedIndex, bodyHeight, loadingMore),
@@ -1667,7 +1687,7 @@ export function SearchScreen({
         },
         {
           text: state.layout === "results" && state.session
-            ? `${formatDraftStatus(state)} | ${state.session.loadedCount}/${state.session.total} loaded | ${formatSort(state.session.sort)}`
+            ? `${formatDraftStatus(state)} | ${formatResultPosition(resultSelectedIndex, state.session.total)} | Buf ${formatCount(state.session.loadedCount)} | Win ${getSessionBufferRange(state.session)}`
             : `${formatDraftStatus(state)} | ${formatCountSummary(countState, state.draft)} | Draft Workspace`,
           tone: "accent",
         },
