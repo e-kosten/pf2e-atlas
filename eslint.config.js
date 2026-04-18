@@ -32,6 +32,13 @@ export default defineConfig(
       "@typescript-eslint/no-redundant-type-constituents": "error",
       "@typescript-eslint/unbound-method": "error",
       "@typescript-eslint/require-await": "error",
+      "@typescript-eslint/no-floating-promises": "error",
+      "@typescript-eslint/no-misused-promises": "error",
+      "@typescript-eslint/await-thenable": "error",
+      "@typescript-eslint/only-throw-error": "error",
+      "@typescript-eslint/prefer-promise-reject-errors": "error",
+      "@typescript-eslint/no-base-to-string": "error",
+      "@typescript-eslint/restrict-plus-operands": "error",
     },
   },
   {
