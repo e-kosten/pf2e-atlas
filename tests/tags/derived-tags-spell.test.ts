@@ -584,6 +584,22 @@ describe("derived tag rules: spell", () => {
     })).toEqual(expect.arrayContaining(["affliction_cleanup", "curse_removal", "anti_petrification", "resolution"]));
 
     expect(deriveRecordTags({
+      name: "Neutralize Venom",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You cure poison in the target, counteract poison, and end persistent poison damage.",
+      traits: ["healing"],
+    })).toEqual(expect.arrayContaining(["affliction_cleanup", "anti_poison"]));
+
+    expect(deriveRecordTags({
+      name: "Purge Fever",
+      category: "spell",
+      subcategory: null,
+      descriptionText: "You cure disease in the target and counteract a disease before the infection worsens.",
+      traits: ["healing"],
+    })).toEqual(expect.arrayContaining(["affliction_cleanup", "anti_disease"]));
+
+    expect(deriveRecordTags({
       name: "Restorative Surge",
       category: "spell",
       subcategory: null,

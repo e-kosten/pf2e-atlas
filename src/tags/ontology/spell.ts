@@ -334,7 +334,7 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
     },
     resolution: {
       axis: "utility",
-      description: "Spells used to directly solve curses, hauntings, contamination, outbreak containment problems, and hidden supernatural causes rather than merely endure or diagnose them.",
+      description: "Spells used to directly solve curses, hauntings, appeasement problems, contamination, outbreak containment problems, and hidden supernatural causes rather than merely endure or diagnose them.",
       tags: [
         {
           tag: "curse_removal",
@@ -359,8 +359,18 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
           description: "Consecrates, hallowes, purifies, or spiritually cleanses a creature, object, or site to solve a malign supernatural problem.",
           assignmentMode: "hybrid",
           adjacentTags: [
+            "ritual_appeasement",
             "exorcism",
             "protective_ward"
+          ]
+        },
+        {
+          tag: "ritual_appeasement",
+          description: "Ends a supernatural problem through offerings, restitution, funerary respect, ritual observance, or otherwise satisfying a spiritual demand rather than expelling the presence outright.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "sanctification",
+            "exorcism"
           ]
         },
         {
@@ -406,6 +416,7 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
           adjacentTags: [
             "curse_removal",
             "exorcism",
+            "ritual_appeasement",
             "source_cleanup"
           ],
           compositeOfAny: [
@@ -768,6 +779,24 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
           tag: "affliction_cleanup",
           description: "Cleanses, cures, neutralizes, or removes disease, poison, curse, or similar afflictions.",
           assignmentMode: "hybrid"
+        },
+        {
+          tag: "anti_poison",
+          description: "Cures poison, counters toxic afflictions, or protects a target against venom and similar poisoning effects.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "affliction_cleanup",
+            "anti_disease"
+          ]
+        },
+        {
+          tag: "anti_disease",
+          description: "Cures disease, counteracts infections, or protects a target against plague, fever, and similar disease effects.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "affliction_cleanup",
+            "anti_poison"
+          ]
         },
         {
           tag: "anti_fear",

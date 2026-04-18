@@ -59,6 +59,24 @@ const CONDITION_SUPPORT_TEXT_ANCHORS = [
   patternAnchor("drive mental contamination from the target s mind"),
 ];
 
+const ANTI_POISON_TEXT_ANCHORS = [
+  patternAnchor("cure poison"),
+  patternAnchor("counteract poison"),
+  patternAnchor("neutralize poison"),
+  patternAnchor("against poison"),
+  patternAnchor("against poisons"),
+  patternAnchor("persistent poison damage"),
+];
+
+const ANTI_DISEASE_TEXT_ANCHORS = [
+  patternAnchor("cure disease"),
+  patternAnchor("counteract disease"),
+  patternAnchor("counteract a disease"),
+  patternAnchor("neutralize disease"),
+  patternAnchor("against disease"),
+  patternAnchor("against diseases"),
+];
+
 const PROTECTIVE_WARD_NAME_ANCHORS = [
   patternAnchor("sanctuary", "name"),
   patternAnchor("aegis", "name"),
@@ -1436,6 +1454,22 @@ export const SPELL_DERIVED_TAG_RULES: DerivedTagRule[] = [
           },
         ],
       },
+    ],
+  },
+  {
+    tag: "anti_poison",
+    category: "spell",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: ANTI_POISON_TEXT_ANCHORS },
+    ],
+  },
+  {
+    tag: "anti_disease",
+    category: "spell",
+    threshold: 2,
+    anyOf: [
+      { score: 2, textAny: ANTI_DISEASE_TEXT_ANCHORS },
     ],
   },
   {

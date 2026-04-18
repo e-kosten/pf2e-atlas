@@ -166,7 +166,7 @@ describe("derived tag ontology", () => {
     expect(spellResolution).toEqual(expect.objectContaining({
       family: "resolution",
       assignmentMode: "composite",
-      compositeOfAnyTags: ["curse_removal", "exorcism", "sanctification", "quarantine_containment", "contamination_cleanup", "source_revelation", "source_cleanup"],
+      compositeOfAnyTags: ["curse_removal", "exorcism", "sanctification", "ritual_appeasement", "quarantine_containment", "contamination_cleanup", "source_revelation", "source_cleanup"],
     }));
     const spellCommunication = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "spell" && tag.tag === "communication");
     expect(spellCommunication).toEqual(expect.objectContaining({
@@ -178,7 +178,7 @@ describe("derived tag ontology", () => {
     expect(equipmentResolution).toEqual(expect.objectContaining({
       family: "resolution",
       assignmentMode: "composite",
-      compositeOfAnyTags: ["curse_removal", "sanctification", "source_revelation", "quarantine_containment", "contamination_cleanup", "source_cleanup"],
+      compositeOfAnyTags: ["curse_removal", "sanctification", "ritual_appeasement", "source_revelation", "quarantine_containment", "contamination_cleanup", "source_cleanup"],
     }));
     const fungalInfested = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "creature" && tag.tag === "fungal_infested");
     expect(fungalInfested).toEqual(expect.objectContaining({
@@ -600,6 +600,18 @@ describe("derived tag ontology", () => {
       assignmentMode: "hybrid",
       description: expect.stringContaining("mind-to-mind communication"),
     }));
+    const spellAntiPoison = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "spell" && tag.tag === "anti_poison");
+    expect(spellAntiPoison).toEqual(expect.objectContaining({
+      family: "support",
+      assignmentMode: "hybrid",
+      adjacentTags: ["affliction_cleanup", "anti_disease"],
+    }));
+    const spellRitualAppeasement = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "spell" && tag.tag === "ritual_appeasement");
+    expect(spellRitualAppeasement).toEqual(expect.objectContaining({
+      family: "resolution",
+      assignmentMode: "hybrid",
+      adjacentTags: ["sanctification", "exorcism"],
+    }));
     const equipmentSourceRevelation = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "equipment" && tag.tag === "source_revelation");
     expect(equipmentSourceRevelation).toEqual(expect.objectContaining({
       family: "resolution",
@@ -607,6 +619,15 @@ describe("derived tag ontology", () => {
       adjacentTags: ["source_cleanup", "contamination_cleanup"],
       appliesWhen: expect.arrayContaining([
         "The item's retrieval value comes from finding or confirming the hidden source of a curse, contamination, outbreak, or spiritually tainted problem.",
+      ]),
+    }));
+    const equipmentRitualAppeasement = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "equipment" && tag.tag === "ritual_appeasement");
+    expect(equipmentRitualAppeasement).toEqual(expect.objectContaining({
+      family: "resolution",
+      assignmentMode: "deterministic",
+      adjacentTags: ["ritual_support", "sanctification"],
+      appliesWhen: expect.arrayContaining([
+        "The item's retrieval value comes from helping perform offerings, appeasement rites, restitution rituals, or ceremonial observance meant to settle a supernatural grievance.",
       ]),
     }));
     const equipmentEnvironmentalAdaptation = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "equipment" && tag.tag === "environmental_adaptation");

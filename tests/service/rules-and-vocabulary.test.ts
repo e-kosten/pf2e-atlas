@@ -220,6 +220,18 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       }),
       expect.objectContaining({
         category: "spell",
+        family: "support",
+        tag: "anti_poison",
+        assignmentMode: "hybrid",
+      }),
+      expect.objectContaining({
+        category: "spell",
+        family: "resolution",
+        tag: "ritual_appeasement",
+        assignmentMode: "hybrid",
+      }),
+      expect.objectContaining({
+        category: "spell",
         family: "revelation",
         tag: "truth_reveal",
         assignmentMode: "hybrid",
@@ -270,6 +282,12 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
         category: "equipment",
         family: "resolution",
         tag: "source_revelation",
+        assignmentMode: "deterministic",
+      }),
+      expect.objectContaining({
+        category: "equipment",
+        family: "resolution",
+        tag: "ritual_appeasement",
         assignmentMode: "deterministic",
       }),
       expect.objectContaining({
@@ -352,6 +370,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
         axis: "utility",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "resolution", assignmentMode: "composite" }),
+          expect.objectContaining({ value: "ritual_appeasement", description: expect.any(String) }),
           expect.objectContaining({ value: "sanctification", description: expect.any(String) }),
         ]),
       }),
@@ -399,6 +418,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
         axis: "utility",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "resolution", assignmentMode: "composite" }),
+          expect.objectContaining({ value: "ritual_appeasement", description: expect.any(String) }),
           expect.objectContaining({ value: "source_revelation", description: expect.any(String) }),
         ]),
       }),
@@ -425,6 +445,8 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
         family: "support",
         axis: "support",
         tags: expect.arrayContaining([
+          expect.objectContaining({ value: "anti_poison", description: expect.any(String) }),
+          expect.objectContaining({ value: "anti_disease", description: expect.any(String) }),
           expect.objectContaining({ value: "quickened_support", description: expect.any(String) }),
           expect.objectContaining({ value: "eidolon_support", description: expect.any(String) }),
         ]),

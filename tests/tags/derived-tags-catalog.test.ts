@@ -87,6 +87,7 @@ describe("derived tag catalog", () => {
           expect.objectContaining({ value: "resolution", assignmentMode: "composite" }),
           expect.objectContaining({ value: "curse_removal", description: expect.any(String) }),
           expect.objectContaining({ value: "sanctification", description: expect.any(String) }),
+          expect.objectContaining({ value: "ritual_appeasement", description: expect.any(String) }),
           expect.objectContaining({ value: "source_revelation", description: expect.any(String) }),
           expect.objectContaining({ value: "quarantine_containment", description: expect.any(String) }),
         ]),
@@ -177,6 +178,7 @@ describe("derived tag catalog", () => {
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "resolution", assignmentMode: "composite" }),
           expect.objectContaining({ value: "curse_removal", description: expect.any(String) }),
+          expect.objectContaining({ value: "ritual_appeasement", description: expect.any(String) }),
           expect.objectContaining({ value: "source_revelation", description: expect.any(String) }),
           expect.objectContaining({ value: "source_cleanup", description: expect.any(String) }),
         ]),
@@ -214,6 +216,8 @@ describe("derived tag catalog", () => {
         family: "support",
         axis: "support",
         tags: expect.arrayContaining([
+          expect.objectContaining({ value: "anti_poison", description: expect.any(String) }),
+          expect.objectContaining({ value: "anti_disease", description: expect.any(String) }),
           expect.objectContaining({ value: "quickened_support", description: expect.any(String) }),
           expect.objectContaining({ value: "eidolon_support", description: expect.any(String) }),
         ]),

@@ -575,7 +575,7 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
         "kit",
         "consumable"
       ],
-      description: "Equipment used to break curses, sanctify spaces, trace hidden sources, contain spread, clean corrupted sites, or deal with a problem at its source.",
+      description: "Equipment used to break curses, support appeasement rites, sanctify spaces, trace hidden sources, contain spread, clean corrupted sites, or deal with a problem at its source.",
       tags: [
         {
           tag: "curse_removal",
@@ -600,7 +600,25 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
           ],
           adjacentTags: [
             "ritual_support",
+            "ritual_appeasement",
             "curse_removal"
+          ]
+        },
+        {
+          tag: "ritual_appeasement",
+          description: "Supports offerings, restitution, funerary observance, or appeasement ceremonies used to satisfy a spirit, haunt, curse, or sacred demand without directly expelling it.",
+          assignmentMode: "deterministic",
+          appliesWhen: [
+            "The item's retrieval value comes from helping perform offerings, appeasement rites, restitution rituals, or ceremonial observance meant to settle a supernatural grievance.",
+            "It is naturally sought for placation or ritual satisfaction rather than direct cleansing, banishment, or ordinary worship."
+          ],
+          doesNotApplyWhen: [
+            "The item only supports broad ritual process with no real appeasement, offering, or restitution-facing role.",
+            "The stronger fit is sanctification or ritual_support because the item purifies generally or supports any rite rather than a placation answer path."
+          ],
+          adjacentTags: [
+            "ritual_support",
+            "sanctification"
           ]
         },
         {
@@ -654,6 +672,7 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
           assignmentMode: "composite",
           adjacentTags: [
             "curse_removal",
+            "ritual_appeasement",
             "source_revelation",
             "contamination_cleanup",
             "source_cleanup"
