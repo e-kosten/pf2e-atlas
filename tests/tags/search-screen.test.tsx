@@ -481,7 +481,6 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("[RESULTS] 1/1 | Buf 1 | Ranked");
     expect(app.lastFrame()).toContain("Alarm Ward | spell | lvl 1");
     expect(app.lastFrame()).toContain("Preview | Alarm Ward");
-    expect(app.lastFrame()).toContain("Left setup");
     expect(app.lastFrame()).not.toContain("Left draft");
 
     pressRight(app);
@@ -540,6 +539,31 @@ describe("search screen", () => {
     app.stdin.write("h");
     await flushInk();
     expect(app.lastFrame()).toContain("[SETUP] Scope & Filters");
+  });
+
+  it("opens the shared setup command palette and runs the selected setup action", async () => {
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={createServices()}>
+          <SearchScreen onBack={vi.fn()} />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+
+    app.stdin.write(":");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Search Setup Commands");
+
+    for (const character of "mode") {
+      app.stdin.write(character);
+    }
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("Workspace Mode");
   });
 
   it("uses space to open the selected setup item and carries facet edits back into the workspace", async () => {
@@ -1436,7 +1460,11 @@ describe("search screen", () => {
     await flushInk();
 
     expect(app.lastFrame()).toContain("Edit Facet Filter | 0 active");
-    app.stdin.write("f");
+    for (let step = 0; step < 7; step += 1) {
+      pressDown(app);
+      await flushInk();
+    }
+    app.stdin.write(" ");
     await flushInk();
     expect(app.lastFrame()).toContain("Facet Picker");
     expect(app.lastFrame()).toContain("Spell Facet Filters");

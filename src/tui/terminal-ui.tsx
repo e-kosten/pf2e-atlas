@@ -11,6 +11,7 @@ import {
 import {
   isBackNavigationKey,
   isConfirmKey,
+  isConfirmOrToggleKey,
   isMoveDownKey,
   isMoveLeftKey,
   isMoveRightKey,
@@ -18,6 +19,7 @@ import {
   isPageDownKey,
   isPageUpKey,
 } from "./keymap.js";
+import { formatTerminalInteractionFooter } from "./interaction-bindings.js";
 
 export type DerivedTagTerminalTone =
   | "default"
@@ -48,6 +50,11 @@ export type DerivedTagTerminalSelectOption<T extends string = string> = {
   label: string;
   description?: string;
   detailLines?: DerivedTagTerminalLine[];
+};
+
+export type DerivedTagTerminalCommandOption<T extends string = string> = DerivedTagTerminalSelectOption<T> & {
+  aliases?: string[];
+  keywords?: string[];
 };
 
 export type DerivedTagTerminalTwoPaneFocus = "list" | "detail";
@@ -151,6 +158,14 @@ type PolicyPromptOptions<T extends string = string> = {
   presentation?: TerminalModalPresentation;
 };
 
+type CommandPaletteOptions<T extends string = string> = {
+  title: string;
+  subtitle?: string;
+  prompt: string;
+  entries: DerivedTagTerminalCommandOption<T>[];
+  presentation?: TerminalModalPresentation;
+};
+
 type TerminalModalState =
   | null
   | {
@@ -183,6 +198,13 @@ type TerminalModalState =
     selectedIndex: number;
     valueStates: Record<string, DerivedTagTerminalPolicyState | undefined>;
     resolve: (value: DerivedTagTerminalPolicySelection<string>) => void;
+  }
+  | {
+    kind: "command";
+    options: CommandPaletteOptions<string>;
+    filterText: string;
+    selectedIndex: number;
+    resolve: (value: string | undefined) => void;
   };
 
 type DerivedTagTerminalContextValue = {
@@ -191,6 +213,7 @@ type DerivedTagTerminalContextValue = {
   getTerminalWidth: () => number;
   modalActive: boolean;
   pauseForAnyKey: (message: string) => Promise<void>;
+  promptCommandPalette: <T extends string>(options: CommandPaletteOptions<T>) => Promise<T | undefined>;
   promptPolicySelectOption: <T extends string>(options: PolicyPromptOptions<T>) => Promise<DerivedTagTerminalPolicySelection<T>>;
   promptMultiSelectOption: <T extends string>(options: MultiSelectPromptOptions<T>) => Promise<T[]>;
   promptSelectOption: <T extends string>(options: SelectPromptOptions<T>) => Promise<T | undefined>;
@@ -486,6 +509,8 @@ function getModalPresentation(modal: TerminalModalState): TerminalModalPresentat
       return modal.options.presentation ?? "inline";
     case "text":
       return modal.options.presentation ?? "inline";
+    case "command":
+      return modal.options.presentation ?? "inline";
     case "select":
       return modal.options.presentation ?? "screen";
     case "multiselect":
@@ -691,7 +716,7 @@ export function getDerivedTagTerminalListNavigationAction(
   if (isPageUpKey(normalizedKey)) {
     return { kind: "move", delta: -options.pageSize };
   }
-  if (isPageDownKey(normalizedKey) || normalizedKey === "space") {
+  if (isPageDownKey(normalizedKey)) {
     return { kind: "move", delta: options.pageSize };
   }
   if (normalizedKey === "home") {
@@ -882,6 +907,13 @@ function clampInlinePromptWindowStart(selectedIndex: number, itemCount: number, 
   return Math.max(0, Math.min(centered, itemCount - visibleCount));
 }
 
+function clampPromptSelectionIndex(selectedIndex: number, itemCount: number): number {
+  if (itemCount <= 0) {
+    return 0;
+  }
+  return Math.max(0, Math.min(selectedIndex, itemCount - 1));
+}
+
 function buildPromptDetailLines(
   option: DerivedTagTerminalSelectOption<string> | undefined,
 ): DerivedTagTerminalLine[] {
@@ -899,6 +931,34 @@ function buildPromptDetailLines(
     { text: option?.label ?? "(none)", tone: "section" },
     { text: "No additional details.", tone: "dim" },
   ];
+}
+
+function filterCommandPaletteEntries(
+  entries: DerivedTagTerminalCommandOption<string>[],
+  filterText: string,
+): DerivedTagTerminalCommandOption<string>[] {
+  const normalizedTerms = filterText
+    .toLowerCase()
+    .split(/\s+/)
+    .map((term) => term.trim())
+    .filter((term) => term.length > 0);
+
+  if (normalizedTerms.length === 0) {
+    return entries;
+  }
+
+  return entries.filter((entry) => {
+    const searchableText = [
+      entry.label,
+      entry.description ?? "",
+      ...(entry.aliases ?? []),
+      ...(entry.keywords ?? []),
+    ]
+      .join(" ")
+      .toLowerCase();
+
+    return normalizedTerms.every((term) => searchableText.includes(term));
+  });
 }
 
 function InlinePromptMessageBody({
@@ -989,6 +1049,94 @@ function PromptBody({
   );
 }
 
+function CommandPaletteBody({
+  options,
+  filterText,
+  selectedIndex,
+  width,
+  height,
+}: {
+  options: CommandPaletteOptions<string>;
+  filterText: string;
+  selectedIndex: number;
+  width: number;
+  height: number;
+}): React.JSX.Element {
+  const filteredEntries = filterCommandPaletteEntries(options.entries, filterText);
+  const clampedSelectedIndex = clampPromptSelectionIndex(selectedIndex, filteredEntries.length);
+
+  if (filteredEntries.length === 0) {
+    return (
+      <TerminalInlinePromptPanel
+        title={options.title}
+        subtitle={options.subtitle ?? options.prompt}
+        body={(
+          <InlinePromptMessageBody
+            width={width}
+            height={Math.max(0, height - 4)}
+            lines={[
+              { text: options.prompt, tone: "section" },
+              { text: `Filter: ${filterText || "(none)"}`, tone: "accent" },
+              { text: "No commands match the current filter.", tone: "warning" },
+            ]}
+          />
+        )}
+        footer={[
+          { text: "Type to filter  Backspace edit  Esc cancel", tone: "dim" },
+        ]}
+        width={width}
+        height={height}
+        showTopBorder={options.presentation !== "screen"}
+      />
+    );
+  }
+
+  const selectedOption = filteredEntries[clampedSelectedIndex];
+  const contentHeight = Math.max(1, height - 6);
+  const visibleCount = Math.max(1, contentHeight - 2);
+  const windowStart = clampInlinePromptWindowStart(clampedSelectedIndex, filteredEntries.length, visibleCount);
+  const visibleEntries = filteredEntries.slice(windowStart, windowStart + visibleCount);
+
+  return (
+    <TerminalInlinePromptPanel
+      title={options.title}
+      subtitle={options.subtitle ?? options.prompt}
+      body={(
+        <InlinePromptTwoPaneBody
+          prompt={filterText ? `Filter: ${filterText}` : options.prompt}
+          entries={visibleEntries.map((entry, offset) => ({
+            text: entry.label,
+            tone: windowStart + offset === clampedSelectedIndex ? "selected" : "default",
+            noWrap: true,
+          }))}
+          detailLines={[
+            ...(selectedOption?.detailLines ?? [
+              { text: selectedOption?.label ?? "(none)", tone: "section" },
+              { text: selectedOption?.description ?? "No additional details." },
+              ...(selectedOption?.aliases?.length
+                ? [{ text: `Aliases: ${selectedOption.aliases.join(", ")}`, tone: "accent" as const }]
+                : []),
+            ]),
+            { text: "" },
+            { text: `Filter: ${filterText || "(none)"}`, tone: "accent" },
+          ]}
+          focusedLabel={`Command ${clampedSelectedIndex + 1}/${filteredEntries.length}`}
+          width={width}
+          height={contentHeight}
+        />
+      )}
+      footer={[
+        { text: formatTerminalInteractionFooter([{ id: "move" }, { id: "jump" }, { id: "page" }, { id: "edge" }]), tone: "dim" },
+        { text: "Type to filter  Enter/Right select  Backspace edit  Esc cancel", tone: "dim" },
+        { text: `${filteredEntries.length} command${filteredEntries.length === 1 ? "" : "s"} visible`, tone: "accent" },
+      ]}
+      width={width}
+      height={height}
+      showTopBorder={options.presentation !== "screen"}
+    />
+  );
+}
+
 function SelectPromptBody({
   options,
   selectedIndex,
@@ -1015,7 +1163,7 @@ function SelectPromptBody({
             ]}
           />
         )}
-        footer={[{ text: "Esc, Backspace, Left, or q cancel", tone: "dim" }]}
+        footer={[{ text: "Esc/backspace/left/q cancel", tone: "dim" }]}
         width={width}
         height={height}
         showTopBorder={options.presentation !== "screen"}
@@ -1052,8 +1200,8 @@ function SelectPromptBody({
         />
       )}
       footer={[
-        { text: "Up/Down move  Ctrl-U/D jump  PgUp/PgDn page  Home/End edge", tone: "dim" },
-        { text: "Enter select  Esc/backspace/left cancel", tone: "dim" },
+        { text: formatTerminalInteractionFooter([{ id: "move" }, { id: "jump" }, { id: "page" }, { id: "edge" }]), tone: "dim" },
+        { text: formatTerminalInteractionFooter([{ id: "select" }, { id: "back", label: "cancel" }]), tone: "dim" },
         { text: `${selectedIndex + 1}/${options.entries.length} focused`, tone: "accent" },
       ]}
       width={width}
@@ -1091,7 +1239,7 @@ function MultiSelectPromptBody({
             ]}
           />
         )}
-        footer={[{ text: "Esc, Backspace, or Left return", tone: "dim" }]}
+        footer={[{ text: formatTerminalInteractionFooter([{ id: "back", label: "return" }]), tone: "dim" }]}
         width={width}
         height={height}
         showTopBorder={options.presentation !== "screen"}
@@ -1133,8 +1281,8 @@ function MultiSelectPromptBody({
         />
       )}
       footer={[
-        { text: "Up/Down move  Ctrl-U/D jump  PgUp/PgDn page  Home/End edge", tone: "dim" },
-        { text: "Enter or Space toggle  Esc/backspace/left return", tone: "dim" },
+        { text: formatTerminalInteractionFooter([{ id: "move" }, { id: "jump" }, { id: "page" }, { id: "edge" }]), tone: "dim" },
+        { text: formatTerminalInteractionFooter([{ id: "toggle" }, { id: "return" }]), tone: "dim" },
         { text: `${selectedValues.length} selected | Focused: ${selectedOption?.label ?? "(none)"}`, tone: "accent" },
       ]}
       width={width}
@@ -1264,7 +1412,7 @@ function PolicyPromptBody({
             ]}
           />
         )}
-        footer={[{ text: "Esc, Backspace, or Left return", tone: "dim" }]}
+        footer={[{ text: formatTerminalInteractionFooter([{ id: "return" }]), tone: "dim" }]}
         width={width}
         height={height}
         showTopBorder={options.presentation !== "screen"}
@@ -1303,8 +1451,8 @@ function PolicyPromptBody({
         />
       )}
       footer={[
-        { text: "Up/Down move  Ctrl-U/D jump  PgUp/PgDn page  Home/End edge", tone: "dim" },
-        { text: "Enter or Space cycle  Esc/backspace/left return", tone: "dim" },
+        { text: formatTerminalInteractionFooter([{ id: "move" }, { id: "jump" }, { id: "page" }, { id: "edge" }]), tone: "dim" },
+        { text: formatTerminalInteractionFooter([{ id: "cycle" }, { id: "return" }]), tone: "dim" },
         { text: `Cycle order: off -> ${options.allowedStates.join(" -> ")} -> off`, tone: "accent" },
       ]}
       width={width}
@@ -1390,6 +1538,77 @@ function DerivedTagTerminalModalHost({
       return;
     }
 
+    const modalNavigationAction = modalNavigation.action;
+
+    if (modal.kind === "command") {
+      const filteredEntries = filterCommandPaletteEntries(modal.options.entries, modal.filterText);
+      const clampedSelectedIndex = clampPromptSelectionIndex(modal.selectedIndex, filteredEntries.length);
+
+      if (normalized === "backspace") {
+        if (modal.filterText.length === 0) {
+          const resolver = modal.resolve;
+          setModal(null);
+          resolver(undefined);
+          return;
+        }
+        setModal((current) => current?.kind === "command"
+          ? {
+            ...current,
+            filterText: [...current.filterText].slice(0, -1).join(""),
+            selectedIndex: 0,
+          }
+          : current);
+        return;
+      }
+      if (printable) {
+        setModal((current) => current?.kind === "command"
+          ? {
+            ...current,
+            filterText: current.filterText + printable,
+            selectedIndex: 0,
+          }
+          : current);
+        return;
+      }
+      if (modalNavigationAction?.kind === "move") {
+        setModal((current) => current?.kind === "command"
+          ? {
+            ...current,
+            selectedIndex: moveSelectionWrapped(
+              clampedSelectedIndex,
+              modalNavigationAction.delta,
+              filteredEntries.length,
+            ),
+          }
+          : current);
+        return;
+      }
+      if (modalNavigationAction?.kind === "boundary") {
+        setModal((current) => current?.kind === "command"
+          ? {
+            ...current,
+            selectedIndex: modalNavigationAction.boundary === "start"
+              ? 0
+              : Math.max(0, filteredEntries.length - 1),
+          }
+          : current);
+        return;
+      }
+      if (isConfirmKey(normalized) || isMoveRightKey(normalized)) {
+        const resolver = modal.resolve;
+        const selected = filteredEntries[clampedSelectedIndex]?.value;
+        setModal(null);
+        resolver(selected);
+        return;
+      }
+      if (isBackNavigationKey(normalized) || normalized === "q" || normalized === "ctrl_c") {
+        const resolver = modal.resolve;
+        setModal(null);
+        resolver(undefined);
+      }
+      return;
+    }
+
     if (modal.kind === "select" && modal.options.entries.length === 0) {
       if (isBackNavigationKey(normalized) || normalized === "q" || normalized === "ctrl_c") {
         const resolver = modal.resolve;
@@ -1417,8 +1636,6 @@ function DerivedTagTerminalModalHost({
       return;
     }
 
-    const modalNavigationAction = modalNavigation.action;
-
     if (modalNavigationAction?.kind === "move") {
       setModal((current) => current && (current.kind === "select" || current.kind === "multiselect" || current.kind === "policy")
         ? {
@@ -1443,7 +1660,7 @@ function DerivedTagTerminalModalHost({
         : current);
       return;
     }
-    if (modal.kind === "multiselect" && (normalized === "enter" || normalized === "space")) {
+    if (modal.kind === "multiselect" && isConfirmOrToggleKey(normalized)) {
       const selected = modal.options.entries[modal.selectedIndex]?.value;
       if (!selected) {
         return;
@@ -1472,7 +1689,7 @@ function DerivedTagTerminalModalHost({
       resolver(selectedValues);
       return;
     }
-    if (modal.kind === "policy" && (normalized === "enter" || normalized === "space")) {
+    if (modal.kind === "policy" && isConfirmOrToggleKey(normalized)) {
       const selected = modal.options.entries[modal.selectedIndex]?.value;
       if (!selected) {
         return;
@@ -1530,6 +1747,17 @@ function DerivedTagTerminalModalHost({
       <PromptBody
         options={modal.options}
         currentValue={modal.value}
+        width={width}
+        height={height}
+      />
+    );
+  }
+  if (modal.kind === "command") {
+    return (
+      <CommandPaletteBody
+        options={modal.options}
+        filterText={modal.filterText}
+        selectedIndex={modal.selectedIndex}
         width={width}
         height={height}
       />
@@ -1593,6 +1821,16 @@ export function DerivedTagTerminalProvider({
         });
       });
     },
+    promptCommandPalette: async <T extends string>(options: CommandPaletteOptions<T>) =>
+      new Promise<T | undefined>((resolve) => {
+        setModal({
+          kind: "command",
+          options: options as CommandPaletteOptions<string>,
+          filterText: "",
+          selectedIndex: 0,
+          resolve: resolve as (value: string | undefined) => void,
+        });
+      }),
     promptPolicySelectOption: async <T extends string>(options: PolicyPromptOptions<T>) =>
       new Promise<DerivedTagTerminalPolicySelection<T>>((resolve) => {
         const initialSelection = createEmptyPolicySelection<string>();

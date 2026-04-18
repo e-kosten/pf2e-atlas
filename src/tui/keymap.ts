@@ -31,13 +31,33 @@ export function isPageUpKey(normalizedKey: string): boolean {
 }
 
 export function isPageDownKey(normalizedKey: string): boolean {
-  return normalizedKey === "page_down";
+  return normalizedKey === "page_down" || normalizedKey === "f";
 }
 
 export function isConfirmKey(normalizedKey: string): boolean {
   return normalizedKey === "enter";
 }
 
+export function isConfirmOrToggleKey(normalizedKey: string): boolean {
+  return normalizedKey === "enter" || normalizedKey === "space";
+}
+
 export function isHelpKey(normalizedKey: string): boolean {
   return normalizedKey === "?";
+}
+
+export function isCommandPaletteKey(normalizedKey: string): boolean {
+  return normalizedKey === ":";
+}
+
+export function isFocusToggleKey(normalizedKey: string): boolean {
+  return normalizedKey === "tab" || normalizedKey === "shift_tab" || normalizedKey === "w";
+}
+
+export function isLayoutToggleKey(normalizedKey: string): boolean {
+  return normalizedKey === "z";
+}
+
+export function isSearchKey(normalizedKey: string): boolean {
+  return normalizedKey === "slash";
 }

@@ -187,6 +187,31 @@ function LongSelectPromptHarness(): React.JSX.Element {
   );
 }
 
+function CommandPaletteHarness(): React.JSX.Element {
+  const terminal = useDerivedTagTerminalApp();
+  const [result, setResult] = React.useState("pending");
+
+  React.useEffect(() => {
+    void terminal.promptCommandPalette({
+      title: "Command Palette",
+      prompt: "Filter commands",
+      entries: [
+        { value: "mode", label: "Mode", description: "Choose the search mode.", aliases: ["m"] },
+        { value: "facet", label: "Edit Facet Filter", description: "Edit ontology-backed facet filters.", aliases: ["f"] },
+      ],
+    }).then((value) => {
+      setResult(value ?? "cancelled");
+    });
+  }, []);
+
+  return (
+    <TerminalTextScreen
+      title="Harness"
+      body={[{ text: `result=${result}` }]}
+    />
+  );
+}
+
 describe("derived tag terminal ink runtime", () => {
   afterEach(() => {
     cleanup();
@@ -323,6 +348,27 @@ describe("derived tag terminal ink runtime", () => {
     expect(app.lastFrame()).toContain("result=item-6");
   });
 
+  it("filters and selects commands through the shared command palette", async () => {
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <CommandPaletteHarness />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInkFrames();
+    expect(app.lastFrame()).toContain("Command Palette");
+    expect(app.lastFrame()).toContain("Mode");
+
+    app.stdin.write("f");
+    await flushInkFrames();
+    expect(app.lastFrame()).toContain("Filter: f");
+    expect(app.lastFrame()).toContain("Edit Facet Filter");
+
+    app.stdin.write("\r");
+    await flushInkFrames();
+    expect(app.lastFrame()).toContain("result=facet");
+  });
+
   it("normalizes ctrl letter combinations from both Ink key paths", () => {
     expect(getNormalizedKeyName("\r", {} as never)).toBe("enter");
     expect(getNormalizedKeyName("\u001b", {} as never)).toBe("escape");
@@ -407,6 +453,15 @@ describe("derived tag terminal ink runtime", () => {
       includeCancelKeys: true,
       includeHorizontalCancelKeys: true,
     })).toEqual({ kind: "cancel" });
+  });
+
+  it("keeps space available for selection while using f for shared page-down navigation", () => {
+    expect(getDerivedTagTerminalListNavigationAction("space", {
+      pageSize: 10,
+    })).toBeUndefined();
+    expect(getDerivedTagTerminalListNavigationAction("f", {
+      pageSize: 10,
+    })).toEqual({ kind: "move", delta: 10 });
   });
 
   it("resolves shared gg and G list-boundary navigation", () => {

@@ -11,6 +11,10 @@ import {
   useDerivedTagTerminalInput,
   useDerivedTagTerminalSize,
 } from "../terminal-ui.js";
+import {
+  buildTerminalInteractionHelpLines,
+  formatTerminalInteractionFooter,
+} from "../interaction-bindings.js";
 import { isBackNavigationKey, isApplicationExitKey } from "../keymap.js";
 import { buildScrollableLines } from "../list-utils.js";
 
@@ -64,12 +68,28 @@ export function OntologyDomainPickerScreen({
     if (normalized === "?") {
       void terminal.showDialog({
         title: "Ontology Domains",
-        body: [
-          { text: "Choose which ontology-backed browse surface to open.", tone: "section" },
-          { text: "Derived Tags: authored tag ontology with live record coverage." },
-          { text: "Categories: public catalog category and subcategory browsing." },
-          { text: "Search Semantics: metadata field and search-vocabulary discovery." },
-        ],
+        body: buildTerminalInteractionHelpLines([
+          {
+            title: "Navigation",
+            actions: [
+              { id: "move", helpText: "move between ontology domains" },
+              { id: "jump", helpText: "jump through the domain list" },
+              { id: "page", helpText: "page through the domain list" },
+              { id: "edge", helpText: "jump to the first or last domain" },
+              { id: "select", helpText: "open the selected domain" },
+              { id: "back", helpText: "return to the previous area" },
+              { id: "help", helpText: "show this help" },
+            ],
+          },
+          {
+            title: "Domains",
+            lines: [
+              { text: "Derived Tags: authored tag ontology with live record coverage." },
+              { text: "Categories: public catalog category and subcategory browsing." },
+              { text: "Search Semantics: metadata field and search-vocabulary discovery." },
+            ],
+          },
+        ]),
         footer: [{ text: "Press any key to return.", tone: "dim" }],
       });
       return;
@@ -95,7 +115,7 @@ export function OntologyDomainPickerScreen({
           : [{ text: "No domain selected.", tone: "dim" }],
       }}
       footer={[
-        { text: "Up/Down move  Ctrl-U/D jump  PgUp/PgDn page  gg/G or Home/End edge  Enter/right/l select  ? help  q back", tone: "dim" },
+        { text: formatTerminalInteractionFooter([{ id: "move" }, { id: "jump" }, { id: "page" }, { id: "edge" }, { id: "select" }, { id: "help" }, { id: "quit", label: "back" }]), tone: "dim" },
         { text: selectedDomain?.label ?? "-", tone: "accent" },
       ]}
       leftWidth={32}

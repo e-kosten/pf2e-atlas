@@ -16,6 +16,10 @@ import {
   type DerivedTagTerminalLine,
 } from "./terminal-ui.js";
 import {
+  buildTerminalInteractionHelpLines,
+  formatTerminalInteractionFooter,
+} from "./interaction-bindings.js";
+import {
   isBackOrExitKey,
   isHelpKey,
 } from "./keymap.js";
@@ -70,22 +74,30 @@ function buildQueueLines(queueItems: DerivedTagReviewQueueSummaryItem[]): Derive
 }
 
 function buildTagRefinementHelpLines(): DerivedTagTerminalLine[] {
-  return [
-    { text: "Navigation", tone: "section" },
-    { text: "Up / Down or j / k: move between tag-refinement rows" },
-    { text: "Ctrl-U / Ctrl-D: jump through the menu" },
-    { text: "PageUp / PageDown or b / Space: page through the menu" },
-    { text: "gg / G or Home / End: jump to the first or last row" },
-    { text: "Enter: open the selected row" },
-    { text: "q or Backspace: return to top level" },
-    { text: "" },
-    { text: "Shortcuts", tone: "section" },
-    { text: "a review all queue items" },
-    { text: "s create a legacy-seed session" },
-    { text: "r create a legacy-rule session" },
-    { text: "e create an exemplar-cleanup session" },
-    { text: "p create an AI proposal review session" },
-  ];
+  return buildTerminalInteractionHelpLines([
+    {
+      title: "Navigation",
+      actions: [
+        { id: "move", helpText: "move between tag-refinement rows" },
+        { id: "jump", helpText: "jump through the menu" },
+        { id: "page", helpText: "page through the menu" },
+        { id: "edge", helpText: "jump to the first or last row" },
+        { id: "select", helpText: "open the selected row" },
+        { id: "back", helpText: "return to the top level" },
+        { id: "help", helpText: "show this help" },
+      ],
+    },
+    {
+      title: "Quick Actions",
+      lines: [
+        { text: "Review All  aliases: a  review all queue items" },
+        { text: "Legacy Seed  aliases: s  create a legacy-seed session" },
+        { text: "Legacy Rule  aliases: r  create a legacy-rule session" },
+        { text: "Exemplar Cleanup  aliases: e  create an exemplar-cleanup session" },
+        { text: "AI Proposal Review  aliases: p, n  create an AI proposal review session" },
+      ],
+    },
+  ]);
 }
 
 export function TagRefinementMenuScreen({
@@ -190,7 +202,7 @@ export function TagRefinementMenuScreen({
         lines: buildQueueLines(queueItems),
       }}
       footer={[
-        { text: "Up/Down move  Ctrl-U/D jump  PgUp/PgDn page  Home/End edge  Enter select  ? help  a/s/r/e/p actions  q/back top level", tone: "dim" },
+        { text: `${formatTerminalInteractionFooter([{ id: "move" }, { id: "jump" }, { id: "page" }, { id: "edge" }, { id: "select" }, { id: "help" }, { id: "back", label: "top level" }])}  a/s/r/e/p actions`, tone: "dim" },
         { text: `Selected: ${menuItems[clampedSelectedIndex]?.label ?? "(none)"}`, tone: "accent" },
       ]}
       leftWidth={48}

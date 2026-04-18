@@ -4,8 +4,13 @@ import type { OntologyDomainModel, OntologyNode, OntologySelectionState } from "
 import {
   TerminalPaneScreen,
   TerminalTwoPaneScreen,
+  useDerivedTagTerminalApp,
   type DerivedTagTerminalLine,
 } from "../terminal-ui.js";
+import {
+  buildTerminalInteractionHelpLines,
+  formatTerminalInteractionFooter,
+} from "../interaction-bindings.js";
 import { useOntologyExplorerController } from "./controller.js";
 import { buildOntologyBrowserListRows } from "./ui.js";
 
@@ -162,6 +167,85 @@ function buildPickerListLines(
   }).map((row) => row.line);
 }
 
+function buildFacetPickerFooterText(
+  controller: ReturnType<typeof useOntologyExplorerController>,
+): string {
+  if (controller.layoutMode === "detail-only") {
+    return formatTerminalInteractionFooter([
+      { id: "scroll" },
+      { id: "jump" },
+      { id: "page" },
+      { id: "edge" },
+      { id: "cycle" },
+      { id: "layout", label: "split-view" },
+      { id: "back", label: "values" },
+      { id: "search" },
+      { id: "help" },
+      { id: "quit", label: "return" },
+    ]);
+  }
+
+  if (controller.state.activePane === "list") {
+    return formatTerminalInteractionFooter([
+      { id: "move", label: "select" },
+      { id: "jump" },
+      { id: "page" },
+      { id: "edge" },
+      { id: "cycle" },
+      { id: "focus", label: "pane" },
+      { id: "layout", label: "detail-only" },
+      { id: "back", label: "up" },
+      { id: "search" },
+      { id: "help" },
+      { id: "quit", label: "return" },
+    ]);
+  }
+
+  return formatTerminalInteractionFooter([
+    { id: "scroll" },
+    { id: "jump" },
+    { id: "page" },
+    { id: "edge" },
+    { id: "focus", label: "pane" },
+    { id: "layout", label: "detail-only" },
+    { id: "back", label: "values" },
+    { id: "search" },
+    { id: "help" },
+    { id: "quit", label: "return" },
+  ]);
+}
+
+function buildFacetPickerHelpLines(
+  controller: Pick<ReturnType<typeof useOntologyExplorerController>, "layoutMode" | "state">,
+): DerivedTagTerminalLine[] {
+  return buildTerminalInteractionHelpLines([
+    {
+      title: "Navigation",
+      actions: [
+        { id: controller.state.activePane === "list" && controller.layoutMode !== "detail-only" ? "move" : "scroll", helpText: "move through the active pane" },
+        { id: "jump", helpText: "jump through the active pane" },
+        { id: "page", helpText: "page through the active pane" },
+        { id: "edge", helpText: "jump to the start or end of the active pane" },
+      ],
+    },
+    {
+      title: "Actions",
+      actions: [
+        { id: "cycle", helpText: "cycle the focused policy through off, any, all, and exclude" },
+        { id: "focus", label: "toggle pane", helpText: "switch focus between values and detail" },
+        { id: "layout", helpText: "toggle split and detail-only layouts" },
+        { id: "back", helpText: "move up a level or leave the active pane" },
+        { id: "search", helpText: "start live filtering" },
+        { id: "help", helpText: "show this help" },
+        { id: "quit", label: "return", helpText: "apply the current facet state and return" },
+      ],
+      lines: [
+        { text: "Apply aliases: q, a", tone: "accent" },
+      ],
+    },
+  ]);
+}
+
 export function OntologyPickerScreen({
   model,
   initialSelections,
@@ -173,6 +257,7 @@ export function OntologyPickerScreen({
   onApply: (selection: OntologyPickerSelectionMap) => void;
   onCancel: () => void;
 }): React.JSX.Element {
+  const terminal = useDerivedTagTerminalApp();
   const [selections, setSelections] = React.useState<OntologyPickerSelectionMap>(() => {
     const emptySelections = createEmptySelectionMap(model);
     return initialSelections
@@ -212,7 +297,16 @@ export function OntologyPickerScreen({
       updateSelections((current) => toggleNodeSelection(currentNode, current));
       return true;
     },
-    onKey: ({ currentNode, normalizedKey }) => {
+    onKey: (keyContext) => {
+      const { currentNode, normalizedKey } = keyContext;
+      if (normalizedKey === "?") {
+        void terminal.showDialog({
+          title: "Facet Picker Help",
+          body: buildFacetPickerHelpLines(keyContext),
+          footer: [{ text: "Press any key to return.", tone: "dim" }],
+        });
+        return true;
+      }
       if (normalizedKey === "space") {
         if (currentNode?.selection) {
           updateSelections((current) => toggleNodeSelection(currentNode, current));
@@ -245,7 +339,7 @@ export function OntologyPickerScreen({
           {
             text: controller.state.searchMode
               ? "Type to filter live  Backspace edit  Enter keep filter  Esc clear and back out"
-              : "z split-view  Tab/w values focus  Up/Down or j/k scroll  Ctrl+U/D jump  b page  Home/End edge  Left/backspace/esc values  Enter/Space cycle  a/q return",
+              : buildFacetPickerFooterText(controller),
             tone: "dim",
           },
           {
@@ -277,7 +371,7 @@ export function OntologyPickerScreen({
         {
           text: controller.state.searchMode
             ? "Type to filter live  Backspace edit  Enter keep filter  Esc clear and back out"
-            : "Tab/w focus  z detail-only  Up/Down or j/k move-scroll  Ctrl+U/D jump  b page  gg/G edge  Enter/Space cycle  Left/backspace up  / search  Esc back/clear  a/q return",
+            : buildFacetPickerFooterText(controller),
           tone: "dim",
         },
         {

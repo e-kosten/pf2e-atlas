@@ -19,7 +19,12 @@ import {
   useDerivedTagTerminalSize,
   type DerivedTagTerminalLine,
 } from "../terminal-ui.js";
-import { isBackNavigationKey } from "../keymap.js";
+import {
+  isBackNavigationKey,
+  isFocusToggleKey,
+  isLayoutToggleKey,
+  isSearchKey,
+} from "../keymap.js";
 import {
   getDerivedTagTerminalTwoPaneLayoutMode,
   reduceDerivedTagTerminalTwoPaneState,
@@ -369,11 +374,11 @@ export function useOntologyExplorerController(
       options.onExit();
       return;
     }
-    if (normalizedKey === "tab" || normalizedKey === "shift_tab" || normalizedKey === "w") {
+    if (isFocusToggleKey(normalizedKey)) {
       dispatch({ type: "toggle_focus" });
       return;
     }
-    if (normalizedKey === "z") {
+    if (isLayoutToggleKey(normalizedKey)) {
       dispatch({ type: "toggle_layout" });
       return;
     }
@@ -442,7 +447,7 @@ export function useOntologyExplorerController(
       options.onOpenQuery(context.selectedQuery);
       return;
     }
-    if (normalizedKey === "slash") {
+    if (isSearchKey(normalizedKey)) {
       dispatch({
         type: "set_search_mode",
         searchMode: true,

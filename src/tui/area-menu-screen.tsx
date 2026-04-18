@@ -12,6 +12,10 @@ import {
   type DerivedTagTerminalLine,
 } from "./terminal-ui.js";
 import {
+  buildTerminalInteractionHelpLines,
+  formatTerminalInteractionFooter,
+} from "./interaction-bindings.js";
+import {
   isApplicationExitKey,
   isHelpKey,
 } from "./keymap.js";
@@ -48,15 +52,25 @@ function buildAreaDetailLines(
 }
 
 function buildTopLevelHelpLines(): DerivedTagTerminalLine[] {
-  return [
-    { text: "Top-Level Help", tone: "section" },
-    { text: "Up / Down or j / k: move between areas" },
-    { text: "Ctrl-U / Ctrl-D: jump through the area list" },
-    { text: "PageUp / PageDown or b / Space: page through the area list" },
-    { text: "gg / G or Home / End: jump to the first or last area" },
-    { text: "Enter: open the selected area" },
-    { text: "q: exit the terminal app" },
-  ];
+  return buildTerminalInteractionHelpLines([
+    {
+      title: "Navigation",
+      actions: [
+        { id: "move", helpText: "move between top-level areas" },
+        { id: "jump", helpText: "jump through the area list" },
+        { id: "page", helpText: "page through the area list" },
+        { id: "edge", helpText: "jump to the first or last area" },
+      ],
+    },
+    {
+      title: "Actions",
+      actions: [
+        { id: "select", helpText: "open the selected area" },
+        { id: "help", helpText: "show this help" },
+        { id: "quit", label: "quit", helpText: "exit the terminal app" },
+      ],
+    },
+  ]);
 }
 
 export function AreaMenuScreen({
@@ -133,7 +147,7 @@ export function AreaMenuScreen({
         lines: buildAreaDetailLines(selectedArea, pendingReviewCount),
       }}
       footer={[
-        { text: "Up/Down move  Ctrl-U/D jump  PgUp/PgDn page  gg/G or Home/End edge  Enter/right/l select  ? help  q quit", tone: "dim" },
+        { text: formatTerminalInteractionFooter([{ id: "move" }, { id: "jump" }, { id: "page" }, { id: "edge" }, { id: "select" }, { id: "help" }, { id: "quit", label: "quit" }]), tone: "dim" },
         {
           text: `${selectedArea ? formatAreaAudience(selectedArea.audience) : "-"} | ${pendingReviewCount} pending queue slice${pendingReviewCount === 1 ? "" : "s"}`,
           tone: "accent",

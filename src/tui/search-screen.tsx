@@ -20,6 +20,7 @@ import type {
 } from "./search-service.js";
 import {
   TerminalTwoPaneScreen,
+  type DerivedTagTerminalCommandOption,
   createDerivedTagTerminalListNavigationState,
   getNormalizedKeyName,
   getRenderedTerminalLineCount,
@@ -35,9 +36,19 @@ import {
 } from "./terminal-ui.js";
 import {
   isBackNavigationKey,
+  isCommandPaletteKey,
+  isFocusToggleKey,
+  isHelpKey,
   isMoveLeftKey,
   isMoveRightKey,
+  isSearchKey,
 } from "./keymap.js";
+import {
+  buildTerminalInteractionHelpLines,
+  formatTerminalInteractionFooter,
+  type TerminalInteractionAction,
+  type TerminalInteractionCommand,
+} from "./interaction-bindings.js";
 import { buildOntologyExplorerEntityDetailLines } from "./ontology-explorer/entity-page.js";
 import { mapNormalizedRecordToOntologyExplorerEntityRecord } from "./ontology-explorer/entity-record.js";
 import { buildSearchFacetPickerModel } from "./ontology-explorer/facet-picker-model.js";
@@ -60,6 +71,8 @@ type SearchWorkspaceAction =
   | "removeFacet"
   | "reset"
   | "clearResults";
+
+type SearchResultCommandId = "jumpToResult" | "sortResults";
 
 type SearchWorkspaceEntry = {
   action: SearchWorkspaceAction;
@@ -946,21 +959,184 @@ function applyFacetPickerSelectionsToRequest(
   };
 }
 
-function buildFooterText(
+const SEARCH_WORKSPACE_COMMAND_ALIASES: Partial<Record<SearchWorkspaceAction, string[]>> = {
+  execute: ["e"],
+  mode: ["m"],
+  profile: ["p"],
+  category: ["c"],
+  subcategory: ["s"],
+  levels: ["v"],
+  rarity: ["r"],
+  removeFacet: ["d"],
+  reset: ["x"],
+};
+
+const SEARCH_RESULT_COMMAND_ALIASES: Record<SearchResultCommandId, string[]> = {
+  jumpToResult: ["n"],
+  sortResults: ["o", "s"],
+};
+
+function buildDraftCommandPaletteEntries(
+  workspaceEntries: SearchWorkspaceEntry[],
+): DerivedTagTerminalCommandOption<SearchWorkspaceAction>[] {
+  return workspaceEntries.map((entry) => ({
+    value: entry.action,
+    label: entry.label,
+    description: entry.disabled
+      ? `Unavailable. ${entry.description}`
+      : entry.description,
+    aliases: SEARCH_WORKSPACE_COMMAND_ALIASES[entry.action] ?? [],
+    keywords: [entry.value],
+  }));
+}
+
+function buildResultCommandPaletteEntries(
+  state: SearchScreenState,
+): DerivedTagTerminalCommandOption<SearchResultCommandId>[] {
+  return [
+    {
+      value: "jumpToResult",
+      label: "Jump to Result",
+      description: "Jump to an absolute result position in the active result set.",
+      aliases: SEARCH_RESULT_COMMAND_ALIASES.jumpToResult,
+      keywords: ["position", "goto"],
+    },
+    {
+      value: "sortResults",
+      label: "Change Sort",
+      description: state.session
+        ? `Switch result ordering from ${formatSort(state.session.sort)}.`
+        : "Change the active result ordering.",
+      aliases: SEARCH_RESULT_COMMAND_ALIASES.sortResults,
+      keywords: ["order", "ranking"],
+    },
+  ];
+}
+
+function buildSearchFooterText(
   state: SearchScreenState,
   loadingMore: boolean,
 ): string {
   if (state.layout === "draft") {
-    return "Up/Down select  Ctrl-U/D jump  PgUp/PgDn page  gg/G or Home/End edge  Enter/Right/Space edit  Tab execute  / query  Left/Esc/backspace back  q back";
+    return formatTerminalInteractionFooter([
+      { id: "move", label: "select" },
+      { id: "jump" },
+      { id: "page" },
+      { id: "edge" },
+      { id: "edit" },
+      { id: "execute" },
+      { id: "search", label: "query" },
+      { id: "commands" },
+      { id: "back" },
+      { id: "quit", label: "back" },
+    ]);
   }
 
   if (state.activePane === "list") {
-    return loadingMore
-      ? "Up/Down select  Ctrl-U/D jump  PgUp/PgDn page  gg/G or Home/End edge  n/: jump-to  Left setup  Right preview  Enter preview  Tab toggle  O sort  Loading more..."
-      : "Up/Down select  Ctrl-U/D jump  PgUp/PgDn page  gg/G or Home/End edge  n/: jump-to  Left setup  Right preview  Enter preview  Tab toggle  O sort  q back";
+    const footer = formatTerminalInteractionFooter([
+      { id: "move", label: "select" },
+      { id: "jump" },
+      { id: "page" },
+      { id: "edge" },
+      { id: "back", label: "setup" },
+      { id: "preview" },
+      { id: "focus", label: "pane" },
+      { id: "commands" },
+      { id: "quit", label: "back" },
+    ]);
+    return loadingMore ? `${footer}  Loading more...` : footer;
   }
 
-  return "Up/Down scroll  Ctrl-U/D jump  PgUp/PgDn page  gg/G or Home/End edge  n/: jump-to  Left results  Tab toggle  O sort  Esc/backspace results  q back";
+  return formatTerminalInteractionFooter([
+    { id: "scroll" },
+    { id: "jump" },
+    { id: "page" },
+    { id: "edge" },
+    { id: "back", label: "results" },
+    { id: "focus", label: "pane" },
+    { id: "commands" },
+    { id: "quit", label: "back" },
+  ]);
+}
+
+function buildSearchHelpLines(
+  state: SearchScreenState,
+  workspaceEntries: SearchWorkspaceEntry[],
+): DerivedTagTerminalLine[] {
+  if (state.layout === "draft") {
+    const navigationActions: TerminalInteractionAction[] = [
+      { id: "move", label: "select the setup row" },
+      { id: "jump", helpText: "jump through the setup list" },
+      { id: "page", helpText: "page through the setup list" },
+      { id: "edge", helpText: "jump to the start or end of the setup list" },
+    ];
+    const actionActions: TerminalInteractionAction[] = [
+      { id: "edit", helpText: "edit the focused setup row or act on it" },
+      { id: "execute", helpText: "execute the current setup and switch to results" },
+      { id: "search", label: "edit query", helpText: "edit the current query text" },
+      { id: "commands", helpText: "open the setup command palette" },
+      { id: "back", helpText: "leave browse/search" },
+      { id: "quit", label: "back", helpText: "leave browse/search" },
+    ];
+    return buildTerminalInteractionHelpLines([
+      {
+        title: "Navigation",
+        actions: navigationActions,
+      },
+      {
+        title: "Actions",
+        actions: actionActions,
+      },
+      {
+        title: "Setup Commands",
+        commands: buildDraftCommandPaletteEntries(workspaceEntries).map<TerminalInteractionCommand>((entry) => ({
+          label: entry.label,
+          description: entry.description ?? "No additional details.",
+          aliases: entry.aliases,
+        })),
+      },
+    ]);
+  }
+
+  const navigationActions: TerminalInteractionAction[] = [
+    { id: state.activePane === "list" ? "move" : "scroll", label: state.activePane === "list" ? "move through results" : "scroll the preview" },
+    { id: "jump", helpText: state.activePane === "list" ? "jump through the active result pane" : "jump through the preview pane" },
+    { id: "page", helpText: state.activePane === "list" ? "page through the active result pane" : "page through the preview pane" },
+    { id: "edge", helpText: "jump to the start or end of the active pane" },
+  ];
+  const resultActions: TerminalInteractionAction[] = state.activePane === "list"
+    ? [
+      { id: "preview", helpText: "open the focused result preview" },
+      { id: "back", label: "setup", helpText: "return to Scope & Filters" },
+      { id: "focus", label: "toggle pane", helpText: "switch focus between results and preview" },
+      { id: "commands", helpText: "open the results command palette" },
+      { id: "quit", label: "back", helpText: "leave browse/search" },
+    ]
+    : [
+      { id: "back", label: "results", helpText: "return to the result list" },
+      { id: "focus", label: "toggle pane", helpText: "switch focus between results and preview" },
+      { id: "commands", helpText: "open the results command palette" },
+      { id: "quit", label: "back", helpText: "leave browse/search" },
+    ];
+
+  return buildTerminalInteractionHelpLines([
+    {
+      title: "Navigation",
+      actions: navigationActions,
+    },
+    {
+      title: "Actions",
+      actions: resultActions,
+    },
+    {
+      title: "Results Commands",
+      commands: buildResultCommandPaletteEntries(state).map<TerminalInteractionCommand>((entry) => ({
+        label: entry.label,
+        description: entry.description ?? "No additional details.",
+        aliases: entry.aliases,
+      })),
+    },
+  ]);
 }
 
 export function SearchScreen({
@@ -1518,12 +1694,8 @@ export function SearchScreen({
     dispatch({ type: "set_layout", layout: "draft", pane: "list" });
   }, [user.search]);
 
-  const openSelectedWorkspaceEntry = React.useCallback(() => {
-    if (!selectedWorkspaceEntry || selectedWorkspaceEntry.disabled) {
-      return;
-    }
-
-    switch (selectedWorkspaceEntry.action) {
+  const runWorkspaceAction = React.useCallback((action: SearchWorkspaceAction) => {
+    switch (action) {
       case "execute":
         void executeRequest(state.draft);
         return;
@@ -1575,9 +1747,49 @@ export function SearchScreen({
     executeRequest,
     removeFacetFilter,
     resetDraftWorkspace,
-    selectedWorkspaceEntry,
     state.draft,
   ]);
+
+  const openSelectedWorkspaceEntry = React.useCallback(() => {
+    if (!selectedWorkspaceEntry || selectedWorkspaceEntry.disabled) {
+      return;
+    }
+    runWorkspaceAction(selectedWorkspaceEntry.action);
+  }, [runWorkspaceAction, selectedWorkspaceEntry]);
+
+  const openDraftCommandPalette = React.useCallback(async () => {
+    const selected = await terminal.promptCommandPalette({
+      title: "Search Setup Commands",
+      prompt: "Filter setup commands",
+      entries: buildDraftCommandPaletteEntries(workspaceEntries),
+    });
+    if (selected) {
+      runWorkspaceAction(selected);
+    }
+  }, [runWorkspaceAction, terminal, workspaceEntries]);
+
+  const openResultCommandPalette = React.useCallback(async () => {
+    const selected = await terminal.promptCommandPalette({
+      title: "Result Commands",
+      prompt: "Filter result commands",
+      entries: buildResultCommandPaletteEntries(state),
+    });
+    if (selected === "jumpToResult") {
+      void jumpToResultPosition();
+      return;
+    }
+    if (selected === "sortResults") {
+      void chooseResultSort();
+    }
+  }, [chooseResultSort, jumpToResultPosition, state, terminal]);
+
+  const showSearchHelp = React.useCallback(() => {
+    void terminal.showDialog({
+      title: state.layout === "draft" ? "Search Setup Help" : "Search Results Help",
+      body: buildSearchHelpLines(state, workspaceEntries),
+      footer: [{ text: "Press any key to return.", tone: "dim" }],
+    });
+  }, [state, terminal, workspaceEntries]);
 
   useDerivedTagTerminalInput((input, key) => {
     if (busy) {
@@ -1601,12 +1813,20 @@ export function SearchScreen({
       exitSearchScreen();
       return;
     }
-    if (normalized === "slash") {
+    if (isHelpKey(normalized)) {
+      showSearchHelp();
+      return;
+    }
+    if (isSearchKey(normalized)) {
       void editQueryText();
       return;
     }
 
     if (state.layout === "draft") {
+      if (isCommandPaletteKey(normalized)) {
+        void openDraftCommandPalette();
+        return;
+      }
       if (normalized === "tab" || normalized === "shift_tab") {
         void executeRequest(state.draft);
         return;
@@ -1663,10 +1883,6 @@ export function SearchScreen({
         void chooseRarityFilter();
         return;
       }
-      if (normalized === "f") {
-        void addFacetFilter();
-        return;
-      }
       if (normalized === "d") {
         void removeFacetFilter();
         return;
@@ -1681,15 +1897,20 @@ export function SearchScreen({
       return;
     }
 
+    if (isCommandPaletteKey(normalized)) {
+      void openResultCommandPalette();
+      return;
+    }
+
     if (normalized === "o" || normalized === "s") {
       void chooseResultSort();
       return;
     }
-    if (normalized === "n" || normalized === ":") {
+    if (normalized === "n") {
       void jumpToResultPosition();
       return;
     }
-    if (normalized === "tab" || normalized === "shift_tab") {
+    if (isFocusToggleKey(normalized)) {
       dispatch({ type: "set_active_pane", pane: state.activePane === "list" ? "detail" : "list" });
       return;
     }
@@ -1768,7 +1989,7 @@ export function SearchScreen({
       }}
       footer={[
         {
-          text: buildFooterText(state, loadingMore),
+          text: buildSearchFooterText(state, loadingMore),
           tone: "dim",
         },
         {
