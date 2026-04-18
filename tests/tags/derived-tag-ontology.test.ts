@@ -168,11 +168,17 @@ describe("derived tag ontology", () => {
       assignmentMode: "composite",
       compositeOfAnyTags: ["curse_removal", "exorcism", "sanctification", "quarantine_containment", "contamination_cleanup", "source_revelation", "source_cleanup"],
     }));
+    const spellCommunication = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "spell" && tag.tag === "communication");
+    expect(spellCommunication).toEqual(expect.objectContaining({
+      family: "communication",
+      assignmentMode: "composite",
+      compositeOfAnyTags: ["signaling", "telepathic_communication", "message_delivery", "translation_support"],
+    }));
     const equipmentResolution = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "equipment" && tag.tag === "resolution");
     expect(equipmentResolution).toEqual(expect.objectContaining({
       family: "resolution",
       assignmentMode: "composite",
-      compositeOfAnyTags: ["curse_removal", "sanctification", "quarantine_containment", "contamination_cleanup", "source_cleanup"],
+      compositeOfAnyTags: ["curse_removal", "sanctification", "source_revelation", "quarantine_containment", "contamination_cleanup", "source_cleanup"],
     }));
     const fungalInfested = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "creature" && tag.tag === "fungal_infested");
     expect(fungalInfested).toEqual(expect.objectContaining({
@@ -240,6 +246,15 @@ describe("derived tag ontology", () => {
       adjacentTags: ["physical_disarm", "false_safe_route"],
       appliesWhen: expect.arrayContaining([
         "The clean answer is learning and executing the hazard's safe procedure, sequence, or pattern rather than destroying it.",
+      ]),
+    }));
+    const contaminationCleanupCountermeasure = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "hazard" && tag.tag === "contamination_cleanup_countermeasure");
+    expect(contaminationCleanupCountermeasure).toEqual(expect.objectContaining({
+      family: "countermeasure_profile",
+      assignmentMode: "hybrid",
+      adjacentTags: ["quarantine_containment_countermeasure", "source_cleanup_countermeasure"],
+      appliesWhen: expect.arrayContaining([
+        "The hazard is naturally retrieved because cleansing tainted ground, polluted air, cursed runoff, spores, or lingering residue is a core answer path.",
       ]),
     }));
     const environmentalHazard = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "hazard" && tag.tag === "environmental_hazard");
@@ -569,6 +584,15 @@ describe("derived tag ontology", () => {
       family: "communication",
       assignmentMode: "hybrid",
       description: expect.stringContaining("mind-to-mind communication"),
+    }));
+    const equipmentSourceRevelation = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "equipment" && tag.tag === "source_revelation");
+    expect(equipmentSourceRevelation).toEqual(expect.objectContaining({
+      family: "resolution",
+      assignmentMode: "deterministic",
+      adjacentTags: ["source_cleanup", "contamination_cleanup"],
+      appliesWhen: expect.arrayContaining([
+        "The item's retrieval value comes from finding or confirming the hidden source of a curse, contamination, outbreak, or spiritually tainted problem.",
+      ]),
     }));
     const equipmentEnvironmentalAdaptation = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "equipment" && tag.tag === "environmental_adaptation");
     expect(equipmentEnvironmentalAdaptation).toEqual(expect.objectContaining({

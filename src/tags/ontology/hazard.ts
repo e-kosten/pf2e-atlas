@@ -374,6 +374,57 @@ export const HAZARD_DERIVED_TAG_ONTOLOGY = {
           ]
         },
         {
+          tag: "quarantine_containment_countermeasure",
+          description: "Hazard best managed by isolating victims, sealing off the site, or imposing containment boundaries that stop spread while the danger is being handled.",
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "The hazard is naturally retrieved because the first meaningful answer is locking down spread, controlling access, or containing dangerous exposure.",
+            "Containment procedures matter more than immediately dispelling, disarming, or appeasing the hazard."
+          ],
+          doesNotApplyWhen: [
+            "The hazard is dangerous but does not meaningfully spread, linger, or demand isolation and access control.",
+            "The stronger fit is barrier_lockdown or sentinel_guardian because preventing passage is the hazard's function, not the party's resolution plan."
+          ],
+          adjacentTags: [
+            "contamination_cleanup_countermeasure",
+            "source_cleanup_countermeasure"
+          ]
+        },
+        {
+          tag: "contamination_cleanup_countermeasure",
+          description: "Hazard best resolved through decontamination, purification, cleansing residue, or scrubbing the hazardous space back to safety.",
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "The hazard is naturally retrieved because cleansing tainted ground, polluted air, cursed runoff, spores, or lingering residue is a core answer path.",
+            "The cleanup process matters more than only suppressing the effect temporarily or bypassing the area."
+          ],
+          doesNotApplyWhen: [
+            "The hazard only has an immediate trigger or burst with no meaningful lingering contamination to clean up.",
+            "The stronger fit is exorcism_countermeasure or dispel_countermeasure because the answer is purging a presence or ending an effect rather than cleaning a tainted site."
+          ],
+          adjacentTags: [
+            "quarantine_containment_countermeasure",
+            "source_cleanup_countermeasure"
+          ]
+        },
+        {
+          tag: "source_cleanup_countermeasure",
+          description: "Hazard best resolved by locating and neutralizing the cursed source, leaking node, corrupted remains, or other origin driving the dangerous field.",
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "The hazard is naturally retrieved because the real answer is finding and dealing with the source object, origin point, or contamination engine.",
+            "Neutralizing the origin matters more than only enduring the space or treating downstream symptoms."
+          ],
+          doesNotApplyWhen: [
+            "The hazard has no meaningful source object, leak point, or origin to clean up beyond the hazard itself.",
+            "The stronger fit is procedural_bypass or physical_disarm because the answer is executing a sequence or tampering with a mechanism rather than eliminating an origin source."
+          ],
+          adjacentTags: [
+            "quarantine_containment_countermeasure",
+            "contamination_cleanup_countermeasure"
+          ]
+        },
+        {
           tag: "dispel_countermeasure",
           description: "Hazard meaningfully invites counteract, dispel, or magical suppression as a core answer path.",
           assignmentMode: "hybrid",

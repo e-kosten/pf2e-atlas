@@ -202,6 +202,12 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       }),
       expect.objectContaining({
         category: "spell",
+        family: "communication",
+        tag: "communication",
+        assignmentMode: "composite",
+      }),
+      expect.objectContaining({
+        category: "spell",
         family: "revelation",
         tag: "truth_reveal",
         assignmentMode: "hybrid",
@@ -247,6 +253,18 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
         family: "resolution",
         tag: "resolution",
         assignmentMode: "composite",
+      }),
+      expect.objectContaining({
+        category: "equipment",
+        family: "resolution",
+        tag: "source_revelation",
+        assignmentMode: "deterministic",
+      }),
+      expect.objectContaining({
+        category: "hazard",
+        family: "countermeasure_profile",
+        tag: "contamination_cleanup_countermeasure",
+        assignmentMode: "hybrid",
       }),
       expect.objectContaining({
         category: "hazard",
@@ -342,6 +360,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
         family: "communication",
         axis: "utility",
         tags: expect.arrayContaining([
+          expect.objectContaining({ value: "communication", assignmentMode: "composite" }),
           expect.objectContaining({ value: "telepathic_communication", description: expect.any(String) }),
           expect.objectContaining({ value: "message_delivery", description: expect.any(String) }),
           expect.objectContaining({ value: "translation_support", description: expect.any(String) }),
@@ -400,6 +419,15 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
           expect.objectContaining({ value: "zone_denial", description: expect.any(String) }),
           expect.objectContaining({ value: "sentinel_guardian", description: expect.any(String) }),
           expect.objectContaining({ value: "forced_separation_hazard", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "hazard",
+        family: "countermeasure_profile",
+        axis: "resolution",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "quarantine_containment_countermeasure", description: expect.any(String) }),
+          expect.objectContaining({ value: "contamination_cleanup_countermeasure", description: expect.any(String) }),
         ]),
       }),
       expect.objectContaining({

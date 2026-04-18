@@ -160,6 +160,20 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
             "message_delivery"
           ]
         },
+        {
+          tag: "communication",
+          description: "Broad communication umbrella for spells used to signal allies, relay messages, bridge language barriers, or coordinate silently.",
+          assignmentMode: "composite",
+          adjacentTags: [
+            "signaling",
+            "telepathic_communication",
+            "message_delivery",
+            "translation_support"
+          ],
+          compositeOfAny: [
+            fromFamily("communication")
+          ]
+        },
       ]
     },
     reconnaissance: {

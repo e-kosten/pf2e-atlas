@@ -87,6 +87,7 @@ describe("derived tag catalog", () => {
           expect.objectContaining({ value: "resolution", assignmentMode: "composite" }),
           expect.objectContaining({ value: "curse_removal", description: expect.any(String) }),
           expect.objectContaining({ value: "sanctification", description: expect.any(String) }),
+          expect.objectContaining({ value: "source_revelation", description: expect.any(String) }),
           expect.objectContaining({ value: "quarantine_containment", description: expect.any(String) }),
         ]),
       }),
@@ -153,6 +154,7 @@ describe("derived tag catalog", () => {
         family: "communication",
         axis: "utility",
         tags: expect.arrayContaining([
+          expect.objectContaining({ value: "communication", assignmentMode: "composite" }),
           expect.objectContaining({ value: "telepathic_communication", description: expect.any(String) }),
           expect.objectContaining({ value: "message_delivery", description: expect.any(String) }),
           expect.objectContaining({ value: "translation_support", description: expect.any(String) }),
@@ -225,6 +227,16 @@ describe("derived tag catalog", () => {
           expect.objectContaining({ value: "zone_denial", description: expect.any(String) }),
           expect.objectContaining({ value: "sentinel_guardian", description: expect.any(String) }),
           expect.objectContaining({ value: "forced_separation_hazard", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "hazard",
+        family: "countermeasure_profile",
+        axis: "resolution",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "quarantine_containment_countermeasure", description: expect.any(String) }),
+          expect.objectContaining({ value: "contamination_cleanup_countermeasure", description: expect.any(String) }),
+          expect.objectContaining({ value: "source_cleanup_countermeasure", description: expect.any(String) }),
         ]),
       }),
       expect.objectContaining({

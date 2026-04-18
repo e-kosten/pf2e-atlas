@@ -575,7 +575,7 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
         "kit",
         "consumable"
       ],
-      description: "Equipment used to break curses, sanctify spaces, contain spread, clean corrupted sites, or deal with a problem at its source.",
+      description: "Equipment used to break curses, sanctify spaces, trace hidden sources, contain spread, clean corrupted sites, or deal with a problem at its source.",
       tags: [
         {
           tag: "curse_removal",
@@ -604,6 +604,23 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
           ]
         },
         {
+          tag: "source_revelation",
+          description: "Helps identify the cursed anchor, contaminated material, infected origin, hidden carrier, or other source driving the problem before cleanup begins.",
+          assignmentMode: "deterministic",
+          appliesWhen: [
+            "The item's retrieval value comes from finding or confirming the hidden source of a curse, contamination, outbreak, or spiritually tainted problem.",
+            "It is naturally sought for tracing the origin or anchor rather than directly cleansing or disposing of it."
+          ],
+          doesNotApplyWhen: [
+            "The item only helps perform a cleanup, disposal, or purification step after the source is already known.",
+            "The stronger fit is medical_support, tracking, or ritual_support because the item supports a broader process without specifically revealing the source."
+          ],
+          adjacentTags: [
+            "source_cleanup",
+            "contamination_cleanup"
+          ]
+        },
+        {
           tag: "quarantine_containment",
           description: "Helps isolate victims, secure contaminated areas, or impose practical containment procedures that stop spread while treatment proceeds.",
           assignmentMode: "deterministic",
@@ -626,6 +643,7 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
           description: "Helps find, remove, neutralize, or safely dispose of the cursed object, infected material, corrupted remains, or other source driving the problem.",
           assignmentMode: "deterministic",
           adjacentTags: [
+            "source_revelation",
             "contamination_cleanup",
             "ritual_support"
           ]
@@ -636,6 +654,7 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
           assignmentMode: "composite",
           adjacentTags: [
             "curse_removal",
+            "source_revelation",
             "contamination_cleanup",
             "source_cleanup"
           ],

@@ -697,7 +697,7 @@ describe("derived tag rules: spell", () => {
       subcategory: null,
       descriptionText: "You send a message to your target's dream. The message is one-way, up to 1 minute of speech. If the target is asleep, they receive the message instantly.",
       traits: ["concentrate", "manipulate", "mental"],
-    })).toContain("message_delivery");
+    })).toEqual(expect.arrayContaining(["message_delivery", "communication"]));
 
     expect(deriveRecordTags({
       name: "Sending",
@@ -729,7 +729,7 @@ describe("derived tag rules: spell", () => {
       subcategory: null,
       descriptionText: "You emblazon a message across the sky itself, using clouds or auroras to coordinate distant allies.",
       traits: ["air", "illusion", "visual"],
-    })).toContain("signaling");
+    })).toEqual(expect.arrayContaining(["signaling", "communication"]));
 
     expect(deriveRecordTags({
       name: "Ventriloquism",
