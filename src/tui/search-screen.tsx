@@ -184,10 +184,19 @@ function getSearchResultWindowTarget(
 
   const beforeBuffer = Math.max(minimumBuffer, Math.floor(windowSize / 3));
   const maxOffset = Math.max(0, session.total - windowSize);
-  return {
-    offset: Math.max(0, Math.min(maxOffset, selectedIndex - beforeBuffer)),
-    limit: windowSize,
-  };
+  const offset = Math.max(0, Math.min(maxOffset, selectedIndex - beforeBuffer));
+  const expectedCount = Math.min(windowSize, session.total - offset);
+
+  if (
+    selectedIndex >= windowStart &&
+    selectedIndex < windowEnd &&
+    session.windowOffset === offset &&
+    session.results.length === expectedCount
+  ) {
+    return null;
+  }
+
+  return { offset, limit: windowSize };
 }
 
 function getSessionRecordAtIndex(

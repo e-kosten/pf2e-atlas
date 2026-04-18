@@ -739,6 +739,73 @@ describe("search screen", () => {
     expect(app.lastFrame()).toMatch(/(\[PREVIEW\]|Preview \|) Spell 999/);
   });
 
+  it("does not keep rereading the same terminal window while moving inside the last page", async () => {
+    const firstPageRecords = Array.from({ length: 120 }, (_, index) => createRecord({
+      recordKey: `spell:${index}`,
+      id: `${index}`,
+      name: `Spell ${index}`,
+    }));
+    const openSearchWindow = vi.fn(async () => ({
+      id: "window-1",
+      searchProfile: null,
+      mode: "structured" as const,
+      sort: "alphabetical" as const,
+      sortSeed: null,
+      total: 1000,
+      offset: 0,
+      limit: 120,
+      hasMore: true,
+      nextOffset: 120,
+      records: firstPageRecords,
+    }));
+    const readSearchWindowPage = vi.fn((windowId: string, offset: number, limit: number) => ({
+      id: windowId,
+      searchProfile: null,
+      mode: "structured" as const,
+      sort: "alphabetical" as const,
+      sortSeed: null,
+      total: 1000,
+      offset,
+      limit,
+      hasMore: false,
+      nextOffset: null,
+      records: Array.from({ length: Math.min(limit, 1000 - offset) }, (_, index) => createRecord({
+        recordKey: `spell:${offset + index}`,
+        id: `${offset + index}`,
+        name: `Spell ${offset + index}`,
+      })),
+    }));
+    const services = createServices({ openSearchWindow, readSearchWindowPage });
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen onBack={vi.fn()} />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    app.stdin.write("\t");
+    await flushInk();
+    await flushInk();
+
+    app.stdin.write("G");
+    await flushInk();
+    await flushInk();
+    await flushInk();
+
+    const initialReadCount = readSearchWindowPage.mock.calls.length;
+
+    for (let index = 0; index < 5; index += 1) {
+      pressUp(app);
+      await flushInk();
+    }
+    await flushInk();
+    await flushInk();
+
+    expect(readSearchWindowPage.mock.calls.length).toBe(initialReadCount);
+  });
+
   it("slides the result window instead of growing it without bound", async () => {
     const firstPageRecords = Array.from({ length: 120 }, (_, index) => createRecord({
       recordKey: `spell:${index}`,
