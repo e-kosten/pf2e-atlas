@@ -1699,4 +1699,32 @@ describe("Pf2eDataService / Search and Lookup", () => {
     expect(randomWindowA.records.map((record) => record.recordKey)).toEqual(randomWindowB.records.map((record) => record.recordKey));
     expect(randomWindowA2.records.every((record) => !randomWindowA.records.some((prior) => prior.recordKey === record.recordKey))).toBe(true);
   });
+
+  it("reads deep browse window pages with the same deterministic order as direct listing", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+
+    const service = await loadTestService(fixture);
+    const total = service.listRecords({
+      category: "spell",
+      sort: "alphabetical",
+      limit: 1,
+    }).total;
+    const deepOffset = Math.max(0, total - 2);
+
+    const browseWindow = await service.openSearchWindow({
+      category: "spell",
+      sort: "alphabetical",
+      limit: 2,
+    }, { mode: "browse" });
+    const deepWindowPage = service.readSearchWindowPage(browseWindow.id, deepOffset, 2);
+    const directPage = service.listRecords({
+      category: "spell",
+      sort: "alphabetical",
+      limit: 2,
+      offset: deepOffset,
+    });
+
+    expect(deepWindowPage.records.map((record) => record.recordKey)).toEqual(directPage.records.map((record) => record.recordKey));
+  });
 });

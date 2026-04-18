@@ -395,6 +395,7 @@ export function buildCandidateCountQuery(
 
 export function buildCandidateKeyQuery(
   filters: NormalizedSearchFilters,
+  sort?: Exclude<SearchSort, "ranked" | "random">,
   options: { recordKeys?: string[] } = {},
 ): { sql: string; params: SqlValue[] } {
   const sql = [
@@ -412,6 +413,10 @@ export function buildCandidateKeyQuery(
     item: "i",
     spell: "s",
   }, options);
+
+  if (sort) {
+    appendCandidateOrderBy(sql, sort);
+  }
 
   return { sql: sql.join("\n"), params };
 }

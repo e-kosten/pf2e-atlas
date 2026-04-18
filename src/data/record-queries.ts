@@ -59,9 +59,10 @@ export function fetchCandidateCount(
 export function fetchCandidateRecordKeys(
   db: DatabaseSync,
   filters: NormalizedSearchFilters,
+  sort?: Exclude<SearchSort, "ranked" | "random">,
   options: { recordKeys?: string[] } = {},
 ): string[] {
-  const { sql, params } = buildCandidateKeyQuery(filters, options);
+  const { sql, params } = buildCandidateKeyQuery(filters, sort, options);
   return (db.prepare(sql).all(...params) as Array<{ recordKey: string }>).map((row) => row.recordKey);
 }
 

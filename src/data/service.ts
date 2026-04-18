@@ -205,17 +205,7 @@ function normalizeRecordKeyFilter(values: string[] | undefined): string[] | unde
 }
 
 type RuntimeSearchWindow =
-  | {
-    id: string;
-    kind: "browsePaged";
-    normalizedFilters: NormalizedSearchFilters;
-    mode: SearchWindow["mode"];
-    searchProfile: SearchWindow["searchProfile"];
-    sort: Exclude<SearchSort, "ranked" | "random">;
-    sortSeed: null;
-    total: number;
-  }
-  | {
+  {
     id: string;
     kind: "recordKeys";
     mode: SearchWindow["mode"];
@@ -647,16 +637,6 @@ export class Pf2eDataService {
   }
 
   private readSearchWindowRecords(window: RuntimeSearchWindow, offset: number, limit: number): SearchWindowPage {
-    if (window.kind === "browsePaged") {
-      const rows = fetchPagedCandidates(this.db, window.normalizedFilters, window.sort, offset, limit);
-      return this.createSearchWindowPage(
-        window,
-        offset,
-        limit,
-        rows.map((row) => this.decorateRecord(rowToRecord(row))),
-      );
-    }
-
     const recordKeys = window.orderedRecordKeys.slice(offset, offset + limit);
     return this.createSearchWindowPage(window, offset, limit, this.getRecordsByKeys(recordKeys));
   }
@@ -729,27 +709,15 @@ export class Pf2eDataService {
       const sort = normalizedFilters.sort === "ranked" || !normalizedFilters.sort
         ? "alphabetical"
         : normalizedFilters.sort;
-      if (sort !== "random") {
-        const window = this.rememberSearchWindow({
-          id: this.createSearchWindowId(),
-          kind: "browsePaged",
-          normalizedFilters,
-          mode: "structured",
-          searchProfile: null,
-          sort,
-          sortSeed: null,
-          total: fetchCandidateCount(this.db, normalizedFilters),
-        });
-        return this.readSearchWindowRecords(window, normalizedFilters.offset ?? 0, normalizedFilters.limit ?? 20);
-      }
-
-      const sortSeed = normalizedFilters.sortSeed ?? 0;
-      const orderedRecordKeys = fetchCandidateRecordKeys(this.db, normalizedFilters)
-        .sort((left, right) => {
-          const leftHash = this.hashSearchWindowKey(left, sortSeed);
-          const rightHash = this.hashSearchWindowKey(right, sortSeed);
-          return leftHash - rightHash || left.localeCompare(right);
-        });
+      const sortSeed = sort === "random" ? (normalizedFilters.sortSeed ?? 0) : null;
+      const orderedRecordKeys = sort === "random"
+        ? fetchCandidateRecordKeys(this.db, normalizedFilters)
+          .sort((left, right) => {
+            const leftHash = this.hashSearchWindowKey(left, sortSeed ?? 0);
+            const rightHash = this.hashSearchWindowKey(right, sortSeed ?? 0);
+            return leftHash - rightHash || left.localeCompare(right);
+          })
+        : fetchCandidateRecordKeys(this.db, normalizedFilters, sort);
       const window = this.rememberSearchWindow({
         id: this.createSearchWindowId(),
         kind: "recordKeys",
