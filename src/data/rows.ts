@@ -7,7 +7,13 @@ import type {
   SearchCategory,
   SearchSubcategory,
   SourceCategory,
+  VariantSource,
 } from "../types.js";
+import {
+  categorySupportsSubcategory,
+  normalizeSearchCategory,
+  normalizeSearchSubcategory,
+} from "../domain/categories.js";
 import { METADATA_FIELD_REGISTRY } from "../domain/metadata-field-registry.js";
 import { normalizeText } from "../utils.js";
 
@@ -108,12 +114,91 @@ type ActorMetricJsonRow = {
   boolValue: number | null;
 };
 
-function parseActorMetricsJson(actorMetricsJson: string | null | undefined): ActorMetricMap {
-  if (!actorMetricsJson) {
-    return {};
+function readCandidateRowValue(row: CandidateRow, key: string): CandidateRow[keyof CandidateRow] {
+  return row[key as keyof CandidateRow];
+}
+
+function readStringRowValue(row: CandidateRow, key: string): string | null | undefined {
+  const value = readCandidateRowValue(row, key);
+  if (value == null || typeof value === "string") {
+    return value;
   }
 
-  const rows = JSON.parse(actorMetricsJson) as ActorMetricJsonRow[];
+  throw new Error(`Expected row field "${key}" to be a string value.`);
+}
+
+function readNumberRowValue(row: CandidateRow, key: string): number | null | undefined {
+  const value = readCandidateRowValue(row, key);
+  if (value == null || typeof value === "number") {
+    return value;
+  }
+
+  throw new Error(`Expected row field "${key}" to be a numeric value.`);
+}
+
+function parseStringArrayJson(value: string | null | undefined, fieldName: string, recordKey: string): string[] {
+  if (!value) {
+    return [];
+  }
+
+  const parsed: unknown = JSON.parse(value);
+  if (!Array.isArray(parsed)) {
+    throw new Error(`Expected ${fieldName} for "${recordKey}" to be a JSON string array.`);
+  }
+
+  const result: string[] = [];
+  for (const entry of parsed) {
+    if (typeof entry !== "string") {
+      throw new Error(`Expected ${fieldName} for "${recordKey}" to be a JSON string array.`);
+    }
+    if (entry.length > 0) {
+      result.push(entry);
+    }
+  }
+
+  return result;
+}
+
+function isActorMetricJsonRow(value: unknown): value is ActorMetricJsonRow {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+
+  const candidate = value as Record<string, unknown>;
+  return (
+    typeof candidate.metricKey === "string" &&
+    (candidate.valueType === "number" || candidate.valueType === "text" || candidate.valueType === "boolean") &&
+    (typeof candidate.numberValue === "number" ||
+      candidate.numberValue === null ||
+      candidate.numberValue === undefined) &&
+    (typeof candidate.textValue === "string" || candidate.textValue === null || candidate.textValue === undefined) &&
+    (typeof candidate.boolValue === "number" || candidate.boolValue === null || candidate.boolValue === undefined)
+  );
+}
+
+function parseMetricRowsJson(
+  value: string | null | undefined,
+  fieldName: string,
+  recordKey: string,
+): ActorMetricJsonRow[] {
+  if (!value) {
+    return [];
+  }
+
+  const parsed: unknown = JSON.parse(value);
+  if (!Array.isArray(parsed) || !parsed.every(isActorMetricJsonRow)) {
+    throw new Error(`Expected ${fieldName} for "${recordKey}" to be a JSON metric row array.`);
+  }
+
+  return parsed;
+}
+
+function parseMetricsJson(
+  value: string | null | undefined,
+  fieldName: string,
+  recordKey: string,
+): ActorMetricMap | ItemMetricMap {
+  const rows = parseMetricRowsJson(value, fieldName, recordKey);
   const metrics: ActorMetricMap = {};
   for (const row of rows) {
     if (row.valueType === "number" && typeof row.numberValue === "number") {
@@ -134,48 +219,103 @@ function parseActorMetricsJson(actorMetricsJson: string | null | undefined): Act
   return metrics;
 }
 
-function parseItemMetricsJson(itemMetricsJson: string | null | undefined): ItemMetricMap {
-  if (!itemMetricsJson) {
+function parseCategory(category: string, recordKey: string): SearchCategory {
+  const normalized = normalizeSearchCategory(category);
+  if (!normalized) {
+    throw new Error(`Invalid row category "${category}" for "${recordKey}".`);
+  }
+
+  return normalized;
+}
+
+function parseSubcategory(
+  category: SearchCategory,
+  subcategory: string | null,
+  recordKey: string,
+): SearchSubcategory | null {
+  if (!subcategory) {
+    return null;
+  }
+
+  const normalized = normalizeSearchSubcategory(subcategory);
+  if (!normalized) {
+    throw new Error(`Invalid row subcategory "${subcategory}" for "${recordKey}".`);
+  }
+  if (!categorySupportsSubcategory(category, normalized)) {
+    throw new Error(`Invalid row subcategory "${subcategory}" for ${category} record "${recordKey}".`);
+  }
+
+  return normalized;
+}
+
+function parseSourceCategory(sourceCategory: string, recordKey: string): SourceCategory {
+  switch (normalizeText(sourceCategory)) {
+    case "core":
+      return "core";
+    case "rules":
+      return "rules";
+    case "adventure":
+      return "adventure";
+    case "unknown":
+      return "unknown";
+    default:
+      throw new Error(`Invalid row source category "${sourceCategory}" for "${recordKey}".`);
+  }
+}
+
+function parseVariantSource(variantSource: string | null | undefined, recordKey: string): VariantSource {
+  const resolved = variantSource ?? "none";
+  switch (resolved) {
+    case "baseItem":
+      return "baseItem";
+    case "slug":
+      return "slug";
+    case "namePattern":
+      return "namePattern";
+    case "sourcePath":
+      return "sourcePath";
+    case "composite":
+      return "composite";
+    case "none":
+      return "none";
+    default:
+      throw new Error(`Invalid row variant source "${resolved}" for "${recordKey}".`);
+  }
+}
+
+function parseRawRecordJson(rawJson: string | null | undefined, recordKey: string): Record<string, unknown> {
+  if (!rawJson) {
     return {};
   }
 
-  const rows = JSON.parse(itemMetricsJson) as ActorMetricJsonRow[];
-  const metrics: ItemMetricMap = {};
-  for (const row of rows) {
-    if (row.valueType === "number" && typeof row.numberValue === "number") {
-      metrics[row.metricKey] = row.numberValue;
-      continue;
-    }
-
-    if (row.valueType === "boolean") {
-      metrics[row.metricKey] = Boolean(row.boolValue);
-      continue;
-    }
-
-    if (row.valueType === "text" && typeof row.textValue === "string") {
-      metrics[row.metricKey] = row.textValue;
-    }
+  const parsed: unknown = JSON.parse(rawJson);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error(`Expected rawJson for "${recordKey}" to be a JSON object.`);
   }
 
-  return metrics;
+  return parsed as Record<string, unknown>;
 }
 
 function extractMetadataValuesFromRow(row: CandidateRow): Partial<NormalizedRecord> {
   const metadata: Record<string, unknown> = {};
 
   for (const spec of METADATA_FIELD_REGISTRY) {
-    const rawValue = row[spec.rowValueSource.key as keyof CandidateRow];
-
     switch (spec.rowValueSource.kind) {
       case "jsonArray":
-        metadata[spec.recordProperty] = rawValue ? JSON.parse(rawValue as string) : [];
+        metadata[spec.recordProperty] = parseStringArrayJson(
+          readStringRowValue(row, spec.rowValueSource.key),
+          spec.rowValueSource.key,
+          row.recordKey,
+        );
         break;
       case "booleanNumber":
-        metadata[spec.recordProperty] = Boolean(rawValue);
+        metadata[spec.recordProperty] = Boolean(readNumberRowValue(row, spec.rowValueSource.key));
         break;
       case "number":
+        metadata[spec.recordProperty] = readNumberRowValue(row, spec.rowValueSource.key) ?? null;
+        break;
       case "string":
-        metadata[spec.recordProperty] = rawValue ?? null;
+        metadata[spec.recordProperty] = readStringRowValue(row, spec.rowValueSource.key) ?? null;
         break;
     }
   }
@@ -184,7 +324,8 @@ function extractMetadataValuesFromRow(row: CandidateRow): Partial<NormalizedReco
 }
 
 export function rowToRecord(row: CandidateRow, raw: Record<string, unknown> | null = null): NormalizedRecord {
-  const resolvedRaw = raw ?? (row.rawJson ? (JSON.parse(row.rawJson) as Record<string, unknown>) : {});
+  const category = parseCategory(row.category, row.recordKey);
+  const resolvedRaw = raw ?? parseRawRecordJson(row.rawJson, row.recordKey);
   const metadata = extractMetadataValuesFromRow(row);
   return {
     recordKey: row.recordKey,
@@ -192,8 +333,8 @@ export function rowToRecord(row: CandidateRow, raw: Record<string, unknown> | nu
     name: row.name,
     normalizedName: row.normalizedName,
     type: row.type,
-    category: row.category,
-    subcategory: row.subcategory,
+    category,
+    subcategory: parseSubcategory(category, row.subcategory, row.recordKey),
     packName: row.packName,
     packLabel: row.packLabel,
     documentType: row.documentType,
@@ -202,11 +343,11 @@ export function rowToRecord(row: CandidateRow, raw: Record<string, unknown> | nu
     descriptionSnippet: row.descriptionSnippet,
     folderId: row.folderId,
     variantConfidence: row.variantConfidence,
-    variantSource: (row.variantSource ?? "none") as NormalizedRecord["variantSource"],
+    variantSource: parseVariantSource(row.variantSource, row.recordKey),
     sourcePath: row.sourcePath,
     ...metadata,
-    itemMetrics: parseItemMetricsJson(row.itemMetricsJson),
-    actorMetrics: parseActorMetricsJson(row.actorMetricsJson),
+    itemMetrics: parseMetricsJson(row.itemMetricsJson, "itemMetricsJson", row.recordKey),
+    actorMetrics: parseMetricsJson(row.actorMetricsJson, "actorMetricsJson", row.recordKey),
     aliases: [],
     legacyRecordLinks: [],
     raw: resolvedRaw,
@@ -246,7 +387,7 @@ export function edgeRowToReferenceEdge(
     sourcePackName: row.fromPackName,
     sourceRecordType: row.fromRecordType,
     sourceDocumentType: row.fromDocumentType,
-    sourceCategory: row.fromSourceCategory,
+    sourceCategory: parseSourceCategory(row.fromSourceCategory, row.fromRecordKey),
   };
 }
 
