@@ -220,6 +220,84 @@ export const AFFLICTION_DERIVED_TAG_ONTOLOGY = {
         }
       ]
     },
+    resolution_profile: {
+      axis: "response",
+      description: "Affliction tags for the kinds of remedies, containment plans, or cleanup answers the condition naturally asks for.",
+      tags: [
+        {
+          tag: "antidote_resolution",
+          description: "Naturally retrieved because antitoxins, antidotes, neutralizing medicine, or poison-specific treatment are central to solving it.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "countermagic_resolution",
+            "cure_clock_urgency"
+          ]
+        },
+        {
+          tag: "cursebreaking_resolution",
+          description: "Naturally retrieved because lifting a curse, breaking a doom, or ending a supernatural binding is central to recovery.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "countermagic_resolution",
+            "ritual_appeasement_resolution"
+          ]
+        },
+        {
+          tag: "exorcism_resolution",
+          description: "Naturally retrieved because banishing, cleansing, or spiritually expelling a hostile presence is central to solving the affliction.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "cursebreaking_resolution",
+            "ritual_appeasement_resolution"
+          ]
+        },
+        {
+          tag: "surgical_extraction_resolution",
+          description: "Naturally retrieved because removing eggs, larvae, parasites, implants, or invasive growth from the body is a central answer path.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "source_cleanup_resolution",
+            "infestation_implant"
+          ]
+        },
+        {
+          tag: "quarantine_containment_resolution",
+          description: "Naturally retrieved because isolation, contact control, and containment are core to preventing further spread while treatment proceeds.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "outbreak_management",
+            "quarantine_risk"
+          ]
+        },
+        {
+          tag: "source_cleanup_resolution",
+          description: "Naturally retrieved because the contaminated site, cursed source, infected carrier chain, or environmental origin must be found and cleaned up.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "source_tracing",
+            "quarantine_containment_resolution"
+          ]
+        },
+        {
+          tag: "ritual_appeasement_resolution",
+          description: "Naturally retrieved because restitution, offerings, ritual respect, or meeting a spiritual demand is central to ending the affliction.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "cursebreaking_resolution",
+            "exorcism_resolution"
+          ]
+        },
+        {
+          tag: "countermagic_resolution",
+          description: "Naturally retrieved because counteracting, suppressing, or dispelling an active magical affliction is central to solving it.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "antidote_resolution",
+            "cursebreaking_resolution"
+          ]
+        }
+      ]
+    },
     behavioral_override: {
       axis: "behavior",
       description: "Affliction tags for forced behavior and explicit agency override.",

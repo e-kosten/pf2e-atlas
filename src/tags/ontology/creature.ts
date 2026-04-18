@@ -953,6 +953,75 @@ export const CREATURE_DERIVED_TAG_ONTOLOGY = {
         }
       ]
     },
+    corruption_profile: {
+      axis: "specialization",
+      description: "Creature-facing corruption and taint tags for retrieval driven by what kind of blight, infestation, curse, or metaphysical pollution defines the creature.",
+      tags: [
+        {
+          tag: "blight_tainted",
+          description: "Creature strongly defined by ecological blight, withering nature, corrupted groves, or land-sickened wilderness.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "wasteland_setting",
+            "body_horror"
+          ]
+        },
+        {
+          tag: "fungal_infested",
+          description: "Creature strongly defined by mycelium, spores, mushroom overgrowth, or fungus-driven bodily infestation.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "disease_vector",
+            "body_horror"
+          ]
+        },
+        {
+          tag: "plaguebearing",
+          description: "Creature strongly defined by carrying, spreading, or embodying pestilence, fever, or outbreak-causing corruption.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "disease_vector",
+            "parasite_ridden"
+          ]
+        },
+        {
+          tag: "parasite_ridden",
+          description: "Creature strongly defined by hosting burrowing larvae, parasitic colonies, implanted broods, or other invasive life within the body.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "spawn_creator",
+            "plaguebearing"
+          ]
+        },
+        {
+          tag: "cursewarped",
+          description: "Creature strongly defined by curse-driven distortion, doom-warping, or being transformed into its current state by a curse.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "curse_threat",
+            "cursed_transformation"
+          ]
+        },
+        {
+          tag: "nightmare_tainted",
+          description: "Creature strongly defined by dream corruption, sleep-haunting influence, or oneiric pollution leaking into the waking world.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "dream_nightmare",
+            "dreamlands_setting"
+          ]
+        },
+        {
+          tag: "void_tainted",
+          description: "Creature strongly defined by void corruption, cosmic hollowness, or metaphysical pollution that feels alien, cold, or reality-thinning.",
+          assignmentMode: "hybrid",
+          adjacentTags: [
+            "cosmic_dread",
+            "forbidden_knowledge"
+          ]
+        }
+      ]
+    },
     threat_profile: {
       axis: "encounter",
       description: "Creature prep-driving threat patterns based on behavior, counterplay, or encounter consequence rather than type.",

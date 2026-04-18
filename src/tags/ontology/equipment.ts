@@ -328,7 +328,7 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
     },
     party_role: {
       axis: "party_role",
-      description: "Party- and build-facing retrieval tags for loot that is valuable because of who benefits from it and how it changes play patterns.",
+      description: "Party-facing retrieval tags for loot that is valuable because of who benefits from it in a party or build.",
       tags: [
         {
           tag: "defender_support",
@@ -346,18 +346,79 @@ export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {
           assignmentMode: "hybrid"
         },
         {
-          tag: "action_economy_support",
-          description: "Especially valuable because it compresses setup, speeds access, or meaningfully improves in-combat action efficiency.",
+          tag: "ranged_striker_support",
+          description: "Especially valuable to archers, gunners, or other builds that pressure from range through repeated attacks or reload workflows.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "face_support",
+          description: "Especially valuable to negotiators, deceivers, diplomats, or other socially forward characters who need influence, disguise, or presentation support.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "scout_support",
+          description: "Especially valuable to scouts, infiltrators, or advance-party play through quiet entry, recon, and information-gathering support.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "healer_support",
+          description: "Especially valuable to medics, battlefield healers, or builds expected to stabilize, treat, or recover allies under pressure.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "companion_support",
+          description: "Especially valuable to handlers of animal companions, mounts, familiars, or other creature-side support play patterns.",
           assignmentMode: "hybrid"
         },
         {
           tag: "emergency_recovery",
           description: "Especially valuable as a panic-button item for sudden healing, escape, stabilization, or critical condition rescue.",
           assignmentMode: "hybrid"
+        }
+      ]
+    },
+    play_pattern: {
+      axis: "party_role",
+      description: "Build- and play-pattern-facing retrieval tags for loot that is valuable because of the recurring tactics or workflows it supports.",
+      tags: [
+        {
+          tag: "shield_support",
+          description: "Especially valuable to shield-forward play through improved blocking, readiness, or defensive shield workflow.",
+          assignmentMode: "hybrid"
         },
         {
-          tag: "scouting_package",
-          description: "Especially valuable to scouts, infiltrators, or advance-party play through quiet entry, recon, and information-gathering support.",
+          tag: "reload_support",
+          description: "Especially valuable to ranged builds whose action flow depends on reloading efficiently or keeping ammunition ready.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "thrown_weapon_support",
+          description: "Especially valuable to builds that solve problems through thrown weapons, quick draws, or repeatable thrown-item pressure.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "combat_maneuver_support",
+          description: "Especially valuable to builds that rely on grappling, tripping, shoving, disarming, or other combat maneuvers to control enemies.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "stealth_entry_support",
+          description: "Especially valuable to quiet-entry, infiltration, burglary, or reconnaissance play that depends on avoiding notice and solving access problems discreetly.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "focus_magic_support",
+          description: "Especially valuable to focus-spell-heavy or magic-routine-driven builds that want more reliable magical cadence and recovery.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "companion_handling_support",
+          description: "Especially valuable when a character's tactical workflow depends on commanding, outfitting, transporting, or protecting companions and mounts.",
+          assignmentMode: "hybrid"
+        },
+        {
+          tag: "action_economy_support",
+          description: "Especially valuable because it compresses setup, speeds access, or meaningfully improves in-combat action efficiency.",
           assignmentMode: "hybrid"
         }
       ]

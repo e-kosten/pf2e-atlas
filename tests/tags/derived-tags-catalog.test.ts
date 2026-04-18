@@ -82,7 +82,17 @@ describe("derived tag catalog", () => {
         axis: "party_role",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "defender_support", description: expect.any(String) }),
-          expect.objectContaining({ value: "scouting_package", description: expect.any(String) }),
+          expect.objectContaining({ value: "scout_support", description: expect.any(String) }),
+          expect.objectContaining({ value: "face_support", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "equipment",
+        family: "play_pattern",
+        axis: "party_role",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "shield_support", description: expect.any(String) }),
+          expect.objectContaining({ value: "action_economy_support", description: expect.any(String) }),
         ]),
       }),
       expect.objectContaining({
@@ -190,6 +200,15 @@ describe("derived tag catalog", () => {
         ]),
       }),
       expect.objectContaining({
+        category: "affliction",
+        family: "resolution_profile",
+        axis: "response",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "cursebreaking_resolution", description: expect.any(String) }),
+          expect.objectContaining({ value: "quarantine_containment_resolution", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
         category: "creature",
         family: "habitat_setting",
         axis: "setting",
@@ -214,6 +233,15 @@ describe("derived tag catalog", () => {
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "geb_setting", description: expect.any(String) }),
           expect.objectContaining({ value: "tian_xia_setting", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "creature",
+        family: "corruption_profile",
+        axis: "specialization",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "blight_tainted", description: expect.any(String) }),
+          expect.objectContaining({ value: "fungal_infested", description: expect.any(String) }),
         ]),
       }),
       expect.objectContaining({

@@ -144,6 +144,24 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
         axis: "response",
         description: expect.stringContaining("response problem"),
       }),
+      expect.objectContaining({
+        category: "affliction",
+        family: "resolution_profile",
+        axis: "response",
+        description: expect.stringContaining("remedies"),
+      }),
+      expect.objectContaining({
+        category: "equipment",
+        family: "play_pattern",
+        axis: "party_role",
+        description: expect.stringContaining("play-pattern-facing"),
+      }),
+      expect.objectContaining({
+        category: "creature",
+        family: "corruption_profile",
+        axis: "specialization",
+        description: expect.stringContaining("corruption and taint"),
+      }),
     ]));
     expect(vocabulary.derivedTagOntologyTags).toEqual(expect.arrayContaining([
       expect.objectContaining({
@@ -189,6 +207,18 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
         assignmentMode: "hybrid",
       }),
       expect.objectContaining({
+        category: "equipment",
+        family: "party_role",
+        tag: "scout_support",
+        assignmentMode: "hybrid",
+      }),
+      expect.objectContaining({
+        category: "equipment",
+        family: "play_pattern",
+        tag: "shield_support",
+        assignmentMode: "hybrid",
+      }),
+      expect.objectContaining({
         category: "hazard",
         family: "function",
         tag: "sentinel_guardian",
@@ -198,6 +228,18 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
         category: "affliction",
         family: "response_profile",
         tag: "outbreak_management",
+        assignmentMode: "hybrid",
+      }),
+      expect.objectContaining({
+        category: "affliction",
+        family: "resolution_profile",
+        tag: "cursebreaking_resolution",
+        assignmentMode: "hybrid",
+      }),
+      expect.objectContaining({
+        category: "creature",
+        family: "corruption_profile",
+        tag: "fungal_infested",
         assignmentMode: "hybrid",
       }),
     ]));
@@ -217,7 +259,17 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
         axis: "party_role",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "defender_support", description: expect.any(String) }),
-          expect.objectContaining({ value: "scouting_package", description: expect.any(String) }),
+          expect.objectContaining({ value: "scout_support", description: expect.any(String) }),
+          expect.objectContaining({ value: "face_support", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "equipment",
+        family: "play_pattern",
+        axis: "party_role",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "shield_support", description: expect.any(String) }),
+          expect.objectContaining({ value: "action_economy_support", description: expect.any(String) }),
         ]),
       }),
       expect.objectContaining({
@@ -311,6 +363,15 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
         ]),
       }),
       expect.objectContaining({
+        category: "affliction",
+        family: "resolution_profile",
+        axis: "response",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "countermagic_resolution", description: expect.any(String) }),
+          expect.objectContaining({ value: "quarantine_containment_resolution", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
         category: "creature",
         family: "planar_setting",
         axis: "setting",
@@ -337,6 +398,15 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
           expect.objectContaining({ value: "prey_control_threat", description: expect.any(String) }),
           expect.objectContaining({ value: "reinforcement_threat", description: expect.any(String) }),
           expect.objectContaining({ value: "infiltration_threat", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "creature",
+        family: "corruption_profile",
+        axis: "specialization",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "blight_tainted", description: expect.any(String) }),
+          expect.objectContaining({ value: "void_tainted", description: expect.any(String) }),
         ]),
       }),
     ]));

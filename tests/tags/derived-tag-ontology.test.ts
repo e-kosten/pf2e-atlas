@@ -113,6 +113,28 @@ describe("derived tag ontology", () => {
       family: "access_bypass",
       assignmentMode: "deterministic",
     }));
+    const scoutSupport = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "equipment" && tag.tag === "scout_support");
+    expect(scoutSupport).toEqual(expect.objectContaining({
+      family: "party_role",
+      assignmentMode: "hybrid",
+    }));
+    const shieldSupport = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "equipment" && tag.tag === "shield_support");
+    expect(shieldSupport).toEqual(expect.objectContaining({
+      family: "play_pattern",
+      assignmentMode: "hybrid",
+    }));
+    const cursebreakingResolution = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "affliction" && tag.tag === "cursebreaking_resolution");
+    expect(cursebreakingResolution).toEqual(expect.objectContaining({
+      family: "resolution_profile",
+      assignmentMode: "hybrid",
+      adjacentTags: ["countermagic_resolution", "ritual_appeasement_resolution"],
+    }));
+    const fungalInfested = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "creature" && tag.tag === "fungal_infested");
+    expect(fungalInfested).toEqual(expect.objectContaining({
+      family: "corruption_profile",
+      assignmentMode: "hybrid",
+      adjacentTags: ["disease_vector", "body_horror"],
+    }));
 
     const urbanSetting = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "creature" && tag.tag === "urban_setting");
     expect(urbanSetting).toEqual(expect.objectContaining({
@@ -229,6 +251,18 @@ describe("derived tag ontology", () => {
         assignmentMode: "deterministic",
       }),
     ]));
+    const groupedEquipmentPlayPattern = groupedCatalog.find((entry) => entry.category === "equipment" && entry.family === "play_pattern");
+    expect(groupedEquipmentPlayPattern?.axis).toBe("party_role");
+    expect(groupedEquipmentPlayPattern?.tags).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        value: "shield_support",
+        assignmentMode: "hybrid",
+      }),
+      expect.objectContaining({
+        value: "action_economy_support",
+        assignmentMode: "hybrid",
+      }),
+    ]));
     const groupedCombatRole = groupedCatalog.find((entry) => entry.category === "creature" && entry.family === "combat_role");
     expect(groupedCombatRole?.tags).toEqual(expect.arrayContaining([
       expect.objectContaining({
@@ -260,6 +294,7 @@ describe("derived tag ontology", () => {
     expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.combat_role.description).toContain("tactical");
     expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.scene_role.description).toContain("immediate-scenario");
     expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.social_role.description).toContain("outside one immediate encounter slot");
+    expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.corruption_profile.description).toContain("corruption and taint");
     expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.visual_motif.description).toContain("visual motifs");
     expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.genre_motif.description).toContain("genre-tone");
     expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.story_motif.description).toContain("plot-driving motifs");
