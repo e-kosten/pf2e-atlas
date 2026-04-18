@@ -607,7 +607,7 @@ describe("derived tag rules: spell", () => {
       subcategory: null,
       descriptionText: "The target can breathe underwater and gains a swim speed while submerged.",
       traits: ["water"],
-    })).toContain("aquatic_support");
+    })).toEqual(expect.arrayContaining(["aquatic_support", "expedition"]));
 
     expect(deriveRecordTags({
       name: "Rain Shield",
@@ -623,7 +623,7 @@ describe("derived tag rules: spell", () => {
       subcategory: null,
       descriptionText: "You create food and water that provide a full day's worth of rations for the group.",
       traits: ["conjuration"],
-    })).toContain("sustenance");
+    })).toEqual(expect.arrayContaining(["sustenance", "expedition"]));
 
     expect(deriveRecordTags({
       name: "Nourishing Aura",
@@ -639,7 +639,7 @@ describe("derived tag rules: spell", () => {
       subcategory: null,
       descriptionText: "You create a cozy cabin that offers safe shelter from weather and a place to rest.",
       traits: ["conjuration"],
-    })).toContain("field_shelter");
+    })).toEqual(expect.arrayContaining(["field_shelter", "expedition"]));
 
     expect(deriveRecordTags({
       name: "Warm Glow",

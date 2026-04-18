@@ -162,6 +162,16 @@ describe("derived tag catalog", () => {
       }),
       expect.objectContaining({
         category: "spell",
+        family: "expedition",
+        axis: "utility",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "expedition", assignmentMode: "composite" }),
+          expect.objectContaining({ value: "field_shelter", description: expect.any(String) }),
+          expect.objectContaining({ value: "environmental_adaptation", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "spell",
         family: "resolution",
         axis: "utility",
         tags: expect.arrayContaining([
@@ -264,6 +274,7 @@ describe("derived tag catalog", () => {
         axis: "problem",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "observation_first", description: expect.any(String) }),
+          expect.objectContaining({ value: "source_tracing", description: expect.any(String) }),
           expect.objectContaining({ value: "layered_resolution", description: expect.any(String) }),
         ]),
       }),

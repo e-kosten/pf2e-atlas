@@ -991,6 +991,25 @@ export const SPELL_DERIVED_TAG_ONTOLOGY = {
             "field_shelter",
             "resistance_support"
           ]
+        },
+        {
+          tag: "expedition",
+          description: "Broad expedition umbrella for spells used for routefinding, travel-ready movement, shelter, sustainment, aquatic operations, and hostile-environment survival.",
+          assignmentMode: "composite",
+          adjacentTags: [
+            "navigation",
+            "field_shelter",
+            "environmental_adaptation"
+          ],
+          compositeOfAny: [
+            fromTag("navigation"),
+            fromTag("flight"),
+            fromTag("aquatic_support"),
+            fromTag("sustenance"),
+            fromTag("field_shelter"),
+            fromTag("environmental_adaptation"),
+            fromTag("wayfinding")
+          ]
         }
       ]
     },

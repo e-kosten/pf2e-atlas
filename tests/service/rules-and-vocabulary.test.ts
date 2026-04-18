@@ -174,6 +174,12 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
         axis: "utility",
         description: expect.stringContaining("solve curses"),
       }),
+      expect.objectContaining({
+        category: "spell",
+        family: "expedition",
+        axis: "utility",
+        description: expect.stringContaining("travel"),
+      }),
     ]));
     expect(vocabulary.derivedTagOntologyTags).toEqual(expect.arrayContaining([
       expect.objectContaining({
@@ -204,6 +210,12 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
         category: "spell",
         family: "communication",
         tag: "communication",
+        assignmentMode: "composite",
+      }),
+      expect.objectContaining({
+        category: "spell",
+        family: "expedition",
+        tag: "expedition",
         assignmentMode: "composite",
       }),
       expect.objectContaining({
@@ -264,6 +276,12 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
         category: "hazard",
         family: "countermeasure_profile",
         tag: "contamination_cleanup_countermeasure",
+        assignmentMode: "hybrid",
+      }),
+      expect.objectContaining({
+        category: "hazard",
+        family: "problem_shape",
+        tag: "source_tracing",
         assignmentMode: "hybrid",
       }),
       expect.objectContaining({
@@ -368,6 +386,15 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       }),
       expect.objectContaining({
         category: "spell",
+        family: "expedition",
+        axis: "utility",
+        tags: expect.arrayContaining([
+          expect.objectContaining({ value: "expedition", assignmentMode: "composite" }),
+          expect.objectContaining({ value: "field_shelter", description: expect.any(String) }),
+        ]),
+      }),
+      expect.objectContaining({
+        category: "spell",
         family: "resolution",
         axis: "utility",
         tags: expect.arrayContaining([
@@ -436,6 +463,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
         axis: "problem",
         tags: expect.arrayContaining([
           expect.objectContaining({ value: "observation_first", description: expect.any(String) }),
+          expect.objectContaining({ value: "source_tracing", description: expect.any(String) }),
           expect.objectContaining({ value: "layered_resolution", description: expect.any(String) }),
         ]),
       }),

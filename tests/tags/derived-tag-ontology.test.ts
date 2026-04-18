@@ -248,6 +248,21 @@ describe("derived tag ontology", () => {
         "The clean answer is learning and executing the hazard's safe procedure, sequence, or pattern rather than destroying it.",
       ]),
     }));
+    const spellExpedition = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "spell" && tag.tag === "expedition");
+    expect(spellExpedition).toEqual(expect.objectContaining({
+      family: "expedition",
+      assignmentMode: "composite",
+      compositeOfAnyTags: ["navigation", "flight", "aquatic_support", "sustenance", "field_shelter", "environmental_adaptation", "wayfinding"],
+    }));
+    const hazardSourceTracing = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "hazard" && tag.tag === "source_tracing");
+    expect(hazardSourceTracing).toEqual(expect.objectContaining({
+      family: "problem_shape",
+      assignmentMode: "hybrid",
+      adjacentTags: ["observation_first", "source_cleanup_countermeasure"],
+      appliesWhen: expect.arrayContaining([
+        "The hazard is naturally retrieved because identifying the source object, origin point, or contamination engine is a major part of solving it.",
+      ]),
+    }));
     const contaminationCleanupCountermeasure = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "hazard" && tag.tag === "contamination_cleanup_countermeasure");
     expect(contaminationCleanupCountermeasure).toEqual(expect.objectContaining({
       family: "countermeasure_profile",

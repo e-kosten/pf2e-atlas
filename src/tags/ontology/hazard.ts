@@ -497,6 +497,23 @@ export const HAZARD_DERIVED_TAG_ONTOLOGY = {
           assignmentMode: "hybrid"
         },
         {
+          tag: "source_tracing",
+          description: "Hazard whose real puzzle is locating the hidden anchor, leak point, cursed source, contamination engine, or origin node before a clean solution becomes possible.",
+          assignmentMode: "hybrid",
+          appliesWhen: [
+            "The hazard is naturally retrieved because identifying the source object, origin point, or contamination engine is a major part of solving it.",
+            "Finding what is powering the danger matters more than merely surviving exposure or executing a known disable procedure."
+          ],
+          doesNotApplyWhen: [
+            "The hazard is fully understandable up front and the real challenge is timing, endurance, or multi-step execution rather than finding an origin.",
+            "The stronger fit is source_cleanup_countermeasure because the source is already obvious and the remaining task is neutralizing it."
+          ],
+          adjacentTags: [
+            "observation_first",
+            "source_cleanup_countermeasure"
+          ]
+        },
+        {
           tag: "endurance_pressure",
           description: "Hazard whose main prep problem is surviving repeated exposure long enough to finish the scene rather than landing one clean solve immediately.",
           assignmentMode: "hybrid"
