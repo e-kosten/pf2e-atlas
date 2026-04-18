@@ -16,6 +16,15 @@ import type { Pf2eTerminalAppServices } from "../../src/tui/app-services.js";
 import { SearchScreen, parseJumpToResultInput } from "../../src/tui/search-screen.js";
 import { DerivedTagTerminalProvider } from "../../src/tui/terminal-ui.js";
 
+type SearchServiceDependencies = Parameters<typeof createPf2eTerminalSearchService>[0];
+type CloseSearchWindowFn = SearchServiceDependencies["closeSearchWindow"];
+type CountRecordsFn = SearchServiceDependencies["countRecords"];
+type ListRecordsFn = SearchServiceDependencies["listRecords"];
+type LookupFn = SearchServiceDependencies["lookup"];
+type OpenSearchWindowFn = SearchServiceDependencies["openSearchWindow"];
+type ReadSearchWindowPageFn = SearchServiceDependencies["readSearchWindowPage"];
+type SearchFn = SearchServiceDependencies["search"];
+
 function flushInk(): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, 0);
@@ -139,17 +148,17 @@ function createRecord(overrides: Partial<NormalizedRecord> = {}): NormalizedReco
 
 function createServices(
   overrides: {
-    closeSearchWindow?: ReturnType<typeof vi.fn>;
-    countRecords?: ReturnType<typeof vi.fn>;
-    listRecords?: ReturnType<typeof vi.fn>;
-    lookup?: ReturnType<typeof vi.fn>;
-    openSearchWindow?: ReturnType<typeof vi.fn>;
-    readSearchWindowPage?: ReturnType<typeof vi.fn>;
-    search?: ReturnType<typeof vi.fn>;
+    closeSearchWindow?: CloseSearchWindowFn;
+    countRecords?: CountRecordsFn;
+    listRecords?: ListRecordsFn;
+    lookup?: LookupFn;
+    openSearchWindow?: OpenSearchWindowFn;
+    readSearchWindowPage?: ReadSearchWindowPageFn;
+    search?: SearchFn;
   } = {},
 ): Pf2eTerminalAppServices {
   const record = createRecord();
-  const countRecords =
+  const countRecords: CountRecordsFn =
     overrides.countRecords ??
     vi.fn(() =>
       Promise.resolve({
@@ -158,7 +167,7 @@ function createServices(
         total: 1,
       } satisfies SearchCountResult),
     );
-  const listRecords =
+  const listRecords: ListRecordsFn =
     overrides.listRecords ??
     vi.fn((filters: SearchFilters) => ({
       searchProfile: null,
@@ -171,8 +180,8 @@ function createServices(
       nextOffset: null,
       records: [record],
     }));
-  const lookup = overrides.lookup ?? vi.fn(() => ({ match: record, alternatives: [] }));
-  const search =
+  const lookup: LookupFn = overrides.lookup ?? vi.fn(() => ({ match: record, alternatives: [] }));
+  const search: SearchFn =
     overrides.search ??
     vi.fn((filters: SearchFilters) =>
       Promise.resolve({
@@ -187,7 +196,7 @@ function createServices(
         records: [record],
       }),
     );
-  const openSearchWindow =
+  const openSearchWindow: OpenSearchWindowFn =
     overrides.openSearchWindow ??
     vi.fn(async (filters: SearchFilters, options?: { mode?: "browse" | "search" | "lookup" }) => {
       const result = options?.mode === "browse" ? listRecords(filters) : await search(filters);
@@ -205,7 +214,7 @@ function createServices(
         records: result.records,
       };
     });
-  const readSearchWindowPage =
+  const readSearchWindowPage: ReadSearchWindowPageFn =
     overrides.readSearchWindowPage ??
     vi.fn((windowId: string, offset: number, limit: number) => ({
       id: windowId,
@@ -220,7 +229,7 @@ function createServices(
       nextOffset: null,
       records: [record],
     }));
-  const closeSearchWindow = overrides.closeSearchWindow ?? vi.fn();
+  const closeSearchWindow: CloseSearchWindowFn = overrides.closeSearchWindow ?? vi.fn();
 
   const searchService = createPf2eTerminalSearchService({
     closeSearchWindow,

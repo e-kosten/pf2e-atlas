@@ -8,6 +8,16 @@ import { Pf2eTerminalApp, Pf2eTerminalBootstrap } from "../../src/tui/pf2e-app.j
 import type { Pf2eTerminalAppServices } from "../../src/tui/app-services.js";
 import type { SearchCategory } from "../../src/types.js";
 import { DerivedTagTerminalProvider } from "../../src/tui/terminal-ui.js";
+import type { Pf2eTerminalSearchSession } from "../../src/tui/search-service.js";
+
+type TerminalSearchService = Pf2eTerminalAppServices["user"]["search"];
+type TerminalSearchRequest = ReturnType<TerminalSearchService["createDefaultRequest"]>;
+type CountQueryFn = TerminalSearchService["countQuery"];
+type ExecuteQueryFn = TerminalSearchService["executeQuery"];
+type LoadMoreFn = TerminalSearchService["loadMore"];
+type ReadResultWindowFn = TerminalSearchService["readResultWindow"];
+type ChangeSortFn = TerminalSearchService["changeSort"];
+type NormalizeRequestFn = TerminalSearchService["normalizeRequest"];
 
 function flushInk(): Promise<void> {
   return new Promise((resolve) => {
@@ -110,7 +120,7 @@ function createRecord(overrides: Partial<NormalizedRecord> = {}): NormalizedReco
 
 function createFakeServices(overrides: Partial<Pf2eTerminalAppServices> = {}): Pf2eTerminalAppServices {
   const record = createRecord();
-  const defaultRequest = {
+  const defaultRequest: TerminalSearchRequest = {
     mode: "browse" as const,
     limit: 50,
     queryText: "",
@@ -134,6 +144,36 @@ function createFakeServices(overrides: Partial<Pf2eTerminalAppServices> = {}): P
       facets: [],
     },
   };
+  const normalizeRequest: NormalizeRequestFn = vi.fn<NormalizeRequestFn>((request) => request);
+  const countQuery: CountQueryFn = vi.fn<CountQueryFn>(() =>
+    Promise.resolve({
+      searchProfile: "lexical",
+      mode: "lexical",
+      total: 1,
+    }),
+  );
+  const executeQuery: ExecuteQueryFn = vi.fn<ExecuteQueryFn>((request) =>
+    Promise.resolve({
+      windowId: "window-1",
+      request,
+      results: [record],
+      windowOffset: 0,
+      resultMode: request.mode === "browse" ? "structured" : "hybrid",
+      total: 1,
+      loadedCount: 1,
+      hasMore: false,
+      nextOffset: null,
+      searchProfile: request.mode === "lookup" ? null : request.searchProfile,
+      sort: "alphabetical",
+      sortSeed: null,
+    }),
+  );
+  const passthroughSession = (session: Pf2eTerminalSearchSession): Promise<Pf2eTerminalSearchSession> =>
+    Promise.resolve(session);
+  const loadMore: LoadMoreFn = vi.fn<LoadMoreFn>((session) => passthroughSession(session));
+  const readResultWindow: ReadResultWindowFn = vi.fn<ReadResultWindowFn>((session) => passthroughSession(session));
+  const changeSort: ChangeSortFn = vi.fn<ChangeSortFn>((session) => passthroughSession(session));
+
   return {
     config: createTestConfig(),
     catalog: {
@@ -244,34 +284,13 @@ function createFakeServices(overrides: Partial<Pf2eTerminalAppServices> = {}): P
             description: "Read matched results in name order.",
           },
         ]),
-        normalizeRequest: vi.fn((request) => request),
+        normalizeRequest,
         getDefaultSort: vi.fn(() => "alphabetical"),
-        countQuery: vi.fn(() =>
-          Promise.resolve({
-            searchProfile: "lexical",
-            mode: "lexical",
-            total: 1,
-          }),
-        ),
-        executeQuery: vi.fn((request) =>
-          Promise.resolve({
-            windowId: "window-1",
-            request,
-            results: [record],
-            windowOffset: 0,
-            resultMode: request.mode === "browse" ? "structured" : "hybrid",
-            total: 1,
-            loadedCount: 1,
-            hasMore: false,
-            nextOffset: null,
-            searchProfile: request.mode === "lookup" ? null : request.searchProfile,
-            sort: "alphabetical",
-            sortSeed: null,
-          }),
-        ),
-        loadMore: vi.fn((session) => Promise.resolve(session)),
-        readResultWindow: vi.fn((session) => Promise.resolve(session)),
-        changeSort: vi.fn((session) => Promise.resolve(session)),
+        countQuery,
+        executeQuery,
+        loadMore,
+        readResultWindow,
+        changeSort,
       },
       ontology: {
         listDomains: vi.fn(() => [
