@@ -35,6 +35,17 @@ Use trunk-based branches such as `feat/<topic>` or `fix/<topic>`. Commit message
 
 - Before committing, validate the completed work against the discussed plan for the task. If any agreed plan item was deferred, partially implemented, or dropped, call that out explicitly and do not present the task as fully complete.
 
+### Large Task Orchestration Policy
+
+Treat a task as large when it spans multiple subsystems, requires a planned end-state refactor, introduces cross-cutting abstractions plus migrations, or otherwise cannot be completed safely as a single local edit-and-verify loop.
+
+- For large tasks, the primary agent must act as an orchestrator first: restate the requested end state, break the work into explicit sub-tasks, identify dependencies, and define what counts as done for the overall workset.
+- When sub-agents are available in the environment, large-task execution should default to delegated sub-task ownership rather than a single agent carrying the entire implementation alone. Serial delegation is acceptable when parallel work is unnecessary or unsafe, but skipping delegation for a large task requires a concrete task-specific reason.
+- Each delegated or local sub-task should have a defined scope, expected artifact, and validation step so partial progress cannot be mistaken for task completion.
+- Meaningful intermediate commits inside the worktree are encouraged when they capture validated milestones, but those commits do not by themselves make the overall task complete.
+- Do not describe a large task as complete, and do not merge its worktree back into `main`, until the full requested workset is implemented, integrated, and validated against the stated end-state checklist. A green intermediate slice is a milestone, not a completion signal.
+- If some agreed work remains open, keep the branch in the worktree, report the remaining scope explicitly, and treat the task as still in progress even if one or more milestone commits have already been made.
+
 ### Agent Worktree Policy
 
 Agents must do implementation work in a dedicated git worktree, not in the shared main checkout.
@@ -52,12 +63,12 @@ Agents must do implementation work in a dedicated git worktree, not in the share
 - Treat `.git/index`, `.git/ORIG_HEAD`, `.git/refs/*`, and `.git/worktrees/*` as shared lock-producing paths.
 - Never run `git add` and `git commit` in parallel.
 - Never run `git status` in parallel with git write operations in the same worktree.
-- Commit and validate the change inside the worktree first.
+- Commit and validate the change inside the worktree first. For large tasks, milestone commits may accumulate in the worktree, but the worktree is not merge-ready until the full planned workset is complete.
 - When the worktree change is ready to land, inspect the shared `main` checkout first. If `main` has any uncommitted tracked changes, stop and tell the user instead of merging.
 - Before attempting to merge back, rebase the worktree branch onto the current `main` so parallel agent commits already landed on `main` are incorporated first.
 - If the rebase hits conflicts, stop there and tell the user what conflicted so they can decide the next step.
 - After a clean rebase, rerun `npm run build` and `npm test` in the rebased worktree. If either fails, stop and tell the user instead of merging.
-- Only after `main` is clean, the rebase is conflict-free, and the rebased worktree passes build and tests should the agent merge the branch back into `main`.
+- Only after `main` is clean, the rebase is conflict-free, the rebased worktree passes build and tests, and the full requested workset is complete should the agent merge the branch back into `main`.
 - Merging back into the shared `main` checkout can require sandbox approval because git updates shared refs such as `ORIG_HEAD`; request escalation when the environment blocks that write.
 - Do not assume a fast-forward merge will be available before rebasing; parallel agent work commonly means the landing branch has diverged from `main`.
 - After merging back into `main`, rerun `npm run build` and `npm test` on `main`, and only then report the task complete.
