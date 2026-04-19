@@ -15,6 +15,10 @@ function flushInk(): Promise<void> {
   });
 }
 
+function pressLeft(app: ReturnType<typeof render>): void {
+  app.stdin.write("\u001b[D");
+}
+
 function createTestConfig(): AppConfig {
   return {
     dataPath: "vendor/pf2e",
@@ -475,15 +479,10 @@ describe("pf2e terminal app", () => {
     await flushInk();
     const searchFrame = app.lastFrame();
     expect(searchFrame).toContain("Browse/Search");
-    expect(
-      searchFrame.includes("[RESULTS] 1/1 | Buf 1 | Alphabetical") || searchFrame.includes("Category | Creature"),
-    ).toBe(true);
-    expect(
-      searchFrame.includes("Current setup matches applied query") ||
-        searchFrame.includes("Seeded from: Browse records with this value"),
-    ).toBe(true);
+    expect(searchFrame).toContain("Category | Creature");
+    expect(searchFrame).toContain("Seeded from: Browse records with this value");
 
-    app.stdin.write("q");
+    pressLeft(app);
     await flushInk();
     await flushInk();
 

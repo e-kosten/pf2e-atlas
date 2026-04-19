@@ -274,6 +274,7 @@ export function Pf2eTerminalApp({
     screen = (
       <SearchScreen
         initialQuery={route.initialQuery}
+        origin={route.origin?.kind === "ontology" ? "ontology" : "app"}
         onBack={() => handleSearchBack(route)}
       />
     );
