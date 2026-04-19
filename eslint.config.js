@@ -79,6 +79,18 @@ export default defineConfig(
     },
   },
   {
+    files: ["src/tui/**/*.{ts,tsx}", "src/tags/migration/review-ui.tsx"],
+    ignores: [
+      "src/tui/keymap.ts",
+      "src/tui/interaction-bindings.ts",
+      "src/tui/action-target.ts",
+      "src/tui/terminal-ui.tsx",
+    ],
+    rules: {
+      "arch/no-direct-terminal-event-routing": "error",
+    },
+  },
+  {
     files: ["src/tui/**/*.{ts,tsx}"],
     ignores: [
       "src/tui/keymap.ts",

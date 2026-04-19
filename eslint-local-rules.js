@@ -43,6 +43,30 @@ function containsRestrictedSearchType(typeAnnotation) {
   }
 }
 
+function isMemberProperty(node, propertyName) {
+  return (
+    node?.type === "MemberExpression" &&
+    !node.computed &&
+    node.property?.type === "Identifier" &&
+    node.property.name === propertyName
+  );
+}
+
+function isLiteralString(node, value) {
+  return node?.type === "Literal" && node.value === value;
+}
+
+function isTerminalInputActionComparison(node, propertyName, literalValue) {
+  if (!["==", "===", "!=", "!=="].includes(node.operator)) {
+    return false;
+  }
+
+  return (
+    (isMemberProperty(node.left, propertyName) && isLiteralString(node.right, literalValue)) ||
+    (isMemberProperty(node.right, propertyName) && isLiteralString(node.left, literalValue))
+  );
+}
+
 const JSON_PARSE_ALLOWED_PATHS = [
   "src/data/metadata-glossary.ts",
   "src/data/references.ts",
@@ -142,6 +166,60 @@ const localRules = {
       return {
         TSAsExpression: reportIfRestrictedAssertion,
         TSTypeAssertion: reportIfRestrictedAssertion,
+      };
+    },
+  },
+  "no-direct-terminal-event-routing": {
+    meta: {
+      type: "problem",
+      docs: {
+        description:
+          "Require TUI feature code to route cancel/back/quit/interrupt behavior through shared interaction helpers.",
+      },
+      schema: [],
+      messages: {
+        noDirectInterruptHandling:
+          "Do not branch on event.systemAction in feature code. Interrupt handling must stay centralized in terminal-ui.",
+        noDirectCancelHandling:
+          'Do not branch on event.textInputAction === "cancel" in feature code. Resolve a shared terminal interaction action instead.',
+        noDirectBackHandling:
+          "Do not call event.isBackNavigationKey() in feature code. Resolve back/return through shared interaction helpers instead.",
+        noDirectQuitHandling:
+          "Do not call event.isTerminalQuitKey() in feature code. Resolve quit through shared interaction helpers instead.",
+      },
+    },
+    create(context) {
+      return {
+        MemberExpression(node) {
+          if (isMemberProperty(node, "systemAction")) {
+            context.report({ node, messageId: "noDirectInterruptHandling" });
+          }
+        },
+        BinaryExpression(node) {
+          if (isTerminalInputActionComparison(node, "textInputAction", "cancel")) {
+            context.report({ node, messageId: "noDirectCancelHandling" });
+          }
+        },
+        SwitchStatement(node) {
+          if (!isMemberProperty(node.discriminant, "textInputAction")) {
+            return;
+          }
+
+          for (const switchCase of node.cases) {
+            if (isLiteralString(switchCase.test, "cancel")) {
+              context.report({ node: switchCase, messageId: "noDirectCancelHandling" });
+            }
+          }
+        },
+        CallExpression(node) {
+          if (isMemberProperty(node.callee, "isBackNavigationKey")) {
+            context.report({ node, messageId: "noDirectBackHandling" });
+            return;
+          }
+          if (isMemberProperty(node.callee, "isTerminalQuitKey")) {
+            context.report({ node, messageId: "noDirectQuitHandling" });
+          }
+        },
       };
     },
   },
