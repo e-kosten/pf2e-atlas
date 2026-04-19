@@ -198,7 +198,7 @@ async function loadFolderFamilyMap(pack: Pick<PackBuildInfo, "name" | "resolvedP
 
   const foldersById = new Map<string, FolderDefinition>();
   for (const entry of raw) {
-    const id = firstString(entry?._id);
+    const id = firstString(entry._id);
     if (id) {
       foldersById.set(id, entry);
     }

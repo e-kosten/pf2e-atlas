@@ -983,7 +983,7 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
       ];
     },
     getFacetFieldOptions: (category, subcategory) => {
-      const categoryFields = category ? (filterSemantics.metadataFieldsByCategory[category] ?? []) : [];
+      const categoryFields = category ? filterSemantics.metadataFieldsByCategory[category] : [];
       const scopedFields =
         subcategory && category
           ? (filterSemantics.metadataFieldsByCategoryAndSubcategory[category]?.[subcategory] ?? [])

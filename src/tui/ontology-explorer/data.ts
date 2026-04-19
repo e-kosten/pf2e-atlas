@@ -183,9 +183,9 @@ function buildRecordFilterText(tag: string, record: OntologyExplorerEntityRecord
     record.type,
     record.documentType,
     record.rarity ?? "",
-    ...(record.traits ?? []),
-    ...(record.derivedTags ?? []),
-    ...(record.families ?? []),
+    ...record.traits,
+    ...record.derivedTags,
+    ...record.families,
     record.blurbText ?? "",
     record.descriptionText ?? "",
   ]
@@ -581,8 +581,8 @@ export function getPublishedExemplarPresence(
   const exemplars = getDerivedTagExemplars(tag, { category });
   return exemplars.reduce(
     (totals, exemplarSet) => ({
-      positive: totals.positive + (exemplarSet.positives?.length ?? 0),
-      negative: totals.negative + (exemplarSet.negatives?.length ?? 0),
+      positive: totals.positive + exemplarSet.positives.length,
+      negative: totals.negative + exemplarSet.negatives.length,
     }),
     { positive: 0, negative: 0 },
   );

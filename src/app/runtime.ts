@@ -35,7 +35,7 @@ export async function loadPf2eApplicationRuntime(
     startupWarnings: dataService.warnings,
     stats: dataService.getStats(),
     close: () => {
-      dataService?.close();
+      dataService.close();
     },
   };
 }

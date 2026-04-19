@@ -404,7 +404,7 @@ async function promptInteger(
   prompt: string,
   flagName: string,
 ): Promise<number | undefined> {
-  while (true) {
+  for (;;) {
     const value = normalizeOptional(
       await terminal.promptTextInput({
         title: "Session Scope",

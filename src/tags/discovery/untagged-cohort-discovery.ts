@@ -926,7 +926,7 @@ function buildCandidateCohorts(
               return total + overlap / signatureKeys.length;
             }, 0) / Math.max(1, members.length)
           : 0;
-      const liftFactor = clusterAnchors.length > 0 ? Math.max(0, Math.min(1, (clusterAnchors[0]!.lift ?? 0) / 6)) : 0;
+      const liftFactor = clusterAnchors.length > 0 ? Math.max(0, Math.min(1, clusterAnchors[0]!.lift / 6)) : 0;
       const localityBonus = clusterAnchors.length > 0 ? localityFactor * 0.12 : 0;
       const overlapCoherenceBonus = clusterAnchors.length > 0 ? overlapShare * 0.08 : 0;
       const lexicalOnlyPenalty =

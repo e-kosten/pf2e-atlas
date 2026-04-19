@@ -166,7 +166,7 @@ function parseParentheticalCandidate(name: string): TitleCandidate | null {
   let remainder = name.trim();
   const labels: string[] = [];
 
-  while (true) {
+  for (;;) {
     const match = remainder.match(/^(.*?)\s+\(([^()]+)\)$/);
     if (!match) {
       break;
@@ -589,8 +589,8 @@ function normalizeTitleToken(value: string): string {
 function tokenizeTitle(name: string): TitleToken[] {
   return [...name.matchAll(/[A-Za-z0-9'+-]+/g)]
     .map((match) => {
-      const raw = match[0] ?? "";
-      const start = match.index ?? 0;
+      const raw = match[0];
+      const start = match.index;
       const normalized = normalizeTitleToken(raw);
       return {
         raw,

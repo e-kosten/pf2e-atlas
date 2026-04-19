@@ -370,7 +370,7 @@ export function buildCandidateQuery(
   return { sql: sql.join("\n"), params };
 }
 
-function appendCandidateOrderBy(sql: string[], sort: SearchSort): void {
+function appendCandidateOrderBy(sql: string[], sort: Exclude<SearchSort, "ranked" | "random">): void {
   switch (sort) {
     case "levelAsc":
       sql.push(
@@ -383,8 +383,8 @@ function appendCandidateOrderBy(sql: string[], sort: SearchSort): void {
       );
       return;
     case "alphabetical":
-    default:
       sql.push("ORDER BY r.name COLLATE NOCASE ASC, r.pack_label COLLATE NOCASE ASC, r.id ASC");
+      return;
   }
 }
 
@@ -494,10 +494,13 @@ export function buildFilterValueQuery(
   const params: SqlValue[] = [];
   const postFilterClauses: string[] = [];
   const postFilterParams: SqlValue[] = [];
-  let valueExpression = "";
+  let valueExpression: string;
 
-  const metadataSource = applyMetadataFilterValueSource(field, joins, postFilterClauses);
-  if (metadataSource) {
+  if (isMetadataFieldName(field)) {
+    const metadataSource = applyMetadataFilterValueSource(field, joins, postFilterClauses);
+    if (!metadataSource) {
+      throw new Error(`No filter value source configured for metadata field "${field}".`);
+    }
     valueExpression = metadataSource.valueExpression;
   } else {
     switch (field) {
@@ -571,6 +574,10 @@ export function buildFilterValueQuery(
         valueExpression = "r.pack_label";
         postFilterClauses.push("AND r.pack_label IS NOT NULL AND r.pack_label <> ''");
         break;
+      default: {
+        const exhaustive: never = field;
+        throw new Error(`Unhandled filter value field "${String(exhaustive)}".`);
+      }
     }
   }
 

@@ -227,6 +227,12 @@ export function formatTerminalInteractionFooter(actions: TerminalInteractionActi
 
 function matchesTerminalInteractionAction(actionId: TerminalInteractionActionId, normalizedKey: string): boolean {
   switch (actionId) {
+    case "move":
+    case "scroll":
+    case "jump":
+    case "page":
+    case "edge":
+      return false;
     case "select":
     case "open":
     case "preview":
@@ -263,8 +269,6 @@ function matchesTerminalInteractionAction(actionId: TerminalInteractionActionId,
       return normalizedKey === "escape";
     case "execute":
       return normalizedKey === "tab" || normalizedKey === "shift_tab";
-    default:
-      return false;
   }
 }
 

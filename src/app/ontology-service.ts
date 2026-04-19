@@ -310,7 +310,7 @@ function buildCategorySubcategoryNodes(
   categoryCount: number,
   liveSubcategoryCounts: Map<string, number>,
 ): OntologyNode {
-  const subcategoryNodes: OntologyNode[] = (CATEGORY_SUBCATEGORY_MAP[category] ?? []).map(
+  const subcategoryNodes: OntologyNode[] = CATEGORY_SUBCATEGORY_MAP[category].map(
     (subcategory): OntologyNode => ({
       id: `${category}:${subcategory}`,
       kind: "subcategory",
@@ -341,7 +341,7 @@ function buildCategorySubcategoryNodes(
     kind: "category",
     label: titleCaseLabel(category),
     shortLabel: category,
-    filterText: buildFilterText(category, ...(CATEGORY_SUBCATEGORY_MAP[category] ?? [])),
+    filterText: buildFilterText(category, ...CATEGORY_SUBCATEGORY_MAP[category]),
     listLabel: `${category} | ${categoryCount} live records`,
     detailTitle: "Category Details",
     detailLines: buildKeyValueDetailLines(titleCaseLabel(category), [
@@ -562,7 +562,7 @@ function buildSearchSemanticsDomain(
 
   const rootNodes = SEARCH_CATEGORIES.map((category) => {
     const liveSubcategoryCounts = liveSubcategoryCountsByCategory.get(category) ?? new Map<string, number>();
-    const categoryFields = semantics.metadataFieldsByCategory[category] ?? [];
+    const categoryFields = semantics.metadataFieldsByCategory[category];
     const metadataFieldNodes: OntologyNode[] = categoryFields.map((field): OntologyNode => {
       const fieldSemantics = metadataFieldsByName.get(field)!;
       const derivedTagCategoryNode = field === "derivedTags" ? derivedTagCategoryNodes.get(category) : undefined;
@@ -718,7 +718,7 @@ function buildSearchSemanticsDomain(
       }),
     );
 
-    const subcategoryNodes: OntologyNode[] = (CATEGORY_SUBCATEGORY_MAP[category] ?? []).map(
+    const subcategoryNodes: OntologyNode[] = CATEGORY_SUBCATEGORY_MAP[category].map(
       (subcategory): OntologyNode => ({
         id: `${category}:subcategory:${subcategory}`,
         kind: "subcategory",
@@ -868,7 +868,7 @@ function buildSearchSemanticsDomain(
         titleCaseLabel(category),
         [
           ["Category", category],
-          ["Subcategories", (CATEGORY_SUBCATEGORY_MAP[category] ?? []).length],
+          ["Subcategories", CATEGORY_SUBCATEGORY_MAP[category].length],
           ["Metadata fields", categoryFields.length],
           ["Advanced predicates", advancedPredicateNodes.length],
         ],

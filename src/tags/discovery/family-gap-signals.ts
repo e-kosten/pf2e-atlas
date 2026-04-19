@@ -374,16 +374,14 @@ function choosePrimaryCue(matches: SettingCueMatch[]): SettingCueMatch | null {
 }
 
 function strengthPriority(value: SettingCueMatch["strength"]): number {
-  if (value === "novel") {
-    return 3;
+  switch (value) {
+    case "novel":
+      return 3;
+    case "strong":
+      return 2;
+    case "weak":
+      return 1;
   }
-  if (value === "strong") {
-    return 2;
-  }
-  if (value === "weak") {
-    return 1;
-  }
-  return 0;
 }
 
 function computeCueLocality(surface: string, matches: SettingCueMatch[]): number {

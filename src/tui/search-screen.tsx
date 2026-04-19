@@ -350,12 +350,14 @@ function formatMode(mode: Pf2eTerminalSearchMode): string {
 
 function formatSort(sort: Pf2eTerminalSearchSort): string {
   switch (sort) {
+    case "ranked":
+    case "alphabetical":
+    case "random":
+      return humanizeIdentifier(sort);
     case "levelAsc":
       return "Level Low-High";
     case "levelDesc":
       return "Level High-Low";
-    default:
-      return humanizeIdentifier(sort);
   }
 }
 

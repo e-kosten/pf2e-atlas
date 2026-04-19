@@ -463,7 +463,7 @@ export function DerivedTagMigrationReviewScreen({
         dispatch({ type: "apply_decision_status", item, status: "approved" });
       } else if (actionId === "reject") {
         dispatch({ type: "apply_decision_status", item, status: "rejected" });
-      } else if (actionId === "needs_review") {
+      } else {
         dispatch({ type: "apply_decision_status", item, status: "needs_review" });
       }
     },
@@ -631,7 +631,7 @@ export async function runDerivedTagMigrationReviewUi(
   rootPath: string,
   initialSession: DerivedTagMigrationSession,
 ): Promise<DerivedTagMigrationReviewResult> {
-  let result: DerivedTagMigrationReviewResult | null = null;
+  let result: DerivedTagMigrationReviewResult | undefined;
 
   await runDerivedTagTerminalApp(
     <ReviewRunner
@@ -643,7 +643,7 @@ export async function runDerivedTagMigrationReviewUi(
     />,
   );
 
-  if (!result) {
+  if (result === undefined) {
     throw new Error("Review did not complete.");
   }
   return result;

@@ -33,6 +33,7 @@ export default defineConfig(
       "@typescript-eslint/restrict-template-expressions": "error",
       "@typescript-eslint/no-redundant-type-constituents": "error",
       "@typescript-eslint/unbound-method": "error",
+      "@typescript-eslint/switch-exhaustiveness-check": "error",
       "@typescript-eslint/require-await": "error",
       "@typescript-eslint/no-floating-promises": "error",
       "@typescript-eslint/no-misused-promises": "error",
@@ -44,6 +45,7 @@ export default defineConfig(
       "@typescript-eslint/no-unsafe-assignment": "error",
       "@typescript-eslint/no-unsafe-member-access": "error",
       "@typescript-eslint/no-unsafe-return": "error",
+      "@typescript-eslint/no-unnecessary-condition": "error",
     },
   },
   {

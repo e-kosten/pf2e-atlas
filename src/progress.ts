@@ -43,7 +43,7 @@ export class ConsoleProgressReporter implements ProgressReporter {
   }
 
   private truncateToTerminalWidth(message: string): string {
-    const terminalWidth = this.stream.columns ?? 0;
+    const terminalWidth = this.stream.columns;
     if (terminalWidth <= 0 || message.length < terminalWidth) {
       return message;
     }

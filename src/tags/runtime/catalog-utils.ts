@@ -341,12 +341,6 @@ export function publishDerivedTagOntology(
 
   for (const tag of tags) {
     const normalizedTagKey = tagKey(tag.category, tag.tag);
-    if (!tag.assignmentMode) {
-      throw new Error(
-        `Derived tag "${normalizeDerivedTag(tag.tag)}" in category "${tag.category}" is missing assignmentMode.`,
-      );
-    }
-
     const normalizedFamilyKey = familyKey(tag.category, tag.family);
     if (!familyByKey.has(normalizedFamilyKey)) {
       throw new Error(

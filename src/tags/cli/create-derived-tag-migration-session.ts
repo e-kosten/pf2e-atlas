@@ -23,6 +23,8 @@ const MODES: DerivedTagMigrationMode[] = [
 
 function parseMode(value: string | undefined): DerivedTagMigrationMode | undefined {
   switch (value) {
+    case undefined:
+      return undefined;
     case "new_tagging":
       return "proposal_review";
     case "review_queue":

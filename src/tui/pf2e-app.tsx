@@ -169,9 +169,7 @@ export function Pf2eTerminalApp({
         });
         return;
       }
-      if (selectedItem.kind === "create_mode") {
-        void startCustomSession(selectedItem.mode);
-      }
+      void startCustomSession(selectedItem.mode);
     },
     [createSessionAndOpenReview, startCustomSession, state.tagRefinementSelectedIndex],
   );
@@ -223,9 +221,6 @@ export function Pf2eTerminalApp({
       <OntologyBrowserScreen
         model={route.model}
         onOpenQuery={(query) => {
-          if (!query) {
-            return;
-          }
           dispatch({ type: "push_route", route: { kind: "search", initialQuery: query } });
         }}
         onExit={() => {

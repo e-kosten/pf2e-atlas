@@ -394,7 +394,7 @@ export function applyMigrationSessionToExemplars(
       positives: sortExemplarRecords(entry.positives ?? []),
       negatives: sortExemplarRecords(entry.negatives ?? []),
     }))
-    .filter((entry) => (entry.positives?.length ?? 0) > 0 || (entry.negatives?.length ?? 0) > 0 || entry.notes)
+    .filter((entry) => entry.positives.length > 0 || entry.negatives.length > 0 || entry.notes)
     .sort((left, right) => normalizeDerivedTag(left.tag).localeCompare(normalizeDerivedTag(right.tag)));
 
   return nextExemplars;

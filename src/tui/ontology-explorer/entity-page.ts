@@ -17,7 +17,7 @@ function renderList(values: string[]): string {
 }
 
 function formatPriceCp(priceCp: number | null): string {
-  if (priceCp === null || priceCp === undefined) {
+  if (priceCp === null) {
     return "(none)";
   }
 

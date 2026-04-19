@@ -285,7 +285,7 @@ function ensureTerminalContext(): DerivedTagTerminalContextValue {
 
 function normalizeLine(line: DerivedTagTerminalLine): Required<DerivedTagTerminalLine> {
   return {
-    text: line.text ?? "",
+    text: line.text,
     segments: line.segments ?? [],
     tone: line.tone ?? "default",
     indent: line.indent ?? 0,
@@ -454,6 +454,8 @@ function renderRows(
 
 function terminalToneProps(tone: DerivedTagTerminalTone): React.ComponentProps<typeof Text> {
   switch (tone) {
+    case "default":
+      return {};
     case "heading":
       return { color: "cyan", bold: true };
     case "section":
@@ -470,8 +472,6 @@ function terminalToneProps(tone: DerivedTagTerminalTone): React.ComponentProps<t
       return { color: "red" };
     case "selected":
       return { inverse: true, bold: true };
-    default:
-      return {};
   }
 }
 
@@ -1466,14 +1466,14 @@ function getPolicyStateForValue(
 
 function policyStateLabel(state: DerivedTagTerminalPolicyState | undefined): string {
   switch (state) {
+    case undefined:
+      return " ";
     case "any":
       return "ANY";
     case "all":
       return "ALL";
     case "exclude":
       return "NOT";
-    default:
-      return " ";
   }
 }
 

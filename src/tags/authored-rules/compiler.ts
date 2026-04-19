@@ -260,10 +260,6 @@ function compileAuthoredRule(ontology: PublishedDerivedTagOntology, rule: Author
     ...(rule.subcategories && rule.subcategories.length > 0 ? { subcategories: [...rule.subcategories] } : {}),
   };
 
-  if (rule.intent !== "deterministic") {
-    throw new Error(`Authored derived tag rule "${rule.tag}" must declare intent "deterministic".`);
-  }
-
   switch (rule.kind) {
     case "trait_match": {
       const traitsAny = normalizeStringList(
