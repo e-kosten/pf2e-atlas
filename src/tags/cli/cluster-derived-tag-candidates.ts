@@ -5,7 +5,7 @@ import { constants } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 
 import { loadConfig } from "../../app/config.js";
-import { SearchCategory, SearchSubcategory } from "../../types.js";
+import { parseOptionalScopedSearchSubcategoryArg, parseOptionalSearchCategoryArg } from "./search-scope-args.js";
 import {
   discoverRuleableCohorts,
   type RuleableCohortOptions,
@@ -77,9 +77,10 @@ function parseFloatValue(value: string | undefined, flagName: string): number | 
 
 export function parseOptions(argv: string[]): RuleableCohortOptions {
   const args = parseCliArgs(argv);
+  const category = parseOptionalSearchCategoryArg(lastValue(args, "category"), "--category");
   return {
-    category: lastValue(args, "category") as SearchCategory | undefined,
-    subcategory: lastValue(args, "subcategory") as SearchSubcategory | undefined,
+    category,
+    subcategory: parseOptionalScopedSearchSubcategoryArg(category, lastValue(args, "subcategory"), "--subcategory"),
     tag: lastValue(args, "tag"),
     exemplarNames: args.name?.map((value) => value.trim()).filter(Boolean),
     exemplarRecordKeys: args["record-key"]?.map((value) => value.trim()).filter(Boolean),

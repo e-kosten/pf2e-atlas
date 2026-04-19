@@ -6,8 +6,8 @@ import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
 import { loadConfig } from "../../app/config.js";
-import { SearchCategory } from "../../types.js";
 import { expandHome } from "../../utils.js";
+import { parseOptionalSearchCategoryArg } from "./search-scope-args.js";
 import {
   evaluateDerivedTagMovement,
   type DerivedTagCategoryMovement,
@@ -73,7 +73,7 @@ function parseFloatValue(value: string | undefined, flagName: string): number | 
   return parsed;
 }
 
-function parseOptions(argv: string[]): CliOptions {
+export function parseOptions(argv: string[]): CliOptions {
   const args = parseCliArgs(argv);
   const baselineIndexPath = args["baseline-index-path"]?.trim();
   if (!baselineIndexPath) {
@@ -82,7 +82,7 @@ function parseOptions(argv: string[]): CliOptions {
 
   return {
     baselineIndexPath: path.resolve(expandHome(baselineIndexPath)),
-    category: args.category as SearchCategory | undefined,
+    category: parseOptionalSearchCategoryArg(args.category, "--category"),
     tags: args.tags
       ?.split(",")
       .map((tag) => tag.trim())
@@ -193,7 +193,9 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((error) => {
-  console.error(`Derived-tag movement evaluation failed: ${(error as Error).message}`);
-  process.exit(1);
-});
+if (import.meta.url === new URL(process.argv[1] ?? "", "file:").href) {
+  main().catch((error) => {
+    console.error(`Derived-tag movement evaluation failed: ${(error as Error).message}`);
+    process.exit(1);
+  });
+}

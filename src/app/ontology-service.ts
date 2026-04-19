@@ -1,6 +1,6 @@
 import { DatabaseSync } from "node:sqlite";
 
-import { CATEGORY_SUBCATEGORY_MAP, SEARCH_CATEGORIES } from "../domain/categories.js";
+import { CATEGORY_SUBCATEGORY_MAP, SEARCH_CATEGORIES, normalizeSearchCategory } from "../domain/categories.js";
 import { getMetadataFilterSemantics, type MetadataFieldSemantics } from "../domain/metadata-semantics.js";
 import { readMetadataGlossaryArtifact } from "../data/metadata-glossary.js";
 import { Pf2eDataService } from "../data/service.js";
@@ -554,7 +554,10 @@ function buildSearchSemanticsDomain(
   const derivedTagCategoryNodes = new Map(
     (derivedTagDomain?.rootNodes ?? [])
       .filter((node): node is OntologyNode => node.kind === "category" && Boolean(node.shortLabel))
-      .map((node) => [node.shortLabel as SearchCategory, node] as const),
+      .flatMap((node) => {
+        const category = normalizeSearchCategory(node.shortLabel);
+        return category ? ([[category, node]] as const) : [];
+      }),
   );
 
   const rootNodes = SEARCH_CATEGORIES.map((category) => {

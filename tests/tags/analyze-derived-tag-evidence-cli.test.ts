@@ -80,6 +80,13 @@ describe("derived-tag evidence CLI helpers", () => {
     );
   });
 
+  it("rejects invalid category scope flags", () => {
+    expect(() => parseOptions(["--category", "relic"])).toThrow(/Invalid search category/i);
+    expect(() => parseOptions(["--category", "creature", "--subcategory", "gear"])).toThrow(
+      /Invalid search subcategory/i,
+    );
+  });
+
   it("renders a readable evidence report", () => {
     const report = formatEvidenceReport({
       category: "spell",

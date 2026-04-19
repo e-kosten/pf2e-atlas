@@ -5,7 +5,7 @@ import { constants } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 
 import { loadConfig } from "../../app/config.js";
-import { SearchCategory, SearchSubcategory } from "../../types.js";
+import { parseOptionalScopedSearchSubcategoryArg, parseOptionalSearchCategoryArg } from "./search-scope-args.js";
 import {
   isReviewedDiscoveryReason,
   type ReviewedDiscoveryApplicationSummary,
@@ -77,9 +77,10 @@ function parseInteger(value: string | undefined, flagName: string): number | und
 
 export function parseOptions(argv: string[]): DiscoveryEvidenceOptions {
   const args = parseCliArgs(argv);
+  const category = parseOptionalSearchCategoryArg(lastValue(args, "category"), "--category");
   const options = {
-    category: lastValue(args, "category") as SearchCategory | undefined,
-    subcategory: lastValue(args, "subcategory") as SearchSubcategory | undefined,
+    category,
+    subcategory: parseOptionalScopedSearchSubcategoryArg(category, lastValue(args, "subcategory"), "--subcategory"),
     recordKeys: args["record-key"]?.map((value) => value.trim()).filter(Boolean),
     excludeRecordKeys: args["exclude-record-key"]?.map((value) => value.trim()).filter(Boolean),
     tag: lastValue(args, "tag"),

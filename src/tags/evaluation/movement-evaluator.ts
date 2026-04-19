@@ -2,6 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 
 import { normalizeDerivedTag } from "../index.js";
 import { SearchCategory } from "../../types.js";
+import { parseSearchCategoryValue } from "../../data/sql-row-decoding.js";
 
 type CategoryStatRow = {
   category: string;
@@ -172,7 +173,7 @@ function loadCategoryStats(db: DatabaseSync): Map<SearchCategory, { total: numbe
 
   return new Map(
     rows.map((row) => [
-      row.category as SearchCategory,
+      parseSearchCategoryValue(row.category, `derived tag movement category row "${row.category}"`),
       {
         total: toNumber(row.total),
         tagged: toNumber(row.tagged),

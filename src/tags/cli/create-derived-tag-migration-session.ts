@@ -11,7 +11,7 @@ import { renderDerivedTagMigrationSessionSummary } from "../migration/render.js"
 import { writeDerivedTagMigrationSession } from "../migration/session-store.js";
 import { buildDerivedTagMigrationSession } from "../migration/session-builder.js";
 import type { DerivedTagMigrationMode } from "../migration/types.js";
-import type { SearchCategory, SearchSubcategory } from "../../types.js";
+import { parseOptionalScopedSearchSubcategoryArg, parseOptionalSearchCategoryArg } from "./search-scope-args.js";
 
 const MODES: DerivedTagMigrationMode[] = [
   "review_queue",
@@ -22,13 +22,30 @@ const MODES: DerivedTagMigrationMode[] = [
 ];
 
 function parseMode(value: string | undefined): DerivedTagMigrationMode | undefined {
-  if (!value) {
-    return undefined;
+  switch (value) {
+    case "new_tagging":
+      return "proposal_review";
+    case "review_queue":
+    case "proposal_review":
+    case "legacy_seed":
+    case "legacy_rule":
+    case "exemplar_cleanup":
+      return value;
+    default:
+      return undefined;
   }
-  if (value === "new_tagging") {
-    return "proposal_review";
+}
+
+function parseDecisionKind(value: string | undefined): "assignment" | "exemplar" | undefined {
+  switch (value) {
+    case "assignment":
+    case "exemplar":
+      return value;
+    case undefined:
+      return undefined;
+    default:
+      throw new Error(`Expected --decision-kind to be "assignment" or "exemplar", received "${value}".`);
   }
-  return MODES.includes(value as DerivedTagMigrationMode) ? (value as DerivedTagMigrationMode) : undefined;
 }
 
 function renderHelp(): string {
@@ -64,11 +81,12 @@ async function main(): Promise<void> {
 
   const { db } = await openConfiguredIndex(argv);
   try {
+    const category = parseOptionalSearchCategoryArg(lastValue(args, "category"), "--category");
     const session = buildDerivedTagMigrationSession(db, {
       mode,
-      category: lastValue(args, "category") as SearchCategory | undefined,
-      subcategory: lastValue(args, "subcategory") as SearchSubcategory | undefined,
-      decisionKind: lastValue(args, "decision-kind") as "assignment" | "exemplar" | undefined,
+      category,
+      subcategory: parseOptionalScopedSearchSubcategoryArg(category, lastValue(args, "subcategory"), "--subcategory"),
+      decisionKind: parseDecisionKind(lastValue(args, "decision-kind")),
       family: lastValue(args, "family"),
       tag: lastValue(args, "tag"),
       limit: parseInteger(lastValue(args, "limit"), "--limit"),

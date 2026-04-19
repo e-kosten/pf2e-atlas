@@ -7,6 +7,7 @@ import { pathToFileURL } from "node:url";
 
 import { loadConfig } from "../../app/config.js";
 import { SearchCategory, SearchSubcategory } from "../../types.js";
+import { parseOptionalScopedSearchSubcategoryArg, parseOptionalSearchCategoryArg } from "./search-scope-args.js";
 import {
   discoverSemanticCandidates,
   type SemanticDiscoveryCandidate,
@@ -87,9 +88,10 @@ export function parseOptions(argv: string[]): CliOptions {
     throw new Error("Provide at least one exemplar via --name <record name> or --record-key <canonical record key>.");
   }
 
+  const category = parseOptionalSearchCategoryArg(lastValue(args, "category"), "--category");
   const options = {
-    category: lastValue(args, "category") as SearchCategory | undefined,
-    subcategory: lastValue(args, "subcategory") as SearchSubcategory | undefined,
+    category,
+    subcategory: parseOptionalScopedSearchSubcategoryArg(category, lastValue(args, "subcategory"), "--subcategory"),
     exemplarNames,
     exemplarRecordKeys,
     limit: parseInteger(lastValue(args, "candidate-limit") ?? lastValue(args, "limit"), "--candidate-limit"),

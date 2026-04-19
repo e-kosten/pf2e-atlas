@@ -7,6 +7,7 @@ import { DatabaseSync } from "node:sqlite";
 import { loadConfig } from "../../app/config.js";
 import { evaluateDerivedTagGaps } from "../evaluation/gap-evaluator.js";
 import { SearchCategory, SearchSubcategory } from "../../types.js";
+import { parseOptionalScopedSearchSubcategoryArg, parseOptionalSearchCategoryArg } from "./search-scope-args.js";
 
 type CliOptions = {
   tag: string;
@@ -74,19 +75,25 @@ function parseFloatValue(value: string | undefined, flagName: string): number | 
   return parsed;
 }
 
-function parseOptions(argv: string[]): CliOptions {
+export function parseOptions(argv: string[]): CliOptions {
   const args = parseCliArgs(argv);
   const tag = args.tag?.trim();
   if (!tag) {
     throw new Error("Missing required --tag <derived-tag> argument.");
   }
 
+  const category = parseOptionalSearchCategoryArg(args.category, "--category");
+  const exemplarCategory = parseOptionalSearchCategoryArg(args["exemplar-category"], "--exemplar-category");
   return {
     tag,
-    category: args.category as SearchCategory | undefined,
-    subcategory: args.subcategory as SearchSubcategory | undefined,
-    exemplarCategory: args["exemplar-category"] as SearchCategory | undefined,
-    exemplarSubcategory: args["exemplar-subcategory"] as SearchSubcategory | undefined,
+    category,
+    subcategory: parseOptionalScopedSearchSubcategoryArg(category, args.subcategory, "--subcategory"),
+    exemplarCategory,
+    exemplarSubcategory: parseOptionalScopedSearchSubcategoryArg(
+      exemplarCategory,
+      args["exemplar-subcategory"],
+      "--exemplar-subcategory",
+    ),
     limit: parseInteger(args.limit, "--limit"),
     exemplarLimit: parseInteger(args["exemplar-limit"], "--exemplar-limit"),
     commonTraitLimit: parseInteger(args["common-trait-limit"], "--common-trait-limit"),
@@ -175,7 +182,9 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((error) => {
-  console.error(`Derived-tag gap evaluation failed: ${(error as Error).message}`);
-  process.exit(1);
-});
+if (import.meta.url === new URL(process.argv[1] ?? "", "file:").href) {
+  main().catch((error) => {
+    console.error(`Derived-tag gap evaluation failed: ${(error as Error).message}`);
+    process.exit(1);
+  });
+}

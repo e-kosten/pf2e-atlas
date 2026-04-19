@@ -278,6 +278,13 @@ describe("discover untagged cohorts", () => {
     }
   });
 
+  it("rejects invalid category scope flags", () => {
+    expect(() => parseOptions(["--category", "relic"])).toThrow(/Invalid search category/i);
+    expect(() => parseOptions(["--category", "creature", "--subcategory", "gear"])).toThrow(
+      /Invalid search subcategory/i,
+    );
+  });
+
   it("can use four-word phrases as cohort anchors when configured", () => {
     const db = createDiscoveryDb();
     try {

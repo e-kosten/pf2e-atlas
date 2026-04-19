@@ -57,6 +57,14 @@ describe("semantic discovery CLI helpers", () => {
     ).toThrow(/less than or equal/i);
   });
 
+  it("rejects invalid category scope flags", () => {
+    expect(() => parseOptions(["--category", "relic", "--name", "Ghost Commoner"])).toThrow(/Invalid search category/i);
+
+    expect(() => parseOptions(["--category", "creature", "--subcategory", "gear", "--name", "Ghost Commoner"])).toThrow(
+      /Invalid search subcategory/i,
+    );
+  });
+
   it("renders a readable semantic discovery report", () => {
     const report = formatSemanticDiscoveryReport({
       category: "creature",

@@ -6,7 +6,7 @@ import { DatabaseSync } from "node:sqlite";
 
 import { loadConfig } from "../../app/config.js";
 import { ConsoleProgressReporter } from "../../progress.js";
-import { SearchCategory, SearchSubcategory } from "../../types.js";
+import { parseOptionalScopedSearchSubcategoryArg, parseRequiredSearchCategoryArg } from "./search-scope-args.js";
 import {
   isReviewedDiscoveryReason,
   type ReviewedDiscoveryApplicationSummary,
@@ -92,14 +92,11 @@ function parseFloatValue(value: string | undefined, flagName: string): number | 
 
 export function parseOptions(argv: string[]): UntaggedCohortOptions {
   const args = parseCliArgs(argv);
-  const category = lastValue(args, "category") as SearchCategory | undefined;
-  if (!category) {
-    throw new Error("Missing required --category <category> argument.");
-  }
+  const category = parseRequiredSearchCategoryArg(lastValue(args, "category"), "--category");
 
   const options = {
     category,
-    subcategory: lastValue(args, "subcategory") as SearchSubcategory | undefined,
+    subcategory: parseOptionalScopedSearchSubcategoryArg(category, lastValue(args, "subcategory"), "--subcategory"),
     family: lastValue(args, "family"),
     familyGapSignals: hasFlag(args, "family-gap-signals"),
     includeReviewed: hasFlag(args, "include-reviewed"),
