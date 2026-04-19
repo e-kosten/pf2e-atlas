@@ -293,8 +293,8 @@ function buildQueryFieldBuilderItems(fieldOptions: Pf2eTerminalQueryFieldOption[
       fieldOption,
       label: fieldOption.label,
     })),
-    { kind: "finish" as const, label: "Finish Clause Builder" },
-    { kind: "cancel" as const, label: "Cancel" },
+    { kind: "finish" as const, label: "Return to Staged Query" },
+    { kind: "cancel" as const, label: "Discard Field Edits" },
   ];
 }
 
@@ -350,6 +350,7 @@ export function useSearchWorkspaceActions({
   jumpToResultPosition: () => Promise<void>;
   maxDetailScroll: number;
   openQueryFieldPicker: (options: {
+    queryOverride?: Pf2eTerminalSearchQuery;
     fieldOptions: Pf2eTerminalQueryFieldOption[];
     initialSelections?: Pf2eTerminalQueryFieldSelectionMap;
     onApply: (selection: Pf2eTerminalQueryFieldSelectionMap) => void;
@@ -680,6 +681,7 @@ export function useSearchWorkspaceActions({
       }
 
       return openQueryFieldPicker({
+        queryOverride: query,
         fieldOptions: [fieldOption],
         initialSelections: buildSelectionMap(fieldOption.value, currentPolicy),
         onReturn,
@@ -922,9 +924,13 @@ export function useSearchWorkspaceActions({
     );
   }, [queryFieldBuilderState, replaceStructuredDraftQuery]);
 
-  const cancelQueryFieldBuilder = React.useCallback(() => {
+  const discardQueryFieldBuilder = React.useCallback(() => {
     setQueryFieldBuilderState(null);
   }, []);
+
+  const returnQueryFieldBuilder = React.useCallback(() => {
+    finishQueryFieldBuilder();
+  }, [finishQueryFieldBuilder]);
 
   const editQueryFieldBuilderField = React.useCallback(
     async (fieldOption: Pf2eTerminalQueryFieldOption) => {
@@ -963,11 +969,11 @@ export function useSearchWorkspaceActions({
       return;
     }
     if (selectedItem.kind === "finish") {
-      finishQueryFieldBuilder();
+      returnQueryFieldBuilder();
       return;
     }
-    cancelQueryFieldBuilder();
-  }, [cancelQueryFieldBuilder, editQueryFieldBuilderField, finishQueryFieldBuilder, queryFieldBuilderState]);
+    discardQueryFieldBuilder();
+  }, [discardQueryFieldBuilder, editQueryFieldBuilderField, queryFieldBuilderState, returnQueryFieldBuilder]);
 
   const queryFieldBuilderSession = React.useMemo<SearchQueryFieldBuilderSession | null>(() => {
     if (!queryFieldBuilderState) {
@@ -1016,8 +1022,8 @@ export function useSearchWorkspaceActions({
         });
       },
       selectCurrent: selectCurrentQueryFieldBuilderItem,
-      finish: finishQueryFieldBuilder,
-      cancel: cancelQueryFieldBuilder,
+      finish: returnQueryFieldBuilder,
+      cancel: returnQueryFieldBuilder,
       helpTitle: "Add Query Part Help",
       helpBody: [
         { text: "Choose the next query field to stage into the structured draft.", tone: "section" },
@@ -1025,14 +1031,16 @@ export function useSearchWorkspaceActions({
           text: "The right pane keeps the full staged query summary visible while you move between fields.",
         },
         {
-          text: "Concrete selections accumulate in the staged summary immediately, even before you finish the parent draft.",
+          text: "Use Left or Esc to return to the staged query with current field edits preserved.",
+        },
+        {
+          text: "Use the discard row only when you want to drop the in-progress field edits from this subpage.",
         },
       ],
     };
   }, [
-    cancelQueryFieldBuilder,
-    finishQueryFieldBuilder,
     queryFieldBuilderState,
+    returnQueryFieldBuilder,
     selectCurrentQueryFieldBuilderItem,
   ]);
 

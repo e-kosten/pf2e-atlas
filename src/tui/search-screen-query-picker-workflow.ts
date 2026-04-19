@@ -27,6 +27,7 @@ export function useSearchQueryFieldPickerWorkflow({
 }): {
   selectionPickerSession: SearchQueryFieldPickerSession | null;
   openQueryFieldPicker: (options: {
+    queryOverride?: Pf2eTerminalSearchQuery;
     fieldOptions: Pf2eTerminalQueryFieldOption[];
     initialSelections?: Pf2eTerminalQueryFieldSelectionMap;
     onApply: (selection: Pf2eTerminalQueryFieldSelectionMap) => void;
@@ -35,24 +36,27 @@ export function useSearchQueryFieldPickerWorkflow({
   }) => Promise<boolean>;
   closeQueryFieldPicker: () => void;
 } {
-  const querySubcategory = React.useMemo(() => getSearchQuerySubcategory(query), [query]);
   const [selectionPickerSession, setSelectionPickerSession] = React.useState<SearchQueryFieldPickerSession | null>(null);
 
   const openQueryFieldPicker = React.useCallback(
     async ({
+      queryOverride,
       fieldOptions,
       initialSelections = {},
       onApply,
       onReturn,
       singleFieldBehavior = onReturn ? "directValues" : "list",
     }: {
+      queryOverride?: Pf2eTerminalSearchQuery;
       fieldOptions: Pf2eTerminalQueryFieldOption[];
       initialSelections?: Pf2eTerminalQueryFieldSelectionMap;
       onApply: (selection: Pf2eTerminalQueryFieldSelectionMap) => void;
       onReturn?: () => void;
       singleFieldBehavior?: "list" | "directValues";
     }): Promise<boolean> => {
-      if (!query.filters.category) {
+      const scopeQuery = queryOverride ?? query;
+      const scopeSubcategory = getSearchQuerySubcategory(scopeQuery);
+      if (!scopeQuery.filters.category) {
         await onUnavailable("Choose a category before editing a discoverable query field.");
         return false;
       }
@@ -63,8 +67,8 @@ export function useSearchQueryFieldPickerWorkflow({
 
       const searchSemanticsDomain = services.ontology.loadDomain("searchSemantics");
       const model = buildSearchQueryFieldSelectionPickerModel(searchSemanticsDomain, {
-        category: query.filters.category,
-        subcategory: querySubcategory,
+        category: scopeQuery.filters.category,
+        subcategory: scopeSubcategory,
         fieldOptions,
       });
       if (model.rootNodes.length === 0) {
@@ -107,7 +111,7 @@ export function useSearchQueryFieldPickerWorkflow({
       });
       return true;
     },
-    [onUnavailable, query.filters.category, querySubcategory, services.ontology],
+    [onUnavailable, query, services.ontology],
   );
 
   const closeQueryFieldPicker = React.useCallback(() => {

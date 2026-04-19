@@ -379,6 +379,65 @@ function createFacetPickerOntologyDomain(): OntologyDomainModel {
   };
 }
 
+function createCreatureDerivedTagsOntologyDomain(): OntologyDomainModel {
+  return {
+    id: "searchSemantics",
+    label: "Search Semantics",
+    description: "Creature facet picker domain",
+    rootNodes: [
+      {
+        id: "searchSemantics:creature",
+        kind: "category",
+        label: "Creature",
+        shortLabel: "creature",
+        filterText: "creature",
+        detailTitle: "Search Semantics",
+        detailLines: [{ text: "Creature", tone: "section" }],
+        children: [
+          {
+            id: "creature:metadataFields",
+            kind: "group",
+            label: "Metadata Fields",
+            filterText: "metadata fields",
+            detailTitle: "Metadata Fields",
+            detailLines: [{ text: "Metadata Fields", tone: "section" }],
+            children: [
+              {
+                id: "creature:field:derivedTags",
+                kind: "field",
+                label: "derivedTags",
+                filterText: "derived tags",
+                listLabel: "derivedTags",
+                detailTitle: "Metadata Field Details",
+                detailLines: [{ text: "derivedTags", tone: "section" }],
+                childPresentation: {
+                  mode: "grouped",
+                  groupBy: "axis",
+                  render: "inline",
+                },
+                children: [
+                  {
+                    id: "creature:derivedTags:undead",
+                    kind: "tag",
+                    label: "undead",
+                    filterText: "undead",
+                    listLabel: "undead",
+                    detailTitle: "Tag Details",
+                    detailLines: [{ text: "undead", tone: "section" }],
+                    groupValues: {
+                      axis: "creature-type",
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+}
+
 describe("search screen", () => {
   afterEach(() => {
     cleanup();
@@ -1744,5 +1803,106 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Traits");
     expect(app.lastFrame()).toContain("Derived Tags");
     expect(app.lastFrame()).not.toContain("Browse/Search");
+
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+    expect(app.lastFrame()).toContain("Traits Query");
+    expect(app.lastFrame()).toContain("Selection Picker");
+
+    app.stdin.write(" ");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Policy any");
+    expect(app.lastFrame()).toContain("traits: any=illusion");
+
+    pressLeft(app);
+    await flushInk();
+    expect(app.lastFrame()).toContain("Add Query Part");
+    expect(app.lastFrame()).toContain("Traits | staged");
+
+    pressLeft(app);
+    await flushInk();
+    expect(app.lastFrame()).toContain("Structured Query Editor");
+    expect(app.lastFrame()).toContain("Query Clause: includes any Illusion");
+    expect(app.lastFrame()).not.toContain("Browse/Search");
+  });
+
+  it("scopes ontology-backed query fields from the staged category instead of the live query", async () => {
+    const services = createServices();
+    services.user.search.getCategoryOptions = vi.fn(() => [
+      { value: null, label: "Any Category", description: "Browse every category." },
+      { value: "creature", label: "Creature", description: "Browse creatures." },
+    ]);
+    services.user.search.getQueryFieldOptions = vi.fn((category) =>
+      category === "creature"
+        ? [
+            {
+              value: "derivedTags",
+              label: "Derived Tags",
+              description: "Derived-tag query field for the current creature scope.",
+              fieldType: "set",
+              editor: "ontologyPicker",
+            },
+          ]
+        : [],
+    );
+    services.user.ontology.loadDomain = vi.fn((id: string) => {
+      if (id === "searchSemantics") {
+        return createCreatureDerivedTagsOntologyDomain();
+      }
+      return {
+        id: "fallback",
+        label: "Fallback",
+        description: "Unused test domain",
+        rootNodes: [],
+      };
+    });
+
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen onBack={vi.fn()} />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    pressLeft(app);
+    await flushInk();
+    for (let step = 0; step < 2; step += 1) {
+      pressDown(app);
+      await flushInk();
+    }
+
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Structured Query Editor");
+    expect(app.lastFrame()).toContain("Category | Any Category");
+
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Category Scope");
+
+    pressDown(app);
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Category | Creature");
+
+    app.stdin.write("G");
+    await flushInk();
+    pressUp(app);
+    await flushInk();
+    pressUp(app);
+    await flushInk();
+    expect(app.lastFrame()).toContain("Query Logic");
+
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+    expect(app.lastFrame()).toContain("Derived Tags Query");
+    expect(app.lastFrame()).toContain("Selection Picker");
+    expect(app.lastFrame()).toContain("[VALUES]");
+    expect(app.lastFrame()).not.toContain("Choose a category before editing a discoverable query field.");
   });
 });
