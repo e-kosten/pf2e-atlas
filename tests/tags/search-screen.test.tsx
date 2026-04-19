@@ -612,7 +612,9 @@ describe("search screen", () => {
     }
     await flushInk();
     expect(app.lastFrame()).toContain("Subcategory | unavailable");
-    expect(app.lastFrame()).toContain("This command is currently unavailable.");
+    expect(app.lastFrame()).toContain("Unavailable: Choose a category first, then refine to a");
+    expect(app.lastFrame()).toContain("subcategory.");
+    expect(app.lastFrame()).not.toContain("This command is currently unavailable.");
 
     app.stdin.write("\r");
     await flushInk();

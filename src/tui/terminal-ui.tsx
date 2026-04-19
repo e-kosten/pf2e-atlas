@@ -59,6 +59,7 @@ export type DerivedTagTerminalSelectOption<T = string> = {
 export type DerivedTagTerminalCommandOption<T extends string = string> = DerivedTagTerminalSelectOption<T> & {
   aliases?: string[];
   disabled?: boolean;
+  disabledReason?: string;
   keywords?: string[];
 };
 
@@ -1212,7 +1213,16 @@ function buildCommandPaletteDetailLines(
 
   return [
     ...lines,
-    ...(option?.disabled ? [{ text: "This command is currently unavailable.", tone: "warning" as const }] : []),
+    ...(option?.disabled
+      ? [
+          {
+            text: option.disabledReason
+              ? `Unavailable: ${option.disabledReason}`
+              : "This command is currently unavailable.",
+            tone: "warning" as const,
+          },
+        ]
+      : []),
     { text: "" },
     { text: `Filter: ${filterText || "(none)"}`, tone: "accent" as const },
   ];

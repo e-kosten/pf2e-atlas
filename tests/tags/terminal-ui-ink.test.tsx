@@ -260,8 +260,9 @@ function DisabledCommandPaletteHarness(): React.JSX.Element {
           {
             value: "disabled",
             label: "Disabled Command",
-            description: "Unavailable until the current scope changes.",
+            description: "Run the currently unavailable command.",
             disabled: true,
+            disabledReason: "Unavailable until the current scope changes.",
           },
           {
             value: "enabled",
@@ -513,7 +514,8 @@ describe("derived tag terminal ink runtime", () => {
     }
     await flushInkFrames();
     expect(app.lastFrame()).toContain("Disabled Command | unavailable");
-    expect(app.lastFrame()).toContain("This command is currently unavailable.");
+    expect(app.lastFrame()).toContain("Unavailable: Unavailable until the current scope changes.");
+    expect(app.lastFrame()).not.toContain("This command is currently unavailable.");
 
     app.stdin.write("\r");
     await flushInkFrames();

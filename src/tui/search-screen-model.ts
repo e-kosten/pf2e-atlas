@@ -48,6 +48,7 @@ export type SearchWorkspaceEntry = {
   value: string;
   description: string;
   disabled?: boolean;
+  disabledReason?: string;
 };
 
 export type SearchScreenLayout = "draft" | "results";
@@ -523,10 +524,9 @@ export function buildWorkspaceEntries(state: SearchScreenState, countState: Sear
       action: "execute",
       label: "Execute Query",
       value: formatCountSummary(countState, state.draft),
-      description: executeAvailability.disabled
-        ? (executeAvailability.reason ?? "Unavailable for the current query setup.")
-        : "Apply the current query setup and switch into the results reader.",
+      description: "Apply the current query setup and switch into the results reader.",
       disabled: executeAvailability.disabled,
+      disabledReason: executeAvailability.reason ?? undefined,
     },
     {
       action: "mode",
@@ -554,10 +554,9 @@ export function buildWorkspaceEntries(state: SearchScreenState, countState: Sear
       action: "subcategory",
       label: "Subcategory",
       value: formatSearchSubcategory(state.draft.filters.subcategory),
-      description: state.draft.filters.category
-        ? "Set the within-category boundary for this query setup."
-        : "Choose a category first, then refine to a subcategory.",
+      description: "Set the within-category boundary for this query setup.",
       disabled: !state.draft.filters.category,
+      disabledReason: state.draft.filters.category ? undefined : "Choose a category first, then refine to a subcategory.",
     },
     {
       action: "levels",
@@ -575,20 +574,20 @@ export function buildWorkspaceEntries(state: SearchScreenState, countState: Sear
       action: "addFacet",
       label: "Edit Facet Filter",
       value: `${state.draft.filters.facets.length + (hasFilterPolicy(state.draft.filters.actionCost) ? 1 : 0)} active`,
-      description: state.draft.filters.category
-        ? "Choose a discoverable metadata field and cycle each value through any, all, or exclude."
-        : "Choose a category before editing discoverable facet filters.",
+      description: "Choose a discoverable metadata field and cycle each value through any, all, or exclude.",
       disabled: !state.draft.filters.category,
+      disabledReason: state.draft.filters.category ? undefined : "Choose a category before editing discoverable facet filters.",
     },
     {
       action: "removeFacet",
       label: "Clear Facet Filter",
       value: `${state.draft.filters.facets.length + (hasFilterPolicy(state.draft.filters.actionCost) ? 1 : 0)} active`,
-      description:
-        state.draft.filters.facets.length > 0 || hasFilterPolicy(state.draft.filters.actionCost)
-          ? "Remove an entire facet policy block from the current query setup."
-          : "No facet policies are currently applied.",
+      description: "Remove an entire facet policy block from the current query setup.",
       disabled: state.draft.filters.facets.length === 0 && !hasFilterPolicy(state.draft.filters.actionCost),
+      disabledReason:
+        state.draft.filters.facets.length > 0 || hasFilterPolicy(state.draft.filters.actionCost)
+          ? undefined
+          : "No facet policies are currently applied.",
     },
     {
       action: "reset",
@@ -600,10 +599,9 @@ export function buildWorkspaceEntries(state: SearchScreenState, countState: Sear
       action: "clearResults",
       label: "Discard Applied Results",
       value: state.session ? `${state.session.loadedCount}/${state.session.total} loaded` : "No results",
-      description: state.session
-        ? "Clear the applied result reader while leaving the current query setup untouched."
-        : "There is no applied result reader to discard.",
+      description: "Clear the applied result reader while leaving the current query setup untouched.",
       disabled: !state.session,
+      disabledReason: state.session ? undefined : "There is no applied result reader to discard.",
     },
   ];
 
@@ -765,7 +763,7 @@ export function buildWorkspaceEntryDetailLines(
     { text: entry.label, tone: "section" },
     { text: `Current value: ${entry.value}` },
     {
-      text: entry.disabled ? `Unavailable: ${entry.description}` : entry.description,
+      text: entry.disabled ? `Unavailable: ${entry.disabledReason ?? entry.description}` : entry.description,
       tone: descriptionTone,
     },
     ...(entry.disabled
@@ -918,9 +916,10 @@ export function buildDraftCommandPaletteEntries(
   return workspaceEntries.map((entry) => ({
     value: entry.action,
     label: entry.label,
-    description: entry.disabled ? `Unavailable. ${entry.description}` : entry.description,
+    description: entry.description,
     keywords: [entry.value],
     disabled: entry.disabled,
+    disabledReason: entry.disabledReason,
   }));
 }
 
