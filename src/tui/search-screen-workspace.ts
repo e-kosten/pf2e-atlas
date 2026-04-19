@@ -13,21 +13,18 @@ import type { SearchCountState, SearchScreenState } from "./search-screen-state.
 import { formatCount, formatResultPosition, formatSort, getSessionBufferRange } from "./search-screen-state.js";
 
 export type SearchWorkspaceAction =
-  | "execute"
   | "mode"
   | "query"
   | "profile"
-  | "category"
-  | "subcategory"
-  | "levels"
-  | "rarity"
-  | "addFacet"
-  | "removeFacet"
-  | "addClause"
+  | "addQueryPart"
   | "clearClauses"
   | "reset"
   | "clearResults"
+  | "execute"
+  | `queryPart:${SearchWorkspaceQueryPart}`
   | `queryNode:${string}`;
+
+type SearchWorkspaceQueryPart = "scope" | "levels" | "rarity" | "facets";
 
 export type SearchWorkspaceEntry = {
   action: SearchWorkspaceAction;
@@ -84,6 +81,20 @@ export function hasFilterPolicy<T extends number | string>(policy: Pf2eTerminalF
 
 function formatFacetSelection(facet: Pf2eTerminalFacetSelection): string {
   return `${humanizeIdentifier(facet.field)}: ${formatFilterPolicy(facet.policy)}`;
+}
+
+function countFacetPolicies(request: Pf2eTerminalSearchQuery): number {
+  return request.filters.facets.length + (hasFilterPolicy(request.filters.actionCost) ? 1 : 0);
+}
+
+function countStructuredQueryParts(request: Pf2eTerminalSearchQuery): number {
+  return (
+    (request.filters.category || request.filters.subcategory ? 1 : 0) +
+    (request.filters.levelMin !== null || request.filters.levelMax !== null ? 1 : 0) +
+    (hasFilterPolicy(request.filters.rarity) ? 1 : 0) +
+    (countFacetPolicies(request) > 0 ? 1 : 0) +
+    (request.filters.metadata ? countMetadataPredicates(request.filters.metadata) : 0)
+  );
 }
 
 function isMetadataPredicate(node: MetadataFilterNode): node is MetadataPredicate {
@@ -209,8 +220,24 @@ function encodeQueryNodePath(path: number[]): string {
   return path.length > 0 ? path.join(".") : "root";
 }
 
+function encodeQueryPartAction(part: SearchWorkspaceQueryPart): SearchWorkspaceAction {
+  return `queryPart:${part}`;
+}
+
 export function isQueryNodeAction(action: SearchWorkspaceAction): action is `queryNode:${string}` {
   return action.startsWith("queryNode:");
+}
+
+export function isQueryPartAction(action: SearchWorkspaceAction): action is `queryPart:${SearchWorkspaceQueryPart}` {
+  return action.startsWith("queryPart:");
+}
+
+export function decodeQueryPartAction(action: SearchWorkspaceAction): SearchWorkspaceQueryPart | null {
+  if (!isQueryPartAction(action)) {
+    return null;
+  }
+  const part = action.slice("queryPart:".length);
+  return part === "scope" || part === "levels" || part === "rarity" || part === "facets" ? part : null;
 }
 
 export function decodeQueryNodeActionPath(action: SearchWorkspaceAction): number[] | null {
@@ -364,15 +391,9 @@ export function formatQueryStatus(state: SearchScreenState): string {
 
 export function buildWorkspaceEntries(state: SearchScreenState, countState: SearchCountState): SearchWorkspaceEntry[] {
   const executeAvailability = getExecuteAvailability(state.query);
+  const activeStructuredPartCount = countStructuredQueryParts(state.query);
+  const facetPolicyCount = countFacetPolicies(state.query);
   const entries: SearchWorkspaceEntry[] = [
-    {
-      action: "execute",
-      label: "Execute Query",
-      value: formatCountSummary(countState, state.query),
-      description: "Apply the current query editor state and switch into the results reader.",
-      disabled: executeAvailability.disabled,
-      disabledReason: executeAvailability.reason ?? undefined,
-    },
     {
       action: "mode",
       label: "Mode",
@@ -390,65 +411,10 @@ export function buildWorkspaceEntries(state: SearchScreenState, countState: Sear
           : "Edit the free-text portion of the query. Browse mode can leave this empty.",
     },
     {
-      action: "category",
-      label: "Category",
-      value: formatSearchCategory(state.query.filters.category),
-      description: "Set the top-level category boundary for this query.",
-    },
-    {
-      action: "subcategory",
-      label: "Subcategory",
-      value: formatSearchSubcategory(state.query.filters.subcategory),
-      description: "Set the within-category boundary for this query.",
-      disabled: !state.query.filters.category,
-      disabledReason: state.query.filters.category
-        ? undefined
-        : "Choose a category first, then refine to a subcategory.",
-    },
-    {
-      action: "levels",
-      label: "Levels",
-      value: formatLevelRange(state.query),
-      description: "Constrain this query to a level band such as `3-8` or `<=5`.",
-    },
-    {
-      action: "rarity",
-      label: "Rarity",
-      value: formatFilterPolicy(state.query.filters.rarity),
-      description: "Cycle rarity values through include and exclude policies in one view.",
-    },
-    {
-      action: "addFacet",
-      label: "Edit Facet Filter",
-      value: `${state.query.filters.facets.length + (hasFilterPolicy(state.query.filters.actionCost) ? 1 : 0)} active`,
-      description: "Choose a discoverable metadata field and cycle each value through any, all, or exclude.",
-      disabled: !state.query.filters.category,
-      disabledReason: state.query.filters.category
-        ? undefined
-        : "Choose a category before editing discoverable facet filters.",
-    },
-    {
-      action: "removeFacet",
-      label: "Clear Facet Filter",
-      value: `${state.query.filters.facets.length + (hasFilterPolicy(state.query.filters.actionCost) ? 1 : 0)} active`,
-      description: "Remove an entire facet policy block from the current query.",
-      disabled: state.query.filters.facets.length === 0 && !hasFilterPolicy(state.query.filters.actionCost),
-      disabledReason:
-        state.query.filters.facets.length > 0 || hasFilterPolicy(state.query.filters.actionCost)
-          ? undefined
-          : "No facet policies are currently applied.",
-    },
-    {
-      action: "addClause",
-      label: "Add Query Clause",
-      value: state.query.filters.metadata
-        ? `${countMetadataPredicates(state.query.filters.metadata)} active`
-        : "None yet",
-      description: "Add an explicit metadata clause or logic group to the canonical query model.",
-      disabled: !state.query.filters.category,
-      disabledReason: state.query.filters.category
-        ? undefined
-        : "Choose a category before adding scoped metadata clauses.",
+      action: "addQueryPart",
+      label: "Add Query Part",
+      value: activeStructuredPartCount > 0 ? `${activeStructuredPartCount} active` : "None yet",
+      description: "Add or adjust scope, levels, rarity, facet policies, and explicit metadata clauses.",
     },
     {
       action: "reset",
@@ -464,33 +430,76 @@ export function buildWorkspaceEntries(state: SearchScreenState, countState: Sear
       disabled: !state.session,
       disabledReason: state.session ? undefined : "There is no applied result reader to discard.",
     },
+    {
+      action: "execute",
+      label: "Execute Query",
+      value: formatCountSummary(countState, state.query),
+      description: "Apply the current query editor state and switch into the results reader.",
+      disabled: executeAvailability.disabled,
+      disabledReason: executeAvailability.reason ?? undefined,
+    },
   ];
 
+  const resetIndex = entries.findIndex((entry) => entry.action === "reset");
+  const structuredEntries: SearchWorkspaceEntry[] = [];
   if (state.query.mode === "search") {
-    entries.splice(3, 0, {
+    structuredEntries.push({
       action: "profile",
       label: "Profile",
       value: state.query.searchProfile,
       description: "Choose the lexical, balanced, or concept retrieval profile used by ranked search.",
+      indent: 1,
+    });
+  }
+  if (state.query.filters.category || state.query.filters.subcategory) {
+    structuredEntries.push({
+      action: encodeQueryPartAction("scope"),
+      label: "Scope",
+      value: `${formatSearchCategory(state.query.filters.category)} / ${formatSearchSubcategory(state.query.filters.subcategory)}`,
+      description: "Adjust the current category boundary or clear the current scope.",
+      indent: 1,
+    });
+  }
+  if (state.query.filters.levelMin !== null || state.query.filters.levelMax !== null) {
+    structuredEntries.push({
+      action: encodeQueryPartAction("levels"),
+      label: "Levels",
+      value: formatLevelRange(state.query),
+      description: "Adjust the current level band or clear it.",
+      indent: 1,
+    });
+  }
+  if (hasFilterPolicy(state.query.filters.rarity)) {
+    structuredEntries.push({
+      action: encodeQueryPartAction("rarity"),
+      label: "Rarity",
+      value: formatFilterPolicy(state.query.filters.rarity),
+      description: "Adjust the rarity include and exclude policy.",
+      indent: 1,
+    });
+  }
+  if (facetPolicyCount > 0) {
+    structuredEntries.push({
+      action: encodeQueryPartAction("facets"),
+      label: "Facet Filters",
+      value: `${facetPolicyCount} active`,
+      description: "Adjust discoverable facet filters or clear the current facet blocks.",
+      indent: 1,
+    });
+  }
+  if (state.query.filters.metadata) {
+    structuredEntries.push(...buildMetadataWorkspaceEntries(state.query.filters.metadata, [], 1));
+    structuredEntries.push({
+      action: "clearClauses",
+      label: "Clear Query Clauses",
+      value: `${countMetadataPredicates(state.query.filters.metadata)} active`,
+      description: "Remove every explicit metadata clause while keeping the rest of the query editor state intact.",
+      indent: 1,
     });
   }
 
-  if (state.query.filters.metadata) {
-    entries.splice(
-      entries.findIndex((entry) => entry.action === "reset"),
-      0,
-      ...buildMetadataWorkspaceEntries(state.query.filters.metadata),
-    );
-    entries.splice(
-      entries.findIndex((entry) => entry.action === "reset"),
-      0,
-      {
-        action: "clearClauses",
-        label: "Clear Query Clauses",
-        value: `${countMetadataPredicates(state.query.filters.metadata)} active`,
-        description: "Remove every explicit metadata clause while keeping the rest of the query editor state intact.",
-      },
-    );
+  if (structuredEntries.length > 0 && resetIndex >= 0) {
+    entries.splice(resetIndex, 0, ...structuredEntries);
   }
 
   return entries;
@@ -527,7 +536,7 @@ export function buildQuerySummaryLines(
     { text: `Levels: ${formatLevelRange(state.query)}` },
     { text: `Rarity: ${formatFilterPolicy(state.query.filters.rarity)}` },
     {
-      text: `Facet filters: ${state.query.filters.facets.length + (hasFilterPolicy(state.query.filters.actionCost) ? 1 : 0)}`,
+      text: `Facet filters: ${countFacetPolicies(state.query)}`,
     },
     {
       text: `Query clauses: ${state.query.filters.metadata ? countMetadataPredicates(state.query.filters.metadata) : 0}`,

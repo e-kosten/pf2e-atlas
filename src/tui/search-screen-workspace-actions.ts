@@ -10,13 +10,19 @@ import type {
   Pf2eTerminalSearchQuery,
 } from "./search-service.js";
 import type { SearchScreenOrigin } from "./search-workflow-types.js";
-import type { DerivedTagTerminalApp } from "./terminal-ui.js";
+import type { DerivedTagTerminalApp, DerivedTagTerminalCommandOption } from "./terminal-ui.js";
 import {
   buildEditorCommandPaletteEntries,
   buildFacetRemovalEntries,
   buildResultCommandPaletteEntries,
+  decodeQueryPartAction,
   decodeQueryNodeActionPath,
+  formatFilterPolicy,
   formatLevelRange,
+  formatSearchCategory,
+  formatSearchSubcategory,
+  hasFilterPolicy,
+  isQueryPartAction,
   isQueryNodeAction,
   parseLevelRangeInput,
   type SearchWorkspaceAction,
@@ -217,6 +223,26 @@ function buildPolicyFromPredicate(node: MetadataPredicate): Pf2eTerminalFilterVa
   return null;
 }
 
+type AddQueryPartCommand =
+  | "profile"
+  | "category"
+  | "subcategory"
+  | "levels"
+  | "rarity"
+  | "facet"
+  | "clearFacet"
+  | "clause"
+  | "andGroup"
+  | "orGroup"
+  | "notGroup";
+
+type ScopeCommand = "category" | "subcategory" | "clearScope";
+type FacetCommand = "editFacet" | "clearFacet";
+
+function countFacetPolicies(query: Pf2eTerminalSearchQuery): number {
+  return query.filters.facets.length + (hasFilterPolicy(query.filters.actionCost) ? 1 : 0);
+}
+
 export function useSearchWorkspaceActions({
   applyQueryUpdate,
   dispatch,
@@ -326,6 +352,32 @@ export function useSearchWorkspaceActions({
       }));
     }
   }, [applyQueryUpdate, prompts, state.query.searchProfile, user.search]);
+
+  const promptCommandSelection = React.useCallback(
+    async <T extends string>(
+      title: string,
+      prompt: string,
+      entries: DerivedTagTerminalCommandOption<T>[],
+    ): Promise<T | undefined> => {
+      const selected = await prompts.promptCommandPalette({
+        title,
+        prompt,
+        entries,
+      });
+      if (!selected) {
+        return undefined;
+      }
+      const selectedEntry = entries.find((entry) => entry.value === selected);
+      if (selectedEntry?.disabled) {
+        if (selectedEntry.disabledReason) {
+          await terminal.pauseForAnyKey(selectedEntry.disabledReason);
+        }
+        return undefined;
+      }
+      return selected;
+    },
+    [prompts, terminal],
+  );
 
   const chooseCategoryFilter = React.useCallback(async () => {
     const [allCategoryOption, ...categoryEntries] = user.search.getCategoryOptions();
@@ -731,6 +783,230 @@ export function useSearchWorkspaceActions({
     [applyQueryUpdate, chooseQueryField, editFieldClause],
   );
 
+  const openScopeQueryPart = React.useCallback(async () => {
+    const selected = await promptCommandSelection<ScopeCommand>("Scope", "Adjust the current query scope", [
+      {
+        value: "category",
+        label: "Set Category",
+        description: `Current: ${formatSearchCategory(state.query.filters.category)}.`,
+      },
+      {
+        value: "subcategory",
+        label: "Set Subcategory",
+        description: `Current: ${formatSearchSubcategory(state.query.filters.subcategory)}.`,
+        disabled: !state.query.filters.category,
+        disabledReason: "Choose a category before refining to a subcategory.",
+      },
+      {
+        value: "clearScope",
+        label: "Clear Scope",
+        description: "Remove the current category and subcategory boundary.",
+        disabled: !state.query.filters.category && !state.query.filters.subcategory,
+        disabledReason: "No category scope is currently applied.",
+      },
+    ]);
+
+    if (!selected) {
+      return;
+    }
+
+    if (selected === "category") {
+      await chooseCategoryFilter();
+      return;
+    }
+    if (selected === "subcategory") {
+      await chooseSubcategoryFilter();
+      return;
+    }
+
+    applyQueryUpdate((request) => ({
+      ...request,
+      filters: {
+        ...request.filters,
+        category: null,
+        subcategory: null,
+      },
+    }));
+  }, [
+    applyQueryUpdate,
+    chooseCategoryFilter,
+    chooseSubcategoryFilter,
+    promptCommandSelection,
+    state.query.filters.category,
+    state.query.filters.subcategory,
+  ]);
+
+  const openFacetQueryPart = React.useCallback(async () => {
+    const facetPolicyCount = countFacetPolicies(state.query);
+    const selected = await promptCommandSelection<FacetCommand>("Facet Filters", "Adjust discoverable facet filters", [
+      {
+        value: "editFacet",
+        label: "Edit Facet Filter",
+        description: `Current: ${facetPolicyCount} active facet block${facetPolicyCount === 1 ? "" : "s"}.`,
+        disabled: !state.query.filters.category,
+        disabledReason: "Choose a category before editing discoverable facet filters.",
+      },
+      {
+        value: "clearFacet",
+        label: "Clear Facet Filter",
+        description: "Remove one or more facet policy blocks from the current query.",
+        disabled: facetPolicyCount === 0,
+        disabledReason: "No facet policies are currently applied.",
+      },
+    ]);
+
+    if (!selected) {
+      return;
+    }
+
+    if (selected === "editFacet") {
+      await onOpenFacetPicker();
+      return;
+    }
+
+    await removeFacetFilter();
+  }, [
+    onOpenFacetPicker,
+    promptCommandSelection,
+    removeFacetFilter,
+    state.query,
+    state.query.filters.category,
+  ]);
+
+  const openAddQueryPart = React.useCallback(async () => {
+    const facetPolicyCount = countFacetPolicies(state.query);
+    const requiresScopedQuery = !state.query.filters.category;
+    const entries: DerivedTagTerminalCommandOption<AddQueryPartCommand>[] = [
+      ...(state.query.mode === "search"
+        ? [
+            {
+              value: "profile" as const,
+              label: "Choose Search Profile",
+              description: `Current: ${state.query.searchProfile}.`,
+            },
+          ]
+        : []),
+      {
+        value: "category",
+        label: "Set Category",
+        description: `Current: ${formatSearchCategory(state.query.filters.category)}.`,
+      },
+      {
+        value: "subcategory",
+        label: "Set Subcategory",
+        description: `Current: ${formatSearchSubcategory(state.query.filters.subcategory)}.`,
+        disabled: !state.query.filters.category,
+        disabledReason: "Choose a category before refining to a subcategory.",
+      },
+      {
+        value: "levels",
+        label: "Set Level Range",
+        description: `Current: ${formatLevelRange(state.query)}.`,
+      },
+      {
+        value: "rarity",
+        label: "Set Rarity",
+        description: `Current: ${formatFilterPolicy(state.query.filters.rarity)}.`,
+      },
+      {
+        value: "facet",
+        label: "Edit Facet Filter",
+        description: `Current: ${facetPolicyCount} active facet block${facetPolicyCount === 1 ? "" : "s"}.`,
+        disabled: !state.query.filters.category,
+        disabledReason: "Choose a category before editing discoverable facet filters.",
+      },
+      {
+        value: "clearFacet",
+        label: "Clear Facet Filter",
+        description: "Remove one or more facet policy blocks from the current query.",
+        disabled: facetPolicyCount === 0,
+        disabledReason: "No facet policies are currently applied.",
+      },
+      {
+        value: "clause",
+        label: "Add Query Clause",
+        description: "Add a metadata clause at the root of the unified query.",
+        disabled: requiresScopedQuery,
+        disabledReason: "Choose a category before adding scoped metadata clauses.",
+      },
+      {
+        value: "andGroup",
+        label: "Add AND Group",
+        description: "Add an AND logic group with one initial clause.",
+        disabled: requiresScopedQuery,
+        disabledReason: "Choose a category before adding scoped metadata clauses.",
+      },
+      {
+        value: "orGroup",
+        label: "Add OR Group",
+        description: "Add an OR logic group with one initial clause.",
+        disabled: requiresScopedQuery,
+        disabledReason: "Choose a category before adding scoped metadata clauses.",
+      },
+      {
+        value: "notGroup",
+        label: "Add NOT Group",
+        description: "Add a NOT logic group with one initial clause.",
+        disabled: requiresScopedQuery,
+        disabledReason: "Choose a category before adding scoped metadata clauses.",
+      },
+    ];
+
+    const selected = await promptCommandSelection("Add Query Part", "Filter query parts to add or adjust", entries);
+    if (!selected) {
+      return;
+    }
+
+    switch (selected) {
+      case "profile":
+        await chooseSearchProfile();
+        return;
+      case "category":
+        await chooseCategoryFilter();
+        return;
+      case "subcategory":
+        await chooseSubcategoryFilter();
+        return;
+      case "levels":
+        await editLevelRange();
+        return;
+      case "rarity":
+        await chooseRarityFilter();
+        return;
+      case "facet":
+        await onOpenFacetPicker();
+        return;
+      case "clearFacet":
+        await removeFacetFilter();
+        return;
+      case "clause":
+        await addQueryClauseAtPath();
+        return;
+      case "andGroup":
+      case "orGroup":
+      case "notGroup":
+        await addQueryGroupAtPath([], selected === "andGroup" ? "and" : selected === "orGroup" ? "or" : "not");
+        return;
+    }
+  }, [
+    addQueryClauseAtPath,
+    addQueryGroupAtPath,
+    chooseCategoryFilter,
+    chooseRarityFilter,
+    chooseSearchProfile,
+    chooseSubcategoryFilter,
+    editLevelRange,
+    onOpenFacetPicker,
+    promptCommandSelection,
+    removeFacetFilter,
+    state.query,
+    state.query.filters.category,
+    state.query.filters.rarity,
+    state.query.filters.subcategory,
+    state.query.mode,
+    state.query.searchProfile,
+  ]);
+
   const editQueryNode = React.useCallback(
     async (path: number[]) => {
       const node = getMetadataNodeAtPath(state.query.filters.metadata, path);
@@ -933,26 +1209,8 @@ export function useSearchWorkspaceActions({
         case "profile":
           void chooseSearchProfile();
           return;
-        case "category":
-          void chooseCategoryFilter();
-          return;
-        case "subcategory":
-          void chooseSubcategoryFilter();
-          return;
-        case "levels":
-          void editLevelRange();
-          return;
-        case "rarity":
-          void chooseRarityFilter();
-          return;
-        case "addFacet":
-          void onOpenFacetPicker();
-          return;
-        case "removeFacet":
-          void removeFacetFilter();
-          return;
-        case "addClause":
-          void addQueryClauseAtPath();
+        case "addQueryPart":
+          void openAddQueryPart();
           return;
         case "clearClauses":
           applyQueryUpdate((request) => ({
@@ -977,23 +1235,44 @@ export function useSearchWorkspaceActions({
           return;
         }
         void editQueryNode(path);
+        return;
+      }
+
+      if (isQueryPartAction(action)) {
+        const part = decodeQueryPartAction(action);
+        if (!part) {
+          return;
+        }
+        if (part === "scope") {
+          void openScopeQueryPart();
+          return;
+        }
+        if (part === "levels") {
+          void editLevelRange();
+          return;
+        }
+        if (part === "rarity") {
+          void chooseRarityFilter();
+          return;
+        }
+        if (part === "facets") {
+          void openFacetQueryPart();
+        }
       }
     },
     [
-      addQueryClauseAtPath,
       applyQueryUpdate,
-      chooseCategoryFilter,
       chooseMode,
       chooseRarityFilter,
       chooseSearchProfile,
-      chooseSubcategoryFilter,
       dispatch,
       editQueryNode,
       editLevelRange,
       editQueryText,
       executeRequest,
-      onOpenFacetPicker,
-      removeFacetFilter,
+      openAddQueryPart,
+      openFacetQueryPart,
+      openScopeQueryPart,
       resetQueryEditor,
       state.query,
       workspaceEntries,
