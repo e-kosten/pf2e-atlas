@@ -63,6 +63,39 @@ export type DerivedTagTerminalCommandOption<T extends string = string> = Derived
 
 export type DerivedTagTerminalTwoPaneFocus = "list" | "detail";
 export type DerivedTagTerminalTwoPaneLayoutMode = "split" | "detail-only";
+export type DerivedTagTerminalTextInputAction = "submit" | "cancel" | "deleteBackward";
+export type DerivedTagTerminalSystemAction = "interrupt";
+
+export type DerivedTagTerminalInputEvent = {
+  input: string;
+  key: Key;
+  printable?: string;
+  systemAction?: DerivedTagTerminalSystemAction;
+  textInputAction?: DerivedTagTerminalTextInputAction;
+  isBackNavigationKey: () => boolean;
+  isCommandPaletteKey: () => boolean;
+  isConfirmKey: () => boolean;
+  isConfirmOrToggleKey: () => boolean;
+  isExactPrintableKey: (expected: string) => boolean;
+  isExecuteKey: () => boolean;
+  isFocusToggleKey: () => boolean;
+  isHelpKey: () => boolean;
+  isLayoutToggleKey: () => boolean;
+  isMoveDownKey: () => boolean;
+  isMoveLeftKey: () => boolean;
+  isMoveRightKey: () => boolean;
+  isMoveUpKey: () => boolean;
+  isPageDownKey: () => boolean;
+  isPageUpKey: () => boolean;
+  isSearchKey: () => boolean;
+  isTerminalBoundaryEndKey: () => boolean;
+  isTerminalBoundaryStartKey: () => boolean;
+  isTerminalJumpBackwardKey: () => boolean;
+  isTerminalJumpForwardKey: () => boolean;
+  isTerminalQuitKey: () => boolean;
+  getCycleDirection: () => 1 | -1 | undefined;
+  getReverseCycleDirection: () => 1 | -1 | undefined;
+};
 
 export type DerivedTagTerminalTextScreenProps = {
   title: string;
@@ -641,14 +674,17 @@ export function useDerivedTagTerminalApp(): DerivedTagTerminalContextValue {
   return ensureTerminalContext();
 }
 
-export function useDerivedTagTerminalInput(handler: (input: string, key: Key) => void, isActive = true): void {
+export function useDerivedTagTerminalInput(
+  handler: (event: DerivedTagTerminalInputEvent) => void,
+  isActive = true,
+): void {
   const terminal = ensureTerminalContext();
   useInput(
     (input, key) => {
       if (terminal.modalActive) {
         return;
       }
-      handler(input, key);
+      handler(createDerivedTagTerminalInputEvent(input, key));
     },
     { isActive },
   );
@@ -813,44 +849,44 @@ export function createDerivedTagTerminalListNavigationState(): DerivedTagTermina
 }
 
 export function getDerivedTagTerminalListNavigationAction(
-  normalizedKey: string,
+  event: DerivedTagTerminalInputEvent,
   options: DerivedTagTerminalListNavigationOptions,
 ): DerivedTagTerminalListNavigationAction | undefined {
   const jumpSize = options.jumpSize ?? options.pageSize;
 
-  if (isMoveUpKey(normalizedKey)) {
+  if (event.isMoveUpKey()) {
     return { kind: "move", delta: -1 };
   }
-  if (isMoveDownKey(normalizedKey)) {
+  if (event.isMoveDownKey()) {
     return { kind: "move", delta: 1 };
   }
-  if (normalizedKey === "ctrl_u") {
+  if (event.isTerminalJumpBackwardKey()) {
     return { kind: "move", delta: -jumpSize };
   }
-  if (normalizedKey === "ctrl_d") {
+  if (event.isTerminalJumpForwardKey()) {
     return { kind: "move", delta: jumpSize };
   }
-  if (isPageUpKey(normalizedKey)) {
+  if (event.isPageUpKey()) {
     return { kind: "move", delta: -options.pageSize };
   }
-  if (isPageDownKey(normalizedKey)) {
+  if (event.isPageDownKey()) {
     return { kind: "move", delta: options.pageSize };
   }
-  if (normalizedKey === "home") {
+  if (event.isTerminalBoundaryStartKey()) {
     return { kind: "boundary", boundary: "start" };
   }
-  if (normalizedKey === "end") {
+  if (event.isTerminalBoundaryEndKey()) {
     return { kind: "boundary", boundary: "end" };
   }
   if (
     options.includeConfirmKeys &&
-    (isConfirmKey(normalizedKey) || (options.includeHorizontalConfirmKeys && isMoveRightKey(normalizedKey)))
+    (event.isConfirmKey() || (options.includeHorizontalConfirmKeys && event.isMoveRightKey()))
   ) {
     return { kind: "confirm" };
   }
   if (
     options.includeCancelKeys &&
-    (isBackNavigationKey(normalizedKey) || (options.includeHorizontalCancelKeys && isMoveLeftKey(normalizedKey)))
+    (event.isBackNavigationKey() || (options.includeHorizontalCancelKeys && event.isMoveLeftKey()))
   ) {
     return { kind: "cancel" };
   }
@@ -859,49 +895,45 @@ export function getDerivedTagTerminalListNavigationAction(
 }
 
 export function resolveDerivedTagTerminalListNavigationAction(
-  input: string,
-  key: Key,
+  event: DerivedTagTerminalInputEvent,
   options: DerivedTagTerminalListNavigationOptions,
   state: DerivedTagTerminalListNavigationState = createDerivedTagTerminalListNavigationState(),
 ): {
   action: DerivedTagTerminalListNavigationAction | undefined;
   state: DerivedTagTerminalListNavigationState;
 } {
-  const normalized = getNormalizedKeyName(input, key);
   const clearedState = createDerivedTagTerminalListNavigationState();
 
-  if (normalized === "g") {
-    if (isExactPrintableTerminalKey(input, key, "G")) {
+  if (event.isExactPrintableKey("G")) {
+    return {
+      action: { kind: "boundary", boundary: "end" },
+      state: clearedState,
+    };
+  }
+
+  if (event.isExactPrintableKey("g")) {
+    if (state.pendingBoundaryPrefix === "g") {
       return {
-        action: { kind: "boundary", boundary: "end" },
+        action: { kind: "boundary", boundary: "start" },
         state: clearedState,
       };
     }
 
-    if (isExactPrintableTerminalKey(input, key, "g")) {
-      if (state.pendingBoundaryPrefix === "g") {
-        return {
-          action: { kind: "boundary", boundary: "start" },
-          state: clearedState,
-        };
-      }
-
-      return {
-        action: undefined,
-        state: {
-          pendingBoundaryPrefix: "g",
-        },
-      };
-    }
+    return {
+      action: undefined,
+      state: {
+        pendingBoundaryPrefix: "g",
+      },
+    };
   }
 
   return {
-    action: getDerivedTagTerminalListNavigationAction(normalized, options),
+    action: getDerivedTagTerminalListNavigationAction(event, options),
     state: clearedState,
   };
 }
 
-export function getNormalizedKeyName(input: string, key: Key): string {
+function getNormalizedKeyName(input: string, key: Key): string {
   if (key.upArrow) {
     return "up";
   }
@@ -998,15 +1030,58 @@ export function getNormalizedKeyName(input: string, key: Key): string {
   return input.toLowerCase();
 }
 
-export function getPrintableInput(input: string, key: Key): string | undefined {
+function getPrintableInput(input: string, key: Key): string | undefined {
   if (key.ctrl || key.meta || key.escape || key.return || key.tab || input.length !== 1) {
     return undefined;
   }
   return input;
 }
 
-export function isExactPrintableTerminalKey(input: string, key: Key, expected: string): boolean {
+function isExactPrintableTerminalKey(input: string, key: Key, expected: string): boolean {
   return expected.length === 1 && getPrintableInput(input, key) === expected;
+}
+
+export function createDerivedTagTerminalInputEvent(input: string, key: Key): DerivedTagTerminalInputEvent {
+  const normalized = getNormalizedKeyName(input, key);
+  const printable = getPrintableInput(input, key);
+
+  return {
+    input,
+    key,
+    printable,
+    systemAction: normalized === "ctrl_c" ? "interrupt" : undefined,
+    textInputAction:
+      normalized === "enter"
+        ? "submit"
+        : normalized === "escape"
+          ? "cancel"
+          : normalized === "backspace"
+            ? "deleteBackward"
+            : undefined,
+    isBackNavigationKey: () => isBackNavigationKey(normalized),
+    isCommandPaletteKey: () => normalized === ":",
+    isConfirmKey: () => isConfirmKey(normalized),
+    isConfirmOrToggleKey: () => normalized === "enter" || normalized === "space",
+    isExactPrintableKey: (expected) => isExactPrintableTerminalKey(input, key, expected),
+    isExecuteKey: () => normalized === "tab" || normalized === "shift_tab",
+    isFocusToggleKey: () => normalized === "tab" || normalized === "shift_tab" || normalized === "w",
+    isHelpKey: () => normalized === "?",
+    isLayoutToggleKey: () => normalized === "z",
+    isMoveDownKey: () => isMoveDownKey(normalized),
+    isMoveLeftKey: () => isMoveLeftKey(normalized),
+    isMoveRightKey: () => isMoveRightKey(normalized),
+    isMoveUpKey: () => isMoveUpKey(normalized),
+    isPageDownKey: () => isPageDownKey(normalized),
+    isPageUpKey: () => isPageUpKey(normalized),
+    isSearchKey: () => normalized === "slash",
+    isTerminalBoundaryEndKey: () => normalized === "end",
+    isTerminalBoundaryStartKey: () => normalized === "home",
+    isTerminalJumpBackwardKey: () => normalized === "ctrl_u",
+    isTerminalJumpForwardKey: () => normalized === "ctrl_d",
+    isTerminalQuitKey: () => normalized === "q",
+    getCycleDirection: () => (normalized === "enter" || normalized === "space" ? 1 : undefined),
+    getReverseCycleDirection: () => undefined,
+  };
 }
 
 function clampInlinePromptWindowStart(selectedIndex: number, itemCount: number, visibleCount: number): number {
@@ -1727,21 +1802,19 @@ function DerivedTagTerminalModalHost({
 
   useInput(
     (input, key) => {
-      const normalized = getNormalizedKeyName(input, key);
-      const printable = getPrintableInput(input, key);
-      const selectLikeAction = resolveTerminalInteractionAction(normalized, [
+      const event = createDerivedTagTerminalInputEvent(input, key);
+      const selectLikeAction = resolveTerminalInteractionAction(event, [
         { id: "select" },
         { id: "back", label: "cancel" },
       ]);
-      const multiSelectLikeAction = resolveTerminalInteractionAction(normalized, [{ id: "toggle" }, { id: "return" }]);
-      const policyLikeAction = resolveTerminalInteractionAction(normalized, [
+      const multiSelectLikeAction = resolveTerminalInteractionAction(event, [{ id: "toggle" }, { id: "return" }]);
+      const policyLikeAction = resolveTerminalInteractionAction(event, [
         { id: "cycle" },
         { id: "cycleReverse" },
         { id: "return" },
       ]);
       const modalNavigation = resolveDerivedTagTerminalListNavigationAction(
-        input,
-        key,
+        event,
         {
           pageSize: 10,
           jumpSize: 5,
@@ -1765,28 +1838,28 @@ function DerivedTagTerminalModalHost({
       }
 
       if (modal.kind === "text") {
-        if (normalized === "enter") {
+        if (event.textInputAction === "submit") {
           const resolver = modal.resolve;
           const trimmed = modal.value.trim();
           setModal(null);
           resolver(trimmed ? trimmed : undefined);
           return;
         }
-        if (normalized === "escape") {
+        if (event.textInputAction === "cancel") {
           const resolver = modal.resolve;
           setModal(null);
           resolver(undefined);
           return;
         }
-        if (normalized === "backspace") {
+        if (event.textInputAction === "deleteBackward") {
           setModal((current) =>
             current?.kind === "text" ? { ...current, value: [...current.value].slice(0, -1).join("") } : current,
           );
           return;
         }
-        if (printable) {
+        if (event.printable) {
           setModal((current) =>
-            current?.kind === "text" ? { ...current, value: current.value + printable } : current,
+            current?.kind === "text" ? { ...current, value: current.value + event.printable } : current,
           );
         }
         return;
@@ -1798,7 +1871,7 @@ function DerivedTagTerminalModalHost({
         const filteredEntries = filterCommandPaletteEntries(modal.options.entries, modal.filterText);
         const clampedSelectedIndex = clampPromptSelectionIndex(modal.selectedIndex, filteredEntries.length);
 
-        if (normalized === "backspace") {
+        if (event.textInputAction === "deleteBackward") {
           if (modal.filterText.length === 0) {
             const resolver = modal.resolve;
             setModal(null);
@@ -1816,12 +1889,12 @@ function DerivedTagTerminalModalHost({
           );
           return;
         }
-        if (printable) {
+        if (event.printable) {
           setModal((current) =>
             current?.kind === "command"
               ? {
                   ...current,
-                  filterText: current.filterText + printable,
+                  filterText: current.filterText + event.printable,
                   selectedIndex: 0,
                 }
               : current,
@@ -1862,7 +1935,7 @@ function DerivedTagTerminalModalHost({
           resolver(selected);
           return;
         }
-        if (selectLikeAction?.id === "back" || normalized === "q" || normalized === "ctrl_c") {
+        if (selectLikeAction?.id === "back" || event.isTerminalQuitKey() || event.systemAction === "interrupt") {
           const resolver = modal.resolve;
           setModal(null);
           resolver(undefined);
@@ -1871,7 +1944,7 @@ function DerivedTagTerminalModalHost({
       }
 
       if (modal.kind === "select" && modal.options.entries.length === 0) {
-        if (isBackNavigationKey(normalized) || normalized === "q" || normalized === "ctrl_c") {
+        if (event.isBackNavigationKey() || event.isTerminalQuitKey() || event.systemAction === "interrupt") {
           const resolver = modal.resolve;
           setModal(null);
           resolver({ kind: "cancelled" });
@@ -1880,7 +1953,7 @@ function DerivedTagTerminalModalHost({
       }
 
       if (modal.kind === "multiselect" && modal.options.entries.length === 0) {
-        if (isBackNavigationKey(normalized) || normalized === "q" || normalized === "ctrl_c") {
+        if (event.isBackNavigationKey() || event.isTerminalQuitKey() || event.systemAction === "interrupt") {
           const resolver = modal.resolve;
           setModal(null);
           resolver([]);
@@ -1889,7 +1962,7 @@ function DerivedTagTerminalModalHost({
       }
 
       if (modal.kind === "policy" && modal.options.entries.length === 0) {
-        if (isBackNavigationKey(normalized) || normalized === "q" || normalized === "ctrl_c") {
+        if (event.isBackNavigationKey() || event.isTerminalQuitKey() || event.systemAction === "interrupt") {
           const resolver = modal.resolve;
           setModal(null);
           resolver(createEmptyPolicySelection());
@@ -1959,7 +2032,7 @@ function DerivedTagTerminalModalHost({
         resolver(selectedValues);
         return;
       }
-      const cycleDirection = getTerminalInteractionCycleDirection(normalized, policyLikeAction);
+      const cycleDirection = getTerminalInteractionCycleDirection(event, policyLikeAction);
 
       if (modal.kind === "policy" && cycleDirection) {
         const selected = modal.options.entries[modal.selectedIndex]?.value;
@@ -1985,7 +2058,7 @@ function DerivedTagTerminalModalHost({
       }
       if (
         modal.kind === "policy" &&
-        (policyLikeAction?.id === "return" || normalized === "q" || normalized === "ctrl_c")
+        (policyLikeAction?.id === "return" || event.isTerminalQuitKey() || event.systemAction === "interrupt")
       ) {
         const resolver = modal.resolve;
         const selection = buildPolicySelection(modal.options.entries, modal.valueStates);
@@ -1995,7 +2068,7 @@ function DerivedTagTerminalModalHost({
       }
       if (
         modal.kind === "select" &&
-        (selectLikeAction?.id === "back" || normalized === "q" || normalized === "ctrl_c")
+        (selectLikeAction?.id === "back" || event.isTerminalQuitKey() || event.systemAction === "interrupt")
       ) {
         const resolver = modal.resolve;
         setModal(null);

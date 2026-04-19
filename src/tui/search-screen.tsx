@@ -21,7 +21,6 @@ import {
   TerminalTwoPaneScreen,
   type DerivedTagTerminalCommandOption,
   createDerivedTagTerminalListNavigationState,
-  getNormalizedKeyName,
   getRenderedTerminalLineCount,
   getTerminalPaneBodyHeight,
   getTerminalTwoPaneDetailWidth,
@@ -1853,15 +1852,13 @@ export function SearchScreen({
     });
   }, [state, terminal, workspaceEntries]);
 
-  useDerivedTagTerminalInput((input, key) => {
+  useDerivedTagTerminalInput((event) => {
     if (busy) {
       return;
     }
 
-    const normalized = getNormalizedKeyName(input, key);
     const listNavigation = resolveDerivedTagTerminalListNavigationAction(
-      input,
-      key,
+      event,
       {
         pageSize,
         jumpSize: selectionJumpSize,
@@ -1871,8 +1868,7 @@ export function SearchScreen({
     );
     listNavigationStateRef.current = listNavigation.state;
     const detailNavigation = resolveDerivedTagTerminalListNavigationAction(
-      input,
-      key,
+      event,
       {
         pageSize,
         jumpSize: selectionJumpSize,
@@ -1886,9 +1882,9 @@ export function SearchScreen({
         : state.activePane === "list"
           ? getSearchResultListInteractionActions()
           : getSearchResultDetailInteractionActions();
-    const interactionAction = resolveTerminalInteractionAction(normalized, interactionActions);
+    const interactionAction = resolveTerminalInteractionAction(event, interactionActions);
 
-    if (normalized === "ctrl_c") {
+    if (event.systemAction === "interrupt") {
       exitSearchScreen();
       return;
     }

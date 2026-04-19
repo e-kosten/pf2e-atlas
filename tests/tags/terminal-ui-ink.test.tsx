@@ -4,6 +4,7 @@ import { cleanup, render } from "ink-testing-library";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
+  createDerivedTagTerminalInputEvent,
   createDerivedTagTerminalListNavigationState,
   type DerivedTagTerminalOptionalSelectPromptResult,
   type DerivedTagTerminalPolicySelection,
@@ -11,7 +12,6 @@ import {
   DerivedTagTerminalProvider,
   TerminalTextScreen,
   getDerivedTagTerminalListNavigationAction,
-  getNormalizedKeyName,
   resolveDerivedTagTerminalListNavigationAction,
   useDerivedTagTerminalApp,
   useDerivedTagTerminalInput,
@@ -45,8 +45,8 @@ function SelectPromptHarness(): React.JSX.Element {
   const [appJPresses, setAppJPresses] = React.useState(0);
   const [result, setResult] = React.useState("pending");
 
-  useDerivedTagTerminalInput((input) => {
-    if (input === "j") {
+  useDerivedTagTerminalInput((event) => {
+    if (event.isExactPrintableKey("j")) {
       setAppJPresses((count) => count + 1);
     }
   });
@@ -92,14 +92,12 @@ function DialogStateHarness(): React.JSX.Element {
   const terminal = useDerivedTagTerminalApp();
   const [page, setPage] = React.useState("home");
 
-  useDerivedTagTerminalInput((input, key) => {
-    const normalized = getNormalizedKeyName(input, key);
-
-    if (normalized === "d") {
+  useDerivedTagTerminalInput((event) => {
+    if (event.isExactPrintableKey("d")) {
       setPage("detail");
       return;
     }
-    if (normalized === "?") {
+    if (event.isHelpKey()) {
       void terminal.showDialog({
         title: "Help",
         body: [{ text: "Press any key to return." }],
@@ -113,9 +111,8 @@ function DialogStateHarness(): React.JSX.Element {
 function LongDialogHarness(): React.JSX.Element {
   const terminal = useDerivedTagTerminalApp();
 
-  useDerivedTagTerminalInput((input, key) => {
-    const normalized = getNormalizedKeyName(input, key);
-    if (normalized === "?") {
+  useDerivedTagTerminalInput((event) => {
+    if (event.isHelpKey()) {
       void terminal.showDialog({
         title: "Long Help",
         body: Array.from({ length: 8 }, (_, index) => ({
@@ -456,24 +453,24 @@ describe("derived tag terminal ink runtime", () => {
   });
 
   it("normalizes ctrl letter combinations from both Ink key paths", () => {
-    expect(getNormalizedKeyName("\r", {} as never)).toBe("enter");
-    expect(getNormalizedKeyName("\u001b", {} as never)).toBe("escape");
-    expect(getNormalizedKeyName("\u0015", {} as never)).toBe("ctrl_u");
-    expect(getNormalizedKeyName("d", { ctrl: true } as never)).toBe("ctrl_d");
+    expect(createDerivedTagTerminalInputEvent("\r", {} as never).textInputAction).toBe("submit");
+    expect(createDerivedTagTerminalInputEvent("\u001b", {} as never).textInputAction).toBe("cancel");
+    expect(createDerivedTagTerminalInputEvent("\u0015", {} as never).isTerminalJumpBackwardKey()).toBe(true);
+    expect(createDerivedTagTerminalInputEvent("d", { ctrl: true } as never).printable).toBeUndefined();
   });
 
   it("prefers Ink arrow-key flags over raw escape input", () => {
-    expect(getNormalizedKeyName("\u001b", { rightArrow: true } as never)).toBe("right");
-    expect(getNormalizedKeyName("\u001b", { leftArrow: true } as never)).toBe("left");
+    expect(createDerivedTagTerminalInputEvent("\u001b", { rightArrow: true } as never).isMoveRightKey()).toBe(true);
+    expect(createDerivedTagTerminalInputEvent("\u001b", { leftArrow: true } as never).isMoveLeftKey()).toBe(true);
   });
 
   it("normalizes raw ANSI escape sequences for common navigation keys", () => {
-    expect(getNormalizedKeyName("\u001b[A", {} as never)).toBe("up");
-    expect(getNormalizedKeyName("\u001b[B", {} as never)).toBe("down");
-    expect(getNormalizedKeyName("\u001b[C", {} as never)).toBe("right");
-    expect(getNormalizedKeyName("\u001b[D", {} as never)).toBe("left");
-    expect(getNormalizedKeyName("\u001b[5~", {} as never)).toBe("page_up");
-    expect(getNormalizedKeyName("\u001b[6~", {} as never)).toBe("page_down");
+    expect(createDerivedTagTerminalInputEvent("\u001b[A", {} as never).isMoveUpKey()).toBe(true);
+    expect(createDerivedTagTerminalInputEvent("\u001b[B", {} as never).isMoveDownKey()).toBe(true);
+    expect(createDerivedTagTerminalInputEvent("\u001b[C", {} as never).isMoveRightKey()).toBe(true);
+    expect(createDerivedTagTerminalInputEvent("\u001b[D", {} as never).isMoveLeftKey()).toBe(true);
+    expect(createDerivedTagTerminalInputEvent("\u001b[5~", {} as never).isPageUpKey()).toBe(true);
+    expect(createDerivedTagTerminalInputEvent("\u001b[6~", {} as never).isPageDownKey()).toBe(true);
   });
 
   it("supports raw right-select and raw left-return inside select prompts", async () => {
@@ -530,14 +527,14 @@ describe("derived tag terminal ink runtime", () => {
 
   it("treats vim horizontal keys as the same list-navigation semantics", () => {
     expect(
-      getDerivedTagTerminalListNavigationAction("l", {
+      getDerivedTagTerminalListNavigationAction(createDerivedTagTerminalInputEvent("l", {} as never), {
         pageSize: 10,
         includeConfirmKeys: true,
         includeHorizontalConfirmKeys: true,
       }),
     ).toEqual({ kind: "confirm" });
     expect(
-      getDerivedTagTerminalListNavigationAction("h", {
+      getDerivedTagTerminalListNavigationAction(createDerivedTagTerminalInputEvent("h", {} as never), {
         pageSize: 10,
         includeCancelKeys: true,
         includeHorizontalCancelKeys: true,
@@ -547,12 +544,12 @@ describe("derived tag terminal ink runtime", () => {
 
   it("keeps space available for selection while using f for shared page-down navigation", () => {
     expect(
-      getDerivedTagTerminalListNavigationAction("space", {
+      getDerivedTagTerminalListNavigationAction(createDerivedTagTerminalInputEvent(" ", {} as never), {
         pageSize: 10,
       }),
     ).toBeUndefined();
     expect(
-      getDerivedTagTerminalListNavigationAction("f", {
+      getDerivedTagTerminalListNavigationAction(createDerivedTagTerminalInputEvent("f", {} as never), {
         pageSize: 10,
       }),
     ).toEqual({ kind: "move", delta: 10 });
@@ -561,15 +558,25 @@ describe("derived tag terminal ink runtime", () => {
   it("resolves shared gg and G list-boundary navigation", () => {
     const options = { pageSize: 10 };
 
-    const firstG = resolveDerivedTagTerminalListNavigationAction("g", {} as never, options);
+    const firstG = resolveDerivedTagTerminalListNavigationAction(
+      createDerivedTagTerminalInputEvent("g", {} as never),
+      options,
+    );
     expect(firstG.action).toBeUndefined();
     expect(firstG.state.pendingBoundaryPrefix).toBe("g");
 
-    const secondG = resolveDerivedTagTerminalListNavigationAction("g", {} as never, options, firstG.state);
+    const secondG = resolveDerivedTagTerminalListNavigationAction(
+      createDerivedTagTerminalInputEvent("g", {} as never),
+      options,
+      firstG.state,
+    );
     expect(secondG.action).toEqual({ kind: "boundary", boundary: "start" });
     expect(secondG.state).toEqual(createDerivedTagTerminalListNavigationState());
 
-    const upperG = resolveDerivedTagTerminalListNavigationAction("G", {} as never, options);
+    const upperG = resolveDerivedTagTerminalListNavigationAction(
+      createDerivedTagTerminalInputEvent("G", {} as never),
+      options,
+    );
     expect(upperG.action).toEqual({ kind: "boundary", boundary: "end" });
     expect(upperG.state).toEqual(createDerivedTagTerminalListNavigationState());
   });

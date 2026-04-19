@@ -1,17 +1,4 @@
-import {
-  isBackNavigationKey,
-  isCommandPaletteKey,
-  isConfirmKey,
-  isConfirmOrToggleKey,
-  getCycleDirection,
-  getReverseCycleDirection,
-  isFocusToggleKey,
-  isHelpKey,
-  isLayoutToggleKey,
-  isMoveLeftKey,
-  isMoveRightKey,
-  isSearchKey,
-} from "./keymap.js";
+import type { DerivedTagTerminalInputEvent } from "./terminal-ui.js";
 
 export type TerminalInteractionTone = "default" | "section" | "dim" | "accent";
 
@@ -225,7 +212,7 @@ export function formatTerminalInteractionFooter(actions: TerminalInteractionActi
     .join("  ");
 }
 
-function matchesTerminalInteractionAction(actionId: TerminalInteractionActionId, normalizedKey: string): boolean {
+function matchesTerminalInteractionAction(actionId: TerminalInteractionActionId, event: DerivedTagTerminalInputEvent): boolean {
   switch (actionId) {
     case "move":
     case "scroll":
@@ -236,58 +223,58 @@ function matchesTerminalInteractionAction(actionId: TerminalInteractionActionId,
     case "select":
     case "open":
     case "preview":
-      return isConfirmKey(normalizedKey) || isMoveRightKey(normalizedKey);
+      return event.isConfirmKey() || event.isMoveRightKey();
     case "edit":
-      return isConfirmOrToggleKey(normalizedKey) || isMoveRightKey(normalizedKey);
+      return event.isConfirmOrToggleKey() || event.isMoveRightKey();
     case "toggle":
-      return isConfirmOrToggleKey(normalizedKey);
+      return event.isConfirmOrToggleKey();
     case "cycle":
-      return Boolean(getCycleDirection(normalizedKey));
+      return Boolean(event.getCycleDirection());
     case "cycleReverse":
-      return Boolean(getReverseCycleDirection(normalizedKey));
+      return Boolean(event.getReverseCycleDirection());
     case "moveHorizontal":
-      return isMoveLeftKey(normalizedKey) || isMoveRightKey(normalizedKey);
+      return event.isMoveLeftKey() || event.isMoveRightKey();
     case "back":
     case "return":
-      return isBackNavigationKey(normalizedKey);
+      return event.isBackNavigationKey();
     case "focus":
-      return isFocusToggleKey(normalizedKey);
+      return event.isFocusToggleKey();
     case "layout":
-      return isLayoutToggleKey(normalizedKey);
+      return event.isLayoutToggleKey();
     case "search":
-      return isSearchKey(normalizedKey);
+      return event.isSearchKey();
     case "help":
-      return isHelpKey(normalizedKey);
+      return event.isHelpKey();
     case "quit":
-      return normalizedKey === "q";
+      return event.isTerminalQuitKey();
     case "commands":
     case "actions":
-      return isCommandPaletteKey(normalizedKey);
+      return event.isCommandPaletteKey();
     case "apply":
-      return isConfirmKey(normalizedKey);
+      return event.isConfirmKey();
     case "close":
-      return normalizedKey === "escape";
+      return event.textInputAction === "cancel";
     case "execute":
-      return normalizedKey === "tab" || normalizedKey === "shift_tab";
+      return event.isExecuteKey();
   }
 }
 
 export function resolveTerminalInteractionAction(
-  normalizedKey: string,
+  event: DerivedTagTerminalInputEvent,
   actions: TerminalInteractionAction[],
 ): TerminalInteractionAction | undefined {
-  return actions.find((action) => matchesTerminalInteractionAction(action.id, normalizedKey));
+  return actions.find((action) => matchesTerminalInteractionAction(action.id, event));
 }
 
 export function getTerminalInteractionCycleDirection(
-  normalizedKey: string,
+  event: DerivedTagTerminalInputEvent,
   action: TerminalInteractionAction | undefined,
 ): 1 | -1 | undefined {
   if (action?.id === "cycle") {
-    return getCycleDirection(normalizedKey);
+    return event.getCycleDirection();
   }
   if (action?.id === "cycleReverse") {
-    return getReverseCycleDirection(normalizedKey);
+    return event.getReverseCycleDirection();
   }
   return undefined;
 }

@@ -3,7 +3,6 @@ import React from "react";
 import {
   TerminalTwoPaneScreen,
   createDerivedTagTerminalListNavigationState,
-  getNormalizedKeyName,
   getTerminalPaneBodyHeight,
   resolveDerivedTagTerminalListNavigationAction,
   useDerivedTagTerminalApp,
@@ -111,11 +110,9 @@ export function AreaMenuScreen({
     }),
   );
 
-  useDerivedTagTerminalInput((input, key) => {
-    const normalized = getNormalizedKeyName(input, key);
+  useDerivedTagTerminalInput((event) => {
     const navigation = resolveDerivedTagTerminalListNavigationAction(
-      input,
-      key,
+      event,
       {
         pageSize: Math.max(1, bodyHeight - 1),
         jumpSize: Math.max(1, Math.floor(bodyHeight / 2)),
@@ -125,9 +122,9 @@ export function AreaMenuScreen({
       navigationStateRef.current,
     );
     navigationStateRef.current = navigation.state;
-    const interactionAction = resolveTerminalInteractionAction(normalized, getAreaMenuInteractionActions());
+    const interactionAction = resolveTerminalInteractionAction(event, getAreaMenuInteractionActions());
 
-    if (normalized === "ctrl_c" || normalized === "escape" || interactionAction?.id === "quit") {
+    if (event.systemAction === "interrupt" || event.textInputAction === "cancel" || interactionAction?.id === "quit") {
       onQuit();
       return;
     }

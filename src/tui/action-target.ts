@@ -1,12 +1,4 @@
-import {
-  isCommandPaletteKey,
-  isConfirmKey,
-  isMoveDownKey,
-  isMoveLeftKey,
-  isMoveRightKey,
-  isMoveUpKey,
-} from "./keymap.js";
-import type { DerivedTagTerminalLine, DerivedTagTerminalSegment } from "./terminal-ui.js";
+import type { DerivedTagTerminalInputEvent, DerivedTagTerminalLine, DerivedTagTerminalSegment } from "./terminal-ui.js";
 import type { TerminalInteractionAction, TerminalInteractionHelpSection } from "./interaction-bindings.js";
 import { buildTerminalInteractionHelpLines } from "./interaction-bindings.js";
 
@@ -79,37 +71,37 @@ export function reduceDerivedTagTerminalActionTargetState<TState extends Derived
 }
 
 export function resolveDerivedTagTerminalActionTargetIntent(
-  normalizedKey: string,
+  event: DerivedTagTerminalInputEvent,
   state: DerivedTagTerminalActionTargetState,
   orientation: DerivedTagTerminalActionTargetOrientation,
 ): DerivedTagTerminalActionTargetIntent | undefined {
-  if (isCommandPaletteKey(normalizedKey)) {
+  if (event.isCommandPaletteKey()) {
     return { kind: "toggle_target" };
   }
   if (state.activeTarget !== "actions") {
     return undefined;
   }
-  if (normalizedKey === "escape") {
+  if (event.textInputAction === "cancel") {
     return { kind: "leave_actions" };
   }
-  if (isConfirmKey(normalizedKey)) {
+  if (event.isConfirmKey()) {
     return { kind: "apply_action" };
   }
 
   if (orientation === "horizontal") {
-    if (isMoveLeftKey(normalizedKey)) {
+    if (event.isMoveLeftKey()) {
       return { kind: "move_action", delta: -1 };
     }
-    if (isMoveRightKey(normalizedKey)) {
+    if (event.isMoveRightKey()) {
       return { kind: "move_action", delta: 1 };
     }
     return undefined;
   }
 
-  if (isMoveUpKey(normalizedKey)) {
+  if (event.isMoveUpKey()) {
     return { kind: "move_action", delta: -1 };
   }
-  if (isMoveDownKey(normalizedKey)) {
+  if (event.isMoveDownKey()) {
     return { kind: "move_action", delta: 1 };
   }
   return undefined;

@@ -29,7 +29,6 @@ import {
   TerminalPaneScreen,
   TerminalTwoPaneScreen,
   createDerivedTagTerminalListNavigationState,
-  getNormalizedKeyName,
   getRenderedTerminalLineCount,
   getTerminalPaneBodyHeight,
   getTerminalTwoPaneDetailWidth,
@@ -478,15 +477,14 @@ export function DerivedTagMigrationReviewScreen({
       ? [...actionTargetInteractionActions, { id: "help" as const }]
       : [...activeNavigationActions, ...paneInteractionActions, ...actionTargetInteractionActions];
 
-  useDerivedTagTerminalInput((input, key) => {
+  useDerivedTagTerminalInput((event) => {
     if (busy) {
       return;
     }
-    const normalized = getNormalizedKeyName(input, key);
-    const actionTargetIntent = resolveDerivedTagTerminalActionTargetIntent(normalized, state, "horizontal");
-    const interactionAction = resolveTerminalInteractionAction(normalized, paneInteractionActions);
+    const actionTargetIntent = resolveDerivedTagTerminalActionTargetIntent(event, state, "horizontal");
+    const interactionAction = resolveTerminalInteractionAction(event, paneInteractionActions);
 
-    if (normalized === "ctrl_c") {
+    if (event.systemAction === "interrupt") {
       void requestAction("quit");
       return;
     }
@@ -537,8 +535,7 @@ export function DerivedTagMigrationReviewScreen({
       return;
     }
     const navigation = resolveDerivedTagTerminalListNavigationAction(
-      input,
-      key,
+      event,
       {
         pageSize,
         jumpSize: state.activePane === "list" ? selectionJumpSize : detailJumpSize,

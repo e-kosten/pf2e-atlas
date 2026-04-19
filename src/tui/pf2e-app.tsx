@@ -22,7 +22,6 @@ import { TerminalBusyScreen } from "./shared-screens.js";
 import { resolveTerminalInteractionAction } from "./interaction-bindings.js";
 import {
   TerminalTextScreen,
-  getNormalizedKeyName,
   runDerivedTagTerminalApp,
   useDerivedTagTerminalApp,
   useDerivedTagTerminalInput,
@@ -30,10 +29,9 @@ import {
 import { TagRefinementMenuScreen, type TagRefinementMenuItem } from "./tag-refinement-menu-screen.js";
 
 function StartupErrorScreen({ message, onExit }: { message: string; onExit: () => void }): React.JSX.Element {
-  useDerivedTagTerminalInput((input, key) => {
-    const normalized = getNormalizedKeyName(input, key);
-    const interactionAction = resolveTerminalInteractionAction(normalized, [{ id: "back" }, { id: "quit" }]);
-    if (normalized === "ctrl_c" || interactionAction?.id === "back" || interactionAction?.id === "quit") {
+  useDerivedTagTerminalInput((event) => {
+    const interactionAction = resolveTerminalInteractionAction(event, [{ id: "back" }, { id: "quit" }]);
+    if (event.systemAction === "interrupt" || interactionAction?.id === "back" || interactionAction?.id === "quit") {
       onExit();
     }
   });

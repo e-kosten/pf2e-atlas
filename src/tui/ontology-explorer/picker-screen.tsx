@@ -318,8 +318,8 @@ export function OntologyPickerScreen({
     getDetailLines: ({ selection }) => buildPickerDetailLines(selections, selection.currentNode),
     getDetailTitle: () => "Detail",
     getInteractionActions: getFacetPickerInteractionActions,
-    onConfirm: ({ currentNode, normalizedKey }) => {
-      const cycleDirection = getTerminalInteractionCycleDirection(normalizedKey, { id: "cycle" });
+    onConfirm: ({ currentNode, event }) => {
+      const cycleDirection = getTerminalInteractionCycleDirection(event, { id: "cycle" });
       if (!cycleDirection) {
         return false;
       }

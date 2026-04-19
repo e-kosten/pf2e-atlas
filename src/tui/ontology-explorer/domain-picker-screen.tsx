@@ -4,7 +4,6 @@ import type { OntologyDomainSummary } from "../../types.js";
 import {
   TerminalTwoPaneScreen,
   createDerivedTagTerminalListNavigationState,
-  getNormalizedKeyName,
   getTerminalPaneBodyHeight,
   resolveDerivedTagTerminalListNavigationAction,
   useDerivedTagTerminalApp,
@@ -83,11 +82,9 @@ export function OntologyDomainPickerScreen({
     }),
   );
 
-  useDerivedTagTerminalInput((input, key) => {
-    const normalized = getNormalizedKeyName(input, key);
+  useDerivedTagTerminalInput((event) => {
     const navigation = resolveDerivedTagTerminalListNavigationAction(
-      input,
-      key,
+      event,
       {
         pageSize: Math.max(1, bodyHeight - 1),
         jumpSize: Math.max(1, Math.floor(bodyHeight / 2)),
@@ -97,9 +94,9 @@ export function OntologyDomainPickerScreen({
       navigationStateRef.current,
     );
     navigationStateRef.current = navigation.state;
-    const interactionAction = resolveTerminalInteractionAction(normalized, getOntologyDomainPickerInteractionActions());
+    const interactionAction = resolveTerminalInteractionAction(event, getOntologyDomainPickerInteractionActions());
 
-    if (normalized === "ctrl_c" || interactionAction?.id === "back" || interactionAction?.id === "quit") {
+    if (event.systemAction === "interrupt" || interactionAction?.id === "back" || interactionAction?.id === "quit") {
       onBack();
       return;
     }

@@ -1,8 +1,5 @@
-import type { Key } from "ink";
-
 import type { OntologyChildPresentation, OntologyDomainModel, OntologyNode } from "../../types.js";
 import {
-  getPrintableInput,
   getRenderedTerminalLineCount,
   getTerminalPaneBodyHeight,
   getTerminalTwoPaneDetailWidth,
@@ -542,15 +539,4 @@ export function getOntologyBrowserDetailMetrics(
     maxDetailScroll: Math.max(0, renderedDetailLineCount - bodyHeight),
     selectionJumpSize: Math.max(1, Math.floor(bodyHeight / 2)),
   };
-}
-
-export function getPrintableOntologyBrowserKeyCharacter(input: string, key: Key): string | undefined {
-  if (key.ctrl || key.meta) {
-    return undefined;
-  }
-  return getPrintableInput(input, key);
-}
-
-export function isExactPrintableOntologyBrowserKey(input: string, key: Key, value: string): boolean {
-  return getPrintableOntologyBrowserKeyCharacter(input, key) === value;
 }

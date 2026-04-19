@@ -1,11 +1,8 @@
 import React from "react";
 
-import type { Key } from "ink";
-
 import type { OntologyDomainModel, OntologyNode, OntologyNodeQuery } from "../../types.js";
 import {
   createDerivedTagTerminalListNavigationState,
-  getNormalizedKeyName,
   getRenderedTerminalLineCount,
   getTerminalPaneBodyHeight,
   getTerminalTwoPaneDetailWidth,
@@ -13,6 +10,7 @@ import {
   sliceRenderedTerminalLines,
   useDerivedTagTerminalInput,
   useDerivedTagTerminalSize,
+  type DerivedTagTerminalInputEvent,
   type DerivedTagTerminalLine,
 } from "../terminal-ui.js";
 import { resolveTerminalInteractionAction, type TerminalInteractionAction } from "../interaction-bindings.js";
@@ -78,10 +76,7 @@ export type OntologyExplorerControllerContext = {
 
 type OntologyExplorerKeyContext = OntologyExplorerControllerContext & {
   dispatch: React.Dispatch<OntologyExplorerAction>;
-  input: string;
-  key: Key;
-  normalizedKey: string;
-  printable?: string;
+  event: DerivedTagTerminalInputEvent;
 };
 
 type OntologyExplorerControllerOptions = {
@@ -317,12 +312,9 @@ export function useOntologyExplorerController(
   const listNavigationStateRef = React.useRef(createDerivedTagTerminalListNavigationState());
   const detailNavigationStateRef = React.useRef(createDerivedTagTerminalListNavigationState());
 
-  useDerivedTagTerminalInput((input, key) => {
-    const normalizedKey = getNormalizedKeyName(input, key);
-    const printable = key.ctrl || key.meta ? undefined : input.length === 1 ? input : undefined;
+  useDerivedTagTerminalInput((event) => {
     const listNavigation = resolveDerivedTagTerminalListNavigationAction(
-      input,
-      key,
+      event,
       {
         pageSize: context.detailPageSize,
         jumpSize: context.selectionJumpSize,
@@ -333,8 +325,7 @@ export function useOntologyExplorerController(
     );
     listNavigationStateRef.current = listNavigation.state;
     const detailNavigation = resolveDerivedTagTerminalListNavigationAction(
-      input,
-      key,
+      event,
       {
         pageSize: context.detailPageSize,
         jumpSize: context.detailJumpSize,
@@ -348,35 +339,32 @@ export function useOntologyExplorerController(
     const keyContext: OntologyExplorerKeyContext = {
       ...context,
       dispatch,
-      input,
-      key,
-      normalizedKey,
-      printable,
+      event,
     };
     const interactionActions = options.getInteractionActions?.(context) ?? [];
-    const interactionAction = resolveTerminalInteractionAction(normalizedKey, interactionActions);
+    const interactionAction = resolveTerminalInteractionAction(event, interactionActions);
 
-    if (normalizedKey === "ctrl_c") {
+    if (event.systemAction === "interrupt") {
       options.onExit();
       return;
     }
 
     if (state.searchMode) {
-      if (normalizedKey === "enter") {
+      if (event.textInputAction === "submit") {
         dispatch({ type: "set_search_mode", searchMode: false });
         return;
       }
-      if (normalizedKey === "backspace") {
+      if (event.textInputAction === "deleteBackward") {
         dispatch({ type: "backspace_search" });
         return;
       }
-      if (normalizedKey === "escape") {
+      if (event.textInputAction === "cancel") {
         dispatch({ type: "clear_search" });
         dispatch({ type: "set_search_mode", searchMode: false, searchInput: "" });
         return;
       }
-      if (printable) {
-        dispatch({ type: "append_search", character: printable });
+      if (event.printable) {
+        dispatch({ type: "append_search", character: event.printable });
       }
       return;
     }
@@ -421,7 +409,7 @@ export function useOntologyExplorerController(
         dispatch({ type: "leave_detail" });
         return;
       }
-      if (normalizedKey === "escape") {
+      if (event.textInputAction === "cancel") {
         dispatch({ type: "leave_detail" });
         return;
       }
@@ -452,7 +440,7 @@ export function useOntologyExplorerController(
       }
       return;
     }
-    if (normalizedKey === "escape") {
+    if (event.textInputAction === "cancel") {
       if ((options.escapeClearsFilterBeforeExit ?? true) && context.effectiveState.filter) {
         dispatch({ type: "clear_search" });
         return;

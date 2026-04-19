@@ -15,7 +15,6 @@ import {
 import {
   TerminalTwoPaneScreen,
   createDerivedTagTerminalListNavigationState,
-  getNormalizedKeyName,
   getTerminalPaneBodyHeight,
   resolveDerivedTagTerminalListNavigationAction,
   useDerivedTagTerminalApp,
@@ -222,12 +221,10 @@ export function TagRefinementMenuScreen({
     [onQuickAction],
   );
 
-  useDerivedTagTerminalInput((input, key) => {
-    const normalized = getNormalizedKeyName(input, key);
-    const actionTargetIntent = resolveDerivedTagTerminalActionTargetIntent(normalized, actionTargetState, "horizontal");
+  useDerivedTagTerminalInput((event) => {
+    const actionTargetIntent = resolveDerivedTagTerminalActionTargetIntent(event, actionTargetState, "horizontal");
     const navigation = resolveDerivedTagTerminalListNavigationAction(
-      input,
-      key,
+      event,
       {
         pageSize: Math.max(1, bodyHeight - 1),
         jumpSize: Math.max(1, Math.floor(bodyHeight / 2)),
@@ -236,9 +233,9 @@ export function TagRefinementMenuScreen({
       navigationStateRef.current,
     );
     navigationStateRef.current = navigation.state;
-    const interactionAction = resolveTerminalInteractionAction(normalized, getTagRefinementInteractionActions());
+    const interactionAction = resolveTerminalInteractionAction(event, getTagRefinementInteractionActions());
 
-    if (normalized === "ctrl_c") {
+    if (event.systemAction === "interrupt") {
       onBack();
       return;
     }
