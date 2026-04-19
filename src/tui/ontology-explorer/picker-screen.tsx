@@ -221,6 +221,7 @@ export function OntologyPickerScreen({
 
   const controller = useOntologyExplorerController({
     model,
+    nestedDetailBackAction: "pop_depth",
     onExit: returnWithSelections,
     getDetailLines: ({ selection }) => buildPickerDetailLines(selections, selection.currentNode),
     getDetailTitle: () => "Detail",

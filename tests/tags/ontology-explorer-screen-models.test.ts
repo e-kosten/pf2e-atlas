@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import type { OntologyDomainModel } from "../../src/types.js";
 import { formatTerminalInteractionFooter } from "../../src/tui/interaction-bindings.js";
-import type { OntologyExplorerControllerContext } from "../../src/tui/ontology-explorer/controller.js";
+import {
+  resolveOntologyExplorerBackNavigation,
+  type OntologyExplorerControllerContext,
+} from "../../src/tui/ontology-explorer/controller.js";
 import {
   buildFacetPickerHelpLines,
   buildFacetPickerScreenModel,
@@ -131,6 +134,64 @@ describe("ontology explorer screen models", () => {
 
     const helpLines = buildFacetPickerHelpLines(controller);
     expect(helpLines.some((line) => line.text.includes("return to the field list"))).toBe(true);
+    expect(helpLines.some((line) => line.text.includes("return to the value list"))).toBe(false);
+  });
+
+  it("keeps ontology browser detail back as pane navigation by default", () => {
+    const controller = createController({
+      state: {
+        activePane: "detail",
+        browserState: {
+          depth: 2,
+          selectedNodeIds: ["spell", "spell:security", "spell:alarm"],
+          filter: "",
+          detailScroll: 0,
+        },
+        layoutMode: "detail-only",
+        searchInput: "",
+        searchMode: false,
+      },
+      effectiveState: {
+        depth: 2,
+        selectedNodeIds: ["spell", "spell:security", "spell:alarm"],
+        filter: "",
+        detailScroll: 0,
+      },
+      layoutMode: "detail-only",
+    });
+
+    expect(resolveOntologyExplorerBackNavigation(controller)).toBe("leave_detail");
+  });
+
+  it("treats nested picker detail back as a hierarchy pop", () => {
+    const controller = createController({
+      state: {
+        activePane: "detail",
+        browserState: {
+          depth: 1,
+          selectedNodeIds: ["spell:field:derivedTags", "spell:derivedTags:coastal_setting"],
+          filter: "",
+          detailScroll: 0,
+        },
+        layoutMode: "detail-only",
+        searchInput: "",
+        searchMode: false,
+      },
+      effectiveState: {
+        depth: 1,
+        selectedNodeIds: ["spell:field:derivedTags", "spell:derivedTags:coastal_setting"],
+        filter: "",
+        detailScroll: 0,
+      },
+      layoutMode: "detail-only",
+    });
+
+    expect(resolveOntologyExplorerBackNavigation(controller, { nestedDetailBackAction: "pop_depth" })).toBe(
+      "pop_depth",
+    );
+
+    const helpLines = buildFacetPickerHelpLines(controller);
+    expect(helpLines.some((line) => line.text.includes("return to the previous level"))).toBe(true);
     expect(helpLines.some((line) => line.text.includes("return to the value list"))).toBe(false);
   });
 });

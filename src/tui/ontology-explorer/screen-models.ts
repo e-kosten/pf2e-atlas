@@ -57,7 +57,7 @@ function getFacetPickerBackHelpText(
   controller: Pick<OntologyExplorerControllerContext, "layoutMode" | "state" | "effectiveState">,
 ): string {
   if (isOntologyExplorerDetailContext(controller)) {
-    return controller.effectiveState.depth === 0 ? "return to the field list" : "return to the value list";
+    return controller.effectiveState.depth === 0 ? "return to the field list" : "return to the previous level";
   }
   return isOntologyExplorerRootLevel(controller)
     ? "return to the search setup workspace"

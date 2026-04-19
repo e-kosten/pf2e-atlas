@@ -100,7 +100,24 @@ type OntologyExplorerControllerOptions = {
     state: OntologyBrowserUiState;
     selection: OntologyBrowserSelection;
   }) => string;
+  nestedDetailBackAction?: "leave_detail" | "pop_depth";
 };
+
+export type OntologyExplorerBackNavigationOutcome = "leave_detail" | "pop_depth" | "exit";
+
+export function resolveOntologyExplorerBackNavigation(
+  context: Pick<OntologyExplorerControllerContext, "state" | "effectiveState">,
+  options: Pick<OntologyExplorerControllerOptions, "nestedDetailBackAction"> = {},
+): OntologyExplorerBackNavigationOutcome {
+  if (context.state.activePane === "detail") {
+    return context.effectiveState.depth > 0 && options.nestedDetailBackAction === "pop_depth"
+      ? "pop_depth"
+      : "leave_detail";
+  }
+
+  const nextState = popOntologyBrowserDepth(context.effectiveState);
+  return nextState.depth === context.effectiveState.depth ? "exit" : "pop_depth";
+}
 
 export function createOntologyBrowserSnapshot(
   context: Pick<OntologyExplorerControllerContext, "state" | "effectiveState" | "layoutMode">,
@@ -386,7 +403,16 @@ export function useOntologyExplorerController(
           return;
         }
         if (interactionAction?.id === "back" || interactionAction?.id === "return") {
-          dispatch({ type: "leave_detail" });
+          const backNavigation = resolveOntologyExplorerBackNavigation(context, options);
+          if (backNavigation === "pop_depth") {
+            dispatch({ type: "pop_depth" });
+            return;
+          }
+          if (backNavigation === "leave_detail") {
+            dispatch({ type: "leave_detail" });
+            return;
+          }
+          options.onExit();
           return;
         }
         return;
@@ -436,11 +462,13 @@ export function useOntologyExplorerController(
         return;
       }
       if (interactionAction?.id === "back" || interactionAction?.id === "return") {
-        const nextState = popOntologyBrowserDepth(context.effectiveState);
-        if (nextState.depth === context.effectiveState.depth) {
-          options.onExit();
-        } else {
+        const backNavigation = resolveOntologyExplorerBackNavigation(context, options);
+        if (backNavigation === "pop_depth") {
           dispatch({ type: "pop_depth" });
+        } else if (backNavigation === "leave_detail") {
+          dispatch({ type: "leave_detail" });
+        } else {
+          options.onExit();
         }
         return;
       }
