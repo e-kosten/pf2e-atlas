@@ -530,14 +530,14 @@ export function useSearchWorkspaceActions({
         {
           kind: "finish",
           key: "finish",
-          label: "Finish Structured Edit",
-          value: "Apply draft",
+          label: "Apply Structured Edit",
+          value: "Commit draft",
           description: "Commit the staged structured query back into the live editor.",
         },
         {
           kind: "cancel",
           key: "cancel",
-          label: "Cancel Structured Edit",
+          label: "Discard Structured Edit",
           value: "Discard draft",
           description: "Discard the staged structured query and keep the live query unchanged.",
         },
@@ -1570,7 +1570,7 @@ export function useSearchWorkspaceActions({
       subtitle: "Stage structured search changes before applying them to the live query",
       leftTitle: "[STAGED QUERY]",
       rightTitle: "Staged Summary & Detail",
-      statusText: "Structured changes stay in draft form until you finish.",
+      statusText: "Left/Esc applies the staged query and returns. Use the discard row to abandon it.",
       draftQuery: structuredDraftState.draftQuery,
       items: structuredDraftEntries.map((entry) =>
         entry.kind === "finish" || entry.kind === "cancel"
@@ -1602,16 +1602,16 @@ export function useSearchWorkspaceActions({
       },
       selectCurrent: selectCurrentStructuredDraftEntry,
       finish: finishStructuredDraftSession,
-      cancel: cancelStructuredDraftSession,
+      cancel: finishStructuredDraftSession,
       helpTitle: "Structured Query Editor Help",
       helpBody: [
         { text: "Stage structured search changes before applying them to the live query.", tone: "section" },
         { text: "The summary stays visible while you move focus so prior staged selections do not disappear." },
-        { text: "Open a row to edit it, stage more changes, then finish when the draft looks correct." },
+        { text: "Use Left or Esc to apply the staged query and return to the top editor." },
+        { text: "Use the discard row only when you want to abandon the staged query entirely." },
       ],
     };
   }, [
-    cancelStructuredDraftSession,
     finishStructuredDraftSession,
     selectCurrentStructuredDraftEntry,
     structuredDraftEntries,

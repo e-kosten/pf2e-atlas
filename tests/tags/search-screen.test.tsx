@@ -1601,7 +1601,7 @@ describe("search screen", () => {
     });
   });
 
-  it("returns from a direct-open single-field picker back into the staged structured editor", async () => {
+  it("applies the staged query when returning from the top-level structured editor", async () => {
     const services = createServices();
     services.user.search.getQueryFieldOptions = vi.fn(() => [
       {
@@ -1677,6 +1677,14 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Structured Query Editor");
     expect(app.lastFrame()).toContain("Query Clause: includes any Coastal Setting");
     expect(app.lastFrame()).not.toContain("Browse/Search");
+
+    pressLeft(app);
+    await flushInk();
+    expect(app.lastFrame()).toContain("[EDITOR] Query");
+    expect(app.lastFrame()).toContain("Add Query Part | 5 active");
+    expect(app.lastFrame()).toContain("Query clauses: 1");
+    expect(app.lastFrame()).toContain("Query Clause: includes any Coastal Setting");
+    expect(app.lastFrame()).not.toContain("Structured Query Editor");
   });
 
   it("returns from a multi-field picker back into the query-field chooser instead of main search", async () => {

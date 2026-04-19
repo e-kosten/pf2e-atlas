@@ -42,6 +42,7 @@ export function SearchScreen({
 
   if (controller.structuredEditorSession) {
     const session = controller.structuredEditorSession;
+    const backLabel = session.kind === "structuredEditor" ? "return" : "cancel";
     return (
       <TerminalMenuScreen
         title={session.title ?? "Structured Query Editor"}
@@ -57,8 +58,8 @@ export function SearchScreen({
           { id: "edge" },
           { id: "select", label: "open" },
           { id: "help" },
-          { id: "back", label: "cancel" },
-          { id: "quit", label: "cancel" },
+          { id: "back", label: backLabel },
+          { id: "quit", label: backLabel },
         ]}
         footer={[
           {
@@ -69,7 +70,7 @@ export function SearchScreen({
               { id: "edge" },
               { id: "select", label: "open" },
               { id: "help" },
-              { id: "back", label: "cancel" },
+              { id: "back", label: backLabel },
             ]),
             tone: "dim",
           },
