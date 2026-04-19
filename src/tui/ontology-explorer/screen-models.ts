@@ -14,6 +14,70 @@ import type {
 import type { OntologyExplorerControllerContext } from "./controller.js";
 import type { OntologyBrowserSnapshot } from "./ui.js";
 
+function isOntologyExplorerRootLevel(
+  controller: Pick<OntologyExplorerControllerContext, "layoutMode" | "state" | "effectiveState">,
+): boolean {
+  return controller.state.activePane === "list" && controller.effectiveState.depth === 0;
+}
+
+function isOntologyExplorerDetailContext(
+  controller: Pick<OntologyExplorerControllerContext, "layoutMode" | "state" | "effectiveState">,
+): boolean {
+  return controller.layoutMode === "detail-only" || controller.state.activePane === "detail";
+}
+
+function getOntologyBrowserBackAction(
+  controller: Pick<OntologyExplorerControllerContext, "layoutMode" | "state" | "effectiveState">,
+): TerminalInteractionAction {
+  if (isOntologyExplorerDetailContext(controller)) {
+    return { id: "back" };
+  }
+  return isOntologyExplorerRootLevel(controller) ? { id: "back", label: "return" } : { id: "back" };
+}
+
+function getOntologyBrowserBackHelpText(
+  controller: Pick<OntologyExplorerControllerContext, "layoutMode" | "state" | "effectiveState">,
+): string {
+  if (isOntologyExplorerDetailContext(controller)) {
+    return "return to the entry list";
+  }
+  return isOntologyExplorerRootLevel(controller) ? "return from ontology browsing" : "return to the previous level";
+}
+
+function getFacetPickerBackAction(
+  controller: Pick<OntologyExplorerControllerContext, "layoutMode" | "state" | "effectiveState">,
+): TerminalInteractionAction {
+  if (isOntologyExplorerDetailContext(controller)) {
+    return { id: "back" };
+  }
+  return isOntologyExplorerRootLevel(controller) ? { id: "back", label: "return" } : { id: "back" };
+}
+
+function getFacetPickerBackHelpText(
+  controller: Pick<OntologyExplorerControllerContext, "layoutMode" | "state" | "effectiveState">,
+): string {
+  if (isOntologyExplorerDetailContext(controller)) {
+    return controller.effectiveState.depth === 0 ? "return to the field list" : "return to the value list";
+  }
+  return isOntologyExplorerRootLevel(controller)
+    ? "return to the search setup workspace"
+    : "return to the previous level";
+}
+
+function getFacetPickerListTitle(
+  controller: Pick<OntologyExplorerControllerContext, "state" | "effectiveState">,
+): string {
+  return controller.effectiveState.depth === 0 ? "Fields" : "Values";
+}
+
+function getFacetPickerFocusHelpText(
+  controller: Pick<OntologyExplorerControllerContext, "effectiveState">,
+): string {
+  return controller.effectiveState.depth === 0
+    ? "switch focus between fields and detail"
+    : "switch focus between values and detail";
+}
+
 export function getOntologyBrowserInteractionActions(
   controller: Pick<OntologyExplorerControllerContext, "layoutMode" | "state" | "effectiveState">,
 ): TerminalInteractionAction[] {
@@ -24,7 +88,7 @@ export function getOntologyBrowserInteractionActions(
       { id: "page" },
       { id: "edge" },
       { id: "layout", label: "split-view" },
-      { id: "back", label: "list" },
+      getOntologyBrowserBackAction(controller),
       { id: "search" },
       { id: "commands" },
       { id: "help" },
@@ -42,7 +106,7 @@ export function getOntologyBrowserInteractionActions(
       { id: "focus", label: "pane" },
       { id: "layout", label: "detail-only" },
       ...(controller.effectiveState.filter ? [{ id: "cancel" as const, label: "clear filter" }] : []),
-      { id: "back", label: "up" },
+      getOntologyBrowserBackAction(controller),
       { id: "search" },
       { id: "commands" },
       { id: "help" },
@@ -57,7 +121,7 @@ export function getOntologyBrowserInteractionActions(
     { id: "edge" },
     { id: "focus", label: "pane" },
     { id: "layout", label: "detail-only" },
-    { id: "back", label: "list" },
+    getOntologyBrowserBackAction(controller),
     { id: "search" },
     { id: "commands" },
     { id: "help" },
@@ -110,7 +174,7 @@ export function buildOntologyBrowserHelpLines(
               : action.id === "cancel"
                 ? "clear the current filter without leaving this level"
                 : action.id === "back"
-                  ? "move up a level or leave the active pane"
+                  ? getOntologyBrowserBackHelpText(controller)
                   : action.id === "search"
                     ? "start live filtering"
                     : action.id === "commands"
@@ -229,7 +293,7 @@ export function getFacetPickerInteractionActions(
       { id: "edge" },
       { id: "cycle" },
       { id: "layout", label: "split-view" },
-      { id: "back", label: "values" },
+      getFacetPickerBackAction(controller),
       { id: "search" },
       { id: "help" },
       { id: "quit", label: "return" },
@@ -246,7 +310,7 @@ export function getFacetPickerInteractionActions(
       { id: "focus", label: "pane" },
       { id: "layout", label: "detail-only" },
       ...(controller.effectiveState.filter ? [{ id: "cancel" as const, label: "clear filter" }] : []),
-      { id: "back", label: "up" },
+      getFacetPickerBackAction(controller),
       { id: "search" },
       { id: "help" },
       { id: "quit", label: "return" },
@@ -260,7 +324,7 @@ export function getFacetPickerInteractionActions(
     { id: "edge" },
     { id: "focus", label: "pane" },
     { id: "layout", label: "detail-only" },
-    { id: "back", label: "values" },
+    getFacetPickerBackAction(controller),
     { id: "search" },
     { id: "help" },
     { id: "quit", label: "return" },
@@ -278,13 +342,13 @@ export function buildFacetPickerHelpLines(
         action.id === "cycle"
           ? "cycle the focused policy through off, any, all, and exclude"
           : action.id === "focus"
-            ? "switch focus between values and detail"
+            ? getFacetPickerFocusHelpText(controller)
             : action.id === "layout"
               ? "toggle split and detail-only layouts"
               : action.id === "cancel"
                 ? "clear the current filter without leaving this level"
                 : action.id === "back"
-                  ? "move up a level or leave the active pane"
+                  ? getFacetPickerBackHelpText(controller)
                   : action.id === "search"
                     ? "start live filtering"
                     : action.id === "help"
@@ -359,7 +423,7 @@ export function buildFacetPickerScreenModel({
       title: "Facet Picker",
       subtitle: `${model.label} | ${controller.breadcrumb}${controller.searchIndicator}`,
       left: {
-        title: controller.state.activePane === "list" ? "[VALUES]" : "Values",
+        title: controller.state.activePane === "list" ? `[${getFacetPickerListTitle(controller).toUpperCase()}]` : getFacetPickerListTitle(controller),
         lines: leftLines,
         active: controller.state.activePane === "list",
       },
