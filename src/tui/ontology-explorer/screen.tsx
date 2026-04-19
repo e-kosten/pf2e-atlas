@@ -1,12 +1,11 @@
 import React from "react";
 
 import type { OntologyDomainModel, OntologyNodeQuery } from "../../types.js";
+import { TerminalPaneScreen, TerminalTwoPaneScreen } from "../terminal-ui.js";
 import {
-  TerminalPaneScreen,
-  TerminalTwoPaneScreen,
-  useDerivedTagTerminalApp,
-} from "../terminal-ui.js";
-import { TERMINAL_DIALOG_RETURN_FOOTER } from "../interaction-bindings.js";
+  showTerminalReturnDialog,
+  useTerminalInteractionContextAdapters,
+} from "../interaction-context-adapters.js";
 import { createOntologyBrowserSnapshot, useOntologyExplorerController } from "./controller.js";
 import {
   buildOntologyBrowserHelpLines,
@@ -28,7 +27,7 @@ export function OntologyBrowserScreen({
   onExit: () => void;
   onOpenQuery?: (query: OntologyNodeQuery, snapshot: OntologyBrowserSnapshot) => void;
 }): React.JSX.Element {
-  const terminal = useDerivedTagTerminalApp();
+  const adapters = useTerminalInteractionContextAdapters();
   const controller = useOntologyExplorerController({
     initialSnapshot,
     model,
@@ -49,7 +48,7 @@ export function OntologyBrowserScreen({
         if (commandEntries.length === 0) {
           return true;
         }
-        void terminal
+        void adapters
           .promptCommandPalette({
             title: "Ontology Commands",
             prompt: "Filter ontology commands",
@@ -65,11 +64,11 @@ export function OntologyBrowserScreen({
       if (action.id !== "help") {
         return false;
       }
-      void terminal.showDialog({
-        title: "Ontology Browser Help",
-        body: buildOntologyBrowserHelpLines(keyContext, onOpenQuery),
-        footer: [{ text: TERMINAL_DIALOG_RETURN_FOOTER, tone: "dim" }],
-      });
+      void showTerminalReturnDialog(
+        adapters,
+        "Ontology Browser Help",
+        buildOntologyBrowserHelpLines(keyContext, onOpenQuery),
+      );
       return true;
     },
   });

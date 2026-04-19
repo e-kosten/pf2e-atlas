@@ -14,20 +14,22 @@ import {
 import {
   TerminalTwoPaneScreen,
   TerminalTextScreen,
-  createDerivedTagTerminalListNavigationState,
   getTerminalPaneBodyHeight,
-  resolveDerivedTagTerminalListNavigationAction,
-  useDerivedTagTerminalApp,
-  useDerivedTagTerminalInput,
   useDerivedTagTerminalSize,
   type DerivedTagTerminalLine,
 } from "./terminal-ui.js";
 import {
-  TERMINAL_DIALOG_RETURN_FOOTER,
   formatTerminalInteractionFooter,
-  resolveTerminalInteractionAction,
   type TerminalInteractionAction,
 } from "./interaction-bindings.js";
+import {
+  showTerminalReturnDialog,
+  useTerminalInteractionContextAdapters,
+} from "./interaction-context-adapters.js";
+import {
+  createTerminalListInteractionContext,
+  useTerminalInteractionContextRouter,
+} from "./interaction-context-router.js";
 import { buildScrollableLines } from "./list-utils.js";
 
 export function TerminalBusyScreen({
@@ -65,23 +67,20 @@ export function TerminalMessageScreen({
   helpBody?: DerivedTagTerminalLine[];
   onBack: () => void;
 }): React.JSX.Element {
-  const terminal = useDerivedTagTerminalApp();
+  const adapters = useTerminalInteractionContextAdapters();
 
-  useDerivedTagTerminalInput((event) => {
-    const interactionAction = resolveTerminalInteractionAction(event, interactionActions);
+  useTerminalInteractionContextRouter({
+    contexts: [{ id: "message", kind: "message", interactionActions }],
+    onRoute: ({ message }) => {
+      if (message.interactionAction?.id === "back" || message.interactionAction?.id === "quit") {
+        onBack();
+        return;
+      }
 
-    if (interactionAction?.id === "back" || interactionAction?.id === "quit") {
-      onBack();
-      return;
-    }
-
-    if (interactionAction?.id === "help" && helpTitle && helpBody) {
-      void terminal.showDialog({
-        title: helpTitle,
-        body: helpBody,
-        footer: [{ text: TERMINAL_DIALOG_RETURN_FOOTER, tone: "dim" }],
-      });
-    }
+      if (message.interactionAction?.id === "help" && helpTitle && helpBody) {
+        void showTerminalReturnDialog(adapters, helpTitle, helpBody);
+      }
+    },
   });
 
   return (
@@ -138,9 +137,8 @@ export function TerminalMenuScreen<TItem extends TerminalMenuScreenItem>({
   onSelect: () => void;
   onBack: () => void;
 }): React.JSX.Element {
-  const terminal = useDerivedTagTerminalApp();
+  const adapters = useTerminalInteractionContextAdapters();
   const size = useDerivedTagTerminalSize();
-  const navigationStateRef = React.useRef(createDerivedTagTerminalListNavigationState());
   const bodyHeight = Math.max(
     1,
     getTerminalPaneBodyHeight(size.height, {
@@ -149,43 +147,37 @@ export function TerminalMenuScreen<TItem extends TerminalMenuScreenItem>({
     }),
   );
 
-  useDerivedTagTerminalInput((event) => {
-    const navigation = resolveDerivedTagTerminalListNavigationAction(
-      event,
-      {
+  useTerminalInteractionContextRouter({
+    contexts: [
+      createTerminalListInteractionContext("menu", {
+        interactionActions,
         pageSize: Math.max(1, bodyHeight - 1),
         jumpSize: Math.max(1, Math.floor(bodyHeight / 2)),
         includeConfirmKeys: true,
         includeHorizontalConfirmKeys: true,
-      },
-      navigationStateRef.current,
-    );
-    navigationStateRef.current = navigation.state;
-    const interactionAction = resolveTerminalInteractionAction(event, interactionActions);
-
-    if (interactionAction?.id === "back" || interactionAction?.id === "quit") {
-      onBack();
-      return;
-    }
-    if (navigation.action?.kind === "move") {
-      onMove(navigation.action.delta, items.length);
-      return;
-    }
-    if (navigation.action?.kind === "boundary") {
-      onMove(navigation.action.boundary === "start" ? -selectedIndex : items.length - 1 - selectedIndex, items.length);
-      return;
-    }
-    if (interactionAction?.id === "select") {
-      onSelect();
-      return;
-    }
-    if (interactionAction?.id === "help") {
-      void terminal.showDialog({
-        title: helpTitle,
-        body: helpBody,
-        footer: [{ text: TERMINAL_DIALOG_RETURN_FOOTER, tone: "dim" }],
-      });
-    }
+      }),
+    ],
+    onRoute: ({ menu }) => {
+      if (menu.interactionAction?.id === "back" || menu.interactionAction?.id === "quit") {
+        onBack();
+        return;
+      }
+      if (menu.navigationAction?.kind === "move") {
+        onMove(menu.navigationAction.delta, items.length);
+        return;
+      }
+      if (menu.navigationAction?.kind === "boundary") {
+        onMove(menu.navigationAction.boundary === "start" ? -selectedIndex : items.length - 1 - selectedIndex, items.length);
+        return;
+      }
+      if (menu.interactionAction?.id === "select") {
+        onSelect();
+        return;
+      }
+      if (menu.interactionAction?.id === "help") {
+        void showTerminalReturnDialog(adapters, helpTitle, helpBody);
+      }
+    },
   });
 
   return (
@@ -252,9 +244,8 @@ export function TerminalActionMenuScreen<
   onBack: () => void;
   onAction: (actionId: TAction) => void;
 }): React.JSX.Element {
-  const terminal = useDerivedTagTerminalApp();
+  const adapters = useTerminalInteractionContextAdapters();
   const size = useDerivedTagTerminalSize();
-  const navigationStateRef = React.useRef(createDerivedTagTerminalListNavigationState());
   const [actionTargetState, dispatchActionTarget] = React.useReducer(
     reduceDerivedTagTerminalActionTargetState<DerivedTagTerminalActionTargetState>,
     undefined,
@@ -269,73 +260,75 @@ export function TerminalActionMenuScreen<
   );
   const selectedItem = items[selectedIndex];
 
-  useDerivedTagTerminalInput((event) => {
-    const actionTargetIntent = resolveDerivedTagTerminalActionTargetIntent(event, actionTargetState, "horizontal");
-    const navigation = resolveDerivedTagTerminalListNavigationAction(
-      event,
-      {
+  useTerminalInteractionContextRouter({
+    contexts: [
+      createTerminalListInteractionContext("menu", {
+        interactionActions,
         pageSize: Math.max(1, bodyHeight - 1),
         jumpSize: Math.max(1, Math.floor(bodyHeight / 2)),
         includeConfirmKeys: true,
+      }),
+      {
+        id: "actionTarget",
+        kind: "actionTarget",
+        interactionActions: [
+          ...getDerivedTagTerminalActionTargetInteractionActions(actionTargetState, "horizontal"),
+          { id: "help" },
+        ],
       },
-      navigationStateRef.current,
-    );
-    navigationStateRef.current = navigation.state;
-    const interactionAction = resolveTerminalInteractionAction(event, interactionActions);
+    ],
+    onRoute: ({ actionTarget, menu }) => {
+      const actionTargetIntent = resolveDerivedTagTerminalActionTargetIntent(
+        actionTarget.event,
+        actionTargetState,
+        "horizontal",
+      );
 
-    if (actionTargetIntent?.kind === "toggle_target") {
-      dispatchActionTarget({ type: "toggle_target" });
-      navigationStateRef.current = createDerivedTagTerminalListNavigationState();
-      return;
-    }
-    if (actionTargetIntent?.kind === "leave_actions") {
-      dispatchActionTarget({ type: "leave_actions" });
-      return;
-    }
-    if (actionTargetIntent?.kind === "move_action") {
-      dispatchActionTarget({ type: "move_action", delta: actionTargetIntent.delta, actionCount: actionEntries.length });
-      return;
-    }
-    if (actionTargetIntent?.kind === "apply_action") {
-      const selectedAction = actionEntries[actionTargetState.selectedActionIndex];
-      if (selectedAction) {
-        onAction(selectedAction.id);
+      if (actionTargetIntent?.kind === "toggle_target") {
+        dispatchActionTarget({ type: "toggle_target" });
+        return;
       }
-      return;
-    }
-    if (actionTargetState.activeTarget === "actions") {
-      if (interactionAction?.id === "help") {
-        void terminal.showDialog({
-          title: helpTitle,
-          body: helpBody,
-          footer: [{ text: TERMINAL_DIALOG_RETURN_FOOTER, tone: "dim" }],
-        });
+      if (actionTargetIntent?.kind === "leave_actions") {
+        dispatchActionTarget({ type: "leave_actions" });
+        return;
       }
-      return;
-    }
-    if (interactionAction?.id === "back" || interactionAction?.id === "quit") {
-      onBack();
-      return;
-    }
-    if (navigation.action?.kind === "move") {
-      onMove(navigation.action.delta, items.length);
-      return;
-    }
-    if (navigation.action?.kind === "boundary") {
-      onMove(navigation.action.boundary === "start" ? -selectedIndex : items.length - 1 - selectedIndex, items.length);
-      return;
-    }
-    if (interactionAction?.id === "select") {
-      onSelect();
-      return;
-    }
-    if (interactionAction?.id === "help") {
-      void terminal.showDialog({
-        title: helpTitle,
-        body: helpBody,
-        footer: [{ text: TERMINAL_DIALOG_RETURN_FOOTER, tone: "dim" }],
-      });
-    }
+      if (actionTargetIntent?.kind === "move_action") {
+        dispatchActionTarget({ type: "move_action", delta: actionTargetIntent.delta, actionCount: actionEntries.length });
+        return;
+      }
+      if (actionTargetIntent?.kind === "apply_action") {
+        const selectedAction = actionEntries[actionTargetState.selectedActionIndex];
+        if (selectedAction) {
+          onAction(selectedAction.id);
+        }
+        return;
+      }
+      if (actionTargetState.activeTarget === "actions") {
+        if (actionTarget.interactionAction?.id === "help") {
+          void showTerminalReturnDialog(adapters, helpTitle, helpBody);
+        }
+        return;
+      }
+      if (menu.interactionAction?.id === "back" || menu.interactionAction?.id === "quit") {
+        onBack();
+        return;
+      }
+      if (menu.navigationAction?.kind === "move") {
+        onMove(menu.navigationAction.delta, items.length);
+        return;
+      }
+      if (menu.navigationAction?.kind === "boundary") {
+        onMove(menu.navigationAction.boundary === "start" ? -selectedIndex : items.length - 1 - selectedIndex, items.length);
+        return;
+      }
+      if (menu.interactionAction?.id === "select") {
+        onSelect();
+        return;
+      }
+      if (menu.interactionAction?.id === "help") {
+        void showTerminalReturnDialog(adapters, helpTitle, helpBody);
+      }
+    },
   });
 
   const footerActions: TerminalInteractionAction[] =

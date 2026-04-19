@@ -4,13 +4,15 @@ import type { OntologyDomainModel, OntologyNode, OntologySelectionState } from "
 import {
   TerminalPaneScreen,
   TerminalTwoPaneScreen,
-  useDerivedTagTerminalApp,
   type DerivedTagTerminalLine,
 } from "../terminal-ui.js";
 import {
-  TERMINAL_DIALOG_RETURN_FOOTER,
   getTerminalInteractionCycleDirection,
 } from "../interaction-bindings.js";
+import {
+  showTerminalReturnDialog,
+  useTerminalInteractionContextAdapters,
+} from "../interaction-context-adapters.js";
 import { useOntologyExplorerController } from "./controller.js";
 import {
   buildFacetPickerHelpLines,
@@ -188,7 +190,7 @@ export function OntologyPickerScreen({
   initialSelections?: OntologyPickerSelectionMap;
   onApply: (selection: OntologyPickerSelectionMap) => void;
 }): React.JSX.Element {
-  const terminal = useDerivedTagTerminalApp();
+  const adapters = useTerminalInteractionContextAdapters();
   const [selections, setSelections] = React.useState<OntologyPickerSelectionMap>(() => {
     const emptySelections = createEmptySelectionMap(model);
     return initialSelections ? { ...emptySelections, ...cloneSelectionMap(initialSelections) } : emptySelections;
@@ -236,11 +238,7 @@ export function OntologyPickerScreen({
     },
     onAction: (action, keyContext) => {
       if (action.id === "help") {
-        void terminal.showDialog({
-          title: "Facet Picker Help",
-          body: buildFacetPickerHelpLines(keyContext),
-          footer: [{ text: TERMINAL_DIALOG_RETURN_FOOTER, tone: "dim" }],
-        });
+        void showTerminalReturnDialog(adapters, "Facet Picker Help", buildFacetPickerHelpLines(keyContext));
         return true;
       }
       if (action.id !== "cycle" || !keyContext.currentNode?.selection) {
