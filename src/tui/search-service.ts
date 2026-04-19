@@ -78,6 +78,7 @@ export type Pf2eTerminalFacetSelection = {
 };
 
 export type Pf2eTerminalFacetField = MetadataFieldSemantics["field"];
+export type Pf2eTerminalQueryField = MetadataFieldSemantics["field"];
 
 export type Pf2eTerminalSearchMode = "browse" | "search" | "lookup";
 export type Pf2eTerminalSearchSort = SearchSort;
@@ -90,9 +91,10 @@ export type Pf2eTerminalSearchFilters = {
   rarity: Pf2eTerminalFilterValuePolicy<string>;
   actionCost: Pf2eTerminalFilterValuePolicy<number>;
   facets: Pf2eTerminalFacetSelection[];
+  metadata: MetadataFilterNode | null;
 };
 
-export type Pf2eTerminalSearchRequest = {
+export type Pf2eTerminalSearchQuery = {
   mode: Pf2eTerminalSearchMode;
   limit: number;
   queryText: string;
@@ -101,9 +103,16 @@ export type Pf2eTerminalSearchRequest = {
   filters: Pf2eTerminalSearchFilters;
 };
 
+export type Pf2eTerminalQueryFieldOption = {
+  value: Pf2eTerminalQueryField;
+  label: string;
+  description: string;
+  fieldType: MetadataFieldSemantics["fieldType"];
+};
+
 export type Pf2eTerminalSearchSession = {
   windowId: string;
-  request: Pf2eTerminalSearchRequest;
+  query: Pf2eTerminalSearchQuery;
   results: NormalizedRecord[];
   windowOffset: number;
   resultMode: SearchMode;
@@ -117,12 +126,12 @@ export type Pf2eTerminalSearchSession = {
 };
 
 export type Pf2eTerminalSearchService = {
-  createDefaultRequest: () => Pf2eTerminalSearchRequest;
-  createRequestFromOntologyQuery: (query: OntologyNodeQuery) => Pf2eTerminalSearchRequest;
-  countQuery: (request: Pf2eTerminalSearchRequest) => Promise<SearchCountResult>;
+  createDefaultQuery: () => Pf2eTerminalSearchQuery;
+  createQueryFromOntologyQuery: (query: OntologyNodeQuery) => Pf2eTerminalSearchQuery;
+  countQuery: (query: Pf2eTerminalSearchQuery) => Promise<SearchCountResult>;
   disposeSession: (session: Pf2eTerminalSearchSession) => void;
   executeQuery: (
-    request: Pf2eTerminalSearchRequest,
+    query: Pf2eTerminalSearchQuery,
     options?: { sort?: Pf2eTerminalSearchSort; limit?: number },
   ) => Promise<Pf2eTerminalSearchSession>;
   getActionCostOptions: (
@@ -134,6 +143,10 @@ export type Pf2eTerminalSearchService = {
     category: SearchCategory | null,
     subcategory: SearchSubcategory | null,
   ) => Pf2eTerminalFacetFieldOption[];
+  getQueryFieldOptions: (
+    category: SearchCategory | null,
+    subcategory: SearchSubcategory | null,
+  ) => Pf2eTerminalQueryFieldOption[];
   getFacetValueOptions: (
     field: Pf2eTerminalFacetField,
     category: SearchCategory | null,
@@ -156,7 +169,7 @@ export type Pf2eTerminalSearchService = {
     session: Pf2eTerminalSearchSession,
     options: { offset: number; limit: number },
   ) => Promise<Pf2eTerminalSearchSession>;
-  normalizeRequest: (request: Pf2eTerminalSearchRequest) => Pf2eTerminalSearchRequest;
+  normalizeQuery: (query: Pf2eTerminalSearchQuery) => Pf2eTerminalSearchQuery;
   changeSort: (session: Pf2eTerminalSearchSession, sort: Pf2eTerminalSearchSort) => Promise<Pf2eTerminalSearchSession>;
 };
 
@@ -369,10 +382,11 @@ function createDefaultFilters(): Pf2eTerminalSearchFilters {
     rarity: createEmptyFilterPolicy<string>(),
     actionCost: createEmptyFilterPolicy<number>(),
     facets: [],
+    metadata: null,
   };
 }
 
-function createDefaultRequest(): Pf2eTerminalSearchRequest {
+function createDefaultQuery(): Pf2eTerminalSearchQuery {
   return {
     mode: "browse",
     limit: 50,
@@ -480,37 +494,37 @@ function normalizeFacetSelection(
   };
 }
 
-function normalizeRequest(
-  request: Pf2eTerminalSearchRequest,
+function normalizeSearchQuery(
+  query: Pf2eTerminalSearchQuery,
   fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
-): Pf2eTerminalSearchRequest {
-  const category = request.filters.category;
+): Pf2eTerminalSearchQuery {
+  const category = query.filters.category;
   const subcategory =
-    category && request.filters.subcategory && CATEGORY_SUBCATEGORY_MAP[category].includes(request.filters.subcategory)
-      ? request.filters.subcategory
+    category && query.filters.subcategory && CATEGORY_SUBCATEGORY_MAP[category].includes(query.filters.subcategory)
+      ? query.filters.subcategory
       : null;
-  const normalizedFacets = request.filters.facets
+  const normalizedFacets = query.filters.facets
     .map((facet) => normalizeFacetSelection(facet, fieldSemanticsByName, category, subcategory))
     .filter((facet): facet is Pf2eTerminalFacetSelection => Boolean(facet))
     .sort(compareFacetSelections);
 
-  const levelMin = request.filters.levelMin ?? null;
-  const levelMax = request.filters.levelMax ?? null;
+  const levelMin = query.filters.levelMin ?? null;
+  const levelMax = query.filters.levelMax ?? null;
   const normalizedLevelMin = levelMin !== null && levelMax !== null ? Math.min(levelMin, levelMax) : levelMin;
   const normalizedLevelMax = levelMin !== null && levelMax !== null ? Math.max(levelMin, levelMax) : levelMax;
 
   return {
-    ...request,
-    queryText: request.queryText.trim(),
-    sourceLabel: request.sourceLabel?.trim() || null,
+    ...query,
+    queryText: query.queryText.trim(),
+    sourceLabel: query.sourceLabel?.trim() || null,
     filters: {
-      ...request.filters,
+      ...query.filters,
       category,
       subcategory,
       levelMin: normalizedLevelMin,
       levelMax: normalizedLevelMax,
       rarity: (() => {
-        const policy = normalizeStringPolicy(request.filters.rarity, fieldSemanticsByName.get("rarity")?.valueOrdering);
+        const policy = normalizeStringPolicy(query.filters.rarity, fieldSemanticsByName.get("rarity")?.valueOrdering);
         return {
           any: policy.any,
           all: [],
@@ -518,7 +532,7 @@ function normalizeRequest(
         };
       })(),
       actionCost: (() => {
-        const policy = normalizeNumberPolicy(request.filters.actionCost);
+        const policy = normalizeNumberPolicy(query.filters.actionCost);
         return {
           any: policy.any,
           all: [],
@@ -526,44 +540,45 @@ function normalizeRequest(
         };
       })(),
       facets: normalizedFacets,
+      metadata: query.filters.metadata ?? null,
     },
   };
 }
 
-function buildDiscreteFilterNodes(request: Pf2eTerminalSearchRequest): MetadataFilterNode[] {
+function buildDiscreteFilterNodes(query: Pf2eTerminalSearchQuery): MetadataFilterNode[] {
   const nodes: MetadataFilterNode[] = [];
 
-  if (request.filters.rarity.any.length === 1) {
+  if (query.filters.rarity.any.length === 1) {
     nodes.push({
       field: "rarity",
       op: "eq",
-      value: request.filters.rarity.any[0]!,
+      value: query.filters.rarity.any[0]!,
     });
-  } else if (request.filters.rarity.any.length > 1) {
+  } else if (query.filters.rarity.any.length > 1) {
     nodes.push({
       field: "rarity",
       op: "in",
-      values: request.filters.rarity.any,
+      values: query.filters.rarity.any,
     });
   }
 
-  if (request.filters.rarity.exclude.length > 0) {
+  if (query.filters.rarity.exclude.length > 0) {
     nodes.push({
       field: "rarity",
       op: "notIn",
-      values: request.filters.rarity.exclude,
+      values: query.filters.rarity.exclude,
     });
   }
 
-  if (request.filters.actionCost.any.length === 1) {
+  if (query.filters.actionCost.any.length === 1) {
     nodes.push({
       field: "actionCost",
       op: "eq",
-      value: request.filters.actionCost.any[0]!,
+      value: query.filters.actionCost.any[0]!,
     });
-  } else if (request.filters.actionCost.any.length > 1) {
+  } else if (query.filters.actionCost.any.length > 1) {
     nodes.push({
-      or: request.filters.actionCost.any.map((value) => ({
+      or: query.filters.actionCost.any.map((value) => ({
         field: "actionCost",
         op: "eq",
         value,
@@ -571,18 +586,18 @@ function buildDiscreteFilterNodes(request: Pf2eTerminalSearchRequest): MetadataF
     });
   }
 
-  if (request.filters.actionCost.exclude.length === 1) {
+  if (query.filters.actionCost.exclude.length === 1) {
     nodes.push({
       not: {
         field: "actionCost",
         op: "eq",
-        value: request.filters.actionCost.exclude[0]!,
+        value: query.filters.actionCost.exclude[0]!,
       },
     });
-  } else if (request.filters.actionCost.exclude.length > 1) {
+  } else if (query.filters.actionCost.exclude.length > 1) {
     nodes.push({
       not: {
-        or: request.filters.actionCost.exclude.map((value) => ({
+        or: query.filters.actionCost.exclude.map((value) => ({
           field: "actionCost",
           op: "eq",
           value,
@@ -679,7 +694,7 @@ function buildMetadataNodeForFacet(
 }
 
 function buildSearchFilters(
-  request: Pf2eTerminalSearchRequest,
+  query: Pf2eTerminalSearchQuery,
   fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
   options: {
     limit?: number;
@@ -692,10 +707,11 @@ function buildSearchFilters(
   } = {},
 ): SearchFilters {
   const metadataClauses = [
-    ...buildDiscreteFilterNodes(request),
-    ...request.filters.facets
+    ...buildDiscreteFilterNodes(query),
+    ...query.filters.facets
       .map((facet) => buildMetadataNodeForFacet(facet, fieldSemanticsByName))
       .filter((node): node is MetadataFilterNode => Boolean(node)),
+    ...(query.filters.metadata ? [query.filters.metadata] : []),
   ];
   const metadata =
     metadataClauses.length === 0
@@ -704,14 +720,14 @@ function buildSearchFilters(
         ? metadataClauses[0]
         : { and: metadataClauses };
   return {
-    category: request.filters.category ?? undefined,
-    subcategory: request.filters.subcategory ?? undefined,
-    levelMin: request.filters.levelMin ?? undefined,
-    levelMax: request.filters.levelMax ?? undefined,
+    category: query.filters.category ?? undefined,
+    subcategory: query.filters.subcategory ?? undefined,
+    levelMin: query.filters.levelMin ?? undefined,
+    levelMax: query.filters.levelMax ?? undefined,
     rarity: undefined,
     actionCost: undefined,
     metadata,
-    limit: options.limit ?? request.limit,
+    limit: options.limit ?? query.limit,
     offset: options.offset ?? 0,
     query: options.query,
     nameQuery: options.nameQuery,
@@ -721,135 +737,21 @@ function buildSearchFilters(
   };
 }
 
-function createFacetSelectionsFromMetadata(
-  metadata: MetadataFilterNode | undefined,
-  fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
-): Pf2eTerminalFacetSelection[] {
-  if (!metadata) {
+function getScopedMetadataFields(
+  filterSemantics: ReturnType<typeof getMetadataFilterSemantics>,
+  category: SearchCategory | null,
+  subcategory: SearchSubcategory | null,
+): MetadataFieldSemantics["field"][] {
+  if (!category) {
     return [];
   }
 
-  const facets = new Map<Pf2eTerminalFacetField, Pf2eTerminalFilterValuePolicy<string>>();
+  const categoryFields = filterSemantics.metadataFieldsByCategory[category];
+  const scopedFields = subcategory
+    ? (filterSemantics.metadataFieldsByCategoryAndSubcategory[category]?.[subcategory] ?? [])
+    : [];
 
-  const ensureFacetPolicy = (field: Pf2eTerminalFacetField): Pf2eTerminalFilterValuePolicy<string> => {
-    const existing = facets.get(field);
-    if (existing) {
-      return existing;
-    }
-    const next = createEmptyFilterPolicy<string>();
-    facets.set(field, next);
-    return next;
-  };
-
-  const addValues = (
-    field: Pf2eTerminalFacetField,
-    bucket: keyof Pf2eTerminalFilterValuePolicy<string>,
-    values: string[],
-  ): void => {
-    const policy = ensureFacetPolicy(field);
-    for (const value of values) {
-      policy[bucket].push(String(value));
-    }
-  };
-
-  const collect = (node: MetadataFilterNode): boolean => {
-    if ("and" in node) {
-      return node.and.every((child) => collect(child));
-    }
-    if ("or" in node) {
-      return false;
-    }
-    if ("not" in node) {
-      const child = node.not;
-      if ("and" in child || "not" in child) {
-        return false;
-      }
-      if ("or" in child) {
-        return false;
-      }
-
-      const field = child.field as Pf2eTerminalFacetField;
-      const fieldSemantics = fieldSemanticsByName.get(field);
-      if (!fieldSemantics) {
-        return false;
-      }
-
-      if (fieldSemantics.fieldType === "boolean" && child.op === "eq") {
-        addValues(field, "exclude", [String(child.value)]);
-        return true;
-      }
-
-      if (fieldSemantics.fieldType === "enumString" && child.op === "eq") {
-        addValues(field, "exclude", [String(child.value)]);
-        return true;
-      }
-
-      return false;
-    }
-
-    const field = node.field as Pf2eTerminalFacetField;
-    const fieldSemantics = fieldSemanticsByName.get(field);
-    if (!fieldSemantics) {
-      return false;
-    }
-
-    if (fieldSemantics.fieldType === "set" && node.op === "includesAny") {
-      addValues(field, "any", node.values);
-      return true;
-    }
-
-    if (fieldSemantics.fieldType === "set" && node.op === "includesAll") {
-      addValues(field, "all", node.values);
-      return true;
-    }
-
-    if (fieldSemantics.fieldType === "set" && node.op === "excludesAny") {
-      addValues(field, "exclude", node.values);
-      return true;
-    }
-
-    if (fieldSemantics.fieldType === "enumString") {
-      if (node.op === "eq") {
-        addValues(field, "any", [String(node.value)]);
-        return true;
-      }
-      if (node.op === "in") {
-        addValues(
-          field,
-          "any",
-          node.values.map((value) => String(value)),
-        );
-        return true;
-      }
-      if (node.op === "notIn") {
-        addValues(
-          field,
-          "exclude",
-          node.values.map((value) => String(value)),
-        );
-        return true;
-      }
-    }
-
-    if (fieldSemantics.fieldType === "boolean" && node.op === "eq") {
-      addValues(field, "any", [String(node.value)]);
-      return true;
-    }
-
-    return false;
-  };
-
-  if (!collect(metadata)) {
-    return [];
-  }
-
-  return [...facets.entries()]
-    .map(([field, policy]) => ({
-      field,
-      policy: normalizeStringPolicy(policy),
-    }))
-    .filter((facet) => facet.policy.any.length > 0 || facet.policy.all.length > 0 || facet.policy.exclude.length > 0)
-    .sort(compareFacetSelections);
+  return [...new Set([...categoryFields, ...scopedFields])];
 }
 
 export function createPf2eTerminalSearchService(dependencies: SearchServiceDependencies): Pf2eTerminalSearchService {
@@ -863,7 +765,7 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
   }
 
   function buildWindowFilters(
-    request: Pf2eTerminalSearchRequest,
+    query: Pf2eTerminalSearchQuery,
     options: {
       sort: Pf2eTerminalSearchSort;
       sortSeed: number | null;
@@ -872,41 +774,41 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
     },
   ): SearchFilters {
     const offset = options.offset ?? 0;
-    if (request.mode === "lookup") {
-      return buildSearchFilters(request, fieldSemanticsByName, {
+    if (query.mode === "lookup") {
+      return buildSearchFilters(query, fieldSemanticsByName, {
         limit: options.limit,
         offset,
-        nameQuery: request.queryText,
+        nameQuery: query.queryText,
         sort: options.sort,
         sortSeed: options.sortSeed,
       });
     }
 
-    return buildSearchFilters(request, fieldSemanticsByName, {
+    return buildSearchFilters(query, fieldSemanticsByName, {
       limit: options.limit,
       offset,
-      query: request.mode === "search" ? request.queryText : undefined,
-      searchProfile: request.mode === "search" ? request.searchProfile : undefined,
+      query: query.mode === "search" ? query.queryText : undefined,
+      searchProfile: query.mode === "search" ? query.searchProfile : undefined,
       sort: options.sort,
       sortSeed: options.sortSeed,
     });
   }
 
   function createSessionFromResult(
-    request: Pf2eTerminalSearchRequest,
+    query: Pf2eTerminalSearchQuery,
     result: SearchWindowPage,
   ): Pf2eTerminalSearchSession {
-    const sessionRequest =
-      result.limit === request.limit
-        ? request
+    const sessionQuery =
+      result.limit === query.limit
+        ? query
         : {
-            ...request,
+            ...query,
             limit: result.limit,
           };
 
     return {
       windowId: result.id,
-      request: sessionRequest,
+      query: sessionQuery,
       results: result.records,
       windowOffset: result.offset,
       resultMode: result.mode,
@@ -920,41 +822,43 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
     };
   }
 
-  return {
-    createDefaultRequest: () => createDefaultRequest(),
-    createRequestFromOntologyQuery: (query) => {
-      const request = createDefaultRequest();
-      const facets = createFacetSelectionsFromMetadata(query.filters.metadata, fieldSemanticsByName);
-      return normalizeRequest(
-        {
-          ...request,
-          mode: query.kind === "lookup" ? "lookup" : query.kind === "search" ? "search" : "browse",
-          limit: query.filters.limit ?? request.limit,
-          queryText: query.filters.query ?? query.filters.nameQuery ?? "",
-          searchProfile: query.filters.searchProfile ?? request.searchProfile,
-          sourceLabel: query.label ?? null,
-          filters: {
-            ...request.filters,
-            category: normalizeSearchCategory(query.filters.category) ?? null,
-            subcategory: normalizeSearchSubcategory(query.filters.subcategory) ?? null,
-            levelMin: query.filters.levelMin ?? null,
-            levelMax: query.filters.levelMax ?? null,
-            rarity: {
-              any: query.filters.rarity ? [query.filters.rarity] : [],
-              all: [],
-              exclude: [],
-            },
-            actionCost: {
-              any: query.filters.actionCost === undefined ? [] : [query.filters.actionCost],
-              all: [],
-              exclude: [],
-            },
-            facets,
+  function createQueryFromOntologyQuery(query: OntologyNodeQuery): Pf2eTerminalSearchQuery {
+    const defaultQuery = createDefaultQuery();
+    return normalizeSearchQuery(
+      {
+        ...defaultQuery,
+        mode: query.kind === "lookup" ? "lookup" : query.kind === "search" ? "search" : "browse",
+        limit: query.filters.limit ?? defaultQuery.limit,
+        queryText: query.filters.query ?? query.filters.nameQuery ?? "",
+        searchProfile: query.filters.searchProfile ?? defaultQuery.searchProfile,
+        sourceLabel: query.label ?? null,
+        filters: {
+          ...defaultQuery.filters,
+          category: normalizeSearchCategory(query.filters.category) ?? null,
+          subcategory: normalizeSearchSubcategory(query.filters.subcategory) ?? null,
+          levelMin: query.filters.levelMin ?? null,
+          levelMax: query.filters.levelMax ?? null,
+          rarity: {
+            any: query.filters.rarity ? [query.filters.rarity] : [],
+            all: [],
+            exclude: [],
           },
+          actionCost: {
+            any: query.filters.actionCost === undefined ? [] : [query.filters.actionCost],
+            all: [],
+            exclude: [],
+          },
+          facets: [],
+          metadata: query.filters.metadata ?? null,
         },
-        fieldSemanticsByName,
-      );
-    },
+      },
+      fieldSemanticsByName,
+    );
+  }
+
+  return {
+    createDefaultQuery: () => createDefaultQuery(),
+    createQueryFromOntologyQuery,
     getActionCostOptions: (category, subcategory) =>
       createFacetValueOptions(
         dependencies.listFilterValues({
@@ -983,12 +887,7 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
       ];
     },
     getFacetFieldOptions: (category, subcategory) => {
-      const categoryFields = category ? filterSemantics.metadataFieldsByCategory[category] : [];
-      const scopedFields =
-        subcategory && category
-          ? (filterSemantics.metadataFieldsByCategoryAndSubcategory[category]?.[subcategory] ?? [])
-          : [];
-      const candidateFields = (subcategory && scopedFields.length > 0 ? scopedFields : categoryFields)
+      const candidateFields = getScopedMetadataFields(filterSemantics, category, subcategory)
         .map((field) => fieldSemanticsByName.get(field))
         .filter((field): field is MetadataFieldSemantics => Boolean(field))
         .filter(
@@ -1010,6 +909,18 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
         description: field.notes ?? `${field.fieldType} facet for the current browse scope.`,
         fieldType: field.fieldType,
       }));
+    },
+    getQueryFieldOptions: (category, subcategory) => {
+      return getScopedMetadataFields(filterSemantics, category, subcategory)
+        .map((field) => fieldSemanticsByName.get(field))
+        .filter((field): field is MetadataFieldSemantics => Boolean(field))
+        .filter((field) => field.discoverable && !["rarity"].includes(field.field))
+        .map((field) => ({
+          value: field.field,
+          label: humanizeIdentifier(field.field),
+          description: field.notes ?? `${field.fieldType} query field for the current browse scope.`,
+          fieldType: field.fieldType,
+        }));
     },
     getFacetValueOptions: (field, category, subcategory) =>
       createFacetValueOptions(
@@ -1061,11 +972,11 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
     },
     getModeOptions: () => SEARCH_MODE_OPTIONS,
     getDefaultSort: (mode) => getDefaultSort(mode),
-    normalizeRequest: (request) => normalizeRequest(request, fieldSemanticsByName),
-    countQuery: (request) => {
-      const normalizedRequest = normalizeRequest(request, fieldSemanticsByName);
-      if (normalizedRequest.mode === "lookup") {
-        if (!normalizedRequest.queryText) {
+    normalizeQuery: (query) => normalizeSearchQuery(query, fieldSemanticsByName),
+    countQuery: (query) => {
+      const normalizedQuery = normalizeSearchQuery(query, fieldSemanticsByName);
+      if (normalizedQuery.mode === "lookup") {
+        if (!normalizedQuery.queryText) {
           return Promise.resolve({
             searchProfile: null,
             mode: "structured",
@@ -1073,25 +984,25 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
           });
         }
         return dependencies.countRecords(
-          buildSearchFilters(normalizedRequest, fieldSemanticsByName, {
+          buildSearchFilters(normalizedQuery, fieldSemanticsByName, {
             limit: 1,
-            nameQuery: normalizedRequest.queryText,
+            nameQuery: normalizedQuery.queryText,
           }),
           { mode: "lookup" },
         );
       }
 
-      if (normalizedRequest.mode === "browse" || !normalizedRequest.queryText) {
-        return dependencies.countRecords(buildSearchFilters(normalizedRequest, fieldSemanticsByName, { limit: 1 }), {
+      if (normalizedQuery.mode === "browse" || !normalizedQuery.queryText) {
+        return dependencies.countRecords(buildSearchFilters(normalizedQuery, fieldSemanticsByName, { limit: 1 }), {
           mode: "browse",
         });
       }
 
       return dependencies.countRecords(
-        buildSearchFilters(normalizedRequest, fieldSemanticsByName, {
+        buildSearchFilters(normalizedQuery, fieldSemanticsByName, {
           limit: 1,
-          query: normalizedRequest.queryText,
-          searchProfile: normalizedRequest.searchProfile,
+          query: normalizedQuery.queryText,
+          searchProfile: normalizedQuery.searchProfile,
         }),
         { mode: "search", lexicalOnly: true },
       );
@@ -1099,20 +1010,20 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
     disposeSession: (session) => {
       dependencies.closeSearchWindow(session.windowId);
     },
-    executeQuery: async (request, options = {}) => {
-      const normalizedRequest = normalizeRequest(request, fieldSemanticsByName);
-      const sort = options.sort ?? getDefaultSort(normalizedRequest.mode);
+    executeQuery: async (query, options = {}) => {
+      const normalizedQuery = normalizeSearchQuery(query, fieldSemanticsByName);
+      const sort = options.sort ?? getDefaultSort(normalizedQuery.mode);
       const sortSeed = sort === "random" ? createSortSeed(sort) : null;
-      const limit = options.limit ?? normalizedRequest.limit;
+      const limit = options.limit ?? normalizedQuery.limit;
       const result = await dependencies.openSearchWindow(
-        buildWindowFilters(normalizedRequest, {
+        buildWindowFilters(normalizedQuery, {
           sort,
           sortSeed,
           limit,
         }),
-        { mode: normalizedRequest.mode },
+        { mode: normalizedQuery.mode },
       );
-      return createSessionFromResult(normalizedRequest, result);
+      return createSessionFromResult(normalizedQuery, result);
     },
     loadMore: (session, options = {}) => {
       if (!session.hasMore || session.nextOffset === null) {
@@ -1121,7 +1032,7 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
 
       const minimumLoadedCount = Math.max(
         session.loadedCount + 1,
-        options.minimumLoadedCount ?? session.loadedCount + session.request.limit,
+        options.minimumLoadedCount ?? session.loadedCount + session.query.limit,
       );
       let nextSession = session;
 
@@ -1129,16 +1040,16 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
         const result = dependencies.readSearchWindowPage(
           nextSession.windowId,
           nextSession.nextOffset,
-          nextSession.request.limit,
+          nextSession.query.limit,
         );
 
         nextSession = {
           ...nextSession,
-          request:
-            result.limit === nextSession.request.limit
-              ? nextSession.request
+          query:
+            result.limit === nextSession.query.limit
+              ? nextSession.query
               : {
-                  ...nextSession.request,
+                  ...nextSession.query,
                   limit: result.limit,
                 },
           results: [...nextSession.results, ...result.records],
@@ -1160,11 +1071,11 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
 
       return Promise.resolve({
         ...session,
-        request:
-          result.limit === session.request.limit
-            ? session.request
+        query:
+          result.limit === session.query.limit
+            ? session.query
             : {
-                ...session.request,
+                ...session.query,
                 limit: result.limit,
               },
         results: result.records,
@@ -1181,14 +1092,14 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
       dependencies.closeSearchWindow(session.windowId);
       const sortSeed = sort === "random" ? createSortSeed(sort) : null;
       const result = await dependencies.openSearchWindow(
-        buildWindowFilters(session.request, {
+        buildWindowFilters(session.query, {
           sort,
           sortSeed,
-          limit: Math.max(session.request.limit, session.loadedCount),
+          limit: Math.max(session.query.limit, session.loadedCount),
         }),
-        { mode: session.request.mode },
+        { mode: session.query.mode },
       );
-      return createSessionFromResult(session.request, result);
+      return createSessionFromResult(session.query, result);
     },
   };
 }

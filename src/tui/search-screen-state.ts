@@ -1,10 +1,10 @@
 import type { OntologyDomainModel, SearchCountResult } from "../types.js";
-import type { Pf2eTerminalSearchRequest, Pf2eTerminalSearchSession, Pf2eTerminalSearchSort } from "./search-service.js";
+import type { Pf2eTerminalSearchQuery, Pf2eTerminalSearchSession, Pf2eTerminalSearchSort } from "./search-service.js";
 import type { OntologyPickerSelectionMap } from "./ontology-explorer/picker-screen.js";
 import { moveSelection } from "./terminal-ui.js";
 import { reduceDerivedTagTerminalTwoPaneState } from "./two-pane-state.js";
 
-export type SearchScreenLayout = "draft" | "results";
+export type SearchScreenLayout = "editor" | "results";
 export type SearchScreenPane = "list" | "detail";
 
 export type SearchCountState = {
@@ -24,7 +24,7 @@ export type SearchScreenState = {
   activePane: SearchScreenPane;
   detailScroll: number;
   layoutMode: "split";
-  draft: Pf2eTerminalSearchRequest;
+  query: Pf2eTerminalSearchQuery;
   workspaceSelectedIndex: number;
   resultSelectedIndex: number;
   session: Pf2eTerminalSearchSession | null;
@@ -40,7 +40,7 @@ export type SearchScreenAction =
   | { type: "result_selection_boundary"; boundary: "start" | "end"; itemCount: number }
   | { type: "move_detail"; delta: number; maxDetailScroll: number }
   | { type: "detail_boundary"; boundary: "start" | "end"; maxDetailScroll: number }
-  | { type: "set_draft"; request: Pf2eTerminalSearchRequest }
+  | { type: "set_query"; query: Pf2eTerminalSearchQuery }
   | { type: "set_session"; session: Pf2eTerminalSearchSession; showResults?: boolean; preserveSelection?: boolean }
   | { type: "clear_results" };
 
@@ -79,13 +79,13 @@ export function formatCount(value: number): string {
   return value.toLocaleString("en-US");
 }
 
-export function createInitialSearchScreenState(initialRequest: Pf2eTerminalSearchRequest): SearchScreenState {
+export function createInitialSearchScreenState(initialQuery: Pf2eTerminalSearchQuery): SearchScreenState {
   return {
-    layout: "draft",
+    layout: "editor",
     activePane: "list",
     detailScroll: 0,
     layoutMode: "split",
-    draft: initialRequest,
+    query: initialQuery,
     workspaceSelectedIndex: 0,
     resultSelectedIndex: 0,
     session: null,
@@ -94,7 +94,11 @@ export function createInitialSearchScreenState(initialRequest: Pf2eTerminalSearc
 
 function reduceSearchTwoPaneState(
   state: SearchScreenState,
-  action: { type: "leave_detail" } | { type: "toggle_focus" } | { type: "move_detail"; delta: number; maxDetailScroll: number } | { type: "detail_boundary"; boundary: "start" | "end"; maxDetailScroll: number },
+  action:
+    | { type: "leave_detail" }
+    | { type: "toggle_focus" }
+    | { type: "move_detail"; delta: number; maxDetailScroll: number }
+    | { type: "detail_boundary"; boundary: "start" | "end"; maxDetailScroll: number },
 ): Pick<SearchScreenState, "activePane" | "detailScroll" | "layoutMode"> {
   const next = reduceDerivedTagTerminalTwoPaneState(
     {
@@ -159,7 +163,7 @@ export function getSearchResultWindowTarget(
       : { offset: 0, limit: session.total };
   }
 
-  const windowSize = Math.min(session.total, Math.max(session.request.limit, metrics.windowLimit));
+  const windowSize = Math.min(session.total, Math.max(session.query.limit, metrics.windowLimit));
   const windowStart = session.windowOffset;
   const windowEnd = session.windowOffset + session.results.length;
   const minimumBuffer = Math.min(metrics.preloadThreshold, Math.max(1, Math.floor(windowSize / 3)));
@@ -226,12 +230,12 @@ export function searchScreenReducer(state: SearchScreenState, action: SearchScre
       return {
         ...state,
         layout: action.layout,
-        activePane: action.layout === "draft" ? "list" : (action.pane ?? "list"),
+        activePane: action.layout === "editor" ? "list" : (action.pane ?? "list"),
         detailScroll: 0,
         layoutMode: "split",
       };
     case "set_active_pane":
-      if (state.layout === "draft" || action.pane === "list") {
+      if (state.layout === "editor" || action.pane === "list") {
         return {
           ...state,
           ...reduceSearchTwoPaneState(state, { type: "leave_detail" }),
@@ -277,10 +281,10 @@ export function searchScreenReducer(state: SearchScreenState, action: SearchScre
       return { ...state, ...reduceSearchTwoPaneState(state, action) };
     case "detail_boundary":
       return { ...state, ...reduceSearchTwoPaneState(state, action) };
-    case "set_draft":
+    case "set_query":
       return {
         ...state,
-        draft: action.request,
+        query: action.query,
       };
     case "set_session": {
       const maxIndex = Math.max(0, action.session.total - 1);
@@ -290,7 +294,7 @@ export function searchScreenReducer(state: SearchScreenState, action: SearchScre
         activePane: action.showResults === false ? state.activePane : "list",
         detailScroll: 0,
         layoutMode: "split",
-        draft: action.session.request,
+        query: action.session.query,
         resultSelectedIndex: action.preserveSelection ? Math.min(state.resultSelectedIndex, maxIndex) : 0,
         session: action.session,
       };
@@ -298,7 +302,7 @@ export function searchScreenReducer(state: SearchScreenState, action: SearchScre
     case "clear_results":
       return {
         ...state,
-        layout: "draft",
+        layout: "editor",
         activePane: "list",
         detailScroll: 0,
         layoutMode: "split",

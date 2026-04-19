@@ -420,18 +420,19 @@ describe("search screen", () => {
 
     await flushInk();
     expect(app.lastFrame()).toContain("Browse/Search");
-    expect(app.lastFrame()).toContain("[SETUP] Scope & Filters");
+    expect(app.lastFrame()).toContain("[EDITOR] Query");
     expect(app.lastFrame()).toContain("Query Status");
     expect(app.lastFrame()).toContain("Execute Query");
     expect(app.lastFrame()).not.toContain("Profile |");
     expect(app.lastFrame()).not.toContain("Action Cost |");
+    expect(app.lastFrame()).toContain("Add Query Clause | None yet | unavailable");
 
     pressDown(app);
     await flushInk();
     expect(app.lastFrame()).toContain("Mode");
     pressRight(app);
     await flushInk();
-    expect(app.lastFrame()).toContain("Workspace Mode");
+    expect(app.lastFrame()).toContain("Query Mode");
     pressDown(app);
     await flushInk();
     app.stdin.write("\r");
@@ -502,7 +503,7 @@ describe("search screen", () => {
       }),
     );
     expect(search.mock.calls[0]?.[0]?.limit).toBeGreaterThan(50);
-    expect(app.lastFrame()).toContain("Current setup matches applied query");
+    expect(app.lastFrame()).toContain("Current editor matches applied query");
     expect(app.lastFrame()).toContain("1/1 | Buf 1 | Win 1-1");
     expect(app.lastFrame()).toContain("[RESULTS] 1/1 | Buf 1 | Ranked");
     expect(app.lastFrame()).toContain("Alarm Ward | spell | lvl 1");
@@ -519,11 +520,11 @@ describe("search screen", () => {
 
     app.stdin.write("\u001b[D");
     await flushInk();
-    expect(app.lastFrame()).toContain("[SETUP] Scope & Filters");
+    expect(app.lastFrame()).toContain("[EDITOR] Query");
     expect(app.lastFrame()).not.toContain("[RESULTS] 1/1 | Buf 1 | Ranked");
   });
 
-  it("uses left to back out of the setup workspace instead of opening the selected item", async () => {
+  it("uses left to back out of the query editor instead of opening the selected item", async () => {
     const onBack = vi.fn();
     const app = render(
       <DerivedTagTerminalProvider>
@@ -542,10 +543,10 @@ describe("search screen", () => {
     await flushInk();
 
     expect(onBack).toHaveBeenCalledTimes(1);
-    expect(app.lastFrame()).not.toContain("Workspace Mode");
+    expect(app.lastFrame()).not.toContain("Query Mode");
   });
 
-  it("treats vim horizontal keys as the same setup and subprompt navigation semantics", async () => {
+  it("treats vim horizontal keys as the same editor and subprompt navigation semantics", async () => {
     const app = render(
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={createServices()}>
@@ -560,14 +561,14 @@ describe("search screen", () => {
 
     app.stdin.write("l");
     await flushInk();
-    expect(app.lastFrame()).toContain("Workspace Mode");
+    expect(app.lastFrame()).toContain("Query Mode");
 
     app.stdin.write("h");
     await flushInk();
-    expect(app.lastFrame()).toContain("[SETUP] Scope & Filters");
+    expect(app.lastFrame()).toContain("[EDITOR] Query");
   });
 
-  it("opens the shared setup command palette and runs the selected setup action", async () => {
+  it("opens the shared query editor command palette and runs the selected editor action", async () => {
     const app = render(
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={createServices()}>
@@ -580,7 +581,7 @@ describe("search screen", () => {
 
     app.stdin.write(":");
     await flushInk();
-    expect(app.lastFrame()).toContain("Search Setup Commands");
+    expect(app.lastFrame()).toContain("Query Editor Commands");
 
     for (const character of "mode") {
       app.stdin.write(character);
@@ -589,10 +590,10 @@ describe("search screen", () => {
     app.stdin.write("\r");
     await flushInk();
 
-    expect(app.lastFrame()).toContain("Workspace Mode");
+    expect(app.lastFrame()).toContain("Query Mode");
   });
 
-  it("hides unavailable setup commands from the palette while leaving the setup row visible", async () => {
+  it("hides unavailable editor commands from the palette while leaving the editor row visible", async () => {
     const app = render(
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={createServices()}>
@@ -605,7 +606,7 @@ describe("search screen", () => {
 
     app.stdin.write(":");
     await flushInk();
-    expect(app.lastFrame()).toContain("Search Setup Commands");
+    expect(app.lastFrame()).toContain("Query Editor Commands");
 
     for (const character of "subcategory") {
       app.stdin.write(character);
@@ -619,11 +620,11 @@ describe("search screen", () => {
     await flushInk();
     await flushInk();
 
-    expect(app.lastFrame()).toContain("[SETUP] Scope & Filters");
+    expect(app.lastFrame()).toContain("[EDITOR] Query");
     expect(app.lastFrame()).toContain("Subcategory | Any Subcategory | unavailable");
   });
 
-  it("does not treat old page-specific letters as live setup commands", async () => {
+  it("does not treat old page-specific letters as live editor commands", async () => {
     const app = render(
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={createServices()}>
@@ -633,16 +634,16 @@ describe("search screen", () => {
     );
 
     await flushInk();
-    expect(app.lastFrame()).toContain("[SETUP] Scope & Filters");
+    expect(app.lastFrame()).toContain("[EDITOR] Query");
 
     app.stdin.write("c");
     await flushInk();
 
-    expect(app.lastFrame()).toContain("[SETUP] Scope & Filters");
+    expect(app.lastFrame()).toContain("[EDITOR] Query");
     expect(app.lastFrame()).not.toContain("Category Scope");
   });
 
-  it("uses space to open the selected setup item and carries facet edits back into the workspace", async () => {
+  it("uses space to open the selected editor item and carries facet edits back into the workspace", async () => {
     const services = createServices();
     services.user.search.getFacetFieldOptions = vi.fn(() => [
       {
@@ -1044,13 +1045,13 @@ describe("search screen", () => {
       })),
     });
 
-    const session = await services.user.search.executeQuery(services.user.search.createDefaultRequest(), {
+    const session = await services.user.search.executeQuery(services.user.search.createDefaultQuery(), {
       sort: "alphabetical",
       limit: 120,
     });
     await services.user.search.loadMore(session);
 
-    expect(session.request.limit).toBe(120);
+    expect(session.query.limit).toBe(120);
     expect(services.catalog.readSearchWindowPage).toHaveBeenCalledWith("window-1", 120, 120);
   });
 
@@ -1098,7 +1099,7 @@ describe("search screen", () => {
       })),
     });
 
-    const session = await services.user.search.executeQuery(services.user.search.createDefaultRequest(), {
+    const session = await services.user.search.executeQuery(services.user.search.createDefaultQuery(), {
       sort: "alphabetical",
       limit: 120,
     });
@@ -1426,7 +1427,7 @@ describe("search screen", () => {
 
   it("maps simple ontology browse queries into seeded workspace requests", () => {
     const services = createServices();
-    const request = services.user.search.createRequestFromOntologyQuery({
+    const request = services.user.search.createQueryFromOntologyQuery({
       kind: "listRecords",
       label: "Browse records with this trait",
       filters: {
@@ -1457,21 +1458,46 @@ describe("search screen", () => {
           all: [],
           exclude: [],
         },
-        facets: [
-          {
-            field: "traits",
-            policy: {
-              any: ["illusion"],
-              all: [],
-              exclude: [],
-            },
-          },
-        ],
+        facets: [],
+        metadata: {
+          field: "traits",
+          op: "includesAny",
+          values: ["illusion"],
+        },
       },
     });
   });
 
-  it("translates policy-based draft filters into metadata clauses", async () => {
+  it("shows seeded metadata clauses in the query editor when launched from ontology", async () => {
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={createServices()}>
+          <SearchScreen
+            initialQuery={{
+              kind: "listRecords",
+              label: "Browse illusion spells",
+              filters: {
+                category: "spell",
+                metadata: { field: "traits", op: "includesAny", values: ["illusion"] },
+                limit: 20,
+              },
+            }}
+            origin="ontology"
+            onBack={vi.fn()}
+          />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("[EDITOR] Query");
+    expect(app.lastFrame()).toContain("Add Query Clause | 1 active");
+    expect(app.lastFrame()).toContain("Query Clause | includes any Illusion");
+    expect(app.lastFrame()).toContain("Seeded from: Browse illusion spells");
+  });
+
+  it("translates policy-based query filters into metadata clauses", async () => {
     const search = vi.fn((filters: SearchFilters) =>
       Promise.resolve({
         searchProfile: filters.searchProfile ?? "balanced",

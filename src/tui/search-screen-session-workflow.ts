@@ -4,7 +4,7 @@ import type { OntologyNodeQuery } from "../types.js";
 import type { Pf2eTerminalAppServices } from "./app-services.js";
 import type { SearchTerminalPromptAdapters } from "./interaction-context-adapters.js";
 import type { SearchCountState, SearchScreenAction, SearchScreenState } from "./search-screen-state.js";
-import type { Pf2eTerminalSearchRequest, Pf2eTerminalSearchSession } from "./search-service.js";
+import type { Pf2eTerminalSearchQuery, Pf2eTerminalSearchSession } from "./search-service.js";
 import type { DerivedTagTerminalApp } from "./terminal-ui.js";
 import {
   LIVE_COUNT_DEBOUNCE_MS,
@@ -20,7 +20,7 @@ export function useSearchSessionWorkflow({
   autoExecuteInitialQuery = true,
   dispatch,
   initialQuery,
-  initialRequest,
+  initialQueryState,
   onExit,
   preloadThreshold,
   prompts,
@@ -33,7 +33,7 @@ export function useSearchSessionWorkflow({
   autoExecuteInitialQuery?: boolean;
   dispatch: React.Dispatch<SearchScreenAction>;
   initialQuery?: OntologyNodeQuery;
-  initialRequest: Pf2eTerminalSearchRequest;
+  initialQueryState: Pf2eTerminalSearchQuery;
   onExit: () => void;
   preloadThreshold: number;
   prompts: Pick<SearchTerminalPromptAdapters, "promptSelectOption" | "promptTextInput">;
@@ -45,7 +45,7 @@ export function useSearchSessionWorkflow({
 }): {
   busy: boolean;
   countState: SearchCountState;
-  executeRequest: (request: Pf2eTerminalSearchRequest) => Promise<void>;
+  executeRequest: (query: Pf2eTerminalSearchQuery) => Promise<void>;
   jumpToResultPosition: () => Promise<void>;
   loadingMore: boolean;
   selectedResult: Pf2eTerminalSearchSession["results"][number] | null;
@@ -67,8 +67,7 @@ export function useSearchSessionWorkflow({
 
   const resultCount = state.session?.total ?? 0;
   const clampedResultSelectedIndex = clampAbsoluteSelection(resultSelectedIndex, resultCount);
-  const selectedResult =
-    resultCount > 0 ? getSessionRecordAtIndex(state.session, clampedResultSelectedIndex) : null;
+  const selectedResult = resultCount > 0 ? getSessionRecordAtIndex(state.session, clampedResultSelectedIndex) : null;
 
   const disposeSession = React.useCallback(
     (session: Pf2eTerminalSearchSession | null) => {
@@ -90,26 +89,26 @@ export function useSearchSessionWorkflow({
   }, [disposeSession, onExit]);
 
   const executeRequest = React.useCallback(
-    async (request: Pf2eTerminalSearchRequest) => {
-      const availability = getExecuteAvailability(request);
+    async (query: Pf2eTerminalSearchQuery) => {
+      const availability = getExecuteAvailability(query);
       if (availability.disabled) {
-        await terminal.pauseForAnyKey(availability.reason ?? "This query setup cannot be executed yet.");
+        await terminal.pauseForAnyKey(availability.reason ?? "This query cannot be executed yet.");
         return;
       }
 
       setBusy(true);
       try {
         const sort =
-          state.session && state.session.request.mode === request.mode
+          state.session && state.session.query.mode === query.mode
             ? state.session.sort
-            : user.search.getDefaultSort(request.mode);
-        const session = await user.search.executeQuery(request, {
+            : user.search.getDefaultSort(query.mode);
+        const session = await user.search.executeQuery(query, {
           sort,
-          limit: Math.max(request.limit, resultWindowLimit),
+          limit: Math.max(query.limit, resultWindowLimit),
         });
         dispatch({ type: "set_session", session });
       } catch (error) {
-        await terminal.pauseForAnyKey(`Workspace query failed.\n\n${(error as Error).message}`);
+        await terminal.pauseForAnyKey(`Query execution failed.\n\n${(error as Error).message}`);
       } finally {
         setBusy(false);
       }
@@ -125,7 +124,7 @@ export function useSearchSessionWorkflow({
     const result = await prompts.promptSelectOption({
       title: "Result Sort",
       prompt: "Choose how the current result reader should be ordered",
-      entries: user.search.getResultSortOptions(state.session.request.mode).map((option) => ({
+      entries: user.search.getResultSortOptions(state.session.query.mode).map((option) => ({
         value: option.value,
         label: option.label,
         description: option.description,
@@ -181,8 +180,8 @@ export function useSearchSessionWorkflow({
       return;
     }
     autoRanInitialQuery.current = true;
-    void executeRequest(initialRequest);
-  }, [autoExecuteInitialQuery, executeRequest, initialQuery, initialRequest]);
+    void executeRequest(initialQueryState);
+  }, [autoExecuteInitialQuery, executeRequest, initialQuery, initialQueryState]);
 
   React.useEffect(() => {
     const previousSession = activeSessionRef.current;
@@ -205,7 +204,7 @@ export function useSearchSessionWorkflow({
   );
 
   React.useEffect(() => {
-    const availability = getExecuteAvailability(state.draft);
+    const availability = getExecuteAvailability(state.query);
     if (availability.disabled) {
       setCountState({
         status: "idle",
@@ -224,7 +223,7 @@ export function useSearchSessionWorkflow({
 
     const timeout = setTimeout(() => {
       void user.search
-        .countQuery(state.draft)
+        .countQuery(state.query)
         .then((result) => {
           if (cancelled) {
             return;
@@ -251,7 +250,7 @@ export function useSearchSessionWorkflow({
       cancelled = true;
       clearTimeout(timeout);
     };
-  }, [state.draft, user.search]);
+  }, [state.query, user.search]);
 
   React.useEffect(() => {
     if (loadMoreTimerRef.current) {

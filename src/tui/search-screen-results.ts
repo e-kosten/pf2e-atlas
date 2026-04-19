@@ -7,7 +7,7 @@ import { clampWindowStart } from "./list-utils.js";
 import { buildOntologyExplorerEntityDetailLines } from "./ontology-explorer/entity-page.js";
 import { mapNormalizedRecordToOntologyExplorerEntityRecord } from "./ontology-explorer/entity-record.js";
 
-export type SearchResultCommandId = "jumpToResult" | "sortResults" | "openSetup";
+export type SearchResultCommandId = "jumpToResult" | "sortResults" | "openEditor";
 
 function buildSearchResultLabel(record: Pf2eTerminalSearchSession["results"][number]): string {
   const scope = record.subcategory ? `${record.category}/${record.subcategory}` : record.category;
@@ -41,7 +41,7 @@ export function buildResultLines(
   if (!session || session.results.length === 0) {
     return [
       { text: "No applied results yet.", tone: "section" },
-      { text: "Execute the current query setup to switch into the result reader.", tone: "dim" },
+      { text: "Execute the current query to switch into the result reader.", tone: "dim" },
     ];
   }
 
@@ -122,10 +122,10 @@ export function buildResultCommandPaletteEntries(
     ...(origin === "ontology"
       ? [
           {
-            value: "openSetup" as const,
-            label: "Open Query Setup",
-            description: "Switch from the result reader into the search setup workspace without leaving the search flow.",
-            keywords: ["setup", "filters", "workspace"],
+            value: "openEditor" as const,
+            label: "Open Query Editor",
+            description: "Switch from the result reader into the query editor without leaving the search flow.",
+            keywords: ["editor", "filters", "workspace"],
           },
         ]
       : []),

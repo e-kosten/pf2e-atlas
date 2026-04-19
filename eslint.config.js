@@ -223,8 +223,7 @@ export default defineConfig(
         {
           selector:
             'ObjectExpression:has(Property[key.name="kind"][value.value="group"]):has(Property[key.name="label"][value.value="Examples"]):has(Property[key.name="detailTitle"][value.value="Category Examples"])',
-          message:
-            "Search semantics must not emit an Examples browse group.",
+          message: "Search semantics must not emit an Examples browse group.",
         },
       ],
     },
@@ -244,7 +243,11 @@ export default defineConfig(
             },
             {
               name: "../../tui/interaction-bindings.js",
-              importNames: ["buildTerminalInteractionHelpLines", "formatTerminalInteractionFooter", "resolveTerminalInteractionAction"],
+              importNames: [
+                "buildTerminalInteractionHelpLines",
+                "formatTerminalInteractionFooter",
+                "resolveTerminalInteractionAction",
+              ],
               message:
                 "Review render screens must use the dedicated review-ui-controller hook instead of composing help, footer, or interaction routing directly.",
             },
@@ -281,7 +284,11 @@ export default defineConfig(
           paths: [
             {
               name: "../interaction-bindings.js",
-              importNames: ["buildTerminalInteractionHelpLines", "formatTerminalInteractionFooter", "TerminalInteractionAction"],
+              importNames: [
+                "buildTerminalInteractionHelpLines",
+                "formatTerminalInteractionFooter",
+                "TerminalInteractionAction",
+              ],
               message:
                 "Ontology render screens must use shared screen-model helpers instead of composing local help/footer/action tables.",
             },
@@ -482,8 +489,7 @@ export default defineConfig(
         "error",
         {
           selector: 'CallExpression[callee.type="MemberExpression"][callee.property.name="showDialog"]',
-          message:
-            "Ontology screens must use showTerminalReturnDialog instead of calling showDialog directly.",
+          message: "Ontology screens must use showTerminalReturnDialog instead of calling showDialog directly.",
         },
       ],
     },
@@ -647,7 +653,11 @@ export default defineConfig(
             },
             {
               name: "./search-screen-model.js",
-              importNames: ["SearchFacetPickerSession", "applyFacetPickerSelectionsToRequest", "buildFacetPickerInitialSelections"],
+              importNames: [
+                "SearchFacetPickerSession",
+                "applyFacetPickerSelectionsToRequest",
+                "buildFacetPickerInitialSelections",
+              ],
               message:
                 "Search screen controllers must use shared ontology-to-search workflow modules instead of owning facet-picker session bridging directly.",
             },
@@ -698,6 +708,29 @@ export default defineConfig(
     },
   },
   {
+    files: ["src/tui/search-screen*.ts", "src/tui/search-screen*.tsx"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: 'Literal[value="draft"]',
+          message:
+            "Search screen terminology is query/editor, not draft. Keep the final editor/query naming consistent in this feature.",
+        },
+        {
+          selector: 'Literal[value="setup"]',
+          message:
+            "Search screen terminology is query/editor, not setup. Keep the final editor/query naming consistent in this feature.",
+        },
+        {
+          selector: 'Literal[value="openSetup"]',
+          message:
+            "Search result commands must route back through the query editor using final editor/query naming, not setup wording.",
+        },
+      ],
+    },
+  },
+  {
     files: ["src/tui/shared-screens.tsx"],
     rules: {
       "no-restricted-imports": [
@@ -728,8 +761,7 @@ export default defineConfig(
         "error",
         {
           selector: 'CallExpression[callee.type="MemberExpression"][callee.property.name="showDialog"]',
-          message:
-            "Shared screens must use showTerminalReturnDialog instead of calling showDialog directly.",
+          message: "Shared screens must use showTerminalReturnDialog instead of calling showDialog directly.",
         },
       ],
     },

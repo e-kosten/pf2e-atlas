@@ -1,11 +1,6 @@
 import type { TerminalInteractionAction, TerminalInteractionCommand } from "./interaction-bindings.js";
-import {
-  buildTerminalInteractionHelpLines,
-  formatTerminalInteractionFooter,
-} from "./interaction-bindings.js";
-import {
-  type DerivedTagTerminalLine,
-} from "./terminal-ui.js";
+import { buildTerminalInteractionHelpLines, formatTerminalInteractionFooter } from "./interaction-bindings.js";
+import { type DerivedTagTerminalLine } from "./terminal-ui.js";
 import {
   createTerminalDetailInteractionContext,
   createTerminalListInteractionContext,
@@ -16,22 +11,22 @@ import type { SearchScreenOrigin } from "./search-workflow-types.js";
 import { formatResultPosition, formatSort } from "./search-screen-state.js";
 import type { SearchWorkspaceEntry } from "./search-screen-workspace.js";
 import {
-  buildDraftCommandPaletteEntries,
+  buildEditorCommandPaletteEntries,
   formatCountSummary,
-  formatDraftStatus,
+  formatQueryStatus,
   formatMode,
   formatSearchCategory,
   formatSearchSubcategory,
 } from "./search-screen-workspace.js";
 import { buildResultCommandPaletteEntries } from "./search-screen-results.js";
 
-export type SearchInteractionContext = "draft" | "result-list" | "result-detail";
+export type SearchInteractionContext = "editor" | "result-list" | "result-detail";
 
 export type SearchScreenIntent =
   | { type: "show_help" }
   | { type: "quit" }
   | { type: "edit_query" }
-  | { type: "open_setup_commands" }
+  | { type: "open_editor_commands" }
   | { type: "execute" }
   | { type: "back_to_app" }
   | { type: "move_workspace_selection"; delta: number }
@@ -39,7 +34,7 @@ export type SearchScreenIntent =
   | { type: "edit_selected_workspace" }
   | { type: "open_result_commands" }
   | { type: "toggle_pane" }
-  | { type: "return_to_setup" }
+  | { type: "return_to_editor" }
   | { type: "open_preview" }
   | { type: "move_result_selection"; delta: number }
   | { type: "result_selection_boundary"; boundary: "start" | "end" }
@@ -48,8 +43,8 @@ export type SearchScreenIntent =
   | { type: "detail_boundary"; boundary: "start" | "end" };
 
 export function getSearchInteractionContext(state: SearchScreenState): SearchInteractionContext {
-  if (state.layout === "draft") {
-    return "draft";
+  if (state.layout === "editor") {
+    return "editor";
   }
 
   return state.activePane === "list" ? "result-list" : "result-detail";
@@ -60,8 +55,8 @@ export function getSearchInteractionActions(
   origin: SearchScreenOrigin = "app",
 ): TerminalInteractionAction[] {
   switch (getSearchInteractionContext(state)) {
-    case "draft":
-      return getSearchDraftInteractionActions(origin);
+    case "editor":
+      return getSearchEditorInteractionActions(origin);
     case "result-list":
       return getSearchResultListInteractionActions(origin);
     case "result-detail":
@@ -69,7 +64,7 @@ export function getSearchInteractionActions(
   }
 }
 
-export function getSearchDraftInteractionActions(origin: SearchScreenOrigin = "app"): TerminalInteractionAction[] {
+export function getSearchEditorInteractionActions(origin: SearchScreenOrigin = "app"): TerminalInteractionAction[] {
   return [
     { id: "edit" },
     { id: "execute" },
@@ -81,11 +76,9 @@ export function getSearchDraftInteractionActions(origin: SearchScreenOrigin = "a
   ];
 }
 
-export function getSearchResultListInteractionActions(
-  origin: SearchScreenOrigin = "app",
-): TerminalInteractionAction[] {
+export function getSearchResultListInteractionActions(origin: SearchScreenOrigin = "app"): TerminalInteractionAction[] {
   return [
-    { id: "back", label: origin === "ontology" ? "return" : "setup" },
+    { id: "back", label: origin === "ontology" ? "return" : "editor" },
     { id: "preview" },
     { id: "focus", label: "pane" },
     { id: "commands" },
@@ -113,7 +106,7 @@ export function buildSearchFooterText(
 ): string {
   const context = getSearchInteractionContext(state);
 
-  if (context === "draft") {
+  if (context === "editor") {
     return formatTerminalInteractionFooter([
       { id: "move", label: "select" },
       { id: "jump" },
@@ -150,27 +143,27 @@ export function buildSearchHelpLines(
 ): DerivedTagTerminalLine[] {
   const context = getSearchInteractionContext(state);
 
-  if (context === "draft") {
+  if (context === "editor") {
     const navigationActions: TerminalInteractionAction[] = [
-      { id: "move", label: "select the setup row" },
-      { id: "jump", helpText: "jump through the setup list" },
-      { id: "page", helpText: "page through the setup list" },
-      { id: "edge", helpText: "jump to the start or end of the setup list" },
+      { id: "move", label: "select the editor row" },
+      { id: "jump", helpText: "jump through the editor list" },
+      { id: "page", helpText: "page through the editor list" },
+      { id: "edge", helpText: "jump to the start or end of the editor list" },
     ];
     const actionActions: TerminalInteractionAction[] = [
       ...getSearchInteractionActions(state, origin).map<TerminalInteractionAction>((action) => ({
         ...action,
         helpText:
           action.id === "edit"
-            ? "edit the focused setup row or act on it"
+            ? "edit the focused query row or act on it"
             : action.id === "execute"
-              ? "execute the current setup and switch to results"
+              ? "execute the current query and switch to results"
               : action.id === "search"
                 ? "edit the current query text"
                 : action.id === "commands"
-                  ? "open the setup command palette"
+                  ? "open the query editor command palette"
                   : action.id === "help"
-                    ? "show search setup help"
+                    ? "show search editor help"
                     : origin === "ontology"
                       ? "return to the launching ontology view"
                       : "leave browse/search",
@@ -187,8 +180,8 @@ export function buildSearchHelpLines(
         actions: actionActions,
       },
       {
-        title: "Setup Commands",
-        commands: buildDraftCommandPaletteEntries(workspaceEntries).map<TerminalInteractionCommand>((entry) => ({
+        title: "Editor Commands",
+        commands: buildEditorCommandPaletteEntries(workspaceEntries).map<TerminalInteractionCommand>((entry) => ({
           label: entry.label,
           description: entry.description ?? "No additional details.",
           aliases: entry.aliases,
@@ -220,18 +213,18 @@ export function buildSearchHelpLines(
         : action.id === "back" && context === "result-list" && origin === "ontology"
           ? "return to the exact ontology location that launched this result reader"
           : action.id === "back" && context === "result-list"
-          ? "return to Scope & Filters"
-          : action.id === "back"
-            ? "return to the result list"
-            : action.id === "focus"
-              ? "switch focus between results and preview"
-              : action.id === "commands"
-                ? "open the results command palette"
-                : action.id === "help"
-                  ? "show search results help"
-                  : origin === "ontology"
-                    ? "return to the launching ontology view"
-                    : "leave browse/search",
+            ? "return to the query editor"
+            : action.id === "back"
+              ? "return to the result list"
+              : action.id === "focus"
+                ? "switch focus between results and preview"
+                : action.id === "commands"
+                  ? "open the results command palette"
+                  : action.id === "help"
+                    ? "show search results help"
+                    : origin === "ontology"
+                      ? "return to the launching ontology view"
+                      : "leave browse/search",
     label: action.id === "focus" ? "toggle pane" : action.label,
   }));
 
@@ -259,14 +252,14 @@ export function buildSearchSubtitle(
   state: SearchScreenState,
   countState: import("./search-screen-state.js").SearchCountState,
 ): string {
-  const draft = `${formatMode(state.draft.mode)} | ${formatSearchCategory(state.draft.filters.category)} / ${formatSearchSubcategory(state.draft.filters.subcategory)}`;
-  if (state.layout === "draft") {
-    return `${draft} | ${formatCountSummary(countState, state.draft)} | ${formatDraftStatus(state)}`;
+  const query = `${formatMode(state.query.mode)} | ${formatSearchCategory(state.query.filters.category)} / ${formatSearchSubcategory(state.query.filters.subcategory)}`;
+  if (state.layout === "editor") {
+    return `${query} | ${formatCountSummary(countState, state.query)} | ${formatQueryStatus(state)}`;
   }
   if (!state.session) {
-    return `${draft} | no applied session`;
+    return `${query} | no applied session`;
   }
-  return `${draft} | ${formatSort(state.session.sort)} | ${formatResultPosition(state.resultSelectedIndex, state.session.total)} | ${formatDraftStatus(state)}`;
+  return `${query} | ${formatSort(state.session.sort)} | ${formatResultPosition(state.resultSelectedIndex, state.session.total)} | ${formatQueryStatus(state)}`;
 }
 
 export function useSearchScreenInteractionRouter(options: {
@@ -281,8 +274,8 @@ export function useSearchScreenInteractionRouter(options: {
   hasSelectedResult: boolean;
   onIntent: (intent: SearchScreenIntent) => void;
 }): void {
-  const draftContext = createTerminalListInteractionContext("draft", {
-    interactionActions: getSearchDraftInteractionActions(options.origin),
+  const editorContext = createTerminalListInteractionContext("editor", {
+    interactionActions: getSearchEditorInteractionActions(options.origin),
     pageSize: options.pageSize,
     jumpSize: options.selectionJumpSize,
     includeConfirmKeys: true,
@@ -301,14 +294,10 @@ export function useSearchScreenInteractionRouter(options: {
 
   useTerminalInteractionContextRouter({
     enabled: options.enabled,
-    contexts: [draftContext, resultListContext, resultDetailContext],
-    onRoute: ({ draft, resultDetail, resultList }) => {
+    contexts: [editorContext, resultListContext, resultDetailContext],
+    onRoute: ({ editor, resultDetail, resultList }) => {
       const activeRoute =
-        options.state.layout === "draft"
-          ? draft
-          : options.state.activePane === "list"
-            ? resultList
-            : resultDetail;
+        options.state.layout === "editor" ? editor : options.state.activePane === "list" ? resultList : resultDetail;
 
       if (activeRoute.interactionAction?.id === "help") {
         options.onIntent({ type: "show_help" });
@@ -319,13 +308,13 @@ export function useSearchScreenInteractionRouter(options: {
         return;
       }
 
-      if (options.state.layout === "draft") {
+      if (options.state.layout === "editor") {
         if (activeRoute.interactionAction?.id === "search") {
           options.onIntent({ type: "edit_query" });
           return;
         }
         if (activeRoute.interactionAction?.id === "commands") {
-          options.onIntent({ type: "open_setup_commands" });
+          options.onIntent({ type: "open_editor_commands" });
           return;
         }
         if (activeRoute.interactionAction?.id === "execute") {
@@ -336,12 +325,12 @@ export function useSearchScreenInteractionRouter(options: {
           options.onIntent({ type: "back_to_app" });
           return;
         }
-        if (draft.navigationAction?.kind === "move") {
-          options.onIntent({ type: "move_workspace_selection", delta: draft.navigationAction.delta });
+        if (editor.navigationAction?.kind === "move") {
+          options.onIntent({ type: "move_workspace_selection", delta: editor.navigationAction.delta });
           return;
         }
-        if (draft.navigationAction?.kind === "boundary") {
-          options.onIntent({ type: "workspace_selection_boundary", boundary: draft.navigationAction.boundary });
+        if (editor.navigationAction?.kind === "boundary") {
+          options.onIntent({ type: "workspace_selection_boundary", boundary: editor.navigationAction.boundary });
           return;
         }
         if (activeRoute.interactionAction?.id === "edit") {
@@ -362,7 +351,7 @@ export function useSearchScreenInteractionRouter(options: {
 
       if (options.state.activePane === "list") {
         if (resultList.interactionAction?.id === "back") {
-          options.onIntent({ type: "return_to_setup" });
+          options.onIntent({ type: "return_to_editor" });
           return;
         }
         if (resultList.interactionAction?.id === "preview" && options.hasSelectedResult) {

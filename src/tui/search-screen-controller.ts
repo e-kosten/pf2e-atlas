@@ -6,7 +6,7 @@ import { showTerminalReturnDialog, useTerminalInteractionContextAdapters } from 
 import type { OntologyPickerSelectionMap } from "./ontology-explorer/picker-screen.js";
 import {
   SEARCH_LEFT_WIDTH,
-  buildDraftSummaryLines,
+  buildQuerySummaryLines,
   buildPendingResultDetailLines,
   buildResultDetailLines,
   buildResultLines,
@@ -18,12 +18,16 @@ import {
   createInitialSearchScreenState,
   formatCount,
   formatCountSummary,
-  formatDraftStatus,
+  formatQueryStatus,
   formatResultPosition,
   formatSort,
   searchScreenReducer,
 } from "./search-screen-model.js";
-import { buildSearchFooterText, buildSearchHelpLines, useSearchScreenInteractionRouter } from "./search-screen-interactions.js";
+import {
+  buildSearchFooterText,
+  buildSearchHelpLines,
+  useSearchScreenInteractionRouter,
+} from "./search-screen-interactions.js";
 import { getSearchResultWindowMetrics, getSessionBufferRange } from "./search-screen-state.js";
 import { useSearchFacetWorkflow } from "./search-screen-facet-workflow.js";
 import { useSearchSessionWorkflow } from "./search-screen-session-workflow.js";
@@ -58,13 +62,12 @@ export function useSearchScreenController({
   const prompts = useTerminalInteractionContextAdapters();
   const { user } = usePf2eTerminalAppServices();
   const size = useDerivedTagTerminalSize();
-  const initialRequest = React.useMemo(
-    () =>
-      initialQuery ? user.search.createRequestFromOntologyQuery(initialQuery) : user.search.createDefaultRequest(),
+  const initialQueryState = React.useMemo(
+    () => (initialQuery ? user.search.createQueryFromOntologyQuery(initialQuery) : user.search.createDefaultQuery()),
     [initialQuery, user.search],
   );
-  const [state, dispatch] = React.useReducer(searchScreenReducer, initialRequest, createInitialSearchScreenState);
-  const draftRef = React.useRef(initialRequest);
+  const [state, dispatch] = React.useReducer(searchScreenReducer, initialQueryState, createInitialSearchScreenState);
+  const queryRef = React.useRef(initialQueryState);
 
   const bodyHeight = Math.max(
     1,
@@ -80,18 +83,22 @@ export function useSearchScreenController({
     preloadThreshold,
   } = getSearchResultWindowMetrics(bodyHeight);
 
-  const applyDraftUpdate = React.useCallback(
-    (update: (request: import("./search-service.js").Pf2eTerminalSearchRequest) => import("./search-service.js").Pf2eTerminalSearchRequest) => {
-      const nextRequest = user.search.normalizeRequest(update(draftRef.current));
-      draftRef.current = nextRequest;
-      dispatch({ type: "set_draft", request: nextRequest });
+  const applyQueryUpdate = React.useCallback(
+    (
+      update: (
+        query: import("./search-service.js").Pf2eTerminalSearchQuery,
+      ) => import("./search-service.js").Pf2eTerminalSearchQuery,
+    ) => {
+      const nextQuery = user.search.normalizeQuery(update(queryRef.current));
+      queryRef.current = nextQuery;
+      dispatch({ type: "set_query", query: nextQuery });
     },
     [user.search],
   );
 
   React.useEffect(() => {
-    draftRef.current = state.draft;
-  }, [state.draft]);
+    queryRef.current = state.query;
+  }, [state.query]);
 
   const {
     busy,
@@ -107,7 +114,7 @@ export function useSearchScreenController({
     autoExecuteInitialQuery: origin !== "ontology",
     dispatch,
     initialQuery,
-    initialRequest,
+    initialQueryState,
     onExit: onBack,
     preloadThreshold,
     prompts,
@@ -129,7 +136,7 @@ export function useSearchScreenController({
   const showSearchHelp = React.useCallback(() => {
     void showTerminalReturnDialog(
       prompts,
-      state.layout === "draft" ? "Search Setup Help" : "Search Results Help",
+      state.layout === "editor" ? "Search Editor Help" : "Search Results Help",
       buildSearchHelpLines(state, workspaceEntries, origin),
     );
   }, [origin, prompts, state, workspaceEntries]);
@@ -142,24 +149,20 @@ export function useSearchScreenController({
         : buildPendingResultDetailLines(state.session, resultSelectedIndex)
       : selectedWorkspaceEntry
         ? buildWorkspaceEntryDetailLines(selectedWorkspaceEntry, state, countState)
-        : buildDraftSummaryLines(state, countState);
+        : buildQuerySummaryLines(state, countState);
   const renderedDetailLineCount = getRenderedTerminalLineCount(detailLines, detailWidth);
   const maxDetailScroll = Math.max(0, renderedDetailLineCount - bodyHeight);
   const detailScroll = Math.min(state.detailScroll, maxDetailScroll);
 
-  const {
-    facetPickerSession,
-    openFacetPicker,
-    applyFacetPicker,
-  } = useSearchFacetWorkflow({
-    draft: state.draft,
-    applyDraftUpdate,
+  const { facetPickerSession, openFacetPicker, applyFacetPicker } = useSearchFacetWorkflow({
+    query: state.query,
+    applyQueryUpdate,
     services: user,
     onUnavailable: terminal.pauseForAnyKey,
   });
 
   const { handleIntent } = useSearchWorkspaceActions({
-    applyDraftUpdate,
+    applyQueryUpdate,
     dispatch,
     executeRequest,
     exitSearchScreen,
@@ -199,13 +202,13 @@ export function useSearchScreenController({
       subtitle: buildSearchSubtitle(state, countState),
       left: {
         title:
-          state.layout === "draft"
-            ? "[SETUP] Scope & Filters"
+          state.layout === "editor"
+            ? "[EDITOR] Query"
             : state.activePane === "list"
               ? `[RESULTS] ${state.session ? `${formatResultPosition(resultSelectedIndex, state.session.total)} | Buf ${formatCount(state.session.loadedCount)} | ${formatSort(state.session.sort)}` : "No applied session"}`
               : `Results | ${state.session ? `${formatResultPosition(resultSelectedIndex, state.session.total)} | ${formatSort(state.session.sort)}` : "No applied session"}`,
         lines:
-          state.layout === "draft"
+          state.layout === "editor"
             ? buildWorkspaceLines(workspaceEntries, workspaceSelectedIndex, bodyHeight)
             : buildResultLines(state.session, resultSelectedIndex, bodyHeight, loadingMore),
         active: state.layout === "results" ? state.activePane === "list" : true,
@@ -228,8 +231,8 @@ export function useSearchScreenController({
         {
           text:
             state.layout === "results" && state.session
-              ? `${formatDraftStatus(state)} | ${formatResultPosition(resultSelectedIndex, state.session.total)} | Buf ${formatCount(state.session.loadedCount)} | Win ${getSessionBufferRange(state.session)}`
-              : `${formatDraftStatus(state)} | ${formatCountSummary(countState, state.draft)} | Scope & Filters`,
+              ? `${formatQueryStatus(state)} | ${formatResultPosition(resultSelectedIndex, state.session.total)} | Buf ${formatCount(state.session.loadedCount)} | Win ${getSessionBufferRange(state.session)}`
+              : `${formatQueryStatus(state)} | ${formatCountSummary(countState, state.query)} | Query Editor`,
           tone: "accent",
         },
       ],

@@ -101,6 +101,9 @@ describe("ontology explorer screen models", () => {
     });
 
     expect(screen.kind).toBe("two-pane");
+    if (screen.kind !== "two-pane") {
+      throw new Error("Expected a two-pane facet picker screen.");
+    }
     expect(screen.props.left.title).toBe("[FIELDS]");
   });
 
