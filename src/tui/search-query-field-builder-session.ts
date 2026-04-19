@@ -1,30 +1,45 @@
-import type { MetadataFilterNode, OntologyDomainModel } from "../types.js";
-import type { OntologyPickerSelectionMap } from "./ontology-explorer/picker-screen.js";
+import type { MetadataFilterNode, MetadataPredicate, OntologyDomainModel } from "../types.js";
+import type { SearchWorkspaceEntry } from "./search-screen-workspace.js";
+import {
+  buildStructuredQuerySummaryLines,
+  buildStructuredWorkspaceEntryFocusLines,
+  formatSearchWorkspaceEntryLine,
+} from "./search-screen-workspace.js";
 import type {
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalQueryFieldSelectionMap,
   Pf2eTerminalSearchQuery,
 } from "./search-service.js";
-import type { DerivedTagTerminalLine, DerivedTagTerminalTwoPaneScreenProps } from "./terminal-ui.js";
+import type { DerivedTagTerminalLine } from "./terminal-ui.js";
 
 export type SearchQueryFieldPickerSession = {
   model: OntologyDomainModel;
-  initialSelections: OntologyPickerSelectionMap;
-  applySelection: (selection: OntologyPickerSelectionMap) => void;
+  initialSelections: Record<string, { any: string[]; all: string[]; exclude: string[] }>;
+  applySelection: (selection: Record<string, { any: string[]; all: string[]; exclude: string[] }>) => void;
 };
 
 export type SearchQueryFieldBuilderStep = "fieldList" | "ontologyPicker";
 
-export type SearchQueryFieldBuilderItem =
+export type SearchStructuredEditorItem =
+  | {
+      kind: "workspaceEntry";
+      label: string;
+      workspaceEntry: SearchWorkspaceEntry;
+      detailLines?: DerivedTagTerminalLine[];
+    }
   | {
       kind: "field";
       fieldOption: Pf2eTerminalQueryFieldOption;
       label: string;
+      detailLines?: DerivedTagTerminalLine[];
     }
   | {
       kind: "finish" | "cancel";
       label: string;
+      detailLines?: DerivedTagTerminalLine[];
     };
+
+export type SearchQueryFieldBuilderItem = SearchStructuredEditorItem;
 
 export type SearchQueryFieldBuilderDraft = {
   query: Pf2eTerminalSearchQuery;
@@ -44,176 +59,252 @@ export type SearchQueryFieldBuilderOutcome =
       draft: SearchQueryFieldBuilderDraft | null;
     };
 
-export type SearchQueryFieldBuilderSession = {
-  items: SearchQueryFieldBuilderItem[];
+export type SearchStructuredEditorSession = {
+  items: SearchStructuredEditorItem[];
   selectedIndex: number;
-  fieldDrafts: Record<string, MetadataFilterNode | null>;
   moveSelection: (delta: number, itemCount: number) => void;
   selectCurrent: () => void;
-  finish: () => void;
+  finish?: () => void;
   cancel: () => void;
-  kind?: "queryFieldBuilder";
   title?: string;
+  subtitle?: string;
+  leftTitle?: string;
+  rightTitle?: string;
+  statusText?: string;
+  draftQuery?: Pf2eTerminalSearchQuery | null;
+  summaryLines?: DerivedTagTerminalLine[];
+  buildFocusedDetailLines?: (item: SearchStructuredEditorItem | undefined) => DerivedTagTerminalLine[];
+  helpTitle?: string;
+  helpBody?: DerivedTagTerminalLine[];
+  kind?: "structuredEditor" | "queryFieldBuilder";
   availableFields?: Pf2eTerminalQueryFieldOption[];
   selectedFieldIndex?: number;
   step?: SearchQueryFieldBuilderStep;
   activeChildView?: "none" | "ontologyPicker";
   childSession?: SearchQueryFieldPickerSession | null;
   draft?: SearchQueryFieldBuilderDraft | null;
+  fieldDrafts?: Record<string, MetadataFilterNode | null>;
   onFinish?: (outcome: Extract<SearchQueryFieldBuilderOutcome, { kind: "finish" }>) => void;
   onCancel?: (outcome: Extract<SearchQueryFieldBuilderOutcome, { kind: "cancel" }>) => void;
 };
 
-function countConfiguredFields(fieldDrafts: Record<string, MetadataFilterNode | null>): number {
-  return Object.values(fieldDrafts).filter((node) => Boolean(node)).length;
-}
+export type SearchQueryFieldBuilderSession = SearchStructuredEditorSession;
 
-function getAvailableFields(session: SearchQueryFieldBuilderSession): Pf2eTerminalQueryFieldOption[] {
-  return (
-    session.availableFields ??
-    session.items.flatMap((item) => (item.kind === "field" ? [item.fieldOption] : []))
-  );
-}
-
-function getSelectedField(session: SearchQueryFieldBuilderSession): Pf2eTerminalQueryFieldOption | null {
-  const availableFields = getAvailableFields(session);
-  if (availableFields.length === 0) {
-    return null;
+function formatMetadataScalar(value: boolean | number | string): string {
+  if (typeof value === "boolean") {
+    return value ? "true" : "false";
   }
-
-  const selectedIndex = session.selectedFieldIndex ?? session.selectedIndex;
-  const clampedIndex = Math.max(0, Math.min(selectedIndex, availableFields.length - 1));
-  return availableFields[clampedIndex] ?? null;
+  return String(value);
 }
 
-function buildDraftSummaryLines(node: MetadataFilterNode | null): DerivedTagTerminalLine[] {
-  if (!node) {
-    return [{ text: "No staged draft for this field yet.", tone: "dim" }];
+function formatPredicateValue(node: MetadataPredicate): string {
+  if ("metric" in node) {
+    return `${node.metric} ${node.op} ${formatMetadataScalar(node.value)}`;
   }
+  if ("leftMetric" in node) {
+    return `${node.leftMetric} ${node.op} ${node.rightMetric}`;
+  }
+  if ("values" in node) {
+    const values = node.values.map((value) => formatMetadataScalar(value)).join(", ");
+    switch (node.op) {
+      case "includesAny":
+        return `includes any ${values}`;
+      case "includesAll":
+        return `includes all ${values}`;
+      case "excludesAny":
+        return `excludes ${values}`;
+      case "in":
+        return `is one of ${values}`;
+      case "notIn":
+        return `is not ${values}`;
+    }
+  }
+  if ("min" in node && "max" in node) {
+    return `between ${node.min} and ${node.max}`;
+  }
+  if ("value" in node) {
+    switch (node.op) {
+      case "contains":
+        return `contains ${formatMetadataScalar(node.value)}`;
+      case "notContains":
+        return `does not contain ${formatMetadataScalar(node.value)}`;
+      case "eq":
+        return `is ${formatMetadataScalar(node.value)}`;
+      case "gte":
+        return `>= ${node.value}`;
+      case "lte":
+        return `<= ${node.value}`;
+    }
+  }
+  return JSON.stringify(node);
+}
 
+function buildLegacyMetadataNodeLines(node: MetadataFilterNode, depth = 0): DerivedTagTerminalLine[] {
   if ("and" in node) {
     return [
-      { text: "Staged draft", tone: "section" },
-      { text: `${node.and.length} staged clause${node.and.length === 1 ? "" : "s"} in this field.` },
+      { text: `AND group (${node.and.length} clause${node.and.length === 1 ? "" : "s"})`, indent: depth, tone: "accent" },
+      ...node.and.flatMap((child) => buildLegacyMetadataNodeLines(child, depth + 2)),
     ];
   }
   if ("or" in node) {
     return [
-      { text: "Staged draft", tone: "section" },
-      { text: `${node.or.length} OR clause${node.or.length === 1 ? "" : "s"} in this field.` },
+      { text: `OR group (${node.or.length} clause${node.or.length === 1 ? "" : "s"})`, indent: depth, tone: "accent" },
+      ...node.or.flatMap((child) => buildLegacyMetadataNodeLines(child, depth + 2)),
     ];
   }
   if ("not" in node) {
     return [
-      { text: "Staged draft", tone: "section" },
-      { text: "1 negated staged clause in this field." },
+      { text: "NOT group", indent: depth, tone: "accent" },
+      ...buildLegacyMetadataNodeLines(node.not, depth + 2),
     ];
   }
-
-  return [
-    { text: "Staged draft", tone: "section" },
-    { text: `${node.field} ${node.op}`, tone: "accent" },
-  ];
+  return [{ text: `${node.field}: ${formatPredicateValue(node)}`, indent: depth }];
 }
 
-export function buildSearchQueryFieldBuilderDetailLines(
-  session: SearchQueryFieldBuilderSession,
-): DerivedTagTerminalLine[] {
-  const selectedItem = session.items[Math.max(0, Math.min(session.selectedIndex, session.items.length - 1))];
-  if (!selectedItem) {
-    return [{ text: "No query-field builder item is selected.", tone: "dim" }];
-  }
+function buildLegacyStructuredSummaryLines(session: SearchStructuredEditorSession): DerivedTagTerminalLine[] {
+  const stagedFieldItems: Array<[
+    Extract<SearchStructuredEditorItem, { kind: "field" }>,
+    MetadataFilterNode,
+  ]> = [];
 
-  if (selectedItem.kind === "field") {
-    const lines: DerivedTagTerminalLine[] = [
-      { text: selectedItem.fieldOption.label, tone: "section" },
-      { text: selectedItem.fieldOption.description || "No additional field description is available." },
-      { text: `Editor: ${selectedItem.fieldOption.editor}`, tone: "accent" },
-      { text: "" },
-      ...buildDraftSummaryLines(session.fieldDrafts[selectedItem.fieldOption.value] ?? null),
-      { text: "" },
-      { text: `Step: ${session.step ?? "fieldList"}` },
-      { text: `Child view: ${session.activeChildView ?? "none"}` },
-      { text: "Selections remain staged in the builder until you finish.", tone: "dim" },
-    ];
-
-    if (session.draft?.payload) {
-      const payloadKeys = Object.keys(session.draft.payload);
-      lines.push({
-        text:
-          payloadKeys.length > 0
-            ? `Payload keys: ${payloadKeys.join(", ")}`
-            : "Payload holder is present for session-local collector state.",
-        tone: "dim",
-      });
+  session.items.forEach((item) => {
+    if (item.kind !== "field") {
+      return;
     }
+    const node = session.fieldDrafts?.[item.fieldOption.value] ?? null;
+    if (!node) {
+      return;
+    }
+    stagedFieldItems.push([item, node]);
+  });
 
-    return lines;
-  }
-
-  if (selectedItem.kind === "finish") {
-    const configuredFields = countConfiguredFields(session.fieldDrafts);
+  if (stagedFieldItems.length === 0) {
     return [
-      { text: "Finish Clause Builder", tone: "section" },
-      { text: `${configuredFields} field${configuredFields === 1 ? "" : "s"} currently staged.` },
-      { text: "Apply the staged builder draft to the live query and return to the editor.", tone: "accent" },
+      { text: "Staged Structured Query", tone: "section" },
+      { text: "No staged structured changes yet.", tone: "dim" },
     ];
   }
 
+  const lines: DerivedTagTerminalLine[] = [{ text: "Staged Structured Query", tone: "section" }];
+  stagedFieldItems.forEach(([item, node], index) => {
+    if (index > 0) {
+      lines.push({ text: "" });
+    }
+    lines.push({ text: item.fieldOption.label, tone: "accent" });
+    lines.push(...buildLegacyMetadataNodeLines(node, 2));
+  });
+  return lines;
+}
+
+function buildLegacyFieldFocusLines(
+  item: Extract<SearchStructuredEditorItem, { kind: "field" }>,
+  session: SearchStructuredEditorSession,
+): DerivedTagTerminalLine[] {
+  const node = session.fieldDrafts?.[item.fieldOption.value] ?? null;
+  const lines: DerivedTagTerminalLine[] = [
+    { text: "Focused Entry", tone: "section" },
+    { text: item.fieldOption.label, tone: "accent" },
+    { text: item.fieldOption.description || "No additional field description is available." },
+    { text: `Editor: ${item.fieldOption.editor}` },
+  ];
+
+  if (node) {
+    lines.push({ text: "" });
+    lines.push({ text: "Current field draft", tone: "section" });
+    lines.push(...buildLegacyMetadataNodeLines(node, 2));
+  } else {
+    lines.push({ text: "" });
+    lines.push({ text: "No staged draft for this field yet.", tone: "dim" });
+  }
+
+  lines.push({ text: "" });
+  lines.push({ text: `Step: ${session.step ?? "fieldList"}` });
+  lines.push({ text: `Child view: ${session.activeChildView ?? "none"}` });
+  lines.push({ text: "Selections remain staged until you finish.", tone: "dim" });
+  return lines;
+}
+
+function buildCompatibilityFocusedDetailLines(
+  session: SearchStructuredEditorSession,
+  item: SearchStructuredEditorItem | undefined,
+): DerivedTagTerminalLine[] {
+  if (!item) {
+    return [{ text: "No staged entry is selected.", tone: "dim" }];
+  }
+  if (item.detailLines && item.detailLines.length > 0) {
+    return item.detailLines;
+  }
+  if (item.kind === "workspaceEntry") {
+    return buildStructuredWorkspaceEntryFocusLines(item.workspaceEntry);
+  }
+  if (item.kind === "field") {
+    return buildLegacyFieldFocusLines(item, session);
+  }
+  if (item.kind === "finish") {
+    return [
+      { text: "Focused Entry", tone: "section" },
+      { text: "Finish staged changes", tone: "accent" },
+      { text: "Apply the full staged structured draft to the live query and return to the editor." },
+    ];
+  }
   return [
-    { text: "Cancel Clause Builder", tone: "section" },
-    { text: "Discard the staged builder draft and return to the editor.", tone: "warning" },
+    { text: "Focused Entry", tone: "section" },
+    { text: "Cancel staged changes", tone: "warning" },
+    { text: "Discard the staged structured draft and return to the editor." },
   ];
 }
 
-export function buildSearchQueryFieldBuilderStatusLine(
-  session: SearchQueryFieldBuilderSession,
+function getSelectedItem(session: SearchStructuredEditorSession): SearchStructuredEditorItem | undefined {
+  return session.items[Math.max(0, Math.min(session.selectedIndex, session.items.length - 1))];
+}
+
+function countStructuredSelections(session: SearchStructuredEditorSession): number {
+  if (session.draftQuery) {
+    return (session.draftQuery.filters.category ? 1 : 0) + session.draftQuery.filters.parts.length;
+  }
+  return Object.values(session.fieldDrafts ?? {}).filter((node) => Boolean(node)).length;
+}
+
+export function buildSearchStructuredEditorMenuItems(
+  session: SearchStructuredEditorSession,
+): Array<{ label: string }> {
+  return session.items.map((item) => {
+    if (item.kind === "workspaceEntry") {
+      return { label: formatSearchWorkspaceEntryLine(item.workspaceEntry) };
+    }
+    if (item.kind === "field" && session.fieldDrafts?.[item.fieldOption.value]) {
+      return { label: `${item.label} | staged` };
+    }
+    return { label: item.label };
+  });
+}
+
+export function buildSearchStructuredEditorDetailLines(
+  session: SearchStructuredEditorSession,
+): DerivedTagTerminalLine[] {
+  const summaryLines =
+    session.summaryLines && session.summaryLines.length > 0
+      ? session.summaryLines
+      : session.draftQuery
+        ? buildStructuredQuerySummaryLines(session.draftQuery)
+        : buildLegacyStructuredSummaryLines(session);
+  const focusedLines =
+    session.buildFocusedDetailLines?.(getSelectedItem(session)) ??
+    buildCompatibilityFocusedDetailLines(session, getSelectedItem(session));
+
+  return [...summaryLines, { text: "" }, ...focusedLines];
+}
+
+export function buildSearchStructuredEditorStatusLine(
+  session: SearchStructuredEditorSession,
 ): DerivedTagTerminalLine {
-  const configuredFields = countConfiguredFields(session.fieldDrafts);
   return {
-    text: `${configuredFields} staged field${configuredFields === 1 ? "" : "s"} | live query unchanged until finish`,
+    text:
+      session.statusText ??
+      `${countStructuredSelections(session)} staged structured part${countStructuredSelections(session) === 1 ? "" : "s"} | live query unchanged until finish`,
     tone: "accent",
   };
 }
 
-export function buildSearchQueryFieldBuilderScreen(
-  session: SearchQueryFieldBuilderSession,
-): DerivedTagTerminalTwoPaneScreenProps {
-  const configuredFields = countConfiguredFields(session.fieldDrafts);
-  const selectedField = getSelectedField(session);
-  return {
-    title: session.title ?? "Query Field Builder",
-    subtitle: `${getAvailableFields(session).length} available query fields | ${configuredFields} staged field${configuredFields === 1 ? "" : "s"}`,
-    left: {
-      title: "[QUERY FIELDS]",
-      lines: session.items.map((item, index) => ({
-        text:
-          item.kind === "field" && session.fieldDrafts[item.fieldOption.value]
-            ? `${item.label} | staged`
-            : item.label,
-        tone: index === session.selectedIndex ? "selected" : item.kind === "cancel" ? "warning" : "default",
-        noWrap: true,
-      })),
-      active: true,
-    },
-    right: {
-      title: selectedField ? `Builder Detail | ${selectedField.label}` : "Builder Detail",
-      lines: buildSearchQueryFieldBuilderDetailLines(session),
-      active: false,
-    },
-    footer: [
-      {
-        text: "↑/↓ select  Ctrl-U/D jump  b/f page  gg/G edge  Enter/→/Space open  Esc cancel builder",
-        tone: "dim",
-      },
-      {
-        text:
-          session.step === "ontologyPicker"
-            ? "Child ontology picker is active inside the builder session"
-            : "Live query unchanged until you finish the clause builder.",
-        tone: "accent",
-      },
-    ],
-    leftWidth: 40,
-  };
-}
+export const buildSearchQueryFieldBuilderDetailLines = buildSearchStructuredEditorDetailLines;
+export const buildSearchQueryFieldBuilderStatusLine = buildSearchStructuredEditorStatusLine;

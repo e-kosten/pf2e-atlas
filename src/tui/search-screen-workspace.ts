@@ -40,6 +40,10 @@ export type SearchWorkspaceEntry = {
   disabledReason?: string;
 };
 
+export function formatSearchWorkspaceEntryLine(entry: SearchWorkspaceEntry): string {
+  return `${"  ".repeat(entry.indent ?? 0)}${entry.label} | ${entry.value}${entry.disabled ? " | unavailable" : ""}`;
+}
+
 function humanizeIdentifier(value: string): string {
   return value
     .replace(/([a-z])([A-Z])/g, "$1 $2")
@@ -524,10 +528,64 @@ export function buildWorkspaceLines(
   const windowStart = clampWindowStart(safeIndex, entries.length, visibleCount);
 
   return entries.slice(windowStart, windowStart + visibleCount).map((entry, offset) => ({
-    text: `${"  ".repeat(entry.indent ?? 0)}${entry.label} | ${entry.value}${entry.disabled ? " | unavailable" : ""}`,
+    text: formatSearchWorkspaceEntryLine(entry),
     tone: windowStart + offset === safeIndex ? "selected" : entry.disabled ? "dim" : "default",
     noWrap: true,
   }));
+}
+
+export function buildStructuredQuerySummaryLines(query: Pf2eTerminalSearchQuery): DerivedTagTerminalLine[] {
+  const subcategory = getSearchQuerySubcategory(query);
+  const levelRange = getSearchQueryLevelRange(query);
+  const rarityPolicy = getSearchQueryRarityPolicy(query);
+  const actionCostPolicy = getSearchQueryActionCostPolicy(query);
+  const metadataTree = getSearchQueryMetadataTree(query);
+  const lines: DerivedTagTerminalLine[] = [
+    { text: "Staged Structured Query", tone: "section" },
+    { text: `Mode: ${formatMode(query.mode)}` },
+    { text: `Query: ${query.queryText || "(none)"}` },
+    { text: `Category: ${formatSearchCategory(query.filters.category)}` },
+  ];
+
+  if (query.mode === "search") {
+    lines.splice(3, 0, { text: `Profile: ${query.searchProfile}` });
+  }
+  if (subcategory) {
+    lines.push({ text: `Subcategory: ${formatSearchSubcategory(subcategory)}` });
+  }
+  if (levelRange.levelMin !== null || levelRange.levelMax !== null) {
+    lines.push({ text: `Level Range: ${formatLevelRange(query)}` });
+  }
+  if (hasFilterPolicy(rarityPolicy)) {
+    lines.push({ text: `Rarity: ${formatFilterPolicy(rarityPolicy)}` });
+  }
+  if (shouldShowActionCostQueryPart(query)) {
+    lines.push({ text: `Action Cost: ${formatFilterPolicy(actionCostPolicy)}` });
+  }
+  lines.push({ text: `Query clauses: ${metadataTree ? countMetadataPredicates(metadataTree) : 0}` });
+
+  if (metadataTree) {
+    for (const entry of buildMetadataWorkspaceEntries(metadataTree)) {
+      lines.push({
+        text: `${entry.label}: ${entry.value}`,
+        indent: 2 + (entry.indent ?? 0) * 2,
+      });
+    }
+  }
+
+  return lines;
+}
+
+export function buildStructuredWorkspaceEntryFocusLines(entry: SearchWorkspaceEntry): DerivedTagTerminalLine[] {
+  return [
+    { text: "Focused Entry", tone: "section" },
+    { text: entry.label, tone: "accent" },
+    { text: `Current staged value: ${entry.value}` },
+    {
+      text: entry.disabled ? `Unavailable: ${entry.disabledReason ?? entry.description}` : entry.description,
+      tone: entry.disabled ? "warning" : "default",
+    },
+  ];
 }
 
 export function buildQuerySummaryLines(

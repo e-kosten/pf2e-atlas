@@ -653,7 +653,8 @@ describe("search screen", () => {
 
     app.stdin.write(" ");
     await flushInk();
-    expect(app.lastFrame()).toContain("Add Query Part");
+    expect(app.lastFrame()).toContain("Structured Query Editor");
+    expect(app.lastFrame()).toContain("Query Logic | No staged clauses");
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
@@ -1541,7 +1542,7 @@ describe("search screen", () => {
     });
   });
 
-  it("returns from a direct-open query field picker back into the staged builder session", async () => {
+  it("returns from a direct-open single-field picker back into the staged structured editor", async () => {
     const services = createServices();
     services.user.search.getQueryFieldOptions = vi.fn(() => [
       {
@@ -1597,7 +1598,8 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Add Query Part");
     app.stdin.write("\r");
     await flushInk();
-    expect(app.lastFrame()).toContain("Add Query Part");
+    expect(app.lastFrame()).toContain("Structured Query Editor");
+    expect(app.lastFrame()).toContain("Query Logic | No staged clauses");
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
@@ -1613,8 +1615,134 @@ describe("search screen", () => {
 
     pressLeft(app);
     await flushInk();
-    expect(app.lastFrame()).toContain("Query Field Builder");
-    expect(app.lastFrame()).toContain("Derived Tags | staged");
+    expect(app.lastFrame()).toContain("Structured Query Editor");
+    expect(app.lastFrame()).toContain("Query Clause: includes any Coastal Setting");
+    expect(app.lastFrame()).not.toContain("Browse/Search");
+  });
+
+  it("returns from a multi-field picker back into the query-field chooser instead of main search", async () => {
+    const services = createServices();
+    services.user.search.getQueryFieldOptions = vi.fn(() => [
+      {
+        value: "traits",
+        label: "Traits",
+        description: "Trait query field for the current browse scope.",
+        fieldType: "set",
+        editor: "ontologyPicker",
+      },
+      {
+        value: "derivedTags",
+        label: "Derived Tags",
+        description: "Derived-tag query field for the current browse scope.",
+        fieldType: "set",
+        editor: "ontologyPicker",
+      },
+    ]);
+    services.user.ontology.loadDomain = vi.fn((id: string) => {
+      if (id !== "searchSemantics") {
+        return {
+          id: "fallback",
+          label: "Fallback",
+          description: "Unused test domain",
+          rootNodes: [],
+        };
+      }
+
+      const domain = createFacetPickerOntologyDomain();
+      const metadataFields = domain.rootNodes[0]?.children?.[0];
+      if (metadataFields?.children) {
+        metadataFields.children.unshift({
+          id: "spell:field:traits",
+          kind: "field",
+          label: "traits",
+          filterText: "traits",
+          listLabel: "traits",
+          detailTitle: "Metadata Field Details",
+          detailLines: [{ text: "traits", tone: "section" }],
+          childPresentation: {
+            mode: "grouped",
+            groupBy: "family",
+            render: "inline",
+          },
+          children: [
+            {
+              id: "spell:traits:illusion",
+              kind: "trait",
+              label: "illusion",
+              filterText: "illusion",
+              listLabel: "illusion",
+              detailTitle: "Trait Details",
+              detailLines: [{ text: "illusion", tone: "section" }],
+              groupValues: {
+                family: "magic",
+              },
+              selection: {
+                field: "traits",
+                fieldLabel: "Traits",
+                value: "illusion",
+                allowedStates: ["any", "all", "exclude"],
+              },
+            },
+          ],
+        });
+      }
+
+      return domain;
+    });
+
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen
+            initialQuery={{
+              kind: "listRecords",
+              label: "Browse spells",
+              filters: {
+                actionCost: 2,
+                category: "spell",
+                limit: 20,
+                levelMax: 1,
+                levelMin: 1,
+                rarity: "common",
+              },
+            }}
+            onBack={vi.fn()}
+          />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    pressLeft(app);
+    await flushInk();
+    for (let step = 0; step < 2; step += 1) {
+      pressDown(app);
+      await flushInk();
+    }
+
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Structured Query Editor");
+    expect(app.lastFrame()).toContain("Query Logic | No staged clauses");
+
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Add Query Part");
+    expect(app.lastFrame()).toContain("Traits");
+    expect(app.lastFrame()).not.toContain("Browse/Search");
+
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+    expect(app.lastFrame()).toContain("Traits Query");
+    expect(app.lastFrame()).toContain("Selection Picker");
+    expect(app.lastFrame()).toContain("[VALUES]");
+
+    pressLeft(app);
+    await flushInk();
+    expect(app.lastFrame()).toContain("Add Query Part");
+    expect(app.lastFrame()).toContain("Traits");
+    expect(app.lastFrame()).toContain("Derived Tags");
     expect(app.lastFrame()).not.toContain("Browse/Search");
   });
 });

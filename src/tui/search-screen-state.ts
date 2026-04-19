@@ -13,6 +13,12 @@ export type {
   SearchQueryFieldBuilderStep,
   SearchQueryFieldPickerSession,
 } from "./search-query-field-builder-session.js";
+export type {
+  SearchStructuredDraftAnchor,
+  SearchStructuredDraftEntry,
+  SearchStructuredDraftEntryKind,
+  SearchStructuredDraftSession,
+} from "./search-structured-draft-session.js";
 
 export type SearchScreenLayout = "editor" | "results";
 export type SearchScreenPane = "list" | "detail";

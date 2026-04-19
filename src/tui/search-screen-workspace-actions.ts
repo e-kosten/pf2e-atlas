@@ -5,6 +5,8 @@ import type { Pf2eTerminalAppServices } from "./app-services.js";
 import type { SearchTerminalPromptAdapters } from "./interaction-context-adapters.js";
 import type { SearchScreenAction, SearchScreenState } from "./search-screen-state.js";
 import type { SearchQueryFieldBuilderSession } from "./search-query-field-builder-session.js";
+import type { SearchStructuredDraftSession } from "./search-structured-draft-session.js";
+import { clampStructuredDraftSelection } from "./search-structured-draft-session.js";
 import type {
   Pf2eTerminalFilterValuePolicy,
   Pf2eTerminalQueryFieldOption,
@@ -16,7 +18,6 @@ import {
   getSearchQueryCategory,
   getSearchQueryLevelRange,
   getSearchQueryMetadataTree,
-  getSearchQueryPart,
   getSearchQueryRarityPolicy,
   getSearchQuerySubcategory,
   removeSearchQueryPart,
@@ -44,6 +45,31 @@ import type { SearchWorkspaceEntry } from "./search-screen-workspace.js";
 
 function isMetadataPredicate(node: MetadataFilterNode): node is MetadataPredicate {
   return !("and" in node) && !("or" in node) && !("not" in node);
+}
+
+function getMetadataNodeChildren(node: MetadataFilterNode): MetadataFilterNode[] {
+  if ("and" in node) {
+    return node.and;
+  }
+  if ("or" in node) {
+    return node.or;
+  }
+  if ("not" in node) {
+    return [node.not];
+  }
+  return [];
+}
+
+function getMetadataNodeAtPath(node: MetadataFilterNode | null, path: number[]): MetadataFilterNode | null {
+  let current = node;
+  for (const segment of path) {
+    if (!current) {
+      return null;
+    }
+    const children = getMetadataNodeChildren(current);
+    current = children[segment] ?? null;
+  }
+  return current;
 }
 
 function normalizeMetadataNode(node: MetadataFilterNode | null): MetadataFilterNode | null {
@@ -85,31 +111,6 @@ function normalizeMetadataNode(node: MetadataFilterNode | null): MetadataFilterN
     return { not: child };
   }
   return node;
-}
-
-function getMetadataNodeChildren(node: MetadataFilterNode): MetadataFilterNode[] {
-  if ("and" in node) {
-    return node.and;
-  }
-  if ("or" in node) {
-    return node.or;
-  }
-  if ("not" in node) {
-    return [node.not];
-  }
-  return [];
-}
-
-function getMetadataNodeAtPath(node: MetadataFilterNode | null, path: number[]): MetadataFilterNode | null {
-  let current = node;
-  for (const segment of path) {
-    if (!current) {
-      return null;
-    }
-    const children = getMetadataNodeChildren(current);
-    current = children[segment] ?? null;
-  }
-  return current;
 }
 
 function updateMetadataNodeAtPath(
@@ -227,11 +228,9 @@ function buildPolicyFromPredicate(node: MetadataPredicate): Pf2eTerminalFilterVa
     }
     return policy;
   }
-  if ("value" in node) {
-    if (node.op === "eq") {
-      policy.any = [String(node.value)];
-      return policy;
-    }
+  if ("value" in node && node.op === "eq") {
+    policy.any = [String(node.value)];
+    return policy;
   }
   return null;
 }
@@ -249,7 +248,15 @@ function buildSelectionMap(
   };
 }
 
+type SearchStructuredDraftState = {
+  anchor: SearchStructuredDraftSession["anchor"];
+  draftQuery: Pf2eTerminalSearchQuery;
+  metadataFocusPath: number[] | null;
+  selectedIndex: number;
+};
+
 type QueryFieldBuilderState = {
+  draftQuery: Pf2eTerminalSearchQuery;
   path: number[];
   items: SearchQueryFieldBuilderSession["items"];
   selectedIndex: number;
@@ -305,16 +312,17 @@ function compileQueryFieldBuilderDrafts(fieldDrafts: Record<string, MetadataFilt
   return { and: nodes };
 }
 
-type AddQueryPartCommand =
-  | "category"
-  | "subcategory"
-  | "levelRange"
-  | "rarity"
-  | "actionCost"
-  | "clause"
-  | "andGroup"
-  | "orGroup"
-  | "notGroup";
+type StructuredDraftEntryKind = SearchStructuredDraftSession["entries"][number]["kind"];
+
+function countMetadataPredicates(node: MetadataFilterNode | null): number {
+  if (!node) {
+    return 0;
+  }
+  if (isMetadataPredicate(node)) {
+    return 1;
+  }
+  return getMetadataNodeChildren(node).reduce((total, child) => total + countMetadataPredicates(child), 0);
+}
 
 export function useSearchWorkspaceActions({
   applyQueryUpdate,
@@ -367,14 +375,9 @@ export function useSearchWorkspaceActions({
   chooseResultSort: () => Promise<void>;
 }): {
   handleIntent: (intent: import("./search-screen-model.js").SearchScreenIntent) => void;
-  queryFieldBuilderSession: SearchQueryFieldBuilderSession | null;
+  structuredEditorSession: SearchQueryFieldBuilderSession | null;
 } {
-  const category = getSearchQueryCategory(state.query);
-  const subcategory = getSearchQuerySubcategory(state.query);
-  const levelRange = getSearchQueryLevelRange(state.query);
-  const rarityPolicy = getSearchQueryRarityPolicy(state.query);
-  const actionCostPolicy = getSearchQueryActionCostPolicy(state.query);
-  const metadataTree = getSearchQueryMetadataTree(state.query);
+  const [structuredDraftState, setStructuredDraftState] = React.useState<SearchStructuredDraftState | null>(null);
   const [queryFieldBuilderState, setQueryFieldBuilderState] = React.useState<QueryFieldBuilderState | null>(null);
 
   const editQueryText = React.useCallback(async () => {
@@ -440,165 +443,6 @@ export function useSearchWorkspaceActions({
     }
   }, [applyQueryUpdate, prompts, state.query.searchProfile, user.search]);
 
-  const chooseCategoryFilter = React.useCallback(async () => {
-    const [allCategoryOption, ...categoryEntries] = user.search.getCategoryOptions();
-    const result = await prompts.promptOptionalSelectOption({
-      title: "Category Scope",
-      prompt: "Choose the current category boundary",
-      allOption: {
-        label: allCategoryOption?.label ?? "Any Category",
-        description: allCategoryOption?.description,
-      },
-      entries: categoryEntries.map((option) => ({
-        value: option.value,
-        label: option.label,
-        description: option.description,
-      })),
-      selectedValue: category,
-    });
-
-    if (result.kind === "cancelled") {
-      return;
-    }
-
-    applyQueryUpdate((request) => setSearchQueryCategory(request, result.kind === "all" ? null : result.value));
-  }, [applyQueryUpdate, prompts, category, user.search]);
-
-  const chooseSubcategoryFilter = React.useCallback(async () => {
-    if (!category) {
-      await terminal.pauseForAnyKey("Choose a category before selecting a subcategory.");
-      return;
-    }
-
-    const [allSubcategoryOption, ...subcategoryEntries] = user.search.getSubcategoryOptions(category);
-    if (subcategoryEntries.length === 0) {
-      await terminal.pauseForAnyKey("No subcategories are available for the current category.");
-      return;
-    }
-    const result = await prompts.promptOptionalSelectOption({
-      title: "Subcategory Scope",
-      prompt: "Choose the current subcategory boundary",
-      allOption: {
-        label: allSubcategoryOption?.label ?? "Any Subcategory",
-        description: allSubcategoryOption?.description,
-      },
-      entries: subcategoryEntries.map((option) => ({
-        value: option.value,
-        label: option.label,
-        description: option.description,
-      })),
-      selectedValue: subcategory,
-    });
-
-    if (result.kind === "cancelled") {
-      return;
-    }
-
-    applyQueryUpdate((request) =>
-      result.kind === "all"
-        ? removeSearchQueryPart(request, "subcategory")
-        : result.value
-          ? setSearchQueryPart(request, { kind: "subcategory", subcategory: result.value })
-          : request,
-    );
-  }, [applyQueryUpdate, category, prompts, subcategory, terminal, user.search]);
-
-  const chooseRarityFilter = React.useCallback(async () => {
-    const options = user.search.getRarityOptions(category, subcategory);
-    const selected = await prompts.promptPolicySelectOption({
-      title: "Rarity Filter",
-      prompt: "Cycle rarities through include and exclude. Press Esc or Left when finished.",
-      allowedStates: ["any", "exclude"],
-      entries: options.map((option) => ({
-        value: option.value,
-        label: option.label,
-        description: option.description,
-      })),
-      selectedValues: rarityPolicy,
-    });
-
-    applyQueryUpdate((request) =>
-      selected.any.length === 0 && selected.exclude.length === 0
-        ? removeSearchQueryPart(request, "rarityPolicy")
-        : setSearchQueryPart(request, {
-            kind: "rarityPolicy",
-            policy: {
-              any: selected.any,
-              all: [],
-              exclude: selected.exclude,
-            },
-          }),
-    );
-  }, [applyQueryUpdate, category, prompts, rarityPolicy, subcategory, user.search]);
-
-  const chooseActionCostFilter = React.useCallback(async () => {
-    const options = user.search.getActionCostOptions(category, subcategory);
-    if (options.length === 0) {
-      await terminal.pauseForAnyKey("No action-cost filters are available for the current query.");
-      return;
-    }
-
-    const selected = await prompts.promptPolicySelectOption({
-      title: "Action Cost Filter",
-      prompt: "Cycle action costs through include or exclude. Press Esc or Left when finished.",
-      allowedStates: ["any", "exclude"],
-      entries: options.map((option) => ({
-        value: option.value,
-        label: option.label,
-        description: option.description,
-      })),
-      selectedValues: {
-        any: actionCostPolicy.any.map(String),
-        all: [],
-        exclude: actionCostPolicy.exclude.map(String),
-      },
-    });
-
-    const nextPolicy = {
-      any: selected.any.map((value) => Number.parseInt(value, 10)).filter((value) => Number.isFinite(value)),
-      all: [] as number[],
-      exclude: selected.exclude.map((value) => Number.parseInt(value, 10)).filter((value) => Number.isFinite(value)),
-    };
-
-    applyQueryUpdate((request) =>
-      nextPolicy.any.length === 0 && nextPolicy.exclude.length === 0
-        ? removeSearchQueryPart(request, "actionCostPolicy")
-        : setSearchQueryPart(request, { kind: "actionCostPolicy", policy: nextPolicy }),
-    );
-  }, [actionCostPolicy.any, actionCostPolicy.exclude, applyQueryUpdate, category, prompts, subcategory, terminal, user.search]);
-
-  const editLevelRange = React.useCallback(async () => {
-    const input = await prompts.promptTextInput({
-      title: "Level Range",
-      prompt: "Enter `3-8`, `5`, `5+`, or `<=10`. Leave blank to clear.",
-      defaultValue:
-        levelRange.levelMin === null && levelRange.levelMax === null
-          ? ""
-          : formatLevelRange(state.query).replaceAll("L", "").replace("<= ", "<="),
-      hint: "Examples: 3-8 or <=5",
-    });
-
-    if (input === undefined) {
-      return;
-    }
-
-    const parsed = parseLevelRangeInput(input);
-    if (typeof parsed === "string") {
-      await terminal.pauseForAnyKey(parsed);
-      return;
-    }
-
-    applyQueryUpdate((request) =>
-      parsed.levelMin === null && parsed.levelMax === null
-        ? removeSearchQueryPart(request, "levelRange")
-        : setSearchQueryPart(request, {
-            kind: "levelRange",
-            levelMin: parsed.levelMin,
-            levelMax: parsed.levelMax,
-          }),
-    );
-  }, [applyQueryUpdate, levelRange.levelMax, levelRange.levelMin, prompts, state.query, terminal]);
-
   const hasSelectableSubcategories = React.useCallback(
     (category: Pf2eTerminalSearchQuery["filters"]["category"]): boolean => {
       if (!category) {
@@ -609,36 +453,227 @@ export function useSearchWorkspaceActions({
     [user.search],
   );
 
-  const chooseQueryField = React.useCallback(async (): Promise<Pf2eTerminalQueryFieldOption | null> => {
-    const fieldOptions = user.search.getQueryFieldOptions(category, subcategory);
-    if (fieldOptions.length === 0) {
-      await terminal.pauseForAnyKey("No scoped metadata fields are available for the current query.");
-      return null;
-    }
+  const buildStructuredDraftEntries = React.useCallback(
+    (draftQuery: Pf2eTerminalSearchQuery, metadataFocusPath: number[] | null): SearchStructuredDraftSession["entries"] => {
+      const draftCategory = getSearchQueryCategory(draftQuery);
+      const draftSubcategory = getSearchQuerySubcategory(draftQuery);
+      const draftRarityPolicy = getSearchQueryRarityPolicy(draftQuery);
+      const draftActionCostPolicy = getSearchQueryActionCostPolicy(draftQuery);
+      const draftMetadataTree = getSearchQueryMetadataTree(draftQuery);
+      const entries: SearchStructuredDraftSession["entries"] = [
+        {
+          kind: "category",
+          key: "category",
+          label: "Category",
+          value: formatSearchCategory(draftCategory),
+          description: "Choose the category boundary for the staged structured query.",
+        },
+      ];
 
-    const result = await prompts.promptSelectOption({
-      title: "Query Field",
-      prompt: "Choose the field for the next metadata clause",
-      entries: fieldOptions.map((fieldOption) => ({
-        value: fieldOption.value,
-        label: fieldOption.label,
-        description: fieldOption.description,
-      })),
-      selectedValue: fieldOptions[0]!.value,
-    });
+      if (hasSelectableSubcategories(draftCategory)) {
+        entries.push({
+          kind: "subcategory",
+          key: "subcategory",
+          label: "Subcategory",
+          value: formatSearchSubcategory(draftSubcategory),
+          description: "Choose the staged subcategory boundary within the current category.",
+        });
+      }
 
-    if (result.kind !== "selected") {
-      return null;
-    }
+      entries.push(
+        {
+          kind: "levelRange",
+          key: "levelRange",
+          label: "Level Range",
+          value: formatLevelRange(draftQuery),
+          description: "Constrain the staged query by minimum or maximum level.",
+        },
+        {
+          kind: "rarity",
+          key: "rarity",
+          label: "Rarity",
+          value: formatFilterPolicy(draftRarityPolicy),
+          description: "Stage include or exclude rarity filters.",
+        },
+      );
 
-    return fieldOptions.find((fieldOption) => fieldOption.value === result.value) ?? null;
-  }, [category, prompts, subcategory, terminal, user.search]);
+      if (user.search.getActionCostOptions(draftCategory, draftSubcategory).length > 0) {
+        entries.push({
+          kind: "actionCost",
+          key: "actionCost",
+          label: "Action Cost",
+          value: formatFilterPolicy(draftActionCostPolicy),
+          description: "Stage include or exclude action-cost filters.",
+        });
+      }
+
+      if (draftCategory) {
+        const focusedNode = metadataFocusPath ? getMetadataNodeAtPath(draftMetadataTree, metadataFocusPath) : null;
+        const predicateCount = countMetadataPredicates(draftMetadataTree);
+        entries.push({
+          kind: "metadata",
+          key: "metadata",
+          label: "Query Logic",
+          value:
+            predicateCount > 0
+              ? `${predicateCount} staged clause${predicateCount === 1 ? "" : "s"}`
+              : "No staged clauses",
+          description: focusedNode
+            ? `Resume staged metadata editing at ${metadataFocusPath?.length === 0 ? "the root query node" : `path ${metadataFocusPath?.join(".")}`}.`
+            : "Stage metadata clauses and logic groups for the structured query.",
+          metadataPath: metadataFocusPath ?? [],
+        });
+      }
+
+      entries.push(
+        {
+          kind: "finish",
+          key: "finish",
+          label: "Finish Structured Edit",
+          value: "Apply draft",
+          description: "Commit the staged structured query back into the live editor.",
+        },
+        {
+          kind: "cancel",
+          key: "cancel",
+          label: "Cancel Structured Edit",
+          value: "Discard draft",
+          description: "Discard the staged structured query and keep the live query unchanged.",
+        },
+      );
+
+      return entries;
+    },
+    [hasSelectableSubcategories, user.search],
+  );
+
+  const getStructuredDraftAnchorKind = React.useCallback(
+    (
+      anchor: SearchStructuredDraftSession["anchor"],
+      entries: SearchStructuredDraftSession["entries"],
+    ): StructuredDraftEntryKind => {
+      if (anchor.kind === "queryPart") {
+        return anchor.part;
+      }
+      if (anchor.kind === "queryNode") {
+        return "metadata";
+      }
+
+      const preferredKinds: StructuredDraftEntryKind[] = [
+        "category",
+        "subcategory",
+        "levelRange",
+        "rarity",
+        "actionCost",
+        "metadata",
+      ];
+      const emptyKinds = new Set<StructuredDraftEntryKind>();
+      for (const entry of entries) {
+        if (
+          entry.kind === "category" ||
+          entry.kind === "subcategory" ||
+          entry.kind === "levelRange" ||
+          entry.kind === "rarity" ||
+          entry.kind === "actionCost" ||
+          entry.kind === "metadata"
+        ) {
+          if (
+            entry.value === "Any Category" ||
+            entry.value === "Any Subcategory" ||
+            entry.value === "(any)" ||
+            entry.value === "No staged clauses"
+          ) {
+            emptyKinds.add(entry.kind);
+          }
+        }
+      }
+      return preferredKinds.find((kind) => emptyKinds.has(kind) && entries.some((entry) => entry.kind === kind)) ?? "metadata";
+    },
+    [],
+  );
+
+  const getStructuredDraftSelectionIndex = React.useCallback(
+    (
+      anchor: SearchStructuredDraftSession["anchor"],
+      entries: SearchStructuredDraftSession["entries"],
+    ): number => {
+      const preferredKind = getStructuredDraftAnchorKind(anchor, entries);
+      const entryIndex = entries.findIndex((entry) => entry.kind === preferredKind);
+      return clampStructuredDraftSelection(entryIndex >= 0 ? entryIndex : 0, entries.length);
+    },
+    [getStructuredDraftAnchorKind],
+  );
+
+  const openStructuredDraftSession = React.useCallback(
+    (anchor: SearchStructuredDraftSession["anchor"], query: Pf2eTerminalSearchQuery = state.query) => {
+      const draftQuery = user.search.normalizeQuery(query);
+      const metadataFocusPath = anchor.kind === "queryNode" ? [...anchor.path] : null;
+      const entries = buildStructuredDraftEntries(draftQuery, metadataFocusPath);
+      setStructuredDraftState({
+        anchor,
+        draftQuery,
+        metadataFocusPath,
+        selectedIndex: getStructuredDraftSelectionIndex(anchor, entries),
+      });
+    },
+    [buildStructuredDraftEntries, getStructuredDraftSelectionIndex, state.query, user.search],
+  );
+
+  const replaceStructuredDraftQuery = React.useCallback(
+    (update: (draftQuery: Pf2eTerminalSearchQuery) => Pf2eTerminalSearchQuery) => {
+      setStructuredDraftState((current) => {
+        if (!current) {
+          return current;
+        }
+        const nextDraftQuery = user.search.normalizeQuery(update(current.draftQuery));
+        const entries = buildStructuredDraftEntries(nextDraftQuery, current.metadataFocusPath);
+        return {
+          ...current,
+          draftQuery: nextDraftQuery,
+          selectedIndex: clampStructuredDraftSelection(current.selectedIndex, entries.length),
+        };
+      });
+    },
+    [buildStructuredDraftEntries, user.search],
+  );
+
+  const chooseQueryField = React.useCallback(
+    async (query: Pf2eTerminalSearchQuery): Promise<Pf2eTerminalQueryFieldOption | null> => {
+      const queryCategory = getSearchQueryCategory(query);
+      const querySubcategory = getSearchQuerySubcategory(query);
+      const fieldOptions = user.search.getQueryFieldOptions(queryCategory, querySubcategory);
+      if (fieldOptions.length === 0) {
+        await terminal.pauseForAnyKey("No scoped metadata fields are available for the current query.");
+        return null;
+      }
+
+      const result = await prompts.promptSelectOption({
+        title: "Query Field",
+        prompt: "Choose the field for the next metadata clause",
+        entries: fieldOptions.map((fieldOption) => ({
+          value: fieldOption.value,
+          label: fieldOption.label,
+          description: fieldOption.description,
+        })),
+        selectedValue: fieldOptions[0]!.value,
+      });
+
+      if (result.kind !== "selected") {
+        return null;
+      }
+
+      return fieldOptions.find((fieldOption) => fieldOption.value === result.value) ?? null;
+    },
+    [prompts, terminal, user.search],
+  );
 
   const openOntologyFieldEditor = React.useCallback(
     async (
+      query: Pf2eTerminalSearchQuery,
       fieldOption: Pf2eTerminalQueryFieldOption,
       currentPolicy: Pf2eTerminalFilterValuePolicy<string>,
       onApply: (nextNode: MetadataFilterNode | null) => void,
+      onReturn?: () => void,
     ): Promise<boolean> => {
       if (fieldOption.editor !== "ontologyPicker") {
         return false;
@@ -647,6 +682,7 @@ export function useSearchWorkspaceActions({
       return openQueryFieldPicker({
         fieldOptions: [fieldOption],
         initialSelections: buildSelectionMap(fieldOption.value, currentPolicy),
+        onReturn,
         singleFieldBehavior: "directValues",
         onApply: (selection) => {
           const nextNode =
@@ -660,9 +696,13 @@ export function useSearchWorkspaceActions({
 
   const editFieldClause = React.useCallback(
     async (
+      query: Pf2eTerminalSearchQuery,
       fieldOption: Pf2eTerminalQueryFieldOption,
       currentNode: MetadataFilterNode | null = null,
     ): Promise<MetadataFilterNode | null | undefined> => {
+      const queryCategory = getSearchQueryCategory(query);
+      const querySubcategory = getSearchQuerySubcategory(query);
+
       if (fieldOption.fieldType === "set" || fieldOption.fieldType === "enumString") {
         const currentPolicy =
           currentNode && isMetadataPredicate(currentNode)
@@ -673,7 +713,7 @@ export function useSearchWorkspaceActions({
           prompt: "Cycle field values through include, require-all, or exclude. Press Esc or Left when finished.",
           allowedStates: fieldOption.fieldType === "set" ? ["any", "all", "exclude"] : ["any", "exclude"],
           entries: user.search
-            .getFacetValueOptions(fieldOption.value, category, subcategory)
+            .getFacetValueOptions(fieldOption.value, queryCategory, querySubcategory)
             .map((option) => ({
               value: option.value,
               label: option.label,
@@ -827,7 +867,7 @@ export function useSearchWorkspaceActions({
         value: numericValue,
       } as MetadataFilterNode;
     },
-    [category, prompts, subcategory, terminal, user.search],
+    [prompts, terminal, user.search],
   );
 
   const updateQueryFieldBuilderDraft = React.useCallback((field: string, node: MetadataFilterNode | null) => {
@@ -845,48 +885,26 @@ export function useSearchWorkspaceActions({
     });
   }, []);
 
-  const editQueryFieldBuilderField = React.useCallback(
-    async (fieldOption: Pf2eTerminalQueryFieldOption) => {
-      const currentNode = queryFieldBuilderState?.fieldDrafts[fieldOption.value] ?? null;
-      if (fieldOption.editor === "ontologyPicker") {
-        await openOntologyFieldEditor(fieldOption, buildPolicyFromMetadataNode(currentNode), (nextNode) => {
-          updateQueryFieldBuilderDraft(fieldOption.value, nextNode);
-        });
-        return;
-      }
-
-      const nextNode = await editFieldClause(fieldOption, currentNode);
-      if (nextNode === undefined) {
-        return;
-      }
-      updateQueryFieldBuilderDraft(fieldOption.value, nextNode);
-    },
-    [editFieldClause, openOntologyFieldEditor, queryFieldBuilderState?.fieldDrafts, updateQueryFieldBuilderDraft],
-  );
-
   const openQueryFieldBuilder = React.useCallback(
-    async (path: number[] = []) => {
-      const fieldOptions = user.search.getQueryFieldOptions(category, subcategory);
+    async (query: Pf2eTerminalSearchQuery, path: number[] = []) => {
+      const queryCategory = getSearchQueryCategory(query);
+      const querySubcategory = getSearchQuerySubcategory(query);
+      const fieldOptions = user.search.getQueryFieldOptions(queryCategory, querySubcategory);
       if (fieldOptions.length === 0) {
         await terminal.pauseForAnyKey("No scoped metadata fields are available for the current query.");
-        return;
+        return false;
       }
 
       setQueryFieldBuilderState({
+        draftQuery: query,
         path,
         items: buildQueryFieldBuilderItems(fieldOptions),
         selectedIndex: 0,
         fieldDrafts: {},
       });
-
-      if (fieldOptions.length === 1 && fieldOptions[0]!.editor === "ontologyPicker") {
-        const onlyFieldOption = fieldOptions[0]!;
-        setTimeout(() => {
-          void editQueryFieldBuilderField(onlyFieldOption);
-        }, 0);
-      }
+      return true;
     },
-    [category, editQueryFieldBuilderField, subcategory, terminal, user.search],
+    [terminal, user.search],
   );
 
   const finishQueryFieldBuilder = React.useCallback(() => {
@@ -896,18 +914,47 @@ export function useSearchWorkspaceActions({
     if (!nextNode) {
       return;
     }
-    applyQueryUpdate((request) =>
-      setSearchQueryMetadataTree(request, appendMetadataNodeAtPath(getSearchQueryMetadataTree(request), targetPath, nextNode)),
+    replaceStructuredDraftQuery((draftQuery) =>
+      setSearchQueryMetadataTree(
+        draftQuery,
+        appendMetadataNodeAtPath(getSearchQueryMetadataTree(draftQuery), targetPath, nextNode),
+      ),
     );
-  }, [applyQueryUpdate, queryFieldBuilderState]);
+  }, [queryFieldBuilderState, replaceStructuredDraftQuery]);
 
   const cancelQueryFieldBuilder = React.useCallback(() => {
     setQueryFieldBuilderState(null);
   }, []);
 
+  const editQueryFieldBuilderField = React.useCallback(
+    async (fieldOption: Pf2eTerminalQueryFieldOption) => {
+      const scopeQuery = queryFieldBuilderState?.draftQuery;
+      if (!scopeQuery) {
+        return;
+      }
+
+      const currentNode = queryFieldBuilderState.fieldDrafts[fieldOption.value] ?? null;
+      if (fieldOption.editor === "ontologyPicker") {
+        await openOntologyFieldEditor(scopeQuery, fieldOption, buildPolicyFromMetadataNode(currentNode), (nextNode) => {
+          updateQueryFieldBuilderDraft(fieldOption.value, nextNode);
+        });
+        return;
+      }
+
+      const nextNode = await editFieldClause(scopeQuery, fieldOption, currentNode);
+      if (nextNode === undefined) {
+        return;
+      }
+      updateQueryFieldBuilderDraft(fieldOption.value, nextNode);
+    },
+    [editFieldClause, openOntologyFieldEditor, queryFieldBuilderState, updateQueryFieldBuilderDraft],
+  );
+
   const selectCurrentQueryFieldBuilderItem = React.useCallback(() => {
     const selectedItem =
-      queryFieldBuilderState?.items[Math.max(0, Math.min(queryFieldBuilderState.selectedIndex, queryFieldBuilderState.items.length - 1))];
+      queryFieldBuilderState?.items[
+        clampStructuredDraftSelection(queryFieldBuilderState.selectedIndex, queryFieldBuilderState.items.length)
+      ] ?? null;
     if (!selectedItem) {
       return;
     }
@@ -926,234 +973,386 @@ export function useSearchWorkspaceActions({
     if (!queryFieldBuilderState) {
       return null;
     }
+    const stagedNode = compileQueryFieldBuilderDrafts(queryFieldBuilderState.fieldDrafts);
+    const previewQuery = stagedNode
+      ? setSearchQueryMetadataTree(
+          queryFieldBuilderState.draftQuery,
+          appendMetadataNodeAtPath(
+            getSearchQueryMetadataTree(queryFieldBuilderState.draftQuery),
+            queryFieldBuilderState.path,
+            stagedNode,
+          ),
+        )
+      : queryFieldBuilderState.draftQuery;
     return {
+      kind: "queryFieldBuilder",
+      title: "Add Query Part",
+      subtitle: "Choose query fields and keep the full staged query visible while you refine it",
+      leftTitle: "[QUERY FIELDS]",
+      rightTitle: "Staged Summary & Detail",
+      statusText: "Field edits stay staged until you finish the structured query editor.",
+      draftQuery: previewQuery,
       items: queryFieldBuilderState.items.map((item) =>
         item.kind === "field"
           ? {
               ...item,
-              label: queryFieldBuilderState.fieldDrafts[item.fieldOption.value] ? `${item.fieldOption.label} | staged` : item.fieldOption.label,
+              label: queryFieldBuilderState.fieldDrafts[item.fieldOption.value]
+                ? `${item.fieldOption.label} | staged`
+                : item.fieldOption.label,
             }
           : item,
       ),
-      selectedIndex: queryFieldBuilderState.selectedIndex,
+      selectedIndex: clampStructuredDraftSelection(queryFieldBuilderState.selectedIndex, queryFieldBuilderState.items.length),
       fieldDrafts: queryFieldBuilderState.fieldDrafts,
       moveSelection: (delta, itemCount) => {
         setQueryFieldBuilderState((current) => {
           if (!current) {
             return current;
           }
-          const nextIndex = Math.max(0, Math.min(itemCount - 1, current.selectedIndex + delta));
           return {
             ...current,
-            selectedIndex: nextIndex,
+            selectedIndex: clampStructuredDraftSelection(current.selectedIndex + delta, itemCount),
           };
         });
       },
       selectCurrent: selectCurrentQueryFieldBuilderItem,
       finish: finishQueryFieldBuilder,
       cancel: cancelQueryFieldBuilder,
+      helpTitle: "Add Query Part Help",
+      helpBody: [
+        { text: "Choose the next query field to stage into the structured draft.", tone: "section" },
+        {
+          text: "The right pane keeps the full staged query summary visible while you move between fields.",
+        },
+        {
+          text: "Concrete selections accumulate in the staged summary immediately, even before you finish the parent draft.",
+        },
+      ],
     };
-  }, [cancelQueryFieldBuilder, finishQueryFieldBuilder, queryFieldBuilderState, selectCurrentQueryFieldBuilderItem]);
+  }, [
+    cancelQueryFieldBuilder,
+    finishQueryFieldBuilder,
+    queryFieldBuilderState,
+    selectCurrentQueryFieldBuilderItem,
+  ]);
 
   const addQueryClauseAtPath = React.useCallback(
-    async (path: number[] = []) => {
-      await openQueryFieldBuilder(path);
+    async (query: Pf2eTerminalSearchQuery, path: number[] = []) => {
+      await openQueryFieldBuilder(query, path);
     },
     [openQueryFieldBuilder],
   );
 
   const addQueryGroupAtPath = React.useCallback(
-    async (path: number[], groupKind: "and" | "or" | "not") => {
-      const fieldOption = await chooseQueryField();
+    async (query: Pf2eTerminalSearchQuery, path: number[], groupKind: "and" | "or" | "not") => {
+      const fieldOption = await chooseQueryField(query);
       if (!fieldOption) {
         return;
       }
       if (fieldOption.editor === "ontologyPicker") {
-        await openOntologyFieldEditor(fieldOption, createEmptyStringPolicy(), (nextNode) => {
+        await openOntologyFieldEditor(query, fieldOption, createEmptyStringPolicy(), (nextNode) => {
           if (!nextNode) {
             return;
           }
           const group: MetadataFilterNode =
             groupKind === "and" ? { and: [nextNode] } : groupKind === "or" ? { or: [nextNode] } : { not: nextNode };
-          applyQueryUpdate((request) =>
-            setSearchQueryMetadataTree(request, appendMetadataNodeAtPath(getSearchQueryMetadataTree(request), path, group)),
+          replaceStructuredDraftQuery((draftQuery) =>
+            setSearchQueryMetadataTree(
+              draftQuery,
+              appendMetadataNodeAtPath(getSearchQueryMetadataTree(draftQuery), path, group),
+            ),
           );
         });
         return;
       }
-      const clause = await editFieldClause(fieldOption);
+      const clause = await editFieldClause(query, fieldOption);
       if (!clause) {
         return;
       }
       const group: MetadataFilterNode =
         groupKind === "and" ? { and: [clause] } : groupKind === "or" ? { or: [clause] } : { not: clause };
-      applyQueryUpdate((request) =>
-        setSearchQueryMetadataTree(request, appendMetadataNodeAtPath(getSearchQueryMetadataTree(request), path, group)),
+      replaceStructuredDraftQuery((draftQuery) =>
+        setSearchQueryMetadataTree(
+          draftQuery,
+          appendMetadataNodeAtPath(getSearchQueryMetadataTree(draftQuery), path, group),
+        ),
       );
     },
-    [applyQueryUpdate, chooseQueryField, editFieldClause, openOntologyFieldEditor],
+    [chooseQueryField, editFieldClause, openOntologyFieldEditor, replaceStructuredDraftQuery],
   );
 
-  const openAddQueryPart = React.useCallback(async () => {
-    const hasCategory = Boolean(category);
-    const hasSubcategory = Boolean(getSearchQueryPart(state.query, "subcategory"));
-    const hasLevelRange = Boolean(getSearchQueryPart(state.query, "levelRange"));
-    const hasRarity = Boolean(getSearchQueryPart(state.query, "rarityPolicy"));
-    const hasActionCost = Boolean(getSearchQueryPart(state.query, "actionCostPolicy"));
-    const hasActionCostOptions = user.search.getActionCostOptions(category, subcategory).length > 0;
-    const entries: Array<{ value: AddQueryPartCommand; label: string; description: string }> = [
-      ...(!hasCategory
-        ? [
-            {
-              value: "category" as const,
-              label: "Add Category",
-              description: `Current: ${formatSearchCategory(category)}.`,
-            },
-          ]
-        : []),
-      ...(!hasSubcategory && hasSelectableSubcategories(category)
-        ? [
-            {
-              value: "subcategory" as const,
-              label: "Add Subcategory",
-              description: `Current: ${formatSearchSubcategory(subcategory)}.`,
-            },
-          ]
-        : []),
-      ...(!hasLevelRange
-        ? [
-            {
-              value: "levelRange" as const,
-              label: "Add Level Range",
-              description: `Current: ${formatLevelRange(state.query)}.`,
-            },
-          ]
-        : []),
-      ...(!hasRarity
-        ? [
-            {
-              value: "rarity" as const,
-              label: "Add Rarity",
-              description: `Current: ${formatFilterPolicy(rarityPolicy)}.`,
-            },
-          ]
-        : []),
-      ...(!hasActionCost && hasActionCostOptions
-        ? [
-            {
-              value: "actionCost" as const,
-              label: "Add Action Cost",
-              description: `Current: ${formatFilterPolicy(actionCostPolicy)}.`,
-            },
-          ]
-        : []),
-      ...(hasCategory
-        ? [
-            {
-              value: "clause" as const,
-              label: "Add Query Clause",
-              description: "Add a metadata clause at the root of the unified query.",
-            },
-            {
-              value: "andGroup" as const,
-              label: "Add AND Group",
-              description: "Add an AND logic group with one initial clause.",
-            },
-            {
-              value: "orGroup" as const,
-              label: "Add OR Group",
-              description: "Add an OR logic group with one initial clause.",
-            },
-            {
-              value: "notGroup" as const,
-              label: "Add NOT Group",
-              description: "Add a NOT logic group with one initial clause.",
-            },
-          ]
-        : []),
-    ];
+  const finishStructuredDraftSession = React.useCallback(() => {
+    if (!structuredDraftState) {
+      return;
+    }
+    const nextQuery = structuredDraftState.draftQuery;
+    setStructuredDraftState(null);
+    applyQueryUpdate(() => nextQuery);
+  }, [applyQueryUpdate, structuredDraftState]);
 
-    if (entries.length === 0) {
-      await terminal.pauseForAnyKey("No additional query parts are available from the current root scope.");
+  const cancelStructuredDraftSession = React.useCallback(() => {
+    setStructuredDraftState(null);
+  }, []);
+
+  const structuredDraftEntries = React.useMemo(
+    () =>
+      structuredDraftState ? buildStructuredDraftEntries(structuredDraftState.draftQuery, structuredDraftState.metadataFocusPath) : [],
+    [buildStructuredDraftEntries, structuredDraftState],
+  );
+
+  const editStructuredDraftCategory = React.useCallback(async () => {
+    const draftQuery = structuredDraftState?.draftQuery;
+    if (!draftQuery) {
       return;
     }
 
-    const result = await prompts.promptSelectOption({
-      title: "Add Query Part",
-      prompt: "Choose a root query part to add",
-      entries,
-      selectedValue: entries[0]!.value,
+    const draftCategory = getSearchQueryCategory(draftQuery);
+    const [allCategoryOption, ...categoryEntries] = user.search.getCategoryOptions();
+    const result = await prompts.promptOptionalSelectOption({
+      title: "Category Scope",
+      prompt: "Choose the staged category boundary",
+      allOption: {
+        label: allCategoryOption?.label ?? "Any Category",
+        description: allCategoryOption?.description,
+      },
+      entries: categoryEntries.map((option) => ({
+        value: option.value,
+        label: option.label,
+        description: option.description,
+      })),
+      selectedValue: draftCategory,
     });
-    if (result.kind !== "selected") {
+
+    if (result.kind === "cancelled") {
       return;
     }
 
-    switch (result.value) {
-      case "category":
-        await chooseCategoryFilter();
-        return;
-      case "subcategory":
-        await chooseSubcategoryFilter();
-        return;
-      case "levelRange":
-        await editLevelRange();
-        return;
-      case "rarity":
-        await chooseRarityFilter();
-        return;
-      case "actionCost":
-        await chooseActionCostFilter();
-        return;
-      case "clause":
-        await addQueryClauseAtPath();
-        return;
-      case "andGroup":
-      case "orGroup":
-      case "notGroup":
-        await addQueryGroupAtPath([], result.value === "andGroup" ? "and" : result.value === "orGroup" ? "or" : "not");
-        return;
-    }
-  }, [
-    addQueryClauseAtPath,
-    addQueryGroupAtPath,
-    chooseCategoryFilter,
-    chooseActionCostFilter,
-    chooseRarityFilter,
-    chooseSubcategoryFilter,
-    editLevelRange,
-    hasSelectableSubcategories,
-    prompts,
-    actionCostPolicy,
-    category,
-    levelRange.levelMax,
-    levelRange.levelMin,
-    rarityPolicy,
-    state.query,
-    subcategory,
-    terminal,
-    user.search,
-  ]);
+    replaceStructuredDraftQuery((query) => setSearchQueryCategory(query, result.kind === "all" ? null : result.value));
+  }, [prompts, replaceStructuredDraftQuery, structuredDraftState?.draftQuery, user.search]);
 
-  const editQueryNode = React.useCallback(
+  const editStructuredDraftSubcategory = React.useCallback(async () => {
+    const draftQuery = structuredDraftState?.draftQuery;
+    if (!draftQuery) {
+      return;
+    }
+
+    const draftCategory = getSearchQueryCategory(draftQuery);
+    const draftSubcategory = getSearchQuerySubcategory(draftQuery);
+    if (!draftCategory) {
+      await terminal.pauseForAnyKey("Choose a category before selecting a subcategory.");
+      return;
+    }
+
+    const [allSubcategoryOption, ...subcategoryEntries] = user.search.getSubcategoryOptions(draftCategory);
+    if (subcategoryEntries.length === 0) {
+      await terminal.pauseForAnyKey("No subcategories are available for the current category.");
+      return;
+    }
+
+    const result = await prompts.promptOptionalSelectOption({
+      title: "Subcategory Scope",
+      prompt: "Choose the staged subcategory boundary",
+      allOption: {
+        label: allSubcategoryOption?.label ?? "Any Subcategory",
+        description: allSubcategoryOption?.description,
+      },
+      entries: subcategoryEntries.map((option) => ({
+        value: option.value,
+        label: option.label,
+        description: option.description,
+      })),
+      selectedValue: draftSubcategory,
+    });
+
+    if (result.kind === "cancelled") {
+      return;
+    }
+
+    replaceStructuredDraftQuery((query) =>
+      result.kind === "all"
+        ? removeSearchQueryPart(query, "subcategory")
+        : result.value
+          ? setSearchQueryPart(query, { kind: "subcategory", subcategory: result.value })
+          : query,
+    );
+  }, [prompts, replaceStructuredDraftQuery, structuredDraftState?.draftQuery, terminal, user.search]);
+
+  const editStructuredDraftLevelRange = React.useCallback(async () => {
+    const draftQuery = structuredDraftState?.draftQuery;
+    if (!draftQuery) {
+      return;
+    }
+
+    const draftLevelRange = getSearchQueryLevelRange(draftQuery);
+    const input = await prompts.promptTextInput({
+      title: "Level Range",
+      prompt: "Enter `3-8`, `5`, `5+`, or `<=10`. Leave blank to clear.",
+      defaultValue:
+        draftLevelRange.levelMin === null && draftLevelRange.levelMax === null
+          ? ""
+          : formatLevelRange(draftQuery).replaceAll("L", "").replace("<= ", "<="),
+      hint: "Examples: 3-8 or <=5",
+    });
+
+    if (input === undefined) {
+      return;
+    }
+
+    const parsed = parseLevelRangeInput(input);
+    if (typeof parsed === "string") {
+      await terminal.pauseForAnyKey(parsed);
+      return;
+    }
+
+    replaceStructuredDraftQuery((query) =>
+      parsed.levelMin === null && parsed.levelMax === null
+        ? removeSearchQueryPart(query, "levelRange")
+        : setSearchQueryPart(query, {
+            kind: "levelRange",
+            levelMin: parsed.levelMin,
+            levelMax: parsed.levelMax,
+          }),
+    );
+  }, [prompts, replaceStructuredDraftQuery, structuredDraftState?.draftQuery, terminal]);
+
+  const editStructuredDraftRarity = React.useCallback(async () => {
+    const draftQuery = structuredDraftState?.draftQuery;
+    if (!draftQuery) {
+      return;
+    }
+
+    const draftCategory = getSearchQueryCategory(draftQuery);
+    const draftSubcategory = getSearchQuerySubcategory(draftQuery);
+    const draftRarityPolicy = getSearchQueryRarityPolicy(draftQuery);
+    const options = user.search.getRarityOptions(draftCategory, draftSubcategory);
+    const selected = await prompts.promptPolicySelectOption({
+      title: "Rarity Filter",
+      prompt: "Cycle rarities through include and exclude. Press Esc or Left when finished.",
+      allowedStates: ["any", "exclude"],
+      entries: options.map((option) => ({
+        value: option.value,
+        label: option.label,
+        description: option.description,
+      })),
+      selectedValues: draftRarityPolicy,
+    });
+
+    replaceStructuredDraftQuery((query) =>
+      selected.any.length === 0 && selected.exclude.length === 0
+        ? removeSearchQueryPart(query, "rarityPolicy")
+        : setSearchQueryPart(query, {
+            kind: "rarityPolicy",
+            policy: {
+              any: selected.any,
+              all: [],
+              exclude: selected.exclude,
+            },
+          }),
+    );
+  }, [prompts, replaceStructuredDraftQuery, structuredDraftState?.draftQuery, user.search]);
+
+  const editStructuredDraftActionCost = React.useCallback(async () => {
+    const draftQuery = structuredDraftState?.draftQuery;
+    if (!draftQuery) {
+      return;
+    }
+
+    const draftCategory = getSearchQueryCategory(draftQuery);
+    const draftSubcategory = getSearchQuerySubcategory(draftQuery);
+    const draftActionCostPolicy = getSearchQueryActionCostPolicy(draftQuery);
+    const options = user.search.getActionCostOptions(draftCategory, draftSubcategory);
+    if (options.length === 0) {
+      await terminal.pauseForAnyKey("No action-cost filters are available for the current query.");
+      return;
+    }
+
+    const selected = await prompts.promptPolicySelectOption({
+      title: "Action Cost Filter",
+      prompt: "Cycle action costs through include or exclude. Press Esc or Left when finished.",
+      allowedStates: ["any", "exclude"],
+      entries: options.map((option) => ({
+        value: option.value,
+        label: option.label,
+        description: option.description,
+      })),
+      selectedValues: {
+        any: draftActionCostPolicy.any.map(String),
+        all: [],
+        exclude: draftActionCostPolicy.exclude.map(String),
+      },
+    });
+
+    const nextPolicy = {
+      any: selected.any.map((value) => Number.parseInt(value, 10)).filter((value) => Number.isFinite(value)),
+      all: [] as number[],
+      exclude: selected.exclude.map((value) => Number.parseInt(value, 10)).filter((value) => Number.isFinite(value)),
+    };
+
+    replaceStructuredDraftQuery((query) =>
+      nextPolicy.any.length === 0 && nextPolicy.exclude.length === 0
+        ? removeSearchQueryPart(query, "actionCostPolicy")
+        : setSearchQueryPart(query, { kind: "actionCostPolicy", policy: nextPolicy }),
+    );
+  }, [prompts, replaceStructuredDraftQuery, structuredDraftState?.draftQuery, terminal, user.search]);
+
+  const editStructuredDraftMetadata = React.useCallback(
     async (path: number[]) => {
-      const node = getMetadataNodeAtPath(metadataTree, path);
+      const draftQuery = structuredDraftState?.draftQuery;
+      if (!draftQuery) {
+        return;
+      }
+
+      const draftMetadataTree = getSearchQueryMetadataTree(draftQuery);
+      const node = path.length === 0 ? draftMetadataTree : getMetadataNodeAtPath(draftMetadataTree, path);
+      const queryCategory = getSearchQueryCategory(draftQuery);
+      const querySubcategory = getSearchQuerySubcategory(draftQuery);
+
       if (!node) {
+        const fieldOptions = user.search.getQueryFieldOptions(queryCategory, querySubcategory);
+        if (fieldOptions.length === 0) {
+          await terminal.pauseForAnyKey("No scoped metadata fields are available for the current query.");
+          return;
+        }
+
+        if (fieldOptions.length === 1) {
+          const onlyField = fieldOptions[0]!;
+          if (onlyField.editor === "ontologyPicker") {
+            await openOntologyFieldEditor(draftQuery, onlyField, createEmptyStringPolicy(), (nextNode) => {
+              if (!nextNode) {
+                return;
+              }
+              replaceStructuredDraftQuery((query) =>
+                setSearchQueryMetadataTree(query, appendMetadataNodeAtPath(getSearchQueryMetadataTree(query), path, nextNode)),
+              );
+            });
+            return;
+          }
+
+          const nextNode = await editFieldClause(draftQuery, onlyField);
+          if (!nextNode) {
+            return;
+          }
+          replaceStructuredDraftQuery((query) =>
+            setSearchQueryMetadataTree(query, appendMetadataNodeAtPath(getSearchQueryMetadataTree(query), path, nextNode)),
+          );
+          return;
+        }
+
+        await openQueryFieldBuilder(draftQuery, path);
         return;
       }
 
       if (isMetadataPredicate(node)) {
-        const scopedFields = user.search.getQueryFieldOptions(category, subcategory);
+        const scopedFields = user.search.getQueryFieldOptions(queryCategory, querySubcategory);
         const fieldOption = scopedFields.find((candidate) => candidate.value === node.field) ?? null;
         const actionEntries = [
-          ...(fieldOption
-            ? [{ value: "edit", label: "Edit Clause", description: "Change the field operator or value." }]
-            : []),
+          ...(fieldOption ? [{ value: "edit", label: "Edit Clause", description: "Change the field operator or value." }] : []),
           { value: "wrapNot", label: "Wrap In NOT", description: "Negate this clause without changing its content." },
-          { value: "remove", label: "Remove Clause", description: "Delete this clause from the query." },
+          { value: "remove", label: "Remove Clause", description: "Delete this clause from the draft query." },
         ];
         const result = await prompts.promptSelectOption({
           title: "Query Clause",
-          prompt: "Choose how to update this query clause",
+          prompt: "Choose how to update this staged query clause",
           entries: actionEntries,
           selectedValue: actionEntries[0]!.value,
         });
@@ -1169,32 +1368,41 @@ export function useSearchWorkspaceActions({
           }
           if (fieldOption.editor === "ontologyPicker") {
             const currentPolicy = buildPolicyFromPredicate(node) ?? createEmptyStringPolicy();
-            await openOntologyFieldEditor(fieldOption, currentPolicy, (nextNode) => {
-              applyQueryUpdate((request) =>
-                setSearchQueryMetadataTree(request, updateMetadataNodeAtPath(getSearchQueryMetadataTree(request), path, () => nextNode)),
+            await openOntologyFieldEditor(draftQuery, fieldOption, currentPolicy, (nextNode) => {
+              replaceStructuredDraftQuery((query) =>
+                setSearchQueryMetadataTree(
+                  query,
+                  updateMetadataNodeAtPath(getSearchQueryMetadataTree(query), path, () => nextNode),
+                ),
               );
             });
             return;
           }
-          const nextNode = await editFieldClause(fieldOption, node);
+          const nextNode = await editFieldClause(draftQuery, fieldOption, node);
           if (nextNode === undefined) {
             return;
           }
-          applyQueryUpdate((request) =>
-            setSearchQueryMetadataTree(request, updateMetadataNodeAtPath(getSearchQueryMetadataTree(request), path, () => nextNode)),
+          replaceStructuredDraftQuery((query) =>
+            setSearchQueryMetadataTree(
+              query,
+              updateMetadataNodeAtPath(getSearchQueryMetadataTree(query), path, () => nextNode),
+            ),
           );
           return;
         }
 
         if (result.value === "wrapNot") {
-          applyQueryUpdate((request) =>
-            setSearchQueryMetadataTree(request, updateMetadataNodeAtPath(getSearchQueryMetadataTree(request), path, (current) => ({ not: current }))),
+          replaceStructuredDraftQuery((query) =>
+            setSearchQueryMetadataTree(
+              query,
+              updateMetadataNodeAtPath(getSearchQueryMetadataTree(query), path, (current) => ({ not: current })),
+            ),
           );
           return;
         }
 
-        applyQueryUpdate((request) =>
-          setSearchQueryMetadataTree(request, updateMetadataNodeAtPath(getSearchQueryMetadataTree(request), path, () => null)),
+        replaceStructuredDraftQuery((query) =>
+          setSearchQueryMetadataTree(query, updateMetadataNodeAtPath(getSearchQueryMetadataTree(query), path, () => null)),
         );
         return;
       }
@@ -1202,7 +1410,7 @@ export function useSearchWorkspaceActions({
       if ("not" in node) {
         const result = await prompts.promptSelectOption({
           title: "NOT Group",
-          prompt: "Choose how to update this negated clause",
+          prompt: "Choose how to update this negated staged clause",
           entries: [
             { value: "unwrap", label: "Remove NOT", description: "Keep the child clause and remove the negation." },
             { value: "remove", label: "Remove Group", description: "Delete the negated clause entirely." },
@@ -1214,10 +1422,10 @@ export function useSearchWorkspaceActions({
           return;
         }
 
-        applyQueryUpdate((request) =>
+        replaceStructuredDraftQuery((query) =>
           setSearchQueryMetadataTree(
-            request,
-            updateMetadataNodeAtPath(getSearchQueryMetadataTree(request), path, (current) =>
+            query,
+            updateMetadataNodeAtPath(getSearchQueryMetadataTree(query), path, (current) =>
               result.value === "unwrap" && "not" in current ? current.not : null,
             ),
           ),
@@ -1228,20 +1436,12 @@ export function useSearchWorkspaceActions({
       const isAndGroup = "and" in node;
       const result = await prompts.promptSelectOption({
         title: isAndGroup ? "AND Group" : "OR Group",
-        prompt: "Choose how to update this logic group",
+        prompt: "Choose how to update this staged logic group",
         entries: [
           { value: "addClause", label: "Add Clause", description: "Add another clause inside this logic group." },
-          {
-            value: "addAndGroup",
-            label: "Add AND Group",
-            description: "Add a nested AND group with one initial clause.",
-          },
+          { value: "addAndGroup", label: "Add AND Group", description: "Add a nested AND group with one initial clause." },
           { value: "addOrGroup", label: "Add OR Group", description: "Add a nested OR group with one initial clause." },
-          {
-            value: "addNotGroup",
-            label: "Add NOT Group",
-            description: "Add a nested NOT group with one initial clause.",
-          },
+          { value: "addNotGroup", label: "Add NOT Group", description: "Add a nested NOT group with one initial clause." },
           {
             value: "toggle",
             label: isAndGroup ? "Convert To OR" : "Convert To AND",
@@ -1249,7 +1449,7 @@ export function useSearchWorkspaceActions({
               ? "Require any child instead of every child."
               : "Require every child instead of any child.",
           },
-          { value: "remove", label: "Remove Group", description: "Delete this logic group from the query." },
+          { value: "remove", label: "Remove Group", description: "Delete this logic group from the draft query." },
         ],
         selectedValue: "addClause",
       });
@@ -1259,45 +1459,156 @@ export function useSearchWorkspaceActions({
       }
 
       if (result.value === "addClause") {
-        await addQueryClauseAtPath(path);
+        await addQueryClauseAtPath(draftQuery, path);
         return;
       }
       if (result.value === "addAndGroup" || result.value === "addOrGroup" || result.value === "addNotGroup") {
         await addQueryGroupAtPath(
+          draftQuery,
           path,
           result.value === "addAndGroup" ? "and" : result.value === "addOrGroup" ? "or" : "not",
         );
         return;
       }
       if (result.value === "toggle") {
-        applyQueryUpdate((request) =>
+        replaceStructuredDraftQuery((query) =>
           setSearchQueryMetadataTree(
-            request,
-            updateMetadataNodeAtPath(getSearchQueryMetadataTree(request), path, (current) =>
+            query,
+            updateMetadataNodeAtPath(getSearchQueryMetadataTree(query), path, (current) =>
               "and" in current ? { or: [...current.and] } : "or" in current ? { and: [...current.or] } : current,
             ),
           ),
         );
         return;
       }
-      applyQueryUpdate((request) =>
-        setSearchQueryMetadataTree(request, updateMetadataNodeAtPath(getSearchQueryMetadataTree(request), path, () => null)),
+      replaceStructuredDraftQuery((query) =>
+        setSearchQueryMetadataTree(query, updateMetadataNodeAtPath(getSearchQueryMetadataTree(query), path, () => null)),
       );
     },
     [
       addQueryClauseAtPath,
       addQueryGroupAtPath,
-      applyQueryUpdate,
-      category,
       editFieldClause,
-      metadataTree,
       openOntologyFieldEditor,
+      openQueryFieldBuilder,
       prompts,
-      subcategory,
+      replaceStructuredDraftQuery,
+      structuredDraftState?.draftQuery,
       terminal,
       user.search,
     ],
   );
+
+  const selectCurrentStructuredDraftEntry = React.useCallback(() => {
+    if (!structuredDraftState) {
+      return;
+    }
+    const selectedEntry =
+      structuredDraftEntries[
+        clampStructuredDraftSelection(structuredDraftState.selectedIndex, structuredDraftEntries.length)
+      ] ?? null;
+    if (!selectedEntry) {
+      return;
+    }
+    if (selectedEntry.kind === "finish") {
+      finishStructuredDraftSession();
+      return;
+    }
+    if (selectedEntry.kind === "cancel") {
+      cancelStructuredDraftSession();
+      return;
+    }
+    if (selectedEntry.kind === "category") {
+      void editStructuredDraftCategory();
+      return;
+    }
+    if (selectedEntry.kind === "subcategory") {
+      void editStructuredDraftSubcategory();
+      return;
+    }
+    if (selectedEntry.kind === "levelRange") {
+      void editStructuredDraftLevelRange();
+      return;
+    }
+    if (selectedEntry.kind === "rarity") {
+      void editStructuredDraftRarity();
+      return;
+    }
+    if (selectedEntry.kind === "actionCost") {
+      void editStructuredDraftActionCost();
+      return;
+    }
+    void editStructuredDraftMetadata(selectedEntry.metadataPath ?? []);
+  }, [
+    cancelStructuredDraftSession,
+    editStructuredDraftActionCost,
+    editStructuredDraftCategory,
+    editStructuredDraftLevelRange,
+    editStructuredDraftMetadata,
+    editStructuredDraftRarity,
+    editStructuredDraftSubcategory,
+    finishStructuredDraftSession,
+    structuredDraftEntries,
+    structuredDraftState,
+  ]);
+
+  const structuredEditorSession = React.useMemo<SearchQueryFieldBuilderSession | null>(() => {
+    if (!structuredDraftState) {
+      return null;
+    }
+    return {
+      kind: "structuredEditor",
+      title: "Structured Query Editor",
+      subtitle: "Stage structured search changes before applying them to the live query",
+      leftTitle: "[STAGED QUERY]",
+      rightTitle: "Staged Summary & Detail",
+      statusText: "Structured changes stay in draft form until you finish.",
+      draftQuery: structuredDraftState.draftQuery,
+      items: structuredDraftEntries.map((entry) =>
+        entry.kind === "finish" || entry.kind === "cancel"
+          ? { kind: entry.kind, label: entry.label }
+          : {
+              kind: "workspaceEntry" as const,
+              label: `${entry.label} | ${entry.value}`,
+              workspaceEntry: {
+                action: "addQueryPart",
+                label: entry.label,
+                value: entry.value,
+                description: entry.description,
+                disabled: entry.disabled,
+                disabledReason: entry.disabledReason,
+              },
+            },
+      ),
+      selectedIndex: clampStructuredDraftSelection(structuredDraftState.selectedIndex, structuredDraftEntries.length),
+      moveSelection: (delta, itemCount) => {
+        setStructuredDraftState((current) => {
+          if (!current) {
+            return current;
+          }
+          return {
+            ...current,
+            selectedIndex: clampStructuredDraftSelection(current.selectedIndex + delta, itemCount),
+          };
+        });
+      },
+      selectCurrent: selectCurrentStructuredDraftEntry,
+      finish: finishStructuredDraftSession,
+      cancel: cancelStructuredDraftSession,
+      helpTitle: "Structured Query Editor Help",
+      helpBody: [
+        { text: "Stage structured search changes before applying them to the live query.", tone: "section" },
+        { text: "The summary stays visible while you move focus so prior staged selections do not disappear." },
+        { text: "Open a row to edit it, stage more changes, then finish when the draft looks correct." },
+      ],
+    };
+  }, [
+    cancelStructuredDraftSession,
+    finishStructuredDraftSession,
+    selectCurrentStructuredDraftEntry,
+    structuredDraftEntries,
+    structuredDraftState,
+  ]);
 
   const resetQueryEditor = React.useCallback(() => {
     const defaultQuery = user.search.createDefaultQuery();
@@ -1329,11 +1640,11 @@ export function useSearchWorkspaceActions({
         return;
       }
       if (action === "addQueryPart") {
-        void openAddQueryPart();
+        openStructuredDraftSession({ kind: "addQueryPart" });
         return;
       }
       if (action === "clearClauses") {
-        applyQueryUpdate((request) => setSearchQueryMetadataTree(request, null));
+        openStructuredDraftSession({ kind: "queryNode", path: [] }, setSearchQueryMetadataTree(state.query, null));
         return;
       }
       if (action === "reset") {
@@ -1350,7 +1661,7 @@ export function useSearchWorkspaceActions({
         if (!path) {
           return;
         }
-        void editQueryNode(path);
+        openStructuredDraftSession({ kind: "queryNode", path });
         return;
       }
 
@@ -1359,39 +1670,17 @@ export function useSearchWorkspaceActions({
         if (!part) {
           return;
         }
-        switch (part) {
-          case "category":
-            void chooseCategoryFilter();
-            return;
-          case "subcategory":
-            void chooseSubcategoryFilter();
-            return;
-          case "levelRange":
-            void editLevelRange();
-            return;
-          case "rarity":
-            void chooseRarityFilter();
-            return;
-          case "actionCost":
-            void chooseActionCostFilter();
-            return;
-        }
+        openStructuredDraftSession({ kind: "queryPart", part });
+        return;
       }
     },
     [
-      applyQueryUpdate,
-      chooseActionCostFilter,
-      chooseCategoryFilter,
       chooseMode,
-      chooseRarityFilter,
       chooseSearchProfile,
-      chooseSubcategoryFilter,
       dispatch,
-      editQueryNode,
-      editLevelRange,
       editQueryText,
       executeRequest,
-      openAddQueryPart,
+      openStructuredDraftSession,
       resetQueryEditor,
       state.query,
       workspaceEntries,
@@ -1534,6 +1823,6 @@ export function useSearchWorkspaceActions({
 
   return {
     handleIntent,
-    queryFieldBuilderSession,
+    structuredEditorSession: queryFieldBuilderSession ?? structuredEditorSession,
   };
 }
