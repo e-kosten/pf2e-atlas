@@ -247,11 +247,16 @@ describe("application ontology service", () => {
     expect(traitValueNodes.at(-1)?.id).toBe("spell:traits:trait-14");
   });
 
-  it("attaches live browse queries to search semantics example and advanced predicate nodes", () => {
+  it("keeps only live browse surfaces for search semantics traits, values, and advanced predicates", () => {
     const service = createPf2eApplicationOntologyService(createTestConfig(), createDataService());
     const domain = service.loadDomain("searchSemantics");
     const advancedPredicateNode = findNodeById(domain.rootNodes, "equipment:advanced:itemMetric");
-    const exampleNode = findNodeById(domain.rootNodes, "equipment:example:0");
+    const commonTraitNode = findNodeById(domain.rootNodes, "spell:trait:fire");
+    const saveTypeValueNode =
+      findNodeById(domain.rootNodes, "spell:field:saveType")?.loadChildren?.().find((node) => node.id === "spell:saveType:fortitude");
+
+    expect(findNodeById(domain.rootNodes, "equipment:example:0")).toBeUndefined();
+    expect(findNodeById(domain.rootNodes, "equipment:examples")).toBeUndefined();
 
     expect(advancedPredicateNode?.query).toEqual({
       kind: "listRecords",
@@ -270,22 +275,33 @@ describe("application ontology service", () => {
     expect(advancedPredicateNode?.detailLines.map((line) => line.text)).toContain(
       "Press Enter or o to open the full matching set in the shared result reader.",
     );
-
-    expect(exampleNode?.query).toEqual({
+    expect(commonTraitNode?.query).toEqual({
       kind: "listRecords",
-      label: "Browse records matching One-handed bombs",
+      label: "Browse records with this trait",
       filters: {
-        category: "equipment",
+        category: "spell",
         metadata: {
-          and: [
-            { field: "weaponGroup", op: "eq", value: "bomb" },
-            { field: "hands", op: "eq", value: 1 },
-          ],
+          field: "traits",
+          op: "includesAny",
+          values: ["fire"],
         },
         limit: 20,
       },
     });
-    expect(exampleNode?.detailLines.map((line) => line.text)).toContain(
+    expect(saveTypeValueNode?.query).toEqual({
+      kind: "listRecords",
+      label: "Browse records with this value",
+      filters: {
+        category: "spell",
+        metadata: {
+          field: "saveType",
+          op: "eq",
+          value: "fortitude",
+        },
+        limit: 20,
+      },
+    });
+    expect(saveTypeValueNode?.detailLines.map((line) => line.text)).toContain(
       "Press Enter or o to open the full matching set in the shared result reader.",
     );
   });

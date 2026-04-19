@@ -54,7 +54,7 @@ const ONTOLOGY_DOMAINS: OntologyDomainSummary[] = [
   {
     id: "searchSemantics",
     label: "Search Semantics",
-    description: "Explore category-specific metadata fields, examples, common values, and advanced search predicates.",
+    description: "Explore category-specific metadata fields, live value spaces, and advanced search predicates.",
   },
 ];
 
@@ -570,7 +570,6 @@ function buildSearchSemanticsDomain(
       ),
     ]),
   );
-  const examplesByCategory = semantics.examplesByCategory;
   const derivedTagCategoryNodes = new Map(
     (derivedTagDomain?.rootNodes ?? [])
       .filter((node): node is OntologyNode => node.kind === "category" && Boolean(node.shortLabel))
@@ -727,25 +726,6 @@ function buildSearchSemanticsDomain(
       }),
     );
 
-    const exampleNodes: OntologyNode[] = (examplesByCategory[category] ?? []).map(
-      (example, index): OntologyNode => ({
-        id: `${category}:example:${index}`,
-        kind: "example",
-        label: example.label,
-        filterText: buildFilterText(category, example.label, example.notes ?? ""),
-        listLabel: example.label,
-        detailTitle: "Example Predicate",
-        detailLines: [
-          { text: example.label, tone: "section" },
-          { text: `Category: ${category}` },
-          { text: `Predicate: ${JSON.stringify(example.metadata)}` },
-          { text: `Notes: ${example.notes ?? "(none)"}` },
-          { text: buildResultReaderHint() },
-        ],
-        query: buildSearchSemanticsMetadataQuery(category, `Browse records matching ${example.label}`, example.metadata),
-      }),
-    );
-
     const subcategoryNodes: OntologyNode[] = CATEGORY_SUBCATEGORY_MAP[category].map(
       (subcategory): OntologyNode => ({
         id: `${category}:subcategory:${subcategory}`,
@@ -868,22 +848,6 @@ function buildSearchSemanticsDomain(
         children: advancedPredicateNodes,
       });
     }
-    if (exampleNodes.length > 0) {
-      children.push({
-        id: `${category}:examples`,
-        kind: "group",
-        label: "Examples",
-        filterText: buildFilterText(category, "examples", ...exampleNodes.map((node) => node.label)),
-        listLabel: `Examples | ${exampleNodes.length}`,
-        detailTitle: "Category Examples",
-        detailLines: buildKeyValueDetailLines("Examples", [
-          ["Category", category],
-          ["Examples", exampleNodes.length],
-        ]),
-        children: exampleNodes,
-      });
-    }
-
     return {
       id: `searchSemantics:${category}`,
       kind: "category",
@@ -900,7 +864,7 @@ function buildSearchSemanticsDomain(
           ["Metadata fields", categoryFields.length],
           ["Advanced predicates", advancedPredicateNodes.length],
         ],
-        "Explore category-specific search semantics, discoverable fields, and example predicates.",
+        "Explore category-specific search semantics, discoverable fields, and live browse surfaces.",
       ),
       children,
     };
