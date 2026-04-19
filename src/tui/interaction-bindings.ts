@@ -55,6 +55,12 @@ export type TerminalInteractionHelpSection = {
   lines?: TerminalInteractionLine[];
 };
 
+export type TerminalTextEntryIntent =
+  | { kind: "submit" }
+  | { kind: "cancel" }
+  | { kind: "deleteBackward" }
+  | { kind: "append"; text: string };
+
 export const TERMINAL_DIALOG_RETURN_FOOTER = "Press any key to return.";
 export const TERMINAL_DIALOG_CONTINUE_FOOTER = "Press any key to continue.";
 export const TERMINAL_TEXT_INPUT_FOOTER = "Type text  Enter submit  Backspace edit  Esc cancel";
@@ -271,7 +277,10 @@ export function formatTerminalInteractionFooter(actions: TerminalInteractionActi
     .join("  ");
 }
 
-function matchesTerminalInteractionAction(actionId: TerminalInteractionActionId, event: DerivedTagTerminalInputEvent): boolean {
+function matchesTerminalInteractionAction(
+  actionId: TerminalInteractionActionId,
+  event: DerivedTagTerminalInputEvent,
+): boolean {
   switch (actionId) {
     case "move":
     case "scroll":
@@ -331,6 +340,24 @@ export function resolveTerminalInteractionAction(
   return actions.find((action) => matchesTerminalInteractionAction(action.id, event));
 }
 
+export function resolveTerminalTextEntryIntent(
+  event: DerivedTagTerminalInputEvent,
+): TerminalTextEntryIntent | undefined {
+  if (event.textInputAction === "submit") {
+    return { kind: "submit" };
+  }
+  if (event.textInputAction === "cancel") {
+    return { kind: "cancel" };
+  }
+  if (event.textInputAction === "deleteBackward") {
+    return { kind: "deleteBackward" };
+  }
+  if (event.printable) {
+    return { kind: "append", text: event.printable };
+  }
+  return undefined;
+}
+
 export function getTerminalInteractionCycleDirection(
   event: DerivedTagTerminalInputEvent,
   action: TerminalInteractionAction | undefined,
@@ -344,7 +371,10 @@ export function getTerminalInteractionCycleDirection(
   return undefined;
 }
 
-function buildActionHelpLine(action: TerminalInteractionAction, actions: TerminalInteractionAction[]): TerminalInteractionLine {
+function buildActionHelpLine(
+  action: TerminalInteractionAction,
+  actions: TerminalInteractionAction[],
+): TerminalInteractionLine {
   const displayKeys = getInteractionDisplayKeys(action, actions);
   return {
     text: `${displayKeys.helpKeys}: ${action.helpText ?? getInteractionLabel(action)}`,

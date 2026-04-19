@@ -13,7 +13,11 @@ import {
   type DerivedTagTerminalInputEvent,
   type DerivedTagTerminalLine,
 } from "../terminal-ui.js";
-import { resolveTerminalInteractionAction, type TerminalInteractionAction } from "../interaction-bindings.js";
+import {
+  resolveTerminalInteractionAction,
+  resolveTerminalTextEntryIntent,
+  type TerminalInteractionAction,
+} from "../interaction-bindings.js";
 import {
   getDerivedTagTerminalTwoPaneLayoutMode,
   reduceDerivedTagTerminalTwoPaneState,
@@ -344,13 +348,14 @@ export function useOntologyExplorerController(
     const interactionActions = options.getInteractionActions?.(context) ?? [];
     const interactionAction = resolveTerminalInteractionAction(event, interactionActions);
     const searchModeAction = resolveTerminalInteractionAction(event, [{ id: "cancel" }]);
+    const textEntryIntent = resolveTerminalTextEntryIntent(event);
 
     if (state.searchMode) {
-      if (event.textInputAction === "submit") {
+      if (textEntryIntent?.kind === "submit") {
         dispatch({ type: "set_search_mode", searchMode: false });
         return;
       }
-      if (event.textInputAction === "deleteBackward") {
+      if (textEntryIntent?.kind === "deleteBackward") {
         dispatch({ type: "backspace_search" });
         return;
       }
@@ -359,8 +364,8 @@ export function useOntologyExplorerController(
         dispatch({ type: "set_search_mode", searchMode: false, searchInput: "" });
         return;
       }
-      if (event.printable) {
-        dispatch({ type: "append_search", character: event.printable });
+      if (textEntryIntent?.kind === "append") {
+        dispatch({ type: "append_search", character: textEntryIntent.text });
       }
       return;
     }

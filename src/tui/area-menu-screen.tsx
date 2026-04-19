@@ -1,23 +1,12 @@
 import React from "react";
 
+import type { DerivedTagTerminalLine } from "./terminal-ui.js";
 import {
-  TerminalTwoPaneScreen,
-  createDerivedTagTerminalListNavigationState,
-  getTerminalPaneBodyHeight,
-  resolveDerivedTagTerminalListNavigationAction,
-  useDerivedTagTerminalApp,
-  useDerivedTagTerminalInput,
-  useDerivedTagTerminalSize,
-  type DerivedTagTerminalLine,
-} from "./terminal-ui.js";
-import {
-  TERMINAL_DIALOG_RETURN_FOOTER,
   buildTerminalInteractionHelpLines,
   formatTerminalInteractionFooter,
-  resolveTerminalInteractionAction,
   type TerminalInteractionAction,
 } from "./interaction-bindings.js";
-import { buildScrollableLines } from "./list-utils.js";
+import { TerminalMenuScreen } from "./shared-screens.js";
 
 export type Pf2eTopLevelArea = {
   id: "tag_refinement" | "ontology_search" | "search";
@@ -98,70 +87,17 @@ export function AreaMenuScreen({
   onMove: (delta: number) => void;
   onQuit: () => void;
 }): React.JSX.Element {
-  const terminal = useDerivedTagTerminalApp();
-  const size = useDerivedTagTerminalSize();
   const selectedArea = areas[selectedAreaIndex];
-  const navigationStateRef = React.useRef(createDerivedTagTerminalListNavigationState());
-  const bodyHeight = Math.max(
-    1,
-    getTerminalPaneBodyHeight(size.height, {
-      hasSubtitle: true,
-      footerLineCount: 2,
-    }),
-  );
-
-  useDerivedTagTerminalInput((event) => {
-    const navigation = resolveDerivedTagTerminalListNavigationAction(
-      event,
-      {
-        pageSize: Math.max(1, bodyHeight - 1),
-        jumpSize: Math.max(1, Math.floor(bodyHeight / 2)),
-        includeConfirmKeys: true,
-        includeHorizontalConfirmKeys: true,
-      },
-      navigationStateRef.current,
-    );
-    navigationStateRef.current = navigation.state;
-    const interactionAction = resolveTerminalInteractionAction(event, getAreaMenuInteractionActions());
-
-    if (interactionAction?.id === "quit") {
-      onQuit();
-      return;
-    }
-    if (navigation.action?.kind === "move") {
-      onMove(navigation.action.delta);
-      return;
-    }
-    if (interactionAction?.id === "select") {
-      onOpenSelectedArea();
-      return;
-    }
-    if (navigation.action?.kind === "boundary") {
-      onMove(navigation.action.boundary === "start" ? -selectedAreaIndex : areas.length - 1 - selectedAreaIndex);
-      return;
-    }
-    if (interactionAction?.id === "help") {
-      void terminal.showDialog({
-        title: "Top-Level Help",
-        body: buildTopLevelHelpLines(),
-        footer: [{ text: TERMINAL_DIALOG_RETURN_FOOTER, tone: "dim" }],
-      });
-      return;
-    }
-  });
 
   return (
-    <TerminalTwoPaneScreen
+    <TerminalMenuScreen
       title={title}
       subtitle="Choose a first-class TUI area"
-      left={{
-        title: "Areas",
-        lines: buildScrollableLines(areas, selectedAreaIndex, bodyHeight),
-      }}
-      right={{
-        title: "Area Details",
-        lines: buildAreaDetailLines(selectedArea, pendingReviewCount),
-      }}
+      leftTitle="Areas"
+      rightTitle="Area Details"
+      items={areas}
+      selectedIndex={selectedAreaIndex}
+      interactionActions={getAreaMenuInteractionActions()}
       footer={[
         {
           text: formatTerminalInteractionFooter([
@@ -173,12 +109,19 @@ export function AreaMenuScreen({
           ]),
           tone: "dim",
         },
-        {
-          text: `${selectedArea ? formatAreaAudience(selectedArea.audience) : "-"} | ${pendingReviewCount} pending queue slice${pendingReviewCount === 1 ? "" : "s"}`,
-          tone: "accent",
-        },
       ]}
-      leftWidth={32}
+      status={{
+        text: `${selectedArea ? formatAreaAudience(selectedArea.audience) : "-"} | ${pendingReviewCount} pending queue slice${pendingReviewCount === 1 ? "" : "s"}`,
+        tone: "accent",
+      }}
+      helpTitle="Top-Level Help"
+      helpBody={buildTopLevelHelpLines()}
+      buildDetailLines={(area) => buildAreaDetailLines(area, pendingReviewCount)}
+      onMove={(delta) => {
+        onMove(delta);
+      }}
+      onSelect={onOpenSelectedArea}
+      onBack={onQuit}
     />
   );
 }

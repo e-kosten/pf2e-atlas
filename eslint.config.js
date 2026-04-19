@@ -91,6 +91,56 @@ export default defineConfig(
     },
   },
   {
+    files: ["src/tui/area-menu-screen.tsx", "src/tui/ontology-explorer/domain-picker-screen.tsx"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "./terminal-ui.js",
+              importNames: [
+                "createDerivedTagTerminalListNavigationState",
+                "getTerminalPaneBodyHeight",
+                "resolveDerivedTagTerminalListNavigationAction",
+                "useDerivedTagTerminalApp",
+                "useDerivedTagTerminalInput",
+                "useDerivedTagTerminalSize",
+              ],
+              message:
+                "Simple chooser screens must use the shared TerminalMenuScreen abstraction instead of owning input/navigation loops.",
+            },
+            {
+              name: "../terminal-ui.js",
+              importNames: [
+                "createDerivedTagTerminalListNavigationState",
+                "getTerminalPaneBodyHeight",
+                "resolveDerivedTagTerminalListNavigationAction",
+                "useDerivedTagTerminalApp",
+                "useDerivedTagTerminalInput",
+                "useDerivedTagTerminalSize",
+              ],
+              message:
+                "Simple chooser screens must use the shared TerminalMenuScreen abstraction instead of owning input/navigation loops.",
+            },
+            {
+              name: "./interaction-bindings.js",
+              importNames: ["resolveTerminalInteractionAction"],
+              message:
+                "Simple chooser screens must use the shared TerminalMenuScreen abstraction instead of resolving interaction actions directly.",
+            },
+            {
+              name: "../interaction-bindings.js",
+              importNames: ["resolveTerminalInteractionAction"],
+              message:
+                "Simple chooser screens must use the shared TerminalMenuScreen abstraction instead of resolving interaction actions directly.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ["src/tui/**/*.{ts,tsx}"],
     ignores: [
       "src/tui/keymap.ts",

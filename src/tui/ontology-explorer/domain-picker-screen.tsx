@@ -2,28 +2,18 @@ import React from "react";
 
 import type { OntologyDomainSummary } from "../../types.js";
 import {
-  TerminalTwoPaneScreen,
-  createDerivedTagTerminalListNavigationState,
-  getTerminalPaneBodyHeight,
-  resolveDerivedTagTerminalListNavigationAction,
-  useDerivedTagTerminalApp,
-  useDerivedTagTerminalInput,
-  useDerivedTagTerminalSize,
-} from "../terminal-ui.js";
-import {
-  TERMINAL_DIALOG_RETURN_FOOTER,
   buildTerminalInteractionHelpLines,
   formatTerminalInteractionFooter,
-  resolveTerminalInteractionAction,
   type TerminalInteractionAction,
 } from "../interaction-bindings.js";
-import { buildScrollableLines } from "../list-utils.js";
+import type { DerivedTagTerminalLine } from "../terminal-ui.js";
+import { TerminalMenuScreen } from "../shared-screens.js";
 
 function getOntologyDomainPickerInteractionActions(): TerminalInteractionAction[] {
   return [{ id: "select" }, { id: "back", label: "back" }, { id: "help" }, { id: "quit", label: "back" }];
 }
 
-function buildOntologyDomainPickerHelpLines() {
+function buildOntologyDomainPickerHelpLines(): DerivedTagTerminalLine[] {
   return buildTerminalInteractionHelpLines([
     {
       title: "Navigation",
@@ -57,6 +47,12 @@ function buildOntologyDomainPickerHelpLines() {
   ]);
 }
 
+function buildOntologyDomainDetailLines(selectedDomain: OntologyDomainSummary | undefined): DerivedTagTerminalLine[] {
+  return selectedDomain
+    ? [{ text: selectedDomain.label, tone: "section" }, { text: selectedDomain.description }]
+    : [{ text: "No domain selected.", tone: "dim" }];
+}
+
 export function OntologyDomainPickerScreen({
   domains,
   selectedIndex,
@@ -70,76 +66,17 @@ export function OntologyDomainPickerScreen({
   onMove: (delta: number, itemCount: number) => void;
   onOpenSelected: () => void;
 }): React.JSX.Element {
-  const terminal = useDerivedTagTerminalApp();
-  const size = useDerivedTagTerminalSize();
-  const navigationStateRef = React.useRef(createDerivedTagTerminalListNavigationState());
   const selectedDomain = domains[selectedIndex];
-  const bodyHeight = Math.max(
-    1,
-    getTerminalPaneBodyHeight(size.height, {
-      hasSubtitle: true,
-      footerLineCount: 2,
-    }),
-  );
-
-  useDerivedTagTerminalInput((event) => {
-    const navigation = resolveDerivedTagTerminalListNavigationAction(
-      event,
-      {
-        pageSize: Math.max(1, bodyHeight - 1),
-        jumpSize: Math.max(1, Math.floor(bodyHeight / 2)),
-        includeConfirmKeys: true,
-        includeHorizontalConfirmKeys: true,
-      },
-      navigationStateRef.current,
-    );
-    navigationStateRef.current = navigation.state;
-    const interactionAction = resolveTerminalInteractionAction(event, getOntologyDomainPickerInteractionActions());
-
-    if (interactionAction?.id === "back" || interactionAction?.id === "quit") {
-      onBack();
-      return;
-    }
-    if (navigation.action?.kind === "move") {
-      onMove(navigation.action.delta, domains.length);
-      return;
-    }
-    if (navigation.action?.kind === "boundary") {
-      onMove(
-        navigation.action.boundary === "start" ? -selectedIndex : domains.length - 1 - selectedIndex,
-        domains.length,
-      );
-      return;
-    }
-    if (interactionAction?.id === "select") {
-      onOpenSelected();
-      return;
-    }
-    if (interactionAction?.id === "help") {
-      void terminal.showDialog({
-        title: "Ontology Domains",
-        body: buildOntologyDomainPickerHelpLines(),
-        footer: [{ text: TERMINAL_DIALOG_RETURN_FOOTER, tone: "dim" }],
-      });
-      return;
-    }
-  });
 
   return (
-    <TerminalTwoPaneScreen
+    <TerminalMenuScreen
       title="Ontology Search"
       subtitle="Choose an ontology-backed browse domain"
-      left={{
-        title: "Domains",
-        lines: buildScrollableLines(domains, selectedIndex, bodyHeight),
-        active: true,
-      }}
-      right={{
-        title: "Domain Details",
-        lines: selectedDomain
-          ? [{ text: selectedDomain.label, tone: "section" }, { text: selectedDomain.description }]
-          : [{ text: "No domain selected.", tone: "dim" }],
-      }}
+      leftTitle="Domains"
+      rightTitle="Domain Details"
+      items={domains}
+      selectedIndex={selectedIndex}
+      interactionActions={getOntologyDomainPickerInteractionActions()}
       footer={[
         {
           text: formatTerminalInteractionFooter([
@@ -151,9 +88,14 @@ export function OntologyDomainPickerScreen({
           ]),
           tone: "dim",
         },
-        { text: selectedDomain?.label ?? "-", tone: "accent" },
       ]}
-      leftWidth={32}
+      status={{ text: selectedDomain?.label ?? "-", tone: "accent" }}
+      helpTitle="Ontology Domains"
+      helpBody={buildOntologyDomainPickerHelpLines()}
+      buildDetailLines={buildOntologyDomainDetailLines}
+      onMove={onMove}
+      onSelect={onOpenSelected}
+      onBack={onBack}
     />
   );
 }

@@ -182,6 +182,12 @@ const localRules = {
           "Do not branch on event.systemAction in feature code. Interrupt handling must stay centralized in terminal-ui.",
         noDirectCancelHandling:
           'Do not branch on event.textInputAction === "cancel" in feature code. Resolve a shared terminal interaction action instead.',
+        noDirectSubmitHandling:
+          'Do not branch on event.textInputAction === "submit" in feature code. Resolve a shared text-entry intent instead.',
+        noDirectDeleteBackwardHandling:
+          'Do not branch on event.textInputAction === "deleteBackward" in feature code. Resolve a shared text-entry intent instead.',
+        noDirectPrintableHandling:
+          "Do not read event.printable in feature code. Resolve shared text-entry intent instead.",
         noDirectBackHandling:
           "Do not call event.isBackNavigationKey() in feature code. Resolve back/return through shared interaction helpers instead.",
         noDirectQuitHandling:
@@ -193,11 +199,23 @@ const localRules = {
         MemberExpression(node) {
           if (isMemberProperty(node, "systemAction")) {
             context.report({ node, messageId: "noDirectInterruptHandling" });
+            return;
+          }
+          if (isMemberProperty(node, "printable")) {
+            context.report({ node, messageId: "noDirectPrintableHandling" });
           }
         },
         BinaryExpression(node) {
           if (isTerminalInputActionComparison(node, "textInputAction", "cancel")) {
             context.report({ node, messageId: "noDirectCancelHandling" });
+            return;
+          }
+          if (isTerminalInputActionComparison(node, "textInputAction", "submit")) {
+            context.report({ node, messageId: "noDirectSubmitHandling" });
+            return;
+          }
+          if (isTerminalInputActionComparison(node, "textInputAction", "deleteBackward")) {
+            context.report({ node, messageId: "noDirectDeleteBackwardHandling" });
           }
         },
         SwitchStatement(node) {
@@ -208,6 +226,14 @@ const localRules = {
           for (const switchCase of node.cases) {
             if (isLiteralString(switchCase.test, "cancel")) {
               context.report({ node: switchCase, messageId: "noDirectCancelHandling" });
+              continue;
+            }
+            if (isLiteralString(switchCase.test, "submit")) {
+              context.report({ node: switchCase, messageId: "noDirectSubmitHandling" });
+              continue;
+            }
+            if (isLiteralString(switchCase.test, "deleteBackward")) {
+              context.report({ node: switchCase, messageId: "noDirectDeleteBackwardHandling" });
             }
           }
         },
