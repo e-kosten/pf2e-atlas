@@ -597,7 +597,7 @@ describe("search screen", () => {
     expect(app.lastFrame()).not.toContain("Category Scope");
   });
 
-  it("uses space to open add-query-part and routes derived-tag clauses into the shared picker", async () => {
+  it("uses space to open add-query-part and routes derived-tag clauses into the staged builder and direct picker", async () => {
     const services = createServices();
     services.user.search.getQueryFieldOptions = vi.fn(() => [
       {
@@ -628,8 +628,12 @@ describe("search screen", () => {
               kind: "listRecords",
               label: "Browse spells",
               filters: {
+                actionCost: 2,
                 category: "spell",
                 limit: 20,
+                levelMax: 1,
+                levelMin: 1,
+                rarity: "common",
               },
             }}
             onBack={vi.fn()}
@@ -641,31 +645,24 @@ describe("search screen", () => {
     await flushInk();
     pressLeft(app);
     await flushInk();
-
     for (let step = 0; step < 2; step += 1) {
       pressDown(app);
       await flushInk();
     }
-    expect(app.lastFrame()).toContain("Add Query Part | 1 active");
+    expect(app.lastFrame()).toContain("Add Query Part");
 
     app.stdin.write(" ");
     await flushInk();
     expect(app.lastFrame()).toContain("Add Query Part");
-    for (let step = 0; step < 3; step += 1) {
-      pressDown(app);
-      await flushInk();
-    }
     app.stdin.write("\r");
     await flushInk();
-    expect(app.lastFrame()).toContain("Query Field");
-
-    app.stdin.write("\r");
     await flushInk();
-    app.stdin.write("\r");
     await flushInk();
     expect(app.lastFrame()).toContain("Derived Tags Query");
     expect(app.lastFrame()).toContain("Selection Picker");
-    expect(app.lastFrame()).toContain("Focused: derivedTags");
+    expect(app.lastFrame()).toContain("[VALUES]");
+    expect(app.lastFrame()).toContain("Focused: coastal_setting");
+    expect(app.lastFrame()).not.toContain("Query Field\n");
   });
 
   it("loads the next result page through the window reader instead of rerunning the search", async () => {
@@ -1544,7 +1541,7 @@ describe("search screen", () => {
     });
   });
 
-  it("opens the shared ontology picker for derived-tag query editing", async () => {
+  it("returns from a direct-open query field picker back into the staged builder session", async () => {
     const services = createServices();
     services.user.search.getQueryFieldOptions = vi.fn(() => [
       {
@@ -1575,8 +1572,12 @@ describe("search screen", () => {
               kind: "listRecords",
               label: "Browse spells",
               filters: {
+                actionCost: 2,
                 category: "spell",
                 limit: 20,
+                levelMax: 1,
+                levelMin: 1,
+                rarity: "common",
               },
             }}
             onBack={vi.fn()}
@@ -1588,28 +1589,32 @@ describe("search screen", () => {
     await flushInk();
     pressLeft(app);
     await flushInk();
-
-    expect(app.lastFrame()).toContain("Add Query Part | 1 active");
     for (let step = 0; step < 2; step += 1) {
       pressDown(app);
       await flushInk();
     }
+
+    expect(app.lastFrame()).toContain("Add Query Part");
     app.stdin.write("\r");
     await flushInk();
     expect(app.lastFrame()).toContain("Add Query Part");
-    for (let step = 0; step < 3; step += 1) {
-      pressDown(app);
-      await flushInk();
-    }
     app.stdin.write("\r");
     await flushInk();
-    expect(app.lastFrame()).toContain("Query Field");
-    app.stdin.write("\r");
     await flushInk();
-    app.stdin.write("\r");
     await flushInk();
     expect(app.lastFrame()).toContain("Derived Tags Query");
     expect(app.lastFrame()).toContain("Selection Picker");
-    expect(app.lastFrame()).toContain("Focused: derivedTags");
+    expect(app.lastFrame()).toContain("[VALUES]");
+    expect(app.lastFrame()).toContain("Focused: coastal_setting");
+
+    app.stdin.write(" ");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Policy any");
+
+    pressLeft(app);
+    await flushInk();
+    expect(app.lastFrame()).toContain("Query Field Builder");
+    expect(app.lastFrame()).toContain("Derived Tags | staged");
+    expect(app.lastFrame()).not.toContain("Browse/Search");
   });
 });

@@ -1,6 +1,11 @@
 import React from "react";
 
 import { buildSearchFacetPickerModel as buildSearchQueryFieldSelectionPickerModel } from "./ontology-explorer/facet-picker-model.js";
+import {
+  buildHostedOntologyPickerInitialSnapshot,
+  clearHostedOntologyPickerContract,
+  registerHostedOntologyPickerContract,
+} from "./ontology-explorer/picker-hosting.js";
 import type { OntologyPickerSelectionMap } from "./ontology-explorer/picker-screen.js";
 import {
   getSearchQuerySubcategory,
@@ -25,6 +30,8 @@ export function useSearchQueryFieldPickerWorkflow({
     fieldOptions: Pf2eTerminalQueryFieldOption[];
     initialSelections?: Pf2eTerminalQueryFieldSelectionMap;
     onApply: (selection: Pf2eTerminalQueryFieldSelectionMap) => void;
+    onReturn?: () => void;
+    singleFieldBehavior?: "list" | "directValues";
   }) => Promise<boolean>;
   closeQueryFieldPicker: () => void;
 } {
@@ -36,10 +43,14 @@ export function useSearchQueryFieldPickerWorkflow({
       fieldOptions,
       initialSelections = {},
       onApply,
+      onReturn,
+      singleFieldBehavior = onReturn ? "directValues" : "list",
     }: {
       fieldOptions: Pf2eTerminalQueryFieldOption[];
       initialSelections?: Pf2eTerminalQueryFieldSelectionMap;
       onApply: (selection: Pf2eTerminalQueryFieldSelectionMap) => void;
+      onReturn?: () => void;
+      singleFieldBehavior?: "list" | "directValues";
     }): Promise<boolean> => {
       if (!query.filters.category) {
         await onUnavailable("Choose a category before editing a discoverable query field.");
@@ -61,10 +72,35 @@ export function useSearchQueryFieldPickerWorkflow({
         return false;
       }
 
+      const preferredRootDepth = singleFieldBehavior === "directValues" && model.rootNodes.length === 1 ? 1 : 0;
+      const initialSnapshot = buildHostedOntologyPickerInitialSnapshot(model, preferredRootDepth);
+      const rootDepth = initialSnapshot ? preferredRootDepth : 0;
+      registerHostedOntologyPickerContract(model, {
+        applyHelpText: onReturn
+          ? "apply the current query field selections and return to the query builder"
+          : undefined,
+        initialSnapshot,
+        onReturn: onReturn
+          ? () => {
+              clearHostedOntologyPickerContract(model);
+              setSelectionPickerSession(null);
+              onReturn();
+            }
+          : undefined,
+        rootBackHelpText: onReturn ? "return to the query builder" : undefined,
+        rootBackLabel: onReturn ? "builder" : undefined,
+        rootDepth,
+        rootDetailBackHelpText: rootDepth > 0 ? "return to the value list" : undefined,
+        rootExitMode: onReturn ? "return" : rootDepth > 0 ? "apply" : undefined,
+        rootFocusHelpText: rootDepth > 0 ? "switch focus between field values and detail" : undefined,
+        rootListTitle: rootDepth > 0 ? "Values" : undefined,
+      });
+
       setSelectionPickerSession({
         model,
         initialSelections: initialSelections as OntologyPickerSelectionMap,
         applySelection: (selection) => {
+          clearHostedOntologyPickerContract(model);
           onApply(selection as Pf2eTerminalQueryFieldSelectionMap);
           setSelectionPickerSession(null);
         },
@@ -75,8 +111,11 @@ export function useSearchQueryFieldPickerWorkflow({
   );
 
   const closeQueryFieldPicker = React.useCallback(() => {
+    if (selectionPickerSession) {
+      clearHostedOntologyPickerContract(selectionPickerSession.model);
+    }
     setSelectionPickerSession(null);
-  }, []);
+  }, [selectionPickerSession]);
 
   return {
     selectionPickerSession,

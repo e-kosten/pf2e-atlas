@@ -11,6 +11,7 @@ import type {
   DerivedTagTerminalPaneScreenProps,
   DerivedTagTerminalTwoPaneScreenProps,
 } from "../terminal-ui.js";
+import type { HostedOntologyPickerContract } from "./picker-hosting.js";
 import type { OntologyExplorerControllerContext } from "./controller.js";
 import type { OntologyBrowserSnapshot } from "./ui.js";
 
@@ -46,35 +47,52 @@ function getOntologyBrowserBackHelpText(
 
 function getFacetPickerBackAction(
   controller: Pick<OntologyExplorerControllerContext, "layoutMode" | "state" | "effectiveState">,
+  options: HostedOntologyPickerContract = {},
 ): TerminalInteractionAction {
   if (isOntologyExplorerDetailContext(controller)) {
     return { id: "back" };
   }
-  return isOntologyExplorerRootLevel(controller) ? { id: "back", label: "return" } : { id: "back" };
+  const rootDepth = options.rootDepth ?? 0;
+  return controller.state.activePane === "list" && controller.effectiveState.depth === rootDepth
+    ? { id: "back", label: options.rootBackLabel ?? "return" }
+    : { id: "back" };
 }
 
 function getFacetPickerBackHelpText(
   controller: Pick<OntologyExplorerControllerContext, "layoutMode" | "state" | "effectiveState">,
+  options: HostedOntologyPickerContract = {},
 ): string {
+  const rootDepth = options.rootDepth ?? 0;
+  const rootListTitle = options.rootListTitle ?? "Query Fields";
+  const rootListBackTarget =
+    rootListTitle === "Query Fields"
+      ? "query field list"
+      : rootListTitle === "Values"
+        ? "value list"
+        : `${rootListTitle.toLowerCase()} list`;
   if (isOntologyExplorerDetailContext(controller)) {
-    return controller.effectiveState.depth === 0 ? "return to the query field list" : "return to the previous level";
+    return controller.effectiveState.depth === rootDepth
+      ? (options.rootDetailBackHelpText ?? `return to the ${rootListBackTarget}`)
+      : "return to the previous level";
   }
-  return isOntologyExplorerRootLevel(controller)
-    ? "return to the query editor"
+  return controller.state.activePane === "list" && controller.effectiveState.depth === rootDepth
+    ? (options.rootBackHelpText ?? "return to the query editor")
     : "return to the previous level";
 }
 
 function getFacetPickerListTitle(
   controller: Pick<OntologyExplorerControllerContext, "state" | "effectiveState">,
+  options: HostedOntologyPickerContract = {},
 ): string {
-  return controller.effectiveState.depth === 0 ? "Query Fields" : "Values";
+  return controller.effectiveState.depth === (options.rootDepth ?? 0) ? (options.rootListTitle ?? "Query Fields") : "Values";
 }
 
 function getFacetPickerFocusHelpText(
   controller: Pick<OntologyExplorerControllerContext, "effectiveState">,
+  options: HostedOntologyPickerContract = {},
 ): string {
-  return controller.effectiveState.depth === 0
-    ? "switch focus between query fields and detail"
+  return controller.effectiveState.depth === (options.rootDepth ?? 0)
+    ? (options.rootFocusHelpText ?? "switch focus between query fields and detail")
     : "switch focus between field values and detail";
 }
 
@@ -284,6 +302,7 @@ export function buildOntologyBrowserScreenModel({
 
 export function getFacetPickerInteractionActions(
   controller: Pick<OntologyExplorerControllerContext, "layoutMode" | "state" | "effectiveState">,
+  options: HostedOntologyPickerContract = {},
 ): TerminalInteractionAction[] {
   if (controller.layoutMode === "detail-only") {
     return [
@@ -293,7 +312,7 @@ export function getFacetPickerInteractionActions(
       { id: "edge" },
       { id: "cycle" },
       { id: "layout", label: "split-view" },
-      getFacetPickerBackAction(controller),
+      getFacetPickerBackAction(controller, options),
       { id: "search" },
       { id: "help" },
       { id: "quit", label: "return" },
@@ -310,7 +329,7 @@ export function getFacetPickerInteractionActions(
       { id: "focus", label: "pane" },
       { id: "layout", label: "detail-only" },
       ...(controller.effectiveState.filter ? [{ id: "cancel" as const, label: "clear filter" }] : []),
-      getFacetPickerBackAction(controller),
+      getFacetPickerBackAction(controller, options),
       { id: "search" },
       { id: "help" },
       { id: "quit", label: "return" },
@@ -324,7 +343,7 @@ export function getFacetPickerInteractionActions(
     { id: "edge" },
     { id: "focus", label: "pane" },
     { id: "layout", label: "detail-only" },
-    getFacetPickerBackAction(controller),
+    getFacetPickerBackAction(controller, options),
     { id: "search" },
     { id: "help" },
     { id: "quit", label: "return" },
@@ -333,8 +352,9 @@ export function getFacetPickerInteractionActions(
 
 export function buildFacetPickerHelpLines(
   controller: Pick<OntologyExplorerControllerContext, "layoutMode" | "state" | "effectiveState">,
+  options: HostedOntologyPickerContract = {},
 ): DerivedTagTerminalLine[] {
-  const actionActions = getFacetPickerInteractionActions(controller)
+  const actionActions = getFacetPickerInteractionActions(controller, options)
     .filter((action) => !["move", "scroll", "jump", "page", "edge"].includes(action.id))
     .map((action) => ({
       ...action,
@@ -342,18 +362,18 @@ export function buildFacetPickerHelpLines(
         action.id === "cycle"
           ? "cycle the focused query field policy through off, any, all, and exclude"
           : action.id === "focus"
-            ? getFacetPickerFocusHelpText(controller)
+            ? getFacetPickerFocusHelpText(controller, options)
             : action.id === "layout"
               ? "toggle split and detail-only layouts"
               : action.id === "cancel"
                 ? "clear the current filter without leaving this level"
                 : action.id === "back"
-                  ? getFacetPickerBackHelpText(controller)
+                  ? getFacetPickerBackHelpText(controller, options)
                   : action.id === "search"
                     ? "start live filtering"
                     : action.id === "help"
                       ? "show this help"
-                      : "apply the current query field selections and return",
+                      : (options.applyHelpText ?? "apply the current query field selections and return"),
       label: action.id === "focus" ? "toggle pane" : action.label,
     }));
 
@@ -382,11 +402,13 @@ export function buildFacetPickerScreenModel({
   controller,
   leftLines,
   focusedPolicyLabel,
+  options = {},
 }: {
   model: OntologyDomainModel;
   controller: OntologyExplorerControllerContext;
   leftLines: DerivedTagTerminalLine[];
   focusedPolicyLabel: string;
+  options?: HostedOntologyPickerContract;
 }): { kind: "detail-only"; props: DerivedTagTerminalPaneScreenProps } | { kind: "two-pane"; props: DerivedTagTerminalTwoPaneScreenProps } {
   if (controller.layoutMode === "detail-only") {
     return {
@@ -403,7 +425,7 @@ export function buildFacetPickerScreenModel({
           {
             text: controller.state.searchMode
               ? TERMINAL_LIVE_FILTER_FOOTER
-              : formatTerminalInteractionFooter(getFacetPickerInteractionActions(controller)),
+              : formatTerminalInteractionFooter(getFacetPickerInteractionActions(controller, options)),
             tone: "dim",
           },
           {
@@ -423,7 +445,10 @@ export function buildFacetPickerScreenModel({
       title: "Selection Picker",
       subtitle: `${model.label} | ${controller.breadcrumb}${controller.searchIndicator}`,
       left: {
-        title: controller.state.activePane === "list" ? `[${getFacetPickerListTitle(controller).toUpperCase()}]` : getFacetPickerListTitle(controller),
+        title:
+          controller.state.activePane === "list"
+            ? `[${getFacetPickerListTitle(controller, options).toUpperCase()}]`
+            : getFacetPickerListTitle(controller, options),
         lines: leftLines,
         active: controller.state.activePane === "list",
       },
@@ -436,7 +461,7 @@ export function buildFacetPickerScreenModel({
         {
           text: controller.state.searchMode
             ? TERMINAL_LIVE_FILTER_FOOTER
-            : formatTerminalInteractionFooter(getFacetPickerInteractionActions(controller)),
+            : formatTerminalInteractionFooter(getFacetPickerInteractionActions(controller, options)),
           tone: "dim",
         },
         {

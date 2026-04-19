@@ -1,8 +1,18 @@
-import type { OntologyDomainModel, SearchCountResult } from "../types.js";
-import type { Pf2eTerminalSearchQuery, Pf2eTerminalSearchSession, Pf2eTerminalSearchSort } from "./search-service.js";
-import type { OntologyPickerSelectionMap } from "./ontology-explorer/picker-screen.js";
+import type { SearchCountResult } from "../types.js";
+import type {
+  Pf2eTerminalSearchQuery,
+  Pf2eTerminalSearchSession,
+  Pf2eTerminalSearchSort,
+} from "./search-service.js";
 import { moveSelection } from "./terminal-ui.js";
 import { reduceDerivedTagTerminalTwoPaneState } from "./two-pane-state.js";
+export type {
+  SearchQueryFieldBuilderDraft,
+  SearchQueryFieldBuilderOutcome,
+  SearchQueryFieldBuilderSession,
+  SearchQueryFieldBuilderStep,
+  SearchQueryFieldPickerSession,
+} from "./search-query-field-builder-session.js";
 
 export type SearchScreenLayout = "editor" | "results";
 export type SearchScreenPane = "list" | "detail";
@@ -11,12 +21,6 @@ export type SearchCountState = {
   status: "idle" | "loading" | "ready" | "error";
   result: SearchCountResult | null;
   message: string | null;
-};
-
-export type SearchQueryFieldPickerSession = {
-  model: OntologyDomainModel;
-  initialSelections: OntologyPickerSelectionMap;
-  applySelection: (selection: OntologyPickerSelectionMap) => void;
 };
 
 export type SearchScreenState = {

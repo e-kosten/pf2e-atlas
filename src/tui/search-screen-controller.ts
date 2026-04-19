@@ -27,7 +27,8 @@ import {
   buildSearchHelpLines,
   useSearchScreenInteractionRouter,
 } from "./search-screen-interactions.js";
-import { getSearchResultWindowMetrics, getSessionBufferRange } from "./search-screen-state.js";
+import { type SearchQueryFieldBuilderSession } from "./search-query-field-builder-session.js";
+import { getSearchResultWindowMetrics, getSessionBufferRange, type SearchQueryFieldPickerSession } from "./search-screen-state.js";
 import { useSearchQueryFieldPickerWorkflow } from "./search-screen-query-picker-workflow.js";
 import { useSearchSessionWorkflow } from "./search-screen-session-workflow.js";
 import { useSearchWorkspaceActions } from "./search-screen-workspace-actions.js";
@@ -43,7 +44,8 @@ import {
 } from "./terminal-ui.js";
 
 export type SearchScreenControllerResult = {
-  selectionPickerSession: ReturnType<typeof useSearchQueryFieldPickerWorkflow>["selectionPickerSession"];
+  builderSession: SearchQueryFieldBuilderSession | null;
+  selectionPickerSession: SearchQueryFieldPickerSession | null;
   screen: DerivedTagTerminalTwoPaneScreenProps;
 };
 
@@ -158,7 +160,7 @@ export function useSearchScreenController({
     onUnavailable: terminal.pauseForAnyKey,
   });
 
-  const { handleIntent } = useSearchWorkspaceActions({
+  const { handleIntent, queryFieldBuilderSession } = useSearchWorkspaceActions({
     applyQueryUpdate,
     dispatch,
     executeRequest,
@@ -178,8 +180,10 @@ export function useSearchScreenController({
     chooseResultSort,
   });
 
+  const builderSession = queryFieldBuilderSession;
+
   useSearchScreenInteractionRouter({
-    enabled: !busy && !selectionPickerSession,
+    enabled: !busy && !selectionPickerSession && !builderSession,
     origin,
     state,
     workspaceEntryCount: workspaceEntries.length,
@@ -192,6 +196,7 @@ export function useSearchScreenController({
   });
 
   return {
+    builderSession,
     selectionPickerSession,
     screen: {
       title: "Browse/Search",

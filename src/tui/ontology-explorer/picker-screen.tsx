@@ -14,6 +14,7 @@ import {
   useTerminalInteractionContextAdapters,
 } from "../interaction-context-adapters.js";
 import { useOntologyExplorerController } from "./controller.js";
+import { getHostedOntologyPickerContract } from "./picker-hosting.js";
 import {
   buildFacetPickerHelpLines,
   buildFacetPickerScreenModel,
@@ -191,6 +192,7 @@ export function OntologyPickerScreen({
   onApply: (selection: OntologyPickerSelectionMap) => void;
 }): React.JSX.Element {
   const adapters = useTerminalInteractionContextAdapters();
+  const hostedContract = React.useMemo(() => getHostedOntologyPickerContract(model), [model]);
   const [selections, setSelections] = React.useState<OntologyPickerSelectionMap>(() => {
     const emptySelections = createEmptySelectionMap(model);
     return initialSelections ? { ...emptySelections, ...cloneSelectionMap(initialSelections) } : emptySelections;
@@ -219,13 +221,22 @@ export function OntologyPickerScreen({
     onApply(selectionsRef.current);
   }, [onApply]);
 
+  const exitHostedPicker = React.useCallback(() => {
+    if (hostedContract?.rootExitMode === "return") {
+      hostedContract.onReturn?.();
+      return;
+    }
+    returnWithSelections();
+  }, [hostedContract, returnWithSelections]);
+
   const controller = useOntologyExplorerController({
+    initialSnapshot: hostedContract?.initialSnapshot,
     model,
     nestedDetailBackAction: "pop_depth",
     onExit: returnWithSelections,
     getDetailLines: ({ selection }) => buildPickerDetailLines(selections, selection.currentNode),
     getDetailTitle: () => "Detail",
-    getInteractionActions: getFacetPickerInteractionActions,
+    getInteractionActions: (context) => getFacetPickerInteractionActions(context, hostedContract),
     onConfirm: ({ currentNode, event }) => {
       const cycleDirection = getTerminalInteractionCycleDirection(event, { id: "cycle" });
       if (!cycleDirection) {
@@ -238,8 +249,21 @@ export function OntologyPickerScreen({
       return true;
     },
     onAction: (action, keyContext) => {
+      if (
+        action.id === "back" &&
+        keyContext.state.activePane === "list" &&
+        keyContext.effectiveState.depth === (hostedContract?.rootDepth ?? 0) &&
+        (hostedContract?.rootExitMode === "apply" || hostedContract?.rootExitMode === "return")
+      ) {
+        exitHostedPicker();
+        return true;
+      }
       if (action.id === "help") {
-        void showTerminalReturnDialog(adapters, "Selection Picker Help", buildFacetPickerHelpLines(keyContext));
+        void showTerminalReturnDialog(
+          adapters,
+          "Selection Picker Help",
+          buildFacetPickerHelpLines(keyContext, hostedContract),
+        );
         return true;
       }
       if (action.id !== "cycle" || !keyContext.currentNode?.selection) {
@@ -255,6 +279,7 @@ export function OntologyPickerScreen({
     controller,
     leftLines: buildPickerListLines(model, controller.bodyHeight, controller, selections),
     focusedPolicyLabel: policyStateLabel(getNodeSelectionState(controller.currentNode, selections)),
+    options: hostedContract,
   });
 
   if (screen.kind === "detail-only") {

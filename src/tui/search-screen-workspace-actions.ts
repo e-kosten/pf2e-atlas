@@ -4,6 +4,7 @@ import type { MetadataFilterNode, MetadataPredicate } from "../types.js";
 import type { Pf2eTerminalAppServices } from "./app-services.js";
 import type { SearchTerminalPromptAdapters } from "./interaction-context-adapters.js";
 import type { SearchScreenAction, SearchScreenState } from "./search-screen-state.js";
+import type { SearchQueryFieldBuilderSession } from "./search-query-field-builder-session.js";
 import type {
   Pf2eTerminalFilterValuePolicy,
   Pf2eTerminalQueryFieldOption,
@@ -248,6 +249,62 @@ function buildSelectionMap(
   };
 }
 
+type QueryFieldBuilderState = {
+  path: number[];
+  items: SearchQueryFieldBuilderSession["items"];
+  selectedIndex: number;
+  fieldDrafts: Record<string, MetadataFilterNode | null>;
+};
+
+function buildPolicyFromMetadataNode(node: MetadataFilterNode | null): Pf2eTerminalFilterValuePolicy<string> {
+  if (!node) {
+    return createEmptyStringPolicy();
+  }
+
+  if ("and" in node) {
+    return node.and.reduce((policy, child) => {
+      const childPolicy = buildPolicyFromMetadataNode(child);
+      return {
+        any: [...policy.any, ...childPolicy.any],
+        all: [...policy.all, ...childPolicy.all],
+        exclude: [...policy.exclude, ...childPolicy.exclude],
+      };
+    }, createEmptyStringPolicy());
+  }
+
+  if ("or" in node || "not" in node) {
+    return createEmptyStringPolicy();
+  }
+
+  return buildPolicyFromPredicate(node) ?? createEmptyStringPolicy();
+}
+
+function buildQueryFieldBuilderItems(fieldOptions: Pf2eTerminalQueryFieldOption[]): SearchQueryFieldBuilderSession["items"] {
+  return [
+    ...fieldOptions.map((fieldOption) => ({
+      kind: "field" as const,
+      fieldOption,
+      label: fieldOption.label,
+    })),
+    { kind: "finish" as const, label: "Finish Clause Builder" },
+    { kind: "cancel" as const, label: "Cancel" },
+  ];
+}
+
+function compileQueryFieldBuilderDrafts(fieldDrafts: Record<string, MetadataFilterNode | null>): MetadataFilterNode | null {
+  const nodes = Object.values(fieldDrafts)
+    .map((node) => normalizeMetadataNode(node))
+    .filter((node): node is MetadataFilterNode => Boolean(node));
+
+  if (nodes.length === 0) {
+    return null;
+  }
+  if (nodes.length === 1) {
+    return nodes[0]!;
+  }
+  return { and: nodes };
+}
+
 type AddQueryPartCommand =
   | "category"
   | "subcategory"
@@ -288,6 +345,8 @@ export function useSearchWorkspaceActions({
     fieldOptions: Pf2eTerminalQueryFieldOption[];
     initialSelections?: Pf2eTerminalQueryFieldSelectionMap;
     onApply: (selection: Pf2eTerminalQueryFieldSelectionMap) => void;
+    onReturn?: () => void;
+    singleFieldBehavior?: "list" | "directValues";
   }) => Promise<boolean>;
   origin: SearchScreenOrigin;
   prompts: Pick<
@@ -308,6 +367,7 @@ export function useSearchWorkspaceActions({
   chooseResultSort: () => Promise<void>;
 }): {
   handleIntent: (intent: import("./search-screen-model.js").SearchScreenIntent) => void;
+  queryFieldBuilderSession: SearchQueryFieldBuilderSession | null;
 } {
   const category = getSearchQueryCategory(state.query);
   const subcategory = getSearchQuerySubcategory(state.query);
@@ -315,6 +375,7 @@ export function useSearchWorkspaceActions({
   const rarityPolicy = getSearchQueryRarityPolicy(state.query);
   const actionCostPolicy = getSearchQueryActionCostPolicy(state.query);
   const metadataTree = getSearchQueryMetadataTree(state.query);
+  const [queryFieldBuilderState, setQueryFieldBuilderState] = React.useState<QueryFieldBuilderState | null>(null);
 
   const editQueryText = React.useCallback(async () => {
     const queryText = await prompts.promptTextInput({
@@ -586,6 +647,7 @@ export function useSearchWorkspaceActions({
       return openQueryFieldPicker({
         fieldOptions: [fieldOption],
         initialSelections: buildSelectionMap(fieldOption.value, currentPolicy),
+        singleFieldBehavior: "directValues",
         onApply: (selection) => {
           const nextNode =
             buildMetadataNodeFromPolicy(fieldOption, selection[fieldOption.value] ?? createEmptyStringPolicy());
@@ -768,32 +830,136 @@ export function useSearchWorkspaceActions({
     [category, prompts, subcategory, terminal, user.search],
   );
 
-  const addQueryClauseAtPath = React.useCallback(
-    async (path: number[] = []) => {
-      const fieldOption = await chooseQueryField();
-      if (!fieldOption) {
-        return;
+  const updateQueryFieldBuilderDraft = React.useCallback((field: string, node: MetadataFilterNode | null) => {
+    setQueryFieldBuilderState((current) => {
+      if (!current) {
+        return current;
       }
+      return {
+        ...current,
+        fieldDrafts: {
+          ...current.fieldDrafts,
+          [field]: node,
+        },
+      };
+    });
+  }, []);
+
+  const editQueryFieldBuilderField = React.useCallback(
+    async (fieldOption: Pf2eTerminalQueryFieldOption) => {
+      const currentNode = queryFieldBuilderState?.fieldDrafts[fieldOption.value] ?? null;
       if (fieldOption.editor === "ontologyPicker") {
-        await openOntologyFieldEditor(fieldOption, createEmptyStringPolicy(), (nextNode) => {
-          if (!nextNode) {
-            return;
-          }
-          applyQueryUpdate((request) =>
-            setSearchQueryMetadataTree(request, appendMetadataNodeAtPath(getSearchQueryMetadataTree(request), path, nextNode)),
-          );
+        await openOntologyFieldEditor(fieldOption, buildPolicyFromMetadataNode(currentNode), (nextNode) => {
+          updateQueryFieldBuilderDraft(fieldOption.value, nextNode);
         });
         return;
       }
-      const clause = await editFieldClause(fieldOption);
-      if (!clause) {
+
+      const nextNode = await editFieldClause(fieldOption, currentNode);
+      if (nextNode === undefined) {
         return;
       }
-      applyQueryUpdate((request) =>
-        setSearchQueryMetadataTree(request, appendMetadataNodeAtPath(getSearchQueryMetadataTree(request), path, clause)),
-      );
+      updateQueryFieldBuilderDraft(fieldOption.value, nextNode);
     },
-    [applyQueryUpdate, chooseQueryField, editFieldClause, openOntologyFieldEditor],
+    [editFieldClause, openOntologyFieldEditor, queryFieldBuilderState?.fieldDrafts, updateQueryFieldBuilderDraft],
+  );
+
+  const openQueryFieldBuilder = React.useCallback(
+    async (path: number[] = []) => {
+      const fieldOptions = user.search.getQueryFieldOptions(category, subcategory);
+      if (fieldOptions.length === 0) {
+        await terminal.pauseForAnyKey("No scoped metadata fields are available for the current query.");
+        return;
+      }
+
+      setQueryFieldBuilderState({
+        path,
+        items: buildQueryFieldBuilderItems(fieldOptions),
+        selectedIndex: 0,
+        fieldDrafts: {},
+      });
+
+      if (fieldOptions.length === 1 && fieldOptions[0]!.editor === "ontologyPicker") {
+        const onlyFieldOption = fieldOptions[0]!;
+        setTimeout(() => {
+          void editQueryFieldBuilderField(onlyFieldOption);
+        }, 0);
+      }
+    },
+    [category, editQueryFieldBuilderField, subcategory, terminal, user.search],
+  );
+
+  const finishQueryFieldBuilder = React.useCallback(() => {
+    const nextNode = compileQueryFieldBuilderDrafts(queryFieldBuilderState?.fieldDrafts ?? {});
+    const targetPath = queryFieldBuilderState?.path ?? [];
+    setQueryFieldBuilderState(null);
+    if (!nextNode) {
+      return;
+    }
+    applyQueryUpdate((request) =>
+      setSearchQueryMetadataTree(request, appendMetadataNodeAtPath(getSearchQueryMetadataTree(request), targetPath, nextNode)),
+    );
+  }, [applyQueryUpdate, queryFieldBuilderState]);
+
+  const cancelQueryFieldBuilder = React.useCallback(() => {
+    setQueryFieldBuilderState(null);
+  }, []);
+
+  const selectCurrentQueryFieldBuilderItem = React.useCallback(() => {
+    const selectedItem =
+      queryFieldBuilderState?.items[Math.max(0, Math.min(queryFieldBuilderState.selectedIndex, queryFieldBuilderState.items.length - 1))];
+    if (!selectedItem) {
+      return;
+    }
+    if (selectedItem.kind === "field") {
+      void editQueryFieldBuilderField(selectedItem.fieldOption);
+      return;
+    }
+    if (selectedItem.kind === "finish") {
+      finishQueryFieldBuilder();
+      return;
+    }
+    cancelQueryFieldBuilder();
+  }, [cancelQueryFieldBuilder, editQueryFieldBuilderField, finishQueryFieldBuilder, queryFieldBuilderState]);
+
+  const queryFieldBuilderSession = React.useMemo<SearchQueryFieldBuilderSession | null>(() => {
+    if (!queryFieldBuilderState) {
+      return null;
+    }
+    return {
+      items: queryFieldBuilderState.items.map((item) =>
+        item.kind === "field"
+          ? {
+              ...item,
+              label: queryFieldBuilderState.fieldDrafts[item.fieldOption.value] ? `${item.fieldOption.label} | staged` : item.fieldOption.label,
+            }
+          : item,
+      ),
+      selectedIndex: queryFieldBuilderState.selectedIndex,
+      fieldDrafts: queryFieldBuilderState.fieldDrafts,
+      moveSelection: (delta, itemCount) => {
+        setQueryFieldBuilderState((current) => {
+          if (!current) {
+            return current;
+          }
+          const nextIndex = Math.max(0, Math.min(itemCount - 1, current.selectedIndex + delta));
+          return {
+            ...current,
+            selectedIndex: nextIndex,
+          };
+        });
+      },
+      selectCurrent: selectCurrentQueryFieldBuilderItem,
+      finish: finishQueryFieldBuilder,
+      cancel: cancelQueryFieldBuilder,
+    };
+  }, [cancelQueryFieldBuilder, finishQueryFieldBuilder, queryFieldBuilderState, selectCurrentQueryFieldBuilderItem]);
+
+  const addQueryClauseAtPath = React.useCallback(
+    async (path: number[] = []) => {
+      await openQueryFieldBuilder(path);
+    },
+    [openQueryFieldBuilder],
   );
 
   const addQueryGroupAtPath = React.useCallback(
@@ -1368,5 +1534,6 @@ export function useSearchWorkspaceActions({
 
   return {
     handleIntent,
+    queryFieldBuilderSession,
   };
 }
