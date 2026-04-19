@@ -2,7 +2,7 @@ import React from "react";
 
 import type { OntologyNodeQuery } from "../types.js";
 import { usePf2eTerminalAppServices } from "./app-service-context.js";
-import { TERMINAL_DIALOG_RETURN_FOOTER, resolveTerminalInteractionAction } from "./interaction-bindings.js";
+import { TERMINAL_DIALOG_RETURN_FOOTER } from "./interaction-bindings.js";
 import { buildSearchFacetPickerModel } from "./ontology-explorer/facet-picker-model.js";
 import type { OntologyPickerSelectionMap } from "./ontology-explorer/picker-screen.js";
 import type { Pf2eTerminalSearchRequest, Pf2eTerminalSearchSession } from "./search-service.js";
@@ -24,6 +24,7 @@ import {
   buildResultLines,
   buildSearchFooterText,
   buildSearchHelpLines,
+  type SearchScreenIntent,
   buildSearchSubtitle,
   buildWorkspaceEntries,
   buildWorkspaceEntryDetailLines,
@@ -36,9 +37,6 @@ import {
   formatResultPosition,
   formatSort,
   getExecuteAvailability,
-  getSearchDraftInteractionActions,
-  getSearchResultDetailInteractionActions,
-  getSearchResultListInteractionActions,
   getSearchResultWindowMetrics,
   getSearchResultWindowTarget,
   getSessionBufferRange,
@@ -46,17 +44,15 @@ import {
   parseJumpToResultInput,
   parseLevelRangeInput,
   searchScreenReducer,
+  useSearchScreenInteractionRouter,
 } from "./search-screen-model.js";
 import {
   type DerivedTagTerminalTwoPaneScreenProps,
-  createDerivedTagTerminalListNavigationState,
   getRenderedTerminalLineCount,
   getTerminalPaneBodyHeight,
   getTerminalTwoPaneDetailWidth,
-  resolveDerivedTagTerminalListNavigationAction,
   sliceRenderedTerminalLines,
   useDerivedTagTerminalApp,
-  useDerivedTagTerminalInput,
   useDerivedTagTerminalSize,
 } from "./terminal-ui.js";
 
@@ -94,8 +90,6 @@ export function useSearchScreenController({
   const autoRanInitialQuery = React.useRef(false);
   const loadMoreSessionKeyRef = React.useRef<string | null>(null);
   const loadMoreTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const listNavigationStateRef = React.useRef(createDerivedTagTerminalListNavigationState());
-  const detailNavigationStateRef = React.useRef(createDerivedTagTerminalListNavigationState());
   const activeSessionRef = React.useRef<Pf2eTerminalSearchSession | null>(null);
 
   const workspaceEntries = buildWorkspaceEntries(state, countState);
@@ -797,132 +791,104 @@ export function useSearchScreenController({
     });
   }, [state, terminal, workspaceEntries]);
 
-  useDerivedTagTerminalInput((event) => {
-    if (busy) {
-      return;
-    }
+  const handleIntent = React.useCallback(
+    (intent: SearchScreenIntent) => {
+      switch (intent.type) {
+        case "show_help":
+          showSearchHelp();
+          return;
+        case "quit":
+          exitSearchScreen();
+          return;
+        case "edit_query":
+          void editQueryText();
+          return;
+        case "open_setup_commands":
+          void openDraftCommandPalette();
+          return;
+        case "execute":
+          void executeRequest(state.draft);
+          return;
+        case "back_to_app":
+          exitSearchScreen();
+          return;
+        case "move_workspace_selection":
+          dispatch({
+            type: "move_workspace_selection",
+            delta: intent.delta,
+            itemCount: workspaceEntries.length,
+          });
+          return;
+        case "workspace_selection_boundary":
+          dispatch({
+            type: "workspace_selection_boundary",
+            boundary: intent.boundary,
+            itemCount: workspaceEntries.length,
+          });
+          return;
+        case "edit_selected_workspace":
+          openSelectedWorkspaceEntry();
+          return;
+        case "open_result_commands":
+          void openResultCommandPalette();
+          return;
+        case "toggle_pane":
+          dispatch({ type: "set_active_pane", pane: state.activePane === "list" ? "detail" : "list" });
+          return;
+        case "return_to_setup":
+          dispatch({ type: "set_layout", layout: "draft", pane: "list" });
+          return;
+        case "open_preview":
+          dispatch({ type: "set_active_pane", pane: "detail" });
+          return;
+        case "move_result_selection":
+          dispatch({ type: "move_result_selection", delta: intent.delta, itemCount: resultCount });
+          return;
+        case "result_selection_boundary":
+          dispatch({
+            type: "result_selection_boundary",
+            boundary: intent.boundary,
+            itemCount: resultCount,
+          });
+          return;
+        case "return_to_result_list":
+          dispatch({ type: "set_active_pane", pane: "list" });
+          return;
+        case "move_detail":
+          dispatch({ type: "move_detail", delta: intent.delta, maxDetailScroll });
+          return;
+        case "detail_boundary":
+          dispatch({ type: "detail_boundary", boundary: intent.boundary, maxDetailScroll });
+          return;
+      }
+    },
+    [
+      editQueryText,
+      executeRequest,
+      exitSearchScreen,
+      maxDetailScroll,
+      openDraftCommandPalette,
+      openResultCommandPalette,
+      openSelectedWorkspaceEntry,
+      resultCount,
+      showSearchHelp,
+      state.activePane,
+      state.draft,
+      workspaceEntries.length,
+    ],
+  );
 
-    const listNavigation = resolveDerivedTagTerminalListNavigationAction(
-      event,
-      {
-        pageSize,
-        jumpSize: selectionJumpSize,
-        includeConfirmKeys: true,
-      },
-      listNavigationStateRef.current,
-    );
-    listNavigationStateRef.current = listNavigation.state;
-    const detailNavigation = resolveDerivedTagTerminalListNavigationAction(
-      event,
-      {
-        pageSize,
-        jumpSize: selectionJumpSize,
-      },
-      detailNavigationStateRef.current,
-    );
-    detailNavigationStateRef.current = detailNavigation.state;
-    const interactionActions =
-      state.layout === "draft"
-        ? getSearchDraftInteractionActions()
-        : state.activePane === "list"
-          ? getSearchResultListInteractionActions()
-          : getSearchResultDetailInteractionActions();
-    const interactionAction = resolveTerminalInteractionAction(event, interactionActions);
-
-    if (interactionAction?.id === "help") {
-      showSearchHelp();
-      return;
-    }
-    if (interactionAction?.id === "quit") {
-      exitSearchScreen();
-      return;
-    }
-
-    if (state.layout === "draft" && interactionAction?.id === "search") {
-      void editQueryText();
-      return;
-    }
-
-    if (state.layout === "draft") {
-      if (interactionAction?.id === "commands") {
-        void openDraftCommandPalette();
-        return;
-      }
-      if (interactionAction?.id === "execute") {
-        void executeRequest(state.draft);
-        return;
-      }
-      if (interactionAction?.id === "back") {
-        exitSearchScreen();
-        return;
-      }
-      if (listNavigation.action?.kind === "move") {
-        dispatch({
-          type: "move_workspace_selection",
-          delta: listNavigation.action.delta,
-          itemCount: workspaceEntries.length,
-        });
-        return;
-      }
-      if (listNavigation.action?.kind === "boundary") {
-        dispatch({
-          type: "workspace_selection_boundary",
-          boundary: listNavigation.action.boundary,
-          itemCount: workspaceEntries.length,
-        });
-        return;
-      }
-      if (interactionAction?.id === "edit") {
-        openSelectedWorkspaceEntry();
-      }
-      return;
-    }
-
-    if (interactionAction?.id === "commands") {
-      void openResultCommandPalette();
-      return;
-    }
-
-    if (interactionAction?.id === "focus") {
-      dispatch({ type: "set_active_pane", pane: state.activePane === "list" ? "detail" : "list" });
-      return;
-    }
-
-    if (state.activePane === "list") {
-      if (interactionAction?.id === "back") {
-        dispatch({ type: "set_layout", layout: "draft", pane: "list" });
-        return;
-      }
-      if (interactionAction?.id === "preview" && selectedResult) {
-        dispatch({ type: "set_active_pane", pane: "detail" });
-        return;
-      }
-      if (listNavigation.action?.kind === "move") {
-        dispatch({ type: "move_result_selection", delta: listNavigation.action.delta, itemCount: resultCount });
-        return;
-      }
-      if (listNavigation.action?.kind === "boundary") {
-        dispatch({
-          type: "result_selection_boundary",
-          boundary: listNavigation.action.boundary,
-          itemCount: resultCount,
-        });
-      }
-      return;
-    }
-
-    if (interactionAction?.id === "back") {
-      dispatch({ type: "set_active_pane", pane: "list" });
-      return;
-    }
-    if (detailNavigation.action?.kind === "move") {
-      dispatch({ type: "move_detail", delta: detailNavigation.action.delta, maxDetailScroll });
-      return;
-    }
-    if (detailNavigation.action?.kind === "boundary") {
-      dispatch({ type: "detail_boundary", boundary: detailNavigation.action.boundary, maxDetailScroll });
-    }
-  }, !busy && !facetPickerSession);
+  useSearchScreenInteractionRouter({
+    enabled: !busy && !facetPickerSession,
+    state,
+    workspaceEntryCount: workspaceEntries.length,
+    resultCount,
+    selectionJumpSize,
+    pageSize,
+    maxDetailScroll,
+    hasSelectedResult: Boolean(selectedResult),
+    onIntent: handleIntent,
+  });
 
   return {
     applyFacetPicker,

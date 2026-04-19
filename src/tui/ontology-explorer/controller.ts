@@ -78,7 +78,7 @@ export type OntologyExplorerControllerContext = {
   searchIndicator: string;
 };
 
-type OntologyExplorerKeyContext = OntologyExplorerControllerContext & {
+export type OntologyExplorerKeyContext = OntologyExplorerControllerContext & {
   dispatch: React.Dispatch<OntologyExplorerAction>;
   event: DerivedTagTerminalInputEvent;
 };

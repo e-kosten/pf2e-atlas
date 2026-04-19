@@ -210,6 +210,101 @@ export default defineConfig(
     },
   },
   {
+    files: ["src/tui/search-screen-controller.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "./terminal-ui.js",
+              importNames: [
+                "createDerivedTagTerminalListNavigationState",
+                "resolveDerivedTagTerminalListNavigationAction",
+                "useDerivedTagTerminalInput",
+              ],
+              message:
+                "Search screen controllers must use the shared search interaction router instead of owning raw terminal event decoding.",
+            },
+            {
+              name: "./interaction-bindings.js",
+              importNames: ["resolveTerminalInteractionAction"],
+              message:
+                "Search screen controllers must use the shared search interaction router instead of resolving raw interaction actions directly.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/tags/migration/review-ui.tsx"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "../../tui/terminal-ui.js",
+              importNames: ["useDerivedTagTerminalInput"],
+              message:
+                "Review render screens must use the dedicated review-ui-controller hook instead of owning raw terminal input.",
+            },
+            {
+              name: "../../tui/interaction-bindings.js",
+              importNames: ["buildTerminalInteractionHelpLines", "formatTerminalInteractionFooter", "resolveTerminalInteractionAction"],
+              message:
+                "Review render screens must use the dedicated review-ui-controller hook instead of composing help, footer, or interaction routing directly.",
+            },
+            {
+              name: "../../tui/action-target.js",
+              importNames: [
+                "buildDerivedTagTerminalActionTargetLine",
+                "buildDerivedTagTerminalActionTargetHelpLines",
+                "createDerivedTagTerminalActionTargetState",
+                "getDerivedTagTerminalActionTargetInteractionActions",
+                "reduceDerivedTagTerminalActionTargetState",
+                "resolveDerivedTagTerminalActionTargetIntent",
+              ],
+              message:
+                "Review render screens must use the dedicated review-ui-controller hook instead of owning action-target state or rendering directly.",
+            },
+            {
+              name: "../../tui/two-pane-state.js",
+              importNames: ["getDerivedTagTerminalTwoPaneLayoutMode", "reduceDerivedTagTerminalTwoPaneState"],
+              message:
+                "Review render screens must use the dedicated review-ui-controller hook instead of owning pane-state transitions directly.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/tui/ontology-explorer/screen.tsx", "src/tui/ontology-explorer/picker-screen.tsx"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "../interaction-bindings.js",
+              importNames: ["buildTerminalInteractionHelpLines", "formatTerminalInteractionFooter", "TerminalInteractionAction"],
+              message:
+                "Ontology render screens must use shared screen-model helpers instead of composing local help/footer/action tables.",
+            },
+            {
+              name: "../terminal-ui.js",
+              importNames: ["DerivedTagTerminalCommandOption"],
+              message:
+                "Ontology render screens must use shared screen-model helpers instead of defining command-palette models locally.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ["src/tui/**/*.{ts,tsx}"],
     ignores: [
       "src/tui/keymap.ts",

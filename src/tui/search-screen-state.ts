@@ -2,6 +2,7 @@ import type { OntologyDomainModel, SearchCountResult } from "../types.js";
 import type { Pf2eTerminalSearchRequest, Pf2eTerminalSearchSession, Pf2eTerminalSearchSort } from "./search-service.js";
 import type { OntologyPickerSelectionMap } from "./ontology-explorer/picker-screen.js";
 import { moveSelection } from "./terminal-ui.js";
+import { reduceDerivedTagTerminalTwoPaneState } from "./two-pane-state.js";
 
 export type SearchScreenLayout = "draft" | "results";
 export type SearchScreenPane = "list" | "detail";
@@ -22,6 +23,7 @@ export type SearchScreenState = {
   layout: SearchScreenLayout;
   activePane: SearchScreenPane;
   detailScroll: number;
+  layoutMode: "split";
   draft: Pf2eTerminalSearchRequest;
   workspaceSelectedIndex: number;
   resultSelectedIndex: number;
@@ -82,10 +84,31 @@ export function createInitialSearchScreenState(initialRequest: Pf2eTerminalSearc
     layout: "draft",
     activePane: "list",
     detailScroll: 0,
+    layoutMode: "split",
     draft: initialRequest,
     workspaceSelectedIndex: 0,
     resultSelectedIndex: 0,
     session: null,
+  };
+}
+
+function reduceSearchTwoPaneState(
+  state: SearchScreenState,
+  action: { type: "leave_detail" } | { type: "toggle_focus" } | { type: "move_detail"; delta: number; maxDetailScroll: number } | { type: "detail_boundary"; boundary: "start" | "end"; maxDetailScroll: number },
+): Pick<SearchScreenState, "activePane" | "detailScroll" | "layoutMode"> {
+  const next = reduceDerivedTagTerminalTwoPaneState(
+    {
+      activePane: state.activePane,
+      detailScroll: state.detailScroll,
+      layoutMode: state.layoutMode,
+    },
+    action,
+  );
+
+  return {
+    activePane: next.activePane,
+    detailScroll: next.detailScroll,
+    layoutMode: "split",
   };
 }
 
@@ -205,12 +228,18 @@ export function searchScreenReducer(state: SearchScreenState, action: SearchScre
         layout: action.layout,
         activePane: action.layout === "draft" ? "list" : (action.pane ?? "list"),
         detailScroll: 0,
+        layoutMode: "split",
       };
     case "set_active_pane":
+      if (state.layout === "draft" || action.pane === "list") {
+        return {
+          ...state,
+          ...reduceSearchTwoPaneState(state, { type: "leave_detail" }),
+        };
+      }
       return {
         ...state,
-        activePane: state.layout === "draft" ? "list" : action.pane,
-        detailScroll: action.pane === "detail" ? state.detailScroll : 0,
+        ...reduceSearchTwoPaneState({ ...state, activePane: "list" }, { type: "toggle_focus" }),
       };
     case "move_workspace_selection":
       return {
@@ -245,15 +274,9 @@ export function searchScreenReducer(state: SearchScreenState, action: SearchScre
         resultSelectedIndex: action.itemCount <= 0 ? 0 : action.boundary === "start" ? 0 : action.itemCount - 1,
       };
     case "move_detail":
-      return {
-        ...state,
-        detailScroll: Math.max(0, Math.min(action.maxDetailScroll, state.detailScroll + action.delta)),
-      };
+      return { ...state, ...reduceSearchTwoPaneState(state, action) };
     case "detail_boundary":
-      return {
-        ...state,
-        detailScroll: action.boundary === "start" ? 0 : action.maxDetailScroll,
-      };
+      return { ...state, ...reduceSearchTwoPaneState(state, action) };
     case "set_draft":
       return {
         ...state,
@@ -266,6 +289,7 @@ export function searchScreenReducer(state: SearchScreenState, action: SearchScre
         layout: action.showResults === false ? state.layout : "results",
         activePane: action.showResults === false ? state.activePane : "list",
         detailScroll: 0,
+        layoutMode: "split",
         draft: action.session.request,
         resultSelectedIndex: action.preserveSelection ? Math.min(state.resultSelectedIndex, maxIndex) : 0,
         session: action.session,
@@ -277,6 +301,7 @@ export function searchScreenReducer(state: SearchScreenState, action: SearchScre
         layout: "draft",
         activePane: "list",
         detailScroll: 0,
+        layoutMode: "split",
         resultSelectedIndex: 0,
         session: null,
       };

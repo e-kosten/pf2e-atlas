@@ -592,7 +592,7 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Workspace Mode");
   });
 
-  it("shows unavailable setup commands in the palette without dispatching them", async () => {
+  it("hides unavailable setup commands from the palette while leaving the setup row visible", async () => {
     const app = render(
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={createServices()}>
@@ -611,16 +611,16 @@ describe("search screen", () => {
       app.stdin.write(character);
     }
     await flushInk();
-    expect(app.lastFrame()).toContain("Subcategory | unavailable");
-    expect(app.lastFrame()).toContain("Unavailable: Choose a category first, then refine to a");
-    expect(app.lastFrame()).toContain("subcategory.");
+    expect(app.lastFrame()).toContain("No commands match the current filter.");
+    expect(app.lastFrame()).not.toContain("Subcategory Scope");
     expect(app.lastFrame()).not.toContain("This command is currently unavailable.");
 
-    app.stdin.write("\r");
+    pressLeft(app);
+    await flushInk();
     await flushInk();
 
-    expect(app.lastFrame()).toContain("Search Setup Commands");
-    expect(app.lastFrame()).not.toContain("Subcategory Scope");
+    expect(app.lastFrame()).toContain("[SETUP] Scope & Filters");
+    expect(app.lastFrame()).toContain("Subcategory | Any Subcategory | unavailable");
   });
 
   it("does not treat old page-specific letters as live setup commands", async () => {

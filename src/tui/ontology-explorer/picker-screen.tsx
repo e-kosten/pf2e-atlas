@@ -9,13 +9,14 @@ import {
 } from "../terminal-ui.js";
 import {
   TERMINAL_DIALOG_RETURN_FOOTER,
-  TERMINAL_LIVE_FILTER_FOOTER,
-  buildTerminalInteractionHelpLines,
-  formatTerminalInteractionFooter,
   getTerminalInteractionCycleDirection,
-  type TerminalInteractionAction,
 } from "../interaction-bindings.js";
 import { useOntologyExplorerController } from "./controller.js";
+import {
+  buildFacetPickerHelpLines,
+  buildFacetPickerScreenModel,
+  getFacetPickerInteractionActions,
+} from "./screen-models.js";
 import { buildOntologyBrowserListRows } from "./ui.js";
 
 export type OntologyPickerFieldSelection = {
@@ -178,105 +179,6 @@ function buildPickerListLines(
   }).map((row) => row.line);
 }
 
-function buildFacetPickerFooterText(controller: ReturnType<typeof useOntologyExplorerController>): string {
-  return formatTerminalInteractionFooter(getFacetPickerInteractionActions(controller));
-}
-
-function getFacetPickerInteractionActions(
-  controller: Pick<ReturnType<typeof useOntologyExplorerController>, "layoutMode" | "state" | "effectiveState">,
-): TerminalInteractionAction[] {
-  if (controller.layoutMode === "detail-only") {
-    return [
-      { id: "scroll" },
-      { id: "jump" },
-      { id: "page" },
-      { id: "edge" },
-      { id: "cycle" },
-      { id: "layout", label: "split-view" },
-      { id: "back", label: "values" },
-      { id: "search" },
-      { id: "help" },
-      { id: "quit", label: "return" },
-    ];
-  }
-
-  if (controller.state.activePane === "list") {
-    return [
-      { id: "move", label: "select" },
-      { id: "jump" },
-      { id: "page" },
-      { id: "edge" },
-      { id: "cycle" },
-      { id: "focus", label: "pane" },
-      { id: "layout", label: "detail-only" },
-      ...(controller.effectiveState.filter ? [{ id: "cancel" as const, label: "clear filter" }] : []),
-      { id: "back", label: "up" },
-      { id: "search" },
-      { id: "help" },
-      { id: "quit", label: "return" },
-    ];
-  }
-
-  return [
-    { id: "scroll" },
-    { id: "jump" },
-    { id: "page" },
-    { id: "edge" },
-    { id: "focus", label: "pane" },
-    { id: "layout", label: "detail-only" },
-    { id: "back", label: "values" },
-    { id: "search" },
-    { id: "help" },
-    { id: "quit", label: "return" },
-  ];
-}
-
-function buildFacetPickerHelpLines(
-  controller: Pick<ReturnType<typeof useOntologyExplorerController>, "layoutMode" | "state" | "effectiveState">,
-): DerivedTagTerminalLine[] {
-  const actionActions = getFacetPickerInteractionActions(controller)
-    .filter((action) => !["move", "scroll", "jump", "page", "edge"].includes(action.id))
-    .map((action) => ({
-      ...action,
-      helpText:
-        action.id === "cycle"
-          ? "cycle the focused policy through off, any, all, and exclude"
-          : action.id === "focus"
-            ? "switch focus between values and detail"
-            : action.id === "layout"
-              ? "toggle split and detail-only layouts"
-              : action.id === "cancel"
-                ? "clear the current filter without leaving this level"
-              : action.id === "back"
-                ? "move up a level or leave the active pane"
-                : action.id === "search"
-                  ? "start live filtering"
-                  : action.id === "help"
-                    ? "show this help"
-                    : "apply the current facet state and return",
-      label: action.id === "focus" ? "toggle pane" : action.label,
-    }));
-
-  return buildTerminalInteractionHelpLines([
-    {
-      title: "Navigation",
-      actions: [
-        {
-          id: controller.state.activePane === "list" && controller.layoutMode !== "detail-only" ? "move" : "scroll",
-          helpText: "move through the active pane",
-        },
-        { id: "jump", helpText: "jump through the active pane" },
-        { id: "page", helpText: "page through the active pane" },
-        { id: "edge", helpText: "jump to the start or end of the active pane" },
-      ],
-    },
-    {
-      title: "Actions",
-      actions: actionActions,
-    },
-  ]);
-}
-
 export function OntologyPickerScreen({
   model,
   initialSelections,
@@ -349,59 +251,16 @@ export function OntologyPickerScreen({
     },
   });
 
-  if (controller.layoutMode === "detail-only") {
-    return (
-      <TerminalPaneScreen
-        title="Facet Picker"
-        subtitle={`${model.label} | ${controller.breadcrumb}${controller.searchIndicator}`}
-        pane={{
-          title: "[FOCUSED DETAIL] Detail",
-          lines: controller.visibleDetailLines,
-          active: true,
-        }}
-        footer={[
-          {
-            text: controller.state.searchMode ? TERMINAL_LIVE_FILTER_FOOTER : buildFacetPickerFooterText(controller),
-            tone: "dim",
-          },
-          {
-            text: controller.state.searchMode
-              ? `Search /${controller.state.searchInput}`
-              : `detail focus | focused detail view | Policy ${policyStateLabel(getNodeSelectionState(controller.currentNode, selections))} | Detail scroll ${controller.effectiveState.detailScroll}/${controller.maxDetailScroll}`,
-            tone: "accent",
-          },
-        ]}
-      />
-    );
+  const screen = buildFacetPickerScreenModel({
+    model,
+    controller,
+    leftLines: buildPickerListLines(model, controller.bodyHeight, controller, selections),
+    focusedPolicyLabel: policyStateLabel(getNodeSelectionState(controller.currentNode, selections)),
+  });
+
+  if (screen.kind === "detail-only") {
+    return <TerminalPaneScreen {...screen.props} />;
   }
 
-  return (
-    <TerminalTwoPaneScreen
-      title="Facet Picker"
-      subtitle={`${model.label} | ${controller.breadcrumb}${controller.searchIndicator}`}
-      left={{
-        title: controller.state.activePane === "list" ? "[VALUES]" : "Values",
-        lines: buildPickerListLines(model, controller.bodyHeight, controller, selections),
-        active: controller.state.activePane === "list",
-      }}
-      right={{
-        title: controller.state.activePane === "detail" ? "[DETAIL]" : "Detail",
-        lines: controller.visibleDetailLines,
-        active: controller.state.activePane === "detail",
-      }}
-      footer={[
-        {
-          text: controller.state.searchMode ? TERMINAL_LIVE_FILTER_FOOTER : buildFacetPickerFooterText(controller),
-          tone: "dim",
-        },
-        {
-          text: controller.state.searchMode
-            ? `Search /${controller.state.searchInput}`
-            : `Focused: ${controller.currentNode?.label ?? "(none)"} | Policy ${policyStateLabel(getNodeSelectionState(controller.currentNode, selections))} | ${controller.state.activePane} focus | Detail scroll ${controller.effectiveState.detailScroll}/${controller.maxDetailScroll}`,
-          tone: "accent",
-        },
-      ]}
-      leftWidth={48}
-    />
-  );
+  return <TerminalTwoPaneScreen {...screen.props} />;
 }

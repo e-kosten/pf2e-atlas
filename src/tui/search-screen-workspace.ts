@@ -515,12 +515,14 @@ export function applyFacetPickerSelectionsToRequest(
 export function buildDraftCommandPaletteEntries(
   workspaceEntries: SearchWorkspaceEntry[],
 ): DerivedTagTerminalCommandOption<SearchWorkspaceAction>[] {
-  return workspaceEntries.map((entry) => ({
-    value: entry.action,
-    label: entry.label,
-    description: entry.description,
-    keywords: [entry.value],
-    disabled: entry.disabled,
-    disabledReason: entry.disabledReason,
-  }));
+  return workspaceEntries
+    .filter((entry) => !entry.disabled)
+    .map((entry) => ({
+      value: entry.action,
+      label: entry.label,
+      description: entry.description,
+      keywords: [entry.value],
+      disabled: entry.disabled,
+      disabledReason: entry.disabledReason,
+    }));
 }
