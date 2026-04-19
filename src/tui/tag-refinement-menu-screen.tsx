@@ -3,37 +3,16 @@ import React from "react";
 import type { DerivedTagMigrationMode, DerivedTagReviewQueueSummaryItem } from "../tags/migration/types.js";
 import {
   buildDerivedTagTerminalActionTargetHelpLines,
-  buildDerivedTagTerminalActionTargetLine,
-  createDerivedTagTerminalActionTargetState,
-  getDerivedTagTerminalActionTargetInteractionActions,
-  reduceDerivedTagTerminalActionTargetState,
-  resolveDerivedTagTerminalActionTargetIntent,
-  shouldRenderDerivedTagTerminalActionTarget,
   type DerivedTagTerminalActionTargetOption,
-  type DerivedTagTerminalActionTargetState,
 } from "./action-target.js";
+import type { DerivedTagTerminalLine } from "./terminal-ui.js";
 import {
-  TerminalTwoPaneScreen,
-  createDerivedTagTerminalListNavigationState,
-  getTerminalPaneBodyHeight,
-  resolveDerivedTagTerminalListNavigationAction,
-  useDerivedTagTerminalApp,
-  useDerivedTagTerminalInput,
-  useDerivedTagTerminalSize,
-  type DerivedTagTerminalLine,
-} from "./terminal-ui.js";
-import {
-  TERMINAL_DIALOG_RETURN_FOOTER,
   buildTerminalInteractionHelpLines,
-  formatTerminalInteractionFooter,
-  resolveTerminalInteractionAction,
   type TerminalInteractionAction,
 } from "./interaction-bindings.js";
-import { buildScrollableLines } from "./list-utils.js";
+import { TerminalActionMenuScreen } from "./shared-screens.js";
 
 type TagRefinementCommandId = "review_all" | "legacy_seed" | "legacy_rule" | "exemplar_cleanup" | "proposal_review";
-
-type TagRefinementUiState = DerivedTagTerminalActionTargetState;
 
 export type TagRefinementMenuItem =
   | { kind: "review_queue_item"; label: string; queueItem: DerivedTagReviewQueueSummaryItem }
@@ -185,21 +164,6 @@ export function TagRefinementMenuScreen({
   onOpenSelected: (menuItems: TagRefinementMenuItem[]) => void;
   onQuickAction: (mode: "review_all" | DerivedTagMigrationMode) => void;
 }): React.JSX.Element {
-  const terminal = useDerivedTagTerminalApp();
-  const size = useDerivedTagTerminalSize();
-  const navigationStateRef = React.useRef(createDerivedTagTerminalListNavigationState());
-  const [actionTargetState, dispatchActionTarget] = React.useReducer(
-    reduceDerivedTagTerminalActionTargetState<TagRefinementUiState>,
-    undefined,
-    () => createDerivedTagTerminalActionTargetState(),
-  );
-  const bodyHeight = Math.max(
-    1,
-    getTerminalPaneBodyHeight(size.height, {
-      hasSubtitle: true,
-      footerLineCount: 2,
-    }),
-  );
   const menuItems = buildTagRefinementMenuItems(queueItems);
   const actionEntries = buildTagRefinementActionEntries(queueItems.length > 0);
   const clampedSelectedIndex = Math.max(0, Math.min(selectedIndex, Math.max(0, menuItems.length - 1)));
@@ -221,114 +185,30 @@ export function TagRefinementMenuScreen({
     [onQuickAction],
   );
 
-  useDerivedTagTerminalInput((event) => {
-    const actionTargetIntent = resolveDerivedTagTerminalActionTargetIntent(event, actionTargetState, "horizontal");
-    const navigation = resolveDerivedTagTerminalListNavigationAction(
-      event,
-      {
-        pageSize: Math.max(1, bodyHeight - 1),
-        jumpSize: Math.max(1, Math.floor(bodyHeight / 2)),
-        includeConfirmKeys: true,
-      },
-      navigationStateRef.current,
-    );
-    navigationStateRef.current = navigation.state;
-    const interactionAction = resolveTerminalInteractionAction(event, getTagRefinementInteractionActions());
-
-    if (actionTargetIntent?.kind === "toggle_target") {
-      dispatchActionTarget({ type: "toggle_target" });
-      navigationStateRef.current = createDerivedTagTerminalListNavigationState();
-      return;
-    }
-    if (actionTargetIntent?.kind === "leave_actions") {
-      dispatchActionTarget({ type: "leave_actions" });
-      return;
-    }
-    if (actionTargetIntent?.kind === "move_action") {
-      dispatchActionTarget({ type: "move_action", delta: actionTargetIntent.delta, actionCount: actionEntries.length });
-      return;
-    }
-    if (actionTargetIntent?.kind === "apply_action") {
-      const selectedAction = actionEntries[actionTargetState.selectedActionIndex];
-      if (selectedAction) {
-        runActionTargetCommand(selectedAction.id);
-      }
-      return;
-    }
-    if (actionTargetState.activeTarget === "actions") {
-      if (interactionAction?.id === "help") {
-        void terminal.showDialog({
-          title: "Tag Refinement Help",
-          body: buildTagRefinementHelpLines(actionEntries),
-          footer: [{ text: TERMINAL_DIALOG_RETURN_FOOTER, tone: "dim" }],
-        });
-      }
-      return;
-    }
-    if (interactionAction?.id === "back" || interactionAction?.id === "quit") {
-      onBack();
-      return;
-    }
-    if (navigation.action?.kind === "move") {
-      onMove(navigation.action.delta, menuItems.length);
-      return;
-    }
-    if (navigation.action?.kind === "boundary") {
-      onMove(
-        navigation.action.boundary === "start" ? -clampedSelectedIndex : menuItems.length - 1 - clampedSelectedIndex,
-        menuItems.length,
-      );
-      return;
-    }
-    if (interactionAction?.id === "select") {
-      onOpenSelected(menuItems);
-      return;
-    }
-    if (interactionAction?.id === "help") {
-      void terminal.showDialog({
-        title: "Tag Refinement Help",
-        body: buildTagRefinementHelpLines(actionEntries),
-        footer: [{ text: TERMINAL_DIALOG_RETURN_FOOTER, tone: "dim" }],
-      });
-      return;
-    }
-  });
-
   return (
-    <TerminalTwoPaneScreen
+    <TerminalActionMenuScreen
       title="Tag Refinement"
       subtitle={`${queueItems.length} queue slice${queueItems.length === 1 ? "" : "s"} pending review`}
-      left={{
-        title: "Menu",
-        lines: buildScrollableLines(menuItems, clampedSelectedIndex, bodyHeight),
-      }}
-      right={{
-        title: "Pending Review Queue",
-        lines: buildQueueLines(queueItems),
-      }}
-      footer={[
-        {
-          text: formatTerminalInteractionFooter(
-            actionTargetState.activeTarget === "actions"
-              ? [
-                  ...getDerivedTagTerminalActionTargetInteractionActions(actionTargetState, "horizontal"),
-                  { id: "help" },
-                ]
-              : [
-                  { id: "move" },
-                  { id: "jump" },
-                  { id: "page" },
-                  { id: "edge" },
-                  ...getTagRefinementInteractionActions(),
-                ],
-          ),
-          tone: "dim",
-        },
-        shouldRenderDerivedTagTerminalActionTarget(actionTargetState, "onDemand")
-          ? buildDerivedTagTerminalActionTargetLine(actionEntries, actionTargetState)
-          : { text: `Selected: ${menuItems[clampedSelectedIndex]?.label ?? "(none)"}`, tone: "accent" },
-      ]}
+      leftTitle="Menu"
+      rightTitle="Pending Review Queue"
       leftWidth={48}
+      items={menuItems}
+      selectedIndex={clampedSelectedIndex}
+      interactionActions={getTagRefinementInteractionActions()}
+      actionEntries={actionEntries}
+      helpTitle="Tag Refinement Help"
+      helpBody={buildTagRefinementHelpLines(actionEntries)}
+      buildRightLines={() => buildQueueLines(queueItems)}
+      buildStatusLine={({ selectedItem }) => ({
+        text: `Selected: ${selectedItem?.label ?? "(none)"}`,
+        tone: "accent",
+      })}
+      onMove={onMove}
+      onSelect={() => {
+        onOpenSelected(menuItems);
+      }}
+      onBack={onBack}
+      onAction={runActionTargetCommand}
     />
   );
 }

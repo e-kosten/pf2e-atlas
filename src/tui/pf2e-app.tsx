@@ -18,29 +18,17 @@ import { AreaMenuScreen } from "./area-menu-screen.js";
 import { OntologyBrowserScreen } from "./ontology-explorer/screen.js";
 import { OntologyDomainPickerScreen } from "./ontology-explorer/domain-picker-screen.js";
 import { SearchScreen } from "./search-screen.js";
-import { TerminalBusyScreen } from "./shared-screens.js";
-import { formatTerminalInteractionFooter, resolveTerminalInteractionAction } from "./interaction-bindings.js";
-import {
-  TerminalTextScreen,
-  runDerivedTagTerminalApp,
-  useDerivedTagTerminalApp,
-  useDerivedTagTerminalInput,
-} from "./terminal-ui.js";
+import { TerminalBusyScreen, TerminalMessageScreen } from "./shared-screens.js";
+import { runDerivedTagTerminalApp, useDerivedTagTerminalApp } from "./terminal-ui.js";
 import { TagRefinementMenuScreen, type TagRefinementMenuItem } from "./tag-refinement-menu-screen.js";
 
 function StartupErrorScreen({ message, onExit }: { message: string; onExit: () => void }): React.JSX.Element {
-  useDerivedTagTerminalInput((event) => {
-    const interactionAction = resolveTerminalInteractionAction(event, [{ id: "back" }, { id: "quit" }]);
-    if (interactionAction?.id === "back" || interactionAction?.id === "quit") {
-      onExit();
-    }
-  });
-
   return (
-    <TerminalTextScreen
+    <TerminalMessageScreen
       title={PF2E_TERMINAL_TITLE}
+      interactionActions={[{ id: "back", label: "exit" }, { id: "quit", label: "exit" }]}
       body={[{ text: "Could not load the PF2E app services.", tone: "section" }, { text: "" }, { text: message }]}
-      footer={[{ text: formatTerminalInteractionFooter([{ id: "back", label: "exit" }, { id: "quit", label: "exit" }]), tone: "dim" }]}
+      onBack={onExit}
     />
   );
 }

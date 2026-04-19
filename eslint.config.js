@@ -141,6 +141,75 @@ export default defineConfig(
     },
   },
   {
+    files: ["src/tui/pf2e-app.tsx"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "./terminal-ui.js",
+              importNames: ["TerminalTextScreen", "useDerivedTagTerminalInput"],
+              message:
+                "Static informational TUI screens must use the shared TerminalMessageScreen abstraction instead of owning input or TerminalTextScreen composition directly.",
+            },
+            {
+              name: "./interaction-bindings.js",
+              importNames: ["formatTerminalInteractionFooter", "resolveTerminalInteractionAction"],
+              message:
+                "Static informational TUI screens must use the shared TerminalMessageScreen abstraction instead of resolving their own footer or interaction actions.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/tui/tag-refinement-menu-screen.tsx"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "./terminal-ui.js",
+              importNames: [
+                "TerminalTwoPaneScreen",
+                "createDerivedTagTerminalListNavigationState",
+                "getTerminalPaneBodyHeight",
+                "resolveDerivedTagTerminalListNavigationAction",
+                "useDerivedTagTerminalApp",
+                "useDerivedTagTerminalInput",
+                "useDerivedTagTerminalSize",
+              ],
+              message:
+                "Tag refinement menus must use the shared TerminalActionMenuScreen abstraction instead of owning list/input plumbing.",
+            },
+            {
+              name: "./interaction-bindings.js",
+              importNames: ["formatTerminalInteractionFooter", "resolveTerminalInteractionAction"],
+              message:
+                "Tag refinement menus must use the shared TerminalActionMenuScreen abstraction instead of resolving footer or interaction actions directly.",
+            },
+            {
+              name: "./action-target.js",
+              importNames: [
+                "buildDerivedTagTerminalActionTargetLine",
+                "createDerivedTagTerminalActionTargetState",
+                "getDerivedTagTerminalActionTargetInteractionActions",
+                "reduceDerivedTagTerminalActionTargetState",
+                "resolveDerivedTagTerminalActionTargetIntent",
+                "shouldRenderDerivedTagTerminalActionTarget",
+              ],
+              message:
+                "Tag refinement menus must use the shared TerminalActionMenuScreen abstraction instead of owning action-target state and rendering directly.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ["src/tui/**/*.{ts,tsx}"],
     ignores: [
       "src/tui/keymap.ts",
