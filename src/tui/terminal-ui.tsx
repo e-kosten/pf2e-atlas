@@ -18,6 +18,14 @@ import {
   getTerminalInteractionCycleDirection,
   resolveTerminalInteractionAction,
 } from "./interaction-bindings.js";
+import {
+  createTerminalChoiceSizingDescriptor,
+  createTerminalMessageSizingDescriptor,
+  createTerminalTextInputSizingDescriptor,
+  planTerminalModalLayout,
+  type TerminalModalLayoutResult,
+  type TerminalModalPresentation,
+} from "./terminal-modal-layout.js";
 
 export type DerivedTagTerminalTone =
   | "default"
@@ -142,8 +150,6 @@ type DerivedTagTerminalInlinePromptPanelProps = {
   height: number;
   showTopBorder?: boolean;
 };
-
-type TerminalModalPresentation = "inline" | "screen";
 
 type DialogOptions = {
   title: string;
@@ -647,29 +653,6 @@ function TerminalInlinePromptPanel({
       <TerminalFooter footer={footer} width={width} />
     </Box>
   );
-}
-
-function getModalPresentation(modal: TerminalModalState): TerminalModalPresentation | null {
-  if (!modal) {
-    return null;
-  }
-
-  switch (modal.kind) {
-    case "dialog":
-      return modal.options.presentation ?? "inline";
-    case "text":
-      return modal.options.presentation ?? "inline";
-    case "command":
-      return modal.options.presentation ?? "inline";
-    case "select":
-      return modal.options.presentation ?? "screen";
-    case "multiselect":
-      return modal.options.presentation ?? "screen";
-    case "policy":
-      return modal.options.presentation ?? "screen";
-    default:
-      return "screen";
-  }
 }
 
 export function useDerivedTagTerminalApp(): DerivedTagTerminalContextValue {
@@ -1240,13 +1223,14 @@ function InlinePromptMessageBody({
   return <TerminalRows lines={renderRows(lines, width, height)} width={width} />;
 }
 
-function InlinePromptTwoPaneBody({
+function InlinePromptChoiceBody({
   prompt,
   entries,
   detailLines,
   focusedLabel,
   width,
   height,
+  layout,
 }: {
   prompt: string;
   entries: DerivedTagTerminalLine[];
@@ -1254,8 +1238,50 @@ function InlinePromptTwoPaneBody({
   focusedLabel: string;
   width: number;
   height: number;
+  layout: TerminalModalLayoutResult;
 }): React.JSX.Element {
-  const dimensions = getTerminalTwoPaneDimensions(width, 38);
+  if (layout.paneMode === "single-column") {
+    const listRows = Math.max(0, layout.regions.listRows);
+    const detailRows = Math.max(0, layout.regions.detailRows);
+    const visibleListCount = Math.max(0, listRows - 2);
+    const visibleDetailCount = Math.max(0, detailRows - 2);
+
+    return (
+      <Box flexDirection="column" width={width} height={height}>
+        {listRows > 0 ? (
+          <>
+            <Text wrap="truncate-end" {...terminalToneProps("section")}>
+              {fitToWidth(prompt, width)}
+            </Text>
+            {listRows > 1 ? (
+              <Text wrap="truncate-end" {...terminalToneProps("dim")}>
+                {fitToWidth("─".repeat(Math.max(0, width)), width)}
+              </Text>
+            ) : null}
+            {visibleListCount > 0 ? (
+              <TerminalRows lines={renderRows(entries, width, visibleListCount)} width={width} />
+            ) : null}
+          </>
+        ) : null}
+        {detailRows > 0 ? (
+          <>
+            <Text wrap="truncate-end" {...terminalToneProps("dim")}>
+              {fitToWidth("─".repeat(Math.max(0, width)), width)}
+            </Text>
+            {detailRows > 1 ? (
+              <Text wrap="truncate-end" {...terminalToneProps("accent")}>
+                {fitToWidth(focusedLabel, width)}
+              </Text>
+            ) : null}
+            {visibleDetailCount > 0 ? (
+              <TerminalRows lines={renderRows(detailLines, width, visibleDetailCount)} width={width} />
+            ) : null}
+          </>
+        ) : null}
+      </Box>
+    );
+  }
+
   const separator = Array.from({ length: Math.max(1, height) }, () => "│").join("\n");
 
   return (
@@ -1266,8 +1292,8 @@ function InlinePromptTwoPaneBody({
           lines: entries,
           active: true,
         }}
-        width={dimensions.leftWidth}
-        height={height}
+        width={layout.paneWidths?.left ?? width}
+        height={layout.regions.listRows}
       />
       <Text wrap="truncate-end" {...terminalToneProps("dim")}>
         {separator}
@@ -1277,23 +1303,23 @@ function InlinePromptTwoPaneBody({
           title: focusedLabel,
           lines: detailLines,
         }}
-        width={dimensions.rightWidth}
-        height={height}
+        width={layout.paneWidths?.right ?? width}
+        height={layout.regions.detailRows}
       />
     </Box>
   );
 }
 
-function PromptBody({
+function TextPromptBody({
   options,
   currentValue,
   width,
-  height,
+  layout,
 }: {
   options: TextPromptOptions;
   currentValue: string;
   width: number;
-  height: number;
+  layout: TerminalModalLayoutResult;
 }): React.JSX.Element {
   return (
     <TerminalInlinePromptPanel
@@ -1302,7 +1328,7 @@ function PromptBody({
       body={
         <InlinePromptMessageBody
           width={width}
-          height={Math.max(0, height - 4)}
+          height={layout.bodyHeight}
           lines={[
             ...(options.hint ? [{ text: options.hint, tone: "accent" as const }] : []),
             { text: `> ${currentValue || ""}`, tone: "selected" },
@@ -1312,8 +1338,8 @@ function PromptBody({
       }
       footer={[{ text: TERMINAL_TEXT_INPUT_FOOTER, tone: "dim" }]}
       width={width}
-      height={height}
-      showTopBorder={options.presentation !== "screen"}
+      height={layout.totalHeight}
+      showTopBorder={layout.showTopBorder}
     />
   );
 }
@@ -1323,13 +1349,13 @@ function CommandPaletteBody({
   filterText,
   selectedIndex,
   width,
-  height,
+  layout,
 }: {
   options: CommandPaletteOptions<string>;
   filterText: string;
   selectedIndex: number;
   width: number;
-  height: number;
+  layout: TerminalModalLayoutResult;
 }): React.JSX.Element {
   const filteredEntries = filterCommandPaletteEntries(options.entries, filterText);
   const clampedSelectedIndex = clampPromptSelectionIndex(selectedIndex, filteredEntries.length);
@@ -1342,7 +1368,7 @@ function CommandPaletteBody({
         body={
           <InlinePromptMessageBody
             width={width}
-            height={Math.max(0, height - 4)}
+            height={layout.bodyHeight}
             lines={[
               { text: options.prompt, tone: "section" },
               { text: `Filter: ${filterText || "(none)"}`, tone: "accent" },
@@ -1352,15 +1378,14 @@ function CommandPaletteBody({
         }
         footer={[{ text: "Type to filter  Backspace edit  Esc cancel", tone: "dim" }]}
         width={width}
-        height={height}
-        showTopBorder={options.presentation !== "screen"}
+        height={layout.totalHeight}
+        showTopBorder={layout.showTopBorder}
       />
     );
   }
 
   const selectedOption = filteredEntries[clampedSelectedIndex];
-  const contentHeight = Math.max(1, height - 6);
-  const visibleCount = Math.max(1, contentHeight - 2);
+  const visibleCount = Math.max(1, layout.visibleListCapacity);
   const windowStart = clampInlinePromptWindowStart(clampedSelectedIndex, filteredEntries.length, visibleCount);
   const visibleEntries = filteredEntries.slice(windowStart, windowStart + visibleCount);
 
@@ -1369,7 +1394,7 @@ function CommandPaletteBody({
       title={options.title}
       subtitle={options.subtitle ?? options.prompt}
       body={
-        <InlinePromptTwoPaneBody
+        <InlinePromptChoiceBody
           prompt={filterText ? `Filter: ${filterText}` : options.prompt}
           entries={visibleEntries.map((entry, offset) => ({
             text: `${entry.label}${entry.disabled ? " | unavailable" : ""}`,
@@ -1380,7 +1405,8 @@ function CommandPaletteBody({
           detailLines={buildCommandPaletteDetailLines(selectedOption, filterText)}
           focusedLabel={`Command ${clampedSelectedIndex + 1}/${filteredEntries.length}`}
           width={width}
-          height={contentHeight}
+          height={layout.bodyHeight}
+          layout={layout}
         />
       }
       footer={[
@@ -1392,8 +1418,8 @@ function CommandPaletteBody({
         { text: `${filteredEntries.length} command${filteredEntries.length === 1 ? "" : "s"} visible`, tone: "accent" },
       ]}
       width={width}
-      height={height}
-      showTopBorder={options.presentation !== "screen"}
+      height={layout.totalHeight}
+      showTopBorder={layout.showTopBorder}
     />
   );
 }
@@ -1402,12 +1428,12 @@ function SelectPromptBody({
   options,
   selectedIndex,
   width,
-  height,
+  layout,
 }: {
   options: TerminalSelectModalOptions;
   selectedIndex: number;
   width: number;
-  height: number;
+  layout: TerminalModalLayoutResult;
 }): React.JSX.Element {
   if (options.entries.length === 0) {
     return (
@@ -1417,7 +1443,7 @@ function SelectPromptBody({
         body={
           <InlinePromptMessageBody
             width={width}
-            height={Math.max(0, height - 4)}
+            height={layout.bodyHeight}
             lines={[
               { text: options.prompt, tone: "section" },
               { text: "No options are available for this scope.", tone: "warning" },
@@ -1426,15 +1452,14 @@ function SelectPromptBody({
         }
         footer={[{ text: "Esc/backspace/left/q cancel", tone: "dim" }]}
         width={width}
-        height={height}
-        showTopBorder={options.presentation !== "screen"}
+        height={layout.totalHeight}
+        showTopBorder={layout.showTopBorder}
       />
     );
   }
 
   const selectedOption = options.entries[selectedIndex];
-  const contentHeight = Math.max(1, height - 6);
-  const visibleCount = Math.max(1, contentHeight - 2);
+  const visibleCount = Math.max(1, layout.visibleListCapacity);
   const windowStart = clampInlinePromptWindowStart(selectedIndex, options.entries.length, visibleCount);
   const visibleEntries = options.entries.slice(windowStart, windowStart + visibleCount);
 
@@ -1443,7 +1468,7 @@ function SelectPromptBody({
       title={options.title}
       subtitle={options.subtitle}
       body={
-        <InlinePromptTwoPaneBody
+        <InlinePromptChoiceBody
           prompt={options.prompt}
           entries={visibleEntries.map((entry, offset) => ({
             text: entry.label,
@@ -1457,7 +1482,8 @@ function SelectPromptBody({
           ]}
           focusedLabel={`Selected: ${selectedOption?.label ?? "(none)"}`}
           width={width}
-          height={contentHeight}
+          height={layout.bodyHeight}
+          layout={layout}
         />
       }
       footer={[
@@ -1469,8 +1495,8 @@ function SelectPromptBody({
         { text: `${selectedIndex + 1}/${options.entries.length} focused`, tone: "accent" },
       ]}
       width={width}
-      height={height}
-      showTopBorder={options.presentation !== "screen"}
+      height={layout.totalHeight}
+      showTopBorder={layout.showTopBorder}
     />
   );
 }
@@ -1480,13 +1506,13 @@ function MultiSelectPromptBody({
   selectedIndex,
   selectedValues,
   width,
-  height,
+  layout,
 }: {
   options: MultiSelectPromptOptions<string>;
   selectedIndex: number;
   selectedValues: string[];
   width: number;
-  height: number;
+  layout: TerminalModalLayoutResult;
 }): React.JSX.Element {
   if (options.entries.length === 0) {
     return (
@@ -1496,7 +1522,7 @@ function MultiSelectPromptBody({
         body={
           <InlinePromptMessageBody
             width={width}
-            height={Math.max(0, height - 4)}
+            height={layout.bodyHeight}
             lines={[
               { text: options.prompt, tone: "section" },
               { text: "No options are available for this scope.", tone: "warning" },
@@ -1505,8 +1531,8 @@ function MultiSelectPromptBody({
         }
         footer={[{ text: formatTerminalInteractionFooter([{ id: "back", label: "return" }]), tone: "dim" }]}
         width={width}
-        height={height}
-        showTopBorder={options.presentation !== "screen"}
+        height={layout.totalHeight}
+        showTopBorder={layout.showTopBorder}
       />
     );
   }
@@ -1514,8 +1540,7 @@ function MultiSelectPromptBody({
   const selectedOption = options.entries[selectedIndex];
   const selectedSet = new Set(selectedValues);
   const selectedLabels = options.entries.filter((entry) => selectedSet.has(entry.value)).map((entry) => entry.label);
-  const contentHeight = Math.max(1, height - 6);
-  const visibleCount = Math.max(1, contentHeight - 2);
+  const visibleCount = Math.max(1, layout.visibleListCapacity);
   const windowStart = clampInlinePromptWindowStart(selectedIndex, options.entries.length, visibleCount);
   const visibleEntries = options.entries.slice(windowStart, windowStart + visibleCount);
 
@@ -1524,7 +1549,7 @@ function MultiSelectPromptBody({
       title={options.title}
       subtitle={options.subtitle}
       body={
-        <InlinePromptTwoPaneBody
+        <InlinePromptChoiceBody
           prompt={options.prompt}
           entries={visibleEntries.map((entry, offset) => ({
             text: `[${selectedSet.has(entry.value) ? "x" : " "}] ${entry.label}`,
@@ -1539,7 +1564,8 @@ function MultiSelectPromptBody({
           ]}
           focusedLabel={`Focused ${selectedIndex + 1}/${options.entries.length}`}
           width={width}
-          height={contentHeight}
+          height={layout.bodyHeight}
+          layout={layout}
         />
       }
       footer={[
@@ -1551,8 +1577,8 @@ function MultiSelectPromptBody({
         { text: `${selectedValues.length} selected | Focused: ${selectedOption?.label ?? "(none)"}`, tone: "accent" },
       ]}
       width={width}
-      height={height}
-      showTopBorder={options.presentation !== "screen"}
+      height={layout.totalHeight}
+      showTopBorder={layout.showTopBorder}
     />
   );
 }
@@ -1655,13 +1681,13 @@ function PolicyPromptBody({
   selectedIndex,
   valueStates,
   width,
-  height,
+  layout,
 }: {
   options: PolicyPromptOptions<string>;
   selectedIndex: number;
   valueStates: Record<string, DerivedTagTerminalPolicyState | undefined>;
   width: number;
-  height: number;
+  layout: TerminalModalLayoutResult;
 }): React.JSX.Element {
   if (options.entries.length === 0) {
     return (
@@ -1671,7 +1697,7 @@ function PolicyPromptBody({
         body={
           <InlinePromptMessageBody
             width={width}
-            height={Math.max(0, height - 4)}
+            height={layout.bodyHeight}
             lines={[
               { text: options.prompt, tone: "section" },
               { text: "No options are available for this scope.", tone: "warning" },
@@ -1680,16 +1706,15 @@ function PolicyPromptBody({
         }
         footer={[{ text: formatTerminalInteractionFooter([{ id: "return" }]), tone: "dim" }]}
         width={width}
-        height={height}
-        showTopBorder={options.presentation !== "screen"}
+        height={layout.totalHeight}
+        showTopBorder={layout.showTopBorder}
       />
     );
   }
 
   const selectedOption = options.entries[selectedIndex];
   const selectedState = selectedOption ? getPolicyStateForValue(selectedOption.value, valueStates) : undefined;
-  const contentHeight = Math.max(1, height - 6);
-  const visibleCount = Math.max(1, contentHeight - 2);
+  const visibleCount = Math.max(1, layout.visibleListCapacity);
   const windowStart = clampInlinePromptWindowStart(selectedIndex, options.entries.length, visibleCount);
   const visibleEntries = options.entries.slice(windowStart, windowStart + visibleCount);
 
@@ -1698,7 +1723,7 @@ function PolicyPromptBody({
       title={options.title}
       subtitle={options.subtitle}
       body={
-        <InlinePromptTwoPaneBody
+        <InlinePromptChoiceBody
           prompt={options.prompt}
           entries={visibleEntries.map((entry, offset) => ({
             text: `[${policyStateLabel(getPolicyStateForValue(entry.value, valueStates))}] ${entry.label}`,
@@ -1713,7 +1738,8 @@ function PolicyPromptBody({
           ]}
           focusedLabel={`Focused ${selectedIndex + 1}/${options.entries.length}`}
           width={width}
-          height={contentHeight}
+          height={layout.bodyHeight}
+          layout={layout}
         />
       }
       footer={[
@@ -1725,88 +1751,257 @@ function PolicyPromptBody({
         { text: `Cycle order: off -> ${options.allowedStates.join(" -> ")} -> off`, tone: "accent" },
       ]}
       width={width}
-      height={height}
-      showTopBorder={options.presentation !== "screen"}
+      height={layout.totalHeight}
+      showTopBorder={layout.showTopBorder}
     />
   );
 }
 
-function clampInlineModalHeight(totalRows: number, desiredHeight: number): number {
-  const minimumMainHeight = 3;
-  const maximumInlineHeight = Math.max(4, totalRows - minimumMainHeight);
-  return Math.max(4, Math.min(desiredHeight, maximumInlineHeight));
-}
-
-function getInlineDialogHeight(
-  modal: Extract<TerminalModalState, { kind: "dialog" }>,
-  totalRows: number,
-  width: number,
-): number {
-  const footer = modal.options.footer ?? [{ text: TERMINAL_DIALOG_CONTINUE_FOOTER, tone: "dim" }];
-  const bodyLineCount = getRenderedTerminalLineCount(modal.options.body, width);
-  return clampInlineModalHeight(totalRows, bodyLineCount + footer.length + 3);
-}
-
-function getInlineTextPromptHeight(
-  modal: Extract<TerminalModalState, { kind: "text" }>,
-  totalRows: number,
-  width: number,
-): number {
-  const lines: DerivedTagTerminalLine[] = [
-    ...(modal.options.hint ? [{ text: modal.options.hint, tone: "accent" as const }] : []),
-    { text: `> ${modal.value || ""}`, tone: "selected" },
-    {
-      text: modal.options.defaultValue ? `Default: ${modal.options.defaultValue}` : "Leave blank to skip.",
-      tone: "dim",
-    },
+function buildTextPromptBodyLines(options: TextPromptOptions, currentValue: string): DerivedTagTerminalLine[] {
+  return [
+    ...(options.hint ? [{ text: options.hint, tone: "accent" as const }] : []),
+    { text: `> ${currentValue || ""}`, tone: "selected" },
+    { text: options.defaultValue ? `Default: ${options.defaultValue}` : "Leave blank to skip.", tone: "dim" },
   ];
-  return clampInlineModalHeight(totalRows, getRenderedTerminalLineCount(lines, width) + 4);
 }
 
-function getInlineCommandPaletteHeight(
-  modal: Extract<TerminalModalState, { kind: "command" }>,
-  totalRows: number,
-  width: number,
-): number {
-  const filteredEntries = filterCommandPaletteEntries(modal.options.entries, modal.filterText);
-  if (filteredEntries.length === 0) {
-    const lines: DerivedTagTerminalLine[] = [
-      { text: modal.options.prompt, tone: "section" },
-      { text: `Filter: ${modal.filterText || "(none)"}`, tone: "accent" },
-      { text: "No commands match the current filter.", tone: "warning" },
-    ];
-    return clampInlineModalHeight(totalRows, getRenderedTerminalLineCount(lines, width) + 5);
-  }
-
-  const clampedSelectedIndex = clampPromptSelectionIndex(modal.selectedIndex, filteredEntries.length);
-  const selectedOption = filteredEntries[clampedSelectedIndex];
-  const dimensions = getTerminalTwoPaneDimensions(width, 38);
-  const detailLines = buildCommandPaletteDetailLines(selectedOption, modal.filterText);
-  const entryCount = filteredEntries.length;
-  const detailLineCount = getRenderedTerminalLineCount(detailLines, dimensions.rightWidth);
-  const bodyHeight = Math.max(entryCount + 2, detailLineCount + 2);
-  return clampInlineModalHeight(totalRows, bodyHeight + 6);
+function getPreferredPromptWindowSize(itemCount: number): number {
+  return Math.max(1, Math.min(itemCount, 8));
 }
 
-function getInlineModalHeight(modal: TerminalModalState, totalRows: number, width: number): number {
-  if (!modal || getModalPresentation(modal) !== "inline") {
-    return 0;
+function getPreferredPromptDetailSize(lineCount: number): number {
+  return Math.max(2, Math.min(lineCount, 8));
+}
+
+function getChoiceDetailMeasureWidth(terminalWidth: number, preferredLeftPaneWidth = 38): number {
+  const separatorWidth = 1;
+  const minimumRightPaneWidth = 20;
+  const preferredRightWidth = terminalWidth - preferredLeftPaneWidth - separatorWidth;
+  if (preferredRightWidth < minimumRightPaneWidth) {
+    return terminalWidth;
+  }
+  return Math.max(minimumRightPaneWidth, preferredRightWidth);
+}
+
+function createChoicePromptDescriptor(
+  terminalWidth: number,
+  itemCount: number,
+  detailLines: DerivedTagTerminalLine[],
+) {
+  const detailLineCount = getRenderedTerminalLineCount(detailLines, getChoiceDetailMeasureWidth(terminalWidth));
+  return createTerminalChoiceSizingDescriptor({
+    staticBodyLineCount: 0,
+    preferredLeftPaneWidth: 38,
+    list: {
+      itemCount,
+      chromeRows: 2,
+      minVisibleRowCount: Math.min(itemCount, 4),
+      preferredVisibleRowCount: getPreferredPromptWindowSize(itemCount),
+      maxVisibleRowCount: 12,
+    },
+    detail: {
+      lineCount: detailLineCount,
+      chromeRows: 2,
+      minVisibleLineCount: Math.min(detailLineCount, 2),
+      preferredVisibleLineCount: getPreferredPromptDetailSize(detailLineCount),
+      maxVisibleLineCount: 10,
+    },
+  });
+}
+
+function planTerminalModalStateLayout(
+  modal: TerminalModalState,
+  terminalWidth: number,
+  terminalHeight: number,
+): TerminalModalLayoutResult | null {
+  if (!modal) {
+    return null;
   }
 
-  switch (modal.kind) {
-    case "dialog":
-      return getInlineDialogHeight(modal, totalRows, width);
-    case "text":
-      return getInlineTextPromptHeight(modal, totalRows, width);
-    case "command":
-      return getInlineCommandPaletteHeight(modal, totalRows, width);
-    case "select":
-    case "multiselect":
-    case "policy":
-      return clampInlineModalHeight(totalRows, 10);
-    default:
-      return clampInlineModalHeight(totalRows, 10);
+  if (modal.kind === "dialog") {
+    const footer = modal.options.footer ?? [{ text: TERMINAL_DIALOG_CONTINUE_FOOTER, tone: "dim" }];
+    return planTerminalModalLayout({
+      kind: "dialog",
+      terminalWidth,
+      terminalHeight,
+      forcedPresentation: modal.options.presentation ?? "inline",
+      headerRows: 3,
+      footerRows: footer.length,
+      descriptor: createTerminalMessageSizingDescriptor({
+        bodyLineCount: getRenderedTerminalLineCount(modal.options.body, terminalWidth),
+      }),
+    });
   }
+
+  if (modal.kind === "text") {
+    return planTerminalModalLayout({
+      kind: "text",
+      terminalWidth,
+      terminalHeight,
+      forcedPresentation: modal.options.presentation ?? "inline",
+      headerRows: 3,
+      footerRows: 1,
+      descriptor: createTerminalTextInputSizingDescriptor({
+        bodyLineCount: getRenderedTerminalLineCount(buildTextPromptBodyLines(modal.options, modal.value), terminalWidth),
+      }),
+    });
+  }
+
+  if (modal.kind === "command") {
+    const filteredEntries = filterCommandPaletteEntries(modal.options.entries, modal.filterText);
+    if (filteredEntries.length === 0) {
+      return planTerminalModalLayout({
+        kind: "command",
+        terminalWidth,
+        terminalHeight,
+        forcedPresentation: modal.options.presentation ?? "inline",
+        headerRows: 3,
+        footerRows: 1,
+        descriptor: createTerminalMessageSizingDescriptor({
+          bodyLineCount: getRenderedTerminalLineCount(
+            [
+              { text: modal.options.prompt, tone: "section" },
+              { text: `Filter: ${modal.filterText || "(none)"}`, tone: "accent" },
+              { text: "No commands match the current filter.", tone: "warning" },
+            ],
+            terminalWidth,
+          ),
+        }),
+      });
+    }
+
+    const clampedSelectedIndex = clampPromptSelectionIndex(modal.selectedIndex, filteredEntries.length);
+    const selectedOption = filteredEntries[clampedSelectedIndex];
+    return planTerminalModalLayout({
+      kind: "command",
+      terminalWidth,
+      terminalHeight,
+      forcedPresentation: modal.options.presentation ?? "inline",
+      headerRows: 3,
+      footerRows: 3,
+      descriptor: createChoicePromptDescriptor(
+        terminalWidth,
+        filteredEntries.length,
+        buildCommandPaletteDetailLines(selectedOption, modal.filterText),
+      ),
+    });
+  }
+
+  if (modal.kind === "select") {
+    if (modal.options.entries.length === 0) {
+      return planTerminalModalLayout({
+        kind: "select",
+        terminalWidth,
+        terminalHeight,
+        forcedPresentation: modal.options.presentation ?? "screen",
+        headerRows: 3,
+        footerRows: 1,
+        descriptor: createTerminalMessageSizingDescriptor({
+          bodyLineCount: getRenderedTerminalLineCount(
+            [
+              { text: modal.options.prompt, tone: "section" },
+              { text: "No options are available for this scope.", tone: "warning" },
+            ],
+            terminalWidth,
+          ),
+        }),
+      });
+    }
+
+    const selectedOption = modal.options.entries[modal.selectedIndex];
+    return planTerminalModalLayout({
+      kind: "select",
+      terminalWidth,
+      terminalHeight,
+      forcedPresentation: modal.options.presentation ?? "screen",
+      headerRows: 3,
+      footerRows: 3,
+      descriptor: createChoicePromptDescriptor(terminalWidth, modal.options.entries.length, [
+        ...buildPromptDetailLines(selectedOption),
+        { text: "" },
+        { text: `Selected: ${selectedOption?.label ?? "(none)"}`, tone: "accent" },
+      ]),
+    });
+  }
+
+  if (modal.kind === "multiselect") {
+    if (modal.options.entries.length === 0) {
+      return planTerminalModalLayout({
+        kind: "multiselect",
+        terminalWidth,
+        terminalHeight,
+        forcedPresentation: modal.options.presentation ?? "screen",
+        headerRows: 3,
+        footerRows: 1,
+        descriptor: createTerminalMessageSizingDescriptor({
+          bodyLineCount: getRenderedTerminalLineCount(
+            [
+              { text: modal.options.prompt, tone: "section" },
+              { text: "No options are available for this scope.", tone: "warning" },
+            ],
+            terminalWidth,
+          ),
+        }),
+      });
+    }
+
+    const selectedOption = modal.options.entries[modal.selectedIndex];
+    const selectedSet = new Set(modal.selectedValues);
+    const selectedLabels = modal.options.entries
+      .filter((entry) => selectedSet.has(entry.value))
+      .map((entry) => entry.label);
+    return planTerminalModalLayout({
+      kind: "multiselect",
+      terminalWidth,
+      terminalHeight,
+      forcedPresentation: modal.options.presentation ?? "screen",
+      headerRows: 3,
+      footerRows: 3,
+      descriptor: createChoicePromptDescriptor(terminalWidth, modal.options.entries.length, [
+        ...buildPromptDetailLines(selectedOption),
+        { text: "" },
+        { text: "Current Selection", tone: "section" },
+        { text: selectedLabels.length > 0 ? selectedLabels.join(", ") : "(none)" },
+      ]),
+    });
+  }
+
+  if (modal.options.entries.length === 0) {
+    return planTerminalModalLayout({
+      kind: "policy",
+      terminalWidth,
+      terminalHeight,
+      forcedPresentation: modal.options.presentation ?? "screen",
+      headerRows: 3,
+      footerRows: 1,
+      descriptor: createTerminalMessageSizingDescriptor({
+        bodyLineCount: getRenderedTerminalLineCount(
+          [
+            { text: modal.options.prompt, tone: "section" },
+            { text: "No options are available for this scope.", tone: "warning" },
+          ],
+          terminalWidth,
+        ),
+      }),
+    });
+  }
+
+  const selectedOption = modal.options.entries[modal.selectedIndex];
+  const selectedState = selectedOption ? getPolicyStateForValue(selectedOption.value, modal.valueStates) : undefined;
+  return planTerminalModalLayout({
+    kind: "policy",
+    terminalWidth,
+    terminalHeight,
+    forcedPresentation: modal.options.presentation ?? "screen",
+    headerRows: 3,
+    footerRows: 3,
+    descriptor: createChoicePromptDescriptor(terminalWidth, modal.options.entries.length, [
+      ...buildPromptDetailLines(selectedOption),
+      { text: "" },
+      { text: `Focused policy: ${selectedState ?? "off"}`, tone: "accent" },
+      ...buildPolicySummaryLines(modal.options, modal.valueStates),
+    ]),
+  });
 }
 
 function DerivedTagTerminalModalHost({
@@ -1814,16 +2009,16 @@ function DerivedTagTerminalModalHost({
   setModal,
   exitApp,
   width,
-  height,
+  layout,
 }: {
   modal: TerminalModalState;
   setModal: React.Dispatch<React.SetStateAction<TerminalModalState>>;
   exitApp: () => void;
   width: number;
-  height: number;
+  layout: TerminalModalLayoutResult;
 }): React.JSX.Element | null {
   const listNavigationStateRef = React.useRef(createDerivedTagTerminalListNavigationState());
-  const presentation = getModalPresentation(modal);
+  const pageSize = Math.max(1, layout.visibleListCapacity || 10);
 
   useInput(
     (input, key) => {
@@ -1845,7 +2040,7 @@ function DerivedTagTerminalModalHost({
       const modalNavigation = resolveDerivedTagTerminalListNavigationAction(
         event,
         {
-          pageSize: 10,
+          pageSize,
           jumpSize: 5,
           includeCancelKeys: true,
           includeHorizontalCancelKeys: true,
@@ -2127,16 +2322,16 @@ function DerivedTagTerminalModalHost({
       <TerminalInlinePromptPanel
         title={modal.options.title}
         subtitle={modal.options.subtitle}
-        body={<InlinePromptMessageBody width={width} height={Math.max(0, height - 4)} lines={modal.options.body} />}
+        body={<InlinePromptMessageBody width={width} height={layout.bodyHeight} lines={modal.options.body} />}
         footer={modal.options.footer ?? [{ text: TERMINAL_DIALOG_CONTINUE_FOOTER, tone: "dim" }]}
         width={width}
-        height={height}
-        showTopBorder={presentation === "inline"}
+        height={layout.totalHeight}
+        showTopBorder={layout.showTopBorder}
       />
     );
   }
   if (modal.kind === "text") {
-    return <PromptBody options={modal.options} currentValue={modal.value} width={width} height={height} />;
+    return <TextPromptBody options={modal.options} currentValue={modal.value} width={width} layout={layout} />;
   }
   if (modal.kind === "command") {
     return (
@@ -2145,7 +2340,7 @@ function DerivedTagTerminalModalHost({
         filterText={modal.filterText}
         selectedIndex={modal.selectedIndex}
         width={width}
-        height={height}
+        layout={layout}
       />
     );
   }
@@ -2156,7 +2351,7 @@ function DerivedTagTerminalModalHost({
         selectedIndex={modal.selectedIndex}
         selectedValues={modal.selectedValues}
         width={width}
-        height={height}
+        layout={layout}
       />
     );
   }
@@ -2167,21 +2362,21 @@ function DerivedTagTerminalModalHost({
         selectedIndex={modal.selectedIndex}
         valueStates={modal.valueStates}
         width={width}
-        height={height}
+        layout={layout}
       />
     );
   }
 
-  return <SelectPromptBody options={modal.options} selectedIndex={modal.selectedIndex} width={width} height={height} />;
+  return <SelectPromptBody options={modal.options} selectedIndex={modal.selectedIndex} width={width} layout={layout} />;
 }
 
 export function DerivedTagTerminalProvider({ children }: { children: React.ReactNode }): React.JSX.Element {
   const { exit } = useApp();
   const { columns, rows } = useWindowSize();
   const [modal, setModal] = React.useState<TerminalModalState>(null);
-  const modalPresentation = React.useMemo(() => getModalPresentation(modal), [modal]);
-  const inlineModalHeight = React.useMemo(() => getInlineModalHeight(modal, rows, columns), [columns, modal, rows]);
-  const availableRows = modalPresentation === "screen" ? 0 : Math.max(0, rows - inlineModalHeight);
+  const modalLayout = React.useMemo(() => planTerminalModalStateLayout(modal, columns, rows), [columns, modal, rows]);
+  const availableRows =
+    modalLayout?.presentation === "inline" ? Math.max(0, rows - modalLayout.totalHeight) : modalLayout ? 0 : rows;
 
   const contextValue = React.useMemo<DerivedTagTerminalContextValue>(
     () => ({
@@ -2297,23 +2492,23 @@ export function DerivedTagTerminalProvider({ children }: { children: React.React
 
   return (
     <DerivedTagTerminalContext.Provider value={contextValue}>
-      {modal && modalPresentation === "screen" ? (
+      {modal && modalLayout?.presentation === "screen" ? (
         <DerivedTagTerminalModalHost
           modal={modal}
           setModal={setModal}
           exitApp={exit}
           width={columns}
-          height={rows}
+          layout={modalLayout}
         />
       ) : null}
       <Box flexDirection="column">{children}</Box>
-      {modal && modalPresentation === "inline" ? (
+      {modal && modalLayout?.presentation === "inline" ? (
         <DerivedTagTerminalModalHost
           modal={modal}
           setModal={setModal}
           exitApp={exit}
           width={columns}
-          height={inlineModalHeight}
+          layout={modalLayout}
         />
       ) : null}
     </DerivedTagTerminalContext.Provider>
