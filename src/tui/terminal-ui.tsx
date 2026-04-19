@@ -17,9 +17,16 @@ import {
   TERMINAL_SELECT_EMPTY_FOOTER,
   TERMINAL_TEXT_INPUT_FOOTER,
   formatTerminalInteractionFooter,
-  getTerminalInteractionCycleDirection,
-  resolveTerminalInteractionAction,
 } from "./interaction-bindings.js";
+import {
+  createTerminalCommandPaletteInteractionContext,
+  createTerminalInteractionContextRouterState,
+  createTerminalMultiSelectPromptInteractionContext,
+  createTerminalPolicyPromptInteractionContext,
+  createTerminalSelectPromptInteractionContext,
+  createTerminalTextPromptInteractionContext,
+  routeTerminalInteractionContext,
+} from "./interaction-context-router.js";
 import {
   createTerminalChoiceSizingDescriptor,
   createTerminalMessageSizingDescriptor,
@@ -153,7 +160,7 @@ type DerivedTagTerminalInlinePromptPanelProps = {
   showTopBorder?: boolean;
 };
 
-type DialogOptions = {
+export type DialogOptions = {
   title: string;
   subtitle?: string;
   body: DerivedTagTerminalLine[];
@@ -161,7 +168,7 @@ type DialogOptions = {
   presentation?: TerminalModalPresentation;
 };
 
-type TextPromptOptions = {
+export type DerivedTagTerminalTextInputOptions = {
   title: string;
   prompt: string;
   defaultValue?: string;
@@ -176,7 +183,7 @@ export type DerivedTagTerminalOptionalSelectPromptResult<T = string> =
   | { kind: "all" }
   | { kind: "selected"; value: T };
 
-type SelectPromptOptions<T = string> = {
+export type DerivedTagTerminalSelectPromptOptions<T = string> = {
   title: string;
   subtitle?: string;
   prompt: string;
@@ -185,7 +192,7 @@ type SelectPromptOptions<T = string> = {
   presentation?: TerminalModalPresentation;
 };
 
-type OptionalSelectPromptOptions<T = string> = {
+export type DerivedTagTerminalOptionalSelectPromptOptions<T = string> = {
   title: string;
   subtitle?: string;
   prompt: string;
@@ -195,7 +202,7 @@ type OptionalSelectPromptOptions<T = string> = {
   presentation?: TerminalModalPresentation;
 };
 
-type MultiSelectPromptOptions<T extends string = string> = {
+export type DerivedTagTerminalMultiSelectPromptOptions<T extends string = string> = {
   title: string;
   subtitle?: string;
   prompt: string;
@@ -212,7 +219,7 @@ export type DerivedTagTerminalPolicySelection<T extends string = string> = {
   exclude: T[];
 };
 
-type PolicyPromptOptions<T extends string = string> = {
+export type DerivedTagTerminalPolicyPromptOptions<T extends string = string> = {
   title: string;
   subtitle?: string;
   prompt: string;
@@ -222,13 +229,19 @@ type PolicyPromptOptions<T extends string = string> = {
   presentation?: TerminalModalPresentation;
 };
 
-type CommandPaletteOptions<T extends string = string> = {
+export type CommandPaletteOptions<T extends string = string> = {
   title: string;
   subtitle?: string;
   prompt: string;
   entries: DerivedTagTerminalCommandOption<T>[];
   presentation?: TerminalModalPresentation;
 };
+
+type TextPromptOptions = DerivedTagTerminalTextInputOptions;
+type SelectPromptOptions<T = string> = DerivedTagTerminalSelectPromptOptions<T>;
+type OptionalSelectPromptOptions<T = string> = DerivedTagTerminalOptionalSelectPromptOptions<T>;
+type MultiSelectPromptOptions<T extends string = string> = DerivedTagTerminalMultiSelectPromptOptions<T>;
+type PolicyPromptOptions<T extends string = string> = DerivedTagTerminalPolicyPromptOptions<T>;
 
 type TerminalSelectOptionDetails = Pick<
   DerivedTagTerminalSelectOption<unknown>,
@@ -2019,7 +2032,11 @@ function DerivedTagTerminalModalHost({
   width: number;
   layout: TerminalModalLayoutResult;
 }): React.JSX.Element | null {
-  const listNavigationStateRef = React.useRef(createDerivedTagTerminalListNavigationState());
+  const routerStateRef = React.useRef(
+    createTerminalInteractionContextRouterState<
+      "commandPalette" | "multiSelectPrompt" | "policyPrompt" | "selectPrompt" | "textPrompt"
+    >(),
+  );
   const pageSize = Math.max(1, layout.visibleListCapacity || 10);
 
   useInput(
@@ -2029,30 +2046,9 @@ function DerivedTagTerminalModalHost({
         exitApp();
         return;
       }
-      const selectLikeAction = resolveTerminalInteractionAction(event, [
-        { id: "select" },
-        { id: "back", label: "cancel" },
-      ]);
-      const multiSelectLikeAction = resolveTerminalInteractionAction(event, [{ id: "toggle" }, { id: "return" }]);
-      const policyLikeAction = resolveTerminalInteractionAction(event, [
-        { id: "cycle" },
-        { id: "cycleReverse" },
-        { id: "return" },
-      ]);
-      const modalNavigation = resolveDerivedTagTerminalListNavigationAction(
-        event,
-        {
-          pageSize,
-          jumpSize: 5,
-          includeCancelKeys: true,
-          includeHorizontalCancelKeys: true,
-        },
-        listNavigationStateRef.current,
-      );
-      listNavigationStateRef.current = modalNavigation.state;
 
       if (!modal) {
-        listNavigationStateRef.current = createDerivedTagTerminalListNavigationState();
+        routerStateRef.current = createTerminalInteractionContextRouterState();
         return;
       }
 
@@ -2064,40 +2060,52 @@ function DerivedTagTerminalModalHost({
       }
 
       if (modal.kind === "text") {
-        if (event.textInputAction === "submit") {
+        const routed = routeTerminalInteractionContext(
+          event,
+          createTerminalTextPromptInteractionContext(),
+          routerStateRef.current,
+        );
+        routerStateRef.current = routed.state;
+
+        if (routed.route.textEntryIntent?.kind === "submit") {
           const resolver = modal.resolve;
           const trimmed = modal.value.trim();
           setModal(null);
           resolver(trimmed ? trimmed : undefined);
           return;
         }
-        if (event.textInputAction === "cancel") {
+        if (routed.route.textEntryIntent?.kind === "cancel") {
           const resolver = modal.resolve;
           setModal(null);
           resolver(undefined);
           return;
         }
-        if (event.textInputAction === "deleteBackward") {
+        if (routed.route.textEntryIntent?.kind === "deleteBackward") {
           setModal((current) =>
             current?.kind === "text" ? { ...current, value: [...current.value].slice(0, -1).join("") } : current,
           );
           return;
         }
-        if (event.printable) {
+        if (routed.route.textEntryIntent?.kind === "append") {
+          const appendText = routed.route.textEntryIntent.text;
           setModal((current) =>
-            current?.kind === "text" ? { ...current, value: current.value + event.printable } : current,
+            current?.kind === "text" ? { ...current, value: current.value + appendText } : current,
           );
         }
         return;
       }
 
-      const modalNavigationAction = modalNavigation.action;
-
       if (modal.kind === "command") {
+        const routed = routeTerminalInteractionContext(
+          event,
+          createTerminalCommandPaletteInteractionContext(pageSize),
+          routerStateRef.current,
+        );
+        routerStateRef.current = routed.state;
         const filteredEntries = filterCommandPaletteEntries(modal.options.entries, modal.filterText);
         const clampedSelectedIndex = clampPromptSelectionIndex(modal.selectedIndex, filteredEntries.length);
 
-        if (event.textInputAction === "deleteBackward") {
+        if (routed.route.textEntryIntent?.kind === "deleteBackward") {
           if (modal.filterText.length === 0) {
             const resolver = modal.resolve;
             setModal(null);
@@ -2120,28 +2128,30 @@ function DerivedTagTerminalModalHost({
           );
           return;
         }
-        if (event.printable) {
+        if (routed.route.textEntryIntent?.kind === "append") {
+          const appendText = routed.route.textEntryIntent.text;
           setModal((current) =>
             current?.kind === "command"
               ? {
-                  ...current,
-                  filterText: current.filterText + event.printable,
-                  selectedIndex: getFirstEnabledCommandIndex(
-                    filterCommandPaletteEntries(current.options.entries, current.filterText + event.printable),
-                  ),
-                }
+                ...current,
+                filterText: current.filterText + appendText,
+                selectedIndex: getFirstEnabledCommandIndex(
+                  filterCommandPaletteEntries(current.options.entries, current.filterText + appendText),
+                ),
+              }
               : current,
           );
           return;
         }
-        if (modalNavigationAction?.kind === "move") {
+        if (routed.route.navigationAction?.kind === "move") {
+          const delta = routed.route.navigationAction.delta;
           setModal((current) =>
             current?.kind === "command"
               ? {
                   ...current,
                   selectedIndex: moveSelectionWrapped(
                     clampedSelectedIndex,
-                    modalNavigationAction.delta,
+                    delta,
                     filteredEntries.length,
                   ),
                 }
@@ -2149,19 +2159,19 @@ function DerivedTagTerminalModalHost({
           );
           return;
         }
-        if (modalNavigationAction?.kind === "boundary") {
+        if (routed.route.navigationAction?.kind === "boundary") {
+          const boundary = routed.route.navigationAction.boundary;
           setModal((current) =>
             current?.kind === "command"
               ? {
                   ...current,
-                  selectedIndex:
-                    modalNavigationAction.boundary === "start" ? 0 : Math.max(0, filteredEntries.length - 1),
+                  selectedIndex: boundary === "start" ? 0 : Math.max(0, filteredEntries.length - 1),
                 }
               : current,
           );
           return;
         }
-        if (selectLikeAction?.id === "select") {
+        if (routed.route.interactionAction?.id === "select") {
           const selectedEntry = filteredEntries[clampedSelectedIndex];
           if (selectedEntry?.disabled) {
             return;
@@ -2172,7 +2182,7 @@ function DerivedTagTerminalModalHost({
           resolver(selected);
           return;
         }
-        if (selectLikeAction?.id === "back" || event.isTerminalQuitKey()) {
+        if (routed.route.interactionAction?.id === "back" || event.isTerminalQuitKey()) {
           const resolver = modal.resolve;
           setModal(null);
           resolver(undefined);
@@ -2207,14 +2217,24 @@ function DerivedTagTerminalModalHost({
         return;
       }
 
-      if (modalNavigationAction?.kind === "move") {
+      const choiceContext =
+        modal.kind === "multiselect"
+          ? createTerminalMultiSelectPromptInteractionContext(pageSize)
+          : modal.kind === "policy"
+            ? createTerminalPolicyPromptInteractionContext(pageSize)
+            : createTerminalSelectPromptInteractionContext(pageSize);
+      const routed = routeTerminalInteractionContext(event, choiceContext, routerStateRef.current);
+      routerStateRef.current = routed.state;
+
+      if (routed.route.navigationAction?.kind === "move") {
+        const delta = routed.route.navigationAction.delta;
         setModal((current) =>
           current && (current.kind === "select" || current.kind === "multiselect" || current.kind === "policy")
             ? {
                 ...current,
                 selectedIndex: moveSelectionWrapped(
                   current.selectedIndex,
-                  modalNavigationAction.delta,
+                  delta,
                   current.options.entries.length,
                 ),
               }
@@ -2222,19 +2242,19 @@ function DerivedTagTerminalModalHost({
         );
         return;
       }
-      if (modalNavigationAction?.kind === "boundary") {
+      if (routed.route.navigationAction?.kind === "boundary") {
+        const boundary = routed.route.navigationAction.boundary;
         setModal((current) =>
           current && (current.kind === "select" || current.kind === "multiselect" || current.kind === "policy")
             ? {
                 ...current,
-                selectedIndex:
-                  modalNavigationAction.boundary === "start" ? 0 : Math.max(0, current.options.entries.length - 1),
+                selectedIndex: boundary === "start" ? 0 : Math.max(0, current.options.entries.length - 1),
               }
             : current,
         );
         return;
       }
-      if (modal.kind === "multiselect" && multiSelectLikeAction?.id === "toggle") {
+      if (modal.kind === "multiselect" && routed.route.interactionAction?.id === "toggle") {
         const selected = modal.options.entries[modal.selectedIndex]?.value;
         if (!selected) {
           return;
@@ -2251,7 +2271,7 @@ function DerivedTagTerminalModalHost({
         );
         return;
       }
-      if (modal.kind === "select" && selectLikeAction?.id === "select") {
+      if (modal.kind === "select" && routed.route.interactionAction?.id === "select") {
         const resolver = modal.resolve;
         const selected = modal.options.entries[modal.selectedIndex];
         setModal(null);
@@ -2262,16 +2282,14 @@ function DerivedTagTerminalModalHost({
         resolver(selected.kind === "all" ? { kind: "all" } : { kind: "selected", value: selected.value });
         return;
       }
-      if (modal.kind === "multiselect" && multiSelectLikeAction?.id === "return") {
+      if (modal.kind === "multiselect" && routed.route.interactionAction?.id === "return") {
         const resolver = modal.resolve;
         const selectedValues = modal.selectedValues;
         setModal(null);
         resolver(selectedValues);
         return;
       }
-      const cycleDirection = getTerminalInteractionCycleDirection(event, policyLikeAction);
-
-      if (modal.kind === "policy" && cycleDirection) {
+      if (modal.kind === "policy" && routed.route.cycleDirection) {
         const selected = modal.options.entries[modal.selectedIndex]?.value;
         if (!selected) {
           return;
@@ -2285,7 +2303,7 @@ function DerivedTagTerminalModalHost({
                   [selected]: cyclePolicyState(
                     current.valueStates[selected],
                     current.options.allowedStates,
-                    cycleDirection,
+                    routed.route.cycleDirection,
                   ),
                 },
               }
@@ -2293,20 +2311,14 @@ function DerivedTagTerminalModalHost({
         );
         return;
       }
-      if (
-        modal.kind === "policy" &&
-        (policyLikeAction?.id === "return" || event.isTerminalQuitKey())
-      ) {
+      if (modal.kind === "policy" && (routed.route.interactionAction?.id === "return" || event.isTerminalQuitKey())) {
         const resolver = modal.resolve;
         const selection = buildPolicySelection(modal.options.entries, modal.valueStates);
         setModal(null);
         resolver(selection);
         return;
       }
-      if (
-        modal.kind === "select" &&
-        (selectLikeAction?.id === "back" || event.isTerminalQuitKey())
-      ) {
+      if (modal.kind === "select" && (routed.route.interactionAction?.id === "back" || event.isTerminalQuitKey())) {
         const resolver = modal.resolve;
         setModal(null);
         resolver({ kind: "cancelled" });

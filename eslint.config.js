@@ -335,8 +335,49 @@ export default defineConfig(
     },
   },
   {
+    files: ["src/tui/ontology-explorer/interactions.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "../terminal-ui.js",
+              importNames: [
+                "createDerivedTagTerminalListNavigationState",
+                "resolveDerivedTagTerminalListNavigationAction",
+                "useDerivedTagTerminalInput",
+              ],
+              message:
+                "Ontology interaction routers must use the shared interaction-context router instead of raw list-navigation or input primitives.",
+            },
+            {
+              name: "../interaction-bindings.js",
+              importNames: ["resolveTerminalInteractionAction", "resolveTerminalTextEntryIntent"],
+              message:
+                "Ontology interaction routers must use the shared interaction-context router instead of resolving raw interaction or text-entry intents directly.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ["src/tui/terminal-ui.tsx"],
     rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "./interaction-bindings.js",
+              importNames: ["getTerminalInteractionCycleDirection", "resolveTerminalInteractionAction"],
+              message:
+                "Terminal modal routing must go through the shared interaction-context router and prompt-context adapters instead of resolving raw actions directly.",
+            },
+          ],
+        },
+      ],
       "no-restricted-syntax": [
         "error",
         {
@@ -348,6 +389,101 @@ export default defineConfig(
           selector: 'Literal[value="Esc/backspace/left/q cancel"]',
           message:
             "Do not hardcode prompt cancel footer bindings in terminal-ui. Derive prompt footer text from shared interaction helpers or exported footer constants instead.",
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/tui/search-screen-controller.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: 'CallExpression[callee.type="MemberExpression"][callee.property.name="showDialog"]',
+          message:
+            "Search help dialogs must go through showTerminalReturnDialog instead of calling showDialog directly.",
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/tui/search-screen-session-workflow.ts", "src/tui/search-screen-workspace-actions.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            'CallExpression[callee.type="MemberExpression"][callee.object.name="terminal"][callee.property.name="promptCommandPalette"]',
+          message:
+            "Search workflows must use the shared prompt adapter boundary instead of calling terminal prompt APIs directly.",
+        },
+        {
+          selector:
+            'CallExpression[callee.type="MemberExpression"][callee.object.name="terminal"][callee.property.name="promptOptionalSelectOption"]',
+          message:
+            "Search workflows must use the shared prompt adapter boundary instead of calling terminal prompt APIs directly.",
+        },
+        {
+          selector:
+            'CallExpression[callee.type="MemberExpression"][callee.object.name="terminal"][callee.property.name="promptPolicySelectOption"]',
+          message:
+            "Search workflows must use the shared prompt adapter boundary instead of calling terminal prompt APIs directly.",
+        },
+        {
+          selector:
+            'CallExpression[callee.type="MemberExpression"][callee.object.name="terminal"][callee.property.name="promptMultiSelectOption"]',
+          message:
+            "Search workflows must use the shared prompt adapter boundary instead of calling terminal prompt APIs directly.",
+        },
+        {
+          selector:
+            'CallExpression[callee.type="MemberExpression"][callee.object.name="terminal"][callee.property.name="promptSelectOption"]',
+          message:
+            "Search workflows must use the shared prompt adapter boundary instead of calling terminal prompt APIs directly.",
+        },
+        {
+          selector:
+            'CallExpression[callee.type="MemberExpression"][callee.object.name="terminal"][callee.property.name="promptTextInput"]',
+          message:
+            "Search workflows must use the shared prompt adapter boundary instead of calling terminal prompt APIs directly.",
+        },
+        {
+          selector:
+            'CallExpression[callee.type="MemberExpression"][callee.object.name="terminal"][callee.property.name="showDialog"]',
+          message:
+            "Search workflows must use the shared prompt adapter boundary instead of calling terminal.showDialog directly.",
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/tui/ontology-explorer/screen.tsx", "src/tui/ontology-explorer/picker-screen.tsx"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "../terminal-ui.js",
+              importNames: ["useDerivedTagTerminalApp"],
+              message:
+                "Ontology screens must use the shared prompt adapter hook instead of reaching directly into the terminal app for prompts or dialogs.",
+            },
+            {
+              name: "../interaction-bindings.js",
+              importNames: ["TERMINAL_DIALOG_RETURN_FOOTER"],
+              message:
+                "Ontology screens must use the shared return-dialog helper instead of composing the return footer locally.",
+            },
+          ],
+        },
+      ],
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: 'CallExpression[callee.type="MemberExpression"][callee.property.name="showDialog"]',
+          message:
+            "Ontology screens must use showTerminalReturnDialog instead of calling showDialog directly.",
         },
       ],
     },
@@ -505,9 +641,9 @@ export default defineConfig(
             },
             {
               name: "./interaction-bindings.js",
-              importNames: ["resolveTerminalInteractionAction"],
+              importNames: ["TERMINAL_DIALOG_RETURN_FOOTER", "resolveTerminalInteractionAction"],
               message:
-                "Search screen controllers must use the shared search interaction router instead of resolving raw interaction actions directly.",
+                "Search screen controllers must use shared search interaction and help-dialog helpers instead of resolving raw interaction actions or composing return footers directly.",
             },
             {
               name: "./search-screen-model.js",
@@ -529,6 +665,71 @@ export default defineConfig(
                 "Search screen controllers must use shared result-window/session workflow modules instead of orchestrating buffer windows or session reads directly.",
             },
           ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/tui/search-screen-interactions.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "./terminal-ui.js",
+              importNames: [
+                "createDerivedTagTerminalListNavigationState",
+                "resolveDerivedTagTerminalListNavigationAction",
+                "useDerivedTagTerminalInput",
+              ],
+              message:
+                "Search interaction routers must use the shared interaction-context router instead of raw list-navigation or input primitives.",
+            },
+            {
+              name: "./interaction-bindings.js",
+              importNames: ["resolveTerminalInteractionAction"],
+              message:
+                "Search interaction routers must use the shared interaction-context router instead of resolving raw interaction actions directly.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/tui/shared-screens.tsx"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "./terminal-ui.js",
+              importNames: [
+                "createDerivedTagTerminalListNavigationState",
+                "resolveDerivedTagTerminalListNavigationAction",
+                "useDerivedTagTerminalApp",
+                "useDerivedTagTerminalInput",
+              ],
+              message:
+                "Shared screen primitives must use the shared interaction-context router and prompt adapter hook instead of owning raw list-navigation, input routing, or direct dialog access.",
+            },
+            {
+              name: "./interaction-bindings.js",
+              importNames: ["TERMINAL_DIALOG_RETURN_FOOTER", "resolveTerminalInteractionAction"],
+              message:
+                "Shared screen primitives must use shared interaction and return-dialog helpers instead of resolving raw interaction actions or composing dialog footers directly.",
+            },
+          ],
+        },
+      ],
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: 'CallExpression[callee.type="MemberExpression"][callee.property.name="showDialog"]',
+          message:
+            "Shared screens must use showTerminalReturnDialog instead of calling showDialog directly.",
         },
       ],
     },

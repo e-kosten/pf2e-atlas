@@ -1,19 +1,16 @@
-import React from "react";
-
 import {
-  createDerivedTagTerminalListNavigationState,
-  resolveDerivedTagTerminalListNavigationAction,
-  useDerivedTagTerminalInput,
   type DerivedTagTerminalInputEvent,
   type DerivedTagTerminalListNavigationAction,
-  type DerivedTagTerminalListNavigationState,
 } from "../terminal-ui.js";
+import type { TerminalInteractionAction, TerminalTextEntryIntent } from "../interaction-bindings.js";
 import {
-  resolveTerminalInteractionAction,
-  resolveTerminalTextEntryIntent,
-  type TerminalInteractionAction,
-  type TerminalTextEntryIntent,
-} from "../interaction-bindings.js";
+  createTerminalDetailInteractionContext,
+  createTerminalInteractionContextRouterState,
+  createTerminalListInteractionContext,
+  createTerminalTextEntryInteractionContext,
+  routeTerminalInteractionContexts,
+  useTerminalInteractionContextRouter,
+} from "../interaction-context-router.js";
 
 export type OntologyExplorerInteractionContext = {
   searchMode: boolean;
@@ -34,14 +31,12 @@ export type OntologyExplorerInteractionRoute = {
 };
 
 export type OntologyExplorerInteractionRouterState = {
-  listNavigation: DerivedTagTerminalListNavigationState;
-  detailNavigation: DerivedTagTerminalListNavigationState;
+  router: ReturnType<typeof createTerminalInteractionContextRouterState<"list" | "detail" | "textEntry">>;
 };
 
 export function createOntologyExplorerInteractionRouterState(): OntologyExplorerInteractionRouterState {
   return {
-    listNavigation: createDerivedTagTerminalListNavigationState(),
-    detailNavigation: createDerivedTagTerminalListNavigationState(),
+    router: createTerminalInteractionContextRouterState(),
   };
 }
 
@@ -53,39 +48,42 @@ export function routeOntologyExplorerInteraction(
   route: OntologyExplorerInteractionRoute;
   state: OntologyExplorerInteractionRouterState;
 } {
-  const listNavigation = resolveDerivedTagTerminalListNavigationAction(
+  const routed = routeTerminalInteractionContexts(
     event,
-    {
-      pageSize: context.detailPageSize,
-      jumpSize: context.selectionJumpSize,
-      includeConfirmKeys: true,
-      includeHorizontalConfirmKeys: true,
-    },
-    state.listNavigation,
-  );
-  const detailNavigation = resolveDerivedTagTerminalListNavigationAction(
-    event,
-    {
-      pageSize: context.detailPageSize,
-      jumpSize: context.detailJumpSize,
-      includeCancelKeys: true,
-      includeHorizontalCancelKeys: true,
-    },
-    state.detailNavigation,
+    [
+      createTerminalListInteractionContext("list", {
+        interactionActions: context.interactionActions,
+        pageSize: context.detailPageSize,
+        jumpSize: context.selectionJumpSize,
+        includeConfirmKeys: true,
+        includeHorizontalConfirmKeys: true,
+      }),
+      createTerminalDetailInteractionContext("detail", {
+        interactionActions: context.interactionActions,
+        pageSize: context.detailPageSize,
+        jumpSize: context.detailJumpSize,
+        includeCancelKeys: true,
+        includeHorizontalCancelKeys: true,
+      }),
+      createTerminalTextEntryInteractionContext("textEntry", [{ id: "cancel" }]),
+    ],
+    state.router,
   );
 
   return {
     route: {
       event,
-      interactionAction: resolveTerminalInteractionAction(event, context.interactionActions),
-      searchModeAction: resolveTerminalInteractionAction(event, [{ id: "cancel" }]),
-      textEntryIntent: resolveTerminalTextEntryIntent(event),
-      listNavigationAction: listNavigation.action,
-      detailNavigationAction: detailNavigation.action,
+      interactionAction:
+        context.activePane === "detail"
+          ? routed.routes.detail.interactionAction
+          : routed.routes.list.interactionAction,
+      searchModeAction: routed.routes.textEntry.interactionAction,
+      textEntryIntent: routed.routes.textEntry.textEntryIntent,
+      listNavigationAction: routed.routes.list.navigationAction,
+      detailNavigationAction: routed.routes.detail.navigationAction,
     },
     state: {
-      listNavigation: listNavigation.state,
-      detailNavigation: detailNavigation.state,
+      router: routed.state,
     },
   };
 }
@@ -95,14 +93,35 @@ export function useOntologyExplorerInteractionRouter(options: {
   context: OntologyExplorerInteractionContext;
   onRoute: (route: OntologyExplorerInteractionRoute) => void;
 }): void {
-  const stateRef = React.useRef(createOntologyExplorerInteractionRouterState());
-
-  useDerivedTagTerminalInput(
-    (event) => {
-      const routed = routeOntologyExplorerInteraction(event, options.context, stateRef.current);
-      stateRef.current = routed.state;
-      options.onRoute(routed.route);
+  useTerminalInteractionContextRouter({
+    enabled: options.enabled,
+    contexts: [
+      createTerminalListInteractionContext("list", {
+        interactionActions: options.context.interactionActions,
+        pageSize: options.context.detailPageSize,
+        jumpSize: options.context.selectionJumpSize,
+        includeConfirmKeys: true,
+        includeHorizontalConfirmKeys: true,
+      }),
+      createTerminalDetailInteractionContext("detail", {
+        interactionActions: options.context.interactionActions,
+        pageSize: options.context.detailPageSize,
+        jumpSize: options.context.detailJumpSize,
+        includeCancelKeys: true,
+        includeHorizontalCancelKeys: true,
+      }),
+      createTerminalTextEntryInteractionContext("textEntry", [{ id: "cancel" }]),
+    ],
+    onRoute: (routes) => {
+      options.onRoute({
+        event: routes.textEntry.event,
+        interactionAction:
+          options.context.activePane === "detail" ? routes.detail.interactionAction : routes.list.interactionAction,
+        searchModeAction: routes.textEntry.interactionAction,
+        textEntryIntent: routes.textEntry.textEntryIntent,
+        listNavigationAction: routes.list.navigationAction,
+        detailNavigationAction: routes.detail.navigationAction,
+      });
     },
-    options.enabled,
-  );
+  });
 }

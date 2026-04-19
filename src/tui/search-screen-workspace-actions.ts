@@ -1,6 +1,7 @@
 import React from "react";
 
 import type { Pf2eTerminalAppServices } from "./app-services.js";
+import type { SearchTerminalPromptAdapters } from "./interaction-context-adapters.js";
 import type { SearchScreenAction, SearchScreenState } from "./search-screen-state.js";
 import type { Pf2eTerminalSearchRequest } from "./search-service.js";
 import type { SearchScreenOrigin } from "./search-workflow-types.js";
@@ -24,6 +25,7 @@ export function useSearchWorkspaceActions({
   maxDetailScroll,
   onOpenFacetPicker,
   origin,
+  prompts,
   resultCount,
   selectedWorkspaceEntry,
   showSearchHelp,
@@ -41,21 +43,20 @@ export function useSearchWorkspaceActions({
   maxDetailScroll: number;
   onOpenFacetPicker: () => Promise<void>;
   origin: SearchScreenOrigin;
-  resultCount: number;
-  selectedWorkspaceEntry?: SearchWorkspaceEntry;
-  showSearchHelp: () => void;
-  state: SearchScreenState;
-  terminal: Pick<
-    DerivedTagTerminalApp,
-    | "pauseForAnyKey"
+  prompts: Pick<
+    SearchTerminalPromptAdapters,
     | "promptCommandPalette"
     | "promptMultiSelectOption"
     | "promptOptionalSelectOption"
     | "promptPolicySelectOption"
     | "promptSelectOption"
     | "promptTextInput"
-    | "showDialog"
   >;
+  resultCount: number;
+  selectedWorkspaceEntry?: SearchWorkspaceEntry;
+  showSearchHelp: () => void;
+  state: SearchScreenState;
+  terminal: Pick<DerivedTagTerminalApp, "pauseForAnyKey">;
   user: Pick<Pf2eTerminalAppServices["user"], "search">;
   workspaceEntries: SearchWorkspaceEntry[];
   chooseResultSort: () => Promise<void>;
@@ -63,7 +64,7 @@ export function useSearchWorkspaceActions({
   handleIntent: (intent: import("./search-screen-model.js").SearchScreenIntent) => void;
 } {
   const editQueryText = React.useCallback(async () => {
-    const queryText = await terminal.promptTextInput({
+    const queryText = await prompts.promptTextInput({
       title: "Query Text",
       prompt:
         state.draft.mode === "lookup"
@@ -81,10 +82,10 @@ export function useSearchWorkspaceActions({
       ...request,
       queryText,
     }));
-  }, [applyDraftUpdate, state.draft.mode, state.draft.queryText, terminal]);
+  }, [applyDraftUpdate, prompts, state.draft.mode, state.draft.queryText]);
 
   const chooseMode = React.useCallback(async () => {
-    const result = await terminal.promptSelectOption({
+    const result = await prompts.promptSelectOption({
       title: "Workspace Mode",
       prompt: "Choose how the current query setup should execute",
       entries: user.search.getModeOptions().map((option) => ({
@@ -103,10 +104,10 @@ export function useSearchWorkspaceActions({
       ...request,
       mode: result.value,
     }));
-  }, [applyDraftUpdate, state.draft.mode, terminal, user.search]);
+  }, [applyDraftUpdate, prompts, state.draft.mode, user.search]);
 
   const chooseSearchProfile = React.useCallback(async () => {
-    const result = await terminal.promptSelectOption({
+    const result = await prompts.promptSelectOption({
       title: "Search Profile",
       prompt: "Choose the current profile for ranked search mode",
       entries: user.search.getProfileOptions().map((option) => ({
@@ -123,11 +124,11 @@ export function useSearchWorkspaceActions({
         searchProfile: result.value,
       }));
     }
-  }, [applyDraftUpdate, state.draft.searchProfile, terminal, user.search]);
+  }, [applyDraftUpdate, prompts, state.draft.searchProfile, user.search]);
 
   const chooseCategoryFilter = React.useCallback(async () => {
     const [allCategoryOption, ...categoryEntries] = user.search.getCategoryOptions();
-    const result = await terminal.promptOptionalSelectOption({
+    const result = await prompts.promptOptionalSelectOption({
       title: "Category Scope",
       prompt: "Choose the current category boundary",
       allOption: {
@@ -154,7 +155,7 @@ export function useSearchWorkspaceActions({
         subcategory: null,
       },
     }));
-  }, [applyDraftUpdate, state.draft.filters.category, terminal, user.search]);
+  }, [applyDraftUpdate, prompts, state.draft.filters.category, user.search]);
 
   const chooseSubcategoryFilter = React.useCallback(async () => {
     if (!state.draft.filters.category) {
@@ -165,7 +166,7 @@ export function useSearchWorkspaceActions({
     const [allSubcategoryOption, ...subcategoryEntries] = user.search.getSubcategoryOptions(
       state.draft.filters.category,
     );
-    const result = await terminal.promptOptionalSelectOption({
+    const result = await prompts.promptOptionalSelectOption({
       title: "Subcategory Scope",
       prompt: "Choose the current subcategory boundary",
       allOption: {
@@ -191,11 +192,11 @@ export function useSearchWorkspaceActions({
         subcategory: result.kind === "all" ? null : result.value,
       },
     }));
-  }, [applyDraftUpdate, state.draft.filters.category, state.draft.filters.subcategory, terminal, user.search]);
+  }, [applyDraftUpdate, prompts, state.draft.filters.category, state.draft.filters.subcategory, terminal, user.search]);
 
   const chooseRarityFilter = React.useCallback(async () => {
     const options = user.search.getRarityOptions(state.draft.filters.category, state.draft.filters.subcategory);
-    const selected = await terminal.promptPolicySelectOption({
+    const selected = await prompts.promptPolicySelectOption({
       title: "Rarity Filter",
       prompt: "Cycle rarities through include and exclude. Press Esc or Left when finished.",
       allowedStates: ["any", "exclude"],
@@ -220,15 +221,15 @@ export function useSearchWorkspaceActions({
     }));
   }, [
     applyDraftUpdate,
+    prompts,
     state.draft.filters.category,
     state.draft.filters.rarity,
     state.draft.filters.subcategory,
-    terminal,
     user.search,
   ]);
 
   const editLevelRange = React.useCallback(async () => {
-    const input = await terminal.promptTextInput({
+    const input = await prompts.promptTextInput({
       title: "Level Range",
       prompt: "Enter `3-8`, `5`, `5+`, or `<=10`. Leave blank to clear.",
       defaultValue:
@@ -256,7 +257,7 @@ export function useSearchWorkspaceActions({
         levelMax: parsed.levelMax,
       },
     }));
-  }, [applyDraftUpdate, state.draft, terminal]);
+  }, [applyDraftUpdate, prompts, state.draft, terminal]);
 
   const removeFacetFilter = React.useCallback(async () => {
     if (
@@ -269,7 +270,7 @@ export function useSearchWorkspaceActions({
       return;
     }
 
-    const selected = await terminal.promptMultiSelectOption({
+    const selected = await prompts.promptMultiSelectOption({
       title: "Clear Facet Filter",
       prompt: "Toggle facet fields to clear. Press Esc or Left when finished.",
       entries: buildFacetRemovalEntries(state.draft.filters.facets, state.draft.filters.actionCost),
@@ -283,7 +284,7 @@ export function useSearchWorkspaceActions({
         facets: request.filters.facets.filter((facet) => !selected.includes(facet.field)),
       },
     }));
-  }, [applyDraftUpdate, state.draft.filters.actionCost, state.draft.filters.facets, terminal]);
+  }, [applyDraftUpdate, prompts, state.draft.filters.actionCost, state.draft.filters.facets, terminal]);
 
   const resetDraftWorkspace = React.useCallback(() => {
     const defaultRequest = user.search.createDefaultRequest();
@@ -363,7 +364,7 @@ export function useSearchWorkspaceActions({
   }, [runWorkspaceAction, selectedWorkspaceEntry]);
 
   const openDraftCommandPalette = React.useCallback(async () => {
-    const selected = await terminal.promptCommandPalette({
+    const selected = await prompts.promptCommandPalette({
       title: "Search Setup Commands",
       prompt: "Filter setup commands",
       entries: buildDraftCommandPaletteEntries(workspaceEntries),
@@ -375,10 +376,10 @@ export function useSearchWorkspaceActions({
       return;
     }
     runWorkspaceAction(selected);
-  }, [runWorkspaceAction, terminal, workspaceEntries]);
+  }, [prompts, runWorkspaceAction, workspaceEntries]);
 
   const openResultCommandPalette = React.useCallback(async () => {
-    const selected = await terminal.promptCommandPalette({
+    const selected = await prompts.promptCommandPalette({
       title: "Result Commands",
       prompt: "Filter result commands",
       entries: buildResultCommandPaletteEntries(state, origin),
@@ -394,7 +395,7 @@ export function useSearchWorkspaceActions({
     if (selected === "openSetup") {
       dispatch({ type: "set_layout", layout: "draft", pane: "list" });
     }
-  }, [chooseResultSort, dispatch, jumpToResultPosition, origin, state, terminal]);
+  }, [chooseResultSort, dispatch, jumpToResultPosition, origin, prompts, state]);
 
   const handleIntent = React.useCallback(
     (intent: import("./search-screen-model.js").SearchScreenIntent) => {

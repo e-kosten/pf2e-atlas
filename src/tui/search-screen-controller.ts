@@ -2,7 +2,7 @@ import React from "react";
 
 import type { OntologyNodeQuery } from "../types.js";
 import { usePf2eTerminalAppServices } from "./app-service-context.js";
-import { TERMINAL_DIALOG_RETURN_FOOTER } from "./interaction-bindings.js";
+import { showTerminalReturnDialog, useTerminalInteractionContextAdapters } from "./interaction-context-adapters.js";
 import type { OntologyPickerSelectionMap } from "./ontology-explorer/picker-screen.js";
 import {
   SEARCH_LEFT_WIDTH,
@@ -55,6 +55,7 @@ export function useSearchScreenController({
   onBack: () => void;
 }): SearchScreenControllerResult {
   const terminal = useDerivedTagTerminalApp();
+  const prompts = useTerminalInteractionContextAdapters();
   const { user } = usePf2eTerminalAppServices();
   const size = useDerivedTagTerminalSize();
   const initialRequest = React.useMemo(
@@ -109,6 +110,7 @@ export function useSearchScreenController({
     initialRequest,
     onExit: onBack,
     preloadThreshold,
+    prompts,
     resultSelectedIndex: clampAbsoluteSelection(state.resultSelectedIndex, state.session?.total ?? 0),
     resultWindowLimit,
     state,
@@ -125,12 +127,12 @@ export function useSearchScreenController({
   const resultSelectedIndex = clampAbsoluteSelection(state.resultSelectedIndex, resultCount);
 
   const showSearchHelp = React.useCallback(() => {
-    void terminal.showDialog({
-      title: state.layout === "draft" ? "Search Setup Help" : "Search Results Help",
-      body: buildSearchHelpLines(state, workspaceEntries, origin),
-      footer: [{ text: TERMINAL_DIALOG_RETURN_FOOTER, tone: "dim" }],
-    });
-  }, [origin, state, terminal, workspaceEntries]);
+    void showTerminalReturnDialog(
+      prompts,
+      state.layout === "draft" ? "Search Setup Help" : "Search Results Help",
+      buildSearchHelpLines(state, workspaceEntries, origin),
+    );
+  }, [origin, prompts, state, workspaceEntries]);
 
   const detailWidth = getTerminalTwoPaneDetailWidth(size.width, "split", SEARCH_LEFT_WIDTH);
   const detailLines =
@@ -170,6 +172,7 @@ export function useSearchScreenController({
     showSearchHelp,
     state,
     terminal,
+    prompts,
     user,
     workspaceEntries,
     chooseResultSort,

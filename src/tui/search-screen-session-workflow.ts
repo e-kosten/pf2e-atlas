@@ -2,6 +2,7 @@ import React from "react";
 
 import type { OntologyNodeQuery } from "../types.js";
 import type { Pf2eTerminalAppServices } from "./app-services.js";
+import type { SearchTerminalPromptAdapters } from "./interaction-context-adapters.js";
 import type { SearchCountState, SearchScreenAction, SearchScreenState } from "./search-screen-state.js";
 import type { Pf2eTerminalSearchRequest, Pf2eTerminalSearchSession } from "./search-service.js";
 import type { DerivedTagTerminalApp } from "./terminal-ui.js";
@@ -22,6 +23,7 @@ export function useSearchSessionWorkflow({
   initialRequest,
   onExit,
   preloadThreshold,
+  prompts,
   resultSelectedIndex,
   resultWindowLimit,
   state,
@@ -34,10 +36,11 @@ export function useSearchSessionWorkflow({
   initialRequest: Pf2eTerminalSearchRequest;
   onExit: () => void;
   preloadThreshold: number;
+  prompts: Pick<SearchTerminalPromptAdapters, "promptSelectOption" | "promptTextInput">;
   resultSelectedIndex: number;
   resultWindowLimit: number;
   state: SearchScreenState;
-  terminal: Pick<DerivedTagTerminalApp, "pauseForAnyKey" | "promptSelectOption" | "promptTextInput">;
+  terminal: Pick<DerivedTagTerminalApp, "pauseForAnyKey">;
   user: Pick<Pf2eTerminalAppServices["user"], "search">;
 }): {
   busy: boolean;
@@ -119,7 +122,7 @@ export function useSearchSessionWorkflow({
       return;
     }
 
-    const result = await terminal.promptSelectOption({
+    const result = await prompts.promptSelectOption({
       title: "Result Sort",
       prompt: "Choose how the current result reader should be ordered",
       entries: user.search.getResultSortOptions(state.session.request.mode).map((option) => ({
@@ -143,14 +146,14 @@ export function useSearchSessionWorkflow({
     } finally {
       setBusy(false);
     }
-  }, [dispatch, state.session, terminal, user.search]);
+  }, [dispatch, prompts, state.session, terminal, user.search]);
 
   const jumpToResultPosition = React.useCallback(async () => {
     if (!state.session || state.session.total <= 0) {
       return;
     }
 
-    const input = await terminal.promptTextInput({
+    const input = await prompts.promptTextInput({
       title: "Jump To Result",
       prompt: `Enter a result number between 1 and ${state.session.total}.`,
       hint: `Current: ${clampedResultSelectedIndex + 1}  Example: 6000`,
@@ -171,7 +174,7 @@ export function useSearchSessionWorkflow({
       index: parsed,
       itemCount: state.session.total,
     });
-  }, [clampedResultSelectedIndex, dispatch, state.session, terminal]);
+  }, [clampedResultSelectedIndex, dispatch, prompts, state.session, terminal]);
 
   React.useEffect(() => {
     if (!autoExecuteInitialQuery || !initialQuery || autoRanInitialQuery.current) {
