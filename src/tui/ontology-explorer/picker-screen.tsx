@@ -239,7 +239,7 @@ export function OntologyPickerScreen({
     },
     onAction: (action, keyContext) => {
       if (action.id === "help") {
-        void showTerminalReturnDialog(adapters, "Facet Picker Help", buildFacetPickerHelpLines(keyContext));
+        void showTerminalReturnDialog(adapters, "Selection Picker Help", buildFacetPickerHelpLines(keyContext));
         return true;
       }
       if (action.id !== "cycle" || !keyContext.currentNode?.selection) {

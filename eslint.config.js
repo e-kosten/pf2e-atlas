@@ -91,6 +91,31 @@ export default defineConfig(
     },
   },
   {
+    files: ["src/tui/search-screen*.{ts,tsx}"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: 'MemberExpression[property.name="getFacetFieldOptions"]',
+          message:
+            "Search editor surfaces must use shared query-field selection flows instead of the legacy facet-field API.",
+        },
+        {
+          selector: 'Literal[value="Edit Facet Filter"]',
+          message: "Search editor copy must route discoverable filtering through query parts, not facet rows.",
+        },
+        {
+          selector: 'Literal[value="Clear Facet Filter"]',
+          message: "Search editor copy must route discoverable filtering through query parts, not facet rows.",
+        },
+        {
+          selector: 'Literal[value="Facet Filters"]',
+          message: "Search editor copy must not expose legacy facet-filter group labels.",
+        },
+      ],
+    },
+  },
+  {
     files: ["src/tui/area-menu-screen.tsx", "src/tui/ontology-explorer/domain-picker-screen.tsx"],
     rules: {
       "no-restricted-imports": [

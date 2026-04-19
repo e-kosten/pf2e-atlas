@@ -355,30 +355,19 @@ function createFacetPickerOntologyDomain(): OntologyDomainModel {
                 },
                 children: [
                   {
-                    id: "spell:family:regional-setting",
-                    kind: "family",
-                    label: "regional_setting",
-                    filterText: "regional setting coastal setting",
-                    listLabel: "regional_setting | 1 tag",
-                    detailTitle: "Family Details",
-                    detailLines: [{ text: "regional_setting", tone: "section" }, { text: "Axis: environment" }],
+                    id: "spell:derivedTags:coastal_setting",
+                    kind: "tag",
+                    label: "coastal_setting",
+                    filterText: "coastal setting",
+                    listLabel: "coastal_setting",
+                    detailTitle: "Tag Details",
+                    detailLines: [
+                      { text: "coastal_setting", tone: "section" },
+                      { text: "Live canonical records: 1" },
+                    ],
                     groupValues: {
                       axis: "environment",
                     },
-                    children: [
-                      {
-                        id: "spell:derivedTags:coastal_setting",
-                        kind: "tag",
-                        label: "coastal_setting",
-                        filterText: "coastal setting",
-                        listLabel: "coastal_setting",
-                        detailTitle: "Tag Details",
-                        detailLines: [
-                          { text: "coastal_setting", tone: "section" },
-                          { text: "Live canonical records: 1" },
-                        ],
-                      },
-                    ],
                   },
                 ],
               },
@@ -425,10 +414,7 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Execute Query");
     expect(app.lastFrame()).not.toContain("Profile |");
     expect(app.lastFrame()).not.toContain("Action Cost |");
-    expect(app.lastFrame()).toContain("Add Query Clause | None yet | unavailable");
-
-    pressDown(app);
-    await flushInk();
+    expect(app.lastFrame()).toContain("Add Query Part | None yet");
     expect(app.lastFrame()).toContain("Mode");
     pressRight(app);
     await flushInk();
@@ -451,37 +437,6 @@ describe("search screen", () => {
     app.stdin.write("\r");
     await flushInk();
 
-    pressDown(app);
-    await flushInk();
-    expect(app.lastFrame()).toContain("Profile");
-    app.stdin.write("\r");
-    await flushInk();
-    expect(app.lastFrame()).toContain("Search Profile");
-    pressDown(app);
-    await flushInk();
-    app.stdin.write("\r");
-    await flushInk();
-
-    pressDown(app);
-    await flushInk();
-    expect(app.lastFrame()).toContain("Category");
-    app.stdin.write("\r");
-    await flushInk();
-    expect(app.lastFrame()).toContain("Category Scope");
-    pressDown(app);
-    await flushInk();
-    app.stdin.write("\r");
-    await flushInk();
-
-    pressUp(app);
-    await flushInk();
-    pressUp(app);
-    await flushInk();
-    pressUp(app);
-    await flushInk();
-    pressUp(app);
-    await flushInk();
-    expect(app.lastFrame()).toContain("Execute Query");
     app.stdin.write("\t");
     await flushInk();
     await flushInk();
@@ -489,14 +444,14 @@ describe("search screen", () => {
     expect(search).toHaveBeenCalledWith(
       expect.objectContaining({
         actionCost: undefined,
-        category: "spell",
+        category: undefined,
         levelMax: undefined,
         levelMin: undefined,
         metadata: undefined,
         offset: 0,
         query: "ghost",
         rarity: undefined,
-        searchProfile: "lexical",
+        searchProfile: "balanced",
         sort: "ranked",
         sortSeed: undefined,
         subcategory: undefined,
@@ -555,8 +510,6 @@ describe("search screen", () => {
       </DerivedTagTerminalProvider>,
     );
 
-    await flushInk();
-    pressDown(app);
     await flushInk();
 
     app.stdin.write("l");
@@ -621,7 +574,8 @@ describe("search screen", () => {
     await flushInk();
 
     expect(app.lastFrame()).toContain("[EDITOR] Query");
-    expect(app.lastFrame()).toContain("Subcategory | Any Subcategory | unavailable");
+    expect(app.lastFrame()).toContain("Add Query Part | None yet");
+    expect(app.lastFrame()).not.toContain("Subcategory |");
   });
 
   it("does not treat old page-specific letters as live editor commands", async () => {
@@ -643,14 +597,15 @@ describe("search screen", () => {
     expect(app.lastFrame()).not.toContain("Category Scope");
   });
 
-  it("uses space to open the selected editor item and carries facet edits back into the workspace", async () => {
+  it("uses space to open add-query-part and routes derived-tag clauses into the shared picker", async () => {
     const services = createServices();
-    services.user.search.getFacetFieldOptions = vi.fn(() => [
+    services.user.search.getQueryFieldOptions = vi.fn(() => [
       {
         value: "derivedTags",
         label: "Derived Tags",
-        description: "Derived-tag facet for the current browse scope.",
+        description: "Derived-tag query field for the current browse scope.",
         fieldType: "set",
+        editor: "ontologyPicker",
       },
     ]);
     services.user.ontology.loadDomain = vi.fn((id: string) => {
@@ -687,32 +642,30 @@ describe("search screen", () => {
     pressLeft(app);
     await flushInk();
 
-    for (let step = 0; step < 7; step += 1) {
+    for (let step = 0; step < 2; step += 1) {
       pressDown(app);
       await flushInk();
     }
-    expect(app.lastFrame()).toContain("Edit Facet Filter | 0 active");
+    expect(app.lastFrame()).toContain("Add Query Part | 1 active");
 
     app.stdin.write(" ");
     await flushInk();
-    expect(app.lastFrame()).toContain("Facet Picker");
+    expect(app.lastFrame()).toContain("Add Query Part");
+    for (const character of "clause") {
+      app.stdin.write(character);
+    }
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Query Field");
 
     app.stdin.write("\r");
     await flushInk();
-    expect(app.lastFrame()).toContain("Environment");
-
     app.stdin.write("\r");
     await flushInk();
-    app.stdin.write(" ");
-    await flushInk();
-    expect(app.lastFrame()).toContain("Current filters");
-    expect(app.lastFrame()).toContain("derivedTags: any=coastal_setting");
-
-    app.stdin.write("q");
-    await flushInk();
-
-    expect(app.lastFrame()).toContain("Edit Facet Filter | 1 active");
-    expect(app.lastFrame()).toContain("Derived Tags: any: Coastal Setting");
+    expect(app.lastFrame()).toContain("Derived Tags Query");
+    expect(app.lastFrame()).toContain("Selection Picker");
+    expect(app.lastFrame()).toContain("Focused: derivedTags");
   });
 
   it("loads the next result page through the window reader instead of rerunning the search", async () => {
@@ -859,6 +812,8 @@ describe("search screen", () => {
     pressLeft(app);
     await flushInk();
     app.stdin.write("G");
+    await flushInk();
+    pressUp(app);
     await flushInk();
     app.stdin.write("\r");
     await flushInk();
@@ -1492,7 +1447,8 @@ describe("search screen", () => {
     await flushInk();
 
     expect(app.lastFrame()).toContain("[EDITOR] Query");
-    expect(app.lastFrame()).toContain("Add Query Clause | 1 active");
+    expect(app.lastFrame()).toContain("Add Query Part | 2 active");
+    expect(app.lastFrame()).toContain("Scope | Spell");
     expect(app.lastFrame()).toContain("Query Clause | includes any Illusion");
     expect(app.lastFrame()).toContain("Seeded from: Browse illusion spells");
   });
@@ -1578,14 +1534,15 @@ describe("search screen", () => {
     });
   });
 
-  it("opens the shared ontology picker for derived-tag facet editing and preserves axis grouping", async () => {
+  it("opens the shared ontology picker for derived-tag query editing", async () => {
     const services = createServices();
-    services.user.search.getFacetFieldOptions = vi.fn(() => [
+    services.user.search.getQueryFieldOptions = vi.fn(() => [
       {
         value: "derivedTags",
         label: "Derived Tags",
-        description: "Derived-tag facet for the current browse scope.",
+        description: "Derived-tag query field for the current browse scope.",
         fieldType: "set",
+        editor: "ontologyPicker",
       },
     ]);
     services.user.ontology.loadDomain = vi.fn((id: string) => {
@@ -1622,28 +1579,27 @@ describe("search screen", () => {
     pressLeft(app);
     await flushInk();
 
-    expect(app.lastFrame()).toContain("Edit Facet Filter | 0 active");
-    for (let step = 0; step < 7; step += 1) {
+    expect(app.lastFrame()).toContain("Add Query Part | 1 active");
+    for (let step = 0; step < 2; step += 1) {
       pressDown(app);
       await flushInk();
     }
-    app.stdin.write(" ");
-    await flushInk();
-    expect(app.lastFrame()).toContain("Facet Picker");
-    expect(app.lastFrame()).toContain("Spell Facet Filters");
-
     app.stdin.write("\r");
     await flushInk();
-    expect(app.lastFrame()).toContain("Environment");
-
-    app.stdin.write("\r");
+    expect(app.lastFrame()).toContain("Add Query Part");
+    for (const character of "clause") {
+      app.stdin.write(character);
+    }
     await flushInk();
     app.stdin.write("\r");
     await flushInk();
-    app.stdin.write("q");
+    expect(app.lastFrame()).toContain("Query Field");
+    app.stdin.write("\r");
     await flushInk();
-
-    expect(app.lastFrame()).toContain("Edit Facet Filter | 1 active");
-    expect(app.lastFrame()).toContain("Derived Tags: any: Coastal Setting");
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Derived Tags Query");
+    expect(app.lastFrame()).toContain("Selection Picker");
+    expect(app.lastFrame()).toContain("Focused: derivedTags");
   });
 });

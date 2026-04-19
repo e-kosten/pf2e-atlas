@@ -118,10 +118,13 @@ export function buildSearchFacetPickerModel(
 
   return {
     id: "searchSemantics",
-    label: `${titleCaseLabel(options.category)} Facet Filters`,
+    label:
+      options.fieldOptions.length === 1
+        ? `${options.fieldOptions[0]!.label} Query`
+        : `${titleCaseLabel(options.category)} Query Fields`,
     description: options.subcategory
-      ? `Edit discoverable ${options.subcategory} facet filters with hierarchy-first browsing.`
-      : `Edit discoverable ${options.category} facet filters with hierarchy-first browsing.`,
+      ? `Edit discoverable ${options.subcategory} query fields with hierarchy-first browsing.`
+      : `Edit discoverable ${options.category} query fields with hierarchy-first browsing.`,
     rootNodes,
   };
 }

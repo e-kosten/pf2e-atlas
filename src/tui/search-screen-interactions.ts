@@ -15,8 +15,7 @@ import {
   formatCountSummary,
   formatQueryStatus,
   formatMode,
-  formatSearchCategory,
-  formatSearchSubcategory,
+  formatSearchScope,
 } from "./search-screen-workspace.js";
 import { buildResultCommandPaletteEntries } from "./search-screen-results.js";
 
@@ -252,7 +251,7 @@ export function buildSearchSubtitle(
   state: SearchScreenState,
   countState: import("./search-screen-state.js").SearchCountState,
 ): string {
-  const query = `${formatMode(state.query.mode)} | ${formatSearchCategory(state.query.filters.category)} / ${formatSearchSubcategory(state.query.filters.subcategory)}`;
+  const query = `${formatMode(state.query.mode)} | ${formatSearchScope(state.query.filters.category, state.query.filters.subcategory)}`;
   if (state.layout === "editor") {
     return `${query} | ${formatCountSummary(countState, state.query)} | ${formatQueryStatus(state)}`;
   }

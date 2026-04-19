@@ -13,10 +13,10 @@ export type SearchCountState = {
   message: string | null;
 };
 
-export type SearchFacetPickerSession = {
+export type SearchQueryFieldPickerSession = {
   model: OntologyDomainModel;
   initialSelections: OntologyPickerSelectionMap;
-  scopedFields: string[];
+  applySelection: (selection: OntologyPickerSelectionMap) => void;
 };
 
 export type SearchScreenState = {

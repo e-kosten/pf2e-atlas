@@ -392,7 +392,7 @@ export function buildFacetPickerScreenModel({
     return {
       kind: "detail-only",
       props: {
-        title: "Facet Picker",
+        title: "Selection Picker",
         subtitle: `${model.label} | ${controller.breadcrumb}${controller.searchIndicator}`,
         pane: {
           title: "[FOCUSED DETAIL] Detail",
@@ -420,7 +420,7 @@ export function buildFacetPickerScreenModel({
   return {
     kind: "two-pane",
     props: {
-      title: "Facet Picker",
+      title: "Selection Picker",
       subtitle: `${model.label} | ${controller.breadcrumb}${controller.searchIndicator}`,
       left: {
         title: controller.state.activePane === "list" ? `[${getFacetPickerListTitle(controller).toUpperCase()}]` : getFacetPickerListTitle(controller),

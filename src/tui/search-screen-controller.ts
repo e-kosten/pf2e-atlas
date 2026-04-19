@@ -3,7 +3,6 @@ import React from "react";
 import type { OntologyNodeQuery } from "../types.js";
 import { usePf2eTerminalAppServices } from "./app-service-context.js";
 import { showTerminalReturnDialog, useTerminalInteractionContextAdapters } from "./interaction-context-adapters.js";
-import type { OntologyPickerSelectionMap } from "./ontology-explorer/picker-screen.js";
 import {
   SEARCH_LEFT_WIDTH,
   buildQuerySummaryLines,
@@ -29,7 +28,7 @@ import {
   useSearchScreenInteractionRouter,
 } from "./search-screen-interactions.js";
 import { getSearchResultWindowMetrics, getSessionBufferRange } from "./search-screen-state.js";
-import { useSearchFacetWorkflow } from "./search-screen-facet-workflow.js";
+import { useSearchQueryFieldPickerWorkflow } from "./search-screen-query-picker-workflow.js";
 import { useSearchSessionWorkflow } from "./search-screen-session-workflow.js";
 import { useSearchWorkspaceActions } from "./search-screen-workspace-actions.js";
 import type { SearchScreenOrigin } from "./search-workflow-types.js";
@@ -44,8 +43,7 @@ import {
 } from "./terminal-ui.js";
 
 export type SearchScreenControllerResult = {
-  applyFacetPicker: (selection: OntologyPickerSelectionMap) => void;
-  facetPickerSession: ReturnType<typeof useSearchFacetWorkflow>["facetPickerSession"];
+  queryFieldPickerSession: ReturnType<typeof useSearchQueryFieldPickerWorkflow>["queryFieldPickerSession"];
   screen: DerivedTagTerminalTwoPaneScreenProps;
 };
 
@@ -154,9 +152,8 @@ export function useSearchScreenController({
   const maxDetailScroll = Math.max(0, renderedDetailLineCount - bodyHeight);
   const detailScroll = Math.min(state.detailScroll, maxDetailScroll);
 
-  const { facetPickerSession, openFacetPicker, applyFacetPicker } = useSearchFacetWorkflow({
+  const { queryFieldPickerSession, openQueryFieldPicker } = useSearchQueryFieldPickerWorkflow({
     query: state.query,
-    applyQueryUpdate,
     services: user,
     onUnavailable: terminal.pauseForAnyKey,
   });
@@ -168,7 +165,7 @@ export function useSearchScreenController({
     exitSearchScreen,
     jumpToResultPosition,
     maxDetailScroll,
-    onOpenFacetPicker: openFacetPicker,
+    openQueryFieldPicker,
     origin,
     resultCount,
     selectedWorkspaceEntry,
@@ -182,7 +179,7 @@ export function useSearchScreenController({
   });
 
   useSearchScreenInteractionRouter({
-    enabled: !busy && !facetPickerSession,
+    enabled: !busy && !queryFieldPickerSession,
     origin,
     state,
     workspaceEntryCount: workspaceEntries.length,
@@ -195,8 +192,7 @@ export function useSearchScreenController({
   });
 
   return {
-    applyFacetPicker,
-    facetPickerSession,
+    queryFieldPickerSession,
     screen: {
       title: "Browse/Search",
       subtitle: buildSearchSubtitle(state, countState),
