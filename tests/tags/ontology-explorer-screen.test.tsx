@@ -204,4 +204,69 @@ describe("ontology browser screen", () => {
 
     app.unmount();
   });
+
+  it("opens advanced search semantics predicates on confirm when they expose a live query", async () => {
+    const model: OntologyDomainModel = {
+      id: "searchSemantics",
+      label: "Search Semantics",
+      description: "Test search semantics domain",
+      rootNodes: [
+        {
+          id: "equipment:advanced:itemMetric",
+          kind: "advancedPredicate",
+          label: "itemMetric",
+          filterText: "itemMetric weapon.reload",
+          listLabel: "itemMetric | ==, >=",
+          detailTitle: "Advanced Predicate Details",
+          detailLines: [
+            { text: "itemMetric", tone: "section" },
+            { text: "Generic keyed equipment metric predicate." },
+            { text: "Press Enter or o to open the full matching set in the shared result reader." },
+          ],
+          query: {
+            kind: "listRecords",
+            label: "Browse records matching the itemMetric example",
+            filters: {
+              category: "equipment",
+              metadata: {
+                field: "itemMetric",
+                metric: "weapon.reload",
+                op: "==",
+                value: 1,
+              },
+              limit: 20,
+            },
+          },
+        },
+      ],
+    };
+    const onOpenQuery = vi.fn();
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <OntologyBrowserScreen model={model} onExit={vi.fn()} onOpenQuery={onOpenQuery} />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+
+    app.stdin.write("\r");
+    await flushInk();
+
+    expect(onOpenQuery).toHaveBeenCalledWith({
+      kind: "listRecords",
+      label: "Browse records matching the itemMetric example",
+      filters: {
+        category: "equipment",
+        metadata: {
+          field: "itemMetric",
+          metric: "weapon.reload",
+          op: "==",
+          value: 1,
+        },
+        limit: 20,
+      },
+    });
+
+    app.unmount();
+  });
 });

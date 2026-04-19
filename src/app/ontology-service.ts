@@ -117,6 +117,26 @@ function buildResultReaderHint(): string {
   return "Press Enter or o to open the full matching set in the shared result reader.";
 }
 
+function cloneMetadataFilterNode(metadata: MetadataFilterNode): MetadataFilterNode {
+  return structuredClone(metadata);
+}
+
+function buildSearchSemanticsMetadataQuery(
+  category: SearchCategory,
+  label: string,
+  metadata: MetadataFilterNode,
+): OntologyNode["query"] {
+  return {
+    kind: "listRecords",
+    label,
+    filters: {
+      category,
+      metadata: cloneMetadataFilterNode(metadata),
+      limit: 20,
+    },
+  };
+}
+
 function buildRecordNode(recordNode: DerivedTagOntologyExplorerRecordNode): OntologyNode {
   return {
     id: recordNode.key,
@@ -638,7 +658,13 @@ function buildSearchSemanticsDomain(
             { text: `Category: ${category}` },
             { text: `Operators: ${predicate.operators.join(", ")}` },
             { text: `Example: ${JSON.stringify(predicate.example)}` },
+            { text: buildResultReaderHint() },
           ],
+          query: buildSearchSemanticsMetadataQuery(
+            category,
+            `Browse records matching the ${predicate.name} example`,
+            predicate.example,
+          ),
         }),
       );
 
@@ -714,7 +740,9 @@ function buildSearchSemanticsDomain(
           { text: `Category: ${category}` },
           { text: `Predicate: ${JSON.stringify(example.metadata)}` },
           { text: `Notes: ${example.notes ?? "(none)"}` },
+          { text: buildResultReaderHint() },
         ],
+        query: buildSearchSemanticsMetadataQuery(category, `Browse records matching ${example.label}`, example.metadata),
       }),
     );
 

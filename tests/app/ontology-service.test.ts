@@ -246,4 +246,47 @@ describe("application ontology service", () => {
     expect(traitValueNodes).toHaveLength(14);
     expect(traitValueNodes.at(-1)?.id).toBe("spell:traits:trait-14");
   });
+
+  it("attaches live browse queries to search semantics example and advanced predicate nodes", () => {
+    const service = createPf2eApplicationOntologyService(createTestConfig(), createDataService());
+    const domain = service.loadDomain("searchSemantics");
+    const advancedPredicateNode = findNodeById(domain.rootNodes, "equipment:advanced:itemMetric");
+    const exampleNode = findNodeById(domain.rootNodes, "equipment:example:0");
+
+    expect(advancedPredicateNode?.query).toEqual({
+      kind: "listRecords",
+      label: "Browse records matching the itemMetric example",
+      filters: {
+        category: "equipment",
+        metadata: {
+          field: "itemMetric",
+          metric: "weapon.reload",
+          op: "==",
+          value: 1,
+        },
+        limit: 20,
+      },
+    });
+    expect(advancedPredicateNode?.detailLines.map((line) => line.text)).toContain(
+      "Press Enter or o to open the full matching set in the shared result reader.",
+    );
+
+    expect(exampleNode?.query).toEqual({
+      kind: "listRecords",
+      label: "Browse records matching One-handed bombs",
+      filters: {
+        category: "equipment",
+        metadata: {
+          and: [
+            { field: "weaponGroup", op: "eq", value: "bomb" },
+            { field: "hands", op: "eq", value: 1 },
+          ],
+        },
+        limit: 20,
+      },
+    });
+    expect(exampleNode?.detailLines.map((line) => line.text)).toContain(
+      "Press Enter or o to open the full matching set in the shared result reader.",
+    );
+  });
 });
