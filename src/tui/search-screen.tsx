@@ -23,12 +23,12 @@ export function SearchScreen({
     onBack,
   });
 
-  if (controller.queryFieldPickerSession) {
+  if (controller.selectionPickerSession) {
     return (
       <OntologyPickerScreen
-        model={controller.queryFieldPickerSession.model}
-        initialSelections={controller.queryFieldPickerSession.initialSelections}
-        onApply={controller.queryFieldPickerSession.applySelection}
+        model={controller.selectionPickerSession.model}
+        initialSelections={controller.selectionPickerSession.initialSelections}
+        onApply={controller.selectionPickerSession.applySelection}
       />
     );
   }

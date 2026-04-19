@@ -10,8 +10,21 @@ import type {
   Pf2eTerminalQueryFieldSelectionMap,
   Pf2eTerminalSearchQuery,
 } from "./search-service.js";
+import {
+  getSearchQueryActionCostPolicy,
+  getSearchQueryCategory,
+  getSearchQueryLevelRange,
+  getSearchQueryMetadataTree,
+  getSearchQueryPart,
+  getSearchQueryRarityPolicy,
+  getSearchQuerySubcategory,
+  removeSearchQueryPart,
+  setSearchQueryCategory,
+  setSearchQueryMetadataTree,
+  setSearchQueryPart,
+} from "./search-service.js";
 import type { SearchScreenOrigin } from "./search-workflow-types.js";
-import type { DerivedTagTerminalApp, DerivedTagTerminalCommandOption } from "./terminal-ui.js";
+import type { DerivedTagTerminalApp } from "./terminal-ui.js";
 import {
   buildEditorCommandPaletteEntries,
   buildResultCommandPaletteEntries,
@@ -162,7 +175,7 @@ function appendMetadataNodeAtPath(
   });
 }
 
-function createEmptyPolicy(): Pf2eTerminalFilterValuePolicy<string> {
+function createEmptyStringPolicy(): Pf2eTerminalFilterValuePolicy<string> {
   return { any: [], all: [], exclude: [] };
 }
 
@@ -202,7 +215,7 @@ function buildMetadataNodeFromPolicy(
 }
 
 function buildPolicyFromPredicate(node: MetadataPredicate): Pf2eTerminalFilterValuePolicy<string> | null {
-  const policy = createEmptyPolicy();
+  const policy = createEmptyStringPolicy();
   if ("values" in node) {
     if (node.op === "includesAny" || node.op === "in") {
       policy.any = [...node.values.map((value) => String(value))];
@@ -236,17 +249,15 @@ function buildSelectionMap(
 }
 
 type AddQueryPartCommand =
-  | "profile"
   | "category"
   | "subcategory"
-  | "levels"
+  | "levelRange"
   | "rarity"
+  | "actionCost"
   | "clause"
   | "andGroup"
   | "orGroup"
   | "notGroup";
-
-type ScopeCommand = "category" | "subcategory" | "clearScope";
 
 export function useSearchWorkspaceActions({
   applyQueryUpdate,
@@ -298,6 +309,13 @@ export function useSearchWorkspaceActions({
 }): {
   handleIntent: (intent: import("./search-screen-model.js").SearchScreenIntent) => void;
 } {
+  const category = getSearchQueryCategory(state.query);
+  const subcategory = getSearchQuerySubcategory(state.query);
+  const levelRange = getSearchQueryLevelRange(state.query);
+  const rarityPolicy = getSearchQueryRarityPolicy(state.query);
+  const actionCostPolicy = getSearchQueryActionCostPolicy(state.query);
+  const metadataTree = getSearchQueryMetadataTree(state.query);
+
   const editQueryText = React.useCallback(async () => {
     const queryText = await prompts.promptTextInput({
       title: "Query Text",
@@ -361,32 +379,6 @@ export function useSearchWorkspaceActions({
     }
   }, [applyQueryUpdate, prompts, state.query.searchProfile, user.search]);
 
-  const promptCommandSelection = React.useCallback(
-    async <T extends string>(
-      title: string,
-      prompt: string,
-      entries: DerivedTagTerminalCommandOption<T>[],
-    ): Promise<T | undefined> => {
-      const selected = await prompts.promptCommandPalette({
-        title,
-        prompt,
-        entries,
-      });
-      if (!selected) {
-        return undefined;
-      }
-      const selectedEntry = entries.find((entry) => entry.value === selected);
-      if (selectedEntry?.disabled) {
-        if (selectedEntry.disabledReason) {
-          await terminal.pauseForAnyKey(selectedEntry.disabledReason);
-        }
-        return undefined;
-      }
-      return selected;
-    },
-    [prompts, terminal],
-  );
-
   const chooseCategoryFilter = React.useCallback(async () => {
     const [allCategoryOption, ...categoryEntries] = user.search.getCategoryOptions();
     const result = await prompts.promptOptionalSelectOption({
@@ -401,38 +393,23 @@ export function useSearchWorkspaceActions({
         label: option.label,
         description: option.description,
       })),
-      selectedValue: state.query.filters.category ?? null,
+      selectedValue: category,
     });
 
     if (result.kind === "cancelled") {
       return;
     }
 
-    applyQueryUpdate((request) => ({
-      ...request,
-      filters: {
-        ...request.filters,
-        category: result.kind === "all" ? null : result.value,
-        subcategory: null,
-        levelMin: null,
-        levelMax: null,
-        rarity: createEmptyPolicy(),
-        actionCost: { any: [], all: [], exclude: [] },
-        facets: [],
-        metadata: null,
-      },
-    }));
-  }, [applyQueryUpdate, prompts, state.query.filters.category, user.search]);
+    applyQueryUpdate((request) => setSearchQueryCategory(request, result.kind === "all" ? null : result.value));
+  }, [applyQueryUpdate, prompts, category, user.search]);
 
   const chooseSubcategoryFilter = React.useCallback(async () => {
-    if (!state.query.filters.category) {
+    if (!category) {
       await terminal.pauseForAnyKey("Choose a category before selecting a subcategory.");
       return;
     }
 
-    const [allSubcategoryOption, ...subcategoryEntries] = user.search.getSubcategoryOptions(
-      state.query.filters.category,
-    );
+    const [allSubcategoryOption, ...subcategoryEntries] = user.search.getSubcategoryOptions(category);
     if (subcategoryEntries.length === 0) {
       await terminal.pauseForAnyKey("No subcategories are available for the current category.");
       return;
@@ -449,24 +426,24 @@ export function useSearchWorkspaceActions({
         label: option.label,
         description: option.description,
       })),
-      selectedValue: state.query.filters.subcategory ?? null,
+      selectedValue: subcategory,
     });
 
     if (result.kind === "cancelled") {
       return;
     }
 
-    applyQueryUpdate((request) => ({
-      ...request,
-      filters: {
-        ...request.filters,
-        subcategory: result.kind === "all" ? null : result.value,
-      },
-    }));
-  }, [applyQueryUpdate, prompts, state.query.filters.category, state.query.filters.subcategory, terminal, user.search]);
+    applyQueryUpdate((request) =>
+      result.kind === "all"
+        ? removeSearchQueryPart(request, "subcategory")
+        : result.value
+          ? setSearchQueryPart(request, { kind: "subcategory", subcategory: result.value })
+          : request,
+    );
+  }, [applyQueryUpdate, category, prompts, subcategory, terminal, user.search]);
 
   const chooseRarityFilter = React.useCallback(async () => {
-    const options = user.search.getRarityOptions(state.query.filters.category, state.query.filters.subcategory);
+    const options = user.search.getRarityOptions(category, subcategory);
     const selected = await prompts.promptPolicySelectOption({
       title: "Rarity Filter",
       prompt: "Cycle rarities through include and exclude. Press Esc or Left when finished.",
@@ -476,35 +453,65 @@ export function useSearchWorkspaceActions({
         label: option.label,
         description: option.description,
       })),
-      selectedValues: state.query.filters.rarity,
+      selectedValues: rarityPolicy,
     });
 
-    applyQueryUpdate((request) => ({
-      ...request,
-      filters: {
-        ...request.filters,
-        rarity: {
-          any: selected.any,
-          all: [],
-          exclude: selected.exclude,
-        },
+    applyQueryUpdate((request) =>
+      selected.any.length === 0 && selected.exclude.length === 0
+        ? removeSearchQueryPart(request, "rarityPolicy")
+        : setSearchQueryPart(request, {
+            kind: "rarityPolicy",
+            policy: {
+              any: selected.any,
+              all: [],
+              exclude: selected.exclude,
+            },
+          }),
+    );
+  }, [applyQueryUpdate, category, prompts, rarityPolicy, subcategory, user.search]);
+
+  const chooseActionCostFilter = React.useCallback(async () => {
+    const options = user.search.getActionCostOptions(category, subcategory);
+    if (options.length === 0) {
+      await terminal.pauseForAnyKey("No action-cost filters are available for the current query.");
+      return;
+    }
+
+    const selected = await prompts.promptPolicySelectOption({
+      title: "Action Cost Filter",
+      prompt: "Cycle action costs through include or exclude. Press Esc or Left when finished.",
+      allowedStates: ["any", "exclude"],
+      entries: options.map((option) => ({
+        value: option.value,
+        label: option.label,
+        description: option.description,
+      })),
+      selectedValues: {
+        any: actionCostPolicy.any.map(String),
+        all: [],
+        exclude: actionCostPolicy.exclude.map(String),
       },
-    }));
-  }, [
-    applyQueryUpdate,
-    prompts,
-    state.query.filters.category,
-    state.query.filters.rarity,
-    state.query.filters.subcategory,
-    user.search,
-  ]);
+    });
+
+    const nextPolicy = {
+      any: selected.any.map((value) => Number.parseInt(value, 10)).filter((value) => Number.isFinite(value)),
+      all: [] as number[],
+      exclude: selected.exclude.map((value) => Number.parseInt(value, 10)).filter((value) => Number.isFinite(value)),
+    };
+
+    applyQueryUpdate((request) =>
+      nextPolicy.any.length === 0 && nextPolicy.exclude.length === 0
+        ? removeSearchQueryPart(request, "actionCostPolicy")
+        : setSearchQueryPart(request, { kind: "actionCostPolicy", policy: nextPolicy }),
+    );
+  }, [actionCostPolicy.any, actionCostPolicy.exclude, applyQueryUpdate, category, prompts, subcategory, terminal, user.search]);
 
   const editLevelRange = React.useCallback(async () => {
     const input = await prompts.promptTextInput({
       title: "Level Range",
       prompt: "Enter `3-8`, `5`, `5+`, or `<=10`. Leave blank to clear.",
       defaultValue:
-        state.query.filters.levelMin === null && state.query.filters.levelMax === null
+        levelRange.levelMin === null && levelRange.levelMax === null
           ? ""
           : formatLevelRange(state.query).replaceAll("L", "").replace("<= ", "<="),
       hint: "Examples: 3-8 or <=5",
@@ -520,15 +527,16 @@ export function useSearchWorkspaceActions({
       return;
     }
 
-    applyQueryUpdate((request) => ({
-      ...request,
-      filters: {
-        ...request.filters,
-        levelMin: parsed.levelMin,
-        levelMax: parsed.levelMax,
-      },
-    }));
-  }, [applyQueryUpdate, prompts, state.query, terminal]);
+    applyQueryUpdate((request) =>
+      parsed.levelMin === null && parsed.levelMax === null
+        ? removeSearchQueryPart(request, "levelRange")
+        : setSearchQueryPart(request, {
+            kind: "levelRange",
+            levelMin: parsed.levelMin,
+            levelMax: parsed.levelMax,
+          }),
+    );
+  }, [applyQueryUpdate, levelRange.levelMax, levelRange.levelMin, prompts, state.query, terminal]);
 
   const hasSelectableSubcategories = React.useCallback(
     (category: Pf2eTerminalSearchQuery["filters"]["category"]): boolean => {
@@ -541,10 +549,7 @@ export function useSearchWorkspaceActions({
   );
 
   const chooseQueryField = React.useCallback(async (): Promise<Pf2eTerminalQueryFieldOption | null> => {
-    const fieldOptions = user.search.getQueryFieldOptions(
-      state.query.filters.category,
-      state.query.filters.subcategory,
-    );
+    const fieldOptions = user.search.getQueryFieldOptions(category, subcategory);
     if (fieldOptions.length === 0) {
       await terminal.pauseForAnyKey("No scoped metadata fields are available for the current query.");
       return null;
@@ -566,7 +571,7 @@ export function useSearchWorkspaceActions({
     }
 
     return fieldOptions.find((fieldOption) => fieldOption.value === result.value) ?? null;
-  }, [prompts, state.query.filters.category, state.query.filters.subcategory, terminal, user.search]);
+  }, [category, prompts, subcategory, terminal, user.search]);
 
   const openOntologyFieldEditor = React.useCallback(
     async (
@@ -582,7 +587,8 @@ export function useSearchWorkspaceActions({
         fieldOptions: [fieldOption],
         initialSelections: buildSelectionMap(fieldOption.value, currentPolicy),
         onApply: (selection) => {
-          const nextNode = buildMetadataNodeFromPolicy(fieldOption, selection[fieldOption.value] ?? createEmptyPolicy());
+          const nextNode =
+            buildMetadataNodeFromPolicy(fieldOption, selection[fieldOption.value] ?? createEmptyStringPolicy());
           onApply(nextNode);
         },
       });
@@ -598,14 +604,14 @@ export function useSearchWorkspaceActions({
       if (fieldOption.fieldType === "set" || fieldOption.fieldType === "enumString") {
         const currentPolicy =
           currentNode && isMetadataPredicate(currentNode)
-            ? (buildPolicyFromPredicate(currentNode) ?? createEmptyPolicy())
-            : createEmptyPolicy();
+            ? (buildPolicyFromPredicate(currentNode) ?? createEmptyStringPolicy())
+            : createEmptyStringPolicy();
         const selected = await prompts.promptPolicySelectOption({
           title: `${fieldOption.label} Clause`,
           prompt: "Cycle field values through include, require-all, or exclude. Press Esc or Left when finished.",
           allowedStates: fieldOption.fieldType === "set" ? ["any", "all", "exclude"] : ["any", "exclude"],
           entries: user.search
-            .getFacetValueOptions(fieldOption.value, state.query.filters.category, state.query.filters.subcategory)
+            .getFacetValueOptions(fieldOption.value, category, subcategory)
             .map((option) => ({
               value: option.value,
               label: option.label,
@@ -759,7 +765,7 @@ export function useSearchWorkspaceActions({
         value: numericValue,
       } as MetadataFilterNode;
     },
-    [prompts, state.query.filters.category, state.query.filters.subcategory, terminal, user.search],
+    [category, prompts, subcategory, terminal, user.search],
   );
 
   const addQueryClauseAtPath = React.useCallback(
@@ -769,17 +775,13 @@ export function useSearchWorkspaceActions({
         return;
       }
       if (fieldOption.editor === "ontologyPicker") {
-        await openOntologyFieldEditor(fieldOption, createEmptyPolicy(), (nextNode) => {
+        await openOntologyFieldEditor(fieldOption, createEmptyStringPolicy(), (nextNode) => {
           if (!nextNode) {
             return;
           }
-          applyQueryUpdate((request) => ({
-            ...request,
-            filters: {
-              ...request.filters,
-              metadata: appendMetadataNodeAtPath(request.filters.metadata, path, nextNode),
-            },
-          }));
+          applyQueryUpdate((request) =>
+            setSearchQueryMetadataTree(request, appendMetadataNodeAtPath(getSearchQueryMetadataTree(request), path, nextNode)),
+          );
         });
         return;
       }
@@ -787,13 +789,9 @@ export function useSearchWorkspaceActions({
       if (!clause) {
         return;
       }
-      applyQueryUpdate((request) => ({
-        ...request,
-        filters: {
-          ...request.filters,
-          metadata: appendMetadataNodeAtPath(request.filters.metadata, path, clause),
-        },
-      }));
+      applyQueryUpdate((request) =>
+        setSearchQueryMetadataTree(request, appendMetadataNodeAtPath(getSearchQueryMetadataTree(request), path, clause)),
+      );
     },
     [applyQueryUpdate, chooseQueryField, editFieldClause, openOntologyFieldEditor],
   );
@@ -805,19 +803,15 @@ export function useSearchWorkspaceActions({
         return;
       }
       if (fieldOption.editor === "ontologyPicker") {
-        await openOntologyFieldEditor(fieldOption, createEmptyPolicy(), (nextNode) => {
+        await openOntologyFieldEditor(fieldOption, createEmptyStringPolicy(), (nextNode) => {
           if (!nextNode) {
             return;
           }
           const group: MetadataFilterNode =
             groupKind === "and" ? { and: [nextNode] } : groupKind === "or" ? { or: [nextNode] } : { not: nextNode };
-          applyQueryUpdate((request) => ({
-            ...request,
-            filters: {
-              ...request.filters,
-              metadata: appendMetadataNodeAtPath(request.filters.metadata, path, group),
-            },
-          }));
+          applyQueryUpdate((request) =>
+            setSearchQueryMetadataTree(request, appendMetadataNodeAtPath(getSearchQueryMetadataTree(request), path, group)),
+          );
         });
         return;
       }
@@ -827,169 +821,122 @@ export function useSearchWorkspaceActions({
       }
       const group: MetadataFilterNode =
         groupKind === "and" ? { and: [clause] } : groupKind === "or" ? { or: [clause] } : { not: clause };
-      applyQueryUpdate((request) => ({
-        ...request,
-        filters: {
-          ...request.filters,
-          metadata: appendMetadataNodeAtPath(request.filters.metadata, path, group),
-        },
-      }));
+      applyQueryUpdate((request) =>
+        setSearchQueryMetadataTree(request, appendMetadataNodeAtPath(getSearchQueryMetadataTree(request), path, group)),
+      );
     },
     [applyQueryUpdate, chooseQueryField, editFieldClause, openOntologyFieldEditor],
   );
 
-  const openScopeQueryPart = React.useCallback(async () => {
-    const selected = await promptCommandSelection<ScopeCommand>("Scope", "Adjust the current query scope", [
-      {
-        value: "category",
-        label: "Set Category",
-        description: `Current: ${formatSearchCategory(state.query.filters.category)}.`,
-      },
-      ...(hasSelectableSubcategories(state.query.filters.category)
-        ? [
-            {
-              value: "subcategory" as const,
-              label: "Set Subcategory",
-              description: `Current: ${formatSearchSubcategory(state.query.filters.subcategory)}.`,
-              disabled: !state.query.filters.category,
-              disabledReason: "Choose a category before refining to a subcategory.",
-            },
-          ]
-        : []),
-      {
-        value: "clearScope",
-        label: "Clear Scope",
-        description: "Remove the current category and subcategory boundary.",
-        disabled: !state.query.filters.category && !state.query.filters.subcategory,
-        disabledReason: "No category scope is currently applied.",
-      },
-    ]);
-
-    if (!selected) {
-      return;
-    }
-
-    if (selected === "category") {
-      await chooseCategoryFilter();
-      return;
-    }
-    if (selected === "subcategory") {
-      await chooseSubcategoryFilter();
-      return;
-    }
-
-    applyQueryUpdate((request) => ({
-      ...request,
-      filters: {
-        ...request.filters,
-        category: null,
-        subcategory: null,
-        levelMin: null,
-        levelMax: null,
-        rarity: createEmptyPolicy(),
-        actionCost: { any: [], all: [], exclude: [] },
-        facets: [],
-        metadata: null,
-      },
-    }));
-  }, [
-    applyQueryUpdate,
-    chooseCategoryFilter,
-    chooseSubcategoryFilter,
-    hasSelectableSubcategories,
-    promptCommandSelection,
-    state.query.filters.category,
-    state.query.filters.subcategory,
-  ]);
-
   const openAddQueryPart = React.useCallback(async () => {
-    const requiresScopedQuery = !state.query.filters.category;
-    const entries: DerivedTagTerminalCommandOption<AddQueryPartCommand>[] = [
-      ...(state.query.mode === "search"
+    const hasCategory = Boolean(category);
+    const hasSubcategory = Boolean(getSearchQueryPart(state.query, "subcategory"));
+    const hasLevelRange = Boolean(getSearchQueryPart(state.query, "levelRange"));
+    const hasRarity = Boolean(getSearchQueryPart(state.query, "rarityPolicy"));
+    const hasActionCost = Boolean(getSearchQueryPart(state.query, "actionCostPolicy"));
+    const hasActionCostOptions = user.search.getActionCostOptions(category, subcategory).length > 0;
+    const entries: Array<{ value: AddQueryPartCommand; label: string; description: string }> = [
+      ...(!hasCategory
         ? [
             {
-              value: "profile" as const,
-              label: "Choose Search Profile",
-              description: `Current: ${state.query.searchProfile}.`,
+              value: "category" as const,
+              label: "Add Category",
+              description: `Current: ${formatSearchCategory(category)}.`,
             },
           ]
         : []),
-      {
-        value: "category",
-        label: "Set Category",
-        description: `Current: ${formatSearchCategory(state.query.filters.category)}.`,
-      },
-      ...(hasSelectableSubcategories(state.query.filters.category)
+      ...(!hasSubcategory && hasSelectableSubcategories(category)
         ? [
             {
               value: "subcategory" as const,
-              label: "Set Subcategory",
-              description: `Current: ${formatSearchSubcategory(state.query.filters.subcategory)}.`,
-              disabled: !state.query.filters.category,
-              disabledReason: "Choose a category before refining to a subcategory.",
+              label: "Add Subcategory",
+              description: `Current: ${formatSearchSubcategory(subcategory)}.`,
             },
           ]
         : []),
-      {
-        value: "levels",
-        label: "Set Level Range",
-        description: `Current: ${formatLevelRange(state.query)}.`,
-      },
-      {
-        value: "rarity",
-        label: "Set Rarity",
-        description: `Current: ${formatFilterPolicy(state.query.filters.rarity)}.`,
-      },
-      {
-        value: "clause",
-        label: "Add Query Clause",
-        description: "Add a metadata clause at the root of the unified query.",
-        disabled: requiresScopedQuery,
-        disabledReason: "Choose a category before adding scoped metadata clauses.",
-      },
-      {
-        value: "andGroup",
-        label: "Add AND Group",
-        description: "Add an AND logic group with one initial clause.",
-        disabled: requiresScopedQuery,
-        disabledReason: "Choose a category before adding scoped metadata clauses.",
-      },
-      {
-        value: "orGroup",
-        label: "Add OR Group",
-        description: "Add an OR logic group with one initial clause.",
-        disabled: requiresScopedQuery,
-        disabledReason: "Choose a category before adding scoped metadata clauses.",
-      },
-      {
-        value: "notGroup",
-        label: "Add NOT Group",
-        description: "Add a NOT logic group with one initial clause.",
-        disabled: requiresScopedQuery,
-        disabledReason: "Choose a category before adding scoped metadata clauses.",
-      },
+      ...(!hasLevelRange
+        ? [
+            {
+              value: "levelRange" as const,
+              label: "Add Level Range",
+              description: `Current: ${formatLevelRange(state.query)}.`,
+            },
+          ]
+        : []),
+      ...(!hasRarity
+        ? [
+            {
+              value: "rarity" as const,
+              label: "Add Rarity",
+              description: `Current: ${formatFilterPolicy(rarityPolicy)}.`,
+            },
+          ]
+        : []),
+      ...(!hasActionCost && hasActionCostOptions
+        ? [
+            {
+              value: "actionCost" as const,
+              label: "Add Action Cost",
+              description: `Current: ${formatFilterPolicy(actionCostPolicy)}.`,
+            },
+          ]
+        : []),
+      ...(hasCategory
+        ? [
+            {
+              value: "clause" as const,
+              label: "Add Query Clause",
+              description: "Add a metadata clause at the root of the unified query.",
+            },
+            {
+              value: "andGroup" as const,
+              label: "Add AND Group",
+              description: "Add an AND logic group with one initial clause.",
+            },
+            {
+              value: "orGroup" as const,
+              label: "Add OR Group",
+              description: "Add an OR logic group with one initial clause.",
+            },
+            {
+              value: "notGroup" as const,
+              label: "Add NOT Group",
+              description: "Add a NOT logic group with one initial clause.",
+            },
+          ]
+        : []),
     ];
 
-    const selected = await promptCommandSelection("Add Query Part", "Filter query parts to add or adjust", entries);
-    if (!selected) {
+    if (entries.length === 0) {
+      await terminal.pauseForAnyKey("No additional query parts are available from the current root scope.");
       return;
     }
 
-    switch (selected) {
-      case "profile":
-        await chooseSearchProfile();
-        return;
+    const result = await prompts.promptSelectOption({
+      title: "Add Query Part",
+      prompt: "Choose a root query part to add",
+      entries,
+      selectedValue: entries[0]!.value,
+    });
+    if (result.kind !== "selected") {
+      return;
+    }
+
+    switch (result.value) {
       case "category":
         await chooseCategoryFilter();
         return;
       case "subcategory":
         await chooseSubcategoryFilter();
         return;
-      case "levels":
+      case "levelRange":
         await editLevelRange();
         return;
       case "rarity":
         await chooseRarityFilter();
+        return;
+      case "actionCost":
+        await chooseActionCostFilter();
         return;
       case "clause":
         await addQueryClauseAtPath();
@@ -997,39 +944,39 @@ export function useSearchWorkspaceActions({
       case "andGroup":
       case "orGroup":
       case "notGroup":
-        await addQueryGroupAtPath([], selected === "andGroup" ? "and" : selected === "orGroup" ? "or" : "not");
+        await addQueryGroupAtPath([], result.value === "andGroup" ? "and" : result.value === "orGroup" ? "or" : "not");
         return;
     }
   }, [
     addQueryClauseAtPath,
     addQueryGroupAtPath,
     chooseCategoryFilter,
+    chooseActionCostFilter,
     chooseRarityFilter,
-    chooseSearchProfile,
     chooseSubcategoryFilter,
     editLevelRange,
     hasSelectableSubcategories,
-    promptCommandSelection,
+    prompts,
+    actionCostPolicy,
+    category,
+    levelRange.levelMax,
+    levelRange.levelMin,
+    rarityPolicy,
     state.query,
-    state.query.filters.category,
-    state.query.filters.rarity,
-    state.query.filters.subcategory,
-    state.query.mode,
-    state.query.searchProfile,
+    subcategory,
+    terminal,
+    user.search,
   ]);
 
   const editQueryNode = React.useCallback(
     async (path: number[]) => {
-      const node = getMetadataNodeAtPath(state.query.filters.metadata, path);
+      const node = getMetadataNodeAtPath(metadataTree, path);
       if (!node) {
         return;
       }
 
       if (isMetadataPredicate(node)) {
-        const scopedFields = user.search.getQueryFieldOptions(
-          state.query.filters.category,
-          state.query.filters.subcategory,
-        );
+        const scopedFields = user.search.getQueryFieldOptions(category, subcategory);
         const fieldOption = scopedFields.find((candidate) => candidate.value === node.field) ?? null;
         const actionEntries = [
           ...(fieldOption
@@ -1055,15 +1002,11 @@ export function useSearchWorkspaceActions({
             return;
           }
           if (fieldOption.editor === "ontologyPicker") {
-            const currentPolicy = buildPolicyFromPredicate(node) ?? createEmptyPolicy();
+            const currentPolicy = buildPolicyFromPredicate(node) ?? createEmptyStringPolicy();
             await openOntologyFieldEditor(fieldOption, currentPolicy, (nextNode) => {
-              applyQueryUpdate((request) => ({
-                ...request,
-                filters: {
-                  ...request.filters,
-                  metadata: updateMetadataNodeAtPath(request.filters.metadata, path, () => nextNode),
-                },
-              }));
+              applyQueryUpdate((request) =>
+                setSearchQueryMetadataTree(request, updateMetadataNodeAtPath(getSearchQueryMetadataTree(request), path, () => nextNode)),
+              );
             });
             return;
           }
@@ -1071,34 +1014,22 @@ export function useSearchWorkspaceActions({
           if (nextNode === undefined) {
             return;
           }
-          applyQueryUpdate((request) => ({
-            ...request,
-            filters: {
-              ...request.filters,
-              metadata: updateMetadataNodeAtPath(request.filters.metadata, path, () => nextNode),
-            },
-          }));
+          applyQueryUpdate((request) =>
+            setSearchQueryMetadataTree(request, updateMetadataNodeAtPath(getSearchQueryMetadataTree(request), path, () => nextNode)),
+          );
           return;
         }
 
         if (result.value === "wrapNot") {
-          applyQueryUpdate((request) => ({
-            ...request,
-            filters: {
-              ...request.filters,
-              metadata: updateMetadataNodeAtPath(request.filters.metadata, path, (current) => ({ not: current })),
-            },
-          }));
+          applyQueryUpdate((request) =>
+            setSearchQueryMetadataTree(request, updateMetadataNodeAtPath(getSearchQueryMetadataTree(request), path, (current) => ({ not: current }))),
+          );
           return;
         }
 
-        applyQueryUpdate((request) => ({
-          ...request,
-          filters: {
-            ...request.filters,
-            metadata: updateMetadataNodeAtPath(request.filters.metadata, path, () => null),
-          },
-        }));
+        applyQueryUpdate((request) =>
+          setSearchQueryMetadataTree(request, updateMetadataNodeAtPath(getSearchQueryMetadataTree(request), path, () => null)),
+        );
         return;
       }
 
@@ -1117,15 +1048,14 @@ export function useSearchWorkspaceActions({
           return;
         }
 
-        applyQueryUpdate((request) => ({
-          ...request,
-          filters: {
-            ...request.filters,
-            metadata: updateMetadataNodeAtPath(request.filters.metadata, path, (current) =>
+        applyQueryUpdate((request) =>
+          setSearchQueryMetadataTree(
+            request,
+            updateMetadataNodeAtPath(getSearchQueryMetadataTree(request), path, (current) =>
               result.value === "unwrap" && "not" in current ? current.not : null,
             ),
-          },
-        }));
+          ),
+        );
         return;
       }
 
@@ -1174,35 +1104,30 @@ export function useSearchWorkspaceActions({
         return;
       }
       if (result.value === "toggle") {
-        applyQueryUpdate((request) => ({
-          ...request,
-          filters: {
-            ...request.filters,
-            metadata: updateMetadataNodeAtPath(request.filters.metadata, path, (current) =>
+        applyQueryUpdate((request) =>
+          setSearchQueryMetadataTree(
+            request,
+            updateMetadataNodeAtPath(getSearchQueryMetadataTree(request), path, (current) =>
               "and" in current ? { or: [...current.and] } : "or" in current ? { and: [...current.or] } : current,
             ),
-          },
-        }));
+          ),
+        );
         return;
       }
-      applyQueryUpdate((request) => ({
-        ...request,
-        filters: {
-          ...request.filters,
-          metadata: updateMetadataNodeAtPath(request.filters.metadata, path, () => null),
-        },
-      }));
+      applyQueryUpdate((request) =>
+        setSearchQueryMetadataTree(request, updateMetadataNodeAtPath(getSearchQueryMetadataTree(request), path, () => null)),
+      );
     },
     [
       addQueryClauseAtPath,
       addQueryGroupAtPath,
       applyQueryUpdate,
+      category,
       editFieldClause,
+      metadataTree,
       openOntologyFieldEditor,
       prompts,
-      state.query.filters.category,
-      state.query.filters.metadata,
-      state.query.filters.subcategory,
+      subcategory,
       terminal,
       user.search,
     ],
@@ -1242,13 +1167,7 @@ export function useSearchWorkspaceActions({
         return;
       }
       if (action === "clearClauses") {
-        applyQueryUpdate((request) => ({
-          ...request,
-          filters: {
-            ...request.filters,
-            metadata: null,
-          },
-        }));
+        applyQueryUpdate((request) => setSearchQueryMetadataTree(request, null));
         return;
       }
       if (action === "reset") {
@@ -1275,30 +1194,38 @@ export function useSearchWorkspaceActions({
           return;
         }
         switch (part) {
-          case "scope":
-            void openScopeQueryPart();
+          case "category":
+            void chooseCategoryFilter();
             return;
-          case "levels":
+          case "subcategory":
+            void chooseSubcategoryFilter();
+            return;
+          case "levelRange":
             void editLevelRange();
             return;
           case "rarity":
             void chooseRarityFilter();
+            return;
+          case "actionCost":
+            void chooseActionCostFilter();
             return;
         }
       }
     },
     [
       applyQueryUpdate,
+      chooseActionCostFilter,
+      chooseCategoryFilter,
       chooseMode,
       chooseRarityFilter,
       chooseSearchProfile,
+      chooseSubcategoryFilter,
       dispatch,
       editQueryNode,
       editLevelRange,
       editQueryText,
       executeRequest,
       openAddQueryPart,
-      openScopeQueryPart,
       resetQueryEditor,
       state.query,
       workspaceEntries,

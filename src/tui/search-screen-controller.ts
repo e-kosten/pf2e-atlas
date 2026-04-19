@@ -43,7 +43,7 @@ import {
 } from "./terminal-ui.js";
 
 export type SearchScreenControllerResult = {
-  queryFieldPickerSession: ReturnType<typeof useSearchQueryFieldPickerWorkflow>["queryFieldPickerSession"];
+  selectionPickerSession: ReturnType<typeof useSearchQueryFieldPickerWorkflow>["selectionPickerSession"];
   screen: DerivedTagTerminalTwoPaneScreenProps;
 };
 
@@ -152,7 +152,7 @@ export function useSearchScreenController({
   const maxDetailScroll = Math.max(0, renderedDetailLineCount - bodyHeight);
   const detailScroll = Math.min(state.detailScroll, maxDetailScroll);
 
-  const { queryFieldPickerSession, openQueryFieldPicker } = useSearchQueryFieldPickerWorkflow({
+  const { selectionPickerSession, openQueryFieldPicker } = useSearchQueryFieldPickerWorkflow({
     query: state.query,
     services: user,
     onUnavailable: terminal.pauseForAnyKey,
@@ -179,7 +179,7 @@ export function useSearchScreenController({
   });
 
   useSearchScreenInteractionRouter({
-    enabled: !busy && !queryFieldPickerSession,
+    enabled: !busy && !selectionPickerSession,
     origin,
     state,
     workspaceEntryCount: workspaceEntries.length,
@@ -192,7 +192,7 @@ export function useSearchScreenController({
   });
 
   return {
-    queryFieldPickerSession,
+    selectionPickerSession,
     screen: {
       title: "Browse/Search",
       subtitle: buildSearchSubtitle(state, countState),

@@ -651,10 +651,10 @@ describe("search screen", () => {
     app.stdin.write(" ");
     await flushInk();
     expect(app.lastFrame()).toContain("Add Query Part");
-    for (const character of "clause") {
-      app.stdin.write(character);
+    for (let step = 0; step < 3; step += 1) {
+      pressDown(app);
+      await flushInk();
     }
-    await flushInk();
     app.stdin.write("\r");
     await flushInk();
     expect(app.lastFrame()).toContain("Query Field");
@@ -1419,6 +1419,16 @@ describe("search screen", () => {
           op: "includesAny",
           values: ["illusion"],
         },
+        parts: [
+          {
+            kind: "metadataPredicate",
+            predicate: {
+              field: "traits",
+              op: "includesAny",
+              values: ["illusion"],
+            },
+          },
+        ],
       },
     });
   });
@@ -1448,7 +1458,7 @@ describe("search screen", () => {
 
     expect(app.lastFrame()).toContain("[EDITOR] Query");
     expect(app.lastFrame()).toContain("Add Query Part | 2 active");
-    expect(app.lastFrame()).toContain("Scope | Spell");
+    expect(app.lastFrame()).toContain("Category | Spell");
     expect(app.lastFrame()).toContain("Query Clause | includes any Illusion");
     expect(app.lastFrame()).toContain("Seeded from: Browse illusion spells");
   });
@@ -1587,10 +1597,10 @@ describe("search screen", () => {
     app.stdin.write("\r");
     await flushInk();
     expect(app.lastFrame()).toContain("Add Query Part");
-    for (const character of "clause") {
-      app.stdin.write(character);
+    for (let step = 0; step < 3; step += 1) {
+      pressDown(app);
+      await flushInk();
     }
-    await flushInk();
     app.stdin.write("\r");
     await flushInk();
     expect(app.lastFrame()).toContain("Query Field");

@@ -57,25 +57,25 @@ function getFacetPickerBackHelpText(
   controller: Pick<OntologyExplorerControllerContext, "layoutMode" | "state" | "effectiveState">,
 ): string {
   if (isOntologyExplorerDetailContext(controller)) {
-    return controller.effectiveState.depth === 0 ? "return to the field list" : "return to the previous level";
+    return controller.effectiveState.depth === 0 ? "return to the query field list" : "return to the previous level";
   }
   return isOntologyExplorerRootLevel(controller)
-    ? "return to the search setup workspace"
+    ? "return to the query editor"
     : "return to the previous level";
 }
 
 function getFacetPickerListTitle(
   controller: Pick<OntologyExplorerControllerContext, "state" | "effectiveState">,
 ): string {
-  return controller.effectiveState.depth === 0 ? "Fields" : "Values";
+  return controller.effectiveState.depth === 0 ? "Query Fields" : "Values";
 }
 
 function getFacetPickerFocusHelpText(
   controller: Pick<OntologyExplorerControllerContext, "effectiveState">,
 ): string {
   return controller.effectiveState.depth === 0
-    ? "switch focus between fields and detail"
-    : "switch focus between values and detail";
+    ? "switch focus between query fields and detail"
+    : "switch focus between field values and detail";
 }
 
 export function getOntologyBrowserInteractionActions(
@@ -340,7 +340,7 @@ export function buildFacetPickerHelpLines(
       ...action,
       helpText:
         action.id === "cycle"
-          ? "cycle the focused policy through off, any, all, and exclude"
+          ? "cycle the focused query field policy through off, any, all, and exclude"
           : action.id === "focus"
             ? getFacetPickerFocusHelpText(controller)
             : action.id === "layout"
@@ -353,7 +353,7 @@ export function buildFacetPickerHelpLines(
                     ? "start live filtering"
                     : action.id === "help"
                       ? "show this help"
-                      : "apply the current facet state and return",
+                      : "apply the current query field selections and return",
       label: action.id === "focus" ? "toggle pane" : action.label,
     }));
 

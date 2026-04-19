@@ -479,7 +479,7 @@ describe("pf2e terminal app", () => {
     await flushInk();
     const searchFrame = app.lastFrame();
     expect(searchFrame).toContain("Browse/Search");
-    expect(searchFrame).toContain("Scope | Creature");
+    expect(searchFrame).toContain("Category | Creature");
     expect(searchFrame).toContain("Seeded from: Browse records with this value");
 
     pressLeft(app);

@@ -93,8 +93,8 @@ describe("ontology explorer screen models", () => {
     expect(formatTerminalInteractionFooter(actions)).toContain("←/Esc return");
 
     const helpLines = buildFacetPickerHelpLines(controller);
-    expect(helpLines.some((line) => line.text.includes("return to the search setup workspace"))).toBe(true);
-    expect(helpLines.some((line) => line.text.includes("switch focus between fields and detail"))).toBe(true);
+    expect(helpLines.some((line) => line.text.includes("return to the query editor"))).toBe(true);
+    expect(helpLines.some((line) => line.text.includes("switch focus between query fields and detail"))).toBe(true);
 
     const screen = buildFacetPickerScreenModel({
       model,
@@ -107,7 +107,7 @@ describe("ontology explorer screen models", () => {
     if (screen.kind !== "two-pane") {
       throw new Error("Expected a two-pane facet picker screen.");
     }
-    expect(screen.props.left.title).toBe("[FIELDS]");
+    expect(screen.props.left.title).toBe("[QUERY FIELDS]");
   });
 
   it("uses field-list wording instead of values when backing out of root detail", () => {
@@ -133,7 +133,7 @@ describe("ontology explorer screen models", () => {
     expect(formatTerminalInteractionFooter(actions)).not.toContain("values");
 
     const helpLines = buildFacetPickerHelpLines(controller);
-    expect(helpLines.some((line) => line.text.includes("return to the field list"))).toBe(true);
+    expect(helpLines.some((line) => line.text.includes("return to the query field list"))).toBe(true);
     expect(helpLines.some((line) => line.text.includes("return to the value list"))).toBe(false);
   });
 

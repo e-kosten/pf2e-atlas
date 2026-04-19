@@ -4,6 +4,13 @@ import type {
   Pf2eTerminalSearchMode,
   Pf2eTerminalSearchQuery,
 } from "./search-service.js";
+import {
+  getSearchQueryActionCostPolicy,
+  getSearchQueryLevelRange,
+  getSearchQueryMetadataTree,
+  getSearchQueryRarityPolicy,
+  getSearchQuerySubcategory,
+} from "./search-service.js";
 import type { DerivedTagTerminalCommandOption, DerivedTagTerminalLine } from "./terminal-ui.js";
 import { clampWindowStart } from "./list-utils.js";
 import type { SearchCountState, SearchScreenState } from "./search-screen-state.js";
@@ -21,7 +28,7 @@ export type SearchWorkspaceAction =
   | `queryPart:${SearchWorkspaceQueryPart}`
   | `queryNode:${string}`;
 
-type SearchWorkspaceQueryPart = "scope" | "levels" | "rarity";
+type SearchWorkspaceQueryPart = "category" | "subcategory" | "levelRange" | "rarity" | "actionCost";
 
 export type SearchWorkspaceEntry = {
   action: SearchWorkspaceAction;
@@ -84,12 +91,7 @@ export function hasFilterPolicy<T extends number | string>(policy: Pf2eTerminalF
 }
 
 function countStructuredQueryParts(request: Pf2eTerminalSearchQuery): number {
-  return (
-    (request.filters.category || request.filters.subcategory ? 1 : 0) +
-    (request.filters.levelMin !== null || request.filters.levelMax !== null ? 1 : 0) +
-    (hasFilterPolicy(request.filters.rarity) ? 1 : 0) +
-    (request.filters.metadata ? countMetadataPredicates(request.filters.metadata) : 0)
-  );
+  return (request.filters.category ? 1 : 0) + request.filters.parts.length;
 }
 
 function isMetadataPredicate(node: MetadataFilterNode): node is MetadataPredicate {
@@ -232,7 +234,17 @@ export function decodeQueryPartAction(action: SearchWorkspaceAction): SearchWork
     return null;
   }
   const part = action.slice("queryPart:".length);
-  return part === "scope" || part === "levels" || part === "rarity" ? part : null;
+  return part === "category" ||
+    part === "subcategory" ||
+    part === "levelRange" ||
+    part === "rarity" ||
+    part === "actionCost"
+    ? part
+    : null;
+}
+
+function shouldShowActionCostQueryPart(request: Pf2eTerminalSearchQuery): boolean {
+  return hasFilterPolicy(getSearchQueryActionCostPolicy(request));
 }
 
 export function decodeQueryNodeActionPath(action: SearchWorkspaceAction): number[] | null {
@@ -275,7 +287,7 @@ function buildMetadataWorkspaceEntries(
 }
 
 export function formatLevelRange(request: Pf2eTerminalSearchQuery): string {
-  const { levelMin, levelMax } = request.filters;
+  const { levelMin, levelMax } = getSearchQueryLevelRange(request);
   if (levelMin === null && levelMax === null) {
     return "(any)";
   }
@@ -289,16 +301,7 @@ export function formatLevelRange(request: Pf2eTerminalSearchQuery): string {
 }
 
 function hasStructuredSignal(request: Pf2eTerminalSearchQuery): boolean {
-  return Boolean(
-    request.filters.category ||
-    request.filters.subcategory ||
-    request.filters.levelMin !== null ||
-    request.filters.levelMax !== null ||
-    hasFilterPolicy(request.filters.rarity) ||
-    hasFilterPolicy(request.filters.actionCost) ||
-    request.filters.facets.length > 0 ||
-    request.filters.metadata,
-  );
+  return Boolean(request.filters.category || request.filters.parts.length > 0);
 }
 
 export function getExecuteAvailability(request: Pf2eTerminalSearchQuery): {
@@ -387,6 +390,11 @@ export function formatQueryStatus(state: SearchScreenState): string {
 export function buildWorkspaceEntries(state: SearchScreenState, countState: SearchCountState): SearchWorkspaceEntry[] {
   const executeAvailability = getExecuteAvailability(state.query);
   const activeStructuredPartCount = countStructuredQueryParts(state.query);
+  const subcategory = getSearchQuerySubcategory(state.query);
+  const levelRange = getSearchQueryLevelRange(state.query);
+  const rarityPolicy = getSearchQueryRarityPolicy(state.query);
+  const actionCostPolicy = getSearchQueryActionCostPolicy(state.query);
+  const metadataTree = getSearchQueryMetadataTree(state.query);
   const entries: SearchWorkspaceEntry[] = [
     {
       action: "mode",
@@ -408,7 +416,7 @@ export function buildWorkspaceEntries(state: SearchScreenState, countState: Sear
       action: "addQueryPart",
       label: "Add Query Part",
       value: activeStructuredPartCount > 0 ? `${activeStructuredPartCount} active` : "None yet",
-      description: "Add or adjust scope, levels, rarity, and explicit metadata clauses.",
+      description: "Add another root query part or append explicit metadata clauses and logic groups.",
     },
     {
       action: "reset",
@@ -445,39 +453,55 @@ export function buildWorkspaceEntries(state: SearchScreenState, countState: Sear
       indent: 1,
     });
   }
-  if (state.query.filters.category || state.query.filters.subcategory) {
+  structuredEntries.push({
+    action: encodeQueryPartAction("category"),
+    label: "Category",
+    value: formatSearchCategory(state.query.filters.category),
+    description: "Set the root category. Changing category clears every other active query part.",
+    indent: 1,
+  });
+  if (subcategory) {
     structuredEntries.push({
-      action: encodeQueryPartAction("scope"),
-      label: "Scope",
-      value: formatSearchScope(state.query.filters.category, state.query.filters.subcategory),
-      description: "Adjust the current category boundary or clear the current scope.",
+      action: encodeQueryPartAction("subcategory"),
+      label: "Subcategory",
+      value: formatSearchSubcategory(subcategory),
+      description: "Refine the current category with an optional subcategory boundary.",
       indent: 1,
     });
   }
-  if (state.query.filters.levelMin !== null || state.query.filters.levelMax !== null) {
+  if (levelRange.levelMin !== null || levelRange.levelMax !== null) {
     structuredEntries.push({
-      action: encodeQueryPartAction("levels"),
-      label: "Levels",
+      action: encodeQueryPartAction("levelRange"),
+      label: "Level Range",
       value: formatLevelRange(state.query),
       description: "Adjust the current level band or clear it.",
       indent: 1,
     });
   }
-  if (hasFilterPolicy(state.query.filters.rarity)) {
+  if (hasFilterPolicy(rarityPolicy)) {
     structuredEntries.push({
       action: encodeQueryPartAction("rarity"),
       label: "Rarity",
-      value: formatFilterPolicy(state.query.filters.rarity),
+      value: formatFilterPolicy(rarityPolicy),
       description: "Adjust the rarity include and exclude policy.",
       indent: 1,
     });
   }
-  if (state.query.filters.metadata) {
-    structuredEntries.push(...buildMetadataWorkspaceEntries(state.query.filters.metadata, [], 1));
+  if (shouldShowActionCostQueryPart(state.query)) {
+    structuredEntries.push({
+      action: encodeQueryPartAction("actionCost"),
+      label: "Action Cost",
+      value: formatFilterPolicy(actionCostPolicy),
+      description: "Adjust the action-cost include and exclude policy for the current scope.",
+      indent: 1,
+    });
+  }
+  if (metadataTree) {
+    structuredEntries.push(...buildMetadataWorkspaceEntries(metadataTree, [], 1));
     structuredEntries.push({
       action: "clearClauses",
       label: "Clear Query Clauses",
-      value: `${countMetadataPredicates(state.query.filters.metadata)} active`,
+      value: `${countMetadataPredicates(metadataTree)} active`,
       description: "Remove every explicit metadata clause while keeping the rest of the query editor state intact.",
       indent: 1,
     });
@@ -511,26 +535,31 @@ export function buildQuerySummaryLines(
   countState: SearchCountState,
 ): DerivedTagTerminalLine[] {
   const executeAvailability = getExecuteAvailability(state.query);
+  const subcategory = getSearchQuerySubcategory(state.query);
+  const levelRange = getSearchQueryLevelRange(state.query);
+  const rarityPolicy = getSearchQueryRarityPolicy(state.query);
+  const actionCostPolicy = getSearchQueryActionCostPolicy(state.query);
+  const metadataTree = getSearchQueryMetadataTree(state.query);
   const lines: DerivedTagTerminalLine[] = [
     { text: "Query Summary", tone: "section" },
     { text: `Mode: ${formatMode(state.query.mode)}` },
     { text: `Query: ${state.query.queryText || "(none)"}` },
-    {
-      text: `Scope: ${formatSearchScope(state.query.filters.category, state.query.filters.subcategory)}`,
-    },
-    { text: `Levels: ${formatLevelRange(state.query)}` },
-    { text: `Rarity: ${formatFilterPolicy(state.query.filters.rarity)}` },
-    {
-      text: `Query clauses: ${state.query.filters.metadata ? countMetadataPredicates(state.query.filters.metadata) : 0}`,
-    },
+    { text: `Category: ${formatSearchCategory(state.query.filters.category)}` },
+    ...(subcategory ? [{ text: `Subcategory: ${formatSearchSubcategory(subcategory)}` }] : []),
+    ...(levelRange.levelMin !== null || levelRange.levelMax !== null ? [{ text: `Level Range: ${formatLevelRange(state.query)}` }] : []),
+    ...(hasFilterPolicy(rarityPolicy) ? [{ text: `Rarity: ${formatFilterPolicy(rarityPolicy)}` }] : []),
+    ...(shouldShowActionCostQueryPart(state.query)
+      ? [{ text: `Action Cost: ${formatFilterPolicy(actionCostPolicy)}` as const }]
+      : []),
+    { text: `Query clauses: ${metadataTree ? countMetadataPredicates(metadataTree) : 0}` },
   ];
 
   if (state.query.mode === "search") {
     lines.splice(3, 0, { text: `Profile: ${state.query.searchProfile}` });
   }
 
-  if (state.query.filters.metadata) {
-    for (const entry of buildMetadataWorkspaceEntries(state.query.filters.metadata)) {
+  if (metadataTree) {
+    for (const entry of buildMetadataWorkspaceEntries(metadataTree)) {
       lines.push({
         text: `${entry.label}: ${entry.value}`,
         indent: 2 + (entry.indent ?? 0) * 2,

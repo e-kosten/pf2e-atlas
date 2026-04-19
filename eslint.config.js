@@ -112,6 +112,48 @@ export default defineConfig(
           selector: 'Literal[value="Facet Filters"]',
           message: "Search editor copy must not expose legacy facet-filter group labels.",
         },
+        {
+          selector:
+            'MemberExpression[object.type="MemberExpression"][object.property.name="filters"][property.name="subcategory"]',
+          message:
+            "Search editor surfaces must read subcategory through shared query-part helpers instead of direct legacy filter slots.",
+        },
+        {
+          selector:
+            'MemberExpression[object.type="MemberExpression"][object.property.name="filters"][property.name="levelMin"]',
+          message:
+            "Search editor surfaces must read level range through shared query-part helpers instead of direct legacy filter slots.",
+        },
+        {
+          selector:
+            'MemberExpression[object.type="MemberExpression"][object.property.name="filters"][property.name="levelMax"]',
+          message:
+            "Search editor surfaces must read level range through shared query-part helpers instead of direct legacy filter slots.",
+        },
+        {
+          selector:
+            'MemberExpression[object.type="MemberExpression"][object.property.name="filters"][property.name="rarity"]',
+          message:
+            "Search editor surfaces must read rarity through shared query-part helpers instead of direct legacy filter slots.",
+        },
+        {
+          selector:
+            'MemberExpression[object.type="MemberExpression"][object.property.name="filters"][property.name="actionCost"]',
+          message:
+            "Search editor surfaces must read action cost through shared query-part helpers instead of direct legacy filter slots.",
+        },
+        {
+          selector:
+            'MemberExpression[object.type="MemberExpression"][object.property.name="filters"][property.name="metadata"]',
+          message:
+            "Search editor surfaces must read query clauses through shared query-part helpers instead of direct legacy filter slots.",
+        },
+        {
+          selector:
+            'MemberExpression[object.type="MemberExpression"][object.property.name="filters"][property.name="facets"]',
+          message:
+            "Search editor surfaces must not read legacy facet slots; use the unified query-part model instead.",
+        },
       ],
     },
   },

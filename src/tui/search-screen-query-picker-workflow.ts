@@ -1,8 +1,13 @@
 import React from "react";
 
-import { buildSearchFacetPickerModel } from "./ontology-explorer/facet-picker-model.js";
+import { buildSearchFacetPickerModel as buildSearchQueryFieldSelectionPickerModel } from "./ontology-explorer/facet-picker-model.js";
 import type { OntologyPickerSelectionMap } from "./ontology-explorer/picker-screen.js";
-import type { Pf2eTerminalQueryFieldOption, Pf2eTerminalQueryFieldSelectionMap, Pf2eTerminalSearchQuery } from "./search-service.js";
+import {
+  getSearchQuerySubcategory,
+  type Pf2eTerminalQueryFieldOption,
+  type Pf2eTerminalQueryFieldSelectionMap,
+  type Pf2eTerminalSearchQuery,
+} from "./search-service.js";
 import type { SearchQueryFieldPickerSession } from "./search-screen-model.js";
 import type { Pf2eTerminalAppServices } from "./app-services.js";
 
@@ -15,7 +20,7 @@ export function useSearchQueryFieldPickerWorkflow({
   services: Pick<Pf2eTerminalAppServices["user"], "ontology" | "search">;
   onUnavailable: (message: string) => Promise<void>;
 }): {
-  queryFieldPickerSession: SearchQueryFieldPickerSession | null;
+  selectionPickerSession: SearchQueryFieldPickerSession | null;
   openQueryFieldPicker: (options: {
     fieldOptions: Pf2eTerminalQueryFieldOption[];
     initialSelections?: Pf2eTerminalQueryFieldSelectionMap;
@@ -23,7 +28,8 @@ export function useSearchQueryFieldPickerWorkflow({
   }) => Promise<boolean>;
   closeQueryFieldPicker: () => void;
 } {
-  const [queryFieldPickerSession, setQueryFieldPickerSession] = React.useState<SearchQueryFieldPickerSession | null>(null);
+  const querySubcategory = React.useMemo(() => getSearchQuerySubcategory(query), [query]);
+  const [selectionPickerSession, setSelectionPickerSession] = React.useState<SearchQueryFieldPickerSession | null>(null);
 
   const openQueryFieldPicker = React.useCallback(
     async ({
@@ -45,9 +51,9 @@ export function useSearchQueryFieldPickerWorkflow({
       }
 
       const searchSemanticsDomain = services.ontology.loadDomain("searchSemantics");
-      const model = buildSearchFacetPickerModel(searchSemanticsDomain, {
+      const model = buildSearchQueryFieldSelectionPickerModel(searchSemanticsDomain, {
         category: query.filters.category,
-        subcategory: query.filters.subcategory,
+        subcategory: querySubcategory,
         fieldOptions,
       });
       if (model.rootNodes.length === 0) {
@@ -55,25 +61,25 @@ export function useSearchQueryFieldPickerWorkflow({
         return false;
       }
 
-      setQueryFieldPickerSession({
+      setSelectionPickerSession({
         model,
         initialSelections: initialSelections as OntologyPickerSelectionMap,
         applySelection: (selection) => {
           onApply(selection as Pf2eTerminalQueryFieldSelectionMap);
-          setQueryFieldPickerSession(null);
+          setSelectionPickerSession(null);
         },
       });
       return true;
     },
-    [onUnavailable, query.filters.category, query.filters.subcategory, services.ontology],
+    [onUnavailable, query.filters.category, querySubcategory, services.ontology],
   );
 
   const closeQueryFieldPicker = React.useCallback(() => {
-    setQueryFieldPickerSession(null);
+    setSelectionPickerSession(null);
   }, []);
 
   return {
-    queryFieldPickerSession,
+    selectionPickerSession,
     openQueryFieldPicker,
     closeQueryFieldPicker,
   };

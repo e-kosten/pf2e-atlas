@@ -123,7 +123,7 @@ function buildSelectionSummaryLines(
   selections: OntologyPickerSelectionMap,
   focusedNode: OntologyNode | undefined,
 ): DerivedTagTerminalLine[] {
-  const lines: DerivedTagTerminalLine[] = [{ text: "" }, { text: "Current selection", tone: "section" }];
+  const lines: DerivedTagTerminalLine[] = [{ text: "" }, { text: "Focused selection", tone: "section" }];
   if (focusedNode?.selection) {
     lines.push({ text: `${focusedNode.selection.fieldLabel}: ${focusedNode.label}` });
     lines.push({
@@ -138,9 +138,9 @@ function buildSelectionSummaryLines(
     ([, selection]) => selection.any.length > 0 || selection.all.length > 0 || selection.exclude.length > 0,
   );
   lines.push({ text: "" });
-  lines.push({ text: "Current filters", tone: "section" });
+  lines.push({ text: "Selected query fields", tone: "section" });
   if (selectionEntries.length === 0) {
-    lines.push({ text: "No facet values selected yet.", tone: "dim" });
+    lines.push({ text: "No query field values selected yet.", tone: "dim" });
     return lines;
   }
 
