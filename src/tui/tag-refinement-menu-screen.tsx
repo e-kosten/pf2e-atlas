@@ -235,10 +235,6 @@ export function TagRefinementMenuScreen({
     navigationStateRef.current = navigation.state;
     const interactionAction = resolveTerminalInteractionAction(event, getTagRefinementInteractionActions());
 
-    if (event.systemAction === "interrupt") {
-      onBack();
-      return;
-    }
     if (actionTargetIntent?.kind === "toggle_target") {
       dispatchActionTarget({ type: "toggle_target" });
       navigationStateRef.current = createDerivedTagTerminalListNavigationState();

@@ -96,7 +96,7 @@ export function OntologyDomainPickerScreen({
     navigationStateRef.current = navigation.state;
     const interactionAction = resolveTerminalInteractionAction(event, getOntologyDomainPickerInteractionActions());
 
-    if (event.systemAction === "interrupt" || interactionAction?.id === "back" || interactionAction?.id === "quit") {
+    if (interactionAction?.id === "back" || interactionAction?.id === "quit") {
       onBack();
       return;
     }

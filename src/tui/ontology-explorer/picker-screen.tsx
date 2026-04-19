@@ -183,7 +183,7 @@ function buildFacetPickerFooterText(controller: ReturnType<typeof useOntologyExp
 }
 
 function getFacetPickerInteractionActions(
-  controller: Pick<ReturnType<typeof useOntologyExplorerController>, "layoutMode" | "state">,
+  controller: Pick<ReturnType<typeof useOntologyExplorerController>, "layoutMode" | "state" | "effectiveState">,
 ): TerminalInteractionAction[] {
   if (controller.layoutMode === "detail-only") {
     return [
@@ -209,6 +209,7 @@ function getFacetPickerInteractionActions(
       { id: "cycle" },
       { id: "focus", label: "pane" },
       { id: "layout", label: "detail-only" },
+      ...(controller.effectiveState.filter ? [{ id: "cancel" as const, label: "clear filter" }] : []),
       { id: "back", label: "up" },
       { id: "search" },
       { id: "help" },
@@ -231,7 +232,7 @@ function getFacetPickerInteractionActions(
 }
 
 function buildFacetPickerHelpLines(
-  controller: Pick<ReturnType<typeof useOntologyExplorerController>, "layoutMode" | "state">,
+  controller: Pick<ReturnType<typeof useOntologyExplorerController>, "layoutMode" | "state" | "effectiveState">,
 ): DerivedTagTerminalLine[] {
   const actionActions = getFacetPickerInteractionActions(controller)
     .filter((action) => !["move", "scroll", "jump", "page", "edge"].includes(action.id))
@@ -244,6 +245,8 @@ function buildFacetPickerHelpLines(
             ? "switch focus between values and detail"
             : action.id === "layout"
               ? "toggle split and detail-only layouts"
+              : action.id === "cancel"
+                ? "clear the current filter without leaving this level"
               : action.id === "back"
                 ? "move up a level or leave the active pane"
                 : action.id === "search"

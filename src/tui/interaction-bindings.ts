@@ -22,6 +22,7 @@ export type TerminalInteractionActionId =
   | "toggle"
   | "cycle"
   | "cycleReverse"
+  | "cancel"
   | "back"
   | "return"
   | "focus"
@@ -133,14 +134,19 @@ const TERMINAL_INTERACTION_DEFINITIONS: Record<TerminalInteractionActionId, Term
     helpKeys: "Unbound",
     defaultLabel: "reverse cycle",
   },
+  cancel: {
+    footerKeys: "Esc",
+    helpKeys: "Escape",
+    defaultLabel: "cancel",
+  },
   back: {
-    footerKeys: "←/Esc",
-    helpKeys: "← or h / Escape / Backspace",
+    footerKeys: "←",
+    helpKeys: "← or h / Backspace",
     defaultLabel: "back",
   },
   return: {
-    footerKeys: "←/Esc",
-    helpKeys: "← or h / Escape / Backspace",
+    footerKeys: "←",
+    helpKeys: "← or h / Backspace",
     defaultLabel: "return",
   },
   focus: {
@@ -203,11 +209,64 @@ function getInteractionLabel(action: TerminalInteractionAction): string {
   return action.label ?? getInteractionDefinition(action).defaultLabel;
 }
 
+function findDeclaredInteractionAction(
+  actions: TerminalInteractionAction[],
+  targetId: TerminalInteractionActionId,
+): TerminalInteractionAction | undefined {
+  return actions.find((action) => action.id === targetId);
+}
+
+function getEscapeFallbackAction(actions: TerminalInteractionAction[]): TerminalInteractionAction | undefined {
+  return (
+    findDeclaredInteractionAction(actions, "cancel") ??
+    findDeclaredInteractionAction(actions, "close") ??
+    findDeclaredInteractionAction(actions, "back") ??
+    findDeclaredInteractionAction(actions, "return") ??
+    findDeclaredInteractionAction(actions, "quit")
+  );
+}
+
+function isEscapeFallbackTarget(action: TerminalInteractionAction, actions: TerminalInteractionAction[]): boolean {
+  return getEscapeFallbackAction(actions)?.id === action.id;
+}
+
+function getInteractionDisplayKeys(
+  action: TerminalInteractionAction,
+  actions: TerminalInteractionAction[],
+): Pick<TerminalInteractionDefinition, "footerKeys" | "helpKeys"> {
+  const definition = getInteractionDefinition(action);
+
+  if (action.id === "back" || action.id === "return") {
+    if (isEscapeFallbackTarget(action, actions)) {
+      return {
+        footerKeys: `${definition.footerKeys}/Esc`,
+        helpKeys: `${definition.helpKeys} / Escape`,
+      };
+    }
+    return {
+      footerKeys: definition.footerKeys,
+      helpKeys: definition.helpKeys,
+    };
+  }
+
+  if (action.id === "quit" && isEscapeFallbackTarget(action, actions)) {
+    return {
+      footerKeys: `Esc/${definition.footerKeys}`,
+      helpKeys: `Escape / ${definition.helpKeys}`,
+    };
+  }
+
+  return {
+    footerKeys: definition.footerKeys,
+    helpKeys: definition.helpKeys,
+  };
+}
+
 export function formatTerminalInteractionFooter(actions: TerminalInteractionAction[]): string {
   return actions
     .map((action) => {
-      const definition = getInteractionDefinition(action);
-      return `${definition.footerKeys} ${getInteractionLabel(action)}`;
+      const displayKeys = getInteractionDisplayKeys(action, actions);
+      return `${displayKeys.footerKeys} ${getInteractionLabel(action)}`;
     })
     .join("  ");
 }
@@ -232,11 +291,13 @@ function matchesTerminalInteractionAction(actionId: TerminalInteractionActionId,
       return Boolean(event.getCycleDirection());
     case "cycleReverse":
       return Boolean(event.getReverseCycleDirection());
+    case "cancel":
+      return false;
     case "moveHorizontal":
       return event.isMoveLeftKey() || event.isMoveRightKey();
     case "back":
     case "return":
-      return event.isBackNavigationKey();
+      return event.isBackNavigationKey() && event.textInputAction !== "cancel";
     case "focus":
       return event.isFocusToggleKey();
     case "layout":
@@ -263,6 +324,10 @@ export function resolveTerminalInteractionAction(
   event: DerivedTagTerminalInputEvent,
   actions: TerminalInteractionAction[],
 ): TerminalInteractionAction | undefined {
+  if (event.textInputAction === "cancel") {
+    return getEscapeFallbackAction(actions);
+  }
+
   return actions.find((action) => matchesTerminalInteractionAction(action.id, event));
 }
 
@@ -279,10 +344,10 @@ export function getTerminalInteractionCycleDirection(
   return undefined;
 }
 
-function buildActionHelpLine(action: TerminalInteractionAction): TerminalInteractionLine {
-  const definition = getInteractionDefinition(action);
+function buildActionHelpLine(action: TerminalInteractionAction, actions: TerminalInteractionAction[]): TerminalInteractionLine {
+  const displayKeys = getInteractionDisplayKeys(action, actions);
   return {
-    text: `${definition.helpKeys}: ${action.helpText ?? getInteractionLabel(action)}`,
+    text: `${displayKeys.helpKeys}: ${action.helpText ?? getInteractionLabel(action)}`,
   };
 }
 
@@ -297,6 +362,7 @@ export function buildTerminalInteractionHelpLines(
   sections: TerminalInteractionHelpSection[],
 ): TerminalInteractionLine[] {
   const lines: TerminalInteractionLine[] = [];
+  const declaredActions = sections.flatMap((section) => section.actions ?? []);
 
   for (const section of sections) {
     if (lines.length > 0) {
@@ -304,7 +370,7 @@ export function buildTerminalInteractionHelpLines(
     }
     lines.push({ text: section.title, tone: "section" });
     for (const action of section.actions ?? []) {
-      lines.push(buildActionHelpLine(action));
+      lines.push(buildActionHelpLine(action, declaredActions));
     }
     for (const command of section.commands ?? []) {
       lines.push(buildCommandHelpLine(command));

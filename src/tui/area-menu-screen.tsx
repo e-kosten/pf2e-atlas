@@ -124,7 +124,7 @@ export function AreaMenuScreen({
     navigationStateRef.current = navigation.state;
     const interactionAction = resolveTerminalInteractionAction(event, getAreaMenuInteractionActions());
 
-    if (event.systemAction === "interrupt" || event.textInputAction === "cancel" || interactionAction?.id === "quit") {
+    if (interactionAction?.id === "quit") {
       onQuit();
       return;
     }

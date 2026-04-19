@@ -1884,11 +1884,6 @@ export function SearchScreen({
           : getSearchResultDetailInteractionActions();
     const interactionAction = resolveTerminalInteractionAction(event, interactionActions);
 
-    if (event.systemAction === "interrupt") {
-      exitSearchScreen();
-      return;
-    }
-
     if (interactionAction?.id === "help") {
       showSearchHelp();
       return;

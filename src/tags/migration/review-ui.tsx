@@ -484,10 +484,6 @@ export function DerivedTagMigrationReviewScreen({
     const actionTargetIntent = resolveDerivedTagTerminalActionTargetIntent(event, state, "horizontal");
     const interactionAction = resolveTerminalInteractionAction(event, paneInteractionActions);
 
-    if (event.systemAction === "interrupt") {
-      void requestAction("quit");
-      return;
-    }
     if (actionTargetIntent?.kind === "toggle_target") {
       dispatch({ type: "toggle_target" });
       navigationStateRef.current = createDerivedTagTerminalListNavigationState();

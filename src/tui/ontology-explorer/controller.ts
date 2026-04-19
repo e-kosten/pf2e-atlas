@@ -343,11 +343,7 @@ export function useOntologyExplorerController(
     };
     const interactionActions = options.getInteractionActions?.(context) ?? [];
     const interactionAction = resolveTerminalInteractionAction(event, interactionActions);
-
-    if (event.systemAction === "interrupt") {
-      options.onExit();
-      return;
-    }
+    const searchModeAction = resolveTerminalInteractionAction(event, [{ id: "cancel" }]);
 
     if (state.searchMode) {
       if (event.textInputAction === "submit") {
@@ -358,7 +354,7 @@ export function useOntologyExplorerController(
         dispatch({ type: "backspace_search" });
         return;
       }
-      if (event.textInputAction === "cancel") {
+      if (searchModeAction?.id === "cancel") {
         dispatch({ type: "clear_search" });
         dispatch({ type: "set_search_mode", searchMode: false, searchInput: "" });
         return;
@@ -409,10 +405,6 @@ export function useOntologyExplorerController(
         dispatch({ type: "leave_detail" });
         return;
       }
-      if (event.textInputAction === "cancel") {
-        dispatch({ type: "leave_detail" });
-        return;
-      }
       return;
     }
 
@@ -440,24 +432,14 @@ export function useOntologyExplorerController(
       }
       return;
     }
-    if (event.textInputAction === "cancel") {
+    if (interactionAction?.id === "cancel") {
       if ((options.escapeClearsFilterBeforeExit ?? true) && context.effectiveState.filter) {
         dispatch({ type: "clear_search" });
         return;
       }
-      const nextState = popOntologyBrowserDepth(context.effectiveState);
-      if (nextState.depth === context.effectiveState.depth) {
-        options.onExit();
-      } else {
-        dispatch({ type: "pop_depth" });
-      }
       return;
     }
     if (interactionAction && options.onAction?.(interactionAction, keyContext)) {
-      return;
-    }
-    if (interactionAction?.id === "quit") {
-      options.onExit();
       return;
     }
     if (interactionAction?.id === "focus") {
@@ -475,6 +457,10 @@ export function useOntologyExplorerController(
       } else {
         dispatch({ type: "pop_depth" });
       }
+      return;
+    }
+    if (interactionAction?.id === "quit") {
+      options.onExit();
       return;
     }
     if (interactionAction?.id === "search") {

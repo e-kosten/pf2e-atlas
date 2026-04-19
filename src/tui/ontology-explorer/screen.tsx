@@ -22,7 +22,7 @@ function buildOntologyBrowserFooterText(controller: ReturnType<typeof useOntolog
 }
 
 function getOntologyBrowserInteractionActions(
-  controller: Pick<ReturnType<typeof useOntologyExplorerController>, "layoutMode" | "state">,
+  controller: Pick<ReturnType<typeof useOntologyExplorerController>, "layoutMode" | "state" | "effectiveState">,
 ): TerminalInteractionAction[] {
   if (controller.layoutMode === "detail-only") {
     return [
@@ -48,6 +48,7 @@ function getOntologyBrowserInteractionActions(
       { id: "open", label: "open" },
       { id: "focus", label: "pane" },
       { id: "layout", label: "detail-only" },
+      ...(controller.effectiveState.filter ? [{ id: "cancel" as const, label: "clear filter" }] : []),
       { id: "back", label: "up" },
       { id: "search" },
       { id: "commands" },
@@ -90,7 +91,10 @@ function buildOntologyCommandEntries(
 }
 
 function buildOntologyBrowserHelpLines(
-  controller: Pick<ReturnType<typeof useOntologyExplorerController>, "layoutMode" | "state" | "selectedQuery">,
+  controller: Pick<
+    ReturnType<typeof useOntologyExplorerController>,
+    "layoutMode" | "state" | "effectiveState" | "selectedQuery"
+  >,
   onOpenQuery?: (query: OntologyNodeQuery) => void,
 ) {
   const navigationActions: TerminalInteractionAction[] = [
@@ -113,6 +117,8 @@ function buildOntologyBrowserHelpLines(
             ? "switch focus between list and detail"
             : action.id === "layout"
               ? "toggle split and detail-only layouts"
+              : action.id === "cancel"
+                ? "clear the current filter without leaving this level"
               : action.id === "back"
                 ? "move up a level or leave the active pane"
                 : action.id === "search"

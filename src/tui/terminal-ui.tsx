@@ -684,7 +684,12 @@ export function useDerivedTagTerminalInput(
       if (terminal.modalActive) {
         return;
       }
-      handler(createDerivedTagTerminalInputEvent(input, key));
+      const event = createDerivedTagTerminalInputEvent(input, key);
+      if (event.systemAction === "interrupt") {
+        terminal.exitApp();
+        return;
+      }
+      handler(event);
     },
     { isActive },
   );
@@ -1789,11 +1794,13 @@ function getInlineModalHeight(modal: TerminalModalState, totalRows: number, widt
 function DerivedTagTerminalModalHost({
   modal,
   setModal,
+  exitApp,
   width,
   height,
 }: {
   modal: TerminalModalState;
   setModal: React.Dispatch<React.SetStateAction<TerminalModalState>>;
+  exitApp: () => void;
   width: number;
   height: number;
 }): React.JSX.Element | null {
@@ -1803,6 +1810,10 @@ function DerivedTagTerminalModalHost({
   useInput(
     (input, key) => {
       const event = createDerivedTagTerminalInputEvent(input, key);
+      if (event.systemAction === "interrupt") {
+        exitApp();
+        return;
+      }
       const selectLikeAction = resolveTerminalInteractionAction(event, [
         { id: "select" },
         { id: "back", label: "cancel" },
@@ -1935,7 +1946,7 @@ function DerivedTagTerminalModalHost({
           resolver(selected);
           return;
         }
-        if (selectLikeAction?.id === "back" || event.isTerminalQuitKey() || event.systemAction === "interrupt") {
+        if (selectLikeAction?.id === "back" || event.isTerminalQuitKey()) {
           const resolver = modal.resolve;
           setModal(null);
           resolver(undefined);
@@ -1944,7 +1955,7 @@ function DerivedTagTerminalModalHost({
       }
 
       if (modal.kind === "select" && modal.options.entries.length === 0) {
-        if (event.isBackNavigationKey() || event.isTerminalQuitKey() || event.systemAction === "interrupt") {
+        if (event.isBackNavigationKey() || event.isTerminalQuitKey()) {
           const resolver = modal.resolve;
           setModal(null);
           resolver({ kind: "cancelled" });
@@ -1953,7 +1964,7 @@ function DerivedTagTerminalModalHost({
       }
 
       if (modal.kind === "multiselect" && modal.options.entries.length === 0) {
-        if (event.isBackNavigationKey() || event.isTerminalQuitKey() || event.systemAction === "interrupt") {
+        if (event.isBackNavigationKey() || event.isTerminalQuitKey()) {
           const resolver = modal.resolve;
           setModal(null);
           resolver([]);
@@ -1962,7 +1973,7 @@ function DerivedTagTerminalModalHost({
       }
 
       if (modal.kind === "policy" && modal.options.entries.length === 0) {
-        if (event.isBackNavigationKey() || event.isTerminalQuitKey() || event.systemAction === "interrupt") {
+        if (event.isBackNavigationKey() || event.isTerminalQuitKey()) {
           const resolver = modal.resolve;
           setModal(null);
           resolver(createEmptyPolicySelection());
@@ -2058,7 +2069,7 @@ function DerivedTagTerminalModalHost({
       }
       if (
         modal.kind === "policy" &&
-        (policyLikeAction?.id === "return" || event.isTerminalQuitKey() || event.systemAction === "interrupt")
+        (policyLikeAction?.id === "return" || event.isTerminalQuitKey())
       ) {
         const resolver = modal.resolve;
         const selection = buildPolicySelection(modal.options.entries, modal.valueStates);
@@ -2068,7 +2079,7 @@ function DerivedTagTerminalModalHost({
       }
       if (
         modal.kind === "select" &&
-        (selectLikeAction?.id === "back" || event.isTerminalQuitKey() || event.systemAction === "interrupt")
+        (selectLikeAction?.id === "back" || event.isTerminalQuitKey())
       ) {
         const resolver = modal.resolve;
         setModal(null);
@@ -2257,11 +2268,23 @@ export function DerivedTagTerminalProvider({ children }: { children: React.React
   return (
     <DerivedTagTerminalContext.Provider value={contextValue}>
       {modal && modalPresentation === "screen" ? (
-        <DerivedTagTerminalModalHost modal={modal} setModal={setModal} width={columns} height={rows} />
+        <DerivedTagTerminalModalHost
+          modal={modal}
+          setModal={setModal}
+          exitApp={exit}
+          width={columns}
+          height={rows}
+        />
       ) : null}
       <Box flexDirection="column">{children}</Box>
       {modal && modalPresentation === "inline" ? (
-        <DerivedTagTerminalModalHost modal={modal} setModal={setModal} width={columns} height={inlineModalHeight} />
+        <DerivedTagTerminalModalHost
+          modal={modal}
+          setModal={setModal}
+          exitApp={exit}
+          width={columns}
+          height={inlineModalHeight}
+        />
       ) : null}
     </DerivedTagTerminalContext.Provider>
   );
