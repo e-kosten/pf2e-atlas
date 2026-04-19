@@ -2,12 +2,11 @@ import React from "react";
 
 import { buildSearchFacetPickerModel } from "./ontology-explorer/facet-picker-model.js";
 import type { OntologyPickerSelectionMap } from "./ontology-explorer/picker-screen.js";
-import type { Pf2eTerminalSearchQuery } from "./search-service.js";
-import {
-  type SearchFacetPickerSession,
-  applyFacetPickerSelectionsToRequest,
-  buildFacetPickerInitialSelections,
-} from "./search-screen-model.js";
+import type {
+  Pf2eTerminalQueryFieldSelectionMap,
+  Pf2eTerminalSearchQuery,
+} from "./search-service.js";
+import type { SearchFacetPickerSession } from "./search-screen-model.js";
 import type { Pf2eTerminalAppServices } from "./app-services.js";
 
 export function useSearchFacetWorkflow({
@@ -33,7 +32,15 @@ export function useSearchFacetWorkflow({
       return;
     }
 
-    const fieldOptions = services.search.getFacetFieldOptions(query.filters.category, query.filters.subcategory);
+    const fieldOptions = services.search
+      .getQueryFieldOptions(query.filters.category, query.filters.subcategory)
+      .filter((option) => ["set", "enumString", "boolean"].includes(option.fieldType))
+      .sort((left, right) => {
+        if (left.editor === right.editor) {
+          return left.label.localeCompare(right.label);
+        }
+        return left.editor === "ontologyPicker" ? -1 : 1;
+      });
     if (fieldOptions.length === 0) {
       await onUnavailable("No discoverable facet fields are available for the current browse scope.");
       return;
@@ -52,10 +59,10 @@ export function useSearchFacetWorkflow({
 
     setFacetPickerSession({
       model,
-      initialSelections: buildFacetPickerInitialSelections(
+      initialSelections: services.search.buildDiscoverableQueryFieldSelections(
         query,
         fieldOptions.map((option) => option.value),
-      ),
+      ) as OntologyPickerSelectionMap,
       scopedFields: fieldOptions.map((option) => option.value),
     });
   }, [onUnavailable, query, services.ontology, services.search]);
@@ -66,11 +73,15 @@ export function useSearchFacetWorkflow({
         return;
       }
       applyQueryUpdate((request) =>
-        applyFacetPickerSelectionsToRequest(request, selection, facetPickerSession.scopedFields),
+        services.search.applyDiscoverableQueryFieldSelections(
+          request,
+          selection as Pf2eTerminalQueryFieldSelectionMap,
+          facetPickerSession.scopedFields,
+        ),
       );
       setFacetPickerSession(null);
     },
-    [applyQueryUpdate, facetPickerSession],
+    [applyQueryUpdate, facetPickerSession, services.search],
   );
 
   return {

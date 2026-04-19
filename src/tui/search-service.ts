@@ -7,6 +7,7 @@ import type {
   MetadataBooleanField,
   MetadataEnumStringField,
   MetadataFilterNode,
+  MetadataPredicate,
   MetadataSetField,
   NormalizedRecord,
   OntologyNodeQuery,
@@ -108,7 +109,12 @@ export type Pf2eTerminalQueryFieldOption = {
   label: string;
   description: string;
   fieldType: MetadataFieldSemantics["fieldType"];
+  editor: Pf2eTerminalQueryFieldEditor;
 };
+
+export type Pf2eTerminalQueryFieldEditor = "policyList" | "structuredForm" | "ontologyPicker";
+
+export type Pf2eTerminalQueryFieldSelectionMap = Record<string, Pf2eTerminalFilterValuePolicy<string>>;
 
 export type Pf2eTerminalSearchSession = {
   windowId: string;
@@ -147,6 +153,15 @@ export type Pf2eTerminalSearchService = {
     category: SearchCategory | null,
     subcategory: SearchSubcategory | null,
   ) => Pf2eTerminalQueryFieldOption[];
+  buildDiscoverableQueryFieldSelections: (
+    query: Pf2eTerminalSearchQuery,
+    scopedFields: string[],
+  ) => Pf2eTerminalQueryFieldSelectionMap;
+  applyDiscoverableQueryFieldSelections: (
+    query: Pf2eTerminalSearchQuery,
+    selections: Pf2eTerminalQueryFieldSelectionMap,
+    scopedFields: string[],
+  ) => Pf2eTerminalSearchQuery;
   getFacetValueOptions: (
     field: Pf2eTerminalFacetField,
     category: SearchCategory | null,
@@ -397,6 +412,10 @@ function createDefaultQuery(): Pf2eTerminalSearchQuery {
   };
 }
 
+function createEmptyStringPolicy(): Pf2eTerminalFilterValuePolicy<string> {
+  return createEmptyFilterPolicy<string>();
+}
+
 function getDefaultSort(mode: Pf2eTerminalSearchMode): Pf2eTerminalSearchSort {
   return mode === "browse" ? "alphabetical" : "ranked";
 }
@@ -491,6 +510,232 @@ function normalizeFacetSelection(
   return {
     field: facet.field,
     policy: normalizedPolicy,
+  };
+}
+
+function normalizeQueryFieldPolicy(
+  field: Pf2eTerminalQueryField,
+  policy: Partial<Pf2eTerminalFilterValuePolicy<string>> | undefined,
+  fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
+): Pf2eTerminalFilterValuePolicy<string> | null {
+  const fieldSemantics = fieldSemanticsByName.get(field);
+  if (!fieldSemantics || !fieldSemantics.discoverable) {
+    return null;
+  }
+
+  if (!["set", "enumString", "boolean"].includes(fieldSemantics.fieldType)) {
+    return null;
+  }
+
+  const normalizedPolicy = normalizeStringPolicy(policy, fieldSemantics.valueOrdering);
+  if (fieldSemantics.fieldType !== "set") {
+    normalizedPolicy.all = [];
+  }
+  if (fieldSemantics.fieldType === "boolean") {
+    normalizedPolicy.any = normalizedPolicy.any.filter((value) => value === "true" || value === "false");
+    normalizedPolicy.exclude = normalizedPolicy.exclude.filter((value) => value === "true" || value === "false");
+  }
+
+  if (normalizedPolicy.any.length === 0 && normalizedPolicy.all.length === 0 && normalizedPolicy.exclude.length === 0) {
+    return null;
+  }
+
+  return normalizedPolicy;
+}
+
+function normalizeMetadataNode(node: MetadataFilterNode | null): MetadataFilterNode | null {
+  if (!node) {
+    return null;
+  }
+
+  if ("and" in node) {
+    const children = node.and
+      .map((child) => normalizeMetadataNode(child))
+      .filter((child): child is MetadataFilterNode => Boolean(child));
+    if (children.length === 0) {
+      return null;
+    }
+    if (children.length === 1) {
+      return children[0]!;
+    }
+    return { and: children };
+  }
+
+  if ("or" in node) {
+    const children = node.or
+      .map((child) => normalizeMetadataNode(child))
+      .filter((child): child is MetadataFilterNode => Boolean(child));
+    if (children.length === 0) {
+      return null;
+    }
+    if (children.length === 1) {
+      return children[0]!;
+    }
+    return { or: children };
+  }
+
+  if ("not" in node) {
+    const child = normalizeMetadataNode(node.not);
+    if (!child) {
+      return null;
+    }
+    return { not: child };
+  }
+
+  return node;
+}
+
+function mergeStringPolicies(
+  left: Pf2eTerminalFilterValuePolicy<string>,
+  right: Pf2eTerminalFilterValuePolicy<string>,
+): Pf2eTerminalFilterValuePolicy<string> {
+  return {
+    any: [...left.any, ...right.any],
+    all: [...left.all, ...right.all],
+    exclude: [...left.exclude, ...right.exclude],
+  };
+}
+
+function mergeSelectionMaps(
+  target: Pf2eTerminalQueryFieldSelectionMap,
+  source: Pf2eTerminalQueryFieldSelectionMap,
+): Pf2eTerminalQueryFieldSelectionMap {
+  const next: Pf2eTerminalQueryFieldSelectionMap = { ...target };
+
+  for (const [field, policy] of Object.entries(source)) {
+    next[field] = field in next ? mergeStringPolicies(next[field]!, policy) : { ...policy };
+  }
+
+  return next;
+}
+
+function createScopedSelectionMap(scopedFields: string[]): Pf2eTerminalQueryFieldSelectionMap {
+  return Object.fromEntries(scopedFields.map((field) => [field, createEmptyStringPolicy()])) as Pf2eTerminalQueryFieldSelectionMap;
+}
+
+function extractPolicyFromMetadataPredicate(
+  node: MetadataPredicate,
+  fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
+): { field: Pf2eTerminalQueryField; policy: Pf2eTerminalFilterValuePolicy<string> } | null {
+  const fieldSemantics = fieldSemanticsByName.get(node.field as Pf2eTerminalQueryField);
+  if (!fieldSemantics || !fieldSemantics.discoverable) {
+    return null;
+  }
+
+  if (fieldSemantics.fieldType === "set") {
+    if ("values" in node && node.op === "includesAny") {
+      return { field: node.field, policy: { any: node.values.map(String), all: [], exclude: [] } };
+    }
+    if ("values" in node && node.op === "includesAll") {
+      return { field: node.field, policy: { any: [], all: node.values.map(String), exclude: [] } };
+    }
+    if ("values" in node && node.op === "excludesAny") {
+      return { field: node.field, policy: { any: [], all: [], exclude: node.values.map(String) } };
+    }
+    return null;
+  }
+
+  if (fieldSemantics.fieldType === "enumString") {
+    if ("value" in node && node.op === "eq") {
+      return { field: node.field, policy: { any: [String(node.value)], all: [], exclude: [] } };
+    }
+    if ("values" in node && node.op === "in") {
+      return { field: node.field, policy: { any: node.values.map(String), all: [], exclude: [] } };
+    }
+    if ("values" in node && node.op === "notIn") {
+      return { field: node.field, policy: { any: [], all: [], exclude: node.values.map(String) } };
+    }
+    return null;
+  }
+
+  if (fieldSemantics.fieldType === "boolean" && "value" in node && node.op === "eq") {
+    return { field: node.field, policy: { any: [String(node.value)], all: [], exclude: [] } };
+  }
+
+  return null;
+}
+
+function tryExtractScopedPolicyNode(
+  node: MetadataFilterNode,
+  scopedFieldSet: ReadonlySet<string>,
+  fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
+): { field: Pf2eTerminalQueryField; policy: Pf2eTerminalFilterValuePolicy<string> } | null {
+  if ("and" in node) {
+    let extractedField: Pf2eTerminalQueryField | null = null;
+    let mergedPolicy = createEmptyStringPolicy();
+
+    for (const child of node.and) {
+      if ("and" in child || "or" in child || "not" in child) {
+        return null;
+      }
+      const extracted = extractPolicyFromMetadataPredicate(child, fieldSemanticsByName);
+      if (!extracted || !scopedFieldSet.has(extracted.field)) {
+        return null;
+      }
+      if (extractedField && extracted.field !== extractedField) {
+        return null;
+      }
+      extractedField = extracted.field;
+      mergedPolicy = mergeStringPolicies(mergedPolicy, extracted.policy);
+    }
+
+    return extractedField ? { field: extractedField, policy: mergedPolicy } : null;
+  }
+
+  if ("or" in node || "not" in node) {
+    return null;
+  }
+
+  const extracted = extractPolicyFromMetadataPredicate(node, fieldSemanticsByName);
+  return extracted && scopedFieldSet.has(extracted.field) ? extracted : null;
+}
+
+function extractScopedQueryFieldSelections(
+  node: MetadataFilterNode | null,
+  scopedFieldSet: ReadonlySet<string>,
+  fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
+): {
+  metadata: MetadataFilterNode | null;
+  selections: Pf2eTerminalQueryFieldSelectionMap;
+} {
+  if (!node) {
+    return {
+      metadata: null,
+      selections: {},
+    };
+  }
+
+  const directExtraction = tryExtractScopedPolicyNode(node, scopedFieldSet, fieldSemanticsByName);
+  if (directExtraction) {
+    return {
+      metadata: null,
+      selections: {
+        [directExtraction.field]: directExtraction.policy,
+      },
+    };
+  }
+
+  if ("and" in node) {
+    let selections: Pf2eTerminalQueryFieldSelectionMap = {};
+    const children: MetadataFilterNode[] = [];
+
+    for (const child of node.and) {
+      const extracted = extractScopedQueryFieldSelections(child, scopedFieldSet, fieldSemanticsByName);
+      selections = mergeSelectionMaps(selections, extracted.selections);
+      if (extracted.metadata) {
+        children.push(extracted.metadata);
+      }
+    }
+
+    return {
+      metadata: normalizeMetadataNode(children.length === 0 ? null : { and: children }),
+      selections,
+    };
+  }
+
+  return {
+    metadata: node,
+    selections: {},
   };
 }
 
@@ -609,36 +854,42 @@ function buildDiscreteFilterNodes(query: Pf2eTerminalSearchQuery): MetadataFilte
   return nodes;
 }
 
-function buildMetadataNodeForFacet(
-  facet: Pf2eTerminalFacetSelection,
+function buildMetadataNodeForQueryFieldSelection(
+  field: Pf2eTerminalQueryField,
+  policy: Pf2eTerminalFilterValuePolicy<string>,
   fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
 ): MetadataFilterNode | null {
-  const fieldSemantics = fieldSemanticsByName.get(facet.field);
+  const normalizedPolicy = normalizeQueryFieldPolicy(field, policy, fieldSemanticsByName);
+  if (!normalizedPolicy) {
+    return null;
+  }
+
+  const fieldSemantics = fieldSemanticsByName.get(field);
   if (!fieldSemantics) {
     return null;
   }
 
   if (fieldSemantics.fieldType === "set") {
     const clauses: MetadataFilterNode[] = [];
-    if (facet.policy.any.length > 0) {
+    if (normalizedPolicy.any.length > 0) {
       clauses.push({
-        field: facet.field as MetadataSetField,
+        field: field as MetadataSetField,
         op: "includesAny",
-        values: facet.policy.any,
+        values: normalizedPolicy.any,
       });
     }
-    if (facet.policy.all.length > 0) {
+    if (normalizedPolicy.all.length > 0) {
       clauses.push({
-        field: facet.field as MetadataSetField,
+        field: field as MetadataSetField,
         op: "includesAll",
-        values: facet.policy.all,
+        values: normalizedPolicy.all,
       });
     }
-    if (facet.policy.exclude.length > 0) {
+    if (normalizedPolicy.exclude.length > 0) {
       clauses.push({
-        field: facet.field as MetadataSetField,
+        field: field as MetadataSetField,
         op: "excludesAny",
-        values: facet.policy.exclude,
+        values: normalizedPolicy.exclude,
       });
     }
     return clauses.length === 0 ? null : clauses.length === 1 ? clauses[0]! : { and: clauses };
@@ -646,24 +897,24 @@ function buildMetadataNodeForFacet(
 
   if (fieldSemantics.fieldType === "enumString") {
     const clauses: MetadataFilterNode[] = [];
-    if (facet.policy.any.length === 1) {
+    if (normalizedPolicy.any.length === 1) {
       clauses.push({
-        field: facet.field as MetadataEnumStringField,
+        field: field as MetadataEnumStringField,
         op: "eq",
-        value: facet.policy.any[0]!,
+        value: normalizedPolicy.any[0]!,
       });
-    } else if (facet.policy.any.length > 1) {
+    } else if (normalizedPolicy.any.length > 1) {
       clauses.push({
-        field: facet.field as MetadataEnumStringField,
+        field: field as MetadataEnumStringField,
         op: "in",
-        values: facet.policy.any,
+        values: normalizedPolicy.any,
       });
     }
-    if (facet.policy.exclude.length > 0) {
+    if (normalizedPolicy.exclude.length > 0) {
       clauses.push({
-        field: facet.field as MetadataEnumStringField,
+        field: field as MetadataEnumStringField,
         op: "notIn",
-        values: facet.policy.exclude,
+        values: normalizedPolicy.exclude,
       });
     }
     return clauses.length === 0 ? null : clauses.length === 1 ? clauses[0]! : { and: clauses };
@@ -671,17 +922,17 @@ function buildMetadataNodeForFacet(
 
   if (fieldSemantics.fieldType === "boolean") {
     const clauses: MetadataFilterNode[] = [];
-    for (const value of facet.policy.any) {
+    for (const value of normalizedPolicy.any) {
       clauses.push({
-        field: facet.field as MetadataBooleanField,
+        field: field as MetadataBooleanField,
         op: "eq",
         value: value === "true",
       });
     }
-    for (const value of facet.policy.exclude) {
+    for (const value of normalizedPolicy.exclude) {
       clauses.push({
         not: {
-          field: facet.field as MetadataBooleanField,
+          field: field as MetadataBooleanField,
           op: "eq",
           value: value === "true",
         },
@@ -691,6 +942,23 @@ function buildMetadataNodeForFacet(
   }
 
   return null;
+}
+
+function buildMetadataNodeForFacet(
+  facet: Pf2eTerminalFacetSelection,
+  fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
+): MetadataFilterNode | null {
+  return buildMetadataNodeForQueryFieldSelection(facet.field, facet.policy, fieldSemanticsByName);
+}
+
+function getQueryFieldEditor(field: MetadataFieldSemantics): Pf2eTerminalQueryFieldEditor {
+  if (field.field === "derivedTags") {
+    return "ontologyPicker";
+  }
+  if (["set", "enumString", "boolean"].includes(field.fieldType)) {
+    return "policyList";
+  }
+  return "structuredForm";
 }
 
 function buildSearchFilters(
@@ -856,6 +1124,116 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
     );
   }
 
+  function buildDiscoverableQueryFieldSelections(
+    query: Pf2eTerminalSearchQuery,
+    scopedFields: string[],
+  ): Pf2eTerminalQueryFieldSelectionMap {
+    const selectionMap = createScopedSelectionMap(scopedFields);
+    const scopedFieldSet = new Set(scopedFields);
+
+    for (const facet of query.filters.facets) {
+      if (!scopedFieldSet.has(facet.field)) {
+        continue;
+      }
+      const normalizedPolicy = normalizeQueryFieldPolicy(facet.field, facet.policy, fieldSemanticsByName);
+      if (!normalizedPolicy) {
+        continue;
+      }
+      selectionMap[facet.field] = mergeStringPolicies(selectionMap[facet.field] ?? createEmptyStringPolicy(), normalizedPolicy);
+    }
+
+    const extracted = extractScopedQueryFieldSelections(query.filters.metadata, scopedFieldSet, fieldSemanticsByName);
+    for (const [field, policy] of Object.entries(extracted.selections)) {
+      const normalizedPolicy = normalizeQueryFieldPolicy(field as Pf2eTerminalQueryField, policy, fieldSemanticsByName);
+      if (!normalizedPolicy) {
+        continue;
+      }
+      selectionMap[field] = mergeStringPolicies(selectionMap[field] ?? createEmptyStringPolicy(), normalizedPolicy);
+    }
+
+    if (scopedFieldSet.has("actionCost")) {
+      selectionMap.actionCost = {
+        any: query.filters.actionCost.any.map(String),
+        all: [],
+        exclude: query.filters.actionCost.exclude.map(String),
+      };
+    }
+
+    for (const field of scopedFields) {
+      if (field === "actionCost") {
+        continue;
+      }
+      const normalizedPolicy = normalizeQueryFieldPolicy(
+        field as Pf2eTerminalQueryField,
+        selectionMap[field],
+        fieldSemanticsByName,
+      );
+      selectionMap[field] = normalizedPolicy ?? createEmptyStringPolicy();
+    }
+
+    return selectionMap;
+  }
+
+  function applyDiscoverableQueryFieldSelections(
+    query: Pf2eTerminalSearchQuery,
+    selections: Pf2eTerminalQueryFieldSelectionMap,
+    scopedFields: string[],
+  ): Pf2eTerminalSearchQuery {
+    const scopedFieldSet = new Set(scopedFields);
+    const retainedFacets = query.filters.facets.filter((facet) => !scopedFieldSet.has(facet.field));
+    const extracted = extractScopedQueryFieldSelections(query.filters.metadata, scopedFieldSet, fieldSemanticsByName);
+    const metadataClauses: MetadataFilterNode[] = extracted.metadata ? [extracted.metadata] : [];
+
+    for (const field of scopedFields) {
+      if (field === "actionCost") {
+        continue;
+      }
+
+      const nextPolicy = normalizeQueryFieldPolicy(
+        field as Pf2eTerminalQueryField,
+        selections[field] ?? createEmptyStringPolicy(),
+        fieldSemanticsByName,
+      );
+      if (!nextPolicy) {
+        continue;
+      }
+
+      const metadataNode = buildMetadataNodeForQueryFieldSelection(
+        field as Pf2eTerminalQueryField,
+        nextPolicy,
+        fieldSemanticsByName,
+      );
+      if (metadataNode) {
+        metadataClauses.push(metadataNode);
+      }
+    }
+
+    const actionCostSelection = selections.actionCost ?? createEmptyStringPolicy();
+
+    return {
+      ...query,
+      filters: {
+        ...query.filters,
+        actionCost: {
+          any: actionCostSelection.any
+            .map((value) => Number.parseInt(value, 10))
+            .filter((value) => Number.isFinite(value)),
+          all: [],
+          exclude: actionCostSelection.exclude
+            .map((value) => Number.parseInt(value, 10))
+            .filter((value) => Number.isFinite(value)),
+        },
+        facets: retainedFacets,
+        metadata:
+          metadataClauses.length === 0
+            ? null
+            : metadataClauses.length === 1
+              ? metadataClauses[0]!
+              : normalizeMetadataNode({ and: metadataClauses }),
+      },
+    };
+  }
+
   return {
     createDefaultQuery: () => createDefaultQuery(),
     createQueryFromOntologyQuery,
@@ -918,10 +1296,17 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
         .map((field) => ({
           value: field.field,
           label: humanizeIdentifier(field.field),
-          description: field.notes ?? `${field.fieldType} query field for the current browse scope.`,
+          description:
+            field.notes ??
+            (field.field === "derivedTags"
+              ? "Derived-tag field with hierarchy-capable ontology browsing."
+              : `${field.fieldType} query field for the current browse scope.`),
           fieldType: field.fieldType,
+          editor: getQueryFieldEditor(field),
         }));
     },
+    buildDiscoverableQueryFieldSelections,
+    applyDiscoverableQueryFieldSelections,
     getFacetValueOptions: (field, category, subcategory) =>
       createFacetValueOptions(
         dependencies.listFilterValues({
