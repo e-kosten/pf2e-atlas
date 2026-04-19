@@ -21,6 +21,7 @@ import {
   type OntologyExplorerInteractionRoute,
 } from "./interactions.js";
 import {
+  cloneOntologyBrowserSnapshot,
   buildOntologyBrowserDetailLines,
   canDrillIntoOntologyNode,
   createOntologyBrowserUiState,
@@ -35,6 +36,7 @@ import {
   normalizeOntologyBrowserState,
   popOntologyBrowserDepth,
   setOntologyBrowserFilter,
+  type OntologyBrowserSnapshot,
   type OntologyBrowserSelection,
   type OntologyBrowserUiState,
 } from "./ui.js";
@@ -81,11 +83,12 @@ export type OntologyExplorerKeyContext = OntologyExplorerControllerContext & {
 
 type OntologyExplorerControllerOptions = {
   model: OntologyDomainModel;
+  initialSnapshot?: OntologyBrowserSnapshot;
   onExit: () => void;
   onConfirm?: (context: OntologyExplorerKeyContext) => boolean;
   getInteractionActions?: (context: OntologyExplorerControllerContext) => TerminalInteractionAction[];
   onAction?: (action: TerminalInteractionAction, context: OntologyExplorerKeyContext) => boolean;
-  onOpenQuery?: (query: OntologyNodeQuery) => void;
+  onOpenQuery?: (query: OntologyNodeQuery, snapshot: OntologyBrowserSnapshot) => void;
   escapeClearsFilterBeforeExit?: boolean;
   getDetailLines?: (context: {
     model: OntologyDomainModel;
@@ -98,6 +101,18 @@ type OntologyExplorerControllerOptions = {
     selection: OntologyBrowserSelection;
   }) => string;
 };
+
+export function createOntologyBrowserSnapshot(
+  context: Pick<OntologyExplorerControllerContext, "state" | "effectiveState" | "layoutMode">,
+): OntologyBrowserSnapshot {
+  return cloneOntologyBrowserSnapshot({
+    activePane: context.state.activePane,
+    browserState: context.effectiveState,
+    layoutMode: context.layoutMode,
+    searchInput: context.state.searchInput,
+    searchMode: context.state.searchMode,
+  });
+}
 
 function reduceExplorerTwoPaneState(
   state: OntologyBrowserUiState,
@@ -233,13 +248,13 @@ function buildOntologyBrowserBreadcrumb(model: OntologyDomainModel, selection: O
 export function useOntologyExplorerController(
   options: OntologyExplorerControllerOptions,
 ): OntologyExplorerControllerContext {
-  const { model } = options;
+  const { initialSnapshot, model } = options;
   const size = useDerivedTagTerminalSize();
   const [state, dispatch] = React.useReducer(
     (current: OntologyBrowserUiState, action: OntologyExplorerAction) =>
       ontologyExplorerReducer(model, current, action),
-    model,
-    createOntologyBrowserUiState,
+    { model, initialSnapshot },
+    ({ model: initialModel, initialSnapshot: snapshot }) => createOntologyBrowserUiState(initialModel, snapshot),
   );
 
   React.useEffect(() => {

@@ -25,6 +25,8 @@ export type OntologyBrowserUiState = {
   searchMode: boolean;
 };
 
+export type OntologyBrowserSnapshot = OntologyBrowserUiState;
+
 export type OntologyBrowserSelection = {
   ancestors: OntologyNode[];
   currentNodes: OntologyNode[];
@@ -156,6 +158,20 @@ export function createOntologyBrowserState(model: OntologyDomainModel): Ontology
     selectedNodeIds: [model.rootNodes[0]?.id ?? ""],
     filter: "",
     detailScroll: 0,
+  };
+}
+
+export function cloneOntologyBrowserState(state: OntologyBrowserState): OntologyBrowserState {
+  return {
+    ...state,
+    selectedNodeIds: [...state.selectedNodeIds],
+  };
+}
+
+export function cloneOntologyBrowserSnapshot(snapshot: OntologyBrowserSnapshot): OntologyBrowserSnapshot {
+  return {
+    ...snapshot,
+    browserState: cloneOntologyBrowserState(snapshot.browserState),
   };
 }
 
@@ -387,14 +403,20 @@ export function moveOntologyBrowserDetailScrollToBoundary(
   };
 }
 
-export function createOntologyBrowserUiState(model: OntologyDomainModel): OntologyBrowserUiState {
-  const browserState = createOntologyBrowserState(model);
+export function createOntologyBrowserUiState(
+  model: OntologyDomainModel,
+  snapshot?: OntologyBrowserSnapshot,
+): OntologyBrowserUiState {
+  const browserState = normalizeOntologyBrowserState(
+    model,
+    snapshot ? cloneOntologyBrowserState(snapshot.browserState) : createOntologyBrowserState(model),
+  );
   return {
-    activePane: "list",
+    activePane: snapshot?.activePane ?? "list",
     browserState,
-    layoutMode: "split",
-    searchInput: browserState.filter,
-    searchMode: false,
+    layoutMode: snapshot?.layoutMode ?? "split",
+    searchInput: snapshot?.searchInput ?? browserState.filter,
+    searchMode: snapshot?.searchMode ?? false,
   };
 }
 

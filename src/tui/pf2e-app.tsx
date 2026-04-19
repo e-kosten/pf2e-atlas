@@ -12,6 +12,7 @@ import {
   getCurrentPf2eAppRoute,
   pf2eAppReducer,
   type CreatePf2eDerivedTagSessionOptions,
+  type Pf2eOntologyRoute,
   type Pf2eAppRoute,
 } from "./pf2e-app-state.js";
 import { AreaMenuScreen } from "./area-menu-screen.js";
@@ -132,6 +133,26 @@ export function Pf2eTerminalApp({
     dispatch({ type: "push_route", route: { kind: "search" } });
   }, [state.selectedAreaIndex]);
 
+  const handleSearchBack = React.useCallback(
+    (searchRoute: Extract<Pf2eAppRoute, { kind: "search" }>) => {
+      if (searchRoute.origin?.kind === "ontology") {
+        const previousRoute = state.routeStack[state.routeStack.length - 2];
+        if (previousRoute?.kind === "ontology" && previousRoute.model.id === searchRoute.origin.route.model.id) {
+          dispatch({ type: "pop_route" });
+          return;
+        }
+        dispatch({ type: "replace_route", route: searchRoute.origin.route });
+        return;
+      }
+      if (canPopPf2eAppRoute(state)) {
+        dispatch({ type: "pop_route" });
+      } else {
+        onExit();
+      }
+    },
+    [onExit, state],
+  );
+
   const openSelectedTagRefinementItem = React.useCallback(
     (menuItems: TagRefinementMenuItem[]) => {
       const selectedItem = menuItems[state.tagRefinementSelectedIndex];
@@ -205,9 +226,26 @@ export function Pf2eTerminalApp({
   } else if (route.kind === "ontology") {
     screen = (
       <OntologyBrowserScreen
+        initialSnapshot={route.snapshot}
         model={route.model}
-        onOpenQuery={(query) => {
-          dispatch({ type: "push_route", route: { kind: "search", initialQuery: query } });
+        onOpenQuery={(query, snapshot) => {
+          const ontologyRoute: Pf2eOntologyRoute = {
+            kind: "ontology",
+            model: route.model,
+            snapshot,
+          };
+          dispatch({ type: "replace_route", route: ontologyRoute });
+          dispatch({
+            type: "push_route",
+            route: {
+              kind: "search",
+              initialQuery: query,
+              origin: {
+                kind: "ontology",
+                route: ontologyRoute,
+              },
+            },
+          });
         }}
         onExit={() => {
           if (canPopPf2eAppRoute(state)) {
@@ -236,13 +274,7 @@ export function Pf2eTerminalApp({
     screen = (
       <SearchScreen
         initialQuery={route.initialQuery}
-        onBack={() => {
-          if (canPopPf2eAppRoute(state)) {
-            dispatch({ type: "pop_route" });
-          } else {
-            onExit();
-          }
-        }}
+        onBack={() => handleSearchBack(route)}
       />
     );
   } else if (route.kind === "tag_refinement") {

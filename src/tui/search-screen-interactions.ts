@@ -13,6 +13,7 @@ import {
   type DerivedTagTerminalLine,
 } from "./terminal-ui.js";
 import type { SearchScreenState } from "./search-screen-state.js";
+import type { SearchScreenOrigin } from "./search-workflow-types.js";
 import { formatResultPosition, formatSort } from "./search-screen-state.js";
 import type { SearchWorkspaceEntry } from "./search-screen-workspace.js";
 import {
@@ -55,51 +56,62 @@ export function getSearchInteractionContext(state: SearchScreenState): SearchInt
   return state.activePane === "list" ? "result-list" : "result-detail";
 }
 
-export function getSearchInteractionActions(state: SearchScreenState): TerminalInteractionAction[] {
+export function getSearchInteractionActions(
+  state: SearchScreenState,
+  origin: SearchScreenOrigin = "app",
+): TerminalInteractionAction[] {
   switch (getSearchInteractionContext(state)) {
     case "draft":
-      return getSearchDraftInteractionActions();
+      return getSearchDraftInteractionActions(origin);
     case "result-list":
-      return getSearchResultListInteractionActions();
+      return getSearchResultListInteractionActions(origin);
     case "result-detail":
-      return getSearchResultDetailInteractionActions();
+      return getSearchResultDetailInteractionActions(origin);
   }
 }
 
-export function getSearchDraftInteractionActions(): TerminalInteractionAction[] {
+export function getSearchDraftInteractionActions(origin: SearchScreenOrigin = "app"): TerminalInteractionAction[] {
   return [
     { id: "edit" },
     { id: "execute" },
     { id: "search", label: "query" },
     { id: "commands" },
     { id: "help" },
-    { id: "back" },
-    { id: "quit", label: "back" },
+    { id: "back", label: origin === "ontology" ? "return" : undefined },
+    { id: "quit", label: origin === "ontology" ? "return" : "back" },
   ];
 }
 
-export function getSearchResultListInteractionActions(): TerminalInteractionAction[] {
+export function getSearchResultListInteractionActions(
+  origin: SearchScreenOrigin = "app",
+): TerminalInteractionAction[] {
   return [
-    { id: "back", label: "setup" },
+    { id: "back", label: origin === "ontology" ? "return" : "setup" },
     { id: "preview" },
     { id: "focus", label: "pane" },
     { id: "commands" },
     { id: "help" },
-    { id: "quit", label: "back" },
+    { id: "quit", label: origin === "ontology" ? "return" : "back" },
   ];
 }
 
-export function getSearchResultDetailInteractionActions(): TerminalInteractionAction[] {
+export function getSearchResultDetailInteractionActions(
+  origin: SearchScreenOrigin = "app",
+): TerminalInteractionAction[] {
   return [
     { id: "back", label: "results" },
     { id: "focus", label: "pane" },
     { id: "commands" },
     { id: "help" },
-    { id: "quit", label: "back" },
+    { id: "quit", label: origin === "ontology" ? "return" : "back" },
   ];
 }
 
-export function buildSearchFooterText(state: SearchScreenState, loadingMore: boolean): string {
+export function buildSearchFooterText(
+  state: SearchScreenState,
+  loadingMore: boolean,
+  origin: SearchScreenOrigin = "app",
+): string {
   const context = getSearchInteractionContext(state);
 
   if (context === "draft") {
@@ -108,7 +120,7 @@ export function buildSearchFooterText(state: SearchScreenState, loadingMore: boo
       { id: "jump" },
       { id: "page" },
       { id: "edge" },
-      ...getSearchInteractionActions(state),
+      ...getSearchInteractionActions(state, origin),
     ]);
   }
 
@@ -118,7 +130,7 @@ export function buildSearchFooterText(state: SearchScreenState, loadingMore: boo
       { id: "jump" },
       { id: "page" },
       { id: "edge" },
-      ...getSearchInteractionActions(state),
+      ...getSearchInteractionActions(state, origin),
     ]);
     return loadingMore ? `${footer}  Loading more...` : footer;
   }
@@ -128,13 +140,14 @@ export function buildSearchFooterText(state: SearchScreenState, loadingMore: boo
     { id: "jump" },
     { id: "page" },
     { id: "edge" },
-    ...getSearchInteractionActions(state),
+    ...getSearchInteractionActions(state, origin),
   ]);
 }
 
 export function buildSearchHelpLines(
   state: SearchScreenState,
   workspaceEntries: SearchWorkspaceEntry[],
+  origin: SearchScreenOrigin = "app",
 ): DerivedTagTerminalLine[] {
   const context = getSearchInteractionContext(state);
 
@@ -146,7 +159,7 @@ export function buildSearchHelpLines(
       { id: "edge", helpText: "jump to the start or end of the setup list" },
     ];
     const actionActions: TerminalInteractionAction[] = [
-      ...getSearchInteractionActions(state).map<TerminalInteractionAction>((action) => ({
+      ...getSearchInteractionActions(state, origin).map<TerminalInteractionAction>((action) => ({
         ...action,
         helpText:
           action.id === "edit"
@@ -159,7 +172,9 @@ export function buildSearchHelpLines(
                   ? "open the setup command palette"
                   : action.id === "help"
                     ? "show search setup help"
-                    : "leave browse/search",
+                    : origin === "ontology"
+                      ? "return to the launching ontology view"
+                      : "leave browse/search",
         label: action.id === "search" ? "edit query" : action.label,
       })),
     ];
@@ -198,12 +213,14 @@ export function buildSearchHelpLines(
     },
     { id: "edge", helpText: "jump to the start or end of the active pane" },
   ];
-  const resultActions: TerminalInteractionAction[] = getSearchInteractionActions(state).map((action) => ({
+  const resultActions: TerminalInteractionAction[] = getSearchInteractionActions(state, origin).map((action) => ({
     ...action,
     helpText:
       action.id === "preview"
         ? "open the focused result preview"
-        : action.id === "back" && context === "result-list"
+        : action.id === "back" && context === "result-list" && origin === "ontology"
+          ? "return to the exact ontology location that launched this result reader"
+          : action.id === "back" && context === "result-list"
           ? "return to Scope & Filters"
           : action.id === "back"
             ? "return to the result list"
@@ -213,7 +230,9 @@ export function buildSearchHelpLines(
                 ? "open the results command palette"
                 : action.id === "help"
                   ? "show search results help"
-                  : "leave browse/search",
+                  : origin === "ontology"
+                    ? "return to the launching ontology view"
+                    : "leave browse/search",
     label: action.id === "focus" ? "toggle pane" : action.label,
   }));
 
@@ -228,7 +247,7 @@ export function buildSearchHelpLines(
     },
     {
       title: "Results Commands",
-      commands: buildResultCommandPaletteEntries(state).map<TerminalInteractionCommand>((entry) => ({
+      commands: buildResultCommandPaletteEntries(state, origin).map<TerminalInteractionCommand>((entry) => ({
         label: entry.label,
         description: entry.description ?? "No additional details.",
         aliases: entry.aliases,
@@ -253,6 +272,7 @@ export function buildSearchSubtitle(
 
 export function useSearchScreenInteractionRouter(options: {
   enabled: boolean;
+  origin?: SearchScreenOrigin;
   state: SearchScreenState;
   workspaceEntryCount: number;
   resultCount: number;
@@ -267,7 +287,10 @@ export function useSearchScreenInteractionRouter(options: {
 
   useDerivedTagTerminalInput(
     (event) => {
-      const interactionAction = resolveTerminalInteractionAction(event, getSearchInteractionActions(options.state));
+      const interactionAction = resolveTerminalInteractionAction(
+        event,
+        getSearchInteractionActions(options.state, options.origin),
+      );
 
       if (interactionAction?.id === "help") {
         options.onIntent({ type: "show_help" });

@@ -1,0 +1,338 @@
+import React from "react";
+
+import type { OntologyNodeQuery } from "../types.js";
+import type { Pf2eTerminalAppServices } from "./app-services.js";
+import type { SearchCountState, SearchScreenAction, SearchScreenState } from "./search-screen-state.js";
+import type { Pf2eTerminalSearchRequest, Pf2eTerminalSearchSession } from "./search-service.js";
+import type { DerivedTagTerminalApp } from "./terminal-ui.js";
+import {
+  LIVE_COUNT_DEBOUNCE_MS,
+  RESULT_WINDOW_FETCH_DEBOUNCE_MS,
+  clampAbsoluteSelection,
+  getExecuteAvailability,
+  getSearchResultWindowTarget,
+  getSessionRecordAtIndex,
+  parseJumpToResultInput,
+} from "./search-screen-model.js";
+
+export function useSearchSessionWorkflow({
+  autoExecuteInitialQuery = true,
+  dispatch,
+  initialQuery,
+  initialRequest,
+  onExit,
+  preloadThreshold,
+  resultSelectedIndex,
+  resultWindowLimit,
+  state,
+  terminal,
+  user,
+}: {
+  autoExecuteInitialQuery?: boolean;
+  dispatch: React.Dispatch<SearchScreenAction>;
+  initialQuery?: OntologyNodeQuery;
+  initialRequest: Pf2eTerminalSearchRequest;
+  onExit: () => void;
+  preloadThreshold: number;
+  resultSelectedIndex: number;
+  resultWindowLimit: number;
+  state: SearchScreenState;
+  terminal: Pick<DerivedTagTerminalApp, "pauseForAnyKey" | "promptSelectOption" | "promptTextInput">;
+  user: Pick<Pf2eTerminalAppServices["user"], "search">;
+}): {
+  busy: boolean;
+  countState: SearchCountState;
+  executeRequest: (request: Pf2eTerminalSearchRequest) => Promise<void>;
+  jumpToResultPosition: () => Promise<void>;
+  loadingMore: boolean;
+  selectedResult: Pf2eTerminalSearchSession["results"][number] | null;
+  resultCount: number;
+  chooseResultSort: () => Promise<void>;
+  exitSearchScreen: () => void;
+} {
+  const [busy, setBusy] = React.useState(false);
+  const [countState, setCountState] = React.useState<SearchCountState>({
+    status: "idle",
+    result: null,
+    message: null,
+  });
+  const [loadingMore, setLoadingMore] = React.useState(false);
+  const autoRanInitialQuery = React.useRef(false);
+  const loadMoreSessionKeyRef = React.useRef<string | null>(null);
+  const loadMoreTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activeSessionRef = React.useRef<Pf2eTerminalSearchSession | null>(null);
+
+  const resultCount = state.session?.total ?? 0;
+  const clampedResultSelectedIndex = clampAbsoluteSelection(resultSelectedIndex, resultCount);
+  const selectedResult =
+    resultCount > 0 ? getSessionRecordAtIndex(state.session, clampedResultSelectedIndex) : null;
+
+  const disposeSession = React.useCallback(
+    (session: Pf2eTerminalSearchSession | null) => {
+      if (!session) {
+        return;
+      }
+      user.search.disposeSession(session);
+    },
+    [user.search],
+  );
+
+  const exitSearchScreen = React.useCallback(() => {
+    const activeSession = activeSessionRef.current;
+    if (activeSession) {
+      disposeSession(activeSession);
+      activeSessionRef.current = null;
+    }
+    onExit();
+  }, [disposeSession, onExit]);
+
+  const executeRequest = React.useCallback(
+    async (request: Pf2eTerminalSearchRequest) => {
+      const availability = getExecuteAvailability(request);
+      if (availability.disabled) {
+        await terminal.pauseForAnyKey(availability.reason ?? "This query setup cannot be executed yet.");
+        return;
+      }
+
+      setBusy(true);
+      try {
+        const sort =
+          state.session && state.session.request.mode === request.mode
+            ? state.session.sort
+            : user.search.getDefaultSort(request.mode);
+        const session = await user.search.executeQuery(request, {
+          sort,
+          limit: Math.max(request.limit, resultWindowLimit),
+        });
+        dispatch({ type: "set_session", session });
+      } catch (error) {
+        await terminal.pauseForAnyKey(`Workspace query failed.\n\n${(error as Error).message}`);
+      } finally {
+        setBusy(false);
+      }
+    },
+    [dispatch, resultWindowLimit, state.session, terminal, user.search],
+  );
+
+  const chooseResultSort = React.useCallback(async () => {
+    if (!state.session) {
+      return;
+    }
+
+    const result = await terminal.promptSelectOption({
+      title: "Result Sort",
+      prompt: "Choose how the current result reader should be ordered",
+      entries: user.search.getResultSortOptions(state.session.request.mode).map((option) => ({
+        value: option.value,
+        label: option.label,
+        description: option.description,
+      })),
+      selectedValue: state.session.sort,
+    });
+
+    if (result.kind !== "selected" || result.value === state.session.sort) {
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const session = await user.search.changeSort(state.session, result.value);
+      dispatch({ type: "set_session", session });
+    } catch (error) {
+      await terminal.pauseForAnyKey(`Result sort failed.\n\n${(error as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  }, [dispatch, state.session, terminal, user.search]);
+
+  const jumpToResultPosition = React.useCallback(async () => {
+    if (!state.session || state.session.total <= 0) {
+      return;
+    }
+
+    const input = await terminal.promptTextInput({
+      title: "Jump To Result",
+      prompt: `Enter a result number between 1 and ${state.session.total}.`,
+      hint: `Current: ${clampedResultSelectedIndex + 1}  Example: 6000`,
+    });
+
+    if (input === undefined) {
+      return;
+    }
+
+    const parsed = parseJumpToResultInput(input, state.session.total);
+    if (typeof parsed === "string") {
+      await terminal.pauseForAnyKey(parsed);
+      return;
+    }
+
+    dispatch({
+      type: "set_result_selection",
+      index: parsed,
+      itemCount: state.session.total,
+    });
+  }, [clampedResultSelectedIndex, dispatch, state.session, terminal]);
+
+  React.useEffect(() => {
+    if (!autoExecuteInitialQuery || !initialQuery || autoRanInitialQuery.current) {
+      return;
+    }
+    autoRanInitialQuery.current = true;
+    void executeRequest(initialRequest);
+  }, [autoExecuteInitialQuery, executeRequest, initialQuery, initialRequest]);
+
+  React.useEffect(() => {
+    const previousSession = activeSessionRef.current;
+    const nextSession = state.session;
+    if (previousSession && previousSession.windowId !== nextSession?.windowId) {
+      disposeSession(previousSession);
+    }
+    activeSessionRef.current = nextSession;
+  }, [disposeSession, state.session]);
+
+  React.useEffect(
+    () => () => {
+      const activeSession = activeSessionRef.current;
+      if (activeSession) {
+        disposeSession(activeSession);
+        activeSessionRef.current = null;
+      }
+    },
+    [disposeSession],
+  );
+
+  React.useEffect(() => {
+    const availability = getExecuteAvailability(state.draft);
+    if (availability.disabled) {
+      setCountState({
+        status: "idle",
+        result: null,
+        message: availability.reason,
+      });
+      return;
+    }
+
+    let cancelled = false;
+    setCountState((current) => ({
+      status: "loading",
+      result: current.result,
+      message: null,
+    }));
+
+    const timeout = setTimeout(() => {
+      void user.search
+        .countQuery(state.draft)
+        .then((result) => {
+          if (cancelled) {
+            return;
+          }
+          setCountState({
+            status: "ready",
+            result,
+            message: null,
+          });
+        })
+        .catch((error) => {
+          if (cancelled) {
+            return;
+          }
+          setCountState({
+            status: "error",
+            result: null,
+            message: (error as Error).message,
+          });
+        });
+    }, LIVE_COUNT_DEBOUNCE_MS);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
+  }, [state.draft, user.search]);
+
+  React.useEffect(() => {
+    if (loadMoreTimerRef.current) {
+      clearTimeout(loadMoreTimerRef.current);
+      loadMoreTimerRef.current = null;
+    }
+    if (!state.session || state.layout !== "results" || state.session.total <= 0) {
+      return;
+    }
+
+    const currentSession = state.session;
+    const targetWindow = getSearchResultWindowTarget(currentSession, clampedResultSelectedIndex, {
+      windowLimit: resultWindowLimit,
+      preloadThreshold,
+    });
+    if (!targetWindow) {
+      return;
+    }
+
+    const sessionKey =
+      `${currentSession.windowId}:${currentSession.sort}:${currentSession.windowOffset}:${currentSession.loadedCount}:` +
+      `${targetWindow.offset}:${targetWindow.limit}`;
+    if (loadingMore || loadMoreSessionKeyRef.current === sessionKey) {
+      return;
+    }
+
+    let cancelled = false;
+    loadMoreTimerRef.current = setTimeout(() => {
+      if (cancelled) {
+        return;
+      }
+
+      loadMoreSessionKeyRef.current = sessionKey;
+      setLoadingMore(true);
+      void user.search
+        .readResultWindow(currentSession, targetWindow)
+        .then((session) => {
+          if (cancelled) {
+            return;
+          }
+          dispatch({ type: "set_session", session, showResults: true, preserveSelection: true });
+        })
+        .catch(async (error) => {
+          if (cancelled) {
+            return;
+          }
+          await terminal.pauseForAnyKey(`Loading more results failed.\n\n${(error as Error).message}`);
+        })
+        .finally(() => {
+          if (loadMoreSessionKeyRef.current === sessionKey) {
+            loadMoreSessionKeyRef.current = null;
+            setLoadingMore(false);
+          }
+        });
+    }, RESULT_WINDOW_FETCH_DEBOUNCE_MS);
+
+    return () => {
+      cancelled = true;
+      if (loadMoreTimerRef.current) {
+        clearTimeout(loadMoreTimerRef.current);
+        loadMoreTimerRef.current = null;
+      }
+    };
+  }, [
+    clampedResultSelectedIndex,
+    dispatch,
+    loadingMore,
+    preloadThreshold,
+    resultWindowLimit,
+    state.layout,
+    state.session,
+    terminal,
+    user.search,
+  ]);
+
+  return {
+    busy,
+    countState,
+    executeRequest,
+    jumpToResultPosition,
+    loadingMore,
+    selectedResult,
+    resultCount,
+    chooseResultSort,
+    exitSearchScreen,
+  };
+}

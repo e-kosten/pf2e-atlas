@@ -12,6 +12,7 @@ import type {
   DerivedTagTerminalTwoPaneScreenProps,
 } from "../terminal-ui.js";
 import type { OntologyExplorerControllerContext } from "./controller.js";
+import type { OntologyBrowserSnapshot } from "./ui.js";
 
 export function getOntologyBrowserInteractionActions(
   controller: Pick<OntologyExplorerControllerContext, "layoutMode" | "state" | "effectiveState">,
@@ -66,7 +67,7 @@ export function getOntologyBrowserInteractionActions(
 
 export function buildOntologyCommandEntries(
   controller: Pick<OntologyExplorerControllerContext, "selectedQuery">,
-  onOpenQuery?: (query: OntologyNodeQuery) => void,
+  onOpenQuery?: (query: OntologyNodeQuery, snapshot: OntologyBrowserSnapshot) => void,
 ): DerivedTagTerminalCommandOption<"openQuery">[] {
   if (!onOpenQuery || !controller.selectedQuery) {
     return [];
@@ -84,7 +85,7 @@ export function buildOntologyCommandEntries(
 
 export function buildOntologyBrowserHelpLines(
   controller: Pick<OntologyExplorerControllerContext, "layoutMode" | "state" | "effectiveState" | "selectedQuery">,
-  onOpenQuery?: (query: OntologyNodeQuery) => void,
+  onOpenQuery?: (query: OntologyNodeQuery, snapshot: OntologyBrowserSnapshot) => void,
 ): DerivedTagTerminalLine[] {
   const navigationActions: TerminalInteractionAction[] = [
     {

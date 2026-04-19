@@ -210,29 +210,21 @@ export default defineConfig(
     },
   },
   {
-    files: ["src/tui/search-screen-controller.ts"],
+    files: ["src/app/ontology-service.ts"],
     rules: {
-      "no-restricted-imports": [
+      "no-restricted-syntax": [
         "error",
         {
-          paths: [
-            {
-              name: "./terminal-ui.js",
-              importNames: [
-                "createDerivedTagTerminalListNavigationState",
-                "resolveDerivedTagTerminalListNavigationAction",
-                "useDerivedTagTerminalInput",
-              ],
-              message:
-                "Search screen controllers must use the shared search interaction router instead of owning raw terminal event decoding.",
-            },
-            {
-              name: "./interaction-bindings.js",
-              importNames: ["resolveTerminalInteractionAction"],
-              message:
-                "Search screen controllers must use the shared search interaction router instead of resolving raw interaction actions directly.",
-            },
-          ],
+          selector:
+            'ObjectExpression:has(Property[key.name="kind"][value.value="example"]):has(Property[key.name="detailTitle"][value.value="Example Predicate"])',
+          message:
+            "Search semantics must not emit curated standalone example nodes. Fold that support into final shared semantics surfaces instead.",
+        },
+        {
+          selector:
+            'ObjectExpression:has(Property[key.name="kind"][value.value="group"]):has(Property[key.name="label"][value.value="Examples"]):has(Property[key.name="detailTitle"][value.value="Category Examples"])',
+          message:
+            "Search semantics must not emit an Examples browse group.",
         },
       ],
     },
@@ -482,6 +474,59 @@ export default defineConfig(
               group: ["**/search/sql.js", "**/data/record-queries.js", "**/data/schema.js"],
               message:
                 "Server tool registration must depend on Pf2eDataService or higher-level services, not low-level SQL/query internals.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/tui/search-screen-controller.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "./ontology-explorer/facet-picker-model.js",
+              importNames: ["buildSearchFacetPickerModel"],
+              message:
+                "Search screen controllers must use shared ontology-to-search workflow modules instead of constructing facet-picker bridge models directly.",
+            },
+            {
+              name: "./terminal-ui.js",
+              importNames: [
+                "createDerivedTagTerminalListNavigationState",
+                "resolveDerivedTagTerminalListNavigationAction",
+                "useDerivedTagTerminalInput",
+              ],
+              message:
+                "Search screen controllers must use the shared search interaction router instead of owning raw terminal event decoding.",
+            },
+            {
+              name: "./interaction-bindings.js",
+              importNames: ["resolveTerminalInteractionAction"],
+              message:
+                "Search screen controllers must use the shared search interaction router instead of resolving raw interaction actions directly.",
+            },
+            {
+              name: "./search-screen-model.js",
+              importNames: ["SearchFacetPickerSession", "applyFacetPickerSelectionsToRequest", "buildFacetPickerInitialSelections"],
+              message:
+                "Search screen controllers must use shared ontology-to-search workflow modules instead of owning facet-picker session bridging directly.",
+            },
+            {
+              name: "./search-screen-model.js",
+              importNames: [
+                "LIVE_COUNT_DEBOUNCE_MS",
+                "RESULT_WINDOW_FETCH_DEBOUNCE_MS",
+                "getSearchResultWindowMetrics",
+                "getSearchResultWindowTarget",
+                "getSessionBufferRange",
+                "getSessionRecordAtIndex",
+              ],
+              message:
+                "Search screen controllers must use shared result-window/session workflow modules instead of orchestrating buffer windows or session reads directly.",
             },
           ],
         },

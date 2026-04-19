@@ -3,8 +3,9 @@ import React from "react";
 import { cleanup, render } from "ink-testing-library";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { OntologyDomainModel } from "../../src/types.js";
+import type { OntologyDomainModel, OntologyNodeQuery } from "../../src/types.js";
 import { OntologyBrowserScreen } from "../../src/tui/ontology-explorer/screen.js";
+import type { OntologyBrowserSnapshot } from "../../src/tui/ontology-explorer/ui.js";
 import { DerivedTagTerminalProvider } from "../../src/tui/terminal-ui.js";
 
 function flushInk(): Promise<void> {
@@ -99,7 +100,7 @@ describe("ontology browser screen", () => {
 
   it("opens the selected node query in the search workspace when requested", async () => {
     const model = createTestOntologyModel();
-    const onOpenQuery = vi.fn();
+    const onOpenQuery = vi.fn<(query: OntologyNodeQuery, snapshot: OntologyBrowserSnapshot) => void>();
     const app = render(
       <DerivedTagTerminalProvider>
         <OntologyBrowserScreen model={model} onExit={vi.fn()} onOpenQuery={onOpenQuery} />
@@ -120,12 +121,23 @@ describe("ontology browser screen", () => {
     app.stdin.write("\r");
     await flushInk();
 
-    expect(onOpenQuery).toHaveBeenCalledWith({
-      kind: "listRecords",
-      label: "Browse this tag",
-      filters: {
-        category: "spell",
-        limit: 20,
+    expect(onOpenQuery).toHaveBeenCalledWith(
+      {
+        kind: "listRecords",
+        label: "Browse this tag",
+        filters: {
+          category: "spell",
+          limit: 20,
+        },
+      },
+      expect.anything(),
+    );
+    expect(onOpenQuery.mock.calls[0]?.[1]).toMatchObject({
+      activePane: "list",
+      browserState: {
+        depth: 0,
+        selectedNodeIds: ["spell:alarm"],
+        filter: "",
       },
     });
 
@@ -134,7 +146,7 @@ describe("ontology browser screen", () => {
 
   it("does not treat old page-specific letters as live ontology commands", async () => {
     const model = createTestOntologyModel();
-    const onOpenQuery = vi.fn();
+    const onOpenQuery = vi.fn<(query: OntologyNodeQuery, snapshot: OntologyBrowserSnapshot) => void>();
     const app = render(
       <DerivedTagTerminalProvider>
         <OntologyBrowserScreen model={model} onExit={vi.fn()} onOpenQuery={onOpenQuery} />
@@ -180,7 +192,7 @@ describe("ontology browser screen", () => {
         },
       ],
     };
-    const onOpenQuery = vi.fn();
+    const onOpenQuery = vi.fn<(query: OntologyNodeQuery, snapshot: OntologyBrowserSnapshot) => void>();
     const app = render(
       <DerivedTagTerminalProvider>
         <OntologyBrowserScreen model={model} onExit={vi.fn()} onOpenQuery={onOpenQuery} />
@@ -192,13 +204,21 @@ describe("ontology browser screen", () => {
     app.stdin.write("\r");
     await flushInk();
 
-    expect(onOpenQuery).toHaveBeenCalledWith({
-      kind: "listRecords",
-      label: "Browse records with this value",
-      filters: {
-        category: "creature",
-        metadata: { field: "publicationTitle", op: "contains", value: "Pathfinder Rage of Elements" },
-        limit: 20,
+    expect(onOpenQuery).toHaveBeenCalledWith(
+      {
+        kind: "listRecords",
+        label: "Browse records with this value",
+        filters: {
+          category: "creature",
+          metadata: { field: "publicationTitle", op: "contains", value: "Pathfinder Rage of Elements" },
+          limit: 20,
+        },
+      },
+      expect.anything(),
+    );
+    expect(onOpenQuery.mock.calls[0]?.[1]).toMatchObject({
+      browserState: {
+        selectedNodeIds: ["creature:publicationTitle:rage-of-elements"],
       },
     });
 
@@ -240,7 +260,7 @@ describe("ontology browser screen", () => {
         },
       ],
     };
-    const onOpenQuery = vi.fn();
+    const onOpenQuery = vi.fn<(query: OntologyNodeQuery, snapshot: OntologyBrowserSnapshot) => void>();
     const app = render(
       <DerivedTagTerminalProvider>
         <OntologyBrowserScreen model={model} onExit={vi.fn()} onOpenQuery={onOpenQuery} />
@@ -252,20 +272,97 @@ describe("ontology browser screen", () => {
     app.stdin.write("\r");
     await flushInk();
 
-    expect(onOpenQuery).toHaveBeenCalledWith({
-      kind: "listRecords",
-      label: "Browse records matching the itemMetric example",
-      filters: {
-        category: "equipment",
-        metadata: {
-          field: "itemMetric",
-          metric: "weapon.reload",
-          op: "==",
-          value: 1,
+    expect(onOpenQuery).toHaveBeenCalledWith(
+      {
+        kind: "listRecords",
+        label: "Browse records matching the itemMetric example",
+        filters: {
+          category: "equipment",
+          metadata: {
+            field: "itemMetric",
+            metric: "weapon.reload",
+            op: "==",
+            value: 1,
+          },
+          limit: 20,
         },
-        limit: 20,
+      },
+      expect.anything(),
+    );
+    expect(onOpenQuery.mock.calls[0]?.[1]).toMatchObject({
+      browserState: {
+        selectedNodeIds: ["equipment:advanced:itemMetric"],
       },
     });
+
+    app.unmount();
+  });
+
+  it("restores the browser from an initial snapshot", async () => {
+    const model: OntologyDomainModel = {
+      id: "searchSemantics",
+      label: "Search Semantics",
+      description: "Snapshot test ontology domain",
+      rootNodes: [
+        {
+          id: "creature",
+          kind: "category",
+          label: "Creature",
+          filterText: "creature",
+          listLabel: "Creature",
+          detailTitle: "Creature Details",
+          detailLines: [{ text: "Creature", tone: "section" }],
+          children: [
+            {
+              id: "creature:publicationTitle:rage-of-elements",
+              kind: "value",
+              label: "Pathfinder Rage of Elements",
+              filterText: "pathfinder rage of elements rage",
+              listLabel: "Pathfinder Rage of Elements | 81",
+              detailTitle: "Filter Value",
+              detailLines: [
+                { text: "Pathfinder Rage of Elements", tone: "section" },
+                ...Array.from({ length: 30 }, (_, index) => ({ text: `Detail line ${index + 1}` })),
+              ],
+              query: {
+                kind: "listRecords",
+                label: "Browse records with this value",
+                filters: {
+                  category: "creature",
+                  limit: 20,
+                },
+              },
+            },
+          ],
+        },
+      ],
+    };
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <OntologyBrowserScreen
+          initialSnapshot={{
+            activePane: "detail",
+            browserState: {
+              depth: 1,
+              selectedNodeIds: ["creature", "creature:publicationTitle:rage-of-elements"],
+              filter: "rage",
+              detailScroll: 4,
+            },
+            layoutMode: "split",
+            searchInput: "rage",
+            searchMode: false,
+          }}
+          model={model}
+          onExit={vi.fn()}
+        />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("Search Semantics > Creature > Pathfinder Rage of Elements | depth 1 | /rage");
+    expect(app.lastFrame()).toContain("[DETAIL] Filter Value");
+    expect(app.lastFrame()).toContain("detail focus | split layout | Detail scroll 4/");
 
     app.unmount();
   });

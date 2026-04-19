@@ -7,32 +7,37 @@ import {
   useDerivedTagTerminalApp,
 } from "../terminal-ui.js";
 import { TERMINAL_DIALOG_RETURN_FOOTER } from "../interaction-bindings.js";
-import { useOntologyExplorerController } from "./controller.js";
+import { createOntologyBrowserSnapshot, useOntologyExplorerController } from "./controller.js";
 import {
   buildOntologyBrowserHelpLines,
   buildOntologyBrowserScreenModel,
   buildOntologyCommandEntries,
   getOntologyBrowserInteractionActions,
 } from "./screen-models.js";
+import type { OntologyBrowserSnapshot } from "./ui.js";
 import { buildOntologyBrowserListLines } from "./ui.js";
 
 export function OntologyBrowserScreen({
+  initialSnapshot,
   model,
   onExit,
   onOpenQuery,
 }: {
+  initialSnapshot?: OntologyBrowserSnapshot;
   model: OntologyDomainModel;
   onExit: () => void;
-  onOpenQuery?: (query: OntologyNodeQuery) => void;
+  onOpenQuery?: (query: OntologyNodeQuery, snapshot: OntologyBrowserSnapshot) => void;
 }): React.JSX.Element {
   const terminal = useDerivedTagTerminalApp();
   const controller = useOntologyExplorerController({
+    initialSnapshot,
     model,
     onExit,
     onOpenQuery,
-    onConfirm: ({ currentNode, currentNodeHasChildren }) => {
+    onConfirm: (context) => {
+      const { currentNode, currentNodeHasChildren } = context;
       if (!currentNodeHasChildren && currentNode?.query?.kind === "listRecords" && model.id !== "derivedTags") {
-        onOpenQuery?.(currentNode.query);
+        onOpenQuery?.(currentNode.query, createOntologyBrowserSnapshot(context));
         return true;
       }
       return false;
@@ -52,7 +57,7 @@ export function OntologyBrowserScreen({
           })
           .then((selected) => {
             if (selected === "openQuery" && keyContext.selectedQuery) {
-              onOpenQuery?.(keyContext.selectedQuery);
+              onOpenQuery?.(keyContext.selectedQuery, createOntologyBrowserSnapshot(keyContext));
             }
           });
         return true;

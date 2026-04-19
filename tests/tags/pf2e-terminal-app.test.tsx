@@ -6,18 +6,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AppConfig, NormalizedRecord } from "../../src/types.js";
 import { Pf2eTerminalApp, Pf2eTerminalBootstrap } from "../../src/tui/pf2e-app.js";
 import type { Pf2eTerminalAppServices } from "../../src/tui/app-services.js";
-import type { SearchCategory } from "../../src/types.js";
+import { createPf2eTerminalSearchService } from "../../src/tui/search-service.js";
 import { DerivedTagTerminalProvider } from "../../src/tui/terminal-ui.js";
-import type { Pf2eTerminalSearchSession } from "../../src/tui/search-service.js";
-
-type TerminalSearchService = Pf2eTerminalAppServices["user"]["search"];
-type TerminalSearchRequest = ReturnType<TerminalSearchService["createDefaultRequest"]>;
-type CountQueryFn = TerminalSearchService["countQuery"];
-type ExecuteQueryFn = TerminalSearchService["executeQuery"];
-type LoadMoreFn = TerminalSearchService["loadMore"];
-type ReadResultWindowFn = TerminalSearchService["readResultWindow"];
-type ChangeSortFn = TerminalSearchService["changeSort"];
-type NormalizeRequestFn = TerminalSearchService["normalizeRequest"];
 
 function flushInk(): Promise<void> {
   return new Promise((resolve) => {
@@ -120,178 +110,129 @@ function createRecord(overrides: Partial<NormalizedRecord> = {}): NormalizedReco
 
 function createFakeServices(overrides: Partial<Pf2eTerminalAppServices> = {}): Pf2eTerminalAppServices {
   const record = createRecord();
-  const defaultRequest: TerminalSearchRequest = {
-    mode: "browse" as const,
-    limit: 50,
-    queryText: "",
-    searchProfile: "balanced" as const,
-    sourceLabel: null,
-    filters: {
-      category: null,
-      subcategory: null,
-      levelMin: null,
-      levelMax: null,
-      rarity: {
-        any: [],
-        all: [],
-        exclude: [],
-      },
-      actionCost: {
-        any: [],
-        all: [],
-        exclude: [],
-      },
-      facets: [],
-    },
-  };
-  const normalizeRequest: NormalizeRequestFn = vi.fn<NormalizeRequestFn>((request) => request);
-  const countQuery: CountQueryFn = vi.fn<CountQueryFn>(() =>
+  const closeSearchWindow = vi.fn();
+  const countRecords = vi.fn(() =>
     Promise.resolve({
       searchProfile: "lexical",
       mode: "lexical",
       total: 1,
     }),
   );
-  const executeQuery: ExecuteQueryFn = vi.fn<ExecuteQueryFn>((request) =>
+  const listRecords = vi.fn(() => ({
+    searchProfile: null,
+    mode: "structured" as const,
+    sort: "alphabetical" as const,
+    total: 1,
+    offset: 0,
+    limit: 20,
+    hasMore: false,
+    nextOffset: null,
+    records: [record],
+  }));
+  const lookup = vi.fn(() => ({ match: record, alternatives: [] }));
+  const openSearchWindow = vi.fn(() =>
     Promise.resolve({
-      windowId: "window-1",
-      request,
-      results: [record],
-      windowOffset: 0,
-      resultMode: request.mode === "browse" ? "structured" : "hybrid",
+      id: "window-1",
+      searchProfile: null,
+      mode: "structured" as const,
+      sort: "alphabetical" as const,
+      sortSeed: null,
       total: 1,
-      loadedCount: 1,
+      offset: 0,
+      limit: 20,
       hasMore: false,
       nextOffset: null,
-      searchProfile: request.mode === "lookup" ? null : request.searchProfile,
-      sort: "alphabetical",
-      sortSeed: null,
+      records: [record],
     }),
   );
-  const passthroughSession = (session: Pf2eTerminalSearchSession): Promise<Pf2eTerminalSearchSession> =>
-    Promise.resolve(session);
-  const loadMore: LoadMoreFn = vi.fn<LoadMoreFn>((session) => passthroughSession(session));
-  const readResultWindow: ReadResultWindowFn = vi.fn<ReadResultWindowFn>((session) => passthroughSession(session));
-  const changeSort: ChangeSortFn = vi.fn<ChangeSortFn>((session) => passthroughSession(session));
+  const readSearchWindowPage = vi.fn(() => ({
+    id: "window-1",
+    searchProfile: null,
+    mode: "structured" as const,
+    sort: "alphabetical" as const,
+    sortSeed: null,
+    total: 1,
+    offset: 0,
+    limit: 20,
+    hasMore: false,
+    nextOffset: null,
+    records: [record],
+  }));
+  const search = vi.fn(() =>
+    Promise.resolve({
+      searchProfile: "balanced" as const,
+      mode: "hybrid" as const,
+      sort: "ranked" as const,
+      total: 1,
+      offset: 0,
+      limit: 20,
+      hasMore: false,
+      nextOffset: null,
+      records: [record],
+    }),
+  );
+  const searchService = createPf2eTerminalSearchService({
+    closeSearchWindow,
+    countRecords,
+    getSearchVocabulary: () => ({
+      categories: [{ value: "spell", count: 1 }],
+      subcategories: [],
+      rarities: [{ value: "common", count: 1 }],
+      sizes: [],
+      traditions: [{ value: "arcane", count: 1 }],
+      spellKinds: [{ value: "spell", count: 1 }],
+      sourceCategories: [{ value: "core", count: 1 }],
+      commonTraitsByCategory: [],
+      commonDerivedTagsByCategory: [],
+      derivedTagOntologyFamilies: [],
+      derivedTagOntologyTags: [],
+      derivedTagCatalog: [],
+    }),
+    listFilterValues: vi.fn(({ field }) => {
+      if (field === "rarity") {
+        return {
+          values: [
+            { value: "common", count: 1 },
+            { value: "rare", count: 1 },
+            { value: "unique", count: 1 },
+            { value: "uncommon", count: 1 },
+          ],
+        };
+      }
+      if (field === "actionCost") {
+        return {
+          values: [
+            { value: "1", count: 1 },
+            { value: "2", count: 1 },
+            { value: "3", count: 1 },
+          ],
+        };
+      }
+      return { values: [] };
+    }),
+    lookup,
+    listRecords,
+    openSearchWindow,
+    readSearchWindowPage,
+    search,
+  });
 
   return {
     config: createTestConfig(),
     catalog: {
-      closeSearchWindow: vi.fn(),
-      countRecords: vi.fn(() =>
-        Promise.resolve({
-          searchProfile: "lexical",
-          mode: "lexical",
-          total: 1,
-        }),
-      ),
+      closeSearchWindow,
+      countRecords,
       getRecord: vi.fn(() => record),
       getSearchVocabulary: vi.fn(() => ({}) as never),
       listFilterValues: vi.fn(() => ({ field: "categories", values: [] }) as never),
-      listRecords: vi.fn(() => ({
-        searchProfile: null,
-        mode: "structured",
-        sort: "alphabetical",
-        total: 1,
-        offset: 0,
-        limit: 20,
-        hasMore: false,
-        nextOffset: null,
-        records: [record],
-      })),
-      lookup: vi.fn(() => ({ match: record, alternatives: [] })),
-      openSearchWindow: vi.fn(() =>
-        Promise.resolve({
-          id: "window-1",
-          searchProfile: "balanced",
-          mode: "hybrid",
-          sort: "alphabetical",
-          sortSeed: null,
-          total: 1,
-          offset: 0,
-          limit: 20,
-          hasMore: false,
-          nextOffset: null,
-          records: [record],
-        }),
-      ),
-      readSearchWindowPage: vi.fn(() => ({
-        id: "window-1",
-        searchProfile: "balanced",
-        mode: "hybrid",
-        sort: "alphabetical",
-        sortSeed: null,
-        total: 1,
-        offset: 0,
-        limit: 20,
-        hasMore: false,
-        nextOffset: null,
-        records: [record],
-      })),
-      search: vi.fn(() =>
-        Promise.resolve({
-          searchProfile: "balanced",
-          mode: "hybrid",
-          sort: "ranked",
-          total: 1,
-          offset: 0,
-          limit: 20,
-          hasMore: false,
-          nextOffset: null,
-          records: [record],
-        }),
-      ),
+      listRecords,
+      lookup,
+      openSearchWindow,
+      readSearchWindowPage,
+      search,
     },
     user: {
-      search: {
-        createDefaultRequest: vi.fn(() => defaultRequest),
-        createRequestFromOntologyQuery: vi.fn(() => defaultRequest),
-        getActionCostOptions: vi.fn(() => []),
-        getCategoryOptions: vi.fn(() => [
-          {
-            value: null,
-            label: "Any Category",
-            description: "Search across the full indexed PF2E corpus.",
-          },
-          {
-            value: "spell" satisfies SearchCategory,
-            label: "Spell",
-            description: "1 indexed canonical record.",
-          },
-        ]),
-        getProfileOptions: vi.fn(() => [
-          {
-            value: "balanced",
-            label: "Balanced",
-            description: "Default hybrid retrieval for concise themed searches.",
-          },
-        ]),
-        getRarityOptions: vi.fn(() => []),
-        getSubcategoryOptions: vi.fn(() => []),
-        getModeOptions: vi.fn(() => [
-          {
-            value: "browse",
-            label: "Browse",
-            description: "Deterministic listing.",
-          },
-        ]),
-        getFacetFieldOptions: vi.fn(() => []),
-        getFacetValueOptions: vi.fn(() => []),
-        getResultSortOptions: vi.fn(() => [
-          {
-            value: "alphabetical",
-            label: "Alphabetical",
-            description: "Read matched results in name order.",
-          },
-        ]),
-        normalizeRequest,
-        getDefaultSort: vi.fn(() => "alphabetical"),
-        countQuery,
-        executeQuery,
-        loadMore,
-        readResultWindow,
-        changeSort,
-      },
+      search: searchService,
       ontology: {
         listDomains: vi.fn(() => [
           {
@@ -396,6 +337,7 @@ describe("pf2e terminal app", () => {
     await flushInk();
     app.stdin.write("\r");
     await flushInk();
+    await flushInk();
 
     expect(app.lastFrame()).toContain("Browse/Search");
 
@@ -445,6 +387,108 @@ describe("pf2e terminal app", () => {
     await flushInk();
 
     expect(app.lastFrame()).toContain("Choose an ontology-backed browse domain");
+  });
+
+  it("returns from ontology-launched search to the exact ontology snapshot", async () => {
+    const services = createFakeServices();
+    services.user.ontology.listDomains = vi.fn(() => [
+      {
+        id: "searchSemantics",
+        label: "Search Semantics",
+        description: "Search semantics ontology",
+      },
+    ]);
+    services.user.ontology.loadDomain = vi.fn(() => ({
+      id: "searchSemantics",
+      label: "Search Semantics",
+      description: "Search semantics ontology",
+      rootNodes: [
+        {
+          id: "creature:publicationTitle:monster-core",
+          kind: "value",
+          label: "Pathfinder Monster Core",
+          filterText: "pathfinder monster core monster",
+          listLabel: "Pathfinder Monster Core | 320",
+          detailTitle: "Filter Value",
+          detailLines: [{ text: "Pathfinder Monster Core", tone: "section" }],
+          query: {
+            kind: "listRecords",
+            label: "Browse records with this value",
+            filters: {
+              category: "creature",
+              limit: 20,
+            },
+          },
+        },
+        {
+          id: "creature:publicationTitle:rage-of-elements",
+          kind: "value",
+          label: "Pathfinder Rage of Elements",
+          filterText: "pathfinder rage of elements rage",
+          listLabel: "Pathfinder Rage of Elements | 81",
+          detailTitle: "Filter Value",
+          detailLines: [
+            { text: "Pathfinder Rage of Elements", tone: "section" },
+            ...Array.from({ length: 30 }, (_, index) => ({ text: `Detail line ${index + 1}` })),
+          ],
+          query: {
+            kind: "listRecords",
+            label: "Browse records with this value",
+            filters: {
+              category: "creature",
+              limit: 20,
+            },
+          },
+        },
+      ],
+    }));
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalApp rootPath={process.cwd()} onExit={vi.fn()} services={services} />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+
+    app.stdin.write("j");
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+    expect(app.lastFrame()).toContain("Search Semantics > Pathfinder Monster Core | depth 0");
+
+    app.stdin.write("j");
+    await flushInk();
+    await flushInk();
+    expect(app.lastFrame()).toContain("Search Semantics > Pathfinder Rage of Elements | depth 0");
+
+    app.stdin.write(":");
+    await flushInk();
+    for (const character of "open query") {
+      app.stdin.write(character);
+    }
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+    const searchFrame = app.lastFrame();
+    expect(searchFrame).toContain("Browse/Search");
+    expect(
+      searchFrame.includes("[RESULTS] 1/1 | Buf 1 | Alphabetical") || searchFrame.includes("Category | Creature"),
+    ).toBe(true);
+    expect(
+      searchFrame.includes("Current setup matches applied query") ||
+        searchFrame.includes("Seeded from: Browse records with this value"),
+    ).toBe(true);
+
+    app.stdin.write("q");
+    await flushInk();
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("Search Semantics > Pathfinder Rage of Elements | depth 0");
+    expect(app.lastFrame()).toContain("Pathfinder Rage of Elements | 81");
   });
 
   it("closes loaded services when the bootstrap unmounts", async () => {

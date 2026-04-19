@@ -1,12 +1,13 @@
 import type { DerivedTagTerminalCommandOption, DerivedTagTerminalLine } from "./terminal-ui.js";
 import type { SearchScreenState } from "./search-screen-state.js";
+import type { SearchScreenOrigin } from "./search-workflow-types.js";
 import { formatResultPosition, formatSort, getSessionBufferRange } from "./search-screen-state.js";
 import type { Pf2eTerminalSearchSession } from "./search-service.js";
 import { clampWindowStart } from "./list-utils.js";
 import { buildOntologyExplorerEntityDetailLines } from "./ontology-explorer/entity-page.js";
 import { mapNormalizedRecordToOntologyExplorerEntityRecord } from "./ontology-explorer/entity-record.js";
 
-export type SearchResultCommandId = "jumpToResult" | "sortResults";
+export type SearchResultCommandId = "jumpToResult" | "sortResults" | "openSetup";
 
 function buildSearchResultLabel(record: Pf2eTerminalSearchSession["results"][number]): string {
   const scope = record.subcategory ? `${record.category}/${record.subcategory}` : record.category;
@@ -101,6 +102,7 @@ export function buildResultDetailLines(
 
 export function buildResultCommandPaletteEntries(
   state: SearchScreenState,
+  origin: SearchScreenOrigin,
 ): DerivedTagTerminalCommandOption<SearchResultCommandId>[] {
   return [
     {
@@ -117,5 +119,15 @@ export function buildResultCommandPaletteEntries(
         : "Change the active result ordering.",
       keywords: ["order", "ranking"],
     },
+    ...(origin === "ontology"
+      ? [
+          {
+            value: "openSetup" as const,
+            label: "Open Query Setup",
+            description: "Switch from the result reader into the search setup workspace without leaving the search flow.",
+            keywords: ["setup", "filters", "workspace"],
+          },
+        ]
+      : []),
   ];
 }

@@ -5,14 +5,32 @@ import type {
   DerivedTagMigrationSession,
 } from "../tags/migration/types.js";
 import type { OntologyDomainModel } from "../types.js";
+import type { OntologyBrowserSnapshot } from "./ontology-explorer/ui.js";
 import { moveSelectionWrapped } from "./terminal-ui.js";
+
+export type Pf2eOntologyRoute = {
+  kind: "ontology";
+  model: OntologyDomainModel;
+  snapshot?: OntologyBrowserSnapshot;
+};
+
+export type Pf2eSearchRouteOrigin = {
+  kind: "ontology";
+  route: Pf2eOntologyRoute;
+};
+
+export type Pf2eSearchRoute = {
+  kind: "search";
+  initialQuery?: OntologyNodeQuery;
+  origin?: Pf2eSearchRouteOrigin;
+};
 
 export type Pf2eAppRoute =
   | { kind: "areas" }
   | { kind: "tag_refinement" }
-  | { kind: "search"; initialQuery?: OntologyNodeQuery }
+  | Pf2eSearchRoute
   | { kind: "ontology_picker" }
-  | { kind: "ontology"; model: OntologyDomainModel }
+  | Pf2eOntologyRoute
   | { kind: "review"; session: DerivedTagMigrationSession };
 
 export type CreatePf2eDerivedTagSessionOptions = {
