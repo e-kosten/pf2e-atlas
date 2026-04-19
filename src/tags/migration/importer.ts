@@ -527,9 +527,7 @@ function toManagedCategory(category: SearchCategory): DerivedTagManagedCategory 
 }
 
 function categoriesTouchedBySession(session: DerivedTagMigrationSession): DerivedTagManagedCategory[] {
-  return uniqueSorted(
-    session.decisions.map((decision) => toManagedCategory(decision.category)),
-  ) as DerivedTagManagedCategory[];
+  return uniqueSorted(session.decisions.map((decision) => toManagedCategory(decision.category)));
 }
 
 function applySessionToState(

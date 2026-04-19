@@ -21,7 +21,9 @@ Core application code lives in `src/`. The MCP server entrypoint is `src/index.t
 
 ## Coding Style & Naming Conventions
 
-This codebase is TypeScript on Node.js with ESM (`"type": "module"`). Follow existing style: 2-space indentation, semicolons, double quotes, and small focused modules. Use descriptive file names such as `search-expansion.ts` and `refresh-index.ts`. Prefer `camelCase` for functions and variables, `PascalCase` for classes and types, and `SCREAMING_SNAKE_CASE` for constants. There is no dedicated formatter or linter configured, so match the surrounding file style closely.
+This codebase is TypeScript on Node.js with ESM (`"type": "module"`). Follow existing style: 2-space indentation, semicolons, double quotes, and small focused modules. Use descriptive file names such as `search-expansion.ts` and `refresh-index.ts`. Prefer `camelCase` for functions and variables, `PascalCase` for classes and types, and `SCREAMING_SNAKE_CASE` for constants. ESLint and Prettier are configured in-repo; run the relevant lint/format checks instead of relying on convention alone.
+
+When you introduce or consolidate a shared abstraction that other code should route through, add or extend lint rules to enforce that boundary once the abstraction is stable enough to be mandatory. Do not leave new shared pathways as convention-only if they are intended to replace lower-level direct usage.
 
 ## Testing Guidelines
 

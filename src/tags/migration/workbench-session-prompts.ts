@@ -39,7 +39,7 @@ function normalizeOptional(value: string | undefined): string | undefined {
   return trimmed ? trimmed : undefined;
 }
 
-function uniqueSorted(values: string[]): string[] {
+function uniqueSorted<T extends string>(values: T[]): T[] {
   return [...new Set(values)].sort((left, right) => compareDisplayText(left, right) || left.localeCompare(right));
 }
 
@@ -77,11 +77,13 @@ function buildAllCategoryOption(
 }
 
 function listSubcategoriesForCategory(category: SearchCategory): SearchSubcategory[] {
-  return uniqueSorted(
-    getSessionScopeOntology()
-      .families.filter((family) => family.category === category)
-      .flatMap((family) => family.subcategories ?? []),
-  ) as SearchSubcategory[];
+  const subcategories = getSessionScopeOntology()
+    .families.filter((family) => family.category === category)
+    .reduce<SearchSubcategory[]>(
+      (allSubcategories, family) => [...allSubcategories, ...(family.subcategories ?? [])],
+      [],
+    );
+  return uniqueSorted(subcategories);
 }
 
 function buildSubcategorySelectOptions(category: SearchCategory): DerivedTagTerminalSelectOption<SearchSubcategory>[] {

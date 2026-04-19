@@ -90,7 +90,7 @@ export function toStringArray(value: unknown): string[] {
   return value.filter((entry): entry is string => typeof entry === "string" && entry.length > 0);
 }
 
-export function uniqueSorted(values: string[]): string[] {
+export function uniqueSorted<T extends string>(values: T[]): T[] {
   return [...new Set(values)].sort((left, right) => left.localeCompare(right));
 }
 

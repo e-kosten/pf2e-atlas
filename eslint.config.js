@@ -3,6 +3,7 @@ import prettierConfig from "eslint-config-prettier";
 import { defineConfig } from "eslint/config";
 import globals from "globals";
 import tseslint from "typescript-eslint";
+import localRules from "./eslint-local-rules.js";
 
 export default defineConfig(
   {
@@ -14,6 +15,9 @@ export default defineConfig(
       globals: {
         ...globals.node,
       },
+    },
+    plugins: {
+      arch: localRules,
     },
   },
   js.configs.recommended,
@@ -67,6 +71,14 @@ export default defineConfig(
     },
   },
   {
+    files: ["src/**/*.{ts,tsx}"],
+    rules: {
+      "arch/no-direct-json-parse": "error",
+      "arch/no-direct-database-sync-construction": "error",
+      "arch/no-search-category-assertion": "error",
+    },
+  },
+  {
     files: ["src/tui/**/*.{ts,tsx}"],
     ignores: [
       "src/tui/keymap.ts",
@@ -78,11 +90,116 @@ export default defineConfig(
       "no-restricted-imports": [
         "error",
         {
+          paths: [
+            {
+              name: "ink",
+              allowTypeImports: true,
+              message:
+                "TUI feature code must use terminal-ui helpers instead of importing Ink runtime primitives directly.",
+            },
+          ],
           patterns: [
             {
               group: ["**/keymap.js"],
               message:
                 "TUI feature code must use interaction-bindings, action-target, or terminal-ui helpers instead of importing keymap directly.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/tui/**/*.{ts,tsx}"],
+    ignores: ["src/tui/app-services.ts", "src/tui/ontology-explorer/data.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "node:sqlite",
+              message:
+                "TUI modules must not open SQLite directly. Go through app-services or approved cache/composition modules.",
+            },
+          ],
+          patterns: [
+            {
+              group: ["**/data/service.js", "**/app/runtime.js", "**/app/ontology-service.js"],
+              message:
+                "TUI modules must consume composed app services instead of constructing runtime or data services directly.",
+            },
+            {
+              group: [
+                "**/tags/migration/workbench-controller.js",
+                "**/tags/migration/session-builder.js",
+                "**/tags/migration/runtime-state.js",
+                "**/tags/migration/session-store.js",
+                "**/tags/migration/cli-utils.js",
+              ],
+              message:
+                "TUI modules must use app-services for tag-workbench composition instead of importing migration service internals directly.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: ["src/tags/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "**/tags/runtime/**",
+                "**/tags/authored-rules/**",
+                "**/tags/catalog/**",
+                "**/tags/ontology/**",
+                "**/tags/exemplars/**",
+                "**/tags/legacy-rules/**",
+                "**/tags/legacy-seed-migrations/**",
+              ],
+              message:
+                "Outside src/tags, import derived-tag functionality through src/tags/index.js or another approved facade instead of leaf tag internals.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/tags/cli/**/*.{ts,tsx}"],
+    ignores: ["src/tags/cli/search-scope-args.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["**/domain/categories.js", "**/data/sql-row-decoding.js"],
+              message:
+                "CLI scope parsing must go through src/tags/cli/search-scope-args.ts instead of ad hoc category normalization helpers.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/server/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["**/search/sql.js", "**/data/record-queries.js", "**/data/schema.js"],
+              message:
+                "Server tool registration must depend on Pf2eDataService or higher-level services, not low-level SQL/query internals.",
             },
           ],
         },

@@ -103,7 +103,7 @@ export function normalizeSearchScope(scope: SearchScope): NormalizedSearchScope 
     return canonicalSubcategory;
   });
 
-  const uniqueSubcategories = subcategories ? (uniqueSorted(subcategories) as SearchSubcategory[]) : undefined;
+  const uniqueSubcategories = subcategories ? uniqueSorted(subcategories) : undefined;
 
   return {
     category,

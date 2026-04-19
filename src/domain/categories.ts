@@ -25,7 +25,7 @@ export const CATEGORY_SUBCATEGORY_MAP: Record<SearchCategory, SearchSubcategory[
   lore: ["deity", "journal"],
 };
 
-export const SEARCH_SUBCATEGORIES = uniqueSorted(Object.values(CATEGORY_SUBCATEGORY_MAP).flat()) as SearchSubcategory[];
+export const SEARCH_SUBCATEGORIES = uniqueSorted(Object.values(CATEGORY_SUBCATEGORY_MAP).flat());
 
 const CATEGORY_INPUT_ALIASES = new Map<string, SearchCategory>([
   ...SEARCH_CATEGORIES.map((category) => [normalizeText(category), category] as const),
@@ -70,9 +70,7 @@ const SUBCATEGORY_INPUT_ALIASES = new Map<string, SearchSubcategory>([
 
 const SUBCATEGORY_TO_CATEGORIES = new Map<string, SearchCategory[]>(
   SEARCH_SUBCATEGORIES.map((subcategory) => {
-    const categories = Object.entries(CATEGORY_SUBCATEGORY_MAP)
-      .filter(([, subcategories]) => subcategories.includes(subcategory))
-      .map(([category]) => category as SearchCategory);
+    const categories = SEARCH_CATEGORIES.filter((category) => CATEGORY_SUBCATEGORY_MAP[category].includes(subcategory));
     return [normalizeText(subcategory), categories] as const;
   }),
 );

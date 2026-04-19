@@ -1,7 +1,6 @@
 import { DatabaseSync } from "node:sqlite";
 
-import { groupDerivedTagOntology } from "../tags/runtime/catalog-utils.js";
-import { DERIVED_TAG_ONTOLOGY_FAMILIES, DERIVED_TAG_ONTOLOGY_TAGS } from "../tags/index.js";
+import { DERIVED_TAG_ONTOLOGY_FAMILIES, DERIVED_TAG_ONTOLOGY_TAGS, groupDerivedTagOntology } from "../tags/index.js";
 import type {
   DerivedTagCatalogEntry,
   DerivedTagOntologyFamily,

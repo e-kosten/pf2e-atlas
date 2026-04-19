@@ -57,6 +57,7 @@ import {
 } from "../legacy-rules/index.js";
 
 export { normalizeDerivedTag } from "./shared.js";
+export { groupDerivedTagOntology } from "./catalog-utils.js";
 
 const LEGACY_DERIVED_TAG_RULES = [
   ...EQUIPMENT_LEGACY_DERIVED_TAG_RULES,
