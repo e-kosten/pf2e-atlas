@@ -11,8 +11,10 @@ import {
   isPageUpKey,
 } from "./keymap.js";
 import {
+  TERMINAL_COMMAND_PALETTE_EMPTY_FILTER_FOOTER,
   TERMINAL_COMMAND_PALETTE_FILTER_FOOTER,
   TERMINAL_DIALOG_CONTINUE_FOOTER,
+  TERMINAL_SELECT_EMPTY_FOOTER,
   TERMINAL_TEXT_INPUT_FOOTER,
   formatTerminalInteractionFooter,
   getTerminalInteractionCycleDirection,
@@ -1376,7 +1378,7 @@ function CommandPaletteBody({
             ]}
           />
         }
-        footer={[{ text: "Type to filter  Backspace edit  Esc cancel", tone: "dim" }]}
+        footer={[{ text: TERMINAL_COMMAND_PALETTE_EMPTY_FILTER_FOOTER, tone: "dim" }]}
         width={width}
         height={layout.totalHeight}
         showTopBorder={layout.showTopBorder}
@@ -1450,7 +1452,7 @@ function SelectPromptBody({
             ]}
           />
         }
-        footer={[{ text: "Esc/backspace/left/q cancel", tone: "dim" }]}
+        footer={[{ text: TERMINAL_SELECT_EMPTY_FOOTER, tone: "dim" }]}
         width={width}
         height={layout.totalHeight}
         showTopBorder={layout.showTopBorder}

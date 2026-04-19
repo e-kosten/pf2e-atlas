@@ -42,6 +42,21 @@ export type TerminalInteractionAction = {
   helpText?: string;
 };
 
+export type TerminalFooterBindingKeyStyle = "compact" | "expanded";
+
+export type TerminalTextEntryBindingId = "submit" | "cancel" | "deleteBackward";
+
+export type TerminalFooterBinding =
+  | { kind: "text"; text: string }
+  | { kind: "action"; action: TerminalInteractionAction; keyStyle?: TerminalFooterBindingKeyStyle }
+  | {
+      kind: "actionGroup";
+      label: string;
+      actions: TerminalInteractionAction[];
+      keyStyle?: TerminalFooterBindingKeyStyle;
+    }
+  | { kind: "textEntry"; textEntry: TerminalTextEntryBindingId; label?: string };
+
 export type TerminalInteractionCommand = {
   label: string;
   description: string;
@@ -63,14 +78,16 @@ export type TerminalTextEntryIntent =
 
 export const TERMINAL_DIALOG_RETURN_FOOTER = "Press any key to return.";
 export const TERMINAL_DIALOG_CONTINUE_FOOTER = "Press any key to continue.";
-export const TERMINAL_TEXT_INPUT_FOOTER = "Type text  Enter submit  Backspace edit  Esc cancel";
-export const TERMINAL_COMMAND_PALETTE_FILTER_FOOTER = "Type to filter  Enter/→ select  Backspace edit  Esc cancel";
-export const TERMINAL_LIVE_FILTER_FOOTER =
-  "Type to filter live  Backspace edit  Enter keep filter  Esc clear and back out";
 
 type TerminalInteractionDefinition = {
   footerKeys: string;
+  expandedFooterKeys?: string;
   helpKeys: string;
+  defaultLabel: string;
+};
+
+type TerminalTextEntryDefinition = {
+  footerKeys: string;
   defaultLabel: string;
 };
 
@@ -147,11 +164,13 @@ const TERMINAL_INTERACTION_DEFINITIONS: Record<TerminalInteractionActionId, Term
   },
   back: {
     footerKeys: "←",
+    expandedFooterKeys: "Backspace/←",
     helpKeys: "← or h / Backspace",
     defaultLabel: "back",
   },
   return: {
     footerKeys: "←",
+    expandedFooterKeys: "Backspace/←",
     helpKeys: "← or h / Backspace",
     defaultLabel: "return",
   },
@@ -204,6 +223,21 @@ const TERMINAL_INTERACTION_DEFINITIONS: Record<TerminalInteractionActionId, Term
     footerKeys: "Tab",
     helpKeys: "Tab",
     defaultLabel: "execute",
+  },
+};
+
+const TERMINAL_TEXT_ENTRY_DEFINITIONS: Record<TerminalTextEntryBindingId, TerminalTextEntryDefinition> = {
+  submit: {
+    footerKeys: "Enter",
+    defaultLabel: "submit",
+  },
+  cancel: {
+    footerKeys: "Esc",
+    defaultLabel: "cancel",
+  },
+  deleteBackward: {
+    footerKeys: "Backspace",
+    defaultLabel: "edit",
   },
 };
 
@@ -268,6 +302,85 @@ function getInteractionDisplayKeys(
   };
 }
 
+function getInteractionFooterKeys(
+  action: TerminalInteractionAction,
+  actions: TerminalInteractionAction[],
+  keyStyle: TerminalFooterBindingKeyStyle,
+): string {
+  if (keyStyle === "compact") {
+    return getInteractionDisplayKeys(action, actions).footerKeys;
+  }
+
+  const definition = getInteractionDefinition(action);
+  const expandedKeys = definition.expandedFooterKeys ?? definition.footerKeys;
+
+  if (action.id === "back" || action.id === "return") {
+    return isEscapeFallbackTarget(action, actions) ? `Esc/${expandedKeys}` : expandedKeys;
+  }
+
+  if (action.id === "quit" && isEscapeFallbackTarget(action, actions)) {
+    return `Esc/${expandedKeys}`;
+  }
+
+  return expandedKeys;
+}
+
+function collectDeclaredFooterActions(bindings: TerminalFooterBinding[]): TerminalInteractionAction[] {
+  return bindings.flatMap((binding) => {
+    switch (binding.kind) {
+      case "action":
+        return [binding.action];
+      case "actionGroup":
+        return binding.actions;
+      case "text":
+      case "textEntry":
+        return [];
+    }
+  });
+}
+
+function joinFooterKeySets(keySets: string[]): string {
+  const seenKeys = new Set<string>();
+  const orderedKeys: string[] = [];
+
+  for (const keySet of keySets) {
+    for (const key of keySet.split("/")) {
+      if (seenKeys.has(key)) {
+        continue;
+      }
+      seenKeys.add(key);
+      orderedKeys.push(key);
+    }
+  }
+
+  return orderedKeys.join("/");
+}
+
+function formatTerminalFooterBinding(
+  binding: TerminalFooterBinding,
+  declaredActions: TerminalInteractionAction[],
+): string {
+  switch (binding.kind) {
+    case "text":
+      return binding.text;
+    case "textEntry": {
+      const definition = TERMINAL_TEXT_ENTRY_DEFINITIONS[binding.textEntry];
+      return `${definition.footerKeys} ${binding.label ?? definition.defaultLabel}`;
+    }
+    case "action": {
+      const keyStyle = binding.keyStyle ?? "compact";
+      return `${getInteractionFooterKeys(binding.action, declaredActions, keyStyle)} ${getInteractionLabel(binding.action)}`;
+    }
+    case "actionGroup": {
+      const keyStyle = binding.keyStyle ?? "compact";
+      const groupedKeys = joinFooterKeySets(
+        binding.actions.map((action) => getInteractionFooterKeys(action, declaredActions, keyStyle)),
+      );
+      return `${groupedKeys} ${binding.label}`;
+    }
+  }
+}
+
 export function formatTerminalInteractionFooter(actions: TerminalInteractionAction[]): string {
   return actions
     .map((action) => {
@@ -276,6 +389,47 @@ export function formatTerminalInteractionFooter(actions: TerminalInteractionActi
     })
     .join("  ");
 }
+
+export function formatTerminalFooterBindings(bindings: TerminalFooterBinding[]): string {
+  const declaredActions = collectDeclaredFooterActions(bindings);
+  return bindings.map((binding) => formatTerminalFooterBinding(binding, declaredActions)).join("  ");
+}
+
+export const TERMINAL_TEXT_INPUT_FOOTER = formatTerminalFooterBindings([
+  { kind: "text", text: "Type text" },
+  { kind: "textEntry", textEntry: "submit" },
+  { kind: "textEntry", textEntry: "deleteBackward" },
+  { kind: "textEntry", textEntry: "cancel" },
+]);
+
+export const TERMINAL_COMMAND_PALETTE_FILTER_FOOTER = formatTerminalFooterBindings([
+  { kind: "text", text: "Type to filter" },
+  { kind: "action", action: { id: "select" } },
+  { kind: "textEntry", textEntry: "deleteBackward" },
+  { kind: "textEntry", textEntry: "cancel" },
+]);
+
+export const TERMINAL_COMMAND_PALETTE_EMPTY_FILTER_FOOTER = formatTerminalFooterBindings([
+  { kind: "text", text: "Type to filter" },
+  { kind: "textEntry", textEntry: "deleteBackward" },
+  { kind: "textEntry", textEntry: "cancel" },
+]);
+
+export const TERMINAL_SELECT_EMPTY_FOOTER = formatTerminalFooterBindings([
+  {
+    kind: "actionGroup",
+    label: "cancel",
+    actions: [{ id: "back" }, { id: "quit" }],
+    keyStyle: "expanded",
+  },
+]);
+
+export const TERMINAL_LIVE_FILTER_FOOTER = formatTerminalFooterBindings([
+  { kind: "text", text: "Type to filter live" },
+  { kind: "textEntry", textEntry: "deleteBackward" },
+  { kind: "textEntry", textEntry: "submit", label: "keep filter" },
+  { kind: "textEntry", textEntry: "cancel", label: "clear and back out" },
+]);
 
 function matchesTerminalInteractionAction(
   actionId: TerminalInteractionActionId,

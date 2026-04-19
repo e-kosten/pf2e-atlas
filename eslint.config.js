@@ -305,6 +305,62 @@ export default defineConfig(
     },
   },
   {
+    files: ["src/tui/ontology-explorer/controller.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            'ImportDeclaration[source.value="../terminal-ui.js"] ImportSpecifier[imported.name="createDerivedTagTerminalListNavigationState"]',
+          message:
+            "Ontology explorer controllers must use a shared ontology interaction helper instead of owning terminal input or list-navigation routing directly.",
+        },
+        {
+          selector:
+            'ImportDeclaration[source.value="../terminal-ui.js"] ImportSpecifier[imported.name="resolveDerivedTagTerminalListNavigationAction"]',
+          message:
+            "Ontology explorer controllers must use a shared ontology interaction helper instead of owning terminal input or list-navigation routing directly.",
+        },
+        {
+          selector:
+            'ImportDeclaration[source.value="../terminal-ui.js"] ImportSpecifier[imported.name="useDerivedTagTerminalInput"]',
+          message:
+            "Ontology explorer controllers must use a shared ontology interaction helper instead of owning terminal input or list-navigation routing directly.",
+        },
+        {
+          selector:
+            'ImportDeclaration[source.value="../interaction-bindings.js"] ImportSpecifier[imported.name="resolveTerminalInteractionAction"]',
+          message:
+            "Ontology explorer controllers must use a shared ontology interaction helper instead of resolving raw interaction or text-entry intents directly.",
+        },
+        {
+          selector:
+            'ImportDeclaration[source.value="../interaction-bindings.js"] ImportSpecifier[imported.name="resolveTerminalTextEntryIntent"]',
+          message:
+            "Ontology explorer controllers must use a shared ontology interaction helper instead of resolving raw interaction or text-entry intents directly.",
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/tui/terminal-ui.tsx"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: 'Literal[value="Type to filter  Backspace edit  Esc cancel"]',
+          message:
+            "Do not hardcode command-palette filter footer bindings in terminal-ui. Derive prompt footer text from shared interaction helpers or exported footer constants instead.",
+        },
+        {
+          selector: 'Literal[value="Esc/backspace/left/q cancel"]',
+          message:
+            "Do not hardcode prompt cancel footer bindings in terminal-ui. Derive prompt footer text from shared interaction helpers or exported footer constants instead.",
+        },
+      ],
+    },
+  },
+  {
     files: ["src/tui/**/*.{ts,tsx}"],
     ignores: [
       "src/tui/keymap.ts",

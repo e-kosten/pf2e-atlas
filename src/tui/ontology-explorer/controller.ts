@@ -2,27 +2,24 @@ import React from "react";
 
 import type { OntologyDomainModel, OntologyNode, OntologyNodeQuery } from "../../types.js";
 import {
-  createDerivedTagTerminalListNavigationState,
   getRenderedTerminalLineCount,
   getTerminalPaneBodyHeight,
   getTerminalTwoPaneDetailWidth,
-  resolveDerivedTagTerminalListNavigationAction,
   sliceRenderedTerminalLines,
-  useDerivedTagTerminalInput,
   useDerivedTagTerminalSize,
   type DerivedTagTerminalInputEvent,
   type DerivedTagTerminalLine,
 } from "../terminal-ui.js";
-import {
-  resolveTerminalInteractionAction,
-  resolveTerminalTextEntryIntent,
-  type TerminalInteractionAction,
-} from "../interaction-bindings.js";
+import type { TerminalInteractionAction } from "../interaction-bindings.js";
 import {
   getDerivedTagTerminalTwoPaneLayoutMode,
   reduceDerivedTagTerminalTwoPaneState,
   type DerivedTagTerminalTwoPaneAction,
 } from "../two-pane-state.js";
+import {
+  useOntologyExplorerInteractionRouter,
+  type OntologyExplorerInteractionRoute,
+} from "./interactions.js";
 import {
   buildOntologyBrowserDetailLines,
   canDrillIntoOntologyNode,
@@ -79,7 +76,6 @@ export type OntologyExplorerControllerContext = {
 };
 
 export type OntologyExplorerKeyContext = OntologyExplorerControllerContext & {
-  dispatch: React.Dispatch<OntologyExplorerAction>;
   event: DerivedTagTerminalInputEvent;
 };
 
@@ -89,7 +85,6 @@ type OntologyExplorerControllerOptions = {
   onConfirm?: (context: OntologyExplorerKeyContext) => boolean;
   getInteractionActions?: (context: OntologyExplorerControllerContext) => TerminalInteractionAction[];
   onAction?: (action: TerminalInteractionAction, context: OntologyExplorerKeyContext) => boolean;
-  onKey?: (context: OntologyExplorerKeyContext) => boolean;
   onOpenQuery?: (query: OntologyNodeQuery) => void;
   escapeClearsFilterBeforeExit?: boolean;
   getDetailLines?: (context: {
@@ -313,89 +308,108 @@ export function useOntologyExplorerController(
     searchIndicator,
   };
 
-  const listNavigationStateRef = React.useRef(createDerivedTagTerminalListNavigationState());
-  const detailNavigationStateRef = React.useRef(createDerivedTagTerminalListNavigationState());
+  const interactionActions = options.getInteractionActions?.(context) ?? [];
+  const handleRoute = React.useCallback(
+    (route: OntologyExplorerInteractionRoute) => {
+      const { detailNavigationAction, event, interactionAction, listNavigationAction, searchModeAction, textEntryIntent } =
+        route;
+      const keyContext: OntologyExplorerKeyContext = {
+        ...context,
+        event,
+      };
 
-  useDerivedTagTerminalInput((event) => {
-    const listNavigation = resolveDerivedTagTerminalListNavigationAction(
-      event,
-      {
-        pageSize: context.detailPageSize,
-        jumpSize: context.selectionJumpSize,
-        includeConfirmKeys: true,
-        includeHorizontalConfirmKeys: true,
-      },
-      listNavigationStateRef.current,
-    );
-    listNavigationStateRef.current = listNavigation.state;
-    const detailNavigation = resolveDerivedTagTerminalListNavigationAction(
-      event,
-      {
-        pageSize: context.detailPageSize,
-        jumpSize: context.detailJumpSize,
-        includeCancelKeys: true,
-        includeHorizontalCancelKeys: true,
-      },
-      detailNavigationStateRef.current,
-    );
-    detailNavigationStateRef.current = detailNavigation.state;
-
-    const keyContext: OntologyExplorerKeyContext = {
-      ...context,
-      dispatch,
-      event,
-    };
-    const interactionActions = options.getInteractionActions?.(context) ?? [];
-    const interactionAction = resolveTerminalInteractionAction(event, interactionActions);
-    const searchModeAction = resolveTerminalInteractionAction(event, [{ id: "cancel" }]);
-    const textEntryIntent = resolveTerminalTextEntryIntent(event);
-
-    if (state.searchMode) {
-      if (textEntryIntent?.kind === "submit") {
-        dispatch({ type: "set_search_mode", searchMode: false });
+      if (context.state.searchMode) {
+        if (textEntryIntent?.kind === "submit") {
+          dispatch({ type: "set_search_mode", searchMode: false });
+          return;
+        }
+        if (textEntryIntent?.kind === "deleteBackward") {
+          dispatch({ type: "backspace_search" });
+          return;
+        }
+        if (searchModeAction?.id === "cancel") {
+          dispatch({ type: "clear_search" });
+          dispatch({ type: "set_search_mode", searchMode: false, searchInput: "" });
+          return;
+        }
+        if (textEntryIntent?.kind === "append") {
+          dispatch({ type: "append_search", character: textEntryIntent.text });
+        }
         return;
       }
-      if (textEntryIntent?.kind === "deleteBackward") {
-        dispatch({ type: "backspace_search" });
-        return;
-      }
-      if (searchModeAction?.id === "cancel") {
-        dispatch({ type: "clear_search" });
-        dispatch({ type: "set_search_mode", searchMode: false, searchInput: "" });
-        return;
-      }
-      if (textEntryIntent?.kind === "append") {
-        dispatch({ type: "append_search", character: textEntryIntent.text });
-      }
-      return;
-    }
 
-    if (options.onKey?.(keyContext)) {
-      return;
-    }
-
-    if (state.activePane === "detail") {
-      if (detailNavigation.action?.kind === "move") {
-        dispatch({
-          type: "move_detail",
-          delta: detailNavigation.action.delta,
-          maxDetailScroll: context.maxDetailScroll,
-        });
+      if (context.state.activePane === "detail") {
+        if (detailNavigationAction?.kind === "move") {
+          dispatch({
+            type: "move_detail",
+            delta: detailNavigationAction.delta,
+            maxDetailScroll: context.maxDetailScroll,
+          });
+          return;
+        }
+        if (detailNavigationAction?.kind === "boundary") {
+          dispatch({
+            type: "detail_boundary",
+            boundary: detailNavigationAction.boundary,
+            maxDetailScroll: context.maxDetailScroll,
+          });
+          return;
+        }
+        if (interactionAction && options.onAction?.(interactionAction, keyContext)) {
+          return;
+        }
+        if (interactionAction?.id === "quit") {
+          options.onExit();
+          return;
+        }
+        if (interactionAction?.id === "focus") {
+          dispatch({ type: "toggle_focus" });
+          return;
+        }
+        if (interactionAction?.id === "layout") {
+          dispatch({ type: "toggle_layout" });
+          return;
+        }
+        if (interactionAction?.id === "back" || interactionAction?.id === "return") {
+          dispatch({ type: "leave_detail" });
+          return;
+        }
         return;
       }
-      if (detailNavigation.action?.kind === "boundary") {
-        dispatch({
-          type: "detail_boundary",
-          boundary: detailNavigation.action.boundary,
-          maxDetailScroll: context.maxDetailScroll,
-        });
+
+      if (listNavigationAction?.kind === "move") {
+        const isJump = Math.abs(listNavigationAction.delta) > 1;
+        dispatch(
+          isJump
+            ? { type: "jump_selection", delta: listNavigationAction.delta }
+            : { type: "move_selection", delta: listNavigationAction.delta },
+        );
+        return;
+      }
+      if (listNavigationAction?.kind === "boundary") {
+        dispatch({ type: "selection_boundary", boundary: listNavigationAction.boundary });
+        return;
+      }
+      if (listNavigationAction?.kind === "confirm") {
+        if (options.onConfirm?.(keyContext)) {
+          return;
+        }
+        if (context.currentNodeHasChildren) {
+          dispatch({ type: "drill_in" });
+        } else {
+          dispatch({ type: "toggle_focus" });
+        }
+        return;
+      }
+
+      if (interactionAction?.id === "cancel") {
+        if ((options.escapeClearsFilterBeforeExit ?? true) && context.effectiveState.filter) {
+          dispatch({ type: "clear_search" });
+          return;
+        }
         return;
       }
       if (interactionAction && options.onAction?.(interactionAction, keyContext)) {
-        return;
-      }
-      if (interactionAction?.id === "quit") {
-        options.onExit();
         return;
       }
       if (interactionAction?.id === "focus") {
@@ -407,74 +421,39 @@ export function useOntologyExplorerController(
         return;
       }
       if (interactionAction?.id === "back" || interactionAction?.id === "return") {
-        dispatch({ type: "leave_detail" });
+        const nextState = popOntologyBrowserDepth(context.effectiveState);
+        if (nextState.depth === context.effectiveState.depth) {
+          options.onExit();
+        } else {
+          dispatch({ type: "pop_depth" });
+        }
         return;
       }
-      return;
-    }
-
-    if (listNavigation.action?.kind === "move") {
-      const isJump = Math.abs(listNavigation.action.delta) > 1;
-      dispatch(
-        isJump
-          ? { type: "jump_selection", delta: listNavigation.action.delta }
-          : { type: "move_selection", delta: listNavigation.action.delta },
-      );
-      return;
-    }
-    if (listNavigation.action?.kind === "boundary") {
-      dispatch({ type: "selection_boundary", boundary: listNavigation.action.boundary });
-      return;
-    }
-    if (listNavigation.action?.kind === "confirm") {
-      if (options.onConfirm?.(keyContext)) {
-        return;
-      }
-      if (context.currentNodeHasChildren) {
-        dispatch({ type: "drill_in" });
-      } else {
-        dispatch({ type: "toggle_focus" });
-      }
-      return;
-    }
-    if (interactionAction?.id === "cancel") {
-      if ((options.escapeClearsFilterBeforeExit ?? true) && context.effectiveState.filter) {
-        dispatch({ type: "clear_search" });
-        return;
-      }
-      return;
-    }
-    if (interactionAction && options.onAction?.(interactionAction, keyContext)) {
-      return;
-    }
-    if (interactionAction?.id === "focus") {
-      dispatch({ type: "toggle_focus" });
-      return;
-    }
-    if (interactionAction?.id === "layout") {
-      dispatch({ type: "toggle_layout" });
-      return;
-    }
-    if (interactionAction?.id === "back" || interactionAction?.id === "return") {
-      const nextState = popOntologyBrowserDepth(context.effectiveState);
-      if (nextState.depth === context.effectiveState.depth) {
+      if (interactionAction?.id === "quit") {
         options.onExit();
-      } else {
-        dispatch({ type: "pop_depth" });
+        return;
       }
-      return;
-    }
-    if (interactionAction?.id === "quit") {
-      options.onExit();
-      return;
-    }
-    if (interactionAction?.id === "search") {
-      dispatch({
-        type: "set_search_mode",
-        searchMode: true,
-        searchInput: context.effectiveState.filter,
-      });
-    }
+      if (interactionAction?.id === "search") {
+        dispatch({
+          type: "set_search_mode",
+          searchMode: true,
+          searchInput: context.effectiveState.filter,
+        });
+      }
+    },
+    [context, dispatch, options],
+  );
+
+  useOntologyExplorerInteractionRouter({
+    context: {
+      searchMode: state.searchMode,
+      activePane: state.activePane,
+      detailPageSize: context.detailPageSize,
+      selectionJumpSize: context.selectionJumpSize,
+      detailJumpSize: context.detailJumpSize,
+      interactionActions,
+    },
+    onRoute: handleRoute,
   });
 
   return context;

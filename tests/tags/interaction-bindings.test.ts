@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildTerminalInteractionHelpLines,
+  formatTerminalFooterBindings,
   formatTerminalInteractionFooter,
+  TERMINAL_COMMAND_PALETTE_EMPTY_FILTER_FOOTER,
+  TERMINAL_COMMAND_PALETTE_FILTER_FOOTER,
+  TERMINAL_SELECT_EMPTY_FOOTER,
+  TERMINAL_TEXT_INPUT_FOOTER,
   resolveTerminalInteractionAction,
 } from "../../src/tui/interaction-bindings.js";
 import { createDerivedTagTerminalInputEvent } from "../../src/tui/terminal-ui.js";
@@ -73,5 +78,25 @@ describe("terminal interaction bindings", () => {
       { text: "\u2190 or h / Backspace: back" },
       { text: "q: quit" },
     ]);
+  });
+
+  it("derives shared prompt footers from footer bindings", () => {
+    expect(TERMINAL_TEXT_INPUT_FOOTER).toBe("Type text  Enter submit  Backspace edit  Esc cancel");
+    expect(TERMINAL_COMMAND_PALETTE_FILTER_FOOTER).toBe("Type to filter  Enter/→ select  Backspace edit  Esc cancel");
+    expect(TERMINAL_COMMAND_PALETTE_EMPTY_FILTER_FOOTER).toBe("Type to filter  Backspace edit  Esc cancel");
+  });
+
+  it("supports grouped prompt bindings for merged cancel footers", () => {
+    expect(
+      formatTerminalFooterBindings([
+        {
+          kind: "actionGroup",
+          label: "cancel",
+          actions: [{ id: "back" }, { id: "quit" }],
+          keyStyle: "expanded",
+        },
+      ]),
+    ).toBe("Esc/Backspace/←/q cancel");
+    expect(TERMINAL_SELECT_EMPTY_FOOTER).toBe("Esc/Backspace/←/q cancel");
   });
 });
