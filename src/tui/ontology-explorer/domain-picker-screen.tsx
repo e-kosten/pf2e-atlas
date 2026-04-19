@@ -70,7 +70,7 @@ export function OntologyDomainPickerScreen({
 
   return (
     <TerminalMenuScreen
-      title="Ontology Search"
+      title="Ontology Browser"
       subtitle="Choose an ontology-backed browse domain"
       leftTitle="Domains"
       rightTitle="Domain Details"

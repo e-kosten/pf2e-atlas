@@ -13,7 +13,7 @@ export const PF2E_APP_AREAS: Pf2eTopLevelArea[] = [
   {
     id: "ontology_search",
     audience: "user",
-    label: "Ontology Search",
+    label: "Ontology Browser",
     description:
       "Browse ontology-backed domains such as derived tags, categories, and search semantics over the live indexed corpus.",
   },
