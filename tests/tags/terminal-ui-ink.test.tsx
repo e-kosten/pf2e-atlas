@@ -247,6 +247,37 @@ function CommandPaletteHarness(): React.JSX.Element {
   return <TerminalTextScreen title="Harness" body={[{ text: `result=${result}` }]} />;
 }
 
+function DisabledCommandPaletteHarness(): React.JSX.Element {
+  const terminal = useDerivedTagTerminalApp();
+  const [result, setResult] = React.useState("pending");
+
+  React.useEffect(() => {
+    void terminal
+      .promptCommandPalette({
+        title: "Command Palette",
+        prompt: "Filter commands",
+        entries: [
+          {
+            value: "disabled",
+            label: "Disabled Command",
+            description: "Unavailable until the current scope changes.",
+            disabled: true,
+          },
+          {
+            value: "enabled",
+            label: "Enabled Command",
+            description: "Available right now.",
+          },
+        ],
+      })
+      .then((value) => {
+        setResult(value ?? "cancelled");
+      });
+  }, []);
+
+  return <TerminalTextScreen title="Harness" body={[{ text: `result=${result}` }]} />;
+}
+
 describe("derived tag terminal ink runtime", () => {
   afterEach(() => {
     cleanup();
@@ -450,6 +481,44 @@ describe("derived tag terminal ink runtime", () => {
     app.stdin.write("\r");
     await flushInkFrames();
     expect(app.lastFrame()).toContain("result=facet");
+  });
+
+  it("prefers the first enabled command when a palette opens", async () => {
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <DisabledCommandPaletteHarness />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInkFrames();
+    expect(app.lastFrame()).toContain("Enabled Command");
+    expect(app.lastFrame()).toContain("Command 2/2");
+
+    app.stdin.write("\r");
+    await flushInkFrames();
+    expect(app.lastFrame()).toContain("result=enabled");
+  });
+
+  it("keeps disabled commands visible but does not dispatch them", async () => {
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <DisabledCommandPaletteHarness />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInkFrames();
+
+    for (const character of "disabled") {
+      app.stdin.write(character);
+    }
+    await flushInkFrames();
+    expect(app.lastFrame()).toContain("Disabled Command | unavailable");
+    expect(app.lastFrame()).toContain("This command is currently unavailable.");
+
+    app.stdin.write("\r");
+    await flushInkFrames();
+    expect(app.lastFrame()).toContain("Command Palette");
+    expect(app.lastFrame()).toContain("result=pending");
   });
 
   it("normalizes ctrl letter combinations from both Ink key paths", () => {

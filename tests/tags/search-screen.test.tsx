@@ -592,6 +592,35 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Workspace Mode");
   });
 
+  it("shows unavailable setup commands in the palette without dispatching them", async () => {
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={createServices()}>
+          <SearchScreen onBack={vi.fn()} />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+
+    app.stdin.write(":");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Search Setup Commands");
+
+    for (const character of "subcategory") {
+      app.stdin.write(character);
+    }
+    await flushInk();
+    expect(app.lastFrame()).toContain("Subcategory | unavailable");
+    expect(app.lastFrame()).toContain("This command is currently unavailable.");
+
+    app.stdin.write("\r");
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("Search Setup Commands");
+    expect(app.lastFrame()).not.toContain("Subcategory Scope");
+  });
+
   it("does not treat old page-specific letters as live setup commands", async () => {
     const app = render(
       <DerivedTagTerminalProvider>

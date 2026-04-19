@@ -58,6 +58,7 @@ export type DerivedTagTerminalSelectOption<T = string> = {
 
 export type DerivedTagTerminalCommandOption<T extends string = string> = DerivedTagTerminalSelectOption<T> & {
   aliases?: string[];
+  disabled?: boolean;
   keywords?: string[];
 };
 
@@ -1191,6 +1192,32 @@ function filterCommandPaletteEntries(
   });
 }
 
+function getFirstEnabledCommandIndex(entries: DerivedTagTerminalCommandOption<string>[]): number {
+  const enabledIndex = entries.findIndex((entry) => !entry.disabled);
+  return enabledIndex >= 0 ? enabledIndex : 0;
+}
+
+function buildCommandPaletteDetailLines(
+  option: DerivedTagTerminalCommandOption<string> | undefined,
+  filterText: string,
+): DerivedTagTerminalLine[] {
+  const lines =
+    option?.detailLines ?? [
+      { text: option?.label ?? "(none)", tone: "section" as const },
+      { text: option?.description ?? "No additional details." },
+      ...(option?.aliases?.length
+        ? [{ text: `Aliases: ${option.aliases.join(", ")}`, tone: "accent" as const }]
+        : []),
+    ];
+
+  return [
+    ...lines,
+    ...(option?.disabled ? [{ text: "This command is currently unavailable.", tone: "warning" as const }] : []),
+    { text: "" },
+    { text: `Filter: ${filterText || "(none)"}`, tone: "accent" as const },
+  ];
+}
+
 function InlinePromptMessageBody({
   lines,
   width,
@@ -1335,21 +1362,12 @@ function CommandPaletteBody({
         <InlinePromptTwoPaneBody
           prompt={filterText ? `Filter: ${filterText}` : options.prompt}
           entries={visibleEntries.map((entry, offset) => ({
-            text: entry.label,
-            tone: windowStart + offset === clampedSelectedIndex ? "selected" : "default",
+            text: `${entry.label}${entry.disabled ? " | unavailable" : ""}`,
+            tone:
+              windowStart + offset === clampedSelectedIndex ? "selected" : entry.disabled ? "dim" : "default",
             noWrap: true,
           }))}
-          detailLines={[
-            ...(selectedOption?.detailLines ?? [
-              { text: selectedOption?.label ?? "(none)", tone: "section" },
-              { text: selectedOption?.description ?? "No additional details." },
-              ...(selectedOption?.aliases?.length
-                ? [{ text: `Aliases: ${selectedOption.aliases.join(", ")}`, tone: "accent" as const }]
-                : []),
-            ]),
-            { text: "" },
-            { text: `Filter: ${filterText || "(none)"}`, tone: "accent" },
-          ]}
+          detailLines={buildCommandPaletteDetailLines(selectedOption, filterText)}
           focusedLabel={`Command ${clampedSelectedIndex + 1}/${filteredEntries.length}`}
           width={width}
           height={contentHeight}
@@ -1753,17 +1771,7 @@ function getInlineCommandPaletteHeight(
   const clampedSelectedIndex = clampPromptSelectionIndex(modal.selectedIndex, filteredEntries.length);
   const selectedOption = filteredEntries[clampedSelectedIndex];
   const dimensions = getTerminalTwoPaneDimensions(width, 38);
-  const detailLines = [
-    ...(selectedOption?.detailLines ?? [
-      { text: selectedOption?.label ?? "(none)", tone: "section" as const },
-      { text: selectedOption?.description ?? "No additional details." },
-      ...(selectedOption?.aliases?.length
-        ? [{ text: `Aliases: ${selectedOption.aliases.join(", ")}`, tone: "accent" as const }]
-        : []),
-    ]),
-    { text: "" },
-    { text: `Filter: ${modal.filterText || "(none)"}`, tone: "accent" as const },
-  ];
+  const detailLines = buildCommandPaletteDetailLines(selectedOption, modal.filterText);
   const entryCount = filteredEntries.length;
   const detailLineCount = getRenderedTerminalLineCount(detailLines, dimensions.rightWidth);
   const bodyHeight = Math.max(entryCount + 2, detailLineCount + 2);
@@ -1894,7 +1902,12 @@ function DerivedTagTerminalModalHost({
               ? {
                   ...current,
                   filterText: [...current.filterText].slice(0, -1).join(""),
-                  selectedIndex: 0,
+                  selectedIndex: getFirstEnabledCommandIndex(
+                    filterCommandPaletteEntries(
+                      current.options.entries,
+                      [...current.filterText].slice(0, -1).join(""),
+                    ),
+                  ),
                 }
               : current,
           );
@@ -1906,7 +1919,9 @@ function DerivedTagTerminalModalHost({
               ? {
                   ...current,
                   filterText: current.filterText + event.printable,
-                  selectedIndex: 0,
+                  selectedIndex: getFirstEnabledCommandIndex(
+                    filterCommandPaletteEntries(current.options.entries, current.filterText + event.printable),
+                  ),
                 }
               : current,
           );
@@ -1940,8 +1955,12 @@ function DerivedTagTerminalModalHost({
           return;
         }
         if (selectLikeAction?.id === "select") {
+          const selectedEntry = filteredEntries[clampedSelectedIndex];
+          if (selectedEntry?.disabled) {
+            return;
+          }
           const resolver = modal.resolve;
-          const selected = filteredEntries[clampedSelectedIndex]?.value;
+          const selected = selectedEntry?.value;
           setModal(null);
           resolver(selected);
           return;
@@ -2175,11 +2194,12 @@ export function DerivedTagTerminalProvider({ children }: { children: React.React
       },
       promptCommandPalette: async <T extends string>(options: CommandPaletteOptions<T>) =>
         new Promise<T | undefined>((resolve) => {
+          const normalizedOptions = options as CommandPaletteOptions<string>;
           setModal({
             kind: "command",
-            options: options as CommandPaletteOptions<string>,
+            options: normalizedOptions,
             filterText: "",
-            selectedIndex: 0,
+            selectedIndex: getFirstEnabledCommandIndex(normalizedOptions.entries),
             resolve: resolve as (value: string | undefined) => void,
           });
         }),
