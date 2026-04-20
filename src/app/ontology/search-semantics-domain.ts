@@ -12,6 +12,7 @@ import {
   buildFieldValueNodes,
   buildMetricDiscoveryGroup,
   buildSearchSemanticsMetadataQuery,
+  getMetricDiscoveryGroupLabel,
   getTraitGlossaryEntry,
 } from "./search-semantics-helpers.js";
 
@@ -125,6 +126,16 @@ export function buildSearchSemanticsDomain(
             },
           }
         : cloned.query;
+
+    if (node.kind === "tag") {
+      return {
+        ...cloned,
+        query,
+        children: undefined,
+        loadChildren: undefined,
+        childPresentation: undefined,
+      };
+    }
 
     if (!node.children) {
       return {
@@ -394,7 +405,7 @@ export function buildSearchSemanticsDomain(
           subcategory,
           metricField: "actorMetrics",
           metadataField: "actorMetric",
-          label: "Actor Metrics",
+          label: getMetricDiscoveryGroupLabel(category, "actorMetrics"),
           namespaces: semantics.actorMetricDiscovery.namespaces,
         }),
       );
@@ -411,7 +422,7 @@ export function buildSearchSemanticsDomain(
           subcategory,
           metricField: "itemMetrics",
           metadataField: "itemMetric",
-          label: "Item Metrics",
+          label: getMetricDiscoveryGroupLabel(category, "itemMetrics"),
           namespaces: semantics.itemMetricDiscovery.namespaces,
         }),
       );

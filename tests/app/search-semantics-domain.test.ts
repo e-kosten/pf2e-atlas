@@ -271,7 +271,7 @@ function createDerivedTagsDomain(): OntologyDomainModel {
 }
 
 describe("buildSearchSemanticsDomain", () => {
-  it("scopes derived-tag families, tag queries, and sample records to the active subcategory", () => {
+  it("scopes derived-tag families and tag queries to the active subcategory without cloning sample records", () => {
     const domain = buildSearchSemanticsDomain(createTestConfig(), createDataService(), createDerivedTagsDomain);
     const derivedTagsField = findNodeById(domain.rootNodes, "hazard:trap:field:derivedTags");
 
@@ -287,6 +287,6 @@ describe("buildSearchSemanticsDomain", () => {
     expect(hauntTag).toBeUndefined();
     expect(fogboundTag?.query?.filters.subcategory).toBe("trap");
     expect(trapTag?.query?.filters.subcategory).toBe("trap");
-    expect(fogboundTag?.children?.map((node) => node.label)).toEqual(["Fog Lattice"]);
+    expect(fogboundTag?.children).toBeUndefined();
   });
 });

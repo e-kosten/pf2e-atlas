@@ -527,7 +527,7 @@ describe("application ontology service", () => {
       },
     });
     expect(actorMetricGroup?.detailLines.map((line) => line.text)).toContain(
-      "Explore live metric namespaces, keys, and exact scalar values from the indexed corpus.",
+      "Explore live creature statistics namespaces, keys, and exact scalar values from the indexed corpus.",
     );
     expect(actorMetricNamespace?.loadChildren?.().map((node) => node.label)).toContain("save.best");
     expect(actorMetricValueNode?.query).toEqual({

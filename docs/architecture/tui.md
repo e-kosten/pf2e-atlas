@@ -117,14 +117,19 @@ This keeps query editing and result reading logic in the TUI while leaving searc
 
 ### Ontology Explorer Layer
 
-`src/tui/ontology-explorer/` is a feature-local stack for browsing ontology domain models. Its controller and UI logic stay inside the TUI because they are about navigation behavior, not ontology assembly.
+`src/tui/ontology-explorer/` still owns ontology-specific hosting concerns, but the durable browse surface is now the shared filter explorer in inspect mode rather than a separate ontology-only screen.
 
-The explorer consumes readonly domain models from `src/app/ontology-service.ts`, then adds:
+In the current split:
 
-- browser snapshots for restoring navigation state
-- two-pane navigation and detail scrolling
-- ontology command palettes and picker hosting
-- launching search queries from selected ontology nodes
+- `src/tui/filter-explorer/` owns the shared list/detail browser, snapshots, command palette wiring, and mode-specific inspect-versus-compose behavior
+- `src/tui/ontology-explorer/inspect-screen.tsx` is a thin host that turns ontology domains from `src/app/ontology-service.ts` into a shared inspect session and routes selected leaves into search
+- `src/tui/ontology-explorer/` legacy browse-only pieces remain isolated and should not become the primary path for new ontology/search exploration work
+
+The ontology host still adds:
+
+- root domain selection and ontology-specific entry copy
+- restoring ontology snapshots when the user returns from search
+- launching either immediate results or seeded browse/search queries from selected ontology nodes
 
 ## Screen, Workflow, And Controller Split
 
@@ -141,7 +146,7 @@ flowchart TD
   subgraph Screens["Screens"]
     App["`pf2e-app.tsx`"]
     SearchScreen["`search-screen/screen.tsx`"]
-    OntologyScreen["`ontology-explorer/screen.tsx`"]
+    OntologyScreen["`ontology-explorer/inspect-screen.tsx`"]
   end
 
   subgraph Controllers["Controllers / Workflows"]
@@ -149,7 +154,7 @@ flowchart TD
     SearchWorkflow["`search-screen/session-workflow.ts`"]
     FilterExplorerWorkflow["`search-screen/filter-explorer-workflow.ts`"]
     FilterExplorer["`filter-explorer/{controller,screen-models}.ts`"]
-    OntologyController["`ontology-explorer/controller.ts`"]
+    OntologyHost["`ontology-explorer/inspect-screen.tsx`"]
   end
 
   subgraph Services["TUI Services"]
@@ -179,8 +184,9 @@ flowchart TD
   FilterExplorerWorkflow --> FilterExplorer
   SearchController --> SearchService
 
-  OntologyScreen --> OntologyController
-  OntologyController --> OntologyService
+  OntologyScreen --> OntologyHost
+  OntologyHost --> FilterExplorer
+  OntologyHost --> OntologyService
 
   AppServices --> SearchService
   AppServices --> OntologyService
@@ -221,7 +227,7 @@ The async work is pushed further down:
 
 - `search-screen/session-workflow.ts` manages live counts, result-window execution, prefetch, sort changes, and session disposal
 - `search-screen/filter-explorer-workflow.ts` opens the shared filter explorer in compose mode for ontology-backed field editing
-- `filter-explorer/` owns the shared explorer/controller stack used by both ontology inspection and search-side filter composition, with mode-specific behavior layered on top
+- `filter-explorer/` owns the shared explorer/controller stack used by both ontology inspection and search-side filter composition, with mode-specific behavior layered on top and one command/footer/help surface for both
 - `search-screen/interactions.ts` maps state into terminal actions and help/command models
 - `search-screen/query-field-builder-session.ts` owns the structured-editor menu bindings, footer copy, and help sections so staged-query screens do not hand-maintain separate action tables
 

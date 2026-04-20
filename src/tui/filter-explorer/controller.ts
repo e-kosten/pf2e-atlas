@@ -114,6 +114,35 @@ function openInspectResult(
   return false;
 }
 
+function openInspectQuery(
+  options: FilterExplorerOptions,
+  keyContext: Parameters<typeof createOntologyBrowserSnapshot>[0],
+  result: FilterExplorerInspectResult | undefined,
+): boolean {
+  if (options.mode.kind !== "inspect-and-open" || !result) {
+    return false;
+  }
+
+  const snapshot = toFilterExplorerBrowserSnapshot(createOntologyBrowserSnapshot(keyContext));
+  const query = { ...result.query, openInResults: false };
+  if (options.mode.onOpenQuery) {
+    options.mode.onOpenQuery(query, snapshot);
+    return true;
+  }
+  if (options.mode.onOpenInspectResult) {
+    options.mode.onOpenInspectResult(
+      {
+        ...result,
+        query,
+        openIntent: query.kind === "listRecords" ? "browse" : result.openIntent,
+      },
+      snapshot,
+    );
+    return true;
+  }
+  return false;
+}
+
 function getNodeInspectResult(
   options: FilterExplorerOptions,
   node: OntologyNode | undefined,
@@ -354,8 +383,12 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
           entries: commandEntries,
         })
         .then((selected) => {
-          if (selected === "openSelection") {
+          if (selected === "openSelection" || selected === "openResults") {
             openInspectResult(options, keyContext, getNodeInspectResult(options, keyContext.currentNode));
+            return;
+          }
+          if (selected === "openQuery") {
+            openInspectQuery(options, keyContext, getNodeInspectResult(options, keyContext.currentNode));
           }
         });
       return true;

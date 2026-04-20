@@ -25,6 +25,16 @@ import {
 type SearchSemanticsRecordsDataService = Pick<Pf2eDataService, "listRecords">;
 type SearchSemanticsDiscoveryDataService = Pick<Pf2eDataService, "listFilterValues" | "listRecords">;
 
+export function getMetricDiscoveryGroupLabel(
+  category: SearchCategory,
+  metricField: "actorMetrics" | "itemMetrics",
+): string {
+  if (metricField === "actorMetrics") {
+    return category === "hazard" ? "Hazard Statistics" : "Creature Statistics";
+  }
+  return "Item Properties";
+}
+
 export function getTraitGlossaryEntry(
   metadataGlossary: MetadataGlossaryArtifact | null,
   value: string,
@@ -229,6 +239,7 @@ function buildMetricValueNodes(
   options: {
     category: SearchCategory;
     subcategory: SearchSubcategory | null;
+    groupLabel: string;
     metricField: "actorMetrics" | "itemMetrics";
     metadataField: "actorMetric" | "itemMetric";
     metricKey: string;
@@ -236,7 +247,7 @@ function buildMetricValueNodes(
     valueType: "text" | "boolean";
   },
 ): readonly OntologyNode[] {
-  const { category, subcategory, metricField, metadataField, metricKey, values, valueType } = options;
+  const { category, subcategory, groupLabel, metricField, metadataField, metricKey, values, valueType } = options;
   const idPrefix = subcategory ? `${category}:${subcategory}` : category;
   return values.map((entry) => {
     const metadata = buildMetricScalarMetadataQuery(metadataField, metricKey, valueType, entry.value);
@@ -250,7 +261,7 @@ function buildMetricValueNodes(
       id: `${idPrefix}:${metricField}:${metricKey}:${entry.value}`,
       kind: "value",
       label: entry.value,
-      filterText: buildFilterText(category, subcategory ?? "", metricField, metricKey, entry.value),
+      filterText: buildFilterText(category, subcategory ?? "", groupLabel, metricField, metricKey, entry.value),
       listLabel: `${entry.value} | ${entry.count}`,
       detailTitle: "Metric Value",
       detailLines: buildKeyValueDetailLines(
@@ -258,7 +269,7 @@ function buildMetricValueNodes(
         [
           ["Category", category],
           ["Subcategory", subcategory ?? "(all)"],
-          ["Metric field", metricField],
+          ["Explorer group", groupLabel],
           ["Metric key", metricKey],
           ["Value type", valueType],
           ["Live canonical records", entry.count],
@@ -276,41 +287,30 @@ function buildMetricKeyNode(
   options: {
     category: SearchCategory;
     subcategory: SearchSubcategory | null;
+    groupLabel: string;
     metricField: "actorMetrics" | "itemMetrics";
     metadataField: "actorMetric" | "itemMetric";
     metricKey: string;
     liveRecordCount: number;
   },
 ): OntologyNode {
-  const { category, subcategory, metricField, metadataField, metricKey, liveRecordCount } = options;
+  const { category, subcategory, groupLabel, metricField, metadataField, metricKey, liveRecordCount } = options;
   const valueType =
     metricField === "actorMetrics" ? inferActorMetricValueType(metricKey) : inferItemMetricValueType(metricKey);
   const idPrefix = subcategory ? `${category}:${subcategory}` : category;
-  const browseQuery =
-    valueType === "text" || valueType === "boolean"
-      ? undefined
-      : {
-          kind: "listRecords" as const,
-          label: `Browse ${category} records`,
-          filters: {
-            category,
-            subcategory: subcategory ?? undefined,
-            limit: 20,
-          },
-        };
 
   return {
     id: `${idPrefix}:${metricField}:${metricKey}`,
     kind: "metric",
     label: metricKey,
-    filterText: buildFilterText(category, subcategory ?? "", metricField, metricKey, valueType ?? ""),
+    filterText: buildFilterText(category, subcategory ?? "", groupLabel, metricField, metricKey, valueType ?? ""),
     listLabel: `${metricKey} | ${liveRecordCount}`,
     detailTitle: "Metric Details",
     detailLines: [
       { text: metricKey, tone: "section" },
       { text: `Category: ${category}` },
       { text: `Subcategory: ${subcategory ?? "(all)"}` },
-      { text: `Metric field: ${metricField}` },
+      { text: `Explorer group: ${groupLabel}` },
       { text: `Value type: ${valueType ?? "unknown"}` },
       { text: `Live canonical records: ${liveRecordCount}` },
       ...(valueType === "text" || valueType === "boolean"
@@ -321,17 +321,17 @@ function buildMetricKeyNode(
           ]
         : [
             {
-              text: "Use the shared filter explorer to author numeric literal filters on this metric. Live scalar enumeration is only available for text and boolean metrics.",
+              text: "Use the shared filter explorer to author numeric literal filters on this metric. Inspect mode will open the exact live records for this metric key, while scalar enumeration stays limited to text and boolean metrics.",
             },
           ]),
     ],
-    query: browseQuery,
     loadChildren:
       valueType === "text" || valueType === "boolean"
         ? () =>
             buildMetricValueNodes(dataService, {
               category,
               subcategory,
+              groupLabel,
               metricField,
               metadataField,
               metricKey,
@@ -343,7 +343,7 @@ function buildMetricKeyNode(
                 metric: metricKey,
               }).values,
             })
-        : () => buildQueryRecordChildren(dataService, browseQuery),
+        : undefined,
   };
 }
 
@@ -352,19 +352,20 @@ function buildMetricNamespaceNode(
   options: {
     category: SearchCategory;
     subcategory: SearchSubcategory | null;
+    groupLabel: string;
     metricField: "actorMetrics" | "itemMetrics";
     metadataField: "actorMetric" | "itemMetric";
     prefix: string;
     description: string;
   },
 ): OntologyNode {
-  const { category, subcategory, metricField, metadataField, prefix, description } = options;
+  const { category, subcategory, groupLabel, metricField, metadataField, prefix, description } = options;
   const idPrefix = subcategory ? `${category}:${subcategory}` : category;
   return {
     id: `${idPrefix}:${metricField}:namespace:${prefix}`,
     kind: "metricNamespace",
     label: prefix,
-    filterText: buildFilterText(category, subcategory ?? "", metricField, prefix, description),
+    filterText: buildFilterText(category, subcategory ?? "", groupLabel, metricField, prefix, description),
     listLabel: prefix,
     detailTitle: "Metric Namespace",
     detailLines: [
@@ -372,7 +373,7 @@ function buildMetricNamespaceNode(
       { text: description },
       { text: `Category: ${category}` },
       { text: `Subcategory: ${subcategory ?? "(all)"}` },
-      { text: `Metric field: ${metricField}` },
+      { text: `Explorer group: ${groupLabel}` },
       {
         text: "Drill in to browse live metric keys, then inspect exact scalar values where the backend can enumerate them.",
       },
@@ -389,6 +390,7 @@ function buildMetricNamespaceNode(
           buildMetricKeyNode(dataService, {
             category,
             subcategory,
+            groupLabel,
             metricField,
             metadataField,
             metricKey: entry.value,
@@ -405,7 +407,7 @@ export function buildMetricDiscoveryGroup(
     subcategory: SearchSubcategory | null;
     metricField: "actorMetrics" | "itemMetrics";
     metadataField: "actorMetric" | "itemMetric";
-    label: "Actor Metrics" | "Item Metrics";
+    label: string;
     namespaces: ReadonlyArray<{ prefix: string; description: string }>;
   },
 ): OntologyNode {
@@ -425,12 +427,13 @@ export function buildMetricDiscoveryGroup(
         ["Subcategory", subcategory ?? "(all)"],
         ["Namespaces", namespaces.length],
       ],
-      "Explore live metric namespaces, keys, and exact scalar values from the indexed corpus.",
+      `Explore live ${label.toLowerCase()} namespaces, keys, and exact scalar values from the indexed corpus.`,
     ),
     children: namespaces.map((namespace) =>
       buildMetricNamespaceNode(dataService, {
         category,
         subcategory,
+        groupLabel: label,
         metricField,
         metadataField,
         prefix: namespace.prefix,

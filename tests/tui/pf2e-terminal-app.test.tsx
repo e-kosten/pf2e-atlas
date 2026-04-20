@@ -367,7 +367,7 @@ describe("pf2e terminal app", () => {
     app.stdin.write("\r");
     await flushInk();
     expect(app.lastFrame()).toContain("Ontology Browser");
-    expect(app.lastFrame()).toContain("Ontology Entries");
+    expect(app.lastFrame()).toContain("Explorer Entries");
 
     app.stdin.write("\r");
     await flushInk();
@@ -461,13 +461,13 @@ describe("pf2e terminal app", () => {
     app.stdin.write("\r");
     await flushInk();
 
-    expect(app.lastFrame()).toContain("\u2190/Esc return");
+    expect(app.lastFrame()).toContain("\u2190/Esc back");
 
     app.stdin.write("?");
     await flushInk();
 
-    expect(app.lastFrame()).toContain("\u2190 or h / Backspace / Escape: return from ontology browsing");
-    expect(app.lastFrame()).toContain("q: leave ontology browsing");
+    expect(app.lastFrame()).toContain("\u2190 or h / Backspace / Escape: return to the previous level");
+    expect(app.lastFrame()).toContain("q: leave the explorer");
   });
 
   it("opens the selected top-level area with right-arrow style confirm", async () => {
@@ -486,7 +486,7 @@ describe("pf2e terminal app", () => {
     await flushInk();
 
     expect(app.lastFrame()).toContain("Ontology Browser");
-    expect(app.lastFrame()).toContain("Ontology Entries");
+    expect(app.lastFrame()).toContain("Explorer Entries");
   });
 
   it("returns from ontology-launched search to the exact ontology snapshot", async () => {

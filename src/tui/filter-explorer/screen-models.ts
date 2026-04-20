@@ -347,7 +347,7 @@ export function buildFilterExplorerListLines(controller: FilterExplorerControlle
 
 export function buildFilterExplorerCommandEntries(
   controller: FilterExplorerControllerContext,
-): DerivedTagTerminalCommandOption<"openSelection">[] {
+): DerivedTagTerminalCommandOption<"openSelection" | "openQuery" | "openResults">[] {
   if (
     controller.mode.kind !== "inspect-and-open" ||
     (!controller.mode.onOpenInspectResult && !controller.mode.onOpenQuery) ||
@@ -356,12 +356,33 @@ export function buildFilterExplorerCommandEntries(
     return [];
   }
 
+  const result = controller.selectedInspectResult;
+  const targetLabel = buildInspectTargetLabel(result);
+  const resultsDescription = buildInspectCommandDescription(result);
+  const queryDescription = targetLabel
+    ? `Seed the browse/search editor from the focused target: ${targetLabel}.`
+    : "Seed the browse/search editor from the focused selection.";
+
   return [
+    ...(result.query.kind === "listRecords" && result.openIntent === "results"
+      ? [
+          {
+            value: "openResults" as const,
+            label: "Open Results Page",
+            description: resultsDescription,
+            aliases: ["Open Selection"],
+            keywords: ["results", "reader", "records", "open"],
+          },
+        ]
+      : []),
     {
-      value: "openSelection",
-      label: "Open Selection",
-      description: buildInspectCommandDescription(controller.selectedInspectResult),
-      keywords: ["search", "browse", "records", "open"],
+      value:
+        result.query.kind === "listRecords" && result.openIntent === "results" ? "openQuery" : "openSelection",
+      label:
+        result.query.kind === "listRecords" && result.openIntent === "results" ? "Open Search Query" : "Open Query",
+      description: queryDescription,
+      aliases: result.query.kind === "listRecords" && result.openIntent === "results" ? ["Open Query"] : undefined,
+      keywords: ["search", "browse", "editor", "query", "open"],
     },
   ];
 }
