@@ -8,6 +8,11 @@ function matchesAllowedPath(filename, allowed) {
   return allowed.some((entry) => (entry instanceof RegExp ? entry.test(filename) : filename === entry));
 }
 
+function resolveImportTarget(filename, source) {
+  const resolved = path.resolve(path.dirname(filename), source);
+  return toRepoRelativePath(resolved);
+}
+
 function isJsonParseCall(node) {
   return (
     node.callee?.type === "MemberExpression" &&
@@ -167,6 +172,43 @@ const localRules = {
       return {
         TSAsExpression: reportIfRestrictedAssertion,
         TSTypeAssertion: reportIfRestrictedAssertion,
+      };
+    },
+  },
+  "no-internal-tags-barrel-imports": {
+    meta: {
+      type: "problem",
+      docs: {
+        description: "Keep src/tags internals from depending on the public src/tags/index.js barrel.",
+      },
+      schema: [],
+      messages: {
+        noInternalTagsBarrelImport:
+          "Internal src/tags modules must not import the src/tags/index.js barrel. Import a stable internal facade or owning leaf module instead.",
+      },
+    },
+    create(context) {
+      const filename = toRepoRelativePath(context.filename);
+      if (!filename.startsWith("src/tags/") || filename === "src/tags/index.ts") {
+        return {};
+      }
+
+      const reportIfTagsBarrel = (node) => {
+        const source = node.source?.value;
+        if (typeof source !== "string" || !source.startsWith(".")) {
+          return;
+        }
+
+        const resolvedTarget = resolveImportTarget(context.filename, source);
+        if (resolvedTarget === "src/tags/index.js" || resolvedTarget === "src/tags/index.ts") {
+          context.report({ node: node.source, messageId: "noInternalTagsBarrelImport" });
+        }
+      };
+
+      return {
+        ImportDeclaration: reportIfTagsBarrel,
+        ExportAllDeclaration: reportIfTagsBarrel,
+        ExportNamedDeclaration: reportIfTagsBarrel,
       };
     },
   },

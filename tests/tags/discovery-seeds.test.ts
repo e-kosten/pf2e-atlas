@@ -3,15 +3,17 @@ import { DatabaseSync } from "node:sqlite";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { REVIEWED_DISCOVERY_RECORDS } from "../../src/tags/discovery/discovery-reviewed-records.js";
-vi.mock("../../src/tags/index.js", async () => {
-  const actual = await vi.importActual<typeof import("../../src/tags/index.js")>("../../src/tags/index.js");
+vi.mock("../../src/tags/runtime/index.js", async () => {
+  const actual = await vi.importActual<typeof import("../../src/tags/runtime/index.js")>(
+    "../../src/tags/runtime/index.js",
+  );
   return {
     ...actual,
     getDerivedTagExemplarRecordKeys: vi.fn(() => []),
   };
 });
 
-import { getDerivedTagExemplarRecordKeys } from "../../src/tags/index.js";
+import { getDerivedTagExemplarRecordKeys } from "../../src/tags/runtime/index.js";
 import { discoverRuleableCohorts } from "../../src/tags/discovery/cohort-discovery.js";
 import { analyzeDiscoveryEvidence } from "../../src/tags/evaluation/evidence-analyzer.js";
 import { evaluateDerivedTagGaps } from "../../src/tags/evaluation/gap-evaluator.js";

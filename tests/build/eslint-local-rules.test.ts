@@ -186,6 +186,21 @@ describe("eslint local architecture rules", () => {
     );
   });
 
+  it("blocks internal src/tags modules from importing the public tags barrel", async () => {
+    await expectRuleMessage(
+      "src/tags/runtime/index.ts",
+      'export * from "../index.js";\n',
+      "Internal src/tags modules must not import the src/tags/index.js barrel.",
+      "arch/no-internal-tags-barrel-imports",
+    );
+
+    await expectNoRuleMessages(
+      "src/tags/runtime/index.ts",
+      'export * from "./api.js";\n',
+      "arch/no-internal-tags-barrel-imports",
+    );
+  });
+
   it("blocks non-UI package layers from importing tui modules", async () => {
     const cases = [
       {

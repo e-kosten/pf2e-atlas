@@ -280,6 +280,7 @@ export default defineConfig(
       "arch/no-direct-json-parse": "error",
       "arch/no-direct-database-sync-construction": "error",
       "arch/no-search-category-assertion": "error",
+      "arch/no-internal-tags-barrel-imports": "error",
     },
   },
   {
