@@ -1,8 +1,8 @@
-import type { OntologyNode } from "../../domain/ontology-types.js";
 import type {
   FilterExplorerComposeDraft,
   FilterExplorerComposeTarget,
   FilterExplorerDiscreteComposeTarget,
+  FilterExplorerNode,
   FilterExplorerPolicyState,
   FilterExplorerScalarClause,
   FilterExplorerScalarClauseMap,
@@ -211,8 +211,8 @@ export function setFilterExplorerScalarClause(
 }
 
 export function getFilterExplorerSelectableNodeTarget(
-  node: OntologyNode | undefined,
-  resolveTarget: (node: OntologyNode | undefined) => FilterExplorerComposeTarget | undefined,
+  node: FilterExplorerNode | undefined,
+  resolveTarget: (node: FilterExplorerNode | undefined) => FilterExplorerComposeTarget | undefined,
 ): FilterExplorerComposeTarget | undefined {
   return resolveTarget(node);
 }

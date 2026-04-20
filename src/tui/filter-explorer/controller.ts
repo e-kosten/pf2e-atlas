@@ -1,6 +1,6 @@
 import React from "react";
 
-import type { OntologyNodeQuery } from "../../domain/ontology-types.js";
+import type { OntologyDomainModel, OntologyNode } from "../../domain/ontology-types.js";
 import { showTerminalReturnDialog, useTerminalInteractionContextAdapters } from "../interaction-context-adapters.js";
 import { getTerminalInteractionCycleDirection } from "../interaction-bindings.js";
 import {
@@ -26,21 +26,114 @@ import {
   getFilterExplorerInteractionActions,
 } from "./screen-models.js";
 import type {
+  FilterExplorerBrowserContext,
+  FilterExplorerBrowserSnapshot,
   FilterExplorerComposeDraft,
   FilterExplorerComposeMode,
   FilterExplorerControllerContext as FilterExplorerContext,
+  FilterExplorerInspectAndOpenMode,
+  FilterExplorerInspectResult,
+  FilterExplorerModel,
+  FilterExplorerNode,
   FilterExplorerOptions,
+  FilterExplorerQueryTarget,
 } from "./types.js";
 
-type OntologyResultReaderLaunchQuery = OntologyNodeQuery & {
-  openInResults?: boolean;
-};
+function toOntologyExplorerModel(model: FilterExplorerModel): OntologyDomainModel {
+  return model as OntologyDomainModel;
+}
 
-function markQueryToOpenInResults(query: OntologyNodeQuery): OntologyNodeQuery {
+function toFilterExplorerNode(node: OntologyNode | undefined): FilterExplorerNode | undefined {
+  return node as FilterExplorerNode | undefined;
+}
+
+function toFilterExplorerBrowserSnapshot(snapshot: ReturnType<typeof createOntologyBrowserSnapshot>): FilterExplorerBrowserSnapshot {
+  return snapshot as FilterExplorerBrowserSnapshot;
+}
+
+function toFilterExplorerBrowserContext(context: OntologyExplorerControllerContext): FilterExplorerBrowserContext {
+  return {
+    ...context,
+    selection: {
+      ancestors: context.selection.ancestors.map((node) => node as FilterExplorerNode),
+      currentNodes: context.selection.currentNodes.map((node) => node as FilterExplorerNode),
+      currentNode: toFilterExplorerNode(context.selection.currentNode),
+      currentParent: toFilterExplorerNode(context.selection.currentParent),
+    },
+    currentNode: toFilterExplorerNode(context.currentNode),
+  };
+}
+
+function markQueryToOpenInResults(query: FilterExplorerQueryTarget): FilterExplorerQueryTarget {
   return {
     ...query,
     openInResults: true,
-  } as OntologyResultReaderLaunchQuery;
+  };
+}
+
+function buildInspectResult(
+  model: FilterExplorerModel,
+  mode: FilterExplorerInspectAndOpenMode,
+  node: FilterExplorerNode | undefined,
+): FilterExplorerInspectResult | undefined {
+  if (!node?.query) {
+    return undefined;
+  }
+
+  const query =
+    node.query.kind === "listRecords" && model.id !== "derivedTags" && mode.openListRecordQueriesInResults !== false
+      ? markQueryToOpenInResults(node.query)
+      : node.query;
+
+  return {
+    node,
+    query,
+    target: mode.resolveInspectTarget?.(node),
+    openIntent: query.openInResults ? "results" : "browse",
+  };
+}
+
+function openInspectResult(
+  options: FilterExplorerOptions,
+  keyContext: Parameters<typeof createOntologyBrowserSnapshot>[0],
+  result: FilterExplorerInspectResult | undefined,
+): boolean {
+  if (options.mode.kind !== "inspect-and-open" || !result) {
+    return false;
+  }
+
+  const snapshot = toFilterExplorerBrowserSnapshot(createOntologyBrowserSnapshot(keyContext));
+  if (options.mode.onOpenInspectResult) {
+    options.mode.onOpenInspectResult(result, snapshot);
+    return true;
+  }
+  if (options.mode.onOpenQuery) {
+    options.mode.onOpenQuery(result.query, snapshot);
+    return true;
+  }
+  return false;
+}
+
+function getNodeInspectResult(
+  options: FilterExplorerOptions,
+  node: OntologyNode | undefined,
+): FilterExplorerInspectResult | undefined {
+  return options.mode.kind === "inspect-and-open"
+    ? buildInspectResult(options.model, options.mode, toFilterExplorerNode(node))
+    : undefined;
+}
+
+function shouldOpenImmediateInspectResult(
+  model: FilterExplorerModel,
+  node: OntologyNode | undefined,
+  result: FilterExplorerInspectResult | undefined,
+): boolean {
+  return Boolean(
+    result &&
+      result.query.kind === "listRecords" &&
+      model.id !== "derivedTags" &&
+      node?.kind !== "record",
+  );
 }
 
 function resolveScreenTitle(options: FilterExplorerOptions): string {
@@ -91,18 +184,23 @@ function createFilterExplorerContext(args: {
   draft: FilterExplorerComposeDraft;
 }): FilterExplorerContext {
   const composeMode = args.options.mode.kind === "compose" ? args.options.mode : null;
-  const selectedTarget = composeMode?.resolveSelectionTarget(args.ontology.currentNode);
+  const currentNode = toFilterExplorerNode(args.ontology.currentNode);
+  const selectedTarget = composeMode?.resolveSelectionTarget(currentNode);
+
   return {
     model: args.options.model,
     mode: args.options.mode,
     screenTitle: resolveScreenTitle(args.options),
-    ontology: args.ontology,
+    browser: toFilterExplorerBrowserContext(args.ontology),
     draft: args.draft,
     selection: args.draft.selection,
     selectedTarget,
     selectedPolicyState: getFilterExplorerTargetState(selectedTarget, args.draft.selection),
     selectedScalarClause: getFilterExplorerScalarClause(selectedTarget, args.draft),
-    selectedQuery: args.ontology.selectedQuery,
+    selectedInspectResult:
+      args.options.mode.kind === "inspect-and-open"
+        ? buildInspectResult(args.options.model, args.options.mode, currentNode)
+        : undefined,
   };
 }
 
@@ -116,10 +214,12 @@ function applyComposeCycleSelection(
   if (!cycleDirection) {
     return false;
   }
-  const target = composeMode.resolveSelectionTarget(keyContext.currentNode);
+
+  const target = composeMode.resolveSelectionTarget(toFilterExplorerNode(keyContext.currentNode));
   if (!target || target.kind === "scalar") {
     return false;
   }
+
   updateDraft((current) => ({
     ...current,
     selection: toggleFilterExplorerTargetSelection(target, current.selection, cycleDirection),
@@ -152,25 +252,6 @@ function openComposeScalarEditor(
   return true;
 }
 
-function openInspectQuery(
-  options: FilterExplorerOptions,
-  keyContext: Pick<OntologyExplorerKeyContext, "selectedQuery"> & Parameters<typeof createOntologyBrowserSnapshot>[0],
-  query: OntologyNodeQuery | undefined,
-): boolean {
-  if (options.mode.kind !== "inspect-and-open" || !options.mode.onOpenQuery || !query) {
-    return false;
-  }
-
-  const nextQuery =
-    query.kind === "listRecords" &&
-    options.model.id !== "derivedTags" &&
-    options.mode.openListRecordQueriesInResults !== false
-      ? markQueryToOpenInResults(query)
-      : query;
-  options.mode.onOpenQuery(nextQuery, createOntologyBrowserSnapshot(keyContext));
-  return true;
-}
-
 function shouldExitAtRootDepth(options: FilterExplorerOptions, keyContext: OntologyExplorerKeyContext): boolean {
   return (
     options.mode.kind === "compose" &&
@@ -186,8 +267,8 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
   const [draft, updateDraft] = useComposeSelectionState(composeMode);
 
   const ontology = useOntologyExplorerController({
-    initialSnapshot: options.initialSnapshot,
-    model: options.model,
+    initialSnapshot: options.initialSnapshot as Parameters<typeof useOntologyExplorerController>[0]["initialSnapshot"],
+    model: toOntologyExplorerModel(options.model),
     onExit: options.onExit,
     getInteractionActions: (controller) => getFilterExplorerInteractionActions(options.mode, controller),
     getDetailLines:
@@ -197,16 +278,17 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
               mode: composeMode,
               draft,
               currentNodeLabel: ontologySelection.currentNode?.label,
-              selectedTarget: composeMode.resolveSelectionTarget(ontologySelection.currentNode),
+              selectedTarget: composeMode.resolveSelectionTarget(toFilterExplorerNode(ontologySelection.currentNode)),
               selectedPolicyState: getFilterExplorerTargetState(
-                composeMode.resolveSelectionTarget(ontologySelection.currentNode),
+                composeMode.resolveSelectionTarget(toFilterExplorerNode(ontologySelection.currentNode)),
                 draft.selection,
               ),
               selectedScalarClause: getFilterExplorerScalarClause(
-                composeMode.resolveSelectionTarget(ontologySelection.currentNode),
+                composeMode.resolveSelectionTarget(toFilterExplorerNode(ontologySelection.currentNode)),
                 draft,
               ),
-              baseDetailLines: ontologySelection.currentNode?.detailLines ?? [{ text: "No ontology entry selected.", tone: "dim" }],
+              baseDetailLines:
+                ontologySelection.currentNode?.detailLines ?? [{ text: "No ontology entry selected.", tone: "dim" }],
             })
         : undefined,
     getDetailTitle:
@@ -215,22 +297,21 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
         : undefined,
     onConfirm: (keyContext) => {
       if (composeMode) {
-        const target = composeMode.resolveSelectionTarget(keyContext.currentNode);
+        const target = composeMode.resolveSelectionTarget(toFilterExplorerNode(keyContext.currentNode));
         return (
           openComposeScalarEditor(composeMode, target, draft, updateDraft) ||
           applyComposeCycleSelection(composeMode, keyContext, draft, updateDraft)
         );
       }
 
-      if (
-        keyContext.currentNode?.query?.kind === "listRecords" &&
-        options.model.id !== "derivedTags" &&
-        keyContext.currentNode?.kind !== "record"
-      ) {
-        return openInspectQuery(options, keyContext, keyContext.currentNode.query);
+      const inspectResult = getNodeInspectResult(options, keyContext.currentNode);
+      if (shouldOpenImmediateInspectResult(options.model, keyContext.currentNode, inspectResult)) {
+        return openInspectResult(options, keyContext, inspectResult);
       }
 
-      return !keyContext.currentNodeHasChildren && openInspectQuery(options, keyContext, keyContext.currentNode?.query);
+      return !keyContext.currentNodeHasChildren && inspectResult
+        ? openInspectResult(options, keyContext, inspectResult)
+        : false;
     },
     onAction: (action, keyContext) => {
       const context = createFilterExplorerContext({
@@ -245,7 +326,7 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
       }
 
       if (action.id === "cycle" && composeMode) {
-        const target = composeMode.resolveSelectionTarget(keyContext.currentNode);
+        const target = composeMode.resolveSelectionTarget(toFilterExplorerNode(keyContext.currentNode));
         return (
           openComposeScalarEditor(composeMode, target, draft, updateDraft) ||
           applyComposeCycleSelection(composeMode, keyContext, draft, updateDraft)
@@ -273,8 +354,8 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
           entries: commandEntries,
         })
         .then((selected) => {
-          if (selected === "openQuery") {
-            openInspectQuery(options, keyContext, keyContext.selectedQuery);
+          if (selected === "openSelection") {
+            openInspectResult(options, keyContext, getNodeInspectResult(options, keyContext.currentNode));
           }
         });
       return true;

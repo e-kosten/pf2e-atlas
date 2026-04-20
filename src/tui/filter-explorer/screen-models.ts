@@ -1,5 +1,5 @@
-import type { OntologyExplorerControllerContext } from "../ontology-explorer/controller.js";
-import { buildOntologyBrowserListRows } from "../ontology-explorer/ui.js";
+import type { OntologyDomainModel } from "../../domain/ontology-types.js";
+import { buildOntologyBrowserListRows, type OntologyBrowserState } from "../ontology-explorer/ui.js";
 import {
   TERMINAL_LIVE_FILTER_FOOTER,
   buildTerminalInteractionHelpLines,
@@ -25,20 +25,22 @@ import {
 } from "./policy-presentation.js";
 import type {
   FilterExplorerComposeMode,
+  FilterExplorerBrowserContext,
   FilterExplorerControllerContext,
+  FilterExplorerInspectResult,
   FilterExplorerMode,
   FilterExplorerScalarClause,
 } from "./types.js";
 
-function isDetailContext(controller: OntologyExplorerControllerContext): boolean {
+function isDetailContext(controller: FilterExplorerBrowserContext): boolean {
   return controller.layoutMode === "detail-only" || controller.state.activePane === "detail";
 }
 
-function isAtExitDepth(mode: FilterExplorerMode, controller: OntologyExplorerControllerContext, rootDepth: number): boolean {
+function isAtExitDepth(mode: FilterExplorerMode, controller: FilterExplorerBrowserContext, rootDepth: number): boolean {
   return mode.kind === "compose" && controller.effectiveState.depth === rootDepth;
 }
 
-function getBackHelpText(mode: FilterExplorerMode, controller: OntologyExplorerControllerContext): string {
+function getBackHelpText(mode: FilterExplorerMode, controller: FilterExplorerBrowserContext): string {
   if (isDetailContext(controller)) {
     return "return to the entry list";
   }
@@ -51,7 +53,7 @@ function getBackHelpText(mode: FilterExplorerMode, controller: OntologyExplorerC
 
 export function getFilterExplorerInteractionActions(
   mode: FilterExplorerMode,
-  controller: OntologyExplorerControllerContext,
+  controller: FilterExplorerBrowserContext,
 ): TerminalInteractionAction[] {
   if (mode.kind === "compose") {
     const focusedTarget = mode.resolveSelectionTarget(controller.selection.currentNode);
@@ -292,7 +294,7 @@ function buildComposeListSegments(
     return undefined;
   }
 
-  const node = controller.ontology.selection.currentNodes.find((candidate) => candidate.id === nodeId);
+  const node = controller.browser.selection.currentNodes.find((candidate) => candidate.id === nodeId);
   const target = controller.mode.resolveSelectionTarget(node);
   if (!target) {
     return undefined;
@@ -322,9 +324,9 @@ function buildComposeListSegments(
 
 export function buildFilterExplorerListLines(controller: FilterExplorerControllerContext): DerivedTagTerminalLine[] {
   return buildOntologyBrowserListRows(
-    controller.model,
-    controller.ontology.effectiveState,
-    controller.ontology.bodyHeight,
+    controller.model as OntologyDomainModel,
+    controller.browser.effectiveState as OntologyBrowserState,
+    controller.browser.bodyHeight,
     (node, isSelected) => {
       const label = node.listLabel ?? node.label;
       const segments = buildComposeListSegments(label, controller, node.id, isSelected);
@@ -345,23 +347,27 @@ export function buildFilterExplorerListLines(controller: FilterExplorerControlle
 
 export function buildFilterExplorerCommandEntries(
   controller: FilterExplorerControllerContext,
-): DerivedTagTerminalCommandOption<"openQuery">[] {
-  if (controller.mode.kind !== "inspect-and-open" || !controller.mode.onOpenQuery || !controller.selectedQuery) {
+): DerivedTagTerminalCommandOption<"openSelection">[] {
+  if (
+    controller.mode.kind !== "inspect-and-open" ||
+    (!controller.mode.onOpenInspectResult && !controller.mode.onOpenQuery) ||
+    !controller.selectedInspectResult
+  ) {
     return [];
   }
 
   return [
     {
-      value: "openQuery",
-      label: "Open Query",
-      description: "Open the focused ontology query in browse/search.",
-      keywords: ["search", "browse", "records"],
+      value: "openSelection",
+      label: "Open Selection",
+      description: buildInspectCommandDescription(controller.selectedInspectResult),
+      keywords: ["search", "browse", "records", "open"],
     },
   ];
 }
 
 export function buildFilterExplorerHelpLines(controller: FilterExplorerControllerContext): DerivedTagTerminalLine[] {
-  const interactionActions = getFilterExplorerInteractionActions(controller.mode, controller.ontology);
+  const interactionActions = getFilterExplorerInteractionActions(controller.mode, controller.browser);
   const commandEntries = buildFilterExplorerCommandEntries(controller);
   const actionActions = interactionActions
     .filter((action) => !["move", "scroll", "jump", "page", "edge"].includes(action.id))
@@ -369,7 +375,7 @@ export function buildFilterExplorerHelpLines(controller: FilterExplorerControlle
       ...action,
       helpText:
         action.id === "open"
-          ? "drill into the focused node or open its query"
+          ? "drill into the focused node or open the focused selection"
           : action.id === "cycle"
             ? controller.selectedTarget?.kind === "scalar"
               ? "open the focused scalar filter editor"
@@ -381,7 +387,7 @@ export function buildFilterExplorerHelpLines(controller: FilterExplorerControlle
                 : action.id === "cancel"
                   ? "clear the current filter without leaving this level"
                   : action.id === "back"
-                    ? getBackHelpText(controller.mode, controller.ontology)
+                    ? getBackHelpText(controller.mode, controller.browser)
                     : action.id === "search"
                       ? "start live filtering"
                       : action.id === "commands"
@@ -398,7 +404,7 @@ export function buildFilterExplorerHelpLines(controller: FilterExplorerControlle
       actions: [
         {
           id:
-            controller.ontology.state.activePane === "list" && controller.ontology.layoutMode !== "detail-only"
+            controller.browser.state.activePane === "list" && controller.browser.layoutMode !== "detail-only"
               ? "move"
               : "scroll",
           helpText: "move through the active pane",
@@ -450,40 +456,79 @@ function buildComposeStatus(controller: FilterExplorerControllerContext): string
   return `Focused ${focusedPolicy} | ${totalCount} filter${totalCount === 1 ? "" : "s"} selected`;
 }
 
+function buildInspectTargetLabel(result: FilterExplorerInspectResult): string | null {
+  if (!result.target) {
+    return null;
+  }
+
+  return result.target.kind === "scalar"
+    ? `${result.target.fieldLabel} / ${result.target.subjectLabel}`
+    : `${result.target.fieldLabel}: ${result.target.valueLabel ?? result.target.value}`;
+}
+
+function buildInspectCommandDescription(result: FilterExplorerInspectResult): string {
+  const openLabel =
+    result.openIntent === "results"
+      ? "Open the focused selection in results."
+      : result.query.kind === "lookup"
+        ? "Open the focused selection in lookup."
+        : result.query.kind === "search"
+          ? "Open the focused selection in search."
+          : "Open the focused selection in browse.";
+
+  const targetLabel = buildInspectTargetLabel(result);
+  return targetLabel ? `${openLabel} Focused target: ${targetLabel}.` : openLabel;
+}
+
 function buildInspectStatus(controller: FilterExplorerControllerContext): string {
-  return controller.selectedQuery ? "query ready" : "browse only";
+  const result = controller.selectedInspectResult;
+  if (!result) {
+    return "browse only";
+  }
+
+  const targetLabel = buildInspectTargetLabel(result);
+  const openLabel =
+    result.openIntent === "results"
+      ? "open results"
+      : result.query.kind === "lookup"
+        ? "open lookup"
+        : result.query.kind === "search"
+          ? "open search"
+          : "open browse";
+
+  return targetLabel ? `Focused ${targetLabel} | ${openLabel}` : openLabel;
 }
 
 export function buildFilterExplorerScreenModel(
   controller: FilterExplorerControllerContext,
 ): { kind: "detail-only"; props: DerivedTagTerminalPaneScreenProps } | { kind: "two-pane"; props: DerivedTagTerminalTwoPaneScreenProps } {
-  const interactionActions = getFilterExplorerInteractionActions(controller.mode, controller.ontology);
+  const interactionActions = getFilterExplorerInteractionActions(controller.mode, controller.browser);
   const leftLines = buildFilterExplorerListLines(controller);
   const statusSuffix =
     controller.mode.kind === "compose" ? buildComposeStatus(controller) : buildInspectStatus(controller);
 
-  if (controller.ontology.layoutMode === "detail-only") {
+  if (controller.browser.layoutMode === "detail-only") {
     return {
       kind: "detail-only",
       props: {
         title: controller.screenTitle,
-        subtitle: `${controller.ontology.breadcrumb}${controller.ontology.searchIndicator}`,
+        subtitle: `${controller.browser.breadcrumb}${controller.browser.searchIndicator}`,
         pane: {
-          title: `[FOCUSED DETAIL] ${controller.ontology.detailTitle}`,
-          lines: controller.ontology.visibleDetailLines,
+          title: `[FOCUSED DETAIL] ${controller.browser.detailTitle}`,
+          lines: controller.browser.visibleDetailLines,
           active: true,
         },
         footer: [
           {
-            text: controller.ontology.state.searchMode
+            text: controller.browser.state.searchMode
               ? TERMINAL_LIVE_FILTER_FOOTER
               : formatTerminalInteractionFooter(interactionActions),
             tone: "dim",
           },
           {
-            text: controller.ontology.state.searchMode
-              ? `Search /${controller.ontology.state.searchInput}`
-              : `detail focus | focused detail view | ${statusSuffix} | Detail scroll ${controller.ontology.effectiveState.detailScroll}/${controller.ontology.maxDetailScroll}`,
+            text: controller.browser.state.searchMode
+              ? `Search /${controller.browser.state.searchInput}`
+              : `detail focus | focused detail view | ${statusSuffix} | Detail scroll ${controller.browser.effectiveState.detailScroll}/${controller.browser.maxDetailScroll}`,
             tone: "accent",
           },
         ],
@@ -495,31 +540,31 @@ export function buildFilterExplorerScreenModel(
     kind: "two-pane",
     props: {
       title: controller.screenTitle,
-      subtitle: `${controller.ontology.breadcrumb}${controller.ontology.searchIndicator}`,
+      subtitle: `${controller.browser.breadcrumb}${controller.browser.searchIndicator}`,
       left: {
-        title: controller.ontology.state.activePane === "list" ? "[LIST] Explorer Entries" : "Explorer Entries",
+        title: controller.browser.state.activePane === "list" ? "[LIST] Explorer Entries" : "Explorer Entries",
         lines: leftLines,
-        active: controller.ontology.state.activePane === "list",
+        active: controller.browser.state.activePane === "list",
       },
       right: {
         title:
-          controller.ontology.state.activePane === "detail"
-            ? `[DETAIL] ${controller.ontology.detailTitle}`
-            : controller.ontology.detailTitle,
-        lines: controller.ontology.visibleDetailLines,
-        active: controller.ontology.state.activePane === "detail",
+          controller.browser.state.activePane === "detail"
+            ? `[DETAIL] ${controller.browser.detailTitle}`
+            : controller.browser.detailTitle,
+        lines: controller.browser.visibleDetailLines,
+        active: controller.browser.state.activePane === "detail",
       },
       footer: [
         {
-          text: controller.ontology.state.searchMode
+          text: controller.browser.state.searchMode
             ? TERMINAL_LIVE_FILTER_FOOTER
             : formatTerminalInteractionFooter(interactionActions),
           tone: "dim",
         },
         {
-          text: controller.ontology.state.searchMode
-            ? `Search /${controller.ontology.state.searchInput}`
-            : `${controller.ontology.state.activePane} focus | ${controller.ontology.layoutMode} layout | ${statusSuffix} | Detail scroll ${controller.ontology.effectiveState.detailScroll}/${controller.ontology.maxDetailScroll}`,
+          text: controller.browser.state.searchMode
+            ? `Search /${controller.browser.state.searchInput}`
+            : `${controller.browser.state.activePane} focus | ${controller.browser.layoutMode} layout | ${statusSuffix} | Detail scroll ${controller.browser.effectiveState.detailScroll}/${controller.browser.maxDetailScroll}`,
           tone: "accent",
         },
       ],
