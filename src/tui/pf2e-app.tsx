@@ -16,7 +16,7 @@ import {
   type Pf2eAppRoute,
 } from "./pf2e-app-state.js";
 import { AreaMenuScreen } from "./area-menu-screen.js";
-import { buildOntologyInspectExplorerModel, OntologyInspectScreen } from "./ontology-explorer/inspect-screen.js";
+import { OntologyInspectScreen } from "./ontology-explorer/inspect-screen.js";
 import { SearchScreen } from "./search-screen/screen.js";
 import { TerminalBusyScreen, TerminalMessageScreen } from "./shared-screens.js";
 import { createTerminalInteractionContextAdapters } from "./interaction-context-adapters.js";
@@ -62,8 +62,8 @@ export function Pf2eTerminalApp({
   const route = getCurrentPf2eAppRoute(state);
   const queueItems = services.dev.tagRefinement.getQueueItems();
   const ontologyExplorerModel = React.useMemo(
-    () => buildOntologyInspectExplorerModel(services.user.ontology),
-    [services.user.ontology],
+    () => (route.kind === "ontology" ? services.user.ontology.loadDomain("searchSemantics") : null),
+    [route.kind, services.user.ontology],
   );
 
   const runWithBusyState = React.useCallback(async <T,>(message: string, task: () => Promise<T>): Promise<T> => {
@@ -222,7 +222,7 @@ export function Pf2eTerminalApp({
     screen = (
       <OntologyInspectScreen
         initialSnapshot={route.snapshot}
-        model={ontologyExplorerModel}
+        model={ontologyExplorerModel!}
         onOpenQuery={openOntologyQuery}
         onExit={returnToPreviousRouteOrExit}
       />

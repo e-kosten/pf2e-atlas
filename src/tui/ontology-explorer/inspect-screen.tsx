@@ -3,7 +3,7 @@ import React from "react";
 import { inferActorMetricValueType } from "../../domain/actor-metrics.js";
 import { normalizeSearchCategory } from "../../domain/categories.js";
 import { getMetricDiscoveryGroupLabel } from "../../domain/metric-discovery-group-label.js";
-import type { OntologyDomainId, OntologyDomainModel, OntologyNodeQuery } from "../../domain/ontology-types.js";
+import type { OntologyDomainModel, OntologyNodeQuery } from "../../domain/ontology-types.js";
 import { FilterExplorerScreen, type FilterExplorerOptions } from "../filter-explorer/index.js";
 import type {
   FilterExplorerComposeTarget,
@@ -18,48 +18,7 @@ import {
 } from "../search-screen/scalar-editor.js";
 import { inferItemMetricValueType } from "../../domain/item-metrics.js";
 
-type OntologyInspectDomainSummary = {
-  id: OntologyDomainId;
-  label: string;
-  description: string;
-};
-
-type OntologyInspectModelSource = {
-  listDomains: () => readonly OntologyInspectDomainSummary[];
-  loadDomain: (id: OntologyDomainId) => OntologyDomainModel;
-};
-
 export type OntologyInspectExplorerSnapshot = NonNullable<FilterExplorerOptions["initialSnapshot"]>;
-
-function buildExplorerFilterText(...parts: Array<string | undefined>): string {
-  return parts
-    .filter((part): part is string => typeof part === "string" && part.trim().length > 0)
-    .join(" ")
-    .toLowerCase();
-}
-
-function buildOntologyInspectDomainNode(
-  domain: OntologyInspectDomainSummary,
-  ontology: OntologyInspectModelSource,
-) {
-  return {
-    id: `domain:${domain.id}`,
-    kind: "domain" as const,
-    label: domain.label,
-    listLabel: domain.label,
-    filterText: buildExplorerFilterText(domain.id, domain.label, domain.description),
-    detailTitle: "Ontology Domain",
-    detailLines: [
-      { text: `Domain: ${domain.id}` },
-      { text: "" },
-      {
-        text:
-          domain.description || "Inspect the domain in the shared explorer and open search queries from matching entries.",
-      },
-    ],
-    loadChildren: () => ontology.loadDomain(domain.id).rootNodes,
-  };
-}
 
 function buildOntologyInspectScalarTarget(node: OntologyDomainModel["rootNodes"][number]): FilterExplorerComposeTarget | undefined {
   if (node.kind !== "metric" || node.query?.kind !== "listRecords") {
@@ -123,16 +82,6 @@ function toFilterExplorerScalarClause(
   return clause.op === "between"
     ? { operator: "between", min: clause.min, max: clause.max }
     : { operator: clause.op, value: clause.value };
-}
-
-export function buildOntologyInspectExplorerModel(ontology: OntologyInspectModelSource): OntologyDomainModel {
-  const domains = ontology.listDomains();
-  return {
-    id: "searchSemantics",
-    label: "Ontology Browser",
-    description: "Browse ontology-backed domains and open shared browse/search queries from focused entries.",
-    rootNodes: domains.map((domain) => buildOntologyInspectDomainNode(domain, ontology)),
-  };
 }
 
 export function OntologyInspectScreen({

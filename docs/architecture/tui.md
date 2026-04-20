@@ -122,12 +122,12 @@ This keeps query editing and result reading logic in the TUI while leaving searc
 In the current split:
 
 - `src/tui/filter-explorer/` owns the shared list/detail browser, snapshots, command palette wiring, and mode-specific inspect-versus-compose behavior
-- `src/tui/ontology-explorer/inspect-screen.tsx` is a thin host that turns ontology domains from `src/app/ontology-service.ts` into a shared inspect session and routes selected leaves into search
+- `src/tui/ontology-explorer/inspect-screen.tsx` is a thin host for the `searchSemantics` domain from `src/app/ontology-service.ts`; entering the ontology area now lands directly in that shared inspect session and routes selected leaves into search
 - `src/tui/ontology-explorer/` legacy browse-only pieces remain isolated and should not become the primary path for new ontology/search exploration work
 
 The ontology host still adds:
 
-- root domain selection and ontology-specific entry copy
+- direct entry from the ontology area into the shared search-semantics explorer
 - restoring ontology snapshots when the user returns from search
 - launching either immediate results or seeded browse/search queries from selected ontology nodes
 

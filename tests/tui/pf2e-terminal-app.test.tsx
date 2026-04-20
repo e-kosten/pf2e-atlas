@@ -239,70 +239,61 @@ function createFakeServices(overrides: Partial<Pf2eTerminalAppServices> = {}): P
     user: {
       search: searchService,
       ontology: {
-        listDomains: vi.fn(() => [
-          {
-            id: "derivedTags",
-            label: "Derived Tags",
-            description: "Derived tag ontology",
-          },
-          {
-            id: "catalogCategories",
-            label: "Categories",
-            description: "Category ontology",
-          },
-        ]),
+        listDomains: vi.fn(() => []),
         loadDomain: vi.fn(() => ({
-          id: "derivedTags",
-          label: "Derived Tags",
-          description: "Derived tag ontology",
+          id: "searchSemantics",
+          label: "Search Semantics",
+          description: "Search semantics ontology",
           rootNodes: [
             {
-              id: "spell",
+              id: "searchSemantics:spell",
               kind: "category",
               label: "Spell",
               filterText: "spell",
-              listLabel: "spell | 1 family | 1 tag | 1 record",
-              detailTitle: "Category Details",
+              listLabel: "spell | 1 group",
+              detailTitle: "Search Semantics",
               detailLines: [{ text: "Spell", tone: "section" }],
               children: [
                 {
-                  id: "spell:security",
-                  kind: "family",
-                  label: "security",
-                  filterText: "security",
-                  listLabel: "security | 1 tag | 1 live record",
-                  detailTitle: "Family Details",
-                  detailLines: [{ text: "security", tone: "section" }],
-                  groupValues: { axis: "utility" },
+                  id: "spell:metadataFields",
+                  kind: "group",
+                  label: "Metadata Fields",
+                  filterText: "metadata fields",
+                  listLabel: "Metadata fields | 1",
+                  detailTitle: "Metadata Fields",
+                  detailLines: [{ text: "Metadata Fields", tone: "section" }],
                   children: [
                     {
-                      id: "spell:alarm",
-                      kind: "tag",
-                      label: "alarm",
-                      filterText: "alarm",
-                      listLabel: "alarm | editorial | 1 live record",
-                      detailTitle: "Tag Details",
-                      detailLines: [{ text: "alarm", tone: "section" }],
+                      id: "spell:field:publicationTitle",
+                      kind: "field",
+                      label: "publicationTitle",
+                      filterText: "publication title",
+                      listLabel: "publicationTitle",
+                      detailTitle: "Metadata Field Details",
+                      detailLines: [{ text: "publicationTitle", tone: "section" }],
                       children: [
                         {
-                          id: record.recordKey,
-                          kind: "record",
-                          label: record.name,
-                          filterText: "alarm ward",
-                          listLabel: `${record.name} | spell | lvl 1`,
-                          detailTitle: "Record Details",
-                          detailLines: [{ text: record.name, tone: "section" }],
+                          id: "spell:publicationTitle:pathfinder-player-core",
+                          kind: "value",
+                          label: "Pathfinder Player Core",
+                          filterText: "pathfinder player core",
+                          listLabel: "Pathfinder Player Core | 1",
+                          detailTitle: "Filter Value",
+                          detailLines: [{ text: "Pathfinder Player Core", tone: "section" }],
+                          query: {
+                            kind: "listRecords",
+                            label: "Browse records with this value",
+                            filters: {
+                              category: "spell",
+                              limit: 20,
+                            },
+                          },
                         },
                       ],
                     },
                   ],
                 },
               ],
-              childPresentation: {
-                mode: "grouped",
-                groupBy: "axis",
-                render: "inline",
-              },
             },
           ],
         })),
@@ -352,7 +343,7 @@ describe("pf2e terminal app", () => {
     expect(app.lastFrame()).toContain("Choose a first-class TUI area");
   });
 
-  it("opens the ontology domain picker and loads the selected domain", async () => {
+  it("opens the ontology browser directly in search semantics", async () => {
     const services = createFakeServices();
     const app = render(
       <DerivedTagTerminalProvider>
@@ -366,15 +357,11 @@ describe("pf2e terminal app", () => {
     await flushInk();
     app.stdin.write("\r");
     await flushInk();
-    expect(app.lastFrame()).toContain("Ontology Browser");
+    expect(app.lastFrame()).toContain("Search Semantics");
     expect(app.lastFrame()).toContain("Explorer Entries");
 
-    app.stdin.write("\r");
-    await flushInk();
-
-    expect(services.user.ontology.listDomains).toHaveBeenCalled();
-    expect(services.user.ontology.loadDomain).toHaveBeenCalledWith("derivedTags");
-    expect(app.lastFrame()).toContain("Derived Tags");
+    expect(services.user.ontology.loadDomain).toHaveBeenCalledWith("searchSemantics");
+    expect(app.lastFrame()).toContain("Spell");
   });
 
   it("passes shared prompt adapters into custom workbench session creation", async () => {
@@ -446,7 +433,7 @@ describe("pf2e terminal app", () => {
     expect(app.lastFrame()).toContain("Tag Refinement");
   });
 
-  it("renders grouped return wording on the ontology domain picker", async () => {
+  it("renders grouped return wording on the direct ontology explorer entry", async () => {
     const services = createFakeServices();
     const app = render(
       <DerivedTagTerminalProvider>
@@ -485,19 +472,12 @@ describe("pf2e terminal app", () => {
     app.stdin.write("l");
     await flushInk();
 
-    expect(app.lastFrame()).toContain("Ontology Browser");
+    expect(app.lastFrame()).toContain("Search Semantics");
     expect(app.lastFrame()).toContain("Explorer Entries");
   });
 
   it("returns from ontology-launched search to the exact ontology snapshot", async () => {
     const services = createFakeServices();
-    services.user.ontology.listDomains = vi.fn(() => [
-      {
-        id: "searchSemantics",
-        label: "Search Semantics",
-        description: "Search semantics ontology",
-      },
-    ]);
     services.user.ontology.loadDomain = vi.fn(() => ({
       id: "searchSemantics",
       label: "Search Semantics",
@@ -554,10 +534,8 @@ describe("pf2e terminal app", () => {
     await flushInk();
     app.stdin.write("\r");
     await flushInk();
-    app.stdin.write("\r");
     await flushInk();
-    await flushInk();
-    expect(app.lastFrame()).toContain("Ontology Browser");
+    expect(app.lastFrame()).toContain("Search Semantics");
     expect(app.lastFrame()).toContain("Search Semantics > Pathfinder Monster Core");
 
     app.stdin.write("j");
@@ -589,13 +567,6 @@ describe("pf2e terminal app", () => {
 
   it("opens concrete ontology leaves directly in the shared result reader and returns to the same ontology leaf", async () => {
     const services = createFakeServices();
-    services.user.ontology.listDomains = vi.fn(() => [
-      {
-        id: "searchSemantics",
-        label: "Search Semantics",
-        description: "Search semantics ontology",
-      },
-    ]);
     services.user.ontology.loadDomain = vi.fn(() => ({
       id: "searchSemantics",
       label: "Search Semantics",
@@ -649,10 +620,8 @@ describe("pf2e terminal app", () => {
     await flushInk();
     app.stdin.write("\r");
     await flushInk();
-    app.stdin.write("\r");
     await flushInk();
-    await flushInk();
-    expect(app.lastFrame()).toContain("Ontology Browser");
+    expect(app.lastFrame()).toContain("Search Semantics");
     expect(app.lastFrame()).toContain("Search Semantics > Pathfinder Monster Core");
 
     app.stdin.write("j");
