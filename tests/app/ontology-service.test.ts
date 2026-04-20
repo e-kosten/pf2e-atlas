@@ -474,6 +474,9 @@ describe("application ontology service", () => {
   it("uses live record inspection and live metric discovery instead of shallow examples", () => {
     const service = createPf2eApplicationOntologyService(createTestConfig(), createDataService());
     const domain = service.loadDomain("searchSemantics");
+    const booleanGroupNode = findNodeById(domain.rootNodes, "spell:booleanGroup:and");
+    const actorMetricCompareNode = findNodeById(domain.rootNodes, "creature:advanced:actorMetricCompare");
+    const itemMetricCompareNode = findNodeById(domain.rootNodes, "equipment:advanced:itemMetricCompare");
     const actorMetricGroup = findNodeById(domain.rootNodes, "creature:actorMetrics:discovery");
     const actorMetricNamespace = findNodeById(domain.rootNodes, "creature:actorMetrics:namespace:save.");
     const actorMetricNode = actorMetricNamespace
@@ -492,6 +495,37 @@ describe("application ontology service", () => {
 
     expect(findNodeById(domain.rootNodes, "equipment:example:0")).toBeUndefined();
     expect(findNodeById(domain.rootNodes, "equipment:examples")).toBeUndefined();
+    expect(booleanGroupNode?.detailLines.map((line) => line.text)).toContain(
+      "Requires every child predicate or group to match. Must contain at least 2 child nodes.",
+    );
+    expect(actorMetricCompareNode?.query).toEqual({
+      kind: "listRecords",
+      label: "Browse records matching the actorMetricCompare example",
+      filters: {
+        category: "creature",
+        metadata: {
+          field: "actorMetricCompare",
+          leftMetric: "ability.int.mod",
+          op: ">",
+          rightMetric: "ability.cha.mod",
+        },
+        limit: 20,
+      },
+    });
+    expect(itemMetricCompareNode?.query).toEqual({
+      kind: "listRecords",
+      label: "Browse records matching the itemMetricCompare example",
+      filters: {
+        category: "equipment",
+        metadata: {
+          field: "itemMetricCompare",
+          leftMetric: "shield.hp",
+          op: ">",
+          rightMetric: "shield.bt",
+        },
+        limit: 20,
+      },
+    });
     expect(actorMetricGroup?.detailLines.map((line) => line.text)).toContain(
       "Explore live metric namespaces, keys, and exact scalar values from the indexed corpus.",
     );
