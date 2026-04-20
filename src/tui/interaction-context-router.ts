@@ -1,5 +1,11 @@
 import React from "react";
 
+import type {
+  DerivedTagTerminalActionTargetIntent,
+  DerivedTagTerminalActionTargetOrientation,
+  DerivedTagTerminalActionTargetState,
+} from "./action-target.js";
+import { resolveDerivedTagTerminalActionTargetIntent } from "./action-target.js";
 import {
   getTerminalInteractionCycleDirection,
   resolveTerminalInteractionAction,
@@ -44,6 +50,10 @@ export type TerminalInteractionContextConfig<TContextId extends string = string>
   interactionActions?: TerminalInteractionAction[];
   navigation?: TerminalInteractionContextNavigation;
   textEntry?: boolean;
+  actionTarget?: {
+    state: DerivedTagTerminalActionTargetState;
+    orientation: DerivedTagTerminalActionTargetOrientation;
+  };
 };
 
 export type TerminalInteractionContextRoute<TContextId extends string = string> = {
@@ -53,6 +63,7 @@ export type TerminalInteractionContextRoute<TContextId extends string = string> 
   interactionAction?: TerminalInteractionAction;
   textEntryIntent?: TerminalTextEntryIntent;
   navigationAction?: DerivedTagTerminalListNavigationAction;
+  actionTargetIntent?: DerivedTagTerminalActionTargetIntent;
   cycleDirection?: 1 | -1;
 };
 
@@ -151,6 +162,13 @@ export function routeTerminalInteractionContext<TContextId extends string>(
 
   const interactionAction = resolveTerminalInteractionAction(event, context.interactionActions ?? []);
   const textEntryIntent = context.textEntry ? resolveTerminalTextEntryIntent(event) : undefined;
+  const actionTargetIntent = context.actionTarget
+    ? resolveDerivedTagTerminalActionTargetIntent(
+        event,
+        context.actionTarget.state,
+        context.actionTarget.orientation,
+      )
+    : undefined;
 
   return {
     route: {
@@ -160,6 +178,7 @@ export function routeTerminalInteractionContext<TContextId extends string>(
       interactionAction,
       textEntryIntent,
       navigationAction,
+      actionTargetIntent,
       cycleDirection: getTerminalInteractionCycleDirection(event, interactionAction),
     },
     state: nextState,
@@ -258,6 +277,25 @@ export function createTerminalTextEntryInteractionContext<TContextId extends str
     kind: "textEntry",
     interactionActions,
     textEntry: true,
+  };
+}
+
+export function createTerminalActionTargetInteractionContext<TContextId extends string>(
+  id: TContextId,
+  options: {
+    interactionActions?: TerminalInteractionAction[];
+    state: DerivedTagTerminalActionTargetState;
+    orientation: DerivedTagTerminalActionTargetOrientation;
+  },
+): TerminalInteractionContextConfig<TContextId> {
+  return {
+    id,
+    kind: "actionTarget",
+    interactionActions: options.interactionActions,
+    actionTarget: {
+      state: options.state,
+      orientation: options.orientation,
+    },
   };
 }
 

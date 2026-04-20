@@ -2,8 +2,6 @@ import React from "react";
 
 import type { OntologyDomainSummary } from "../../domain/ontology-types.js";
 import {
-  buildTerminalInteractionHelpLines,
-  formatTerminalFooterBindings,
   type TerminalInteractionAction,
 } from "../interaction-bindings.js";
 import {
@@ -11,43 +9,54 @@ import {
   createSharedReturnInteractionActions,
 } from "../shell-navigation-copy.js";
 import type { DerivedTagTerminalLine } from "../framework/types.js";
-import { TerminalMenuScreen } from "../shared-screens.js";
+import { TerminalMenuScreen, type TerminalMenuScreenInteractions } from "../shared-screens.js";
 
 function getOntologyDomainPickerInteractionActions(): TerminalInteractionAction[] {
-  return [{ id: "select" }, ...createSharedReturnInteractionActions(), { id: "help" }];
+  return [
+    { id: "select", helpText: "open the selected domain" },
+    ...createSharedReturnInteractionActions().map((action) => ({
+      ...action,
+      helpText: "return to the previous area",
+    })),
+    { id: "help", helpText: "show this help" },
+  ];
 }
 
-function buildOntologyDomainPickerHelpLines(): DerivedTagTerminalLine[] {
-  return buildTerminalInteractionHelpLines([
-    {
-      title: "Navigation",
-      actions: [
-        { id: "move", helpText: "move between ontology domains" },
-        { id: "jump", helpText: "jump through the domain list" },
-        { id: "page", helpText: "page through the domain list" },
-        { id: "edge", helpText: "jump to the first or last domain" },
+function createOntologyDomainPickerInteractions(): TerminalMenuScreenInteractions {
+  return {
+    actions: getOntologyDomainPickerInteractionActions(),
+    footerBindings: [
+      { kind: "action", action: { id: "select" } },
+      { kind: "action", action: { id: "help" } },
+      createMergedReturnFooterBinding(),
+    ],
+    help: {
+      title: "Ontology Domains",
+      sections: [
+        {
+          title: "Navigation",
+          actions: [
+            { id: "move", helpText: "move between ontology domains" },
+            { id: "jump", helpText: "jump through the domain list" },
+            { id: "page", helpText: "page through the domain list" },
+            { id: "edge", helpText: "jump to the first or last domain" },
+          ],
+        },
+        {
+          title: "Actions",
+          actions: getOntologyDomainPickerInteractionActions(),
+        },
+        {
+          title: "Domains",
+          lines: [
+            { text: "Derived Tags: authored tag ontology with live record coverage." },
+            { text: "Categories: public catalog category and subcategory browsing." },
+            { text: "Search Semantics: metadata field and search-vocabulary discovery." },
+          ],
+        },
       ],
     },
-    {
-      title: "Actions",
-      actions: [
-        { id: "select", helpText: "open the selected domain" },
-        { id: "help", helpText: "show this help" },
-        ...createSharedReturnInteractionActions().map((action) => ({
-          ...action,
-          helpText: "return to the previous area",
-        })),
-      ],
-    },
-    {
-      title: "Domains",
-      lines: [
-        { text: "Derived Tags: authored tag ontology with live record coverage." },
-        { text: "Categories: public catalog category and subcategory browsing." },
-        { text: "Search Semantics: metadata field and search-vocabulary discovery." },
-      ],
-    },
-  ]);
+  };
 }
 
 function buildOntologyDomainDetailLines(selectedDomain: OntologyDomainSummary | undefined): DerivedTagTerminalLine[] {
@@ -70,6 +79,7 @@ export function OntologyDomainPickerScreen({
   onOpenSelected: () => void;
 }): React.JSX.Element {
   const selectedDomain = domains[selectedIndex];
+  const interactions = createOntologyDomainPickerInteractions();
 
   return (
     <TerminalMenuScreen
@@ -79,24 +89,8 @@ export function OntologyDomainPickerScreen({
       rightTitle="Domain Details"
       items={domains}
       selectedIndex={selectedIndex}
-      interactionActions={getOntologyDomainPickerInteractionActions()}
-      footer={[
-        {
-          text: formatTerminalFooterBindings([
-            { kind: "action", action: { id: "move" } },
-            { kind: "action", action: { id: "jump" } },
-            { kind: "action", action: { id: "page" } },
-            { kind: "action", action: { id: "edge" } },
-            { kind: "action", action: { id: "select" } },
-            { kind: "action", action: { id: "help" } },
-            createMergedReturnFooterBinding(),
-          ]),
-          tone: "dim",
-        },
-      ]}
+      interactions={interactions}
       status={{ text: selectedDomain?.label ?? "-", tone: "accent" }}
-      helpTitle="Ontology Domains"
-      helpBody={buildOntologyDomainPickerHelpLines()}
       buildDetailLines={buildOntologyDomainDetailLines}
       onMove={onMove}
       onSelect={onOpenSelected}

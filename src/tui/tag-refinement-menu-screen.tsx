@@ -6,16 +6,12 @@ import {
   type DerivedTagTerminalActionTargetOption,
 } from "./action-target.js";
 import type { DerivedTagTerminalLine } from "./framework/types.js";
-import {
-  buildTerminalInteractionHelpLines,
-  type TerminalFooterBinding,
-  type TerminalInteractionAction,
-} from "./interaction-bindings.js";
+import { type TerminalInteractionAction } from "./interaction-bindings.js";
 import {
   createMergedReturnFooterBinding,
   createSharedReturnInteractionActions,
 } from "./shell-navigation-copy.js";
-import { TerminalActionMenuScreen } from "./shared-screens.js";
+import { TerminalActionMenuScreen, type TerminalMenuScreenInteractions } from "./shared-screens.js";
 
 type TagRefinementCommandId = "review_all" | "legacy_seed" | "legacy_rule" | "exemplar_cleanup" | "proposal_review";
 
@@ -70,19 +66,14 @@ function buildQueueLines(queueItems: DerivedTagReviewQueueSummaryItem[]): Derive
 }
 
 function getTagRefinementInteractionActions(): TerminalInteractionAction[] {
-  return [{ id: "select" }, { id: "actions" }, { id: "help" }, ...createSharedReturnInteractionActions("top level")];
-}
-
-function buildTagRefinementFooterBindings(): TerminalFooterBinding[] {
   return [
-    { kind: "action", action: { id: "move" } },
-    { kind: "action", action: { id: "jump" } },
-    { kind: "action", action: { id: "page" } },
-    { kind: "action", action: { id: "edge" } },
-    { kind: "action", action: { id: "select" } },
-    { kind: "action", action: { id: "actions" } },
-    { kind: "action", action: { id: "help" } },
-    createMergedReturnFooterBinding("top level"),
+    { id: "select", helpText: "open the selected row" },
+    { id: "actions", helpText: "focus the tag-refinement actions rail" },
+    { id: "help", helpText: "show this help" },
+    ...createSharedReturnInteractionActions("top level").map((action) => ({
+      ...action,
+      helpText: "return to the top level",
+    })),
   ];
 }
 
@@ -125,38 +116,45 @@ function buildTagRefinementActionEntries(
 function buildTagRefinementHelpLines(
   actionEntries: DerivedTagTerminalActionTargetOption<TagRefinementCommandId>[],
 ): DerivedTagTerminalLine[] {
-  return [
-    ...buildTerminalInteractionHelpLines([
-      {
-        title: "Navigation",
-        actions: [
-          { id: "move", helpText: "move between tag-refinement rows" },
-          { id: "jump", helpText: "jump through the menu" },
-          { id: "page", helpText: "page through the menu" },
-          { id: "edge", helpText: "jump to the first or last row" },
-        ],
-      },
-      {
-        title: "Actions",
-        actions: [
-          { id: "select", helpText: "open the selected row" },
-          { id: "actions", helpText: "focus the tag-refinement actions rail" },
-          { id: "help", helpText: "show this help" },
-          ...createSharedReturnInteractionActions("top level").map((action) => ({
-            ...action,
-            helpText: "return to the top level",
-          })),
-        ],
-      },
-    ]),
-    { text: "" },
-    ...buildDerivedTagTerminalActionTargetHelpLines({
-      orientation: "horizontal",
-      visibility: "onDemand",
-      actions: actionEntries,
-      contentHelpText: "The action rail replaces the old command palette on this screen.",
-    }),
-  ];
+  return buildDerivedTagTerminalActionTargetHelpLines({
+    orientation: "horizontal",
+    visibility: "onDemand",
+    actions: actionEntries,
+    contentHelpText: "The action rail replaces the old command palette on this screen.",
+  });
+}
+
+function createTagRefinementInteractions(
+  actionEntries: DerivedTagTerminalActionTargetOption<TagRefinementCommandId>[],
+): TerminalMenuScreenInteractions {
+  return {
+    actions: getTagRefinementInteractionActions(),
+    footerBindings: [
+      { kind: "action", action: { id: "select" } },
+      { kind: "action", action: { id: "actions" } },
+      { kind: "action", action: { id: "help" } },
+      createMergedReturnFooterBinding("top level"),
+    ],
+    help: {
+      title: "Tag Refinement Help",
+      sections: [
+        {
+          title: "Navigation",
+          actions: [
+            { id: "move", helpText: "move between tag-refinement rows" },
+            { id: "jump", helpText: "jump through the menu" },
+            { id: "page", helpText: "page through the menu" },
+            { id: "edge", helpText: "jump to the first or last row" },
+          ],
+        },
+        {
+          title: "Actions",
+          actions: getTagRefinementInteractionActions(),
+        },
+      ],
+      appendix: buildTagRefinementHelpLines(actionEntries),
+    },
+  };
 }
 
 export function TagRefinementMenuScreen({
@@ -176,6 +174,7 @@ export function TagRefinementMenuScreen({
 }): React.JSX.Element {
   const menuItems = buildTagRefinementMenuItems(queueItems);
   const actionEntries = buildTagRefinementActionEntries(queueItems.length > 0);
+  const interactions = createTagRefinementInteractions(actionEntries);
   const clampedSelectedIndex = Math.max(0, Math.min(selectedIndex, Math.max(0, menuItems.length - 1)));
 
   React.useEffect(() => {
@@ -204,11 +203,8 @@ export function TagRefinementMenuScreen({
       leftWidth={48}
       items={menuItems}
       selectedIndex={clampedSelectedIndex}
-      interactionActions={getTagRefinementInteractionActions()}
-      contentFooterBindings={buildTagRefinementFooterBindings()}
+      interactions={interactions}
       actionEntries={actionEntries}
-      helpTitle="Tag Refinement Help"
-      helpBody={buildTagRefinementHelpLines(actionEntries)}
       buildRightLines={() => buildQueueLines(queueItems)}
       buildStatusLine={({ selectedItem }) => ({
         text: `Selected: ${selectedItem?.label ?? "(none)"}`,

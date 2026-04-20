@@ -5,7 +5,6 @@ import {
   createDerivedTagTerminalActionTargetState,
   getDerivedTagTerminalActionTargetInteractionActions,
   reduceDerivedTagTerminalActionTargetState,
-  resolveDerivedTagTerminalActionTargetIntent,
   shouldRenderDerivedTagTerminalActionTarget,
   type DerivedTagTerminalActionTargetOption,
   type DerivedTagTerminalActionTargetState,
@@ -15,13 +14,16 @@ import { TerminalTwoPaneScreen, TerminalTextScreen, getTerminalPaneBodyHeight } 
 import { useDerivedTagTerminalSize } from "./framework/context.js";
 import type { DerivedTagTerminalLine } from "./framework/types.js";
 import {
+  buildTerminalInteractionHelpLines,
   formatTerminalFooterBindings,
   formatTerminalInteractionFooter,
   type TerminalFooterBinding,
   type TerminalInteractionAction,
+  type TerminalInteractionHelpSection,
 } from "./interaction-bindings.js";
 import { showTerminalReturnDialog, useTerminalInteractionContextAdapters } from "./interaction-context-adapters.js";
 import {
+  createTerminalActionTargetInteractionContext,
   createTerminalListInteractionContext,
   useTerminalInteractionContextRouter,
 } from "./interaction-context-router.js";
@@ -99,6 +101,46 @@ export type TerminalMenuScreenItem = {
   label: string;
 };
 
+export type TerminalMenuScreenInteractions = {
+  actions: TerminalInteractionAction[];
+  footerBindings?: TerminalFooterBinding[];
+  help: {
+    title: string;
+    sections: TerminalInteractionHelpSection[];
+    appendix?: DerivedTagTerminalLine[];
+  };
+};
+
+const TERMINAL_MENU_NAVIGATION_FOOTER_BINDINGS: TerminalFooterBinding[] = [
+  { kind: "action", action: { id: "move" } },
+  { kind: "action", action: { id: "jump" } },
+  { kind: "action", action: { id: "page" } },
+  { kind: "action", action: { id: "edge" } },
+];
+
+function buildTerminalMenuScreenFooterText(interactions: TerminalMenuScreenInteractions): string {
+  return formatTerminalFooterBindings([
+    ...TERMINAL_MENU_NAVIGATION_FOOTER_BINDINGS,
+    ...(interactions.footerBindings ??
+      interactions.actions.map((action) => ({
+        kind: "action",
+        action,
+      } satisfies TerminalFooterBinding))),
+  ]);
+}
+
+function buildTerminalMenuScreenHelpBody(interactions: TerminalMenuScreenInteractions): DerivedTagTerminalLine[] {
+  const lines = buildTerminalInteractionHelpLines(interactions.help.sections);
+  const appendix = interactions.help.appendix ?? [];
+  if (appendix.length === 0) {
+    return lines;
+  }
+  if (lines.length === 0) {
+    return [...appendix];
+  }
+  return [...lines, { text: "" }, ...appendix];
+}
+
 export function TerminalMenuScreen<TItem extends TerminalMenuScreenItem>({
   title,
   subtitle,
@@ -106,6 +148,7 @@ export function TerminalMenuScreen<TItem extends TerminalMenuScreenItem>({
   rightTitle,
   items,
   selectedIndex,
+  interactions,
   interactionActions,
   footer,
   status,
@@ -122,11 +165,12 @@ export function TerminalMenuScreen<TItem extends TerminalMenuScreenItem>({
   rightTitle: string;
   items: readonly TItem[];
   selectedIndex: number;
-  interactionActions: TerminalInteractionAction[];
-  footer: DerivedTagTerminalLine[];
+  interactions?: TerminalMenuScreenInteractions;
+  interactionActions?: TerminalInteractionAction[];
+  footer?: DerivedTagTerminalLine[];
   status: DerivedTagTerminalLine;
-  helpTitle: string;
-  helpBody: DerivedTagTerminalLine[];
+  helpTitle?: string;
+  helpBody?: DerivedTagTerminalLine[];
   buildDetailLines: (item: TItem | undefined) => DerivedTagTerminalLine[];
   onMove: (delta: number, itemCount: number) => void;
   onSelect: () => void;
@@ -141,11 +185,23 @@ export function TerminalMenuScreen<TItem extends TerminalMenuScreenItem>({
       footerLineCount: 2,
     }),
   );
+  const resolvedInteractionActions = interactions?.actions ?? interactionActions ?? [];
+  const resolvedHelpTitle = interactions?.help.title ?? helpTitle;
+  const resolvedHelpBody = interactions ? buildTerminalMenuScreenHelpBody(interactions) : helpBody;
+  const resolvedFooter =
+    interactions !== undefined
+      ? [
+          {
+            text: buildTerminalMenuScreenFooterText(interactions),
+            tone: "dim" as const,
+          },
+        ]
+      : footer ?? [];
 
   useTerminalInteractionContextRouter({
     contexts: [
       createTerminalListInteractionContext("menu", {
-        interactionActions,
+        interactionActions: resolvedInteractionActions,
         pageSize: Math.max(1, bodyHeight - 1),
         jumpSize: Math.max(1, Math.floor(bodyHeight / 2)),
         includeConfirmKeys: true,
@@ -172,8 +228,8 @@ export function TerminalMenuScreen<TItem extends TerminalMenuScreenItem>({
         onSelect();
         return;
       }
-      if (menu.interactionAction?.id === "help") {
-        void showTerminalReturnDialog(adapters, helpTitle, helpBody);
+      if (menu.interactionAction?.id === "help" && resolvedHelpTitle && resolvedHelpBody) {
+        void showTerminalReturnDialog(adapters, resolvedHelpTitle, resolvedHelpBody);
       }
     },
   });
@@ -191,7 +247,7 @@ export function TerminalMenuScreen<TItem extends TerminalMenuScreenItem>({
         title: rightTitle,
         lines: buildDetailLines(items[selectedIndex]),
       }}
-      footer={[...footer, status]}
+      footer={[...resolvedFooter, status]}
       leftWidth={32}
     />
   );
@@ -205,12 +261,9 @@ export function TerminalActionMenuScreen<TItem extends TerminalMenuScreenItem, T
   leftWidth = 32,
   items,
   selectedIndex,
-  interactionActions,
+  interactions,
   actionEntries,
   actionTargetVisibility = "onDemand",
-  contentFooterBindings,
-  helpTitle,
-  helpBody,
   buildRightLines,
   buildStatusLine,
   onMove,
@@ -225,12 +278,9 @@ export function TerminalActionMenuScreen<TItem extends TerminalMenuScreenItem, T
   leftWidth?: number;
   items: readonly TItem[];
   selectedIndex: number;
-  interactionActions: TerminalInteractionAction[];
+  interactions: TerminalMenuScreenInteractions;
   actionEntries: DerivedTagTerminalActionTargetOption<TAction>[];
   actionTargetVisibility?: DerivedTagTerminalActionTargetVisibility;
-  contentFooterBindings?: TerminalFooterBinding[];
-  helpTitle: string;
-  helpBody: DerivedTagTerminalLine[];
   buildRightLines: (item: TItem | undefined) => DerivedTagTerminalLine[];
   buildStatusLine: (context: {
     actionTargetState: DerivedTagTerminalActionTargetState;
@@ -260,44 +310,38 @@ export function TerminalActionMenuScreen<TItem extends TerminalMenuScreenItem, T
   useTerminalInteractionContextRouter({
     contexts: [
       createTerminalListInteractionContext("menu", {
-        interactionActions,
+        interactionActions: interactions.actions,
         pageSize: Math.max(1, bodyHeight - 1),
         jumpSize: Math.max(1, Math.floor(bodyHeight / 2)),
         includeConfirmKeys: true,
       }),
-      {
-        id: "actionTarget",
-        kind: "actionTarget",
+      createTerminalActionTargetInteractionContext("actionTarget", {
         interactionActions: [
           ...getDerivedTagTerminalActionTargetInteractionActions(actionTargetState, "horizontal"),
           { id: "help" },
         ],
-      },
+        state: actionTargetState,
+        orientation: "horizontal",
+      }),
     ],
     onRoute: ({ actionTarget, menu }) => {
-      const actionTargetIntent = resolveDerivedTagTerminalActionTargetIntent(
-        actionTarget.event,
-        actionTargetState,
-        "horizontal",
-      );
-
-      if (actionTargetIntent?.kind === "toggle_target") {
+      if (actionTarget.actionTargetIntent?.kind === "toggle_target") {
         dispatchActionTarget({ type: "toggle_target" });
         return;
       }
-      if (actionTargetIntent?.kind === "leave_actions") {
+      if (actionTarget.actionTargetIntent?.kind === "leave_actions") {
         dispatchActionTarget({ type: "leave_actions" });
         return;
       }
-      if (actionTargetIntent?.kind === "move_action") {
+      if (actionTarget.actionTargetIntent?.kind === "move_action") {
         dispatchActionTarget({
           type: "move_action",
-          delta: actionTargetIntent.delta,
+          delta: actionTarget.actionTargetIntent.delta,
           actionCount: actionEntries.length,
         });
         return;
       }
-      if (actionTargetIntent?.kind === "apply_action") {
+      if (actionTarget.actionTargetIntent?.kind === "apply_action") {
         const selectedAction = actionEntries[actionTargetState.selectedActionIndex];
         if (selectedAction) {
           onAction(selectedAction.id);
@@ -306,7 +350,11 @@ export function TerminalActionMenuScreen<TItem extends TerminalMenuScreenItem, T
       }
       if (actionTargetState.activeTarget === "actions") {
         if (actionTarget.interactionAction?.id === "help") {
-          void showTerminalReturnDialog(adapters, helpTitle, helpBody);
+          void showTerminalReturnDialog(
+            adapters,
+            interactions.help.title,
+            buildTerminalMenuScreenHelpBody(interactions),
+          );
         }
         return;
       }
@@ -330,7 +378,11 @@ export function TerminalActionMenuScreen<TItem extends TerminalMenuScreenItem, T
         return;
       }
       if (menu.interactionAction?.id === "help") {
-        void showTerminalReturnDialog(adapters, helpTitle, helpBody);
+        void showTerminalReturnDialog(
+          adapters,
+          interactions.help.title,
+          buildTerminalMenuScreenHelpBody(interactions),
+        );
       }
     },
   });
@@ -338,11 +390,11 @@ export function TerminalActionMenuScreen<TItem extends TerminalMenuScreenItem, T
   const footerActions: TerminalInteractionAction[] =
     actionTargetState.activeTarget === "actions"
       ? [...getDerivedTagTerminalActionTargetInteractionActions(actionTargetState, "horizontal"), { id: "help" }]
-      : [{ id: "move" }, { id: "jump" }, { id: "page" }, { id: "edge" }, ...interactionActions];
+      : [{ id: "move" }, { id: "jump" }, { id: "page" }, { id: "edge" }, ...interactions.actions];
   const footerText =
-    actionTargetState.activeTarget === "actions" || !contentFooterBindings
+    actionTargetState.activeTarget === "actions"
       ? formatTerminalInteractionFooter(footerActions)
-      : formatTerminalFooterBindings(contentFooterBindings);
+      : buildTerminalMenuScreenFooterText(interactions);
 
   return (
     <TerminalTwoPaneScreen

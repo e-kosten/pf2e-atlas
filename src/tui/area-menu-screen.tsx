@@ -1,12 +1,8 @@
 import React from "react";
 
 import type { DerivedTagTerminalLine } from "./framework/types.js";
-import {
-  buildTerminalInteractionHelpLines,
-  formatTerminalInteractionFooter,
-  type TerminalInteractionAction,
-} from "./interaction-bindings.js";
-import { TerminalMenuScreen } from "./shared-screens.js";
+import { type TerminalInteractionAction } from "./interaction-bindings.js";
+import { TerminalMenuScreen, type TerminalMenuScreenInteractions } from "./shared-screens.js";
 
 export type Pf2eTopLevelArea = {
   id: "tag_refinement" | "ontology_search" | "search";
@@ -38,36 +34,36 @@ function buildAreaDetailLines(
   ];
 }
 
-function buildTopLevelHelpLines(): DerivedTagTerminalLine[] {
-  const actionActions = getAreaMenuInteractionActions().map((action) => ({
-    ...action,
-    helpText:
-      action.id === "select"
-        ? "open the selected area"
-        : action.id === "help"
-          ? "show this help"
-          : "exit the terminal app",
-  }));
-
-  return buildTerminalInteractionHelpLines([
-    {
-      title: "Navigation",
-      actions: [
-        { id: "move", helpText: "move between top-level areas" },
-        { id: "jump", helpText: "jump through the area list" },
-        { id: "page", helpText: "page through the area list" },
-        { id: "edge", helpText: "jump to the first or last area" },
-      ],
-    },
-    {
-      title: "Actions",
-      actions: actionActions,
-    },
-  ]);
+function getAreaMenuInteractionActions(): TerminalInteractionAction[] {
+  return [
+    { id: "select", helpText: "open the selected area" },
+    { id: "help", helpText: "show this help" },
+    { id: "quit", label: "quit", helpText: "exit the terminal app" },
+  ];
 }
 
-function getAreaMenuInteractionActions(): TerminalInteractionAction[] {
-  return [{ id: "select" }, { id: "help" }, { id: "quit", label: "quit" }];
+function createAreaMenuInteractions(): TerminalMenuScreenInteractions {
+  return {
+    actions: getAreaMenuInteractionActions(),
+    help: {
+      title: "Top-Level Help",
+      sections: [
+        {
+          title: "Navigation",
+          actions: [
+            { id: "move", helpText: "move between top-level areas" },
+            { id: "jump", helpText: "jump through the area list" },
+            { id: "page", helpText: "page through the area list" },
+            { id: "edge", helpText: "jump to the first or last area" },
+          ],
+        },
+        {
+          title: "Actions",
+          actions: getAreaMenuInteractionActions(),
+        },
+      ],
+    },
+  };
 }
 
 export function AreaMenuScreen({
@@ -88,6 +84,7 @@ export function AreaMenuScreen({
   onQuit: () => void;
 }): React.JSX.Element {
   const selectedArea = areas[selectedAreaIndex];
+  const interactions = createAreaMenuInteractions();
 
   return (
     <TerminalMenuScreen
@@ -97,25 +94,11 @@ export function AreaMenuScreen({
       rightTitle="Area Details"
       items={areas}
       selectedIndex={selectedAreaIndex}
-      interactionActions={getAreaMenuInteractionActions()}
-      footer={[
-        {
-          text: formatTerminalInteractionFooter([
-            { id: "move" },
-            { id: "jump" },
-            { id: "page" },
-            { id: "edge" },
-            ...getAreaMenuInteractionActions(),
-          ]),
-          tone: "dim",
-        },
-      ]}
+      interactions={interactions}
       status={{
         text: `${selectedArea ? formatAreaAudience(selectedArea.audience) : "-"} | ${pendingReviewCount} pending queue slice${pendingReviewCount === 1 ? "" : "s"}`,
         tone: "accent",
       }}
-      helpTitle="Top-Level Help"
-      helpBody={buildTopLevelHelpLines()}
       buildDetailLines={(area) => buildAreaDetailLines(area, pendingReviewCount)}
       onMove={(delta) => {
         onMove(delta);

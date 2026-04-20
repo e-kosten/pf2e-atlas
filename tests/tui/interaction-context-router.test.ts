@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
+import { createDerivedTagTerminalActionTargetState } from "../../src/tui/action-target.js";
 import { createDerivedTagTerminalInputEvent } from "../../src/tui/terminal-ui.js";
 import {
+  createTerminalActionTargetInteractionContext,
   createTerminalCommandPaletteInteractionContext,
   createTerminalInteractionContextRouterState,
   createTerminalListInteractionContext,
@@ -78,5 +80,40 @@ describe("interaction context router", () => {
       { id: "cycle" },
       { id: "return" },
     ]);
+  });
+
+  it("resolves action-target intents as part of the shared routing result", () => {
+    const state = createDerivedTagTerminalActionTargetState();
+    const toggle = routeTerminalInteractionContexts(
+      createDerivedTagTerminalInputEvent(":", {} as never),
+      [
+        createTerminalActionTargetInteractionContext("actionTarget", {
+          state,
+          orientation: "horizontal",
+          interactionActions: [{ id: "actions" }],
+        }),
+      ],
+      createTerminalInteractionContextRouterState(),
+    );
+
+    expect(toggle.routes.actionTarget.actionTargetIntent).toEqual({ kind: "toggle_target" });
+
+    const focusedState = {
+      ...state,
+      activeTarget: "actions" as const,
+    };
+    const move = routeTerminalInteractionContexts(
+      createDerivedTagTerminalInputEvent("\u001b[C", { rightArrow: true } as never),
+      [
+        createTerminalActionTargetInteractionContext("actionTarget", {
+          state: focusedState,
+          orientation: "horizontal",
+          interactionActions: [{ id: "actions" }, { id: "apply" }],
+        }),
+      ],
+      createTerminalInteractionContextRouterState(),
+    );
+
+    expect(move.routes.actionTarget.actionTargetIntent).toEqual({ kind: "move_action", delta: 1 });
   });
 });
