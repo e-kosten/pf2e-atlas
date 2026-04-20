@@ -116,7 +116,16 @@ function createDataService(options: {
     getSearchSemanticsBootstrapSummary?: ReturnType<typeof vi.fn<() => SearchSemanticsBootstrapSummaryResult>>;
     getSearchVocabulary?: ReturnType<typeof vi.fn<() => SearchVocabularyResult>>;
   } = {
-    listFilterValues: vi.fn(({ field, category }: { field: FilterValueField; category?: string }) => ({
+    listFilterValues: vi.fn(
+      ({
+        field,
+        category,
+        subcategory,
+      }: {
+        field: FilterValueField;
+        category?: string;
+        subcategory?: string;
+      }) => ({
       field,
       values:
         field === "subcategories" && category === "hazard"
@@ -124,8 +133,14 @@ function createDataService(options: {
               { value: "trap", count: 2 },
               { value: "haunt", count: 1 },
             ]
+          : field === "derivedTags" && category === "hazard" && subcategory === "trap"
+            ? [
+                { value: "fogbound", count: 2 },
+                { value: "snag_line", count: 1 },
+              ]
           : [],
-    })),
+      }),
+    ),
     listRecords: vi.fn((filters: SearchFilters) => ({
       searchProfile: null,
       mode: "structured" as const,
@@ -168,18 +183,37 @@ describe("buildSearchSemanticsDomain", () => {
     });
     expect(derivedTagsField?.children?.map((node) => node.label)).toEqual(["mist", "tripwire"]);
 
-    const fogboundTag = findNodeById(derivedTagsField?.children ?? [], "hazard:trap:field:derivedTags:family:mist:tag:fogbound");
-    const trapTag = findNodeById(derivedTagsField?.children ?? [], "hazard:trap:field:derivedTags:family:tripwire:tag:snag_line");
-    const hauntTag = findNodeById(
-      derivedTagsField?.children ?? [],
-      "hazard:trap:field:derivedTags:family:spirits:tag:lingering_whisper",
+    const mistFamilyNode = derivedTagsField?.children?.find((node) => node.id.endsWith(":family:mist"));
+    const tripwireFamilyNode = derivedTagsField?.children?.find((node) => node.id.endsWith(":family:tripwire"));
+    const fogboundTag = findNodeById(mistFamilyNode?.loadChildren?.() ?? [], "hazard:trap:field:derivedTags:family:mist:tag:fogbound");
+    const trapTag = findNodeById(
+      tripwireFamilyNode?.loadChildren?.() ?? [],
+      "hazard:trap:field:derivedTags:family:tripwire:tag:snag_line",
     );
 
-    expect(hauntTag).toBeUndefined();
     expect(fogboundTag?.query?.filters.subcategory).toBe("trap");
     expect(trapTag?.query?.filters.subcategory).toBe("trap");
     expect(fogboundTag?.children).toBeUndefined();
     expect(fogboundTag?.loadChildren).toBeUndefined();
+  });
+
+  it("loads derived-tag family children with scoped live counts", () => {
+    const dataService = createDataService();
+    const domain = buildSearchSemanticsDomain(createTestConfig(), dataService, vi.fn(() => ({}) as never));
+    const derivedTagsField = findNodeById(domain.rootNodes, "hazard:trap:field:derivedTags");
+    const mistFamilyNode = derivedTagsField?.children?.find((node) => node.id.endsWith(":family:mist"));
+    const tripwireFamilyNode = derivedTagsField?.children?.find((node) => node.id.endsWith(":family:tripwire"));
+
+    const mistTags = mistFamilyNode?.loadChildren?.() ?? [];
+    const tripwireTags = tripwireFamilyNode?.loadChildren?.() ?? [];
+
+    expect(mistTags[0]?.listLabel).toBe("fogbound | 2");
+    expect(tripwireTags[0]?.listLabel).toBe("snag_line | 1");
+    expect(dataService.listFilterValues).toHaveBeenCalledWith({
+      field: "derivedTags",
+      category: "hazard",
+      subcategory: "trap",
+    });
   });
 
   it("builds common-trait shortcuts from summary data without eagerly loading the trait field value space", () => {

@@ -79,7 +79,7 @@ function normalizeMetadataTextMatchValue(value: string): string {
 }
 
 function inferMetadataValueNormalization(spec: MetadataFieldSpecEntry): MetadataValueNormalization {
-  return spec.fieldType === "enumString" ? "lowercaseTrim" : "normalizedText";
+  return spec.fieldType === "text" ? "normalizedText" : "lowercaseTrim";
 }
 
 function normalizeActorMetricName(metric: unknown, label: string): string {

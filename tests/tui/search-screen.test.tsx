@@ -1709,6 +1709,9 @@ describe("search screen", () => {
     );
 
     await flushInk();
+    expect(app.lastFrame()).toContain("[RESULTS]");
+    expect(app.lastFrame()).not.toContain("[EDITOR] Query");
+
     await flushInk();
 
     expect(app.lastFrame()).toContain("[RESULTS]");

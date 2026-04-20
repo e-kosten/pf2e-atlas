@@ -76,9 +76,12 @@ export function formatCount(value: number): string {
   return value.toLocaleString("en-US");
 }
 
-export function createInitialSearchScreenState(initialQuery: Pf2eTerminalSearchQuery): SearchScreenState {
+export function createInitialSearchScreenState(
+  initialQuery: Pf2eTerminalSearchQuery,
+  options: { layout?: SearchScreenLayout } = {},
+): SearchScreenState {
   return {
-    layout: "editor",
+    layout: options.layout ?? "editor",
     activePane: "list",
     detailScroll: 0,
     layoutMode: "split",

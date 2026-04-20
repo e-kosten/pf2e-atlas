@@ -131,6 +131,7 @@ export function buildSearchSemanticsDomain(
     activeSubcategory: SearchSubcategory | null,
     familyEntry: DerivedTagCatalogEntry,
     tag: DerivedTagCatalogTag,
+    liveRecordCount: number,
     idPrefix: string,
   ): OntologyNode {
     const querySubcategory = getDerivedTagNodeSubcategory(activeSubcategory, familyEntry);
@@ -146,7 +147,6 @@ export function buildSearchSemanticsDomain(
         tag.value,
         tag.description ?? "",
       ),
-      listLabel: tag.value,
       detailTitle: "Derived Tag",
       detailLines: [
         { text: tag.value, tone: "section" },
@@ -157,6 +157,7 @@ export function buildSearchSemanticsDomain(
         { text: `Axis: ${familyEntry.axis}` },
         { text: `Family scope: ${familyEntry.subcategories?.join(", ") ?? "(all subcategories)"}` },
         { text: `Assignment mode: ${tag.assignmentMode ?? familyEntry.assignmentMode ?? "(unspecified)"}` },
+        { text: `Live canonical records: ${liveRecordCount}` },
         { text: "Press Enter or o to open the full matching set in the shared result reader." },
       ],
       query: buildDerivedTagQuery(
@@ -165,7 +166,17 @@ export function buildSearchSemanticsDomain(
         tag.value,
         `Browse records with the ${tag.value} derived tag`,
       ),
+      listLabel: `${tag.value} | ${liveRecordCount}`,
     };
+  }
+
+  function getDerivedTagCountsByScope(
+    category: SearchCategory,
+    subcategory: SearchSubcategory | null,
+  ): Map<string, number> {
+    return new Map(
+      getCachedFilterValues(category, subcategory, "derivedTags").map((entry) => [entry.value, entry.count]),
+    );
   }
 
   function buildDerivedTagFamilyNode(
@@ -182,21 +193,14 @@ export function buildSearchSemanticsDomain(
       return null;
     }
 
-    const children = familyEntry.tags.map((tag) =>
-      buildDerivedTagTagNode(
-        category,
-        subcategory,
-        familyEntry,
-        tag,
-        `${idPrefix}:family:${normalizeText(familyEntry.family)}`,
-      ),
-    );
-    if (children.length === 0) {
+    if (familyEntry.tags.length === 0) {
       return null;
     }
 
+    const familyNodeId = `${idPrefix}:family:${normalizeText(familyEntry.family)}`;
+
     return {
-      id: `${idPrefix}:family:${normalizeText(familyEntry.family)}`,
+      id: familyNodeId,
       kind: "family",
       label: familyEntry.family,
       filterText: buildFilterText(
@@ -208,7 +212,7 @@ export function buildSearchSemanticsDomain(
         ...(familyEntry.subcategories ?? []),
         ...familyEntry.tags.map((tag) => tag.value),
       ),
-      listLabel: `${familyEntry.family} | ${children.length} tags`,
+      listLabel: `${familyEntry.family} | ${familyEntry.tags.length} tags`,
       detailTitle: "Derived Tag Family",
       detailLines: buildKeyValueDetailLines(
         familyEntry.family,
@@ -217,14 +221,28 @@ export function buildSearchSemanticsDomain(
           ["Active subcategory", subcategory ?? "(all)"],
           ["Axis", familyEntry.axis],
           ["Family scope", familyEntry.subcategories?.join(", ") ?? "(all subcategories)"],
-          ["Tags", children.length],
+          ["Tags", familyEntry.tags.length],
         ],
         familyEntry.description,
       ),
       groupValues: {
         axis: familyEntry.axis,
       },
-      children,
+      loadChildren: () => {
+        const liveCountsByTag = getDerivedTagCountsByScope(category, subcategory);
+        return familyEntry.tags
+          .filter((tag) => liveCountsByTag.has(tag.value))
+          .map((tag) =>
+            buildDerivedTagTagNode(
+              category,
+              subcategory,
+              familyEntry,
+              tag,
+              liveCountsByTag.get(tag.value) ?? 0,
+              familyNodeId,
+            ),
+          );
+      },
     };
   }
 

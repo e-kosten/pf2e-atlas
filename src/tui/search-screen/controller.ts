@@ -73,11 +73,20 @@ export function useSearchScreenController({
   const prompts = useTerminalInteractionContextAdapters();
   const { user } = usePf2eTerminalAppServices();
   const size = useDerivedTagTerminalSize();
+  const autoExecuteOntologyInitialQuery = origin === "ontology" && shouldAutoExecuteOntologyInitialQuery(initialQuery);
   const initialQueryState = React.useMemo(
     () => (initialQuery ? user.search.createQueryFromOntologyQuery(initialQuery) : user.search.createDefaultQuery()),
     [initialQuery, user.search],
   );
-  const [state, dispatch] = React.useReducer(searchScreenReducer, initialQueryState, createInitialSearchScreenState);
+  const initialLayout: import("./state.js").SearchScreenLayout = autoExecuteOntologyInitialQuery ? "results" : "editor";
+  const [state, dispatch] = React.useReducer(
+    searchScreenReducer,
+    {
+      initialQuery: initialQueryState,
+      initialLayout,
+    },
+    ({ initialQuery, initialLayout }) => createInitialSearchScreenState(initialQuery, { layout: initialLayout }),
+  );
   const queryRef = React.useRef(initialQueryState);
 
   const bodyHeight = Math.max(
@@ -122,7 +131,7 @@ export function useSearchScreenController({
     chooseResultSort,
     exitSearchScreen,
   } = useSearchSessionWorkflow({
-    autoExecuteInitialQuery: origin !== "ontology" || shouldAutoExecuteOntologyInitialQuery(initialQuery),
+    autoExecuteInitialQuery: origin !== "ontology" || autoExecuteOntologyInitialQuery,
     dispatch,
     initialQuery,
     initialQueryState,

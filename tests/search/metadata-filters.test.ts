@@ -30,4 +30,18 @@ describe("metadata filter normalization", () => {
       values: ["reflex", "fortitude"],
     });
   });
+
+  it("preserves hyphenated set values for exact membership predicates", () => {
+    expect(
+      normalizeMetadataFilterNode({
+        field: "families",
+        op: "includesAny",
+        values: ["  ancestry-npcs  ", "ghost"],
+      }),
+    ).toEqual({
+      field: "families",
+      op: "includesAny",
+      values: ["ancestry-npcs", "ghost"],
+    });
+  });
 });
