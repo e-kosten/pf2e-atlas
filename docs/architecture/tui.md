@@ -224,6 +224,65 @@ The async work is pushed further down:
 
 This is the pattern to preserve when the TUI grows: keep rendering, workflow state, and backend calls separate enough that each layer can change without forcing a full rewrite of the others.
 
+## Shared Interaction Conventions
+
+The TUI does not just share low-level input normalization. It also shares user-facing interaction contracts so screens can opt into common behavior instead of redefining it.
+
+### Navigation And Binding Model
+
+The expected interaction stack is:
+
+1. shared key normalization
+2. shared interaction verbs and actions
+3. shared list/detail navigation helpers
+4. shared action-target behavior
+5. shared help and footer generation
+6. screen-specific workflow logic on top
+
+That means:
+
+- vim keys and arrow keys should resolve to the same navigation behavior
+- feature screens should prefer shared interaction routers and helpers over branching on raw terminal events
+- footer and help text should be derived from the same action tables that actually execute on the screen
+
+### Command Palette And Action Rail
+
+The TUI supports both command-palette and focused action-target flows, but a screen should usually use one of them for a given responsibility instead of mixing both.
+
+- command palettes are the better fit for broad, lower-frequency, text-searchable commands
+- focused action rails are the better fit for constrained, high-frequency action sets on a selected record or item
+- page-specific one-letter commands should remain rare; new screen-specific actions should usually be surfaced through one of the shared mechanisms above
+
+### Action-Target Contract
+
+When a screen adopts the shared action-target model, preserve the same focus and exit semantics across surfaces:
+
+- `:` is the explicit entry point for command-oriented interactions
+- on command-palette pages, `:` opens the palette
+- on action-target pages, `:` enters the action target, and `:` or `Esc` leaves it
+- `Enter` applies the selected action
+- arrows and vim keys should act inside the focused target only
+- persistent action rails should still require explicit entry; users should not move into them accidentally
+- `Left` should not be repurposed as a generic exit inside action UIs when it already means horizontal movement there
+- `Backspace` should not be treated as a generic exit because prompts and palettes need it for text editing
+
+### Search-Semantics And Picker UX
+
+The shared exploration model also carries a few durable presentation and return-path expectations:
+
+- field and semantic labels should emphasize the entity name; long inline operator lists should not dominate metadata-field views
+- derived-tag organization should preserve axis and family structure consistently across search-semantics and picker surfaces
+- returning from hosted facet/query-field picking should preserve the current picker state instead of silently discarding it
+- concrete semantic entities that advertise live record counts should open the normal result behavior instead of a special-case sample view
+
+### Modal Presentation Defaults
+
+Prompt and modal sizing should continue to flow through the shared layout planner rather than feature-local sizing heuristics.
+
+- dialog, text, and command prompts default inline
+- select-like prompts default to screen-modal unless explicitly overridden
+- narrow forced-inline choice prompts should collapse to a readable single-column body instead of forcing an unusable split layout
+
 ## Design Rules To Preserve
 
 - Treat `src/tui/app-services.ts` as the TUI composition root. Do not let screens assemble runtime dependencies ad hoc.
