@@ -20,6 +20,7 @@ import { OntologyBrowserScreen } from "./ontology-explorer/screen.js";
 import { OntologyDomainPickerScreen } from "./ontology-explorer/domain-picker-screen.js";
 import { SearchScreen } from "./search-screen/screen.js";
 import { TerminalBusyScreen, TerminalMessageScreen } from "./shared-screens.js";
+import { createTerminalInteractionContextAdapters } from "./interaction-context-adapters.js";
 import { useDerivedTagTerminalApp } from "./framework/context.js";
 import { runDerivedTagTerminalApp } from "./framework/provider.js";
 import { TagRefinementMenuScreen, type TagRefinementMenuItem } from "./tag-refinement-menu-screen.js";
@@ -47,6 +48,14 @@ export function Pf2eTerminalApp({
   services: Pf2eTerminalAppServices;
 }): React.JSX.Element {
   const terminal = useDerivedTagTerminalApp();
+  const promptAdapters = React.useMemo(() => createTerminalInteractionContextAdapters(terminal), [terminal]);
+  const workbenchSessionPrompts = React.useMemo(
+    () => ({
+      ...promptAdapters,
+      pauseForAnyKey: terminal.pauseForAnyKey,
+    }),
+    [promptAdapters, terminal],
+  );
   const [state, dispatch] = React.useReducer(pf2eAppReducer, initialRoute, createPf2eAppState);
   const [busyMessage, setBusyMessage] = React.useState<string | null>(null);
   const route = getCurrentPf2eAppRoute(state);
@@ -86,7 +95,7 @@ export function Pf2eTerminalApp({
     async (mode: DerivedTagMigrationMode) => {
       await runWithBusyState(`Loading ${formatDerivedTagMigrationModeLabel(mode)} session options...`, async () => {
         try {
-          const session = await services.dev.tagRefinement.promptAndCreateSession(rootPath, mode, terminal);
+          const session = await services.dev.tagRefinement.promptAndCreateSession(rootPath, mode, workbenchSessionPrompts);
           if (session) {
             openReviewSession(session);
           }
@@ -97,7 +106,7 @@ export function Pf2eTerminalApp({
         }
       });
     },
-    [openReviewSession, rootPath, runWithBusyState, services.dev.tagRefinement, terminal],
+    [openReviewSession, rootPath, runWithBusyState, services.dev.tagRefinement, terminal, workbenchSessionPrompts],
   );
 
   const openOntologyDomain = React.useCallback(async () => {

@@ -376,6 +376,75 @@ describe("pf2e terminal app", () => {
     expect(app.lastFrame()).toContain("Derived Tags");
   });
 
+  it("passes shared prompt adapters into custom workbench session creation", async () => {
+    const promptAndCreateSession = vi.fn(() => Promise.resolve(undefined));
+    const services = createFakeServices();
+    services.dev.tagRefinement.promptAndCreateSession = promptAndCreateSession;
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalApp rootPath={process.cwd()} onExit={vi.fn()} services={services} />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Tag Refinement");
+
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+
+    expect(promptAndCreateSession).toHaveBeenCalledWith(process.cwd(), "legacy_seed", expect.any(Object));
+    const prompts = promptAndCreateSession.mock.calls[0]![2];
+    expect(prompts).toEqual(
+      expect.objectContaining({
+        promptOptionalSelectOption: expect.any(Function),
+        promptSelectOption: expect.any(Function),
+        promptTextInput: expect.any(Function),
+        pauseForAnyKey: expect.any(Function),
+      }),
+    );
+    expect("exitApp" in prompts).toBe(false);
+  });
+
+  it("preserves cancel and error handling for custom workbench session creation", async () => {
+    const promptAndCreateSession = vi
+      .fn<Pf2eTerminalAppServices["dev"]["tagRefinement"]["promptAndCreateSession"]>()
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error("bad scope"));
+    const services = createFakeServices();
+    services.dev.tagRefinement.promptAndCreateSession = promptAndCreateSession;
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalApp rootPath={process.cwd()} onExit={vi.fn()} services={services} />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Tag Refinement");
+
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+    expect(app.lastFrame()).toContain("Tag Refinement");
+
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+    expect(app.lastFrame()).toContain("Could not create the legacy seed session.");
+    expect(app.lastFrame()).toContain("bad scope");
+
+    app.stdin.write(" ");
+    await flushInk();
+    await flushInk();
+    expect(app.lastFrame()).toContain("Tag Refinement");
+  });
+
   it("renders grouped return wording on the ontology domain picker", async () => {
     const services = createFakeServices();
     const app = render(

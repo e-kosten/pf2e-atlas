@@ -2,13 +2,14 @@ import { DatabaseSync } from "node:sqlite";
 
 import { normalizeSearchCategory } from "../../../domain/categories.js";
 import type { SearchCategory, SearchSubcategory } from "../../../domain/index.js";
+import type { TerminalInteractionContextAdapters } from "../../../tui/interaction-context-adapters.js";
 import { normalizeDerivedTag } from "../../runtime/shared.js";
 import { parseInteger } from "../cli-utils.js";
 import { getActionableSessionScopeKeys } from "../sessions/actionable-session-scope.js";
 import { summarizeDerivedTagCategoryScopes } from "../sessions/category-scope-summary.js";
 import { compareDisplayText, compareManagedCategory, DERIVED_TAG_MANAGED_CATEGORIES } from "../list-sorting.js";
 import { getPublishedDerivedTagMigrationOntology } from "../state/runtime-state.js";
-import type { DerivedTagTerminalApp, DerivedTagTerminalSelectOption } from "../../../tui/terminal-ui.js";
+import type { DerivedTagTerminalSelectOption } from "../../../tui/terminal-ui.js";
 import type { DerivedTagMigrationMode } from "../types.js";
 
 export type DerivedTagMigrationWorkbenchSessionOptions = {
@@ -18,6 +19,15 @@ export type DerivedTagMigrationWorkbenchSessionOptions = {
   tag?: string;
   limit?: number;
   exemplarLimit?: number;
+};
+
+export type DerivedTagMigrationWorkbenchPromptAdapters = Pick<
+  TerminalInteractionContextAdapters,
+  "promptOptionalSelectOption" | "promptSelectOption" | "promptTextInput"
+>;
+
+export type DerivedTagMigrationWorkbenchSessionPrompts = DerivedTagMigrationWorkbenchPromptAdapters & {
+  pauseForAnyKey: (message: string) => Promise<void>;
 };
 
 function buildOntologyKey(category: SearchCategory, value: string): `${SearchCategory}:${string}` {
@@ -268,14 +278,14 @@ function buildAllTagOption(): Pick<DerivedTagTerminalSelectOption<string>, "labe
 }
 
 async function promptCategory(
-  terminal: DerivedTagTerminalApp,
+  prompts: DerivedTagMigrationWorkbenchPromptAdapters,
   db: DatabaseSync,
   mode: DerivedTagMigrationMode,
   required: boolean,
 ): Promise<SearchCategory | null | undefined> {
   const entries = buildCategorySelectOptions(mode, db);
   if (required) {
-    const result = await terminal.promptSelectOption({
+    const result = await prompts.promptSelectOption({
       title: "Session Scope",
       subtitle: "Choose a category boundary for the session",
       prompt: "Categories",
@@ -284,7 +294,7 @@ async function promptCategory(
     return result.kind === "selected" ? result.value : undefined;
   }
 
-  const result = await terminal.promptOptionalSelectOption({
+  const result = await prompts.promptOptionalSelectOption({
     title: "Session Scope",
     subtitle: "Choose a category boundary for the session",
     prompt: "Categories",
@@ -299,7 +309,7 @@ async function promptCategory(
 }
 
 async function promptSubcategory(
-  terminal: DerivedTagTerminalApp,
+  prompts: DerivedTagMigrationWorkbenchPromptAdapters,
   category: SearchCategory,
 ): Promise<SearchSubcategory | null | undefined> {
   const options = buildSubcategorySelectOptions(category);
@@ -307,7 +317,7 @@ async function promptSubcategory(
     return null;
   }
 
-  const result = await terminal.promptOptionalSelectOption({
+  const result = await prompts.promptOptionalSelectOption({
     title: "Session Scope",
     subtitle: `Optionally narrow ${category} to a subcategory`,
     prompt: "Subcategories",
@@ -322,7 +332,7 @@ async function promptSubcategory(
 }
 
 async function promptTag(
-  terminal: DerivedTagTerminalApp,
+  prompts: DerivedTagMigrationWorkbenchPromptAdapters,
   mode: DerivedTagMigrationMode,
   category: SearchCategory | undefined,
   subcategory: SearchSubcategory | undefined,
@@ -332,13 +342,13 @@ async function promptTag(
 ): Promise<{ category?: SearchCategory; tag?: string } | undefined> {
   const entries = buildTagSelectOptions(mode, category, subcategory, family, exemplarLimit);
   const result = required
-    ? await terminal.promptSelectOption({
+    ? await prompts.promptSelectOption({
         title: "Session Scope",
         subtitle: "Choose the tag to review",
         prompt: "Tags",
         entries,
       })
-    : await terminal.promptOptionalSelectOption({
+    : await prompts.promptOptionalSelectOption({
         title: "Session Scope",
         subtitle: "Optionally narrow the session to one tag",
         prompt: "Tags",
@@ -367,13 +377,13 @@ async function promptTag(
 }
 
 async function promptFamily(
-  terminal: DerivedTagTerminalApp,
+  prompts: DerivedTagMigrationWorkbenchPromptAdapters,
   mode: DerivedTagMigrationMode,
   category: SearchCategory | undefined,
   subcategory: SearchSubcategory | undefined,
   exemplarLimit: number | undefined,
 ): Promise<{ category?: SearchCategory; family?: string } | undefined> {
-  const result = await terminal.promptOptionalSelectOption({
+  const result = await prompts.promptOptionalSelectOption({
     title: "Session Scope",
     subtitle: "Optionally narrow the queue to one ontology family",
     prompt: "Families",
@@ -402,13 +412,13 @@ async function promptFamily(
 }
 
 async function promptInteger(
-  terminal: DerivedTagTerminalApp,
+  prompts: DerivedTagMigrationWorkbenchSessionPrompts,
   prompt: string,
   flagName: string,
 ): Promise<number | undefined> {
   for (;;) {
     const value = normalizeOptional(
-      await terminal.promptTextInput({
+      await prompts.promptTextInput({
         title: "Session Scope",
         prompt,
       }),
@@ -417,24 +427,24 @@ async function promptInteger(
     try {
       return parseInteger(value, flagName);
     } catch (error) {
-      await terminal.pauseForAnyKey((error as Error).message);
+      await prompts.pauseForAnyKey((error as Error).message);
     }
   }
 }
 
 export async function promptDerivedTagMigrationWorkbenchSessionOptions(
-  terminal: DerivedTagTerminalApp,
+  prompts: DerivedTagMigrationWorkbenchSessionPrompts,
   db: DatabaseSync,
   mode: DerivedTagMigrationMode,
 ): Promise<DerivedTagMigrationWorkbenchSessionOptions | undefined> {
   const requireCategory = mode === "legacy_rule";
-  const categorySelection = await promptCategory(terminal, db, mode, requireCategory);
+  const categorySelection = await promptCategory(prompts, db, mode, requireCategory);
   if (categorySelection === undefined) {
     return undefined;
   }
   const category = categorySelection ?? undefined;
 
-  const subcategorySelection = category ? await promptSubcategory(terminal, category) : null;
+  const subcategorySelection = category ? await promptSubcategory(prompts, category) : null;
   if (subcategorySelection === undefined) {
     return undefined;
   }
@@ -442,12 +452,12 @@ export async function promptDerivedTagMigrationWorkbenchSessionOptions(
 
   const exemplarLimit =
     mode === "exemplar_cleanup"
-      ? await promptInteger(terminal, "exemplar-limit (blank for none)", "--exemplar-limit")
+      ? await promptInteger(prompts, "exemplar-limit (blank for none)", "--exemplar-limit")
       : undefined;
 
   const familySelection =
     mode === "review_queue" || mode === "proposal_review" || mode === "exemplar_cleanup"
-      ? await promptFamily(terminal, mode, category, subcategory, exemplarLimit)
+      ? await promptFamily(prompts, mode, category, subcategory, exemplarLimit)
       : {};
   if (familySelection === undefined) {
     return undefined;
@@ -456,7 +466,7 @@ export async function promptDerivedTagMigrationWorkbenchSessionOptions(
   const family = familySelection.family;
 
   const tagSelection = await promptTag(
-    terminal,
+    prompts,
     mode,
     resolvedCategory,
     subcategory,
@@ -470,7 +480,7 @@ export async function promptDerivedTagMigrationWorkbenchSessionOptions(
   const resolvedTagCategory = resolvedCategory ?? tagSelection.category;
   const tag = tagSelection.tag;
 
-  const limit = await promptInteger(terminal, "limit (blank for default)", "--limit");
+  const limit = await promptInteger(prompts, "limit (blank for default)", "--limit");
 
   return {
     category: resolvedTagCategory,

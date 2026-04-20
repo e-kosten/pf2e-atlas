@@ -5,7 +5,6 @@ import { renderDerivedTagMigrationSessionSummary } from "./render.js";
 import { summarizeCurrentDerivedTagReviewQueue } from "../state/runtime-state.js";
 import { buildDerivedTagMigrationSession } from "../sessions/session-builder.js";
 import { writeDerivedTagMigrationSession } from "../sessions/session-store.js";
-import type { DerivedTagTerminalApp } from "../../../tui/terminal-ui.js";
 import type {
   DerivedTagMigrationMode,
   DerivedTagMigrationReviewDecisionKind,
@@ -15,6 +14,7 @@ import type {
 import {
   promptDerivedTagMigrationWorkbenchSessionOptions,
   type DerivedTagMigrationWorkbenchSessionOptions,
+  type DerivedTagMigrationWorkbenchSessionPrompts,
 } from "./workbench-session-prompts.js";
 
 export type DerivedTagMigrationWorkbenchServices = {
@@ -82,13 +82,13 @@ export async function promptAndCreateDerivedTagMigrationWorkbenchSession(
   rootPath: string,
   argv: string[],
   mode: DerivedTagMigrationMode,
-  terminal: DerivedTagTerminalApp,
+  prompts: DerivedTagMigrationWorkbenchSessionPrompts,
   services: DerivedTagMigrationWorkbenchServices = DEFAULT_DERIVED_TAG_MIGRATION_WORKBENCH_SERVICES,
 ): Promise<DerivedTagMigrationSession | undefined> {
   const { db } = await services.openIndex(argv);
 
   try {
-    const options = await promptDerivedTagMigrationWorkbenchSessionOptions(terminal, db, mode);
+    const options = await promptDerivedTagMigrationWorkbenchSessionOptions(prompts, db, mode);
     if (!options) {
       return undefined;
     }

@@ -11,11 +11,11 @@ import {
   type DerivedTagMigrationWorkbenchServices,
   type DerivedTagMigrationWorkbenchSessionCreationOptions,
 } from "../tags/editorial/workbench-controller.js";
+import type { DerivedTagMigrationWorkbenchSessionPrompts } from "../tags/editorial/workbench-session-prompts.js";
 import { buildDerivedTagMigrationSession } from "../tags/editorial/session-builder.js";
 import { summarizeCurrentDerivedTagReviewQueue } from "../tags/editorial/runtime-state.js";
 import { writeDerivedTagMigrationSession } from "../tags/editorial/session-store.js";
 import { writeDerivedTagMigrationSummary } from "../tags/editorial/cli-utils.js";
-import type { DerivedTagTerminalApp } from "./framework/types.js";
 import type {
   DerivedTagMigrationMode,
   DerivedTagMigrationReviewDecisionKind,
@@ -37,7 +37,7 @@ export type Pf2eTerminalTagWorkbenchService = {
   promptAndCreateSession: (
     rootPath: string,
     mode: DerivedTagMigrationMode,
-    terminal: DerivedTagTerminalApp,
+    prompts: DerivedTagMigrationWorkbenchSessionPrompts,
   ) => Promise<DerivedTagMigrationSession | undefined>;
 };
 
@@ -93,8 +93,8 @@ function createTagWorkbenchService(
     createSession: (rootPath, mode, options) =>
       createDerivedTagMigrationWorkbenchSession(rootPath, [], mode, options, services),
     getQueueItems: () => getDerivedTagMigrationWorkbenchQueueItems(services),
-    promptAndCreateSession: (rootPath, mode, terminal) =>
-      promptAndCreateDerivedTagMigrationWorkbenchSession(rootPath, [], mode, terminal, services),
+    promptAndCreateSession: (rootPath, mode, prompts) =>
+      promptAndCreateDerivedTagMigrationWorkbenchSession(rootPath, [], mode, prompts, services),
   };
 }
 
