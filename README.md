@@ -9,7 +9,7 @@ Read-only MCP server for Pathfinder 2E data from a vendored local Foundry PF2E c
 - Lists records within a pack with filters
 - Searches across all packs by name and structured filters
 - Follows linked rules references for actions, conditions, spells, and other rules text
-- Supports user-facing search profiles: `lookup`, `balanced`, and `concept`
+- Supports user-facing search profiles: `lexical`, `balanced`, and `concept`
 - Returns the original Foundry JSON for detailed retrieval
 
 The server uses `stdio` in v1, reads the PF2E data from `vendor/pf2e` by default, and builds a local SQLite index for querying.
@@ -84,7 +84,7 @@ This repo uses a simple trunk-based Git workflow:
 - create short-lived branches for work such as `feat/<topic>` or `fix/<topic>`
 - install the tracked git hooks with `npm run install-hooks`
 - run `npm run preflight` before starting implementation work in a new shell
-- validate with `npm run build` and `npm test` before merging
+- validate with `npm run verify` before merging
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for the local workflow details.
 
@@ -136,8 +136,9 @@ Search and list responses include:
 
 - The server is read-only.
 - Search is category-first. Use `category` plus structured filters such as `subcategory`, `traitsAll`, `traitsAny`, `excludeTraits`, `sources`, `excludeSources`, `traditions`, and `spellKinds` instead of raw Foundry `recordType`, `documentType`, or `itemCategory`.
-- `pf2e_search` supports `searchProfile: "lookup" | "balanced" | "concept"` as the primary user-facing retrieval control.
+- `pf2e_search` supports `searchProfile: "lexical" | "balanced" | "concept"` as the primary user-facing retrieval control.
 - `pf2e_search` defaults to the `balanced` profile when `query` is present and `searchProfile` is omitted.
+- `pf2e_lookup` and `pf2e_lookup_many` remain the exact-name lookup tools; `searchProfile: "lexical"` is the lexical-first ranked-search mode.
 - Prefer a short natural-language phrase or sentence with 1-3 concrete anchor terms for `query`. Avoid long comma-separated keyword lists by default.
 - `pf2e_get_search_semantics` is the primary discovery surface for categories, subcategories, spell facets, Pathfinder-native tags, and supported filters.
 - Search now uses a local SQLite index with:

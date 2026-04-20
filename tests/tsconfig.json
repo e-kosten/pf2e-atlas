@@ -1,9 +1,11 @@
 {
   "extends": "../tsconfig.json",
   "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false,
     "rootDir": "..",
     "noEmit": true
   },
-  "include": ["./**/*.ts", "./**/*.tsx"],
+  "include": ["./build/**/*.ts", "./build/**/*.tsx"],
   "exclude": ["../dist", "../node_modules"]
 }

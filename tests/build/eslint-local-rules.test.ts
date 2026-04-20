@@ -7,7 +7,6 @@ import { lintMessageTexts, lintRuleMessages } from "./eslint-config-test-helpers
 type TestedRuleModule = Parameters<RuleTester["run"]>[1];
 
 const typedLocalRules = localRules as unknown as { rules: Record<string, TestedRuleModule> };
-const directTerminalEventRoutingRule = typedLocalRules.rules["no-direct-terminal-event-routing"];
 
 const ruleTester = new RuleTester({
   languageOptions: {
@@ -16,9 +15,33 @@ const ruleTester = new RuleTester({
   },
 });
 
+function getLocalRule(name: string): TestedRuleModule {
+  const rule = typedLocalRules.rules[name];
+  if (!rule) {
+    throw new Error(`Missing local ESLint rule: ${name}`);
+  }
+
+  return rule;
+}
+
+async function expectRuleMessage(
+  filePath: string,
+  code: string,
+  expectedMessage: string,
+  ruleId = "no-restricted-imports",
+) {
+  const messages = lintMessageTexts(await lintRuleMessages(filePath, code, ruleId));
+
+  expect(messages.some((message) => message.includes(expectedMessage))).toBe(true);
+}
+
+async function expectNoRuleMessages(filePath: string, code: string, ruleId = "no-restricted-imports") {
+  expect(await lintRuleMessages(filePath, code, ruleId)).toHaveLength(0);
+}
+
 describe("eslint local architecture rules", () => {
   it("blocks direct terminal event routing in feature code", () => {
-    ruleTester.run("no-direct-terminal-event-routing", directTerminalEventRoutingRule, {
+    ruleTester.run("no-direct-terminal-event-routing", getLocalRule("no-direct-terminal-event-routing"), {
       valid: [
         {
           code: `
@@ -60,6 +83,32 @@ describe("eslint local architecture rules", () => {
         },
         {
           code: `
+            if ("cancel" === event.textInputAction) {
+              handleCancel();
+            }
+          `,
+          errors: [{ messageId: "noDirectCancelHandling" }],
+        },
+        {
+          code: `
+            switch (event.textInputAction) {
+              case "submit":
+                handleSubmit();
+                break;
+            }
+          `,
+          errors: [{ messageId: "noDirectSubmitHandling" }],
+        },
+        {
+          code: `
+            if (event.systemAction === "interrupt") {
+              exitApp();
+            }
+          `,
+          errors: [{ messageId: "noDirectInterruptHandling" }],
+        },
+        {
+          code: `
             if (event.printable) {
               append(event.printable);
             }
@@ -84,6 +133,57 @@ describe("eslint local architecture rules", () => {
         },
       ],
     });
+  });
+
+  it("blocks direct JSON.parse outside approved decoder modules and allows explicit decoder boundaries", async () => {
+    await expectRuleMessage(
+      "src/search/ranking.ts",
+      "const parsed = JSON.parse(serialized);\nexport { parsed };\n",
+      "Route JSON decoding through an approved decoder or boundary module instead.",
+      "arch/no-direct-json-parse",
+    );
+
+    await expectNoRuleMessages(
+      "src/data/sql-row-decoding.ts",
+      "const parsed = JSON.parse(serialized);\nexport { parsed };\n",
+      "arch/no-direct-json-parse",
+    );
+  });
+
+  it("blocks DatabaseSync construction outside approved entry modules and allows composition roots", async () => {
+    await expectRuleMessage(
+      "src/data/service.ts",
+      "const db = new DatabaseSync(path);\nexport { db };\n",
+      "Open SQLite connections only in approved composition or entry modules.",
+      "arch/no-direct-database-sync-construction",
+    );
+
+    await expectNoRuleMessages(
+      "src/tags/cli/evaluate-movement.ts",
+      "const db = new DatabaseSync(path);\nexport { db };\n",
+      "arch/no-direct-database-sync-construction",
+    );
+  });
+
+  it("blocks raw SearchCategory and SearchSubcategory assertions in favor of parser helpers", async () => {
+    const messages = await lintRuleMessages(
+      "src/search/ranking.ts",
+      `
+        const category = raw as SearchCategory;
+        const subcategories = raw as SearchSubcategory[];
+        const typedCategory = <SearchCategory>raw;
+        export { category, subcategories, typedCategory };
+      `,
+      "arch/no-search-category-assertion",
+    );
+
+    expect(messages).toHaveLength(3);
+
+    await expectNoRuleMessages(
+      "src/search/ranking.ts",
+      "const category = normalizeSearchCategory(raw);\nexport { category };\n",
+      "arch/no-search-category-assertion",
+    );
   });
 
   it("blocks non-UI package layers from importing tui modules", async () => {
@@ -128,6 +228,19 @@ describe("eslint local architecture rules", () => {
         ),
       ).toBe(true);
     }
+  });
+
+  it("blocks non-tag modules from importing leaf derived-tag internals and allows the shared facade", async () => {
+    await expectRuleMessage(
+      "src/app/runtime.ts",
+      'import { readDerivedTagCatalog } from "../tags/runtime/catalog-utils.js";\nexport const value = readDerivedTagCatalog;\n',
+      "Outside src/tags, import derived-tag functionality through src/tags/index.js or another approved facade instead of leaf tag internals.",
+    );
+
+    await expectNoRuleMessages(
+      "src/app/runtime.ts",
+      'import { normalizeDerivedTag } from "../tags/index.js";\nexport const value = normalizeDerivedTag;\n',
+    );
   });
 
   it("allows designated tag UI entrypoints to import tui modules", async () => {
@@ -181,6 +294,19 @@ describe("eslint local architecture rules", () => {
     expect(messages).toHaveLength(0);
   });
 
+  it("blocks tags CLI modules from bypassing the shared search-scope parser and allows the shared parser module", async () => {
+    await expectRuleMessage(
+      "src/tags/cli/evaluate-movement.ts",
+      'import { normalizeSearchCategory } from "../../domain/categories.js";\nexport const value = normalizeSearchCategory;\n',
+      "CLI scope parsing must go through src/tags/cli/search-scope-args.ts instead of ad hoc category normalization helpers.",
+    );
+
+    await expectNoRuleMessages(
+      "src/tags/cli/create-derived-tag-migration-session.ts",
+      'import { parseOptionalSearchCategoryArg } from "./search-scope-args.js";\nexport const value = parseOptionalSearchCategoryArg;\n',
+    );
+  });
+
   it("blocks search modules from importing storage internals directly", async () => {
     const messages = lintMessageTexts(
       await lintRuleMessages(
@@ -198,6 +324,14 @@ describe("eslint local architecture rules", () => {
     ).toBe(true);
   });
 
+  it("blocks server modules from importing low-level search and storage internals", async () => {
+    await expectRuleMessage(
+      "src/server/presenters.ts",
+      'import { buildSearchWhereClause } from "../search/sql.js";\nexport const value = buildSearchWhereClause;\n',
+      "Server tool registration must depend on Pf2eDataService or higher-level services, not low-level SQL/query internals.",
+    );
+  });
+
   it("blocks runtime-search from importing storage internals after the search decoupling", async () => {
     const messages = lintMessageTexts(
       await lintRuleMessages(
@@ -213,6 +347,28 @@ describe("eslint local architecture rules", () => {
         ),
       ),
     ).toBe(true);
+  });
+
+  it("blocks search workflows from calling terminal prompt APIs directly and allows shared prompt adapters", async () => {
+    await expectRuleMessage(
+      "src/tui/search-screen-workspace-actions.ts",
+      'async function run() { await terminal.promptTextInput({ label: "Query" }); }\nexport { run };\n',
+      "Search workflows must use the shared prompt adapter boundary instead of calling terminal prompt APIs directly.",
+      "no-restricted-syntax",
+    );
+
+    await expectRuleMessage(
+      "src/tui/search-screen-session-workflow.ts",
+      'async function run() { await terminal.showDialog({ title: "Help" }); }\nexport { run };\n',
+      "Search workflows must use the shared prompt adapter boundary instead of calling terminal.showDialog directly.",
+      "no-restricted-syntax",
+    );
+
+    await expectNoRuleMessages(
+      "src/tui/search-screen-workspace-actions.ts",
+      'async function run() { await prompts.promptTextInput({ label: "Query" }); }\nexport { run };\n',
+      "no-restricted-syntax",
+    );
   });
 
   it("blocks direct Ink imports in TUI feature modules that also have tactical restrictions", async () => {

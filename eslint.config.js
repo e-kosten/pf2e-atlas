@@ -93,6 +93,76 @@ const SERVER_STORAGE_INTERNAL_IMPORT_RESTRICTIONS = {
   ],
 };
 
+const SEARCH_SCREEN_TERMINOLOGY_RESTRICTIONS = [
+  {
+    selector: 'Literal[value="draft"]',
+    message:
+      "Search screen terminology is query/editor, not draft. Keep the final editor/query naming consistent in this feature.",
+  },
+  {
+    selector: 'Literal[value="setup"]',
+    message:
+      "Search screen terminology is query/editor, not setup. Keep the final editor/query naming consistent in this feature.",
+  },
+  {
+    selector: 'Literal[value="openSetup"]',
+    message:
+      "Search result commands must route back through the query editor using final editor/query naming, not setup wording.",
+  },
+];
+
+const SEARCH_SCREEN_CONTROLLER_SYNTAX_RESTRICTIONS = [
+  {
+    selector: 'CallExpression[callee.type="MemberExpression"][callee.property.name="showDialog"]',
+    message: "Search help dialogs must go through showTerminalReturnDialog instead of calling showDialog directly.",
+  },
+];
+
+const SEARCH_WORKFLOW_PROMPT_BOUNDARY_RESTRICTIONS = [
+  {
+    selector:
+      'CallExpression[callee.type="MemberExpression"][callee.object.name="terminal"][callee.property.name="promptCommandPalette"]',
+    message:
+      "Search workflows must use the shared prompt adapter boundary instead of calling terminal prompt APIs directly.",
+  },
+  {
+    selector:
+      'CallExpression[callee.type="MemberExpression"][callee.object.name="terminal"][callee.property.name="promptOptionalSelectOption"]',
+    message:
+      "Search workflows must use the shared prompt adapter boundary instead of calling terminal prompt APIs directly.",
+  },
+  {
+    selector:
+      'CallExpression[callee.type="MemberExpression"][callee.object.name="terminal"][callee.property.name="promptPolicySelectOption"]',
+    message:
+      "Search workflows must use the shared prompt adapter boundary instead of calling terminal prompt APIs directly.",
+  },
+  {
+    selector:
+      'CallExpression[callee.type="MemberExpression"][callee.object.name="terminal"][callee.property.name="promptMultiSelectOption"]',
+    message:
+      "Search workflows must use the shared prompt adapter boundary instead of calling terminal prompt APIs directly.",
+  },
+  {
+    selector:
+      'CallExpression[callee.type="MemberExpression"][callee.object.name="terminal"][callee.property.name="promptSelectOption"]',
+    message:
+      "Search workflows must use the shared prompt adapter boundary instead of calling terminal prompt APIs directly.",
+  },
+  {
+    selector:
+      'CallExpression[callee.type="MemberExpression"][callee.object.name="terminal"][callee.property.name="promptTextInput"]',
+    message:
+      "Search workflows must use the shared prompt adapter boundary instead of calling terminal prompt APIs directly.",
+  },
+  {
+    selector:
+      'CallExpression[callee.type="MemberExpression"][callee.object.name="terminal"][callee.property.name="showDialog"]',
+    message:
+      "Search workflows must use the shared prompt adapter boundary instead of calling terminal.showDialog directly.",
+  },
+];
+
 export default defineConfig(
   {
     ignores: [".cache/**", ".codex/**", "coverage/**", "dist/**", "node_modules/**", "scratch/**", "vendor/pf2e/**"],
@@ -114,9 +184,7 @@ export default defineConfig(
     files: ["**/*.{ts,tsx}"],
     languageOptions: {
       parserOptions: {
-        projectService: {
-          allowDefaultProject: ["vitest.config.ts"],
-        },
+        project: ["./tsconfig.eslint.json"],
         tsconfigRootDir: import.meta.dirname,
       },
     },
@@ -526,11 +594,8 @@ export default defineConfig(
     rules: {
       "no-restricted-syntax": [
         "error",
-        {
-          selector: 'CallExpression[callee.type="MemberExpression"][callee.property.name="showDialog"]',
-          message:
-            "Search help dialogs must go through showTerminalReturnDialog instead of calling showDialog directly.",
-        },
+        ...SEARCH_SCREEN_CONTROLLER_SYNTAX_RESTRICTIONS,
+        ...SEARCH_SCREEN_TERMINOLOGY_RESTRICTIONS,
       ],
     },
   },
@@ -539,48 +604,8 @@ export default defineConfig(
     rules: {
       "no-restricted-syntax": [
         "error",
-        {
-          selector:
-            'CallExpression[callee.type="MemberExpression"][callee.object.name="terminal"][callee.property.name="promptCommandPalette"]',
-          message:
-            "Search workflows must use the shared prompt adapter boundary instead of calling terminal prompt APIs directly.",
-        },
-        {
-          selector:
-            'CallExpression[callee.type="MemberExpression"][callee.object.name="terminal"][callee.property.name="promptOptionalSelectOption"]',
-          message:
-            "Search workflows must use the shared prompt adapter boundary instead of calling terminal prompt APIs directly.",
-        },
-        {
-          selector:
-            'CallExpression[callee.type="MemberExpression"][callee.object.name="terminal"][callee.property.name="promptPolicySelectOption"]',
-          message:
-            "Search workflows must use the shared prompt adapter boundary instead of calling terminal prompt APIs directly.",
-        },
-        {
-          selector:
-            'CallExpression[callee.type="MemberExpression"][callee.object.name="terminal"][callee.property.name="promptMultiSelectOption"]',
-          message:
-            "Search workflows must use the shared prompt adapter boundary instead of calling terminal prompt APIs directly.",
-        },
-        {
-          selector:
-            'CallExpression[callee.type="MemberExpression"][callee.object.name="terminal"][callee.property.name="promptSelectOption"]',
-          message:
-            "Search workflows must use the shared prompt adapter boundary instead of calling terminal prompt APIs directly.",
-        },
-        {
-          selector:
-            'CallExpression[callee.type="MemberExpression"][callee.object.name="terminal"][callee.property.name="promptTextInput"]',
-          message:
-            "Search workflows must use the shared prompt adapter boundary instead of calling terminal prompt APIs directly.",
-        },
-        {
-          selector:
-            'CallExpression[callee.type="MemberExpression"][callee.object.name="terminal"][callee.property.name="showDialog"]',
-          message:
-            "Search workflows must use the shared prompt adapter boundary instead of calling terminal.showDialog directly.",
-        },
+        ...SEARCH_WORKFLOW_PROMPT_BOUNDARY_RESTRICTIONS,
+        ...SEARCH_SCREEN_TERMINOLOGY_RESTRICTIONS,
       ],
     },
   },
@@ -819,25 +844,13 @@ export default defineConfig(
   },
   {
     files: ["src/tui/search-screen*.ts", "src/tui/search-screen*.tsx"],
+    ignores: [
+      "src/tui/search-screen-controller.ts",
+      "src/tui/search-screen-session-workflow.ts",
+      "src/tui/search-screen-workspace-actions.ts",
+    ],
     rules: {
-      "no-restricted-syntax": [
-        "error",
-        {
-          selector: 'Literal[value="draft"]',
-          message:
-            "Search screen terminology is query/editor, not draft. Keep the final editor/query naming consistent in this feature.",
-        },
-        {
-          selector: 'Literal[value="setup"]',
-          message:
-            "Search screen terminology is query/editor, not setup. Keep the final editor/query naming consistent in this feature.",
-        },
-        {
-          selector: 'Literal[value="openSetup"]',
-          message:
-            "Search result commands must route back through the query editor using final editor/query naming, not setup wording.",
-        },
-      ],
+      "no-restricted-syntax": ["error", ...SEARCH_SCREEN_TERMINOLOGY_RESTRICTIONS],
     },
   },
   {

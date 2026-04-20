@@ -1,7 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { ESLint } from "eslint";
+import { ESLint, type Linter } from "eslint";
 
 const testsDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(testsDir, "../..");
@@ -26,6 +26,9 @@ export async function lintRuleMessages(relativePath: string, code: string, ruleI
   const [result] = await engine.lintText(code, {
     filePath: path.join(repoRoot, relativePath),
   });
+  if (!result) {
+    throw new Error(`ESLint returned no lint result for ${relativePath}.`);
+  }
 
   const fatalMessages = result.messages.filter((message) => message.fatal);
   if (fatalMessages.length > 0) {
@@ -35,6 +38,6 @@ export async function lintRuleMessages(relativePath: string, code: string, ruleI
   return result.messages.filter((message) => message.ruleId === ruleId);
 }
 
-export function lintMessageTexts(messages: Array<{ message: string }>): string[] {
+export function lintMessageTexts(messages: Linter.LintMessage[]): string[] {
   return messages.map((message) => message.message);
 }
