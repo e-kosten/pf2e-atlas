@@ -195,7 +195,7 @@ describe("ontology browser screen", () => {
     const onOpenQuery = vi.fn<(query: OntologyNodeQuery, snapshot: OntologyBrowserSnapshot) => void>();
     const app = render(
       <DerivedTagTerminalProvider>
-        <OntologyBrowserScreen model={model} onExit={vi.fn()} onOpenQuery={onOpenQuery} />
+        <OntologyBrowserScreen model={model} onExit={vi.fn()} onOpenQuery={onOpenQuery} mode="inspect-and-open" />
       </DerivedTagTerminalProvider>,
     );
 
@@ -264,7 +264,7 @@ describe("ontology browser screen", () => {
     const onOpenQuery = vi.fn<(query: OntologyNodeQuery, snapshot: OntologyBrowserSnapshot) => void>();
     const app = render(
       <DerivedTagTerminalProvider>
-        <OntologyBrowserScreen model={model} onExit={vi.fn()} onOpenQuery={onOpenQuery} />
+        <OntologyBrowserScreen model={model} onExit={vi.fn()} onOpenQuery={onOpenQuery} mode="inspect-and-open" />
       </DerivedTagTerminalProvider>,
     );
 

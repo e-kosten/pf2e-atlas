@@ -267,7 +267,7 @@ function buildInspectResult(
   }
 
   const query =
-    node.query.kind === "listRecords" && model.id !== "derivedTags" && mode.openListRecordQueriesInResults !== false
+    node.query.kind === "listRecords" && mode.openListRecordQueriesInResults !== false
       ? markQueryToOpenInResults(node.query)
       : node.query;
 
@@ -346,7 +346,6 @@ function shouldOpenImmediateInspectResult(
   return Boolean(
     result &&
       result.query.kind === "listRecords" &&
-      model.id !== "derivedTags" &&
       node?.kind !== "record",
   );
 }

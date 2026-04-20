@@ -45,11 +45,7 @@ export function OntologyBrowserScreen({
     onOpenQuery,
     onConfirm: (context) => {
       const { currentNode, currentNodeHasChildren } = context;
-      if (
-        currentNode?.query?.kind === "listRecords" &&
-        model.id !== "derivedTags" &&
-        (mode === "inspect-and-open" || !currentNodeHasChildren)
-      ) {
+      if (currentNode?.query?.kind === "listRecords" && mode === "inspect-and-open" && !currentNodeHasChildren) {
         onOpenQuery?.(markQueryToOpenInResults(currentNode.query), createOntologyBrowserSnapshot(context));
         return true;
       }
