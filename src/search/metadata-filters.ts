@@ -149,7 +149,7 @@ function normalizeMetricValuePredicate(
     throw new Error(`Unknown ${metricLabel} metric "${String(raw[spec.metricKey])}".`);
   }
 
-  const operatorKind = getMetricValuePredicateOperatorKind(spec, op);
+  const operatorKind = getMetricValuePredicateOperatorKind(spec, op, metricType);
   if (metricType === "number") {
     if (operatorKind !== "numeric" || typeof raw.value !== "number" || !Number.isFinite(raw.value)) {
       throw new Error(`${metricLabel} metric "${metric}" requires a finite numeric value with one of ==, !=, >, >=, <, <=.`);

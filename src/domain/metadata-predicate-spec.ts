@@ -180,14 +180,11 @@ export type MetricValueOperatorKind = "numeric" | "scalar";
 export function getMetricValuePredicateOperatorKind(
   spec: MetadataMetricValuePredicateSpec,
   op: string,
+  metricType: "number" | "text" | "boolean",
 ): MetricValueOperatorKind | null {
-  if (spec.numericOperators.includes(op)) {
-    return "numeric";
+  if (metricType === "number") {
+    return spec.numericOperators.includes(op) ? "numeric" : null;
   }
 
-  if (spec.scalarOperators.includes(op)) {
-    return "scalar";
-  }
-
-  return null;
+  return spec.scalarOperators.includes(op) ? "scalar" : null;
 }
