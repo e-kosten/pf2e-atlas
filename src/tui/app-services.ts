@@ -3,7 +3,7 @@ import { loadPf2eApplicationRuntime, type Pf2eApplicationRuntime } from "../app/
 import { createPf2eApplicationStorageService, type Pf2eApplicationStorageService } from "../app/storage-service.js";
 import { Pf2eDataService } from "../data/service.js";
 import type { AppConfig } from "../domain/index.js";
-import { createPf2eTerminalSearchService, type Pf2eTerminalSearchService } from "./search-service.js";
+import { createPf2eTerminalSearchService, type Pf2eTerminalSearchService } from "./search/service.js";
 import {
   createDerivedTagMigrationWorkbenchSession,
   getDerivedTagMigrationWorkbenchQueueItems,

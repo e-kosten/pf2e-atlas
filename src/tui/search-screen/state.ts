@@ -1,20 +1,20 @@
-import type { SearchCountResult } from "../domain/index.js";
-import type { Pf2eTerminalSearchQuery, Pf2eTerminalSearchSession, Pf2eTerminalSearchSort } from "./search-service.js";
-import { moveSelection } from "./framework/input.js";
-import { reduceDerivedTagTerminalTwoPaneState } from "./two-pane-state.js";
+import type { SearchCountResult } from "../../domain/index.js";
+import type { Pf2eTerminalSearchQuery, Pf2eTerminalSearchSession, Pf2eTerminalSearchSort } from "../search/service.js";
+import { moveSelection } from "../framework/input.js";
+import { reduceDerivedTagTerminalTwoPaneState } from "../two-pane-state.js";
 export type {
   SearchQueryFieldBuilderDraft,
   SearchQueryFieldBuilderOutcome,
   SearchQueryFieldBuilderSession,
   SearchQueryFieldBuilderStep,
   SearchQueryFieldPickerSession,
-} from "./search-query-field-builder-session.js";
+} from "./query-field-builder-session.js";
 export type {
   SearchStructuredDraftAnchor,
   SearchStructuredDraftEntry,
   SearchStructuredDraftEntryKind,
   SearchStructuredDraftSession,
-} from "./search-structured-draft-session.js";
+} from "../search/structured-draft-session.js";
 
 export type SearchScreenLayout = "editor" | "results";
 export type SearchScreenPane = "list" | "detail";

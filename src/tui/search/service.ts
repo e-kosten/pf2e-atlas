@@ -1,27 +1,31 @@
-import { CATEGORY_SUBCATEGORY_MAP, normalizeSearchCategory, normalizeSearchSubcategory } from "../domain/categories.js";
-import { getMetadataFilterSemantics, type MetadataFieldSemantics } from "../domain/metadata-semantics.js";
-import type { MetadataFieldName } from "../domain/metadata-field-registry.js";
-import type { SearchVocabularyResult } from "../data/vocabulary.js";
+import {
+  CATEGORY_SUBCATEGORY_MAP,
+  normalizeSearchCategory,
+  normalizeSearchSubcategory,
+} from "../../domain/categories.js";
+import { getMetadataFilterSemantics, type MetadataFieldSemantics } from "../../domain/metadata-semantics.js";
+import type { MetadataFieldName } from "../../domain/metadata-field-registry.js";
+import type { SearchVocabularyResult } from "../../data/vocabulary.js";
 import type {
   OntologyNodeQuery,
   SearchCategory,
   SearchFilters,
   SearchSubcategory,
   SearchWindowPage,
-} from "../domain/index.js";
+} from "../../domain/index.js";
 import {
   applyDiscoverableQueryFieldSelections,
   buildDiscoverableQueryFieldSelections,
   getQueryFieldOptions,
   getScopedMetadataFields,
-} from "./search/discoverable-fields.js";
-import { buildSearchFilters } from "./search/filter-building.js";
+} from "./discoverable-fields.js";
+import { buildSearchFilters } from "./filter-building.js";
 import {
   createDefaultQuery,
   isActionCostAvailableInScope,
   normalizeSearchQuery,
   splitMetadataTreeIntoParts,
-} from "./search/query-state.js";
+} from "./query-state.js";
 import {
   FACET_FIELD_EXCLUSIONS,
   SEARCH_MODE_OPTIONS,
@@ -33,7 +37,7 @@ import {
   formatSubcategoryLabel,
   getDefaultSort,
   humanizeIdentifier,
-} from "./search/service-options.js";
+} from "./service-options.js";
 import type {
   Pf2eTerminalFacetField,
   Pf2eTerminalSearchQuery,
@@ -41,7 +45,7 @@ import type {
   Pf2eTerminalSearchSession,
   Pf2eTerminalSearchSort,
   SearchServiceDependencies,
-} from "./search/service-types.js";
+} from "./service-types.js";
 
 export type {
   LegacyFacetSelection,
@@ -66,7 +70,7 @@ export type {
   Pf2eTerminalSearchStructuredPart,
   Pf2eTerminalSearchSubcategoryOption,
   SearchServiceDependencies,
-} from "./search/service-types.js";
+} from "./service-types.js";
 export {
   getSearchQueryActionCostPolicy,
   getSearchQueryCategory,
@@ -79,13 +83,13 @@ export {
   setSearchQueryCategory,
   setSearchQueryMetadataTree,
   setSearchQueryPart,
-} from "./search/query-state.js";
+} from "./query-state.js";
 export type {
   Pf2eTerminalMetadataQueryPart,
   Pf2eTerminalQueryPart,
   Pf2eTerminalQueryPartKind,
   Pf2eTerminalQueryPartPolicy,
-} from "./search-query-parts.js";
+} from "./query-parts.js";
 
 function createSessionFromResult(query: Pf2eTerminalSearchQuery, result: SearchWindowPage): Pf2eTerminalSearchSession {
   const sessionQuery =

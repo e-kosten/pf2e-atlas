@@ -1,21 +1,21 @@
-import type { MetadataFilterNode, SearchCategory, SearchSubcategory } from "../domain/index.js";
+import type { MetadataFilterNode, SearchCategory, SearchSubcategory } from "../../domain/index.js";
 import type {
   Pf2eTerminalFilterValuePolicy,
   Pf2eTerminalSearchMode,
   Pf2eTerminalSearchQuery,
-} from "./search-service.js";
+} from "../search/service.js";
 import {
   getSearchQueryActionCostPolicy,
   getSearchQueryLevelRange,
   getSearchQueryMetadataTree,
   getSearchQueryRarityPolicy,
   getSearchQuerySubcategory,
-} from "./search-service.js";
-import type { DerivedTagTerminalCommandOption, DerivedTagTerminalLine } from "./framework/types.js";
-import { countMetadataPredicates, flattenMetadataTree } from "./search/query-core.js";
-import { clampWindowStart } from "./list-utils.js";
-import type { SearchCountState, SearchScreenState } from "./search-screen-state.js";
-import { formatCount, formatResultPosition, formatSort, getSessionBufferRange } from "./search-screen-state.js";
+} from "../search/service.js";
+import type { DerivedTagTerminalCommandOption, DerivedTagTerminalLine } from "../framework/types.js";
+import { countMetadataPredicates, flattenMetadataTree } from "../search/query-core.js";
+import { clampWindowStart } from "../list-utils.js";
+import type { SearchCountState, SearchScreenState } from "./state.js";
+import { formatCount, formatResultPosition, formatSort, getSessionBufferRange } from "./state.js";
 
 export type SearchWorkspaceAction =
   | "mode"

@@ -1,4 +1,4 @@
-import type { Pf2eTerminalSearchQuery } from "./search-service.js";
+import type { Pf2eTerminalSearchQuery } from "./service.js";
 
 export type SearchStructuredDraftAnchor =
   | { kind: "addQueryPart" }

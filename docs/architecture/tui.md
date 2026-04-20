@@ -105,7 +105,7 @@ The service context is intentionally narrow: screens ask for `services.user.sear
 
 ### Search Service Layer
 
-`src/tui/search-service.ts` is the TUI-facing facade over search behavior. It is not the ranking engine itself. Instead, it:
+`src/tui/search/service.ts` is the TUI-facing facade over search behavior. It is not the ranking engine itself. Instead, it:
 
 - normalizes query state into `SearchFilters`
 - exposes category, subcategory, sort, and facet options for the UI
@@ -140,20 +140,20 @@ flowchart TD
 
   subgraph Screens["Screens"]
     App["`pf2e-app.tsx`"]
-    SearchScreen["`search-screen.tsx`"]
+    SearchScreen["`search-screen/screen.tsx`"]
     OntologyScreen["`ontology-explorer/screen.tsx`"]
   end
 
   subgraph Controllers["Controllers / Workflows"]
-    SearchController["`search-screen-controller.ts`"]
-    SearchWorkflow["`search-screen-session-workflow.ts`"]
-    PickerWorkflow["`search-screen-query-picker-workflow.ts`"]
+    SearchController["`search-screen/controller.ts`"]
+    SearchWorkflow["`search-screen/session-workflow.ts`"]
+    PickerWorkflow["`search-screen/query-picker-workflow.ts`"]
     OntologyController["`ontology-explorer/controller.ts`"]
   end
 
   subgraph Services["TUI Services"]
     AppServices["`app-services.ts`"]
-    SearchService["`search-service.ts`"]
+    SearchService["`search/service.ts`"]
     OntologyService["`src/app/ontology-service.ts`"]
   end
 
@@ -201,13 +201,13 @@ That split keeps most feature files from mixing rendering code, terminal event i
 
 The search flow shows the intended layering most clearly.
 
-`src/tui/search-screen.tsx` is thin. It decides whether to render:
+`src/tui/search-screen/screen.tsx` is thin. It decides whether to render:
 
 - the normal search screen
 - an ontology-backed picker session
 - a structured editor session
 
-`src/tui/search-screen-controller.ts` is the orchestration layer. It:
+`src/tui/search-screen/controller.ts` is the orchestration layer. It:
 
 - pulls `user.search` from the app-service context
 - creates the reducer-backed screen state
@@ -217,9 +217,9 @@ The search flow shows the intended layering most clearly.
 
 The async work is pushed further down:
 
-- `search-screen-session-workflow.ts` manages live counts, result-window execution, prefetch, sort changes, and session disposal
-- `search-screen-query-picker-workflow.ts` hosts ontology-backed field picking for structured search editing
-- `search-screen-interactions.ts` maps state into terminal actions and help/command models
+- `search-screen/session-workflow.ts` manages live counts, result-window execution, prefetch, sort changes, and session disposal
+- `search-screen/query-picker-workflow.ts` hosts ontology-backed field picking for structured search editing
+- `search-screen/interactions.ts` maps state into terminal actions and help/command models
 
 This is the pattern to preserve when the TUI grows: keep rendering, workflow state, and backend calls separate enough that each layer can change without forcing a full rewrite of the others.
 
@@ -227,7 +227,7 @@ This is the pattern to preserve when the TUI grows: keep rendering, workflow sta
 
 - Treat `src/tui/app-services.ts` as the TUI composition root. Do not let screens assemble runtime dependencies ad hoc.
 - Keep Ink and terminal-framework details in `src/tui/framework/` and shared interaction helpers.
-- Route search behavior through `src/tui/search-service.ts` instead of letting screens call backend search APIs directly.
+- Route search behavior through `src/tui/search/service.ts` instead of letting screens call backend search APIs directly.
 - Treat ontology models from `src/app/ontology-service.ts` as shared readonly inputs; navigation state belongs in the TUI.
 - Prefer controllers and workflows for stateful interaction logic; keep screen components mostly declarative.
 - When a new TUI abstraction becomes the mandatory path, add or extend lint rules so the boundary is enforced rather than implied.

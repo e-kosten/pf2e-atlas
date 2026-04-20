@@ -1,12 +1,12 @@
 import React from "react";
 
-import type { MetadataFilterNode, MetadataPredicate } from "../domain/index.js";
-import type { Pf2eTerminalAppServices } from "./app-services.js";
-import type { SearchTerminalPromptAdapters } from "./interaction-context-adapters.js";
-import type { SearchScreenAction, SearchScreenState } from "./search-screen-state.js";
-import type { SearchQueryFieldBuilderSession } from "./search-query-field-builder-session.js";
-import type { SearchStructuredDraftSession } from "./search-structured-draft-session.js";
-import { clampStructuredDraftSelection } from "./search-structured-draft-session.js";
+import type { MetadataFilterNode, MetadataPredicate } from "../../domain/index.js";
+import type { Pf2eTerminalAppServices } from "../app-services.js";
+import type { SearchTerminalPromptAdapters } from "../interaction-context-adapters.js";
+import type { SearchScreenAction, SearchScreenState } from "./state.js";
+import type { SearchQueryFieldBuilderSession } from "./query-field-builder-session.js";
+import type { SearchStructuredDraftSession } from "../search/structured-draft-session.js";
+import { clampStructuredDraftSelection } from "../search/structured-draft-session.js";
 import {
   appendMetadataNodeAtPath,
   countMetadataPredicates,
@@ -14,13 +14,13 @@ import {
   isMetadataPredicate,
   normalizeMetadataNode,
   updateMetadataNodeAtPath,
-} from "./search/query-core.js";
+} from "../search/query-core.js";
 import type {
   Pf2eTerminalFilterValuePolicy,
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalQueryFieldSelectionMap,
   Pf2eTerminalSearchQuery,
-} from "./search-service.js";
+} from "../search/service.js";
 import {
   getSearchQueryActionCostPolicy,
   getSearchQueryCategory,
@@ -32,9 +32,9 @@ import {
   setSearchQueryCategory,
   setSearchQueryMetadataTree,
   setSearchQueryPart,
-} from "./search-service.js";
-import type { SearchScreenOrigin } from "./search-workflow-types.js";
-import type { DerivedTagTerminalApp } from "./framework/types.js";
+} from "../search/service.js";
+import type { SearchScreenOrigin } from "./workflow-types.js";
+import type { DerivedTagTerminalApp } from "../framework/types.js";
 import {
   buildEditorCommandPaletteEntries,
   buildResultCommandPaletteEntries,
@@ -48,8 +48,8 @@ import {
   isQueryNodeAction,
   parseLevelRangeInput,
   type SearchWorkspaceAction,
-} from "./search-screen-model.js";
-import type { SearchWorkspaceEntry } from "./search-screen-workspace.js";
+} from "./model.js";
+import type { SearchWorkspaceEntry } from "./workspace.js";
 
 function createEmptyStringPolicy(): Pf2eTerminalFilterValuePolicy<string> {
   return { any: [], all: [], exclude: [] };
@@ -243,7 +243,7 @@ export function useSearchWorkspaceActions({
   workspaceEntries: SearchWorkspaceEntry[];
   chooseResultSort: () => Promise<void>;
 }): {
-  handleIntent: (intent: import("./search-screen-model.js").SearchScreenIntent) => void;
+  handleIntent: (intent: import("./model.js").SearchScreenIntent) => void;
   structuredEditorSession: SearchQueryFieldBuilderSession | null;
 } {
   const [structuredDraftState, setStructuredDraftState] = React.useState<SearchStructuredDraftState | null>(null);
@@ -1628,7 +1628,7 @@ export function useSearchWorkspaceActions({
   }, [chooseResultSort, dispatch, jumpToResultPosition, origin, prompts, state]);
 
   const handleIntent = React.useCallback(
-    (intent: import("./search-screen-model.js").SearchScreenIntent) => {
+    (intent: import("./model.js").SearchScreenIntent) => {
       switch (intent.type) {
         case "show_help":
           showSearchHelp();

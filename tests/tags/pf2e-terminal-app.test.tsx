@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AppConfig, NormalizedRecord } from "../../src/domain/index.js";
 import { Pf2eTerminalApp, Pf2eTerminalBootstrap } from "../../src/tui/pf2e-app.js";
 import type { Pf2eTerminalAppServices } from "../../src/tui/app-services.js";
-import { createPf2eTerminalSearchService } from "../../src/tui/search-service.js";
+import { createPf2eTerminalSearchService } from "../../src/tui/search/service.js";
 import { DerivedTagTerminalProvider } from "../../src/tui/terminal-ui.js";
 
 function flushInk(): Promise<void> {

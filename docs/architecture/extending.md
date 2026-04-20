@@ -99,7 +99,7 @@ Do not import `src/search/sql.ts`, `src/data/record-queries.ts`, or `src/data/sc
 A new TUI workflow or screen usually means:
 
 1. expose the needed service through `src/tui/app-services.ts`
-2. if the behavior is TUI-specific but reusable across TUI files, add or extend a TUI-facing facade such as `src/tui/search-service.ts`
+2. if the behavior is TUI-specific but reusable across TUI files, add or extend a TUI-facing facade such as `src/tui/search/service.ts`
 3. keep low-level prompt, input, and navigation behavior inside existing routers, controllers, or shared screen helpers
 
 Do not:

@@ -16,7 +16,7 @@ import type {
   SearchSubcategory,
   SearchWindowPage,
 } from "../../domain/index.js";
-import type { Pf2eTerminalQueryPart } from "../search-query-parts.js";
+import type { Pf2eTerminalQueryPart } from "./query-parts.js";
 
 export type Pf2eTerminalSearchCategoryOption = {
   value: SearchCategory | null;

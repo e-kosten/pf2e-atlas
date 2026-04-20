@@ -51,7 +51,7 @@ flowchart TD
     subgraph TerminalAndEditorial["Terminal and editorial surfaces"]
       tuiRoot["src/tui/app-services.ts<br/>terminal composition"] --> ontology["src/app/ontology-service.ts"]
       tuiRoot --> storage["src/app/storage-service.ts"]
-      tuiRoot --> tuiSearch["src/tui/search-service.ts"]
+      tuiRoot --> tuiSearch["src/tui/search/service.ts"]
       tuiRoot --> tags["src/tags/<br/>migration, review, assignment tooling"]
       ontology --> dataService
       tuiSearch --> dataService
@@ -83,7 +83,7 @@ The server layer should own wire concerns such as schemas, descriptions, and res
 The terminal application composes on top of the same runtime through `src/tui/app-services.ts`. It adds:
 
 - ontology browsing via `src/app/ontology-service.ts`
-- search workflow orchestration via `src/tui/search-service.ts` and `src/tui/search/`
+- search workflow orchestration via `src/tui/search/service.ts` and `src/tui/search/`
 - terminal framework and navigation state in `src/tui/framework/` and nearby screens
 
 The TUI is a consumer of the shared runtime, not a second backend.

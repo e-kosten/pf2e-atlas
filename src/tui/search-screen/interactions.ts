@@ -1,24 +1,24 @@
-import type { TerminalInteractionAction, TerminalInteractionCommand } from "./interaction-bindings.js";
-import { buildTerminalInteractionHelpLines, formatTerminalInteractionFooter } from "./interaction-bindings.js";
-import type { DerivedTagTerminalLine } from "./framework/types.js";
+import type { TerminalInteractionAction, TerminalInteractionCommand } from "../interaction-bindings.js";
+import { buildTerminalInteractionHelpLines, formatTerminalInteractionFooter } from "../interaction-bindings.js";
+import type { DerivedTagTerminalLine } from "../framework/types.js";
 import {
   createTerminalDetailInteractionContext,
   createTerminalListInteractionContext,
   useTerminalInteractionContextRouter,
-} from "./interaction-context-router.js";
-import type { SearchScreenState } from "./search-screen-state.js";
-import type { SearchScreenOrigin } from "./search-workflow-types.js";
-import { formatResultPosition, formatSort } from "./search-screen-state.js";
-import { getSearchQuerySubcategory } from "./search-service.js";
-import type { SearchWorkspaceEntry } from "./search-screen-workspace.js";
+} from "../interaction-context-router.js";
+import type { SearchScreenState } from "./state.js";
+import type { SearchScreenOrigin } from "./workflow-types.js";
+import { formatResultPosition, formatSort } from "./state.js";
+import { getSearchQuerySubcategory } from "../search/service.js";
+import type { SearchWorkspaceEntry } from "./workspace.js";
 import {
   buildEditorCommandPaletteEntries,
   formatCountSummary,
   formatQueryStatus,
   formatMode,
   formatSearchScope,
-} from "./search-screen-workspace.js";
-import { buildResultCommandPaletteEntries } from "./search-screen-results.js";
+} from "./workspace.js";
+import { buildResultCommandPaletteEntries } from "./results.js";
 
 export type SearchInteractionContext = "editor" | "result-list" | "result-detail";
 
@@ -250,7 +250,7 @@ export function buildSearchHelpLines(
 
 export function buildSearchSubtitle(
   state: SearchScreenState,
-  countState: import("./search-screen-state.js").SearchCountState,
+  countState: import("./state.js").SearchCountState,
 ): string {
   const query = `${formatMode(state.query.mode)} | ${formatSearchScope(
     state.query.filters.category,

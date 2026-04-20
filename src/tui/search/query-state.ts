@@ -18,7 +18,7 @@ import {
   rootMetadataQueryPartsToFilterNode,
   type Pf2eTerminalMetadataQueryPart,
   type Pf2eTerminalQueryPart,
-} from "../search-query-parts.js";
+} from "./query-parts.js";
 import {
   cloneNumberPolicy,
   cloneStringPolicy,

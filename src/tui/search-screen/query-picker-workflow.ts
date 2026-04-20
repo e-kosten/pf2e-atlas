@@ -1,20 +1,20 @@
 import React from "react";
 
-import { buildSearchFacetPickerModel as buildSearchQueryFieldSelectionPickerModel } from "./ontology-explorer/facet-picker-model.js";
+import { buildSearchFacetPickerModel as buildSearchQueryFieldSelectionPickerModel } from "../ontology-explorer/facet-picker-model.js";
 import {
   buildHostedOntologyPickerInitialSnapshot,
   clearHostedOntologyPickerContract,
   registerHostedOntologyPickerContract,
-} from "./ontology-explorer/picker-hosting.js";
-import type { OntologyPickerSelectionMap } from "./ontology-explorer/picker-screen.js";
+} from "../ontology-explorer/picker-hosting.js";
+import type { OntologyPickerSelectionMap } from "../ontology-explorer/picker-screen.js";
 import {
   getSearchQuerySubcategory,
   type Pf2eTerminalQueryFieldOption,
   type Pf2eTerminalQueryFieldSelectionMap,
   type Pf2eTerminalSearchQuery,
-} from "./search-service.js";
-import type { SearchQueryFieldPickerSession } from "./search-screen-model.js";
-import type { Pf2eTerminalAppServices } from "./app-services.js";
+} from "../search/service.js";
+import type { SearchQueryFieldPickerSession } from "./model.js";
+import type { Pf2eTerminalAppServices } from "../app-services.js";
 
 export function useSearchQueryFieldPickerWorkflow({
   query,

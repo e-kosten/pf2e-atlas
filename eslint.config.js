@@ -248,7 +248,7 @@ export default defineConfig(
     },
   },
   {
-    files: ["src/tui/search-screen*.{ts,tsx}"],
+    files: ["src/tui/search-screen/**/*.{ts,tsx}"],
     rules: {
       "no-restricted-syntax": [
         "error",
@@ -590,7 +590,7 @@ export default defineConfig(
     },
   },
   {
-    files: ["src/tui/search-screen-controller.ts"],
+    files: ["src/tui/search-screen/controller.ts"],
     rules: {
       "no-restricted-syntax": [
         "error",
@@ -600,7 +600,7 @@ export default defineConfig(
     },
   },
   {
-    files: ["src/tui/search-screen-session-workflow.ts", "src/tui/search-screen-workspace-actions.ts"],
+    files: ["src/tui/search-screen/session-workflow.ts", "src/tui/search-screen/workspace-actions.ts"],
     rules: {
       "no-restricted-syntax": [
         "error",
@@ -764,18 +764,18 @@ export default defineConfig(
     },
   },
   {
-    files: ["src/tui/search-screen-controller.ts"],
+    files: ["src/tui/search-screen/controller.ts"],
     rules: {
       "no-restricted-imports": mergeRestrictedImports(NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS, {
         paths: [
           {
-            name: "./ontology-explorer/facet-picker-model.js",
+            name: "../ontology-explorer/facet-picker-model.js",
             importNames: ["buildSearchFacetPickerModel"],
             message:
               "Search screen controllers must use shared ontology-to-search workflow modules instead of constructing facet-picker bridge models directly.",
           },
           {
-            name: "./terminal-ui.js",
+            name: "../terminal-ui.js",
             importNames: [
               "createDerivedTagTerminalListNavigationState",
               "resolveDerivedTagTerminalListNavigationAction",
@@ -785,13 +785,13 @@ export default defineConfig(
               "Search screen controllers must use the shared search interaction router instead of owning raw terminal event decoding.",
           },
           {
-            name: "./interaction-bindings.js",
+            name: "../interaction-bindings.js",
             importNames: ["TERMINAL_DIALOG_RETURN_FOOTER", "resolveTerminalInteractionAction"],
             message:
               "Search screen controllers must use shared search interaction and help-dialog helpers instead of resolving raw interaction actions or composing return footers directly.",
           },
           {
-            name: "./search-screen-model.js",
+            name: "./model.js",
             importNames: [
               "SearchFacetPickerSession",
               "applyFacetPickerSelectionsToRequest",
@@ -801,7 +801,7 @@ export default defineConfig(
               "Search screen controllers must use shared ontology-to-search workflow modules instead of owning facet-picker session bridging directly.",
           },
           {
-            name: "./search-screen-model.js",
+            name: "./model.js",
             importNames: [
               "LIVE_COUNT_DEBOUNCE_MS",
               "RESULT_WINDOW_FETCH_DEBOUNCE_MS",
@@ -818,12 +818,12 @@ export default defineConfig(
     },
   },
   {
-    files: ["src/tui/search-screen-interactions.ts"],
+    files: ["src/tui/search-screen/interactions.ts"],
     rules: {
       "no-restricted-imports": mergeRestrictedImports(NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS, {
         paths: [
           {
-            name: "./terminal-ui.js",
+            name: "../terminal-ui.js",
             importNames: [
               "createDerivedTagTerminalListNavigationState",
               "resolveDerivedTagTerminalListNavigationAction",
@@ -833,7 +833,7 @@ export default defineConfig(
               "Search interaction routers must use the shared interaction-context router instead of raw list-navigation or input primitives.",
           },
           {
-            name: "./interaction-bindings.js",
+            name: "../interaction-bindings.js",
             importNames: ["resolveTerminalInteractionAction"],
             message:
               "Search interaction routers must use the shared interaction-context router instead of resolving raw interaction actions directly.",
@@ -843,11 +843,11 @@ export default defineConfig(
     },
   },
   {
-    files: ["src/tui/search-screen*.ts", "src/tui/search-screen*.tsx"],
+    files: ["src/tui/search-screen/**/*.{ts,tsx}"],
     ignores: [
-      "src/tui/search-screen-controller.ts",
-      "src/tui/search-screen-session-workflow.ts",
-      "src/tui/search-screen-workspace-actions.ts",
+      "src/tui/search-screen/controller.ts",
+      "src/tui/search-screen/session-workflow.ts",
+      "src/tui/search-screen/workspace-actions.ts",
     ],
     rules: {
       "no-restricted-syntax": ["error", ...SEARCH_SCREEN_TERMINOLOGY_RESTRICTIONS],

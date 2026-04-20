@@ -1,8 +1,8 @@
 import React from "react";
 
-import type { OntologyNodeQuery } from "../domain/index.js";
-import { usePf2eTerminalAppServices } from "./app-service-context.js";
-import { showTerminalReturnDialog, useTerminalInteractionContextAdapters } from "./interaction-context-adapters.js";
+import type { OntologyNodeQuery } from "../../domain/index.js";
+import { usePf2eTerminalAppServices } from "../app-service-context.js";
+import { showTerminalReturnDialog, useTerminalInteractionContextAdapters } from "../interaction-context-adapters.js";
 import {
   SEARCH_LEFT_WIDTH,
   buildQuerySummaryLines,
@@ -21,30 +21,30 @@ import {
   formatResultPosition,
   formatSort,
   searchScreenReducer,
-} from "./search-screen-model.js";
+} from "./model.js";
 import {
   buildSearchFooterText,
   buildSearchHelpLines,
   useSearchScreenInteractionRouter,
-} from "./search-screen-interactions.js";
-import { type SearchStructuredEditorSession } from "./search-query-field-builder-session.js";
+} from "./interactions.js";
+import { type SearchStructuredEditorSession } from "./query-field-builder-session.js";
 import {
   getSearchResultWindowMetrics,
   getSessionBufferRange,
   type SearchQueryFieldPickerSession,
-} from "./search-screen-state.js";
-import { useSearchQueryFieldPickerWorkflow } from "./search-screen-query-picker-workflow.js";
-import { useSearchSessionWorkflow } from "./search-screen-session-workflow.js";
-import { useSearchWorkspaceActions } from "./search-screen-workspace-actions.js";
-import type { SearchScreenOrigin } from "./search-workflow-types.js";
+} from "./state.js";
+import { useSearchQueryFieldPickerWorkflow } from "./query-picker-workflow.js";
+import { useSearchSessionWorkflow } from "./session-workflow.js";
+import { useSearchWorkspaceActions } from "./workspace-actions.js";
+import type { SearchScreenOrigin } from "./workflow-types.js";
 import {
   getRenderedTerminalLineCount,
   getTerminalPaneBodyHeight,
   getTerminalTwoPaneDetailWidth,
   sliceRenderedTerminalLines,
-} from "./framework/rendering.js";
-import { useDerivedTagTerminalApp, useDerivedTagTerminalSize } from "./framework/context.js";
-import type { DerivedTagTerminalTwoPaneScreenProps } from "./framework/types.js";
+} from "../framework/rendering.js";
+import { useDerivedTagTerminalApp, useDerivedTagTerminalSize } from "../framework/context.js";
+import type { DerivedTagTerminalTwoPaneScreenProps } from "../framework/types.js";
 
 export type SearchScreenControllerResult = {
   structuredEditorSession: SearchStructuredEditorSession | null;
@@ -89,8 +89,8 @@ export function useSearchScreenController({
   const applyQueryUpdate = React.useCallback(
     (
       update: (
-        query: import("./search-service.js").Pf2eTerminalSearchQuery,
-      ) => import("./search-service.js").Pf2eTerminalSearchQuery,
+        query: import("../search/service.js").Pf2eTerminalSearchQuery,
+      ) => import("../search/service.js").Pf2eTerminalSearchQuery,
     ) => {
       const nextQuery = user.search.normalizeQuery(update(queryRef.current));
       queryRef.current = nextQuery;

@@ -5,7 +5,7 @@ import type {
   SearchCategory,
   SearchSubcategory,
 } from "../../domain/index.js";
-import type { Pf2eTerminalFacetFieldOption } from "../search-service.js";
+import type { Pf2eTerminalFacetFieldOption } from "../search/service.js";
 import { cloneOntologyNode, getOntologyNodeChildren, titleCaseLabel } from "../../app/ontology/node-helpers.js";
 
 function isSelectableValueNode(node: OntologyNode, field: string): boolean {

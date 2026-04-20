@@ -18,7 +18,7 @@ import {
 import { AreaMenuScreen } from "./area-menu-screen.js";
 import { OntologyBrowserScreen } from "./ontology-explorer/screen.js";
 import { OntologyDomainPickerScreen } from "./ontology-explorer/domain-picker-screen.js";
-import { SearchScreen } from "./search-screen.js";
+import { SearchScreen } from "./search-screen/screen.js";
 import { TerminalBusyScreen, TerminalMessageScreen } from "./shared-screens.js";
 import { useDerivedTagTerminalApp } from "./framework/context.js";
 import { runDerivedTagTerminalApp } from "./framework/provider.js";

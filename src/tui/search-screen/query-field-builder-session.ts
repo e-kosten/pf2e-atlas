@@ -1,17 +1,17 @@
-import type { MetadataFilterNode, OntologyDomainModel } from "../domain/index.js";
-import type { SearchWorkspaceEntry } from "./search-screen-workspace.js";
-import { flattenMetadataTree, isMetadataPredicate } from "./search/query-core.js";
+import type { MetadataFilterNode, OntologyDomainModel } from "../../domain/index.js";
+import type { SearchWorkspaceEntry } from "./workspace.js";
+import { flattenMetadataTree, isMetadataPredicate } from "../search/query-core.js";
 import {
   buildStructuredQuerySummaryLines,
   buildStructuredWorkspaceEntryFocusLines,
   formatSearchWorkspaceEntryLine,
-} from "./search-screen-workspace.js";
+} from "./workspace.js";
 import type {
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalQueryFieldSelectionMap,
   Pf2eTerminalSearchQuery,
-} from "./search-service.js";
-import type { DerivedTagTerminalLine } from "./framework/types.js";
+} from "../search/service.js";
+import type { DerivedTagTerminalLine } from "../framework/types.js";
 
 export type SearchQueryFieldPickerSession = {
   model: OntologyDomainModel;

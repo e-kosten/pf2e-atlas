@@ -1,19 +1,19 @@
 import React from "react";
 
-import type { OntologyNodeQuery } from "../domain/index.js";
-import { OntologyPickerScreen } from "./ontology-explorer/picker-screen.js";
+import type { OntologyNodeQuery } from "../../domain/index.js";
+import { OntologyPickerScreen } from "../ontology-explorer/picker-screen.js";
 import {
   buildSearchStructuredEditorDetailLines,
   buildSearchStructuredEditorMenuItems,
   buildSearchStructuredEditorStatusLine,
-} from "./search-query-field-builder-session.js";
-import { useSearchScreenController } from "./search-screen-controller.js";
-import type { SearchScreenOrigin } from "./search-workflow-types.js";
-import { TerminalTwoPaneScreen } from "./framework/rendering.js";
-import { TerminalMenuScreen } from "./shared-screens.js";
-import { formatTerminalInteractionFooter } from "./interaction-bindings.js";
+} from "./query-field-builder-session.js";
+import { useSearchScreenController } from "./controller.js";
+import type { SearchScreenOrigin } from "./workflow-types.js";
+import { TerminalTwoPaneScreen } from "../framework/rendering.js";
+import { TerminalMenuScreen } from "../shared-screens.js";
+import { formatTerminalInteractionFooter } from "../interaction-bindings.js";
 
-export { parseJumpToResultInput } from "./search-screen-model.js";
+export { parseJumpToResultInput } from "./model.js";
 
 export function SearchScreen({
   initialQuery,

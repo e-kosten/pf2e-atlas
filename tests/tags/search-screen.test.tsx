@@ -10,10 +10,10 @@ import type {
   SearchCountResult,
   SearchFilters,
 } from "../../src/domain/index.js";
-import { createPf2eTerminalSearchService } from "../../src/tui/search-service.js";
+import { createPf2eTerminalSearchService } from "../../src/tui/search/service.js";
 import { Pf2eTerminalAppServicesProvider } from "../../src/tui/app-service-context.js";
 import type { Pf2eTerminalAppServices } from "../../src/tui/app-services.js";
-import { SearchScreen, parseJumpToResultInput } from "../../src/tui/search-screen.js";
+import { SearchScreen, parseJumpToResultInput } from "../../src/tui/search-screen/screen.js";
 import { DerivedTagTerminalProvider } from "../../src/tui/terminal-ui.js";
 
 type SearchServiceDependencies = Parameters<typeof createPf2eTerminalSearchService>[0];

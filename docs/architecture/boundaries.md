@@ -142,7 +142,7 @@ The terminal app has two layers of protection.
 First, TUI feature code should consume explicit facades such as:
 
 - `src/tui/app-services.ts`
-- `src/tui/search-service.ts`
+- `src/tui/search/service.ts`
 - `src/app/ontology-service.ts`
 - tag workbench services routed through `app-services`
 

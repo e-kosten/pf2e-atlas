@@ -385,21 +385,21 @@ describe("eslint local architecture rules", () => {
 
   it("blocks search workflows from calling terminal prompt APIs directly and allows shared prompt adapters", async () => {
     await expectRuleMessage(
-      "src/tui/search-screen-workspace-actions.ts",
+      "src/tui/search-screen/workspace-actions.ts",
       'async function run() { await terminal.promptTextInput({ label: "Query" }); }\nexport { run };\n',
       "Search workflows must use the shared prompt adapter boundary instead of calling terminal prompt APIs directly.",
       "no-restricted-syntax",
     );
 
     await expectRuleMessage(
-      "src/tui/search-screen-session-workflow.ts",
+      "src/tui/search-screen/session-workflow.ts",
       'async function run() { await terminal.showDialog({ title: "Help" }); }\nexport { run };\n',
       "Search workflows must use the shared prompt adapter boundary instead of calling terminal.showDialog directly.",
       "no-restricted-syntax",
     );
 
     await expectNoRuleMessages(
-      "src/tui/search-screen-workspace-actions.ts",
+      "src/tui/search-screen/workspace-actions.ts",
       'async function run() { await prompts.promptTextInput({ label: "Query" }); }\nexport { run };\n',
       "no-restricted-syntax",
     );
@@ -408,7 +408,7 @@ describe("eslint local architecture rules", () => {
   it("blocks direct Ink imports in TUI feature modules that also have tactical restrictions", async () => {
     const messages = lintMessageTexts(
       await lintRuleMessages(
-        "src/tui/search-screen-controller.ts",
+        "src/tui/search-screen/controller.ts",
         'import { useInput } from "ink";\nexport const value = useInput;\n',
       ),
     );
@@ -425,8 +425,8 @@ describe("eslint local architecture rules", () => {
   it("retains existing tactical search-screen controller restrictions alongside the package-level boundaries", async () => {
     const messages = lintMessageTexts(
       await lintRuleMessages(
-        "src/tui/search-screen-controller.ts",
-        'import { buildSearchFacetPickerModel } from "./ontology-explorer/facet-picker-model.js";\nexport const value = buildSearchFacetPickerModel;\n',
+        "src/tui/search-screen/controller.ts",
+        'import { buildSearchFacetPickerModel } from "../ontology-explorer/facet-picker-model.js";\nexport const value = buildSearchFacetPickerModel;\n',
       ),
     );
 

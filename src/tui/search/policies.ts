@@ -7,7 +7,7 @@ import type {
   Pf2eTerminalQueryField,
   Pf2eTerminalQueryFieldSelectionMap,
 } from "./service-types.js";
-import type { Pf2eTerminalQueryPartPolicy } from "../search-query-parts.js";
+import type { Pf2eTerminalQueryPartPolicy } from "./query-parts.js";
 
 export function createEmptyFilterPolicy<T extends number | string>(): Pf2eTerminalFilterValuePolicy<T> {
   return {
