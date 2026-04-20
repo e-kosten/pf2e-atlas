@@ -4,10 +4,10 @@ import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
 import { createEmbeddingProvider } from "../../embeddings.js";
-import { formatInteger } from "../../shared/format.js";
-import { fileExists } from "../../shared/fs.js";
 import type { EmbeddingConfig } from "../../domain/config-types.js";
+import { pathExists } from "../../shared/fs.js";
 import type { StageTiming } from "../index-types.js";
+import { formatInteger } from "../format.js";
 import { buildIndex, buildReusableEmbeddingLookup, computeSourceSignature, removeIndexFiles } from "../indexer.js";
 import {
   buildMissingIndexError,
@@ -44,7 +44,7 @@ async function moveIndexFiles(sourcePath: string, targetPath: string): Promise<v
 
   for (const suffix of ["-wal", "-shm"]) {
     const sourceSidecar = `${sourcePath}${suffix}`;
-    if (await fileExists(sourceSidecar)) {
+    if (await pathExists(sourceSidecar)) {
       await rename(sourceSidecar, `${targetPath}${suffix}`);
     }
   }
@@ -62,7 +62,7 @@ export async function loadPf2eDataRuntime(
   const embeddingProvider = embeddingRuntime.provider;
   const sourceSignature = await computeSourceSignature(rootPath, manifestPath);
 
-  if (!(await fileExists(indexPath))) {
+  if (!(await pathExists(indexPath))) {
     throw buildMissingIndexError(indexPath);
   }
 
@@ -123,7 +123,7 @@ export async function rebuildPf2eDataRuntime(
   let previousDb: DatabaseSync | null = null;
   let reusableEmbeddingLookup = null;
   if (options.reuseEmbeddings) {
-    if (await fileExists(indexPath)) {
+    if (await pathExists(indexPath)) {
       try {
         previousDb = openDatabase(indexPath, {
           vectorExtensionLoader: options.vectorExtensionLoader,

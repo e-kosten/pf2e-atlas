@@ -1,4 +1,5 @@
-import { firstString, getNested, normalizeText, stripHtml, toStringArray, uniqueSorted } from "../shared/utils.js";
+import { normalizeText, uniqueSorted } from "../shared/utils.js";
+import { firstString, getNested, stripHtml, toStringArray } from "./raw-utils.js";
 
 const UUID_REFERENCE_PATTERN = /@UUID\[([^\]]+)\](?:\{([^}]+)\})?/g;
 

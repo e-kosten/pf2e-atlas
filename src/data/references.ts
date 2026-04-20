@@ -1,8 +1,8 @@
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 
-import { fileExists } from "../shared/fs.js";
-import { firstString, getNested, normalizeText, stripHtml, uniqueSorted } from "../shared/utils.js";
+import { pathExists } from "../shared/fs.js";
+import { normalizeText, uniqueSorted } from "../shared/utils.js";
 import type {
   BuildSourceEntry,
   ExtractedReference,
@@ -12,6 +12,7 @@ import type {
   RecordLegacyLinkRow,
   ResolvedBuildReference,
 } from "./index-types.js";
+import { firstString, getNested, stripHtml } from "./raw-utils.js";
 import { getDescriptionMarkup, getPublicationRemaster } from "./record-normalization.js";
 
 const UUID_REFERENCE_PATTERN = /@UUID\[([^\]]+)\](?:\{([^}]+)\})?/g;
@@ -187,7 +188,7 @@ async function loadFolderFamilyMap(pack: Pick<PackBuildInfo, "name" | "resolvedP
   }
 
   const folderPath = path.join(pack.resolvedPath, "_folders.json");
-  if (!(await fileExists(folderPath))) {
+  if (!(await pathExists(folderPath))) {
     return new Map();
   }
 

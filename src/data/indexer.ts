@@ -6,8 +6,7 @@ import { DatabaseSync } from "node:sqlite";
 import { promisify } from "node:util";
 
 import { EmbeddingProvider } from "../embeddings.js";
-import { formatInteger } from "../shared/format.js";
-import { fileExists } from "../shared/fs.js";
+import { pathExists } from "../shared/fs.js";
 import {
   deriveRecordTags,
   getVariantInheritableTags,
@@ -16,6 +15,7 @@ import {
 } from "../tags/index.js";
 import type { PackInfo, PackManifestEntry } from "../domain/record-types.js";
 import { normalizeText, uniqueSorted } from "../shared/utils.js";
+import { formatInteger } from "./format.js";
 import {
   ActorIndexData,
   BuildIndexResult,
@@ -164,7 +164,7 @@ function shouldLogProgressUpdate(
 }
 
 async function isGitCheckout(rootPath: string): Promise<boolean> {
-  return fileExists(path.join(rootPath, ".git"));
+  return pathExists(path.join(rootPath, ".git"));
 }
 
 async function computeFileSignature(rootPath: string, filePaths: string[]): Promise<string> {

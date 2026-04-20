@@ -17,7 +17,7 @@ import {
   getRecordDescriptionText,
   getRecordTraits,
 } from "./nested-item-utils.js";
-import { firstString, getNested, normalizeText, stripHtml, toStringArray, uniqueSorted } from "../shared/utils.js";
+import { normalizeText, uniqueSorted } from "../shared/utils.js";
 import type {
   ActorIndexData,
   ItemIndexData,
@@ -25,6 +25,7 @@ import type {
   PackBuildInfo,
   SpellIndexData,
 } from "./index-types.js";
+import { firstString, getNested, stripHtml, toStringArray } from "./raw-utils.js";
 
 const MAX_ACTOR_SEMANTIC_ITEM_CHUNKS = 40;
 const HAZARD_DISABLE_PROFICIENCY_RANKS: Record<string, number> = {

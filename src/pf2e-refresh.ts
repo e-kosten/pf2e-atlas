@@ -1,8 +1,8 @@
-import { access } from "node:fs/promises";
-import { constants } from "node:fs";
 import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+
+import { pathIsReadable } from "./shared/fs.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -11,18 +11,9 @@ export interface RefreshResult {
   summary: string;
 }
 
-async function exists(targetPath: string): Promise<boolean> {
-  try {
-    await access(targetPath, constants.R_OK);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 export async function refreshPf2eCheckout(rootPath: string): Promise<RefreshResult> {
   const gitDir = path.join(rootPath, ".git");
-  if (!(await exists(gitDir))) {
+  if (!(await pathIsReadable(gitDir))) {
     return {
       warning: null,
       summary: "Skipped PF2E data refresh because the vendored data path is not a git checkout.",

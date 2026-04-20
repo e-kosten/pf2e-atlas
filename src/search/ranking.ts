@@ -7,8 +7,9 @@ import type {
   SearchProfile,
   SearchRecordExplanation,
 } from "../domain/search-types.js";
-import { bigramDice, normalizeText } from "../shared/utils.js";
 import type { RankingConfig } from "./ranking-config.js";
+import { normalizeText } from "../shared/utils.js";
+import { bigramDice } from "./primitives.js";
 
 type RerankAdjustments = SearchRecordExplanation["rerankAdjustments"];
 type HybridFusionProfileName = NonNullable<SearchExplainResult["fusionProfile"]>;

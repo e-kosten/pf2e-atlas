@@ -2,7 +2,7 @@ import { watch, FSWatcher } from "node:fs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
-import { fileExists } from "../shared/fs.js";
+import { pathExists } from "../shared/fs.js";
 import type { RankingConfigStatus } from "../domain/search-types.js";
 
 export interface RankingConfig {
@@ -364,7 +364,7 @@ export class RankingConfigStore {
     revision: number,
   ): Promise<{ config: RankingConfig; status: RankingConfigStatus; warning: string | null }> {
     const loadedAt = new Date().toISOString();
-    if (!(await fileExists(configPath))) {
+    if (!(await pathExists(configPath))) {
       return {
         config: cloneDefaults(),
         status: {

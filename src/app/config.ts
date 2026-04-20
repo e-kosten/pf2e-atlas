@@ -1,10 +1,9 @@
-import { access } from "node:fs/promises";
 import path from "node:path";
-import { constants } from "node:fs";
 
 import { DEFAULT_EMBEDDING_MODEL_ID, DEFAULT_EMBEDDING_REVISION } from "../embeddings.js";
 import type { AppConfig } from "../domain/config-types.js";
-import { expandHome } from "../shared/utils.js";
+import { pathIsReadable } from "../shared/fs.js";
+import { expandHomePath } from "./path-utils.js";
 
 function parseCliArgs(argv: string[]): Record<string, string> {
   const parsed: Record<string, string> = {};
@@ -34,15 +33,6 @@ function parseCliArgs(argv: string[]): Record<string, string> {
   return parsed;
 }
 
-async function canRead(targetPath: string): Promise<boolean> {
-  try {
-    await access(targetPath, constants.R_OK);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 export async function loadConfig(argv = process.argv.slice(2), env = process.env): Promise<AppConfig> {
   const args = parseCliArgs(argv);
   const configuredPath = args["data-path"] ?? env.PF2E_DATA_PATH ?? path.join(process.cwd(), "vendor", "pf2e");
@@ -58,17 +48,17 @@ export async function loadConfig(argv = process.argv.slice(2), env = process.env
   const configuredRankingConfigPath =
     args["ranking-config-path"] ?? env.PF2E_RANKING_CONFIG_PATH ?? path.join(process.cwd(), "pf2e-ranking.json");
 
-  const rootPath = path.resolve(expandHome(configuredPath));
-  const indexPath = path.resolve(expandHome(configuredIndexPath));
-  const embeddingCachePath = path.resolve(expandHome(configuredEmbeddingCachePath));
+  const rootPath = path.resolve(expandHomePath(configuredPath));
+  const indexPath = path.resolve(expandHomePath(configuredIndexPath));
+  const embeddingCachePath = path.resolve(expandHomePath(configuredEmbeddingCachePath));
   const embeddingLocalModelPath = configuredEmbeddingLocalModelPath
-    ? path.resolve(expandHome(configuredEmbeddingLocalModelPath))
+    ? path.resolve(expandHomePath(configuredEmbeddingLocalModelPath))
     : null;
-  const rankingConfigPath = path.resolve(expandHome(configuredRankingConfigPath));
+  const rankingConfigPath = path.resolve(expandHomePath(configuredRankingConfigPath));
   const manifestCandidates = [path.join(rootPath, "system.pf2e.json"), path.join(rootPath, "static", "system.json")];
 
   for (const candidate of manifestCandidates) {
-    if (await canRead(candidate)) {
+    if (await pathIsReadable(candidate)) {
       return {
         dataPath: configuredPath,
         rootPath,
