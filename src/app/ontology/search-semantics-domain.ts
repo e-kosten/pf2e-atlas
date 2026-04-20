@@ -59,6 +59,9 @@ export function buildSearchSemanticsDomain(
   const commonDerivedTagsByCategory = new Map(
     vocabulary.commonDerivedTagsByCategory.map((entry) => [entry.category, entry.tags]),
   );
+  const derivedTagCatalogByCategoryAndFamily = new Map<string, (typeof vocabulary.derivedTagCatalog)[number]>(
+    vocabulary.derivedTagCatalog.map((entry) => [`${entry.category}:${normalizeText(entry.family)}`, entry] as const),
+  );
   const liveSubcategoryCountsByCategory = new Map(
     SEARCH_CATEGORIES.map((category) => [
       category,
@@ -78,11 +81,88 @@ export function buildSearchSemanticsDomain(
       }),
   );
 
+  function buildScopedDerivedTagNode(
+    node: OntologyNode,
+    options: {
+      category: SearchCategory;
+      subcategory: SearchSubcategory | null;
+    },
+  ): OntologyNode | null {
+    const { category, subcategory } = options;
+
+    if (subcategory && node.kind === "record") {
+      const recordSubcategory = node.query?.filters.subcategory ?? null;
+      if (recordSubcategory !== subcategory) {
+        return null;
+      }
+    }
+
+    const familyCatalogEntry =
+      node.kind === "family"
+        ? derivedTagCatalogByCategoryAndFamily.get(`${category}:${normalizeText(node.label)}`)
+        : undefined;
+    if (
+      subcategory &&
+      familyCatalogEntry?.subcategories?.length &&
+      !familyCatalogEntry.subcategories.includes(subcategory)
+    ) {
+      return null;
+    }
+
+    const cloned = cloneOntologyNode(node);
+    const query =
+      subcategory && cloned.query?.kind === "listRecords" && cloned.query.filters.category === category
+        ? {
+            ...cloned.query,
+            filters: {
+              ...cloned.query.filters,
+              subcategory,
+            },
+          }
+        : cloned.query;
+
+    if (!node.children) {
+      return {
+        ...cloned,
+        query,
+      };
+    }
+
+    const allowedFamilyTags = familyCatalogEntry
+      ? new Set(familyCatalogEntry.tags.map((tag) => normalizeText(tag.value)))
+      : null;
+    const scopedChildren = node.children
+      .filter(
+        (child) =>
+          !(node.kind === "family" && allowedFamilyTags && child.kind === "tag") ||
+          allowedFamilyTags.has(normalizeText(child.label)),
+      )
+      .map((child) => buildScopedDerivedTagNode(child, options))
+      .filter((child): child is OntologyNode => Boolean(child));
+
+    if (node.kind === "family" && scopedChildren.length === 0) {
+      return null;
+    }
+
+    return {
+      ...cloned,
+      query,
+      children: scopedChildren,
+    };
+  }
+
   function buildMetadataFieldNodes(category: SearchCategory, subcategory: SearchSubcategory | null): OntologyNode[] {
     const idPrefix = subcategory ? `${category}:${subcategory}` : category;
     return getCategoryScopedFields(category, subcategory).map((field): OntologyNode => {
       const fieldSemantics = metadataFieldsByName.get(field)!;
       const derivedTagCategoryNode = field === "derivedTags" ? derivedTagCategoryNodes.get(category) : undefined;
+      const derivedTagChildren =
+        field === "derivedTags" && derivedTagCategoryNode?.children
+          ? derivedTagCategoryNode.children
+              .map((node) => buildScopedDerivedTagNode(node, { category, subcategory }))
+              .filter((node): node is OntologyNode => Boolean(node))
+              .map((node) => cloneOntologyNode(node, `${idPrefix}:field:${field}`))
+          : null;
       return {
         id: `${idPrefix}:field:${field}`,
         kind: "field",
@@ -123,11 +203,9 @@ export function buildSearchSemanticsDomain(
         groupValues: {
           fieldType: fieldSemantics.fieldType,
         },
-        ...(field === "derivedTags" && derivedTagCategoryNode?.children
+        ...(field === "derivedTags" && derivedTagCategoryNode && derivedTagChildren
           ? {
-              children: derivedTagCategoryNode.children.map((node) =>
-                cloneOntologyNode(node, `${idPrefix}:field:${field}`),
-              ),
+              children: derivedTagChildren,
               childPresentation: derivedTagCategoryNode.childPresentation
                 ? { ...derivedTagCategoryNode.childPresentation }
                 : undefined,

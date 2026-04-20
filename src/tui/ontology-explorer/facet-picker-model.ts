@@ -74,7 +74,10 @@ export function buildSearchFacetPickerModel(
   },
 ): OntologyDomainModel {
   const categoryNode = findNodeById(searchSemanticsDomain.rootNodes, `searchSemantics:${options.category}`);
-  const metadataFieldsNode = findNodeById(getOntologyNodeChildren(categoryNode), `${options.category}:metadataFields`);
+  const metadataFieldsNode =
+    (options.subcategory
+      ? findNodeById(getOntologyNodeChildren(categoryNode), `${options.category}:${options.subcategory}:metadataFields`)
+      : undefined) ?? findNodeById(getOntologyNodeChildren(categoryNode), `${options.category}:metadataFields`);
   const allowedFields = new Map<string, Pf2eTerminalFacetFieldOption>(
     options.fieldOptions.map((field) => [field.value, field]),
   );
@@ -82,7 +85,10 @@ export function buildSearchFacetPickerModel(
 
   const rootNodes = options.fieldOptions
     .map((fieldOption) => {
-      const fieldNode = fieldNodesById.get(`${options.category}:field:${fieldOption.value}`);
+      const scopedFieldNodeId = options.subcategory
+        ? `${options.category}:${options.subcategory}:field:${fieldOption.value}`
+        : `${options.category}:field:${fieldOption.value}`;
+      const fieldNode = fieldNodesById.get(scopedFieldNodeId) ?? fieldNodesById.get(`${options.category}:field:${fieldOption.value}`);
       return fieldNode ? annotateSelectableNodes(fieldNode, buildFieldSelectionResolver(fieldOption)) : null;
     })
     .filter((node): node is OntologyNode => Boolean(node))
