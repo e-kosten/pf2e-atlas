@@ -16,13 +16,13 @@ import {
   reduceDerivedTagMigrationReviewScreenState,
   type DerivedTagMigrationReviewActionId,
 } from "./review-screen-state.js";
-import { resolveDerivedTagTerminalActionTargetIntent } from "../../../tui/action-target.js";
 import { useDerivedTagTerminalApp, useDerivedTagTerminalSize } from "../../../tui/terminal-ui.js";
 import {
   showTerminalReturnDialog,
   useTerminalInteractionContextAdapters,
 } from "../../../tui/interaction-context-adapters.js";
 import {
+  createTerminalActionTargetInteractionContext,
   createTerminalDetailInteractionContext,
   createTerminalListInteractionContext,
   useTerminalInteractionContextRouter,
@@ -148,31 +148,30 @@ export function useDerivedTagMigrationReviewScreenController({
         pageSize: screenModel.pageSize,
         jumpSize: screenModel.detailJumpSize,
       }),
-      {
-        id: "actionTarget",
-        kind: "actionTarget",
+      createTerminalActionTargetInteractionContext("actionTarget", {
         interactionActions: [...screenModel.actionTargetInteractionActions, { id: "help" }],
-      },
+        state,
+        orientation: "horizontal",
+      }),
     ],
     onRoute: ({ actionTarget, detail, list }) => {
-      const actionTargetIntent = resolveDerivedTagTerminalActionTargetIntent(actionTarget.event, state, "horizontal");
-      if (actionTargetIntent?.kind === "toggle_target") {
+      if (actionTarget.actionTargetIntent?.kind === "toggle_target") {
         dispatch({ type: "toggle_target" });
         return;
       }
-      if (actionTargetIntent?.kind === "leave_actions") {
+      if (actionTarget.actionTargetIntent?.kind === "leave_actions") {
         dispatch({ type: "leave_actions" });
         return;
       }
-      if (actionTargetIntent?.kind === "move_action") {
+      if (actionTarget.actionTargetIntent?.kind === "move_action") {
         dispatch({
           type: "move_action",
-          delta: actionTargetIntent.delta,
+          delta: actionTarget.actionTargetIntent.delta,
           actionCount: DERIVED_TAG_MIGRATION_REVIEW_ACTIONS.length,
         });
         return;
       }
-      if (actionTargetIntent?.kind === "apply_action") {
+      if (actionTarget.actionTargetIntent?.kind === "apply_action") {
         const requestedAction = DERIVED_TAG_MIGRATION_REVIEW_ACTIONS[state.selectedActionIndex]?.id;
         if (requestedAction) {
           void requestAction(requestedAction);
