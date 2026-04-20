@@ -1,17 +1,16 @@
-import type { OntologyDomainModel, OntologyNodeQuery } from "../domain/ontology-types.js";
+import type { OntologyNodeQuery } from "../domain/ontology-types.js";
 import type { SearchCategory, SearchSubcategory } from "../domain/search-types.js";
 import type {
   DerivedTagMigrationMode,
   DerivedTagMigrationReviewDecisionKind,
   DerivedTagMigrationSession,
 } from "../tags/editorial/types.js";
-import type { OntologyBrowserSnapshot } from "./ontology-explorer/ui.js";
+import type { OntologyInspectExplorerSnapshot } from "./ontology-explorer/inspect-screen.js";
 import { moveSelectionWrapped } from "./framework/input.js";
 
 export type Pf2eOntologyRoute = {
   kind: "ontology";
-  model: OntologyDomainModel;
-  snapshot?: OntologyBrowserSnapshot;
+  snapshot?: OntologyInspectExplorerSnapshot;
 };
 
 export type Pf2eSearchRouteOrigin = {
@@ -29,7 +28,6 @@ export type Pf2eAppRoute =
   | { kind: "areas" }
   | { kind: "tag_refinement" }
   | Pf2eSearchRoute
-  | { kind: "ontology_picker" }
   | Pf2eOntologyRoute
   | { kind: "review"; session: DerivedTagMigrationSession };
 

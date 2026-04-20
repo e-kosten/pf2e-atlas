@@ -3,7 +3,6 @@ import React from "react";
 import { DerivedTagMigrationReviewScreen } from "../tags/editorial/review-ui.js";
 import { formatDerivedTagMigrationModeLabel } from "../tags/editorial/workbench-session-prompts.js";
 import type { DerivedTagMigrationMode, DerivedTagMigrationSession } from "../tags/editorial/types.js";
-import { buildInspectAndOpenOntologyExplorerModel } from "../app/ontology/inspect-and-open-explorer.js";
 import { PF2E_APP_AREAS, PF2E_TERMINAL_TITLE } from "./app-areas.js";
 import { Pf2eTerminalAppServicesProvider } from "./app-service-context.js";
 import { loadPf2eTerminalAppServices, type Pf2eTerminalAppServices } from "./app-services.js";
@@ -17,7 +16,7 @@ import {
   type Pf2eAppRoute,
 } from "./pf2e-app-state.js";
 import { AreaMenuScreen } from "./area-menu-screen.js";
-import { OntologyBrowserScreen } from "./ontology-explorer/screen.js";
+import { buildOntologyInspectExplorerModel, OntologyInspectScreen } from "./ontology-explorer/inspect-screen.js";
 import { SearchScreen } from "./search-screen/screen.js";
 import { TerminalBusyScreen, TerminalMessageScreen } from "./shared-screens.js";
 import { createTerminalInteractionContextAdapters } from "./interaction-context-adapters.js";
@@ -25,7 +24,7 @@ import { useDerivedTagTerminalApp } from "./framework/context.js";
 import { runDerivedTagTerminalApp } from "./framework/provider.js";
 import { TagRefinementMenuScreen, type TagRefinementMenuItem } from "./tag-refinement-menu-screen.js";
 
-type OntologyQueryOpenHandler = NonNullable<React.ComponentProps<typeof OntologyBrowserScreen>["onOpenQuery"]>;
+type OntologyQueryOpenHandler = NonNullable<React.ComponentProps<typeof OntologyInspectScreen>["onOpenQuery"]>;
 
 function StartupErrorScreen({ message, onExit }: { message: string; onExit: () => void }): React.JSX.Element {
   return (
@@ -63,8 +62,8 @@ export function Pf2eTerminalApp({
   const route = getCurrentPf2eAppRoute(state);
   const queueItems = services.dev.tagRefinement.getQueueItems();
   const ontologyExplorerModel = React.useMemo(
-    () => buildInspectAndOpenOntologyExplorerModel(services.user.ontology, services.catalog),
-    [services.catalog, services.user.ontology],
+    () => buildOntologyInspectExplorerModel(services.user.ontology),
+    [services.user.ontology],
   );
 
   const runWithBusyState = React.useCallback(async <T,>(message: string, task: () => Promise<T>): Promise<T> => {
@@ -125,11 +124,11 @@ export function Pf2eTerminalApp({
       return;
     }
     if (selectedArea.id === "ontology_search") {
-      dispatch({ type: "push_route", route: { kind: "ontology", model: ontologyExplorerModel } });
+      dispatch({ type: "push_route", route: { kind: "ontology" } });
       return;
     }
     dispatch({ type: "push_route", route: { kind: "search" } });
-  }, [ontologyExplorerModel, state.selectedAreaIndex]);
+  }, [state.selectedAreaIndex]);
 
   const returnToPreviousRouteOrExit = React.useCallback(() => {
     if (canPopPf2eAppRoute(state)) {
@@ -143,7 +142,7 @@ export function Pf2eTerminalApp({
     (searchRoute: Extract<Pf2eAppRoute, { kind: "search" }>) => {
       if (searchRoute.origin?.kind === "ontology") {
         const previousRoute = state.routeStack[state.routeStack.length - 2];
-        if (previousRoute?.kind === "ontology" && previousRoute.model.id === searchRoute.origin.route.model.id) {
+        if (previousRoute?.kind === "ontology") {
           dispatch({ type: "pop_route" });
           return;
         }
@@ -195,14 +194,9 @@ export function Pf2eTerminalApp({
   );
 
   const openOntologyQuery = React.useCallback(
-    (
-      query: Parameters<OntologyQueryOpenHandler>[0],
-      snapshot: Parameters<OntologyQueryOpenHandler>[1],
-      model: Pf2eOntologyRoute["model"],
-    ) => {
+    (query: Parameters<OntologyQueryOpenHandler>[0], snapshot: Parameters<OntologyQueryOpenHandler>[1]) => {
       const ontologyRoute: Pf2eOntologyRoute = {
         kind: "ontology",
-        model,
         snapshot,
       };
       dispatch({ type: "replace_route", route: ontologyRoute });
@@ -224,22 +218,12 @@ export function Pf2eTerminalApp({
   let screen: React.JSX.Element;
   if (busyMessage) {
     screen = <TerminalBusyScreen title={PF2E_TERMINAL_TITLE} message={busyMessage} />;
-  } else if (route.kind === "ontology_picker") {
-    screen = (
-      <OntologyBrowserScreen
-        model={ontologyExplorerModel}
-        mode="inspect-and-open"
-        onExit={returnToPreviousRouteOrExit}
-        onOpenQuery={(query, snapshot) => openOntologyQuery(query, snapshot, ontologyExplorerModel)}
-      />
-    );
   } else if (route.kind === "ontology") {
     screen = (
-      <OntologyBrowserScreen
+      <OntologyInspectScreen
         initialSnapshot={route.snapshot}
-        model={route.model}
-        mode="inspect-and-open"
-        onOpenQuery={(query, snapshot) => openOntologyQuery(query, snapshot, route.model)}
+        model={ontologyExplorerModel}
+        onOpenQuery={openOntologyQuery}
         onExit={returnToPreviousRouteOrExit}
       />
     );
