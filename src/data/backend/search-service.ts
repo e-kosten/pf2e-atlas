@@ -123,7 +123,7 @@ export class Pf2eSearchBackendService {
     }
 
     validateSearchFilters(normalizedFilters, "search");
-    const snapshot = await buildSearchWindowSnapshot(filters, normalizedFilters, runtime);
+    const snapshot = await buildSearchWindowSnapshot(normalizedFilters, runtime);
     const window = this.searchWindows.openWindow({
       kind: "recordKeys",
       mode: snapshot.mode,

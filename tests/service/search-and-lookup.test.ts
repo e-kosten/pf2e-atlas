@@ -3314,4 +3314,68 @@ describe("Pf2eDataService / Search and Lookup", () => {
       directPage.records.map((record) => record.recordKey),
     );
   });
+
+  it("keeps ranked search pages aligned with equivalent search windows", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+
+    const service = await loadTestService(fixture);
+    const cases = [
+      {
+        filters: {
+          category: "creature" as const,
+          searchProfile: "lexical" as const,
+          query: "ghost sailor ship",
+          limit: 3,
+        },
+      },
+      {
+        filters: {
+          category: "creature" as const,
+          query: "ghost ship cursed voyage fear fog darkness possession maddening whispers",
+          limit: 4,
+        },
+      },
+      {
+        filters: {
+          category: "creature" as const,
+          nameQuery: "Sentinel",
+          excludeQuery: "last",
+          limit: 2,
+        },
+      },
+    ];
+
+    for (const { filters } of cases) {
+      const directPage = await service.search(filters);
+      const windowPage = await service.openSearchWindow(filters, { mode: "search" });
+
+      expect(windowPage.searchProfile).toBe(directPage.searchProfile);
+      expect(windowPage.mode).toBe(directPage.mode);
+      expect(windowPage.sort).toBe(directPage.sort);
+      expect(windowPage.total).toBe(directPage.total);
+      expect(windowPage.hasMore).toBe(directPage.hasMore);
+      expect(windowPage.nextOffset).toBe(directPage.nextOffset);
+      expect(windowPage.records.map((record) => record.recordKey)).toEqual(
+        directPage.records.map((record) => record.recordKey),
+      );
+
+      if (windowPage.nextOffset !== null) {
+        const nextWindowPage = service.readSearchWindowPage(windowPage.id, windowPage.nextOffset, filters.limit);
+        const nextDirectPage = await service.search({
+          ...filters,
+          offset: windowPage.nextOffset,
+        });
+
+        expect(nextWindowPage.total).toBe(nextDirectPage.total);
+        expect(nextWindowPage.hasMore).toBe(nextDirectPage.hasMore);
+        expect(nextWindowPage.nextOffset).toBe(nextDirectPage.nextOffset);
+        expect(nextWindowPage.records.map((record) => record.recordKey)).toEqual(
+          nextDirectPage.records.map((record) => record.recordKey),
+        );
+      }
+
+      service.closeSearchWindow(windowPage.id);
+    }
+  });
 });

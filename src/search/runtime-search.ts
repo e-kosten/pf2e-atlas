@@ -8,14 +8,10 @@ import {
   buildRerankAdjustments,
   compareOptionalRanks,
   computeWeightedRrfScore,
-  packQualityScore,
-  rarityPreferenceScore,
   resolveHybridFusionProfile,
   resolveSearchMode,
   resolveSearchProfile,
   scoreNameCandidate,
-  sourcePenaltyScore,
-  sourceQualityScore,
   sumRerankAdjustments,
 } from "./ranking.js";
 import {
@@ -204,29 +200,59 @@ function sliceSnapshotToSearchResult(
   });
 }
 
-export function buildStructuredSearchSnapshot(
+function buildExplainContext(
+  lexicalQuery: string,
+  rawSemanticQuery: string,
+  queryAnalysis: ReturnType<typeof buildSearchQueryAnalysis> | null,
+  excludeQueryAnalysis: ReturnType<typeof buildSearchQueryAnalysis> | null,
+  hybridFusion: ReturnType<typeof resolveHybridFusionProfile>,
+  deps: RuntimeSearchDependencies,
+): NonNullable<SearchWindowSnapshot["explainContext"]> {
+  return {
+    fusionMethod: hybridFusion ? ("weightedRrf" as const) : null,
+    fusionProfile: hybridFusion?.profile ?? null,
+    fusionConfig: buildFusionConfigSummary(
+      hybridFusion?.profile ?? null,
+      hybridFusion?.config ?? null,
+      deps.rankingConfig,
+    ),
+    lexicalQuery,
+    semanticQuery: rawSemanticQuery,
+    query: queryAnalysis
+      ? {
+          rawQuery: queryAnalysis.rawQuery,
+          normalizedQuery: queryAnalysis.normalizedQuery,
+          queryTokens: queryAnalysis.queryTokens,
+        }
+      : null,
+    excludeQuery: excludeQueryAnalysis
+      ? {
+          rawQuery: excludeQueryAnalysis.rawQuery,
+          normalizedQuery: excludeQueryAnalysis.normalizedQuery,
+          queryTokens: excludeQueryAnalysis.queryTokens,
+        }
+      : null,
+  };
+}
+
+function buildStructuredSearchEntries(
   normalizedFilters: NormalizedSearchFilters,
   deps: RuntimeSearchDependencies,
-): SearchWindowSnapshot {
-  const mode = resolveSearchMode(normalizedFilters, "search");
-  const searchProfile = resolveSearchProfile(normalizedFilters, "search", mode);
+  excludeTokens: string[] = [],
+): Array<{ record: NormalizedRecord; explanation: SearchRecordExplanation }> {
   const sort = normalizedFilters.sort ?? "ranked";
   const sortSeed = normalizedFilters.sortSeed ?? 0;
-  const entries = deps
-    .fetchCandidates(normalizedFilters)
+  const structuredRows = deps
+    .fetchCandidates(normalizedFilters, excludeTokens.length > 0)
+    .filter((candidate) => !excludeTokens.length || !matchesExcludedQuery(candidate.searchText, excludeTokens));
+
+  return structuredRows
     .map(({ record }) => {
-      const packQuality = packQualityScore(record, deps.rankingConfig);
-      const sourceQuality = sourceQualityScore(record, deps.rankingConfig);
-      const rarityPreference = rarityPreferenceScore(record, normalizedFilters, deps.rankingConfig);
-      const sourcePenalty = sourcePenaltyScore(record, normalizedFilters, deps.rankingConfig);
+      const rerankAdjustments = buildRerankAdjustments(record, normalizedFilters, deps.rankingConfig);
       const totalScore =
         (normalizedFilters.nameQuery
           ? nameScore(normalizedFilters.nameQuery, record, deps.getAliases(record.recordKey))
-          : 0.5) +
-        packQuality +
-        sourceQuality +
-        rarityPreference +
-        sourcePenalty;
+          : 0.5) + sumRerankAdjustments(rerankAdjustments);
       const explanation: SearchRecordExplanation = {
         recordKey: record.recordKey,
         name: record.name,
@@ -237,12 +263,7 @@ export function buildStructuredSearchSnapshot(
         lexicalRerankScore: null,
         matchedTraits: [],
         matchedNameTokens: [],
-        rerankAdjustments: {
-          packQuality,
-          sourceQuality,
-          rarityPreference,
-          sourcePenalty,
-        },
+        rerankAdjustments,
       };
 
       return { record, totalScore, explanation };
@@ -255,20 +276,26 @@ export function buildStructuredSearchSnapshot(
       return compareRecordsForSort(left.record, right.record, sort, sortSeed);
     })
     .map(({ record, explanation }) => ({ record, explanation }));
+}
+
+export function buildStructuredSearchSnapshot(
+  normalizedFilters: NormalizedSearchFilters,
+  deps: RuntimeSearchDependencies,
+): SearchWindowSnapshot {
+  const mode = resolveSearchMode(normalizedFilters, "search");
+  const searchProfile = resolveSearchProfile(normalizedFilters, "search", mode);
+  const sort = normalizedFilters.sort ?? "ranked";
+  const entries = buildStructuredSearchEntries(normalizedFilters, deps);
 
   return createSnapshot(searchProfile, "structured", sort, entries);
 }
 
 export async function buildSearchWindowSnapshot(
-  filters: SearchFilters,
   normalizedFilters: NormalizedSearchFilters,
   deps: RuntimeSearchDependencies,
 ): Promise<SearchWindowSnapshot> {
   const mode = resolveSearchMode(normalizedFilters, "search");
   const searchProfile = resolveSearchProfile(normalizedFilters, "search", mode);
-  if (mode === "structured") {
-    return buildStructuredSearchSnapshot(normalizedFilters, deps);
-  }
   const sort = normalizedFilters.sort ?? "ranked";
   const sortSeed = normalizedFilters.sortSeed ?? 0;
   const rawSemanticQuery = normalizedFilters.query?.trim() || "";
@@ -280,6 +307,24 @@ export async function buildSearchWindowSnapshot(
   const excludeTokens = excludeQueryAnalysis?.queryTokens ?? [];
   const literalQueryWeights = queryAnalysis ? buildLiteralQueryWeights(queryAnalysis) : null;
   const lexicalQuery = queryAnalysis?.normalizedQuery ?? rawLexicalQuery;
+  const explainContext = buildExplainContext(
+    lexicalQuery,
+    rawSemanticQuery,
+    queryAnalysis,
+    excludeQueryAnalysis,
+    hybridFusion,
+    deps,
+  );
+
+  if (mode === "structured") {
+    return createSnapshot(
+      searchProfile,
+      mode,
+      sort,
+      buildStructuredSearchEntries(normalizedFilters, deps, excludeTokens),
+      explainContext,
+    );
+  }
   const semanticVector = hybridFusion && rawSemanticQuery ? await deps.embeddingProvider.embed(rawSemanticQuery) : null;
   const candidateCount = Math.max(1, deps.fetchCandidateCount(normalizedFilters));
   const lexicalRetrievalRows = lexicalQuery
@@ -458,32 +503,6 @@ export async function buildSearchWindowSnapshot(
       .map(({ record, explanation }) => ({ record, explanation }));
   })();
 
-  const explainContext = {
-    fusionMethod: hybridFusion ? ("weightedRrf" as const) : null,
-    fusionProfile: hybridFusion?.profile ?? null,
-    fusionConfig: buildFusionConfigSummary(
-      hybridFusion?.profile ?? null,
-      hybridFusion?.config ?? null,
-      deps.rankingConfig,
-    ),
-    lexicalQuery,
-    semanticQuery: rawSemanticQuery,
-    query: queryAnalysis
-      ? {
-          rawQuery: queryAnalysis.rawQuery,
-          normalizedQuery: queryAnalysis.normalizedQuery,
-          queryTokens: queryAnalysis.queryTokens,
-        }
-      : null,
-    excludeQuery: excludeQueryAnalysis
-      ? {
-          rawQuery: excludeQueryAnalysis.rawQuery,
-          normalizedQuery: excludeQueryAnalysis.normalizedQuery,
-          queryTokens: excludeQueryAnalysis.queryTokens,
-        }
-      : null,
-  };
-
   return createSnapshot(searchProfile, mode, sort, entries, explainContext);
 }
 
@@ -537,276 +556,8 @@ export async function search(
 ): Promise<SearchResult> {
   const limit = clampLimit(normalizedFilters.limit);
   const offset = clampOffset(normalizedFilters.offset);
-  const mode = resolveSearchMode(normalizedFilters, "search");
-  const searchProfile = resolveSearchProfile(normalizedFilters, "search", mode);
-  const sort = normalizedFilters.sort ?? "ranked";
-  const sortSeed = normalizedFilters.sortSeed ?? 0;
-  const rawSemanticQuery = normalizedFilters.query?.trim() || "";
-  const rawLexicalQuery = normalizedFilters.query?.trim() || normalizedFilters.nameQuery?.trim() || "";
-  const rawExcludeQuery = normalizedFilters.excludeQuery?.trim() || "";
-  const hybridFusion = resolveHybridFusionProfile(searchProfile, mode, deps.rankingConfig);
-  const queryAnalysis = rawLexicalQuery ? buildSearchQueryAnalysis(rawLexicalQuery) : null;
-  const excludeQueryAnalysis = rawExcludeQuery ? buildSearchQueryAnalysis(rawExcludeQuery) : null;
-  const excludeTokens = excludeQueryAnalysis?.queryTokens ?? [];
-  const literalQueryWeights = queryAnalysis ? buildLiteralQueryWeights(queryAnalysis) : null;
-  const lexicalQuery = queryAnalysis?.normalizedQuery ?? rawLexicalQuery;
-  const semanticVector = hybridFusion && rawSemanticQuery ? await deps.embeddingProvider.embed(rawSemanticQuery) : null;
-  const lexicalRetrievalRows = lexicalQuery
-    ? deps.fetchLexicalRetrievalRows(
-        normalizedFilters,
-        buildFtsQuery(lexicalQuery) ?? "",
-        Math.max(
-          mode === "lexical" ? LOOKUP_LEXICAL_TOP_K : (hybridFusion?.config.lexicalTopK ?? 0),
-          (offset + limit) * 5,
-        ),
-      )
-    : [];
-  const lexicalRetrievedKeys = lexicalRetrievalRows.map((row) => row.recordKey);
-  const lexicalRetrievalRanks = buildRankMap(lexicalRetrievedKeys);
-  const lexicalMatches = buildNormalizedRankScoreMap(lexicalRetrievedKeys);
-
-  const semanticRetrievalRows =
-    semanticVector && hybridFusion
-      ? deps.fetchSemanticRetrievalRows(
-          normalizedFilters,
-          semanticVector,
-          semanticQueryLimit(Math.max(hybridFusion.config.semanticTopK, (offset + limit) * 5), normalizedFilters),
-        )
-      : [];
-  const semanticRetrievedKeys = semanticRetrievalRows.map((row) => row.recordKey);
-  const semanticRetrievalRanks = buildRankMap(semanticRetrievedKeys);
-
-  const candidateKeys = mode === "structured" ? [] : [...new Set([...lexicalRetrievedKeys, ...semanticRetrievedKeys])];
-  const candidateRows =
-    mode === "structured"
-      ? []
-      : deps.fetchCandidates(normalizedFilters, excludeTokens.length > 0, false, { recordKeys: candidateKeys });
-  const filteredCandidateRows =
-    excludeTokens.length > 0
-      ? candidateRows.filter((candidate) => !matchesExcludedQuery(candidate.searchText, excludeTokens))
-      : candidateRows;
-  const candidateRecords = filteredCandidateRows
-    .map(({ record }) => record)
-    .filter((record) => recordMatchesFilters(record, normalizedFilters));
-  const candidatesByKey = new Map(candidateRecords.map((record) => [record.recordKey, record]));
-
-  const scored = (() => {
-    if (mode === "structured") {
-      const structuredRows = deps
-        .fetchCandidates(normalizedFilters, excludeTokens.length > 0)
-        .filter((candidate) => !excludeTokens.length || !matchesExcludedQuery(candidate.searchText, excludeTokens));
-      return structuredRows
-        .map(({ record }) => {
-          const rerankAdjustments = buildRerankAdjustments(record, normalizedFilters, deps.rankingConfig);
-          const totalScore =
-            (normalizedFilters.nameQuery
-              ? nameScore(normalizedFilters.nameQuery, record, deps.getAliases(record.recordKey))
-              : 0.5) + sumRerankAdjustments(rerankAdjustments);
-          const explanation: SearchRecordExplanation = {
-            recordKey: record.recordKey,
-            name: record.name,
-            totalScore,
-            fusionScore: null,
-            lexicalRank: null,
-            semanticRank: null,
-            lexicalRerankScore: null,
-            matchedTraits: [],
-            matchedNameTokens: [],
-            rerankAdjustments,
-          };
-
-          return { record, totalScore, explanation };
-        })
-        .filter(({ totalScore }) => !normalizedFilters.nameQuery || totalScore >= 0.2)
-        .sort((left, right) => {
-          if (sort === "ranked") {
-            return right.totalScore - left.totalScore || sortRecords(left.record, right.record);
-          }
-          return compareRecordsForSort(left.record, right.record, sort, sortSeed);
-        });
-    }
-
-    if (mode === "lexical") {
-      return lexicalRetrievedKeys
-        .map((recordKey) => candidatesByKey.get(recordKey))
-        .filter((record): record is NormalizedRecord => Boolean(record))
-        .map((record) => {
-          const lexicalSignal = buildLexicalSignal(
-            record,
-            lexicalQuery,
-            literalQueryWeights,
-            lexicalMatches,
-            deps.rankingConfig,
-          );
-          const rerankAdjustments = buildRerankAdjustments(record, normalizedFilters, deps.rankingConfig);
-          const totalScore = lexicalSignal.lexicalScore + sumRerankAdjustments(rerankAdjustments);
-          const explanation: SearchRecordExplanation = {
-            recordKey: record.recordKey,
-            name: record.name,
-            totalScore,
-            fusionScore: null,
-            lexicalRank: lexicalRetrievalRanks.get(record.recordKey) ?? null,
-            semanticRank: null,
-            lexicalRerankScore: lexicalSignal.lexicalScore,
-            matchedTraits: lexicalSignal.matchedTraits,
-            matchedNameTokens: lexicalSignal.matchedNameTokens,
-            rerankAdjustments,
-          };
-
-          return {
-            record,
-            totalScore,
-            lexicalRank: lexicalRetrievalRanks.get(record.recordKey) ?? null,
-            lexicalRerankScore: lexicalSignal.lexicalScore,
-            explanation,
-          };
-        })
-        .filter(({ totalScore }) => !lexicalQuery || totalScore > 0)
-        .sort((left, right) => {
-          if (sort === "ranked") {
-            return (
-              right.totalScore - left.totalScore ||
-              right.lexicalRerankScore - left.lexicalRerankScore ||
-              compareOptionalRanks(left.lexicalRank, right.lexicalRank) ||
-              sortRecords(left.record, right.record)
-            );
-          }
-          return compareRecordsForSort(left.record, right.record, sort, sortSeed);
-        });
-    }
-
-    const fusionConfig = hybridFusion!.config;
-    const rerankedLexical = lexicalRetrievedKeys
-      .map((recordKey) => candidatesByKey.get(recordKey))
-      .filter((record): record is NormalizedRecord => Boolean(record))
-      .map((record) => ({
-        record,
-        lexicalSignal: buildLexicalSignal(
-          record,
-          lexicalQuery,
-          literalQueryWeights,
-          lexicalMatches,
-          deps.rankingConfig,
-        ),
-      }))
-      .filter(({ lexicalSignal }) => lexicalSignal.lexicalScore > 0)
-      .sort((left, right) => {
-        return (
-          right.lexicalSignal.lexicalScore - left.lexicalSignal.lexicalScore ||
-          compareOptionalRanks(
-            semanticRetrievalRanks.get(left.record.recordKey) ?? null,
-            semanticRetrievalRanks.get(right.record.recordKey) ?? null,
-          ) ||
-          sortRecords(left.record, right.record)
-        );
-      })
-      .slice(0, fusionConfig.lexicalTopK);
-    const rerankedLexicalRanks = buildRankMap(rerankedLexical.map(({ record }) => record.recordKey));
-    const semanticRanks = buildRankMap(
-      semanticRetrievedKeys.filter((recordKey) => candidatesByKey.has(recordKey)).slice(0, fusionConfig.semanticTopK),
-    );
-
-    return candidateRecords
-      .filter((record) => rerankedLexicalRanks.has(record.recordKey) || semanticRanks.has(record.recordKey))
-      .map((record) => {
-        const lexicalSignal = buildLexicalSignal(
-          record,
-          lexicalQuery,
-          literalQueryWeights,
-          lexicalMatches,
-          deps.rankingConfig,
-        );
-        const rerankAdjustments = buildRerankAdjustments(record, normalizedFilters, deps.rankingConfig);
-        const lexicalRank = rerankedLexicalRanks.get(record.recordKey) ?? null;
-        const semanticRank = semanticRanks.get(record.recordKey) ?? null;
-        const fusionScore = computeWeightedRrfScore(
-          lexicalRank,
-          semanticRank,
-          fusionConfig,
-          deps.rankingConfig.hybridFusion.rrfK,
-        );
-        const totalScore = fusionScore + sumRerankAdjustments(rerankAdjustments);
-        const explanation: SearchRecordExplanation = {
-          recordKey: record.recordKey,
-          name: record.name,
-          totalScore,
-          fusionScore,
-          lexicalRank,
-          semanticRank,
-          lexicalRerankScore: lexicalSignal.lexicalScore,
-          matchedTraits: lexicalSignal.matchedTraits,
-          matchedNameTokens: lexicalSignal.matchedNameTokens,
-          rerankAdjustments,
-        };
-
-        return {
-          record,
-          totalScore,
-          fusionScore,
-          lexicalRank,
-          semanticRank,
-          lexicalRerankScore: lexicalSignal.lexicalScore,
-          explanation,
-        };
-      })
-      .sort((left, right) => {
-        if (sort === "ranked") {
-          return (
-            right.totalScore - left.totalScore ||
-            right.fusionScore - left.fusionScore ||
-            compareOptionalRanks(left.semanticRank, right.semanticRank) ||
-            compareOptionalRanks(left.lexicalRank, right.lexicalRank) ||
-            right.lexicalRerankScore - left.lexicalRerankScore ||
-            sortRecords(left.record, right.record)
-          );
-        }
-        return compareRecordsForSort(left.record, right.record, sort, sortSeed);
-      });
-  })();
-
-  const page = scored.slice(offset, offset + limit);
-  const explain: SearchExplainResult | undefined = filters.explain
-    ? {
-        searchProfile,
-        mode,
-        fusionMethod: hybridFusion ? "weightedRrf" : null,
-        fusionProfile: hybridFusion?.profile ?? null,
-        fusionConfig: buildFusionConfigSummary(
-          hybridFusion?.profile ?? null,
-          hybridFusion?.config ?? null,
-          deps.rankingConfig,
-        ),
-        lexicalQuery,
-        semanticQuery: rawSemanticQuery,
-        query: queryAnalysis
-          ? {
-              rawQuery: queryAnalysis.rawQuery,
-              normalizedQuery: queryAnalysis.normalizedQuery,
-              queryTokens: queryAnalysis.queryTokens,
-            }
-          : null,
-        excludeQuery: excludeQueryAnalysis
-          ? {
-              rawQuery: excludeQueryAnalysis.rawQuery,
-              normalizedQuery: excludeQueryAnalysis.normalizedQuery,
-              queryTokens: excludeQueryAnalysis.queryTokens,
-            }
-          : null,
-        rankingConfig: deps.rankingConfigStatus,
-        records: page.map(({ explanation }) => explanation),
-      }
-    : undefined;
-
-  return createSearchResultPage({
-    searchProfile,
-    mode,
-    sort,
-    total: scored.length,
-    offset,
-    limit,
-    records: page.map(({ record }) => record),
-    explain,
-  });
+  const snapshot = await buildSearchWindowSnapshot(normalizedFilters, deps);
+  return sliceSnapshotToSearchResult(snapshot, offset, limit, Boolean(filters.explain), deps.rankingConfigStatus);
 }
 
 export function countStructuredSearch(
