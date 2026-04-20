@@ -30,8 +30,13 @@ The codebase is organized around a few stable layers:
 
 Architecture notes live under [`docs/architecture`](./docs/architecture/overview.md):
 
-- [`overview.md`](./docs/architecture/overview.md): subsystem map, runtime composition, and key data flows
+- [`overview.md`](./docs/architecture/overview.md): architecture landing page with subsystem diagrams, request flow, and navigation into the rest of the docs
 - [`boundaries.md`](./docs/architecture/boundaries.md): lint-enforced and design-level boundaries that future editors should preserve
+- [`search.md`](./docs/architecture/search.md): ranked retrieval, filters, and search backend design
+- [`tui.md`](./docs/architecture/tui.md): terminal UI composition, workflows, and service seams
+- [`editorial.md`](./docs/architecture/editorial.md): derived-tag editorial and migration tooling
+- [`extending.md`](./docs/architecture/extending.md): where to add new tools, services, and runtime capabilities
+- [`decisions/`](./docs/architecture/decisions/): architecture decision records and follow-up design notes
 
 ## Requirements
 

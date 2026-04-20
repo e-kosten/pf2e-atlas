@@ -1,217 +1,340 @@
 # Architecture Overview
 
-This document describes the current architectural shape of the project. It is intended to help future human and AI editors understand where behavior lives, which modules own which responsibilities, and which seams are intended to stay stable as the codebase changes.
+This is the front door for the project architecture. Read it first when you need to understand how the MCP server, the shared data runtime, the terminal UI, and the editorial tooling fit together. Then follow the links into the focused documents for the subsystem you are changing.
 
-## Goals
+## What This System Is
 
-The repository currently serves two related but distinct purposes:
+This repository has one shared core and multiple execution surfaces:
 
 - a read-only MCP server over a prepared local PF2E SQLite index
-- a terminal/editorial toolset for search exploration and derived-tag maintenance
+- a terminal UI for search, ontology browsing, and local workflows
+- an editorial/tooling surface for derived-tag discovery, migration, and review
 
-Those two surfaces share the same normalized data model and backend services, but they do not share the same presentation layer. The main architectural goal is to keep retrieval, storage, and domain logic reusable while letting the MCP server and TUI evolve independently.
+Those surfaces intentionally share the same backend data runtime instead of maintaining parallel retrieval stacks. The main architectural goal is to keep storage, normalization, lookup, rule graph, and search logic reusable while allowing each surface to evolve at its own boundary.
 
-## Top-Level Module Map
+## At A Glance
 
-### `src/index.ts`
+The shortest useful mental model is:
 
-The stdio server entrypoint. It loads the application runtime and registers the MCP tool surfaces from `src/server/`.
+- `src/index.ts` is the MCP composition root
+- `src/tui/app-services.ts` is the terminal/editorial composition root
+- `src/app/` wires runtime and app-level facades together
+- `src/data/` owns index-backed catalog, search, and rule-graph access
+- `src/search/` owns reusable ranked-search mechanics
+- `src/server/` translates MCP tools to backend calls
+- `src/tui/` translates user interaction flows to backend and app services
+- `src/tags/` owns the editorial subsystem for derived-tag work
+- `src/domain/` defines shared vocabulary and contracts
 
-### `src/app/`
+If you remember only one rule, remember this one: transport and UI layers should stay thin, and shared retrieval behavior should flow through `Pf2eDataService` and the app-level facades instead of being rebuilt ad hoc.
 
-Application composition and app-level services.
+## System Overview
 
-- `runtime.ts` loads configuration, ranking config, and the shared `Pf2eDataService`.
-- `storage-service.ts` is the app-layer storage boundary for index-backed helper workflows that need direct `DatabaseSync` access.
-- `ontology-service.ts` assembles the ontology browsing domains exposed to the TUI.
-- `ontology/` contains the domain builders and helper modules for ontology browsing.
+```mermaid
+flowchart TD
+    client["MCP client"] --> stdio["stdio transport"]
+    stdio --> server["src/index.ts<br/>MCP server bootstrap"]
+    server --> appRuntime["src/app/runtime.ts<br/>runtime assembly"]
 
-This layer exists so higher-level surfaces do not need to know how to compose storage, search vocabulary, ontology models, or runtime wiring themselves.
+    subgraph SharedCore["Shared runtime and backend core"]
+      appRuntime --> dataService["src/data/service.ts<br/>Pf2eDataService"]
+      appRuntime --> ranking["src/search/ranking-config.ts<br/>ranking config store"]
+      dataService --> catalog["src/data/backend/<br/>catalog + search + rule graph"]
+      catalog --> search["src/search/<br/>query analysis + ranking + runtime search"]
+      catalog --> db["Prepared SQLite index"]
+      db --> vendor["Vendored PF2E checkout<br/>and prepared embedding assets"]
+    end
 
-### `src/data/`
+    server --> toolHandlers["src/server/<br/>tool schemas + presenters + registration"]
+    toolHandlers --> dataService
 
-Index-backed backend logic and normalized record access.
+    subgraph TerminalAndEditorial["Terminal and editorial surfaces"]
+      tuiRoot["src/tui/app-services.ts<br/>terminal composition"] --> ontology["src/app/ontology-service.ts"]
+      tuiRoot --> storage["src/app/storage-service.ts"]
+      tuiRoot --> tuiSearch["src/tui/search-service.ts"]
+      tuiRoot --> tags["src/tags/<br/>migration, review, assignment tooling"]
+      ontology --> dataService
+      tuiSearch --> dataService
+      storage --> db
+      tags --> storage
+    end
 
-- `service.ts` exposes `Pf2eDataService`, the main backend facade used by the server and TUI.
-- `backend/` contains the lower-level catalog, search, and rule-graph services used by `Pf2eDataService`.
-- the rest of the folder contains normalization, SQL decoding, schema, indexing, and shared row/query helpers.
+    domain["src/domain/<br/>shared contracts and vocabularies"] -. supports .-> dataService
+    domain -. supports .-> search
+    domain -. supports .-> toolHandlers
+    domain -. supports .-> tuiSearch
+```
 
-This is the main boundary between the rest of the application and low-level SQLite-backed record access.
+## Execution Surfaces
 
-### `src/search/`
+### MCP Server
 
-Shared ranked-search runtime and scoring logic.
+The public product surface is the stdio MCP server in `src/index.ts`. It:
 
-- query analysis and normalization
-- SQL-side filter coordination
-- ranking and fusion logic
-- runtime search execution used by backend search flows
+1. loads config and ranking state via `src/app/runtime.ts`
+2. creates one long-lived `Pf2eDataService`
+3. registers lookup, search, and rules tools from `src/server/`
+4. serves requests over stdio using thin tool handlers
 
-This layer holds search mechanics that should stay reusable across server and TUI use cases rather than leaking into transport-specific handlers.
+The server layer should own wire concerns such as schemas, descriptions, and response presentation. It should not own ranking policy, SQL access, or new storage lifecycles.
 
-### `src/server/`
+### Terminal UI
 
-MCP tool registration and response presentation.
+The terminal application composes on top of the same runtime through `src/tui/app-services.ts`. It adds:
 
-- `register-search-tools.ts`
-- `register-lookup-tools.ts`
-- `register-rule-tools.ts`
-- `presenters.ts`
-- `tool-schemas.ts`
+- ontology browsing via `src/app/ontology-service.ts`
+- search workflow orchestration via `src/tui/search-service.ts` and `src/tui/search/`
+- terminal framework and navigation state in `src/tui/framework/` and nearby screens
 
-This layer should remain thin. It should translate MCP inputs into calls on `Pf2eDataService` and shape outputs for the wire protocol, not own indexing or ranking logic itself.
+The TUI is a consumer of the shared runtime, not a second backend.
 
-### `src/tui/`
+### Editorial And Tagging Tooling
 
-Terminal application composition and workflows.
+The editorial subsystem under `src/tags/` is large because it supports assignment logic, candidate discovery, migration sessions, review queues, and CLI workflows. Architecturally, what matters here is:
 
-- `app-services.ts` assembles the user-facing and dev-facing service bundle for the terminal app.
-- `search-service.ts` is the TUI-facing facade over the split search submodules in `src/tui/search/`.
-- `ontology-explorer/` contains ontology navigation UI logic.
-- `framework/` contains lower-level terminal framework helpers.
+- editorial code is a first-class surface, not incidental scripts
+- it should use shared storage and data access boundaries instead of opening new ones everywhere
+- non-editorial code should prefer stable tag-facing entrypoints over arbitrary imports into tag leaf modules
 
-The TUI layer should consume application or backend services through explicit facades instead of reaching directly into low-level storage/query internals.
+See [`editorial.md`](./editorial.md) for the deeper breakdown once that focused doc lands.
+
+## Layer Responsibilities
 
 ### `src/domain/`
 
-Shared contracts and domain vocabularies.
+Owns low-level shared vocabulary and contracts:
 
 - categories and subcategories
-- ontology node types
 - metadata semantics and predicate specs
-- record/search/rule type definitions
+- search and rule graph types
+- ontology contracts and related shared type definitions
 
-This is the lowest-level shared layer. It should stay dependency-light and free of transport or UI concerns.
+This layer should stay free of transport, UI, and storage-lifecycle behavior.
+
+### `src/data/`
+
+Owns index-backed retrieval and normalized record access:
+
+- `Pf2eDataService` as the main backend facade
+- backend catalog, search, and rule-graph services in `src/data/backend/`
+- normalization, row decoding, indexing, and schema helpers
+
+This is the core boundary between the rest of the application and low-level SQLite-backed access.
+
+### `src/search/`
+
+Owns reusable ranked-search mechanics:
+
+- query analysis and normalization
+- ranking configuration
+- runtime search execution
+- lexical and semantic scoring coordination
+
+If logic is reusable across MCP and TUI search paths, it probably belongs here or in `src/data/backend/`, not in a handler or screen.
+
+### `src/app/`
+
+Owns application-level composition and facades:
+
+- runtime assembly in `runtime.ts`
+- storage boundary in `storage-service.ts`
+- ontology assembly in `ontology-service.ts` and `ontology/`
+
+This layer exists so product surfaces do not have to know how to construct storage, vocabulary, or shared models themselves.
+
+### `src/server/`
+
+Owns MCP transport concerns:
+
+- tool registration
+- schema descriptions
+- response shaping and presentation
+
+It should translate between the MCP SDK and `Pf2eDataService`, not create competing backend logic.
+
+### `src/tui/`
+
+Owns terminal interaction concerns:
+
+- user workflows and state machines
+- terminal framework helpers
+- UI-facing service adapters
+
+It should consume explicit facades rather than reach directly into storage or low-level backend internals.
 
 ### `src/tags/`
 
-Derived-tag authoring and editorial tooling.
+Owns the editorial subsystem:
 
-This area includes runtime assignments, authored rules, discovery tools, migration flows, evaluation utilities, and review workflows. It is large because it supports an internal editorial workflow in addition to the public MCP retrieval surface.
+- authored rules and deterministic assignments
+- migration sessions and review workflows
+- queue management, discovery, and evaluation tooling
 
-The tag tree itself is intentionally out of scope for this document. What matters architecturally is that non-tag code should normally reach tag functionality through the tag facade, not through arbitrary leaf internals.
+This area evolves faster than the public MCP surface, so its internal structure may change more often. The important boundary is stable entrypoints and respect for shared storage/runtime seams.
 
 ## Runtime Composition
 
-There are two main composition roots.
+There are two composition roots and one shared backend runtime.
 
-### MCP Server Runtime
+### Shared Backend Runtime
 
-The server boot path is:
+`src/app/runtime.ts` is the common assembly layer. It:
 
-1. `src/index.ts`
-2. `src/app/runtime.ts`
-3. `Pf2eDataService.load(...)`
-4. MCP tool registration from `src/server/`
+1. loads configuration
+2. opens the ranking config store
+3. calls `Pf2eDataService.load(...)`
+4. returns the shared runtime handle used by higher-level surfaces
 
-At startup, the runtime loads configuration, opens the prepared SQLite-backed data runtime, and creates a long-lived `Pf2eDataService`. Tool registration is layered on top of that backend service.
+That runtime bundles config, startup warnings, pack and record stats, and a close hook. Both the server and the terminal stack build on top of it.
 
-### TUI Runtime
+### MCP Composition Root
 
-The TUI boot path goes through:
+`src/index.ts` is intentionally small. Its job is to:
 
-1. `src/tui/app-services.ts`
-2. `src/app/runtime.ts`
-3. `src/app/storage-service.ts`
-4. `src/app/ontology-service.ts`
-5. `src/tui/search-service.ts` and the relevant workflows/screens
+1. load the shared runtime
+2. create the `McpServer`
+3. register the tool families in `src/server/`
+4. connect the stdio transport
 
-The TUI reuses the same backend runtime, then adds user-facing services:
+If `src/index.ts` starts to contain feature logic, that is usually a sign the logic belongs elsewhere.
 
-- ontology browsing
-- terminal search session orchestration
-- derived-tag workbench flows
+### Terminal Composition Root
 
-That split is deliberate. The TUI should be able to evolve without forcing the MCP server entrypoint to absorb terminal-specific concerns.
+`src/tui/app-services.ts` takes the shared runtime and layers on:
 
-## Core Service Hierarchy
+- `createPf2eApplicationStorageService`
+- `createPf2eApplicationOntologyService`
+- `createPf2eTerminalSearchService`
+- tag workbench services wired through storage-backed helpers
 
-The important service stack looks like this:
+This is what lets the terminal/editorial surface reuse the backend while still having terminal-specific service contracts.
 
-1. `src/domain/`: contracts and stable vocabularies
-2. `src/data/`: normalized data access and backend services
-3. `src/search/`: shared ranking/query execution machinery
-4. `src/app/`: application composition and app-level facades
-5. `src/server/` and `src/tui/`: transport and UI surfaces
+## MCP Request Flow
 
-When adding new behavior, prefer to put it in the lowest layer that can own it without depending on a higher-level concern.
+The request lifecycle below is the main product path to keep in mind when changing lookup, search, or rules behavior.
 
-Examples:
+```mermaid
+sequenceDiagram
+    participant Client as MCP Client
+    participant Transport as stdio Transport
+    participant Server as McpServer
+    participant Handler as src/server/* tool handler
+    participant Service as Pf2eDataService
+    participant Backend as Backend search/catalog/rule graph
+    participant Store as SQLite index
 
-- new MCP-only presentation logic belongs in `src/server/`
-- reusable search execution logic belongs in `src/search/` or `src/data/backend/`
-- ontology assembly belongs in `src/app/ontology/`
-- shared search/category type definitions belong in `src/domain/`
+    Client->>Transport: tool call
+    Transport->>Server: parsed MCP request
+    Server->>Handler: invoke registered tool
+    Handler->>Service: call lookup/search/rule API
+    Service->>Backend: delegate by capability
+    Backend->>Store: execute indexed reads
+    Store-->>Backend: rows and linked data
+    Backend-->>Service: normalized result models
+    Service-->>Handler: typed response payload
+    Handler-->>Server: presented MCP content + structured content
+    Server-->>Transport: MCP response
+    Transport-->>Client: tool result
+```
 
-## Important Data Flows
+A few implications follow from that flow:
 
-### Search
+- request schemas belong in `src/server/`
+- reusable retrieval behavior belongs below the tool handlers
+- normalization should happen once in shared backend paths, not once per caller
+- result presentation can differ by surface, but the underlying data access path should stay centralized
 
-The current search path is intentionally centralized:
+## Shared Data And Storage Model
 
-1. callers build `SearchFilters`
-2. `Pf2eDataService` forwards to `Pf2eSearchBackendService`
-3. backend search uses the shared runtime search logic in `src/search/runtime-search.ts`
-4. ranked or browse results flow back through either MCP presenters or TUI adapters
+The project is intentionally offline-first at runtime:
 
-The important point is that ranked runtime execution is no longer supposed to splinter into separate ad hoc paths for different callers.
+- PF2E source data is expected locally under `vendor/pf2e` by default
+- embeddings are prepared locally when semantic search is enabled
+- the server and TUI read from a prepared SQLite index rather than rebuilding it on startup
 
-### Ontology Browsing
+That means normal request handling is read-only and low-churn:
 
-Ontology browsing is assembled in `src/app/ontology-service.ts` from three domains:
+- startup validates and opens prepared resources
+- steady-state request handling executes indexed reads
+- refresh and rebuild operations happen explicitly through maintenance commands, not during normal MCP traffic
 
-- derived tags
-- catalog categories
-- search semantics
+The most important storage split is:
 
-Those builders live under `src/app/ontology/`. They return readonly ontology node models intended for browsing, not mutable shared state for UI features to rewrite in place.
+- long-lived data runtime lives behind `Pf2eDataService`
+- short-lived direct index access for app workflows goes through `src/app/storage-service.ts`
 
-### Storage Access
+This keeps `DatabaseSync` construction from spreading through the codebase.
 
-Long-lived backend storage is owned by `Pf2eDataService`. Shorter-lived app workflows that need direct SQLite access go through `src/app/storage-service.ts`.
+## Architectural Intent
 
-This keeps direct `DatabaseSync` construction from spreading through feature code and gives the codebase a smaller number of places where storage-opening behavior can change.
+Recent refactors point in a clear direction that future edits should preserve:
 
-## Design Intent Behind Recent Refactors
+- prefer focused modules over large multipurpose service files
+- prefer facades between layers over direct leaf imports
+- prefer readonly shared models where consumers should browse rather than mutate
+- prefer lint-enforced boundaries once a shared pathway is mature
 
-Several recent changes established architectural direction that future work should continue:
+The details may move, but those design choices are the stable intent.
 
-- application storage access was centralized behind `src/app/storage-service.ts`
-- ontology service logic was decomposed into smaller domain modules under `src/app/ontology/`
-- TUI search service logic was split into focused helper modules under `src/tui/search/`
-- ontology browsing contracts were tightened to readonly models instead of mutable shared node graphs
-- lint rules were expanded so shared abstractions are enforceable boundaries rather than conventions
+## How To Navigate The Architecture Docs
 
-These changes matter more than their exact file names. The architectural intent is:
+Use this page as the map, then jump to the document closest to your change.
 
-- smaller focused modules instead of large multi-purpose service files
-- explicit facades between layers
-- readonly/shared models when callers should not mutate them
-- lint-enforced boundaries where direct access would otherwise regress the structure
+```mermaid
+flowchart TD
+    overview["overview.md<br/>start here"] --> boundaries["boundaries.md<br/>cross-cutting rules"]
+    overview --> search["search.md<br/>retrieval and ranking"]
+    overview --> tui["tui.md<br/>terminal composition"]
+    overview --> editorial["editorial.md<br/>tagging and review workflows"]
+    overview --> extending["extending.md<br/>where new behavior belongs"]
+    overview --> decisions["decisions/<br/>ADRs and design notes"]
+```
 
-## How To Navigate The Codebase
+### Architecture Reading Order
 
-For a new editor, the fastest way to understand the codebase is usually:
+If you are new to the repo, use this sequence:
 
-1. read `README.md`
-2. read this document and `docs/architecture/boundaries.md`
-3. inspect the relevant composition root:
-   - `src/index.ts` for MCP work
-   - `src/tui/app-services.ts` for TUI work
-4. find the service facade for the feature area:
-   - `src/data/service.ts`
-   - `src/app/ontology-service.ts`
-   - `src/tui/search-service.ts`
-5. only then drill into backend/helper modules
+1. read [`README.md`](../../README.md)
+2. read this overview
+3. read [`boundaries.md`](./boundaries.md)
+4. jump to the focused doc for your subsystem:
+   - [`search.md`](./search.md)
+   - [`tui.md`](./tui.md)
+   - [`editorial.md`](./editorial.md)
+   - [`extending.md`](./extending.md)
+   - [`decisions/`](./decisions/)
+5. inspect the relevant composition root:
+   - `src/index.ts` for MCP changes
+   - `src/tui/app-services.ts` for terminal/editorial changes
+6. find the owning facade before touching leaf modules
 
-That order keeps editors aligned with the intended layering instead of starting from leaf files and reconstructing the architecture from accident.
+### Which Document To Open Next
+
+- Open [`boundaries.md`](./boundaries.md) when you need to know what is intentionally restricted or lint-enforced.
+- Open [`search.md`](./search.md) when you are changing ranking, filter behavior, or retrieval flow.
+- Open [`tui.md`](./tui.md) when you are changing terminal composition, navigation, or TUI service seams.
+- Open [`editorial.md`](./editorial.md) when you are changing derived-tag workflows, review tooling, or migration flows.
+- Open [`extending.md`](./extending.md) when you are deciding where a new feature or abstraction belongs.
+- Open [`decisions/`](./decisions/) when a design choice depends on previous architectural commitments.
+
+## Editing Guidance
+
+When adding or moving behavior, prefer the lowest layer that can own the work without importing higher-level concerns.
+
+- MCP-only presentation changes belong in `src/server/`
+- reusable retrieval logic belongs in `src/search/` or `src/data/backend/`
+- app-level service wiring belongs in `src/app/`
+- terminal interaction behavior belongs in `src/tui/`
+- stable shared vocabulary belongs in `src/domain/`
+
+If a new shared abstraction is meant to become the normal path through the codebase, update the lint rules once that path is stable enough to enforce.
 
 ## Validation Expectations
 
-The repository standard validation gate is:
+The full repo gate is:
 
 ```bash
 npm run verify
 ```
 
-That runs lint, format check, build, test typecheck, and the Vitest suite. Architectural changes should also update or add lint rules when a new shared boundary is meant to become mandatory rather than optional.
+For documentation-only changes, still run at least the project build and test suite before landing work so the branch state is known-good.
