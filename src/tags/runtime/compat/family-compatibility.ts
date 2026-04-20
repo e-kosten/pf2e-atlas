@@ -1,0 +1,37 @@
+import type { SearchCategory } from "../../../domain/index.js";
+import { normalizeDerivedTag } from "../matcher/engine.js";
+
+const RAW_LEGACY_FAMILY_ALIASES: Partial<Record<SearchCategory, Record<string, string[]>>> = {
+  creature: {
+    setting: ["habitat_setting", "site_setting", "regional_setting", "planar_setting"],
+    encounter_role: ["scene_role", "social_role"],
+    world_role: ["social_role"],
+    motif: ["visual_motif", "genre_motif", "story_motif"],
+  },
+  equipment: {
+    purpose: ["movement_traversal", "reconnaissance", "access_bypass", "carry_logistics", "restraint"],
+    polarity: ["consumable_role", "delivery_profile"],
+    scouting_surveillance: ["reconnaissance"],
+    logistics_restraint: ["carry_logistics", "restraint"],
+    magic_interference: ["anti_magic"],
+  },
+  hazard: {
+    encounter_role: ["function"],
+  },
+};
+
+export function getLegacyDerivedTagFamilyAliases(category: SearchCategory, family: string): string[] {
+  const normalizedFamily = normalizeDerivedTag(family);
+  return (RAW_LEGACY_FAMILY_ALIASES[category]?.[normalizedFamily] ?? []).map((candidate) =>
+    normalizeDerivedTag(candidate),
+  );
+}
+
+export function listLegacyDerivedTagFamilyAliases(
+  category: SearchCategory,
+): Array<{ legacyFamily: string; targetFamilies: string[] }> {
+  return Object.entries(RAW_LEGACY_FAMILY_ALIASES[category] ?? {}).map(([legacyFamily, targetFamilies]) => ({
+    legacyFamily: normalizeDerivedTag(legacyFamily),
+    targetFamilies: targetFamilies.map((candidate) => normalizeDerivedTag(candidate)),
+  }));
+}
