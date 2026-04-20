@@ -46,6 +46,7 @@ export type Pf2eTerminalCatalogService = Pick<
   | "closeSearchWindow"
   | "countRecords"
   | "getRecord"
+  | "getSearchCategorySummary"
   | "getSearchVocabulary"
   | "listFilterValues"
   | "listRecords"
@@ -116,6 +117,7 @@ export function createPf2eTerminalAppServices(
       search: createPf2eTerminalSearchService({
         closeSearchWindow: (windowId) => dataService.closeSearchWindow(windowId),
         countRecords: (filters, options) => dataService.countRecords(filters, options),
+        getSearchCategorySummary: () => dataService.getSearchCategorySummary(),
         getSearchVocabulary: () => dataService.getSearchVocabulary(),
         listFilterValues: (query) => dataService.listFilterValues(query),
         lookup: (name, options) => dataService.lookup(name, options),

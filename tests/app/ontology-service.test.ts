@@ -8,14 +8,11 @@ import { createPf2eApplicationOntologyService } from "../../src/app/ontology-ser
 import { getMetadataGlossaryArtifactPath } from "../../src/data/metadata-glossary.js";
 import type { SearchVocabularyResult } from "../../src/data/vocabulary.js";
 import type { Pf2eDataService } from "../../src/data/service.js";
-import type {
-  FilterValueField,
-  SearchFilters,
-} from "../../src/domain/search-types.js";
+import type { FilterValueField, SearchFilters } from "../../src/domain/search-types.js";
 import type { AppConfig } from "../../src/domain/config-types.js";
 import type { MetadataGlossaryArtifact } from "../../src/domain/metadata-glossary-types.js";
 import type { NormalizedRecord } from "../../src/domain/record-types.js";
-import type { OntologyDomainSummary, OntologyNode } from "../../src/domain/ontology-types.js";
+import type { OntologyNode } from "../../src/domain/ontology-types.js";
 
 function createTestConfig(indexPath = ".cache/pf2e-index.sqlite"): AppConfig {
   return {
@@ -241,51 +238,20 @@ function createDataService(): Pick<Pf2eDataService, "getSearchVocabulary" | "lis
 }
 
 describe("application ontology service", () => {
-  it("lists available ontology domains", () => {
+  it("exposes an explicit search-semantics loader", () => {
     const service = createPf2eApplicationOntologyService(createTestConfig(), createDataService());
 
-    expect(service.listDomains().map((domain) => domain.id)).toEqual([
-      "catalogCategories",
-      "searchSemantics",
-    ]);
-  });
-
-  it("returns fresh domain summary arrays and objects on each listDomains call", () => {
-    const service = createPf2eApplicationOntologyService(createTestConfig(), createDataService());
-
-    const first = service.listDomains();
-    const second = service.listDomains();
-
-    expect(first).not.toBe(second);
-    expect(first[0]).not.toBe(second[0]);
-
-    (first as OntologyDomainSummary[]).pop();
-    (second as OntologyDomainSummary[])[0] = {
-      ...second[0]!,
-      label: "Mutated Label",
-    };
-
-    expect(service.listDomains()).toEqual([
-      {
-        id: "catalogCategories",
-        label: "Categories",
-        description:
-          "Browse top-level catalog categories and subcategories with live record counts and ready-to-run browse scopes.",
-      },
-      {
-        id: "searchSemantics",
-        label: "Search Semantics",
-        description: "Explore category-specific metadata fields, live value spaces, and advanced search predicates.",
-      },
-    ]);
+    expect(service).toEqual({
+      loadSearchSemanticsDomain: expect.any(Function),
+    });
   });
 
   it("caches ontology domain models across repeated loads", () => {
     const dataService = createDataService();
     const service = createPf2eApplicationOntologyService(createTestConfig(), dataService);
 
-    const first = service.loadDomain("searchSemantics");
-    const second = service.loadDomain("searchSemantics");
+    const first = service.loadSearchSemanticsDomain();
+    const second = service.loadSearchSemanticsDomain();
 
     expect(second).toBe(first);
   });
@@ -296,19 +262,15 @@ describe("application ontology service", () => {
       loadDerivedTagOntologyExplorerModel,
     });
 
-    service.loadDomain("searchSemantics");
+    service.loadSearchSemanticsDomain();
 
     expect(loadDerivedTagOntologyExplorerModel).not.toHaveBeenCalled();
-
-    service.loadDomain("derivedTags");
-
-    expect(loadDerivedTagOntologyExplorerModel).toHaveBeenCalledTimes(1);
   });
 
   it("builds valid field-specific browse queries for search semantics values", () => {
     const dataService = createDataService();
     const service = createPf2eApplicationOntologyService(createTestConfig(), dataService);
-    const domain = service.loadDomain("searchSemantics");
+    const domain = service.loadSearchSemanticsDomain();
     const metadataFieldsNode = findNodeById(domain.rootNodes, "spell:metadataFields");
 
     expect(dataService.listFilterValues).not.toHaveBeenCalledWith({ field: "saveType", category: "spell" });
@@ -397,7 +359,7 @@ describe("application ontology service", () => {
       );
 
       const service = createPf2eApplicationOntologyService(config, createDataService());
-      const domain = service.loadDomain("searchSemantics");
+      const domain = service.loadSearchSemanticsDomain();
       const commonTraitNode = findNodeById(domain.rootNodes, "spell:commonTraits")?.children?.[0];
       const traitFieldNode = findNodeById(domain.rootNodes, "spell:field:traits");
       const traitValueNode = traitFieldNode?.loadChildren?.().find((node) => node.id === "spell:traits:fire");
@@ -460,7 +422,7 @@ describe("application ontology service", () => {
     };
 
     const service = createPf2eApplicationOntologyService(createTestConfig(), dataService);
-    const domain = service.loadDomain("searchSemantics");
+    const domain = service.loadSearchSemanticsDomain();
     const traitFieldNode = findNodeById(domain.rootNodes, "spell:field:traits");
     const traitValueNodes = traitFieldNode?.loadChildren?.() ?? [];
 
@@ -470,7 +432,7 @@ describe("application ontology service", () => {
 
   it("uses live record inspection and live metric discovery instead of shallow examples", () => {
     const service = createPf2eApplicationOntologyService(createTestConfig(), createDataService());
-    const domain = service.loadDomain("searchSemantics");
+    const domain = service.loadSearchSemanticsDomain();
     const booleanGroupNode = findNodeById(domain.rootNodes, "spell:booleanGroup:and");
     const actorMetricCompareNode = findNodeById(domain.rootNodes, "creature:advanced:actorMetricCompare");
     const itemMetricCompareNode = findNodeById(domain.rootNodes, "equipment:advanced:itemMetricCompare");

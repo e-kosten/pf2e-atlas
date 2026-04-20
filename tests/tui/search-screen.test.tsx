@@ -290,6 +290,9 @@ function createServices(
     catalog: {
       countRecords,
       getRecord: vi.fn(() => record),
+      getSearchCategorySummary: vi.fn(() => ({
+        categories: [{ value: "spell", count: 1 }],
+      })),
       getSearchVocabulary: vi.fn(() => ({}) as never),
       listFilterValues: vi.fn(() => ({ field: "categories", values: [] }) as never),
       listRecords,
@@ -302,13 +305,7 @@ function createServices(
     user: {
       search: searchService,
       ontology: {
-        listDomains: vi.fn(() => []),
-        loadDomain: vi.fn(() => ({
-          id: "catalogCategories",
-          label: "Categories",
-          description: "Test domain",
-          rootNodes: [],
-        })),
+        loadSearchSemanticsDomain: vi.fn(() => createFacetPickerOntologyDomain()),
       },
     },
     dev: {
@@ -831,17 +828,7 @@ describe("search screen", () => {
         editor: "sharedExplorer",
       },
     ]);
-    services.user.ontology.loadDomain = vi.fn((id: string) => {
-      if (id === "searchSemantics") {
-        return createFacetPickerOntologyDomain();
-      }
-      return {
-        id: "derivedTags",
-        label: "Derived Tags",
-        description: "Unused test domain",
-        rootNodes: [],
-      };
-    });
+    services.user.ontology.loadSearchSemanticsDomain = vi.fn(() => createFacetPickerOntologyDomain());
 
     const app = render(
       <DerivedTagTerminalProvider>
@@ -1860,17 +1847,7 @@ describe("search screen", () => {
         editor: "sharedExplorer",
       },
     ]);
-    services.user.ontology.loadDomain = vi.fn((id: string) => {
-      if (id === "searchSemantics") {
-        return createFacetPickerOntologyDomain();
-      }
-      return {
-        id: "derivedTags",
-        label: "Derived Tags",
-        description: "Unused test domain",
-        rootNodes: [],
-      };
-    });
+    services.user.ontology.loadSearchSemanticsDomain = vi.fn(() => createFacetPickerOntologyDomain());
 
     const app = render(
       <DerivedTagTerminalProvider>
@@ -1967,17 +1944,7 @@ describe("search screen", () => {
 
   it("opens the shared explorer for staged rarity and action-cost rows", async () => {
     const services = createServices();
-    services.user.ontology.loadDomain = vi.fn((id: string) => {
-      if (id === "searchSemantics") {
-        return createFacetPickerOntologyDomainWithDiscreteFields();
-      }
-      return {
-        id: "fallback",
-        label: "Fallback",
-        description: "Unused test domain",
-        rootNodes: [],
-      };
-    });
+    services.user.ontology.loadSearchSemanticsDomain = vi.fn(() => createFacetPickerOntologyDomainWithDiscreteFields());
 
     const app = render(
       <DerivedTagTerminalProvider>
@@ -2060,16 +2027,7 @@ describe("search screen", () => {
         editor: "sharedExplorer",
       },
     ]);
-    services.user.ontology.loadDomain = vi.fn((id: string) => {
-      if (id !== "searchSemantics") {
-        return {
-          id: "fallback",
-          label: "Fallback",
-          description: "Unused test domain",
-          rootNodes: [],
-        };
-      }
-
+    services.user.ontology.loadSearchSemanticsDomain = vi.fn(() => {
       const domain = createFacetPickerOntologyDomain();
       const metadataFields = domain.rootNodes[0]?.children?.[0];
       if (metadataFields?.children) {
@@ -2209,17 +2167,7 @@ describe("search screen", () => {
           ]
         : [],
     );
-    services.user.ontology.loadDomain = vi.fn((id: string) => {
-      if (id === "searchSemantics") {
-        return createCreatureDerivedTagsOntologyDomain();
-      }
-      return {
-        id: "fallback",
-        label: "Fallback",
-        description: "Unused test domain",
-        rootNodes: [],
-      };
-    });
+    services.user.ontology.loadSearchSemanticsDomain = vi.fn(() => createCreatureDerivedTagsOntologyDomain());
 
     const app = render(
       <DerivedTagTerminalProvider>

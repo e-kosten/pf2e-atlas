@@ -60,7 +60,7 @@ export function useSearchFilterExplorerWorkflow({
         return false;
       }
 
-      const searchSemanticsDomain = services.ontology.loadDomain("searchSemantics");
+      const searchSemanticsDomain = services.ontology.loadSearchSemanticsDomain();
       const model = buildSearchFilterExplorerModel(searchSemanticsDomain, {
         category: scopeQuery.filters.category,
         subcategory: scopeSubcategory,

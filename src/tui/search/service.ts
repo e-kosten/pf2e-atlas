@@ -5,7 +5,6 @@ import {
 } from "../../domain/categories.js";
 import { getMetadataFilterSemantics, type MetadataFieldSemantics } from "../../domain/metadata-semantics.js";
 import type { MetadataFieldName } from "../../domain/metadata-field-registry.js";
-import type { SearchVocabularyResult } from "../../data/vocabulary.js";
 import type {
   SearchCategory,
   SearchSubcategory,
@@ -164,14 +163,16 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
     applyDiscoverableQueryFieldSelections: (query, selections, scopedFields) =>
       applyDiscoverableQueryFieldSelections(query, selections, scopedFields, fieldSemanticsByName),
     getCategoryOptions: () => {
-      const vocabulary = dependencies.getSearchVocabulary();
+      const categorySummary = dependencies.getSearchCategorySummary?.() ?? {
+        categories: dependencies.getSearchVocabulary().categories,
+      };
       return [
         {
           value: null,
           label: "Any Category",
           description: "Search or browse across the full indexed PF2E corpus.",
         },
-        ...vocabulary.categories.map((category: SearchVocabularyResult["categories"][number]) => ({
+        ...categorySummary.categories.map((category) => ({
           value: category.value,
           label: formatCategoryLabel(category.value),
           description: `${category.count} indexed canonical record${category.count === 1 ? "" : "s"}.`,

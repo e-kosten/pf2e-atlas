@@ -116,6 +116,45 @@ function createSearchSemanticsDomain(rootNodes: OntologyNode[]): OntologyDomainM
 }
 
 describe("createPf2eTerminalSearchService", () => {
+  it("prefers the cached category summary when building category options", () => {
+    const getSearchVocabulary = vi.fn(() => ({
+      categories: [{ value: "spell", count: 99 }],
+      subcategories: [],
+      rarities: [{ value: "common", count: 1 }],
+      sizes: [],
+      traditions: [{ value: "arcane", count: 1 }],
+      spellKinds: [{ value: "spell", count: 1 }],
+      sourceCategories: [{ value: "core", count: 1 }],
+      commonTraitsByCategory: [],
+      commonDerivedTagsByCategory: [],
+      derivedTagOntologyFamilies: [],
+      derivedTagOntologyTags: [],
+      derivedTagCatalog: [],
+    }));
+    const service = createPf2eTerminalSearchService(
+      createDependencies({
+        getSearchCategorySummary: () => ({
+          categories: [{ value: "creature", count: 12 }],
+        }),
+        getSearchVocabulary,
+      }),
+    );
+
+    expect(service.getCategoryOptions()).toEqual([
+      {
+        value: null,
+        label: "Any Category",
+        description: "Search or browse across the full indexed PF2E corpus.",
+      },
+      {
+        value: "creature",
+        label: "Creature",
+        description: "12 indexed canonical records.",
+      },
+    ]);
+    expect(getSearchVocabulary).not.toHaveBeenCalled();
+  });
+
   it("normalizes legacy filter state into structured parts and trims unavailable action cost", () => {
     const service = createPf2eTerminalSearchService(createDependencies());
     const defaultQuery = service.createDefaultQuery();

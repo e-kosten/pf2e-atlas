@@ -24,6 +24,7 @@ import { loadPf2eDataRuntime, rebuildPf2eDataRuntime } from "./backend/load-runt
 import { Pf2eSearchBackendService } from "./backend/search-service.js";
 import type { Pf2eLoadedDataRuntime } from "./backend/types.js";
 import type { Pf2eDataServiceLoadOptions } from "./backend/types.js";
+import type { SearchCategorySummaryResult, SearchSemanticsBootstrapSummaryResult } from "./vocabulary.js";
 
 type LoadOptions = Pf2eDataServiceLoadOptions;
 
@@ -73,6 +74,16 @@ export class Pf2eDataService {
       packCount: this.packs.length,
       recordCount: this.recordCount,
     };
+  }
+
+  getSearchCategorySummary(): SearchCategorySummaryResult {
+    return this.catalog.getSearchCategorySummary();
+  }
+
+  getSearchSemanticsBootstrapSummary(
+    options: { traitLimitPerCategory?: number } = {},
+  ): SearchSemanticsBootstrapSummaryResult {
+    return this.catalog.getSearchSemanticsBootstrapSummary(options);
   }
 
   getSearchVocabulary(options: { traitLimitPerCategory?: number } = {}) {

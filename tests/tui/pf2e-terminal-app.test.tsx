@@ -228,6 +228,9 @@ function createFakeServices(overrides: Partial<Pf2eTerminalAppServices> = {}): P
       closeSearchWindow,
       countRecords,
       getRecord: vi.fn(() => record),
+      getSearchCategorySummary: vi.fn(() => ({
+        categories: [{ value: "spell", count: 1 }],
+      })),
       getSearchVocabulary: vi.fn(() => ({}) as never),
       listFilterValues: vi.fn(() => ({ field: "categories", values: [] }) as never),
       listRecords,
@@ -239,8 +242,7 @@ function createFakeServices(overrides: Partial<Pf2eTerminalAppServices> = {}): P
     user: {
       search: searchService,
       ontology: {
-        listDomains: vi.fn(() => []),
-        loadDomain: vi.fn(() => ({
+        loadSearchSemanticsDomain: vi.fn(() => ({
           id: "searchSemantics",
           label: "Search Semantics",
           description: "Search semantics ontology",
@@ -360,8 +362,44 @@ describe("pf2e terminal app", () => {
     expect(app.lastFrame()).toContain("Search Semantics");
     expect(app.lastFrame()).toContain("Explorer Entries");
 
-    expect(services.user.ontology.loadDomain).toHaveBeenCalledWith("searchSemantics");
+    expect(services.user.ontology.loadSearchSemanticsDomain).toHaveBeenCalledTimes(1);
     expect(app.lastFrame()).toContain("Spell");
+  });
+
+  it("uses the dedicated search-semantics ontology loader", async () => {
+    const services = createFakeServices();
+    const loadSearchSemanticsDomain = vi.fn(() => ({
+      id: "searchSemantics",
+      label: "Search Semantics",
+      description: "Search semantics ontology",
+      rootNodes: [
+        {
+          id: "searchSemantics:spell",
+          kind: "category",
+          label: "Spell",
+          filterText: "spell",
+          listLabel: "spell | 0 groups",
+          detailTitle: "Search Semantics",
+          detailLines: [{ text: "Spell", tone: "section" }],
+          children: [],
+        },
+      ],
+    }));
+    services.user.ontology.loadSearchSemanticsDomain = loadSearchSemanticsDomain;
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalApp rootPath={process.cwd()} onExit={vi.fn()} services={services} />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+
+    app.stdin.write("j");
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+
+    expect(loadSearchSemanticsDomain).toHaveBeenCalledTimes(1);
   });
 
   it("passes shared prompt adapters into custom workbench session creation", async () => {
@@ -478,7 +516,7 @@ describe("pf2e terminal app", () => {
 
   it("returns from ontology-launched search to the exact ontology snapshot", async () => {
     const services = createFakeServices();
-    services.user.ontology.loadDomain = vi.fn(() => ({
+    services.user.ontology.loadSearchSemanticsDomain = vi.fn(() => ({
       id: "searchSemantics",
       label: "Search Semantics",
       description: "Search semantics ontology",
@@ -567,7 +605,7 @@ describe("pf2e terminal app", () => {
 
   it("opens concrete ontology leaves directly in the shared result reader and returns to the same ontology leaf", async () => {
     const services = createFakeServices();
-    services.user.ontology.loadDomain = vi.fn(() => ({
+    services.user.ontology.loadSearchSemanticsDomain = vi.fn(() => ({
       id: "searchSemantics",
       label: "Search Semantics",
       description: "Search semantics ontology",

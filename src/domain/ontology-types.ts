@@ -1,6 +1,6 @@
 import type { SearchFilters } from "./search-types.js";
 
-export type OntologyDomainId = "derivedTags" | "catalogCategories" | "searchSemantics";
+export type OntologyDomainId = "derivedTags" | "searchSemantics";
 
 export type OntologyLineTone =
   | "default"

@@ -8,12 +8,19 @@ import type {
 import type { LinkedRecordSummary, NormalizedRecord, PackInfo } from "../../domain/record-types.js";
 import type { NormalizedSearchFilters } from "../../search/contracts.js";
 import type { RankingConfigStore } from "../../search/ranking-config.js";
-import type { SearchVocabularyResult } from "../vocabulary.js";
+import type {
+  SearchCategorySummaryResult,
+  SearchSemanticsBootstrapSummaryResult,
+  SearchVocabularyResult,
+} from "../vocabulary.js";
 import {
   getPack as getPackRuntime,
+  getSearchCategorySummary as getSearchCategorySummaryRuntime,
+  getSearchSemanticsBootstrapSummary as getSearchSemanticsBootstrapSummaryRuntime,
   getSearchVocabulary as getSearchVocabularyRuntime,
   listFilterValues as listFilterValuesRuntime,
   listPacks as listPacksRuntime,
+  normalizeTraitLimitPerCategory,
 } from "../vocabulary.js";
 import { fetchRecordRow, fetchRecordRowsByKeys } from "../record-queries.js";
 import { rowToRecord } from "../rows.js";
@@ -22,6 +29,8 @@ import { loadAliasesByRecordKey, loadLegacyLinksByRecordKey } from "../schema.js
 export class Pf2eRecordCatalog {
   private readonly aliasesByRecordKey: Map<string, string[]>;
   private readonly legacyLinksByRecordKey: Map<string, LinkedRecordSummary[]>;
+  private searchCategorySummaryCache: SearchCategorySummaryResult | null = null;
+  private readonly searchSemanticsBootstrapSummaryCache = new Map<number, SearchSemanticsBootstrapSummaryResult>();
 
   constructor(
     private readonly db: DatabaseSync,
@@ -30,6 +39,27 @@ export class Pf2eRecordCatalog {
   ) {
     this.aliasesByRecordKey = loadAliasesByRecordKey(db);
     this.legacyLinksByRecordKey = loadLegacyLinksByRecordKey(db);
+  }
+
+  getSearchCategorySummary(): SearchCategorySummaryResult {
+    if (!this.searchCategorySummaryCache) {
+      this.searchCategorySummaryCache = getSearchCategorySummaryRuntime(this.db);
+    }
+    return this.searchCategorySummaryCache;
+  }
+
+  getSearchSemanticsBootstrapSummary(
+    options: { traitLimitPerCategory?: number } = {},
+  ): SearchSemanticsBootstrapSummaryResult {
+    const traitLimit = normalizeTraitLimitPerCategory(options.traitLimitPerCategory);
+    const cached = this.searchSemanticsBootstrapSummaryCache.get(traitLimit);
+    if (cached) {
+      return cached;
+    }
+
+    const summary = getSearchSemanticsBootstrapSummaryRuntime(this.db, { traitLimitPerCategory: traitLimit });
+    this.searchSemanticsBootstrapSummaryCache.set(traitLimit, summary);
+    return summary;
   }
 
   getSearchVocabulary(options: { traitLimitPerCategory?: number } = {}): SearchVocabularyResult {

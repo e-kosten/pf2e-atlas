@@ -28,7 +28,7 @@ Those responsibilities stay below the TUI behind app-layer and backend facades.
 
 - `loadPf2eApplicationRuntime()` from `src/app/runtime.ts` loads config and the long-lived `Pf2eDataService`
 - `createPf2eApplicationStorageService()` supplies app-scoped storage helpers for workflows that need direct index access
-- `createPf2eApplicationOntologyService()` builds cached ontology domains for browsing
+- `createPf2eApplicationOntologyService()` builds the cached search-semantics browse model used by the ontology area
 - `createPf2eTerminalSearchService()` adapts shared catalog/search capabilities into a TUI-facing query/session API
 - the derived-tag workbench services are wired in as a development/editorial area, not mixed into the user search and ontology APIs
 
@@ -122,7 +122,7 @@ This keeps query editing and result reading logic in the TUI while leaving searc
 In the current split:
 
 - `src/tui/filter-explorer/` owns the shared list/detail browser, snapshots, command palette wiring, and mode-specific inspect-versus-compose behavior
-- `src/tui/ontology-explorer/inspect-screen.tsx` is a thin host for the `searchSemantics` domain from `src/app/ontology-service.ts`; entering the ontology area now lands directly in that shared inspect session and routes selected leaves into search
+- `src/tui/ontology-explorer/inspect-screen.tsx` is a thin host for `loadSearchSemanticsDomain()` from `src/app/ontology-service.ts`; entering the ontology area now lands directly in that shared inspect session and routes selected leaves into search
 - `src/tui/ontology-explorer/` legacy browse-only pieces remain isolated and should not become the primary path for new ontology/search exploration work
 
 The ontology host still adds:

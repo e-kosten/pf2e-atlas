@@ -1,51 +1,46 @@
 import type { AppConfig } from "../domain/config-types.js";
-import type { OntologyDomainId, OntologyDomainModel, OntologyDomainSummary } from "../domain/ontology-types.js";
+import type { OntologyDomainModel } from "../domain/ontology-types.js";
 import type { Pf2eDataService } from "../data/service.js";
-import { buildCatalogCategoriesDomain } from "./ontology/catalog-categories-domain.js";
-import { ONTOLOGY_DOMAINS } from "./ontology/domain-summaries.js";
+import type { SearchSemanticsBootstrapSummaryResult, SearchVocabularyResult } from "../data/vocabulary.js";
 import { buildDerivedTagsDomain } from "./ontology/derived-tags-domain.js";
 import { buildSearchSemanticsDomain } from "./ontology/search-semantics-domain.js";
 import { createPf2eApplicationStorageService, type Pf2eApplicationStorageService } from "./storage-service.js";
 
 export type Pf2eApplicationOntologyService = {
-  listDomains: () => readonly OntologyDomainSummary[];
-  loadDomain: (id: OntologyDomainId) => OntologyDomainModel;
+  loadSearchSemanticsDomain: () => OntologyDomainModel;
+};
+
+type OntologyDomainDataService = Pick<Pf2eDataService, "listFilterValues" | "listRecords"> & {
+  getSearchSemanticsBootstrapSummary?: (options?: { traitLimitPerCategory?: number }) => SearchSemanticsBootstrapSummaryResult;
+  getSearchVocabulary?: (options?: { traitLimitPerCategory?: number }) => SearchVocabularyResult;
 };
 
 export function createPf2eApplicationOntologyService(
   config: AppConfig,
-  dataService: Pick<Pf2eDataService, "getSearchVocabulary" | "listFilterValues" | "listRecords">,
+  dataService: OntologyDomainDataService,
   storage: Pick<
     Pf2eApplicationStorageService,
     "loadDerivedTagOntologyExplorerModel"
   > = createPf2eApplicationStorageService(config),
 ): Pf2eApplicationOntologyService {
-  const domainCache = new Map<OntologyDomainId, OntologyDomainModel>();
-  const publicDomains = ONTOLOGY_DOMAINS.filter((domain) => domain.id !== "derivedTags");
-  const buildDomain = (id: OntologyDomainId): OntologyDomainModel => {
-    switch (id) {
-      case "derivedTags":
-        return buildDerivedTagsDomain(storage.loadDerivedTagOntologyExplorerModel());
-      case "catalogCategories":
-        return buildCatalogCategoriesDomain(dataService);
-      case "searchSemantics":
-        return buildSearchSemanticsDomain(config, dataService, () => loadDomain("derivedTags"));
+  let derivedTagsDomain: OntologyDomainModel | null = null;
+  let searchSemanticsDomain: OntologyDomainModel | null = null;
+
+  const loadDerivedTagsDomain = (): OntologyDomainModel => {
+    if (!derivedTagsDomain) {
+      derivedTagsDomain = buildDerivedTagsDomain(storage.loadDerivedTagOntologyExplorerModel());
     }
+    return derivedTagsDomain;
   };
 
-  const loadDomain = (id: OntologyDomainId): OntologyDomainModel => {
-    const cached = domainCache.get(id);
-    if (cached) {
-      return cached;
+  const loadSearchSemanticsDomain = (): OntologyDomainModel => {
+    if (!searchSemanticsDomain) {
+      searchSemanticsDomain = buildSearchSemanticsDomain(config, dataService, loadDerivedTagsDomain);
     }
-
-    const domain = buildDomain(id);
-    domainCache.set(id, domain);
-    return domain;
+    return searchSemanticsDomain;
   };
 
   return {
-    listDomains: () => publicDomains.map((domain) => ({ ...domain })),
-    loadDomain,
+    loadSearchSemanticsDomain,
   };
 }

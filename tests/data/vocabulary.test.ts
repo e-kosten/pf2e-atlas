@@ -2,7 +2,11 @@ import { DatabaseSync } from "node:sqlite";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { getSearchVocabulary } from "../../src/data/vocabulary.js";
+import {
+  getSearchCategorySummary,
+  getSearchSemanticsBootstrapSummary,
+  getSearchVocabulary,
+} from "../../src/data/vocabulary.js";
 
 function createVocabularyDb(): DatabaseSync {
   const db = new DatabaseSync(":memory:");
@@ -44,14 +48,15 @@ describe("search vocabulary decoding", () => {
     db = null;
   });
 
-  it("decodes validated category and spell vocabulary rows", () => {
+  it("decodes validated category and spell vocabulary rows plus lightweight summaries", () => {
     db = createVocabularyDb();
     db.prepare(
       `
         INSERT INTO records (record_key, category, subcategory, rarity, source_category, is_search_canonical)
         VALUES
           ('spell:test', 'spell', NULL, 'common', 'core', 1),
-          ('creature:test', 'creature', NULL, 'rare', 'rules', 1)
+          ('creature:test', 'creature', NULL, 'rare', 'rules', 1),
+          ('rule:test', 'rule', 'action', 'common', 'rules', 1)
       `,
     ).run();
     db.prepare(`INSERT INTO actor_records (record_key, size) VALUES ('creature:test', 'med')`).run();
@@ -62,23 +67,48 @@ describe("search vocabulary decoding", () => {
       `
         INSERT INTO record_traits (record_key, trait) VALUES
           ('spell:test', 'fire'),
-          ('creature:test', 'undead')
+          ('creature:test', 'undead'),
+          ('rule:test', 'concentrate')
       `,
     ).run();
     db.prepare(
       `
         INSERT INTO record_derived_tags (record_key, tag) VALUES
           ('spell:test', 'damage_burst'),
-          ('creature:test', 'undead_adjacent')
+          ('creature:test', 'undead_adjacent'),
+          ('rule:test', 'action_economy')
       `,
     ).run();
 
+    const categorySummary = getSearchCategorySummary(db);
+    const bootstrapSummary = getSearchSemanticsBootstrapSummary(db, { traitLimitPerCategory: 4 });
     const vocabulary = getSearchVocabulary(db, { traitLimitPerCategory: 4 });
 
+    expect(categorySummary.categories).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ value: "spell" }),
+        expect.objectContaining({ value: "creature" }),
+        expect.objectContaining({ value: "rule" }),
+      ]),
+    );
+    expect(bootstrapSummary.subcategoryCountsByCategory).toContainEqual({
+      category: "rule",
+      subcategories: [{ value: "action", count: 1 }],
+    });
+    expect(bootstrapSummary.commonTraitsByCategory).toContainEqual({
+      category: "rule",
+      traits: [{ value: "concentrate", count: 1 }],
+    });
+    expect(bootstrapSummary.commonDerivedTagsByCategory).toContainEqual({
+      category: "rule",
+      tags: [{ value: "action_economy", count: 1 }],
+    });
+    expect(bootstrapSummary.derivedTagCatalog.length).toBeGreaterThan(0);
     expect(vocabulary.categories).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ value: "spell" }),
         expect.objectContaining({ value: "creature" }),
+        expect.objectContaining({ value: "rule" }),
       ]),
     );
     expect(vocabulary.sourceCategories).toEqual(

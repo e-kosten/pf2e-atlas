@@ -4,7 +4,7 @@ import { buildSearchSemanticsDomain } from "../../src/app/ontology/search-semant
 import type { OntologyNode } from "../../src/domain/ontology-types.js";
 import type { AppConfig } from "../../src/domain/config-types.js";
 import type { FilterValueField, SearchFilters } from "../../src/domain/search-types.js";
-import type { SearchVocabularyResult } from "../../src/data/vocabulary.js";
+import type { SearchSemanticsBootstrapSummaryResult, SearchVocabularyResult } from "../../src/data/vocabulary.js";
 import type { Pf2eDataService } from "../../src/data/service.js";
 
 function createTestConfig(indexPath = ".cache/pf2e-index.sqlite"): AppConfig {
@@ -40,22 +40,20 @@ function findNodeById(nodes: readonly OntologyNode[], id: string): OntologyNode 
   return undefined;
 }
 
-function createDataService(): Pick<Pf2eDataService, "getSearchVocabulary" | "listFilterValues" | "listRecords"> {
-  const vocabulary: SearchVocabularyResult = {
+function createSummary(): SearchSemanticsBootstrapSummaryResult {
+  return {
     categories: [{ value: "hazard", count: 3 }],
-    subcategories: [
-      { value: "trap", count: 2 },
-      { value: "haunt", count: 1 },
+    subcategoryCountsByCategory: [
+      {
+        category: "hazard",
+        subcategories: [
+          { value: "trap", count: 2 },
+          { value: "haunt", count: 1 },
+        ],
+      },
     ],
-    rarities: [],
-    sizes: [],
-    traditions: [],
-    spellKinds: [],
-    sourceCategories: [],
-    commonTraitsByCategory: [],
-    commonDerivedTagsByCategory: [],
-    derivedTagOntologyFamilies: [],
-    derivedTagOntologyTags: [],
+    commonTraitsByCategory: [{ category: "hazard", traits: [{ value: "magical", count: 3 }] }],
+    commonDerivedTagsByCategory: [{ category: "hazard", tags: [{ value: "fogbound", count: 2 }] }],
     derivedTagCatalog: [
       {
         category: "hazard",
@@ -82,9 +80,42 @@ function createDataService(): Pick<Pf2eDataService, "getSearchVocabulary" | "lis
       },
     ],
   };
+}
 
+function createVocabulary(summary: SearchSemanticsBootstrapSummaryResult): SearchVocabularyResult {
   return {
-    getSearchVocabulary: vi.fn(() => vocabulary),
+    categories: summary.categories,
+    subcategories: [
+      { value: "trap", count: 2 },
+      { value: "haunt", count: 1 },
+    ],
+    rarities: [],
+    sizes: [],
+    traditions: [],
+    spellKinds: [],
+    sourceCategories: [],
+    commonTraitsByCategory: summary.commonTraitsByCategory,
+    commonDerivedTagsByCategory: summary.commonDerivedTagsByCategory,
+    derivedTagOntologyFamilies: [],
+    derivedTagOntologyTags: [],
+    derivedTagCatalog: summary.derivedTagCatalog,
+  };
+}
+
+function createDataService(options: {
+  includeSummary?: boolean;
+  includeVocabulary?: boolean;
+} = {}): Pick<Pf2eDataService, "listFilterValues" | "listRecords"> & {
+  getSearchSemanticsBootstrapSummary?: ReturnType<typeof vi.fn<() => SearchSemanticsBootstrapSummaryResult>>;
+  getSearchVocabulary?: ReturnType<typeof vi.fn<() => SearchVocabularyResult>>;
+} {
+  const summary = createSummary();
+  const vocabulary = createVocabulary(summary);
+
+  const service: Pick<Pf2eDataService, "listFilterValues" | "listRecords"> & {
+    getSearchSemanticsBootstrapSummary?: ReturnType<typeof vi.fn<() => SearchSemanticsBootstrapSummaryResult>>;
+    getSearchVocabulary?: ReturnType<typeof vi.fn<() => SearchVocabularyResult>>;
+  } = {
     listFilterValues: vi.fn(({ field, category }: { field: FilterValueField; category?: string }) => ({
       field,
       values:
@@ -107,6 +138,15 @@ function createDataService(): Pick<Pf2eDataService, "getSearchVocabulary" | "lis
       records: [],
     })),
   };
+
+  if (options.includeSummary ?? true) {
+    service.getSearchSemanticsBootstrapSummary = vi.fn(() => summary);
+  }
+  if (options.includeVocabulary ?? true) {
+    service.getSearchVocabulary = vi.fn(() => vocabulary);
+  }
+
+  return service;
 }
 
 describe("buildSearchSemanticsDomain", () => {
@@ -114,10 +154,13 @@ describe("buildSearchSemanticsDomain", () => {
     const loadDerivedTagsDomain = vi.fn(() => {
       throw new Error("search semantics should not load the derived-tags domain");
     });
-    const domain = buildSearchSemanticsDomain(createTestConfig(), createDataService(), loadDerivedTagsDomain);
+    const dataService = createDataService();
+    const domain = buildSearchSemanticsDomain(createTestConfig(), dataService, loadDerivedTagsDomain);
     const derivedTagsField = findNodeById(domain.rootNodes, "hazard:trap:field:derivedTags");
 
     expect(loadDerivedTagsDomain).not.toHaveBeenCalled();
+    expect(dataService.getSearchSemanticsBootstrapSummary).toHaveBeenCalledTimes(1);
+    expect(dataService.getSearchVocabulary).not.toHaveBeenCalled();
     expect(derivedTagsField?.childPresentation).toEqual({
       mode: "grouped",
       groupBy: "axis",
@@ -137,5 +180,36 @@ describe("buildSearchSemanticsDomain", () => {
     expect(trapTag?.query?.filters.subcategory).toBe("trap");
     expect(fogboundTag?.children).toBeUndefined();
     expect(fogboundTag?.loadChildren).toBeUndefined();
+  });
+
+  it("builds common-trait shortcuts from summary data without eagerly loading the trait field value space", () => {
+    const dataService = createDataService();
+    const domain = buildSearchSemanticsDomain(createTestConfig(), dataService, vi.fn(() => ({}) as never));
+
+    const commonTraitsNode = findNodeById(domain.rootNodes, "hazard:commonTraits");
+    const magicalTraitNode = commonTraitsNode?.children?.[0];
+
+    expect(dataService.getSearchSemanticsBootstrapSummary).toHaveBeenCalledTimes(1);
+    expect(dataService.getSearchVocabulary).not.toHaveBeenCalled();
+    expect(dataService.listFilterValues).not.toHaveBeenCalledWith(
+      expect.objectContaining({ category: "hazard", field: "traits" }),
+    );
+    expect(magicalTraitNode?.label).toBe("magical");
+    expect(magicalTraitNode?.listLabel).toBe("magical | 3");
+    expect(magicalTraitNode?.query?.filters.metadata).toEqual({
+      field: "traits",
+      op: "includesAny",
+      values: ["magical"],
+    });
+    expect(magicalTraitNode?.loadChildren).toBeTypeOf("function");
+  });
+
+  it("falls back to the full vocabulary loader when a summary loader is unavailable", () => {
+    const dataService = createDataService({ includeSummary: false, includeVocabulary: true });
+
+    buildSearchSemanticsDomain(createTestConfig(), dataService, vi.fn(() => ({}) as never));
+
+    expect(dataService.getSearchSemanticsBootstrapSummary).toBeUndefined();
+    expect(dataService.getSearchVocabulary).toHaveBeenCalledTimes(1);
   });
 });

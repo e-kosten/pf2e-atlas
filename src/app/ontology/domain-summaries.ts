@@ -1,28 +1,24 @@
 import type { OntologyDomainId, OntologyDomainSummary } from "../../domain/ontology-types.js";
 
-export const ONTOLOGY_DOMAINS = [
-  {
-    id: "derivedTags",
-    label: "Derived Tags",
-    description: "Browse the authored derived-tag ontology with live record coverage and editorial detail.",
-  },
-  {
-    id: "catalogCategories",
-    label: "Categories",
-    description:
-      "Browse top-level catalog categories and subcategories with live record counts and ready-to-run browse scopes.",
-  },
-  {
-    id: "searchSemantics",
-    label: "Search Semantics",
-    description: "Explore category-specific metadata fields, live value spaces, and advanced search predicates.",
-  },
-] as const satisfies readonly OntologyDomainSummary[];
+const DERIVED_TAGS_DOMAIN_SUMMARY = {
+  id: "derivedTags",
+  label: "Derived Tags",
+  description: "Browse the authored derived-tag ontology with live record coverage and editorial detail.",
+} as const satisfies OntologyDomainSummary;
+
+const SEARCH_SEMANTICS_DOMAIN_SUMMARY = {
+  id: "searchSemantics",
+  label: "Search Semantics",
+  description: "Explore category-specific metadata fields, live value spaces, and advanced search predicates.",
+} as const satisfies OntologyDomainSummary;
 
 export function getOntologyDomainSummary(id: OntologyDomainId): OntologyDomainSummary {
-  const domain = ONTOLOGY_DOMAINS.find((entry) => entry.id === id);
-  if (!domain) {
-    throw new Error(`Unknown ontology domain: ${id}`);
+  switch (id) {
+    case "derivedTags":
+      return { ...DERIVED_TAGS_DOMAIN_SUMMARY };
+    case "searchSemantics":
+      return { ...SEARCH_SEMANTICS_DOMAIN_SUMMARY };
   }
-  return { ...domain };
+
+  throw new Error(`Unknown ontology domain: ${String(id)}`);
 }

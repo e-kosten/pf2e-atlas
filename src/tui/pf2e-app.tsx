@@ -62,7 +62,7 @@ export function Pf2eTerminalApp({
   const route = getCurrentPf2eAppRoute(state);
   const queueItems = services.dev.tagRefinement.getQueueItems();
   const ontologyExplorerModel = React.useMemo(
-    () => (route.kind === "ontology" ? services.user.ontology.loadDomain("searchSemantics") : null),
+    () => (route.kind === "ontology" ? services.user.ontology.loadSearchSemanticsDomain() : null),
     [route.kind, services.user.ontology],
   );
 

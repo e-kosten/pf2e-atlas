@@ -2,6 +2,7 @@ import { CATEGORY_SUBCATEGORY_MAP, SEARCH_CATEGORIES } from "../../domain/catego
 import { getMetadataFilterSemantics, type MetadataFieldSemantics } from "../../domain/metadata-semantics.js";
 import { readMetadataGlossaryArtifact } from "../../data/metadata-glossary.js";
 import type { Pf2eDataService } from "../../data/service.js";
+import type { SearchSemanticsBootstrapSummaryResult, SearchVocabularyResult } from "../../data/vocabulary.js";
 import type { AppConfig } from "../../domain/config-types.js";
 import type { OntologyDomainModel, OntologyNode } from "../../domain/ontology-types.js";
 import type { DerivedTagCatalogEntry, DerivedTagCatalogTag } from "../../domain/record-types.js";
@@ -17,7 +18,31 @@ import {
   getTraitGlossaryEntry,
 } from "./search-semantics-helpers.js";
 
-type SearchSemanticsDataService = Pick<Pf2eDataService, "getSearchVocabulary" | "listFilterValues" | "listRecords">;
+type SearchSemanticsDataService = Pick<Pf2eDataService, "listFilterValues" | "listRecords"> & {
+  getSearchSemanticsBootstrapSummary?: (options?: { traitLimitPerCategory?: number }) => SearchSemanticsBootstrapSummaryResult;
+  getSearchVocabulary?: () => SearchVocabularyResult;
+};
+
+function loadSearchSemanticsSummary(dataService: SearchSemanticsDataService): SearchSemanticsBootstrapSummaryResult {
+  if (typeof dataService.getSearchSemanticsBootstrapSummary === "function") {
+    return dataService.getSearchSemanticsBootstrapSummary();
+  }
+  if (typeof dataService.getSearchVocabulary === "function") {
+    const vocabulary = dataService.getSearchVocabulary();
+    return {
+      categories: vocabulary.categories,
+      subcategoryCountsByCategory: SEARCH_CATEGORIES.map((category) => ({
+        category,
+        subcategories: [],
+      })),
+      commonTraitsByCategory: vocabulary.commonTraitsByCategory,
+      commonDerivedTagsByCategory: vocabulary.commonDerivedTagsByCategory,
+      derivedTagCatalog: vocabulary.derivedTagCatalog,
+    };
+  }
+
+  throw new Error("Search semantics domain requires a search summary loader.");
+}
 
 export function buildSearchSemanticsDomain(
   config: AppConfig,
@@ -25,7 +50,7 @@ export function buildSearchSemanticsDomain(
   _loadDerivedTagsDomain: () => OntologyDomainModel,
 ): OntologyDomainModel {
   const semantics = getMetadataFilterSemantics();
-  const vocabulary = dataService.getSearchVocabulary();
+  const summary = loadSearchSemanticsSummary(dataService);
   const metadataGlossary = readMetadataGlossaryArtifact(config.indexPath);
   const metadataFieldsByName = new Map(semantics.metadataFields.map((entry) => [entry.field, entry]));
   const filterValuesCache = new Map<string, readonly { value: string; count: number }[]>();
@@ -55,26 +80,23 @@ export function buildSearchSemanticsDomain(
     });
 
   const commonTraitsByCategory = new Map(
-    vocabulary.commonTraitsByCategory.map((entry) => [entry.category, entry.traits]),
+    summary.commonTraitsByCategory.map((entry) => [entry.category, entry.traits]),
   );
   const commonDerivedTagsByCategory = new Map(
-    vocabulary.commonDerivedTagsByCategory.map((entry) => [entry.category, entry.tags]),
+    summary.commonDerivedTagsByCategory.map((entry) => [entry.category, entry.tags]),
   );
   const derivedTagCatalogByCategory = new Map<SearchCategory, DerivedTagCatalogEntry[]>(
     SEARCH_CATEGORIES.map((category) => [
       category,
-      vocabulary.derivedTagCatalog.filter((entry) => entry.category === category),
+      summary.derivedTagCatalog.filter((entry) => entry.category === category),
     ]),
   );
   const liveSubcategoryCountsByCategory = new Map(
-    SEARCH_CATEGORIES.map((category) => [
-      category,
-      new Map(
-        dataService
-          .listFilterValues({ field: "subcategories", category })
-          .values.map((entry) => [entry.value, entry.count]),
-      ),
-    ]),
+    SEARCH_CATEGORIES.map((category) => {
+      const subcategoryCounts =
+        summary.subcategoryCountsByCategory.find((entry) => entry.category === category)?.subcategories ?? [];
+      return [category, new Map(subcategoryCounts.map((entry) => [entry.value, entry.count]))] as const;
+    }),
   );
   function buildDerivedTagQuery(
     category: SearchCategory,
@@ -292,21 +314,20 @@ export function buildSearchSemanticsDomain(
     });
   }
 
-  function buildCommonTraitShortcutGroup(
-    category: SearchCategory,
-    metadataFieldNodes: OntologyNode[],
-  ): OntologyNode | null {
-    const traitFieldNode = metadataFieldNodes.find((node) => node.label === "traits");
-    const traitNodesByLabel = new Map(
-      (traitFieldNode?.loadChildren?.() ?? []).map((node) => [normalizeText(node.label), node]),
-    );
-    const shortcutNodes = (commonTraitsByCategory.get(category) ?? [])
-      .map((entry) => {
-        const glossaryLabel = getTraitGlossaryEntry(metadataGlossary, entry.value)?.label ?? entry.value;
-        return traitNodesByLabel.get(normalizeText(glossaryLabel));
-      })
-      .filter((node): node is OntologyNode => Boolean(node))
-      .map((node) => cloneOntologyNode(node, `${category}:commonTraitsShortcut`));
+  function buildCommonTraitShortcutGroup(category: SearchCategory): OntologyNode | null {
+    const traitFieldSemantics = metadataFieldsByName.get("traits");
+    if (!traitFieldSemantics) {
+      return null;
+    }
+
+    const shortcutNodes = buildFieldValueNodes(
+      dataService,
+      category,
+      null,
+      traitFieldSemantics,
+      commonTraitsByCategory.get(category) ?? [],
+      metadataGlossary,
+    ).map((node) => cloneOntologyNode(node, `${category}:commonTraitsShortcut`));
 
     if (shortcutNodes.length === 0) {
       return null;
@@ -331,52 +352,47 @@ export function buildSearchSemanticsDomain(
     };
   }
 
-  function buildCommonDerivedTagShortcutGroup(
-    category: SearchCategory,
-    metadataFieldNodes: OntologyNode[],
-  ): OntologyNode | null {
-    const derivedTagFieldNode = metadataFieldNodes.find((node) => node.label === "derivedTags");
-    if (!derivedTagFieldNode?.children) {
-      return null;
-    }
-
+  function buildCommonDerivedTagShortcutGroup(category: SearchCategory): OntologyNode | null {
     const desiredTags = new Set(
       (commonDerivedTagsByCategory.get(category) ?? []).map((entry) => entry.value.toLowerCase()),
     );
-    const matchingFamilies = derivedTagFieldNode.children.flatMap((familyNode) => {
-      const matchingTags =
-        familyNode.children?.filter((tagNode) => desiredTags.has(tagNode.label.toLowerCase())).map((tagNode) => ({
-          ...tagNode,
-        })) ?? [];
-      if (matchingTags.length === 0) {
-        return [];
-      }
-      return [
-        {
-          ...familyNode,
-          id: `${category}:commonDerivedTags:family:${normalizeText(familyNode.label)}`,
-          children: matchingTags,
-        } satisfies OntologyNode,
-      ];
-    });
+    const matchingFamilies = (derivedTagCatalogByCategory.get(category) ?? [])
+      .map((familyEntry) => {
+        const matchingTags = familyEntry.tags.filter((tag) => desiredTags.has(tag.value.toLowerCase()));
+        if (matchingTags.length === 0) {
+          return null;
+        }
+        return buildDerivedTagFamilyNode(
+          category,
+          null,
+          {
+            ...familyEntry,
+            tags: matchingTags,
+          },
+          `${category}:commonDerivedTags`,
+        );
+      })
+      .filter((node): node is OntologyNode => Boolean(node));
 
     if (matchingFamilies.length === 0) {
       return null;
     }
+
+    const tagCount = matchingFamilies.reduce((total, familyNode) => total + (familyNode.children?.length ?? 0), 0);
 
     return {
       id: `${category}:commonDerivedTags`,
       kind: "group",
       label: "Common Derived Tags",
       filterText: buildFilterText(category, "common derived tags", ...matchingFamilies.map((node) => node.label)),
-      listLabel: `Common derived tags | ${desiredTags.size}`,
+      listLabel: `Common derived tags | ${tagCount}`,
       detailTitle: "Common Derived Tags",
       detailLines: buildKeyValueDetailLines(
         "Common Derived Tags",
         [
           ["Category", category],
           ["Families", matchingFamilies.length],
-          ["Entries", desiredTags.size],
+          ["Entries", tagCount],
         ],
         "Shortcut into the category's derived-tag family and tag navigator.",
       ),
@@ -618,11 +634,11 @@ export function buildSearchSemanticsDomain(
         children: subcategoryNodes,
       });
     }
-    const commonTraitGroup = buildCommonTraitShortcutGroup(category, metadataFieldNodes);
+    const commonTraitGroup = buildCommonTraitShortcutGroup(category);
     if (commonTraitGroup) {
       children.push(commonTraitGroup);
     }
-    const commonDerivedTagGroup = buildCommonDerivedTagShortcutGroup(category, metadataFieldNodes);
+    const commonDerivedTagGroup = buildCommonDerivedTagShortcutGroup(category);
     if (commonDerivedTagGroup) {
       children.push(commonDerivedTagGroup);
     }

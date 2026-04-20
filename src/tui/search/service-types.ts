@@ -1,6 +1,6 @@
 import type { MetadataFieldName } from "../../domain/metadata-field-registry.js";
 import type { MetadataFieldSemantics } from "../../domain/metadata-semantics.js";
-import type { SearchVocabularyResult } from "../../data/vocabulary.js";
+import type { SearchCategorySummaryResult, SearchVocabularyResult } from "../../data/vocabulary.js";
 import type { FilterExplorerScalarClause } from "../filter-explorer/index.js";
 import type {
   MetadataFilterNode,
@@ -225,6 +225,7 @@ export type SearchServiceDependencies = {
     filters: SearchFilters,
     options?: { mode?: "browse" | "search" | "lookup"; lexicalOnly?: boolean },
   ) => Promise<SearchCountResult>;
+  getSearchCategorySummary?: () => SearchCategorySummaryResult;
   getSearchVocabulary: () => SearchVocabularyResult;
   listFilterValues: (query: {
     field: MetadataFieldName | "actionCost" | "rarity";

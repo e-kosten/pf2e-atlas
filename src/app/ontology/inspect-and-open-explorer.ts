@@ -6,16 +6,12 @@ import type { OntologyDomainModel, OntologyNode, OntologyNodeQuery } from "../..
 import type { SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
 import type { Pf2eApplicationOntologyService } from "../ontology-service.js";
 import {
-  buildFilterText,
-  buildKeyValueDetailLines,
   buildNormalizedRecordNode,
   cloneOntologyNode,
 } from "./node-helpers.js";
 
 type OntologyExplorerDataService = Pick<Pf2eDataService, "listRecords">;
-type OntologyExplorerOntologyService = Pick<Pf2eApplicationOntologyService, "listDomains" | "loadDomain">;
-
-const ONTOLOGY_EXPLORER_ROOT_ID = "searchSemantics";
+type OntologyExplorerOntologyService = Pick<Pf2eApplicationOntologyService, "loadSearchSemanticsDomain">;
 
 function buildOntologyQueryRecordChildren(
   dataService: OntologyExplorerDataService,
@@ -142,37 +138,14 @@ function decorateNodeForInspectAndOpen(
   return cloned;
 }
 
-function buildOntologyDomainNode(
-  domain: ReturnType<OntologyExplorerOntologyService["listDomains"]>[number],
-  ontology: OntologyExplorerOntologyService,
-  dataService: OntologyExplorerDataService,
-): OntologyNode {
-  return {
-    id: `domain:${domain.id}`,
-    kind: "domain",
-    label: domain.label,
-    filterText: buildFilterText(domain.id, domain.label, domain.description),
-    listLabel: domain.label,
-    detailTitle: "Ontology Domain",
-    detailLines: buildKeyValueDetailLines(
-      domain.label,
-      [["Domain", domain.id]],
-      `${domain.description} Drill in to inspect the domain in the shared explorer.`,
-    ),
-    loadChildren: () =>
-      ontology.loadDomain(domain.id).rootNodes.map((node) => decorateNodeForInspectAndOpen(node, dataService)),
-  };
-}
-
 export function buildInspectAndOpenOntologyExplorerModel(
   ontology: OntologyExplorerOntologyService,
   dataService: OntologyExplorerDataService,
 ): OntologyDomainModel {
-  const domains = ontology.listDomains();
+  const domain = ontology.loadSearchSemanticsDomain();
   return {
-    id: ONTOLOGY_EXPLORER_ROOT_ID,
-    label: "Ontology Browser",
-    description: "Browse ontology-backed domains, inspect matching records inline, and open search results when needed.",
-    rootNodes: domains.map((domain) => buildOntologyDomainNode(domain, ontology, dataService)),
+    ...domain,
+    description: `${domain.description} Inspect matching records inline and open search results when needed.`,
+    rootNodes: domain.rootNodes.map((node) => decorateNodeForInspectAndOpen(node, dataService)),
   };
 }

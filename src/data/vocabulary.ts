@@ -41,6 +41,21 @@ export type SearchVocabularyResult = {
   derivedTagCatalog: DerivedTagCatalogEntry[];
 };
 
+export type SearchCategorySummaryResult = {
+  categories: SearchVocabularyResult["categories"];
+};
+
+export type SearchSemanticsBootstrapSummaryResult = {
+  categories: SearchVocabularyResult["categories"];
+  subcategoryCountsByCategory: Array<{
+    category: SearchCategory;
+    subcategories: Array<{ value: SearchSubcategory; count: number }>;
+  }>;
+  commonTraitsByCategory: SearchVocabularyResult["commonTraitsByCategory"];
+  commonDerivedTagsByCategory: SearchVocabularyResult["commonDerivedTagsByCategory"];
+  derivedTagCatalog: DerivedTagCatalogEntry[];
+};
+
 type RawValueCountRow = {
   value: string;
   count: number | bigint;
@@ -51,6 +66,11 @@ type RawCategoryValueCountRow = {
   value: string;
   count: number | bigint;
 };
+
+const DERIVED_TAG_CATALOG = groupDerivedTagOntology({
+  families: DERIVED_TAG_ONTOLOGY_FAMILIES,
+  tags: DERIVED_TAG_ONTOLOGY_TAGS,
+});
 
 function parseValueCountRows(rows: RawValueCountRow[], context: string): Array<{ value: string; count: number }> {
   return rows.map((row) => ({
@@ -90,6 +110,17 @@ function parseSubcategoryCountRows(
   }));
 }
 
+function parseCategorySubcategoryCountRows(
+  rows: RawCategoryValueCountRow[],
+  context: string,
+): Array<{ category: SearchCategory; value: SearchSubcategory; count: number }> {
+  return rows.map((row) => ({
+    category: parseSearchCategoryValue(row.category, `${context} "${row.value}"`),
+    value: parseSearchSubcategoryValue(row.value, `${context} "${row.value}"`),
+    count: toSqliteNumber(row.count, `${context} "${row.value}"`),
+  }));
+}
+
 function parseSourceCategoryCountRows(
   rows: RawValueCountRow[],
   context: string,
@@ -105,25 +136,135 @@ function getPackAliasValues(pack: PackInfo, value: string): boolean {
   return normalized === normalizeText(pack.name) || normalized === normalizeText(pack.label);
 }
 
+export function normalizeTraitLimitPerCategory(traitLimitPerCategory?: number): number {
+  return Math.max(3, Math.min(traitLimitPerCategory ?? 12, 25));
+}
+
+function groupCategoryCountRows<T extends string>(
+  rows: Array<{ category: SearchCategory; value: T; count: number }>,
+): Array<{ category: SearchCategory; values: Array<{ value: T; count: number }> }> {
+  const grouped = new Map<SearchCategory, Array<{ value: T; count: number }>>();
+  for (const row of rows) {
+    const bucket = grouped.get(row.category) ?? [];
+    bucket.push({ value: row.value, count: row.count });
+    grouped.set(row.category, bucket);
+  }
+
+  return [...grouped.entries()]
+    .sort((left, right) => left[0].localeCompare(right[0]))
+    .map(([category, values]) => ({ category, values }));
+}
+
+function buildLimitedCategoryCounts<T extends string>(
+  rows: Array<{ category: SearchCategory; value: T; count: number }>,
+  limit: number,
+): Array<{ category: SearchCategory; values: Array<{ value: T; count: number }> }> {
+  const grouped = new Map<SearchCategory, Array<{ value: T; count: number }>>();
+  for (const row of rows) {
+    const bucket = grouped.get(row.category) ?? [];
+    if (bucket.length < limit) {
+      bucket.push({ value: row.value, count: row.count });
+      grouped.set(row.category, bucket);
+    }
+  }
+
+  return [...grouped.entries()]
+    .sort((left, right) => left[0].localeCompare(right[0]))
+    .map(([category, values]) => ({ category, values }));
+}
+
+export function getSearchCategorySummary(db: DatabaseSync): SearchCategorySummaryResult {
+  return {
+    categories: parseCategoryCountRows(
+      db
+        .prepare(
+          `
+          SELECT r.category AS value, COUNT(*) AS count
+          FROM records r
+          WHERE r.is_search_canonical = 1
+          GROUP BY r.category
+          ORDER BY count DESC, value ASC
+        `,
+        )
+        .all() as RawValueCountRow[],
+      "search vocabulary category",
+    ),
+  };
+}
+
+export function getSearchSemanticsBootstrapSummary(
+  db: DatabaseSync,
+  options: { traitLimitPerCategory?: number } = {},
+): SearchSemanticsBootstrapSummaryResult {
+  const traitLimit = normalizeTraitLimitPerCategory(options.traitLimitPerCategory);
+  const categories = getSearchCategorySummary(db).categories;
+  const subcategoryCountsByCategory = groupCategoryCountRows(
+    parseCategorySubcategoryCountRows(
+      db
+        .prepare(
+          `
+          SELECT r.category AS category, r.subcategory AS value, COUNT(*) AS count
+          FROM records r
+          WHERE r.is_search_canonical = 1 AND r.subcategory IS NOT NULL AND r.subcategory <> ''
+          GROUP BY r.category, r.subcategory
+          ORDER BY r.category ASC, count DESC, value ASC
+        `,
+        )
+        .all() as RawCategoryValueCountRow[],
+      "search vocabulary scoped subcategory",
+    ),
+  ).map(({ category, values }) => ({ category, subcategories: values }));
+  const commonTraitsByCategory = buildLimitedCategoryCounts(
+    parseCategoryValueCountRows(
+      db
+        .prepare(
+          `
+          SELECT r.category AS category, rt.trait AS value, COUNT(*) AS count
+          FROM record_traits rt
+          JOIN records r ON r.record_key = rt.record_key
+          WHERE r.is_search_canonical = 1
+          GROUP BY r.category, rt.trait
+          ORDER BY r.category ASC, count DESC, value ASC
+        `,
+        )
+        .all() as RawCategoryValueCountRow[],
+      "search vocabulary trait",
+    ),
+    traitLimit,
+  ).map(({ category, values }) => ({ category, traits: values }));
+  const commonDerivedTagsByCategory = buildLimitedCategoryCounts(
+    parseCategoryValueCountRows(
+      db
+        .prepare(
+          `
+          SELECT r.category AS category, rdt.tag AS value, COUNT(*) AS count
+          FROM record_derived_tags rdt
+          JOIN records r ON r.record_key = rdt.record_key
+          WHERE r.is_search_canonical = 1
+          GROUP BY r.category, rdt.tag
+          ORDER BY r.category ASC, count DESC, value ASC
+        `,
+        )
+        .all() as RawCategoryValueCountRow[],
+      "search vocabulary derived tag",
+    ),
+    traitLimit,
+  ).map(({ category, values }) => ({ category, tags: values }));
+
+  return {
+    categories,
+    subcategoryCountsByCategory,
+    commonTraitsByCategory,
+    commonDerivedTagsByCategory,
+    derivedTagCatalog: DERIVED_TAG_CATALOG,
+  };
+}
+
 export function getSearchVocabulary(
   db: DatabaseSync,
   options: { traitLimitPerCategory?: number } = {},
 ): SearchVocabularyResult {
-  const traitLimit = Math.max(3, Math.min(options.traitLimitPerCategory ?? 12, 25));
-  const categories = parseCategoryCountRows(
-    db
-      .prepare(
-        `
-        SELECT r.category AS value, COUNT(*) AS count
-        FROM records r
-        WHERE r.is_search_canonical = 1
-        GROUP BY r.category
-        ORDER BY count DESC, value ASC
-      `,
-      )
-      .all() as RawValueCountRow[],
-    "search vocabulary category",
-  );
+  const summary = getSearchSemanticsBootstrapSummary(db, options);
   const subcategories = parseSubcategoryCountRows(
     db
       .prepare(
@@ -181,65 +322,6 @@ export function getSearchVocabulary(
       .all() as RawValueCountRow[],
     "search vocabulary size",
   );
-  const categoryTraitRows = parseCategoryValueCountRows(
-    db
-      .prepare(
-        `
-        SELECT r.category AS category, rt.trait AS value, COUNT(*) AS count
-        FROM record_traits rt
-        JOIN records r ON r.record_key = rt.record_key
-        WHERE r.is_search_canonical = 1
-        GROUP BY r.category, rt.trait
-        ORDER BY r.category ASC, count DESC, value ASC
-      `,
-      )
-      .all() as RawCategoryValueCountRow[],
-    "search vocabulary trait",
-  );
-  const commonTraitsByCategory = (() => {
-    const grouped = new Map<SearchCategory, Array<{ value: string; count: number }>>();
-    for (const row of categoryTraitRows) {
-      const bucket = grouped.get(row.category) ?? [];
-      if (bucket.length < traitLimit) {
-        bucket.push({ value: row.value, count: row.count });
-        grouped.set(row.category, bucket);
-      }
-    }
-
-    return [...grouped.entries()]
-      .sort((left, right) => left[0].localeCompare(right[0]))
-      .map(([category, traits]) => ({ category, traits }));
-  })();
-  const categoryDerivedTagRows = parseCategoryValueCountRows(
-    db
-      .prepare(
-        `
-        SELECT r.category AS category, rdt.tag AS value, COUNT(*) AS count
-        FROM record_derived_tags rdt
-        JOIN records r ON r.record_key = rdt.record_key
-        WHERE r.is_search_canonical = 1
-        GROUP BY r.category, rdt.tag
-        ORDER BY r.category ASC, count DESC, value ASC
-      `,
-      )
-      .all() as RawCategoryValueCountRow[],
-    "search vocabulary derived tag",
-  );
-  const commonDerivedTagsByCategory = (() => {
-    const grouped = new Map<SearchCategory, Array<{ value: string; count: number }>>();
-    for (const row of categoryDerivedTagRows) {
-      const bucket = grouped.get(row.category) ?? [];
-      if (bucket.length < traitLimit) {
-        bucket.push({ value: row.value, count: row.count });
-        grouped.set(row.category, bucket);
-      }
-    }
-
-    return [...grouped.entries()]
-      .sort((left, right) => left[0].localeCompare(right[0]))
-      .map(([category, tags]) => ({ category, tags }));
-  })();
-
   const traditionCounts = new Map<string, number>();
   const traditionRows = db
     .prepare(
@@ -293,21 +375,18 @@ export function getSearchVocabulary(
     .map(([value, count]) => ({ value, count }));
 
   return {
-    categories,
+    categories: summary.categories,
     subcategories,
     rarities,
     sizes,
     traditions,
     spellKinds,
     sourceCategories,
-    commonTraitsByCategory,
-    commonDerivedTagsByCategory,
+    commonTraitsByCategory: summary.commonTraitsByCategory,
+    commonDerivedTagsByCategory: summary.commonDerivedTagsByCategory,
     derivedTagOntologyFamilies: DERIVED_TAG_ONTOLOGY_FAMILIES,
     derivedTagOntologyTags: DERIVED_TAG_ONTOLOGY_TAGS,
-    derivedTagCatalog: groupDerivedTagOntology({
-      families: DERIVED_TAG_ONTOLOGY_FAMILIES,
-      tags: DERIVED_TAG_ONTOLOGY_TAGS,
-    }),
+    derivedTagCatalog: summary.derivedTagCatalog,
   };
 }
 
