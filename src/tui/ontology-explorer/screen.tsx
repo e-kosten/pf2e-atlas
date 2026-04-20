@@ -13,6 +13,17 @@ import {
 import type { OntologyBrowserSnapshot } from "./ui.js";
 import { buildOntologyBrowserListLines } from "./ui.js";
 
+type OntologyResultReaderLaunchQuery = OntologyNodeQuery & {
+  openInResults?: boolean;
+};
+
+function markQueryToOpenInResults(query: OntologyNodeQuery): OntologyNodeQuery {
+  return {
+    ...query,
+    openInResults: true,
+  } as OntologyResultReaderLaunchQuery;
+}
+
 export function OntologyBrowserScreen({
   initialSnapshot,
   model,
@@ -33,7 +44,7 @@ export function OntologyBrowserScreen({
     onConfirm: (context) => {
       const { currentNode, currentNodeHasChildren } = context;
       if (!currentNodeHasChildren && currentNode?.query?.kind === "listRecords" && model.id !== "derivedTags") {
-        onOpenQuery?.(currentNode.query, createOntologyBrowserSnapshot(context));
+        onOpenQuery?.(markQueryToOpenInResults(currentNode.query), createOntologyBrowserSnapshot(context));
         return true;
       }
       return false;

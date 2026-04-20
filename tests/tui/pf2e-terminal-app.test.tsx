@@ -584,6 +584,93 @@ describe("pf2e terminal app", () => {
     expect(app.lastFrame()).toContain("Pathfinder Rage of Elements | 81");
   });
 
+  it("opens concrete ontology leaves directly in the shared result reader and returns to the same ontology leaf", async () => {
+    const services = createFakeServices();
+    services.user.ontology.listDomains = vi.fn(() => [
+      {
+        id: "searchSemantics",
+        label: "Search Semantics",
+        description: "Search semantics ontology",
+      },
+    ]);
+    services.user.ontology.loadDomain = vi.fn(() => ({
+      id: "searchSemantics",
+      label: "Search Semantics",
+      description: "Search semantics ontology",
+      rootNodes: [
+        {
+          id: "creature:publicationTitle:monster-core",
+          kind: "value",
+          label: "Pathfinder Monster Core",
+          filterText: "pathfinder monster core monster",
+          listLabel: "Pathfinder Monster Core | 320",
+          detailTitle: "Filter Value",
+          detailLines: [{ text: "Pathfinder Monster Core", tone: "section" }],
+          query: {
+            kind: "listRecords",
+            label: "Browse records with this value",
+            filters: {
+              category: "creature",
+              limit: 20,
+            },
+          },
+        },
+        {
+          id: "creature:publicationTitle:rage-of-elements",
+          kind: "value",
+          label: "Pathfinder Rage of Elements",
+          filterText: "pathfinder rage of elements rage",
+          listLabel: "Pathfinder Rage of Elements | 81",
+          detailTitle: "Filter Value",
+          detailLines: [{ text: "Pathfinder Rage of Elements", tone: "section" }],
+          query: {
+            kind: "listRecords",
+            label: "Browse records with this value",
+            filters: {
+              category: "creature",
+              limit: 20,
+            },
+          },
+        },
+      ],
+    }));
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalApp rootPath={process.cwd()} onExit={vi.fn()} services={services} />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+
+    app.stdin.write("j");
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+    expect(app.lastFrame()).toContain("Search Semantics > Pathfinder Monster Core | depth 0");
+
+    app.stdin.write("j");
+    await flushInk();
+    await flushInk();
+    expect(app.lastFrame()).toContain("Search Semantics > Pathfinder Rage of Elements | depth 0");
+
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+    expect(app.lastFrame()).toContain("Browse/Search");
+    expect(app.lastFrame()).toContain("[RESULTS]");
+    expect(app.lastFrame()).not.toContain("[EDITOR] Query");
+
+    pressLeft(app);
+    await flushInk();
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("Search Semantics > Pathfinder Rage of Elements | depth 0");
+    expect(app.lastFrame()).toContain("Pathfinder Rage of Elements | 81");
+  });
+
   it("closes loaded services when the bootstrap unmounts", async () => {
     const services = createFakeServices();
     const loadServices = vi.fn(() => Promise.resolve(services));

@@ -205,7 +205,7 @@ describe("ontology browser screen", () => {
     await flushInk();
 
     expect(onOpenQuery).toHaveBeenCalledWith(
-      {
+      expect.objectContaining({
         kind: "listRecords",
         label: "Browse records with this value",
         filters: {
@@ -213,7 +213,8 @@ describe("ontology browser screen", () => {
           metadata: { field: "publicationTitle", op: "contains", value: "Pathfinder Rage of Elements" },
           limit: 20,
         },
-      },
+        openInResults: true,
+      }),
       expect.anything(),
     );
     expect(onOpenQuery.mock.calls[0]?.[1]).toMatchObject({
@@ -273,7 +274,7 @@ describe("ontology browser screen", () => {
     await flushInk();
 
     expect(onOpenQuery).toHaveBeenCalledWith(
-      {
+      expect.objectContaining({
         kind: "listRecords",
         label: "Browse records matching the itemMetric example",
         filters: {
@@ -286,7 +287,8 @@ describe("ontology browser screen", () => {
           },
           limit: 20,
         },
-      },
+        openInResults: true,
+      }),
       expect.anything(),
     );
     expect(onOpenQuery.mock.calls[0]?.[1]).toMatchObject({

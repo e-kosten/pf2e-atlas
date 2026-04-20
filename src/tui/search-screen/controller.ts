@@ -52,6 +52,14 @@ export type SearchScreenControllerResult = {
   screen: DerivedTagTerminalTwoPaneScreenProps;
 };
 
+type OntologyResultReaderLaunchQuery = OntologyNodeQuery & {
+  openInResults?: boolean;
+};
+
+function shouldAutoExecuteOntologyInitialQuery(initialQuery?: OntologyNodeQuery): boolean {
+  return Boolean((initialQuery as OntologyResultReaderLaunchQuery | undefined)?.openInResults);
+}
+
 export function useSearchScreenController({
   initialQuery,
   origin = "app",
@@ -114,7 +122,7 @@ export function useSearchScreenController({
     chooseResultSort,
     exitSearchScreen,
   } = useSearchSessionWorkflow({
-    autoExecuteInitialQuery: origin !== "ontology",
+    autoExecuteInitialQuery: origin !== "ontology" || shouldAutoExecuteOntologyInitialQuery(initialQuery),
     dispatch,
     initialQuery,
     initialQueryState,

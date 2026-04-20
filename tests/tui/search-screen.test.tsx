@@ -9,7 +9,7 @@ import type {
 } from "../../src/domain/search-types.js";
 import type { AppConfig } from "../../src/domain/config-types.js";
 import type { NormalizedRecord } from "../../src/domain/record-types.js";
-import type { OntologyDomainModel } from "../../src/domain/ontology-types.js";
+import type { OntologyDomainModel, OntologyNodeQuery } from "../../src/domain/ontology-types.js";
 import { createPf2eTerminalSearchService } from "../../src/tui/search/service.js";
 import { Pf2eTerminalAppServicesProvider } from "../../src/tui/app-service-context.js";
 import type { Pf2eTerminalAppServices } from "../../src/tui/app-services.js";
@@ -1540,6 +1540,38 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Category | Spell");
     expect(app.lastFrame()).toContain("Query Clause | includes any Illusion");
     expect(app.lastFrame()).toContain("Seeded from: Browse illusion spells");
+  });
+
+  it("opens the shared result reader immediately for ontology leaves marked for direct results", async () => {
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={createServices()}>
+          <SearchScreen
+            initialQuery={
+              {
+                kind: "listRecords",
+                label: "Browse illusion spells",
+                filters: {
+                  category: "spell",
+                  metadata: { field: "traits", op: "includesAny", values: ["illusion"] },
+                  limit: 20,
+                },
+                openInResults: true,
+              } as OntologyNodeQuery & { openInResults?: boolean }
+            }
+            origin="ontology"
+            onBack={vi.fn()}
+          />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("[RESULTS]");
+    expect(app.lastFrame()).toContain("Alarm Ward");
+    expect(app.lastFrame()).not.toContain("[EDITOR] Query");
   });
 
   it("translates policy-based query filters into metadata clauses", async () => {
