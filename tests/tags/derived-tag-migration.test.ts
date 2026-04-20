@@ -763,13 +763,19 @@ describe("derived tag migration tooling", () => {
       expect(getCurrentDerivedTagMigrationAuthoredState().exemplarReviews.equipment).toEqual(
         nextState.exemplarReviews.equipment,
       );
-      await expect(readFile(path.join(tempRoot, "src/tags/assignment-reviews/index.ts"), "utf8")).resolves.toContain(
+      await expect(
+        readFile(path.join(tempRoot, "src/tags/reviews/assignment-reviews/index.ts"), "utf8"),
+      ).resolves.toContain(
         "DERIVED_TAG_ASSIGNMENT_REVIEWS_BY_CATEGORY",
       );
-      await expect(readFile(path.join(tempRoot, "src/tags/assignment-memory/index.ts"), "utf8")).resolves.toContain(
+      await expect(
+        readFile(path.join(tempRoot, "src/tags/reviews/assignment-memory/index.ts"), "utf8"),
+      ).resolves.toContain(
         "DERIVED_TAG_ASSIGNMENT_MEMORY_BY_CATEGORY",
       );
-      await expect(readFile(path.join(tempRoot, "src/tags/exemplar-reviews/index.ts"), "utf8")).resolves.toContain(
+      await expect(
+        readFile(path.join(tempRoot, "src/tags/reviews/exemplar-reviews/index.ts"), "utf8"),
+      ).resolves.toContain(
         "DERIVED_TAG_EXEMPLAR_REVIEWS_BY_CATEGORY",
       );
       expect(summarizeCurrentDerivedTagReviewQueue()).toEqual(

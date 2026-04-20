@@ -4,8 +4,8 @@ import { uniqueSorted } from "../../shared/utils.js";
 import { normalizeDerivedTag } from "./shared.js";
 import { DERIVED_TAG_MANAGED_CATEGORIES } from "../manifest.js";
 import { DERIVED_TAG_ASSIGNMENTS_BY_CATEGORY } from "../assignments/index.js";
-import { DERIVED_TAG_ASSIGNMENT_REVIEWS_BY_CATEGORY } from "../assignment-reviews/index.js";
-import { DERIVED_TAG_ASSIGNMENT_MEMORY_BY_CATEGORY } from "../assignment-memory/index.js";
+import { DERIVED_TAG_ASSIGNMENT_REVIEWS_BY_CATEGORY } from "../reviews/assignment-reviews/index.js";
+import { DERIVED_TAG_ASSIGNMENT_MEMORY_BY_CATEGORY } from "../reviews/assignment-memory/index.js";
 import { listLegacyDerivedTagFamilyAliases } from "./family-compatibility.js";
 
 export type DerivedTagReviewStatus = "auto_applied" | "needs_review" | "approved" | "rejected";

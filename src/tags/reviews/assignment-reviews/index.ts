@@ -1,9 +1,9 @@
-import type { DerivedTagManagedCategory } from "../manifest.js";
-import type { DerivedTagAssignmentMemoryCategory } from "../runtime/assignments.js";
+import type { DerivedTagManagedCategory } from "../../manifest.js";
+import type { DerivedTagAssignmentReviewCategory } from "../../runtime/assignments.js";
 
-export const DERIVED_TAG_ASSIGNMENT_MEMORY_BY_CATEGORY: Record<
+export const DERIVED_TAG_ASSIGNMENT_REVIEWS_BY_CATEGORY: Record<
   DerivedTagManagedCategory,
-  DerivedTagAssignmentMemoryCategory
+  DerivedTagAssignmentReviewCategory
 > = {
   affliction: {
     category: "affliction",
