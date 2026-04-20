@@ -1,10 +1,10 @@
-import { buildOntologyExplorerEntityDetailLines } from "../../tui/ontology-explorer/entity-page.js";
-import type { DerivedTagTerminalLine } from "../../tui/terminal-ui.js";
+import { buildOntologyExplorerEntityDetailLines } from "../../app/ontology/presenter.js";
+import type { OntologyTextLine } from "../../types.js";
 import type { DerivedTagMigrationSessionRecord } from "./types.js";
 
 export function buildDerivedTagMigrationRecordPageLines(
   record: DerivedTagMigrationSessionRecord,
-): DerivedTagTerminalLine[] {
+): OntologyTextLine[] {
   return buildOntologyExplorerEntityDetailLines(record.entityRecord, { includeHeader: false });
 }
 

@@ -32,12 +32,12 @@ import {
   type DerivedTagOntologyExplorerModel,
   type DerivedTagOntologyExplorerRecordNode,
   type DerivedTagOntologyExplorerTagNode,
-} from "../tui/ontology-explorer/data.js";
+} from "./ontology/derived-tag-explorer.js";
 import {
   buildOntologyExplorerEntityDetailLines,
   buildOntologyExplorerEntitySummary,
-} from "../tui/ontology-explorer/entity-page.js";
-import { mapNormalizedRecordToOntologyExplorerEntityRecord } from "../tui/ontology-explorer/entity-record.js";
+} from "./ontology/presenter.js";
+import { mapNormalizedRecordToOntologyExplorerEntityRecord } from "./ontology/entity-record.js";
 
 export type Pf2eApplicationOntologyService = {
   listDomains: () => OntologyDomainSummary[];
