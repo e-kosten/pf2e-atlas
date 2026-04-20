@@ -324,7 +324,7 @@ export function createTerminalPolicyPromptInteractionContext(
   return {
     id: "policyPrompt",
     kind: "policyPrompt",
-    interactionActions: [{ id: "cycle" }, { id: "cycleReverse" }, { id: "return" }],
+    interactionActions: [{ id: "cycle" }, { id: "return" }],
     navigation: {
       pageSize,
       jumpSize: 5,

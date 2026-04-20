@@ -1,5 +1,10 @@
 import type { MetadataFilterNode } from "../../domain/metadata-types.js";
 import type { OntologyDomainModel } from "../../domain/ontology-types.js";
+import {
+  buildTerminalInteractionHelpLines,
+  formatTerminalInteractionFooter,
+  type TerminalInteractionAction,
+} from "../interaction-bindings.js";
 import type { SearchWorkspaceEntry } from "./workspace.js";
 import { flattenMetadataTree, isMetadataPredicate } from "../search/query-core.js";
 import {
@@ -91,6 +96,88 @@ export type SearchStructuredEditorSession = {
 };
 
 export type SearchQueryFieldBuilderSession = SearchStructuredEditorSession;
+
+function getSearchStructuredEditorBackLabel(session: SearchStructuredEditorSession): "return" | "cancel" {
+  return session.kind === "structuredEditor" ? "return" : "cancel";
+}
+
+function getSearchStructuredEditorNotes(session: SearchStructuredEditorSession): DerivedTagTerminalLine[] {
+  if (session.helpBody && session.helpBody.length > 0) {
+    return session.helpBody;
+  }
+
+  return [
+    { text: "Use this editor to stage structured search changes before committing them.", tone: "section" },
+    { text: "The right pane keeps the full staged query summary visible while you move focus on the left." },
+    {
+      text: "Open a row to edit it, then continue staging more changes or finish when the draft looks correct.",
+    },
+  ];
+}
+
+export function getSearchStructuredEditorInteractionActions(
+  session: SearchStructuredEditorSession,
+): TerminalInteractionAction[] {
+  const backLabel = getSearchStructuredEditorBackLabel(session);
+
+  return [
+    { id: "move", label: "select" },
+    { id: "jump" },
+    { id: "page" },
+    { id: "edge" },
+    { id: "select", label: "open" },
+    { id: "help" },
+    { id: "back", label: backLabel },
+    { id: "quit", label: backLabel },
+  ];
+}
+
+export function buildSearchStructuredEditorFooterText(session: SearchStructuredEditorSession): string {
+  return formatTerminalInteractionFooter(getSearchStructuredEditorInteractionActions(session));
+}
+
+export function buildSearchStructuredEditorHelpLines(
+  session: SearchStructuredEditorSession,
+): DerivedTagTerminalLine[] {
+  const backLabel = getSearchStructuredEditorBackLabel(session);
+  const notes = getSearchStructuredEditorNotes(session);
+  const navigationSubject = session.kind === "queryFieldBuilder" ? "query field list" : "staged query list";
+  const backHelpText =
+    session.kind === "queryFieldBuilder"
+      ? "return to the staged query with current field edits preserved"
+      : "apply the staged structured query and return to the live editor";
+
+  return [
+    ...buildTerminalInteractionHelpLines([
+      {
+        title: "Navigation",
+        actions: [
+          { id: "move", label: "select", helpText: `move through the ${navigationSubject}` },
+          { id: "jump", helpText: `jump through the ${navigationSubject}` },
+          { id: "page", helpText: `page through the ${navigationSubject}` },
+          { id: "edge", helpText: `jump to the start or end of the ${navigationSubject}` },
+        ],
+      },
+      {
+        title: "Actions",
+        actions: getSearchStructuredEditorInteractionActions(session)
+          .filter((action) => action.id === "select" || action.id === "help" || action.id === "back" || action.id === "quit")
+          .map((action) => ({
+            ...action,
+            helpText:
+              action.id === "select"
+                ? "open the focused row"
+                : action.id === "help"
+                  ? "show this help"
+                  : backHelpText,
+            label: action.id === "back" || action.id === "quit" ? backLabel : action.label,
+          })),
+      },
+    ]),
+    { text: "" },
+    ...notes,
+  ];
+}
 
 function buildLegacyMetadataNodeLines(node: MetadataFilterNode, indentBase = 0): DerivedTagTerminalLine[] {
   return flattenMetadataTree(node, { rootLabel: "node" }).map((entry) => ({

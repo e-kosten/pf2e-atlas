@@ -470,6 +470,28 @@ describe("eslint local architecture rules", () => {
     );
   });
 
+  it("blocks editorial workbench controllers from reclaiming direct terminal prompt ownership", async () => {
+    await expectRuleMessage(
+      "src/tags/editorial/ui/workbench-controller.ts",
+      'async function run() { await terminal.promptTextInput({ label: "Category" }); }\nexport { run };\n',
+      "Editorial workbench controllers must route prompt ownership through workbench-session-prompts instead of calling terminal prompt APIs directly.",
+      "no-restricted-syntax",
+    );
+
+    await expectRuleMessage(
+      "src/tags/editorial/ui/workbench-controller.ts",
+      'async function run() { await terminal.showDialog({ title: "Workbench" }); }\nexport { run };\n',
+      "Editorial workbench controllers must route prompt ownership through workbench-session-prompts instead of calling terminal.showDialog directly.",
+      "no-restricted-syntax",
+    );
+
+    await expectNoRuleMessages(
+      "src/tags/editorial/ui/workbench-controller.ts",
+      'async function run() { await promptDerivedTagMigrationWorkbenchSessionOptions(terminal, db, mode); }\nexport { run };\n',
+      "no-restricted-syntax",
+    );
+  });
+
   it("blocks direct Ink imports in TUI feature modules that also have tactical restrictions", async () => {
     const messages = lintMessageTexts(
       await lintRuleMessages(

@@ -21,7 +21,6 @@ export type TerminalInteractionActionId =
   | "edit"
   | "toggle"
   | "cycle"
-  | "cycleReverse"
   | "cancel"
   | "back"
   | "return"
@@ -151,11 +150,6 @@ const TERMINAL_INTERACTION_DEFINITIONS: Record<TerminalInteractionActionId, Term
     footerKeys: "Enter/Space",
     helpKeys: "Enter / Space",
     defaultLabel: "cycle",
-  },
-  cycleReverse: {
-    footerKeys: "Unbound",
-    helpKeys: "Unbound",
-    defaultLabel: "reverse cycle",
   },
   cancel: {
     footerKeys: "Esc",
@@ -452,8 +446,6 @@ function matchesTerminalInteractionAction(
       return event.isConfirmOrToggleKey();
     case "cycle":
       return Boolean(event.getCycleDirection());
-    case "cycleReverse":
-      return Boolean(event.getReverseCycleDirection());
     case "cancel":
       return false;
     case "moveHorizontal":
@@ -518,9 +510,6 @@ export function getTerminalInteractionCycleDirection(
 ): 1 | -1 | undefined {
   if (action?.id === "cycle") {
     return event.getCycleDirection();
-  }
-  if (action?.id === "cycleReverse") {
-    return event.getReverseCycleDirection();
   }
   return undefined;
 }

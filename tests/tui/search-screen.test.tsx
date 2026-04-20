@@ -1720,6 +1720,17 @@ describe("search screen", () => {
     await flushInk();
     expect(app.lastFrame()).toContain("Structured Query Editor");
     expect(app.lastFrame()).toContain("Query Logic | No staged clauses");
+    expect(app.lastFrame()).toContain("q return");
+
+    app.stdin.write("?");
+    await flushInk();
+    expect(app.lastFrame()).toContain("q: apply the staged structured query and return to the live editor");
+    expect(app.lastFrame()).toContain("Use Left or Esc to apply the staged query and return to the top editor.");
+
+    app.stdin.write("x");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Structured Query Editor");
+
     app.stdin.write("\r");
     await flushInk();
     await flushInk();

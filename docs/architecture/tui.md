@@ -220,6 +220,7 @@ The async work is pushed further down:
 - `search-screen/session-workflow.ts` manages live counts, result-window execution, prefetch, sort changes, and session disposal
 - `search-screen/query-picker-workflow.ts` hosts ontology-backed field picking for structured search editing
 - `search-screen/interactions.ts` maps state into terminal actions and help/command models
+- `search-screen/query-field-builder-session.ts` owns the structured-editor menu bindings, footer copy, and help sections so staged-query screens do not hand-maintain separate action tables
 
 This is the pattern to preserve when the TUI grows: keep rendering, workflow state, and backend calls separate enough that each layer can change without forcing a full rewrite of the others.
 

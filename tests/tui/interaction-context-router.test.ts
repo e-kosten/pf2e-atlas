@@ -5,6 +5,7 @@ import {
   createTerminalCommandPaletteInteractionContext,
   createTerminalInteractionContextRouterState,
   createTerminalListInteractionContext,
+  createTerminalPolicyPromptInteractionContext,
   createTerminalTextEntryInteractionContext,
   createTerminalInteractionContextStack,
   getActiveTerminalInteractionContext,
@@ -70,5 +71,12 @@ describe("interaction context router", () => {
       kind: "list",
       key: "search:list",
     });
+  });
+
+  it("keeps policy prompt bindings limited to live cycle and return actions", () => {
+    expect(createTerminalPolicyPromptInteractionContext(8).interactionActions).toEqual([
+      { id: "cycle" },
+      { id: "return" },
+    ]);
   });
 });

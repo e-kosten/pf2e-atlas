@@ -211,6 +211,51 @@ const SEARCH_WORKFLOW_PROMPT_BOUNDARY_RESTRICTIONS = [
   },
 ];
 
+const EDITORIAL_WORKBENCH_PROMPT_BOUNDARY_RESTRICTIONS = [
+  {
+    selector:
+      'CallExpression[callee.type="MemberExpression"][callee.object.name="terminal"][callee.property.name="promptCommandPalette"]',
+    message:
+      "Editorial workbench controllers must route prompt ownership through workbench-session-prompts instead of calling terminal prompt APIs directly.",
+  },
+  {
+    selector:
+      'CallExpression[callee.type="MemberExpression"][callee.object.name="terminal"][callee.property.name="promptOptionalSelectOption"]',
+    message:
+      "Editorial workbench controllers must route prompt ownership through workbench-session-prompts instead of calling terminal prompt APIs directly.",
+  },
+  {
+    selector:
+      'CallExpression[callee.type="MemberExpression"][callee.object.name="terminal"][callee.property.name="promptPolicySelectOption"]',
+    message:
+      "Editorial workbench controllers must route prompt ownership through workbench-session-prompts instead of calling terminal prompt APIs directly.",
+  },
+  {
+    selector:
+      'CallExpression[callee.type="MemberExpression"][callee.object.name="terminal"][callee.property.name="promptMultiSelectOption"]',
+    message:
+      "Editorial workbench controllers must route prompt ownership through workbench-session-prompts instead of calling terminal prompt APIs directly.",
+  },
+  {
+    selector:
+      'CallExpression[callee.type="MemberExpression"][callee.object.name="terminal"][callee.property.name="promptSelectOption"]',
+    message:
+      "Editorial workbench controllers must route prompt ownership through workbench-session-prompts instead of calling terminal prompt APIs directly.",
+  },
+  {
+    selector:
+      'CallExpression[callee.type="MemberExpression"][callee.object.name="terminal"][callee.property.name="promptTextInput"]',
+    message:
+      "Editorial workbench controllers must route prompt ownership through workbench-session-prompts instead of calling terminal prompt APIs directly.",
+  },
+  {
+    selector:
+      'CallExpression[callee.type="MemberExpression"][callee.object.name="terminal"][callee.property.name="showDialog"]',
+    message:
+      "Editorial workbench controllers must route prompt ownership through workbench-session-prompts instead of calling terminal.showDialog directly.",
+  },
+];
+
 export default defineConfig(
   {
     ignores: [".cache/**", ".codex/**", "coverage/**", "dist/**", "node_modules/**", "scratch/**", "vendor/pf2e/**"],
@@ -800,6 +845,12 @@ export default defineConfig(
         NON_UI_TUI_IMPORT_RESTRICTIONS,
         TAGS_CLI_SCOPE_IMPORT_RESTRICTIONS,
       ),
+    },
+  },
+  {
+    files: ["src/tags/editorial/ui/workbench-controller.ts"],
+    rules: {
+      "no-restricted-syntax": ["error", ...EDITORIAL_WORKBENCH_PROMPT_BOUNDARY_RESTRICTIONS],
     },
   },
   {

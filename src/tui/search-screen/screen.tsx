@@ -4,6 +4,9 @@ import type { OntologyNodeQuery } from "../../domain/ontology-types.js";
 import { OntologyPickerScreen } from "../ontology-explorer/picker-screen.js";
 import {
   buildSearchStructuredEditorDetailLines,
+  buildSearchStructuredEditorFooterText,
+  buildSearchStructuredEditorHelpLines,
+  getSearchStructuredEditorInteractionActions,
   buildSearchStructuredEditorMenuItems,
   buildSearchStructuredEditorStatusLine,
 } from "./query-field-builder-session.js";
@@ -11,7 +14,6 @@ import { useSearchScreenController } from "./controller.js";
 import type { SearchScreenOrigin } from "./workflow-types.js";
 import { TerminalTwoPaneScreen } from "../framework/rendering.js";
 import { TerminalMenuScreen } from "../shared-screens.js";
-import { formatTerminalInteractionFooter } from "../interaction-bindings.js";
 
 export { parseJumpToResultInput } from "./model.js";
 
@@ -42,7 +44,6 @@ export function SearchScreen({
 
   if (controller.structuredEditorSession) {
     const session = controller.structuredEditorSession;
-    const backLabel = session.kind === "structuredEditor" ? "return" : "cancel";
     return (
       <TerminalMenuScreen
         title={session.title ?? "Structured Query Editor"}
@@ -51,41 +52,16 @@ export function SearchScreen({
         rightTitle={session.rightTitle ?? "Staged Summary & Detail"}
         items={buildSearchStructuredEditorMenuItems(session)}
         selectedIndex={session.selectedIndex}
-        interactionActions={[
-          { id: "move", label: "select" },
-          { id: "jump" },
-          { id: "page" },
-          { id: "edge" },
-          { id: "select", label: "open" },
-          { id: "help" },
-          { id: "back", label: backLabel },
-          { id: "quit", label: backLabel },
-        ]}
+        interactionActions={getSearchStructuredEditorInteractionActions(session)}
         footer={[
           {
-            text: formatTerminalInteractionFooter([
-              { id: "move", label: "select" },
-              { id: "jump" },
-              { id: "page" },
-              { id: "edge" },
-              { id: "select", label: "open" },
-              { id: "help" },
-              { id: "back", label: backLabel },
-            ]),
+            text: buildSearchStructuredEditorFooterText(session),
             tone: "dim",
           },
         ]}
         status={buildSearchStructuredEditorStatusLine(session)}
         helpTitle={session.helpTitle ?? "Structured Query Editor Help"}
-        helpBody={
-          session.helpBody ?? [
-            { text: "Use this editor to stage structured search changes before committing them.", tone: "section" },
-            { text: "The right pane keeps the full staged query summary visible while you move focus on the left." },
-            {
-              text: "Open a row to edit it, then continue staging more changes or finish when the draft looks correct.",
-            },
-          ]
-        }
+        helpBody={buildSearchStructuredEditorHelpLines(session)}
         buildDetailLines={() => buildSearchStructuredEditorDetailLines(session)}
         onMove={session.moveSelection}
         onSelect={session.selectCurrent}

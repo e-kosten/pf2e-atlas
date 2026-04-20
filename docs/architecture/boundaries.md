@@ -166,6 +166,8 @@ Second, TUI feature code should use shared framework primitives instead of rebui
 
 Those rules are not cosmetic. They encode a deliberate push toward reusable controllers, interaction routers, and screen-model helpers.
 
+Menu-style TUI editors should also derive footer and help bindings from one shared action table. If a screen has to keep footer text, help copy, and active bindings aligned manually, that is a sign the interaction model still needs a helper owner.
+
 ### Domain Boundary
 
 `src/domain/` should remain:
@@ -201,6 +203,8 @@ Within that subsystem, the current ownership split is:
 - `src/tags/reviews/` owns durable review registries, including reviewed discovery negatives
 - `src/tags/editorial/state/`, `sessions/`, `writeback/`, and `ui/` own the editorial execution path
 - `src/tags/cli/discovery/`, `evaluation/`, `editorial/`, and `shared/` own grouped offline entrypoints
+
+Within `src/tags/editorial/ui/`, `workbench-session-prompts.ts` owns terminal prompt calls for workbench session creation. `workbench-controller.ts` should delegate to that seam instead of calling `terminal.prompt*` or `terminal.showDialog` directly.
 
 Top-level files such as `src/tags/runtime/index.ts` and `src/tags/editorial/session-builder.ts` remain useful compatibility re-exports, but they are not the primary architectural owners and should not be the default targets for new documentation or internal routing.
 
