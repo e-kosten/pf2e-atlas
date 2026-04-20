@@ -47,15 +47,12 @@ export type Pf2eAppState = {
   routeStack: Pf2eAppRoute[];
   selectedAreaIndex: number;
   tagRefinementSelectedIndex: number;
-  ontologyDomainSelectedIndex: number;
 };
 
 export type Pf2eAppAction =
   | { type: "move_area"; delta: number; itemCount: number }
   | { type: "move_tag_refinement"; delta: number; itemCount: number }
   | { type: "set_tag_refinement_index"; index: number; itemCount: number }
-  | { type: "move_ontology_domain"; delta: number; itemCount: number }
-  | { type: "set_ontology_domain_index"; index: number; itemCount: number }
   | { type: "push_route"; route: Pf2eAppRoute }
   | { type: "replace_route"; route: Pf2eAppRoute }
   | { type: "pop_route" };
@@ -65,7 +62,6 @@ export function createPf2eAppState(initialRoute: Pf2eAppRoute = { kind: "areas" 
     routeStack: [initialRoute],
     selectedAreaIndex: 0,
     tagRefinementSelectedIndex: 0,
-    ontologyDomainSelectedIndex: 0,
   };
 }
 
@@ -97,20 +93,6 @@ export function pf2eAppReducer(state: Pf2eAppState, action: Pf2eAppAction): Pf2e
       return {
         ...state,
         tagRefinementSelectedIndex:
-          action.itemCount <= 0 ? 0 : Math.max(0, Math.min(action.index, action.itemCount - 1)),
-      };
-    case "move_ontology_domain":
-      return {
-        ...state,
-        ontologyDomainSelectedIndex:
-          action.itemCount <= 0
-            ? 0
-            : moveSelectionWrapped(state.ontologyDomainSelectedIndex, action.delta, action.itemCount),
-      };
-    case "set_ontology_domain_index":
-      return {
-        ...state,
-        ontologyDomainSelectedIndex:
           action.itemCount <= 0 ? 0 : Math.max(0, Math.min(action.index, action.itemCount - 1)),
       };
     case "push_route":
