@@ -18,6 +18,49 @@ absolute_git_common_dir() {
   cd "$(git rev-parse --git-common-dir)" && pwd -P
 }
 
+is_zero_oid() {
+  case "$1" in
+    0000000000000000000000000000000000000000) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+is_docs_only_path() {
+  case "$1" in
+    scratch/plans/* | *.md) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+paths_are_docs_only() {
+  saw_path=0
+
+  while IFS= read -r path; do
+    [ -n "$path" ] || continue
+    saw_path=1
+    if ! is_docs_only_path "$path"; then
+      return 1
+    fi
+  done
+
+  [ "$saw_path" -eq 1 ]
+}
+
+staged_changes_are_docs_only() {
+  git diff --cached --name-only --relative --diff-filter=ACDMRTUXB | paths_are_docs_only
+}
+
+push_range_is_docs_only() {
+  local_oid="$1"
+  remote_oid="$2"
+
+  if is_zero_oid "$local_oid" || is_zero_oid "$remote_oid"; then
+    return 1
+  fi
+
+  git diff --name-only --relative "$remote_oid" "$local_oid" | paths_are_docs_only
+}
+
 require_linked_worktree() {
   git_dir="$(absolute_git_dir)"
   git_common_dir="$(absolute_git_common_dir)"
