@@ -20,18 +20,20 @@ import {
   type MetadataPredicateVariantSpec,
 } from "../domain/metadata-predicate-spec.js";
 import {
-  FILTER_VALUE_FIELDS,
   METADATA_BOOLEAN_FIELDS,
   METADATA_ENUM_STRING_FIELDS,
   METADATA_NUMBER_FIELDS,
   METADATA_SET_FIELDS,
   METADATA_TEXT_STRING_FIELDS,
+} from "../domain/metadata-types.js";
+import { FILTER_VALUE_FIELDS } from "../domain/search-types.js";
+import type {
   FilterValueField,
-  MetadataFilterNode,
   SearchCategory,
   SearchScope,
   SearchSubcategory,
-} from "../domain/index.js";
+} from "../domain/search-types.js";
+import type { MetadataFilterNode } from "../domain/metadata-types.js";
 
 export const CATEGORY_HINT_DESCRIPTION = `Optional top-level category hint. Canonical values: ${VALID_SEARCH_CATEGORY_LIST}. Legacy plural aliases are also accepted.`;
 

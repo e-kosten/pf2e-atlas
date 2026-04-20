@@ -2,9 +2,11 @@ import type {
   OntologyDomainModel,
   OntologyNode,
   OntologySelectionState,
+} from "../../domain/ontology-types.js";
+import type {
   SearchCategory,
   SearchSubcategory,
-} from "../../domain/index.js";
+} from "../../domain/search-types.js";
 import type { Pf2eTerminalFacetFieldOption } from "../search/service.js";
 import { cloneOntologyNode, getOntologyNodeChildren, titleCaseLabel } from "../../app/ontology/node-helpers.js";
 

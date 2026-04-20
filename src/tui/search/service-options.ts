@@ -1,5 +1,5 @@
 import { orderFilterValues, type FilterValueOrdering } from "../../domain/filter-value-ordering.js";
-import type { SearchCategory, SearchSubcategory } from "../../domain/index.js";
+import type { SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
 import type {
   Pf2eTerminalFacetField,
   Pf2eTerminalFacetValueOption,

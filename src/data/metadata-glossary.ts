@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import type { MetadataGlossaryArtifact, MetadataGlossaryEntry } from "../domain/index.js";
+import type { MetadataGlossaryArtifact, MetadataGlossaryEntry } from "../domain/metadata-glossary-types.js";
 
 const TRAIT_LABEL_PATTERN = /["']?([a-z0-9-]+)["']?:\s*"PF2E\.Trait(?!Description)([A-Za-z0-9]+)"/g;
 const TRAIT_DESCRIPTION_PATTERN = /["']?([a-z0-9-]+)["']?:\s*"PF2E\.TraitDescription([A-Za-z0-9]+)"/g;

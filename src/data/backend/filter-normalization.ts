@@ -9,7 +9,7 @@ import { normalizeMetadataFilterNode } from "../../search/metadata-filters.js";
 import { hasStructuredFilterSignal, resolveSearchMode } from "../../search/ranking.js";
 import { normalizeSearchScope } from "../../search/sql.js";
 import type { NormalizedSearchFilters } from "../../search/contracts.js";
-import type { SearchFilters } from "../../domain/index.js";
+import type { SearchFilters } from "../../domain/search-types.js";
 
 export type SearchFilterContext = "list" | "search";
 

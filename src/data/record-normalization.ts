@@ -9,7 +9,7 @@ import {
   slugifyActorMetricSegment,
 } from "../domain/actor-metrics.js";
 import { type ItemMetricMap, slugifyItemMetricSegment } from "../domain/item-metrics.js";
-import type { SourceCategory } from "../domain/index.js";
+import type { SourceCategory } from "../domain/record-types.js";
 import {
   buildEmbeddedItemSearchChunks,
   getRecordBlurbText,

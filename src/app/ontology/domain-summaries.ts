@@ -1,4 +1,4 @@
-import type { OntologyDomainId, OntologyDomainSummary } from "../../domain/index.js";
+import type { OntologyDomainId, OntologyDomainSummary } from "../../domain/ontology-types.js";
 
 export const ONTOLOGY_DOMAINS = [
   {

@@ -6,7 +6,7 @@ import { DatabaseSync } from "node:sqlite";
 import { createEmbeddingProvider } from "../../embeddings.js";
 import { formatInteger } from "../../shared/format.js";
 import { fileExists } from "../../shared/fs.js";
-import type { EmbeddingConfig } from "../../domain/index.js";
+import type { EmbeddingConfig } from "../../domain/config-types.js";
 import type { StageTiming } from "../index-types.js";
 import { buildIndex, buildReusableEmbeddingLookup, computeSourceSignature, removeIndexFiles } from "../indexer.js";
 import {

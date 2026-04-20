@@ -1,12 +1,12 @@
 import type { EmbeddingProvider } from "../embeddings.js";
 import type {
-  NormalizedRecord,
   SearchCategory,
   SearchExplainResult,
   SearchFilters,
   SearchSort,
   SearchSubcategory,
-} from "../domain/index.js";
+} from "../domain/search-types.js";
+import type { NormalizedRecord } from "../domain/record-types.js";
 import type { RankingConfig } from "./ranking-config.js";
 import type { LexicalRetrievalRow, SemanticRetrievalRow } from "./ranking.js";
 

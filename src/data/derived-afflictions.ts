@@ -1,4 +1,4 @@
-import type { SourceCategory } from "../domain/index.js";
+import type { SourceCategory } from "../domain/record-types.js";
 import { normalizeText, uniqueSorted } from "../shared/utils.js";
 import type {
   ActorIndexData,

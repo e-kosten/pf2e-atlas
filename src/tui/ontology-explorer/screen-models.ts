@@ -1,4 +1,4 @@
-import type { OntologyDomainModel, OntologyNode, OntologyNodeQuery } from "../../domain/index.js";
+import type { OntologyDomainModel, OntologyNode, OntologyNodeQuery } from "../../domain/ontology-types.js";
 import {
   TERMINAL_LIVE_FILTER_FOOTER,
   buildTerminalInteractionHelpLines,

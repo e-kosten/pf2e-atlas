@@ -1,7 +1,7 @@
 import React from "react";
 
 import { getOntologyNodeChildren } from "../../app/ontology/node-helpers.js";
-import type { OntologyDomainModel, OntologyNode, OntologySelectionState } from "../../domain/index.js";
+import type { OntologyDomainModel, OntologyNode, OntologySelectionState } from "../../domain/ontology-types.js";
 import { TerminalPaneScreen, TerminalTwoPaneScreen } from "../framework/rendering.js";
 import type { DerivedTagTerminalLine } from "../framework/types.js";
 import { getTerminalInteractionCycleDirection } from "../interaction-bindings.js";

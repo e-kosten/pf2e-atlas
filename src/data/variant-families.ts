@@ -1,7 +1,7 @@
 import path from "node:path";
 
 import type { BuildSourceEntry, NormalizedIndexRecord } from "./index-types.js";
-import type { VariantSource } from "../domain/index.js";
+import type { VariantSource } from "../domain/record-types.js";
 import { firstString, getNested, normalizeText, uniqueSorted } from "../shared/utils.js";
 
 const GRADE_LABELS = new Set(["minor", "lesser", "moderate", "greater", "major", "true"]);

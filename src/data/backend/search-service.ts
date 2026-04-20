@@ -6,12 +6,12 @@ import type {
   LookupOptions,
   LookupQuery,
   LookupResult,
-  NormalizedRecord,
   SearchCountResult,
   SearchFilters,
   SearchResult,
   SearchWindowPage,
-} from "../../domain/index.js";
+} from "../../domain/search-types.js";
+import type { NormalizedRecord } from "../../domain/record-types.js";
 import type { EmbeddingProvider } from "../../embeddings.js";
 import type { RankingConfigStore } from "../../search/ranking-config.js";
 import {

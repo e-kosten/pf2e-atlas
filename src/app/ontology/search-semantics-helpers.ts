@@ -3,18 +3,16 @@ import { inferItemMetricValueType } from "../../domain/item-metrics.js";
 import type { MetadataFieldSemantics } from "../../domain/metadata-semantics.js";
 import type { Pf2eDataService } from "../../data/service.js";
 import type {
-  MetadataGlossaryArtifact,
-  MetadataGlossaryEntry,
   MetadataBooleanField,
   MetadataEnumStringField,
   MetadataFilterNode,
   MetadataNumberField,
   MetadataSetField,
   MetadataTextStringField,
-  OntologyNode,
-  SearchCategory,
-  SearchSubcategory,
-} from "../../domain/index.js";
+} from "../../domain/metadata-types.js";
+import type { MetadataGlossaryArtifact, MetadataGlossaryEntry } from "../../domain/metadata-glossary-types.js";
+import type { OntologyNode } from "../../domain/ontology-types.js";
+import type { SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
 import { normalizeText } from "../../shared/utils.js";
 import {
   buildFilterText,

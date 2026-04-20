@@ -4,12 +4,12 @@ import { cleanup, render } from "ink-testing-library";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type {
-  AppConfig,
-  NormalizedRecord,
-  OntologyDomainModel,
   SearchCountResult,
   SearchFilters,
-} from "../../src/domain/index.js";
+} from "../../src/domain/search-types.js";
+import type { AppConfig } from "../../src/domain/config-types.js";
+import type { NormalizedRecord } from "../../src/domain/record-types.js";
+import type { OntologyDomainModel } from "../../src/domain/ontology-types.js";
 import { createPf2eTerminalSearchService } from "../../src/tui/search/service.js";
 import { Pf2eTerminalAppServicesProvider } from "../../src/tui/app-service-context.js";
 import type { Pf2eTerminalAppServices } from "../../src/tui/app-services.js";

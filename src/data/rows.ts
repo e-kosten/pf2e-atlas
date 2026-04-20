@@ -1,14 +1,12 @@
 import type {
-  ActorMetricMap,
-  ItemMetricMap,
-  LookupResult,
   NormalizedRecord,
-  RuleReferenceEdge,
-  SearchCategory,
-  SearchSubcategory,
   SourceCategory,
   VariantSource,
-} from "../domain/index.js";
+} from "../domain/record-types.js";
+import type { SearchCategory, SearchSubcategory, LookupResult } from "../domain/search-types.js";
+import type { RuleReferenceEdge } from "../domain/rule-types.js";
+import type { ActorMetricMap } from "../domain/actor-metrics.js";
+import type { ItemMetricMap } from "../domain/item-metrics.js";
 import {
   categorySupportsSubcategory,
   normalizeSearchCategory,

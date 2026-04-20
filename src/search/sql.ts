@@ -11,13 +11,13 @@ import {
   type MetadataFilterValueSource,
 } from "../domain/metadata-field-registry.js";
 import {
-  FilterValueQuery,
-  NormalizedRecord,
   SearchCategory,
   SearchScope,
   SearchSort,
   SearchSubcategory,
-} from "../domain/index.js";
+  type FilterValueQuery,
+} from "../domain/search-types.js";
+import type { NormalizedRecord } from "../domain/record-types.js";
 import {
   getCategoryForSubcategory,
   getSearchCategoryErrorMessage,

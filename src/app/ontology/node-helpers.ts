@@ -1,10 +1,9 @@
 import type {
   MetadataFilterNode,
-  NormalizedRecord,
-  OntologyNode,
-  OntologyTextLine,
-  SearchFilters,
-} from "../../domain/index.js";
+} from "../../domain/metadata-types.js";
+import type { NormalizedRecord } from "../../domain/record-types.js";
+import type { OntologyNode, OntologyTextLine } from "../../domain/ontology-types.js";
+import type { SearchFilters } from "../../domain/search-types.js";
 import { normalizeText } from "../../shared/utils.js";
 import { mapNormalizedRecordToOntologyExplorerEntityRecord } from "./entity-record.js";
 import { buildOntologyExplorerEntityDetailLines, buildOntologyExplorerEntitySummary } from "./presenter.js";

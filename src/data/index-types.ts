@@ -1,12 +1,11 @@
 import type {
-  ActorMetricMap,
-  ItemMetricMap,
   PackInfo,
-  SearchCategory,
-  SearchSubcategory,
   SourceCategory,
   VariantSource,
-} from "../domain/index.js";
+} from "../domain/record-types.js";
+import type { SearchCategory, SearchSubcategory } from "../domain/search-types.js";
+import type { ActorMetricMap } from "../domain/actor-metrics.js";
+import type { ItemMetricMap } from "../domain/item-metrics.js";
 
 export type StageTiming = {
   label: string;

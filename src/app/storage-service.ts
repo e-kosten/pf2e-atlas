@@ -1,6 +1,6 @@
 import { DatabaseSync } from "node:sqlite";
 
-import type { AppConfig } from "../domain/index.js";
+import type { AppConfig } from "../domain/config-types.js";
 import {
   buildDerivedTagOntologyExplorerModel,
   type DerivedTagOntologyExplorerModel,

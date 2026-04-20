@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { OntologyDomainModel } from "../../src/domain/index.js";
+import type { OntologyDomainModel } from "../../src/domain/ontology-types.js";
 import {
   buildOntologyBrowserBreadcrumb,
   buildOntologyBrowserListLines,

@@ -9,9 +9,11 @@ import type {
   MetadataEnumStringField,
   MetadataFilterNode,
   MetadataSetField,
+} from "../../domain/metadata-types.js";
+import type {
   SearchCategory,
   SearchSubcategory,
-} from "../../domain/index.js";
+} from "../../domain/search-types.js";
 import {
   isMetadataQueryPart,
   metadataFilterNodeToRootQueryParts,

@@ -48,8 +48,8 @@ import {
   MetadataSetField,
   MetadataTextStringField,
   MetadataTextStringPredicate,
-  NormalizedRecord,
-} from "../domain/index.js";
+} from "../domain/metadata-types.js";
+import type { NormalizedRecord } from "../domain/record-types.js";
 import { normalizeDerivedTag } from "../tags/index.js";
 import { normalizeText } from "../shared/utils.js";
 import type { SqlValue } from "./contracts.js";

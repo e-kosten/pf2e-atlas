@@ -1,6 +1,6 @@
 import React from "react";
 
-import type { MetadataFilterNode, MetadataPredicate } from "../../domain/index.js";
+import type { MetadataFilterNode, MetadataPredicate } from "../../domain/metadata-types.js";
 import type { Pf2eTerminalAppServices } from "../app-services.js";
 import type { SearchTerminalPromptAdapters } from "../interaction-context-adapters.js";
 import type { SearchScreenAction, SearchScreenState } from "./state.js";

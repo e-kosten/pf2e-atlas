@@ -2,10 +2,12 @@ import type { MetadataFieldName } from "../../domain/metadata-field-registry.js"
 import type { MetadataFieldSemantics } from "../../domain/metadata-semantics.js";
 import type { SearchVocabularyResult } from "../../data/vocabulary.js";
 import type {
-  LookupOptions,
   MetadataFilterNode,
-  NormalizedRecord,
-  OntologyNodeQuery,
+} from "../../domain/metadata-types.js";
+import type { NormalizedRecord } from "../../domain/record-types.js";
+import type { OntologyNodeQuery } from "../../domain/ontology-types.js";
+import type {
+  LookupOptions,
   SearchCategory,
   SearchCountResult,
   SearchFilters,
@@ -15,7 +17,7 @@ import type {
   SearchSort,
   SearchSubcategory,
   SearchWindowPage,
-} from "../../domain/index.js";
+} from "../../domain/search-types.js";
 import type { Pf2eTerminalQueryPart } from "./query-parts.js";
 
 export type Pf2eTerminalSearchCategoryOption = {

@@ -3,11 +3,9 @@ import type { DatabaseSync } from "node:sqlite";
 import type {
   FilterValueQuery,
   FilterValueResult,
-  LinkedRecordSummary,
-  NormalizedRecord,
-  PackInfo,
   RankingConfigStatus,
-} from "../../domain/index.js";
+} from "../../domain/search-types.js";
+import type { LinkedRecordSummary, NormalizedRecord, PackInfo } from "../../domain/record-types.js";
 import type { NormalizedSearchFilters } from "../../search/contracts.js";
 import type { RankingConfigStore } from "../../search/ranking-config.js";
 import type { SearchVocabularyResult } from "../vocabulary.js";

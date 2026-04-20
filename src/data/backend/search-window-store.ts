@@ -1,4 +1,5 @@
-import type { NormalizedRecord, SearchSort, SearchWindow, SearchWindowPage } from "../../domain/index.js";
+import type { NormalizedRecord } from "../../domain/record-types.js";
+import type { SearchSort, SearchWindow, SearchWindowPage } from "../../domain/search-types.js";
 
 type RuntimeSearchWindow = {
   id: string;

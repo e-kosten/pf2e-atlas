@@ -1,10 +1,10 @@
-import type { OntologyNodeQuery, SearchCategory, SearchSubcategory } from "../domain/index.js";
+import type { OntologyDomainModel, OntologyNodeQuery } from "../domain/ontology-types.js";
+import type { SearchCategory, SearchSubcategory } from "../domain/search-types.js";
 import type {
   DerivedTagMigrationMode,
   DerivedTagMigrationReviewDecisionKind,
   DerivedTagMigrationSession,
 } from "../tags/migration/types.js";
-import type { OntologyDomainModel } from "../domain/index.js";
 import type { OntologyBrowserSnapshot } from "./ontology-explorer/ui.js";
 import { moveSelectionWrapped } from "./framework/input.js";
 

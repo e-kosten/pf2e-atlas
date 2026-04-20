@@ -5,13 +5,15 @@ import type {
   DerivedTagCatalogEntry,
   DerivedTagOntologyFamily,
   DerivedTagOntologyTag,
+  PackInfo,
+  SourceCategory,
+} from "../domain/record-types.js";
+import type {
   FilterValueQuery,
   FilterValueResult,
-  PackInfo,
   SearchCategory,
   SearchSubcategory,
-  SourceCategory,
-} from "../domain/index.js";
+} from "../domain/search-types.js";
 import { buildFilterValueQuery } from "../search/sql.js";
 import { normalizeText } from "../shared/utils.js";
 import type { NormalizedSearchFilters } from "../search/contracts.js";

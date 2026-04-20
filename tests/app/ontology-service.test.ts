@@ -9,14 +9,13 @@ import { getMetadataGlossaryArtifactPath } from "../../src/data/metadata-glossar
 import type { SearchVocabularyResult } from "../../src/data/vocabulary.js";
 import type { Pf2eDataService } from "../../src/data/service.js";
 import type {
-  AppConfig,
   FilterValueField,
-  MetadataGlossaryArtifact,
-  NormalizedRecord,
-  OntologyDomainSummary,
-  OntologyNode,
   SearchFilters,
-} from "../../src/domain/index.js";
+} from "../../src/domain/search-types.js";
+import type { AppConfig } from "../../src/domain/config-types.js";
+import type { MetadataGlossaryArtifact } from "../../src/domain/metadata-glossary-types.js";
+import type { NormalizedRecord } from "../../src/domain/record-types.js";
+import type { OntologyDomainSummary, OntologyNode } from "../../src/domain/ontology-types.js";
 
 function createTestConfig(indexPath = ".cache/pf2e-index.sqlite"): AppConfig {
   return {

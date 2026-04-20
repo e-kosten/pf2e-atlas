@@ -14,8 +14,8 @@ import {
   scoreNameCandidate,
   sumRerankAdjustments,
 } from "./ranking.js";
-import {
-  NormalizedRecord,
+import type { NormalizedRecord } from "../domain/record-types.js";
+import type {
   SearchCountResult,
   SearchExplainResult,
   SearchFilters,
@@ -24,7 +24,7 @@ import {
   SearchRecordExplanation,
   SearchResult,
   SearchSort,
-} from "../domain/index.js";
+} from "../domain/search-types.js";
 import { clampLimit, clampOffset, normalizeText } from "../shared/utils.js";
 import type { NormalizedSearchFilters, RuntimeSearchDependencies } from "./contracts.js";
 

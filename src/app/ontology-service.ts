@@ -1,4 +1,5 @@
-import type { AppConfig, OntologyDomainId, OntologyDomainModel, OntologyDomainSummary } from "../domain/index.js";
+import type { AppConfig } from "../domain/config-types.js";
+import type { OntologyDomainId, OntologyDomainModel, OntologyDomainSummary } from "../domain/ontology-types.js";
 import type { Pf2eDataService } from "../data/service.js";
 import { buildCatalogCategoriesDomain } from "./ontology/catalog-categories-domain.js";
 import { ONTOLOGY_DOMAINS } from "./ontology/domain-summaries.js";

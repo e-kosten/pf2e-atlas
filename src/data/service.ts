@@ -4,19 +4,20 @@ import type { RankingConfigStore } from "../search/ranking-config.js";
 import type {
   CollectRuleQuestionContextInput,
   CollectRuleQuestionContextResult,
+  RuleGraphCollectionResult,
+} from "../domain/rule-types.js";
+import type { NormalizedRecord, PackInfo } from "../domain/record-types.js";
+import type {
   FilterValueQuery,
   FilterValueResult,
   LookupOptions,
   LookupQuery,
   LookupResult,
-  NormalizedRecord,
-  PackInfo,
-  RuleGraphCollectionResult,
   SearchCountResult,
   SearchFilters,
   SearchResult,
   SearchWindowPage,
-} from "../domain/index.js";
+} from "../domain/search-types.js";
 import { Pf2eRecordCatalog } from "./backend/record-catalog.js";
 import { Pf2eRuleGraphBackendService } from "./backend/rule-graph-service.js";
 import { loadPf2eDataRuntime, rebuildPf2eDataRuntime } from "./backend/load-runtime.js";

@@ -1,4 +1,5 @@
-import type { MetadataFilterNode, SearchCategory, SearchSubcategory } from "../../domain/index.js";
+import type { MetadataFilterNode } from "../../domain/metadata-types.js";
+import type { SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
 import type {
   Pf2eTerminalFilterValuePolicy,
   Pf2eTerminalSearchMode,

@@ -1,4 +1,4 @@
-import type { SearchQueryAnalysis } from "../domain/index.js";
+import type { SearchQueryAnalysis } from "../domain/search-types.js";
 import { normalizeText } from "../shared/utils.js";
 
 export type SearchQueryAnalysisState = SearchQueryAnalysis & {

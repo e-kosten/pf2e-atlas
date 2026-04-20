@@ -1,4 +1,4 @@
-import type { OntologyTextLine } from "../../domain/index.js";
+import type { OntologyTextLine } from "../../domain/ontology-types.js";
 import type { OntologyExplorerEntityRecord } from "./entity-record.js";
 
 function renderNullable(value: string | number | null | undefined): string {

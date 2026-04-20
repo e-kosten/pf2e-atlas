@@ -1,4 +1,4 @@
-import type { OntologyDomainModel, OntologyNode } from "../../domain/index.js";
+import type { OntologyDomainModel, OntologyNode } from "../../domain/ontology-types.js";
 import {
   type DerivedTagOntologyExplorerCategoryNode,
   type DerivedTagOntologyExplorerFamilyNode,

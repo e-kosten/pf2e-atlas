@@ -1,4 +1,5 @@
-import type { MetadataFilterNode, SearchFilters, SearchProfile, SearchSort } from "../../domain/index.js";
+import type { MetadataFilterNode } from "../../domain/metadata-types.js";
+import type { SearchFilters, SearchProfile, SearchSort } from "../../domain/search-types.js";
 import {
   getSearchQueryActionCostPolicy,
   getSearchQueryCategory,

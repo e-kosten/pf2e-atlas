@@ -1,4 +1,5 @@
-import type { MetadataFilterNode, MetadataPredicate, SearchSubcategory } from "../../domain/index.js";
+import type { MetadataFilterNode, MetadataPredicate } from "../../domain/metadata-types.js";
+import type { SearchSubcategory } from "../../domain/search-types.js";
 
 export type Pf2eTerminalQueryPartKind =
   | "subcategory"

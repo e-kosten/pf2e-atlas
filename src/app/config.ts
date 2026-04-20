@@ -3,7 +3,7 @@ import path from "node:path";
 import { constants } from "node:fs";
 
 import { DEFAULT_EMBEDDING_MODEL_ID, DEFAULT_EMBEDDING_REVISION } from "../embeddings.js";
-import { AppConfig } from "../domain/index.js";
+import type { AppConfig } from "../domain/config-types.js";
 import { expandHome } from "../shared/utils.js";
 
 function parseCliArgs(argv: string[]): Record<string, string> {

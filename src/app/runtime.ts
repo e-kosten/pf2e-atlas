@@ -1,6 +1,6 @@
 import { Pf2eDataService } from "../data/service.js";
 import { RankingConfigStore } from "../search/ranking-config.js";
-import type { AppConfig } from "../domain/index.js";
+import type { AppConfig } from "../domain/config-types.js";
 import { loadConfig } from "./config.js";
 
 export type Pf2eApplicationRuntime = {

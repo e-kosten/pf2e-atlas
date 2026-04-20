@@ -1,6 +1,6 @@
 import React from "react";
 
-import type { OntologyDomainModel, OntologyNode, OntologyNodeQuery } from "../../domain/index.js";
+import type { OntologyDomainModel, OntologyNode, OntologyNodeQuery } from "../../domain/ontology-types.js";
 import {
   getRenderedTerminalLineCount,
   getTerminalPaneBodyHeight,

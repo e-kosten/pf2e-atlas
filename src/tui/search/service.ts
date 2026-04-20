@@ -8,11 +8,13 @@ import type { MetadataFieldName } from "../../domain/metadata-field-registry.js"
 import type { SearchVocabularyResult } from "../../data/vocabulary.js";
 import type {
   OntologyNodeQuery,
+} from "../../domain/ontology-types.js";
+import type {
   SearchCategory,
   SearchFilters,
   SearchSubcategory,
   SearchWindowPage,
-} from "../../domain/index.js";
+} from "../../domain/search-types.js";
 import {
   applyDiscoverableQueryFieldSelections,
   buildDiscoverableQueryFieldSelections,

@@ -1,12 +1,12 @@
 import type { buildLiteralQueryWeights } from "./query-analysis.js";
-import {
-  NormalizedRecord,
+import type { NormalizedRecord } from "../domain/record-types.js";
+import type {
   SearchExplainResult,
   SearchFilters,
   SearchMode,
   SearchProfile,
   SearchRecordExplanation,
-} from "../domain/index.js";
+} from "../domain/search-types.js";
 import { bigramDice, normalizeText } from "../shared/utils.js";
 import type { RankingConfig } from "./ranking-config.js";
 

@@ -1,6 +1,7 @@
 import type { MetadataFieldSemantics } from "../../domain/metadata-semantics.js";
 import { normalizeMetadataNode } from "./query-core.js";
-import type { MetadataFilterNode, MetadataPredicate, SearchCategory, SearchSubcategory } from "../../domain/index.js";
+import type { MetadataFilterNode, MetadataPredicate } from "../../domain/metadata-types.js";
+import type { SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
 import {
   createEmptyStringPolicy,
   createScopedSelectionMap,

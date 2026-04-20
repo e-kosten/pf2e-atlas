@@ -1,13 +1,15 @@
 import type {
   CollectRuleQuestionContextInput,
   CollectRuleQuestionContextResult,
-  LookupQuery,
-  LookupResult,
-  NormalizedRecord,
   RuleGraphCollectionResult,
   RuleGraphResult,
   RuleReferenceEdge,
-} from "../domain/index.js";
+} from "../domain/rule-types.js";
+import type {
+  LookupQuery,
+  LookupResult,
+} from "../domain/search-types.js";
+import type { NormalizedRecord } from "../domain/record-types.js";
 import {
   backlinkTypeRank,
   edgeRowToReferenceEdge,

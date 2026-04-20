@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 import { fileExists } from "../shared/fs.js";
-import { RankingConfigStatus } from "../domain/index.js";
+import type { RankingConfigStatus } from "../domain/search-types.js";
 
 export interface RankingConfig {
   lexicalChannels: {

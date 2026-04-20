@@ -3,7 +3,7 @@ import React from "react";
 import { cleanup, render } from "ink-testing-library";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { OntologyDomainModel } from "../../src/domain/index.js";
+import type { OntologyDomainModel } from "../../src/domain/ontology-types.js";
 import { OntologyPickerScreen } from "../../src/tui/ontology-explorer/picker-screen.js";
 import { DerivedTagTerminalProvider } from "../../src/tui/terminal-ui.js";
 

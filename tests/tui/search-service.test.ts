@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { MetadataFilterNode, SearchFilters } from "../../src/domain/index.js";
+import type { MetadataFilterNode } from "../../src/domain/metadata-types.js";
+import type { SearchFilters } from "../../src/domain/search-types.js";
 import { createPf2eTerminalSearchService, getSearchQueryMetadataTree } from "../../src/tui/search/service.js";
 
 type SearchServiceDependencies = Parameters<typeof createPf2eTerminalSearchService>[0];
