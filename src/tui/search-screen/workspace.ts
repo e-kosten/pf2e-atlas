@@ -145,8 +145,8 @@ export function decodeQueryNodeActionPath(action: SearchWorkspaceAction): number
   return path.length > 0 ? path : null;
 }
 
-function buildMetadataWorkspaceEntries(node: MetadataFilterNode): SearchWorkspaceEntry[] {
-  return flattenMetadataTree(node, { rootLabel: "query" }).map((entry) => ({
+function buildMetadataWorkspaceEntries(node: MetadataFilterNode, category: SearchCategory | null): SearchWorkspaceEntry[] {
+  return flattenMetadataTree(node, { rootLabel: "query", category }).map((entry) => ({
     action: `queryNode:${encodeQueryNodePath(entry.path)}`,
     label: entry.summary.label,
     value: entry.summary.value,
@@ -335,7 +335,7 @@ export function buildWorkspaceEntries(state: SearchScreenState, countState: Sear
   }
   if (metadataTree) {
     structuredEntries.push(
-      ...buildMetadataWorkspaceEntries(metadataTree).map((entry) => ({
+      ...buildMetadataWorkspaceEntries(metadataTree, state.query.filters.category).map((entry) => ({
         ...entry,
         indent: (entry.indent ?? 0) + 1,
       })),
@@ -403,7 +403,7 @@ export function buildStructuredQuerySummaryLines(query: Pf2eTerminalSearchQuery)
   lines.push({ text: `Query clauses: ${metadataTree ? countMetadataPredicates(metadataTree) : 0}` });
 
   if (metadataTree) {
-    for (const entry of buildMetadataWorkspaceEntries(metadataTree)) {
+    for (const entry of buildMetadataWorkspaceEntries(metadataTree, query.filters.category)) {
       lines.push({
         text: `${entry.label}: ${entry.value}`,
         indent: 2 + (entry.indent ?? 0) * 2,
@@ -457,7 +457,7 @@ export function buildQuerySummaryLines(
   }
 
   if (metadataTree) {
-    for (const entry of buildMetadataWorkspaceEntries(metadataTree)) {
+    for (const entry of buildMetadataWorkspaceEntries(metadataTree, state.query.filters.category)) {
       lines.push({
         text: `${entry.label}: ${entry.value}`,
         indent: 2 + (entry.indent ?? 0) * 2,

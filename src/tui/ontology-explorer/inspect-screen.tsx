@@ -1,6 +1,8 @@
 import React from "react";
 
 import { inferActorMetricValueType } from "../../domain/actor-metrics.js";
+import { normalizeSearchCategory } from "../../domain/categories.js";
+import { getMetricDiscoveryGroupLabel } from "../../domain/metric-discovery-group-label.js";
 import type { OntologyDomainId, OntologyDomainModel, OntologyNodeQuery } from "../../domain/ontology-types.js";
 import { FilterExplorerScreen, type FilterExplorerOptions } from "../filter-explorer/index.js";
 import type {
@@ -77,7 +79,7 @@ function buildOntologyInspectScalarTarget(node: OntologyDomainModel["rootNodes"]
     return undefined;
   }
 
-  const fieldLabel = metricField === "actorMetrics" ? "Actor Metric" : "Item Metric";
+  const fieldLabel = getMetricDiscoveryGroupLabel(normalizeSearchCategory(node.query.filters.category) ?? null, metricField);
 
   return {
     kind: "scalar",

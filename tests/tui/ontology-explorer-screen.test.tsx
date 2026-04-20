@@ -360,7 +360,7 @@ describe("ontology browser screen", () => {
         expect.anything(),
         expect.anything(),
         expect.objectContaining({
-          title: "Actor Metric / Perception Modifier",
+          title: "Creature Statistics / Perception Modifier",
           currentClause: null,
         }),
       );

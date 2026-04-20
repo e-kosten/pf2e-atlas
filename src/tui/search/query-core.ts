@@ -1,4 +1,6 @@
 import type { MetadataFilterNode, MetadataPredicate } from "../../domain/metadata-types.js";
+import { getMetricQueryFieldLabel } from "../../domain/metric-discovery-group-label.js";
+import type { SearchCategory } from "../../domain/search-types.js";
 
 export type SearchMetadataNodeSummary = {
   label: string;
@@ -232,10 +234,11 @@ export function formatMetadataPredicateValue(node: MetadataPredicate): string {
 
 export function describeMetadataNode(
   node: MetadataFilterNode,
-  options: { isRoot?: boolean; rootLabel?: "node" | "query" } = {},
+  options: { isRoot?: boolean; rootLabel?: "node" | "query"; category?: SearchCategory | null } = {},
 ): SearchMetadataNodeSummary {
   const isRoot = options.isRoot ?? false;
   const rootLabel = options.rootLabel ?? "query";
+  const category = options.category ?? null;
 
   if ("and" in node) {
     return {
@@ -263,13 +266,13 @@ export function describeMetadataNode(
 
   const label =
     node.field === "actorMetric"
-      ? "Actor Metric"
+      ? getMetricQueryFieldLabel("actorMetric", category)
       : node.field === "actorMetricCompare"
-        ? "Actor Metric Compare"
+        ? getMetricQueryFieldLabel("actorMetricCompare", category)
         : node.field === "itemMetric"
-          ? "Item Metric"
+          ? getMetricQueryFieldLabel("itemMetric", category)
           : node.field === "itemMetricCompare"
-            ? "Item Metric Compare"
+            ? getMetricQueryFieldLabel("itemMetricCompare", category)
             : humanizeIdentifier(node.field);
 
   return {
@@ -285,11 +288,13 @@ export function flattenMetadataTree(
     depth?: number;
     path?: number[];
     rootLabel?: "node" | "query";
+    category?: SearchCategory | null;
   } = {},
 ): SearchMetadataTreeEntry[] {
   const depth = options.depth ?? 0;
   const path = options.path ?? [];
   const rootLabel = options.rootLabel ?? "query";
+  const category = options.category ?? null;
   const entries: SearchMetadataTreeEntry[] = [
     {
       depth,
@@ -298,6 +303,7 @@ export function flattenMetadataTree(
       summary: describeMetadataNode(node, {
         isRoot: path.length === 0,
         rootLabel,
+        category,
       }),
     },
   ];
@@ -308,6 +314,7 @@ export function flattenMetadataTree(
         depth: depth + 1,
         path: [...path, childIndex],
         rootLabel: "node",
+        category,
       }),
     );
   });

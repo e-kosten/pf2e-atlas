@@ -1,12 +1,12 @@
 import type { DerivedTagTerminalSegment, DerivedTagTerminalTone } from "../framework/types.js";
 import type { FilterExplorerPolicyState } from "./types.js";
 
-export type FilterExplorerPolicyTextFallback = "symbol" | "text";
+export type FilterExplorerPolicyTextFallback = "symbol" | "discoverable";
 
 export type FilterExplorerPolicyPresentation = {
   state?: FilterExplorerPolicyState;
   symbol: string;
-  text: string;
+  discoverable: string;
   label: string;
   tone: DerivedTagTerminalTone;
 };
@@ -17,25 +17,25 @@ const FILTER_EXPLORER_POLICY_PRESENTATION: Record<
 > = {
   any: {
     symbol: "∪",
-    text: "ANY",
+    discoverable: "includeAny",
     label: "include any",
     tone: "success",
   },
   all: {
     symbol: "∩",
-    text: "ALL",
+    discoverable: "includeAll",
     label: "require all",
     tone: "success",
   },
   exclude: {
     symbol: "¬",
-    text: "NOT",
+    discoverable: "exclude",
     label: "exclude",
     tone: "danger",
   },
   off: {
     symbol: "·",
-    text: "OFF",
+    discoverable: "off",
     label: "off",
     tone: "dim",
   },
@@ -56,7 +56,10 @@ export function formatFilterExplorerPolicyToken(
   fallback: FilterExplorerPolicyTextFallback = "symbol",
 ): string {
   const presentation = getFilterExplorerPolicyPresentation(state);
-  return fallback === "text" ? presentation.text : presentation.symbol;
+  if (fallback === "discoverable") {
+    return presentation.discoverable;
+  }
+  return presentation.symbol;
 }
 
 export function buildFilterExplorerPolicyBadgeSegments(
@@ -67,7 +70,7 @@ export function buildFilterExplorerPolicyBadgeSegments(
   } = {},
 ): DerivedTagTerminalSegment[] {
   const presentation = getFilterExplorerPolicyPresentation(state);
-  const token = options.fallback === "text" ? presentation.text : presentation.symbol;
+  const token = formatFilterExplorerPolicyToken(state, options.fallback);
   return [
     ...(options.includeBrackets === false ? [] : [{ text: "[", tone: "dim" as const }]),
     { text: token, tone: presentation.tone },
@@ -147,7 +150,7 @@ export function formatFilterExplorerPolicyCycleCopy(
   const fallback = options.fallback ?? "symbol";
   const parts = states.map((state) => {
     const presentation = getFilterExplorerPolicyPresentation(state);
-    const token = fallback === "text" ? presentation.text : presentation.symbol;
+    const token = formatFilterExplorerPolicyToken(state, fallback);
     return `${token} ${presentation.label}`;
   });
 

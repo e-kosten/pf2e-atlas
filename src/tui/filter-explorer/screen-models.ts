@@ -168,7 +168,7 @@ function buildSelectionEntrySegments(
     if (!first) {
       segments.push({ text: " | ", tone: "dim" });
     }
-    segments.push(...buildFilterExplorerPolicyBadgeSegments(state));
+    segments.push(...buildFilterExplorerPolicyBadgeSegments(state, { fallback: "discoverable" }));
     segments.push({ text: ` ${values.join(", ")}` });
     first = false;
   }

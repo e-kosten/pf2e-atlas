@@ -178,8 +178,12 @@ export function buildSearchStructuredEditorHelpLines(
   ];
 }
 
-function buildLegacyMetadataNodeLines(node: MetadataFilterNode, indentBase = 0): DerivedTagTerminalLine[] {
-  return flattenMetadataTree(node, { rootLabel: "node" }).map((entry) => ({
+function buildLegacyMetadataNodeLines(
+  node: MetadataFilterNode,
+  indentBase = 0,
+  category: Pf2eTerminalSearchQuery["filters"]["category"] = null,
+): DerivedTagTerminalLine[] {
+  return flattenMetadataTree(node, { rootLabel: "node", category }).map((entry) => ({
     text: `${entry.summary.label}: ${entry.summary.value}`,
     indent: indentBase + entry.depth * 2,
     tone: isMetadataPredicate(entry.node) ? "default" : "accent",
@@ -213,7 +217,7 @@ function buildLegacyStructuredSummaryLines(session: SearchStructuredEditorSessio
       lines.push({ text: "" });
     }
     lines.push({ text: item.fieldOption.label, tone: "accent" });
-    lines.push(...buildLegacyMetadataNodeLines(node, 2));
+    lines.push(...buildLegacyMetadataNodeLines(node, 2, session.draftQuery?.filters.category ?? null));
   });
   return lines;
 }
@@ -233,7 +237,7 @@ function buildLegacyFieldFocusLines(
   if (node) {
     lines.push({ text: "" });
     lines.push({ text: "Current staged field", tone: "section" });
-    lines.push(...buildLegacyMetadataNodeLines(node, 2));
+    lines.push(...buildLegacyMetadataNodeLines(node, 2, session.draftQuery?.filters.category ?? null));
   } else {
     lines.push({ text: "" });
     lines.push({ text: "No staged field selection for this field yet.", tone: "dim" });
