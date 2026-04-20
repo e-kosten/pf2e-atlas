@@ -27,7 +27,6 @@ import {
 } from "../terminal-modal-layout.js";
 import { createDerivedTagTerminalInputEvent, moveSelectionWrapped } from "./input.js";
 import {
-  TerminalFooter,
   TerminalInlinePromptPanel,
   TerminalPaneView,
   TerminalRows,
@@ -40,12 +39,9 @@ import type {
   CommandPaletteOptions,
   DerivedTagTerminalCommandOption,
   DerivedTagTerminalLine,
-  DerivedTagTerminalOptionalSelectPromptResult,
-  DerivedTagTerminalPolicyPromptOptions,
   DerivedTagTerminalPolicySelection,
   DerivedTagTerminalPolicyState,
   DerivedTagTerminalSelectOption,
-  DerivedTagTerminalSelectPromptResult,
   MultiSelectPromptOptions,
   OptionalSelectPromptOptions,
   PolicyPromptOptions,

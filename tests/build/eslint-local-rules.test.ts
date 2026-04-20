@@ -135,13 +135,50 @@ describe("eslint local architecture rules", () => {
       "src/tags/migration/review-ui.tsx",
       'import { TerminalPaneScreen } from "../../tui/terminal-ui.js";\nexport const Screen = TerminalPaneScreen;\n',
     );
+    const reviewModelMessages = await lintRuleMessages(
+      "src/tags/migration/review-screen-model.ts",
+      'import { getTerminalPaneBodyHeight } from "../../tui/terminal-ui.js";\nexport const value = getTerminalPaneBodyHeight;\n',
+    );
+    const reviewStateMessages = await lintRuleMessages(
+      "src/tags/migration/review-screen-state.ts",
+      'import { reduceDerivedTagTerminalTwoPaneState } from "../../tui/two-pane-state.js";\nexport const value = reduceDerivedTagTerminalTwoPaneState;\n',
+    );
     const workbenchMessages = await lintRuleMessages(
       "src/tags/cli/derived-tag-migration-workbench.ts",
       'import { runPf2eTerminalApp } from "../../tui/pf2e-app.js";\nexport const run = runPf2eTerminalApp;\n',
     );
 
     expect(reviewUiMessages).toHaveLength(0);
+    expect(reviewModelMessages).toHaveLength(0);
+    expect(reviewStateMessages).toHaveLength(0);
     expect(workbenchMessages).toHaveLength(0);
+  });
+
+  it("keeps review-screen support modules on framework-style tui import limits", async () => {
+    const messages = lintMessageTexts(
+      await lintRuleMessages(
+        "src/tags/migration/review-screen-model.ts",
+        'import { useInput } from "ink";\nexport const value = useInput;\n',
+      ),
+    );
+
+    expect(
+      messages.some((message) =>
+        message.includes(
+          "TUI feature code must use terminal-ui helpers instead of importing Ink runtime primitives directly.",
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it("exempts framework modules from feature-level direct terminal routing lint", async () => {
+    const messages = await lintRuleMessages(
+      "src/tui/framework/input.ts",
+      'if (event.systemAction === "interrupt") {\n  exitApp();\n}\n',
+      "arch/no-direct-terminal-event-routing",
+    );
+
+    expect(messages).toHaveLength(0);
   });
 
   it("blocks search modules from importing storage internals directly", async () => {

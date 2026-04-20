@@ -169,6 +169,7 @@ export default defineConfig(
   {
     files: ["src/tui/**/*.{ts,tsx}", "src/tags/migration/review-ui.tsx"],
     ignores: [
+      "src/tui/framework/**/*.{ts,tsx}",
       "src/tui/keymap.ts",
       "src/tui/interaction-bindings.ts",
       "src/tui/action-target.ts",
@@ -418,6 +419,12 @@ export default defineConfig(
           ],
         },
       ],
+    },
+  },
+  {
+    files: ["src/tags/migration/review-screen-model.ts", "src/tags/migration/review-screen-state.ts"],
+    rules: {
+      "no-restricted-imports": mergeRestrictedImports(NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS),
     },
   },
   {
@@ -698,6 +705,8 @@ export default defineConfig(
     ignores: [
       "src/tags/cli/**/*",
       "src/tags/migration/review-detail-content.ts",
+      "src/tags/migration/review-screen-model.ts",
+      "src/tags/migration/review-screen-state.ts",
       "src/tags/migration/review-ui.tsx",
       "src/tags/migration/review-ui-controller.ts",
       "src/tags/migration/record-loader.ts",
