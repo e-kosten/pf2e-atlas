@@ -19,23 +19,41 @@ const hostedPickerContracts = new WeakMap<OntologyDomainModel, HostedOntologyPic
 
 export function buildHostedOntologyPickerInitialSnapshot(
   model: OntologyDomainModel,
-  rootDepth: number,
+  options: {
+    drillToFirstChild?: boolean;
+    selectedNodeIds: string[];
+  },
 ): OntologyBrowserSnapshot | undefined {
-  if (rootDepth !== 1 || model.rootNodes.length !== 1) {
+  if (options.selectedNodeIds.length === 0) {
     return undefined;
   }
 
-  const rootNode = model.rootNodes[0];
-  const firstChild = getOntologyNodeChildren(rootNode)[0];
-  if (!rootNode || !firstChild) {
-    return undefined;
+  let nodes = model.rootNodes;
+  const selectedNodeIds: string[] = [];
+  let currentNode;
+
+  for (const selectedId of options.selectedNodeIds) {
+    currentNode = nodes.find((node) => node.id === selectedId);
+    if (!currentNode) {
+      return undefined;
+    }
+    selectedNodeIds.push(currentNode.id);
+    nodes = getOntologyNodeChildren(currentNode);
+  }
+
+  if (options.drillToFirstChild) {
+    const firstChild = currentNode ? getOntologyNodeChildren(currentNode)[0] : undefined;
+    if (!firstChild) {
+      return undefined;
+    }
+    selectedNodeIds.push(firstChild.id);
   }
 
   return {
     activePane: "list",
     browserState: {
-      depth: 1,
-      selectedNodeIds: [rootNode.id, firstChild.id],
+      depth: selectedNodeIds.length - 1,
+      selectedNodeIds,
       filter: "",
       detailScroll: 0,
     },

@@ -23,12 +23,35 @@ function getAllowedStates(fieldType: Pf2eTerminalFacetFieldOption["fieldType"]):
 
 type OntologySelectionResolver = (node: OntologyNode) => OntologyNode["selection"];
 
-function annotateSelectableNodes(node: OntologyNode, resolveSelection: OntologySelectionResolver): OntologyNode {
+function resolveSelectableFieldOption(
+  node: OntologyNode,
+  currentFieldOption: Pf2eTerminalFacetFieldOption | null,
+  allowedFields: ReadonlyMap<string, Pf2eTerminalFacetFieldOption>,
+): Pf2eTerminalFacetFieldOption | null {
+  if (currentFieldOption && isSelectableValueNode(node, currentFieldOption.value)) {
+    return currentFieldOption;
+  }
+  if (node.kind === "tag") {
+    return allowedFields.get("derivedTags") ?? null;
+  }
+  if (node.kind === "trait") {
+    return allowedFields.get("traits") ?? null;
+  }
+  return null;
+}
+
+function annotateSelectableNodes(
+  node: OntologyNode,
+  allowedFields: ReadonlyMap<string, Pf2eTerminalFacetFieldOption>,
+  currentFieldOption: Pf2eTerminalFacetFieldOption | null = null,
+): OntologyNode {
   const cloned = cloneOntologyNode(node);
-  const selection = resolveSelection(cloned);
-  const children = cloned.children?.map((child) => annotateSelectableNodes(child, resolveSelection));
+  const nextFieldOption = cloned.kind === "field" ? (allowedFields.get(cloned.label) ?? null) : currentFieldOption;
+  const selectionFieldOption = resolveSelectableFieldOption(cloned, nextFieldOption, allowedFields);
+  const selection = selectionFieldOption ? buildFieldSelectionResolver(selectionFieldOption)(cloned) : undefined;
+  const children = cloned.children?.map((child) => annotateSelectableNodes(child, allowedFields, nextFieldOption));
   const loadChildren = cloned.loadChildren
-    ? () => cloned.loadChildren!().map((child) => annotateSelectableNodes(child, resolveSelection))
+    ? () => cloned.loadChildren!().map((child) => annotateSelectableNodes(child, allowedFields, nextFieldOption))
     : undefined;
   return {
     ...cloned,
@@ -74,33 +97,23 @@ export function buildSearchFacetPickerModel(
   },
 ): OntologyDomainModel {
   const categoryNode = findNodeById(searchSemanticsDomain.rootNodes, `searchSemantics:${options.category}`);
-  const metadataFieldsNode =
-    (options.subcategory
-      ? findNodeById(getOntologyNodeChildren(categoryNode), `${options.category}:${options.subcategory}:metadataFields`)
-      : undefined) ?? findNodeById(getOntologyNodeChildren(categoryNode), `${options.category}:metadataFields`);
   const allowedFields = new Map<string, Pf2eTerminalFacetFieldOption>(
     options.fieldOptions.map((field) => [field.value, field]),
   );
-  const fieldNodesById = new Map(getOntologyNodeChildren(metadataFieldsNode).map((node) => [node.id, node]));
-
-  const rootNodes = options.fieldOptions
-    .map((fieldOption) => {
-      const scopedFieldNodeId = options.subcategory
-        ? `${options.category}:${options.subcategory}:field:${fieldOption.value}`
-        : `${options.category}:field:${fieldOption.value}`;
-      const fieldNode = fieldNodesById.get(scopedFieldNodeId) ?? fieldNodesById.get(`${options.category}:field:${fieldOption.value}`);
-      return fieldNode ? annotateSelectableNodes(fieldNode, buildFieldSelectionResolver(fieldOption)) : null;
-    })
-    .filter((node): node is OntologyNode => Boolean(node))
-    .map((node) => ({
-      ...node,
-      detailLines: [
-        ...node.detailLines,
-        ...(allowedFields.has(node.label)
-          ? [{ text: `Facet picker label: ${allowedFields.get(node.label)!.label}` }]
-          : []),
-      ],
-    }));
+  const rootNodes = categoryNode
+    ? [
+        {
+          ...annotateSelectableNodes(categoryNode, allowedFields),
+          detailLines: [
+            ...categoryNode.detailLines,
+            { text: `Query scope: ${options.category}${options.subcategory ? ` / ${options.subcategory}` : ""}` },
+            {
+              text: `Selectable fields: ${options.fieldOptions.map((field) => field.label).join(", ")}`,
+            },
+          ],
+        },
+      ]
+    : [];
 
   return {
     id: "searchSemantics",
@@ -109,8 +122,8 @@ export function buildSearchFacetPickerModel(
         ? `${options.fieldOptions[0]!.label} Query`
         : `${titleCaseLabel(options.category)} Query Fields`,
     description: options.subcategory
-      ? `Edit discoverable ${options.subcategory} query fields with hierarchy-first browsing.`
-      : `Edit discoverable ${options.category} query fields with hierarchy-first browsing.`,
+      ? `Browse ${options.category} search semantics from the ${options.subcategory} query scope and apply discoverable field selections.`
+      : `Browse ${options.category} search semantics and apply discoverable field selections from the explorer.`,
     rootNodes,
   };
 }

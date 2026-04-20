@@ -16,6 +16,66 @@ import {
 import type { SearchQueryFieldPickerSession } from "./model.js";
 import type { Pf2eTerminalAppServices } from "../app-services.js";
 
+type HostedPickerInitialSnapshotCandidate = {
+  drillToFirstChild?: boolean;
+  selectedNodeIds: string[];
+};
+
+function buildHostedPickerInitialSnapshotCandidates(options: {
+  category: string;
+  subcategory: string | null;
+  fieldOptions: Pf2eTerminalQueryFieldOption[];
+  singleFieldBehavior: "list" | "directValues";
+}): HostedPickerInitialSnapshotCandidate[] {
+  const { category, subcategory, fieldOptions, singleFieldBehavior } = options;
+  const categoryId = `searchSemantics:${category}`;
+  const candidates: HostedPickerInitialSnapshotCandidate[] = [];
+  const singleField = fieldOptions.length === 1 ? fieldOptions[0] : null;
+
+  if (singleFieldBehavior === "directValues" && singleField) {
+    if (subcategory) {
+      candidates.push({
+        selectedNodeIds: [
+          categoryId,
+          `${category}:subcategories`,
+          `${category}:subcategory:${subcategory}`,
+          `${category}:${subcategory}:metadataFields`,
+          `${category}:${subcategory}:field:${singleField.value}`,
+        ],
+        drillToFirstChild: true,
+      });
+    }
+    candidates.push({
+      selectedNodeIds: [categoryId, `${category}:metadataFields`, `${category}:field:${singleField.value}`],
+      drillToFirstChild: true,
+    });
+    if (singleField.value === "derivedTags") {
+      candidates.push({
+        selectedNodeIds: [categoryId, `${category}:commonDerivedTags`],
+        drillToFirstChild: true,
+      });
+    }
+    if (singleField.value === "traits") {
+      candidates.push({
+        selectedNodeIds: [categoryId, `${category}:commonTraits`],
+        drillToFirstChild: true,
+      });
+    }
+  }
+
+  if (subcategory) {
+    candidates.push({
+      selectedNodeIds: [categoryId, `${category}:subcategories`, `${category}:subcategory:${subcategory}`],
+    });
+  }
+  candidates.push({
+    selectedNodeIds: [categoryId],
+    drillToFirstChild: true,
+  });
+
+  return candidates;
+}
+
 export function useSearchQueryFieldPickerWorkflow({
   query,
   services,
@@ -78,9 +138,16 @@ export function useSearchQueryFieldPickerWorkflow({
         return false;
       }
 
-      const preferredRootDepth = singleFieldBehavior === "directValues" && model.rootNodes.length === 1 ? 1 : 0;
-      const initialSnapshot = buildHostedOntologyPickerInitialSnapshot(model, preferredRootDepth);
-      const rootDepth = initialSnapshot ? preferredRootDepth : 0;
+      const initialSnapshot =
+        buildHostedPickerInitialSnapshotCandidates({
+          category: scopeQuery.filters.category,
+          subcategory: scopeSubcategory,
+          fieldOptions,
+          singleFieldBehavior,
+        })
+          .map((candidate) => buildHostedOntologyPickerInitialSnapshot(model, candidate))
+          .find((snapshot) => Boolean(snapshot)) ?? undefined;
+      const rootDepth = initialSnapshot ? 1 : 0;
       registerHostedOntologyPickerContract(model, {
         applyHelpText: onReturn
           ? "apply the current query field selections and return to the query builder"
@@ -96,7 +163,10 @@ export function useSearchQueryFieldPickerWorkflow({
         rootBackHelpText: onReturn ? "return to the query builder" : undefined,
         rootBackLabel: onReturn ? "builder" : undefined,
         rootDepth,
+        rootDetailBackHelpText: "return to the search semantics list",
         rootExitMode: onReturn ? "return" : rootDepth > 0 ? "apply" : undefined,
+        rootFocusHelpText: "switch focus between search-semantics entries and detail",
+        rootListTitle: "Search Semantics",
       });
 
       setSelectionPickerSession({

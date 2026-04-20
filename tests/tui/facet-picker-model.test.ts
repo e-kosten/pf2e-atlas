@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { OntologyDomainModel } from "../../src/domain/ontology-types.js";
+import { getOntologyNodeChildren } from "../../src/app/ontology/node-helpers.js";
 import { buildSearchFacetPickerModel } from "../../src/tui/ontology-explorer/facet-picker-model.js";
 
 const searchSemanticsDomain: OntologyDomainModel = {
@@ -112,9 +113,17 @@ describe("buildSearchFacetPickerModel", () => {
     });
 
     expect(model.rootNodes).toHaveLength(1);
-    expect(model.rootNodes[0]?.id).toBe("equipment:weapon:field:weaponGroup");
-    expect(model.rootNodes[0]?.detailLines.map((line) => line.text)).toContain("Subcategory: weapon");
-    expect(model.rootNodes[0]?.children?.[0]?.selection).toEqual({
+    expect(model.rootNodes[0]?.id).toBe("searchSemantics:equipment");
+    expect(model.rootNodes[0]?.detailLines.map((line) => line.text)).toContain("Query scope: equipment / weapon");
+
+    const subcategoryFieldNode = getOntologyNodeChildren(model.rootNodes[0])
+      .flatMap((node) => getOntologyNodeChildren(node))
+      .flatMap((node) => getOntologyNodeChildren(node))
+      .flatMap((node) => getOntologyNodeChildren(node))
+      .find((node) => node.id === "equipment:weapon:field:weaponGroup");
+
+    expect(subcategoryFieldNode?.detailLines.map((line) => line.text)).toContain("Subcategory: weapon");
+    expect(getOntologyNodeChildren(subcategoryFieldNode)[0]?.selection).toEqual({
       field: "weaponGroup",
       fieldLabel: "Weapon Group",
       value: "sword",

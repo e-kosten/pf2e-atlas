@@ -1758,6 +1758,19 @@ describe("search screen", () => {
 
     pressLeft(app);
     await flushInk();
+    expect(app.lastFrame()).toContain("Selection Picker");
+    expect(app.lastFrame()).toContain("[QUERY FIELDS]");
+    expect(app.lastFrame()).toContain("derivedTags: any=coastal_setting");
+
+    pressLeft(app);
+    await flushInk();
+    expect(app.lastFrame()).toContain("Selection Picker");
+    expect(app.lastFrame()).toContain("[SEARCH SEMANTICS]");
+    expect(app.lastFrame()).toContain("Metadata Fields");
+    expect(app.lastFrame()).not.toContain("Structured Query Editor");
+
+    pressLeft(app);
+    await flushInk();
     expect(app.lastFrame()).toContain("Structured Query Editor");
     expect(app.lastFrame()).toContain("Query Clause: includes any Coastal Setting");
     expect(app.lastFrame()).not.toContain("Browse/Search");
@@ -1891,6 +1904,21 @@ describe("search screen", () => {
 
     pressLeft(app);
     await flushInk();
+    expect(app.lastFrame()).toContain("Selection Picker");
+    expect(app.lastFrame()).toContain("[QUERY FIELDS]");
+    expect(app.lastFrame()).toContain("Traits");
+    expect(app.lastFrame()).toContain("derivedTags");
+    expect(app.lastFrame()).not.toContain("Browse/Search");
+
+    pressLeft(app);
+    await flushInk();
+    expect(app.lastFrame()).toContain("Selection Picker");
+    expect(app.lastFrame()).toContain("[SEARCH SEMANTICS]");
+    expect(app.lastFrame()).toContain("Metadata Fields");
+    expect(app.lastFrame()).not.toContain("Browse/Search");
+
+    pressLeft(app);
+    await flushInk();
     expect(app.lastFrame()).toContain("Add Query Part");
     expect(app.lastFrame()).toContain("Traits");
     expect(app.lastFrame()).toContain("Derived Tags");
@@ -1905,6 +1933,18 @@ describe("search screen", () => {
     app.stdin.write(" ");
     await flushInk();
     expect(app.lastFrame()).toContain("Policy any");
+    expect(app.lastFrame()).toContain("traits: any=illusion");
+
+    pressLeft(app);
+    await flushInk();
+    expect(app.lastFrame()).toContain("Selection Picker");
+    expect(app.lastFrame()).toContain("[QUERY FIELDS]");
+    expect(app.lastFrame()).toContain("traits: any=illusion");
+
+    pressLeft(app);
+    await flushInk();
+    expect(app.lastFrame()).toContain("Selection Picker");
+    expect(app.lastFrame()).toContain("[SEARCH SEMANTICS]");
     expect(app.lastFrame()).toContain("traits: any=illusion");
 
     pressLeft(app);
