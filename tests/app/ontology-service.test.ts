@@ -296,13 +296,16 @@ describe("application ontology service", () => {
     expect(second).toBe(first);
   });
 
-  it("reuses the derived-tags domain cache when search semantics loads derived-tag structure", () => {
+  it("keeps search semantics off the derived-tags domain runtime path", () => {
     const loadDerivedTagOntologyExplorerModel = vi.fn(() => ({ categories: [] }));
     const service = createPf2eApplicationOntologyService(createTestConfig(), createDataService(), {
       loadDerivedTagOntologyExplorerModel,
     });
 
     service.loadDomain("searchSemantics");
+
+    expect(loadDerivedTagOntologyExplorerModel).not.toHaveBeenCalled();
+
     service.loadDomain("derivedTags");
 
     expect(loadDerivedTagOntologyExplorerModel).toHaveBeenCalledTimes(1);
@@ -492,6 +495,10 @@ describe("application ontology service", () => {
     const publicationTitleValueNode = findNodeById(domain.rootNodes, "spell:field:publicationTitle")
       ?.loadChildren?.()
       .find((node) => node.id === "spell:publicationTitle:Pathfinder Rage of Elements");
+    const itemMetricNamespace = findNodeById(domain.rootNodes, "equipment:itemMetrics:namespace:weapon.");
+    const itemMetricNode = itemMetricNamespace
+      ?.loadChildren?.()
+      .find((node) => node.id === "equipment:itemMetrics:weapon.reload");
 
     expect(findNodeById(domain.rootNodes, "equipment:example:0")).toBeUndefined();
     expect(findNodeById(domain.rootNodes, "equipment:examples")).toBeUndefined();
@@ -529,10 +536,11 @@ describe("application ontology service", () => {
     expect(actorMetricGroup?.detailLines.map((line) => line.text)).toContain(
       "Explore live creature statistics namespaces, keys, and exact scalar values from the indexed corpus.",
     );
-    expect(actorMetricNamespace?.loadChildren?.().map((node) => node.label)).toContain("save.best");
+    expect(actorMetricNamespace?.loadChildren?.().map((node) => node.label)).toContain("Best Save");
+    expect(actorMetricNode?.label).toBe("Best Save");
     expect(actorMetricValueNode?.query).toEqual({
       kind: "listRecords",
-      label: "Browse records where save.best = fort",
+      label: "Browse records where Best Save = fort",
       filters: {
         category: "creature",
         metadata: {
@@ -545,6 +553,22 @@ describe("application ontology service", () => {
       },
     });
     expect(actorMetricValueNode?.loadChildren?.()[0]?.kind).toBe("record");
+    expect(itemMetricNode?.label).toBe("Weapon Reload");
+    expect(itemMetricNode?.query).toEqual({
+      kind: "listRecords",
+      label: "Browse records with Weapon Reload",
+      filters: {
+        category: "equipment",
+        metadata: {
+          field: "itemMetricCompare",
+          leftMetric: "weapon.reload",
+          op: ">=",
+          rightMetric: "weapon.reload",
+        },
+        limit: 20,
+      },
+    });
+    expect(itemMetricNode?.loadChildren).toBeUndefined();
     expect(commonTraitNode?.query).toEqual({
       kind: "listRecords",
       label: "Browse records with this trait",
