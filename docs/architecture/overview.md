@@ -23,7 +23,11 @@ The shortest useful mental model is:
 - `src/search/` owns reusable ranked-search mechanics
 - `src/server/` translates MCP tools to backend calls
 - `src/tui/` translates user interaction flows to backend and app services
-- `src/tags/` owns the editorial subsystem for derived-tag work
+- `src/tags/runtime/` owns published derived-tag runtime assembly
+- `src/tags/reviews/` owns durable review registries and reviewed discovery state
+- `src/tags/editorial/` owns editorial state, session, writeback, and UI workflows
+- `src/tags/cli/` groups offline discovery, evaluation, and editorial entrypoints
+- `src/tags/index.ts` is the stable non-tag facade; top-level `src/tags/runtime/*.ts` and `src/tags/editorial/*.ts` re-exports are compatibility shims, not the primary owners
 - `src/domain/` defines shared vocabulary and contracts
 - `src/shared/` stays intentionally small and only holds true cross-layer primitives
 
@@ -53,11 +57,27 @@ flowchart TD
       tuiRoot["src/tui/app-services.ts<br/>terminal composition"] --> ontology["src/app/ontology-service.ts"]
       tuiRoot --> storage["src/app/storage-service.ts"]
       tuiRoot --> tuiSearch["src/tui/search/service.ts"]
-      tuiRoot --> tags["src/tags/<br/>editorial, review, assignment tooling"]
+      tuiRoot --> tagUi["src/tags/editorial/ui/<br/>workbench and review controllers"]
       ontology --> dataService
       tuiSearch --> dataService
       storage --> db
-      tags --> storage
+      tagUi --> storage
+    end
+
+    subgraph Tags["Derived-tag subsystem"]
+      authored["src/tags/{ontology,rules,assignments,exemplars}<br/>authored source of truth"]
+      reviews["src/tags/reviews/<br/>review queues, memory, reviewed discovery state"]
+      runtime["src/tags/runtime/{publication,derivation,matcher,compat}<br/>published runtime ownership"]
+      editorial["src/tags/editorial/{state,sessions,writeback,ui}<br/>editorial execution ownership"]
+      cli["src/tags/cli/{discovery,evaluation,editorial,shared}<br/>grouped offline entrypoints"]
+
+      authored --> runtime
+      reviews --> editorial
+      reviews --> runtime
+      runtime --> editorial
+      cli --> editorial
+      cli --> storage
+      tagUi --> editorial
     end
 
     domain["src/domain/<br/>shared contracts and vocabularies"] -. supports .-> dataService
@@ -93,9 +113,14 @@ The TUI is a consumer of the shared runtime, not a second backend.
 
 The editorial subsystem under `src/tags/` is large because it supports assignment logic, candidate discovery, migration sessions, review queues, and CLI workflows. Architecturally, what matters here is:
 
-- editorial code is a first-class surface, not incidental scripts
-- it should use shared storage and data access boundaries instead of opening new ones everywhere
-- non-editorial code should prefer stable tag-facing entrypoints over arbitrary imports into tag leaf modules
+- authored truth lives in `ontology/`, `rules/`, `assignments/`, `exemplars/`, and `reviews/`
+- published runtime ownership is split across `runtime/publication/`, `runtime/derivation/`, `runtime/matcher/`, and `runtime/compat/`
+- durable reviewed discovery negatives now live under `src/tags/reviews/discovery-reviewed-records.ts`, alongside the other review registries
+- editorial execution is split by concern under `editorial/state/`, `editorial/sessions/`, `editorial/writeback/`, and `editorial/ui/`
+- offline tooling is grouped under `cli/discovery/`, `cli/evaluation/`, `cli/editorial/`, and `cli/shared/`
+- non-editorial code should prefer `src/tags/index.ts` or another approved facade over arbitrary imports into tag leaf modules
+
+Top-level files such as `src/tags/runtime/index.ts`, `src/tags/runtime/api.ts`, or `src/tags/editorial/session-builder.ts` still exist for compatibility. They should not be treated as the primary architectural owners when documenting or extending the subsystem.
 
 See [`editorial.md`](./editorial.md) for the deeper breakdown of the editorial subsystem.
 
@@ -181,9 +206,10 @@ It should consume explicit facades rather than reach directly into storage or lo
 
 Owns the editorial subsystem:
 
-- authored rules and deterministic assignments
-- migration sessions and review workflows
-- queue management, discovery, and evaluation tooling
+- authored tag knowledge in `ontology/`, `rules/`, `assignments/`, `exemplars/`, and `reviews/`
+- published runtime assembly in `runtime/publication/`, `runtime/derivation/`, `runtime/matcher/`, and `runtime/compat/`
+- editorial state, session, writeback, and review UI flows under `editorial/`
+- discovery and evaluation tooling plus grouped CLI entrypoints
 
 This area evolves faster than the public MCP surface, so its internal structure may change more often. The important boundary is stable entrypoints and respect for shared storage/runtime seams.
 

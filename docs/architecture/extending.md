@@ -15,7 +15,9 @@ Pick the lowest layer that can own the behavior without depending on a higher-le
 | Cross-surface runtime composition or app-scoped facade wiring                           | `src/app/`                    | individual screens or tool registration files    |
 | Backend retrieval, index-backed record access, rule graph, or reusable search execution | `src/data/` and `src/search/` | `src/server/` or `src/tui/`                      |
 | Shared types, category vocabularies, ontology contracts, or metadata semantics          | `src/domain/`                 | transport/UI layers                              |
-| Derived-tag authoring, migration, or editorial internals                                | `src/tags/`                   | non-tag callers outside a facade                 |
+| Derived-tag authored truth or review registries                                         | `src/tags/{ontology,rules,assignments,exemplars,reviews}/` | non-tag callers outside a facade |
+| Derived-tag runtime publication, derivation, or matching                                | `src/tags/runtime/{publication,derivation,matcher,compat}/` | top-level compatibility barrels as if they were owners |
+| Derived-tag editorial state, sessions, writeback, or review UI                          | `src/tags/editorial/{state,sessions,writeback,ui}/` | top-level `src/tags/editorial/*.ts` shims as if they were owners |
 
 Useful heuristics:
 
@@ -25,6 +27,7 @@ Useful heuristics:
 - If the code defines vocabulary rather than behavior, it probably belongs in `src/domain/`.
 - If a non-tag caller needs a domain type, import the concrete `src/domain/*` owner file instead of defaulting to `src/domain/index.ts`.
 - If a helper clearly belongs to `app`, `data`, or `search`, keep it there instead of extending `src/shared/`.
+- If the change is inside `src/tags/`, pick the split owner directory first and treat top-level editorial/runtime re-export files as compatibility bridges, not the architectural home for new work.
 
 ## When To Add A Facade
 
@@ -44,6 +47,8 @@ Existing examples:
 - `createPf2eTerminalSearchService` is the TUI-facing search facade
 - `src/tui/app-services.ts` is the TUI composition root and service bundle
 - `src/tags/index.ts` is the preferred non-tag entrypoint for tag functionality
+
+Compatibility barrels are different from facades. A file such as `src/tags/editorial/session-builder.ts` can exist to preserve imports during a refactor, but that does not make it the owning layer. Document and extend the owning split directory first; only add or keep a barrel when callers genuinely need a stable entrypoint.
 
 Do not add a facade just to hide a one-off helper used in one file. Add one when you are trying to define the standard entrypoint for a concern.
 
@@ -111,7 +116,28 @@ Do not:
 - import raw editorial internals when `app-services` should compose them
 - bypass shared interaction helpers by decoding terminal events inline
 
+For tag workbench changes in particular, route through `src/tui/app-services.ts` and the split editorial owners:
+
+- `editorial/state/` for mutable authored-session state
+- `editorial/sessions/` for session construction or persistence
+- `editorial/writeback/` for lint/import behavior
+- `editorial/ui/` for workbench and review-screen behavior
+
 If you need a new kind of reusable interaction flow, add the helper first, then consider a lint rule so future screens use it consistently.
+
+### Making A Derived-Tag Change
+
+Use the split ownership inside `src/tags/` instead of defaulting to the nearest top-level barrel:
+
+- authored ontology, rules, assignments, exemplars, and review registries belong in their authored folders
+- reviewed discovery negatives belong in `src/tags/reviews/discovery-reviewed-records.ts`
+- published runtime changes belong in `runtime/publication/`, `runtime/derivation/`, `runtime/matcher/`, or `runtime/compat/`
+- editorial working-state changes belong in `editorial/state/`
+- session creation, record loading, or scratch persistence belong in `editorial/sessions/`
+- lint/import behavior belongs in `editorial/writeback/`
+- review-screen or workbench behavior belongs in `editorial/ui/`
+
+If a top-level `src/tags/runtime/*.ts` or `src/tags/editorial/*.ts` file already re-exports the owner you need, treat that as compatibility glue unless the change is explicitly about the facade itself.
 
 ### Making A Backend Search Change
 

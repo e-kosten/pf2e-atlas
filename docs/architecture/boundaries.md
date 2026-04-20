@@ -30,7 +30,12 @@ flowchart TD
   end
 
   Domain["src/domain/*<br/>shared contracts and vocabularies"]
-  Tags["src/tags/index.ts or approved tag facades"]
+  subgraph Tags["Derived-tag subsystem"]
+    TagsFacade["src/tags/index.ts<br/>stable non-tag facade"]
+    TagsReviews["src/tags/reviews/*<br/>durable review registries"]
+    TagsRuntime["src/tags/runtime/{publication,derivation,matcher,compat}<br/>published runtime owners"]
+    TagsEditorial["src/tags/editorial/{state,sessions,writeback,ui}<br/>editorial execution owners"]
+  end
 
   MCP --> Runtime
   Runtime --> Data
@@ -40,6 +45,7 @@ flowchart TD
   AppServices --> Data
   AppServices --> Storage
   AppServices --> Ontology
+  AppServices --> TagsEditorial
 
   Ontology --> Data
   Ontology --> Storage
@@ -53,7 +59,10 @@ flowchart TD
   RuntimeSearch --> Domain
   Ontology --> Domain
 
-  TUI --> Tags
+  TUI --> TagsFacade
+  TagsFacade --> TagsRuntime
+  TagsReviews --> TagsRuntime
+  TagsEditorial --> TagsReviews
 ```
 
 What this diagram means in practice:
@@ -81,16 +90,16 @@ The table below is the shortest accurate summary of the current enforced boundar
 
 | Boundary                         | Approved owners                                                                                                                                                                                            | What lint blocks                                                                                                                                                                               | What callers should do instead                                                                                 |
 | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| JSON decoding                    | Explicit decoders and boundary modules such as `src/data/sql-row-decoding.ts`, `src/data/rows.ts`, `src/search/ranking-config.ts`, tag session/discovery decoders, and `src/tui/ontology-explorer/data.ts` | `arch/no-direct-json-parse` bans ad hoc `JSON.parse` in most of `src/`                                                                                                                         | Add decoding to an approved boundary module, then pass structured values upward                                |
+| JSON decoding                    | Explicit decoders and boundary modules such as `src/data/sql-row-decoding.ts`, `src/data/rows.ts`, `src/search/ranking-config.ts`, `src/tags/editorial/sessions/session-store.ts`, tag discovery decoders, and `src/tui/ontology-explorer/data.ts` | `arch/no-direct-json-parse` bans ad hoc `JSON.parse` in most of `src/`                                                                                                                         | Add decoding to an approved boundary module, then pass structured values upward                                |
 | SQLite construction              | `src/data/schema.ts`, `src/app/storage-service.ts`, `src/refresh-index.ts`, `src/tags/editorial/cli-utils.ts`, and `src/tags/cli/**`                                                                      | `arch/no-direct-database-sync-construction` bans `new DatabaseSync(...)` almost everywhere else                                                                                                | Use `Pf2eDataService`, `Pf2eApplicationStorageService`, or another approved facade                             |
 | Raw TUI event decoding           | Shared TUI framework files plus a few approved routing helpers                                                                                                                                             | `arch/no-direct-terminal-event-routing` bans branching on `event.systemAction`, `event.textInputAction`, `event.printable`, `isBackNavigationKey()`, and `isTerminalQuitKey()` in feature code | Route through shared interaction helpers, prompt adapters, or screen controllers                               |
 | Server-to-storage shortcuts      | No server registration files                                                                                                                                                                               | `src/server/**/*` cannot import `src/search/sql.ts`, `src/data/record-queries.ts`, or `src/data/schema.ts`                                                                                     | Put reusable behavior behind `Pf2eDataService` or another backend facade, then call it from the server layer   |
 | Search-to-storage leaf imports   | No search modules                                                                                                                                                                                          | `src/search/**/*` cannot import `src/data/rows.ts`, `src/data/record-queries.ts`, or `src/data/schema.ts` directly                                                                             | Keep runtime search logic independent of storage leaf helpers unless the facade boundary changes intentionally |
 | Non-tag domain barrel imports    | Tag-facing compatibility paths only                                                                                                                                                                        | Non-tag code cannot import `src/domain/index.ts` as a broad barrel                                                                                                                                | Import the owning `src/domain/*` module directly                                                               |
 | Non-tag shared helper imports    | True cross-layer primitives only                                                                                                                                                                           | Non-tag code cannot import moved owner helpers from `src/shared/utils.ts`, and cannot import compatibility `fileExists` from `src/shared/fs.ts`                                                  | Use the owner module in `src/data/` or `src/search/`, or the explicit shared primitive that actually owns it |
-| Non-tag imports of tag internals | No non-tag module outside an approved facade                                                                                                                                                               | Most non-tag code cannot import `src/tags/runtime/**`, `rules/**`, `catalog/**`, `ontology/**`, `exemplars/**`, `editorial/**`, `reviews/**`, `legacy-rules/**`, or `legacy-seed-migrations/**` | Re-export through `src/tags/index.ts` or a dedicated approved facade; legacy folders are migration-only compatibility inputs, not stable integration points |
+| Non-tag imports of tag internals | No non-tag module outside an approved facade                                                                                                                                                               | Most non-tag code cannot import `src/tags/runtime/**`, `rules/**`, `catalog/**`, `ontology/**`, `exemplars/**`, `editorial/**`, `reviews/**`, `legacy-rules/**`, or `legacy-seed-migrations/**` | Re-export through `src/tags/index.ts` or a dedicated approved facade; `runtime/compat/`, top-level editorial/runtime re-export files, and legacy folders are compatibility pathways, not stable integration points |
 | Non-UI imports of TUI internals  | `src/tui/**` and a few explicitly allowed modules only                                                                                                                                                     | Application, data, domain, search, server, and most tag modules cannot import `src/tui/**` internals                                                                                           | Keep TUI concerns inside the TUI layer                                                                         |
-| TUI runtime composition          | `src/tui/app-services.ts` and a few explicit exceptions                                                                                                                                                    | Most `src/tui/**` files cannot import `node:sqlite`, `src/data/service.ts`, `src/app/runtime.ts`, `src/app/ontology-service.ts`, or tag workbench internals directly                           | Extend `app-services` or a TUI-facing facade, then consume that facade from screens/workflows                  |
+| TUI runtime composition          | `src/tui/app-services.ts` and a few explicit exceptions                                                                                                                                                    | Most `src/tui/**` files cannot import `node:sqlite`, `src/data/service.ts`, `src/app/runtime.ts`, `src/app/ontology-service.ts`, or tag workbench internals directly                           | Extend `app-services` or a TUI-facing facade, then consume that facade from screens/workflows; tag-workbench wiring should route to the editorial owners through `app-services`, not direct feature-level imports |
 
 ## Boundary Areas
 
@@ -186,7 +195,16 @@ Current expectations:
 
 This matters because the tag subsystem is still evolving internally. Stable facades let the rest of the repo depend on it without taking on that churn.
 
-Within that subsystem, `legacy-rules/` and `legacy-seed-migrations/` are not the target long-term architecture. They are retained compatibility placeholders that encode the old rules format while migration work moves coverage into the current authored model.
+Within that subsystem, the current ownership split is:
+
+- `src/tags/runtime/publication/`, `derivation/`, `matcher/`, and `compat/` own the published derived-tag runtime
+- `src/tags/reviews/` owns durable review registries, including reviewed discovery negatives
+- `src/tags/editorial/state/`, `sessions/`, `writeback/`, and `ui/` own the editorial execution path
+- `src/tags/cli/discovery/`, `evaluation/`, `editorial/`, and `shared/` own grouped offline entrypoints
+
+Top-level files such as `src/tags/runtime/index.ts` and `src/tags/editorial/session-builder.ts` remain useful compatibility re-exports, but they are not the primary architectural owners and should not be the default targets for new documentation or internal routing.
+
+`legacy-rules/` and `legacy-seed-migrations/` are also not the target long-term architecture. They are retained compatibility placeholders that encode the old rules format while migration work moves coverage into the current authored model.
 
 ## How To Read A Boundary Failure
 

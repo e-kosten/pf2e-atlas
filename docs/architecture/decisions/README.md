@@ -6,7 +6,7 @@ This index is the quickest way to scan the accepted architecture decision record
 
 - [`0001-shared-backend-separate-surfaces.md`](./0001-shared-backend-separate-surfaces.md): one shared backend runtime serves both the read-only MCP server and the terminal/editorial surface, with each surface composed at its own boundary.
 - [`0002-readonly-ontology-and-explicit-storage-boundary.md`](./0002-readonly-ontology-and-explicit-storage-boundary.md): ontology browsing models are published as readonly snapshots, and app-layer index access stays behind explicit storage helpers.
-- [`0003-lint-enforced-derived-tag-boundaries.md`](./0003-lint-enforced-derived-tag-boundaries.md): stable editorial and derived-tag seams should be enforced with lint rules instead of remaining convention-only.
+- [`0003-lint-enforced-derived-tag-boundaries.md`](./0003-lint-enforced-derived-tag-boundaries.md): stable derived-tag seams, including the split runtime/reviews/editorial owners, should be enforced with lint rules instead of remaining convention-only.
 - [`0004-non-tag-ownership-import-boundaries.md`](./0004-non-tag-ownership-import-boundaries.md): non-tag code should import domain and helper modules from their owning paths instead of broad shared barrels or compatibility aliases.
 
 ## Reading Order
