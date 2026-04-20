@@ -6,7 +6,7 @@ import type {
 } from "../tags/migration/types.js";
 import type { OntologyDomainModel } from "../types.js";
 import type { OntologyBrowserSnapshot } from "./ontology-explorer/ui.js";
-import { moveSelectionWrapped } from "./terminal-ui.js";
+import { moveSelectionWrapped } from "./framework/input.js";
 
 export type Pf2eOntologyRoute = {
   kind: "ontology";

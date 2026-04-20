@@ -1,8 +1,8 @@
 import React from "react";
 
 import { TERMINAL_DIALOG_RETURN_FOOTER, type TerminalInteractionTone } from "./interaction-bindings.js";
+import { useDerivedTagTerminalApp } from "./framework/context.js";
 import {
-  useDerivedTagTerminalApp,
   type CommandPaletteOptions,
   type DerivedTagTerminalApp,
   type DerivedTagTerminalMultiSelectPromptOptions as MultiSelectPromptOptions,
@@ -15,7 +15,7 @@ import {
   type DerivedTagTerminalTextInputOptions as TextPromptOptions,
   type DialogOptions,
   type DerivedTagTerminalLine,
-} from "./terminal-ui.js";
+} from "./framework/types.js";
 
 export type TerminalInteractionContextAdapters = Pick<
   DerivedTagTerminalApp,

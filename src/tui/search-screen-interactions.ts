@@ -1,6 +1,6 @@
 import type { TerminalInteractionAction, TerminalInteractionCommand } from "./interaction-bindings.js";
 import { buildTerminalInteractionHelpLines, formatTerminalInteractionFooter } from "./interaction-bindings.js";
-import { type DerivedTagTerminalLine } from "./terminal-ui.js";
+import type { DerivedTagTerminalLine } from "./framework/types.js";
 import {
   createTerminalDetailInteractionContext,
   createTerminalListInteractionContext,

@@ -11,10 +11,10 @@ import {
   createDerivedTagTerminalListNavigationState,
   resolveDerivedTagTerminalListNavigationAction,
   useDerivedTagTerminalInput,
-  type DerivedTagTerminalInputEvent,
   type DerivedTagTerminalListNavigationAction,
   type DerivedTagTerminalListNavigationState,
-} from "./terminal-ui.js";
+} from "./framework/input.js";
+import type { DerivedTagTerminalInputEvent } from "./framework/types.js";
 
 export type TerminalInteractionContextKind =
   | "list"

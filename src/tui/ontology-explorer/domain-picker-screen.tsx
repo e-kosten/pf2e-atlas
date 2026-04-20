@@ -11,7 +11,7 @@ import {
   createMergedReturnFooterBinding,
   createSharedReturnInteractionActions,
 } from "../shell-navigation-copy.js";
-import type { DerivedTagTerminalLine } from "../terminal-ui.js";
+import type { DerivedTagTerminalLine } from "../framework/types.js";
 import { TerminalMenuScreen } from "../shared-screens.js";
 
 function getOntologyDomainPickerInteractionActions(): TerminalInteractionAction[] {

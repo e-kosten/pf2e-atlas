@@ -5,7 +5,7 @@ import {
   buildDerivedTagTerminalActionTargetHelpLines,
   type DerivedTagTerminalActionTargetOption,
 } from "./action-target.js";
-import type { DerivedTagTerminalLine } from "./terminal-ui.js";
+import type { DerivedTagTerminalLine } from "./framework/types.js";
 import {
   buildTerminalInteractionHelpLines,
   type TerminalFooterBinding,

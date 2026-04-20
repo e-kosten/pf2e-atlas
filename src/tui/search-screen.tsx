@@ -9,7 +9,7 @@ import {
 } from "./search-query-field-builder-session.js";
 import { useSearchScreenController } from "./search-screen-controller.js";
 import type { SearchScreenOrigin } from "./search-workflow-types.js";
-import { TerminalTwoPaneScreen } from "./terminal-ui.js";
+import { TerminalTwoPaneScreen } from "./framework/rendering.js";
 import { TerminalMenuScreen } from "./shared-screens.js";
 import { formatTerminalInteractionFooter } from "./interaction-bindings.js";
 

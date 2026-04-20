@@ -6,10 +6,9 @@ import {
   getTerminalPaneBodyHeight,
   getTerminalTwoPaneDetailWidth,
   sliceRenderedTerminalLines,
-  useDerivedTagTerminalSize,
-  type DerivedTagTerminalInputEvent,
-  type DerivedTagTerminalLine,
-} from "../terminal-ui.js";
+} from "../framework/rendering.js";
+import { useDerivedTagTerminalSize } from "../framework/context.js";
+import type { DerivedTagTerminalInputEvent, DerivedTagTerminalLine } from "../framework/types.js";
 import type { TerminalInteractionAction } from "../interaction-bindings.js";
 import {
   getDerivedTagTerminalTwoPaneLayoutMode,

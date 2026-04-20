@@ -1,7 +1,5 @@
-import {
-  type DerivedTagTerminalInputEvent,
-  type DerivedTagTerminalListNavigationAction,
-} from "../terminal-ui.js";
+import type { DerivedTagTerminalListNavigationAction } from "../framework/input.js";
+import type { DerivedTagTerminalInputEvent } from "../framework/types.js";
 import type { TerminalInteractionAction, TerminalTextEntryIntent } from "../interaction-bindings.js";
 import {
   createTerminalDetailInteractionContext,

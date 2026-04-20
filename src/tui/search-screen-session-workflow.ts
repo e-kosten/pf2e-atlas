@@ -5,7 +5,7 @@ import type { Pf2eTerminalAppServices } from "./app-services.js";
 import type { SearchTerminalPromptAdapters } from "./interaction-context-adapters.js";
 import type { SearchCountState, SearchScreenAction, SearchScreenState } from "./search-screen-state.js";
 import type { Pf2eTerminalSearchQuery, Pf2eTerminalSearchSession } from "./search-service.js";
-import type { DerivedTagTerminalApp } from "./terminal-ui.js";
+import type { DerivedTagTerminalApp } from "./framework/types.js";
 import {
   LIVE_COUNT_DEBOUNCE_MS,
   RESULT_WINDOW_FETCH_DEBOUNCE_MS,

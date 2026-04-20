@@ -1,4 +1,4 @@
-import type { DerivedTagTerminalInputEvent } from "./terminal-ui.js";
+import type { DerivedTagTerminalInputEvent } from "./framework/types.js";
 
 export type TerminalInteractionTone = "default" | "section" | "dim" | "accent";
 

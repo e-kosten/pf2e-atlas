@@ -10,7 +10,7 @@ import type {
   Pf2eTerminalQueryFieldSelectionMap,
   Pf2eTerminalSearchQuery,
 } from "./search-service.js";
-import type { DerivedTagTerminalLine } from "./terminal-ui.js";
+import type { DerivedTagTerminalLine } from "./framework/types.js";
 
 export type SearchQueryFieldPickerSession = {
   model: OntologyDomainModel;

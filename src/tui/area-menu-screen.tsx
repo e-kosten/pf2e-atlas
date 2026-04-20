@@ -1,6 +1,6 @@
 import React from "react";
 
-import type { DerivedTagTerminalLine } from "./terminal-ui.js";
+import type { DerivedTagTerminalLine } from "./framework/types.js";
 import {
   buildTerminalInteractionHelpLines,
   formatTerminalInteractionFooter,

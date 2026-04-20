@@ -3,12 +3,10 @@ import {
   getRenderedTerminalLineCount,
   getTerminalPaneBodyHeight,
   getTerminalTwoPaneDetailWidth,
-  moveSelection,
-  moveSelectionWrapped,
   sliceRenderedTerminalLines,
-  type DerivedTagTerminalLine,
-  type DerivedTagTerminalTwoPaneLayoutMode,
-} from "../terminal-ui.js";
+} from "../framework/rendering.js";
+import { moveSelection, moveSelectionWrapped } from "../framework/input.js";
+import type { DerivedTagTerminalLine, DerivedTagTerminalTwoPaneLayoutMode } from "../framework/types.js";
 
 export type OntologyBrowserState = {
   depth: number;

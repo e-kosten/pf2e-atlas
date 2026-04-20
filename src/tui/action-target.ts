@@ -1,4 +1,4 @@
-import type { DerivedTagTerminalInputEvent, DerivedTagTerminalLine, DerivedTagTerminalSegment } from "./terminal-ui.js";
+import type { DerivedTagTerminalInputEvent, DerivedTagTerminalLine, DerivedTagTerminalSegment } from "./framework/types.js";
 import type { TerminalInteractionAction, TerminalInteractionHelpSection } from "./interaction-bindings.js";
 import { buildTerminalInteractionHelpLines } from "./interaction-bindings.js";
 

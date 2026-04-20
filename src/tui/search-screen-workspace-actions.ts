@@ -26,7 +26,7 @@ import {
   setSearchQueryPart,
 } from "./search-service.js";
 import type { SearchScreenOrigin } from "./search-workflow-types.js";
-import type { DerivedTagTerminalApp } from "./terminal-ui.js";
+import type { DerivedTagTerminalApp } from "./framework/types.js";
 import {
   buildEditorCommandPaletteEntries,
   buildResultCommandPaletteEntries,

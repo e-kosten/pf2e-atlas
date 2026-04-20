@@ -11,7 +11,7 @@ import {
   getSearchQueryRarityPolicy,
   getSearchQuerySubcategory,
 } from "./search-service.js";
-import type { DerivedTagTerminalCommandOption, DerivedTagTerminalLine } from "./terminal-ui.js";
+import type { DerivedTagTerminalCommandOption, DerivedTagTerminalLine } from "./framework/types.js";
 import { clampWindowStart } from "./list-utils.js";
 import type { SearchCountState, SearchScreenState } from "./search-screen-state.js";
 import { formatCount, formatResultPosition, formatSort, getSessionBufferRange } from "./search-screen-state.js";

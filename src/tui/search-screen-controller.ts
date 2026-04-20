@@ -34,14 +34,13 @@ import { useSearchSessionWorkflow } from "./search-screen-session-workflow.js";
 import { useSearchWorkspaceActions } from "./search-screen-workspace-actions.js";
 import type { SearchScreenOrigin } from "./search-workflow-types.js";
 import {
-  type DerivedTagTerminalTwoPaneScreenProps,
   getRenderedTerminalLineCount,
   getTerminalPaneBodyHeight,
   getTerminalTwoPaneDetailWidth,
   sliceRenderedTerminalLines,
-  useDerivedTagTerminalApp,
-  useDerivedTagTerminalSize,
-} from "./terminal-ui.js";
+} from "./framework/rendering.js";
+import { useDerivedTagTerminalApp, useDerivedTagTerminalSize } from "./framework/context.js";
+import type { DerivedTagTerminalTwoPaneScreenProps } from "./framework/types.js";
 
 export type SearchScreenControllerResult = {
   structuredEditorSession: SearchStructuredEditorSession | null;

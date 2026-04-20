@@ -4,7 +4,7 @@ import type {
   Pf2eTerminalSearchSession,
   Pf2eTerminalSearchSort,
 } from "./search-service.js";
-import { moveSelection } from "./terminal-ui.js";
+import { moveSelection } from "./framework/input.js";
 import { reduceDerivedTagTerminalTwoPaneState } from "./two-pane-state.js";
 export type {
   SearchQueryFieldBuilderDraft,

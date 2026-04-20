@@ -10,7 +10,7 @@ import type {
   DerivedTagTerminalLine,
   DerivedTagTerminalPaneScreenProps,
   DerivedTagTerminalTwoPaneScreenProps,
-} from "../terminal-ui.js";
+} from "../framework/types.js";
 import type { HostedOntologyPickerContract } from "./picker-hosting.js";
 import type { OntologyExplorerControllerContext } from "./controller.js";
 import type { OntologyBrowserSnapshot } from "./ui.js";

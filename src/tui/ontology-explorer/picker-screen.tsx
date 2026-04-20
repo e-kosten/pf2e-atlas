@@ -1,11 +1,8 @@
 import React from "react";
 
 import type { OntologyDomainModel, OntologyNode, OntologySelectionState } from "../../types.js";
-import {
-  TerminalPaneScreen,
-  TerminalTwoPaneScreen,
-  type DerivedTagTerminalLine,
-} from "../terminal-ui.js";
+import { TerminalPaneScreen, TerminalTwoPaneScreen } from "../framework/rendering.js";
+import type { DerivedTagTerminalLine } from "../framework/types.js";
 import {
   getTerminalInteractionCycleDirection,
 } from "../interaction-bindings.js";

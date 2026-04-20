@@ -16,7 +16,7 @@ import { buildDerivedTagMigrationSession } from "../tags/migration/session-build
 import { summarizeCurrentDerivedTagReviewQueue } from "../tags/migration/runtime-state.js";
 import { writeDerivedTagMigrationSession } from "../tags/migration/session-store.js";
 import { writeDerivedTagMigrationSummary } from "../tags/migration/cli-utils.js";
-import type { DerivedTagTerminalApp } from "./terminal-ui.js";
+import type { DerivedTagTerminalApp } from "./framework/types.js";
 import type {
   DerivedTagMigrationMode,
   DerivedTagMigrationReviewDecisionKind,

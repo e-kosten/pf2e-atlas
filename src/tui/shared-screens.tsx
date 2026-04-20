@@ -15,9 +15,9 @@ import {
   TerminalTwoPaneScreen,
   TerminalTextScreen,
   getTerminalPaneBodyHeight,
-  useDerivedTagTerminalSize,
-  type DerivedTagTerminalLine,
-} from "./terminal-ui.js";
+} from "./framework/rendering.js";
+import { useDerivedTagTerminalSize } from "./framework/context.js";
+import type { DerivedTagTerminalLine } from "./framework/types.js";
 import {
   formatTerminalFooterBindings,
   formatTerminalInteractionFooter,

@@ -1,7 +1,7 @@
 import React from "react";
 
 import type { OntologyDomainModel, OntologyNodeQuery } from "../../types.js";
-import { TerminalPaneScreen, TerminalTwoPaneScreen } from "../terminal-ui.js";
+import { TerminalPaneScreen, TerminalTwoPaneScreen } from "../framework/rendering.js";
 import {
   showTerminalReturnDialog,
   useTerminalInteractionContextAdapters,

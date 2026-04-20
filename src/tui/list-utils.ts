@@ -1,4 +1,4 @@
-import type { DerivedTagTerminalLine } from "./terminal-ui.js";
+import type { DerivedTagTerminalLine } from "./framework/types.js";
 
 export function clampWindowStart(selectedIndex: number, itemCount: number, visibleCount: number): number {
   if (visibleCount <= 0 || itemCount <= visibleCount) {

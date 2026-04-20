@@ -20,7 +20,8 @@ import { OntologyBrowserScreen } from "./ontology-explorer/screen.js";
 import { OntologyDomainPickerScreen } from "./ontology-explorer/domain-picker-screen.js";
 import { SearchScreen } from "./search-screen.js";
 import { TerminalBusyScreen, TerminalMessageScreen } from "./shared-screens.js";
-import { runDerivedTagTerminalApp, useDerivedTagTerminalApp } from "./terminal-ui.js";
+import { useDerivedTagTerminalApp } from "./framework/context.js";
+import { runDerivedTagTerminalApp } from "./framework/provider.js";
 import { TagRefinementMenuScreen, type TagRefinementMenuItem } from "./tag-refinement-menu-screen.js";
 
 function StartupErrorScreen({ message, onExit }: { message: string; onExit: () => void }): React.JSX.Element {

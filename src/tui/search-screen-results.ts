@@ -1,4 +1,4 @@
-import type { DerivedTagTerminalCommandOption, DerivedTagTerminalLine } from "./terminal-ui.js";
+import type { DerivedTagTerminalCommandOption, DerivedTagTerminalLine } from "./framework/types.js";
 import type { SearchScreenState } from "./search-screen-state.js";
 import type { SearchScreenOrigin } from "./search-workflow-types.js";
 import { formatResultPosition, formatSort, getSessionBufferRange } from "./search-screen-state.js";
