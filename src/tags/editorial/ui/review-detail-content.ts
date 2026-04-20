@@ -1,5 +1,5 @@
-import { buildOntologyExplorerEntityDetailLines } from "../../../app/ontology/presenter.js";
 import type { OntologyTextLine } from "../../../domain/index.js";
+import { buildOntologyExplorerEntityDetailLines } from "../../entity-record.js";
 import type { DerivedTagMigrationSessionRecord } from "../types.js";
 
 export function buildDerivedTagMigrationRecordPageLines(record: DerivedTagMigrationSessionRecord): OntologyTextLine[] {

@@ -14,7 +14,7 @@ import {
   mapOntologyExplorerEntityRecordRow,
   type OntologyExplorerEntityRecord,
   type OntologyExplorerEntityRecordRow,
-} from "../../../app/ontology/entity-record.js";
+} from "../../entity-record.js";
 
 export type DerivedTagMigrationReference = {
   recordKey: string;

@@ -3,18 +3,19 @@ import { DatabaseSync } from "node:sqlite";
 import type { DerivedTagAssignmentMode } from "../../domain/record-types.js";
 import type { SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
 import {
+  buildOntologyExplorerEntityRecordSelectColumns,
+  compareDisplayText,
+  compareManagedCategory,
   getCurrentDerivedTagMigrationAuthoredState,
   getCurrentDerivedTagMigrationAuthoredStateRevision,
-} from "../../tags/editorial/authored-state.js";
-import { getDerivedTagExemplars, listDerivedTagLegacySeedMigrations, normalizeDerivedTag } from "../../tags/index.js";
-import {
-  buildOntologyExplorerEntityRecordSelectColumns,
+  getDerivedTagExemplars,
+  getPublishedDerivedTagMigrationOntology,
+  listDerivedTagLegacySeedMigrations,
+  normalizeDerivedTag,
   mapOntologyExplorerEntityRecordRow,
   type OntologyExplorerEntityRecord,
   type OntologyExplorerEntityRecordRow,
-} from "./entity-record.js";
-import { compareDisplayText, compareManagedCategory } from "../../tags/editorial/list-sorting.js";
-import { getPublishedDerivedTagMigrationOntology } from "../../tags/editorial/runtime-state.js";
+} from "../../tags/index.js";
 import { parseSearchCategoryValue } from "../../data/sql-row-decoding.js";
 
 type ExplorerCountRow = {
