@@ -8,14 +8,14 @@ Read `docs/architecture/overview.md` first, then `docs/architecture/boundaries.m
 
 Pick the lowest layer that can own the behavior without depending on a higher-level concern.
 
-| If the change is primarily... | Start here | Do not start here |
-| --- | --- | --- |
-| MCP wire schema, tool registration, or response shaping | `src/server/` | `src/domain/` or low-level SQL helpers |
-| Terminal workflow, screen behavior, or prompt orchestration | `src/tui/` | `src/server/` or direct storage/runtime assembly |
-| Cross-surface runtime composition or app-scoped facade wiring | `src/app/` | individual screens or tool registration files |
-| Backend retrieval, index-backed record access, rule graph, or reusable search execution | `src/data/` and `src/search/` | `src/server/` or `src/tui/` |
-| Shared types, category vocabularies, ontology contracts, or metadata semantics | `src/domain/` | transport/UI layers |
-| Derived-tag authoring, migration, or editorial internals | `src/tags/` | non-tag callers outside a facade |
+| If the change is primarily...                                                           | Start here                    | Do not start here                                |
+| --------------------------------------------------------------------------------------- | ----------------------------- | ------------------------------------------------ |
+| MCP wire schema, tool registration, or response shaping                                 | `src/server/`                 | `src/domain/` or low-level SQL helpers           |
+| Terminal workflow, screen behavior, or prompt orchestration                             | `src/tui/`                    | `src/server/` or direct storage/runtime assembly |
+| Cross-surface runtime composition or app-scoped facade wiring                           | `src/app/`                    | individual screens or tool registration files    |
+| Backend retrieval, index-backed record access, rule graph, or reusable search execution | `src/data/` and `src/search/` | `src/server/` or `src/tui/`                      |
+| Shared types, category vocabularies, ontology contracts, or metadata semantics          | `src/domain/`                 | transport/UI layers                              |
+| Derived-tag authoring, migration, or editorial internals                                | `src/tags/`                   | non-tag callers outside a facade                 |
 
 Useful heuristics:
 
