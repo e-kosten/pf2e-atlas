@@ -1,6 +1,7 @@
 import type { MetadataFilterNode, MetadataPredicate } from "../../domain/metadata-types.js";
 import { getMetricQueryFieldLabel } from "../../domain/metric-discovery-group-label.js";
 import type { SearchCategory } from "../../domain/search-types.js";
+import { humanizeIdentifier } from "./service-options.js";
 
 export type SearchMetadataNodeSummary = {
   label: string;
@@ -14,15 +15,6 @@ export type SearchMetadataTreeEntry = {
   path: number[];
   summary: SearchMetadataNodeSummary;
 };
-
-function humanizeIdentifier(value: string): string {
-  return value
-    .replace(/([a-z])([A-Z])/g, "$1 $2")
-    .split(/[_\s-]+/)
-    .filter((segment) => segment.length > 0)
-    .map((segment) => `${segment[0]!.toUpperCase()}${segment.slice(1)}`)
-    .join(" ");
-}
 
 export function isMetadataPredicate(node: MetadataFilterNode): node is MetadataPredicate {
   return !("and" in node) && !("or" in node) && !("not" in node);

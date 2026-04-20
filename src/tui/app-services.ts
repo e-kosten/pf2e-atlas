@@ -3,25 +3,23 @@ import { loadPf2eApplicationRuntime, type Pf2eApplicationRuntime } from "../app/
 import { createPf2eApplicationStorageService, type Pf2eApplicationStorageService } from "../app/storage-service.js";
 import { Pf2eDataService } from "../data/service.js";
 import type { AppConfig } from "../domain/config-types.js";
-import { createPf2eTerminalSearchService, type Pf2eTerminalSearchService } from "./search/service.js";
 import {
+  buildDerivedTagMigrationSession,
   createDerivedTagMigrationWorkbenchSession,
   getDerivedTagMigrationWorkbenchQueueItems,
   promptAndCreateDerivedTagMigrationWorkbenchSession,
+  summarizeCurrentDerivedTagReviewQueue,
+  writeDerivedTagMigrationSession,
+  writeDerivedTagMigrationSummary,
+  type DerivedTagMigrationMode,
+  type DerivedTagMigrationReviewDecisionKind,
+  type DerivedTagMigrationSession,
   type DerivedTagMigrationWorkbenchServices,
   type DerivedTagMigrationWorkbenchSessionCreationOptions,
-} from "../tags/editorial/workbench-controller.js";
-import type { DerivedTagMigrationWorkbenchSessionPrompts } from "../tags/editorial/workbench-session-prompts.js";
-import { buildDerivedTagMigrationSession } from "../tags/editorial/session-builder.js";
-import { summarizeCurrentDerivedTagReviewQueue } from "../tags/editorial/runtime-state.js";
-import { writeDerivedTagMigrationSession } from "../tags/editorial/session-store.js";
-import { writeDerivedTagMigrationSummary } from "../tags/editorial/cli-utils.js";
-import type {
-  DerivedTagMigrationMode,
-  DerivedTagMigrationReviewDecisionKind,
-  DerivedTagMigrationSession,
-  DerivedTagReviewQueueSummaryItem,
-} from "../tags/editorial/types.js";
+  type DerivedTagMigrationWorkbenchSessionPrompts,
+  type DerivedTagReviewQueueSummaryItem,
+} from "../tags/index.js";
+import { createPf2eTerminalSearchService, type Pf2eTerminalSearchService } from "./search/service.js";
 
 type SessionOptions = Omit<DerivedTagMigrationWorkbenchSessionCreationOptions, "decisionKind"> & {
   decisionKind?: DerivedTagMigrationReviewDecisionKind;

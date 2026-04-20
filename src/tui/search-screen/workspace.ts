@@ -15,6 +15,7 @@ import {
 import type { DerivedTagTerminalCommandOption, DerivedTagTerminalLine } from "../framework/types.js";
 import { formatFilterExplorerPolicySummary } from "../filter-explorer/policy-presentation.js";
 import { countMetadataPredicates, flattenMetadataTree } from "../search/query-core.js";
+import { humanizeIdentifier } from "../search/service-options.js";
 import { clampWindowStart } from "../list-utils.js";
 import type { SearchCountState, SearchScreenState } from "./state.js";
 import { formatCount, formatResultPosition, formatSort, getSessionBufferRange } from "./state.js";
@@ -46,15 +47,6 @@ export type SearchWorkspaceEntry = {
 
 export function formatSearchWorkspaceEntryLine(entry: SearchWorkspaceEntry): string {
   return `${"  ".repeat(entry.indent ?? 0)}${entry.label} | ${entry.value}${entry.disabled ? " | unavailable" : ""}`;
-}
-
-function humanizeIdentifier(value: string): string {
-  return value
-    .replace(/([a-z])([A-Z])/g, "$1 $2")
-    .split(/[_\s-]+/)
-    .filter((segment) => segment.length > 0)
-    .map((segment) => `${segment[0]!.toUpperCase()}${segment.slice(1)}`)
-    .join(" ");
 }
 
 export function formatSearchCategory(category: SearchCategory | null): string {

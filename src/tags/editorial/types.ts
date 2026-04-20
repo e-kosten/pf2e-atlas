@@ -13,8 +13,8 @@ import type {
   DerivedTagReviewConfidence,
   DerivedTagReviewSource,
   DerivedTagReviewStatus,
-} from "../runtime/assignments.js";
-import type { DerivedTagSource } from "../runtime/catalog-utils.js";
+} from "../runtime/derivation/assignments.js";
+import type { DerivedTagSource } from "../runtime/publication/catalog.js";
 import type { DerivedTagManagedCategory } from "../manifest.js";
 import type { OntologyExplorerEntityRecord } from "../entity-record.js";
 

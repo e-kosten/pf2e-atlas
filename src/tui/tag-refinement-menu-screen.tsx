@@ -1,6 +1,6 @@
 import React from "react";
 
-import type { DerivedTagMigrationMode, DerivedTagReviewQueueSummaryItem } from "../tags/editorial/types.js";
+import type { DerivedTagMigrationMode, DerivedTagReviewQueueSummaryItem } from "../tags/index.js";
 import {
   buildDerivedTagTerminalActionTargetHelpLines,
   type DerivedTagTerminalActionTargetOption,

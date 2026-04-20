@@ -181,6 +181,12 @@ describe("eslint local architecture rules", () => {
       "const parsed = JSON.parse(serialized);\nexport { parsed };\n",
       "arch/no-direct-json-parse",
     );
+
+    await expectNoRuleMessages(
+      "src/tags/editorial/sessions/session-store.ts",
+      "const parsed = JSON.parse(serialized);\nexport { parsed };\n",
+      "arch/no-direct-json-parse",
+    );
   });
 
   it("blocks DatabaseSync construction outside approved entry modules and allows composition roots", async () => {
@@ -282,6 +288,18 @@ describe("eslint local architecture rules", () => {
     await expectRuleMessage(
       "src/app/runtime.ts",
       'import { readDerivedTagCatalog } from "../tags/runtime/catalog-utils.js";\nexport const value = readDerivedTagCatalog;\n',
+      "Outside src/tags, import derived-tag functionality through src/tags/index.js or another approved facade instead of leaf tag internals.",
+    );
+
+    await expectRuleMessage(
+      "src/app/runtime.ts",
+      'import { buildDerivedTagMigrationSession } from "../tags/editorial/session-builder.js";\nexport const value = buildDerivedTagMigrationSession;\n',
+      "Outside src/tags, import derived-tag functionality through src/tags/index.js or another approved facade instead of leaf tag internals.",
+    );
+
+    await expectRuleMessage(
+      "src/app/runtime.ts",
+      'import { REVIEWED_DISCOVERY_RECORDS } from "../tags/reviews/discovery-reviewed-records.js";\nexport const value = REVIEWED_DISCOVERY_RECORDS;\n',
       "Outside src/tags, import derived-tag functionality through src/tags/index.js or another approved facade instead of leaf tag internals.",
     );
 

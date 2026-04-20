@@ -122,6 +122,8 @@ const NON_TAGS_DERIVED_TAG_IMPORT_RESTRICTIONS = {
         "**/tags/catalog/**",
         "**/tags/ontology/**",
         "**/tags/exemplars/**",
+        "**/tags/editorial/**",
+        "**/tags/reviews/**",
         "**/tags/legacy-rules/**",
         "**/tags/legacy-seed-migrations/**",
       ],

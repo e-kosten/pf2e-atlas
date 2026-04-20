@@ -1,5 +1,6 @@
 import type { SearchCountResult } from "../../domain/search-types.js";
 import type { Pf2eTerminalSearchQuery, Pf2eTerminalSearchSession, Pf2eTerminalSearchSort } from "../search/service.js";
+import { humanizeIdentifier } from "../search/service-options.js";
 import { moveSelection } from "../framework/input.js";
 import { reduceDerivedTagTerminalTwoPaneState } from "../two-pane-state.js";
 export type {
@@ -57,15 +58,6 @@ const RESULT_WINDOW_PAGE_MULTIPLIER = 8;
 const RESULT_PRELOAD_PAGE_MULTIPLIER = 4;
 const RESULT_PRELOAD_JUMP_MULTIPLIER = 6;
 export const RESULT_WINDOW_FETCH_DEBOUNCE_MS = 40;
-
-function humanizeIdentifier(value: string): string {
-  return value
-    .replace(/([a-z])([A-Z])/g, "$1 $2")
-    .split(/[_\s-]+/)
-    .filter((segment) => segment.length > 0)
-    .map((segment) => `${segment[0]!.toUpperCase()}${segment.slice(1)}`)
-    .join(" ");
-}
 
 export function formatSort(sort: Pf2eTerminalSearchSort): string {
   switch (sort) {

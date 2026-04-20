@@ -88,8 +88,7 @@ const JSON_PARSE_ALLOWED_PATHS = [
   "src/data/indexer.ts",
   "src/data/rows.ts",
   "src/search/ranking-config.ts",
-  "src/tags/migration/session-store.ts",
-  "src/tags/editorial/session-store.ts",
+  "src/tags/editorial/sessions/session-store.ts",
   "src/tags/discovery/row-decoding.ts",
   "src/tags/discovery/discovery-records.ts",
   "src/tui/ontology-explorer/data.ts",
@@ -97,7 +96,6 @@ const JSON_PARSE_ALLOWED_PATHS = [
 
 const DATABASE_SYNC_ALLOWED_PATHS = [
   "src/data/schema.ts",
-  "src/tags/migration/cli-utils.ts",
   "src/tags/editorial/cli-utils.ts",
   "src/refresh-index.ts",
   "src/app/storage-service.ts",
