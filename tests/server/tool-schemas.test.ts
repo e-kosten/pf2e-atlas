@@ -197,6 +197,14 @@ describe("tool schemas", () => {
         value: "undead",
       }).success,
     ).toBe(false);
+
+    expect(
+      metadataFilterSchema.safeParse({
+        field: "publicationTitle",
+        op: "eq",
+        value: "Player Core",
+      }).success,
+    ).toBe(false);
   });
 
   it("accepts the canonical search category labels", () => {

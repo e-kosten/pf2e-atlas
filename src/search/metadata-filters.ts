@@ -1,7 +1,5 @@
 import {
   inferActorMetricValueType,
-  isActorMetricNumericOperator,
-  isActorMetricScalarOperator,
   normalizeActorMetricKey,
   normalizeActorMetricTextValue,
   type ActorMetricValue,
@@ -11,6 +9,7 @@ import {
   getMetadataBooleanFieldSpec,
   getMetadataBooleanRecordValue,
   getMetadataEnumStringFieldSpec,
+  METADATA_FIELD_SPEC_BY_NAME,
   getMetadataNumberFieldSpec,
   getMetadataNumberRecordValue,
   getMetadataSetFieldSpec,
@@ -19,7 +18,6 @@ import {
   getMetadataTextFieldSpec,
   isMetadataBooleanField,
   isMetadataEnumStringField,
-  isMetadataFieldName,
   isMetadataNumberField,
   isMetadataSetField,
   isMetadataTextField,
@@ -28,13 +26,28 @@ import {
   type MetadataValueNormalization,
 } from "../domain/metadata-field-registry.js";
 import {
+  ACTOR_METRIC_COMPARE_PREDICATE_SPEC,
+  ACTOR_METRIC_PREDICATE_SPEC,
+  ITEM_METRIC_COMPARE_PREDICATE_SPEC,
+  ITEM_METRIC_PREDICATE_SPEC,
+  getMetadataFieldPredicateVariant,
+  getMetricValuePredicateOperatorKind,
+  type MetadataMetricComparePredicateSpec,
+  type MetadataMetricValuePredicateSpec,
+} from "../domain/metadata-predicate-spec.js";
+import {
   MetadataBooleanField,
+  MetadataBooleanPredicate,
   MetadataEnumStringField,
+  MetadataEnumStringPredicate,
   MetadataFilterNode,
   MetadataNumberField,
+  MetadataNumberPredicate,
   MetadataPredicate,
+  MetadataSetPredicate,
   MetadataSetField,
   MetadataTextStringField,
+  MetadataTextStringPredicate,
   NormalizedRecord,
 } from "../types.js";
 import { normalizeDerivedTag } from "../tags/index.js";
@@ -122,6 +135,88 @@ function metricSqlOperator(op: "==" | "!=" | ">" | ">=" | "<" | "<="): "=" | "<>
   }
 }
 
+function normalizeMetricValuePredicate(
+  raw: Record<string, unknown>,
+  op: string,
+  spec: MetadataMetricValuePredicateSpec,
+  normalizeMetricName: (metric: unknown, label: string) => string,
+  inferMetricValueType: (metric: string) => "number" | "text" | "boolean" | null,
+  metricLabel: "actor" | "item",
+): Extract<MetadataPredicate, { field: typeof spec.field }> {
+  const metric = normalizeMetricName(raw[spec.metricKey], `${spec.field}.${spec.metricKey}`);
+  const metricType = inferMetricValueType(metric);
+  if (!metricType) {
+    throw new Error(`Unknown ${metricLabel} metric "${String(raw[spec.metricKey])}".`);
+  }
+
+  const operatorKind = getMetricValuePredicateOperatorKind(spec, op);
+  if (metricType === "number") {
+    if (operatorKind !== "numeric" || typeof raw.value !== "number" || !Number.isFinite(raw.value)) {
+      throw new Error(`${metricLabel} metric "${metric}" requires a finite numeric value with one of ==, !=, >, >=, <, <=.`);
+    }
+
+    return {
+      field: spec.field,
+      [spec.metricKey]: metric,
+      op,
+      value: raw.value,
+    } as Extract<MetadataPredicate, { field: typeof spec.field }>;
+  }
+
+  if (operatorKind !== "scalar") {
+    throw new Error(`${metricLabel} metric "${metric}" only supports == and !=.`);
+  }
+
+  if (metricType === "text") {
+    if (typeof raw.value !== "string") {
+      throw new Error(`${metricLabel} metric "${metric}" requires a string value.`);
+    }
+
+    return {
+      field: spec.field,
+      [spec.metricKey]: metric,
+      op,
+      value: normalizeActorMetricTextValue(raw.value),
+    } as Extract<MetadataPredicate, { field: typeof spec.field }>;
+  }
+
+  if (typeof raw.value !== "boolean") {
+    throw new Error(`${metricLabel} metric "${metric}" requires a boolean value.`);
+  }
+
+  return {
+    field: spec.field,
+    [spec.metricKey]: metric,
+    op,
+    value: raw.value,
+  } as Extract<MetadataPredicate, { field: typeof spec.field }>;
+}
+
+function normalizeMetricComparePredicate(
+  raw: Record<string, unknown>,
+  op: string,
+  spec: MetadataMetricComparePredicateSpec,
+  normalizeMetricName: (metric: unknown, label: string) => string,
+  inferMetricValueType: (metric: string) => "number" | "text" | "boolean" | null,
+  metricLabel: "actorMetricCompare" | "itemMetricCompare",
+): Extract<MetadataPredicate, { field: typeof spec.field }> {
+  const leftMetric = normalizeMetricName(raw[spec.leftMetricKey], `${spec.field}.${spec.leftMetricKey}`);
+  const rightMetric = normalizeMetricName(raw[spec.rightMetricKey], `${spec.field}.${spec.rightMetricKey}`);
+  if (inferMetricValueType(leftMetric) !== "number" || inferMetricValueType(rightMetric) !== "number") {
+    throw new Error(`${metricLabel} only supports numeric ${metricLabel === "actorMetricCompare" ? "actor" : "item"} metrics.`);
+  }
+  if (!spec.operators.includes(op)) {
+    throw new Error(`${metricLabel} requires one of ==, !=, >, >=, <, <=.`);
+  }
+
+  return {
+    field: spec.field,
+    [spec.leftMetricKey]: leftMetric,
+    op,
+    [spec.rightMetricKey]: rightMetric,
+  } as Extract<MetadataPredicate, { field: typeof spec.field }>;
+}
+
 function normalizeMetadataValues(field: MetadataSetField | MetadataEnumStringField, values: string[]): string[] {
   return [...new Set(values.map((value) => normalizeMetadataValue(field, value)).filter(Boolean))];
 }
@@ -189,146 +284,59 @@ export function normalizeMetadataFilterNode(node: MetadataFilterNode): MetadataF
     throw new Error("metadata predicates must include field and op.");
   }
 
-  if (field === "actorMetric") {
-    const metric = normalizeActorMetricName(raw.metric, "actorMetric.metric");
-    const metricType = inferActorMetricValueType(metric);
-    if (!metricType) {
-      throw new Error(`Unknown actor metric "${String(raw.metric)}".`);
-    }
-
-    if (metricType === "number") {
-      if (!isActorMetricNumericOperator(op) || typeof raw.value !== "number" || !Number.isFinite(raw.value)) {
-        throw new Error(`actor metric "${metric}" requires a finite numeric value with one of ==, !=, >, >=, <, <=.`);
-      }
-
-      return {
-        field: "actorMetric",
-        metric,
-        op,
-        value: raw.value,
-      };
-    }
-
-    if (!isActorMetricScalarOperator(op)) {
-      throw new Error(`actor metric "${metric}" only supports == and !=.`);
-    }
-
-    if (metricType === "text") {
-      if (typeof raw.value !== "string") {
-        throw new Error(`actor metric "${metric}" requires a string value.`);
-      }
-
-      return {
-        field: "actorMetric",
-        metric,
-        op,
-        value: normalizeActorMetricTextValue(raw.value),
-      };
-    }
-
-    if (typeof raw.value !== "boolean") {
-      throw new Error(`actor metric "${metric}" requires a boolean value.`);
-    }
-
-    return {
-      field: "actorMetric",
-      metric,
+  if (field === ACTOR_METRIC_PREDICATE_SPEC.field) {
+    return normalizeMetricValuePredicate(
+      raw,
       op,
-      value: raw.value,
-    };
+      ACTOR_METRIC_PREDICATE_SPEC,
+      normalizeActorMetricName,
+      inferActorMetricValueType,
+      "actor",
+    );
   }
 
-  if (field === "actorMetricCompare") {
-    const leftMetric = normalizeActorMetricName(raw.leftMetric, "actorMetricCompare.leftMetric");
-    const rightMetric = normalizeActorMetricName(raw.rightMetric, "actorMetricCompare.rightMetric");
-    if (inferActorMetricValueType(leftMetric) !== "number" || inferActorMetricValueType(rightMetric) !== "number") {
-      throw new Error("actorMetricCompare only supports numeric actor metrics.");
-    }
-    if (!isActorMetricNumericOperator(op)) {
-      throw new Error("actorMetricCompare requires one of ==, !=, >, >=, <, <=.");
-    }
-
-    return {
-      field: "actorMetricCompare",
-      leftMetric,
+  if (field === ACTOR_METRIC_COMPARE_PREDICATE_SPEC.field) {
+    return normalizeMetricComparePredicate(
+      raw,
       op,
-      rightMetric,
-    };
+      ACTOR_METRIC_COMPARE_PREDICATE_SPEC,
+      normalizeActorMetricName,
+      inferActorMetricValueType,
+      "actorMetricCompare",
+    );
   }
 
-  if (field === "itemMetric") {
-    const metric = normalizeItemMetricName(raw.metric, "itemMetric.metric");
-    const metricType = inferItemMetricValueType(metric);
-    if (!metricType) {
-      throw new Error(`Unknown item metric "${String(raw.metric)}".`);
-    }
-
-    if (metricType === "number") {
-      if (!isActorMetricNumericOperator(op) || typeof raw.value !== "number" || !Number.isFinite(raw.value)) {
-        throw new Error(`item metric "${metric}" requires a finite numeric value with one of ==, !=, >, >=, <, <=.`);
-      }
-
-      return {
-        field: "itemMetric",
-        metric,
-        op,
-        value: raw.value,
-      };
-    }
-
-    if (!isActorMetricScalarOperator(op)) {
-      throw new Error(`item metric "${metric}" only supports == and !=.`);
-    }
-
-    if (metricType === "text") {
-      if (typeof raw.value !== "string") {
-        throw new Error(`item metric "${metric}" requires a string value.`);
-      }
-
-      return {
-        field: "itemMetric",
-        metric,
-        op,
-        value: normalizeActorMetricTextValue(raw.value),
-      };
-    }
-
-    if (typeof raw.value !== "boolean") {
-      throw new Error(`item metric "${metric}" requires a boolean value.`);
-    }
-
-    return {
-      field: "itemMetric",
-      metric,
+  if (field === ITEM_METRIC_PREDICATE_SPEC.field) {
+    return normalizeMetricValuePredicate(
+      raw,
       op,
-      value: raw.value,
-    };
+      ITEM_METRIC_PREDICATE_SPEC,
+      normalizeItemMetricName,
+      inferItemMetricValueType,
+      "item",
+    );
   }
 
-  if (field === "itemMetricCompare") {
-    const leftMetric = normalizeItemMetricName(raw.leftMetric, "itemMetricCompare.leftMetric");
-    const rightMetric = normalizeItemMetricName(raw.rightMetric, "itemMetricCompare.rightMetric");
-    if (inferItemMetricValueType(leftMetric) !== "number" || inferItemMetricValueType(rightMetric) !== "number") {
-      throw new Error("itemMetricCompare only supports numeric item metrics.");
-    }
-    if (!isActorMetricNumericOperator(op)) {
-      throw new Error("itemMetricCompare requires one of ==, !=, >, >=, <, <=.");
-    }
-
-    return {
-      field: "itemMetricCompare",
-      leftMetric,
+  if (field === ITEM_METRIC_COMPARE_PREDICATE_SPEC.field) {
+    return normalizeMetricComparePredicate(
+      raw,
       op,
-      rightMetric,
-    };
+      ITEM_METRIC_COMPARE_PREDICATE_SPEC,
+      normalizeItemMetricName,
+      inferItemMetricValueType,
+      "itemMetricCompare",
+    );
   }
 
-  if (!isMetadataFieldName(field)) {
+  const metadataFieldSpec = METADATA_FIELD_SPEC_BY_NAME.get(field as MetadataSetField);
+  if (!metadataFieldSpec) {
     throw new Error(`Unknown metadata field "${field}".`);
   }
 
-  if (isMetadataSetField(field)) {
-    if (!["includesAny", "includesAll", "excludesAny"].includes(op)) {
+  const predicateVariant = getMetadataFieldPredicateVariant(metadataFieldSpec.fieldType, op);
+
+  if (metadataFieldSpec.fieldType === "set") {
+    if (!predicateVariant) {
       throw new Error(`Unsupported metadata operator "${op}" for set field "${field}".`);
     }
 
@@ -341,26 +349,30 @@ export function normalizeMetadataFilterNode(node: MetadataFilterNode): MetadataF
     }
 
     return {
-      field,
-      op: op as "includesAny" | "includesAll" | "excludesAny",
-      values: normalizeMetadataValues(field, raw.values),
-    };
+      field: field as MetadataSetField,
+      op: predicateVariant.op,
+      values: normalizeMetadataValues(field as MetadataSetField, raw.values),
+    } as MetadataSetPredicate;
   }
 
-  if (isMetadataEnumStringField(field)) {
-    if (op === "eq") {
+  if (metadataFieldSpec.fieldType === "enumString") {
+    if (!predicateVariant) {
+      throw new Error(`Unsupported metadata operator "${op}" for string field "${field}".`);
+    }
+
+    if (predicateVariant.payload === "string") {
       if (typeof raw.value !== "string") {
         throw new Error(`metadata predicate "${field}" with op "eq" requires a string value.`);
       }
 
       return {
-        field,
-        op,
-        value: normalizeMetadataValue(field, raw.value),
-      };
+        field: field as MetadataEnumStringField,
+        op: predicateVariant.op,
+        value: normalizeMetadataValue(field as MetadataEnumStringField, raw.value),
+      } as MetadataEnumStringPredicate;
     }
 
-    if (op === "in" || op === "notIn") {
+    if (predicateVariant.payload === "stringArray") {
       if (
         !Array.isArray(raw.values) ||
         raw.values.length === 0 ||
@@ -370,31 +382,31 @@ export function normalizeMetadataFilterNode(node: MetadataFilterNode): MetadataF
       }
 
       return {
-        field,
-        op,
-        values: normalizeMetadataValues(field, raw.values),
-      };
+        field: field as MetadataEnumStringField,
+        op: predicateVariant.op,
+        values: normalizeMetadataValues(field as MetadataEnumStringField, raw.values),
+      } as MetadataEnumStringPredicate;
     }
 
     throw new Error(`Unsupported metadata operator "${op}" for string field "${field}".`);
   }
 
-  if (isMetadataTextField(field)) {
-    if (!["eq", "notEq", "contains", "notContains"].includes(op) || typeof raw.value !== "string") {
+  if (metadataFieldSpec.fieldType === "text") {
+    if (!predicateVariant || predicateVariant.payload !== "string" || typeof raw.value !== "string") {
       throw new Error(
         `metadata predicate "${field}" requires op "eq", "notEq", "contains", or "notContains" with a string value.`,
       );
     }
 
     return {
-      field,
-      op: op as "eq" | "notEq" | "contains" | "notContains",
+      field: field as MetadataTextStringField,
+      op: predicateVariant.op,
       value: normalizeMetadataTextMatchValue(raw.value),
-    };
+    } as MetadataTextStringPredicate;
   }
 
-  if (isMetadataNumberField(field)) {
-    if (op === "between") {
+  if (metadataFieldSpec.fieldType === "number") {
+    if (predicateVariant?.payload === "numberRange") {
       if (
         typeof raw.min !== "number" ||
         !Number.isFinite(raw.min) ||
@@ -408,37 +420,33 @@ export function normalizeMetadataFilterNode(node: MetadataFilterNode): MetadataF
       }
 
       return {
-        field,
-        op,
+        field: field as MetadataNumberField,
+        op: predicateVariant.op,
         min: raw.min,
         max: raw.max,
-      };
+      } as MetadataNumberPredicate;
     }
 
-    if (!["eq", "gte", "lte"].includes(op) || typeof raw.value !== "number" || !Number.isFinite(raw.value)) {
+    if (predicateVariant?.payload !== "number" || typeof raw.value !== "number" || !Number.isFinite(raw.value)) {
       throw new Error(`metadata predicate "${field}" requires op "eq", "gte", or "lte" with a finite numeric value.`);
     }
 
     return {
-      field,
-      op: op as "eq" | "gte" | "lte",
+      field: field as MetadataNumberField,
+      op: predicateVariant.op,
       value: raw.value,
-    };
+    } as MetadataNumberPredicate;
   }
 
-  if (!isMetadataBooleanField(field)) {
-    throw new Error("Unknown metadata field.");
-  }
-
-  if (op !== "eq" || typeof raw.value !== "boolean") {
+  if (metadataFieldSpec.fieldType !== "boolean" || predicateVariant?.payload !== "boolean" || typeof raw.value !== "boolean") {
     throw new Error(`metadata predicate "${field}" requires op "eq" with a boolean value.`);
   }
 
   return {
-    field,
-    op,
+    field: field as MetadataBooleanField,
+    op: predicateVariant.op,
     value: raw.value,
-  };
+  } as MetadataBooleanPredicate;
 }
 
 function buildActorMetricPredicateClause(

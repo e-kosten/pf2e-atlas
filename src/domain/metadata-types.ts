@@ -1,6 +1,15 @@
 import { METADATA_FIELD_REGISTRY, type MetadataFieldType } from "./metadata-field-registry.js";
-import type { ActorMetricNumericOperator, ActorMetricScalarOperator } from "./actor-metrics.js";
-import type { ItemMetricNumericOperator, ItemMetricScalarOperator } from "./item-metrics.js";
+import {
+  ACTOR_METRIC_COMPARE_PREDICATE_SPEC,
+  ACTOR_METRIC_PREDICATE_SPEC,
+  ITEM_METRIC_COMPARE_PREDICATE_SPEC,
+  ITEM_METRIC_PREDICATE_SPEC,
+  METADATA_FIELD_PREDICATE_VARIANTS,
+  type MetadataFieldPredicateFromType,
+  type MetadataPredicateOperator,
+  type MetricComparePredicateFromSpec,
+  type MetricValuePredicateFromSpec,
+} from "./metadata-predicate-spec.js";
 
 type MetadataFieldNameByType<FieldType extends MetadataFieldType> = Extract<
   (typeof METADATA_FIELD_REGISTRY)[number],
@@ -31,96 +40,24 @@ export type MetadataNumberField = MetadataFieldNameByType<"number">;
 export const METADATA_BOOLEAN_FIELDS = fieldNamesForType("boolean");
 export type MetadataBooleanField = MetadataFieldNameByType<"boolean">;
 
-export type MetadataSetOperator = "includesAny" | "includesAll" | "excludesAny";
-export type MetadataEnumStringOperator = "eq" | "in" | "notIn";
-export type MetadataTextStringOperator = "eq" | "notEq" | "contains" | "notContains";
-export type MetadataNumberOperator = "eq" | "gte" | "lte" | "between";
-export type MetadataBooleanOperator = "eq";
+export type MetadataSetOperator = MetadataPredicateOperator<(typeof METADATA_FIELD_PREDICATE_VARIANTS)["set"]>;
+export type MetadataEnumStringOperator = MetadataPredicateOperator<
+  (typeof METADATA_FIELD_PREDICATE_VARIANTS)["enumString"]
+>;
+export type MetadataTextStringOperator = MetadataPredicateOperator<(typeof METADATA_FIELD_PREDICATE_VARIANTS)["text"]>;
+export type MetadataNumberOperator = MetadataPredicateOperator<(typeof METADATA_FIELD_PREDICATE_VARIANTS)["number"]>;
+export type MetadataBooleanOperator = MetadataPredicateOperator<(typeof METADATA_FIELD_PREDICATE_VARIANTS)["boolean"]>;
 
-export type MetadataSetPredicate = {
-  field: MetadataSetField;
-  op: MetadataSetOperator;
-  values: string[];
-};
+export type MetadataSetPredicate = MetadataFieldPredicateFromType<MetadataSetField, "set">;
+export type MetadataEnumStringPredicate = MetadataFieldPredicateFromType<MetadataEnumStringField, "enumString">;
+export type MetadataTextStringPredicate = MetadataFieldPredicateFromType<MetadataTextStringField, "text">;
+export type MetadataNumberPredicate = MetadataFieldPredicateFromType<MetadataNumberField, "number">;
+export type MetadataBooleanPredicate = MetadataFieldPredicateFromType<MetadataBooleanField, "boolean">;
 
-export type MetadataEnumStringPredicate =
-  | {
-      field: MetadataEnumStringField;
-      op: "eq";
-      value: string;
-    }
-  | {
-      field: MetadataEnumStringField;
-      op: "in" | "notIn";
-      values: string[];
-    };
-
-export type MetadataTextStringPredicate = {
-  field: MetadataTextStringField;
-  op: MetadataTextStringOperator;
-  value: string;
-};
-
-export type MetadataNumberPredicate =
-  | {
-      field: MetadataNumberField;
-      op: "eq" | "gte" | "lte";
-      value: number;
-    }
-  | {
-      field: MetadataNumberField;
-      op: "between";
-      min: number;
-      max: number;
-    };
-
-export type MetadataBooleanPredicate = {
-  field: MetadataBooleanField;
-  op: MetadataBooleanOperator;
-  value: boolean;
-};
-
-export type ActorMetricPredicate =
-  | {
-      field: "actorMetric";
-      metric: string;
-      op: ActorMetricNumericOperator;
-      value: number;
-    }
-  | {
-      field: "actorMetric";
-      metric: string;
-      op: ActorMetricScalarOperator;
-      value: string | boolean;
-    };
-
-export type ActorMetricComparePredicate = {
-  field: "actorMetricCompare";
-  leftMetric: string;
-  op: ActorMetricNumericOperator;
-  rightMetric: string;
-};
-
-export type ItemMetricPredicate =
-  | {
-      field: "itemMetric";
-      metric: string;
-      op: ItemMetricNumericOperator;
-      value: number;
-    }
-  | {
-      field: "itemMetric";
-      metric: string;
-      op: ItemMetricScalarOperator;
-      value: string | boolean;
-    };
-
-export type ItemMetricComparePredicate = {
-  field: "itemMetricCompare";
-  leftMetric: string;
-  op: ItemMetricNumericOperator;
-  rightMetric: string;
-};
+export type ActorMetricPredicate = MetricValuePredicateFromSpec<typeof ACTOR_METRIC_PREDICATE_SPEC>;
+export type ActorMetricComparePredicate = MetricComparePredicateFromSpec<typeof ACTOR_METRIC_COMPARE_PREDICATE_SPEC>;
+export type ItemMetricPredicate = MetricValuePredicateFromSpec<typeof ITEM_METRIC_PREDICATE_SPEC>;
+export type ItemMetricComparePredicate = MetricComparePredicateFromSpec<typeof ITEM_METRIC_COMPARE_PREDICATE_SPEC>;
 
 export type MetadataPredicate =
   | MetadataSetPredicate

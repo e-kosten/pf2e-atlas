@@ -1,6 +1,5 @@
 import * as z from "zod/v4";
 
-import { ACTOR_METRIC_NUMERIC_OPERATORS, ACTOR_METRIC_SCALAR_OPERATORS } from "../domain/actor-metrics.js";
 import {
   VALID_SEARCH_CATEGORY_LIST,
   getCategoryForSubcategory,
@@ -9,6 +8,17 @@ import {
   normalizeSearchCategory,
   normalizeSearchSubcategory,
 } from "../domain/categories.js";
+import {
+  ACTOR_METRIC_COMPARE_PREDICATE_SPEC,
+  ACTOR_METRIC_PREDICATE_SPEC,
+  ITEM_METRIC_COMPARE_PREDICATE_SPEC,
+  ITEM_METRIC_PREDICATE_SPEC,
+  METADATA_FIELD_PREDICATE_VARIANTS,
+  type MetadataMetricComparePredicateSpec,
+  type MetadataMetricValuePredicateSpec,
+  type MetadataPredicatePayloadKind,
+  type MetadataPredicateVariantSpec,
+} from "../domain/metadata-predicate-spec.js";
 import {
   FILTER_VALUE_FIELDS,
   METADATA_BOOLEAN_FIELDS,
@@ -88,120 +98,98 @@ const metadataTextStringFieldSchema = z.enum(METADATA_TEXT_STRING_FIELDS);
 const metadataNumberFieldSchema = z.enum(METADATA_NUMBER_FIELDS);
 const metadataBooleanFieldSchema = z.enum(METADATA_BOOLEAN_FIELDS);
 
-const metadataSetPredicateSchema = z
-  .object({
-    field: metadataSetFieldSchema,
-    op: z.enum(["includesAny", "includesAll", "excludesAny"]),
-    values: z.array(z.string()).min(1),
-  })
-  .strict();
+const METADATA_PREDICATE_PAYLOAD_SCHEMAS = {
+  string: z.object({ value: z.string() }),
+  stringArray: z.object({ values: z.array(z.string()).min(1) }),
+  number: z.object({ value: z.number() }),
+  numberRange: z.object({ min: z.number(), max: z.number() }),
+  boolean: z.object({ value: z.boolean() }),
+} as const satisfies Record<MetadataPredicatePayloadKind, z.ZodObject<any>>;
 
-const metadataEnumStringPredicateSchema = z.union([
-  z
-    .object({
-      field: metadataEnumStringFieldSchema,
-      op: z.literal("eq"),
-      value: z.string(),
-    })
-    .strict(),
-  z
-    .object({
-      field: metadataEnumStringFieldSchema,
-      op: z.enum(["in", "notIn"]),
-      values: z.array(z.string()).min(1),
-    })
-    .strict(),
-]);
+function buildStrictObjectSchema(shape: z.ZodRawShape): z.ZodObject<any> {
+  return z.object(shape).strict();
+}
 
-const metadataTextStringPredicateSchema = z
-  .object({
-    field: metadataTextStringFieldSchema,
-    op: z.enum(["contains", "notContains"]),
-    value: z.string(),
-  })
-  .strict();
+function buildVariantPredicateSchema(
+  fieldSchema: z.ZodTypeAny,
+  variant: MetadataPredicateVariantSpec,
+): z.ZodObject<any> {
+  return buildStrictObjectSchema({
+    field: fieldSchema,
+    op: z.literal(variant.op),
+    ...METADATA_PREDICATE_PAYLOAD_SCHEMAS[variant.payload].shape,
+  });
+}
 
-const metadataNumberPredicateSchema = z.union([
-  z
-    .object({
-      field: metadataNumberFieldSchema,
-      op: z.enum(["eq", "gte", "lte"]),
+function buildMetadataFieldPredicateSchema(
+  fieldSchema: z.ZodTypeAny,
+  variants: readonly MetadataPredicateVariantSpec[],
+): z.ZodTypeAny {
+  const visibleVariants = variants.filter((variant) => variant.exposeInSchema);
+  const variantSchemas = visibleVariants.map((variant) => buildVariantPredicateSchema(fieldSchema, variant));
+  const [firstSchema, secondSchema, ...restSchemas] = variantSchemas;
+  if (!firstSchema) {
+    throw new Error("Metadata predicate schema requires at least one visible variant.");
+  }
+
+  if (!secondSchema) {
+    return firstSchema;
+  }
+
+  return z.discriminatedUnion("op", [firstSchema, secondSchema, ...restSchemas]);
+}
+
+function buildMetricValuePredicateSchema(spec: MetadataMetricValuePredicateSpec): z.ZodTypeAny {
+  return z.union([
+    buildStrictObjectSchema({
+      field: z.literal(spec.field),
+      [spec.metricKey]: z.string(),
+      op: z.enum(spec.numericOperators as [string, ...string[]]),
       value: z.number(),
-    })
-    .strict(),
-  z
-    .object({
-      field: metadataNumberFieldSchema,
-      op: z.literal("between"),
-      min: z.number(),
-      max: z.number(),
-    })
-    .strict(),
-]);
-
-const metadataBooleanPredicateSchema = z
-  .object({
-    field: metadataBooleanFieldSchema,
-    op: z.literal("eq"),
-    value: z.boolean(),
-  })
-  .strict();
-
-const actorMetricPredicateSchema = z.union([
-  z
-    .object({
-      field: z.literal("actorMetric"),
-      metric: z.string(),
-      op: z.enum(ACTOR_METRIC_NUMERIC_OPERATORS),
-      value: z.number(),
-    })
-    .strict(),
-  z
-    .object({
-      field: z.literal("actorMetric"),
-      metric: z.string(),
-      op: z.enum(ACTOR_METRIC_SCALAR_OPERATORS),
+    }),
+    buildStrictObjectSchema({
+      field: z.literal(spec.field),
+      [spec.metricKey]: z.string(),
+      op: z.enum(spec.scalarOperators as [string, ...string[]]),
       value: z.union([z.string(), z.boolean()]),
-    })
-    .strict(),
-]);
+    }),
+  ]);
+}
 
-const actorMetricComparePredicateSchema = z
-  .object({
-    field: z.literal("actorMetricCompare"),
-    leftMetric: z.string(),
-    op: z.enum(ACTOR_METRIC_NUMERIC_OPERATORS),
-    rightMetric: z.string(),
-  })
-  .strict();
+function buildMetricComparePredicateSchema(spec: MetadataMetricComparePredicateSpec): z.ZodTypeAny {
+  return buildStrictObjectSchema({
+    field: z.literal(spec.field),
+    [spec.leftMetricKey]: z.string(),
+    op: z.enum(spec.operators as [string, ...string[]]),
+    [spec.rightMetricKey]: z.string(),
+  });
+}
 
-const itemMetricPredicateSchema = z.union([
-  z
-    .object({
-      field: z.literal("itemMetric"),
-      metric: z.string(),
-      op: z.enum(ACTOR_METRIC_NUMERIC_OPERATORS),
-      value: z.number(),
-    })
-    .strict(),
-  z
-    .object({
-      field: z.literal("itemMetric"),
-      metric: z.string(),
-      op: z.enum(ACTOR_METRIC_SCALAR_OPERATORS),
-      value: z.union([z.string(), z.boolean()]),
-    })
-    .strict(),
-]);
+const metadataSetPredicateSchema = buildMetadataFieldPredicateSchema(
+  metadataSetFieldSchema,
+  METADATA_FIELD_PREDICATE_VARIANTS.set,
+);
+const metadataEnumStringPredicateSchema = buildMetadataFieldPredicateSchema(
+  metadataEnumStringFieldSchema,
+  METADATA_FIELD_PREDICATE_VARIANTS.enumString,
+);
+const metadataTextStringPredicateSchema = buildMetadataFieldPredicateSchema(
+  metadataTextStringFieldSchema,
+  METADATA_FIELD_PREDICATE_VARIANTS.text,
+);
+const metadataNumberPredicateSchema = buildMetadataFieldPredicateSchema(
+  metadataNumberFieldSchema,
+  METADATA_FIELD_PREDICATE_VARIANTS.number,
+);
+const metadataBooleanPredicateSchema = buildMetadataFieldPredicateSchema(
+  metadataBooleanFieldSchema,
+  METADATA_FIELD_PREDICATE_VARIANTS.boolean,
+);
 
-const itemMetricComparePredicateSchema = z
-  .object({
-    field: z.literal("itemMetricCompare"),
-    leftMetric: z.string(),
-    op: z.enum(ACTOR_METRIC_NUMERIC_OPERATORS),
-    rightMetric: z.string(),
-  })
-  .strict();
+const actorMetricPredicateSchema = buildMetricValuePredicateSchema(ACTOR_METRIC_PREDICATE_SPEC);
+const actorMetricComparePredicateSchema = buildMetricComparePredicateSchema(ACTOR_METRIC_COMPARE_PREDICATE_SPEC);
+const itemMetricPredicateSchema = buildMetricValuePredicateSchema(ITEM_METRIC_PREDICATE_SPEC);
+const itemMetricComparePredicateSchema = buildMetricComparePredicateSchema(ITEM_METRIC_COMPARE_PREDICATE_SPEC);
 
 export const metadataFilterSchema: z.ZodType<MetadataFilterNode> = z.lazy(() =>
   z.union([
@@ -229,7 +217,7 @@ export const metadataFilterSchema: z.ZodType<MetadataFilterNode> = z.lazy(() =>
         not: metadataFilterSchema,
       })
       .strict(),
-  ]),
+  ]) as z.ZodType<MetadataFilterNode>,
 );
 
 export const filterValueFieldSchema: z.ZodType<FilterValueField> = z.enum(FILTER_VALUE_FIELDS);
