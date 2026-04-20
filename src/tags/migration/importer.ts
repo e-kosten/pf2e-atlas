@@ -16,6 +16,7 @@ import type {
   DerivedTagAssignmentReviewCategory,
   DerivedTagAssignmentReviewDecision,
 } from "../runtime/assignments.js";
+import { expectDerivedTagManagedCategory } from "../manifest.js";
 import { normalizeDerivedTag } from "../runtime/shared.js";
 import { uniqueSorted } from "../../utils.js";
 import { getCurrentDerivedTagMigrationAuthoredState, writeDerivedTagMigrationAuthoredState } from "./authored-state.js";
@@ -514,16 +515,7 @@ export function applyMigrationSessionToAuthoredRules(
 }
 
 function toManagedCategory(category: SearchCategory): DerivedTagManagedCategory {
-  if (
-    category !== "affliction" &&
-    category !== "creature" &&
-    category !== "equipment" &&
-    category !== "hazard" &&
-    category !== "spell"
-  ) {
-    throw new Error(`Derived-tag migration importer does not manage category "${category}".`);
-  }
-  return category;
+  return expectDerivedTagManagedCategory(category, "Derived-tag migration importer");
 }
 
 function categoriesTouchedBySession(session: DerivedTagMigrationSession): DerivedTagManagedCategory[] {

@@ -1,14 +1,8 @@
 import { deriveRecordTagsFromRules } from "./matcher.js";
 import { normalizeDerivedTag, DerivedTagContext } from "./shared.js";
 import { uniqueSorted } from "../../utils.js";
-import {
-  AFFLICTION_AUTHORED_DERIVED_TAG_RULES,
-  CREATURE_AUTHORED_DERIVED_TAG_RULES,
-  EQUIPMENT_AUTHORED_DERIVED_TAG_RULES,
-  HAZARD_AUTHORED_DERIVED_TAG_RULES,
-  SPELL_AUTHORED_DERIVED_TAG_RULES,
-  compileAuthoredDerivedTagRules,
-} from "../authored-rules/index.js";
+import { DERIVED_TAG_REGISTRATION_CATEGORIES } from "../manifest.js";
+import { DERIVED_TAG_AUTHORED_RULES_BY_CATEGORY, compileAuthoredDerivedTagRules } from "../authored-rules/index.js";
 import {
   buildDerivedTagLegacySeedMigrationIndex,
   deriveCatalogTagDerivation,
@@ -27,60 +21,29 @@ import {
   type PublishedDerivedTagExemplars,
   type PublishedDerivedTagExemplarSet,
 } from "./exemplar-utils.js";
-import {
-  AFFLICTION_DERIVED_TAG_EXEMPLARS,
-  CREATURE_DERIVED_TAG_EXEMPLARS,
-  EQUIPMENT_DERIVED_TAG_EXEMPLARS,
-  HAZARD_DERIVED_TAG_EXEMPLARS,
-  SPELL_DERIVED_TAG_EXEMPLARS,
-} from "../exemplars/index.js";
-import { CREATURE_DERIVED_TAG_LEGACY_SEED_MIGRATIONS } from "../legacy-seed-migrations/creature.js";
-import { HAZARD_DERIVED_TAG_LEGACY_SEED_MIGRATIONS } from "../legacy-seed-migrations/hazard.js";
-import { SPELL_DERIVED_TAG_LEGACY_SEED_MIGRATIONS } from "../legacy-seed-migrations/spell.js";
-import { AFFLICTION_DERIVED_TAG_ONTOLOGY } from "../ontology/affliction.js";
-import { CREATURE_DERIVED_TAG_ONTOLOGY } from "../ontology/creature.js";
-import { EQUIPMENT_DERIVED_TAG_ONTOLOGY } from "../ontology/equipment.js";
-import { HAZARD_DERIVED_TAG_ONTOLOGY } from "../ontology/hazard.js";
-import { SPELL_DERIVED_TAG_ONTOLOGY } from "../ontology/spell.js";
-import { flattenDerivedTagAuthoredCategoryOntology } from "../ontology/utils.js";
+import { DERIVED_TAG_EXEMPLARS_BY_CATEGORY } from "../exemplars/index.js";
+import { DERIVED_TAG_LEGACY_SEED_MIGRATIONS_BY_CATEGORY } from "../legacy-seed-migrations/index.js";
+import { DERIVED_TAG_ONTOLOGY_BY_CATEGORY, flattenDerivedTagAuthoredCategoryOntology } from "../ontology/index.js";
 import {
   createDerivedTagExplicitAssignmentIndex,
   validateDerivedTagExplicitAssignmentsAgainstRecords,
 } from "./assignments.js";
 import { getLegacyDerivedTagFamilyAliases } from "./family-compatibility.js";
-import {
-  AFFLICTION_LEGACY_DERIVED_TAG_RULES,
-  CREATURE_LEGACY_DERIVED_TAG_RULES,
-  EQUIPMENT_LEGACY_DERIVED_TAG_RULES,
-  HAZARD_LEGACY_DERIVED_TAG_RULES,
-  SPELL_LEGACY_DERIVED_TAG_RULES,
-} from "../legacy-rules/index.js";
+import { DERIVED_TAG_LEGACY_RULES_BY_CATEGORY } from "../legacy-rules/index.js";
 
 export { normalizeDerivedTag } from "./shared.js";
 export { groupDerivedTagOntology } from "./catalog-utils.js";
 
 const LEGACY_DERIVED_TAG_RULES = [
-  ...EQUIPMENT_LEGACY_DERIVED_TAG_RULES,
-  ...SPELL_LEGACY_DERIVED_TAG_RULES,
-  ...HAZARD_LEGACY_DERIVED_TAG_RULES,
-  ...AFFLICTION_LEGACY_DERIVED_TAG_RULES,
-  ...CREATURE_LEGACY_DERIVED_TAG_RULES,
+  ...DERIVED_TAG_REGISTRATION_CATEGORIES.flatMap((category) => DERIVED_TAG_LEGACY_RULES_BY_CATEGORY[category]),
 ];
 const AUTHORED_DERIVED_TAG_RULES = [
-  ...EQUIPMENT_AUTHORED_DERIVED_TAG_RULES,
-  ...SPELL_AUTHORED_DERIVED_TAG_RULES,
-  ...HAZARD_AUTHORED_DERIVED_TAG_RULES,
-  ...AFFLICTION_AUTHORED_DERIVED_TAG_RULES,
-  ...CREATURE_AUTHORED_DERIVED_TAG_RULES,
+  ...DERIVED_TAG_REGISTRATION_CATEGORIES.flatMap((category) => DERIVED_TAG_AUTHORED_RULES_BY_CATEGORY[category]),
 ];
 
-const AUTHORED_DERIVED_TAG_ONTOLOGIES = [
-  EQUIPMENT_DERIVED_TAG_ONTOLOGY,
-  SPELL_DERIVED_TAG_ONTOLOGY,
-  HAZARD_DERIVED_TAG_ONTOLOGY,
-  AFFLICTION_DERIVED_TAG_ONTOLOGY,
-  CREATURE_DERIVED_TAG_ONTOLOGY,
-];
+const AUTHORED_DERIVED_TAG_ONTOLOGIES = DERIVED_TAG_REGISTRATION_CATEGORIES.map(
+  (category) => DERIVED_TAG_ONTOLOGY_BY_CATEGORY[category],
+);
 const FLATTENED_AUTHORED_DERIVED_TAG_ONTOLOGIES = AUTHORED_DERIVED_TAG_ONTOLOGIES.map((ontology) =>
   flattenDerivedTagAuthoredCategoryOntology(ontology),
 );
@@ -104,19 +67,15 @@ const COMPILED_AUTHORED_DERIVED_TAG_RULES = compileAuthoredDerivedTagRules(
 const DERIVED_TAG_LEGACY_SEED_MIGRATION_INDEX = buildDerivedTagLegacySeedMigrationIndex(
   DERIVED_TAG_ONTOLOGY,
   DERIVED_TAG_SEED_LOOKUP,
-  [
-    SPELL_DERIVED_TAG_LEGACY_SEED_MIGRATIONS,
-    HAZARD_DERIVED_TAG_LEGACY_SEED_MIGRATIONS,
-    CREATURE_DERIVED_TAG_LEGACY_SEED_MIGRATIONS,
-  ],
+  DERIVED_TAG_REGISTRATION_CATEGORIES.flatMap((category) => {
+    const migration = DERIVED_TAG_LEGACY_SEED_MIGRATIONS_BY_CATEGORY[category];
+    return migration ? [migration] : [];
+  }),
 );
-const DERIVED_TAG_EXEMPLARS: PublishedDerivedTagExemplars = publishDerivedTagExemplars(DERIVED_TAG_ONTOLOGY, [
-  EQUIPMENT_DERIVED_TAG_EXEMPLARS,
-  SPELL_DERIVED_TAG_EXEMPLARS,
-  HAZARD_DERIVED_TAG_EXEMPLARS,
-  AFFLICTION_DERIVED_TAG_EXEMPLARS,
-  CREATURE_DERIVED_TAG_EXEMPLARS,
-]);
+const DERIVED_TAG_EXEMPLARS: PublishedDerivedTagExemplars = publishDerivedTagExemplars(
+  DERIVED_TAG_ONTOLOGY,
+  DERIVED_TAG_REGISTRATION_CATEGORIES.map((category) => DERIVED_TAG_EXEMPLARS_BY_CATEGORY[category]),
+);
 const DERIVED_TAG_EXPLICIT_ASSIGNMENT_INDEX = createDerivedTagExplicitAssignmentIndex(DERIVED_TAG_ONTOLOGY);
 
 export function deriveRecordTags(input: DerivedTagContext): string[] {

@@ -1,5 +1,28 @@
-export { AFFLICTION_DERIVED_TAG_ASSIGNMENT_MEMORY } from "./affliction.js";
-export { CREATURE_DERIVED_TAG_ASSIGNMENT_MEMORY } from "./creature.js";
-export { EQUIPMENT_DERIVED_TAG_ASSIGNMENT_MEMORY } from "./equipment.js";
-export { HAZARD_DERIVED_TAG_ASSIGNMENT_MEMORY } from "./hazard.js";
-export { SPELL_DERIVED_TAG_ASSIGNMENT_MEMORY } from "./spell.js";
+import type { DerivedTagManagedCategory } from "../manifest.js";
+import type { DerivedTagAssignmentMemoryCategory } from "../runtime/assignments.js";
+
+export const DERIVED_TAG_ASSIGNMENT_MEMORY_BY_CATEGORY: Record<
+  DerivedTagManagedCategory,
+  DerivedTagAssignmentMemoryCategory
+> = {
+  affliction: {
+    category: "affliction",
+    decisions: [],
+  },
+  creature: {
+    category: "creature",
+    decisions: [],
+  },
+  equipment: {
+    category: "equipment",
+    decisions: [],
+  },
+  hazard: {
+    category: "hazard",
+    decisions: [],
+  },
+  spell: {
+    category: "spell",
+    decisions: [],
+  },
+};

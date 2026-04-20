@@ -1,5 +1,28 @@
-export { AFFLICTION_DERIVED_TAG_ASSIGNMENT_REVIEWS } from "./affliction.js";
-export { CREATURE_DERIVED_TAG_ASSIGNMENT_REVIEWS } from "./creature.js";
-export { EQUIPMENT_DERIVED_TAG_ASSIGNMENT_REVIEWS } from "./equipment.js";
-export { HAZARD_DERIVED_TAG_ASSIGNMENT_REVIEWS } from "./hazard.js";
-export { SPELL_DERIVED_TAG_ASSIGNMENT_REVIEWS } from "./spell.js";
+import type { DerivedTagManagedCategory } from "../manifest.js";
+import type { DerivedTagAssignmentReviewCategory } from "../runtime/assignments.js";
+
+export const DERIVED_TAG_ASSIGNMENT_REVIEWS_BY_CATEGORY: Record<
+  DerivedTagManagedCategory,
+  DerivedTagAssignmentReviewCategory
+> = {
+  affliction: {
+    category: "affliction",
+    decisions: [],
+  },
+  creature: {
+    category: "creature",
+    decisions: [],
+  },
+  equipment: {
+    category: "equipment",
+    decisions: [],
+  },
+  hazard: {
+    category: "hazard",
+    decisions: [],
+  },
+  spell: {
+    category: "spell",
+    decisions: [],
+  },
+};

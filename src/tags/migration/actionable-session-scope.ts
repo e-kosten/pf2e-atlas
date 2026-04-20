@@ -1,8 +1,9 @@
 import type { SearchCategory } from "../../types.js";
+import { DERIVED_TAG_MANAGED_CATEGORIES } from "../manifest.js";
 import { normalizeDerivedTag } from "../runtime/shared.js";
 import { getCurrentDerivedTagMigrationAuthoredState } from "./authored-state.js";
 import { getPublishedDerivedTagMigrationOntology } from "./runtime-state.js";
-import type { DerivedTagManagedCategory, DerivedTagMigrationMode } from "./types.js";
+import type { DerivedTagMigrationMode } from "./types.js";
 
 export type DerivedTagActionableSessionScopeKeys = {
   familyKeys: Set<`${SearchCategory}:${string}`>;
@@ -88,9 +89,8 @@ function buildProposalReviewScopeKeys(): DerivedTagActionableSessionScopeKeys {
 function buildExemplarCleanupScopeKeys(exemplarLimit: number | undefined): DerivedTagActionableSessionScopeKeys {
   const state = getCurrentDerivedTagMigrationAuthoredState();
   const keys = createEmptyScopeKeys();
-  const categories = Object.keys(state.exemplars) as DerivedTagManagedCategory[];
 
-  for (const category of categories) {
+  for (const category of DERIVED_TAG_MANAGED_CATEGORIES) {
     for (const exemplarSet of state.exemplars[category].exemplars) {
       const placementCount = (exemplarSet.positives?.length ?? 0) + (exemplarSet.negatives?.length ?? 0);
       if (exemplarLimit !== undefined && placementCount <= exemplarLimit) {

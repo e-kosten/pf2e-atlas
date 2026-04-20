@@ -1,4 +1,5 @@
 import type { DerivedTagExemplarReviewDecision, SearchCategory } from "../../types.js";
+import { DERIVED_TAG_MANAGED_CATEGORIES } from "../manifest.js";
 import { DERIVED_TAG_ONTOLOGY_FAMILIES, DERIVED_TAG_ONTOLOGY_TAGS, deriveRecordTagDerivation } from "../index.js";
 import {
   buildDerivedTagPendingAssignmentViews,
@@ -30,7 +31,7 @@ export function getCurrentDerivedTagPendingAssignmentViews() {
   const state = getCurrentDerivedTagMigrationAuthoredState();
   return buildDerivedTagPendingAssignmentViews(
     getPublishedDerivedTagMigrationOntology(),
-    Object.values(state.assignmentReviews),
+    DERIVED_TAG_MANAGED_CATEGORIES.map((category) => state.assignmentReviews[category]),
   );
 }
 
@@ -75,7 +76,9 @@ export function summarizeCurrentDerivedTagReviewQueue(): DerivedTagReviewQueueSu
   const counts = new Map<string, DerivedTagReviewQueueSummaryItem>();
   const confidencesByKey = new Map<string, Set<DerivedTagReviewQueueSummaryItem["confidence"]>>();
 
-  for (const { category, decision } of flattenAssignmentReviewDecisions(Object.values(state.assignmentReviews))) {
+  for (const { category, decision } of flattenAssignmentReviewDecisions(
+    DERIVED_TAG_MANAGED_CATEGORIES.map((managedCategory) => state.assignmentReviews[managedCategory]),
+  )) {
     if (decision.kind !== "assignment") {
       continue;
     }

@@ -1,4 +1,4 @@
-import { mkdtemp } from "node:fs/promises";
+import { mkdtemp, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -763,6 +763,15 @@ describe("derived tag migration tooling", () => {
       expect(getCurrentDerivedTagMigrationAuthoredState().exemplarReviews.equipment).toEqual(
         nextState.exemplarReviews.equipment,
       );
+      await expect(
+        readFile(path.join(tempRoot, "src/tags/assignment-reviews/index.ts"), "utf8"),
+      ).resolves.toContain("DERIVED_TAG_ASSIGNMENT_REVIEWS_BY_CATEGORY");
+      await expect(
+        readFile(path.join(tempRoot, "src/tags/assignment-memory/index.ts"), "utf8"),
+      ).resolves.toContain("DERIVED_TAG_ASSIGNMENT_MEMORY_BY_CATEGORY");
+      await expect(
+        readFile(path.join(tempRoot, "src/tags/exemplar-reviews/index.ts"), "utf8"),
+      ).resolves.toContain("DERIVED_TAG_EXEMPLAR_REVIEWS_BY_CATEGORY");
       expect(summarizeCurrentDerivedTagReviewQueue()).toEqual(
         expect.arrayContaining([
           expect.objectContaining({

@@ -2,21 +2,10 @@ import type { DerivedTagOntologyTag, SearchCategory } from "../../types.js";
 import type { PublishedDerivedTagOntology } from "./catalog-utils.js";
 import { uniqueSorted } from "../../utils.js";
 import { normalizeDerivedTag } from "./shared.js";
-import { AFFLICTION_DERIVED_TAG_ASSIGNMENTS } from "../assignments/affliction.js";
-import { CREATURE_DERIVED_TAG_ASSIGNMENTS } from "../assignments/creature.js";
-import { EQUIPMENT_DERIVED_TAG_ASSIGNMENTS } from "../assignments/equipment.js";
-import { HAZARD_DERIVED_TAG_ASSIGNMENTS } from "../assignments/hazard.js";
-import { SPELL_DERIVED_TAG_ASSIGNMENTS } from "../assignments/spell.js";
-import { AFFLICTION_DERIVED_TAG_ASSIGNMENT_REVIEWS } from "../assignment-reviews/affliction.js";
-import { CREATURE_DERIVED_TAG_ASSIGNMENT_REVIEWS } from "../assignment-reviews/creature.js";
-import { EQUIPMENT_DERIVED_TAG_ASSIGNMENT_REVIEWS } from "../assignment-reviews/equipment.js";
-import { HAZARD_DERIVED_TAG_ASSIGNMENT_REVIEWS } from "../assignment-reviews/hazard.js";
-import { SPELL_DERIVED_TAG_ASSIGNMENT_REVIEWS } from "../assignment-reviews/spell.js";
-import { AFFLICTION_DERIVED_TAG_ASSIGNMENT_MEMORY } from "../assignment-memory/affliction.js";
-import { CREATURE_DERIVED_TAG_ASSIGNMENT_MEMORY } from "../assignment-memory/creature.js";
-import { EQUIPMENT_DERIVED_TAG_ASSIGNMENT_MEMORY } from "../assignment-memory/equipment.js";
-import { HAZARD_DERIVED_TAG_ASSIGNMENT_MEMORY } from "../assignment-memory/hazard.js";
-import { SPELL_DERIVED_TAG_ASSIGNMENT_MEMORY } from "../assignment-memory/spell.js";
+import { DERIVED_TAG_MANAGED_CATEGORIES } from "../manifest.js";
+import { DERIVED_TAG_ASSIGNMENTS_BY_CATEGORY } from "../assignments/index.js";
+import { DERIVED_TAG_ASSIGNMENT_REVIEWS_BY_CATEGORY } from "../assignment-reviews/index.js";
+import { DERIVED_TAG_ASSIGNMENT_MEMORY_BY_CATEGORY } from "../assignment-memory/index.js";
 import { listLegacyDerivedTagFamilyAliases } from "./family-compatibility.js";
 
 export type DerivedTagReviewStatus = "auto_applied" | "needs_review" | "approved" | "rejected";
@@ -105,27 +94,18 @@ type DerivedTagAssignmentRecordSummary = {
 };
 
 const RAW_DERIVED_TAG_ASSIGNMENTS: DerivedTagAssignmentGroup[] = [
-  { category: "affliction", assignments: AFFLICTION_DERIVED_TAG_ASSIGNMENTS },
-  { category: "creature", assignments: CREATURE_DERIVED_TAG_ASSIGNMENTS },
-  { category: "equipment", assignments: EQUIPMENT_DERIVED_TAG_ASSIGNMENTS },
-  { category: "hazard", assignments: HAZARD_DERIVED_TAG_ASSIGNMENTS },
-  { category: "spell", assignments: SPELL_DERIVED_TAG_ASSIGNMENTS },
+  ...DERIVED_TAG_MANAGED_CATEGORIES.map((category) => ({
+    category,
+    assignments: DERIVED_TAG_ASSIGNMENTS_BY_CATEGORY[category],
+  })),
 ];
 
 const RAW_DERIVED_TAG_ASSIGNMENT_REVIEWS: DerivedTagAssignmentReviewGroup[] = [
-  AFFLICTION_DERIVED_TAG_ASSIGNMENT_REVIEWS,
-  CREATURE_DERIVED_TAG_ASSIGNMENT_REVIEWS,
-  EQUIPMENT_DERIVED_TAG_ASSIGNMENT_REVIEWS,
-  HAZARD_DERIVED_TAG_ASSIGNMENT_REVIEWS,
-  SPELL_DERIVED_TAG_ASSIGNMENT_REVIEWS,
+  ...DERIVED_TAG_MANAGED_CATEGORIES.map((category) => DERIVED_TAG_ASSIGNMENT_REVIEWS_BY_CATEGORY[category]),
 ];
 
 const RAW_DERIVED_TAG_ASSIGNMENT_MEMORY: DerivedTagAssignmentMemoryGroup[] = [
-  AFFLICTION_DERIVED_TAG_ASSIGNMENT_MEMORY,
-  CREATURE_DERIVED_TAG_ASSIGNMENT_MEMORY,
-  EQUIPMENT_DERIVED_TAG_ASSIGNMENT_MEMORY,
-  HAZARD_DERIVED_TAG_ASSIGNMENT_MEMORY,
-  SPELL_DERIVED_TAG_ASSIGNMENT_MEMORY,
+  ...DERIVED_TAG_MANAGED_CATEGORIES.map((category) => DERIVED_TAG_ASSIGNMENT_MEMORY_BY_CATEGORY[category]),
 ];
 
 function buildFamilyTagMap(tags: DerivedTagOntologyTag[]): Map<SearchCategory, Map<string, Set<string>>> {

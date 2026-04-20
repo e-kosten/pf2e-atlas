@@ -1,13 +1,9 @@
 import type { SearchCategory } from "../../types.js";
-import type { DerivedTagManagedCategory, DerivedTagReviewQueueSummaryItem } from "./types.js";
+import { DERIVED_TAG_MANAGED_CATEGORIES } from "../manifest.js";
+import type { DerivedTagManagedCategory } from "../manifest.js";
+import type { DerivedTagReviewQueueSummaryItem } from "./types.js";
 
-export const DERIVED_TAG_MANAGED_CATEGORIES = [
-  "affliction",
-  "creature",
-  "equipment",
-  "hazard",
-  "spell",
-] as const satisfies readonly DerivedTagManagedCategory[];
+export { DERIVED_TAG_MANAGED_CATEGORIES } from "../manifest.js";
 
 const DISPLAY_TEXT_COLLATOR = new Intl.Collator("en", {
   sensitivity: "base",

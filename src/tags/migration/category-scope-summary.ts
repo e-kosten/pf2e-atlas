@@ -1,8 +1,8 @@
 import { DatabaseSync } from "node:sqlite";
 
 import type { SearchCategory } from "../../types.js";
+import { DERIVED_TAG_MANAGED_CATEGORIES, expectDerivedTagManagedCategory } from "../manifest.js";
 import { listDerivedTagLegacySeedMigrations } from "../index.js";
-import { DERIVED_TAG_MANAGED_CATEGORIES } from "./list-sorting.js";
 import { getCurrentDerivedTagMigrationAuthoredState } from "./authored-state.js";
 import { loadDerivedTagMigrationRecords } from "./record-loader.js";
 import { deriveCurrentTagSources, summarizeCurrentDerivedTagReviewQueue } from "./runtime-state.js";
@@ -27,16 +27,7 @@ function formatPendingReviewChanges(count: number): string {
 }
 
 function toManagedCategory(category: SearchCategory): DerivedTagManagedCategory {
-  if (
-    category !== "affliction" &&
-    category !== "creature" &&
-    category !== "equipment" &&
-    category !== "hazard" &&
-    category !== "spell"
-  ) {
-    throw new Error(`Derived-tag migration session builder does not manage category "${category}".`);
-  }
-  return category;
+  return expectDerivedTagManagedCategory(category, "Derived-tag migration session builder");
 }
 
 function buildReviewQueueCategoryScopeSummary(): DerivedTagCategoryScopeSummarySet {

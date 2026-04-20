@@ -16,6 +16,9 @@ import type {
 } from "../runtime/assignments.js";
 import type { DerivedTagSource } from "../runtime/catalog-utils.js";
 import type { OntologyExplorerEntityRecord } from "../../app/ontology/entity-record.js";
+import type { DerivedTagManagedCategory } from "../manifest.js";
+
+export type { DerivedTagManagedCategory } from "../manifest.js";
 
 export type DerivedTagMigrationMode =
   | "review_queue"
@@ -23,8 +26,6 @@ export type DerivedTagMigrationMode =
   | "legacy_seed"
   | "legacy_rule"
   | "exemplar_cleanup";
-
-export type DerivedTagManagedCategory = "affliction" | "creature" | "equipment" | "hazard" | "spell";
 
 export type DerivedTagMigrationSelectionSource =
   | "authored_review_queue"
