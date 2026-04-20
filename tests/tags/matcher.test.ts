@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { deriveRecordTagsFromRules, type DerivedTagRule } from "../../src/tags/runtime/matcher.js";
+import { deriveRecordTagsFromRules, type DerivedTagRule } from "../../src/tags/runtime/matcher/engine.js";
 
 describe("derived tag matcher extensions", () => {
   it("supports minimum text matches plus negative trait and family filters", () => {

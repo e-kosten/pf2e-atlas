@@ -21,7 +21,7 @@ import type {
   AuthoredDerivedTagAssignment,
   DerivedTagAssignmentMemoryCategory,
   DerivedTagAssignmentReviewCategory,
-} from "../../runtime/assignments.js";
+} from "../../runtime/derivation/assignments.js";
 import type { DerivedTagMigrationAuthoredState } from "../types.js";
 
 type DerivedTagManagedRegistry<T> = Record<DerivedTagManagedCategory, T>;
@@ -144,7 +144,7 @@ function renderAssignmentFile(
 ): string {
   const exportName = `${getCategoryExportPrefix(category)}_DERIVED_TAG_ASSIGNMENTS`;
   return [
-    'import type { AuthoredDerivedTagAssignment } from "../runtime/assignments.js";',
+    'import type { AuthoredDerivedTagAssignment } from "../runtime/derivation/assignments.js";',
     "",
     `export const ${exportName}: AuthoredDerivedTagAssignment[] = ${renderTsValue(assignments)};`,
     "",
@@ -176,7 +176,7 @@ function renderAssignmentReviewRegistryFile(
 ): string {
   return [
     'import type { DerivedTagManagedCategory } from "../../manifest.js";',
-    'import type { DerivedTagAssignmentReviewCategory } from "../../runtime/assignments.js";',
+    'import type { DerivedTagAssignmentReviewCategory } from "../../runtime/derivation/assignments.js";',
     "",
     `export const DERIVED_TAG_ASSIGNMENT_REVIEWS_BY_CATEGORY = ${renderTsValue(assignmentReviews)} satisfies Record<DerivedTagManagedCategory, DerivedTagAssignmentReviewCategory>;`,
     "",
@@ -188,7 +188,7 @@ function renderAssignmentMemoryRegistryFile(
 ): string {
   return [
     'import type { DerivedTagManagedCategory } from "../../manifest.js";',
-    'import type { DerivedTagAssignmentMemoryCategory } from "../../runtime/assignments.js";',
+    'import type { DerivedTagAssignmentMemoryCategory } from "../../runtime/derivation/assignments.js";',
     "",
     `export const DERIVED_TAG_ASSIGNMENT_MEMORY_BY_CATEGORY = ${renderTsValue(assignmentMemory)} satisfies Record<DerivedTagManagedCategory, DerivedTagAssignmentMemoryCategory>;`,
     "",

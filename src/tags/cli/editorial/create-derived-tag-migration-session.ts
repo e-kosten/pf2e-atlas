@@ -7,9 +7,9 @@ import {
   parseInteger,
   writeDerivedTagMigrationSummary,
 } from "../../editorial/cli-utils.js";
-import { renderDerivedTagMigrationSessionSummary } from "../../editorial/render.js";
-import { writeDerivedTagMigrationSession } from "../../editorial/session-store.js";
-import { buildDerivedTagMigrationSession } from "../../editorial/session-builder.js";
+import { renderDerivedTagMigrationSessionSummary } from "../../editorial/ui/render.js";
+import { writeDerivedTagMigrationSession } from "../../editorial/sessions/session-store.js";
+import { buildDerivedTagMigrationSession } from "../../editorial/sessions/session-builder.js";
 import type { DerivedTagMigrationMode } from "../../editorial/types.js";
 import {
   parseOptionalScopedSearchSubcategoryArg,

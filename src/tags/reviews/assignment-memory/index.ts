@@ -1,5 +1,5 @@
 import type { DerivedTagManagedCategory } from "../../manifest.js";
-import type { DerivedTagAssignmentMemoryCategory } from "../../runtime/assignments.js";
+import type { DerivedTagAssignmentMemoryCategory } from "../../runtime/derivation/assignments.js";
 
 export const DERIVED_TAG_ASSIGNMENT_MEMORY_BY_CATEGORY: Record<
   DerivedTagManagedCategory,

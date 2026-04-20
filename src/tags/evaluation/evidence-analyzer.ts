@@ -6,8 +6,8 @@ import {
   getDerivedTagExemplarRecordKeys,
   getDerivedTagFamilyTags,
   getDerivedTagLegacySeedMigrationRecordKeys,
-} from "../runtime/index.js";
-import { normalizeDerivedTag } from "../runtime/shared.js";
+} from "../runtime/derivation/api.js";
+import { normalizeDerivedTag } from "../runtime/matcher/shared.js";
 import {
   getReviewedDiscoverySelection,
   summarizeReviewedDiscoverySelection,

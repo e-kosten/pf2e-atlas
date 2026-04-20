@@ -15,9 +15,9 @@ import type {
   DerivedTagAssignmentMemoryDecision,
   DerivedTagAssignmentReviewCategory,
   DerivedTagAssignmentReviewDecision,
-} from "../../runtime/assignments.js";
+} from "../../runtime/derivation/assignments.js";
 import { expectDerivedTagManagedCategory } from "../../manifest.js";
-import { normalizeDerivedTag } from "../../runtime/shared.js";
+import { normalizeDerivedTag } from "../../runtime/matcher/shared.js";
 import { uniqueSorted } from "../../../shared/utils.js";
 import { getCurrentDerivedTagMigrationAuthoredState, writeDerivedTagMigrationAuthoredState } from "../state/authored-state.js";
 import { lintDerivedTagMigrationSession } from "./linter.js";

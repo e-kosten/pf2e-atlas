@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { groupDerivedTagOntology } from "../../src/tags/runtime/catalog-utils.js";
+import { groupDerivedTagOntology } from "../../src/tags/runtime/publication/catalog.js";
 import { DERIVED_TAG_ONTOLOGY_FAMILIES, DERIVED_TAG_ONTOLOGY_TAGS } from "../../src/tags/index.js";
 
 function anyString(): unknown {

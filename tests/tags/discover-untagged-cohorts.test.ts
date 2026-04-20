@@ -2,7 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { REVIEWED_DISCOVERY_RECORDS } from "../../src/tags/discovery/discovery-reviewed-records.js";
+import { REVIEWED_DISCOVERY_RECORDS } from "../../src/tags/reviews/discovery-reviewed-records.js";
 import { discoverUntaggedCohorts } from "../../src/tags/discovery/untagged-cohort-discovery.js";
 import {
   formatHelp,

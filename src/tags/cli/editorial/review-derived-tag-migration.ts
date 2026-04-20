@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 import { lastValue, parseCliArgs } from "../../editorial/cli-utils.js";
-import { runDerivedTagMigrationReviewUi } from "../../editorial/review-ui.js";
-import { readDerivedTagMigrationSession } from "../../editorial/session-store.js";
+import { runDerivedTagMigrationReviewUi } from "../../editorial/ui/review-ui.js";
+import { readDerivedTagMigrationSession } from "../../editorial/sessions/session-store.js";
 
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);

@@ -33,7 +33,7 @@ import {
   patternAlternativeAnchor,
   patternAlternativeOption,
   patternAnchor,
-} from "../runtime/shared.js";
+} from "../runtime/matcher/shared.js";
 
 const CARNIVAL_SHOW_NAME_ANCHORS = [
   patternAnchor("carnival", "name"),

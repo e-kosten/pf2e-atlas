@@ -5,9 +5,9 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   getCurrentDerivedTagMigrationAuthoredState,
   setCurrentDerivedTagMigrationAuthoredState,
-} from "../../src/tags/editorial/authored-state.js";
-import { summarizeDerivedTagCategoryScopes } from "../../src/tags/editorial/category-scope-summary.js";
-import { buildDerivedTagMigrationSession } from "../../src/tags/editorial/session-builder.js";
+} from "../../src/tags/editorial/state/authored-state.js";
+import { summarizeDerivedTagCategoryScopes } from "../../src/tags/editorial/sessions/category-scope-summary.js";
+import { buildDerivedTagMigrationSession } from "../../src/tags/editorial/sessions/session-builder.js";
 
 function createMigrationDb(): DatabaseSync {
   const db = new DatabaseSync(":memory:");

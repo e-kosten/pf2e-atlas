@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   readDerivedTagMigrationSession,
   writeDerivedTagMigrationSession,
-} from "../../src/tags/editorial/session-store.js";
+} from "../../src/tags/editorial/sessions/session-store.js";
 import type { DerivedTagMigrationSession } from "../../src/tags/editorial/types.js";
 import type { OntologyExplorerEntityRecord } from "../../src/tui/ontology-explorer/entity-record.js";
 

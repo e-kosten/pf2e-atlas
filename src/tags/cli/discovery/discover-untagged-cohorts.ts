@@ -13,7 +13,7 @@ import {
 import {
   isReviewedDiscoveryReason,
   type ReviewedDiscoveryApplicationSummary,
-} from "../../discovery/discovery-reviewed-records.js";
+} from "../../reviews/discovery-reviewed-records.js";
 import {
   discoverUntaggedCohorts,
   type UntaggedCohortOptions,

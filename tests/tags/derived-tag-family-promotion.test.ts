@@ -5,7 +5,7 @@ import {
   deriveCatalogTagDerivation,
   groupDerivedTagOntology,
   publishDerivedTagOntology,
-} from "../../src/tags/runtime/catalog-utils.js";
+} from "../../src/tags/runtime/publication/catalog.js";
 
 function matcherArrayContaining(values: unknown[]): unknown {
   return expect.arrayContaining(values);

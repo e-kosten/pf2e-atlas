@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import type { DerivedTagExemplarCategory, DerivedTagOntologyFamily, DerivedTagOntologyTag } from "../../src/domain/index.js";
-import { publishDerivedTagOntology } from "../../src/tags/runtime/catalog-utils.js";
+import { publishDerivedTagOntology } from "../../src/tags/runtime/publication/catalog.js";
 import {
   publishDerivedTagExemplars,
   resolveDerivedTagExemplarRecordKeys,
   validateDerivedTagExemplarsAgainstRecords,
-} from "../../src/tags/runtime/exemplar-utils.js";
+} from "../../src/tags/runtime/publication/exemplars.js";
 import {
   deriveRecordTagDerivation,
   getDerivedTagExemplarRecordKeys,

@@ -1,6 +1,6 @@
 import { SearchCategory, SearchSubcategory } from "../../domain/index.js";
 import { uniqueSorted } from "../../shared/utils.js";
-import { normalizeDerivedTag } from "../runtime/shared.js";
+import { normalizeDerivedTag } from "../runtime/matcher/shared.js";
 
 // Durable reviewed discovery state lives with other editorial review inputs.
 export const REVIEWED_DISCOVERY_REASONS = [

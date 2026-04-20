@@ -3,7 +3,7 @@ import { DatabaseSync } from "node:sqlite";
 import { normalizeSearchCategory } from "../../../domain/categories.js";
 import type { SearchCategory, SearchSubcategory } from "../../../domain/index.js";
 import type { TerminalInteractionContextAdapters } from "../../../tui/interaction-context-adapters.js";
-import { normalizeDerivedTag } from "../../runtime/shared.js";
+import { normalizeDerivedTag } from "../../runtime/matcher/shared.js";
 import { parseInteger } from "../cli-utils.js";
 import { getActionableSessionScopeKeys } from "../sessions/actionable-session-scope.js";
 import { summarizeDerivedTagCategoryScopes } from "../sessions/category-scope-summary.js";

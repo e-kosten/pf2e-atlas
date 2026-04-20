@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { buildDerivedTagMigrationReviewViewModel } from "../../src/tags/editorial/review-screen-model.js";
-import { createInitialDerivedTagMigrationReviewScreenState } from "../../src/tags/editorial/review-screen-state.js";
+import { buildDerivedTagMigrationReviewViewModel } from "../../src/tags/editorial/ui/review-screen-model.js";
+import { createInitialDerivedTagMigrationReviewScreenState } from "../../src/tags/editorial/ui/review-screen-state.js";
 import type { DerivedTagMigrationSession } from "../../src/tags/editorial/types.js";
 
 function createSession(): DerivedTagMigrationSession {

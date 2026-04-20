@@ -16,12 +16,12 @@ import type {
   AuthoredDerivedTagAssignment,
   DerivedTagAssignmentMemoryCategory,
   DerivedTagAssignmentReviewCategory,
-} from "../../src/tags/runtime/assignments.js";
+} from "../../src/tags/runtime/derivation/assignments.js";
 import {
   getCurrentDerivedTagMigrationAuthoredState,
   setCurrentDerivedTagMigrationAuthoredState,
   writeDerivedTagMigrationAuthoredState,
-} from "../../src/tags/editorial/authored-state.js";
+} from "../../src/tags/editorial/state/authored-state.js";
 import {
   applyMigrationSessionToAssignments,
   applyMigrationSessionToAssignmentMemory,
@@ -29,17 +29,17 @@ import {
   applyMigrationSessionToAuthoredRules,
   applyMigrationSessionToExemplars,
   applyMigrationSessionToExemplarReviews,
-} from "../../src/tags/editorial/importer.js";
-import { lintDerivedTagMigrationSession } from "../../src/tags/editorial/linter.js";
-import { summarizeCurrentDerivedTagReviewQueue } from "../../src/tags/editorial/runtime-state.js";
-import { renderDerivedTagMigrationReviewItem } from "../../src/tags/editorial/render.js";
+} from "../../src/tags/editorial/writeback/importer.js";
+import { lintDerivedTagMigrationSession } from "../../src/tags/editorial/writeback/linter.js";
+import { summarizeCurrentDerivedTagReviewQueue } from "../../src/tags/editorial/state/runtime-state.js";
+import { renderDerivedTagMigrationReviewItem } from "../../src/tags/editorial/ui/render.js";
 import {
   clampDerivedTagMigrationReviewIndex,
   getDerivedTagMigrationReviewItems,
   summarizeDerivedTagMigrationReviewProgress,
   toggleDerivedTagMigrationUnresolvedOnly,
   updateDerivedTagMigrationDecisionStatus,
-} from "../../src/tags/editorial/review-session.js";
+} from "../../src/tags/editorial/sessions/review-session.js";
 import { moveSelection } from "../../src/tui/terminal-ui.js";
 import type { DerivedTagMigrationSession } from "../../src/tags/editorial/types.js";
 

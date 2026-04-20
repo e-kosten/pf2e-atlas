@@ -4,9 +4,9 @@ import { uniqueSorted } from "../../shared/utils.js";
 import {
   getDerivedTagExemplarRecordKeys,
   getDerivedTagLegacySeedMigrationRecordKeys,
-} from "../runtime/index.js";
+} from "../runtime/derivation/api.js";
 import { SearchCategory, SearchSubcategory } from "../../domain/index.js";
-import { normalizeDerivedTag } from "../runtime/shared.js";
+import { normalizeDerivedTag } from "../runtime/matcher/shared.js";
 import { type DiscoveryEvidenceTerm, analyzeDiscoveryEvidenceFromRecords } from "./evidence-analyzer.js";
 import { tokenizeDiscoveryText } from "../discovery/discovery-normalization.js";
 import {

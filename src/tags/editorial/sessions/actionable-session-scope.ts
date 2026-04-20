@@ -1,6 +1,6 @@
 import type { SearchCategory } from "../../../domain/index.js";
 import { DERIVED_TAG_MANAGED_CATEGORIES } from "../../manifest.js";
-import { normalizeDerivedTag } from "../../runtime/shared.js";
+import { normalizeDerivedTag } from "../../runtime/matcher/shared.js";
 import { getCurrentDerivedTagMigrationAuthoredState } from "../state/authored-state.js";
 import { getPublishedDerivedTagMigrationOntology } from "../state/runtime-state.js";
 import type { DerivedTagMigrationMode } from "../types.js";

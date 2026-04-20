@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { summarizeCurrentDerivedTagReviewQueue } from "../../editorial/runtime-state.js";
+import { summarizeCurrentDerivedTagReviewQueue } from "../../editorial/state/runtime-state.js";
 
 function main(): void {
   const summary = summarizeCurrentDerivedTagReviewQueue();

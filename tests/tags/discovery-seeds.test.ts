@@ -2,10 +2,10 @@ import { DatabaseSync } from "node:sqlite";
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { REVIEWED_DISCOVERY_RECORDS } from "../../src/tags/discovery/discovery-reviewed-records.js";
-vi.mock("../../src/tags/runtime/index.js", async () => {
-  const actual = await vi.importActual<typeof import("../../src/tags/runtime/index.js")>(
-    "../../src/tags/runtime/index.js",
+import { REVIEWED_DISCOVERY_RECORDS } from "../../src/tags/reviews/discovery-reviewed-records.js";
+vi.mock("../../src/tags/runtime/derivation/api.js", async () => {
+  const actual = await vi.importActual<typeof import("../../src/tags/runtime/derivation/api.js")>(
+    "../../src/tags/runtime/derivation/api.js",
   );
   return {
     ...actual,
@@ -13,7 +13,7 @@ vi.mock("../../src/tags/runtime/index.js", async () => {
   };
 });
 
-import { getDerivedTagExemplarRecordKeys } from "../../src/tags/runtime/index.js";
+import { getDerivedTagExemplarRecordKeys } from "../../src/tags/runtime/derivation/api.js";
 import { discoverRuleableCohorts } from "../../src/tags/discovery/cohort-discovery.js";
 import { analyzeDiscoveryEvidence } from "../../src/tags/evaluation/evidence-analyzer.js";
 import { evaluateDerivedTagGaps } from "../../src/tags/evaluation/gap-evaluator.js";

@@ -1,4 +1,4 @@
-import { normalizeDerivedTag } from "../../runtime/shared.js";
+import { normalizeDerivedTag } from "../../runtime/matcher/shared.js";
 import { getPublishedDerivedTagMigrationOntology } from "../state/runtime-state.js";
 import type { DerivedTagMigrationDecision, DerivedTagMigrationSession } from "../types.js";
 

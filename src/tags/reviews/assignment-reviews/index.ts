@@ -1,5 +1,5 @@
 import type { DerivedTagManagedCategory } from "../../manifest.js";
-import type { DerivedTagAssignmentReviewCategory } from "../../runtime/assignments.js";
+import type { DerivedTagAssignmentReviewCategory } from "../../runtime/derivation/assignments.js";
 
 export const DERIVED_TAG_ASSIGNMENT_REVIEWS_BY_CATEGORY: Record<
   DerivedTagManagedCategory,

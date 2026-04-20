@@ -4,13 +4,13 @@ import {
   DERIVED_TAG_ONTOLOGY_FAMILIES,
   DERIVED_TAG_ONTOLOGY_TAGS,
   deriveRecordTagDerivation,
-} from "../../runtime/index.js";
+} from "../../runtime/derivation/api.js";
 import {
   buildDerivedTagPendingAssignmentViews,
   type DerivedTagAssignmentReviewCategory,
-} from "../../runtime/assignments.js";
-import { publishDerivedTagOntology, type PublishedDerivedTagOntology } from "../../runtime/catalog-utils.js";
-import type { DerivedTagSource } from "../../runtime/catalog-utils.js";
+} from "../../runtime/derivation/assignments.js";
+import { publishDerivedTagOntology, type PublishedDerivedTagOntology } from "../../runtime/publication/catalog.js";
+import type { DerivedTagSource } from "../../runtime/publication/catalog.js";
 import { compareReviewQueueItems } from "../list-sorting.js";
 import type { DerivedTagMigrationDecision, DerivedTagReviewQueueSummaryItem } from "../types.js";
 import { getCurrentDerivedTagMigrationAuthoredState } from "./authored-state.js";

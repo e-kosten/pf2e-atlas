@@ -5,8 +5,8 @@ import { uniqueSorted } from "../../shared/utils.js";
 import {
   getDerivedTagExemplarRecordKeys,
   getDerivedTagLegacySeedMigrationRecordKeys,
-} from "../runtime/index.js";
-import { normalizeDerivedTag } from "../runtime/shared.js";
+} from "../runtime/derivation/api.js";
+import { normalizeDerivedTag } from "../runtime/matcher/shared.js";
 import {
   type DiscoveryEvidenceKind,
   type DiscoveryEvidenceTerm,

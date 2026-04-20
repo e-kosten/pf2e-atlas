@@ -2,7 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 
 import { SearchCategory } from "../../domain/index.js";
 import { parseSearchCategoryValue } from "../../data/sql-row-decoding.js";
-import { normalizeDerivedTag } from "../runtime/shared.js";
+import { normalizeDerivedTag } from "../runtime/matcher/shared.js";
 
 type CategoryStatRow = {
   category: string;

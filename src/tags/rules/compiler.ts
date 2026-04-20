@@ -4,9 +4,9 @@ import type {
   DerivedTagAuthoredTextNearConstraint,
   DerivedTagAuthoredTextValue,
 } from "../../domain/index.js";
-import type { PublishedDerivedTagOntology } from "../runtime/catalog-utils.js";
-import type { DerivedTagRule, ReferencePredicate, TextAnchor, TextNearConstraint } from "../runtime/matcher.js";
-import { normalizeDerivedTag } from "../runtime/shared.js";
+import type { PublishedDerivedTagOntology } from "../runtime/publication/catalog.js";
+import type { DerivedTagRule, ReferencePredicate, TextAnchor, TextNearConstraint } from "../runtime/matcher/engine.js";
+import { normalizeDerivedTag } from "../runtime/matcher/shared.js";
 
 function normalizeStringList(values: string[] | undefined, context: string): string[] | undefined {
   if (!values) {

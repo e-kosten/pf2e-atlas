@@ -5,14 +5,14 @@ import type {
   DerivedTagOntologyFamily,
   DerivedTagOntologyTag,
 } from "../../src/domain/index.js";
-import { buildDerivedTagExplicitAssignmentIndex } from "../../src/tags/runtime/assignments.js";
+import { buildDerivedTagExplicitAssignmentIndex } from "../../src/tags/runtime/derivation/assignments.js";
 import {
   buildDerivedTagLegacySeedMigrationIndex,
   buildDerivedTagSeedLookup,
   deriveCatalogTagDerivation,
   listConfiguredDerivedTagLegacySeedMigrations,
   publishDerivedTagOntology,
-} from "../../src/tags/runtime/catalog-utils.js";
+} from "../../src/tags/runtime/publication/catalog.js";
 
 const families: DerivedTagOntologyFamily[] = [
   {

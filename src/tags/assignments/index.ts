@@ -1,4 +1,4 @@
-import type { AuthoredDerivedTagAssignment } from "../runtime/assignments.js";
+import type { AuthoredDerivedTagAssignment } from "../runtime/derivation/assignments.js";
 import type { DerivedTagManagedCategory } from "../manifest.js";
 import { AFFLICTION_DERIVED_TAG_ASSIGNMENTS } from "./affliction.js";
 import { CREATURE_DERIVED_TAG_ASSIGNMENTS } from "./creature.js";

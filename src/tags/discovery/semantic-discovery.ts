@@ -4,7 +4,7 @@ import { SearchCategory, SearchSubcategory } from "../../domain/index.js";
 import { tokenize } from "../../search/ranking.js";
 import { normalizeText } from "../../shared/utils.js";
 import { resolveDiscoveryGramRange } from "./discovery-normalization.js";
-import { normalizeDerivedTag } from "../runtime/shared.js";
+import { normalizeDerivedTag } from "../runtime/matcher/shared.js";
 import {
   decodeDiscoveryVector,
   parseDiscoveryCategory,

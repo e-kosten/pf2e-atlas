@@ -1,4 +1,4 @@
-import type { DerivedTagRule } from "../runtime/shared.js";
+import type { DerivedTagRule } from "../runtime/matcher/shared.js";
 import type { DerivedTagManagedCategory } from "../manifest.js";
 import { AFFLICTION_DERIVED_TAG_RULES as AFFLICTION_LEGACY_DERIVED_TAG_RULES } from "./affliction.js";
 import { CREATURE_DERIVED_TAG_RULES as CREATURE_LEGACY_DERIVED_TAG_RULES } from "./creature.js";
