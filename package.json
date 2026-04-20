@@ -35,6 +35,7 @@
     "typecheck:tests": "tsc -p tests/tsconfig.json",
     "verify": "npm run lint && npm run format && npm run build && npm run typecheck:tests && npm test",
     "install-hooks": "./scripts/install-git-hooks.sh",
+    "measure:search-semantics-startup": "tsx scripts/measure-search-semantics-startup.ts",
     "test": "vitest run",
     "test:local-integration": "env PF2E_RUN_LOCAL_INTEGRATION_TESTS=1 vitest run tests/service/integration.local.test.ts"
   },
