@@ -9,7 +9,7 @@ import {
   summarizeReviewedDiscoverySelection,
   type ReviewedDiscoveryApplicationSummary,
   type ReviewedDiscoveryReason,
-} from "./discovery-reviewed-records.js";
+} from "../reviews/discovery-reviewed-records.js";
 import { classifyFamilyGapFeature, type FamilyGapFeatureBucket } from "./family-gap-signals.js";
 import {
   extractDiscoveryGramRange,
