@@ -750,7 +750,7 @@ describe("search screen", () => {
     expect(app.lastFrame()).not.toContain("Category Scope");
   });
 
-  it("uses space to open add-query-part and routes derived-tag clauses into the staged builder and direct picker", async () => {
+  it("uses space to open add-query-part and keeps derived-tag composition on the shared explorer path", async () => {
     const services = createServices();
     services.user.search.getQueryFieldOptions = vi.fn(() => [
       {
@@ -814,9 +814,23 @@ describe("search screen", () => {
     await flushInk();
     expect(app.lastFrame()).toContain("Derived Tags Explorer");
     expect(app.lastFrame()).toContain("Explorer Entries");
-    expect(app.lastFrame()).toContain("Derived Tags Explorer > coast");
-    expect(app.lastFrame()).toContain("coast | 1 tag");
+    expect(app.lastFrame()).toContain("Derived Tags Explorer > derivedTags");
+    expect(app.lastFrame()).toContain("Focused node is not selectable.");
     expect(app.lastFrame()).not.toContain("Query Field\n");
+
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Derived Tags Explorer > derivedTags > coast");
+    expect(app.lastFrame()).toContain("coast | 1 tag");
+
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("coastal_setting");
+
+    app.stdin.write(" ");
+    await flushInk();
+    await flushInk();
+    expect(app.lastFrame()).toContain("include any");
   });
 
   it("loads the next result page through the window reader instead of rerunning the search", async () => {
@@ -1840,7 +1854,13 @@ describe("search screen", () => {
     await flushInk();
     expect(app.lastFrame()).toContain("Derived Tags Explorer");
     expect(app.lastFrame()).toContain("Explorer Entries");
-    expect(app.lastFrame()).toContain("Derived Tags Explorer > coast");
+    expect(app.lastFrame()).toContain("Derived Tags Explorer > derivedTags");
+    expect(app.lastFrame()).toContain("Focused node is not selectable.");
+    expect(app.lastFrame()).not.toContain("Query Field\n");
+
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Derived Tags Explorer > derivedTags > coast");
     expect(app.lastFrame()).toContain("coast | 1 tag");
 
     app.stdin.write("\r");
@@ -1854,10 +1874,12 @@ describe("search screen", () => {
 
     pressLeft(app);
     await flushInk();
-    expect(app.lastFrame()).toContain("Explorer Entries");
-    expect(app.lastFrame()).toContain("derivedTags:");
+    expect(app.lastFrame()).toContain("Derived Tags Explorer > derivedTags");
+    expect(app.lastFrame()).toContain("Selected fields");
     expect(app.lastFrame()).toContain("coastal_setting");
 
+    pressLeft(app);
+    await flushInk();
     pressLeft(app);
     await flushInk();
     expect(app.lastFrame()).toContain("Structured Query Editor");
@@ -2173,7 +2195,8 @@ describe("search screen", () => {
     await flushInk();
     expect(app.lastFrame()).toContain("Derived Tags Explorer");
     expect(app.lastFrame()).toContain("Explorer Entries");
-    expect(app.lastFrame()).toContain("Derived Tags Explorer > undead");
+    expect(app.lastFrame()).toContain("Derived Tags Explorer > derivedTags");
+    expect(app.lastFrame()).toContain("Focused node is not selectable.");
     expect(app.lastFrame()).not.toContain("Choose a category before editing a discoverable query field.");
   });
 });

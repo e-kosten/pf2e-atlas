@@ -262,6 +262,12 @@ export function useSearchWorkspaceActions({
     [prompts, terminal, user.search],
   );
 
+  const getExplorerBackedFieldOptions = React.useCallback(
+    (fieldOptions: Pf2eTerminalQueryFieldOption[]) =>
+      fieldOptions.filter((fieldOption) => fieldOption.editor === "sharedExplorer"),
+    [],
+  );
+
   const openOntologyFieldEditor = React.useCallback(
     async (
       query: Pf2eTerminalSearchQuery,
@@ -610,25 +616,37 @@ export function useSearchWorkspaceActions({
       const queryCategory = getSearchQueryCategory(query);
       const querySubcategory = getSearchQuerySubcategory(query);
       const fieldOptions = user.search.getQueryFieldOptions(queryCategory, querySubcategory);
-      if (
-        await openOntologyFieldExplorer(query, fieldOptions, (nextNode) => {
-          if (!nextNode) {
-            return;
-          }
-          replaceStructuredDraftQuery((draftQuery) =>
-            setSearchQueryMetadataTree(
-              draftQuery,
-              appendMetadataNodeAtPath(getSearchQueryMetadataTree(draftQuery), path, nextNode),
-            ),
-          );
-        })
-      ) {
+      const explorerFieldOptions = getExplorerBackedFieldOptions(fieldOptions);
+      if (explorerFieldOptions.length > 0) {
+        if (
+          await openOntologyFieldExplorer(query, explorerFieldOptions, (nextNode) => {
+            if (!nextNode) {
+              return;
+            }
+            replaceStructuredDraftQuery((draftQuery) =>
+              setSearchQueryMetadataTree(
+                draftQuery,
+                appendMetadataNodeAtPath(getSearchQueryMetadataTree(draftQuery), path, nextNode),
+              ),
+            );
+          })
+        ) {
+          return;
+        }
+        await terminal.pauseForAnyKey("No shared explorer is available for the selected field.");
         return;
       }
 
       await openQueryFieldBuilder(query, path);
     },
-    [openOntologyFieldExplorer, openQueryFieldBuilder, replaceStructuredDraftQuery, user.search],
+    [
+      getExplorerBackedFieldOptions,
+      openOntologyFieldExplorer,
+      openQueryFieldBuilder,
+      replaceStructuredDraftQuery,
+      terminal,
+      user.search,
+    ],
   );
 
   const addQueryGroupAtPath = React.useCallback(
@@ -636,21 +654,26 @@ export function useSearchWorkspaceActions({
       const queryCategory = getSearchQueryCategory(query);
       const querySubcategory = getSearchQuerySubcategory(query);
       const fieldOptions = user.search.getQueryFieldOptions(queryCategory, querySubcategory);
-      if (
-        await openOntologyFieldExplorer(query, fieldOptions, (nextNode) => {
-          if (!nextNode) {
-            return;
-          }
-          const group: MetadataFilterNode =
-            groupKind === "and" ? { and: [nextNode] } : groupKind === "or" ? { or: [nextNode] } : { not: nextNode };
-          replaceStructuredDraftQuery((draftQuery) =>
-            setSearchQueryMetadataTree(
-              draftQuery,
-              appendMetadataNodeAtPath(getSearchQueryMetadataTree(draftQuery), path, group),
-            ),
-          );
-        })
-      ) {
+      const explorerFieldOptions = getExplorerBackedFieldOptions(fieldOptions);
+      if (explorerFieldOptions.length > 0) {
+        if (
+          await openOntologyFieldExplorer(query, explorerFieldOptions, (nextNode) => {
+            if (!nextNode) {
+              return;
+            }
+            const group: MetadataFilterNode =
+              groupKind === "and" ? { and: [nextNode] } : groupKind === "or" ? { or: [nextNode] } : { not: nextNode };
+            replaceStructuredDraftQuery((draftQuery) =>
+              setSearchQueryMetadataTree(
+                draftQuery,
+                appendMetadataNodeAtPath(getSearchQueryMetadataTree(draftQuery), path, group),
+              ),
+            );
+          })
+        ) {
+          return;
+        }
+        await terminal.pauseForAnyKey("No shared explorer is available for the selected field.");
         return;
       }
 
@@ -690,9 +713,11 @@ export function useSearchWorkspaceActions({
     [
       chooseQueryField,
       editFieldClause,
+      getExplorerBackedFieldOptions,
       openOntologyFieldEditor,
       openOntologyFieldExplorer,
       replaceStructuredDraftQuery,
+      terminal,
       user.search,
     ],
   );
@@ -896,19 +921,24 @@ export function useSearchWorkspaceActions({
           return;
         }
 
-        if (
-          await openOntologyFieldExplorer(draftQuery, fieldOptions, (nextNode) => {
-            if (!nextNode) {
-              return;
-            }
-            replaceStructuredDraftQuery((query) =>
-              setSearchQueryMetadataTree(
-                query,
-                appendMetadataNodeAtPath(getSearchQueryMetadataTree(query), path, nextNode),
-              ),
-            );
-          })
-        ) {
+        const explorerFieldOptions = getExplorerBackedFieldOptions(fieldOptions);
+        if (explorerFieldOptions.length > 0) {
+          if (
+            await openOntologyFieldExplorer(draftQuery, explorerFieldOptions, (nextNode) => {
+              if (!nextNode) {
+                return;
+              }
+              replaceStructuredDraftQuery((query) =>
+                setSearchQueryMetadataTree(
+                  query,
+                  appendMetadataNodeAtPath(getSearchQueryMetadataTree(query), path, nextNode),
+                ),
+              );
+            })
+          ) {
+            return;
+          }
+          await terminal.pauseForAnyKey("No shared explorer is available for the selected field.");
           return;
         }
 
@@ -934,13 +964,13 @@ export function useSearchWorkspaceActions({
       if (isMetadataPredicate(node)) {
         const scopedFields = user.search.getQueryFieldOptions(queryCategory, querySubcategory);
         const fieldOption = scopedFields.find((candidate) => candidate.value === node.field) ?? null;
-          const actionEntries = [
-            ...(fieldOption
-              ? [{ value: "edit", label: "Edit Clause", description: "Change the field operator or value." }]
-              : []),
-            { value: "wrapNot", label: "Wrap In NOT", description: "Negate this clause without changing its content." },
+        const actionEntries = [
+          ...(fieldOption
+            ? [{ value: "edit", label: "Edit Clause", description: "Change the field operator or value." }]
+            : []),
+          { value: "wrapNot", label: "Wrap In NOT", description: "Negate this clause without changing its content." },
           { value: "remove", label: "Remove Clause", description: "Delete this clause from the staged query." },
-          ];
+        ];
         const result = await prompts.promptSelectOption({
           title: "Query Clause",
           prompt: "Choose how to update this staged query clause",

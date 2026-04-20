@@ -488,6 +488,97 @@ describe("createPf2eTerminalSearchService", () => {
     expect(model.rootNodes.map((node) => node.id)).toEqual(["spell:field:traits", "spell:field:derivedTags"]);
   });
 
+  it("keeps the derived-tag field node and axis grouping intact when opened directly", () => {
+    const model = buildSearchFilterExplorerModel(
+      createSearchSemanticsDomain([
+        {
+          id: "searchSemantics:spell",
+          kind: "category",
+          label: "Spell",
+          filterText: "spell",
+          detailTitle: "Spell",
+          detailLines: [{ text: "Spell" }],
+          children: [
+            {
+              id: "spell:metadataFields",
+              kind: "group",
+              label: "Metadata Fields",
+              filterText: "metadata fields",
+              detailTitle: "Metadata Fields",
+              detailLines: [{ text: "Metadata Fields" }],
+              children: [
+                {
+                  id: "spell:field:derivedTags",
+                  kind: "field",
+                  label: "derivedTags",
+                  filterText: "derived tags",
+                  listLabel: "derivedTags",
+                  detailTitle: "Metadata Field Details",
+                  detailLines: [{ text: "derivedTags", tone: "section" }],
+                  childPresentation: {
+                    mode: "grouped",
+                    groupBy: "axis",
+                    render: "inline",
+                  },
+                  children: [
+                    {
+                      id: "spell:field:derivedTags:family:coast",
+                      kind: "family",
+                      label: "coast",
+                      filterText: "coastal setting",
+                      listLabel: "coast | 1 tag",
+                      detailTitle: "Family Details",
+                      detailLines: [{ text: "coast", tone: "section" }],
+                      groupValues: {
+                        axis: "environment",
+                      },
+                      children: [
+                        {
+                          id: "spell:derivedTags:coastal_setting",
+                          kind: "tag",
+                          label: "coastal_setting",
+                          filterText: "coastal setting",
+                          listLabel: "coastal_setting",
+                          detailTitle: "Tag Details",
+                          detailLines: [{ text: "coastal_setting", tone: "section" }],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ]),
+      {
+        category: "spell",
+        subcategory: null,
+        fieldOptions: [
+          {
+            value: "derivedTags",
+            label: "Derived Tags",
+            description: "Derived-tag query field",
+            fieldType: "set",
+            editor: "sharedExplorer",
+          },
+        ],
+        singleFieldBehavior: "directValues",
+      },
+    );
+
+    expect(model.rootNodes).toHaveLength(1);
+    const [rootNode] = model.rootNodes;
+    expect(rootNode?.id).toBe("spell:field:derivedTags");
+    expect(rootNode?.detailTitle).toBe("Metadata Field Details");
+    expect(rootNode?.childPresentation).toEqual({
+      mode: "grouped",
+      groupBy: "axis",
+      render: "inline",
+    });
+    expect(rootNode?.children?.map((node) => node.id)).toEqual(["spell:field:derivedTags:family:coast"]);
+  });
+
   it("locates metric explorer roots without traversing unrelated ontology branches", () => {
     const unrelatedRootLoadChildren = vi.fn(() => [
       {
@@ -654,10 +745,10 @@ describe("createPf2eTerminalSearchService", () => {
         filters: {
           category: "creature",
           metadata: {
-            field: "actorMetric",
-            metric: "perception.mod",
+            field: "actorMetricCompare",
             op: ">=",
-            value: 12,
+            leftMetric: "perception.mod",
+            rightMetric: "perception.mod",
           },
         },
       },
@@ -670,6 +761,49 @@ describe("createPf2eTerminalSearchService", () => {
       subjectLabel: "Perception Modifier",
       valueType: "number",
       editorLabel: "Creature Statistics / Perception Modifier",
+    });
+  });
+
+  it("keeps compare-style numeric metric targets actionable in compose mode", () => {
+    const resolver = buildSearchFilterExplorerTargetResolver([
+      {
+        value: "itemMetric",
+        label: "Item Properties",
+        description: "Browse live item metric keys.",
+        fieldType: "enumString",
+        editor: "sharedExplorer",
+      },
+    ]);
+
+    const target = resolver({
+      id: "item:actorMetrics:weapon.range_increment",
+      kind: "metric",
+      label: "Range Increment",
+      filterText: "range increment",
+      detailTitle: "Metric",
+      detailLines: [{ text: "Range Increment" }],
+      query: {
+        kind: "listRecords",
+        label: "Range Increment",
+        filters: {
+          category: "equipment",
+          metadata: {
+            field: "itemMetricCompare",
+            op: ">=",
+            leftMetric: "weapon.range_increment",
+            rightMetric: "weapon.range_increment",
+          },
+        },
+      },
+    } as OntologyNode);
+
+    expect(target).toEqual({
+      kind: "scalar",
+      key: "itemMetric:weapon.range_increment",
+      fieldLabel: "Item Properties",
+      subjectLabel: "Range Increment",
+      valueType: "number",
+      editorLabel: "Item Properties / Range Increment",
     });
   });
 });

@@ -679,7 +679,8 @@ function buildSearchFilterExplorerRootNodes(
   if (
     options.singleFieldBehavior === "directValues" &&
     options.fieldOptions.length === 1 &&
-    uniqueScopedFieldNodes.length === 1
+    uniqueScopedFieldNodes.length === 1 &&
+    options.fieldOptions[0]?.value !== "derivedTags"
   ) {
     const children = getOntologyNodeChildren(uniqueScopedFieldNodes[0]!);
     return children.length > 0 ? [...children] : uniqueScopedFieldNodes;
@@ -737,7 +738,24 @@ function findSearchFilterExplorerFieldNode(
   }
 
   if (fieldOption.value === "derivedTags") {
-    return findDirectNodeById(categoryChildren, `${category}:commonDerivedTags`);
+    const scopedFieldNodeId = subcategory
+      ? `${category}:${subcategory}:field:derivedTags`
+      : `${category}:field:derivedTags`;
+    const scopedMetadataFieldGroupId = subcategory
+      ? `${category}:${subcategory}:metadataFields`
+      : `${category}:metadataFields`;
+    const derivedTagsFieldNode =
+      findScopedSearchFilterExplorerMetadataFieldNode(
+        subcategoryNode,
+        scopedMetadataFieldGroupId,
+        scopedFieldNodeId,
+      ) ??
+      findScopedSearchFilterExplorerMetadataFieldNode(
+        categoryNode,
+        `${category}:metadataFields`,
+        `${category}:field:derivedTags`,
+      );
+    return derivedTagsFieldNode ?? findDirectNodeById(categoryChildren, `${category}:commonDerivedTags`);
   }
 
   if (fieldOption.value === "traits") {
@@ -884,6 +902,33 @@ export function buildSearchFilterExplorerTargetResolver(
         value,
         valueLabel: node.label,
         allowedStates: ["any", "exclude"],
+      };
+    }
+
+    if (predicate.field === "actorMetricCompare" || predicate.field === "itemMetricCompare") {
+      const metricField = predicate.field === "actorMetricCompare" ? "actorMetric" : "itemMetric";
+      const fieldOption = allowedFields.get(metricField);
+      if (!fieldOption || !("leftMetric" in predicate) || !("rightMetric" in predicate)) {
+        return undefined;
+      }
+      if (predicate.leftMetric !== predicate.rightMetric) {
+        return undefined;
+      }
+
+      const metric = predicate.leftMetric;
+      const valueType = inferMetricValueType(metricField, metric);
+      if (valueType !== "number") {
+        return undefined;
+      }
+
+      const metricLabel = formatMetricLabel(metric, node.label);
+      return {
+        kind: "scalar",
+        key: buildMetricClauseKey(metricField, metric),
+        fieldLabel: fieldOption.label,
+        subjectLabel: metricLabel,
+        valueType,
+        editorLabel: `${fieldOption.label} / ${metricLabel}`,
       };
     }
 
