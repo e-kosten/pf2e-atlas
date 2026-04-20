@@ -438,7 +438,7 @@ export function normalizeMetadataFilterNode(node: MetadataFilterNode): MetadataF
     } as MetadataNumberPredicate;
   }
 
-  if (metadataFieldSpec.fieldType !== "boolean" || predicateVariant?.payload !== "boolean" || typeof raw.value !== "boolean") {
+  if (predicateVariant?.payload !== "boolean" || typeof raw.value !== "boolean") {
     throw new Error(`metadata predicate "${field}" requires op "eq" with a boolean value.`);
   }
 

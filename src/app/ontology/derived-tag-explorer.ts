@@ -101,6 +101,17 @@ type DerivedTagOntologyExplorerDbCache = {
   recordNodesByTagKey: Record<string, DerivedTagOntologyExplorerRecordNode[]>;
 };
 
+type DerivedTagOntologyExplorerCacheCountRow = {
+  kind: "tag" | "family" | "category";
+  key: string;
+  count: number;
+};
+
+type DerivedTagOntologyExplorerCacheRecordKeyRow = {
+  tagKey: string;
+  recordKey: string;
+};
+
 type DerivedTagOntologyExplorerModelCacheEntry = {
   authoredStateRevision: number;
   model: DerivedTagOntologyExplorerModel;
@@ -340,9 +351,19 @@ function buildLiveCountMaps(rows: ExplorerCountRow[]): {
 
 function ensureOntologyExplorerCacheTable(db: DatabaseSync): void {
   db.exec(`
-    CREATE TABLE IF NOT EXISTS derived_tag_ontology_explorer_cache (
-      id INTEGER PRIMARY KEY CHECK (id = ${ONTOLOGY_EXPLORER_CACHE_ROW_ID}),
-      payload_json TEXT NOT NULL
+    CREATE TABLE IF NOT EXISTS derived_tag_ontology_explorer_cache_counts (
+      cache_id INTEGER NOT NULL CHECK (cache_id = ${ONTOLOGY_EXPLORER_CACHE_ROW_ID}),
+      count_kind TEXT NOT NULL CHECK (count_kind IN ('tag', 'family', 'category')),
+      cache_key TEXT NOT NULL,
+      count_value INTEGER NOT NULL,
+      PRIMARY KEY (cache_id, count_kind, cache_key)
+    );
+
+    CREATE TABLE IF NOT EXISTS derived_tag_ontology_explorer_cache_record_keys (
+      cache_id INTEGER NOT NULL CHECK (cache_id = ${ONTOLOGY_EXPLORER_CACHE_ROW_ID}),
+      tag_key TEXT NOT NULL,
+      record_key TEXT NOT NULL,
+      PRIMARY KEY (cache_id, tag_key, record_key)
     )
   `);
 }
@@ -357,8 +378,15 @@ function toSerializableLiveCounts(
   };
 }
 
+function mapFromCountRows(
+  rows: DerivedTagOntologyExplorerCacheCountRow[],
+  kind: DerivedTagOntologyExplorerCacheCountRow["kind"],
+): Map<string, number> {
+  return new Map(rows.filter((row) => row.kind === kind).map((row) => [row.key, row.count] as const));
+}
+
 function mapFromCountRecord(record: Record<string, number>): Map<string, number> {
-  return new Map(Object.entries(record));
+  return new Map<string, number>(Object.entries(record));
 }
 
 function buildDerivedTagOntologyExplorerDbCache(db: DatabaseSync): DerivedTagOntologyExplorerDbCache {
@@ -373,31 +401,94 @@ function buildDerivedTagOntologyExplorerDbCache(db: DatabaseSync): DerivedTagOnt
 
 function readDerivedTagOntologyExplorerDbCache(db: DatabaseSync): DerivedTagOntologyExplorerDbCache | null {
   try {
-    const row = db
+    const countRows = db
       .prepare(
         `
-      SELECT payload_json AS payloadJson
-      FROM derived_tag_ontology_explorer_cache
-      WHERE id = ?
+      SELECT count_kind AS kind, cache_key AS key, count_value AS count
+      FROM derived_tag_ontology_explorer_cache_counts
+      WHERE cache_id = ?
     `,
       )
-      .get(ONTOLOGY_EXPLORER_CACHE_ROW_ID) as { payloadJson?: string } | undefined;
-    return row?.payloadJson ? (JSON.parse(row.payloadJson) as DerivedTagOntologyExplorerDbCache) : null;
+      .all(ONTOLOGY_EXPLORER_CACHE_ROW_ID) as DerivedTagOntologyExplorerCacheCountRow[];
+    const recordKeyRows = db
+      .prepare(
+        `
+      SELECT tag_key AS tagKey, record_key AS recordKey
+      FROM derived_tag_ontology_explorer_cache_record_keys
+      WHERE cache_id = ?
+      ORDER BY tag_key, record_key
+    `,
+      )
+      .all(ONTOLOGY_EXPLORER_CACHE_ROW_ID) as DerivedTagOntologyExplorerCacheRecordKeyRow[];
+
+    if (countRows.length === 0 && recordKeyRows.length === 0) {
+      return null;
+    }
+
+    const rowsByTagKey = new Map<string, string[]>();
+    for (const row of recordKeyRows) {
+      const recordKeys = rowsByTagKey.get(row.tagKey);
+      if (recordKeys) {
+        recordKeys.push(row.recordKey);
+        continue;
+      }
+
+      rowsByTagKey.set(row.tagKey, [row.recordKey]);
+    }
+
+    return {
+      tagCounts: Object.fromEntries(mapFromCountRows(countRows, "tag")),
+      familyCounts: Object.fromEntries(mapFromCountRows(countRows, "family")),
+      categoryCounts: Object.fromEntries(
+        Array.from(mapFromCountRows(countRows, "category"), ([category, count]) => [
+          parseSearchCategoryValue(category, `ontology explorer cached category count "${category}"`),
+          count,
+        ]),
+      ),
+      recordNodesByTagKey: Object.fromEntries(buildRecordNodesByTagKey(db, rowsByTagKey)),
+    };
   } catch {
     return null;
   }
 }
 
 export function writeDerivedTagOntologyExplorerDbCache(db: DatabaseSync): void {
-  const payload = JSON.stringify(buildDerivedTagOntologyExplorerDbCache(db));
+  const cache = buildDerivedTagOntologyExplorerDbCache(db);
   ensureOntologyExplorerCacheTable(db);
-  db.prepare(
-    `
-    INSERT INTO derived_tag_ontology_explorer_cache (id, payload_json)
-    VALUES (?, ?)
-    ON CONFLICT(id) DO UPDATE SET payload_json = excluded.payload_json
-  `,
-  ).run(ONTOLOGY_EXPLORER_CACHE_ROW_ID, payload);
+  const deleteCounts = db.prepare(`
+    DELETE FROM derived_tag_ontology_explorer_cache_counts
+    WHERE cache_id = ?
+  `);
+  const deleteRecordKeys = db.prepare(`
+    DELETE FROM derived_tag_ontology_explorer_cache_record_keys
+    WHERE cache_id = ?
+  `);
+  const insertCount = db.prepare(`
+    INSERT INTO derived_tag_ontology_explorer_cache_counts (cache_id, count_kind, cache_key, count_value)
+    VALUES (?, ?, ?, ?)
+  `);
+  const insertRecordKey = db.prepare(`
+    INSERT INTO derived_tag_ontology_explorer_cache_record_keys (cache_id, tag_key, record_key)
+    VALUES (?, ?, ?)
+  `);
+
+  deleteCounts.run(ONTOLOGY_EXPLORER_CACHE_ROW_ID);
+  deleteRecordKeys.run(ONTOLOGY_EXPLORER_CACHE_ROW_ID);
+
+  for (const [key, count] of Object.entries(cache.tagCounts)) {
+    insertCount.run(ONTOLOGY_EXPLORER_CACHE_ROW_ID, "tag", key, count);
+  }
+  for (const [key, count] of Object.entries(cache.familyCounts)) {
+    insertCount.run(ONTOLOGY_EXPLORER_CACHE_ROW_ID, "family", key, count);
+  }
+  for (const [key, count] of Object.entries(cache.categoryCounts)) {
+    insertCount.run(ONTOLOGY_EXPLORER_CACHE_ROW_ID, "category", key, count);
+  }
+  for (const [tagKey, recordNodes] of Object.entries(cache.recordNodesByTagKey)) {
+    for (const recordNode of recordNodes) {
+      insertRecordKey.run(ONTOLOGY_EXPLORER_CACHE_ROW_ID, tagKey, recordNode.key);
+    }
+  }
 }
 
 function loadDerivedTagOntologyExplorerDbCache(db: DatabaseSync, cacheKey?: string): DerivedTagOntologyExplorerDbCache {
@@ -465,7 +556,9 @@ export function buildDerivedTagOntologyExplorerModel(
   const tagCounts = mapFromCountRecord(dbCache.tagCounts);
   const familyCounts = mapFromCountRecord(dbCache.familyCounts);
   const categoryCounts = new Map(Object.entries(dbCache.categoryCounts) as Array<[SearchCategory, number]>);
-  const recordNodesByTagKey = new Map(Object.entries(dbCache.recordNodesByTagKey));
+  const recordNodesByTagKey = new Map<string, DerivedTagOntologyExplorerRecordNode[]>(
+    Object.entries(dbCache.recordNodesByTagKey),
+  );
   const authoredRuleCounts = buildAuthoredRuleCounts(authoredState);
   const exemplarCounts = buildExemplarCounts(authoredState);
   const legacyMigrationCounts = buildLegacyMigrationCounts();

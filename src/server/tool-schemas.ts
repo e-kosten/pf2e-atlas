@@ -104,16 +104,16 @@ const METADATA_PREDICATE_PAYLOAD_SCHEMAS = {
   number: z.object({ value: z.number() }),
   numberRange: z.object({ min: z.number(), max: z.number() }),
   boolean: z.object({ value: z.boolean() }),
-} as const satisfies Record<MetadataPredicatePayloadKind, z.ZodObject<any>>;
+} as const satisfies Record<MetadataPredicatePayloadKind, z.ZodObject<z.ZodRawShape>>;
 
-function buildStrictObjectSchema(shape: z.ZodRawShape): z.ZodObject<any> {
+function buildStrictObjectSchema(shape: z.ZodRawShape): z.ZodObject<z.ZodRawShape> {
   return z.object(shape).strict();
 }
 
 function buildVariantPredicateSchema(
   fieldSchema: z.ZodTypeAny,
   variant: MetadataPredicateVariantSpec,
-): z.ZodObject<any> {
+): z.ZodObject<z.ZodRawShape> {
   return buildStrictObjectSchema({
     field: fieldSchema,
     op: z.literal(variant.op),
