@@ -1,5 +1,3 @@
-import type { OntologyDomainModel } from "../../domain/ontology-types.js";
-import { buildOntologyBrowserListRows, type OntologyBrowserState } from "../ontology-explorer/ui.js";
 import {
   TERMINAL_LIVE_FILTER_FOOTER,
   buildTerminalInteractionHelpLines,
@@ -13,6 +11,7 @@ import type {
   DerivedTagTerminalSegment,
   DerivedTagTerminalTwoPaneScreenProps,
 } from "../framework/types.js";
+import { buildFilterExplorerListRows } from "./browser.js";
 import {
   getFilterExplorerScalarClause,
   getFilterExplorerTargetState,
@@ -323,9 +322,9 @@ function buildComposeListSegments(
 }
 
 export function buildFilterExplorerListLines(controller: FilterExplorerControllerContext): DerivedTagTerminalLine[] {
-  return buildOntologyBrowserListRows(
-    controller.model as OntologyDomainModel,
-    controller.browser.effectiveState as OntologyBrowserState,
+  return buildFilterExplorerListRows(
+    controller.model,
+    controller.browser.effectiveState,
     controller.browser.bodyHeight,
     (node, isSelected) => {
       const label = node.listLabel ?? node.label;
