@@ -106,3 +106,57 @@ export function buildFilterExplorerPolicySequenceSegments(
       : buildFilterExplorerPolicyLabelSegments(state, options)),
   ]);
 }
+
+type FilterExplorerPolicySelectionLike<T> = {
+  any: readonly T[];
+  all: readonly T[];
+  exclude: readonly T[];
+};
+
+export function formatFilterExplorerPolicySummary<T>(
+  selection: FilterExplorerPolicySelectionLike<T>,
+  options: {
+    emptyLabel?: string;
+    fallback?: FilterExplorerPolicyTextFallback;
+    valueFormatter?: (value: T) => string;
+  } = {},
+): string {
+  const fallback = options.fallback ?? "symbol";
+  const valueFormatter = options.valueFormatter ?? ((value: T) => String(value));
+  const parts: string[] = [];
+
+  for (const state of ["any", "all", "exclude"] as const) {
+    if (selection[state].length === 0) {
+      continue;
+    }
+
+    parts.push(
+      `${formatFilterExplorerPolicyToken(state, fallback)} ${selection[state].map((value) => valueFormatter(value)).join(", ")}`,
+    );
+  }
+
+  return parts.length > 0 ? parts.join(" | ") : (options.emptyLabel ?? "(any)");
+}
+
+export function formatFilterExplorerPolicyCycleCopy(
+  states: readonly FilterExplorerPolicyState[],
+  options: {
+    fallback?: FilterExplorerPolicyTextFallback;
+  } = {},
+): string {
+  const fallback = options.fallback ?? "symbol";
+  const parts = states.map((state) => {
+    const presentation = getFilterExplorerPolicyPresentation(state);
+    const token = fallback === "text" ? presentation.text : presentation.symbol;
+    return `${token} ${presentation.label}`;
+  });
+
+  if (parts.length <= 1) {
+    return parts[0] ?? "";
+  }
+  if (parts.length === 2) {
+    return `${parts[0]} or ${parts[1]}`;
+  }
+
+  return `${parts.slice(0, -1).join(", ")}, or ${parts.at(-1)}`;
+}

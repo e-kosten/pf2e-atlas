@@ -10,9 +10,14 @@ import type {
 import type { AppConfig } from "../../src/domain/config-types.js";
 import type { NormalizedRecord } from "../../src/domain/record-types.js";
 import type { OntologyDomainModel, OntologyNodeQuery } from "../../src/domain/ontology-types.js";
-import { createPf2eTerminalSearchService } from "../../src/tui/search/service.js";
+import {
+  buildSearchFilterExplorerTargetResolver,
+  createPf2eTerminalSearchService,
+} from "../../src/tui/search/service.js";
 import { Pf2eTerminalAppServicesProvider } from "../../src/tui/app-service-context.js";
 import type { Pf2eTerminalAppServices } from "../../src/tui/app-services.js";
+import { SearchFilterExplorerScreen } from "../../src/tui/search-screen/filter-explorer-screen.js";
+import type { SearchFilterExplorerSession } from "../../src/tui/search-screen/query-field-builder-session.js";
 import { SearchScreen, parseJumpToResultInput } from "../../src/tui/search-screen/screen.js";
 import { DerivedTagTerminalProvider } from "../../src/tui/terminal-ui.js";
 
@@ -529,6 +534,71 @@ function createCreatureDerivedTagsOntologyDomain(): OntologyDomainModel {
         ],
       },
     ],
+  };
+}
+
+function createCreatureMetricExplorerSession(): SearchFilterExplorerSession {
+  const model: OntologyDomainModel = {
+    id: "searchSemantics",
+    label: "Creature Statistics Explorer",
+    description: "Metric explorer test domain",
+    rootNodes: [
+      {
+        id: "creature:actorMetrics:namespace:hp.",
+        kind: "metricNamespace",
+        label: "hp.",
+        filterText: "hp hit points",
+        listLabel: "hp. | 1 metric",
+        detailTitle: "Metric Namespace",
+        detailLines: [{ text: "hp.", tone: "section" }],
+        children: [
+          {
+            id: "creature:actorMetrics:hp.value",
+            kind: "metric",
+            label: "Hit Points",
+            filterText: "hp hit points",
+            listLabel: "Hit Points | 4",
+            detailTitle: "Metric Details",
+            detailLines: [{ text: "Hit Points", tone: "section" }],
+            query: {
+              kind: "listRecords",
+              label: "Browse records with Hit Points",
+              filters: {
+                category: "creature",
+                metadata: {
+                  field: "actorMetricCompare",
+                  leftMetric: "hp.value",
+                  op: ">=",
+                  rightMetric: "hp.value",
+                },
+                limit: 20,
+              },
+            },
+          },
+        ],
+      },
+    ],
+  };
+
+  return {
+    title: "Creature Statistics Explorer",
+    model,
+    draft: {
+      scopedFields: ["actorMetric"],
+      fieldSelections: {},
+      scalarClauses: {},
+      structuredMetadata: null,
+    },
+    resolveSelectionTarget: buildSearchFilterExplorerTargetResolver([
+      {
+        value: "actorMetric",
+        label: "Creature Statistics",
+        description: "Browse creature statistics.",
+        fieldType: "enumString",
+        editor: "sharedExplorer",
+      },
+    ]),
+    onApply: vi.fn(),
   };
 }
 
@@ -2198,5 +2268,43 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Derived Tags Explorer > derivedTags");
     expect(app.lastFrame()).toContain("Focused node is not selectable.");
     expect(app.lastFrame()).not.toContain("Choose a category before editing a discoverable query field.");
+  });
+
+  it("opens the numeric scalar editor when compose-mode creature statistics focus a metric key", async () => {
+    const session = createCreatureMetricExplorerSession();
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <SearchFilterExplorerScreen session={session} />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    expect(app.lastFrame()).toContain("Creature Statistics Explorer");
+    expect(app.lastFrame()).toContain("hp.");
+
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Hit Points");
+
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Creature Statistics / Hit Points");
+    expect(app.lastFrame()).toContain("Selected: Equals");
+
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Enter a numeric value. Leave blank to clear.");
+    await flushInk();
+
+    for (const character of "12") {
+      app.stdin.write(character);
+      await flushInk();
+    }
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("Hit Points");
+    expect(app.lastFrame()).toContain("= 12");
   });
 });

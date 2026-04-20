@@ -12,6 +12,7 @@ import type {
 } from "../../domain/metadata-types.js";
 import type { MetadataGlossaryArtifact, MetadataGlossaryEntry } from "../../domain/metadata-glossary-types.js";
 import type { OntologyNode } from "../../domain/ontology-types.js";
+import { getMetricDiscoveryGroupLabel } from "../../domain/metric-discovery-group-label.js";
 import type { SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
 import { normalizeText } from "../../shared/utils.js";
 import {
@@ -70,22 +71,14 @@ const METRIC_SEGMENT_LABELS: Readonly<Record<string, string>> = {
   worst: "Worst",
 };
 
-export function getMetricDiscoveryGroupLabel(
-  category: SearchCategory,
-  metricField: "actorMetrics" | "itemMetrics",
-): string {
-  if (metricField === "actorMetrics") {
-    return category === "hazard" ? "Hazard Statistics" : "Creature Statistics";
-  }
-  return "Item Properties";
-}
-
 export function getTraitGlossaryEntry(
   metadataGlossary: MetadataGlossaryArtifact | null,
   value: string,
 ): MetadataGlossaryEntry | undefined {
   return metadataGlossary?.fields.traits?.[value];
 }
+
+export { getMetricDiscoveryGroupLabel };
 
 function buildTraitDetailLines(
   category: SearchCategory,

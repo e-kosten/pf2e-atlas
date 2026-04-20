@@ -13,6 +13,7 @@ import {
   getSearchQuerySubcategory,
 } from "../search/service.js";
 import type { DerivedTagTerminalCommandOption, DerivedTagTerminalLine } from "../framework/types.js";
+import { formatFilterExplorerPolicySummary } from "../filter-explorer/policy-presentation.js";
 import { countMetadataPredicates, flattenMetadataTree } from "../search/query-core.js";
 import { clampWindowStart } from "../list-utils.js";
 import type { SearchCountState, SearchScreenState } from "./state.js";
@@ -82,17 +83,9 @@ function formatPolicyValue(value: number | string): string {
 }
 
 export function formatFilterPolicy<T extends number | string>(policy: Pf2eTerminalFilterValuePolicy<T>): string {
-  const parts: string[] = [];
-  if (policy.any.length > 0) {
-    parts.push(`any: ${policy.any.map((value) => formatPolicyValue(value)).join(", ")}`);
-  }
-  if (policy.all.length > 0) {
-    parts.push(`all: ${policy.all.map((value) => formatPolicyValue(value)).join(", ")}`);
-  }
-  if (policy.exclude.length > 0) {
-    parts.push(`exclude: ${policy.exclude.map((value) => formatPolicyValue(value)).join(", ")}`);
-  }
-  return parts.length > 0 ? parts.join(" | ") : "(any)";
+  return formatFilterExplorerPolicySummary(policy, {
+    valueFormatter: (value) => formatPolicyValue(value),
+  });
 }
 
 export function hasFilterPolicy<T extends number | string>(policy: Pf2eTerminalFilterValuePolicy<T>): boolean {
@@ -327,7 +320,7 @@ export function buildWorkspaceEntries(state: SearchScreenState, countState: Sear
       action: encodeQueryPartAction("rarity"),
       label: "Rarity",
       value: formatFilterPolicy(rarityPolicy),
-      description: "Adjust the rarity include and exclude policy.",
+      description: "Adjust the rarity filter policy.",
       indent: 1,
     });
   }
@@ -336,7 +329,7 @@ export function buildWorkspaceEntries(state: SearchScreenState, countState: Sear
       action: encodeQueryPartAction("actionCost"),
       label: "Action Cost",
       value: formatFilterPolicy(actionCostPolicy),
-      description: "Adjust the action-cost include and exclude policy for the current scope.",
+      description: "Adjust the action-cost filter policy for the current scope.",
       indent: 1,
     });
   }

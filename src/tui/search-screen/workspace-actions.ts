@@ -31,6 +31,7 @@ import {
 import { createEmptyStringPolicy } from "../search/policies.js";
 import type { SearchScreenOrigin } from "./workflow-types.js";
 import type { DerivedTagTerminalApp } from "../framework/types.js";
+import { formatFilterExplorerPolicyCycleCopy } from "../filter-explorer/policy-presentation.js";
 import {
   buildMetadataNodeFromPolicy,
   buildPolicyFromPredicate,
@@ -336,7 +337,9 @@ export function useSearchWorkspaceActions({
             : createEmptyStringPolicy();
         const selected = await prompts.promptPolicySelectOption({
           title: `${fieldOption.label} Clause`,
-          prompt: "Cycle field values through include, require-all, or exclude. Press Esc or Left when finished.",
+          prompt: `Cycle field values through ${formatFilterExplorerPolicyCycleCopy(
+            fieldOption.fieldType === "set" ? ["any", "all", "exclude"] : ["any", "exclude"],
+          )}. Press Esc or Left when finished.`,
           allowedStates: fieldOption.fieldType === "set" ? ["any", "all", "exclude"] : ["any", "exclude"],
           entries: user.search
             .getFacetValueOptions(metadataField, queryCategory, querySubcategory)

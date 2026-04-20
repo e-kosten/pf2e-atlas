@@ -1,4 +1,5 @@
 import type { MetadataFieldSemantics } from "../../domain/metadata-semantics.js";
+import { getMetricDiscoveryGroupLabel } from "../../domain/metric-discovery-group-label.js";
 import { normalizeMetadataNode } from "./query-core.js";
 import type { MetadataFilterNode, MetadataPredicate } from "../../domain/metadata-types.js";
 import type { SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
@@ -207,7 +208,7 @@ function getMetricQueryFieldOptions(
   ) {
     options.push({
       value: "actorMetric",
-      label: category === "hazard" ? "Hazard Statistics" : "Creature Statistics",
+      label: getMetricDiscoveryGroupLabel(category, "actorMetrics"),
       description: "Browse live statistic keys and author exact or numeric literal filters for the current scope.",
       fieldType: "enumString",
       editor: "sharedExplorer",
@@ -221,7 +222,7 @@ function getMetricQueryFieldOptions(
   ) {
     options.push({
       value: "itemMetric",
-      label: "Item Properties",
+      label: getMetricDiscoveryGroupLabel(category, "itemMetrics"),
       description: "Browse live item property keys and author exact or numeric literal filters for the current scope.",
       fieldType: "enumString",
       editor: "sharedExplorer",
