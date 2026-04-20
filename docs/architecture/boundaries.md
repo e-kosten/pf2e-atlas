@@ -86,6 +86,8 @@ The table below is the shortest accurate summary of the current enforced boundar
 | Raw TUI event decoding           | Shared TUI framework files plus a few approved routing helpers                                                                                                                                             | `arch/no-direct-terminal-event-routing` bans branching on `event.systemAction`, `event.textInputAction`, `event.printable`, `isBackNavigationKey()`, and `isTerminalQuitKey()` in feature code | Route through shared interaction helpers, prompt adapters, or screen controllers                               |
 | Server-to-storage shortcuts      | No server registration files                                                                                                                                                                               | `src/server/**/*` cannot import `src/search/sql.ts`, `src/data/record-queries.ts`, or `src/data/schema.ts`                                                                                     | Put reusable behavior behind `Pf2eDataService` or another backend facade, then call it from the server layer   |
 | Search-to-storage leaf imports   | No search modules                                                                                                                                                                                          | `src/search/**/*` cannot import `src/data/rows.ts`, `src/data/record-queries.ts`, or `src/data/schema.ts` directly                                                                             | Keep runtime search logic independent of storage leaf helpers unless the facade boundary changes intentionally |
+| Non-tag domain barrel imports    | Tag-facing compatibility paths only                                                                                                                                                                        | Non-tag code cannot import `src/domain/index.ts` as a broad barrel                                                                                                                                | Import the owning `src/domain/*` module directly                                                               |
+| Non-tag shared helper imports    | True cross-layer primitives only                                                                                                                                                                           | Non-tag code cannot import moved owner helpers from `src/shared/utils.ts`, and cannot import compatibility `fileExists` from `src/shared/fs.ts`                                                  | Use the owner module in `src/data/` or `src/search/`, or the explicit shared primitive that actually owns it |
 | Non-tag imports of tag internals | No non-tag module outside an approved facade                                                                                                                                                               | Most non-tag code cannot import `src/tags/runtime/**`, `authored-rules/**`, `catalog/**`, `ontology/**`, `exemplars/**`, `legacy-rules/**`, or `legacy-seed-migrations/**`                     | Re-export through `src/tags/index.ts` or a dedicated approved facade                                           |
 | Non-UI imports of TUI internals  | `src/tui/**` and a few explicitly allowed modules only                                                                                                                                                     | Application, data, domain, search, server, and most tag modules cannot import `src/tui/**` internals                                                                                           | Keep TUI concerns inside the TUI layer                                                                         |
 | TUI runtime composition          | `src/tui/app-services.ts` and a few explicit exceptions                                                                                                                                                    | Most `src/tui/**` files cannot import `node:sqlite`, `src/data/service.ts`, `src/app/runtime.ts`, `src/app/ontology-service.ts`, or tag workbench internals directly                           | Extend `app-services` or a TUI-facing facade, then consume that facade from screens/workflows                  |
@@ -164,6 +166,19 @@ Those rules are not cosmetic. They encode a deliberate push toward reusable cont
 - storage-lifecycle-agnostic
 
 It is the right home for shared contracts, category vocabularies, metadata semantics, and ontology types. If code needs runtime composition, SQL access, prompt handling, or wire formatting, it belongs above the domain layer.
+
+`src/domain/index.ts` is no longer the preferred non-tag import path. Treat it as a transitional, mostly tag-facing barrel. When non-tag code needs a contract or vocabulary, import the concrete `src/domain/*` owner file instead so the barrel can keep shrinking over time.
+
+### Shared Primitive Boundary
+
+`src/shared/` is intentionally small. It is not the default place to park helpers that happen to be used by more than one file.
+
+Current expectations:
+
+- keep only true cross-layer primitives in `src/shared/`
+- keep `normalizeText` and `uniqueSorted` available from `src/shared/utils.ts` for now
+- route moved non-tag helper concerns through their owner modules in `src/data/` and `src/search/` instead of reintroducing broad shared imports
+- prefer explicit filesystem helpers such as `pathExists` and `pathIsReadable` over compatibility aliases
 
 ### Tag Boundary
 

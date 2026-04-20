@@ -25,6 +25,7 @@ The shortest useful mental model is:
 - `src/tui/` translates user interaction flows to backend and app services
 - `src/tags/` owns the editorial subsystem for derived-tag work
 - `src/domain/` defines shared vocabulary and contracts
+- `src/shared/` stays intentionally small and only holds true cross-layer primitives
 
 If you remember only one rule, remember this one: transport and UI layers should stay thin, and shared retrieval behavior should flow through `Pf2eDataService` and the app-level facades instead of being rebuilt ad hoc.
 
@@ -109,7 +110,17 @@ Owns low-level shared vocabulary and contracts:
 - search and rule graph types
 - ontology contracts and related shared type definitions
 
+`src/domain/index.ts` currently exists as a transitional barrel used mainly by tag-facing compatibility paths. Non-tag code should prefer direct imports from the owning `src/domain/*` module instead of routing through that barrel.
+
 This layer should stay free of transport, UI, and storage-lifecycle behavior.
+
+### `src/shared/`
+
+Owns a tiny set of true cross-layer primitives.
+
+- keep stable low-level helpers here only when multiple layers genuinely share them
+- do not treat `src/shared/` as the default home for convenience helpers once `app`, `data`, or `search` clearly owns the concern
+- moved non-tag helpers should stay with their owner modules instead of growing compatibility imports back into shared barrels
 
 ### `src/data/`
 
@@ -118,6 +129,8 @@ Owns index-backed retrieval and normalized record access:
 - `Pf2eDataService` as the main backend facade
 - backend catalog, search, and rule-graph services in `src/data/backend/`
 - normalization, row decoding, indexing, and schema helpers
+
+This layer also owns its record/raw-value helper pathways such as normalization, nested-value extraction, and formatting helpers that were previously reachable through broader shared modules.
 
 This is the core boundary between the rest of the application and low-level SQLite-backed access.
 
@@ -129,6 +142,8 @@ Owns reusable ranked-search mechanics:
 - ranking configuration
 - runtime search execution
 - lexical and semantic scoring coordination
+
+Search-specific primitives such as limit/offset clamping and lexical scoring belong here once they are part of the search runtime rather than general shared infrastructure.
 
 If logic is reusable across MCP and TUI search paths, it probably belongs here or in `src/data/backend/`, not in a handler or screen.
 

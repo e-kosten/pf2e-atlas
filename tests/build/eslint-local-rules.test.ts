@@ -243,6 +243,56 @@ describe("eslint local architecture rules", () => {
     );
   });
 
+  it("blocks non-tag modules from importing the transitional domain barrel and allows explicit domain modules", async () => {
+    await expectRuleMessage(
+      "src/app/runtime.ts",
+      'import { SearchFilters } from "../domain/index.js";\nexport type Value = SearchFilters;\n',
+      "Non-tag code must import domain contracts from explicit src/domain/* modules instead of the transitional src/domain/index.js barrel.",
+    );
+
+    await expectNoRuleMessages(
+      "src/app/runtime.ts",
+      'import { SearchFilters } from "../domain/search-types.js";\nexport type Value = SearchFilters;\n',
+    );
+
+    await expectNoRuleMessages(
+      "src/tags/runtime/index.ts",
+      'import { SearchFilters } from "../../domain/index.js";\nexport type Value = SearchFilters;\n',
+    );
+  });
+
+  it("blocks owner-specific shared utils imports in non-tag modules but keeps normalizeText and uniqueSorted available", async () => {
+    await expectRuleMessage(
+      "src/data/references.ts",
+      'import { firstString, getNested, stripHtml } from "../shared/utils.js";\nexport { firstString, getNested, stripHtml };\n',
+      "Non-tag code must import owner-specific helpers from their owning module instead of src/shared/utils.js. Keep shared/utils limited to true cross-layer primitives such as normalizeText and uniqueSorted.",
+    );
+
+    await expectRuleMessage(
+      "src/search/runtime-search.ts",
+      'import { clampLimit, clampOffset, bigramDice } from "../shared/utils.js";\nexport { clampLimit, clampOffset, bigramDice };\n',
+      "Non-tag code must import owner-specific helpers from their owning module instead of src/shared/utils.js. Keep shared/utils limited to true cross-layer primitives such as normalizeText and uniqueSorted.",
+    );
+
+    await expectNoRuleMessages(
+      "src/search/runtime-search.ts",
+      'import { normalizeText, uniqueSorted } from "../shared/utils.js";\nexport { normalizeText, uniqueSorted };\n',
+    );
+  });
+
+  it("blocks the compatibility fileExists alias in non-tag modules but allows explicit fs helpers", async () => {
+    await expectRuleMessage(
+      "src/pf2e-refresh.ts",
+      'import { fileExists } from "./shared/fs.js";\nexport const value = fileExists;\n',
+      "Non-tag code must use explicit fs helpers instead of the compatibility fileExists alias from src/shared/fs.js. Prefer pathExists or pathIsReadable as appropriate.",
+    );
+
+    await expectNoRuleMessages(
+      "src/pf2e-refresh.ts",
+      'import { pathExists, pathIsReadable } from "./shared/fs.js";\nexport { pathExists, pathIsReadable };\n',
+    );
+  });
+
   it("limits DatabaseSync construction to the app storage boundary", async () => {
     const disallowedAppMessages = lintMessageTexts(
       await lintRuleMessages(

@@ -18,6 +18,28 @@ function mergeRestrictedImports(...restrictions) {
   ];
 }
 
+function buildRelativeImportNameRestrictions(pathVariants, importNames, message) {
+  return pathVariants.map((name) => ({
+    name,
+    importNames,
+    message,
+  }));
+}
+
+const DOMAIN_INDEX_IMPORT_PATHS = ["./domain/index.js", "../domain/index.js", "../../domain/index.js"];
+const SHARED_UTILS_IMPORT_PATHS = ["./shared/utils.js", "../shared/utils.js", "../../shared/utils.js"];
+const SHARED_FS_IMPORT_PATHS = ["./shared/fs.js", "../shared/fs.js", "../../shared/fs.js"];
+
+const NON_TAG_SHARED_UTILS_OWNER_IMPORT_NAMES = [
+  "bigramDice",
+  "clampLimit",
+  "clampOffset",
+  "firstString",
+  "getNested",
+  "stripHtml",
+  "toStringArray",
+];
+
 const NON_UI_TUI_IMPORT_RESTRICTIONS = {
   patterns: [
     {
@@ -27,6 +49,32 @@ const NON_UI_TUI_IMPORT_RESTRICTIONS = {
     },
   ],
 };
+
+const NON_TAG_OWNERSHIP_IMPORT_RESTRICTIONS = {
+  paths: [
+    ...buildRelativeImportNameRestrictions(
+      SHARED_UTILS_IMPORT_PATHS,
+      NON_TAG_SHARED_UTILS_OWNER_IMPORT_NAMES,
+      "Non-tag code must import owner-specific helpers from their owning module instead of src/shared/utils.js. Keep shared/utils limited to true cross-layer primitives such as normalizeText and uniqueSorted.",
+    ),
+    ...buildRelativeImportNameRestrictions(
+      SHARED_FS_IMPORT_PATHS,
+      ["fileExists"],
+      "Non-tag code must use explicit fs helpers instead of the compatibility fileExists alias from src/shared/fs.js. Prefer pathExists or pathIsReadable as appropriate.",
+    ),
+  ],
+  patterns: [
+    {
+      group: DOMAIN_INDEX_IMPORT_PATHS,
+      message:
+        "Non-tag code must import domain contracts from explicit src/domain/* modules instead of the transitional src/domain/index.js barrel.",
+    },
+  ],
+};
+
+function mergeNonTagRestrictedImports(...restrictions) {
+  return mergeRestrictedImports(NON_TAG_OWNERSHIP_IMPORT_RESTRICTIONS, ...restrictions);
+}
 
 const SEARCH_STORAGE_INTERNAL_IMPORT_RESTRICTIONS = {
   patterns: [
@@ -316,7 +364,7 @@ export default defineConfig(
   {
     files: ["src/tui/area-menu-screen.tsx", "src/tui/ontology-explorer/domain-picker-screen.tsx"],
     rules: {
-      "no-restricted-imports": mergeRestrictedImports(NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS, {
+      "no-restricted-imports": mergeNonTagRestrictedImports(NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS, {
         paths: [
           {
             name: "./terminal-ui.js",
@@ -363,7 +411,7 @@ export default defineConfig(
   {
     files: ["src/tui/pf2e-app.tsx"],
     rules: {
-      "no-restricted-imports": mergeRestrictedImports(NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS, {
+      "no-restricted-imports": mergeNonTagRestrictedImports(NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS, {
         paths: [
           {
             name: "./terminal-ui.js",
@@ -384,7 +432,7 @@ export default defineConfig(
   {
     files: ["src/tui/tag-refinement-menu-screen.tsx"],
     rules: {
-      "no-restricted-imports": mergeRestrictedImports(NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS, {
+      "no-restricted-imports": mergeNonTagRestrictedImports(NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS, {
         paths: [
           {
             name: "./terminal-ui.js",
@@ -536,7 +584,7 @@ export default defineConfig(
   {
     files: ["src/tui/ontology-explorer/interactions.ts"],
     rules: {
-      "no-restricted-imports": mergeRestrictedImports(NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS, {
+      "no-restricted-imports": mergeNonTagRestrictedImports(NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS, {
         paths: [
           {
             name: "../terminal-ui.js",
@@ -561,19 +609,16 @@ export default defineConfig(
   {
     files: ["src/tui/terminal-ui.tsx"],
     rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          paths: [
-            {
-              name: "./interaction-bindings.js",
-              importNames: ["getTerminalInteractionCycleDirection", "resolveTerminalInteractionAction"],
-              message:
-                "Terminal modal routing must go through the shared interaction-context router and prompt-context adapters instead of resolving raw actions directly.",
-            },
-          ],
-        },
-      ],
+      "no-restricted-imports": mergeNonTagRestrictedImports({
+        paths: [
+          {
+            name: "./interaction-bindings.js",
+            importNames: ["getTerminalInteractionCycleDirection", "resolveTerminalInteractionAction"],
+            message:
+              "Terminal modal routing must go through the shared interaction-context router and prompt-context adapters instead of resolving raw actions directly.",
+          },
+        ],
+      }),
       "no-restricted-syntax": [
         "error",
         {
@@ -612,7 +657,7 @@ export default defineConfig(
   {
     files: ["src/tui/ontology-explorer/screen.tsx", "src/tui/ontology-explorer/picker-screen.tsx"],
     rules: {
-      "no-restricted-imports": mergeRestrictedImports(NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS, {
+      "no-restricted-imports": mergeNonTagRestrictedImports(NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS, {
         paths: [
           {
             name: "../interaction-bindings.js",
@@ -662,7 +707,7 @@ export default defineConfig(
       "src/tui/terminal-ui.tsx",
     ],
     rules: {
-      "no-restricted-imports": mergeRestrictedImports(NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS),
+      "no-restricted-imports": mergeNonTagRestrictedImports(NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS),
     },
   },
   {
@@ -676,7 +721,7 @@ export default defineConfig(
       "src/tui/terminal-ui.tsx",
     ],
     rules: {
-      "no-restricted-imports": mergeRestrictedImports(NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS, {
+      "no-restricted-imports": mergeNonTagRestrictedImports(NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS, {
         paths: [
           {
             name: "node:sqlite",
@@ -709,7 +754,7 @@ export default defineConfig(
     files: ["src/**/*.{ts,tsx}"],
     ignores: ["src/tags/**/*.{ts,tsx}"],
     rules: {
-      "no-restricted-imports": mergeRestrictedImports(
+      "no-restricted-imports": mergeNonTagRestrictedImports(
         NON_UI_TUI_IMPORT_RESTRICTIONS,
         NON_TAGS_DERIVED_TAG_IMPORT_RESTRICTIONS,
       ),
@@ -718,7 +763,7 @@ export default defineConfig(
   {
     files: ["src/search/**/*.{ts,tsx}"],
     rules: {
-      "no-restricted-imports": mergeRestrictedImports(
+      "no-restricted-imports": mergeNonTagRestrictedImports(
         NON_UI_TUI_IMPORT_RESTRICTIONS,
         NON_TAGS_DERIVED_TAG_IMPORT_RESTRICTIONS,
         SEARCH_STORAGE_INTERNAL_IMPORT_RESTRICTIONS,
@@ -756,7 +801,7 @@ export default defineConfig(
   {
     files: ["src/server/**/*.{ts,tsx}"],
     rules: {
-      "no-restricted-imports": mergeRestrictedImports(
+      "no-restricted-imports": mergeNonTagRestrictedImports(
         NON_UI_TUI_IMPORT_RESTRICTIONS,
         NON_TAGS_DERIVED_TAG_IMPORT_RESTRICTIONS,
         SERVER_STORAGE_INTERNAL_IMPORT_RESTRICTIONS,
@@ -766,7 +811,7 @@ export default defineConfig(
   {
     files: ["src/tui/search-screen/controller.ts"],
     rules: {
-      "no-restricted-imports": mergeRestrictedImports(NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS, {
+      "no-restricted-imports": mergeNonTagRestrictedImports(NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS, {
         paths: [
           {
             name: "../ontology-explorer/facet-picker-model.js",
@@ -820,7 +865,7 @@ export default defineConfig(
   {
     files: ["src/tui/search-screen/interactions.ts"],
     rules: {
-      "no-restricted-imports": mergeRestrictedImports(NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS, {
+      "no-restricted-imports": mergeNonTagRestrictedImports(NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS, {
         paths: [
           {
             name: "../terminal-ui.js",
@@ -856,7 +901,7 @@ export default defineConfig(
   {
     files: ["src/tui/shared-screens.tsx"],
     rules: {
-      "no-restricted-imports": mergeRestrictedImports(NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS, {
+      "no-restricted-imports": mergeNonTagRestrictedImports(NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS, {
         paths: [
           {
             name: "./terminal-ui.js",

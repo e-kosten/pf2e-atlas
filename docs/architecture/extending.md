@@ -23,6 +23,8 @@ Useful heuristics:
 - If the code needs `DatabaseSync`, it probably belongs in `src/data/`, `src/app/storage-service.ts`, or an approved CLI entrypoint.
 - If the code mostly translates inputs and outputs around an existing service call, it probably belongs in a thin surface layer.
 - If the code defines vocabulary rather than behavior, it probably belongs in `src/domain/`.
+- If a non-tag caller needs a domain type, import the concrete `src/domain/*` owner file instead of defaulting to `src/domain/index.ts`.
+- If a helper clearly belongs to `app`, `data`, or `search`, keep it there instead of extending `src/shared/`.
 
 ## When To Add A Facade
 
