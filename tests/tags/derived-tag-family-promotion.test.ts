@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { DerivedTagOntologyFamily, DerivedTagOntologyTag } from "../../src/types.js";
+import type { DerivedTagOntologyFamily, DerivedTagOntologyTag } from "../../src/domain/index.js";
 import {
   deriveCatalogTagDerivation,
   groupDerivedTagOntology,

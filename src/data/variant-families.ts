@@ -1,8 +1,8 @@
 import path from "node:path";
 
 import type { BuildSourceEntry, NormalizedIndexRecord } from "./index-types.js";
-import type { VariantSource } from "../types.js";
-import { firstString, getNested, normalizeText, uniqueSorted } from "../utils.js";
+import type { VariantSource } from "../domain/index.js";
+import { firstString, getNested, normalizeText, uniqueSorted } from "../shared/utils.js";
 
 const GRADE_LABELS = new Set(["minor", "lesser", "moderate", "greater", "major", "true"]);
 const DAMAGE_TYPE_LABELS = new Set(["acid", "cold", "electricity", "fire", "poison", "sonic", "void", "vitality"]);

@@ -4,7 +4,7 @@ import type {
   DerivedTagLegacySeedMigrationCategory,
   DerivedTagOntologyFamily,
   DerivedTagOntologyTag,
-} from "../../src/types.js";
+} from "../../src/domain/index.js";
 import { buildDerivedTagExplicitAssignmentIndex } from "../../src/tags/runtime/assignments.js";
 import {
   buildDerivedTagLegacySeedMigrationIndex,

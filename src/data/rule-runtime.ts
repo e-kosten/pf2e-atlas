@@ -7,7 +7,7 @@ import type {
   RuleGraphCollectionResult,
   RuleGraphResult,
   RuleReferenceEdge,
-} from "../types.js";
+} from "../domain/index.js";
 import {
   backlinkTypeRank,
   edgeRowToReferenceEdge,

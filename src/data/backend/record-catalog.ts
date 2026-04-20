@@ -7,7 +7,7 @@ import type {
   NormalizedRecord,
   PackInfo,
   RankingConfigStatus,
-} from "../../types.js";
+} from "../../domain/index.js";
 import type { NormalizedSearchFilters } from "../../search/contracts.js";
 import type { RankingConfigStore } from "../../search/ranking-config.js";
 import type { SearchVocabularyResult } from "../vocabulary.js";

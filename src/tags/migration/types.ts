@@ -5,7 +5,7 @@ import type {
   DerivedTagExemplarReviewCategory,
   SearchCategory,
   SearchSubcategory,
-} from "../../types.js";
+} from "../../domain/index.js";
 import type {
   AuthoredDerivedTagAssignment,
   DerivedTagAssignmentMemoryCategory,

@@ -8,7 +8,7 @@ import type {
   SearchFilters,
   SearchSubcategory,
   SearchWindowPage,
-} from "../types.js";
+} from "../domain/index.js";
 import {
   applyDiscoverableQueryFieldSelections,
   buildDiscoverableQueryFieldSelections,

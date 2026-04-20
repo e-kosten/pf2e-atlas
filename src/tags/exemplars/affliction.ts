@@ -1,4 +1,4 @@
-import type { DerivedTagExemplarCategory } from "../../types.js";
+import type { DerivedTagExemplarCategory } from "../../domain/index.js";
 
 export const AFFLICTION_DERIVED_TAG_EXEMPLARS = {
   category: "affliction",

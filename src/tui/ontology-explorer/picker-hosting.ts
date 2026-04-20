@@ -1,5 +1,5 @@
 import { getOntologyNodeChildren } from "../../app/ontology/node-helpers.js";
-import type { OntologyDomainModel } from "../../types.js";
+import type { OntologyDomainModel } from "../../domain/index.js";
 import type { OntologyBrowserSnapshot } from "./ui.js";
 
 export type HostedOntologyPickerContract = {

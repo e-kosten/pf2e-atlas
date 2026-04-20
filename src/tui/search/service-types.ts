@@ -15,7 +15,7 @@ import type {
   SearchSort,
   SearchSubcategory,
   SearchWindowPage,
-} from "../../types.js";
+} from "../../domain/index.js";
 import type { Pf2eTerminalQueryPart } from "../search-query-parts.js";
 
 export type Pf2eTerminalSearchCategoryOption = {

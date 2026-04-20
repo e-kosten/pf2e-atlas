@@ -16,7 +16,7 @@ import type {
   SearchFilters,
   SearchResult,
   SearchWindowPage,
-} from "../types.js";
+} from "../domain/index.js";
 import { Pf2eRecordCatalog } from "./backend/record-catalog.js";
 import { Pf2eRuleGraphBackendService } from "./backend/rule-graph-service.js";
 import { loadPf2eDataRuntime, rebuildPf2eDataRuntime } from "./backend/load-runtime.js";

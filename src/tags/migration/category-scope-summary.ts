@@ -1,6 +1,6 @@
 import { DatabaseSync } from "node:sqlite";
 
-import type { SearchCategory } from "../../types.js";
+import type { SearchCategory } from "../../domain/index.js";
 import { DERIVED_TAG_MANAGED_CATEGORIES, expectDerivedTagManagedCategory } from "../manifest.js";
 import { listDerivedTagLegacySeedMigrations } from "../index.js";
 import { getCurrentDerivedTagMigrationAuthoredState } from "./authored-state.js";

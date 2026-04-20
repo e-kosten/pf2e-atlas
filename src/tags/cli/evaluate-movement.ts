@@ -6,7 +6,7 @@ import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
 import { loadConfig } from "../../app/config.js";
-import { expandHome } from "../../utils.js";
+import { expandHome } from "../../shared/utils.js";
 import { parseOptionalSearchCategoryArg } from "./search-scope-args.js";
 import {
   evaluateDerivedTagMovement,

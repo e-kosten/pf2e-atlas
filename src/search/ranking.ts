@@ -6,8 +6,8 @@ import {
   SearchMode,
   SearchProfile,
   SearchRecordExplanation,
-} from "../types.js";
-import { bigramDice, normalizeText } from "../utils.js";
+} from "../domain/index.js";
+import { bigramDice, normalizeText } from "../shared/utils.js";
 import type { RankingConfig } from "./ranking-config.js";
 
 type RerankAdjustments = SearchRecordExplanation["rerankAdjustments"];

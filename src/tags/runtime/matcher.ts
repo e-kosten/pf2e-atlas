@@ -1,5 +1,5 @@
-import type { SearchCategory, SearchSubcategory } from "../../types.js";
-import { normalizeText, uniqueSorted } from "../../utils.js";
+import type { SearchCategory, SearchSubcategory } from "../../domain/index.js";
+import { normalizeText, uniqueSorted } from "../../shared/utils.js";
 import { analyzeNormalizedTextTokens, type AnalyzedToken, type PartOfSpeech } from "./wink-nlp-adapter.js";
 
 export type DerivedTagContext = {

@@ -4,7 +4,7 @@ import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
 import { loadConfig } from "../../app/config.js";
-import type { SearchCategory, SearchSubcategory } from "../../types.js";
+import type { SearchCategory, SearchSubcategory } from "../../domain/index.js";
 import { migrationSessionDirectory } from "./session-store.js";
 
 type MultiValueArgs = Record<string, string[]>;

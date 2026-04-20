@@ -6,8 +6,8 @@ import {
   normalizeSearchCategory,
   normalizeSearchSubcategory,
 } from "../../domain/categories.js";
-import { SearchCategory, SearchSubcategory, SourceCategory } from "../../types.js";
-import { normalizeText } from "../../utils.js";
+import { SearchCategory, SearchSubcategory, SourceCategory } from "../../domain/index.js";
+import { normalizeText } from "../../shared/utils.js";
 
 export type DiscoveryReferenceRecord = {
   targetRecordKey: string;

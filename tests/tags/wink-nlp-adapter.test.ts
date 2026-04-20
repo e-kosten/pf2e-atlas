@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { analyzeNormalizedTextTokens } from "../../src/tags/runtime/wink-nlp-adapter.js";
-import { normalizeText } from "../../src/utils.js";
+import { normalizeText } from "../../src/shared/utils.js";
 
 function analyze(value: string) {
   const normalized = normalizeText(value);

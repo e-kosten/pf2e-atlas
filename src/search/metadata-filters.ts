@@ -49,9 +49,9 @@ import {
   MetadataTextStringField,
   MetadataTextStringPredicate,
   NormalizedRecord,
-} from "../types.js";
+} from "../domain/index.js";
 import { normalizeDerivedTag } from "../tags/index.js";
-import { normalizeText } from "../utils.js";
+import { normalizeText } from "../shared/utils.js";
 import type { SqlValue } from "./contracts.js";
 
 export type MetadataSqlContext = {} & MetadataSqlSourceContext;

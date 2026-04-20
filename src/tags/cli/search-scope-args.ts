@@ -3,7 +3,7 @@ import {
   parseSearchSubcategoryForCategory,
   parseSearchSubcategoryValue,
 } from "../../data/sql-row-decoding.js";
-import type { SearchCategory, SearchSubcategory } from "../../types.js";
+import type { SearchCategory, SearchSubcategory } from "../../domain/index.js";
 
 export function parseOptionalSearchCategoryArg(
   value: string | undefined,

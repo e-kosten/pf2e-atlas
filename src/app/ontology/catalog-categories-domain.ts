@@ -1,6 +1,6 @@
 import { CATEGORY_SUBCATEGORY_MAP, SEARCH_CATEGORIES } from "../../domain/categories.js";
 import type { Pf2eDataService } from "../../data/service.js";
-import type { OntologyDomainModel, OntologyNode, SearchCategory } from "../../types.js";
+import type { OntologyDomainModel, OntologyNode, SearchCategory } from "../../domain/index.js";
 import { getOntologyDomainSummary } from "./domain-summaries.js";
 import { buildFilterText, buildKeyValueDetailLines, titleCaseLabel } from "./node-helpers.js";
 

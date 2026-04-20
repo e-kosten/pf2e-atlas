@@ -1,12 +1,12 @@
 import { DatabaseSync } from "node:sqlite";
 
-import { uniqueSorted } from "../../utils.js";
+import { uniqueSorted } from "../../shared/utils.js";
 import {
   getDerivedTagExemplarRecordKeys,
   getDerivedTagLegacySeedMigrationRecordKeys,
   normalizeDerivedTag,
 } from "../index.js";
-import { SearchCategory, SearchSubcategory } from "../../types.js";
+import { SearchCategory, SearchSubcategory } from "../../domain/index.js";
 import { type DiscoveryEvidenceTerm, analyzeDiscoveryEvidenceFromRecords } from "./evidence-analyzer.js";
 import { tokenizeDiscoveryText } from "../discovery/discovery-normalization.js";
 import {

@@ -2,7 +2,7 @@ import type { DatabaseSync } from "node:sqlite";
 
 import type { EmbeddingProvider } from "../../embeddings.js";
 import type { RankingConfigStore } from "../../search/ranking-config.js";
-import type { EmbeddingConfig, PackInfo } from "../../types.js";
+import type { EmbeddingConfig, PackInfo } from "../../domain/index.js";
 
 export type Pf2eDataServiceLoadOptions = {
   indexPath?: string;

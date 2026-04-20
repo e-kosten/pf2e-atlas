@@ -17,7 +17,7 @@ import {
   SearchScope,
   SearchSort,
   SearchSubcategory,
-} from "../types.js";
+} from "../domain/index.js";
 import {
   getCategoryForSubcategory,
   getSearchCategoryErrorMessage,
@@ -27,7 +27,7 @@ import {
 } from "../domain/categories.js";
 import type { NormalizedSearchFilters, NormalizedSearchScope, SqlValue } from "./contracts.js";
 import { appendMetadataFilterClauses, recordMatchesMetadataFilter } from "./metadata-filters.js";
-import { normalizeText, uniqueSorted } from "../utils.js";
+import { normalizeText, uniqueSorted } from "../shared/utils.js";
 
 function appendWhereClause(sql: string[], params: SqlValue[], clause: string, ...values: SqlValue[]): void {
   sql.push(clause);

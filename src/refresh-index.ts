@@ -5,7 +5,7 @@ import { DatabaseSync } from "node:sqlite";
 import { loadConfig } from "./app/config.js";
 import { writeMetadataGlossaryArtifact } from "./data/metadata-glossary.js";
 import { Pf2eDataService } from "./data/service.js";
-import { ConsoleProgressReporter } from "./progress.js";
+import { ConsoleProgressReporter } from "./shared/progress.js";
 import { writeDerivedTagOntologyExplorerDbCache } from "./tui/ontology-explorer/data.js";
 
 function formatDuration(durationMs: number): string {

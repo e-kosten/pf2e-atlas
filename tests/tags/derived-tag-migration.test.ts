@@ -10,7 +10,7 @@ import type {
   DerivedTagExemplarReviewCategory,
   SearchCategory,
   SearchSubcategory,
-} from "../../src/types.js";
+} from "../../src/domain/index.js";
 import type { OntologyExplorerEntityRecord } from "../../src/tui/ontology-explorer/entity-record.js";
 import type {
   AuthoredDerivedTagAssignment,

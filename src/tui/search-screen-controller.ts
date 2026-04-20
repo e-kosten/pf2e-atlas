@@ -1,6 +1,6 @@
 import React from "react";
 
-import type { OntologyNodeQuery } from "../types.js";
+import type { OntologyNodeQuery } from "../domain/index.js";
 import { usePf2eTerminalAppServices } from "./app-service-context.js";
 import { showTerminalReturnDialog, useTerminalInteractionContextAdapters } from "./interaction-context-adapters.js";
 import {

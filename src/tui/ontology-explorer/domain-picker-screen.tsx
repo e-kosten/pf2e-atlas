@@ -1,6 +1,6 @@
 import React from "react";
 
-import type { OntologyDomainSummary } from "../../types.js";
+import type { OntologyDomainSummary } from "../../domain/index.js";
 import {
   buildTerminalInteractionHelpLines,
   formatTerminalFooterBindings,

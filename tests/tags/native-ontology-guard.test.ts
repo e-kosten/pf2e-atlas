@@ -3,7 +3,7 @@ import { DatabaseSync } from "node:sqlite";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import type { DerivedTagOntologyTag, DerivedTagRule } from "../../src/types.js";
+import type { DerivedTagOntologyTag, DerivedTagRule } from "../../src/domain/index.js";
 import { AFFLICTION_DERIVED_TAG_ONTOLOGY } from "../../src/tags/ontology/affliction.js";
 import { CREATURE_DERIVED_TAG_ONTOLOGY } from "../../src/tags/ontology/creature.js";
 import { EQUIPMENT_DERIVED_TAG_ONTOLOGY } from "../../src/tags/ontology/equipment.js";

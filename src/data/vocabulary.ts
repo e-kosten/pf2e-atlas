@@ -11,9 +11,9 @@ import type {
   SearchCategory,
   SearchSubcategory,
   SourceCategory,
-} from "../types.js";
+} from "../domain/index.js";
 import { buildFilterValueQuery } from "../search/sql.js";
-import { normalizeText } from "../utils.js";
+import { normalizeText } from "../shared/utils.js";
 import type { NormalizedSearchFilters } from "../search/contracts.js";
 import type { ValueCountRow } from "./rows.js";
 import {

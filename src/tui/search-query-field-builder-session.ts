@@ -1,4 +1,4 @@
-import type { MetadataFilterNode, OntologyDomainModel } from "../types.js";
+import type { MetadataFilterNode, OntologyDomainModel } from "../domain/index.js";
 import type { SearchWorkspaceEntry } from "./search-screen-workspace.js";
 import { flattenMetadataTree, isMetadataPredicate } from "./search/query-core.js";
 import {

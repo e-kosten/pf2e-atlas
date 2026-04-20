@@ -9,7 +9,7 @@ import type {
   OntologyDomainModel,
   SearchCountResult,
   SearchFilters,
-} from "../../src/types.js";
+} from "../../src/domain/index.js";
 import { createPf2eTerminalSearchService } from "../../src/tui/search-service.js";
 import { Pf2eTerminalAppServicesProvider } from "../../src/tui/app-service-context.js";
 import type { Pf2eTerminalAppServices } from "../../src/tui/app-services.js";

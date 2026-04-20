@@ -7,8 +7,8 @@ import type {
   DerivedTagSeedRecordResolution,
   SearchCategory,
   SearchSubcategory,
-} from "../../types.js";
-import { normalizeText, uniqueSorted } from "../../utils.js";
+} from "../../domain/index.js";
+import { normalizeText, uniqueSorted } from "../../shared/utils.js";
 import type { DerivedTagExplicitAssignmentIndex } from "./assignments.js";
 import type { DerivedTagContext } from "./matcher.js";
 import { normalizeDerivedTag } from "./shared.js";

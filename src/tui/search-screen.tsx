@@ -1,6 +1,6 @@
 import React from "react";
 
-import type { OntologyNodeQuery } from "../types.js";
+import type { OntologyNodeQuery } from "../domain/index.js";
 import { OntologyPickerScreen } from "./ontology-explorer/picker-screen.js";
 import {
   buildSearchStructuredEditorDetailLines,

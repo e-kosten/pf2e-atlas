@@ -1,4 +1,4 @@
-import type { AuthoredDerivedTagRule } from "../../types.js";
+import type { AuthoredDerivedTagRule } from "../../domain/index.js";
 import type { DerivedTagManagedCategory } from "../manifest.js";
 import { AFFLICTION_AUTHORED_DERIVED_TAG_RULES } from "./affliction.js";
 import { CREATURE_AUTHORED_DERIVED_TAG_RULES } from "./creature.js";

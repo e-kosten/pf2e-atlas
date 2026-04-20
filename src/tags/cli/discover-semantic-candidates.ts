@@ -6,7 +6,7 @@ import { DatabaseSync } from "node:sqlite";
 import { pathToFileURL } from "node:url";
 
 import { loadConfig } from "../../app/config.js";
-import { SearchCategory, SearchSubcategory } from "../../types.js";
+import { SearchCategory, SearchSubcategory } from "../../domain/index.js";
 import { parseOptionalScopedSearchSubcategoryArg, parseOptionalSearchCategoryArg } from "./search-scope-args.js";
 import {
   discoverSemanticCandidates,

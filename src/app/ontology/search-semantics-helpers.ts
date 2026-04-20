@@ -14,8 +14,8 @@ import type {
   OntologyNode,
   SearchCategory,
   SearchSubcategory,
-} from "../../types.js";
-import { normalizeText } from "../../utils.js";
+} from "../../domain/index.js";
+import { normalizeText } from "../../shared/utils.js";
 import {
   buildFilterText,
   buildKeyValueDetailLines,

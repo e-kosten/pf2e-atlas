@@ -12,7 +12,7 @@ import {
   type MetadataFieldType,
 } from "./metadata-field-registry.js";
 import type { FilterValueOrdering } from "./filter-value-ordering.js";
-import { MetadataFilterNode, SearchCategory, SearchSubcategory } from "../types.js";
+import { MetadataFilterNode, SearchCategory, SearchSubcategory } from "./index.js";
 
 export interface MetadataFieldSemantics {
   field: MetadataFieldName;

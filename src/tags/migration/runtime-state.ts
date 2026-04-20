@@ -1,4 +1,4 @@
-import type { DerivedTagExemplarReviewDecision, SearchCategory } from "../../types.js";
+import type { DerivedTagExemplarReviewDecision, SearchCategory } from "../../domain/index.js";
 import { DERIVED_TAG_MANAGED_CATEGORIES } from "../manifest.js";
 import { DERIVED_TAG_ONTOLOGY_FAMILIES, DERIVED_TAG_ONTOLOGY_TAGS, deriveRecordTagDerivation } from "../index.js";
 import {

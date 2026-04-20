@@ -11,7 +11,7 @@ import type {
   MetadataSetField,
   SearchCategory,
   SearchSubcategory,
-} from "../../types.js";
+} from "../../domain/index.js";
 import {
   isMetadataQueryPart,
   metadataFilterNodeToRootQueryParts,

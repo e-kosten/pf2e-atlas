@@ -1,7 +1,7 @@
 import winkNLP from "wink-nlp";
 import model from "wink-eng-lite-web-model";
 
-import { normalizeText } from "../../utils.js";
+import { normalizeText } from "../../shared/utils.js";
 
 export type { PartOfSpeech } from "wink-nlp";
 import type { PartOfSpeech } from "wink-nlp";

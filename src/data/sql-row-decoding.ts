@@ -3,7 +3,7 @@ import {
   normalizeSearchCategory,
   normalizeSearchSubcategory,
 } from "../domain/categories.js";
-import type { SearchCategory, SearchSubcategory, SourceCategory } from "../types.js";
+import type { SearchCategory, SearchSubcategory, SourceCategory } from "../domain/index.js";
 
 export function parseSearchCategoryValue(value: string, context: string): SearchCategory {
   const normalized = normalizeSearchCategory(value);

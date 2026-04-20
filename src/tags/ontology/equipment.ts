@@ -1,4 +1,4 @@
-import type { DerivedTagAuthoredCategoryOntology } from "../../types.js";
+import type { DerivedTagAuthoredCategoryOntology } from "../../domain/index.js";
 import { fromFamily } from "./utils.js";
 
 export const EQUIPMENT_DERIVED_TAG_ONTOLOGY = {

@@ -1,4 +1,4 @@
-import { normalizeText } from "../utils.js";
+import { normalizeText } from "../shared/utils.js";
 
 export type FilterValueOrdering =
   | { kind: "alpha" }

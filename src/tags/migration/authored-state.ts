@@ -5,7 +5,7 @@ import type {
   AuthoredDerivedTagRule,
   DerivedTagExemplarCategory,
   DerivedTagExemplarReviewCategory,
-} from "../../types.js";
+} from "../../domain/index.js";
 import { DERIVED_TAG_ASSIGNMENTS_BY_CATEGORY } from "../assignments/index.js";
 import { DERIVED_TAG_ASSIGNMENT_MEMORY_BY_CATEGORY } from "../assignment-memory/index.js";
 import { DERIVED_TAG_ASSIGNMENT_REVIEWS_BY_CATEGORY } from "../assignment-reviews/index.js";
@@ -154,7 +154,7 @@ function renderAssignmentFile(
 function renderExemplarFile(category: DerivedTagManagedCategory, exemplars: DerivedTagExemplarCategory): string {
   const exportName = `${getCategoryExportPrefix(category)}_DERIVED_TAG_EXEMPLARS`;
   return [
-    'import type { DerivedTagExemplarCategory } from "../../types.js";',
+    'import type { DerivedTagExemplarCategory } from "../../domain/index.js";',
     "",
     `export const ${exportName} = ${renderTsValue(exemplars)} satisfies DerivedTagExemplarCategory;`,
     "",
@@ -164,7 +164,7 @@ function renderExemplarFile(category: DerivedTagManagedCategory, exemplars: Deri
 function renderAuthoredRuleFile(category: DerivedTagManagedCategory, rules: AuthoredDerivedTagRule[]): string {
   const exportName = `${getCategoryExportPrefix(category)}_AUTHORED_DERIVED_TAG_RULES`;
   return [
-    'import type { AuthoredDerivedTagRule } from "../../types.js";',
+    'import type { AuthoredDerivedTagRule } from "../../domain/index.js";',
     "",
     `export const ${exportName}: AuthoredDerivedTagRule[] = ${renderTsValue(rules)};`,
     "",
@@ -199,7 +199,7 @@ function renderExemplarReviewRegistryFile(
   exemplarReviews: DerivedTagManagedRegistry<DerivedTagExemplarReviewCategory>,
 ): string {
   return [
-    'import type { DerivedTagExemplarReviewCategory } from "../../types.js";',
+    'import type { DerivedTagExemplarReviewCategory } from "../../domain/index.js";',
     'import type { DerivedTagManagedCategory } from "../manifest.js";',
     "",
     `export const DERIVED_TAG_EXEMPLAR_REVIEWS_BY_CATEGORY = ${renderTsValue(exemplarReviews)} satisfies Record<DerivedTagManagedCategory, DerivedTagExemplarReviewCategory>;`,

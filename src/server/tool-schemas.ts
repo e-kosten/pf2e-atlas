@@ -31,7 +31,7 @@ import {
   SearchCategory,
   SearchScope,
   SearchSubcategory,
-} from "../types.js";
+} from "../domain/index.js";
 
 export const CATEGORY_HINT_DESCRIPTION = `Optional top-level category hint. Canonical values: ${VALID_SEARCH_CATEGORY_LIST}. Legacy plural aliases are also accepted.`;
 

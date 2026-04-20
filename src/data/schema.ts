@@ -5,8 +5,8 @@ import { DatabaseSync } from "node:sqlite";
 import * as sqliteVec from "sqlite-vec";
 
 import { DEFAULT_EMBEDDING_MODEL_ID, DEFAULT_EMBEDDING_REVISION, EmbeddingProvider } from "../embeddings.js";
-import { EmbeddingConfig, LinkedRecordSummary, PackInfo } from "../types.js";
-import { uniqueSorted } from "../utils.js";
+import { EmbeddingConfig, LinkedRecordSummary, PackInfo } from "../domain/index.js";
+import { uniqueSorted } from "../shared/utils.js";
 
 export const INDEX_SCHEMA_VERSION = 24;
 

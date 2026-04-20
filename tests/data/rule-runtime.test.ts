@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { collectRuleQuestionContext, getRuleGraph } from "../../src/data/rule-runtime.js";
-import type { LookupQuery, LookupResult, NormalizedRecord, RuleReferenceEdge } from "../../src/types.js";
+import type { LookupQuery, LookupResult, NormalizedRecord, RuleReferenceEdge } from "../../src/domain/index.js";
 import type { ReferenceEdgeRow } from "../../src/data/rows.js";
 
 function createRecord(recordKey: string, name = recordKey): NormalizedRecord {

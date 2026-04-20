@@ -1,6 +1,6 @@
 import { DatabaseSync } from "node:sqlite";
 
-import type { DerivedTagAssignmentMode, SearchCategory, SearchSubcategory } from "../../types.js";
+import type { DerivedTagAssignmentMode, SearchCategory, SearchSubcategory } from "../../domain/index.js";
 import {
   getCurrentDerivedTagMigrationAuthoredState,
   getCurrentDerivedTagMigrationAuthoredStateRevision,

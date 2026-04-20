@@ -1,4 +1,4 @@
-import type { DerivedTagAuthoredCategoryOntology } from "../../types.js";
+import type { DerivedTagAuthoredCategoryOntology } from "../../domain/index.js";
 
 export const AFFLICTION_DERIVED_TAG_ONTOLOGY = {
   category: "affliction",

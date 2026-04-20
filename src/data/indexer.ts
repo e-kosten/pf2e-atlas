@@ -14,8 +14,8 @@ import {
   normalizeDerivedTag,
   validateConfiguredDerivedTagAssignments,
 } from "../tags/index.js";
-import { PackInfo, PackManifestEntry } from "../types.js";
-import { normalizeText, uniqueSorted } from "../utils.js";
+import { PackInfo, PackManifestEntry } from "../domain/index.js";
+import { normalizeText, uniqueSorted } from "../shared/utils.js";
 import {
   ActorIndexData,
   BuildIndexResult,

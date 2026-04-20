@@ -1,6 +1,6 @@
 import { DatabaseSync } from "node:sqlite";
 
-import type { RuleReferenceEdge } from "../types.js";
+import type { RuleReferenceEdge } from "../domain/index.js";
 import {
   buildCandidateCountQuery,
   buildCandidateKeyQuery,
@@ -13,7 +13,7 @@ import {
 import type { NormalizedSearchFilters } from "../search/contracts.js";
 import { buildPlaceholders, CandidateRow, ReferenceEdgeRow, sqliteRowCount } from "./rows.js";
 import type { LexicalRetrievalRow, SemanticRetrievalRow } from "../search/ranking.js";
-import type { SearchSort } from "../types.js";
+import type { SearchSort } from "../domain/index.js";
 
 function encodeVector(vector: Float32Array): Buffer {
   return Buffer.from(vector.buffer.slice(vector.byteOffset, vector.byteOffset + vector.byteLength));

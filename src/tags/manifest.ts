@@ -1,4 +1,4 @@
-import type { SearchCategory } from "../types.js";
+import type { SearchCategory } from "../domain/index.js";
 
 export type DerivedTagManagedCategory = "affliction" | "creature" | "equipment" | "hazard" | "spell";
 

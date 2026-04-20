@@ -1,5 +1,5 @@
-import type { SearchQueryAnalysis } from "../types.js";
-import { normalizeText } from "../utils.js";
+import type { SearchQueryAnalysis } from "../domain/index.js";
+import { normalizeText } from "../shared/utils.js";
 
 export type SearchQueryAnalysisState = SearchQueryAnalysis & {
   baseTraitWeights: Map<string, number>;

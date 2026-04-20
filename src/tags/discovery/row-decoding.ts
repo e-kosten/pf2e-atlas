@@ -3,7 +3,7 @@ import {
   normalizeSearchCategory,
   normalizeSearchSubcategory,
 } from "../../domain/categories.js";
-import { SearchCategory, SearchSubcategory } from "../../types.js";
+import { SearchCategory, SearchSubcategory } from "../../domain/index.js";
 
 export function decodeDiscoveryVector(blob: Uint8Array | null | undefined): Float32Array {
   if (!blob || blob.byteLength === 0) {

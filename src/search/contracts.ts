@@ -6,7 +6,7 @@ import type {
   SearchFilters,
   SearchSort,
   SearchSubcategory,
-} from "../types.js";
+} from "../domain/index.js";
 import type { RankingConfig } from "./ranking-config.js";
 import type { LexicalRetrievalRow, SemanticRetrievalRow } from "./ranking.js";
 

@@ -8,14 +8,14 @@ import type {
   SearchSubcategory,
   SourceCategory,
   VariantSource,
-} from "../types.js";
+} from "../domain/index.js";
 import {
   categorySupportsSubcategory,
   normalizeSearchCategory,
   normalizeSearchSubcategory,
 } from "../domain/categories.js";
 import { METADATA_FIELD_REGISTRY } from "../domain/metadata-field-registry.js";
-import { normalizeText } from "../utils.js";
+import { normalizeText } from "../shared/utils.js";
 
 export type CandidateRow = {
   recordKey: string;

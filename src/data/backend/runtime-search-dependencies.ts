@@ -2,7 +2,7 @@ import type { DatabaseSync } from "node:sqlite";
 
 import type { EmbeddingProvider } from "../../embeddings.js";
 import { DEFAULT_RANKING_CONFIG, type RankingConfigStore } from "../../search/ranking-config.js";
-import type { NormalizedRecord } from "../../types.js";
+import type { NormalizedRecord } from "../../domain/index.js";
 import type { RuntimeSearchDependencies, SearchCandidate } from "../../search/contracts.js";
 import {
   fetchCandidateCount,

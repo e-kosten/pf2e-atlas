@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { OntologyDomainModel } from "../../src/types.js";
+import type { OntologyDomainModel } from "../../src/domain/index.js";
 import { formatTerminalInteractionFooter } from "../../src/tui/interaction-bindings.js";
 import {
   resolveOntologyExplorerBackNavigation,

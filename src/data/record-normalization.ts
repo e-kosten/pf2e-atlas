@@ -9,7 +9,7 @@ import {
   slugifyActorMetricSegment,
 } from "../domain/actor-metrics.js";
 import { type ItemMetricMap, slugifyItemMetricSegment } from "../domain/item-metrics.js";
-import type { SourceCategory } from "../types.js";
+import type { SourceCategory } from "../domain/index.js";
 import {
   buildEmbeddedItemSearchChunks,
   getRecordBlurbText,
@@ -17,7 +17,7 @@ import {
   getRecordDescriptionText,
   getRecordTraits,
 } from "./nested-item-utils.js";
-import { firstString, getNested, normalizeText, stripHtml, toStringArray, uniqueSorted } from "../utils.js";
+import { firstString, getNested, normalizeText, stripHtml, toStringArray, uniqueSorted } from "../shared/utils.js";
 import type {
   ActorIndexData,
   ItemIndexData,

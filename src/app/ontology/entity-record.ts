@@ -1,4 +1,4 @@
-import type { NormalizedRecord, SearchCategory, SearchSubcategory, SourceCategory } from "../../types.js";
+import type { NormalizedRecord, SearchCategory, SearchSubcategory, SourceCategory } from "../../domain/index.js";
 import {
   parseSearchCategoryValue,
   parseSearchSubcategoryForCategory,

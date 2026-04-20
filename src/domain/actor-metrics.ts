@@ -1,4 +1,4 @@
-import { normalizeText } from "../utils.js";
+import { normalizeText } from "../shared/utils.js";
 
 export const ACTOR_METRIC_NUMERIC_OPERATORS = ["==", "!=", ">", ">=", "<", "<="] as const;
 export const ACTOR_METRIC_SCALAR_OPERATORS = ["==", "!="] as const;

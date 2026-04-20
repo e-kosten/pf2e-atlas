@@ -2,8 +2,8 @@ import { CATEGORY_SUBCATEGORY_MAP, SEARCH_CATEGORIES, normalizeSearchCategory } 
 import { getMetadataFilterSemantics, type MetadataFieldSemantics } from "../../domain/metadata-semantics.js";
 import { readMetadataGlossaryArtifact } from "../../data/metadata-glossary.js";
 import type { Pf2eDataService } from "../../data/service.js";
-import type { AppConfig, OntologyDomainModel, OntologyNode, SearchCategory, SearchSubcategory } from "../../types.js";
-import { normalizeText } from "../../utils.js";
+import type { AppConfig, OntologyDomainModel, OntologyNode, SearchCategory, SearchSubcategory } from "../../domain/index.js";
+import { normalizeText } from "../../shared/utils.js";
 import { getOntologyDomainSummary } from "./domain-summaries.js";
 import { buildFilterText, buildKeyValueDetailLines, cloneOntologyNode, titleCaseLabel } from "./node-helpers.js";
 import { buildFieldValueNodes, buildMetricDiscoveryGroup, getTraitGlossaryEntry } from "./search-semantics-helpers.js";

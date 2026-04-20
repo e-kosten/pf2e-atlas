@@ -1,5 +1,5 @@
 import { normalizeDerivedTag } from "../tags/index.js";
-import { uniqueSorted } from "../utils.js";
+import { uniqueSorted } from "../shared/utils.js";
 import type { NormalizedIndexRecord } from "./index-types.js";
 
 type VariantBaseResolution = {

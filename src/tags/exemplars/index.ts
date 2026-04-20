@@ -1,4 +1,4 @@
-import type { DerivedTagExemplarCategory } from "../../types.js";
+import type { DerivedTagExemplarCategory } from "../../domain/index.js";
 import type { DerivedTagManagedCategory } from "../manifest.js";
 import { AFFLICTION_DERIVED_TAG_EXEMPLARS } from "./affliction.js";
 import { CREATURE_DERIVED_TAG_EXEMPLARS } from "./creature.js";

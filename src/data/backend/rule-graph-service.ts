@@ -9,7 +9,7 @@ import type {
   CollectRuleQuestionContextInput,
   CollectRuleQuestionContextResult,
   RuleGraphCollectionResult,
-} from "../../types.js";
+} from "../../domain/index.js";
 import type { Pf2eRecordCatalog } from "./record-catalog.js";
 import type { Pf2eSearchBackendService } from "./search-service.js";
 

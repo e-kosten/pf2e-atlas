@@ -1,5 +1,5 @@
-import { SearchCategory, SearchSubcategory } from "../../types.js";
-import { uniqueSorted } from "../../utils.js";
+import { SearchCategory, SearchSubcategory } from "../../domain/index.js";
+import { uniqueSorted } from "../../shared/utils.js";
 import { normalizeDerivedTag } from "../runtime/shared.js";
 
 export const REVIEWED_DISCOVERY_REASONS = [

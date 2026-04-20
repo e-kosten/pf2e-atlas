@@ -1,5 +1,5 @@
-import { SearchCategory, SearchSubcategory } from "../types.js";
-import { firstString, getNested, normalizeText, toStringArray, uniqueSorted } from "../utils.js";
+import { SearchCategory, SearchSubcategory } from "./index.js";
+import { firstString, getNested, normalizeText, toStringArray, uniqueSorted } from "../shared/utils.js";
 
 export const SEARCH_CATEGORIES = [
   "equipment",

@@ -11,7 +11,7 @@ import type {
   SearchFilters,
   SearchResult,
   SearchWindowPage,
-} from "../../types.js";
+} from "../../domain/index.js";
 import type { EmbeddingProvider } from "../../embeddings.js";
 import type { RankingConfigStore } from "../../search/ranking-config.js";
 import {

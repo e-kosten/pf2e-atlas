@@ -6,7 +6,7 @@ import type {
   DerivedTagExemplarReviewCategory,
   DerivedTagExemplarReviewDecision,
   SearchCategory,
-} from "../../types.js";
+} from "../../domain/index.js";
 import type {
   AuthoredDerivedTagAssignment,
   DerivedTagAssignmentDecision,
@@ -18,7 +18,7 @@ import type {
 } from "../runtime/assignments.js";
 import { expectDerivedTagManagedCategory } from "../manifest.js";
 import { normalizeDerivedTag } from "../runtime/shared.js";
-import { uniqueSorted } from "../../utils.js";
+import { uniqueSorted } from "../../shared/utils.js";
 import { getCurrentDerivedTagMigrationAuthoredState, writeDerivedTagMigrationAuthoredState } from "./authored-state.js";
 import { lintDerivedTagMigrationSession } from "./linter.js";
 import type {

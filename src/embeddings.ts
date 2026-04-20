@@ -1,7 +1,7 @@
 import { mkdir } from "node:fs/promises";
 
-import { normalizeText } from "./utils.js";
-import { EmbeddingConfig, EmbeddingProviderKind } from "./types.js";
+import { normalizeText } from "./shared/utils.js";
+import { EmbeddingConfig, EmbeddingProviderKind } from "./domain/index.js";
 
 const DEFAULT_HASH_DIMENSIONS = 192;
 export const DEFAULT_EMBEDDING_MODEL_ID = "Xenova/all-MiniLM-L12-v2";

@@ -1,4 +1,4 @@
-import type { SearchCountResult } from "../types.js";
+import type { SearchCountResult } from "../domain/index.js";
 import type { Pf2eTerminalSearchQuery, Pf2eTerminalSearchSession, Pf2eTerminalSearchSort } from "./search-service.js";
 import { moveSelection } from "./framework/input.js";
 import { reduceDerivedTagTerminalTwoPaneState } from "./two-pane-state.js";

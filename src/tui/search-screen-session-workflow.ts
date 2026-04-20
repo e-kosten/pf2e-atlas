@@ -1,6 +1,6 @@
 import React from "react";
 
-import type { OntologyNodeQuery } from "../types.js";
+import type { OntologyNodeQuery } from "../domain/index.js";
 import type { Pf2eTerminalAppServices } from "./app-services.js";
 import type { SearchTerminalPromptAdapters } from "./interaction-context-adapters.js";
 import type { SearchCountState, SearchScreenAction, SearchScreenState } from "./search-screen-state.js";

@@ -17,8 +17,8 @@ import type {
   DerivedTagMigrationMode,
   DerivedTagMigrationResolutionStatus,
 } from "./types.js";
-import type { SearchCategory, SearchSubcategory } from "../../types.js";
-import type { DerivedTagExemplarPolarity, AuthoredDerivedTagRule } from "../../types.js";
+import type { SearchCategory, SearchSubcategory } from "../../domain/index.js";
+import type { DerivedTagExemplarPolarity, AuthoredDerivedTagRule } from "../../domain/index.js";
 import type {
   DerivedTagReviewConfidence,
   DerivedTagReviewSource,

@@ -4,7 +4,7 @@ import type {
   OntologySelectionState,
   SearchCategory,
   SearchSubcategory,
-} from "../../types.js";
+} from "../../domain/index.js";
 import type { Pf2eTerminalFacetFieldOption } from "../search-service.js";
 import { cloneOntologyNode, getOntologyNodeChildren, titleCaseLabel } from "../../app/ontology/node-helpers.js";
 

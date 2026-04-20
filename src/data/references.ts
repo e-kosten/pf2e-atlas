@@ -2,7 +2,7 @@ import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 
 import { fileExists } from "../shared/fs.js";
-import { firstString, getNested, normalizeText, stripHtml, uniqueSorted } from "../utils.js";
+import { firstString, getNested, normalizeText, stripHtml, uniqueSorted } from "../shared/utils.js";
 import type {
   BuildSourceEntry,
   ExtractedReference,

@@ -24,8 +24,8 @@ import {
   SearchRecordExplanation,
   SearchResult,
   SearchSort,
-} from "../types.js";
-import { clampLimit, clampOffset, normalizeText } from "../utils.js";
+} from "../domain/index.js";
+import { clampLimit, clampOffset, normalizeText } from "../shared/utils.js";
 import type { NormalizedSearchFilters, RuntimeSearchDependencies } from "./contracts.js";
 
 const LOOKUP_LEXICAL_TOP_K = 100;

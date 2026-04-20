@@ -3,7 +3,7 @@ import React from "react";
 import { cleanup, render } from "ink-testing-library";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { OntologyDomainModel, OntologyNodeQuery } from "../../src/types.js";
+import type { OntologyDomainModel, OntologyNodeQuery } from "../../src/domain/index.js";
 import { OntologyBrowserScreen } from "../../src/tui/ontology-explorer/screen.js";
 import type { OntologyBrowserSnapshot } from "../../src/tui/ontology-explorer/ui.js";
 import { DerivedTagTerminalProvider } from "../../src/tui/terminal-ui.js";

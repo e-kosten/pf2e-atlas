@@ -6,7 +6,7 @@ import type {
   SearchSubcategory,
   SourceCategory,
   VariantSource,
-} from "../types.js";
+} from "../domain/index.js";
 
 export type StageTiming = {
   label: string;

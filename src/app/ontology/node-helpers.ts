@@ -4,8 +4,8 @@ import type {
   OntologyNode,
   OntologyTextLine,
   SearchFilters,
-} from "../../types.js";
-import { normalizeText } from "../../utils.js";
+} from "../../domain/index.js";
+import { normalizeText } from "../../shared/utils.js";
 import { mapNormalizedRecordToOntologyExplorerEntityRecord } from "./entity-record.js";
 import { buildOntologyExplorerEntityDetailLines, buildOntologyExplorerEntitySummary } from "./presenter.js";
 

@@ -5,7 +5,7 @@ import { constants } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 
 import { loadConfig } from "../../app/config.js";
-import { ConsoleProgressReporter } from "../../progress.js";
+import { ConsoleProgressReporter } from "../../shared/progress.js";
 import { parseOptionalScopedSearchSubcategoryArg, parseRequiredSearchCategoryArg } from "./search-scope-args.js";
 import {
   isReviewedDiscoveryReason,

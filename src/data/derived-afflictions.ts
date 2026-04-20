@@ -1,5 +1,5 @@
-import type { SourceCategory } from "../types.js";
-import { normalizeText, uniqueSorted } from "../utils.js";
+import type { SourceCategory } from "../domain/index.js";
+import { normalizeText, uniqueSorted } from "../shared/utils.js";
 import type {
   ActorIndexData,
   BuildSourceEntry,

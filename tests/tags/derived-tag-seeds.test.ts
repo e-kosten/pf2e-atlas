@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { DerivedTagExemplarCategory, DerivedTagOntologyFamily, DerivedTagOntologyTag } from "../../src/types.js";
+import type { DerivedTagExemplarCategory, DerivedTagOntologyFamily, DerivedTagOntologyTag } from "../../src/domain/index.js";
 import { publishDerivedTagOntology } from "../../src/tags/runtime/catalog-utils.js";
 import {
   publishDerivedTagExemplars,

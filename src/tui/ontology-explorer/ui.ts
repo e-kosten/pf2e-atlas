@@ -1,4 +1,4 @@
-import type { OntologyChildPresentation, OntologyDomainModel, OntologyNode } from "../../types.js";
+import type { OntologyChildPresentation, OntologyDomainModel, OntologyNode } from "../../domain/index.js";
 import { getOntologyNodeChildren, titleCaseLabel } from "../../app/ontology/node-helpers.js";
 import {
   getRenderedTerminalLineCount,

@@ -1,4 +1,4 @@
-import type { MetadataFilterNode, MetadataPredicate } from "../../types.js";
+import type { MetadataFilterNode, MetadataPredicate } from "../../domain/index.js";
 
 export type SearchMetadataNodeSummary = {
   label: string;

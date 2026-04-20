@@ -16,7 +16,7 @@ import type {
   OntologyDomainSummary,
   OntologyNode,
   SearchFilters,
-} from "../../src/types.js";
+} from "../../src/domain/index.js";
 
 function createTestConfig(indexPath = ".cache/pf2e-index.sqlite"): AppConfig {
   return {
