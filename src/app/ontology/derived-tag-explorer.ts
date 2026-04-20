@@ -5,7 +5,7 @@ import type { SearchCategory, SearchSubcategory } from "../../domain/search-type
 import {
   getCurrentDerivedTagMigrationAuthoredState,
   getCurrentDerivedTagMigrationAuthoredStateRevision,
-} from "../../tags/migration/authored-state.js";
+} from "../../tags/editorial/authored-state.js";
 import { getDerivedTagExemplars, listDerivedTagLegacySeedMigrations, normalizeDerivedTag } from "../../tags/index.js";
 import {
   buildOntologyExplorerEntityRecordSelectColumns,
@@ -13,8 +13,8 @@ import {
   type OntologyExplorerEntityRecord,
   type OntologyExplorerEntityRecordRow,
 } from "./entity-record.js";
-import { compareDisplayText, compareManagedCategory } from "../../tags/migration/list-sorting.js";
-import { getPublishedDerivedTagMigrationOntology } from "../../tags/migration/runtime-state.js";
+import { compareDisplayText, compareManagedCategory } from "../../tags/editorial/list-sorting.js";
+import { getPublishedDerivedTagMigrationOntology } from "../../tags/editorial/runtime-state.js";
 import { parseSearchCategoryValue } from "../../data/sql-row-decoding.js";
 
 type ExplorerCountRow = {

@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   countDerivedTagMigrationRecords,
   loadDerivedTagMigrationRecords,
-} from "../../src/tags/migration/record-loader.js";
+} from "../../src/tags/editorial/record-loader.js";
 
 function createMigrationDb(): DatabaseSync {
   const db = new DatabaseSync(":memory:");

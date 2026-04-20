@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import {
   importDerivedTagMigrationReviewSession,
   renderDerivedTagMigrationReviewSummary,
-} from "../../src/tags/migration/review-controller.js";
-import type { DerivedTagMigrationSession } from "../../src/tags/migration/types.js";
+} from "../../src/tags/editorial/review-controller.js";
+import type { DerivedTagMigrationSession } from "../../src/tags/editorial/types.js";
 
 function createSession(): DerivedTagMigrationSession {
   return {

@@ -6,11 +6,11 @@ import {
   parseCliArgs,
   parseInteger,
   writeDerivedTagMigrationSummary,
-} from "../migration/cli-utils.js";
-import { renderDerivedTagMigrationSessionSummary } from "../migration/render.js";
-import { writeDerivedTagMigrationSession } from "../migration/session-store.js";
-import { buildDerivedTagMigrationSession } from "../migration/session-builder.js";
-import type { DerivedTagMigrationMode } from "../migration/types.js";
+} from "../editorial/cli-utils.js";
+import { renderDerivedTagMigrationSessionSummary } from "../editorial/render.js";
+import { writeDerivedTagMigrationSession } from "../editorial/session-store.js";
+import { buildDerivedTagMigrationSession } from "../editorial/session-builder.js";
+import type { DerivedTagMigrationMode } from "../editorial/types.js";
 import { parseOptionalScopedSearchSubcategoryArg, parseOptionalSearchCategoryArg } from "./search-scope-args.js";
 
 const MODES: DerivedTagMigrationMode[] = [

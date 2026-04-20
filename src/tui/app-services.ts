@@ -10,18 +10,18 @@ import {
   promptAndCreateDerivedTagMigrationWorkbenchSession,
   type DerivedTagMigrationWorkbenchServices,
   type DerivedTagMigrationWorkbenchSessionCreationOptions,
-} from "../tags/migration/workbench-controller.js";
-import { buildDerivedTagMigrationSession } from "../tags/migration/session-builder.js";
-import { summarizeCurrentDerivedTagReviewQueue } from "../tags/migration/runtime-state.js";
-import { writeDerivedTagMigrationSession } from "../tags/migration/session-store.js";
-import { writeDerivedTagMigrationSummary } from "../tags/migration/cli-utils.js";
+} from "../tags/editorial/workbench-controller.js";
+import { buildDerivedTagMigrationSession } from "../tags/editorial/session-builder.js";
+import { summarizeCurrentDerivedTagReviewQueue } from "../tags/editorial/runtime-state.js";
+import { writeDerivedTagMigrationSession } from "../tags/editorial/session-store.js";
+import { writeDerivedTagMigrationSummary } from "../tags/editorial/cli-utils.js";
 import type { DerivedTagTerminalApp } from "./framework/types.js";
 import type {
   DerivedTagMigrationMode,
   DerivedTagMigrationReviewDecisionKind,
   DerivedTagMigrationSession,
   DerivedTagReviewQueueSummaryItem,
-} from "../tags/migration/types.js";
+} from "../tags/editorial/types.js";
 
 type SessionOptions = Omit<DerivedTagMigrationWorkbenchSessionCreationOptions, "decisionKind"> & {
   decisionKind?: DerivedTagMigrationReviewDecisionKind;

@@ -21,7 +21,7 @@ import {
   getCurrentDerivedTagMigrationAuthoredState,
   setCurrentDerivedTagMigrationAuthoredState,
   writeDerivedTagMigrationAuthoredState,
-} from "../../src/tags/migration/authored-state.js";
+} from "../../src/tags/editorial/authored-state.js";
 import {
   applyMigrationSessionToAssignments,
   applyMigrationSessionToAssignmentMemory,
@@ -29,19 +29,19 @@ import {
   applyMigrationSessionToAuthoredRules,
   applyMigrationSessionToExemplars,
   applyMigrationSessionToExemplarReviews,
-} from "../../src/tags/migration/importer.js";
-import { lintDerivedTagMigrationSession } from "../../src/tags/migration/linter.js";
-import { summarizeCurrentDerivedTagReviewQueue } from "../../src/tags/migration/runtime-state.js";
-import { renderDerivedTagMigrationReviewItem } from "../../src/tags/migration/render.js";
+} from "../../src/tags/editorial/importer.js";
+import { lintDerivedTagMigrationSession } from "../../src/tags/editorial/linter.js";
+import { summarizeCurrentDerivedTagReviewQueue } from "../../src/tags/editorial/runtime-state.js";
+import { renderDerivedTagMigrationReviewItem } from "../../src/tags/editorial/render.js";
 import {
   clampDerivedTagMigrationReviewIndex,
   getDerivedTagMigrationReviewItems,
   summarizeDerivedTagMigrationReviewProgress,
   toggleDerivedTagMigrationUnresolvedOnly,
   updateDerivedTagMigrationDecisionStatus,
-} from "../../src/tags/migration/review-session.js";
+} from "../../src/tags/editorial/review-session.js";
 import { moveSelection } from "../../src/tui/terminal-ui.js";
-import type { DerivedTagMigrationSession } from "../../src/tags/migration/types.js";
+import type { DerivedTagMigrationSession } from "../../src/tags/editorial/types.js";
 
 function createEntityRecord(
   overrides: Partial<OntologyExplorerEntityRecord> &

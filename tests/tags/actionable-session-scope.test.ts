@@ -3,11 +3,11 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   getCurrentDerivedTagMigrationAuthoredState,
   setCurrentDerivedTagMigrationAuthoredState,
-} from "../../src/tags/migration/authored-state.js";
+} from "../../src/tags/editorial/authored-state.js";
 import {
   getActionableSessionScopeKeys,
   matchesDerivedTagFamilyFilter,
-} from "../../src/tags/migration/actionable-session-scope.js";
+} from "../../src/tags/editorial/actionable-session-scope.js";
 
 const initialState = getCurrentDerivedTagMigrationAuthoredState();
 

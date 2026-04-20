@@ -1,8 +1,8 @@
 import React from "react";
 
-import { DerivedTagMigrationReviewScreen } from "../tags/migration/review-ui.js";
-import { formatDerivedTagMigrationModeLabel } from "../tags/migration/workbench-session-prompts.js";
-import type { DerivedTagMigrationMode, DerivedTagMigrationSession } from "../tags/migration/types.js";
+import { DerivedTagMigrationReviewScreen } from "../tags/editorial/review-ui.js";
+import { formatDerivedTagMigrationModeLabel } from "../tags/editorial/workbench-session-prompts.js";
+import type { DerivedTagMigrationMode, DerivedTagMigrationSession } from "../tags/editorial/types.js";
 import { PF2E_APP_AREAS, PF2E_TERMINAL_TITLE } from "./app-areas.js";
 import { Pf2eTerminalAppServicesProvider } from "./app-service-context.js";
 import { loadPf2eTerminalAppServices, type Pf2eTerminalAppServices } from "./app-services.js";

@@ -4,7 +4,7 @@ import type {
   DerivedTagMigrationMode,
   DerivedTagMigrationReviewDecisionKind,
   DerivedTagMigrationSession,
-} from "../tags/migration/types.js";
+} from "../tags/editorial/types.js";
 import type { OntologyBrowserSnapshot } from "./ontology-explorer/ui.js";
 import { moveSelectionWrapped } from "./framework/input.js";
 

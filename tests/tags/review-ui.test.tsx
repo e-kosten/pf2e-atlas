@@ -7,9 +7,9 @@ import { DerivedTagTerminalProvider } from "../../src/tui/terminal-ui.js";
 import {
   DerivedTagMigrationReviewScreen,
   type DerivedTagMigrationReviewResult,
-} from "../../src/tags/migration/review-ui.js";
-import type { DerivedTagMigrationReviewServices } from "../../src/tags/migration/review-controller.js";
-import type { DerivedTagMigrationSession } from "../../src/tags/migration/types.js";
+} from "../../src/tags/editorial/review-ui.js";
+import type { DerivedTagMigrationReviewServices } from "../../src/tags/editorial/review-controller.js";
+import type { DerivedTagMigrationSession } from "../../src/tags/editorial/types.js";
 
 function flushInk(): Promise<void> {
   return new Promise((resolve) => {

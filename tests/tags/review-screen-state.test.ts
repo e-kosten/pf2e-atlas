@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createInitialDerivedTagMigrationReviewScreenState,
   reduceDerivedTagMigrationReviewScreenState,
-} from "../../src/tags/migration/review-screen-state.js";
-import type { DerivedTagMigrationSession } from "../../src/tags/migration/types.js";
+} from "../../src/tags/editorial/review-screen-state.js";
+import type { DerivedTagMigrationSession } from "../../src/tags/editorial/types.js";
 
 function createSession(): DerivedTagMigrationSession {
   return {
