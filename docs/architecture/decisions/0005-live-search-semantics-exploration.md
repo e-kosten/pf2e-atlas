@@ -26,13 +26,13 @@ Use the search-semantics ontology as the shared live exploration surface for bro
 In practice this means:
 
 - `src/app/ontology-service.ts` continues to publish the full readonly search-semantics browse model
-- hosted query-field picking in the TUI should open scoped locations inside that real search-semantics explorer instead of maintaining a separate reduced picker ontology
+- scoped query-field entry in the TUI should seed the shared explorer directly instead of maintaining a separate reduced picker ontology or hosted compatibility layer
 - concrete search-semantics leaves should launch the normal result behavior against the live corpus instead of showing special-case tiny samples
-- scoped entry flows may seed an initial snapshot or root contract, but they should still land inside the same underlying browse surface
+- scoped entry flows may seed explorer state, but they should still land inside the same underlying browse surface
 
 ## Consequences
 
 - Users can inspect the same hierarchy for ontology browsing, search-semantics understanding, and structured query construction.
 - Search-semantics branches and leaf results stay aligned with the live corpus instead of drifting toward curated examples.
-- Query-field picker behavior becomes a hosting concern over the shared explorer rather than a second exploration model to maintain.
-- Future work that needs a scoped search-semantics entry point should extend the hosted-explorer contract, not create another standalone picker tree.
+- Query-field entry stays on the shared explorer surface instead of preserving a parallel picker compatibility stack.
+- Future work that needs a scoped search-semantics entry point should compose shared explorer state directly, not create another standalone picker tree.

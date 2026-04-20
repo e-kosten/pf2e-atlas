@@ -542,7 +542,7 @@ describe("eslint local architecture rules", () => {
     ).toBe(true);
   });
 
-  it("retains existing tactical search-screen controller restrictions alongside the package-level boundaries", async () => {
+  it("blocks reintroducing the retired facet-picker bridge model alongside the package-level boundaries", async () => {
     const messages = lintMessageTexts(
       await lintRuleMessages(
         "src/tui/search-screen/controller.ts",

@@ -275,13 +275,13 @@ When a screen adopts the shared action-target model, preserve the same focus and
 - `Left` should not be repurposed as a generic exit inside action UIs when it already means horizontal movement there
 - `Backspace` should not be treated as a generic exit because prompts and palettes need it for text editing
 
-### Search-Semantics And Picker UX
+### Search-Semantics Explorer UX
 
 The shared exploration model also carries a few durable presentation and return-path expectations:
 
 - field and semantic labels should emphasize the entity name; long inline operator lists should not dominate metadata-field views
-- derived-tag organization should preserve axis and family structure consistently across search-semantics and picker surfaces
-- returning from hosted facet/query-field picking should preserve the current picker state instead of silently discarding it
+- derived-tag organization should preserve axis and family structure consistently across search-semantics and scoped query-entry surfaces
+- scoped query-field entry should preserve shared explorer state instead of rebuilding a separate picker-only path
 - concrete semantic entities that advertise live record counts should open the normal result behavior instead of a special-case sample view
 
 ### Modal Presentation Defaults

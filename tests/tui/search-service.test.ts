@@ -419,7 +419,7 @@ describe("createPf2eTerminalSearchService", () => {
     });
   });
 
-  it("roots the shared explorer model at the scoped field nodes instead of a hosted picker snapshot", () => {
+  it("roots the shared explorer model at the scoped field nodes instead of reviving a picker snapshot bridge", () => {
     const model = buildSearchFilterExplorerModel(
       createSearchSemanticsDomain([
         {
