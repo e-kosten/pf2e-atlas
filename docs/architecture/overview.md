@@ -96,7 +96,7 @@ The editorial subsystem under `src/tags/` is large because it supports assignmen
 - it should use shared storage and data access boundaries instead of opening new ones everywhere
 - non-editorial code should prefer stable tag-facing entrypoints over arbitrary imports into tag leaf modules
 
-See [`editorial.md`](./editorial.md) for the deeper breakdown once that focused doc lands.
+See [`editorial.md`](./editorial.md) for the deeper breakdown of the editorial subsystem.
 
 ## Layer Responsibilities
 
@@ -287,7 +287,7 @@ flowchart TD
     overview --> tui["tui.md<br/>terminal composition"]
     overview --> editorial["editorial.md<br/>tagging and review workflows"]
     overview --> extending["extending.md<br/>where new behavior belongs"]
-    overview --> decisions["decisions/<br/>ADRs and design notes"]
+    overview --> decisions["decisions/README.md<br/>ADR index and design notes"]
 ```
 
 ### Architecture Reading Order
@@ -302,7 +302,7 @@ If you are new to the repo, use this sequence:
    - [`tui.md`](./tui.md)
    - [`editorial.md`](./editorial.md)
    - [`extending.md`](./extending.md)
-   - [`decisions/`](./decisions/)
+   - [`decisions/README.md`](./decisions/README.md)
 5. inspect the relevant composition root:
    - `src/index.ts` for MCP changes
    - `src/tui/app-services.ts` for terminal/editorial changes
@@ -315,7 +315,7 @@ If you are new to the repo, use this sequence:
 - Open [`tui.md`](./tui.md) when you are changing terminal composition, navigation, or TUI service seams.
 - Open [`editorial.md`](./editorial.md) when you are changing derived-tag workflows, review tooling, or migration flows.
 - Open [`extending.md`](./extending.md) when you are deciding where a new feature or abstraction belongs.
-- Open [`decisions/`](./decisions/) when a design choice depends on previous architectural commitments.
+- Open [`decisions/README.md`](./decisions/README.md) when a design choice depends on previous architectural commitments.
 
 ## Editing Guidance
 
