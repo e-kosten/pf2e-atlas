@@ -1,0 +1,213 @@
+import React from "react";
+
+import type { Pf2eTerminalQueryFieldOption, Pf2eTerminalSearchQuery } from "../search/service.js";
+import {
+  getSearchQueryCategory,
+  getSearchQueryLevelRange,
+  getSearchQuerySubcategory,
+  removeSearchQueryPart,
+  setSearchQueryCategory,
+  setSearchQueryPart,
+} from "../search/service.js";
+import { formatLevelRange } from "./model.js";
+import { promptLevelRangeDraft } from "./scalar-editor.js";
+import type { SearchStructuredDraftState } from "./structured-draft-support.js";
+import type {
+  OpenSearchFilterExplorer,
+  SearchWorkspacePromptAdapters,
+  SearchWorkspaceTerminal,
+  SearchWorkspaceUser,
+} from "./workspace-action-types.js";
+
+function buildExplorerOnlyFieldOption(
+  field: Pf2eTerminalQueryFieldOption["value"],
+  label: string,
+  description: string,
+  fieldType: Pf2eTerminalQueryFieldOption["fieldType"],
+): Pf2eTerminalQueryFieldOption {
+  return {
+    value: field,
+    label,
+    description,
+    fieldType,
+    editor: "sharedExplorer",
+  };
+}
+
+export function useSearchStructuredDraftPartActions({
+  openFilterExplorer,
+  prompts,
+  replaceStructuredDraftQuery,
+  structuredDraftState,
+  terminal,
+  user,
+}: {
+  openFilterExplorer: OpenSearchFilterExplorer;
+  prompts: SearchWorkspacePromptAdapters;
+  replaceStructuredDraftQuery: (update: (draftQuery: Pf2eTerminalSearchQuery) => Pf2eTerminalSearchQuery) => void;
+  structuredDraftState: SearchStructuredDraftState | null;
+  terminal: SearchWorkspaceTerminal;
+  user: SearchWorkspaceUser;
+}): {
+  editStructuredDraftActionCost: () => Promise<void>;
+  editStructuredDraftCategory: () => Promise<void>;
+  editStructuredDraftLevelRange: () => Promise<void>;
+  editStructuredDraftRarity: () => Promise<void>;
+  editStructuredDraftSubcategory: () => Promise<void>;
+} {
+  const editStructuredDraftCategory = React.useCallback(async () => {
+    const draftQuery = structuredDraftState?.draftQuery;
+    if (!draftQuery) {
+      return;
+    }
+
+    const draftCategory = getSearchQueryCategory(draftQuery);
+    const [allCategoryOption, ...categoryEntries] = user.search.getCategoryOptions();
+    const result = await prompts.promptOptionalSelectOption({
+      title: "Category Scope",
+      prompt: "Choose the staged category boundary",
+      allOption: {
+        label: allCategoryOption?.label ?? "Any Category",
+        description: allCategoryOption?.description,
+      },
+      entries: categoryEntries.map((option) => ({
+        value: option.value,
+        label: option.label,
+        description: option.description,
+      })),
+      selectedValue: draftCategory,
+    });
+
+    if (result.kind === "cancelled") {
+      return;
+    }
+
+    replaceStructuredDraftQuery((query) => setSearchQueryCategory(query, result.kind === "all" ? null : result.value));
+  }, [prompts, replaceStructuredDraftQuery, structuredDraftState?.draftQuery, user.search]);
+
+  const editStructuredDraftSubcategory = React.useCallback(async () => {
+    const draftQuery = structuredDraftState?.draftQuery;
+    if (!draftQuery) {
+      return;
+    }
+
+    const draftCategory = getSearchQueryCategory(draftQuery);
+    const draftSubcategory = getSearchQuerySubcategory(draftQuery);
+    if (!draftCategory) {
+      await terminal.pauseForAnyKey("Choose a category before selecting a subcategory.");
+      return;
+    }
+
+    const [allSubcategoryOption, ...subcategoryEntries] = user.search.getSubcategoryOptions(draftCategory);
+    if (subcategoryEntries.length === 0) {
+      await terminal.pauseForAnyKey("No subcategories are available for the current category.");
+      return;
+    }
+
+    const result = await prompts.promptOptionalSelectOption({
+      title: "Subcategory Scope",
+      prompt: "Choose the staged subcategory boundary",
+      allOption: {
+        label: allSubcategoryOption?.label ?? "Any Subcategory",
+        description: allSubcategoryOption?.description,
+      },
+      entries: subcategoryEntries.map((option) => ({
+        value: option.value,
+        label: option.label,
+        description: option.description,
+      })),
+      selectedValue: draftSubcategory,
+    });
+
+    if (result.kind === "cancelled") {
+      return;
+    }
+
+    replaceStructuredDraftQuery((query) =>
+      result.kind === "all"
+        ? removeSearchQueryPart(query, "subcategory")
+        : result.value
+          ? setSearchQueryPart(query, { kind: "subcategory", subcategory: result.value })
+          : query,
+    );
+  }, [prompts, replaceStructuredDraftQuery, structuredDraftState?.draftQuery, terminal, user.search]);
+
+  const editStructuredDraftLevelRange = React.useCallback(async () => {
+    const draftQuery = structuredDraftState?.draftQuery;
+    if (!draftQuery) {
+      return;
+    }
+
+    const draftLevelRange = getSearchQueryLevelRange(draftQuery);
+    const parsed = await promptLevelRangeDraft(prompts, terminal, {
+      defaultValue:
+        draftLevelRange.levelMin === null && draftLevelRange.levelMax === null
+          ? ""
+          : formatLevelRange(draftQuery).replaceAll("L", "").replace("<= ", "<="),
+    });
+
+    if (parsed === undefined) {
+      return;
+    }
+
+    replaceStructuredDraftQuery((query) =>
+      parsed.levelMin === null && parsed.levelMax === null
+        ? removeSearchQueryPart(query, "levelRange")
+        : setSearchQueryPart(query, {
+            kind: "levelRange",
+            levelMin: parsed.levelMin,
+            levelMax: parsed.levelMax,
+          }),
+    );
+  }, [prompts, replaceStructuredDraftQuery, structuredDraftState?.draftQuery, terminal]);
+
+  const editStructuredDraftExplorerField = React.useCallback(
+    async (fieldOption: Pf2eTerminalQueryFieldOption) => {
+      const draftQuery = structuredDraftState?.draftQuery;
+      if (!draftQuery) {
+        return;
+      }
+
+      await openFilterExplorer({
+        queryOverride: draftQuery,
+        fieldOptions: [fieldOption],
+        initialDraft: user.search.createFilterExplorerDraft(draftQuery, [fieldOption.value]),
+        singleFieldBehavior: "directValues",
+        onApply: (draft) => {
+          replaceStructuredDraftQuery((query) => user.search.applyFilterExplorerDraft(query, draft));
+        },
+      });
+    },
+    [openFilterExplorer, replaceStructuredDraftQuery, structuredDraftState?.draftQuery, user.search],
+  );
+
+  const editStructuredDraftRarity = React.useCallback(async () => {
+    await editStructuredDraftExplorerField(
+      buildExplorerOnlyFieldOption(
+        "rarity",
+        "Rarity",
+        "Browse live rarities for the current scope and stage include or exclude filters.",
+        "enumString",
+      ),
+    );
+  }, [editStructuredDraftExplorerField]);
+
+  const editStructuredDraftActionCost = React.useCallback(async () => {
+    await editStructuredDraftExplorerField(
+      buildExplorerOnlyFieldOption(
+        "actionCost",
+        "Action Cost",
+        "Browse live action costs for the current scope and stage include or exclude filters.",
+        "number",
+      ),
+    );
+  }, [editStructuredDraftExplorerField]);
+
+  return {
+    editStructuredDraftActionCost,
+    editStructuredDraftCategory,
+    editStructuredDraftLevelRange,
+    editStructuredDraftRarity,
+    editStructuredDraftSubcategory,
+  };
+}
