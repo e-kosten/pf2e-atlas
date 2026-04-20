@@ -159,7 +159,7 @@ describe("eslint local architecture rules", () => {
     );
 
     await expectNoRuleMessages(
-      "src/tags/cli/evaluate-movement.ts",
+      "src/tags/cli/evaluation/evaluate-movement.ts",
       "const db = new DatabaseSync(path);\nexport { db };\n",
       "arch/no-direct-database-sync-construction",
     );
@@ -329,19 +329,19 @@ describe("eslint local architecture rules", () => {
 
   it("allows designated tag UI entrypoints to import tui modules", async () => {
     const reviewUiMessages = await lintRuleMessages(
-      "src/tags/migration/review-ui.tsx",
+      "src/tags/editorial/review-ui.tsx",
       'import { TerminalPaneScreen } from "../../tui/terminal-ui.js";\nexport const Screen = TerminalPaneScreen;\n',
     );
     const reviewModelMessages = await lintRuleMessages(
-      "src/tags/migration/review-screen-model.ts",
+      "src/tags/editorial/review-screen-model.ts",
       'import { getTerminalPaneBodyHeight } from "../../tui/terminal-ui.js";\nexport const value = getTerminalPaneBodyHeight;\n',
     );
     const reviewStateMessages = await lintRuleMessages(
-      "src/tags/migration/review-screen-state.ts",
+      "src/tags/editorial/review-screen-state.ts",
       'import { reduceDerivedTagTerminalTwoPaneState } from "../../tui/two-pane-state.js";\nexport const value = reduceDerivedTagTerminalTwoPaneState;\n',
     );
     const workbenchMessages = await lintRuleMessages(
-      "src/tags/cli/derived-tag-migration-workbench.ts",
+      "src/tags/cli/editorial/derived-tag-migration-workbench.ts",
       'import { runPf2eTerminalApp } from "../../tui/pf2e-app.js";\nexport const run = runPf2eTerminalApp;\n',
     );
 
@@ -354,7 +354,7 @@ describe("eslint local architecture rules", () => {
   it("keeps review-screen support modules on framework-style tui import limits", async () => {
     const messages = lintMessageTexts(
       await lintRuleMessages(
-        "src/tags/migration/review-screen-model.ts",
+        "src/tags/editorial/review-screen-model.ts",
         'import { useInput } from "ink";\nexport const value = useInput;\n',
       ),
     );
@@ -380,14 +380,14 @@ describe("eslint local architecture rules", () => {
 
   it("blocks tags CLI modules from bypassing the shared search-scope parser and allows the shared parser module", async () => {
     await expectRuleMessage(
-      "src/tags/cli/evaluate-movement.ts",
+      "src/tags/cli/evaluation/evaluate-movement.ts",
       'import { normalizeSearchCategory } from "../../domain/categories.js";\nexport const value = normalizeSearchCategory;\n',
-      "CLI scope parsing must go through src/tags/cli/search-scope-args.ts instead of ad hoc category normalization helpers.",
+      "CLI scope parsing must go through src/tags/cli/shared/search-scope-args.ts instead of ad hoc category normalization helpers.",
     );
 
     await expectNoRuleMessages(
-      "src/tags/cli/create-derived-tag-migration-session.ts",
-      'import { parseOptionalSearchCategoryArg } from "./search-scope-args.js";\nexport const value = parseOptionalSearchCategoryArg;\n',
+      "src/tags/cli/editorial/create-derived-tag-migration-session.ts",
+      'import { parseOptionalSearchCategoryArg } from "../shared/search-scope-args.js";\nexport const value = parseOptionalSearchCategoryArg;\n',
     );
   });
 

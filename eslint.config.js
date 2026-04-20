@@ -108,7 +108,7 @@ const TAGS_CLI_SCOPE_IMPORT_RESTRICTIONS = {
     {
       group: ["**/domain/categories.js", "**/data/sql-row-decoding.js"],
       message:
-        "CLI scope parsing must go through src/tags/cli/search-scope-args.ts instead of ad hoc category normalization helpers.",
+        "CLI scope parsing must go through src/tags/cli/shared/search-scope-args.ts instead of ad hoc category normalization helpers.",
     },
   ],
 };
@@ -118,7 +118,7 @@ const NON_TAGS_DERIVED_TAG_IMPORT_RESTRICTIONS = {
     {
       group: [
         "**/tags/runtime/**",
-        "**/tags/authored-rules/**",
+        "**/tags/rules/**",
         "**/tags/catalog/**",
         "**/tags/ontology/**",
         "**/tags/exemplars/**",
@@ -283,7 +283,7 @@ export default defineConfig(
     },
   },
   {
-    files: ["src/tui/**/*.{ts,tsx}", "src/tags/migration/review-ui.tsx"],
+    files: ["src/tui/**/*.{ts,tsx}", "src/tags/editorial/review-ui.tsx"],
     ignores: [
       "src/tui/framework/**/*.{ts,tsx}",
       "src/tui/keymap.ts",
@@ -491,7 +491,7 @@ export default defineConfig(
     },
   },
   {
-    files: ["src/tags/migration/review-ui.tsx"],
+    files: ["src/tags/editorial/review-ui.tsx"],
     rules: {
       "no-restricted-imports": [
         "error",
@@ -538,7 +538,7 @@ export default defineConfig(
     },
   },
   {
-    files: ["src/tags/migration/review-screen-model.ts", "src/tags/migration/review-screen-state.ts"],
+    files: ["src/tags/editorial/review-screen-model.ts", "src/tags/editorial/review-screen-state.ts"],
     rules: {
       "no-restricted-imports": mergeRestrictedImports(NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS),
     },
@@ -737,14 +737,14 @@ export default defineConfig(
           },
           {
             group: [
-              "**/tags/migration/workbench-controller.js",
-              "**/tags/migration/session-builder.js",
-              "**/tags/migration/runtime-state.js",
-              "**/tags/migration/session-store.js",
-              "**/tags/migration/cli-utils.js",
+              "**/tags/editorial/workbench-controller.js",
+              "**/tags/editorial/session-builder.js",
+              "**/tags/editorial/runtime-state.js",
+              "**/tags/editorial/session-store.js",
+              "**/tags/editorial/cli-utils.js",
             ],
             message:
-              "TUI modules must use app-services for tag-workbench composition instead of importing migration service internals directly.",
+              "TUI modules must use app-services for tag-workbench composition instead of importing editorial service internals directly.",
           },
         ],
       }),
@@ -774,15 +774,15 @@ export default defineConfig(
     files: ["src/tags/**/*.{ts,tsx}"],
     ignores: [
       "src/tags/cli/**/*",
-      "src/tags/migration/review-detail-content.ts",
-      "src/tags/migration/review-screen-model.ts",
-      "src/tags/migration/review-screen-state.ts",
-      "src/tags/migration/review-ui.tsx",
-      "src/tags/migration/review-ui-controller.ts",
-      "src/tags/migration/record-loader.ts",
-      "src/tags/migration/types.ts",
-      "src/tags/migration/workbench-controller.ts",
-      "src/tags/migration/workbench-session-prompts.ts",
+      "src/tags/editorial/review-detail-content.ts",
+      "src/tags/editorial/review-screen-model.ts",
+      "src/tags/editorial/review-screen-state.ts",
+      "src/tags/editorial/review-ui.tsx",
+      "src/tags/editorial/review-ui-controller.ts",
+      "src/tags/editorial/record-loader.ts",
+      "src/tags/editorial/types.ts",
+      "src/tags/editorial/workbench-controller.ts",
+      "src/tags/editorial/workbench-session-prompts.ts",
     ],
     rules: {
       "no-restricted-imports": mergeRestrictedImports(NON_UI_TUI_IMPORT_RESTRICTIONS),
@@ -790,7 +790,10 @@ export default defineConfig(
   },
   {
     files: ["src/tags/cli/**/*.{ts,tsx}"],
-    ignores: ["src/tags/cli/search-scope-args.ts", "src/tags/cli/derived-tag-migration-workbench.ts"],
+    ignores: [
+      "src/tags/cli/shared/search-scope-args.ts",
+      "src/tags/cli/editorial/derived-tag-migration-workbench.ts",
+    ],
     rules: {
       "no-restricted-imports": mergeRestrictedImports(
         NON_UI_TUI_IMPORT_RESTRICTIONS,
