@@ -7,13 +7,8 @@ import { getMetadataFilterSemantics, type MetadataFieldSemantics } from "../../d
 import type { MetadataFieldName } from "../../domain/metadata-field-registry.js";
 import type { SearchVocabularyResult } from "../../data/vocabulary.js";
 import type {
-  OntologyNodeQuery,
-} from "../../domain/ontology-types.js";
-import type {
   SearchCategory,
-  SearchFilters,
   SearchSubcategory,
-  SearchWindowPage,
 } from "../../domain/search-types.js";
 import {
   applyDiscoverableQueryFieldSelections,
@@ -22,12 +17,18 @@ import {
   getScopedMetadataFields,
 } from "./discoverable-fields.js";
 import { buildSearchFilters } from "./filter-building.js";
+import { createSearchQueryFromOntologyQuery } from "./ontology-query.js";
 import {
   createDefaultQuery,
   isActionCostAvailableInScope,
   normalizeSearchQuery,
-  splitMetadataTreeIntoParts,
 } from "./query-state.js";
+import {
+  appendSearchSessionWindowPage,
+  buildSearchWindowFilters,
+  createSearchSessionFromWindow,
+  replaceSearchSessionWindowPage,
+} from "./search-window-session.js";
 import {
   FACET_FIELD_EXCLUSIONS,
   SEARCH_MODE_OPTIONS,
@@ -93,31 +94,6 @@ export type {
   Pf2eTerminalQueryPartPolicy,
 } from "./query-parts.js";
 
-function createSessionFromResult(query: Pf2eTerminalSearchQuery, result: SearchWindowPage): Pf2eTerminalSearchSession {
-  const sessionQuery =
-    result.limit === query.limit
-      ? query
-      : {
-          ...query,
-          limit: result.limit,
-        };
-
-  return {
-    windowId: result.id,
-    query: sessionQuery,
-    results: result.records,
-    windowOffset: result.offset,
-    resultMode: result.mode,
-    total: result.total,
-    loadedCount: result.records.length,
-    hasMore: result.hasMore,
-    nextOffset: result.nextOffset,
-    searchProfile: result.searchProfile,
-    sort: result.sort,
-    sortSeed: result.sortSeed,
-  };
-}
-
 export function createPf2eTerminalSearchService(dependencies: SearchServiceDependencies): Pf2eTerminalSearchService {
   const filterSemantics = getMetadataFilterSemantics();
   const fieldSemanticsByName = new Map<Pf2eTerminalFacetField, MetadataFieldSemantics>(
@@ -132,99 +108,10 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
     return isActionCostAvailableInScope(dependencies, category, subcategory);
   }
 
-  function buildWindowFilters(
-    query: Pf2eTerminalSearchQuery,
-    options: {
-      sort: Pf2eTerminalSearchSort;
-      sortSeed: number | null;
-      limit: number;
-      offset?: number;
-    },
-  ): SearchFilters {
-    const offset = options.offset ?? 0;
-    if (query.mode === "lookup") {
-      return buildSearchFilters(query, {
-        limit: options.limit,
-        offset,
-        nameQuery: query.queryText,
-        sort: options.sort,
-        sortSeed: options.sortSeed,
-      });
-    }
-
-    return buildSearchFilters(query, {
-      limit: options.limit,
-      offset,
-      query: query.mode === "search" ? query.queryText : undefined,
-      searchProfile: query.mode === "search" ? query.searchProfile : undefined,
-      sort: options.sort,
-      sortSeed: options.sortSeed,
-    });
-  }
-
-  function createQueryFromOntologyQuery(query: OntologyNodeQuery): Pf2eTerminalSearchQuery {
-    const defaultQuery = createDefaultQuery();
-    const category = normalizeSearchCategory(query.filters.category) ?? null;
-    const normalizedSubcategory = normalizeSearchSubcategory(query.filters.subcategory) ?? null;
-    const subcategory =
-      category && normalizedSubcategory && CATEGORY_SUBCATEGORY_MAP[category].includes(normalizedSubcategory)
-        ? normalizedSubcategory
-        : null;
-    const parts: Pf2eTerminalSearchQuery["filters"]["parts"] = [];
-    if (subcategory) {
-      parts.push({ kind: "subcategory", subcategory });
-    }
-    if (query.filters.levelMin !== undefined || query.filters.levelMax !== undefined) {
-      parts.push({
-        kind: "levelRange",
-        levelMin: query.filters.levelMin ?? null,
-        levelMax: query.filters.levelMax ?? null,
-      });
-    }
-    if (query.filters.rarity) {
-      parts.push({
-        kind: "rarityPolicy",
-        policy: {
-          any: [query.filters.rarity],
-          all: [],
-          exclude: [],
-        },
-      });
-    }
-    if (query.filters.actionCost !== undefined) {
-      parts.push({
-        kind: "actionCostPolicy",
-        policy: {
-          any: [query.filters.actionCost],
-          all: [],
-          exclude: [],
-        },
-      });
-    }
-    parts.push(...splitMetadataTreeIntoParts(query.filters.metadata ?? null));
-
-    return normalizeSearchQuery(
-      {
-        ...defaultQuery,
-        mode: query.kind === "lookup" ? "lookup" : query.kind === "search" ? "search" : "browse",
-        limit: query.filters.limit ?? defaultQuery.limit,
-        queryText: query.filters.query ?? query.filters.nameQuery ?? "",
-        searchProfile: query.filters.searchProfile ?? defaultQuery.searchProfile,
-        sourceLabel: query.label ?? null,
-        filters: {
-          ...defaultQuery.filters,
-          category,
-          parts,
-        },
-      },
-      dependencies,
-      fieldSemanticsByName,
-    );
-  }
-
   return {
     createDefaultQuery: () => createDefaultQuery(),
-    createQueryFromOntologyQuery,
+    createQueryFromOntologyQuery: (query) =>
+      createSearchQueryFromOntologyQuery(query, dependencies, fieldSemanticsByName),
     getAvailableRootQueryPartKinds: (category, subcategory) => [
       ...(category && CATEGORY_SUBCATEGORY_MAP[category].length > 0 ? (["subcategory"] as const) : []),
       "levelRange",
@@ -398,14 +285,14 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
       const sortSeed = sort === "random" ? createSortSeed(sort) : null;
       const limit = options.limit ?? normalizedQuery.limit;
       const result = await dependencies.openSearchWindow(
-        buildWindowFilters(normalizedQuery, {
+        buildSearchWindowFilters(normalizedQuery, {
           sort,
           sortSeed,
           limit,
         }),
         { mode: normalizedQuery.mode },
       );
-      return createSessionFromResult(normalizedQuery, result);
+      return createSearchSessionFromWindow(normalizedQuery, result);
     },
     loadMore: (session, options = {}) => {
       if (!session.hasMore || session.nextOffset === null) {
@@ -425,23 +312,7 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
           nextSession.query.limit,
         );
 
-        nextSession = {
-          ...nextSession,
-          query:
-            result.limit === nextSession.query.limit
-              ? nextSession.query
-              : {
-                  ...nextSession.query,
-                  limit: result.limit,
-                },
-          results: [...nextSession.results, ...result.records],
-          total: result.total,
-          loadedCount: nextSession.results.length + result.records.length,
-          hasMore: result.hasMore,
-          nextOffset: result.nextOffset,
-          resultMode: result.mode,
-          searchProfile: result.searchProfile,
-        };
+        nextSession = appendSearchSessionWindowPage(nextSession, result);
       }
 
       return Promise.resolve(nextSession);
@@ -451,37 +322,20 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
       const clampedOffset = Math.max(0, Math.min(options.offset, Math.max(0, session.total - limit)));
       const result = dependencies.readSearchWindowPage(session.windowId, clampedOffset, limit);
 
-      return Promise.resolve({
-        ...session,
-        query:
-          result.limit === session.query.limit
-            ? session.query
-            : {
-                ...session.query,
-                limit: result.limit,
-              },
-        results: result.records,
-        windowOffset: result.offset,
-        total: result.total,
-        loadedCount: result.records.length,
-        hasMore: result.hasMore,
-        nextOffset: result.nextOffset,
-        resultMode: result.mode,
-        searchProfile: result.searchProfile,
-      });
+      return Promise.resolve(replaceSearchSessionWindowPage(session, result));
     },
     changeSort: async (session, sort) => {
       dependencies.closeSearchWindow(session.windowId);
       const sortSeed = sort === "random" ? createSortSeed(sort) : null;
       const result = await dependencies.openSearchWindow(
-        buildWindowFilters(session.query, {
+        buildSearchWindowFilters(session.query, {
           sort,
           sortSeed,
           limit: Math.max(session.query.limit, session.loadedCount),
         }),
         { mode: session.query.mode },
       );
-      return createSessionFromResult(session.query, result);
+      return createSearchSessionFromWindow(session.query, result);
     },
   };
 }

@@ -1,18 +1,15 @@
 import React from "react";
 
-import type { MetadataFilterNode, MetadataPredicate } from "../../domain/metadata-types.js";
+import type { MetadataFilterNode } from "../../domain/metadata-types.js";
 import type { Pf2eTerminalAppServices } from "../app-services.js";
 import type { SearchTerminalPromptAdapters } from "../interaction-context-adapters.js";
 import type { SearchScreenAction, SearchScreenState } from "./state.js";
 import type { SearchQueryFieldBuilderSession } from "./query-field-builder-session.js";
-import type { SearchStructuredDraftSession } from "../search/structured-draft-session.js";
 import { clampStructuredDraftSelection } from "../search/structured-draft-session.js";
 import {
   appendMetadataNodeAtPath,
-  countMetadataPredicates,
   getMetadataNodeAtPath,
   isMetadataPredicate,
-  normalizeMetadataNode,
   updateMetadataNodeAtPath,
 } from "../search/query-core.js";
 import type {
@@ -33,8 +30,15 @@ import {
   setSearchQueryMetadataTree,
   setSearchQueryPart,
 } from "../search/service.js";
+import { createEmptyStringPolicy } from "../search/policies.js";
 import type { SearchScreenOrigin } from "./workflow-types.js";
 import type { DerivedTagTerminalApp } from "../framework/types.js";
+import {
+  buildMetadataNodeFromPolicy,
+  buildPolicyFromMetadataNode,
+  buildPolicyFromPredicate,
+  buildQueryFieldSelectionMap,
+} from "./metadata-clause-translation.js";
 import {
   buildEditorCommandPaletteEntries,
   buildResultCommandPaletteEntries,
@@ -49,148 +53,19 @@ import {
   parseLevelRangeInput,
   type SearchWorkspaceAction,
 } from "./model.js";
+import {
+  buildQueryFieldBuilderItems,
+  buildQueryFieldBuilderPreviewQuery,
+  buildQueryFieldBuilderSessionItems,
+  compileQueryFieldBuilderDrafts,
+  type QueryFieldBuilderState,
+} from "./query-field-builder-support.js";
+import {
+  buildStructuredDraftEntries,
+  getStructuredDraftSelectionIndex,
+  type SearchStructuredDraftState,
+} from "./structured-draft-support.js";
 import type { SearchWorkspaceEntry } from "./workspace.js";
-
-function createEmptyStringPolicy(): Pf2eTerminalFilterValuePolicy<string> {
-  return { any: [], all: [], exclude: [] };
-}
-
-function buildMetadataNodeFromPolicy(
-  fieldOption: Pf2eTerminalQueryFieldOption,
-  policy: Pf2eTerminalFilterValuePolicy<string>,
-): MetadataFilterNode | null {
-  const clauses: MetadataFilterNode[] = [];
-
-  if (fieldOption.fieldType === "set") {
-    if (policy.any.length > 0) {
-      clauses.push({ field: fieldOption.value, op: "includesAny", values: [...policy.any] } as MetadataFilterNode);
-    }
-    if (policy.all.length > 0) {
-      clauses.push({ field: fieldOption.value, op: "includesAll", values: [...policy.all] } as MetadataFilterNode);
-    }
-    if (policy.exclude.length > 0) {
-      clauses.push({ field: fieldOption.value, op: "excludesAny", values: [...policy.exclude] } as MetadataFilterNode);
-    }
-  }
-
-  if (fieldOption.fieldType === "enumString") {
-    if (policy.any.length === 1) {
-      clauses.push({ field: fieldOption.value, op: "eq", value: policy.any[0]! } as MetadataFilterNode);
-    } else if (policy.any.length > 1) {
-      clauses.push({ field: fieldOption.value, op: "in", values: [...policy.any] } as MetadataFilterNode);
-    }
-    if (policy.exclude.length > 0) {
-      clauses.push({ field: fieldOption.value, op: "notIn", values: [...policy.exclude] } as MetadataFilterNode);
-    }
-  }
-
-  if (clauses.length === 0) {
-    return null;
-  }
-  return clauses.length === 1 ? clauses[0]! : { and: clauses };
-}
-
-function buildPolicyFromPredicate(node: MetadataPredicate): Pf2eTerminalFilterValuePolicy<string> | null {
-  const policy = createEmptyStringPolicy();
-  if ("values" in node) {
-    if (node.op === "includesAny" || node.op === "in") {
-      policy.any = [...node.values.map((value) => String(value))];
-    } else if (node.op === "includesAll") {
-      policy.all = [...node.values.map((value) => String(value))];
-    } else {
-      policy.exclude = [...node.values.map((value) => String(value))];
-    }
-    return policy;
-  }
-  if ("value" in node && node.op === "eq") {
-    policy.any = [String(node.value)];
-    return policy;
-  }
-  return null;
-}
-
-function buildSelectionMap(
-  field: string,
-  policy: Pf2eTerminalFilterValuePolicy<string>,
-): Pf2eTerminalQueryFieldSelectionMap {
-  return {
-    [field]: {
-      any: [...policy.any],
-      all: [...policy.all],
-      exclude: [...policy.exclude],
-    },
-  };
-}
-
-type SearchStructuredDraftState = {
-  anchor: SearchStructuredDraftSession["anchor"];
-  draftQuery: Pf2eTerminalSearchQuery;
-  metadataFocusPath: number[] | null;
-  selectedIndex: number;
-};
-
-type QueryFieldBuilderState = {
-  draftQuery: Pf2eTerminalSearchQuery;
-  path: number[];
-  items: SearchQueryFieldBuilderSession["items"];
-  selectedIndex: number;
-  fieldDrafts: Record<string, MetadataFilterNode | null>;
-};
-
-function buildPolicyFromMetadataNode(node: MetadataFilterNode | null): Pf2eTerminalFilterValuePolicy<string> {
-  if (!node) {
-    return createEmptyStringPolicy();
-  }
-
-  if ("and" in node) {
-    return node.and.reduce((policy, child) => {
-      const childPolicy = buildPolicyFromMetadataNode(child);
-      return {
-        any: [...policy.any, ...childPolicy.any],
-        all: [...policy.all, ...childPolicy.all],
-        exclude: [...policy.exclude, ...childPolicy.exclude],
-      };
-    }, createEmptyStringPolicy());
-  }
-
-  if ("or" in node || "not" in node) {
-    return createEmptyStringPolicy();
-  }
-
-  return buildPolicyFromPredicate(node) ?? createEmptyStringPolicy();
-}
-
-function buildQueryFieldBuilderItems(
-  fieldOptions: Pf2eTerminalQueryFieldOption[],
-): SearchQueryFieldBuilderSession["items"] {
-  return [
-    ...fieldOptions.map((fieldOption) => ({
-      kind: "field" as const,
-      fieldOption,
-      label: fieldOption.label,
-    })),
-    { kind: "finish" as const, label: "Return to Staged Query" },
-    { kind: "cancel" as const, label: "Discard Field Edits" },
-  ];
-}
-
-function compileQueryFieldBuilderDrafts(
-  fieldDrafts: Record<string, MetadataFilterNode | null>,
-): MetadataFilterNode | null {
-  const nodes = Object.values(fieldDrafts)
-    .map((node) => normalizeMetadataNode(node))
-    .filter((node): node is MetadataFilterNode => Boolean(node));
-
-  if (nodes.length === 0) {
-    return null;
-  }
-  if (nodes.length === 1) {
-    return nodes[0]!;
-  }
-  return { and: nodes };
-}
-
-type StructuredDraftEntryKind = SearchStructuredDraftSession["entries"][number]["kind"];
 
 export function useSearchWorkspaceActions({
   applyQueryUpdate,
@@ -322,165 +197,14 @@ export function useSearchWorkspaceActions({
     [user.search],
   );
 
-  const buildStructuredDraftEntries = React.useCallback(
-    (
-      draftQuery: Pf2eTerminalSearchQuery,
-      metadataFocusPath: number[] | null,
-    ): SearchStructuredDraftSession["entries"] => {
-      const draftCategory = getSearchQueryCategory(draftQuery);
-      const draftSubcategory = getSearchQuerySubcategory(draftQuery);
-      const draftRarityPolicy = getSearchQueryRarityPolicy(draftQuery);
-      const draftActionCostPolicy = getSearchQueryActionCostPolicy(draftQuery);
-      const draftMetadataTree = getSearchQueryMetadataTree(draftQuery);
-      const entries: SearchStructuredDraftSession["entries"] = [
-        {
-          kind: "category",
-          key: "category",
-          label: "Category",
-          value: formatSearchCategory(draftCategory),
-          description: "Choose the category boundary for the staged structured query.",
-        },
-      ];
-
-      if (hasSelectableSubcategories(draftCategory)) {
-        entries.push({
-          kind: "subcategory",
-          key: "subcategory",
-          label: "Subcategory",
-          value: formatSearchSubcategory(draftSubcategory),
-          description: "Choose the staged subcategory boundary within the current category.",
-        });
-      }
-
-      entries.push(
-        {
-          kind: "levelRange",
-          key: "levelRange",
-          label: "Level Range",
-          value: formatLevelRange(draftQuery),
-          description: "Constrain the staged query by minimum or maximum level.",
-        },
-        {
-          kind: "rarity",
-          key: "rarity",
-          label: "Rarity",
-          value: formatFilterPolicy(draftRarityPolicy),
-          description: "Stage include or exclude rarity filters.",
-        },
-      );
-
-      if (user.search.getActionCostOptions(draftCategory, draftSubcategory).length > 0) {
-        entries.push({
-          kind: "actionCost",
-          key: "actionCost",
-          label: "Action Cost",
-          value: formatFilterPolicy(draftActionCostPolicy),
-          description: "Stage include or exclude action-cost filters.",
-        });
-      }
-
-      if (draftCategory) {
-        const focusedNode = metadataFocusPath ? getMetadataNodeAtPath(draftMetadataTree, metadataFocusPath) : null;
-        const predicateCount = countMetadataPredicates(draftMetadataTree);
-        entries.push({
-          kind: "metadata",
-          key: "metadata",
-          label: "Query Logic",
-          value:
-            predicateCount > 0
-              ? `${predicateCount} staged clause${predicateCount === 1 ? "" : "s"}`
-              : "No staged clauses",
-          description: focusedNode
-            ? `Resume staged metadata editing at ${metadataFocusPath?.length === 0 ? "the root query node" : `path ${metadataFocusPath?.join(".")}`}.`
-            : "Stage metadata clauses and logic groups for the structured query.",
-          metadataPath: metadataFocusPath ?? [],
-        });
-      }
-
-      entries.push(
-        {
-          kind: "finish",
-          key: "finish",
-          label: "Apply Structured Edit",
-          value: "Commit draft",
-          description: "Commit the staged structured query back into the live editor.",
-        },
-        {
-          kind: "cancel",
-          key: "cancel",
-          label: "Discard Structured Edit",
-          value: "Discard draft",
-          description: "Discard the staged structured query and keep the live query unchanged.",
-        },
-      );
-
-      return entries;
-    },
-    [hasSelectableSubcategories, user.search],
-  );
-
-  const getStructuredDraftAnchorKind = React.useCallback(
-    (
-      anchor: SearchStructuredDraftSession["anchor"],
-      entries: SearchStructuredDraftSession["entries"],
-    ): StructuredDraftEntryKind => {
-      if (anchor.kind === "queryPart") {
-        return anchor.part;
-      }
-      if (anchor.kind === "queryNode") {
-        return "metadata";
-      }
-
-      const preferredKinds: StructuredDraftEntryKind[] = [
-        "category",
-        "subcategory",
-        "levelRange",
-        "rarity",
-        "actionCost",
-        "metadata",
-      ];
-      const emptyKinds = new Set<StructuredDraftEntryKind>();
-      for (const entry of entries) {
-        if (
-          entry.kind === "category" ||
-          entry.kind === "subcategory" ||
-          entry.kind === "levelRange" ||
-          entry.kind === "rarity" ||
-          entry.kind === "actionCost" ||
-          entry.kind === "metadata"
-        ) {
-          if (
-            entry.value === "Any Category" ||
-            entry.value === "Any Subcategory" ||
-            entry.value === "(any)" ||
-            entry.value === "No staged clauses"
-          ) {
-            emptyKinds.add(entry.kind);
-          }
-        }
-      }
-      return (
-        preferredKinds.find((kind) => emptyKinds.has(kind) && entries.some((entry) => entry.kind === kind)) ??
-        "metadata"
-      );
-    },
-    [],
-  );
-
-  const getStructuredDraftSelectionIndex = React.useCallback(
-    (anchor: SearchStructuredDraftSession["anchor"], entries: SearchStructuredDraftSession["entries"]): number => {
-      const preferredKind = getStructuredDraftAnchorKind(anchor, entries);
-      const entryIndex = entries.findIndex((entry) => entry.kind === preferredKind);
-      return clampStructuredDraftSelection(entryIndex >= 0 ? entryIndex : 0, entries.length);
-    },
-    [getStructuredDraftAnchorKind],
-  );
-
   const openStructuredDraftSession = React.useCallback(
-    (anchor: SearchStructuredDraftSession["anchor"], query: Pf2eTerminalSearchQuery = state.query) => {
+    (anchor: SearchStructuredDraftState["anchor"], query: Pf2eTerminalSearchQuery = state.query) => {
       const draftQuery = user.search.normalizeQuery(query);
       const metadataFocusPath = anchor.kind === "queryNode" ? [...anchor.path] : null;
-      const entries = buildStructuredDraftEntries(draftQuery, metadataFocusPath);
+      const entries = buildStructuredDraftEntries(draftQuery, metadataFocusPath, {
+        hasSelectableSubcategories,
+        getActionCostOptions: user.search.getActionCostOptions,
+      });
       setStructuredDraftState({
         anchor,
         draftQuery,
@@ -488,7 +212,7 @@ export function useSearchWorkspaceActions({
         selectedIndex: getStructuredDraftSelectionIndex(anchor, entries),
       });
     },
-    [buildStructuredDraftEntries, getStructuredDraftSelectionIndex, state.query, user.search],
+    [hasSelectableSubcategories, state.query, user.search],
   );
 
   const replaceStructuredDraftQuery = React.useCallback(
@@ -498,7 +222,10 @@ export function useSearchWorkspaceActions({
           return current;
         }
         const nextDraftQuery = user.search.normalizeQuery(update(current.draftQuery));
-        const entries = buildStructuredDraftEntries(nextDraftQuery, current.metadataFocusPath);
+        const entries = buildStructuredDraftEntries(nextDraftQuery, current.metadataFocusPath, {
+          hasSelectableSubcategories,
+          getActionCostOptions: user.search.getActionCostOptions,
+        });
         return {
           ...current,
           draftQuery: nextDraftQuery,
@@ -506,7 +233,7 @@ export function useSearchWorkspaceActions({
         };
       });
     },
-    [buildStructuredDraftEntries, user.search],
+    [hasSelectableSubcategories, user.search],
   );
 
   const chooseQueryField = React.useCallback(
@@ -554,7 +281,7 @@ export function useSearchWorkspaceActions({
       return openQueryFieldPicker({
         queryOverride: query,
         fieldOptions: [fieldOption],
-        initialSelections: buildSelectionMap(fieldOption.value, currentPolicy),
+        initialSelections: buildQueryFieldSelectionMap(fieldOption.value, currentPolicy),
         onReturn,
         singleFieldBehavior: "directValues",
         onApply: (selection) => {
@@ -852,17 +579,6 @@ export function useSearchWorkspaceActions({
     if (!queryFieldBuilderState) {
       return null;
     }
-    const stagedNode = compileQueryFieldBuilderDrafts(queryFieldBuilderState.fieldDrafts);
-    const previewQuery = stagedNode
-      ? setSearchQueryMetadataTree(
-          queryFieldBuilderState.draftQuery,
-          appendMetadataNodeAtPath(
-            getSearchQueryMetadataTree(queryFieldBuilderState.draftQuery),
-            queryFieldBuilderState.path,
-            stagedNode,
-          ),
-        )
-      : queryFieldBuilderState.draftQuery;
     return {
       kind: "queryFieldBuilder",
       title: "Add Query Part",
@@ -870,17 +586,8 @@ export function useSearchWorkspaceActions({
       leftTitle: "[QUERY FIELDS]",
       rightTitle: "Staged Summary & Detail",
       statusText: "Field edits stay staged until you finish the structured query editor.",
-      draftQuery: previewQuery,
-      items: queryFieldBuilderState.items.map((item) =>
-        item.kind === "field"
-          ? {
-              ...item,
-              label: queryFieldBuilderState.fieldDrafts[item.fieldOption.value]
-                ? `${item.fieldOption.label} | staged`
-                : item.fieldOption.label,
-            }
-          : item,
-      ),
+      draftQuery: buildQueryFieldBuilderPreviewQuery(queryFieldBuilderState),
+      items: buildQueryFieldBuilderSessionItems(queryFieldBuilderState),
       selectedIndex: clampStructuredDraftSelection(
         queryFieldBuilderState.selectedIndex,
         queryFieldBuilderState.items.length,
@@ -977,9 +684,12 @@ export function useSearchWorkspaceActions({
   const structuredDraftEntries = React.useMemo(
     () =>
       structuredDraftState
-        ? buildStructuredDraftEntries(structuredDraftState.draftQuery, structuredDraftState.metadataFocusPath)
+        ? buildStructuredDraftEntries(structuredDraftState.draftQuery, structuredDraftState.metadataFocusPath, {
+            hasSelectableSubcategories,
+            getActionCostOptions: user.search.getActionCostOptions,
+          })
         : [],
-    [buildStructuredDraftEntries, structuredDraftState],
+    [hasSelectableSubcategories, structuredDraftState, user.search],
   );
 
   const editStructuredDraftCategory = React.useCallback(async () => {
