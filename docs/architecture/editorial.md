@@ -13,12 +13,14 @@ For broader project layering, read [overview.md](./overview.md) and [boundaries.
 `src/tags/` exists to support a human-in-the-loop editorial workflow around derived tags:
 
 - define the authored tag ontology and explainable rules
-- carry explicit assignments, exemplars, and compatibility-era migrations
+- carry explicit assignments, exemplars, and migration-era compatibility inputs
 - inspect the live indexed corpus for missing or over-broad coverage
 - review queued decisions in terminal workflows
 - write approved changes back into authored TypeScript sources
 
 This subsystem is partly runtime infrastructure and partly editorial tooling. The runtime portion publishes the canonical derived-tag model used by indexing and record derivation. The editorial portion generates evidence, review sessions, and writeback artifacts for humans maintaining that model.
+
+When evaluating the intended long-term shape of `src/tags/`, treat `legacy-rules/` and `legacy-seed-migrations/` as transitional placeholders only. They exist to encode the old rules format while that content is migrated into the current authored model, not to define the future-state layout for the subsystem.
 
 ## Subsystem Shape
 
@@ -37,7 +39,7 @@ flowchart LR
   Positive/negative teaching sets"]
   legacy["`legacy-rules/`
   `legacy-seed-migrations/`
-  Compatibility inputs"]
+  Old rules-format compatibility placeholders"]
   runtime["`runtime/`
   Publish, compile, validate, derive"]
   index["SQLite index + embeddings"]
@@ -93,7 +95,7 @@ The important split is:
 
 | Area                         | Owns                                                                                                                                                                 | Consumes                                                                                                 | Produces                                                                                 |
 | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `runtime/`                   | Published ontology, compiled rules, explicit-assignment index, legacy-seed index, exemplar publication, tag derivation                                               | Authored ontology, authored rules, explicit assignments, exemplars, legacy rules, legacy seed migrations | `deriveRecordTags`, source-aware derivations, validation helpers, runtime lookup helpers |
+| `runtime/`                   | Published ontology, compiled rules, explicit-assignment index, migration-era legacy-seed index, exemplar publication, tag derivation                                  | Authored ontology, authored rules, explicit assignments, exemplars, legacy compatibility inputs          | `deriveRecordTags`, source-aware derivations, validation helpers, runtime lookup helpers |
 | `authored-rules/`            | Per-category explainable rule definitions and the compiler that normalizes them against the ontology                                                                 | Authored tag names and family scopes from `ontology/`                                                    | Runtime-matchable rule objects                                                           |
 | `ontology/`                  | The authored family/tag hierarchy, scope, policy, adjacency, composite structure, and editorial descriptions                                                         | Category manifest and shared type contracts                                                              | Flattenable category ontologies for publication and exploration                          |
 | `exemplars/`                 | Curated positive and negative record examples per tag                                                                                                                | Canonical record keys and the authored ontology                                                          | Published exemplar sets and validation input                                             |
@@ -109,7 +111,7 @@ The important split is:
 
 - publish the authored ontology into flattened family/tag registries
 - compile authored rules against that ontology
-- combine authored rules, legacy rules, seed migrations, and explicit assignments into one derivation path
+- combine authored rules, explicit assignments, and the remaining migration-era legacy inputs into one derivation path
 - publish exemplar registries and validate them against canonical records
 - expose stable helpers such as `deriveRecordTags`, `getDerivedTagFamilyTags`, and `getVariantInheritableTags`
 
@@ -123,7 +125,7 @@ The authored source of truth is spread across several narrow trees:
 - `authored-rules/`: defines explainable rule blocks that compile into matcher-friendly runtime rules
 - `assignments/`: captures explicit per-record overrides that should win without rediscovering the same conclusion
 - `exemplars/`: keeps small positive and negative teaching sets for discovery and review workflows
-- `legacy-rules/` and `legacy-seed-migrations/`: compatibility-era inputs that still inform derivation or migration
+- `legacy-rules/` and `legacy-seed-migrations/`: migration-only compatibility placeholders that preserve the old rules format while it is being retired
 
 These trees are intentionally category-sharded (`affliction`, `creature`, `equipment`, `hazard`, `spell`) so editorial work can stay local while the runtime layer recombines them through the shared manifest.
 
@@ -152,7 +154,7 @@ Those modules are deliberately advisory. They surface evidence for editors, but 
 It owns four distinct responsibilities:
 
 - clone the imported authored registries into a mutable in-memory working state
-- build review sessions from pending queues, legacy migrations, exemplar cleanup, or legacy-rule takeover work
+- build review sessions from pending queues, legacy-input migration work, exemplar cleanup, or legacy-rule takeover work
 - present those sessions in CLI and TUI review flows
 - lint and import approved sessions back into source files under `src/tags/`
 
