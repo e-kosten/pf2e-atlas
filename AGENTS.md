@@ -2,7 +2,19 @@
 
 ## Project Structure & Module Organization
 
-Core application code lives in `src/`. The MCP server entrypoint is `src/index.ts`. PF2E indexing and query logic lives mainly in `src/pf2e-data.ts`, with embedding support in `src/embeddings.ts` and refresh utilities in `src/refresh-*.ts`. Tests live in `tests/` and follow the source areas they cover, for example `tests/pf2e-data.test.ts`. Helper scripts live in `scripts/`. The vendored PF2E checkout is expected under `vendor/pf2e` but is not tracked in this repo.
+Core application code lives in `src/`. The MCP server entrypoint is `src/index.ts`. Shared application composition lives in `src/app/`, index-backed retrieval and backend services live in `src/data/`, ranked-search mechanics live in `src/search/`, MCP tool registration lives in `src/server/`, terminal UI code lives in `src/tui/`, shared contracts live in `src/domain/`, and derived-tag/editorial tooling lives in `src/tags/`. Embedding support lives in `src/embeddings.ts`, and refresh utilities live in `src/refresh-*.ts`. Tests live in `tests/` and follow the source areas they cover. Helper scripts live in `scripts/`. The vendored PF2E checkout is expected under `vendor/pf2e` but is not tracked in this repo.
+
+## Architecture Docs
+
+The architecture documents under `docs/architecture/` are part of the working source of truth for this repository, not optional reference material.
+
+- Before making changes that affect module ownership, runtime composition, cross-layer dependencies, shared abstractions, service boundaries, search flow, TUI structure, or editorial/tagging architecture, read the relevant architecture docs first.
+- Start with `docs/architecture/overview.md` and `docs/architecture/boundaries.md`, then read the focused doc closest to the change, such as `search.md`, `tui.md`, `editorial.md`, `extending.md`, or the ADR index in `docs/architecture/decisions/README.md`.
+- Do not treat `AGENTS.md` as a substitute for those docs. `AGENTS.md` tells you how to work in the repo; the architecture docs tell you how the system is intentionally shaped.
+- When a change materially alters the architecture or the intended editing guidance, update the relevant docs in the same task so they stay in sync with the code.
+- Architecture-impacting changes include new or replaced facades, moved ownership between layers, new lint-enforced boundaries, major search-pipeline changes, TUI composition changes, storage-boundary changes, and editorial workflow restructuring.
+- If you add a new durable architectural rule or make a non-obvious architectural choice that future editors will need to preserve, update an existing ADR or add a new file under `docs/architecture/decisions/`.
+- Do not report an architecture-impacting implementation task as complete if the code and the architecture docs disagree about the intended structure.
 
 ## Build, Test, and Development Commands
 
