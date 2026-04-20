@@ -1,4 +1,4 @@
-import type { MetadataFilterNode, NormalizedRecord, OntologyNode } from "../../types.js";
+import type { MetadataFilterNode, NormalizedRecord, OntologyNode, OntologyTextLine, SearchFilters } from "../../types.js";
 import { normalizeText } from "../../utils.js";
 import { mapNormalizedRecordToOntologyExplorerEntityRecord } from "./entity-record.js";
 import {
@@ -6,7 +6,7 @@ import {
   buildOntologyExplorerEntitySummary,
 } from "./presenter.js";
 
-const loadedOntologyChildren = new WeakMap<OntologyNode, OntologyNode[]>();
+const loadedOntologyChildren = new WeakMap<OntologyNode, readonly OntologyNode[]>();
 
 export function titleCaseLabel(value: string): string {
   return value
@@ -26,10 +26,10 @@ export function buildFilterText(...values: Array<string | null | undefined>): st
 
 export function buildKeyValueDetailLines(
   title: string,
-  entries: Array<[string, string | number | null | undefined]>,
+  entries: ReadonlyArray<readonly [string, string | number | null | undefined]>,
   description?: string,
 ): OntologyNode["detailLines"] {
-  const lines: OntologyNode["detailLines"] = [{ text: title, tone: "section" }];
+  const lines: OntologyTextLine[] = [{ text: title, tone: "section" }];
   if (description) {
     lines.push({ text: description });
   }
@@ -44,6 +44,21 @@ export function cloneMetadataFilterNode(metadata: MetadataFilterNode): MetadataF
   return structuredClone(metadata);
 }
 
+function cloneSearchFilters(filters: Readonly<SearchFilters>): SearchFilters {
+  return {
+    ...filters,
+    linksTo: filters.linksTo ? [...filters.linksTo] : undefined,
+    excludeLinksTo: filters.excludeLinksTo ? [...filters.excludeLinksTo] : undefined,
+    scopes: filters.scopes
+      ? filters.scopes.map((scope) => ({
+          ...scope,
+          subcategories: scope.subcategories ? [...scope.subcategories] : undefined,
+        }))
+      : undefined,
+    metadata: filters.metadata ? cloneMetadataFilterNode(filters.metadata) : undefined,
+  };
+}
+
 export function cloneOntologyNode(node: OntologyNode, idPrefix?: string): OntologyNode {
   return {
     ...node,
@@ -54,12 +69,14 @@ export function cloneOntologyNode(node: OntologyNode, idPrefix?: string): Ontolo
       : undefined,
     childPresentation: node.childPresentation ? { ...node.childPresentation } : undefined,
     groupValues: node.groupValues ? { ...node.groupValues } : undefined,
-    query: node.query ? { ...node.query, filters: { ...node.query.filters } } : undefined,
-    selection: node.selection ? { ...node.selection } : undefined,
+    query: node.query ? { ...node.query, filters: cloneSearchFilters(node.query.filters) } : undefined,
+    selection: node.selection
+      ? { ...node.selection, allowedStates: [...node.selection.allowedStates] }
+      : undefined,
   };
 }
 
-export function getOntologyNodeChildren(node: OntologyNode | undefined): OntologyNode[] {
+export function getOntologyNodeChildren(node: OntologyNode | undefined): readonly OntologyNode[] {
   if (!node) {
     return [];
   }

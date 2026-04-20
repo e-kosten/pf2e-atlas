@@ -1,6 +1,6 @@
 import type { OntologyDomainId, OntologyDomainSummary } from "../../types.js";
 
-export const ONTOLOGY_DOMAINS: OntologyDomainSummary[] = [
+export const ONTOLOGY_DOMAINS = [
   {
     id: "derivedTags",
     label: "Derived Tags",
@@ -17,12 +17,12 @@ export const ONTOLOGY_DOMAINS: OntologyDomainSummary[] = [
     label: "Search Semantics",
     description: "Explore category-specific metadata fields, live value spaces, and advanced search predicates.",
   },
-];
+] as const satisfies readonly OntologyDomainSummary[];
 
 export function getOntologyDomainSummary(id: OntologyDomainId): OntologyDomainSummary {
   const domain = ONTOLOGY_DOMAINS.find((entry) => entry.id === id);
   if (!domain) {
     throw new Error(`Unknown ontology domain: ${id}`);
   }
-  return domain;
+  return { ...domain };
 }

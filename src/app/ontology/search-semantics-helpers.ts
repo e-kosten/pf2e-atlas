@@ -150,7 +150,7 @@ function buildMetricScalarMetadataQuery(
 function buildQueryRecordChildren(
   dataService: SearchSemanticsRecordsDataService,
   query: OntologyNode["query"] | undefined,
-): OntologyNode[] {
+): readonly OntologyNode[] {
   if (!query || query.kind !== "listRecords") {
     return [];
   }
@@ -163,9 +163,9 @@ export function buildFieldValueNodes(
   category: SearchCategory,
   subcategory: SearchSubcategory | null,
   fieldSemantics: MetadataFieldSemantics,
-  values: Array<{ value: string; count: number }>,
+  values: ReadonlyArray<{ value: string; count: number }>,
   metadataGlossary: MetadataGlossaryArtifact | null,
-): OntologyNode[] {
+): readonly OntologyNode[] {
   const idPrefix = subcategory ? `${category}:${subcategory}` : category;
   return values.map((entry): OntologyNode => {
     const metadata = buildMetadataValueQuery(fieldSemantics, entry.value);
@@ -234,10 +234,10 @@ function buildMetricValueNodes(
     metricField: "actorMetrics" | "itemMetrics";
     metadataField: "actorMetric" | "itemMetric";
     metricKey: string;
-    values: Array<{ value: string; count: number }>;
+    values: ReadonlyArray<{ value: string; count: number }>;
     valueType: "text" | "boolean";
   },
-): OntologyNode[] {
+): readonly OntologyNode[] {
   const { category, subcategory, metricField, metadataField, metricKey, values, valueType } = options;
   const idPrefix = subcategory ? `${category}:${subcategory}` : category;
   return values.map((entry) => {
@@ -406,7 +406,7 @@ export function buildMetricDiscoveryGroup(
     metricField: "actorMetrics" | "itemMetrics";
     metadataField: "actorMetric" | "itemMetric";
     label: "Actor Metrics" | "Item Metrics";
-    namespaces: Array<{ prefix: string; description: string }>;
+    namespaces: ReadonlyArray<{ prefix: string; description: string }>;
   },
 ): OntologyNode {
   const { category, subcategory, metricField, metadataField, label, namespaces } = options;

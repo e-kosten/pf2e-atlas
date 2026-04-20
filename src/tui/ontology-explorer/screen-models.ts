@@ -91,7 +91,7 @@ function resolveFacetPickerListContextFromTitle(title: string): FacetPickerListC
   }
 }
 
-function resolveFacetPickerListContextFromNodes(nodes: OntologyNode[]): FacetPickerListContext | undefined {
+function resolveFacetPickerListContextFromNodes(nodes: readonly OntologyNode[]): FacetPickerListContext | undefined {
   const kinds = [...new Set(nodes.map((node) => node.kind).filter((kind) => kind.length > 0))];
   if (kinds.length !== 1) {
     return undefined;

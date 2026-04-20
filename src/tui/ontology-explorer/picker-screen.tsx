@@ -70,7 +70,7 @@ function getNodeSelectionState(
 
 function cycleSelectionState(
   currentState: OntologySelectionState | undefined,
-  allowedStates: OntologySelectionState[],
+  allowedStates: readonly OntologySelectionState[],
   direction: 1 | -1 = 1,
 ): OntologySelectionState | undefined {
   const stateOrder: Array<OntologySelectionState | undefined> = [undefined, ...allowedStates];

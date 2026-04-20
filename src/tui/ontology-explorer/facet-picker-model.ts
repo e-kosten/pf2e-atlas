@@ -15,7 +15,7 @@ function isSelectableValueNode(node: OntologyNode, field: string): boolean {
   return node.kind === "value" || node.kind === "trait";
 }
 
-function getAllowedStates(fieldType: Pf2eTerminalFacetFieldOption["fieldType"]): OntologySelectionState[] {
+function getAllowedStates(fieldType: Pf2eTerminalFacetFieldOption["fieldType"]): readonly OntologySelectionState[] {
   return fieldType === "set" ? ["any", "all", "exclude"] : ["any", "exclude"];
 }
 
@@ -24,17 +24,16 @@ type OntologySelectionResolver = (node: OntologyNode) => OntologyNode["selection
 function annotateSelectableNodes(node: OntologyNode, resolveSelection: OntologySelectionResolver): OntologyNode {
   const cloned = cloneOntologyNode(node);
   const selection = resolveSelection(cloned);
-  if (selection) {
-    cloned.selection = selection;
-  }
-  if (cloned.children) {
-    cloned.children = cloned.children.map((child) => annotateSelectableNodes(child, resolveSelection));
-  }
-  if (cloned.loadChildren) {
-    const loadChildren = cloned.loadChildren;
-    cloned.loadChildren = () => loadChildren().map((child) => annotateSelectableNodes(child, resolveSelection));
-  }
-  return cloned;
+  const children = cloned.children?.map((child) => annotateSelectableNodes(child, resolveSelection));
+  const loadChildren = cloned.loadChildren
+    ? () => cloned.loadChildren!().map((child) => annotateSelectableNodes(child, resolveSelection))
+    : undefined;
+  return {
+    ...cloned,
+    selection,
+    children,
+    loadChildren,
+  };
 }
 
 function buildFieldSelectionResolver(fieldOption: Pf2eTerminalFacetFieldOption): OntologySelectionResolver {
@@ -51,7 +50,7 @@ function buildFieldSelectionResolver(fieldOption: Pf2eTerminalFacetFieldOption):
   };
 }
 
-function findNodeById(nodes: OntologyNode[], id: string): OntologyNode | undefined {
+function findNodeById(nodes: readonly OntologyNode[], id: string): OntologyNode | undefined {
   for (const node of nodes) {
     if (node.id === id) {
       return node;

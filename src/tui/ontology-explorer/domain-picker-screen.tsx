@@ -61,7 +61,7 @@ export function OntologyDomainPickerScreen({
   onMove,
   onOpenSelected,
 }: {
-  domains: OntologyDomainSummary[];
+  domains: readonly OntologyDomainSummary[];
   selectedIndex: number;
   onBack: () => void;
   onMove: (delta: number, itemCount: number) => void;

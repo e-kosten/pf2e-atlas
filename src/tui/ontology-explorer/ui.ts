@@ -28,7 +28,7 @@ export type OntologyBrowserSnapshot = OntologyBrowserUiState;
 
 export type OntologyBrowserSelection = {
   ancestors: OntologyNode[];
-  currentNodes: OntologyNode[];
+  currentNodes: readonly OntologyNode[];
   currentNode?: OntologyNode;
   currentParent?: OntologyNode;
 };
@@ -49,7 +49,7 @@ function clampWindowStart(selectedIndex: number, itemCount: number, visibleCount
   return Math.max(0, Math.min(centered, itemCount - visibleCount));
 }
 
-function filterNodes(nodes: OntologyNode[], filter: string): OntologyNode[] {
+function filterNodes(nodes: readonly OntologyNode[], filter: string): readonly OntologyNode[] {
   const normalized = filter.trim().toLowerCase();
   if (!normalized) {
     return nodes;
@@ -57,7 +57,7 @@ function filterNodes(nodes: OntologyNode[], filter: string): OntologyNode[] {
   return nodes.filter((node) => node.filterText.includes(normalized));
 }
 
-function findNodeById(nodes: OntologyNode[], id: string | undefined): OntologyNode | undefined {
+function findNodeById(nodes: readonly OntologyNode[], id: string | undefined): OntologyNode | undefined {
   return id ? nodes.find((node) => node.id === id) : undefined;
 }
 
@@ -68,9 +68,9 @@ export function canDrillIntoOntologyNode(node: OntologyNode | undefined): boolea
 function getChildrenOfSelectedParent(
   model: OntologyDomainModel,
   state: OntologyBrowserState,
-): { ancestors: OntologyNode[]; parent?: OntologyNode; nodes: OntologyNode[] } {
+): { ancestors: OntologyNode[]; parent?: OntologyNode; nodes: readonly OntologyNode[] } {
   const ancestors: OntologyNode[] = [];
-  let nodes = model.rootNodes;
+  let nodes: readonly OntologyNode[] = model.rootNodes;
   let parent: OntologyNode | undefined;
 
   for (let level = 0; level < state.depth; level += 1) {
@@ -96,8 +96,8 @@ function getChildrenOfSelectedParent(
 }
 
 function findNearestFilteredNode(
-  nodes: OntologyNode[],
-  filteredNodes: OntologyNode[],
+  nodes: readonly OntologyNode[],
+  filteredNodes: readonly OntologyNode[],
   selectedId: string | undefined,
 ): OntologyNode | undefined {
   if (filteredNodes.length === 0) {
@@ -159,7 +159,7 @@ export function normalizeOntologyBrowserState(
   const nextSelectedNodeIds = [...state.selectedNodeIds];
   const maxDepth = Math.max(0, nextSelectedNodeIds.length - 1);
   const nextDepth = Math.max(0, Math.min(state.depth, maxDepth));
-  let nodes = model.rootNodes;
+  let nodes: readonly OntologyNode[] = model.rootNodes;
 
   for (let level = 0; level <= nextDepth; level += 1) {
     if (nodes.length === 0) {
@@ -214,11 +214,14 @@ export function getOntologyBrowserSelection(
   };
 }
 
-function getCurrentNodes(model: OntologyDomainModel, state: OntologyBrowserState): OntologyNode[] {
+function getCurrentNodes(model: OntologyDomainModel, state: OntologyBrowserState): readonly OntologyNode[] {
   return getOntologyBrowserSelection(model, state).currentNodes;
 }
 
-function shouldInlineGroups(presentation: OntologyChildPresentation | undefined, nodes: OntologyNode[]): boolean {
+function shouldInlineGroups(
+  presentation: OntologyChildPresentation | undefined,
+  nodes: readonly OntologyNode[],
+): boolean {
   if (!presentation || presentation.mode !== "grouped") {
     return false;
   }
@@ -239,7 +242,7 @@ function shouldInlineGroups(presentation: OntologyChildPresentation | undefined,
   );
 }
 
-function getGroupRenderMode(parent: OntologyNode | undefined, nodes: OntologyNode[]): GroupRenderMode {
+function getGroupRenderMode(parent: OntologyNode | undefined, nodes: readonly OntologyNode[]): GroupRenderMode {
   return shouldInlineGroups(parent?.childPresentation, nodes) ? "inline" : "flat";
 }
 
@@ -485,7 +488,7 @@ export function buildOntologyBrowserDetailLines(
   state: OntologyBrowserState,
 ): DerivedTagTerminalLine[] {
   const selection = getOntologyBrowserSelection(model, state);
-  return selection.currentNode?.detailLines ?? [{ text: "No ontology entry selected.", tone: "dim" }];
+  return [...(selection.currentNode?.detailLines ?? [{ text: "No ontology entry selected.", tone: "dim" }])];
 }
 
 export function getOntologyBrowserDetailTitle(model: OntologyDomainModel, state: OntologyBrowserState): string {

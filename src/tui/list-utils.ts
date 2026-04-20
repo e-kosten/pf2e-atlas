@@ -10,7 +10,7 @@ export function clampWindowStart(selectedIndex: number, itemCount: number, visib
 }
 
 export function buildScrollableLines<T extends { label: string }>(
-  items: T[],
+  items: readonly T[],
   selectedIndex: number,
   bodyHeight: number,
 ): DerivedTagTerminalLine[] {

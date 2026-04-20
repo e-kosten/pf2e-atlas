@@ -127,7 +127,7 @@ export function TerminalMenuScreen<TItem extends TerminalMenuScreenItem>({
   subtitle?: string;
   leftTitle: string;
   rightTitle: string;
-  items: TItem[];
+  items: readonly TItem[];
   selectedIndex: number;
   interactionActions: TerminalInteractionAction[];
   footer: DerivedTagTerminalLine[];
@@ -230,7 +230,7 @@ export function TerminalActionMenuScreen<
   leftTitle: string;
   rightTitle: string;
   leftWidth?: number;
-  items: TItem[];
+  items: readonly TItem[];
   selectedIndex: number;
   interactionActions: TerminalInteractionAction[];
   actionEntries: DerivedTagTerminalActionTargetOption<TAction>[];

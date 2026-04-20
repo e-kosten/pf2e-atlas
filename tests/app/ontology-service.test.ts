@@ -13,6 +13,7 @@ import type {
   FilterValueField,
   MetadataGlossaryArtifact,
   NormalizedRecord,
+  OntologyDomainSummary,
   OntologyNode,
   SearchFilters,
 } from "../../src/types.js";
@@ -248,6 +249,41 @@ describe("application ontology service", () => {
       "derivedTags",
       "catalogCategories",
       "searchSemantics",
+    ]);
+  });
+
+  it("returns fresh domain summary arrays and objects on each listDomains call", () => {
+    const service = createPf2eApplicationOntologyService(createTestConfig(), createDataService());
+
+    const first = service.listDomains();
+    const second = service.listDomains();
+
+    expect(first).not.toBe(second);
+    expect(first[0]).not.toBe(second[0]);
+
+    (first as OntologyDomainSummary[]).pop();
+    (second as OntologyDomainSummary[])[0] = {
+      ...second[0]!,
+      label: "Mutated Label",
+    };
+
+    expect(service.listDomains()).toEqual([
+      {
+        id: "derivedTags",
+        label: "Derived Tags",
+        description: "Browse the authored derived-tag ontology with live record coverage and editorial detail.",
+      },
+      {
+        id: "catalogCategories",
+        label: "Categories",
+        description:
+          "Browse top-level catalog categories and subcategories with live record counts and ready-to-run browse scopes.",
+      },
+      {
+        id: "searchSemantics",
+        label: "Search Semantics",
+        description: "Explore category-specific metadata fields, live value spaces, and advanced search predicates.",
+      },
     ]);
   });
 

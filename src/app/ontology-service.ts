@@ -10,7 +10,7 @@ import {
 } from "./storage-service.js";
 
 export type Pf2eApplicationOntologyService = {
-  listDomains: () => OntologyDomainSummary[];
+  listDomains: () => readonly OntologyDomainSummary[];
   loadDomain: (id: OntologyDomainId) => OntologyDomainModel;
 };
 
@@ -45,7 +45,7 @@ export function createPf2eApplicationOntologyService(
   };
 
   return {
-    listDomains: () => ONTOLOGY_DOMAINS,
+    listDomains: () => ONTOLOGY_DOMAINS.map((domain) => ({ ...domain })),
     loadDomain,
   };
 }

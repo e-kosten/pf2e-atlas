@@ -29,13 +29,13 @@ export function buildSearchSemanticsDomain(
   }
   const metadataGlossary = readMetadataGlossaryArtifact(config.indexPath);
   const metadataFieldsByName = new Map(semantics.metadataFields.map((entry) => [entry.field, entry]));
-  const filterValuesCache = new Map<string, Array<{ value: string; count: number }>>();
+  const filterValuesCache = new Map<string, readonly { value: string; count: number }[]>();
 
   const getCachedFilterValues = (
     category: SearchCategory,
     subcategory: SearchSubcategory | null,
     field: MetadataFieldSemantics["field"],
-  ): Array<{ value: string; count: number }> => {
+  ): readonly { value: string; count: number }[] => {
     const cacheKey = `${category}:${subcategory ?? "all"}:${field}`;
     const cached = filterValuesCache.get(cacheKey);
     if (cached) {
