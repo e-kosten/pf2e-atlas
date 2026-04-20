@@ -19,11 +19,9 @@ import type {
   Pf2eTerminalSearchQuery,
 } from "../search/service.js";
 import {
-  getSearchQueryActionCostPolicy,
   getSearchQueryCategory,
   getSearchQueryLevelRange,
   getSearchQueryMetadataTree,
-  getSearchQueryRarityPolicy,
   getSearchQuerySubcategory,
   removeSearchQueryPart,
   setSearchQueryCategory,
@@ -272,7 +270,7 @@ export function useSearchWorkspaceActions({
       onApply: (nextNode: MetadataFilterNode | null) => void,
       onReturn?: () => void,
     ): Promise<boolean> => {
-      if (fieldOption.editor !== "ontologyPicker") {
+      if (fieldOption.editor !== "sharedExplorer") {
         return false;
       }
 
@@ -294,7 +292,7 @@ export function useSearchWorkspaceActions({
       fieldOptions: Pf2eTerminalQueryFieldOption[],
       onApply: (nextNode: MetadataFilterNode | null) => void,
     ): Promise<boolean> => {
-      if (fieldOptions.length === 0 || fieldOptions.some((fieldOption) => fieldOption.editor !== "ontologyPicker")) {
+      if (fieldOptions.length === 0 || fieldOptions.some((fieldOption) => fieldOption.editor !== "sharedExplorer")) {
         return false;
       }
 
@@ -320,7 +318,7 @@ export function useSearchWorkspaceActions({
     ): Promise<MetadataFilterNode | null | undefined> => {
       const queryCategory = getSearchQueryCategory(query);
       const querySubcategory = getSearchQuerySubcategory(query);
-      if (fieldOption.editor === "ontologyPicker") {
+      if (fieldOption.editor === "sharedExplorer") {
         return currentNode;
       }
       const metadataField = fieldOption.value as Pf2eTerminalFacetField;
@@ -524,7 +522,7 @@ export function useSearchWorkspaceActions({
       }
 
       const currentNode = queryFieldBuilderState.fieldDrafts[fieldOption.value] ?? null;
-      if (fieldOption.editor === "ontologyPicker") {
+      if (fieldOption.editor === "sharedExplorer") {
         await openOntologyFieldEditor(scopeQuery, fieldOption, currentNode, (nextNode) => {
           updateQueryFieldBuilderDraft(fieldOption.value, nextNode);
         });
@@ -660,7 +658,7 @@ export function useSearchWorkspaceActions({
       if (!fieldOption) {
         return;
       }
-      if (fieldOption.editor === "ontologyPicker") {
+      if (fieldOption.editor === "sharedExplorer") {
         await openOntologyFieldEditor(query, fieldOption, null, (nextNode) => {
           if (!nextNode) {
             return;
@@ -835,35 +833,24 @@ export function useSearchWorkspaceActions({
       return;
     }
 
-    const draftCategory = getSearchQueryCategory(draftQuery);
-    const draftSubcategory = getSearchQuerySubcategory(draftQuery);
-    const draftRarityPolicy = getSearchQueryRarityPolicy(draftQuery);
-    const options = user.search.getRarityOptions(draftCategory, draftSubcategory);
-    const selected = await prompts.promptPolicySelectOption({
-      title: "Rarity Filter",
-      prompt: "Cycle rarities through include and exclude. Press Esc or Left when finished.",
-      allowedStates: ["any", "exclude"],
-      entries: options.map((option) => ({
-        value: option.value,
-        label: option.label,
-        description: option.description,
-      })),
-      selectedValues: draftRarityPolicy,
+    await openFilterExplorer({
+      queryOverride: draftQuery,
+      fieldOptions: [
+        {
+          value: "rarity",
+          label: "Rarity",
+          description: "Browse live rarities for the current scope and stage include or exclude filters.",
+          fieldType: "enumString",
+          editor: "sharedExplorer",
+        },
+      ],
+      initialDraft: user.search.createFilterExplorerDraft(draftQuery, ["rarity"]),
+      singleFieldBehavior: "directValues",
+      onApply: (draft) => {
+        replaceStructuredDraftQuery((query) => user.search.applyFilterExplorerDraft(query, draft));
+      },
     });
-
-    replaceStructuredDraftQuery((query) =>
-      selected.any.length === 0 && selected.exclude.length === 0
-        ? removeSearchQueryPart(query, "rarityPolicy")
-        : setSearchQueryPart(query, {
-            kind: "rarityPolicy",
-            policy: {
-              any: selected.any,
-              all: [],
-              exclude: selected.exclude,
-            },
-          }),
-    );
-  }, [prompts, replaceStructuredDraftQuery, structuredDraftState?.draftQuery, user.search]);
+  }, [openFilterExplorer, replaceStructuredDraftQuery, structuredDraftState?.draftQuery, user.search]);
 
   const editStructuredDraftActionCost = React.useCallback(async () => {
     const draftQuery = structuredDraftState?.draftQuery;
@@ -871,43 +858,24 @@ export function useSearchWorkspaceActions({
       return;
     }
 
-    const draftCategory = getSearchQueryCategory(draftQuery);
-    const draftSubcategory = getSearchQuerySubcategory(draftQuery);
-    const draftActionCostPolicy = getSearchQueryActionCostPolicy(draftQuery);
-    const options = user.search.getActionCostOptions(draftCategory, draftSubcategory);
-    if (options.length === 0) {
-      await terminal.pauseForAnyKey("No action-cost filters are available for the current query.");
-      return;
-    }
-
-    const selected = await prompts.promptPolicySelectOption({
-      title: "Action Cost Filter",
-      prompt: "Cycle action costs through include or exclude. Press Esc or Left when finished.",
-      allowedStates: ["any", "exclude"],
-      entries: options.map((option) => ({
-        value: option.value,
-        label: option.label,
-        description: option.description,
-      })),
-      selectedValues: {
-        any: draftActionCostPolicy.any.map(String),
-        all: [],
-        exclude: draftActionCostPolicy.exclude.map(String),
+    await openFilterExplorer({
+      queryOverride: draftQuery,
+      fieldOptions: [
+        {
+          value: "actionCost",
+          label: "Action Cost",
+          description: "Browse live action costs for the current scope and stage include or exclude filters.",
+          fieldType: "number",
+          editor: "sharedExplorer",
+        },
+      ],
+      initialDraft: user.search.createFilterExplorerDraft(draftQuery, ["actionCost"]),
+      singleFieldBehavior: "directValues",
+      onApply: (draft) => {
+        replaceStructuredDraftQuery((query) => user.search.applyFilterExplorerDraft(query, draft));
       },
     });
-
-    const nextPolicy = {
-      any: selected.any.map((value) => Number.parseInt(value, 10)).filter((value) => Number.isFinite(value)),
-      all: [] as number[],
-      exclude: selected.exclude.map((value) => Number.parseInt(value, 10)).filter((value) => Number.isFinite(value)),
-    };
-
-    replaceStructuredDraftQuery((query) =>
-      nextPolicy.any.length === 0 && nextPolicy.exclude.length === 0
-        ? removeSearchQueryPart(query, "actionCostPolicy")
-        : setSearchQueryPart(query, { kind: "actionCostPolicy", policy: nextPolicy }),
-    );
-  }, [prompts, replaceStructuredDraftQuery, structuredDraftState?.draftQuery, terminal, user.search]);
+  }, [openFilterExplorer, replaceStructuredDraftQuery, structuredDraftState?.draftQuery, user.search]);
 
   const editStructuredDraftMetadata = React.useCallback(
     async (path: number[]) => {
@@ -989,7 +957,7 @@ export function useSearchWorkspaceActions({
             await terminal.pauseForAnyKey("That clause came from a richer query path and cannot be edited here yet.");
             return;
           }
-          if (fieldOption.editor === "ontologyPicker") {
+          if (fieldOption.editor === "sharedExplorer") {
             await openOntologyFieldEditor(draftQuery, fieldOption, node, (nextNode) => {
               replaceStructuredDraftQuery((query) =>
                 setSearchQueryMetadataTree(

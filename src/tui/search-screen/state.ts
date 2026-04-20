@@ -6,7 +6,6 @@ export type {
   SearchQueryFieldBuilderDraft,
   SearchQueryFieldBuilderOutcome,
   SearchQueryFieldBuilderSession,
-  SearchQueryFieldBuilderStep,
   SearchFilterExplorerSession,
 } from "./query-field-builder-session.js";
 export type {

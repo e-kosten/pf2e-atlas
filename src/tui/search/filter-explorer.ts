@@ -7,7 +7,15 @@ import { getOntologyNodeChildren } from "../../app/ontology/node-helpers.js";
 import { isMetadataPredicate, normalizeMetadataNode } from "./query-core.js";
 import { partitionDiscoverableQueryFieldSelections } from "./discoverable-fields.js";
 import { createEmptyStringPolicy, normalizeQueryFieldPolicy } from "./policies.js";
-import { buildMetadataNodeForQueryFieldSelection, getSearchQueryMetadataTree, setSearchQueryMetadataTree } from "./query-state.js";
+import {
+  buildMetadataNodeForQueryFieldSelection,
+  getSearchQueryActionCostPolicy,
+  getSearchQueryMetadataTree,
+  getSearchQueryRarityPolicy,
+  removeSearchQueryPart,
+  setSearchQueryMetadataTree,
+  setSearchQueryPart,
+} from "./query-state.js";
 import { humanizeIdentifier } from "./service-options.js";
 import type {
   Pf2eTerminalFacetField,
@@ -23,6 +31,7 @@ import type {
 import type { FilterExplorerComposeDraft, FilterExplorerComposeTarget } from "../filter-explorer/index.js";
 
 type SearchFilterExplorerMetricField = "actorMetric" | "itemMetric";
+type SearchFilterExplorerTopLevelField = "rarity" | "actionCost";
 
 type MetricValueType = "number" | "text" | "boolean";
 
@@ -33,6 +42,10 @@ type MetricFieldSelectionKey = {
 
 function isMetricQueryField(field: Pf2eTerminalQueryField): field is SearchFilterExplorerMetricField {
   return field === "actorMetric" || field === "itemMetric";
+}
+
+function isTopLevelSearchFilterExplorerField(field: string): field is SearchFilterExplorerTopLevelField {
+  return field === "rarity" || field === "actionCost";
 }
 
 function isBooleanString(value: string): boolean {
@@ -71,6 +84,11 @@ function normalizeFilterExplorerSelectionMap(
   for (const [fieldKey, policy] of Object.entries(fieldSelections)) {
     const metricField = parseMetricSelectionKey(fieldKey);
     if (metricField) {
+      next[fieldKey] = normalizeMetricPolicy(policy);
+      continue;
+    }
+
+    if (fieldKey === "actionCost") {
       next[fieldKey] = normalizeMetricPolicy(policy);
       continue;
     }
@@ -607,6 +625,10 @@ function buildMetadataNodeForSelectionKey(
   policy: Pf2eTerminalFilterValuePolicy<string>,
   fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
 ): MetadataFilterNode | null {
+  if (isTopLevelSearchFilterExplorerField(key)) {
+    return null;
+  }
+
   const metricKey = parseMetricSelectionKey(key);
   if (metricKey) {
     return buildMetricSelectionMetadataNode(metricKey.field, metricKey.metric, policy);
@@ -890,6 +912,7 @@ export function createFilterExplorerDraftFromMetadataNode(
   );
 
   return {
+    scopedFields: [...scopedFields],
     fieldSelections: normalizeFilterExplorerSelectionMap(
       mergeSelectionMaps(discoverablePartition.selections, metricPartition.selections),
       fieldSemanticsByName,
@@ -904,11 +927,29 @@ export function createFilterExplorerDraftFromQuery(
   scopedFields: readonly Pf2eTerminalQueryField[],
   fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
 ): Pf2eTerminalFilterExplorerDraft {
-  return createFilterExplorerDraftFromMetadataNode(
+  const draft = createFilterExplorerDraftFromMetadataNode(
     getSearchQueryMetadataTree(query),
     scopedFields,
     fieldSemanticsByName,
   );
+
+  if (scopedFields.includes("rarity")) {
+    draft.fieldSelections.rarity = clonePolicy(getSearchQueryRarityPolicy(query));
+  }
+
+  if (scopedFields.includes("actionCost")) {
+    const actionCostPolicy = getSearchQueryActionCostPolicy(query);
+    draft.fieldSelections.actionCost = {
+      any: actionCostPolicy.any.map(String),
+      all: [],
+      exclude: actionCostPolicy.exclude.map(String),
+    };
+  }
+
+  return {
+    ...draft,
+    fieldSelections: normalizeFilterExplorerSelectionMap(draft.fieldSelections, fieldSemanticsByName),
+  };
 }
 
 export function createFilterExplorerComposeDraft(
@@ -955,6 +996,7 @@ export function applyFilterExplorerComposeDraft(
   }
 
   return {
+    scopedFields: [...(currentDraft.scopedFields ?? [])],
     fieldSelections: Object.fromEntries(
       Object.entries(composeDraft.selection).map(([field, policy]) => [field, clonePolicy(policy)]),
     ),
@@ -997,10 +1039,66 @@ export function buildFilterExplorerMetadataNode(
   return normalizeMetadataNode({ and: metadataClauses });
 }
 
+function hasStringPolicyValues(policy: Pf2eTerminalFilterValuePolicy<string> | undefined): boolean {
+  return Boolean(policy && (policy.any.length > 0 || policy.all.length > 0 || policy.exclude.length > 0));
+}
+
+function applyRarityExplorerSelection(
+  query: Pf2eTerminalSearchQuery,
+  policy: Pf2eTerminalFilterValuePolicy<string> | undefined,
+): Pf2eTerminalSearchQuery {
+  return hasStringPolicyValues(policy)
+    ? setSearchQueryPart(query, {
+        kind: "rarityPolicy",
+        policy: {
+          any: [...(policy?.any ?? [])],
+          all: [],
+          exclude: [...(policy?.exclude ?? [])],
+        },
+      })
+    : removeSearchQueryPart(query, "rarityPolicy");
+}
+
+function applyActionCostExplorerSelection(
+  query: Pf2eTerminalSearchQuery,
+  policy: Pf2eTerminalFilterValuePolicy<string> | undefined,
+): Pf2eTerminalSearchQuery {
+  const nextPolicy = {
+    any: (policy?.any ?? [])
+      .map((value) => Number.parseInt(value, 10))
+      .filter((value, index, values) => Number.isFinite(value) && values.indexOf(value) === index),
+    all: [] as number[],
+    exclude: (policy?.exclude ?? [])
+      .map((value) => Number.parseInt(value, 10))
+      .filter((value, index, values) => Number.isFinite(value) && values.indexOf(value) === index),
+  };
+
+  return nextPolicy.any.length > 0 || nextPolicy.exclude.length > 0
+    ? setSearchQueryPart(query, { kind: "actionCostPolicy", policy: nextPolicy })
+    : removeSearchQueryPart(query, "actionCostPolicy");
+}
+
 export function applyFilterExplorerDraft(
   query: Pf2eTerminalSearchQuery,
   draft: Pf2eTerminalFilterExplorerDraft,
   fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
 ): Pf2eTerminalSearchQuery {
-  return setSearchQueryMetadataTree(query, buildFilterExplorerMetadataNode(draft, fieldSemanticsByName));
+  const scopedFieldSet = new Set(draft.scopedFields);
+  const metadataDraft: Pf2eTerminalFilterExplorerDraft = {
+    ...draft,
+    fieldSelections: Object.fromEntries(
+      Object.entries(draft.fieldSelections).filter(([field]) => !isTopLevelSearchFilterExplorerField(field)),
+    ),
+  };
+
+  let nextQuery = setSearchQueryMetadataTree(query, buildFilterExplorerMetadataNode(metadataDraft, fieldSemanticsByName));
+
+  if (scopedFieldSet.has("rarity")) {
+    nextQuery = applyRarityExplorerSelection(nextQuery, draft.fieldSelections.rarity);
+  }
+  if (scopedFieldSet.has("actionCost")) {
+    nextQuery = applyActionCostExplorerSelection(nextQuery, draft.fieldSelections.actionCost);
+  }
+
+  return nextQuery;
 }

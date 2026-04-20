@@ -390,6 +390,78 @@ function createFacetPickerOntologyDomain(): OntologyDomainModel {
   };
 }
 
+function createFacetPickerOntologyDomainWithDiscreteFields(): OntologyDomainModel {
+  const domain = createFacetPickerOntologyDomain();
+  const categoryNode = domain.rootNodes[0];
+  const metadataFieldsNode = categoryNode?.children?.[0];
+  if (!metadataFieldsNode?.children) {
+    return domain;
+  }
+
+  metadataFieldsNode.children.unshift(
+    {
+      id: "spell:field:rarity",
+      kind: "field",
+      label: "rarity",
+      filterText: "rarity",
+      listLabel: "rarity",
+      detailTitle: "Metadata Field Details",
+      detailLines: [{ text: "rarity", tone: "section" }],
+      children: [
+        {
+          id: "spell:field:rarity:value:common",
+          kind: "value",
+          label: "common",
+          filterText: "common",
+          listLabel: "common",
+          detailTitle: "Value Details",
+          detailLines: [{ text: "common", tone: "section" }],
+        },
+        {
+          id: "spell:field:rarity:value:rare",
+          kind: "value",
+          label: "rare",
+          filterText: "rare",
+          listLabel: "rare",
+          detailTitle: "Value Details",
+          detailLines: [{ text: "rare", tone: "section" }],
+        },
+      ],
+    },
+    {
+      id: "spell:field:actionCost",
+      kind: "field",
+      label: "actionCost",
+      filterText: "action cost",
+      listLabel: "actionCost",
+      detailTitle: "Metadata Field Details",
+      detailLines: [{ text: "actionCost", tone: "section" }],
+      children: [
+        {
+          id: "spell:field:actionCost:value:1",
+          kind: "value",
+          label: "1 action",
+          filterText: "1 action",
+          listLabel: "1 action",
+          detailTitle: "Value Details",
+          detailLines: [{ text: "1 action", tone: "section" }],
+        },
+        {
+          id: "spell:field:actionCost:value:2",
+          kind: "value",
+          label: "2 actions",
+          filterText: "2 actions",
+          listLabel: "2 actions",
+          detailTitle: "Value Details",
+          detailLines: [{ text: "2 actions", tone: "section" }],
+        },
+      ],
+    },
+  );
+
+  return domain;
+}
+
 function createCreatureDerivedTagsOntologyDomain(): OntologyDomainModel {
   return {
     id: "searchSemantics",
@@ -686,7 +758,7 @@ describe("search screen", () => {
         label: "Derived Tags",
         description: "Derived-tag query field for the current browse scope.",
         fieldType: "set",
-        editor: "ontologyPicker",
+        editor: "sharedExplorer",
       },
     ]);
     services.user.ontology.loadDomain = vi.fn((id: string) => {
@@ -1701,7 +1773,7 @@ describe("search screen", () => {
         label: "Derived Tags",
         description: "Derived-tag query field for the current browse scope.",
         fieldType: "set",
-        editor: "ontologyPicker",
+        editor: "sharedExplorer",
       },
     ]);
     services.user.ontology.loadDomain = vi.fn((id: string) => {
@@ -1801,6 +1873,83 @@ describe("search screen", () => {
     expect(app.lastFrame()).not.toContain("Structured Query Editor");
   });
 
+  it("opens the shared explorer for staged rarity and action-cost rows", async () => {
+    const services = createServices();
+    services.user.ontology.loadDomain = vi.fn((id: string) => {
+      if (id === "searchSemantics") {
+        return createFacetPickerOntologyDomainWithDiscreteFields();
+      }
+      return {
+        id: "fallback",
+        label: "Fallback",
+        description: "Unused test domain",
+        rootNodes: [],
+      };
+    });
+
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen
+            initialQuery={{
+              kind: "listRecords",
+              label: "Browse spells",
+              filters: {
+                actionCost: 2,
+                category: "spell",
+                limit: 20,
+                levelMax: 1,
+                levelMin: 1,
+                rarity: "common",
+              },
+            }}
+            onBack={vi.fn()}
+          />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    pressLeft(app);
+    await flushInk();
+    for (let step = 0; step < 2; step += 1) {
+      pressDown(app);
+      await flushInk();
+    }
+
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Structured Query Editor");
+
+    pressUp(app);
+    await flushInk();
+    pressUp(app);
+    await flushInk();
+    expect(app.lastFrame()).toContain("Rarity");
+
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+    expect(app.lastFrame()).toContain("Rarity Explorer");
+    expect(app.lastFrame()).toContain("common");
+    expect(app.lastFrame()).toContain("rare");
+
+    pressLeft(app);
+    await flushInk();
+    expect(app.lastFrame()).toContain("Structured Query Editor");
+
+    pressDown(app);
+    await flushInk();
+    expect(app.lastFrame()).toContain("Action Cost");
+
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+    expect(app.lastFrame()).toContain("Action Cost Explorer");
+    expect(app.lastFrame()).toContain("1 action");
+    expect(app.lastFrame()).toContain("2 actions");
+  });
+
   it("opens the shared explorer directly for multi-field ontology composition and returns to the staged query", async () => {
     const services = createServices();
     services.user.search.getQueryFieldOptions = vi.fn(() => [
@@ -1809,14 +1958,14 @@ describe("search screen", () => {
         label: "Traits",
         description: "Trait query field for the current browse scope.",
         fieldType: "set",
-        editor: "ontologyPicker",
+        editor: "sharedExplorer",
       },
       {
         value: "derivedTags",
         label: "Derived Tags",
         description: "Derived-tag query field for the current browse scope.",
         fieldType: "set",
-        editor: "ontologyPicker",
+        editor: "sharedExplorer",
       },
     ]);
     services.user.ontology.loadDomain = vi.fn((id: string) => {
@@ -1963,7 +2112,7 @@ describe("search screen", () => {
               label: "Derived Tags",
               description: "Derived-tag query field for the current creature scope.",
               fieldType: "set",
-              editor: "ontologyPicker",
+              editor: "sharedExplorer",
             },
           ]
         : [],

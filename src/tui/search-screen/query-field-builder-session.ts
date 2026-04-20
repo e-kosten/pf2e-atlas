@@ -29,8 +29,6 @@ export type SearchFilterExplorerSession = {
   onApply: (draft: Pf2eTerminalFilterExplorerDraft) => void;
 };
 
-export type SearchQueryFieldBuilderStep = "fieldList" | "ontologyPicker";
-
 export type SearchStructuredEditorItem =
   | {
       kind: "workspaceEntry";
@@ -90,9 +88,6 @@ export type SearchStructuredEditorSession = {
   kind?: "structuredEditor" | "queryFieldBuilder";
   availableFields?: Pf2eTerminalQueryFieldOption[];
   selectedFieldIndex?: number;
-  step?: SearchQueryFieldBuilderStep;
-  activeChildView?: "none" | "ontologyPicker";
-  childSession?: SearchFilterExplorerSession | null;
   draft?: SearchQueryFieldBuilderDraft | null;
   fieldDrafts?: Record<string, MetadataFilterNode | null>;
   onFinish?: (outcome: Extract<SearchQueryFieldBuilderOutcome, { kind: "finish" }>) => void;
@@ -245,8 +240,6 @@ function buildLegacyFieldFocusLines(
   }
 
   lines.push({ text: "" });
-  lines.push({ text: `Step: ${session.step ?? "fieldList"}` });
-  lines.push({ text: `Child view: ${session.activeChildView ?? "none"}` });
   lines.push({ text: "Selections remain staged until you finish.", tone: "dim" });
   return lines;
 }

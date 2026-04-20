@@ -163,11 +163,8 @@ export function partitionDiscoverableQueryFieldSelections(
 }
 
 export function getQueryFieldEditor(field: MetadataFieldSemantics): Pf2eTerminalQueryFieldEditor {
-  if (field.field === "derivedTags") {
-    return "ontologyPicker";
-  }
   if (["set", "enumString", "boolean"].includes(field.fieldType)) {
-    return "policyList";
+    return "sharedExplorer";
   }
   return "structuredForm";
 }
@@ -213,7 +210,7 @@ function getMetricQueryFieldOptions(
       label: category === "hazard" ? "Hazard Statistics" : "Creature Statistics",
       description: "Browse live statistic keys and author exact or numeric literal filters for the current scope.",
       fieldType: "enumString",
-      editor: "ontologyPicker",
+      editor: "sharedExplorer",
     });
   }
 
@@ -227,7 +224,7 @@ function getMetricQueryFieldOptions(
       label: "Item Properties",
       description: "Browse live item property keys and author exact or numeric literal filters for the current scope.",
       fieldType: "enumString",
-      editor: "ontologyPicker",
+      editor: "sharedExplorer",
     });
   }
 

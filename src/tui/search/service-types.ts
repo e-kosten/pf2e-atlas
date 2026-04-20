@@ -108,7 +108,7 @@ export type Pf2eTerminalQueryFieldOption = {
   editor: Pf2eTerminalQueryFieldEditor;
 };
 
-export type Pf2eTerminalQueryFieldEditor = "policyList" | "structuredForm" | "ontologyPicker";
+export type Pf2eTerminalQueryFieldEditor = "policyList" | "structuredForm" | "sharedExplorer";
 
 export type Pf2eTerminalQueryFieldSelectionMap = Record<string, Pf2eTerminalFilterValuePolicy<string>>;
 
@@ -122,6 +122,7 @@ export type Pf2eTerminalFilterExplorerMetricClause = {
 export type Pf2eTerminalFilterExplorerScalarClauseMap = Record<string, Pf2eTerminalFilterExplorerMetricClause>;
 
 export type Pf2eTerminalFilterExplorerDraft = {
+  scopedFields: readonly Pf2eTerminalQueryField[];
   fieldSelections: Pf2eTerminalQueryFieldSelectionMap;
   scalarClauses: Pf2eTerminalFilterExplorerScalarClauseMap;
   structuredMetadata: MetadataFilterNode | null;

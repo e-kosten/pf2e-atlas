@@ -9,7 +9,9 @@ import {
   buildSearchFilterExplorerTargetResolver,
   createFilterExplorerComposeDraft,
   createPf2eTerminalSearchService,
+  getSearchQueryActionCostPolicy,
   getSearchQueryMetadataTree,
+  getSearchQueryRarityPolicy,
 } from "../../src/tui/search/service.js";
 
 type SearchServiceDependencies = Parameters<typeof createPf2eTerminalSearchService>[0];
@@ -269,6 +271,109 @@ describe("createPf2eTerminalSearchService", () => {
     } satisfies MetadataFilterNode);
   });
 
+  it("round-trips scoped rarity and action-cost explorer drafts through top-level query parts", () => {
+    const service = createPf2eTerminalSearchService(
+      createDependencies({
+        listFilterValues: vi.fn(({ field }) => {
+          if (field === "rarity") {
+            return {
+              values: [
+                { value: "common", count: 1 },
+                { value: "rare", count: 1 },
+                { value: "uncommon", count: 1 },
+              ],
+            };
+          }
+          if (field === "actionCost") {
+            return {
+              values: [
+                { value: "1", count: 1 },
+                { value: "2", count: 1 },
+              ],
+            };
+          }
+          return { values: [] };
+        }),
+      }),
+    );
+    const defaultQuery = service.createDefaultQuery();
+    const query = service.normalizeQuery({
+      ...defaultQuery,
+      filters: {
+        ...defaultQuery.filters,
+        category: "spell",
+        rarity: {
+          any: ["common"],
+          all: [],
+          exclude: ["rare"],
+        },
+        actionCost: {
+          any: [2],
+          all: [],
+          exclude: [1],
+        },
+        metadata: {
+          field: "traits",
+          op: "includesAny",
+          values: ["illusion"],
+        },
+      },
+    });
+
+    const draft = service.createFilterExplorerDraft(query, ["rarity", "actionCost"]);
+
+    expect(draft.scopedFields).toEqual(["rarity", "actionCost"]);
+    expect(draft.structuredMetadata).toEqual({
+      field: "traits",
+      op: "includesAny",
+      values: ["illusion"],
+    } satisfies MetadataFilterNode);
+    expect(draft.fieldSelections).toEqual({
+      rarity: {
+        any: ["common"],
+        all: [],
+        exclude: ["rare"],
+      },
+      actionCost: {
+        any: ["2"],
+        all: [],
+        exclude: ["1"],
+      },
+    });
+
+    const updated = service.applyFilterExplorerDraft(query, {
+      ...draft,
+      fieldSelections: {
+        rarity: {
+          any: ["uncommon"],
+          all: [],
+          exclude: [],
+        },
+        actionCost: {
+          any: ["1"],
+          all: [],
+          exclude: [],
+        },
+      },
+    });
+
+    expect(getSearchQueryRarityPolicy(updated)).toEqual({
+      any: ["uncommon"],
+      all: [],
+      exclude: [],
+    });
+    expect(getSearchQueryActionCostPolicy(updated)).toEqual({
+      any: [1],
+      all: [],
+      exclude: [],
+    });
+    expect(getSearchQueryMetadataTree(updated)).toEqual({
+      field: "traits",
+      op: "includesAny",
+      values: ["illusion"],
+    } satisfies MetadataFilterNode);
+  });
+
   it("rebuilds search drafts from the shared compose draft while inferring metric identity from the key", () => {
     const structuredMetadata = {
       field: "traits",
@@ -365,14 +470,14 @@ describe("createPf2eTerminalSearchService", () => {
             label: "Traits",
             description: "Trait query field",
             fieldType: "set",
-            editor: "ontologyPicker",
+            editor: "sharedExplorer",
           },
           {
             value: "derivedTags",
             label: "Derived Tags",
             description: "Derived-tag query field",
             fieldType: "set",
-            editor: "ontologyPicker",
+            editor: "sharedExplorer",
           },
         ],
         singleFieldBehavior: "list",
@@ -513,7 +618,7 @@ describe("createPf2eTerminalSearchService", () => {
             label: "Creature Statistics",
             description: "Browse live statistic keys.",
             fieldType: "enumString",
-            editor: "ontologyPicker",
+            editor: "sharedExplorer",
           },
         ],
         singleFieldBehavior: "directValues",
@@ -532,7 +637,7 @@ describe("createPf2eTerminalSearchService", () => {
         label: "Creature Statistics",
         description: "Browse live statistic keys.",
         fieldType: "enumString",
-        editor: "ontologyPicker",
+        editor: "sharedExplorer",
       },
     ]);
 
