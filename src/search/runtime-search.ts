@@ -1,7 +1,6 @@
 import { buildLiteralQueryWeights, buildSearchQueryAnalysis } from "./query-analysis.js";
 import { recordMatchesFilters, semanticQueryLimit } from "./sql.js";
 import {
-  buildFusionConfigSummary,
   buildLexicalSignal,
   buildNormalizedRankScoreMap,
   buildRankMap,
@@ -11,102 +10,30 @@ import {
   resolveHybridFusionProfile,
   resolveSearchMode,
   resolveSearchProfile,
-  scoreNameCandidate,
   sumRerankAdjustments,
 } from "./ranking.js";
 import type { NormalizedRecord } from "../domain/record-types.js";
 import type {
   SearchCountResult,
-  SearchExplainResult,
   SearchFilters,
-  SearchMode,
-  SearchProfile,
   SearchRecordExplanation,
   SearchResult,
-  SearchSort,
 } from "../domain/search-types.js";
 import type { NormalizedSearchFilters, RuntimeSearchDependencies } from "./contracts.js";
 import { normalizeText } from "../shared/utils.js";
 import { clampLimit, clampOffset } from "./primitives.js";
+import { compareRecordsForSort, sortRecords } from "./runtime-search-sorting.js";
+import {
+  buildExplainContext,
+  createSearchCountResult,
+  createSearchResultPage,
+  createSnapshot,
+  sliceSnapshotToSearchResult,
+} from "./runtime-search-snapshot.js";
+import { buildStructuredSearchEntries, matchesExcludedQuery } from "./runtime-search-structured.js";
+import type { SearchWindowSnapshot } from "./runtime-search-snapshot.js";
 
 const LOOKUP_LEXICAL_TOP_K = 100;
-
-function nameScore(query: string, record: NormalizedRecord, aliases: string[] = []): number {
-  let best = scoreNameCandidate(query, record.normalizedName);
-  for (const alias of aliases) {
-    best = Math.max(best, scoreNameCandidate(query, normalizeText(alias)));
-  }
-  return best;
-}
-
-function sortRecords(left: NormalizedRecord, right: NormalizedRecord): number {
-  return (
-    left.name.localeCompare(right.name) ||
-    left.packLabel.localeCompare(right.packLabel) ||
-    left.id.localeCompare(right.id)
-  );
-}
-
-function compareNullableLevel(left: number | null, right: number | null): number {
-  if (left === null && right === null) {
-    return 0;
-  }
-  if (left === null) {
-    return 1;
-  }
-  if (right === null) {
-    return -1;
-  }
-  return left - right;
-}
-
-function hashRecordSortSeed(recordKey: string, seed: number): number {
-  let hash = seed | 0;
-  for (let index = 0; index < recordKey.length; index += 1) {
-    hash = Math.imul(hash ^ recordKey.charCodeAt(index), 16777619);
-  }
-  return hash >>> 0;
-}
-
-function compareRecordsForSort(
-  left: NormalizedRecord,
-  right: NormalizedRecord,
-  sort: SearchSort,
-  sortSeed: number,
-): number {
-  switch (sort) {
-    case "levelAsc":
-      return compareNullableLevel(left.level, right.level) || sortRecords(left, right);
-    case "levelDesc":
-      return compareNullableLevel(right.level, left.level) || sortRecords(left, right);
-    case "random":
-      return (
-        hashRecordSortSeed(left.recordKey, sortSeed) - hashRecordSortSeed(right.recordKey, sortSeed) ||
-        sortRecords(left, right)
-      );
-    case "alphabetical":
-    case "ranked":
-    default:
-      return sortRecords(left, right);
-  }
-}
-
-function createSearchResultPage(options: Omit<SearchResult, "hasMore" | "nextOffset">): SearchResult {
-  const hasMore = options.offset + options.records.length < options.total;
-  return {
-    ...options,
-    hasMore,
-    nextOffset: hasMore ? options.offset + options.records.length : null,
-  };
-}
-
-function createSearchCountResult(result: SearchResult): SearchCountResult {
-  return {
-    searchProfile: result.searchProfile,
-    mode: result.mode,
-    total: result.total,
-  };
-}
 
 function buildFtsQuery(query: string): string | null {
   const tokens = normalizeText(query).split(" ").filter(Boolean);
@@ -115,168 +42,6 @@ function buildFtsQuery(query: string): string | null {
   }
 
   return tokens.map((token) => `"${token}"*`).join(" OR ");
-}
-
-function matchesExcludedQuery(searchText: string | null | undefined, excludedTokens: string[]): boolean {
-  if (excludedTokens.length === 0) {
-    return false;
-  }
-
-  const searchTokens = new Set(
-    normalizeText(searchText ?? "")
-      .split(" ")
-      .filter(Boolean),
-  );
-  return excludedTokens.some((token) => searchTokens.has(token));
-}
-
-type SearchWindowSnapshot = {
-  searchProfile: SearchProfile | null;
-  mode: SearchMode;
-  sort: SearchSort;
-  records: NormalizedRecord[];
-  explanations: SearchRecordExplanation[];
-  explainContext?: {
-    fusionMethod: SearchExplainResult["fusionMethod"];
-    fusionProfile: SearchExplainResult["fusionProfile"];
-    fusionConfig: ReturnType<typeof buildFusionConfigSummary>;
-    lexicalQuery: string;
-    semanticQuery: string;
-    query: SearchExplainResult["query"];
-    excludeQuery: SearchExplainResult["excludeQuery"];
-  };
-};
-
-function createSnapshot(
-  searchProfile: SearchProfile | null,
-  mode: SearchMode,
-  sort: SearchSort,
-  entries: Array<{ record: NormalizedRecord; explanation: SearchRecordExplanation }>,
-  explainContext?: SearchWindowSnapshot["explainContext"],
-): SearchWindowSnapshot {
-  return {
-    searchProfile,
-    mode,
-    sort,
-    records: entries.map((entry) => entry.record),
-    explanations: entries.map((entry) => entry.explanation),
-    explainContext,
-  };
-}
-
-function sliceSnapshotToSearchResult(
-  snapshot: SearchWindowSnapshot,
-  offset: number,
-  limit: number,
-  explainRequested: boolean,
-  rankingConfigStatus: SearchExplainResult["rankingConfig"],
-): SearchResult {
-  const records = snapshot.records.slice(offset, offset + limit);
-  const explain =
-    explainRequested && snapshot.explainContext
-      ? {
-          searchProfile: snapshot.searchProfile,
-          mode: snapshot.mode,
-          fusionMethod: snapshot.explainContext.fusionMethod,
-          fusionProfile: snapshot.explainContext.fusionProfile,
-          fusionConfig: snapshot.explainContext.fusionConfig,
-          lexicalQuery: snapshot.explainContext.lexicalQuery,
-          semanticQuery: snapshot.explainContext.semanticQuery,
-          query: snapshot.explainContext.query,
-          excludeQuery: snapshot.explainContext.excludeQuery,
-          rankingConfig: rankingConfigStatus,
-          records: snapshot.explanations.slice(offset, offset + limit),
-        }
-      : undefined;
-
-  return createSearchResultPage({
-    searchProfile: snapshot.searchProfile,
-    mode: snapshot.mode,
-    sort: snapshot.sort,
-    total: snapshot.records.length,
-    offset,
-    limit,
-    records,
-    explain,
-  });
-}
-
-function buildExplainContext(
-  lexicalQuery: string,
-  rawSemanticQuery: string,
-  queryAnalysis: ReturnType<typeof buildSearchQueryAnalysis> | null,
-  excludeQueryAnalysis: ReturnType<typeof buildSearchQueryAnalysis> | null,
-  hybridFusion: ReturnType<typeof resolveHybridFusionProfile>,
-  deps: RuntimeSearchDependencies,
-): NonNullable<SearchWindowSnapshot["explainContext"]> {
-  return {
-    fusionMethod: hybridFusion ? ("weightedRrf" as const) : null,
-    fusionProfile: hybridFusion?.profile ?? null,
-    fusionConfig: buildFusionConfigSummary(
-      hybridFusion?.profile ?? null,
-      hybridFusion?.config ?? null,
-      deps.rankingConfig,
-    ),
-    lexicalQuery,
-    semanticQuery: rawSemanticQuery,
-    query: queryAnalysis
-      ? {
-          rawQuery: queryAnalysis.rawQuery,
-          normalizedQuery: queryAnalysis.normalizedQuery,
-          queryTokens: queryAnalysis.queryTokens,
-        }
-      : null,
-    excludeQuery: excludeQueryAnalysis
-      ? {
-          rawQuery: excludeQueryAnalysis.rawQuery,
-          normalizedQuery: excludeQueryAnalysis.normalizedQuery,
-          queryTokens: excludeQueryAnalysis.queryTokens,
-        }
-      : null,
-  };
-}
-
-function buildStructuredSearchEntries(
-  normalizedFilters: NormalizedSearchFilters,
-  deps: RuntimeSearchDependencies,
-  excludeTokens: string[] = [],
-): Array<{ record: NormalizedRecord; explanation: SearchRecordExplanation }> {
-  const sort = normalizedFilters.sort ?? "ranked";
-  const sortSeed = normalizedFilters.sortSeed ?? 0;
-  const structuredRows = deps
-    .fetchCandidates(normalizedFilters, excludeTokens.length > 0)
-    .filter((candidate) => !excludeTokens.length || !matchesExcludedQuery(candidate.searchText, excludeTokens));
-
-  return structuredRows
-    .map(({ record }) => {
-      const rerankAdjustments = buildRerankAdjustments(record, normalizedFilters, deps.rankingConfig);
-      const totalScore =
-        (normalizedFilters.nameQuery
-          ? nameScore(normalizedFilters.nameQuery, record, deps.getAliases(record.recordKey))
-          : 0.5) + sumRerankAdjustments(rerankAdjustments);
-      const explanation: SearchRecordExplanation = {
-        recordKey: record.recordKey,
-        name: record.name,
-        totalScore,
-        fusionScore: null,
-        lexicalRank: null,
-        semanticRank: null,
-        lexicalRerankScore: null,
-        matchedTraits: [],
-        matchedNameTokens: [],
-        rerankAdjustments,
-      };
-
-      return { record, totalScore, explanation };
-    })
-    .filter(({ totalScore }) => !normalizedFilters.nameQuery || totalScore >= 0.2)
-    .sort((left, right) => {
-      if (sort === "ranked") {
-        return right.totalScore - left.totalScore || sortRecords(left.record, right.record);
-      }
-      return compareRecordsForSort(left.record, right.record, sort, sortSeed);
-    })
-    .map(({ record, explanation }) => ({ record, explanation }));
 }
 
 export function buildStructuredSearchSnapshot(
