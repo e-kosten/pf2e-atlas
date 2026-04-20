@@ -15,6 +15,24 @@ Read-only MCP server for Pathfinder 2E data from a vendored local Foundry PF2E c
 The server uses `stdio` in v1, reads the PF2E data from `vendor/pf2e` by default, and builds a local SQLite index for querying.
 That index is cached and reused across restarts. When the PF2E source, embedding model, or index schema changes, rebuild it explicitly with `npm run refresh-index` or `npm run refresh-external`.
 
+## Project Shape
+
+The codebase is organized around a few stable layers:
+
+- `src/index.ts`: MCP entrypoint. Boots the application runtime and registers tool handlers.
+- `src/app/`: application composition and cross-cutting services. This is where runtime assembly, ontology orchestration, and app-level storage boundaries live.
+- `src/data/`: data loading and backend access over the prepared SQLite index and normalized PF2E records.
+- `src/search/`: ranked search runtime, query analysis, and ranking logic shared by backend search flows.
+- `src/server/`: MCP transport-facing tool registration and response shaping.
+- `src/tui/`: terminal application composition, workflows, and UI-facing service adapters.
+- `src/domain/`: shared domain types, categories, metadata semantics, and other low-level contracts used across layers.
+- `src/tags/`: derived-tag authoring, discovery, migration, and evaluation tooling.
+
+Architecture notes live under [`docs/architecture`](./docs/architecture/overview.md):
+
+- [`overview.md`](./docs/architecture/overview.md): subsystem map, runtime composition, and key data flows
+- [`boundaries.md`](./docs/architecture/boundaries.md): lint-enforced and design-level boundaries that future editors should preserve
+
 ## Requirements
 
 - Node.js 20+
