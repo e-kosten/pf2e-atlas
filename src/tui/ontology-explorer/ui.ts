@@ -1,4 +1,5 @@
 import type { OntologyChildPresentation, OntologyDomainModel, OntologyNode } from "../../types.js";
+import { getOntologyNodeChildren, titleCaseLabel } from "../../app/ontology/node-helpers.js";
 import {
   getRenderedTerminalLineCount,
   getTerminalPaneBodyHeight,
@@ -40,14 +41,6 @@ export type OntologyBrowserListRow = {
 
 type GroupRenderMode = "flat" | "inline";
 
-function titleCaseLabel(value: string): string {
-  return value
-    .split(/[_\s-]+/)
-    .filter((segment) => segment.length > 0)
-    .map((segment) => `${segment[0]!.toUpperCase()}${segment.slice(1)}`)
-    .join(" ");
-}
-
 function clampWindowStart(selectedIndex: number, itemCount: number, visibleCount: number): number {
   if (visibleCount <= 0 || itemCount <= visibleCount) {
     return 0;
@@ -68,20 +61,6 @@ function findNodeById(nodes: OntologyNode[], id: string | undefined): OntologyNo
   return id ? nodes.find((node) => node.id === id) : undefined;
 }
 
-function resolveOntologyNodeChildren(node: OntologyNode | undefined): OntologyNode[] {
-  if (!node) {
-    return [];
-  }
-  if (node.children) {
-    return node.children;
-  }
-  if (!node.loadChildren) {
-    return [];
-  }
-  node.children = node.loadChildren();
-  return node.children;
-}
-
 export function canDrillIntoOntologyNode(node: OntologyNode | undefined): boolean {
   return Boolean(node?.children?.length || node?.loadChildren);
 }
@@ -96,7 +75,7 @@ function getChildrenOfSelectedParent(
 
   for (let level = 0; level < state.depth; level += 1) {
     const selected = findNodeById(nodes, state.selectedNodeIds[level]);
-    const children = resolveOntologyNodeChildren(selected);
+    const children = getOntologyNodeChildren(selected);
     if (!selected || children.length === 0) {
       return {
         ancestors,
@@ -205,7 +184,7 @@ export function normalizeOntologyBrowserState(
       };
     }
 
-    nodes = normalized?.children ?? [];
+    nodes = getOntologyNodeChildren(normalized);
   }
 
   return {
@@ -339,7 +318,7 @@ export function drillIntoOntologyBrowser(
   const nextState = normalizeOntologyBrowserState(model, state);
   const selection = getOntologyBrowserSelection(model, nextState);
   const currentNode = selection.currentNode;
-  const children = resolveOntologyNodeChildren(currentNode);
+  const children = getOntologyNodeChildren(currentNode);
   if (children.length === 0) {
     return nextState;
   }

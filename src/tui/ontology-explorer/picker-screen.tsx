@@ -1,5 +1,6 @@
 import React from "react";
 
+import { getOntologyNodeChildren } from "../../app/ontology/node-helpers.js";
 import type { OntologyDomainModel, OntologyNode, OntologySelectionState } from "../../types.js";
 import { TerminalPaneScreen, TerminalTwoPaneScreen } from "../framework/rendering.js";
 import type { DerivedTagTerminalLine } from "../framework/types.js";
@@ -83,7 +84,7 @@ function createEmptySelectionMap(model: OntologyDomainModel): OntologyPickerSele
     if (node.selection) {
       fields.add(node.selection.field);
     }
-    node.children?.forEach(visit);
+    getOntologyNodeChildren(node).forEach(visit);
   };
   model.rootNodes.forEach(visit);
 

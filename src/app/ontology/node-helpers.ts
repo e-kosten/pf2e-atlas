@@ -6,6 +6,8 @@ import {
   buildOntologyExplorerEntitySummary,
 } from "./presenter.js";
 
+const loadedOntologyChildren = new WeakMap<OntologyNode, OntologyNode[]>();
+
 export function titleCaseLabel(value: string): string {
   return value
     .split(/[_\s-]+/)
@@ -55,6 +57,27 @@ export function cloneOntologyNode(node: OntologyNode, idPrefix?: string): Ontolo
     query: node.query ? { ...node.query, filters: { ...node.query.filters } } : undefined,
     selection: node.selection ? { ...node.selection } : undefined,
   };
+}
+
+export function getOntologyNodeChildren(node: OntologyNode | undefined): OntologyNode[] {
+  if (!node) {
+    return [];
+  }
+  if (node.children) {
+    return node.children;
+  }
+  if (!node.loadChildren) {
+    return [];
+  }
+
+  const cached = loadedOntologyChildren.get(node);
+  if (cached) {
+    return cached;
+  }
+
+  const children = node.loadChildren();
+  loadedOntologyChildren.set(node, children);
+  return children;
 }
 
 export function buildNormalizedRecordNode(record: NormalizedRecord): OntologyNode {

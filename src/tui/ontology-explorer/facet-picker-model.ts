@@ -6,26 +6,7 @@ import type {
   SearchSubcategory,
 } from "../../types.js";
 import type { Pf2eTerminalFacetFieldOption } from "../search-service.js";
-
-function titleCaseLabel(value: string): string {
-  return value
-    .split(/[_\s-]+/)
-    .filter((segment) => segment.length > 0)
-    .map((segment) => `${segment[0]!.toUpperCase()}${segment.slice(1)}`)
-    .join(" ");
-}
-
-function cloneOntologyNode(node: OntologyNode): OntologyNode {
-  return {
-    ...node,
-    children: node.children?.map(cloneOntologyNode),
-    loadChildren: node.loadChildren ? () => node.loadChildren!().map(cloneOntologyNode) : undefined,
-    childPresentation: node.childPresentation ? { ...node.childPresentation } : undefined,
-    groupValues: node.groupValues ? { ...node.groupValues } : undefined,
-    query: node.query ? { ...node.query, filters: { ...node.query.filters } } : undefined,
-    selection: node.selection ? { ...node.selection } : undefined,
-  };
-}
+import { cloneOntologyNode, getOntologyNodeChildren, titleCaseLabel } from "../../app/ontology/node-helpers.js";
 
 function isSelectableValueNode(node: OntologyNode, field: string): boolean {
   if (field === "derivedTags") {
@@ -75,11 +56,9 @@ function findNodeById(nodes: OntologyNode[], id: string): OntologyNode | undefin
     if (node.id === id) {
       return node;
     }
-    if (node.children) {
-      const match = findNodeById(node.children, id);
-      if (match) {
-        return match;
-      }
+    const match = findNodeById(getOntologyNodeChildren(node), id);
+    if (match) {
+      return match;
     }
   }
   return undefined;
@@ -94,11 +73,11 @@ export function buildSearchFacetPickerModel(
   },
 ): OntologyDomainModel {
   const categoryNode = findNodeById(searchSemanticsDomain.rootNodes, `searchSemantics:${options.category}`);
-  const metadataFieldsNode = findNodeById(categoryNode?.children ?? [], `${options.category}:metadataFields`);
+  const metadataFieldsNode = findNodeById(getOntologyNodeChildren(categoryNode), `${options.category}:metadataFields`);
   const allowedFields = new Map<string, Pf2eTerminalFacetFieldOption>(
     options.fieldOptions.map((field) => [field.value, field]),
   );
-  const fieldNodesById = new Map((metadataFieldsNode?.children ?? []).map((node) => [node.id, node]));
+  const fieldNodesById = new Map(getOntologyNodeChildren(metadataFieldsNode).map((node) => [node.id, node]));
 
   const rootNodes = options.fieldOptions
     .map((fieldOption) => {

@@ -168,6 +168,6 @@ describe("ontology browser ui", () => {
     const selection = getOntologyBrowserSelection(model, state);
 
     expect(selection.currentNode?.id).toBe("spell:saveType");
-    expect(model.rootNodes[0]?.children?.map((node) => node.id)).toEqual(["spell:saveType"]);
+    expect(model.rootNodes[0]?.children).toBeUndefined();
   });
 });

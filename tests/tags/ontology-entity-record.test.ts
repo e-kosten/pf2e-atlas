@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   mapOntologyExplorerEntityRecordRow,
   type OntologyExplorerEntityRecordRow,
-} from "../../src/tui/ontology-explorer/entity-record.js";
+} from "../../src/app/ontology/entity-record.js";
 
 function buildRow(overrides: Partial<OntologyExplorerEntityRecordRow> = {}): OntologyExplorerEntityRecordRow {
   return {

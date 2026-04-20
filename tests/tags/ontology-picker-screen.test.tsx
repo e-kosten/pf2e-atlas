@@ -274,4 +274,63 @@ describe("ontology picker screen", () => {
       },
     });
   });
+
+  it("loads lazy picker children without mutating the shared model", async () => {
+    const onApply = vi.fn();
+    const model: OntologyDomainModel = {
+      id: "searchSemantics",
+      label: "Traits",
+      description: "Lazy picker domain",
+      rootNodes: [
+        {
+          id: "spell:field:traits",
+          kind: "field",
+          label: "traits",
+          filterText: "traits",
+          listLabel: "traits",
+          detailTitle: "Trait Details",
+          detailLines: [{ text: "traits", tone: "section" }],
+          loadChildren: () => [
+            {
+              id: "spell:trait:fire",
+              kind: "trait",
+              label: "fire",
+              filterText: "fire",
+              listLabel: "fire",
+              detailTitle: "Trait Details",
+              detailLines: [{ text: "fire", tone: "section" }],
+              selection: {
+                field: "traits",
+                fieldLabel: "Traits",
+                value: "fire",
+                allowedStates: ["any", "all", "exclude"],
+              },
+            },
+          ],
+        },
+      ],
+    };
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <OntologyPickerScreen model={model} onApply={onApply} />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    app.stdin.write(" ");
+    await flushInk();
+    app.stdin.write("q");
+    await flushInk();
+
+    expect(onApply).toHaveBeenCalledWith({
+      traits: {
+        any: ["fire"],
+        all: [],
+        exclude: [],
+      },
+    });
+    expect(model.rootNodes[0]?.children).toBeUndefined();
+  });
 });

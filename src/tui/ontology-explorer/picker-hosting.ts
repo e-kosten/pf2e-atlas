@@ -1,4 +1,5 @@
-import type { OntologyDomainModel, OntologyNode } from "../../types.js";
+import { getOntologyNodeChildren } from "../../app/ontology/node-helpers.js";
+import type { OntologyDomainModel } from "../../types.js";
 import type { OntologyBrowserSnapshot } from "./ui.js";
 
 export type HostedOntologyPickerContract = {
@@ -16,20 +17,6 @@ export type HostedOntologyPickerContract = {
 
 const hostedPickerContracts = new WeakMap<OntologyDomainModel, HostedOntologyPickerContract>();
 
-function resolveRootChildNodes(node: OntologyNode | undefined): OntologyNode[] {
-  if (!node) {
-    return [];
-  }
-  if (node.children) {
-    return node.children;
-  }
-  if (!node.loadChildren) {
-    return [];
-  }
-  node.children = node.loadChildren();
-  return node.children;
-}
-
 export function buildHostedOntologyPickerInitialSnapshot(
   model: OntologyDomainModel,
   rootDepth: number,
@@ -39,7 +26,7 @@ export function buildHostedOntologyPickerInitialSnapshot(
   }
 
   const rootNode = model.rootNodes[0];
-  const firstChild = resolveRootChildNodes(rootNode)[0];
+  const firstChild = getOntologyNodeChildren(rootNode)[0];
   if (!rootNode || !firstChild) {
     return undefined;
   }

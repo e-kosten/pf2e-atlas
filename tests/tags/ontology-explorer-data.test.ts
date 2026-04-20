@@ -2,7 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { buildDerivedTagOntologyExplorerModel } from "../../src/tui/ontology-explorer/data.js";
+import { buildDerivedTagOntologyExplorerModel } from "../../src/app/ontology/derived-tag-explorer.js";
 
 function createOntologyExplorerDb(): DatabaseSync {
   const db = new DatabaseSync(":memory:");
