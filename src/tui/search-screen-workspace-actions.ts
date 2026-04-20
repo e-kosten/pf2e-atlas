@@ -7,6 +7,14 @@ import type { SearchScreenAction, SearchScreenState } from "./search-screen-stat
 import type { SearchQueryFieldBuilderSession } from "./search-query-field-builder-session.js";
 import type { SearchStructuredDraftSession } from "./search-structured-draft-session.js";
 import { clampStructuredDraftSelection } from "./search-structured-draft-session.js";
+import {
+  appendMetadataNodeAtPath,
+  countMetadataPredicates,
+  getMetadataNodeAtPath,
+  isMetadataPredicate,
+  normalizeMetadataNode,
+  updateMetadataNodeAtPath,
+} from "./search/query-core.js";
 import type {
   Pf2eTerminalFilterValuePolicy,
   Pf2eTerminalQueryFieldOption,
@@ -42,140 +50,6 @@ import {
   type SearchWorkspaceAction,
 } from "./search-screen-model.js";
 import type { SearchWorkspaceEntry } from "./search-screen-workspace.js";
-
-function isMetadataPredicate(node: MetadataFilterNode): node is MetadataPredicate {
-  return !("and" in node) && !("or" in node) && !("not" in node);
-}
-
-function getMetadataNodeChildren(node: MetadataFilterNode): MetadataFilterNode[] {
-  if ("and" in node) {
-    return node.and;
-  }
-  if ("or" in node) {
-    return node.or;
-  }
-  if ("not" in node) {
-    return [node.not];
-  }
-  return [];
-}
-
-function getMetadataNodeAtPath(node: MetadataFilterNode | null, path: number[]): MetadataFilterNode | null {
-  let current = node;
-  for (const segment of path) {
-    if (!current) {
-      return null;
-    }
-    const children = getMetadataNodeChildren(current);
-    current = children[segment] ?? null;
-  }
-  return current;
-}
-
-function normalizeMetadataNode(node: MetadataFilterNode | null): MetadataFilterNode | null {
-  if (!node) {
-    return null;
-  }
-  if ("and" in node) {
-    const children = node.and
-      .map((child) => normalizeMetadataNode(child))
-      .filter((child): child is MetadataFilterNode => Boolean(child));
-    if (children.length === 0) {
-      return null;
-    }
-    if (children.length === 1) {
-      return children[0]!;
-    }
-    return { and: children };
-  }
-  if ("or" in node) {
-    const children = node.or
-      .map((child) => normalizeMetadataNode(child))
-      .filter((child): child is MetadataFilterNode => Boolean(child));
-    if (children.length === 0) {
-      return null;
-    }
-    if (children.length === 1) {
-      return children[0]!;
-    }
-    return { or: children };
-  }
-  if ("not" in node) {
-    const child = normalizeMetadataNode(node.not);
-    if (!child) {
-      return null;
-    }
-    if ("not" in child) {
-      return normalizeMetadataNode(child.not);
-    }
-    return { not: child };
-  }
-  return node;
-}
-
-function updateMetadataNodeAtPath(
-  node: MetadataFilterNode | null,
-  path: number[],
-  update: (current: MetadataFilterNode) => MetadataFilterNode | null,
-): MetadataFilterNode | null {
-  if (!node) {
-    return null;
-  }
-  if (path.length === 0) {
-    return normalizeMetadataNode(update(node));
-  }
-  const [segment, ...rest] = path;
-  if (segment === undefined) {
-    return normalizeMetadataNode(node);
-  }
-  if ("and" in node) {
-    const children = [...node.and];
-    const updatedChild = updateMetadataNodeAtPath(children[segment] ?? null, rest, update);
-    if (updatedChild) {
-      children[segment] = updatedChild;
-    } else {
-      children.splice(segment, 1);
-    }
-    return normalizeMetadataNode({ and: children });
-  }
-  if ("or" in node) {
-    const children = [...node.or];
-    const updatedChild = updateMetadataNodeAtPath(children[segment] ?? null, rest, update);
-    if (updatedChild) {
-      children[segment] = updatedChild;
-    } else {
-      children.splice(segment, 1);
-    }
-    return normalizeMetadataNode({ or: children });
-  }
-  if ("not" in node) {
-    if (segment !== 0) {
-      return node;
-    }
-    const updatedChild = updateMetadataNodeAtPath(node.not, rest, update);
-    return normalizeMetadataNode(updatedChild ? { not: updatedChild } : null);
-  }
-  return node;
-}
-
-function appendMetadataNodeAtPath(
-  metadata: MetadataFilterNode | null,
-  path: number[],
-  nextNode: MetadataFilterNode,
-): MetadataFilterNode | null {
-  if (!metadata) {
-    return normalizeMetadataNode(nextNode);
-  }
-  return updateMetadataNodeAtPath(metadata, path, (current) => {
-    if ("and" in current) {
-      return { and: [...current.and, nextNode] };
-    }
-    if ("or" in current) {
-      return { or: [...current.or, nextNode] };
-    }
-    return { and: [current, nextNode] };
-  });
-}
 
 function createEmptyStringPolicy(): Pf2eTerminalFilterValuePolicy<string> {
   return { any: [], all: [], exclude: [] };
@@ -313,16 +187,6 @@ function compileQueryFieldBuilderDrafts(fieldDrafts: Record<string, MetadataFilt
 }
 
 type StructuredDraftEntryKind = SearchStructuredDraftSession["entries"][number]["kind"];
-
-function countMetadataPredicates(node: MetadataFilterNode | null): number {
-  if (!node) {
-    return 0;
-  }
-  if (isMetadataPredicate(node)) {
-    return 1;
-  }
-  return getMetadataNodeChildren(node).reduce((total, child) => total + countMetadataPredicates(child), 0);
-}
 
 export function useSearchWorkspaceActions({
   applyQueryUpdate,

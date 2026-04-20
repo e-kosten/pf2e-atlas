@@ -1,5 +1,4 @@
-import type { MetadataFilterNode } from "../types.js";
-import type { Pf2eTerminalFilterValuePolicy, Pf2eTerminalSearchQuery } from "./search-service.js";
+import type { Pf2eTerminalSearchQuery } from "./search-service.js";
 
 export type SearchStructuredDraftAnchor =
   | { kind: "addQueryPart" }
@@ -40,18 +39,6 @@ export type SearchStructuredDraftSession = {
   entries: SearchStructuredDraftEntry[];
   selectedIndex: number;
   metadataFocusPath: number[] | null;
-  moveSelection: (delta: number, itemCount: number) => void;
-  setSelectedIndex: (index: number) => void;
-  selectCurrent: () => void;
-  finish: () => void;
-  cancel: () => void;
-  replaceDraftQuery: (query: Pf2eTerminalSearchQuery) => void;
-  setCategory: (category: Pf2eTerminalSearchQuery["filters"]["category"]) => void;
-  setSubcategory: (subcategory: string | null) => void;
-  setLevelRange: (range: { levelMin: number | null; levelMax: number | null }) => void;
-  setRarityPolicy: (policy: Pf2eTerminalFilterValuePolicy<string>) => void;
-  setActionCostPolicy: (policy: Pf2eTerminalFilterValuePolicy<number>) => void;
-  setMetadataTree: (node: MetadataFilterNode | null) => void;
 };
 
 export function clampStructuredDraftSelection(index: number, itemCount: number): number {

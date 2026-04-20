@@ -1493,7 +1493,6 @@ describe("search screen", () => {
           all: [],
           exclude: [],
         },
-        facets: [],
         metadata: {
           field: "traits",
           op: "includesAny",
@@ -1571,23 +1570,62 @@ describe("search screen", () => {
         levelMin: null,
         levelMax: null,
         rarity: {
-          any: ["common"],
+          any: [],
           all: [],
-          exclude: ["rare"],
+          exclude: [],
         },
         actionCost: {
-          any: [2],
+          any: [],
           all: [],
-          exclude: [1],
+          exclude: [],
         },
-        facets: [
+        metadata: null,
+        parts: [
           {
-            field: "traits",
+            kind: "rarityPolicy",
             policy: {
-              any: ["illusion"],
-              all: ["auditory"],
-              exclude: ["emotion"],
+              any: ["common"],
+              all: [],
+              exclude: ["rare"],
             },
+          },
+          {
+            kind: "actionCostPolicy",
+            policy: {
+              any: [2],
+              all: [],
+              exclude: [1],
+            },
+          },
+          {
+            kind: "metadataGroup",
+            operator: "and",
+            children: [
+              {
+                kind: "metadataPredicate",
+                predicate: {
+                  field: "traits",
+                  op: "includesAny",
+                  values: ["illusion"],
+                },
+              },
+              {
+                kind: "metadataPredicate",
+                predicate: {
+                  field: "traits",
+                  op: "includesAll",
+                  values: ["auditory"],
+                },
+              },
+              {
+                kind: "metadataPredicate",
+                predicate: {
+                  field: "traits",
+                  op: "excludesAny",
+                  values: ["emotion"],
+                },
+              },
+            ],
           },
         ],
       },

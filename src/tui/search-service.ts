@@ -22,6 +22,7 @@ import type {
   SearchWindowPage,
 } from "../types.js";
 import type { SearchVocabularyResult } from "../data/vocabulary.js";
+import { normalizeMetadataNode } from "./search/query-core.js";
 import {
   isMetadataQueryPart,
   metadataFilterNodeToRootQueryParts,
@@ -89,11 +90,6 @@ export type Pf2eTerminalFilterValuePolicy<T extends number | string = string> = 
   exclude: T[];
 };
 
-export type Pf2eTerminalFacetSelection = {
-  field: Pf2eTerminalFacetField;
-  policy: Pf2eTerminalFilterValuePolicy<string>;
-};
-
 export type Pf2eTerminalFacetField = MetadataFieldSemantics["field"];
 export type Pf2eTerminalQueryField = MetadataFieldSemantics["field"];
 
@@ -109,7 +105,6 @@ export type Pf2eTerminalSearchFilters = {
   levelMax: number | null;
   rarity: Pf2eTerminalFilterValuePolicy<string>;
   actionCost: Pf2eTerminalFilterValuePolicy<number>;
-  facets: Pf2eTerminalFacetSelection[];
   metadata: MetadataFilterNode | null;
   parts: Pf2eTerminalSearchStructuredPart[];
 };
@@ -236,6 +231,11 @@ type SearchServiceDependencies = {
   ) => Promise<SearchWindowPage>;
   readSearchWindowPage: (windowId: string, offset: number, limit: number) => SearchWindowPage;
   search: (filters: SearchFilters) => Promise<SearchResult>;
+};
+
+type LegacyFacetSelection = {
+  field: Pf2eTerminalFacetField;
+  policy: Pf2eTerminalFilterValuePolicy<string>;
 };
 
 const SEARCH_PROFILE_OPTIONS: Pf2eTerminalSearchProfileOption[] = [
@@ -421,7 +421,6 @@ function createDefaultFilters(): Pf2eTerminalSearchFilters {
     levelMax: null,
     rarity: createEmptyFilterPolicy<string>(),
     actionCost: createEmptyFilterPolicy<number>(),
-    facets: [],
     metadata: null,
     parts: [],
   };
@@ -480,6 +479,23 @@ export function getSearchQueryMetadataTree(query: Pf2eTerminalSearchQuery): Meta
   return rootMetadataQueryPartsToFilterNode(query.filters.parts) ?? query.filters.metadata ?? null;
 }
 
+function syncQueryFilterDerivations(query: Pf2eTerminalSearchQuery): Pf2eTerminalSearchQuery {
+  const compiledFilters = compileRootQueryPartsToFilters(query.filters.parts);
+  return {
+    ...query,
+    filters: {
+      ...query.filters,
+      subcategory: compiledFilters.subcategory,
+      levelMin: compiledFilters.levelMin,
+      levelMax: compiledFilters.levelMax,
+      rarity: cloneStringPolicy(compiledFilters.rarity),
+      actionCost: cloneNumberPolicy(compiledFilters.actionCost),
+      metadata: compiledFilters.metadata,
+      parts: [...query.filters.parts],
+    },
+  };
+}
+
 export function setSearchQueryCategory(
   query: Pf2eTerminalSearchQuery,
   category: SearchCategory | null,
@@ -494,7 +510,6 @@ export function setSearchQueryCategory(
       levelMax: null,
       rarity: createEmptyStringPolicy(),
       actionCost: createEmptyNumberPolicy(),
-      facets: [],
       metadata: null,
       parts: [],
     },
@@ -508,33 +523,33 @@ export function setSearchQueryPart(
   const nextParts = query.filters.parts.filter((candidate) => candidate.kind !== part.kind && !isMetadataQueryPart(candidate));
   nextParts.push(part);
   nextParts.push(...query.filters.parts.filter(isMetadataQueryPart));
-  return {
+  return syncQueryFilterDerivations({
     ...query,
     filters: {
       ...query.filters,
       parts: nextParts,
     },
-  };
+  });
 }
 
 export function removeSearchQueryPart(
   query: Pf2eTerminalSearchQuery,
   kind: Exclude<Pf2eTerminalSearchStructuredPart["kind"], Pf2eTerminalMetadataQueryPart["kind"]>,
 ): Pf2eTerminalSearchQuery {
-  return {
+  return syncQueryFilterDerivations({
     ...query,
     filters: {
       ...query.filters,
       parts: query.filters.parts.filter((part) => part.kind !== kind),
     },
-  };
+  });
 }
 
 export function setSearchQueryMetadataTree(
   query: Pf2eTerminalSearchQuery,
   node: MetadataFilterNode | null,
 ): Pf2eTerminalSearchQuery {
-  return {
+  return syncQueryFilterDerivations({
     ...query,
     filters: {
       ...query.filters,
@@ -543,7 +558,7 @@ export function setSearchQueryMetadataTree(
         ...splitMetadataTreeIntoParts(node),
       ],
     },
-  };
+  });
 }
 
 function createEmptyStringPolicy(): Pf2eTerminalFilterValuePolicy<string> {
@@ -657,48 +672,6 @@ function normalizeQueryFieldPolicy(
   }
 
   return normalizedPolicy;
-}
-
-function normalizeMetadataNode(node: MetadataFilterNode | null): MetadataFilterNode | null {
-  if (!node) {
-    return null;
-  }
-
-  if ("and" in node) {
-    const children = node.and
-      .map((child) => normalizeMetadataNode(child))
-      .filter((child): child is MetadataFilterNode => Boolean(child));
-    if (children.length === 0) {
-      return null;
-    }
-    if (children.length === 1) {
-      return children[0]!;
-    }
-    return { and: children };
-  }
-
-  if ("or" in node) {
-    const children = node.or
-      .map((child) => normalizeMetadataNode(child))
-      .filter((child): child is MetadataFilterNode => Boolean(child));
-    if (children.length === 0) {
-      return null;
-    }
-    if (children.length === 1) {
-      return children[0]!;
-    }
-    return { or: children };
-  }
-
-  if ("not" in node) {
-    const child = normalizeMetadataNode(node.not);
-    if (!child) {
-      return null;
-    }
-    return { not: child };
-  }
-
-  return node;
 }
 
 function mergeStringPolicies(
@@ -881,6 +854,9 @@ function buildRootQueryPartsFromLegacyFilters(
   actionCostAvailable: boolean,
 ): Pf2eTerminalQueryPart[] {
   const parts: Pf2eTerminalQueryPart[] = [];
+  const legacyFilters = query.filters as Pf2eTerminalSearchFilters & {
+    facets?: LegacyFacetSelection[];
+  };
 
   if (subcategory) {
     parts.push({
@@ -921,7 +897,7 @@ function buildRootQueryPartsFromLegacyFilters(
     });
   }
 
-  for (const facet of query.filters.facets) {
+  for (const facet of legacyFilters.facets ?? []) {
     const facetNode = buildMetadataNodeForFacet(facet, fieldSemanticsByName);
     if (!facetNode) {
       continue;
@@ -1034,7 +1010,7 @@ function normalizeRootQueryParts(
 
 function compileRootQueryPartsToFilters(
   parts: readonly Pf2eTerminalQueryPart[],
-): Pick<Pf2eTerminalSearchFilters, "subcategory" | "levelMin" | "levelMax" | "rarity" | "actionCost" | "facets" | "metadata"> {
+): Pick<Pf2eTerminalSearchFilters, "subcategory" | "levelMin" | "levelMax" | "rarity" | "actionCost" | "metadata"> {
   let subcategory: SearchSubcategory | null = null;
   let levelMin: number | null = null;
   let levelMax: number | null = null;
@@ -1077,7 +1053,6 @@ function compileRootQueryPartsToFilters(
     levelMax,
     rarity,
     actionCost,
-    facets: [],
     metadata: rootMetadataQueryPartsToFilterNode(parts),
   };
 }
@@ -1088,16 +1063,24 @@ function normalizeSearchQuery(
   fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
 ): Pf2eTerminalSearchQuery {
   const category = normalizeSearchCategory(query.filters.category) ?? null;
+  const currentParts = Array.isArray(query.filters.parts) ? query.filters.parts : [];
+  const partSubcategory =
+    category && currentParts.length > 0
+      ? normalizeSearchSubcategory(currentParts.find((part) => part.kind === "subcategory")?.subcategory ?? null)
+      : null;
   const legacySubcategory =
     category && query.filters.subcategory && CATEGORY_SUBCATEGORY_MAP[category].includes(query.filters.subcategory)
       ? query.filters.subcategory
       : null;
-  const actionCostAvailable = isActionCostAvailableInScope(dependencies, category, legacySubcategory);
-  const currentParts = Array.isArray(query.filters.parts) ? query.filters.parts : [];
+  const scopedSubcategory =
+    category && partSubcategory && CATEGORY_SUBCATEGORY_MAP[category].includes(partSubcategory)
+      ? partSubcategory
+      : legacySubcategory;
+  const actionCostAvailable = isActionCostAvailableInScope(dependencies, category, scopedSubcategory);
   const nextParts = normalizeRootQueryParts(
     currentParts.length > 0
       ? currentParts
-      : buildRootQueryPartsFromLegacyFilters(query, fieldSemanticsByName, category, legacySubcategory, actionCostAvailable),
+      : buildRootQueryPartsFromLegacyFilters(query, fieldSemanticsByName, category, scopedSubcategory, actionCostAvailable),
     fieldSemanticsByName,
     category,
     actionCostAvailable,
@@ -1116,7 +1099,6 @@ function normalizeSearchQuery(
       levelMax: compiledFilters.levelMax,
       rarity: cloneStringPolicy(compiledFilters.rarity),
       actionCost: cloneNumberPolicy(compiledFilters.actionCost),
-      facets: [],
       metadata: compiledFilters.metadata,
       parts: nextParts,
     },
@@ -1280,7 +1262,7 @@ function buildMetadataNodeForQueryFieldSelection(
 }
 
 function buildMetadataNodeForFacet(
-  facet: Pf2eTerminalFacetSelection,
+  facet: LegacyFacetSelection,
   fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
 ): MetadataFilterNode | null {
   return buildMetadataNodeForQueryFieldSelection(facet.field, facet.policy, fieldSemanticsByName);
@@ -1478,21 +1460,6 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
         filters: {
           ...defaultQuery.filters,
           category,
-          subcategory,
-          levelMin: query.filters.levelMin ?? null,
-          levelMax: query.filters.levelMax ?? null,
-          rarity: {
-            any: query.filters.rarity ? [query.filters.rarity] : [],
-            all: [],
-            exclude: [],
-          },
-          actionCost: {
-            any: query.filters.actionCost === undefined ? [] : [query.filters.actionCost],
-            all: [],
-            exclude: [],
-          },
-          facets: [],
-          metadata: query.filters.metadata ?? null,
           parts,
         },
       },

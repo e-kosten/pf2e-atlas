@@ -1,4 +1,4 @@
-import type { MetadataFilterNode, MetadataPredicate, SearchCategory, SearchSubcategory } from "../types.js";
+import type { MetadataFilterNode, SearchCategory, SearchSubcategory } from "../types.js";
 import type {
   Pf2eTerminalFilterValuePolicy,
   Pf2eTerminalSearchMode,
@@ -12,6 +12,7 @@ import {
   getSearchQuerySubcategory,
 } from "./search-service.js";
 import type { DerivedTagTerminalCommandOption, DerivedTagTerminalLine } from "./framework/types.js";
+import { countMetadataPredicates, flattenMetadataTree } from "./search/query-core.js";
 import { clampWindowStart } from "./list-utils.js";
 import type { SearchCountState, SearchScreenState } from "./search-screen-state.js";
 import { formatCount, formatResultPosition, formatSort, getSessionBufferRange } from "./search-screen-state.js";
@@ -98,127 +99,6 @@ function countStructuredQueryParts(request: Pf2eTerminalSearchQuery): number {
   return (request.filters.category ? 1 : 0) + request.filters.parts.length;
 }
 
-function isMetadataPredicate(node: MetadataFilterNode): node is MetadataPredicate {
-  return !("and" in node) && !("or" in node) && !("not" in node);
-}
-
-function getMetadataNodeChildren(node: MetadataFilterNode): MetadataFilterNode[] {
-  if ("and" in node) {
-    return node.and;
-  }
-  if ("or" in node) {
-    return node.or;
-  }
-  if ("not" in node) {
-    return [node.not];
-  }
-  return [];
-}
-
-function countMetadataPredicates(node: MetadataFilterNode): number {
-  if (isMetadataPredicate(node)) {
-    return 1;
-  }
-  return getMetadataNodeChildren(node).reduce((total, child) => total + countMetadataPredicates(child), 0);
-}
-
-function formatMetadataScalar(value: boolean | number | string): string {
-  if (typeof value === "boolean") {
-    return value ? "true" : "false";
-  }
-  return formatPolicyValue(value);
-}
-
-function formatMetadataPredicateValue(node: MetadataPredicate): string {
-  if ("metric" in node) {
-    return `${node.metric} ${node.op} ${formatMetadataScalar(node.value)}`;
-  }
-  if ("leftMetric" in node) {
-    return `${node.leftMetric} ${node.op} ${node.rightMetric}`;
-  }
-  if ("values" in node) {
-    const values = node.values.map((value) => formatMetadataScalar(value)).join(", ");
-    switch (node.op) {
-      case "includesAny":
-        return `includes any ${values}`;
-      case "includesAll":
-        return `includes all ${values}`;
-      case "excludesAny":
-        return `excludes ${values}`;
-      case "in":
-        return `is one of ${values}`;
-      case "notIn":
-        return `is not ${values}`;
-    }
-  }
-  if ("min" in node && "max" in node) {
-    return `between ${node.min} and ${node.max}`;
-  }
-  if ("value" in node) {
-    switch (node.op) {
-      case "contains":
-        return `contains ${formatMetadataScalar(node.value)}`;
-      case "notContains":
-        return `does not contain ${formatMetadataScalar(node.value)}`;
-      case "eq":
-        return `is ${formatMetadataScalar(node.value)}`;
-      case "notEq":
-        return `is not ${formatMetadataScalar(node.value)}`;
-      case "gte":
-        return `>= ${node.value}`;
-      case "lte":
-        return `<= ${node.value}`;
-    }
-  }
-  return JSON.stringify(node);
-}
-
-function describeMetadataNode(
-  node: MetadataFilterNode,
-  isRoot = false,
-): {
-  label: string;
-  value: string;
-  description: string;
-} {
-  if ("and" in node) {
-    return {
-      label: isRoot ? "Query Logic" : "AND Group",
-      value: `${node.and.length} clause${node.and.length === 1 ? "" : "s"}`,
-      description: "Every child clause in this group must match.",
-    };
-  }
-  if ("or" in node) {
-    return {
-      label: isRoot ? "Query Logic" : "OR Group",
-      value: `${node.or.length} clause${node.or.length === 1 ? "" : "s"}`,
-      description: "Any child clause in this group may match.",
-    };
-  }
-  if ("not" in node) {
-    return {
-      label: isRoot ? "Query Logic" : "NOT Group",
-      value: "1 clause",
-      description: "Negate the child clause in this group.",
-    };
-  }
-  const label =
-    node.field === "actorMetric"
-      ? "Actor Metric"
-      : node.field === "actorMetricCompare"
-        ? "Actor Metric Compare"
-        : node.field === "itemMetric"
-          ? "Item Metric"
-          : node.field === "itemMetricCompare"
-            ? "Item Metric Compare"
-            : humanizeIdentifier(node.field);
-  return {
-    label: isRoot ? "Query Clause" : label,
-    value: formatMetadataPredicateValue(node),
-    description: `Edit or remove this ${label.toLowerCase()} clause.`,
-  };
-}
-
 function encodeQueryNodePath(path: number[]): string {
   return path.length > 0 ? path.join(".") : "root";
 }
@@ -270,26 +150,14 @@ export function decodeQueryNodeActionPath(action: SearchWorkspaceAction): number
 
 function buildMetadataWorkspaceEntries(
   node: MetadataFilterNode,
-  path: number[] = [],
-  depth = 0,
 ): SearchWorkspaceEntry[] {
-  const summary = describeMetadataNode(node, path.length === 0);
-  const entries: SearchWorkspaceEntry[] = [
-    {
-      action: `queryNode:${encodeQueryNodePath(path)}`,
-      label: summary.label,
-      value: summary.value,
-      description: summary.description,
-      indent: depth,
-    },
-  ];
-
-  const children = getMetadataNodeChildren(node);
-  children.forEach((child, childIndex) => {
-    entries.push(...buildMetadataWorkspaceEntries(child, [...path, childIndex], depth + 1));
-  });
-
-  return entries;
+  return flattenMetadataTree(node, { rootLabel: "query" }).map((entry) => ({
+    action: `queryNode:${encodeQueryNodePath(entry.path)}`,
+    label: entry.summary.label,
+    value: entry.summary.value,
+    description: entry.summary.description,
+    indent: entry.depth,
+  }));
 }
 
 export function formatLevelRange(request: Pf2eTerminalSearchQuery): string {
@@ -503,7 +371,12 @@ export function buildWorkspaceEntries(state: SearchScreenState, countState: Sear
     });
   }
   if (metadataTree) {
-    structuredEntries.push(...buildMetadataWorkspaceEntries(metadataTree, [], 1));
+    structuredEntries.push(
+      ...buildMetadataWorkspaceEntries(metadataTree).map((entry) => ({
+        ...entry,
+        indent: (entry.indent ?? 0) + 1,
+      })),
+    );
     structuredEntries.push({
       action: "clearClauses",
       label: "Clear Query Clauses",

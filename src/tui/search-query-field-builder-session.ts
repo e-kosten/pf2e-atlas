@@ -1,5 +1,6 @@
-import type { MetadataFilterNode, MetadataPredicate, OntologyDomainModel } from "../types.js";
+import type { MetadataFilterNode, OntologyDomainModel } from "../types.js";
 import type { SearchWorkspaceEntry } from "./search-screen-workspace.js";
+import { flattenMetadataTree, isMetadataPredicate } from "./search/query-core.js";
 import {
   buildStructuredQuerySummaryLines,
   buildStructuredWorkspaceEntryFocusLines,
@@ -90,77 +91,12 @@ export type SearchStructuredEditorSession = {
 
 export type SearchQueryFieldBuilderSession = SearchStructuredEditorSession;
 
-function formatMetadataScalar(value: boolean | number | string): string {
-  if (typeof value === "boolean") {
-    return value ? "true" : "false";
-  }
-  return String(value);
-}
-
-function formatPredicateValue(node: MetadataPredicate): string {
-  if ("metric" in node) {
-    return `${node.metric} ${node.op} ${formatMetadataScalar(node.value)}`;
-  }
-  if ("leftMetric" in node) {
-    return `${node.leftMetric} ${node.op} ${node.rightMetric}`;
-  }
-  if ("values" in node) {
-    const values = node.values.map((value) => formatMetadataScalar(value)).join(", ");
-    switch (node.op) {
-      case "includesAny":
-        return `includes any ${values}`;
-      case "includesAll":
-        return `includes all ${values}`;
-      case "excludesAny":
-        return `excludes ${values}`;
-      case "in":
-        return `is one of ${values}`;
-      case "notIn":
-        return `is not ${values}`;
-    }
-  }
-  if ("min" in node && "max" in node) {
-    return `between ${node.min} and ${node.max}`;
-  }
-  if ("value" in node) {
-    switch (node.op) {
-      case "contains":
-        return `contains ${formatMetadataScalar(node.value)}`;
-      case "notContains":
-        return `does not contain ${formatMetadataScalar(node.value)}`;
-      case "eq":
-        return `is ${formatMetadataScalar(node.value)}`;
-      case "notEq":
-        return `is not ${formatMetadataScalar(node.value)}`;
-      case "gte":
-        return `>= ${node.value}`;
-      case "lte":
-        return `<= ${node.value}`;
-    }
-  }
-  return JSON.stringify(node);
-}
-
-function buildLegacyMetadataNodeLines(node: MetadataFilterNode, depth = 0): DerivedTagTerminalLine[] {
-  if ("and" in node) {
-    return [
-      { text: `AND group (${node.and.length} clause${node.and.length === 1 ? "" : "s"})`, indent: depth, tone: "accent" },
-      ...node.and.flatMap((child) => buildLegacyMetadataNodeLines(child, depth + 2)),
-    ];
-  }
-  if ("or" in node) {
-    return [
-      { text: `OR group (${node.or.length} clause${node.or.length === 1 ? "" : "s"})`, indent: depth, tone: "accent" },
-      ...node.or.flatMap((child) => buildLegacyMetadataNodeLines(child, depth + 2)),
-    ];
-  }
-  if ("not" in node) {
-    return [
-      { text: "NOT group", indent: depth, tone: "accent" },
-      ...buildLegacyMetadataNodeLines(node.not, depth + 2),
-    ];
-  }
-  return [{ text: `${node.field}: ${formatPredicateValue(node)}`, indent: depth }];
+function buildLegacyMetadataNodeLines(node: MetadataFilterNode, indentBase = 0): DerivedTagTerminalLine[] {
+  return flattenMetadataTree(node, { rootLabel: "node" }).map((entry) => ({
+    text: `${entry.summary.label}: ${entry.summary.value}`,
+    indent: indentBase + entry.depth * 2,
+    tone: isMetadataPredicate(entry.node) ? "default" : "accent",
+  }));
 }
 
 function buildLegacyStructuredSummaryLines(session: SearchStructuredEditorSession): DerivedTagTerminalLine[] {
