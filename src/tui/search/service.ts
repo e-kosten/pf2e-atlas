@@ -89,7 +89,6 @@ export {
   applyFilterExplorerComposeDraft,
   applyFilterExplorerDraft,
   buildFilterExplorerMetadataNode,
-  buildSearchFilterExplorerInitialSnapshot,
   buildSearchFilterExplorerModel,
   buildSearchFilterExplorerTargetResolver,
   createFilterExplorerComposeDraft,

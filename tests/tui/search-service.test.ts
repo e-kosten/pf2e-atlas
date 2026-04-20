@@ -1,9 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { MetadataFilterNode } from "../../src/domain/metadata-types.js";
+import type { OntologyDomainModel, OntologyNode } from "../../src/domain/ontology-types.js";
 import type { SearchFilters } from "../../src/domain/search-types.js";
 import {
   applyFilterExplorerComposeDraft,
+  buildSearchFilterExplorerModel,
+  buildSearchFilterExplorerTargetResolver,
   createFilterExplorerComposeDraft,
   createPf2eTerminalSearchService,
   getSearchQueryMetadataTree,
@@ -98,6 +101,15 @@ function createDependencies(overrides: Partial<SearchServiceDependencies> = {}):
       }),
     ),
     ...overrides,
+  };
+}
+
+function createSearchSemanticsDomain(rootNodes: OntologyNode[]): OntologyDomainModel {
+  return {
+    id: "searchSemantics",
+    label: "Search Semantics",
+    description: "Test search semantics domain",
+    rootNodes,
   };
 }
 
@@ -299,6 +311,118 @@ describe("createPf2eTerminalSearchService", () => {
           max: 120,
         },
       },
+    });
+  });
+
+  it("roots the shared explorer model at the scoped field nodes instead of a hosted picker snapshot", () => {
+    const model = buildSearchFilterExplorerModel(
+      createSearchSemanticsDomain([
+        {
+          id: "searchSemantics:spell",
+          kind: "category",
+          label: "Spell",
+          filterText: "spell",
+          detailTitle: "Spell",
+          detailLines: [{ text: "Spell" }],
+          children: [
+            {
+              id: "spell:metadataFields",
+              kind: "group",
+              label: "Metadata Fields",
+              filterText: "metadata fields",
+              detailTitle: "Metadata Fields",
+              detailLines: [{ text: "Metadata Fields" }],
+              children: [
+                {
+                  id: "spell:field:traits",
+                  kind: "field",
+                  label: "traits",
+                  filterText: "traits",
+                  detailTitle: "Traits",
+                  detailLines: [{ text: "Traits" }],
+                  children: [],
+                },
+                {
+                  id: "spell:field:derivedTags",
+                  kind: "field",
+                  label: "derivedTags",
+                  filterText: "derived tags",
+                  detailTitle: "Derived Tags",
+                  detailLines: [{ text: "Derived Tags" }],
+                  children: [],
+                },
+              ],
+            },
+          ],
+        },
+      ]),
+      {
+        category: "spell",
+        subcategory: null,
+        fieldOptions: [
+          {
+            value: "traits",
+            label: "Traits",
+            description: "Trait query field",
+            fieldType: "set",
+            editor: "ontologyPicker",
+          },
+          {
+            value: "derivedTags",
+            label: "Derived Tags",
+            description: "Derived-tag query field",
+            fieldType: "set",
+            editor: "ontologyPicker",
+          },
+        ],
+        singleFieldBehavior: "list",
+      },
+    );
+
+    expect(model.label).toBe("Filter Explorer");
+    expect(model.rootNodes.map((node) => node.id)).toEqual(["spell:field:traits", "spell:field:derivedTags"]);
+  });
+
+  it("uses friendly metric labels when resolving search-side metric compose targets", () => {
+    const resolver = buildSearchFilterExplorerTargetResolver([
+      {
+        value: "actorMetric",
+        label: "Creature Statistics",
+        description: "Browse live statistic keys.",
+        fieldType: "enumString",
+        editor: "ontologyPicker",
+      },
+    ]);
+
+    const target = resolver({
+      id: "creature:actorMetrics:perception.mod",
+      kind: "metric",
+      label: "Perception Modifier",
+      filterText: "perception modifier",
+      detailTitle: "Metric",
+      detailLines: [{ text: "Perception Modifier" }],
+      query: {
+        kind: "listRecords",
+        label: "Perception Modifier",
+        filters: {
+          category: "creature",
+          metadata: {
+            field: "actorMetric",
+            metric: "perception.mod",
+            op: ">=",
+            value: 12,
+          },
+        },
+      },
+    } as OntologyNode);
+
+    expect(target).toEqual({
+      kind: "scalar",
+      key: "actorMetric:perception.mod",
+      fieldLabel: "Creature Statistics",
+      subjectLabel: "Perception Modifier",
+      valueType: "number",
+      editorLabel: "Creature Statistics / Perception Modifier",
     });
   });
 });

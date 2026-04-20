@@ -1,6 +1,5 @@
 import type { MetadataFilterNode } from "../../domain/metadata-types.js";
 import type { OntologyDomainModel } from "../../domain/ontology-types.js";
-import type { OntologyBrowserSnapshot } from "../ontology-explorer/ui.js";
 import type { FilterExplorerComposeTarget } from "../filter-explorer/index.js";
 import {
   buildTerminalInteractionHelpLines,
@@ -26,9 +25,6 @@ export type SearchFilterExplorerSession = {
   title?: string;
   model: OntologyDomainModel;
   draft: Pf2eTerminalFilterExplorerDraft;
-  initialSnapshot?: OntologyBrowserSnapshot;
-  rootDepth?: number;
-  exitAtRootDepth?: boolean;
   resolveSelectionTarget: (node: import("../../domain/ontology-types.js").OntologyNode | undefined) => FilterExplorerComposeTarget | undefined;
   onApply: (draft: Pf2eTerminalFilterExplorerDraft) => void;
 };

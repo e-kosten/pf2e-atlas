@@ -742,7 +742,7 @@ describe("search screen", () => {
     await flushInk();
     expect(app.lastFrame()).toContain("Derived Tags Explorer");
     expect(app.lastFrame()).toContain("Explorer Entries");
-    expect(app.lastFrame()).toContain("Environment");
+    expect(app.lastFrame()).toContain("Derived Tags Explorer > coast");
     expect(app.lastFrame()).toContain("coast | 1 tag");
     expect(app.lastFrame()).not.toContain("Query Field\n");
   });
@@ -1768,7 +1768,7 @@ describe("search screen", () => {
     await flushInk();
     expect(app.lastFrame()).toContain("Derived Tags Explorer");
     expect(app.lastFrame()).toContain("Explorer Entries");
-    expect(app.lastFrame()).toContain("Environment");
+    expect(app.lastFrame()).toContain("Derived Tags Explorer > coast");
     expect(app.lastFrame()).toContain("coast | 1 tag");
 
     app.stdin.write("\r");
@@ -1788,19 +1788,6 @@ describe("search screen", () => {
 
     pressLeft(app);
     await flushInk();
-    expect(app.lastFrame()).toContain("Derived Tags Explorer");
-    expect(app.lastFrame()).toContain("Metadata Fields");
-    expect(app.lastFrame()).toContain("coastal_setting");
-
-    pressLeft(app);
-    await flushInk();
-    expect(app.lastFrame()).toContain("Derived Tags Explorer");
-    expect(app.lastFrame()).toContain("Metadata Fields");
-    expect(app.lastFrame()).toContain("Metadata Fields");
-    expect(app.lastFrame()).not.toContain("Structured Query Editor");
-
-    pressLeft(app);
-    await flushInk();
     expect(app.lastFrame()).toContain("Structured Query Editor");
     expect(app.lastFrame()).toContain("Query Clause: includes any Coastal Setting");
     expect(app.lastFrame()).not.toContain("Browse/Search");
@@ -1814,7 +1801,7 @@ describe("search screen", () => {
     expect(app.lastFrame()).not.toContain("Structured Query Editor");
   });
 
-  it("returns from a multi-field picker back into the query-field chooser instead of main search", async () => {
+  it("opens the shared explorer directly for multi-field ontology composition and returns to the staged query", async () => {
     const services = createServices();
     services.user.search.getQueryFieldOptions = vi.fn(() => [
       {
@@ -1921,43 +1908,19 @@ describe("search screen", () => {
 
     app.stdin.write("\r");
     await flushInk();
-    expect(app.lastFrame()).toContain("Add Query Part");
-    expect(app.lastFrame()).toContain("Traits");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Filter Explorer");
+    expect(app.lastFrame()).toContain("traits");
+    expect(app.lastFrame()).toContain("derivedTags");
+    expect(app.lastFrame()).not.toContain("Add Query Part");
     expect(app.lastFrame()).not.toContain("Browse/Search");
 
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
-    expect(app.lastFrame()).toContain("Traits Explorer");
+    expect(app.lastFrame()).toContain("Filter Explorer");
     expect(app.lastFrame()).toContain("Explorer Entries");
     expect(app.lastFrame()).toContain("illusion");
-
-    pressLeft(app);
-    await flushInk();
-    expect(app.lastFrame()).toContain("Traits Explorer");
-    expect(app.lastFrame()).toContain("Metadata Fields");
-    expect(app.lastFrame()).toContain("Traits");
-    expect(app.lastFrame()).toContain("derivedTags");
-    expect(app.lastFrame()).not.toContain("Browse/Search");
-
-    pressLeft(app);
-    await flushInk();
-    expect(app.lastFrame()).toContain("Traits Explorer");
-    expect(app.lastFrame()).toContain("Metadata Fields");
-    expect(app.lastFrame()).not.toContain("Browse/Search");
-
-    pressLeft(app);
-    await flushInk();
-    expect(app.lastFrame()).toContain("Add Query Part");
-    expect(app.lastFrame()).toContain("Traits");
-    expect(app.lastFrame()).toContain("Derived Tags");
-    expect(app.lastFrame()).not.toContain("Browse/Search");
-
-    app.stdin.write("\r");
-    await flushInk();
-    await flushInk();
-    expect(app.lastFrame()).toContain("Traits Explorer");
-    expect(app.lastFrame()).toContain("Explorer Entries");
 
     app.stdin.write(" ");
     await flushInk();
@@ -1968,26 +1931,22 @@ describe("search screen", () => {
 
     pressLeft(app);
     await flushInk();
-    expect(app.lastFrame()).toContain("Traits Explorer");
-    expect(app.lastFrame()).toContain("Metadata Fields");
+    expect(app.lastFrame()).toContain("Filter Explorer");
+    expect(app.lastFrame()).toContain("traits");
+    expect(app.lastFrame()).toContain("derivedTags");
     expect(app.lastFrame()).toContain("illusion");
-
-    pressLeft(app);
-    await flushInk();
-    expect(app.lastFrame()).toContain("Traits Explorer");
-    expect(app.lastFrame()).toContain("Metadata Fields");
-    expect(app.lastFrame()).toContain("illusion");
-
-    pressLeft(app);
-    await flushInk();
-    expect(app.lastFrame()).toContain("Add Query Part");
-    expect(app.lastFrame()).toContain("Traits | staged");
+    expect(app.lastFrame()).not.toContain("Add Query Part");
 
     pressLeft(app);
     await flushInk();
     expect(app.lastFrame()).toContain("Structured Query Editor");
     expect(app.lastFrame()).toContain("Query Clause: includes any Illusion");
-    expect(app.lastFrame()).not.toContain("Browse/Search");
+    expect(app.lastFrame()).not.toContain("Add Query Part");
+
+    pressLeft(app);
+    await flushInk();
+    expect(app.lastFrame()).toContain("[EDITOR] Query");
+    expect(app.lastFrame()).toContain("Query Clause: includes any Illusion");
   });
 
   it("scopes ontology-backed query fields from the staged category instead of the live query", async () => {
@@ -2065,7 +2024,7 @@ describe("search screen", () => {
     await flushInk();
     expect(app.lastFrame()).toContain("Derived Tags Explorer");
     expect(app.lastFrame()).toContain("Explorer Entries");
-    expect(app.lastFrame()).toContain("Creature Type");
+    expect(app.lastFrame()).toContain("Derived Tags Explorer > undead");
     expect(app.lastFrame()).not.toContain("Choose a category before editing a discoverable query field.");
   });
 });

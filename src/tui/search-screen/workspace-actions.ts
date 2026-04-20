@@ -288,6 +288,30 @@ export function useSearchWorkspaceActions({
     [openFilterExplorer, user.search],
   );
 
+  const openOntologyFieldExplorer = React.useCallback(
+    async (
+      query: Pf2eTerminalSearchQuery,
+      fieldOptions: Pf2eTerminalQueryFieldOption[],
+      onApply: (nextNode: MetadataFilterNode | null) => void,
+    ): Promise<boolean> => {
+      if (fieldOptions.length === 0 || fieldOptions.some((fieldOption) => fieldOption.editor !== "ontologyPicker")) {
+        return false;
+      }
+
+      return openFilterExplorer({
+        queryOverride: query,
+        fieldOptions,
+        initialDraft: user.search.createFilterExplorerDraftFromMetadataNode(
+          null,
+          fieldOptions.map((fieldOption) => fieldOption.value),
+        ),
+        singleFieldBehavior: fieldOptions.length === 1 ? "directValues" : "list",
+        onApply: (draft) => onApply(user.search.buildFilterExplorerMetadataNode(draft)),
+      });
+    },
+    [openFilterExplorer, user.search],
+  );
+
   const editFieldClause = React.useCallback(
     async (
       query: Pf2eTerminalSearchQuery,
@@ -585,13 +609,53 @@ export function useSearchWorkspaceActions({
 
   const addQueryClauseAtPath = React.useCallback(
     async (query: Pf2eTerminalSearchQuery, path: number[] = []) => {
+      const queryCategory = getSearchQueryCategory(query);
+      const querySubcategory = getSearchQuerySubcategory(query);
+      const fieldOptions = user.search.getQueryFieldOptions(queryCategory, querySubcategory);
+      if (
+        await openOntologyFieldExplorer(query, fieldOptions, (nextNode) => {
+          if (!nextNode) {
+            return;
+          }
+          replaceStructuredDraftQuery((draftQuery) =>
+            setSearchQueryMetadataTree(
+              draftQuery,
+              appendMetadataNodeAtPath(getSearchQueryMetadataTree(draftQuery), path, nextNode),
+            ),
+          );
+        })
+      ) {
+        return;
+      }
+
       await openQueryFieldBuilder(query, path);
     },
-    [openQueryFieldBuilder],
+    [openOntologyFieldExplorer, openQueryFieldBuilder, replaceStructuredDraftQuery, user.search],
   );
 
   const addQueryGroupAtPath = React.useCallback(
     async (query: Pf2eTerminalSearchQuery, path: number[], groupKind: "and" | "or" | "not") => {
+      const queryCategory = getSearchQueryCategory(query);
+      const querySubcategory = getSearchQuerySubcategory(query);
+      const fieldOptions = user.search.getQueryFieldOptions(queryCategory, querySubcategory);
+      if (
+        await openOntologyFieldExplorer(query, fieldOptions, (nextNode) => {
+          if (!nextNode) {
+            return;
+          }
+          const group: MetadataFilterNode =
+            groupKind === "and" ? { and: [nextNode] } : groupKind === "or" ? { or: [nextNode] } : { not: nextNode };
+          replaceStructuredDraftQuery((draftQuery) =>
+            setSearchQueryMetadataTree(
+              draftQuery,
+              appendMetadataNodeAtPath(getSearchQueryMetadataTree(draftQuery), path, group),
+            ),
+          );
+        })
+      ) {
+        return;
+      }
+
       const fieldOption = await chooseQueryField(query);
       if (!fieldOption) {
         return;
@@ -625,7 +689,14 @@ export function useSearchWorkspaceActions({
         ),
       );
     },
-    [chooseQueryField, editFieldClause, openOntologyFieldEditor, replaceStructuredDraftQuery],
+    [
+      chooseQueryField,
+      editFieldClause,
+      openOntologyFieldEditor,
+      openOntologyFieldExplorer,
+      replaceStructuredDraftQuery,
+      user.search,
+    ],
   );
 
   const finishStructuredDraftSession = React.useCallback(() => {
@@ -857,23 +928,24 @@ export function useSearchWorkspaceActions({
           return;
         }
 
+        if (
+          await openOntologyFieldExplorer(draftQuery, fieldOptions, (nextNode) => {
+            if (!nextNode) {
+              return;
+            }
+            replaceStructuredDraftQuery((query) =>
+              setSearchQueryMetadataTree(
+                query,
+                appendMetadataNodeAtPath(getSearchQueryMetadataTree(query), path, nextNode),
+              ),
+            );
+          })
+        ) {
+          return;
+        }
+
         if (fieldOptions.length === 1) {
           const onlyField = fieldOptions[0]!;
-          if (onlyField.editor === "ontologyPicker") {
-            await openOntologyFieldEditor(draftQuery, onlyField, null, (nextNode) => {
-              if (!nextNode) {
-                return;
-              }
-              replaceStructuredDraftQuery((query) =>
-                setSearchQueryMetadataTree(
-                  query,
-                  appendMetadataNodeAtPath(getSearchQueryMetadataTree(query), path, nextNode),
-                ),
-              );
-            });
-            return;
-          }
-
           const nextNode = await editFieldClause(draftQuery, onlyField);
           if (!nextNode) {
             return;
@@ -1054,6 +1126,7 @@ export function useSearchWorkspaceActions({
       addQueryGroupAtPath,
       editFieldClause,
       openOntologyFieldEditor,
+      openOntologyFieldExplorer,
       openQueryFieldBuilder,
       prompts,
       replaceStructuredDraftQuery,

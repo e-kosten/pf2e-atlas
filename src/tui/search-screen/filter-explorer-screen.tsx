@@ -40,9 +40,8 @@ export function SearchFilterExplorerScreen({
     <FilterExplorerScreen
       title={session.title}
       model={session.model}
-      initialSnapshot={session.initialSnapshot}
-      rootDepth={session.rootDepth}
-      exitAtRootDepth={session.exitAtRootDepth}
+      rootDepth={0}
+      exitAtRootDepth
       onExit={applyDraft}
       mode={{
         kind: "compose",

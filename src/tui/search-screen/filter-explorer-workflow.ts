@@ -1,7 +1,6 @@
 import React from "react";
 
 import {
-  buildSearchFilterExplorerInitialSnapshot,
   buildSearchFilterExplorerModel,
   buildSearchFilterExplorerTargetResolver,
   getSearchQuerySubcategory,
@@ -64,7 +63,9 @@ export function useSearchFilterExplorerWorkflow({
       const searchSemanticsDomain = services.ontology.loadDomain("searchSemantics");
       const model = buildSearchFilterExplorerModel(searchSemanticsDomain, {
         category: scopeQuery.filters.category,
+        subcategory: scopeSubcategory,
         fieldOptions,
+        singleFieldBehavior,
       });
       if (model.rootNodes.length === 0) {
         await onUnavailable("No ontology-backed query explorer is available for that field.");
@@ -77,20 +78,11 @@ export function useSearchFilterExplorerWorkflow({
           scopeQuery,
           fieldOptions.map((fieldOption) => fieldOption.value),
         );
-      const initialSnapshot = buildSearchFilterExplorerInitialSnapshot(model, {
-        category: scopeQuery.filters.category,
-        subcategory: scopeSubcategory,
-        fieldOptions,
-        singleFieldBehavior,
-      });
 
       setFilterExplorerSession({
         title: fieldOptions.length === 1 ? `${fieldOptions[0]!.label} Explorer` : "Filter Explorer",
         model,
         draft,
-        initialSnapshot,
-        rootDepth: initialSnapshot ? 1 : 0,
-        exitAtRootDepth: Boolean(initialSnapshot),
         resolveSelectionTarget: buildSearchFilterExplorerTargetResolver(fieldOptions),
         onApply: (nextDraft) => {
           onApply(nextDraft);

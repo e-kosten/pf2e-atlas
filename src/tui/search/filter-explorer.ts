@@ -4,11 +4,11 @@ import { inferItemMetricValueType } from "../../domain/item-metrics.js";
 import type { MetadataFieldSemantics } from "../../domain/metadata-semantics.js";
 import type { MetadataFilterNode, MetadataPredicate } from "../../domain/metadata-types.js";
 import { getOntologyNodeChildren } from "../../app/ontology/node-helpers.js";
-import { buildHostedOntologyPickerInitialSnapshot } from "../ontology-explorer/picker-hosting.js";
 import { isMetadataPredicate, normalizeMetadataNode } from "./query-core.js";
 import { partitionDiscoverableQueryFieldSelections } from "./discoverable-fields.js";
 import { createEmptyStringPolicy, normalizeQueryFieldPolicy } from "./policies.js";
 import { buildMetadataNodeForQueryFieldSelection, getSearchQueryMetadataTree, setSearchQueryMetadataTree } from "./query-state.js";
+import { humanizeIdentifier } from "./service-options.js";
 import type {
   Pf2eTerminalFacetField,
   Pf2eTerminalFilterExplorerDraft,
@@ -23,11 +23,6 @@ import type {
 import type { FilterExplorerComposeDraft, FilterExplorerComposeTarget } from "../filter-explorer/index.js";
 
 type SearchFilterExplorerMetricField = "actorMetric" | "itemMetric";
-
-type HostedPickerInitialSnapshotCandidate = {
-  drillToFirstChild?: boolean;
-  selectedNodeIds: string[];
-};
 
 type MetricValueType = "number" | "text" | "boolean";
 
@@ -100,80 +95,6 @@ function findNodeById(nodes: readonly OntologyNode[], id: string): OntologyNode 
   return undefined;
 }
 
-function buildHostedPickerInitialSnapshotCandidates(options: {
-  category: string;
-  subcategory: string | null;
-  fieldOptions: Pf2eTerminalQueryFieldOption[];
-  singleFieldBehavior: "list" | "directValues";
-}): HostedPickerInitialSnapshotCandidate[] {
-  const { category, subcategory, fieldOptions, singleFieldBehavior } = options;
-  const categoryId = `searchSemantics:${category}`;
-  const candidates: HostedPickerInitialSnapshotCandidate[] = [];
-  const singleField = fieldOptions.length === 1 ? fieldOptions[0] : null;
-
-  if (singleFieldBehavior === "directValues" && singleField) {
-    if (singleField.value === "actorMetric" || singleField.value === "itemMetric") {
-      const metricField = singleField.value === "actorMetric" ? "actorMetrics" : "itemMetrics";
-      if (subcategory) {
-        candidates.push({
-          selectedNodeIds: [
-            categoryId,
-            `${category}:subcategories`,
-            `${category}:subcategory:${subcategory}`,
-            `${category}:${subcategory}:${metricField}:discovery`,
-          ],
-          drillToFirstChild: true,
-        });
-      }
-      candidates.push({
-        selectedNodeIds: [categoryId, `${category}:${metricField}:discovery`],
-        drillToFirstChild: true,
-      });
-    } else {
-      if (subcategory) {
-        candidates.push({
-          selectedNodeIds: [
-            categoryId,
-            `${category}:subcategories`,
-            `${category}:subcategory:${subcategory}`,
-            `${category}:${subcategory}:metadataFields`,
-            `${category}:${subcategory}:field:${singleField.value}`,
-          ],
-          drillToFirstChild: true,
-        });
-      }
-      candidates.push({
-        selectedNodeIds: [categoryId, `${category}:metadataFields`, `${category}:field:${singleField.value}`],
-        drillToFirstChild: true,
-      });
-      if (singleField.value === "derivedTags") {
-        candidates.push({
-          selectedNodeIds: [categoryId, `${category}:commonDerivedTags`],
-          drillToFirstChild: true,
-        });
-      }
-      if (singleField.value === "traits") {
-        candidates.push({
-          selectedNodeIds: [categoryId, `${category}:commonTraits`],
-          drillToFirstChild: true,
-        });
-      }
-    }
-  }
-
-  if (subcategory) {
-    candidates.push({
-      selectedNodeIds: [categoryId, `${category}:subcategories`, `${category}:subcategory:${subcategory}`],
-    });
-  }
-  candidates.push({
-    selectedNodeIds: [categoryId],
-    drillToFirstChild: true,
-  });
-
-  return candidates;
-}
-
 function getSelectionValueFromPredicate(node: MetadataPredicate): string | null {
   if ("value" in node) {
     return typeof node.value === "boolean" ? String(node.value) : String(node.value);
@@ -200,6 +121,14 @@ function parseMetricSelectionKey(key: string): { field: SearchFilterExplorerMetr
 
 function inferMetricValueType(field: SearchFilterExplorerMetricField, metric: string): MetricValueType | null {
   return field === "actorMetric" ? inferActorMetricValueType(metric) : inferItemMetricValueType(metric);
+}
+
+function formatMetricLabel(metric: string, fallbackLabel?: string): string {
+  const label = fallbackLabel?.trim();
+  if (label) {
+    return label;
+  }
+  return humanizeIdentifier(metric.replaceAll(".", " "));
 }
 
 function cloneMetricClause(
@@ -669,32 +598,85 @@ export function buildSearchFilterExplorerModel(
   searchSemanticsDomain: OntologyDomainModel,
   options: {
     category: string;
+    subcategory: string | null;
     fieldOptions: Pf2eTerminalQueryFieldOption[];
+    singleFieldBehavior: "list" | "directValues";
   },
 ): OntologyDomainModel {
   const categoryNode = findNodeById(searchSemanticsDomain.rootNodes, `searchSemantics:${options.category}`);
+  const rootNodes = categoryNode
+    ? buildSearchFilterExplorerRootNodes(categoryNode, {
+        category: options.category,
+        subcategory: options.subcategory,
+        fieldOptions: options.fieldOptions,
+        singleFieldBehavior: options.singleFieldBehavior,
+      })
+    : [];
   return {
     ...searchSemanticsDomain,
     label: options.fieldOptions.length === 1 ? `${options.fieldOptions[0]!.label} Explorer` : "Filter Explorer",
     description: searchSemanticsDomain.description,
-    rootNodes: categoryNode ? [categoryNode] : [],
+    rootNodes,
   };
 }
 
-export function buildSearchFilterExplorerInitialSnapshot(
-  model: OntologyDomainModel,
+function buildSearchFilterExplorerRootNodes(
+  categoryNode: OntologyNode,
   options: {
     category: string;
     subcategory: string | null;
     fieldOptions: Pf2eTerminalQueryFieldOption[];
     singleFieldBehavior: "list" | "directValues";
   },
-) {
-  return (
-    buildHostedPickerInitialSnapshotCandidates(options)
-      .map((candidate) => buildHostedOntologyPickerInitialSnapshot(model, candidate))
-      .find((snapshot) => Boolean(snapshot)) ?? undefined
-  );
+): OntologyNode[] {
+  const scopedFieldNodes = options.fieldOptions
+    .map((fieldOption) => findSearchFilterExplorerFieldNode(categoryNode, options.category, options.subcategory, fieldOption))
+    .filter((node): node is OntologyNode => Boolean(node));
+  const uniqueScopedFieldNodes = [...new Map(scopedFieldNodes.map((node) => [node.id, node])).values()];
+
+  if (
+    options.singleFieldBehavior === "directValues" &&
+    options.fieldOptions.length === 1 &&
+    uniqueScopedFieldNodes.length === 1
+  ) {
+    const children = getOntologyNodeChildren(uniqueScopedFieldNodes[0]!);
+    return children.length > 0 ? [...children] : uniqueScopedFieldNodes;
+  }
+
+  if (uniqueScopedFieldNodes.length > 0) {
+    return uniqueScopedFieldNodes;
+  }
+
+  return [categoryNode];
+}
+
+function findSearchFilterExplorerFieldNode(
+  categoryNode: OntologyNode,
+  category: string,
+  subcategory: string | null,
+  fieldOption: Pf2eTerminalQueryFieldOption,
+): OntologyNode | undefined {
+  const fieldNodeIds =
+    fieldOption.value === "actorMetric"
+      ? [
+          ...(subcategory ? [`${category}:${subcategory}:actorMetrics:discovery`] : []),
+          `${category}:actorMetrics:discovery`,
+        ]
+      : fieldOption.value === "itemMetric"
+        ? [
+            ...(subcategory ? [`${category}:${subcategory}:itemMetrics:discovery`] : []),
+            `${category}:itemMetrics:discovery`,
+          ]
+        : [
+            ...(subcategory ? [`${category}:${subcategory}:field:${fieldOption.value}`] : []),
+            `${category}:field:${fieldOption.value}`,
+            ...(fieldOption.value === "derivedTags" ? [`${category}:commonDerivedTags`] : []),
+            ...(fieldOption.value === "traits" ? [`${category}:commonTraits`] : []),
+          ];
+
+  return fieldNodeIds
+    .map((nodeId) => findNodeById([categoryNode], nodeId))
+    .find((node): node is OntologyNode => Boolean(node));
 }
 
 function buildFieldSelectionTarget(
@@ -750,13 +732,15 @@ function buildMetricScalarTarget(
     return undefined;
   }
 
+  const metricLabel = formatMetricLabel(metricTarget.metric, node.label);
+
   return {
     kind: "scalar",
     key: buildMetricClauseKey(metricTarget.field, metricTarget.metric),
     fieldLabel: fieldOption.label,
-    subjectLabel: metricTarget.metric,
+    subjectLabel: metricLabel,
     valueType,
-    editorLabel: `${fieldOption.label} / ${metricTarget.metric}`,
+    editorLabel: `${fieldOption.label} / ${metricLabel}`,
   };
 }
 
@@ -809,15 +793,16 @@ export function buildSearchFilterExplorerTargetResolver(
       if (!fieldOption || !("metric" in predicate)) {
         return undefined;
       }
+      const metricLabel = formatMetricLabel(predicate.metric, node.label);
       const valueType = inferMetricValueType(predicate.field, predicate.metric);
       if (valueType === "number" && "value" in predicate && typeof predicate.value === "number") {
         return {
           kind: "scalar",
           key: buildMetricClauseKey(predicate.field, predicate.metric),
           fieldLabel: fieldOption.label,
-          subjectLabel: predicate.metric,
+          subjectLabel: metricLabel,
           valueType,
-          editorLabel: `${fieldOption.label} / ${predicate.metric}`,
+          editorLabel: `${fieldOption.label} / ${metricLabel}`,
         };
       }
       const value = getSelectionValueFromPredicate(predicate);
@@ -827,7 +812,7 @@ export function buildSearchFilterExplorerTargetResolver(
       return {
         kind: "discrete",
         field: getMetricSelectionKey(predicate.field, predicate.metric),
-        fieldLabel: `${fieldOption.label} / ${predicate.metric}`,
+        fieldLabel: `${fieldOption.label} / ${metricLabel}`,
         value,
         valueLabel: node.label,
         allowedStates: ["any", "exclude"],
