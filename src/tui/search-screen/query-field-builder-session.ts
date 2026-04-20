@@ -1,5 +1,7 @@
 import type { MetadataFilterNode } from "../../domain/metadata-types.js";
 import type { OntologyDomainModel } from "../../domain/ontology-types.js";
+import type { OntologyBrowserSnapshot } from "../ontology-explorer/ui.js";
+import type { FilterExplorerComposeTarget } from "../filter-explorer/index.js";
 import {
   buildTerminalInteractionHelpLines,
   formatTerminalInteractionFooter,
@@ -13,16 +15,22 @@ import {
   formatSearchWorkspaceEntryLine,
 } from "./workspace.js";
 import type {
+  Pf2eTerminalFilterExplorerDraft,
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalQueryFieldSelectionMap,
   Pf2eTerminalSearchQuery,
 } from "../search/service.js";
 import type { DerivedTagTerminalLine } from "../framework/types.js";
 
-export type SearchQueryFieldPickerSession = {
+export type SearchFilterExplorerSession = {
+  title?: string;
   model: OntologyDomainModel;
-  initialSelections: Record<string, { any: string[]; all: string[]; exclude: string[] }>;
-  applySelection: (selection: Record<string, { any: string[]; all: string[]; exclude: string[] }>) => void;
+  draft: Pf2eTerminalFilterExplorerDraft;
+  initialSnapshot?: OntologyBrowserSnapshot;
+  rootDepth?: number;
+  exitAtRootDepth?: boolean;
+  resolveSelectionTarget: (node: import("../../domain/ontology-types.js").OntologyNode | undefined) => FilterExplorerComposeTarget | undefined;
+  onApply: (draft: Pf2eTerminalFilterExplorerDraft) => void;
 };
 
 export type SearchQueryFieldBuilderStep = "fieldList" | "ontologyPicker";
@@ -88,7 +96,7 @@ export type SearchStructuredEditorSession = {
   selectedFieldIndex?: number;
   step?: SearchQueryFieldBuilderStep;
   activeChildView?: "none" | "ontologyPicker";
-  childSession?: SearchQueryFieldPickerSession | null;
+  childSession?: SearchFilterExplorerSession | null;
   draft?: SearchQueryFieldBuilderDraft | null;
   fieldDrafts?: Record<string, MetadataFilterNode | null>;
   onFinish?: (outcome: Extract<SearchQueryFieldBuilderOutcome, { kind: "finish" }>) => void;

@@ -108,7 +108,7 @@ describe("ontology browser screen", () => {
     );
 
     await flushInk();
-    expect(app.lastFrame()).toContain("query ready");
+    expect(app.lastFrame()).toContain("Ontology Entries");
 
     app.stdin.write(":");
     await flushInk();

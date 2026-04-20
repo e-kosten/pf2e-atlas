@@ -29,7 +29,7 @@ function extractPolicyFromMetadataPredicate(
   node: MetadataPredicate,
   fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
 ): { field: Pf2eTerminalQueryField; policy: Pf2eTerminalFilterValuePolicy<string> } | null {
-  const fieldSemantics = fieldSemanticsByName.get(node.field as Pf2eTerminalQueryField);
+  const fieldSemantics = fieldSemanticsByName.get(node.field as Pf2eTerminalFacetField);
   if (!fieldSemantics || !fieldSemantics.discoverable) {
     return null;
   }
@@ -151,6 +151,17 @@ function extractScopedQueryFieldSelections(
   };
 }
 
+export function partitionDiscoverableQueryFieldSelections(
+  node: MetadataFilterNode | null,
+  scopedFields: readonly string[],
+  fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
+): {
+  metadata: MetadataFilterNode | null;
+  selections: Pf2eTerminalQueryFieldSelectionMap;
+} {
+  return extractScopedQueryFieldSelections(node, new Set(scopedFields), fieldSemanticsByName);
+}
+
 export function getQueryFieldEditor(field: MetadataFieldSemantics): Pf2eTerminalQueryFieldEditor {
   if (field.field === "derivedTags") {
     return "ontologyPicker";
@@ -181,16 +192,60 @@ export function getScopedMetadataFields(
   return [...new Set([...categoryFields, ...scopedFields])];
 }
 
+function getMetricQueryFieldOptions(
+  filterSemantics: {
+    advancedPredicates: Array<{ name: string; categories: string[] }>;
+  },
+  category: SearchCategory | null,
+): Pf2eTerminalQueryFieldOption[] {
+  if (!category) {
+    return [];
+  }
+
+  const options: Pf2eTerminalQueryFieldOption[] = [];
+  if (
+    filterSemantics.advancedPredicates.some(
+      (predicate) => predicate.name === "actorMetric" && predicate.categories.includes(category),
+    )
+  ) {
+    options.push({
+      value: "actorMetric",
+      label: category === "hazard" ? "Hazard Statistics" : "Creature Statistics",
+      description: "Browse live statistic keys and exact scalar values for the current scope.",
+      fieldType: "enumString",
+      editor: "ontologyPicker",
+    });
+  }
+
+  if (
+    filterSemantics.advancedPredicates.some(
+      (predicate) => predicate.name === "itemMetric" && predicate.categories.includes(category),
+    )
+  ) {
+    options.push({
+      value: "itemMetric",
+      label: "Item Properties",
+      description: "Browse live item property keys and exact scalar values for the current scope.",
+      fieldType: "enumString",
+      editor: "ontologyPicker",
+    });
+  }
+
+  return options;
+}
+
 export function getQueryFieldOptions(
   filterSemantics: {
     metadataFieldsByCategory: Record<string, MetadataFieldSemantics["field"][]>;
     metadataFieldsByCategoryAndSubcategory: Record<string, Record<string, MetadataFieldSemantics["field"][]>>;
+    advancedPredicates: Array<{ name: string; categories: string[] }>;
   },
   fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
   category: SearchCategory | null,
   subcategory: SearchSubcategory | null,
 ): Pf2eTerminalQueryFieldOption[] {
-  return getScopedMetadataFields(filterSemantics, category, subcategory)
+  return [
+    ...getScopedMetadataFields(filterSemantics, category, subcategory)
     .map((field) => fieldSemanticsByName.get(field))
     .filter((field): field is MetadataFieldSemantics => Boolean(field))
     .filter((field) => field.discoverable && !["rarity", "actionCost"].includes(field.field))
@@ -204,7 +259,9 @@ export function getQueryFieldOptions(
           : `${field.fieldType} query field for the current browse scope.`),
       fieldType: field.fieldType,
       editor: getQueryFieldEditor(field),
-    }));
+    })),
+    ...getMetricQueryFieldOptions(filterSemantics, category),
+  ];
 }
 
 export function buildDiscoverableQueryFieldSelections(
@@ -213,15 +270,13 @@ export function buildDiscoverableQueryFieldSelections(
   fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
 ): Pf2eTerminalQueryFieldSelectionMap {
   const selectionMap = createScopedSelectionMap(scopedFields);
-  const scopedFieldSet = new Set(scopedFields);
-
-  const extracted = extractScopedQueryFieldSelections(
+  const extracted = partitionDiscoverableQueryFieldSelections(
     getSearchQueryMetadataTree(query),
-    scopedFieldSet,
+    scopedFields,
     fieldSemanticsByName,
   );
   for (const [field, policy] of Object.entries(extracted.selections)) {
-    const normalizedPolicy = normalizeQueryFieldPolicy(field as Pf2eTerminalQueryField, policy, fieldSemanticsByName);
+    const normalizedPolicy = normalizeQueryFieldPolicy(field as Pf2eTerminalFacetField, policy, fieldSemanticsByName);
     if (!normalizedPolicy) {
       continue;
     }
@@ -230,7 +285,7 @@ export function buildDiscoverableQueryFieldSelections(
 
   for (const field of scopedFields) {
     const normalizedPolicy = normalizeQueryFieldPolicy(
-      field as Pf2eTerminalQueryField,
+      field as Pf2eTerminalFacetField,
       selectionMap[field],
       fieldSemanticsByName,
     );
@@ -246,17 +301,16 @@ export function applyDiscoverableQueryFieldSelections(
   scopedFields: string[],
   fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
 ): Pf2eTerminalSearchQuery {
-  const scopedFieldSet = new Set(scopedFields);
-  const extracted = extractScopedQueryFieldSelections(
+  const extracted = partitionDiscoverableQueryFieldSelections(
     getSearchQueryMetadataTree(query),
-    scopedFieldSet,
+    scopedFields,
     fieldSemanticsByName,
   );
   const metadataClauses: MetadataFilterNode[] = extracted.metadata ? [extracted.metadata] : [];
 
   for (const field of scopedFields) {
     const nextPolicy = normalizeQueryFieldPolicy(
-      field as Pf2eTerminalQueryField,
+      field as Pf2eTerminalFacetField,
       selections[field] ?? createEmptyStringPolicy(),
       fieldSemanticsByName,
     );
@@ -265,7 +319,7 @@ export function applyDiscoverableQueryFieldSelections(
     }
 
     const metadataNode = buildMetadataNodeForQueryFieldSelection(
-      field as Pf2eTerminalQueryField,
+      field as Pf2eTerminalFacetField,
       nextPolicy,
       fieldSemanticsByName,
     );

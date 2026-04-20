@@ -71,7 +71,8 @@ export type Pf2eTerminalFilterValuePolicy<T extends number | string = string> = 
 };
 
 export type Pf2eTerminalFacetField = MetadataFieldSemantics["field"];
-export type Pf2eTerminalQueryField = MetadataFieldSemantics["field"];
+export type Pf2eTerminalMetricQueryField = "actorMetric" | "itemMetric";
+export type Pf2eTerminalQueryField = MetadataFieldSemantics["field"] | Pf2eTerminalMetricQueryField;
 
 export type Pf2eTerminalSearchMode = "browse" | "search" | "lookup";
 export type Pf2eTerminalSearchSort = SearchSort;
@@ -109,6 +110,11 @@ export type Pf2eTerminalQueryFieldOption = {
 export type Pf2eTerminalQueryFieldEditor = "policyList" | "structuredForm" | "ontologyPicker";
 
 export type Pf2eTerminalQueryFieldSelectionMap = Record<string, Pf2eTerminalFilterValuePolicy<string>>;
+
+export type Pf2eTerminalFilterExplorerDraft = {
+  fieldSelections: Pf2eTerminalQueryFieldSelectionMap;
+  structuredMetadata: MetadataFilterNode | null;
+};
 
 export type Pf2eTerminalSearchSession = {
   windowId: string;
@@ -153,6 +159,19 @@ export type Pf2eTerminalSearchService = {
   ) => Pf2eTerminalQueryPart["kind"][];
   getRootQueryParts: (query: Pf2eTerminalSearchQuery) => Pf2eTerminalQueryPart[];
   applyRootQueryParts: (query: Pf2eTerminalSearchQuery, parts: Pf2eTerminalQueryPart[]) => Pf2eTerminalSearchQuery;
+  createFilterExplorerDraft: (
+    query: Pf2eTerminalSearchQuery,
+    scopedFields: readonly Pf2eTerminalQueryField[],
+  ) => Pf2eTerminalFilterExplorerDraft;
+  createFilterExplorerDraftFromMetadataNode: (
+    node: MetadataFilterNode | null,
+    scopedFields: readonly Pf2eTerminalQueryField[],
+  ) => Pf2eTerminalFilterExplorerDraft;
+  buildFilterExplorerMetadataNode: (draft: Pf2eTerminalFilterExplorerDraft) => MetadataFilterNode | null;
+  applyFilterExplorerDraft: (
+    query: Pf2eTerminalSearchQuery,
+    draft: Pf2eTerminalFilterExplorerDraft,
+  ) => Pf2eTerminalSearchQuery;
   buildDiscoverableQueryFieldSelections: (
     query: Pf2eTerminalSearchQuery,
     scopedFields: string[],

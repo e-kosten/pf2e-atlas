@@ -31,9 +31,9 @@ import { type SearchStructuredEditorSession } from "./query-field-builder-sessio
 import {
   getSearchResultWindowMetrics,
   getSessionBufferRange,
-  type SearchQueryFieldPickerSession,
+  type SearchFilterExplorerSession,
 } from "./state.js";
-import { useSearchQueryFieldPickerWorkflow } from "./query-picker-workflow.js";
+import { useSearchFilterExplorerWorkflow } from "./filter-explorer-workflow.js";
 import { useSearchSessionWorkflow } from "./session-workflow.js";
 import { useSearchWorkspaceActions } from "./workspace-actions.js";
 import type { SearchScreenOrigin } from "./workflow-types.js";
@@ -48,7 +48,7 @@ import type { DerivedTagTerminalTwoPaneScreenProps } from "../framework/types.js
 
 export type SearchScreenControllerResult = {
   structuredEditorSession: SearchStructuredEditorSession | null;
-  selectionPickerSession: SearchQueryFieldPickerSession | null;
+  filterExplorerSession: SearchFilterExplorerSession | null;
   screen: DerivedTagTerminalTwoPaneScreenProps;
 };
 
@@ -165,7 +165,7 @@ export function useSearchScreenController({
   const maxDetailScroll = Math.max(0, renderedDetailLineCount - bodyHeight);
   const detailScroll = Math.min(state.detailScroll, maxDetailScroll);
 
-  const { selectionPickerSession, openQueryFieldPicker } = useSearchQueryFieldPickerWorkflow({
+  const { filterExplorerSession, openFilterExplorer } = useSearchFilterExplorerWorkflow({
     query: state.query,
     services: user,
     onUnavailable: terminal.pauseForAnyKey,
@@ -178,7 +178,7 @@ export function useSearchScreenController({
     exitSearchScreen,
     jumpToResultPosition,
     maxDetailScroll,
-    openQueryFieldPicker,
+    openFilterExplorer,
     origin,
     resultCount,
     selectedWorkspaceEntry,
@@ -192,7 +192,7 @@ export function useSearchScreenController({
   });
 
   useSearchScreenInteractionRouter({
-    enabled: !busy && !selectionPickerSession && !structuredEditorSession,
+    enabled: !busy && !filterExplorerSession && !structuredEditorSession,
     origin,
     state,
     workspaceEntryCount: workspaceEntries.length,
@@ -206,7 +206,7 @@ export function useSearchScreenController({
 
   return {
     structuredEditorSession,
-    selectionPickerSession,
+    filterExplorerSession,
     screen: {
       title: "Browse/Search",
       subtitle: buildSearchSubtitle(state, countState),

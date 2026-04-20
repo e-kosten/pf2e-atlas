@@ -7,7 +7,7 @@ export type {
   SearchQueryFieldBuilderOutcome,
   SearchQueryFieldBuilderSession,
   SearchQueryFieldBuilderStep,
-  SearchQueryFieldPickerSession,
+  SearchFilterExplorerSession,
 } from "./query-field-builder-session.js";
 export type {
   SearchStructuredDraftAnchor,

@@ -730,17 +730,17 @@ describe("derived tag terminal ink runtime", () => {
 
     app.stdin.write("\r");
     await flushInkFrames();
-    expect(app.lastFrame()).toContain("[ANY] Fire");
+    expect(app.lastFrame()).toContain("[∪] Fire");
 
     app.stdin.write("\r");
     await flushInkFrames();
-    expect(app.lastFrame()).toContain("[ALL] Fire");
+    expect(app.lastFrame()).toContain("[∩] Fire");
 
     app.stdin.write("j");
     await flushInkFrames();
     app.stdin.write("\r");
     await flushInkFrames();
-    expect(app.lastFrame()).toContain("[ANY] Cold");
+    expect(app.lastFrame()).toContain("[∪] Cold");
 
     app.stdin.write("\u007f");
     await flushInkFrames();

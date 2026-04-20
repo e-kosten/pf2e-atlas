@@ -740,11 +740,10 @@ describe("search screen", () => {
     await flushInk();
     await flushInk();
     await flushInk();
-    expect(app.lastFrame()).toContain("Derived Tags Query");
-    expect(app.lastFrame()).toContain("Selection Picker");
-    expect(app.lastFrame()).toContain("[FAMILIES]");
+    expect(app.lastFrame()).toContain("Derived Tags Explorer");
+    expect(app.lastFrame()).toContain("Explorer Entries");
     expect(app.lastFrame()).toContain("Environment");
-    expect(app.lastFrame()).toContain("Focused: coast");
+    expect(app.lastFrame()).toContain("coast | 1 tag");
     expect(app.lastFrame()).not.toContain("Query Field\n");
   });
 
@@ -1767,37 +1766,36 @@ describe("search screen", () => {
     await flushInk();
     await flushInk();
     await flushInk();
-    expect(app.lastFrame()).toContain("Derived Tags Query");
-    expect(app.lastFrame()).toContain("Selection Picker");
-    expect(app.lastFrame()).toContain("[FAMILIES]");
+    expect(app.lastFrame()).toContain("Derived Tags Explorer");
+    expect(app.lastFrame()).toContain("Explorer Entries");
     expect(app.lastFrame()).toContain("Environment");
-    expect(app.lastFrame()).toContain("Focused: coast");
+    expect(app.lastFrame()).toContain("coast | 1 tag");
 
     app.stdin.write("\r");
     await flushInk();
-    expect(app.lastFrame()).toContain("[TAGS]");
-    expect(app.lastFrame()).toContain("Focused: coastal_setting");
+    expect(app.lastFrame()).toContain("coastal_setting");
 
     app.stdin.write(" ");
     await flushInk();
-    expect(app.lastFrame()).toContain("Policy any");
+    await flushInk();
+    expect(app.lastFrame()).toContain("include any");
 
     pressLeft(app);
     await flushInk();
-    expect(app.lastFrame()).toContain("Selection Picker");
-    expect(app.lastFrame()).toContain("[FAMILIES]");
-    expect(app.lastFrame()).toContain("derivedTags: any=coastal_setting");
+    expect(app.lastFrame()).toContain("Explorer Entries");
+    expect(app.lastFrame()).toContain("derivedTags:");
+    expect(app.lastFrame()).toContain("coastal_setting");
 
     pressLeft(app);
     await flushInk();
-    expect(app.lastFrame()).toContain("Selection Picker");
-    expect(app.lastFrame()).toContain("[QUERY FIELDS]");
-    expect(app.lastFrame()).toContain("derivedTags: any=coastal_setting");
+    expect(app.lastFrame()).toContain("Derived Tags Explorer");
+    expect(app.lastFrame()).toContain("Metadata Fields");
+    expect(app.lastFrame()).toContain("coastal_setting");
 
     pressLeft(app);
     await flushInk();
-    expect(app.lastFrame()).toContain("Selection Picker");
-    expect(app.lastFrame()).toContain("[SEARCH SEMANTICS]");
+    expect(app.lastFrame()).toContain("Derived Tags Explorer");
+    expect(app.lastFrame()).toContain("Metadata Fields");
     expect(app.lastFrame()).toContain("Metadata Fields");
     expect(app.lastFrame()).not.toContain("Structured Query Editor");
 
@@ -1930,22 +1928,21 @@ describe("search screen", () => {
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
-    expect(app.lastFrame()).toContain("Traits Query");
-    expect(app.lastFrame()).toContain("Selection Picker");
-    expect(app.lastFrame()).toContain("[TRAITS]");
+    expect(app.lastFrame()).toContain("Traits Explorer");
+    expect(app.lastFrame()).toContain("Explorer Entries");
+    expect(app.lastFrame()).toContain("illusion");
 
     pressLeft(app);
     await flushInk();
-    expect(app.lastFrame()).toContain("Selection Picker");
-    expect(app.lastFrame()).toContain("[QUERY FIELDS]");
+    expect(app.lastFrame()).toContain("Traits Explorer");
+    expect(app.lastFrame()).toContain("Metadata Fields");
     expect(app.lastFrame()).toContain("Traits");
     expect(app.lastFrame()).toContain("derivedTags");
     expect(app.lastFrame()).not.toContain("Browse/Search");
 
     pressLeft(app);
     await flushInk();
-    expect(app.lastFrame()).toContain("Selection Picker");
-    expect(app.lastFrame()).toContain("[SEARCH SEMANTICS]");
+    expect(app.lastFrame()).toContain("Traits Explorer");
     expect(app.lastFrame()).toContain("Metadata Fields");
     expect(app.lastFrame()).not.toContain("Browse/Search");
 
@@ -1959,25 +1956,27 @@ describe("search screen", () => {
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
-    expect(app.lastFrame()).toContain("Traits Query");
-    expect(app.lastFrame()).toContain("Selection Picker");
+    expect(app.lastFrame()).toContain("Traits Explorer");
+    expect(app.lastFrame()).toContain("Explorer Entries");
 
     app.stdin.write(" ");
     await flushInk();
-    expect(app.lastFrame()).toContain("Policy any");
-    expect(app.lastFrame()).toContain("traits: any=illusion");
+    await flushInk();
+    expect(app.lastFrame()).toContain("include any");
+    expect(app.lastFrame()).toContain("traits:");
+    expect(app.lastFrame()).toContain("illusion");
 
     pressLeft(app);
     await flushInk();
-    expect(app.lastFrame()).toContain("Selection Picker");
-    expect(app.lastFrame()).toContain("[QUERY FIELDS]");
-    expect(app.lastFrame()).toContain("traits: any=illusion");
+    expect(app.lastFrame()).toContain("Traits Explorer");
+    expect(app.lastFrame()).toContain("Metadata Fields");
+    expect(app.lastFrame()).toContain("illusion");
 
     pressLeft(app);
     await flushInk();
-    expect(app.lastFrame()).toContain("Selection Picker");
-    expect(app.lastFrame()).toContain("[SEARCH SEMANTICS]");
-    expect(app.lastFrame()).toContain("traits: any=illusion");
+    expect(app.lastFrame()).toContain("Traits Explorer");
+    expect(app.lastFrame()).toContain("Metadata Fields");
+    expect(app.lastFrame()).toContain("illusion");
 
     pressLeft(app);
     await flushInk();
@@ -2064,9 +2063,8 @@ describe("search screen", () => {
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
-    expect(app.lastFrame()).toContain("Derived Tags Query");
-    expect(app.lastFrame()).toContain("Selection Picker");
-    expect(app.lastFrame()).toContain("[FAMILIES]");
+    expect(app.lastFrame()).toContain("Derived Tags Explorer");
+    expect(app.lastFrame()).toContain("Explorer Entries");
     expect(app.lastFrame()).toContain("Creature Type");
     expect(app.lastFrame()).not.toContain("Choose a category before editing a discoverable query field.");
   });

@@ -147,7 +147,8 @@ flowchart TD
   subgraph Controllers["Controllers / Workflows"]
     SearchController["`search-screen/controller.ts`"]
     SearchWorkflow["`search-screen/session-workflow.ts`"]
-    PickerWorkflow["`search-screen/query-picker-workflow.ts`"]
+    FilterExplorerWorkflow["`search-screen/filter-explorer-workflow.ts`"]
+    FilterExplorer["`filter-explorer/{controller,screen-models}.ts`"]
     OntologyController["`ontology-explorer/controller.ts`"]
   end
 
@@ -174,7 +175,8 @@ flowchart TD
 
   SearchScreen --> SearchController
   SearchController --> SearchWorkflow
-  SearchController --> PickerWorkflow
+  SearchController --> FilterExplorerWorkflow
+  FilterExplorerWorkflow --> FilterExplorer
   SearchController --> SearchService
 
   OntologyScreen --> OntologyController
@@ -204,7 +206,7 @@ The search flow shows the intended layering most clearly.
 `src/tui/search-screen/screen.tsx` is thin. It decides whether to render:
 
 - the normal search screen
-- an ontology-backed picker session
+- a shared filter-explorer session
 - a structured editor session
 
 `src/tui/search-screen/controller.ts` is the orchestration layer. It:
@@ -212,13 +214,14 @@ The search flow shows the intended layering most clearly.
 - pulls `user.search` from the app-service context
 - creates the reducer-backed screen state
 - derives pane sizes and detail lines from terminal dimensions
-- coordinates result sessions, structured editor sessions, and ontology-backed field pickers
+- coordinates result sessions, structured editor sessions, and shared filter-explorer sessions
 - installs the search interaction router
 
 The async work is pushed further down:
 
 - `search-screen/session-workflow.ts` manages live counts, result-window execution, prefetch, sort changes, and session disposal
-- `search-screen/query-picker-workflow.ts` hosts ontology-backed field picking for structured search editing
+- `search-screen/filter-explorer-workflow.ts` opens the shared filter explorer in compose mode for ontology-backed field editing
+- `filter-explorer/` owns the shared explorer/controller stack used by both ontology inspection and search-side filter composition, with mode-specific behavior layered on top
 - `search-screen/interactions.ts` maps state into terminal actions and help/command models
 - `search-screen/query-field-builder-session.ts` owns the structured-editor menu bindings, footer copy, and help sections so staged-query screens do not hand-maintain separate action tables
 

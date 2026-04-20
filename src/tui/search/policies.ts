@@ -89,7 +89,7 @@ export function normalizeNumberPolicy(
 }
 
 export function normalizeQueryFieldPolicy(
-  field: Pf2eTerminalQueryField,
+  field: Pf2eTerminalFacetField,
   policy: Partial<Pf2eTerminalFilterValuePolicy<string>> | undefined,
   fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
 ): Pf2eTerminalFilterValuePolicy<string> | null {

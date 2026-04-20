@@ -1,7 +1,6 @@
 import React from "react";
 
 import type { OntologyNodeQuery } from "../../domain/ontology-types.js";
-import { OntologyPickerScreen } from "../ontology-explorer/picker-screen.js";
 import {
   buildSearchStructuredEditorDetailLines,
   buildSearchStructuredEditorFooterText,
@@ -11,6 +10,7 @@ import {
   buildSearchStructuredEditorStatusLine,
 } from "./query-field-builder-session.js";
 import { useSearchScreenController } from "./controller.js";
+import { SearchFilterExplorerScreen } from "./filter-explorer-screen.js";
 import type { SearchScreenOrigin } from "./workflow-types.js";
 import { TerminalTwoPaneScreen } from "../framework/rendering.js";
 import { TerminalMenuScreen } from "../shared-screens.js";
@@ -32,14 +32,8 @@ export function SearchScreen({
     onBack,
   });
 
-  if (controller.selectionPickerSession) {
-    return (
-      <OntologyPickerScreen
-        model={controller.selectionPickerSession.model}
-        initialSelections={controller.selectionPickerSession.initialSelections}
-        onApply={controller.selectionPickerSession.applySelection}
-      />
-    );
+  if (controller.filterExplorerSession) {
+    return <SearchFilterExplorerScreen session={controller.filterExplorerSession} />;
   }
 
   if (controller.structuredEditorSession) {

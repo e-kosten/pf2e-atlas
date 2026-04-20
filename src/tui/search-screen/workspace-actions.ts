@@ -13,9 +13,9 @@ import {
   updateMetadataNodeAtPath,
 } from "../search/query-core.js";
 import type {
-  Pf2eTerminalFilterValuePolicy,
+  Pf2eTerminalFacetField,
+  Pf2eTerminalFilterExplorerDraft,
   Pf2eTerminalQueryFieldOption,
-  Pf2eTerminalQueryFieldSelectionMap,
   Pf2eTerminalSearchQuery,
 } from "../search/service.js";
 import {
@@ -35,9 +35,7 @@ import type { SearchScreenOrigin } from "./workflow-types.js";
 import type { DerivedTagTerminalApp } from "../framework/types.js";
 import {
   buildMetadataNodeFromPolicy,
-  buildPolicyFromMetadataNode,
   buildPolicyFromPredicate,
-  buildQueryFieldSelectionMap,
 } from "./metadata-clause-translation.js";
 import {
   buildEditorCommandPaletteEntries,
@@ -74,7 +72,7 @@ export function useSearchWorkspaceActions({
   exitSearchScreen,
   jumpToResultPosition,
   maxDetailScroll,
-  openQueryFieldPicker,
+  openFilterExplorer,
   origin,
   prompts,
   resultCount,
@@ -92,11 +90,11 @@ export function useSearchWorkspaceActions({
   exitSearchScreen: () => void;
   jumpToResultPosition: () => Promise<void>;
   maxDetailScroll: number;
-  openQueryFieldPicker: (options: {
+  openFilterExplorer: (options: {
     queryOverride?: Pf2eTerminalSearchQuery;
     fieldOptions: Pf2eTerminalQueryFieldOption[];
-    initialSelections?: Pf2eTerminalQueryFieldSelectionMap;
-    onApply: (selection: Pf2eTerminalQueryFieldSelectionMap) => void;
+    initialDraft?: Pf2eTerminalFilterExplorerDraft;
+    onApply: (draft: Pf2eTerminalFilterExplorerDraft) => void;
     onReturn?: () => void;
     singleFieldBehavior?: "list" | "directValues";
   }) => Promise<boolean>;
@@ -270,7 +268,7 @@ export function useSearchWorkspaceActions({
     async (
       query: Pf2eTerminalSearchQuery,
       fieldOption: Pf2eTerminalQueryFieldOption,
-      currentPolicy: Pf2eTerminalFilterValuePolicy<string>,
+      currentNode: MetadataFilterNode | null,
       onApply: (nextNode: MetadataFilterNode | null) => void,
       onReturn?: () => void,
     ): Promise<boolean> => {
@@ -278,22 +276,16 @@ export function useSearchWorkspaceActions({
         return false;
       }
 
-      return openQueryFieldPicker({
+      return openFilterExplorer({
         queryOverride: query,
         fieldOptions: [fieldOption],
-        initialSelections: buildQueryFieldSelectionMap(fieldOption.value, currentPolicy),
+        initialDraft: user.search.createFilterExplorerDraftFromMetadataNode(currentNode, [fieldOption.value]),
         onReturn,
         singleFieldBehavior: "directValues",
-        onApply: (selection) => {
-          const nextNode = buildMetadataNodeFromPolicy(
-            fieldOption,
-            selection[fieldOption.value] ?? createEmptyStringPolicy(),
-          );
-          onApply(nextNode);
-        },
+        onApply: (draft) => onApply(user.search.buildFilterExplorerMetadataNode(draft)),
       });
     },
-    [openQueryFieldPicker],
+    [openFilterExplorer, user.search],
   );
 
   const editFieldClause = React.useCallback(
@@ -304,6 +296,10 @@ export function useSearchWorkspaceActions({
     ): Promise<MetadataFilterNode | null | undefined> => {
       const queryCategory = getSearchQueryCategory(query);
       const querySubcategory = getSearchQuerySubcategory(query);
+      if (fieldOption.editor === "ontologyPicker") {
+        return currentNode;
+      }
+      const metadataField = fieldOption.value as Pf2eTerminalFacetField;
 
       if (fieldOption.fieldType === "set" || fieldOption.fieldType === "enumString") {
         const currentPolicy =
@@ -315,7 +311,7 @@ export function useSearchWorkspaceActions({
           prompt: "Cycle field values through include, require-all, or exclude. Press Esc or Left when finished.",
           allowedStates: fieldOption.fieldType === "set" ? ["any", "all", "exclude"] : ["any", "exclude"],
           entries: user.search
-            .getFacetValueOptions(fieldOption.value, queryCategory, querySubcategory)
+            .getFacetValueOptions(metadataField, queryCategory, querySubcategory)
             .map((option) => ({
               value: option.value,
               label: option.label,
@@ -352,7 +348,7 @@ export function useSearchWorkspaceActions({
         if (result.kind === "all") {
           return null;
         }
-        return { field: fieldOption.value, op: "eq", value: result.value === "true" } as MetadataFilterNode;
+        return { field: metadataField, op: "eq", value: result.value === "true" } as MetadataFilterNode;
       }
 
       if (fieldOption.fieldType === "text") {
@@ -395,7 +391,7 @@ export function useSearchWorkspaceActions({
         if (!value.trim()) {
           return null;
         }
-        return { field: fieldOption.value, op: opResult.value, value: value.trim() } as MetadataFilterNode;
+        return { field: metadataField, op: opResult.value, value: value.trim() } as MetadataFilterNode;
       }
 
       const currentOp =
@@ -452,7 +448,7 @@ export function useSearchWorkspaceActions({
           return undefined;
         }
         return {
-          field: fieldOption.value,
+          field: metadataField,
           op: "between",
           min: Number.parseFloat(match[1]!),
           max: Number.parseFloat(match[2]!),
@@ -464,7 +460,7 @@ export function useSearchWorkspaceActions({
         return undefined;
       }
       return {
-        field: fieldOption.value,
+        field: metadataField,
         op: opResult.value,
         value: numericValue,
       } as MetadataFilterNode;
@@ -541,7 +537,7 @@ export function useSearchWorkspaceActions({
 
       const currentNode = queryFieldBuilderState.fieldDrafts[fieldOption.value] ?? null;
       if (fieldOption.editor === "ontologyPicker") {
-        await openOntologyFieldEditor(scopeQuery, fieldOption, buildPolicyFromMetadataNode(currentNode), (nextNode) => {
+        await openOntologyFieldEditor(scopeQuery, fieldOption, currentNode, (nextNode) => {
           updateQueryFieldBuilderDraft(fieldOption.value, nextNode);
         });
         return;
@@ -637,7 +633,7 @@ export function useSearchWorkspaceActions({
         return;
       }
       if (fieldOption.editor === "ontologyPicker") {
-        await openOntologyFieldEditor(query, fieldOption, createEmptyStringPolicy(), (nextNode) => {
+        await openOntologyFieldEditor(query, fieldOption, null, (nextNode) => {
           if (!nextNode) {
             return;
           }
@@ -909,7 +905,7 @@ export function useSearchWorkspaceActions({
         if (fieldOptions.length === 1) {
           const onlyField = fieldOptions[0]!;
           if (onlyField.editor === "ontologyPicker") {
-            await openOntologyFieldEditor(draftQuery, onlyField, createEmptyStringPolicy(), (nextNode) => {
+            await openOntologyFieldEditor(draftQuery, onlyField, null, (nextNode) => {
               if (!nextNode) {
                 return;
               }
@@ -967,8 +963,7 @@ export function useSearchWorkspaceActions({
             return;
           }
           if (fieldOption.editor === "ontologyPicker") {
-            const currentPolicy = buildPolicyFromPredicate(node) ?? createEmptyStringPolicy();
-            await openOntologyFieldEditor(draftQuery, fieldOption, currentPolicy, (nextNode) => {
+            await openOntologyFieldEditor(draftQuery, fieldOption, node, (nextNode) => {
               replaceStructuredDraftQuery((query) =>
                 setSearchQueryMetadataTree(
                   query,

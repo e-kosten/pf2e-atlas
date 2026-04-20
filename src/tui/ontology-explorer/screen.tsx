@@ -44,11 +44,12 @@ export function OntologyBrowserScreen({
     onExit,
     onOpenQuery,
     onConfirm: (context) => {
-      if (mode === "inspect-and-open") {
-        return false;
-      }
       const { currentNode, currentNodeHasChildren } = context;
-      if (!currentNodeHasChildren && currentNode?.query?.kind === "listRecords" && model.id !== "derivedTags") {
+      if (
+        currentNode?.query?.kind === "listRecords" &&
+        model.id !== "derivedTags" &&
+        (mode === "inspect-and-open" || !currentNodeHasChildren)
+      ) {
         onOpenQuery?.(markQueryToOpenInResults(currentNode.query), createOntologyBrowserSnapshot(context));
         return true;
       }

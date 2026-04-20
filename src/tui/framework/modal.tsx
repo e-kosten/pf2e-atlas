@@ -52,6 +52,11 @@ import type {
   TerminalSelectOptionDetails,
   TextPromptOptions,
 } from "./types.js";
+import {
+  buildFilterExplorerPolicyBadgeSegments,
+  buildFilterExplorerPolicyLabelSegments,
+  buildFilterExplorerPolicySequenceSegments,
+} from "../filter-explorer/policy-presentation.js";
 
 export function createEmptyPolicySelection<T extends string>(): DerivedTagTerminalPolicySelection<T> {
   return {
@@ -575,19 +580,6 @@ function getPolicyStateForValue(
   return valueStates[value];
 }
 
-function policyStateLabel(state: DerivedTagTerminalPolicyState | undefined): string {
-  switch (state) {
-    case undefined:
-      return " ";
-    case "any":
-      return "ANY";
-    case "all":
-      return "ALL";
-    case "exclude":
-      return "NOT";
-  }
-}
-
 export function createValueStateLookup(
   selection: Partial<DerivedTagTerminalPolicySelection<string>> | undefined,
 ): Record<string, DerivedTagTerminalPolicyState | undefined> {
@@ -645,11 +637,17 @@ function buildPolicySummaryLines(
   const labelsByValue = new Map(options.entries.map((entry) => [entry.value, entry.label]));
 
   return options.allowedStates.map((state) => ({
-    text: `${state[0]!.toUpperCase()}${state.slice(1)}: ${
-      selection[state].length > 0
-        ? selection[state].map((value) => labelsByValue.get(value) ?? value).join(", ")
-        : "(none)"
-    }`,
+    text: "",
+    segments: [
+      ...buildFilterExplorerPolicyLabelSegments(state),
+      { text: ": ", tone: "dim" },
+      {
+        text:
+          selection[state].length > 0
+            ? selection[state].map((value) => labelsByValue.get(value) ?? value).join(", ")
+            : "(none)",
+      },
+    ],
   }));
 }
 
@@ -703,14 +701,27 @@ function PolicyPromptBody({
         <InlinePromptChoiceBody
           prompt={options.prompt}
           entries={visibleEntries.map((entry, offset) => ({
-            text: `[${policyStateLabel(getPolicyStateForValue(entry.value, valueStates))}] ${entry.label}`,
-            tone: windowStart + offset === selectedIndex ? "selected" : "default",
+            text: "",
+            segments: [
+              ...buildFilterExplorerPolicyBadgeSegments(getPolicyStateForValue(entry.value, valueStates)),
+              {
+                text: ` ${entry.label}`,
+                tone: windowStart + offset === selectedIndex ? "selected" : "default",
+              },
+            ],
+            tone: "default",
             noWrap: true,
           }))}
           detailLines={[
             ...buildPromptDetailLines(selectedOption),
             { text: "" },
-            { text: `Focused policy: ${selectedState ?? "off"}`, tone: "accent" },
+            {
+              text: "",
+              segments: [
+                { text: "Focused policy: ", tone: "accent" },
+                ...buildFilterExplorerPolicyLabelSegments(selectedState),
+              ],
+            },
             ...buildPolicySummaryLines(options, valueStates),
           ]}
           focusedLabel={`Focused ${selectedIndex + 1}/${options.entries.length}`}
@@ -725,7 +736,13 @@ function PolicyPromptBody({
           tone: "dim",
         },
         { text: formatTerminalInteractionFooter([{ id: "cycle" }, { id: "return" }]), tone: "dim" },
-        { text: `Cycle order: off -> ${options.allowedStates.join(" -> ")} -> off`, tone: "accent" },
+        {
+          text: "",
+          segments: [
+            { text: "Cycle order: ", tone: "accent" },
+            ...buildFilterExplorerPolicySequenceSegments([undefined, ...options.allowedStates, undefined]),
+          ],
+        },
       ]}
       width={width}
       height={layout.totalHeight}

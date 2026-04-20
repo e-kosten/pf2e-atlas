@@ -213,7 +213,7 @@ export function isActionCostAvailableInScope(
 }
 
 export function buildMetadataNodeForQueryFieldSelection(
-  field: Pf2eTerminalQueryField,
+  field: Pf2eTerminalFacetField,
   policy: Pf2eTerminalFilterValuePolicy<string>,
   fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
 ): MetadataFilterNode | null {

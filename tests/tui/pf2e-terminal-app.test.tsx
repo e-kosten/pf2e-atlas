@@ -366,7 +366,8 @@ describe("pf2e terminal app", () => {
     await flushInk();
     app.stdin.write("\r");
     await flushInk();
-    expect(app.lastFrame()).toContain("Choose an ontology-backed browse domain");
+    expect(app.lastFrame()).toContain("Ontology Browser");
+    expect(app.lastFrame()).toContain("Ontology Entries");
 
     app.stdin.write("\r");
     await flushInk();
@@ -460,13 +461,13 @@ describe("pf2e terminal app", () => {
     app.stdin.write("\r");
     await flushInk();
 
-    expect(app.lastFrame()).toContain("Esc/Backspace/\u2190/q return");
+    expect(app.lastFrame()).toContain("\u2190/Esc return");
 
     app.stdin.write("?");
     await flushInk();
 
-    expect(app.lastFrame()).toContain("\u2190 or h / Backspace / Escape: return to the previous area");
-    expect(app.lastFrame()).toContain("q: return to the previous area");
+    expect(app.lastFrame()).toContain("\u2190 or h / Backspace / Escape: return from ontology browsing");
+    expect(app.lastFrame()).toContain("q: leave ontology browsing");
   });
 
   it("opens the selected top-level area with right-arrow style confirm", async () => {
@@ -484,7 +485,8 @@ describe("pf2e terminal app", () => {
     app.stdin.write("l");
     await flushInk();
 
-    expect(app.lastFrame()).toContain("Choose an ontology-backed browse domain");
+    expect(app.lastFrame()).toContain("Ontology Browser");
+    expect(app.lastFrame()).toContain("Ontology Entries");
   });
 
   it("returns from ontology-launched search to the exact ontology snapshot", async () => {
@@ -555,12 +557,13 @@ describe("pf2e terminal app", () => {
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
-    expect(app.lastFrame()).toContain("Search Semantics > Pathfinder Monster Core | depth 0");
+    expect(app.lastFrame()).toContain("Ontology Browser");
+    expect(app.lastFrame()).toContain("Search Semantics > Pathfinder Monster Core");
 
     app.stdin.write("j");
     await flushInk();
     await flushInk();
-    expect(app.lastFrame()).toContain("Search Semantics > Pathfinder Rage of Elements | depth 0");
+    expect(app.lastFrame()).toContain("Search Semantics > Pathfinder Rage of Elements");
 
     app.stdin.write(":");
     await flushInk();
@@ -580,7 +583,7 @@ describe("pf2e terminal app", () => {
     await flushInk();
     await flushInk();
 
-    expect(app.lastFrame()).toContain("Search Semantics > Pathfinder Rage of Elements | depth 0");
+    expect(app.lastFrame()).toContain("Search Semantics > Pathfinder Rage of Elements");
     expect(app.lastFrame()).toContain("Pathfinder Rage of Elements | 81");
   });
 
@@ -649,12 +652,13 @@ describe("pf2e terminal app", () => {
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
-    expect(app.lastFrame()).toContain("Search Semantics > Pathfinder Monster Core | depth 0");
+    expect(app.lastFrame()).toContain("Ontology Browser");
+    expect(app.lastFrame()).toContain("Search Semantics > Pathfinder Monster Core");
 
     app.stdin.write("j");
     await flushInk();
     await flushInk();
-    expect(app.lastFrame()).toContain("Search Semantics > Pathfinder Rage of Elements | depth 0");
+    expect(app.lastFrame()).toContain("Search Semantics > Pathfinder Rage of Elements");
 
     app.stdin.write("\r");
     await flushInk();
@@ -667,7 +671,7 @@ describe("pf2e terminal app", () => {
     await flushInk();
     await flushInk();
 
-    expect(app.lastFrame()).toContain("Search Semantics > Pathfinder Rage of Elements | depth 0");
+    expect(app.lastFrame()).toContain("Search Semantics > Pathfinder Rage of Elements");
     expect(app.lastFrame()).toContain("Pathfinder Rage of Elements | 81");
   });
 
