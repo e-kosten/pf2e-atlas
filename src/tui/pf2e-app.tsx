@@ -3,6 +3,7 @@ import React from "react";
 import { DerivedTagMigrationReviewScreen } from "../tags/editorial/review-ui.js";
 import { formatDerivedTagMigrationModeLabel } from "../tags/editorial/workbench-session-prompts.js";
 import type { DerivedTagMigrationMode, DerivedTagMigrationSession } from "../tags/editorial/types.js";
+import { buildInspectAndOpenOntologyExplorerModel } from "../app/ontology/inspect-and-open-explorer.js";
 import { PF2E_APP_AREAS, PF2E_TERMINAL_TITLE } from "./app-areas.js";
 import { Pf2eTerminalAppServicesProvider } from "./app-service-context.js";
 import { loadPf2eTerminalAppServices, type Pf2eTerminalAppServices } from "./app-services.js";
@@ -17,13 +18,14 @@ import {
 } from "./pf2e-app-state.js";
 import { AreaMenuScreen } from "./area-menu-screen.js";
 import { OntologyBrowserScreen } from "./ontology-explorer/screen.js";
-import { OntologyDomainPickerScreen } from "./ontology-explorer/domain-picker-screen.js";
 import { SearchScreen } from "./search-screen/screen.js";
 import { TerminalBusyScreen, TerminalMessageScreen } from "./shared-screens.js";
 import { createTerminalInteractionContextAdapters } from "./interaction-context-adapters.js";
 import { useDerivedTagTerminalApp } from "./framework/context.js";
 import { runDerivedTagTerminalApp } from "./framework/provider.js";
 import { TagRefinementMenuScreen, type TagRefinementMenuItem } from "./tag-refinement-menu-screen.js";
+
+type OntologyQueryOpenHandler = NonNullable<React.ComponentProps<typeof OntologyBrowserScreen>["onOpenQuery"]>;
 
 function StartupErrorScreen({ message, onExit }: { message: string; onExit: () => void }): React.JSX.Element {
   return (
@@ -60,7 +62,10 @@ export function Pf2eTerminalApp({
   const [busyMessage, setBusyMessage] = React.useState<string | null>(null);
   const route = getCurrentPf2eAppRoute(state);
   const queueItems = services.dev.tagRefinement.getQueueItems();
-  const ontologyDomains = services.user.ontology.listDomains();
+  const ontologyExplorerModel = React.useMemo(
+    () => buildInspectAndOpenOntologyExplorerModel(services.user.ontology, services.catalog),
+    [services.catalog, services.user.ontology],
+  );
 
   const runWithBusyState = React.useCallback(async <T,>(message: string, task: () => Promise<T>): Promise<T> => {
     setBusyMessage(message);
@@ -109,23 +114,6 @@ export function Pf2eTerminalApp({
     [openReviewSession, rootPath, runWithBusyState, services.dev.tagRefinement, terminal, workbenchSessionPrompts],
   );
 
-  const openOntologyDomain = React.useCallback(async () => {
-    const selectedDomain = ontologyDomains[state.ontologyDomainSelectedIndex];
-    if (!selectedDomain) {
-      return;
-    }
-    await runWithBusyState(`Opening ${selectedDomain.label} ontology...`, async () => {
-      try {
-        const model = services.user.ontology.loadDomain(selectedDomain.id);
-        dispatch({ type: "push_route", route: { kind: "ontology", model } });
-      } catch (error) {
-        await terminal.pauseForAnyKey(
-          `Could not open the ${selectedDomain.label} ontology.\n\n${(error as Error).message}`,
-        );
-      }
-    });
-  }, [ontologyDomains, runWithBusyState, services.user.ontology, state.ontologyDomainSelectedIndex, terminal]);
-
   const openSelectedArea = React.useCallback(() => {
     const selectedArea = PF2E_APP_AREAS[state.selectedAreaIndex];
     if (!selectedArea) {
@@ -137,11 +125,11 @@ export function Pf2eTerminalApp({
       return;
     }
     if (selectedArea.id === "ontology_search") {
-      dispatch({ type: "push_route", route: { kind: "ontology_picker" } });
+      dispatch({ type: "push_route", route: { kind: "ontology", model: ontologyExplorerModel } });
       return;
     }
     dispatch({ type: "push_route", route: { kind: "search" } });
-  }, [state.selectedAreaIndex]);
+  }, [ontologyExplorerModel, state.selectedAreaIndex]);
 
   const returnToPreviousRouteOrExit = React.useCallback(() => {
     if (canPopPf2eAppRoute(state)) {
@@ -206,29 +194,43 @@ export function Pf2eTerminalApp({
     [createSessionAndOpenReview, startCustomSession],
   );
 
+  const openOntologyQuery = React.useCallback(
+    (
+      query: Parameters<OntologyQueryOpenHandler>[0],
+      snapshot: Parameters<OntologyQueryOpenHandler>[1],
+      model: Pf2eOntologyRoute["model"],
+    ) => {
+      const ontologyRoute: Pf2eOntologyRoute = {
+        kind: "ontology",
+        model,
+        snapshot,
+      };
+      dispatch({ type: "replace_route", route: ontologyRoute });
+      dispatch({
+        type: "push_route",
+        route: {
+          kind: "search",
+          initialQuery: query,
+          origin: {
+            kind: "ontology",
+            route: ontologyRoute,
+          },
+        },
+      });
+    },
+    [],
+  );
+
   let screen: React.JSX.Element;
   if (busyMessage) {
     screen = <TerminalBusyScreen title={PF2E_TERMINAL_TITLE} message={busyMessage} />;
   } else if (route.kind === "ontology_picker") {
     screen = (
-      <OntologyDomainPickerScreen
-        domains={ontologyDomains}
-        selectedIndex={state.ontologyDomainSelectedIndex}
-        onBack={returnToPreviousRouteOrExit}
-        onMove={(delta, itemCount) =>
-          dispatch(
-            delta === 0
-              ? {
-                  type: "set_ontology_domain_index",
-                  index: Math.max(0, Math.min(state.ontologyDomainSelectedIndex, Math.max(0, itemCount - 1))),
-                  itemCount,
-                }
-              : { type: "move_ontology_domain", delta, itemCount },
-          )
-        }
-        onOpenSelected={() => {
-          void openOntologyDomain();
-        }}
+      <OntologyBrowserScreen
+        model={ontologyExplorerModel}
+        mode="inspect-and-open"
+        onExit={returnToPreviousRouteOrExit}
+        onOpenQuery={(query, snapshot) => openOntologyQuery(query, snapshot, ontologyExplorerModel)}
       />
     );
   } else if (route.kind === "ontology") {
@@ -236,25 +238,8 @@ export function Pf2eTerminalApp({
       <OntologyBrowserScreen
         initialSnapshot={route.snapshot}
         model={route.model}
-        onOpenQuery={(query, snapshot) => {
-          const ontologyRoute: Pf2eOntologyRoute = {
-            kind: "ontology",
-            model: route.model,
-            snapshot,
-          };
-          dispatch({ type: "replace_route", route: ontologyRoute });
-          dispatch({
-            type: "push_route",
-            route: {
-              kind: "search",
-              initialQuery: query,
-              origin: {
-                kind: "ontology",
-                route: ontologyRoute,
-              },
-            },
-          });
-        }}
+        mode="inspect-and-open"
+        onOpenQuery={(query, snapshot) => openOntologyQuery(query, snapshot, route.model)}
         onExit={returnToPreviousRouteOrExit}
       />
     );

@@ -29,11 +29,13 @@ export function OntologyBrowserScreen({
   model,
   onExit,
   onOpenQuery,
+  mode = "browse",
 }: {
   initialSnapshot?: OntologyBrowserSnapshot;
   model: OntologyDomainModel;
   onExit: () => void;
   onOpenQuery?: (query: OntologyNodeQuery, snapshot: OntologyBrowserSnapshot) => void;
+  mode?: "browse" | "inspect-and-open";
 }): React.JSX.Element {
   const adapters = useTerminalInteractionContextAdapters();
   const controller = useOntologyExplorerController({
@@ -42,6 +44,9 @@ export function OntologyBrowserScreen({
     onExit,
     onOpenQuery,
     onConfirm: (context) => {
+      if (mode === "inspect-and-open") {
+        return false;
+      }
       const { currentNode, currentNodeHasChildren } = context;
       if (!currentNodeHasChildren && currentNode?.query?.kind === "listRecords" && model.id !== "derivedTags") {
         onOpenQuery?.(markQueryToOpenInResults(currentNode.query), createOntologyBrowserSnapshot(context));
@@ -52,7 +57,7 @@ export function OntologyBrowserScreen({
     getInteractionActions: getOntologyBrowserInteractionActions,
     onAction: (action, keyContext) => {
       if (action.id === "commands") {
-        const commandEntries = buildOntologyCommandEntries(keyContext, onOpenQuery);
+        const commandEntries = buildOntologyCommandEntries(keyContext, onOpenQuery, mode);
         if (commandEntries.length === 0) {
           return true;
         }
@@ -63,6 +68,10 @@ export function OntologyBrowserScreen({
             entries: commandEntries,
           })
           .then((selected) => {
+            if (selected === "openResults" && keyContext.selectedQuery?.kind === "listRecords") {
+              onOpenQuery?.(markQueryToOpenInResults(keyContext.selectedQuery), createOntologyBrowserSnapshot(keyContext));
+              return;
+            }
             if (selected === "openQuery" && keyContext.selectedQuery) {
               onOpenQuery?.(keyContext.selectedQuery, createOntologyBrowserSnapshot(keyContext));
             }
@@ -75,7 +84,7 @@ export function OntologyBrowserScreen({
       void showTerminalReturnDialog(
         adapters,
         "Ontology Browser Help",
-        buildOntologyBrowserHelpLines(keyContext, onOpenQuery),
+        buildOntologyBrowserHelpLines(keyContext, onOpenQuery, mode),
       );
       return true;
     },

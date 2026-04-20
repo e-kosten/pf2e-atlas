@@ -227,9 +227,31 @@ export function getOntologyBrowserInteractionActions(
 export function buildOntologyCommandEntries(
   controller: Pick<OntologyExplorerControllerContext, "selectedQuery">,
   onOpenQuery?: (query: OntologyNodeQuery, snapshot: OntologyBrowserSnapshot) => void,
-): DerivedTagTerminalCommandOption<"openQuery">[] {
+  mode: "browse" | "inspect-and-open" = "browse",
+): DerivedTagTerminalCommandOption<"openQuery" | "openResults">[] {
   if (!onOpenQuery || !controller.selectedQuery) {
     return [];
+  }
+
+  if (mode === "inspect-and-open") {
+    return [
+      ...(controller.selectedQuery.kind === "listRecords"
+        ? [
+            {
+              value: "openResults" as const,
+              label: "Open Results Page",
+              description: "Run the focused ontology query in the shared search results page.",
+              keywords: ["results", "reader", "records", "open"],
+            },
+          ]
+        : []),
+      {
+        value: "openQuery",
+        label: "Open Search Query",
+        description: "Seed the browse/search editor from the focused ontology query.",
+        keywords: ["search", "browse", "editor", "query"],
+      },
+    ];
   }
 
   return [
@@ -245,6 +267,7 @@ export function buildOntologyCommandEntries(
 export function buildOntologyBrowserHelpLines(
   controller: Pick<OntologyExplorerControllerContext, "layoutMode" | "state" | "effectiveState" | "selectedQuery">,
   onOpenQuery?: (query: OntologyNodeQuery, snapshot: OntologyBrowserSnapshot) => void,
+  mode: "browse" | "inspect-and-open" = "browse",
 ): DerivedTagTerminalLine[] {
   const navigationActions: TerminalInteractionAction[] = [
     {
@@ -261,7 +284,9 @@ export function buildOntologyBrowserHelpLines(
       ...action,
       helpText:
         action.id === "open"
-          ? "drill into the focused node or open its query"
+          ? mode === "inspect-and-open"
+            ? "drill into the focused node or inspect its matching children"
+            : "drill into the focused node or open its query"
           : action.id === "focus"
             ? "switch focus between list and detail"
             : action.id === "layout"
@@ -280,7 +305,7 @@ export function buildOntologyBrowserHelpLines(
       label: action.id === "focus" ? "toggle pane" : action.label,
     }));
 
-  const commandEntries = buildOntologyCommandEntries(controller, onOpenQuery);
+  const commandEntries = buildOntologyCommandEntries(controller, onOpenQuery, mode);
   return buildTerminalInteractionHelpLines([
     {
       title: "Navigation",
@@ -337,7 +362,7 @@ export function buildOntologyBrowserScreenModel({
           {
             text: controller.state.searchMode
               ? `Search /${controller.state.searchInput}`
-              : `detail focus | focused detail view | Detail scroll ${controller.effectiveState.detailScroll}/${controller.maxDetailScroll}${controller.selectedQuery ? " | query ready" : ""}`,
+              : `detail focus | focused detail view | Detail scroll ${controller.effectiveState.detailScroll}/${controller.maxDetailScroll}`,
             tone: "accent",
           },
         ],
@@ -370,7 +395,7 @@ export function buildOntologyBrowserScreenModel({
         {
           text: controller.state.searchMode
             ? `Search /${controller.state.searchInput}`
-            : `${controller.state.activePane} focus | ${controller.layoutMode} layout | Detail scroll ${controller.effectiveState.detailScroll}/${controller.maxDetailScroll}${controller.selectedQuery ? " | query ready" : ""}`,
+            : `${controller.state.activePane} focus | ${controller.layoutMode} layout | Detail scroll ${controller.effectiveState.detailScroll}/${controller.maxDetailScroll}`,
           tone: "accent",
         },
       ],
