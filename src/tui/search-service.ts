@@ -18,7 +18,6 @@ import {
 import { buildSearchFilters } from "./search/filter-building.js";
 import {
   createDefaultQuery,
-  getSearchQuerySubcategory,
   isActionCostAvailableInScope,
   normalizeSearchQuery,
   splitMetadataTreeIntoParts,
