@@ -206,13 +206,7 @@ export function terminalToneProps(tone: DerivedTagTerminalTone): React.Component
   }
 }
 
-export function TerminalRows({
-  lines,
-  width,
-}: {
-  lines: RenderedTerminalLine[];
-  width: number;
-}): React.JSX.Element {
+export function TerminalRows({ lines, width }: { lines: RenderedTerminalLine[]; width: number }): React.JSX.Element {
   return (
     <Box flexDirection="column" width={width}>
       {lines.map((line, index) => (

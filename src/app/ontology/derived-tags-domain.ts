@@ -8,10 +8,7 @@ import {
 } from "./derived-tag-explorer.js";
 import { getOntologyDomainSummary } from "./domain-summaries.js";
 import { buildFilterText, titleCaseLabel } from "./node-helpers.js";
-import {
-  buildOntologyExplorerEntityDetailLines,
-  buildOntologyExplorerEntitySummary,
-} from "./presenter.js";
+import { buildOntologyExplorerEntityDetailLines, buildOntologyExplorerEntitySummary } from "./presenter.js";
 
 function buildRecordNode(recordNode: DerivedTagOntologyExplorerRecordNode): OntologyNode {
   return {

@@ -88,10 +88,7 @@ export function buildSearchFilters(
   } = {},
 ): SearchFilters {
   const metadataTree = getSearchQueryMetadataTree(query);
-  const metadataClauses = [
-    ...buildDiscreteFilterNodes(query),
-    ...(metadataTree ? [metadataTree] : []),
-  ];
+  const metadataClauses = [...buildDiscreteFilterNodes(query), ...(metadataTree ? [metadataTree] : [])];
   const metadata =
     metadataClauses.length === 0
       ? undefined

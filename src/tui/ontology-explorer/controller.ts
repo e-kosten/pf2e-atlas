@@ -15,10 +15,7 @@ import {
   reduceDerivedTagTerminalTwoPaneState,
   type DerivedTagTerminalTwoPaneAction,
 } from "../two-pane-state.js";
-import {
-  useOntologyExplorerInteractionRouter,
-  type OntologyExplorerInteractionRoute,
-} from "./interactions.js";
+import { useOntologyExplorerInteractionRouter, type OntologyExplorerInteractionRoute } from "./interactions.js";
 import {
   cloneOntologyBrowserSnapshot,
   buildOntologyBrowserDetailLines,
@@ -342,8 +339,14 @@ export function useOntologyExplorerController(
   const interactionActions = options.getInteractionActions?.(context) ?? [];
   const handleRoute = React.useCallback(
     (route: OntologyExplorerInteractionRoute) => {
-      const { detailNavigationAction, event, interactionAction, listNavigationAction, searchModeAction, textEntryIntent } =
-        route;
+      const {
+        detailNavigationAction,
+        event,
+        interactionAction,
+        listNavigationAction,
+        searchModeAction,
+        textEntryIntent,
+      } = route;
       const keyContext: OntologyExplorerKeyContext = {
         ...context,
         event,

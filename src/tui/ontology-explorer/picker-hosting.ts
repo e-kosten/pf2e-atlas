@@ -52,9 +52,7 @@ export function registerHostedOntologyPickerContract(
   hostedPickerContracts.set(model, contract);
 }
 
-export function getHostedOntologyPickerContract(
-  model: OntologyDomainModel,
-): HostedOntologyPickerContract | undefined {
+export function getHostedOntologyPickerContract(model: OntologyDomainModel): HostedOntologyPickerContract | undefined {
   return hostedPickerContracts.get(model);
 }
 

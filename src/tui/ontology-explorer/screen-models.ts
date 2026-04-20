@@ -313,7 +313,9 @@ export function buildOntologyBrowserScreenModel({
   model: OntologyDomainModel;
   controller: OntologyExplorerControllerContext;
   leftLines: DerivedTagTerminalLine[];
-}): { kind: "detail-only"; props: DerivedTagTerminalPaneScreenProps } | { kind: "two-pane"; props: DerivedTagTerminalTwoPaneScreenProps } {
+}):
+  | { kind: "detail-only"; props: DerivedTagTerminalPaneScreenProps }
+  | { kind: "two-pane"; props: DerivedTagTerminalTwoPaneScreenProps } {
   if (controller.layoutMode === "detail-only") {
     return {
       kind: "detail-only",
@@ -486,7 +488,9 @@ export function buildFacetPickerScreenModel({
   leftLines: DerivedTagTerminalLine[];
   focusedPolicyLabel: string;
   options?: HostedOntologyPickerContract;
-}): { kind: "detail-only"; props: DerivedTagTerminalPaneScreenProps } | { kind: "two-pane"; props: DerivedTagTerminalTwoPaneScreenProps } {
+}):
+  | { kind: "detail-only"; props: DerivedTagTerminalPaneScreenProps }
+  | { kind: "two-pane"; props: DerivedTagTerminalTwoPaneScreenProps } {
   if (controller.layoutMode === "detail-only") {
     return {
       kind: "detail-only",

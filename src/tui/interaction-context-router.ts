@@ -91,9 +91,10 @@ export function pushTerminalInteractionContext(
   return [...stack, entry];
 }
 
-export function popTerminalInteractionContext(
-  stack: TerminalInteractionContextStackEntry[],
-): { stack: TerminalInteractionContextStackEntry[]; popped?: TerminalInteractionContextStackEntry } {
+export function popTerminalInteractionContext(stack: TerminalInteractionContextStackEntry[]): {
+  stack: TerminalInteractionContextStackEntry[];
+  popped?: TerminalInteractionContextStackEntry;
+} {
   const popped = stack.at(-1);
   return {
     stack: stack.length > 0 ? stack.slice(0, -1) : stack,
@@ -195,14 +196,11 @@ export function useTerminalInteractionContextRouter<TContextId extends string>(o
 }): void {
   const stateRef = React.useRef(createTerminalInteractionContextRouterState<TContextId>());
 
-  useDerivedTagTerminalInput(
-    (event) => {
-      const routed = routeTerminalInteractionContexts(event, options.contexts, stateRef.current);
-      stateRef.current = routed.state;
-      options.onRoute(routed.routes);
-    },
-    options.enabled,
-  );
+  useDerivedTagTerminalInput((event) => {
+    const routed = routeTerminalInteractionContexts(event, options.contexts, stateRef.current);
+    stateRef.current = routed.state;
+    options.onRoute(routed.routes);
+  }, options.enabled);
 }
 
 export function createTerminalListInteractionContext<TContextId extends string>(

@@ -8,7 +8,11 @@ import {
   mergeStringPolicies,
   normalizeQueryFieldPolicy,
 } from "./policies.js";
-import { buildMetadataNodeForQueryFieldSelection, getSearchQueryMetadataTree, setSearchQueryMetadataTree } from "./query-state.js";
+import {
+  buildMetadataNodeForQueryFieldSelection,
+  getSearchQueryMetadataTree,
+  setSearchQueryMetadataTree,
+} from "./query-state.js";
 import { humanizeIdentifier } from "./service-options.js";
 import type {
   Pf2eTerminalFacetField,
@@ -210,7 +214,11 @@ export function buildDiscoverableQueryFieldSelections(
   const selectionMap = createScopedSelectionMap(scopedFields);
   const scopedFieldSet = new Set(scopedFields);
 
-  const extracted = extractScopedQueryFieldSelections(getSearchQueryMetadataTree(query), scopedFieldSet, fieldSemanticsByName);
+  const extracted = extractScopedQueryFieldSelections(
+    getSearchQueryMetadataTree(query),
+    scopedFieldSet,
+    fieldSemanticsByName,
+  );
   for (const [field, policy] of Object.entries(extracted.selections)) {
     const normalizedPolicy = normalizeQueryFieldPolicy(field as Pf2eTerminalQueryField, policy, fieldSemanticsByName);
     if (!normalizedPolicy) {
@@ -238,7 +246,11 @@ export function applyDiscoverableQueryFieldSelections(
   fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
 ): Pf2eTerminalSearchQuery {
   const scopedFieldSet = new Set(scopedFields);
-  const extracted = extractScopedQueryFieldSelections(getSearchQueryMetadataTree(query), scopedFieldSet, fieldSemanticsByName);
+  const extracted = extractScopedQueryFieldSelections(
+    getSearchQueryMetadataTree(query),
+    scopedFieldSet,
+    fieldSemanticsByName,
+  );
   const metadataClauses: MetadataFilterNode[] = extracted.metadata ? [extracted.metadata] : [];
 
   for (const field of scopedFields) {

@@ -143,5 +143,7 @@ export function mergeSelectionMaps(
 }
 
 export function createScopedSelectionMap(scopedFields: string[]): Pf2eTerminalQueryFieldSelectionMap {
-  return Object.fromEntries(scopedFields.map((field) => [field, createEmptyStringPolicy()])) as Pf2eTerminalQueryFieldSelectionMap;
+  return Object.fromEntries(
+    scopedFields.map((field) => [field, createEmptyStringPolicy()]),
+  ) as Pf2eTerminalQueryFieldSelectionMap;
 }

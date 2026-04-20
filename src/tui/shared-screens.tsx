@@ -11,11 +11,7 @@ import {
   type DerivedTagTerminalActionTargetState,
   type DerivedTagTerminalActionTargetVisibility,
 } from "./action-target.js";
-import {
-  TerminalTwoPaneScreen,
-  TerminalTextScreen,
-  getTerminalPaneBodyHeight,
-} from "./framework/rendering.js";
+import { TerminalTwoPaneScreen, TerminalTextScreen, getTerminalPaneBodyHeight } from "./framework/rendering.js";
 import { useDerivedTagTerminalSize } from "./framework/context.js";
 import type { DerivedTagTerminalLine } from "./framework/types.js";
 import {
@@ -24,10 +20,7 @@ import {
   type TerminalFooterBinding,
   type TerminalInteractionAction,
 } from "./interaction-bindings.js";
-import {
-  showTerminalReturnDialog,
-  useTerminalInteractionContextAdapters,
-} from "./interaction-context-adapters.js";
+import { showTerminalReturnDialog, useTerminalInteractionContextAdapters } from "./interaction-context-adapters.js";
 import {
   createTerminalListInteractionContext,
   useTerminalInteractionContextRouter,
@@ -169,7 +162,10 @@ export function TerminalMenuScreen<TItem extends TerminalMenuScreenItem>({
         return;
       }
       if (menu.navigationAction?.kind === "boundary") {
-        onMove(menu.navigationAction.boundary === "start" ? -selectedIndex : items.length - 1 - selectedIndex, items.length);
+        onMove(
+          menu.navigationAction.boundary === "start" ? -selectedIndex : items.length - 1 - selectedIndex,
+          items.length,
+        );
         return;
       }
       if (menu.interactionAction?.id === "select") {
@@ -201,10 +197,7 @@ export function TerminalMenuScreen<TItem extends TerminalMenuScreenItem>({
   );
 }
 
-export function TerminalActionMenuScreen<
-  TItem extends TerminalMenuScreenItem,
-  TAction extends string = string,
->({
+export function TerminalActionMenuScreen<TItem extends TerminalMenuScreenItem, TAction extends string = string>({
   title,
   subtitle,
   leftTitle,
@@ -297,7 +290,11 @@ export function TerminalActionMenuScreen<
         return;
       }
       if (actionTargetIntent?.kind === "move_action") {
-        dispatchActionTarget({ type: "move_action", delta: actionTargetIntent.delta, actionCount: actionEntries.length });
+        dispatchActionTarget({
+          type: "move_action",
+          delta: actionTargetIntent.delta,
+          actionCount: actionEntries.length,
+        });
         return;
       }
       if (actionTargetIntent?.kind === "apply_action") {
@@ -322,7 +319,10 @@ export function TerminalActionMenuScreen<
         return;
       }
       if (menu.navigationAction?.kind === "boundary") {
-        onMove(menu.navigationAction.boundary === "start" ? -selectedIndex : items.length - 1 - selectedIndex, items.length);
+        onMove(
+          menu.navigationAction.boundary === "start" ? -selectedIndex : items.length - 1 - selectedIndex,
+          items.length,
+        );
         return;
       }
       if (menu.interactionAction?.id === "select") {
@@ -337,10 +337,7 @@ export function TerminalActionMenuScreen<
 
   const footerActions: TerminalInteractionAction[] =
     actionTargetState.activeTarget === "actions"
-      ? [
-          ...getDerivedTagTerminalActionTargetInteractionActions(actionTargetState, "horizontal"),
-          { id: "help" },
-        ]
+      ? [...getDerivedTagTerminalActionTargetInteractionActions(actionTargetState, "horizontal"), { id: "help" }]
       : [{ id: "move" }, { id: "jump" }, { id: "page" }, { id: "edge" }, ...interactionActions];
   const footerText =
     actionTargetState.activeTarget === "actions" || !contentFooterBindings

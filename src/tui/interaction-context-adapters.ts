@@ -43,8 +43,9 @@ export function createTerminalInteractionContextAdapters(
   terminal: TerminalInteractionContextAdapters,
 ): TerminalInteractionContextAdapters {
   return {
-    promptCommandPalette: async <T extends string>(options: CommandPaletteOptions<T>) => terminal.promptCommandPalette(options),
-    promptOptionalSelectOption: async <T,>(
+    promptCommandPalette: async <T extends string>(options: CommandPaletteOptions<T>) =>
+      terminal.promptCommandPalette(options),
+    promptOptionalSelectOption: async <T>(
       options: OptionalSelectPromptOptions<T>,
     ): Promise<DerivedTagTerminalOptionalSelectPromptResult<T>> => terminal.promptOptionalSelectOption(options),
     promptPolicySelectOption: async <T extends string>(
@@ -54,7 +55,8 @@ export function createTerminalInteractionContextAdapters(
       terminal.promptMultiSelectOption(options),
     promptSelectOption: async <T>(options: SelectPromptOptions<T>): Promise<DerivedTagTerminalSelectPromptResult<T>> =>
       terminal.promptSelectOption(options),
-    promptTextInput: async (options: TextPromptOptions): Promise<string | undefined> => terminal.promptTextInput(options),
+    promptTextInput: async (options: TextPromptOptions): Promise<string | undefined> =>
+      terminal.promptTextInput(options),
     showDialog: async (options: DialogOptions): Promise<void> => terminal.showDialog(options),
   };
 }

@@ -1,9 +1,6 @@
 import { createPf2eApplicationOntologyService, type Pf2eApplicationOntologyService } from "../app/ontology-service.js";
 import { loadPf2eApplicationRuntime, type Pf2eApplicationRuntime } from "../app/runtime.js";
-import {
-  createPf2eApplicationStorageService,
-  type Pf2eApplicationStorageService,
-} from "../app/storage-service.js";
+import { createPf2eApplicationStorageService, type Pf2eApplicationStorageService } from "../app/storage-service.js";
 import { Pf2eDataService } from "../data/service.js";
 import type { AppConfig } from "../types.js";
 import { createPf2eTerminalSearchService, type Pf2eTerminalSearchService } from "./search-service.js";
@@ -87,7 +84,9 @@ function createConfiguredWorkbenchServices(
   };
 }
 
-function createTagWorkbenchService(storage: Pick<Pf2eApplicationStorageService, "openIndex">): Pf2eTerminalTagWorkbenchService {
+function createTagWorkbenchService(
+  storage: Pick<Pf2eApplicationStorageService, "openIndex">,
+): Pf2eTerminalTagWorkbenchService {
   const services = createConfiguredWorkbenchServices(storage);
 
   return {

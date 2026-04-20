@@ -1,7 +1,15 @@
 import React from "react";
 
-import { TerminalPaneScreen, TerminalTwoPaneScreen, runDerivedTagTerminalApp, useDerivedTagTerminalApp } from "../../tui/terminal-ui.js";
-import { DEFAULT_DERIVED_TAG_MIGRATION_REVIEW_SERVICES, type DerivedTagMigrationReviewServices } from "./review-controller.js";
+import {
+  TerminalPaneScreen,
+  TerminalTwoPaneScreen,
+  runDerivedTagTerminalApp,
+  useDerivedTagTerminalApp,
+} from "../../tui/terminal-ui.js";
+import {
+  DEFAULT_DERIVED_TAG_MIGRATION_REVIEW_SERVICES,
+  type DerivedTagMigrationReviewServices,
+} from "./review-controller.js";
 import { useDerivedTagMigrationReviewScreenController } from "./review-ui-controller.js";
 import type { DerivedTagMigrationSession } from "./types.js";
 

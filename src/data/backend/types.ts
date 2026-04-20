@@ -7,9 +7,7 @@ import type { EmbeddingConfig, PackInfo } from "../../types.js";
 export type Pf2eDataServiceLoadOptions = {
   indexPath?: string;
   embedding?: EmbeddingConfig;
-  embeddingProviderFactory?: (
-    config: EmbeddingConfig,
-  ) => Promise<{ provider: EmbeddingProvider; warnings: string[] }>;
+  embeddingProviderFactory?: (config: EmbeddingConfig) => Promise<{ provider: EmbeddingProvider; warnings: string[] }>;
   rankingConfigStore?: RankingConfigStore;
   progressLogger?: (message: string) => void;
   progressStatusLogger?: (message: string) => void;

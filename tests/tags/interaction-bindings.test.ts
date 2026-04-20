@@ -56,10 +56,7 @@ describe("terminal interaction bindings", () => {
           actions: [{ id: "quit", label: "quit" }],
         },
       ]),
-    ).toEqual([
-      { text: "Actions", tone: "section" },
-      { text: "Escape / q: quit" },
-    ]);
+    ).toEqual([{ text: "Actions", tone: "section" }, { text: "Escape / q: quit" }]);
 
     expect(
       buildTerminalInteractionHelpLines([

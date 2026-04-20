@@ -72,7 +72,9 @@ export const DERIVED_TAG_REGISTRATION_CATEGORIES = sortCategoryManifest(
   (left, right) => left.registrationOrder - right.registrationOrder,
 ).map((entry) => entry.category) as readonly DerivedTagManagedCategory[];
 
-export function getDerivedTagCategoryManifestEntry(category: DerivedTagManagedCategory): DerivedTagCategoryManifestEntry {
+export function getDerivedTagCategoryManifestEntry(
+  category: DerivedTagManagedCategory,
+): DerivedTagCategoryManifestEntry {
   const entry = DERIVED_TAG_CATEGORY_ENTRY_BY_CATEGORY.get(category);
   if (!entry) {
     throw new Error(`Missing derived-tag category manifest entry for "${category}".`);
@@ -84,10 +86,7 @@ export function isDerivedTagManagedCategory(category: SearchCategory): category 
   return DERIVED_TAG_CATEGORY_ENTRY_BY_CATEGORY.has(category as DerivedTagManagedCategory);
 }
 
-export function expectDerivedTagManagedCategory(
-  category: SearchCategory,
-  consumer: string,
-): DerivedTagManagedCategory {
+export function expectDerivedTagManagedCategory(category: SearchCategory, consumer: string): DerivedTagManagedCategory {
   if (!isDerivedTagManagedCategory(category)) {
     throw new Error(`${consumer} does not manage category "${category}".`);
   }

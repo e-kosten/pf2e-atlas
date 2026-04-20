@@ -72,9 +72,7 @@ export function routeOntologyExplorerInteraction(
     route: {
       event,
       interactionAction:
-        context.activePane === "detail"
-          ? routed.routes.detail.interactionAction
-          : routed.routes.list.interactionAction,
+        context.activePane === "detail" ? routed.routes.detail.interactionAction : routed.routes.list.interactionAction,
       searchModeAction: routed.routes.textEntry.interactionAction,
       textEntryIntent: routed.routes.textEntry.textEntryIntent,
       listNavigationAction: routed.routes.list.navigationAction,

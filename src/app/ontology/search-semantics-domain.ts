@@ -6,11 +6,7 @@ import type { AppConfig, OntologyDomainModel, OntologyNode, SearchCategory, Sear
 import { normalizeText } from "../../utils.js";
 import { getOntologyDomainSummary } from "./domain-summaries.js";
 import { buildFilterText, buildKeyValueDetailLines, cloneOntologyNode, titleCaseLabel } from "./node-helpers.js";
-import {
-  buildFieldValueNodes,
-  buildMetricDiscoveryGroup,
-  getTraitGlossaryEntry,
-} from "./search-semantics-helpers.js";
+import { buildFieldValueNodes, buildMetricDiscoveryGroup, getTraitGlossaryEntry } from "./search-semantics-helpers.js";
 
 type SearchSemanticsDataService = Pick<Pf2eDataService, "getSearchVocabulary" | "listFilterValues" | "listRecords">;
 
@@ -80,10 +76,7 @@ export function buildSearchSemanticsDomain(
       }),
   );
 
-  function buildMetadataFieldNodes(
-    category: SearchCategory,
-    subcategory: SearchSubcategory | null,
-  ): OntologyNode[] {
+  function buildMetadataFieldNodes(category: SearchCategory, subcategory: SearchSubcategory | null): OntologyNode[] {
     const idPrefix = subcategory ? `${category}:${subcategory}` : category;
     return getCategoryScopedFields(category, subcategory).map((field): OntologyNode => {
       const fieldSemantics = metadataFieldsByName.get(field)!;
@@ -142,7 +135,14 @@ export function buildSearchSemanticsDomain(
                 ? () => {
                     const liveValues = getCachedFilterValues(category, subcategory, field);
                     return liveValues.length > 0
-                      ? buildFieldValueNodes(dataService, category, subcategory, fieldSemantics, liveValues, metadataGlossary)
+                      ? buildFieldValueNodes(
+                          dataService,
+                          category,
+                          subcategory,
+                          fieldSemantics,
+                          liveValues,
+                          metadataGlossary,
+                        )
                       : [];
                   }
                 : undefined,
@@ -151,7 +151,10 @@ export function buildSearchSemanticsDomain(
     });
   }
 
-  function buildCommonTraitShortcutGroup(category: SearchCategory, metadataFieldNodes: OntologyNode[]): OntologyNode | null {
+  function buildCommonTraitShortcutGroup(
+    category: SearchCategory,
+    metadataFieldNodes: OntologyNode[],
+  ): OntologyNode | null {
     const traitFieldNode = metadataFieldNodes.find((node) => node.label === "traits");
     const traitNodesByLabel = new Map(
       (traitFieldNode?.loadChildren?.() ?? []).map((node) => [normalizeText(node.label), node]),
@@ -207,9 +210,7 @@ export function buildSearchSemanticsDomain(
       return [
         {
           ...cloneOntologyNode(familyNode, `${category}:commonDerivedTagsShortcut`),
-          children: matchingTags.map((tagNode) =>
-            cloneOntologyNode(tagNode, `${category}:commonDerivedTagsShortcut`),
-          ),
+          children: matchingTags.map((tagNode) => cloneOntologyNode(tagNode, `${category}:commonDerivedTagsShortcut`)),
         } satisfies OntologyNode,
       ];
     });
@@ -238,14 +239,13 @@ export function buildSearchSemanticsDomain(
     };
   }
 
-  function buildMetricDiscoveryGroups(
-    category: SearchCategory,
-    subcategory: SearchSubcategory | null,
-  ): OntologyNode[] {
+  function buildMetricDiscoveryGroups(category: SearchCategory, subcategory: SearchSubcategory | null): OntologyNode[] {
     const groups: OntologyNode[] = [];
     if (
       semantics.actorMetricDiscovery &&
-      semantics.advancedPredicates.some((predicate) => predicate.name === "actorMetric" && predicate.categories.includes(category))
+      semantics.advancedPredicates.some(
+        (predicate) => predicate.name === "actorMetric" && predicate.categories.includes(category),
+      )
     ) {
       groups.push(
         buildMetricDiscoveryGroup(dataService, {
@@ -260,7 +260,9 @@ export function buildSearchSemanticsDomain(
     }
     if (
       semantics.itemMetricDiscovery &&
-      semantics.advancedPredicates.some((predicate) => predicate.name === "itemMetric" && predicate.categories.includes(category))
+      semantics.advancedPredicates.some(
+        (predicate) => predicate.name === "itemMetric" && predicate.categories.includes(category),
+      )
     ) {
       groups.push(
         buildMetricDiscoveryGroup(dataService, {

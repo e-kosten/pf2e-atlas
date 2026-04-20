@@ -4,13 +4,8 @@ import { getOntologyNodeChildren } from "../../app/ontology/node-helpers.js";
 import type { OntologyDomainModel, OntologyNode, OntologySelectionState } from "../../types.js";
 import { TerminalPaneScreen, TerminalTwoPaneScreen } from "../framework/rendering.js";
 import type { DerivedTagTerminalLine } from "../framework/types.js";
-import {
-  getTerminalInteractionCycleDirection,
-} from "../interaction-bindings.js";
-import {
-  showTerminalReturnDialog,
-  useTerminalInteractionContextAdapters,
-} from "../interaction-context-adapters.js";
+import { getTerminalInteractionCycleDirection } from "../interaction-bindings.js";
+import { showTerminalReturnDialog, useTerminalInteractionContextAdapters } from "../interaction-context-adapters.js";
 import { useOntologyExplorerController } from "./controller.js";
 import { getHostedOntologyPickerContract } from "./picker-hosting.js";
 import {

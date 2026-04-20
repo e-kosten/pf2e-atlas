@@ -22,9 +22,7 @@ type RuntimeSearchDependencyOptions = {
   getRankingConfigStatus: () => RuntimeSearchDependencies["rankingConfigStatus"];
 };
 
-export function createRuntimeSearchDependencies(
-  options: RuntimeSearchDependencyOptions,
-): RuntimeSearchDependencies {
+export function createRuntimeSearchDependencies(options: RuntimeSearchDependencyOptions): RuntimeSearchDependencies {
   const toSearchCandidate =
     (searchText: string | null | undefined = null) =>
     (row: ReturnType<typeof fetchCandidates>[number]): SearchCandidate => ({
@@ -37,16 +35,15 @@ export function createRuntimeSearchDependencies(
     searchText: row.searchText,
   });
 
-  const mapCandidates = (
-    rows: ReturnType<typeof fetchCandidates>,
-    includeSearchText: boolean,
-  ): SearchCandidate[] => rows.map(includeSearchText ? toSearchCandidateFromRow : toSearchCandidate());
+  const mapCandidates = (rows: ReturnType<typeof fetchCandidates>, includeSearchText: boolean): SearchCandidate[] =>
+    rows.map(includeSearchText ? toSearchCandidateFromRow : toSearchCandidate());
 
   return {
     embeddingProvider: options.embeddingProvider,
     rankingConfig: options.rankingConfigStore?.getConfig() ?? DEFAULT_RANKING_CONFIG,
     rankingConfigStatus: options.getRankingConfigStatus(),
-    fetchCandidateCount: (filters, dependencyOptions = {}) => fetchCandidateCount(options.db, filters, dependencyOptions),
+    fetchCandidateCount: (filters, dependencyOptions = {}) =>
+      fetchCandidateCount(options.db, filters, dependencyOptions),
     fetchPagedCandidates: (filters, sort, offset, limit) =>
       fetchPagedCandidates(options.db, filters, sort, offset, limit).map(toSearchCandidate()),
     getAliases: (recordKey) => options.getAliases(recordKey),

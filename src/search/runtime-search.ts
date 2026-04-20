@@ -535,9 +535,7 @@ export function listRecords(normalizedFilters: NormalizedSearchFilters, deps: Ru
     });
   }
   const total = deps.fetchCandidateCount(normalizedFilters);
-  const records = deps
-    .fetchPagedCandidates(normalizedFilters, sort, offset, limit)
-    .map(({ record }) => record);
+  const records = deps.fetchPagedCandidates(normalizedFilters, sort, offset, limit).map(({ record }) => record);
   return createSearchResultPage({
     searchProfile: null,
     mode: "structured",

@@ -1,7 +1,4 @@
-import {
-  getDerivedTagMigrationReviewItems,
-  summarizeDerivedTagMigrationReviewProgress,
-} from "./review-session.js";
+import { getDerivedTagMigrationReviewItems, summarizeDerivedTagMigrationReviewProgress } from "./review-session.js";
 import { buildDerivedTagMigrationRecordPageLines } from "./review-detail-content.js";
 import {
   DERIVED_TAG_MIGRATION_REVIEW_ACTIONS,
@@ -47,9 +44,7 @@ export type DerivedTagMigrationReviewViewModel = {
 
 const REVIEW_LEFT_WIDTH = 46;
 
-function formatDecisionSummary(
-  decision: DerivedTagMigrationSession["decisions"][number]["decisions"][number],
-): string {
+function formatDecisionSummary(decision: DerivedTagMigrationSession["decisions"][number]["decisions"][number]): string {
   if (decision.kind === "assignment") {
     return `${decision.family}.${decision.tag} ${decision.mode}`;
   }
@@ -244,7 +239,11 @@ export function buildDerivedTagMigrationReviewViewModel({
   const footerInteractionActions: TerminalInteractionAction[] =
     state.activeTarget === "actions"
       ? [...actionTargetInteractionActions, { id: "help" }]
-      : [...getReviewContentNavigationActions(state.activePane), ...paneInteractionActions, ...actionTargetInteractionActions];
+      : [
+          ...getReviewContentNavigationActions(state.activePane),
+          ...paneInteractionActions,
+          ...actionTargetInteractionActions,
+        ];
   const helpLines = buildReviewHelpLines(state, paneInteractionActions);
   const commonFooter = [
     { text: formatTerminalInteractionFooter(footerInteractionActions), tone: "dim" as const },
@@ -269,7 +268,13 @@ export function buildDerivedTagMigrationReviewViewModel({
           subtitle: `${subtitle} | focused detail`,
           pane: {
             title: "[FOCUSED DETAIL] Selected Item",
-            lines: buildVisibleSelectedReviewDetailLines(state.session, layoutMode, detailScroll, bodyHeight, size.width),
+            lines: buildVisibleSelectedReviewDetailLines(
+              state.session,
+              layoutMode,
+              detailScroll,
+              bodyHeight,
+              size.width,
+            ),
             active: true,
           },
           footer: commonFooter,

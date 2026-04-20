@@ -107,7 +107,9 @@ export function buildSelectModalOptions<T>(options: SelectPromptOptions<T>): Ter
   };
 }
 
-export function buildOptionalSelectModalOptions<T>(options: OptionalSelectPromptOptions<T>): TerminalSelectModalOptions {
+export function buildOptionalSelectModalOptions<T>(
+  options: OptionalSelectPromptOptions<T>,
+): TerminalSelectModalOptions {
   return {
     title: options.title,
     subtitle: options.subtitle,
@@ -172,14 +174,11 @@ function buildCommandPaletteDetailLines(
   option: DerivedTagTerminalCommandOption<string> | undefined,
   filterText: string,
 ): DerivedTagTerminalLine[] {
-  const lines =
-    option?.detailLines ?? [
-      { text: option?.label ?? "(none)", tone: "section" as const },
-      { text: option?.description ?? "No additional details." },
-      ...(option?.aliases?.length
-        ? [{ text: `Aliases: ${option.aliases.join(", ")}`, tone: "accent" as const }]
-        : []),
-    ];
+  const lines = option?.detailLines ?? [
+    { text: option?.label ?? "(none)", tone: "section" as const },
+    { text: option?.description ?? "No additional details." },
+    ...(option?.aliases?.length ? [{ text: `Aliases: ${option.aliases.join(", ")}`, tone: "accent" as const }] : []),
+  ];
 
   return [
     ...lines,
@@ -385,8 +384,7 @@ function CommandPaletteBody({
           prompt={filterText ? `Filter: ${filterText}` : options.prompt}
           entries={visibleEntries.map((entry, offset) => ({
             text: `${entry.label}${entry.disabled ? " | unavailable" : ""}`,
-            tone:
-              windowStart + offset === clampedSelectedIndex ? "selected" : entry.disabled ? "dim" : "default",
+            tone: windowStart + offset === clampedSelectedIndex ? "selected" : entry.disabled ? "dim" : "default",
             noWrap: true,
           }))}
           detailLines={buildCommandPaletteDetailLines(selectedOption, filterText)}
@@ -817,7 +815,10 @@ export function planTerminalModalStateLayout(
       headerRows: 3,
       footerRows: 1,
       descriptor: createTerminalTextInputSizingDescriptor({
-        bodyLineCount: getRenderedTerminalLineCount(buildTextPromptBodyLines(modal.options, modal.value), terminalWidth),
+        bodyLineCount: getRenderedTerminalLineCount(
+          buildTextPromptBodyLines(modal.options, modal.value),
+          terminalWidth,
+        ),
       }),
     });
   }
@@ -1078,10 +1079,7 @@ export function DerivedTagTerminalModalHost({
                   ...current,
                   filterText: [...current.filterText].slice(0, -1).join(""),
                   selectedIndex: getFirstEnabledCommandIndex(
-                    filterCommandPaletteEntries(
-                      current.options.entries,
-                      [...current.filterText].slice(0, -1).join(""),
-                    ),
+                    filterCommandPaletteEntries(current.options.entries, [...current.filterText].slice(0, -1).join("")),
                   ),
                 }
               : current,

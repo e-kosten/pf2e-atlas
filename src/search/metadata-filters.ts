@@ -152,7 +152,9 @@ function normalizeMetricValuePredicate(
   const operatorKind = getMetricValuePredicateOperatorKind(spec, op, metricType);
   if (metricType === "number") {
     if (operatorKind !== "numeric" || typeof raw.value !== "number" || !Number.isFinite(raw.value)) {
-      throw new Error(`${metricLabel} metric "${metric}" requires a finite numeric value with one of ==, !=, >, >=, <, <=.`);
+      throw new Error(
+        `${metricLabel} metric "${metric}" requires a finite numeric value with one of ==, !=, >, >=, <, <=.`,
+      );
     }
 
     return {
@@ -203,7 +205,9 @@ function normalizeMetricComparePredicate(
   const leftMetric = normalizeMetricName(raw[spec.leftMetricKey], `${spec.field}.${spec.leftMetricKey}`);
   const rightMetric = normalizeMetricName(raw[spec.rightMetricKey], `${spec.field}.${spec.rightMetricKey}`);
   if (inferMetricValueType(leftMetric) !== "number" || inferMetricValueType(rightMetric) !== "number") {
-    throw new Error(`${metricLabel} only supports numeric ${metricLabel === "actorMetricCompare" ? "actor" : "item"} metrics.`);
+    throw new Error(
+      `${metricLabel} only supports numeric ${metricLabel === "actorMetricCompare" ? "actor" : "item"} metrics.`,
+    );
   }
   if (!spec.operators.includes(op)) {
     throw new Error(`${metricLabel} requires one of ==, !=, >, >=, <, <=.`);

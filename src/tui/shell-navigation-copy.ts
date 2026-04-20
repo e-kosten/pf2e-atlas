@@ -1,4 +1,8 @@
-import type { TerminalFooterBinding, TerminalInteractionAction, TerminalInteractionLine } from "./interaction-bindings.js";
+import type {
+  TerminalFooterBinding,
+  TerminalInteractionAction,
+  TerminalInteractionLine,
+} from "./interaction-bindings.js";
 
 export function createSharedReturnInteractionActions(label = "return"): TerminalInteractionAction[] {
   return [

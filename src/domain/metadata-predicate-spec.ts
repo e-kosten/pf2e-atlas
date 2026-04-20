@@ -32,7 +32,10 @@ function definePredicateVariant<const Operator extends string, const Payload ext
   };
 }
 
-function definePredicateVariants<const Operators extends readonly string[], const Payload extends MetadataPredicatePayloadKind>(
+function definePredicateVariants<
+  const Operators extends readonly string[],
+  const Payload extends MetadataPredicatePayloadKind,
+>(
   operators: Operators,
   payload: Payload,
   options?: { exposeInSchema?: boolean | ((operator: Operators[number]) => boolean) },
@@ -75,7 +78,8 @@ export const METADATA_FIELD_PREDICATE_VARIANTS = {
 
 type MetadataFieldPredicateVariantsByType = typeof METADATA_FIELD_PREDICATE_VARIANTS;
 
-export type MetadataPredicateOperator<Variants extends readonly MetadataPredicateVariantSpec[]> = Variants[number]["op"];
+export type MetadataPredicateOperator<Variants extends readonly MetadataPredicateVariantSpec[]> =
+  Variants[number]["op"];
 
 export type MetadataPredicateFromVariant<
   Field extends string,
@@ -94,10 +98,7 @@ export type MetadataFieldPredicateFromType<
   FieldType extends keyof MetadataFieldPredicateVariantsByType,
 > = MetadataPredicateFromVariants<Field, MetadataFieldPredicateVariantsByType[FieldType]>;
 
-const METADATA_FIELD_PREDICATE_VARIANT_LOOKUP = new Map<
-  MetadataFieldType,
-  Map<string, MetadataPredicateVariantSpec>
->(
+const METADATA_FIELD_PREDICATE_VARIANT_LOOKUP = new Map<MetadataFieldType, Map<string, MetadataPredicateVariantSpec>>(
   Object.entries(METADATA_FIELD_PREDICATE_VARIANTS).map(([fieldType, variants]) => [
     fieldType as MetadataFieldType,
     new Map(variants.map((variant) => [variant.op, variant])),
@@ -134,7 +135,9 @@ type StringKeyedRecord<Key extends string> = {
 };
 
 export type MetricValuePredicateFromSpec<Spec extends MetadataMetricValuePredicateSpec> =
-  | ({ field: Spec["field"]; op: Spec["numericOperators"][number]; value: number } & StringKeyedRecord<Spec["metricKey"]>)
+  | ({ field: Spec["field"]; op: Spec["numericOperators"][number]; value: number } & StringKeyedRecord<
+      Spec["metricKey"]
+    >)
   | ({
       field: Spec["field"];
       op: Spec["scalarOperators"][number];

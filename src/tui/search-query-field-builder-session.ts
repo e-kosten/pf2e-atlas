@@ -100,10 +100,7 @@ function buildLegacyMetadataNodeLines(node: MetadataFilterNode, indentBase = 0):
 }
 
 function buildLegacyStructuredSummaryLines(session: SearchStructuredEditorSession): DerivedTagTerminalLine[] {
-  const stagedFieldItems: Array<[
-    Extract<SearchStructuredEditorItem, { kind: "field" }>,
-    MetadataFilterNode,
-  ]> = [];
+  const stagedFieldItems: Array<[Extract<SearchStructuredEditorItem, { kind: "field" }>, MetadataFilterNode]> = [];
 
   session.items.forEach((item) => {
     if (item.kind !== "field") {
@@ -203,9 +200,7 @@ function countStructuredSelections(session: SearchStructuredEditorSession): numb
   return Object.values(session.fieldDrafts ?? {}).filter((node) => Boolean(node)).length;
 }
 
-export function buildSearchStructuredEditorMenuItems(
-  session: SearchStructuredEditorSession,
-): Array<{ label: string }> {
+export function buildSearchStructuredEditorMenuItems(session: SearchStructuredEditorSession): Array<{ label: string }> {
   return session.items.map((item) => {
     if (item.kind === "workspaceEntry") {
       return { label: formatSearchWorkspaceEntryLine(item.workspaceEntry) };
@@ -233,9 +228,7 @@ export function buildSearchStructuredEditorDetailLines(
   return [...summaryLines, { text: "" }, ...focusedLines];
 }
 
-export function buildSearchStructuredEditorStatusLine(
-  session: SearchStructuredEditorSession,
-): DerivedTagTerminalLine {
+export function buildSearchStructuredEditorStatusLine(session: SearchStructuredEditorSession): DerivedTagTerminalLine {
   return {
     text:
       session.statusText ??

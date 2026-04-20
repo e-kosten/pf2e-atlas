@@ -39,7 +39,10 @@ export function getMetadataNodeChildren(node: MetadataFilterNode): MetadataFilte
   return [];
 }
 
-export function getMetadataNodeAtPath(node: MetadataFilterNode | null, path: readonly number[]): MetadataFilterNode | null {
+export function getMetadataNodeAtPath(
+  node: MetadataFilterNode | null,
+  path: readonly number[],
+): MetadataFilterNode | null {
   let current = node;
   for (const segment of path) {
     if (!current) {

@@ -191,16 +191,16 @@ export function planTerminalModalLayout(input: PlanTerminalModalLayoutInput): Te
   const idealBodyHeight = getIdealBodyHeight(descriptor, paneMode);
   const minBodyHeight = getMinimumBodyHeight(descriptor, paneMode);
   const forcedPresentation = input.forcedPresentation;
-  const maxInlineTotalHeight = forcedPresentation === "inline"
-    ? clamp(input.terminalHeight, 0, input.terminalHeight)
-    : clamp(input.terminalHeight - defaults.inlineReservedMainRows, 0, input.terminalHeight);
+  const maxInlineTotalHeight =
+    forcedPresentation === "inline"
+      ? clamp(input.terminalHeight, 0, input.terminalHeight)
+      : clamp(input.terminalHeight - defaults.inlineReservedMainRows, 0, input.terminalHeight);
   const inlineBodyCapacity = Math.max(0, maxInlineTotalHeight - input.headerRows - input.footerRows);
   const canInline =
     input.terminalWidth >= descriptor.minimumInlineWidth &&
     inlineBodyCapacity >= minBodyHeight &&
     maxInlineTotalHeight > 0;
-  const presentation =
-    forcedPresentation ?? (canInline ? "inline" : "screen");
+  const presentation = forcedPresentation ?? (canInline ? "inline" : "screen");
   const totalHeight =
     presentation === "inline"
       ? clamp(idealBodyHeight + input.headerRows + input.footerRows, 0, maxInlineTotalHeight || input.terminalHeight)
@@ -323,11 +323,7 @@ function resolvePaneWidths(
     descriptor.minLeftPaneWidth,
     terminalWidth - separator - descriptor.minRightPaneWidth,
   );
-  const preferredLeft = clamp(
-    descriptor.preferredLeftPaneWidth,
-    descriptor.minLeftPaneWidth,
-    maximumLeftWidth,
-  );
+  const preferredLeft = clamp(descriptor.preferredLeftPaneWidth, descriptor.minLeftPaneWidth, maximumLeftWidth);
   const right = Math.max(descriptor.minRightPaneWidth, terminalWidth - preferredLeft - separator);
   const left = Math.max(descriptor.minLeftPaneWidth, terminalWidth - right - separator);
   return { left, right, separator };
@@ -337,11 +333,7 @@ function getIdealBodyHeight(
   descriptor: NormalizedTerminalModalBodySizingDescriptor,
   paneMode: TerminalModalPaneMode,
 ): number {
-  const staticRows = clamp(
-    descriptor.staticBodyLineCount,
-    descriptor.minBodyLineCount,
-    descriptor.maxBodyLineCount,
-  );
+  const staticRows = clamp(descriptor.staticBodyLineCount, descriptor.minBodyLineCount, descriptor.maxBodyLineCount);
   if (descriptor.list.itemCount === 0 && descriptor.detail.lineCount === 0) {
     return staticRows;
   }
@@ -481,10 +473,7 @@ function resolveOverflowPolicy(
         : listVisibleTarget > listVisibleCapacity
           ? "window"
           : "fit",
-    detail:
-      descriptor.detail.lineCount > detailVisibleCapacity
-        ? "scroll"
-        : "fit",
+    detail: descriptor.detail.lineCount > detailVisibleCapacity ? "scroll" : "fit",
   };
 }
 

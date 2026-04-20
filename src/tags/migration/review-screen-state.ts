@@ -11,10 +11,7 @@ import {
   type DerivedTagTerminalActionTargetOption,
   type DerivedTagTerminalActionTargetState,
 } from "../../tui/action-target.js";
-import {
-  moveSelection,
-  moveSelectionWrapped,
-} from "../../tui/terminal-ui.js";
+import { moveSelection, moveSelectionWrapped } from "../../tui/terminal-ui.js";
 import {
   reduceDerivedTagTerminalTwoPaneState,
   type DerivedTagTerminalTwoPaneAction,
@@ -57,8 +54,7 @@ export const DERIVED_TAG_MIGRATION_REVIEW_ACTIONS = [
   { id: "quit", label: "Quit", description: "Finish the review UI and return the current session state." },
 ] as const satisfies readonly DerivedTagTerminalActionTargetOption[];
 
-export type DerivedTagMigrationReviewActionId =
-  (typeof DERIVED_TAG_MIGRATION_REVIEW_ACTIONS)[number]["id"];
+export type DerivedTagMigrationReviewActionId = (typeof DERIVED_TAG_MIGRATION_REVIEW_ACTIONS)[number]["id"];
 
 export function createInitialDerivedTagMigrationReviewScreenState(
   initialSession: DerivedTagMigrationSession,
@@ -73,10 +69,7 @@ export function createInitialDerivedTagMigrationReviewScreenState(
   };
 }
 
-function setReviewCurrentIndex(
-  session: DerivedTagMigrationSession,
-  nextIndex: number,
-): DerivedTagMigrationSession {
+function setReviewCurrentIndex(session: DerivedTagMigrationSession, nextIndex: number): DerivedTagMigrationSession {
   const next = structuredClone(session);
   next.reviewState.currentIndex = nextIndex;
   return next;

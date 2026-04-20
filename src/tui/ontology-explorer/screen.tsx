@@ -2,10 +2,7 @@ import React from "react";
 
 import type { OntologyDomainModel, OntologyNodeQuery } from "../../types.js";
 import { TerminalPaneScreen, TerminalTwoPaneScreen } from "../framework/rendering.js";
-import {
-  showTerminalReturnDialog,
-  useTerminalInteractionContextAdapters,
-} from "../interaction-context-adapters.js";
+import { showTerminalReturnDialog, useTerminalInteractionContextAdapters } from "../interaction-context-adapters.js";
 import { createOntologyBrowserSnapshot, useOntologyExplorerController } from "./controller.js";
 import {
   buildOntologyBrowserHelpLines,

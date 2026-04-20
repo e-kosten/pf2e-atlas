@@ -1,16 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { MetadataFilterNode, SearchFilters } from "../../src/types.js";
-import {
-  createPf2eTerminalSearchService,
-  getSearchQueryMetadataTree,
-} from "../../src/tui/search-service.js";
+import { createPf2eTerminalSearchService, getSearchQueryMetadataTree } from "../../src/tui/search-service.js";
 
 type SearchServiceDependencies = Parameters<typeof createPf2eTerminalSearchService>[0];
 
-function createDependencies(
-  overrides: Partial<SearchServiceDependencies> = {},
-): SearchServiceDependencies {
+function createDependencies(overrides: Partial<SearchServiceDependencies> = {}): SearchServiceDependencies {
   return {
     closeSearchWindow: vi.fn(),
     countRecords: vi.fn(() =>
@@ -151,7 +146,12 @@ describe("createPf2eTerminalSearchService", () => {
             return { values: [{ value: "1", count: 1 }] };
           }
           if (field === "traits") {
-            return { values: [{ value: "illusion", count: 1 }, { value: "evocation", count: 1 }] };
+            return {
+              values: [
+                { value: "illusion", count: 1 },
+                { value: "evocation", count: 1 },
+              ],
+            };
           }
           return { values: [] };
         }),

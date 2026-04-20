@@ -28,7 +28,11 @@ import {
   useSearchScreenInteractionRouter,
 } from "./search-screen-interactions.js";
 import { type SearchStructuredEditorSession } from "./search-query-field-builder-session.js";
-import { getSearchResultWindowMetrics, getSessionBufferRange, type SearchQueryFieldPickerSession } from "./search-screen-state.js";
+import {
+  getSearchResultWindowMetrics,
+  getSessionBufferRange,
+  type SearchQueryFieldPickerSession,
+} from "./search-screen-state.js";
 import { useSearchQueryFieldPickerWorkflow } from "./search-screen-query-picker-workflow.js";
 import { useSearchSessionWorkflow } from "./search-screen-session-workflow.js";
 import { useSearchWorkspaceActions } from "./search-screen-workspace-actions.js";

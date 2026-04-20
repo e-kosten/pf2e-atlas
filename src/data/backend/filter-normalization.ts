@@ -104,7 +104,7 @@ export function normalizeSearchFilters(
 
   return {
     ...filters,
-    pack: filters.pack ? resolvePackName(filters.pack) ?? filters.pack : filters.pack,
+    pack: filters.pack ? (resolvePackName(filters.pack) ?? filters.pack) : filters.pack,
     linksTo: normalizeRecordKeyFilter(filters.linksTo),
     excludeLinksTo: normalizeRecordKeyFilter(filters.excludeLinksTo),
     category: normalizedCategory ?? undefined,

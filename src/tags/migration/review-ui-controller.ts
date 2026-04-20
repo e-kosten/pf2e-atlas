@@ -16,13 +16,8 @@ import {
   reduceDerivedTagMigrationReviewScreenState,
   type DerivedTagMigrationReviewActionId,
 } from "./review-screen-state.js";
-import {
-  resolveDerivedTagTerminalActionTargetIntent,
-} from "../../tui/action-target.js";
-import {
-  useDerivedTagTerminalApp,
-  useDerivedTagTerminalSize,
-} from "../../tui/terminal-ui.js";
+import { resolveDerivedTagTerminalActionTargetIntent } from "../../tui/action-target.js";
+import { useDerivedTagTerminalApp, useDerivedTagTerminalSize } from "../../tui/terminal-ui.js";
 import {
   showTerminalReturnDialog,
   useTerminalInteractionContextAdapters,
@@ -32,9 +27,7 @@ import {
   createTerminalListInteractionContext,
   useTerminalInteractionContextRouter,
 } from "../../tui/interaction-context-router.js";
-import {
-  getDerivedTagTerminalTwoPaneLayoutMode,
-} from "../../tui/two-pane-state.js";
+import { getDerivedTagTerminalTwoPaneLayoutMode } from "../../tui/two-pane-state.js";
 import type { DerivedTagMigrationSession } from "./types.js";
 
 export function useDerivedTagMigrationReviewScreenController({

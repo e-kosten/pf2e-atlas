@@ -5,7 +5,11 @@ import {
   getRuleGraph as getRuleGraphRuntime,
 } from "../rule-runtime.js";
 import { fetchReferenceEdgeRows } from "../record-queries.js";
-import type { CollectRuleQuestionContextInput, CollectRuleQuestionContextResult, RuleGraphCollectionResult } from "../../types.js";
+import type {
+  CollectRuleQuestionContextInput,
+  CollectRuleQuestionContextResult,
+  RuleGraphCollectionResult,
+} from "../../types.js";
 import type { Pf2eRecordCatalog } from "./record-catalog.js";
 import type { Pf2eSearchBackendService } from "./search-service.js";
 

@@ -59,7 +59,11 @@ class SizedStdout extends EventEmitter {
     return this.lastWrittenFrame;
   }
 
-  public write(frame: string, encodingOrCallback?: string | ((error?: Error) => void), callback?: (error?: Error) => void): boolean {
+  public write(
+    frame: string,
+    encodingOrCallback?: string | ((error?: Error) => void),
+    callback?: (error?: Error) => void,
+  ): boolean {
     this.frames.push(frame);
     this.lastWrittenFrame = frame;
     const resolvedCallback = typeof encodingOrCallback === "function" ? encodingOrCallback : callback;
@@ -87,7 +91,11 @@ class SizedStderr extends EventEmitter {
     return this.lastWrittenFrame;
   }
 
-  public write(frame: string, encodingOrCallback?: string | ((error?: Error) => void), callback?: (error?: Error) => void): boolean {
+  public write(
+    frame: string,
+    encodingOrCallback?: string | ((error?: Error) => void),
+    callback?: (error?: Error) => void,
+  ): boolean {
     this.frames.push(frame);
     this.lastWrittenFrame = frame;
     const resolvedCallback = typeof encodingOrCallback === "function" ? encodingOrCallback : callback;
@@ -436,13 +444,7 @@ function DisabledCommandPaletteHarness(): React.JSX.Element {
   return <TerminalTextScreen title="Harness" body={[{ text: `result=${result}` }]} />;
 }
 
-function AutoDialogHarness({
-  title,
-  bodyLineCount,
-}: {
-  title: string;
-  bodyLineCount: number;
-}): React.JSX.Element {
+function AutoDialogHarness({ title, bodyLineCount }: { title: string; bodyLineCount: number }): React.JSX.Element {
   const terminal = useDerivedTagTerminalApp();
 
   React.useEffect(() => {

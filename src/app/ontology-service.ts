@@ -4,10 +4,7 @@ import { buildCatalogCategoriesDomain } from "./ontology/catalog-categories-doma
 import { ONTOLOGY_DOMAINS } from "./ontology/domain-summaries.js";
 import { buildDerivedTagsDomain } from "./ontology/derived-tags-domain.js";
 import { buildSearchSemanticsDomain } from "./ontology/search-semantics-domain.js";
-import {
-  createPf2eApplicationStorageService,
-  type Pf2eApplicationStorageService,
-} from "./storage-service.js";
+import { createPf2eApplicationStorageService, type Pf2eApplicationStorageService } from "./storage-service.js";
 
 export type Pf2eApplicationOntologyService = {
   listDomains: () => readonly OntologyDomainSummary[];
@@ -17,9 +14,10 @@ export type Pf2eApplicationOntologyService = {
 export function createPf2eApplicationOntologyService(
   config: AppConfig,
   dataService: Pick<Pf2eDataService, "getSearchVocabulary" | "listFilterValues" | "listRecords">,
-  storage: Pick<Pf2eApplicationStorageService, "loadDerivedTagOntologyExplorerModel"> = createPf2eApplicationStorageService(
-    config,
-  ),
+  storage: Pick<
+    Pf2eApplicationStorageService,
+    "loadDerivedTagOntologyExplorerModel"
+  > = createPf2eApplicationStorageService(config),
 ): Pf2eApplicationOntologyService {
   const domainCache = new Map<OntologyDomainId, OntologyDomainModel>();
   const buildDomain = (id: OntologyDomainId): OntologyDomainModel => {

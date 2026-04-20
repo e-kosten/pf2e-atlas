@@ -116,9 +116,9 @@ describe("review screen model", () => {
     }
     expect(model.screen.props.subtitle).toContain("1 visible item");
     expect(model.screen.props.left.lines[0]?.text).toContain("Alarm Ward | needs_review | security.alarm include");
-    expect(model.screen.props.right.lines.some((line) => line.text === "Selection reasons: Pending assignment review.")).toBe(
-      true,
-    );
+    expect(
+      model.screen.props.right.lines.some((line) => line.text === "Selection reasons: Pending assignment review."),
+    ).toBe(true);
     expect(model.helpLines.some((line) => line.text.includes("Current Action Rail"))).toBe(true);
   });
 });

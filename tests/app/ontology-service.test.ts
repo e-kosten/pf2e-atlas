@@ -214,27 +214,27 @@ function createDataService(): Pick<Pf2eDataService, "getSearchVocabulary" | "lis
         metric?: string;
         metricPrefix?: string;
       }) => {
-      const valuesByKey: Partial<Record<`${string}:${FilterValueField}`, Array<{ value: string; count: number }>>> = {
-        "spell:subcategories": [{ value: "action", count: 6 }],
-        "spell:traits": [{ value: "fire", count: 4 }],
-        "spell:saveType": [{ value: "fortitude", count: 3 }],
-        "spell:sustained": [{ value: "true", count: 2 }],
-        "spell:publicationTitle": [{ value: "Pathfinder Rage of Elements", count: 1 }],
-        "equipment:hands": [{ value: "1", count: 5 }],
-        "equipment:subcategories": [{ value: "gear", count: 5 }],
-        "creature:actorMetrics": metricPrefix === "save." ? [{ value: "save.best", count: 3 }] : [],
-        "equipment:itemMetrics": metricPrefix === "weapon." ? [{ value: "weapon.reload", count: 5 }] : [],
-      };
-      if (field === "actorMetrics" && metric === "save.best") {
+        const valuesByKey: Partial<Record<`${string}:${FilterValueField}`, Array<{ value: string; count: number }>>> = {
+          "spell:subcategories": [{ value: "action", count: 6 }],
+          "spell:traits": [{ value: "fire", count: 4 }],
+          "spell:saveType": [{ value: "fortitude", count: 3 }],
+          "spell:sustained": [{ value: "true", count: 2 }],
+          "spell:publicationTitle": [{ value: "Pathfinder Rage of Elements", count: 1 }],
+          "equipment:hands": [{ value: "1", count: 5 }],
+          "equipment:subcategories": [{ value: "gear", count: 5 }],
+          "creature:actorMetrics": metricPrefix === "save." ? [{ value: "save.best", count: 3 }] : [],
+          "equipment:itemMetrics": metricPrefix === "weapon." ? [{ value: "weapon.reload", count: 5 }] : [],
+        };
+        if (field === "actorMetrics" && metric === "save.best") {
+          return {
+            field,
+            values: [{ value: "fort", count: 3 }],
+          };
+        }
         return {
           field,
-          values: [{ value: "fort", count: 3 }],
+          values: valuesByKey[`${category ?? "all"}:${field}`] ?? [],
         };
-      }
-      return {
-        field,
-        values: valuesByKey[`${category ?? "all"}:${field}`] ?? [],
-      };
       },
     ),
     listRecords,
@@ -336,9 +336,15 @@ describe("application ontology service", () => {
     const sustainedValueNodes = sustainedFieldNode?.loadChildren?.() ?? [];
     const handsValueNodes = handsFieldNode?.loadChildren?.() ?? [];
 
-    expect(dataService.listFilterValues).toHaveBeenCalledWith(expect.objectContaining({ field: "saveType", category: "spell" }));
-    expect(dataService.listFilterValues).toHaveBeenCalledWith(expect.objectContaining({ field: "sustained", category: "spell" }));
-    expect(dataService.listFilterValues).toHaveBeenCalledWith(expect.objectContaining({ field: "hands", category: "equipment" }));
+    expect(dataService.listFilterValues).toHaveBeenCalledWith(
+      expect.objectContaining({ field: "saveType", category: "spell" }),
+    );
+    expect(dataService.listFilterValues).toHaveBeenCalledWith(
+      expect.objectContaining({ field: "sustained", category: "spell" }),
+    );
+    expect(dataService.listFilterValues).toHaveBeenCalledWith(
+      expect.objectContaining({ field: "hands", category: "equipment" }),
+    );
     expect(saveTypeFieldNode?.listLabel).toBe("saveType");
     expect(saveTypeFieldNode?.detailLines.map((line) => line.text)).not.toContain("Operators: eq, in, notIn");
 
@@ -471,15 +477,19 @@ describe("application ontology service", () => {
     const domain = service.loadDomain("searchSemantics");
     const actorMetricGroup = findNodeById(domain.rootNodes, "creature:actorMetrics:discovery");
     const actorMetricNamespace = findNodeById(domain.rootNodes, "creature:actorMetrics:namespace:save.");
-    const actorMetricNode = actorMetricNamespace?.loadChildren?.().find((node) => node.id === "creature:actorMetrics:save.best");
-    const actorMetricValueNode = actorMetricNode?.loadChildren?.().find((node) => node.id === "creature:actorMetrics:save.best:fort");
+    const actorMetricNode = actorMetricNamespace
+      ?.loadChildren?.()
+      .find((node) => node.id === "creature:actorMetrics:save.best");
+    const actorMetricValueNode = actorMetricNode
+      ?.loadChildren?.()
+      .find((node) => node.id === "creature:actorMetrics:save.best:fort");
     const commonTraitNode = findNodeById(domain.rootNodes, "spell:commonTraits")?.children?.[0];
-    const saveTypeValueNode =
-      findNodeById(domain.rootNodes, "spell:field:saveType")?.loadChildren?.().find((node) => node.id === "spell:saveType:fortitude");
-    const publicationTitleValueNode =
-      findNodeById(domain.rootNodes, "spell:field:publicationTitle")
-        ?.loadChildren?.()
-        .find((node) => node.id === "spell:publicationTitle:Pathfinder Rage of Elements");
+    const saveTypeValueNode = findNodeById(domain.rootNodes, "spell:field:saveType")
+      ?.loadChildren?.()
+      .find((node) => node.id === "spell:saveType:fortitude");
+    const publicationTitleValueNode = findNodeById(domain.rootNodes, "spell:field:publicationTitle")
+      ?.loadChildren?.()
+      .find((node) => node.id === "spell:publicationTitle:Pathfinder Rage of Elements");
 
     expect(findNodeById(domain.rootNodes, "equipment:example:0")).toBeUndefined();
     expect(findNodeById(domain.rootNodes, "equipment:examples")).toBeUndefined();

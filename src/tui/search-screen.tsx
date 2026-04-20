@@ -81,7 +81,9 @@ export function SearchScreen({
           session.helpBody ?? [
             { text: "Use this editor to stage structured search changes before committing them.", tone: "section" },
             { text: "The right pane keeps the full staged query summary visible while you move focus on the left." },
-            { text: "Open a row to edit it, then continue staging more changes or finish when the draft looks correct." },
+            {
+              text: "Open a row to edit it, then continue staging more changes or finish when the draft looks correct.",
+            },
           ]
         }
         buildDetailLines={() => buildSearchStructuredEditorDetailLines(session)}

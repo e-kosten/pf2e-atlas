@@ -14,10 +14,7 @@ export {
   SPELL_DERIVED_TAG_ONTOLOGY,
 };
 
-export const DERIVED_TAG_ONTOLOGY_BY_CATEGORY: Record<
-  DerivedTagManagedCategory,
-  DerivedTagAuthoredCategoryOntology
-> = {
+export const DERIVED_TAG_ONTOLOGY_BY_CATEGORY: Record<DerivedTagManagedCategory, DerivedTagAuthoredCategoryOntology> = {
   affliction: AFFLICTION_DERIVED_TAG_ONTOLOGY,
   creature: CREATURE_DERIVED_TAG_ONTOLOGY,
   equipment: EQUIPMENT_DERIVED_TAG_ONTOLOGY,

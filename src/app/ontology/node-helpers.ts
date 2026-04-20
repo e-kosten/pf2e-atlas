@@ -1,10 +1,13 @@
-import type { MetadataFilterNode, NormalizedRecord, OntologyNode, OntologyTextLine, SearchFilters } from "../../types.js";
+import type {
+  MetadataFilterNode,
+  NormalizedRecord,
+  OntologyNode,
+  OntologyTextLine,
+  SearchFilters,
+} from "../../types.js";
 import { normalizeText } from "../../utils.js";
 import { mapNormalizedRecordToOntologyExplorerEntityRecord } from "./entity-record.js";
-import {
-  buildOntologyExplorerEntityDetailLines,
-  buildOntologyExplorerEntitySummary,
-} from "./presenter.js";
+import { buildOntologyExplorerEntityDetailLines, buildOntologyExplorerEntitySummary } from "./presenter.js";
 
 const loadedOntologyChildren = new WeakMap<OntologyNode, readonly OntologyNode[]>();
 
@@ -70,9 +73,7 @@ export function cloneOntologyNode(node: OntologyNode, idPrefix?: string): Ontolo
     childPresentation: node.childPresentation ? { ...node.childPresentation } : undefined,
     groupValues: node.groupValues ? { ...node.groupValues } : undefined,
     query: node.query ? { ...node.query, filters: cloneSearchFilters(node.query.filters) } : undefined,
-    selection: node.selection
-      ? { ...node.selection, allowedStates: [...node.selection.allowedStates] }
-      : undefined,
+    selection: node.selection ? { ...node.selection, allowedStates: [...node.selection.allowedStates] } : undefined,
   };
 }
 

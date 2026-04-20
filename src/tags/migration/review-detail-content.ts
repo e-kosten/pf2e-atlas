@@ -2,9 +2,7 @@ import { buildOntologyExplorerEntityDetailLines } from "../../app/ontology/prese
 import type { OntologyTextLine } from "../../types.js";
 import type { DerivedTagMigrationSessionRecord } from "./types.js";
 
-export function buildDerivedTagMigrationRecordPageLines(
-  record: DerivedTagMigrationSessionRecord,
-): OntologyTextLine[] {
+export function buildDerivedTagMigrationRecordPageLines(record: DerivedTagMigrationSessionRecord): OntologyTextLine[] {
   return buildOntologyExplorerEntityDetailLines(record.entityRecord, { includeHeader: false });
 }
 

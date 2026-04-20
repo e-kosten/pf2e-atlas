@@ -87,10 +87,7 @@ export type {
   Pf2eTerminalQueryPartPolicy,
 } from "./search-query-parts.js";
 
-function createSessionFromResult(
-  query: Pf2eTerminalSearchQuery,
-  result: SearchWindowPage,
-): Pf2eTerminalSearchSession {
+function createSessionFromResult(query: Pf2eTerminalSearchQuery, result: SearchWindowPage): Pf2eTerminalSearchSession {
   const sessionQuery =
     result.limit === query.limit
       ? query

@@ -335,9 +335,7 @@ function buildExemplarCleanupWorkset(
   options: DerivedTagMigrationSessionCreateOptions,
 ): DerivedTagMigrationSession {
   const state = getCurrentDerivedTagMigrationAuthoredState();
-  const categories = options.category
-    ? [toManagedCategory(options.category)]
-    : [...DERIVED_TAG_MANAGED_CATEGORIES];
+  const categories = options.category ? [toManagedCategory(options.category)] : [...DERIVED_TAG_MANAGED_CATEGORIES];
   type ExemplarSet = (typeof state.exemplars)[DerivedTagManagedCategory]["exemplars"][number];
   const tagsToReview = categories.flatMap((category) =>
     state.exemplars[category].exemplars

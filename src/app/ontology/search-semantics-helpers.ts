@@ -375,7 +375,9 @@ function buildMetricNamespaceNode(
       { text: `Category: ${category}` },
       { text: `Subcategory: ${subcategory ?? "(all)"}` },
       { text: `Metric field: ${metricField}` },
-      { text: "Drill in to browse live metric keys, then inspect exact scalar values where the backend can enumerate them." },
+      {
+        text: "Drill in to browse live metric keys, then inspect exact scalar values where the backend can enumerate them.",
+      },
     ],
     loadChildren: () =>
       dataService

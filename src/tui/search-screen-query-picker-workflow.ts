@@ -36,7 +36,9 @@ export function useSearchQueryFieldPickerWorkflow({
   }) => Promise<boolean>;
   closeQueryFieldPicker: () => void;
 } {
-  const [selectionPickerSession, setSelectionPickerSession] = React.useState<SearchQueryFieldPickerSession | null>(null);
+  const [selectionPickerSession, setSelectionPickerSession] = React.useState<SearchQueryFieldPickerSession | null>(
+    null,
+  );
 
   const openQueryFieldPicker = React.useCallback(
     async ({

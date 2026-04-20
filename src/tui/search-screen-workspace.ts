@@ -66,7 +66,9 @@ export function formatSearchScope(category: SearchCategory | null, subcategory: 
   if (!category) {
     return "Any Category";
   }
-  return subcategory ? `${formatSearchCategory(category)} / ${formatSearchSubcategory(subcategory)}` : formatSearchCategory(category);
+  return subcategory
+    ? `${formatSearchCategory(category)} / ${formatSearchSubcategory(subcategory)}`
+    : formatSearchCategory(category);
 }
 
 export function formatMode(mode: Pf2eTerminalSearchMode): string {
@@ -148,9 +150,7 @@ export function decodeQueryNodeActionPath(action: SearchWorkspaceAction): number
   return path.length > 0 ? path : null;
 }
 
-function buildMetadataWorkspaceEntries(
-  node: MetadataFilterNode,
-): SearchWorkspaceEntry[] {
+function buildMetadataWorkspaceEntries(node: MetadataFilterNode): SearchWorkspaceEntry[] {
   return flattenMetadataTree(node, { rootLabel: "query" }).map((entry) => ({
     action: `queryNode:${encodeQueryNodePath(entry.path)}`,
     label: entry.summary.label,
@@ -479,7 +479,9 @@ export function buildQuerySummaryLines(
     { text: `Query: ${state.query.queryText || "(none)"}` },
     { text: `Category: ${formatSearchCategory(state.query.filters.category)}` },
     ...(subcategory ? [{ text: `Subcategory: ${formatSearchSubcategory(subcategory)}` }] : []),
-    ...(levelRange.levelMin !== null || levelRange.levelMax !== null ? [{ text: `Level Range: ${formatLevelRange(state.query)}` }] : []),
+    ...(levelRange.levelMin !== null || levelRange.levelMax !== null
+      ? [{ text: `Level Range: ${formatLevelRange(state.query)}` }]
+      : []),
     ...(hasFilterPolicy(rarityPolicy) ? [{ text: `Rarity: ${formatFilterPolicy(rarityPolicy)}` }] : []),
     ...(shouldShowActionCostQueryPart(state.query)
       ? [{ text: `Action Cost: ${formatFilterPolicy(actionCostPolicy)}` as const }]

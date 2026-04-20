@@ -191,33 +191,34 @@ const actorMetricComparePredicateSchema = buildMetricComparePredicateSchema(ACTO
 const itemMetricPredicateSchema = buildMetricValuePredicateSchema(ITEM_METRIC_PREDICATE_SPEC);
 const itemMetricComparePredicateSchema = buildMetricComparePredicateSchema(ITEM_METRIC_COMPARE_PREDICATE_SPEC);
 
-export const metadataFilterSchema: z.ZodType<MetadataFilterNode> = z.lazy(() =>
-  z.union([
-    metadataSetPredicateSchema,
-    metadataEnumStringPredicateSchema,
-    metadataTextStringPredicateSchema,
-    metadataNumberPredicateSchema,
-    metadataBooleanPredicateSchema,
-    actorMetricPredicateSchema,
-    actorMetricComparePredicateSchema,
-    itemMetricPredicateSchema,
-    itemMetricComparePredicateSchema,
-    z
-      .object({
-        and: z.array(metadataFilterSchema).min(2),
-      })
-      .strict(),
-    z
-      .object({
-        or: z.array(metadataFilterSchema).min(2),
-      })
-      .strict(),
-    z
-      .object({
-        not: metadataFilterSchema,
-      })
-      .strict(),
-  ]) as z.ZodType<MetadataFilterNode>,
+export const metadataFilterSchema: z.ZodType<MetadataFilterNode> = z.lazy(
+  () =>
+    z.union([
+      metadataSetPredicateSchema,
+      metadataEnumStringPredicateSchema,
+      metadataTextStringPredicateSchema,
+      metadataNumberPredicateSchema,
+      metadataBooleanPredicateSchema,
+      actorMetricPredicateSchema,
+      actorMetricComparePredicateSchema,
+      itemMetricPredicateSchema,
+      itemMetricComparePredicateSchema,
+      z
+        .object({
+          and: z.array(metadataFilterSchema).min(2),
+        })
+        .strict(),
+      z
+        .object({
+          or: z.array(metadataFilterSchema).min(2),
+        })
+        .strict(),
+      z
+        .object({
+          not: metadataFilterSchema,
+        })
+        .strict(),
+    ]) as z.ZodType<MetadataFilterNode>,
 );
 
 export const filterValueFieldSchema: z.ZodType<FilterValueField> = z.enum(FILTER_VALUE_FIELDS);
