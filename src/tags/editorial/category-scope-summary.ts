@@ -2,7 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 
 import type { SearchCategory } from "../../domain/index.js";
 import { DERIVED_TAG_MANAGED_CATEGORIES, expectDerivedTagManagedCategory } from "../manifest.js";
-import { listDerivedTagLegacySeedMigrations } from "../index.js";
+import { listDerivedTagLegacySeedMigrations } from "../runtime/index.js";
 import { getCurrentDerivedTagMigrationAuthoredState } from "./authored-state.js";
 import { loadDerivedTagMigrationRecords } from "./record-loader.js";
 import { deriveCurrentTagSources, summarizeCurrentDerivedTagReviewQueue } from "./runtime-state.js";

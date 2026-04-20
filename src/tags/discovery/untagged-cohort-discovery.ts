@@ -2,7 +2,8 @@ import { DatabaseSync } from "node:sqlite";
 
 import { SearchCategory, SearchSubcategory } from "../../domain/index.js";
 import { uniqueSorted } from "../../shared/utils.js";
-import { getDerivedTagFamilyTags, normalizeDerivedTag } from "../index.js";
+import { getDerivedTagFamilyTags } from "../runtime/index.js";
+import { normalizeDerivedTag } from "../runtime/shared.js";
 import {
   getReviewedDiscoverySelection,
   summarizeReviewedDiscoverySelection,

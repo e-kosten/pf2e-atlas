@@ -2,7 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 
 import { normalizeSearchCategory } from "../../domain/categories.js";
 import type { SearchCategory, SearchSubcategory } from "../../domain/index.js";
-import { normalizeDerivedTag } from "../index.js";
+import { normalizeDerivedTag } from "../runtime/shared.js";
 import { parseInteger } from "./cli-utils.js";
 import { getActionableSessionScopeKeys } from "./actionable-session-scope.js";
 import { summarizeDerivedTagCategoryScopes } from "./category-scope-summary.js";
