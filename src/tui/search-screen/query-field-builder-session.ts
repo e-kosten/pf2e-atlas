@@ -110,7 +110,7 @@ function getSearchStructuredEditorNotes(session: SearchStructuredEditorSession):
     { text: "Use this editor to stage structured search changes before committing them.", tone: "section" },
     { text: "The right pane keeps the full staged query summary visible while you move focus on the left." },
     {
-      text: "Open a row to edit it, then continue staging more changes or finish when the draft looks correct.",
+      text: "Open a row to edit it, then continue staging more changes or finish when the staged query looks correct.",
     },
   ];
 }
@@ -233,11 +233,11 @@ function buildLegacyFieldFocusLines(
 
   if (node) {
     lines.push({ text: "" });
-    lines.push({ text: "Current field draft", tone: "section" });
+    lines.push({ text: "Current staged field", tone: "section" });
     lines.push(...buildLegacyMetadataNodeLines(node, 2));
   } else {
     lines.push({ text: "" });
-    lines.push({ text: "No staged draft for this field yet.", tone: "dim" });
+    lines.push({ text: "No staged field selection for this field yet.", tone: "dim" });
   }
 
   lines.push({ text: "" });
@@ -267,13 +267,13 @@ function buildCompatibilityFocusedDetailLines(
     return [
       { text: "Focused Entry", tone: "section" },
       { text: "Finish staged changes", tone: "accent" },
-      { text: "Apply the full staged structured draft to the live query and return to the editor." },
+      { text: "Apply the full staged structured query to the live query and return to the editor." },
     ];
   }
   return [
     { text: "Focused Entry", tone: "section" },
     { text: "Cancel staged changes", tone: "warning" },
-    { text: "Discard the staged structured draft and return to the editor." },
+    { text: "Discard the staged structured query and return to the editor." },
   ];
 }
 

@@ -61,6 +61,15 @@ function isLiteralString(node, value) {
   return node?.type === "Literal" && node.value === value;
 }
 
+function isImportLikeNode(node) {
+  return (
+    node?.type === "ImportDeclaration" ||
+    node?.type === "ExportAllDeclaration" ||
+    node?.type === "ExportNamedDeclaration" ||
+    node?.type === "ImportExpression"
+  );
+}
+
 function isTerminalInputActionComparison(node, propertyName, literalValue) {
   if (!["==", "===", "!=", "!=="].includes(node.operator)) {
     return false;
@@ -288,6 +297,52 @@ const localRules = {
           if (isMemberProperty(node.callee, "isTerminalQuitKey")) {
             context.report({ node, messageId: "noDirectQuitHandling" });
           }
+        },
+      };
+    },
+  },
+  "no-stale-search-screen-terminology": {
+    meta: {
+      type: "problem",
+      docs: {
+        description:
+          "Ban stale user-facing search-screen terminology so product copy stays aligned with the final query/editor model.",
+      },
+      schema: [],
+      messages: {
+        noStaleSearchTerminology:
+          "Search screen terminology is query/editor or staged query, not draft/setup. Keep the final user-facing naming consistent in this feature.",
+      },
+    },
+    create(context) {
+      const filename = toRepoRelativePath(context.filename);
+      if (!filename.startsWith("src/tui/search-screen/")) {
+        return {};
+      }
+
+      const reportIfStaleCopy = (node, value) => {
+        if (typeof value !== "string") {
+          return;
+        }
+        if (isImportLikeNode(node.parent)) {
+          return;
+        }
+        const normalized = value.toLowerCase();
+        if (
+          normalized.includes("draft") ||
+          normalized.includes("setup") ||
+          normalized.includes("opensetup")
+        ) {
+          context.report({ node, messageId: "noStaleSearchTerminology" });
+        }
+      };
+
+      return {
+        Literal(node) {
+          reportIfStaleCopy(node, node.value);
+        },
+        TemplateElement(node) {
+          reportIfStaleCopy(node, node.value?.cooked);
         },
       };
     },

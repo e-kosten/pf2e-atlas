@@ -40,6 +40,39 @@ async function expectNoRuleMessages(filePath: string, code: string, ruleId = "no
 }
 
 describe("eslint local architecture rules", () => {
+  it("blocks stale user-facing search-screen terminology but allows internal import paths", () => {
+    ruleTester.run("no-stale-search-screen-terminology", getLocalRule("no-stale-search-screen-terminology"), {
+      valid: [
+        {
+          filename: "src/tui/search-screen/controller.ts",
+          code: `
+            import { buildStructuredDraftEntries } from "./structured-draft-support.js";
+            const message = "Apply the staged query and return to the live editor.";
+            export { buildStructuredDraftEntries, message };
+          `,
+        },
+      ],
+      invalid: [
+        {
+          filename: "src/tui/search-screen/controller.ts",
+          code: `
+            const message = "Commit draft";
+            export { message };
+          `,
+          errors: [{ messageId: "noStaleSearchTerminology" }],
+        },
+        {
+          filename: "src/tui/search-screen/controller.ts",
+          code: `
+            const message = \`Open the setup editor first.\`;
+            export { message };
+          `,
+          errors: [{ messageId: "noStaleSearchTerminology" }],
+        },
+      ],
+    });
+  });
+
   it("blocks direct terminal event routing in feature code", () => {
     ruleTester.run("no-direct-terminal-event-routing", getLocalRule("no-direct-terminal-event-routing"), {
       valid: [
@@ -487,7 +520,7 @@ describe("eslint local architecture rules", () => {
 
     await expectNoRuleMessages(
       "src/tags/editorial/ui/workbench-controller.ts",
-      'async function run() { await promptDerivedTagMigrationWorkbenchSessionOptions(terminal, db, mode); }\nexport { run };\n',
+      'async function run() { await promptDerivedTagMigrationWorkbenchSessionOptions(prompts, db, mode); }\nexport { run };\n',
       "no-restricted-syntax",
     );
   });

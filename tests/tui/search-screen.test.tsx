@@ -544,7 +544,7 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("[RESULTS] 1/1 | Buf 1 | Ranked");
     expect(app.lastFrame()).toContain("Alarm Ward | spell | lvl 1");
     expect(app.lastFrame()).toContain("Preview | Alarm Ward");
-    expect(app.lastFrame()).not.toContain("Left draft");
+    expect(app.lastFrame()).not.toContain("Left staged");
 
     pressRight(app);
     await flushInk();

@@ -116,14 +116,14 @@ export function buildStructuredDraftEntries(
       kind: "finish",
       key: "finish",
       label: "Apply Structured Edit",
-      value: "Commit draft",
+      value: "Apply staged query",
       description: "Commit the staged structured query back into the live editor.",
     },
     {
       kind: "cancel",
       key: "cancel",
       label: "Discard Structured Edit",
-      value: "Discard draft",
+      value: "Discard staged query",
       description: "Discard the staged structured query and keep the live query unchanged.",
     },
   );

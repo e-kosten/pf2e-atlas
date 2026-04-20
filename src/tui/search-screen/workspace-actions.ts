@@ -609,7 +609,7 @@ export function useSearchWorkspaceActions({
       cancel: returnQueryFieldBuilder,
       helpTitle: "Add Query Part Help",
       helpBody: [
-        { text: "Choose the next query field to stage into the structured draft.", tone: "section" },
+        { text: "Choose the next query field to stage into the structured query.", tone: "section" },
         {
           text: "The right pane keeps the full staged query summary visible while you move between fields.",
         },
@@ -943,13 +943,13 @@ export function useSearchWorkspaceActions({
       if (isMetadataPredicate(node)) {
         const scopedFields = user.search.getQueryFieldOptions(queryCategory, querySubcategory);
         const fieldOption = scopedFields.find((candidate) => candidate.value === node.field) ?? null;
-        const actionEntries = [
-          ...(fieldOption
-            ? [{ value: "edit", label: "Edit Clause", description: "Change the field operator or value." }]
-            : []),
-          { value: "wrapNot", label: "Wrap In NOT", description: "Negate this clause without changing its content." },
-          { value: "remove", label: "Remove Clause", description: "Delete this clause from the draft query." },
-        ];
+          const actionEntries = [
+            ...(fieldOption
+              ? [{ value: "edit", label: "Edit Clause", description: "Change the field operator or value." }]
+              : []),
+            { value: "wrapNot", label: "Wrap In NOT", description: "Negate this clause without changing its content." },
+          { value: "remove", label: "Remove Clause", description: "Delete this clause from the staged query." },
+          ];
         const result = await prompts.promptSelectOption({
           title: "Query Clause",
           prompt: "Choose how to update this staged query clause",
@@ -1060,7 +1060,7 @@ export function useSearchWorkspaceActions({
               ? "Require any child instead of every child."
               : "Require every child instead of any child.",
           },
-          { value: "remove", label: "Remove Group", description: "Delete this logic group from the draft query." },
+          { value: "remove", label: "Remove Group", description: "Delete this logic group from the staged query." },
         ],
         selectedValue: "addClause",
       });

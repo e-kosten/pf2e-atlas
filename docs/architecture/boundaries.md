@@ -204,7 +204,7 @@ Within that subsystem, the current ownership split is:
 - `src/tags/editorial/state/`, `sessions/`, `writeback/`, and `ui/` own the editorial execution path
 - `src/tags/cli/discovery/`, `evaluation/`, `editorial/`, and `shared/` own grouped offline entrypoints
 
-Within `src/tags/editorial/ui/`, `workbench-session-prompts.ts` owns terminal prompt calls for workbench session creation. `workbench-controller.ts` should delegate to that seam instead of calling `terminal.prompt*` or `terminal.showDialog` directly.
+Within `src/tags/editorial/ui/`, `workbench-session-prompts.ts` owns the prompt-adapter seam for workbench session creation. `workbench-controller.ts` should delegate to that seam instead of depending on `terminal.prompt*`, `terminal.showDialog`, or the raw terminal surface directly.
 
 Top-level files such as `src/tags/runtime/index.ts` and `src/tags/editorial/session-builder.ts` remain useful compatibility re-exports, but they are not the primary architectural owners and should not be the default targets for new documentation or internal routing.
 

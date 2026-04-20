@@ -141,24 +141,6 @@ const SERVER_STORAGE_INTERNAL_IMPORT_RESTRICTIONS = {
   ],
 };
 
-const SEARCH_SCREEN_TERMINOLOGY_RESTRICTIONS = [
-  {
-    selector: 'Literal[value="draft"]',
-    message:
-      "Search screen terminology is query/editor, not draft. Keep the final editor/query naming consistent in this feature.",
-  },
-  {
-    selector: 'Literal[value="setup"]',
-    message:
-      "Search screen terminology is query/editor, not setup. Keep the final editor/query naming consistent in this feature.",
-  },
-  {
-    selector: 'Literal[value="openSetup"]',
-    message:
-      "Search result commands must route back through the query editor using final editor/query naming, not setup wording.",
-  },
-];
-
 const SEARCH_SCREEN_CONTROLLER_SYNTAX_RESTRICTIONS = [
   {
     selector: 'CallExpression[callee.type="MemberExpression"][callee.property.name="showDialog"]',
@@ -683,20 +665,20 @@ export default defineConfig(
   {
     files: ["src/tui/search-screen/controller.ts"],
     rules: {
+      "arch/no-stale-search-screen-terminology": "error",
       "no-restricted-syntax": [
         "error",
         ...SEARCH_SCREEN_CONTROLLER_SYNTAX_RESTRICTIONS,
-        ...SEARCH_SCREEN_TERMINOLOGY_RESTRICTIONS,
       ],
     },
   },
   {
     files: ["src/tui/search-screen/session-workflow.ts", "src/tui/search-screen/workspace-actions.ts"],
     rules: {
+      "arch/no-stale-search-screen-terminology": "error",
       "no-restricted-syntax": [
         "error",
         ...SEARCH_WORKFLOW_PROMPT_BOUNDARY_RESTRICTIONS,
-        ...SEARCH_SCREEN_TERMINOLOGY_RESTRICTIONS,
       ],
     },
   },
@@ -950,7 +932,7 @@ export default defineConfig(
       "src/tui/search-screen/workspace-actions.ts",
     ],
     rules: {
-      "no-restricted-syntax": ["error", ...SEARCH_SCREEN_TERMINOLOGY_RESTRICTIONS],
+      "arch/no-stale-search-screen-terminology": "error",
     },
   },
   {

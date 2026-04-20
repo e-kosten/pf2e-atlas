@@ -398,8 +398,8 @@ function CommandPaletteHarness(): React.JSX.Element {
           { value: "mode", label: "Mode", description: "Choose the search mode.", aliases: ["m"] },
           {
             value: "facet",
-            label: "Edit Facet Filter",
-            description: "Edit ontology-backed facet filters.",
+            label: "Edit Query Field",
+            description: "Edit ontology-backed query field selections.",
             aliases: ["f"],
           },
         ],
@@ -811,7 +811,7 @@ describe("derived tag terminal ink runtime", () => {
     app.stdin.write("f");
     await flushInkFrames();
     expect(app.lastFrame()).toContain("Filter: f");
-    expect(app.lastFrame()).toContain("Edit Facet Filter");
+    expect(app.lastFrame()).toContain("Edit Query Field");
 
     app.stdin.write("\r");
     await flushInkFrames();

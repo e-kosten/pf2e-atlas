@@ -224,7 +224,7 @@ Writeback consumes the session output from `editorial/sessions/` and the mutable
 Owns the interactive review/workbench surface:
 
 - `workbench-controller.ts` opens indexes, builds sessions, and writes scratch artifacts for the TUI workbench
-- `workbench-session-prompts.ts` owns session-creation prompt flows and is the only editorial workbench module that should call terminal prompt APIs directly
+- `workbench-session-prompts.ts` owns the session-creation prompt-adapter seam and is the only editorial workbench module that should depend directly on the TUI prompt-adapter contract
 - `review-controller.ts` coordinates persist/import actions by calling session-store and writeback services
 - `review-ui-controller.ts`, `review-screen-model.ts`, `review-screen-state.ts`, and `review-ui.tsx` own the review screen behavior
 
