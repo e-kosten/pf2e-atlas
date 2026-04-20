@@ -307,6 +307,5 @@ export function createDerivedTagTerminalInputEvent(input: string, key: Key): Der
     isTerminalJumpForwardKey: () => normalized === "ctrl_d",
     isTerminalQuitKey: () => normalized === "q",
     getCycleDirection: () => (normalized === "enter" || normalized === "space" ? 1 : undefined),
-    getReverseCycleDirection: () => undefined,
   };
 }

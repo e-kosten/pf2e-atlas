@@ -7,7 +7,6 @@ import {
   type TerminalInteractionAction,
 } from "../interaction-bindings.js";
 import {
-  buildMergedReturnHelpLine,
   createMergedReturnFooterBinding,
   createSharedReturnInteractionActions,
 } from "../shell-navigation-copy.js";
@@ -31,10 +30,13 @@ function buildOntologyDomainPickerHelpLines(): DerivedTagTerminalLine[] {
     },
     {
       title: "Actions",
-      lines: [
-        { text: "Enter / \u2192 or l: open the selected domain" },
-        { text: "?: show this help" },
-        buildMergedReturnHelpLine("return to the previous area"),
+      actions: [
+        { id: "select", helpText: "open the selected domain" },
+        { id: "help", helpText: "show this help" },
+        ...createSharedReturnInteractionActions().map((action) => ({
+          ...action,
+          helpText: "return to the previous area",
+        })),
       ],
     },
     {

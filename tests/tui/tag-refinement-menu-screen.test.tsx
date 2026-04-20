@@ -115,6 +115,7 @@ describe("tag refinement menu screen", () => {
     app.stdin.write("?");
     await flushInk();
 
-    expect(app.lastFrame()).toContain("Escape / q / \u2190 or h / Backspace: return to the top level");
+    expect(app.lastFrame()).toContain("\u2190 or h / Backspace / Escape: return to the top level");
+    expect(app.lastFrame()).toContain("q: return to the top level");
   });
 });

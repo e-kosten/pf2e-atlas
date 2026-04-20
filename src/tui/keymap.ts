@@ -51,10 +51,6 @@ export function getCycleDirection(normalizedKey: string): TerminalCycleDirection
   return undefined;
 }
 
-export function getReverseCycleDirection(_normalizedKey: string): TerminalCycleDirection | undefined {
-  return undefined;
-}
-
 export function isHelpKey(normalizedKey: string): boolean {
   return normalizedKey === "?";
 }

@@ -1,7 +1,6 @@
 import type {
   TerminalFooterBinding,
   TerminalInteractionAction,
-  TerminalInteractionLine,
 } from "./interaction-bindings.js";
 
 export function createSharedReturnInteractionActions(label = "return"): TerminalInteractionAction[] {
@@ -17,11 +16,5 @@ export function createMergedReturnFooterBinding(label = "return"): TerminalFoote
     label,
     actions: createSharedReturnInteractionActions(),
     keyStyle: "expanded",
-  };
-}
-
-export function buildMergedReturnHelpLine(helpText: string): TerminalInteractionLine {
-  return {
-    text: `Escape / q / \u2190 or h / Backspace: ${helpText}`,
   };
 }

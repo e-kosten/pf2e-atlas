@@ -465,7 +465,8 @@ describe("pf2e terminal app", () => {
     app.stdin.write("?");
     await flushInk();
 
-    expect(app.lastFrame()).toContain("Escape / q / \u2190 or h / Backspace: return to the previous area");
+    expect(app.lastFrame()).toContain("\u2190 or h / Backspace / Escape: return to the previous area");
+    expect(app.lastFrame()).toContain("q: return to the previous area");
   });
 
   it("opens the selected top-level area with right-arrow style confirm", async () => {

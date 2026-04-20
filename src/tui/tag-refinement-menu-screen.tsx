@@ -12,7 +12,6 @@ import {
   type TerminalInteractionAction,
 } from "./interaction-bindings.js";
 import {
-  buildMergedReturnHelpLine,
   createMergedReturnFooterBinding,
   createSharedReturnInteractionActions,
 } from "./shell-navigation-copy.js";
@@ -139,11 +138,14 @@ function buildTagRefinementHelpLines(
       },
       {
         title: "Actions",
-        lines: [
-          { text: "Enter / \u2192 or l: open the selected row" },
-          { text: ": focus the tag-refinement actions rail" },
-          { text: "?: show this help" },
-          buildMergedReturnHelpLine("return to the top level"),
+        actions: [
+          { id: "select", helpText: "open the selected row" },
+          { id: "actions", helpText: "focus the tag-refinement actions rail" },
+          { id: "help", helpText: "show this help" },
+          ...createSharedReturnInteractionActions("top level").map((action) => ({
+            ...action,
+            helpText: "return to the top level",
+          })),
         ],
       },
     ]),

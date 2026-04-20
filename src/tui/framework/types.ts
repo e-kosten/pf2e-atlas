@@ -80,7 +80,6 @@ export type DerivedTagTerminalInputEvent = {
   isTerminalJumpForwardKey: () => boolean;
   isTerminalQuitKey: () => boolean;
   getCycleDirection: () => 1 | -1 | undefined;
-  getReverseCycleDirection: () => 1 | -1 | undefined;
 };
 
 export type DerivedTagTerminalTextScreenProps = {
