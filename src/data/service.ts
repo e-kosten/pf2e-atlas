@@ -10,7 +10,7 @@ import {
   normalizeSearchCategory,
   normalizeSearchSubcategory,
 } from "../domain/categories.js";
-import { NormalizedSearchFilters } from "./service-types.js";
+import type { NormalizedSearchFilters, RuntimeSearchDependencies, SearchCandidate } from "../search/contracts.js";
 import { DEFAULT_RANKING_CONFIG, RankingConfigStore } from "../search/ranking-config.js";
 import { normalizeMetadataFilterNode } from "../search/metadata-filters.js";
 import {
@@ -575,28 +575,44 @@ export class Pf2eDataService {
     });
   }
 
-  private runtimeSearchDependencies() {
-    return {
+  private runtimeSearchDependencies(): RuntimeSearchDependencies {
+    const toSearchCandidate = (searchText: string | null | undefined = null) => (row: ReturnType<typeof fetchCandidates>[number]): SearchCandidate => ({
+      record: this.decorateRecord(rowToRecord(row)),
+      searchText,
+    });
+
+    const toSearchCandidateFromRow = (row: ReturnType<typeof fetchCandidates>[number]): SearchCandidate => ({
+      record: this.decorateRecord(rowToRecord(row)),
+      searchText: row.searchText,
+    });
+
+    const mapCandidates = (
+      rows: ReturnType<typeof fetchCandidates>,
+      includeSearchText: boolean,
+    ): SearchCandidate[] => rows.map(includeSearchText ? toSearchCandidateFromRow : toSearchCandidate());
+
+    const dependencies: RuntimeSearchDependencies = {
       embeddingProvider: this.embeddingProvider,
       rankingConfig: this.rankingConfigStore?.getConfig() ?? DEFAULT_RANKING_CONFIG,
       rankingConfigStatus: this.getRankingConfigStatus(),
-      decorateRecord: (record: NormalizedRecord) => this.decorateRecord(record),
       fetchCandidateCount: (filters: NormalizedSearchFilters, options: { recordKeys?: string[] } = {}) =>
         fetchCandidateCount(this.db, filters, options),
       fetchPagedCandidates: (filters: NormalizedSearchFilters, sort: SearchSort, offset: number, limit: number) =>
-        fetchPagedCandidates(this.db, filters, sort, offset, limit),
+        fetchPagedCandidates(this.db, filters, sort, offset, limit).map(toSearchCandidate()),
       getAliases: (recordKey: string) => this.aliasesByRecordKey.get(recordKey) ?? [],
       fetchCandidates: (
         filters: NormalizedSearchFilters,
         includeSearchText = false,
         includeEmbedding = false,
         options: { recordKeys?: string[] } = {},
-      ) => fetchCandidates(this.db, filters, includeSearchText, includeEmbedding, options),
+      ) => mapCandidates(fetchCandidates(this.db, filters, includeSearchText, includeEmbedding, options), includeSearchText),
       fetchLexicalRetrievalRows: (filters: NormalizedSearchFilters, ftsQuery: string, limit: number) =>
         fetchLexicalRetrievalRows(this.db, filters, ftsQuery, limit),
       fetchSemanticRetrievalRows: (filters: NormalizedSearchFilters, queryVector: Float32Array, limit: number) =>
         fetchSemanticRetrievalRows(this.db, filters, queryVector, limit),
     };
+
+    return dependencies;
   }
 
   private createSearchWindowId(): string {

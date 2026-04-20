@@ -10,7 +10,7 @@ import {
   buildLexicalRetrievalQuery,
   buildSemanticRetrievalQuery,
 } from "../search/sql.js";
-import type { NormalizedSearchFilters } from "./service-types.js";
+import type { NormalizedSearchFilters } from "../search/contracts.js";
 import { buildPlaceholders, CandidateRow, ReferenceEdgeRow, sqliteRowCount } from "./rows.js";
 import type { LexicalRetrievalRow, SemanticRetrievalRow } from "../search/ranking.js";
 import type { SearchSort } from "../types.js";

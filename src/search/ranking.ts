@@ -1,4 +1,4 @@
-import type { buildLiteralQueryWeights } from "../search-query-analysis.js";
+import type { buildLiteralQueryWeights } from "./query-analysis.js";
 import {
   NormalizedRecord,
   SearchExplainResult,

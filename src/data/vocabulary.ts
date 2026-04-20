@@ -14,7 +14,7 @@ import type {
 } from "../types.js";
 import { buildFilterValueQuery } from "../search/sql.js";
 import { normalizeText } from "../utils.js";
-import type { NormalizedSearchFilters } from "./service-types.js";
+import type { NormalizedSearchFilters } from "../search/contracts.js";
 import type { ValueCountRow } from "./rows.js";
 import {
   parseSearchCategoryValue,

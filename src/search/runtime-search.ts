@@ -1,5 +1,4 @@
-import type { EmbeddingProvider } from "../embeddings.js";
-import { buildLiteralQueryWeights, buildSearchQueryAnalysis } from "../search-query-analysis.js";
+import { buildLiteralQueryWeights, buildSearchQueryAnalysis } from "./query-analysis.js";
 import { recordMatchesFilters, semanticQueryLimit } from "./sql.js";
 import {
   buildFusionConfigSummary,
@@ -9,14 +8,12 @@ import {
   buildRerankAdjustments,
   compareOptionalRanks,
   computeWeightedRrfScore,
-  LexicalRetrievalRow,
   packQualityScore,
   rarityPreferenceScore,
   resolveHybridFusionProfile,
   resolveSearchMode,
   resolveSearchProfile,
   scoreNameCandidate,
-  SemanticRetrievalRow,
   sourcePenaltyScore,
   sourceQualityScore,
   sumRerankAdjustments,
@@ -33,10 +30,7 @@ import {
   SearchSort,
 } from "../types.js";
 import { clampLimit, clampOffset, normalizeText } from "../utils.js";
-import type { RankingConfig } from "./ranking-config.js";
-import type { NormalizedSearchFilters } from "../data/service-types.js";
-import type { CandidateRow } from "../data/rows.js";
-import { rowToRecord } from "../data/rows.js";
+import type { NormalizedSearchFilters, RuntimeSearchDependencies } from "./contracts.js";
 
 const LOOKUP_LEXICAL_TOP_K = 100;
 
@@ -139,37 +133,6 @@ function matchesExcludedQuery(searchText: string | null | undefined, excludedTok
   return excludedTokens.some((token) => searchTokens.has(token));
 }
 
-type RuntimeSearchDependencies = {
-  embeddingProvider: EmbeddingProvider;
-  rankingConfig: RankingConfig;
-  rankingConfigStatus: SearchExplainResult["rankingConfig"];
-  decorateRecord: (record: NormalizedRecord) => NormalizedRecord;
-  fetchCandidateCount: (filters: NormalizedSearchFilters, options?: { recordKeys?: string[] }) => number;
-  fetchPagedCandidates: (
-    filters: NormalizedSearchFilters,
-    sort: SearchSort,
-    offset: number,
-    limit: number,
-  ) => CandidateRow[];
-  getAliases: (recordKey: string) => string[];
-  fetchCandidates: (
-    filters: NormalizedSearchFilters,
-    includeSearchText?: boolean,
-    includeEmbedding?: boolean,
-    options?: { recordKeys?: string[] },
-  ) => CandidateRow[];
-  fetchLexicalRetrievalRows: (
-    filters: NormalizedSearchFilters,
-    ftsQuery: string,
-    limit: number,
-  ) => LexicalRetrievalRow[];
-  fetchSemanticRetrievalRows: (
-    filters: NormalizedSearchFilters,
-    queryVector: Float32Array,
-    limit: number,
-  ) => SemanticRetrievalRow[];
-};
-
 type SearchWindowSnapshot = {
   searchProfile: SearchProfile | null;
   mode: SearchMode;
@@ -251,8 +214,7 @@ export function buildStructuredSearchSnapshot(
   const sortSeed = normalizedFilters.sortSeed ?? 0;
   const entries = deps
     .fetchCandidates(normalizedFilters)
-    .map((candidate) => {
-      const record = deps.decorateRecord(rowToRecord(candidate));
+    .map(({ record }) => {
       const packQuality = packQualityScore(record, deps.rankingConfig);
       const sourceQuality = sourceQualityScore(record, deps.rankingConfig);
       const rarityPreference = rarityPreferenceScore(record, normalizedFilters, deps.rankingConfig);
@@ -348,10 +310,10 @@ export async function buildSearchWindowSnapshot(
   });
   const filteredCandidateRows =
     excludeTokens.length > 0
-      ? candidateRows.filter((row) => !matchesExcludedQuery(row.searchText, excludeTokens))
+      ? candidateRows.filter((candidate) => !matchesExcludedQuery(candidate.searchText, excludeTokens))
       : candidateRows;
   const candidateRecords = filteredCandidateRows
-    .map((row) => deps.decorateRecord(rowToRecord(row)))
+    .map(({ record }) => record)
     .filter((record) => recordMatchesFilters(record, normalizedFilters));
   const candidatesByKey = new Map(candidateRecords.map((record) => [record.recordKey, record]));
 
@@ -541,7 +503,7 @@ export function listRecords(normalizedFilters: NormalizedSearchFilters, deps: Ru
   const sort = normalizedFilters.sort === "ranked" || !normalizedFilters.sort ? "alphabetical" : normalizedFilters.sort;
   if (sort === "random") {
     const sortSeed = normalizedFilters.sortSeed ?? 0;
-    const records = deps.fetchCandidates(normalizedFilters).map((row) => deps.decorateRecord(rowToRecord(row)));
+    const records = deps.fetchCandidates(normalizedFilters).map(({ record }) => record);
     records.sort((left, right) => compareRecordsForSort(left, right, sort, sortSeed));
     return createSearchResultPage({
       searchProfile: null,
@@ -556,7 +518,7 @@ export function listRecords(normalizedFilters: NormalizedSearchFilters, deps: Ru
   const total = deps.fetchCandidateCount(normalizedFilters);
   const records = deps
     .fetchPagedCandidates(normalizedFilters, sort, offset, limit)
-    .map((row) => deps.decorateRecord(rowToRecord(row)));
+    .map(({ record }) => record);
   return createSearchResultPage({
     searchProfile: null,
     mode: "structured",
@@ -621,10 +583,10 @@ export async function search(
       : deps.fetchCandidates(normalizedFilters, excludeTokens.length > 0, false, { recordKeys: candidateKeys });
   const filteredCandidateRows =
     excludeTokens.length > 0
-      ? candidateRows.filter((row) => !matchesExcludedQuery(row.searchText, excludeTokens))
+      ? candidateRows.filter((candidate) => !matchesExcludedQuery(candidate.searchText, excludeTokens))
       : candidateRows;
   const candidateRecords = filteredCandidateRows
-    .map((row) => deps.decorateRecord(rowToRecord(row)))
+    .map(({ record }) => record)
     .filter((record) => recordMatchesFilters(record, normalizedFilters));
   const candidatesByKey = new Map(candidateRecords.map((record) => [record.recordKey, record]));
 
@@ -632,10 +594,9 @@ export async function search(
     if (mode === "structured") {
       const structuredRows = deps
         .fetchCandidates(normalizedFilters, excludeTokens.length > 0)
-        .filter((row) => !excludeTokens.length || !matchesExcludedQuery(row.searchText, excludeTokens));
+        .filter((candidate) => !excludeTokens.length || !matchesExcludedQuery(candidate.searchText, excludeTokens));
       return structuredRows
-        .map((candidate) => {
-          const record = deps.decorateRecord(rowToRecord(candidate));
+        .map(({ record }) => {
           const rerankAdjustments = buildRerankAdjustments(record, normalizedFilters, deps.rankingConfig);
           const totalScore =
             (normalizedFilters.nameQuery

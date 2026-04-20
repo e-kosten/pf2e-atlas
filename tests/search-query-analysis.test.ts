@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildLiteralQueryWeights, buildSearchQueryAnalysis } from "../src/search-query-analysis.js";
+import { buildLiteralQueryWeights, buildSearchQueryAnalysis } from "../src/search/query-analysis.js";
 
 describe("search query analysis", () => {
   it("normalizes the literal query without injecting heuristic tokens", () => {

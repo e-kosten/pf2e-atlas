@@ -39,7 +39,7 @@ import {
 } from "../types.js";
 import { normalizeDerivedTag } from "../tags/index.js";
 import { normalizeText } from "../utils.js";
-import type { SqlValue } from "../data/service-types.js";
+import type { SqlValue } from "./contracts.js";
 
 export type MetadataSqlContext = {} & MetadataSqlSourceContext;
 

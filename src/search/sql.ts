@@ -25,7 +25,7 @@ import {
   normalizeSearchCategory,
   normalizeSearchSubcategory,
 } from "../domain/categories.js";
-import type { NormalizedSearchFilters, NormalizedSearchScope, SqlValue } from "../data/service-types.js";
+import type { NormalizedSearchFilters, NormalizedSearchScope, SqlValue } from "./contracts.js";
 import { appendMetadataFilterClauses, recordMatchesMetadataFilter } from "./metadata-filters.js";
 import { normalizeText, uniqueSorted } from "../utils.js";
 
