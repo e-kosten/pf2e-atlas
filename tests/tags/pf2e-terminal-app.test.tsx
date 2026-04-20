@@ -375,6 +375,29 @@ describe("pf2e terminal app", () => {
     expect(app.lastFrame()).toContain("Derived Tags");
   });
 
+  it("renders grouped return wording on the ontology domain picker", async () => {
+    const services = createFakeServices();
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalApp rootPath={process.cwd()} onExit={vi.fn()} services={services} />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+
+    app.stdin.write("j");
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("Esc/Backspace/\u2190/q return");
+
+    app.stdin.write("?");
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("Escape / q / \u2190 or h / Backspace: return to the previous area");
+  });
+
   it("opens the selected top-level area with right-arrow style confirm", async () => {
     const services = createFakeServices();
     const app = render(
@@ -506,5 +529,21 @@ describe("pf2e terminal app", () => {
 
     expect(loadServices).toHaveBeenCalledTimes(1);
     expect(services.close).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows a single exit affordance on startup errors", async () => {
+    const loadServices = vi.fn(() => Promise.reject(new Error("boom")));
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalBootstrap rootPath={process.cwd()} argv={[]} onExit={vi.fn()} loadServices={loadServices} />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("Could not load the PF2E app services.");
+    expect(app.lastFrame()).toContain("Esc/q exit");
+    expect(app.lastFrame()).not.toContain("exit  q exit");
   });
 });

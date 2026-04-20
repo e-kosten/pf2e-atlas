@@ -27,7 +27,7 @@ function StartupErrorScreen({ message, onExit }: { message: string; onExit: () =
   return (
     <TerminalMessageScreen
       title={PF2E_TERMINAL_TITLE}
-      interactionActions={[{ id: "back", label: "exit" }, { id: "quit", label: "exit" }]}
+      interactionActions={[{ id: "quit", label: "exit" }]}
       body={[{ text: "Could not load the PF2E app services.", tone: "section" }, { text: "" }, { text: message }]}
       onBack={onExit}
     />
@@ -133,6 +133,14 @@ export function Pf2eTerminalApp({
     dispatch({ type: "push_route", route: { kind: "search" } });
   }, [state.selectedAreaIndex]);
 
+  const returnToPreviousRouteOrExit = React.useCallback(() => {
+    if (canPopPf2eAppRoute(state)) {
+      dispatch({ type: "pop_route" });
+    } else {
+      onExit();
+    }
+  }, [onExit, state]);
+
   const handleSearchBack = React.useCallback(
     (searchRoute: Extract<Pf2eAppRoute, { kind: "search" }>) => {
       if (searchRoute.origin?.kind === "ontology") {
@@ -144,13 +152,9 @@ export function Pf2eTerminalApp({
         dispatch({ type: "replace_route", route: searchRoute.origin.route });
         return;
       }
-      if (canPopPf2eAppRoute(state)) {
-        dispatch({ type: "pop_route" });
-      } else {
-        onExit();
-      }
+      returnToPreviousRouteOrExit();
     },
-    [onExit, state],
+    [returnToPreviousRouteOrExit, state],
   );
 
   const openSelectedTagRefinementItem = React.useCallback(
@@ -200,13 +204,7 @@ export function Pf2eTerminalApp({
       <OntologyDomainPickerScreen
         domains={ontologyDomains}
         selectedIndex={state.ontologyDomainSelectedIndex}
-        onBack={() => {
-          if (canPopPf2eAppRoute(state)) {
-            dispatch({ type: "pop_route" });
-          } else {
-            onExit();
-          }
-        }}
+        onBack={returnToPreviousRouteOrExit}
         onMove={(delta, itemCount) =>
           dispatch(
             delta === 0
@@ -247,13 +245,7 @@ export function Pf2eTerminalApp({
             },
           });
         }}
-        onExit={() => {
-          if (canPopPf2eAppRoute(state)) {
-            dispatch({ type: "pop_route" });
-          } else {
-            onExit();
-          }
-        }}
+        onExit={returnToPreviousRouteOrExit}
       />
     );
   } else if (route.kind === "review") {
@@ -261,13 +253,7 @@ export function Pf2eTerminalApp({
       <DerivedTagMigrationReviewScreen
         rootPath={rootPath}
         initialSession={route.session}
-        onComplete={() => {
-          if (canPopPf2eAppRoute(state)) {
-            dispatch({ type: "pop_route" });
-          } else {
-            onExit();
-          }
-        }}
+        onComplete={returnToPreviousRouteOrExit}
       />
     );
   } else if (route.kind === "search") {
@@ -283,13 +269,7 @@ export function Pf2eTerminalApp({
       <TagRefinementMenuScreen
         selectedIndex={state.tagRefinementSelectedIndex}
         queueItems={queueItems}
-        onBack={() => {
-          if (canPopPf2eAppRoute(state)) {
-            dispatch({ type: "pop_route" });
-          } else {
-            onExit();
-          }
-        }}
+        onBack={returnToPreviousRouteOrExit}
         onMove={(delta, itemCount) =>
           dispatch(
             delta === 0

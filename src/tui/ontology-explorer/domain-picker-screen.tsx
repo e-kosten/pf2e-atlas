@@ -3,14 +3,19 @@ import React from "react";
 import type { OntologyDomainSummary } from "../../types.js";
 import {
   buildTerminalInteractionHelpLines,
-  formatTerminalInteractionFooter,
+  formatTerminalFooterBindings,
   type TerminalInteractionAction,
 } from "../interaction-bindings.js";
+import {
+  buildMergedReturnHelpLine,
+  createMergedReturnFooterBinding,
+  createSharedReturnInteractionActions,
+} from "../shell-navigation-copy.js";
 import type { DerivedTagTerminalLine } from "../terminal-ui.js";
 import { TerminalMenuScreen } from "../shared-screens.js";
 
 function getOntologyDomainPickerInteractionActions(): TerminalInteractionAction[] {
-  return [{ id: "select" }, { id: "back", label: "back" }, { id: "help" }, { id: "quit", label: "back" }];
+  return [{ id: "select" }, ...createSharedReturnInteractionActions(), { id: "help" }];
 }
 
 function buildOntologyDomainPickerHelpLines(): DerivedTagTerminalLine[] {
@@ -26,15 +31,11 @@ function buildOntologyDomainPickerHelpLines(): DerivedTagTerminalLine[] {
     },
     {
       title: "Actions",
-      actions: getOntologyDomainPickerInteractionActions().map((action) => ({
-        ...action,
-        helpText:
-          action.id === "select"
-            ? "open the selected domain"
-            : action.id === "help"
-              ? "show this help"
-              : "return to the previous area",
-      })),
+      lines: [
+        { text: "Enter / \u2192 or l: open the selected domain" },
+        { text: "?: show this help" },
+        buildMergedReturnHelpLine("return to the previous area"),
+      ],
     },
     {
       title: "Domains",
@@ -79,12 +80,14 @@ export function OntologyDomainPickerScreen({
       interactionActions={getOntologyDomainPickerInteractionActions()}
       footer={[
         {
-          text: formatTerminalInteractionFooter([
-            { id: "move" },
-            { id: "jump" },
-            { id: "page" },
-            { id: "edge" },
-            ...getOntologyDomainPickerInteractionActions(),
+          text: formatTerminalFooterBindings([
+            { kind: "action", action: { id: "move" } },
+            { kind: "action", action: { id: "jump" } },
+            { kind: "action", action: { id: "page" } },
+            { kind: "action", action: { id: "edge" } },
+            { kind: "action", action: { id: "select" } },
+            { kind: "action", action: { id: "help" } },
+            createMergedReturnFooterBinding(),
           ]),
           tone: "dim",
         },

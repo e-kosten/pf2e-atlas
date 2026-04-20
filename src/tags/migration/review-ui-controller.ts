@@ -30,25 +30,29 @@ import {
   type DerivedTagTerminalPaneScreenProps,
   type DerivedTagTerminalTwoPaneLayoutMode,
   type DerivedTagTerminalTwoPaneScreenProps,
-  createDerivedTagTerminalListNavigationState,
   getRenderedTerminalLineCount,
   getTerminalPaneBodyHeight,
   getTerminalTwoPaneDetailWidth,
   moveSelection,
   moveSelectionWrapped,
-  resolveDerivedTagTerminalListNavigationAction,
   sliceRenderedTerminalLines,
   useDerivedTagTerminalApp,
-  useDerivedTagTerminalInput,
   useDerivedTagTerminalSize,
 } from "../../tui/terminal-ui.js";
 import {
-  TERMINAL_DIALOG_RETURN_FOOTER,
   buildTerminalInteractionHelpLines,
   formatTerminalInteractionFooter,
-  resolveTerminalInteractionAction,
   type TerminalInteractionAction,
 } from "../../tui/interaction-bindings.js";
+import {
+  showTerminalReturnDialog,
+  useTerminalInteractionContextAdapters,
+} from "../../tui/interaction-context-adapters.js";
+import {
+  createTerminalDetailInteractionContext,
+  createTerminalListInteractionContext,
+  useTerminalInteractionContextRouter,
+} from "../../tui/interaction-context-router.js";
 import {
   getDerivedTagTerminalTwoPaneLayoutMode,
   reduceDerivedTagTerminalTwoPaneState,
@@ -356,11 +360,11 @@ export function useDerivedTagMigrationReviewScreenController({
   services?: DerivedTagMigrationReviewServices;
 }): { screen: DerivedTagMigrationReviewScreenModel } {
   const terminal = useDerivedTagTerminalApp();
+  const adapters = useTerminalInteractionContextAdapters();
   const size = useDerivedTagTerminalSize();
   const [state, dispatch] = React.useReducer(reviewReducer, initialSession, createInitialReviewState);
   const [busy, setBusy] = React.useState(false);
   const [persistError, setPersistError] = React.useState<string | null>(null);
-  const navigationStateRef = React.useRef(createDerivedTagTerminalListNavigationState());
 
   React.useEffect(() => {
     let cancelled = false;
@@ -473,17 +477,29 @@ export function useDerivedTagMigrationReviewScreenController({
       ? [...actionTargetInteractionActions, { id: "help" }]
       : [...activeNavigationActions, ...paneInteractionActions, ...actionTargetInteractionActions];
 
-  useDerivedTagTerminalInput(
-    (event) => {
-      if (busy) {
-        return;
-      }
-      const actionTargetIntent = resolveDerivedTagTerminalActionTargetIntent(event, state, "horizontal");
-      const interactionAction = resolveTerminalInteractionAction(event, paneInteractionActions);
-
+  useTerminalInteractionContextRouter({
+    enabled: !busy,
+    contexts: [
+      createTerminalListInteractionContext("list", {
+        interactionActions: paneInteractionActions,
+        pageSize,
+        jumpSize: selectionJumpSize,
+      }),
+      createTerminalDetailInteractionContext("detail", {
+        interactionActions: paneInteractionActions,
+        pageSize,
+        jumpSize: detailJumpSize,
+      }),
+      {
+        id: "actionTarget",
+        kind: "actionTarget",
+        interactionActions: [...actionTargetInteractionActions, { id: "help" }],
+      },
+    ],
+    onRoute: ({ actionTarget, detail, list }) => {
+      const actionTargetIntent = resolveDerivedTagTerminalActionTargetIntent(actionTarget.event, state, "horizontal");
       if (actionTargetIntent?.kind === "toggle_target") {
         dispatch({ type: "toggle_target" });
-        navigationStateRef.current = createDerivedTagTerminalListNavigationState();
         return;
       }
       if (actionTargetIntent?.kind === "leave_actions") {
@@ -501,64 +517,52 @@ export function useDerivedTagMigrationReviewScreenController({
         }
         return;
       }
-      if (interactionAction?.id === "help") {
-        void terminal.showDialog({
-          title: "Derived-Tag Review Help",
-          body: buildReviewHelpLines(state),
-          footer: [{ text: TERMINAL_DIALOG_RETURN_FOOTER, tone: "dim" }],
-        });
+      if (actionTarget.interactionAction?.id === "help") {
+        void showTerminalReturnDialog(adapters, "Derived-Tag Review Help", buildReviewHelpLines(state));
         return;
       }
       if (state.activeTarget === "actions") {
         return;
       }
-      if (interactionAction?.id === "focus") {
-        dispatch({ type: "toggle_focus" });
-        navigationStateRef.current = createDerivedTagTerminalListNavigationState();
-        return;
-      }
-      if (interactionAction?.id === "layout") {
-        dispatch({ type: "toggle_layout" });
-        navigationStateRef.current = createDerivedTagTerminalListNavigationState();
-        return;
-      }
-      if (interactionAction?.id === "close" && state.activePane === "detail") {
-        dispatch({ type: "leave_detail" });
-        navigationStateRef.current = createDerivedTagTerminalListNavigationState();
-        return;
-      }
-      const navigation = resolveDerivedTagTerminalListNavigationAction(
-        event,
-        {
-          pageSize,
-          jumpSize: state.activePane === "list" ? selectionJumpSize : detailJumpSize,
-        },
-        navigationStateRef.current,
-      );
-      navigationStateRef.current = navigation.state;
+      const activeContentRoute = state.activePane === "list" ? list : detail;
 
-      if (navigation.action?.kind === "move") {
+      if (activeContentRoute.interactionAction?.id === "help") {
+        void showTerminalReturnDialog(adapters, "Derived-Tag Review Help", buildReviewHelpLines(state));
+        return;
+      }
+      if (activeContentRoute.interactionAction?.id === "focus") {
+        dispatch({ type: "toggle_focus" });
+        return;
+      }
+      if (activeContentRoute.interactionAction?.id === "layout") {
+        dispatch({ type: "toggle_layout" });
+        return;
+      }
+      if (activeContentRoute.interactionAction?.id === "close" && state.activePane === "detail") {
+        dispatch({ type: "leave_detail" });
+        return;
+      }
+      if (activeContentRoute.navigationAction?.kind === "move") {
         if (state.activePane === "list") {
-          if (Math.abs(navigation.action.delta) === 1) {
-            dispatch({ type: "move_list_wrapped", delta: navigation.action.delta, itemCount: items.length });
+          if (Math.abs(activeContentRoute.navigationAction.delta) === 1) {
+            dispatch({ type: "move_list_wrapped", delta: activeContentRoute.navigationAction.delta, itemCount: items.length });
           } else {
-            dispatch({ type: "move_list_clamped", delta: navigation.action.delta, itemCount: items.length });
+            dispatch({ type: "move_list_clamped", delta: activeContentRoute.navigationAction.delta, itemCount: items.length });
           }
           return;
         }
-        dispatch({ type: "move_detail", delta: navigation.action.delta, maxDetailScroll });
+        dispatch({ type: "move_detail", delta: activeContentRoute.navigationAction.delta, maxDetailScroll });
         return;
       }
-      if (navigation.action?.kind === "boundary") {
+      if (activeContentRoute.navigationAction?.kind === "boundary") {
         if (state.activePane === "list") {
-          dispatch({ type: "list_boundary", boundary: navigation.action.boundary, itemCount: items.length });
+          dispatch({ type: "list_boundary", boundary: activeContentRoute.navigationAction.boundary, itemCount: items.length });
           return;
         }
-        dispatch({ type: "detail_boundary", boundary: navigation.action.boundary, maxDetailScroll });
+        dispatch({ type: "detail_boundary", boundary: activeContentRoute.navigationAction.boundary, maxDetailScroll });
       }
     },
-    !busy,
-  );
+  });
 
   const commonFooter = [
     { text: formatTerminalInteractionFooter(footerInteractionActions), tone: "dim" as const },

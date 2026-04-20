@@ -8,8 +8,14 @@ import {
 import type { DerivedTagTerminalLine } from "./terminal-ui.js";
 import {
   buildTerminalInteractionHelpLines,
+  type TerminalFooterBinding,
   type TerminalInteractionAction,
 } from "./interaction-bindings.js";
+import {
+  buildMergedReturnHelpLine,
+  createMergedReturnFooterBinding,
+  createSharedReturnInteractionActions,
+} from "./shell-navigation-copy.js";
 import { TerminalActionMenuScreen } from "./shared-screens.js";
 
 type TagRefinementCommandId = "review_all" | "legacy_seed" | "legacy_rule" | "exemplar_cleanup" | "proposal_review";
@@ -65,12 +71,19 @@ function buildQueueLines(queueItems: DerivedTagReviewQueueSummaryItem[]): Derive
 }
 
 function getTagRefinementInteractionActions(): TerminalInteractionAction[] {
+  return [{ id: "select" }, { id: "actions" }, { id: "help" }, ...createSharedReturnInteractionActions("top level")];
+}
+
+function buildTagRefinementFooterBindings(): TerminalFooterBinding[] {
   return [
-    { id: "select" },
-    { id: "actions" },
-    { id: "help" },
-    { id: "back", label: "top level" },
-    { id: "quit", label: "top level" },
+    { kind: "action", action: { id: "move" } },
+    { kind: "action", action: { id: "jump" } },
+    { kind: "action", action: { id: "page" } },
+    { kind: "action", action: { id: "edge" } },
+    { kind: "action", action: { id: "select" } },
+    { kind: "action", action: { id: "actions" } },
+    { kind: "action", action: { id: "help" } },
+    createMergedReturnFooterBinding("top level"),
   ];
 }
 
@@ -126,17 +139,12 @@ function buildTagRefinementHelpLines(
       },
       {
         title: "Actions",
-        actions: getTagRefinementInteractionActions().map((action) => ({
-          ...action,
-          helpText:
-            action.id === "select"
-              ? "open the selected row"
-              : action.id === "actions"
-                ? "focus the tag-refinement actions rail"
-                : action.id === "help"
-                  ? "show this help"
-                  : "return to the top level",
-        })),
+        lines: [
+          { text: "Enter / \u2192 or l: open the selected row" },
+          { text: ": focus the tag-refinement actions rail" },
+          { text: "?: show this help" },
+          buildMergedReturnHelpLine("return to the top level"),
+        ],
       },
     ]),
     { text: "" },
@@ -195,6 +203,7 @@ export function TagRefinementMenuScreen({
       items={menuItems}
       selectedIndex={clampedSelectedIndex}
       interactionActions={getTagRefinementInteractionActions()}
+      contentFooterBindings={buildTagRefinementFooterBindings()}
       actionEntries={actionEntries}
       helpTitle="Tag Refinement Help"
       helpBody={buildTagRefinementHelpLines(actionEntries)}

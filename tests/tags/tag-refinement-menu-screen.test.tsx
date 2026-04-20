@@ -93,4 +93,28 @@ describe("tag refinement menu screen", () => {
     expect(onBack).not.toHaveBeenCalled();
     expect(onQuickAction).toHaveBeenCalledWith("proposal_review");
   });
+
+  it("renders a grouped top-level return affordance in the footer and help", async () => {
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <TagRefinementMenuScreen
+          selectedIndex={0}
+          queueItems={[]}
+          onBack={vi.fn()}
+          onMove={vi.fn()}
+          onOpenSelected={vi.fn()}
+          onQuickAction={vi.fn()}
+        />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("Esc/Backspace/\u2190/q");
+
+    app.stdin.write("?");
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("Escape / q / \u2190 or h / Backspace: return to the top level");
+  });
 });

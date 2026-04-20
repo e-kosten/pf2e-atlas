@@ -19,7 +19,9 @@ import {
   type DerivedTagTerminalLine,
 } from "./terminal-ui.js";
 import {
+  formatTerminalFooterBindings,
   formatTerminalInteractionFooter,
+  type TerminalFooterBinding,
   type TerminalInteractionAction,
 } from "./interaction-bindings.js";
 import {
@@ -213,6 +215,7 @@ export function TerminalActionMenuScreen<
   interactionActions,
   actionEntries,
   actionTargetVisibility = "onDemand",
+  contentFooterBindings,
   helpTitle,
   helpBody,
   buildRightLines,
@@ -232,6 +235,7 @@ export function TerminalActionMenuScreen<
   interactionActions: TerminalInteractionAction[];
   actionEntries: DerivedTagTerminalActionTargetOption<TAction>[];
   actionTargetVisibility?: DerivedTagTerminalActionTargetVisibility;
+  contentFooterBindings?: TerminalFooterBinding[];
   helpTitle: string;
   helpBody: DerivedTagTerminalLine[];
   buildRightLines: (item: TItem | undefined) => DerivedTagTerminalLine[];
@@ -338,6 +342,10 @@ export function TerminalActionMenuScreen<
           { id: "help" },
         ]
       : [{ id: "move" }, { id: "jump" }, { id: "page" }, { id: "edge" }, ...interactionActions];
+  const footerText =
+    actionTargetState.activeTarget === "actions" || !contentFooterBindings
+      ? formatTerminalInteractionFooter(footerActions)
+      : formatTerminalFooterBindings(contentFooterBindings);
 
   return (
     <TerminalTwoPaneScreen
@@ -354,7 +362,7 @@ export function TerminalActionMenuScreen<
       }}
       footer={[
         {
-          text: formatTerminalInteractionFooter(footerActions),
+          text: footerText,
           tone: "dim",
         },
         shouldRenderDerivedTagTerminalActionTarget(actionTargetState, actionTargetVisibility)
