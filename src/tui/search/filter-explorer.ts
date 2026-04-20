@@ -82,17 +82,37 @@ function normalizeFilterExplorerSelectionMap(
   return next;
 }
 
-function findNodeById(nodes: readonly OntologyNode[], id: string): OntologyNode | undefined {
-  for (const node of nodes) {
-    if (node.id === id) {
-      return node;
-    }
-    const match = findNodeById(getOntologyNodeChildren(node), id);
-    if (match) {
-      return match;
-    }
+function findDirectNodeById(nodes: readonly OntologyNode[], id: string): OntologyNode | undefined {
+  return nodes.find((node) => node.id === id);
+}
+
+function findScopedSearchFilterExplorerSubcategoryNode(
+  categoryNode: OntologyNode,
+  category: string,
+  subcategory: string | null,
+): OntologyNode | undefined {
+  if (!subcategory) {
+    return undefined;
   }
-  return undefined;
+
+  const categoryChildren = getOntologyNodeChildren(categoryNode);
+  const subcategoriesGroup = findDirectNodeById(categoryChildren, `${category}:subcategories`);
+  return subcategoriesGroup
+    ? findDirectNodeById(getOntologyNodeChildren(subcategoriesGroup), `${category}:subcategory:${subcategory}`)
+    : undefined;
+}
+
+function findScopedSearchFilterExplorerMetadataFieldNode(
+  scopeNode: OntologyNode | undefined,
+  metadataGroupId: string,
+  fieldNodeId: string,
+): OntologyNode | undefined {
+  if (!scopeNode) {
+    return undefined;
+  }
+
+  const metadataGroup = findDirectNodeById(getOntologyNodeChildren(scopeNode), metadataGroupId);
+  return metadataGroup ? findDirectNodeById(getOntologyNodeChildren(metadataGroup), fieldNodeId) : undefined;
 }
 
 function getSelectionValueFromPredicate(node: MetadataPredicate): string | null {
@@ -603,7 +623,7 @@ export function buildSearchFilterExplorerModel(
     singleFieldBehavior: "list" | "directValues";
   },
 ): OntologyDomainModel {
-  const categoryNode = findNodeById(searchSemanticsDomain.rootNodes, `searchSemantics:${options.category}`);
+  const categoryNode = findDirectNodeById(searchSemanticsDomain.rootNodes, `searchSemantics:${options.category}`);
   const rootNodes = categoryNode
     ? buildSearchFilterExplorerRootNodes(categoryNode, {
         category: options.category,
@@ -656,27 +676,53 @@ function findSearchFilterExplorerFieldNode(
   subcategory: string | null,
   fieldOption: Pf2eTerminalQueryFieldOption,
 ): OntologyNode | undefined {
-  const fieldNodeIds =
-    fieldOption.value === "actorMetric"
-      ? [
-          ...(subcategory ? [`${category}:${subcategory}:actorMetrics:discovery`] : []),
-          `${category}:actorMetrics:discovery`,
-        ]
-      : fieldOption.value === "itemMetric"
-        ? [
-            ...(subcategory ? [`${category}:${subcategory}:itemMetrics:discovery`] : []),
-            `${category}:itemMetrics:discovery`,
-          ]
-        : [
-            ...(subcategory ? [`${category}:${subcategory}:field:${fieldOption.value}`] : []),
-            `${category}:field:${fieldOption.value}`,
-            ...(fieldOption.value === "derivedTags" ? [`${category}:commonDerivedTags`] : []),
-            ...(fieldOption.value === "traits" ? [`${category}:commonTraits`] : []),
-          ];
+  const categoryChildren = getOntologyNodeChildren(categoryNode);
+  const subcategoryNode = findScopedSearchFilterExplorerSubcategoryNode(categoryNode, category, subcategory);
+  const subcategoryChildren = subcategoryNode ? getOntologyNodeChildren(subcategoryNode) : [];
 
-  return fieldNodeIds
-    .map((nodeId) => findNodeById([categoryNode], nodeId))
-    .find((node): node is OntologyNode => Boolean(node));
+  if (fieldOption.value === "actorMetric") {
+    return (
+      (subcategory ? findDirectNodeById(subcategoryChildren, `${category}:${subcategory}:actorMetrics:discovery`) : undefined) ??
+      findDirectNodeById(categoryChildren, `${category}:actorMetrics:discovery`)
+    );
+  }
+
+  if (fieldOption.value === "itemMetric") {
+    return (
+      (subcategory ? findDirectNodeById(subcategoryChildren, `${category}:${subcategory}:itemMetrics:discovery`) : undefined) ??
+      findDirectNodeById(categoryChildren, `${category}:itemMetrics:discovery`)
+    );
+  }
+
+  const subcategoryFieldNode = subcategory
+    ? findScopedSearchFilterExplorerMetadataFieldNode(
+        subcategoryNode,
+        `${category}:${subcategory}:metadataFields`,
+        `${category}:${subcategory}:field:${fieldOption.value}`,
+      )
+    : undefined;
+  if (subcategoryFieldNode) {
+    return subcategoryFieldNode;
+  }
+
+  const categoryFieldNode = findScopedSearchFilterExplorerMetadataFieldNode(
+    categoryNode,
+    `${category}:metadataFields`,
+    `${category}:field:${fieldOption.value}`,
+  );
+  if (categoryFieldNode) {
+    return categoryFieldNode;
+  }
+
+  if (fieldOption.value === "derivedTags") {
+    return findDirectNodeById(categoryChildren, `${category}:commonDerivedTags`);
+  }
+
+  if (fieldOption.value === "traits") {
+    return findDirectNodeById(categoryChildren, `${category}:commonTraits`);
+  }
+
+  return undefined;
 }
 
 function buildFieldSelectionTarget(

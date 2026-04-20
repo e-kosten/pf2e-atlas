@@ -383,6 +383,148 @@ describe("createPf2eTerminalSearchService", () => {
     expect(model.rootNodes.map((node) => node.id)).toEqual(["spell:field:traits", "spell:field:derivedTags"]);
   });
 
+  it("locates metric explorer roots without traversing unrelated ontology branches", () => {
+    const unrelatedRootLoadChildren = vi.fn(() => [
+      {
+        id: "equipment:field:traits:value:bulky",
+        kind: "value",
+        label: "bulky",
+        filterText: "bulky",
+        detailTitle: "Value",
+        detailLines: [{ text: "bulky" }],
+      },
+    ]);
+    const unrelatedCreatureLoadChildren = vi.fn(() => [
+      {
+        id: "creature:npc:field:traits:value:undead",
+        kind: "value",
+        label: "undead",
+        filterText: "undead",
+        detailTitle: "Value",
+        detailLines: [{ text: "undead" }],
+      },
+    ]);
+
+    const model = buildSearchFilterExplorerModel(
+      createSearchSemanticsDomain([
+        {
+          id: "searchSemantics:equipment",
+          kind: "category",
+          label: "Equipment",
+          filterText: "equipment",
+          detailTitle: "Equipment",
+          detailLines: [{ text: "Equipment" }],
+          children: [
+            {
+              id: "equipment:metadataFields",
+              kind: "group",
+              label: "Metadata Fields",
+              filterText: "metadata fields",
+              detailTitle: "Metadata Fields",
+              detailLines: [{ text: "Metadata Fields" }],
+              children: [
+                {
+                  id: "equipment:field:traits",
+                  kind: "field",
+                  label: "traits",
+                  filterText: "traits",
+                  detailTitle: "Traits",
+                  detailLines: [{ text: "Traits" }],
+                  loadChildren: unrelatedRootLoadChildren,
+                },
+              ],
+            },
+          ],
+        },
+        {
+          id: "searchSemantics:creature",
+          kind: "category",
+          label: "Creature",
+          filterText: "creature",
+          detailTitle: "Creature",
+          detailLines: [{ text: "Creature" }],
+          children: [
+            {
+              id: "creature:subcategories",
+              kind: "group",
+              label: "Subcategories",
+              filterText: "subcategories",
+              detailTitle: "Subcategories",
+              detailLines: [{ text: "Subcategories" }],
+              children: [
+                {
+                  id: "creature:subcategory:npc",
+                  kind: "subcategory",
+                  label: "npc",
+                  filterText: "npc",
+                  detailTitle: "NPC",
+                  detailLines: [{ text: "NPC" }],
+                  children: [
+                    {
+                      id: "creature:npc:metadataFields",
+                      kind: "group",
+                      label: "Metadata Fields",
+                      filterText: "metadata fields",
+                      detailTitle: "Metadata Fields",
+                      detailLines: [{ text: "Metadata Fields" }],
+                      children: [
+                        {
+                          id: "creature:npc:field:traits",
+                          kind: "field",
+                          label: "traits",
+                          filterText: "traits",
+                          detailTitle: "Traits",
+                          detailLines: [{ text: "Traits" }],
+                          loadChildren: unrelatedCreatureLoadChildren,
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              id: "creature:actorMetrics:discovery",
+              kind: "group",
+              label: "Creature Statistics",
+              filterText: "creature statistics",
+              detailTitle: "Creature Statistics",
+              detailLines: [{ text: "Creature Statistics" }],
+              children: [
+                {
+                  id: "creature:actorMetrics:namespace:perception.",
+                  kind: "metricNamespace",
+                  label: "perception.",
+                  filterText: "perception",
+                  detailTitle: "Metric Namespace",
+                  detailLines: [{ text: "perception." }],
+                },
+              ],
+            },
+          ],
+        },
+      ]),
+      {
+        category: "creature",
+        subcategory: null,
+        fieldOptions: [
+          {
+            value: "actorMetric",
+            label: "Creature Statistics",
+            description: "Browse live statistic keys.",
+            fieldType: "enumString",
+            editor: "ontologyPicker",
+          },
+        ],
+        singleFieldBehavior: "directValues",
+      },
+    );
+
+    expect(model.rootNodes.map((node) => node.id)).toEqual(["creature:actorMetrics:namespace:perception."]);
+    expect(unrelatedRootLoadChildren).not.toHaveBeenCalled();
+    expect(unrelatedCreatureLoadChildren).not.toHaveBeenCalled();
+  });
+
   it("uses friendly metric labels when resolving search-side metric compose targets", () => {
     const resolver = buildSearchFilterExplorerTargetResolver([
       {
