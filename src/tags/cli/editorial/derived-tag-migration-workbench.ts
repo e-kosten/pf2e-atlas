@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { runPf2eTerminalApp } from "../../tui/pf2e-app.js";
+import { runPf2eTerminalApp } from "../../../tui/pf2e-app.js";
 
 async function main(): Promise<void> {
   await runPf2eTerminalApp(process.cwd(), process.argv.slice(2));

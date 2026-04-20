@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
-import { lastValue, parseCliArgs } from "../editorial/cli-utils.js";
-import { lintDerivedTagMigrationSession } from "../editorial/linter.js";
-import { readDerivedTagMigrationSession } from "../editorial/session-store.js";
-import { renderDerivedTagMigrationSessionSummary } from "../editorial/render.js";
+import { lastValue, parseCliArgs } from "../../editorial/cli-utils.js";
+import { lintDerivedTagMigrationSession } from "../../editorial/linter.js";
+import { readDerivedTagMigrationSession } from "../../editorial/session-store.js";
+import { renderDerivedTagMigrationSessionSummary } from "../../editorial/render.js";
 
 async function main(): Promise<void> {
   const args = parseCliArgs(process.argv.slice(2));

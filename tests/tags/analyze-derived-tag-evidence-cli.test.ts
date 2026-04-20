@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { formatHelp, formatEvidenceReport, parseOptions } from "../../src/tags/cli/analyze-derived-tag-evidence.js";
+import {
+  formatHelp,
+  formatEvidenceReport,
+  parseOptions,
+} from "../../src/tags/cli/evaluation/analyze-derived-tag-evidence.js";
 
 describe("derived-tag evidence CLI helpers", () => {
   it("parses scope, record keys, family filtering, and untagged mode", () => {

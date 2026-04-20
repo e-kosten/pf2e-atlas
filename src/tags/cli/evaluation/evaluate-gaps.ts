@@ -4,10 +4,13 @@ import { access } from "node:fs/promises";
 import { constants } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 
-import { loadConfig } from "../../app/config.js";
-import { evaluateDerivedTagGaps } from "../evaluation/gap-evaluator.js";
-import { SearchCategory, SearchSubcategory } from "../../domain/index.js";
-import { parseOptionalScopedSearchSubcategoryArg, parseOptionalSearchCategoryArg } from "./search-scope-args.js";
+import { loadConfig } from "../../../app/config.js";
+import { evaluateDerivedTagGaps } from "../../evaluation/gap-evaluator.js";
+import { SearchCategory, SearchSubcategory } from "../../../domain/index.js";
+import {
+  parseOptionalScopedSearchSubcategoryArg,
+  parseOptionalSearchCategoryArg,
+} from "../shared/search-scope-args.js";
 
 type CliOptions = {
   tag: string;

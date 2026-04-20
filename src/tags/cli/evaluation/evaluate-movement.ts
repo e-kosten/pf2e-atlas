@@ -5,15 +5,15 @@ import { access } from "node:fs/promises";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
-import { loadConfig } from "../../app/config.js";
-import { expandHome } from "../../shared/utils.js";
-import { parseOptionalSearchCategoryArg } from "./search-scope-args.js";
+import { loadConfig } from "../../../app/config.js";
+import { expandHome } from "../../../shared/utils.js";
+import { parseOptionalSearchCategoryArg } from "../shared/search-scope-args.js";
 import {
   evaluateDerivedTagMovement,
   type DerivedTagCategoryMovement,
   type DerivedTagMovementEvaluationOptions,
   type DerivedTagTagMovement,
-} from "../evaluation/movement-evaluator.js";
+} from "../../evaluation/movement-evaluator.js";
 
 type CliOptions = DerivedTagMovementEvaluationOptions & {
   baselineIndexPath: string;

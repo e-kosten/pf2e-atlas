@@ -5,16 +5,19 @@ import { constants } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { pathToFileURL } from "node:url";
 
-import { loadConfig } from "../../app/config.js";
-import { SearchCategory, SearchSubcategory } from "../../domain/index.js";
-import { parseOptionalScopedSearchSubcategoryArg, parseOptionalSearchCategoryArg } from "./search-scope-args.js";
+import { loadConfig } from "../../../app/config.js";
+import { SearchCategory, SearchSubcategory } from "../../../domain/index.js";
+import {
+  parseOptionalScopedSearchSubcategoryArg,
+  parseOptionalSearchCategoryArg,
+} from "../shared/search-scope-args.js";
 import {
   discoverSemanticCandidates,
   type SemanticDiscoveryCandidate,
   type SemanticDiscoveryOptions,
   type SemanticDiscoveryResult,
-} from "../discovery/semantic-discovery.js";
-import { resolveDiscoveryGramRange } from "../discovery/discovery-normalization.js";
+} from "../../discovery/semantic-discovery.js";
+import { resolveDiscoveryGramRange } from "../../discovery/discovery-normalization.js";
 
 type CliOptions = SemanticDiscoveryOptions;
 

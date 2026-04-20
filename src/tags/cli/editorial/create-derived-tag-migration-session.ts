@@ -6,12 +6,15 @@ import {
   parseCliArgs,
   parseInteger,
   writeDerivedTagMigrationSummary,
-} from "../editorial/cli-utils.js";
-import { renderDerivedTagMigrationSessionSummary } from "../editorial/render.js";
-import { writeDerivedTagMigrationSession } from "../editorial/session-store.js";
-import { buildDerivedTagMigrationSession } from "../editorial/session-builder.js";
-import type { DerivedTagMigrationMode } from "../editorial/types.js";
-import { parseOptionalScopedSearchSubcategoryArg, parseOptionalSearchCategoryArg } from "./search-scope-args.js";
+} from "../../editorial/cli-utils.js";
+import { renderDerivedTagMigrationSessionSummary } from "../../editorial/render.js";
+import { writeDerivedTagMigrationSession } from "../../editorial/session-store.js";
+import { buildDerivedTagMigrationSession } from "../../editorial/session-builder.js";
+import type { DerivedTagMigrationMode } from "../../editorial/types.js";
+import {
+  parseOptionalScopedSearchSubcategoryArg,
+  parseOptionalSearchCategoryArg,
+} from "../shared/search-scope-args.js";
 
 const MODES: DerivedTagMigrationMode[] = [
   "review_queue",

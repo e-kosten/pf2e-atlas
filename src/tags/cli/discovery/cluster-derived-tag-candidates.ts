@@ -4,14 +4,17 @@ import { access } from "node:fs/promises";
 import { constants } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 
-import { loadConfig } from "../../app/config.js";
-import { parseOptionalScopedSearchSubcategoryArg, parseOptionalSearchCategoryArg } from "./search-scope-args.js";
+import { loadConfig } from "../../../app/config.js";
+import {
+  parseOptionalScopedSearchSubcategoryArg,
+  parseOptionalSearchCategoryArg,
+} from "../shared/search-scope-args.js";
 import {
   discoverRuleableCohorts,
   type RuleableCohortOptions,
   type RuleableCohortReport,
-} from "../discovery/cohort-discovery.js";
-import { formatDiscoverySourceContext } from "../discovery/discovery-source-report.js";
+} from "../../discovery/cohort-discovery.js";
+import { formatDiscoverySourceContext } from "../../discovery/discovery-source-report.js";
 
 type MultiValueArgs = Record<string, string[]>;
 
