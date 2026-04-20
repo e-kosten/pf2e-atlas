@@ -34,31 +34,42 @@ function createPickerModel(): OntologyDomainModel {
         },
         children: [
           {
-            id: "spell:derivedTags:coastal_setting",
-            kind: "tag",
-            label: "coastal_setting",
-            filterText: "coastal setting",
-            listLabel: "coastal_setting",
-            detailTitle: "Tag Details",
-            detailLines: [{ text: "coastal_setting", tone: "section" }],
+            id: "spell:family:coast",
+            kind: "family",
+            label: "coast",
+            filterText: "coast coastal setting",
+            listLabel: "coast | 1 tag",
+            detailTitle: "Family Details",
+            detailLines: [{ text: "coast", tone: "section" }],
             groupValues: {
               axis: "environment",
             },
-            selection: {
-              field: "derivedTags",
-              fieldLabel: "Derived Tags",
-              value: "coastal_setting",
-              allowedStates: ["any", "all", "exclude"],
-            },
             children: [
               {
-                id: "record:1",
-                kind: "record",
-                label: "Harbor Haunt",
-                filterText: "harbor haunt",
-                listLabel: "Harbor Haunt",
-                detailTitle: "Record Details",
-                detailLines: [{ text: "Harbor Haunt", tone: "section" }],
+                id: "spell:derivedTags:coastal_setting",
+                kind: "tag",
+                label: "coastal_setting",
+                filterText: "coastal setting",
+                listLabel: "coastal_setting",
+                detailTitle: "Tag Details",
+                detailLines: [{ text: "coastal_setting", tone: "section" }],
+                selection: {
+                  field: "derivedTags",
+                  fieldLabel: "Derived Tags",
+                  value: "coastal_setting",
+                  allowedStates: ["any", "all", "exclude"],
+                },
+                children: [
+                  {
+                    id: "record:1",
+                    kind: "record",
+                    label: "Harbor Haunt",
+                    filterText: "harbor haunt",
+                    listLabel: "Harbor Haunt",
+                    detailTitle: "Record Details",
+                    detailLines: [{ text: "Harbor Haunt", tone: "section" }],
+                  },
+                ],
               },
             ],
           },
@@ -86,7 +97,9 @@ describe("ontology picker screen", () => {
     await flushInk();
     app.stdin.write("\r");
     await flushInk();
-    expect(app.lastFrame()).toContain("Environment");
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("[TAGS]");
     expect(app.lastFrame()).toContain("Policy any");
     expect(app.lastFrame()).toContain("derivedTags: any=coastal_setting");
 
@@ -111,6 +124,9 @@ describe("ontology picker screen", () => {
     app.stdin.write("\r");
     await flushInk();
     app.stdin.write("\r");
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
     app.stdin.write("q");
     await flushInk();
 
@@ -131,6 +147,8 @@ describe("ontology picker screen", () => {
       </DerivedTagTerminalProvider>,
     );
 
+    await flushInk();
+    app.stdin.write("\r");
     await flushInk();
     app.stdin.write("\r");
     await flushInk();
@@ -193,6 +211,8 @@ describe("ontology picker screen", () => {
       </DerivedTagTerminalProvider>,
     );
 
+    await flushInk();
+    app.stdin.write("\r");
     await flushInk();
     app.stdin.write("\r");
     await flushInk();

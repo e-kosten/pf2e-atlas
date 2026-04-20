@@ -33,7 +33,7 @@ export type MetadataBooleanField = MetadataFieldNameByType<"boolean">;
 
 export type MetadataSetOperator = "includesAny" | "includesAll" | "excludesAny";
 export type MetadataEnumStringOperator = "eq" | "in" | "notIn";
-export type MetadataTextStringOperator = "contains" | "notContains";
+export type MetadataTextStringOperator = "eq" | "notEq" | "contains" | "notContains";
 export type MetadataNumberOperator = "eq" | "gte" | "lte" | "between";
 export type MetadataBooleanOperator = "eq";
 

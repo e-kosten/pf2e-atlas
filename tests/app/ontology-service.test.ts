@@ -8,7 +8,14 @@ import { createPf2eApplicationOntologyService } from "../../src/app/ontology-ser
 import { getMetadataGlossaryArtifactPath } from "../../src/data/metadata-glossary.js";
 import type { SearchVocabularyResult } from "../../src/data/vocabulary.js";
 import type { Pf2eDataService } from "../../src/data/service.js";
-import type { AppConfig, FilterValueField, MetadataGlossaryArtifact, OntologyNode } from "../../src/types.js";
+import type {
+  AppConfig,
+  FilterValueField,
+  MetadataGlossaryArtifact,
+  NormalizedRecord,
+  OntologyNode,
+  SearchFilters,
+} from "../../src/types.js";
 
 function createTestConfig(indexPath = ".cache/pf2e-index.sqlite"): AppConfig {
   return {
@@ -44,11 +51,86 @@ function findNodeById(nodes: OntologyNode[], id: string): OntologyNode | undefin
   return undefined;
 }
 
-function createDataService(): Pick<Pf2eDataService, "getSearchVocabulary" | "listFilterValues"> {
+function createRecord(overrides: Partial<NormalizedRecord> = {}): NormalizedRecord {
+  return {
+    recordKey: "spell:test-alarm",
+    id: "test-alarm",
+    name: "Alarm Ward",
+    normalizedName: "alarm ward",
+    type: "spell",
+    category: "spell",
+    subcategory: null,
+    packName: "spell",
+    packLabel: "Spells",
+    documentType: "Item",
+    level: 1,
+    rarity: null,
+    traits: ["fire"],
+    derivedTags: ["alarm"],
+    publicationTitle: "Pathfinder Rage of Elements",
+    publicationRemaster: false,
+    descriptionText: "Warns against intruders.",
+    blurbText: null,
+    hasDescription: true,
+    descriptionSnippet: "Warns against intruders.",
+    sourceCategory: "core",
+    folderId: null,
+    families: ["security"],
+    variantFamilyKey: null,
+    variantBaseName: null,
+    variantLabel: null,
+    variantAxes: [],
+    variantConfidence: null,
+    variantSource: "none",
+    sourcePath: "packs/spells/alarm-ward.json",
+    isUnique: false,
+    size: null,
+    itemCategory: null,
+    baseItem: null,
+    priceCp: null,
+    bulkValue: null,
+    actionCost: 2,
+    usage: null,
+    hands: null,
+    damageTypes: [],
+    weaponGroup: null,
+    armorGroup: null,
+    traditions: ["arcane"],
+    spellKinds: ["spell"],
+    saveType: "fortitude",
+    areaType: null,
+    rangeText: "30 feet",
+    durationText: "1 minute",
+    durationUnit: "minute",
+    targetText: "creature",
+    areaValue: null,
+    sustained: true,
+    basicSave: false,
+    languages: [],
+    speedTypes: [],
+    senses: [],
+    immunities: [],
+    resistances: [],
+    weaknesses: [],
+    disableText: null,
+    disableSkills: [],
+    isComplex: false,
+    actorMetrics: { "save.best": "fort" },
+    itemMetrics: { "weapon.reload": 1 },
+    rangeValue: 30,
+    aliases: [],
+    legacyRecordLinks: [],
+    raw: {},
+    ...overrides,
+  };
+}
+
+function createDataService(): Pick<Pf2eDataService, "getSearchVocabulary" | "listFilterValues" | "listRecords"> {
   const vocabulary: SearchVocabularyResult = {
     categories: [
       { value: "spell", count: 12 },
       { value: "equipment", count: 5 },
+      { value: "creature", count: 3 },
     ],
     subcategories: [{ value: "action", count: 6 }],
     rarities: [],
@@ -62,22 +144,99 @@ function createDataService(): Pick<Pf2eDataService, "getSearchVocabulary" | "lis
     derivedTagOntologyTags: [],
     derivedTagCatalog: [],
   };
+  const listRecords = vi.fn((filters: SearchFilters) => ({
+    searchProfile: null,
+    mode: "structured" as const,
+    sort: filters.sort ?? "alphabetical",
+    total: 1,
+    offset: filters.offset ?? 0,
+    limit: filters.limit ?? 20,
+    hasMore: false,
+    nextOffset: null,
+    records: [
+      createRecord(
+        filters.category === "equipment"
+          ? {
+              recordKey: "equipment:tower-bulwark",
+              id: "tower-bulwark",
+              name: "Tower Bulwark",
+              normalizedName: "tower bulwark",
+              type: "armor",
+              category: "equipment",
+              packName: "equipment",
+              packLabel: "Equipment",
+              actionCost: null,
+              saveType: null,
+              sustained: false,
+              publicationTitle: "Pathfinder Core",
+              actorMetrics: {},
+              itemMetrics: { "weapon.reload": 1 },
+              traits: [],
+              derivedTags: [],
+              traditions: [],
+              spellKinds: [],
+            }
+          : filters.category === "creature"
+            ? {
+                recordKey: "creature:ember-ghost",
+                id: "ember-ghost",
+                name: "Ember Ghost",
+                normalizedName: "ember ghost",
+                type: "npc",
+                category: "creature",
+                packName: "creature",
+                packLabel: "Creatures",
+                actionCost: null,
+                saveType: null,
+                sustained: false,
+                publicationTitle: "Pathfinder Monster Core",
+                actorMetrics: { "save.best": "fort" },
+                itemMetrics: {},
+                traditions: [],
+                spellKinds: [],
+              }
+            : {},
+      ),
+    ],
+  }));
   return {
     getSearchVocabulary: vi.fn(() => vocabulary),
-    listFilterValues: vi.fn(({ field, category }: { field: FilterValueField; category?: string }) => {
+    listFilterValues: vi.fn(
+      ({
+        field,
+        category,
+        metric,
+        metricPrefix,
+      }: {
+        field: FilterValueField;
+        category?: string;
+        metric?: string;
+        metricPrefix?: string;
+      }) => {
       const valuesByKey: Partial<Record<`${string}:${FilterValueField}`, Array<{ value: string; count: number }>>> = {
         "spell:subcategories": [{ value: "action", count: 6 }],
         "spell:traits": [{ value: "fire", count: 4 }],
         "spell:saveType": [{ value: "fortitude", count: 3 }],
         "spell:sustained": [{ value: "true", count: 2 }],
+        "spell:publicationTitle": [{ value: "Pathfinder Rage of Elements", count: 1 }],
         "equipment:hands": [{ value: "1", count: 5 }],
         "equipment:subcategories": [{ value: "gear", count: 5 }],
+        "creature:actorMetrics": metricPrefix === "save." ? [{ value: "save.best", count: 3 }] : [],
+        "equipment:itemMetrics": metricPrefix === "weapon." ? [{ value: "weapon.reload", count: 5 }] : [],
       };
+      if (field === "actorMetrics" && metric === "save.best") {
+        return {
+          field,
+          values: [{ value: "fort", count: 3 }],
+        };
+      }
       return {
         field,
         values: valuesByKey[`${category ?? "all"}:${field}`] ?? [],
       };
-    }),
+      },
+    ),
+    listRecords,
   };
 }
 
@@ -129,9 +288,9 @@ describe("application ontology service", () => {
     const sustainedValueNodes = sustainedFieldNode?.loadChildren?.() ?? [];
     const handsValueNodes = handsFieldNode?.loadChildren?.() ?? [];
 
-    expect(dataService.listFilterValues).toHaveBeenCalledWith({ field: "saveType", category: "spell" });
-    expect(dataService.listFilterValues).toHaveBeenCalledWith({ field: "sustained", category: "spell" });
-    expect(dataService.listFilterValues).toHaveBeenCalledWith({ field: "hands", category: "equipment" });
+    expect(dataService.listFilterValues).toHaveBeenCalledWith(expect.objectContaining({ field: "saveType", category: "spell" }));
+    expect(dataService.listFilterValues).toHaveBeenCalledWith(expect.objectContaining({ field: "sustained", category: "spell" }));
+    expect(dataService.listFilterValues).toHaveBeenCalledWith(expect.objectContaining({ field: "hands", category: "equipment" }));
     expect(saveTypeFieldNode?.listLabel).toBe("saveType");
     expect(saveTypeFieldNode?.detailLines.map((line) => line.text)).not.toContain("Operators: eq, in, notIn");
 
@@ -152,12 +311,13 @@ describe("application ontology service", () => {
       op: "eq",
       value: 1,
     });
-    expect(findNodeById(domain.rootNodes, "spell:trait:fire")?.query?.filters.metadata).toEqual({
+    const commonTraitNode = findNodeById(domain.rootNodes, "spell:commonTraits")?.children?.[0];
+    expect(commonTraitNode?.query?.filters.metadata).toEqual({
       field: "traits",
       op: "includesAny",
       values: ["fire"],
     });
-    expect(saveTypeValueNode?.loadChildren).toBeUndefined();
+    expect(saveTypeValueNode?.loadChildren?.()[0]?.kind).toBe("record");
     expect(saveTypeValueNode?.detailLines.map((line) => line.text)).toContain(
       "Press Enter or o to open the full matching set in the shared result reader.",
     );
@@ -188,7 +348,7 @@ describe("application ontology service", () => {
 
       const service = createPf2eApplicationOntologyService(config, createDataService());
       const domain = service.loadDomain("searchSemantics");
-      const commonTraitNode = findNodeById(domain.rootNodes, "spell:trait:fire");
+      const commonTraitNode = findNodeById(domain.rootNodes, "spell:commonTraits")?.children?.[0];
       const traitFieldNode = findNodeById(domain.rootNodes, "spell:field:traits");
       const traitValueNode = traitFieldNode?.loadChildren?.().find((node) => node.id === "spell:traits:fire");
 
@@ -217,7 +377,7 @@ describe("application ontology service", () => {
       value: `trait-${index + 1}`,
       count: index + 1,
     }));
-    const dataService: Pick<Pf2eDataService, "getSearchVocabulary" | "listFilterValues"> = {
+    const dataService: Pick<Pf2eDataService, "getSearchVocabulary" | "listFilterValues" | "listRecords"> = {
       getSearchVocabulary: vi.fn(() => ({
         categories: [{ value: "spell", count: 14 }],
         subcategories: [],
@@ -236,6 +396,17 @@ describe("application ontology service", () => {
         field,
         values: field === "traits" && category === "spell" ? values : [],
       })),
+      listRecords: vi.fn((filters: SearchFilters) => ({
+        searchProfile: null,
+        mode: "structured" as const,
+        sort: filters.sort ?? "alphabetical",
+        total: 0,
+        offset: filters.offset ?? 0,
+        limit: filters.limit ?? 20,
+        hasMore: false,
+        nextOffset: null,
+        records: [],
+      })),
     };
 
     const service = createPf2eApplicationOntologyService(createTestConfig(), dataService);
@@ -247,34 +418,42 @@ describe("application ontology service", () => {
     expect(traitValueNodes.at(-1)?.id).toBe("spell:traits:trait-14");
   });
 
-  it("keeps only live browse surfaces for search semantics traits, values, and advanced predicates", () => {
+  it("uses live record inspection and live metric discovery instead of shallow examples", () => {
     const service = createPf2eApplicationOntologyService(createTestConfig(), createDataService());
     const domain = service.loadDomain("searchSemantics");
-    const advancedPredicateNode = findNodeById(domain.rootNodes, "equipment:advanced:itemMetric");
-    const commonTraitNode = findNodeById(domain.rootNodes, "spell:trait:fire");
+    const actorMetricGroup = findNodeById(domain.rootNodes, "creature:actorMetrics:discovery");
+    const actorMetricNamespace = findNodeById(domain.rootNodes, "creature:actorMetrics:namespace:save.");
+    const actorMetricNode = actorMetricNamespace?.loadChildren?.().find((node) => node.id === "creature:actorMetrics:save.best");
+    const actorMetricValueNode = actorMetricNode?.loadChildren?.().find((node) => node.id === "creature:actorMetrics:save.best:fort");
+    const commonTraitNode = findNodeById(domain.rootNodes, "spell:commonTraits")?.children?.[0];
     const saveTypeValueNode =
       findNodeById(domain.rootNodes, "spell:field:saveType")?.loadChildren?.().find((node) => node.id === "spell:saveType:fortitude");
+    const publicationTitleValueNode =
+      findNodeById(domain.rootNodes, "spell:field:publicationTitle")
+        ?.loadChildren?.()
+        .find((node) => node.id === "spell:publicationTitle:Pathfinder Rage of Elements");
 
     expect(findNodeById(domain.rootNodes, "equipment:example:0")).toBeUndefined();
     expect(findNodeById(domain.rootNodes, "equipment:examples")).toBeUndefined();
-
-    expect(advancedPredicateNode?.query).toEqual({
+    expect(actorMetricGroup?.detailLines.map((line) => line.text)).toContain(
+      "Explore live metric namespaces, keys, and exact scalar values from the indexed corpus.",
+    );
+    expect(actorMetricNamespace?.loadChildren?.().map((node) => node.label)).toContain("save.best");
+    expect(actorMetricValueNode?.query).toEqual({
       kind: "listRecords",
-      label: "Browse records matching the itemMetric example",
+      label: "Browse records where save.best = fort",
       filters: {
-        category: "equipment",
+        category: "creature",
         metadata: {
-          field: "itemMetric",
-          metric: "weapon.reload",
+          field: "actorMetric",
+          metric: "save.best",
           op: "==",
-          value: 1,
+          value: "fort",
         },
         limit: 20,
       },
     });
-    expect(advancedPredicateNode?.detailLines.map((line) => line.text)).toContain(
-      "Press Enter or o to open the full matching set in the shared result reader.",
-    );
+    expect(actorMetricValueNode?.loadChildren?.()[0]?.kind).toBe("record");
     expect(commonTraitNode?.query).toEqual({
       kind: "listRecords",
       label: "Browse records with this trait",
@@ -300,6 +479,11 @@ describe("application ontology service", () => {
         },
         limit: 20,
       },
+    });
+    expect(publicationTitleValueNode?.query?.filters.metadata).toEqual({
+      field: "publicationTitle",
+      op: "eq",
+      value: "Pathfinder Rage of Elements",
     });
     expect(saveTypeValueNode?.detailLines.map((line) => line.text)).toContain(
       "Press Enter or o to open the full matching set in the shared result reader.",

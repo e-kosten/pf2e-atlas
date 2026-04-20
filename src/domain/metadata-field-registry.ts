@@ -828,7 +828,7 @@ type MetadataRecordValueByFieldType = {
 export const METADATA_FIELD_KIND_OPERATORS = {
   set: ["includesAny", "includesAll", "excludesAny"],
   enumString: ["eq", "in", "notIn"],
-  text: ["contains", "notContains"],
+  text: ["eq", "notEq", "contains", "notContains"],
   number: ["eq", "gte", "lte", "between"],
   boolean: ["eq"],
 } as const;

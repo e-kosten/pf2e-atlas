@@ -355,19 +355,30 @@ function createFacetPickerOntologyDomain(): OntologyDomainModel {
                 },
                 children: [
                   {
-                    id: "spell:derivedTags:coastal_setting",
-                    kind: "tag",
-                    label: "coastal_setting",
-                    filterText: "coastal setting",
-                    listLabel: "coastal_setting",
-                    detailTitle: "Tag Details",
-                    detailLines: [
-                      { text: "coastal_setting", tone: "section" },
-                      { text: "Live canonical records: 1" },
-                    ],
+                    id: "spell:family:coast",
+                    kind: "family",
+                    label: "coast",
+                    filterText: "coast coastal setting",
+                    listLabel: "coast | 1 tag",
+                    detailTitle: "Family Details",
+                    detailLines: [{ text: "coast", tone: "section" }],
                     groupValues: {
                       axis: "environment",
                     },
+                    children: [
+                      {
+                        id: "spell:derivedTags:coastal_setting",
+                        kind: "tag",
+                        label: "coastal_setting",
+                        filterText: "coastal setting",
+                        listLabel: "coastal_setting",
+                        detailTitle: "Tag Details",
+                        detailLines: [
+                          { text: "coastal_setting", tone: "section" },
+                          { text: "Live canonical records: 1" },
+                        ],
+                      },
+                    ],
                   },
                 ],
               },
@@ -417,16 +428,27 @@ function createCreatureDerivedTagsOntologyDomain(): OntologyDomainModel {
                 },
                 children: [
                   {
-                    id: "creature:derivedTags:undead",
-                    kind: "tag",
+                    id: "creature:family:undead",
+                    kind: "family",
                     label: "undead",
-                    filterText: "undead",
-                    listLabel: "undead",
-                    detailTitle: "Tag Details",
+                    filterText: "undead creature-type",
+                    listLabel: "undead | 1 tag",
+                    detailTitle: "Family Details",
                     detailLines: [{ text: "undead", tone: "section" }],
                     groupValues: {
                       axis: "creature-type",
                     },
+                    children: [
+                      {
+                        id: "creature:derivedTags:undead",
+                        kind: "tag",
+                        label: "undead",
+                        filterText: "undead",
+                        listLabel: "undead",
+                        detailTitle: "Tag Details",
+                        detailLines: [{ text: "undead", tone: "section" }],
+                      },
+                    ],
                   },
                 ],
               },
@@ -720,8 +742,9 @@ describe("search screen", () => {
     await flushInk();
     expect(app.lastFrame()).toContain("Derived Tags Query");
     expect(app.lastFrame()).toContain("Selection Picker");
-    expect(app.lastFrame()).toContain("[VALUES]");
-    expect(app.lastFrame()).toContain("Focused: coastal_setting");
+    expect(app.lastFrame()).toContain("[FAMILIES]");
+    expect(app.lastFrame()).toContain("Environment");
+    expect(app.lastFrame()).toContain("Focused: coast");
     expect(app.lastFrame()).not.toContain("Query Field\n");
   });
 
@@ -1665,12 +1688,24 @@ describe("search screen", () => {
     await flushInk();
     expect(app.lastFrame()).toContain("Derived Tags Query");
     expect(app.lastFrame()).toContain("Selection Picker");
-    expect(app.lastFrame()).toContain("[VALUES]");
+    expect(app.lastFrame()).toContain("[FAMILIES]");
+    expect(app.lastFrame()).toContain("Environment");
+    expect(app.lastFrame()).toContain("Focused: coast");
+
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("[TAGS]");
     expect(app.lastFrame()).toContain("Focused: coastal_setting");
 
     app.stdin.write(" ");
     await flushInk();
     expect(app.lastFrame()).toContain("Policy any");
+
+    pressLeft(app);
+    await flushInk();
+    expect(app.lastFrame()).toContain("Selection Picker");
+    expect(app.lastFrame()).toContain("[FAMILIES]");
+    expect(app.lastFrame()).toContain("derivedTags: any=coastal_setting");
 
     pressLeft(app);
     await flushInk();
@@ -1803,7 +1838,7 @@ describe("search screen", () => {
     await flushInk();
     expect(app.lastFrame()).toContain("Traits Query");
     expect(app.lastFrame()).toContain("Selection Picker");
-    expect(app.lastFrame()).toContain("[VALUES]");
+    expect(app.lastFrame()).toContain("[TRAITS]");
 
     pressLeft(app);
     await flushInk();
@@ -1910,7 +1945,8 @@ describe("search screen", () => {
     await flushInk();
     expect(app.lastFrame()).toContain("Derived Tags Query");
     expect(app.lastFrame()).toContain("Selection Picker");
-    expect(app.lastFrame()).toContain("[VALUES]");
+    expect(app.lastFrame()).toContain("[FAMILIES]");
+    expect(app.lastFrame()).toContain("Creature Type");
     expect(app.lastFrame()).not.toContain("Choose a category before editing a discoverable query field.");
   });
 });

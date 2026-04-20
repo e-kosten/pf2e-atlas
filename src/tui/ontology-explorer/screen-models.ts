@@ -1,4 +1,4 @@
-import type { OntologyDomainModel, OntologyNodeQuery } from "../../types.js";
+import type { OntologyDomainModel, OntologyNode, OntologyNodeQuery } from "../../types.js";
 import {
   TERMINAL_LIVE_FILTER_FOOTER,
   buildTerminalInteractionHelpLines,
@@ -58,21 +58,97 @@ function getFacetPickerBackAction(
     : { id: "back" };
 }
 
+type FacetPickerListContext = {
+  focusTarget: string;
+  listTarget: string;
+  title: string;
+};
+
+function resolveFacetPickerListContextFromTitle(title: string): FacetPickerListContext {
+  switch (title) {
+    case "Query Fields":
+      return { title, listTarget: "query field", focusTarget: "query fields" };
+    case "Advanced Predicates":
+      return { title, listTarget: "advanced predicate", focusTarget: "advanced predicates" };
+    case "Derived Tags":
+      return { title, listTarget: "derived tag", focusTarget: "derived tags" };
+    case "Values":
+      return { title, listTarget: "value", focusTarget: "values" };
+    case "Tags":
+      return { title, listTarget: "tag", focusTarget: "tags" };
+    case "Traits":
+      return { title, listTarget: "trait", focusTarget: "traits" };
+    case "Families":
+      return { title, listTarget: "family", focusTarget: "families" };
+    case "Categories":
+      return { title, listTarget: "category", focusTarget: "categories" };
+    case "Subcategories":
+      return { title, listTarget: "subcategory", focusTarget: "subcategories" };
+    case "Records":
+      return { title, listTarget: "record", focusTarget: "records" };
+    default:
+      return { title, listTarget: title.toLowerCase(), focusTarget: title.toLowerCase() };
+  }
+}
+
+function resolveFacetPickerListContextFromNodes(nodes: OntologyNode[]): FacetPickerListContext | undefined {
+  const kinds = [...new Set(nodes.map((node) => node.kind).filter((kind) => kind.length > 0))];
+  if (kinds.length !== 1) {
+    return undefined;
+  }
+
+  switch (kinds[0]) {
+    case undefined:
+      return undefined;
+    case "field":
+      return resolveFacetPickerListContextFromTitle("Query Fields");
+    case "family":
+      return resolveFacetPickerListContextFromTitle("Families");
+    case "tag":
+      return resolveFacetPickerListContextFromTitle("Tags");
+    case "trait":
+      return resolveFacetPickerListContextFromTitle("Traits");
+    case "value":
+      return resolveFacetPickerListContextFromTitle("Values");
+    case "derivedTagValue":
+      return resolveFacetPickerListContextFromTitle("Derived Tags");
+    case "advancedPredicate":
+      return resolveFacetPickerListContextFromTitle("Advanced Predicates");
+    case "category":
+      return resolveFacetPickerListContextFromTitle("Categories");
+    case "subcategory":
+      return resolveFacetPickerListContextFromTitle("Subcategories");
+    case "record":
+      return resolveFacetPickerListContextFromTitle("Records");
+    default:
+      return undefined;
+  }
+}
+
+function getFacetPickerListContext(
+  controller: Pick<OntologyExplorerControllerContext, "effectiveState" | "selection">,
+  options: HostedOntologyPickerContract = {},
+): FacetPickerListContext {
+  if (controller.effectiveState.depth === (options.rootDepth ?? 0) && options.rootListTitle) {
+    return resolveFacetPickerListContextFromTitle(options.rootListTitle);
+  }
+  return (
+    resolveFacetPickerListContextFromNodes(controller.selection.currentNodes) ??
+    (controller.effectiveState.depth === (options.rootDepth ?? 0)
+      ? resolveFacetPickerListContextFromTitle("Query Fields")
+      : { title: "Entries", listTarget: "entry", focusTarget: "entries" })
+  );
+}
+
 function getFacetPickerBackHelpText(
-  controller: Pick<OntologyExplorerControllerContext, "layoutMode" | "state" | "effectiveState">,
+  controller: Pick<OntologyExplorerControllerContext, "layoutMode" | "state" | "effectiveState" | "selection">,
   options: HostedOntologyPickerContract = {},
 ): string {
   const rootDepth = options.rootDepth ?? 0;
-  const rootListTitle = options.rootListTitle ?? "Query Fields";
-  const rootListBackTarget =
-    rootListTitle === "Query Fields"
-      ? "query field list"
-      : rootListTitle === "Values"
-        ? "value list"
-        : `${rootListTitle.toLowerCase()} list`;
+  const rootListContext = getFacetPickerListContext(controller, options);
   if (isOntologyExplorerDetailContext(controller)) {
     return controller.effectiveState.depth === rootDepth
-      ? (options.rootDetailBackHelpText ?? `return to the ${rootListBackTarget}`)
+      ? (options.rootDetailBackHelpText ?? `return to the ${rootListContext.listTarget} list`)
       : "return to the previous level";
   }
   return controller.state.activePane === "list" && controller.effectiveState.depth === rootDepth
@@ -81,19 +157,20 @@ function getFacetPickerBackHelpText(
 }
 
 function getFacetPickerListTitle(
-  controller: Pick<OntologyExplorerControllerContext, "state" | "effectiveState">,
+  controller: Pick<OntologyExplorerControllerContext, "effectiveState" | "selection">,
   options: HostedOntologyPickerContract = {},
 ): string {
-  return controller.effectiveState.depth === (options.rootDepth ?? 0) ? (options.rootListTitle ?? "Query Fields") : "Values";
+  return getFacetPickerListContext(controller, options).title;
 }
 
 function getFacetPickerFocusHelpText(
-  controller: Pick<OntologyExplorerControllerContext, "effectiveState">,
+  controller: Pick<OntologyExplorerControllerContext, "effectiveState" | "selection">,
   options: HostedOntologyPickerContract = {},
 ): string {
+  const listContext = getFacetPickerListContext(controller, options);
   return controller.effectiveState.depth === (options.rootDepth ?? 0)
-    ? (options.rootFocusHelpText ?? "switch focus between query fields and detail")
-    : "switch focus between field values and detail";
+    ? (options.rootFocusHelpText ?? `switch focus between ${listContext.focusTarget} and detail`)
+    : `switch focus between ${listContext.focusTarget} and detail`;
 }
 
 export function getOntologyBrowserInteractionActions(
@@ -351,7 +428,7 @@ export function getFacetPickerInteractionActions(
 }
 
 export function buildFacetPickerHelpLines(
-  controller: Pick<OntologyExplorerControllerContext, "layoutMode" | "state" | "effectiveState">,
+  controller: Pick<OntologyExplorerControllerContext, "layoutMode" | "state" | "effectiveState" | "selection">,
   options: HostedOntologyPickerContract = {},
 ): DerivedTagTerminalLine[] {
   const actionActions = getFacetPickerInteractionActions(controller, options)

@@ -94,10 +94,7 @@ export function useSearchQueryFieldPickerWorkflow({
         rootBackHelpText: onReturn ? "return to the query builder" : undefined,
         rootBackLabel: onReturn ? "builder" : undefined,
         rootDepth,
-        rootDetailBackHelpText: rootDepth > 0 ? "return to the value list" : undefined,
         rootExitMode: onReturn ? "return" : rootDepth > 0 ? "apply" : undefined,
-        rootFocusHelpText: rootDepth > 0 ? "switch focus between field values and detail" : undefined,
-        rootListTitle: rootDepth > 0 ? "Values" : undefined,
       });
 
       setSelectionPickerSession({

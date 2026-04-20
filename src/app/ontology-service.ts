@@ -2,6 +2,8 @@ import { DatabaseSync } from "node:sqlite";
 
 import { CATEGORY_SUBCATEGORY_MAP, SEARCH_CATEGORIES, normalizeSearchCategory } from "../domain/categories.js";
 import { getMetadataFilterSemantics, type MetadataFieldSemantics } from "../domain/metadata-semantics.js";
+import { inferActorMetricValueType } from "../domain/actor-metrics.js";
+import { inferItemMetricValueType } from "../domain/item-metrics.js";
 import { readMetadataGlossaryArtifact } from "../data/metadata-glossary.js";
 import { Pf2eDataService } from "../data/service.js";
 import type {
@@ -14,11 +16,13 @@ import type {
   MetadataNumberField,
   MetadataSetField,
   MetadataTextStringField,
+  NormalizedRecord,
   OntologyDomainId,
   OntologyDomainModel,
   OntologyDomainSummary,
   OntologyNode,
   SearchCategory,
+  SearchSubcategory,
 } from "../types.js";
 import { normalizeText } from "../utils.js";
 import {
@@ -33,6 +37,7 @@ import {
   buildOntologyExplorerEntityDetailLines,
   buildOntologyExplorerEntitySummary,
 } from "../tui/ontology-explorer/entity-page.js";
+import { mapNormalizedRecordToOntologyExplorerEntityRecord } from "../tui/ontology-explorer/entity-record.js";
 
 export type Pf2eApplicationOntologyService = {
   listDomains: () => OntologyDomainSummary[];
@@ -121,8 +126,54 @@ function cloneMetadataFilterNode(metadata: MetadataFilterNode): MetadataFilterNo
   return structuredClone(metadata);
 }
 
+function cloneOntologyNode(node: OntologyNode, idPrefix?: string): OntologyNode {
+  return {
+    ...node,
+    id: idPrefix ? `${idPrefix}:${node.id}` : node.id,
+    children: node.children?.map((child) => cloneOntologyNode(child, idPrefix)),
+    loadChildren: node.loadChildren
+      ? () => node.loadChildren!().map((child) => cloneOntologyNode(child, idPrefix))
+      : undefined,
+    childPresentation: node.childPresentation ? { ...node.childPresentation } : undefined,
+    groupValues: node.groupValues ? { ...node.groupValues } : undefined,
+    query: node.query ? { ...node.query, filters: { ...node.query.filters } } : undefined,
+    selection: node.selection ? { ...node.selection } : undefined,
+  };
+}
+
+function buildNormalizedRecordNode(record: NormalizedRecord): OntologyNode {
+  const entityRecord = mapNormalizedRecordToOntologyExplorerEntityRecord(record);
+  return {
+    id: record.recordKey,
+    kind: "record",
+    label: record.name,
+    filterText: buildFilterText(
+      record.recordKey,
+      record.name,
+      record.category,
+      record.subcategory ?? "",
+      record.descriptionText ?? "",
+      record.blurbText ?? "",
+    ),
+    listLabel: buildOntologyExplorerEntitySummary(entityRecord),
+    detailTitle: "Record Details",
+    detailLines: buildOntologyExplorerEntityDetailLines(entityRecord),
+    query: {
+      kind: "lookup",
+      label: "Open exact record lookup",
+      filters: {
+        nameQuery: record.name,
+        category: record.category,
+        subcategory: record.subcategory ?? undefined,
+        limit: 5,
+      },
+    },
+  };
+}
+
 function buildSearchSemanticsMetadataQuery(
   category: SearchCategory,
+  subcategory: SearchSubcategory | null,
   label: string,
   metadata: MetadataFilterNode,
 ): OntologyNode["query"] {
@@ -131,6 +182,7 @@ function buildSearchSemanticsMetadataQuery(
     label,
     filters: {
       category,
+      subcategory: subcategory ?? undefined,
       metadata: cloneMetadataFilterNode(metadata),
       limit: 20,
     },
@@ -443,7 +495,7 @@ function buildMetadataValueQuery(
     case "text":
       return {
         field: fieldSemantics.field as MetadataTextStringField,
-        op: "contains",
+        op: "eq",
         value,
       };
     case "number": {
@@ -469,22 +521,51 @@ function buildMetadataValueQuery(
   }
 }
 
+function buildMetricScalarMetadataQuery(
+  field: "actorMetric" | "itemMetric",
+  metric: string,
+  valueType: "text" | "boolean",
+  value: string,
+): MetadataFilterNode {
+  return {
+    field,
+    metric,
+    op: "==",
+    value: valueType === "boolean" ? value === "true" : value,
+  };
+}
+
+function buildQueryRecordChildren(
+  dataService: Pick<Pf2eDataService, "listRecords">,
+  query: OntologyNode["query"] | undefined,
+): OntologyNode[] {
+  if (!query || query.kind !== "listRecords") {
+    return [];
+  }
+
+  return dataService.listRecords(query.filters).records.map(buildNormalizedRecordNode);
+}
+
 function buildFieldValueNodes(
+  dataService: Pick<Pf2eDataService, "listRecords">,
   category: SearchCategory,
+  subcategory: SearchSubcategory | null,
   fieldSemantics: MetadataFieldSemantics,
   values: Array<{ value: string; count: number }>,
   metadataGlossary: MetadataGlossaryArtifact | null,
 ): OntologyNode[] {
+  const idPrefix = subcategory ? `${category}:${subcategory}` : category;
   return values.map((entry): OntologyNode => {
     const metadata = buildMetadataValueQuery(fieldSemantics, entry.value);
     const traitGlossaryEntry =
       fieldSemantics.field === "traits" ? getTraitGlossaryEntry(metadataGlossary, entry.value) : undefined;
     return {
-      id: `${category}:${fieldSemantics.field}:${entry.value}`,
+      id: `${idPrefix}:${fieldSemantics.field}:${entry.value}`,
       kind: "value",
       label: traitGlossaryEntry?.label ?? entry.value,
       filterText: buildFilterText(
         category,
+        subcategory ?? "",
         fieldSemantics.field,
         entry.value,
         traitGlossaryEntry?.label ?? "",
@@ -502,6 +583,7 @@ function buildFieldValueNodes(
               entry.value,
               [
                 ["Category", category],
+                ["Subcategory", subcategory ?? "(all)"],
                 ["Field", fieldSemantics.field],
                 ["Value", entry.value],
                 ["Live canonical records", entry.count],
@@ -509,24 +591,246 @@ function buildFieldValueNodes(
               buildResultReaderHint(),
             ),
       query: metadata
-        ? {
-            kind: "listRecords",
-            label:
-              fieldSemantics.field === "traits" ? "Browse records with this trait" : "Browse records with this value",
-            filters: {
-              category,
-              metadata,
-              limit: 20,
-            },
-          }
+        ? buildSearchSemanticsMetadataQuery(
+            category,
+            subcategory,
+            fieldSemantics.field === "traits" ? "Browse records with this trait" : "Browse records with this value",
+            metadata,
+          )
+        : undefined,
+      loadChildren: metadata
+        ? () =>
+            buildQueryRecordChildren(
+              dataService,
+              buildSearchSemanticsMetadataQuery(
+                category,
+                subcategory,
+                fieldSemantics.field === "traits" ? "Browse records with this trait" : "Browse records with this value",
+                metadata,
+              ),
+            )
         : undefined,
     };
   });
 }
 
+function buildMetricValueNodes(
+  dataService: Pick<Pf2eDataService, "listFilterValues" | "listRecords">,
+  options: {
+    category: SearchCategory;
+    subcategory: SearchSubcategory | null;
+    metricField: "actorMetrics" | "itemMetrics";
+    metadataField: "actorMetric" | "itemMetric";
+    metricKey: string;
+    values: Array<{ value: string; count: number }>;
+    valueType: "text" | "boolean";
+  },
+): OntologyNode[] {
+  const { category, subcategory, metricField, metadataField, metricKey, values, valueType } = options;
+  const idPrefix = subcategory ? `${category}:${subcategory}` : category;
+  return values.map((entry) => {
+    const metadata = buildMetricScalarMetadataQuery(metadataField, metricKey, valueType, entry.value);
+    const query = buildSearchSemanticsMetadataQuery(
+      category,
+      subcategory,
+      `Browse records where ${metricKey} ${valueType === "boolean" ? "is" : "="} ${entry.value}`,
+      metadata,
+    );
+    return {
+      id: `${idPrefix}:${metricField}:${metricKey}:${entry.value}`,
+      kind: "value",
+      label: entry.value,
+      filterText: buildFilterText(category, subcategory ?? "", metricField, metricKey, entry.value),
+      listLabel: `${entry.value} | ${entry.count}`,
+      detailTitle: "Metric Value",
+      detailLines: buildKeyValueDetailLines(
+        entry.value,
+        [
+          ["Category", category],
+          ["Subcategory", subcategory ?? "(all)"],
+          ["Metric field", metricField],
+          ["Metric key", metricKey],
+          ["Value type", valueType],
+          ["Live canonical records", entry.count],
+        ],
+        buildResultReaderHint(),
+      ),
+      query,
+      loadChildren: () => buildQueryRecordChildren(dataService, query),
+    };
+  });
+}
+
+function buildMetricKeyNode(
+  dataService: Pick<Pf2eDataService, "listFilterValues" | "listRecords">,
+  options: {
+    category: SearchCategory;
+    subcategory: SearchSubcategory | null;
+    metricField: "actorMetrics" | "itemMetrics";
+    metadataField: "actorMetric" | "itemMetric";
+    metricKey: string;
+    liveRecordCount: number;
+  },
+): OntologyNode {
+  const { category, subcategory, metricField, metadataField, metricKey, liveRecordCount } = options;
+  const valueType =
+    metricField === "actorMetrics" ? inferActorMetricValueType(metricKey) : inferItemMetricValueType(metricKey);
+  const idPrefix = subcategory ? `${category}:${subcategory}` : category;
+  const browseQuery =
+    valueType === "text" || valueType === "boolean"
+      ? undefined
+      : {
+          kind: "listRecords" as const,
+          label: `Browse ${category} records`,
+          filters: {
+            category,
+            subcategory: subcategory ?? undefined,
+            limit: 20,
+          },
+        };
+
+  return {
+    id: `${idPrefix}:${metricField}:${metricKey}`,
+    kind: "metric",
+    label: metricKey,
+    filterText: buildFilterText(category, subcategory ?? "", metricField, metricKey, valueType ?? ""),
+    listLabel: `${metricKey} | ${liveRecordCount}`,
+    detailTitle: "Metric Details",
+    detailLines: [
+      { text: metricKey, tone: "section" },
+      { text: `Category: ${category}` },
+      { text: `Subcategory: ${subcategory ?? "(all)"}` },
+      { text: `Metric field: ${metricField}` },
+      { text: `Value type: ${valueType ?? "unknown"}` },
+      { text: `Live canonical records: ${liveRecordCount}` },
+      ...(valueType === "text" || valueType === "boolean"
+        ? [
+            {
+              text: "Drill in to browse exact live scalar values for this metric, then inspect matching records in the shared result reader.",
+            },
+          ]
+        : [
+            {
+              text: "Use the structured query editor for numeric comparisons on this metric. Live scalar enumeration is only available for text and boolean metrics.",
+            },
+          ]),
+    ],
+    query: browseQuery,
+    loadChildren:
+      valueType === "text" || valueType === "boolean"
+        ? () =>
+            buildMetricValueNodes(dataService, {
+              category,
+              subcategory,
+              metricField,
+              metadataField,
+              metricKey,
+              valueType,
+              values: dataService.listFilterValues({
+                field: metricField,
+                category,
+                subcategory: subcategory ?? undefined,
+                metric: metricKey,
+              }).values,
+            })
+        : () => buildQueryRecordChildren(dataService, browseQuery),
+  };
+}
+
+function buildMetricNamespaceNode(
+  dataService: Pick<Pf2eDataService, "listFilterValues" | "listRecords">,
+  options: {
+    category: SearchCategory;
+    subcategory: SearchSubcategory | null;
+    metricField: "actorMetrics" | "itemMetrics";
+    metadataField: "actorMetric" | "itemMetric";
+    prefix: string;
+    description: string;
+  },
+): OntologyNode {
+  const { category, subcategory, metricField, metadataField, prefix, description } = options;
+  const idPrefix = subcategory ? `${category}:${subcategory}` : category;
+  return {
+    id: `${idPrefix}:${metricField}:namespace:${prefix}`,
+    kind: "metricNamespace",
+    label: prefix,
+    filterText: buildFilterText(category, subcategory ?? "", metricField, prefix, description),
+    listLabel: prefix,
+    detailTitle: "Metric Namespace",
+    detailLines: [
+      { text: prefix, tone: "section" },
+      { text: description },
+      { text: `Category: ${category}` },
+      { text: `Subcategory: ${subcategory ?? "(all)"}` },
+      { text: `Metric field: ${metricField}` },
+      { text: "Drill in to browse live metric keys, then inspect exact scalar values where the backend can enumerate them." },
+    ],
+    loadChildren: () =>
+      dataService
+        .listFilterValues({
+          field: metricField,
+          category,
+          subcategory: subcategory ?? undefined,
+          metricPrefix: prefix,
+        })
+        .values.map((entry) =>
+          buildMetricKeyNode(dataService, {
+            category,
+            subcategory,
+            metricField,
+            metadataField,
+            metricKey: entry.value,
+            liveRecordCount: entry.count,
+          }),
+        ),
+  };
+}
+
+function buildMetricDiscoveryGroup(
+  dataService: Pick<Pf2eDataService, "listFilterValues" | "listRecords">,
+  options: {
+    category: SearchCategory;
+    subcategory: SearchSubcategory | null;
+    metricField: "actorMetrics" | "itemMetrics";
+    metadataField: "actorMetric" | "itemMetric";
+    label: "Actor Metrics" | "Item Metrics";
+    namespaces: Array<{ prefix: string; description: string }>;
+  },
+): OntologyNode {
+  const { category, subcategory, metricField, metadataField, label, namespaces } = options;
+  const idPrefix = subcategory ? `${category}:${subcategory}` : category;
+  return {
+    id: `${idPrefix}:${metricField}:discovery`,
+    kind: "group",
+    label,
+    filterText: buildFilterText(category, subcategory ?? "", label, ...namespaces.map((entry) => entry.prefix)),
+    listLabel: `${label} | ${namespaces.length} namespaces`,
+    detailTitle: label,
+    detailLines: buildKeyValueDetailLines(
+      label,
+      [
+        ["Category", category],
+        ["Subcategory", subcategory ?? "(all)"],
+        ["Namespaces", namespaces.length],
+      ],
+      "Explore live metric namespaces, keys, and exact scalar values from the indexed corpus.",
+    ),
+    children: namespaces.map((namespace) =>
+      buildMetricNamespaceNode(dataService, {
+        category,
+        subcategory,
+        metricField,
+        metadataField,
+        prefix: namespace.prefix,
+        description: namespace.description,
+      }),
+    ),
+  };
+}
+
 function buildSearchSemanticsDomain(
   config: AppConfig,
-  dataService: Pick<Pf2eDataService, "getSearchVocabulary" | "listFilterValues">,
+  dataService: Pick<Pf2eDataService, "getSearchVocabulary" | "listFilterValues" | "listRecords">,
 ): OntologyDomainModel {
   const semantics = getMetadataFilterSemantics();
   const vocabulary = dataService.getSearchVocabulary();
@@ -542,17 +846,27 @@ function buildSearchSemanticsDomain(
 
   const getCachedFilterValues = (
     category: SearchCategory,
+    subcategory: SearchSubcategory | null,
     field: MetadataFieldSemantics["field"],
   ): Array<{ value: string; count: number }> => {
-    const cacheKey = `${category}:${field}`;
+    const cacheKey = `${category}:${subcategory ?? "all"}:${field}`;
     const cached = filterValuesCache.get(cacheKey);
     if (cached) {
       return cached;
     }
-    const values = dataService.listFilterValues({ field, category }).values;
+    const values = dataService.listFilterValues({ field, category, subcategory: subcategory ?? undefined }).values;
     filterValuesCache.set(cacheKey, values);
     return values;
   };
+
+  const getCategoryScopedFields = (category: SearchCategory, subcategory: SearchSubcategory | null) =>
+    semantics.metadataFieldsByCategory[category].filter((field) => {
+      const fieldSemantics = metadataFieldsByName.get(field);
+      if (!fieldSemantics) {
+        return false;
+      }
+      return !subcategory || !fieldSemantics.subcategories || fieldSemantics.subcategories.includes(subcategory);
+    });
 
   const commonTraitsByCategory = new Map(
     vocabulary.commonTraitsByCategory.map((entry) => [entry.category, entry.traits]),
@@ -579,18 +893,21 @@ function buildSearchSemanticsDomain(
       }),
   );
 
-  const rootNodes = SEARCH_CATEGORIES.map((category) => {
-    const liveSubcategoryCounts = liveSubcategoryCountsByCategory.get(category) ?? new Map<string, number>();
-    const categoryFields = semantics.metadataFieldsByCategory[category];
-    const metadataFieldNodes: OntologyNode[] = categoryFields.map((field): OntologyNode => {
+  function buildMetadataFieldNodes(
+    category: SearchCategory,
+    subcategory: SearchSubcategory | null,
+  ): OntologyNode[] {
+    const idPrefix = subcategory ? `${category}:${subcategory}` : category;
+    return getCategoryScopedFields(category, subcategory).map((field): OntologyNode => {
       const fieldSemantics = metadataFieldsByName.get(field)!;
       const derivedTagCategoryNode = field === "derivedTags" ? derivedTagCategoryNodes.get(category) : undefined;
       return {
-        id: `${category}:field:${field}`,
+        id: `${idPrefix}:field:${field}`,
         kind: "field",
         label: field,
         filterText: buildFilterText(
           category,
+          subcategory ?? "",
           field,
           fieldSemantics.fieldType,
           fieldSemantics.notes ?? "",
@@ -601,6 +918,7 @@ function buildSearchSemanticsDomain(
         detailLines: [
           { text: field, tone: "section" },
           { text: `Category: ${category}` },
+          { text: `Subcategory: ${subcategory ?? "(all)"}` },
           { text: `Field type: ${fieldSemantics.fieldType}` },
           { text: `Discoverable: ${fieldSemantics.discoverable ? "yes" : "no"}` },
           { text: `Subcategory scope: ${fieldSemantics.subcategories?.join(", ") ?? "(all subcategories)"}` },
@@ -608,7 +926,7 @@ function buildSearchSemanticsDomain(
           ...(fieldSemantics.discoverable
             ? [
                 {
-                  text: "Drill in to browse the full live value space for this field, then open matching records in the shared result reader.",
+                  text: "Drill in to browse the full live value space for this field, inspect exact matching records inline, or launch the seeded search/editor flow.",
                 },
               ]
             : []),
@@ -625,134 +943,225 @@ function buildSearchSemanticsDomain(
         },
         ...(field === "derivedTags" && derivedTagCategoryNode?.children
           ? {
-              children: derivedTagCategoryNode.children.map((node) => ({ ...node })),
-              childPresentation: derivedTagCategoryNode.childPresentation,
+              children: derivedTagCategoryNode.children.map((node) =>
+                cloneOntologyNode(node, `${idPrefix}:field:${field}`),
+              ),
+              childPresentation: derivedTagCategoryNode.childPresentation
+                ? { ...derivedTagCategoryNode.childPresentation }
+                : undefined,
             }
           : {
               loadChildren: fieldSemantics.discoverable
                 ? () => {
-                    const liveValues = getCachedFilterValues(category, field);
+                    const liveValues = getCachedFilterValues(category, subcategory, field);
                     return liveValues.length > 0
-                      ? buildFieldValueNodes(category, fieldSemantics, liveValues, metadataGlossary)
+                      ? buildFieldValueNodes(dataService, category, subcategory, fieldSemantics, liveValues, metadataGlossary)
                       : [];
                   }
                 : undefined,
             }),
       };
     });
+  }
 
-    const advancedPredicateNodes: OntologyNode[] = semantics.advancedPredicates
-      .filter((predicate) => predicate.categories.includes(category))
-      .map(
-        (predicate): OntologyNode => ({
-          id: `${category}:advanced:${predicate.name}`,
-          kind: "advancedPredicate",
-          label: predicate.name,
-          filterText: buildFilterText(category, predicate.name, predicate.description),
-          listLabel: `${predicate.name} | ${predicate.operators.join(", ")}`,
-          detailTitle: "Advanced Predicate Details",
-          detailLines: [
-            { text: predicate.name, tone: "section" },
-            { text: predicate.description },
-            { text: `Category: ${category}` },
-            { text: `Operators: ${predicate.operators.join(", ")}` },
-            { text: `Example: ${JSON.stringify(predicate.example)}` },
-            { text: buildResultReaderHint() },
-          ],
-          query: buildSearchSemanticsMetadataQuery(
-            category,
-            `Browse records matching the ${predicate.name} example`,
-            predicate.example,
-          ),
+  function buildCommonTraitShortcutGroup(category: SearchCategory, metadataFieldNodes: OntologyNode[]): OntologyNode | null {
+    const traitFieldNode = metadataFieldNodes.find((node) => node.label === "traits");
+    const traitNodesByLabel = new Map(
+      (traitFieldNode?.loadChildren?.() ?? []).map((node) => [normalizeText(node.label), node]),
+    );
+    const shortcutNodes = (commonTraitsByCategory.get(category) ?? [])
+      .map((entry) => traitNodesByLabel.get(normalizeText(getTraitGlossaryEntry(metadataGlossary, entry.value)?.label ?? entry.value)))
+      .filter((node): node is OntologyNode => Boolean(node))
+      .map((node) => cloneOntologyNode(node, `${category}:commonTraitsShortcut`));
+
+    if (shortcutNodes.length === 0) {
+      return null;
+    }
+
+    return {
+      id: `${category}:commonTraits`,
+      kind: "group",
+      label: "Common Traits",
+      filterText: buildFilterText(category, "common traits", ...shortcutNodes.map((node) => node.label)),
+      listLabel: `Common traits | ${shortcutNodes.length}`,
+      detailTitle: "Common Traits",
+      detailLines: buildKeyValueDetailLines(
+        "Common Traits",
+        [
+          ["Category", category],
+          ["Entries", shortcutNodes.length],
+        ],
+        "Shortcut into the canonical trait value space for this category.",
+      ),
+      children: shortcutNodes,
+    };
+  }
+
+  function buildCommonDerivedTagShortcutGroup(
+    category: SearchCategory,
+    metadataFieldNodes: OntologyNode[],
+  ): OntologyNode | null {
+    const derivedTagFieldNode = metadataFieldNodes.find((node) => node.label === "derivedTags");
+    if (!derivedTagFieldNode?.children) {
+      return null;
+    }
+
+    const desiredTags = new Set(
+      (commonDerivedTagsByCategory.get(category) ?? []).map((entry) => normalizeText(entry.value)),
+    );
+    const matchingFamilies = derivedTagFieldNode.children.flatMap((familyNode) => {
+        const matchingTags =
+          familyNode.children?.filter((tagNode) => desiredTags.has(normalizeText(tagNode.label))) ?? [];
+        if (matchingTags.length === 0) {
+          return [];
+        }
+        return [
+          {
+            ...cloneOntologyNode(familyNode, `${category}:commonDerivedTagsShortcut`),
+            children: matchingTags.map((tagNode) =>
+              cloneOntologyNode(tagNode, `${category}:commonDerivedTagsShortcut`),
+            ),
+          } satisfies OntologyNode,
+        ];
+      });
+
+    if (matchingFamilies.length === 0) {
+      return null;
+    }
+
+    return {
+      id: `${category}:commonDerivedTags`,
+      kind: "group",
+      label: "Common Derived Tags",
+      filterText: buildFilterText(category, "common derived tags", ...matchingFamilies.map((node) => node.label)),
+      listLabel: `Common derived tags | ${desiredTags.size}`,
+      detailTitle: "Common Derived Tags",
+      detailLines: buildKeyValueDetailLines(
+        "Common Derived Tags",
+        [
+          ["Category", category],
+          ["Families", matchingFamilies.length],
+          ["Entries", desiredTags.size],
+        ],
+        "Shortcut into the canonical derived-tag family/tag hierarchy for this category.",
+      ),
+      children: matchingFamilies,
+    };
+  }
+
+  function buildMetricDiscoveryGroups(
+    category: SearchCategory,
+    subcategory: SearchSubcategory | null,
+  ): OntologyNode[] {
+    const groups: OntologyNode[] = [];
+    if (
+      semantics.actorMetricDiscovery &&
+      semantics.advancedPredicates.some((predicate) => predicate.name === "actorMetric" && predicate.categories.includes(category))
+    ) {
+      groups.push(
+        buildMetricDiscoveryGroup(dataService, {
+          category,
+          subcategory,
+          metricField: "actorMetrics",
+          metadataField: "actorMetric",
+          label: "Actor Metrics",
+          namespaces: semantics.actorMetricDiscovery.namespaces,
         }),
       );
+    }
+    if (
+      semantics.itemMetricDiscovery &&
+      semantics.advancedPredicates.some((predicate) => predicate.name === "itemMetric" && predicate.categories.includes(category))
+    ) {
+      groups.push(
+        buildMetricDiscoveryGroup(dataService, {
+          category,
+          subcategory,
+          metricField: "itemMetrics",
+          metadataField: "itemMetric",
+          label: "Item Metrics",
+          namespaces: semantics.itemMetricDiscovery.namespaces,
+        }),
+      );
+    }
+    return groups;
+  }
 
-    const traitNodes: OntologyNode[] = (commonTraitsByCategory.get(category) ?? []).map(
-      (entry): OntologyNode => ({
-        id: `${category}:trait:${entry.value}`,
-        kind: "trait",
-        label: getTraitGlossaryEntry(metadataGlossary, entry.value)?.label ?? entry.value,
+  function buildSubcategoryNode(category: SearchCategory, subcategory: SearchSubcategory): OntologyNode {
+    const subcategoryMetadataFieldNodes = buildMetadataFieldNodes(category, subcategory);
+    const metricDiscoveryGroups = buildMetricDiscoveryGroups(category, subcategory);
+    const children: OntologyNode[] = [];
+
+    if (subcategoryMetadataFieldNodes.length > 0) {
+      children.push({
+        id: `${category}:${subcategory}:metadataFields`,
+        kind: "group",
+        label: "Metadata Fields",
         filterText: buildFilterText(
           category,
-          entry.value,
-          "trait",
-          getTraitGlossaryEntry(metadataGlossary, entry.value)?.label ?? "",
-          getTraitGlossaryEntry(metadataGlossary, entry.value)?.description ?? "",
-        ),
-        listLabel: `${getTraitGlossaryEntry(metadataGlossary, entry.value)?.label ?? entry.value} | ${entry.count}`,
-        detailTitle: "Common Trait",
-        detailLines: [
-          ...buildTraitDetailLines(category, entry.value, entry.count, metadataGlossary),
-          { text: buildResultReaderHint() },
-        ],
-        query: {
-          kind: "listRecords",
-          label: "Browse records with this trait",
-          filters: {
-            category,
-            metadata: { field: "traits", op: "includesAny", values: [entry.value] },
-            limit: 20,
-          },
-        },
-      }),
-    );
-
-    const commonDerivedTagNodes: OntologyNode[] = (commonDerivedTagsByCategory.get(category) ?? []).map(
-      (entry): OntologyNode => ({
-        id: `${category}:derivedTag:${entry.value}`,
-        kind: "derivedTagValue",
-        label: entry.value,
-        filterText: buildFilterText(category, entry.value, "derived tag"),
-        listLabel: `${entry.value} | ${entry.count}`,
-        detailTitle: "Common Derived Tag",
-        detailLines: buildKeyValueDetailLines(
-          entry.value,
-          [
-            ["Category", category],
-            ["Derived tag", entry.value],
-            ["Live canonical records", entry.count],
-          ],
-          buildResultReaderHint(),
-        ),
-        query: {
-          kind: "listRecords",
-          label: "Browse records with this derived tag",
-          filters: {
-            category,
-            metadata: { field: "derivedTags", op: "includesAny", values: [entry.value] },
-            limit: 20,
-          },
-        },
-      }),
-    );
-
-    const subcategoryNodes: OntologyNode[] = CATEGORY_SUBCATEGORY_MAP[category].map(
-      (subcategory): OntologyNode => ({
-        id: `${category}:subcategory:${subcategory}`,
-        kind: "subcategory",
-        label: subcategory,
-        filterText: buildFilterText(category, subcategory),
-        listLabel: `${subcategory} | ${liveSubcategoryCounts.get(subcategory) ?? 0}`,
-        detailTitle: "Subcategory Boundary",
-        detailLines: buildKeyValueDetailLines(
           subcategory,
+          "metadata fields",
+          ...subcategoryMetadataFieldNodes.map((node) => node.label),
+        ),
+        listLabel: `Metadata fields | ${subcategoryMetadataFieldNodes.length}`,
+        detailTitle: "Metadata Fields",
+        detailLines: buildKeyValueDetailLines(
+          "Metadata Fields",
           [
             ["Category", category],
             ["Subcategory", subcategory],
-            ["Live canonical records", liveSubcategoryCounts.get(subcategory) ?? 0],
+            ["Fields", subcategoryMetadataFieldNodes.length],
           ],
-          buildResultReaderHint(),
+          "Use these typed fields within this subcategory boundary.",
         ),
-        query: {
-          kind: "listRecords",
-          label: "Browse this subcategory",
-          filters: {
-            category,
-            subcategory,
-            limit: 20,
-          },
+        children: subcategoryMetadataFieldNodes,
+        childPresentation: {
+          mode: "grouped",
+          groupBy: "fieldType",
+          render: "inline",
         },
-      }),
+      });
+    }
+
+    children.push(...metricDiscoveryGroups);
+
+    return {
+      id: `${category}:subcategory:${subcategory}`,
+      kind: "subcategory",
+      label: subcategory,
+      filterText: buildFilterText(category, subcategory, ...children.map((node) => node.label)),
+      listLabel: `${subcategory} | ${liveSubcategoryCountsByCategory.get(category)?.get(subcategory) ?? 0}`,
+      detailTitle: "Subcategory Boundary",
+      detailLines: buildKeyValueDetailLines(
+        subcategory,
+        [
+          ["Category", category],
+          ["Subcategory", subcategory],
+          ["Live canonical records", liveSubcategoryCountsByCategory.get(category)?.get(subcategory) ?? 0],
+          ["Metadata fields", subcategoryMetadataFieldNodes.length],
+        ],
+        "Browse this subcategory directly, or drill in to its scoped metadata and metric surfaces.",
+      ),
+      query: {
+        kind: "listRecords",
+        label: "Browse this subcategory",
+        filters: {
+          category,
+          subcategory,
+          limit: 20,
+        },
+      },
+      children,
+    };
+  }
+
+  const rootNodes = SEARCH_CATEGORIES.map((category) => {
+    const categoryFields = getCategoryScopedFields(category, null);
+    const metadataFieldNodes = buildMetadataFieldNodes(category, null);
+    const metricDiscoveryGroups = buildMetricDiscoveryGroups(category, null);
+
+    const subcategoryNodes: OntologyNode[] = CATEGORY_SUBCATEGORY_MAP[category].map(
+      (subcategory): OntologyNode => buildSubcategoryNode(category, subcategory),
     );
 
     const children: OntologyNode[] = [];
@@ -771,39 +1180,13 @@ function buildSearchSemanticsDomain(
         children: subcategoryNodes,
       });
     }
-    if (traitNodes.length > 0) {
-      children.push({
-        id: `${category}:commonTraits`,
-        kind: "group",
-        label: "Common Traits",
-        filterText: buildFilterText(category, "common traits", ...traitNodes.map((node) => node.label)),
-        listLabel: `Common traits | ${traitNodes.length}`,
-        detailTitle: "Common Traits",
-        detailLines: buildKeyValueDetailLines("Common Traits", [
-          ["Category", category],
-          ["Entries", traitNodes.length],
-        ]),
-        children: traitNodes,
-      });
+    const commonTraitGroup = buildCommonTraitShortcutGroup(category, metadataFieldNodes);
+    if (commonTraitGroup) {
+      children.push(commonTraitGroup);
     }
-    if (commonDerivedTagNodes.length > 0) {
-      children.push({
-        id: `${category}:commonDerivedTags`,
-        kind: "group",
-        label: "Common Derived Tags",
-        filterText: buildFilterText(
-          category,
-          "common derived tags",
-          ...commonDerivedTagNodes.map((node) => node.label),
-        ),
-        listLabel: `Common derived tags | ${commonDerivedTagNodes.length}`,
-        detailTitle: "Common Derived Tags",
-        detailLines: buildKeyValueDetailLines("Common Derived Tags", [
-          ["Category", category],
-          ["Entries", commonDerivedTagNodes.length],
-        ]),
-        children: commonDerivedTagNodes,
-      });
+    const commonDerivedTagGroup = buildCommonDerivedTagShortcutGroup(category, metadataFieldNodes);
+    if (commonDerivedTagGroup) {
+      children.push(commonDerivedTagGroup);
     }
     if (metadataFieldNodes.length > 0) {
       children.push({
@@ -829,25 +1212,7 @@ function buildSearchSemanticsDomain(
         },
       });
     }
-    if (advancedPredicateNodes.length > 0) {
-      children.push({
-        id: `${category}:advancedPredicates`,
-        kind: "group",
-        label: "Advanced Predicates",
-        filterText: buildFilterText(
-          category,
-          "advanced predicates",
-          ...advancedPredicateNodes.map((node) => node.label),
-        ),
-        listLabel: `Advanced predicates | ${advancedPredicateNodes.length}`,
-        detailTitle: "Advanced Predicates",
-        detailLines: buildKeyValueDetailLines("Advanced Predicates", [
-          ["Category", category],
-          ["Predicates", advancedPredicateNodes.length],
-        ]),
-        children: advancedPredicateNodes,
-      });
-    }
+    children.push(...metricDiscoveryGroups);
     return {
       id: `searchSemantics:${category}`,
       kind: "category",
@@ -862,9 +1227,9 @@ function buildSearchSemanticsDomain(
           ["Category", category],
           ["Subcategories", CATEGORY_SUBCATEGORY_MAP[category].length],
           ["Metadata fields", categoryFields.length],
-          ["Advanced predicates", advancedPredicateNodes.length],
+          ["Metric discovery groups", metricDiscoveryGroups.length],
         ],
-        "Explore category-specific search semantics, discoverable fields, and live browse surfaces.",
+        "Explore category-specific search semantics, live value spaces, metric discovery, and canonical browse surfaces.",
       ),
       children,
     };
@@ -878,7 +1243,7 @@ function buildSearchSemanticsDomain(
 
 export function createPf2eApplicationOntologyService(
   config: AppConfig,
-  dataService: Pick<Pf2eDataService, "getSearchVocabulary" | "listFilterValues">,
+  dataService: Pick<Pf2eDataService, "getSearchVocabulary" | "listFilterValues" | "listRecords">,
 ): Pf2eApplicationOntologyService {
   const domainCache = new Map<OntologyDomainId, OntologyDomainModel>();
 

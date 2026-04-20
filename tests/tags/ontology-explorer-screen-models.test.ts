@@ -68,6 +68,22 @@ const model: OntologyDomainModel = {
   rootNodes: [],
 };
 
+const familyNode = {
+  id: "spell:family:coast",
+  kind: "family",
+  label: "coast",
+  filterText: "coast coastal setting",
+  detailLines: [{ text: "coast", tone: "section" as const }],
+};
+
+const tagNode = {
+  id: "spell:derivedTags:coastal_setting",
+  kind: "tag",
+  label: "coastal_setting",
+  filterText: "coastal setting",
+  detailLines: [{ text: "coastal_setting", tone: "section" as const }],
+};
+
 describe("ontology explorer screen models", () => {
   it("uses return wording for ontology browser back actions at the root list", () => {
     const controller = createController();
@@ -193,5 +209,130 @@ describe("ontology explorer screen models", () => {
     const helpLines = buildFacetPickerHelpLines(controller);
     expect(helpLines.some((line) => line.text.includes("return to the previous level"))).toBe(true);
     expect(helpLines.some((line) => line.text.includes("return to the value list"))).toBe(false);
+  });
+
+  it("derives hosted family-root wording from the active picker hierarchy", () => {
+    const listController = createController({
+      state: {
+        activePane: "list",
+        browserState: {
+          depth: 1,
+          selectedNodeIds: ["spell:field:derivedTags", "spell:family:coast"],
+          filter: "",
+          detailScroll: 0,
+        },
+        layoutMode: "split",
+        searchInput: "",
+        searchMode: false,
+      },
+      effectiveState: {
+        depth: 1,
+        selectedNodeIds: ["spell:field:derivedTags", "spell:family:coast"],
+        filter: "",
+        detailScroll: 0,
+      },
+      selection: {
+        ancestors: [],
+        currentNodes: [familyNode],
+        currentNode: familyNode,
+        currentParent: undefined,
+      },
+      currentNode: familyNode,
+    });
+
+    const screen = buildFacetPickerScreenModel({
+      model,
+      controller: listController,
+      leftLines: [],
+      focusedPolicyLabel: "off",
+      options: { rootDepth: 1 },
+    });
+
+    expect(screen.kind).toBe("two-pane");
+    if (screen.kind !== "two-pane") {
+      throw new Error("Expected a two-pane facet picker screen.");
+    }
+    expect(screen.props.left.title).toBe("[FAMILIES]");
+
+    const detailController = createController({
+      state: {
+        activePane: "detail",
+        browserState: {
+          depth: 1,
+          selectedNodeIds: ["spell:field:derivedTags", "spell:family:coast"],
+          filter: "",
+          detailScroll: 0,
+        },
+        layoutMode: "split",
+        searchInput: "",
+        searchMode: false,
+      },
+      effectiveState: {
+        depth: 1,
+        selectedNodeIds: ["spell:field:derivedTags", "spell:family:coast"],
+        filter: "",
+        detailScroll: 0,
+      },
+      selection: {
+        ancestors: [],
+        currentNodes: [familyNode],
+        currentNode: familyNode,
+        currentParent: undefined,
+      },
+      currentNode: familyNode,
+    });
+
+    const helpLines = buildFacetPickerHelpLines(detailController, { rootDepth: 1 });
+    expect(helpLines.some((line) => line.text.includes("return to the family list"))).toBe(true);
+    expect(helpLines.some((line) => line.text.includes("switch focus between families and detail"))).toBe(true);
+    expect(helpLines.some((line) => line.text.includes("value list"))).toBe(false);
+  });
+
+  it("uses node-kind titles for nested hosted picker levels instead of generic values", () => {
+    const controller = createController({
+      state: {
+        activePane: "list",
+        browserState: {
+          depth: 2,
+          selectedNodeIds: ["spell:field:derivedTags", "spell:family:coast", "spell:derivedTags:coastal_setting"],
+          filter: "",
+          detailScroll: 0,
+        },
+        layoutMode: "split",
+        searchInput: "",
+        searchMode: false,
+      },
+      effectiveState: {
+        depth: 2,
+        selectedNodeIds: ["spell:field:derivedTags", "spell:family:coast", "spell:derivedTags:coastal_setting"],
+        filter: "",
+        detailScroll: 0,
+      },
+      selection: {
+        ancestors: [],
+        currentNodes: [tagNode],
+        currentNode: tagNode,
+        currentParent: familyNode,
+      },
+      currentNode: tagNode,
+    });
+
+    const screen = buildFacetPickerScreenModel({
+      model,
+      controller,
+      leftLines: [],
+      focusedPolicyLabel: "off",
+      options: { rootDepth: 1 },
+    });
+
+    expect(screen.kind).toBe("two-pane");
+    if (screen.kind !== "two-pane") {
+      throw new Error("Expected a two-pane facet picker screen.");
+    }
+    expect(screen.props.left.title).toBe("[TAGS]");
+
+    const helpLines = buildFacetPickerHelpLines(controller, { rootDepth: 1 });
+    expect(helpLines.some((line) => line.text.includes("switch focus between tags and detail"))).toBe(true);
+    expect(helpLines.some((line) => line.text.includes("field values"))).toBe(false);
   });
 });

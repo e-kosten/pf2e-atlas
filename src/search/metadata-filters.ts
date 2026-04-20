@@ -380,13 +380,15 @@ export function normalizeMetadataFilterNode(node: MetadataFilterNode): MetadataF
   }
 
   if (isMetadataTextField(field)) {
-    if (!["contains", "notContains"].includes(op) || typeof raw.value !== "string") {
-      throw new Error(`metadata predicate "${field}" requires op "contains" or "notContains" with a string value.`);
+    if (!["eq", "notEq", "contains", "notContains"].includes(op) || typeof raw.value !== "string") {
+      throw new Error(
+        `metadata predicate "${field}" requires op "eq", "notEq", "contains", or "notContains" with a string value.`,
+      );
     }
 
     return {
       field,
-      op: op as "contains" | "notContains",
+      op: op as "eq" | "notEq" | "contains" | "notContains",
       value: normalizeMetadataTextMatchValue(raw.value),
     };
   }
@@ -698,6 +700,12 @@ function buildMetadataPredicateClause(
 
   if (isMetadataTextPredicate(predicate)) {
     const expression = buildMetadataScalarSqlExpression(context, predicate.field);
+    if (predicate.op === "eq" || predicate.op === "notEq") {
+      return {
+        clause: `LOWER(COALESCE(${expression}, '')) ${predicate.op === "notEq" ? "<>" : "="} ?`,
+        params: [predicate.value],
+      };
+    }
     return {
       clause: `LOWER(COALESCE(${expression}, '')) ${predicate.op === "notContains" ? "NOT " : ""}LIKE ?`,
       params: [`%${predicate.value}%`],
@@ -887,6 +895,12 @@ export function recordMatchesMetadataFilter(record: NormalizedRecord, node: Meta
 
   if (isMetadataTextPredicate(node)) {
     const normalizedValue = normalizeMetadataTextMatchValue(getMetadataStringRecordValue(record, node.field) ?? "");
+    if (node.op === "eq") {
+      return normalizedValue === node.value;
+    }
+    if (node.op === "notEq") {
+      return normalizedValue !== node.value;
+    }
     return node.op === "contains" ? normalizedValue.includes(node.value) : !normalizedValue.includes(node.value);
   }
 

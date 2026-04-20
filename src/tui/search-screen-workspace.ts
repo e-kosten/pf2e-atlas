@@ -162,6 +162,8 @@ function formatMetadataPredicateValue(node: MetadataPredicate): string {
         return `does not contain ${formatMetadataScalar(node.value)}`;
       case "eq":
         return `is ${formatMetadataScalar(node.value)}`;
+      case "notEq":
+        return `is not ${formatMetadataScalar(node.value)}`;
       case "gte":
         return `>= ${node.value}`;
       case "lte":
