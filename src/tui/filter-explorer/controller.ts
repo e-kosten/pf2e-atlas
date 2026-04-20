@@ -10,9 +10,13 @@ import {
   type OntologyExplorerKeyContext,
 } from "../ontology-explorer/controller.js";
 import {
+  cloneFilterExplorerComposeDraft,
   cloneFilterExplorerSelectionMap,
+  getFilterExplorerScalarClause,
   getFilterExplorerTargetState,
-  normalizeFilterExplorerSelectionMap,
+  isFilterExplorerScalarTarget,
+  normalizeFilterExplorerComposeDraft,
+  setFilterExplorerScalarClause,
   toggleFilterExplorerTargetSelection,
 } from "./compose-state.js";
 import {
@@ -22,10 +26,10 @@ import {
   getFilterExplorerInteractionActions,
 } from "./screen-models.js";
 import type {
+  FilterExplorerComposeDraft,
   FilterExplorerComposeMode,
   FilterExplorerControllerContext as FilterExplorerContext,
   FilterExplorerOptions,
-  FilterExplorerSelectionMap,
 } from "./types.js";
 
 type OntologyResultReaderLaunchQuery = OntologyNodeQuery & {
@@ -44,45 +48,47 @@ function resolveScreenTitle(options: FilterExplorerOptions): string {
 }
 
 function useComposeSelectionState(mode: FilterExplorerComposeMode | null): [
-  FilterExplorerSelectionMap,
-  (updater: (current: FilterExplorerSelectionMap) => FilterExplorerSelectionMap) => void,
+  FilterExplorerComposeDraft,
+  (updater: (current: FilterExplorerComposeDraft) => FilterExplorerComposeDraft) => void,
 ] {
-  const isControlled = mode?.selection !== undefined;
-  const [internalSelection, setInternalSelection] = React.useState<FilterExplorerSelectionMap>(() =>
-    normalizeFilterExplorerSelectionMap(mode?.selection ?? mode?.initialSelection),
+  const isControlled = mode?.draft !== undefined;
+  const [internalDraft, setInternalDraft] = React.useState<FilterExplorerComposeDraft>(() =>
+    normalizeFilterExplorerComposeDraft(mode?.draft ?? mode?.initialDraft, mode?.selection ?? mode?.initialSelection),
   );
 
   React.useEffect(() => {
-    setInternalSelection(normalizeFilterExplorerSelectionMap(mode?.selection ?? mode?.initialSelection));
-  }, [mode?.initialSelection, mode?.selection]);
+    setInternalDraft(
+      normalizeFilterExplorerComposeDraft(mode?.draft ?? mode?.initialDraft, mode?.selection ?? mode?.initialSelection),
+    );
+  }, [mode?.draft, mode?.initialDraft, mode?.initialSelection, mode?.selection]);
 
-  const currentSelection = React.useMemo(
-    () => normalizeFilterExplorerSelectionMap(mode?.selection ?? internalSelection),
-    [internalSelection, mode?.selection],
+  const currentDraft = React.useMemo(
+    () => normalizeFilterExplorerComposeDraft(mode?.draft ?? internalDraft, mode?.selection),
+    [internalDraft, mode?.draft, mode?.selection],
   );
-
   const updateSelection = React.useCallback(
-    (updater: (current: FilterExplorerSelectionMap) => FilterExplorerSelectionMap) => {
+    (updater: (current: FilterExplorerComposeDraft) => FilterExplorerComposeDraft) => {
       if (!mode) {
         return;
       }
 
-      const next = normalizeFilterExplorerSelectionMap(updater(currentSelection));
+      const next = normalizeFilterExplorerComposeDraft(updater(currentDraft));
       if (!isControlled) {
-        setInternalSelection(next);
+        setInternalDraft(next);
       }
-      mode.onSelectionChange?.(cloneFilterExplorerSelectionMap(next));
+      mode.onDraftChange?.(cloneFilterExplorerComposeDraft(next));
+      mode.onSelectionChange?.(cloneFilterExplorerSelectionMap(next.selection));
     },
-    [currentSelection, isControlled, mode],
+    [currentDraft, isControlled, mode],
   );
 
-  return [currentSelection, updateSelection];
+  return [currentDraft, updateSelection];
 }
 
 function createFilterExplorerContext(args: {
   options: FilterExplorerOptions;
   ontology: OntologyExplorerControllerContext;
-  selection: FilterExplorerSelectionMap;
+  draft: FilterExplorerComposeDraft;
 }): FilterExplorerContext {
   const composeMode = args.options.mode.kind === "compose" ? args.options.mode : null;
   const selectedTarget = composeMode?.resolveSelectionTarget(args.ontology.currentNode);
@@ -91,9 +97,11 @@ function createFilterExplorerContext(args: {
     mode: args.options.mode,
     screenTitle: resolveScreenTitle(args.options),
     ontology: args.ontology,
-    selection: args.selection,
+    draft: args.draft,
+    selection: args.draft.selection,
     selectedTarget,
-    selectedPolicyState: getFilterExplorerTargetState(selectedTarget, args.selection),
+    selectedPolicyState: getFilterExplorerTargetState(selectedTarget, args.draft.selection),
+    selectedScalarClause: getFilterExplorerScalarClause(selectedTarget, args.draft),
     selectedQuery: args.ontology.selectedQuery,
   };
 }
@@ -101,18 +109,46 @@ function createFilterExplorerContext(args: {
 function applyComposeCycleSelection(
   composeMode: FilterExplorerComposeMode,
   keyContext: Pick<OntologyExplorerKeyContext, "currentNode" | "event">,
-  selection: FilterExplorerSelectionMap,
-  updateSelection: (updater: (current: FilterExplorerSelectionMap) => FilterExplorerSelectionMap) => void,
+  draft: FilterExplorerComposeDraft,
+  updateDraft: (updater: (current: FilterExplorerComposeDraft) => FilterExplorerComposeDraft) => void,
 ): boolean {
   const cycleDirection = getTerminalInteractionCycleDirection(keyContext.event, { id: "cycle" });
   if (!cycleDirection) {
     return false;
   }
   const target = composeMode.resolveSelectionTarget(keyContext.currentNode);
-  if (!target) {
+  if (!target || target.kind === "scalar") {
     return false;
   }
-  updateSelection((current) => toggleFilterExplorerTargetSelection(target, current, cycleDirection));
+  updateDraft((current) => ({
+    ...current,
+    selection: toggleFilterExplorerTargetSelection(target, current.selection, cycleDirection),
+  }));
+  return true;
+}
+
+function openComposeScalarEditor(
+  composeMode: FilterExplorerComposeMode,
+  target: ReturnType<FilterExplorerComposeMode["resolveSelectionTarget"]>,
+  draft: FilterExplorerComposeDraft,
+  updateDraft: (updater: (current: FilterExplorerComposeDraft) => FilterExplorerComposeDraft) => void,
+): boolean {
+  if (!isFilterExplorerScalarTarget(target) || !composeMode.onEditScalarTarget) {
+    return false;
+  }
+
+  void Promise.resolve(
+    composeMode.onEditScalarTarget({
+      target,
+      currentClause: getFilterExplorerScalarClause(target, draft),
+      draft: cloneFilterExplorerComposeDraft(draft),
+    }),
+  ).then((nextClause) => {
+    if (nextClause === undefined) {
+      return;
+    }
+    updateDraft((current) => setFilterExplorerScalarClause(target, nextClause, current));
+  });
   return true;
 }
 
@@ -147,7 +183,7 @@ function shouldExitAtRootDepth(options: FilterExplorerOptions, keyContext: Ontol
 export function useFilterExplorerController(options: FilterExplorerOptions): FilterExplorerContext {
   const adapters = useTerminalInteractionContextAdapters();
   const composeMode = options.mode.kind === "compose" ? options.mode : null;
-  const [selection, updateSelection] = useComposeSelectionState(composeMode);
+  const [draft, updateDraft] = useComposeSelectionState(composeMode);
 
   const ontology = useOntologyExplorerController({
     initialSnapshot: options.initialSnapshot,
@@ -159,12 +195,16 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
         ? ({ selection: ontologySelection }) =>
             buildFilterExplorerComposeDetailLines({
               mode: composeMode,
-              selection,
+              draft,
               currentNodeLabel: ontologySelection.currentNode?.label,
               selectedTarget: composeMode.resolveSelectionTarget(ontologySelection.currentNode),
               selectedPolicyState: getFilterExplorerTargetState(
                 composeMode.resolveSelectionTarget(ontologySelection.currentNode),
-                selection,
+                draft.selection,
+              ),
+              selectedScalarClause: getFilterExplorerScalarClause(
+                composeMode.resolveSelectionTarget(ontologySelection.currentNode),
+                draft,
               ),
               baseDetailLines: ontologySelection.currentNode?.detailLines ?? [{ text: "No ontology entry selected.", tone: "dim" }],
             })
@@ -175,7 +215,11 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
         : undefined,
     onConfirm: (keyContext) => {
       if (composeMode) {
-        return applyComposeCycleSelection(composeMode, keyContext, selection, updateSelection);
+        const target = composeMode.resolveSelectionTarget(keyContext.currentNode);
+        return (
+          openComposeScalarEditor(composeMode, target, draft, updateDraft) ||
+          applyComposeCycleSelection(composeMode, keyContext, draft, updateDraft)
+        );
       }
 
       if (
@@ -192,7 +236,7 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
       const context = createFilterExplorerContext({
         options,
         ontology: keyContext,
-        selection,
+        draft,
       });
 
       if (action.id === "back" && shouldExitAtRootDepth(options, keyContext)) {
@@ -201,7 +245,11 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
       }
 
       if (action.id === "cycle" && composeMode) {
-        return applyComposeCycleSelection(composeMode, keyContext, selection, updateSelection);
+        const target = composeMode.resolveSelectionTarget(keyContext.currentNode);
+        return (
+          openComposeScalarEditor(composeMode, target, draft, updateDraft) ||
+          applyComposeCycleSelection(composeMode, keyContext, draft, updateDraft)
+        );
       }
 
       if (action.id === "help") {
@@ -236,6 +284,6 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
   return createFilterExplorerContext({
     options,
     ontology,
-    selection,
+    draft,
   });
 }

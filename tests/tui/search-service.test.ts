@@ -2,7 +2,12 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { MetadataFilterNode } from "../../src/domain/metadata-types.js";
 import type { SearchFilters } from "../../src/domain/search-types.js";
-import { createPf2eTerminalSearchService, getSearchQueryMetadataTree } from "../../src/tui/search/service.js";
+import {
+  applyFilterExplorerComposeDraft,
+  createFilterExplorerComposeDraft,
+  createPf2eTerminalSearchService,
+  getSearchQueryMetadataTree,
+} from "../../src/tui/search/service.js";
 
 type SearchServiceDependencies = Parameters<typeof createPf2eTerminalSearchService>[0];
 
@@ -216,5 +221,84 @@ describe("createPf2eTerminalSearchService", () => {
         },
       ],
     } satisfies MetadataFilterNode);
+  });
+
+  it("extracts numeric metric clauses into the filter explorer draft and rebuilds them as metadata", () => {
+    const service = createPf2eTerminalSearchService(createDependencies());
+
+    const draft = service.createFilterExplorerDraftFromMetadataNode(
+      {
+        field: "actorMetric",
+        metric: "perception.mod",
+        op: ">=",
+        value: 12,
+      },
+      ["actorMetric"],
+    );
+
+    expect(draft.fieldSelections).toEqual({});
+    expect(draft.structuredMetadata).toBeNull();
+    expect(draft.scalarClauses).toEqual({
+      "actorMetric:perception.mod": {
+        field: "actorMetric",
+        metric: "perception.mod",
+        valueType: "number",
+        clause: {
+          operator: "gte",
+          value: 12,
+        },
+      },
+    });
+    expect(service.buildFilterExplorerMetadataNode(draft)).toEqual({
+      field: "actorMetric",
+      metric: "perception.mod",
+      op: ">=",
+      value: 12,
+    } satisfies MetadataFilterNode);
+  });
+
+  it("rebuilds search drafts from the shared compose draft while inferring metric identity from the key", () => {
+    const structuredMetadata = {
+      field: "traits",
+      op: "includesAny",
+      values: ["illusion"],
+    } satisfies MetadataFilterNode;
+    const composeDraft = createFilterExplorerComposeDraft({
+      fieldSelections: {},
+      scalarClauses: {},
+      structuredMetadata,
+    });
+
+    const nextDraft = applyFilterExplorerComposeDraft(
+      {
+        fieldSelections: {},
+        scalarClauses: {},
+        structuredMetadata,
+      },
+      {
+        ...composeDraft,
+        scalarClauses: {
+          "itemMetric:weapon.range_increment": {
+            operator: "between",
+            min: 60,
+            max: 120,
+          },
+        },
+      },
+    );
+
+    expect(nextDraft.structuredMetadata).toEqual(structuredMetadata);
+    expect(nextDraft.scalarClauses).toEqual({
+      "itemMetric:weapon.range_increment": {
+        field: "itemMetric",
+        metric: "weapon.range_increment",
+        valueType: "number",
+        clause: {
+          operator: "between",
+          min: 60,
+          max: 120,
+        },
+      },
+    });
   });
 });

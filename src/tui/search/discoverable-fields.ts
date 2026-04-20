@@ -211,7 +211,7 @@ function getMetricQueryFieldOptions(
     options.push({
       value: "actorMetric",
       label: category === "hazard" ? "Hazard Statistics" : "Creature Statistics",
-      description: "Browse live statistic keys and exact scalar values for the current scope.",
+      description: "Browse live statistic keys and author exact or numeric literal filters for the current scope.",
       fieldType: "enumString",
       editor: "ontologyPicker",
     });
@@ -225,7 +225,7 @@ function getMetricQueryFieldOptions(
     options.push({
       value: "itemMetric",
       label: "Item Properties",
-      description: "Browse live item property keys and exact scalar values for the current scope.",
+      description: "Browse live item property keys and author exact or numeric literal filters for the current scope.",
       fieldType: "enumString",
       editor: "ontologyPicker",
     });

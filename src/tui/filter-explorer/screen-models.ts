@@ -13,7 +13,11 @@ import type {
   DerivedTagTerminalSegment,
   DerivedTagTerminalTwoPaneScreenProps,
 } from "../framework/types.js";
-import { getFilterExplorerTargetState } from "./compose-state.js";
+import {
+  getFilterExplorerScalarClause,
+  getFilterExplorerTargetState,
+  isFilterExplorerScalarTarget,
+} from "./compose-state.js";
 import {
   buildFilterExplorerPolicyBadgeSegments,
   buildFilterExplorerPolicyLabelSegments,
@@ -23,7 +27,7 @@ import type {
   FilterExplorerComposeMode,
   FilterExplorerControllerContext,
   FilterExplorerMode,
-  FilterExplorerSelectionMap,
+  FilterExplorerScalarClause,
 } from "./types.js";
 
 function isDetailContext(controller: OntologyExplorerControllerContext): boolean {
@@ -50,13 +54,16 @@ export function getFilterExplorerInteractionActions(
   controller: OntologyExplorerControllerContext,
 ): TerminalInteractionAction[] {
   if (mode.kind === "compose") {
+    const focusedTarget = mode.resolveSelectionTarget(controller.selection.currentNode);
+    const composeActionLabel = focusedTarget?.kind === "scalar" ? "edit" : "cycle";
+
     if (controller.layoutMode === "detail-only") {
       return [
         { id: "scroll" },
         { id: "jump" },
         { id: "page" },
         { id: "edge" },
-        { id: "cycle" },
+        { id: "cycle", label: composeActionLabel },
         { id: "layout", label: "split-view" },
         { id: "back" },
         { id: "search" },
@@ -71,7 +78,7 @@ export function getFilterExplorerInteractionActions(
         { id: "jump" },
         { id: "page" },
         { id: "edge" },
-        { id: "cycle" },
+        { id: "cycle", label: composeActionLabel },
         { id: "focus", label: "pane" },
         { id: "layout", label: "detail-only" },
         ...(controller.effectiveState.filter ? [{ id: "cancel" as const, label: "clear filter" }] : []),
@@ -146,7 +153,7 @@ export function getFilterExplorerInteractionActions(
 
 function buildSelectionEntrySegments(
   field: string,
-  selection: FilterExplorerSelectionMap[string],
+  selection: FilterExplorerControllerContext["selection"][string],
 ): DerivedTagTerminalSegment[] {
   const segments: DerivedTagTerminalSegment[] = [{ text: `${field}: ` }];
   let first = true;
@@ -168,25 +175,57 @@ function buildSelectionEntrySegments(
   return segments;
 }
 
+function formatFilterExplorerScalarValue(value: string | number | boolean): string {
+  return typeof value === "string" ? value : String(value);
+}
+
+function buildFilterExplorerScalarClauseSummary(clause: FilterExplorerScalarClause): string {
+  if (clause.summaryLabel) {
+    return clause.summaryLabel;
+  }
+
+  if (clause.operator === "between") {
+    return `between ${clause.min} and ${clause.max}`;
+  }
+
+  const operatorLabel = {
+    eq: "=",
+    neq: "!=",
+    gte: ">=",
+    lte: "<=",
+  }[clause.operator];
+
+  return `${operatorLabel} ${clause.valueLabel ?? formatFilterExplorerScalarValue(clause.value)}`;
+}
+
+function buildScalarClauseEntrySegments(label: string, clause: FilterExplorerScalarClause): DerivedTagTerminalSegment[] {
+  return [
+    { text: `${label}: ` },
+    { text: buildFilterExplorerScalarClauseSummary(clause), tone: "accent" },
+  ];
+}
+
 export function buildFilterExplorerComposeDetailLines(args: {
   mode: FilterExplorerComposeMode;
-  selection: FilterExplorerSelectionMap;
+  draft: FilterExplorerControllerContext["draft"];
   currentNodeLabel?: string;
   selectedTarget?: FilterExplorerControllerContext["selectedTarget"];
   selectedPolicyState?: FilterExplorerControllerContext["selectedPolicyState"];
+  selectedScalarClause?: FilterExplorerControllerContext["selectedScalarClause"];
   baseDetailLines: readonly DerivedTagTerminalLine[];
 }): DerivedTagTerminalLine[] {
-  const selectionEntries = Object.entries(args.selection).filter(
+  const selectionEntries = Object.entries(args.draft.selection).filter(
     ([, fieldSelection]) =>
       fieldSelection.any.length > 0 || fieldSelection.all.length > 0 || fieldSelection.exclude.length > 0,
   );
+  const scalarEntries = Object.entries(args.draft.scalarClauses);
   const lines: DerivedTagTerminalLine[] = [
     ...args.baseDetailLines,
     { text: "" },
     { text: args.mode.focusedSelectionTitle ?? "Focused selection", tone: "section" },
   ];
 
-  if (args.selectedTarget) {
+  if (args.selectedTarget && args.selectedTarget.kind !== "scalar") {
     lines.push({
       text: `${args.selectedTarget.fieldLabel}: ${args.selectedTarget.valueLabel ?? args.currentNodeLabel ?? args.selectedTarget.value}`,
     });
@@ -197,13 +236,31 @@ export function buildFilterExplorerComposeDetailLines(args: {
         ...buildFilterExplorerPolicyLabelSegments(args.selectedPolicyState),
       ],
     });
+  } else if (args.selectedTarget?.kind === "scalar") {
+    lines.push({
+      text: `${args.selectedTarget.fieldLabel}: ${args.selectedTarget.subjectLabel}`,
+    });
+    lines.push({
+      text: args.selectedScalarClause
+        ? `Focused clause: ${buildFilterExplorerScalarClauseSummary(args.selectedScalarClause)}`
+        : `Focused clause: ${args.selectedTarget.editorLabel ?? "Open editor"}`,
+      segments: args.selectedScalarClause
+        ? [
+            { text: "Focused clause: ", tone: "accent" },
+            { text: buildFilterExplorerScalarClauseSummary(args.selectedScalarClause), tone: "accent" },
+          ]
+        : [
+            { text: "Focused clause: ", tone: "accent" },
+            { text: args.selectedTarget.editorLabel ?? "Open editor", tone: "dim" },
+          ],
+    });
   } else {
     lines.push({ text: "Focused node is not selectable.", tone: "dim" });
   }
 
   lines.push({ text: "" });
   lines.push({ text: args.mode.selectedSelectionsTitle ?? "Selected fields", tone: "section" });
-  if (selectionEntries.length === 0) {
+  if (selectionEntries.length === 0 && scalarEntries.length === 0) {
     lines.push({ text: args.mode.emptySelectionText ?? "No filter values selected yet.", tone: "dim" });
     return lines;
   }
@@ -212,6 +269,13 @@ export function buildFilterExplorerComposeDetailLines(args: {
     lines.push({
       text: `${field}: any=${fieldSelection.any.join(", ")}`,
       segments: buildSelectionEntrySegments(field, fieldSelection),
+    });
+  }
+
+  for (const [key, clause] of scalarEntries) {
+    lines.push({
+      text: `${key}: ${buildFilterExplorerScalarClauseSummary(clause)}`,
+      segments: buildScalarClauseEntrySegments(key, clause),
     });
   }
 
@@ -232,6 +296,21 @@ function buildComposeListSegments(
   const target = controller.mode.resolveSelectionTarget(node);
   if (!target) {
     return undefined;
+  }
+
+  if (isFilterExplorerScalarTarget(target)) {
+    const clause = getFilterExplorerScalarClause(target, controller.draft);
+    return [
+      { text: clause ? "ƒ" : "·", tone: clause ? "accent" : "dim" },
+      { text: " ", tone: "default" },
+      { text: label, tone: isSelected ? "selected" : "default" },
+      ...(clause
+        ? [
+            { text: "  ", tone: "dim" } as const,
+            { text: buildFilterExplorerScalarClauseSummary(clause), tone: "accent" as const },
+          ]
+        : []),
+    ];
   }
 
   return [
@@ -292,7 +371,9 @@ export function buildFilterExplorerHelpLines(controller: FilterExplorerControlle
         action.id === "open"
           ? "drill into the focused node or open its query"
           : action.id === "cycle"
-            ? "cycle the focused filter through off, ∪ include-any, ∩ require-all, and ¬ exclude"
+            ? controller.selectedTarget?.kind === "scalar"
+              ? "open the focused scalar filter editor"
+              : "cycle the focused filter through off, ∪ include-any, ∩ require-all, and ¬ exclude"
             : action.id === "focus"
               ? "switch focus between list and detail"
               : action.id === "layout"
@@ -351,12 +432,22 @@ export function buildFilterExplorerHelpLines(controller: FilterExplorerControlle
 }
 
 function buildComposeStatus(controller: FilterExplorerControllerContext): string {
-  const activeFieldCount = Object.values(controller.selection).filter(
+  const activeFieldCount = Object.values(controller.draft.selection).filter(
     (fieldSelection) =>
       fieldSelection.any.length > 0 || fieldSelection.all.length > 0 || fieldSelection.exclude.length > 0,
   ).length;
+  const scalarClauseCount = Object.keys(controller.draft.scalarClauses).length;
+  const totalCount = activeFieldCount + scalarClauseCount;
+
+  if (controller.selectedTarget?.kind === "scalar") {
+    const focusedSummary = controller.selectedScalarClause
+      ? buildFilterExplorerScalarClauseSummary(controller.selectedScalarClause)
+      : "editor ready";
+    return `Focused ${focusedSummary} | ${totalCount} filter${totalCount === 1 ? "" : "s"} selected`;
+  }
+
   const focusedPolicy = getFilterExplorerPolicyPresentation(controller.selectedPolicyState).label;
-  return `Focused ${focusedPolicy} | ${activeFieldCount} field${activeFieldCount === 1 ? "" : "s"} selected`;
+  return `Focused ${focusedPolicy} | ${totalCount} filter${totalCount === 1 ? "" : "s"} selected`;
 }
 
 function buildInspectStatus(controller: FilterExplorerControllerContext): string {

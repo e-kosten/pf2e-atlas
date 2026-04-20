@@ -1,6 +1,7 @@
 import type { MetadataFieldName } from "../../domain/metadata-field-registry.js";
 import type { MetadataFieldSemantics } from "../../domain/metadata-semantics.js";
 import type { SearchVocabularyResult } from "../../data/vocabulary.js";
+import type { FilterExplorerScalarClause } from "../filter-explorer/index.js";
 import type {
   MetadataFilterNode,
 } from "../../domain/metadata-types.js";
@@ -111,8 +112,18 @@ export type Pf2eTerminalQueryFieldEditor = "policyList" | "structuredForm" | "on
 
 export type Pf2eTerminalQueryFieldSelectionMap = Record<string, Pf2eTerminalFilterValuePolicy<string>>;
 
+export type Pf2eTerminalFilterExplorerMetricClause = {
+  field: Pf2eTerminalMetricQueryField;
+  metric: string;
+  valueType: "number" | "text" | "boolean";
+  clause: FilterExplorerScalarClause;
+};
+
+export type Pf2eTerminalFilterExplorerScalarClauseMap = Record<string, Pf2eTerminalFilterExplorerMetricClause>;
+
 export type Pf2eTerminalFilterExplorerDraft = {
   fieldSelections: Pf2eTerminalQueryFieldSelectionMap;
+  scalarClauses: Pf2eTerminalFilterExplorerScalarClauseMap;
   structuredMetadata: MetadataFilterNode | null;
 };
 

@@ -321,7 +321,7 @@ function buildMetricKeyNode(
           ]
         : [
             {
-              text: "Use the structured query editor for numeric comparisons on this metric. Live scalar enumeration is only available for text and boolean metrics.",
+              text: "Use the shared filter explorer to author numeric literal filters on this metric. Live scalar enumeration is only available for text and boolean metrics.",
             },
           ]),
     ],

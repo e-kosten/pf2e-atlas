@@ -1,5 +1,14 @@
 import type { OntologyNode } from "../../domain/ontology-types.js";
-import type { FilterExplorerComposeTarget, FilterExplorerPolicyState, FilterExplorerSelectionMap } from "./types.js";
+import type {
+  FilterExplorerComposeDraft,
+  FilterExplorerComposeTarget,
+  FilterExplorerDiscreteComposeTarget,
+  FilterExplorerPolicyState,
+  FilterExplorerScalarClause,
+  FilterExplorerScalarClauseMap,
+  FilterExplorerScalarComposeTarget,
+  FilterExplorerSelectionMap,
+} from "./types.js";
 
 function cloneSelection(selection: { any: string[]; all: string[]; exclude: string[] }): {
   any: string[];
@@ -35,6 +44,22 @@ export function cloneFilterExplorerSelectionMap(selection: FilterExplorerSelecti
   );
 }
 
+function cloneScalarClause(clause: FilterExplorerScalarClause): FilterExplorerScalarClause {
+  return clause.operator === "between" ? { ...clause } : { ...clause };
+}
+
+export function cloneFilterExplorerScalarClauseMap(
+  scalarClauses: FilterExplorerScalarClauseMap | undefined,
+): FilterExplorerScalarClauseMap {
+  if (!scalarClauses) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(scalarClauses).map(([key, clause]) => [key, cloneScalarClause(clause)]),
+  );
+}
+
 export function normalizeFilterExplorerSelectionMap(selection: FilterExplorerSelectionMap | undefined): FilterExplorerSelectionMap {
   if (!selection) {
     return {};
@@ -58,6 +83,32 @@ export function normalizeFilterExplorerSelectionMap(selection: FilterExplorerSel
   );
 }
 
+export function createEmptyFilterExplorerComposeDraft(): FilterExplorerComposeDraft {
+  return {
+    selection: {},
+    scalarClauses: {},
+  };
+}
+
+export function cloneFilterExplorerComposeDraft(
+  draft: FilterExplorerComposeDraft | undefined,
+): FilterExplorerComposeDraft {
+  return {
+    selection: cloneFilterExplorerSelectionMap(draft?.selection),
+    scalarClauses: cloneFilterExplorerScalarClauseMap(draft?.scalarClauses),
+  };
+}
+
+export function normalizeFilterExplorerComposeDraft(
+  draft: FilterExplorerComposeDraft | undefined,
+  fallbackSelection?: FilterExplorerSelectionMap,
+): FilterExplorerComposeDraft {
+  return {
+    selection: normalizeFilterExplorerSelectionMap(draft?.selection ?? fallbackSelection),
+    scalarClauses: cloneFilterExplorerScalarClauseMap(draft?.scalarClauses),
+  };
+}
+
 export function hasFilterExplorerSelection(selection: FilterExplorerSelectionMap): boolean {
   return Object.values(selection).some(
     (valueSelection) =>
@@ -65,11 +116,22 @@ export function hasFilterExplorerSelection(selection: FilterExplorerSelectionMap
   );
 }
 
+export function hasFilterExplorerScalarClause(
+  target: FilterExplorerScalarComposeTarget | undefined,
+  draft: FilterExplorerComposeDraft,
+): boolean {
+  return Boolean(target && draft.scalarClauses[target.key]);
+}
+
+export function hasFilterExplorerComposeDraftEntries(draft: FilterExplorerComposeDraft): boolean {
+  return hasFilterExplorerSelection(draft.selection) || Object.keys(draft.scalarClauses).length > 0;
+}
+
 export function getFilterExplorerTargetState(
   target: FilterExplorerComposeTarget | undefined,
   selection: FilterExplorerSelectionMap,
 ): FilterExplorerPolicyState | undefined {
-  if (!target) {
+  if (!target || target.kind === "scalar") {
     return undefined;
   }
 
@@ -104,7 +166,7 @@ export function toggleFilterExplorerTargetSelection(
   selection: FilterExplorerSelectionMap,
   direction: 1 | -1 = 1,
 ): FilterExplorerSelectionMap {
-  if (!target) {
+  if (!target || target.kind === "scalar") {
     return selection;
   }
 
@@ -127,9 +189,42 @@ export function toggleFilterExplorerTargetSelection(
   return next;
 }
 
+export function getFilterExplorerScalarClause(
+  target: FilterExplorerComposeTarget | undefined,
+  draft: FilterExplorerComposeDraft,
+): FilterExplorerScalarClause | undefined {
+  return target?.kind === "scalar" ? draft.scalarClauses[target.key] : undefined;
+}
+
+export function setFilterExplorerScalarClause(
+  target: FilterExplorerScalarComposeTarget,
+  clause: FilterExplorerScalarClause | null | undefined,
+  draft: FilterExplorerComposeDraft,
+): FilterExplorerComposeDraft {
+  const next = cloneFilterExplorerComposeDraft(draft);
+  if (clause) {
+    next.scalarClauses[target.key] = cloneScalarClause(clause);
+  } else {
+    delete next.scalarClauses[target.key];
+  }
+  return next;
+}
+
 export function getFilterExplorerSelectableNodeTarget(
   node: OntologyNode | undefined,
   resolveTarget: (node: OntologyNode | undefined) => FilterExplorerComposeTarget | undefined,
 ): FilterExplorerComposeTarget | undefined {
   return resolveTarget(node);
+}
+
+export function isFilterExplorerDiscreteTarget(
+  target: FilterExplorerComposeTarget | undefined,
+): target is FilterExplorerDiscreteComposeTarget {
+  return Boolean(target && target.kind !== "scalar");
+}
+
+export function isFilterExplorerScalarTarget(
+  target: FilterExplorerComposeTarget | undefined,
+): target is FilterExplorerScalarComposeTarget {
+  return target?.kind === "scalar";
 }

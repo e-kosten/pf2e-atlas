@@ -48,7 +48,6 @@ import {
   formatSearchSubcategory,
   isQueryPartAction,
   isQueryNodeAction,
-  parseLevelRangeInput,
   type SearchWorkspaceAction,
 } from "./model.js";
 import {
@@ -63,6 +62,7 @@ import {
   getStructuredDraftSelectionIndex,
   type SearchStructuredDraftState,
 } from "./structured-draft-support.js";
+import { promptLevelRangeDraft, promptNumericScalarClause } from "./scalar-editor.js";
 import type { SearchWorkspaceEntry } from "./workspace.js";
 
 export function useSearchWorkspaceActions({
@@ -394,76 +394,40 @@ export function useSearchWorkspaceActions({
         return { field: metadataField, op: opResult.value, value: value.trim() } as MetadataFilterNode;
       }
 
-      const currentOp =
+      const currentNumericOp =
         currentNode &&
         isMetadataPredicate(currentNode) &&
-        "op" in currentNode &&
-        ["eq", "gte", "lte", "between"].includes(currentNode.op)
+        (currentNode.op === "eq" ||
+          currentNode.op === "gte" ||
+          currentNode.op === "lte" ||
+          currentNode.op === "between")
           ? currentNode.op
-          : "eq";
-      const opResult = await prompts.promptSelectOption({
+          : null;
+      const currentClause =
+        currentNumericOp === "between" && currentNode && "min" in currentNode && "max" in currentNode
+          ? { op: "between" as const, min: currentNode.min, max: currentNode.max }
+          : currentNumericOp &&
+              currentNumericOp !== "between" &&
+              currentNode &&
+              "value" in currentNode &&
+              typeof currentNode.value === "number"
+            ? { op: currentNumericOp, value: currentNode.value }
+            : null;
+      const nextClause = await promptNumericScalarClause(prompts, terminal, {
         title: `${fieldOption.label} Clause`,
-        prompt: "Choose the numeric comparison for this clause",
-        entries: [
-          { value: "eq", label: "Equals", description: "Match exactly one value." },
-          { value: "gte", label: "At Least", description: "Match values greater than or equal to the target." },
-          { value: "lte", label: "At Most", description: "Match values less than or equal to the target." },
-          { value: "between", label: "Between", description: "Match values inside an inclusive range." },
-        ],
-        selectedValue: currentOp,
+        currentClause,
       });
 
-      if (opResult.kind !== "selected") {
+      if (nextClause === undefined) {
         return undefined;
       }
 
-      const currentInput =
-        currentNode && isMetadataPredicate(currentNode)
-          ? "min" in currentNode && "max" in currentNode
-            ? `${currentNode.min}-${currentNode.max}`
-            : "value" in currentNode
-              ? String(currentNode.value)
-              : ""
-          : "";
-      const value = await prompts.promptTextInput({
-        title: `${fieldOption.label} Value`,
-        prompt:
-          opResult.value === "between"
-            ? "Enter an inclusive range such as `3-8`. Leave blank to clear."
-            : "Enter a numeric value. Leave blank to clear.",
-        defaultValue: currentInput,
-      });
-
-      if (value === undefined) {
-        return undefined;
-      }
-      const trimmed = value.trim();
-      if (!trimmed) {
+      if (!nextClause) {
         return null;
       }
-      if (opResult.value === "between") {
-        const match = trimmed.match(/^(-?\d+(?:\.\d+)?)\s*-\s*(-?\d+(?:\.\d+)?)$/);
-        if (!match) {
-          await terminal.pauseForAnyKey("Use a numeric range such as `3-8`.");
-          return undefined;
-        }
-        return {
-          field: metadataField,
-          op: "between",
-          min: Number.parseFloat(match[1]!),
-          max: Number.parseFloat(match[2]!),
-        } as MetadataFilterNode;
-      }
-      const numericValue = Number.parseFloat(trimmed);
-      if (!Number.isFinite(numericValue)) {
-        await terminal.pauseForAnyKey("Enter a valid number.");
-        return undefined;
-      }
-      return {
-        field: metadataField,
-        op: opResult.value,
-        value: numericValue,
-      } as MetadataFilterNode;
+      return nextClause.op === "between"
+        ? ({ field: metadataField, op: "between", min: nextClause.min, max: nextClause.max } as MetadataFilterNode)
+        : ({ field: metadataField, op: nextClause.op, value: nextClause.value } as MetadataFilterNode);
     },
     [prompts, terminal, user.search],
   );
@@ -772,23 +736,14 @@ export function useSearchWorkspaceActions({
     }
 
     const draftLevelRange = getSearchQueryLevelRange(draftQuery);
-    const input = await prompts.promptTextInput({
-      title: "Level Range",
-      prompt: "Enter `3-8`, `5`, `5+`, or `<=10`. Leave blank to clear.",
+    const parsed = await promptLevelRangeDraft(prompts, terminal, {
       defaultValue:
         draftLevelRange.levelMin === null && draftLevelRange.levelMax === null
           ? ""
           : formatLevelRange(draftQuery).replaceAll("L", "").replace("<= ", "<="),
-      hint: "Examples: 3-8 or <=5",
     });
 
-    if (input === undefined) {
-      return;
-    }
-
-    const parsed = parseLevelRangeInput(input);
-    if (typeof parsed === "string") {
-      await terminal.pauseForAnyKey(parsed);
+    if (parsed === undefined) {
       return;
     }
 

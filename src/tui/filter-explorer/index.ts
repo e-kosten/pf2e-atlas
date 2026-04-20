@@ -8,6 +8,7 @@ export {
   getFilterExplorerPolicyPresentation,
 } from "./policy-presentation.js";
 export type {
+  FilterExplorerComposeDraft,
   FilterExplorerComposeMode,
   FilterExplorerComposeTarget,
   FilterExplorerControllerContext,
@@ -16,6 +17,10 @@ export type {
   FilterExplorerModeKind,
   FilterExplorerOptions,
   FilterExplorerPolicyState,
+  FilterExplorerScalarClause,
+  FilterExplorerScalarComposeTarget,
+  FilterExplorerScalarEditRequest,
+  FilterExplorerScalarOperator,
   FilterExplorerSelection,
   FilterExplorerSelectionMap,
 } from "./types.js";

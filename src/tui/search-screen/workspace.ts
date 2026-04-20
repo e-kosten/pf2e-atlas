@@ -17,6 +17,7 @@ import { countMetadataPredicates, flattenMetadataTree } from "../search/query-co
 import { clampWindowStart } from "../list-utils.js";
 import type { SearchCountState, SearchScreenState } from "./state.js";
 import { formatCount, formatResultPosition, formatSort, getSessionBufferRange } from "./state.js";
+export { parseLevelRangeInput } from "./scalar-editor.js";
 
 export type SearchWorkspaceAction =
   | "mode"
@@ -219,38 +220,6 @@ export function formatCountSummary(countState: SearchCountState, request: Pf2eTe
     return `${countState.result.total} ${noun}${countState.result.total === 1 ? "" : "es"}`;
   }
   return "Count pending";
-}
-
-export function parseLevelRangeInput(value: string): { levelMin: number | null; levelMax: number | null } | string {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return { levelMin: null, levelMax: null };
-  }
-
-  const betweenMatch = trimmed.match(/^(\d+)\s*-\s*(\d+)$/);
-  if (betweenMatch) {
-    return {
-      levelMin: Number.parseInt(betweenMatch[1]!, 10),
-      levelMax: Number.parseInt(betweenMatch[2]!, 10),
-    };
-  }
-
-  if (/^\d+$/.test(trimmed)) {
-    const level = Number.parseInt(trimmed, 10);
-    return { levelMin: level, levelMax: level };
-  }
-
-  const minMatch = trimmed.match(/^(\d+)\+$/);
-  if (minMatch) {
-    return { levelMin: Number.parseInt(minMatch[1]!, 10), levelMax: null };
-  }
-
-  const maxMatch = trimmed.match(/^<=?\s*(\d+)$/);
-  if (maxMatch) {
-    return { levelMin: null, levelMax: Number.parseInt(maxMatch[1]!, 10) };
-  }
-
-  return "Use `3-8`, `5`, `5+`, or `<=10`.";
 }
 
 export function formatQueryStatus(state: SearchScreenState): string {
