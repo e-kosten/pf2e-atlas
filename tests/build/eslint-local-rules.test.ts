@@ -243,6 +243,40 @@ describe("eslint local architecture rules", () => {
     );
   });
 
+  it("limits DatabaseSync construction to the app storage boundary", async () => {
+    const disallowedAppMessages = lintMessageTexts(
+      await lintRuleMessages(
+        "src/app/ontology-service.ts",
+        'import { DatabaseSync } from "node:sqlite";\nexport const db = new DatabaseSync(":memory:");\n',
+        "arch/no-direct-database-sync-construction",
+      ),
+    );
+    const disallowedTuiMessages = lintMessageTexts(
+      await lintRuleMessages(
+        "src/tui/app-services.ts",
+        'import { DatabaseSync } from "node:sqlite";\nexport const db = new DatabaseSync(":memory:");\n',
+        "arch/no-direct-database-sync-construction",
+      ),
+    );
+    const allowedStorageMessages = await lintRuleMessages(
+      "src/app/storage-service.ts",
+      'import { DatabaseSync } from "node:sqlite";\nexport const db = new DatabaseSync(":memory:");\n',
+      "arch/no-direct-database-sync-construction",
+    );
+
+    expect(
+      disallowedAppMessages.some((message) =>
+        message.includes("Do not construct DatabaseSync here. Open SQLite connections only in approved composition"),
+      ),
+    ).toBe(true);
+    expect(
+      disallowedTuiMessages.some((message) =>
+        message.includes("Do not construct DatabaseSync here. Open SQLite connections only in approved composition"),
+      ),
+    ).toBe(true);
+    expect(allowedStorageMessages).toHaveLength(0);
+  });
+
   it("allows designated tag UI entrypoints to import tui modules", async () => {
     const reviewUiMessages = await lintRuleMessages(
       "src/tags/migration/review-ui.tsx",

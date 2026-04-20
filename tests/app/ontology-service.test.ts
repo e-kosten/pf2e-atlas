@@ -261,6 +261,18 @@ describe("application ontology service", () => {
     expect(second).toBe(first);
   });
 
+  it("reuses the derived-tags domain cache when search semantics loads derived-tag structure", () => {
+    const loadDerivedTagOntologyExplorerModel = vi.fn(() => ({ categories: [] }));
+    const service = createPf2eApplicationOntologyService(createTestConfig(), createDataService(), {
+      loadDerivedTagOntologyExplorerModel,
+    });
+
+    service.loadDomain("searchSemantics");
+    service.loadDomain("derivedTags");
+
+    expect(loadDerivedTagOntologyExplorerModel).toHaveBeenCalledTimes(1);
+  });
+
   it("builds valid field-specific browse queries for search semantics values", () => {
     const dataService = createDataService();
     const service = createPf2eApplicationOntologyService(createTestConfig(), dataService);

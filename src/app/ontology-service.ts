@@ -4,6 +4,10 @@ import { buildCatalogCategoriesDomain } from "./ontology/catalog-categories-doma
 import { ONTOLOGY_DOMAINS } from "./ontology/domain-summaries.js";
 import { buildDerivedTagsDomain } from "./ontology/derived-tags-domain.js";
 import { buildSearchSemanticsDomain } from "./ontology/search-semantics-domain.js";
+import {
+  createPf2eApplicationStorageService,
+  type Pf2eApplicationStorageService,
+} from "./storage-service.js";
 
 export type Pf2eApplicationOntologyService = {
   listDomains: () => OntologyDomainSummary[];
@@ -13,25 +17,35 @@ export type Pf2eApplicationOntologyService = {
 export function createPf2eApplicationOntologyService(
   config: AppConfig,
   dataService: Pick<Pf2eDataService, "getSearchVocabulary" | "listFilterValues" | "listRecords">,
+  storage: Pick<Pf2eApplicationStorageService, "loadDerivedTagOntologyExplorerModel"> = createPf2eApplicationStorageService(
+    config,
+  ),
 ): Pf2eApplicationOntologyService {
   const domainCache = new Map<OntologyDomainId, OntologyDomainModel>();
-  const domainBuilders: Record<OntologyDomainId, () => OntologyDomainModel> = {
-    derivedTags: () => buildDerivedTagsDomain(config),
-    catalogCategories: () => buildCatalogCategoriesDomain(dataService),
-    searchSemantics: () => buildSearchSemanticsDomain(config, dataService),
+  const buildDomain = (id: OntologyDomainId): OntologyDomainModel => {
+    switch (id) {
+      case "derivedTags":
+        return buildDerivedTagsDomain(storage.loadDerivedTagOntologyExplorerModel());
+      case "catalogCategories":
+        return buildCatalogCategoriesDomain(dataService);
+      case "searchSemantics":
+        return buildSearchSemanticsDomain(config, dataService, () => loadDomain("derivedTags"));
+    }
+  };
+
+  const loadDomain = (id: OntologyDomainId): OntologyDomainModel => {
+    const cached = domainCache.get(id);
+    if (cached) {
+      return cached;
+    }
+
+    const domain = buildDomain(id);
+    domainCache.set(id, domain);
+    return domain;
   };
 
   return {
     listDomains: () => ONTOLOGY_DOMAINS,
-    loadDomain: (id) => {
-      const cached = domainCache.get(id);
-      if (cached) {
-        return cached;
-      }
-
-      const domain = domainBuilders[id]();
-      domainCache.set(id, domain);
-      return domain;
-    },
+    loadDomain,
   };
 }

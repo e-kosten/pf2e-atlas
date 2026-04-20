@@ -1,8 +1,5 @@
-import { DatabaseSync } from "node:sqlite";
-
-import type { AppConfig, OntologyDomainModel, OntologyNode } from "../../types.js";
+import type { OntologyDomainModel, OntologyNode } from "../../types.js";
 import {
-  buildDerivedTagOntologyExplorerModel,
   type DerivedTagOntologyExplorerCategoryNode,
   type DerivedTagOntologyExplorerFamilyNode,
   type DerivedTagOntologyExplorerModel,
@@ -189,17 +186,9 @@ function buildCategoryNode(category: DerivedTagOntologyExplorerCategoryNode): On
   };
 }
 
-export function buildDerivedTagsDomain(config: AppConfig): OntologyDomainModel {
-  const db = new DatabaseSync(config.indexPath);
-  try {
-    const model: DerivedTagOntologyExplorerModel = buildDerivedTagOntologyExplorerModel(db, {
-      cacheKey: config.indexPath,
-    });
-    return {
-      ...getOntologyDomainSummary("derivedTags"),
-      rootNodes: model.categories.map(buildCategoryNode),
-    };
-  } finally {
-    db.close();
-  }
+export function buildDerivedTagsDomain(model: DerivedTagOntologyExplorerModel): OntologyDomainModel {
+  return {
+    ...getOntologyDomainSummary("derivedTags"),
+    rootNodes: model.categories.map(buildCategoryNode),
+  };
 }

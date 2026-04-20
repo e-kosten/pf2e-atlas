@@ -4,7 +4,6 @@ import { readMetadataGlossaryArtifact } from "../../data/metadata-glossary.js";
 import type { Pf2eDataService } from "../../data/service.js";
 import type { AppConfig, OntologyDomainModel, OntologyNode, SearchCategory, SearchSubcategory } from "../../types.js";
 import { normalizeText } from "../../utils.js";
-import { buildDerivedTagsDomain } from "./derived-tags-domain.js";
 import { getOntologyDomainSummary } from "./domain-summaries.js";
 import { buildFilterText, buildKeyValueDetailLines, cloneOntologyNode, titleCaseLabel } from "./node-helpers.js";
 import {
@@ -18,12 +17,13 @@ type SearchSemanticsDataService = Pick<Pf2eDataService, "getSearchVocabulary" | 
 export function buildSearchSemanticsDomain(
   config: AppConfig,
   dataService: SearchSemanticsDataService,
+  loadDerivedTagsDomain: () => OntologyDomainModel,
 ): OntologyDomainModel {
   const semantics = getMetadataFilterSemantics();
   const vocabulary = dataService.getSearchVocabulary();
   let derivedTagDomain: OntologyDomainModel | null;
   try {
-    derivedTagDomain = buildDerivedTagsDomain(config);
+    derivedTagDomain = loadDerivedTagsDomain();
   } catch {
     derivedTagDomain = null;
   }

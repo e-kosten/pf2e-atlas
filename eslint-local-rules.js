@@ -84,8 +84,7 @@ const DATABASE_SYNC_ALLOWED_PATHS = [
   "src/data/schema.ts",
   "src/tags/migration/cli-utils.ts",
   "src/refresh-index.ts",
-  "src/app/ontology-service.ts",
-  "src/tui/app-services.ts",
+  "src/app/storage-service.ts",
   /^src\/tags\/cli\/.+\.ts$/,
 ];
 

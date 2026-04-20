@@ -1,7 +1,9 @@
-import { DatabaseSync } from "node:sqlite";
-
 import { createPf2eApplicationOntologyService, type Pf2eApplicationOntologyService } from "../app/ontology-service.js";
 import { loadPf2eApplicationRuntime, type Pf2eApplicationRuntime } from "../app/runtime.js";
+import {
+  createPf2eApplicationStorageService,
+  type Pf2eApplicationStorageService,
+} from "../app/storage-service.js";
 import { Pf2eDataService } from "../data/service.js";
 import type { AppConfig } from "../types.js";
 import { createPf2eTerminalSearchService, type Pf2eTerminalSearchService } from "./search-service.js";
@@ -73,24 +75,20 @@ export type Pf2eTerminalAppServices = {
   close: () => void;
 };
 
-function createConfiguredWorkbenchServices(config: AppConfig): DerivedTagMigrationWorkbenchServices {
-  const openIndex = (_argv: string[]): Promise<{ db: DatabaseSync; config: AppConfig }> =>
-    Promise.resolve({
-      config,
-      db: new DatabaseSync(config.indexPath),
-    });
-
+function createConfiguredWorkbenchServices(
+  storage: Pick<Pf2eApplicationStorageService, "openIndex">,
+): DerivedTagMigrationWorkbenchServices {
   return {
     buildSession: buildDerivedTagMigrationSession,
-    openIndex,
+    openIndex: storage.openIndex,
     summarizeQueue: summarizeCurrentDerivedTagReviewQueue,
     writeSession: writeDerivedTagMigrationSession,
     writeSummary: writeDerivedTagMigrationSummary,
   };
 }
 
-function createTagWorkbenchService(config: AppConfig): Pf2eTerminalTagWorkbenchService {
-  const services = createConfiguredWorkbenchServices(config);
+function createTagWorkbenchService(storage: Pick<Pf2eApplicationStorageService, "openIndex">): Pf2eTerminalTagWorkbenchService {
+  const services = createConfiguredWorkbenchServices(storage);
 
   return {
     createSession: (rootPath, mode, options) =>
@@ -110,11 +108,12 @@ export function createPf2eTerminalAppServices(
   runtime: Pick<Pf2eApplicationRuntime, "config" | "dataService" | "close">,
 ): Pf2eTerminalAppServices {
   const { config, dataService } = runtime;
+  const storage = createPf2eApplicationStorageService(config);
   return {
     config,
     catalog: dataService,
     user: {
-      ontology: createPf2eApplicationOntologyService(config, dataService),
+      ontology: createPf2eApplicationOntologyService(config, dataService, storage),
       search: createPf2eTerminalSearchService({
         closeSearchWindow: (windowId) => dataService.closeSearchWindow(windowId),
         countRecords: (filters, options) => dataService.countRecords(filters, options),
@@ -128,7 +127,7 @@ export function createPf2eTerminalAppServices(
       }),
     },
     dev: {
-      tagRefinement: createTagWorkbenchService(config),
+      tagRefinement: createTagWorkbenchService(storage),
     },
     close: () => {
       runtime.close();
