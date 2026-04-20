@@ -22,8 +22,8 @@ Use lint rules to make the intended derived-tag and editorial boundaries mandato
 Current examples include:
 
 - outside `src/tags`, import derived-tag functionality through `src/tags/index.js` or another approved facade instead of tag leaf modules
-- tag CLI scope parsing goes through `src/tags/cli/search-scope-args.ts`
-- TUI composition for the tag workbench flows through `src/tui/app-services.ts` instead of direct migration-service imports from arbitrary feature code
+- tag CLI scope parsing goes through `src/tags/cli/shared/search-scope-args.ts`
+- TUI composition for the tag workbench flows through `src/tui/app-services.ts` instead of direct editorial-service imports from arbitrary feature code
 
 ## Consequences
 

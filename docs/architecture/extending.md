@@ -108,7 +108,7 @@ Do not:
 
 - call `loadPf2eApplicationRuntime()` from an arbitrary TUI feature file
 - construct `DatabaseSync` in TUI code
-- import raw migration internals when `app-services` should compose them
+- import raw editorial internals when `app-services` should compose them
 - bypass shared interaction helpers by decoding terminal events inline
 
 If you need a new kind of reusable interaction flow, add the helper first, then consider a lint rule so future screens use it consistently.

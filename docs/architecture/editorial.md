@@ -18,7 +18,7 @@ For broader project layering, read [overview.md](./overview.md) and [boundaries.
 - review queued decisions in terminal workflows
 - write approved changes back into authored TypeScript sources
 
-This subsystem is partly runtime infrastructure and partly editorial tooling. The runtime portion publishes the canonical derived-tag model used by indexing and record derivation. The editorial portion generates evidence, review sessions, and writeback artifacts for humans maintaining that model.
+This subsystem is partly runtime infrastructure and partly editorial tooling. The runtime portion publishes the canonical derived-tag model used by indexing and record derivation. The editorial portion generates evidence, review sessions, and writeback artifacts for humans maintaining that model. The live execution layer now sits under `src/tags/editorial/`.
 
 When evaluating the intended long-term shape of `src/tags/`, treat `legacy-rules/` and `legacy-seed-migrations/` as transitional placeholders only. They exist to encode the old rules format while that content is migrated into the current authored model, not to define the future-state layout for the subsystem.
 
@@ -28,14 +28,14 @@ When evaluating the intended long-term shape of `src/tags/`, treat `legacy-rules
 flowchart LR
   ontology["`ontology/`
   Authored family/tag hierarchy"]
-  rules["`authored-rules/`
+  rules["`rules/`
   Explainable rule definitions"]
   assignments["`assignments/`
-  `assignment-reviews/`
-  `assignment-memory/`
+  `reviews/assignment-reviews/`
+  `reviews/assignment-memory/`
   Explicit decisions and pending review"]
   exemplars["`exemplars/`
-  `exemplar-reviews/`
+  `reviews/exemplar-reviews/`
   Positive/negative teaching sets"]
   legacy["`legacy-rules/`
   `legacy-seed-migrations/`
@@ -47,9 +47,12 @@ flowchart LR
   Candidate mining and cohorting"]
   evaluation["`evaluation/`
   Evidence, gaps, movement"]
-  migration["`migration/`
+  migration["`editorial/`
   Sessions, review UI, importer"]
-  cli["`cli/`
+  cli["`cli/discovery/`
+  `cli/evaluation/`
+  `cli/editorial/`
+  `cli/shared/`
   Offline entrypoints"]
   tui["TUI workbench"]
   app["`src/app/`
@@ -96,14 +99,14 @@ The important split is:
 | Area                         | Owns                                                                                                                                                                 | Consumes                                                                                                 | Produces                                                                                 |
 | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
 | `runtime/`                   | Published ontology, compiled rules, explicit-assignment index, migration-era legacy-seed index, exemplar publication, tag derivation                                  | Authored ontology, authored rules, explicit assignments, exemplars, legacy compatibility inputs          | `deriveRecordTags`, source-aware derivations, validation helpers, runtime lookup helpers |
-| `authored-rules/`            | Per-category explainable rule definitions and the compiler that normalizes them against the ontology                                                                 | Authored tag names and family scopes from `ontology/`                                                    | Runtime-matchable rule objects                                                           |
+| `rules/`                     | Per-category explainable rule definitions and the compiler that normalizes them against the ontology                                                                 | Authored tag names and family scopes from `ontology/`                                                    | Runtime-matchable rule objects                                                           |
 | `ontology/`                  | The authored family/tag hierarchy, scope, policy, adjacency, composite structure, and editorial descriptions                                                         | Category manifest and shared type contracts                                                              | Flattenable category ontologies for publication and exploration                          |
 | `exemplars/`                 | Curated positive and negative record examples per tag                                                                                                                | Canonical record keys and the authored ontology                                                          | Published exemplar sets and validation input                                             |
-| Reviews and explicit storage | `assignments/`, `assignment-reviews/`, `assignment-memory/`, `exemplar-reviews/` carry direct editorial decisions, queued review items, and memory from prior review | The ontology and current editorial policy                                                                | Explicit include/exclude overrides, pending review queues, writeback targets             |
+| Reviews and explicit storage | `assignments/`, `reviews/assignment-reviews/`, `reviews/assignment-memory/`, `reviews/exemplar-reviews/` carry direct editorial decisions, queued review items, and memory from prior review | The ontology and current editorial policy                                                                | Explicit include/exclude overrides, pending review queues, writeback targets             |
 | `discovery/`                 | SQL- and embedding-backed candidate mining, reviewed-record bookkeeping, cohort clustering, evidence normalization                                                   | The live SQLite index, embeddings, published runtime helpers, reviewed selections                        | Candidate cohorts and discovery records that suggest possible new rules or assignments   |
 | `evaluation/`                | Evidence reports, gap analysis, and baseline-versus-current movement checks                                                                                          | Discovery records, live index state, runtime exemplar and family lookups                                 | Editorial measurement artifacts used to decide whether a change is worth authoring       |
-| `migration/`                 | Session building, review-screen state, importer, linter, authored-state cloning, runtime review summaries                                                            | Authored source state, runtime publication, review queues, index-backed record loading                   | Human review sessions and on-disk updates to authored TypeScript files                   |
-| `cli/`                       | Thin offline entrypoints for discovery, evaluation, migration, and the TUI launcher                                                                                  | Tag/editorial services plus config/index opening                                                         | Human-readable reports and local workflows                                               |
+| `editorial/`                 | Session building, review-screen state, importer, linter, authored-state cloning, runtime review summaries                                                            | Authored source state, runtime publication, review queues, index-backed record loading                   | Human review sessions and on-disk updates to authored TypeScript files                   |
+| `cli/discovery/`, `cli/evaluation/`, `cli/editorial/`, `cli/shared/` | Thin offline entrypoints plus shared CLI scope parsing for discovery, evaluation, editorial workflows, and the TUI launcher                                         | Tag/editorial services plus config/index opening                                                         | Human-readable reports and local workflows                                               |
 
 ## Runtime Layer
 
@@ -122,7 +125,7 @@ Architecturally, `runtime/` is where the editorial source files stop being categ
 The authored source of truth is spread across several narrow trees:
 
 - `ontology/`: defines families, tags, scope, descriptions, adjacency, composite rules, and inheritance policy
-- `authored-rules/`: defines explainable rule blocks that compile into matcher-friendly runtime rules
+- `rules/`: defines explainable rule blocks that compile into matcher-friendly runtime rules
 - `assignments/`: captures explicit per-record overrides that should win without rediscovering the same conclusion
 - `exemplars/`: keeps small positive and negative teaching sets for discovery and review workflows
 - `legacy-rules/` and `legacy-seed-migrations/`: migration-only compatibility placeholders that preserve the old rules format while it is being retired
@@ -149,7 +152,7 @@ Those modules are deliberately advisory. They surface evidence for editors, but 
 
 ## Migration and Review Loop
 
-`migration/` is the execution layer for editorial change.
+`editorial/` is the execution layer for editorial change.
 
 It owns four distinct responsibilities:
 
@@ -169,27 +172,32 @@ This separation keeps the workbench from mutating imported modules in place whil
 
 The review trees are easy to miss because they are small, but they are a key architectural seam:
 
-- `assignment-reviews/` holds pending include/exclude decisions that still need resolution
-- `assignment-memory/` keeps prior reasoning that should remain visible during future review
-- `exemplar-reviews/` holds pending exemplar polarity or keep/drop decisions
+- `reviews/assignment-reviews/` holds pending include/exclude decisions that still need resolution
+- `reviews/assignment-memory/` keeps prior reasoning that should remain visible during future review
+- `reviews/exemplar-reviews/` holds pending exemplar polarity or keep/drop decisions
 
-These registries are not just scratch data. They are durable editorial inputs that the migration session builder reads when it constructs the current queue and that writeback code preserves alongside authored rules, assignments, and exemplars.
+These registries are not just scratch data. They are durable editorial inputs that the editorial session builder reads when it constructs the current queue and that writeback code preserves alongside authored rules, assignments, and exemplars.
 
 ## CLI and TUI Surfaces
 
-The CLI files under `src/tags/cli/` are intentionally thin:
+The CLI files under `src/tags/cli/` are intentionally thin and grouped by concern:
+
+- `src/tags/cli/discovery/` for candidate-mining workflows
+- `src/tags/cli/evaluation/` for evidence and movement reports
+- `src/tags/cli/editorial/` for session creation, review, import, and the workbench launcher
+- `src/tags/cli/shared/` for shared helpers such as scope parsing
 
 - parse scope arguments and validation flags
 - open the configured SQLite index
 - call one discovery, evaluation, or migration service
 - print a report or launch the TUI
 
-The special case is `derived-tag-migration-workbench.ts`, which launches the terminal app rather than implementing review logic itself. The actual workbench composition happens through `src/tui/app-services.ts`, which wires:
+The special case is `src/tags/cli/editorial/derived-tag-migration-workbench.ts`, which launches the terminal app rather than implementing review logic itself. The actual workbench composition happens through `src/tui/app-services.ts`, which wires:
 
 - shared application runtime and `Pf2eDataService`
 - `src/app/storage-service.ts` for explicit index opening
 - `src/app/ontology-service.ts` for the readonly explorer model
-- `src/tags/migration/workbench-controller.ts` for tag-review workflows
+- `src/tags/editorial/workbench-controller.ts` for tag-review workflows
 
 That split is important. The editorial TUI is a surface over shared backend and migration services, not a second copy of the editorial logic.
 
@@ -200,7 +208,7 @@ The current codebase already encodes several intended boundaries:
 - outside `src/tags`, callers should normally import derived-tag functionality through `src/tags/index.ts` or a higher-level app service instead of leaf tag modules
 - ontology browsing is assembled through `src/app/ontology-service.ts` and treated as a readonly model, not mutable shared UI state
 - direct SQLite opening is explicit through the application storage service or justified offline tag tooling, not scattered through unrelated feature modules
-- CLI scope parsing is centralized in `src/tags/cli/search-scope-args.ts`
+- CLI scope parsing is centralized in `src/tags/cli/shared/search-scope-args.ts`
 - discovery and evaluation can recommend changes, but migration and import own writeback into authored files
 
 Those rules are documented in `docs/architecture/boundaries.md` and reinforced by ESLint restrictions where the shared abstraction is already considered stable.
@@ -209,7 +217,7 @@ Those rules are documented in `docs/architecture/boundaries.md` and reinforced b
 
 The steady-state maintenance loop looks like this:
 
-1. Editors maintain authored ontology, rules, assignments, exemplars, and review registries in `src/tags/`.
+1. Editors maintain authored ontology, rules, assignments, exemplars, and review registries in `src/tags/`, with queued review inputs under `src/tags/reviews/`.
 2. `runtime/` publishes those inputs into the canonical derivation model used during indexing and other derived-tag lookups.
 3. Discovery and evaluation inspect the current SQLite index and embeddings to find missing coverage, overfit clusters, and movement against a baseline.
 4. Migration builds a review session from those signals or from pending queues.

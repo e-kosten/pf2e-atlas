@@ -53,7 +53,7 @@ flowchart TD
       tuiRoot["src/tui/app-services.ts<br/>terminal composition"] --> ontology["src/app/ontology-service.ts"]
       tuiRoot --> storage["src/app/storage-service.ts"]
       tuiRoot --> tuiSearch["src/tui/search/service.ts"]
-      tuiRoot --> tags["src/tags/<br/>migration, review, assignment tooling"]
+      tuiRoot --> tags["src/tags/<br/>editorial, review, assignment tooling"]
       ontology --> dataService
       tuiSearch --> dataService
       storage --> db
