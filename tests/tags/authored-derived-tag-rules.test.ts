@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { AuthoredDerivedTagRule, DerivedTagOntologyFamily, DerivedTagOntologyTag } from "../../src/domain/index.js";
 import { deriveCatalogTagDerivation, publishDerivedTagOntology } from "../../src/tags/runtime/catalog-utils.js";
-import { compileAuthoredDerivedTagRules } from "../../src/tags/authored-rules/compiler.js";
+import { compileAuthoredDerivedTagRules } from "../../src/tags/rules/compiler.js";
 import { deriveRecordTagsFromRules, type DerivedTagRule } from "../../src/tags/runtime/matcher.js";
 
 describe("authored derived tag rules", () => {

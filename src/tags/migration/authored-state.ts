@@ -9,7 +9,7 @@ import type {
 import { DERIVED_TAG_ASSIGNMENTS_BY_CATEGORY } from "../assignments/index.js";
 import { DERIVED_TAG_ASSIGNMENT_MEMORY_BY_CATEGORY } from "../assignment-memory/index.js";
 import { DERIVED_TAG_ASSIGNMENT_REVIEWS_BY_CATEGORY } from "../assignment-reviews/index.js";
-import { DERIVED_TAG_AUTHORED_RULES_BY_CATEGORY } from "../authored-rules/index.js";
+import { DERIVED_TAG_AUTHORED_RULES_BY_CATEGORY } from "../rules/index.js";
 import { DERIVED_TAG_EXEMPLARS_BY_CATEGORY } from "../exemplars/index.js";
 import { DERIVED_TAG_EXEMPLAR_REVIEWS_BY_CATEGORY } from "../exemplar-reviews/index.js";
 import {
@@ -32,7 +32,7 @@ export const CATEGORY_FILE_PATHS = Object.fromEntries(
     {
       assignment: path.join("src", "tags", "assignments", `${category}.ts`),
       exemplar: path.join("src", "tags", "exemplars", `${category}.ts`),
-      authoredRule: path.join("src", "tags", "authored-rules", `${category}.ts`),
+      authoredRule: path.join("src", "tags", "rules", `${category}.ts`),
     },
   ]),
 ) as Record<

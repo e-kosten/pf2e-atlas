@@ -2,7 +2,7 @@ import { deriveRecordTagsFromRules } from "./matcher.js";
 import { normalizeDerivedTag, DerivedTagContext } from "./shared.js";
 import { uniqueSorted } from "../../shared/utils.js";
 import { DERIVED_TAG_REGISTRATION_CATEGORIES } from "../manifest.js";
-import { DERIVED_TAG_AUTHORED_RULES_BY_CATEGORY, compileAuthoredDerivedTagRules } from "../authored-rules/index.js";
+import { DERIVED_TAG_AUTHORED_RULES_BY_CATEGORY, compileAuthoredDerivedTagRules } from "../rules/index.js";
 import {
   buildDerivedTagLegacySeedMigrationIndex,
   deriveCatalogTagDerivation,
