@@ -4,8 +4,10 @@ import { cleanup, render } from "ink-testing-library";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { OntologyDomainModel, OntologyNodeQuery } from "../../src/domain/ontology-types.js";
+import { OntologyInspectScreen } from "../../src/tui/ontology-explorer/inspect-screen.js";
 import { OntologyBrowserScreen } from "../../src/tui/ontology-explorer/screen.js";
 import type { OntologyBrowserSnapshot } from "../../src/tui/ontology-explorer/ui.js";
+import * as scalarEditor from "../../src/tui/search-screen/scalar-editor.js";
 import { DerivedTagTerminalProvider } from "../../src/tui/terminal-ui.js";
 
 function flushInk(): Promise<void> {
@@ -36,6 +38,43 @@ function createTestOntologyModel(): OntologyDomainModel {
           label: "Browse this tag",
           filters: {
             category: "spell",
+            limit: 20,
+          },
+        },
+      },
+    ],
+  };
+}
+
+function createNumericMetricInspectModel(): OntologyDomainModel {
+  return {
+    id: "searchSemantics",
+    label: "Search Semantics",
+    description: "Test ontology inspect domain",
+    rootNodes: [
+      {
+        id: "creature:actorMetrics:perception.mod",
+        kind: "metric",
+        label: "Perception Modifier",
+        shortLabel: "perception.mod",
+        filterText: "perception modifier creature actor metric",
+        listLabel: "Perception Modifier | 12",
+        detailTitle: "Metric Details",
+        detailLines: [
+          { text: "Perception Modifier", tone: "section" },
+          { text: "Inspecting this metric should open the scalar editor." },
+        ],
+        query: {
+          kind: "listRecords",
+          label: "Browse records with Perception Modifier",
+          filters: {
+            category: "creature",
+            metadata: {
+              field: "actorMetricCompare",
+              leftMetric: "perception.mod",
+              op: ">=",
+              rightMetric: "perception.mod",
+            },
             limit: 20,
           },
         },
@@ -298,6 +337,55 @@ describe("ontology browser screen", () => {
     });
 
     app.unmount();
+  });
+
+  it("opens numeric metric inspect targets through the shared scalar editor flow", async () => {
+    const promptNumericScalarClause = vi
+      .spyOn(scalarEditor, "promptNumericScalarClause")
+      .mockResolvedValue({ op: "gte", value: 5 });
+    const onOpenQuery = vi.fn<(query: OntologyNodeQuery, snapshot: OntologyBrowserSnapshot) => void>();
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <OntologyInspectScreen model={createNumericMetricInspectModel()} onExit={vi.fn()} onOpenQuery={onOpenQuery} />
+      </DerivedTagTerminalProvider>,
+    );
+
+    try {
+      await flushInk();
+
+      app.stdin.write("\r");
+      await flushInk();
+
+      expect(promptNumericScalarClause).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        expect.objectContaining({
+          title: "Actor Metric / Perception Modifier",
+          currentClause: null,
+        }),
+      );
+      expect(onOpenQuery).toHaveBeenCalledWith(
+        expect.objectContaining({
+          kind: "listRecords",
+          label: "Browse records where Perception Modifier >= 5",
+          filters: {
+            category: "creature",
+            metadata: {
+              field: "actorMetric",
+              metric: "perception.mod",
+              op: ">=",
+              value: 5,
+            },
+            limit: 20,
+          },
+          openInResults: true,
+        }),
+        expect.anything(),
+      );
+    } finally {
+      promptNumericScalarClause.mockRestore();
+      app.unmount();
+    }
   });
 
   it("restores the browser from an initial snapshot", async () => {

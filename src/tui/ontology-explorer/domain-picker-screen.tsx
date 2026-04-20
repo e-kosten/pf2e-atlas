@@ -49,7 +49,6 @@ function createOntologyDomainPickerInteractions(): TerminalMenuScreenInteraction
         {
           title: "Domains",
           lines: [
-            { text: "Derived Tags: authored tag ontology with live record coverage." },
             { text: "Categories: public catalog category and subcategory browsing." },
             { text: "Search Semantics: metadata field and search-vocabulary discovery." },
           ],

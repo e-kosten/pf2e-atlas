@@ -175,6 +175,9 @@ export type FilterExplorerInspectResult = {
 export type FilterExplorerInspectAndOpenMode = {
   kind: "inspect-and-open";
   resolveInspectTarget?: (node: FilterExplorerNode | undefined) => FilterExplorerComposeTarget | undefined;
+  onEditScalarTarget?: (
+    request: FilterExplorerScalarEditRequest,
+  ) => Promise<FilterExplorerScalarClause | null | undefined> | FilterExplorerScalarClause | null | undefined;
   onOpenInspectResult?: (
     result: FilterExplorerInspectResult,
     snapshot: FilterExplorerBrowserSnapshot,

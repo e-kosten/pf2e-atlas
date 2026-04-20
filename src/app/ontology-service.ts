@@ -21,6 +21,7 @@ export function createPf2eApplicationOntologyService(
   > = createPf2eApplicationStorageService(config),
 ): Pf2eApplicationOntologyService {
   const domainCache = new Map<OntologyDomainId, OntologyDomainModel>();
+  const publicDomains = ONTOLOGY_DOMAINS.filter((domain) => domain.id !== "derivedTags");
   const buildDomain = (id: OntologyDomainId): OntologyDomainModel => {
     switch (id) {
       case "derivedTags":
@@ -44,7 +45,7 @@ export function createPf2eApplicationOntologyService(
   };
 
   return {
-    listDomains: () => ONTOLOGY_DOMAINS.map((domain) => ({ ...domain })),
+    listDomains: () => publicDomains.map((domain) => ({ ...domain })),
     loadDomain,
   };
 }

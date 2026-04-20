@@ -245,7 +245,6 @@ describe("application ontology service", () => {
     const service = createPf2eApplicationOntologyService(createTestConfig(), createDataService());
 
     expect(service.listDomains().map((domain) => domain.id)).toEqual([
-      "derivedTags",
       "catalogCategories",
       "searchSemantics",
     ]);
@@ -267,11 +266,6 @@ describe("application ontology service", () => {
     };
 
     expect(service.listDomains()).toEqual([
-      {
-        id: "derivedTags",
-        label: "Derived Tags",
-        description: "Browse the authored derived-tag ontology with live record coverage and editorial detail.",
-      },
       {
         id: "catalogCategories",
         label: "Categories",

@@ -45,6 +45,7 @@ import {
   setFilterExplorerFilter,
 } from "./browser.js";
 import {
+  createEmptyFilterExplorerComposeDraft,
   cloneFilterExplorerComposeDraft,
   cloneFilterExplorerSelectionMap,
   getFilterExplorerScalarClause,
@@ -60,6 +61,7 @@ import {
   buildFilterExplorerHelpLines,
   getFilterExplorerInteractionActions,
 } from "./screen-models.js";
+import type { MetadataFilterNode } from "../../domain/metadata-types.js";
 import type {
   FilterExplorerBrowserContext,
   FilterExplorerBrowserSnapshot,
@@ -72,6 +74,7 @@ import type {
   FilterExplorerNode,
   FilterExplorerOptions,
   FilterExplorerQueryTarget,
+  FilterExplorerScalarClause,
 } from "./types.js";
 
 type FilterExplorerAction =
@@ -279,7 +282,109 @@ function buildInspectResult(
   };
 }
 
-function openInspectResult(
+function parseInspectScalarTargetKey(key: string): { field: "actorMetric" | "itemMetric"; metric: string } | null {
+  const match = key.match(/^(actorMetric|itemMetric):(.+)$/);
+  if (!match) {
+    return null;
+  }
+
+  return {
+    field: match[1] as "actorMetric" | "itemMetric",
+    metric: match[2]!,
+  };
+}
+
+function buildInspectScalarPredicate(target: Exclude<FilterExplorerInspectResult["target"], undefined>, clause: FilterExplorerScalarClause): MetadataFilterNode | null {
+  if (!isFilterExplorerScalarTarget(target) || target.valueType !== "number") {
+    return null;
+  }
+
+  const metricTarget = parseInspectScalarTargetKey(target.key);
+  if (!metricTarget) {
+    return null;
+  }
+
+  if (clause.operator === "between") {
+    return {
+      and: [
+        {
+          field: metricTarget.field,
+          metric: metricTarget.metric,
+          op: ">=",
+          value: clause.min,
+        },
+        {
+          field: metricTarget.field,
+          metric: metricTarget.metric,
+          op: "<=",
+          value: clause.max,
+        },
+      ],
+    };
+  }
+
+  const operator =
+    clause.operator === "eq"
+      ? "=="
+      : clause.operator === "neq"
+        ? "!="
+        : clause.operator === "gte"
+          ? ">="
+          : "<=";
+
+  return {
+    field: metricTarget.field,
+    metric: metricTarget.metric,
+    op: operator,
+    value: clause.value as number,
+  };
+}
+
+function formatInspectScalarClauseSummary(clause: FilterExplorerScalarClause): string {
+  if (clause.operator === "between") {
+    return `between ${clause.min} and ${clause.max}`;
+  }
+
+  const operator =
+    clause.operator === "eq"
+      ? "="
+      : clause.operator === "neq"
+        ? "!="
+        : clause.operator === "gte"
+          ? ">="
+          : "<=";
+  return `${operator} ${clause.value}`;
+}
+
+function buildCompiledInspectResult(
+  result: FilterExplorerInspectResult,
+  clause: FilterExplorerScalarClause,
+): FilterExplorerInspectResult | null {
+  if (result.query.kind !== "listRecords" || !isFilterExplorerScalarTarget(result.target)) {
+    return null;
+  }
+
+  const metadata = buildInspectScalarPredicate(result.target, clause);
+  if (!metadata) {
+    return null;
+  }
+
+  return {
+    ...result,
+    query: {
+      ...result.query,
+      label: `Browse records where ${result.target.subjectLabel} ${formatInspectScalarClauseSummary(clause)}`,
+      openInResults: true,
+      filters: {
+        ...result.query.filters,
+        metadata,
+      },
+    },
+    openIntent: "results",
+  };
+}
+
+function openInspectResultDirect(
   options: FilterExplorerOptions,
   keyContext: FilterExplorerKeyContext,
   result: FilterExplorerInspectResult | undefined,
@@ -298,6 +403,40 @@ function openInspectResult(
     return true;
   }
   return false;
+}
+
+function openInspectResult(
+  options: FilterExplorerOptions,
+  keyContext: FilterExplorerKeyContext,
+  result: FilterExplorerInspectResult | undefined,
+): boolean {
+  if (
+    options.mode.kind === "inspect-and-open" &&
+    result &&
+    isFilterExplorerScalarTarget(result.target) &&
+    options.mode.onEditScalarTarget
+  ) {
+    void Promise.resolve(
+      options.mode.onEditScalarTarget({
+        target: result.target,
+        draft: createEmptyFilterExplorerComposeDraft(),
+      }),
+    ).then((nextClause) => {
+      if (nextClause === undefined || nextClause === null) {
+        return;
+      }
+
+      const compiledResult = buildCompiledInspectResult(result, nextClause);
+      if (!compiledResult) {
+        return;
+      }
+
+      openInspectResultDirect(options, keyContext, compiledResult);
+    });
+    return true;
+  }
+
+  return openInspectResultDirect(options, keyContext, result);
 }
 
 function openInspectQuery(
