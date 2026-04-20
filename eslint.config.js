@@ -5,6 +5,94 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 import localRules from "./eslint-local-rules.js";
 
+function mergeRestrictedImports(...restrictions) {
+  const paths = restrictions.flatMap((restriction) => restriction.paths ?? []);
+  const patterns = restrictions.flatMap((restriction) => restriction.patterns ?? []);
+
+  return [
+    "error",
+    {
+      ...(paths.length > 0 ? { paths } : {}),
+      ...(patterns.length > 0 ? { patterns } : {}),
+    },
+  ];
+}
+
+const NON_UI_TUI_IMPORT_RESTRICTIONS = {
+  patterns: [
+    {
+      group: ["../tui/**/*.js", "../../tui/**/*.js"],
+      message:
+        "Non-UI application, data, domain, search, server, and tag modules must not import src/tui internals directly.",
+    },
+  ],
+};
+
+const SEARCH_STORAGE_INTERNAL_IMPORT_RESTRICTIONS = {
+  patterns: [
+    {
+      group: ["../data/rows.js", "../data/record-queries.js", "../data/schema.js"],
+      message:
+        "Search modules must depend on Pf2eDataService or another higher-level facade instead of storage rows/query/schema internals.",
+    },
+  ],
+};
+
+const NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS = {
+  paths: [
+    {
+      name: "ink",
+      allowTypeImports: true,
+      message: "TUI feature code must use terminal-ui helpers instead of importing Ink runtime primitives directly.",
+    },
+  ],
+  patterns: [
+    {
+      group: ["**/keymap.js"],
+      message:
+        "TUI feature code must use interaction-bindings, action-target, or terminal-ui helpers instead of importing keymap directly.",
+    },
+  ],
+};
+
+const TAGS_CLI_SCOPE_IMPORT_RESTRICTIONS = {
+  patterns: [
+    {
+      group: ["**/domain/categories.js", "**/data/sql-row-decoding.js"],
+      message:
+        "CLI scope parsing must go through src/tags/cli/search-scope-args.ts instead of ad hoc category normalization helpers.",
+    },
+  ],
+};
+
+const NON_TAGS_DERIVED_TAG_IMPORT_RESTRICTIONS = {
+  patterns: [
+    {
+      group: [
+        "**/tags/runtime/**",
+        "**/tags/authored-rules/**",
+        "**/tags/catalog/**",
+        "**/tags/ontology/**",
+        "**/tags/exemplars/**",
+        "**/tags/legacy-rules/**",
+        "**/tags/legacy-seed-migrations/**",
+      ],
+      message:
+        "Outside src/tags, import derived-tag functionality through src/tags/index.js or another approved facade instead of leaf tag internals.",
+    },
+  ],
+};
+
+const SERVER_STORAGE_INTERNAL_IMPORT_RESTRICTIONS = {
+  patterns: [
+    {
+      group: ["../search/sql.js", "../data/record-queries.js", "../data/schema.js"],
+      message:
+        "Server tool registration must depend on Pf2eDataService or higher-level services, not low-level SQL/query internals.",
+    },
+  ],
+};
+
 export default defineConfig(
   {
     ignores: [".cache/**", ".codex/**", "coverage/**", "dist/**", "node_modules/**", "scratch/**", "vendor/pf2e/**"],
@@ -151,8 +239,7 @@ export default defineConfig(
         {
           selector:
             'MemberExpression[object.type="MemberExpression"][object.property.name="filters"][property.name="facets"]',
-          message:
-            "Search editor surfaces must not read legacy facet slots; use the unified query-part model instead.",
+          message: "Search editor surfaces must not read legacy facet slots; use the unified query-part model instead.",
         },
       ],
     },
@@ -160,120 +247,111 @@ export default defineConfig(
   {
     files: ["src/tui/area-menu-screen.tsx", "src/tui/ontology-explorer/domain-picker-screen.tsx"],
     rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          paths: [
-            {
-              name: "./terminal-ui.js",
-              importNames: [
-                "createDerivedTagTerminalListNavigationState",
-                "getTerminalPaneBodyHeight",
-                "resolveDerivedTagTerminalListNavigationAction",
-                "useDerivedTagTerminalApp",
-                "useDerivedTagTerminalInput",
-                "useDerivedTagTerminalSize",
-              ],
-              message:
-                "Simple chooser screens must use the shared TerminalMenuScreen abstraction instead of owning input/navigation loops.",
-            },
-            {
-              name: "../terminal-ui.js",
-              importNames: [
-                "createDerivedTagTerminalListNavigationState",
-                "getTerminalPaneBodyHeight",
-                "resolveDerivedTagTerminalListNavigationAction",
-                "useDerivedTagTerminalApp",
-                "useDerivedTagTerminalInput",
-                "useDerivedTagTerminalSize",
-              ],
-              message:
-                "Simple chooser screens must use the shared TerminalMenuScreen abstraction instead of owning input/navigation loops.",
-            },
-            {
-              name: "./interaction-bindings.js",
-              importNames: ["resolveTerminalInteractionAction"],
-              message:
-                "Simple chooser screens must use the shared TerminalMenuScreen abstraction instead of resolving interaction actions directly.",
-            },
-            {
-              name: "../interaction-bindings.js",
-              importNames: ["resolveTerminalInteractionAction"],
-              message:
-                "Simple chooser screens must use the shared TerminalMenuScreen abstraction instead of resolving interaction actions directly.",
-            },
-          ],
-        },
-      ],
+      "no-restricted-imports": mergeRestrictedImports(NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS, {
+        paths: [
+          {
+            name: "./terminal-ui.js",
+            importNames: [
+              "createDerivedTagTerminalListNavigationState",
+              "getTerminalPaneBodyHeight",
+              "resolveDerivedTagTerminalListNavigationAction",
+              "useDerivedTagTerminalApp",
+              "useDerivedTagTerminalInput",
+              "useDerivedTagTerminalSize",
+            ],
+            message:
+              "Simple chooser screens must use the shared TerminalMenuScreen abstraction instead of owning input/navigation loops.",
+          },
+          {
+            name: "../terminal-ui.js",
+            importNames: [
+              "createDerivedTagTerminalListNavigationState",
+              "getTerminalPaneBodyHeight",
+              "resolveDerivedTagTerminalListNavigationAction",
+              "useDerivedTagTerminalApp",
+              "useDerivedTagTerminalInput",
+              "useDerivedTagTerminalSize",
+            ],
+            message:
+              "Simple chooser screens must use the shared TerminalMenuScreen abstraction instead of owning input/navigation loops.",
+          },
+          {
+            name: "./interaction-bindings.js",
+            importNames: ["resolveTerminalInteractionAction"],
+            message:
+              "Simple chooser screens must use the shared TerminalMenuScreen abstraction instead of resolving interaction actions directly.",
+          },
+          {
+            name: "../interaction-bindings.js",
+            importNames: ["resolveTerminalInteractionAction"],
+            message:
+              "Simple chooser screens must use the shared TerminalMenuScreen abstraction instead of resolving interaction actions directly.",
+          },
+        ],
+      }),
     },
   },
   {
     files: ["src/tui/pf2e-app.tsx"],
     rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          paths: [
-            {
-              name: "./terminal-ui.js",
-              importNames: ["TerminalTextScreen", "useDerivedTagTerminalInput"],
-              message:
-                "Static informational TUI screens must use the shared TerminalMessageScreen abstraction instead of owning input or TerminalTextScreen composition directly.",
-            },
-            {
-              name: "./interaction-bindings.js",
-              importNames: ["formatTerminalInteractionFooter", "resolveTerminalInteractionAction"],
-              message:
-                "Static informational TUI screens must use the shared TerminalMessageScreen abstraction instead of resolving their own footer or interaction actions.",
-            },
-          ],
-        },
-      ],
+      "no-restricted-imports": mergeRestrictedImports(NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS, {
+        paths: [
+          {
+            name: "./terminal-ui.js",
+            importNames: ["TerminalTextScreen", "useDerivedTagTerminalInput"],
+            message:
+              "Static informational TUI screens must use the shared TerminalMessageScreen abstraction instead of owning input or TerminalTextScreen composition directly.",
+          },
+          {
+            name: "./interaction-bindings.js",
+            importNames: ["formatTerminalInteractionFooter", "resolveTerminalInteractionAction"],
+            message:
+              "Static informational TUI screens must use the shared TerminalMessageScreen abstraction instead of resolving their own footer or interaction actions.",
+          },
+        ],
+      }),
     },
   },
   {
     files: ["src/tui/tag-refinement-menu-screen.tsx"],
     rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          paths: [
-            {
-              name: "./terminal-ui.js",
-              importNames: [
-                "TerminalTwoPaneScreen",
-                "createDerivedTagTerminalListNavigationState",
-                "getTerminalPaneBodyHeight",
-                "resolveDerivedTagTerminalListNavigationAction",
-                "useDerivedTagTerminalApp",
-                "useDerivedTagTerminalInput",
-                "useDerivedTagTerminalSize",
-              ],
-              message:
-                "Tag refinement menus must use the shared TerminalActionMenuScreen abstraction instead of owning list/input plumbing.",
-            },
-            {
-              name: "./interaction-bindings.js",
-              importNames: ["formatTerminalInteractionFooter", "resolveTerminalInteractionAction"],
-              message:
-                "Tag refinement menus must use the shared TerminalActionMenuScreen abstraction instead of resolving footer or interaction actions directly.",
-            },
-            {
-              name: "./action-target.js",
-              importNames: [
-                "buildDerivedTagTerminalActionTargetLine",
-                "createDerivedTagTerminalActionTargetState",
-                "getDerivedTagTerminalActionTargetInteractionActions",
-                "reduceDerivedTagTerminalActionTargetState",
-                "resolveDerivedTagTerminalActionTargetIntent",
-                "shouldRenderDerivedTagTerminalActionTarget",
-              ],
-              message:
-                "Tag refinement menus must use the shared TerminalActionMenuScreen abstraction instead of owning action-target state and rendering directly.",
-            },
-          ],
-        },
-      ],
+      "no-restricted-imports": mergeRestrictedImports(NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS, {
+        paths: [
+          {
+            name: "./terminal-ui.js",
+            importNames: [
+              "TerminalTwoPaneScreen",
+              "createDerivedTagTerminalListNavigationState",
+              "getTerminalPaneBodyHeight",
+              "resolveDerivedTagTerminalListNavigationAction",
+              "useDerivedTagTerminalApp",
+              "useDerivedTagTerminalInput",
+              "useDerivedTagTerminalSize",
+            ],
+            message:
+              "Tag refinement menus must use the shared TerminalActionMenuScreen abstraction instead of owning list/input plumbing.",
+          },
+          {
+            name: "./interaction-bindings.js",
+            importNames: ["formatTerminalInteractionFooter", "resolveTerminalInteractionAction"],
+            message:
+              "Tag refinement menus must use the shared TerminalActionMenuScreen abstraction instead of resolving footer or interaction actions directly.",
+          },
+          {
+            name: "./action-target.js",
+            importNames: [
+              "buildDerivedTagTerminalActionTargetLine",
+              "createDerivedTagTerminalActionTargetState",
+              "getDerivedTagTerminalActionTargetInteractionActions",
+              "reduceDerivedTagTerminalActionTargetState",
+              "resolveDerivedTagTerminalActionTargetIntent",
+              "shouldRenderDerivedTagTerminalActionTarget",
+            ],
+            message:
+              "Tag refinement menus must use the shared TerminalActionMenuScreen abstraction instead of owning action-target state and rendering directly.",
+          },
+        ],
+      }),
     },
   },
   {
@@ -343,34 +421,6 @@ export default defineConfig(
     },
   },
   {
-    files: ["src/tui/ontology-explorer/screen.tsx", "src/tui/ontology-explorer/picker-screen.tsx"],
-    rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          paths: [
-            {
-              name: "../interaction-bindings.js",
-              importNames: [
-                "buildTerminalInteractionHelpLines",
-                "formatTerminalInteractionFooter",
-                "TerminalInteractionAction",
-              ],
-              message:
-                "Ontology render screens must use shared screen-model helpers instead of composing local help/footer/action tables.",
-            },
-            {
-              name: "../terminal-ui.js",
-              importNames: ["DerivedTagTerminalCommandOption"],
-              message:
-                "Ontology render screens must use shared screen-model helpers instead of defining command-palette models locally.",
-            },
-          ],
-        },
-      ],
-    },
-  },
-  {
     files: ["src/tui/ontology-explorer/controller.ts"],
     rules: {
       "no-restricted-syntax": [
@@ -411,29 +461,26 @@ export default defineConfig(
   {
     files: ["src/tui/ontology-explorer/interactions.ts"],
     rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          paths: [
-            {
-              name: "../terminal-ui.js",
-              importNames: [
-                "createDerivedTagTerminalListNavigationState",
-                "resolveDerivedTagTerminalListNavigationAction",
-                "useDerivedTagTerminalInput",
-              ],
-              message:
-                "Ontology interaction routers must use the shared interaction-context router instead of raw list-navigation or input primitives.",
-            },
-            {
-              name: "../interaction-bindings.js",
-              importNames: ["resolveTerminalInteractionAction", "resolveTerminalTextEntryIntent"],
-              message:
-                "Ontology interaction routers must use the shared interaction-context router instead of resolving raw interaction or text-entry intents directly.",
-            },
-          ],
-        },
-      ],
+      "no-restricted-imports": mergeRestrictedImports(NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS, {
+        paths: [
+          {
+            name: "../terminal-ui.js",
+            importNames: [
+              "createDerivedTagTerminalListNavigationState",
+              "resolveDerivedTagTerminalListNavigationAction",
+              "useDerivedTagTerminalInput",
+            ],
+            message:
+              "Ontology interaction routers must use the shared interaction-context router instead of raw list-navigation or input primitives.",
+          },
+          {
+            name: "../interaction-bindings.js",
+            importNames: ["resolveTerminalInteractionAction", "resolveTerminalTextEntryIntent"],
+            message:
+              "Ontology interaction routers must use the shared interaction-context router instead of resolving raw interaction or text-entry intents directly.",
+          },
+        ],
+      }),
     },
   },
   {
@@ -533,25 +580,38 @@ export default defineConfig(
   {
     files: ["src/tui/ontology-explorer/screen.tsx", "src/tui/ontology-explorer/picker-screen.tsx"],
     rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          paths: [
-            {
-              name: "../terminal-ui.js",
-              importNames: ["useDerivedTagTerminalApp"],
-              message:
-                "Ontology screens must use the shared prompt adapter hook instead of reaching directly into the terminal app for prompts or dialogs.",
-            },
-            {
-              name: "../interaction-bindings.js",
-              importNames: ["TERMINAL_DIALOG_RETURN_FOOTER"],
-              message:
-                "Ontology screens must use the shared return-dialog helper instead of composing the return footer locally.",
-            },
-          ],
-        },
-      ],
+      "no-restricted-imports": mergeRestrictedImports(NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS, {
+        paths: [
+          {
+            name: "../interaction-bindings.js",
+            importNames: [
+              "buildTerminalInteractionHelpLines",
+              "formatTerminalInteractionFooter",
+              "TerminalInteractionAction",
+            ],
+            message:
+              "Ontology render screens must use shared screen-model helpers instead of composing local help/footer/action tables.",
+          },
+          {
+            name: "../terminal-ui.js",
+            importNames: ["DerivedTagTerminalCommandOption"],
+            message:
+              "Ontology render screens must use shared screen-model helpers instead of defining command-palette models locally.",
+          },
+          {
+            name: "../terminal-ui.js",
+            importNames: ["useDerivedTagTerminalApp"],
+            message:
+              "Ontology screens must use the shared prompt adapter hook instead of reaching directly into the terminal app for prompts or dialogs.",
+          },
+          {
+            name: "../interaction-bindings.js",
+            importNames: ["TERMINAL_DIALOG_RETURN_FOOTER"],
+            message:
+              "Ontology screens must use the shared return-dialog helper instead of composing the return footer locally.",
+          },
+        ],
+      }),
       "no-restricted-syntax": [
         "error",
         {
@@ -570,208 +630,182 @@ export default defineConfig(
       "src/tui/terminal-ui.tsx",
     ],
     rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          paths: [
-            {
-              name: "ink",
-              allowTypeImports: true,
-              message:
-                "TUI feature code must use terminal-ui helpers instead of importing Ink runtime primitives directly.",
-            },
-          ],
-          patterns: [
-            {
-              group: ["**/keymap.js"],
-              message:
-                "TUI feature code must use interaction-bindings, action-target, or terminal-ui helpers instead of importing keymap directly.",
-            },
-          ],
-        },
-      ],
+      "no-restricted-imports": mergeRestrictedImports(NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS),
     },
   },
   {
     files: ["src/tui/**/*.{ts,tsx}"],
-    ignores: ["src/tui/app-services.ts", "src/tui/ontology-explorer/data.ts"],
+    ignores: [
+      "src/tui/app-services.ts",
+      "src/tui/ontology-explorer/data.ts",
+      "src/tui/keymap.ts",
+      "src/tui/interaction-bindings.ts",
+      "src/tui/action-target.ts",
+      "src/tui/terminal-ui.tsx",
+    ],
     rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          paths: [
-            {
-              name: "node:sqlite",
-              message:
-                "TUI modules must not open SQLite directly. Go through app-services or approved cache/composition modules.",
-            },
-          ],
-          patterns: [
-            {
-              group: ["**/data/service.js", "**/app/runtime.js", "**/app/ontology-service.js"],
-              message:
-                "TUI modules must consume composed app services instead of constructing runtime or data services directly.",
-            },
-            {
-              group: [
-                "**/tags/migration/workbench-controller.js",
-                "**/tags/migration/session-builder.js",
-                "**/tags/migration/runtime-state.js",
-                "**/tags/migration/session-store.js",
-                "**/tags/migration/cli-utils.js",
-              ],
-              message:
-                "TUI modules must use app-services for tag-workbench composition instead of importing migration service internals directly.",
-            },
-          ],
-        },
-      ],
+      "no-restricted-imports": mergeRestrictedImports(NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS, {
+        paths: [
+          {
+            name: "node:sqlite",
+            message:
+              "TUI modules must not open SQLite directly. Go through app-services or approved cache/composition modules.",
+          },
+        ],
+        patterns: [
+          {
+            group: ["**/data/service.js", "**/app/runtime.js", "**/app/ontology-service.js"],
+            message:
+              "TUI modules must consume composed app services instead of constructing runtime or data services directly.",
+          },
+          {
+            group: [
+              "**/tags/migration/workbench-controller.js",
+              "**/tags/migration/session-builder.js",
+              "**/tags/migration/runtime-state.js",
+              "**/tags/migration/session-store.js",
+              "**/tags/migration/cli-utils.js",
+            ],
+            message:
+              "TUI modules must use app-services for tag-workbench composition instead of importing migration service internals directly.",
+          },
+        ],
+      }),
     },
   },
   {
     files: ["src/**/*.{ts,tsx}"],
     ignores: ["src/tags/**/*.{ts,tsx}"],
     rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          patterns: [
-            {
-              group: [
-                "**/tags/runtime/**",
-                "**/tags/authored-rules/**",
-                "**/tags/catalog/**",
-                "**/tags/ontology/**",
-                "**/tags/exemplars/**",
-                "**/tags/legacy-rules/**",
-                "**/tags/legacy-seed-migrations/**",
-              ],
-              message:
-                "Outside src/tags, import derived-tag functionality through src/tags/index.js or another approved facade instead of leaf tag internals.",
-            },
-          ],
-        },
-      ],
+      "no-restricted-imports": mergeRestrictedImports(
+        NON_UI_TUI_IMPORT_RESTRICTIONS,
+        NON_TAGS_DERIVED_TAG_IMPORT_RESTRICTIONS,
+      ),
+    },
+  },
+  {
+    files: ["src/search/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": mergeRestrictedImports(
+        NON_UI_TUI_IMPORT_RESTRICTIONS,
+        NON_TAGS_DERIVED_TAG_IMPORT_RESTRICTIONS,
+        SEARCH_STORAGE_INTERNAL_IMPORT_RESTRICTIONS,
+      ),
+    },
+  },
+  {
+    files: ["src/tags/**/*.{ts,tsx}"],
+    ignores: [
+      "src/tags/cli/**/*",
+      "src/tags/migration/review-detail-content.ts",
+      "src/tags/migration/review-ui.tsx",
+      "src/tags/migration/review-ui-controller.ts",
+      "src/tags/migration/record-loader.ts",
+      "src/tags/migration/types.ts",
+      "src/tags/migration/workbench-controller.ts",
+      "src/tags/migration/workbench-session-prompts.ts",
+    ],
+    rules: {
+      "no-restricted-imports": mergeRestrictedImports(NON_UI_TUI_IMPORT_RESTRICTIONS),
     },
   },
   {
     files: ["src/tags/cli/**/*.{ts,tsx}"],
-    ignores: ["src/tags/cli/search-scope-args.ts"],
+    ignores: ["src/tags/cli/search-scope-args.ts", "src/tags/cli/derived-tag-migration-workbench.ts"],
     rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          patterns: [
-            {
-              group: ["**/domain/categories.js", "**/data/sql-row-decoding.js"],
-              message:
-                "CLI scope parsing must go through src/tags/cli/search-scope-args.ts instead of ad hoc category normalization helpers.",
-            },
-          ],
-        },
-      ],
+      "no-restricted-imports": mergeRestrictedImports(
+        NON_UI_TUI_IMPORT_RESTRICTIONS,
+        TAGS_CLI_SCOPE_IMPORT_RESTRICTIONS,
+      ),
     },
   },
   {
     files: ["src/server/**/*.{ts,tsx}"],
     rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          patterns: [
-            {
-              group: ["**/search/sql.js", "**/data/record-queries.js", "**/data/schema.js"],
-              message:
-                "Server tool registration must depend on Pf2eDataService or higher-level services, not low-level SQL/query internals.",
-            },
-          ],
-        },
-      ],
+      "no-restricted-imports": mergeRestrictedImports(
+        NON_UI_TUI_IMPORT_RESTRICTIONS,
+        NON_TAGS_DERIVED_TAG_IMPORT_RESTRICTIONS,
+        SERVER_STORAGE_INTERNAL_IMPORT_RESTRICTIONS,
+      ),
     },
   },
   {
     files: ["src/tui/search-screen-controller.ts"],
     rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          paths: [
-            {
-              name: "./ontology-explorer/facet-picker-model.js",
-              importNames: ["buildSearchFacetPickerModel"],
-              message:
-                "Search screen controllers must use shared ontology-to-search workflow modules instead of constructing facet-picker bridge models directly.",
-            },
-            {
-              name: "./terminal-ui.js",
-              importNames: [
-                "createDerivedTagTerminalListNavigationState",
-                "resolveDerivedTagTerminalListNavigationAction",
-                "useDerivedTagTerminalInput",
-              ],
-              message:
-                "Search screen controllers must use the shared search interaction router instead of owning raw terminal event decoding.",
-            },
-            {
-              name: "./interaction-bindings.js",
-              importNames: ["TERMINAL_DIALOG_RETURN_FOOTER", "resolveTerminalInteractionAction"],
-              message:
-                "Search screen controllers must use shared search interaction and help-dialog helpers instead of resolving raw interaction actions or composing return footers directly.",
-            },
-            {
-              name: "./search-screen-model.js",
-              importNames: [
-                "SearchFacetPickerSession",
-                "applyFacetPickerSelectionsToRequest",
-                "buildFacetPickerInitialSelections",
-              ],
-              message:
-                "Search screen controllers must use shared ontology-to-search workflow modules instead of owning facet-picker session bridging directly.",
-            },
-            {
-              name: "./search-screen-model.js",
-              importNames: [
-                "LIVE_COUNT_DEBOUNCE_MS",
-                "RESULT_WINDOW_FETCH_DEBOUNCE_MS",
-                "getSearchResultWindowMetrics",
-                "getSearchResultWindowTarget",
-                "getSessionBufferRange",
-                "getSessionRecordAtIndex",
-              ],
-              message:
-                "Search screen controllers must use shared result-window/session workflow modules instead of orchestrating buffer windows or session reads directly.",
-            },
-          ],
-        },
-      ],
+      "no-restricted-imports": mergeRestrictedImports(NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS, {
+        paths: [
+          {
+            name: "./ontology-explorer/facet-picker-model.js",
+            importNames: ["buildSearchFacetPickerModel"],
+            message:
+              "Search screen controllers must use shared ontology-to-search workflow modules instead of constructing facet-picker bridge models directly.",
+          },
+          {
+            name: "./terminal-ui.js",
+            importNames: [
+              "createDerivedTagTerminalListNavigationState",
+              "resolveDerivedTagTerminalListNavigationAction",
+              "useDerivedTagTerminalInput",
+            ],
+            message:
+              "Search screen controllers must use the shared search interaction router instead of owning raw terminal event decoding.",
+          },
+          {
+            name: "./interaction-bindings.js",
+            importNames: ["TERMINAL_DIALOG_RETURN_FOOTER", "resolveTerminalInteractionAction"],
+            message:
+              "Search screen controllers must use shared search interaction and help-dialog helpers instead of resolving raw interaction actions or composing return footers directly.",
+          },
+          {
+            name: "./search-screen-model.js",
+            importNames: [
+              "SearchFacetPickerSession",
+              "applyFacetPickerSelectionsToRequest",
+              "buildFacetPickerInitialSelections",
+            ],
+            message:
+              "Search screen controllers must use shared ontology-to-search workflow modules instead of owning facet-picker session bridging directly.",
+          },
+          {
+            name: "./search-screen-model.js",
+            importNames: [
+              "LIVE_COUNT_DEBOUNCE_MS",
+              "RESULT_WINDOW_FETCH_DEBOUNCE_MS",
+              "getSearchResultWindowMetrics",
+              "getSearchResultWindowTarget",
+              "getSessionBufferRange",
+              "getSessionRecordAtIndex",
+            ],
+            message:
+              "Search screen controllers must use shared result-window/session workflow modules instead of orchestrating buffer windows or session reads directly.",
+          },
+        ],
+      }),
     },
   },
   {
     files: ["src/tui/search-screen-interactions.ts"],
     rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          paths: [
-            {
-              name: "./terminal-ui.js",
-              importNames: [
-                "createDerivedTagTerminalListNavigationState",
-                "resolveDerivedTagTerminalListNavigationAction",
-                "useDerivedTagTerminalInput",
-              ],
-              message:
-                "Search interaction routers must use the shared interaction-context router instead of raw list-navigation or input primitives.",
-            },
-            {
-              name: "./interaction-bindings.js",
-              importNames: ["resolveTerminalInteractionAction"],
-              message:
-                "Search interaction routers must use the shared interaction-context router instead of resolving raw interaction actions directly.",
-            },
-          ],
-        },
-      ],
+      "no-restricted-imports": mergeRestrictedImports(NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS, {
+        paths: [
+          {
+            name: "./terminal-ui.js",
+            importNames: [
+              "createDerivedTagTerminalListNavigationState",
+              "resolveDerivedTagTerminalListNavigationAction",
+              "useDerivedTagTerminalInput",
+            ],
+            message:
+              "Search interaction routers must use the shared interaction-context router instead of raw list-navigation or input primitives.",
+          },
+          {
+            name: "./interaction-bindings.js",
+            importNames: ["resolveTerminalInteractionAction"],
+            message:
+              "Search interaction routers must use the shared interaction-context router instead of resolving raw interaction actions directly.",
+          },
+        ],
+      }),
     },
   },
   {
@@ -800,30 +834,27 @@ export default defineConfig(
   {
     files: ["src/tui/shared-screens.tsx"],
     rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          paths: [
-            {
-              name: "./terminal-ui.js",
-              importNames: [
-                "createDerivedTagTerminalListNavigationState",
-                "resolveDerivedTagTerminalListNavigationAction",
-                "useDerivedTagTerminalApp",
-                "useDerivedTagTerminalInput",
-              ],
-              message:
-                "Shared screen primitives must use the shared interaction-context router and prompt adapter hook instead of owning raw list-navigation, input routing, or direct dialog access.",
-            },
-            {
-              name: "./interaction-bindings.js",
-              importNames: ["TERMINAL_DIALOG_RETURN_FOOTER", "resolveTerminalInteractionAction"],
-              message:
-                "Shared screen primitives must use shared interaction and return-dialog helpers instead of resolving raw interaction actions or composing dialog footers directly.",
-            },
-          ],
-        },
-      ],
+      "no-restricted-imports": mergeRestrictedImports(NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS, {
+        paths: [
+          {
+            name: "./terminal-ui.js",
+            importNames: [
+              "createDerivedTagTerminalListNavigationState",
+              "resolveDerivedTagTerminalListNavigationAction",
+              "useDerivedTagTerminalApp",
+              "useDerivedTagTerminalInput",
+            ],
+            message:
+              "Shared screen primitives must use the shared interaction-context router and prompt adapter hook instead of owning raw list-navigation, input routing, or direct dialog access.",
+          },
+          {
+            name: "./interaction-bindings.js",
+            importNames: ["TERMINAL_DIALOG_RETURN_FOOTER", "resolveTerminalInteractionAction"],
+            message:
+              "Shared screen primitives must use shared interaction and return-dialog helpers instead of resolving raw interaction actions or composing dialog footers directly.",
+          },
+        ],
+      }),
       "no-restricted-syntax": [
         "error",
         {
