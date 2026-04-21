@@ -5,6 +5,7 @@ import {
   buildDerivedTagOntologyExplorerModel,
   type DerivedTagOntologyExplorerModel,
 } from "./ontology/derived-tag-explorer.js";
+import { loadDerivedTagOntologyExplorerData } from "./ontology/derived-tag-explorer-storage.js";
 
 export type Pf2eApplicationStorageService = {
   openIndex: (_argv: string[]) => Promise<{ db: DatabaseSync; config: AppConfig }>;
@@ -28,10 +29,9 @@ export function createPf2eApplicationStorageService(config: AppConfig): Pf2eAppl
         db: new DatabaseSync(config.indexPath),
       }),
     loadDerivedTagOntologyExplorerModel: () =>
-      withOpenIndex(config, (db) =>
-        buildDerivedTagOntologyExplorerModel(db, {
-          cacheKey: config.indexPath,
-        }),
-      ),
+      withOpenIndex(config, (db) => {
+        const data = loadDerivedTagOntologyExplorerData(db, { cacheKey: config.indexPath });
+        return buildDerivedTagOntologyExplorerModel(data, { cacheKey: config.indexPath });
+      }),
   };
 }

@@ -165,7 +165,7 @@ The durable editorial inputs now come from two different places:
 - `reviews/exemplar-reviews/` holds pending keep/drop or polarity-review decisions
 - `reviews/discovery-reviewed-records.ts` records reviewed-negative discovery outcomes so future family-gap passes can suppress or audit them intentionally
 
-That reviewed-discovery registry used to be discoverable through `src/tags/discovery/discovery-reviewed-records.ts`; that file now exists as a compatibility re-export. The durable owner is `src/tags/reviews/discovery-reviewed-records.ts`.
+Callers should import that reviewed-discovery registry from `src/tags/reviews/discovery-reviewed-records.ts` directly.
 
 ## Discovery And Evaluation Loop
 

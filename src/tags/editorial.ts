@@ -1,13 +1,4 @@
 export {
-  buildOntologyExplorerEntityDetailLines,
-  buildOntologyExplorerEntityRecordSelectColumns,
-  buildOntologyExplorerEntitySummary,
-  mapNormalizedRecordToOntologyExplorerEntityRecord,
-  mapOntologyExplorerEntityRecordRow,
-  type OntologyExplorerEntityRecord,
-  type OntologyExplorerEntityRecordRow,
-} from "../app/ontology/entity-record.js";
-export {
   getCurrentDerivedTagAuthoredState,
   getCurrentDerivedTagAuthoredStateRevision,
 } from "./editorial/state/authored-state.js";
@@ -31,4 +22,3 @@ export type {
   DerivedTagReviewSession,
   DerivedTagReviewQueueSummaryItem,
 } from "./editorial/types.js";
-

@@ -2,7 +2,11 @@ import { DatabaseSync } from "node:sqlite";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { buildDerivedTagOntologyExplorerModel } from "../../src/app/ontology/derived-tag-explorer.js";
+import {
+  buildDerivedTagOntologyExplorerModel,
+  type DerivedTagOntologyExplorerData,
+} from "../../src/app/ontology/derived-tag-explorer.js";
+import { loadDerivedTagOntologyExplorerData } from "../../src/app/ontology/derived-tag-explorer-storage.js";
 
 function createOntologyExplorerDb(): DatabaseSync {
   const db = new DatabaseSync(":memory:");
@@ -81,7 +85,7 @@ describe("ontology explorer data decoding", () => {
     db = null;
   });
 
-  it("rejects invalid live-count categories before building the model", () => {
+  it("rejects invalid live-count categories before loading explorer data", () => {
     db = createOntologyExplorerDb();
     db.prepare(
       `
@@ -95,8 +99,34 @@ describe("ontology explorer data decoding", () => {
     ).run("bad:record", "Bad Record", "not-a-real-category");
     db.prepare(`INSERT INTO record_derived_tags (record_key, tag) VALUES ('bad:record', 'alarm')`).run();
 
-    expect(() => buildDerivedTagOntologyExplorerModel(db!)).toThrow(
+    expect(() => loadDerivedTagOntologyExplorerData(db!)).toThrow(
       'Invalid search category "not-a-real-category" for ontology explorer live count row "bad:record".',
     );
+  });
+
+  it("builds the derived-tag explorer model from preloaded storage data", () => {
+    const data: DerivedTagOntologyExplorerData = {
+      tagCounts: {
+        "creature:aquatic_setting": 2,
+      },
+      familyCounts: {
+        "creature:habitat_setting": 2,
+      },
+      categoryCounts: {
+        creature: 2,
+      },
+      recordsByTagKey: {},
+    };
+
+    const model = buildDerivedTagOntologyExplorerModel(data);
+    const creatureCategory = model.categories.find((category) => category.key === "creature");
+    const aquaticTag = creatureCategory?.families
+      .flatMap((family) => family.tags)
+      .find((tag) => tag.key === "creature:aquatic_setting");
+
+    expect(creatureCategory?.taggedRecordCount).toBe(2);
+    expect(aquaticTag?.family).toBe("habitat_setting");
+    expect(aquaticTag?.liveRecordCount).toBe(2);
+    expect(aquaticTag?.records).toEqual([]);
   });
 });

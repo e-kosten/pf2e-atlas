@@ -128,7 +128,7 @@ flowchart TD
 
 `Pf2eSearchBackendService` is the control point before runtime search starts.
 
-`normalizeSearchFilters(...)` in `src/data/backend/filter-normalization.ts`:
+`normalizeSearchFilters(...)` in `src/search/filters/normalization.ts`:
 
 - canonicalizes `category`, `subcategory`, and `scopes`
 - resolves a user-supplied pack label back to its canonical pack name when possible
