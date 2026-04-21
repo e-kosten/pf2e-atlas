@@ -1,6 +1,9 @@
-import { DatabaseSync } from "node:sqlite";
+import type { DatabaseSync } from "node:sqlite";
 
-import { openEditorialConfiguredIndex } from "../configured-index.js";
+import {
+  openConfiguredPf2eApplicationIndex,
+  type Pf2eApplicationIndexHandle,
+} from "../../../app/storage-service.js";
 import { renderDerivedTagReviewSessionSummary } from "./render.js";
 import { summarizeCurrentDerivedTagReviewQueue } from "../state/runtime-state.js";
 import { buildDerivedTagReviewSession } from "../sessions/session-builder.js";
@@ -20,18 +23,10 @@ import {
 
 export type DerivedTagWorkbenchServices = {
   buildSession: typeof buildDerivedTagReviewSession;
-  openIndex: typeof openEditorialConfiguredIndex;
+  openIndex: () => Promise<Pf2eApplicationIndexHandle>;
   summarizeQueue: typeof summarizeCurrentDerivedTagReviewQueue;
   writeSession: typeof writeDerivedTagReviewSession;
   writeSummary: typeof writeDerivedTagReviewSummary;
-};
-
-export const DEFAULT_DERIVED_TAG_WORKBENCH_SERVICES: DerivedTagWorkbenchServices = {
-  buildSession: buildDerivedTagReviewSession,
-  openIndex: openEditorialConfiguredIndex,
-  summarizeQueue: summarizeCurrentDerivedTagReviewQueue,
-  writeSession: writeDerivedTagReviewSession,
-  writeSummary: writeDerivedTagReviewSummary,
 };
 
 export type DerivedTagWorkbenchSessionCreationOptions = DerivedTagWorkbenchSessionOptions & {
@@ -40,6 +35,7 @@ export type DerivedTagWorkbenchSessionCreationOptions = DerivedTagWorkbenchSessi
 
 export type DerivedTagWorkbenchOntologyHandle = {
   cacheKey?: string;
+  close: () => void;
   db: DatabaseSync;
 };
 
@@ -53,9 +49,21 @@ async function writeDerivedTagReviewSessionArtifacts(
 }
 
 export function getDerivedTagWorkbenchQueueItems(
-  services: DerivedTagWorkbenchServices = DEFAULT_DERIVED_TAG_WORKBENCH_SERVICES,
+  services: Pick<DerivedTagWorkbenchServices, "summarizeQueue"> = {
+    summarizeQueue: summarizeCurrentDerivedTagReviewQueue,
+  },
 ): DerivedTagReviewQueueSummaryItem[] {
   return services.summarizeQueue();
+}
+
+function createDefaultDerivedTagWorkbenchServices(argv: string[]): DerivedTagWorkbenchServices {
+  return {
+    buildSession: buildDerivedTagReviewSession,
+    openIndex: () => openConfiguredPf2eApplicationIndex(argv),
+    summarizeQueue: summarizeCurrentDerivedTagReviewQueue,
+    writeSession: writeDerivedTagReviewSession,
+    writeSummary: writeDerivedTagReviewSummary,
+  };
 }
 
 export async function createDerivedTagWorkbenchSession(
@@ -63,19 +71,19 @@ export async function createDerivedTagWorkbenchSession(
   argv: string[],
   mode: DerivedTagWorkbenchMode,
   options: DerivedTagWorkbenchSessionCreationOptions,
-  services: DerivedTagWorkbenchServices = DEFAULT_DERIVED_TAG_WORKBENCH_SERVICES,
+  services: DerivedTagWorkbenchServices = createDefaultDerivedTagWorkbenchServices(argv),
 ): Promise<DerivedTagReviewSession> {
-  const { db } = await services.openIndex(argv);
+  const handle = await services.openIndex();
 
   try {
-    const session = services.buildSession(db, {
+    const session = services.buildSession(handle.db, {
       mode,
       ...options,
     });
     await writeDerivedTagReviewSessionArtifacts(rootPath, session, services);
     return session;
   } finally {
-    db.close();
+    handle.close();
   }
 }
 
@@ -84,34 +92,35 @@ export async function promptAndCreateDerivedTagWorkbenchSession(
   argv: string[],
   mode: DerivedTagWorkbenchMode,
   prompts: DerivedTagWorkbenchSessionPrompts,
-  services: DerivedTagWorkbenchServices = DEFAULT_DERIVED_TAG_WORKBENCH_SERVICES,
+  services: DerivedTagWorkbenchServices = createDefaultDerivedTagWorkbenchServices(argv),
 ): Promise<DerivedTagReviewSession | undefined> {
-  const { db } = await services.openIndex(argv);
+  const handle = await services.openIndex();
 
   try {
-    const options = await promptDerivedTagWorkbenchSessionOptions(prompts, db, mode);
+    const options = await promptDerivedTagWorkbenchSessionOptions(prompts, handle.db, mode);
     if (!options) {
       return undefined;
     }
 
-    const session = services.buildSession(db, {
+    const session = services.buildSession(handle.db, {
       mode,
       ...options,
     });
     await writeDerivedTagReviewSessionArtifacts(rootPath, session, services);
     return session;
   } finally {
-    db.close();
+    handle.close();
   }
 }
 
 export async function openDerivedTagWorkbenchOntology(
   argv: string[],
-  services: DerivedTagWorkbenchServices = DEFAULT_DERIVED_TAG_WORKBENCH_SERVICES,
+  services: DerivedTagWorkbenchServices = createDefaultDerivedTagWorkbenchServices(argv),
 ): Promise<DerivedTagWorkbenchOntologyHandle> {
-  const { db, config } = await services.openIndex(argv);
+  const handle = await services.openIndex();
   return {
-    cacheKey: config.indexPath,
-    db,
+    cacheKey: handle.config.indexPath,
+    close: handle.close,
+    db: handle.db,
   };
 }

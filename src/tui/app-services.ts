@@ -1,12 +1,11 @@
 import { createPf2eApplicationOntologyService, type Pf2eApplicationOntologyService } from "../app/ontology-service.js";
-import { loadPf2eApplicationRuntime, type Pf2eApplicationRuntime } from "../app/runtime.js";
 import { createPf2eApplicationStorageService, type Pf2eApplicationStorageService } from "../app/storage-service.js";
+import { loadPf2eApplicationRuntime, type Pf2eApplicationRuntime } from "../app/runtime.js";
 import type { AppConfig } from "../domain/config-types.js";
 import {
   buildDerivedTagReviewSession,
   createDerivedTagWorkbenchSession,
   getDerivedTagWorkbenchQueueItems,
-  promptAndCreateDerivedTagWorkbenchSession,
   summarizeCurrentDerivedTagReviewQueue,
   writeDerivedTagReviewSession,
   writeDerivedTagReviewSummary,
@@ -15,9 +14,12 @@ import {
   type DerivedTagReviewSession,
   type DerivedTagWorkbenchServices,
   type DerivedTagWorkbenchSessionCreationOptions,
-  type DerivedTagWorkbenchSessionPrompts,
   type DerivedTagReviewQueueSummaryItem,
 } from "../tags/editorial.js";
+import {
+  promptAndCreateDerivedTagWorkbenchSession,
+  type DerivedTagWorkbenchSessionPrompts,
+} from "../tags/editorial-ui.js";
 import { createPf2eTerminalSearchService, type Pf2eTerminalSearchService } from "./search/service.js";
 
 type SessionOptions = Omit<DerivedTagWorkbenchSessionCreationOptions, "decisionKind"> & {
@@ -59,7 +61,7 @@ function createConfiguredWorkbenchServices(
 ): DerivedTagWorkbenchServices {
   return {
     buildSession: buildDerivedTagReviewSession,
-    openIndex: storage.openIndex,
+    openIndex: () => storage.openIndex(),
     summarizeQueue: summarizeCurrentDerivedTagReviewQueue,
     writeSession: writeDerivedTagReviewSession,
     writeSummary: writeDerivedTagReviewSummary,

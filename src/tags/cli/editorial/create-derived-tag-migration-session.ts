@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
+import { openConfiguredPf2eApplicationIndex } from "../../../app/storage-service.js";
 import { lastValue, parseCliArgs, parseInteger } from "../shared/arg-parsing.js";
-import { openEditorialConfiguredIndex } from "../../editorial/configured-index.js";
 import { writeDerivedTagReviewSummary } from "../../editorial/writeback/review-summary.js";
 import { renderDerivedTagReviewSessionSummary } from "../../editorial/ui/render.js";
 import { writeDerivedTagReviewSession } from "../../editorial/sessions/session-store.js";
@@ -80,10 +80,10 @@ async function main(): Promise<void> {
     );
   }
 
-  const { db } = await openEditorialConfiguredIndex(argv);
+  const handle = await openConfiguredPf2eApplicationIndex(argv);
   try {
     const category = parseOptionalSearchCategoryArg(lastValue(args, "category"), "--category");
-    const session = buildDerivedTagReviewSession(db, {
+    const session = buildDerivedTagReviewSession(handle.db, {
       mode,
       category,
       subcategory: parseOptionalScopedSearchSubcategoryArg(category, lastValue(args, "subcategory"), "--subcategory"),
@@ -100,7 +100,7 @@ async function main(): Promise<void> {
     console.log(summary);
     console.log(`\nSession written to scratch/migration-sessions/${session.manifest.id}`);
   } finally {
-    db.close();
+    handle.close();
   }
 }
 
