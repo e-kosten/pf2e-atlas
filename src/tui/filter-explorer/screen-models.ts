@@ -353,7 +353,7 @@ export function buildFilterExplorerCommandEntries(
 ): DerivedTagTerminalCommandOption<"openSelection" | "openQuery" | "openResults">[] {
   if (
     controller.mode.kind !== "inspect-and-open" ||
-    (!controller.mode.onOpenInspectResult && !controller.mode.onOpenQuery) ||
+    (!controller.mode.onOpenInspectResult && !controller.mode.onOpenQueryIntent) ||
     !controller.selectedInspectResult
   ) {
     return [];

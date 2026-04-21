@@ -77,6 +77,7 @@ import type {
   FilterExplorerInspectResult,
   FilterExplorerNode,
   FilterExplorerOptions,
+  FilterExplorerQueryOpenIntent,
   FilterExplorerQueryTarget,
   FilterExplorerScalarClause,
 } from "./types.js";
@@ -404,8 +405,8 @@ function openInspectResultDirect(
     options.mode.onOpenInspectResult(result, snapshot);
     return true;
   }
-  if (options.mode.onOpenQuery) {
-    options.mode.onOpenQuery(result.query, snapshot, result.launchIntent);
+  if (options.mode.onOpenQueryIntent) {
+    options.mode.onOpenQueryIntent(buildFilterExplorerQueryOpenIntent(result.query, result.launchIntent), snapshot);
     return true;
   }
   return false;
@@ -455,8 +456,11 @@ function openInspectQuery(
   }
 
   const snapshot = createFilterExplorerBrowserSnapshot(keyContext);
-  if (options.mode.onOpenQuery) {
-    options.mode.onOpenQuery(result.query, snapshot, FILTER_EXPLORER_LAUNCH_INTENT.EDITOR);
+  if (options.mode.onOpenQueryIntent) {
+    options.mode.onOpenQueryIntent(
+      buildFilterExplorerQueryOpenIntent(result.query, FILTER_EXPLORER_LAUNCH_INTENT.EDITOR),
+      snapshot,
+    );
     return true;
   }
   if (options.mode.onOpenInspectResult) {
@@ -974,4 +978,13 @@ function handleExplorerAction(
   }
 
   return false;
+}
+function buildFilterExplorerQueryOpenIntent(
+  query: FilterExplorerQueryTarget,
+  launchIntent: FilterExplorerLaunchIntent,
+): FilterExplorerQueryOpenIntent {
+  return {
+    query,
+    launchIntent,
+  };
 }

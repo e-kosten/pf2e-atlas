@@ -17,13 +17,14 @@ import {
   PF2E_APP_ROUTE_KIND,
   PF2E_SEARCH_ROUTE_ORIGIN_KIND,
   canPopPf2eAppRoute,
+  createPf2eAppState,
   createPf2eOntologyRoute,
   createPf2eSearchEditorRoute,
   createPf2eSearchResultsRoute,
   getCurrentPf2eAppRoute,
+  pf2eAppReducer,
   type Pf2eAppAreaId,
   type CreatePf2eDerivedTagSessionOptions,
-  type Pf2eAppAction,
   type Pf2eAppRoute,
   type Pf2eAppState,
   type Pf2eOntologyRoute,
@@ -44,7 +45,7 @@ function applyNavigationCommit({
   onExit,
 }: {
   commit: Pf2eNavigationCommit;
-  dispatch: React.Dispatch<Pf2eAppAction>;
+  dispatch: React.Dispatch<Parameters<typeof pf2eAppReducer>[1]>;
   onExit: () => void;
 }): void {
   switch (commit.kind) {
@@ -178,16 +179,14 @@ function waitForTransitionStatusPaint(): Promise<void> {
 }
 
 export function usePf2eNavigation({
-  state,
-  dispatch,
+  initialRoute = { kind: PF2E_APP_ROUTE_KIND.AREAS },
   onExit,
   rootPath,
   services,
   terminal,
   workbenchSessionPrompts,
 }: {
-  state: Pf2eAppState;
-  dispatch: React.Dispatch<Pf2eAppAction>;
+  initialRoute?: Pf2eAppRoute;
   onExit: () => void;
   rootPath: string;
   services: Pf2eTerminalAppServices;
@@ -197,9 +196,13 @@ export function usePf2eNavigation({
     "promptOptionalSelectOption" | "promptSelectOption" | "promptTextInput"
   > & { pauseForAnyKey: DerivedTagTerminalApp["pauseForAnyKey"] };
 }): {
+  state: Pf2eAppState;
   route: Pf2eAppRoute;
   transitionPending: boolean;
   transitionStatus: RouteTransitionStatus | null;
+  moveAreaSelection: (delta: number, itemCount: number) => void;
+  moveTagRefinementSelection: (delta: number, itemCount: number) => void;
+  setTagRefinementIndex: (index: number, itemCount: number) => void;
   backOrExit: () => void;
   exitApp: () => void;
   openArea: (areaId: Pf2eAppAreaId) => void;
@@ -211,6 +214,7 @@ export function usePf2eNavigation({
   promptForReviewSession: (mode: DerivedTagMigrationMode) => void;
   returnFromSearch: (searchRoute: Extract<Pf2eAppRoute, { kind: "search" }>) => void;
 } {
+  const [state, dispatch] = React.useReducer(pf2eAppReducer, initialRoute, createPf2eAppState);
   const route = getCurrentPf2eAppRoute(state);
   const [transitionPending, setTransitionPending] = React.useState(false);
   const [transitionMessage, setTransitionMessage] = React.useState<string | null>(null);
@@ -309,6 +313,27 @@ export function usePf2eNavigation({
       prepare: () => ({ kind: "exit" }),
     });
   }, [runRouteTransition]);
+
+  const moveAreaSelection = React.useCallback(
+    (delta: number, itemCount: number) => {
+      dispatch({ type: "move_area", delta, itemCount });
+    },
+    [dispatch],
+  );
+
+  const moveTagRefinementSelection = React.useCallback(
+    (delta: number, itemCount: number) => {
+      dispatch({ type: "move_tag_refinement", delta, itemCount });
+    },
+    [dispatch],
+  );
+
+  const setTagRefinementIndex = React.useCallback(
+    (index: number, itemCount: number) => {
+      dispatch({ type: "set_tag_refinement_index", index, itemCount });
+    },
+    [dispatch],
+  );
 
   const openOntologyBrowser = React.useCallback(
     (snapshot?: OntologyInspectExplorerSnapshot) => {
@@ -461,9 +486,13 @@ export function usePf2eNavigation({
   );
 
   return {
+    state,
     route,
     transitionPending,
     transitionStatus,
+    moveAreaSelection,
+    moveTagRefinementSelection,
+    setTagRefinementIndex,
     backOrExit,
     exitApp,
     openArea,

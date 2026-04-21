@@ -9,9 +9,7 @@ import {
   PF2E_APP_ROUTE_KIND,
   PF2E_SEARCH_ROUTE_ENTRY_KIND,
   PF2E_SEARCH_ROUTE_ORIGIN_KIND,
-  createPf2eAppState,
   createPf2eOntologyRoute,
-  pf2eAppReducer,
   type Pf2eAppRoute,
   type Pf2eAppState,
 } from "../../src/tui/pf2e-app-state.js";
@@ -113,10 +111,8 @@ function NavigationHarness({
   services: Pf2eTerminalAppServices;
   terminal: { pauseForAnyKey: ReturnType<typeof vi.fn> };
 }): React.JSX.Element {
-  const [state, dispatch] = React.useReducer(pf2eAppReducer, initialRoute, createPf2eAppState);
   const navigation = usePf2eNavigation({
-    state,
-    dispatch,
+    initialRoute,
     onExit: vi.fn(),
     rootPath: process.cwd(),
     services,
@@ -129,7 +125,7 @@ function NavigationHarness({
     },
   });
 
-  capture.current = { state, navigation };
+  capture.current = { state: navigation.state, navigation };
   return <></>;
 }
 

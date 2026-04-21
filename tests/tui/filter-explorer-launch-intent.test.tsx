@@ -49,8 +49,8 @@ afterEach(() => {
 });
 
 describe("filter explorer launch intent", () => {
-  it("passes results intent separately from the query payload for list-record nodes", async () => {
-    const onOpenQuery = vi.fn();
+  it("passes results intent through an explicit open-intent object for list-record nodes", async () => {
+    const onOpenQueryIntent = vi.fn();
     const app = render(
       <DerivedTagTerminalProvider>
         <FilterExplorerScreen
@@ -59,7 +59,7 @@ describe("filter explorer launch intent", () => {
           onExit={vi.fn()}
           mode={{
             kind: "inspect-and-open",
-            onOpenQuery,
+            onOpenQueryIntent,
           }}
         />
       </DerivedTagTerminalProvider>,
@@ -69,14 +69,14 @@ describe("filter explorer launch intent", () => {
     app.stdin.write("\r");
     await flushInk();
 
-    expect(onOpenQuery).toHaveBeenCalledTimes(1);
-    const [query, _snapshot, launchIntent] = onOpenQuery.mock.calls[0]!;
-    expect(launchIntent).toBe(FILTER_EXPLORER_LAUNCH_INTENT.RESULTS);
-    expect((query as { openInResults?: boolean }).openInResults).toBeUndefined();
+    expect(onOpenQueryIntent).toHaveBeenCalledTimes(1);
+    const [intent] = onOpenQueryIntent.mock.calls[0]!;
+    expect(intent.launchIntent).toBe(FILTER_EXPLORER_LAUNCH_INTENT.RESULTS);
+    expect((intent.query as { openInResults?: boolean }).openInResults).toBeUndefined();
   });
 
   it("supports explicit editor intent for list-record launches", async () => {
-    const onOpenQuery = vi.fn();
+    const onOpenQueryIntent = vi.fn();
     const app = render(
       <DerivedTagTerminalProvider>
         <FilterExplorerScreen
@@ -86,7 +86,7 @@ describe("filter explorer launch intent", () => {
           mode={{
             kind: "inspect-and-open",
             defaultListRecordLaunchIntent: FILTER_EXPLORER_LAUNCH_INTENT.EDITOR,
-            onOpenQuery,
+            onOpenQueryIntent,
           }}
         />
       </DerivedTagTerminalProvider>,
@@ -96,7 +96,7 @@ describe("filter explorer launch intent", () => {
     app.stdin.write("\r");
     await flushInk();
 
-    expect(onOpenQuery).toHaveBeenCalledTimes(1);
-    expect(onOpenQuery.mock.calls[0]?.[2]).toBe(FILTER_EXPLORER_LAUNCH_INTENT.EDITOR);
+    expect(onOpenQueryIntent).toHaveBeenCalledTimes(1);
+    expect(onOpenQueryIntent.mock.calls[0]?.[0].launchIntent).toBe(FILTER_EXPLORER_LAUNCH_INTENT.EDITOR);
   });
 });

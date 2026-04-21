@@ -48,6 +48,7 @@ import {
 } from "../framework/rendering.js";
 import { useDerivedTagTerminalApp, useDerivedTagTerminalSize } from "../framework/context.js";
 import type { DerivedTagTerminalTwoPaneScreenProps } from "../framework/types.js";
+import type { SearchScreenProps } from "./screen.js";
 
 export type SearchScreenControllerResult = {
   structuredEditorSession: SearchStructuredEditorSession | null;
@@ -56,18 +57,14 @@ export type SearchScreenControllerResult = {
 };
 
 export function useSearchScreenController({
-  initialQuery,
-  initialSession,
+  entry = "editor",
   transitionStatus,
   origin = "app",
   onBack,
-}: {
-  initialQuery?: OntologyNodeQuery;
-  initialSession?: Pf2eTerminalSearchSession;
-  transitionStatus?: RouteTransitionStatus | null;
-  origin?: SearchScreenOrigin;
-  onBack: () => void;
-}): SearchScreenControllerResult {
+  ...routeEntry
+}: SearchScreenProps): SearchScreenControllerResult {
+  const initialQuery = entry === "results" ? undefined : routeEntry.initialQuery;
+  const initialSession = entry === "results" ? routeEntry.initialSession : undefined;
   const terminal = useDerivedTagTerminalApp();
   const prompts = useTerminalInteractionContextAdapters();
   const { user } = usePf2eTerminalAppServices();
@@ -78,7 +75,7 @@ export function useSearchScreenController({
       (initialQuery ? user.search.createQueryFromOntologyQuery(initialQuery) : user.search.createDefaultQuery()),
     [initialQuery, initialSession, user.search],
   );
-  const initialLayout: import("./state.js").SearchScreenLayout = initialSession ? "results" : "editor";
+  const initialLayout: import("./state.js").SearchScreenLayout = entry === "results" ? "results" : "editor";
   const [state, dispatch] = React.useReducer(
     searchScreenReducer,
     {

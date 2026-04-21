@@ -1763,15 +1763,7 @@ describe("search screen", () => {
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={createServices({ openSearchWindow })}>
           <SearchScreen
-            initialQuery={{
-              kind: "listRecords",
-              label: "Browse illusion spells",
-              filters: {
-                category: "spell",
-                metadata: { field: "traits", op: "includesAny", values: ["illusion"] },
-                limit: 20,
-              },
-            }}
+            entry="results"
             initialSession={initialSession}
             origin="ontology"
             onBack={vi.fn()}
@@ -1797,15 +1789,7 @@ describe("search screen", () => {
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={createServices({ openSearchWindow, search })}>
           <SearchScreen
-            initialQuery={{
-              kind: "listRecords",
-              label: "Browse illusion spells",
-              filters: {
-                category: "spell",
-                metadata: { field: "traits", op: "includesAny", values: ["illusion"] },
-                limit: 20,
-              },
-            }}
+            entry="results"
             initialSession={initialSession}
             origin="ontology"
             onBack={vi.fn()}

@@ -88,7 +88,7 @@ export type Pf2eAppState = {
   tagRefinementSelectedIndex: number;
 };
 
-export type Pf2eAppAction =
+type Pf2eAppAction =
   | { type: "move_area"; delta: number; itemCount: number }
   | { type: "move_tag_refinement"; delta: number; itemCount: number }
   | { type: "set_tag_refinement_index"; index: number; itemCount: number }

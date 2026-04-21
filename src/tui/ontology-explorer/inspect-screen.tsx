@@ -6,8 +6,8 @@ import { getMetricDiscoveryGroupLabel } from "../../domain/metric-discovery-grou
 import type { OntologyDomainModel, OntologyNodeQuery } from "../../domain/ontology-types.js";
 import {
   FilterExplorerScreen,
-  type FilterExplorerLaunchIntent,
   type FilterExplorerOptions,
+  type FilterExplorerQueryOpenIntent,
 } from "../filter-explorer/index.js";
 import type {
   FilterExplorerComposeTarget,
@@ -96,16 +96,12 @@ function toFilterExplorerScalarClause(
 export function OntologyInspectScreen({
   routeData,
   onExit,
-  onOpenQuery,
+  onOpenQueryIntent,
   transitionStatus,
 }: {
   routeData: OntologyInspectRouteData;
   onExit: () => void;
-  onOpenQuery?: (
-    query: OntologyNodeQuery,
-    snapshot: OntologyInspectExplorerSnapshot,
-    launchIntent: FilterExplorerLaunchIntent,
-  ) => void;
+  onOpenQueryIntent?: (intent: FilterExplorerQueryOpenIntent, snapshot: OntologyInspectExplorerSnapshot) => void;
   transitionStatus?: RouteTransitionStatus | null;
 }): React.JSX.Element {
   const { model, snapshot: initialSnapshot } = routeData;
@@ -141,7 +137,7 @@ export function OntologyInspectScreen({
         kind: "inspect-and-open",
         resolveInspectTarget,
         onEditScalarTarget,
-        onOpenQuery,
+        onOpenQueryIntent,
       }}
     />
   );

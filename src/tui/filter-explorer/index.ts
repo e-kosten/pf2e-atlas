@@ -23,6 +23,7 @@ export type {
   FilterExplorerInspectAndOpenMode,
   FilterExplorerInspectResult,
   FilterExplorerLaunchIntent,
+  FilterExplorerQueryOpenIntent,
   FilterExplorerLineTone,
   FilterExplorerModel,
   FilterExplorerMode,

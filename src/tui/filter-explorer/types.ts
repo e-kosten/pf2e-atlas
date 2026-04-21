@@ -36,6 +36,11 @@ export const FILTER_EXPLORER_LAUNCH_INTENT = {
 export type FilterExplorerLaunchIntent =
   (typeof FILTER_EXPLORER_LAUNCH_INTENT)[keyof typeof FILTER_EXPLORER_LAUNCH_INTENT];
 
+export type FilterExplorerQueryOpenIntent = {
+  readonly query: FilterExplorerQueryTarget;
+  readonly launchIntent: FilterExplorerLaunchIntent;
+};
+
 export type FilterExplorerChildPresentation =
   | { readonly mode: "flat" }
   | {
@@ -190,10 +195,9 @@ export type FilterExplorerInspectAndOpenMode = {
     result: FilterExplorerInspectResult,
     snapshot: FilterExplorerBrowserSnapshot,
   ) => void;
-  onOpenQuery?: (
-    query: FilterExplorerQueryTarget,
+  onOpenQueryIntent?: (
+    intent: FilterExplorerQueryOpenIntent,
     snapshot: FilterExplorerBrowserSnapshot,
-    launchIntent: FilterExplorerLaunchIntent,
   ) => void;
   defaultListRecordLaunchIntent?: FilterExplorerLaunchIntent;
 };

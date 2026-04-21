@@ -11,15 +11,13 @@ import {
   PF2E_APP_ROUTE_KIND,
   PF2E_SEARCH_ROUTE_ENTRY_KIND,
   PF2E_SEARCH_ROUTE_ORIGIN_KIND,
-  createPf2eAppState,
-  pf2eAppReducer,
   type Pf2eAppRoute,
 } from "./pf2e-app-state.js";
 import { AreaMenuScreen } from "./area-menu-screen.js";
 import {
   OntologyInspectScreen,
 } from "./ontology-explorer/inspect-screen.js";
-import { FILTER_EXPLORER_LAUNCH_INTENT, type FilterExplorerLaunchIntent } from "./filter-explorer/index.js";
+import { FILTER_EXPLORER_LAUNCH_INTENT, type FilterExplorerQueryOpenIntent } from "./filter-explorer/index.js";
 import { SearchScreen } from "./search-screen/screen.js";
 import { TerminalBusyScreen, TerminalMessageScreen } from "./shared-screens.js";
 import { createTerminalInteractionContextAdapters } from "./interaction-context-adapters.js";
@@ -59,17 +57,16 @@ export function Pf2eTerminalApp({
     }),
     [promptAdapters, terminal],
   );
-  const [state, dispatch] = React.useReducer(pf2eAppReducer, initialRoute, createPf2eAppState);
-  const queueItems = services.dev.tagRefinement.getQueueItems();
   const navigation = usePf2eNavigation({
-    state,
-    dispatch,
+    initialRoute,
     onExit,
     rootPath,
     services,
     terminal,
     workbenchSessionPrompts,
   });
+  const queueItems = services.dev.tagRefinement.getQueueItems();
+  const state = navigation.state;
   const route = navigation.route;
   const transitionStatus = navigation.transitionStatus;
 
@@ -82,13 +79,13 @@ export function Pf2eTerminalApp({
   }, [navigation, state.selectedAreaIndex]);
 
   const openOntologySearch = React.useCallback(
-    (launchIntent: FilterExplorerLaunchIntent, ...args: Parameters<typeof navigation.openOntologySearchEditor>) => {
-      if (launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS) {
-        navigation.openOntologySearchResults(...args);
+    (intent: FilterExplorerQueryOpenIntent, snapshot: Parameters<typeof navigation.openOntologySearchEditor>[1]) => {
+      if (intent.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS) {
+        navigation.openOntologySearchResults(intent.query, snapshot);
         return;
       }
 
-      navigation.openOntologySearchEditor(...args);
+      navigation.openOntologySearchEditor(intent.query, snapshot);
     },
     [navigation],
   );
@@ -137,7 +134,7 @@ export function Pf2eTerminalApp({
     screen = (
       <OntologyInspectScreen
         routeData={{ model: route.model, snapshot: route.snapshot }}
-        onOpenQuery={(query, snapshot, launchIntent) => openOntologySearch(launchIntent, query, snapshot)}
+        onOpenQueryIntent={(intent, snapshot) => openOntologySearch(intent, snapshot)}
         onExit={navigation.backOrExit}
         transitionStatus={transitionStatus}
       />
@@ -151,15 +148,25 @@ export function Pf2eTerminalApp({
       />
     );
   } else if (route.kind === PF2E_APP_ROUTE_KIND.SEARCH) {
-    screen = (
-      <SearchScreen
-        initialQuery={route.entry === PF2E_SEARCH_ROUTE_ENTRY_KIND.EDITOR ? route.initialQuery : undefined}
-        initialSession={route.entry === PF2E_SEARCH_ROUTE_ENTRY_KIND.RESULTS ? route.initialSession : undefined}
-        transitionStatus={transitionStatus}
-        origin={route.origin?.kind === PF2E_SEARCH_ROUTE_ORIGIN_KIND.ONTOLOGY ? "ontology" : "app"}
-        onBack={() => navigation.returnFromSearch(route)}
-      />
-    );
+    const origin = route.origin?.kind === PF2E_SEARCH_ROUTE_ORIGIN_KIND.ONTOLOGY ? "ontology" : "app";
+    screen =
+      route.entry === PF2E_SEARCH_ROUTE_ENTRY_KIND.RESULTS ? (
+        <SearchScreen
+          entry="results"
+          initialSession={route.initialSession}
+          transitionStatus={transitionStatus}
+          origin={origin}
+          onBack={() => navigation.returnFromSearch(route)}
+        />
+      ) : (
+        <SearchScreen
+          entry="editor"
+          initialQuery={route.initialQuery}
+          transitionStatus={transitionStatus}
+          origin={origin}
+          onBack={() => navigation.returnFromSearch(route)}
+        />
+      );
   } else if (route.kind === PF2E_APP_ROUTE_KIND.TAG_REFINEMENT) {
     screen = (
       <TagRefinementMenuScreen
@@ -167,15 +174,12 @@ export function Pf2eTerminalApp({
         queueItems={queueItems}
         onBack={navigation.backOrExit}
         onMove={(delta, itemCount) =>
-          dispatch(
-            delta === 0
-              ? {
-                  type: "set_tag_refinement_index",
-                  index: Math.max(0, Math.min(state.tagRefinementSelectedIndex, Math.max(0, itemCount - 1))),
-                  itemCount,
-                }
-              : { type: "move_tag_refinement", delta, itemCount },
-          )
+          delta === 0
+            ? navigation.setTagRefinementIndex(
+                Math.max(0, Math.min(state.tagRefinementSelectedIndex, Math.max(0, itemCount - 1))),
+                itemCount,
+              )
+            : navigation.moveTagRefinementSelection(delta, itemCount)
         }
         onOpenSelected={openSelectedTagRefinementItem}
         onQuickAction={runQuickTagRefinementAction}
@@ -189,7 +193,7 @@ export function Pf2eTerminalApp({
         selectedAreaIndex={state.selectedAreaIndex}
         areas={PF2E_APP_AREAS}
         pendingReviewCount={queueItems.length}
-        onMove={(delta) => dispatch({ type: "move_area", delta, itemCount: PF2E_APP_AREAS.length })}
+        onMove={(delta) => navigation.moveAreaSelection(delta, PF2E_APP_AREAS.length)}
         onOpenSelectedArea={openSelectedArea}
         onQuit={navigation.exitApp}
         transitionStatus={transitionStatus}

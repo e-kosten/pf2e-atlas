@@ -22,26 +22,28 @@ import { TerminalMenuScreen } from "../shared-screens.js";
 
 export { parseJumpToResultInput } from "./model.js";
 
-export function SearchScreen({
-  initialQuery,
-  initialSession,
-  transitionStatus,
-  origin = "app",
-  onBack,
-}: {
-  initialQuery?: OntologyNodeQuery;
-  initialSession?: Pf2eTerminalSearchSession;
+type SearchScreenCommonProps = {
   transitionStatus?: RouteTransitionStatus | null;
   origin?: SearchScreenOrigin;
   onBack: () => void;
-}): React.JSX.Element {
-  const controller = useSearchScreenController({
-    initialQuery,
-    initialSession,
-    transitionStatus,
-    origin,
-    onBack,
-  });
+};
+
+type SearchScreenEditorEntryProps = SearchScreenCommonProps & {
+  entry?: "editor";
+  initialQuery?: OntologyNodeQuery;
+  initialSession?: never;
+};
+
+type SearchScreenResultsEntryProps = SearchScreenCommonProps & {
+  entry: "results";
+  initialQuery?: never;
+  initialSession: Pf2eTerminalSearchSession;
+};
+
+export type SearchScreenProps = SearchScreenEditorEntryProps | SearchScreenResultsEntryProps;
+
+export function SearchScreen(props: SearchScreenProps): React.JSX.Element {
+  const controller = useSearchScreenController(props);
 
   if (controller.filterExplorerSession) {
     return <SearchFilterExplorerScreen session={controller.filterExplorerSession} />;
@@ -65,7 +67,7 @@ export function SearchScreen({
           },
         ]}
         status={buildSearchStructuredEditorStatusLine(session)}
-        transitionStatus={transitionStatus}
+        transitionStatus={props.transitionStatus}
         helpTitle={session.helpTitle ?? "Structured Query Editor Help"}
         helpBody={buildSearchStructuredEditorHelpLines(session)}
         buildDetailLines={() => buildSearchStructuredEditorDetailLines(session)}
@@ -79,7 +81,7 @@ export function SearchScreen({
   return (
     <TerminalTwoPaneScreen
       {...controller.screen}
-      footer={appendRouteTransitionFooterLine(controller.screen.footer ?? [], transitionStatus)}
+      footer={appendRouteTransitionFooterLine(controller.screen.footer ?? [], props.transitionStatus)}
     />
   );
 }
