@@ -52,6 +52,21 @@ Compatibility barrels are different from facades. The durable top-level tag faca
 
 Do not add a facade just to hide a one-off helper used in one file. Add one when you are trying to define the standard entrypoint for a concern.
 
+## Typed Boundary Hygiene
+
+Shared boundaries should carry types cleanly enough that callers do not need to recover the meaning manually.
+
+Prefer these patterns:
+
+- return discriminated unions from prompt- or workflow-style APIs instead of encoding meaning through `null` and `undefined` sentinel values
+- add typed helpers around dynamic registries so callers do not have to repeat casts after string-key lookups
+- isolate weakly typed third-party libraries behind small local adapters with focused tests before they spread into shared runtime code
+- treat test-only casting pressure separately from production boundary design; do not weaken a production boundary just to make a test helper more convenient
+
+Useful heuristic:
+
+- if most callers need a type assertion, repeated narrowing, or a comment to explain a boundary result, the boundary owner is probably returning values that are too loose
+
 ## When To Add A Lint Rule
 
 Add or tighten a lint rule when the new facade or pathway is no longer optional.

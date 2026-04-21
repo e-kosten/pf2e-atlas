@@ -84,6 +84,8 @@ The repo uses three different enforcement styles, and they mean different things
 
 When a lint error fires, the right response is usually not to widen the exception list. The first question is: "Which facade or shared helper is this file supposed to go through instead?"
 
+Typing quality matters at those same seams. Boundary owners should prefer returning values that stay meaningfully typed across the handoff, rather than pushing string-key recovery, repeated assertions, or sentinel-value interpretation onto every caller.
+
 ## Concrete Lint-Enforced Boundaries
 
 The table below is the shortest accurate summary of the current enforced boundaries.
