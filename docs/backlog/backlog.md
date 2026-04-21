@@ -66,6 +66,9 @@ This is the tracked backlog for durable future work.
 - [Category relevance script](./items/category-relevance-script.md)
   Add tooling to help tagging work happen in coherent batches without forcing one agent or reviewer to keep an entire family/tag space in active memory. Status: proposed.
 
+- [Derived tag manifest tooling metadata](./items/derived-tag-manifest-tooling-metadata.md)
+  Preserve the idea that the shared derived-tag manifest could optionally carry current owner-file metadata for tooling, while leaving open whether that is actually valuable once the future concept/projection model settles. Status: proposed.
+
 - `Metadata predicate typing cleanup`
   Preserve the follow-up idea from the retiring `fix/metadata-filter-spec-consolidation` worktree: the shared `metadata-predicate-spec` architecture is already landed, but predicate TypeScript types may still be simplifiable so operator unions and payload shapes derive more directly from that shared spec instead of relying on more duplicated or manually expanded type definitions across domain, filter, and schema layers. Status: proposed.
 
