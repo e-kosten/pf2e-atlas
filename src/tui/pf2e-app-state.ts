@@ -1,4 +1,4 @@
-import type { OntologyNodeQuery } from "../domain/ontology-types.js";
+import type { OntologyDomainModel, OntologyNodeQuery } from "../domain/ontology-types.js";
 import type { SearchCategory, SearchSubcategory } from "../domain/search-types.js";
 import type {
   DerivedTagMigrationMode,
@@ -9,29 +9,66 @@ import type { OntologyInspectExplorerSnapshot } from "./ontology-explorer/inspec
 import type { Pf2eTerminalSearchSession } from "./search/service.js";
 import { moveSelectionWrapped } from "./framework/input.js";
 
+export const PF2E_APP_ROUTE_KIND = {
+  AREAS: "areas",
+  TAG_REFINEMENT: "tag_refinement",
+  SEARCH: "search",
+  ONTOLOGY: "ontology",
+  REVIEW: "review",
+} as const;
+
+export const PF2E_APP_AREA_ID = {
+  TAG_REFINEMENT: "tag_refinement",
+  ONTOLOGY_SEARCH: "ontology_search",
+  SEARCH: "search",
+} as const;
+
+export const PF2E_SEARCH_ROUTE_ENTRY_KIND = {
+  EDITOR: "editor",
+  RESULTS: "results",
+} as const;
+
+export const PF2E_SEARCH_ROUTE_ORIGIN_KIND = {
+  ONTOLOGY: "ontology",
+} as const;
+
+export type Pf2eAppAreaId = (typeof PF2E_APP_AREA_ID)[keyof typeof PF2E_APP_AREA_ID];
+
 export type Pf2eOntologyRoute = {
-  kind: "ontology";
+  kind: (typeof PF2E_APP_ROUTE_KIND)["ONTOLOGY"];
+  model: OntologyDomainModel;
   snapshot?: OntologyInspectExplorerSnapshot;
 };
 
 export type Pf2eSearchRouteOrigin = {
-  kind: "ontology";
+  kind: (typeof PF2E_SEARCH_ROUTE_ORIGIN_KIND)["ONTOLOGY"];
   route: Pf2eOntologyRoute;
 };
 
-export type Pf2eSearchRoute = {
-  kind: "search";
+export type Pf2eSearchEditorRoute = {
+  kind: (typeof PF2E_APP_ROUTE_KIND)["SEARCH"];
+  entry: (typeof PF2E_SEARCH_ROUTE_ENTRY_KIND)["EDITOR"];
   initialQuery?: OntologyNodeQuery;
-  initialSession?: Pf2eTerminalSearchSession;
+  initialSession?: never;
   origin?: Pf2eSearchRouteOrigin;
 };
 
+export type Pf2eSearchResultsRoute = {
+  kind: (typeof PF2E_APP_ROUTE_KIND)["SEARCH"];
+  entry: (typeof PF2E_SEARCH_ROUTE_ENTRY_KIND)["RESULTS"];
+  initialQuery?: never;
+  initialSession: Pf2eTerminalSearchSession;
+  origin?: Pf2eSearchRouteOrigin;
+};
+
+export type Pf2eSearchRoute = Pf2eSearchEditorRoute | Pf2eSearchResultsRoute;
+
 export type Pf2eAppRoute =
-  | { kind: "areas" }
-  | { kind: "tag_refinement" }
+  | { kind: (typeof PF2E_APP_ROUTE_KIND)["AREAS"] }
+  | { kind: (typeof PF2E_APP_ROUTE_KIND)["TAG_REFINEMENT"] }
   | Pf2eSearchRoute
   | Pf2eOntologyRoute
-  | { kind: "review"; session: DerivedTagMigrationSession };
+  | { kind: (typeof PF2E_APP_ROUTE_KIND)["REVIEW"]; session: DerivedTagMigrationSession };
 
 export type CreatePf2eDerivedTagSessionOptions = {
   category?: SearchCategory;
@@ -59,7 +96,51 @@ export type Pf2eAppAction =
   | { type: "replace_route"; route: Pf2eAppRoute }
   | { type: "pop_route" };
 
-export function createPf2eAppState(initialRoute: Pf2eAppRoute = { kind: "areas" }): Pf2eAppState {
+export function createPf2eOntologyRoute({
+  model,
+  snapshot,
+}: {
+  model: OntologyDomainModel;
+  snapshot?: OntologyInspectExplorerSnapshot;
+}): Pf2eOntologyRoute {
+  return {
+    kind: PF2E_APP_ROUTE_KIND.ONTOLOGY,
+    model,
+    snapshot,
+  };
+}
+
+export function createPf2eSearchEditorRoute({
+  initialQuery,
+  origin,
+}: {
+  initialQuery?: OntologyNodeQuery;
+  origin?: Pf2eSearchRouteOrigin;
+} = {}): Pf2eSearchEditorRoute {
+  return {
+    kind: PF2E_APP_ROUTE_KIND.SEARCH,
+    entry: PF2E_SEARCH_ROUTE_ENTRY_KIND.EDITOR,
+    ...(initialQuery ? { initialQuery } : {}),
+    ...(origin ? { origin } : {}),
+  };
+}
+
+export function createPf2eSearchResultsRoute({
+  initialSession,
+  origin,
+}: {
+  initialSession: Pf2eTerminalSearchSession;
+  origin?: Pf2eSearchRouteOrigin;
+}): Pf2eSearchResultsRoute {
+  return {
+    kind: PF2E_APP_ROUTE_KIND.SEARCH,
+    entry: PF2E_SEARCH_ROUTE_ENTRY_KIND.RESULTS,
+    initialSession,
+    ...(origin ? { origin } : {}),
+  };
+}
+
+export function createPf2eAppState(initialRoute: Pf2eAppRoute = { kind: PF2E_APP_ROUTE_KIND.AREAS }): Pf2eAppState {
   return {
     routeStack: [initialRoute],
     selectedAreaIndex: 0,
@@ -68,7 +149,7 @@ export function createPf2eAppState(initialRoute: Pf2eAppRoute = { kind: "areas" 
 }
 
 export function getCurrentPf2eAppRoute(state: Pf2eAppState): Pf2eAppRoute {
-  return state.routeStack[state.routeStack.length - 1] ?? { kind: "areas" };
+  return state.routeStack[state.routeStack.length - 1] ?? { kind: PF2E_APP_ROUTE_KIND.AREAS };
 }
 
 export function canPopPf2eAppRoute(state: Pf2eAppState): boolean {

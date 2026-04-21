@@ -116,7 +116,7 @@ export function OntologyInspectScreen({
   }, []);
   const onEditScalarTarget = React.useCallback(
     async ({ target, currentClause }: FilterExplorerScalarEditRequest) => {
-      if (target.kind !== "scalar" || target.valueType !== "number") {
+      if (target.valueType !== "number") {
         return undefined;
       }
 

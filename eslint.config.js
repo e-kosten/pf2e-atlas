@@ -665,6 +665,12 @@ export default defineConfig(
     },
   },
   {
+    files: ["src/tui/pf2e-app.tsx"],
+    rules: {
+      "arch/no-pf2e-app-render-time-ontology-load": "error",
+    },
+  },
+  {
     files: ["src/tui/search-screen/controller.ts"],
     rules: {
       "arch/no-stale-search-screen-terminology": "error",
@@ -675,12 +681,50 @@ export default defineConfig(
     },
   },
   {
-    files: ["src/tui/search-screen/session-workflow.ts", "src/tui/search-screen/workspace-actions.ts"],
+    files: ["src/tui/search-screen/workspace-actions.ts"],
     rules: {
       "arch/no-stale-search-screen-terminology": "error",
       "no-restricted-syntax": [
         "error",
         ...SEARCH_WORKFLOW_PROMPT_BOUNDARY_RESTRICTIONS,
+      ],
+    },
+  },
+  {
+    files: ["src/tui/search-screen/session-workflow.ts"],
+    rules: {
+      "arch/no-stale-search-screen-terminology": "error",
+      "no-restricted-syntax": [
+        "error",
+        ...SEARCH_WORKFLOW_PROMPT_BOUNDARY_RESTRICTIONS,
+        {
+          selector: 'Identifier[name="autoExecuteInitialQuery"]',
+          message:
+            "Search session workflow must not restore route-entry auto-execute flags. Navigation owns prepared result launches.",
+        },
+        {
+          selector: 'Identifier[name="autoRanInitialQuery"]',
+          message:
+            "Search session workflow must not restore route-entry bootstrap state. Navigation owns prepared result launches.",
+        },
+        {
+          selector: 'CallExpression[callee.name="executeRequest"]',
+          message:
+            "Search session workflow must not auto-execute route-entry queries locally. Prepare result-reader routes in navigation before commit.",
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/tui/filter-explorer/**/*.{ts,tsx}", "src/tui/ontology-explorer/**/*.{ts,tsx}", "src/tui/pf2e-app.tsx", "src/tui/pf2e-navigation.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: 'Identifier[name="openInResults"]',
+          message:
+            "TUI ontology/search launch flows must use explicit launch intents instead of openInResults-style route flags.",
+        },
       ],
     },
   },

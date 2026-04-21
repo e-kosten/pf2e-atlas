@@ -13,14 +13,20 @@ import {
   type RouteTransitionStatus,
 } from "./route-transition-status.js";
 import {
+  PF2E_APP_AREA_ID,
+  PF2E_APP_ROUTE_KIND,
+  PF2E_SEARCH_ROUTE_ORIGIN_KIND,
   canPopPf2eAppRoute,
+  createPf2eOntologyRoute,
+  createPf2eSearchEditorRoute,
+  createPf2eSearchResultsRoute,
   getCurrentPf2eAppRoute,
+  type Pf2eAppAreaId,
   type CreatePf2eDerivedTagSessionOptions,
   type Pf2eAppAction,
   type Pf2eAppRoute,
   type Pf2eAppState,
   type Pf2eOntologyRoute,
-  type Pf2eSearchRoute,
 } from "./pf2e-app-state.js";
 import type { SearchTerminalPromptAdapters } from "./interaction-context-adapters.js";
 import type { DerivedTagTerminalApp } from "./framework/types.js";
@@ -66,40 +72,87 @@ function isPromiseLike<T>(value: T | Promise<T>): value is Promise<T> {
   return typeof value === "object" && value !== null && "then" in value;
 }
 
+export const PF2E_ONTOLOGY_SEARCH_INTENT_KIND = {
+  EDITOR: "editor",
+  RESULTS: "results",
+} as const;
+
+export const PF2E_NAVIGATION_MESSAGE = {
+  OPENING_SEARCH_SEMANTICS: "Opening Search Semantics...",
+  ONTOLOGY_OPEN_FAILED: "Could not open Search Semantics.",
+  ONTOLOGY_QUERY_FAILED: "Query execution failed.",
+  ONTOLOGY_RESULTS_FALLBACK: "Loading results for the selected ontology entry...",
+} as const;
+
+export type Pf2eOntologySearchNavigationIntent =
+  | {
+      kind: (typeof PF2E_ONTOLOGY_SEARCH_INTENT_KIND)["EDITOR"];
+      query: OntologyNodeQuery;
+      snapshot: OntologyInspectExplorerSnapshot;
+    }
+  | {
+      kind: (typeof PF2E_ONTOLOGY_SEARCH_INTENT_KIND)["RESULTS"];
+      query: OntologyNodeQuery;
+      snapshot: OntologyInspectExplorerSnapshot;
+    };
+
 function buildOntologySearchCommit({
-  query,
-  snapshot,
+  ontologyRoute,
+  intent,
   initialSession,
 }: {
-  query: OntologyNodeQuery;
-  snapshot: OntologyInspectExplorerSnapshot;
-  initialSession?: Pf2eSearchRoute["initialSession"];
+  ontologyRoute: Pf2eOntologyRoute;
+  intent: Pf2eOntologySearchNavigationIntent;
+  initialSession?: ReturnType<typeof createPf2eSearchResultsRoute>["initialSession"];
 }): Pf2eNavigationCommit {
-  const ontologyRoute: Pf2eOntologyRoute = {
-    kind: "ontology",
-    snapshot,
-  };
+  const preparedOntologyRoute = createPf2eOntologyRoute({
+    model: ontologyRoute.model,
+    snapshot: intent.snapshot,
+  });
+  const origin = {
+    kind: PF2E_SEARCH_ROUTE_ORIGIN_KIND.ONTOLOGY,
+    route: preparedOntologyRoute,
+  } as const;
+
+  const searchRoute =
+    intent.kind === PF2E_ONTOLOGY_SEARCH_INTENT_KIND.RESULTS
+      ? createPf2eSearchResultsRoute({
+          initialSession: initialSession!,
+          origin,
+        })
+      : createPf2eSearchEditorRoute({
+          initialQuery: intent.query,
+          origin,
+        });
 
   return {
     kind: "sequence",
     commits: [
       {
         kind: "replace",
-        route: ontologyRoute,
+        route: preparedOntologyRoute,
       },
       {
         kind: "push",
-        route: {
-          kind: "search",
-          initialQuery: query,
-          initialSession,
-          origin: {
-            kind: "ontology",
-            route: ontologyRoute,
-          },
-        },
+        route: searchRoute,
       },
     ],
+  };
+}
+
+function buildOntologyBrowserCommit({
+  model,
+  snapshot,
+}: {
+  model: Pf2eOntologyRoute["model"];
+  snapshot?: OntologyInspectExplorerSnapshot;
+}): Pf2eNavigationCommit {
+  return {
+    kind: "push",
+    route: createPf2eOntologyRoute({
+      model,
+      snapshot,
+    }),
   };
 }
 
@@ -107,7 +160,7 @@ function buildReviewRouteCommit(session: DerivedTagMigrationSession): Pf2eNaviga
   return {
     kind: "push",
     route: {
-      kind: "review",
+      kind: PF2E_APP_ROUTE_KIND.REVIEW,
       session,
     },
   };
@@ -115,7 +168,13 @@ function buildReviewRouteCommit(session: DerivedTagMigrationSession): Pf2eNaviga
 
 function getOntologyResultLoadingMessage(query: OntologyNodeQuery): string {
   const label = query.label?.trim();
-  return label ? `Loading results for ${label}...` : "Loading results for the selected ontology entry...";
+  return label ? `Loading results for ${label}...` : PF2E_NAVIGATION_MESSAGE.ONTOLOGY_RESULTS_FALLBACK;
+}
+
+function waitForTransitionStatusPaint(): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, 0);
+  });
 }
 
 export function usePf2eNavigation({
@@ -143,8 +202,11 @@ export function usePf2eNavigation({
   transitionStatus: RouteTransitionStatus | null;
   backOrExit: () => void;
   exitApp: () => void;
-  openArea: (areaId: "tag_refinement" | "ontology_search" | "search") => void;
-  openOntologyQuery: (query: OntologyNodeQuery, snapshot: OntologyInspectExplorerSnapshot) => void;
+  openArea: (areaId: Pf2eAppAreaId) => void;
+  openOntologyBrowser: (snapshot?: OntologyInspectExplorerSnapshot) => void;
+  openOntologySearch: (intent: Pf2eOntologySearchNavigationIntent) => void;
+  openOntologySearchEditor: (query: OntologyNodeQuery, snapshot: OntologyInspectExplorerSnapshot) => void;
+  openOntologySearchResults: (query: OntologyNodeQuery, snapshot: OntologyInspectExplorerSnapshot) => void;
   openReviewSession: (mode: DerivedTagMigrationMode, options: CreatePf2eDerivedTagSessionOptions) => void;
   promptForReviewSession: (mode: DerivedTagMigrationMode) => void;
   returnFromSearch: (searchRoute: Extract<Pf2eAppRoute, { kind: "search" }>) => void;
@@ -248,48 +310,101 @@ export function usePf2eNavigation({
     });
   }, [runRouteTransition]);
 
-  const openArea = React.useCallback(
-    (areaId: "tag_refinement" | "ontology_search" | "search") => {
+  const openOntologyBrowser = React.useCallback(
+    (snapshot?: OntologyInspectExplorerSnapshot) => {
       void runRouteTransition({
-        prepare: () => {
-          if (areaId === "tag_refinement") {
-            return { kind: "push", route: { kind: "tag_refinement" } };
-          }
-          if (areaId === "ontology_search") {
-            return { kind: "push", route: { kind: "ontology" } };
-          }
-          return { kind: "push", route: { kind: "search" } };
-        },
-      });
-    },
-    [runRouteTransition],
-  );
-
-  const openOntologyQuery = React.useCallback(
-    (query: OntologyNodeQuery, snapshot: OntologyInspectExplorerSnapshot) => {
-      const openInResults = Boolean((query as OntologyNodeQuery & { openInResults?: boolean }).openInResults);
-      void runRouteTransition({
-        message: openInResults ? getOntologyResultLoadingMessage(query) : undefined,
+        message: PF2E_NAVIGATION_MESSAGE.OPENING_SEARCH_SEMANTICS,
         prepare: async () => {
-          if (!openInResults) {
-            return buildOntologySearchCommit({ query, snapshot });
-          }
-
-          const initialSession = await services.user.search.executeQuery(
-            services.user.search.createQueryFromOntologyQuery(query),
-          );
-          return buildOntologySearchCommit({
-            query,
+          await waitForTransitionStatusPaint();
+          const loadedModel = services.user.ontology.loadSearchSemanticsDomain() as
+            | Pf2eOntologyRoute["model"]
+            | Promise<Pf2eOntologyRoute["model"]>;
+          const model = isPromiseLike(loadedModel) ? await loadedModel : loadedModel;
+          return buildOntologyBrowserCommit({
+            model,
             snapshot,
-            initialSession,
           });
         },
         onError: async (error) => {
-          await terminal.pauseForAnyKey(`Query execution failed.\n\n${(error as Error).message}`);
+          await terminal.pauseForAnyKey(`${PF2E_NAVIGATION_MESSAGE.ONTOLOGY_OPEN_FAILED}\n\n${(error as Error).message}`);
         },
       });
     },
-    [runRouteTransition, services.user.search, terminal],
+    [runRouteTransition, services.user.ontology, terminal],
+  );
+
+  const openArea = React.useCallback(
+    (areaId: Pf2eAppAreaId) => {
+      if (areaId === PF2E_APP_AREA_ID.ONTOLOGY_SEARCH) {
+        openOntologyBrowser();
+        return;
+      }
+
+      void runRouteTransition({
+        prepare: () => {
+          if (areaId === PF2E_APP_AREA_ID.TAG_REFINEMENT) {
+            return { kind: "push", route: { kind: PF2E_APP_ROUTE_KIND.TAG_REFINEMENT } };
+          }
+          return { kind: "push", route: createPf2eSearchEditorRoute() };
+        },
+      });
+    },
+    [openOntologyBrowser, runRouteTransition],
+  );
+
+  const openOntologySearch = React.useCallback(
+    (intent: Pf2eOntologySearchNavigationIntent) => {
+      const currentRoute = getCurrentPf2eAppRoute(state);
+      if (currentRoute.kind !== PF2E_APP_ROUTE_KIND.ONTOLOGY) {
+        return;
+      }
+
+      void runRouteTransition({
+        message:
+          intent.kind === PF2E_ONTOLOGY_SEARCH_INTENT_KIND.RESULTS
+            ? getOntologyResultLoadingMessage(intent.query)
+            : undefined,
+        prepare: async () => {
+          return buildOntologySearchCommit({
+            ontologyRoute: currentRoute,
+            intent,
+            ...(intent.kind === PF2E_ONTOLOGY_SEARCH_INTENT_KIND.RESULTS
+              ? {
+                  initialSession: await services.user.search.executeQuery(
+                    services.user.search.createQueryFromOntologyQuery(intent.query),
+                  ),
+                }
+              : {}),
+          });
+        },
+        onError: async (error) => {
+          await terminal.pauseForAnyKey(`${PF2E_NAVIGATION_MESSAGE.ONTOLOGY_QUERY_FAILED}\n\n${(error as Error).message}`);
+        },
+      });
+    },
+    [runRouteTransition, services.user.search, state, terminal],
+  );
+
+  const openOntologySearchEditor = React.useCallback(
+    (query: OntologyNodeQuery, snapshot: OntologyInspectExplorerSnapshot) => {
+      openOntologySearch({
+        kind: PF2E_ONTOLOGY_SEARCH_INTENT_KIND.EDITOR,
+        query,
+        snapshot,
+      });
+    },
+    [openOntologySearch],
+  );
+
+  const openOntologySearchResults = React.useCallback(
+    (query: OntologyNodeQuery, snapshot: OntologyInspectExplorerSnapshot) => {
+      openOntologySearch({
+        kind: PF2E_ONTOLOGY_SEARCH_INTENT_KIND.RESULTS,
+        query,
+        snapshot,
+      });
+    },
+    [openOntologySearch],
   );
 
   const openReviewSession = React.useCallback(
@@ -331,9 +446,9 @@ export function usePf2eNavigation({
     (searchRoute: Extract<Pf2eAppRoute, { kind: "search" }>) => {
       void runRouteTransition({
         prepare: () => {
-          if (searchRoute.origin?.kind === "ontology") {
+          if (searchRoute.origin?.kind === PF2E_SEARCH_ROUTE_ORIGIN_KIND.ONTOLOGY) {
             const previousRoute = state.routeStack[state.routeStack.length - 2];
-            if (previousRoute?.kind === "ontology") {
+            if (previousRoute?.kind === PF2E_APP_ROUTE_KIND.ONTOLOGY) {
               return { kind: "pop" };
             }
             return { kind: "replace", route: searchRoute.origin.route };
@@ -352,7 +467,10 @@ export function usePf2eNavigation({
     backOrExit,
     exitApp,
     openArea,
-    openOntologyQuery,
+    openOntologyBrowser,
+    openOntologySearch,
+    openOntologySearchEditor,
+    openOntologySearchResults,
     openReviewSession,
     promptForReviewSession,
     returnFromSearch,

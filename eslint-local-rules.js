@@ -345,6 +345,34 @@ const localRules = {
       };
     },
   },
+  "no-pf2e-app-render-time-ontology-load": {
+    meta: {
+      type: "problem",
+      docs: {
+        description:
+          "Require Search Semantics route data to be prepared in navigation instead of being loaded from the app host render path.",
+      },
+      schema: [],
+      messages: {
+        noPf2eAppRenderTimeOntologyLoad:
+          "Pf2eTerminalApp must not load ontology route data during render. Prepare Search Semantics routes in the navigation layer before commit.",
+      },
+    },
+    create(context) {
+      const filename = toRepoRelativePath(context.filename);
+      if (filename !== "src/tui/pf2e-app.tsx") {
+        return {};
+      }
+
+      return {
+        Identifier(node) {
+          if (node.name === "loadSearchSemanticsDomain") {
+            context.report({ node, messageId: "noPf2eAppRenderTimeOntologyLoad" });
+          }
+        },
+      };
+    },
+  },
 };
 
 export default {

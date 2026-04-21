@@ -576,4 +576,42 @@ describe("eslint local architecture rules", () => {
       ),
     ).toBe(true);
   });
+
+  it("blocks render-time ontology loading in the app host and legacy launch flags in TUI route flows", async () => {
+    await expectRuleMessage(
+      "src/tui/pf2e-app.tsx",
+      'const value = services.user.ontology.loadSearchSemanticsDomain();\nexport { value };\n',
+      "Pf2eTerminalApp must not load ontology route data during render. Prepare Search Semantics routes in the navigation layer before commit.",
+      "arch/no-pf2e-app-render-time-ontology-load",
+    );
+
+    await expectRuleMessage(
+      "src/tui/filter-explorer/controller.ts",
+      'const query = { openInResults: true };\nexport { query };\n',
+      "TUI ontology/search launch flows must use explicit launch intents instead of openInResults-style route flags.",
+      "no-restricted-syntax",
+    );
+  });
+
+  it("blocks search-screen route bootstrap patterns while allowing user-triggered execute actions", async () => {
+    await expectRuleMessage(
+      "src/tui/search-screen/session-workflow.ts",
+      'const autoExecuteInitialQuery = true;\nexport { autoExecuteInitialQuery };\n',
+      "Search session workflow must not restore route-entry auto-execute flags. Navigation owns prepared result launches.",
+      "no-restricted-syntax",
+    );
+
+    await expectRuleMessage(
+      "src/tui/search-screen/session-workflow.ts",
+      'function run() { executeRequest(query); }\nexport { run };\n',
+      "Search session workflow must not auto-execute route-entry queries locally. Prepare result-reader routes in navigation before commit.",
+      "no-restricted-syntax",
+    );
+
+    await expectNoRuleMessages(
+      "src/tui/search-screen/workspace-actions.ts",
+      'function run() { executeRequest(query); }\nexport { run };\n',
+      "no-restricted-syntax",
+    );
+  });
 });

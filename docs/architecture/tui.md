@@ -116,6 +116,12 @@ That layer owns:
 
 The architectural rule is that route screens and menu callbacks should request navigation intent, not dispatch raw push/replace/pop route mutations themselves.
 
+Route readiness is part of that same boundary:
+
+- routes that need data for their first meaningful frame must be prepared before commit
+- route screens should mount from render-ready payloads, not kick off route-entry bootstrap work after navigation
+- the currently mounted screen hosts the shared transition-status affordance while navigation prepares the next route
+
 ### Search Service Layer
 
 `src/tui/search/service.ts` is the TUI-facing facade over search behavior. It is not the ranking engine itself. Instead, it:
@@ -135,14 +141,16 @@ This keeps query editing and result reading logic in the TUI while leaving searc
 In the current split:
 
 - `src/tui/filter-explorer/` owns the shared list/detail browser, snapshots, command palette wiring, and mode-specific inspect-versus-compose behavior
-- `src/tui/ontology-explorer/inspect-screen.tsx` is a thin host for `loadSearchSemanticsDomain()` from `src/app/ontology-service.ts`; entering the ontology area now lands directly in that shared inspect session and routes selected leaves into search
+- `src/tui/ontology-explorer/inspect-screen.tsx` is a thin host for a prepared ontology route payload; entering the ontology area now lands directly in that shared inspect session and routes selected leaves into search
 - `src/tui/ontology-explorer/` legacy browse-only pieces remain isolated and should not become the primary path for new ontology/search exploration work
 
 The ontology host still adds:
 
 - direct entry from the ontology area into the shared search-semantics explorer
 - restoring ontology snapshots when the user returns from search
-- launching either immediate results or seeded browse/search queries from selected ontology nodes
+- launching either a seeded search editor route or a prepared result-reader route from selected ontology nodes
+
+The durable rule is that the ontology area does not load its first frame after mount. Navigation prepares the ontology model first, keeps the current screen mounted with the shared transition footer, and commits the ontology route only once the route payload is ready.
 
 ## Screen, Workflow, And Controller Split
 
@@ -243,6 +251,12 @@ The async work is pushed further down:
 - `filter-explorer/` owns the shared explorer/controller stack used by both ontology inspection and search-side filter composition, with mode-specific behavior layered on top and one command/footer/help surface for both
 - `search-screen/interactions.ts` maps state into terminal actions and help/command models
 - `search-screen/query-field-builder-session.ts` owns the structured-editor menu bindings, footer copy, and help sections so staged-query screens do not hand-maintain separate action tables
+
+The search screen is intentionally render-only at route entry:
+
+- editor/browse routes mount from seeded query state
+- result-reader routes mount from a prepared session carried on the route
+- navigation-origin execution should happen in the navigation layer before commit, not as a search-screen bootstrap effect after mount
 
 This is the pattern to preserve when the TUI grows: keep rendering, workflow state, and backend calls separate enough that each layer can change without forcing a full rewrite of the others.
 
