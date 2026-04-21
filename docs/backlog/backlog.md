@@ -40,6 +40,9 @@ This is the tracked backlog for durable future work.
 - [Derived-tag assignments layout](./items/derived-tag-assignments-layout.md)
   Decide a durable on-disk structure for authored assignments before the assignment corpus grows much larger. Status: proposed.
 
+- [Derived-tag ontology future shape](./items/derived-tag-ontology-future-shape.md)
+  Preserve the current canonical concept/projection model decisions, resolved ontology review outcomes, and remaining medium-confidence families so future sessions can resume the ontology work without reconstructing it from scratch plans alone. Status: proposed.
+
 - [Filter explorer internal decomposition](./items/filter-explorer-internal-decomposition.md)
   Split the shared filter explorer into clearer internal owners so controller/runtime, inspect compilation, and draft serialization logic do not keep accumulating in the same hotspot modules. Status: proposed.
 
