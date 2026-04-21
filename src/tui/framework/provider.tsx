@@ -1,5 +1,6 @@
 import React from "react";
 import { Box, render as renderInkApp, useApp, useWindowSize } from "ink";
+import { useStdout } from "ink";
 
 import { TERMINAL_DIALOG_CONTINUE_FOOTER } from "../interaction-bindings.js";
 import { DerivedTagTerminalContext } from "./context.js";
@@ -16,8 +17,10 @@ import {
 import type {
   CommandPaletteOptions,
   DerivedTagTerminalContextValue,
+  DerivedTagTerminalHyperlinkSupport,
   DerivedTagTerminalOptionalSelectPromptResult,
   DerivedTagTerminalPolicySelection,
+  DerivedTagTerminalProviderProps,
   DerivedTagTerminalSelectPromptResult,
   MultiSelectPromptOptions,
   OptionalSelectPromptOptions,
@@ -27,16 +30,60 @@ import type {
   TextPromptOptions,
 } from "./types.js";
 
-export function DerivedTagTerminalProvider({ children }: { children: React.ReactNode }): React.JSX.Element {
+function detectHyperlinkSupport(stdout: NodeJS.WriteStream): DerivedTagTerminalHyperlinkSupport {
+  const env = process.env;
+
+  if (env.FORCE_HYPERLINK === "1") {
+    return "supported";
+  }
+
+  if (
+    env.FORCE_HYPERLINK === "0" ||
+    env.CI ||
+    !stdout.isTTY ||
+    env.TERM === "dumb" ||
+    env.TERM_PROGRAM === "Apple_Terminal"
+  ) {
+    return "unsupported";
+  }
+
+  if (
+    env.WT_SESSION ||
+    env.KITTY_WINDOW_ID ||
+    env.WEZTERM_EXECUTABLE ||
+    env.DOMTERM ||
+    env.TERMINAL_EMULATOR === "JetBrains-JediTerm" ||
+    env.VTE_VERSION ||
+    env.TERM_PROGRAM === "iTerm.app" ||
+    env.TERM_PROGRAM === "WezTerm"
+  ) {
+    return "supported";
+  }
+
+  return "unsupported";
+}
+
+export function DerivedTagTerminalProvider({
+  children,
+  hyperlinkSupport,
+}: DerivedTagTerminalProviderProps): React.JSX.Element {
   const { exit } = useApp();
+  const { stdout } = useStdout();
   const { columns, rows } = useWindowSize();
   const [modal, setModal] = React.useState<TerminalModalState>(null);
+  const capabilities = React.useMemo(
+    () => ({
+      hyperlinkSupport: hyperlinkSupport ?? detectHyperlinkSupport(stdout),
+    }),
+    [hyperlinkSupport, stdout],
+  );
   const modalLayout = React.useMemo(() => planTerminalModalStateLayout(modal, columns, rows), [columns, modal, rows]);
   const availableRows =
     modalLayout?.presentation === "inline" ? Math.max(0, rows - modalLayout.totalHeight) : modalLayout ? 0 : rows;
 
   const contextValue = React.useMemo<DerivedTagTerminalContextValue>(
     () => ({
+      capabilities,
       exitApp: exit,
       getTerminalHeight: () => availableRows,
       getTerminalWidth: () => columns,
@@ -144,7 +191,7 @@ export function DerivedTagTerminalProvider({ children }: { children: React.React
           });
         }),
     }),
-    [availableRows, columns, exit, modal],
+    [availableRows, capabilities, columns, exit, modal],
   );
 
   return (

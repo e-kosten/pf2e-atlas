@@ -1,6 +1,6 @@
 import React from "react";
 
-import type { DerivedTagTerminalContextValue } from "./types.js";
+import type { DerivedTagTerminalCapabilities, DerivedTagTerminalContextValue } from "./types.js";
 
 export const DerivedTagTerminalContext = React.createContext<DerivedTagTerminalContextValue | null>(null);
 
@@ -14,6 +14,10 @@ export function ensureTerminalContext(): DerivedTagTerminalContextValue {
 
 export function useDerivedTagTerminalApp(): DerivedTagTerminalContextValue {
   return ensureTerminalContext();
+}
+
+export function useDerivedTagTerminalCapabilities(): DerivedTagTerminalCapabilities {
+  return ensureTerminalContext().capabilities;
 }
 
 export function useDerivedTagTerminalSize(): { width: number; height: number } {

@@ -1,7 +1,7 @@
 import React from "react";
 import { Box, Text } from "ink";
 
-import { useDerivedTagTerminalSize } from "./context.js";
+import { useDerivedTagTerminalCapabilities, useDerivedTagTerminalSize } from "./context.js";
 import type {
   DerivedTagTerminalInlinePromptPanelProps,
   DerivedTagTerminalLine,
@@ -22,12 +22,22 @@ type RenderedTerminalLine = {
   segments?: DerivedTagTerminalSegment[];
 };
 
-function normalizeLine(line: DerivedTagTerminalLine): Required<DerivedTagTerminalLine> {
+type NormalizedTerminalLine = {
+  text: string;
+  segments: DerivedTagTerminalSegment[];
+  tone: DerivedTagTerminalTone;
+  indent: number;
+  hyperlink?: string;
+  noWrap: boolean;
+};
+
+function normalizeLine(line: DerivedTagTerminalLine): NormalizedTerminalLine {
   return {
     text: line.text,
     segments: line.segments ?? [],
     tone: line.tone ?? "default",
     indent: line.indent ?? 0,
+    hyperlink: line.hyperlink,
     noWrap: line.noWrap ?? false,
   };
 }
@@ -74,6 +84,7 @@ function truncateSegments(segments: DerivedTagTerminalSegment[], width: number):
     truncated.push({
       text: truncateText(segment.text, remainingWidth),
       tone: segment.tone,
+      hyperlink: segment.hyperlink,
     });
     break;
   }
@@ -135,6 +146,47 @@ function wrapPlainText(text: string, width: number): string[] {
   return lines.length > 0 ? lines : [""];
 }
 
+function buildLineSegments(line: NormalizedTerminalLine): DerivedTagTerminalSegment[] {
+  if (line.segments.length === 0) {
+    return [
+      {
+        text: line.text,
+        tone: line.tone,
+        hyperlink: line.hyperlink || undefined,
+      },
+    ];
+  }
+
+  return line.segments.map((segment) => ({
+    text: segment.text,
+    tone: segment.tone ?? line.tone,
+    hyperlink: segment.hyperlink ?? line.hyperlink ?? undefined,
+  }));
+}
+
+function buildIndentedSegments(
+  segments: DerivedTagTerminalSegment[],
+  indent: string,
+  lineTone: DerivedTagTerminalTone,
+): DerivedTagTerminalSegment[] {
+  if (!indent) {
+    return segments;
+  }
+
+  return [{ text: indent, tone: lineTone }, ...segments];
+}
+
+function buildRenderedLineFromSegments(
+  segments: DerivedTagTerminalSegment[],
+  fallbackTone: DerivedTagTerminalTone,
+): RenderedTerminalLine {
+  return {
+    text: segmentText(segments),
+    tone: fallbackTone,
+    segments,
+  };
+}
+
 function buildRenderedTerminalLines(lines: DerivedTagTerminalLine[], width: number): RenderedTerminalLine[] {
   const renderedLines: RenderedTerminalLine[] = [];
 
@@ -144,26 +196,27 @@ function buildRenderedTerminalLines(lines: DerivedTagTerminalLine[], width: numb
     const usableWidth = Math.max(1, width - indent.length);
 
     if (line.segments.length > 0) {
-      const segmentsWithIndent = indent
-        ? [{ text: indent, tone: "default" as const }, ...line.segments]
-        : line.segments;
       const renderedSegments = truncateSegments(
-        line.noWrap
-          ? segmentsWithIndent
-          : [{ text: truncateText(segmentText(segmentsWithIndent), width), tone: line.tone }],
+        buildIndentedSegments(buildLineSegments(line), indent, "default"),
         width,
       );
-      renderedLines.push({
-        text: segmentText(renderedSegments),
-        tone: line.tone,
-        segments: renderedSegments,
-      });
+      renderedLines.push(buildRenderedLineFromSegments(renderedSegments, line.tone));
       continue;
     }
 
     const wrapped = line.noWrap ? [truncateText(line.text, usableWidth)] : wrapPlainText(line.text, usableWidth);
 
     for (const segment of wrapped) {
+      if (line.hyperlink) {
+        renderedLines.push(
+          buildRenderedLineFromSegments(
+            buildIndentedSegments([{ text: segment, tone: line.tone, hyperlink: line.hyperlink }], indent, "default"),
+            line.tone,
+          ),
+        );
+        continue;
+      }
+
       renderedLines.push({
         text: `${indent}${segment}`,
         tone: line.tone,
@@ -206,18 +259,46 @@ export function terminalToneProps(tone: DerivedTagTerminalTone): React.Component
   }
 }
 
+const OSC_8_OPEN = "\u001b]8;;";
+const OSC_8_CLOSE = "\u001b]8;;\u0007";
+const OSC_8_TERMINATOR = "\u0007";
+
+function formatHyperlinkText(
+  text: string,
+  hyperlink: string | undefined,
+  hyperlinkSupport: "supported" | "unsupported",
+): string {
+  if (!hyperlink || hyperlinkSupport !== "supported" || text.length === 0) {
+    return text;
+  }
+
+  return `${OSC_8_OPEN}${hyperlink}${OSC_8_TERMINATOR}${text}${OSC_8_CLOSE}`;
+}
+
+function renderTerminalLineContent(
+  line: Pick<RenderedTerminalLine, "segments" | "text">,
+  width: number,
+  hyperlinkSupport: "supported" | "unsupported",
+): React.ReactNode {
+  if (line.segments && line.segments.length > 0) {
+    return line.segments.map((segment, segmentIndex) => (
+      <Text key={segmentIndex} {...terminalToneProps(segment.tone ?? "default")}>
+        {formatHyperlinkText(segment.text, segment.hyperlink, hyperlinkSupport)}
+      </Text>
+    ));
+  }
+
+  return fitToWidth(line.text, width);
+}
+
 export function TerminalRows({ lines, width }: { lines: RenderedTerminalLine[]; width: number }): React.JSX.Element {
+  const { hyperlinkSupport } = useDerivedTagTerminalCapabilities();
+
   return (
     <Box flexDirection="column" width={width}>
       {lines.map((line, index) => (
         <Text key={index} wrap="truncate-end" {...terminalToneProps(line.tone)}>
-          {line.segments && line.segments.length > 0
-            ? line.segments.map((segment, segmentIndex) => (
-                <Text key={segmentIndex} {...terminalToneProps(segment.tone ?? "default")}>
-                  {segment.text}
-                </Text>
-              ))
-            : fitToWidth(line.text, width)}
+          {renderTerminalLineContent(line, width, hyperlinkSupport)}
         </Text>
       ))}
     </Box>
@@ -257,21 +338,19 @@ export function TerminalFooter({
   footer?: DerivedTagTerminalLine[];
   width: number;
 }): React.JSX.Element | null {
+  const { hyperlinkSupport } = useDerivedTagTerminalCapabilities();
+
   if (!footer || footer.length === 0) {
     return null;
   }
 
+  const renderedFooter = buildRenderedTerminalLines(footer, width);
+
   return (
     <Box flexDirection="column" width={width}>
-      {footer.map((line, index) => (
+      {renderedFooter.map((line, index) => (
         <Text key={index} wrap="truncate-end" {...terminalToneProps(line.tone ?? "default")}>
-          {line.segments && line.segments.length > 0
-            ? line.segments.map((segment, segmentIndex) => (
-                <Text key={segmentIndex} {...terminalToneProps(segment.tone ?? "default")}>
-                  {segment.text}
-                </Text>
-              ))
-            : fitToWidth(line.text, width)}
+          {renderTerminalLineContent(line, width, hyperlinkSupport)}
         </Text>
       ))}
     </Box>
@@ -443,6 +522,7 @@ export function sliceRenderedTerminalLines(
     .slice(start, start + count)
     .map((line) => ({
       text: line.text,
+      segments: line.segments,
       tone: line.tone,
       noWrap: true,
     }));

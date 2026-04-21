@@ -466,6 +466,28 @@ function AutoDialogHarness({ title, bodyLineCount }: { title: string; bodyLineCo
   );
 }
 
+function HyperlinkHarness(): React.JSX.Element {
+  const terminal = useDerivedTagTerminalApp();
+
+  return (
+    <TerminalTextScreen
+      title="Harness"
+      body={[
+        { text: `support=${terminal.capabilities.hyperlinkSupport}` },
+        { text: "Archives of Nethys", hyperlink: "https://2e.aonprd.com/" },
+        {
+          text: "",
+          noWrap: true,
+          segments: [
+            { text: "Visit ", tone: "default" },
+            { text: "AoN", tone: "accent", hyperlink: "https://2e.aonprd.com/" },
+          ],
+        },
+      ]}
+    />
+  );
+}
+
 type LayoutPromptKind = "command" | "select" | "multiselect" | "policy";
 
 function ModalLayoutPromptHarness({
@@ -659,6 +681,39 @@ describe("derived tag terminal ink runtime", () => {
     expect(app.lastFrame()).toContain("base-1");
     expect(app.lastFrame()).toContain("base-2");
     expect(app.lastFrame()).toContain("base-3");
+  });
+
+  it("emits OSC 8 hyperlinks when the provider reports support", async () => {
+    const app = renderWithTerminalSize(
+      <DerivedTagTerminalProvider hyperlinkSupport="supported">
+        <HyperlinkHarness />
+      </DerivedTagTerminalProvider>,
+      { columns: 100, rows: 12 },
+    );
+
+    await flushInkFrames(4);
+    const frame = app.lastFrame() ?? "";
+    expect(frame).toContain("support=supported");
+    expect(frame).toContain("\u001b]8;;https://2e.aonprd.com/\u0007");
+    expect(frame).toContain("\u001b]8;;\u0007");
+    expect(frame).toContain("Archives of Nethys");
+    expect(frame).toContain("AoN");
+  });
+
+  it("falls back to plain text when hyperlink support is unavailable", async () => {
+    const app = renderWithTerminalSize(
+      <DerivedTagTerminalProvider hyperlinkSupport="unsupported">
+        <HyperlinkHarness />
+      </DerivedTagTerminalProvider>,
+      { columns: 100, rows: 12 },
+    );
+
+    await flushInkFrames(4);
+    const frame = app.lastFrame() ?? "";
+    expect(frame).toContain("support=unsupported");
+    expect(frame).toContain("Archives of Nethys");
+    expect(frame).toContain("AoN");
+    expect(frame).not.toContain("\u001b]8;;https://2e.aonprd.com/\u0007");
   });
 
   it("switches long dialogs to screen presentation when inline would crowd out the screen", async () => {

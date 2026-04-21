@@ -17,6 +17,7 @@ export type DerivedTagTerminalTone =
 export type DerivedTagTerminalSegment = {
   text: string;
   tone?: DerivedTagTerminalTone;
+  hyperlink?: string;
 };
 
 export type DerivedTagTerminalLine = {
@@ -24,6 +25,7 @@ export type DerivedTagTerminalLine = {
   segments?: DerivedTagTerminalSegment[];
   tone?: DerivedTagTerminalTone;
   indent?: number;
+  hyperlink?: string;
   noWrap?: boolean;
 };
 
@@ -275,6 +277,7 @@ export type TerminalModalState =
     };
 
 export type DerivedTagTerminalContextValue = {
+  capabilities: DerivedTagTerminalCapabilities;
   exitApp: (result?: unknown) => void;
   getTerminalHeight: () => number;
   getTerminalWidth: () => number;
@@ -294,3 +297,14 @@ export type DerivedTagTerminalContextValue = {
 };
 
 export type DerivedTagTerminalApp = DerivedTagTerminalContextValue;
+
+export type DerivedTagTerminalHyperlinkSupport = "supported" | "unsupported";
+
+export type DerivedTagTerminalCapabilities = {
+  hyperlinkSupport: DerivedTagTerminalHyperlinkSupport;
+};
+
+export type DerivedTagTerminalProviderProps = {
+  children: React.ReactNode;
+  hyperlinkSupport?: DerivedTagTerminalHyperlinkSupport;
+};
