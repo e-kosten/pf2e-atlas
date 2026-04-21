@@ -40,6 +40,9 @@ This is the tracked backlog for durable future work.
 - [Derived-tag assignments layout](./items/derived-tag-assignments-layout.md)
   Decide a durable on-disk structure for authored assignments before the assignment corpus grows much larger. Status: proposed.
 
+- [Structured query summary model](./items/structured-query-summary-model.md)
+  Preserve and eventually implement a first-class structured-query document model so future search-editor and document-style rendering work does not depend only on ad hoc workspace rows. Status: proposed.
+
 - [Actor metrics search orchestration](./items/actor-metrics-search-orchestration.md)
   Bridge the gap between actor metrics in search semantics and the actual executable search/query path. Status: proposed.
 
