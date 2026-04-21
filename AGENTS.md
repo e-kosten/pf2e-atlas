@@ -13,6 +13,7 @@ The architecture documents under `docs/architecture/` are part of the working so
 - Do not treat `AGENTS.md` as a substitute for those docs. `AGENTS.md` tells you how to work in the repo; the architecture docs tell you how the system is intentionally shaped.
 - When a change materially alters the architecture or the intended editing guidance, update the relevant docs in the same task so they stay in sync with the code.
 - Architecture-impacting changes include new or replaced facades, moved ownership between layers, new lint-enforced boundaries, major search-pipeline changes, TUI composition changes, storage-boundary changes, and editorial workflow restructuring.
+- During architectural rework, prefer direct replacement to compatibility layers, adapters, or shims. Treat shim-based transitions as tech debt by default, not as a neutral implementation choice.
 - If you add a new durable architectural rule or make a non-obvious architectural choice that future editors will need to preserve, update an existing ADR or add a new file under `docs/architecture/decisions/`.
 - Do not report an architecture-impacting implementation task as complete if the code and the architecture docs disagree about the intended structure.
 - Large architectural work is not complete until the relevant architecture docs are updated and any required ADR additions or revisions have been made.
@@ -68,6 +69,8 @@ When operating in plan mode, the plan file is the authoritative checklist for bo
 
 Refactors must land as finished end-state changes, not as transitional scaffolding.
 
+- Default to removing the old path outright and updating all call sites in the same task. Do not add compatibility layers, shim modules, fallback code paths, version bridges, or adapter wrappers unless the user explicitly asks for an incremental migration strategy.
+- If you believe a compatibility layer is genuinely unavoidable, stop and explain the constraint instead of quietly introducing one. The burden is on the implementation to justify the extra layer.
 - Do not treat a refactor as complete if it leaves behind intermediate shims, compatibility wrappers, transitional files, partial migrations, or mixed old-and-new implementations across the codebase.
 - A refactor is only complete when the new structure has been applied everywhere it is intended to apply, the old implementation has been fully removed, and no code still depends on the replaced pathway.
 - If a refactor cannot be completed cleanly without a temporary workaround or transitional compatibility layer, stop and ask for input instead of landing the intermediate state.
