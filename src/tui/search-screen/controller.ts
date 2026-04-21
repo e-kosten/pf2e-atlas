@@ -48,7 +48,7 @@ import {
 } from "../framework/rendering.js";
 import { useDerivedTagTerminalApp, useDerivedTagTerminalSize } from "../framework/context.js";
 import type { DerivedTagTerminalTwoPaneScreenProps } from "../framework/types.js";
-import type { SearchScreenProps } from "./screen.js";
+import type { SearchScreenProps } from "./entry-props.js";
 
 export type SearchScreenControllerResult = {
   structuredEditorSession: SearchStructuredEditorSession | null;
