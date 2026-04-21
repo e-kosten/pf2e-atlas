@@ -27,7 +27,7 @@ Current examples include:
 - editorial execution is split across `src/tags/editorial/state/`, `sessions/`, `writeback/`, and `ui/`
 - tag CLI scope parsing goes through `src/tags/cli/shared/search-scope-args.ts`
 - TUI composition for the tag workbench flows through `src/tui/app-services.ts` instead of direct editorial-service imports from arbitrary feature code
-- top-level `src/tags/runtime/*.ts` and `src/tags/editorial/*.ts` re-export files may remain as compatibility shims, but they should not become the documented owner for new internal coupling
+- non-tag callers should enter through `src/tags/index.ts`, while internal tag code should import the owning split directories directly instead of recreating compatibility re-export layers
 
 ## Consequences
 

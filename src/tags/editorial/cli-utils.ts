@@ -5,7 +5,7 @@ import { DatabaseSync } from "node:sqlite";
 
 import { loadConfig } from "../../app/config.js";
 import type { SearchCategory, SearchSubcategory } from "../../domain/index.js";
-import { migrationSessionDirectory } from "./session-store.js";
+import { migrationSessionDirectory } from "./sessions/session-store.js";
 
 type MultiValueArgs = Record<string, string[]>;
 

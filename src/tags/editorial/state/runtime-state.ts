@@ -1,33 +1,24 @@
 import type { DerivedTagExemplarReviewDecision, SearchCategory } from "../../../domain/index.js";
 import { DERIVED_TAG_MANAGED_CATEGORIES } from "../../manifest.js";
 import {
-  DERIVED_TAG_ONTOLOGY_FAMILIES,
-  DERIVED_TAG_ONTOLOGY_TAGS,
-  deriveRecordTagDerivation,
-} from "../../runtime/derivation/api.js";
-import {
   buildDerivedTagPendingAssignmentViews,
   type DerivedTagAssignmentReviewCategory,
 } from "../../runtime/derivation/assignments.js";
-import { publishDerivedTagOntology, type PublishedDerivedTagOntology } from "../../runtime/publication/catalog.js";
+import type { PublishedDerivedTagOntology } from "../../runtime/publication/catalog.js";
 import type { DerivedTagSource } from "../../runtime/publication/catalog.js";
 import { compareReviewQueueItems } from "../list-sorting.js";
 import type { DerivedTagMigrationDecision, DerivedTagReviewQueueSummaryItem } from "../types.js";
 import { getCurrentDerivedTagMigrationAuthoredState } from "./authored-state.js";
-
-let publishedOntologyCache: PublishedDerivedTagOntology | null = null;
+import { deriveCurrentRecordTagDerivation, getCurrentDerivedTagWorkingRuntime } from "./working-runtime.js";
 
 export function getPublishedDerivedTagMigrationOntology(): PublishedDerivedTagOntology {
-  if (!publishedOntologyCache) {
-    publishedOntologyCache = publishDerivedTagOntology(DERIVED_TAG_ONTOLOGY_FAMILIES, DERIVED_TAG_ONTOLOGY_TAGS);
-  }
-  return publishedOntologyCache;
+  return getCurrentDerivedTagWorkingRuntime().ontology;
 }
 
 export function deriveCurrentTagSources(
-  input: Parameters<typeof deriveRecordTagDerivation>[0],
+  input: Parameters<typeof deriveCurrentRecordTagDerivation>[0],
 ): Record<string, DerivedTagSource> {
-  const derivation = deriveRecordTagDerivation(input);
+  const derivation = deriveCurrentRecordTagDerivation(input);
   return Object.fromEntries([...derivation.sources.entries()]);
 }
 

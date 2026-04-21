@@ -27,7 +27,7 @@ The shortest useful mental model is:
 - `src/tags/reviews/` owns durable review registries and reviewed discovery state
 - `src/tags/editorial/` owns editorial state, session, writeback, and UI workflows
 - `src/tags/cli/` groups offline discovery, evaluation, and editorial entrypoints
-- `src/tags/index.ts` is the stable non-tag facade; top-level `src/tags/runtime/*.ts` and `src/tags/editorial/*.ts` re-exports are compatibility shims, not the primary owners
+- `src/tags/index.ts` is the stable non-tag facade; internal tag ownership lives directly in the split `runtime/` and `editorial/` directories
 - `src/domain/` defines shared vocabulary and contracts
 - `src/shared/` stays intentionally small and only holds true cross-layer primitives
 
@@ -119,8 +119,6 @@ The editorial subsystem under `src/tags/` is large because it supports assignmen
 - editorial execution is split by concern under `editorial/state/`, `editorial/sessions/`, `editorial/writeback/`, and `editorial/ui/`
 - offline tooling is grouped under `cli/discovery/`, `cli/evaluation/`, `cli/editorial/`, and `cli/shared/`
 - non-editorial code should prefer `src/tags/index.ts` or another approved facade over arbitrary imports into tag leaf modules
-
-Top-level files such as `src/tags/runtime/index.ts`, `src/tags/runtime/api.ts`, or `src/tags/editorial/session-builder.ts` still exist for compatibility. They should not be treated as the primary architectural owners when documenting or extending the subsystem.
 
 See [`editorial.md`](./editorial.md) for the deeper breakdown of the editorial subsystem.
 

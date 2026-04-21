@@ -151,8 +151,6 @@ Owns explainable rule matching:
 
 Owns compatibility helpers that keep older family names usable during migration. This is support code, not the primary owner for runtime semantics.
 
-Top-level files such as `src/tags/runtime/index.ts`, `src/tags/runtime/api.ts`, and `src/tags/runtime/family-compatibility.ts` remain as compatibility entrypoints. They are useful import shims, but the architectural owners are the split directories above.
-
 ## Authored Truth And Review Registries
 
 The durable editorial inputs now come from two different places:
@@ -196,7 +194,8 @@ The editorial execution layer is now intentionally split by concern.
 Owns mutable editorial working state:
 
 - `authored-state.ts` clones the imported authored and review registries into a writable in-memory session state
-- `runtime-state.ts` republishes the current working state into queue summaries, pending-assignment views, and the workbench ontology snapshot
+- `working-runtime.ts` rebuilds the derivation-ready runtime view from the current in-memory authored state and caches it by authored-state revision
+- `runtime-state.ts` republishes the current working state into queue summaries, pending-assignment views, and source-aware derivation views backed by that working runtime
 
 This split keeps sessions from mutating imported modules in place while still letting the workbench operate against one coherent current snapshot.
 
@@ -214,6 +213,7 @@ Owns session construction and persistence:
 
 Owns the only path that mutates authored files from session decisions:
 
+- `authored-state-writer.ts` owns authored-file path selection, TypeScript serialization, and registry writeback
 - `linter.ts` validates a session before import
 - `importer.ts` applies approved session decisions back into authored assignments, rules, exemplars, and review registries
 
@@ -229,8 +229,6 @@ Owns the interactive review/workbench surface:
 - `review-ui-controller.ts`, `review-screen-model.ts`, `review-screen-state.ts`, and `review-ui.tsx` own the review screen behavior
 
 `src/tui/app-services.ts` composes these services into the terminal app. The editorial UI is a surface over shared runtime, storage, and editorial services, not a second copy of editorial logic.
-
-Top-level files such as `src/tags/editorial/session-builder.ts`, `src/tags/editorial/runtime-state.ts`, or `src/tags/editorial/review-controller.ts` are compatibility re-exports. The primary owners are the split `state/`, `sessions/`, `writeback/`, and `ui/` folders.
 
 ## Grouped CLI Layout
 
@@ -250,17 +248,16 @@ These entrypoints are intentionally thin. They should:
 
 The special case is `cli/editorial/derived-tag-migration-workbench.ts`, which launches the terminal app rather than owning editorial logic itself. The actual workbench composition still happens through `src/tui/app-services.ts` and `editorial/ui/`.
 
-## Stable Facades And Compatibility Shims
+## Stable Facades And Compatibility Entry Points
 
 The stable non-tag facade remains `src/tags/index.ts`.
 
-Inside the subsystem, several top-level files still exist to avoid breaking imports during the split:
+Inside the subsystem, the owning paths are the split directories themselves:
 
-- `src/tags/runtime/index.ts` and adjacent top-level runtime files
-- `src/tags/editorial/*.ts` re-export files that point into `state/`, `sessions/`, `writeback/`, or `ui/`
-- `src/tags/discovery/discovery-reviewed-records.ts`
+- `src/tags/runtime/{publication,derivation,matcher,compat}/`
+- `src/tags/editorial/{state,sessions,writeback,ui}/`
 
-Treat those as compatibility shims. They are acceptable import bridges while migration finishes, but they should not be documented as the primary owners or used as the default target when adding new internal structure.
+Compatibility entrypoints should be introduced only when callers genuinely need a durable facade. They are not the default internal routing target.
 
 ## Boundaries To Preserve
 

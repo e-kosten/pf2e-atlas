@@ -206,7 +206,7 @@ Within that subsystem, the current ownership split is:
 
 Within `src/tags/editorial/ui/`, `workbench-session-prompts.ts` owns the prompt-adapter seam for workbench session creation. `workbench-controller.ts` should delegate to that seam instead of depending on `terminal.prompt*`, `terminal.showDialog`, or the raw terminal surface directly.
 
-Top-level files such as `src/tags/runtime/index.ts` and `src/tags/editorial/session-builder.ts` remain useful compatibility re-exports, but they are not the primary architectural owners and should not be the default targets for new documentation or internal routing.
+Internal tag imports should target the owning split directories directly. The durable non-tag entrypoint is `src/tags/index.ts`, not a parallel set of compatibility re-export files.
 
 `legacy-rules/` and `legacy-seed-migrations/` are also not the target long-term architecture. They are retained compatibility placeholders that encode the old rules format while migration work moves coverage into the current authored model.
 

@@ -20,8 +20,8 @@ import type {
 import {
   getCurrentDerivedTagMigrationAuthoredState,
   setCurrentDerivedTagMigrationAuthoredState,
-  writeDerivedTagMigrationAuthoredState,
 } from "../../src/tags/editorial/state/authored-state.js";
+import { writeDerivedTagMigrationAuthoredState } from "../../src/tags/editorial/writeback/authored-state-writer.js";
 import {
   applyMigrationSessionToAssignments,
   applyMigrationSessionToAssignmentMemory,
@@ -31,7 +31,10 @@ import {
   applyMigrationSessionToExemplarReviews,
 } from "../../src/tags/editorial/writeback/importer.js";
 import { lintDerivedTagMigrationSession } from "../../src/tags/editorial/writeback/linter.js";
-import { summarizeCurrentDerivedTagReviewQueue } from "../../src/tags/editorial/state/runtime-state.js";
+import {
+  deriveCurrentTagSources,
+  summarizeCurrentDerivedTagReviewQueue,
+} from "../../src/tags/editorial/state/runtime-state.js";
 import { renderDerivedTagMigrationReviewItem } from "../../src/tags/editorial/ui/render.js";
 import {
   clampDerivedTagMigrationReviewIndex,
@@ -696,12 +699,12 @@ describe("derived tag migration tooling", () => {
       const nextState = structuredClone(initialState);
       nextState.assignments.equipment = [
         {
-          name: "Watch Bell",
-          recordKey: "equipment:bell",
+          name: "Plain Widget",
+          recordKey: "equipment:plain-widget",
           applied: {
-            security: [
+            infiltration: [
               {
-                tag: "alarm",
+                tag: "social_infiltration",
                 source: "human",
                 rationale: "Confirmed during migration review.",
               },
@@ -763,6 +766,18 @@ describe("derived tag migration tooling", () => {
       expect(getCurrentDerivedTagMigrationAuthoredState().exemplarReviews.equipment).toEqual(
         nextState.exemplarReviews.equipment,
       );
+      expect(
+        deriveCurrentTagSources({
+          recordKey: "equipment:plain-widget",
+          name: "Plain Widget",
+          category: "equipment",
+          subcategory: null,
+          descriptionText: null,
+          traits: [],
+        }),
+      ).toMatchObject({
+        social_infiltration: "assignment",
+      });
       await expect(
         readFile(path.join(tempRoot, "src/tags/reviews/assignment-reviews/index.ts"), "utf8"),
       ).resolves.toContain(

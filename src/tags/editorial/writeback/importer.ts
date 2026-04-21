@@ -19,8 +19,9 @@ import type {
 import { expectDerivedTagManagedCategory } from "../../manifest.js";
 import { normalizeDerivedTag } from "../../runtime/matcher/shared.js";
 import { uniqueSorted } from "../../../shared/utils.js";
-import { getCurrentDerivedTagMigrationAuthoredState, writeDerivedTagMigrationAuthoredState } from "../state/authored-state.js";
+import { getCurrentDerivedTagMigrationAuthoredState } from "../state/authored-state.js";
 import { lintDerivedTagMigrationSession } from "./linter.js";
+import { writeDerivedTagMigrationAuthoredState } from "./authored-state-writer.js";
 import type {
   DerivedTagMigrationAssignmentDecision,
   DerivedTagMigrationAuthoredState,

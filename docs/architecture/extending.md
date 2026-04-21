@@ -48,7 +48,7 @@ Existing examples:
 - `src/tui/app-services.ts` is the TUI composition root and service bundle
 - `src/tags/index.ts` is the preferred non-tag entrypoint for tag functionality
 
-Compatibility barrels are different from facades. A file such as `src/tags/editorial/session-builder.ts` can exist to preserve imports during a refactor, but that does not make it the owning layer. Document and extend the owning split directory first; only add or keep a barrel when callers genuinely need a stable entrypoint.
+Compatibility barrels are different from facades. A durable file such as `src/tags/index.ts` can be the right stable entrypoint for non-tag callers, but internal ownership should still live in the split owner directories. Only add or keep a barrel when callers genuinely need a stable entrypoint.
 
 Do not add a facade just to hide a one-off helper used in one file. Add one when you are trying to define the standard entrypoint for a concern.
 
