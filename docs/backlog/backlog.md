@@ -17,6 +17,9 @@ This is the tracked backlog for durable future work.
 - [Search interaction cleanup](./items/search-interaction-cleanup.md)
   Unify how `/`, query text, and action menus work in the search editor and long selection lists. Status: proposed.
 
+- [Search screen interaction follow-through](./items/search-screen-interaction-follow-through.md)
+  Preserve the useful ideas from the dropped `feat/search-final-state-completion` scratch work without reviving its obsolete file layout. Status: proposed.
+
 - [View pages and detail presentation](./items/view-pages-and-details.md)
   Make record detail views easier to scan, more dynamic by record type, and better suited for linked navigation. Status: proposed.
 
