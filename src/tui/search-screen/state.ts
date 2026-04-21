@@ -78,7 +78,10 @@ export function formatCount(value: number): string {
 
 export function createInitialSearchScreenState(
   initialQuery: Pf2eTerminalSearchQuery,
-  options: { layout?: SearchScreenLayout } = {},
+  options: {
+    layout?: SearchScreenLayout;
+    session?: Pf2eTerminalSearchSession | null;
+  } = {},
 ): SearchScreenState {
   return {
     layout: options.layout ?? "editor",
@@ -88,7 +91,7 @@ export function createInitialSearchScreenState(
     query: initialQuery,
     workspaceSelectedIndex: 0,
     resultSelectedIndex: 0,
-    session: null,
+    session: options.session ?? null,
   };
 }
 

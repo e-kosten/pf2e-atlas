@@ -13,6 +13,7 @@ import type { OntologyDomainModel, OntologyNodeQuery } from "../../src/domain/on
 import {
   buildSearchFilterExplorerTargetResolver,
   createPf2eTerminalSearchService,
+  type Pf2eTerminalSearchSession,
 } from "../../src/tui/search/service.js";
 import { Pf2eTerminalAppServicesProvider } from "../../src/tui/app-service-context.js";
 import type { Pf2eTerminalAppServices } from "../../src/tui/app-services.js";
@@ -147,6 +148,45 @@ function createRecord(overrides: Partial<NormalizedRecord> = {}): NormalizedReco
     aliases: [],
     legacyRecordLinks: [],
     raw: {},
+    ...overrides,
+  };
+}
+
+function createSearchSession(
+  overrides: Partial<Pf2eTerminalSearchSession> = {},
+): Pf2eTerminalSearchSession {
+  const query = overrides.query ?? {
+    mode: "browse",
+    limit: 20,
+    queryText: "",
+    searchProfile: "balanced",
+    sourceLabel: "Seeded from: Browse illusion spells",
+    filters: {
+      category: "spell",
+      subcategory: null,
+      levelMin: null,
+      levelMax: null,
+      rarity: { any: [], all: [], exclude: [] },
+      actionCost: { any: [], all: [], exclude: [] },
+      metadata: null,
+      parts: [],
+    },
+  };
+  const results = overrides.results ?? [createRecord()];
+
+  return {
+    windowId: "window-1",
+    query,
+    results,
+    windowOffset: 0,
+    resultMode: "browse",
+    total: results.length,
+    loadedCount: results.length,
+    hasMore: false,
+    nextOffset: null,
+    searchProfile: null,
+    sort: "alphabetical",
+    sortSeed: null,
     ...overrides,
   };
 }
@@ -1684,10 +1724,14 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Seeded from: Browse illusion spells");
   });
 
-  it("opens the shared result reader immediately for ontology leaves marked for direct results", async () => {
+  it("opens preloaded ontology direct-result sessions immediately", async () => {
+    const openSearchWindow = vi.fn();
+    const initialSession = createSearchSession({
+      results: [createRecord({ recordKey: "spell:veil", id: "veil", name: "Illusory Veil" })],
+    });
     const app = render(
       <DerivedTagTerminalProvider>
-        <Pf2eTerminalAppServicesProvider services={createServices()}>
+        <Pf2eTerminalAppServicesProvider services={createServices({ openSearchWindow })}>
           <SearchScreen
             initialQuery={
               {
@@ -1701,6 +1745,7 @@ describe("search screen", () => {
                 openInResults: true,
               } as OntologyNodeQuery & { openInResults?: boolean }
             }
+            initialSession={initialSession}
             origin="ontology"
             onBack={vi.fn()}
           />
@@ -1710,13 +1755,50 @@ describe("search screen", () => {
 
     await flushInk();
     expect(app.lastFrame()).toContain("[RESULTS]");
+    expect(app.lastFrame()).toContain("Illusory Veil");
     expect(app.lastFrame()).not.toContain("[EDITOR] Query");
+    expect(openSearchWindow).not.toHaveBeenCalled();
+  });
 
+  it("does not re-execute ontology direct-result launches when a prepared session is already present", async () => {
+    const openSearchWindow = vi.fn();
+    const search = vi.fn();
+    const initialSession = createSearchSession({
+      results: [createRecord({ recordKey: "spell:veil", id: "veil", name: "Illusory Veil" })],
+    });
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={createServices({ openSearchWindow, search })}>
+          <SearchScreen
+            initialQuery={
+              {
+                kind: "listRecords",
+                label: "Browse illusion spells",
+                filters: {
+                  category: "spell",
+                  metadata: { field: "traits", op: "includesAny", values: ["illusion"] },
+                  limit: 20,
+                },
+                openInResults: true,
+              } as OntologyNodeQuery & { openInResults?: boolean }
+            }
+            initialSession={initialSession}
+            origin="ontology"
+            onBack={vi.fn()}
+          />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    await flushInk();
+    await flushDebouncedWindowRead();
     await flushInk();
 
     expect(app.lastFrame()).toContain("[RESULTS]");
-    expect(app.lastFrame()).toContain("Alarm Ward");
-    expect(app.lastFrame()).not.toContain("[EDITOR] Query");
+    expect(app.lastFrame()).toContain("Illusory Veil");
+    expect(openSearchWindow).not.toHaveBeenCalled();
+    expect(search).not.toHaveBeenCalled();
   });
 
   it("translates policy-based query filters into metadata clauses", async () => {

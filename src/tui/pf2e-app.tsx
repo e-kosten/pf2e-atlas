@@ -2,20 +2,14 @@ import React from "react";
 
 import {
   DerivedTagMigrationReviewScreen,
-  formatDerivedTagMigrationModeLabel,
   type DerivedTagMigrationMode,
-  type DerivedTagMigrationSession,
 } from "../tags/index.js";
 import { PF2E_APP_AREAS, PF2E_TERMINAL_TITLE } from "./app-areas.js";
 import { Pf2eTerminalAppServicesProvider } from "./app-service-context.js";
 import { loadPf2eTerminalAppServices, type Pf2eTerminalAppServices } from "./app-services.js";
 import {
-  canPopPf2eAppRoute,
   createPf2eAppState,
-  getCurrentPf2eAppRoute,
   pf2eAppReducer,
-  type CreatePf2eDerivedTagSessionOptions,
-  type Pf2eOntologyRoute,
   type Pf2eAppRoute,
 } from "./pf2e-app-state.js";
 import { AreaMenuScreen } from "./area-menu-screen.js";
@@ -26,8 +20,7 @@ import { createTerminalInteractionContextAdapters } from "./interaction-context-
 import { useDerivedTagTerminalApp } from "./framework/context.js";
 import { runDerivedTagTerminalApp } from "./framework/provider.js";
 import { TagRefinementMenuScreen, type TagRefinementMenuItem } from "./tag-refinement-menu-screen.js";
-
-type OntologyQueryOpenHandler = NonNullable<React.ComponentProps<typeof OntologyInspectScreen>["onOpenQuery"]>;
+import { usePf2eNavigation } from "./pf2e-navigation.js";
 
 function StartupErrorScreen({ message, onExit }: { message: string; onExit: () => void }): React.JSX.Element {
   return (
@@ -61,59 +54,20 @@ export function Pf2eTerminalApp({
     [promptAdapters, terminal],
   );
   const [state, dispatch] = React.useReducer(pf2eAppReducer, initialRoute, createPf2eAppState);
-  const [busyMessage, setBusyMessage] = React.useState<string | null>(null);
-  const route = getCurrentPf2eAppRoute(state);
   const queueItems = services.dev.tagRefinement.getQueueItems();
+  const navigation = usePf2eNavigation({
+    state,
+    dispatch,
+    onExit,
+    rootPath,
+    services,
+    terminal,
+    workbenchSessionPrompts,
+  });
+  const route = navigation.route;
   const ontologyExplorerModel = React.useMemo(
     () => (route.kind === "ontology" ? services.user.ontology.loadSearchSemanticsDomain() : null),
     [route.kind, services.user.ontology],
-  );
-
-  const runWithBusyState = React.useCallback(async <T,>(message: string, task: () => Promise<T>): Promise<T> => {
-    setBusyMessage(message);
-    try {
-      return await task();
-    } finally {
-      setBusyMessage(null);
-    }
-  }, []);
-
-  const openReviewSession = React.useCallback((session: DerivedTagMigrationSession) => {
-    dispatch({ type: "push_route", route: { kind: "review", session } });
-  }, []);
-
-  const createSessionAndOpenReview = React.useCallback(
-    async (mode: DerivedTagMigrationMode, options: CreatePf2eDerivedTagSessionOptions) => {
-      await runWithBusyState(`Preparing ${formatDerivedTagMigrationModeLabel(mode)} session...`, async () => {
-        try {
-          const session = await services.dev.tagRefinement.createSession(rootPath, mode, options);
-          openReviewSession(session);
-        } catch (error) {
-          await terminal.pauseForAnyKey(
-            `Could not create the ${formatDerivedTagMigrationModeLabel(mode)} session.\n\n${(error as Error).message}`,
-          );
-        }
-      });
-    },
-    [openReviewSession, rootPath, runWithBusyState, services.dev.tagRefinement, terminal],
-  );
-
-  const startCustomSession = React.useCallback(
-    async (mode: DerivedTagMigrationMode) => {
-      await runWithBusyState(`Loading ${formatDerivedTagMigrationModeLabel(mode)} session options...`, async () => {
-        try {
-          const session = await services.dev.tagRefinement.promptAndCreateSession(rootPath, mode, workbenchSessionPrompts);
-          if (session) {
-            openReviewSession(session);
-          }
-        } catch (error) {
-          await terminal.pauseForAnyKey(
-            `Could not create the ${formatDerivedTagMigrationModeLabel(mode)} session.\n\n${(error as Error).message}`,
-          );
-        }
-      });
-    },
-    [openReviewSession, rootPath, runWithBusyState, services.dev.tagRefinement, terminal, workbenchSessionPrompts],
   );
 
   const openSelectedArea = React.useCallback(() => {
@@ -121,41 +75,8 @@ export function Pf2eTerminalApp({
     if (!selectedArea) {
       return;
     }
-
-    if (selectedArea.id === "tag_refinement") {
-      dispatch({ type: "push_route", route: { kind: "tag_refinement" } });
-      return;
-    }
-    if (selectedArea.id === "ontology_search") {
-      dispatch({ type: "push_route", route: { kind: "ontology" } });
-      return;
-    }
-    dispatch({ type: "push_route", route: { kind: "search" } });
-  }, [state.selectedAreaIndex]);
-
-  const returnToPreviousRouteOrExit = React.useCallback(() => {
-    if (canPopPf2eAppRoute(state)) {
-      dispatch({ type: "pop_route" });
-    } else {
-      onExit();
-    }
-  }, [onExit, state]);
-
-  const handleSearchBack = React.useCallback(
-    (searchRoute: Extract<Pf2eAppRoute, { kind: "search" }>) => {
-      if (searchRoute.origin?.kind === "ontology") {
-        const previousRoute = state.routeStack[state.routeStack.length - 2];
-        if (previousRoute?.kind === "ontology") {
-          dispatch({ type: "pop_route" });
-          return;
-        }
-        dispatch({ type: "replace_route", route: searchRoute.origin.route });
-        return;
-      }
-      returnToPreviousRouteOrExit();
-    },
-    [returnToPreviousRouteOrExit, state],
-  );
+    navigation.openArea(selectedArea.id);
+  }, [navigation, state.selectedAreaIndex]);
 
   const openSelectedTagRefinementItem = React.useCallback(
     (menuItems: TagRefinementMenuItem[]) => {
@@ -164,15 +85,15 @@ export function Pf2eTerminalApp({
         return;
       }
       if (selectedItem.kind === "back") {
-        dispatch({ type: "pop_route" });
+        navigation.backOrExit();
         return;
       }
       if (selectedItem.kind === "review_all") {
-        void createSessionAndOpenReview("review_queue", {});
+        navigation.openReviewSession("review_queue", {});
         return;
       }
       if (selectedItem.kind === "review_queue_item") {
-        void createSessionAndOpenReview("review_queue", {
+        navigation.openReviewSession("review_queue", {
           decisionKind: selectedItem.queueItem.kind,
           category: selectedItem.queueItem.category,
           family: selectedItem.queueItem.family,
@@ -180,54 +101,31 @@ export function Pf2eTerminalApp({
         });
         return;
       }
-      void startCustomSession(selectedItem.mode);
+      navigation.promptForReviewSession(selectedItem.mode);
     },
-    [createSessionAndOpenReview, startCustomSession, state.tagRefinementSelectedIndex],
+    [navigation, state.tagRefinementSelectedIndex],
   );
 
   const runQuickTagRefinementAction = React.useCallback(
     (mode: "review_all" | DerivedTagMigrationMode) => {
       if (mode === "review_all") {
-        void createSessionAndOpenReview("review_queue", {});
+        navigation.openReviewSession("review_queue", {});
         return;
       }
-      void startCustomSession(mode);
+      navigation.promptForReviewSession(mode);
     },
-    [createSessionAndOpenReview, startCustomSession],
-  );
-
-  const openOntologyQuery = React.useCallback(
-    (query: Parameters<OntologyQueryOpenHandler>[0], snapshot: Parameters<OntologyQueryOpenHandler>[1]) => {
-      const ontologyRoute: Pf2eOntologyRoute = {
-        kind: "ontology",
-        snapshot,
-      };
-      dispatch({ type: "replace_route", route: ontologyRoute });
-      dispatch({
-        type: "push_route",
-        route: {
-          kind: "search",
-          initialQuery: query,
-          origin: {
-            kind: "ontology",
-            route: ontologyRoute,
-          },
-        },
-      });
-    },
-    [],
+    [navigation],
   );
 
   let screen: React.JSX.Element;
-  if (busyMessage) {
-    screen = <TerminalBusyScreen title={PF2E_TERMINAL_TITLE} message={busyMessage} />;
-  } else if (route.kind === "ontology") {
+  if (route.kind === "ontology") {
     screen = (
       <OntologyInspectScreen
         initialSnapshot={route.snapshot}
         model={ontologyExplorerModel!}
-        onOpenQuery={openOntologyQuery}
-        onExit={returnToPreviousRouteOrExit}
+        onOpenQuery={navigation.openOntologyQuery}
+        onExit={navigation.backOrExit}
+        transitionStatus={navigation.transitionStatus}
       />
     );
   } else if (route.kind === "review") {
@@ -235,15 +133,17 @@ export function Pf2eTerminalApp({
       <DerivedTagMigrationReviewScreen
         rootPath={rootPath}
         initialSession={route.session}
-        onComplete={returnToPreviousRouteOrExit}
+        onComplete={navigation.backOrExit}
       />
     );
   } else if (route.kind === "search") {
     screen = (
       <SearchScreen
         initialQuery={route.initialQuery}
+        initialSession={route.initialSession}
+        transitionStatus={navigation.transitionStatus}
         origin={route.origin?.kind === "ontology" ? "ontology" : "app"}
-        onBack={() => handleSearchBack(route)}
+        onBack={() => navigation.returnFromSearch(route)}
       />
     );
   } else if (route.kind === "tag_refinement") {
@@ -251,7 +151,7 @@ export function Pf2eTerminalApp({
       <TagRefinementMenuScreen
         selectedIndex={state.tagRefinementSelectedIndex}
         queueItems={queueItems}
-        onBack={returnToPreviousRouteOrExit}
+        onBack={navigation.backOrExit}
         onMove={(delta, itemCount) =>
           dispatch(
             delta === 0
@@ -265,6 +165,7 @@ export function Pf2eTerminalApp({
         }
         onOpenSelected={openSelectedTagRefinementItem}
         onQuickAction={runQuickTagRefinementAction}
+        transitionStatus={navigation.transitionStatus}
       />
     );
   } else {
@@ -276,7 +177,8 @@ export function Pf2eTerminalApp({
         pendingReviewCount={queueItems.length}
         onMove={(delta) => dispatch({ type: "move_area", delta, itemCount: PF2E_APP_AREAS.length })}
         onOpenSelectedArea={openSelectedArea}
-        onQuit={onExit}
+        onQuit={navigation.exitApp}
+        transitionStatus={navigation.transitionStatus}
       />
     );
   }

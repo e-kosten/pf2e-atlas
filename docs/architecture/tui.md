@@ -76,7 +76,7 @@ The TUI shares backend services in two ways:
 
 But the TUI keeps UI concerns local:
 
-- `Pf2eTerminalApp` owns route-stack state and area transitions
+- `Pf2eTerminalApp` owns top-level navigation orchestration through a dedicated route-transition coordinator rather than ad hoc route mutations in screen callbacks
 - screen controllers own transient selection, pane focus, and detail-scroll state
 - workflows own prompt flows, modal handoffs, session cleanup, and live-count/result-window behavior
 - framework modules own Ink-specific rendering, modal hosting, terminal sizing, and raw input normalization
@@ -102,6 +102,19 @@ Feature code should build on these helpers instead of importing raw terminal pri
 `src/tui/app-services.ts` and `src/tui/app-service-context.tsx` define what the terminal app can use. This keeps most screens from knowing how runtime assembly works.
 
 The service context is intentionally narrow: screens ask for `services.user.search` or `services.user.ontology`, not for direct storage or low-level query helpers.
+
+### Navigation Layer
+
+`Pf2eTerminalApp` now routes user-visible navigation through a dedicated coordinator hook in `src/tui/pf2e-navigation.ts`.
+
+That layer owns:
+
+- transition intents such as open area, open search, return/back, and open review session
+- prepared route handoffs that may need async work before the destination can be committed
+- the mounted-screen transition status contract used to show one shared loader treatment during pending transitions
+- route-stack commit operations as navigation-internal detail rather than screen-callback API
+
+The architectural rule is that route screens and menu callbacks should request navigation intent, not dispatch raw push/replace/pop route mutations themselves.
 
 ### Search Service Layer
 

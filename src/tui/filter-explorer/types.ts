@@ -6,6 +6,7 @@ import type {
   DerivedTagTerminalTone,
   DerivedTagTerminalTwoPaneLayoutMode,
 } from "../framework/types.js";
+import type { RouteTransitionStatus } from "../route-transition-status.js";
 
 export type FilterExplorerPolicyState = DerivedTagTerminalPolicyState;
 export type FilterExplorerSelection = DerivedTagTerminalPolicySelection<string>;
@@ -214,6 +215,7 @@ export type FilterExplorerOptions = {
   mode: FilterExplorerMode;
   onExit: () => void;
   title?: string;
+  transitionStatus?: RouteTransitionStatus | null;
 };
 
 export type FilterExplorerControllerContext = {
@@ -227,4 +229,5 @@ export type FilterExplorerControllerContext = {
   selectedPolicyState?: FilterExplorerPolicyState;
   selectedScalarClause?: FilterExplorerScalarClause;
   selectedInspectResult?: FilterExplorerInspectResult;
+  transitionStatus?: RouteTransitionStatus | null;
 };

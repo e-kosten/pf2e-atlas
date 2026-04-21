@@ -27,7 +27,33 @@ import {
   createTerminalListInteractionContext,
   useTerminalInteractionContextRouter,
 } from "./interaction-context-router.js";
+import {
+  appendRouteTransitionFooterLine,
+  getRouteTransitionFooterLineCount,
+  ROUTE_TRANSITION_STATUS_KIND,
+  buildRouteTransitionStatusBody,
+  buildRouteTransitionStatusFooter,
+  type RouteTransitionStatus,
+} from "./route-transition-status.js";
 import { buildScrollableLines } from "./list-utils.js";
+
+export type { RouteTransitionStatus } from "./route-transition-status.js";
+
+export function TerminalRouteTransitionScreen({
+  title = "PF2E Terminal",
+  status,
+}: {
+  title?: string;
+  status: RouteTransitionStatus;
+}): React.JSX.Element {
+  return (
+    <TerminalTextScreen
+      title={title}
+      body={buildRouteTransitionStatusBody(status)}
+      footer={buildRouteTransitionStatusFooter(status)}
+    />
+  );
+}
 
 export function TerminalBusyScreen({
   title = "PF2E Terminal",
@@ -37,10 +63,9 @@ export function TerminalBusyScreen({
   message: string;
 }): React.JSX.Element {
   return (
-    <TerminalTextScreen
+    <TerminalRouteTransitionScreen
       title={title}
-      body={[{ text: message, tone: "section" }]}
-      footer={[{ text: "Working...", tone: "dim" }]}
+      status={{ kind: ROUTE_TRANSITION_STATUS_KIND.PENDING, message, frame: 0 }}
     />
   );
 }
@@ -158,6 +183,7 @@ export function TerminalMenuScreen<TItem extends TerminalMenuScreenItem>({
   onMove,
   onSelect,
   onBack,
+  transitionStatus,
 }: {
   title: string;
   subtitle?: string;
@@ -175,6 +201,7 @@ export function TerminalMenuScreen<TItem extends TerminalMenuScreenItem>({
   onMove: (delta: number, itemCount: number) => void;
   onSelect: () => void;
   onBack: () => void;
+  transitionStatus?: RouteTransitionStatus | null;
 }): React.JSX.Element {
   const adapters = useTerminalInteractionContextAdapters();
   const size = useDerivedTagTerminalSize();
@@ -182,7 +209,7 @@ export function TerminalMenuScreen<TItem extends TerminalMenuScreenItem>({
     1,
     getTerminalPaneBodyHeight(size.height, {
       hasSubtitle: true,
-      footerLineCount: 2,
+      footerLineCount: 2 + getRouteTransitionFooterLineCount(transitionStatus),
     }),
   );
   const resolvedInteractionActions = interactions?.actions ?? interactionActions ?? [];
@@ -197,6 +224,7 @@ export function TerminalMenuScreen<TItem extends TerminalMenuScreenItem>({
           },
         ]
       : footer ?? [];
+  const footerLines = appendRouteTransitionFooterLine([...resolvedFooter, status], transitionStatus);
 
   useTerminalInteractionContextRouter({
     contexts: [
@@ -209,6 +237,9 @@ export function TerminalMenuScreen<TItem extends TerminalMenuScreenItem>({
       }),
     ],
     onRoute: ({ menu }) => {
+      if (transitionStatus?.kind === ROUTE_TRANSITION_STATUS_KIND.PENDING) {
+        return;
+      }
       if (menu.interactionAction?.id === "back" || menu.interactionAction?.id === "quit") {
         onBack();
         return;
@@ -247,7 +278,7 @@ export function TerminalMenuScreen<TItem extends TerminalMenuScreenItem>({
         title: rightTitle,
         lines: buildDetailLines(items[selectedIndex]),
       }}
-      footer={[...resolvedFooter, status]}
+      footer={footerLines}
       leftWidth={32}
     />
   );
@@ -270,6 +301,7 @@ export function TerminalActionMenuScreen<TItem extends TerminalMenuScreenItem, T
   onSelect,
   onBack,
   onAction,
+  transitionStatus,
 }: {
   title: string;
   subtitle?: string;
@@ -290,6 +322,7 @@ export function TerminalActionMenuScreen<TItem extends TerminalMenuScreenItem, T
   onSelect: () => void;
   onBack: () => void;
   onAction: (actionId: TAction) => void;
+  transitionStatus?: RouteTransitionStatus | null;
 }): React.JSX.Element {
   const adapters = useTerminalInteractionContextAdapters();
   const size = useDerivedTagTerminalSize();
@@ -302,7 +335,7 @@ export function TerminalActionMenuScreen<TItem extends TerminalMenuScreenItem, T
     1,
     getTerminalPaneBodyHeight(size.height, {
       hasSubtitle: true,
-      footerLineCount: 2,
+      footerLineCount: 2 + getRouteTransitionFooterLineCount(transitionStatus),
     }),
   );
   const selectedItem = items[selectedIndex];
@@ -325,6 +358,9 @@ export function TerminalActionMenuScreen<TItem extends TerminalMenuScreenItem, T
       }),
     ],
     onRoute: ({ actionTarget, menu }) => {
+      if (transitionStatus?.kind === ROUTE_TRANSITION_STATUS_KIND.PENDING) {
+        return;
+      }
       if (actionTarget.actionTargetIntent?.kind === "toggle_target") {
         dispatchActionTarget({ type: "toggle_target" });
         return;
@@ -395,6 +431,18 @@ export function TerminalActionMenuScreen<TItem extends TerminalMenuScreenItem, T
     actionTargetState.activeTarget === "actions"
       ? formatTerminalInteractionFooter(footerActions)
       : buildTerminalMenuScreenFooterText(interactions);
+  const footerLines = appendRouteTransitionFooterLine(
+    [
+      {
+        text: footerText,
+        tone: "dim",
+      },
+      shouldRenderDerivedTagTerminalActionTarget(actionTargetState, actionTargetVisibility)
+        ? buildDerivedTagTerminalActionTargetLine(actionEntries, actionTargetState)
+        : buildStatusLine({ actionTargetState, selectedItem }),
+    ],
+    transitionStatus,
+  );
 
   return (
     <TerminalTwoPaneScreen
@@ -409,15 +457,7 @@ export function TerminalActionMenuScreen<TItem extends TerminalMenuScreenItem, T
         title: rightTitle,
         lines: buildRightLines(selectedItem),
       }}
-      footer={[
-        {
-          text: footerText,
-          tone: "dim",
-        },
-        shouldRenderDerivedTagTerminalActionTarget(actionTargetState, actionTargetVisibility)
-          ? buildDerivedTagTerminalActionTargetLine(actionEntries, actionTargetState)
-          : buildStatusLine({ actionTargetState, selectedItem }),
-      ]}
+      footer={footerLines}
       leftWidth={leftWidth}
     />
   );

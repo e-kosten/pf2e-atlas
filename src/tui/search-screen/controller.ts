@@ -37,6 +37,9 @@ import { useSearchFilterExplorerWorkflow } from "./filter-explorer-workflow.js";
 import { useSearchSessionWorkflow } from "./session-workflow.js";
 import { useSearchWorkspaceActions } from "./workspace-actions.js";
 import type { SearchScreenOrigin } from "./workflow-types.js";
+import type { Pf2eTerminalSearchSession } from "../search/service.js";
+import type { RouteTransitionStatus } from "../route-transition-status.js";
+import { getRouteTransitionFooterLineCount } from "../route-transition-status.js";
 import {
   getRenderedTerminalLineCount,
   getTerminalPaneBodyHeight,
@@ -52,20 +55,16 @@ export type SearchScreenControllerResult = {
   screen: DerivedTagTerminalTwoPaneScreenProps;
 };
 
-type OntologyResultReaderLaunchQuery = OntologyNodeQuery & {
-  openInResults?: boolean;
-};
-
-function shouldAutoExecuteOntologyInitialQuery(initialQuery?: OntologyNodeQuery): boolean {
-  return Boolean((initialQuery as OntologyResultReaderLaunchQuery | undefined)?.openInResults);
-}
-
 export function useSearchScreenController({
   initialQuery,
+  initialSession,
+  transitionStatus,
   origin = "app",
   onBack,
 }: {
   initialQuery?: OntologyNodeQuery;
+  initialSession?: Pf2eTerminalSearchSession;
+  transitionStatus?: RouteTransitionStatus | null;
   origin?: SearchScreenOrigin;
   onBack: () => void;
 }): SearchScreenControllerResult {
@@ -73,19 +72,22 @@ export function useSearchScreenController({
   const prompts = useTerminalInteractionContextAdapters();
   const { user } = usePf2eTerminalAppServices();
   const size = useDerivedTagTerminalSize();
-  const autoExecuteOntologyInitialQuery = origin === "ontology" && shouldAutoExecuteOntologyInitialQuery(initialQuery);
   const initialQueryState = React.useMemo(
-    () => (initialQuery ? user.search.createQueryFromOntologyQuery(initialQuery) : user.search.createDefaultQuery()),
-    [initialQuery, user.search],
+    () =>
+      initialSession?.query ??
+      (initialQuery ? user.search.createQueryFromOntologyQuery(initialQuery) : user.search.createDefaultQuery()),
+    [initialQuery, initialSession, user.search],
   );
-  const initialLayout: import("./state.js").SearchScreenLayout = autoExecuteOntologyInitialQuery ? "results" : "editor";
+  const initialLayout: import("./state.js").SearchScreenLayout = initialSession ? "results" : "editor";
   const [state, dispatch] = React.useReducer(
     searchScreenReducer,
     {
       initialQuery: initialQueryState,
       initialLayout,
+      initialSession,
     },
-    ({ initialQuery, initialLayout }) => createInitialSearchScreenState(initialQuery, { layout: initialLayout }),
+    ({ initialQuery, initialLayout, initialSession }) =>
+      createInitialSearchScreenState(initialQuery, { layout: initialLayout, session: initialSession }),
   );
   const queryRef = React.useRef(initialQueryState);
 
@@ -93,7 +95,7 @@ export function useSearchScreenController({
     1,
     getTerminalPaneBodyHeight(size.height, {
       hasSubtitle: true,
-      footerLineCount: 2,
+      footerLineCount: 2 + getRouteTransitionFooterLineCount(transitionStatus),
     }),
   );
   const {
@@ -131,9 +133,10 @@ export function useSearchScreenController({
     chooseResultSort,
     exitSearchScreen,
   } = useSearchSessionWorkflow({
-    autoExecuteInitialQuery: origin !== "ontology" || autoExecuteOntologyInitialQuery,
+    autoExecuteInitialQuery: origin !== "ontology",
     dispatch,
     initialQuery,
+    initialSession,
     initialQueryState,
     onExit: onBack,
     preloadThreshold,

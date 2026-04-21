@@ -2,7 +2,7 @@ import React from "react";
 
 import type { DerivedTagTerminalLine } from "./framework/types.js";
 import { type TerminalInteractionAction } from "./interaction-bindings.js";
-import { TerminalMenuScreen, type TerminalMenuScreenInteractions } from "./shared-screens.js";
+import { TerminalMenuScreen, type RouteTransitionStatus, type TerminalMenuScreenInteractions } from "./shared-screens.js";
 
 export type Pf2eTopLevelArea = {
   id: "tag_refinement" | "ontology_search" | "search";
@@ -74,6 +74,7 @@ export function AreaMenuScreen({
   onOpenSelectedArea,
   onMove,
   onQuit,
+  transitionStatus,
 }: {
   title: string;
   selectedAreaIndex: number;
@@ -82,6 +83,7 @@ export function AreaMenuScreen({
   onOpenSelectedArea: () => void;
   onMove: (delta: number) => void;
   onQuit: () => void;
+  transitionStatus?: RouteTransitionStatus | null;
 }): React.JSX.Element {
   const selectedArea = areas[selectedAreaIndex];
   const interactions = createAreaMenuInteractions();
@@ -105,6 +107,7 @@ export function AreaMenuScreen({
       }}
       onSelect={onOpenSelectedArea}
       onBack={onQuit}
+      transitionStatus={transitionStatus}
     />
   );
 }

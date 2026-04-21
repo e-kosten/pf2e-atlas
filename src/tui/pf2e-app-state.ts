@@ -6,6 +6,7 @@ import type {
   DerivedTagMigrationSession,
 } from "../tags/index.js";
 import type { OntologyInspectExplorerSnapshot } from "./ontology-explorer/inspect-screen.js";
+import type { Pf2eTerminalSearchSession } from "./search/service.js";
 import { moveSelectionWrapped } from "./framework/input.js";
 
 export type Pf2eOntologyRoute = {
@@ -21,6 +22,7 @@ export type Pf2eSearchRouteOrigin = {
 export type Pf2eSearchRoute = {
   kind: "search";
   initialQuery?: OntologyNodeQuery;
+  initialSession?: Pf2eTerminalSearchSession;
   origin?: Pf2eSearchRouteOrigin;
 };
 

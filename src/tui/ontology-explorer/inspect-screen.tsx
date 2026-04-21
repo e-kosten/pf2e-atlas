@@ -12,6 +12,7 @@ import type {
 } from "../filter-explorer/types.js";
 import { useDerivedTagTerminalApp } from "../framework/context.js";
 import { useTerminalInteractionContextAdapters } from "../interaction-context-adapters.js";
+import type { RouteTransitionStatus } from "../route-transition-status.js";
 import {
   promptNumericScalarClause,
   type NumericScalarClauseDraft,
@@ -89,11 +90,13 @@ export function OntologyInspectScreen({
   model,
   onExit,
   onOpenQuery,
+  transitionStatus,
 }: {
   initialSnapshot?: OntologyInspectExplorerSnapshot;
   model: OntologyDomainModel;
   onExit: () => void;
   onOpenQuery?: (query: OntologyNodeQuery, snapshot: OntologyInspectExplorerSnapshot) => void;
+  transitionStatus?: RouteTransitionStatus | null;
 }): React.JSX.Element {
   const terminal = useDerivedTagTerminalApp();
   const prompts = useTerminalInteractionContextAdapters();
@@ -122,6 +125,7 @@ export function OntologyInspectScreen({
       model={model}
       initialSnapshot={initialSnapshot}
       onExit={onExit}
+      transitionStatus={transitionStatus}
       mode={{
         kind: "inspect-and-open",
         resolveInspectTarget,

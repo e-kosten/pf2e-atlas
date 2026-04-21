@@ -16,6 +16,20 @@ function flushInk(): Promise<void> {
   });
 }
 
+function createDeferred<T>(): {
+  promise: Promise<T>;
+  resolve: (value: T) => void;
+  reject: (reason?: unknown) => void;
+} {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve;
+    reject = promiseReject;
+  });
+  return { promise, resolve, reject };
+}
+
 function pressLeft(app: ReturnType<typeof render>): void {
   app.stdin.write("\u001b[D");
 }
@@ -680,6 +694,154 @@ describe("pf2e terminal app", () => {
 
     expect(app.lastFrame()).toContain("Search Semantics > Pathfinder Rage of Elements");
     expect(app.lastFrame()).toContain("Pathfinder Rage of Elements | 81");
+  });
+
+  it("keeps the ontology explorer mounted while direct-result transitions prepare", async () => {
+    const services = createFakeServices();
+    const pendingSession = createDeferred<Awaited<ReturnType<typeof services.user.search.executeQuery>>>();
+    const preparedQuery = {
+      kind: "listRecords" as const,
+      label: "Browse records with this value",
+      filters: {
+        category: "creature" as const,
+        limit: 20,
+      },
+    };
+    services.user.search.executeQuery = vi.fn(() =>
+      pendingSession.promise,
+    ) as typeof services.user.search.executeQuery;
+    services.user.ontology.loadSearchSemanticsDomain = vi.fn(() => ({
+      id: "searchSemantics",
+      label: "Search Semantics",
+      description: "Search semantics ontology",
+      rootNodes: [
+        {
+          id: "creature:publicationTitle:monster-core",
+          kind: "value",
+          label: "Pathfinder Monster Core",
+          filterText: "pathfinder monster core monster",
+          listLabel: "Pathfinder Monster Core | 320",
+          detailTitle: "Filter Value",
+          detailLines: [{ text: "Pathfinder Monster Core", tone: "section" }],
+          query: preparedQuery,
+        },
+      ],
+    }));
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalApp rootPath={process.cwd()} onExit={vi.fn()} services={services} />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    app.stdin.write("j");
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("Search Semantics");
+    expect(app.lastFrame()).toContain("Pathfinder Monster Core | 320");
+
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+
+    const pendingFrame = app.lastFrame();
+    expect(pendingFrame).toContain("Search Semantics");
+    expect(pendingFrame).toContain("Explorer Entries");
+    expect(pendingFrame).toContain("Loading next view | Loading results for Browse records with this value...");
+    expect(pendingFrame).not.toContain("Browse/Search");
+    expect(services.user.search.executeQuery).toHaveBeenCalledTimes(1);
+
+    pendingSession.resolve({
+      windowId: "window-1",
+      query: services.user.search.createQueryFromOntologyQuery(preparedQuery),
+      results: [createRecord()],
+      windowOffset: 0,
+      resultMode: "browse",
+      total: 1,
+      loadedCount: 1,
+      hasMore: false,
+      nextOffset: null,
+      searchProfile: null,
+      sort: "alphabetical",
+      sortSeed: null,
+    });
+
+    await flushInk();
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("Browse/Search");
+    expect(app.lastFrame()).toContain("[RESULTS]");
+    expect(app.lastFrame()).toContain("Alarm Ward");
+  });
+
+  it("keeps the ontology explorer mounted and clears pending status when a direct-result transition fails", async () => {
+    const services = createFakeServices();
+    const pendingSession = createDeferred<Awaited<ReturnType<typeof services.user.search.executeQuery>>>();
+    services.user.search.executeQuery = vi.fn(() =>
+      pendingSession.promise,
+    ) as typeof services.user.search.executeQuery;
+    services.user.ontology.loadSearchSemanticsDomain = vi.fn(() => ({
+      id: "searchSemantics",
+      label: "Search Semantics",
+      description: "Search semantics ontology",
+      rootNodes: [
+        {
+          id: "creature:publicationTitle:monster-core",
+          kind: "value",
+          label: "Pathfinder Monster Core",
+          filterText: "pathfinder monster core monster",
+          listLabel: "Pathfinder Monster Core | 320",
+          detailTitle: "Filter Value",
+          detailLines: [{ text: "Pathfinder Monster Core", tone: "section" }],
+          query: {
+            kind: "listRecords",
+            label: "Browse records with this value",
+            filters: {
+              category: "creature",
+              limit: 20,
+            },
+          },
+        },
+      ],
+    }));
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalApp rootPath={process.cwd()} onExit={vi.fn()} services={services} />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    app.stdin.write("j");
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("Loading next view | Loading results for Browse records with this value...");
+
+    pendingSession.reject(new Error("index offline"));
+
+    await flushInk();
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("Query execution failed.");
+    expect(app.lastFrame()).toContain("index offline");
+
+    app.stdin.write(" ");
+    await flushInk();
+    await flushInk();
+
+    const recoveredFrame = app.lastFrame();
+    expect(recoveredFrame).toContain("Search Semantics");
+    expect(recoveredFrame).toContain("Pathfinder Monster Core | 320");
+    expect(recoveredFrame).not.toContain("Loading next view |");
   });
 
   it("closes loaded services when the bootstrap unmounts", async () => {

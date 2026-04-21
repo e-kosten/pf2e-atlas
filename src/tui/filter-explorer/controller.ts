@@ -22,6 +22,10 @@ import {
   useTerminalInteractionContextRouter,
 } from "../interaction-context-router.js";
 import {
+  ROUTE_TRANSITION_STATUS_KIND,
+  getRouteTransitionFooterLineCount,
+} from "../route-transition-status.js";
+import {
   getDerivedTagTerminalTwoPaneLayoutMode,
   reduceDerivedTagTerminalTwoPaneState,
   type DerivedTagTerminalTwoPaneAction,
@@ -554,6 +558,7 @@ function createFilterExplorerContext(args: {
       args.options.mode.kind === "inspect-and-open"
         ? buildInspectResult(args.options.model, args.options.mode, currentNode)
         : undefined,
+    transitionStatus: args.options.transitionStatus,
   };
 }
 
@@ -662,7 +667,7 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
     1,
     getTerminalPaneBodyHeight(size.height, {
       hasSubtitle: true,
-      footerLineCount: 2,
+      footerLineCount: 2 + getRouteTransitionFooterLineCount(options.transitionStatus),
     }),
   );
   const detailWidth = getTerminalTwoPaneDetailWidth(size.width, layoutMode, 46);
@@ -890,6 +895,9 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
       createTerminalTextEntryInteractionContext("textEntry", [{ id: "cancel" }]),
     ],
     onRoute: (routes) => {
+      if (options.transitionStatus?.kind === ROUTE_TRANSITION_STATUS_KIND.PENDING) {
+        return;
+      }
       handleRoute({
         event: routes.textEntry.event,
         interactionAction:

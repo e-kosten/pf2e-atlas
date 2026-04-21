@@ -1,6 +1,11 @@
 import React from "react";
 
 import type { OntologyNodeQuery } from "../../domain/ontology-types.js";
+import type { Pf2eTerminalSearchSession } from "../search/service.js";
+import {
+  appendRouteTransitionFooterLine,
+  type RouteTransitionStatus,
+} from "../route-transition-status.js";
 import {
   buildSearchStructuredEditorDetailLines,
   buildSearchStructuredEditorFooterText,
@@ -19,15 +24,21 @@ export { parseJumpToResultInput } from "./model.js";
 
 export function SearchScreen({
   initialQuery,
+  initialSession,
+  transitionStatus,
   origin = "app",
   onBack,
 }: {
   initialQuery?: OntologyNodeQuery;
+  initialSession?: Pf2eTerminalSearchSession;
+  transitionStatus?: RouteTransitionStatus | null;
   origin?: SearchScreenOrigin;
   onBack: () => void;
 }): React.JSX.Element {
   const controller = useSearchScreenController({
     initialQuery,
+    initialSession,
+    transitionStatus,
     origin,
     onBack,
   });
@@ -54,6 +65,7 @@ export function SearchScreen({
           },
         ]}
         status={buildSearchStructuredEditorStatusLine(session)}
+        transitionStatus={transitionStatus}
         helpTitle={session.helpTitle ?? "Structured Query Editor Help"}
         helpBody={buildSearchStructuredEditorHelpLines(session)}
         buildDetailLines={() => buildSearchStructuredEditorDetailLines(session)}
@@ -64,5 +76,10 @@ export function SearchScreen({
     );
   }
 
-  return <TerminalTwoPaneScreen {...controller.screen} />;
+  return (
+    <TerminalTwoPaneScreen
+      {...controller.screen}
+      footer={appendRouteTransitionFooterLine(controller.screen.footer ?? [], transitionStatus)}
+    />
+  );
 }

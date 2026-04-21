@@ -11,7 +11,11 @@ import {
   createMergedReturnFooterBinding,
   createSharedReturnInteractionActions,
 } from "./shell-navigation-copy.js";
-import { TerminalActionMenuScreen, type TerminalMenuScreenInteractions } from "./shared-screens.js";
+import {
+  TerminalActionMenuScreen,
+  type RouteTransitionStatus,
+  type TerminalMenuScreenInteractions,
+} from "./shared-screens.js";
 
 type TagRefinementCommandId = "review_all" | "legacy_seed" | "legacy_rule" | "exemplar_cleanup" | "proposal_review";
 
@@ -164,6 +168,7 @@ export function TagRefinementMenuScreen({
   onMove,
   onOpenSelected,
   onQuickAction,
+  transitionStatus,
 }: {
   selectedIndex: number;
   queueItems: DerivedTagReviewQueueSummaryItem[];
@@ -171,6 +176,7 @@ export function TagRefinementMenuScreen({
   onMove: (delta: number, itemCount: number) => void;
   onOpenSelected: (menuItems: TagRefinementMenuItem[]) => void;
   onQuickAction: (mode: "review_all" | DerivedTagMigrationMode) => void;
+  transitionStatus?: RouteTransitionStatus | null;
 }): React.JSX.Element {
   const menuItems = buildTagRefinementMenuItems(queueItems);
   const actionEntries = buildTagRefinementActionEntries(queueItems.length > 0);
@@ -216,6 +222,7 @@ export function TagRefinementMenuScreen({
       }}
       onBack={onBack}
       onAction={runActionTargetCommand}
+      transitionStatus={transitionStatus}
     />
   );
 }

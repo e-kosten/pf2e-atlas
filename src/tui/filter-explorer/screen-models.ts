@@ -4,6 +4,9 @@ import {
   formatTerminalInteractionFooter,
   type TerminalInteractionAction,
 } from "../interaction-bindings.js";
+import {
+  appendRouteTransitionFooterLine,
+} from "../route-transition-status.js";
 import type {
   DerivedTagTerminalCommandOption,
   DerivedTagTerminalLine,
@@ -538,7 +541,7 @@ export function buildFilterExplorerScreenModel(
           lines: controller.browser.visibleDetailLines,
           active: true,
         },
-        footer: [
+        footer: appendRouteTransitionFooterLine([
           {
             text: controller.browser.state.searchMode
               ? TERMINAL_LIVE_FILTER_FOOTER
@@ -551,7 +554,7 @@ export function buildFilterExplorerScreenModel(
               : `detail focus | focused detail view | ${statusSuffix} | Detail scroll ${controller.browser.effectiveState.detailScroll}/${controller.browser.maxDetailScroll}`,
             tone: "accent",
           },
-        ],
+        ], controller.transitionStatus),
       },
     };
   }
@@ -574,7 +577,7 @@ export function buildFilterExplorerScreenModel(
         lines: controller.browser.visibleDetailLines,
         active: controller.browser.state.activePane === "detail",
       },
-      footer: [
+      footer: appendRouteTransitionFooterLine([
         {
           text: controller.browser.state.searchMode
             ? TERMINAL_LIVE_FILTER_FOOTER
@@ -587,7 +590,7 @@ export function buildFilterExplorerScreenModel(
             : `${controller.browser.state.activePane} focus | ${controller.browser.layoutMode} layout | ${statusSuffix} | Detail scroll ${controller.browser.effectiveState.detailScroll}/${controller.browser.maxDetailScroll}`,
           tone: "accent",
         },
-      ],
+      ], controller.transitionStatus),
       leftWidth: 46,
     },
   };

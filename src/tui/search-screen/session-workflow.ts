@@ -20,6 +20,7 @@ export function useSearchSessionWorkflow({
   autoExecuteInitialQuery = true,
   dispatch,
   initialQuery,
+  initialSession,
   initialQueryState,
   onExit,
   preloadThreshold,
@@ -33,6 +34,7 @@ export function useSearchSessionWorkflow({
   autoExecuteInitialQuery?: boolean;
   dispatch: React.Dispatch<SearchScreenAction>;
   initialQuery?: OntologyNodeQuery;
+  initialSession?: Pf2eTerminalSearchSession;
   initialQueryState: Pf2eTerminalSearchQuery;
   onExit: () => void;
   preloadThreshold: number;
@@ -60,7 +62,7 @@ export function useSearchSessionWorkflow({
     message: null,
   });
   const [loadingMore, setLoadingMore] = React.useState(false);
-  const autoRanInitialQuery = React.useRef(false);
+  const autoRanInitialQuery = React.useRef(Boolean(initialSession));
   const loadMoreSessionKeyRef = React.useRef<string | null>(null);
   const loadMoreTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeSessionRef = React.useRef<Pf2eTerminalSearchSession | null>(null);
