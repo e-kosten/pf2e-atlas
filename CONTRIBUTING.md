@@ -75,7 +75,32 @@ fix(refresh): report index progress
 Show progress updates during index rebuilds so long-running refreshes are easier to monitor.
 ```
 
+## Project Shape
+
+The codebase is organized around a few stable layers:
+
+- `src/index.ts`: MCP entrypoint. Boots the application runtime and registers tool handlers.
+- `src/app/`: application composition and cross-cutting services. This is where runtime assembly, ontology orchestration, and app-level storage boundaries live.
+- `src/data/`: data loading and backend access over the prepared SQLite index and normalized PF2E records.
+- `src/search/`: ranked search runtime, query analysis, and ranking logic shared by backend search flows.
+- `src/server/`: MCP transport-facing tool registration and response shaping.
+- `src/tui/`: terminal application composition, workflows, and UI-facing service adapters.
+- `src/domain/`: shared domain types, categories, metadata semantics, and other low-level contracts used across layers.
+- `src/tags/`: derived-tag authoring, discovery, migration, and evaluation tooling.
+
+Architecture notes live under [`docs/architecture`](./docs/architecture/overview.md):
+
+- [`overview.md`](./docs/architecture/overview.md): architecture landing page with subsystem diagrams, request flow, and navigation into the rest of the docs
+- [`boundaries.md`](./docs/architecture/boundaries.md): lint-enforced and design-level boundaries that future editors should preserve
+- [`search.md`](./docs/architecture/search.md): ranked retrieval, filters, and search backend design
+- [`tui.md`](./docs/architecture/tui.md): terminal UI composition, workflows, and service seams
+- [`editorial.md`](./docs/architecture/editorial.md): derived-tag editorial and migration tooling
+- [`extending.md`](./docs/architecture/extending.md): where to add new tools, services, and runtime capabilities
+- [`decisions/`](./docs/architecture/decisions/README.md): architecture decision records and follow-up design notes
+
 ## Development
+
+`README.md` is the user-facing product and setup document. Keep contributor workflow, internal command surfaces, and repo-shape guidance here instead of expanding the README with developer-oriented details.
 
 Install dependencies and build:
 
@@ -107,9 +132,22 @@ cd scripts && npm run dev:tui
 Run the two top-level built app surfaces from the repo root:
 
 ```bash
-npm run tui
 npm run build
+npm run tui
 npm run mcp
+```
+
+Developer command surfaces:
+
+- Root `npm run`: user-facing setup and built runtime commands
+- [`scripts/package.json`](./scripts/package.json): source-runner, validation, and local developer workflow commands
+- [`src/tags/cli/package.json`](./src/tags/cli/package.json): derived-tag and editorial tooling commands
+
+Example derived-tag/editorial CLI usage:
+
+```bash
+cd src/tags/cli
+npm run discover-untagged-cohorts -- --category creature --family setting
 ```
 
 ## Validation Before Commit

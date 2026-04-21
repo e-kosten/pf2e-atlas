@@ -4,6 +4,8 @@
 
 Core application code lives in `src/`. The MCP server entrypoint is `src/index.ts`. Shared application composition lives in `src/app/`, index-backed retrieval and backend services live in `src/data/`, ranked-search mechanics live in `src/search/`, MCP tool registration lives in `src/server/`, terminal UI code lives in `src/tui/`, shared contracts live in `src/domain/`, and derived-tag/editorial tooling lives in `src/tags/`. Embedding support lives in `src/embeddings.ts`, and refresh utilities live in `src/refresh-*.ts`. Tests live in `tests/` and follow the source areas they cover. Helper scripts live in `scripts/`. The vendored PF2E checkout is expected under `vendor/pf2e` but is not tracked in this repo.
 
+Contributor-facing workflow and command-surface guidance lives in `CONTRIBUTING.md`. Keep `README.md` user-facing and route developer-oriented explanations there instead of expanding the README.
+
 ## Architecture Docs
 
 The architecture documents under `docs/architecture/` are part of the working source of truth for this repository, not optional reference material.
@@ -17,6 +19,17 @@ The architecture documents under `docs/architecture/` are part of the working so
 - If you add a new durable architectural rule or make a non-obvious architectural choice that future editors will need to preserve, update an existing ADR or add a new file under `docs/architecture/decisions/`.
 - Do not report an architecture-impacting implementation task as complete if the code and the architecture docs disagree about the intended structure.
 - Large architectural work is not complete until the relevant architecture docs are updated and any required ADR additions or revisions have been made.
+
+## Documentation Positioning
+
+Keep each documentation surface focused on its job:
+
+- `README.md` should describe the current product, what users can do with it, and how to set it up and run it. Keep it present-state, user-facing, and low on internal implementation detail.
+- `docs/architecture/` should describe the current intended architecture and durable boundaries that the codebase is expected to follow. Do not use architecture docs as a change log or migration diary.
+- `CONTRIBUTING.md` should carry contributor workflow, validation commands, repo layout, and other developer-facing operational guidance.
+- Historical context, design evolution, tradeoff records, and "why we changed this" material should primarily live in ADRs under `docs/architecture/decisions/`, not in README or architecture overviews.
+
+When writing or editing docs, prefer statements of current behavior and current ownership over language like "now uses", "no longer", "used to", or other repo-history framing unless the document is explicitly an ADR or backlog/history note.
 
 ## Build, Test, and Development Commands
 

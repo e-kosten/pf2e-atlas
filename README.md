@@ -1,57 +1,31 @@
 # Pathfinder 2E Foundry MCP
 
-Offline Pathfinder 2E search, reference, and editorial workbench built on a prepared local Foundry PF2E checkout.
+Offline Pathfinder 2E search, reference, and editorial workbench built on a local clone of the [Foundry PF2E repository](https://github.com/foundryvtt/pf2e). It supports querying and exploring Foundry PF2E data locally through either an MCP server or a TUI.
 
-This repository is not just an MCP server. It is a broader local PF2E application with multiple surfaces over the same prepared data:
-
-- a built stdio MCP server for external clients and agents
-- a terminal workbench for exploration, search, and editorial workflows
+It provides several connected surfaces over the local Foundry PF2E data:
+- a stdio MCP server for external clients and agents
+- a TUI for exploration, search, and editorial workflows
 - local indexing, search-semantics, and derived-tag tooling for maintaining and refining the corpus
 
-The MCP server is one entrypoint into that runtime, not the whole product.
+## Capabilities
 
-## What It Does
+With it, you can:
 
-- Looks up detailed PF2E records by name and canonical key
-- Searches across the PF2E corpus with category-first boundaries, structured filters, and hybrid retrieval
-- Exposes PF2E search and rules tools over MCP for agent and client integrations
-- Launches a terminal workbench for interactive exploration and editorial workflows
-- Builds and reuses a local SQLite index over the vendored PF2E data
-- Maintains Pathfinder-native search semantics, metadata filters, and linked-rule traversal
-- Supports derived-tag discovery, review, migration, and evaluation tooling for corpus maintenance
+- look up detailed PF2E records by name and canonical key
+- search across the PF2E corpus with category-first boundaries, structured filters, and hybrid retrieval
+- connect external clients and agents to PF2E search and rules tools over MCP
+- explore the indexed corpus interactively through the TUI
+- work with Pathfinder-native search semantics, metadata filters, and linked-rule traversal
+- run derived-tag discovery, review, migration, and evaluation workflows for corpus maintenance
 
-The application reads PF2E data from `vendor/pf2e` by default and builds a local SQLite index for querying, exploration, and editorial work.
-That index is cached and reused across restarts. When the PF2E source, embedding model, or index schema changes, rebuild it explicitly with `npm run refresh-index` or `npm run refresh-external`.
+## Quick Start
 
-## Project Shape
+Before you start:
 
-The codebase is organized around a few stable layers:
+- install Node.js 20+
+- clone the Foundry PF2E repo into `vendor/pf2e`
 
-- `src/index.ts`: MCP entrypoint. Boots the application runtime and registers tool handlers.
-- `src/app/`: application composition and cross-cutting services. This is where runtime assembly, ontology orchestration, and app-level storage boundaries live.
-- `src/data/`: data loading and backend access over the prepared SQLite index and normalized PF2E records.
-- `src/search/`: ranked search runtime, query analysis, and ranking logic shared by backend search flows.
-- `src/server/`: MCP transport-facing tool registration and response shaping.
-- `src/tui/`: terminal application composition, workflows, and UI-facing service adapters.
-- `src/domain/`: shared domain types, categories, metadata semantics, and other low-level contracts used across layers.
-- `src/tags/`: derived-tag authoring, discovery, migration, and evaluation tooling.
-
-Architecture notes live under [`docs/architecture`](./docs/architecture/overview.md):
-
-- [`overview.md`](./docs/architecture/overview.md): architecture landing page with subsystem diagrams, request flow, and navigation into the rest of the docs
-- [`boundaries.md`](./docs/architecture/boundaries.md): lint-enforced and design-level boundaries that future editors should preserve
-- [`search.md`](./docs/architecture/search.md): ranked retrieval, filters, and search backend design
-- [`tui.md`](./docs/architecture/tui.md): terminal UI composition, workflows, and service seams
-- [`editorial.md`](./docs/architecture/editorial.md): derived-tag editorial and migration tooling
-- [`extending.md`](./docs/architecture/extending.md): where to add new tools, services, and runtime capabilities
-- [`decisions/`](./docs/architecture/decisions/): architecture decision records and follow-up design notes
-
-## Requirements
-
-- Node.js 20+
-- A local clone of the Foundry PF2E system repo under `vendor/pf2e`
-
-## Setup
+Set up the local runtime:
 
 ```bash
 npm install
@@ -60,22 +34,11 @@ npm run refresh-external
 npm run build
 ```
 
-Root `npm run` is intentionally kept to the end-user runtime/setup surface:
+## Run
 
-- `npm run build`
-- `npm run mcp`
-- `npm run tui`
-- `npm run refresh-data`
-- `npm run refresh-embeddings`
-- `npm run refresh-index`
-- `npm run refresh-external`
-
-Developer workflow scripts live under [`scripts/`](./scripts/package.json), and derived-tag/editorial CLI commands live under [`src/tags/cli/`](./src/tags/cli/package.json).
-
-Run the two main app surfaces from the repo root:
+Build once, then launch either main app surface from the repo root:
 
 ```bash
-npm run build
 npm run tui
 npm run mcp
 ```
@@ -83,26 +46,26 @@ npm run mcp
 `npm run tui` runs the built terminal workbench from `dist/tags/cli/editorial/derived-tag-migration-workbench.js`.
 `npm run mcp` runs the built stdio MCP server from `dist/index.js`.
 
-## Data Checkout
+For deeper local developer and editorial tooling, use the script surfaces under [`scripts/`](./scripts/package.json) and [`src/tags/cli/`](./src/tags/cli/package.json). See [CONTRIBUTING.md](./CONTRIBUTING.md) for the command layout.
 
-Clone the PF2E repo into the vendored data path:
+## Data And Index
 
-```bash
-git clone https://github.com/foundryvtt/pf2e.git vendor/pf2e
-```
+The application reads PF2E data from `vendor/pf2e` by default and builds a local SQLite index for querying, exploration, and editorial work.
+That index is cached and reused across restarts. When the PF2E source, embedding model, or index schema changes, rebuild it explicitly with `npm run refresh-index` or `npm run refresh-external`.
 
-Normal MCP startup is offline-only. It does not run `git pull`, it does not download embedding assets from Hugging Face, and it does not rebuild the SQLite index.
-Refresh external dependencies explicitly before launching the server:
+Normal startup is offline-only. It does not refresh the vendored PF2E clone, download embedding assets, or rebuild the SQLite index for you.
+Refresh external dependencies explicitly when needed:
 
 ```bash
 npm run refresh-data
 npm run refresh-embeddings
 npm run refresh-index
-# or both at once
+
+# or run the full refresh flow at once
 npm run refresh-external
 ```
 
-`refresh-index` rebuilds the local SQLite cache from the already-prepared PF2E checkout and embedding assets. Normal MCP startup expects that index to already exist and be current.
+`refresh-index` rebuilds the local SQLite cache from the already-prepared PF2E checkout and embedding assets. Application startup expects that index to already exist and be current.
 
 Run `refresh-index` again whenever:
 
@@ -112,7 +75,26 @@ Run `refresh-index` again whenever:
 
 If startup is missing a prepared index or detects a stale one, it fails fast with an error telling you to run `npm run refresh-index` or `npm run refresh-external`.
 
-An alternate PF2E data path can still be supplied with `--data-path /path/to/pf2e` if needed, but the normal workflow is to keep the data under `vendor/pf2e`.
+## MCP Client Config
+
+Example MCP client entry:
+
+```json
+{
+  "mcpServers": {
+    "pathfinder-2e-foundry": {
+      "command": "node",
+      "args": ["/Users/<user>/projects/pathfinder-mcp/pathfinder-2e-foundry-mcp/dist/index.js"]
+    }
+  }
+}
+```
+
+The MCP client should point at the built server entrypoint. Build first with `npm run build`, then use `npm run mcp` for manual local runs.
+
+## Configuration
+
+The normal workflow is to keep the PF2E data under `vendor/pf2e`, but an alternate path can be supplied if needed.
 
 You can also override the data path with:
 
@@ -135,106 +117,19 @@ If you want to bypass local HF embeddings entirely, set:
 
 That skips the HF model requirement, but you still need a prepared SQLite index for startup.
 
-## Development Workflow
+## MCP And Search
 
-This repo uses a simple trunk-based Git workflow:
+The MCP server is read-only and exposes a category-first search surface over the local PF2E corpus.
 
-- keep `main` as the primary branch
-- create short-lived branches for work such as `feat/<topic>` or `fix/<topic>`
-- install the tracked git hooks with `cd scripts && npm run install-hooks`
-- run `cd scripts && npm run preflight` before starting implementation work in a new shell
-- validate with `cd scripts && npm run verify` before merging
+- Use `pf2e_lookup` and `pf2e_lookup_many` for exact-name lookups.
+- Use `pf2e_search` for ranked retrieval with `searchProfile: "lexical" | "balanced" | "concept"`.
+- Use `pf2e_get_search_semantics` and `pf2e_list_filter_values` to discover categories, subcategories, tags, and live filter values before building structured queries.
+- Prefer `category`, `subcategory`, `scopes`, numeric bounds, and typed `metadata` predicates over raw Foundry record-type fields.
 
-Common developer commands now live under [`scripts/`](./scripts/package.json):
+For the full MCP tool catalog, response field reference, and detailed search behavior notes, see [docs/mcp-and-search.md](./docs/mcp-and-search.md).
 
-```bash
-cd scripts
-npm run dev
-npm run dev:tui
-npm run test
-npm run verify
-```
+## Further Reading
 
-Developer split:
-
-- `cd scripts && npm run dev`: run the MCP server from source
-- `cd scripts && npm run dev:tui`: run the terminal workbench from source
-
-Derived-tag and editorial tooling now lives under [`src/tags/cli/`](./src/tags/cli/package.json):
-
-```bash
-cd src/tags/cli
-npm run discover-untagged-cohorts -- --category creature --family setting
-```
-
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for the local workflow details.
-
-## MCP Client Config
-
-Example MCP client entry:
-
-```json
-{
-  "mcpServers": {
-    "pathfinder-2e-foundry": {
-      "command": "node",
-      "args": ["/Users/<user>/projects/pathfinder-mcp/pathfinder-2e-foundry-mcp/dist/index.js"]
-    }
-  }
-}
-```
-
-The MCP client should point at the built server entrypoint. Build first with `npm run build`, then use `npm run mcp` for manual local runs.
-
-## Tools
-
-- `pf2e_get_search_semantics`
-- `pf2e_list_filter_values`
-- `pf2e_list_packs`
-- `pf2e_get_pack_metadata`
-- `pf2e_list_records`
-- `pf2e_search`
-- `pf2e_lookup`
-- `pf2e_lookup_many`
-- `pf2e_get_record_by_key`
-- `pf2e_get_records_by_key`
-- `pf2e_collect_rule_question_context`
-- `pf2e_get_rule_graph`
-
-`pf2e_collect_rule_question_context` is the high-level rules helper. It resolves primary rule names from a narrow question, then gathers outgoing linked support records and optional curated backlinks without synthesizing an answer.
-`pf2e_get_rule_graph` is the low-level graph primitive. It retrieves direct outgoing references and optional curated backlinks for canonical record keys, grouped by direction.
-
-Search and list responses include:
-
-- `searchProfile` as the user-facing retrieval intent used for the result set
-- `category` and `subcategory` as the primary product-facing search boundaries
-- `rawRecordType` for internal Foundry traceability when needed
-- `descriptionText` when available
-- `hasDescription` for filtering and ranking
-- `descriptionSnippet` for lightweight discovery
-- `sourceCategory` to distinguish core, rules, adventure, and unknown sources
-- `searchExplain` on records when `pf2e_search` is called with `explain: true`
-- `explain.query` details for literal query normalization when `pf2e_search` is called with `explain: true`
-
-## Notes
-
-- The server is read-only.
-- Search is category-first. Use `category`, `subcategory`, `scopes`, numeric bounds, and typed `metadata` predicates instead of raw Foundry `recordType`, `documentType`, or `itemCategory`.
-- `pf2e_search` supports `searchProfile: "lexical" | "balanced" | "concept"` as the primary user-facing retrieval control.
-- `pf2e_search` defaults to the `balanced` profile when `query` is present and `searchProfile` is omitted.
-- `pf2e_lookup` and `pf2e_lookup_many` remain the exact-name lookup tools; `searchProfile: "lexical"` is the lexical-first ranked-search mode.
-- Prefer a short natural-language phrase or sentence with 1-3 concrete anchor terms for `query`. Avoid long comma-separated keyword lists by default.
-- `pf2e_get_search_semantics` is the primary discovery surface for categories, subcategories, Pathfinder-native tags, metadata filters, and supported search patterns.
-- `pf2e_list_filter_values` enumerates live filter values after you know which category/subcategory or metadata field you want to inspect.
-- Search now uses a local SQLite index with:
-  - shared structured filters
-  - FTS-backed lexical search
-  - hybrid semantic reranking over filtered candidates
-  - explicit name, trait, metadata, and description scoring with optional explain output
-  - no server-side query expansion or hidden semantic-tag inference
-- Semantic search is implemented with local application-side vector scoring after SQLite hard filters.
-- When `hf-local` is configured, the embedding model must already be prepared locally with `npm run refresh-embeddings` or `npm run refresh-external`.
-- The SQLite index must already be prepared locally with `npm run refresh-index` or `npm run refresh-external`.
-- ANN and SQLite vector extensions are intentionally not required in the current implementation.
-- The transport layer is isolated so Streamable HTTP can be added later without rebuilding the data/index layer.
-- The vendored PF2E checkout under `vendor/pf2e` is intentionally ignored by this repo's Git history.
+- [CONTRIBUTING.md](./CONTRIBUTING.md) for contributor workflow, developer commands, and repo layout
+- [docs/mcp-and-search.md](./docs/mcp-and-search.md) for MCP tool and search reference
+- [docs/architecture](./docs/architecture/overview.md) for architecture, boundaries, and subsystem docs
