@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { classifyRecordCategory, extractSpellTraditions } from "../../src/domain/categories.js";
+import { classifyRecordCategory, extractSpellTraditions } from "../../src/data/record-classification.js";
 
-describe("record category classification", () => {
+describe("record classification", () => {
   it("maps feat system categories through canonical typed subcategories", () => {
     const classification = classifyRecordCategory({
       documentType: "Item",

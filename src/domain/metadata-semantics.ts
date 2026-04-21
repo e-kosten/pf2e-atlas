@@ -12,7 +12,8 @@ import {
   type MetadataFieldType,
 } from "./metadata-field-registry.js";
 import type { FilterValueOrdering } from "./filter-value-ordering.js";
-import { MetadataFilterNode, SearchCategory, SearchSubcategory } from "./index.js";
+import type { MetadataFilterNode } from "./metadata-types.js";
+import type { SearchCategory, SearchSubcategory } from "./search-types.js";
 
 export interface MetadataFieldSemantics {
   field: MetadataFieldName;

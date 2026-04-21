@@ -270,6 +270,10 @@ describe("eslint local architecture rules", () => {
         filePath: "src/tags/runtime/index.ts",
         code: 'import { useDerivedTagTerminalInput } from "../../tui/terminal-ui.js";\nexport const value = useDerivedTagTerminalInput;\n',
       },
+      {
+        filePath: "src/tags/runtime/matcher/engine.ts",
+        code: 'import { useDerivedTagTerminalInput } from "../../../tui/terminal-ui.js";\nexport const value = useDerivedTagTerminalInput;\n',
+      },
     ];
 
     for (const testCase of cases) {
@@ -343,19 +347,6 @@ describe("eslint local architecture rules", () => {
     await expectNoRuleMessages(
       "src/search/runtime-search.ts",
       'import { normalizeText, uniqueSorted } from "../shared/utils.js";\nexport { normalizeText, uniqueSorted };\n',
-    );
-  });
-
-  it("blocks the compatibility fileExists alias in non-tag modules but allows explicit fs helpers", async () => {
-    await expectRuleMessage(
-      "src/pf2e-refresh.ts",
-      'import { fileExists } from "./shared/fs.js";\nexport const value = fileExists;\n',
-      "Non-tag code must use explicit fs helpers instead of the compatibility fileExists alias from src/shared/fs.js. Prefer pathExists or pathIsReadable as appropriate.",
-    );
-
-    await expectNoRuleMessages(
-      "src/pf2e-refresh.ts",
-      'import { pathExists, pathIsReadable } from "./shared/fs.js";\nexport { pathExists, pathIsReadable };\n',
     );
   });
 

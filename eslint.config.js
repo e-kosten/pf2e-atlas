@@ -28,7 +28,6 @@ function buildRelativeImportNameRestrictions(pathVariants, importNames, message)
 
 const DOMAIN_INDEX_IMPORT_PATHS = ["./domain/index.js", "../domain/index.js", "../../domain/index.js"];
 const SHARED_UTILS_IMPORT_PATHS = ["./shared/utils.js", "../shared/utils.js", "../../shared/utils.js"];
-const SHARED_FS_IMPORT_PATHS = ["./shared/fs.js", "../shared/fs.js", "../../shared/fs.js"];
 
 const NON_TAG_SHARED_UTILS_OWNER_IMPORT_NAMES = [
   "bigramDice",
@@ -43,7 +42,7 @@ const NON_TAG_SHARED_UTILS_OWNER_IMPORT_NAMES = [
 const NON_UI_TUI_IMPORT_RESTRICTIONS = {
   patterns: [
     {
-      group: ["../tui/**/*.js", "../../tui/**/*.js"],
+      group: ["**/tui/**/*.js"],
       message:
         "Non-UI application, data, domain, search, server, and tag modules must not import src/tui internals directly.",
     },
@@ -56,11 +55,6 @@ const NON_TAG_OWNERSHIP_IMPORT_RESTRICTIONS = {
       SHARED_UTILS_IMPORT_PATHS,
       NON_TAG_SHARED_UTILS_OWNER_IMPORT_NAMES,
       "Non-tag code must import owner-specific helpers from their owning module instead of src/shared/utils.js. Keep shared/utils limited to true cross-layer primitives such as normalizeText and uniqueSorted.",
-    ),
-    ...buildRelativeImportNameRestrictions(
-      SHARED_FS_IMPORT_PATHS,
-      ["fileExists"],
-      "Non-tag code must use explicit fs helpers instead of the compatibility fileExists alias from src/shared/fs.js. Prefer pathExists or pathIsReadable as appropriate.",
     ),
   ],
   patterns: [

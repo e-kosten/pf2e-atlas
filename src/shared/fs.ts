@@ -18,7 +18,3 @@ export async function pathIsReadable(targetPath: string): Promise<boolean> {
     return false;
   }
 }
-
-export async function fileExists(targetPath: string): Promise<boolean> {
-  return pathExists(targetPath);
-}

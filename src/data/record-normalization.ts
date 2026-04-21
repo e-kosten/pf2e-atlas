@@ -1,4 +1,4 @@
-import { classifyRecordCategory, extractSpellTraditions } from "../domain/categories.js";
+import { classifyRecordCategory, extractSpellTraditions } from "./record-classification.js";
 import {
   ACTOR_ABILITY_KEYS,
   ACTOR_SAVE_KEYS,

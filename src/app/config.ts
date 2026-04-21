@@ -3,7 +3,7 @@ import path from "node:path";
 import { DEFAULT_EMBEDDING_MODEL_ID, DEFAULT_EMBEDDING_REVISION } from "../embeddings.js";
 import type { AppConfig } from "../domain/config-types.js";
 import { pathIsReadable } from "../shared/fs.js";
-import { expandHomePath } from "./path-utils.js";
+import { expandHome } from "../shared/utils.js";
 
 function parseCliArgs(argv: string[]): Record<string, string> {
   const parsed: Record<string, string> = {};
@@ -48,13 +48,13 @@ export async function loadConfig(argv = process.argv.slice(2), env = process.env
   const configuredRankingConfigPath =
     args["ranking-config-path"] ?? env.PF2E_RANKING_CONFIG_PATH ?? path.join(process.cwd(), "pf2e-ranking.json");
 
-  const rootPath = path.resolve(expandHomePath(configuredPath));
-  const indexPath = path.resolve(expandHomePath(configuredIndexPath));
-  const embeddingCachePath = path.resolve(expandHomePath(configuredEmbeddingCachePath));
+  const rootPath = path.resolve(expandHome(configuredPath));
+  const indexPath = path.resolve(expandHome(configuredIndexPath));
+  const embeddingCachePath = path.resolve(expandHome(configuredEmbeddingCachePath));
   const embeddingLocalModelPath = configuredEmbeddingLocalModelPath
-    ? path.resolve(expandHomePath(configuredEmbeddingLocalModelPath))
+    ? path.resolve(expandHome(configuredEmbeddingLocalModelPath))
     : null;
-  const rankingConfigPath = path.resolve(expandHomePath(configuredRankingConfigPath));
+  const rankingConfigPath = path.resolve(expandHome(configuredRankingConfigPath));
   const manifestCandidates = [path.join(rootPath, "system.pf2e.json"), path.join(rootPath, "static", "system.json")];
 
   for (const candidate of manifestCandidates) {
