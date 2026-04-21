@@ -61,7 +61,7 @@ This is the tracked backlog for durable future work.
   Add tooling to help tagging work happen in coherent batches without forcing one agent or reviewer to keep an entire family/tag space in active memory. Status: proposed.
 
 - `Metadata predicate typing cleanup`
-  The shared metadata-predicate spec architecture has already landed, but there may still be a small follow-up opportunity to simplify or tighten generic predicate typing now that the older `fix/metadata-filter-spec-consolidation` worktree is being retired. Status: proposed.
+  Preserve the follow-up idea from the retiring `fix/metadata-filter-spec-consolidation` worktree: the shared `metadata-predicate-spec` architecture is already landed, but predicate TypeScript types may still be simplifiable so operator unions and payload shapes derive more directly from that shared spec instead of relying on more duplicated or manually expanded type definitions across domain, filter, and schema layers. Status: proposed.
 
 - `Typed seams cleanup`
   Continue focused type-safety work around metadata registry access, prompt result narrowing, matcher adapters, and test fixtures. Status: proposed.
