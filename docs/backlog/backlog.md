@@ -40,6 +40,9 @@ This is the tracked backlog for durable future work.
 - [Derived-tag assignments layout](./items/derived-tag-assignments-layout.md)
   Decide a durable on-disk structure for authored assignments before the assignment corpus grows much larger. Status: proposed.
 
+- [Filter explorer internal decomposition](./items/filter-explorer-internal-decomposition.md)
+  Split the shared filter explorer into clearer internal owners so controller/runtime, inspect compilation, and draft serialization logic do not keep accumulating in the same hotspot modules. Status: proposed.
+
 - [Structured query summary model](./items/structured-query-summary-model.md)
   Preserve and eventually implement a first-class structured-query document model so future search-editor and document-style rendering work does not depend only on ad hoc workspace rows. Status: proposed.
 
@@ -62,6 +65,9 @@ This is the tracked backlog for durable future work.
 
 - [Category relevance script](./items/category-relevance-script.md)
   Add tooling to help tagging work happen in coherent batches without forcing one agent or reviewer to keep an entire family/tag space in active memory. Status: proposed.
+
+- [Search filter explorer API simplification](./items/search-filter-explorer-api-simplification.md)
+  Simplify the shared TUI search/filter-explorer service surface so callers use one intentional draft-preparation seam instead of overlapping plain-draft and prepared-draft helper pairs. Status: proposed.
 
 - [Derived tag manifest tooling metadata](./items/derived-tag-manifest-tooling-metadata.md)
   Preserve the idea that the shared derived-tag manifest could optionally carry current owner-file metadata for tooling, while leaving open whether that is actually valuable once the future concept/projection model settles. Status: proposed.
