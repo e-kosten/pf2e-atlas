@@ -27,7 +27,7 @@ type NormalizedTerminalLine = {
   segments: DerivedTagTerminalSegment[];
   tone: DerivedTagTerminalTone;
   indent: number;
-  hyperlink?: string;
+  href?: string;
   plainTextFallback?: string;
   noWrap: boolean;
 };
@@ -42,7 +42,7 @@ function normalizeLine(line: DerivedTagTerminalLine): NormalizedTerminalLine {
     segments: line.segments ?? [],
     tone: line.tone ?? "default",
     indent: line.indent ?? 0,
-    hyperlink: line.hyperlink,
+    href: line.href,
     plainTextFallback: line.plainTextFallback,
     noWrap: line.noWrap ?? false,
   };
@@ -90,7 +90,7 @@ function truncateSegments(segments: DerivedTagTerminalSegment[], width: number):
     truncated.push({
       text: truncateText(segment.text, remainingWidth),
       tone: segment.tone,
-      hyperlink: segment.hyperlink,
+      href: segment.href,
     });
     break;
   }
@@ -154,10 +154,10 @@ function wrapPlainText(text: string, width: number): string[] {
 
 function buildHyperlinkFallbackText(
   text: string,
-  hyperlink: string,
+  href: string,
   plainTextFallback?: string,
 ): string {
-  return plainTextFallback ?? `${text}: ${hyperlink}`;
+  return plainTextFallback ?? `${text}: ${href}`;
 }
 
 function buildLineSegments(
@@ -165,10 +165,10 @@ function buildLineSegments(
   hyperlinkSupport: "supported" | "unsupported",
 ): DerivedTagTerminalSegment[] {
   if (line.segments.length === 0) {
-    if (line.hyperlink && hyperlinkSupport === "unsupported") {
+    if (line.href && hyperlinkSupport === "unsupported") {
       return [
         {
-          text: buildHyperlinkFallbackText(line.text, line.hyperlink, line.plainTextFallback),
+          text: buildHyperlinkFallbackText(line.text, line.href, line.plainTextFallback),
           tone: line.tone,
         },
       ];
@@ -178,16 +178,16 @@ function buildLineSegments(
       {
         text: line.text,
         tone: line.tone,
-        hyperlink: line.hyperlink || undefined,
+        href: line.href || undefined,
       },
     ];
   }
 
   return line.segments.map((segment) => {
-    const hyperlink = segment.hyperlink ?? line.hyperlink ?? undefined;
-    if (hyperlink && hyperlinkSupport === "unsupported") {
+    const href = segment.href ?? line.href ?? undefined;
+    if (href && hyperlinkSupport === "unsupported") {
       return {
-        text: buildHyperlinkFallbackText(segment.text, hyperlink),
+        text: buildHyperlinkFallbackText(segment.text, href),
         tone: segment.tone ?? line.tone,
       };
     }
@@ -195,7 +195,7 @@ function buildLineSegments(
     return {
       text: segment.text,
       tone: segment.tone ?? line.tone,
-      hyperlink,
+      href,
     };
   });
 }
@@ -246,17 +246,17 @@ function buildRenderedTerminalLines(
     }
 
     const visibleText =
-      line.hyperlink && hyperlinkSupport === "unsupported"
-        ? buildHyperlinkFallbackText(line.text, line.hyperlink, line.plainTextFallback)
+      line.href && hyperlinkSupport === "unsupported"
+        ? buildHyperlinkFallbackText(line.text, line.href, line.plainTextFallback)
         : line.text;
     const wrapped = line.noWrap ? [truncateText(visibleText, usableWidth)] : wrapPlainText(visibleText, usableWidth);
 
     for (const segment of wrapped) {
-      if (line.hyperlink) {
-        const hyperlink = hyperlinkSupport === "supported" ? line.hyperlink : undefined;
+      if (line.href) {
+        const href = hyperlinkSupport === "supported" ? line.href : undefined;
         renderedLines.push(
           buildRenderedLineFromSegments(
-            buildIndentedSegments([{ text: segment, tone: line.tone, hyperlink }], indent, "default"),
+            buildIndentedSegments([{ text: segment, tone: line.tone, href }], indent, "default"),
             line.tone,
           ),
         );
@@ -316,23 +316,23 @@ const OSC_8_CLOSE = `${OSC_8_OPEN}${OSC_8_TERMINATOR}`;
 
 function formatHyperlinkText(
   text: string,
-  hyperlink: string | undefined,
+  href: string | undefined,
   hyperlinkSupport: "supported" | "unsupported",
 ): string {
-  if (!hyperlink || hyperlinkSupport !== "supported" || text.length === 0) {
+  if (!href || hyperlinkSupport !== "supported" || text.length === 0) {
     return text;
   }
 
-  return `${OSC_8_OPEN}${hyperlink}${OSC_8_TERMINATOR}${text}${OSC_8_CLOSE}`;
+  return `${OSC_8_OPEN}${href}${OSC_8_TERMINATOR}${text}${OSC_8_CLOSE}`;
 }
 
 function terminalSegmentProps(
   tone: DerivedTagTerminalTone,
-  hyperlink: string | undefined,
+  href: string | undefined,
   hyperlinkSupport: "supported" | "unsupported",
 ): React.ComponentProps<typeof Text> {
   const toneProps = terminalToneProps(tone);
-  if (!hyperlink || hyperlinkSupport !== "supported") {
+  if (!href || hyperlinkSupport !== "supported") {
     return toneProps;
   }
 
@@ -352,9 +352,9 @@ function renderTerminalLineContent(
     return line.segments.map((segment, segmentIndex) => (
       <Text
         key={segmentIndex}
-        {...terminalSegmentProps(segment.tone ?? line.tone, segment.hyperlink, hyperlinkSupport)}
+        {...terminalSegmentProps(segment.tone ?? line.tone, segment.href, hyperlinkSupport)}
       >
-        {formatHyperlinkText(segment.text, segment.hyperlink, hyperlinkSupport)}
+        {formatHyperlinkText(segment.text, segment.href, hyperlinkSupport)}
       </Text>
     ));
   }

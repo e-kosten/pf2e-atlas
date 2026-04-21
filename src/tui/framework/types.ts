@@ -17,7 +17,7 @@ export type DerivedTagTerminalTone =
 export type DerivedTagTerminalSegment = {
   text: string;
   tone?: DerivedTagTerminalTone;
-  hyperlink?: string;
+  href?: string;
 };
 
 export type DerivedTagTerminalLine = {
@@ -25,7 +25,7 @@ export type DerivedTagTerminalLine = {
   segments?: DerivedTagTerminalSegment[];
   tone?: DerivedTagTerminalTone;
   indent?: number;
-  hyperlink?: string;
+  href?: string;
   plainTextFallback?: string;
   noWrap?: boolean;
 };

@@ -10,7 +10,7 @@ describe("terminal hyperlink rendering helpers", () => {
           text: "",
           noWrap: true,
           segments: [
-            { text: "Alpha", hyperlink: "https://example.com/alpha" },
+            { text: "Alpha", href: "https://example.com/alpha" },
             { text: "Beta", tone: "accent" },
           ],
         },
@@ -23,15 +23,15 @@ describe("terminal hyperlink rendering helpers", () => {
       text: "AlphaBe",
       tone: "default",
       segments: [
-        { text: "Alpha", tone: "default", hyperlink: "https://example.com/alpha" },
-        { text: "Be", tone: "accent", hyperlink: undefined },
+        { text: "Alpha", tone: "default", href: "https://example.com/alpha" },
+        { text: "Be", tone: "accent", href: undefined },
       ],
     });
   });
 
   it("preserves line hyperlinks through rendered-line slicing", () => {
     const sliced = sliceRenderedTerminalLines(
-      [{ text: "Alpha Beta Gamma", hyperlink: "https://example.com/browse" }],
+      [{ text: "Alpha Beta Gamma", href: "https://example.com/browse" }],
       5,
       0,
       3,
@@ -41,19 +41,19 @@ describe("terminal hyperlink rendering helpers", () => {
     expect(sliced).toEqual([
       {
         text: "Alpha",
-        segments: [{ text: "Alpha", tone: "default", hyperlink: "https://example.com/browse" }],
+        segments: [{ text: "Alpha", tone: "default", href: "https://example.com/browse" }],
         tone: "default",
         noWrap: true,
       },
       {
         text: "Beta",
-        segments: [{ text: "Beta", tone: "default", hyperlink: "https://example.com/browse" }],
+        segments: [{ text: "Beta", tone: "default", href: "https://example.com/browse" }],
         tone: "default",
         noWrap: true,
       },
       {
         text: "Gamma",
-        segments: [{ text: "Gamma", tone: "default", hyperlink: "https://example.com/browse" }],
+        segments: [{ text: "Gamma", tone: "default", href: "https://example.com/browse" }],
         tone: "default",
         noWrap: true,
       },
@@ -64,7 +64,7 @@ describe("terminal hyperlink rendering helpers", () => {
     const lines = [
       {
         text: "AoN",
-        hyperlink: "https://example.com/browse",
+        href: "https://example.com/browse",
         plainTextFallback: "AoN: https://example.com/browse",
       },
     ];
@@ -77,7 +77,7 @@ describe("terminal hyperlink rendering helpers", () => {
     expect(row).toEqual({
       text: "AoN: https://example.com/browse",
       tone: "default",
-      segments: [{ text: "AoN: https://example.com/browse", tone: "default", hyperlink: undefined }],
+      segments: [{ text: "AoN: https://example.com/browse", tone: "default", href: undefined }],
     });
   });
 });

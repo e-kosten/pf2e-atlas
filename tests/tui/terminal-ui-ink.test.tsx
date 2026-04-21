@@ -474,13 +474,13 @@ function HyperlinkHarness(): React.JSX.Element {
       title="Harness"
       body={[
         { text: `support=${terminal.capabilities.hyperlinkSupport}` },
-        { text: "Archives of Nethys", hyperlink: "https://2e.aonprd.com/" },
+        { text: "Archives of Nethys", href: "https://2e.aonprd.com/" },
         {
           text: "",
           noWrap: true,
           segments: [
             { text: "Visit ", tone: "default" },
-            { text: "AoN", tone: "accent", hyperlink: "https://2e.aonprd.com/" },
+            { text: "AoN", tone: "accent", href: "https://2e.aonprd.com/" },
           ],
         },
       ]}
