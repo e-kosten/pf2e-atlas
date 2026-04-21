@@ -4,16 +4,15 @@ import {
   formatTerminalInteractionFooter,
   type TerminalInteractionAction,
 } from "../interaction-bindings.js";
-import {
-  appendRouteTransitionFooterLine,
-} from "../route-transition-status.js";
 import type {
   DerivedTagTerminalCommandOption,
   DerivedTagTerminalLine,
-  DerivedTagTerminalPaneScreenProps,
   DerivedTagTerminalSegment,
-  DerivedTagTerminalTwoPaneScreenProps,
 } from "../framework/types.js";
+import {
+  buildTerminalListDetailScreenModel,
+  type TerminalListDetailScreenModel,
+} from "../list-detail-presentation.js";
 import { buildFilterExplorerListRows } from "./browser.js";
 import {
   getFilterExplorerScalarClause,
@@ -532,74 +531,48 @@ function buildInspectStatus(controller: FilterExplorerControllerContext): string
 
 export function buildFilterExplorerScreenModel(
   controller: FilterExplorerControllerContext,
-): { kind: "detail-only"; props: DerivedTagTerminalPaneScreenProps } | { kind: "two-pane"; props: DerivedTagTerminalTwoPaneScreenProps } {
+): TerminalListDetailScreenModel {
   const interactionActions = getFilterExplorerInteractionActions(controller.mode, controller.browser);
   const leftLines = buildFilterExplorerListLines(controller);
   const statusSuffix =
     controller.mode.kind === "compose" ? buildComposeStatus(controller) : buildInspectStatus(controller);
 
-  if (controller.browser.layoutMode === "detail-only") {
-    return {
-      kind: "detail-only",
-      props: {
-        title: controller.screenTitle,
-        subtitle: `${controller.browser.breadcrumb}${controller.browser.searchIndicator}`,
-        pane: {
-          title: `[FOCUSED DETAIL] ${controller.browser.detailTitle}`,
-          lines: controller.browser.visibleDetailLines,
-          active: true,
-        },
-        footer: appendRouteTransitionFooterLine([
-          {
-            text: controller.browser.state.searchMode
-              ? TERMINAL_LIVE_FILTER_FOOTER
-              : formatTerminalInteractionFooter(interactionActions),
-            tone: "dim",
-          },
-          {
-            text: controller.browser.state.searchMode
-              ? `Search /${controller.browser.state.searchInput}`
-              : `detail focus | focused detail view | ${statusSuffix} | Detail scroll ${controller.browser.effectiveState.detailScroll}/${controller.browser.maxDetailScroll}`,
-            tone: "accent",
-          },
-        ], controller.transitionStatus),
-      },
-    };
-  }
-
-  return {
-    kind: "two-pane",
-    props: {
-      title: controller.screenTitle,
-      subtitle: `${controller.browser.breadcrumb}${controller.browser.searchIndicator}`,
-      left: {
-        title: controller.browser.state.activePane === "list" ? "[LIST] Explorer Entries" : "Explorer Entries",
-        lines: leftLines,
-        active: controller.browser.state.activePane === "list",
-      },
-      right: {
-        title:
-          controller.browser.state.activePane === "detail"
-            ? `[DETAIL] ${controller.browser.detailTitle}`
-            : controller.browser.detailTitle,
-        lines: controller.browser.visibleDetailLines,
-        active: controller.browser.state.activePane === "detail",
-      },
-      footer: appendRouteTransitionFooterLine([
-        {
-          text: controller.browser.state.searchMode
-            ? TERMINAL_LIVE_FILTER_FOOTER
-            : formatTerminalInteractionFooter(interactionActions),
-          tone: "dim",
-        },
-        {
-          text: controller.browser.state.searchMode
-            ? `Search /${controller.browser.state.searchInput}`
-            : `${controller.browser.state.activePane} focus | ${controller.browser.layoutMode} layout | ${statusSuffix} | Detail scroll ${controller.browser.effectiveState.detailScroll}/${controller.browser.maxDetailScroll}`,
-          tone: "accent",
-        },
-      ], controller.transitionStatus),
-      leftWidth: 46,
+  return buildTerminalListDetailScreenModel({
+    title: controller.screenTitle,
+    subtitle: `${controller.browser.breadcrumb}${controller.browser.searchIndicator}`,
+    activePane: controller.browser.state.activePane,
+    layoutMode: controller.browser.layoutMode,
+    leftWidth: 46,
+    leftPane: {
+      title: controller.browser.state.activePane === "list" ? "[LIST] Explorer Entries" : "Explorer Entries",
+      lines: leftLines,
     },
-  };
+    rightPane: {
+      title:
+        controller.browser.state.activePane === "detail"
+          ? `[DETAIL] ${controller.browser.detailTitle}`
+          : controller.browser.detailTitle,
+      detailOnlyTitle: `[FOCUSED DETAIL] ${controller.browser.detailTitle}`,
+    },
+    metrics: {
+      visibleDetailLines: controller.browser.visibleDetailLines,
+    },
+    footer: [
+      {
+        text: controller.browser.state.searchMode
+          ? TERMINAL_LIVE_FILTER_FOOTER
+          : formatTerminalInteractionFooter(interactionActions),
+        tone: "dim",
+      },
+      {
+        text: controller.browser.state.searchMode
+          ? `Search /${controller.browser.state.searchInput}`
+          : controller.browser.layoutMode === "detail-only"
+            ? `detail focus | focused detail view | ${statusSuffix} | Detail scroll ${controller.browser.effectiveState.detailScroll}/${controller.browser.maxDetailScroll}`
+            : `${controller.browser.state.activePane} focus | ${controller.browser.layoutMode} layout | ${statusSuffix} | Detail scroll ${controller.browser.effectiveState.detailScroll}/${controller.browser.maxDetailScroll}`,
+        tone: "accent",
+      },
+    ],
+    transitionStatus: controller.transitionStatus,
+  });
 }

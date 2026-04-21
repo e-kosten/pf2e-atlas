@@ -1,11 +1,9 @@
 import React from "react";
 
 import {
-  getRenderedTerminalLineCount,
-  getTerminalPaneBodyHeight,
-  getTerminalTwoPaneDetailWidth,
-  sliceRenderedTerminalLines,
-} from "../framework/rendering.js";
+  measureTerminalListDetailPresentation,
+  useTerminalListDetailInteractionRouter,
+} from "../list-detail-presentation.js";
 import type { DerivedTagTerminalListNavigationAction } from "../framework/input.js";
 import { useDerivedTagTerminalApp, useDerivedTagTerminalSize } from "../framework/context.js";
 import type { DerivedTagTerminalInputEvent } from "../framework/types.js";
@@ -14,16 +12,6 @@ import {
   type TerminalInteractionAction,
   type TerminalTextEntryIntent,
 } from "../interaction-bindings.js";
-import {
-  createTerminalDetailInteractionContext,
-  createTerminalListInteractionContext,
-  createTerminalTextEntryInteractionContext,
-  useTerminalInteractionContextRouter,
-} from "../interaction-context-router.js";
-import {
-  ROUTE_TRANSITION_STATUS_KIND,
-  getRouteTransitionFooterLineCount,
-} from "../route-transition-status.js";
 import {
   getDerivedTagTerminalTwoPaneLayoutMode,
   reduceDerivedTagTerminalTwoPaneState,
@@ -84,7 +72,6 @@ import {
   applyComposeCycleSelection,
   handleFilterExplorerAction,
   openComposeScalarEditor,
-  shouldExitAtRootDepth,
 } from "./workflow-actions.js";
 
 type FilterExplorerAction =
@@ -613,18 +600,18 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
   const detailTitle = composeMode
     ? composeMode.detailTitle ?? "Detail"
     : getFilterExplorerDetailTitle(options.model, normalizedBrowserState);
-  const bodyHeight = Math.max(
-    1,
-    getTerminalPaneBodyHeight(size.height, {
-      hasSubtitle: true,
-      footerLineCount: 2 + getRouteTransitionFooterLineCount(options.transitionStatus),
-    }),
-  );
-  const detailWidth = getTerminalTwoPaneDetailWidth(size.width, layoutMode, 46);
-  const renderedDetailLineCount = getRenderedTerminalLineCount(detailLines, detailWidth, {
+  const presentationMetrics = measureTerminalListDetailPresentation({
+    terminalWidth: size.width,
+    terminalHeight: size.height,
+    footerLineCount: 2,
+    transitionStatus: options.transitionStatus,
+    detailLines,
+    detailScroll: normalizedBrowserState.detailScroll,
+    layoutMode,
+    leftWidth: 46,
     hyperlinkSupport: terminal.capabilities.hyperlinkSupport,
   });
-  const maxDetailScroll = Math.max(0, renderedDetailLineCount - bodyHeight);
+  const maxDetailScroll = presentationMetrics.maxDetailScroll;
   const effectiveState =
     normalizedBrowserState.detailScroll > maxDetailScroll
       ? { ...normalizedBrowserState, detailScroll: maxDetailScroll }
@@ -643,18 +630,16 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
     currentNode: selection.currentNode,
     currentNodeHasChildren,
     breadcrumb: buildFilterExplorerBreadcrumb(options.model, selection),
-    bodyHeight,
-    detailWidth,
+    bodyHeight: presentationMetrics.bodyHeight,
+    detailWidth: presentationMetrics.detailWidth,
     detailLines,
-    visibleDetailLines: sliceRenderedTerminalLines(detailLines, detailWidth, effectiveState.detailScroll, bodyHeight, {
-      hyperlinkSupport: terminal.capabilities.hyperlinkSupport,
-    }),
+    visibleDetailLines: presentationMetrics.visibleDetailLines,
     detailTitle,
     layoutMode,
     maxDetailScroll,
-    detailJumpSize: Math.max(1, Math.floor(bodyHeight / 2)),
-    detailPageSize: Math.max(1, bodyHeight - 1),
-    selectionJumpSize: Math.max(1, Math.floor(bodyHeight / 2)),
+    detailJumpSize: presentationMetrics.detailJumpSize,
+    detailPageSize: presentationMetrics.pageSize,
+    selectionJumpSize: presentationMetrics.selectionJumpSize,
     searchIndicator,
   };
 
@@ -872,34 +857,32 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
     [adapters, browserContext, dispatch, draft, options, updateDraft],
   );
 
-  useTerminalInteractionContextRouter({
-    contexts: [
-      createTerminalListInteractionContext("list", {
-        interactionActions,
-        pageSize: browserContext.detailPageSize,
-        jumpSize: browserContext.selectionJumpSize,
-        includeConfirmKeys: true,
-        includeHorizontalConfirmKeys: true,
-      }),
-      createTerminalDetailInteractionContext("detail", {
-        interactionActions,
-        pageSize: browserContext.detailPageSize,
-        jumpSize: browserContext.detailJumpSize,
-        includeCancelKeys: true,
-        includeHorizontalCancelKeys: true,
-      }),
-      createTerminalTextEntryInteractionContext("textEntry", [{ id: "cancel" }]),
-    ],
+  useTerminalListDetailInteractionRouter({
+    list: {
+      interactionActions,
+      pageSize: browserContext.detailPageSize,
+      jumpSize: browserContext.selectionJumpSize,
+      includeConfirmKeys: true,
+      includeHorizontalConfirmKeys: true,
+    },
+    detail: {
+      interactionActions,
+      pageSize: browserContext.detailPageSize,
+      jumpSize: browserContext.detailJumpSize,
+      includeCancelKeys: true,
+      includeHorizontalCancelKeys: true,
+    },
+    textEntry: {
+      interactionActions: [{ id: "cancel" }],
+    },
+    transitionStatus: options.transitionStatus,
     onRoute: (routes) => {
-      if (options.transitionStatus?.kind === ROUTE_TRANSITION_STATUS_KIND.PENDING) {
-        return;
-      }
       handleRoute({
-        event: routes.textEntry.event,
+        event: routes.textEntry?.event ?? routes.list.event,
         interactionAction:
           browserContext.state.activePane === "detail" ? routes.detail.interactionAction : routes.list.interactionAction,
-        searchModeAction: routes.textEntry.interactionAction?.id === "cancel" ? { id: "cancel" } : undefined,
-        textEntryIntent: routes.textEntry.textEntryIntent,
+        searchModeAction: routes.textEntry?.interactionAction?.id === "cancel" ? { id: "cancel" } : undefined,
+        textEntryIntent: routes.textEntry?.textEntryIntent,
         listNavigationAction: routes.list.navigationAction,
         detailNavigationAction: routes.detail.navigationAction,
       });

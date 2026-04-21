@@ -131,6 +131,12 @@ Do not:
 - import raw editorial internals when `app-services` should compose them
 - bypass shared interaction helpers by decoding terminal events inline
 
+If the new screen is fundamentally a list/detail surface with shared pane sizing, detail slicing, and router wiring:
+
+- start from `src/tui/list-detail-presentation.ts` instead of rebuilding those mechanics in the feature controller
+- keep feature-specific actions, content builders, and async workflows local to the feature
+- do not force staged-editor or workflow-specific domain logic into the shared presentation layer just to reuse it
+
 For tag workbench changes in particular, route through `src/tui/app-services.ts` and the split editorial owners:
 
 - `editorial/state/` for mutable authored-session state

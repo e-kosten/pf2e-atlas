@@ -22,11 +22,8 @@ import {
   useTerminalInteractionContextAdapters,
 } from "../../../tui/interaction-context-adapters.js";
 import {
-  createTerminalActionTargetInteractionContext,
-  createTerminalDetailInteractionContext,
-  createTerminalListInteractionContext,
-  useTerminalInteractionContextRouter,
-} from "../../../tui/interaction-context-router.js";
+  useTerminalListDetailInteractionRouter,
+} from "../../../tui/list-detail-presentation.js";
 import { getDerivedTagTerminalTwoPaneLayoutMode } from "../../../tui/two-pane-state.js";
 import type { DerivedTagReviewSession } from "../types.js";
 
@@ -136,26 +133,27 @@ export function useDerivedTagReviewScreenController({
     [completeReview, handleImport, screenModel.items, state.imported, state.session],
   );
 
-  useTerminalInteractionContextRouter({
+  useTerminalListDetailInteractionRouter({
     enabled: !busy,
-    contexts: [
-      createTerminalListInteractionContext("list", {
-        interactionActions: screenModel.paneInteractionActions,
-        pageSize: screenModel.pageSize,
-        jumpSize: screenModel.selectionJumpSize,
-      }),
-      createTerminalDetailInteractionContext("detail", {
-        interactionActions: screenModel.paneInteractionActions,
-        pageSize: screenModel.pageSize,
-        jumpSize: screenModel.detailJumpSize,
-      }),
-      createTerminalActionTargetInteractionContext("actionTarget", {
-        interactionActions: [...screenModel.actionTargetInteractionActions, { id: "help" }],
-        state,
-        orientation: "horizontal",
-      }),
-    ],
+    list: {
+      interactionActions: screenModel.paneInteractionActions,
+      pageSize: screenModel.pageSize,
+      jumpSize: screenModel.selectionJumpSize,
+    },
+    detail: {
+      interactionActions: screenModel.paneInteractionActions,
+      pageSize: screenModel.pageSize,
+      jumpSize: screenModel.detailJumpSize,
+    },
+    actionTarget: {
+      interactionActions: [...screenModel.actionTargetInteractionActions, { id: "help" }],
+      state,
+      orientation: "horizontal",
+    },
     onRoute: ({ actionTarget, detail, list }) => {
+      if (!actionTarget) {
+        return;
+      }
       if (actionTarget.actionTargetIntent?.kind === "toggle_target") {
         dispatch({ type: "toggle_target" });
         return;

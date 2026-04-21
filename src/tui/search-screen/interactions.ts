@@ -2,10 +2,8 @@ import type { TerminalInteractionAction, TerminalInteractionCommand } from "../i
 import { buildTerminalInteractionHelpLines, formatTerminalInteractionFooter } from "../interaction-bindings.js";
 import type { DerivedTagTerminalLine } from "../framework/types.js";
 import {
-  createTerminalDetailInteractionContext,
-  createTerminalListInteractionContext,
-  useTerminalInteractionContextRouter,
-} from "../interaction-context-router.js";
+  useTerminalListDetailInteractionRouter,
+} from "../list-detail-presentation.js";
 import type { SearchScreenState } from "./state.js";
 import type { SearchScreenOrigin } from "./workflow-types.js";
 import { formatResultPosition, formatSort } from "./state.js";
@@ -277,30 +275,25 @@ export function useSearchScreenInteractionRouter(options: {
   hasSelectedResult: boolean;
   onIntent: (intent: SearchScreenIntent) => void;
 }): void {
-  const editorContext = createTerminalListInteractionContext("editor", {
-    interactionActions: getSearchEditorInteractionActions(options.origin),
-    pageSize: options.pageSize,
-    jumpSize: options.selectionJumpSize,
-    includeConfirmKeys: true,
-  });
-  const resultListContext = createTerminalListInteractionContext("resultList", {
-    interactionActions: getSearchResultListInteractionActions(options.origin),
-    pageSize: options.pageSize,
-    jumpSize: options.selectionJumpSize,
-    includeConfirmKeys: true,
-  });
-  const resultDetailContext = createTerminalDetailInteractionContext("resultDetail", {
-    interactionActions: getSearchResultDetailInteractionActions(options.origin),
-    pageSize: options.pageSize,
-    jumpSize: options.selectionJumpSize,
-  });
-
-  useTerminalInteractionContextRouter({
+  useTerminalListDetailInteractionRouter({
     enabled: options.enabled,
-    contexts: [editorContext, resultListContext, resultDetailContext],
-    onRoute: ({ editor, resultDetail, resultList }) => {
+    list: {
+      interactionActions:
+        options.state.layout === "editor"
+          ? getSearchEditorInteractionActions(options.origin)
+          : getSearchResultListInteractionActions(options.origin),
+      pageSize: options.pageSize,
+      jumpSize: options.selectionJumpSize,
+      includeConfirmKeys: true,
+    },
+    detail: {
+      interactionActions: getSearchResultDetailInteractionActions(options.origin),
+      pageSize: options.pageSize,
+      jumpSize: options.selectionJumpSize,
+    },
+    onRoute: ({ detail, list }) => {
       const activeRoute =
-        options.state.layout === "editor" ? editor : options.state.activePane === "list" ? resultList : resultDetail;
+        options.state.layout === "editor" ? list : options.state.activePane === "list" ? list : detail;
 
       if (activeRoute.interactionAction?.id === "help") {
         options.onIntent({ type: "show_help" });
@@ -328,12 +321,12 @@ export function useSearchScreenInteractionRouter(options: {
           options.onIntent({ type: "back_to_app" });
           return;
         }
-        if (editor.navigationAction?.kind === "move") {
-          options.onIntent({ type: "move_workspace_selection", delta: editor.navigationAction.delta });
+        if (list.navigationAction?.kind === "move") {
+          options.onIntent({ type: "move_workspace_selection", delta: list.navigationAction.delta });
           return;
         }
-        if (editor.navigationAction?.kind === "boundary") {
-          options.onIntent({ type: "workspace_selection_boundary", boundary: editor.navigationAction.boundary });
+        if (list.navigationAction?.kind === "boundary") {
+          options.onIntent({ type: "workspace_selection_boundary", boundary: list.navigationAction.boundary });
           return;
         }
         if (activeRoute.interactionAction?.id === "edit") {
@@ -353,34 +346,34 @@ export function useSearchScreenInteractionRouter(options: {
       }
 
       if (options.state.activePane === "list") {
-        if (resultList.interactionAction?.id === "back") {
+        if (list.interactionAction?.id === "back") {
           options.onIntent({ type: "return_to_editor" });
           return;
         }
-        if (resultList.interactionAction?.id === "preview" && options.hasSelectedResult) {
+        if (list.interactionAction?.id === "preview" && options.hasSelectedResult) {
           options.onIntent({ type: "open_preview" });
           return;
         }
-        if (resultList.navigationAction?.kind === "move") {
-          options.onIntent({ type: "move_result_selection", delta: resultList.navigationAction.delta });
+        if (list.navigationAction?.kind === "move") {
+          options.onIntent({ type: "move_result_selection", delta: list.navigationAction.delta });
           return;
         }
-        if (resultList.navigationAction?.kind === "boundary") {
-          options.onIntent({ type: "result_selection_boundary", boundary: resultList.navigationAction.boundary });
+        if (list.navigationAction?.kind === "boundary") {
+          options.onIntent({ type: "result_selection_boundary", boundary: list.navigationAction.boundary });
         }
         return;
       }
 
-      if (resultDetail.interactionAction?.id === "back") {
+      if (detail.interactionAction?.id === "back") {
         options.onIntent({ type: "return_to_result_list" });
         return;
       }
-      if (resultDetail.navigationAction?.kind === "move") {
-        options.onIntent({ type: "move_detail", delta: resultDetail.navigationAction.delta });
+      if (detail.navigationAction?.kind === "move") {
+        options.onIntent({ type: "move_detail", delta: detail.navigationAction.delta });
         return;
       }
-      if (resultDetail.navigationAction?.kind === "boundary") {
-        options.onIntent({ type: "detail_boundary", boundary: resultDetail.navigationAction.boundary });
+      if (detail.navigationAction?.kind === "boundary") {
+        options.onIntent({ type: "detail_boundary", boundary: detail.navigationAction.boundary });
       }
     },
   });

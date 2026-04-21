@@ -1,6 +1,5 @@
 import React from "react";
 
-import type { OntologyNodeQuery } from "../../domain/ontology-types.js";
 import { usePf2eTerminalAppServices } from "../app-service-context.js";
 import { showTerminalReturnDialog, useTerminalInteractionContextAdapters } from "../interaction-context-adapters.js";
 import {
@@ -36,16 +35,10 @@ import {
 import { useSearchFilterExplorerWorkflow } from "./filter-explorer-workflow.js";
 import { useSearchSessionWorkflow } from "./session-workflow.js";
 import { useSearchWorkspaceActions } from "./workspace/workspace-actions.js";
-import type { SearchScreenOrigin } from "./workflow-types.js";
-import type { Pf2eTerminalSearchSession } from "../search/service.js";
-import type { RouteTransitionStatus } from "../route-transition-status.js";
-import { getRouteTransitionFooterLineCount } from "../route-transition-status.js";
 import {
-  getRenderedTerminalLineCount,
-  getTerminalPaneBodyHeight,
-  getTerminalTwoPaneDetailWidth,
-  sliceRenderedTerminalLines,
-} from "../framework/rendering.js";
+  buildTerminalListDetailScreenModel,
+  measureTerminalListDetailPresentation,
+} from "../list-detail-presentation.js";
 import { useDerivedTagTerminalApp, useDerivedTagTerminalSize } from "../framework/context.js";
 import type { DerivedTagTerminalTwoPaneScreenProps } from "../framework/types.js";
 import type { SearchScreenProps } from "./entry-props.js";
@@ -88,19 +81,23 @@ export function useSearchScreenController({
   );
   const queryRef = React.useRef(initialQueryState);
 
-  const bodyHeight = Math.max(
-    1,
-    getTerminalPaneBodyHeight(size.height, {
-      hasSubtitle: true,
-      footerLineCount: 2 + getRouteTransitionFooterLineCount(transitionStatus),
-    }),
-  );
   const {
     selectionJumpSize,
     pageSize,
     windowLimit: resultWindowLimit,
     preloadThreshold,
-  } = getSearchResultWindowMetrics(bodyHeight);
+  } = getSearchResultWindowMetrics(
+    measureTerminalListDetailPresentation({
+      terminalWidth: size.width,
+      terminalHeight: size.height,
+      footerLineCount: 2,
+      transitionStatus,
+      detailLines: [{ text: "" }],
+      detailScroll: 0,
+      layoutMode: "split",
+      leftWidth: SEARCH_LEFT_WIDTH,
+    }).bodyHeight,
+  );
 
   const applyQueryUpdate = React.useCallback(
     (
@@ -157,7 +154,6 @@ export function useSearchScreenController({
     );
   }, [origin, prompts, state, workspaceEntries]);
 
-  const detailWidth = getTerminalTwoPaneDetailWidth(size.width, "split", SEARCH_LEFT_WIDTH);
   const detailLines =
     state.layout === "results" && state.session
       ? selectedResult
@@ -166,11 +162,18 @@ export function useSearchScreenController({
       : selectedWorkspaceEntry
         ? buildWorkspaceEntryDetailLines(selectedWorkspaceEntry, state, countState)
         : buildQuerySummaryLines(state, countState);
-  const renderedDetailLineCount = getRenderedTerminalLineCount(detailLines, detailWidth, {
+  const presentationMetrics = measureTerminalListDetailPresentation({
+    terminalWidth: size.width,
+    terminalHeight: size.height,
+    footerLineCount: 2,
+    transitionStatus,
+    detailLines,
+    detailScroll: state.detailScroll,
+    layoutMode: "split",
+    leftWidth: SEARCH_LEFT_WIDTH,
     hyperlinkSupport: terminal.capabilities.hyperlinkSupport,
   });
-  const maxDetailScroll = Math.max(0, renderedDetailLineCount - bodyHeight);
-  const detailScroll = Math.min(state.detailScroll, maxDetailScroll);
+  const maxDetailScroll = presentationMetrics.maxDetailScroll;
 
   const { filterExplorerSession, openFilterExplorer } = useSearchFilterExplorerWorkflow({
     query: state.query,
@@ -211,51 +214,55 @@ export function useSearchScreenController({
     onIntent: handleIntent,
   });
 
+  const screenModel = buildTerminalListDetailScreenModel({
+    title: "Browse/Search",
+    subtitle: buildSearchSubtitle(state, countState),
+    activePane: state.layout === "results" ? state.activePane : "list",
+    layoutMode: "split",
+    leftWidth: SEARCH_LEFT_WIDTH,
+    leftPane: {
+      title:
+        state.layout === "editor"
+          ? "[EDITOR] Query"
+          : state.activePane === "list"
+            ? `[RESULTS] ${state.session ? `${formatResultPosition(resultSelectedIndex, state.session.total)} | Buf ${formatCount(state.session.loadedCount)} | ${formatSort(state.session.sort)}` : "No applied session"}`
+            : `Results | ${state.session ? `${formatResultPosition(resultSelectedIndex, state.session.total)} | ${formatSort(state.session.sort)}` : "No applied session"}`,
+      lines:
+        state.layout === "editor"
+          ? buildWorkspaceLines(workspaceEntries, workspaceSelectedIndex, presentationMetrics.bodyHeight)
+          : buildResultLines(state.session, resultSelectedIndex, presentationMetrics.bodyHeight, loadingMore),
+    },
+    rightPane: {
+      title:
+        state.layout === "results"
+          ? state.activePane === "detail"
+            ? `[PREVIEW] ${selectedResult?.name ?? "Results"}`
+            : `Preview | ${selectedResult?.name ?? "Results"}`
+          : "Query Status",
+    },
+    metrics: presentationMetrics,
+    footer: [
+      {
+        text: buildSearchFooterText(state, loadingMore, origin),
+        tone: "dim",
+      },
+      {
+        text:
+          state.layout === "results" && state.session
+            ? `${formatQueryStatus(state)} | ${formatResultPosition(resultSelectedIndex, state.session.total)} | Buf ${formatCount(state.session.loadedCount)} | Win ${getSessionBufferRange(state.session)}`
+            : `${formatQueryStatus(state)} | ${formatCountSummary(countState, state.query)} | Query Editor`,
+        tone: "accent",
+      },
+    ],
+    transitionStatus,
+  });
+  if (screenModel.kind !== "two-pane") {
+    throw new Error("Browse/search screen must render as a two-pane presentation.");
+  }
+
   return {
     structuredEditorSession,
     filterExplorerSession,
-    screen: {
-      title: "Browse/Search",
-      subtitle: buildSearchSubtitle(state, countState),
-      left: {
-        title:
-          state.layout === "editor"
-            ? "[EDITOR] Query"
-            : state.activePane === "list"
-              ? `[RESULTS] ${state.session ? `${formatResultPosition(resultSelectedIndex, state.session.total)} | Buf ${formatCount(state.session.loadedCount)} | ${formatSort(state.session.sort)}` : "No applied session"}`
-              : `Results | ${state.session ? `${formatResultPosition(resultSelectedIndex, state.session.total)} | ${formatSort(state.session.sort)}` : "No applied session"}`,
-        lines:
-          state.layout === "editor"
-            ? buildWorkspaceLines(workspaceEntries, workspaceSelectedIndex, bodyHeight)
-            : buildResultLines(state.session, resultSelectedIndex, bodyHeight, loadingMore),
-        active: state.layout === "results" ? state.activePane === "list" : true,
-      },
-      right: {
-        title:
-          state.layout === "results"
-            ? state.activePane === "detail"
-              ? `[PREVIEW] ${selectedResult?.name ?? "Results"}`
-              : `Preview | ${selectedResult?.name ?? "Results"}`
-            : "Query Status",
-        lines: sliceRenderedTerminalLines(detailLines, detailWidth, detailScroll, bodyHeight, {
-          hyperlinkSupport: terminal.capabilities.hyperlinkSupport,
-        }),
-        active: state.layout === "results" && state.activePane === "detail",
-      },
-      footer: [
-        {
-          text: buildSearchFooterText(state, loadingMore, origin),
-          tone: "dim",
-        },
-        {
-          text:
-            state.layout === "results" && state.session
-              ? `${formatQueryStatus(state)} | ${formatResultPosition(resultSelectedIndex, state.session.total)} | Buf ${formatCount(state.session.loadedCount)} | Win ${getSessionBufferRange(state.session)}`
-              : `${formatQueryStatus(state)} | ${formatCountSummary(countState, state.query)} | Query Editor`,
-          tone: "accent",
-        },
-      ],
-      leftWidth: SEARCH_LEFT_WIDTH,
-    },
+    screen: screenModel.props,
   };
 }

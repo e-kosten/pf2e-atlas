@@ -170,6 +170,8 @@ Those rules are not cosmetic. They encode a deliberate push toward reusable cont
 
 Menu-style TUI editors should also derive footer and help bindings from one shared action table. If a screen has to keep footer text, help copy, and active bindings aligned manually, that is a sign the interaction model still needs a helper owner.
 
+List/detail screens should also prefer the shared presentation owner in `src/tui/list-detail-presentation.ts` once they fit that shape. Repeating pane measurement, visible-detail slicing, and list/detail router setup in each feature controller should be treated as a temporary smell, not as the preferred steady-state.
+
 ### Domain Boundary
 
 `src/domain/` should remain:

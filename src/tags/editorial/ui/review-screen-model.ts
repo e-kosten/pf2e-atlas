@@ -12,23 +12,19 @@ import {
 } from "../../../tui/action-target.js";
 import {
   type DerivedTagTerminalLine,
-  type DerivedTagTerminalPaneScreenProps,
-  type DerivedTagTerminalTwoPaneLayoutMode,
-  type DerivedTagTerminalTwoPaneScreenProps,
-  getRenderedTerminalLineCount,
-  getTerminalPaneBodyHeight,
-  getTerminalTwoPaneDetailWidth,
-  sliceRenderedTerminalLines,
 } from "../../../tui/terminal-ui.js";
 import {
   buildTerminalInteractionHelpLines,
   formatTerminalInteractionFooter,
   type TerminalInteractionAction,
 } from "../../../tui/interaction-bindings.js";
+import {
+  buildTerminalListDetailScreenModel,
+  measureTerminalListDetailPresentation,
+  type TerminalListDetailScreenModel,
+} from "../../../tui/list-detail-presentation.js";
 
-export type DerivedTagReviewScreenModel =
-  | { kind: "detail-only"; props: DerivedTagTerminalPaneScreenProps }
-  | { kind: "two-pane"; props: DerivedTagTerminalTwoPaneScreenProps };
+export type DerivedTagReviewScreenModel = TerminalListDetailScreenModel;
 
 export type DerivedTagReviewViewModel = {
   actionTargetInteractionActions: TerminalInteractionAction[];
@@ -118,27 +114,6 @@ function buildSelectedReviewDetailLines(session: DerivedTagReviewSession): Deriv
   ];
 }
 
-function getReviewDetailPaneWidth(width: number, layoutMode: DerivedTagTerminalTwoPaneLayoutMode): number {
-  return getTerminalTwoPaneDetailWidth(width, layoutMode, REVIEW_LEFT_WIDTH);
-}
-
-function buildVisibleSelectedReviewDetailLines(
-  session: DerivedTagReviewSession,
-  layoutMode: DerivedTagTerminalTwoPaneLayoutMode,
-  detailScroll: number,
-  bodyHeight: number,
-  width: number,
-  hyperlinkSupport: "supported" | "unsupported",
-): DerivedTagTerminalLine[] {
-  return sliceRenderedTerminalLines(
-    buildSelectedReviewDetailLines(session),
-    getReviewDetailPaneWidth(width, layoutMode),
-    detailScroll,
-    bodyHeight,
-    { hyperlinkSupport },
-  );
-}
-
 function getReviewContentNavigationActions(
   activePane: DerivedTagReviewScreenState["activePane"],
 ): TerminalInteractionAction[] {
@@ -211,14 +186,6 @@ export function buildDerivedTagReviewViewModel({
   state: DerivedTagReviewScreenState;
 }): DerivedTagReviewViewModel {
   const layoutMode = state.layoutMode;
-  const footerLineCount = 3 + (persistError ? 1 : 0);
-  const bodyHeight = Math.max(
-    1,
-    getTerminalPaneBodyHeight(size.height, {
-      hasSubtitle: true,
-      footerLineCount,
-    }),
-  );
   const items = getDerivedTagReviewItems(state.session);
   const progress = summarizeDerivedTagReviewProgress(state.session);
   const progressText =
@@ -226,19 +193,19 @@ export function buildDerivedTagReviewViewModel({
       ? `${progress.resolvedActionableRecordCount}/${progress.actionableRecordCount} actionable records resolved`
       : `${progress.candidateRecordCount} candidate records | 0 actionable review items`;
   const detailLines = buildSelectedReviewDetailLines(state.session);
-  const selectionJumpSize = Math.max(1, Math.floor(bodyHeight / 2));
-  const detailJumpSize = Math.max(1, Math.floor(bodyHeight / 2));
-  const pageSize = Math.max(1, bodyHeight - 1);
-  const renderedDetailLineCount = getRenderedTerminalLineCount(
+  const presentationMetrics = measureTerminalListDetailPresentation({
+    terminalWidth: size.width,
+    terminalHeight: size.height,
+    footerLineCount: 3 + (persistError ? 1 : 0),
     detailLines,
-    getReviewDetailPaneWidth(size.width, layoutMode),
-    { hyperlinkSupport },
-  );
-  const maxDetailScroll = Math.max(0, renderedDetailLineCount - bodyHeight);
-  const detailScroll = Math.min(state.detailScroll, maxDetailScroll);
+    detailScroll: state.detailScroll,
+    layoutMode,
+    leftWidth: REVIEW_LEFT_WIDTH,
+    hyperlinkSupport,
+  });
   const subtitle = `Session ${state.session.manifest.id} | ${progressText} | ${items.length} visible item${items.length === 1 ? "" : "s"} | unresolved only ${state.session.reviewState.unresolvedOnly ? "on" : "off"}`;
   const actionBarLine = buildDerivedTagTerminalActionTargetLine(DERIVED_TAG_MIGRATION_REVIEW_ACTIONS, state);
-  const detailFooterText = `${state.activePane} focus | ${layoutMode} layout | Detail scroll ${detailScroll}/${maxDetailScroll}`;
+  const detailFooterText = `${state.activePane} focus | ${layoutMode} layout | Detail scroll ${presentationMetrics.detailScroll}/${presentationMetrics.maxDetailScroll}`;
   const paneInteractionActions = getReviewPaneInteractionActions(state.activePane);
   const actionTargetInteractionActions = getDerivedTagTerminalActionTargetInteractionActions(state, "horizontal");
   const footerInteractionActions: TerminalInteractionAction[] =
@@ -257,73 +224,31 @@ export function buildDerivedTagReviewViewModel({
     ...(persistError ? [{ text: `Persist error: ${persistError}`, tone: "danger" as const }] : []),
   ];
 
-  if (layoutMode === "detail-only") {
-    return {
-      actionTargetInteractionActions,
-      detailJumpSize,
-      helpLines,
-      items,
-      maxDetailScroll,
-      pageSize,
-      paneInteractionActions,
-      screen: {
-        kind: "detail-only",
-        props: {
-          title: "Derived-Tag Review",
-          subtitle: `${subtitle} | focused detail`,
-          pane: {
-            title: "[FOCUSED DETAIL] Selected Item",
-            lines: buildVisibleSelectedReviewDetailLines(
-              state.session,
-              layoutMode,
-              detailScroll,
-              bodyHeight,
-              size.width,
-              hyperlinkSupport,
-            ),
-            active: true,
-          },
-          footer: commonFooter,
-        },
-      },
-      selectionJumpSize,
-    };
-  }
-
   return {
     actionTargetInteractionActions,
-    detailJumpSize,
+    detailJumpSize: presentationMetrics.detailJumpSize,
     helpLines,
     items,
-    maxDetailScroll,
-    pageSize,
+    maxDetailScroll: presentationMetrics.maxDetailScroll,
+    pageSize: presentationMetrics.pageSize,
     paneInteractionActions,
-    screen: {
-      kind: "two-pane",
-      props: {
-        title: "Derived-Tag Review",
-        subtitle,
-        left: {
-          title: state.activePane === "list" ? "[QUEUE] Review Queue" : "Review Queue",
-          lines: buildReviewListLines(state.session, bodyHeight),
-          active: state.activePane === "list",
-        },
-        right: {
-          title: state.activePane === "detail" ? "[DETAIL] Selected Item" : "Selected Item",
-          lines: buildVisibleSelectedReviewDetailLines(
-            state.session,
-            layoutMode,
-            detailScroll,
-            bodyHeight,
-            size.width,
-            hyperlinkSupport,
-          ),
-          active: state.activePane === "detail",
-        },
-        footer: commonFooter,
-        leftWidth: REVIEW_LEFT_WIDTH,
+    screen: buildTerminalListDetailScreenModel({
+      title: "Derived-Tag Review",
+      subtitle: layoutMode === "detail-only" ? `${subtitle} | focused detail` : subtitle,
+      activePane: state.activePane,
+      layoutMode,
+      leftWidth: REVIEW_LEFT_WIDTH,
+      leftPane: {
+        title: state.activePane === "list" ? "[QUEUE] Review Queue" : "Review Queue",
+        lines: buildReviewListLines(state.session, presentationMetrics.bodyHeight),
       },
-    },
-    selectionJumpSize,
+      rightPane: {
+        title: state.activePane === "detail" ? "[DETAIL] Selected Item" : "Selected Item",
+        detailOnlyTitle: "[FOCUSED DETAIL] Selected Item",
+      },
+      metrics: presentationMetrics,
+      footer: commonFooter,
+    }),
+    selectionJumpSize: presentationMetrics.selectionJumpSize,
   };
 }

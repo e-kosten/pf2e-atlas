@@ -80,6 +80,7 @@ But the TUI keeps UI concerns local:
 - screen controllers own transient selection, pane focus, and detail-scroll state
 - workflows own prompt flows, modal handoffs, session cleanup, and live-count/result-window behavior
 - framework modules own Ink-specific rendering, modal hosting, terminal sizing, and raw input normalization
+- shared list/detail presentation helpers now own repeated pane measurement, screen-model assembly, and shared interaction-context setup for screens that follow the common list/detail pattern
 
 This split matters because it lets the TUI add richer interaction behavior without pushing terminal concepts like pane focus, command palettes, or staged editors down into `src/app/`, `src/data/`, or `src/search/`.
 
@@ -124,6 +125,24 @@ Route readiness is part of that same boundary:
 - routes that need data for their first meaningful frame must be prepared before commit
 - route screens should mount from render-ready payloads, not kick off route-entry bootstrap work after navigation
 - the currently mounted screen hosts the shared transition-status affordance while navigation prepares the next route
+
+### Shared List/Detail Presentation Layer
+
+`src/tui/list-detail-presentation.ts` sits above the lower-level interaction/router primitives and below feature controllers.
+
+It owns the repeated mechanics that several screens were previously rebuilding:
+
+- pane body measurement and detail-window slicing
+- shared assembly of `TerminalPaneScreen` / `TerminalTwoPaneScreen` props
+- common interaction-context setup for list, detail, optional text-entry, and optional action-target flows
+
+It does not own feature-domain workflows. Search, filter explorer, and review still decide:
+
+- which actions are available in each context
+- how list rows, detail lines, and status text are built
+- how shared presentation intents map to local reducer actions or async workflow steps
+
+Use this layer when a screen is fundamentally a list/detail surface with shared pane, footer/help, and routing mechanics. Do not push unrelated staged-editor or domain workflow logic into it just to make a screen fit the abstraction.
 
 ### Search Service Layer
 
@@ -256,6 +275,7 @@ The async work is pushed further down:
 - `filter-explorer/controller.ts` owns reducer-backed browser state and screen orchestration, while `filter-explorer/workflow-actions.ts` owns command/help/open/compose workflow behavior
 - `search-screen/interactions.ts` maps state into terminal actions and help/command models
 - `search-screen/query-field-builder-session.ts` owns the structured-editor menu bindings, footer copy, and help sections so staged-query screens do not hand-maintain separate action tables
+- `list-detail-presentation.ts` now owns the shared measurement and route-setup seam used by search result-reader, filter explorer, and review screens
 
 The search screen is intentionally render-only at route entry:
 
@@ -278,13 +298,15 @@ The expected interaction stack is:
 3. shared list/detail navigation helpers
 4. shared action-target behavior
 5. shared help and footer generation
-6. screen-specific workflow logic on top
+6. shared list/detail presentation assembly where the screen shape matches that contract
+7. screen-specific workflow logic on top
 
 That means:
 
 - vim keys and arrow keys should resolve to the same navigation behavior
 - feature screens should prefer shared interaction routers and helpers over branching on raw terminal events
 - footer and help text should be derived from the same action tables that actually execute on the screen
+- list/detail screens should prefer the shared presentation layer over open-coded pane measurement and route-setup glue once their workflow fits that shape
 
 ### Command Palette And Action Rail
 
@@ -331,4 +353,5 @@ Prompt and modal sizing should continue to flow through the shared layout planne
 - Route search behavior through `src/tui/search/service.ts` instead of letting screens call backend search APIs directly.
 - Treat ontology models from `src/app/ontology-service.ts` as shared readonly inputs; navigation state belongs in the TUI.
 - Prefer controllers and workflows for stateful interaction logic; keep screen components mostly declarative.
+- Prefer `src/tui/list-detail-presentation.ts` for reusable list/detail pane mechanics instead of rebuilding sizing, visible-detail slicing, and context wiring in each feature controller.
 - When a new TUI abstraction becomes the mandatory path, add or extend lint rules so the boundary is enforced rather than implied.

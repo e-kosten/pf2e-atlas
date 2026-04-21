@@ -1,0 +1,230 @@
+import {
+  getRenderedTerminalLineCount,
+  getTerminalPaneBodyHeight,
+  getTerminalTwoPaneDetailWidth,
+  sliceRenderedTerminalLines,
+} from "./framework/rendering.js";
+import type {
+  DerivedTagTerminalHyperlinkSupport,
+  DerivedTagTerminalLine,
+  DerivedTagTerminalPaneScreenProps,
+  DerivedTagTerminalTwoPaneFocus,
+  DerivedTagTerminalTwoPaneLayoutMode,
+  DerivedTagTerminalTwoPaneScreenProps,
+} from "./framework/types.js";
+import type { TerminalInteractionAction } from "./interaction-bindings.js";
+import {
+  createTerminalActionTargetInteractionContext,
+  createTerminalDetailInteractionContext,
+  createTerminalListInteractionContext,
+  createTerminalTextEntryInteractionContext,
+  useTerminalInteractionContextRouter,
+  type TerminalInteractionContextRoute,
+} from "./interaction-context-router.js";
+import {
+  ROUTE_TRANSITION_STATUS_KIND,
+  appendRouteTransitionFooterLine,
+  getRouteTransitionFooterLineCount,
+  type RouteTransitionStatus,
+} from "./route-transition-status.js";
+import type {
+  DerivedTagTerminalActionTargetOrientation,
+  DerivedTagTerminalActionTargetState,
+} from "./action-target.js";
+
+export type TerminalListDetailPresentationMetrics = {
+  bodyHeight: number;
+  detailWidth: number;
+  pageSize: number;
+  selectionJumpSize: number;
+  detailJumpSize: number;
+  renderedDetailLineCount: number;
+  maxDetailScroll: number;
+  detailScroll: number;
+  visibleDetailLines: DerivedTagTerminalLine[];
+};
+
+export type TerminalListDetailScreenModel =
+  | { kind: "detail-only"; props: DerivedTagTerminalPaneScreenProps }
+  | { kind: "two-pane"; props: DerivedTagTerminalTwoPaneScreenProps };
+
+export type MeasureTerminalListDetailPresentationOptions = {
+  terminalWidth: number;
+  terminalHeight: number;
+  hasSubtitle?: boolean;
+  transitionStatus?: RouteTransitionStatus | null;
+  footerLineCount: number;
+  detailLines: DerivedTagTerminalLine[];
+  detailScroll: number;
+  layoutMode: DerivedTagTerminalTwoPaneLayoutMode;
+  leftWidth: number;
+  hyperlinkSupport?: DerivedTagTerminalHyperlinkSupport;
+};
+
+export function measureTerminalListDetailPresentation(
+  options: MeasureTerminalListDetailPresentationOptions,
+): TerminalListDetailPresentationMetrics {
+  const bodyHeight = Math.max(
+    1,
+    getTerminalPaneBodyHeight(options.terminalHeight, {
+      hasSubtitle: options.hasSubtitle ?? true,
+      footerLineCount: options.footerLineCount + getRouteTransitionFooterLineCount(options.transitionStatus),
+    }),
+  );
+  const detailWidth = getTerminalTwoPaneDetailWidth(options.terminalWidth, options.layoutMode, options.leftWidth);
+  const renderedDetailLineCount = getRenderedTerminalLineCount(options.detailLines, detailWidth, {
+    hyperlinkSupport: options.hyperlinkSupport,
+  });
+  const maxDetailScroll = Math.max(0, renderedDetailLineCount - bodyHeight);
+  const detailScroll = Math.min(options.detailScroll, maxDetailScroll);
+
+  return {
+    bodyHeight,
+    detailWidth,
+    pageSize: Math.max(1, bodyHeight - 1),
+    selectionJumpSize: Math.max(1, Math.floor(bodyHeight / 2)),
+    detailJumpSize: Math.max(1, Math.floor(bodyHeight / 2)),
+    renderedDetailLineCount,
+    maxDetailScroll,
+    detailScroll,
+    visibleDetailLines: sliceRenderedTerminalLines(options.detailLines, detailWidth, detailScroll, bodyHeight, {
+      hyperlinkSupport: options.hyperlinkSupport,
+    }),
+  };
+}
+
+export function buildTerminalListDetailScreenModel(options: {
+  title: string;
+  subtitle?: string;
+  activePane: DerivedTagTerminalTwoPaneFocus;
+  layoutMode: DerivedTagTerminalTwoPaneLayoutMode;
+  leftWidth: number;
+  leftPane: {
+    title: string;
+    lines: DerivedTagTerminalLine[];
+  };
+  rightPane: {
+    title: string;
+    detailOnlyTitle?: string;
+  };
+  metrics: Pick<TerminalListDetailPresentationMetrics, "visibleDetailLines">;
+  footer: DerivedTagTerminalLine[];
+  transitionStatus?: RouteTransitionStatus | null;
+}): TerminalListDetailScreenModel {
+  const footer = appendRouteTransitionFooterLine(options.footer, options.transitionStatus);
+
+  if (options.layoutMode === "detail-only") {
+    return {
+      kind: "detail-only",
+      props: {
+        title: options.title,
+        subtitle: options.subtitle,
+        pane: {
+          title: options.rightPane.detailOnlyTitle ?? options.rightPane.title,
+          lines: options.metrics.visibleDetailLines,
+          active: true,
+        },
+        footer,
+      },
+    };
+  }
+
+  return {
+    kind: "two-pane",
+    props: {
+      title: options.title,
+      subtitle: options.subtitle,
+      left: {
+        title: options.leftPane.title,
+        lines: options.leftPane.lines,
+        active: options.activePane === "list",
+      },
+      right: {
+        title: options.rightPane.title,
+        lines: options.metrics.visibleDetailLines,
+        active: options.activePane === "detail",
+      },
+      footer,
+      leftWidth: options.leftWidth,
+    },
+  };
+}
+
+export type TerminalListDetailRouteSet = {
+  list: TerminalInteractionContextRoute<string>;
+  detail: TerminalInteractionContextRoute<string>;
+  textEntry?: TerminalInteractionContextRoute<string>;
+  actionTarget?: TerminalInteractionContextRoute<string>;
+};
+
+export type TerminalListDetailInteractionConfig = {
+  interactionActions?: TerminalInteractionAction[];
+  pageSize: number;
+  jumpSize: number;
+};
+
+export function useTerminalListDetailInteractionRouter(options: {
+  enabled?: boolean;
+  transitionStatus?: RouteTransitionStatus | null;
+  list: TerminalListDetailInteractionConfig & {
+    includeConfirmKeys?: boolean;
+    includeHorizontalConfirmKeys?: boolean;
+  };
+  detail: TerminalListDetailInteractionConfig & {
+    includeCancelKeys?: boolean;
+    includeHorizontalCancelKeys?: boolean;
+  };
+  textEntry?: {
+    interactionActions?: TerminalInteractionAction[];
+  };
+  actionTarget?: {
+    interactionActions?: TerminalInteractionAction[];
+    state: DerivedTagTerminalActionTargetState;
+    orientation: DerivedTagTerminalActionTargetOrientation;
+  };
+  onRoute: (routes: TerminalListDetailRouteSet) => void;
+}): void {
+  useTerminalInteractionContextRouter({
+    enabled: options.enabled,
+    contexts: [
+      createTerminalListInteractionContext("list", {
+        interactionActions: options.list.interactionActions,
+        pageSize: options.list.pageSize,
+        jumpSize: options.list.jumpSize,
+        includeConfirmKeys: options.list.includeConfirmKeys,
+        includeHorizontalConfirmKeys: options.list.includeHorizontalConfirmKeys,
+      }),
+      createTerminalDetailInteractionContext("detail", {
+        interactionActions: options.detail.interactionActions,
+        pageSize: options.detail.pageSize,
+        jumpSize: options.detail.jumpSize,
+        includeCancelKeys: options.detail.includeCancelKeys,
+        includeHorizontalCancelKeys: options.detail.includeHorizontalCancelKeys,
+      }),
+      ...(options.textEntry
+        ? [createTerminalTextEntryInteractionContext("textEntry", options.textEntry.interactionActions)]
+        : []),
+      ...(options.actionTarget
+        ? [
+            createTerminalActionTargetInteractionContext("actionTarget", {
+              interactionActions: options.actionTarget.interactionActions,
+              state: options.actionTarget.state,
+              orientation: options.actionTarget.orientation,
+            }),
+          ]
+        : []),
+    ],
+    onRoute: (routes) => {
+      if (options.transitionStatus?.kind === ROUTE_TRANSITION_STATUS_KIND.PENDING) {
+        return;
+      }
+
+      options.onRoute({
+        list: routes.list,
+        detail: routes.detail,
+        textEntry: options.textEntry ? routes.textEntry : undefined,
+        actionTarget: options.actionTarget ? routes.actionTarget : undefined,
+      });
+    },
+  });
+}
