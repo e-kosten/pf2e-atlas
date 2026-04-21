@@ -85,10 +85,15 @@ describe("AoN search links", () => {
       includeTraditions: ["arcane", "occult"],
       includeActions: ["2"],
     });
+    expect(link?.label).toBe("Search Archives of Nethys for Alarm Ward");
+    expect(link?.plainTextFallback).toBe(
+      `Search Archives of Nethys for Alarm Ward: ${link?.url ?? "(missing url)"}`,
+    );
 
     const url = new URL(link!.url);
     expect(`${url.origin}${url.pathname}`).toBe("https://2e.aonprd.com/Search.aspx");
     expect(url.searchParams.get("display")).toBe("short");
+    expect(url.searchParams.get("type")).toBe("eqs");
     expect(url.searchParams.get("q")).toBe("Alarm Ward");
     expect(url.searchParams.get("include-types")).toBe("spell cantrip ritual");
     expect(url.searchParams.get("include-traits")).toBe("auditory fortune mental");
@@ -120,6 +125,7 @@ describe("AoN search links", () => {
     });
 
     const url = new URL(link!.url);
+    expect(url.searchParams.get("type")).toBe("eqs");
     expect(url.searchParams.get("q")).toBe("Chronicle Note");
     expect(url.searchParams.has("include-types")).toBe(false);
     expect(url.searchParams.has("include-traits")).toBe(false);
@@ -140,9 +146,14 @@ describe("AoN search links", () => {
 
   it("adds the AoN section to shared ontology detail lines", () => {
     const lines = buildOntologyExplorerEntityDetailLines(createOntologyEntityRecord());
+    const linkLine = lines.find((line) => line.href);
 
     expect(lines.some((line) => line.text === "Archives of Nethys" && line.tone === "section")).toBe(true);
-    expect(lines.some((line) => line.text.includes("https://2e.aonprd.com/Search.aspx?display=short"))).toBe(true);
-    expect(lines.some((line) => line.text.includes("include-traits=auditory+fortune+mental"))).toBe(true);
+    expect(linkLine).toMatchObject({
+      text: "Search Archives of Nethys for Alarm Ward",
+      href: expect.stringContaining("https://2e.aonprd.com/Search.aspx?display=short&type=eqs"),
+      plainTextFallback: expect.stringContaining("Search Archives of Nethys for Alarm Ward: https://2e.aonprd.com"),
+    });
+    expect(linkLine?.href).toContain("include-traits=auditory+fortune+mental");
   });
 });

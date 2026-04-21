@@ -83,6 +83,8 @@ But the TUI keeps UI concerns local:
 
 This split matters because it lets the TUI add richer interaction behavior without pushing terminal concepts like pane focus, command palettes, or staged editors down into `src/app/`, `src/data/`, or `src/search/`.
 
+Shared ontology/detail presenters may also attach optional link metadata to a text line, such as `href` plus a plain-text fallback string. Current text-only TUI surfaces should keep rendering a readable fallback instead of depending on link-aware framework behavior, while preserving that metadata for future richer presenters.
+
 ## Major TUI Layers
 
 ### Framework Layer

@@ -18,6 +18,8 @@ export interface OntologyTextLine {
   readonly tone?: OntologyLineTone;
   readonly indent?: number;
   readonly noWrap?: boolean;
+  readonly href?: string;
+  readonly plainTextFallback?: string;
 }
 
 export interface OntologyNodeQuery {

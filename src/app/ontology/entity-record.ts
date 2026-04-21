@@ -409,7 +409,12 @@ export function buildOntologyExplorerEntityDetailLines(
 
   if (aonSearchLink) {
     lines.push({ text: "Archives of Nethys", tone: "section" });
-    lines.push({ text: aonSearchLink.url, indent: 2, noWrap: true });
+    lines.push({
+      text: aonSearchLink.label,
+      indent: 2,
+      href: aonSearchLink.url,
+      plainTextFallback: aonSearchLink.plainTextFallback,
+    });
   }
 
   appendSection(lines, "Creature/Actor", [

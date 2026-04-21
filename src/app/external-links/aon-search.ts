@@ -15,6 +15,8 @@ export type AonSearchRecordLike = {
 
 export type AonSearchLink = {
   url: string;
+  label: string;
+  plainTextFallback: string;
   appliedFilters: {
     query: string;
     includeTypes: string[];
@@ -116,15 +118,20 @@ export function buildAonSearchLink(record: AonSearchRecordLike): AonSearchLink |
 
   const url = new URL(AON_SEARCH_URL);
   url.searchParams.set("display", "short");
+  url.searchParams.set("type", "eqs");
   url.searchParams.set("q", appliedFilters.query);
   setJoinedParam(url.searchParams, "include-types", appliedFilters.includeTypes);
   setJoinedParam(url.searchParams, "include-traits", appliedFilters.includeTraits);
   setJoinedParam(url.searchParams, "include-rarities", appliedFilters.includeRarities);
   setJoinedParam(url.searchParams, "include-traditions", appliedFilters.includeTraditions);
   setJoinedParam(url.searchParams, "include-actions", appliedFilters.includeActions);
+  const urlString = url.toString();
+  const label = `Search Archives of Nethys for ${query}`;
 
   return {
-    url: url.toString(),
+    url: urlString,
+    label,
+    plainTextFallback: `${label}: ${urlString}`,
     appliedFilters,
   };
 }

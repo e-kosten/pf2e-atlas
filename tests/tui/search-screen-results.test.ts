@@ -110,12 +110,19 @@ function createSession(record: NormalizedRecord): Pf2eTerminalSearchSession {
 }
 
 describe("search result detail lines", () => {
-  it("reuses the shared ontology detail presenter so result previews include the AoN link", () => {
+  it("reuses the shared ontology detail presenter so result previews include the AoN link metadata", () => {
     const lines = buildResultDetailLines(createRecord(), createSession(createRecord()), 0);
+    const linkLine = lines.find((line) => "href" in line) as
+      | (typeof lines)[number] & { href?: string; plainTextFallback?: string }
+      | undefined;
 
     expect(lines[0]?.text).toBe("Result Preview");
     expect(lines.some((line) => line.text === "Archives of Nethys" && line.tone === "section")).toBe(true);
-    expect(lines.some((line) => line.text.includes("https://2e.aonprd.com/Search.aspx?display=short"))).toBe(true);
-    expect(lines.some((line) => line.text.includes("include-traits=fortune+mental"))).toBe(true);
+    expect(linkLine).toMatchObject({
+      text: "Search Archives of Nethys for Alarm Ward",
+      href: expect.stringContaining("https://2e.aonprd.com/Search.aspx?display=short&type=eqs"),
+      plainTextFallback: expect.stringContaining("Search Archives of Nethys for Alarm Ward: https://2e.aonprd.com"),
+    });
+    expect(linkLine?.href).toContain("include-traits=fortune+mental");
   });
 });
