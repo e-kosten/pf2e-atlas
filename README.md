@@ -1,18 +1,26 @@
 # Pathfinder 2E Foundry MCP
 
-Read-only MCP server for Pathfinder 2E data from a vendored local Foundry PF2E checkout.
+Offline Pathfinder 2E search, reference, and editorial workbench built on a prepared local Foundry PF2E checkout.
+
+This repository is not just an MCP server. It is a broader local PF2E application with multiple surfaces over the same prepared data:
+
+- a built stdio MCP server for external clients and agents
+- a terminal workbench for exploration, search, and editorial workflows
+- local indexing, search-semantics, and derived-tag tooling for maintaining and refining the corpus
+
+The MCP server is one entrypoint into that runtime, not the whole product.
 
 ## What It Does
 
-- Looks up detailed PF2E records by name
-- Lists available compendium packs and pack metadata
-- Lists records within a pack with filters
-- Searches across all packs by name and structured filters
-- Follows linked rules references for actions, conditions, spells, and other rules text
-- Supports user-facing search profiles: `lexical`, `balanced`, and `concept`
-- Returns the original Foundry JSON for detailed retrieval
+- Looks up detailed PF2E records by name and canonical key
+- Searches across the PF2E corpus with category-first boundaries, structured filters, and hybrid retrieval
+- Exposes PF2E search and rules tools over MCP for agent and client integrations
+- Launches a terminal workbench for interactive exploration and editorial workflows
+- Builds and reuses a local SQLite index over the vendored PF2E data
+- Maintains Pathfinder-native search semantics, metadata filters, and linked-rule traversal
+- Supports derived-tag discovery, review, migration, and evaluation tooling for corpus maintenance
 
-The server uses `stdio` in v1, reads the PF2E data from `vendor/pf2e` by default, and builds a local SQLite index for querying.
+The application reads PF2E data from `vendor/pf2e` by default and builds a local SQLite index for querying, exploration, and editorial work.
 That index is cached and reused across restarts. When the PF2E source, embedding model, or index schema changes, rebuild it explicitly with `npm run refresh-index` or `npm run refresh-external`.
 
 ## Project Shape
