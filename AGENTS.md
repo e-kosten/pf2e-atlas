@@ -15,6 +15,7 @@ The architecture documents under `docs/architecture/` are part of the working so
 - Architecture-impacting changes include new or replaced facades, moved ownership between layers, new lint-enforced boundaries, major search-pipeline changes, TUI composition changes, storage-boundary changes, and editorial workflow restructuring.
 - If you add a new durable architectural rule or make a non-obvious architectural choice that future editors will need to preserve, update an existing ADR or add a new file under `docs/architecture/decisions/`.
 - Do not report an architecture-impacting implementation task as complete if the code and the architecture docs disagree about the intended structure.
+- Large architectural work is not complete until the relevant architecture docs are updated and any required ADR additions or revisions have been made.
 
 ## Build, Test, and Development Commands
 
@@ -85,7 +86,7 @@ Treat a task as large when it spans multiple subsystems, requires a planned end-
 - If a blocker or unresolved architecture question prevents a clean end-state implementation, pause the work and check in with the user instead of masking the issue with temporary code.
 - Do not treat a delegated slice as done without validation evidence or an explicit explanation of what could not be validated and why. Missing validation for a slice that could reasonably have been checked means the slice is still incomplete.
 - Meaningful intermediate commits inside the worktree are encouraged when they capture validated milestones, but those commits do not by themselves make the overall task complete.
-- Do not describe a large task as complete, and do not merge its worktree back into `main`, until the full requested workset is implemented, integrated, and validated against the stated end-state checklist. A green intermediate slice is a milestone, not a completion signal.
+- Do not describe a large task as complete, and do not merge its worktree back into `main`, until the full requested workset is implemented, integrated, and validated against the stated end-state checklist, including required architecture-doc and ADR updates for architecture-impacting work. A green intermediate slice is a milestone, not a completion signal.
 - If some agreed work remains open, keep the branch in the worktree, report the remaining scope explicitly, and treat the task as still in progress even if one or more milestone commits have already been made.
 
 ### Agent Worktree Policy
