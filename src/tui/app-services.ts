@@ -1,7 +1,6 @@
 import { createPf2eApplicationOntologyService, type Pf2eApplicationOntologyService } from "../app/ontology-service.js";
 import { loadPf2eApplicationRuntime, type Pf2eApplicationRuntime } from "../app/runtime.js";
 import { createPf2eApplicationStorageService, type Pf2eApplicationStorageService } from "../app/storage-service.js";
-import { Pf2eDataService } from "../data/service.js";
 import type { AppConfig } from "../domain/config-types.js";
 import {
   buildDerivedTagReviewSession,
@@ -39,21 +38,6 @@ export type Pf2eTerminalTagWorkbenchService = {
   ) => Promise<DerivedTagReviewSession | undefined>;
 };
 
-export type Pf2eTerminalCatalogService = Pick<
-  Pf2eDataService,
-  | "closeSearchWindow"
-  | "countRecords"
-  | "getRecord"
-  | "getSearchCategorySummary"
-  | "getSearchVocabulary"
-  | "listFilterValues"
-  | "listRecords"
-  | "lookup"
-  | "openSearchWindow"
-  | "readSearchWindowPage"
-  | "search"
->;
-
 export type Pf2eTerminalUserServices = {
   ontology: Pf2eApplicationOntologyService;
   search: Pf2eTerminalSearchService;
@@ -65,7 +49,6 @@ export type Pf2eTerminalDevelopmentServices = {
 
 export type Pf2eTerminalAppServices = {
   config: AppConfig;
-  catalog: Pf2eTerminalCatalogService;
   user: Pf2eTerminalUserServices;
   dev: Pf2eTerminalDevelopmentServices;
   close: () => void;
@@ -109,9 +92,8 @@ export function createPf2eTerminalAppServices(
   const storage = createPf2eApplicationStorageService(config);
   return {
     config,
-    catalog: dataService,
     user: {
-      ontology: createPf2eApplicationOntologyService(config, dataService, storage),
+      ontology: createPf2eApplicationOntologyService(config, dataService),
       search: createPf2eTerminalSearchService({
         closeSearchWindow: (windowId) => dataService.closeSearchWindow(windowId),
         countRecords: (filters, options) => dataService.countRecords(filters, options),

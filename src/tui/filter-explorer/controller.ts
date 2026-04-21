@@ -554,6 +554,99 @@ function createFilterExplorerContext(args: {
   };
 }
 
+function handleSharedFilterExplorerAction(args: {
+  interactionAction?: TerminalInteractionAction;
+  adapters: ReturnType<typeof useTerminalInteractionContextAdapters>;
+  browserContext: FilterExplorerBrowserContext;
+  keyContext: FilterExplorerKeyContext;
+  options: FilterExplorerOptions;
+  draft: FilterExplorerComposeDraft;
+  updateDraft: (updater: (current: FilterExplorerComposeDraft) => FilterExplorerComposeDraft) => void;
+  dispatch: React.Dispatch<FilterExplorerAction>;
+  allowSearch: boolean;
+}): boolean {
+  const {
+    interactionAction,
+    adapters,
+    browserContext,
+    keyContext,
+    options,
+    draft,
+    updateDraft,
+    dispatch,
+    allowSearch,
+  } = args;
+  if (!interactionAction) {
+    return false;
+  }
+
+  const context = createFilterExplorerContext({
+    options,
+    browser: keyContext,
+    draft,
+  });
+
+  if (
+    handleFilterExplorerAction({
+      action: interactionAction,
+      adapters,
+      context,
+      draft,
+      keyContext,
+      onOpenInspectQuery: (result) => {
+        void openInspectQuery(options, keyContext, result);
+      },
+      onOpenInspectResult: (result) => {
+        void openInspectResult(options, keyContext, result);
+      },
+      options,
+      updateDraft,
+    })
+  ) {
+    return true;
+  }
+
+  if (interactionAction.id === "quit") {
+    options.onExit();
+    return true;
+  }
+
+  if (interactionAction.id === "focus") {
+    dispatch({ type: "toggle_focus" });
+    return true;
+  }
+
+  if (interactionAction.id === "layout") {
+    dispatch({ type: "toggle_layout" });
+    return true;
+  }
+
+  if (interactionAction.id === "back" || interactionAction.id === "return") {
+    const backNavigation = resolveFilterExplorerBackNavigation(browserContext);
+    if (backNavigation === "pop_depth") {
+      dispatch({ type: "pop_depth" });
+      return true;
+    }
+    if (backNavigation === "leave_detail") {
+      dispatch({ type: "leave_detail" });
+      return true;
+    }
+    options.onExit();
+    return true;
+  }
+
+  if (allowSearch && interactionAction.id === "search") {
+    dispatch({
+      type: "set_search_mode",
+      searchMode: true,
+      searchInput: browserContext.effectiveState.filter,
+    });
+    return true;
+  }
+
+  return false;
+}
+
 export function useFilterExplorerController(options: FilterExplorerOptions): FilterExplorerControllerContext {
   const adapters = useTerminalInteractionContextAdapters();
   const terminal = useDerivedTagTerminalApp();
@@ -698,52 +791,18 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
           return;
         }
         if (
-          interactionAction &&
-          handleFilterExplorerAction({
-            action: interactionAction,
+          handleSharedFilterExplorerAction({
+            interactionAction,
             adapters,
-            context: createFilterExplorerContext({
-              options,
-              browser: keyContext,
-              draft,
-            }),
-            draft,
+            browserContext,
             keyContext,
-            onOpenInspectQuery: (result) => {
-              void openInspectQuery(options, keyContext, result);
-            },
-            onOpenInspectResult: (result) => {
-              void openInspectResult(options, keyContext, result);
-            },
             options,
+            draft,
             updateDraft,
+            dispatch,
+            allowSearch: false,
           })
         ) {
-          return;
-        }
-        if (interactionAction?.id === "quit") {
-          options.onExit();
-          return;
-        }
-        if (interactionAction?.id === "focus") {
-          dispatch({ type: "toggle_focus" });
-          return;
-        }
-        if (interactionAction?.id === "layout") {
-          dispatch({ type: "toggle_layout" });
-          return;
-        }
-        if (interactionAction?.id === "back" || interactionAction?.id === "return") {
-          const backNavigation = resolveFilterExplorerBackNavigation(browserContext);
-          if (backNavigation === "leave_detail") {
-            dispatch({ type: "leave_detail" });
-            return;
-          }
-          if (backNavigation === "pop_depth") {
-            dispatch({ type: "pop_depth" });
-            return;
-          }
-          options.onExit();
           return;
         }
         return;
@@ -800,58 +859,19 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
         return;
       }
       if (
-        interactionAction &&
-        handleFilterExplorerAction({
-          action: interactionAction,
+        handleSharedFilterExplorerAction({
+          interactionAction,
           adapters,
-          context: createFilterExplorerContext({
-            options,
-            browser: keyContext,
-            draft,
-          }),
-          draft,
+          browserContext,
           keyContext,
-          onOpenInspectQuery: (result) => {
-            void openInspectQuery(options, keyContext, result);
-          },
-          onOpenInspectResult: (result) => {
-            void openInspectResult(options, keyContext, result);
-          },
           options,
+          draft,
           updateDraft,
+          dispatch,
+          allowSearch: true,
         })
       ) {
         return;
-      }
-      if (interactionAction?.id === "focus") {
-        dispatch({ type: "toggle_focus" });
-        return;
-      }
-      if (interactionAction?.id === "layout") {
-        dispatch({ type: "toggle_layout" });
-        return;
-      }
-      if (interactionAction?.id === "back" || interactionAction?.id === "return") {
-        const backNavigation = resolveFilterExplorerBackNavigation(browserContext);
-        if (backNavigation === "pop_depth") {
-          dispatch({ type: "pop_depth" });
-        } else if (backNavigation === "leave_detail") {
-          dispatch({ type: "leave_detail" });
-        } else {
-          options.onExit();
-        }
-        return;
-      }
-      if (interactionAction?.id === "quit") {
-        options.onExit();
-        return;
-      }
-      if (interactionAction?.id === "search") {
-        dispatch({
-          type: "set_search_mode",
-          searchMode: true,
-          searchInput: browserContext.effectiveState.filter,
-        });
       }
     },
     [adapters, browserContext, dispatch, draft, options, updateDraft],

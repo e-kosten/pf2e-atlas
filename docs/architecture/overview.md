@@ -242,8 +242,8 @@ If `src/index.ts` starts to contain feature logic, that is usually a sign the lo
 
 `src/tui/app-services.ts` takes the shared runtime and layers on:
 
-- `createPf2eApplicationStorageService`
-- `createPf2eApplicationOntologyService`
+- `createPf2eApplicationStorageService` for explicit direct-index workflows
+- `createPf2eApplicationOntologyService` for the cached search-semantics browse model
 - `createPf2eTerminalSearchService`
 - tag workbench services wired through storage-backed helpers
 

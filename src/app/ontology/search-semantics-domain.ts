@@ -46,7 +46,6 @@ function loadSearchSemanticsSummary(dataService: SearchSemanticsDataService): Se
 export function buildSearchSemanticsDomain(
   config: AppConfig,
   dataService: SearchSemanticsDataService,
-  _loadDerivedTagsDomain: () => OntologyDomainModel,
 ): OntologyDomainModel {
   const semantics = getMetadataFilterSemantics();
   const summary = loadSearchSemanticsSummary(dataService);

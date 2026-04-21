@@ -165,15 +165,11 @@ function createDataService(options: {
 }
 
 describe("buildSearchSemanticsDomain", () => {
-  it("scopes derived-tag families and tag queries to the active subcategory without loading the derived-tags domain", () => {
-    const loadDerivedTagsDomain = vi.fn(() => {
-      throw new Error("search semantics should not load the derived-tags domain");
-    });
+  it("scopes derived-tag families and tag queries to the active subcategory", () => {
     const dataService = createDataService();
-    const domain = buildSearchSemanticsDomain(createTestConfig(), dataService, loadDerivedTagsDomain);
+    const domain = buildSearchSemanticsDomain(createTestConfig(), dataService);
     const derivedTagsField = findNodeById(domain.rootNodes, "hazard:trap:field:derivedTags");
 
-    expect(loadDerivedTagsDomain).not.toHaveBeenCalled();
     expect(dataService.getSearchSemanticsBootstrapSummary).toHaveBeenCalledTimes(1);
     expect(dataService.getSearchVocabulary).not.toHaveBeenCalled();
     expect(derivedTagsField?.childPresentation).toEqual({
@@ -199,7 +195,7 @@ describe("buildSearchSemanticsDomain", () => {
 
   it("loads derived-tag family children with scoped live counts", () => {
     const dataService = createDataService();
-    const domain = buildSearchSemanticsDomain(createTestConfig(), dataService, vi.fn(() => ({}) as never));
+    const domain = buildSearchSemanticsDomain(createTestConfig(), dataService);
     const derivedTagsField = findNodeById(domain.rootNodes, "hazard:trap:field:derivedTags");
     const mistFamilyNode = derivedTagsField?.children?.find((node) => node.id.endsWith(":family:mist"));
     const tripwireFamilyNode = derivedTagsField?.children?.find((node) => node.id.endsWith(":family:tripwire"));
@@ -218,7 +214,7 @@ describe("buildSearchSemanticsDomain", () => {
 
   it("builds common-trait shortcuts from summary data without eagerly loading the trait field value space", () => {
     const dataService = createDataService();
-    const domain = buildSearchSemanticsDomain(createTestConfig(), dataService, vi.fn(() => ({}) as never));
+    const domain = buildSearchSemanticsDomain(createTestConfig(), dataService);
 
     const commonTraitsNode = findNodeById(domain.rootNodes, "hazard:commonTraits");
     const magicalTraitNode = commonTraitsNode?.children?.[0];
@@ -241,7 +237,7 @@ describe("buildSearchSemanticsDomain", () => {
   it("falls back to the full vocabulary loader when a summary loader is unavailable", () => {
     const dataService = createDataService({ includeSummary: false, includeVocabulary: true });
 
-    buildSearchSemanticsDomain(createTestConfig(), dataService, vi.fn(() => ({}) as never));
+    buildSearchSemanticsDomain(createTestConfig(), dataService);
 
     expect(dataService.getSearchSemanticsBootstrapSummary).toBeUndefined();
     expect(dataService.getSearchVocabulary).toHaveBeenCalledTimes(1);

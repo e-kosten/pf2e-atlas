@@ -48,7 +48,6 @@ flowchart TD
   AppServices --> TagsEditorial
 
   Ontology --> Data
-  Ontology --> Storage
 
   Data --> SearchBackend
   SearchBackend --> RuntimeSearch
@@ -124,6 +123,8 @@ Direct `DatabaseSync` construction is intentionally scarce. The enforced ownersh
 
 This keeps connection lifetime, read/write policy, and schema-touching behavior centralized.
 
+Search-semantics ontology loading should stay on the shared data facade and config inputs. If an app-layer workflow genuinely needs direct SQLite access, route that through `src/app/storage-service.ts` or another explicitly documented owner instead of hanging feature-specific loaders off the storage facade.
+
 ### Search Boundary
 
 Search execution should flow through backend services instead of one-off SQL or ranking paths:
@@ -158,6 +159,8 @@ First, TUI feature code should consume explicit facades such as:
 - `src/tui/search/service.ts`
 - `src/app/ontology-service.ts`
 - tag workbench services routed through `app-services`
+
+The shared TUI app-services context should stay narrow. Feature code should consume `services.user.*` and `services.dev.*`, not a broad backend facade exposed for convenience.
 
 Second, TUI feature code should use shared framework primitives instead of rebuilding low-level input handling. That is why the lint config bans many direct imports from:
 

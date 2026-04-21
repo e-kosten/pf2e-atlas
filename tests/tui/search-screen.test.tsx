@@ -327,21 +327,6 @@ function createServices(
 
   return {
     config: createTestConfig(),
-    catalog: {
-      countRecords,
-      getRecord: vi.fn(() => record),
-      getSearchCategorySummary: vi.fn(() => ({
-        categories: [{ value: "spell", count: 1 }],
-      })),
-      getSearchVocabulary: vi.fn(() => ({}) as never),
-      listFilterValues: vi.fn(() => ({ field: "categories", values: [] }) as never),
-      listRecords,
-      lookup,
-      openSearchWindow,
-      readSearchWindowPage,
-      search,
-      closeSearchWindow,
-    },
     user: {
       search: searchService,
       ontology: {
@@ -1210,6 +1195,19 @@ describe("search screen", () => {
   });
 
   it("carries the applied execution window size forward into later page loads", async () => {
+    const readSearchWindowPage = vi.fn(() => ({
+      id: "window-1",
+      searchProfile: null,
+      mode: "structured" as const,
+      sort: "alphabetical" as const,
+      sortSeed: null,
+      total: 200,
+      offset: 120,
+      limit: 120,
+      hasMore: false,
+      nextOffset: null,
+      records: [createRecord({ recordKey: "spell:b", id: "b", name: "Beacon Sigil" })],
+    }));
     const services = createServices({
       openSearchWindow: vi.fn(() =>
         Promise.resolve({
@@ -1226,19 +1224,7 @@ describe("search screen", () => {
           records: [createRecord()],
         }),
       ),
-      readSearchWindowPage: vi.fn(() => ({
-        id: "window-1",
-        searchProfile: null,
-        mode: "structured" as const,
-        sort: "alphabetical" as const,
-        sortSeed: null,
-        total: 200,
-        offset: 120,
-        limit: 120,
-        hasMore: false,
-        nextOffset: null,
-        records: [createRecord({ recordKey: "spell:b", id: "b", name: "Beacon Sigil" })],
-      })),
+      readSearchWindowPage,
     });
 
     const session = await services.user.search.executeQuery(services.user.search.createDefaultQuery(), {
@@ -1248,10 +1234,29 @@ describe("search screen", () => {
     await services.user.search.loadMore(session);
 
     expect(session.query.limit).toBe(120);
-    expect(services.catalog.readSearchWindowPage).toHaveBeenCalledWith("window-1", 120, 120);
+    expect(readSearchWindowPage).toHaveBeenCalledWith("window-1", 120, 120);
   });
 
   it("loads enough future pages to restore a wider local result buffer", async () => {
+    const readSearchWindowPage = vi.fn((windowId: string, offset: number, limit: number) => ({
+      id: windowId,
+      searchProfile: null,
+      mode: "structured" as const,
+      sort: "alphabetical" as const,
+      sortSeed: null,
+      total: 1000,
+      offset,
+      limit,
+      hasMore: offset + limit < 1000,
+      nextOffset: offset + limit < 1000 ? offset + limit : null,
+      records: Array.from({ length: limit }, (_, index) =>
+        createRecord({
+          recordKey: `spell:${offset + index}`,
+          id: `${offset + index}`,
+          name: `Spell ${offset + index}`,
+        }),
+      ),
+    }));
     const services = createServices({
       openSearchWindow: vi.fn(() =>
         Promise.resolve({
@@ -1274,25 +1279,7 @@ describe("search screen", () => {
           ),
         }),
       ),
-      readSearchWindowPage: vi.fn((windowId: string, offset: number, limit: number) => ({
-        id: windowId,
-        searchProfile: null,
-        mode: "structured" as const,
-        sort: "alphabetical" as const,
-        sortSeed: null,
-        total: 1000,
-        offset,
-        limit,
-        hasMore: offset + limit < 1000,
-        nextOffset: offset + limit < 1000 ? offset + limit : null,
-        records: Array.from({ length: limit }, (_, index) =>
-          createRecord({
-            recordKey: `spell:${offset + index}`,
-            id: `${offset + index}`,
-            name: `Spell ${offset + index}`,
-          }),
-        ),
-      })),
+      readSearchWindowPage,
     });
 
     const session = await services.user.search.executeQuery(services.user.search.createDefaultQuery(), {
@@ -1303,8 +1290,8 @@ describe("search screen", () => {
 
     expect(buffered.loadedCount).toBe(360);
     expect(buffered.nextOffset).toBe(360);
-    expect(services.catalog.readSearchWindowPage).toHaveBeenNthCalledWith(1, "window-1", 120, 120);
-    expect(services.catalog.readSearchWindowPage).toHaveBeenNthCalledWith(2, "window-1", 240, 120);
+    expect(readSearchWindowPage).toHaveBeenNthCalledWith(1, "window-1", 120, 120);
+    expect(readSearchWindowPage).toHaveBeenNthCalledWith(2, "window-1", 240, 120);
   });
 
   it("jumps G to the last true result page rather than the end of the loaded prefix", async () => {

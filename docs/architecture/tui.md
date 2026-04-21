@@ -27,14 +27,13 @@ Those responsibilities stay below the TUI behind app-layer and backend facades.
 `src/tui/app-services.ts` is the TUI composition root. It builds a terminal-oriented service bundle from the shared application runtime:
 
 - `loadPf2eApplicationRuntime()` from `src/app/runtime.ts` loads config and the long-lived `Pf2eDataService`
-- `createPf2eApplicationStorageService()` supplies app-scoped storage helpers for workflows that need direct index access
-- `createPf2eApplicationOntologyService()` builds the cached search-semantics browse model used by the ontology area
+- `createPf2eApplicationStorageService()` supplies app-scoped storage helpers for workflows that need direct index access, such as editorial workbench flows
+- `createPf2eApplicationOntologyService()` builds the cached search-semantics browse model used by the ontology area from config and the shared data facade
 - `createPf2eTerminalSearchService()` adapts shared catalog/search capabilities into a TUI-facing query/session API
 - the derived-tag workbench services are wired in as a development/editorial area, not mixed into the user search and ontology APIs
 
 That gives the terminal app one explicit dependency object, `Pf2eTerminalAppServices`, with a clear split:
 
-- `catalog`: the shared backend catalog facade backed by `Pf2eDataService`
 - `user`: TUI-facing services for ontology and search
 - `dev`: editorial workbench services
 
@@ -51,13 +50,12 @@ flowchart TD
   Runtime --> Data["`Pf2eDataService`"]
 
   Load --> Storage["`createPf2eApplicationStorageService()`"]
-  Load --> Ontology["`createPf2eApplicationOntologyService(config, dataService, storage)`"]
+  Load --> Ontology["`createPf2eApplicationOntologyService(config, dataService)`"]
   Load --> Search["`createPf2eTerminalSearchService(...)`"]
   Load --> Dev["Derived-tag workbench services"]
 
   Data --> Search
   Data --> Ontology
-  Storage --> Ontology
   Storage --> Dev
 
   Load --> App["`Pf2eTerminalApp`"]
@@ -71,7 +69,7 @@ The important architectural point is that the TUI does not rebuild backend logic
 
 The TUI shares backend services in two ways:
 
-- `catalog` is the same `Pf2eDataService` facade pattern used by the rest of the application
+- search flows are built on top of a TUI-facing search facade backed by the shared `Pf2eDataService`
 - ontology browsing is built from the same app-layer ontology service used to assemble readonly domain models
 
 But the TUI keeps UI concerns local:
@@ -105,7 +103,7 @@ Feature code should build on these helpers instead of importing raw terminal pri
 
 `src/tui/app-services.ts` and `src/tui/app-service-context.tsx` define what the terminal app can use. This keeps most screens from knowing how runtime assembly works.
 
-The service context is intentionally narrow: screens ask for `services.user.search` or `services.user.ontology`, not for direct storage or low-level query helpers.
+The service context is intentionally narrow: screens ask for `services.user.search`, `services.user.ontology`, or `services.dev.*`, not for direct storage or low-level query helpers.
 
 ### Navigation Layer
 

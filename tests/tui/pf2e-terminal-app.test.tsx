@@ -315,21 +315,6 @@ function createFakeServices(overrides: Partial<Pf2eTerminalAppServices> = {}): P
 
   return {
     config: createTestConfig(),
-    catalog: {
-      closeSearchWindow,
-      countRecords,
-      getRecord: vi.fn(() => record),
-      getSearchCategorySummary: vi.fn(() => ({
-        categories: [{ value: "spell", count: 1 }],
-      })),
-      getSearchVocabulary: vi.fn(() => ({}) as never),
-      listFilterValues: vi.fn(() => ({ field: "categories", values: [] }) as never),
-      listRecords,
-      lookup,
-      openSearchWindow,
-      readSearchWindowPage,
-      search,
-    },
     user: {
       search: searchService,
       ontology: {
