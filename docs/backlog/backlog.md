@@ -46,6 +46,9 @@ This is the tracked backlog for durable future work.
 - [Actor metrics search orchestration](./items/actor-metrics-search-orchestration.md)
   Bridge the gap between actor metrics in search semantics and the actual executable search/query path. Status: proposed.
 
+- [Search semantics explorer completeness](./items/search-semantics-explorer-completeness.md)
+  Preserve and eventually reimplement the richer live search-semantics exploration work from `feat/search-semantics-completeness-track1` inside the current ontology builder architecture. Status: proposed.
+
 - [Tagging tooling reorganization](./items/tagging-tooling-reorg.md)
   Move editorial/tagging utilities out of the root npm command surface and finish the repo-level naming cleanup around the TUI app. Status: proposed.
 
