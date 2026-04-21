@@ -3,7 +3,7 @@ import React from "react";
 import { inferActorMetricValueType } from "../../domain/actor-metrics.js";
 import { normalizeSearchCategory } from "../../domain/categories.js";
 import { getMetricDiscoveryGroupLabel } from "../../domain/metric-discovery-group-label.js";
-import type { OntologyDomainModel, OntologyNodeQuery } from "../../domain/ontology-types.js";
+import type { OntologyDomainModel } from "../../domain/ontology-types.js";
 import { FilterExplorerScreen } from "../filter-explorer/screen.js";
 import type { FilterExplorerOptions, FilterExplorerQueryOpenIntent } from "../filter-explorer/types.js";
 import type {
@@ -14,10 +14,7 @@ import type {
 import { useDerivedTagTerminalApp } from "../framework/context.js";
 import { useTerminalInteractionContextAdapters } from "../interaction-context-adapters.js";
 import type { RouteTransitionStatus } from "../route-transition-status.js";
-import {
-  promptNumericScalarClause,
-  type NumericScalarClauseDraft,
-} from "../filter-explorer/scalar-editor.js";
+import { promptNumericScalarClause, type NumericScalarClauseDraft } from "../filter-explorer/scalar-editor.js";
 import { inferItemMetricValueType } from "../../domain/item-metrics.js";
 
 export type OntologyInspectExplorerSnapshot = NonNullable<FilterExplorerOptions["initialSnapshot"]>;
@@ -26,7 +23,9 @@ export type OntologyInspectRouteData = {
   snapshot?: OntologyInspectExplorerSnapshot;
 };
 
-function buildOntologyInspectScalarTarget(node: OntologyDomainModel["rootNodes"][number]): FilterExplorerComposeTarget | undefined {
+function buildOntologyInspectScalarTarget(
+  node: OntologyDomainModel["rootNodes"][number],
+): FilterExplorerComposeTarget | undefined {
   if (node.kind !== "metric" || node.query?.kind !== "listRecords") {
     return undefined;
   }

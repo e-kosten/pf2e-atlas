@@ -1,12 +1,8 @@
 import { DERIVED_TAG_MANAGED_CATEGORIES } from "../../manifest.js";
-import {
-  buildDerivedTagPendingAssignmentViews,
-  type DerivedTagAssignmentReviewCategory,
-} from "../../runtime/derivation/assignments.js";
+import { buildDerivedTagPendingAssignmentViews } from "../../runtime/derivation/assignments.js";
 import type { PublishedDerivedTagOntology } from "../../runtime/publication/catalog.js";
 import type { DerivedTagSource } from "../../runtime/publication/catalog.js";
 import { getCurrentDerivedTagAuthoredState } from "./authored-state.js";
-import { summarizeCurrentDerivedTagReviewQueue } from "./review-queue.js";
 import { deriveCurrentRecordTagDerivation, getCurrentDerivedTagWorkingRuntime } from "./working-runtime.js";
 
 export function getPublishedDerivedTagOntology(): PublishedDerivedTagOntology {

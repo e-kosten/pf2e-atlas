@@ -34,6 +34,8 @@ function normalizeFacetValues(values: readonly string[]): string[] {
 }
 
 function getAonIncludeTypes(record: Pick<AonSearchRecordLike, "category" | "subcategory">): string[] {
+  const characterCreationIncludeTypes = new Set(["ancestry", "background", "class", "heritage", "deity"]);
+
   switch (record.category) {
     case "creature":
       return ["creature"];
@@ -56,20 +58,7 @@ function getAonIncludeTypes(record: Pick<AonSearchRecordLike, "category" | "subc
       }
       return [];
     case "characterCreation":
-      switch (record.subcategory) {
-        case "ancestry":
-          return ["ancestry"];
-        case "background":
-          return ["background"];
-        case "class":
-          return ["class"];
-        case "heritage":
-          return ["heritage"];
-        case "deity":
-          return ["deity"];
-        default:
-          return [];
-      }
+      return record.subcategory && characterCreationIncludeTypes.has(record.subcategory) ? [record.subcategory] : [];
     case "lore":
       return [];
   }

@@ -1,7 +1,5 @@
 import {
   CATEGORY_SUBCATEGORY_MAP,
-  normalizeSearchCategory,
-  normalizeSearchSubcategory,
 } from "../../domain/categories.js";
 import { getMetadataFilterSemantics, type MetadataFieldSemantics } from "../../search/filters/semantics.js";
 import type { MetadataFieldName } from "../../search/filters/registry.js";
@@ -18,10 +16,8 @@ import {
 import {
   applyFilterExplorerDraft,
   buildFilterExplorerMetadataNode,
-  cloneFilterExplorerDraft,
   createFilterExplorerDraftFromMetadataNode,
   createFilterExplorerDraftFromQuery,
-  withFilterExplorerComposeDraft,
 } from "../filter-explorer/search-draft.js";
 import { buildSearchFilters } from "./filter-building.js";
 import { createSearchQueryFromOntologyQuery } from "./ontology-query.js";
@@ -50,10 +46,7 @@ import {
 } from "./service-options.js";
 import type {
   Pf2eTerminalFacetField,
-  Pf2eTerminalSearchQuery,
   Pf2eTerminalSearchService,
-  Pf2eTerminalSearchSession,
-  Pf2eTerminalSearchSort,
   SearchServiceDependencies,
 } from "./service-types.js";
 

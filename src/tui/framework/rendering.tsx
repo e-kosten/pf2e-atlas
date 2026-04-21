@@ -352,14 +352,14 @@ function renderTerminalLineContent(
     return line.segments.map((segment, segmentIndex) => (
       <Text
         key={segmentIndex}
-        {...terminalSegmentProps(segment.tone ?? line.tone ?? "default", segment.hyperlink, hyperlinkSupport)}
+        {...terminalSegmentProps(segment.tone ?? line.tone, segment.hyperlink, hyperlinkSupport)}
       >
         {formatHyperlinkText(segment.text, segment.hyperlink, hyperlinkSupport)}
       </Text>
     ));
   }
 
-  return <Text {...terminalSegmentProps(line.tone ?? "default", undefined, hyperlinkSupport)}>{fitToWidth(line.text, width)}</Text>;
+  return <Text {...terminalSegmentProps(line.tone, undefined, hyperlinkSupport)}>{fitToWidth(line.text, width)}</Text>;
 }
 
 function renderTerminalRow(

@@ -131,7 +131,7 @@ function NavigationHarness({
 
 function createNavigationTestServices({
   model = createOntologyModel(),
-  executeQuery = vi.fn(async () => createSearchSession()),
+  executeQuery = vi.fn(() => Promise.resolve(createSearchSession())),
   createQueryFromOntologyQuery = vi.fn((query: OntologyNodeQuery) => ({ query } as never)),
 } = {}) {
   const loadSearchSemanticsDomain = vi.fn(() => model);
@@ -338,7 +338,7 @@ describe("pf2e navigation", () => {
     const model = createOntologyModel();
     const query = createOntologyQuery();
     const snapshot = createSnapshot();
-    const executeQuery = vi.fn(async () => createSearchSession());
+    const executeQuery = vi.fn(() => Promise.resolve(createSearchSession()));
     const { services } = createNavigationTestServices({ model, executeQuery });
     const { capture, renderer } = await renderNavigationHarness({
       initialRoute: createPf2eOntologyRoute({ model }),
@@ -376,7 +376,7 @@ describe("pf2e navigation", () => {
     const query = createOntologyQuery({ label: "Helper Results" });
     const snapshot = createSnapshot();
     const session = createSearchSession();
-    const executeQuery = vi.fn(async () => session);
+    const executeQuery = vi.fn(() => Promise.resolve(session));
     const createQueryFromOntologyQuery = vi.fn((currentQuery: OntologyNodeQuery) => ({ source: currentQuery } as never));
     const { services } = createNavigationTestServices({ model, executeQuery, createQueryFromOntologyQuery });
     const { capture, renderer } = await renderNavigationHarness({

@@ -36,7 +36,6 @@ import type {
   LegacyFacetSelection,
   Pf2eTerminalFacetField,
   Pf2eTerminalFilterValuePolicy,
-  Pf2eTerminalQueryField,
   Pf2eTerminalSearchFilters,
   Pf2eTerminalSearchQuery,
   Pf2eTerminalSearchStructuredPart,

@@ -5,6 +5,7 @@ import {
   buildOntologyExplorerEntityDetailLines,
   type OntologyExplorerEntityRecord,
 } from "../../src/app/ontology/entity-record.js";
+import type { OntologyTextLine } from "../../src/domain/ontology-types.js";
 
 function createAonSearchRecord(overrides: Partial<AonSearchRecordLike> = {}): AonSearchRecordLike {
   return {
@@ -144,14 +145,16 @@ describe("AoN search links", () => {
 
   it("adds the AoN section to shared ontology detail lines", () => {
     const lines = buildOntologyExplorerEntityDetailLines(createOntologyEntityRecord());
-    const linkLine = lines.find((line) => line.href);
+    const linkLine = lines.find(
+      (line): line is OntologyTextLine & { href: string; plainTextFallback: string } =>
+        typeof line.href === "string" && typeof line.plainTextFallback === "string",
+    );
 
     expect(lines.some((line) => line.text === "Archives of Nethys" && line.tone === "section")).toBe(true);
-    expect(linkLine).toMatchObject({
-      text: "Open in Archives of Nethys",
-      href: expect.stringContaining("https://2e.aonprd.com/Search.aspx?display=short&type=eqs"),
-      plainTextFallback: expect.stringContaining("Open in Archives of Nethys: https://2e.aonprd.com"),
-    });
+    expect(linkLine).toBeDefined();
+    expect(linkLine?.text).toBe("Open in Archives of Nethys");
+    expect(linkLine?.href).toContain("https://2e.aonprd.com/Search.aspx?display=short&type=eqs");
+    expect(linkLine?.plainTextFallback).toContain("Open in Archives of Nethys: https://2e.aonprd.com");
     expect(linkLine?.href).toContain("include-traits=auditory+fortune+mental");
   });
 });

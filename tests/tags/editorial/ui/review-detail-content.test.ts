@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { OntologyExplorerEntityRecord } from "../../../../src/app/ontology/entity-record.js";
+import type { OntologyTextLine } from "../../../../src/domain/ontology-types.js";
 import type { DerivedTagReviewSessionRecord } from "../../../../src/tags/editorial/types.js";
 import {
   buildDerivedTagMigrationRecordPageLines,
@@ -73,12 +74,11 @@ describe("review detail content", () => {
     const record = createReviewRecord();
     const lines = buildDerivedTagMigrationRecordPageLines(record);
     const textLines = buildDerivedTagMigrationRecordPageTextLines(record);
-    const linkLine = lines.find((line) => line.href);
+    const linkLine = lines.find((line): line is OntologyTextLine & { href: string } => typeof line.href === "string");
 
-    expect(linkLine).toMatchObject({
-      text: "Open in Archives of Nethys",
-      href: expect.stringContaining("https://2e.aonprd.com/Search.aspx?display=short&type=eqs"),
-    });
+    expect(linkLine).toBeDefined();
+    expect(linkLine?.text).toBe("Open in Archives of Nethys");
+    expect(linkLine?.href).toContain("https://2e.aonprd.com/Search.aspx?display=short&type=eqs");
     expect(
       textLines.some((line) =>
         line.includes("Open in Archives of Nethys: https://2e.aonprd.com/Search.aspx?display=short&type=eqs"),

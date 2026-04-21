@@ -241,9 +241,7 @@ describe("application ontology service", () => {
   it("exposes an explicit search-semantics loader", () => {
     const service = createPf2eApplicationOntologyService(createTestConfig(), createDataService());
 
-    expect(service).toEqual({
-      loadSearchSemanticsDomain: expect.any(Function),
-    });
+    expect(typeof service.loadSearchSemanticsDomain).toBe("function");
   });
 
   it("caches ontology domain models across repeated loads", () => {

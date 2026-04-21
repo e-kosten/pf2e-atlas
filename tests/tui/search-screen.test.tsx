@@ -9,12 +9,12 @@ import type {
 } from "../../src/domain/search-types.js";
 import type { AppConfig } from "../../src/domain/config-types.js";
 import type { NormalizedRecord } from "../../src/domain/record-types.js";
-import type { OntologyDomainModel } from "../../src/domain/ontology-types.js";
+import type { OntologyDomainModel, OntologyNode } from "../../src/domain/ontology-types.js";
+import type { FilterExplorerComposeTarget } from "../../src/tui/filter-explorer/index.js";
 import {
   createPf2eTerminalSearchService,
   type Pf2eTerminalSearchSession,
 } from "../../src/tui/search/service.js";
-import { buildSearchFilterExplorerTargetResolver } from "../../src/tui/filter-explorer/search-draft.js";
 import { Pf2eTerminalAppServicesProvider } from "../../src/tui/app-service-context.js";
 import type { Pf2eTerminalAppServices } from "../../src/tui/app-services.js";
 import { SearchFilterExplorerScreen } from "../../src/tui/search-screen/filter-explorer-screen.js";
@@ -574,8 +574,8 @@ function createCreatureDerivedTagsOntologyDomain(): OntologyDomainModel {
   };
 }
 
-function createCreatureMetricExplorerSession(): SearchFilterExplorerSession {
-  const model: OntologyDomainModel = {
+function createCreatureMetricExplorerModel(): OntologyDomainModel {
+  return {
     id: "searchSemantics",
     label: "Creature Statistics Explorer",
     description: "Metric explorer test domain",
@@ -615,27 +615,6 @@ function createCreatureMetricExplorerSession(): SearchFilterExplorerSession {
         ],
       },
     ],
-  };
-
-  return {
-    title: "Creature Statistics Explorer",
-    model,
-    draft: {
-      scopedFields: ["actorMetric"],
-      selection: {},
-      scalarClauses: {},
-      structuredMetadata: null,
-    },
-    resolveSelectionTarget: buildSearchFilterExplorerTargetResolver([
-      {
-        value: "actorMetric",
-        label: "Creature Statistics",
-        description: "Browse creature statistics.",
-        fieldType: "enumString",
-        editor: "sharedExplorer",
-      },
-    ]),
-    onApply: vi.fn(),
   };
 }
 
@@ -2294,12 +2273,34 @@ describe("search screen", () => {
   });
 
   it("opens the numeric scalar editor when compose-mode creature statistics focus a metric key", async () => {
-    const session = createCreatureMetricExplorerSession();
-    const app = render(
-      <DerivedTagTerminalProvider>
-        <SearchFilterExplorerScreen session={session} />
-      </DerivedTagTerminalProvider>,
-    );
+    const model = createCreatureMetricExplorerModel();
+    const SearchFilterExplorer = SearchFilterExplorerScreen as React.ComponentType<{
+      session: SearchFilterExplorerSession;
+    }>;
+    const session: SearchFilterExplorerSession = {
+      title: "Creature Statistics Explorer",
+      model,
+      draft: {
+        scopedFields: ["actorMetric"],
+        selection: {},
+        scalarClauses: {},
+        structuredMetadata: null,
+      },
+      resolveSelectionTarget: (node: OntologyNode | undefined): FilterExplorerComposeTarget | undefined =>
+        node?.kind === "metric"
+          ? {
+              kind: "scalar",
+              key: "actorMetric:hp.value",
+              fieldLabel: "Creature Statistics",
+              subjectLabel: node.label,
+              valueType: "number",
+              editorLabel: `Creature Statistics / ${node.label}`,
+            }
+          : undefined,
+      onApply: () => {},
+    };
+    const searchFilterExplorerElement = React.createElement(SearchFilterExplorer, { session });
+    const app = render(<DerivedTagTerminalProvider>{searchFilterExplorerElement}</DerivedTagTerminalProvider>);
 
     await flushInk();
     expect(app.lastFrame()).toContain("Creature Statistics Explorer");

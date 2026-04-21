@@ -230,7 +230,7 @@ function extractMetricPolicyFromPredicate(
   node: MetadataPredicate,
   allowedMetricFields: ReadonlySet<SearchFilterExplorerMetricField>,
 ): { key: string; policy: Pf2eTerminalFilterValuePolicy<string> } | null {
-  if (!("metric" in node) || !("value" in node) || (node.field !== "actorMetric" && node.field !== "itemMetric")) {
+  if (!("metric" in node) || !("value" in node)) {
     return null;
   }
   if (!allowedMetricFields.has(node.field)) {
@@ -247,20 +247,18 @@ function extractMetricPolicyFromPredicate(
       policy: { any: [selectionValue], all: [], exclude: [] },
     };
   }
-  if (node.op === "!=") {
-    return {
-      key: getMetricSelectionKey(node.field, node.metric),
-      policy: { any: [], all: [], exclude: [selectionValue] },
-    };
-  }
-  return null;
+
+  return {
+    key: getMetricSelectionKey(node.field, node.metric),
+    policy: { any: [], all: [], exclude: [selectionValue] },
+  };
 }
 
 function extractMetricScalarClauseFromPredicate(
   node: MetadataPredicate,
   allowedMetricFields: ReadonlySet<SearchFilterExplorerMetricField>,
 ): { key: string; clause: FilterExplorerScalarClause } | null {
-  if (!("metric" in node) || !("value" in node) || (node.field !== "actorMetric" && node.field !== "itemMetric")) {
+  if (!("metric" in node) || !("value" in node)) {
     return null;
   }
   if (!allowedMetricFields.has(node.field)) {
@@ -315,7 +313,6 @@ function tryExtractMetricBetweenClause(
     !("metric" in right) ||
     !("value" in left) ||
     !("value" in right) ||
-    (left.field !== "actorMetric" && left.field !== "itemMetric") ||
     left.field !== right.field ||
     left.metric !== right.metric ||
     !allowedMetricFields.has(left.field)
@@ -548,18 +545,20 @@ function buildMetricScalarClauseMetadataNode(key: string, clause: FilterExplorer
     });
   }
 
-  const op =
-    clause.operator === "eq"
-      ? "=="
-      : clause.operator === "neq"
-        ? "!="
-        : clause.operator === "gte"
-          ? ">="
-          : clause.operator === "lte"
-            ? "<="
-            : null;
-  if (!op) {
-    return null;
+  let op: "==" | "!=" | ">=" | "<=";
+  switch (clause.operator) {
+    case "eq":
+      op = "==";
+      break;
+    case "neq":
+      op = "!=";
+      break;
+    case "gte":
+      op = ">=";
+      break;
+    case "lte":
+      op = "<=";
+      break;
   }
 
   if (valueType !== "number") {
@@ -659,7 +658,7 @@ function buildSearchFilterExplorerRootNodes(
     uniqueScopedFieldNodes.length === 1 &&
     options.fieldOptions[0]?.value !== "derivedTags"
   ) {
-    const children = getOntologyNodeChildren(uniqueScopedFieldNodes[0]!);
+    const children = getOntologyNodeChildren(uniqueScopedFieldNodes[0]);
     return children.length > 0 ? [...children] : uniqueScopedFieldNodes;
   }
 
@@ -844,7 +843,7 @@ export function buildSearchFilterExplorerTargetResolver(
       return undefined;
     }
 
-    const predicate = node?.query?.filters.metadata;
+    const predicate = node.query?.filters.metadata;
     if (!predicate || !isMetadataPredicate(predicate)) {
       return fieldOptions
         .map((fieldOption) => buildMetricScalarTarget(node, fieldOption) ?? buildFallbackFieldSelectionTarget(node, fieldOption))
@@ -1020,7 +1019,7 @@ export function buildFilterExplorerMetadataNode(
     }
   }
 
-  for (const [key, clause] of Object.entries(draft.scalarClauses ?? {})) {
+  for (const [key, clause] of Object.entries(draft.scalarClauses)) {
     const metadataNode = buildMetricScalarClauseMetadataNode(key, clause);
     if (metadataNode) {
       metadataClauses.push(metadataNode);

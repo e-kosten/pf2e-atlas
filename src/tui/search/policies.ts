@@ -4,7 +4,6 @@ import { orderStringValues } from "./service-options.js";
 import type {
   Pf2eTerminalFacetField,
   Pf2eTerminalFilterValuePolicy,
-  Pf2eTerminalQueryField,
   Pf2eTerminalQueryFieldSelectionMap,
 } from "./service-types.js";
 import type { Pf2eTerminalQueryPartPolicy } from "./query-parts.js";

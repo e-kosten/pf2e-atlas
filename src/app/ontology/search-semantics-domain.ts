@@ -15,7 +15,6 @@ import {
   buildMetricDiscoveryGroup,
   buildSearchSemanticsMetadataQuery,
   getMetricDiscoveryGroupLabel,
-  getTraitGlossaryEntry,
 } from "./search-semantics-helpers.js";
 
 type SearchSemanticsDataService = Pick<Pf2eDataService, "listFilterValues" | "listRecords"> & {

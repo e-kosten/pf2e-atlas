@@ -12,6 +12,8 @@ import type { Pf2eTerminalAppServices } from "../../src/tui/app-services.js";
 import { createPf2eTerminalSearchService } from "../../src/tui/search/service.js";
 import { DerivedTagTerminalProvider } from "../../src/tui/terminal-ui.js";
 
+type WorkbenchPrompts = Parameters<Pf2eTerminalAppServices["dev"]["tagRefinement"]["promptAndCreateSession"]>[2];
+
 function flushInk(): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, 0);
@@ -495,7 +497,9 @@ describe("pf2e terminal app", () => {
   });
 
   it("passes shared prompt adapters into custom workbench session creation", async () => {
-    const promptAndCreateSession = vi.fn(() => Promise.resolve(undefined));
+    const promptAndCreateSession = vi.fn<Pf2eTerminalAppServices["dev"]["tagRefinement"]["promptAndCreateSession"]>(
+      () => Promise.resolve(undefined),
+    );
     const services = createFakeServices();
     services.dev.tagRefinement.promptAndCreateSession = promptAndCreateSession;
     const app = render(
@@ -515,16 +519,13 @@ describe("pf2e terminal app", () => {
     await flushInk();
 
     expect(promptAndCreateSession).toHaveBeenCalledWith(process.cwd(), "legacy_seed", expect.any(Object));
-    const prompts = promptAndCreateSession.mock.calls[0]![2];
-    expect(prompts).toEqual(
-      expect.objectContaining({
-        promptOptionalSelectOption: expect.any(Function),
-        promptSelectOption: expect.any(Function),
-        promptTextInput: expect.any(Function),
-        pauseForAnyKey: expect.any(Function),
-      }),
-    );
-    expect("exitApp" in prompts).toBe(false);
+    const prompts: WorkbenchPrompts | undefined = promptAndCreateSession.mock.calls[0]?.[2];
+    expect(prompts).toBeDefined();
+    expect(typeof prompts?.promptOptionalSelectOption).toBe("function");
+    expect(typeof prompts?.promptSelectOption).toBe("function");
+    expect(typeof prompts?.promptTextInput).toBe("function");
+    expect(typeof prompts?.pauseForAnyKey).toBe("function");
+    expect("exitApp" in (prompts ?? {})).toBe(false);
   });
 
   it("preserves cancel and error handling for custom workbench session creation", async () => {

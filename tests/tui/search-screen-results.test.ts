@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { OntologyTextLine } from "../../src/domain/ontology-types.js";
 import type { NormalizedRecord } from "../../src/domain/record-types.js";
 import type { Pf2eTerminalSearchQuery, Pf2eTerminalSearchSession } from "../../src/tui/search/service-types.js";
 import { buildResultDetailLines } from "../../src/tui/search-screen/results.js";
@@ -112,17 +113,17 @@ function createSession(record: NormalizedRecord): Pf2eTerminalSearchSession {
 describe("search result detail lines", () => {
   it("reuses the shared ontology detail presenter so result previews include the AoN link metadata", () => {
     const lines = buildResultDetailLines(createRecord(), createSession(createRecord()), 0);
-    const linkLine = lines.find((line) => "href" in line) as
-      | (typeof lines)[number] & { href?: string; plainTextFallback?: string }
-      | undefined;
+    const linkLine = lines.find(
+      (line): line is OntologyTextLine & { href: string; plainTextFallback: string } =>
+        typeof line.href === "string" && typeof line.plainTextFallback === "string",
+    );
 
     expect(lines[0]?.text).toBe("Result Preview");
     expect(lines.some((line) => line.text === "Archives of Nethys" && line.tone === "section")).toBe(true);
-    expect(linkLine).toMatchObject({
-      text: "Open in Archives of Nethys",
-      href: expect.stringContaining("https://2e.aonprd.com/Search.aspx?display=short&type=eqs"),
-      plainTextFallback: expect.stringContaining("Open in Archives of Nethys: https://2e.aonprd.com"),
-    });
+    expect(linkLine).toBeDefined();
+    expect(linkLine?.text).toBe("Open in Archives of Nethys");
+    expect(linkLine?.href).toContain("https://2e.aonprd.com/Search.aspx?display=short&type=eqs");
+    expect(linkLine?.plainTextFallback).toContain("Open in Archives of Nethys: https://2e.aonprd.com");
     expect(linkLine?.href).toContain("include-traits=fortune+mental");
   });
 });

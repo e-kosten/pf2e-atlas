@@ -7,6 +7,7 @@ import {
   FilterExplorerScreen,
   FILTER_EXPLORER_LAUNCH_INTENT,
   type FilterExplorerModel,
+  type FilterExplorerQueryOpenIntent,
 } from "../../src/tui/filter-explorer/index.js";
 import { DerivedTagTerminalProvider } from "../../src/tui/terminal-ui.js";
 
@@ -50,7 +51,7 @@ afterEach(() => {
 
 describe("filter explorer launch intent", () => {
   it("passes results intent through an explicit open-intent object for list-record nodes", async () => {
-    const onOpenQueryIntent = vi.fn();
+    const onOpenQueryIntent = vi.fn<(intent: FilterExplorerQueryOpenIntent) => void>();
     const app = render(
       <DerivedTagTerminalProvider>
         <FilterExplorerScreen
@@ -70,13 +71,14 @@ describe("filter explorer launch intent", () => {
     await flushInk();
 
     expect(onOpenQueryIntent).toHaveBeenCalledTimes(1);
-    const [intent] = onOpenQueryIntent.mock.calls[0]!;
-    expect(intent.launchIntent).toBe(FILTER_EXPLORER_LAUNCH_INTENT.RESULTS);
-    expect((intent.query as { openInResults?: boolean }).openInResults).toBeUndefined();
+    const [intent] = onOpenQueryIntent.mock.calls[0] ?? [];
+    expect(intent).toBeDefined();
+    expect(intent?.launchIntent).toBe(FILTER_EXPLORER_LAUNCH_INTENT.RESULTS);
+    expect("openInResults" in (intent?.query ?? {})).toBe(false);
   });
 
   it("supports explicit editor intent for list-record launches", async () => {
-    const onOpenQueryIntent = vi.fn();
+    const onOpenQueryIntent = vi.fn<(intent: FilterExplorerQueryOpenIntent) => void>();
     const app = render(
       <DerivedTagTerminalProvider>
         <FilterExplorerScreen
@@ -97,6 +99,7 @@ describe("filter explorer launch intent", () => {
     await flushInk();
 
     expect(onOpenQueryIntent).toHaveBeenCalledTimes(1);
-    expect(onOpenQueryIntent.mock.calls[0]?.[0].launchIntent).toBe(FILTER_EXPLORER_LAUNCH_INTENT.EDITOR);
+    const [intent] = onOpenQueryIntent.mock.calls[0] ?? [];
+    expect(intent?.launchIntent).toBe(FILTER_EXPLORER_LAUNCH_INTENT.EDITOR);
   });
 });

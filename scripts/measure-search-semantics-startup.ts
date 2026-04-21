@@ -43,7 +43,7 @@ function median(values: number[]): number {
   return sorted[Math.floor(sorted.length / 2)] ?? 0;
 }
 
-async function measureCall(task: () => Promise<unknown> | unknown): Promise<number> {
+async function measureCall(task: () => PromiseLike<void> | void): Promise<number> {
   const start = performance.now();
   await task();
   return performance.now() - start;
@@ -53,7 +53,10 @@ async function sampleTimings(
   argv: string[],
   samples: number,
   label: string,
-  task: (runtime: Awaited<ReturnType<typeof loadPf2eApplicationRuntime>>, services: Pf2eTerminalAppServices) => Promise<unknown> | unknown,
+  task: (
+    runtime: Awaited<ReturnType<typeof loadPf2eApplicationRuntime>>,
+    services: Pf2eTerminalAppServices,
+  ) => PromiseLike<void> | void,
 ): Promise<TimingSummary> {
   const coldRuns: number[] = [];
   const warmRuns: number[] = [];

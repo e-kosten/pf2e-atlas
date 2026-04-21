@@ -37,19 +37,14 @@ import {
 } from "./rendering.js";
 import type {
   CommandPaletteOptions,
-  DerivedTagTerminalCommandOption,
   DerivedTagTerminalLine,
   DerivedTagTerminalPolicySelection,
   DerivedTagTerminalPolicyState,
   DerivedTagTerminalSelectOption,
   MultiSelectPromptOptions,
-  OptionalSelectPromptOptions,
   PolicyPromptOptions,
-  SelectPromptOptions,
   TerminalModalState,
-  TerminalSelectModalEntry,
   TerminalSelectModalOptions,
-  TerminalSelectOptionDetails,
   TextPromptOptions,
 } from "./types.js";
 import {
@@ -59,15 +54,12 @@ import {
 } from "./policy-presentation.js";
 import {
   buildCommandPaletteDetailLines,
-  buildOptionalSelectModalOptions,
   buildPromptDetailLines,
-  buildSelectModalOptions,
   clampInlinePromptWindowStart,
   clampPromptSelectionIndex,
   createEmptyPolicySelection,
   filterCommandPaletteEntries,
   getFirstEnabledCommandIndex,
-  getSelectPromptInitialIndex,
 } from "./modal-helpers.js";
 export {
   buildOptionalSelectModalOptions,
