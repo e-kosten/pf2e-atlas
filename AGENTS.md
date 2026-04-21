@@ -52,6 +52,7 @@ Use trunk-based branches such as `feat/<topic>` or `fix/<topic>`. Commit message
 
 - Before committing, validate the completed work against the discussed plan for the task. If any agreed plan item was deferred, partially implemented, or dropped, call that out explicitly and do not present the task as fully complete.
 - When work is driven by a plan file under `scratch/plans/`, validate the finished implementation against that plan file immediately before reporting success. Do not report completion if any plan item remains open, partially done, deferred, or unvalidated.
+- Treat cleanup of temporary git worktrees as part of the definition of done, not optional follow-up. A task is not complete while its temporary worktrees still exist unless the user explicitly asks to keep them.
 - It is acceptable to pause mid-task and check in with the user when you are blocked, need clarification, need a decision, or surface an important architectural issue. In those cases, report the current state and the blocker clearly rather than forcing the task to an artificial completion state.
 
 ### Plan Mode Policy
@@ -88,6 +89,7 @@ Treat a task as large when it spans multiple subsystems, requires a planned end-
 - For plan-mode work, treat the plan file as the end-state contract and require validation agents to confirm both plan completion and absence of intermediate refactor state before the orchestrator reports success.
 - If a blocker or unresolved architecture question prevents a clean end-state implementation, pause the work and check in with the user instead of masking the issue with temporary code.
 - Do not treat a delegated slice as done without validation evidence or an explicit explanation of what could not be validated and why. Missing validation for a slice that could reasonably have been checked means the slice is still incomplete.
+- The orchestrator remains responsible for cleanup of all temporary worktrees created for the task, including worktrees created by sub-agents or delegated slices, unless the user explicitly asks to keep them.
 - Meaningful intermediate commits inside the worktree are encouraged when they capture validated milestones, but those commits do not by themselves make the overall task complete.
 - Do not describe a large task as complete, and do not merge its worktree back into `main`, until the full requested workset is implemented, integrated, and validated against the stated end-state checklist, including required architecture-doc and ADR updates for architecture-impacting work. A green intermediate slice is a milestone, not a completion signal.
 - If some agreed work remains open, keep the branch in the worktree, report the remaining scope explicitly, and treat the task as still in progress even if one or more milestone commits have already been made.
@@ -119,7 +121,7 @@ Agents must do implementation work in a dedicated git worktree, not in the share
 - Merging back into the shared `main` checkout can require sandbox approval because git updates shared refs such as `ORIG_HEAD`; request escalation when the environment blocks that write.
 - Do not assume a fast-forward merge will be available before rebasing; parallel agent work commonly means the landing branch has diverged from `main`.
 - After merging back into `main`, rerun `npm run build` and `npm test` on `main`, and only then report the task complete.
-- Remove the temporary worktree after the change has been safely integrated unless the user asks to keep it.
+- Remove the temporary worktree after the change has been safely integrated unless the user asks to keep it. This applies to every temporary worktree created for the task, including sub-agent worktrees, and cleanup must happen before the task is reported complete.
 
 ## Configuration & Data Notes
 
