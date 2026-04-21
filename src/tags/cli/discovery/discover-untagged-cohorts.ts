@@ -134,7 +134,7 @@ export function parseOptions(argv: string[]): UntaggedCohortOptions {
 export function formatHelp(): string {
   return [
     "Usage:",
-    "  npm run discover-untagged-cohorts -- --category <category> [options]",
+    "  cd src/tags/cli && npm run discover-untagged-cohorts -- --category <category> [options]",
     "",
     "Scope:",
     "  --category <category>             Required category scope",
@@ -157,9 +157,9 @@ export function formatHelp(): string {
     "  With --family, it scans records missing tags from that family even if they already have tags from other families.",
     "",
     "Examples:",
-    "  npm run discover-untagged-cohorts -- --category creature --family setting --cohort-limit 8 --anchor-limit 16",
-    "  npm run discover-untagged-cohorts -- --category creature --family setting --include-reviewed --review-reason not_family_salient",
-    "  npm run discover-untagged-cohorts -- --category equipment --subcategory gear --cohort-limit 8 --anchor-limit 16",
+    "  cd src/tags/cli && npm run discover-untagged-cohorts -- --category creature --family setting --cohort-limit 8 --anchor-limit 16",
+    "  cd src/tags/cli && npm run discover-untagged-cohorts -- --category creature --family setting --include-reviewed --review-reason not_family_salient",
+    "  cd src/tags/cli && npm run discover-untagged-cohorts -- --category equipment --subcategory gear --cohort-limit 8 --anchor-limit 16",
   ].join("\n");
 }
 

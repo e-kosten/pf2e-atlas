@@ -81,21 +81,35 @@ Install dependencies and build:
 
 ```bash
 npm install
-npm run install-hooks
-npm run preflight
+cd scripts && npm run install-hooks
+cd scripts && npm run preflight
 npm run build
 ```
 
 Run the test suite:
 
 ```bash
-npm test
+cd scripts && npm test
 ```
 
 Run the stdio MCP server locally:
 
 ```bash
-npm run dev
+cd scripts && npm run dev
+```
+
+Run the terminal workbench locally from source:
+
+```bash
+cd scripts && npm run dev:tui
+```
+
+Run the two top-level built app surfaces from the repo root:
+
+```bash
+npm run tui
+npm run build
+npm run mcp
 ```
 
 ## Validation Before Commit
@@ -103,14 +117,14 @@ npm run dev
 Run these before opening a branch for review or merging back to `main`:
 
 ```bash
-npm run verify
+cd scripts && npm run verify
 ```
 
 Tracked git hooks live in `.githooks/` and enforce:
 
 - `pre-commit`: fail from the primary checkout or branch `main`
 - `commit-msg`: require Conventional Commits with a blank-line-separated body
-- `pre-push`: rerun `npm run verify`
+- `pre-push`: rerun `cd scripts && npm run verify`
 
 ## Vendored PF2E Data
 

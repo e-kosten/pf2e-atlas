@@ -21,13 +21,15 @@ The architecture documents under `docs/architecture/` are part of the working so
 ## Build, Test, and Development Commands
 
 - `npm install`: install dependencies.
-- `npm run install-hooks`: configure this clone to use the tracked git hooks in `.githooks/`.
-- `npm run preflight`: verify the current checkout is a linked worktree on a non-`main` branch.
+- `cd scripts && npm run install-hooks`: configure this clone to use the tracked git hooks in `.githooks/`.
+- `cd scripts && npm run preflight`: verify the current checkout is a linked worktree on a non-`main` branch.
 - `npm run build`: compile TypeScript to `dist/` with `tsc`.
-- `npm test`: run the Vitest suite once.
-- `npm run verify`: run the required validation pair (`build` + `test`).
-- `npm run dev`: run the stdio MCP server from source with `tsx`.
-- `npm run start`: run the built server from `dist/index.js`.
+- `npm run mcp`: run the built stdio MCP server from `dist/index.js`.
+- `npm run tui`: run the built terminal workbench from `dist/tags/cli/editorial/derived-tag-migration-workbench.js`.
+- `cd scripts && npm test`: run the Vitest suite once.
+- `cd scripts && npm run verify`: run the required validation pair (`build` + `test`).
+- `cd scripts && npm run dev`: run the stdio MCP server from source with `tsx`.
+- `cd scripts && npm run dev:tui`: run the terminal workbench from source with `tsx`.
 - `npm run refresh-data`: pull the vendored PF2E checkout.
 - `npm run refresh-embeddings`: prepare local embedding assets.
 - `npm run refresh-index`: rebuild the local SQLite index.
@@ -41,14 +43,14 @@ When you introduce or consolidate a shared abstraction that other code should ro
 
 ## Testing Guidelines
 
-Vitest is the test runner. Add or update `*.test.ts` files under `tests/` for behavior changes, especially around indexing, lookup, and search ranking. Run `npm test` locally before committing. For code that affects build output or types, also run `npm run build`.
+Vitest is the test runner. Add or update `*.test.ts` files under `tests/` for behavior changes, especially around indexing, lookup, and search ranking. Run `cd scripts && npm test` locally before committing. For code that affects build output or types, also run `npm run build`.
 
-- Docs-only or instruction-only changes do not require `npm test`.
+- Docs-only or instruction-only changes do not require `cd scripts && npm test`.
 - Docs-only or instruction-only changes do not require `npm run build` unless the change also affects executable examples, generated output expectations, or another validated artifact.
 
 ## Commit & Pull Request Guidelines
 
-Use trunk-based branches such as `feat/<topic>` or `fix/<topic>`. Commit messages must use Conventional Commits and include both a summary line and a description body separated by a blank line, for example `feat(search): add publication title filtering` followed by a short paragraph describing the change. Agents must commit any coherent, validated unit of work before reporting the task complete unless the user explicitly says not to commit. Do not present implementation work as finished while your tracked changes for that task remain uncommitted. Final completion messages for implementation work must include the commit SHA and commit message. Do not batch unrelated changes into one commit, and do not commit half-finished work just to create progress snapshots. If the worktree already contains unrelated uncommitted changes, leave them untouched and commit only the files for your completed unit of work, or explicitly tell the user why a clean commit boundary is blocked. When the user immediately asks for a follow-up adjustment to work that was just committed locally, prefer folding that adjustment into the same logical commit: soft-reset or otherwise rewrite the unpublished local commit, apply the requested patch, rerun relevant verification, and recommit instead of stacking a trivial fixup commit. This is a personal-project workflow with no PR step, so once a task branch is complete and validated it should be merged back into `main`. Before considering the work done, run `npm run build` and `npm test`, commit the validated changes, describe the user-facing change, report the commit SHA and message, and note any required refresh steps or data/index migration implications. For docs-only or instruction-only changes, no build/test run is required unless the edited files themselves define a stricter expectation for that task. If build or test verification fails, do not commit unless the user explicitly asks for that state to be committed.
+Use trunk-based branches such as `feat/<topic>` or `fix/<topic>`. Commit messages must use Conventional Commits and include both a summary line and a description body separated by a blank line, for example `feat(search): add publication title filtering` followed by a short paragraph describing the change. Agents must commit any coherent, validated unit of work before reporting the task complete unless the user explicitly says not to commit. Do not present implementation work as finished while your tracked changes for that task remain uncommitted. Final completion messages for implementation work must include the commit SHA and commit message. Do not batch unrelated changes into one commit, and do not commit half-finished work just to create progress snapshots. If the worktree already contains unrelated uncommitted changes, leave them untouched and commit only the files for your completed unit of work, or explicitly tell the user why a clean commit boundary is blocked. When the user immediately asks for a follow-up adjustment to work that was just committed locally, prefer folding that adjustment into the same logical commit: soft-reset or otherwise rewrite the unpublished local commit, apply the requested patch, rerun relevant verification, and recommit instead of stacking a trivial fixup commit. This is a personal-project workflow with no PR step, so once a task branch is complete and validated it should be merged back into `main`. Before considering the work done, run `npm run build` and `cd scripts && npm test`, commit the validated changes, describe the user-facing change, report the commit SHA and message, and note any required refresh steps or data/index migration implications. For docs-only or instruction-only changes, no build/test run is required unless the edited files themselves define a stricter expectation for that task. If build or test verification fails, do not commit unless the user explicitly asks for that state to be committed.
 
 - Before committing, validate the completed work against the discussed plan for the task. If any agreed plan item was deferred, partially implemented, or dropped, call that out explicitly and do not present the task as fully complete.
 - When work is driven by a plan file under `scratch/plans/`, validate the finished implementation against that plan file immediately before reporting success. Do not report completion if any plan item remains open, partially done, deferred, or unvalidated.
@@ -116,11 +118,11 @@ Agents must do implementation work in a dedicated git worktree, not in the share
 - When the worktree change is ready to land, inspect the shared `main` checkout first. If `main` has any uncommitted tracked changes, stop and tell the user instead of merging.
 - Before attempting to merge back, rebase the worktree branch onto the current `main` so parallel agent commits already landed on `main` are incorporated first.
 - If the rebase hits conflicts, stop there and tell the user what conflicted so they can decide the next step.
-- After a clean rebase, rerun `npm run build` and `npm test` in the rebased worktree. If either fails, stop and tell the user instead of merging.
+- After a clean rebase, rerun `npm run build` and `cd scripts && npm test` in the rebased worktree. If either fails, stop and tell the user instead of merging.
 - Only after `main` is clean, the rebase is conflict-free, the rebased worktree passes build and tests, and the full requested workset is complete should the agent merge the branch back into `main`.
 - Merging back into the shared `main` checkout can require sandbox approval because git updates shared refs such as `ORIG_HEAD`; request escalation when the environment blocks that write.
 - Do not assume a fast-forward merge will be available before rebasing; parallel agent work commonly means the landing branch has diverged from `main`.
-- After merging back into `main`, rerun `npm run build` and `npm test` on `main`, and only then report the task complete.
+- After merging back into `main`, rerun `npm run build` and `cd scripts && npm test` on `main`, and only then report the task complete.
 - Remove the temporary worktree after the change has been safely integrated unless the user asks to keep it. This applies to every temporary worktree created for the task, including sub-agent worktrees, and cleanup must happen before the task is reported complete.
 
 ## Configuration & Data Notes

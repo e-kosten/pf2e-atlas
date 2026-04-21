@@ -46,7 +46,7 @@ For the rule slice itself:
 5. Write confident live assignments directly to `src/tags/assignments`.
 6. Route uncertain assignment calls to `src/tags/assignment-reviews`.
 7. Add or refine future deterministic logic in `src/tags/authored-rules` only when the rule is explainable and durable.
-8. Validate with focused tests first, then `npm run build` and `npm test`.
+8. Validate with focused tests first, then `npm run build` and `cd scripts && npm test`.
 
 ## Important Rules
 

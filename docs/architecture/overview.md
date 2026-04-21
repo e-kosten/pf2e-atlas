@@ -374,7 +374,7 @@ If a new shared abstraction is meant to become the normal path through the codeb
 The full repo gate is:
 
 ```bash
-npm run verify
+cd scripts && npm run verify
 ```
 
 For documentation-only changes, still run at least the project build and test suite before landing work so the branch state is known-good.

@@ -1,10 +1,6 @@
 #!/usr/bin/env node
 
-import {
-  lastValue,
-  parseCliArgs,
-  parseInteger,
-} from "../shared/arg-parsing.js";
+import { lastValue, parseCliArgs, parseInteger } from "../shared/arg-parsing.js";
 import { openEditorialConfiguredIndex } from "../../editorial/configured-index.js";
 import { writeDerivedTagReviewSummary } from "../../editorial/writeback/review-summary.js";
 import { renderDerivedTagReviewSessionSummary } from "../../editorial/ui/render.js";
@@ -55,7 +51,7 @@ function parseDecisionKind(value: string | undefined): "assignment" | "exemplar"
 
 function renderHelp(): string {
   return [
-    "Usage: npm run create-derived-tag-migration-session -- --mode <mode> [options]",
+    "Usage: cd src/tags/cli && npm run create-derived-tag-migration-session -- --mode <mode> [options]",
     "",
     `Modes: ${MODES.join(", ")}`,
     "Options:",

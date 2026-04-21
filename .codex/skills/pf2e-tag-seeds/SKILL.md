@@ -35,7 +35,7 @@ Once a record is touched in this pass, it should be as complete as possible for 
 7. Write confident exemplar outcomes directly to `src/tags/exemplars/<category>.ts`.
 8. Route uncertain exemplar outcomes to `src/tags/exemplar-reviews/<category>.ts`.
 9. Note ontology gaps explicitly instead of guessing around them.
-10. Validate with `npm run build` and `npm test`.
+10. Validate with `npm run build` and `cd scripts && npm test`.
 
 ## Important Rules
 

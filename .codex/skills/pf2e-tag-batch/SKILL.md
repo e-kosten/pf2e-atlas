@@ -31,7 +31,7 @@ For every touched record:
 5. Route only ambiguous assignment calls to `src/tags/assignment-reviews`.
 6. If the record is clearly a strong or weak teaching example, update exemplars too.
 7. Capture ontology gaps explicitly instead of compensating with brittle heuristics.
-8. Validate with `npm run build` and `npm test`.
+8. Validate with `npm run build` and `cd scripts && npm test`.
 
 ## Important Rules
 

@@ -32,7 +32,7 @@ The output should be a smaller, stronger teaching set, not a large list of recor
 5. Write confident exemplar edits directly to `src/tags/exemplars/<category>.ts`.
 6. Route uncertain exemplar edits to `src/tags/exemplar-reviews/<category>.ts`.
 7. If a touched record has clearly wrong or missing explicit assignments, fix that too.
-8. Validate with `npm run build` and `npm test`.
+8. Validate with `npm run build` and `cd scripts && npm test`.
 
 ## Important Rules
 

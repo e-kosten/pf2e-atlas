@@ -130,7 +130,7 @@ export function parseOptions(argv: string[]): DiscoveryEvidenceOptions {
 export function formatHelp(): string {
   return [
     "Usage:",
-    "  npm run analyze-derived-tag-evidence -- --category <category> [options]",
+    "  cd src/tags/cli && npm run analyze-derived-tag-evidence -- --category <category> [options]",
     "",
     "Scope:",
     "  --category <category>              Required for normal category-scoped and family-scoped analysis",
@@ -154,10 +154,10 @@ export function formatHelp(): string {
     "  --max-gram-length <n>             Maximum phrase length, default analyzer range",
     "",
     "Examples:",
-    "  npm run analyze-derived-tag-evidence -- --category creature --family setting",
-    "  npm run analyze-derived-tag-evidence -- --category creature --family setting --untagged --limit 12",
-    "  npm run analyze-derived-tag-evidence -- --category creature --family setting --family-gap-signals --include-reviewed --review-reason not_family_salient",
-    "  npm run analyze-derived-tag-evidence -- --category creature --tag fortress_setting",
+    "  cd src/tags/cli && npm run analyze-derived-tag-evidence -- --category creature --family setting",
+    "  cd src/tags/cli && npm run analyze-derived-tag-evidence -- --category creature --family setting --untagged --limit 12",
+    "  cd src/tags/cli && npm run analyze-derived-tag-evidence -- --category creature --family setting --family-gap-signals --include-reviewed --review-reason not_family_salient",
+    "  cd src/tags/cli && npm run analyze-derived-tag-evidence -- --category creature --tag fortress_setting",
   ].join("\n");
 }
 

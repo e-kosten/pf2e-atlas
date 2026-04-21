@@ -52,6 +52,29 @@ npm run refresh-external
 npm run build
 ```
 
+Root `npm run` is intentionally kept to the end-user runtime/setup surface:
+
+- `npm run build`
+- `npm run mcp`
+- `npm run tui`
+- `npm run refresh-data`
+- `npm run refresh-embeddings`
+- `npm run refresh-index`
+- `npm run refresh-external`
+
+Developer workflow scripts live under [`scripts/`](./scripts/package.json), and derived-tag/editorial CLI commands live under [`src/tags/cli/`](./src/tags/cli/package.json).
+
+Run the two main app surfaces from the repo root:
+
+```bash
+npm run build
+npm run tui
+npm run mcp
+```
+
+`npm run tui` runs the built terminal workbench from `dist/tags/cli/editorial/derived-tag-migration-workbench.js`.
+`npm run mcp` runs the built stdio MCP server from `dist/index.js`.
+
 ## Data Checkout
 
 Clone the PF2E repo into the vendored data path:
@@ -83,6 +106,11 @@ If startup is missing a prepared index or detects a stale one, it fails fast wit
 
 An alternate PF2E data path can still be supplied with `--data-path /path/to/pf2e` if needed, but the normal workflow is to keep the data under `vendor/pf2e`.
 
+You can also override the data path with:
+
+- `PF2E_DATA_PATH`
+- `--data-path /path/to/pf2e`
+
 The SQLite index path defaults to `.cache/pf2e-index.sqlite` under the current working directory. You can override it with:
 
 - `PF2E_INDEX_PATH`
@@ -105,9 +133,31 @@ This repo uses a simple trunk-based Git workflow:
 
 - keep `main` as the primary branch
 - create short-lived branches for work such as `feat/<topic>` or `fix/<topic>`
-- install the tracked git hooks with `npm run install-hooks`
-- run `npm run preflight` before starting implementation work in a new shell
-- validate with `npm run verify` before merging
+- install the tracked git hooks with `cd scripts && npm run install-hooks`
+- run `cd scripts && npm run preflight` before starting implementation work in a new shell
+- validate with `cd scripts && npm run verify` before merging
+
+Common developer commands now live under [`scripts/`](./scripts/package.json):
+
+```bash
+cd scripts
+npm run dev
+npm run dev:tui
+npm run test
+npm run verify
+```
+
+Developer split:
+
+- `cd scripts && npm run dev`: run the MCP server from source
+- `cd scripts && npm run dev:tui`: run the terminal workbench from source
+
+Derived-tag and editorial tooling now lives under [`src/tags/cli/`](./src/tags/cli/package.json):
+
+```bash
+cd src/tags/cli
+npm run discover-untagged-cohorts -- --category creature --family setting
+```
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for the local workflow details.
 
@@ -126,9 +176,12 @@ Example MCP client entry:
 }
 ```
 
+The MCP client should point at the built server entrypoint. Build first with `npm run build`, then use `npm run mcp` for manual local runs.
+
 ## Tools
 
 - `pf2e_get_search_semantics`
+- `pf2e_list_filter_values`
 - `pf2e_list_packs`
 - `pf2e_get_pack_metadata`
 - `pf2e_list_records`
@@ -158,12 +211,13 @@ Search and list responses include:
 ## Notes
 
 - The server is read-only.
-- Search is category-first. Use `category` plus structured filters such as `subcategory`, `traitsAll`, `traitsAny`, `excludeTraits`, `sources`, `excludeSources`, `traditions`, and `spellKinds` instead of raw Foundry `recordType`, `documentType`, or `itemCategory`.
+- Search is category-first. Use `category`, `subcategory`, `scopes`, numeric bounds, and typed `metadata` predicates instead of raw Foundry `recordType`, `documentType`, or `itemCategory`.
 - `pf2e_search` supports `searchProfile: "lexical" | "balanced" | "concept"` as the primary user-facing retrieval control.
 - `pf2e_search` defaults to the `balanced` profile when `query` is present and `searchProfile` is omitted.
 - `pf2e_lookup` and `pf2e_lookup_many` remain the exact-name lookup tools; `searchProfile: "lexical"` is the lexical-first ranked-search mode.
 - Prefer a short natural-language phrase or sentence with 1-3 concrete anchor terms for `query`. Avoid long comma-separated keyword lists by default.
-- `pf2e_get_search_semantics` is the primary discovery surface for categories, subcategories, spell facets, Pathfinder-native tags, and supported filters.
+- `pf2e_get_search_semantics` is the primary discovery surface for categories, subcategories, Pathfinder-native tags, metadata filters, and supported search patterns.
+- `pf2e_list_filter_values` enumerates live filter values after you know which category/subcategory or metadata field you want to inspect.
 - Search now uses a local SQLite index with:
   - shared structured filters
   - FTS-backed lexical search

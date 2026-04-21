@@ -46,7 +46,7 @@ For the legacy rule slice itself:
    - if the cohort is too fuzzy for a durable rule, replace it with explicit assignments only
    - if the right answer is that the legacy concept should disappear, retire it
 8. If touched records are also useful or misleading exemplars, update exemplars at the same time.
-9. Validate with focused tests first, then `npm run build` and `npm test`.
+9. Validate with focused tests first, then `npm run build` and `cd scripts && npm test`.
 
 ## Important Rules
 

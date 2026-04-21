@@ -9,7 +9,9 @@ export type Pf2eApplicationOntologyService = {
 };
 
 type OntologyDomainDataService = Pick<Pf2eDataService, "listFilterValues" | "listRecords"> & {
-  getSearchSemanticsBootstrapSummary?: (options?: { traitLimitPerCategory?: number }) => SearchSemanticsBootstrapSummaryResult;
+  getSearchSemanticsBootstrapSummary?: (options?: {
+    traitLimitPerCategory?: number;
+  }) => SearchSemanticsBootstrapSummaryResult;
   getSearchVocabulary?: (options?: { traitLimitPerCategory?: number }) => SearchVocabularyResult;
 };
 
@@ -23,7 +25,7 @@ export function createPf2eApplicationOntologyService(
     if (!searchSemanticsDomain) {
       searchSemanticsDomain = buildSearchSemanticsDomain(config, dataService);
     }
-    return searchSemanticsDomain!;
+    return searchSemanticsDomain;
   };
 
   return {
