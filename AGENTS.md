@@ -49,6 +49,25 @@ Vitest is the test runner. Add or update `*.test.ts` files under `tests/` for be
 Use trunk-based branches such as `feat/<topic>` or `fix/<topic>`. Commit messages must use Conventional Commits and include both a summary line and a description body separated by a blank line, for example `feat(search): add publication title filtering` followed by a short paragraph describing the change. Agents must commit any coherent, validated unit of work before reporting the task complete unless the user explicitly says not to commit. Do not present implementation work as finished while your tracked changes for that task remain uncommitted. Final completion messages for implementation work must include the commit SHA and commit message. Do not batch unrelated changes into one commit, and do not commit half-finished work just to create progress snapshots. If the worktree already contains unrelated uncommitted changes, leave them untouched and commit only the files for your completed unit of work, or explicitly tell the user why a clean commit boundary is blocked. When the user immediately asks for a follow-up adjustment to work that was just committed locally, prefer folding that adjustment into the same logical commit: soft-reset or otherwise rewrite the unpublished local commit, apply the requested patch, rerun relevant verification, and recommit instead of stacking a trivial fixup commit. This is a personal-project workflow with no PR step, so once a task branch is complete and validated it should be merged back into `main`. Before considering the work done, run `npm run build` and `npm test`, commit the validated changes, describe the user-facing change, report the commit SHA and message, and note any required refresh steps or data/index migration implications. For docs-only or instruction-only changes, no build/test run is required unless the edited files themselves define a stricter expectation for that task. If build or test verification fails, do not commit unless the user explicitly asks for that state to be committed.
 
 - Before committing, validate the completed work against the discussed plan for the task. If any agreed plan item was deferred, partially implemented, or dropped, call that out explicitly and do not present the task as fully complete.
+- When work is driven by a plan file under `scratch/plans/`, validate the finished implementation against that plan file immediately before reporting success. Do not report completion if any plan item remains open, partially done, deferred, or unvalidated.
+
+### Plan Mode Policy
+
+When operating in plan mode, the plan file is the authoritative checklist for both orchestration and completion.
+
+- Always write plan files as new files under `scratch/plans/`. Do not overwrite or reuse an existing plan file for a new task.
+- Assume plan-mode implementation is complex enough to require orchestration and sub-agent delegation by default.
+- The orchestration agent should delegate both implementation and validation to sub-agents whenever practical so its own context stays focused on coordination, integration, and end-state checks.
+- Before reporting success on work that originated from a plan file, validate the repository against that plan file and confirm that every requested item is fully implemented, fully validated, and has no remaining follow-up work hidden behind "later" steps.
+- Work from a plan file is not complete until validation confirms that nothing remains to be done from the plan and that the repository is in the intended end state rather than an intermediate checkpoint.
+
+### Refactor Completion Policy
+
+Refactors must land as finished end-state changes, not as transitional scaffolding.
+
+- Do not treat a refactor as complete if it leaves behind intermediate shims, compatibility wrappers, transitional files, partial migrations, or mixed old-and-new implementations across the codebase.
+- A refactor is only complete when the new structure has been applied everywhere it is intended to apply, the old implementation has been fully removed, and no code still depends on the replaced pathway.
+- Validation for refactor work must explicitly check for leftover uses of the old implementation, leftover shim files, and any other signs of an intermediate migration state. If any of those remain, the refactor is still in progress.
 
 ### Large Task Orchestration Policy
 
@@ -59,6 +78,7 @@ Treat a task as large when it spans multiple subsystems, requires a planned end-
 - Each delegated or local sub-task should have a defined scope, expected artifact, and validation step so partial progress cannot be mistaken for task completion.
 - Validation for delegated implementation slices should usually be delegated with the slice itself. The orchestrator should assign explicit validation ownership to sub-agents wherever practical instead of centralizing all verification locally.
 - The orchestrator should keep its own context focused on coordination, integration, and end-state checks. Do not pull large validation logs or repeated test-debug loops into the orchestrator context when a sub-agent can own that verification and report back the result.
+- For plan-mode work, treat the plan file as the end-state contract and require validation agents to confirm both plan completion and absence of intermediate refactor state before the orchestrator reports success.
 - Do not treat a delegated slice as done without validation evidence or an explicit explanation of what could not be validated and why. Missing validation for a slice that could reasonably have been checked means the slice is still incomplete.
 - Meaningful intermediate commits inside the worktree are encouraged when they capture validated milestones, but those commits do not by themselves make the overall task complete.
 - Do not describe a large task as complete, and do not merge its worktree back into `main`, until the full requested workset is implemented, integrated, and validated against the stated end-state checklist. A green intermediate slice is a milestone, not a completion signal.
