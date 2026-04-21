@@ -20,6 +20,12 @@ The current codebase has since moved the workspace code into the split `src/tui/
 
 Today, `main` builds search editor rows more directly from query state and metadata flattening in `src/tui/search-screen/workspace/workspace.ts`. That is workable for the current editor, but it makes future rendering, stable targeting, and alternate presentations harder than they need to be.
 
+Related cleanup from the later `fix/tui-cleanup-slice` worktree reinforced the same direction from below the renderer:
+
+- `query.filters.parts` should remain the canonical TUI structured-query representation
+- search-screen and filter-explorer code should avoid carrying parallel legacy state for subcategory, level range, rarity, action cost, and metadata when those concepts can be derived from query parts
+- filter-explorer compose state should converge on one canonical draft shape instead of carrying side-channel compatibility fields
+
 ## Desired Outcome
 
 Introduce a durable structured-query summary model in the current search-screen architecture.
@@ -36,11 +42,14 @@ That future implementation should provide:
 
 The summary model should be useful both for the current search editor and for future document-style rendering work.
 
+That work should build on cleaner canonical state ownership rather than introducing a richer summary/document layer on top of duplicated or transitional search-editor state.
+
 ## Constraints
 
 - Do not revive the old `src/tui/search-screen-workspace.ts` file layout. Work should start from the current `src/tui/search-screen/workspace/` modules and `src/tui/search/` query-state/service seams.
 - Treat the dirty worktree as design input, not as a patch to replay.
 - Keep query-state ownership and normalization in the current search-owned seams rather than scattering new ad hoc helpers across unrelated files.
+- Keep the summary model aligned with the canonical query-parts direction. If existing TUI search state still carries duplicate compatibility fields, clean that state shape first or in the same task rather than teaching the new summary model to depend on both representations.
 - Do not introduce abstraction for its own sake. The model should only be added if it clearly improves rendering, navigation, or state targeting in the editor.
 - Keep the search editor aligned with the shared TUI interaction and list/detail presentation architecture rather than creating a second bespoke rendering path.
 
@@ -62,6 +71,16 @@ The main useful idea from that worktree was a separate structured-query summary 
   - `actionCost`
   - `metadata:<path>`
 - helper functions to derive a summarized structured-query view before converting it into screen rows
+
+### Supporting cleanup direction
+
+The later dirty worktree `fix/tui-cleanup-slice` did not primarily add a summary model, but it did preserve a useful prerequisite direction:
+
+- keep `query.filters.parts` as the only canonical structured-query representation on the TUI side
+- stop carrying extra TUI-only compatibility fields when the same information can be derived from query parts
+- reduce the compatibility gap between search query state and filter-explorer compose state
+
+That direction is now tracked separately in [Search filter explorer draft canonicalization](./search-filter-explorer-draft-canonicalization.md), but it is worth calling out here because the summary model will be cleaner and more durable if it builds on that canonical state shape instead of compensating for duplicate editor-era representations.
 
 ### Why the idea matters
 
@@ -90,6 +109,8 @@ A future implementation should likely start by deciding where the summary model 
 - query-state helpers in `src/tui/search/` should continue to own normalized query interpretation
 - search-screen workspace modules should own editor-facing summary-to-row rendering
 - the summary layer should sit between those two concerns
+
+If canonical query-state cleanup is still pending, do not bury that cleanup inside renderer code. Either land the state-shape cleanup first or make it an explicit sub-step of the summary-model work so the summary layer does not become another compatibility owner.
 
 One likely shape is:
 
@@ -124,6 +145,7 @@ That is probably overkill for a first-pass editor, but it becomes valuable once 
 
 - [Backlog: Search interaction cleanup](../backlog.md)
 - [Search screen interaction follow-through](./search-screen-interaction-follow-through.md)
+- [Search filter explorer draft canonicalization](./search-filter-explorer-draft-canonicalization.md)
 - [View pages and detail presentation](./view-pages-and-details.md)
 - [TUI architecture](../../architecture/tui.md)
 - [Search architecture](../../architecture/search.md)
