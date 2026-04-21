@@ -109,9 +109,12 @@ export type Pf2eTerminalQueryFieldEditor = "policyList" | "structuredForm" | "sh
 
 export type Pf2eTerminalQueryFieldSelectionMap = FilterExplorerSelectionMap;
 
-export type Pf2eTerminalFilterExplorerDraft = FilterExplorerComposeDraft & {
+export type Pf2eTerminalFilterExplorerDraft = FilterExplorerComposeDraft;
+
+export type Pf2eTerminalPreparedFilterExplorerDraft = {
+  draft: Pf2eTerminalFilterExplorerDraft;
+  preservedMetadata: MetadataFilterNode | null;
   scopedFields: readonly Pf2eTerminalQueryField[];
-  structuredMetadata: MetadataFilterNode | null;
 };
 
 export type Pf2eTerminalSearchSession = {
@@ -157,6 +160,14 @@ export type Pf2eTerminalSearchService = {
   ) => Pf2eTerminalQueryPart["kind"][];
   getRootQueryParts: (query: Pf2eTerminalSearchQuery) => Pf2eTerminalQueryPart[];
   applyRootQueryParts: (query: Pf2eTerminalSearchQuery, parts: Pf2eTerminalQueryPart[]) => Pf2eTerminalSearchQuery;
+  prepareFilterExplorerDraft: (
+    query: Pf2eTerminalSearchQuery,
+    scopedFields: readonly Pf2eTerminalQueryField[],
+  ) => Pf2eTerminalPreparedFilterExplorerDraft;
+  prepareFilterExplorerDraftFromMetadataNode: (
+    node: MetadataFilterNode | null,
+    scopedFields: readonly Pf2eTerminalQueryField[],
+  ) => Pf2eTerminalPreparedFilterExplorerDraft;
   createFilterExplorerDraft: (
     query: Pf2eTerminalSearchQuery,
     scopedFields: readonly Pf2eTerminalQueryField[],
@@ -165,10 +176,17 @@ export type Pf2eTerminalSearchService = {
     node: MetadataFilterNode | null,
     scopedFields: readonly Pf2eTerminalQueryField[],
   ) => Pf2eTerminalFilterExplorerDraft;
-  buildFilterExplorerMetadataNode: (draft: Pf2eTerminalFilterExplorerDraft) => MetadataFilterNode | null;
+  buildFilterExplorerMetadataNode: (
+    draft: Pf2eTerminalFilterExplorerDraft,
+    options?: { preservedMetadata?: MetadataFilterNode | null },
+  ) => MetadataFilterNode | null;
   applyFilterExplorerDraft: (
     query: Pf2eTerminalSearchQuery,
     draft: Pf2eTerminalFilterExplorerDraft,
+    options?: {
+      preservedMetadata?: MetadataFilterNode | null;
+      scopedFields?: readonly Pf2eTerminalQueryField[];
+    },
   ) => Pf2eTerminalSearchQuery;
   buildDiscoverableQueryFieldSelections: (
     query: Pf2eTerminalSearchQuery,

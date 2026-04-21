@@ -163,12 +163,6 @@ function createSearchSession(
     sourceLabel: "Seeded from: Browse illusion spells",
     filters: {
       category: "spell",
-      subcategory: null,
-      levelMin: null,
-      levelMax: null,
-      rarity: { any: [], all: [], exclude: [] },
-      actionCost: { any: [], all: [], exclude: [] },
-      metadata: null,
       parts: [],
     },
   };
@@ -2268,10 +2262,8 @@ describe("search screen", () => {
       title: "Creature Statistics Explorer",
       model,
       draft: {
-        scopedFields: ["actorMetric"],
         selection: {},
         scalarClauses: {},
-        structuredMetadata: null,
       },
       resolveSelectionTarget: (node: OntologyNode | undefined): FilterExplorerComposeTarget | undefined =>
         node?.kind === "metric"

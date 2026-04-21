@@ -21,6 +21,7 @@ import type {
   Pf2eTerminalFacetField,
   Pf2eTerminalFilterExplorerDraft,
   Pf2eTerminalFilterValuePolicy,
+  Pf2eTerminalPreparedFilterExplorerDraft,
   Pf2eTerminalQueryField,
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalQueryFieldSelectionMap,
@@ -100,6 +101,91 @@ function normalizeFilterExplorerSelectionMap(
   }
 
   return next;
+}
+
+export function buildFilterExplorerMetadataNodeFromPolicy(
+  fieldOption: Pf2eTerminalQueryFieldOption,
+  policy: Pf2eTerminalFilterValuePolicy<string>,
+): MetadataFilterNode | null {
+  const clauses: MetadataFilterNode[] = [];
+
+  if (fieldOption.fieldType === "set") {
+    if (policy.any.length > 0) {
+      clauses.push({ field: fieldOption.value, op: "includesAny", values: [...policy.any] } as MetadataFilterNode);
+    }
+    if (policy.all.length > 0) {
+      clauses.push({ field: fieldOption.value, op: "includesAll", values: [...policy.all] } as MetadataFilterNode);
+    }
+    if (policy.exclude.length > 0) {
+      clauses.push({ field: fieldOption.value, op: "excludesAny", values: [...policy.exclude] } as MetadataFilterNode);
+    }
+  }
+
+  if (fieldOption.fieldType === "enumString") {
+    if (policy.any.length === 1) {
+      clauses.push({ field: fieldOption.value, op: "eq", value: policy.any[0]! } as MetadataFilterNode);
+    } else if (policy.any.length > 1) {
+      clauses.push({ field: fieldOption.value, op: "in", values: [...policy.any] } as MetadataFilterNode);
+    }
+    if (policy.exclude.length > 0) {
+      clauses.push({ field: fieldOption.value, op: "notIn", values: [...policy.exclude] } as MetadataFilterNode);
+    }
+  }
+
+  if (clauses.length === 0) {
+    return null;
+  }
+
+  return clauses.length === 1 ? clauses[0]! : { and: clauses };
+}
+
+export function buildFilterExplorerPolicyFromPredicate(
+  node: MetadataPredicate,
+): Pf2eTerminalFilterValuePolicy<string> | null {
+  const policy = createEmptyStringPolicy();
+
+  if ("values" in node) {
+    if (node.op === "includesAny" || node.op === "in") {
+      policy.any = [...node.values.map((value) => String(value))];
+    } else if (node.op === "includesAll") {
+      policy.all = [...node.values.map((value) => String(value))];
+    } else {
+      policy.exclude = [...node.values.map((value) => String(value))];
+    }
+    return policy;
+  }
+
+  if ("value" in node && node.op === "eq") {
+    policy.any = [String(node.value)];
+    return policy;
+  }
+
+  return null;
+}
+
+export function buildFilterExplorerPolicyFromMetadataNode(
+  node: MetadataFilterNode | null,
+): Pf2eTerminalFilterValuePolicy<string> {
+  if (!node) {
+    return createEmptyStringPolicy();
+  }
+
+  if ("and" in node) {
+    return node.and.reduce((policy, child) => {
+      const childPolicy = buildFilterExplorerPolicyFromMetadataNode(child);
+      return {
+        any: [...policy.any, ...childPolicy.any],
+        all: [...policy.all, ...childPolicy.all],
+        exclude: [...policy.exclude, ...childPolicy.exclude],
+      };
+    }, createEmptyStringPolicy());
+  }
+
+  if ("or" in node || "not" in node) {
+    return createEmptyStringPolicy();
+  }
+
+  return buildFilterExplorerPolicyFromPredicate(node) ?? createEmptyStringPolicy();
 }
 
 function findDirectNodeById(nodes: readonly OntologyNode[], id: string): OntologyNode | undefined {
@@ -925,6 +1011,14 @@ export function createFilterExplorerDraftFromMetadataNode(
   scopedFields: readonly Pf2eTerminalQueryField[],
   fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
 ): Pf2eTerminalFilterExplorerDraft {
+  return prepareFilterExplorerDraftFromMetadataNode(node, scopedFields, fieldSemanticsByName).draft;
+}
+
+export function prepareFilterExplorerDraftFromMetadataNode(
+  node: MetadataFilterNode | null,
+  scopedFields: readonly Pf2eTerminalQueryField[],
+  fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
+): Pf2eTerminalPreparedFilterExplorerDraft {
   const regularFields = scopedFields.filter((field): field is Pf2eTerminalFacetField => !isMetricQueryField(field));
   const discoverablePartition = partitionDiscoverableQueryFieldSelections(node, regularFields, fieldSemanticsByName);
   const metricPartition = extractMetricDraftEntries(
@@ -934,12 +1028,14 @@ export function createFilterExplorerDraftFromMetadataNode(
 
   return {
     scopedFields: [...scopedFields],
-    selection: normalizeFilterExplorerSelectionMap(
-      mergeSelectionMaps(discoverablePartition.selections, metricPartition.selections),
-      fieldSemanticsByName,
-    ),
-    scalarClauses: cloneScalarClauseMap(metricPartition.scalarClauses),
-    structuredMetadata: normalizeMetadataNode(metricPartition.metadata),
+    draft: {
+      selection: normalizeFilterExplorerSelectionMap(
+        mergeSelectionMaps(discoverablePartition.selections, metricPartition.selections),
+        fieldSemanticsByName,
+      ),
+      scalarClauses: cloneScalarClauseMap(metricPartition.scalarClauses),
+    },
+    preservedMetadata: normalizeMetadataNode(metricPartition.metadata),
   };
 }
 
@@ -948,11 +1044,20 @@ export function createFilterExplorerDraftFromQuery(
   scopedFields: readonly Pf2eTerminalQueryField[],
   fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
 ): Pf2eTerminalFilterExplorerDraft {
-  const draft = createFilterExplorerDraftFromMetadataNode(
+  return prepareFilterExplorerDraftFromQuery(query, scopedFields, fieldSemanticsByName).draft;
+}
+
+export function prepareFilterExplorerDraftFromQuery(
+  query: Pf2eTerminalSearchQuery,
+  scopedFields: readonly Pf2eTerminalQueryField[],
+  fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
+): Pf2eTerminalPreparedFilterExplorerDraft {
+  const preparedDraft = prepareFilterExplorerDraftFromMetadataNode(
     getSearchQueryMetadataTree(query),
     scopedFields,
     fieldSemanticsByName,
   );
+  const draft = cloneFilterExplorerDraft(preparedDraft.draft);
 
   if (scopedFields.includes("rarity")) {
     draft.selection.rarity = clonePolicy(getSearchQueryRarityPolicy(query));
@@ -968,8 +1073,12 @@ export function createFilterExplorerDraftFromQuery(
   }
 
   return {
-    ...draft,
-    selection: normalizeFilterExplorerSelectionMap(draft.selection, fieldSemanticsByName),
+    scopedFields: [...scopedFields],
+    draft: {
+      ...draft,
+      selection: normalizeFilterExplorerSelectionMap(draft.selection, fieldSemanticsByName),
+    },
+    preservedMetadata: preparedDraft.preservedMetadata,
   };
 }
 
@@ -977,38 +1086,62 @@ export function cloneFilterExplorerDraft(
   draft: Pf2eTerminalFilterExplorerDraft,
 ): Pf2eTerminalFilterExplorerDraft {
   return {
-    scopedFields: [...draft.scopedFields],
     selection: Object.fromEntries(
       Object.entries(draft.selection).map(([field, policy]) => [field, clonePolicy(policy)]),
     ),
     scalarClauses: cloneScalarClauseMap(draft.scalarClauses),
-    structuredMetadata: draft.structuredMetadata,
   };
 }
 
 export function withFilterExplorerComposeDraft(
-  currentDraft: Pf2eTerminalFilterExplorerDraft,
+  _currentDraft: Pf2eTerminalFilterExplorerDraft,
   composeDraft: Pick<Pf2eTerminalFilterExplorerDraft, "selection" | "scalarClauses">,
 ): Pf2eTerminalFilterExplorerDraft {
   return {
-    ...currentDraft,
-    scopedFields: [...currentDraft.scopedFields],
     selection: Object.fromEntries(
       Object.entries(composeDraft.selection).map(([field, policy]) => [field, clonePolicy(policy)]),
     ),
     scalarClauses: cloneScalarClauseMap(composeDraft.scalarClauses),
-    structuredMetadata: currentDraft.structuredMetadata,
   };
+}
+
+function inferScopedFieldsFromDraft(draft: Pf2eTerminalFilterExplorerDraft): Pf2eTerminalQueryField[] {
+  const scopedFields = new Set<Pf2eTerminalQueryField>();
+
+  for (const field of Object.keys(draft.selection)) {
+    if (field === "actorMetric" || field === "itemMetric") {
+      scopedFields.add(field);
+      continue;
+    }
+
+    const metricKey = parseMetricSelectionKey(field);
+    if (metricKey) {
+      scopedFields.add(metricKey.field);
+      continue;
+    }
+
+    scopedFields.add(field as Pf2eTerminalQueryField);
+  }
+
+  for (const key of Object.keys(draft.scalarClauses)) {
+    const metricKey = parseMetricSelectionKey(key);
+    if (metricKey) {
+      scopedFields.add(metricKey.field);
+    }
+  }
+
+  return [...scopedFields];
 }
 
 export function buildFilterExplorerMetadataNode(
   draft: Pf2eTerminalFilterExplorerDraft,
   fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
+  options: { preservedMetadata?: MetadataFilterNode | null } = {},
 ): MetadataFilterNode | null {
   const metadataClauses: MetadataFilterNode[] = [];
 
-  if (draft.structuredMetadata) {
-    metadataClauses.push(draft.structuredMetadata);
+  if (options.preservedMetadata) {
+    metadataClauses.push(options.preservedMetadata);
   }
 
   const normalizedSelections = normalizeFilterExplorerSelectionMap(draft.selection, fieldSemanticsByName);
@@ -1078,16 +1211,30 @@ export function applyFilterExplorerDraft(
   query: Pf2eTerminalSearchQuery,
   draft: Pf2eTerminalFilterExplorerDraft,
   fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
+  options: {
+    preservedMetadata?: MetadataFilterNode | null;
+    scopedFields?: readonly Pf2eTerminalQueryField[];
+  } = {},
 ): Pf2eTerminalSearchQuery {
-  const scopedFieldSet = new Set(draft.scopedFields);
+  const scopedFields = options.scopedFields ? [...options.scopedFields] : inferScopedFieldsFromDraft(draft);
+  const scopedFieldSet = new Set(scopedFields);
   const metadataDraft: Pf2eTerminalFilterExplorerDraft = {
     ...draft,
     selection: Object.fromEntries(
       Object.entries(draft.selection).filter(([field]) => !isTopLevelSearchFilterExplorerField(field)),
     ),
   };
+  const preservedMetadata =
+    options.preservedMetadata ??
+    (scopedFields.length > 0
+      ? prepareFilterExplorerDraftFromMetadataNode(getSearchQueryMetadataTree(query), scopedFields, fieldSemanticsByName)
+          .preservedMetadata
+      : getSearchQueryMetadataTree(query));
 
-  let nextQuery = setSearchQueryMetadataTree(query, buildFilterExplorerMetadataNode(metadataDraft, fieldSemanticsByName));
+  let nextQuery = setSearchQueryMetadataTree(
+    query,
+    buildFilterExplorerMetadataNode(metadataDraft, fieldSemanticsByName, { preservedMetadata }),
+  );
 
   if (scopedFieldSet.has("rarity")) {
     nextQuery = applyRarityExplorerSelection(nextQuery, draft.selection.rarity);

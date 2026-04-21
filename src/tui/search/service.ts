@@ -18,6 +18,8 @@ import {
   buildFilterExplorerMetadataNode,
   createFilterExplorerDraftFromMetadataNode,
   createFilterExplorerDraftFromQuery,
+  prepareFilterExplorerDraftFromMetadataNode,
+  prepareFilterExplorerDraftFromQuery,
 } from "../filter-explorer/search-draft.js";
 import { buildSearchFilters } from "./filter-building.js";
 import { createSearchQueryFromOntologyQuery } from "./ontology-query.js";
@@ -54,6 +56,7 @@ export type {
   LegacyFacetSelection,
   Pf2eTerminalFacetField,
   Pf2eTerminalFacetFieldOption,
+  Pf2eTerminalPreparedFilterExplorerDraft,
   Pf2eTerminalFacetValueOption,
   Pf2eTerminalFilterExplorerDraft,
   Pf2eTerminalFilterValuePolicy,
@@ -113,12 +116,18 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
         dependencies,
         fieldSemanticsByName,
       ),
+    prepareFilterExplorerDraft: (query, scopedFields) =>
+      prepareFilterExplorerDraftFromQuery(query, scopedFields, fieldSemanticsByName),
+    prepareFilterExplorerDraftFromMetadataNode: (node, scopedFields) =>
+      prepareFilterExplorerDraftFromMetadataNode(node, scopedFields, fieldSemanticsByName),
     createFilterExplorerDraft: (query, scopedFields) =>
       createFilterExplorerDraftFromQuery(query, scopedFields, fieldSemanticsByName),
     createFilterExplorerDraftFromMetadataNode: (node, scopedFields) =>
       createFilterExplorerDraftFromMetadataNode(node, scopedFields, fieldSemanticsByName),
-    buildFilterExplorerMetadataNode: (draft) => buildFilterExplorerMetadataNode(draft, fieldSemanticsByName),
-    applyFilterExplorerDraft: (query, draft) => applyFilterExplorerDraft(query, draft, fieldSemanticsByName),
+    buildFilterExplorerMetadataNode: (draft, options) =>
+      buildFilterExplorerMetadataNode(draft, fieldSemanticsByName, options),
+    applyFilterExplorerDraft: (query, draft, options) =>
+      applyFilterExplorerDraft(query, draft, fieldSemanticsByName, options),
     buildDiscoverableQueryFieldSelections: (query, scopedFields) =>
       buildDiscoverableQueryFieldSelections(query, scopedFields, fieldSemanticsByName),
     applyDiscoverableQueryFieldSelections: (query, selections, scopedFields) =>

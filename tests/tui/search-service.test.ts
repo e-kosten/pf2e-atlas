@@ -292,7 +292,6 @@ describe("createPf2eTerminalSearchService", () => {
     );
 
     expect(draft.selection).toEqual({});
-    expect(draft.structuredMetadata).toBeNull();
     expect(draft.scalarClauses).toEqual({
       "actorMetric:perception.mod": {
         operator: "gte",
@@ -356,10 +355,11 @@ describe("createPf2eTerminalSearchService", () => {
       },
     });
 
-    const draft = service.createFilterExplorerDraft(query, ["rarity", "actionCost"]);
+    const preparedDraft = service.prepareFilterExplorerDraft(query, ["rarity", "actionCost"]);
+    const draft = preparedDraft.draft;
 
-    expect(draft.scopedFields).toEqual(["rarity", "actionCost"]);
-    expect(draft.structuredMetadata).toEqual({
+    expect(preparedDraft.scopedFields).toEqual(["rarity", "actionCost"]);
+    expect(preparedDraft.preservedMetadata).toEqual({
       field: "traits",
       op: "includesAny",
       values: ["illusion"],
@@ -377,21 +377,28 @@ describe("createPf2eTerminalSearchService", () => {
       },
     });
 
-    const updated = service.applyFilterExplorerDraft(query, {
-      ...draft,
-      selection: {
-        rarity: {
-          any: ["uncommon"],
-          all: [],
-          exclude: [],
-        },
-        actionCost: {
-          any: ["1"],
-          all: [],
-          exclude: [],
+    const updated = service.applyFilterExplorerDraft(
+      query,
+      {
+        ...draft,
+        selection: {
+          rarity: {
+            any: ["uncommon"],
+            all: [],
+            exclude: [],
+          },
+          actionCost: {
+            any: ["1"],
+            all: [],
+            exclude: [],
+          },
         },
       },
-    });
+      {
+        preservedMetadata: preparedDraft.preservedMetadata,
+        scopedFields: preparedDraft.scopedFields,
+      },
+    );
 
     expect(getSearchQueryRarityPolicy(updated)).toEqual({
       any: ["uncommon"],
@@ -410,25 +417,22 @@ describe("createPf2eTerminalSearchService", () => {
     } satisfies MetadataFilterNode);
   });
 
-  it("rebuilds search drafts from the shared compose draft while inferring metric identity from the key", () => {
-    const structuredMetadata = {
+  it("rebuilds search drafts from the shared compose draft without carrying session metadata in the draft", () => {
+    const service = createPf2eTerminalSearchService(createDependencies());
+    const preservedMetadata = {
       field: "traits",
       op: "includesAny",
       values: ["illusion"],
     } satisfies MetadataFilterNode;
     const composeDraft = cloneFilterExplorerDraft({
-      scopedFields: ["itemMetric"],
       selection: {},
       scalarClauses: {},
-      structuredMetadata,
     });
 
     const nextDraft = withFilterExplorerComposeDraft(
       {
-        scopedFields: ["itemMetric"],
         selection: {},
         scalarClauses: {},
-        structuredMetadata,
       },
       {
         ...composeDraft,
@@ -442,7 +446,6 @@ describe("createPf2eTerminalSearchService", () => {
       },
     );
 
-    expect(nextDraft.structuredMetadata).toEqual(structuredMetadata);
     expect(nextDraft.scalarClauses).toEqual({
       "itemMetric:weapon.range_increment": {
         operator: "between",
@@ -450,6 +453,31 @@ describe("createPf2eTerminalSearchService", () => {
         max: 120,
       },
     });
+    expect(service.buildFilterExplorerMetadataNode(nextDraft, { preservedMetadata })).toEqual({
+      and: [
+        {
+          field: "traits",
+          op: "includesAny",
+          values: ["illusion"],
+        },
+        {
+          and: [
+            {
+              field: "itemMetric",
+              metric: "weapon.range_increment",
+              op: ">=",
+              value: 60,
+            },
+            {
+              field: "itemMetric",
+              metric: "weapon.range_increment",
+              op: "<=",
+              value: 120,
+            },
+          ],
+        },
+      ],
+    } satisfies MetadataFilterNode);
   });
 
   it("roots the shared explorer model at the scoped field nodes instead of reviving a picker snapshot bridge", () => {

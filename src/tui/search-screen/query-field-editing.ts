@@ -16,9 +16,9 @@ import {
 import { createEmptyStringPolicy } from "../search/policies.js";
 import { formatFilterExplorerPolicyCycleCopy } from "../framework/policy-presentation.js";
 import {
-  buildMetadataNodeFromPolicy,
-  buildPolicyFromPredicate,
-} from "./metadata-clause-translation.js";
+  buildFilterExplorerMetadataNodeFromPolicy,
+  buildFilterExplorerPolicyFromPredicate,
+} from "../filter-explorer/search-draft.js";
 import { promptNumericScalarClause } from "../filter-explorer/scalar-editor.js";
 import type {
   OpenSearchFilterExplorer,
@@ -163,7 +163,7 @@ export function useSearchQueryFieldEditing({
       if (fieldOption.fieldType === "set" || fieldOption.fieldType === "enumString") {
         const currentPolicy =
           currentNode && isMetadataPredicate(currentNode)
-            ? (buildPolicyFromPredicate(currentNode) ?? createEmptyStringPolicy())
+            ? (buildFilterExplorerPolicyFromPredicate(currentNode) ?? createEmptyStringPolicy())
             : createEmptyStringPolicy();
         const selected = await prompts.promptPolicySelectOption({
           title: `${fieldOption.label} Clause`,
@@ -181,7 +181,7 @@ export function useSearchQueryFieldEditing({
           selectedValues: currentPolicy,
         });
 
-        return buildMetadataNodeFromPolicy(fieldOption, selected);
+        return buildFilterExplorerMetadataNodeFromPolicy(fieldOption, selected);
       }
 
       if (fieldOption.fieldType === "boolean") {

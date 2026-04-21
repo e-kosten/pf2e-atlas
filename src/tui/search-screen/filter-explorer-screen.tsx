@@ -15,7 +15,7 @@ export function SearchFilterExplorerScreen({
   const terminal = useDerivedTagTerminalApp();
   const prompts = useTerminalInteractionContextAdapters();
   const [draft, setDraft] = React.useState(() => cloneFilterExplorerDraft(session.draft));
-  const draftRef = React.useRef(session.draft);
+  const draftRef = React.useRef(cloneFilterExplorerDraft(session.draft));
 
   React.useEffect(() => {
     const nextDraft = cloneFilterExplorerDraft(session.draft);

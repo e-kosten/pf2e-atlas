@@ -50,6 +50,7 @@ export function useSearchFilterExplorerWorkflow({
     }): Promise<boolean> => {
       const scopeQuery = queryOverride ?? query;
       const scopeSubcategory = getSearchQuerySubcategory(scopeQuery);
+      const scopedFields = fieldOptions.map((fieldOption) => fieldOption.value);
       if (!scopeQuery.filters.category) {
         await onUnavailable("Choose a category before editing a discoverable query field.");
         return false;
@@ -71,17 +72,14 @@ export function useSearchFilterExplorerWorkflow({
         return false;
       }
 
-      const draft =
+      const preparedDraft =
         initialDraft ??
-        services.search.createFilterExplorerDraft(
-          scopeQuery,
-          fieldOptions.map((fieldOption) => fieldOption.value),
-        );
+        services.search.prepareFilterExplorerDraft(scopeQuery, scopedFields).draft;
 
       setFilterExplorerSession({
         title: fieldOptions.length === 1 ? `${fieldOptions[0]!.label} Explorer` : "Filter Explorer",
         model,
-        draft,
+        draft: preparedDraft,
         resolveSelectionTarget: buildSearchFilterExplorerTargetResolver(fieldOptions),
         onApply: (nextDraft) => {
           onApply(nextDraft);
