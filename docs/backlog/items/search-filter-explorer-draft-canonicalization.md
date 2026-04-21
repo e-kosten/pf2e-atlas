@@ -1,11 +1,13 @@
 # Search Filter Explorer Draft Canonicalization
 
-Status: proposed  
+Status: done  
 Priority: soon  
 Owner: unassigned  
 Last reviewed: 2026-04-21
 
 ## Problem
+
+This item is complete. It remains here as durable context for the ownership decisions that landed during the boundary-restoration cleanup on 2026-04-21.
 
 A now-retired dirty worktree, `fix/tui-cleanup-slice`, contained a useful cleanup direction for TUI search state and filter-explorer draft ownership, but the patch itself is not suitable for direct merge.
 

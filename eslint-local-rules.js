@@ -96,7 +96,6 @@ const JSON_PARSE_ALLOWED_PATHS = [
 
 const DATABASE_SYNC_ALLOWED_PATHS = [
   "src/data/schema.ts",
-  "src/tags/editorial/configured-index.ts",
   "src/refresh-index.ts",
   "src/app/storage-service.ts",
   /^src\/tags\/cli\/.+\.ts$/,

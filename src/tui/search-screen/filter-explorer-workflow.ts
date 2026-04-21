@@ -3,6 +3,7 @@ import React from "react";
 import { buildSearchFilterExplorerModel, buildSearchFilterExplorerTargetResolver } from "../filter-explorer/search-draft.js";
 import type {
   Pf2eTerminalFilterExplorerDraft,
+  Pf2eTerminalPreparedFilterExplorerDraft,
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalSearchQuery,
 } from "../search/service.js";
@@ -23,8 +24,11 @@ export function useSearchFilterExplorerWorkflow({
   openFilterExplorer: (options: {
     queryOverride?: Pf2eTerminalSearchQuery;
     fieldOptions: Pf2eTerminalQueryFieldOption[];
-    initialDraft?: Pf2eTerminalFilterExplorerDraft;
-    onApply: (draft: Pf2eTerminalFilterExplorerDraft) => void;
+    initialPreparedDraft?: Pf2eTerminalPreparedFilterExplorerDraft;
+    onApply: (
+      draft: Pf2eTerminalFilterExplorerDraft,
+      context: Omit<Pf2eTerminalPreparedFilterExplorerDraft, "draft">,
+    ) => void;
     onReturn?: () => void;
     singleFieldBehavior?: "list" | "directValues";
   }) => Promise<boolean>;
@@ -36,15 +40,18 @@ export function useSearchFilterExplorerWorkflow({
     async ({
       queryOverride,
       fieldOptions,
-      initialDraft,
+      initialPreparedDraft,
       onApply,
       onReturn,
       singleFieldBehavior = onReturn ? "directValues" : "list",
     }: {
       queryOverride?: Pf2eTerminalSearchQuery;
       fieldOptions: Pf2eTerminalQueryFieldOption[];
-      initialDraft?: Pf2eTerminalFilterExplorerDraft;
-      onApply: (draft: Pf2eTerminalFilterExplorerDraft) => void;
+      initialPreparedDraft?: Pf2eTerminalPreparedFilterExplorerDraft;
+      onApply: (
+        draft: Pf2eTerminalFilterExplorerDraft,
+        context: Omit<Pf2eTerminalPreparedFilterExplorerDraft, "draft">,
+      ) => void;
       onReturn?: () => void;
       singleFieldBehavior?: "list" | "directValues";
     }): Promise<boolean> => {
@@ -72,17 +79,18 @@ export function useSearchFilterExplorerWorkflow({
         return false;
       }
 
-      const preparedDraft =
-        initialDraft ??
-        services.search.prepareFilterExplorerDraft(scopeQuery, scopedFields).draft;
+      const preparedDraft = initialPreparedDraft ?? services.search.prepareFilterExplorerDraft(scopeQuery, scopedFields);
 
       setFilterExplorerSession({
         title: fieldOptions.length === 1 ? `${fieldOptions[0]!.label} Explorer` : "Filter Explorer",
         model,
-        draft: preparedDraft,
+        draft: preparedDraft.draft,
         resolveSelectionTarget: buildSearchFilterExplorerTargetResolver(fieldOptions),
         onApply: (nextDraft) => {
-          onApply(nextDraft);
+          onApply(nextDraft, {
+            preservedMetadata: preparedDraft.preservedMetadata,
+            scopedFields: preparedDraft.scopedFields,
+          });
           setFilterExplorerSession(null);
           onReturn?.();
         },

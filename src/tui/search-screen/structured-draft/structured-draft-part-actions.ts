@@ -171,10 +171,10 @@ export function useSearchStructuredDraftPartActions({
       await openFilterExplorer({
         queryOverride: draftQuery,
         fieldOptions: [fieldOption],
-        initialDraft: user.search.createFilterExplorerDraft(draftQuery, [fieldOption.value]),
+        initialPreparedDraft: user.search.prepareFilterExplorerDraft(draftQuery, [fieldOption.value]),
         singleFieldBehavior: "directValues",
-        onApply: (draft) => {
-          replaceStructuredDraftQuery((query) => user.search.applyFilterExplorerDraft(query, draft));
+        onApply: (draft, context) => {
+          replaceStructuredDraftQuery((query) => user.search.applyFilterExplorerDraft(query, draft, context));
         },
       });
     },

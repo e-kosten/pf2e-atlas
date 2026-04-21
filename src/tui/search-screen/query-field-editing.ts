@@ -114,10 +114,11 @@ export function useSearchQueryFieldEditing({
       return openFilterExplorer({
         queryOverride: query,
         fieldOptions: [fieldOption],
-        initialDraft: user.search.createFilterExplorerDraftFromMetadataNode(currentNode, [fieldOption.value]),
+        initialPreparedDraft: user.search.prepareFilterExplorerDraftFromMetadataNode(currentNode, [fieldOption.value]),
         onReturn,
         singleFieldBehavior: "directValues",
-        onApply: (draft) => onApply(user.search.buildFilterExplorerMetadataNode(draft)),
+        onApply: (draft, context) =>
+          onApply(user.search.buildFilterExplorerMetadataNode(draft, { preservedMetadata: context.preservedMetadata })),
       });
     },
     [openFilterExplorer, user.search],
@@ -136,12 +137,13 @@ export function useSearchQueryFieldEditing({
       return openFilterExplorer({
         queryOverride: query,
         fieldOptions,
-        initialDraft: user.search.createFilterExplorerDraftFromMetadataNode(
+        initialPreparedDraft: user.search.prepareFilterExplorerDraftFromMetadataNode(
           null,
           fieldOptions.map((fieldOption) => fieldOption.value),
         ),
         singleFieldBehavior: fieldOptions.length === 1 ? "directValues" : "list",
-        onApply: (draft) => onApply(user.search.buildFilterExplorerMetadataNode(draft)),
+        onApply: (draft, context) =>
+          onApply(user.search.buildFilterExplorerMetadataNode(draft, { preservedMetadata: context.preservedMetadata })),
       });
     },
     [openFilterExplorer, user.search],

@@ -2,10 +2,10 @@ import React from "react";
 
 import type { OntologyNodeQuery } from "../domain/ontology-types.js";
 import {
-  formatDerivedTagWorkbenchModeLabel,
   type DerivedTagWorkbenchMode,
   type DerivedTagReviewSession,
 } from "../tags/editorial.js";
+import { formatDerivedTagWorkbenchModeLabel } from "../tags/editorial-ui.js";
 import type { Pf2eTerminalAppServices } from "./app-services.js";
 import type { OntologyInspectExplorerSnapshot } from "./ontology-explorer/inspect-screen.js";
 import {

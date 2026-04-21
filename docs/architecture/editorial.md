@@ -270,7 +270,7 @@ The current codebase already encodes several intended boundaries:
 - outside `src/tags`, callers should normally import derived-tag functionality through `src/tags/runtime.ts`, `src/tags/editorial.ts`, or `src/tags/editorial-ui.ts` instead of leaf tag modules
 - reviewed discovery state belongs under `src/tags/reviews/`, not under discovery-owned scratch code
 - ontology browsing is assembled through `src/app/ontology-service.ts` and treated as a readonly model, not mutable shared UI state
-- direct SQLite opening is explicit through the application storage service, `src/tags/editorial/configured-index.ts`, or grouped CLI entrypoints, not scattered through unrelated feature modules
+- direct SQLite opening is explicit through the application storage service or grouped CLI entrypoints, not scattered through unrelated feature modules
 - CLI scope parsing is centralized in `src/tags/cli/shared/search-scope-args.ts`
 - discovery and evaluation can recommend changes, but `editorial/writeback/` owns writeback into authored files
 - TUI workbench composition flows through `src/tui/app-services.ts`, not direct feature-level imports of editorial internals

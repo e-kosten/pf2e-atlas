@@ -2,6 +2,7 @@ import type { Pf2eTerminalAppServices } from "../../app-services.js";
 import type { SearchTerminalPromptAdapters } from "../../interaction-context-adapters.js";
 import type {
   Pf2eTerminalFilterExplorerDraft,
+  Pf2eTerminalPreparedFilterExplorerDraft,
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalSearchQuery,
 } from "../../search/service.js";
@@ -23,8 +24,11 @@ export type SearchWorkspaceUser = Pick<Pf2eTerminalAppServices["user"], "search"
 export type OpenSearchFilterExplorer = (options: {
   queryOverride?: Pf2eTerminalSearchQuery;
   fieldOptions: Pf2eTerminalQueryFieldOption[];
-  initialDraft?: Pf2eTerminalFilterExplorerDraft;
-  onApply: (draft: Pf2eTerminalFilterExplorerDraft) => void;
+  initialPreparedDraft?: Pf2eTerminalPreparedFilterExplorerDraft;
+  onApply: (
+    draft: Pf2eTerminalFilterExplorerDraft,
+    context: Omit<Pf2eTerminalPreparedFilterExplorerDraft, "draft">,
+  ) => void;
   onReturn?: () => void;
   singleFieldBehavior?: "list" | "directValues";
 }) => Promise<boolean>;

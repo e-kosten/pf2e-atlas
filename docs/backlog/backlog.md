@@ -43,9 +43,6 @@ This is the tracked backlog for durable future work.
 - [Structured query summary model](./items/structured-query-summary-model.md)
   Preserve and eventually implement a first-class structured-query document model so future search-editor and document-style rendering work does not depend only on ad hoc workspace rows. Status: proposed.
 
-- [Search filter explorer draft canonicalization](./items/search-filter-explorer-draft-canonicalization.md)
-  Remove remaining TUI search/filter-explorer compatibility state so query parts and compose drafts have clear canonical ownership before more rendering/modeling work builds on them. Status: proposed.
-
 - [Actor metrics search orchestration](./items/actor-metrics-search-orchestration.md)
   Bridge the gap between actor metrics in search semantics and the actual executable search/query path. Status: proposed.
 
@@ -100,3 +97,12 @@ This is the tracked backlog for durable future work.
 
 - `Broader TUI mode switcher`
   The main interaction-context unification work already landed, and this no longer needs its own backlog slot unless a new convergent abstraction appears later. Status: superseded.
+
+- [Search filter explorer draft canonicalization](./items/search-filter-explorer-draft-canonicalization.md)
+  Canonical draft/state ownership now lives on the shared search/filter-explorer path instead of compatibility draft fields. Status: done.
+
+- `Concern-specific tag facades`
+  The runtime, editorial, and editorial-UI facades now match the intended concern split instead of acting like a mixed catch-all surface. Status: done.
+
+- `Editorial index-opening boundary`
+  Short-lived app/editorial index access now routes through the shared application storage owner instead of parallel helper seams. Status: done.
