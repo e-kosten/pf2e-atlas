@@ -1,6 +1,6 @@
 # Backlog Items
 
-Create one file per substantial backlog item when the item needs durable context beyond a short note in [`../README.md`](../README.md).
+Create one file per substantial backlog item when the item needs durable context beyond a short note in [`../backlog.md`](../backlog.md).
 
 ## When To Create An Item File
 
