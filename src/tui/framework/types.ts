@@ -26,6 +26,7 @@ export type DerivedTagTerminalLine = {
   tone?: DerivedTagTerminalTone;
   indent?: number;
   hyperlink?: string;
+  plainTextFallback?: string;
   noWrap?: boolean;
 };
 

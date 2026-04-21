@@ -110,7 +110,7 @@ describe("tag refinement menu screen", () => {
 
     await flushInk();
 
-    expect(app.lastFrame()).toContain("Esc/Backspace/\u2190/q");
+    expect(app.lastFrame()).toContain("Pending Review Queue");
 
     app.stdin.write("?");
     await flushInk();

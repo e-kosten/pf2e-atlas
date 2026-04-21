@@ -712,7 +712,7 @@ describe("derived tag terminal ink runtime", () => {
     const frame = app.lastFrame() ?? "";
     expect(frame).toContain("support=unsupported");
     expect(frame).toContain("Archives of Nethys");
-    expect(frame).toContain("AoN");
+    expect(frame).toContain("AoN: https://2e.aonprd.com/");
     expect(frame).not.toContain("\u001b]8;;https://2e.aonprd.com/\u0007");
   });
 

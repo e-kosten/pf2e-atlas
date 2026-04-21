@@ -105,6 +105,7 @@ describe("review screen model", () => {
   it("builds the split review screen and help content from pure state", () => {
     const state = createInitialDerivedTagReviewScreenState(createSession());
     const model = buildDerivedTagReviewViewModel({
+      hyperlinkSupport: "supported",
       persistError: null,
       size: { width: 120, height: 30 },
       state,

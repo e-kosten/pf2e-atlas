@@ -166,7 +166,9 @@ export function useSearchScreenController({
       : selectedWorkspaceEntry
         ? buildWorkspaceEntryDetailLines(selectedWorkspaceEntry, state, countState)
         : buildQuerySummaryLines(state, countState);
-  const renderedDetailLineCount = getRenderedTerminalLineCount(detailLines, detailWidth);
+  const renderedDetailLineCount = getRenderedTerminalLineCount(detailLines, detailWidth, {
+    hyperlinkSupport: terminal.capabilities.hyperlinkSupport,
+  });
   const maxDetailScroll = Math.max(0, renderedDetailLineCount - bodyHeight);
   const detailScroll = Math.min(state.detailScroll, maxDetailScroll);
 
@@ -235,7 +237,9 @@ export function useSearchScreenController({
               ? `[PREVIEW] ${selectedResult?.name ?? "Results"}`
               : `Preview | ${selectedResult?.name ?? "Results"}`
             : "Query Status",
-        lines: sliceRenderedTerminalLines(detailLines, detailWidth, detailScroll, bodyHeight),
+        lines: sliceRenderedTerminalLines(detailLines, detailWidth, detailScroll, bodyHeight, {
+          hyperlinkSupport: terminal.capabilities.hyperlinkSupport,
+        }),
         active: state.layout === "results" && state.activePane === "detail",
       },
       footer: [

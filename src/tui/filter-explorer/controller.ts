@@ -7,7 +7,7 @@ import {
   sliceRenderedTerminalLines,
 } from "../framework/rendering.js";
 import type { DerivedTagTerminalListNavigationAction } from "../framework/input.js";
-import { useDerivedTagTerminalSize } from "../framework/context.js";
+import { useDerivedTagTerminalApp, useDerivedTagTerminalSize } from "../framework/context.js";
 import type { DerivedTagTerminalInputEvent } from "../framework/types.js";
 import { useTerminalInteractionContextAdapters } from "../interaction-context-adapters.js";
 import {
@@ -569,6 +569,7 @@ function createFilterExplorerContext(args: {
 
 export function useFilterExplorerController(options: FilterExplorerOptions): FilterExplorerControllerContext {
   const adapters = useTerminalInteractionContextAdapters();
+  const terminal = useDerivedTagTerminalApp();
   const composeMode = options.mode.kind === "compose" ? options.mode : null;
   const [draft, updateDraft] = useComposeSelectionState(composeMode);
   const size = useDerivedTagTerminalSize();
@@ -620,7 +621,9 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
     }),
   );
   const detailWidth = getTerminalTwoPaneDetailWidth(size.width, layoutMode, 46);
-  const renderedDetailLineCount = getRenderedTerminalLineCount(detailLines, detailWidth);
+  const renderedDetailLineCount = getRenderedTerminalLineCount(detailLines, detailWidth, {
+    hyperlinkSupport: terminal.capabilities.hyperlinkSupport,
+  });
   const maxDetailScroll = Math.max(0, renderedDetailLineCount - bodyHeight);
   const effectiveState =
     normalizedBrowserState.detailScroll > maxDetailScroll
@@ -643,7 +646,9 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
     bodyHeight,
     detailWidth,
     detailLines,
-    visibleDetailLines: sliceRenderedTerminalLines(detailLines, detailWidth, effectiveState.detailScroll, bodyHeight),
+    visibleDetailLines: sliceRenderedTerminalLines(detailLines, detailWidth, effectiveState.detailScroll, bodyHeight, {
+      hyperlinkSupport: terminal.capabilities.hyperlinkSupport,
+    }),
     detailTitle,
     layoutMode,
     maxDetailScroll,

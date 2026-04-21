@@ -128,12 +128,14 @@ function buildVisibleSelectedReviewDetailLines(
   detailScroll: number,
   bodyHeight: number,
   width: number,
+  hyperlinkSupport: "supported" | "unsupported",
 ): DerivedTagTerminalLine[] {
   return sliceRenderedTerminalLines(
     buildSelectedReviewDetailLines(session),
     getReviewDetailPaneWidth(width, layoutMode),
     detailScroll,
     bodyHeight,
+    { hyperlinkSupport },
   );
 }
 
@@ -198,10 +200,12 @@ function buildReviewHelpLines(
 }
 
 export function buildDerivedTagReviewViewModel({
+  hyperlinkSupport,
   persistError,
   size,
   state,
 }: {
+  hyperlinkSupport: "supported" | "unsupported";
   persistError: string | null;
   size: { width: number; height: number };
   state: DerivedTagReviewScreenState;
@@ -228,6 +232,7 @@ export function buildDerivedTagReviewViewModel({
   const renderedDetailLineCount = getRenderedTerminalLineCount(
     detailLines,
     getReviewDetailPaneWidth(size.width, layoutMode),
+    { hyperlinkSupport },
   );
   const maxDetailScroll = Math.max(0, renderedDetailLineCount - bodyHeight);
   const detailScroll = Math.min(state.detailScroll, maxDetailScroll);
@@ -274,6 +279,7 @@ export function buildDerivedTagReviewViewModel({
               detailScroll,
               bodyHeight,
               size.width,
+              hyperlinkSupport,
             ),
             active: true,
           },
@@ -304,7 +310,14 @@ export function buildDerivedTagReviewViewModel({
         },
         right: {
           title: state.activePane === "detail" ? "[DETAIL] Selected Item" : "Selected Item",
-          lines: buildVisibleSelectedReviewDetailLines(state.session, layoutMode, detailScroll, bodyHeight, size.width),
+          lines: buildVisibleSelectedReviewDetailLines(
+            state.session,
+            layoutMode,
+            detailScroll,
+            bodyHeight,
+            size.width,
+            hyperlinkSupport,
+          ),
           active: state.activePane === "detail",
         },
         footer: commonFooter,

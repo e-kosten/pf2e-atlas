@@ -73,6 +73,7 @@ export function useDerivedTagReviewScreenController({
   }, [rootPath, services, state.session]);
 
   const screenModel = buildDerivedTagReviewViewModel({
+    hyperlinkSupport: terminal.capabilities.hyperlinkSupport,
     persistError,
     size,
     state: {

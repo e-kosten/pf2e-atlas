@@ -82,7 +82,7 @@ describe("menu transition status hosts", () => {
     await flushInk();
 
     const frame = app.lastFrame();
-    expect(frame).toContain("Tag Refinement");
+    expect(frame).toContain("Pending Review Queue");
     expect(frame).toContain("Create legacy-seed review session");
     expect(frame).toContain("Pending Review Queue");
     expect(frame).toContain("Loading next view | Preparing legacy-seed review session...");

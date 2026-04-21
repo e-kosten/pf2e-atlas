@@ -370,7 +370,7 @@ describe("pf2e terminal app", () => {
     await flushInk();
     await flushInk();
 
-    expect(app.lastFrame()).toContain("Browse/Search");
+    expect(app.lastFrame()).toContain("Browse | Any Category | Counting matches...");
 
     app.stdin.write("q");
     await flushInk();
@@ -508,7 +508,7 @@ describe("pf2e terminal app", () => {
 
     app.stdin.write("\r");
     await flushInk();
-    expect(app.lastFrame()).toContain("Tag Refinement");
+    expect(app.lastFrame()).toContain("Pending Review Queue");
 
     app.stdin.write("\r");
     await flushInk();
@@ -544,12 +544,12 @@ describe("pf2e terminal app", () => {
 
     app.stdin.write("\r");
     await flushInk();
-    expect(app.lastFrame()).toContain("Tag Refinement");
+    expect(app.lastFrame()).toContain("Pending Review Queue");
 
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
-    expect(app.lastFrame()).toContain("Tag Refinement");
+    expect(app.lastFrame()).toContain("Pending Review Queue");
 
     app.stdin.write("\r");
     await flushInk();
@@ -560,7 +560,7 @@ describe("pf2e terminal app", () => {
     app.stdin.write(" ");
     await flushInk();
     await flushInk();
-    expect(app.lastFrame()).toContain("Tag Refinement");
+    expect(app.lastFrame()).toContain("Pending Review Queue");
   });
 
   it("renders grouped return wording on the direct ontology explorer entry", async () => {
@@ -575,7 +575,7 @@ describe("pf2e terminal app", () => {
 
     await openOntologyBrowser(app);
 
-    expect(app.lastFrame()).toContain("\u2190/Esc back");
+    expect(app.lastFrame()).toContain("q back");
 
     app.stdin.write("?");
     await flushInk();
@@ -674,7 +674,7 @@ describe("pf2e terminal app", () => {
     app.stdin.write("\r");
     await flushFrames(2);
     const searchFrame = app.lastFrame();
-    expect(searchFrame).toContain("Browse/Search");
+    expect(searchFrame).toContain("Browse | Creature |");
     expect(searchFrame).toContain("Category | Creature");
     expect(searchFrame).toContain("Seeded from: Browse records with this value");
 
@@ -746,7 +746,7 @@ describe("pf2e terminal app", () => {
 
     app.stdin.write("\r");
     await flushFrames(2);
-    expect(app.lastFrame()).toContain("Browse/Search");
+    expect(app.lastFrame()).toContain("Browse | Creature | Alphabetical | 1/1");
     expect(app.lastFrame()).toContain("[RESULTS]");
     expect(app.lastFrame()).not.toContain("[EDITOR] Query");
 
@@ -807,7 +807,7 @@ describe("pf2e terminal app", () => {
     expect(pendingFrame).toContain("Search Semantics");
     expect(pendingFrame).toContain("Explorer Entries");
     expect(pendingFrame).toContain("Loading next view | Loading results for Browse records with this value...");
-    expect(pendingFrame).not.toContain("Browse/Search");
+    expect(pendingFrame).not.toContain("Browse | Creature | Alphabetical | 1/1");
     expect(services.user.search.executeQuery).toHaveBeenCalledTimes(1);
 
     pendingSession.resolve({
@@ -827,7 +827,7 @@ describe("pf2e terminal app", () => {
 
     await flushFrames(2);
 
-    expect(app.lastFrame()).toContain("Browse/Search");
+    expect(app.lastFrame()).toContain("Browse | Creature | Alphabetical | 1/1");
     expect(app.lastFrame()).toContain("[RESULTS]");
     expect(app.lastFrame()).toContain("Alarm Ward");
   });

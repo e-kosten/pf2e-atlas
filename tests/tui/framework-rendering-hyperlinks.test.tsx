@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { renderRows, sliceRenderedTerminalLines } from "../../src/tui/framework/rendering.js";
+import { getRenderedTerminalLineCount, renderRows, sliceRenderedTerminalLines } from "../../src/tui/framework/rendering.js";
 
 describe("terminal hyperlink rendering helpers", () => {
   it("preserves segment hyperlinks when truncating rendered rows", () => {
@@ -35,6 +35,7 @@ describe("terminal hyperlink rendering helpers", () => {
       5,
       0,
       3,
+      { hyperlinkSupport: "supported" },
     );
 
     expect(sliced).toEqual([
@@ -57,5 +58,26 @@ describe("terminal hyperlink rendering helpers", () => {
         noWrap: true,
       },
     ]);
+  });
+
+  it("expands line hyperlinks into visible fallback text when support is unavailable", () => {
+    const lines = [
+      {
+        text: "AoN",
+        hyperlink: "https://example.com/browse",
+        plainTextFallback: "AoN: https://example.com/browse",
+      },
+    ];
+
+    expect(getRenderedTerminalLineCount(lines, 8, { hyperlinkSupport: "unsupported" })).toBeGreaterThan(
+      getRenderedTerminalLineCount(lines, 8, { hyperlinkSupport: "supported" }),
+    );
+
+    const [row] = renderRows(lines, 40, 1, { hyperlinkSupport: "unsupported" });
+    expect(row).toEqual({
+      text: "AoN: https://example.com/browse",
+      tone: "default",
+      segments: [{ text: "AoN: https://example.com/browse", tone: "default", hyperlink: undefined }],
+    });
   });
 });

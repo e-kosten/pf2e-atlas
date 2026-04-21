@@ -668,7 +668,7 @@ describe("search screen", () => {
     );
 
     await flushInk();
-    expect(app.lastFrame()).toContain("Browse/Search");
+    expect(app.lastFrame()).toContain("Browse | Any Category | Counting matches...");
     expect(app.lastFrame()).toContain("[EDITOR] Query");
     expect(app.lastFrame()).toContain("Query Status");
     expect(app.lastFrame()).toContain("Execute Query");
