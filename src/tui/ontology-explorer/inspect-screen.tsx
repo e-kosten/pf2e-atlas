@@ -4,7 +4,11 @@ import { inferActorMetricValueType } from "../../domain/actor-metrics.js";
 import { normalizeSearchCategory } from "../../domain/categories.js";
 import { getMetricDiscoveryGroupLabel } from "../../domain/metric-discovery-group-label.js";
 import type { OntologyDomainModel, OntologyNodeQuery } from "../../domain/ontology-types.js";
-import { FilterExplorerScreen, type FilterExplorerOptions } from "../filter-explorer/index.js";
+import {
+  FilterExplorerScreen,
+  type FilterExplorerLaunchIntent,
+  type FilterExplorerOptions,
+} from "../filter-explorer/index.js";
 import type {
   FilterExplorerComposeTarget,
   FilterExplorerScalarClause,
@@ -20,6 +24,10 @@ import {
 import { inferItemMetricValueType } from "../../domain/item-metrics.js";
 
 export type OntologyInspectExplorerSnapshot = NonNullable<FilterExplorerOptions["initialSnapshot"]>;
+export type OntologyInspectRouteData = {
+  model: OntologyDomainModel;
+  snapshot?: OntologyInspectExplorerSnapshot;
+};
 
 function buildOntologyInspectScalarTarget(node: OntologyDomainModel["rootNodes"][number]): FilterExplorerComposeTarget | undefined {
   if (node.kind !== "metric" || node.query?.kind !== "listRecords") {
@@ -86,18 +94,21 @@ function toFilterExplorerScalarClause(
 }
 
 export function OntologyInspectScreen({
-  initialSnapshot,
-  model,
+  routeData,
   onExit,
   onOpenQuery,
   transitionStatus,
 }: {
-  initialSnapshot?: OntologyInspectExplorerSnapshot;
-  model: OntologyDomainModel;
+  routeData: OntologyInspectRouteData;
   onExit: () => void;
-  onOpenQuery?: (query: OntologyNodeQuery, snapshot: OntologyInspectExplorerSnapshot) => void;
+  onOpenQuery?: (
+    query: OntologyNodeQuery,
+    snapshot: OntologyInspectExplorerSnapshot,
+    launchIntent: FilterExplorerLaunchIntent,
+  ) => void;
   transitionStatus?: RouteTransitionStatus | null;
 }): React.JSX.Element {
+  const { model, snapshot: initialSnapshot } = routeData;
   const terminal = useDerivedTagTerminalApp();
   const prompts = useTerminalInteractionContextAdapters();
   const resolveInspectTarget = React.useCallback((node: OntologyDomainModel["rootNodes"][number] | undefined) => {

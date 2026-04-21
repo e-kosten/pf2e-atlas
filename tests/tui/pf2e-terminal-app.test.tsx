@@ -4,8 +4,10 @@ import { cleanup, render } from "ink-testing-library";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AppConfig } from "../../src/domain/config-types.js";
+import type { OntologyDomainModel } from "../../src/domain/ontology-types.js";
 import type { NormalizedRecord } from "../../src/domain/record-types.js";
 import { Pf2eTerminalApp, Pf2eTerminalBootstrap } from "../../src/tui/pf2e-app.js";
+import type { Pf2eAppRoute } from "../../src/tui/pf2e-app-state.js";
 import type { Pf2eTerminalAppServices } from "../../src/tui/app-services.js";
 import { createPf2eTerminalSearchService } from "../../src/tui/search/service.js";
 import { DerivedTagTerminalProvider } from "../../src/tui/terminal-ui.js";
@@ -14,6 +16,12 @@ function flushInk(): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, 0);
   });
+}
+
+async function flushFrames(count = 1): Promise<void> {
+  for (let index = 0; index < count; index += 1) {
+    await flushInk();
+  }
 }
 
 function createDeferred<T>(): {
@@ -32,6 +40,13 @@ function createDeferred<T>(): {
 
 function pressLeft(app: ReturnType<typeof render>): void {
   app.stdin.write("\u001b[D");
+}
+
+async function openOntologyBrowser(app: ReturnType<typeof render>): Promise<void> {
+  app.stdin.write("j");
+  await flushFrames();
+  app.stdin.write("\r");
+  await flushFrames(3);
 }
 
 function createTestConfig(): AppConfig {
@@ -124,6 +139,66 @@ function createRecord(overrides: Partial<NormalizedRecord> = {}): NormalizedReco
     legacyRecordLinks: [],
     raw: {},
     ...overrides,
+  };
+}
+
+function createSearchSemanticsModel(): OntologyDomainModel {
+  return {
+    id: "searchSemantics",
+    label: "Search Semantics",
+    description: "Search semantics ontology",
+    rootNodes: [
+      {
+        id: "searchSemantics:spell",
+        kind: "category",
+        label: "Spell",
+        filterText: "spell",
+        listLabel: "spell | 1 group",
+        detailTitle: "Search Semantics",
+        detailLines: [{ text: "Spell", tone: "section" }],
+        children: [
+          {
+            id: "spell:metadataFields",
+            kind: "group",
+            label: "Metadata Fields",
+            filterText: "metadata fields",
+            listLabel: "Metadata fields | 1",
+            detailTitle: "Metadata Fields",
+            detailLines: [{ text: "Metadata Fields", tone: "section" }],
+            children: [
+              {
+                id: "spell:field:publicationTitle",
+                kind: "field",
+                label: "publicationTitle",
+                filterText: "publication title",
+                listLabel: "publicationTitle",
+                detailTitle: "Metadata Field Details",
+                detailLines: [{ text: "publicationTitle", tone: "section" }],
+                children: [
+                  {
+                    id: "spell:publicationTitle:pathfinder-player-core",
+                    kind: "value",
+                    label: "Pathfinder Player Core",
+                    filterText: "pathfinder player core",
+                    listLabel: "Pathfinder Player Core | 1",
+                    detailTitle: "Filter Value",
+                    detailLines: [{ text: "Pathfinder Player Core", tone: "section" }],
+                    query: {
+                      kind: "listRecords",
+                      label: "Browse records with this value",
+                      filters: {
+                        category: "spell",
+                        limit: 20,
+                      },
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
   };
 }
 
@@ -256,63 +331,7 @@ function createFakeServices(overrides: Partial<Pf2eTerminalAppServices> = {}): P
     user: {
       search: searchService,
       ontology: {
-        loadSearchSemanticsDomain: vi.fn(() => ({
-          id: "searchSemantics",
-          label: "Search Semantics",
-          description: "Search semantics ontology",
-          rootNodes: [
-            {
-              id: "searchSemantics:spell",
-              kind: "category",
-              label: "Spell",
-              filterText: "spell",
-              listLabel: "spell | 1 group",
-              detailTitle: "Search Semantics",
-              detailLines: [{ text: "Spell", tone: "section" }],
-              children: [
-                {
-                  id: "spell:metadataFields",
-                  kind: "group",
-                  label: "Metadata Fields",
-                  filterText: "metadata fields",
-                  listLabel: "Metadata fields | 1",
-                  detailTitle: "Metadata Fields",
-                  detailLines: [{ text: "Metadata Fields", tone: "section" }],
-                  children: [
-                    {
-                      id: "spell:field:publicationTitle",
-                      kind: "field",
-                      label: "publicationTitle",
-                      filterText: "publication title",
-                      listLabel: "publicationTitle",
-                      detailTitle: "Metadata Field Details",
-                      detailLines: [{ text: "publicationTitle", tone: "section" }],
-                      children: [
-                        {
-                          id: "spell:publicationTitle:pathfinder-player-core",
-                          kind: "value",
-                          label: "Pathfinder Player Core",
-                          filterText: "pathfinder player core",
-                          listLabel: "Pathfinder Player Core | 1",
-                          detailTitle: "Filter Value",
-                          detailLines: [{ text: "Pathfinder Player Core", tone: "section" }],
-                          query: {
-                            kind: "listRecords",
-                            label: "Browse records with this value",
-                            filters: {
-                              category: "spell",
-                              limit: 20,
-                            },
-                          },
-                        },
-                      ],
-                    },
-                  ],
-                },
-              ],
-            },
-          ],
-        })),
+        loadSearchSemanticsDomain: vi.fn(() => createSearchSemanticsModel()),
       },
     },
     dev: {
@@ -369,10 +388,7 @@ describe("pf2e terminal app", () => {
 
     await flushInk();
 
-    app.stdin.write("j");
-    await flushInk();
-    app.stdin.write("\r");
-    await flushInk();
+    await openOntologyBrowser(app);
     expect(app.lastFrame()).toContain("Search Semantics");
     expect(app.lastFrame()).toContain("Explorer Entries");
 
@@ -380,26 +396,35 @@ describe("pf2e terminal app", () => {
     expect(app.lastFrame()).toContain("Spell");
   });
 
-  it("uses the dedicated search-semantics ontology loader", async () => {
+  it("renders prepared ontology routes without calling the search-semantics loader", async () => {
     const services = createFakeServices();
-    const loadSearchSemanticsDomain = vi.fn(() => ({
-      id: "searchSemantics",
-      label: "Search Semantics",
-      description: "Search semantics ontology",
-      rootNodes: [
-        {
-          id: "searchSemantics:spell",
-          kind: "category",
-          label: "Spell",
-          filterText: "spell",
-          listLabel: "spell | 0 groups",
-          detailTitle: "Search Semantics",
-          detailLines: [{ text: "Spell", tone: "section" }],
-          children: [],
-        },
-      ],
-    }));
+    const loadSearchSemanticsDomain = vi.fn(() => createSearchSemanticsModel());
     services.user.ontology.loadSearchSemanticsDomain = loadSearchSemanticsDomain;
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalApp
+          rootPath={process.cwd()}
+          onExit={vi.fn()}
+          initialRoute={{ kind: "ontology", model: createSearchSemanticsModel() } as unknown as Pf2eAppRoute}
+          services={services}
+        />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    await flushInk();
+
+    expect(loadSearchSemanticsDomain).not.toHaveBeenCalled();
+    expect(app.lastFrame()).toContain("Search Semantics");
+    expect(app.lastFrame()).toContain("Explorer Entries");
+  });
+
+  it("keeps the area menu mounted while Search Semantics prepares", async () => {
+    const services = createFakeServices();
+    const pendingModel = createDeferred<OntologyDomainModel>();
+    services.user.ontology.loadSearchSemanticsDomain = vi.fn(
+      () => pendingModel.promise as unknown as OntologyDomainModel,
+    );
     const app = render(
       <DerivedTagTerminalProvider>
         <Pf2eTerminalApp rootPath={process.cwd()} onExit={vi.fn()} services={services} />
@@ -412,8 +437,61 @@ describe("pf2e terminal app", () => {
     await flushInk();
     app.stdin.write("\r");
     await flushInk();
+    await flushInk();
 
-    expect(loadSearchSemanticsDomain).toHaveBeenCalledTimes(1);
+    const pendingFrame = app.lastFrame();
+    expect(pendingFrame).toContain("Choose a first-class TUI area");
+    expect(pendingFrame).toContain("Ontology Browser");
+    expect(pendingFrame).toContain("Loading next view | Opening Search Semantics...");
+    expect(pendingFrame).not.toContain("Explorer Entries");
+
+    pendingModel.resolve(createSearchSemanticsModel());
+
+    await flushInk();
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("Search Semantics");
+    expect(app.lastFrame()).toContain("Explorer Entries");
+  });
+
+  it("keeps the area menu mounted and clears pending status when Search Semantics preparation fails", async () => {
+    const services = createFakeServices();
+    const pendingModel = createDeferred<OntologyDomainModel>();
+    services.user.ontology.loadSearchSemanticsDomain = vi.fn(
+      () => pendingModel.promise as unknown as OntologyDomainModel,
+    );
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalApp rootPath={process.cwd()} onExit={vi.fn()} services={services} />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+
+    app.stdin.write("j");
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("Loading next view | Opening Search Semantics...");
+
+    pendingModel.reject(new Error("index offline"));
+
+    await flushInk();
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("Could not open Search Semantics.");
+    expect(app.lastFrame()).toContain("index offline");
+
+    app.stdin.write(" ");
+    await flushInk();
+    await flushInk();
+
+    const recoveredFrame = app.lastFrame();
+    expect(recoveredFrame).toContain("Choose a first-class TUI area");
+    expect(recoveredFrame).toContain("Ontology Browser");
+    expect(recoveredFrame).not.toContain("Loading next view |");
   });
 
   it("passes shared prompt adapters into custom workbench session creation", async () => {
@@ -495,10 +573,7 @@ describe("pf2e terminal app", () => {
 
     await flushInk();
 
-    app.stdin.write("j");
-    await flushInk();
-    app.stdin.write("\r");
-    await flushInk();
+    await openOntologyBrowser(app);
 
     expect(app.lastFrame()).toContain("\u2190/Esc back");
 
@@ -520,9 +595,9 @@ describe("pf2e terminal app", () => {
     await flushInk();
 
     app.stdin.write("j");
-    await flushInk();
+    await flushFrames();
     app.stdin.write("l");
-    await flushInk();
+    await flushFrames(3);
 
     expect(app.lastFrame()).toContain("Search Semantics");
     expect(app.lastFrame()).toContain("Explorer Entries");
@@ -582,17 +657,12 @@ describe("pf2e terminal app", () => {
 
     await flushInk();
 
-    app.stdin.write("j");
-    await flushInk();
-    app.stdin.write("\r");
-    await flushInk();
-    await flushInk();
+    await openOntologyBrowser(app);
     expect(app.lastFrame()).toContain("Search Semantics");
     expect(app.lastFrame()).toContain("Search Semantics > Pathfinder Monster Core");
 
     app.stdin.write("j");
-    await flushInk();
-    await flushInk();
+    await flushFrames(2);
     expect(app.lastFrame()).toContain("Search Semantics > Pathfinder Rage of Elements");
 
     app.stdin.write(":");
@@ -602,16 +672,14 @@ describe("pf2e terminal app", () => {
     }
     await flushInk();
     app.stdin.write("\r");
-    await flushInk();
-    await flushInk();
+    await flushFrames(2);
     const searchFrame = app.lastFrame();
     expect(searchFrame).toContain("Browse/Search");
     expect(searchFrame).toContain("Category | Creature");
     expect(searchFrame).toContain("Seeded from: Browse records with this value");
 
     pressLeft(app);
-    await flushInk();
-    await flushInk();
+    await flushFrames(2);
 
     expect(app.lastFrame()).toContain("Search Semantics > Pathfinder Rage of Elements");
     expect(app.lastFrame()).toContain("Pathfinder Rage of Elements | 81");
@@ -668,29 +736,22 @@ describe("pf2e terminal app", () => {
 
     await flushInk();
 
-    app.stdin.write("j");
-    await flushInk();
-    app.stdin.write("\r");
-    await flushInk();
-    await flushInk();
+    await openOntologyBrowser(app);
     expect(app.lastFrame()).toContain("Search Semantics");
     expect(app.lastFrame()).toContain("Search Semantics > Pathfinder Monster Core");
 
     app.stdin.write("j");
-    await flushInk();
-    await flushInk();
+    await flushFrames(2);
     expect(app.lastFrame()).toContain("Search Semantics > Pathfinder Rage of Elements");
 
     app.stdin.write("\r");
-    await flushInk();
-    await flushInk();
+    await flushFrames(2);
     expect(app.lastFrame()).toContain("Browse/Search");
     expect(app.lastFrame()).toContain("[RESULTS]");
     expect(app.lastFrame()).not.toContain("[EDITOR] Query");
 
     pressLeft(app);
-    await flushInk();
-    await flushInk();
+    await flushFrames(2);
 
     expect(app.lastFrame()).toContain("Search Semantics > Pathfinder Rage of Elements");
     expect(app.lastFrame()).toContain("Pathfinder Rage of Elements | 81");
@@ -733,19 +794,14 @@ describe("pf2e terminal app", () => {
       </DerivedTagTerminalProvider>,
     );
 
-    await flushInk();
-    app.stdin.write("j");
-    await flushInk();
-    app.stdin.write("\r");
-    await flushInk();
-    await flushInk();
+    await flushFrames();
+    await openOntologyBrowser(app);
 
     expect(app.lastFrame()).toContain("Search Semantics");
     expect(app.lastFrame()).toContain("Pathfinder Monster Core | 320");
 
     app.stdin.write("\r");
-    await flushInk();
-    await flushInk();
+    await flushFrames(2);
 
     const pendingFrame = app.lastFrame();
     expect(pendingFrame).toContain("Search Semantics");
@@ -769,8 +825,7 @@ describe("pf2e terminal app", () => {
       sortSeed: null,
     });
 
-    await flushInk();
-    await flushInk();
+    await flushFrames(2);
 
     expect(app.lastFrame()).toContain("Browse/Search");
     expect(app.lastFrame()).toContain("[RESULTS]");
@@ -813,30 +868,23 @@ describe("pf2e terminal app", () => {
       </DerivedTagTerminalProvider>,
     );
 
-    await flushInk();
-    app.stdin.write("j");
-    await flushInk();
-    app.stdin.write("\r");
-    await flushInk();
-    await flushInk();
+    await flushFrames();
+    await openOntologyBrowser(app);
 
     app.stdin.write("\r");
-    await flushInk();
-    await flushInk();
+    await flushFrames(2);
 
     expect(app.lastFrame()).toContain("Loading next view | Loading results for Browse records with this value...");
 
     pendingSession.reject(new Error("index offline"));
 
-    await flushInk();
-    await flushInk();
+    await flushFrames(2);
 
     expect(app.lastFrame()).toContain("Query execution failed.");
     expect(app.lastFrame()).toContain("index offline");
 
     app.stdin.write(" ");
-    await flushInk();
-    await flushInk();
+    await flushFrames(2);
 
     const recoveredFrame = app.lastFrame();
     expect(recoveredFrame).toContain("Search Semantics");

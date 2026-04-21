@@ -50,7 +50,7 @@ describe("OntologyInspectScreen", () => {
     const app = render(
       <DerivedTagTerminalProvider>
         <OntologyInspectScreen
-          model={createOntologyModel()}
+          routeData={{ model: createOntologyModel() }}
           onExit={vi.fn()}
           transitionStatus={{ kind: ROUTE_TRANSITION_STATUS_KIND.PENDING, message: "Opening browse/search..." }}
         />
