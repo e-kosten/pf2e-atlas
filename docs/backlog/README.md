@@ -1,21 +1,8 @@
 # Backlog
 
-This folder is the tracked home for durable future work. It exists to separate stable backlog context from disposable working plans under `scratch/plans/`.
-
-`scratch/plans/future-plans.md` has not been migrated yet. Leave it untouched until its contents have been reviewed and moved intentionally.
-
-## Structure
-
-- `README.md`
-  Canonical backlog index, status vocabulary, and triage guidance.
-- `items/`
-  One file per substantial backlog item that needs durable context.
-- `history/`
-  Optional snapshots or archived status rolls when historical tracking is useful.
+This is the tracked backlog for durable future work.
 
 ## Status Vocabulary
-
-Use one of these statuses for backlog entries:
 
 - `proposed`
 - `planned`
@@ -25,58 +12,73 @@ Use one of these statuses for backlog entries:
 - `done`
 - `superseded`
 
-## Buckets
-
-Use these buckets in the live index:
-
-- `Now`
-- `Soon`
-- `Later`
-- `Done / Superseded`
-
-Keep inline entries short. If an item needs more than a few lines of explanation, create an item file under `items/` and link to it here.
-
-## Item Shape
-
-Inline items in this file should usually have:
-
-- short title
-- 1-3 sentence summary of the problem or desired outcome
-- current status
-- optional link to a deeper item file
-
-Example:
-
-```md
-## Soon
-
-- [Ontology browser naming](./items/ontology-browser-naming.md)
-  Replace internal-facing field names with user-facing labels in explorer surfaces.
-  Status: proposed.
-```
-
-## Rules Of Thumb
-
-- `scratch/` may be lost; `docs/backlog/` should not.
-- Do not store durable architecture rules here. Move those to `docs/architecture/` or `docs/architecture/decisions/`.
-- Do not create one file per tiny note. Keep small items inline in `README.md`.
-- Create `items/<slug>.md` only when the item has meaningful constraints, design context, or cross-cutting scope.
-- Temporary implementation plans may link from backlog items while work is active, but durable backlog entries should not depend on `scratch/` files remaining available.
-
-## Current Index
-
 ## Now
 
-- No tracked backlog items yet.
+- [Search interaction cleanup](./items/search-interaction-cleanup.md)
+  Unify how `/`, query text, and action menus work in the search editor and long selection lists. Status: proposed.
+
+- [View pages and detail presentation](./items/view-pages-and-details.md)
+  Make record detail views easier to scan, more dynamic by record type, and better suited for linked navigation. Status: proposed.
+
+- `Ontology browser naming friendliness`
+  Replace internal-facing labels such as `derivedTags` and other machine-shaped names with natural casing and wording in the explorer UI. Status: proposed.
+
+- `Search result readability cleanup`
+  Tighten list and breadcrumb formatting where result headers and long labels are hard to scan in the current TUI layout. Status: proposed.
+
+- `Right-navigation feedback`
+  When rightward navigation cannot drill deeper, show a small transient message instead of silently behaving like a layout/focus toggle. Status: proposed.
+
+- `Remove isUnique metadata`
+  Stop exposing `isUnique` as standalone metadata where it only duplicates rarity semantics. Status: proposed.
 
 ## Soon
 
-- No tracked backlog items yet.
+- [Derived-tag assignments layout](./items/derived-tag-assignments-layout.md)
+  Decide a durable on-disk structure for authored assignments before the assignment corpus grows much larger. Status: proposed.
+
+- [Actor metrics search orchestration](./items/actor-metrics-search-orchestration.md)
+  Bridge the gap between actor metrics in search semantics and the actual executable search/query path. Status: proposed.
+
+- [Tagging tooling reorganization](./items/tagging-tooling-reorg.md)
+  Move editorial/tagging utilities out of the root npm command surface and finish the repo-level naming cleanup around the TUI app. Status: proposed.
+
+- `Incomplete search tail in nested explorer lists`
+  Investigate why some deep record lists, such as `families > ghost`, advertise more results than the stepped-in detail view actually shows. Status: proposed.
+
+- `Filter shape convergence`
+  Bring MCP and TUI filter modeling back into alignment, especially around rarity and level no longer being treated as special cases. Status: proposed.
 
 ## Later
 
-- No tracked backlog items yet.
+- [Category relevance script](./items/category-relevance-script.md)
+  Add tooling to help tagging work happen in coherent batches without forcing one agent or reviewer to keep an entire family/tag space in active memory. Status: proposed.
+
+- `Typed seams cleanup`
+  Continue focused type-safety work around metadata registry access, prompt result narrowing, matcher adapters, and test fixtures. Status: proposed.
+
+- `Shared UI model boundary enforcement`
+  Identify which reusable TUI state/view-model helpers should become mandatory and enforce them once those pathways are stable enough. Status: proposed.
 
 ## Done / Superseded
 
-- No tracked backlog history yet.
+- `Add loading affordances`
+  Shared route-transition loading affordances already exist. Remaining work is tuning and polish, not first-pass implementation. Status: done.
+
+- `Loading icon cleanup`
+  This is now a narrower polish problem inside the existing loading treatment rather than a standalone missing feature. Status: superseded.
+
+- `Faster boot`
+  The original broad note is too vague; any future startup work should be tracked as targeted loading or route-preparation follow-ups. Status: superseded.
+
+- `Derived tags command palette`
+  This no longer stands well as a separate initiative. The remaining useful work belongs under broader search/editor interaction cleanup. Status: superseded.
+
+- `Terminal UI architecture`
+  The old monolithic `terminal-ui.tsx` concern has already been split into shared framework modules. Remaining work is ordinary maintenance, not the original refactor target. Status: done.
+
+- `Terminal modal layout tuning`
+  The shared planner is already in place. What remains is product tuning, not missing architecture. Status: done.
+
+- `Broader TUI mode switcher`
+  The main interaction-context unification work already landed, and this no longer needs its own backlog slot unless a new convergent abstraction appears later. Status: superseded.
