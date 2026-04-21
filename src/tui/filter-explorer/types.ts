@@ -26,8 +26,15 @@ export type FilterExplorerQueryTarget = {
   readonly kind: "listRecords" | "lookup" | "search";
   readonly label?: string;
   readonly filters: Readonly<SearchFilters>;
-  readonly openInResults?: boolean;
 };
+
+export const FILTER_EXPLORER_LAUNCH_INTENT = {
+  EDITOR: "editor",
+  RESULTS: "results",
+} as const;
+
+export type FilterExplorerLaunchIntent =
+  (typeof FILTER_EXPLORER_LAUNCH_INTENT)[keyof typeof FILTER_EXPLORER_LAUNCH_INTENT];
 
 export type FilterExplorerChildPresentation =
   | { readonly mode: "flat" }
@@ -170,7 +177,7 @@ export type FilterExplorerInspectResult = {
   node: FilterExplorerNode;
   query: FilterExplorerQueryTarget;
   target?: FilterExplorerComposeTarget;
-  openIntent: "browse" | "results";
+  launchIntent: FilterExplorerLaunchIntent;
 };
 
 export type FilterExplorerInspectAndOpenMode = {
@@ -183,8 +190,12 @@ export type FilterExplorerInspectAndOpenMode = {
     result: FilterExplorerInspectResult,
     snapshot: FilterExplorerBrowserSnapshot,
   ) => void;
-  onOpenQuery?: (query: FilterExplorerQueryTarget, snapshot: FilterExplorerBrowserSnapshot) => void;
-  openListRecordQueriesInResults?: boolean;
+  onOpenQuery?: (
+    query: FilterExplorerQueryTarget,
+    snapshot: FilterExplorerBrowserSnapshot,
+    launchIntent: FilterExplorerLaunchIntent,
+  ) => void;
+  defaultListRecordLaunchIntent?: FilterExplorerLaunchIntent;
 };
 
 export type FilterExplorerComposeMode = {

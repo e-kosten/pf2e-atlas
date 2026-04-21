@@ -19,8 +19,17 @@ export type {
 export type SearchScreenLayout = "editor" | "results";
 export type SearchScreenPane = "list" | "detail";
 
+export const SEARCH_COUNT_STATUS = {
+  IDLE: "idle",
+  LOADING: "loading",
+  READY: "ready",
+  ERROR: "error",
+} as const;
+
+export type SearchCountStatus = (typeof SEARCH_COUNT_STATUS)[keyof typeof SEARCH_COUNT_STATUS];
+
 export type SearchCountState = {
-  status: "idle" | "loading" | "ready" | "error";
+  status: SearchCountStatus;
   result: SearchCountResult | null;
   message: string | null;
 };

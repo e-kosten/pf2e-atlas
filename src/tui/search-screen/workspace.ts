@@ -17,7 +17,7 @@ import { formatFilterExplorerPolicySummary } from "../filter-explorer/policy-pre
 import { countMetadataPredicates, flattenMetadataTree } from "../search/query-core.js";
 import { humanizeIdentifier } from "../search/service-options.js";
 import { clampWindowStart } from "../list-utils.js";
-import type { SearchCountState, SearchScreenState } from "./state.js";
+import { SEARCH_COUNT_STATUS, type SearchCountState, type SearchScreenState } from "./state.js";
 import { formatCount, formatResultPosition, formatSort, getSessionBufferRange } from "./state.js";
 export { parseLevelRangeInput } from "./scalar-editor.js";
 
@@ -194,13 +194,13 @@ export function formatCountSummary(countState: SearchCountState, request: Pf2eTe
   if (availability.disabled) {
     return availability.reason ?? "Unavailable";
   }
-  if (countState.status === "loading") {
+  if (countState.status === SEARCH_COUNT_STATUS.LOADING) {
     return "Counting matches...";
   }
-  if (countState.status === "error") {
+  if (countState.status === SEARCH_COUNT_STATUS.ERROR) {
     return countState.message ?? "Live count unavailable.";
   }
-  if (countState.status === "ready" && countState.result) {
+  if (countState.status === SEARCH_COUNT_STATUS.READY && countState.result) {
     const noun = request.mode === "lookup" ? "candidate" : "match";
     return `${countState.result.total} ${noun}${countState.result.total === 1 ? "" : "es"}`;
   }
@@ -465,11 +465,11 @@ export function buildQuerySummaryLines(
   lines.push({ text: "Live Count", tone: "section" });
   if (executeAvailability.disabled) {
     lines.push({ text: executeAvailability.reason ?? "Unavailable for the current query.", tone: "warning" });
-  } else if (countState.status === "loading") {
+  } else if (countState.status === SEARCH_COUNT_STATUS.LOADING) {
     lines.push({ text: "Counting lexical matches for the current query...", tone: "accent" });
-  } else if (countState.status === "error") {
+  } else if (countState.status === SEARCH_COUNT_STATUS.ERROR) {
     lines.push({ text: countState.message ?? "Live count unavailable.", tone: "warning" });
-  } else if (countState.status === "ready" && countState.result) {
+  } else if (countState.status === SEARCH_COUNT_STATUS.READY && countState.result) {
     lines.push({
       text: `${countState.result.total} matching record${countState.result.total === 1 ? "" : "s"} before result ordering.`,
       tone: countState.result.total === 0 ? "warning" : "default",

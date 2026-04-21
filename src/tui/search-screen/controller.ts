@@ -133,11 +133,7 @@ export function useSearchScreenController({
     chooseResultSort,
     exitSearchScreen,
   } = useSearchSessionWorkflow({
-    autoExecuteInitialQuery: origin !== "ontology",
     dispatch,
-    initialQuery,
-    initialSession,
-    initialQueryState,
     onExit: onBack,
     preloadThreshold,
     prompts,

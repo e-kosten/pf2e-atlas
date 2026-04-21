@@ -9,7 +9,7 @@ import type {
 } from "../../src/domain/search-types.js";
 import type { AppConfig } from "../../src/domain/config-types.js";
 import type { NormalizedRecord } from "../../src/domain/record-types.js";
-import type { OntologyDomainModel, OntologyNodeQuery } from "../../src/domain/ontology-types.js";
+import type { OntologyDomainModel } from "../../src/domain/ontology-types.js";
 import {
   buildSearchFilterExplorerTargetResolver,
   createPf2eTerminalSearchService,
@@ -1724,6 +1724,36 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Seeded from: Browse illusion spells");
   });
 
+  it("does not auto-execute seeded route entry without a prepared session", async () => {
+    const openSearchWindow = vi.fn();
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={createServices({ openSearchWindow })}>
+          <SearchScreen
+            initialQuery={{
+              kind: "listRecords",
+              label: "Browse illusion spells",
+              filters: {
+                category: "spell",
+                metadata: { field: "traits", op: "includesAny", values: ["illusion"] },
+                limit: 20,
+              },
+            }}
+            onBack={vi.fn()}
+          />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("[EDITOR] Query");
+    expect(app.lastFrame()).toContain("Seeded from: Browse illusion spells");
+    expect(app.lastFrame()).not.toContain("[RESULTS]");
+    expect(openSearchWindow).not.toHaveBeenCalled();
+  });
+
   it("opens preloaded ontology direct-result sessions immediately", async () => {
     const openSearchWindow = vi.fn();
     const initialSession = createSearchSession({
@@ -1733,18 +1763,15 @@ describe("search screen", () => {
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={createServices({ openSearchWindow })}>
           <SearchScreen
-            initialQuery={
-              {
-                kind: "listRecords",
-                label: "Browse illusion spells",
-                filters: {
-                  category: "spell",
-                  metadata: { field: "traits", op: "includesAny", values: ["illusion"] },
-                  limit: 20,
-                },
-                openInResults: true,
-              } as OntologyNodeQuery & { openInResults?: boolean }
-            }
+            initialQuery={{
+              kind: "listRecords",
+              label: "Browse illusion spells",
+              filters: {
+                category: "spell",
+                metadata: { field: "traits", op: "includesAny", values: ["illusion"] },
+                limit: 20,
+              },
+            }}
             initialSession={initialSession}
             origin="ontology"
             onBack={vi.fn()}
@@ -1770,18 +1797,15 @@ describe("search screen", () => {
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={createServices({ openSearchWindow, search })}>
           <SearchScreen
-            initialQuery={
-              {
-                kind: "listRecords",
-                label: "Browse illusion spells",
-                filters: {
-                  category: "spell",
-                  metadata: { field: "traits", op: "includesAny", values: ["illusion"] },
-                  limit: 20,
-                },
-                openInResults: true,
-              } as OntologyNodeQuery & { openInResults?: boolean }
-            }
+            initialQuery={{
+              kind: "listRecords",
+              label: "Browse illusion spells",
+              filters: {
+                category: "spell",
+                metadata: { field: "traits", op: "includesAny", values: ["illusion"] },
+                limit: 20,
+              },
+            }}
             initialSession={initialSession}
             origin="ontology"
             onBack={vi.fn()}

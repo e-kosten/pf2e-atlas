@@ -1,9 +1,8 @@
 import React from "react";
 
-import type { OntologyNodeQuery } from "../../domain/ontology-types.js";
 import type { Pf2eTerminalAppServices } from "../app-services.js";
 import type { SearchTerminalPromptAdapters } from "../interaction-context-adapters.js";
-import type { SearchCountState, SearchScreenAction, SearchScreenState } from "./state.js";
+import { SEARCH_COUNT_STATUS, type SearchCountState, type SearchScreenAction, type SearchScreenState } from "./state.js";
 import type { Pf2eTerminalSearchQuery, Pf2eTerminalSearchSession } from "../search/service.js";
 import type { DerivedTagTerminalApp } from "../framework/types.js";
 import {
@@ -17,11 +16,7 @@ import {
 } from "./model.js";
 
 export function useSearchSessionWorkflow({
-  autoExecuteInitialQuery = true,
   dispatch,
-  initialQuery,
-  initialSession,
-  initialQueryState,
   onExit,
   preloadThreshold,
   prompts,
@@ -31,11 +26,7 @@ export function useSearchSessionWorkflow({
   terminal,
   user,
 }: {
-  autoExecuteInitialQuery?: boolean;
   dispatch: React.Dispatch<SearchScreenAction>;
-  initialQuery?: OntologyNodeQuery;
-  initialSession?: Pf2eTerminalSearchSession;
-  initialQueryState: Pf2eTerminalSearchQuery;
   onExit: () => void;
   preloadThreshold: number;
   prompts: Pick<SearchTerminalPromptAdapters, "promptSelectOption" | "promptTextInput">;
@@ -57,12 +48,11 @@ export function useSearchSessionWorkflow({
 } {
   const [busy, setBusy] = React.useState(false);
   const [countState, setCountState] = React.useState<SearchCountState>({
-    status: "idle",
+    status: SEARCH_COUNT_STATUS.IDLE,
     result: null,
     message: null,
   });
   const [loadingMore, setLoadingMore] = React.useState(false);
-  const autoRanInitialQuery = React.useRef(Boolean(initialSession));
   const loadMoreSessionKeyRef = React.useRef<string | null>(null);
   const loadMoreTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeSessionRef = React.useRef<Pf2eTerminalSearchSession | null>(null);
@@ -178,14 +168,6 @@ export function useSearchSessionWorkflow({
   }, [clampedResultSelectedIndex, dispatch, prompts, state.session, terminal]);
 
   React.useEffect(() => {
-    if (!autoExecuteInitialQuery || !initialQuery || autoRanInitialQuery.current) {
-      return;
-    }
-    autoRanInitialQuery.current = true;
-    void executeRequest(initialQueryState);
-  }, [autoExecuteInitialQuery, executeRequest, initialQuery, initialQueryState]);
-
-  React.useEffect(() => {
     const previousSession = activeSessionRef.current;
     const nextSession = state.session;
     if (previousSession && previousSession.windowId !== nextSession?.windowId) {
@@ -209,7 +191,7 @@ export function useSearchSessionWorkflow({
     const availability = getExecuteAvailability(state.query);
     if (availability.disabled) {
       setCountState({
-        status: "idle",
+        status: SEARCH_COUNT_STATUS.IDLE,
         result: null,
         message: availability.reason,
       });
@@ -218,7 +200,7 @@ export function useSearchSessionWorkflow({
 
     let cancelled = false;
     setCountState((current) => ({
-      status: "loading",
+      status: SEARCH_COUNT_STATUS.LOADING,
       result: current.result,
       message: null,
     }));
@@ -231,7 +213,7 @@ export function useSearchSessionWorkflow({
             return;
           }
           setCountState({
-            status: "ready",
+            status: SEARCH_COUNT_STATUS.READY,
             result,
             message: null,
           });
@@ -241,7 +223,7 @@ export function useSearchSessionWorkflow({
             return;
           }
           setCountState({
-            status: "error",
+            status: SEARCH_COUNT_STATUS.ERROR,
             result: null,
             message: (error as Error).message,
           });

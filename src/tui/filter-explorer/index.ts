@@ -1,5 +1,6 @@
 export { useFilterExplorerController } from "./controller.js";
 export { FilterExplorerScreen } from "./screen.js";
+export { FILTER_EXPLORER_LAUNCH_INTENT } from "./types.js";
 export {
   buildFilterExplorerPolicyBadgeSegments,
   buildFilterExplorerPolicyLabelSegments,
@@ -21,6 +22,7 @@ export type {
   FilterExplorerDomainId,
   FilterExplorerInspectAndOpenMode,
   FilterExplorerInspectResult,
+  FilterExplorerLaunchIntent,
   FilterExplorerLineTone,
   FilterExplorerModel,
   FilterExplorerMode,

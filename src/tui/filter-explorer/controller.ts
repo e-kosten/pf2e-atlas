@@ -80,6 +80,10 @@ import type {
   FilterExplorerQueryTarget,
   FilterExplorerScalarClause,
 } from "./types.js";
+import {
+  FILTER_EXPLORER_LAUNCH_INTENT,
+  type FilterExplorerLaunchIntent,
+} from "./types.js";
 
 type FilterExplorerAction =
   | DerivedTagTerminalTwoPaneAction
@@ -257,11 +261,15 @@ function filterExplorerReducer(
   }
 }
 
-function markQueryToOpenInResults(query: FilterExplorerQueryTarget): FilterExplorerQueryTarget {
-  return {
-    ...query,
-    openInResults: true,
-  };
+function resolveFilterExplorerLaunchIntent(
+  mode: FilterExplorerInspectAndOpenMode,
+  query: FilterExplorerQueryTarget,
+): FilterExplorerLaunchIntent {
+  if (query.kind !== "listRecords") {
+    return FILTER_EXPLORER_LAUNCH_INTENT.EDITOR;
+  }
+
+  return mode.defaultListRecordLaunchIntent ?? FILTER_EXPLORER_LAUNCH_INTENT.RESULTS;
 }
 
 function buildInspectResult(
@@ -273,16 +281,11 @@ function buildInspectResult(
     return undefined;
   }
 
-  const query =
-    node.query.kind === "listRecords" && mode.openListRecordQueriesInResults !== false
-      ? markQueryToOpenInResults(node.query)
-      : node.query;
-
   return {
     node,
-    query,
+    query: node.query,
     target: mode.resolveInspectTarget?.(node),
-    openIntent: query.openInResults ? "results" : "browse",
+    launchIntent: resolveFilterExplorerLaunchIntent(mode, node.query),
   };
 }
 
@@ -378,13 +381,12 @@ function buildCompiledInspectResult(
     query: {
       ...result.query,
       label: `Browse records where ${result.target.subjectLabel} ${formatInspectScalarClauseSummary(clause)}`,
-      openInResults: true,
       filters: {
         ...result.query.filters,
         metadata,
       },
     },
-    openIntent: "results",
+    launchIntent: FILTER_EXPLORER_LAUNCH_INTENT.RESULTS,
   };
 }
 
@@ -403,7 +405,7 @@ function openInspectResultDirect(
     return true;
   }
   if (options.mode.onOpenQuery) {
-    options.mode.onOpenQuery(result.query, snapshot);
+    options.mode.onOpenQuery(result.query, snapshot, result.launchIntent);
     return true;
   }
   return false;
@@ -453,17 +455,15 @@ function openInspectQuery(
   }
 
   const snapshot = createFilterExplorerBrowserSnapshot(keyContext);
-  const query = { ...result.query, openInResults: false };
   if (options.mode.onOpenQuery) {
-    options.mode.onOpenQuery(query, snapshot);
+    options.mode.onOpenQuery(result.query, snapshot, FILTER_EXPLORER_LAUNCH_INTENT.EDITOR);
     return true;
   }
   if (options.mode.onOpenInspectResult) {
     options.mode.onOpenInspectResult(
       {
         ...result,
-        query,
-        openIntent: query.kind === "listRecords" ? "browse" : result.openIntent,
+        launchIntent: FILTER_EXPLORER_LAUNCH_INTENT.EDITOR,
       },
       snapshot,
     );
