@@ -9,9 +9,8 @@ import {
 import type { DerivedTagTerminalListNavigationAction } from "../framework/input.js";
 import { useDerivedTagTerminalSize } from "../framework/context.js";
 import type { DerivedTagTerminalInputEvent } from "../framework/types.js";
-import { showTerminalReturnDialog, useTerminalInteractionContextAdapters } from "../interaction-context-adapters.js";
+import { useTerminalInteractionContextAdapters } from "../interaction-context-adapters.js";
 import {
-  getTerminalInteractionCycleDirection,
   type TerminalInteractionAction,
   type TerminalTextEntryIntent,
 } from "../interaction-bindings.js";
@@ -56,13 +55,9 @@ import {
   getFilterExplorerTargetState,
   isFilterExplorerScalarTarget,
   normalizeFilterExplorerComposeDraft,
-  setFilterExplorerScalarClause,
-  toggleFilterExplorerTargetSelection,
 } from "./compose-state.js";
 import {
-  buildFilterExplorerCommandEntries,
   buildFilterExplorerComposeDetailLines,
-  buildFilterExplorerHelpLines,
   getFilterExplorerInteractionActions,
 } from "./screen-models.js";
 import type { MetadataFilterNode } from "../../domain/metadata-types.js";
@@ -85,6 +80,12 @@ import {
   FILTER_EXPLORER_LAUNCH_INTENT,
   type FilterExplorerLaunchIntent,
 } from "./types.js";
+import {
+  applyComposeCycleSelection,
+  handleFilterExplorerAction,
+  openComposeScalarEditor,
+  shouldExitAtRootDepth,
+} from "./workflow-actions.js";
 
 type FilterExplorerAction =
   | DerivedTagTerminalTwoPaneAction
@@ -566,62 +567,6 @@ function createFilterExplorerContext(args: {
   };
 }
 
-function applyComposeCycleSelection(
-  composeMode: FilterExplorerComposeMode,
-  keyContext: Pick<FilterExplorerKeyContext, "currentNode" | "event">,
-  updateDraft: (updater: (current: FilterExplorerComposeDraft) => FilterExplorerComposeDraft) => void,
-): boolean {
-  const cycleDirection = getTerminalInteractionCycleDirection(keyContext.event, { id: "cycle" });
-  if (!cycleDirection) {
-    return false;
-  }
-
-  const target = composeMode.resolveSelectionTarget(keyContext.currentNode);
-  if (!target || target.kind === "scalar") {
-    return false;
-  }
-
-  updateDraft((current) => ({
-    ...current,
-    selection: toggleFilterExplorerTargetSelection(target, current.selection, cycleDirection),
-  }));
-  return true;
-}
-
-function openComposeScalarEditor(
-  composeMode: FilterExplorerComposeMode,
-  target: ReturnType<FilterExplorerComposeMode["resolveSelectionTarget"]>,
-  draft: FilterExplorerComposeDraft,
-  updateDraft: (updater: (current: FilterExplorerComposeDraft) => FilterExplorerComposeDraft) => void,
-): boolean {
-  if (!isFilterExplorerScalarTarget(target) || !composeMode.onEditScalarTarget) {
-    return false;
-  }
-
-  void Promise.resolve(
-    composeMode.onEditScalarTarget({
-      target,
-      currentClause: getFilterExplorerScalarClause(target, draft),
-      draft: cloneFilterExplorerComposeDraft(draft),
-    }),
-  ).then((nextClause) => {
-    if (nextClause === undefined) {
-      return;
-    }
-    updateDraft((current) => setFilterExplorerScalarClause(target, nextClause, current));
-  });
-  return true;
-}
-
-function shouldExitAtRootDepth(options: FilterExplorerOptions, keyContext: FilterExplorerKeyContext): boolean {
-  return (
-    options.mode.kind === "compose" &&
-    options.exitAtRootDepth === true &&
-    keyContext.state.activePane === "list" &&
-    keyContext.effectiveState.depth === (options.rootDepth ?? 0)
-  );
-}
-
 export function useFilterExplorerController(options: FilterExplorerOptions): FilterExplorerControllerContext {
   const adapters = useTerminalInteractionContextAdapters();
   const composeMode = options.mode.kind === "compose" ? options.mode : null;
@@ -762,7 +707,28 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
           });
           return;
         }
-        if (interactionAction && handleExplorerAction(options, interactionAction, keyContext, draft, updateDraft, adapters)) {
+        if (
+          interactionAction &&
+          handleFilterExplorerAction({
+            action: interactionAction,
+            adapters,
+            context: createFilterExplorerContext({
+              options,
+              browser: keyContext,
+              draft,
+            }),
+            draft,
+            keyContext,
+            onOpenInspectQuery: (result) => {
+              void openInspectQuery(options, keyContext, result);
+            },
+            onOpenInspectResult: (result) => {
+              void openInspectResult(options, keyContext, result);
+            },
+            options,
+            updateDraft,
+          })
+        ) {
           return;
         }
         if (interactionAction?.id === "quit") {
@@ -843,7 +809,28 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
         }
         return;
       }
-      if (interactionAction && handleExplorerAction(options, interactionAction, keyContext, draft, updateDraft, adapters)) {
+      if (
+        interactionAction &&
+        handleFilterExplorerAction({
+          action: interactionAction,
+          adapters,
+          context: createFilterExplorerContext({
+            options,
+            browser: keyContext,
+            draft,
+          }),
+          draft,
+          keyContext,
+          onOpenInspectQuery: (result) => {
+            void openInspectQuery(options, keyContext, result);
+          },
+          onOpenInspectResult: (result) => {
+            void openInspectResult(options, keyContext, result);
+          },
+          options,
+          updateDraft,
+        })
+      ) {
         return;
       }
       if (interactionAction?.id === "focus") {
@@ -919,65 +906,6 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
     browser: browserContext,
     draft,
   });
-}
-
-function handleExplorerAction(
-  options: FilterExplorerOptions,
-  action: TerminalInteractionAction,
-  keyContext: FilterExplorerKeyContext,
-  draft: FilterExplorerComposeDraft,
-  updateDraft: (updater: (current: FilterExplorerComposeDraft) => FilterExplorerComposeDraft) => void,
-  adapters: ReturnType<typeof useTerminalInteractionContextAdapters>,
-): boolean {
-  const context = createFilterExplorerContext({
-    options,
-    browser: keyContext,
-    draft,
-  });
-
-  if (action.id === "back" && shouldExitAtRootDepth(options, keyContext)) {
-    options.onExit();
-    return true;
-  }
-
-  if (action.id === "cycle" && options.mode.kind === "compose") {
-    const target = options.mode.resolveSelectionTarget(keyContext.currentNode);
-    return (
-      openComposeScalarEditor(options.mode, target, draft, updateDraft) ||
-      applyComposeCycleSelection(options.mode, keyContext, updateDraft)
-    );
-  }
-
-  if (action.id === "help") {
-    void showTerminalReturnDialog(adapters, `${context.screenTitle} Help`, buildFilterExplorerHelpLines(context));
-    return true;
-  }
-
-  if (action.id === "commands" && options.mode.kind === "inspect-and-open") {
-    const commandEntries = buildFilterExplorerCommandEntries(context);
-    if (commandEntries.length === 0) {
-      return true;
-    }
-
-    void adapters
-      .promptCommandPalette({
-        title: `${context.screenTitle} Commands`,
-        prompt: "Filter explorer commands",
-        entries: commandEntries,
-      })
-      .then((selected) => {
-        if (selected === "openSelection" || selected === "openResults") {
-          openInspectResult(options, keyContext, getNodeInspectResult(options, keyContext.currentNode));
-          return;
-        }
-        if (selected === "openQuery") {
-          openInspectQuery(options, keyContext, getNodeInspectResult(options, keyContext.currentNode));
-        }
-      });
-    return true;
-  }
-
-  return false;
 }
 function buildFilterExplorerQueryOpenIntent(
   query: FilterExplorerQueryTarget,

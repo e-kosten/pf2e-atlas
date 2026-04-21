@@ -1,7 +1,6 @@
 import type { MetadataFieldName } from "../../domain/metadata-field-registry.js";
 import type { MetadataFieldSemantics } from "../../domain/metadata-semantics.js";
 import type { SearchCategorySummaryResult, SearchVocabularyResult } from "../../data/vocabulary.js";
-import type { FilterExplorerScalarClause } from "../filter-explorer/index.js";
 import type {
   MetadataFilterNode,
 } from "../../domain/metadata-types.js";
@@ -19,6 +18,10 @@ import type {
   SearchSubcategory,
   SearchWindowPage,
 } from "../../domain/search-types.js";
+import type {
+  FilterExplorerComposeDraft,
+  FilterExplorerSelectionMap,
+} from "../filter-explorer/types.js";
 import type { Pf2eTerminalQueryPart } from "./query-parts.js";
 
 export type Pf2eTerminalSearchCategoryOption = {
@@ -82,12 +85,6 @@ export type Pf2eTerminalSearchStructuredPart = Pf2eTerminalQueryPart;
 
 export type Pf2eTerminalSearchFilters = {
   category: SearchCategory | null;
-  subcategory: SearchSubcategory | null;
-  levelMin: number | null;
-  levelMax: number | null;
-  rarity: Pf2eTerminalFilterValuePolicy<string>;
-  actionCost: Pf2eTerminalFilterValuePolicy<number>;
-  metadata: MetadataFilterNode | null;
   parts: Pf2eTerminalSearchStructuredPart[];
 };
 
@@ -110,21 +107,10 @@ export type Pf2eTerminalQueryFieldOption = {
 
 export type Pf2eTerminalQueryFieldEditor = "policyList" | "structuredForm" | "sharedExplorer";
 
-export type Pf2eTerminalQueryFieldSelectionMap = Record<string, Pf2eTerminalFilterValuePolicy<string>>;
+export type Pf2eTerminalQueryFieldSelectionMap = FilterExplorerSelectionMap;
 
-export type Pf2eTerminalFilterExplorerMetricClause = {
-  field: Pf2eTerminalMetricQueryField;
-  metric: string;
-  valueType: "number" | "text" | "boolean";
-  clause: FilterExplorerScalarClause;
-};
-
-export type Pf2eTerminalFilterExplorerScalarClauseMap = Record<string, Pf2eTerminalFilterExplorerMetricClause>;
-
-export type Pf2eTerminalFilterExplorerDraft = {
+export type Pf2eTerminalFilterExplorerDraft = FilterExplorerComposeDraft & {
   scopedFields: readonly Pf2eTerminalQueryField[];
-  fieldSelections: Pf2eTerminalQueryFieldSelectionMap;
-  scalarClauses: Pf2eTerminalFilterExplorerScalarClauseMap;
   structuredMetadata: MetadataFilterNode | null;
 };
 

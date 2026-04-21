@@ -4,7 +4,7 @@ import {
   buildFilterExplorerPolicyBadgeSegments,
   formatFilterExplorerPolicyCycleCopy,
   formatFilterExplorerPolicySummary,
-} from "../../src/tui/filter-explorer/policy-presentation.js";
+} from "../../src/tui/framework/policy-presentation.js";
 
 describe("filter explorer policy presentation", () => {
   it("formats workspace-style policy summaries from the shared presentation seam", () => {

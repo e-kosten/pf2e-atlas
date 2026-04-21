@@ -227,15 +227,15 @@ describe("eslint local architecture rules", () => {
 
   it("blocks internal src/tags modules from importing the public tags barrel", async () => {
     await expectRuleMessage(
-      "src/tags/runtime/index.ts",
-      'export * from "../index.js";\n',
+      "src/tags/runtime/derivation/api.ts",
+      'export * from "../../index.js";\n',
       "Internal src/tags modules must not import the src/tags/index.js barrel.",
       "arch/no-internal-tags-barrel-imports",
     );
 
     await expectNoRuleMessages(
-      "src/tags/runtime/index.ts",
-      'export * from "./api.js";\n',
+      "src/tags/runtime/derivation/api.ts",
+      'export * from "./assignments.js";\n',
       "arch/no-internal-tags-barrel-imports",
     );
   });
@@ -267,8 +267,8 @@ describe("eslint local architecture rules", () => {
         code: 'import { useDerivedTagTerminalInput } from "../tui/terminal-ui.js";\nexport const value = useDerivedTagTerminalInput;\n',
       },
       {
-        filePath: "src/tags/runtime/index.ts",
-        code: 'import { useDerivedTagTerminalInput } from "../../tui/terminal-ui.js";\nexport const value = useDerivedTagTerminalInput;\n',
+        filePath: "src/tags/runtime/publication/catalog.ts",
+        code: 'import { useDerivedTagTerminalInput } from "../../../tui/terminal-ui.js";\nexport const value = useDerivedTagTerminalInput;\n',
       },
       {
         filePath: "src/tags/runtime/matcher/engine.ts",
@@ -326,8 +326,8 @@ describe("eslint local architecture rules", () => {
     );
 
     await expectNoRuleMessages(
-      "src/tags/runtime/index.ts",
-      'import { SearchFilters } from "../../domain/index.js";\nexport type Value = SearchFilters;\n',
+      "src/tags/runtime/derivation/api.ts",
+      'import { SearchFilters } from "../../../domain/index.js";\nexport type Value = SearchFilters;\n',
     );
   });
 
@@ -386,16 +386,16 @@ describe("eslint local architecture rules", () => {
 
   it("allows designated tag UI entrypoints to import tui modules", async () => {
     const reviewUiMessages = await lintRuleMessages(
-      "src/tags/editorial/review-ui.tsx",
-      'import { TerminalPaneScreen } from "../../tui/terminal-ui.js";\nexport const Screen = TerminalPaneScreen;\n',
+      "src/tags/editorial/ui/review-ui.tsx",
+      'import { TerminalPaneScreen } from "../../../tui/terminal-ui.js";\nexport const Screen = TerminalPaneScreen;\n',
     );
     const reviewModelMessages = await lintRuleMessages(
-      "src/tags/editorial/review-screen-model.ts",
-      'import { getTerminalPaneBodyHeight } from "../../tui/terminal-ui.js";\nexport const value = getTerminalPaneBodyHeight;\n',
+      "src/tags/editorial/ui/review-screen-model.ts",
+      'import { getTerminalPaneBodyHeight } from "../../../tui/terminal-ui.js";\nexport const value = getTerminalPaneBodyHeight;\n',
     );
     const reviewStateMessages = await lintRuleMessages(
-      "src/tags/editorial/review-screen-state.ts",
-      'import { reduceDerivedTagTerminalTwoPaneState } from "../../tui/two-pane-state.js";\nexport const value = reduceDerivedTagTerminalTwoPaneState;\n',
+      "src/tags/editorial/ui/review-screen-state.ts",
+      'import { reduceDerivedTagTerminalTwoPaneState } from "../../../tui/two-pane-state.js";\nexport const value = reduceDerivedTagTerminalTwoPaneState;\n',
     );
     const workbenchMessages = await lintRuleMessages(
       "src/tags/cli/editorial/derived-tag-migration-workbench.ts",
@@ -411,7 +411,7 @@ describe("eslint local architecture rules", () => {
   it("keeps review-screen support modules on framework-style tui import limits", async () => {
     const messages = lintMessageTexts(
       await lintRuleMessages(
-        "src/tags/editorial/review-screen-model.ts",
+        "src/tags/editorial/ui/review-screen-model.ts",
         'import { useInput } from "ink";\nexport const value = useInput;\n',
       ),
     );

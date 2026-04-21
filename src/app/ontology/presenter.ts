@@ -1,4 +1,4 @@
 export {
   buildOntologyExplorerEntityDetailLines,
   buildOntologyExplorerEntitySummary,
-} from "../../tags/entity-record.js";
+} from "./entity-record.js";

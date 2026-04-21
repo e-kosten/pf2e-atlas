@@ -622,7 +622,7 @@ function createCreatureMetricExplorerSession(): SearchFilterExplorerSession {
     model,
     draft: {
       scopedFields: ["actorMetric"],
-      fieldSelections: {},
+      selection: {},
       scalarClauses: {},
       structuredMetadata: null,
     },
@@ -1662,24 +1662,6 @@ describe("search screen", () => {
       sourceLabel: "Browse records with this trait",
       filters: {
         category: "spell",
-        subcategory: null,
-        levelMin: null,
-        levelMax: null,
-        rarity: {
-          any: [],
-          all: [],
-          exclude: [],
-        },
-        actionCost: {
-          any: [],
-          all: [],
-          exclude: [],
-        },
-        metadata: {
-          field: "traits",
-          op: "includesAny",
-          values: ["illusion"],
-        },
         parts: [
           {
             kind: "metadataPredicate",

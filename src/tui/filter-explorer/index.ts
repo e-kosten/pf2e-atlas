@@ -1,13 +1,6 @@
 export { useFilterExplorerController } from "./controller.js";
 export { FilterExplorerScreen } from "./screen.js";
 export { FILTER_EXPLORER_LAUNCH_INTENT } from "./types.js";
-export {
-  buildFilterExplorerPolicyBadgeSegments,
-  buildFilterExplorerPolicyLabelSegments,
-  buildFilterExplorerPolicySequenceSegments,
-  formatFilterExplorerPolicyToken,
-  getFilterExplorerPolicyPresentation,
-} from "./policy-presentation.js";
 export type {
   FilterExplorerBrowserContext,
   FilterExplorerBrowserSelection,

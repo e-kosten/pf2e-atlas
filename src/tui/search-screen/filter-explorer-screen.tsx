@@ -4,8 +4,8 @@ import { FilterExplorerScreen } from "../filter-explorer/index.js";
 import { useDerivedTagTerminalApp } from "../framework/context.js";
 import { useTerminalInteractionContextAdapters } from "../interaction-context-adapters.js";
 import {
-  applyFilterExplorerComposeDraft,
-  createFilterExplorerComposeDraft,
+  cloneFilterExplorerDraft,
+  withFilterExplorerComposeDraft,
 } from "../search/service.js";
 import type { SearchFilterExplorerSession } from "./query-field-builder-session.js";
 import { promptNumericScalarClause } from "./scalar-editor.js";
@@ -17,23 +17,23 @@ export function SearchFilterExplorerScreen({
 }): React.JSX.Element {
   const terminal = useDerivedTagTerminalApp();
   const prompts = useTerminalInteractionContextAdapters();
-  const [composeDraft, setComposeDraft] = React.useState(() => createFilterExplorerComposeDraft(session.draft));
+  const [draft, setDraft] = React.useState(() => cloneFilterExplorerDraft(session.draft));
   const draftRef = React.useRef(session.draft);
 
   React.useEffect(() => {
-    draftRef.current = session.draft;
-    setComposeDraft(createFilterExplorerComposeDraft(session.draft));
+    const nextDraft = cloneFilterExplorerDraft(session.draft);
+    draftRef.current = nextDraft;
+    setDraft(nextDraft);
   }, [session.draft]);
 
   const applyDraft = React.useCallback(() => {
     session.onApply(draftRef.current);
   }, [session]);
 
-  const updateComposeDraft = React.useCallback((nextComposeDraft: typeof composeDraft) => {
-    const nextDraft = applyFilterExplorerComposeDraft(draftRef.current, nextComposeDraft);
-    const normalizedComposeDraft = createFilterExplorerComposeDraft(nextDraft);
+  const updateDraft = React.useCallback((nextComposeDraft: Pick<typeof draft, "selection" | "scalarClauses">) => {
+    const nextDraft = withFilterExplorerComposeDraft(draftRef.current, nextComposeDraft);
     draftRef.current = nextDraft;
-    setComposeDraft(normalizedComposeDraft);
+    setDraft(nextDraft);
   }, []);
 
   return (
@@ -45,9 +45,9 @@ export function SearchFilterExplorerScreen({
       onExit={applyDraft}
       mode={{
         kind: "compose",
-        draft: composeDraft,
+        draft,
         onDraftChange: (nextComposeDraft) => {
-          updateComposeDraft(nextComposeDraft);
+          updateDraft(nextComposeDraft);
         },
         resolveSelectionTarget: session.resolveSelectionTarget,
         onEditScalarTarget: async ({ target, currentClause }) => {

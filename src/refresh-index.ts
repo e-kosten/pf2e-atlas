@@ -3,10 +3,10 @@
 import { DatabaseSync } from "node:sqlite";
 
 import { loadConfig } from "./app/config.js";
+import { writeDerivedTagOntologyExplorerDbCache } from "./app/ontology/derived-tag-explorer.js";
 import { writeMetadataGlossaryArtifact } from "./data/metadata-glossary.js";
 import { Pf2eDataService } from "./data/service.js";
 import { ConsoleProgressReporter } from "./shared/progress.js";
-import { writeDerivedTagOntologyExplorerDbCache } from "./tui/ontology-explorer/data.js";
 
 function formatDuration(durationMs: number): string {
   const totalSeconds = Math.max(0, Math.round(durationMs / 1000));

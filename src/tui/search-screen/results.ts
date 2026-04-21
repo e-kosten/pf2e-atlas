@@ -4,8 +4,8 @@ import type { SearchScreenOrigin } from "./workflow-types.js";
 import { formatResultPosition, formatSort, getSessionBufferRange } from "./state.js";
 import type { Pf2eTerminalSearchSession } from "../search/service.js";
 import { clampWindowStart } from "../list-utils.js";
-import { buildOntologyExplorerEntityDetailLines } from "../ontology-explorer/entity-page.js";
-import { mapNormalizedRecordToOntologyExplorerEntityRecord } from "../ontology-explorer/entity-record.js";
+import { buildOntologyExplorerEntityDetailLines } from "../../app/ontology/presenter.js";
+import { mapNormalizedRecordToOntologyExplorerEntityRecord } from "../../app/ontology/entity-record.js";
 
 export type SearchResultCommandId = "jumpToResult" | "sortResults" | "openEditor";
 

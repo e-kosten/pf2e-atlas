@@ -14,7 +14,7 @@ import {
   getSearchQuerySubcategory,
 } from "../search/service.js";
 import { createEmptyStringPolicy } from "../search/policies.js";
-import { formatFilterExplorerPolicyCycleCopy } from "../filter-explorer/policy-presentation.js";
+import { formatFilterExplorerPolicyCycleCopy } from "../framework/policy-presentation.js";
 import {
   buildMetadataNodeFromPolicy,
   buildPolicyFromPredicate,

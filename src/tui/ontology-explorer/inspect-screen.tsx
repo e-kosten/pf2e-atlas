@@ -4,11 +4,8 @@ import { inferActorMetricValueType } from "../../domain/actor-metrics.js";
 import { normalizeSearchCategory } from "../../domain/categories.js";
 import { getMetricDiscoveryGroupLabel } from "../../domain/metric-discovery-group-label.js";
 import type { OntologyDomainModel, OntologyNodeQuery } from "../../domain/ontology-types.js";
-import {
-  FilterExplorerScreen,
-  type FilterExplorerOptions,
-  type FilterExplorerQueryOpenIntent,
-} from "../filter-explorer/index.js";
+import { FilterExplorerScreen } from "../filter-explorer/screen.js";
+import type { FilterExplorerOptions, FilterExplorerQueryOpenIntent } from "../filter-explorer/types.js";
 import type {
   FilterExplorerComposeTarget,
   FilterExplorerScalarClause,

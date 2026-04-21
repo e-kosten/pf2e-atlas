@@ -56,7 +56,7 @@ import {
   buildFilterExplorerPolicyBadgeSegments,
   buildFilterExplorerPolicyLabelSegments,
   buildFilterExplorerPolicySequenceSegments,
-} from "../filter-explorer/policy-presentation.js";
+} from "./policy-presentation.js";
 
 export function createEmptyPolicySelection<T extends string>(): DerivedTagTerminalPolicySelection<T> {
   return {

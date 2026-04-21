@@ -13,7 +13,7 @@ import {
   getSearchQuerySubcategory,
 } from "../search/service.js";
 import type { DerivedTagTerminalCommandOption, DerivedTagTerminalLine } from "../framework/types.js";
-import { formatFilterExplorerPolicySummary } from "../filter-explorer/policy-presentation.js";
+import { formatFilterExplorerPolicySummary } from "../framework/policy-presentation.js";
 import { countMetadataPredicates, flattenMetadataTree } from "../search/query-core.js";
 import { humanizeIdentifier } from "../search/service-options.js";
 import { clampWindowStart } from "../list-utils.js";

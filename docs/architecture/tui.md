@@ -94,6 +94,7 @@ This split matters because it lets the TUI add richer interaction behavior witho
 - input and navigation helpers in `framework/input.ts`
 - terminal context in `framework/context.ts`
 - modal hosting and prompt plumbing in `framework/modal.tsx`
+- shared policy-label and badge presentation in `framework/policy-presentation.ts`
 
 Feature code should build on these helpers instead of importing raw terminal primitives directly.
 
@@ -126,6 +127,7 @@ Route readiness is part of that same boundary:
 
 `src/tui/search/service.ts` is the TUI-facing facade over search behavior. It is not the ranking engine itself. Instead, it:
 
+- keeps `query.filters.parts` as the canonical structured-query representation and derives search/runtime filters only at the boundary
 - normalizes query state into `SearchFilters`
 - exposes category, subcategory, sort, and facet options for the UI
 - converts ontology-origin queries into TUI query state
@@ -142,6 +144,7 @@ In the current split:
 
 - `src/tui/filter-explorer/` owns the shared list/detail browser, snapshots, command palette wiring, and mode-specific inspect-versus-compose behavior
 - `src/tui/ontology-explorer/inspect-screen.tsx` is a thin host for a prepared ontology route payload; entering the ontology area now lands directly in that shared inspect session and routes selected leaves into search
+- ontology record mapping, detail presentation, and explorer-cache writeback live under `src/app/ontology/`, not TUI-local wrapper files
 - `src/tui/ontology-explorer/` legacy browse-only pieces remain isolated and should not become the primary path for new ontology/search exploration work
 
 The ontology host still adds:
@@ -248,7 +251,7 @@ The async work is pushed further down:
 
 - `search-screen/session-workflow.ts` manages live counts, result-window execution, prefetch, sort changes, and session disposal
 - `search-screen/filter-explorer-workflow.ts` opens the shared filter explorer in compose mode for ontology-backed field editing
-- `filter-explorer/` owns the shared explorer/controller stack used by both ontology inspection and search-side filter composition, with mode-specific behavior layered on top and one command/footer/help surface for both
+- `filter-explorer/controller.ts` owns reducer-backed browser state and screen orchestration, while `filter-explorer/workflow-actions.ts` owns command/help/open/compose workflow behavior
 - `search-screen/interactions.ts` maps state into terminal actions and help/command models
 - `search-screen/query-field-builder-session.ts` owns the structured-editor menu bindings, footer copy, and help sections so staged-query screens do not hand-maintain separate action tables
 

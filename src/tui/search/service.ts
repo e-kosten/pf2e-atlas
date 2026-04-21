@@ -16,12 +16,12 @@ import {
   getScopedMetadataFields,
 } from "./discoverable-fields.js";
 import {
-  applyFilterExplorerComposeDraft,
   applyFilterExplorerDraft,
   buildFilterExplorerMetadataNode,
-  createFilterExplorerComposeDraft,
+  cloneFilterExplorerDraft,
   createFilterExplorerDraftFromMetadataNode,
   createFilterExplorerDraftFromQuery,
+  withFilterExplorerComposeDraft,
 } from "./filter-explorer.js";
 import { buildSearchFilters } from "./filter-building.js";
 import { createSearchQueryFromOntologyQuery } from "./ontology-query.js";
@@ -63,8 +63,6 @@ export type {
   Pf2eTerminalFacetFieldOption,
   Pf2eTerminalFacetValueOption,
   Pf2eTerminalFilterExplorerDraft,
-  Pf2eTerminalFilterExplorerMetricClause,
-  Pf2eTerminalFilterExplorerScalarClauseMap,
   Pf2eTerminalFilterValuePolicy,
   Pf2eTerminalQueryField,
   Pf2eTerminalQueryFieldEditor,
@@ -85,14 +83,14 @@ export type {
   SearchServiceDependencies,
 } from "./service-types.js";
 export {
-  applyFilterExplorerComposeDraft,
   applyFilterExplorerDraft,
   buildFilterExplorerMetadataNode,
   buildSearchFilterExplorerModel,
   buildSearchFilterExplorerTargetResolver,
-  createFilterExplorerComposeDraft,
+  cloneFilterExplorerDraft,
   createFilterExplorerDraftFromMetadataNode,
   createFilterExplorerDraftFromQuery,
+  withFilterExplorerComposeDraft,
 } from "./filter-explorer.js";
 export {
   getSearchQueryActionCostPolicy,

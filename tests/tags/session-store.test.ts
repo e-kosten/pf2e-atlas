@@ -9,7 +9,7 @@ import {
   writeDerivedTagMigrationSession,
 } from "../../src/tags/editorial/sessions/session-store.js";
 import type { DerivedTagMigrationSession } from "../../src/tags/editorial/types.js";
-import type { OntologyExplorerEntityRecord } from "../../src/tui/ontology-explorer/entity-record.js";
+import type { OntologyExplorerEntityRecord } from "../../src/app/ontology/entity-record.js";
 
 function createEntityRecord(
   overrides: Partial<OntologyExplorerEntityRecord> &

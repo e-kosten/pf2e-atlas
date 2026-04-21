@@ -11,7 +11,7 @@ import type {
   SearchCategory,
   SearchSubcategory,
 } from "../../src/domain/index.js";
-import type { OntologyExplorerEntityRecord } from "../../src/tui/ontology-explorer/entity-record.js";
+import type { OntologyExplorerEntityRecord } from "../../src/app/ontology/entity-record.js";
 import type {
   AuthoredDerivedTagAssignment,
   DerivedTagAssignmentMemoryCategory,

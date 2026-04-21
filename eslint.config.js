@@ -307,7 +307,7 @@ export default defineConfig(
     },
   },
   {
-    files: ["src/tui/**/*.{ts,tsx}", "src/tags/editorial/review-ui.tsx"],
+    files: ["src/tui/**/*.{ts,tsx}", "src/tags/editorial/ui/review-ui.tsx"],
     ignores: [
       "src/tui/framework/**/*.{ts,tsx}",
       "src/tui/keymap.ts",
@@ -515,20 +515,20 @@ export default defineConfig(
     },
   },
   {
-    files: ["src/tags/editorial/review-ui.tsx"],
+    files: ["src/tags/editorial/ui/review-ui.tsx"],
     rules: {
       "no-restricted-imports": [
         "error",
         {
           paths: [
             {
-              name: "../../tui/terminal-ui.js",
+              name: "../../../tui/terminal-ui.js",
               importNames: ["useDerivedTagTerminalInput"],
               message:
                 "Review render screens must use the dedicated review-ui-controller hook instead of owning raw terminal input.",
             },
             {
-              name: "../../tui/interaction-bindings.js",
+              name: "../../../tui/interaction-bindings.js",
               importNames: [
                 "buildTerminalInteractionHelpLines",
                 "formatTerminalInteractionFooter",
@@ -538,7 +538,7 @@ export default defineConfig(
                 "Review render screens must use the dedicated review-ui-controller hook instead of composing help, footer, or interaction routing directly.",
             },
             {
-              name: "../../tui/action-target.js",
+              name: "../../../tui/action-target.js",
               importNames: [
                 "buildDerivedTagTerminalActionTargetLine",
                 "buildDerivedTagTerminalActionTargetHelpLines",
@@ -551,7 +551,7 @@ export default defineConfig(
                 "Review render screens must use the dedicated review-ui-controller hook instead of owning action-target state or rendering directly.",
             },
             {
-              name: "../../tui/two-pane-state.js",
+              name: "../../../tui/two-pane-state.js",
               importNames: ["getDerivedTagTerminalTwoPaneLayoutMode", "reduceDerivedTagTerminalTwoPaneState"],
               message:
                 "Review render screens must use the dedicated review-ui-controller hook instead of owning pane-state transitions directly.",
@@ -562,7 +562,7 @@ export default defineConfig(
     },
   },
   {
-    files: ["src/tags/editorial/review-screen-model.ts", "src/tags/editorial/review-screen-state.ts"],
+    files: ["src/tags/editorial/ui/review-screen-model.ts", "src/tags/editorial/ui/review-screen-state.ts"],
     rules: {
       "no-restricted-imports": mergeRestrictedImports(NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS),
     },
@@ -782,7 +782,6 @@ export default defineConfig(
     files: ["src/tui/**/*.{ts,tsx}"],
     ignores: [
       "src/tui/app-services.ts",
-      "src/tui/ontology-explorer/data.ts",
       "src/tui/keymap.ts",
       "src/tui/interaction-bindings.ts",
       "src/tui/action-target.ts",
@@ -805,10 +804,10 @@ export default defineConfig(
           },
           {
             group: [
-              "**/tags/editorial/workbench-controller.js",
-              "**/tags/editorial/session-builder.js",
-              "**/tags/editorial/runtime-state.js",
-              "**/tags/editorial/session-store.js",
+              "**/tags/editorial/ui/workbench-controller.js",
+              "**/tags/editorial/sessions/session-builder.js",
+              "**/tags/editorial/state/runtime-state.js",
+              "**/tags/editorial/sessions/session-store.js",
               "**/tags/editorial/cli-utils.js",
             ],
             message:
@@ -842,15 +841,15 @@ export default defineConfig(
     files: ["src/tags/**/*.{ts,tsx}"],
     ignores: [
       "src/tags/cli/**/*",
-      "src/tags/editorial/review-detail-content.ts",
-      "src/tags/editorial/review-screen-model.ts",
-      "src/tags/editorial/review-screen-state.ts",
-      "src/tags/editorial/review-ui.tsx",
-      "src/tags/editorial/review-ui-controller.ts",
-      "src/tags/editorial/record-loader.ts",
+      "src/tags/editorial/ui/review-detail-content.ts",
+      "src/tags/editorial/ui/review-screen-model.ts",
+      "src/tags/editorial/ui/review-screen-state.ts",
+      "src/tags/editorial/ui/review-ui.tsx",
+      "src/tags/editorial/ui/review-ui-controller.ts",
+      "src/tags/editorial/sessions/record-loader.ts",
       "src/tags/editorial/types.ts",
-      "src/tags/editorial/workbench-controller.ts",
-      "src/tags/editorial/workbench-session-prompts.ts",
+      "src/tags/editorial/ui/workbench-controller.ts",
+      "src/tags/editorial/ui/workbench-session-prompts.ts",
     ],
     rules: {
       "no-restricted-imports": mergeRestrictedImports(NON_UI_TUI_IMPORT_RESTRICTIONS),

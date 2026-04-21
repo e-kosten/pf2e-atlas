@@ -20,15 +20,17 @@ import { humanizeIdentifier } from "./service-options.js";
 import type {
   Pf2eTerminalFacetField,
   Pf2eTerminalFilterExplorerDraft,
-  Pf2eTerminalFilterExplorerMetricClause,
-  Pf2eTerminalFilterExplorerScalarClauseMap,
   Pf2eTerminalFilterValuePolicy,
   Pf2eTerminalQueryField,
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalQueryFieldSelectionMap,
   Pf2eTerminalSearchQuery,
 } from "./service-types.js";
-import type { FilterExplorerComposeDraft, FilterExplorerComposeTarget } from "../filter-explorer/index.js";
+import type {
+  FilterExplorerComposeTarget,
+  FilterExplorerScalarClause,
+  FilterExplorerScalarClauseMap,
+} from "../filter-explorer/types.js";
 
 type SearchFilterExplorerMetricField = "actorMetric" | "itemMetric";
 type SearchFilterExplorerTopLevelField = "rarity" | "actionCost";
@@ -169,34 +171,29 @@ function formatMetricLabel(metric: string, fallbackLabel?: string): string {
   return humanizeIdentifier(metric.replaceAll(".", " "));
 }
 
-function cloneMetricClause(
-  clause: Pf2eTerminalFilterExplorerMetricClause,
-): Pf2eTerminalFilterExplorerMetricClause {
-  return {
-    ...clause,
-    clause: clause.clause.operator === "between" ? { ...clause.clause } : { ...clause.clause },
-  };
+function cloneScalarClause(clause: FilterExplorerScalarClause): FilterExplorerScalarClause {
+  return clause.operator === "between" ? { ...clause } : { ...clause };
 }
 
-function cloneMetricClauseMap(
-  scalarClauses: Pf2eTerminalFilterExplorerScalarClauseMap,
-): Pf2eTerminalFilterExplorerScalarClauseMap {
+function cloneScalarClauseMap(
+  scalarClauses: FilterExplorerScalarClauseMap,
+): FilterExplorerScalarClauseMap {
   return Object.fromEntries(
-    Object.entries(scalarClauses).map(([key, clause]) => [key, cloneMetricClause(clause)]),
+    Object.entries(scalarClauses).map(([key, clause]) => [key, cloneScalarClause(clause)]),
   );
 }
 
 function mergeScalarClauseMaps(
-  left: Pf2eTerminalFilterExplorerScalarClauseMap,
-  right: Pf2eTerminalFilterExplorerScalarClauseMap,
-): Pf2eTerminalFilterExplorerScalarClauseMap | null {
-  const next = cloneMetricClauseMap(left);
+  left: FilterExplorerScalarClauseMap,
+  right: FilterExplorerScalarClauseMap,
+): FilterExplorerScalarClauseMap | null {
+  const next = cloneScalarClauseMap(left);
 
   for (const [key, clause] of Object.entries(right)) {
     if (key in next) {
       return null;
     }
-    next[key] = cloneMetricClause(clause);
+    next[key] = cloneScalarClause(clause);
   }
 
   return next;
@@ -227,24 +224,6 @@ function mergeSelectionMaps(
 
 function buildMetricClauseKey(field: SearchFilterExplorerMetricField, metric: string): string {
   return getMetricSelectionKey(field, metric);
-}
-
-function buildMetricClauseRecord(
-  field: SearchFilterExplorerMetricField,
-  metric: string,
-  clause: Pf2eTerminalFilterExplorerMetricClause["clause"],
-): Pf2eTerminalFilterExplorerMetricClause | null {
-  const valueType = inferMetricValueType(field, metric);
-  if (!valueType) {
-    return null;
-  }
-
-  return {
-    field,
-    metric,
-    valueType,
-    clause: clause.operator === "between" ? { ...clause } : { ...clause },
-  };
 }
 
 function extractMetricPolicyFromPredicate(
@@ -280,7 +259,7 @@ function extractMetricPolicyFromPredicate(
 function extractMetricScalarClauseFromPredicate(
   node: MetadataPredicate,
   allowedMetricFields: ReadonlySet<SearchFilterExplorerMetricField>,
-): { key: string; clause: Pf2eTerminalFilterExplorerMetricClause } | null {
+): { key: string; clause: FilterExplorerScalarClause } | null {
   if (!("metric" in node) || !("value" in node) || (node.field !== "actorMetric" && node.field !== "itemMetric")) {
     return null;
   }
@@ -310,13 +289,8 @@ function extractMetricScalarClauseFromPredicate(
   return {
     key: buildMetricClauseKey(node.field, node.metric),
     clause: {
-      field: node.field,
-      metric: node.metric,
-      valueType,
-      clause: {
-        operator,
-        value: node.value,
-      },
+      operator,
+      value: node.value,
     },
   };
 }
@@ -324,7 +298,7 @@ function extractMetricScalarClauseFromPredicate(
 function tryExtractMetricBetweenClause(
   node: MetadataFilterNode,
   allowedMetricFields: ReadonlySet<SearchFilterExplorerMetricField>,
-): { key: string; clause: Pf2eTerminalFilterExplorerMetricClause } | null {
+): { key: string; clause: FilterExplorerScalarClause } | null {
   if (!("and" in node) || node.and.length !== 2) {
     return null;
   }
@@ -364,14 +338,9 @@ function tryExtractMetricBetweenClause(
   return {
     key: buildMetricClauseKey(left.field, left.metric),
     clause: {
-      field: left.field,
-      metric: left.metric,
-      valueType: "number",
-      clause: {
-        operator: "between",
-        min: lower.value,
-        max: upper.value,
-      },
+      operator: "between",
+      min: lower.value,
+      max: upper.value,
     },
   };
 }
@@ -382,7 +351,7 @@ function extractMetricDraftEntries(
 ): {
   metadata: MetadataFilterNode | null;
   selections: Pf2eTerminalQueryFieldSelectionMap;
-  scalarClauses: Pf2eTerminalFilterExplorerScalarClauseMap;
+  scalarClauses: FilterExplorerScalarClauseMap;
 } {
   if (!node || allowedMetricFields.size === 0) {
     return {
@@ -427,7 +396,7 @@ function extractMetricDraftEntries(
     }
 
     let selections: Pf2eTerminalQueryFieldSelectionMap = {};
-    let scalarClauses: Pf2eTerminalFilterExplorerScalarClauseMap = {};
+    let scalarClauses: FilterExplorerScalarClauseMap = {};
     const children: MetadataFilterNode[] = [];
 
     for (const child of node.and) {
@@ -549,74 +518,82 @@ function buildMetricSelectionMetadataNode(
   return normalizeMetadataNode({ and: clauses });
 }
 
-function buildMetricScalarClauseMetadataNode(
-  clause: Pf2eTerminalFilterExplorerMetricClause,
-): MetadataFilterNode | null {
-  if (clause.clause.operator === "between") {
+function buildMetricScalarClauseMetadataNode(key: string, clause: FilterExplorerScalarClause): MetadataFilterNode | null {
+  const metricKey = parseMetricSelectionKey(key);
+  if (!metricKey) {
+    return null;
+  }
+
+  const valueType = inferMetricValueType(metricKey.field, metricKey.metric);
+  if (!valueType) {
+    return null;
+  }
+
+  if (clause.operator === "between") {
     return normalizeMetadataNode({
       and: [
         {
-          field: clause.field,
-          metric: clause.metric,
+          field: metricKey.field,
+          metric: metricKey.metric,
           op: ">=",
-          value: clause.clause.min,
+          value: clause.min,
         },
         {
-          field: clause.field,
-          metric: clause.metric,
+          field: metricKey.field,
+          metric: metricKey.metric,
           op: "<=",
-          value: clause.clause.max,
+          value: clause.max,
         },
       ],
     });
   }
 
   const op =
-    clause.clause.operator === "eq"
+    clause.operator === "eq"
       ? "=="
-      : clause.clause.operator === "neq"
+      : clause.operator === "neq"
         ? "!="
-        : clause.clause.operator === "gte"
+        : clause.operator === "gte"
           ? ">="
-          : clause.clause.operator === "lte"
+          : clause.operator === "lte"
             ? "<="
             : null;
   if (!op) {
     return null;
   }
 
-  if (clause.valueType !== "number") {
-    if (clause.field === "actorMetric") {
+  if (valueType !== "number") {
+    if (metricKey.field === "actorMetric") {
       return {
         field: "actorMetric",
-        metric: clause.metric,
+        metric: metricKey.metric,
         op: op === ">=" || op === "<=" ? "==" : op,
-        value: clause.clause.value as string | boolean,
+        value: clause.value as string | boolean,
       };
     }
 
     return {
       field: "itemMetric",
-      metric: clause.metric,
+      metric: metricKey.metric,
       op: op === ">=" || op === "<=" ? "==" : op,
-      value: clause.clause.value as string | boolean,
+      value: clause.value as string | boolean,
     };
   }
 
-  if (clause.field === "actorMetric") {
+  if (metricKey.field === "actorMetric") {
     return {
       field: "actorMetric",
-      metric: clause.metric,
+      metric: metricKey.metric,
       op,
-      value: clause.clause.value as number,
+      value: clause.value as number,
     };
   }
 
   return {
     field: "itemMetric",
-    metric: clause.metric,
+    metric: metricKey.metric,
     op,
-    value: clause.clause.value as number,
+    value: clause.value as number,
   };
 }
 
@@ -958,11 +935,11 @@ export function createFilterExplorerDraftFromMetadataNode(
 
   return {
     scopedFields: [...scopedFields],
-    fieldSelections: normalizeFilterExplorerSelectionMap(
+    selection: normalizeFilterExplorerSelectionMap(
       mergeSelectionMaps(discoverablePartition.selections, metricPartition.selections),
       fieldSemanticsByName,
     ),
-    scalarClauses: cloneMetricClauseMap(metricPartition.scalarClauses),
+    scalarClauses: cloneScalarClauseMap(metricPartition.scalarClauses),
     structuredMetadata: normalizeMetadataNode(metricPartition.metadata),
   };
 }
@@ -979,12 +956,12 @@ export function createFilterExplorerDraftFromQuery(
   );
 
   if (scopedFields.includes("rarity")) {
-    draft.fieldSelections.rarity = clonePolicy(getSearchQueryRarityPolicy(query));
+    draft.selection.rarity = clonePolicy(getSearchQueryRarityPolicy(query));
   }
 
   if (scopedFields.includes("actionCost")) {
     const actionCostPolicy = getSearchQueryActionCostPolicy(query);
-    draft.fieldSelections.actionCost = {
+    draft.selection.actionCost = {
       any: actionCostPolicy.any.map(String),
       all: [],
       exclude: actionCostPolicy.exclude.map(String),
@@ -993,59 +970,34 @@ export function createFilterExplorerDraftFromQuery(
 
   return {
     ...draft,
-    fieldSelections: normalizeFilterExplorerSelectionMap(draft.fieldSelections, fieldSemanticsByName),
+    selection: normalizeFilterExplorerSelectionMap(draft.selection, fieldSemanticsByName),
   };
 }
 
-export function createFilterExplorerComposeDraft(
+export function cloneFilterExplorerDraft(
   draft: Pf2eTerminalFilterExplorerDraft,
-): FilterExplorerComposeDraft {
+): Pf2eTerminalFilterExplorerDraft {
   return {
+    scopedFields: [...draft.scopedFields],
     selection: Object.fromEntries(
-      Object.entries(draft.fieldSelections).map(([field, policy]) => [field, clonePolicy(policy)]),
+      Object.entries(draft.selection).map(([field, policy]) => [field, clonePolicy(policy)]),
     ),
-    scalarClauses: Object.fromEntries(
-      Object.entries(draft.scalarClauses).map(([key, clause]) => [
-        key,
-        clause.clause.operator === "between" ? { ...clause.clause } : { ...clause.clause },
-      ]),
-    ),
+    scalarClauses: cloneScalarClauseMap(draft.scalarClauses),
+    structuredMetadata: draft.structuredMetadata,
   };
 }
 
-export function applyFilterExplorerComposeDraft(
+export function withFilterExplorerComposeDraft(
   currentDraft: Pf2eTerminalFilterExplorerDraft,
-  composeDraft: FilterExplorerComposeDraft,
+  composeDraft: Pick<Pf2eTerminalFilterExplorerDraft, "selection" | "scalarClauses">,
 ): Pf2eTerminalFilterExplorerDraft {
-  const scalarClauses: Pf2eTerminalFilterExplorerScalarClauseMap = {};
-
-  for (const [key, clause] of Object.entries(composeDraft.scalarClauses)) {
-    const existingClause = currentDraft.scalarClauses[key];
-    if (existingClause) {
-      scalarClauses[key] = {
-        ...existingClause,
-        clause: clause.operator === "between" ? { ...clause } : { ...clause },
-      };
-      continue;
-    }
-
-    const metricKey = parseMetricSelectionKey(key);
-    if (!metricKey) {
-      continue;
-    }
-
-    const nextClause = buildMetricClauseRecord(metricKey.field, metricKey.metric, clause);
-    if (nextClause) {
-      scalarClauses[key] = nextClause;
-    }
-  }
-
   return {
-    scopedFields: [...(currentDraft.scopedFields ?? [])],
-    fieldSelections: Object.fromEntries(
+    ...currentDraft,
+    scopedFields: [...currentDraft.scopedFields],
+    selection: Object.fromEntries(
       Object.entries(composeDraft.selection).map(([field, policy]) => [field, clonePolicy(policy)]),
     ),
-    scalarClauses,
+    scalarClauses: cloneScalarClauseMap(composeDraft.scalarClauses),
     structuredMetadata: currentDraft.structuredMetadata,
   };
 }
@@ -1060,7 +1012,7 @@ export function buildFilterExplorerMetadataNode(
     metadataClauses.push(draft.structuredMetadata);
   }
 
-  const normalizedSelections = normalizeFilterExplorerSelectionMap(draft.fieldSelections, fieldSemanticsByName);
+  const normalizedSelections = normalizeFilterExplorerSelectionMap(draft.selection, fieldSemanticsByName);
   for (const [field, policy] of Object.entries(normalizedSelections)) {
     const metadataNode = buildMetadataNodeForSelectionKey(field, policy, fieldSemanticsByName);
     if (metadataNode) {
@@ -1068,8 +1020,8 @@ export function buildFilterExplorerMetadataNode(
     }
   }
 
-  for (const clause of Object.values(draft.scalarClauses ?? {})) {
-    const metadataNode = buildMetricScalarClauseMetadataNode(clause);
+  for (const [key, clause] of Object.entries(draft.scalarClauses ?? {})) {
+    const metadataNode = buildMetricScalarClauseMetadataNode(key, clause);
     if (metadataNode) {
       metadataClauses.push(metadataNode);
     }
@@ -1131,18 +1083,18 @@ export function applyFilterExplorerDraft(
   const scopedFieldSet = new Set(draft.scopedFields);
   const metadataDraft: Pf2eTerminalFilterExplorerDraft = {
     ...draft,
-    fieldSelections: Object.fromEntries(
-      Object.entries(draft.fieldSelections).filter(([field]) => !isTopLevelSearchFilterExplorerField(field)),
+    selection: Object.fromEntries(
+      Object.entries(draft.selection).filter(([field]) => !isTopLevelSearchFilterExplorerField(field)),
     ),
   };
 
   let nextQuery = setSearchQueryMetadataTree(query, buildFilterExplorerMetadataNode(metadataDraft, fieldSemanticsByName));
 
   if (scopedFieldSet.has("rarity")) {
-    nextQuery = applyRarityExplorerSelection(nextQuery, draft.fieldSelections.rarity);
+    nextQuery = applyRarityExplorerSelection(nextQuery, draft.selection.rarity);
   }
   if (scopedFieldSet.has("actionCost")) {
-    nextQuery = applyActionCostExplorerSelection(nextQuery, draft.fieldSelections.actionCost);
+    nextQuery = applyActionCostExplorerSelection(nextQuery, draft.selection.actionCost);
   }
 
   return nextQuery;

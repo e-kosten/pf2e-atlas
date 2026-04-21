@@ -91,7 +91,7 @@ const JSON_PARSE_ALLOWED_PATHS = [
   "src/tags/editorial/sessions/session-store.ts",
   "src/tags/discovery/row-decoding.ts",
   "src/tags/discovery/discovery-records.ts",
-  "src/tui/ontology-explorer/data.ts",
+  "src/app/ontology/derived-tag-explorer.ts",
 ];
 
 const DATABASE_SYNC_ALLOWED_PATHS = [

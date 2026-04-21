@@ -4,14 +4,14 @@ import type { MetadataFilterNode } from "../../src/domain/metadata-types.js";
 import type { OntologyDomainModel, OntologyNode } from "../../src/domain/ontology-types.js";
 import type { SearchFilters } from "../../src/domain/search-types.js";
 import {
-  applyFilterExplorerComposeDraft,
   buildSearchFilterExplorerModel,
   buildSearchFilterExplorerTargetResolver,
-  createFilterExplorerComposeDraft,
+  cloneFilterExplorerDraft,
   createPf2eTerminalSearchService,
   getSearchQueryActionCostPolicy,
   getSearchQueryMetadataTree,
   getSearchQueryRarityPolicy,
+  withFilterExplorerComposeDraft,
 } from "../../src/tui/search/service.js";
 
 type SearchServiceDependencies = Parameters<typeof createPf2eTerminalSearchService>[0];
@@ -190,7 +190,7 @@ describe("createPf2eTerminalSearchService", () => {
         },
       },
     ]);
-    expect(normalized.filters.actionCost).toEqual({
+    expect(getSearchQueryActionCostPolicy(normalized)).toEqual({
       any: [],
       all: [],
       exclude: [],
@@ -289,17 +289,12 @@ describe("createPf2eTerminalSearchService", () => {
       ["actorMetric"],
     );
 
-    expect(draft.fieldSelections).toEqual({});
+    expect(draft.selection).toEqual({});
     expect(draft.structuredMetadata).toBeNull();
     expect(draft.scalarClauses).toEqual({
       "actorMetric:perception.mod": {
-        field: "actorMetric",
-        metric: "perception.mod",
-        valueType: "number",
-        clause: {
-          operator: "gte",
-          value: 12,
-        },
+        operator: "gte",
+        value: 12,
       },
     });
     expect(service.buildFilterExplorerMetadataNode(draft)).toEqual({
@@ -367,7 +362,7 @@ describe("createPf2eTerminalSearchService", () => {
       op: "includesAny",
       values: ["illusion"],
     } satisfies MetadataFilterNode);
-    expect(draft.fieldSelections).toEqual({
+    expect(draft.selection).toEqual({
       rarity: {
         any: ["common"],
         all: [],
@@ -382,7 +377,7 @@ describe("createPf2eTerminalSearchService", () => {
 
     const updated = service.applyFilterExplorerDraft(query, {
       ...draft,
-      fieldSelections: {
+      selection: {
         rarity: {
           any: ["uncommon"],
           all: [],
@@ -419,15 +414,17 @@ describe("createPf2eTerminalSearchService", () => {
       op: "includesAny",
       values: ["illusion"],
     } satisfies MetadataFilterNode;
-    const composeDraft = createFilterExplorerComposeDraft({
-      fieldSelections: {},
+    const composeDraft = cloneFilterExplorerDraft({
+      scopedFields: ["itemMetric"],
+      selection: {},
       scalarClauses: {},
       structuredMetadata,
     });
 
-    const nextDraft = applyFilterExplorerComposeDraft(
+    const nextDraft = withFilterExplorerComposeDraft(
       {
-        fieldSelections: {},
+        scopedFields: ["itemMetric"],
+        selection: {},
         scalarClauses: {},
         structuredMetadata,
       },
@@ -446,14 +443,9 @@ describe("createPf2eTerminalSearchService", () => {
     expect(nextDraft.structuredMetadata).toEqual(structuredMetadata);
     expect(nextDraft.scalarClauses).toEqual({
       "itemMetric:weapon.range_increment": {
-        field: "itemMetric",
-        metric: "weapon.range_increment",
-        valueType: "number",
-        clause: {
-          operator: "between",
-          min: 60,
-          max: 120,
-        },
+        operator: "between",
+        min: 60,
+        max: 120,
       },
     });
   });
