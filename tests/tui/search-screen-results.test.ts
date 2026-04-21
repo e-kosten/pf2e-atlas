@@ -119,9 +119,9 @@ describe("search result detail lines", () => {
     expect(lines[0]?.text).toBe("Result Preview");
     expect(lines.some((line) => line.text === "Archives of Nethys" && line.tone === "section")).toBe(true);
     expect(linkLine).toMatchObject({
-      text: "Search Archives of Nethys for Alarm Ward",
+      text: "Open in Archives of Nethys",
       href: expect.stringContaining("https://2e.aonprd.com/Search.aspx?display=short&type=eqs"),
-      plainTextFallback: expect.stringContaining("Search Archives of Nethys for Alarm Ward: https://2e.aonprd.com"),
+      plainTextFallback: expect.stringContaining("Open in Archives of Nethys: https://2e.aonprd.com"),
     });
     expect(linkLine?.href).toContain("include-traits=fortune+mental");
   });

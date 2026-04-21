@@ -85,10 +85,8 @@ describe("AoN search links", () => {
       includeTraditions: ["arcane", "occult"],
       includeActions: ["2"],
     });
-    expect(link?.label).toBe("Search Archives of Nethys for Alarm Ward");
-    expect(link?.plainTextFallback).toBe(
-      `Search Archives of Nethys for Alarm Ward: ${link?.url ?? "(missing url)"}`,
-    );
+    expect(link?.label).toBe("Open in Archives of Nethys");
+    expect(link?.plainTextFallback).toBe(`Open in Archives of Nethys: ${link?.url ?? "(missing url)"}`);
 
     const url = new URL(link!.url);
     expect(`${url.origin}${url.pathname}`).toBe("https://2e.aonprd.com/Search.aspx");
@@ -150,9 +148,9 @@ describe("AoN search links", () => {
 
     expect(lines.some((line) => line.text === "Archives of Nethys" && line.tone === "section")).toBe(true);
     expect(linkLine).toMatchObject({
-      text: "Search Archives of Nethys for Alarm Ward",
+      text: "Open in Archives of Nethys",
       href: expect.stringContaining("https://2e.aonprd.com/Search.aspx?display=short&type=eqs"),
-      plainTextFallback: expect.stringContaining("Search Archives of Nethys for Alarm Ward: https://2e.aonprd.com"),
+      plainTextFallback: expect.stringContaining("Open in Archives of Nethys: https://2e.aonprd.com"),
     });
     expect(linkLine?.href).toContain("include-traits=auditory+fortune+mental");
   });

@@ -126,7 +126,7 @@ export function buildAonSearchLink(record: AonSearchRecordLike): AonSearchLink |
   setJoinedParam(url.searchParams, "include-traditions", appliedFilters.includeTraditions);
   setJoinedParam(url.searchParams, "include-actions", appliedFilters.includeActions);
   const urlString = url.toString();
-  const label = `Search Archives of Nethys for ${query}`;
+  const label = "Open in Archives of Nethys";
 
   return {
     url: urlString,

@@ -76,12 +76,12 @@ describe("review detail content", () => {
     const linkLine = lines.find((line) => line.href);
 
     expect(linkLine).toMatchObject({
-      text: "Search Archives of Nethys for Alarm Ward",
+      text: "Open in Archives of Nethys",
       href: expect.stringContaining("https://2e.aonprd.com/Search.aspx?display=short&type=eqs"),
     });
     expect(
       textLines.some((line) =>
-        line.includes("Search Archives of Nethys for Alarm Ward: https://2e.aonprd.com/Search.aspx?display=short&type=eqs"),
+        line.includes("Open in Archives of Nethys: https://2e.aonprd.com/Search.aspx?display=short&type=eqs"),
       ),
     ).toBe(true);
   });

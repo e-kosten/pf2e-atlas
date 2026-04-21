@@ -311,8 +311,8 @@ export function terminalToneProps(tone: DerivedTagTerminalTone): React.Component
 }
 
 const OSC_8_OPEN = "\u001b]8;;";
-const OSC_8_CLOSE = "\u001b]8;;\u0007";
-const OSC_8_TERMINATOR = "\u0007";
+const OSC_8_TERMINATOR = "\u001b\\";
+const OSC_8_CLOSE = `${OSC_8_OPEN}${OSC_8_TERMINATOR}`;
 
 function formatHyperlinkText(
   text: string,
@@ -326,20 +326,53 @@ function formatHyperlinkText(
   return `${OSC_8_OPEN}${hyperlink}${OSC_8_TERMINATOR}${text}${OSC_8_CLOSE}`;
 }
 
+function terminalSegmentProps(
+  tone: DerivedTagTerminalTone,
+  hyperlink: string | undefined,
+  hyperlinkSupport: "supported" | "unsupported",
+): React.ComponentProps<typeof Text> {
+  const toneProps = terminalToneProps(tone);
+  if (!hyperlink || hyperlinkSupport !== "supported") {
+    return toneProps;
+  }
+
+  return {
+    ...toneProps,
+    color: toneProps.color ?? "cyan",
+    underline: true,
+  };
+}
+
 function renderTerminalLineContent(
-  line: Pick<RenderedTerminalLine, "segments" | "text">,
+  line: Pick<RenderedTerminalLine, "segments" | "text" | "tone">,
   width: number,
   hyperlinkSupport: "supported" | "unsupported",
 ): React.ReactNode {
   if (line.segments && line.segments.length > 0) {
     return line.segments.map((segment, segmentIndex) => (
-      <Text key={segmentIndex} {...terminalToneProps(segment.tone ?? "default")}>
+      <Text
+        key={segmentIndex}
+        {...terminalSegmentProps(segment.tone ?? line.tone ?? "default", segment.hyperlink, hyperlinkSupport)}
+      >
         {formatHyperlinkText(segment.text, segment.hyperlink, hyperlinkSupport)}
       </Text>
     ));
   }
 
-  return fitToWidth(line.text, width);
+  return <Text {...terminalSegmentProps(line.tone ?? "default", undefined, hyperlinkSupport)}>{fitToWidth(line.text, width)}</Text>;
+}
+
+function renderTerminalRow(
+  line: RenderedTerminalLine,
+  index: number,
+  width: number,
+  hyperlinkSupport: "supported" | "unsupported",
+): React.JSX.Element {
+  return (
+    <Box key={index} width={width}>
+      {renderTerminalLineContent(line, width, hyperlinkSupport)}
+    </Box>
+  );
 }
 
 export function TerminalRows({ lines, width }: { lines: RenderedTerminalLine[]; width: number }): React.JSX.Element {
@@ -347,11 +380,7 @@ export function TerminalRows({ lines, width }: { lines: RenderedTerminalLine[]; 
 
   return (
     <Box flexDirection="column" width={width}>
-      {lines.map((line, index) => (
-        <Text key={index} wrap="truncate-end" {...terminalToneProps(line.tone)}>
-          {renderTerminalLineContent(line, width, hyperlinkSupport)}
-        </Text>
-      ))}
+      {lines.map((line, index) => renderTerminalRow(line, index, width, hyperlinkSupport))}
     </Box>
   );
 }
@@ -399,11 +428,7 @@ export function TerminalFooter({
 
   return (
     <Box flexDirection="column" width={width}>
-      {renderedFooter.map((line, index) => (
-        <Text key={index} wrap="truncate-end" {...terminalToneProps(line.tone ?? "default")}>
-          {renderTerminalLineContent(line, width, hyperlinkSupport)}
-        </Text>
-      ))}
+      {renderedFooter.map((line, index) => renderTerminalRow(line, index, width, hyperlinkSupport))}
     </Box>
   );
 }

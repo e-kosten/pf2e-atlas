@@ -694,8 +694,8 @@ describe("derived tag terminal ink runtime", () => {
     await flushInkFrames(4);
     const frame = app.lastFrame() ?? "";
     expect(frame).toContain("support=supported");
-    expect(frame).toContain("\u001b]8;;https://2e.aonprd.com/\u0007");
-    expect(frame).toContain("\u001b]8;;\u0007");
+    expect(frame).toContain("\u001b]8;;https://2e.aonprd.com/\u001b\\");
+    expect(frame).toContain("\u001b]8;;\u001b\\");
     expect(frame).toContain("Archives of Nethys");
     expect(frame).toContain("AoN");
   });
@@ -713,7 +713,7 @@ describe("derived tag terminal ink runtime", () => {
     expect(frame).toContain("support=unsupported");
     expect(frame).toContain("Archives of Nethys");
     expect(frame).toContain("AoN: https://2e.aonprd.com/");
-    expect(frame).not.toContain("\u001b]8;;https://2e.aonprd.com/\u0007");
+    expect(frame).not.toContain("\u001b]8;;https://2e.aonprd.com/\u001b\\");
   });
 
   it("switches long dialogs to screen presentation when inline would crowd out the screen", async () => {

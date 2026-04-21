@@ -84,7 +84,7 @@ But the TUI keeps UI concerns local:
 
 This split matters because it lets the TUI add richer interaction behavior without pushing terminal concepts like pane focus, command palettes, or staged editors down into `src/app/`, `src/data/`, or `src/search/`.
 
-Shared ontology/detail presenters may also attach optional link metadata to a text line, such as `href` plus a plain-text fallback string. Current text-only TUI surfaces should keep rendering a readable fallback instead of depending on link-aware framework behavior, while preserving that metadata for future richer presenters.
+Shared ontology/detail presenters may also attach optional link metadata to a text line, such as `href` plus a plain-text fallback string. The shared TUI framework owns hyperlink rendering for those lines: supported terminals get a clickable OSC 8 hyperlink, while unsupported terminals and plain-text consumers fall back to a readable `label: url` string.
 
 ## Major TUI Layers
 
