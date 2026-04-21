@@ -11,6 +11,7 @@ This index is the quickest way to scan the accepted architecture decision record
 - [`0005-live-search-semantics-exploration.md`](./0005-live-search-semantics-exploration.md): search semantics, ontology inspection, and query-field picking should share one live exploration surface that opens real results from concrete leaves.
 - [`0006-shared-tui-interaction-contracts.md`](./0006-shared-tui-interaction-contracts.md): TUI screens should route interactions, action-target behavior, and help/footer derivation through shared contracts instead of bespoke feature-local handling.
 - [`0007-render-ready-route-transitions.md`](./0007-render-ready-route-transitions.md): route screens must mount from render-ready payloads while navigation owns any preparation work and shows the shared current-screen transition loader.
+- [`0008-search-filters-and-concern-specific-tag-facades.md`](./0008-search-filters-and-concern-specific-tag-facades.md): live search-filter ownership lives in `src/search/filters/`, and non-tag tag integrations go through concern-specific top-level facades.
 
 ## Reading Order
 

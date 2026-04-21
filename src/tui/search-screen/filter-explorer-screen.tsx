@@ -1,14 +1,11 @@
 import React from "react";
 
 import { FilterExplorerScreen } from "../filter-explorer/index.js";
+import { cloneFilterExplorerDraft, withFilterExplorerComposeDraft } from "../filter-explorer/search-draft.js";
 import { useDerivedTagTerminalApp } from "../framework/context.js";
 import { useTerminalInteractionContextAdapters } from "../interaction-context-adapters.js";
-import {
-  cloneFilterExplorerDraft,
-  withFilterExplorerComposeDraft,
-} from "../search/service.js";
-import type { SearchFilterExplorerSession } from "./query-field-builder-session.js";
-import { promptNumericScalarClause } from "./scalar-editor.js";
+import type { SearchFilterExplorerSession } from "./query-field-builder/query-field-builder-session.js";
+import { promptNumericScalarClause } from "../filter-explorer/scalar-editor.js";
 
 export function SearchFilterExplorerScreen({
   session,

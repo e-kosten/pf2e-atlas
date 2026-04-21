@@ -60,7 +60,7 @@ import {
   buildFilterExplorerComposeDetailLines,
   getFilterExplorerInteractionActions,
 } from "./screen-models.js";
-import type { MetadataFilterNode } from "../../domain/metadata-types.js";
+import type { MetadataFilterNode } from "../../search/filters/types.js";
 import type {
   FilterExplorerBrowserContext,
   FilterExplorerBrowserSnapshot,

@@ -27,7 +27,8 @@ The shortest useful mental model is:
 - `src/tags/reviews/` owns durable review registries and reviewed discovery state
 - `src/tags/editorial/` owns editorial state, session, writeback, and UI workflows
 - `src/tags/cli/` groups offline discovery, evaluation, and editorial entrypoints
-- `src/tags/index.ts` is the stable non-tag facade; internal tag ownership lives directly in the split `runtime/` and `editorial/` directories
+- `src/search/filters/` owns live metadata-filter vocabulary, normalization, matching, and SQL-facing filter assembly
+- `src/tags/runtime.ts`, `src/tags/editorial.ts`, and `src/tags/editorial-ui.ts` are the approved non-tag tag facades
 - `src/domain/` defines shared vocabulary and contracts
 - `src/shared/` stays intentionally small and only holds true cross-layer primitives
 
@@ -118,7 +119,7 @@ The editorial subsystem under `src/tags/` is large because it supports assignmen
 - durable reviewed discovery negatives now live under `src/tags/reviews/discovery-reviewed-records.ts`, alongside the other review registries
 - editorial execution is split by concern under `editorial/state/`, `editorial/sessions/`, `editorial/writeback/`, and `editorial/ui/`
 - offline tooling is grouped under `cli/discovery/`, `cli/evaluation/`, `cli/editorial/`, and `cli/shared/`
-- non-editorial code should prefer `src/tags/index.ts` or another approved facade over arbitrary imports into tag leaf modules
+- non-editorial code should prefer `src/tags/runtime.ts`, `src/tags/editorial.ts`, or `src/tags/editorial-ui.ts` over arbitrary imports into tag leaf modules
 
 See [`editorial.md`](./editorial.md) for the deeper breakdown of the editorial subsystem.
 
@@ -133,7 +134,7 @@ Owns low-level shared vocabulary and contracts:
 - search and rule graph types
 - ontology contracts and related shared type definitions
 
-`src/domain/index.ts` currently exists as a transitional barrel used mainly by tag-facing compatibility paths. Non-tag code should prefer direct imports from the owning `src/domain/*` module instead of routing through that barrel.
+There is no approved broad `src/domain/index.ts` import path. Import the owning `src/domain/*` module directly when code needs a domain contract.
 
 This layer should stay free of transport, UI, and storage-lifecycle behavior.
 

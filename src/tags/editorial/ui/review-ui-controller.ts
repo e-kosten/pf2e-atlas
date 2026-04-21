@@ -1,20 +1,20 @@
 import React from "react";
 
 import {
-  DEFAULT_DERIVED_TAG_MIGRATION_REVIEW_SERVICES,
-  importDerivedTagMigrationReviewSession,
-  persistDerivedTagMigrationReviewSession,
-  type DerivedTagMigrationReviewServices,
+  DEFAULT_DERIVED_TAG_REVIEW_SERVICES,
+  importDerivedTagReviewSession,
+  persistDerivedTagReviewSession,
+  type DerivedTagReviewServices,
 } from "./review-controller.js";
 import {
-  buildDerivedTagMigrationReviewViewModel,
-  type DerivedTagMigrationReviewScreenModel,
+  buildDerivedTagReviewViewModel,
+  type DerivedTagReviewScreenModel,
 } from "./review-screen-model.js";
 import {
-  createInitialDerivedTagMigrationReviewScreenState,
+  createInitialDerivedTagReviewScreenState,
   DERIVED_TAG_MIGRATION_REVIEW_ACTIONS,
-  reduceDerivedTagMigrationReviewScreenState,
-  type DerivedTagMigrationReviewActionId,
+  reduceDerivedTagReviewScreenState,
+  type DerivedTagReviewActionId,
 } from "./review-screen-state.js";
 import { useDerivedTagTerminalApp, useDerivedTagTerminalSize } from "../../../tui/terminal-ui.js";
 import {
@@ -28,26 +28,26 @@ import {
   useTerminalInteractionContextRouter,
 } from "../../../tui/interaction-context-router.js";
 import { getDerivedTagTerminalTwoPaneLayoutMode } from "../../../tui/two-pane-state.js";
-import type { DerivedTagMigrationSession } from "../types.js";
+import type { DerivedTagReviewSession } from "../types.js";
 
-export function useDerivedTagMigrationReviewScreenController({
+export function useDerivedTagReviewScreenController({
   rootPath,
   initialSession,
   onComplete,
-  services = DEFAULT_DERIVED_TAG_MIGRATION_REVIEW_SERVICES,
+  services = DEFAULT_DERIVED_TAG_REVIEW_SERVICES,
 }: {
   rootPath: string;
-  initialSession: DerivedTagMigrationSession;
-  onComplete: (result: { imported: boolean; session: DerivedTagMigrationSession }) => void;
-  services?: DerivedTagMigrationReviewServices;
-}): { screen: DerivedTagMigrationReviewScreenModel } {
+  initialSession: DerivedTagReviewSession;
+  onComplete: (result: { imported: boolean; session: DerivedTagReviewSession }) => void;
+  services?: DerivedTagReviewServices;
+}): { screen: DerivedTagReviewScreenModel } {
   const terminal = useDerivedTagTerminalApp();
   const adapters = useTerminalInteractionContextAdapters();
   const size = useDerivedTagTerminalSize();
   const [state, dispatch] = React.useReducer(
-    reduceDerivedTagMigrationReviewScreenState,
+    reduceDerivedTagReviewScreenState,
     initialSession,
-    createInitialDerivedTagMigrationReviewScreenState,
+    createInitialDerivedTagReviewScreenState,
   );
   const [busy, setBusy] = React.useState(false);
   const [persistError, setPersistError] = React.useState<string | null>(null);
@@ -55,7 +55,7 @@ export function useDerivedTagMigrationReviewScreenController({
   React.useEffect(() => {
     let cancelled = false;
 
-    void persistDerivedTagMigrationReviewSession(rootPath, state.session, services)
+    void persistDerivedTagReviewSession(rootPath, state.session, services)
       .then(() => {
         if (!cancelled) {
           setPersistError(null);
@@ -72,7 +72,7 @@ export function useDerivedTagMigrationReviewScreenController({
     };
   }, [rootPath, services, state.session]);
 
-  const screenModel = buildDerivedTagMigrationReviewViewModel({
+  const screenModel = buildDerivedTagReviewViewModel({
     persistError,
     size,
     state: {
@@ -82,7 +82,7 @@ export function useDerivedTagMigrationReviewScreenController({
   });
 
   const completeReview = React.useCallback(
-    (imported: boolean, session: DerivedTagMigrationSession) => {
+    (imported: boolean, session: DerivedTagReviewSession) => {
       onComplete({ imported, session });
     },
     [onComplete],
@@ -91,7 +91,7 @@ export function useDerivedTagMigrationReviewScreenController({
   const handleImport = React.useCallback(async () => {
     setBusy(true);
     try {
-      await importDerivedTagMigrationReviewSession(rootPath, state.session, services);
+      await importDerivedTagReviewSession(rootPath, state.session, services);
       dispatch({ type: "set_imported", imported: true });
       setPersistError(null);
       await terminal.pauseForAnyKey(`Imported session ${state.session.manifest.id}.`);
@@ -104,7 +104,7 @@ export function useDerivedTagMigrationReviewScreenController({
   }, [completeReview, rootPath, services, state.session, terminal]);
 
   const requestAction = React.useCallback(
-    async (actionId: DerivedTagMigrationReviewActionId) => {
+    async (actionId: DerivedTagReviewActionId) => {
       if (actionId === "quit") {
         completeReview(state.imported, state.session);
         return;

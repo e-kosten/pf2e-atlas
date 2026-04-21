@@ -1,4 +1,4 @@
-import type { DerivedTagAuthoredCategoryOntology } from "../../domain/index.js";
+import type { DerivedTagAuthoredCategoryOntology } from "../../domain/derived-tag-types.js";
 import type { DerivedTagManagedCategory } from "../manifest.js";
 import { AFFLICTION_DERIVED_TAG_ONTOLOGY } from "./affliction.js";
 import { CREATURE_DERIVED_TAG_ONTOLOGY } from "./creature.js";

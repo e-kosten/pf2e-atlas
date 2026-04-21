@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { DerivedTagAuthoredCategoryOntology, DerivedTagOntologyTag } from "../../src/domain/index.js";
+import type { DerivedTagAuthoredCategoryOntology, DerivedTagOntologyTag } from "../../src/domain/derived-tag-types.js";
 import { flattenDerivedTagAuthoredCategoryOntology, fromFamily, fromTag } from "../../src/tags/ontology/utils.js";
 
 function findTag(tags: DerivedTagOntologyTag[], tag: string): DerivedTagOntologyTag | undefined {

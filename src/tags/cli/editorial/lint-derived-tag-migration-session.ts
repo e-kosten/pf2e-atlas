@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
-import { lastValue, parseCliArgs } from "../../editorial/cli-utils.js";
-import { lintDerivedTagMigrationSession } from "../../editorial/writeback/linter.js";
-import { readDerivedTagMigrationSession } from "../../editorial/sessions/session-store.js";
-import { renderDerivedTagMigrationSessionSummary } from "../../editorial/ui/render.js";
+import { lastValue, parseCliArgs } from "../shared/arg-parsing.js";
+import { lintDerivedTagReviewSession } from "../../editorial/writeback/linter.js";
+import { readDerivedTagReviewSession } from "../../editorial/sessions/session-store.js";
+import { renderDerivedTagReviewSessionSummary } from "../../editorial/ui/render.js";
 
 async function main(): Promise<void> {
   const args = parseCliArgs(process.argv.slice(2));
@@ -12,9 +12,9 @@ async function main(): Promise<void> {
     throw new Error("Pass --session <session-id>.");
   }
 
-  const session = await readDerivedTagMigrationSession(process.cwd(), sessionId);
-  lintDerivedTagMigrationSession(session);
-  console.log(renderDerivedTagMigrationSessionSummary(session));
+  const session = await readDerivedTagReviewSession(process.cwd(), sessionId);
+  lintDerivedTagReviewSession(session);
+  console.log(renderDerivedTagReviewSessionSummary(session));
   console.log("\nSession lint passed.");
 }
 

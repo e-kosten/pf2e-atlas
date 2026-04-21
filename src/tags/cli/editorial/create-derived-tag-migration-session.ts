@@ -1,22 +1,22 @@
 #!/usr/bin/env node
 
 import {
-  openConfiguredIndex,
   lastValue,
   parseCliArgs,
   parseInteger,
-  writeDerivedTagMigrationSummary,
-} from "../../editorial/cli-utils.js";
-import { renderDerivedTagMigrationSessionSummary } from "../../editorial/ui/render.js";
-import { writeDerivedTagMigrationSession } from "../../editorial/sessions/session-store.js";
-import { buildDerivedTagMigrationSession } from "../../editorial/sessions/session-builder.js";
-import type { DerivedTagMigrationMode } from "../../editorial/types.js";
+} from "../shared/arg-parsing.js";
+import { openEditorialConfiguredIndex } from "../../editorial/configured-index.js";
+import { writeDerivedTagReviewSummary } from "../../editorial/writeback/review-summary.js";
+import { renderDerivedTagReviewSessionSummary } from "../../editorial/ui/render.js";
+import { writeDerivedTagReviewSession } from "../../editorial/sessions/session-store.js";
+import { buildDerivedTagReviewSession } from "../../editorial/sessions/session-builder.js";
+import type { DerivedTagWorkbenchMode } from "../../editorial/types.js";
 import {
   parseOptionalScopedSearchSubcategoryArg,
   parseOptionalSearchCategoryArg,
 } from "../shared/search-scope-args.js";
 
-const MODES: DerivedTagMigrationMode[] = [
+const MODES: DerivedTagWorkbenchMode[] = [
   "review_queue",
   "proposal_review",
   "legacy_seed",
@@ -24,7 +24,7 @@ const MODES: DerivedTagMigrationMode[] = [
   "exemplar_cleanup",
 ];
 
-function parseMode(value: string | undefined): DerivedTagMigrationMode | undefined {
+function parseMode(value: string | undefined): DerivedTagWorkbenchMode | undefined {
   switch (value) {
     case undefined:
       return undefined;
@@ -84,10 +84,10 @@ async function main(): Promise<void> {
     );
   }
 
-  const { db } = await openConfiguredIndex(argv);
+  const { db } = await openEditorialConfiguredIndex(argv);
   try {
     const category = parseOptionalSearchCategoryArg(lastValue(args, "category"), "--category");
-    const session = buildDerivedTagMigrationSession(db, {
+    const session = buildDerivedTagReviewSession(db, {
       mode,
       category,
       subcategory: parseOptionalScopedSearchSubcategoryArg(category, lastValue(args, "subcategory"), "--subcategory"),
@@ -98,9 +98,9 @@ async function main(): Promise<void> {
       exemplarLimit: parseInteger(lastValue(args, "exemplar-limit"), "--exemplar-limit"),
     });
 
-    await writeDerivedTagMigrationSession(process.cwd(), session);
-    const summary = renderDerivedTagMigrationSessionSummary(session);
-    await writeDerivedTagMigrationSummary(process.cwd(), session.manifest.id, summary);
+    await writeDerivedTagReviewSession(process.cwd(), session);
+    const summary = renderDerivedTagReviewSessionSummary(session);
+    await writeDerivedTagReviewSummary(process.cwd(), session.manifest.id, summary);
     console.log(summary);
     console.log(`\nSession written to scratch/migration-sessions/${session.manifest.id}`);
   } finally {

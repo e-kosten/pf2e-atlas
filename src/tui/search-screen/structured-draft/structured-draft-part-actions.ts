@@ -1,6 +1,6 @@
 import React from "react";
 
-import type { Pf2eTerminalQueryFieldOption, Pf2eTerminalSearchQuery } from "../search/service.js";
+import type { Pf2eTerminalQueryFieldOption, Pf2eTerminalSearchQuery } from "../../search/service.js";
 import {
   getSearchQueryCategory,
   getSearchQueryLevelRange,
@@ -8,16 +8,16 @@ import {
   removeSearchQueryPart,
   setSearchQueryCategory,
   setSearchQueryPart,
-} from "../search/service.js";
-import { formatLevelRange } from "./model.js";
-import { promptLevelRangeDraft } from "./scalar-editor.js";
+} from "../../search/query-state.js";
+import { formatLevelRange } from "../model.js";
+import { promptLevelRangeDraft } from "../../filter-explorer/scalar-editor.js";
 import type { SearchStructuredDraftState } from "./structured-draft-support.js";
 import type {
   OpenSearchFilterExplorer,
   SearchWorkspacePromptAdapters,
   SearchWorkspaceTerminal,
   SearchWorkspaceUser,
-} from "./workspace-action-types.js";
+} from "../workspace/workspace-action-types.js";
 
 function buildExplorerOnlyFieldOption(
   field: Pf2eTerminalQueryFieldOption["value"],

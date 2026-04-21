@@ -25,7 +25,7 @@ Useful heuristics:
 - If the code needs `DatabaseSync`, it probably belongs in `src/data/`, `src/app/storage-service.ts`, or an approved CLI entrypoint.
 - If the code mostly translates inputs and outputs around an existing service call, it probably belongs in a thin surface layer.
 - If the code defines vocabulary rather than behavior, it probably belongs in `src/domain/`.
-- If a non-tag caller needs a domain type, import the concrete `src/domain/*` owner file instead of defaulting to `src/domain/index.ts`.
+- If a non-tag caller needs a domain type, import the concrete `src/domain/*` owner file directly. There is no approved broad `src/domain/index.ts` path.
 - If a helper clearly belongs to `app`, `data`, or `search`, keep it there instead of extending `src/shared/`.
 - If the change is inside `src/tags/`, pick the split owner directory first and treat top-level editorial/runtime re-export files as compatibility bridges, not the architectural home for new work.
 
@@ -46,9 +46,9 @@ Existing examples:
 - `createPf2eApplicationOntologyService` is the app-layer ontology facade
 - `createPf2eTerminalSearchService` is the TUI-facing search facade
 - `src/tui/app-services.ts` is the TUI composition root and service bundle
-- `src/tags/index.ts` is the preferred non-tag entrypoint for tag functionality
+- `src/tags/runtime.ts`, `src/tags/editorial.ts`, and `src/tags/editorial-ui.ts` are the preferred non-tag entrypoints for tag functionality by concern
 
-Compatibility barrels are different from facades. A durable file such as `src/tags/index.ts` can be the right stable entrypoint for non-tag callers, but internal ownership should still live in the split owner directories. Only add or keep a barrel when callers genuinely need a stable entrypoint.
+Compatibility barrels are different from facades. The durable top-level tag facades are concern-specific and intentionally narrow, while internal ownership still lives in the split owner directories. Only add or keep a facade when callers genuinely need a stable entrypoint.
 
 Do not add a facade just to hide a one-off helper used in one file. Add one when you are trying to define the standard entrypoint for a concern.
 

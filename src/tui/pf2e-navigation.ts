@@ -2,10 +2,10 @@ import React from "react";
 
 import type { OntologyNodeQuery } from "../domain/ontology-types.js";
 import {
-  formatDerivedTagMigrationModeLabel,
-  type DerivedTagMigrationMode,
-  type DerivedTagMigrationSession,
-} from "../tags/index.js";
+  formatDerivedTagWorkbenchModeLabel,
+  type DerivedTagWorkbenchMode,
+  type DerivedTagReviewSession,
+} from "../tags/editorial.js";
 import type { Pf2eTerminalAppServices } from "./app-services.js";
 import type { OntologyInspectExplorerSnapshot } from "./ontology-explorer/inspect-screen.js";
 import {
@@ -157,7 +157,7 @@ function buildOntologyBrowserCommit({
   };
 }
 
-function buildReviewRouteCommit(session: DerivedTagMigrationSession): Pf2eNavigationCommit {
+function buildReviewRouteCommit(session: DerivedTagReviewSession): Pf2eNavigationCommit {
   return {
     kind: "push",
     route: {
@@ -210,8 +210,8 @@ export function usePf2eNavigation({
   openOntologySearch: (intent: Pf2eOntologySearchNavigationIntent) => void;
   openOntologySearchEditor: (query: OntologyNodeQuery, snapshot: OntologyInspectExplorerSnapshot) => void;
   openOntologySearchResults: (query: OntologyNodeQuery, snapshot: OntologyInspectExplorerSnapshot) => void;
-  openReviewSession: (mode: DerivedTagMigrationMode, options: CreatePf2eDerivedTagSessionOptions) => void;
-  promptForReviewSession: (mode: DerivedTagMigrationMode) => void;
+  openReviewSession: (mode: DerivedTagWorkbenchMode, options: CreatePf2eDerivedTagSessionOptions) => void;
+  promptForReviewSession: (mode: DerivedTagWorkbenchMode) => void;
   returnFromSearch: (searchRoute: Extract<Pf2eAppRoute, { kind: "search" }>) => void;
 } {
   const [state, dispatch] = React.useReducer(pf2eAppReducer, initialRoute, createPf2eAppState);
@@ -433,16 +433,16 @@ export function usePf2eNavigation({
   );
 
   const openReviewSession = React.useCallback(
-    (mode: DerivedTagMigrationMode, options: CreatePf2eDerivedTagSessionOptions) => {
+    (mode: DerivedTagWorkbenchMode, options: CreatePf2eDerivedTagSessionOptions) => {
       void runRouteTransition({
-        message: `Preparing ${formatDerivedTagMigrationModeLabel(mode)} session...`,
+        message: `Preparing ${formatDerivedTagWorkbenchModeLabel(mode)} session...`,
         prepare: async () => {
           const session = await services.dev.tagRefinement.createSession(rootPath, mode, options);
           return buildReviewRouteCommit(session);
         },
         onError: async (error) => {
           await terminal.pauseForAnyKey(
-            `Could not create the ${formatDerivedTagMigrationModeLabel(mode)} session.\n\n${(error as Error).message}`,
+            `Could not create the ${formatDerivedTagWorkbenchModeLabel(mode)} session.\n\n${(error as Error).message}`,
           );
         },
       });
@@ -451,7 +451,7 @@ export function usePf2eNavigation({
   );
 
   const promptForReviewSession = React.useCallback(
-    (mode: DerivedTagMigrationMode) => {
+    (mode: DerivedTagWorkbenchMode) => {
       void runRouteTransition({
         prepare: async () => {
           const session = await services.dev.tagRefinement.promptAndCreateSession(rootPath, mode, workbenchSessionPrompts);
@@ -459,7 +459,7 @@ export function usePf2eNavigation({
         },
         onError: async (error) => {
           await terminal.pauseForAnyKey(
-            `Could not create the ${formatDerivedTagMigrationModeLabel(mode)} session.\n\n${(error as Error).message}`,
+            `Could not create the ${formatDerivedTagWorkbenchModeLabel(mode)} session.\n\n${(error as Error).message}`,
           );
         },
       });

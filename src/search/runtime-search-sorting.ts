@@ -32,7 +32,7 @@ function compareNullableLevel(left: number | null, right: number | null): number
   return left - right;
 }
 
-function hashRecordSortSeed(recordKey: string, seed: number): number {
+export function hashRecordSortSeed(recordKey: string, seed: number): number {
   let hash = seed | 0;
   for (let index = 0; index < recordKey.length; index += 1) {
     hash = Math.imul(hash ^ recordKey.charCodeAt(index), 16777619);

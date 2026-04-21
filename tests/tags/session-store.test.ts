@@ -5,10 +5,10 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
-  readDerivedTagMigrationSession,
-  writeDerivedTagMigrationSession,
+  readDerivedTagReviewSession,
+  writeDerivedTagReviewSession,
 } from "../../src/tags/editorial/sessions/session-store.js";
-import type { DerivedTagMigrationSession } from "../../src/tags/editorial/types.js";
+import type { DerivedTagReviewSession } from "../../src/tags/editorial/types.js";
 import type { OntologyExplorerEntityRecord } from "../../src/app/ontology/entity-record.js";
 
 function createEntityRecord(
@@ -77,7 +77,7 @@ describe("migration session store", () => {
     const root = await mkdtemp(path.join(tmpdir(), "pf2e-session-store-"));
     tempRoots.push(root);
 
-    const session: DerivedTagMigrationSession = {
+    const session: DerivedTagReviewSession = {
       manifest: {
         id: "session-current",
         mode: "proposal_review",
@@ -140,9 +140,9 @@ describe("migration session store", () => {
       },
     };
 
-    await writeDerivedTagMigrationSession(root, session);
+    await writeDerivedTagReviewSession(root, session);
 
-    await expect(readDerivedTagMigrationSession(root, session.manifest.id)).resolves.toEqual(session);
+    await expect(readDerivedTagReviewSession(root, session.manifest.id)).resolves.toEqual(session);
   });
 
   it("normalizes legacy session records into entity records", async () => {
@@ -193,7 +193,7 @@ describe("migration session store", () => {
       "utf8",
     );
 
-    const session = await readDerivedTagMigrationSession(root, "legacy-session");
+    const session = await readDerivedTagReviewSession(root, "legacy-session");
 
     expect(session.records).toHaveLength(1);
     expect(session.records[0]?.entityRecord.recordKey).toBe("equipment:lantern");
@@ -231,6 +231,6 @@ describe("migration session store", () => {
       "utf8",
     );
 
-    await expect(readDerivedTagMigrationSession(root, "invalid-session")).rejects.toThrow(/Invalid search category/i);
+    await expect(readDerivedTagReviewSession(root, "invalid-session")).rejects.toThrow(/Invalid search category/i);
   });
 });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { normalizeMetadataFilterNode } from "../../src/search/metadata-filters.js";
+import { normalizeMetadataFilterNode } from "../../src/search/filters/metadata.js";
 
 describe("metadata filter normalization", () => {
   it("normalizes text equality predicates even when the tool schema only exposes contains operators", () => {

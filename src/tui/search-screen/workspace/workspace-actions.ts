@@ -1,9 +1,9 @@
 import React from "react";
 
-import type { SearchScreenAction, SearchScreenState } from "./state.js";
-import type { SearchQueryFieldBuilderSession } from "./query-field-builder-session.js";
-import type { Pf2eTerminalSearchQuery } from "../search/service.js";
-import type { SearchScreenOrigin } from "./workflow-types.js";
+import type { SearchScreenAction, SearchScreenState } from "../state.js";
+import type { SearchQueryFieldBuilderSession } from "../query-field-builder/query-field-builder-session.js";
+import type { Pf2eTerminalSearchQuery } from "../../search/service.js";
+import type { SearchScreenOrigin } from "../workflow-types.js";
 import {
   buildEditorCommandPaletteEntries,
   buildResultCommandPaletteEntries,
@@ -12,10 +12,10 @@ import {
   isQueryPartAction,
   isQueryNodeAction,
   type SearchWorkspaceAction,
-} from "./model.js";
-import { setSearchQueryMetadataTree } from "../search/service.js";
+} from "../model.js";
+import { setSearchQueryMetadataTree } from "../../search/query-state.js";
 import type { SearchWorkspaceEntry } from "./workspace.js";
-import { useSearchStructuredEditorActions } from "./structured-editor-actions.js";
+import { useSearchStructuredEditorActions } from "../structured-editor-actions.js";
 import type {
   OpenSearchFilterExplorer,
   SearchWorkspacePromptAdapters,
@@ -60,7 +60,7 @@ export function useSearchWorkspaceActions({
   workspaceEntries: SearchWorkspaceEntry[];
   chooseResultSort: () => Promise<void>;
 }): {
-  handleIntent: (intent: import("./model.js").SearchScreenIntent) => void;
+  handleIntent: (intent: import("../model.js").SearchScreenIntent) => void;
   structuredEditorSession: SearchQueryFieldBuilderSession | null;
 } {
   const editQueryText = React.useCallback(async () => {
@@ -253,7 +253,7 @@ export function useSearchWorkspaceActions({
   }, [chooseResultSort, dispatch, jumpToResultPosition, origin, prompts, state]);
 
   const handleIntent = React.useCallback(
-    (intent: import("./model.js").SearchScreenIntent) => {
+    (intent: import("../model.js").SearchScreenIntent) => {
       switch (intent.type) {
         case "show_help":
           showSearchHelp();

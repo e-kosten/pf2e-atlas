@@ -1,4 +1,4 @@
-import type { SearchCategory } from "../../domain/index.js";
+import type { SearchCategory } from "../../domain/derived-tag-types.js";
 import { DERIVED_TAG_MANAGED_CATEGORIES } from "../manifest.js";
 import type { DerivedTagManagedCategory } from "../manifest.js";
 import type { DerivedTagReviewQueueSummaryItem } from "./types.js";

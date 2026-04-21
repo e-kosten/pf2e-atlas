@@ -1,20 +1,20 @@
 import React from "react";
 
-import type { MetadataFilterNode } from "../../domain/metadata-types.js";
+import type { MetadataFilterNode } from "../../../search/filters/types.js";
 import {
   getMetadataNodeAtPath,
   isMetadataPredicate,
-} from "../search/query-core.js";
+} from "../../search/query-core.js";
 import type {
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalSearchQuery,
-} from "../search/service.js";
-import { getSearchQueryMetadataTree } from "../search/service.js";
+} from "../../search/service.js";
+import { getSearchQueryMetadataTree } from "../../search/query-state.js";
 import type { SearchStructuredDraftState } from "./structured-draft-support.js";
 import type {
   SearchWorkspacePromptAdapters,
   SearchWorkspaceTerminal,
-} from "./workspace-action-types.js";
+} from "../workspace/workspace-action-types.js";
 
 export function useSearchStructuredDraftMetadataActions({
   appendStructuredDraftMetadataNode,

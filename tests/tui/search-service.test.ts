@@ -1,18 +1,20 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { MetadataFilterNode } from "../../src/domain/metadata-types.js";
+import type { MetadataFilterNode } from "../../src/search/filters/types.js";
 import type { OntologyDomainModel, OntologyNode } from "../../src/domain/ontology-types.js";
 import type { SearchFilters } from "../../src/domain/search-types.js";
 import {
   buildSearchFilterExplorerModel,
   buildSearchFilterExplorerTargetResolver,
   cloneFilterExplorerDraft,
-  createPf2eTerminalSearchService,
+  withFilterExplorerComposeDraft,
+} from "../../src/tui/filter-explorer/search-draft.js";
+import { createPf2eTerminalSearchService } from "../../src/tui/search/service.js";
+import {
   getSearchQueryActionCostPolicy,
   getSearchQueryMetadataTree,
   getSearchQueryRarityPolicy,
-  withFilterExplorerComposeDraft,
-} from "../../src/tui/search/service.js";
+} from "../../src/tui/search/query-state.js";
 
 type SearchServiceDependencies = Parameters<typeof createPf2eTerminalSearchService>[0];
 

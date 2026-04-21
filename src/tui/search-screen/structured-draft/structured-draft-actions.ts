@@ -1,22 +1,22 @@
 import React from "react";
 
-import type { MetadataFilterNode } from "../../domain/metadata-types.js";
-import { clampStructuredDraftSelection } from "../search/structured-draft-session.js";
+import type { MetadataFilterNode } from "../../../search/filters/types.js";
+import { clampStructuredDraftSelection } from "../../search/structured-draft-session.js";
 import {
   appendMetadataNodeAtPath,
   updateMetadataNodeAtPath,
-} from "../search/query-core.js";
-import type { Pf2eTerminalSearchQuery } from "../search/service.js";
+} from "../../search/query-core.js";
+import type { Pf2eTerminalSearchQuery } from "../../search/service.js";
 import {
   getSearchQueryMetadataTree,
   setSearchQueryMetadataTree,
-} from "../search/service.js";
+} from "../../search/query-state.js";
 import {
   buildStructuredDraftEntries,
   getStructuredDraftSelectionIndex,
   type SearchStructuredDraftState,
 } from "./structured-draft-support.js";
-import type { SearchWorkspaceUser } from "./workspace-action-types.js";
+import type { SearchWorkspaceUser } from "../workspace/workspace-action-types.js";
 
 export function useSearchStructuredDraftActions({
   applyQueryUpdate,

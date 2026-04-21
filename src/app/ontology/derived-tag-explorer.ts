@@ -6,16 +6,18 @@ import {
   buildOntologyExplorerEntityRecordSelectColumns,
   compareDisplayText,
   compareManagedCategory,
-  getCurrentDerivedTagMigrationAuthoredState,
-  getCurrentDerivedTagMigrationAuthoredStateRevision,
-  getDerivedTagExemplars,
-  getPublishedDerivedTagMigrationOntology,
-  listDerivedTagLegacySeedMigrations,
-  normalizeDerivedTag,
+  getCurrentDerivedTagAuthoredState,
+  getCurrentDerivedTagAuthoredStateRevision,
+  getPublishedDerivedTagOntology,
   mapOntologyExplorerEntityRecordRow,
   type OntologyExplorerEntityRecord,
   type OntologyExplorerEntityRecordRow,
-} from "../../tags/index.js";
+} from "../../tags/editorial.js";
+import {
+  getDerivedTagExemplars,
+  listDerivedTagLegacySeedMigrations,
+  normalizeDerivedTag,
+} from "../../tags/runtime.js";
 import { parseSearchCategoryValue } from "../../data/sql-row-decoding.js";
 
 type ExplorerCountRow = {
@@ -247,7 +249,7 @@ function queryExplorerRecordRows(db: DatabaseSync, recordKeys: string[]): Ontolo
 }
 
 function buildAuthoredRuleCounts(
-  state: ReturnType<typeof getCurrentDerivedTagMigrationAuthoredState>,
+  state: ReturnType<typeof getCurrentDerivedTagAuthoredState>,
 ): Map<string, number> {
   const counts = new Map<string, number>();
 
@@ -264,7 +266,7 @@ function buildAuthoredRuleCounts(
 }
 
 function buildExemplarCounts(
-  state: ReturnType<typeof getCurrentDerivedTagMigrationAuthoredState>,
+  state: ReturnType<typeof getCurrentDerivedTagAuthoredState>,
 ): Map<string, { positive: number; negative: number }> {
   const counts = new Map<string, { positive: number; negative: number }>();
 
@@ -303,7 +305,7 @@ function buildLiveCountMaps(rows: ExplorerCountRow[]): {
   categoryCounts: Map<SearchCategory, number>;
   recordKeysByTagKey: Map<string, string[]>;
 } {
-  const ontology = getPublishedDerivedTagMigrationOntology();
+  const ontology = getPublishedDerivedTagOntology();
   const tagCounts = new Map<string, number>();
   const familyRecordKeys = new Map<string, Set<string>>();
   const categoryRecordKeys = new Map<SearchCategory, Set<string>>();
@@ -544,7 +546,7 @@ export function buildDerivedTagOntologyExplorerModel(
   db: DatabaseSync,
   options: { cacheKey?: string } = {},
 ): DerivedTagOntologyExplorerModel {
-  const authoredStateRevision = getCurrentDerivedTagMigrationAuthoredStateRevision();
+  const authoredStateRevision = getCurrentDerivedTagAuthoredStateRevision();
   if (options.cacheKey) {
     const cached = explorerModelCacheByKey.get(options.cacheKey);
     if (cached && cached.authoredStateRevision === authoredStateRevision) {
@@ -552,8 +554,8 @@ export function buildDerivedTagOntologyExplorerModel(
     }
   }
 
-  const ontology = getPublishedDerivedTagMigrationOntology();
-  const authoredState = getCurrentDerivedTagMigrationAuthoredState();
+  const ontology = getPublishedDerivedTagOntology();
+  const authoredState = getCurrentDerivedTagAuthoredState();
   const dbCache = loadDerivedTagOntologyExplorerDbCache(db, options.cacheKey);
   const tagCounts = mapFromCountRecord(dbCache.tagCounts);
   const familyCounts = mapFromCountRecord(dbCache.familyCounts);

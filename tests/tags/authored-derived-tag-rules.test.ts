@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { AuthoredDerivedTagRule, DerivedTagOntologyFamily, DerivedTagOntologyTag } from "../../src/domain/index.js";
+import type { AuthoredDerivedTagRule, DerivedTagOntologyFamily, DerivedTagOntologyTag } from "../../src/domain/derived-tag-types.js";
 import { deriveCatalogTagDerivation, publishDerivedTagOntology } from "../../src/tags/runtime/publication/catalog.js";
 import { compileAuthoredDerivedTagRules } from "../../src/tags/rules/compiler.js";
 import { deriveRecordTagsFromRules, type DerivedTagRule } from "../../src/tags/runtime/matcher/engine.js";

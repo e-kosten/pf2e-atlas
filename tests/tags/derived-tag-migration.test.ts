@@ -10,7 +10,7 @@ import type {
   DerivedTagExemplarReviewCategory,
   SearchCategory,
   SearchSubcategory,
-} from "../../src/domain/index.js";
+} from "../../src/domain/derived-tag-types.js";
 import type { OntologyExplorerEntityRecord } from "../../src/app/ontology/entity-record.js";
 import type {
   AuthoredDerivedTagAssignment,
@@ -18,10 +18,10 @@ import type {
   DerivedTagAssignmentReviewCategory,
 } from "../../src/tags/runtime/derivation/assignments.js";
 import {
-  getCurrentDerivedTagMigrationAuthoredState,
-  setCurrentDerivedTagMigrationAuthoredState,
+  getCurrentDerivedTagAuthoredState,
+  setCurrentDerivedTagAuthoredState,
 } from "../../src/tags/editorial/state/authored-state.js";
-import { writeDerivedTagMigrationAuthoredState } from "../../src/tags/editorial/writeback/authored-state-writer.js";
+import { writeDerivedTagAuthoredState } from "../../src/tags/editorial/writeback/authored-state-writer.js";
 import {
   applyMigrationSessionToAssignments,
   applyMigrationSessionToAssignmentMemory,
@@ -30,21 +30,21 @@ import {
   applyMigrationSessionToExemplars,
   applyMigrationSessionToExemplarReviews,
 } from "../../src/tags/editorial/writeback/importer.js";
-import { lintDerivedTagMigrationSession } from "../../src/tags/editorial/writeback/linter.js";
+import { lintDerivedTagReviewSession } from "../../src/tags/editorial/writeback/linter.js";
 import {
   deriveCurrentTagSources,
   summarizeCurrentDerivedTagReviewQueue,
 } from "../../src/tags/editorial/state/runtime-state.js";
-import { renderDerivedTagMigrationReviewItem } from "../../src/tags/editorial/ui/render.js";
+import { renderDerivedTagReviewItem } from "../../src/tags/editorial/ui/render.js";
 import {
-  clampDerivedTagMigrationReviewIndex,
-  getDerivedTagMigrationReviewItems,
-  summarizeDerivedTagMigrationReviewProgress,
-  toggleDerivedTagMigrationUnresolvedOnly,
-  updateDerivedTagMigrationDecisionStatus,
+  clampDerivedTagReviewIndex,
+  getDerivedTagReviewItems,
+  summarizeDerivedTagReviewProgress,
+  toggleDerivedTagReviewUnresolvedOnly,
+  updateDerivedTagReviewDecisionStatus,
 } from "../../src/tags/editorial/sessions/review-session.js";
 import { moveSelection } from "../../src/tui/terminal-ui.js";
-import type { DerivedTagMigrationSession } from "../../src/tags/editorial/types.js";
+import type { DerivedTagReviewSession } from "../../src/tags/editorial/types.js";
 
 function createEntityRecord(
   overrides: Partial<OntologyExplorerEntityRecord> &
@@ -113,9 +113,9 @@ function createSessionRecord(options: {
   derivedTags?: string[];
   descriptionText?: string | null;
   blurbText?: string | null;
-  currentSources?: DerivedTagMigrationSession["records"][number]["currentSources"];
-  selectionReasons?: DerivedTagMigrationSession["records"][number]["selectionReasons"];
-}): DerivedTagMigrationSession["records"][number] {
+  currentSources?: DerivedTagReviewSession["records"][number]["currentSources"];
+  selectionReasons?: DerivedTagReviewSession["records"][number]["selectionReasons"];
+}): DerivedTagReviewSession["records"][number] {
   return {
     entityRecord: createEntityRecord({
       recordKey: options.recordKey,
@@ -364,7 +364,7 @@ describe("derived tag migration tooling", () => {
   });
 
   it("lints contradictory migration sessions", () => {
-    const session: DerivedTagMigrationSession = {
+    const session: DerivedTagReviewSession = {
       manifest: {
         id: "test",
         mode: "review_queue",
@@ -414,11 +414,11 @@ describe("derived tag migration tooling", () => {
       },
     };
 
-    expect(() => lintDerivedTagMigrationSession(session)).toThrow(/both include and exclude/);
+    expect(() => lintDerivedTagReviewSession(session)).toThrow(/both include and exclude/);
   });
 
   it("supports scratch review navigation and status updates", () => {
-    let session: DerivedTagMigrationSession = {
+    let session: DerivedTagReviewSession = {
       manifest: {
         id: "test",
         mode: "review_queue",
@@ -460,16 +460,16 @@ describe("derived tag migration tooling", () => {
       },
     };
 
-    expect(getDerivedTagMigrationReviewItems(session)).toHaveLength(1);
-    session = updateDerivedTagMigrationDecisionStatus(session, { recordIndex: 0, decisionIndex: 0 }, "approved");
+    expect(getDerivedTagReviewItems(session)).toHaveLength(1);
+    session = updateDerivedTagReviewDecisionStatus(session, { recordIndex: 0, decisionIndex: 0 }, "approved");
     expect(session.decisions[0]?.resolutionStatus).toBe("complete");
-    session = toggleDerivedTagMigrationUnresolvedOnly(session);
-    session = clampDerivedTagMigrationReviewIndex(session);
-    expect(getDerivedTagMigrationReviewItems(session)).toHaveLength(1);
+    session = toggleDerivedTagReviewUnresolvedOnly(session);
+    session = clampDerivedTagReviewIndex(session);
+    expect(getDerivedTagReviewItems(session)).toHaveLength(1);
   });
 
   it("reports candidate and actionable review progress separately", () => {
-    const session: DerivedTagMigrationSession = {
+    const session: DerivedTagReviewSession = {
       manifest: {
         id: "test",
         mode: "proposal_review",
@@ -525,7 +525,7 @@ describe("derived tag migration tooling", () => {
       },
     };
 
-    expect(summarizeDerivedTagMigrationReviewProgress(session)).toEqual({
+    expect(summarizeDerivedTagReviewProgress(session)).toEqual({
       candidateRecordCount: 3,
       actionableRecordCount: 2,
       resolvedActionableRecordCount: 1,
@@ -534,7 +534,7 @@ describe("derived tag migration tooling", () => {
   });
 
   it("includes record context in rendered review items", () => {
-    const session: DerivedTagMigrationSession = {
+    const session: DerivedTagReviewSession = {
       manifest: {
         id: "test",
         mode: "proposal_review",
@@ -593,7 +593,7 @@ describe("derived tag migration tooling", () => {
       },
     };
 
-    const rendered = renderDerivedTagMigrationReviewItem(session, 0);
+    const rendered = renderDerivedTagReviewItem(session, 0);
 
     expect(
       rendered.indexOf(
@@ -621,7 +621,7 @@ describe("derived tag migration tooling", () => {
       "rarely used as peacekeepers, instead serving as assassins, elite bodyguards, or",
       "riot control during times of martial law.",
     ].join(" ");
-    const session: DerivedTagMigrationSession = {
+    const session: DerivedTagReviewSession = {
       manifest: {
         id: "test",
         mode: "exemplar_cleanup",
@@ -678,7 +678,7 @@ describe("derived tag migration tooling", () => {
       },
     };
 
-    const rendered = renderDerivedTagMigrationReviewItem(session, 0);
+    const rendered = renderDerivedTagReviewItem(session, 0);
 
     expect(rendered).toContain(longDescription);
     expect(rendered).not.toContain("that...");
@@ -693,7 +693,7 @@ describe("derived tag migration tooling", () => {
   });
 
   it("refreshes in-process authored state after writing migration outputs", async () => {
-    const initialState = getCurrentDerivedTagMigrationAuthoredState();
+    const initialState = getCurrentDerivedTagAuthoredState();
     const tempRoot = await mkdtemp(path.join(os.tmpdir(), "derived-tag-migration-state-"));
 
     try {
@@ -753,18 +753,18 @@ describe("derived tag migration tooling", () => {
         ],
       };
 
-      await writeDerivedTagMigrationAuthoredState(tempRoot, nextState, ["equipment"]);
+      await writeDerivedTagAuthoredState(tempRoot, nextState, ["equipment"]);
 
-      expect(getCurrentDerivedTagMigrationAuthoredState().assignments.equipment).toEqual(
+      expect(getCurrentDerivedTagAuthoredState().assignments.equipment).toEqual(
         nextState.assignments.equipment,
       );
-      expect(getCurrentDerivedTagMigrationAuthoredState().assignmentReviews.equipment).toEqual(
+      expect(getCurrentDerivedTagAuthoredState().assignmentReviews.equipment).toEqual(
         nextState.assignmentReviews.equipment,
       );
-      expect(getCurrentDerivedTagMigrationAuthoredState().assignmentMemory.equipment).toEqual(
+      expect(getCurrentDerivedTagAuthoredState().assignmentMemory.equipment).toEqual(
         nextState.assignmentMemory.equipment,
       );
-      expect(getCurrentDerivedTagMigrationAuthoredState().exemplarReviews.equipment).toEqual(
+      expect(getCurrentDerivedTagAuthoredState().exemplarReviews.equipment).toEqual(
         nextState.exemplarReviews.equipment,
       );
       expect(
@@ -812,12 +812,12 @@ describe("derived tag migration tooling", () => {
         ]),
       );
     } finally {
-      setCurrentDerivedTagMigrationAuthoredState(initialState);
+      setCurrentDerivedTagAuthoredState(initialState);
     }
   });
 
   it("sorts the review queue by kind, confidence, count, managed category order, and normalized labels", () => {
-    const initialState = getCurrentDerivedTagMigrationAuthoredState();
+    const initialState = getCurrentDerivedTagAuthoredState();
 
     try {
       const nextState = structuredClone(initialState);
@@ -895,7 +895,7 @@ describe("derived tag migration tooling", () => {
           },
         ],
       };
-      setCurrentDerivedTagMigrationAuthoredState(nextState);
+      setCurrentDerivedTagAuthoredState(nextState);
 
       expect(summarizeCurrentDerivedTagReviewQueue().slice(0, 5)).toEqual([
         {
@@ -939,7 +939,7 @@ describe("derived tag migration tooling", () => {
         },
       ]);
     } finally {
-      setCurrentDerivedTagMigrationAuthoredState(initialState);
+      setCurrentDerivedTagAuthoredState(initialState);
     }
   });
 });

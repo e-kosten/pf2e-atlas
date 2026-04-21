@@ -1,4 +1,4 @@
-import { SearchSubcategory } from "../../../domain/index.js";
+import { SearchSubcategory } from "../../../domain/derived-tag-types.js";
 import {
   normalizeDerivedTagReference,
   TextAnchor,

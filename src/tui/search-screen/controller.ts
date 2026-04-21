@@ -27,7 +27,7 @@ import {
   buildSearchHelpLines,
   useSearchScreenInteractionRouter,
 } from "./interactions.js";
-import { type SearchStructuredEditorSession } from "./query-field-builder-session.js";
+import { type SearchStructuredEditorSession } from "./query-field-builder/query-field-builder-session.js";
 import {
   getSearchResultWindowMetrics,
   getSessionBufferRange,
@@ -35,7 +35,7 @@ import {
 } from "./state.js";
 import { useSearchFilterExplorerWorkflow } from "./filter-explorer-workflow.js";
 import { useSearchSessionWorkflow } from "./session-workflow.js";
-import { useSearchWorkspaceActions } from "./workspace-actions.js";
+import { useSearchWorkspaceActions } from "./workspace/workspace-actions.js";
 import type { SearchScreenOrigin } from "./workflow-types.js";
 import type { Pf2eTerminalSearchSession } from "../search/service.js";
 import type { RouteTransitionStatus } from "../route-transition-status.js";

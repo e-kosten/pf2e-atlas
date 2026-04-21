@@ -4,7 +4,7 @@ import type {
   DerivedTagCompositeSelector,
   DerivedTagOntologyFamily,
   DerivedTagOntologyTag,
-} from "../../domain/index.js";
+} from "../../domain/derived-tag-types.js";
 import { normalizeText } from "../../shared/utils.js";
 
 function normalizeDerivedTag(value: string): string {

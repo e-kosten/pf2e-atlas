@@ -1,4 +1,3 @@
-import { METADATA_FIELD_REGISTRY, type MetadataFieldType } from "./metadata-field-registry.js";
 import {
   ACTOR_METRIC_COMPARE_PREDICATE_SPEC,
   ACTOR_METRIC_PREDICATE_SPEC,
@@ -9,7 +8,8 @@ import {
   type MetadataPredicateOperator,
   type MetricComparePredicateFromSpec,
   type MetricValuePredicateFromSpec,
-} from "./metadata-predicate-spec.js";
+} from "../../domain/metadata-predicate-spec.js";
+import { METADATA_FIELD_REGISTRY, type MetadataFieldType } from "./registry.js";
 
 type MetadataFieldNameByType<FieldType extends MetadataFieldType> = Extract<
   (typeof METADATA_FIELD_REGISTRY)[number],

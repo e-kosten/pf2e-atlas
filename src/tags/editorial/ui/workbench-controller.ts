@@ -1,69 +1,70 @@
 import { DatabaseSync } from "node:sqlite";
 
-import { openConfiguredIndex, writeDerivedTagMigrationSummary } from "../cli-utils.js";
-import { renderDerivedTagMigrationSessionSummary } from "./render.js";
+import { openEditorialConfiguredIndex } from "../configured-index.js";
+import { renderDerivedTagReviewSessionSummary } from "./render.js";
 import { summarizeCurrentDerivedTagReviewQueue } from "../state/runtime-state.js";
-import { buildDerivedTagMigrationSession } from "../sessions/session-builder.js";
-import { writeDerivedTagMigrationSession } from "../sessions/session-store.js";
+import { buildDerivedTagReviewSession } from "../sessions/session-builder.js";
+import { writeDerivedTagReviewSession } from "../sessions/session-store.js";
+import { writeDerivedTagReviewSummary } from "../writeback/review-summary.js";
 import type {
-  DerivedTagMigrationMode,
-  DerivedTagMigrationReviewDecisionKind,
-  DerivedTagMigrationSession,
+  DerivedTagWorkbenchMode,
+  DerivedTagReviewDecisionKind,
+  DerivedTagReviewSession,
   DerivedTagReviewQueueSummaryItem,
 } from "../types.js";
 import {
-  promptDerivedTagMigrationWorkbenchSessionOptions,
-  type DerivedTagMigrationWorkbenchSessionOptions,
-  type DerivedTagMigrationWorkbenchSessionPrompts,
+  promptDerivedTagWorkbenchSessionOptions,
+  type DerivedTagWorkbenchSessionOptions,
+  type DerivedTagWorkbenchSessionPrompts,
 } from "./workbench-session-prompts.js";
 
-export type DerivedTagMigrationWorkbenchServices = {
-  buildSession: typeof buildDerivedTagMigrationSession;
-  openIndex: typeof openConfiguredIndex;
+export type DerivedTagWorkbenchServices = {
+  buildSession: typeof buildDerivedTagReviewSession;
+  openIndex: typeof openEditorialConfiguredIndex;
   summarizeQueue: typeof summarizeCurrentDerivedTagReviewQueue;
-  writeSession: typeof writeDerivedTagMigrationSession;
-  writeSummary: typeof writeDerivedTagMigrationSummary;
+  writeSession: typeof writeDerivedTagReviewSession;
+  writeSummary: typeof writeDerivedTagReviewSummary;
 };
 
-export const DEFAULT_DERIVED_TAG_MIGRATION_WORKBENCH_SERVICES: DerivedTagMigrationWorkbenchServices = {
-  buildSession: buildDerivedTagMigrationSession,
-  openIndex: openConfiguredIndex,
+export const DEFAULT_DERIVED_TAG_WORKBENCH_SERVICES: DerivedTagWorkbenchServices = {
+  buildSession: buildDerivedTagReviewSession,
+  openIndex: openEditorialConfiguredIndex,
   summarizeQueue: summarizeCurrentDerivedTagReviewQueue,
-  writeSession: writeDerivedTagMigrationSession,
-  writeSummary: writeDerivedTagMigrationSummary,
+  writeSession: writeDerivedTagReviewSession,
+  writeSummary: writeDerivedTagReviewSummary,
 };
 
-export type DerivedTagMigrationWorkbenchSessionCreationOptions = DerivedTagMigrationWorkbenchSessionOptions & {
-  decisionKind?: DerivedTagMigrationReviewDecisionKind;
+export type DerivedTagWorkbenchSessionCreationOptions = DerivedTagWorkbenchSessionOptions & {
+  decisionKind?: DerivedTagReviewDecisionKind;
 };
 
-export type DerivedTagMigrationWorkbenchOntologyHandle = {
+export type DerivedTagWorkbenchOntologyHandle = {
   cacheKey?: string;
   db: DatabaseSync;
 };
 
-async function writeDerivedTagMigrationSessionArtifacts(
+async function writeDerivedTagReviewSessionArtifacts(
   rootPath: string,
-  session: DerivedTagMigrationSession,
-  services: DerivedTagMigrationWorkbenchServices,
+  session: DerivedTagReviewSession,
+  services: DerivedTagWorkbenchServices,
 ): Promise<void> {
   await services.writeSession(rootPath, session);
-  await services.writeSummary(rootPath, session.manifest.id, renderDerivedTagMigrationSessionSummary(session));
+  await services.writeSummary(rootPath, session.manifest.id, renderDerivedTagReviewSessionSummary(session));
 }
 
-export function getDerivedTagMigrationWorkbenchQueueItems(
-  services: DerivedTagMigrationWorkbenchServices = DEFAULT_DERIVED_TAG_MIGRATION_WORKBENCH_SERVICES,
+export function getDerivedTagWorkbenchQueueItems(
+  services: DerivedTagWorkbenchServices = DEFAULT_DERIVED_TAG_WORKBENCH_SERVICES,
 ): DerivedTagReviewQueueSummaryItem[] {
   return services.summarizeQueue();
 }
 
-export async function createDerivedTagMigrationWorkbenchSession(
+export async function createDerivedTagWorkbenchSession(
   rootPath: string,
   argv: string[],
-  mode: DerivedTagMigrationMode,
-  options: DerivedTagMigrationWorkbenchSessionCreationOptions,
-  services: DerivedTagMigrationWorkbenchServices = DEFAULT_DERIVED_TAG_MIGRATION_WORKBENCH_SERVICES,
-): Promise<DerivedTagMigrationSession> {
+  mode: DerivedTagWorkbenchMode,
+  options: DerivedTagWorkbenchSessionCreationOptions,
+  services: DerivedTagWorkbenchServices = DEFAULT_DERIVED_TAG_WORKBENCH_SERVICES,
+): Promise<DerivedTagReviewSession> {
   const { db } = await services.openIndex(argv);
 
   try {
@@ -71,24 +72,24 @@ export async function createDerivedTagMigrationWorkbenchSession(
       mode,
       ...options,
     });
-    await writeDerivedTagMigrationSessionArtifacts(rootPath, session, services);
+    await writeDerivedTagReviewSessionArtifacts(rootPath, session, services);
     return session;
   } finally {
     db.close();
   }
 }
 
-export async function promptAndCreateDerivedTagMigrationWorkbenchSession(
+export async function promptAndCreateDerivedTagWorkbenchSession(
   rootPath: string,
   argv: string[],
-  mode: DerivedTagMigrationMode,
-  prompts: DerivedTagMigrationWorkbenchSessionPrompts,
-  services: DerivedTagMigrationWorkbenchServices = DEFAULT_DERIVED_TAG_MIGRATION_WORKBENCH_SERVICES,
-): Promise<DerivedTagMigrationSession | undefined> {
+  mode: DerivedTagWorkbenchMode,
+  prompts: DerivedTagWorkbenchSessionPrompts,
+  services: DerivedTagWorkbenchServices = DEFAULT_DERIVED_TAG_WORKBENCH_SERVICES,
+): Promise<DerivedTagReviewSession | undefined> {
   const { db } = await services.openIndex(argv);
 
   try {
-    const options = await promptDerivedTagMigrationWorkbenchSessionOptions(prompts, db, mode);
+    const options = await promptDerivedTagWorkbenchSessionOptions(prompts, db, mode);
     if (!options) {
       return undefined;
     }
@@ -97,17 +98,17 @@ export async function promptAndCreateDerivedTagMigrationWorkbenchSession(
       mode,
       ...options,
     });
-    await writeDerivedTagMigrationSessionArtifacts(rootPath, session, services);
+    await writeDerivedTagReviewSessionArtifacts(rootPath, session, services);
     return session;
   } finally {
     db.close();
   }
 }
 
-export async function openDerivedTagMigrationWorkbenchOntology(
+export async function openDerivedTagWorkbenchOntology(
   argv: string[],
-  services: DerivedTagMigrationWorkbenchServices = DEFAULT_DERIVED_TAG_MIGRATION_WORKBENCH_SERVICES,
-): Promise<DerivedTagMigrationWorkbenchOntologyHandle> {
+  services: DerivedTagWorkbenchServices = DEFAULT_DERIVED_TAG_WORKBENCH_SERVICES,
+): Promise<DerivedTagWorkbenchOntologyHandle> {
   const { db, config } = await services.openIndex(argv);
   return {
     cacheKey: config.indexPath,

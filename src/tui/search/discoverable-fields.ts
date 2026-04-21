@@ -1,7 +1,7 @@
-import type { MetadataFieldSemantics } from "../../domain/metadata-semantics.js";
+import type { MetadataFieldSemantics } from "../../search/filters/semantics.js";
 import { getMetricDiscoveryGroupLabel } from "../../domain/metric-discovery-group-label.js";
 import { normalizeMetadataNode } from "./query-core.js";
-import type { MetadataFilterNode, MetadataPredicate } from "../../domain/metadata-types.js";
+import type { MetadataFilterNode, MetadataPredicate } from "../../search/filters/types.js";
 import type { SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
 import {
   createEmptyStringPolicy,

@@ -1,6 +1,6 @@
 import React from "react";
 
-import type { MetadataFilterNode } from "../../domain/metadata-types.js";
+import type { MetadataFilterNode } from "../../search/filters/types.js";
 import {
   isMetadataPredicate,
 } from "../search/query-core.js";
@@ -12,20 +12,20 @@ import type {
 import {
   getSearchQueryCategory,
   getSearchQuerySubcategory,
-} from "../search/service.js";
+} from "../search/query-state.js";
 import { createEmptyStringPolicy } from "../search/policies.js";
 import { formatFilterExplorerPolicyCycleCopy } from "../framework/policy-presentation.js";
 import {
   buildMetadataNodeFromPolicy,
   buildPolicyFromPredicate,
 } from "./metadata-clause-translation.js";
-import { promptNumericScalarClause } from "./scalar-editor.js";
+import { promptNumericScalarClause } from "../filter-explorer/scalar-editor.js";
 import type {
   OpenSearchFilterExplorer,
   SearchWorkspacePromptAdapters,
   SearchWorkspaceTerminal,
   SearchWorkspaceUser,
-} from "./workspace-action-types.js";
+} from "./workspace/workspace-action-types.js";
 
 export function useSearchQueryFieldEditing({
   openFilterExplorer,

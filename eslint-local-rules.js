@@ -96,7 +96,7 @@ const JSON_PARSE_ALLOWED_PATHS = [
 
 const DATABASE_SYNC_ALLOWED_PATHS = [
   "src/data/schema.ts",
-  "src/tags/editorial/cli-utils.ts",
+  "src/tags/editorial/configured-index.ts",
   "src/refresh-index.ts",
   "src/app/storage-service.ts",
   /^src\/tags\/cli\/.+\.ts$/,
@@ -186,17 +186,22 @@ const localRules = {
     meta: {
       type: "problem",
       docs: {
-        description: "Keep src/tags internals from depending on the public src/tags/index.js barrel.",
+        description: "Keep src/tags internals from depending on the public top-level tag facades.",
       },
       schema: [],
       messages: {
         noInternalTagsBarrelImport:
-          "Internal src/tags modules must not import the src/tags/index.js barrel. Import a stable internal facade or owning leaf module instead.",
+          "Internal src/tags modules must not import the top-level src/tags runtime/editorial facades. Import a stable internal facade or owning leaf module instead.",
       },
     },
     create(context) {
       const filename = toRepoRelativePath(context.filename);
-      if (!filename.startsWith("src/tags/") || filename === "src/tags/index.ts") {
+      if (
+        !filename.startsWith("src/tags/") ||
+        filename === "src/tags/runtime.ts" ||
+        filename === "src/tags/editorial.ts" ||
+        filename === "src/tags/editorial-ui.ts"
+      ) {
         return {};
       }
 
@@ -207,7 +212,14 @@ const localRules = {
         }
 
         const resolvedTarget = resolveImportTarget(context.filename, source);
-        if (resolvedTarget === "src/tags/index.js" || resolvedTarget === "src/tags/index.ts") {
+        if (
+          resolvedTarget === "src/tags/runtime.js" ||
+          resolvedTarget === "src/tags/runtime.ts" ||
+          resolvedTarget === "src/tags/editorial.js" ||
+          resolvedTarget === "src/tags/editorial.ts" ||
+          resolvedTarget === "src/tags/editorial-ui.js" ||
+          resolvedTarget === "src/tags/editorial-ui.ts"
+        ) {
           context.report({ node: node.source, messageId: "noInternalTagsBarrelImport" });
         }
       };

@@ -1,4 +1,4 @@
-import { normalizeDerivedTag } from "../tags/index.js";
+import { normalizeDerivedTag } from "../tags/runtime.js";
 import { uniqueSorted } from "../shared/utils.js";
 import type { NormalizedIndexRecord } from "./index-types.js";
 

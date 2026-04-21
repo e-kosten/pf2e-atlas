@@ -1,10 +1,10 @@
 import type { OntologyDomainModel, OntologyNodeQuery } from "../domain/ontology-types.js";
 import type { SearchCategory, SearchSubcategory } from "../domain/search-types.js";
 import type {
-  DerivedTagMigrationMode,
-  DerivedTagMigrationReviewDecisionKind,
-  DerivedTagMigrationSession,
-} from "../tags/index.js";
+  DerivedTagWorkbenchMode,
+  DerivedTagReviewDecisionKind,
+  DerivedTagReviewSession,
+} from "../tags/editorial.js";
 import type { OntologyInspectExplorerSnapshot } from "./ontology-explorer/inspect-screen.js";
 import type { Pf2eTerminalSearchSession } from "./search/service.js";
 import { moveSelectionWrapped } from "./framework/input.js";
@@ -68,19 +68,19 @@ export type Pf2eAppRoute =
   | { kind: (typeof PF2E_APP_ROUTE_KIND)["TAG_REFINEMENT"] }
   | Pf2eSearchRoute
   | Pf2eOntologyRoute
-  | { kind: (typeof PF2E_APP_ROUTE_KIND)["REVIEW"]; session: DerivedTagMigrationSession };
+  | { kind: (typeof PF2E_APP_ROUTE_KIND)["REVIEW"]; session: DerivedTagReviewSession };
 
 export type CreatePf2eDerivedTagSessionOptions = {
   category?: SearchCategory;
   subcategory?: SearchSubcategory;
-  decisionKind?: DerivedTagMigrationReviewDecisionKind;
+  decisionKind?: DerivedTagReviewDecisionKind;
   family?: string;
   tag?: string;
   limit?: number;
   exemplarLimit?: number;
 };
 
-export type StartPf2eDerivedTagSessionMode = "review_all" | DerivedTagMigrationMode;
+export type StartPf2eDerivedTagSessionMode = "review_all" | DerivedTagWorkbenchMode;
 
 export type Pf2eAppState = {
   routeStack: Pf2eAppRoute[];

@@ -1,6 +1,6 @@
-import type { NormalizedRecord } from "./record-types.js";
-import type { SearchCategory, SearchSubcategory } from "./search-types.js";
-import type { FilterValueOrdering } from "./filter-value-ordering.js";
+import type { FilterValueOrdering } from "../../domain/filter-value-ordering.js";
+import type { NormalizedRecord } from "../../domain/record-types.js";
+import type { SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
 
 export type MetadataFieldType = "set" | "enumString" | "text" | "number" | "boolean";
 export type MetadataValueNormalization = "normalizedText" | "lowercaseTrim" | "derivedTag";

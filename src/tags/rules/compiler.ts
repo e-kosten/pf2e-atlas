@@ -3,7 +3,7 @@ import type {
   DerivedTagAuthoredRuleBlockers,
   DerivedTagAuthoredTextNearConstraint,
   DerivedTagAuthoredTextValue,
-} from "../../domain/index.js";
+} from "../../domain/derived-tag-types.js";
 import type { PublishedDerivedTagOntology } from "../runtime/publication/catalog.js";
 import type { DerivedTagRule, ReferencePredicate, TextAnchor, TextNearConstraint } from "../runtime/matcher/engine.js";
 import { normalizeDerivedTag } from "../runtime/matcher/shared.js";

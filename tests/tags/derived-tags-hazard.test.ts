@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { deriveRecordTags } from "../../src/tags/index.js";
+import { deriveRecordTags } from "../../src/tags/runtime.js";
 
 describe("derived tag rules: hazard", () => {
   it("derives hazard mechanism tags", () => {

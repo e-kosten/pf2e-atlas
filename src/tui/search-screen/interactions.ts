@@ -9,15 +9,15 @@ import {
 import type { SearchScreenState } from "./state.js";
 import type { SearchScreenOrigin } from "./workflow-types.js";
 import { formatResultPosition, formatSort } from "./state.js";
-import { getSearchQuerySubcategory } from "../search/service.js";
-import type { SearchWorkspaceEntry } from "./workspace.js";
+import { getSearchQuerySubcategory } from "../search/query-state.js";
+import type { SearchWorkspaceEntry } from "./workspace/workspace.js";
 import {
   buildEditorCommandPaletteEntries,
   formatCountSummary,
   formatQueryStatus,
   formatMode,
   formatSearchScope,
-} from "./workspace.js";
+} from "./workspace/workspace.js";
 import { buildResultCommandPaletteEntries } from "./results.js";
 
 export type SearchInteractionContext = "editor" | "result-list" | "result-detail";

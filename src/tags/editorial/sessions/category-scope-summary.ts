@@ -1,12 +1,12 @@
 import { DatabaseSync } from "node:sqlite";
 
-import type { SearchCategory } from "../../../domain/index.js";
+import type { SearchCategory } from "../../../domain/derived-tag-types.js";
 import { DERIVED_TAG_MANAGED_CATEGORIES, expectDerivedTagManagedCategory } from "../../manifest.js";
 import { listDerivedTagLegacySeedMigrations } from "../../runtime/derivation/api.js";
-import { getCurrentDerivedTagMigrationAuthoredState } from "../state/authored-state.js";
+import { getCurrentDerivedTagAuthoredState } from "../state/authored-state.js";
 import { loadDerivedTagMigrationRecords } from "./record-loader.js";
 import { deriveCurrentTagSources, summarizeCurrentDerivedTagReviewQueue } from "../state/runtime-state.js";
-import type { DerivedTagManagedCategory, DerivedTagMigrationMode } from "../types.js";
+import type { DerivedTagManagedCategory, DerivedTagWorkbenchMode } from "../types.js";
 
 export type DerivedTagCategoryScopeSummary = {
   category: DerivedTagManagedCategory;
@@ -31,7 +31,7 @@ function toManagedCategory(category: SearchCategory): DerivedTagManagedCategory 
 }
 
 function buildReviewQueueCategoryScopeSummary(): DerivedTagCategoryScopeSummarySet {
-  const state = getCurrentDerivedTagMigrationAuthoredState();
+  const state = getCurrentDerivedTagAuthoredState();
   const queueSummary = summarizeCurrentDerivedTagReviewQueue();
 
   const counts = DERIVED_TAG_MANAGED_CATEGORIES.map((category) => {
@@ -94,7 +94,7 @@ function buildLegacySeedCategoryScopeSummary(): DerivedTagCategoryScopeSummarySe
 }
 
 function buildExemplarCleanupCategoryScopeSummary(): DerivedTagCategoryScopeSummarySet {
-  const state = getCurrentDerivedTagMigrationAuthoredState();
+  const state = getCurrentDerivedTagAuthoredState();
   const counts = DERIVED_TAG_MANAGED_CATEGORIES.map((category) => {
     const exemplarSets = state.exemplars[category].exemplars;
     const placementCount = exemplarSets.reduce(
@@ -125,7 +125,7 @@ function buildExemplarCleanupCategoryScopeSummary(): DerivedTagCategoryScopeSumm
 }
 
 function buildProposalReviewCategoryScopeSummary(): DerivedTagCategoryScopeSummarySet {
-  const state = getCurrentDerivedTagMigrationAuthoredState();
+  const state = getCurrentDerivedTagAuthoredState();
   const counts = DERIVED_TAG_MANAGED_CATEGORIES.map((category) => {
     const assignmentCount = state.assignmentReviews[category].decisions.filter(
       (decision) => decision.source === "llm",
@@ -213,7 +213,7 @@ function buildLegacyRuleCategoryScopeSummary(db: DatabaseSync): DerivedTagCatego
 
 export function summarizeDerivedTagCategoryScopes(
   db: DatabaseSync,
-  mode: DerivedTagMigrationMode,
+  mode: DerivedTagWorkbenchMode,
 ): DerivedTagCategoryScopeSummarySet {
   if (mode === "review_queue") {
     return buildReviewQueueCategoryScopeSummary();

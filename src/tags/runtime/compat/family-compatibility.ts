@@ -1,4 +1,4 @@
-import type { SearchCategory } from "../../../domain/index.js";
+import type { SearchCategory } from "../../../domain/derived-tag-types.js";
 import { normalizeDerivedTag } from "../matcher/engine.js";
 
 const RAW_LEGACY_FAMILY_ALIASES: Partial<Record<SearchCategory, Record<string, string[]>>> = {

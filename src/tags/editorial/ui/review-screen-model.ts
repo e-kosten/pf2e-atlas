@@ -1,10 +1,10 @@
-import { getDerivedTagMigrationReviewItems, summarizeDerivedTagMigrationReviewProgress } from "../sessions/review-session.js";
+import { getDerivedTagReviewItems, summarizeDerivedTagReviewProgress } from "../sessions/review-session.js";
 import { buildDerivedTagMigrationRecordPageLines } from "./review-detail-content.js";
 import {
   DERIVED_TAG_MIGRATION_REVIEW_ACTIONS,
-  type DerivedTagMigrationReviewScreenState,
+  type DerivedTagReviewScreenState,
 } from "./review-screen-state.js";
-import type { DerivedTagMigrationSession } from "../types.js";
+import type { DerivedTagReviewSession } from "../types.js";
 import {
   buildDerivedTagTerminalActionTargetHelpLines,
   buildDerivedTagTerminalActionTargetLine,
@@ -26,25 +26,25 @@ import {
   type TerminalInteractionAction,
 } from "../../../tui/interaction-bindings.js";
 
-export type DerivedTagMigrationReviewScreenModel =
+export type DerivedTagReviewScreenModel =
   | { kind: "detail-only"; props: DerivedTagTerminalPaneScreenProps }
   | { kind: "two-pane"; props: DerivedTagTerminalTwoPaneScreenProps };
 
-export type DerivedTagMigrationReviewViewModel = {
+export type DerivedTagReviewViewModel = {
   actionTargetInteractionActions: TerminalInteractionAction[];
   detailJumpSize: number;
   helpLines: DerivedTagTerminalLine[];
-  items: ReturnType<typeof getDerivedTagMigrationReviewItems>;
+  items: ReturnType<typeof getDerivedTagReviewItems>;
   maxDetailScroll: number;
   paneInteractionActions: TerminalInteractionAction[];
   pageSize: number;
-  screen: DerivedTagMigrationReviewScreenModel;
+  screen: DerivedTagReviewScreenModel;
   selectionJumpSize: number;
 };
 
 const REVIEW_LEFT_WIDTH = 46;
 
-function formatDecisionSummary(decision: DerivedTagMigrationSession["decisions"][number]["decisions"][number]): string {
+function formatDecisionSummary(decision: DerivedTagReviewSession["decisions"][number]["decisions"][number]): string {
   if (decision.kind === "assignment") {
     return `${decision.family}.${decision.tag} ${decision.mode}`;
   }
@@ -62,8 +62,8 @@ function clampWindowStart(selectedIndex: number, itemCount: number, visibleCount
   return Math.max(0, Math.min(centered, itemCount - visibleCount));
 }
 
-function buildReviewListLines(session: DerivedTagMigrationSession, bodyHeight: number): DerivedTagTerminalLine[] {
-  const items = getDerivedTagMigrationReviewItems(session);
+function buildReviewListLines(session: DerivedTagReviewSession, bodyHeight: number): DerivedTagTerminalLine[] {
+  const items = getDerivedTagReviewItems(session);
   if (items.length === 0) {
     return [{ text: "No review items match the current filter.", tone: "dim" }];
   }
@@ -83,8 +83,8 @@ function buildReviewListLines(session: DerivedTagMigrationSession, bodyHeight: n
   });
 }
 
-function buildSelectedReviewDetailLines(session: DerivedTagMigrationSession): DerivedTagTerminalLine[] {
-  const items = getDerivedTagMigrationReviewItems(session);
+function buildSelectedReviewDetailLines(session: DerivedTagReviewSession): DerivedTagTerminalLine[] {
+  const items = getDerivedTagReviewItems(session);
   if (items.length === 0) {
     return [
       { text: `Session ${session.manifest.id}`, tone: "section" },
@@ -123,7 +123,7 @@ function getReviewDetailPaneWidth(width: number, layoutMode: DerivedTagTerminalT
 }
 
 function buildVisibleSelectedReviewDetailLines(
-  session: DerivedTagMigrationSession,
+  session: DerivedTagReviewSession,
   layoutMode: DerivedTagTerminalTwoPaneLayoutMode,
   detailScroll: number,
   bodyHeight: number,
@@ -138,7 +138,7 @@ function buildVisibleSelectedReviewDetailLines(
 }
 
 function getReviewContentNavigationActions(
-  activePane: DerivedTagMigrationReviewScreenState["activePane"],
+  activePane: DerivedTagReviewScreenState["activePane"],
 ): TerminalInteractionAction[] {
   return activePane === "list"
     ? [
@@ -156,7 +156,7 @@ function getReviewContentNavigationActions(
 }
 
 function getReviewPaneInteractionActions(
-  activePane: DerivedTagMigrationReviewScreenState["activePane"],
+  activePane: DerivedTagReviewScreenState["activePane"],
 ): TerminalInteractionAction[] {
   return [
     { id: "focus", helpText: "switch between the review queue and selected-item detail" },
@@ -169,7 +169,7 @@ function getReviewPaneInteractionActions(
 }
 
 function buildReviewHelpLines(
-  state: DerivedTagMigrationReviewScreenState,
+  state: DerivedTagReviewScreenState,
   paneInteractionActions: TerminalInteractionAction[],
 ): DerivedTagTerminalLine[] {
   return [
@@ -197,15 +197,15 @@ function buildReviewHelpLines(
   ];
 }
 
-export function buildDerivedTagMigrationReviewViewModel({
+export function buildDerivedTagReviewViewModel({
   persistError,
   size,
   state,
 }: {
   persistError: string | null;
   size: { width: number; height: number };
-  state: DerivedTagMigrationReviewScreenState;
-}): DerivedTagMigrationReviewViewModel {
+  state: DerivedTagReviewScreenState;
+}): DerivedTagReviewViewModel {
   const layoutMode = state.layoutMode;
   const footerLineCount = 3 + (persistError ? 1 : 0);
   const bodyHeight = Math.max(
@@ -215,8 +215,8 @@ export function buildDerivedTagMigrationReviewViewModel({
       footerLineCount,
     }),
   );
-  const items = getDerivedTagMigrationReviewItems(state.session);
-  const progress = summarizeDerivedTagMigrationReviewProgress(state.session);
+  const items = getDerivedTagReviewItems(state.session);
+  const progress = summarizeDerivedTagReviewProgress(state.session);
   const progressText =
     progress.actionableRecordCount > 0
       ? `${progress.resolvedActionableRecordCount}/${progress.actionableRecordCount} actionable records resolved`

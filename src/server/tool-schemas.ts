@@ -25,7 +25,7 @@ import {
   METADATA_NUMBER_FIELDS,
   METADATA_SET_FIELDS,
   METADATA_TEXT_STRING_FIELDS,
-} from "../domain/metadata-types.js";
+} from "../search/filters/types.js";
 import { FILTER_VALUE_FIELDS } from "../domain/search-types.js";
 import type {
   FilterValueField,
@@ -33,7 +33,7 @@ import type {
   SearchScope,
   SearchSubcategory,
 } from "../domain/search-types.js";
-import type { MetadataFilterNode } from "../domain/metadata-types.js";
+import type { MetadataFilterNode } from "../search/filters/types.js";
 
 export const CATEGORY_HINT_DESCRIPTION = `Optional top-level category hint. Canonical values: ${VALID_SEARCH_CATEGORY_LIST}. Legacy plural aliases are also accepted.`;
 

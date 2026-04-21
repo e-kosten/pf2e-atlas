@@ -1,19 +1,19 @@
-import { SEARCH_CATEGORIES } from "./categories.js";
 import {
   ACTOR_METRIC_DISCOVERY_NAMESPACES,
   ACTOR_METRIC_NUMERIC_OPERATORS,
   ACTOR_METRIC_SCALAR_OPERATORS,
-} from "./actor-metrics.js";
-import { ITEM_METRIC_DISCOVERY_NAMESPACES } from "./item-metrics.js";
+} from "../../domain/actor-metrics.js";
+import { ITEM_METRIC_DISCOVERY_NAMESPACES } from "../../domain/item-metrics.js";
+import { SEARCH_CATEGORIES } from "../../domain/categories.js";
+import type { FilterValueOrdering } from "../../domain/filter-value-ordering.js";
+import type { SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
 import {
   METADATA_FIELD_KIND_OPERATORS,
   METADATA_FIELD_REGISTRY,
   type MetadataFieldName,
   type MetadataFieldType,
-} from "./metadata-field-registry.js";
-import type { FilterValueOrdering } from "./filter-value-ordering.js";
-import type { MetadataFilterNode } from "./metadata-types.js";
-import type { SearchCategory, SearchSubcategory } from "./search-types.js";
+} from "./registry.js";
+import type { MetadataFilterNode } from "./types.js";
 
 export interface MetadataFieldSemantics {
   field: MetadataFieldName;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { deriveRecordTags } from "../../src/tags/index.js";
+import { deriveRecordTags } from "../../src/tags/runtime.js";
 
 describe("derived tag rules: equipment", () => {
   it("derives expanded consumable support and offense tags", () => {

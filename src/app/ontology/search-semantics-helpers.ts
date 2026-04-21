@@ -1,6 +1,6 @@
 import { inferActorMetricValueType } from "../../domain/actor-metrics.js";
 import { inferItemMetricValueType } from "../../domain/item-metrics.js";
-import type { MetadataFieldSemantics } from "../../domain/metadata-semantics.js";
+import type { MetadataFieldSemantics } from "../../search/filters/semantics.js";
 import type { Pf2eDataService } from "../../data/service.js";
 import type {
   MetadataBooleanField,
@@ -9,7 +9,7 @@ import type {
   MetadataNumberField,
   MetadataSetField,
   MetadataTextStringField,
-} from "../../domain/metadata-types.js";
+} from "../../search/filters/types.js";
 import type { MetadataGlossaryArtifact, MetadataGlossaryEntry } from "../../domain/metadata-glossary-types.js";
 import type { OntologyNode } from "../../domain/ontology-types.js";
 import { getMetricDiscoveryGroupLabel } from "../../domain/metric-discovery-group-label.js";

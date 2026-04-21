@@ -11,10 +11,10 @@ import type { AppConfig } from "../../src/domain/config-types.js";
 import type { NormalizedRecord } from "../../src/domain/record-types.js";
 import type { OntologyDomainModel } from "../../src/domain/ontology-types.js";
 import {
-  buildSearchFilterExplorerTargetResolver,
   createPf2eTerminalSearchService,
   type Pf2eTerminalSearchSession,
 } from "../../src/tui/search/service.js";
+import { buildSearchFilterExplorerTargetResolver } from "../../src/tui/filter-explorer/search-draft.js";
 import { Pf2eTerminalAppServicesProvider } from "../../src/tui/app-service-context.js";
 import type { Pf2eTerminalAppServices } from "../../src/tui/app-services.js";
 import { SearchFilterExplorerScreen } from "../../src/tui/search-screen/filter-explorer-screen.js";

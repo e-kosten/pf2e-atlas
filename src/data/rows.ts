@@ -12,7 +12,7 @@ import {
   normalizeSearchCategory,
   normalizeSearchSubcategory,
 } from "../domain/categories.js";
-import { METADATA_FIELD_REGISTRY } from "../domain/metadata-field-registry.js";
+import { METADATA_FIELD_REGISTRY } from "../search/filters/registry.js";
 import { normalizeText } from "../shared/utils.js";
 
 export type CandidateRow = {

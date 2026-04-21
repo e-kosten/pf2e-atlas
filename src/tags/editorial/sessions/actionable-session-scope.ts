@@ -1,9 +1,9 @@
-import type { SearchCategory } from "../../../domain/index.js";
+import type { SearchCategory } from "../../../domain/derived-tag-types.js";
 import { DERIVED_TAG_MANAGED_CATEGORIES } from "../../manifest.js";
 import { normalizeDerivedTag } from "../../runtime/matcher/shared.js";
-import { getCurrentDerivedTagMigrationAuthoredState } from "../state/authored-state.js";
-import { getPublishedDerivedTagMigrationOntology } from "../state/runtime-state.js";
-import type { DerivedTagMigrationMode } from "../types.js";
+import { getCurrentDerivedTagAuthoredState } from "../state/authored-state.js";
+import { getPublishedDerivedTagOntology } from "../state/runtime-state.js";
+import type { DerivedTagWorkbenchMode } from "../types.js";
 
 export type DerivedTagActionableSessionScopeKeys = {
   familyKeys: Set<`${SearchCategory}:${string}`>;
@@ -25,7 +25,7 @@ function addTag(keys: DerivedTagActionableSessionScopeKeys, category: SearchCate
   const normalizedTag = normalizeDerivedTag(tag);
   keys.tagKeys.add(`${category}:${normalizedTag}`);
 
-  const ontology = getPublishedDerivedTagMigrationOntology();
+  const ontology = getPublishedDerivedTagOntology();
   const ontologyTag = ontology.tagByKey.get(`${category}:${normalizedTag}`);
   if (!ontologyTag) {
     return;
@@ -47,7 +47,7 @@ export function matchesDerivedTagFamilyFilter(
     return true;
   }
 
-  const ontology = getPublishedDerivedTagMigrationOntology();
+  const ontology = getPublishedDerivedTagOntology();
   const ontologyTag = ontology.tagByKey.get(buildScopeKey(category, tag));
   if (!ontologyTag) {
     return false;
@@ -57,7 +57,7 @@ export function matchesDerivedTagFamilyFilter(
 }
 
 function buildProposalReviewScopeKeys(): DerivedTagActionableSessionScopeKeys {
-  const state = getCurrentDerivedTagMigrationAuthoredState();
+  const state = getCurrentDerivedTagAuthoredState();
   const keys = createEmptyScopeKeys();
 
   for (const [category, assignmentReviews] of Object.entries(state.assignmentReviews) as Array<
@@ -87,7 +87,7 @@ function buildProposalReviewScopeKeys(): DerivedTagActionableSessionScopeKeys {
 }
 
 function buildExemplarCleanupScopeKeys(exemplarLimit: number | undefined): DerivedTagActionableSessionScopeKeys {
-  const state = getCurrentDerivedTagMigrationAuthoredState();
+  const state = getCurrentDerivedTagAuthoredState();
   const keys = createEmptyScopeKeys();
 
   for (const category of DERIVED_TAG_MANAGED_CATEGORIES) {
@@ -104,7 +104,7 @@ function buildExemplarCleanupScopeKeys(exemplarLimit: number | undefined): Deriv
 }
 
 export function getActionableSessionScopeKeys(
-  mode: DerivedTagMigrationMode,
+  mode: DerivedTagWorkbenchMode,
   exemplarLimit: number | undefined,
 ): DerivedTagActionableSessionScopeKeys | null {
   if (mode === "proposal_review") {

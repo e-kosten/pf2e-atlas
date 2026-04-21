@@ -1,9 +1,9 @@
 import React from "react";
 
 import {
-  DerivedTagMigrationReviewScreen,
-  type DerivedTagMigrationMode,
-} from "../tags/index.js";
+  type DerivedTagWorkbenchMode,
+} from "../tags/editorial.js";
+import { DerivedTagReviewScreen } from "../tags/editorial-ui.js";
 import { PF2E_APP_AREAS, PF2E_TERMINAL_TITLE } from "./app-areas.js";
 import { Pf2eTerminalAppServicesProvider } from "./app-service-context.js";
 import { loadPf2eTerminalAppServices, type Pf2eTerminalAppServices } from "./app-services.js";
@@ -119,7 +119,7 @@ export function Pf2eTerminalApp({
   );
 
   const runQuickTagRefinementAction = React.useCallback(
-    (mode: "review_all" | DerivedTagMigrationMode) => {
+    (mode: "review_all" | DerivedTagWorkbenchMode) => {
       if (mode === "review_all") {
         navigation.openReviewSession("review_queue", {});
         return;
@@ -141,7 +141,7 @@ export function Pf2eTerminalApp({
     );
   } else if (route.kind === PF2E_APP_ROUTE_KIND.REVIEW) {
     screen = (
-      <DerivedTagMigrationReviewScreen
+      <DerivedTagReviewScreen
         rootPath={rootPath}
         initialSession={route.session}
         onComplete={navigation.backOrExit}

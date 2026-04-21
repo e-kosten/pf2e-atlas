@@ -1,5 +1,6 @@
 import { buildLiteralQueryWeights, buildSearchQueryAnalysis } from "./query-analysis.js";
-import { recordMatchesFilters, semanticQueryLimit } from "./sql.js";
+import { recordMatchesFilters } from "./filters/scope.js";
+import { semanticQueryLimit } from "./sql.js";
 import {
   buildLexicalSignal,
   buildNormalizedRankScoreMap,

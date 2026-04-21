@@ -1,18 +1,18 @@
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
-  getCurrentDerivedTagMigrationAuthoredState,
-  setCurrentDerivedTagMigrationAuthoredState,
+  getCurrentDerivedTagAuthoredState,
+  setCurrentDerivedTagAuthoredState,
 } from "../../src/tags/editorial/state/authored-state.js";
 import {
   getActionableSessionScopeKeys,
   matchesDerivedTagFamilyFilter,
 } from "../../src/tags/editorial/sessions/actionable-session-scope.js";
 
-const initialState = getCurrentDerivedTagMigrationAuthoredState();
+const initialState = getCurrentDerivedTagAuthoredState();
 
 afterEach(() => {
-  setCurrentDerivedTagMigrationAuthoredState(initialState);
+  setCurrentDerivedTagAuthoredState(initialState);
 });
 
 describe("actionable session scope keys", () => {
@@ -55,7 +55,7 @@ describe("actionable session scope keys", () => {
         },
       ],
     };
-    setCurrentDerivedTagMigrationAuthoredState(nextState);
+    setCurrentDerivedTagAuthoredState(nextState);
 
     const keys = getActionableSessionScopeKeys("proposal_review", undefined);
 
@@ -83,7 +83,7 @@ describe("actionable session scope keys", () => {
         },
       ],
     };
-    setCurrentDerivedTagMigrationAuthoredState(nextState);
+    setCurrentDerivedTagAuthoredState(nextState);
 
     const keys = getActionableSessionScopeKeys("exemplar_cleanup", 2);
 

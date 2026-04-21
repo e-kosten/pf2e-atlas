@@ -1,7 +1,7 @@
 import type { NormalizedRecord, PackInfo } from "../domain/record-types.js";
 import type { RuleReferenceEdge } from "../domain/rule-types.js";
 import type { RecordDetail, SearchRecordExplanation } from "../domain/search-types.js";
-import { getMetadataFieldSpecsByPresentation } from "../domain/metadata-field-registry.js";
+import { getMetadataFieldSpecsByPresentation } from "../search/filters/registry.js";
 
 function assignPresentedMetadata(
   target: Record<string, unknown>,

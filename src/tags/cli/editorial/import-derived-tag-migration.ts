@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
-import { lastValue, parseCliArgs } from "../../editorial/cli-utils.js";
-import { importDerivedTagMigrationSession } from "../../editorial/writeback/importer.js";
-import { readDerivedTagMigrationSession } from "../../editorial/sessions/session-store.js";
+import { lastValue, parseCliArgs } from "../shared/arg-parsing.js";
+import { importDerivedTagReviewSession } from "../../editorial/writeback/importer.js";
+import { readDerivedTagReviewSession } from "../../editorial/sessions/session-store.js";
 
 async function main(): Promise<void> {
   const args = parseCliArgs(process.argv.slice(2));
@@ -11,8 +11,8 @@ async function main(): Promise<void> {
     throw new Error("Pass --session <session-id>.");
   }
 
-  const session = await readDerivedTagMigrationSession(process.cwd(), sessionId);
-  await importDerivedTagMigrationSession(process.cwd(), session);
+  const session = await readDerivedTagReviewSession(process.cwd(), sessionId);
+  await importDerivedTagReviewSession(process.cwd(), session);
   console.log(`Imported derived-tag migration session ${sessionId}.`);
 }
 

@@ -3,7 +3,7 @@ import type {
   DerivedTagExemplarRecord,
   SearchCategory,
   SearchSubcategory,
-} from "../../../domain/index.js";
+} from "../../../domain/derived-tag-types.js";
 import { uniqueSorted } from "../../../shared/utils.js";
 import type { PublishedDerivedTagOntology } from "./catalog.js";
 import { normalizeDerivedTag } from "../matcher/engine.js";

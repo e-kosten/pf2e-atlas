@@ -22,12 +22,12 @@ Use lint rules to make the intended derived-tag and editorial boundaries mandato
 
 Current examples include:
 
-- outside `src/tags`, import derived-tag functionality through `src/tags/index.js` or another approved facade instead of tag leaf modules
+- outside `src/tags`, import derived-tag functionality through `src/tags/runtime.js`, `src/tags/editorial.js`, or `src/tags/editorial-ui.js` instead of tag leaf modules
 - durable reviewed discovery state lives under `src/tags/reviews/`, not ad hoc discovery-owned scratch modules
 - editorial execution is split across `src/tags/editorial/state/`, `sessions/`, `writeback/`, and `ui/`
 - tag CLI scope parsing goes through `src/tags/cli/shared/search-scope-args.ts`
 - TUI composition for the tag workbench flows through `src/tui/app-services.ts` instead of direct editorial-service imports from arbitrary feature code
-- non-tag callers should enter through `src/tags/index.ts`, while internal tag code should import the owning split directories directly instead of recreating compatibility re-export layers
+- non-tag callers should enter through the concern-specific top-level facades, while internal tag code should import the owning split directories directly instead of recreating compatibility re-export layers
 
 ## Consequences
 

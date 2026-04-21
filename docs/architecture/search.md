@@ -13,7 +13,7 @@ The search runtime is shared infrastructure, not an MCP-only feature. The same b
 - `src/index.ts` and `src/server/` own MCP registration and wire-format responses.
 - `src/app/runtime.ts` owns application startup composition.
 - `src/data/service.ts` exposes `Pf2eDataService`, the main facade for server and TUI callers.
-- `src/data/backend/search-service.ts` owns filter normalization, validation, and runtime dependency assembly.
+- `src/search/filters/` owns filter normalization, validation, vocabulary semantics, and in-memory matching, while `src/data/backend/search-service.ts` owns backend wiring and runtime dependency assembly.
 - `src/search/runtime-search.ts` owns ranked and structured search execution.
 - `src/search/sql.ts` and `src/data/record-queries.ts` own SQL construction and database retrieval.
 

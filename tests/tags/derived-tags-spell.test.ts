@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { deriveRecordTags } from "../../src/tags/index.js";
+import { deriveRecordTags } from "../../src/tags/runtime.js";
 
 describe("derived tag rules: spell", () => {
   it("derives spell infiltration, scouting, navigation, and mobility tags", () => {

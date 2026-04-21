@@ -1,9 +1,9 @@
-import type { MetadataFieldName } from "../../domain/metadata-field-registry.js";
-import type { MetadataFieldSemantics } from "../../domain/metadata-semantics.js";
+import type { MetadataFieldName } from "../../search/filters/registry.js";
+import type { MetadataFieldSemantics } from "../../search/filters/semantics.js";
 import type { SearchCategorySummaryResult, SearchVocabularyResult } from "../../data/vocabulary.js";
 import type {
   MetadataFilterNode,
-} from "../../domain/metadata-types.js";
+} from "../../search/filters/types.js";
 import type { NormalizedRecord } from "../../domain/record-types.js";
 import type { OntologyNodeQuery } from "../../domain/ontology-types.js";
 import type {

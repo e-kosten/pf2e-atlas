@@ -1,6 +1,6 @@
 import { DatabaseSync } from "node:sqlite";
 
-import { SearchCategory, SearchSubcategory } from "../../domain/index.js";
+import { SearchCategory, SearchSubcategory } from "../../domain/derived-tag-types.js";
 import { uniqueSorted } from "../../shared/utils.js";
 import {
   getDerivedTagExemplarRecordKeys,

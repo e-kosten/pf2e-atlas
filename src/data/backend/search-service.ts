@@ -25,8 +25,9 @@ import {
 } from "../../search/runtime-search.js";
 import { fetchCandidateRecordKeys } from "../record-queries.js";
 import { getLookupMatchType } from "../rows.js";
+import { normalizeSearchFilters, validateSearchFilters } from "../../search/filters/normalization.js";
+import { hashRecordSortSeed } from "../../search/runtime-search-sorting.js";
 import { createRuntimeSearchDependencies } from "./runtime-search-dependencies.js";
-import { normalizeSearchFilters, validateSearchFilters } from "./filter-normalization.js";
 import { Pf2eRecordCatalog } from "./record-catalog.js";
 import { Pf2eSearchWindowStore } from "./search-window-store.js";
 
@@ -105,8 +106,8 @@ export class Pf2eSearchBackendService {
       const orderedRecordKeys =
         sort === "random"
           ? fetchCandidateRecordKeys(this.db, normalizedFilters).sort((left, right) => {
-              const leftHash = this.hashSearchWindowKey(left, sortSeed ?? 0);
-              const rightHash = this.hashSearchWindowKey(right, sortSeed ?? 0);
+              const leftHash = hashRecordSortSeed(left, sortSeed ?? 0);
+              const rightHash = hashRecordSortSeed(right, sortSeed ?? 0);
               return leftHash - rightHash || left.localeCompare(right);
             })
           : fetchCandidateRecordKeys(this.db, normalizedFilters, sort);
@@ -214,13 +215,5 @@ export class Pf2eSearchBackendService {
       getAliases: (recordKey) => this.catalog.getAliases(recordKey),
       getRankingConfigStatus: () => this.catalog.getRankingConfigStatus(),
     });
-  }
-
-  private hashSearchWindowKey(recordKey: string, seed: number): number {
-    let hash = seed | 0;
-    for (let index = 0; index < recordKey.length; index += 1) {
-      hash = Math.imul(hash ^ recordKey.charCodeAt(index), 16777619);
-    }
-    return hash >>> 0;
   }
 }

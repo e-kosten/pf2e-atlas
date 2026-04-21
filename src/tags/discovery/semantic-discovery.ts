@@ -1,6 +1,6 @@
 import { DatabaseSync } from "node:sqlite";
 
-import { SearchCategory, SearchSubcategory } from "../../domain/index.js";
+import { SearchCategory, SearchSubcategory } from "../../domain/derived-tag-types.js";
 import { tokenize } from "../../search/ranking.js";
 import { normalizeText } from "../../shared/utils.js";
 import { resolveDiscoveryGramRange } from "./discovery-normalization.js";

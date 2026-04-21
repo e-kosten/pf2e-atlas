@@ -1,6 +1,5 @@
-import type { MetadataFilterNode } from "./metadata-types.js";
+import type { MetadataFilterNode } from "../search/filters/types.js";
 import type { NormalizedRecord } from "./record-types.js";
-import { METADATA_FIELD_REGISTRY } from "./metadata-field-registry.js";
 
 export type SearchProfile = "lexical" | "balanced" | "concept";
 export type SearchSort = "ranked" | "alphabetical" | "levelAsc" | "levelDesc" | "random";
@@ -118,12 +117,53 @@ export interface SearchFilters {
   limit?: number;
 }
 
-const METADATA_FILTER_VALUE_FIELDS = METADATA_FIELD_REGISTRY.filter((entry) => entry.discoverable).map(
-  (entry) => entry.field,
-);
-
 export const FILTER_VALUE_FIELDS = [
-  ...METADATA_FILTER_VALUE_FIELDS,
+  "traits",
+  "families",
+  "derivedTags",
+  "traditions",
+  "spellKinds",
+  "damageTypes",
+  "languages",
+  "speedTypes",
+  "senses",
+  "immunities",
+  "resistances",
+  "weaknesses",
+  "disableSkills",
+  "variantAxes",
+  "sourceCategory",
+  "size",
+  "usage",
+  "weaponGroup",
+  "armorGroup",
+  "itemCategory",
+  "baseItem",
+  "saveType",
+  "areaType",
+  "durationUnit",
+  "rarity",
+  "variantFamilyKey",
+  "publicationTitle",
+  "rangeText",
+  "durationText",
+  "targetText",
+  "disableText",
+  "variantBaseName",
+  "variantLabel",
+  "level",
+  "priceCp",
+  "bulkValue",
+  "actionCost",
+  "hands",
+  "rangeValue",
+  "areaValue",
+  "isUnique",
+  "hasDescription",
+  "publicationRemaster",
+  "sustained",
+  "basicSave",
+  "isComplex",
   "actorMetrics",
   "itemMetrics",
   "sources",

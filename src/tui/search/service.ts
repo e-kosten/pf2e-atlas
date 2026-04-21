@@ -3,8 +3,8 @@ import {
   normalizeSearchCategory,
   normalizeSearchSubcategory,
 } from "../../domain/categories.js";
-import { getMetadataFilterSemantics, type MetadataFieldSemantics } from "../../domain/metadata-semantics.js";
-import type { MetadataFieldName } from "../../domain/metadata-field-registry.js";
+import { getMetadataFilterSemantics, type MetadataFieldSemantics } from "../../search/filters/semantics.js";
+import type { MetadataFieldName } from "../../search/filters/registry.js";
 import type {
   SearchCategory,
   SearchSubcategory,
@@ -22,7 +22,7 @@ import {
   createFilterExplorerDraftFromMetadataNode,
   createFilterExplorerDraftFromQuery,
   withFilterExplorerComposeDraft,
-} from "./filter-explorer.js";
+} from "../filter-explorer/search-draft.js";
 import { buildSearchFilters } from "./filter-building.js";
 import { createSearchQueryFromOntologyQuery } from "./ontology-query.js";
 import {
@@ -82,36 +82,6 @@ export type {
   Pf2eTerminalSearchSubcategoryOption,
   SearchServiceDependencies,
 } from "./service-types.js";
-export {
-  applyFilterExplorerDraft,
-  buildFilterExplorerMetadataNode,
-  buildSearchFilterExplorerModel,
-  buildSearchFilterExplorerTargetResolver,
-  cloneFilterExplorerDraft,
-  createFilterExplorerDraftFromMetadataNode,
-  createFilterExplorerDraftFromQuery,
-  withFilterExplorerComposeDraft,
-} from "./filter-explorer.js";
-export {
-  getSearchQueryActionCostPolicy,
-  getSearchQueryCategory,
-  getSearchQueryLevelRange,
-  getSearchQueryMetadataTree,
-  getSearchQueryPart,
-  getSearchQueryRarityPolicy,
-  getSearchQuerySubcategory,
-  removeSearchQueryPart,
-  setSearchQueryCategory,
-  setSearchQueryMetadataTree,
-  setSearchQueryPart,
-} from "./query-state.js";
-export type {
-  Pf2eTerminalMetadataQueryPart,
-  Pf2eTerminalQueryPart,
-  Pf2eTerminalQueryPartKind,
-  Pf2eTerminalQueryPartPolicy,
-} from "./query-parts.js";
-
 export function createPf2eTerminalSearchService(dependencies: SearchServiceDependencies): Pf2eTerminalSearchService {
   const filterSemantics = getMetadataFilterSemantics();
   const fieldSemanticsByName = new Map<Pf2eTerminalFacetField, MetadataFieldSemantics>(

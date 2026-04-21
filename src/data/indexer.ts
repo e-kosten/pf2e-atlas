@@ -12,7 +12,7 @@ import {
   getVariantInheritableTags,
   normalizeDerivedTag,
   validateConfiguredDerivedTagAssignments,
-} from "../tags/index.js";
+} from "../tags/runtime.js";
 import type { PackInfo, PackManifestEntry } from "../domain/record-types.js";
 import { normalizeText, uniqueSorted } from "../shared/utils.js";
 import { formatInteger } from "./format.js";

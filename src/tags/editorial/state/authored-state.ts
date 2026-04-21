@@ -5,7 +5,7 @@ import { DERIVED_TAG_AUTHORED_RULES_BY_CATEGORY } from "../../rules/index.js";
 import { DERIVED_TAG_EXEMPLARS_BY_CATEGORY } from "../../exemplars/index.js";
 import { DERIVED_TAG_EXEMPLAR_REVIEWS_BY_CATEGORY } from "../../reviews/exemplar-reviews/index.js";
 import { DERIVED_TAG_MANAGED_CATEGORIES, type DerivedTagManagedCategory } from "../../manifest.js";
-import type { DerivedTagMigrationAuthoredState } from "../types.js";
+import type { DerivedTagAuthoredState } from "../types.js";
 
 type DerivedTagManagedRegistry<T> = Record<DerivedTagManagedCategory, T>;
 
@@ -19,7 +19,7 @@ function cloneManagedRegistry<T>(registry: DerivedTagManagedRegistry<T>): Derive
   ) as DerivedTagManagedRegistry<T>;
 }
 
-function buildImportedDerivedTagMigrationAuthoredState(): DerivedTagMigrationAuthoredState {
+function buildImportedDerivedTagAuthoredState(): DerivedTagAuthoredState {
   return {
     assignments: cloneManagedRegistry(DERIVED_TAG_ASSIGNMENTS_BY_CATEGORY),
     assignmentReviews: cloneManagedRegistry(DERIVED_TAG_ASSIGNMENT_REVIEWS_BY_CATEGORY),
@@ -30,21 +30,21 @@ function buildImportedDerivedTagMigrationAuthoredState(): DerivedTagMigrationAut
   };
 }
 
-let currentDerivedTagMigrationAuthoredState: DerivedTagMigrationAuthoredState | null = null;
-let currentDerivedTagMigrationAuthoredStateRevision = 0;
+let currentDerivedTagAuthoredState: DerivedTagAuthoredState | null = null;
+let currentDerivedTagAuthoredStateRevision = 0;
 
-export function setCurrentDerivedTagMigrationAuthoredState(state: DerivedTagMigrationAuthoredState): void {
-  currentDerivedTagMigrationAuthoredState = clone(state);
-  currentDerivedTagMigrationAuthoredStateRevision += 1;
+export function setCurrentDerivedTagAuthoredState(state: DerivedTagAuthoredState): void {
+  currentDerivedTagAuthoredState = clone(state);
+  currentDerivedTagAuthoredStateRevision += 1;
 }
 
-export function getCurrentDerivedTagMigrationAuthoredState(): DerivedTagMigrationAuthoredState {
-  if (!currentDerivedTagMigrationAuthoredState) {
-    currentDerivedTagMigrationAuthoredState = buildImportedDerivedTagMigrationAuthoredState();
+export function getCurrentDerivedTagAuthoredState(): DerivedTagAuthoredState {
+  if (!currentDerivedTagAuthoredState) {
+    currentDerivedTagAuthoredState = buildImportedDerivedTagAuthoredState();
   }
-  return clone(currentDerivedTagMigrationAuthoredState);
+  return clone(currentDerivedTagAuthoredState);
 }
 
-export function getCurrentDerivedTagMigrationAuthoredStateRevision(): number {
-  return currentDerivedTagMigrationAuthoredStateRevision;
+export function getCurrentDerivedTagAuthoredStateRevision(): number {
+  return currentDerivedTagAuthoredStateRevision;
 }

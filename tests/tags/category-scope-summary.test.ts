@@ -3,11 +3,11 @@ import { DatabaseSync } from "node:sqlite";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
-  getCurrentDerivedTagMigrationAuthoredState,
-  setCurrentDerivedTagMigrationAuthoredState,
+  getCurrentDerivedTagAuthoredState,
+  setCurrentDerivedTagAuthoredState,
 } from "../../src/tags/editorial/state/authored-state.js";
 import { summarizeDerivedTagCategoryScopes } from "../../src/tags/editorial/sessions/category-scope-summary.js";
-import { buildDerivedTagMigrationSession } from "../../src/tags/editorial/sessions/session-builder.js";
+import { buildDerivedTagReviewSession } from "../../src/tags/editorial/sessions/session-builder.js";
 
 function createMigrationDb(): DatabaseSync {
   const db = new DatabaseSync(":memory:");
@@ -78,10 +78,10 @@ function insertRecord(
   }
 }
 
-const initialState = getCurrentDerivedTagMigrationAuthoredState();
+const initialState = getCurrentDerivedTagAuthoredState();
 
 afterEach(() => {
-  setCurrentDerivedTagMigrationAuthoredState(initialState);
+  setCurrentDerivedTagAuthoredState(initialState);
 });
 
 describe("derived tag category scope summaries", () => {
@@ -114,7 +114,7 @@ describe("derived tag category scope summaries", () => {
         },
       ],
     };
-    setCurrentDerivedTagMigrationAuthoredState(nextState);
+    setCurrentDerivedTagAuthoredState(nextState);
 
     const summary = summarizeDerivedTagCategoryScopes(db, "review_queue");
 
@@ -175,7 +175,7 @@ describe("derived tag category scope summaries", () => {
         },
       ],
     };
-    setCurrentDerivedTagMigrationAuthoredState(nextState);
+    setCurrentDerivedTagAuthoredState(nextState);
 
     const summary = summarizeDerivedTagCategoryScopes(db, "proposal_review");
     expect(summary.allCategoriesDetailLines).toEqual([
@@ -251,9 +251,9 @@ describe("derived tag category scope summaries", () => {
         },
       ],
     };
-    setCurrentDerivedTagMigrationAuthoredState(nextState);
+    setCurrentDerivedTagAuthoredState(nextState);
 
-    const session = buildDerivedTagMigrationSession(db, {
+    const session = buildDerivedTagReviewSession(db, {
       mode: "proposal_review",
     });
 
@@ -278,7 +278,7 @@ describe("derived tag category scope summaries", () => {
       category: "creature",
     });
 
-    const session = buildDerivedTagMigrationSession(db, {
+    const session = buildDerivedTagReviewSession(db, {
       mode: "proposal_review",
     });
 
@@ -324,9 +324,9 @@ describe("derived tag category scope summaries", () => {
         },
       ],
     };
-    setCurrentDerivedTagMigrationAuthoredState(nextState);
+    setCurrentDerivedTagAuthoredState(nextState);
 
-    const session = buildDerivedTagMigrationSession(db, {
+    const session = buildDerivedTagReviewSession(db, {
       mode: "proposal_review",
       category: "spell",
       family: "security",

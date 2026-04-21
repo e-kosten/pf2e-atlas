@@ -5,11 +5,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { DerivedTagTerminalProvider } from "../../src/tui/terminal-ui.js";
 import {
-  DerivedTagMigrationReviewScreen,
-  type DerivedTagMigrationReviewResult,
+  DerivedTagReviewScreen,
+  type DerivedTagReviewResult,
 } from "../../src/tags/editorial/ui/review-ui.js";
-import type { DerivedTagMigrationReviewServices } from "../../src/tags/editorial/ui/review-controller.js";
-import type { DerivedTagMigrationSession } from "../../src/tags/editorial/types.js";
+import type { DerivedTagReviewServices } from "../../src/tags/editorial/ui/review-controller.js";
+import type { DerivedTagReviewSession } from "../../src/tags/editorial/types.js";
 
 function flushInk(): Promise<void> {
   return new Promise((resolve) => {
@@ -21,7 +21,7 @@ function pressLeft(app: ReturnType<typeof render>): void {
   app.stdin.write("\u001b[D");
 }
 
-function createSession(): DerivedTagMigrationSession {
+function createSession(): DerivedTagReviewSession {
   return {
     manifest: {
       id: "session-1",
@@ -118,7 +118,7 @@ function createSession(): DerivedTagMigrationSession {
   };
 }
 
-function createServices(): DerivedTagMigrationReviewServices {
+function createServices(): DerivedTagReviewServices {
   return {
     importSession: vi.fn(() => Promise.resolve()),
     lintSession: vi.fn(),
@@ -128,7 +128,7 @@ function createServices(): DerivedTagMigrationReviewServices {
 }
 
 function createOnCompleteSpy() {
-  return vi.fn((_result: DerivedTagMigrationReviewResult) => undefined);
+  return vi.fn((_result: DerivedTagReviewResult) => undefined);
 }
 
 afterEach(() => {
@@ -140,7 +140,7 @@ describe("review ui", () => {
     const onComplete = createOnCompleteSpy();
     const app = render(
       <DerivedTagTerminalProvider>
-        <DerivedTagMigrationReviewScreen
+        <DerivedTagReviewScreen
           rootPath="/tmp/review-ui"
           initialSession={createSession()}
           onComplete={onComplete}
@@ -163,7 +163,7 @@ describe("review ui", () => {
     const onComplete = createOnCompleteSpy();
     const app = render(
       <DerivedTagTerminalProvider>
-        <DerivedTagMigrationReviewScreen
+        <DerivedTagReviewScreen
           rootPath="/tmp/review-ui"
           initialSession={createSession()}
           onComplete={onComplete}
@@ -198,7 +198,7 @@ describe("review ui", () => {
     const onComplete = createOnCompleteSpy();
     const app = render(
       <DerivedTagTerminalProvider>
-        <DerivedTagMigrationReviewScreen
+        <DerivedTagReviewScreen
           rootPath="/tmp/review-ui"
           initialSession={createSession()}
           onComplete={onComplete}

@@ -225,11 +225,11 @@ describe("eslint local architecture rules", () => {
     );
   });
 
-  it("blocks internal src/tags modules from importing the public tags barrel", async () => {
+  it("blocks internal src/tags modules from importing the public top-level tag facades", async () => {
     await expectRuleMessage(
       "src/tags/runtime/derivation/api.ts",
-      'export * from "../../index.js";\n',
-      "Internal src/tags modules must not import the src/tags/index.js barrel.",
+      'export * from "../../runtime.js";\n',
+      "Internal src/tags modules must not import the top-level src/tags runtime/editorial facades.",
       "arch/no-internal-tags-barrel-imports",
     );
 
@@ -288,36 +288,36 @@ describe("eslint local architecture rules", () => {
     }
   });
 
-  it("blocks non-tag modules from importing leaf derived-tag internals and allows the shared facade", async () => {
+  it("blocks non-tag modules from importing leaf derived-tag internals and allows the approved facades", async () => {
     await expectRuleMessage(
       "src/app/runtime.ts",
       'import { readDerivedTagCatalog } from "../tags/runtime/catalog-utils.js";\nexport const value = readDerivedTagCatalog;\n',
-      "Outside src/tags, import derived-tag functionality through src/tags/index.js or another approved facade instead of leaf tag internals.",
+      "Outside src/tags, import derived-tag functionality through src/tags/runtime.js, src/tags/editorial.js, or src/tags/editorial-ui.js instead of leaf tag internals.",
     );
 
     await expectRuleMessage(
       "src/app/runtime.ts",
-      'import { buildDerivedTagMigrationSession } from "../tags/editorial/session-builder.js";\nexport const value = buildDerivedTagMigrationSession;\n',
-      "Outside src/tags, import derived-tag functionality through src/tags/index.js or another approved facade instead of leaf tag internals.",
+      'import { buildDerivedTagReviewSession } from "../tags/editorial/session-builder.js";\nexport const value = buildDerivedTagReviewSession;\n',
+      "Outside src/tags, import derived-tag functionality through src/tags/runtime.js, src/tags/editorial.js, or src/tags/editorial-ui.js instead of leaf tag internals.",
     );
 
     await expectRuleMessage(
       "src/app/runtime.ts",
       'import { REVIEWED_DISCOVERY_RECORDS } from "../tags/reviews/discovery-reviewed-records.js";\nexport const value = REVIEWED_DISCOVERY_RECORDS;\n',
-      "Outside src/tags, import derived-tag functionality through src/tags/index.js or another approved facade instead of leaf tag internals.",
+      "Outside src/tags, import derived-tag functionality through src/tags/runtime.js, src/tags/editorial.js, or src/tags/editorial-ui.js instead of leaf tag internals.",
     );
 
     await expectNoRuleMessages(
       "src/app/runtime.ts",
-      'import { normalizeDerivedTag } from "../tags/index.js";\nexport const value = normalizeDerivedTag;\n',
+      'import { normalizeDerivedTag } from "../tags/runtime.js";\nexport const value = normalizeDerivedTag;\n',
     );
   });
 
-  it("blocks non-tag modules from importing the transitional domain barrel and allows explicit domain modules", async () => {
+  it("blocks non-tag modules from importing the removed broad domain barrel and allows explicit domain modules", async () => {
     await expectRuleMessage(
       "src/app/runtime.ts",
       'import { SearchFilters } from "../domain/index.js";\nexport type Value = SearchFilters;\n',
-      "Non-tag code must import domain contracts from explicit src/domain/* modules instead of the transitional src/domain/index.js barrel.",
+      "Non-tag code must import domain contracts from explicit src/domain/* modules instead of the removed broad src/domain/index.js barrel.",
     );
 
     await expectNoRuleMessages(
@@ -492,7 +492,7 @@ describe("eslint local architecture rules", () => {
 
   it("blocks search workflows from calling terminal prompt APIs directly and allows shared prompt adapters", async () => {
     await expectRuleMessage(
-      "src/tui/search-screen/workspace-actions.ts",
+      "src/tui/search-screen/workspace/workspace-actions.ts",
       'async function run() { await terminal.promptTextInput({ label: "Query" }); }\nexport { run };\n',
       "Search workflows must use the shared prompt adapter boundary instead of calling terminal prompt APIs directly.",
       "no-restricted-syntax",
@@ -506,7 +506,7 @@ describe("eslint local architecture rules", () => {
     );
 
     await expectNoRuleMessages(
-      "src/tui/search-screen/workspace-actions.ts",
+      "src/tui/search-screen/workspace/workspace-actions.ts",
       'async function run() { await prompts.promptTextInput({ label: "Query" }); }\nexport { run };\n',
       "no-restricted-syntax",
     );
@@ -529,7 +529,7 @@ describe("eslint local architecture rules", () => {
 
     await expectNoRuleMessages(
       "src/tags/editorial/ui/workbench-controller.ts",
-      'async function run() { await promptDerivedTagMigrationWorkbenchSessionOptions(prompts, db, mode); }\nexport { run };\n',
+      'async function run() { await promptDerivedTagWorkbenchSessionOptions(prompts, db, mode); }\nexport { run };\n',
       "no-restricted-syntax",
     );
   });
@@ -600,7 +600,7 @@ describe("eslint local architecture rules", () => {
     );
 
     await expectNoRuleMessages(
-      "src/tui/search-screen/workspace-actions.ts",
+      "src/tui/search-screen/workspace/workspace-actions.ts",
       'function run() { executeRequest(query); }\nexport { run };\n',
       "no-restricted-syntax",
     );

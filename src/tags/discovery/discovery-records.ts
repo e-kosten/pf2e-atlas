@@ -6,7 +6,7 @@ import {
   normalizeSearchCategory,
   normalizeSearchSubcategory,
 } from "../../domain/categories.js";
-import { SearchCategory, SearchSubcategory, SourceCategory } from "../../domain/index.js";
+import { SearchCategory, SearchSubcategory, SourceCategory } from "../../domain/derived-tag-types.js";
 import { normalizeText } from "../../shared/utils.js";
 
 export type DiscoveryReferenceRecord = {

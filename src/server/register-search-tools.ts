@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import * as z from "zod/v4";
 
 import { CATEGORY_SUBCATEGORY_MAP } from "../domain/categories.js";
-import { getMetadataFilterSemantics } from "../domain/metadata-semantics.js";
+import { getMetadataFilterSemantics } from "../search/filters/semantics.js";
 import { Pf2eDataService } from "../data/service.js";
 import {
   CATEGORY_HINT_DESCRIPTION,

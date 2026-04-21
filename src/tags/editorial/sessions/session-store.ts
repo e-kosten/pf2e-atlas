@@ -7,18 +7,18 @@ import {
   parseSourceCategoryValue,
 } from "../../../data/sql-row-decoding.js";
 import type {
-  DerivedTagMigrationRecordDecision,
-  DerivedTagMigrationSession,
-  DerivedTagMigrationSessionManifest,
-  DerivedTagMigrationSelectionReason,
-  DerivedTagMigrationSelectionSource,
-  DerivedTagMigrationSessionRecord,
-  DerivedTagMigrationSessionReviewState,
-  DerivedTagMigrationMode,
-  DerivedTagMigrationResolutionStatus,
+  DerivedTagReviewRecordDecision,
+  DerivedTagReviewSession,
+  DerivedTagReviewSessionManifest,
+  DerivedTagReviewSelectionReason,
+  DerivedTagReviewSelectionSource,
+  DerivedTagReviewSessionRecord,
+  DerivedTagReviewSessionState,
+  DerivedTagWorkbenchMode,
+  DerivedTagReviewResolutionStatus,
 } from "../types.js";
-import type { SearchCategory, SearchSubcategory } from "../../../domain/index.js";
-import type { DerivedTagExemplarPolarity, AuthoredDerivedTagRule } from "../../../domain/index.js";
+import type { SearchCategory, SearchSubcategory } from "../../../domain/derived-tag-types.js";
+import type { DerivedTagExemplarPolarity, AuthoredDerivedTagRule } from "../../../domain/derived-tag-types.js";
 import type {
   DerivedTagReviewConfidence,
   DerivedTagReviewSource,
@@ -26,7 +26,7 @@ import type {
 } from "../../runtime/derivation/assignments.js";
 import type { DerivedTagSource } from "../../runtime/publication/catalog.js";
 
-type LegacyDerivedTagMigrationSessionRecord = {
+type LegacyDerivedTagReviewSessionRecord = {
   recordKey: string;
   name: string;
   category: SearchCategory;
@@ -36,23 +36,23 @@ type LegacyDerivedTagMigrationSessionRecord = {
   traits: string[];
   families: string[];
   currentDerivedTags: string[];
-  currentSources: DerivedTagMigrationSessionRecord["currentSources"];
+  currentSources: DerivedTagReviewSessionRecord["currentSources"];
   descriptionText: string | null;
   blurbText: string | null;
-  selectionReasons: DerivedTagMigrationSessionRecord["selectionReasons"];
+  selectionReasons: DerivedTagReviewSessionRecord["selectionReasons"];
 };
 
 type JsonObject = Record<string, unknown>;
 
-const MIGRATION_MODES: readonly DerivedTagMigrationMode[] = [
+const MIGRATION_MODES: readonly DerivedTagWorkbenchMode[] = [
   "review_queue",
   "proposal_review",
   "legacy_seed",
   "legacy_rule",
   "exemplar_cleanup",
 ];
-const MIGRATION_RESOLUTION_STATUSES: readonly DerivedTagMigrationResolutionStatus[] = ["complete", "needs_review"];
-const MIGRATION_SELECTION_SOURCES: readonly DerivedTagMigrationSelectionSource[] = [
+const MIGRATION_RESOLUTION_STATUSES: readonly DerivedTagReviewResolutionStatus[] = ["complete", "needs_review"];
+const MIGRATION_SELECTION_SOURCES: readonly DerivedTagReviewSelectionSource[] = [
   "authored_review_queue",
   "authored_exemplar_review_queue",
   "llm_assignment_review_queue",
@@ -91,7 +91,7 @@ function sessionRoot(rootPath: string): string {
   return path.join(rootPath, "scratch", "migration-sessions");
 }
 
-export function migrationSessionDirectory(rootPath: string, sessionId: string): string {
+export function reviewSessionDirectory(rootPath: string, sessionId: string): string {
   return path.join(sessionRoot(rootPath), sessionId);
 }
 
@@ -214,15 +214,15 @@ function parseSource(value: unknown, context: string): DerivedTagSource {
   return parseLiteral(value, DERIVED_TAG_SOURCES, context);
 }
 
-function parseMigrationMode(value: unknown, context: string): DerivedTagMigrationMode {
+function parseMigrationMode(value: unknown, context: string): DerivedTagWorkbenchMode {
   return parseLiteral(value, MIGRATION_MODES, context);
 }
 
-function parseMigrationResolutionStatus(value: unknown, context: string): DerivedTagMigrationResolutionStatus {
+function parseMigrationResolutionStatus(value: unknown, context: string): DerivedTagReviewResolutionStatus {
   return parseLiteral(value, MIGRATION_RESOLUTION_STATUSES, context);
 }
 
-function parseSelectionSource(value: unknown, context: string): DerivedTagMigrationSelectionSource {
+function parseSelectionSource(value: unknown, context: string): DerivedTagReviewSelectionSource {
   return parseLiteral(value, MIGRATION_SELECTION_SOURCES, context);
 }
 
@@ -266,7 +266,7 @@ function parseCurrentSources(value: unknown, context: string): Record<string, De
   );
 }
 
-function parseSelectionReason(value: unknown, context: string): DerivedTagMigrationSelectionReason {
+function parseSelectionReason(value: unknown, context: string): DerivedTagReviewSelectionReason {
   const parsed = expectObject(value, context);
   return {
     source: parseSelectionSource(parsed.source, `${context}.source`),
@@ -276,11 +276,11 @@ function parseSelectionReason(value: unknown, context: string): DerivedTagMigrat
   };
 }
 
-function parseSelectionReasons(value: unknown, context: string): DerivedTagMigrationSelectionReason[] {
+function parseSelectionReasons(value: unknown, context: string): DerivedTagReviewSelectionReason[] {
   return expectArray(value, context).map((entry, index) => parseSelectionReason(entry, `${context}[${index}]`));
 }
 
-function parseEntityRecord(value: unknown, context: string): DerivedTagMigrationSessionRecord["entityRecord"] {
+function parseEntityRecord(value: unknown, context: string): DerivedTagReviewSessionRecord["entityRecord"] {
   const parsed = expectObject(value, context);
   const category = parseCategory(parsed.category, `${context}.category`);
 
@@ -338,7 +338,7 @@ function parseEntityRecord(value: unknown, context: string): DerivedTagMigration
   };
 }
 
-function parseLegacySessionRecord(value: unknown, context: string): LegacyDerivedTagMigrationSessionRecord {
+function parseLegacySessionRecord(value: unknown, context: string): LegacyDerivedTagReviewSessionRecord {
   const parsed = expectObject(value, context);
   const category = parseCategory(parsed.category, `${context}.category`);
 
@@ -362,7 +362,7 @@ function parseLegacySessionRecord(value: unknown, context: string): LegacyDerive
 function parseSessionRecord(
   value: unknown,
   context: string,
-): DerivedTagMigrationSessionRecord | LegacyDerivedTagMigrationSessionRecord {
+): DerivedTagReviewSessionRecord | LegacyDerivedTagReviewSessionRecord {
   const parsed = expectObject(value, context);
   if ("entityRecord" in parsed) {
     return {
@@ -375,7 +375,7 @@ function parseSessionRecord(
   return parseLegacySessionRecord(parsed, context);
 }
 
-function parseRecordDecision(value: unknown, context: string): DerivedTagMigrationRecordDecision {
+function parseRecordDecision(value: unknown, context: string): DerivedTagReviewRecordDecision {
   const parsed = expectObject(value, context);
   return {
     recordKey: expectString(parsed.recordKey, `${context}.recordKey`),
@@ -394,7 +394,7 @@ function parseRecordDecision(value: unknown, context: string): DerivedTagMigrati
 function parseMigrationDecision(
   value: unknown,
   context: string,
-): DerivedTagMigrationRecordDecision["decisions"][number] {
+): DerivedTagReviewRecordDecision["decisions"][number] {
   const parsed = expectObject(value, context);
   const kind = expectString(parsed.kind, `${context}.kind`);
   if (!DECISION_KINDS.includes(kind as (typeof DECISION_KINDS)[number])) {
@@ -457,7 +457,7 @@ function parseMigrationDecision(
   }
 }
 
-function parseSessionManifest(value: unknown, context: string): DerivedTagMigrationSessionManifest {
+function parseSessionManifest(value: unknown, context: string): DerivedTagReviewSessionManifest {
   const parsed = expectObject(value, context);
   const category = parsed.category === undefined ? undefined : parseCategory(parsed.category, `${context}.category`);
   const subcategory =
@@ -481,7 +481,7 @@ function parseSessionManifest(value: unknown, context: string): DerivedTagMigrat
   };
 }
 
-function parseSessionReviewState(value: unknown, context: string): DerivedTagMigrationSessionReviewState {
+function parseSessionReviewState(value: unknown, context: string): DerivedTagReviewSessionState {
   const parsed = expectObject(value, context);
   return {
     currentIndex: expectNonNegativeInteger(parsed.currentIndex, `${context}.currentIndex`),
@@ -491,14 +491,14 @@ function parseSessionReviewState(value: unknown, context: string): DerivedTagMig
 }
 
 function isLegacySessionRecord(
-  record: DerivedTagMigrationSessionRecord | LegacyDerivedTagMigrationSessionRecord,
-): record is LegacyDerivedTagMigrationSessionRecord {
+  record: DerivedTagReviewSessionRecord | LegacyDerivedTagReviewSessionRecord,
+): record is LegacyDerivedTagReviewSessionRecord {
   return !("entityRecord" in record);
 }
 
 function normalizeSessionRecord(
-  record: DerivedTagMigrationSessionRecord | LegacyDerivedTagMigrationSessionRecord,
-): DerivedTagMigrationSessionRecord {
+  record: DerivedTagReviewSessionRecord | LegacyDerivedTagReviewSessionRecord,
+): DerivedTagReviewSessionRecord {
   if (!isLegacySessionRecord(record)) {
     return record;
   }
@@ -558,11 +558,11 @@ function normalizeSessionRecord(
   };
 }
 
-export async function writeDerivedTagMigrationSession(
+export async function writeDerivedTagReviewSession(
   rootPath: string,
-  session: DerivedTagMigrationSession,
+  session: DerivedTagReviewSession,
 ): Promise<void> {
-  const directory = migrationSessionDirectory(rootPath, session.manifest.id);
+  const directory = reviewSessionDirectory(rootPath, session.manifest.id);
   await mkdir(directory, { recursive: true });
 
   await writeFile(path.join(directory, "manifest.json"), JSON.stringify(session.manifest, null, 2) + "\n", "utf8");
@@ -575,11 +575,11 @@ export async function writeDerivedTagMigrationSession(
   );
 }
 
-export async function readDerivedTagMigrationSession(
+export async function readDerivedTagReviewSession(
   rootPath: string,
   sessionId: string,
-): Promise<DerivedTagMigrationSession> {
-  const directory = migrationSessionDirectory(rootPath, sessionId);
+): Promise<DerivedTagReviewSession> {
+  const directory = reviewSessionDirectory(rootPath, sessionId);
   const [manifestRaw, recordsRaw, decisionsRaw, reviewStateRaw] = await Promise.all([
     readFile(path.join(directory, "manifest.json"), "utf8"),
     readFile(path.join(directory, "records.jsonl"), "utf8"),

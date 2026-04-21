@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getMetadataFilterSemantics } from "../../src/domain/metadata-semantics.js";
+import { getMetadataFilterSemantics } from "../../src/search/filters/semantics.js";
 import { filterValueFieldSchema } from "../../src/server/tool-schemas.js";
 
 function matcherArrayContaining(values: unknown[]): unknown {

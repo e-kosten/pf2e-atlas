@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { NormalizedIndexRecord } from "../../src/data/index-types.js";
 import { applyVariantBaseTagInheritance } from "../../src/data/variant-tag-inheritance.js";
-import { getVariantInheritableTags } from "../../src/tags/index.js";
+import { getVariantInheritableTags } from "../../src/tags/runtime.js";
 
 function createRecord(input: {
   recordKey: string;

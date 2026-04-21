@@ -1,4 +1,4 @@
-import type { DerivedTagLegacySeedMigrationCategory } from "../../domain/index.js";
+import type { DerivedTagLegacySeedMigrationCategory } from "../../domain/derived-tag-types.js";
 
 // Temporary migration bucket for legacy carried-over "seed" records that are still
 // applied live but need manual review to become either true exemplars or assignments.

@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  importDerivedTagMigrationReviewSession,
-  renderDerivedTagMigrationReviewSummary,
+  importDerivedTagReviewSession,
+  renderDerivedTagReviewSummary,
 } from "../../src/tags/editorial/ui/review-controller.js";
-import type { DerivedTagMigrationSession } from "../../src/tags/editorial/types.js";
+import type { DerivedTagReviewSession } from "../../src/tags/editorial/types.js";
 
-function createSession(): DerivedTagMigrationSession {
+function createSession(): DerivedTagReviewSession {
   return {
     manifest: {
       id: "session-1",
@@ -115,7 +115,7 @@ describe("derived tag review controller", () => {
         calls.push("import");
         return Promise.resolve();
       }),
-      writeSession: vi.fn((_rootPath: string, _session: DerivedTagMigrationSession) => {
+      writeSession: vi.fn((_rootPath: string, _session: DerivedTagReviewSession) => {
         calls.push("writeSession");
         return Promise.resolve();
       }),
@@ -127,7 +127,7 @@ describe("derived tag review controller", () => {
       }),
     };
 
-    await importDerivedTagMigrationReviewSession("/tmp/review-controller", session, services);
+    await importDerivedTagReviewSession("/tmp/review-controller", session, services);
 
     expect(calls).toEqual(["lint", "import", "writeSession", "writeSummary"]);
     expect(services.writeSession).toHaveBeenCalledWith("/tmp/review-controller", session);
@@ -139,7 +139,7 @@ describe("derived tag review controller", () => {
   });
 
   it("renders a review summary with progress details", () => {
-    const summary = renderDerivedTagMigrationReviewSummary(createSession());
+    const summary = renderDerivedTagReviewSummary(createSession());
 
     expect(summary).toContain("Candidate records: 1");
     expect(summary).toContain("Visible review items: 1");

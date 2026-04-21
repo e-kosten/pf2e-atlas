@@ -5,7 +5,7 @@ import type {
   AuthoredDerivedTagRule,
   DerivedTagExemplarCategory,
   DerivedTagExemplarReviewCategory,
-} from "../../../domain/index.js";
+} from "../../../domain/derived-tag-types.js";
 import {
   DERIVED_TAG_MANAGED_CATEGORIES,
   getDerivedTagCategoryManifestEntry,
@@ -16,8 +16,8 @@ import type {
   DerivedTagAssignmentMemoryCategory,
   DerivedTagAssignmentReviewCategory,
 } from "../../runtime/derivation/assignments.js";
-import { setCurrentDerivedTagMigrationAuthoredState } from "../state/authored-state.js";
-import type { DerivedTagMigrationAuthoredState } from "../types.js";
+import { setCurrentDerivedTagAuthoredState } from "../state/authored-state.js";
+import type { DerivedTagAuthoredState } from "../types.js";
 
 type DerivedTagManagedRegistry<T> = Record<DerivedTagManagedCategory, T>;
 
@@ -109,7 +109,7 @@ function renderAssignmentFile(
 function renderExemplarFile(category: DerivedTagManagedCategory, exemplars: DerivedTagExemplarCategory): string {
   const exportName = `${getCategoryExportPrefix(category)}_DERIVED_TAG_EXEMPLARS`;
   return [
-    'import type { DerivedTagExemplarCategory } from "../../domain/index.js";',
+    'import type { DerivedTagExemplarCategory } from "../../domain/derived-tag-types.js";',
     "",
     `export const ${exportName} = ${renderTsValue(exemplars)} satisfies DerivedTagExemplarCategory;`,
     "",
@@ -119,7 +119,7 @@ function renderExemplarFile(category: DerivedTagManagedCategory, exemplars: Deri
 function renderAuthoredRuleFile(category: DerivedTagManagedCategory, rules: AuthoredDerivedTagRule[]): string {
   const exportName = `${getCategoryExportPrefix(category)}_AUTHORED_DERIVED_TAG_RULES`;
   return [
-    'import type { AuthoredDerivedTagRule } from "../../domain/index.js";',
+    'import type { AuthoredDerivedTagRule } from "../../domain/derived-tag-types.js";',
     "",
     `export const ${exportName}: AuthoredDerivedTagRule[] = ${renderTsValue(rules)};`,
     "",
@@ -154,7 +154,7 @@ function renderExemplarReviewRegistryFile(
   exemplarReviews: DerivedTagManagedRegistry<DerivedTagExemplarReviewCategory>,
 ): string {
   return [
-    'import type { DerivedTagExemplarReviewCategory } from "../../../domain/index.js";',
+    'import type { DerivedTagExemplarReviewCategory } from "../../../domain/derived-tag-types.js";',
     'import type { DerivedTagManagedCategory } from "../../manifest.js";',
     "",
     `export const DERIVED_TAG_EXEMPLAR_REVIEWS_BY_CATEGORY = ${renderTsValue(exemplarReviews)} satisfies Record<DerivedTagManagedCategory, DerivedTagExemplarReviewCategory>;`,
@@ -162,9 +162,9 @@ function renderExemplarReviewRegistryFile(
   ].join("\n");
 }
 
-export async function writeDerivedTagMigrationAuthoredState(
+export async function writeDerivedTagAuthoredState(
   rootPath: string,
-  state: DerivedTagMigrationAuthoredState,
+  state: DerivedTagAuthoredState,
   categories: DerivedTagManagedCategory[],
 ): Promise<void> {
   for (const category of categories) {
@@ -210,5 +210,5 @@ export async function writeDerivedTagMigrationAuthoredState(
     "utf8",
   );
 
-  setCurrentDerivedTagMigrationAuthoredState(state);
+  setCurrentDerivedTagAuthoredState(state);
 }

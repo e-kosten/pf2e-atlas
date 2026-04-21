@@ -6,7 +6,7 @@ import { DatabaseSync } from "node:sqlite";
 
 import { loadConfig } from "../../../app/config.js";
 import { evaluateDerivedTagGaps } from "../../evaluation/gap-evaluator.js";
-import { SearchCategory, SearchSubcategory } from "../../../domain/index.js";
+import { SearchCategory, SearchSubcategory } from "../../../domain/derived-tag-types.js";
 import {
   parseOptionalScopedSearchSubcategoryArg,
   parseOptionalSearchCategoryArg,

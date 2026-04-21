@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
-  createInitialDerivedTagMigrationReviewScreenState,
-  reduceDerivedTagMigrationReviewScreenState,
+  createInitialDerivedTagReviewScreenState,
+  reduceDerivedTagReviewScreenState,
 } from "../../src/tags/editorial/ui/review-screen-state.js";
-import type { DerivedTagMigrationSession } from "../../src/tags/editorial/types.js";
+import type { DerivedTagReviewSession } from "../../src/tags/editorial/types.js";
 
-function createSession(): DerivedTagMigrationSession {
+function createSession(): DerivedTagReviewSession {
   return {
     manifest: {
       id: "session-1",
@@ -177,8 +177,8 @@ describe("review screen state", () => {
   });
 
   it("wraps list navigation and resets detail scroll", () => {
-    const initial = createInitialDerivedTagMigrationReviewScreenState(createSession());
-    const next = reduceDerivedTagMigrationReviewScreenState(
+    const initial = createInitialDerivedTagReviewScreenState(createSession());
+    const next = reduceDerivedTagReviewScreenState(
       {
         ...initial,
         detailScroll: 6,
@@ -198,7 +198,7 @@ describe("review screen state", () => {
   });
 
   it("toggles unresolved-only mode and clamps the queue to visible items", () => {
-    const initial = createInitialDerivedTagMigrationReviewScreenState({
+    const initial = createInitialDerivedTagReviewScreenState({
       ...createSession(),
       reviewState: {
         currentIndex: 1,
@@ -207,7 +207,7 @@ describe("review screen state", () => {
       },
     });
 
-    const next = reduceDerivedTagMigrationReviewScreenState(initial, { type: "toggle_unresolved" });
+    const next = reduceDerivedTagReviewScreenState(initial, { type: "toggle_unresolved" });
 
     expect(next.detailScroll).toBe(0);
     expect(next.session.reviewState.unresolvedOnly).toBe(true);

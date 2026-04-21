@@ -5,11 +5,11 @@ import {
   normalizeSearchCategory,
   normalizeSearchSubcategory,
 } from "../../domain/categories.js";
-import { normalizeMetadataFilterNode } from "../../search/metadata-filters.js";
-import { hasStructuredFilterSignal, resolveSearchMode } from "../../search/ranking.js";
-import { normalizeSearchScope } from "../../search/sql.js";
-import type { NormalizedSearchFilters } from "../../search/contracts.js";
 import type { SearchFilters } from "../../domain/search-types.js";
+import type { NormalizedSearchFilters } from "../contracts.js";
+import { hasStructuredFilterSignal, resolveSearchMode } from "../ranking.js";
+import { normalizeMetadataFilterNode } from "./metadata.js";
+import { normalizeSearchScope } from "./scope.js";
 
 export type SearchFilterContext = "list" | "search";
 

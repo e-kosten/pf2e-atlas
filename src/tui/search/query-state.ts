@@ -3,13 +3,13 @@ import {
   normalizeSearchCategory,
   normalizeSearchSubcategory,
 } from "../../domain/categories.js";
-import type { MetadataFieldSemantics } from "../../domain/metadata-semantics.js";
+import type { MetadataFieldSemantics } from "../../search/filters/semantics.js";
 import type {
   MetadataBooleanField,
   MetadataEnumStringField,
   MetadataFilterNode,
   MetadataSetField,
-} from "../../domain/metadata-types.js";
+} from "../../search/filters/types.js";
 import type {
   SearchCategory,
   SearchSubcategory,

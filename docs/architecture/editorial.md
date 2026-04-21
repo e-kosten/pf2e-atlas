@@ -250,7 +250,11 @@ The special case is `cli/editorial/derived-tag-migration-workbench.ts`, which la
 
 ## Stable Facades And Compatibility Entry Points
 
-The stable non-tag facade remains `src/tags/index.ts`.
+The approved non-tag facades are now split by concern:
+
+- `src/tags/runtime.ts` for runtime derivation/publication consumers
+- `src/tags/editorial.ts` for editorial state/session/writeback consumers
+- `src/tags/editorial-ui.ts` for TUI-facing editorial UI consumers
 
 Inside the subsystem, the owning paths are the split directories themselves:
 
@@ -263,10 +267,10 @@ Compatibility entrypoints should be introduced only when callers genuinely need 
 
 The current codebase already encodes several intended boundaries:
 
-- outside `src/tags`, callers should normally import derived-tag functionality through `src/tags/index.ts` or another approved facade instead of leaf tag modules
+- outside `src/tags`, callers should normally import derived-tag functionality through `src/tags/runtime.ts`, `src/tags/editorial.ts`, or `src/tags/editorial-ui.ts` instead of leaf tag modules
 - reviewed discovery state belongs under `src/tags/reviews/`, not under discovery-owned scratch code
 - ontology browsing is assembled through `src/app/ontology-service.ts` and treated as a readonly model, not mutable shared UI state
-- direct SQLite opening is explicit through the application storage service, `src/tags/editorial/cli-utils.ts`, or grouped CLI entrypoints, not scattered through unrelated feature modules
+- direct SQLite opening is explicit through the application storage service, `src/tags/editorial/configured-index.ts`, or grouped CLI entrypoints, not scattered through unrelated feature modules
 - CLI scope parsing is centralized in `src/tags/cli/shared/search-scope-args.ts`
 - discovery and evaluation can recommend changes, but `editorial/writeback/` owns writeback into authored files
 - TUI workbench composition flows through `src/tui/app-services.ts`, not direct feature-level imports of editorial internals

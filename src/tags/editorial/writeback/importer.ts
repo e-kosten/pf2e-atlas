@@ -6,7 +6,7 @@ import type {
   DerivedTagExemplarReviewCategory,
   DerivedTagExemplarReviewDecision,
   SearchCategory,
-} from "../../../domain/index.js";
+} from "../../../domain/derived-tag-types.js";
 import type {
   AuthoredDerivedTagAssignment,
   DerivedTagAssignmentDecision,
@@ -19,15 +19,15 @@ import type {
 import { expectDerivedTagManagedCategory } from "../../manifest.js";
 import { normalizeDerivedTag } from "../../runtime/matcher/shared.js";
 import { uniqueSorted } from "../../../shared/utils.js";
-import { getCurrentDerivedTagMigrationAuthoredState } from "../state/authored-state.js";
-import { lintDerivedTagMigrationSession } from "./linter.js";
-import { writeDerivedTagMigrationAuthoredState } from "./authored-state-writer.js";
+import { getCurrentDerivedTagAuthoredState } from "../state/authored-state.js";
+import { lintDerivedTagReviewSession } from "./linter.js";
+import { writeDerivedTagAuthoredState } from "./authored-state-writer.js";
 import type {
-  DerivedTagMigrationAssignmentDecision,
-  DerivedTagMigrationAuthoredState,
+  DerivedTagReviewAssignmentDecision,
+  DerivedTagAuthoredState,
   DerivedTagManagedCategory,
-  DerivedTagMigrationRecordDecision,
-  DerivedTagMigrationSession,
+  DerivedTagReviewRecordDecision,
+  DerivedTagReviewSession,
 } from "../types.js";
 
 function storedAssignmentIdentity(
@@ -43,7 +43,7 @@ function storedAssignmentIdentity(
 
 function ensureAssignment(
   assignments: AuthoredDerivedTagAssignment[],
-  recordDecision: DerivedTagMigrationRecordDecision,
+  recordDecision: DerivedTagReviewRecordDecision,
 ): AuthoredDerivedTagAssignment {
   const existing = assignments.find((assignment) => assignment.recordKey === recordDecision.recordKey);
   if (existing) {
@@ -60,7 +60,7 @@ function ensureAssignment(
 }
 
 function mapAssignmentDecisionSource(
-  decision: DerivedTagMigrationAssignmentDecision,
+  decision: DerivedTagReviewAssignmentDecision,
 ): DerivedTagAssignmentDecisionSource {
   if (decision.status === "auto_applied") {
     return "llm_auto";
@@ -74,7 +74,7 @@ function mapAssignmentDecisionSource(
   return "human";
 }
 
-function toStoredAssignmentDecision(decision: DerivedTagMigrationAssignmentDecision): DerivedTagAssignmentDecision {
+function toStoredAssignmentDecision(decision: DerivedTagReviewAssignmentDecision): DerivedTagAssignmentDecision {
   return {
     tag: normalizeDerivedTag(decision.tag),
     source: mapAssignmentDecisionSource(decision),
@@ -154,7 +154,7 @@ function cleanAssignment(assignment: AuthoredDerivedTagAssignment): AuthoredDeri
 
 function applyLiveAssignmentDecision(
   assignment: AuthoredDerivedTagAssignment,
-  decision: DerivedTagMigrationAssignmentDecision,
+  decision: DerivedTagReviewAssignmentDecision,
 ): void {
   const family = normalizeDerivedTag(decision.family);
   const tag = normalizeDerivedTag(decision.tag);
@@ -179,13 +179,13 @@ function sortAssignments(assignments: AuthoredDerivedTagAssignment[]): AuthoredD
 
 export function applyMigrationSessionToAssignments(
   assignments: AuthoredDerivedTagAssignment[],
-  sessionDecisions: DerivedTagMigrationRecordDecision[],
+  sessionDecisions: DerivedTagReviewRecordDecision[],
 ): AuthoredDerivedTagAssignment[] {
   const nextAssignments = structuredClone(assignments);
 
   for (const recordDecision of sessionDecisions) {
     const assignmentDecisions = recordDecision.decisions.filter(
-      (decision): decision is DerivedTagMigrationAssignmentDecision =>
+      (decision): decision is DerivedTagReviewAssignmentDecision =>
         decision.kind === "assignment" && (decision.status === "approved" || decision.status === "auto_applied"),
     );
     if (assignmentDecisions.length === 0) {
@@ -201,8 +201,8 @@ export function applyMigrationSessionToAssignments(
 }
 
 function toAssignmentReviewDecision(
-  recordDecision: DerivedTagMigrationRecordDecision,
-  decision: DerivedTagMigrationAssignmentDecision,
+  recordDecision: DerivedTagReviewRecordDecision,
+  decision: DerivedTagReviewAssignmentDecision,
 ): DerivedTagAssignmentReviewDecision {
   return {
     name: recordDecision.name,
@@ -232,7 +232,7 @@ function sortAssignmentReviewCategory(
 
 export function applyMigrationSessionToAssignmentReviews(
   assignmentReviews: DerivedTagAssignmentReviewCategory,
-  sessionDecisions: DerivedTagMigrationRecordDecision[],
+  sessionDecisions: DerivedTagReviewRecordDecision[],
 ): DerivedTagAssignmentReviewCategory {
   const nextAssignmentReviews = structuredClone(assignmentReviews);
   const decisionsByIdentity = new Map(
@@ -241,7 +241,7 @@ export function applyMigrationSessionToAssignmentReviews(
 
   for (const recordDecision of sessionDecisions) {
     for (const decision of recordDecision.decisions.filter(
-      (entry): entry is DerivedTagMigrationAssignmentDecision => entry.kind === "assignment",
+      (entry): entry is DerivedTagReviewAssignmentDecision => entry.kind === "assignment",
     )) {
       const storedDecision = toAssignmentReviewDecision(recordDecision, decision);
       const identity = storedAssignmentIdentity(storedDecision);
@@ -258,8 +258,8 @@ export function applyMigrationSessionToAssignmentReviews(
 }
 
 function toAssignmentMemoryDecision(
-  recordDecision: DerivedTagMigrationRecordDecision,
-  decision: DerivedTagMigrationAssignmentDecision,
+  recordDecision: DerivedTagReviewRecordDecision,
+  decision: DerivedTagReviewAssignmentDecision,
 ): DerivedTagAssignmentMemoryDecision {
   return {
     name: recordDecision.name,
@@ -289,7 +289,7 @@ function sortAssignmentMemoryCategory(
 
 export function applyMigrationSessionToAssignmentMemory(
   assignmentMemory: DerivedTagAssignmentMemoryCategory,
-  sessionDecisions: DerivedTagMigrationRecordDecision[],
+  sessionDecisions: DerivedTagReviewRecordDecision[],
 ): DerivedTagAssignmentMemoryCategory {
   const nextAssignmentMemory = structuredClone(assignmentMemory);
   const decisionsByIdentity = new Map(
@@ -298,7 +298,7 @@ export function applyMigrationSessionToAssignmentMemory(
 
   for (const recordDecision of sessionDecisions) {
     for (const decision of recordDecision.decisions.filter(
-      (entry): entry is DerivedTagMigrationAssignmentDecision => entry.kind === "assignment",
+      (entry): entry is DerivedTagReviewAssignmentDecision => entry.kind === "assignment",
     )) {
       const storedDecision = toAssignmentMemoryDecision(recordDecision, decision);
       const identity = memoryIdentity(storedDecision);
@@ -350,8 +350,8 @@ function upsertExemplarRecord(
 
 function applyApprovedExemplarDecision(
   exemplars: DerivedTagExemplarCategory,
-  recordDecision: DerivedTagMigrationRecordDecision,
-  decision: Extract<DerivedTagMigrationRecordDecision["decisions"][number], { kind: "exemplar" }>,
+  recordDecision: DerivedTagReviewRecordDecision,
+  decision: Extract<DerivedTagReviewRecordDecision["decisions"][number], { kind: "exemplar" }>,
 ): void {
   const exemplarSet = ensureExemplarSet(exemplars, decision.tag);
   const record = { recordKey: recordDecision.recordKey, name: recordDecision.name };
@@ -373,13 +373,13 @@ function applyApprovedExemplarDecision(
 
 export function applyMigrationSessionToExemplars(
   exemplars: DerivedTagExemplarCategory,
-  sessionDecisions: DerivedTagMigrationRecordDecision[],
+  sessionDecisions: DerivedTagReviewRecordDecision[],
 ): DerivedTagExemplarCategory {
   const nextExemplars = structuredClone(exemplars);
 
   for (const recordDecision of sessionDecisions) {
     const exemplarDecisions = recordDecision.decisions.filter(
-      (decision): decision is Extract<DerivedTagMigrationRecordDecision["decisions"][number], { kind: "exemplar" }> =>
+      (decision): decision is Extract<DerivedTagReviewRecordDecision["decisions"][number], { kind: "exemplar" }> =>
         decision.kind === "exemplar",
     );
     for (const decision of exemplarDecisions) {
@@ -418,14 +418,14 @@ function memoryIdentity(
 }
 
 function toProposedPolarity(
-  decision: Extract<DerivedTagMigrationRecordDecision["decisions"][number], { kind: "exemplar" }>,
+  decision: Extract<DerivedTagReviewRecordDecision["decisions"][number], { kind: "exemplar" }>,
 ): DerivedTagExemplarPolarity | "drop" {
   return decision.action === "drop" ? "drop" : decision.polarity;
 }
 
 function toExemplarReviewDecision(
-  recordDecision: DerivedTagMigrationRecordDecision,
-  decision: Extract<DerivedTagMigrationRecordDecision["decisions"][number], { kind: "exemplar" }>,
+  recordDecision: DerivedTagReviewRecordDecision,
+  decision: Extract<DerivedTagReviewRecordDecision["decisions"][number], { kind: "exemplar" }>,
 ): DerivedTagExemplarReviewDecision {
   return {
     name: recordDecision.name,
@@ -442,7 +442,7 @@ function toExemplarReviewDecision(
 
 export function applyMigrationSessionToExemplarReviews(
   exemplarReviews: DerivedTagExemplarReviewCategory,
-  sessionDecisions: DerivedTagMigrationRecordDecision[],
+  sessionDecisions: DerivedTagReviewRecordDecision[],
 ): DerivedTagExemplarReviewCategory {
   const nextExemplarReviews = structuredClone(exemplarReviews);
   const decisionsByIdentity = new Map(
@@ -451,7 +451,7 @@ export function applyMigrationSessionToExemplarReviews(
 
   for (const recordDecision of sessionDecisions) {
     for (const decision of recordDecision.decisions.filter(
-      (entry): entry is Extract<DerivedTagMigrationRecordDecision["decisions"][number], { kind: "exemplar" }> =>
+      (entry): entry is Extract<DerivedTagReviewRecordDecision["decisions"][number], { kind: "exemplar" }> =>
         entry.kind === "exemplar",
     )) {
       const reviewDecision = toExemplarReviewDecision(recordDecision, decision);
@@ -480,14 +480,14 @@ function ruleIdentity(rule: AuthoredDerivedTagRule): string {
 
 export function applyMigrationSessionToAuthoredRules(
   rules: AuthoredDerivedTagRule[],
-  sessionDecisions: DerivedTagMigrationRecordDecision[],
+  sessionDecisions: DerivedTagReviewRecordDecision[],
 ): AuthoredDerivedTagRule[] {
   const nextRules = [...rules];
   const seenRules = new Set(nextRules.map(ruleIdentity));
 
   for (const recordDecision of sessionDecisions) {
     for (const decision of recordDecision.decisions.filter(
-      (entry): entry is Extract<DerivedTagMigrationRecordDecision["decisions"][number], { kind: "rule" }> =>
+      (entry): entry is Extract<DerivedTagReviewRecordDecision["decisions"][number], { kind: "rule" }> =>
         entry.kind === "rule",
     )) {
       if (decision.status !== "approved" && decision.status !== "auto_applied") {
@@ -519,14 +519,14 @@ function toManagedCategory(category: SearchCategory): DerivedTagManagedCategory 
   return expectDerivedTagManagedCategory(category, "Derived-tag migration importer");
 }
 
-function categoriesTouchedBySession(session: DerivedTagMigrationSession): DerivedTagManagedCategory[] {
+function categoriesTouchedBySession(session: DerivedTagReviewSession): DerivedTagManagedCategory[] {
   return uniqueSorted(session.decisions.map((decision) => toManagedCategory(decision.category)));
 }
 
 function applySessionToState(
-  state: DerivedTagMigrationAuthoredState,
-  session: DerivedTagMigrationSession,
-): DerivedTagMigrationAuthoredState {
+  state: DerivedTagAuthoredState,
+  session: DerivedTagReviewSession,
+): DerivedTagAuthoredState {
   const nextState = structuredClone(state);
 
   for (const category of categoriesTouchedBySession(session)) {
@@ -557,12 +557,12 @@ function applySessionToState(
   return nextState;
 }
 
-export async function importDerivedTagMigrationSession(
+export async function importDerivedTagReviewSession(
   rootPath: string,
-  session: DerivedTagMigrationSession,
+  session: DerivedTagReviewSession,
 ): Promise<void> {
-  lintDerivedTagMigrationSession(session);
-  const currentState = getCurrentDerivedTagMigrationAuthoredState();
+  lintDerivedTagReviewSession(session);
+  const currentState = getCurrentDerivedTagAuthoredState();
   const nextState = applySessionToState(currentState, session);
-  await writeDerivedTagMigrationAuthoredState(rootPath, nextState, categoriesTouchedBySession(session));
+  await writeDerivedTagAuthoredState(rootPath, nextState, categoriesTouchedBySession(session));
 }

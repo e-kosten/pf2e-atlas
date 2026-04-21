@@ -7,7 +7,7 @@
 
 Several helpers and contracts that were once reachable through broad shared barrels now have clearer owners:
 
-- `src/domain/index.ts` remains as a transitional barrel, but non-tag callers no longer need it as their default import path
+- `src/domain/index.ts` is no longer an approved import path
 - `src/shared/utils.ts` still hosts a few true cross-layer primitives, but app/data/search-specific helpers have been moved to owner modules
 - `src/shared/fs.ts` still exposes explicit helpers, but the `fileExists` alias is only compatibility glue
 
@@ -26,4 +26,4 @@ Use lint rules and architecture docs to make the non-tag ownership paths explici
 
 - Non-tag code keeps a clearer dependency graph and avoids broad shared barrels.
 - Future helper extraction work has a documented default: keep the helper with its owner unless it is truly cross-layer.
-- Tag-facing compatibility paths can continue shrinking without forcing a repo-wide import rewrite in one slice.
+- Non-tag code no longer has a fallback broad domain barrel to drift back toward.

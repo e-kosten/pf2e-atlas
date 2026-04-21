@@ -29,7 +29,7 @@ import {
   patternAnchor,
   referenceAnchor,
 } from "../runtime/matcher/shared.js";
-import type { SearchSubcategory } from "../../domain/index.js";
+import type { SearchSubcategory } from "../../domain/derived-tag-types.js";
 
 const AMMO_SUBCATEGORIES: SearchSubcategory[] = ["ammo"];
 const ARMOR_SUBCATEGORIES: SearchSubcategory[] = ["armor"];

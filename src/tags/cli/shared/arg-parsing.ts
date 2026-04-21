@@ -1,12 +1,3 @@
-import { constants } from "node:fs";
-import { access, writeFile } from "node:fs/promises";
-import path from "node:path";
-import { DatabaseSync } from "node:sqlite";
-
-import { loadConfig } from "../../app/config.js";
-import type { SearchCategory, SearchSubcategory } from "../../domain/index.js";
-import { migrationSessionDirectory } from "./sessions/session-store.js";
-
 type MultiValueArgs = Record<string, string[]>;
 
 export function parseCliArgs(argv: string[]): MultiValueArgs {
@@ -54,30 +45,3 @@ export function parseInteger(value: string | undefined, flagName: string): numbe
   }
   return parsed;
 }
-
-export async function openConfiguredIndex(
-  argv: string[],
-): Promise<{ db: DatabaseSync; config: Awaited<ReturnType<typeof loadConfig>> }> {
-  const config = await loadConfig(argv);
-  await access(config.indexPath, constants.R_OK);
-  return {
-    config,
-    db: new DatabaseSync(config.indexPath),
-  };
-}
-
-export async function writeDerivedTagMigrationSummary(
-  rootPath: string,
-  sessionId: string,
-  summary: string,
-): Promise<void> {
-  const directory = migrationSessionDirectory(rootPath, sessionId);
-  await writeFile(path.join(directory, "summary.md"), `${summary}\n`, "utf8");
-}
-
-export type ParsedMigrationScope = {
-  category?: SearchCategory;
-  subcategory?: SearchSubcategory;
-  family?: string;
-  tag?: string;
-};

@@ -1,6 +1,16 @@
 export { useFilterExplorerController } from "./controller.js";
 export { FilterExplorerScreen } from "./screen.js";
 export { FILTER_EXPLORER_LAUNCH_INTENT } from "./types.js";
+export {
+  applyFilterExplorerDraft,
+  buildFilterExplorerMetadataNode,
+  buildSearchFilterExplorerModel,
+  buildSearchFilterExplorerTargetResolver,
+  cloneFilterExplorerDraft,
+  createFilterExplorerDraftFromMetadataNode,
+  createFilterExplorerDraftFromQuery,
+  withFilterExplorerComposeDraft,
+} from "./search-draft.js";
 export type {
   FilterExplorerBrowserContext,
   FilterExplorerBrowserSelection,

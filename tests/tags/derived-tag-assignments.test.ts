@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { DerivedTagOntologyFamily, DerivedTagOntologyTag } from "../../src/domain/index.js";
+import type { DerivedTagOntologyFamily, DerivedTagOntologyTag } from "../../src/domain/derived-tag-types.js";
 import {
   buildDerivedTagExplicitAssignmentIndex,
   buildDerivedTagPendingAssignmentViews,
@@ -11,7 +11,7 @@ import {
 import { publishDerivedTagOntology, deriveCatalogTagDerivation } from "../../src/tags/runtime/publication/catalog.js";
 import { CREATURE_DERIVED_TAG_ONTOLOGY } from "../../src/tags/ontology/creature.js";
 import { flattenDerivedTagAuthoredCategoryOntology } from "../../src/tags/ontology/utils.js";
-import { deriveRecordTagDerivation } from "../../src/tags/index.js";
+import { deriveRecordTagDerivation } from "../../src/tags/runtime.js";
 
 const assignmentFamilies: DerivedTagOntologyFamily[] = [
   {

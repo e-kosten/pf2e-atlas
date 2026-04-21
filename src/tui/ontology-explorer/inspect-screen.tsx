@@ -17,7 +17,7 @@ import type { RouteTransitionStatus } from "../route-transition-status.js";
 import {
   promptNumericScalarClause,
   type NumericScalarClauseDraft,
-} from "../search-screen/scalar-editor.js";
+} from "../filter-explorer/scalar-editor.js";
 import { inferItemMetricValueType } from "../../domain/item-metrics.js";
 
 export type OntologyInspectExplorerSnapshot = NonNullable<FilterExplorerOptions["initialSnapshot"]>;

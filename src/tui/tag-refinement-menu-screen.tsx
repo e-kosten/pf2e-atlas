@@ -1,6 +1,6 @@
 import React from "react";
 
-import type { DerivedTagMigrationMode, DerivedTagReviewQueueSummaryItem } from "../tags/index.js";
+import type { DerivedTagWorkbenchMode, DerivedTagReviewQueueSummaryItem } from "../tags/editorial.js";
 import {
   buildDerivedTagTerminalActionTargetHelpLines,
   type DerivedTagTerminalActionTargetOption,
@@ -22,7 +22,7 @@ type TagRefinementCommandId = "review_all" | "legacy_seed" | "legacy_rule" | "ex
 export type TagRefinementMenuItem =
   | { kind: "review_queue_item"; label: string; queueItem: DerivedTagReviewQueueSummaryItem }
   | { kind: "review_all"; label: string }
-  | { kind: "create_mode"; label: string; mode: DerivedTagMigrationMode }
+  | { kind: "create_mode"; label: string; mode: DerivedTagWorkbenchMode }
   | { kind: "back"; label: string };
 
 export function buildTagRefinementMenuItems(items: DerivedTagReviewQueueSummaryItem[]): TagRefinementMenuItem[] {
@@ -175,7 +175,7 @@ export function TagRefinementMenuScreen({
   onBack: () => void;
   onMove: (delta: number, itemCount: number) => void;
   onOpenSelected: (menuItems: TagRefinementMenuItem[]) => void;
-  onQuickAction: (mode: "review_all" | DerivedTagMigrationMode) => void;
+  onQuickAction: (mode: "review_all" | DerivedTagWorkbenchMode) => void;
   transitionStatus?: RouteTransitionStatus | null;
 }): React.JSX.Element {
   const menuItems = buildTagRefinementMenuItems(queueItems);

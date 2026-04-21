@@ -1,16 +1,16 @@
 import type { Pf2eTerminalSearchQuery } from "../search/service.js";
 import { useSearchQueryFieldEditing } from "./query-field-editing.js";
-import { useSearchQueryFieldBuilderActions } from "./query-field-builder-actions.js";
-import type { SearchQueryFieldBuilderSession } from "./query-field-builder-session.js";
-import { useSearchStructuredDraftActions } from "./structured-draft-actions.js";
-import { useSearchStructuredDraftEditing } from "./structured-draft-editing.js";
-import type { SearchStructuredDraftState } from "./structured-draft-support.js";
+import { useSearchQueryFieldBuilderActions } from "./query-field-builder/query-field-builder-actions.js";
+import type { SearchQueryFieldBuilderSession } from "./query-field-builder/query-field-builder-session.js";
+import { useSearchStructuredDraftActions } from "./structured-draft/structured-draft-actions.js";
+import { useSearchStructuredDraftEditing } from "./structured-draft/structured-draft-editing.js";
+import type { SearchStructuredDraftState } from "./structured-draft/structured-draft-support.js";
 import type {
   OpenSearchFilterExplorer,
   SearchWorkspacePromptAdapters,
   SearchWorkspaceTerminal,
   SearchWorkspaceUser,
-} from "./workspace-action-types.js";
+} from "./workspace/workspace-action-types.js";
 
 export function useSearchStructuredEditorActions({
   applyQueryUpdate,

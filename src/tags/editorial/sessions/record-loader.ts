@@ -7,14 +7,14 @@ import {
   parseStringArrayJson,
   toSqliteNumber,
 } from "../../../data/sql-row-decoding.js";
-import type { SearchCategory, SearchSubcategory } from "../../../domain/index.js";
+import type { SearchCategory, SearchSubcategory } from "../../../domain/derived-tag-types.js";
 import { normalizeText } from "../../../shared/utils.js";
 import {
   buildOntologyExplorerEntityRecordSelectColumns,
   mapOntologyExplorerEntityRecordRow,
   type OntologyExplorerEntityRecord,
   type OntologyExplorerEntityRecordRow,
-} from "../../entity-record.js";
+} from "../../../app/ontology/entity-record.js";
 
 export type DerivedTagMigrationReference = {
   recordKey: string;

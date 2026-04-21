@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { deriveRecordTags } from "../../src/tags/index.js";
+import { deriveRecordTags } from "../../src/tags/runtime.js";
 
 describe("derived tag rules: creature", () => {
   it("derives creature context and setting tags", () => {

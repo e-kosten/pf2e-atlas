@@ -1,12 +1,12 @@
 import type { OntologyDomainModel, OntologyNode } from "../../domain/ontology-types.js";
 import { inferActorMetricValueType } from "../../domain/actor-metrics.js";
 import { inferItemMetricValueType } from "../../domain/item-metrics.js";
-import type { MetadataFieldSemantics } from "../../domain/metadata-semantics.js";
-import type { MetadataFilterNode, MetadataPredicate } from "../../domain/metadata-types.js";
+import type { MetadataFieldSemantics } from "../../search/filters/semantics.js";
+import type { MetadataFilterNode, MetadataPredicate } from "../../search/filters/types.js";
 import { getOntologyNodeChildren } from "../../app/ontology/node-helpers.js";
-import { isMetadataPredicate, normalizeMetadataNode } from "./query-core.js";
-import { partitionDiscoverableQueryFieldSelections } from "./discoverable-fields.js";
-import { createEmptyStringPolicy, normalizeQueryFieldPolicy } from "./policies.js";
+import { isMetadataPredicate, normalizeMetadataNode } from "../search/query-core.js";
+import { partitionDiscoverableQueryFieldSelections } from "../search/discoverable-fields.js";
+import { createEmptyStringPolicy, normalizeQueryFieldPolicy } from "../search/policies.js";
 import {
   buildMetadataNodeForQueryFieldSelection,
   getSearchQueryActionCostPolicy,
@@ -15,8 +15,8 @@ import {
   removeSearchQueryPart,
   setSearchQueryMetadataTree,
   setSearchQueryPart,
-} from "./query-state.js";
-import { humanizeIdentifier } from "./service-options.js";
+} from "../search/query-state.js";
+import { humanizeIdentifier } from "../search/service-options.js";
 import type {
   Pf2eTerminalFacetField,
   Pf2eTerminalFilterExplorerDraft,
@@ -25,7 +25,7 @@ import type {
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalQueryFieldSelectionMap,
   Pf2eTerminalSearchQuery,
-} from "./service-types.js";
+} from "../search/service-types.js";
 import type {
   FilterExplorerComposeTarget,
   FilterExplorerScalarClause,

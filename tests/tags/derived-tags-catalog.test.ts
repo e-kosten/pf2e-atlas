@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { groupDerivedTagOntology } from "../../src/tags/runtime/publication/catalog.js";
-import { DERIVED_TAG_ONTOLOGY_FAMILIES, DERIVED_TAG_ONTOLOGY_TAGS } from "../../src/tags/index.js";
+import { DERIVED_TAG_ONTOLOGY_FAMILIES, DERIVED_TAG_ONTOLOGY_TAGS } from "../../src/tags/runtime.js";
 
 function anyString(): unknown {
   return expect.any(String);

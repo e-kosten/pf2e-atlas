@@ -1,13 +1,13 @@
 import React from "react";
 
-import type { SearchStructuredDraftEntry } from "../search/structured-draft-session.js";
-import { clampStructuredDraftSelection } from "../search/structured-draft-session.js";
-import type { MetadataFilterNode } from "../../domain/metadata-types.js";
+import type { SearchStructuredDraftEntry } from "../../search/structured-draft-session.js";
+import { clampStructuredDraftSelection } from "../../search/structured-draft-session.js";
+import type { MetadataFilterNode } from "../../../search/filters/types.js";
 import type {
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalSearchQuery,
-} from "../search/service.js";
-import type { SearchQueryFieldBuilderSession } from "./query-field-builder-session.js";
+} from "../../search/service.js";
+import type { SearchQueryFieldBuilderSession } from "../query-field-builder/query-field-builder-session.js";
 import type { SearchStructuredDraftState } from "./structured-draft-support.js";
 import { useSearchStructuredDraftMetadataActions } from "./structured-draft-metadata-actions.js";
 import { useSearchStructuredDraftPartActions } from "./structured-draft-part-actions.js";
@@ -16,7 +16,7 @@ import type {
   SearchWorkspacePromptAdapters,
   SearchWorkspaceTerminal,
   SearchWorkspaceUser,
-} from "./workspace-action-types.js";
+} from "../workspace/workspace-action-types.js";
 
 export function useSearchStructuredDraftEditing({
   appendStructuredDraftMetadataNode,

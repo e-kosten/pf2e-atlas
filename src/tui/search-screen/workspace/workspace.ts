@@ -1,25 +1,25 @@
-import type { MetadataFilterNode } from "../../domain/metadata-types.js";
-import type { SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
+import type { MetadataFilterNode } from "../../../search/filters/types.js";
+import type { SearchCategory, SearchSubcategory } from "../../../domain/search-types.js";
 import type {
   Pf2eTerminalFilterValuePolicy,
   Pf2eTerminalSearchMode,
   Pf2eTerminalSearchQuery,
-} from "../search/service.js";
+} from "../../search/service.js";
 import {
   getSearchQueryActionCostPolicy,
   getSearchQueryLevelRange,
   getSearchQueryMetadataTree,
   getSearchQueryRarityPolicy,
   getSearchQuerySubcategory,
-} from "../search/service.js";
-import type { DerivedTagTerminalCommandOption, DerivedTagTerminalLine } from "../framework/types.js";
-import { formatFilterExplorerPolicySummary } from "../framework/policy-presentation.js";
-import { countMetadataPredicates, flattenMetadataTree } from "../search/query-core.js";
-import { humanizeIdentifier } from "../search/service-options.js";
-import { clampWindowStart } from "../list-utils.js";
-import { SEARCH_COUNT_STATUS, type SearchCountState, type SearchScreenState } from "./state.js";
-import { formatCount, formatResultPosition, formatSort, getSessionBufferRange } from "./state.js";
-export { parseLevelRangeInput } from "./scalar-editor.js";
+} from "../../search/query-state.js";
+import type { DerivedTagTerminalCommandOption, DerivedTagTerminalLine } from "../../framework/types.js";
+import { formatFilterExplorerPolicySummary } from "../../framework/policy-presentation.js";
+import { countMetadataPredicates, flattenMetadataTree } from "../../search/query-core.js";
+import { humanizeIdentifier } from "../../search/service-options.js";
+import { clampWindowStart } from "../../list-utils.js";
+import { SEARCH_COUNT_STATUS, type SearchCountState, type SearchScreenState } from "../state.js";
+import { formatCount, formatResultPosition, formatSort, getSessionBufferRange } from "../state.js";
+export { parseLevelRangeInput } from "../../filter-explorer/scalar-editor.js";
 
 export type SearchWorkspaceAction =
   | "mode"

@@ -1,18 +1,17 @@
 import { DatabaseSync } from "node:sqlite";
 
 import { normalizeSearchCategory } from "../../../domain/categories.js";
-import type { SearchCategory, SearchSubcategory } from "../../../domain/index.js";
+import type { SearchCategory, SearchSubcategory } from "../../../domain/derived-tag-types.js";
 import type { TerminalInteractionContextAdapters } from "../../../tui/interaction-context-adapters.js";
 import { normalizeDerivedTag } from "../../runtime/matcher/shared.js";
-import { parseInteger } from "../cli-utils.js";
 import { getActionableSessionScopeKeys } from "../sessions/actionable-session-scope.js";
 import { summarizeDerivedTagCategoryScopes } from "../sessions/category-scope-summary.js";
 import { compareDisplayText, compareManagedCategory, DERIVED_TAG_MANAGED_CATEGORIES } from "../list-sorting.js";
-import { getPublishedDerivedTagMigrationOntology } from "../state/runtime-state.js";
+import { getPublishedDerivedTagOntology } from "../state/runtime-state.js";
 import type { DerivedTagTerminalSelectOption } from "../../../tui/terminal-ui.js";
-import type { DerivedTagMigrationMode } from "../types.js";
+import type { DerivedTagWorkbenchMode } from "../types.js";
 
-export type DerivedTagMigrationWorkbenchSessionOptions = {
+export type DerivedTagWorkbenchSessionOptions = {
   category?: SearchCategory;
   subcategory?: SearchSubcategory;
   family?: string;
@@ -21,12 +20,12 @@ export type DerivedTagMigrationWorkbenchSessionOptions = {
   exemplarLimit?: number;
 };
 
-export type DerivedTagMigrationWorkbenchPromptAdapters = Pick<
+export type DerivedTagWorkbenchPromptAdapters = Pick<
   TerminalInteractionContextAdapters,
   "promptOptionalSelectOption" | "promptSelectOption" | "promptTextInput"
 >;
 
-export type DerivedTagMigrationWorkbenchSessionPrompts = DerivedTagMigrationWorkbenchPromptAdapters & {
+export type DerivedTagWorkbenchSessionPrompts = DerivedTagWorkbenchPromptAdapters & {
   pauseForAnyKey: (message: string) => Promise<void>;
 };
 
@@ -34,7 +33,7 @@ function buildOntologyKey(category: SearchCategory, value: string): `${SearchCat
   return `${category}:${normalizeDerivedTag(value)}`;
 }
 
-export function formatDerivedTagMigrationModeLabel(mode: DerivedTagMigrationMode): string {
+export function formatDerivedTagWorkbenchModeLabel(mode: DerivedTagWorkbenchMode): string {
   if (mode === "proposal_review") {
     return "AI proposal review";
   }
@@ -49,16 +48,27 @@ function normalizeOptional(value: string | undefined): string | undefined {
   return trimmed ? trimmed : undefined;
 }
 
+function parseOptionalInteger(value: string | undefined, flagName: string): number | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed)) {
+    throw new Error(`Expected ${flagName} to be an integer, received "${value}".`);
+  }
+  return parsed;
+}
+
 function uniqueSorted<T extends string>(values: T[]): T[] {
   return [...new Set(values)].sort((left, right) => compareDisplayText(left, right) || left.localeCompare(right));
 }
 
 function getSessionScopeOntology() {
-  return getPublishedDerivedTagMigrationOntology();
+  return getPublishedDerivedTagOntology();
 }
 
 function buildCategorySelectOptions(
-  mode: DerivedTagMigrationMode,
+  mode: DerivedTagWorkbenchMode,
   db: DatabaseSync,
 ): DerivedTagTerminalSelectOption<SearchCategory>[] {
   const scopeSummary = summarizeDerivedTagCategoryScopes(db, mode);
@@ -73,7 +83,7 @@ function buildCategorySelectOptions(
 }
 
 function buildAllCategoryOption(
-  mode: DerivedTagMigrationMode,
+  mode: DerivedTagWorkbenchMode,
   db: DatabaseSync,
 ): Pick<DerivedTagTerminalSelectOption<string>, "label" | "description" | "detailLines"> {
   const scopeSummary = summarizeDerivedTagCategoryScopes(db, mode);
@@ -152,7 +162,7 @@ function familyMatchesScope(
 }
 
 function buildFamilySelectOptions(
-  mode: DerivedTagMigrationMode,
+  mode: DerivedTagWorkbenchMode,
   category: SearchCategory | undefined,
   subcategory: SearchSubcategory | undefined,
   exemplarLimit: number | undefined,
@@ -231,7 +241,7 @@ function tagMatchesScope(
 }
 
 function buildTagSelectOptions(
-  mode: DerivedTagMigrationMode,
+  mode: DerivedTagWorkbenchMode,
   category: SearchCategory | undefined,
   subcategory: SearchSubcategory | undefined,
   family: string | undefined,
@@ -278,9 +288,9 @@ function buildAllTagOption(): Pick<DerivedTagTerminalSelectOption<string>, "labe
 }
 
 async function promptCategory(
-  prompts: DerivedTagMigrationWorkbenchPromptAdapters,
+  prompts: DerivedTagWorkbenchPromptAdapters,
   db: DatabaseSync,
-  mode: DerivedTagMigrationMode,
+  mode: DerivedTagWorkbenchMode,
   required: boolean,
 ): Promise<SearchCategory | null | undefined> {
   const entries = buildCategorySelectOptions(mode, db);
@@ -309,7 +319,7 @@ async function promptCategory(
 }
 
 async function promptSubcategory(
-  prompts: DerivedTagMigrationWorkbenchPromptAdapters,
+  prompts: DerivedTagWorkbenchPromptAdapters,
   category: SearchCategory,
 ): Promise<SearchSubcategory | null | undefined> {
   const options = buildSubcategorySelectOptions(category);
@@ -332,8 +342,8 @@ async function promptSubcategory(
 }
 
 async function promptTag(
-  prompts: DerivedTagMigrationWorkbenchPromptAdapters,
-  mode: DerivedTagMigrationMode,
+  prompts: DerivedTagWorkbenchPromptAdapters,
+  mode: DerivedTagWorkbenchMode,
   category: SearchCategory | undefined,
   subcategory: SearchSubcategory | undefined,
   family: string | undefined,
@@ -377,8 +387,8 @@ async function promptTag(
 }
 
 async function promptFamily(
-  prompts: DerivedTagMigrationWorkbenchPromptAdapters,
-  mode: DerivedTagMigrationMode,
+  prompts: DerivedTagWorkbenchPromptAdapters,
+  mode: DerivedTagWorkbenchMode,
   category: SearchCategory | undefined,
   subcategory: SearchSubcategory | undefined,
   exemplarLimit: number | undefined,
@@ -412,7 +422,7 @@ async function promptFamily(
 }
 
 async function promptInteger(
-  prompts: DerivedTagMigrationWorkbenchSessionPrompts,
+  prompts: DerivedTagWorkbenchSessionPrompts,
   prompt: string,
   flagName: string,
 ): Promise<number | undefined> {
@@ -425,18 +435,18 @@ async function promptInteger(
     );
 
     try {
-      return parseInteger(value, flagName);
+      return parseOptionalInteger(value, flagName);
     } catch (error) {
       await prompts.pauseForAnyKey((error as Error).message);
     }
   }
 }
 
-export async function promptDerivedTagMigrationWorkbenchSessionOptions(
-  prompts: DerivedTagMigrationWorkbenchSessionPrompts,
+export async function promptDerivedTagWorkbenchSessionOptions(
+  prompts: DerivedTagWorkbenchSessionPrompts,
   db: DatabaseSync,
-  mode: DerivedTagMigrationMode,
-): Promise<DerivedTagMigrationWorkbenchSessionOptions | undefined> {
+  mode: DerivedTagWorkbenchMode,
+): Promise<DerivedTagWorkbenchSessionOptions | undefined> {
   const requireCategory = mode === "legacy_rule";
   const categorySelection = await promptCategory(prompts, db, mode, requireCategory);
   if (categorySelection === undefined) {

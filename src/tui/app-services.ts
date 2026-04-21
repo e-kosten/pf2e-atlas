@@ -4,39 +4,39 @@ import { createPf2eApplicationStorageService, type Pf2eApplicationStorageService
 import { Pf2eDataService } from "../data/service.js";
 import type { AppConfig } from "../domain/config-types.js";
 import {
-  buildDerivedTagMigrationSession,
-  createDerivedTagMigrationWorkbenchSession,
-  getDerivedTagMigrationWorkbenchQueueItems,
-  promptAndCreateDerivedTagMigrationWorkbenchSession,
+  buildDerivedTagReviewSession,
+  createDerivedTagWorkbenchSession,
+  getDerivedTagWorkbenchQueueItems,
+  promptAndCreateDerivedTagWorkbenchSession,
   summarizeCurrentDerivedTagReviewQueue,
-  writeDerivedTagMigrationSession,
-  writeDerivedTagMigrationSummary,
-  type DerivedTagMigrationMode,
-  type DerivedTagMigrationReviewDecisionKind,
-  type DerivedTagMigrationSession,
-  type DerivedTagMigrationWorkbenchServices,
-  type DerivedTagMigrationWorkbenchSessionCreationOptions,
-  type DerivedTagMigrationWorkbenchSessionPrompts,
+  writeDerivedTagReviewSession,
+  writeDerivedTagReviewSummary,
+  type DerivedTagWorkbenchMode,
+  type DerivedTagReviewDecisionKind,
+  type DerivedTagReviewSession,
+  type DerivedTagWorkbenchServices,
+  type DerivedTagWorkbenchSessionCreationOptions,
+  type DerivedTagWorkbenchSessionPrompts,
   type DerivedTagReviewQueueSummaryItem,
-} from "../tags/index.js";
+} from "../tags/editorial.js";
 import { createPf2eTerminalSearchService, type Pf2eTerminalSearchService } from "./search/service.js";
 
-type SessionOptions = Omit<DerivedTagMigrationWorkbenchSessionCreationOptions, "decisionKind"> & {
-  decisionKind?: DerivedTagMigrationReviewDecisionKind;
+type SessionOptions = Omit<DerivedTagWorkbenchSessionCreationOptions, "decisionKind"> & {
+  decisionKind?: DerivedTagReviewDecisionKind;
 };
 
 export type Pf2eTerminalTagWorkbenchService = {
   createSession: (
     rootPath: string,
-    mode: DerivedTagMigrationMode,
+    mode: DerivedTagWorkbenchMode,
     options: SessionOptions,
-  ) => Promise<DerivedTagMigrationSession>;
+  ) => Promise<DerivedTagReviewSession>;
   getQueueItems: () => DerivedTagReviewQueueSummaryItem[];
   promptAndCreateSession: (
     rootPath: string,
-    mode: DerivedTagMigrationMode,
-    prompts: DerivedTagMigrationWorkbenchSessionPrompts,
-  ) => Promise<DerivedTagMigrationSession | undefined>;
+    mode: DerivedTagWorkbenchMode,
+    prompts: DerivedTagWorkbenchSessionPrompts,
+  ) => Promise<DerivedTagReviewSession | undefined>;
 };
 
 export type Pf2eTerminalCatalogService = Pick<
@@ -73,13 +73,13 @@ export type Pf2eTerminalAppServices = {
 
 function createConfiguredWorkbenchServices(
   storage: Pick<Pf2eApplicationStorageService, "openIndex">,
-): DerivedTagMigrationWorkbenchServices {
+): DerivedTagWorkbenchServices {
   return {
-    buildSession: buildDerivedTagMigrationSession,
+    buildSession: buildDerivedTagReviewSession,
     openIndex: storage.openIndex,
     summarizeQueue: summarizeCurrentDerivedTagReviewQueue,
-    writeSession: writeDerivedTagMigrationSession,
-    writeSummary: writeDerivedTagMigrationSummary,
+    writeSession: writeDerivedTagReviewSession,
+    writeSummary: writeDerivedTagReviewSummary,
   };
 }
 
@@ -90,10 +90,10 @@ function createTagWorkbenchService(
 
   return {
     createSession: (rootPath, mode, options) =>
-      createDerivedTagMigrationWorkbenchSession(rootPath, [], mode, options, services),
-    getQueueItems: () => getDerivedTagMigrationWorkbenchQueueItems(services),
+      createDerivedTagWorkbenchSession(rootPath, [], mode, options, services),
+    getQueueItems: () => getDerivedTagWorkbenchQueueItems(services),
     promptAndCreateSession: (rootPath, mode, prompts) =>
-      promptAndCreateDerivedTagMigrationWorkbenchSession(rootPath, [], mode, prompts, services),
+      promptAndCreateDerivedTagWorkbenchSession(rootPath, [], mode, prompts, services),
   };
 }
 

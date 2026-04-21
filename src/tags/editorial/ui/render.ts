@@ -1,9 +1,9 @@
-import type { DerivedTagMigrationDecision, DerivedTagMigrationSession } from "../types.js";
-import { getCurrentDerivedTagMigrationAuthoredState } from "../state/authored-state.js";
-import { getDerivedTagMigrationReviewItems, summarizeDerivedTagMigrationReviewProgress } from "../sessions/review-session.js";
+import type { DerivedTagReviewDecision, DerivedTagReviewSession } from "../types.js";
+import { getCurrentDerivedTagAuthoredState } from "../state/authored-state.js";
+import { getDerivedTagReviewItems, summarizeDerivedTagReviewProgress } from "../sessions/review-session.js";
 import { buildDerivedTagMigrationRecordPageTextLines } from "./review-detail-content.js";
 
-function describeDecision(decision: DerivedTagMigrationDecision): string {
+function describeDecision(decision: DerivedTagReviewDecision): string {
   if (decision.kind === "assignment") {
     return `${decision.family}.${decision.tag} ${decision.mode}`;
   }
@@ -33,7 +33,7 @@ function renderLiveAssignments(category: string, recordKey: string): string {
     return "(n/a)";
   }
 
-  const state = getCurrentDerivedTagMigrationAuthoredState();
+  const state = getCurrentDerivedTagAuthoredState();
   const assignment = state.assignments[managedCategory].find((entry) => entry.recordKey === recordKey);
   if (!assignment) {
     return "(none)";
@@ -55,7 +55,7 @@ function renderAssignmentMemory(category: string, recordKey: string): string {
     return "(n/a)";
   }
 
-  const state = getCurrentDerivedTagMigrationAuthoredState();
+  const state = getCurrentDerivedTagAuthoredState();
   const decisions = state.assignmentMemory[managedCategory].decisions
     .filter((decision) => decision.recordKey === recordKey)
     .map((decision) => `${decision.mode === "exclude" ? "!" : ""}${decision.family}.${decision.tag}`);
@@ -67,8 +67,8 @@ function renderStatus(value: string): string {
   return value;
 }
 
-export function renderDerivedTagMigrationSessionSummary(session: DerivedTagMigrationSession): string {
-  const progress = summarizeDerivedTagMigrationReviewProgress(session);
+export function renderDerivedTagReviewSessionSummary(session: DerivedTagReviewSession): string {
+  const progress = summarizeDerivedTagReviewProgress(session);
   const actionableSummary =
     progress.actionableRecordCount > 0
       ? `Actionable records resolved: ${progress.resolvedActionableRecordCount}/${progress.actionableRecordCount}`
@@ -85,15 +85,15 @@ export function renderDerivedTagMigrationSessionSummary(session: DerivedTagMigra
   ].join("\n");
 }
 
-export function renderDerivedTagMigrationReviewItem(
-  session: DerivedTagMigrationSession,
+export function renderDerivedTagReviewItem(
+  session: DerivedTagReviewSession,
   itemIndex: number,
   actionBar?: string,
 ): string {
-  const itemsForRender = getDerivedTagMigrationReviewItems(session);
+  const itemsForRender = getDerivedTagReviewItems(session);
   if (itemsForRender.length === 0) {
     return [
-      renderDerivedTagMigrationSessionSummary(session),
+      renderDerivedTagReviewSessionSummary(session),
       "",
       "No review items matched the current filters.",
       ...(actionBar ? ["", actionBar] : []),
@@ -107,7 +107,7 @@ export function renderDerivedTagMigrationReviewItem(
   const decision = recordDecision.decisions[item.decisionIndex]!;
 
   return [
-    renderDerivedTagMigrationSessionSummary(session),
+    renderDerivedTagReviewSessionSummary(session),
     "",
     `Item ${itemIndex + 1}/${itemsForRender.length}`,
     `${entityRecord.name} (${entityRecord.recordKey})`,

@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { buildDerivedTagMigrationReviewViewModel } from "../../src/tags/editorial/ui/review-screen-model.js";
-import { createInitialDerivedTagMigrationReviewScreenState } from "../../src/tags/editorial/ui/review-screen-state.js";
-import type { DerivedTagMigrationSession } from "../../src/tags/editorial/types.js";
+import { buildDerivedTagReviewViewModel } from "../../src/tags/editorial/ui/review-screen-model.js";
+import { createInitialDerivedTagReviewScreenState } from "../../src/tags/editorial/ui/review-screen-state.js";
+import type { DerivedTagReviewSession } from "../../src/tags/editorial/types.js";
 
-function createSession(): DerivedTagMigrationSession {
+function createSession(): DerivedTagReviewSession {
   return {
     manifest: {
       id: "session-1",
@@ -103,8 +103,8 @@ function createSession(): DerivedTagMigrationSession {
 
 describe("review screen model", () => {
   it("builds the split review screen and help content from pure state", () => {
-    const state = createInitialDerivedTagMigrationReviewScreenState(createSession());
-    const model = buildDerivedTagMigrationReviewViewModel({
+    const state = createInitialDerivedTagReviewScreenState(createSession());
+    const model = buildDerivedTagReviewViewModel({
       persistError: null,
       size: { width: 120, height: 30 },
       state,

@@ -5,7 +5,7 @@ import {
   getDerivedTagExemplarRecordKeys,
   getDerivedTagLegacySeedMigrationRecordKeys,
 } from "../runtime/derivation/api.js";
-import { SearchCategory, SearchSubcategory } from "../../domain/index.js";
+import { SearchCategory, SearchSubcategory } from "../../domain/derived-tag-types.js";
 import { normalizeDerivedTag } from "../runtime/matcher/shared.js";
 import { type DiscoveryEvidenceTerm, analyzeDiscoveryEvidenceFromRecords } from "./evidence-analyzer.js";
 import { tokenizeDiscoveryText } from "../discovery/discovery-normalization.js";

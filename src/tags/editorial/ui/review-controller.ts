@@ -1,26 +1,26 @@
-import { writeDerivedTagMigrationSummary } from "../cli-utils.js";
-import { importDerivedTagMigrationSession } from "../writeback/importer.js";
-import { lintDerivedTagMigrationSession } from "../writeback/linter.js";
-import { summarizeDerivedTagMigrationReviewProgress } from "../sessions/review-session.js";
-import { writeDerivedTagMigrationSession } from "../sessions/session-store.js";
-import type { DerivedTagMigrationSession } from "../types.js";
+import { writeDerivedTagReviewSummary } from "../writeback/review-summary.js";
+import { importDerivedTagReviewSession as importReviewedSession } from "../writeback/importer.js";
+import { lintDerivedTagReviewSession } from "../writeback/linter.js";
+import { summarizeDerivedTagReviewProgress } from "../sessions/review-session.js";
+import { writeDerivedTagReviewSession } from "../sessions/session-store.js";
+import type { DerivedTagReviewSession } from "../types.js";
 
-export type DerivedTagMigrationReviewServices = {
-  importSession: typeof importDerivedTagMigrationSession;
-  lintSession: typeof lintDerivedTagMigrationSession;
-  writeSession: typeof writeDerivedTagMigrationSession;
-  writeSummary: typeof writeDerivedTagMigrationSummary;
+export type DerivedTagReviewServices = {
+  importSession: typeof importReviewedSession;
+  lintSession: typeof lintDerivedTagReviewSession;
+  writeSession: typeof writeDerivedTagReviewSession;
+  writeSummary: typeof writeDerivedTagReviewSummary;
 };
 
-export const DEFAULT_DERIVED_TAG_MIGRATION_REVIEW_SERVICES: DerivedTagMigrationReviewServices = {
-  importSession: importDerivedTagMigrationSession,
-  lintSession: lintDerivedTagMigrationSession,
-  writeSession: writeDerivedTagMigrationSession,
-  writeSummary: writeDerivedTagMigrationSummary,
+export const DEFAULT_DERIVED_TAG_REVIEW_SERVICES: DerivedTagReviewServices = {
+  importSession: importReviewedSession,
+  lintSession: lintDerivedTagReviewSession,
+  writeSession: writeDerivedTagReviewSession,
+  writeSummary: writeDerivedTagReviewSummary,
 };
 
-export function renderDerivedTagMigrationReviewSummary(session: DerivedTagMigrationSession): string {
-  const progress = summarizeDerivedTagMigrationReviewProgress(session);
+export function renderDerivedTagReviewSummary(session: DerivedTagReviewSession): string {
+  const progress = summarizeDerivedTagReviewProgress(session);
   const actionableSummary =
     progress.actionableRecordCount > 0
       ? `Actionable records resolved: ${progress.resolvedActionableRecordCount}/${progress.actionableRecordCount}`
@@ -36,23 +36,23 @@ export function renderDerivedTagMigrationReviewSummary(session: DerivedTagMigrat
   ].join("\n");
 }
 
-export async function persistDerivedTagMigrationReviewSession(
+export async function persistDerivedTagReviewSession(
   rootPath: string,
-  session: DerivedTagMigrationSession,
-  services: DerivedTagMigrationReviewServices = DEFAULT_DERIVED_TAG_MIGRATION_REVIEW_SERVICES,
+  session: DerivedTagReviewSession,
+  services: DerivedTagReviewServices = DEFAULT_DERIVED_TAG_REVIEW_SERVICES,
 ): Promise<void> {
   await Promise.all([
     services.writeSession(rootPath, session),
-    services.writeSummary(rootPath, session.manifest.id, renderDerivedTagMigrationReviewSummary(session)),
+    services.writeSummary(rootPath, session.manifest.id, renderDerivedTagReviewSummary(session)),
   ]);
 }
 
-export async function importDerivedTagMigrationReviewSession(
+export async function importDerivedTagReviewSession(
   rootPath: string,
-  session: DerivedTagMigrationSession,
-  services: DerivedTagMigrationReviewServices = DEFAULT_DERIVED_TAG_MIGRATION_REVIEW_SERVICES,
+  session: DerivedTagReviewSession,
+  services: DerivedTagReviewServices = DEFAULT_DERIVED_TAG_REVIEW_SERVICES,
 ): Promise<void> {
   services.lintSession(session);
   await services.importSession(rootPath, session);
-  await persistDerivedTagMigrationReviewSession(rootPath, session, services);
+  await persistDerivedTagReviewSession(rootPath, session, services);
 }

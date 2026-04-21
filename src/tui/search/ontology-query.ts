@@ -3,7 +3,7 @@ import {
   normalizeSearchCategory,
   normalizeSearchSubcategory,
 } from "../../domain/categories.js";
-import type { MetadataFieldSemantics } from "../../domain/metadata-semantics.js";
+import type { MetadataFieldSemantics } from "../../search/filters/semantics.js";
 import type { OntologyNodeQuery } from "../../domain/ontology-types.js";
 import type { SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
 import {

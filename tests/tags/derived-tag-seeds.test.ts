@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { DerivedTagExemplarCategory, DerivedTagOntologyFamily, DerivedTagOntologyTag } from "../../src/domain/index.js";
+import type { DerivedTagExemplarCategory, DerivedTagOntologyFamily, DerivedTagOntologyTag } from "../../src/domain/derived-tag-types.js";
 import { publishDerivedTagOntology } from "../../src/tags/runtime/publication/catalog.js";
 import {
   publishDerivedTagExemplars,
@@ -12,7 +12,7 @@ import {
   getDerivedTagExemplarRecordKeys,
   getDerivedTagLegacySeedMigrationRecordKeys,
   listDerivedTagLegacySeedMigrations,
-} from "../../src/tags/index.js";
+} from "../../src/tags/runtime.js";
 
 function matcherArrayContaining(values: unknown[]): unknown {
   return expect.arrayContaining(values);

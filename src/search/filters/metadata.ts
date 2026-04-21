@@ -3,8 +3,8 @@ import {
   normalizeActorMetricKey,
   normalizeActorMetricTextValue,
   type ActorMetricValue,
-} from "../domain/actor-metrics.js";
-import { inferItemMetricValueType, normalizeItemMetricKey } from "../domain/item-metrics.js";
+} from "../../domain/actor-metrics.js";
+import { inferItemMetricValueType, normalizeItemMetricKey } from "../../domain/item-metrics.js";
 import {
   getMetadataBooleanFieldSpec,
   getMetadataBooleanRecordValue,
@@ -24,7 +24,7 @@ import {
   type MetadataFieldSpecEntry,
   type MetadataSqlSourceContext,
   type MetadataValueNormalization,
-} from "../domain/metadata-field-registry.js";
+} from "./registry.js";
 import {
   ACTOR_METRIC_COMPARE_PREDICATE_SPEC,
   ACTOR_METRIC_PREDICATE_SPEC,
@@ -34,7 +34,7 @@ import {
   getMetricValuePredicateOperatorKind,
   type MetadataMetricComparePredicateSpec,
   type MetadataMetricValuePredicateSpec,
-} from "../domain/metadata-predicate-spec.js";
+} from "../../domain/metadata-predicate-spec.js";
 import {
   MetadataBooleanField,
   MetadataBooleanPredicate,
@@ -48,11 +48,11 @@ import {
   MetadataSetField,
   MetadataTextStringField,
   MetadataTextStringPredicate,
-} from "../domain/metadata-types.js";
-import type { NormalizedRecord } from "../domain/record-types.js";
-import { normalizeDerivedTag } from "../tags/index.js";
-import { normalizeText } from "../shared/utils.js";
-import type { SqlValue } from "./contracts.js";
+} from "./types.js";
+import type { NormalizedRecord } from "../../domain/record-types.js";
+import { normalizeDerivedTag } from "../../tags/runtime.js";
+import { normalizeText } from "../../shared/utils.js";
+import type { SqlValue } from "../contracts.js";
 
 export type MetadataSqlContext = {} & MetadataSqlSourceContext;
 

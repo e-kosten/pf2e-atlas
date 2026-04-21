@@ -1,4 +1,4 @@
-import type { DerivedTagSeedRecordResolution } from "../../../domain/index.js";
+import type { DerivedTagSeedRecordResolution } from "../../../domain/derived-tag-types.js";
 import { buildDerivedTagSeedLookup } from "./catalog.js";
 
 export const DERIVED_TAG_SEED_RECORD_RESOLUTIONS: DerivedTagSeedRecordResolution[] = [

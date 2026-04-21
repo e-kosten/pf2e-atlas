@@ -1,4 +1,4 @@
-import type { DerivedTagOntologyTag, SearchCategory } from "../../../domain/index.js";
+import type { DerivedTagOntologyTag, SearchCategory } from "../../../domain/derived-tag-types.js";
 import { uniqueSorted } from "../../../shared/utils.js";
 import { DERIVED_TAG_ASSIGNMENTS_BY_CATEGORY } from "../../assignments/index.js";
 import { DERIVED_TAG_MANAGED_CATEGORIES } from "../../manifest.js";

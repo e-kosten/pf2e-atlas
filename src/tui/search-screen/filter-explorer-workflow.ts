@@ -1,13 +1,12 @@
 import React from "react";
 
-import {
-  buildSearchFilterExplorerModel,
-  buildSearchFilterExplorerTargetResolver,
-  getSearchQuerySubcategory,
-  type Pf2eTerminalFilterExplorerDraft,
-  type Pf2eTerminalQueryFieldOption,
-  type Pf2eTerminalSearchQuery,
+import { buildSearchFilterExplorerModel, buildSearchFilterExplorerTargetResolver } from "../filter-explorer/search-draft.js";
+import type {
+  Pf2eTerminalFilterExplorerDraft,
+  Pf2eTerminalQueryFieldOption,
+  Pf2eTerminalSearchQuery,
 } from "../search/service.js";
+import { getSearchQuerySubcategory } from "../search/query-state.js";
 import type { SearchFilterExplorerSession } from "./model.js";
 import type { Pf2eTerminalAppServices } from "../app-services.js";
 

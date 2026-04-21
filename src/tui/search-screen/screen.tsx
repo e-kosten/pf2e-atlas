@@ -8,7 +8,7 @@ import {
   getSearchStructuredEditorInteractionActions,
   buildSearchStructuredEditorMenuItems,
   buildSearchStructuredEditorStatusLine,
-} from "./query-field-builder-session.js";
+} from "./query-field-builder/query-field-builder-session.js";
 import { useSearchScreenController } from "./controller.js";
 import type { SearchScreenProps } from "./entry-props.js";
 import { SearchFilterExplorerScreen } from "./filter-explorer-screen.js";

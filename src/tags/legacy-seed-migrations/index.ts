@@ -1,4 +1,4 @@
-import type { DerivedTagLegacySeedMigrationCategory } from "../../domain/index.js";
+import type { DerivedTagLegacySeedMigrationCategory } from "../../domain/derived-tag-types.js";
 import type { DerivedTagManagedCategory } from "../manifest.js";
 import { CREATURE_DERIVED_TAG_LEGACY_SEED_MIGRATIONS } from "./creature.js";
 import { HAZARD_DERIVED_TAG_LEGACY_SEED_MIGRATIONS } from "./hazard.js";

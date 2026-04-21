@@ -1,9 +1,9 @@
 import {
-  clampDerivedTagMigrationReviewIndex,
-  toggleDerivedTagMigrationUnresolvedOnly,
-  updateDerivedTagMigrationDecisionStatus,
+  clampDerivedTagReviewIndex,
+  toggleDerivedTagReviewUnresolvedOnly,
+  updateDerivedTagReviewDecisionStatus,
 } from "../sessions/review-session.js";
-import type { DerivedTagMigrationSession } from "../types.js";
+import type { DerivedTagReviewSession } from "../types.js";
 import {
   createDerivedTagTerminalActionTargetState,
   reduceDerivedTagTerminalActionTargetState,
@@ -18,15 +18,15 @@ import {
   type DerivedTagTerminalTwoPaneState,
 } from "../../../tui/two-pane-state.js";
 
-export type DerivedTagMigrationReviewScreenState = DerivedTagTerminalTwoPaneState &
+export type DerivedTagReviewScreenState = DerivedTagTerminalTwoPaneState &
   DerivedTagTerminalActionTargetState & {
     imported: boolean;
-    session: DerivedTagMigrationSession;
+    session: DerivedTagReviewSession;
   };
 
-export type DerivedTagMigrationReviewScreenAction =
+export type DerivedTagReviewScreenAction =
   | DerivedTagTerminalTwoPaneAction
-  | { type: "set_session"; session: DerivedTagMigrationSession }
+  | { type: "set_session"; session: DerivedTagReviewSession }
   | { type: "set_imported"; imported: boolean }
   | { type: "move_list_wrapped"; delta: number; itemCount: number }
   | { type: "move_list_clamped"; delta: number; itemCount: number }
@@ -37,7 +37,7 @@ export type DerivedTagMigrationReviewScreenAction =
   | {
       type: "apply_decision_status";
       item: { recordIndex: number; decisionIndex: number };
-      status: DerivedTagMigrationSession["decisions"][number]["decisions"][number]["status"];
+      status: DerivedTagReviewSession["decisions"][number]["decisions"][number]["status"];
     }
   | { type: "toggle_unresolved" };
 
@@ -54,31 +54,31 @@ export const DERIVED_TAG_MIGRATION_REVIEW_ACTIONS = [
   { id: "quit", label: "Quit", description: "Finish the review UI and return the current session state." },
 ] as const satisfies readonly DerivedTagTerminalActionTargetOption[];
 
-export type DerivedTagMigrationReviewActionId = (typeof DERIVED_TAG_MIGRATION_REVIEW_ACTIONS)[number]["id"];
+export type DerivedTagReviewActionId = (typeof DERIVED_TAG_MIGRATION_REVIEW_ACTIONS)[number]["id"];
 
-export function createInitialDerivedTagMigrationReviewScreenState(
-  initialSession: DerivedTagMigrationSession,
-): DerivedTagMigrationReviewScreenState {
+export function createInitialDerivedTagReviewScreenState(
+  initialSession: DerivedTagReviewSession,
+): DerivedTagReviewScreenState {
   return {
     activePane: "list",
     ...createDerivedTagTerminalActionTargetState(),
     detailScroll: 0,
     imported: false,
     layoutMode: "split",
-    session: clampDerivedTagMigrationReviewIndex(initialSession),
+    session: clampDerivedTagReviewIndex(initialSession),
   };
 }
 
-function setReviewCurrentIndex(session: DerivedTagMigrationSession, nextIndex: number): DerivedTagMigrationSession {
+function setReviewCurrentIndex(session: DerivedTagReviewSession, nextIndex: number): DerivedTagReviewSession {
   const next = structuredClone(session);
   next.reviewState.currentIndex = nextIndex;
   return next;
 }
 
-export function reduceDerivedTagMigrationReviewScreenState(
-  state: DerivedTagMigrationReviewScreenState,
-  action: DerivedTagMigrationReviewScreenAction,
-): DerivedTagMigrationReviewScreenState {
+export function reduceDerivedTagReviewScreenState(
+  state: DerivedTagReviewScreenState,
+  action: DerivedTagReviewScreenAction,
+): DerivedTagReviewScreenState {
   switch (action.type) {
     case "toggle_focus":
     case "toggle_layout":
@@ -90,7 +90,7 @@ export function reduceDerivedTagMigrationReviewScreenState(
     case "set_session":
       return {
         ...state,
-        session: clampDerivedTagMigrationReviewIndex(action.session),
+        session: clampDerivedTagReviewIndex(action.session),
       };
     case "set_imported":
       return {
@@ -140,15 +140,15 @@ export function reduceDerivedTagMigrationReviewScreenState(
     case "apply_decision_status":
       return {
         ...state,
-        session: clampDerivedTagMigrationReviewIndex(
-          updateDerivedTagMigrationDecisionStatus(state.session, action.item, action.status),
+        session: clampDerivedTagReviewIndex(
+          updateDerivedTagReviewDecisionStatus(state.session, action.item, action.status),
         ),
       };
     case "toggle_unresolved":
       return {
         ...state,
         detailScroll: 0,
-        session: clampDerivedTagMigrationReviewIndex(toggleDerivedTagMigrationUnresolvedOnly(state.session)),
+        session: clampDerivedTagReviewIndex(toggleDerivedTagReviewUnresolvedOnly(state.session)),
       };
     default:
       return state;

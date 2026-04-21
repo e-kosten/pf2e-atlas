@@ -61,7 +61,7 @@ const NON_TAG_OWNERSHIP_IMPORT_RESTRICTIONS = {
     {
       group: DOMAIN_INDEX_IMPORT_PATHS,
       message:
-        "Non-tag code must import domain contracts from explicit src/domain/* modules instead of the transitional src/domain/index.js barrel.",
+        "Non-tag code must import domain contracts from explicit src/domain/* modules instead of the removed broad src/domain/index.js barrel.",
     },
   ],
 };
@@ -122,7 +122,7 @@ const NON_TAGS_DERIVED_TAG_IMPORT_RESTRICTIONS = {
         "**/tags/legacy-seed-migrations/**",
       ],
       message:
-        "Outside src/tags, import derived-tag functionality through src/tags/index.js or another approved facade instead of leaf tag internals.",
+        "Outside src/tags, import derived-tag functionality through src/tags/runtime.js, src/tags/editorial.js, or src/tags/editorial-ui.js instead of leaf tag internals.",
     },
   ],
 };
@@ -675,7 +675,7 @@ export default defineConfig(
     },
   },
   {
-    files: ["src/tui/search-screen/workspace-actions.ts"],
+    files: ["src/tui/search-screen/workspace/workspace-actions.ts"],
     rules: {
       "arch/no-stale-search-screen-terminology": "error",
       "no-restricted-syntax": [
@@ -808,7 +808,6 @@ export default defineConfig(
               "**/tags/editorial/sessions/session-builder.js",
               "**/tags/editorial/state/runtime-state.js",
               "**/tags/editorial/sessions/session-store.js",
-              "**/tags/editorial/cli-utils.js",
             ],
             message:
               "TUI modules must use app-services for tag-workbench composition instead of importing editorial service internals directly.",
@@ -968,7 +967,7 @@ export default defineConfig(
     ignores: [
       "src/tui/search-screen/controller.ts",
       "src/tui/search-screen/session-workflow.ts",
-      "src/tui/search-screen/workspace-actions.ts",
+      "src/tui/search-screen/workspace/workspace-actions.ts",
     ],
     rules: {
       "arch/no-stale-search-screen-terminology": "error",

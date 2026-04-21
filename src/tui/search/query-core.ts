@@ -1,4 +1,4 @@
-import type { MetadataFilterNode, MetadataPredicate } from "../../domain/metadata-types.js";
+import type { MetadataFilterNode, MetadataPredicate } from "../../search/filters/types.js";
 import { getMetricQueryFieldLabel } from "../../domain/metric-discovery-group-label.js";
 import type { SearchCategory } from "../../domain/search-types.js";
 import { humanizeIdentifier } from "./service-options.js";

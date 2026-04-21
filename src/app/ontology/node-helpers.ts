@@ -1,6 +1,6 @@
 import type {
   MetadataFilterNode,
-} from "../../domain/metadata-types.js";
+} from "../../search/filters/types.js";
 import type { NormalizedRecord } from "../../domain/record-types.js";
 import type { OntologyNode, OntologyTextLine } from "../../domain/ontology-types.js";
 import type { SearchFilters } from "../../domain/search-types.js";

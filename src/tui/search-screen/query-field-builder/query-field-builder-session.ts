@@ -1,31 +1,31 @@
-import type { MetadataFilterNode } from "../../domain/metadata-types.js";
-import type { OntologyDomainModel } from "../../domain/ontology-types.js";
-import type { FilterExplorerComposeTarget } from "../filter-explorer/index.js";
+import type { MetadataFilterNode } from "../../../search/filters/types.js";
+import type { OntologyDomainModel } from "../../../domain/ontology-types.js";
+import type { FilterExplorerComposeTarget } from "../../filter-explorer/index.js";
 import {
   buildTerminalInteractionHelpLines,
   formatTerminalInteractionFooter,
   type TerminalInteractionAction,
-} from "../interaction-bindings.js";
-import type { SearchWorkspaceEntry } from "./workspace.js";
-import { flattenMetadataTree, isMetadataPredicate } from "../search/query-core.js";
+} from "../../interaction-bindings.js";
+import type { SearchWorkspaceEntry } from "../workspace/workspace.js";
+import { flattenMetadataTree, isMetadataPredicate } from "../../search/query-core.js";
 import {
   buildStructuredQuerySummaryLines,
   buildStructuredWorkspaceEntryFocusLines,
   formatSearchWorkspaceEntryLine,
-} from "./workspace.js";
+} from "../workspace/workspace.js";
 import type {
   Pf2eTerminalFilterExplorerDraft,
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalQueryFieldSelectionMap,
   Pf2eTerminalSearchQuery,
-} from "../search/service.js";
-import type { DerivedTagTerminalLine } from "../framework/types.js";
+} from "../../search/service.js";
+import type { DerivedTagTerminalLine } from "../../framework/types.js";
 
 export type SearchFilterExplorerSession = {
   title?: string;
   model: OntologyDomainModel;
   draft: Pf2eTerminalFilterExplorerDraft;
-  resolveSelectionTarget: (node: import("../../domain/ontology-types.js").OntologyNode | undefined) => FilterExplorerComposeTarget | undefined;
+  resolveSelectionTarget: (node: import("../../../domain/ontology-types.js").OntologyNode | undefined) => FilterExplorerComposeTarget | undefined;
   onApply: (draft: Pf2eTerminalFilterExplorerDraft) => void;
 };
 

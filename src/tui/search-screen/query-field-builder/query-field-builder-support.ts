@@ -1,13 +1,13 @@
-import type { MetadataFilterNode } from "../../domain/metadata-types.js";
+import type { MetadataFilterNode } from "../../../search/filters/types.js";
 import {
   appendMetadataNodeAtPath,
   normalizeMetadataNode,
-} from "../search/query-core.js";
-import { getSearchQueryMetadataTree, setSearchQueryMetadataTree } from "../search/service.js";
+} from "../../search/query-core.js";
+import { getSearchQueryMetadataTree, setSearchQueryMetadataTree } from "../../search/query-state.js";
 import type {
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalSearchQuery,
-} from "../search/service.js";
+} from "../../search/service.js";
 import type { SearchQueryFieldBuilderSession } from "./query-field-builder-session.js";
 
 export type QueryFieldBuilderState = {

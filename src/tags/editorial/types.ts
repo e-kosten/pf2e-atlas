@@ -5,7 +5,7 @@ import type {
   DerivedTagExemplarReviewCategory,
   SearchCategory,
   SearchSubcategory,
-} from "../../domain/index.js";
+} from "../../domain/derived-tag-types.js";
 import type {
   AuthoredDerivedTagAssignment,
   DerivedTagAssignmentMemoryCategory,
@@ -16,18 +16,18 @@ import type {
 } from "../runtime/derivation/assignments.js";
 import type { DerivedTagSource } from "../runtime/publication/catalog.js";
 import type { DerivedTagManagedCategory } from "../manifest.js";
-import type { OntologyExplorerEntityRecord } from "../entity-record.js";
+import type { OntologyExplorerEntityRecord } from "../../app/ontology/entity-record.js";
 
 export type { DerivedTagManagedCategory } from "../manifest.js";
 
-export type DerivedTagMigrationMode =
+export type DerivedTagWorkbenchMode =
   | "review_queue"
   | "proposal_review"
   | "legacy_seed"
   | "legacy_rule"
   | "exemplar_cleanup";
 
-export type DerivedTagMigrationSelectionSource =
+export type DerivedTagReviewSelectionSource =
   | "authored_review_queue"
   | "authored_exemplar_review_queue"
   | "llm_assignment_review_queue"
@@ -36,22 +36,22 @@ export type DerivedTagMigrationSelectionSource =
   | "legacy_rule"
   | "exemplar_cleanup";
 
-export type DerivedTagMigrationResolutionStatus = "complete" | "needs_review";
+export type DerivedTagReviewResolutionStatus = "complete" | "needs_review";
 
-export type DerivedTagMigrationSelectionReason = {
-  source: DerivedTagMigrationSelectionSource;
+export type DerivedTagReviewSelectionReason = {
+  source: DerivedTagReviewSelectionSource;
   family?: string;
   tag?: string;
   note: string;
 };
 
-export type DerivedTagMigrationSessionRecord = {
+export type DerivedTagReviewSessionRecord = {
   entityRecord: OntologyExplorerEntityRecord;
   currentSources: Record<string, DerivedTagSource>;
-  selectionReasons: DerivedTagMigrationSelectionReason[];
+  selectionReasons: DerivedTagReviewSelectionReason[];
 };
 
-export type DerivedTagMigrationAssignmentDecision = {
+export type DerivedTagReviewAssignmentDecision = {
   kind: "assignment";
   family: string;
   tag: string;
@@ -62,7 +62,7 @@ export type DerivedTagMigrationAssignmentDecision = {
   source?: DerivedTagReviewSource;
 };
 
-export type DerivedTagMigrationExemplarDecision = {
+export type DerivedTagReviewExemplarDecision = {
   kind: "exemplar";
   tag: string;
   polarity: DerivedTagExemplarPolarity;
@@ -74,7 +74,7 @@ export type DerivedTagMigrationExemplarDecision = {
   currentPolarity?: DerivedTagExemplarPolarity | "none";
 };
 
-export type DerivedTagMigrationRuleDecision = {
+export type DerivedTagReviewRuleDecision = {
   kind: "rule";
   tag: string;
   decision: "recreate_authored" | "assignment_takeover" | "retain_legacy";
@@ -84,23 +84,23 @@ export type DerivedTagMigrationRuleDecision = {
   authoredRules?: AuthoredDerivedTagRule[];
 };
 
-export type DerivedTagMigrationDecision =
-  | DerivedTagMigrationAssignmentDecision
-  | DerivedTagMigrationExemplarDecision
-  | DerivedTagMigrationRuleDecision;
+export type DerivedTagReviewDecision =
+  | DerivedTagReviewAssignmentDecision
+  | DerivedTagReviewExemplarDecision
+  | DerivedTagReviewRuleDecision;
 
-export type DerivedTagMigrationRecordDecision = {
+export type DerivedTagReviewRecordDecision = {
   recordKey: string;
   name: string;
   category: SearchCategory;
-  resolutionStatus: DerivedTagMigrationResolutionStatus;
+  resolutionStatus: DerivedTagReviewResolutionStatus;
   ontologyNotes?: string[];
-  decisions: DerivedTagMigrationDecision[];
+  decisions: DerivedTagReviewDecision[];
 };
 
-export type DerivedTagMigrationSessionManifest = {
+export type DerivedTagReviewSessionManifest = {
   id: string;
-  mode: DerivedTagMigrationMode;
+  mode: DerivedTagWorkbenchMode;
   category?: SearchCategory;
   subcategory?: SearchSubcategory;
   family?: string;
@@ -109,24 +109,24 @@ export type DerivedTagMigrationSessionManifest = {
   recordCount: number;
 };
 
-export type DerivedTagMigrationSessionReviewState = {
+export type DerivedTagReviewSessionState = {
   currentIndex: number;
   unresolvedOnly: boolean;
   updatedAt: string;
 };
 
-export type DerivedTagMigrationSession = {
-  manifest: DerivedTagMigrationSessionManifest;
-  records: DerivedTagMigrationSessionRecord[];
-  decisions: DerivedTagMigrationRecordDecision[];
-  reviewState: DerivedTagMigrationSessionReviewState;
+export type DerivedTagReviewSession = {
+  manifest: DerivedTagReviewSessionManifest;
+  records: DerivedTagReviewSessionRecord[];
+  decisions: DerivedTagReviewRecordDecision[];
+  reviewState: DerivedTagReviewSessionState;
 };
 
-export type DerivedTagMigrationSessionCreateOptions = {
-  mode: DerivedTagMigrationMode;
+export type DerivedTagReviewSessionCreateOptions = {
+  mode: DerivedTagWorkbenchMode;
   category?: SearchCategory;
   subcategory?: SearchSubcategory;
-  decisionKind?: DerivedTagMigrationReviewDecisionKind;
+  decisionKind?: DerivedTagReviewDecisionKind;
   family?: string;
   tag?: string;
   limit?: number;
@@ -142,7 +142,7 @@ export type DerivedTagReviewQueueSummaryItem = {
   confidence: DerivedTagReviewConfidence | "unspecified" | "mixed";
 };
 
-export type DerivedTagMigrationAuthoredState = {
+export type DerivedTagAuthoredState = {
   assignments: Record<DerivedTagManagedCategory, AuthoredDerivedTagAssignment[]>;
   assignmentReviews: Record<DerivedTagManagedCategory, DerivedTagAssignmentReviewCategory>;
   assignmentMemory: Record<DerivedTagManagedCategory, DerivedTagAssignmentMemoryCategory>;
@@ -151,4 +151,4 @@ export type DerivedTagMigrationAuthoredState = {
   authoredRules: Record<DerivedTagManagedCategory, AuthoredDerivedTagRule[]>;
 };
 
-export type DerivedTagMigrationReviewDecisionKind = "assignment" | "exemplar";
+export type DerivedTagReviewDecisionKind = "assignment" | "exemplar";

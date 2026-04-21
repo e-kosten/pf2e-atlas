@@ -1,11 +1,11 @@
-import type { Pf2eTerminalAppServices } from "../app-services.js";
-import type { SearchTerminalPromptAdapters } from "../interaction-context-adapters.js";
+import type { Pf2eTerminalAppServices } from "../../app-services.js";
+import type { SearchTerminalPromptAdapters } from "../../interaction-context-adapters.js";
 import type {
   Pf2eTerminalFilterExplorerDraft,
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalSearchQuery,
-} from "../search/service.js";
-import type { DerivedTagTerminalApp } from "../framework/types.js";
+} from "../../search/service.js";
+import type { DerivedTagTerminalApp } from "../../framework/types.js";
 
 export type SearchWorkspacePromptAdapters = Pick<
   SearchTerminalPromptAdapters,

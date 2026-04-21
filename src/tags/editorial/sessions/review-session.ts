@@ -1,4 +1,4 @@
-import type { DerivedTagMigrationDecision, DerivedTagMigrationSession } from "../types.js";
+import type { DerivedTagReviewDecision, DerivedTagReviewSession } from "../types.js";
 
 export type DerivedTagMigrationReviewItem = {
   recordIndex: number;
@@ -12,8 +12,8 @@ export type DerivedTagMigrationReviewProgress = {
   visibleItemCount: number;
 };
 
-export function getDerivedTagMigrationReviewItems(
-  session: DerivedTagMigrationSession,
+export function getDerivedTagReviewItems(
+  session: DerivedTagReviewSession,
 ): DerivedTagMigrationReviewItem[] {
   const items: DerivedTagMigrationReviewItem[] = [];
   session.decisions.forEach((recordDecision, recordIndex) => {
@@ -27,8 +27,8 @@ export function getDerivedTagMigrationReviewItems(
   return items;
 }
 
-export function summarizeDerivedTagMigrationReviewProgress(
-  session: DerivedTagMigrationSession,
+export function summarizeDerivedTagReviewProgress(
+  session: DerivedTagReviewSession,
 ): DerivedTagMigrationReviewProgress {
   const actionableDecisions = session.decisions.filter((recordDecision) => recordDecision.decisions.length > 0);
 
@@ -38,15 +38,15 @@ export function summarizeDerivedTagMigrationReviewProgress(
     resolvedActionableRecordCount: actionableDecisions.filter(
       (recordDecision) => recordDecision.resolutionStatus === "complete",
     ).length,
-    visibleItemCount: getDerivedTagMigrationReviewItems(session).length,
+    visibleItemCount: getDerivedTagReviewItems(session).length,
   };
 }
 
-export function updateDerivedTagMigrationDecisionStatus(
-  session: DerivedTagMigrationSession,
+export function updateDerivedTagReviewDecisionStatus(
+  session: DerivedTagReviewSession,
   item: DerivedTagMigrationReviewItem,
-  status: DerivedTagMigrationDecision["status"],
-): DerivedTagMigrationSession {
+  status: DerivedTagReviewDecision["status"],
+): DerivedTagReviewSession {
   const next = structuredClone(session);
   const recordDecision = next.decisions[item.recordIndex];
   if (!recordDecision) {
@@ -64,9 +64,9 @@ export function updateDerivedTagMigrationDecisionStatus(
   return next;
 }
 
-export function toggleDerivedTagMigrationUnresolvedOnly(
-  session: DerivedTagMigrationSession,
-): DerivedTagMigrationSession {
+export function toggleDerivedTagReviewUnresolvedOnly(
+  session: DerivedTagReviewSession,
+): DerivedTagReviewSession {
   const next = structuredClone(session);
   next.reviewState.unresolvedOnly = !next.reviewState.unresolvedOnly;
   next.reviewState.updatedAt = new Date().toISOString();
@@ -74,9 +74,9 @@ export function toggleDerivedTagMigrationUnresolvedOnly(
   return next;
 }
 
-export function clampDerivedTagMigrationReviewIndex(session: DerivedTagMigrationSession): DerivedTagMigrationSession {
+export function clampDerivedTagReviewIndex(session: DerivedTagReviewSession): DerivedTagReviewSession {
   const next = structuredClone(session);
-  const items = getDerivedTagMigrationReviewItems(next);
+  const items = getDerivedTagReviewItems(next);
   if (items.length === 0) {
     next.reviewState.currentIndex = 0;
     return next;

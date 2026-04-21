@@ -16,7 +16,7 @@ import {
   type PublishedDerivedTagOntology,
 } from "../../runtime/publication/catalog.js";
 import { DERIVED_TAG_LEGACY_SEED_MIGRATIONS_BY_CATEGORY } from "../../legacy-seed-migrations/index.js";
-import { getCurrentDerivedTagMigrationAuthoredState, getCurrentDerivedTagMigrationAuthoredStateRevision } from "./authored-state.js";
+import { getCurrentDerivedTagAuthoredState, getCurrentDerivedTagAuthoredStateRevision } from "./authored-state.js";
 
 type DerivedTagAssignmentGroup = {
   category: (typeof DERIVED_TAG_REGISTRATION_CATEGORIES)[number];
@@ -34,7 +34,7 @@ type DerivedTagWorkingRuntime = {
 let workingRuntimeCache: { revision: number; runtime: DerivedTagWorkingRuntime } | null = null;
 
 function buildCurrentDerivedTagWorkingRuntime(): DerivedTagWorkingRuntime {
-  const state = getCurrentDerivedTagMigrationAuthoredState();
+  const state = getCurrentDerivedTagAuthoredState();
   const flattenedOntologies = DERIVED_TAG_REGISTRATION_CATEGORIES.map((category) =>
     flattenDerivedTagAuthoredCategoryOntology(DERIVED_TAG_ONTOLOGY_BY_CATEGORY[category]),
   );
@@ -76,7 +76,7 @@ function buildCurrentDerivedTagWorkingRuntime(): DerivedTagWorkingRuntime {
 }
 
 export function getCurrentDerivedTagWorkingRuntime(): DerivedTagWorkingRuntime {
-  const revision = getCurrentDerivedTagMigrationAuthoredStateRevision();
+  const revision = getCurrentDerivedTagAuthoredStateRevision();
   if (!workingRuntimeCache || workingRuntimeCache.revision !== revision) {
     workingRuntimeCache = {
       revision,

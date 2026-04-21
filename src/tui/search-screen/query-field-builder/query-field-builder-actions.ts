@@ -1,11 +1,11 @@
 import React from "react";
 
-import type { MetadataFilterNode } from "../../domain/metadata-types.js";
-import { clampStructuredDraftSelection } from "../search/structured-draft-session.js";
+import type { MetadataFilterNode } from "../../../search/filters/types.js";
+import { clampStructuredDraftSelection } from "../../search/structured-draft-session.js";
 import type {
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalSearchQuery,
-} from "../search/service.js";
+} from "../../search/service.js";
 import type { SearchQueryFieldBuilderSession } from "./query-field-builder-session.js";
 import {
   buildQueryFieldBuilderItems,
@@ -14,7 +14,7 @@ import {
   compileQueryFieldBuilderDrafts,
   type QueryFieldBuilderState,
 } from "./query-field-builder-support.js";
-import type { SearchWorkspaceTerminal } from "./workspace-action-types.js";
+import type { SearchWorkspaceTerminal } from "../workspace/workspace-action-types.js";
 
 export function useSearchQueryFieldBuilderActions({
   appendStructuredDraftMetadataNode,

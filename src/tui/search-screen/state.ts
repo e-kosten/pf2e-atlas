@@ -8,7 +8,7 @@ export type {
   SearchQueryFieldBuilderOutcome,
   SearchQueryFieldBuilderSession,
   SearchFilterExplorerSession,
-} from "./query-field-builder-session.js";
+} from "./query-field-builder/query-field-builder-session.js";
 export type {
   SearchStructuredDraftAnchor,
   SearchStructuredDraftEntry,

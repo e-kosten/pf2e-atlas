@@ -7,7 +7,7 @@ import type {
   DerivedTagSeedRecordResolution,
   SearchCategory,
   SearchSubcategory,
-} from "../../../domain/index.js";
+} from "../../../domain/derived-tag-types.js";
 import { normalizeText, uniqueSorted } from "../../../shared/utils.js";
 import type { DerivedTagExplicitAssignmentIndex } from "../derivation/assignments.js";
 import type { DerivedTagContext } from "../matcher/engine.js";

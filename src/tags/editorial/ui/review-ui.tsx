@@ -7,29 +7,29 @@ import {
   useDerivedTagTerminalApp,
 } from "../../../tui/terminal-ui.js";
 import {
-  DEFAULT_DERIVED_TAG_MIGRATION_REVIEW_SERVICES,
-  type DerivedTagMigrationReviewServices,
+  DEFAULT_DERIVED_TAG_REVIEW_SERVICES,
+  type DerivedTagReviewServices,
 } from "./review-controller.js";
-import { useDerivedTagMigrationReviewScreenController } from "./review-ui-controller.js";
-import type { DerivedTagMigrationSession } from "../types.js";
+import { useDerivedTagReviewScreenController } from "./review-ui-controller.js";
+import type { DerivedTagReviewSession } from "../types.js";
 
-export type DerivedTagMigrationReviewResult = {
+export type DerivedTagReviewResult = {
   imported: boolean;
-  session: DerivedTagMigrationSession;
+  session: DerivedTagReviewSession;
 };
 
-export function DerivedTagMigrationReviewScreen({
+export function DerivedTagReviewScreen({
   rootPath,
   initialSession,
   onComplete,
-  services = DEFAULT_DERIVED_TAG_MIGRATION_REVIEW_SERVICES,
+  services = DEFAULT_DERIVED_TAG_REVIEW_SERVICES,
 }: {
   rootPath: string;
-  initialSession: DerivedTagMigrationSession;
-  onComplete: (result: DerivedTagMigrationReviewResult) => void;
-  services?: DerivedTagMigrationReviewServices;
+  initialSession: DerivedTagReviewSession;
+  onComplete: (result: DerivedTagReviewResult) => void;
+  services?: DerivedTagReviewServices;
 }): React.JSX.Element {
-  const controller = useDerivedTagMigrationReviewScreenController({
+  const controller = useDerivedTagReviewScreenController({
     rootPath,
     initialSession,
     onComplete,
@@ -49,19 +49,19 @@ function DerivedTagMigrationReviewRoot({
   onComplete,
 }: {
   rootPath: string;
-  initialSession: DerivedTagMigrationSession;
-  onComplete: (result: DerivedTagMigrationReviewResult) => void;
+  initialSession: DerivedTagReviewSession;
+  onComplete: (result: DerivedTagReviewResult) => void;
 }): React.JSX.Element {
   return (
-    <DerivedTagMigrationReviewScreen rootPath={rootPath} initialSession={initialSession} onComplete={onComplete} />
+    <DerivedTagReviewScreen rootPath={rootPath} initialSession={initialSession} onComplete={onComplete} />
   );
 }
 
-export async function runDerivedTagMigrationReviewUi(
+export async function runDerivedTagReviewUi(
   rootPath: string,
-  initialSession: DerivedTagMigrationSession,
-): Promise<DerivedTagMigrationReviewResult> {
-  let result: DerivedTagMigrationReviewResult | undefined;
+  initialSession: DerivedTagReviewSession,
+): Promise<DerivedTagReviewResult> {
+  let result: DerivedTagReviewResult | undefined;
 
   await runDerivedTagTerminalApp(
     <ReviewRunner
@@ -85,8 +85,8 @@ function ReviewRunner({
   onComplete,
 }: {
   rootPath: string;
-  initialSession: DerivedTagMigrationSession;
-  onComplete: (result: DerivedTagMigrationReviewResult) => void;
+  initialSession: DerivedTagReviewSession;
+  onComplete: (result: DerivedTagReviewResult) => void;
 }): React.JSX.Element {
   const terminal = useDerivedTagTerminalApp();
   return (

@@ -1,20 +1,20 @@
 import { normalizeDerivedTag } from "../../runtime/matcher/shared.js";
-import { getPublishedDerivedTagMigrationOntology } from "../state/runtime-state.js";
-import type { DerivedTagMigrationDecision, DerivedTagMigrationSession } from "../types.js";
+import { getPublishedDerivedTagOntology } from "../state/runtime-state.js";
+import type { DerivedTagReviewDecision, DerivedTagReviewSession } from "../types.js";
 
 function qualifiedKey(family: string, tag: string): string {
   return `${normalizeDerivedTag(family)}.${normalizeDerivedTag(tag)}`;
 }
 
-function normalizeRecordResolution(decisions: DerivedTagMigrationDecision[]): "complete" | "needs_review" {
+function normalizeRecordResolution(decisions: DerivedTagReviewDecision[]): "complete" | "needs_review" {
   if (decisions.length === 0) {
     return "needs_review";
   }
   return decisions.some((decision) => decision.status === "needs_review") ? "needs_review" : "complete";
 }
 
-export function lintDerivedTagMigrationSession(session: DerivedTagMigrationSession): void {
-  const ontology = getPublishedDerivedTagMigrationOntology();
+export function lintDerivedTagReviewSession(session: DerivedTagReviewSession): void {
+  const ontology = getPublishedDerivedTagOntology();
   const recordKeys = new Set(session.records.map((record) => record.entityRecord.recordKey));
   const seenDecisionRecords = new Set<string>();
 
