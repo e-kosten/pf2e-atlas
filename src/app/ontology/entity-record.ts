@@ -8,6 +8,7 @@ import {
   parseStringArrayJson,
   toSqliteNumber,
 } from "../../data/sql-row-decoding.js";
+import { buildAonSearchLink } from "../external-links/aon-search.js";
 
 export type OntologyExplorerEntityRecord = {
   recordKey: string;
@@ -38,6 +39,7 @@ export type OntologyExplorerEntityRecord = {
   itemCategory: string | null;
   baseItem: string | null;
   priceCp: number | null;
+  actionCost: number | null;
   usage: string | null;
   hands: number | null;
   damageTypes: string[];
@@ -87,6 +89,7 @@ export type OntologyExplorerEntityRecordRow = {
   itemCategory: string | null;
   baseItem: string | null;
   priceCp: number | bigint | null;
+  actionCost: number | bigint | null;
   usage: string | null;
   hands: number | bigint | null;
   damageTypesJson: string | null;
@@ -207,6 +210,7 @@ export function buildOntologyExplorerEntityRecordSelectColumns(
     optionalColumn(includeItem, `${itemAlias}.item_category`, "itemCategory"),
     optionalColumn(includeItem, `${itemAlias}.base_item`, "baseItem"),
     optionalColumn(includeItem, `${itemAlias}.price_cp`, "priceCp"),
+    `COALESCE(${includeSpell ? `${spellAlias}.action_cost` : "NULL"}, ${includeItem ? `${itemAlias}.action_cost` : "NULL"}) AS actionCost`,
     optionalColumn(includeItem, `${itemAlias}.usage_text`, "usage"),
     optionalColumn(includeItem, `${itemAlias}.hands`, "hands"),
     optionalColumn(includeItem, `${itemAlias}.damage_types_json`, "damageTypesJson"),
@@ -280,6 +284,7 @@ export function mapOntologyExplorerEntityRecordRow(row: OntologyExplorerEntityRe
     itemCategory: row.itemCategory,
     baseItem: row.baseItem,
     priceCp: toNullableNumber(row.priceCp, `ontology explorer price for "${row.recordKey}"`),
+    actionCost: toNullableNumber(row.actionCost, `ontology explorer action cost for "${row.recordKey}"`),
     usage: row.usage,
     hands: toNullableNumber(row.hands, `ontology explorer hands for "${row.recordKey}"`),
     damageTypes: parseStringArrayJson(
@@ -349,6 +354,7 @@ export function mapNormalizedRecordToOntologyExplorerEntityRecord(
     itemCategory: record.itemCategory,
     baseItem: record.baseItem,
     priceCp: record.priceCp,
+    actionCost: record.actionCost,
     usage: record.usage,
     hands: record.hands,
     damageTypes: record.damageTypes,
@@ -375,6 +381,7 @@ export function buildOntologyExplorerEntityDetailLines(
   options: { includeHeader?: boolean } = {},
 ): OntologyTextLine[] {
   const lines: OntologyTextLine[] = [];
+  const aonSearchLink = buildAonSearchLink(record);
 
   if (options.includeHeader ?? true) {
     lines.push({ text: record.name, tone: "section" }, { text: record.recordKey, tone: "dim" });
@@ -399,6 +406,11 @@ export function buildOntologyExplorerEntityDetailLines(
     ["Derived tags", renderList(record.derivedTags)],
     ["Families", renderList(record.families)],
   ]);
+
+  if (aonSearchLink) {
+    lines.push({ text: "Archives of Nethys", tone: "section" });
+    lines.push({ text: aonSearchLink.url, indent: 2, noWrap: true });
+  }
 
   appendSection(lines, "Creature/Actor", [
     ["Size", renderNullable(record.size)],

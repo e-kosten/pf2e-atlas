@@ -79,6 +79,7 @@ function createEntityRecord(
     itemCategory: overrides.itemCategory ?? null,
     baseItem: overrides.baseItem ?? null,
     priceCp: overrides.priceCp ?? null,
+    actionCost: overrides.actionCost ?? null,
     usage: overrides.usage ?? null,
     hands: overrides.hands ?? null,
     damageTypes: overrides.damageTypes ?? [],

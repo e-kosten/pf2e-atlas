@@ -35,6 +35,7 @@ function buildRow(overrides: Partial<OntologyExplorerEntityRecordRow> = {}): Ont
     itemCategory: null,
     baseItem: null,
     priceCp: null,
+    actionCost: 2,
     usage: null,
     hands: null,
     damageTypesJson: '["fire"]',
