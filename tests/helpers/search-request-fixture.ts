@@ -174,8 +174,14 @@ export function adaptLegacySearchCalls<
         ) => target.openSearchWindow(options.mode === "browse" ? browseRequest(input) : searchRequest(input));
       }
 
-      const value = Reflect.get(target, property, receiver);
-      return typeof value === "function" ? value.bind(target) : value;
+      const value: unknown = Reflect.get(target, property, receiver);
+      if (typeof value === "function") {
+        return (...args: unknown[]): unknown => {
+          const result: unknown = Reflect.apply(value, target, args);
+          return result;
+        };
+      }
+      return value;
     },
   });
 }

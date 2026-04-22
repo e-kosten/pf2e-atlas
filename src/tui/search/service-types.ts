@@ -114,6 +114,8 @@ export type Pf2eTerminalPreparedFilterExplorerDraft = {
   scopedFields: readonly Pf2eTerminalQueryField[];
 };
 
+export type Pf2eTerminalPreparedFilterExplorerContext = Omit<Pf2eTerminalPreparedFilterExplorerDraft, "draft">;
+
 export type Pf2eTerminalSearchSession = {
   windowId: string;
   query: Pf2eTerminalSearchQuery;

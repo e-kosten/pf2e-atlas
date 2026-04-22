@@ -18,7 +18,7 @@ import type {
   FilterExplorerNode,
   FilterExplorerOptions,
 } from "../../src/tui/filter-explorer/types.js";
-import { browseQuery, searchRequest } from "../helpers/search-request-fixture.js";
+import { searchRequest } from "../helpers/search-request-fixture.js";
 
 function createNode(overrides: Partial<FilterExplorerNode> = {}): FilterExplorerNode {
   return {

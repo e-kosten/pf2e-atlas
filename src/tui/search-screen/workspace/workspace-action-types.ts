@@ -2,6 +2,7 @@ import type { Pf2eTerminalAppServices } from "../../app-services.js";
 import type { SearchTerminalPromptAdapters } from "../../interaction-context-adapters.js";
 import type {
   Pf2eTerminalFilterExplorerDraft,
+  Pf2eTerminalPreparedFilterExplorerContext,
   Pf2eTerminalPreparedFilterExplorerDraft,
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalSearchQuery,
@@ -27,7 +28,7 @@ export type OpenSearchFilterExplorer = (options: {
   initialPreparedDraft?: Pf2eTerminalPreparedFilterExplorerDraft;
   onApply: (
     draft: Pf2eTerminalFilterExplorerDraft,
-    context: Omit<Pf2eTerminalPreparedFilterExplorerDraft, "draft">,
+    context: Pf2eTerminalPreparedFilterExplorerContext,
   ) => void;
   onReturn?: () => void;
   singleFieldBehavior?: "list" | "directValues";

@@ -6,6 +6,7 @@ import {
 } from "../filter-explorer/search-draft-model.js";
 import type {
   Pf2eTerminalFilterExplorerDraft,
+  Pf2eTerminalPreparedFilterExplorerContext,
   Pf2eTerminalPreparedFilterExplorerDraft,
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalSearchQuery,
@@ -30,7 +31,7 @@ export function useSearchFilterExplorerWorkflow({
     initialPreparedDraft?: Pf2eTerminalPreparedFilterExplorerDraft;
     onApply: (
       draft: Pf2eTerminalFilterExplorerDraft,
-      context: Omit<Pf2eTerminalPreparedFilterExplorerDraft, "draft">,
+      context: Pf2eTerminalPreparedFilterExplorerContext,
     ) => void;
     onReturn?: () => void;
     singleFieldBehavior?: "list" | "directValues";
@@ -53,7 +54,7 @@ export function useSearchFilterExplorerWorkflow({
       initialPreparedDraft?: Pf2eTerminalPreparedFilterExplorerDraft;
       onApply: (
         draft: Pf2eTerminalFilterExplorerDraft,
-        context: Omit<Pf2eTerminalPreparedFilterExplorerDraft, "draft">,
+        context: Pf2eTerminalPreparedFilterExplorerContext,
       ) => void;
       onReturn?: () => void;
       singleFieldBehavior?: "list" | "directValues";

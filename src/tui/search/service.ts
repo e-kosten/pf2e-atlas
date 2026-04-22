@@ -53,6 +53,7 @@ import type {
 export type {
   Pf2eTerminalFacetField,
   Pf2eTerminalFacetFieldOption,
+  Pf2eTerminalPreparedFilterExplorerContext,
   Pf2eTerminalPreparedFilterExplorerDraft,
   Pf2eTerminalFacetValueOption,
   Pf2eTerminalFilterExplorerDraft,
