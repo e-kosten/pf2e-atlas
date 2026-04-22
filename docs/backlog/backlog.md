@@ -20,16 +20,16 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [View pages and detail presentation](./items/view-pages-and-details.md)
   Make record detail views easier to scan, more dynamic by record type, and better suited for linked navigation. Status: proposed.
 
-- `Ontology browser naming friendliness`
-  Replace internal-facing labels such as `derivedTags` and other machine-shaped names with natural casing and wording in the explorer UI. Status: proposed.
+- [Ontology browser naming friendliness](./items/ontology-browser-naming-friendliness.md)
+  Replace machine-shaped explorer labels such as `EnumString` and `derivedTags` with natural wording and casing suited to the TUI. Status: proposed.
 
-- `Search result readability cleanup`
-  Tighten list and breadcrumb formatting where result headers and long labels are hard to scan in the current TUI layout. Status: proposed.
+- [Search result readability cleanup](./items/search-result-readability-cleanup.md)
+  Tighten list and breadcrumb formatting where long record headers and metadata-heavy result labels are difficult to scan. Status: proposed.
 
-- `Right-navigation feedback`
-  When rightward navigation cannot drill deeper, show a small transient message instead of silently behaving like a layout/focus toggle. Status: proposed.
+- [Right-navigation feedback](./items/right-navigation-feedback.md)
+  When rightward navigation cannot drill deeper, show a small transient message instead of silently behaving like a layout or focus toggle. Status: proposed.
 
-- `Remove isUnique metadata`
+- [Remove isUnique metadata](./items/remove-isunique-metadata.md)
   Stop exposing `isUnique` as standalone metadata where it only duplicates rarity semantics. Status: proposed.
 
 ## Soon
@@ -49,10 +49,10 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Tagging tooling reorganization](./items/tagging-tooling-reorg.md)
   The command-surface reorganization is mostly landed; remaining work is naming and discoverability cleanup so `tui` and workbench terminology match the broader terminal app. Status: proposed.
 
-- `Incomplete search tail in nested explorer lists`
-  Investigate why some deep record lists, such as `families > ghost`, advertise more results than the stepped-in detail view actually shows. Status: proposed.
+- [Incomplete search tail in nested explorer lists](./items/incomplete-search-tail.md)
+  Investigate why some deep explorer lists, such as `families > ghost`, advertise more results than the stepped-in detail view actually shows. Status: proposed.
 
-- `Filter shape convergence`
+- [Filter shape convergence](./items/filter-shape-convergence.md)
   Bring MCP and TUI filter modeling back into alignment, especially around rarity and level no longer being treated as special cases. Status: proposed.
 
 ## Later
@@ -66,10 +66,10 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - `Metadata predicate typing cleanup`
   Preserve the follow-up idea from the retiring `fix/metadata-filter-spec-consolidation` worktree: the shared `metadata-predicate-spec` architecture is already landed, but predicate TypeScript types may still be simplifiable so operator unions and payload shapes derive more directly from that shared spec instead of relying on more duplicated or manually expanded type definitions across domain, filter, and schema layers. Status: proposed.
 
-- `Typed seams cleanup`
+- [Typed seams cleanup](./items/typed-seams-cleanup.md)
   Continue focused type-safety work around metadata registry access, prompt result narrowing, matcher adapters, and test fixtures. Status: proposed.
 
-- `Shared UI model boundary enforcement`
-  Identify which reusable TUI state/view-model helpers should become mandatory and enforce them once those pathways are stable enough. Status: proposed.
+- [Shared UI model boundary enforcement](./items/shared-ui-model-boundary-enforcement.md)
+  Identify which reusable TUI state and view-model helpers should become mandatory and enforce them once those pathways are stable enough. Status: proposed.
 
 See [Backlog Done / Superseded](./history/done-and-superseded.md) for completed and retired items.
