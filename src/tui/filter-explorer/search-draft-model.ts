@@ -1,4 +1,6 @@
 import type { OntologyDomainModel, OntologyNode } from "../../domain/ontology-types.js";
+import { resolveOntologyQueryRequest } from "../../domain/search-request-compat.js";
+import { searchRequestPartsToMetadataFilterNode } from "../../domain/search-request-types.js";
 import { inferActorMetricValueType } from "../../domain/actor-metrics.js";
 import { inferItemMetricValueType } from "../../domain/item-metrics.js";
 import { getOntologyNodeChildren } from "../../app/ontology/node-helpers.js";
@@ -306,7 +308,9 @@ export function buildSearchFilterExplorerTargetResolver(
       return undefined;
     }
 
-    const predicate = node.query?.filters.metadata;
+    const predicate = node.query
+      ? searchRequestPartsToMetadataFilterNode(resolveOntologyQueryRequest(node.query).parts ?? [])
+      : null;
     if (!predicate || !isMetadataPredicate(predicate)) {
       return fieldOptions
         .map((fieldOption) => buildMetricScalarTarget(node, fieldOption) ?? buildFallbackFieldSelectionTarget(node, fieldOption))

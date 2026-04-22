@@ -1,6 +1,7 @@
 import type { MetadataFieldName } from "../../search/filters/registry.js";
 import type { MetadataFieldSemantics } from "../../search/filters/semantics.js";
 import type { SearchCategorySummaryResult, SearchVocabularyResult } from "../../data/vocabulary.js";
+import type { SearchRequest, SearchRequestPart } from "../../domain/search-request-types.js";
 import type {
   MetadataFilterNode,
 } from "../../search/filters/types.js";
@@ -10,7 +11,6 @@ import type {
   LookupOptions,
   SearchCategory,
   SearchCountResult,
-  SearchFilters,
   SearchMode,
   SearchProfile,
   SearchResult,
@@ -22,7 +22,6 @@ import type {
   FilterExplorerComposeDraft,
   FilterExplorerSelectionMap,
 } from "../filter-explorer/types.js";
-import type { Pf2eTerminalQueryPart } from "./query-parts.js";
 
 export type Pf2eTerminalSearchCategoryOption = {
   value: SearchCategory | null;
@@ -81,7 +80,7 @@ export type Pf2eTerminalQueryField = MetadataFieldSemantics["field"] | Pf2eTermi
 export type Pf2eTerminalSearchMode = "browse" | "search" | "lookup";
 export type Pf2eTerminalSearchSort = SearchSort;
 
-export type Pf2eTerminalSearchStructuredPart = Pf2eTerminalQueryPart;
+export type Pf2eTerminalSearchStructuredPart = SearchRequestPart;
 
 export type Pf2eTerminalSearchFilters = {
   category: SearchCategory | null;
@@ -157,9 +156,12 @@ export type Pf2eTerminalSearchService = {
   getAvailableRootQueryPartKinds: (
     category: SearchCategory | null,
     subcategory: SearchSubcategory | null,
-  ) => Pf2eTerminalQueryPart["kind"][];
-  getRootQueryParts: (query: Pf2eTerminalSearchQuery) => Pf2eTerminalQueryPart[];
-  applyRootQueryParts: (query: Pf2eTerminalSearchQuery, parts: Pf2eTerminalQueryPart[]) => Pf2eTerminalSearchQuery;
+  ) => Pf2eTerminalSearchStructuredPart["kind"][];
+  getRootQueryParts: (query: Pf2eTerminalSearchQuery) => Pf2eTerminalSearchStructuredPart[];
+  applyRootQueryParts: (
+    query: Pf2eTerminalSearchQuery,
+    parts: Pf2eTerminalSearchStructuredPart[],
+  ) => Pf2eTerminalSearchQuery;
   prepareFilterExplorerDraft: (
     query: Pf2eTerminalSearchQuery,
     scopedFields: readonly Pf2eTerminalQueryField[],
@@ -218,8 +220,8 @@ export type Pf2eTerminalSearchService = {
 export type SearchServiceDependencies = {
   closeSearchWindow: (windowId: string) => void;
   countRecords: (
-    filters: SearchFilters,
-    options?: { mode?: "browse" | "search" | "lookup"; lexicalOnly?: boolean },
+    request: SearchRequest,
+    options?: { lexicalOnly?: boolean },
   ) => Promise<SearchCountResult>;
   getSearchCategorySummary?: () => SearchCategorySummaryResult;
   getSearchVocabulary: () => SearchVocabularyResult;
@@ -232,13 +234,10 @@ export type SearchServiceDependencies = {
     name: string,
     options?: LookupOptions,
   ) => { match: NormalizedRecord | null; alternatives: NormalizedRecord[] };
-  listRecords: (filters: SearchFilters) => SearchResult;
-  openSearchWindow: (
-    filters: SearchFilters,
-    options?: { mode?: "browse" | "search" | "lookup" },
-  ) => Promise<SearchWindowPage>;
+  listRecords: (request: SearchRequest) => SearchResult;
+  openSearchWindow: (request: SearchRequest) => Promise<SearchWindowPage>;
   readSearchWindowPage: (windowId: string, offset: number, limit: number) => SearchWindowPage;
-  search: (filters: SearchFilters) => Promise<SearchResult>;
+  search: (request: SearchRequest) => Promise<SearchResult>;
 };
 
 export type LegacyFacetSelection = {

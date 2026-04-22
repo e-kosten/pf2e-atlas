@@ -7,11 +7,12 @@ import type {
   LookupQuery,
   LookupResult,
   SearchCountResult,
-  SearchFilters,
   SearchResult,
   SearchWindowPage,
 } from "../../domain/search-types.js";
 import type { NormalizedRecord } from "../../domain/record-types.js";
+import type { SearchRequest } from "../../domain/search-request-types.js";
+import { coerceSearchRequest } from "../../domain/search-request-compat.js";
 import type { EmbeddingProvider } from "../../embeddings.js";
 import type { RankingConfigStore } from "../../search/ranking-config.js";
 import {
@@ -23,6 +24,7 @@ import {
   search as searchRuntime,
   searchStructured as searchStructuredRuntime,
 } from "../../search/runtime-search.js";
+import { compileSearchRequest } from "../../search/request-compilation.js";
 import { fetchCandidateRecordKeys } from "../record-queries.js";
 import { getLookupMatchType } from "../rows.js";
 import { normalizeSearchFilters, validateSearchFilters } from "../../search/filters/normalization.js";
@@ -44,61 +46,55 @@ export class Pf2eSearchBackendService {
   }
 
   listFilterValues(query: FilterValueQuery): FilterValueResult {
-    const normalizedFilters = this.normalizeFilters(query);
+    const normalizedFilters = this.normalizeExecutionFilters(query);
     validateSearchFilters(normalizedFilters, "list");
     return this.catalog.listFilterValues(query, normalizedFilters);
   }
 
-  listRecords(filters: SearchFilters): SearchResult {
-    const normalizedFilters = this.normalizeFilters(filters);
+  listRecords(request: SearchRequest): SearchResult {
+    const normalizedFilters = this.normalizeRequest(coerceSearchRequest(request, "browse"));
     validateSearchFilters(normalizedFilters, "list");
     return listRecordsRuntime(normalizedFilters, this.runtimeSearchDependencies());
   }
 
   async countRecords(
-    filters: SearchFilters,
-    options: { mode?: "browse" | "search" | "lookup"; lexicalOnly?: boolean } = {},
+    request: SearchRequest,
+    options: { lexicalOnly?: boolean } = {},
   ): Promise<SearchCountResult> {
-    const mode = options.mode ?? "search";
-
-    if (mode === "browse") {
-      const normalizedFilters = this.normalizeFilters({
-        ...filters,
-        offset: 0,
-        limit: 1,
-      });
-      validateSearchFilters(normalizedFilters, "list");
-      return countStructuredSearchRuntime(normalizedFilters, this.runtimeSearchDependencies());
-    }
-
-    const searchFilters: SearchFilters = {
-      ...filters,
+    const normalizedRequest = coerceSearchRequest(request, "search");
+    const runtime = this.runtimeSearchDependencies();
+    const executionFilters = this.compileRequest({
+      ...normalizedRequest,
       offset: 0,
       limit: 1,
-    };
-    if (options.lexicalOnly && searchFilters.query?.trim()) {
-      searchFilters.searchProfile = "lexical";
+    });
+
+    if (normalizedRequest.intent === "browse") {
+      const normalizedFilters = this.normalizeExecutionFilters(executionFilters);
+      validateSearchFilters(normalizedFilters, "list");
+      return countStructuredSearchRuntime(normalizedFilters, runtime);
     }
 
-    const normalizedFilters = this.normalizeFilters(searchFilters);
+    if (options.lexicalOnly && executionFilters.query?.trim()) {
+      executionFilters.searchProfile = "lexical";
+    }
+
+    const normalizedFilters = this.normalizeExecutionFilters(executionFilters);
     validateSearchFilters(normalizedFilters, "search");
 
-    if (mode === "lookup") {
-      return countStructuredSearchRuntime(normalizedFilters, this.runtimeSearchDependencies());
+    if (normalizedRequest.intent === "lookup") {
+      return countStructuredSearchRuntime(normalizedFilters, runtime);
     }
 
-    return countSearchResultsRuntime(searchFilters, normalizedFilters, this.runtimeSearchDependencies());
+    return countSearchResultsRuntime(executionFilters, normalizedFilters, runtime);
   }
 
-  async openSearchWindow(
-    filters: SearchFilters,
-    options: { mode?: "browse" | "search" | "lookup" } = {},
-  ): Promise<SearchWindowPage> {
-    const mode = options.mode ?? "search";
+  async openSearchWindow(request: SearchRequest): Promise<SearchWindowPage> {
+    const normalizedRequest = coerceSearchRequest(request, "search");
     const runtime = this.runtimeSearchDependencies();
-    const normalizedFilters = this.normalizeFilters(filters);
+    const normalizedFilters = this.normalizeRequest(normalizedRequest);
 
-    if (mode === "browse") {
+    if (normalizedRequest.intent === "browse") {
       validateSearchFilters(normalizedFilters, "list");
       const sort =
         normalizedFilters.sort === "ranked" || !normalizedFilters.sort ? "alphabetical" : normalizedFilters.sort;
@@ -145,21 +141,30 @@ export class Pf2eSearchBackendService {
     this.searchWindows.closeWindow(windowId);
   }
 
-  async search(filters: SearchFilters): Promise<SearchResult> {
-    const normalizedFilters = this.normalizeFilters(filters);
+  async search(request: SearchRequest): Promise<SearchResult> {
+    const executionFilters = this.compileRequest(coerceSearchRequest(request, "search"));
+    const normalizedFilters = this.normalizeExecutionFilters(executionFilters);
     validateSearchFilters(normalizedFilters, "search");
-    return searchRuntime(filters, normalizedFilters, this.runtimeSearchDependencies());
+    return searchRuntime(executionFilters, normalizedFilters, this.runtimeSearchDependencies());
   }
 
   lookup(
     name: string,
     options: LookupOptions = {},
   ): { match: NormalizedRecord | null; alternatives: NormalizedRecord[] } {
-    const filters = this.normalizeFilters({
-      nameQuery: name,
+    const filters = this.normalizeRequest({
+      intent: "lookup",
+      text: name,
       pack: options.pack,
       category: options.category,
-      subcategory: options.subcategory,
+      parts: options.subcategory
+        ? [
+            {
+              kind: "subcategory",
+              subcategory: options.subcategory,
+            },
+          ]
+        : [],
       limit: 5,
     });
     validateSearchFilters(filters, "search");
@@ -174,11 +179,24 @@ export class Pf2eSearchBackendService {
         }
 
         const results = this.searchStructured({
-          nameQuery: query.name,
+          intent: "lookup",
+          text: query.name,
           pack: query.pack,
           category: query.category,
-          subcategory: query.subcategory,
-          metadata: { field: "sourceCategory", op: "eq", value: "core" },
+          parts: [
+            ...(query.subcategory
+              ? [
+                  {
+                    kind: "subcategory" as const,
+                    subcategory: query.subcategory,
+                  },
+                ]
+              : []),
+            {
+              kind: "metadataPredicate" as const,
+              predicate: { field: "sourceCategory", op: "eq", value: "core" },
+            },
+          ],
           limit: 5,
         }).records;
         return {
@@ -196,14 +214,22 @@ export class Pf2eSearchBackendService {
     });
   }
 
-  private searchStructured(filters: SearchFilters): SearchResult {
-    const normalizedFilters = this.normalizeFilters(filters);
+  private searchStructured(request: SearchRequest): SearchResult {
+    const normalizedFilters = this.normalizeRequest(coerceSearchRequest(request, "search"));
     validateSearchFilters(normalizedFilters, "search");
     return searchStructuredRuntime(normalizedFilters, this.runtimeSearchDependencies());
   }
 
-  private normalizeFilters(filters: SearchFilters) {
+  private compileRequest(request: SearchRequest) {
+    return compileSearchRequest(request);
+  }
+
+  private normalizeExecutionFilters(filters: Parameters<typeof normalizeSearchFilters>[0]) {
     return normalizeSearchFilters(filters, (packValue) => this.catalog.getPack(packValue)?.name);
+  }
+
+  private normalizeRequest(request: SearchRequest) {
+    return this.normalizeExecutionFilters(this.compileRequest(request));
   }
 
   private runtimeSearchDependencies() {

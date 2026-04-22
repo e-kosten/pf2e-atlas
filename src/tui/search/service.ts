@@ -19,7 +19,7 @@ import {
   prepareFilterExplorerDraftFromMetadataNode,
   prepareFilterExplorerDraftFromQuery,
 } from "../filter-explorer/search-draft-query.js";
-import { buildSearchFilters } from "./filter-building.js";
+import { buildSearchRequest } from "./filter-building.js";
 import { createSearchQueryFromOntologyQuery } from "./ontology-query.js";
 import {
   createDefaultQuery,
@@ -245,27 +245,25 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
           });
         }
         return dependencies.countRecords(
-          buildSearchFilters(normalizedQuery, {
+          buildSearchRequest(normalizedQuery, {
             limit: 1,
-            nameQuery: normalizedQuery.queryText,
+            text: normalizedQuery.queryText,
           }),
-          { mode: "lookup" },
+          {},
         );
       }
 
       if (normalizedQuery.mode === "browse" || !normalizedQuery.queryText) {
-        return dependencies.countRecords(buildSearchFilters(normalizedQuery, { limit: 1 }), {
-          mode: "browse",
-        });
+        return dependencies.countRecords(buildSearchRequest(normalizedQuery, { limit: 1 }));
       }
 
       return dependencies.countRecords(
-        buildSearchFilters(normalizedQuery, {
+        buildSearchRequest(normalizedQuery, {
           limit: 1,
-          query: normalizedQuery.queryText,
+          text: normalizedQuery.queryText,
           searchProfile: normalizedQuery.searchProfile,
         }),
-        { mode: "search", lexicalOnly: true },
+        { lexicalOnly: true },
       );
     },
     disposeSession: (session) => {
@@ -282,7 +280,6 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
           sortSeed,
           limit,
         }),
-        { mode: normalizedQuery.mode },
       );
       return createSearchSessionFromWindow(normalizedQuery, result);
     },
@@ -325,7 +322,6 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
           sortSeed,
           limit: Math.max(session.query.limit, session.loadedCount),
         }),
-        { mode: session.query.mode },
       );
       return createSearchSessionFromWindow(session.query, result);
     },

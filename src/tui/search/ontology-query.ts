@@ -3,13 +3,13 @@ import {
   normalizeSearchCategory,
   normalizeSearchSubcategory,
 } from "../../domain/categories.js";
+import { resolveOntologyQueryRequest } from "../../domain/search-request-compat.js";
 import type { MetadataFieldSemantics } from "../../search/filters/semantics.js";
 import type { OntologyNodeQuery } from "../../domain/ontology-types.js";
 import type { SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
 import {
   createDefaultQuery,
   normalizeSearchQuery,
-  splitMetadataTreeIntoParts,
 } from "./query-state.js";
 import type {
   Pf2eTerminalFacetField,
@@ -33,54 +33,26 @@ export function createSearchQueryFromOntologyQuery(
   fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
 ): Pf2eTerminalSearchQuery {
   const defaultQuery = createDefaultQuery();
-  const category = normalizeSearchCategory(query.filters.category) ?? null;
-  const subcategory = normalizeScopedSubcategory(category, normalizeSearchSubcategory(query.filters.subcategory) ?? null);
-  const parts: Pf2eTerminalSearchQuery["filters"]["parts"] = [];
-
-  if (subcategory) {
-    parts.push({ kind: "subcategory", subcategory });
-  }
-  if (query.filters.levelMin !== undefined || query.filters.levelMax !== undefined) {
-    parts.push({
-      kind: "levelRange",
-      levelMin: query.filters.levelMin ?? null,
-      levelMax: query.filters.levelMax ?? null,
-    });
-  }
-  if (query.filters.rarity) {
-    parts.push({
-      kind: "rarityPolicy",
-      policy: {
-        any: [query.filters.rarity],
-        all: [],
-        exclude: [],
-      },
-    });
-  }
-  if (query.filters.actionCost !== undefined) {
-    parts.push({
-      kind: "actionCostPolicy",
-      policy: {
-        any: [query.filters.actionCost],
-        all: [],
-        exclude: [],
-      },
-    });
-  }
-  parts.push(...splitMetadataTreeIntoParts(query.filters.metadata ?? null));
+  const request = resolveOntologyQueryRequest(query);
+  const category = normalizeSearchCategory(request.category) ?? null;
+  const parts = request.parts ?? [];
 
   return normalizeSearchQuery(
     {
       ...defaultQuery,
-      mode: query.kind === "lookup" ? "lookup" : query.kind === "search" ? "search" : "browse",
-      limit: query.filters.limit ?? defaultQuery.limit,
-      queryText: query.filters.query ?? query.filters.nameQuery ?? "",
-      searchProfile: query.filters.searchProfile ?? defaultQuery.searchProfile,
+      mode: request.intent,
+      limit: request.limit ?? defaultQuery.limit,
+      queryText: request.text ?? "",
+      searchProfile: request.searchProfile ?? defaultQuery.searchProfile,
       sourceLabel: query.label ?? null,
       filters: {
         ...defaultQuery.filters,
         category,
-        parts,
+        parts: parts.map((part) =>
+          part.kind === "subcategory"
+            ? { kind: "subcategory", subcategory: normalizeScopedSubcategory(category, normalizeSearchSubcategory(part.subcategory) ?? null) ?? part.subcategory }
+            : part,
+        ),
       },
     },
     dependencies,

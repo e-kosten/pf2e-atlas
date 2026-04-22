@@ -80,7 +80,7 @@ export function getSearchQueryPart<TKind extends Pf2eTerminalSearchStructuredPar
 }
 
 export function getSearchQuerySubcategory(query: Pf2eTerminalSearchQuery): SearchSubcategory | null {
-  return getSearchQueryPart(query, "subcategory")?.subcategory ?? null;
+  return normalizeSearchSubcategory(getSearchQueryPart(query, "subcategory")?.subcategory) ?? null;
 }
 
 export function getSearchQueryLevelRange(query: Pf2eTerminalSearchQuery): {

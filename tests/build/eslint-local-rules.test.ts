@@ -316,18 +316,46 @@ describe("eslint local architecture rules", () => {
   it("blocks non-tag modules from importing the removed broad domain barrel and allows explicit domain modules", async () => {
     await expectRuleMessage(
       "src/app/runtime.ts",
-      'import { SearchFilters } from "../domain/index.js";\nexport type Value = SearchFilters;\n',
+      'import { SearchRequest } from "../domain/index.js";\nexport type Value = SearchRequest;\n',
       "Non-tag code must import domain contracts from explicit src/domain/* modules instead of the removed broad src/domain/index.js barrel.",
     );
 
     await expectNoRuleMessages(
       "src/app/runtime.ts",
-      'import { SearchFilters } from "../domain/search-types.js";\nexport type Value = SearchFilters;\n',
+      'import { SearchRequest } from "../domain/search-request-types.js";\nexport type Value = SearchRequest;\n',
     );
 
     await expectNoRuleMessages(
       "src/tags/runtime/derivation/api.ts",
-      'import { SearchFilters } from "../../../domain/index.js";\nexport type Value = SearchFilters;\n',
+      'import { SearchRequest } from "../../../domain/index.js";\nexport type Value = SearchRequest;\n',
+    );
+  });
+
+  it("blocks app, domain, server, and tui modules from importing search execution DTOs or compiler helpers", async () => {
+    await expectRuleMessage(
+      "src/app/ontology-service.ts",
+      'import type { SearchExecutionFilters } from "../search/contracts.js";\nexport type Value = SearchExecutionFilters;\n',
+      "App, domain, server, and TUI modules must use SearchRequest and backend facades instead of importing search execution modules directly.",
+      "no-restricted-syntax",
+    );
+
+    await expectRuleMessage(
+      "src/domain/ontology-types.ts",
+      'import { compileSearchRequest } from "../search/request-compilation.js";\nexport const value = compileSearchRequest;\n',
+      "App, domain, server, and TUI modules must not compile SearchRequest values directly. Route semantic queries through Pf2eDataService or the backend search service.",
+      "no-restricted-syntax",
+    );
+
+    await expectRuleMessage(
+      "src/tui/search/service.ts",
+      'import { normalizeSearchFilters } from "../../search/filters/normalization.js";\nexport const value = normalizeSearchFilters;\n',
+      "App, domain, server, and TUI modules must not normalize or validate search execution filters directly. Keep that work inside search-owned execution boundaries.",
+      "no-restricted-syntax",
+    );
+
+    await expectNoRuleMessages(
+      "src/data/backend/search-service.ts",
+      'import type { SearchExecutionFilters } from "../../search/contracts.js";\nimport { compileSearchRequest } from "../../search/request-compilation.js";\nexport type Value = SearchExecutionFilters;\nexport { compileSearchRequest };\n',
     );
   });
 

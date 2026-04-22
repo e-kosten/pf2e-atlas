@@ -1,5 +1,6 @@
-import type { SearchFilters, SearchWindowPage } from "../../domain/search-types.js";
-import { buildSearchFilters } from "./filter-building.js";
+import type { SearchWindowPage } from "../../domain/search-types.js";
+import type { SearchRequest } from "../../domain/search-request-types.js";
+import { buildSearchRequest } from "./filter-building.js";
 import type {
   Pf2eTerminalSearchQuery,
   Pf2eTerminalSearchSession,
@@ -43,22 +44,12 @@ export function buildSearchWindowFilters(
     limit: number;
     offset?: number;
   },
-): SearchFilters {
+): SearchRequest {
   const offset = options.offset ?? 0;
-  if (query.mode === "lookup") {
-    return buildSearchFilters(query, {
-      limit: options.limit,
-      offset,
-      nameQuery: query.queryText,
-      sort: options.sort,
-      sortSeed: options.sortSeed,
-    });
-  }
-
-  return buildSearchFilters(query, {
+  return buildSearchRequest(query, {
     limit: options.limit,
     offset,
-    query: query.mode === "search" ? query.queryText : undefined,
+    text: query.mode === "browse" ? undefined : query.queryText,
     searchProfile: query.mode === "search" ? query.searchProfile : undefined,
     sort: options.sort,
     sortSeed: options.sortSeed,

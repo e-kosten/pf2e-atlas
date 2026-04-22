@@ -1,4 +1,3 @@
-import type { MetadataFilterNode } from "../search/filters/types.js";
 import type { NormalizedRecord } from "./record-types.js";
 
 export type SearchProfile = "lexical" | "balanced" | "concept";
@@ -90,32 +89,6 @@ export interface SearchScope {
 }
 
 export type SearchMode = "structured" | "lexical" | "hybrid";
-
-export interface SearchFilters {
-  searchProfile?: SearchProfile;
-  sort?: SearchSort;
-  sortSeed?: number;
-  explain?: boolean;
-  nameQuery?: string;
-  query?: string;
-  excludeQuery?: string;
-  linksTo?: string[];
-  linksToMode?: "any" | "all";
-  excludeLinksTo?: string[];
-  pack?: string;
-  category?: SearchCategoryInput;
-  subcategory?: SearchSubcategoryInput;
-  scopes?: SearchScope[];
-  levelMin?: number;
-  levelMax?: number;
-  rarity?: string;
-  metadata?: MetadataFilterNode;
-  priceMin?: number;
-  priceMax?: number;
-  actionCost?: number;
-  offset?: number;
-  limit?: number;
-}
 
 export const FILTER_VALUE_FIELDS = [
   "traits",

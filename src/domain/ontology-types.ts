@@ -1,4 +1,4 @@
-import type { SearchFilters } from "./search-types.js";
+import type { SearchRequest } from "./search-request-types.js";
 
 export type OntologyDomainId = "derivedTags" | "searchSemantics";
 
@@ -23,9 +23,8 @@ export interface OntologyTextLine {
 }
 
 export interface OntologyNodeQuery {
-  readonly kind: "listRecords" | "lookup" | "search";
   readonly label?: string;
-  readonly filters: Readonly<SearchFilters>;
+  readonly request: Readonly<SearchRequest>;
 }
 
 export type OntologySelectionState = "any" | "all" | "exclude";

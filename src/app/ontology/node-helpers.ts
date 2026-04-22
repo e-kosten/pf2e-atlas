@@ -3,7 +3,7 @@ import type {
 } from "../../search/filters/types.js";
 import type { NormalizedRecord } from "../../domain/record-types.js";
 import type { OntologyNode, OntologyTextLine } from "../../domain/ontology-types.js";
-import type { SearchFilters } from "../../domain/search-types.js";
+import type { SearchRequest } from "../../domain/search-request-types.js";
 import { normalizeText } from "../../shared/utils.js";
 import { mapNormalizedRecordToOntologyExplorerEntityRecord } from "./entity-record.js";
 import { buildOntologyExplorerEntityDetailLines, buildOntologyExplorerEntitySummary } from "./presenter.js";
@@ -46,19 +46,8 @@ export function cloneMetadataFilterNode(metadata: MetadataFilterNode): MetadataF
   return structuredClone(metadata);
 }
 
-function cloneSearchFilters(filters: Readonly<SearchFilters>): SearchFilters {
-  return {
-    ...filters,
-    linksTo: filters.linksTo ? [...filters.linksTo] : undefined,
-    excludeLinksTo: filters.excludeLinksTo ? [...filters.excludeLinksTo] : undefined,
-    scopes: filters.scopes
-      ? filters.scopes.map((scope) => ({
-          ...scope,
-          subcategories: scope.subcategories ? [...scope.subcategories] : undefined,
-        }))
-      : undefined,
-    metadata: filters.metadata ? cloneMetadataFilterNode(filters.metadata) : undefined,
-  };
+function cloneSearchRequest(request: Readonly<SearchRequest>): SearchRequest {
+  return structuredClone(request);
 }
 
 export function cloneOntologyNode(node: OntologyNode, idPrefix?: string): OntologyNode {
@@ -71,7 +60,7 @@ export function cloneOntologyNode(node: OntologyNode, idPrefix?: string): Ontolo
       : undefined,
     childPresentation: node.childPresentation ? { ...node.childPresentation } : undefined,
     groupValues: node.groupValues ? { ...node.groupValues } : undefined,
-    query: node.query ? { ...node.query, filters: cloneSearchFilters(node.query.filters) } : undefined,
+    query: node.query ? { ...node.query, request: cloneSearchRequest(node.query.request) } : undefined,
     selection: node.selection ? { ...node.selection, allowedStates: [...node.selection.allowedStates] } : undefined,
   };
 }
@@ -115,12 +104,19 @@ export function buildNormalizedRecordNode(record: NormalizedRecord): OntologyNod
     detailTitle: "Record Details",
     detailLines: buildOntologyExplorerEntityDetailLines(entityRecord),
     query: {
-      kind: "lookup",
       label: "Open exact record lookup",
-      filters: {
-        nameQuery: record.name,
+      request: {
+        intent: "lookup",
+        text: record.name,
         category: record.category,
-        subcategory: record.subcategory ?? undefined,
+        parts: record.subcategory
+          ? [
+              {
+                kind: "subcategory",
+                subcategory: record.subcategory,
+              },
+            ]
+          : [],
         limit: 5,
       },
     },

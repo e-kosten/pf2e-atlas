@@ -11,9 +11,11 @@ It also covers the startup and index lifecycle that make runtime search possible
 The search runtime is shared infrastructure, not an MCP-only feature. The same backend search stack also supports count and search-window behavior used by the TUI. The important ownership split is:
 
 - `src/index.ts` and `src/server/` own MCP registration and wire-format responses.
+- `src/domain/search-request-types.ts` owns `SearchRequest`, the shared semantic query contract.
 - `src/app/runtime.ts` owns application startup composition.
 - `src/data/service.ts` exposes `Pf2eDataService`, the main facade for server and TUI callers.
-- `src/search/filters/` owns filter normalization, validation, vocabulary semantics, and in-memory matching, while `src/data/backend/search-service.ts` owns backend wiring and runtime dependency assembly.
+- `src/search/request-compilation.ts` and `src/search/contracts.ts` own the lowering from `SearchRequest` into search-execution filters.
+- `src/search/filters/` owns execution-filter normalization, validation, vocabulary semantics, and in-memory matching, while `src/data/backend/search-service.ts` owns backend wiring and runtime dependency assembly.
 - `src/search/runtime-search.ts` owns ranked and structured search execution.
 - `src/search/sql.ts` and `src/data/record-queries.ts` own SQL construction and database retrieval.
 
@@ -54,16 +56,17 @@ flowchart TD
   F --> G
 
   G --> H[Pf2eSearchBackendService]
-  H --> I[normalizeSearchFilters<br/>validateSearchFilters]
-  I --> J[createRuntimeSearchDependencies]
-  J --> K[runtime-search.ts]
-  K --> L[record-queries.ts]
-  L --> M[search/sql.ts]
-  M --> N[(SQLite index<br/>records / records_fts / record_embeddings)]
+  H --> I[compileSearchRequest]
+  I --> J[normalizeSearchFilters<br/>validateSearchFilters]
+  J --> K[createRuntimeSearchDependencies]
+  K --> L[runtime-search.ts]
+  L --> M[record-queries.ts]
+  M --> N[search/sql.ts]
+  N --> O[(SQLite index<br/>records / records_fts / record_embeddings)]
 
-  K --> O[SearchResult or lookup match]
-  O --> P[presenters.ts<br/>formatSearchResult / summarizeRecord]
-  P --> Q[MCP text + structuredContent response]
+  L --> P[SearchResult or lookup match]
+  P --> Q[presenters.ts<br/>formatSearchResult / summarizeRecord]
+  Q --> R[MCP text + structuredContent response]
 ```
 
 ### What stays thin
@@ -71,7 +74,8 @@ flowchart TD
 The MCP layer mainly does three things:
 
 - validates request shape with Zod schemas in `src/server/tool-schemas.ts`
-- forwards normalized user intent into `Pf2eDataService`
+- adapts surface-local inputs into `SearchRequest`
+- forwards semantic query intent into `Pf2eDataService`
 - shapes backend records into MCP-friendly text and `structuredContent`
 
 It does not own SQL, fusion, reranking, or corpus normalization.
@@ -81,7 +85,7 @@ It does not own SQL, fusion, reranking, or corpus normalization.
 The backend deliberately routes similar requests through different runtime modes:
 
 - `pf2e_search` calls `dataService.search(...)` and can resolve to `structured`, `lexical`, or `hybrid` execution.
-- `pf2e_lookup` calls `dataService.lookup(...)`, which builds a search filter with `nameQuery`, `limit: 5`, and then runs the structured runtime path.
+- `pf2e_lookup` calls `dataService.lookup(...)`, which builds a lookup `SearchRequest` with `intent: "lookup"`, `text`, and `limit: 5` before running the structured runtime path.
 - `pf2e_list_records` calls `dataService.listRecords(...)`, which uses structured SQL listing only and never enters ranked retrieval.
 
 So lookup is not a separate search engine. It is a constrained structured search path optimized for exact-name matching and small alternative sets.
@@ -90,41 +94,55 @@ So lookup is not a separate search engine. It is a constrained structured search
 
 ```mermaid
 flowchart TD
-  A[Incoming SearchFilters] --> B[normalizeSearchFilters]
-  B --> C[validateSearchFilters]
-  C --> D[resolveSearchMode + resolveSearchProfile]
+  A[Incoming SearchRequest] --> B[compileSearchRequest]
+  B --> C[normalizeSearchFilters]
+  C --> D[validateSearchFilters]
+  D --> E[resolveSearchMode + resolveSearchProfile]
 
-  D -->|structured| E[fetchCandidates]
-  E --> F[optional excludeQuery token filter]
-  F --> G[structured scoring<br/>nameScore or default 0.5<br/>+ rerank adjustments]
-  G --> H[sort results]
+  E -->|structured| F[fetchCandidates]
+  F --> G[optional excludeQuery token filter]
+  G --> H[structured scoring<br/>nameScore or default 0.5<br/>+ rerank adjustments]
+  H --> I[sort results]
 
-  D -->|lexical| I[buildSearchQueryAnalysis<br/>buildLiteralQueryWeights]
-  I --> J[fetchLexicalRetrievalRows<br/>FTS + bm25]
-  J --> K[fetchCandidates for retrieved keys]
-  K --> L[recordMatchesFilters]
-  L --> M[buildLexicalSignal<br/>+ rerank adjustments]
-  M --> H
+  E -->|lexical| J[buildSearchQueryAnalysis<br/>buildLiteralQueryWeights]
+  J --> K[fetchLexicalRetrievalRows<br/>FTS + bm25]
+  K --> L[fetchCandidates for retrieved keys]
+  L --> M[recordMatchesFilters]
+  M --> N[buildLexicalSignal<br/>+ rerank adjustments]
+  N --> I
 
-  D -->|hybrid| N[buildSearchQueryAnalysis]
-  N --> O[embed semantic query]
-  N --> P[fetchLexicalRetrievalRows]
-  O --> Q[fetchSemanticRetrievalRows]
-  P --> R[union candidate keys]
-  Q --> R
-  R --> S[fetchCandidates for union]
-  S --> T[excludeQuery + recordMatchesFilters]
-  T --> U[rerank lexical top K]
-  U --> V[weighted RRF fusion<br/>+ rerank adjustments]
-  V --> H
+  E -->|hybrid| O[buildSearchQueryAnalysis]
+  O --> P[embed semantic query]
+  O --> Q[fetchLexicalRetrievalRows]
+  P --> R[fetchSemanticRetrievalRows]
+  Q --> S[union candidate keys]
+  R --> S
+  S --> T[fetchCandidates for union]
+  T --> U[excludeQuery + recordMatchesFilters]
+  U --> V[rerank lexical top K]
+  V --> W[weighted RRF fusion<br/>+ rerank adjustments]
+  W --> I
 
-  H --> W[create snapshot]
-  W --> X[slice offset/limit]
-  X --> Y[optional explain payload]
-  Y --> Z[SearchResult]
+  I --> X[create snapshot]
+  X --> Y[slice offset/limit]
+  Y --> Z[optional explain payload]
+  Z --> AA[SearchResult]
 ```
 
-### 1. Filter normalization and validation
+### 1. Semantic request compilation
+
+`SearchRequest` is the cross-surface search contract. MCP adapters, TUI query adapters, and ontology-origin queries all converge on that one semantic model before backend execution begins.
+
+`compileSearchRequest(...)` in `src/search/request-compilation.ts` lowers semantic query intent into search-execution filters by:
+
+- mapping `intent` and `text` onto `query` or `nameQuery`
+- lowering first-class request parts such as `subcategory`, `levelRange`, `rarityPolicy`, and `actionCostPolicy`
+- converting metadata request parts into the metadata filter DSL
+- preserving shared pagination, link, pack, price, explain, and exclusion settings
+
+Search-execution filters are not the shared contract. They are search-owned compiled output used by normalization, validation, SQL construction, and runtime execution.
+
+### 2. Filter normalization and validation
 
 `Pf2eSearchBackendService` is the control point before runtime search starts.
 
@@ -142,7 +160,7 @@ flowchart TD
 - `scopes` cannot be combined with top-level `category` or `subcategory`
 - subcategories must belong to their categories
 
-### 2. Runtime dependency assembly
+### 3. Runtime dependency assembly
 
 `createRuntimeSearchDependencies(...)` turns backend services into the small interface expected by `src/search/runtime-search.ts`.
 
@@ -159,7 +177,7 @@ That dependency object provides:
 
 This keeps `runtime-search.ts` independent from direct `DatabaseSync` and catalog wiring details.
 
-### 3. Mode resolution
+### 4. Mode resolution
 
 `src/search/ranking.ts` decides which runtime path to use:
 
@@ -171,9 +189,9 @@ Default MCP search behavior is important here:
 
 - `pf2e_search` with `query` but no explicit profile becomes `balanced` hybrid search
 - `pf2e_search` with only structured filters stays structured
-- `pf2e_lookup` always stays structured because it uses `nameQuery`, not `query`
+- `pf2e_lookup` always stays structured because lookup intent compiles to `nameQuery`, not `query`
 
-### 4. SQL candidate filtering
+### 5. SQL candidate filtering
 
 The SQL filter stage is shared across browse, lexical retrieval, semantic retrieval, and candidate hydration.
 
@@ -195,7 +213,7 @@ This stage feeds several query builders:
 
 The lexical and semantic retrieval queries reuse the same structural constraints, which keeps ranked search bounded by the same category, metadata, and link filters as structured browse.
 
-### 5. Structured runtime path
+### 6. Structured runtime path
 
 Structured execution is used by browse flows and lookup-like name matching.
 

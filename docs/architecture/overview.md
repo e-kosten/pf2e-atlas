@@ -20,6 +20,7 @@ The shortest useful mental model is:
 - `src/tui/app-services.ts` is the terminal/editorial composition root
 - `src/app/` wires runtime and app-level facades together
 - `src/data/` owns index-backed catalog, search, and rule-graph access
+- `src/domain/search-request-types.ts` owns `SearchRequest`, the shared semantic search contract
 - `src/search/` owns reusable ranked-search mechanics
 - `src/server/` translates MCP tools to backend calls
 - `src/tui/` translates user interaction flows to backend and app services
@@ -28,6 +29,7 @@ The shortest useful mental model is:
 - `src/tags/editorial/` owns editorial state, session, writeback, and UI workflows
 - `src/tags/cli/` groups offline discovery, evaluation, and editorial entrypoints
 - `src/search/filters/` owns live metadata-filter vocabulary, normalization, matching, and SQL-facing filter assembly
+- `src/search/request-compilation.ts` owns the lowering from `SearchRequest` into search-execution filters
 - `src/tags/runtime.ts`, `src/tags/editorial.ts`, and `src/tags/editorial-ui.ts` are the approved non-tag tag facades
 - `src/domain/` defines shared vocabulary and contracts
 - `src/shared/` stays intentionally small and only holds true cross-layer primitives

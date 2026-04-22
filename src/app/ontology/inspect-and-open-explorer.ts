@@ -3,6 +3,7 @@ import { inferActorMetricValueType } from "../../domain/actor-metrics.js";
 import { inferItemMetricValueType } from "../../domain/item-metrics.js";
 import type { Pf2eDataService } from "../../data/service.js";
 import type { OntologyDomainModel, OntologyNode, OntologyNodeQuery } from "../../domain/ontology-types.js";
+import { resolveOntologyQueryRequest } from "../../domain/search-request-compat.js";
 import type { SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
 import type { Pf2eApplicationOntologyService } from "../ontology-service.js";
 import {
@@ -17,11 +18,16 @@ function buildOntologyQueryRecordChildren(
   dataService: OntologyExplorerDataService,
   query: OntologyNodeQuery | undefined,
 ): readonly OntologyNode[] {
-  if (!query || query.kind !== "listRecords") {
+  if (!query) {
     return [];
   }
 
-  return dataService.listRecords(query.filters).records.map(buildNormalizedRecordNode);
+  const request = resolveOntologyQueryRequest(query);
+  if (request.intent !== "browse") {
+    return [];
+  }
+
+  return dataService.listRecords(request).records.map(buildNormalizedRecordNode);
 }
 
 function parseMetricInspectScope(node: OntologyNode): {
@@ -74,25 +80,37 @@ function buildInspectMetricQuery(node: OntologyNode): OntologyNodeQuery | undefi
   }
 
   return {
-    kind: "listRecords",
     label: `Browse records with the ${scope.metricKey} metric`,
-    filters: {
+    request: {
+      intent: "browse",
       category: scope.category,
-      subcategory: scope.subcategory ?? undefined,
-      metadata:
-        scope.metricField === "actorMetrics"
-          ? {
-              field: "actorMetricCompare",
-              leftMetric: scope.metricKey,
-              op: ">=",
-              rightMetric: scope.metricKey,
-            }
-          : {
-              field: "itemMetricCompare",
-              leftMetric: scope.metricKey,
-              op: ">=",
-              rightMetric: scope.metricKey,
-            },
+      parts: [
+        ...(scope.subcategory
+          ? [
+              {
+                kind: "subcategory" as const,
+                subcategory: scope.subcategory,
+              },
+            ]
+          : []),
+        {
+          kind: "metadataPredicate" as const,
+          predicate:
+            scope.metricField === "actorMetrics"
+              ? {
+                  field: "actorMetricCompare",
+                  leftMetric: scope.metricKey,
+                  op: ">=",
+                  rightMetric: scope.metricKey,
+                }
+              : {
+                  field: "itemMetricCompare",
+                  leftMetric: scope.metricKey,
+                  op: ">=",
+                  rightMetric: scope.metricKey,
+                },
+        },
+      ],
       limit: 20,
     },
   };
@@ -128,7 +146,7 @@ function decorateNodeForInspectAndOpen(
     };
   }
 
-  if (cloned.query?.kind === "listRecords") {
+  if (cloned.query && resolveOntologyQueryRequest(cloned.query).intent === "browse") {
     return {
       ...cloned,
       loadChildren: () => buildOntologyQueryRecordChildren(dataService, cloned.query),

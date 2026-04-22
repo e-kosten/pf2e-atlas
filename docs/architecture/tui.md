@@ -146,14 +146,14 @@ Use this layer when a screen is fundamentally a list/detail surface with shared 
 
 `src/tui/search/service.ts` is the TUI-facing search facade. It is not the ranking engine itself. Instead, it:
 
-- keeps `query.filters.parts` as the canonical structured-query representation and derives search/runtime filters only at the boundary
-- normalizes query state into `SearchFilters`
+- keeps `query.filters.parts` as the canonical TUI editor representation
+- lowers TUI query state into `SearchRequest` at the backend boundary
 - exposes category, subcategory, sort, and facet options for the UI
 - converts ontology-origin queries into TUI query state
 - opens and reads search windows through the shared backend
 - owns TUI session concepts such as result buffers, sort changes, and session disposal
 
-This keeps query editing and result reading logic in the TUI while leaving search execution in shared backend services.
+This keeps query editing and result reading logic in the TUI while leaving shared query semantics in `src/domain/` and search execution in backend/search-owned services.
 
 Within the search screen, the live workspace no longer renders structured rows directly from raw query state. The search-screen workspace derives a summary/document model from the canonical query state first, then renders:
 
@@ -165,6 +165,7 @@ That summary layer owns stable anchors for major query parts and metadata nodes.
 
 - `query.filters.parts` stays the canonical structured-query state
 - query-state helpers own normalization and interpretation
+- `SearchRequest` is the shared semantic contract once query state crosses out of the TUI
 - the workspace summary/document model owns editor-facing identity and display structure
 - terminal renderers consume that summary model instead of re-deriving structured meaning from raw query state in each pane
 

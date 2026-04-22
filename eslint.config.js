@@ -26,8 +26,33 @@ function buildRelativeImportNameRestrictions(pathVariants, importNames, message)
   }));
 }
 
+function buildImportSourceSyntaxRestrictions(pathVariants, message) {
+  return pathVariants.map((name) => ({
+    selector: `ImportDeclaration[source.value="${name}"]`,
+    message,
+  }));
+}
+
 const DOMAIN_INDEX_IMPORT_PATHS = ["./domain/index.js", "../domain/index.js", "../../domain/index.js"];
 const SHARED_UTILS_IMPORT_PATHS = ["./shared/utils.js", "../shared/utils.js", "../../shared/utils.js"];
+const SEARCH_CONTRACT_IMPORT_PATHS = [
+  "./search/contracts.js",
+  "../search/contracts.js",
+  "../../search/contracts.js",
+  "../../../search/contracts.js",
+];
+const SEARCH_REQUEST_COMPILATION_IMPORT_PATHS = [
+  "./search/request-compilation.js",
+  "../search/request-compilation.js",
+  "../../search/request-compilation.js",
+  "../../../search/request-compilation.js",
+];
+const SEARCH_FILTER_NORMALIZATION_IMPORT_PATHS = [
+  "./search/filters/normalization.js",
+  "../search/filters/normalization.js",
+  "../../search/filters/normalization.js",
+  "../../../search/filters/normalization.js",
+];
 
 const NON_TAG_SHARED_UTILS_OWNER_IMPORT_NAMES = [
   "bigramDice",
@@ -65,6 +90,41 @@ const NON_TAG_OWNERSHIP_IMPORT_RESTRICTIONS = {
     },
   ],
 };
+
+const SEARCH_REQUEST_BOUNDARY_IMPORT_RESTRICTIONS = {
+  paths: [
+    ...SEARCH_CONTRACT_IMPORT_PATHS.map((name) => ({
+      name,
+      message:
+        "App, domain, server, and TUI modules must use SearchRequest and backend facades instead of importing search execution modules directly.",
+    })),
+    ...SEARCH_REQUEST_COMPILATION_IMPORT_PATHS.map((name) => ({
+      name,
+      message:
+        "App, domain, server, and TUI modules must not compile SearchRequest values directly. Route semantic queries through Pf2eDataService or the backend search service.",
+    })),
+    ...SEARCH_FILTER_NORMALIZATION_IMPORT_PATHS.map((name) => ({
+      name,
+      message:
+        "App, domain, server, and TUI modules must not normalize or validate search execution filters directly. Keep that work inside search-owned execution boundaries.",
+    })),
+  ],
+};
+
+const SEARCH_REQUEST_BOUNDARY_SYNTAX_RESTRICTIONS = [
+  ...buildImportSourceSyntaxRestrictions(
+    SEARCH_CONTRACT_IMPORT_PATHS,
+    "App, domain, server, and TUI modules must use SearchRequest and backend facades instead of importing search execution modules directly.",
+  ),
+  ...buildImportSourceSyntaxRestrictions(
+    SEARCH_REQUEST_COMPILATION_IMPORT_PATHS,
+    "App, domain, server, and TUI modules must not compile SearchRequest values directly. Route semantic queries through Pf2eDataService or the backend search service.",
+  ),
+  ...buildImportSourceSyntaxRestrictions(
+    SEARCH_FILTER_NORMALIZATION_IMPORT_PATHS,
+    "App, domain, server, and TUI modules must not normalize or validate search execution filters directly. Keep that work inside search-owned execution boundaries.",
+  ),
+];
 
 function mergeNonTagRestrictedImports(...restrictions) {
   return mergeRestrictedImports(NON_TAG_OWNERSHIP_IMPORT_RESTRICTIONS, ...restrictions);
@@ -659,6 +719,12 @@ export default defineConfig(
     },
   },
   {
+    files: ["src/app/**/*.{ts,tsx}", "src/domain/**/*.{ts,tsx}", "src/server/**/*.{ts,tsx}", "src/tui/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-syntax": ["error", ...SEARCH_REQUEST_BOUNDARY_SYNTAX_RESTRICTIONS],
+    },
+  },
+  {
     files: ["src/tui/pf2e-app.tsx"],
     rules: {
       "arch/no-pf2e-app-render-time-ontology-load": "error",
@@ -775,7 +841,10 @@ export default defineConfig(
       "src/tui/terminal-ui.tsx",
     ],
     rules: {
-      "no-restricted-imports": mergeNonTagRestrictedImports(NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS),
+      "no-restricted-imports": mergeNonTagRestrictedImports(
+        NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS,
+        SEARCH_REQUEST_BOUNDARY_IMPORT_RESTRICTIONS,
+      ),
     },
   },
   {
@@ -788,32 +857,46 @@ export default defineConfig(
       "src/tui/terminal-ui.tsx",
     ],
     rules: {
-      "no-restricted-imports": mergeNonTagRestrictedImports(NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS, {
-        paths: [
-          {
-            name: "node:sqlite",
-            message:
-              "TUI modules must not open SQLite directly. Go through app-services or approved cache/composition modules.",
-          },
-        ],
-        patterns: [
-          {
-            group: ["**/data/service.js", "**/app/runtime.js", "**/app/ontology-service.js"],
-            message:
-              "TUI modules must consume composed app services instead of constructing runtime or data services directly.",
-          },
-          {
-            group: [
-              "**/tags/editorial/ui/workbench-controller.js",
-              "**/tags/editorial/sessions/session-builder.js",
-              "**/tags/editorial/state/runtime-state.js",
-              "**/tags/editorial/sessions/session-store.js",
-            ],
-            message:
-              "TUI modules must use app-services for tag-workbench composition instead of importing editorial service internals directly.",
-          },
-        ],
-      }),
+      "no-restricted-imports": mergeNonTagRestrictedImports(
+        NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS,
+        SEARCH_REQUEST_BOUNDARY_IMPORT_RESTRICTIONS,
+        {
+          paths: [
+            {
+              name: "node:sqlite",
+              message:
+                "TUI modules must not open SQLite directly. Go through app-services or approved cache/composition modules.",
+            },
+          ],
+          patterns: [
+            {
+              group: ["**/data/service.js", "**/app/runtime.js", "**/app/ontology-service.js"],
+              message:
+                "TUI modules must consume composed app services instead of constructing runtime or data services directly.",
+            },
+            {
+              group: [
+                "**/tags/editorial/ui/workbench-controller.js",
+                "**/tags/editorial/sessions/session-builder.js",
+                "**/tags/editorial/state/runtime-state.js",
+                "**/tags/editorial/sessions/session-store.js",
+              ],
+              message:
+                "TUI modules must use app-services for tag-workbench composition instead of importing editorial service internals directly.",
+            },
+          ],
+        },
+      ),
+    },
+  },
+  {
+    files: ["src/app/**/*.{ts,tsx}", "src/domain/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": mergeNonTagRestrictedImports(
+        NON_UI_TUI_IMPORT_RESTRICTIONS,
+        NON_TAGS_DERIVED_TAG_IMPORT_RESTRICTIONS,
+        SEARCH_REQUEST_BOUNDARY_IMPORT_RESTRICTIONS,
+      ),
     },
   },
   {
@@ -879,6 +962,7 @@ export default defineConfig(
       "no-restricted-imports": mergeNonTagRestrictedImports(
         NON_UI_TUI_IMPORT_RESTRICTIONS,
         NON_TAGS_DERIVED_TAG_IMPORT_RESTRICTIONS,
+        SEARCH_REQUEST_BOUNDARY_IMPORT_RESTRICTIONS,
         SERVER_STORAGE_INTERNAL_IMPORT_RESTRICTIONS,
       ),
     },

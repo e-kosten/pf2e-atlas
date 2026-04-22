@@ -8,7 +8,9 @@ import { createPf2eApplicationOntologyService } from "../../src/app/ontology-ser
 import { getMetadataGlossaryArtifactPath } from "../../src/data/metadata-glossary.js";
 import type { SearchVocabularyResult } from "../../src/data/vocabulary.js";
 import type { Pf2eDataService } from "../../src/data/service.js";
-import type { FilterValueField, SearchFilters } from "../../src/domain/search-types.js";
+import { searchRequestPartsToMetadataFilterNode } from "../../src/domain/search-request-types.js";
+import type { SearchRequest } from "../../src/domain/search-request-types.js";
+import type { FilterValueField, SearchResult } from "../../src/domain/search-types.js";
 import type { AppConfig } from "../../src/domain/config-types.js";
 import type { MetadataGlossaryArtifact } from "../../src/domain/metadata-glossary-types.js";
 import type { NormalizedRecord } from "../../src/domain/record-types.js";
@@ -46,6 +48,10 @@ function findNodeById(nodes: OntologyNode[], id: string): OntologyNode | undefin
     }
   }
   return undefined;
+}
+
+function getRequestMetadata(request: SearchRequest | undefined) {
+  return request ? searchRequestPartsToMetadataFilterNode(request.parts ?? []) : null;
 }
 
 function createRecord(overrides: Partial<NormalizedRecord> = {}): NormalizedRecord {
@@ -141,18 +147,18 @@ function createDataService(): Pick<Pf2eDataService, "getSearchVocabulary" | "lis
     derivedTagOntologyTags: [],
     derivedTagCatalog: [],
   };
-  const listRecords = vi.fn((filters: SearchFilters) => ({
+  const listRecords = vi.fn((request: SearchRequest) => ({
     searchProfile: null,
     mode: "structured" as const,
-    sort: filters.sort ?? "alphabetical",
+    sort: request.sort ?? "alphabetical",
     total: 1,
-    offset: filters.offset ?? 0,
-    limit: filters.limit ?? 20,
+    offset: request.offset ?? 0,
+    limit: request.limit ?? 20,
     hasMore: false,
     nextOffset: null,
     records: [
       createRecord(
-        filters.category === "equipment"
+        request.category === "equipment"
           ? {
               recordKey: "equipment:tower-bulwark",
               id: "tower-bulwark",
@@ -173,7 +179,7 @@ function createDataService(): Pick<Pf2eDataService, "getSearchVocabulary" | "lis
               traditions: [],
               spellKinds: [],
             }
-          : filters.category === "creature"
+          : request.category === "creature"
             ? {
                 recordKey: "creature:ember-ghost",
                 id: "ember-ghost",
@@ -195,7 +201,7 @@ function createDataService(): Pick<Pf2eDataService, "getSearchVocabulary" | "lis
             : {},
       ),
     ],
-  }));
+  }) satisfies SearchResult);
   return {
     getSearchVocabulary: vi.fn(() => vocabulary),
     listFilterValues: vi.fn(
@@ -301,23 +307,27 @@ describe("application ontology service", () => {
 
     const saveTypeValueNode = saveTypeValueNodes.find((node) => node.id === "spell:saveType:fortitude");
 
-    expect(saveTypeValueNode?.query?.filters.metadata).toEqual({
+    expect(getRequestMetadata(saveTypeValueNode?.query?.request)).toEqual({
       field: "saveType",
       op: "eq",
       value: "fortitude",
     });
-    expect(sustainedValueNodes.find((node) => node.id === "spell:sustained:true")?.query?.filters.metadata).toEqual({
+    expect(
+      getRequestMetadata(sustainedValueNodes.find((node) => node.id === "spell:sustained:true")?.query?.request),
+    ).toEqual({
       field: "sustained",
       op: "eq",
       value: true,
     });
-    expect(handsValueNodes.find((node) => node.id === "equipment:hands:1")?.query?.filters.metadata).toEqual({
-      field: "hands",
-      op: "eq",
-      value: 1,
-    });
+    expect(getRequestMetadata(handsValueNodes.find((node) => node.id === "equipment:hands:1")?.query?.request)).toEqual(
+      {
+        field: "hands",
+        op: "eq",
+        value: 1,
+      },
+    );
     const commonTraitNode = findNodeById(domain.rootNodes, "spell:commonTraits")?.children?.[0];
-    expect(commonTraitNode?.query?.filters.metadata).toEqual({
+    expect(getRequestMetadata(commonTraitNode?.query?.request)).toEqual({
       field: "traits",
       op: "includesAny",
       values: ["fire"],
@@ -401,17 +411,17 @@ describe("application ontology service", () => {
         field,
         values: field === "traits" && category === "spell" ? values : [],
       })),
-      listRecords: vi.fn((filters: SearchFilters) => ({
+      listRecords: vi.fn((request: SearchRequest) => ({
         searchProfile: null,
         mode: "structured" as const,
-        sort: filters.sort ?? "alphabetical",
+        sort: request.sort ?? "alphabetical",
         total: 0,
-        offset: filters.offset ?? 0,
-        limit: filters.limit ?? 20,
+        offset: request.offset ?? 0,
+        limit: request.limit ?? 20,
         hasMore: false,
         nextOffset: null,
         records: [],
-      })),
+      }) satisfies SearchResult),
     };
 
     const service = createPf2eApplicationOntologyService(createTestConfig(), dataService);
@@ -455,30 +465,40 @@ describe("application ontology service", () => {
       "Requires every child predicate or group to match. Must contain at least 2 child nodes.",
     );
     expect(actorMetricCompareNode?.query).toEqual({
-      kind: "listRecords",
       label: "Browse records matching the actorMetricCompare example",
-      filters: {
+      request: {
         category: "creature",
-        metadata: {
-          field: "actorMetricCompare",
-          leftMetric: "ability.int.mod",
-          op: ">",
-          rightMetric: "ability.cha.mod",
-        },
+        intent: "browse",
+        parts: [
+          {
+            kind: "metadataPredicate",
+            predicate: {
+              field: "actorMetricCompare",
+              leftMetric: "ability.int.mod",
+              op: ">",
+              rightMetric: "ability.cha.mod",
+            },
+          },
+        ],
         limit: 20,
       },
     });
     expect(itemMetricCompareNode?.query).toEqual({
-      kind: "listRecords",
       label: "Browse records matching the itemMetricCompare example",
-      filters: {
+      request: {
         category: "equipment",
-        metadata: {
-          field: "itemMetricCompare",
-          leftMetric: "shield.hp",
-          op: ">",
-          rightMetric: "shield.bt",
-        },
+        intent: "browse",
+        parts: [
+          {
+            kind: "metadataPredicate",
+            predicate: {
+              field: "itemMetricCompare",
+              leftMetric: "shield.hp",
+              op: ">",
+              rightMetric: "shield.bt",
+            },
+          },
+        ],
         limit: 20,
       },
     });
@@ -488,63 +508,83 @@ describe("application ontology service", () => {
     expect(actorMetricNamespace?.loadChildren?.().map((node) => node.label)).toContain("Best Save");
     expect(actorMetricNode?.label).toBe("Best Save");
     expect(actorMetricValueNode?.query).toEqual({
-      kind: "listRecords",
       label: "Browse records where Best Save = fort",
-      filters: {
+      request: {
         category: "creature",
-        metadata: {
-          field: "actorMetric",
-          metric: "save.best",
-          op: "==",
-          value: "fort",
-        },
+        intent: "browse",
+        parts: [
+          {
+            kind: "metadataPredicate",
+            predicate: {
+              field: "actorMetric",
+              metric: "save.best",
+              op: "==",
+              value: "fort",
+            },
+          },
+        ],
         limit: 20,
       },
     });
     expect(actorMetricValueNode?.loadChildren?.()[0]?.kind).toBe("record");
     expect(itemMetricNode?.label).toBe("Weapon Reload");
     expect(itemMetricNode?.query).toEqual({
-      kind: "listRecords",
       label: "Browse records with Weapon Reload",
-      filters: {
+      request: {
         category: "equipment",
-        metadata: {
-          field: "itemMetricCompare",
-          leftMetric: "weapon.reload",
-          op: ">=",
-          rightMetric: "weapon.reload",
-        },
+        intent: "browse",
+        parts: [
+          {
+            kind: "metadataPredicate",
+            predicate: {
+              field: "itemMetricCompare",
+              leftMetric: "weapon.reload",
+              op: ">=",
+              rightMetric: "weapon.reload",
+            },
+          },
+        ],
         limit: 20,
       },
     });
     expect(itemMetricNode?.loadChildren).toBeUndefined();
     expect(commonTraitNode?.query).toEqual({
-      kind: "listRecords",
       label: "Browse records with this trait",
-      filters: {
+      request: {
         category: "spell",
-        metadata: {
-          field: "traits",
-          op: "includesAny",
-          values: ["fire"],
-        },
+        intent: "browse",
+        parts: [
+          {
+            kind: "metadataPredicate",
+            predicate: {
+              field: "traits",
+              op: "includesAny",
+              values: ["fire"],
+            },
+          },
+        ],
         limit: 20,
       },
     });
     expect(saveTypeValueNode?.query).toEqual({
-      kind: "listRecords",
       label: "Browse records with this value",
-      filters: {
+      request: {
         category: "spell",
-        metadata: {
-          field: "saveType",
-          op: "eq",
-          value: "fortitude",
-        },
+        intent: "browse",
+        parts: [
+          {
+            kind: "metadataPredicate",
+            predicate: {
+              field: "saveType",
+              op: "eq",
+              value: "fortitude",
+            },
+          },
+        ],
         limit: 20,
       },
     });
-    expect(publicationTitleValueNode?.query?.filters.metadata).toEqual({
+    expect(getRequestMetadata(publicationTitleValueNode?.query?.request)).toEqual({
       field: "publicationTitle",
       op: "eq",
       value: "Pathfinder Rage of Elements",

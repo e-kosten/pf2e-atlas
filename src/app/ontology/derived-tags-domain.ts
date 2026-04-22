@@ -28,12 +28,19 @@ function buildRecordNode(recordNode: DerivedTagOntologyExplorerRecordNode): Onto
     detailTitle: "Record Details",
     detailLines: buildOntologyExplorerEntityDetailLines(recordNode.record),
     query: {
-      kind: "lookup",
       label: "Open exact record lookup",
-      filters: {
-        nameQuery: recordNode.record.name,
+      request: {
+        intent: "lookup",
+        text: recordNode.record.name,
         category: recordNode.record.category,
-        subcategory: recordNode.record.subcategory ?? undefined,
+        parts: recordNode.record.subcategory
+          ? [
+              {
+                kind: "subcategory",
+                subcategory: recordNode.record.subcategory,
+              },
+            ]
+          : [],
         limit: 5,
       },
     },
@@ -112,12 +119,24 @@ function buildTagNode(tag: DerivedTagOntologyExplorerTagNode): OntologyNode {
     ],
     children: tag.records.map(buildRecordNode),
     query: {
-      kind: "listRecords",
       label: "List records with this derived tag",
-      filters: {
+      request: {
+        intent: "browse",
         category: tag.category,
-        subcategory: tag.subcategories?.length === 1 ? tag.subcategories[0] : undefined,
-        metadata: { field: "derivedTags", op: "includesAny", values: [tag.tag] },
+        parts: [
+          ...(tag.subcategories?.length === 1 && tag.subcategories[0]
+            ? [
+                {
+                  kind: "subcategory" as const,
+                  subcategory: tag.subcategories[0],
+                },
+              ]
+            : []),
+          {
+            kind: "metadataPredicate" as const,
+            predicate: { field: "derivedTags", op: "includesAny", values: [tag.tag] },
+          },
+        ],
         limit: 20,
       },
     },

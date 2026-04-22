@@ -1,4 +1,4 @@
-import type { SearchFilters } from "../../domain/search-types.js";
+import type { SearchRequest } from "../../domain/search-request-types.js";
 import type {
   DerivedTagTerminalLine,
   DerivedTagTerminalPolicySelection,
@@ -23,9 +23,8 @@ export interface FilterExplorerTextLine {
 }
 
 export type FilterExplorerQueryTarget = {
-  readonly kind: "listRecords" | "lookup" | "search";
   readonly label?: string;
-  readonly filters: Readonly<SearchFilters>;
+  readonly request: Readonly<SearchRequest>;
 };
 
 export const FILTER_EXPLORER_LAUNCH_INTENT = {

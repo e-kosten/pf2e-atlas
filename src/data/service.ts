@@ -7,6 +7,7 @@ import type {
   RuleGraphCollectionResult,
 } from "../domain/rule-types.js";
 import type { NormalizedRecord, PackInfo } from "../domain/record-types.js";
+import type { SearchRequest } from "../domain/search-request-types.js";
 import type {
   FilterValueQuery,
   FilterValueResult,
@@ -14,7 +15,6 @@ import type {
   LookupQuery,
   LookupResult,
   SearchCountResult,
-  SearchFilters,
   SearchResult,
   SearchWindowPage,
 } from "../domain/search-types.js";
@@ -140,22 +140,19 @@ export class Pf2eDataService {
     return this.ruleGraphService.collectRuleQuestionContext(input);
   }
 
-  listRecords(filters: SearchFilters): SearchResult {
-    return this.searchService.listRecords(filters);
+  listRecords(request: SearchRequest): SearchResult {
+    return this.searchService.listRecords(request);
   }
 
   async countRecords(
-    filters: SearchFilters,
-    options: { mode?: "browse" | "search" | "lookup"; lexicalOnly?: boolean } = {},
+    request: SearchRequest,
+    options: { lexicalOnly?: boolean } = {},
   ): Promise<SearchCountResult> {
-    return this.searchService.countRecords(filters, options);
+    return this.searchService.countRecords(request, options);
   }
 
-  async openSearchWindow(
-    filters: SearchFilters,
-    options: { mode?: "browse" | "search" | "lookup" } = {},
-  ): Promise<SearchWindowPage> {
-    return this.searchService.openSearchWindow(filters, options);
+  async openSearchWindow(request: SearchRequest): Promise<SearchWindowPage> {
+    return this.searchService.openSearchWindow(request);
   }
 
   readSearchWindowPage(windowId: string, offset: number, limit: number): SearchWindowPage {
@@ -166,8 +163,8 @@ export class Pf2eDataService {
     this.searchService.closeSearchWindow(windowId);
   }
 
-  async search(filters: SearchFilters): Promise<SearchResult> {
-    return this.searchService.search(filters);
+  async search(request: SearchRequest): Promise<SearchResult> {
+    return this.searchService.search(request);
   }
 
   lookup(

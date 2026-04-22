@@ -5,8 +5,7 @@ import {
   normalizeSearchCategory,
   normalizeSearchSubcategory,
 } from "../../domain/categories.js";
-import type { SearchFilters } from "../../domain/search-types.js";
-import type { NormalizedSearchFilters } from "../contracts.js";
+import type { NormalizedSearchFilters, SearchExecutionFilters } from "../contracts.js";
 import { hasStructuredFilterSignal, resolveSearchMode } from "../ranking.js";
 import { normalizeMetadataFilterNode } from "./metadata.js";
 import { normalizeSearchScope } from "./scope.js";
@@ -86,7 +85,7 @@ function normalizeRecordKeyFilter(values: string[] | undefined): string[] | unde
 }
 
 export function normalizeSearchFilters(
-  filters: SearchFilters,
+  filters: SearchExecutionFilters,
   resolvePackName: (packValue: string) => string | undefined,
 ): NormalizedSearchFilters {
   const normalizedCategory = filters.category !== undefined ? normalizeSearchCategory(filters.category) : null;

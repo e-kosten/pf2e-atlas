@@ -3,7 +3,9 @@ import { describe, expect, it, vi } from "vitest";
 import { buildSearchSemanticsDomain } from "../../src/app/ontology/search-semantics-domain.js";
 import type { OntologyNode } from "../../src/domain/ontology-types.js";
 import type { AppConfig } from "../../src/domain/config-types.js";
-import type { FilterValueField, SearchFilters } from "../../src/domain/search-types.js";
+import { searchRequestPartsToMetadataFilterNode } from "../../src/domain/search-request-types.js";
+import type { SearchRequest } from "../../src/domain/search-request-types.js";
+import type { FilterValueField, SearchResult } from "../../src/domain/search-types.js";
 import type { SearchSemanticsBootstrapSummaryResult, SearchVocabularyResult } from "../../src/data/vocabulary.js";
 import type { Pf2eDataService } from "../../src/data/service.js";
 
@@ -38,6 +40,10 @@ function findNodeById(nodes: readonly OntologyNode[], id: string): OntologyNode 
     }
   }
   return undefined;
+}
+
+function getRequestMetadata(node: OntologyNode | undefined) {
+  return node?.query ? searchRequestPartsToMetadataFilterNode(node.query.request.parts ?? []) : null;
 }
 
 function createSummary(): SearchSemanticsBootstrapSummaryResult {
@@ -141,17 +147,17 @@ function createDataService(options: {
           : [],
       }),
     ),
-    listRecords: vi.fn((filters: SearchFilters) => ({
+    listRecords: vi.fn((request: SearchRequest) => ({
       searchProfile: null,
       mode: "structured" as const,
-      sort: filters.sort ?? "alphabetical",
+      sort: request.sort ?? "alphabetical",
       total: 0,
-      offset: filters.offset ?? 0,
-      limit: filters.limit ?? 20,
+      offset: request.offset ?? 0,
+      limit: request.limit ?? 20,
       hasMore: false,
       nextOffset: null,
       records: [],
-    })),
+    }) satisfies SearchResult),
   };
 
   if (options.includeSummary ?? true) {
@@ -187,8 +193,8 @@ describe("buildSearchSemanticsDomain", () => {
       "hazard:trap:field:derivedTags:family:tripwire:tag:snag_line",
     );
 
-    expect(fogboundTag?.query?.filters.subcategory).toBe("trap");
-    expect(trapTag?.query?.filters.subcategory).toBe("trap");
+    expect(fogboundTag?.query?.request.parts).toContainEqual({ kind: "subcategory", subcategory: "trap" });
+    expect(trapTag?.query?.request.parts).toContainEqual({ kind: "subcategory", subcategory: "trap" });
     expect(fogboundTag?.children).toBeUndefined();
     expect(fogboundTag?.loadChildren).toBeUndefined();
   });
@@ -226,7 +232,7 @@ describe("buildSearchSemanticsDomain", () => {
     );
     expect(magicalTraitNode?.label).toBe("magical");
     expect(magicalTraitNode?.listLabel).toBe("magical | 3");
-    expect(magicalTraitNode?.query?.filters.metadata).toEqual({
+    expect(getRequestMetadata(magicalTraitNode)).toEqual({
       field: "traits",
       op: "includesAny",
       values: ["magical"],

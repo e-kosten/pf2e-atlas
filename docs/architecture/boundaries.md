@@ -129,12 +129,19 @@ Search-semantics ontology loading should stay on the shared data facade and conf
 
 Search execution should flow through backend services instead of one-off SQL or ranking paths:
 
-1. callers build or normalize `SearchFilters`
+1. surfaces adapt local inputs into `SearchRequest`
 2. callers go through `Pf2eDataService`
-3. `Pf2eSearchBackendService` coordinates execution
+3. `Pf2eSearchBackendService` compiles that semantic request into search-execution filters and coordinates execution
 4. `src/search/runtime-search.ts` owns ranked runtime search behavior
 
 That is why server registration files are blocked from importing low-level SQL/query helpers directly, and why search modules are blocked from reaching into storage leaf modules.
+
+The durable ownership split is:
+
+- `src/domain/search-request-types.ts` owns the shared semantic query contract
+- `src/search/request-compilation.ts` and `src/search/contracts.ts` own execution-facing compiled filter shapes
+- `src/search/filters/` owns normalization and validation for execution filters
+- `src/app/**`, `src/domain/**`, `src/server/**`, and `src/tui/**` must not import the search execution DTOs or compiler directly
 
 ### Ontology Boundary
 

@@ -12,6 +12,8 @@ import type {
 } from "../../search/filters/types.js";
 import type { MetadataGlossaryArtifact, MetadataGlossaryEntry } from "../../domain/metadata-glossary-types.js";
 import type { OntologyNode } from "../../domain/ontology-types.js";
+import { resolveOntologyQueryRequest } from "../../domain/search-request-compat.js";
+import { metadataFilterNodeToSearchRequestParts } from "../../domain/search-request-types.js";
 import { getMetricDiscoveryGroupLabel } from "../../domain/metric-discovery-group-label.js";
 import type { SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
 import { normalizeText } from "../../shared/utils.js";
@@ -194,12 +196,21 @@ export function buildSearchSemanticsMetadataQuery(
   metadata: MetadataFilterNode,
 ): OntologyNode["query"] {
   return {
-    kind: "listRecords",
     label,
-    filters: {
+    request: {
+      intent: "browse",
       category,
-      subcategory: subcategory ?? undefined,
-      metadata: cloneMetadataFilterNode(metadata),
+      parts: [
+        ...(subcategory
+          ? [
+              {
+                kind: "subcategory" as const,
+                subcategory,
+              },
+            ]
+          : []),
+        ...metadataFilterNodeToSearchRequestParts(cloneMetadataFilterNode(metadata)),
+      ],
       limit: 20,
     },
   };
@@ -318,11 +329,16 @@ function buildQueryRecordChildren(
   dataService: SearchSemanticsRecordsDataService,
   query: OntologyNode["query"] | undefined,
 ): readonly OntologyNode[] {
-  if (!query || query.kind !== "listRecords") {
+  if (!query) {
     return [];
   }
 
-  return dataService.listRecords(query.filters).records.map(buildNormalizedRecordNode);
+  const request = resolveOntologyQueryRequest(query);
+  if (request.intent !== "browse") {
+    return [];
+  }
+
+  return dataService.listRecords(request).records.map(buildNormalizedRecordNode);
 }
 
 export function buildFieldValueNodes(

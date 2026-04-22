@@ -24,6 +24,7 @@ import {
   buildFilterExplorerPolicyLabelSegments,
   getFilterExplorerPolicyPresentation,
 } from "./policy-presentation.js";
+import { resolveOntologyQueryRequest } from "../../domain/search-request-compat.js";
 import { FILTER_EXPLORER_LAUNCH_INTENT } from "./types.js";
 import type {
   FilterExplorerComposeMode,
@@ -359,6 +360,7 @@ export function buildFilterExplorerCommandEntries(
   }
 
   const result = controller.selectedInspectResult;
+  const request = resolveOntologyQueryRequest(result.query);
   const targetLabel = buildInspectTargetLabel(result);
   const resultsDescription = buildInspectCommandDescription(result);
   const queryDescription = targetLabel
@@ -366,7 +368,7 @@ export function buildFilterExplorerCommandEntries(
     : "Seed the browse/search editor from the focused selection.";
 
   return [
-    ...(result.query.kind === "listRecords" && result.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS
+    ...(request.intent === "browse" && result.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS
       ? [
           {
             value: "openResults" as const,
@@ -378,19 +380,16 @@ export function buildFilterExplorerCommandEntries(
         ]
       : []),
     {
-      value:
-        result.query.kind === "listRecords" && result.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS
-          ? "openQuery"
-          : "openSelection",
-      label:
-        result.query.kind === "listRecords" && result.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS
-          ? "Open Search Query"
-          : "Open Query",
+      value: request.intent === "browse" && result.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS
+        ? "openQuery"
+        : "openSelection",
+      label: request.intent === "browse" && result.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS
+        ? "Open Search Query"
+        : "Open Query",
       description: queryDescription,
-      aliases:
-        result.query.kind === "listRecords" && result.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS
-          ? ["Open Query"]
-          : undefined,
+      aliases: request.intent === "browse" && result.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS
+        ? ["Open Query"]
+        : undefined,
       keywords: ["search", "browse", "editor", "query", "open"],
     },
   ];
@@ -497,12 +496,13 @@ function buildInspectTargetLabel(result: FilterExplorerInspectResult): string | 
 }
 
 function buildInspectCommandDescription(result: FilterExplorerInspectResult): string {
+  const request = resolveOntologyQueryRequest(result.query);
   const openLabel =
     result.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS
       ? "Open the focused selection in results."
-      : result.query.kind === "lookup"
+      : request.intent === "lookup"
         ? "Open the focused selection in lookup."
-        : result.query.kind === "search"
+        : request.intent === "search"
           ? "Open the focused selection in search."
           : "Open the focused selection in browse.";
 
@@ -517,12 +517,13 @@ function buildInspectStatus(controller: FilterExplorerControllerContext): string
   }
 
   const targetLabel = buildInspectTargetLabel(result);
+  const request = resolveOntologyQueryRequest(result.query);
   const openLabel =
     result.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS
       ? "open results"
-      : result.query.kind === "lookup"
+      : request.intent === "lookup"
         ? "open lookup"
-        : result.query.kind === "search"
+        : request.intent === "search"
           ? "open search"
           : "open browse";
 

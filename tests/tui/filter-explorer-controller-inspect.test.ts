@@ -12,6 +12,7 @@ import {
   FILTER_EXPLORER_LAUNCH_INTENT,
   type FilterExplorerInspectAndOpenMode,
 } from "../../src/tui/filter-explorer/index.js";
+import { searchRequestPartsToMetadataFilterNode } from "../../src/domain/search-request-types.js";
 import type { FilterExplorerKeyContext } from "../../src/tui/filter-explorer/controller-types.js";
 import type {
   FilterExplorerNode,
@@ -26,10 +27,11 @@ function createNode(overrides: Partial<FilterExplorerNode> = {}): FilterExplorer
     filterText: "hit points",
     detailLines: [{ text: "Hit Points" }],
     query: {
-      kind: "listRecords",
       label: "Browse by hit points",
-      filters: {
+      request: {
         category: "creature",
+        intent: "browse",
+        parts: [],
         limit: 20,
       },
     },
@@ -150,25 +152,28 @@ describe("filter explorer controller inspect", () => {
       launchIntent: FILTER_EXPLORER_LAUNCH_INTENT.RESULTS,
       query: {
         label: "Browse records where Hit Points between 40 and 80",
-        filters: {
-          metadata: {
-            and: [
-              {
-                field: "actorMetric",
-                metric: "attributes.hp.max",
-                op: ">=",
-                value: 40,
-              },
-              {
-                field: "actorMetric",
-                metric: "attributes.hp.max",
-                op: "<=",
-                value: 80,
-              },
-            ],
-          },
+        request: {
+          category: "creature",
+          intent: "browse",
+          limit: 20,
         },
       },
+    });
+    expect(searchRequestPartsToMetadataFilterNode(compiled?.query.request.parts ?? [])).toEqual({
+      and: [
+        {
+          field: "actorMetric",
+          metric: "attributes.hp.max",
+          op: ">=",
+          value: 40,
+        },
+        {
+          field: "actorMetric",
+          metric: "attributes.hp.max",
+          op: "<=",
+          value: 80,
+        },
+      ],
     });
   });
 
@@ -225,14 +230,19 @@ describe("filter explorer controller inspect", () => {
         query: {
           ...createNode().query,
           label: "Browse records where Land Speed >= 12",
-          filters: {
-            ...createNode().query!.filters,
-            metadata: {
-              field: "actorMetric",
-              metric: "speed.land",
-              op: ">=",
-              value: 12,
-            },
+          request: {
+            ...createNode().query!.request,
+            parts: [
+              {
+                kind: "metadataPredicate",
+                predicate: {
+                  field: "actorMetric",
+                  metric: "speed.land",
+                  op: ">=",
+                  value: 12,
+                },
+              },
+            ],
           },
         },
         launchIntent: FILTER_EXPLORER_LAUNCH_INTENT.RESULTS,

@@ -611,11 +611,16 @@ export function buildSearchSemanticsDomain(
         "Browse this subcategory directly, or drill in to its scoped metadata and metric surfaces.",
       ),
       query: {
-        kind: "listRecords",
         label: "Browse this subcategory",
-        filters: {
+        request: {
+          intent: "browse",
           category,
-          subcategory,
+          parts: [
+            {
+              kind: "subcategory",
+              subcategory,
+            },
+          ],
           limit: 20,
         },
       },

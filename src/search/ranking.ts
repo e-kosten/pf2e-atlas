@@ -2,12 +2,12 @@ import type { buildLiteralQueryWeights } from "./query-analysis.js";
 import type { NormalizedRecord } from "../domain/record-types.js";
 import type {
   SearchExplainResult,
-  SearchFilters,
   SearchMode,
   SearchProfile,
   SearchRecordExplanation,
 } from "../domain/search-types.js";
 import type { RankingConfig } from "./ranking-config.js";
+import type { SearchExecutionFilters } from "./contracts.js";
 import { normalizeText } from "../shared/utils.js";
 import { bigramDice } from "./primitives.js";
 
@@ -93,7 +93,7 @@ export function sourceQualityScore(record: NormalizedRecord, rankingConfig: Rank
 
 export function rarityPreferenceScore(
   record: NormalizedRecord,
-  filters: SearchFilters,
+  filters: SearchExecutionFilters,
   rankingConfig: RankingConfig,
 ): number {
   const normalizedRarity = normalizeText(record.rarity ?? "");
@@ -117,7 +117,7 @@ export function rarityPreferenceScore(
 
 export function sourcePenaltyScore(
   record: NormalizedRecord,
-  filters: SearchFilters,
+  filters: SearchExecutionFilters,
   rankingConfig: RankingConfig,
 ): number {
   if (record.hasDescription || !filters.query?.trim()) {
@@ -213,7 +213,7 @@ export function scoreNameCandidate(query: string, normalizedName: string): numbe
   return Math.max(tokenScore * 0.8, dice * 0.75);
 }
 
-export function resolveSearchMode(filters: SearchFilters, context: "list" | "search"): SearchMode {
+export function resolveSearchMode(filters: SearchExecutionFilters, context: "list" | "search"): SearchMode {
   if (context === "search") {
     if (filters.searchProfile === "lexical") {
       return filters.query?.trim() ? "lexical" : "structured";
@@ -231,7 +231,7 @@ export function resolveSearchMode(filters: SearchFilters, context: "list" | "sea
   return "structured";
 }
 
-export function hasStructuredFilterSignal(filters: SearchFilters): boolean {
+export function hasStructuredFilterSignal(filters: SearchExecutionFilters): boolean {
   return Boolean(
     filters.pack ||
     (filters.linksTo && filters.linksTo.length > 0) ||
@@ -250,7 +250,7 @@ export function hasStructuredFilterSignal(filters: SearchFilters): boolean {
 }
 
 export function resolveSearchProfile(
-  filters: SearchFilters,
+  filters: SearchExecutionFilters,
   context: "list" | "search",
   mode: SearchMode,
 ): SearchProfile | null {
@@ -301,7 +301,7 @@ export function resolveHybridFusionProfile(
 
 export function buildRerankAdjustments(
   record: NormalizedRecord,
-  filters: SearchFilters,
+  filters: SearchExecutionFilters,
   rankingConfig: RankingConfig,
 ): RerankAdjustments {
   return {

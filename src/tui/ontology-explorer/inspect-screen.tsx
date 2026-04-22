@@ -4,6 +4,7 @@ import { inferActorMetricValueType } from "../../domain/actor-metrics.js";
 import { normalizeSearchCategory } from "../../domain/categories.js";
 import { getMetricDiscoveryGroupLabel } from "../../domain/metric-discovery-group-label.js";
 import type { OntologyDomainModel } from "../../domain/ontology-types.js";
+import { resolveOntologyQueryRequest } from "../../domain/search-request-compat.js";
 import { FilterExplorerScreen } from "../filter-explorer/screen.js";
 import type { FilterExplorerOptions, FilterExplorerQueryOpenIntent } from "../filter-explorer/types.js";
 import type {
@@ -26,7 +27,8 @@ export type OntologyInspectRouteData = {
 function buildOntologyInspectScalarTarget(
   node: OntologyDomainModel["rootNodes"][number],
 ): FilterExplorerComposeTarget | undefined {
-  if (node.kind !== "metric" || node.query?.kind !== "listRecords") {
+  const request = node.query ? resolveOntologyQueryRequest(node.query) : null;
+  if (node.kind !== "metric" || request?.intent !== "browse") {
     return undefined;
   }
 
@@ -43,7 +45,10 @@ function buildOntologyInspectScalarTarget(
     return undefined;
   }
 
-  const fieldLabel = getMetricDiscoveryGroupLabel(normalizeSearchCategory(node.query.filters.category) ?? null, metricField);
+  const fieldLabel = getMetricDiscoveryGroupLabel(
+    normalizeSearchCategory(request.category) ?? null,
+    metricField,
+  );
 
   return {
     kind: "scalar",

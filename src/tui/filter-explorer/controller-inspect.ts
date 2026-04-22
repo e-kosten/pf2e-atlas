@@ -1,4 +1,8 @@
 import type { MetadataFilterNode } from "../../search/filters/types.js";
+import { resolveOntologyQueryRequest } from "../../domain/search-request-compat.js";
+import {
+  metadataFilterNodeToSearchRequestParts,
+} from "../../domain/search-request-types.js";
 import { createEmptyFilterExplorerComposeDraft, isFilterExplorerScalarTarget } from "./compose-state.js";
 import { createFilterExplorerBrowserSnapshot } from "./controller-state.js";
 import type { FilterExplorerKeyContext } from "./controller-types.js";
@@ -18,7 +22,7 @@ export function resolveFilterExplorerLaunchIntent(
   mode: FilterExplorerInspectAndOpenMode,
   query: FilterExplorerQueryTarget,
 ): FilterExplorerLaunchIntent {
-  if (query.kind !== "listRecords") {
+  if (resolveOntologyQueryRequest(query).intent !== "browse") {
     return FILTER_EXPLORER_LAUNCH_INTENT.EDITOR;
   }
 
@@ -122,7 +126,8 @@ export function buildCompiledFilterExplorerInspectResult(
   result: FilterExplorerInspectResult,
   clause: FilterExplorerScalarClause,
 ): FilterExplorerInspectResult | null {
-  if (result.query.kind !== "listRecords" || !isFilterExplorerScalarTarget(result.target)) {
+  const request = resolveOntologyQueryRequest(result.query);
+  if (request.intent !== "browse" || !isFilterExplorerScalarTarget(result.target)) {
     return null;
   }
 
@@ -136,9 +141,14 @@ export function buildCompiledFilterExplorerInspectResult(
     query: {
       ...result.query,
       label: `Browse records where ${result.target.subjectLabel} ${formatInspectScalarClauseSummary(clause)}`,
-      filters: {
-        ...result.query.filters,
-        metadata,
+      request: {
+        ...request,
+        parts: [
+          ...(request.parts ?? []).filter(
+            (part) => part.kind !== "metadataPredicate" && part.kind !== "metadataGroup" && part.kind !== "metadataNot",
+          ),
+          ...metadataFilterNodeToSearchRequestParts(metadata),
+        ],
       },
     },
     launchIntent: FILTER_EXPLORER_LAUNCH_INTENT.RESULTS,
@@ -248,5 +258,5 @@ export function shouldOpenImmediateFilterExplorerInspectResult(
   node: FilterExplorerNode | undefined,
   result: FilterExplorerInspectResult | undefined,
 ): boolean {
-  return Boolean(result && result.query.kind === "listRecords" && node?.kind !== "record");
+  return Boolean(result && resolveOntologyQueryRequest(result.query).intent === "browse" && node?.kind !== "record");
 }

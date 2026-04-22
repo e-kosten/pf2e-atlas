@@ -16,11 +16,10 @@ import {
 import type { NormalizedRecord } from "../domain/record-types.js";
 import type {
   SearchCountResult,
-  SearchFilters,
   SearchRecordExplanation,
   SearchResult,
 } from "../domain/search-types.js";
-import type { NormalizedSearchFilters, RuntimeSearchDependencies } from "./contracts.js";
+import type { NormalizedSearchFilters, RuntimeSearchDependencies, SearchExecutionFilters } from "./contracts.js";
 import { normalizeText } from "../shared/utils.js";
 import { clampLimit, clampOffset } from "./primitives.js";
 import { compareRecordsForSort, sortRecords } from "./runtime-search-sorting.js";
@@ -315,7 +314,7 @@ export function listRecords(normalizedFilters: NormalizedSearchFilters, deps: Ru
 }
 
 export async function search(
-  filters: SearchFilters,
+  filters: SearchExecutionFilters,
   normalizedFilters: NormalizedSearchFilters,
   deps: RuntimeSearchDependencies,
 ): Promise<SearchResult> {
@@ -340,7 +339,7 @@ export function countStructuredSearch(
 }
 
 export function countSearchResults(
-  filters: SearchFilters,
+  filters: SearchExecutionFilters,
   normalizedFilters: NormalizedSearchFilters,
   deps: RuntimeSearchDependencies,
 ): Promise<SearchCountResult> {

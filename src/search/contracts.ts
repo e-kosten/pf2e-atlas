@@ -1,23 +1,53 @@
 import type { EmbeddingProvider } from "../embeddings.js";
 import type {
   SearchCategory,
+  SearchCategoryInput,
   SearchExplainResult,
-  SearchFilters,
+  SearchProfile,
+  SearchScope,
   SearchSort,
   SearchSubcategory,
+  SearchSubcategoryInput,
 } from "../domain/search-types.js";
 import type { NormalizedRecord } from "../domain/record-types.js";
 import type { RankingConfig } from "./ranking-config.js";
 import type { LexicalRetrievalRow, SemanticRetrievalRow } from "./ranking.js";
+import type { MetadataFilterNode } from "./filters/types.js";
 
 export type SqlValue = string | number | bigint | Uint8Array | Buffer | null;
+
+export interface SearchExecutionFilters {
+  searchProfile?: SearchProfile;
+  sort?: SearchSort;
+  sortSeed?: number;
+  explain?: boolean;
+  nameQuery?: string;
+  query?: string;
+  excludeQuery?: string;
+  linksTo?: string[];
+  linksToMode?: "any" | "all";
+  excludeLinksTo?: string[];
+  pack?: string;
+  category?: SearchCategoryInput;
+  subcategory?: SearchSubcategoryInput;
+  scopes?: SearchScope[];
+  levelMin?: number;
+  levelMax?: number;
+  rarity?: string;
+  metadata?: MetadataFilterNode;
+  priceMin?: number;
+  priceMax?: number;
+  actionCost?: number;
+  offset?: number;
+  limit?: number;
+}
 
 export type NormalizedSearchScope = {
   category: SearchCategory;
   subcategories?: SearchSubcategory[];
 };
 
-export type NormalizedSearchFilters = Omit<SearchFilters, "category" | "subcategory" | "scopes"> & {
+export type NormalizedSearchFilters = Omit<SearchExecutionFilters, "category" | "subcategory" | "scopes"> & {
   category?: SearchCategory;
   subcategory?: SearchSubcategory;
   scopes?: NormalizedSearchScope[];

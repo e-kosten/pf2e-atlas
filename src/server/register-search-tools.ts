@@ -18,6 +18,7 @@ import {
   SUBCATEGORY_HINT_DESCRIPTION,
 } from "./tool-schemas.js";
 import { formatSearchResult, summarizePack, summarizeRecord } from "./presenters.js";
+import { buildSearchRequestFromTransportInput } from "./search-request-adapter.js";
 
 export function registerSearchTools(
   server: McpServer,
@@ -339,7 +340,7 @@ export function registerSearchTools(
       },
     },
     (input) => {
-      const result = dataService.listRecords(input);
+      const result = dataService.listRecords(buildSearchRequestFromTransportInput("browse", input));
       return {
         content: [
           {
@@ -418,7 +419,7 @@ export function registerSearchTools(
       },
     },
     async (input) => {
-      const result = await dataService.search(input);
+      const result = await dataService.search(buildSearchRequestFromTransportInput("search", input));
       return {
         content: [
           {
