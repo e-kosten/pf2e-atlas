@@ -33,7 +33,6 @@ import {
   normalizeStringPolicy,
 } from "./policies.js";
 import type {
-  LegacyFacetSelection,
   Pf2eTerminalFacetField,
   Pf2eTerminalFilterValuePolicy,
   Pf2eTerminalSearchFilters,
@@ -272,85 +271,6 @@ export function buildMetadataNodeForQueryFieldSelection(
   return null;
 }
 
-function buildMetadataNodeForFacet(
-  facet: LegacyFacetSelection,
-  fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
-): MetadataFilterNode | null {
-  return buildMetadataNodeForQueryFieldSelection(facet.field, facet.policy, fieldSemanticsByName);
-}
-
-function buildRootQueryPartsFromLegacyFilters(
-  query: Pf2eTerminalSearchQuery,
-  fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
-  category: SearchCategory | null,
-  subcategory: SearchSubcategory | null,
-  actionCostAvailable: boolean,
-): Pf2eTerminalQueryPart[] {
-  const parts: Pf2eTerminalQueryPart[] = [];
-  const legacyFilters = query.filters as Pf2eTerminalSearchFilters & {
-    subcategory?: SearchSubcategory | null;
-    levelMin?: number | null;
-    levelMax?: number | null;
-    rarity?: Pf2eTerminalFilterValuePolicy<string>;
-    actionCost?: Pf2eTerminalFilterValuePolicy<number>;
-    metadata?: MetadataFilterNode | null;
-    facets?: LegacyFacetSelection[];
-  };
-
-  if (subcategory) {
-    parts.push({
-      kind: "subcategory",
-      subcategory,
-    });
-  }
-
-  if (legacyFilters.levelMin != null || legacyFilters.levelMax != null) {
-    parts.push({
-      kind: "levelRange",
-      levelMin: legacyFilters.levelMin ?? null,
-      levelMax: legacyFilters.levelMax ?? null,
-    });
-  }
-
-  const rarityPolicy = normalizeStringPolicy(legacyFilters.rarity, fieldSemanticsByName.get("rarity")?.valueOrdering);
-  if (hasStringPolicy(rarityPolicy)) {
-    parts.push({
-      kind: "rarityPolicy",
-      policy: {
-        any: rarityPolicy.any,
-        all: [],
-        exclude: rarityPolicy.exclude,
-      },
-    });
-  }
-
-  const actionCostPolicy = normalizeNumberPolicy(legacyFilters.actionCost);
-  if (actionCostAvailable && hasNumberPolicy(actionCostPolicy)) {
-    parts.push({
-      kind: "actionCostPolicy",
-      policy: {
-        any: actionCostPolicy.any,
-        all: [],
-        exclude: actionCostPolicy.exclude,
-      },
-    });
-  }
-
-  for (const facet of legacyFilters.facets ?? []) {
-    const facetNode = buildMetadataNodeForFacet(facet, fieldSemanticsByName);
-    if (!facetNode) {
-      continue;
-    }
-    parts.push(...metadataFilterNodeToRootQueryParts(facetNode));
-  }
-
-  if (legacyFilters.metadata) {
-    parts.push(...metadataFilterNodeToRootQueryParts(legacyFilters.metadata));
-  }
-
-  return parts;
-}
-
 function normalizeRootQueryParts(
   parts: readonly Pf2eTerminalQueryPart[],
   fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
@@ -450,37 +370,14 @@ export function normalizeSearchQuery(
   fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
 ): Pf2eTerminalSearchQuery {
   const category = normalizeSearchCategory(query.filters.category) ?? null;
-  const legacyFilters = query.filters as Pf2eTerminalSearchFilters & {
-    subcategory?: SearchSubcategory | null;
-  };
   const currentParts = Array.isArray(query.filters.parts) ? query.filters.parts : [];
-  const partSubcategory =
-    category && currentParts.length > 0
-      ? normalizeSearchSubcategory(currentParts.find((part) => part.kind === "subcategory")?.subcategory ?? null)
-      : null;
-  const legacySubcategory =
-    category && legacyFilters.subcategory && CATEGORY_SUBCATEGORY_MAP[category].includes(legacyFilters.subcategory)
-      ? legacyFilters.subcategory
-      : null;
+  const partSubcategory = category
+    ? normalizeSearchSubcategory(currentParts.find((part) => part.kind === "subcategory")?.subcategory ?? null)
+    : null;
   const scopedSubcategory =
-    category && partSubcategory && CATEGORY_SUBCATEGORY_MAP[category].includes(partSubcategory)
-      ? partSubcategory
-      : legacySubcategory;
+    category && partSubcategory && CATEGORY_SUBCATEGORY_MAP[category].includes(partSubcategory) ? partSubcategory : null;
   const actionCostAvailable = isActionCostAvailableInScope(dependencies, category, scopedSubcategory);
-  const nextParts = normalizeRootQueryParts(
-    currentParts.length > 0
-      ? currentParts
-      : buildRootQueryPartsFromLegacyFilters(
-          query,
-          fieldSemanticsByName,
-          category,
-          scopedSubcategory,
-          actionCostAvailable,
-      ),
-    fieldSemanticsByName,
-    category,
-    actionCostAvailable,
-  );
+  const nextParts = normalizeRootQueryParts(currentParts, fieldSemanticsByName, category, actionCostAvailable);
 
   return {
     ...query,

@@ -165,6 +165,7 @@ That summary layer owns stable anchors for major query parts and metadata nodes.
 
 - `query.filters.parts` stays the canonical structured-query state
 - query-state helpers own normalization and interpretation
+- query-state helpers do not preserve a legacy filter-slot upgrade path at runtime
 - `SearchRequest` is the shared semantic contract once query state crosses out of the TUI
 - the workspace summary/document model owns editor-facing identity and display structure
 - terminal renderers consume that summary model instead of re-deriving structured meaning from raw query state in each pane

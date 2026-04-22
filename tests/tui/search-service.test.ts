@@ -157,7 +157,7 @@ describe("createPf2eTerminalSearchService", () => {
     expect(getSearchVocabulary).not.toHaveBeenCalled();
   });
 
-  it("normalizes legacy filter state into structured parts and trims unavailable action cost", () => {
+  it("normalizes canonical structured parts and trims unavailable action cost", () => {
     const service = createPf2eTerminalSearchService(createDependencies());
     const defaultQuery = service.createDefaultQuery();
     const normalized = service.normalizeQuery({
@@ -167,16 +167,24 @@ describe("createPf2eTerminalSearchService", () => {
       filters: {
         ...defaultQuery.filters,
         category: "spell",
-        rarity: {
-          any: ["rare"],
-          all: [],
-          exclude: [],
-        },
-        actionCost: {
-          any: [2],
-          all: [],
-          exclude: [],
-        },
+        parts: [
+          {
+            kind: "rarityPolicy",
+            policy: {
+              any: ["rare"],
+              all: [],
+              exclude: [],
+            },
+          },
+          {
+            kind: "actionCostPolicy",
+            policy: {
+              any: [2],
+              all: [],
+              exclude: [],
+            },
+          },
+        ],
       },
     });
 
@@ -192,6 +200,40 @@ describe("createPf2eTerminalSearchService", () => {
         },
       },
     ]);
+    expect(getSearchQueryActionCostPolicy(normalized)).toEqual({
+      any: [],
+      all: [],
+      exclude: [],
+    });
+  });
+
+  it("does not rebuild structured parts from legacy filter-shaped extras", () => {
+    const service = createPf2eTerminalSearchService(createDependencies());
+    const defaultQuery = service.createDefaultQuery();
+    const normalized = service.normalizeQuery({
+      ...defaultQuery,
+      filters: {
+        category: "spell",
+        parts: [],
+        rarity: {
+          any: ["rare"],
+          all: [],
+          exclude: [],
+        },
+        actionCost: {
+          any: [2],
+          all: [],
+          exclude: [],
+        },
+      } as unknown as typeof defaultQuery.filters,
+    });
+
+    expect(normalized.filters.parts).toEqual([]);
+    expect(getSearchQueryRarityPolicy(normalized)).toEqual({
+      any: [],
+      all: [],
+      exclude: [],
+    });
     expect(getSearchQueryActionCostPolicy(normalized)).toEqual({
       any: [],
       all: [],
@@ -224,20 +266,30 @@ describe("createPf2eTerminalSearchService", () => {
       filters: {
         ...defaultQuery.filters,
         category: "spell",
-        metadata: {
-          and: [
-            {
-              field: "traits",
-              op: "includesAny",
-              values: ["illusion"],
-            },
-            {
-              field: "sourceCategory",
-              op: "eq",
-              value: "core",
-            },
-          ],
-        },
+        parts: [
+          {
+            kind: "metadataGroup",
+            operator: "and",
+            children: [
+              {
+                kind: "metadataPredicate",
+                predicate: {
+                  field: "traits",
+                  op: "includesAny",
+                  values: ["illusion"],
+                },
+              },
+              {
+                kind: "metadataPredicate",
+                predicate: {
+                  field: "sourceCategory",
+                  op: "eq",
+                  value: "core",
+                },
+              },
+            ],
+          },
+        ],
       },
     });
 
@@ -338,21 +390,32 @@ describe("createPf2eTerminalSearchService", () => {
       filters: {
         ...defaultQuery.filters,
         category: "spell",
-        rarity: {
-          any: ["common"],
-          all: [],
-          exclude: ["rare"],
-        },
-        actionCost: {
-          any: [2],
-          all: [],
-          exclude: [1],
-        },
-        metadata: {
-          field: "traits",
-          op: "includesAny",
-          values: ["illusion"],
-        },
+        parts: [
+          {
+            kind: "rarityPolicy",
+            policy: {
+              any: ["common"],
+              all: [],
+              exclude: ["rare"],
+            },
+          },
+          {
+            kind: "actionCostPolicy",
+            policy: {
+              any: [2],
+              all: [],
+              exclude: [1],
+            },
+          },
+          {
+            kind: "metadataPredicate",
+            predicate: {
+              field: "traits",
+              op: "includesAny",
+              values: ["illusion"],
+            },
+          },
+        ],
       },
     });
 

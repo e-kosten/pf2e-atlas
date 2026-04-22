@@ -237,8 +237,3 @@ export type SearchServiceDependencies = {
   readSearchWindowPage: (windowId: string, offset: number, limit: number) => SearchWindowPage;
   search: (request: SearchRequest) => Promise<SearchResult>;
 };
-
-export type LegacyFacetSelection = {
-  field: Pf2eTerminalFacetField;
-  policy: Pf2eTerminalFilterValuePolicy<string>;
-};

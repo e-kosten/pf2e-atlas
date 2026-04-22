@@ -51,7 +51,6 @@ import type {
 } from "./service-types.js";
 
 export type {
-  LegacyFacetSelection,
   Pf2eTerminalFacetField,
   Pf2eTerminalFacetFieldOption,
   Pf2eTerminalPreparedFilterExplorerDraft,
