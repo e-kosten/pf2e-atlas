@@ -1,6 +1,9 @@
 import React from "react";
 
-import { buildSearchFilterExplorerModel, buildSearchFilterExplorerTargetResolver } from "../filter-explorer/search-draft.js";
+import {
+  buildSearchFilterExplorerModel,
+  buildSearchFilterExplorerTargetResolver,
+} from "../filter-explorer/search-draft-model.js";
 import type {
   Pf2eTerminalFilterExplorerDraft,
   Pf2eTerminalPreparedFilterExplorerDraft,

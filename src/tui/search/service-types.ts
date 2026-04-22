@@ -168,14 +168,6 @@ export type Pf2eTerminalSearchService = {
     node: MetadataFilterNode | null,
     scopedFields: readonly Pf2eTerminalQueryField[],
   ) => Pf2eTerminalPreparedFilterExplorerDraft;
-  createFilterExplorerDraft: (
-    query: Pf2eTerminalSearchQuery,
-    scopedFields: readonly Pf2eTerminalQueryField[],
-  ) => Pf2eTerminalFilterExplorerDraft;
-  createFilterExplorerDraftFromMetadataNode: (
-    node: MetadataFilterNode | null,
-    scopedFields: readonly Pf2eTerminalQueryField[],
-  ) => Pf2eTerminalFilterExplorerDraft;
   buildFilterExplorerMetadataNode: (
     draft: Pf2eTerminalFilterExplorerDraft,
     options?: { preservedMetadata?: MetadataFilterNode | null },

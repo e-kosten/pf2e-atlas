@@ -1,7 +1,7 @@
 import React from "react";
 
-import { FilterExplorerScreen } from "../filter-explorer/index.js";
-import { cloneFilterExplorerDraft, withFilterExplorerComposeDraft } from "../filter-explorer/search-draft.js";
+import { FilterExplorerScreen } from "../filter-explorer/screen.js";
+import { cloneFilterExplorerComposeDraft } from "../filter-explorer/compose-state.js";
 import { useDerivedTagTerminalApp } from "../framework/context.js";
 import { useTerminalInteractionContextAdapters } from "../interaction-context-adapters.js";
 import type { SearchFilterExplorerSession } from "./query-field-builder/query-field-builder-session.js";
@@ -14,11 +14,11 @@ export function SearchFilterExplorerScreen({
 }): React.JSX.Element {
   const terminal = useDerivedTagTerminalApp();
   const prompts = useTerminalInteractionContextAdapters();
-  const [draft, setDraft] = React.useState(() => cloneFilterExplorerDraft(session.draft));
-  const draftRef = React.useRef(cloneFilterExplorerDraft(session.draft));
+  const [draft, setDraft] = React.useState(() => cloneFilterExplorerComposeDraft(session.draft));
+  const draftRef = React.useRef(cloneFilterExplorerComposeDraft(session.draft));
 
   React.useEffect(() => {
-    const nextDraft = cloneFilterExplorerDraft(session.draft);
+    const nextDraft = cloneFilterExplorerComposeDraft(session.draft);
     draftRef.current = nextDraft;
     setDraft(nextDraft);
   }, [session.draft]);
@@ -27,8 +27,8 @@ export function SearchFilterExplorerScreen({
     session.onApply(draftRef.current);
   }, [session]);
 
-  const updateDraft = React.useCallback((nextComposeDraft: Pick<typeof draft, "selection" | "scalarClauses">) => {
-    const nextDraft = withFilterExplorerComposeDraft(draftRef.current, nextComposeDraft);
+  const updateDraft = React.useCallback((nextComposeDraft: typeof draft) => {
+    const nextDraft = cloneFilterExplorerComposeDraft(nextComposeDraft);
     draftRef.current = nextDraft;
     setDraft(nextDraft);
   }, []);

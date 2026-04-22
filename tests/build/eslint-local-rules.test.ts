@@ -605,4 +605,13 @@ describe("eslint local architecture rules", () => {
       "no-restricted-syntax",
     );
   });
+
+  it("blocks search-screen workflow files from bypassing the canonical filter-explorer preparation seam", async () => {
+    await expectRuleMessage(
+      "src/tui/search-screen/query-field-editing.ts",
+      'import { prepareFilterExplorerDraftFromQuery } from "../filter-explorer/search-draft-query.js";\nexport const value = prepareFilterExplorerDraftFromQuery;\n',
+      "Search-screen workflow code must use the canonical search service preparation seam instead of importing filter-explorer draft-query helpers directly.",
+      "no-restricted-imports",
+    );
+  });
 });

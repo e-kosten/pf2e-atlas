@@ -161,7 +161,7 @@ This keeps query editing and result reading logic in the TUI while leaving searc
 
 In the current split:
 
-- `src/tui/filter-explorer/` owns the shared list/detail browser, snapshots, command palette wiring, mode-specific inspect-versus-compose behavior, search-backed draft helpers, and shared scalar editing prompts
+- `src/tui/filter-explorer/` owns the shared list/detail browser, controller-state and inspect/open helpers, route-handling helpers, query/model draft translation, and shared scalar editing prompts
 - `src/tui/ontology-explorer/inspect-screen.tsx` is a thin host for a prepared ontology route payload; entering the ontology area now lands directly in that shared inspect session and routes selected leaves into search
 - ontology record mapping, detail presentation, and explorer-cache writeback live under `src/app/ontology/`, not TUI-local wrapper files
 - `src/tui/ontology-explorer/` legacy browse-only pieces remain isolated and should not become the primary path for new ontology/search exploration work

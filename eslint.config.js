@@ -971,6 +971,15 @@ export default defineConfig(
     ],
     rules: {
       "arch/no-stale-search-screen-terminology": "error",
+      "no-restricted-imports": mergeNonTagRestrictedImports(NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS, {
+        patterns: [
+          {
+            group: ["**/filter-explorer/search-draft-query.js"],
+            message:
+              "Search-screen workflow code must use the canonical search service preparation seam instead of importing filter-explorer draft-query helpers directly.",
+          },
+        ],
+      }),
     },
   },
   {

@@ -6,9 +6,8 @@ import type { SearchFilters } from "../../src/domain/search-types.js";
 import {
   buildSearchFilterExplorerModel,
   buildSearchFilterExplorerTargetResolver,
-  cloneFilterExplorerDraft,
-  withFilterExplorerComposeDraft,
-} from "../../src/tui/filter-explorer/search-draft.js";
+} from "../../src/tui/filter-explorer/search-draft-model.js";
+import { cloneFilterExplorerComposeDraft } from "../../src/tui/filter-explorer/compose-state.js";
 import { createPf2eTerminalSearchService } from "../../src/tui/search/service.js";
 import {
   getSearchQueryActionCostPolicy,
@@ -281,7 +280,7 @@ describe("createPf2eTerminalSearchService", () => {
   it("extracts numeric metric clauses into the filter explorer draft and rebuilds them as metadata", () => {
     const service = createPf2eTerminalSearchService(createDependencies());
 
-    const draft = service.createFilterExplorerDraftFromMetadataNode(
+    const preparedDraft = service.prepareFilterExplorerDraftFromMetadataNode(
       {
         field: "actorMetric",
         metric: "perception.mod",
@@ -290,6 +289,7 @@ describe("createPf2eTerminalSearchService", () => {
       },
       ["actorMetric"],
     );
+    const { draft } = preparedDraft;
 
     expect(draft.selection).toEqual({});
     expect(draft.scalarClauses).toEqual({
@@ -424,27 +424,21 @@ describe("createPf2eTerminalSearchService", () => {
       op: "includesAny",
       values: ["illusion"],
     } satisfies MetadataFilterNode;
-    const composeDraft = cloneFilterExplorerDraft({
+    const composeDraft = cloneFilterExplorerComposeDraft({
       selection: {},
       scalarClauses: {},
     });
 
-    const nextDraft = withFilterExplorerComposeDraft(
-      {
-        selection: {},
-        scalarClauses: {},
-      },
-      {
-        ...composeDraft,
-        scalarClauses: {
-          "itemMetric:weapon.range_increment": {
-            operator: "between",
-            min: 60,
-            max: 120,
-          },
+    const nextDraft = cloneFilterExplorerComposeDraft({
+      ...composeDraft,
+      scalarClauses: {
+        "itemMetric:weapon.range_increment": {
+          operator: "between",
+          min: 60,
+          max: 120,
         },
       },
-    );
+    });
 
     expect(nextDraft.scalarClauses).toEqual({
       "itemMetric:weapon.range_increment": {

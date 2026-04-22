@@ -43,9 +43,6 @@ This is the tracked backlog for durable future work.
 - [Derived-tag ontology future shape](./items/derived-tag-ontology-future-shape.md)
   Preserve the current canonical concept/projection model decisions, resolved ontology review outcomes, and remaining medium-confidence families so future sessions can resume the ontology work without reconstructing it from scratch plans alone. Status: proposed.
 
-- [Filter explorer internal decomposition](./items/filter-explorer-internal-decomposition.md)
-  Split the shared filter explorer into clearer internal owners so controller/runtime, inspect compilation, and draft serialization logic do not keep accumulating in the same hotspot modules. Status: proposed.
-
 - [Structured query summary model](./items/structured-query-summary-model.md)
   Preserve and eventually implement a first-class structured-query document model so future search-editor and document-style rendering work does not depend only on ad hoc workspace rows. Status: proposed.
 
@@ -68,9 +65,6 @@ This is the tracked backlog for durable future work.
 
 - [Category relevance script](./items/category-relevance-script.md)
   Add tooling to help tagging work happen in coherent batches without forcing one agent or reviewer to keep an entire family/tag space in active memory. Status: proposed.
-
-- [Search filter explorer API simplification](./items/search-filter-explorer-api-simplification.md)
-  Simplify the shared TUI search/filter-explorer service surface so callers use one intentional draft-preparation seam instead of overlapping plain-draft and prepared-draft helper pairs. Status: proposed.
 
 - [Derived tag manifest tooling metadata](./items/derived-tag-manifest-tooling-metadata.md)
   Preserve the idea that the shared derived-tag manifest could optionally carry current owner-file metadata for tooling, while leaving open whether that is actually valuable once the future concept/projection model settles. Status: proposed.
@@ -109,6 +103,12 @@ This is the tracked backlog for durable future work.
 
 - [Search filter explorer draft canonicalization](./items/search-filter-explorer-draft-canonicalization.md)
   Canonical draft/state ownership now lives on the shared search/filter-explorer path instead of compatibility draft fields. Status: done.
+
+- [Filter explorer internal decomposition](./items/filter-explorer-internal-decomposition.md)
+  The shared filter explorer now has explicit controller-state, inspect/open, route-handling, draft-query, and draft-model owners instead of relying on `controller.ts` and `search-draft.ts` as subsystem sinks. Status: done.
+
+- [Search filter explorer API simplification](./items/search-filter-explorer-api-simplification.md)
+  The TUI search service now exposes one canonical filter-explorer preparation seam instead of overlapping draft-only and prepared-draft helper pairs. Status: done.
 
 - `Concern-specific tag facades`
   The runtime, editorial, and editorial-UI facades now match the intended concern split instead of acting like a mixed catch-all surface. Status: done.

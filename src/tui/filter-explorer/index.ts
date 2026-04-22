@@ -4,13 +4,13 @@ export { FILTER_EXPLORER_LAUNCH_INTENT } from "./types.js";
 export {
   applyFilterExplorerDraft,
   buildFilterExplorerMetadataNode,
+  prepareFilterExplorerDraftFromMetadataNode,
+  prepareFilterExplorerDraftFromQuery,
+} from "./search-draft-query.js";
+export {
   buildSearchFilterExplorerModel,
   buildSearchFilterExplorerTargetResolver,
-  cloneFilterExplorerDraft,
-  createFilterExplorerDraftFromMetadataNode,
-  createFilterExplorerDraftFromQuery,
-  withFilterExplorerComposeDraft,
-} from "./search-draft.js";
+} from "./search-draft-model.js";
 export type {
   FilterExplorerBrowserContext,
   FilterExplorerBrowserSelection,
