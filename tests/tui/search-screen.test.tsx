@@ -18,6 +18,7 @@ import type { Pf2eTerminalAppServices } from "../../src/tui/app-services.js";
 import { SearchFilterExplorerScreen } from "../../src/tui/search-screen/filter-explorer-screen.js";
 import type { SearchFilterExplorerSession } from "../../src/tui/search-screen/query-field-builder-session.js";
 import { SearchScreen, parseJumpToResultInput } from "../../src/tui/search-screen/screen.js";
+import { ROUTE_TRANSITION_STATUS_KIND } from "../../src/tui/route-transition-status.js";
 import { DerivedTagTerminalProvider } from "../../src/tui/terminal-ui.js";
 import { browseQuery } from "../helpers/search-request-fixture.js";
 
@@ -595,6 +596,29 @@ function createCreatureMetricExplorerModel(): OntologyDomainModel {
 describe("search screen", () => {
   afterEach(() => {
     cleanup();
+  });
+
+  it("does not append shared transition footer state twice in the result-reader host", async () => {
+    const services = createServices();
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen
+            onBack={vi.fn()}
+            transitionStatus={{
+              kind: ROUTE_TRANSITION_STATUS_KIND.PENDING,
+              message: "Loading results",
+              frame: 0,
+            }}
+          />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+
+    const matches = app.lastFrame().match(/Loading next view \|/g) ?? [];
+    expect(matches).toHaveLength(1);
   });
 
   it("supports arrow-driven navigation for editing and executing the query workspace", async () => {

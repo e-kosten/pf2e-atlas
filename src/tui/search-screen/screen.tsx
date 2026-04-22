@@ -1,6 +1,5 @@
 import React from "react";
 
-import { appendRouteTransitionFooterLine } from "../route-transition-status.js";
 import {
   buildSearchStructuredEditorDetailLines,
   buildSearchStructuredEditorFooterText,
@@ -12,7 +11,7 @@ import {
 import { useSearchScreenController } from "./controller.js";
 import type { SearchScreenProps } from "./entry-props.js";
 import { SearchFilterExplorerScreen } from "./filter-explorer-screen.js";
-import { TerminalTwoPaneScreen } from "../framework/rendering.js";
+import { TerminalTwoPaneScreen } from "../framework/screen-components.js";
 import { TerminalMenuScreen } from "../shared-screens.js";
 
 export { parseJumpToResultInput } from "./model.js";
@@ -53,10 +52,5 @@ export function SearchScreen(props: SearchScreenProps): React.JSX.Element {
     );
   }
 
-  return (
-    <TerminalTwoPaneScreen
-      {...controller.screen}
-      footer={appendRouteTransitionFooterLine(controller.screen.footer ?? [], props.transitionStatus)}
-    />
-  );
+  return <TerminalTwoPaneScreen {...controller.screen} />;
 }

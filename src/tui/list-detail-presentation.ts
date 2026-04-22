@@ -1,9 +1,8 @@
 import {
   getRenderedTerminalLineCount,
-  getTerminalPaneBodyHeight,
-  getTerminalTwoPaneDetailWidth,
   sliceRenderedTerminalLines,
-} from "./framework/rendering.js";
+} from "./framework/line-rendering.js";
+import { getTerminalPaneBodyHeight, getTerminalTwoPaneDetailWidth } from "./framework/screen-layout.js";
 import type {
   DerivedTagTerminalHyperlinkSupport,
   DerivedTagTerminalLine,

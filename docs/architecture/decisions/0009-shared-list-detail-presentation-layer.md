@@ -44,4 +44,4 @@ The intended usage model is:
 - Search result-reader, filter explorer, and review screens share one list/detail presentation seam instead of maintaining parallel metric and router glue.
 - Feature-specific domain workflows remain local, so the shared layer does not flatten unlike surfaces into one generic reducer.
 - New list/detail screens should start from the shared presentation layer when they need the same pane sizing, footer/help, and routing mechanics.
-- If the shared layer becomes the mandatory route for more screens over time, boundary docs and lint rules should tighten around it instead of leaving it convention-only.
+- For list/detail screens that fit the shared presentation contract, boundary docs and lint rules now treat that layer as the mandatory route instead of leaving it convention-only.

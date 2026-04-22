@@ -1,0 +1,540 @@
+import React from "react";
+import { Box, Text } from "ink";
+
+import {
+  TERMINAL_COMMAND_PALETTE_EMPTY_FILTER_FOOTER,
+  TERMINAL_COMMAND_PALETTE_FILTER_FOOTER,
+  TERMINAL_SELECT_EMPTY_FOOTER,
+  TERMINAL_TEXT_INPUT_FOOTER,
+  formatTerminalInteractionFooter,
+} from "../interaction-bindings.js";
+import type { TerminalModalLayoutResult } from "../terminal-modal-layout.js";
+import {
+  TerminalRows,
+  fitToWidth,
+  renderRows,
+  terminalToneProps,
+} from "./line-rendering.js";
+import {
+  TerminalInlinePromptPanel,
+  TerminalPaneView,
+} from "./screen-components.js";
+import {
+  buildFilterExplorerPolicyBadgeSegments,
+  buildFilterExplorerPolicyLabelSegments,
+  buildFilterExplorerPolicySequenceSegments,
+} from "./policy-presentation.js";
+import {
+  buildCommandPaletteDetailLines,
+  buildPromptDetailLines,
+  clampInlinePromptWindowStart,
+  clampPromptSelectionIndex,
+  filterCommandPaletteEntries,
+} from "./modal-helpers.js";
+import { buildPolicySelection, getPolicyStateForValue } from "./modal-policy-state.js";
+import type {
+  CommandPaletteOptions,
+  DerivedTagTerminalLine,
+  DerivedTagTerminalPolicyState,
+  MultiSelectPromptOptions,
+  PolicyPromptOptions,
+  TerminalSelectModalOptions,
+  TextPromptOptions,
+} from "./types.js";
+
+export function InlinePromptMessageBody({
+  lines,
+  width,
+  height,
+}: {
+  lines: DerivedTagTerminalLine[];
+  width: number;
+  height: number;
+}): React.JSX.Element {
+  return <TerminalRows lines={renderRows(lines, width, height)} width={width} />;
+}
+
+function InlinePromptChoiceBody({
+  prompt,
+  entries,
+  detailLines,
+  focusedLabel,
+  width,
+  height,
+  layout,
+}: {
+  prompt: string;
+  entries: DerivedTagTerminalLine[];
+  detailLines: DerivedTagTerminalLine[];
+  focusedLabel: string;
+  width: number;
+  height: number;
+  layout: TerminalModalLayoutResult;
+}): React.JSX.Element {
+  if (layout.paneMode === "single-column") {
+    const listRows = Math.max(0, layout.regions.listRows);
+    const detailRows = Math.max(0, layout.regions.detailRows);
+    const visibleListCount = Math.max(0, listRows - 2);
+    const visibleDetailCount = Math.max(0, detailRows - 2);
+
+    return (
+      <Box flexDirection="column" width={width} height={height}>
+        {listRows > 0 ? (
+          <>
+            <Text wrap="truncate-end" {...terminalToneProps("section")}>
+              {fitToWidth(prompt, width)}
+            </Text>
+            {listRows > 1 ? (
+              <Text wrap="truncate-end" {...terminalToneProps("dim")}>
+                {fitToWidth("─".repeat(Math.max(0, width)), width)}
+              </Text>
+            ) : null}
+            {visibleListCount > 0 ? (
+              <TerminalRows lines={renderRows(entries, width, visibleListCount)} width={width} />
+            ) : null}
+          </>
+        ) : null}
+        {detailRows > 0 ? (
+          <>
+            <Text wrap="truncate-end" {...terminalToneProps("dim")}>
+              {fitToWidth("─".repeat(Math.max(0, width)), width)}
+            </Text>
+            {detailRows > 1 ? (
+              <Text wrap="truncate-end" {...terminalToneProps("accent")}>
+                {fitToWidth(focusedLabel, width)}
+              </Text>
+            ) : null}
+            {visibleDetailCount > 0 ? (
+              <TerminalRows lines={renderRows(detailLines, width, visibleDetailCount)} width={width} />
+            ) : null}
+          </>
+        ) : null}
+      </Box>
+    );
+  }
+
+  const separator = Array.from({ length: Math.max(1, height) }, () => "│").join("\n");
+
+  return (
+    <Box flexDirection="row" width={width} height={height}>
+      <TerminalPaneView
+        pane={{
+          title: prompt,
+          lines: entries,
+          active: true,
+        }}
+        width={layout.paneWidths?.left ?? width}
+        height={layout.regions.listRows}
+      />
+      <Text wrap="truncate-end" {...terminalToneProps("dim")}>
+        {separator}
+      </Text>
+      <TerminalPaneView
+        pane={{
+          title: focusedLabel,
+          lines: detailLines,
+        }}
+        width={layout.paneWidths?.right ?? width}
+        height={layout.regions.detailRows}
+      />
+    </Box>
+  );
+}
+
+export function buildTextPromptBodyLines(options: TextPromptOptions, currentValue: string): DerivedTagTerminalLine[] {
+  return [
+    ...(options.hint ? [{ text: options.hint, tone: "accent" as const }] : []),
+    { text: `> ${currentValue || ""}`, tone: "selected" },
+    { text: options.defaultValue ? `Default: ${options.defaultValue}` : "Leave blank to skip.", tone: "dim" },
+  ];
+}
+
+export function TextPromptBody({
+  options,
+  currentValue,
+  width,
+  layout,
+}: {
+  options: TextPromptOptions;
+  currentValue: string;
+  width: number;
+  layout: TerminalModalLayoutResult;
+}): React.JSX.Element {
+  return (
+    <TerminalInlinePromptPanel
+      title={options.title}
+      subtitle={options.prompt}
+      body={
+        <InlinePromptMessageBody
+          width={width}
+          height={layout.bodyHeight}
+          lines={buildTextPromptBodyLines(options, currentValue)}
+        />
+      }
+      footer={[{ text: TERMINAL_TEXT_INPUT_FOOTER, tone: "dim" }]}
+      width={width}
+      height={layout.totalHeight}
+      showTopBorder={layout.showTopBorder}
+    />
+  );
+}
+
+export function CommandPaletteBody({
+  options,
+  filterText,
+  selectedIndex,
+  width,
+  layout,
+}: {
+  options: CommandPaletteOptions<string>;
+  filterText: string;
+  selectedIndex: number;
+  width: number;
+  layout: TerminalModalLayoutResult;
+}): React.JSX.Element {
+  const filteredEntries = filterCommandPaletteEntries(options.entries, filterText);
+  const clampedSelectedIndex = clampPromptSelectionIndex(selectedIndex, filteredEntries.length);
+
+  if (filteredEntries.length === 0) {
+    return (
+      <TerminalInlinePromptPanel
+        title={options.title}
+        subtitle={options.subtitle ?? options.prompt}
+        body={
+          <InlinePromptMessageBody
+            width={width}
+            height={layout.bodyHeight}
+            lines={[
+              { text: options.prompt, tone: "section" },
+              { text: `Filter: ${filterText || "(none)"}`, tone: "accent" },
+              { text: "No commands match the current filter.", tone: "warning" },
+            ]}
+          />
+        }
+        footer={[{ text: TERMINAL_COMMAND_PALETTE_EMPTY_FILTER_FOOTER, tone: "dim" }]}
+        width={width}
+        height={layout.totalHeight}
+        showTopBorder={layout.showTopBorder}
+      />
+    );
+  }
+
+  const selectedOption = filteredEntries[clampedSelectedIndex];
+  const visibleCount = Math.max(1, layout.visibleListCapacity);
+  const windowStart = clampInlinePromptWindowStart(clampedSelectedIndex, filteredEntries.length, visibleCount);
+  const visibleEntries = filteredEntries.slice(windowStart, windowStart + visibleCount);
+
+  return (
+    <TerminalInlinePromptPanel
+      title={options.title}
+      subtitle={options.subtitle ?? options.prompt}
+      body={
+        <InlinePromptChoiceBody
+          prompt={filterText ? `Filter: ${filterText}` : options.prompt}
+          entries={visibleEntries.map((entry, offset) => ({
+            text: `${entry.label}${entry.disabled ? " | unavailable" : ""}`,
+            tone: windowStart + offset === clampedSelectedIndex ? "selected" : entry.disabled ? "dim" : "default",
+            noWrap: true,
+          }))}
+          detailLines={buildCommandPaletteDetailLines(selectedOption, filterText)}
+          focusedLabel={`Command ${clampedSelectedIndex + 1}/${filteredEntries.length}`}
+          width={width}
+          height={layout.bodyHeight}
+          layout={layout}
+        />
+      }
+      footer={[
+        {
+          text: formatTerminalInteractionFooter([{ id: "move" }, { id: "jump" }, { id: "page" }, { id: "edge" }]),
+          tone: "dim",
+        },
+        { text: TERMINAL_COMMAND_PALETTE_FILTER_FOOTER, tone: "dim" },
+        { text: `${filteredEntries.length} command${filteredEntries.length === 1 ? "" : "s"} visible`, tone: "accent" },
+      ]}
+      width={width}
+      height={layout.totalHeight}
+      showTopBorder={layout.showTopBorder}
+    />
+  );
+}
+
+export function SelectPromptBody({
+  options,
+  selectedIndex,
+  width,
+  layout,
+}: {
+  options: TerminalSelectModalOptions;
+  selectedIndex: number;
+  width: number;
+  layout: TerminalModalLayoutResult;
+}): React.JSX.Element {
+  if (options.entries.length === 0) {
+    return (
+      <TerminalInlinePromptPanel
+        title={options.title}
+        subtitle={options.subtitle ?? options.prompt}
+        body={
+          <InlinePromptMessageBody
+            width={width}
+            height={layout.bodyHeight}
+            lines={[
+              { text: options.prompt, tone: "section" },
+              { text: "No options are available for this scope.", tone: "warning" },
+            ]}
+          />
+        }
+        footer={[{ text: TERMINAL_SELECT_EMPTY_FOOTER, tone: "dim" }]}
+        width={width}
+        height={layout.totalHeight}
+        showTopBorder={layout.showTopBorder}
+      />
+    );
+  }
+
+  const selectedOption = options.entries[selectedIndex];
+  const visibleCount = Math.max(1, layout.visibleListCapacity);
+  const windowStart = clampInlinePromptWindowStart(selectedIndex, options.entries.length, visibleCount);
+  const visibleEntries = options.entries.slice(windowStart, windowStart + visibleCount);
+
+  return (
+    <TerminalInlinePromptPanel
+      title={options.title}
+      subtitle={options.subtitle}
+      body={
+        <InlinePromptChoiceBody
+          prompt={options.prompt}
+          entries={visibleEntries.map((entry, offset) => ({
+            text: entry.label,
+            tone: windowStart + offset === selectedIndex ? "selected" : "default",
+            noWrap: true,
+          }))}
+          detailLines={[
+            ...buildPromptDetailLines(selectedOption),
+            { text: "" },
+            { text: `Selected: ${selectedOption?.label ?? "(none)"}`, tone: "accent" },
+          ]}
+          focusedLabel={`Selected: ${selectedOption?.label ?? "(none)"}`}
+          width={width}
+          height={layout.bodyHeight}
+          layout={layout}
+        />
+      }
+      footer={[
+        {
+          text: formatTerminalInteractionFooter([{ id: "move" }, { id: "jump" }, { id: "page" }, { id: "edge" }]),
+          tone: "dim",
+        },
+        { text: formatTerminalInteractionFooter([{ id: "select" }, { id: "back", label: "cancel" }]), tone: "dim" },
+        { text: `${selectedIndex + 1}/${options.entries.length} focused`, tone: "accent" },
+      ]}
+      width={width}
+      height={layout.totalHeight}
+      showTopBorder={layout.showTopBorder}
+    />
+  );
+}
+
+export function MultiSelectPromptBody({
+  options,
+  selectedIndex,
+  selectedValues,
+  width,
+  layout,
+}: {
+  options: MultiSelectPromptOptions<string>;
+  selectedIndex: number;
+  selectedValues: string[];
+  width: number;
+  layout: TerminalModalLayoutResult;
+}): React.JSX.Element {
+  if (options.entries.length === 0) {
+    return (
+      <TerminalInlinePromptPanel
+        title={options.title}
+        subtitle={options.subtitle ?? options.prompt}
+        body={
+          <InlinePromptMessageBody
+            width={width}
+            height={layout.bodyHeight}
+            lines={[
+              { text: options.prompt, tone: "section" },
+              { text: "No options are available for this scope.", tone: "warning" },
+            ]}
+          />
+        }
+        footer={[{ text: formatTerminalInteractionFooter([{ id: "back", label: "return" }]), tone: "dim" }]}
+        width={width}
+        height={layout.totalHeight}
+        showTopBorder={layout.showTopBorder}
+      />
+    );
+  }
+
+  const selectedOption = options.entries[selectedIndex];
+  const selectedSet = new Set(selectedValues);
+  const selectedLabels = options.entries.filter((entry) => selectedSet.has(entry.value)).map((entry) => entry.label);
+  const visibleCount = Math.max(1, layout.visibleListCapacity);
+  const windowStart = clampInlinePromptWindowStart(selectedIndex, options.entries.length, visibleCount);
+  const visibleEntries = options.entries.slice(windowStart, windowStart + visibleCount);
+
+  return (
+    <TerminalInlinePromptPanel
+      title={options.title}
+      subtitle={options.subtitle}
+      body={
+        <InlinePromptChoiceBody
+          prompt={options.prompt}
+          entries={visibleEntries.map((entry, offset) => ({
+            text: `[${selectedSet.has(entry.value) ? "x" : " "}] ${entry.label}`,
+            tone: windowStart + offset === selectedIndex ? "selected" : "default",
+            noWrap: true,
+          }))}
+          detailLines={[
+            ...buildPromptDetailLines(selectedOption),
+            { text: "" },
+            { text: "Current Selection", tone: "section" },
+            { text: selectedLabels.length > 0 ? selectedLabels.join(", ") : "(none)" },
+          ]}
+          focusedLabel={`Focused ${selectedIndex + 1}/${options.entries.length}`}
+          width={width}
+          height={layout.bodyHeight}
+          layout={layout}
+        />
+      }
+      footer={[
+        {
+          text: formatTerminalInteractionFooter([{ id: "move" }, { id: "jump" }, { id: "page" }, { id: "edge" }]),
+          tone: "dim",
+        },
+        { text: formatTerminalInteractionFooter([{ id: "toggle" }, { id: "return" }]), tone: "dim" },
+        { text: `${selectedValues.length} selected | Focused: ${selectedOption?.label ?? "(none)"}`, tone: "accent" },
+      ]}
+      width={width}
+      height={layout.totalHeight}
+      showTopBorder={layout.showTopBorder}
+    />
+  );
+}
+
+export function buildPolicySummaryLines(
+  options: PolicyPromptOptions<string>,
+  valueStates: Record<string, DerivedTagTerminalPolicyState | undefined>,
+): DerivedTagTerminalLine[] {
+  const selection = buildPolicySelection(options.entries, valueStates);
+  const labelsByValue = new Map(options.entries.map((entry) => [entry.value, entry.label]));
+
+  return options.allowedStates.map((state) => ({
+    text: "",
+    segments: [
+      ...buildFilterExplorerPolicyLabelSegments(state),
+      { text: ": ", tone: "dim" },
+      {
+        text:
+          selection[state].length > 0
+            ? selection[state].map((value) => labelsByValue.get(value) ?? value).join(", ")
+            : "(none)",
+      },
+    ],
+  }));
+}
+
+export function PolicyPromptBody({
+  options,
+  selectedIndex,
+  valueStates,
+  width,
+  layout,
+}: {
+  options: PolicyPromptOptions<string>;
+  selectedIndex: number;
+  valueStates: Record<string, DerivedTagTerminalPolicyState | undefined>;
+  width: number;
+  layout: TerminalModalLayoutResult;
+}): React.JSX.Element {
+  if (options.entries.length === 0) {
+    return (
+      <TerminalInlinePromptPanel
+        title={options.title}
+        subtitle={options.subtitle ?? options.prompt}
+        body={
+          <InlinePromptMessageBody
+            width={width}
+            height={layout.bodyHeight}
+            lines={[
+              { text: options.prompt, tone: "section" },
+              { text: "No options are available for this scope.", tone: "warning" },
+            ]}
+          />
+        }
+        footer={[{ text: formatTerminalInteractionFooter([{ id: "return" }]), tone: "dim" }]}
+        width={width}
+        height={layout.totalHeight}
+        showTopBorder={layout.showTopBorder}
+      />
+    );
+  }
+
+  const selectedOption = options.entries[selectedIndex];
+  const selectedState = selectedOption ? getPolicyStateForValue(selectedOption.value, valueStates) : undefined;
+  const visibleCount = Math.max(1, layout.visibleListCapacity);
+  const windowStart = clampInlinePromptWindowStart(selectedIndex, options.entries.length, visibleCount);
+  const visibleEntries = options.entries.slice(windowStart, windowStart + visibleCount);
+
+  return (
+    <TerminalInlinePromptPanel
+      title={options.title}
+      subtitle={options.subtitle}
+      body={
+        <InlinePromptChoiceBody
+          prompt={options.prompt}
+          entries={visibleEntries.map((entry, offset) => ({
+            text: "",
+            segments: [
+              ...buildFilterExplorerPolicyBadgeSegments(getPolicyStateForValue(entry.value, valueStates)),
+              {
+                text: ` ${entry.label}`,
+                tone: windowStart + offset === selectedIndex ? "selected" : "default",
+              },
+            ],
+            tone: "default",
+            noWrap: true,
+          }))}
+          detailLines={[
+            ...buildPromptDetailLines(selectedOption),
+            { text: "" },
+            {
+              text: "",
+              segments: [
+                { text: "Focused policy: ", tone: "accent" },
+                ...buildFilterExplorerPolicyLabelSegments(selectedState),
+              ],
+            },
+            ...buildPolicySummaryLines(options, valueStates),
+          ]}
+          focusedLabel={`Focused ${selectedIndex + 1}/${options.entries.length}`}
+          width={width}
+          height={layout.bodyHeight}
+          layout={layout}
+        />
+      }
+      footer={[
+        {
+          text: formatTerminalInteractionFooter([{ id: "move" }, { id: "jump" }, { id: "page" }, { id: "edge" }]),
+          tone: "dim",
+        },
+        { text: formatTerminalInteractionFooter([{ id: "cycle" }, { id: "return" }]), tone: "dim" },
+        {
+          text: "",
+          segments: [
+            { text: "Cycle order: ", tone: "accent" },
+            ...buildFilterExplorerPolicySequenceSegments([undefined, ...options.allowedStates, undefined]),
+          ],
+        },
+      ]}
+      width={width}
+      height={layout.totalHeight}
+      showTopBorder={layout.showTopBorder}
+    />
+  );
+}

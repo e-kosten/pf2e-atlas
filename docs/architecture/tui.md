@@ -91,10 +91,15 @@ Shared ontology/detail presenters may also attach optional link metadata to a te
 `src/tui/framework/` contains the terminal mechanics:
 
 - Ink provider lifecycle in `framework/provider.tsx`
-- rendering primitives in `framework/rendering.tsx`
+- line rendering and wrapping in `framework/line-rendering.tsx`
+- pane and screen geometry in `framework/screen-layout.ts`
+- pane and screen React components in `framework/screen-components.tsx`
 - input and navigation helpers in `framework/input.ts`
 - terminal context in `framework/context.ts`
-- modal hosting and prompt plumbing in `framework/modal.tsx`
+- modal host and input routing in `framework/modal-host.tsx`
+- modal sizing and layout planning in `framework/modal-planning.ts`
+- modal prompt bodies in `framework/modal-prompt-bodies.tsx`
+- modal policy-selection state helpers in `framework/modal-policy-state.ts`
 - shared policy-label and badge presentation in `framework/policy-presentation.ts`
 
 Feature code should build on these helpers instead of importing raw terminal primitives directly.
@@ -197,7 +202,7 @@ The TUI generally separates visible screens from stateful interaction logic and 
 flowchart TD
   subgraph Framework["Framework / Terminal Runtime"]
     Provider["`framework/provider.tsx`"]
-    Rendering["`framework/rendering.tsx`"]
+    Rendering["`framework/{line-rendering,screen-layout,screen-components}.ts*`"]
     Input["interaction adapters + input routers"]
   end
 

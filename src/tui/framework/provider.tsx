@@ -5,15 +5,15 @@ import { useStdout } from "ink";
 import { TERMINAL_DIALOG_CONTINUE_FOOTER } from "../interaction-bindings.js";
 import { DerivedTagTerminalContext } from "./context.js";
 import {
-  DerivedTagTerminalModalHost,
   buildOptionalSelectModalOptions,
   buildSelectModalOptions,
   createEmptyPolicySelection,
-  createValueStateLookup,
   getFirstEnabledCommandIndex,
   getSelectPromptInitialIndex,
-  planTerminalModalStateLayout,
-} from "./modal.js";
+} from "./modal-helpers.js";
+import { DerivedTagTerminalModalHost } from "./modal-host.js";
+import { createValueStateLookup } from "./modal-policy-state.js";
+import { planTerminalModalStateLayout } from "./modal-planning.js";
 import type {
   CommandPaletteOptions,
   DerivedTagTerminalContextValue,

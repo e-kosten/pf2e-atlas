@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { getRenderedTerminalLineCount, renderRows, sliceRenderedTerminalLines } from "../../src/tui/framework/rendering.js";
+import {
+  getRenderedTerminalLineCount,
+  renderRows,
+  sliceRenderedTerminalLines,
+} from "../../src/tui/framework/line-rendering.js";
 
 describe("terminal hyperlink rendering helpers", () => {
   it("preserves segment hyperlinks when truncating rendered rows", () => {

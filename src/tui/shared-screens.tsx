@@ -10,7 +10,8 @@ import {
   type DerivedTagTerminalActionTargetState,
   type DerivedTagTerminalActionTargetVisibility,
 } from "./action-target.js";
-import { TerminalTwoPaneScreen, TerminalTextScreen, getTerminalPaneBodyHeight } from "./framework/rendering.js";
+import { getTerminalPaneBodyHeight } from "./framework/screen-layout.js";
+import { TerminalTextScreen, TerminalTwoPaneScreen } from "./framework/screen-components.js";
 import { useDerivedTagTerminalSize } from "./framework/context.js";
 import type { DerivedTagTerminalLine } from "./framework/types.js";
 import {

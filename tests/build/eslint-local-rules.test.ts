@@ -554,6 +554,29 @@ describe("eslint local architecture rules", () => {
     );
   });
 
+  it("blocks list/detail surfaces from bypassing the shared presentation owner", async () => {
+    await expectRuleMessage(
+      "src/tui/search-screen/controller.ts",
+      'import { getTerminalPaneBodyHeight } from "../framework/screen-layout.js";\nexport const value = getTerminalPaneBodyHeight;\n',
+      "List/detail search and explorer surfaces must use src/tui/list-detail-presentation.ts instead of bypassing shared measurement, transition-footer composition, or list/detail routing directly.",
+      "no-restricted-syntax",
+    );
+
+    await expectRuleMessage(
+      "src/tui/search-screen/screen.tsx",
+      'import { appendRouteTransitionFooterLine } from "../route-transition-status.js";\nexport const value = appendRouteTransitionFooterLine;\n',
+      "List/detail search and explorer surfaces must use src/tui/list-detail-presentation.ts instead of bypassing shared measurement, transition-footer composition, or list/detail routing directly.",
+      "no-restricted-syntax",
+    );
+
+    await expectRuleMessage(
+      "src/tags/editorial/ui/review-ui-controller.ts",
+      'import { useTerminalInteractionContextRouter } from "../../../tui/interaction-context-router.js";\nexport const value = useTerminalInteractionContextRouter;\n',
+      "Review list/detail surfaces must use src/tui/list-detail-presentation.ts instead of bypassing shared measurement, transition-footer composition, or list/detail routing directly.",
+      "no-restricted-syntax",
+    );
+  });
+
   it("blocks editorial workbench controllers from reclaiming direct terminal prompt ownership", async () => {
     await expectRuleMessage(
       "src/tags/editorial/ui/workbench-controller.ts",

@@ -41,18 +41,22 @@ export {
   useDerivedTagTerminalInput,
 } from "./framework/input.js";
 export {
-  TerminalPaneScreen,
-  TerminalTextScreen,
-  TerminalThreePaneScreen,
-  TerminalTwoPaneScreen,
   getRenderedTerminalLineCount,
+  sliceRenderedTerminalLines,
+} from "./framework/line-rendering.js";
+export {
   getTerminalPaneBodyHeight,
   getTerminalThreePaneDimensions,
   getTerminalTwoPaneDetailWidth,
   getTerminalTwoPaneDimensions,
   normalizeTerminalTwoPaneLayoutMode,
-  sliceRenderedTerminalLines,
   toggleTerminalTwoPaneFocus,
   toggleTerminalTwoPaneLayoutMode,
-} from "./framework/rendering.js";
+} from "./framework/screen-layout.js";
+export {
+  TerminalPaneScreen,
+  TerminalTextScreen,
+  TerminalThreePaneScreen,
+  TerminalTwoPaneScreen,
+} from "./framework/screen-components.js";
 export { DerivedTagTerminalProvider, runDerivedTagTerminalApp } from "./framework/provider.js";

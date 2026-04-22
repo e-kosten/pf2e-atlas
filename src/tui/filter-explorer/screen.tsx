@@ -1,6 +1,6 @@
 import React from "react";
 
-import { TerminalPaneScreen, TerminalTwoPaneScreen } from "../framework/rendering.js";
+import { TerminalPaneScreen, TerminalTwoPaneScreen } from "../framework/screen-components.js";
 import { useFilterExplorerController } from "./controller.js";
 import { buildFilterExplorerScreenModel } from "./screen-models.js";
 import type { FilterExplorerOptions } from "./types.js";

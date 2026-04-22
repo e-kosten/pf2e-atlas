@@ -2,7 +2,7 @@ import {
   normalizeTerminalTwoPaneLayoutMode,
   toggleTerminalTwoPaneFocus,
   toggleTerminalTwoPaneLayoutMode,
-} from "./framework/rendering.js";
+} from "./framework/screen-layout.js";
 import type { DerivedTagTerminalTwoPaneFocus, DerivedTagTerminalTwoPaneLayoutMode } from "./framework/types.js";
 
 export type DerivedTagTerminalTwoPaneState = {

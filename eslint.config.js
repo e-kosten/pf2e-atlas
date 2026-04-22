@@ -33,6 +33,19 @@ function buildImportSourceSyntaxRestrictions(pathVariants, message) {
   }));
 }
 
+const SEARCH_LIST_DETAIL_PRESENTATION_IMPORT_PATHS = [
+  "../framework/line-rendering.js",
+  "../framework/screen-layout.js",
+  "../route-transition-status.js",
+  "../interaction-context-router.js",
+];
+const REVIEW_LIST_DETAIL_PRESENTATION_IMPORT_PATHS = [
+  "../../../tui/framework/line-rendering.js",
+  "../../../tui/framework/screen-layout.js",
+  "../../../tui/route-transition-status.js",
+  "../../../tui/interaction-context-router.js",
+];
+
 const DOMAIN_INDEX_IMPORT_PATHS = ["./domain/index.js", "../domain/index.js", "../../domain/index.js"];
 const SHARED_UTILS_IMPORT_PATHS = ["./shared/utils.js", "../shared/utils.js", "../../shared/utils.js"];
 const SEARCH_CONTRACT_IMPORT_PATHS = [
@@ -578,6 +591,29 @@ export default defineConfig(
     },
   },
   {
+    files: [
+      "src/tui/search-screen/controller.ts",
+      "src/tui/search-screen/interactions.ts",
+      "src/tui/search-screen/screen.tsx",
+      "src/tui/filter-explorer/controller.ts",
+      "src/tui/filter-explorer/screen-models.ts",
+    ],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...buildImportSourceSyntaxRestrictions(
+          SEARCH_LIST_DETAIL_PRESENTATION_IMPORT_PATHS,
+          "List/detail search and explorer surfaces must use src/tui/list-detail-presentation.ts instead of bypassing shared measurement, transition-footer composition, or list/detail routing directly.",
+        ),
+        {
+          selector: 'Identifier[name="openInResults"]',
+          message:
+            "TUI ontology/search launch flows must use explicit launch intents instead of openInResults-style route flags.",
+        },
+      ],
+    },
+  },
+  {
     files: ["src/app/ontology-service.ts"],
     rules: {
       "no-restricted-syntax": [
@@ -647,6 +683,18 @@ export default defineConfig(
     files: ["src/tags/editorial/ui/review-screen-model.ts", "src/tags/editorial/ui/review-screen-state.ts"],
     rules: {
       "no-restricted-imports": mergeRestrictedImports(NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS),
+    },
+  },
+  {
+    files: ["src/tags/editorial/ui/review-screen-model.ts", "src/tags/editorial/ui/review-ui-controller.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...buildImportSourceSyntaxRestrictions(
+          REVIEW_LIST_DETAIL_PRESENTATION_IMPORT_PATHS,
+          "Review list/detail surfaces must use src/tui/list-detail-presentation.ts instead of bypassing shared measurement, transition-footer composition, or list/detail routing directly.",
+        ),
+      ],
     },
   },
   {
@@ -802,6 +850,29 @@ export default defineConfig(
     rules: {
       "no-restricted-syntax": [
         "error",
+        {
+          selector: 'Identifier[name="openInResults"]',
+          message:
+            "TUI ontology/search launch flows must use explicit launch intents instead of openInResults-style route flags.",
+        },
+      ],
+    },
+  },
+  {
+    files: [
+      "src/tui/search-screen/controller.ts",
+      "src/tui/search-screen/interactions.ts",
+      "src/tui/search-screen/screen.tsx",
+      "src/tui/filter-explorer/controller.ts",
+      "src/tui/filter-explorer/screen-models.ts",
+    ],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...buildImportSourceSyntaxRestrictions(
+          SEARCH_LIST_DETAIL_PRESENTATION_IMPORT_PATHS,
+          "List/detail search and explorer surfaces must use src/tui/list-detail-presentation.ts instead of bypassing shared measurement, transition-footer composition, or list/detail routing directly.",
+        ),
         {
           selector: 'Identifier[name="openInResults"]',
           message:
