@@ -7,6 +7,7 @@ import type {
   DerivedTagTerminalTwoPaneLayoutMode,
 } from "../framework/types.js";
 import type { RouteTransitionStatus } from "../route-transition-status.js";
+import type { TerminalListDetailNotification } from "../list-detail-presentation.js";
 
 export type FilterExplorerPolicyState = DerivedTagTerminalPolicyState;
 export type FilterExplorerSelection = DerivedTagTerminalPolicySelection<string>;
@@ -243,5 +244,6 @@ export type FilterExplorerControllerContext = {
   selectedPolicyState?: FilterExplorerPolicyState;
   selectedScalarClause?: FilterExplorerScalarClause;
   selectedInspectResult?: FilterExplorerInspectResult;
+  notification?: TerminalListDetailNotification | null;
   transitionStatus?: RouteTransitionStatus | null;
 };

@@ -1,6 +1,8 @@
 import { getOntologyNodeChildren, titleCaseLabel } from "../../app/ontology/node-helpers.js";
+import { formatMetadataFieldTypeLabel } from "../../domain/presentation-vocabulary.js";
 import type { DerivedTagTerminalLine } from "../framework/types.js";
 import { moveSelection, moveSelectionWrapped } from "../framework/input.js";
+import { formatTerminalBreadcrumb } from "../list-detail-formatting.js";
 import type {
   FilterExplorerBrowserSelection,
   FilterExplorerBrowserSnapshot,
@@ -399,7 +401,15 @@ export function buildFilterExplorerBreadcrumb(
     segments.push(selection.currentNode.label);
   }
 
-  return segments.join(" > ");
+  return formatTerminalBreadcrumb(segments);
+}
+
+function formatFilterExplorerGroupValue(groupBy: string, value: string): string {
+  if (groupBy === "fieldType") {
+    return formatMetadataFieldTypeLabel(value);
+  }
+
+  return titleCaseLabel(value);
 }
 
 export function buildFilterExplorerListRows(
@@ -446,7 +456,7 @@ export function buildFilterExplorerListRows(
         rows.push({
           kind: "group",
           line: {
-            text: titleCaseLabel(groupValue),
+            text: formatFilterExplorerGroupValue(groupBy, groupValue),
             tone: "section",
             noWrap: true,
           },

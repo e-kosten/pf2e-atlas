@@ -282,7 +282,7 @@ describe("application ontology service", () => {
       render: "inline",
     });
     expect(findNodeById(domain.rootNodes, "spell:field:saveType")?.groupValues).toEqual({
-      fieldType: "enumString",
+      fieldType: "Enumerated String",
     });
 
     const saveTypeFieldNode = findNodeById(domain.rootNodes, "spell:field:saveType");
@@ -302,7 +302,7 @@ describe("application ontology service", () => {
     expect(dataService.listFilterValues).toHaveBeenCalledWith(
       expect.objectContaining({ field: "hands", category: "equipment" }),
     );
-    expect(saveTypeFieldNode?.listLabel).toBe("saveType");
+    expect(saveTypeFieldNode?.listLabel).toBe("Save Type");
     expect(saveTypeFieldNode?.detailLines.map((line) => line.text)).not.toContain("Operators: eq, in, notIn");
 
     const saveTypeValueNode = saveTypeValueNodes.find((node) => node.id === "spell:saveType:fortitude");

@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildTerminalListDetailScreenModel,
+  buildTerminalListDetailNotificationLine,
+  createTerminalListDetailNotification,
+  getActiveTerminalListDetailNotification,
   measureTerminalListDetailPresentation,
 } from "../../src/tui/list-detail-presentation.js";
 import { ROUTE_TRANSITION_STATUS_KIND } from "../../src/tui/route-transition-status.js";
@@ -90,5 +93,57 @@ describe("list detail presentation", () => {
     expect(screen.props.pane.title).toBe("[FOCUSED DETAIL] Detail");
     expect(screen.props.footer).toHaveLength(2);
     expect(screen.props.footer?.[1]?.text).toContain("Loading next view");
+  });
+
+  it("creates transient notifications and expires them predictably", () => {
+    const notification = createTerminalListDetailNotification({
+      message: "No deeper explorer level is available for the focused entry.",
+      tone: "warning",
+      durationMs: 500,
+      now: 1_000,
+    });
+
+    expect(buildTerminalListDetailNotificationLine(notification, 1_001)).toEqual({
+      text: "No deeper explorer level is available for the focused entry.",
+      tone: "warning",
+      noWrap: true,
+    });
+    expect(getActiveTerminalListDetailNotification(notification, 1_499)).toEqual(notification);
+    expect(getActiveTerminalListDetailNotification(notification, 1_500)).toBeNull();
+  });
+
+  it("renders shared notification banners through the list/detail footer seam", () => {
+    const screen = buildTerminalListDetailScreenModel({
+      title: "Shared Screen",
+      subtitle: "Subtitle",
+      activePane: "list",
+      layoutMode: "split",
+      leftWidth: 32,
+      leftPane: {
+        title: "List",
+        lines: [{ text: "Entry 1" }],
+      },
+      rightPane: {
+        title: "Detail",
+      },
+      metrics: {
+        visibleDetailLines: [{ text: "Detail 1" }],
+      },
+      footer: [{ text: "Bindings", tone: "dim" }],
+      notification: createTerminalListDetailNotification({
+        message: "No deeper explorer level is available for the focused entry.",
+        tone: "warning",
+      }),
+    });
+
+    expect(screen.kind).toBe("two-pane");
+    if (screen.kind !== "two-pane") {
+      throw new Error("expected two-pane model");
+    }
+
+    expect(screen.props.footer?.map((line) => line.text)).toEqual([
+      "Bindings",
+      "No deeper explorer level is available for the focused entry.",
+    ]);
   });
 });

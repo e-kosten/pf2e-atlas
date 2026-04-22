@@ -364,11 +364,11 @@ function createFacetPickerOntologyDomain(): OntologyDomainModel {
               {
                 id: "spell:field:derivedTags",
                 kind: "field",
-                label: "derivedTags",
+                label: "Derived Tags",
                 filterText: "derived tags",
-                listLabel: "derivedTags",
+                listLabel: "Derived Tags",
                 detailTitle: "Metadata Field Details",
-                detailLines: [{ text: "derivedTags", tone: "section" }],
+                detailLines: [{ text: "Derived Tags", tone: "section" }],
                 childPresentation: {
                   mode: "grouped",
                   groupBy: "axis",
@@ -423,11 +423,11 @@ function createFacetPickerOntologyDomainWithDiscreteFields(): OntologyDomainMode
     {
       id: "spell:field:rarity",
       kind: "field",
-      label: "rarity",
+      label: "Rarity",
       filterText: "rarity",
-      listLabel: "rarity",
+      listLabel: "Rarity",
       detailTitle: "Metadata Field Details",
-      detailLines: [{ text: "rarity", tone: "section" }],
+      detailLines: [{ text: "Rarity", tone: "section" }],
       children: [
         {
           id: "spell:field:rarity:value:common",
@@ -509,11 +509,11 @@ function createCreatureDerivedTagsOntologyDomain(): OntologyDomainModel {
               {
                 id: "creature:field:derivedTags",
                 kind: "field",
-                label: "derivedTags",
+                label: "Derived Tags",
                 filterText: "derived tags",
-                listLabel: "derivedTags",
+                listLabel: "Derived Tags",
                 detailTitle: "Metadata Field Details",
-                detailLines: [{ text: "derivedTags", tone: "section" }],
+                detailLines: [{ text: "Derived Tags", tone: "section" }],
                 childPresentation: {
                   mode: "grouped",
                   groupBy: "axis",
@@ -694,7 +694,7 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Current editor matches applied query");
     expect(app.lastFrame()).toContain("1/1 | Buf 1 | Win 1-1");
     expect(app.lastFrame()).toContain("[RESULTS] 1/1 | Buf 1 | Ranked");
-    expect(app.lastFrame()).toContain("Alarm Ward | spell | lvl 1");
+    expect(app.lastFrame()).toContain("Alarm Ward | L1 | Spells");
     expect(app.lastFrame()).toContain("Preview | Alarm Ward");
     expect(app.lastFrame()).not.toContain("Left staged");
 
@@ -880,13 +880,13 @@ describe("search screen", () => {
     await flushInk();
     expect(app.lastFrame()).toContain("Derived Tags Explorer");
     expect(app.lastFrame()).toContain("Explorer Entries");
-    expect(app.lastFrame()).toContain("Derived Tags Explorer > derivedTags");
+    expect(app.lastFrame()).toContain("Derived Tags Explorer > Derived Tags");
     expect(app.lastFrame()).toContain("Focused node is not selectable.");
     expect(app.lastFrame()).not.toContain("Query Field\n");
 
     app.stdin.write("\r");
     await flushInk();
-    expect(app.lastFrame()).toContain("Derived Tags Explorer > derivedTags > coast");
+    expect(app.lastFrame()).toContain("Derived Tags Explorer > Derived Tags > coast");
     expect(app.lastFrame()).toContain("coast | 1 tag");
 
     app.stdin.write("\r");
@@ -1942,13 +1942,13 @@ describe("search screen", () => {
     await flushInk();
     expect(app.lastFrame()).toContain("Derived Tags Explorer");
     expect(app.lastFrame()).toContain("Explorer Entries");
-    expect(app.lastFrame()).toContain("Derived Tags Explorer > derivedTags");
+    expect(app.lastFrame()).toContain("Derived Tags Explorer > Derived Tags");
     expect(app.lastFrame()).toContain("Focused node is not selectable.");
     expect(app.lastFrame()).not.toContain("Query Field\n");
 
     app.stdin.write("\r");
     await flushInk();
-    expect(app.lastFrame()).toContain("Derived Tags Explorer > derivedTags > coast");
+    expect(app.lastFrame()).toContain("Derived Tags Explorer > Derived Tags > coast");
     expect(app.lastFrame()).toContain("coast | 1 tag");
 
     app.stdin.write("\r");
@@ -1962,7 +1962,7 @@ describe("search screen", () => {
 
     pressLeft(app);
     await flushInk();
-    expect(app.lastFrame()).toContain("Derived Tags Explorer > derivedTags");
+    expect(app.lastFrame()).toContain("Derived Tags Explorer > Derived Tags");
     expect(app.lastFrame()).toContain("Selected fields");
     expect(app.lastFrame()).toContain("coastal_setting");
 
@@ -2071,11 +2071,11 @@ describe("search screen", () => {
         metadataFields.children.unshift({
           id: "spell:field:traits",
           kind: "field",
-          label: "traits",
+          label: "Traits",
           filterText: "traits",
-          listLabel: "traits",
+          listLabel: "Traits",
           detailTitle: "Metadata Field Details",
-          detailLines: [{ text: "traits", tone: "section" }],
+          detailLines: [{ text: "Traits", tone: "section" }],
           childPresentation: {
             mode: "grouped",
             groupBy: "family",
@@ -2142,8 +2142,8 @@ describe("search screen", () => {
     await flushInk();
     await flushInk();
     expect(app.lastFrame()).toContain("Filter Explorer");
-    expect(app.lastFrame()).toContain("traits");
-    expect(app.lastFrame()).toContain("derivedTags");
+    expect(app.lastFrame()).toContain("Traits");
+    expect(app.lastFrame()).toContain("Derived Tags");
     expect(app.lastFrame()).not.toContain("Add Query Part");
     expect(app.lastFrame()).not.toContain("Browse/Search");
 
@@ -2158,14 +2158,14 @@ describe("search screen", () => {
     await flushInk();
     await flushInk();
     expect(app.lastFrame()).toContain("include any");
-    expect(app.lastFrame()).toContain("traits:");
+    expect(app.lastFrame()).toContain("Traits:");
     expect(app.lastFrame()).toContain("illusion");
 
     pressLeft(app);
     await flushInk();
     expect(app.lastFrame()).toContain("Filter Explorer");
-    expect(app.lastFrame()).toContain("traits");
-    expect(app.lastFrame()).toContain("derivedTags");
+    expect(app.lastFrame()).toContain("Traits");
+    expect(app.lastFrame()).toContain("Derived Tags");
     expect(app.lastFrame()).toContain("illusion");
     expect(app.lastFrame()).not.toContain("Add Query Part");
 
@@ -2246,7 +2246,7 @@ describe("search screen", () => {
     await flushInk();
     expect(app.lastFrame()).toContain("Derived Tags Explorer");
     expect(app.lastFrame()).toContain("Explorer Entries");
-    expect(app.lastFrame()).toContain("Derived Tags Explorer > derivedTags");
+    expect(app.lastFrame()).toContain("Derived Tags Explorer > Derived Tags");
     expect(app.lastFrame()).toContain("Focused node is not selectable.");
     expect(app.lastFrame()).not.toContain("Choose a category before editing a discoverable query field.");
   });

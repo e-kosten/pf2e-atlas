@@ -1,5 +1,6 @@
 import type { MetadataFilterNode, MetadataPredicate } from "../../domain/metadata-filter-types.js";
 import { getMetricQueryFieldLabel } from "../../domain/metric-discovery-group-label.js";
+import { formatMetadataFieldLabel } from "../../domain/presentation-vocabulary.js";
 import type { SearchCategory } from "../../domain/search-types.js";
 import { humanizeIdentifier } from "./service-options.js";
 
@@ -260,12 +261,12 @@ export function describeMetadataNode(
     node.field === "actorMetric"
       ? getMetricQueryFieldLabel("actorMetric", category)
       : node.field === "actorMetricCompare"
-        ? getMetricQueryFieldLabel("actorMetricCompare", category)
-        : node.field === "itemMetric"
-          ? getMetricQueryFieldLabel("itemMetric", category)
-          : node.field === "itemMetricCompare"
-            ? getMetricQueryFieldLabel("itemMetricCompare", category)
-            : humanizeIdentifier(node.field);
+          ? getMetricQueryFieldLabel("actorMetricCompare", category)
+          : node.field === "itemMetric"
+            ? getMetricQueryFieldLabel("itemMetric", category)
+            : node.field === "itemMetricCompare"
+              ? getMetricQueryFieldLabel("itemMetricCompare", category)
+              : formatMetadataFieldLabel(node.field);
 
   return {
     label: isRoot && rootLabel === "query" ? "Query Clause" : label,

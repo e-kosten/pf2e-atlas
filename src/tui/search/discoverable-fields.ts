@@ -1,5 +1,9 @@
 import type { MetadataFieldSemantics } from "../../search/filters/semantics.js";
 import { getMetricDiscoveryGroupLabel } from "../../domain/metric-discovery-group-label.js";
+import {
+  describeMetadataFieldType,
+  formatMetadataFieldLabel,
+} from "../../domain/presentation-vocabulary.js";
 import { normalizeMetadataNode } from "./query-core.js";
 import type { MetadataFilterNode, MetadataPredicate } from "../../domain/metadata-filter-types.js";
 import type { SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
@@ -15,7 +19,6 @@ import {
   getSearchQueryMetadataTree,
   setSearchQueryMetadataTree,
 } from "./query-state.js";
-import { humanizeIdentifier } from "./service-options.js";
 import type {
   Pf2eTerminalFacetField,
   Pf2eTerminalFilterValuePolicy,
@@ -249,12 +252,12 @@ export function getQueryFieldOptions(
     .filter((field) => field.discoverable && !["rarity", "actionCost"].includes(field.field))
     .map((field) => ({
       value: field.field,
-      label: humanizeIdentifier(field.field),
+      label: formatMetadataFieldLabel(field.field),
       description:
         field.notes ??
         (field.field === "derivedTags"
           ? "Derived-tag field with hierarchy-capable ontology browsing."
-          : `${field.fieldType} query field for the current browse scope.`),
+          : `${describeMetadataFieldType(field.fieldType)} query field for the current browse scope.`),
       fieldType: field.fieldType,
       editor: getQueryFieldEditor(field),
     })),

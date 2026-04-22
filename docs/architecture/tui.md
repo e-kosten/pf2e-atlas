@@ -138,11 +138,14 @@ It owns the repeated mechanics that several screens were previously rebuilding:
 - pane body measurement and detail-window slicing
 - shared assembly of `TerminalPaneScreen` / `TerminalTwoPaneScreen` props
 - common interaction-context setup for list, detail, optional text-entry, and optional action-target flows
+- transient footer-banner notifications for lightweight failed-navigation or informational feedback
+- shared breadcrumb and default result-row formatting for list/detail search and explorer surfaces
 
 It does not own feature-domain workflows. Search, filter explorer, and review still decide:
 
 - which actions are available in each context
 - how list rows, detail lines, and status text are built
+- which notification messages and tones to emit for local workflow outcomes
 - how shared presentation intents map to local reducer actions or async workflow steps
 
 Use this layer when a screen is fundamentally a list/detail surface with shared pane, footer/help, and routing mechanics. Do not push unrelated staged-editor or domain workflow logic into it just to make a screen fit the abstraction.

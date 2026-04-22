@@ -1,19 +1,21 @@
 # Right-Navigation Feedback
 
-Status: proposed  
+Status: done  
 Priority: now  
 Owner: unassigned  
-Last reviewed: 2026-04-21
+Last reviewed: 2026-04-22
 
 ## Problem
 
-When the user presses rightward navigation expecting to drill deeper and there is no deeper page to open, the current behavior can look too similar to a layout or focus toggle. That makes the action feel ambiguous and surprising.
-
-The original scratch note called out that this often happens in places where the user reasonably expects another level to exist, so silent fallback behavior is misleading.
+This item is complete. Shared list/detail screens now have a transient footer-banner notification seam, and filter-explorer dead-end drill behavior uses that seam instead of falling through to focus toggling.
 
 ## Desired Outcome
 
-When rightward navigation cannot open a deeper destination, show a small transient message that explains what happened instead of failing silently or looking identical to another navigation action.
+That landed outcome is:
+
+- failed rightward drill shows a lightweight shared footer notification
+- failed drill no longer behaves like an implicit pane-focus change
+- the feedback path lives on the shared list/detail presentation seam instead of screen-local footer state
 
 ## Constraints
 
@@ -23,7 +25,7 @@ When rightward navigation cannot open a deeper destination, show a small transie
 
 ## Notes
 
-This item is specifically about clarifying failed “go deeper” intent, not about redesigning the broader navigation model.
+This item was specifically about clarifying failed “go deeper” intent, not redesigning the broader navigation model.
 
 ## Related
 

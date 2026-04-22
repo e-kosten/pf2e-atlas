@@ -1,3 +1,5 @@
+import React from "react";
+
 import {
   getRenderedTerminalLineCount,
   sliceRenderedTerminalLines,
@@ -7,6 +9,7 @@ import type {
   DerivedTagTerminalHyperlinkSupport,
   DerivedTagTerminalLine,
   DerivedTagTerminalPaneScreenProps,
+  DerivedTagTerminalTone,
   DerivedTagTerminalTwoPaneFocus,
   DerivedTagTerminalTwoPaneLayoutMode,
   DerivedTagTerminalTwoPaneScreenProps,
@@ -31,6 +34,115 @@ import type {
   DerivedTagTerminalActionTargetState,
 } from "./action-target.js";
 
+export const TERMINAL_LIST_DETAIL_NOTIFICATION_DURATION_MS = 1800;
+
+export type TerminalListDetailNotificationTone = Extract<
+  DerivedTagTerminalTone,
+  "accent" | "success" | "warning" | "danger"
+>;
+
+export type TerminalListDetailNotification = {
+  message: string;
+  tone: TerminalListDetailNotificationTone;
+  expiresAt: number;
+};
+
+export function createTerminalListDetailNotification(options: {
+  message: string;
+  tone?: TerminalListDetailNotificationTone;
+  durationMs?: number;
+  now?: number;
+}): TerminalListDetailNotification {
+  const durationMs = options.durationMs ?? TERMINAL_LIST_DETAIL_NOTIFICATION_DURATION_MS;
+  const now = options.now ?? Date.now();
+
+  return {
+    message: options.message,
+    tone: options.tone ?? "accent",
+    expiresAt: now + durationMs,
+  };
+}
+
+export function getActiveTerminalListDetailNotification(
+  notification: TerminalListDetailNotification | null | undefined,
+  now = Date.now(),
+): TerminalListDetailNotification | null {
+  return notification && notification.expiresAt > now ? notification : null;
+}
+
+export function buildTerminalListDetailNotificationLine(
+  notification: TerminalListDetailNotification | null | undefined,
+  now = Date.now(),
+): DerivedTagTerminalLine | null {
+  const activeNotification = getActiveTerminalListDetailNotification(notification, now);
+  if (!activeNotification) {
+    return null;
+  }
+
+  return {
+    text: activeNotification.message,
+    tone: activeNotification.tone,
+    noWrap: true,
+  };
+}
+
+export function useTerminalListDetailNotification(): {
+  notification: TerminalListDetailNotification | null;
+  showNotification: (options: {
+    message: string;
+    tone?: TerminalListDetailNotificationTone;
+    durationMs?: number;
+  }) => void;
+  clearNotification: () => void;
+} {
+  const [notification, setNotification] = React.useState<TerminalListDetailNotification | null>(null);
+
+  const clearNotification = React.useCallback(() => {
+    setNotification(null);
+  }, []);
+
+  const showNotification = React.useCallback(
+    (options: {
+      message: string;
+      tone?: TerminalListDetailNotificationTone;
+      durationMs?: number;
+    }) => {
+      setNotification(createTerminalListDetailNotification(options));
+    },
+    [],
+  );
+
+  React.useEffect(() => {
+    if (!notification) {
+      return undefined;
+    }
+
+    const remainingMs = notification.expiresAt - Date.now();
+    if (remainingMs <= 0) {
+      setNotification(null);
+      return undefined;
+    }
+
+    const timeout = setTimeout(() => {
+      setNotification((current) =>
+        current && current.expiresAt === notification.expiresAt && current.message === notification.message
+          ? null
+          : current,
+      );
+    }, remainingMs);
+
+    return () => {
+      clearTimeout(timeout);
+    };
+  }, [notification]);
+
+  return {
+    notification: getActiveTerminalListDetailNotification(notification),
+    showNotification,
+    clearNotification,
+  };
+}
+
 export type TerminalListDetailPresentationMetrics = {
   bodyHeight: number;
   detailWidth: number;
@@ -53,6 +165,7 @@ export type MeasureTerminalListDetailPresentationOptions = {
   hasSubtitle?: boolean;
   transitionStatus?: RouteTransitionStatus | null;
   footerLineCount: number;
+  notification?: TerminalListDetailNotification | null;
   detailLines: DerivedTagTerminalLine[];
   detailScroll: number;
   layoutMode: DerivedTagTerminalTwoPaneLayoutMode;
@@ -63,11 +176,15 @@ export type MeasureTerminalListDetailPresentationOptions = {
 export function measureTerminalListDetailPresentation(
   options: MeasureTerminalListDetailPresentationOptions,
 ): TerminalListDetailPresentationMetrics {
+  const activeNotification = getActiveTerminalListDetailNotification(options.notification);
   const bodyHeight = Math.max(
     1,
     getTerminalPaneBodyHeight(options.terminalHeight, {
       hasSubtitle: options.hasSubtitle ?? true,
-      footerLineCount: options.footerLineCount + getRouteTransitionFooterLineCount(options.transitionStatus),
+      footerLineCount:
+        options.footerLineCount +
+        (activeNotification ? 1 : 0) +
+        getRouteTransitionFooterLineCount(options.transitionStatus),
     }),
   );
   const detailWidth = getTerminalTwoPaneDetailWidth(options.terminalWidth, options.layoutMode, options.leftWidth);
@@ -108,9 +225,14 @@ export function buildTerminalListDetailScreenModel(options: {
   };
   metrics: Pick<TerminalListDetailPresentationMetrics, "visibleDetailLines">;
   footer: DerivedTagTerminalLine[];
+  notification?: TerminalListDetailNotification | null;
   transitionStatus?: RouteTransitionStatus | null;
 }): TerminalListDetailScreenModel {
-  const footer = appendRouteTransitionFooterLine(options.footer, options.transitionStatus);
+  const notificationLine = buildTerminalListDetailNotificationLine(options.notification);
+  const footer = appendRouteTransitionFooterLine(
+    notificationLine ? [...options.footer, notificationLine] : options.footer,
+    options.transitionStatus,
+  );
 
   if (options.layoutMode === "detail-only") {
     return {

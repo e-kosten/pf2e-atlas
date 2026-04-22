@@ -2,6 +2,7 @@ import React from "react";
 
 import {
   measureTerminalListDetailPresentation,
+  useTerminalListDetailNotification,
   useTerminalListDetailInteractionRouter,
 } from "../list-detail-presentation.js";
 import { useDerivedTagTerminalApp, useDerivedTagTerminalSize } from "../framework/context.js";
@@ -86,6 +87,7 @@ function useComposeSelectionState(mode: FilterExplorerComposeMode | null): [
 export function useFilterExplorerController(options: FilterExplorerOptions): FilterExplorerControllerContext {
   const adapters = useTerminalInteractionContextAdapters();
   const terminal = useDerivedTagTerminalApp();
+  const { notification, showNotification } = useTerminalListDetailNotification();
   const composeMode = options.mode.kind === "compose" ? options.mode : null;
   const [draft, updateDraft] = useComposeSelectionState(composeMode);
   const size = useDerivedTagTerminalSize();
@@ -133,6 +135,7 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
     terminalWidth: size.width,
     terminalHeight: size.height,
     footerLineCount: 2,
+    notification,
     transitionStatus: options.transitionStatus,
     detailLines,
     detailScroll: normalizedBrowserState.detailScroll,
@@ -184,9 +187,10 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
         draft,
         updateDraft,
         dispatch,
+        showNotification,
       });
     },
-    [adapters, browserContext, dispatch, draft, options, updateDraft],
+    [adapters, browserContext, dispatch, draft, options, showNotification, updateDraft],
   );
 
   useTerminalListDetailInteractionRouter({
@@ -225,5 +229,6 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
     options,
     browser: browserContext,
     draft,
+    notification,
   });
 }

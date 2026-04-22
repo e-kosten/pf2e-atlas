@@ -1,30 +1,22 @@
 # Search Result Readability Cleanup
 
-Status: proposed  
+Status: done  
 Priority: now  
 Owner: unassigned  
-Last reviewed: 2026-04-21
+Last reviewed: 2026-04-22
 
 ## Problem
 
-Some result and breadcrumb lines are difficult to scan because too much metadata is compressed into one line and the formatting does not create clear visual hierarchy.
-
-The original scratch note captured this with examples like:
-
-- `Browse | Creature | Alphabetical: Blue Dragon (Ancient, Spellcaster) | ...`
-- `Search Semantics > Creature > Metadata Fields > size: grg | ...`
-
-The issue is not that the data is wrong. It is that the current text layout makes long headers and labels hard to parse quickly.
+This item is complete. Shared list/detail presentation owners now format breadcrumbs through one helper and render compact default result rows that keep record identity primary while omitting repeated scope text already carried elsewhere in the screen.
 
 ## Desired Outcome
 
-Tighten result-row and breadcrumb formatting so important information is easier to pick out at a glance.
+That landed outcome is:
 
-That work should:
-
-- improve separation between primary record identity and trailing metadata
-- reduce cramped or awkwardly wrapped list labels
-- keep breadcrumbs readable when deep navigation paths and result metadata collide
+- primary record identity leads the shared default result row
+- repeated category or subcategory scope no longer gets restated in result rows when the screen subtitle already carries it
+- breadcrumbs route through one shared formatter instead of per-screen joins
+- shared ontology/search labels replace raw metadata ids and raw field-type wording in the affected list/detail surfaces
 
 ## Constraints
 
@@ -34,7 +26,7 @@ That work should:
 
 ## Notes
 
-This item is about readability and hierarchy, not about changing the underlying sort or result semantics.
+This item was about readability and hierarchy, not about changing the underlying sort or result semantics.
 
 ## Related
 

@@ -23,12 +23,6 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Ontology browser naming friendliness](./items/ontology-browser-naming-friendliness.md)
   Replace machine-shaped explorer labels such as `EnumString` and `derivedTags` with natural wording and casing suited to the TUI. Status: proposed.
 
-- [Search result readability cleanup](./items/search-result-readability-cleanup.md)
-  Tighten list and breadcrumb formatting where long record headers and metadata-heavy result labels are difficult to scan. Status: proposed.
-
-- [Right-navigation feedback](./items/right-navigation-feedback.md)
-  When rightward navigation cannot drill deeper, show a small transient message instead of silently behaving like a layout or focus toggle. Status: proposed.
-
 - [Remove isUnique metadata](./items/remove-isunique-metadata.md)
   Stop exposing `isUnique` as standalone metadata where it only duplicates rarity semantics. Status: proposed.
 
@@ -51,6 +45,9 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 - [Filter shape convergence](./items/filter-shape-convergence.md)
   Bring MCP and TUI filter modeling back into alignment, especially around rarity and level no longer being treated as special cases. Status: proposed.
+
+- [Shared result grouping and presentation modes](./items/shared-result-grouping-and-presentation-modes.md)
+  Explore shared grouping keys and user-cyclable presentation modes for list/detail search and explorer surfaces without regressing back into per-screen experiments. Status: proposed.
 
 ## Later
 

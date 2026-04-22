@@ -569,7 +569,7 @@ describe("createPf2eTerminalSearchService", () => {
                 {
                   id: "spell:field:derivedTags",
                   kind: "field",
-                  label: "derivedTags",
+                  label: "Derived Tags",
                   filterText: "derived tags",
                   detailTitle: "Derived Tags",
                   detailLines: [{ text: "Derived Tags" }],
@@ -629,11 +629,11 @@ describe("createPf2eTerminalSearchService", () => {
                 {
                   id: "spell:field:derivedTags",
                   kind: "field",
-                  label: "derivedTags",
+                  label: "Derived Tags",
                   filterText: "derived tags",
-                  listLabel: "derivedTags",
+                  listLabel: "Derived Tags",
                   detailTitle: "Metadata Field Details",
-                  detailLines: [{ text: "derivedTags", tone: "section" }],
+                  detailLines: [{ text: "Derived Tags", tone: "section" }],
                   childPresentation: {
                     mode: "grouped",
                     groupBy: "axis",

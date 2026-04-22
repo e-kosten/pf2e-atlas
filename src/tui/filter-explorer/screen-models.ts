@@ -4,6 +4,7 @@ import {
   formatTerminalInteractionFooter,
   type TerminalInteractionAction,
 } from "../interaction-bindings.js";
+import { formatOntologySearchVocabularyLabel } from "../../domain/presentation-vocabulary.js";
 import type {
   DerivedTagTerminalCommandOption,
   DerivedTagTerminalLine,
@@ -159,7 +160,8 @@ function buildSelectionEntrySegments(
   field: string,
   selection: FilterExplorerControllerContext["selection"][string],
 ): DerivedTagTerminalSegment[] {
-  const segments: DerivedTagTerminalSegment[] = [{ text: `${field}: ` }];
+  const fieldLabel = formatOntologySearchVocabularyLabel(field);
+  const segments: DerivedTagTerminalSegment[] = [{ text: `${fieldLabel}: ` }];
   let first = true;
 
   for (const state of ["any", "all", "exclude"] as const) {
@@ -203,8 +205,9 @@ function buildFilterExplorerScalarClauseSummary(clause: FilterExplorerScalarClau
 }
 
 function buildScalarClauseEntrySegments(label: string, clause: FilterExplorerScalarClause): DerivedTagTerminalSegment[] {
+  const summaryLabel = formatOntologySearchVocabularyLabel(label);
   return [
-    { text: `${label}: ` },
+    { text: `${summaryLabel}: ` },
     { text: buildFilterExplorerScalarClauseSummary(clause), tone: "accent" },
   ];
 }
@@ -270,15 +273,17 @@ export function buildFilterExplorerComposeDetailLines(args: {
   }
 
   for (const [field, fieldSelection] of selectionEntries) {
+    const fieldLabel = formatOntologySearchVocabularyLabel(field);
     lines.push({
-      text: `${field}: any=${fieldSelection.any.join(", ")}`,
+      text: `${fieldLabel}: any=${fieldSelection.any.join(", ")}`,
       segments: buildSelectionEntrySegments(field, fieldSelection),
     });
   }
 
   for (const [key, clause] of scalarEntries) {
+    const clauseLabel = formatOntologySearchVocabularyLabel(key);
     lines.push({
-      text: `${key}: ${buildFilterExplorerScalarClauseSummary(clause)}`,
+      text: `${clauseLabel}: ${buildFilterExplorerScalarClauseSummary(clause)}`,
       segments: buildScalarClauseEntrySegments(key, clause),
     });
   }
@@ -573,6 +578,7 @@ export function buildFilterExplorerScreenModel(
         tone: "accent",
       },
     ],
+    notification: controller.notification,
     transitionStatus: controller.transitionStatus,
   });
 }

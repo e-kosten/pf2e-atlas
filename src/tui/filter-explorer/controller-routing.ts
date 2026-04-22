@@ -1,5 +1,6 @@
 import type { TerminalInteractionContextAdapters } from "../interaction-context-adapters.js";
 import type { TerminalInteractionAction } from "../interaction-bindings.js";
+import type { TerminalListDetailNotificationTone } from "../list-detail-presentation.js";
 import { getFilterExplorerScalarClause, getFilterExplorerTargetState } from "./compose-state.js";
 import {
   buildFilterExplorerInspectResult,
@@ -35,6 +36,7 @@ export function buildFilterExplorerControllerContext(args: {
   options: FilterExplorerOptions;
   browser: FilterExplorerBrowserContext;
   draft: FilterExplorerComposeDraft;
+  notification?: FilterExplorerControllerContext["notification"];
 }): FilterExplorerControllerContext {
   const composeMode = args.options.mode.kind === "compose" ? args.options.mode : null;
   const currentNode = args.browser.currentNode;
@@ -54,6 +56,7 @@ export function buildFilterExplorerControllerContext(args: {
       args.options.mode.kind === "inspect-and-open"
         ? buildFilterExplorerInspectResult(args.options.mode, currentNode)
         : undefined,
+    notification: args.notification,
     transitionStatus: args.options.transitionStatus,
   };
 }
@@ -159,8 +162,9 @@ export function handleFilterExplorerInteractionRoute(args: {
   draft: FilterExplorerComposeDraft;
   updateDraft: (updater: (current: FilterExplorerComposeDraft) => FilterExplorerComposeDraft) => void;
   dispatch: (action: FilterExplorerAction) => void;
+  showNotification: (options: { message: string; tone?: TerminalListDetailNotificationTone }) => void;
 }): void {
-  const { adapters, browserContext, dispatch, draft, options, route, updateDraft } = args;
+  const { adapters, browserContext, dispatch, draft, options, route, showNotification, updateDraft } = args;
   const {
     detailNavigationAction,
     event,
@@ -267,7 +271,10 @@ export function handleFilterExplorerInteractionRoute(args: {
     if (browserContext.currentNodeHasChildren) {
       dispatch({ type: "drill_in" });
     } else {
-      dispatch({ type: "toggle_focus" });
+      showNotification({
+        message: "No deeper explorer level is available for the focused entry.",
+        tone: "warning",
+      });
     }
     return;
   }

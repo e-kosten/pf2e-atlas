@@ -5,6 +5,10 @@ import type { Pf2eDataService } from "../../data/service.js";
 import type { SearchSemanticsBootstrapSummaryResult, SearchVocabularyResult } from "../../data/vocabulary.js";
 import type { AppConfig } from "../../domain/config-types.js";
 import type { OntologyDomainModel, OntologyNode } from "../../domain/ontology-types.js";
+import {
+  formatMetadataFieldLabel,
+  formatMetadataFieldTypeLabel,
+} from "../../domain/presentation-vocabulary.js";
 import type { DerivedTagCatalogEntry, DerivedTagCatalogTag } from "../../domain/record-types.js";
 import type { SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
 import { normalizeText } from "../../shared/utils.js";
@@ -258,27 +262,31 @@ export function buildSearchSemanticsDomain(
     const idPrefix = subcategory ? `${category}:${subcategory}` : category;
     return getCategoryScopedFields(category, subcategory).map((field): OntologyNode => {
       const fieldSemantics = metadataFieldsByName.get(field)!;
+      const fieldLabel = formatMetadataFieldLabel(field);
+      const fieldTypeLabel = formatMetadataFieldTypeLabel(fieldSemantics.fieldType);
       const derivedTagChildren =
         field === "derivedTags" ? buildDerivedTagFamilyNodes(category, subcategory, `${idPrefix}:field:${field}`) : null;
       return {
         id: `${idPrefix}:field:${field}`,
         kind: "field",
-        label: field,
+        label: fieldLabel,
         filterText: buildFilterText(
           category,
           subcategory ?? "",
           field,
+          fieldLabel,
+          fieldTypeLabel,
           fieldSemantics.fieldType,
           fieldSemantics.notes ?? "",
           ...(fieldSemantics.subcategories ?? []),
         ),
-        listLabel: field,
+        listLabel: fieldLabel,
         detailTitle: "Metadata Field Details",
         detailLines: [
-          { text: field, tone: "section" },
+          { text: fieldLabel, tone: "section" },
           { text: `Category: ${category}` },
           { text: `Subcategory: ${subcategory ?? "(all)"}` },
-          { text: `Field type: ${fieldSemantics.fieldType}` },
+          { text: `Field type: ${fieldTypeLabel}` },
           { text: `Discoverable: ${fieldSemantics.discoverable ? "yes" : "no"}` },
           { text: `Subcategory scope: ${fieldSemantics.subcategories?.join(", ") ?? "(all subcategories)"}` },
           { text: `Notes: ${fieldSemantics.notes ?? "(none)"}` },
@@ -298,7 +306,7 @@ export function buildSearchSemanticsDomain(
             : []),
         ],
         groupValues: {
-          fieldType: fieldSemantics.fieldType,
+          fieldType: fieldTypeLabel,
         },
         ...(field === "derivedTags" && derivedTagChildren && derivedTagChildren.length > 0
           ? {

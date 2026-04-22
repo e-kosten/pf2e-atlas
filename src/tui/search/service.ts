@@ -3,6 +3,10 @@ import {
 } from "../../domain/categories.js";
 import { getMetadataFilterSemantics, type MetadataFieldSemantics } from "../../search/filters/semantics.js";
 import type { MetadataFieldName } from "../../domain/metadata-field-types.js";
+import {
+  describeMetadataFieldType,
+  formatMetadataFieldLabel,
+} from "../../domain/presentation-vocabulary.js";
 import type {
   SearchCategory,
   SearchSubcategory,
@@ -42,7 +46,6 @@ import {
   formatCategoryLabel,
   formatSubcategoryLabel,
   getDefaultSort,
-  humanizeIdentifier,
 } from "./service-options.js";
 import type {
   Pf2eTerminalFacetField,
@@ -162,8 +165,8 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
 
       return candidateFields.map((field) => ({
         value: field.field,
-        label: humanizeIdentifier(field.field),
-        description: field.notes ?? `${field.fieldType} facet for the current browse scope.`,
+        label: formatMetadataFieldLabel(field.field),
+        description: field.notes ?? `${describeMetadataFieldType(field.fieldType)} facet for the current browse scope.`,
         fieldType: field.fieldType,
       }));
     },

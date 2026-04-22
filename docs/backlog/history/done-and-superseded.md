@@ -36,6 +36,12 @@ Use the live [backlog](../backlog.md) for active future work. Keep this file for
 - [Derived-tag ontology future shape](../items/derived-tag-ontology-future-shape.md)
   The durable documentation-preservation goal is now complete; active implementation follow-through is tracked separately under the derived-tag concept-model implementation backlog item. Status: done.
 
+- [Right-navigation feedback](../items/right-navigation-feedback.md)
+  Failed drill intent on the shared filter explorer now routes through a shared transient footer notification instead of falling through to pane-focus behavior. Status: done.
+
+- [Search result readability cleanup](../items/search-result-readability-cleanup.md)
+  Shared breadcrumb formatting and compact default result rows are now part of the shared list/detail presentation path instead of per-screen string assembly. Status: done.
+
 - `Concern-specific tag facades`
   The runtime, editorial, and editorial-UI facades now match the intended concern split instead of acting like a mixed catch-all surface. Status: done.
 

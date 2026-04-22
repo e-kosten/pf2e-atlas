@@ -4,16 +4,11 @@ import type { SearchScreenOrigin } from "./workflow-types.js";
 import { formatResultPosition, formatSort, getSessionBufferRange } from "./state.js";
 import type { Pf2eTerminalSearchSession } from "../search/service.js";
 import { clampWindowStart } from "../list-utils.js";
+import { buildSearchResultRowLine } from "../list-detail-formatting.js";
 import { buildOntologyExplorerEntityDetailLines } from "../../app/ontology/presenter.js";
 import { mapNormalizedRecordToOntologyExplorerEntityRecord } from "../../app/ontology/entity-record.js";
 
 export type SearchResultCommandId = "jumpToResult" | "sortResults" | "openEditor";
-
-function buildSearchResultLabel(record: Pf2eTerminalSearchSession["results"][number]): string {
-  const scope = record.subcategory ? `${record.category}/${record.subcategory}` : record.category;
-  const level = record.level === null ? "-" : String(record.level);
-  return `${record.name} | ${scope} | lvl ${level} | ${record.packLabel}`;
-}
 
 export function parseJumpToResultInput(input: string, total: number): number | string {
   const normalized = input.replace(/[,_\s]+/g, "");
@@ -54,16 +49,14 @@ export function buildResultLines(
 
   const lines: DerivedTagTerminalLine[] = session.results
     .slice(windowStart, windowStart + resultWindowCount)
-    .map((record, offset) => ({
-      text: buildSearchResultLabel(record),
-      tone:
-        localSelectedIndex >= 0 &&
-        localSelectedIndex < session.results.length &&
-        windowStart + offset === localSelectedIndex
-          ? "selected"
-          : "default",
-      noWrap: true,
-    }));
+    .map((record, offset) =>
+      buildSearchResultRowLine(record, {
+        selected:
+          localSelectedIndex >= 0 &&
+          localSelectedIndex < session.results.length &&
+          windowStart + offset === localSelectedIndex,
+      }),
+    );
 
   if (loadingMore) {
     lines.push({ text: `Loading around ${formatResultPosition(selectedIndex, session.total)}...`, tone: "accent" });
