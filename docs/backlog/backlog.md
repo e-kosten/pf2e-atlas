@@ -40,9 +40,6 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Derived-tag concept model implementation](./items/derived-tag-concept-model-implementation.md)
   Move the preserved canonical concept/projection design out of scratch planning and into tracked `src/tags/` ownership, including source-of-truth schema, projection metadata, and canonical concept relations. Status: proposed.
 
-- [Structured query summary model](./items/structured-query-summary-model.md)
-  Build the missing intermediate summary/document layer for the live search workspace now that canonical `query.filters.parts` ownership is already landed. Status: proposed.
-
 - [Search semantics explorer completeness](./items/search-semantics-explorer-completeness.md)
   Most explorer depth is already landed; the remaining gap is richer numeric metric corpus exploration without breaking the current ontology/search ownership split. Status: proposed.
 

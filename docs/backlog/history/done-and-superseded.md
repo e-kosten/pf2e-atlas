@@ -24,6 +24,9 @@ Use the live [backlog](../backlog.md) for active future work. Keep this file for
 - [Search filter explorer API simplification](../items/search-filter-explorer-api-simplification.md)
   The TUI search service now exposes one canonical filter-explorer preparation seam instead of overlapping draft-only and prepared-draft helper pairs. Status: done.
 
+- [Structured query summary model](../items/structured-query-summary-model.md)
+  The live search workspace now derives one summary/document model from canonical query state and reuses it across workspace rows, staged summaries, and query-status detail rendering. Status: done.
+
 - [Search screen interaction follow-through](../items/search-screen-interaction-follow-through.md)
   The typed search-screen interaction seam, shared help/footer derivation, and unavailable-command palette behavior are now landed in the split search-screen architecture. Status: done.
 

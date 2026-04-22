@@ -155,6 +155,19 @@ Use this layer when a screen is fundamentally a list/detail surface with shared 
 
 This keeps query editing and result reading logic in the TUI while leaving search execution in shared backend services.
 
+Within the search screen, the live workspace no longer renders structured rows directly from raw query state. The search-screen workspace derives a summary/document model from the canonical query state first, then renders:
+
+- workspace rows
+- staged structured-query summaries
+- query-status/detail summaries
+
+That summary layer owns stable anchors for major query parts and metadata nodes. The durable rule is:
+
+- `query.filters.parts` stays the canonical structured-query state
+- query-state helpers own normalization and interpretation
+- the workspace summary/document model owns editor-facing identity and display structure
+- terminal renderers consume that summary model instead of re-deriving structured meaning from raw query state in each pane
+
 ### Ontology Explorer Layer
 
 `src/tui/ontology-explorer/` still owns ontology-specific hosting concerns, but the durable browse surface is now the shared filter explorer in inspect mode rather than a separate ontology-only screen.
