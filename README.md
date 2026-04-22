@@ -48,6 +48,14 @@ npm run mcp
 
 For deeper local developer and editorial tooling, use the script surfaces under [`scripts/`](./scripts/package.json) and [`src/tags/cli/`](./src/tags/cli/package.json). See [CONTRIBUTING.md](./CONTRIBUTING.md) for the command layout.
 
+## Contact
+
+For questions about this project, use the [GitHub issue tracker](https://github.com/ekosten/pathfinder-2e-foundry-mcp/issues).
+
+## Paizo Community Use Notice
+
+Pathfinder 2E Foundry MCP uses trademarks and/or copyrights owned by Paizo Inc., used under Paizo's Community Use Policy (paizo.com/licenses/communityuse). We are expressly prohibited from charging you to use or access this content. Pathfinder 2E Foundry MCP is not published, endorsed, or specifically approved by Paizo. For more information about Paizo Inc. and Paizo products, visit paizo.com.
+
 ## Data And Index
 
 The application reads PF2E data from `vendor/pf2e` by default and builds a local SQLite index for querying, exploration, and editorial work.
