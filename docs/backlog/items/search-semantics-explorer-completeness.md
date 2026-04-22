@@ -7,107 +7,70 @@ Last reviewed: 2026-04-21
 
 ## Problem
 
-A remaining dirty worktree, `feat/search-semantics-completeness-track1`, contains a substantial feature direction for the ontology/search-semantics explorer but an implementation that no longer matches the current architecture.
+Most of the broader search-semantics explorer depth that this item originally preserved is now landed on `main`.
 
-That scratch work concentrated a large feature expansion in:
+Scoped browsing, live field/value exploration, record-backed leaves, and actor/item metric discovery are all already present in the current ontology builder architecture.
 
-- `src/app/ontology-service.ts`
+The remaining open gap is narrower:
 
-The core product idea is still valuable: the search-semantics explorer should be a richer live exploration surface over the real corpus, not a comparatively thin static browse tree.
-
-However, the current patch is not suitable for direct merge because:
-
-- `main` has since reduced `src/app/ontology-service.ts` to a thin facade and moved actual domain assembly into `src/app/ontology/search-semantics-domain.ts`
-- the worktree directly opens SQLite with `DatabaseSync` inside `ontology-service`, which does not match the current documented boundary for search-semantics loading and app-layer ownership
+- numeric metric keys still fall back to inspect/query-style exploration instead of offering richer live corpus value exploration
+- the live value-listing path still supports text and boolean metric values but not numeric metric value exploration
+- the backlog item still describes this as a broad explorer-completeness problem instead of the specific remaining follow-through
 
 ## Desired Outcome
 
-Extend the search-semantics explorer so it better supports real exploration of the indexed corpus from one coherent live surface.
+Finish the remaining numeric-metric exploration follow-through inside the existing ontology/search architecture.
 
 That future implementation should aim to provide:
 
-- richer scoped browsing by category and subcategory
-- deeper field/value inspection with better detail lines and context
-- live record-backed exploration from concrete leaves, not just abstract taxonomy browsing
-- actor/item metric exploration that helps users understand what metrics exist, how they vary, and where they apply
-- better continuity between:
-  - search-semantics browsing
-  - understanding the live corpus
-  - launching real result/query flows from explored nodes
+- a richer live-corpus exploration path for numeric metric keys
+- meaningful inspection or bucket/range-oriented exploration for numeric metric spaces
+- continuity between numeric metric discovery, query seeding, and result launching
+- no regression of the already-landed scoped browsing, live record leaves, and metric discovery behaviors
 
 ## Constraints
 
-- Do not restore the old monolithic `src/app/ontology-service.ts` ownership model. Keep `ontology-service` as the facade and implement real behavior in the current `src/app/ontology/` owners.
-- Do not open SQLite directly from `src/app/ontology-service.ts` or equivalent app-layer feature logic unless the architecture is explicitly revised to permit it.
+- Keep `ontology-service` as the facade and implement behavior in the current `src/app/ontology/` owners.
+- Do not open SQLite directly from `src/app/ontology-service.ts` or equivalent feature-local app code unless the architecture is explicitly revised.
 - Keep search-semantics loading on shared facades and documented storage/data boundaries.
-- Preserve the accepted direction that search semantics should remain a live exploration surface connected to the real corpus, not drift back toward example-only or sample-only nodes.
-- Keep returned ontology models readonly and avoid coupling UI-specific mutable state to shared ontology node objects.
+- Preserve the already-landed readonly ontology model and live record-backed explorer behaviors.
+- Do not reopen already-landed explorer depth as if it were still missing.
 
 ## Notes
 
-### Source context
+### Current Status
 
-This item preserves the useful feature intent from the dirty worktree `feat/search-semantics-completeness-track1`.
+The older `feat/search-semantics-completeness-track1` worktree preserved a useful product direction, but most of that direction has since landed through the current split ownership model.
 
-The worktree appears to have been trying to add all of the following:
+Current `main` already provides:
 
 - scoped search-semantics nodes keyed by category/subcategory combinations
-- richer value inspection and scope-aware detail copy
-- live record-node loading for explored metadata/value nodes
-- actor metric and item metric grouping, key browsing, and value browsing
-- more complete “inspect what this means in the live corpus” flows from ontology/search-semantics nodes
+- live record-backed exploration from metadata/value nodes
+- actor metric and item metric grouping, namespace browsing, key browsing, and query launch
+- shared inspect/open behavior that routes explored leaves into real search/result flows
 
-### Why the idea matters
+### Remaining Gap
 
-This is aligned with the accepted architectural direction that search semantics, ontology inspection, and query entry should converge on one shared live exploration surface.
-
-The product value is:
-
-- users can understand the real searchable space more directly
-- users can move from abstract search semantics to concrete live records more easily
-- metric-heavy or field-heavy areas become explorable instead of opaque
-- ontology/search-semantics browsing becomes more useful as a learning and query-seeding tool
-
-### Why the current implementation should not be merged as-is
-
-- It targets the older monolithic `src/app/ontology-service.ts` rather than the current split ownership under `src/app/ontology/`.
-- It directly opens SQLite via `DatabaseSync`, which conflicts with the current boundaries around search-semantics loading and app/storage ownership.
-- It would need to be re-expressed through the current ontology builder/facade structure rather than replayed as a literal patch.
+The main remaining gap is numeric metric value exploration. Numeric metric keys can already seed queries and route into the shared scalar editor path, but they do not yet expose richer live corpus value-space exploration comparable to the current text/boolean metric value-listing behavior.
 
 ### Implementation intent
 
-A future implementation should start from the current architecture:
+A future implementation should:
 
-1. keep `createPf2eApplicationOntologyService()` as the facade in `src/app/ontology-service.ts`
-2. extend the current search-semantics domain builders under `src/app/ontology/`
-3. route any needed live corpus or metric access through the appropriate shared data/storage boundary instead of direct feature-local DB opening
-4. expose richer explorer nodes, value nodes, and record-backed detail through the existing readonly ontology model surface
-
-The goal is to preserve the feature ambition while fitting the current owner split.
-
-### Comparison to current `main`
-
-Current `main` has the right structural ownership but a thinner explorer implementation.
-
-The deferred work from this item would make the explorer:
-
-- more corpus-aware
-- more scope-aware
-- more complete around metrics and value inspection
-- better at connecting abstract search semantics to concrete record exploration
-
-So the gap is not “missing architecture.” The gap is “missing feature depth inside the current architecture.”
+1. extend the current search-semantics helpers and domain builders under `src/app/ontology/`
+2. reuse the existing shared data/storage boundaries rather than introducing feature-local DB access
+3. decide how numeric metric spaces should be explored meaningfully without pretending they are enumerable text-value lists
+4. preserve the current inspect/open and route-preparation behavior while adding richer numeric metric exploration
 
 ### Suggested validation checks for a future implementation
 
-- verify that concrete search-semantics leaves can launch or inspect real result sets where appropriate
-- verify that metric/value exploration works across category/subcategory scopes without breaking readonly ontology model assumptions
-- verify that new explorer depth does not regress initial ontology route readiness or turn route entry back into post-mount loading drift
-- add tests around the new search-semantics domain builders rather than only around final UI behavior
+- verify that numeric metric exploration works across category/subcategory scopes without breaking readonly ontology model assumptions
+- verify that concrete metric leaves still launch or inspect real result sets where appropriate
+- verify that new metric exploration does not regress initial ontology route readiness or turn route entry back into post-mount loading drift
+- add tests around the new search-semantics domain builders and value-exploration behavior rather than only final UI behavior
 
 ## Related
 
-- [Actor metrics search orchestration](./actor-metrics-search-orchestration.md)
 - [Structured query summary model](./structured-query-summary-model.md)
 - [Search screen interaction follow-through](./search-screen-interaction-follow-through.md)
 - [TUI architecture](../../architecture/tui.md)

@@ -1,23 +1,27 @@
 # Actor Metrics Search Orchestration
 
-Status: proposed  
+Status: done  
 Priority: soon  
 Owner: unassigned  
-Last reviewed: 2026-04-20
+Last reviewed: 2026-04-21
 
 ## Problem
 
-Actor metrics appear correctly in the search-semantics explorer, but the executable search path does not yet support turning those selections into real queries in a trustworthy way.
+This item is complete. It remains here as durable context for the metric-query path that is now implemented across the shared search runtime, MCP surface, and TUI compose flows.
 
 ## Desired Outcome
 
-Users should be able to select actor metrics in the search UI and have those constraints flow cleanly into real search execution, with labels and operators that remain understandable in both the explorer and the resulting query model.
+That outcome is now landed:
+
+- shared search filters support actor/item metric predicates and compare predicates
+- MCP search semantics exposes those predicates and discovery paths
+- TUI inspect/compose flows can turn metric selections into executable search metadata
+- integration and UI tests cover the end-to-end behavior
 
 ## Constraints
 
-- Keep MCP and TUI filter semantics aligned.
-- Avoid special-case query paths that bypass the shared search/filter pipeline.
-- Treat this as executable search behavior, not only explorer labeling.
+- Keep any future metric-search follow-up on the shared search/filter pipeline.
+- Do not reintroduce a gap between MCP and TUI metric-query semantics.
 
 ## Related
 

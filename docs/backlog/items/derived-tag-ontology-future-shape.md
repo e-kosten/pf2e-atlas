@@ -1,26 +1,28 @@
 # Derived-Tag Ontology Future Shape
 
-Status: proposed  
+Status: done  
 Priority: soon  
 Owner: unassigned  
 Last reviewed: 2026-04-21
 
 ## Problem
 
-The derived-tag ontology review has produced a large amount of valuable design work in `scratch/plans/`, but the current repo backlog does not yet contain one durable tracked item that explains:
+This item is complete as a documentation-preservation task.
+
+It now provides one durable tracked place that explains:
 
 - the agreed long-term canonical model
 - the major decisions already locked in
 - the remaining ontology areas that still need focused review
 - how this work relates to later implementation of assignments, schema changes, and TUI/editorial behavior
 
-Without a tracked backlog item, the work is easy to lose across long gaps between review sessions, especially because the scratch artifacts are intentionally temporary working plans rather than the main long-term reminder surface.
+That preservation work matters because the scratch artifacts are intentionally temporary working plans rather than the main long-term reminder surface.
 
 ## Desired Outcome
 
-Preserve one durable backlog item for the derived-tag ontology future-state work so later sessions can resume from a clear state instead of reconstructing weeks of decisions from chat history.
+That outcome is now landed. Later sessions can resume from a durable tracked record instead of reconstructing the ontology work from chat history alone.
 
-That durable item should capture:
+This item now captures:
 
 - the current preferred canonical concept model
 - the key resolved naming and modeling decisions already reflected in the scratch mapping
@@ -118,6 +120,8 @@ The immediate pending review questions for those families are tracked separately
 
 ### Likely Future Implementation Work
 
+The actual implementation follow-through is now tracked separately in [Derived-tag concept model implementation](./derived-tag-concept-model-implementation.md).
+
 When this backlog item is picked up for implementation rather than continued ontology review, the expected work will likely include:
 
 1. deciding the real source-of-truth schema for canonical concepts and category projections
@@ -128,6 +132,7 @@ When this backlog item is picked up for implementation rather than continued ont
 
 ## Related
 
+- [Derived-tag concept model implementation](./derived-tag-concept-model-implementation.md)
 - [Derived-tag ontology next review questions](./derived-tag-ontology-next-review-questions.md)
 - [Derived-tag assignments layout](./derived-tag-assignments-layout.md)
 - [Derived tag manifest tooling metadata](./derived-tag-manifest-tooling-metadata.md)

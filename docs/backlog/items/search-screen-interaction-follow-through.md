@@ -1,23 +1,25 @@
 # Search Screen Interaction Follow-Through
 
-Status: proposed  
+Status: done  
 Priority: now  
 Owner: unassigned  
 Last reviewed: 2026-04-21
 
 ## Problem
 
-A now-dropped dirty worktree, `feat/search-final-state-completion`, contained a meaningful search-screen cleanup direction but an obsolete implementation. That scratch work targeted the old top-level files:
+This item is complete. It remains here as durable context for the search-screen interaction cleanup that landed in the split `src/tui/search-screen/` module tree.
+
+The original note preserved useful direction from the dropped `feat/search-final-state-completion` scratch work, which had targeted the old top-level files:
 
 - `src/tui/search-screen-controller.ts`
 - `src/tui/search-screen-interactions.ts`
 - `src/tui/search-screen-workspace.ts`
 
-The current codebase has since moved the search screen into the split `src/tui/search-screen/` module tree, and parts of the same direction have already landed there. The old patch is therefore not mergeable as a literal diff, but it still captures a few product and architecture decisions that should not be forgotten.
+That patch is no longer mergeable as a literal diff, but the architecture and product behaviors it described are now present on `main`.
 
 ## Desired Outcome
 
-Finish the remaining useful search-screen interaction cleanup in the current module layout:
+That outcome is now landed:
 
 - keep search-screen input routing on a typed shared interaction seam rather than controller-local raw event handling
 - keep help titles, footer bindings, and action availability derived from the same interaction model that executes intents
@@ -50,16 +52,9 @@ Useful ideas retained from that scratch state:
 - `main` already has a `useSearchScreenInteractionRouter` seam and related interaction helpers, so part of the old work is already superseded.
 - The old diff overlapped with newer structural work and would have required manual reinterpretation rather than a normal merge.
 
-### Implementation starting points
+### Validation focus
 
-Start from the current files, not the dropped patch:
-
-- `src/tui/search-screen/controller.ts`
-- `src/tui/search-screen/interactions.ts`
-- `src/tui/search-screen/workspace/`
-- `tests/tui/search-screen.test.tsx`
-
-Concrete checks for a future implementation:
+Future regressions should be checked against:
 
 - verify that search-screen controller code does not drift back toward direct terminal-event branching
 - verify that help/footer/action tables stay generated from one interaction model

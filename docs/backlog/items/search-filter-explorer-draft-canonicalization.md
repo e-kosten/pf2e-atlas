@@ -17,28 +17,24 @@ That scratch work mixed together several concerns, some of which have already la
 - ontology presenter and explorer-cache ownership moved under `src/app/ontology/`
 - old TUI-local ontology wrapper files were removed
 
-The remaining useful part of the worktree is narrower:
+The useful part of that worktree is now fully landed:
 
 - `query.filters.parts` should stay the canonical TUI structured-query representation
 - TUI search state should not keep parallel compatibility fields for subcategory, level range, rarity, action cost, and metadata when those values can be derived from query parts
 - filter-explorer compose state should converge on one durable draft shape instead of carrying side-channel compatibility fields such as `structuredMetadata`
 - workflow/session ownership should carry exploration scope such as `scopedFields`, rather than baking that scope into the draft object itself
 
-Current `main` is partway there, but still carries compatibility layers such as `Pf2eTerminalFilterExplorerDraft` and search/filter-explorer seams that split ownership between canonical compose state and search-specific compatibility fields.
-
 ## Desired Outcome
 
-Finish the state-shape cleanup between TUI search query state and filter-explorer compose state so the durable owners are clear.
+This outcome is now landed.
 
-That future implementation should aim for:
+The landed cleanup provides:
 
 - `query.filters.parts` as the sole canonical TUI structured-query representation
 - one canonical filter-explorer compose draft shape
 - metadata owned directly by the compose draft when compose mode needs it
 - workflow/session-level ownership of scope such as `scopedFields`
 - no extra compatibility-only draft fields that exist only to bridge older search-screen shapes
-
-The goal is not just type cleanup. The goal is to reduce duplicated state ownership so future rendering and editor work can build on one stable model.
 
 ## Constraints
 
@@ -61,11 +57,9 @@ The scratch patch suggested all of the following:
 - passing `scopedFields` through workflow/session ownership instead of embedding it in the draft shape
 - trimming search/filter-explorer seams that still reflected an older compatibility-oriented model
 
-### Why the idea matters
+### Why the cleanup mattered
 
-This cleanup is foundational rather than user-visible on its own.
-
-It matters because it reduces the number of places where the TUI has to keep equivalent state in sync:
+This cleanup mattered because it reduced the number of places where the TUI had to keep equivalent state in sync:
 
 - query-state interpretation becomes simpler
 - filter-explorer compose mode becomes easier to reason about
@@ -74,31 +68,11 @@ It matters because it reduces the number of places where the TUI has to keep equ
 
 This is especially relevant to future work on richer structured-query rendering and document-style search editing.
 
-### Why the current implementation should not be merged as-is
+### Validation that landed with the cleanup
 
-- The dirty patch targets several older paths that no longer exist on `main`, especially older search-screen module locations.
-- Parts of the cleanup direction have already landed through different commits, so the patch is partly obsolete.
-- One part of the scratch work is stale in the wrong direction: its `refresh-index` import move no longer matches the current storage-owner split on `main`.
-
-So the remaining value is in the ownership direction, not in the literal diff.
-
-### Implementation intent
-
-A future implementation should likely proceed in small, explicit steps:
-
-1. identify which remaining TUI search/filter-explorer types are true owners versus compatibility wrappers
-2. remove parallel compatibility fields where the same value can be derived from query parts
-3. converge compose-mode draft state on one canonical shape
-4. move scope-bearing fields such as `scopedFields` onto workflow/session objects where they belong
-5. tighten tests around canonical query-state and draft behavior after each reduction
-
-Candidate starting points in the current tree:
-
-- `src/tui/search/query-state.ts`
-- `src/tui/search/service-types.ts`
-- `src/tui/filter-explorer/search-draft.ts`
-- `src/tui/search-screen/filter-explorer-workflow.ts`
-- `src/tui/search-screen/filter-explorer-screen.tsx`
+- canonical query-state behavior is covered by focused TUI search tests
+- filter-explorer draft/query round-tripping is covered by search-service tests
+- the shared TUI search/filter-explorer seams now reflect current durable ownership instead of transitional state bridging
 
 ### Relationship to other backlog items
 
@@ -107,14 +81,7 @@ This is related to, but distinct from, [Structured query summary model](./struct
 - this item is about canonical state ownership and draft shape
 - the structured-query summary item is about introducing a richer intermediate summary/document model for rendering and stable section identity
 
-In practice, this cleanup likely makes that later summary-model work easier and less error-prone.
-
-### Suggested validation checks for a future implementation
-
-- verify that TUI search behavior still round-trips correctly through `query.filters.parts`
-- verify that filter-explorer compose state can represent metadata and scalar clauses without side-channel compatibility fields
-- verify that scope-bearing data such as `scopedFields` is available where workflows need it without bloating the draft shape
-- add focused tests around canonical state transforms rather than relying only on broad end-to-end screen tests
+In practice, the landed cleanup makes that later summary-model work easier and less error-prone.
 
 ## Related
 

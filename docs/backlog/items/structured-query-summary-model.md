@@ -7,24 +7,24 @@ Last reviewed: 2026-04-21
 
 ## Problem
 
-A remaining dirty worktree, `feat/search-structured-staging-worker-d`, contains a useful design direction for the search editor but an obsolete implementation path.
+A remaining dirty worktree, `feat/search-structured-staging-worker-d`, preserved a useful design direction for the search editor but an obsolete implementation path.
 
 That scratch work targeted:
 
 - `src/tui/search-screen-workspace.ts`
 - `src/tui/search-service.ts`
 
-The current codebase has since moved the workspace code into the split `src/tui/search-screen/workspace/` tree, so the patch is not directly mergeable. However, it captures an important idea that the current implementation on `main` does not model explicitly enough:
+The current codebase has since moved the workspace code into the split `src/tui/search-screen/workspace/` tree, so the patch is not directly mergeable. The important idea that still remains open on `main` is:
 
 - the structured search query should be representable as a first-class summarized document/model, not only as ad hoc visible workspace rows derived directly from current query state
 
 Today, `main` builds search editor rows more directly from query state and metadata flattening in `src/tui/search-screen/workspace/workspace.ts`. That is workable for the current editor, but it makes future rendering, stable targeting, and alternate presentations harder than they need to be.
 
-Related cleanup from the later `fix/tui-cleanup-slice` worktree reinforced the same direction from below the renderer:
+The canonical state-cleanup prerequisites from the later `fix/tui-cleanup-slice` direction are now largely landed, which narrows the remaining work:
 
-- `query.filters.parts` should remain the canonical TUI structured-query representation
-- search-screen and filter-explorer code should avoid carrying parallel legacy state for subcategory, level range, rarity, action cost, and metadata when those concepts can be derived from query parts
-- filter-explorer compose state should converge on one canonical draft shape instead of carrying side-channel compatibility fields
+- `query.filters.parts` is already the canonical TUI structured-query representation
+- search/filter-explorer state cleanup is already tracked as landed historical context rather than open architectural work
+- the remaining gap is the live workspace/document layer, not the old canonicalization work
 
 ## Desired Outcome
 
@@ -40,9 +40,7 @@ That future implementation should provide:
   - summary/document modeling
   - visible editor row rendering
 
-The summary model should be useful both for the current search editor and for future document-style rendering work.
-
-That work should build on cleaner canonical state ownership rather than introducing a richer summary/document layer on top of duplicated or transitional search-editor state.
+The summary model should be useful both for the current search editor and for future document-style rendering work, and it should build on the now-landed canonical state ownership instead of recreating transitional compatibility layers.
 
 ## Constraints
 
@@ -74,13 +72,13 @@ The main useful idea from that worktree was a separate structured-query summary 
 
 ### Supporting cleanup direction
 
-The later dirty worktree `fix/tui-cleanup-slice` did not primarily add a summary model, but it did preserve a useful prerequisite direction:
+The later dirty worktree `fix/tui-cleanup-slice` preserved a useful prerequisite direction, and that prerequisite is now largely landed:
 
 - keep `query.filters.parts` as the only canonical structured-query representation on the TUI side
 - stop carrying extra TUI-only compatibility fields when the same information can be derived from query parts
 - reduce the compatibility gap between search query state and filter-explorer compose state
 
-That direction is now tracked separately in [Search filter explorer draft canonicalization](./search-filter-explorer-draft-canonicalization.md), but it is worth calling out here because the summary model will be cleaner and more durable if it builds on that canonical state shape instead of compensating for duplicate editor-era representations.
+That direction is now tracked as done historical context in [Search filter explorer draft canonicalization](./search-filter-explorer-draft-canonicalization.md). What remains here is the missing summary/document layer on top of that canonical state.
 
 ### Why the idea matters
 
@@ -110,7 +108,7 @@ A future implementation should likely start by deciding where the summary model 
 - search-screen workspace modules should own editor-facing summary-to-row rendering
 - the summary layer should sit between those two concerns
 
-If canonical query-state cleanup is still pending, do not bury that cleanup inside renderer code. Either land the state-shape cleanup first or make it an explicit sub-step of the summary-model work so the summary layer does not become another compatibility owner.
+Do not re-open the already-landed canonical state cleanup inside renderer code. The summary layer should sit on top of the existing canonical state instead of becoming another compatibility owner.
 
 One likely shape is:
 
