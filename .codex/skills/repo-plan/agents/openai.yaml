@@ -1,0 +1,4 @@
+interface:
+  display_name: "Repo Plan"
+  short_description: "Plan repo work with backlog and orchestration"
+  default_prompt: "Use $repo-plan to create or refine an execution-ready plan for this repository, including a new scratch plan file, relevant backlog intent, required architecture docs, orchestration slices, validation, and the main-vs-worktree boundary."

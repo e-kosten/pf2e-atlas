@@ -1,9 +1,9 @@
 ---
-name: pf2e-repo-plan
-description: Use when planning implementation work in this repository. This skill is for repo-specific planning workflow: shaping work on main without commits, writing a new scratch/plans file, grounding the plan in existing backlog intent or creating a new backlog item, reading the relevant architecture docs first, using sub-agent orchestration for large-task research and validation, and producing an execution-ready plan that encodes slices, docs follow-through, validation, worktree usage, and end-state checks.
+name: repo-plan
+description: "Use when planning implementation work in this repository. This skill is for repo-specific planning workflow: shaping work on main without commits, writing a new scratch/plans file, grounding the plan in existing backlog intent or creating a new backlog item, reading the relevant architecture docs first, using sub-agent orchestration for large-task research and validation, and producing an execution-ready plan that encodes slices, docs follow-through, validation, worktree usage, and end-state checks."
 ---
 
-# PF2E Repo Plan
+# Repo Plan
 
 Use this skill when the user wants planning work for this repository rather than immediate implementation.
 
